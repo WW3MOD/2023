@@ -11423,7 +11423,7 @@ validate bot-module trait fields" and generalised from two commands to all of th
 the direction that matters: it would have told a future author that `make test` cannot catch a typo'd
 AI field, when it can.
 
-**`FieldLoader.UnknownFieldAction` is bound at `CheckYaml.cs:65`, BEFORE the branch**, so it is armed
+**`FieldLoader.UnknownFieldAction` is bound at `CheckYaml.cs:66`, BEFORE the branch**, so it is armed
 in both modes. The difference is what each mode then evaluates:
 
 * **Pathless** (`./utility.sh --check-yaml`, no map argument) calls
@@ -11437,8 +11437,23 @@ in both modes. The difference is what each mode then evaluates:
 
 **Measured**, by inserting a bogus `MaxAirDangerTYPO` field into a live `ai.yaml` module block: both
 `--dump-balance-json` and `--check-yaml ../mods/ww3mod/maps/arena-tank-duel` (8.5 s) returned **exit
-0** and reported nothing. The pathless form was NOT run to confirm the positive case — it takes over
-an hour — so the "pathless catches it" half is read from source, not observed.
+0** and reported nothing.
+
+The positive case is stated without hedging, because the chain is complete in source: the binding at
+`:66` precedes the branch; `:74` passes `modData.DefaultRules` as an argument, and evaluating it forces
+the ruleset load that constructs every `TraitInfo`, the `Player` actor's included (`Ruleset.cs:126`);
+and `Makefile:254` invokes the pathless form. **`make test` catches a misspelled field on a bot
+module.** (An earlier revision of this entry hedged this as "read from source, not observed" — the
+hedge was about the wrong half. What was never observed is a typo being *caught*; that the pathless
+form is the one which lints the default ruleset is not in doubt.)
+
+**The runtime is the whole tradeoff, so record it next to the coverage.** The pathless form lints
+every system map as well as the default ruleset, and takes **order of an hour** — measured here at
+39m58s on an M-series Mac (75,913 lines of output; exit 0). The map-scoped shortcut is ~8.5 s and `--dump-balance-json` a
+few seconds. That gap is almost certainly *why* this project's working merge gate drifted to
+`make all` + NUnit + `--dump-balance-json`: the lint pass was not judged unnecessary, it was judged
+slow. Anyone re-deriving that gate should see the cost being traded rather than conclude the gate was
+simply wrong.
 
 **Practical rule:** the fast per-map shortcut and `--dump-balance-json` are not substitutes for
 `make test` when you have added or renamed a trait field. They are still worth running — the latter
@@ -11579,3 +11594,68 @@ the prose is false): `test-dry-inrange-idle-oscillation:21` calls 250 ticks "10s
 Pinned by `engine/OpenRA.Test/OpenRA.Mods.Common/AutotestTickRateTest.cs`: the constant, the mod's
 default `Timestep`, the engine's integer rate, and both scenarios' arithmetic. Verified RED at 16 (3
 failures) and at 16.667 (2 failures) before restoring 25.
+`make test` when you have added or renamed a trait field, or removed an inherited trait. They are
+still worth running — `--dump-balance-json` catches load-order and resolution failures neither of the
+others reach, and it is the only one of the three that is fast enough to run on every edit — but a
+delta that touches AI YAML or actor inheritance has not been linted until the pathless form has seen
+it. If you must skip it, cross-check the block's keys against the `Info` class's `public readonly`
+fields by hand, and expect the lint pass to have opinions about conditions left unconsumed by a
+removed trait.
+
+## 2026-08-27 — `StancePositioningExecutor` cannot touch a unit that is mid-activity
+
+Reusable and load-bearing well beyond drone operators, and it cost two reviewers and an incorrect
+ruling to establish, because everyone reasoned about this trait from its *purpose* rather than its
+reachability.
+
+**The trait has exactly one mover:** `self.QueueActivity(new Move(...))` at
+`StancePositioningExecutor.cs:414`. That line sits **inside `INotifyIdle.TickIdle`** (`:277-415`),
+which the engine invokes only when `CurrentActivity == null`, and which guards itself a second time at
+`:283` with `if (self.CurrentActivity != null) return;`. There is no other `QueueActivity` or `Move`
+site in the file.
+
+**Therefore the executor can only ever reposition an IDLE unit.** Any unit holding a long-running
+activity is untouchable by it for as long as that activity lasts. Concretely for the drone operator:
+while a drone is airborne the operator holds its `Attack` activity (the launch revokes `loaded`,
+`CarrierMaster.cs:161-162`, pausing the sole armament, which is exactly the condition that makes the
+activity hold), so the executor **cannot** move it and **cannot** cause the `moving` → `TraitPaused` →
+`Recall()` chain that would destroy the sortie. The plausible-sounding failure "the positioning layer
+walks the operator off station and loses the drone" is unreachable.
+
+**What the executor CAN still do to such a unit is touch the ledger**, and that is a separate reach:
+`CommitManagement` overwrites the `PoiGoalGuard` entry with `tacpos:` and `ReleaseManagement` calls
+`Ledger.Release(self)` unconditionally, never consulting `IsCommitted`. `GoalGuardLedger.Release` is
+keyed on the ACTOR, not on the objective, so it deletes whatever claim the actor holds regardless of
+who wrote it. That is a general hazard for any module claiming a unit the executor also manages — not
+a drone-specific bug.
+
+**Practical consequence when reasoning about this trait:** ask whether the unit is idle before
+believing any claim about the executor moving it. For units that hold long activities the movement
+risk is nil and only the ledger interaction is real.
+
+**The general trap that produced this, worth naming separately:** a trait's `RequiresCondition` tells
+you when it is ENABLED, not when it ACTS. Two reviewers and a ruling reasoned about what this trait
+does to a drone operator from its gating condition alone, and all three got it wrong in the same
+direction, because the gate says nothing about `INotifyIdle` being the only entry point. When the
+question is "can this trait do X to this unit", find the call site of X, not the condition.
+
+### Verifying a condition-gating change: get all three arms
+
+Narrowing `^DR`'s executor gate to the human token produced a clean worked example of how to check
+that a condition still reaches its consumer, using `make test`'s unconsumed-condition warning as the
+instrument. All three arms were observed rather than assumed:
+
+* **Broken-and-detected (positive arm).** With the executor removed outright from `^DR`, both grants
+  were orphaned and `make test` reported `dr.america` / `dr.russia` granting
+  `enable-ai-experimental, enable-tactical-positioning` unconsumed. This is what proves the check can
+  see the failure at all — without it, a clean run means nothing.
+* **Fixed.** With the executor retained but gated to `enable-tactical-positioning` and the bot grant
+  dropped, **zero** unconsumed entries name either token anywhere in the log.
+* **Never-broken (control).** On clean `main` at `e36ab29a`, with none of this branch present, `dr`'s
+  unconsumed list is byte-for-byte the same residual as the fixed arm. So the fixed run reproduces the
+  control exactly rather than merely resembling a healthy one.
+
+The residual on all three arms is `light-damage-attained, medium-damage-attained, stance-holdfire,
+stance-ambush, stance-fireatwill` — carried by **311 distinct actors** mod-wide and unrelated to any of
+this. **The member ORDER of that list varies between occurrences within a single log** (it recurs once
+per map) while the set is stable: compare these warning lines as sets, never by text diff.

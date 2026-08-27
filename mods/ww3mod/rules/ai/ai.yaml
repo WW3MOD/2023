@@ -870,6 +870,23 @@ Player:
 		# Slow by design: a sortie is ~80s end to end (3s FireDelay + 60s loiter + 9s rearm + 12s
 		# BurstWait) at the real 16.667 ticks/s, so a faster cadence cannot start more sorties and
 		# only risks disturbing a parked operator.
+		# ===== THIS INTERVAL IS RACING THE ENGINE'S OWN AUTO-RELAUNCH, AND CURRENTLY WINS =====
+		# WRITE THIS DOWN BECAUSE NOTHING ASSERTS IT. The module does not clear the held Attack
+		# activity; it replaces it by issuing a fresh unqueued ForceAttack. Left alone, the engine
+		# re-fires that held activity at the OLD cell by itself, so the module must get an evaluation
+		# in during the window where the operator is docked and has not yet successfully relaunched.
+		# The arithmetic, from dock at T:
+		#   T+0    PickupSlave sets IsLaunched=false, RearmTicks=150, re-grants `loaded`
+		#          (CarrierMaster.cs:263-272) => the armament unpauses and the held activity fires.
+		#   T+50   FireDelay elapses, Attacking() runs, GetLaunchable() finds RearmTicks ~100 > 0 and
+		#          returns null (:238-247, :142-144). The shot is WASTED — and note `loaded` is NOT
+		#          revoked, because the revoke at :161-162 sits after that early return.
+		#   T+250  BurstWait: 200 expires, the next shot goes.
+		#   T+300  Attacking() runs again with RearmTicks at 0 and the drone actually launches.
+		# So the module has ~300 ticks of docked window against a 200-tick cadence, and an evaluation
+		# always lands inside it. THE MARGIN IS 100 TICKS AND IT IS NOT ENFORCED ANYWHERE: lower
+		# RearmTicks (^DR) or BurstWait (DroneTargeter), or raise this interval, and the guarantee
+		# disappears silently — the symptom would be a drone that keeps re-flying its first cell.
 		ReevaluateInterval: 200
 		OperatorActorTypes: dr.america, dr.russia
 		# Must exceed ReevaluateInterval with headroom: a commitment that lapses between two evals is

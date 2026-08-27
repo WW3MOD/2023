@@ -157,10 +157,17 @@ namespace OpenRA.Mods.Common.Traits
 		/// held activity (Actor.QueueActivity(false, …) calls CancelActivity first). So: re-order to
 		/// move the post, stay silent to keep it.
 		///
-		/// settleTicks guards the FireDelay window. The spawn is a delayed action owned by the
-		/// Armament, not by the activity, so re-ordering inside that gap does not cancel the pending
-		/// launch — it just aims the operator somewhere else while the drone still departs for the old
-		/// cell. Leaving the order alone until it has resolved keeps the two in agreement.
+		/// settleTicks guards the FireDelay window: the spawn is a delayed action owned by the Armament,
+		/// not by the activity, so re-ordering inside that gap does not cancel the pending launch — it
+		/// just aims the operator somewhere else while the drone still departs for the old cell.
+		///
+		/// BE CLEAR ABOUT WHAT ACTUALLY PROTECTS THAT WINDOW TODAY: it is NOT this parameter. The
+		/// caller stamps OrderedTick from the tick captured in its evaluation, and evaluations are
+		/// exactly ReevaluateInterval apart, so ticksSinceLaunchOrder is always ReevaluateInterval at
+		/// the shipped cadence and this branch is unreachable. The real invariant is
+		/// ReevaluateInterval (200) > FireDelay (50), which nothing asserts. settleTicks is insurance
+		/// that keeps the rule correct if the cadence is ever lowered, not a live guard — do not read
+		/// its presence as evidence the window is defended.
 		/// </summary>
 		public static bool ShouldRetask(
 			bool hasStandingOrder,

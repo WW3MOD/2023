@@ -160,9 +160,12 @@ namespace OpenRA.Mods.Common.Traits
 			// and ReleaseManagement calls Ledger.Release(self) unconditionally, without ever reading
 			// IsCommitted. On a 200-tick evaluation cadence that leaves the operator unclaimed — and
 			// so recruitable by the offence FSM — for up to 200 ticks. A dictionary write per tick is
-			// far cheaper than that exposure. It does NOT make the claim safe on its own, which is why
-			// the executor is also removed from ^DR in YAML; this is the second layer, not the fix.
-			RefreshClaims(bot);
+			// far cheaper than that exposure. It narrows the window rather than closing it, which is
+			// why the executor is also gated off for BOT-owned operators in YAML (^DR narrows its
+			// RequiresCondition to the human token); this is the second layer, not the fix. The hazard
+			// is general, not drone-specific: GoalGuardLedger.Release is keyed on the ACTOR, not the
+			// objective, so it deletes whatever claim the actor holds regardless of who wrote it.
+			RefreshClaims();
 
 			if (--reevalCountdown > 0)
 				return;
@@ -171,7 +174,7 @@ namespace OpenRA.Mods.Common.Traits
 			Reevaluate(bot);
 		}
 
-		void RefreshClaims(IBot bot)
+		void RefreshClaims()
 		{
 			if (goalGuard == null || claimed.Count == 0)
 				return;
@@ -369,8 +372,24 @@ namespace OpenRA.Mods.Common.Traits
 
 			var opCell = op.Location;
 			var target = ChooseTargetCell(opCell, maxHover, contacts, pois);
+
+			// TWO DIFFERENT BUGS SHARE ONE SYMPTOM — "no second sortie" — and the live match cannot
+			// tell them apart without this. Either no cell was eligible at all (every square in the
+			// disc fresher than MinStalenessTicks, or beyond MaxPoiDistanceCells from any POI, or over
+			// MaxAirDanger), or a cell WAS chosen and ShouldRetask declined to re-order it. The first
+			// is the one to suspect: a suppression cannot cause a missing second sortie, because at
+			// the first evaluation inside the docked window the drone has just spent the whole loiter
+			// on the previous cell, so that cell is far fresher than MinStalenessTicks and stays
+			// retired — it cannot win the argmax and so cannot be the cell that gets suppressed.
+			// Bounded output by construction: at most UnitLimits (2) lines per ReevaluateInterval.
 			if (target == null)
+			{
+				Log.Write("debug",
+					$"[drone] player={player.PlayerName} op={op.ActorID} no-eligible-cell "
+					+ $"hover={maxHover} covered={covered.Count} minstale={Info.MinStalenessTicks}");
+
 				return;
+			}
 
 			var targetCell = target.Value;
 			var distance = (targetCell - opCell).Length;
@@ -391,6 +410,16 @@ namespace OpenRA.Mods.Common.Traits
 			// each time `loaded` returns, so an untouched operator keeps flying to the same cell — a
 			// fixed post rather than a sweep. Ordering a DIFFERENT cell is what moves the post, and an
 			// unqueued order clears the held activity on the way in (Actor.QueueActivity(false, …)).
+			// THIS IS A LATCH, AND LATCHES ARE WHAT FIX 1 WAS ABOUT — so its limit is written down.
+			// `sorties[op]` is cleared only when the operator dies/leaves or goes dry. If a third party
+			// destroys the Attack activity without either happening — a "Stop" from elsewhere, a human
+			// taking control, or ControlAllUnitsManager skipping the order at ModularBot.cs:259-260
+			// AFTER QueueOrder already returned true — this module still believes its old cell is a
+			// standing order. It cannot cause a MISSING second sortie (that cell is retired in `covered`
+			// and cannot win the argmax while it is fresh), but once it retires and later re-wins,
+			// sameCell would suppress a re-order for an order that is not actually running. The window
+			// is narrow now that the positioning layer is gated off for bot-owned ^DR, and left as a
+			// known latch rather than fixed with an activity-liveness check bolted on late.
 			sorties.TryGetValue(op, out var sortie);
 			var sameCell = sortie != null && sortie.OrderedCell == targetCell;
 			var sinceOrder = sortie != null ? tick - sortie.OrderedTick : int.MaxValue;
@@ -411,6 +440,17 @@ namespace OpenRA.Mods.Common.Traits
 			// orders, and a launch queued behind something else is a launch from an unknown position.
 			if (bot.QueueOrder(new Order("ForceAttack", op, Target.FromCell(world, targetCell), false)))
 			{
+				// THE SETTLING OBSERVATION. The one thing that decides whether the retask path works is
+				// the number of DISTINCT target cells issued per operator over a match: one means the
+				// module launched once and the engine re-flew that cell forever; two or more means
+				// re-tasking works. That cannot be read from a unit test — the defect this replaced
+				// lived between the pure math and the static order chain, invisible to both — and it
+				// cannot be read from the null-case line below either, so the issue side is logged too.
+				// Count distinct `cell=` values per `op=` to settle it.
+				Log.Write("debug",
+					$"[drone] player={player.PlayerName} op={op.ActorID} launch cell={targetCell.X},{targetCell.Y} "
+					+ $"dist={distance} retask={(sortie != null ? "yes" : "first")} tick={tick}");
+
 				covered.Add(targetCell);
 
 				if (sortie == null)
@@ -421,10 +461,20 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		// The `moving` condition, read from the same source that grants it:
-		// GrantConditionOnMovement matches ValidMovementTypes, which defaults to
-		// { Horizontal, Vertical } and deliberately EXCLUDES Turn — so an operator rotating onto its
-		// target is stationary for our purposes and does not pause CarrierMaster.
+		// Reads the same INPUT as the `moving` condition, with deliberately different semantics —
+		// this is NOT a re-implementation of that condition, and describing it as one would be wrong.
+		// GrantConditionOnMovement tests Info.ValidMovementTypes.Contains(types) — SET MEMBERSHIP on
+		// the whole flags value (GrantConditionOnMovement.cs:65) — so with the default
+		// { Horizontal, Vertical } it grants `moving` only when CurrentMovementTypes is EXACTLY
+		// Horizontal or EXACTLY Vertical. Mobile.UpdateMovement ORs Turn in whenever facing changed on
+		// the same tick (Mobile.cs:383-395), so a walking-and-turning operator is Horizontal|Turn,
+		// which is NOT in that set and therefore does NOT grant `moving`.
+		// The bitmask below calls that case moving; the condition does not. THE DIVERGENCE IS ONE-WAY
+		// AND DELIBERATELY ON THE SAFE SIDE: we occasionally decline a launch window that would in fact
+		// have been legal, and we never launch into a state where CarrierMaster is about to pause and
+		// Recall(). A missed window costs one evaluation cycle; a launch into a recall costs the
+		// sortie. Turn-only (a stationary operator rotating onto its target) is correctly reported
+		// stationary by both.
 		static bool IsStationary(Actor op)
 		{
 			var move = op.TraitOrDefault<IMove>();

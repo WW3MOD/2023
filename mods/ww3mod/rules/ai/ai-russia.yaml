@@ -158,9 +158,9 @@ Player:
 			# Ordering is readable, not unknown: floorTypes is ordinal-sorted
 			# (UnitBuilderBotModule.cs:529) and ChooseBelowFloor takes the first type under its floor
 			# (:1293), so aa.russia < dr.russia < medi.russia — the operator is bought BEFORE the
-			# medic when both are short. Under a lobby-selected platoon start that makes it the opening
-			# support call-in; accepted for the same reason as America (see that file), where the full
-			# argument lives.
+			# medic when both are short. Under a lobby-selected platoon start that would make it the
+			# opening support call-in — GUARDED by UnitDelays.dr.russia below rather than tolerated;
+			# see ai-america.yaml, where the full argument lives.
 			dr.russia: 8
 		# Denominator: every non-medic infantry type, matching the medi share derivation in ai-america.yaml so
 		# the floor and the 17-per-mille share express ONE ratio rather than two. aa.russia deliberately has
@@ -177,6 +177,15 @@ Player:
 		# contact).
 		UnitDelays:
 			aa.russia: 2000
+			# Platoon-start guard for the drone operator — mirror of ai-america.yaml, where the full
+			# argument lives. Short version: UnitDelays is an absolute world-tick opening consulted by
+			# the floor lane too (UnitBuilderBotModule.cs:1302), and it is the only instrument that can
+			# outrank a floor pre-empt. It costs exactly zero under the shipped
+			# StartingUnitsClass = "none", because the denominator starts at 0 and eight supported line
+			# infantry cannot be standing on the map within 300 ticks (18 s at 16.667 ticks/s). It
+			# binds only under a lobby-selected platoon start, where the denominator opens at 11 and
+			# the operator would otherwise be the opening support call-in ahead of the first medic.
+			dr.russia: 300
 		# Early-econ behaviour 1: don't call in the FIRST truck while no fielded unit needs ammo. After that
 		# truck exists the standing reserve below governs alone and this no longer binds (user ruling
 		# 2026-08-17 — full reasoning in ai-america.yaml's SupplyTruckFloorPer block).

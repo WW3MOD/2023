@@ -254,18 +254,20 @@ Player:
 			# (UnitBuilderBotModule.cs:529) and ChooseBelowFloor returns the FIRST type under its floor
 			# (:1293). Ordinal on this twin gives aa.america < dr.america < medi.america, so when
 			# several are below floor at once THE DRONE OPERATOR IS BOUGHT BEFORE THE MEDIC. aa is held
-			# off separately by UnitDelays: 2000, which leaves dr first in practice for the first ~80s.
-			# THE PLATOON-START CONSEQUENCE, ACCEPTED DELIBERATELY: under the shipped default
-			# StartingUnitsClass = "none" (SpawnStartingUnits.cs:25, unoverridden in any mod YAML) the
-			# denominator is 0 at t=0 and no positive ratio can fire, so the opening call-ins are line
-			# infantry. But with a LOBBY-SELECTED platoon start the denominator opens at 11, giving
-			# min(2, 11/8) = 1 immediately — and combined with the ordinal ordering above, the drone
-			# operator becomes the opening support call-in, AHEAD of the first medic. That is the exact
-			# shape this comment block exists to prevent, and it is accepted rather than overlooked:
-			# a platoon start means a squad already exists, so unlike the t=0 medic there IS something
-			# to scout for, and the cap of 2 bounds the cost at 300. If it proves wrong in play the
-			# guard is a UnitDelays entry for dr, not a larger denominator (which would re-introduce
-			# the inertness cliff).
+			# off separately by UnitDelays: 2000, i.e. 120 s at the real 16.667 ticks/s.
+			# THE PLATOON-START EXPOSURE IS GUARDED, NOT TOLERATED — see UnitDelays.dr.america below.
+			# Under the shipped default StartingUnitsClass = "none" (SpawnStartingUnits.cs:25,
+			# unoverridden in any mod YAML) the denominator is 0 at t=0 and no positive ratio can fire,
+			# so the opening call-ins are line infantry regardless. But with a LOBBY-SELECTED platoon
+			# start the denominator opens at 11, giving min(2, 11/8) = 1 immediately — and combined
+			# with the ordinal ordering above, the drone operator would be the opening support call-in,
+			# AHEAD of the first medic. An earlier revision of this block argued that was tolerable
+			# because a platoon start means there IS something to scout for. That reasoning missed the
+			# surrounding block's actual objection, which was never "nothing to scout": it is that the
+			# floor pre-empt OUTRANKS the target ceiling and every demand gate, so a cheap floored type
+			# is GUARANTEED to be the opening buy rather than merely allowed to be. This defect has
+			# shipped twice in this file already. The guard below is one-sided and costs nothing, so it
+			# is taken instead of the argument.
 			# NOT MEASURED, STATED PLAINLY: --composition-plan models only UnitTargetShares members,
 			# and this type is deliberately not one, so the replay CANNOT report dr's own buy sequence
 			# or first-buy cycle — only the shared denominator above is measured. The live infantry
@@ -287,7 +289,7 @@ Player:
 		# READ THIS AS A HARD BAN, NOT AS FLOOR SCHEDULING. UnitDelays is consulted at all THREE call-in sites —
 		# BuildUnit, IsCompositionCandidateEligible and ChooseBelowFloor — so before tick 2000 no AA soldier can
 		# be called in by ANY lane: not the floor, not the deficit pick, not an external request. It is a
-		# capability ban on the type for the first ~80 seconds, not merely a delayed floor.
+		# capability ban on the type for the first 120 seconds, not merely a delayed floor.
 		# WHY THAT IS THE RIGHT CALL: `^AA` carries exactly ONE armament (MANPAD, `ValidTargets: Air`) and
 		# inherits ^AutoTargetAir, so an AA soldier CANNOT engage ground at all, and BOTH factions gate every
 		# attack helicopter behind `UnitDelays: 2500` (`ai.yaml` heli/littlebird/hind/mi28). Tick 2500 is
@@ -295,14 +297,36 @@ Player:
 		# so an AA soldier bought before 2000 is strictly wasted budget with nothing it could legally shoot.
 		# 2000 is derived from that gate, not guessed. A medic is useful from first contact, so it has no delay.
 		# THE COST, STATED: the starting platoon ships ZERO AA soldiers, so the shipped behaviour against the
-		# user's "there is always an AA soldier or two on the field" is honestly "NONE for the first ~80
+		# user's "there is always an AA soldier or two on the field" is honestly "NONE for the first 120
 		# seconds, then two". That is a deliberate trade of early coverage for early tempo, not an oversight.
+		# (Corrected 2026-08-27 from "~80 seconds": 2000 ticks is 120 s at the real 16.667 ticks/s. The
+		# 80 s reading is the 25-tps error CLAUDE.md tracks — the tick COUNT and the derivation from the
+		# 2500 heli gate are both unaffected, only the seconds gloss was wrong.)
 		# SCOPE: this bounds a BOT opponent. A human can rush a helicopter earlier and this does not protect
 		# against that. The follow-up the user asked for is a COMPUTED time-to-threat (enemy income vs airframe
 		# cost, plus flight time from their SR to ours) rather than a static tick; filed with the build-order
 		# design.
 		UnitDelays:
 			aa.america: 2000
+			# ===== THE PLATOON-START GUARD, AND IT IS FREE =====
+			# UnitDelays is an ABSOLUTE world-tick opening, consulted at all three call-in sites
+			# including the floor lane (ChooseBelowFloor, UnitBuilderBotModule.cs:1302), so it is the
+			# one instrument that can outrank a floor pre-empt.
+			# WHY IT COSTS EXACTLY ZERO IN THE SHIPPED CONFIGURATION: StartingUnitsClass defaults to
+			# "none", so the UnitFloorPer denominator starts at 0 and the floor cannot fire until eight
+			# supported line infantry are STANDING ON THE MAP. 300 ticks is 18 s at 16.667 ticks/s, and
+			# eight call-ins cannot walk in from the map edge in 18 s. The guard therefore binds in
+			# exactly one situation — a lobby-selected platoon start, where the denominator opens at 11
+			# and the floor would otherwise fire at t=0 — and in no other.
+			# THAT ONE-SIDEDNESS IS THE WHOLE ARGUMENT. A guard that cannot cost anything under the
+			# default is strictly better than a paragraph explaining why the exposure is tolerable,
+			# which is what this block used to contain.
+			# NOT the alternative fix: raising the UnitFloorPer denominator would also delay the
+			# opening buy, but it re-introduces the inertness cliff (see the 8-not-12 derivation above)
+			# and would trade a bounded platoon-start quirk for "never built at high attrition".
+			# 300 is a floor-clearing constant, not a tuned one — it is deliberately the smallest round
+			# value that cannot be reached under the default start, rather than a measured optimum.
+			dr.america: 300
 		# Early-econ behaviour 1: don't call in the FIRST truck while no fielded unit needs ammo. After that
 		# truck exists the standing reserve below governs alone and this no longer binds (user ruling
 		# 2026-08-17 — see the SupplyTruckFloorPer block for the split and why it is a split).

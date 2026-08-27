@@ -2366,23 +2366,42 @@ TECN:
 		Cost: 150
 	AutoTarget:
 		ScanRadius: 25
-	# ===== THE OPERATOR MUST NOT BE AUTO-REPOSITIONED =====
-	# A sortie needs this man to stand still for the whole 60s loiter: CarrierMaster below is
-	# PauseOnCondition "moving", and TraitPaused calls SetConnection(false) AND Recall()
-	# (CarrierMaster.cs:318-322), so ANY movement mid-sortie destroys it outright. The tactical
-	# positioning executor exists to walk idle combatants to better ground — for every other unit an
-	# improvement, for this one the single most destructive thing that can happen to it.
-	# IT ALSO DELETES THE BOT'S CLAIM ON THIS UNIT. StancePositioningExecutor never reads
-	# Ledger.IsCommitted: CommitManagement overwrites the entry with `tacpos:` and ReleaseManagement
-	# calls Ledger.Release(self) unconditionally — dropping the `drone:` commitment that is the ONLY
-	# thing keeping PoiOffensiveBotModule from recruiting a 150-cost unarmoured specialist into an
-	# assault wave (its ExcludeUnitTypes is inert while UseUnitRoles is true). And it moves via
-	# self.QueueActivity rather than an Order, so BotOrderGate is blind to it by construction.
-	# SCOPE: this also removes the trait for a HUMAN-owned operator, where it is gated by
-	# enable-tactical-positioning. Deliberate, and the same fix — auto-repositioning a human's operator
-	# would recall their drone just as surely. @stable satisfies neither gate, so the trait was already
-	# inert there and this cannot move the benchmark.
-	-StancePositioningExecutor:
+	# ===== THE POSITIONING LAYER IS TURNED OFF FOR BOT-OWNED OPERATORS ONLY =====
+	# THE DEFECT IS BOT-SIDE, SO THE FIX IS BOT-SIDE. StancePositioningExecutor never reads
+	# Ledger.IsCommitted: CommitManagement overwrites the ledger entry with `tacpos:` and
+	# ReleaseManagement calls Ledger.Release(self) UNCONDITIONALLY, dropping whichever claim the actor
+	# holds. For a drone operator that claim is `drone:`, and it is the only thing keeping
+	# PoiOffensiveBotModule from recruiting a 150-cost unarmoured specialist into an assault wave
+	# (its ExcludeUnitTypes is inert while UseUnitRoles is true) and LaneAmbushBotModule from posting
+	# it into Ambush stance, which suppresses auto-fire and would silence the jammer. The executor
+	# moves via self.QueueActivity rather than an Order, so BotOrderGate cannot see it either.
+	# Neither thief touches a human-owned unit, so a human owner has no such defect to fix.
+	# WHY NOT REMOVE THE TRAIT OUTRIGHT, which an earlier revision of this block did: it would have
+	# changed behaviour for a HUMAN-owned operator to buy protection against something that cannot
+	# happen. The executor's ONLY mover is `self.QueueActivity(new Move(...))` at
+	# StancePositioningExecutor.cs:414, which sits inside INotifyIdle.TickIdle (:277-415) and is
+	# guarded again at :283 by `if (self.CurrentActivity != null) return;`. An operator with a drone
+	# in the air is holding its Attack activity and is therefore NEVER idle, so the executor cannot
+	# reposition it mid-sortie and cannot recall its drone. It could only ever move a DOCKED operator,
+	# where Recall() finds no launched slave and does nothing. Humans keep exactly what they have.
+	# HOW THE GATE WORKS. RequiresCondition is narrowed from the inherited
+	# `enable-tactical-positioning || enable-ai-experimental` (defaults.yaml:61) to the human token
+	# alone, and the bot-owner grant is dropped below. The sole granter of `enable-tactical-positioning`
+	# anywhere in the mod is GrantConditionOnHumanOwner@tacpos (defaults.yaml:77-78), whose predicate is
+	# `Owner.Playable && !Owner.IsBot` (GrantConditionOnHumanOwner.cs:43) — there is no player-level or
+	# lobby-level grant of it, so a bot-owned operator has no route to the condition and the trait stays
+	# disabled for it. It is re-evaluated on owner change (INotifyOwnerChanged, :54-58), so a human who
+	# captures a bot's operator gains the layer and a bot that captures a human's loses it.
+	# @stable is unaffected: it satisfies neither token, so the trait was already inert there.
+	StancePositioningExecutor:
+		RequiresCondition: enable-tactical-positioning
+	# Dropped because nothing on this actor consumes `enable-ai-experimental` once the executor above
+	# no longer asks for it — ^DR inherits plain ^AutoTarget, not the artillery variants, so the
+	# ClusterTargetingCondition consumers at defaults.yaml:460,478 do not apply here. Left in place it
+	# is a per-actor trait doing work for nothing, and `make test` reports it as an unconsumed
+	# condition (a Warning, not an Error — CheckConditions uses emitWarning, Lint/CheckConditions.cs:70).
+	# The HUMAN grant is deliberately NOT dropped: the executor above is still its consumer.
+	-GrantConditionOnBotOwner@tacpos:
 	CarrierMaster:
 		PauseOnCondition: moving
 		Actors: quadcopterdrone
