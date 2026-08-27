@@ -11291,3 +11291,48 @@ broken: `AutoTargetPriorityInfo.ValidTargets` defaults to `Ground, Water, Air`
 the operator can already auto-acquire an enemy drone and fire `DroneJammer` through the generic band.
 Kept with a comment rather than deleted, because attaching it would **narrow** the operator to drones
 only, which is a behaviour change to make deliberately.
+
+## 2026-08-27 — The autotest harness has THREE tick bases, and the third is what breaks scenarios
+
+The known defect is that `TestHarness.TicksPerSecond = 25` (`test-helpers.lua:26`) while single-test
+runs play at `Timestep: 60` (`mod.yaml:382`). Confirmed as still live at `faac534a`, and confirmed to
+apply to **every** scenario: `Game.LoadMap` hardcodes the `"default"` speed unless `Test.GameSpeed`
+overrides it (`Game.cs:1184`) and `run-test.sh` never passes that. `Test.SpeedMultiplier` divides
+`world.Timestep` (`TestModeSpeedMultiplier.cs:40`) but is pure pacing — tick counts are unchanged — so
+it cannot rescue the conversion either.
+
+**The new finding is the third base.** `DateTime.Seconds(n)`, the engine's own Lua converter, computes
+`1000 / Timestep` in **integer** arithmetic (`DateTimeGlobal.cs:31`), yielding **16**, not 16.67. So
+the harness is 1.5× lenient against wall clock but **25/16 = 1.5625×** against `DateTime.Seconds`.
+Correcting the constant to the mathematically-exact 16.67 would therefore *open a new 4% divergence*
+against the engine converter of exactly the kind being closed. If the constant is ever corrected, the
+target is **16**, not 16.667.
+
+**Blast radius, measured statically (no launch).** 174 conversion call sites across 137 scenario files:
+**91 scale** with the constant, **8 are immune** because they round-trip (`AssertWithin(BudgetTicks /
+TestHarness.TicksPerSecond, …)`, the medic scenarios' idiom), and 65 more multiply through it directly.
+Authored deadlines run 1 s to 200 s; every one is 1.5× longer in wall clock than it reads.
+
+**Two scenarios provably stop passing the moment the constant moves, and this is arithmetic, not
+estimate.** `test-autotarget-preempt-air` sizes an outer `AssertWithin(10)` to cover a
+`DateTime.Seconds(4)` spawn delay (64 engine ticks) plus `DeadlineTicks = 110` — 174 ticks needed
+against 250 today. At 16.67 the outer becomes 166 and at 16 it becomes 160; both are **below 174**, so
+the scenario becomes structurally impossible to pass. Its own comment (`:141`) states the margin as
+`10 * 25 = 250 > 174`. `test-critical-no-panic` needs `25` setup ticks plus `ObserveTicks = 300` = 325
+raw ticks inside `AssertWithin(20)` — 500 today, **320 at 16 (red)**, 333 at 16.67 (green by 8 ticks).
+
+**Parts of the suite have adapted to the bug and depend on it.** Three scenarios document the 1.5× and
+deliberately keep it: `test-tunguska-missile-standoff:25` ("Left alone deliberately — correcting the
+helper would move every other scenario's deadline"), `test-depot-vacate-phantom:32` ("Generous on
+purpose"), `test-breakoff-mid-engagement:20`. Seven medic scenarios instead budget in ticks and divide,
+which round-trips exactly and is immune. The constant is no longer simply wrong — it is a de facto
+interface with 137 consumers, and at least one consumer's arithmetic inverts when it changes.
+
+**Comments that assert the wrong rate** (the values are raw ticks, so behaviour is unaffected — only
+the prose is false): `test-dry-inrange-idle-oscillation:21` calls 250 ticks "10s at 25 ticks/s" (really
+15 s), `test-critical-no-panic:10` calls 300 ticks "12s" (really 18 s), and
+`test-visual-concealment-gauge:45` computes `TimeToBeStill` 200 ticks as "8.0 seconds" when it is 12 s.
+
+Pinned by `engine/OpenRA.Test/OpenRA.Mods.Common/AutotestTickRateTest.cs`: the constant, the mod's
+default `Timestep`, the engine's integer rate, and both scenarios' arithmetic. Verified RED at 16 (3
+failures) and at 16.667 (2 failures) before restoring 25.
