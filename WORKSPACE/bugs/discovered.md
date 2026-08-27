@@ -3590,3 +3590,34 @@ running game.
   keyed on "this pool is being refilled" rather than on the serving condition, which is a UI change
   wanting its own look — see `DOCS/recipes/SCREENSHOT.md`, since the verdict is visual.
   (found while working on: metering the dock path)
+
+- [2026-08-27] [med] **KNOWN LIMIT, not bounded by reading: a docked client can be starved by a
+  persistently needier neighbour.** `SupplyProvider.CanSelect` deliberately ignores `currentTarget`
+  (contention is not a refusal — `UpdateTarget` re-picks by greatest need every `ScanInterval`), so
+  `Rearmable.RearmTick` stands down for a docked client the push arm owns but is not currently
+  serving. Entered with the deferral in `f8b424f6`; this branch owns it.
+  **What CAN be proved.** With a fixed client population and no re-emptying, service terminates:
+  `CalculateNeed` is `totalMissing / totalCapacity`, every served batch strictly reduces the served
+  client's missing count, and a client reaching full returns `NoDemand` and leaves the candidate set
+  altogether. That is a strictly decreasing potential, so the docked client is eventually greatest-need
+  and is served.
+  **What CANNOT.** The argument fails as soon as a competitor's need REGENERATES — infantry fighting
+  beside the Centre, emptying and refilling — because selection is a strict `need > bestNeed` and a
+  docked himars sits at a fixed 0.5 (one of two rounds, and it cannot fire while docked:
+  `PauseOnCondition: ... unit.docked`). Whether it is ever greatest then reduces to a RATE argument —
+  the aura arm fills an `ar` at 50 rounds per 6 ticks, far faster than a rifleman consumes — which
+  holds for one neighbour and is not obviously true for a squad of ten cycling, on a Centre kept
+  topped up by `AbsorbsSupplyCache`. That is a quantitative claim about unit counts and fire rates,
+  not a structural bound, and it is not settled here.
+  **Why it matters if it happens:** the starved client stays on its `Resupply` activity, so
+  `IsSeekingRearm` is true and `StarvingRecruitGate` withholds it from every bot module — the same
+  shape as the wedge fixed in `b29930e4`, but requiring contention rather than being the steady state.
+  **And nothing times it out.** `AutoSeekSupplies.ReturnErrandStallTicks` (300) covers only errands
+  that trait dispatched via `BeginWatching`, and that trait is on `^Soldier` alone — a vehicle
+  dispatched by `AutoRearmIfDry` or by a player order has no stall guard, and `Resupply` itself
+  carries no timeout.
+  **Deliberately NOT fixed:** a speculative guard here would change behaviour nobody has measured, and
+  the obvious ones are worse than the disease — reading `currentTarget` in `CanSelect` would make a
+  client abandon the dock merely because someone else was mid-batch, which is a new stranding shape.
+  Recorded as a known limit instead.
+  (found while working on: metering the dock path — reviewer flagged, reading could not settle it)

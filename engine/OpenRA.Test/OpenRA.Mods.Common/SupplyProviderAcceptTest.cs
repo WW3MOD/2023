@@ -41,9 +41,17 @@ namespace OpenRA.Test
 	/// SCOPE, stated honestly rather than implied. This is a STRUCTURAL pin. It does not construct a
 	/// provider, drive a serving cycle, or observe a garrisoned passenger being fed: that needs a live
 	/// Actor and World, and this test project has no such harness — every fixture here is pure logic
-	/// over structs or reflection over types. What it cannot catch is a range test smuggled in via the
-	/// Rearmable itself (rearmable.Self.CenterPosition is reachable in principle) or added to
-	/// CalculateNeed. The residual exposure is recorded rather than papered over.
+	/// over structs or reflection over types.
+	///
+	/// An earlier version of this note claimed a residual hole — a position still reachable through
+	/// rearmable.Self.CenterPosition. THERE IS NO SUCH MEMBER. Rearmable holds its Info and its pool
+	/// array and no actor reference; AmmoPool stores none either. Nothing admitted by the pinned
+	/// signature can reach a position by any route, and the false hole is deleted rather than left
+	/// standing, because a documented gap invites someone to widen the signature to close it.
+	///
+	/// What remains genuinely uncovered is narrow: a position obtained from provider state rather than
+	/// from the parameters (self.CenterPosition is in scope, since AcceptClient is an instance method),
+	/// or a new helper called from the accept path that takes an Actor of its own.
 	/// </summary>
 	[TestFixture]
 	public class SupplyProviderAcceptTest
@@ -73,17 +81,24 @@ namespace OpenRA.Test
 			var method = AcceptClient();
 			Assert.That(method, Is.Not.Null, "SupplyProvider.AcceptClient not found — see AcceptTestStillExists.");
 
-			var takesAnActor = method.GetParameters().Any(p => p.ParameterType == typeof(Actor));
+			// The WHOLE parameter list, not just "no Actor". Blocking one type is a guard against one
+			// slip: AcceptClient(Rearmable, WPos, out float) passes an Actor-only check and does the
+			// identical damage, and "pass the position in" is at least as natural a mistake as "pass the
+			// actor in". CPos and Target are the same story. Pinning the list closes the family.
+			var signature = method.GetParameters()
+				.Select(p => (p.ParameterType.IsByRef ? "out " : "") + p.ParameterType.Name.TrimEnd('&'))
+				.JoinWith(", ");
 
-			Assert.That(takesAnActor, Is.False,
-				"SupplyProvider.AcceptClient now takes an Actor, which puts a POSITION back in scope for " +
-				"the shared accept test. That breaks exactly one of its three callers, silently: the " +
-				"garrison sweep feeds soldiers sheltering inside a building, and those passengers are " +
-				"removed from the world with a stale CenterPosition, so any range or IsInWorld clause " +
-				"added here refuses all of them. There is no exception, no lint error and no failing " +
-				"scenario when that happens, because nothing in the autotest suite garrisons anyone — " +
-				"the clientele just disappears. Range belongs in IsValidTarget, which the aura sweep " +
-				"applies and the garrison sweep deliberately does not. Pass the Rearmable instead.");
+			Assert.That(signature, Is.EqualTo("Rearmable, out Single"),
+				"SupplyProvider.AcceptClient's parameters changed to (" + signature + "). This is the " +
+				"shared accept test, and anything that carries a POSITION — Actor, WPos, CPos, Target — " +
+				"breaks exactly one of its three callers, silently. The garrison sweep feeds soldiers " +
+				"sheltering inside a building; those passengers are removed from the world with a stale " +
+				"CenterPosition, so any range or IsInWorld clause added here refuses all of them. There " +
+				"is no exception, no lint error and no failing scenario when that happens, because " +
+				"nothing in the autotest suite garrisons anyone — the clientele just disappears. Range " +
+				"belongs in IsValidTarget, which the aura sweep applies and the garrison sweep " +
+				"deliberately does not. Keep the parameters to the Rearmable and the out need.");
 		}
 
 		[Test]

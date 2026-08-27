@@ -33,7 +33,7 @@ local pollCount = 0
 local supplyEverMoved = false
 local peakAmmo = 0
 local everDocked = false
-local departed = false
+local errandEnded = false
 
 WorldLoaded = function()
 	TestHarness.FocusBetween(Tank, Depot)
@@ -78,14 +78,26 @@ WorldLoaded = function()
 		if dy < 0 then dy = -dy end
 		local dist = dx > dy and dx or dy
 		if dist <= 2 then everDocked = true end
-		if everDocked and dist > 2 then departed = true end
+
+		-- THE DISCRIMINATOR IS IsIdle, NOT DISTANCE, and the first cut of this had it wrong twice over.
+		-- Nothing moves an undocked ground vehicle away from a Logistics Centre: OnResupplyEnding takes
+		-- the rally path only when rp.Path.Count > 0, the Centre declares a bare `RallyPoint:` whose
+		-- Path defaults to empty, and a vehicle is Repairable rather than RepairableNear — so it falls
+		-- to MoveToTarget(self, host), moving TOWARD the depot.
+		--
+		-- Worse, the correct outcome here is a tank that undocks AND THEN HOLDS. Dry beside a drained
+		-- but adjacent depot, AutoRearmIfDry reaches DecideAutoDisposition with anyHostWithinLeash
+		-- true, which returns HoldAndFlag — SupplyHuntMath's own comment calls that "the case this must
+		-- not fire on". So a distance test would have failed the tank for behaving exactly as designed.
+		if everDocked and not Tank.IsDead and Tank.IsIdle then errandEnded = true end
 
 		pollCount = pollCount + 1
 		if pollCount % 50 == 0 then
 			-- Live numbers belong here, never in the failure string, which Lua evaluates eagerly at
 			-- registration and would report the starting values forever.
-			print(string.format("[free-rearm] poll=%d ammo=%d peak=%d supply=%d docked=%s departed=%s",
-				pollCount, ammo, peakAmmo, supply, tostring(everDocked), tostring(departed)))
+			print(string.format("[free-rearm] poll=%d ammo=%d peak=%d supply=%d dist=%d docked=%s idle=%s ended=%s",
+				pollCount, ammo, peakAmmo, supply, dist, tostring(everDocked),
+				tostring(not Tank.IsDead and Tank.IsIdle), tostring(errandEnded)))
 		end
 
 		-- The refutation branch. SetSupply clamps to [0, TotalSupply] and nothing on this map can
@@ -113,9 +125,11 @@ WorldLoaded = function()
 				"returned", ammo, supply)
 		end
 
-		return departed
-	end, "The tank never left the depot. It correctly received nothing from a Centre holding zero, " ..
-		"then stayed docked instead of giving up — which is the wedge: combat-inert, IsSeekingRearm " ..
-		"true, withheld from every bot module. RearmTick must report the errand DONE when the host " ..
-		"cannot pay, rather than deferring forever.")
+		return errandEnded
+	end, "The tank's Resupply errand never ENDED. It correctly received nothing from a Centre holding " ..
+		"zero, then stayed on the activity instead of giving up — the wedge: combat-inert, " ..
+		"IsSeekingRearm true, withheld from every bot module. RearmTick must report the errand DONE " ..
+		"when the host cannot pay. NOTE the tank is EXPECTED to remain beside the depot even when " ..
+		"correct — it undocks and then holds, because a drained-but-adjacent host yields HoldAndFlag — " ..
+		"so the verdict is IsIdle, never distance.")
 end

@@ -729,7 +729,16 @@ namespace OpenRA.Mods.Common.Traits
 		/// the entire garrison clientele: no error, no failing scenario, because nothing exercises that
 		/// path in game. Prose does not stop that, so the parameter does: with no Actor there is no
 		/// position to test, and acquiring one means changing this signature, which is a deliberate act
-		/// rather than a one-line slip. <c>SupplyProviderAcceptTest</c> fails the build if it changes.</para>
+		/// rather than a one-line slip. <c>SupplyProviderAcceptTest</c> pins the whole parameter list, not
+		/// merely the absence of an Actor, because <c>WPos</c>, <c>CPos</c> and <c>Target</c> would each
+		/// do the identical damage and "pass the position in" is at least as natural a slip.</para>
+		///
+		/// <para>The guard is TIGHTER than an earlier version of this comment claimed. It said a position
+		/// remained reachable through <c>rearmable.Self.CenterPosition</c>; there is no such member.
+		/// <see cref="Rearmable"/> holds its Info and its pool array and no actor reference at all, and
+		/// <see cref="AmmoPool"/> stores none either — so nothing in this signature can reach a position
+		/// by any route. That false hole is removed rather than left standing, because a documented gap
+		/// invites the next reader to widen the signature in order to close it.</para>
 		/// </summary>
 		SupplyAcceptance AcceptClient(Rearmable rearmable, out float need)
 		{
@@ -802,16 +811,23 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		public bool CanSelect(Actor client)
 		{
-			if (IsTraitPaused || IsTraitDisabled || Restocking)
-				return false;
-
-			if (currentSupply <= 0)
-				return false;
-
-			if (Info.RemoveBelowSupply > 0 && currentSupply < Info.RemoveBelowSupply)
-				return false;
-
-			if (ReservesRemainderForRestock(currentSupply, Info.RestockThreshold, currentTarget != null, KeepServingBelowThreshold()))
+			// The serving ladder, ASKED rather than reproduced. The first cut of this method wrote the
+			// five guards out longhand and thereby created a FOURTH copy of them, in the very commit
+			// that removed the third copy of the accept test — CanServeNow's own doc says it exists "so
+			// a unit deciding whether to walk here can ask instead of reproducing the rule", and it was
+			// not asked.
+			//
+			// Not padding, either: LOGISTICSCENTER ships RestockThreshold 50 with no RestockActors and
+			// RemoveBelowSupply 0, so between 1 and 49 supply it reserves its remainder and serves
+			// nobody, permanently. An E3's 1-supply pool is "affordable" at 49, so dropping the
+			// ReservesRemainderForRestock rung would wedge him on shipped configuration.
+			//
+			// NOTE what is deliberately absent: !self.IsInWorld, which TickServing tests first.
+			// CanServeNow omits it too and leaves it to callers. Unreachable on this path today —
+			// Resupply.cs:156 cancels the activity on an out-of-world host before RearmTick can run —
+			// so it is stated here rather than added, because adding it would make this method disagree
+			// with CanServeNow again for a case that cannot occur.
+			if (!CanServeNow)
 				return false;
 
 			if (!IsValidTarget(client, out _))

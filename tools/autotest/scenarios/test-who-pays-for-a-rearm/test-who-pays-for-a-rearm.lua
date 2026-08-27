@@ -41,6 +41,7 @@ local AuraCells = 4
 local pollCount = 0
 local peakHimarsDistance = 0
 local himarsEverDocked = false
+local himarsErrandEnded = false
 
 local function chebyshev(a, b)
 	local dx = a.X - b.X
@@ -86,11 +87,22 @@ WorldLoaded = function()
 			Rifleman.IsDead and -1 or chebyshev(Rifleman.Location, DrainedDepot.Location),
 			Himars.IsDead and -1 or Himars.AmmoCount("primary-ammo"),
 			Test.GetSupply(StockedDepot),
-			Himars.IsDead and -1 or chebyshev(Himars.Location, StockedDepot.Location)))
+			Himars.IsDead and -1 or chebyshev(Himars.Location, StockedDepot.Location),
+			tostring(not Himars.IsDead and Himars.IsIdle)))
 
 		local hd = Himars.IsDead and -1 or chebyshev(Himars.Location, StockedDepot.Location)
 		if hd >= 0 and hd <= 2 then himarsEverDocked = true end
 		if himarsEverDocked and hd > peakHimarsDistance then peakHimarsDistance = hd end
+
+		-- THE DISCRIMINATOR. Distance cannot serve here: nothing moves an undocked ground vehicle away
+		-- from a Logistics Centre. Resupply.OnResupplyEnding takes the rally path only when
+		-- rp.Path.Count > 0, LOGISTICSCENTER declares a bare `RallyPoint:` and RallyPointInfo.Path
+		-- defaults to empty, and vehicles are Repairable rather than RepairableNear — so it falls to
+		-- MoveToTarget(self, host), which moves the unit TOWARD the depot. A correct run therefore ends
+		-- with the himars about a cell away, and a distance test would have called that the wedge.
+		-- IsIdle separates them cleanly: a wedged client never leaves Resupply.Tick so it never goes
+		-- idle; a client whose errand ENDED does, whether it then walks off or holds position.
+		if himarsEverDocked and not Himars.IsDead and Himars.IsIdle then himarsErrandEnded = true end
 
 		if pollCount < EvalTicks then
 			Trigger.AfterDelay(SnapshotEvery, snapshot)
@@ -158,13 +170,15 @@ WorldLoaded = function()
 		-- THE HIMARS IS THE SUBJECT because the wedge needs a client the push arm owns AND cannot
 		-- finish serving. Its pool costs 1500 a batch against a 2250 depot: one round is affordable,
 		-- the second never is, so it is guaranteed to end non-full at a depot holding 750.
-		local himarsLeft = himarsDist > 2
+		local himarsLeft = himarsErrandEnded
 		local riflemanStayedDry = rifleAmmo == 0
 
 		local summary = string.format(
 			"rifleman ammo=%d at a depot holding %d (dist %d) | himars ammo=%d, depot spent %d = %d " ..
 			"round(s) paid for, dist %d, peak-dist %d",
 			rifleAmmo, drained, rifleDist, himarsAmmo, spent, paidRounds, himarsDist, peakHimarsDistance)
+		summary = summary .. string.format(" errand-ended=%s idle=%s",
+			tostring(himarsErrandEnded), tostring(not Himars.IsDead and Himars.IsIdle))
 
 		print("[who-pays] RESULT " .. summary)
 
@@ -183,9 +197,11 @@ WorldLoaded = function()
 				"the himars holds %d round(s) but the depot only paid for %d, so an unmetered route survives",
 				himarsAmmo, paidRounds)
 		else
-			why = "the himars took its affordable round and NEVER UNDOCKED -- it is wedged at the depot, " ..
-				"combat-inert and withheld from every bot module by StarvingRecruitGate. This is the " ..
-				"CanSelect-without-affordability defect, or its return"
+			why = "the himars took its affordable round and its Resupply errand NEVER ENDED -- it is " ..
+				"wedged at the depot, combat-inert and withheld from every bot module by " ..
+				"StarvingRecruitGate. This is the CanSelect-without-affordability defect, or its return. " ..
+				"NOTE it is expected to remain NEAR the depot even when correct; the verdict is IsIdle, " ..
+				"not distance"
 		end
 
 		Test.Fail(why .. ". " .. summary)
