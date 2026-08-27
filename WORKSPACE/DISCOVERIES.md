@@ -11459,9 +11459,25 @@ cadence, and that arm queues `RotateToEdge` through `QueueActivity(false, ...)`,
 an evacuating unit would tear down and re-issue its own departure every scan. That `AutoSeekSupplies`
 already carries a full apparatus for exactly this problem (scan intervals, `IsSeekingRearm` re-entry
 guard, stall detection, retry cooldown) is the evidence for how much machinery a safe periodic re-ask
-needs. Note that trait ALSO already solves the periodic re-ask — `ReturnWhenEmpty` +
-`EmptyScanInterval` — but ships `Enabled = false` and is declared on `^Soldier` alone, so it covers
-neither vehicles nor anyone by default.
+needs.
 
-Bearing on the open user question about a "withdraw and wait" behaviour: the wait half currently has no
-way to end.
+### The periodic re-ask ALREADY EXISTS — and it is NOT a free answer. Three parts, all load-bearing
+
+Bearing directly on the open user question about whether a "withdraw and wait" behaviour should exist:
+
+1. **It EXISTS.** `AutoSeekSupplies.ReturnWhenEmpty` + `EmptyScanInterval` is precisely a periodic
+   re-ask for a unit that has run dry, and it already carries the whole safety apparatus around it:
+   scan-interval throttling, an `AmmoPool.IsSeekingRearm` re-entry guard, `ReturnErrandStallTicks`
+   stall detection, and a `ReturnErrandRetryTicks` cooldown.
+2. **It is OFF.** `AutoSeekSuppliesInfo.Enabled` ships `false` (`AutoSeekSupplies.cs:34` — "Master
+   switch. Ships OFF"), and `ReturnWhenEmpty` ships `false` on top of it (`:69`). Two switches, both
+   off.
+3. **It is `^Soldier`-ONLY — and this third part is what stops it being a free answer.** The trait is
+   declared on `^Soldier` alone. `AmmoPoolInfo.DryRearmLeashCells` exists as its own separate field
+   *because* of exactly that asymmetry, its Desc recording that reading the other trait's Info "would
+   have left every vehicle unleashed while looking complete" (`AmmoPool.cs:102-113`). **Turning both
+   flags on would therefore not cover a single vehicle** — and the reported case, the Iskander, is a
+   vehicle. Anyone costing this as "flip a flag" has priced parts 1 and 2 and skipped part 3.
+
+So the wait half of "withdraw and wait" has no way to end today, and no existing switch grants one to
+the unit class that actually needs it.

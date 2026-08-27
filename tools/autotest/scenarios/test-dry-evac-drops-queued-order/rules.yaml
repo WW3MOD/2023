@@ -1,0 +1,22 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-dry-evac-drops-queued-order.lua
+
+# ONE round, so the pool empties on the first shot and INotifyAttack.Attacking reaches
+# AutoRearmIfDry immediately. Ammo stays 2 (the shipped value); only the starting count is
+# lowered, so nothing about the pool's identity -- Essential: true, SupplyValue: 1500 -- changes.
+iskander:
+	AmmoPool@1:
+		InitialAmmo: 1
