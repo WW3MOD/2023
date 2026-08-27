@@ -639,7 +639,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				if (IsValidTarget(a, out var isAura))
 				{
-					var verdict = AcceptClient(a, out var need);
+					var verdict = AcceptClient(a.TraitOrDefault<Rearmable>(), out var need);
 					if (verdict == SupplyAcceptance.Unaffordable)
 						hasUnaffordableTargets = true;
 					else if (verdict == SupplyAcceptance.Accept && need > bestNeed)
@@ -663,7 +663,7 @@ namespace OpenRA.Mods.Common.Traits
 						if (soldier == null || soldier.IsDead)
 							continue;
 
-						var verdict = AcceptClient(soldier, out var need);
+						var verdict = AcceptClient(soldier.TraitOrDefault<Rearmable>(), out var need);
 						if (verdict == SupplyAcceptance.Unaffordable)
 						{
 							hasUnaffordableTargets = true;
@@ -718,35 +718,43 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// The one accept test. Deliberately says nothing about RANGE or about <c>currentTarget</c>:
-		/// range is <see cref="IsValidTarget"/>'s job and the two sweeps apply it differently (a
-		/// garrisoned passenger is out of the world and is placed by its building instead), while
-		/// contention is not a refusal — <c>UpdateTarget</c> re-picks by greatest need every scan.
+		/// <para>The one accept test — demand, affordability, need — and it says nothing about RANGE or
+		/// about <c>currentTarget</c>. Range is <see cref="IsValidTarget"/>'s job and the two sweeps apply
+		/// it DIFFERENTLY: the aura sweep guards with it, the garrison sweep must not, because a sheltered
+		/// passenger is out of the world with a stale CenterPosition and would fail any position test.
+		/// Contention is not a refusal either — <c>UpdateTarget</c> re-picks by greatest need every scan.</para>
+		///
+		/// <para>IT TAKES THE <see cref="Rearmable"/>, NOT THE ACTOR, AND THAT IS THE GUARD. A range clause
+		/// added here would look obviously correct — it is the "accept test" — and would silently delete
+		/// the entire garrison clientele: no error, no failing scenario, because nothing exercises that
+		/// path in game. Prose does not stop that, so the parameter does: with no Actor there is no
+		/// position to test, and acquiring one means changing this signature, which is a deliberate act
+		/// rather than a one-line slip. <c>SupplyProviderAcceptTest</c> fails the build if it changes.</para>
 		/// </summary>
-		SupplyAcceptance AcceptClient(Actor client, out float need)
+		SupplyAcceptance AcceptClient(Rearmable rearmable, out float need)
 		{
 			need = 0f;
 
-			var rearmable = client.TraitOrDefault<Rearmable>();
 			if (rearmable == null || !rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo))
 				return SupplyAcceptance.NoDemand;
 
 			if (!rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && currentSupply >= p.Info.SupplyValue))
 				return SupplyAcceptance.Unaffordable;
 
-			need = CalculateNeed(client);
+			need = CalculateNeed(rearmable);
 			if (need < Info.MinNeedThreshold)
 				return SupplyAcceptance.BelowThreshold;
 
 			return SupplyAcceptance.Accept;
 		}
 
-		float CalculateNeed(Actor a)
+		/// <summary>
+		/// Takes the <see cref="Rearmable"/> rather than the Actor, deliberately — see
+		/// <see cref="AcceptClient"/>. Need is a property of the pools; handing this an Actor would put a
+		/// position back within reach of the shared accept path.
+		/// </summary>
+		static float CalculateNeed(Rearmable rearmable)
 		{
-			var rearmable = a.TraitOrDefault<Rearmable>();
-			if (rearmable == null)
-				return 0f;
-
 			// Need = total missing ammo weighted by SupplyValue
 			// Higher = more need
 			var totalMissing = 0f;
@@ -819,7 +827,7 @@ namespace OpenRA.Mods.Common.Traits
 			// the pull path, which tops it up and CHARGES for it. Docking is a deliberate act and the
 			// unit pays for what it gets. Note the asymmetry with a truck, which has no pull path, so a
 			// nearly-full unit beside one is still skipped; that is pre-existing and unchanged.
-			return AcceptClient(client, out _) == SupplyAcceptance.Accept;
+			return AcceptClient(client.TraitOrDefault<Rearmable>(), out _) == SupplyAcceptance.Accept;
 		}
 
 		bool IsValidTarget(Actor a, out bool isAura)
