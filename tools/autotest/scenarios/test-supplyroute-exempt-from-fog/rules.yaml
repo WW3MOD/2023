@@ -1,0 +1,38 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# EXPLORED OFF + FOG ON, both locked, so unscouted ground genuinely exists
+		# at ResolvedVisibility 0. With Explored ON there is no unscouted ground and
+		# the exemption under test would be indistinguishable from ordinary
+		# visibility -- the scenario would pass without measuring anything.
+		FogCheckboxEnabled: true
+		FogCheckboxLocked: true
+		ExploredMapCheckboxEnabled: false
+		ExploredMapCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-supplyroute-exempt-from-fog.lua
+
+# Nothing may shoot: a dead pillbox removes the discriminator. HoldFire rather
+# than `-AutoTarget:`, which does not load -- AutoTargetPriority declares
+# AutoTarget as a requirement. Both stance fields are set because AutoTarget
+# picks between them on owner.IsBot/Playable (AutoTarget.cs:517) and Russia is
+# not a playable slot here.
+PBOX:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	Health:
+		HP: 100000
+
+abrams:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	Health:
+		HP: 100000

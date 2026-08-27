@@ -71,6 +71,12 @@ non-hidden building — so **every destroyed enemy building left a permanent `Fr
 player, for the rest of the match**. Re-enabling visibility updates lets them be collected. Any
 perf argument about frozen-actor count therefore runs in this fix's favour over a long game.
 
+**When a fix is "correct a factual claim", grep the FILE for the claim, not your diff.** The comment
+above cost four correction rounds — the original was wrong, the reviewer's replacement SHA was wrong,
+and the commit that fixed both left the same phrase (`"Merge 71687440"`) stale ten lines below,
+because I reviewed the change I had made rather than searching for the sentence I had just declared
+false. A factual claim is usually repeated near itself; the diff is the wrong search scope.
+
 **This retroactively explains two commits that look like mistakes and were not.** `2d7603bf`
 (2026-04-16) correctly restored strict `IsVisibleInner`; every building went invisible, because the
 loop had been dead for three weeks. `12a9b91b` (2026-05-03) reverted it to a blanket `return true`

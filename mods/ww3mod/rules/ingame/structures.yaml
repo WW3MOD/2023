@@ -237,7 +237,27 @@ SUPPLYROUTE:
 	# 	TicksBetweenNotifications: 100
 	# Detectable:
 	# 	Vision: 1
+	# PROVISIONAL — 2026-08-27. THIS OVERRIDE IS A DELIBERATE NO-OP AGAINST SHIPPED BEHAVIOUR AND IS
+	# AWAITING A RULING. It is not a considered balance decision and must not be read as one.
+	#
+	# Until 2026-08-27 FrozenUnderFog.IsVisible was short-circuited to an unconditional `return true`,
+	# so EVERY structure was visible to everyone, unscouted. Removing that six-month regression makes
+	# every building fog-gated — including the Supply Route, the mod's central objective, which would
+	# go dark until scouted under every lobby config. That is a real balance change and it would have
+	# arrived as a side effect of a bug fix. This override holds the Supply Route at exactly its
+	# current behaviour, so the fix ships as a pure bug fix with no gameplay change riding along.
+	#
+	# THE ALTERNATIVE IS A ONE-LINE FLIP: delete this override and the SR fogs like everything else.
+	# WHOEVER APPLIES THAT FLIP MUST ALSO INVERT THE RUNG IN
+	# tools/autotest/scenarios/test-supplyroute-exempt-from-fog, which asserts this exemption and will
+	# go red on the flip. Deleting that scenario instead of inverting it is the failure mode to avoid.
+	#
+	# All three relationships are listed on purpose. Enemy is the one under test and the one a partial
+	# edit would drop; Ally is already the trait default but is restated so the list cannot be misread
+	# as "enemies only"; Neutral is included because a neutral-owned SR is the case nobody thinks to
+	# check — see the scenario comment for why it is untested rather than merely untried.
 	FrozenUnderFog:
+		AlwaysVisibleRelationships: Ally, Neutral, Enemy
 	FrozenUnderFogUpdatedByGps:
 	Guardable:
 		Range: 14c0
