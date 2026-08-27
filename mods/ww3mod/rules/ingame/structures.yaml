@@ -237,8 +237,11 @@ SUPPLYROUTE:
 	# 	TicksBetweenNotifications: 100
 	# Detectable:
 	# 	Vision: 1
-	# PROVISIONAL — 2026-08-27. THIS OVERRIDE IS A DELIBERATE NO-OP AGAINST SHIPPED BEHAVIOUR AND IS
-	# AWAITING A RULING. It is not a considered balance decision and must not be read as one.
+	# SETTLED — 2026-08-27, by the user, when asked directly. The enemy Supply Route stays visible.
+	# This override was introduced the same day as a provisional no-op while the question was open;
+	# the ruling arrived and chose it, so it is now a deliberate decision rather than a placeholder.
+	# The alternatives offered and declined were "let it go dark, scouting the beachhead is the game"
+	# and "visible once at match start, then fogged like anything else". Do not silently revisit it.
 	#
 	# Until 2026-08-27 FrozenUnderFog.IsVisible was short-circuited to an unconditional `return true`,
 	# so EVERY structure was visible to everyone, unscouted. Removing that six-month regression makes

@@ -1,7 +1,7 @@
 -- ASSERTION SCENARIO: the Supply Route is exempt from fog, and ONLY the Supply Route.
 --
 -- =====================================================================================
--- WHAT THIS GUARDS, AND WHY IT IS PROVISIONAL
+-- WHAT THIS GUARDS, AND WHY IT EXISTS
 -- =====================================================================================
 -- Until 2026-08-27 FrozenUnderFog.IsVisible was short-circuited to an unconditional
 -- `return true`, so every structure was visible to everyone unscouted. Removing that
@@ -11,9 +11,12 @@
 -- That is a balance change arriving as a side effect of a bug fix, so it was held: an
 -- AlwaysVisibleRelationships override on SUPPLYROUTE (ingame/structures.yaml) pins the SR
 -- at exactly its pre-fix behaviour, and the bug fix ships with no gameplay change riding
--- along. THE OVERRIDE IS PROVISIONAL AND AWAITING A RULING.
+-- along. THE RULING ARRIVED THE SAME DAY AND CHOSE THIS: 2026-08-27, the user, asked
+-- directly, picked "keep it visible" over "let it go dark" and over "visible once at match
+-- start, then fogged". So the override is a settled decision, not a placeholder, and this
+-- scenario guards a decision rather than a holding position.
 --
--- IF THE RULING IS "GO DARK": delete the override and INVERT the rungs below -- EnemySR
+-- IF THAT IS EVER REVISITED TO "GO DARK": delete the override and INVERT the rungs below -- EnemySR
 -- becomes must-NOT-be-visible, and a scouted enemy SR must be added as the positive
 -- control so the scenario cannot pass by vetoing everything. DO NOT DELETE THIS SCENARIO.
 -- Deleting the guard instead of inverting it is how the `return true` this branch removed
@@ -136,7 +139,7 @@ WorldLoaded = function()
 		-- ---- the exemption ----
 		if not srClickable then
 			return "fail: an enemy Supply Route on never-scouted ground is NOT visible " ..
-				"(detected=" .. tostring(srDetected) .. "). The provisional fog exemption on " ..
+				"(detected=" .. tostring(srDetected) .. "). The fog exemption on " ..
 				"SUPPLYROUTE is not taking. Most likely the AlwaysVisibleRelationships " ..
 				"override in ingame/structures.yaml was removed or narrowed -- note that " ..
 				"`Ally` alone is the trait default and therefore a no-op, and `Neutral` alone " ..
