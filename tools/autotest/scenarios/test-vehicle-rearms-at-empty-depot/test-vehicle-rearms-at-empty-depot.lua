@@ -1,6 +1,11 @@
--- AUTO TEST: does a Logistics Centre holding NOTHING still rearm a vehicle?
+-- AUTO TEST: a Logistics Centre holding NOTHING must rearm nobody, and must not TRAP the client.
 --
--- THE CLAIM, which was derived from three code sites and is settled here by observation instead.
+-- RE-POINTED 2026-08-27. This scenario was written to prove the opposite — that the docking rearm
+-- was free — and it did prove it, which is why the charging change exists. Its verdict is now
+-- inverted and its second clause (the tank must undock and leave) is the one that earns its keep.
+-- The original framing is kept below because it is the evidence the change rests on.
+--
+-- THE ORIGINAL CLAIM, derived from three code sites and then settled by observation.
 -- Resupply.cs:131 sets its rearm branch from Rearmable.RearmActors membership alone; the rearm
 -- itself is Rearmable.RearmTick (Resupply.cs:301 -> Rearmable.cs:57-78), which calls GiveAmmo and
 -- consults no SupplyProvider; and nothing downstream charges for it, because SupplyProvider
@@ -27,6 +32,8 @@ local AmmoPoolName = "primary-ammo"
 local pollCount = 0
 local supplyEverMoved = false
 local peakAmmo = 0
+local everDocked = false
+local departed = false
 
 WorldLoaded = function()
 	TestHarness.FocusBetween(Tank, Depot)
@@ -63,12 +70,22 @@ WorldLoaded = function()
 		if ammo > peakAmmo then peakAmmo = ammo end
 		if supply ~= 0 then supplyEverMoved = true end
 
+		-- Chessboard distance to the depot, latched: "arrived then left" is the pass shape, so a
+		-- bare distance test at the deadline could not tell it from "never set off".
+		local dx = Tank.Location.X - Depot.Location.X
+		local dy = Tank.Location.Y - Depot.Location.Y
+		if dx < 0 then dx = -dx end
+		if dy < 0 then dy = -dy end
+		local dist = dx > dy and dx or dy
+		if dist <= 2 then everDocked = true end
+		if everDocked and dist > 2 then departed = true end
+
 		pollCount = pollCount + 1
 		if pollCount % 50 == 0 then
 			-- Live numbers belong here, never in the failure string, which Lua evaluates eagerly at
 			-- registration and would report the starting values forever.
-			print(string.format("[free-rearm] poll=%d ammo=%d peak=%d supply=%d",
-				pollCount, ammo, peakAmmo, supply))
+			print(string.format("[free-rearm] poll=%d ammo=%d peak=%d supply=%d docked=%s departed=%s",
+				pollCount, ammo, peakAmmo, supply, tostring(everDocked), tostring(departed)))
 		end
 
 		-- The refutation branch. SetSupply clamps to [0, TotalSupply] and nothing on this map can
@@ -80,9 +97,25 @@ WorldLoaded = function()
 				"reading is refuted", supply)
 		end
 
-		return ammo > 0
-	end, "The tank never gained a round at a Logistics Centre holding zero supply. Either the " ..
-		"docking rearm is metered after all, or a vehicle cannot reach the dock-tight WDist.Zero " ..
-		"tolerance at a building and the path is unreachable in practice -- the poll trace in " ..
-		"lua.log separates those two, since an unreachable dock leaves the tank short of the depot.")
+		-- RE-POINTED 2026-08-27, and the verdict is INVERTED from what this file originally asserted.
+		-- It was written to prove the docking rearm was free, and it did: a dry abrams refilled here
+		-- at a Centre holding ZERO with the depot's supply unmoved. That hole is now closed, so the
+		-- correct expectation is the opposite one — nothing arrives — and the scenario is kept rather
+		-- than deleted precisely because a green here would mean the free path had returned.
+		--
+		-- The second clause is the part that matters more. A depot that cannot pay must make the tank
+		-- LEAVE, not wait: once docked, Rearmable.RearmTick returning true is the only exit
+		-- (Resupply.cs:301), and a tank that stands there is combat-inert and withheld from every bot
+		-- module by StarvingRecruitGate for the rest of the match.
+		if ammo > 0 then
+			return string.format(
+				"fail: the tank gained %d round(s) at a Centre holding %d — the free docking rearm has " ..
+				"returned", ammo, supply)
+		end
+
+		return departed
+	end, "The tank never left the depot. It correctly received nothing from a Centre holding zero, " ..
+		"then stayed docked instead of giving up — which is the wedge: combat-inert, IsSeekingRearm " ..
+		"true, withheld from every bot module. RearmTick must report the errand DONE when the host " ..
+		"cannot pay, rather than deferring forever.")
 end

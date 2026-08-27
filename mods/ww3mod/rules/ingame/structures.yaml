@@ -489,8 +489,13 @@ LOGISTICSCENTER:
 		# the removed ProximityExternalCondition above and the supply truck respectively.
 		#
 		# COST, so the drain rate is legible: a batch is ReloadCount rounds for SupplyValue supply.
-		# An E3 rifleman is Ammo 100 / ReloadCount 20 / SupplyValue 1 (infantry.yaml), i.e. 5 supply
-		# for a full refill — so 2250 buys ~450 rifleman refills against the truck's ~150.
+		# CORRECTED 2026-08-27 — this read "5 supply for a full refill, so 2250 buys ~450" and was
+		# wrong by 11x because it counted only the E3's rifle. He is Rearmable for BOTH his pools
+		# (infantry.yaml, `AmmoPools: primary-ammo, secondary-ammo`): primary-ammo is Ammo 100 /
+		# ReloadCount 20 / SupplyValue 1 = 5 batches = 5 supply, and secondary-ammo is his RPG at
+		# Ammo 1 / SupplyValue 50 = one 50-supply batch. A full E3 refill is 55, so this Centre buys
+		# about 41 of them and a 750 truck about 13.
+		# The error was harmless while infantry rearmed for free. It is not harmless now.
 		AuraRearmCondition: replenish-soldiers
 		AuraRange: 4c0
 		AuraRearmDelay: 6

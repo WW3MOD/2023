@@ -84,7 +84,14 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var provider = host?.TraitOrDefault<SupplyProvider>();
 
-			// The push arm owns any client it can select; serving here too is the double-serve.
+			// WILL the push arm serve this client — not "could it own him". Conflating those two wedged
+			// a docked himars permanently in the first cut of this change: CanSelect returned
+			// IsValidTarget alone, which has no supply term, so a unit the depot could no longer afford
+			// deferred forever and never left. Returning false here is NOT an exit — once docked, this
+			// method returning TRUE is the only way out (Resupply.cs:301), because the
+			// SelfAssignedErrandIsOver escape at Resupply.cs:240 is gated on !actualResupplyStarted.
+			// CanSelect now mirrors the sweep's accept test, so a client it declines falls through to the
+			// per-pool check below, counts the pool done, and leaves with whatever it got.
 			if (provider != null && provider.CanSelect(self))
 				return false;
 

@@ -734,20 +734,60 @@ namespace OpenRA.Mods.Common.Traits
 		bool IsValidTarget(Actor a) { return IsValidTarget(a, out _); }
 
 		/// <summary>
-		/// <para>Could this provider's PUSH arm serve <paramref name="client"/> right now? Exposed so the
-		/// docking pull path (<c>Rearmable.RearmTick</c>) can stand down for clients this arm owns, which is
-		/// what keeps a docked himars from being served — and, once metered, CHARGED — twice.</para>
+		/// <para>WILL this provider's push arm serve <paramref name="client"/> — not merely "could it own
+		/// him". The distinction is the whole point and the first cut of this method got it wrong: it
+		/// returned <c>IsValidTarget</c> alone, which carries no supply term, so a docked himars the depot
+		/// could no longer afford was still reported as owned. <c>Rearmable.RearmTick</c> deferred, and
+		/// deferring is not an exit — once docked, RearmTick returning true is the ONLY way out
+		/// (Resupply.cs:301), and the SelfAssignedErrandIsOver escape at Resupply.cs:240 is gated on
+		/// <c>!actualResupplyStarted</c> and so unreachable after arrival. The unit stood at the depot
+		/// forever, combat-inert, withheld from every bot module by StarvingRecruitGate. That is precisely
+		/// the failure <see cref="AmmoPool.ChooseAffordableResupplier"/> guards at DISPATCH time, reintroduced
+		/// at ARRIVAL time, downstream of the guard.</para>
 		///
-		/// <para>Deliberately the SAME predicate the selection sweep uses rather than a second opinion about
-		/// it. A re-derived copy that drifted would produce either a double-serve or a client both arms
-		/// decline, and the second failure is silent.</para>
+		/// <para>So this mirrors the sweep's ACCEPT test, which is strictly narrower than IsValidTarget:
+		/// affordability of some non-full pool and <c>MinNeedThreshold</c> (FindGreatestNeedTarget), plus the
+		/// Tick prologue's serving guards — paused/disabled, restocking, self-removal, drained, and
+		/// remainder-reserved. A client this declines falls through to Rearmable's own per-pool affordability
+		/// check, counts the pool done, and LEAVES with whatever it got.</para>
 		///
-		/// <para>Says nothing about SUPPLY, matching IsValidTarget: an arm that owns a client still owns it
-		/// when the depot is empty. That is the intended reading under the charging ruling — a drained depot
-		/// cannot serve, and the client should leave rather than be handed to a second arm that would serve
-		/// it for nothing.</para>
+		/// <para>Deliberately NOT consulting <c>currentTarget</c>: contention is not a lockout.
+		/// <c>UpdateTarget</c> runs every ScanInterval unconditionally and re-picks by greatest need, so a
+		/// client waiting behind another is reconsidered each scan and wins as soon as its need is greatest.
+		/// Reading currentTarget here would make a client leave merely because someone else was mid-batch.</para>
+		///
+		/// <para>Uses the SAME IsValidTarget the sweep uses rather than a second opinion about it; the extra
+		/// clauses are added around it, not re-derived inside it.</para>
 		/// </summary>
-		public bool CanSelect(Actor client) { return IsValidTarget(client, out _); }
+		public bool CanSelect(Actor client)
+		{
+			if (IsTraitPaused || IsTraitDisabled || Restocking)
+				return false;
+
+			if (currentSupply <= 0)
+				return false;
+
+			if (Info.RemoveBelowSupply > 0 && currentSupply < Info.RemoveBelowSupply)
+				return false;
+
+			if (ReservesRemainderForRestock(currentSupply, Info.RestockThreshold, currentTarget != null, KeepServingBelowThreshold()))
+				return false;
+
+			if (!IsValidTarget(client, out _))
+				return false;
+
+			var rearmable = client.TraitOrDefault<Rearmable>();
+			if (rearmable == null)
+				return false;
+
+			// Affordability, exactly as FindGreatestNeedTarget applies it: SOME non-full pool this depot
+			// can pay a batch for. A client we cannot pay for is one we will never serve.
+			if (!rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && currentSupply >= p.Info.SupplyValue))
+				return false;
+
+			// Nearly-full clients are skipped by the sweep, so they are not ours either.
+			return CalculateNeed(client) >= Info.MinNeedThreshold;
+		}
 
 		bool IsValidTarget(Actor a, out bool isAura)
 		{

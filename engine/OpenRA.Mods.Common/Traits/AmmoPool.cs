@@ -366,24 +366,6 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// <para>Could this host actually pay for a batch of something we are short of? Only asked on the
-		/// EVACUATE detour, and it is the one gate there that is not about distance.</para>
-		///
-		/// <para>Everywhere else a wasted walk costs a walk. Here it costs the unit's exit: an evacuating
-		/// actor that detours to a host which cannot serve it does not resume leaving — it parks in
-		/// <see cref="Activities.SeekSupplyProvider"/>'s in-range branch, which stands still waiting for a
-		/// push that never comes and has no stall guard of its own (AutoSeekSupplies' guard covers only
-		/// errands that trait dispatched, on infantry). So the m270/grad/tos, which ship with
-		/// InitialResupplyBehavior: Evacuate, would trade a banked refund for a combat-inert vehicle
-		/// standing at a truck for the rest of the match. <see cref="ChooseResupplier"/> filters on
-		/// CurrentSupply &gt; 0 only, which is not the same question when a pool costs 50 a batch and the
-		/// truck is holding 3.</para>
-		///
-		/// <para>Same affordability test AutoSeekSupplies.CanServe applies from the other side, deliberately
-		/// — a host we would refuse to walk to must also be one we refuse to abandon an exit for. A host
-		/// with no SupplyProvider charges nothing (the pure RearmsUnits depot), so it always passes.</para>
-		/// </summary>
-		/// <summary>
 		/// <para>THE ONE PLACE A BATCH IS PAID FOR. Both delivery models fund a rearm through here — the
 		/// proximity push in <c>SupplyProvider.Tick</c> and the docking pull in
 		/// <see cref="Rearmable.RearmTick"/> — because the alternative is two implementations of the same
@@ -430,6 +412,24 @@ namespace OpenRA.Mods.Common.Traits
 			return true;
 		}
 
+		/// <summary>
+		/// <para>Could this host actually pay for a batch of something we are short of? Only asked on the
+		/// EVACUATE detour, and it is the one gate there that is not about distance.</para>
+		///
+		/// <para>Everywhere else a wasted walk costs a walk. Here it costs the unit's exit: an evacuating
+		/// actor that detours to a host which cannot serve it does not resume leaving — it parks in
+		/// <see cref="Activities.SeekSupplyProvider"/>'s in-range branch, which stands still waiting for a
+		/// push that never comes and has no stall guard of its own (AutoSeekSupplies' guard covers only
+		/// errands that trait dispatched, on infantry). So the m270/grad/tos, which ship with
+		/// InitialResupplyBehavior: Evacuate, would trade a banked refund for a combat-inert vehicle
+		/// standing at a truck for the rest of the match. <see cref="ChooseResupplier"/> filters on
+		/// CurrentSupply &gt; 0 only, which is not the same question when a pool costs 50 a batch and the
+		/// truck is holding 3.</para>
+		///
+		/// <para>Same affordability test AutoSeekSupplies.CanServe applies from the other side, deliberately
+		/// — a host we would refuse to walk to must also be one we refuse to abandon an exit for. A host
+		/// with no SupplyProvider charges nothing (the pure RearmsUnits depot), so it always passes.</para>
+		/// </summary>
 		static bool HostCanAffordSomethingWeNeed(Actor host, IEnumerable<AmmoPool> pools)
 		{
 			var provider = host.TraitOrDefault<SupplyProvider>();

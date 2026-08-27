@@ -30,7 +30,7 @@
 -- gains nothing for a reason that has nothing to do with either arm; and a drained depot that is
 -- not actually drained makes question 1 meaningless. All three are asserted at evaluation time.
 
-local EvalTicks = 700
+local EvalTicks = 1100
 local SnapshotEvery = 25
 
 local FullLoad = 2250
@@ -39,6 +39,8 @@ local HimarsRoundsPerBatch = 1
 local AuraCells = 4
 
 local pollCount = 0
+local peakHimarsDistance = 0
+local himarsEverDocked = false
 
 local function chebyshev(a, b)
 	local dx = a.X - b.X
@@ -86,6 +88,10 @@ WorldLoaded = function()
 			Test.GetSupply(StockedDepot),
 			Himars.IsDead and -1 or chebyshev(Himars.Location, StockedDepot.Location)))
 
+		local hd = Himars.IsDead and -1 or chebyshev(Himars.Location, StockedDepot.Location)
+		if hd >= 0 and hd <= 2 then himarsEverDocked = true end
+		if himarsEverDocked and hd > peakHimarsDistance then peakHimarsDistance = hd end
+
 		if pollCount < EvalTicks then
 			Trigger.AfterDelay(SnapshotEvery, snapshot)
 		end
@@ -125,35 +131,63 @@ WorldLoaded = function()
 			return
 		end
 
-		if himarsDist > 2 then
+		-- Reads the LATCH, not the current distance: a himars far from the depot at the deadline is
+		-- the PASS case now, and asking "is it near" would fail the very outcome under test. What
+		-- still ruins the run is one that never got there at all.
+		if not himarsEverDocked then
 			Test.Fail(string.format(
-				"measured nothing: the himars is %d cells from the east Centre and never docked, so " ..
-				"neither arm had the chance to deliver (ammo=%d spent=%d)",
+				"measured nothing: the himars never came within 2 cells of the east Centre, so neither " ..
+				"arm had the chance to deliver and nothing about undocking was observed (dist=%d ammo=%d spent=%d)",
 				himarsDist, himarsAmmo, spent))
 			return
 		end
 
-		local trickleIsFree = rifleAmmo > 0
-		local doubleServe = himarsAmmo > paidRounds
+		-- RE-POINTED 2026-08-27. This scenario used to assert the two FREE routes existed, which was
+		-- the right question while they did. Both are now closed, so the question that matters is the
+		-- one the charging change can get wrong: does a unit that has taken everything the depot can
+		-- pay for LEAVE, or does it stand at the dock forever?
+		--
+		-- That wedge is not hypothetical. The first cut of the fix had Rearmable.RearmTick defer to
+		-- SupplyProvider.CanSelect, and CanSelect carried no supply term -- so a himars that had taken
+		-- its one affordable round was still "owned" by the push arm, deferred forever, and never
+		-- exited. Once docked, RearmTick returning true is the ONLY way out (Resupply.cs:301); the
+		-- SelfAssignedErrandIsOver escape at Resupply.cs:240 is gated on !actualResupplyStarted and is
+		-- unreachable after arrival. So "still docked at the deadline" IS the defect, and undocking is
+		-- the repair. One run catches both.
+		--
+		-- THE HIMARS IS THE SUBJECT because the wedge needs a client the push arm owns AND cannot
+		-- finish serving. Its pool costs 1500 a batch against a 2250 depot: one round is affordable,
+		-- the second never is, so it is guaranteed to end non-full at a depot holding 750.
+		local himarsLeft = himarsDist > 2
+		local riflemanStayedDry = rifleAmmo == 0
 
 		local summary = string.format(
 			"rifleman ammo=%d at a depot holding %d (dist %d) | himars ammo=%d, depot spent %d = %d " ..
-			"round(s) paid for (dist %d)",
-			rifleAmmo, drained, rifleDist, himarsAmmo, spent, paidRounds, himarsDist)
+			"round(s) paid for, dist %d, peak-dist %d",
+			rifleAmmo, drained, rifleDist, himarsAmmo, spent, paidRounds, himarsDist, peakHimarsDistance)
 
 		print("[who-pays] RESULT " .. summary)
 
-		-- Both predictions held. The run PASSES on the predicted findings so that a future
-		-- regression -- someone metering these paths -- turns this red and has to update it
-		-- deliberately.
-		if trickleIsFree and doubleServe then
+		-- The charged world, both halves. The rifleman must gain NOTHING at a depot holding nothing
+		-- (the free trickle is gone), and the himars must take what it can pay for and then DEPART.
+		if riflemanStayedDry and himarsLeft and himarsAmmo == paidRounds then
 			Test.Pass()
 			return
 		end
 
-		Test.Fail(string.format(
-			"AT LEAST ONE PREDICTION REFUTED, which is a finding and not a defect -- read the numbers. " ..
-			"free infantry trickle: %s. docked double-serve: %s. %s",
-			tostring(trickleIsFree), tostring(doubleServe), summary))
+		local why
+		if not riflemanStayedDry then
+			why = "the rifleman gained ammunition at a depot holding zero, so a free infantry route survives"
+		elseif himarsAmmo ~= paidRounds then
+			why = string.format(
+				"the himars holds %d round(s) but the depot only paid for %d, so an unmetered route survives",
+				himarsAmmo, paidRounds)
+		else
+			why = "the himars took its affordable round and NEVER UNDOCKED -- it is wedged at the depot, " ..
+				"combat-inert and withheld from every bot module by StarvingRecruitGate. This is the " ..
+				"CanSelect-without-affordability defect, or its return"
+		end
+
+		Test.Fail(why .. ". " .. summary)
 	end)
 end

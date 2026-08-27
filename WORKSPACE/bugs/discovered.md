@@ -3556,3 +3556,37 @@ running game.
   double-CHARGE, on two independent cadences (`RearmDelay: 25` against the pool's own `ReloadDelay`).
   Being individually correct is not enough; they must not both run.
   (found while working on: metering the dock path, ahead of the design)
+
+- [2026-08-27] [med] **"Nothing is free ever" is not yet literally true: a RESIDUE of free ammunition
+  survives the charging change, and it is deliberate scope, not an oversight.** `SupplyProvider`
+  grants its `RearmCondition`/`AuraRearmCondition` to the client it is serving
+  (`SyncTargetCondition`), and on infantry that condition is what enables the soldier's own
+  `ReloadAmmoPool` — a timed trickle with no range check and no supply accounting.
+  `ReloadAmmoPool.remainingTicks` is NOT reset when the condition drops (`PausableConditionalTrait`
+  merely stops it decrementing), so it accumulates across successive grant windows and eventually
+  fires, handing over rounds nobody paid for on top of the metered batch.
+  **Bounded, and quantified rather than waved at.** It cannot fire at a depot the provider will not
+  serve from — a drained Centre grants nothing, which is why the free-trickle removal measured clean.
+  Where it does fire, the rate is negligible against the metered arm it rides on: for an `ar` the
+  metered aura delivers `ReloadCount: 50` rounds per `AuraRearmDelay: 6` ticks, against the trickle's
+  `Count: 1` per `Delay: 50` — roughly 400x, and the soldier is full in ~60 ticks having spent 10
+  supply.
+  **Not fixed here on purpose:** closing it means gating `ReloadAmmoPool` on something other than the
+  serving condition, or resetting `remainingTicks` on grant — a second unmeasured behavioural change
+  riding alongside the charging one, which is exactly what the charging commit must not carry. Filed
+  so the user learns it in writing rather than by discovering the ruling is not literally satisfied.
+  (found while working on: metering the dock path)
+
+- [2026-08-27] [low] **Legibility regression nobody asked for: the replenishing pip now shows on one
+  soldier at a time instead of everyone at the depot.** `WithDecoration@AmmoReplenishing`
+  (`mods/ww3mod/rules/ingame/infantry.yaml:218-224`) keys on `replenish-soldiers`. That condition used
+  to come from the Logistics Centre's blanket 4c0 `ProximityExternalCondition`, so every soldier in
+  range wore the pip simultaneously. With that trait removed (charging change, 2026-08-27) the only
+  grant is `SupplyProvider`'s own, which is issued to the ONE client it is currently serving — so a
+  squad resupplying at a Centre now blinks the pip between its members rather than showing it on all
+  of them.
+  Purely visual: nothing gates on the decoration, and the underlying resupply is unchanged and faster
+  per-soldier than the trickle it replaced. **Not fixed here** because the honest fix is a decoration
+  keyed on "this pool is being refilled" rather than on the serving condition, which is a UI change
+  wanting its own look — see `DOCS/recipes/SCREENSHOT.md`, since the verdict is visual.
+  (found while working on: metering the dock path)
