@@ -639,28 +639,15 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				if (IsValidTarget(a, out var isAura))
 				{
-					var rearmable = a.TraitOrDefault<Rearmable>();
-					if (rearmable != null && rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo))
+					var verdict = AcceptClient(a, out var need);
+					if (verdict == SupplyAcceptance.Unaffordable)
+						hasUnaffordableTargets = true;
+					else if (verdict == SupplyAcceptance.Accept && need > bestNeed)
 					{
-						// Check if we can afford any of this target's non-full ammo pools
-						if (!rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && currentSupply >= p.Info.SupplyValue))
-						{
-							hasUnaffordableTargets = true;
-						}
-						else
-						{
-							var need = CalculateNeed(a);
-
-							// Skip units that are nearly full (e.g., 499/500 ammo)
-							if (need >= Info.MinNeedThreshold && need > bestNeed)
-							{
-								bestNeed = need;
-								best = a;
-								bestIsAura = isAura;
-							}
-						}
+						bestNeed = need;
+						best = a;
+						bestIsAura = isAura;
 					}
-
 				}
 
 				// Also consider soldiers sheltering inside a garrison building.
@@ -676,18 +663,14 @@ namespace OpenRA.Mods.Common.Traits
 						if (soldier == null || soldier.IsDead)
 							continue;
 
-						var rearmable = soldier.TraitOrDefault<Rearmable>();
-						if (rearmable == null || rearmable.RearmableAmmoPools.All(p => p.HasFullAmmo))
-							continue;
-
-						if (!rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && currentSupply >= p.Info.SupplyValue))
+						var verdict = AcceptClient(soldier, out var need);
+						if (verdict == SupplyAcceptance.Unaffordable)
 						{
 							hasUnaffordableTargets = true;
 							continue;
 						}
 
-						var need = CalculateNeed(soldier);
-						if (need < Info.MinNeedThreshold)
+						if (verdict != SupplyAcceptance.Accept)
 							continue;
 
 						if (need > bestNeed)
@@ -706,6 +689,56 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return best;
+		}
+
+		/// <summary>
+		/// <para>Verdict of the provider's ACCEPT test on one candidate: does it want ammunition, can we
+		/// pay for any of it, and is it needy enough to be worth a cycle.</para>
+		///
+		/// <para>Extracted 2026-08-27 because there were THREE copies of it — the aura sweep, the garrison
+		/// sweep, and <see cref="CanSelect"/> — and the last of those was hand-assembled from the other
+		/// two and got the supply term wrong, which wedged a docked himars permanently. The house rule
+		/// applies: never duplicate a subtle predicate, because prose is not the countermeasure. A guard
+		/// added to the sweep must reach CanSelect automatically or the two silently disagree about the
+		/// same client, and "both arms decline him" is a failure nobody sees.</para>
+		/// </summary>
+		enum SupplyAcceptance
+		{
+			/// <summary>Nothing to give: no Rearmable, or every rearmable pool already full.</summary>
+			NoDemand,
+
+			/// <summary>Wants ammunition, but this depot cannot pay for a batch of anything it wants.</summary>
+			Unaffordable,
+
+			/// <summary>Affordable, but too nearly full to be worth a serving cycle.</summary>
+			BelowThreshold,
+
+			/// <summary>Serve it.</summary>
+			Accept,
+		}
+
+		/// <summary>
+		/// The one accept test. Deliberately says nothing about RANGE or about <c>currentTarget</c>:
+		/// range is <see cref="IsValidTarget"/>'s job and the two sweeps apply it differently (a
+		/// garrisoned passenger is out of the world and is placed by its building instead), while
+		/// contention is not a refusal — <c>UpdateTarget</c> re-picks by greatest need every scan.
+		/// </summary>
+		SupplyAcceptance AcceptClient(Actor client, out float need)
+		{
+			need = 0f;
+
+			var rearmable = client.TraitOrDefault<Rearmable>();
+			if (rearmable == null || !rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo))
+				return SupplyAcceptance.NoDemand;
+
+			if (!rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && currentSupply >= p.Info.SupplyValue))
+				return SupplyAcceptance.Unaffordable;
+
+			need = CalculateNeed(client);
+			if (need < Info.MinNeedThreshold)
+				return SupplyAcceptance.BelowThreshold;
+
+			return SupplyAcceptance.Accept;
 		}
 
 		float CalculateNeed(Actor a)
@@ -776,17 +809,17 @@ namespace OpenRA.Mods.Common.Traits
 			if (!IsValidTarget(client, out _))
 				return false;
 
-			var rearmable = client.TraitOrDefault<Rearmable>();
-			if (rearmable == null)
-				return false;
-
-			// Affordability, exactly as FindGreatestNeedTarget applies it: SOME non-full pool this depot
-			// can pay a batch for. A client we cannot pay for is one we will never serve.
-			if (!rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && currentSupply >= p.Info.SupplyValue))
-				return false;
-
-			// Nearly-full clients are skipped by the sweep, so they are not ours either.
-			return CalculateNeed(client) >= Info.MinNeedThreshold;
+			// THE SAME predicate both sweeps apply, called rather than restated. The first cut of this
+			// method restated it and omitted the supply term, which is the bug this extraction exists to
+			// make unrepeatable.
+			//
+			// A BelowThreshold client is declined here, and that is FORCED rather than incidental: the
+			// push arm would skip a nearly-full docked client too, so claiming it here would defer
+			// Rearmable.RearmTick to an arm that never serves — the wedge again. Declining hands it to
+			// the pull path, which tops it up and CHARGES for it. Docking is a deliberate act and the
+			// unit pays for what it gets. Note the asymmetry with a truck, which has no pull path, so a
+			// nearly-full unit beside one is still skipped; that is pre-existing and unchanged.
+			return AcceptClient(client, out _) == SupplyAcceptance.Accept;
 		}
 
 		bool IsValidTarget(Actor a, out bool isAura)
