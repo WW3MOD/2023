@@ -12060,3 +12060,49 @@ yet *shown* to.
 for a rearm, a drained depot becomes an ordinary state rather than a rare one, and units will sit dry
 beside depots far more often. A unit that never asks again is a worse defect in that world than in
 this one.
+
+## 2026-08-27 — The verdict-inversion trap has a costume the existing rule does not catch: a COMPOUND, not a pipe
+
+**The recorded rule is "never pipe a verdict through `tail`". Obeying it to the letter would not have
+saved you today.** The trailing command was not in a pipe at all — it was the last element of a
+`;`-separated compound, and the *harness* reported that element's exit status as the command's.
+
+The instance, run verbatim in a background task:
+
+```bash
+make test > /tmp/out.log 2>&1; echo "make_test_exit=$?"; tail -20 /tmp/out.log
+```
+
+The background-task notification came back **"completed (exit code 0)"**. That zero is `tail`'s. A
+`;`-separated list exits with the status of its LAST command, so `make test` could have returned 2
+and the notification would have read exactly the same. It agreed this time; it would have agreed just
+as cheerfully on a failure, and nothing in the notification distinguishes the two worlds.
+
+**Why the existing phrasing misses it.** "Pipe" names a construct (`|`); the defect is about
+POSITION. Any trailing command — after `|`, after `;`, after `&&` on a success path — becomes the
+one whose status is reported. The general form, which is what to carry:
+
+> **Never let ANY later command determine a verdict you have already produced. Capture `$?` into a
+> variable on the very next line, and write it into the artefact you will read afterwards.**
+
+**A second, quieter half of the same incident.** The file the harness captured was *not* `make test`'s
+output — stdout held only the `echo` and a 20-line `tail`, while the real 17 MB log went to the
+redirect. So "read the output file" was itself ambiguous about WHICH file, and the first reading
+described a 20-line excerpt as though it were the run. An artefact you did not write the verdict into
+is an artefact whose provenance you will have to reconstruct later, under time pressure, from memory
+of the command line.
+
+**The shape that survives both:**
+
+```bash
+cmd > run.log 2>&1; rc=$?; printf 'CMD_EXIT=%s\n' "$rc" >> run.log
+```
+
+`rc` is taken before anything else can run, and the token lands INSIDE the log, so the verdict and
+the evidence are one file and no reconstruction is needed. Grep the token, never the error count —
+`make test` emits 91 `Error:` lines on a fully green run, all amnestied by `lint-baseline.txt`, so
+counting them is its own separate false red (and nearly produced one earlier the same day).
+
+**Fourth costume in one day**, which is why it is worth a section rather than a line: `grep -c`
+exiting 1 on zero matches, a wait-loop matching its own command line, `tail` in a pipe, and now a
+trailing command in a compound whose status the harness surfaces as the whole task's.
