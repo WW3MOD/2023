@@ -81,6 +81,14 @@ Player:
 			aa.america: 30
 			sn.america: 25
 			e6.america: 20
+			# Drone operator. THE WEIGHT IS NOT WHY THIS GETS BOUGHT — MEMBERSHIP IS. This type is
+			# deliberately absent from UnitTargetShares below, so it is ineligible for the directed
+			# pick (CompositionDirected and CompositionEnforceTargetCeiling are both on, and only
+			# UnitTargetShares members are eligible — UnitBuilderBotModule.cs:328). It is reached
+			# through the FLOOR lane instead, and ChooseBelowFloor gates on UnitsToBuild membership
+			# (:1299), which is what this line buys. The weight itself only acts as a share ceiling
+			# in the legacy uniform lottery (:1610).
+			dr.america: 20
 
 			# Vehicles -- balanced force composition
 			humvee: 30
@@ -105,6 +113,9 @@ Player:
 			m109: 3
 			strykershorad: 2
 			sn.america: 3
+			# User ruling 2026-08-27: "just a couple or so is enough usually". This is the hard
+			# ceiling behind the floor cap; both are 2 so the floor is the only thing that moves.
+			dr.america: 2
 		# ===== STANDING-POPULATION FLOORS (experimental-only; C# default is unset) =====
 		# USER RULING 2026-08-14: "build medics", and "there is always an AA soldier or two on the field".
 		# A UnitTargetShares entry CANNOT deliver either, and the reason is arithmetic, not tuning. Shares are
@@ -148,6 +159,9 @@ Player:
 		UnitFloors:
 			medi.america: 2
 			aa.america: 2
+			# Drone operator — the user's "they make none" is a FLOOR problem, not a weight problem.
+			# See the dr.america UnitFloorPer note below for why 2 here is a cap and not a target.
+			dr.america: 2
 		# ===== THE FLOOR NEEDS A DENOMINATOR (user report 2026-08-15) =====
 		# A flat floor is maximally unmet at t=0, because at t=0 every census is zero. The pre-empt outranks
 		# the ceiling and every demand gate, and floored support types are cheap, so a flat floor does not
@@ -208,6 +222,58 @@ Player:
 		# measure it and no live match has been read for it yet.
 		UnitFloorPer:
 			medi.america: 10
+			# ===== DRONE OPERATOR: 8, AND THE CLIFF IS WHY IT IS NOT 12 =====
+			# A flat floor here would be an opening buy by construction — the same defect as the two
+			# t=0 medics above and the two t=0 supply trucks (PIPELINE 57(a)). A drone operator bought
+			# before there is a force to scout FOR has nothing to look at, so it gets a denominator.
+			# MEASURED, not chosen by analogy with the medic (--composition-plan --start none, 200
+			# cycles, this ruleset, 2026-08-27). The denominator is CountSupportedForce() over
+			# UnitFloorSupportedTypes and is therefore SHARED with the medic — the same population,
+			# so it can be read off directly rather than inferred. mean / max supported:
+			#   attrition 10: 6.56 / 8     attrition 20: 12.30 / 15    attrition 35: 21.32 / 27
+			#   attrition 12: 7.87 / 9     attrition 25: 16.30 / 20    attrition  0: 83.64 / 171
+			#   attrition 15: 8.96 / 11
+			# (Lower --attrition N is HEAVIER loss.) Russia measures within 0.6 of America at every
+			# level, so one ratio serves both twins.
+			# WHY NOT 12: it is ALREADY INERT at attrition 15, where the denominator never exceeds 11
+			# — EffectiveFloor is min(cap, supported/N), so N above the denominator's ceiling means the
+			# floor never fires at all and the user's "they make none" comes straight back in exactly
+			# the regime where losses make recon matter most. That is the medic's per-20 defect
+			# repeated, and it is an arithmetic property of the ratio, not a tuning opinion.
+			# WHY NOT 6: it reaches the cap of 2 in every ordinary regime (12.30/6 = 2 at attrition
+			# 20), which overshoots "just a couple or so is enough usually" for a 150-cost unarmoured
+			# specialist that is free to re-fly (AmmoUsage 0 — a sortie costs nothing but time).
+			# 8 gives ONE operator through the common band and a second only once the supported force
+			# reaches 16, i.e. a healthy army — and it still fires at attrition 12 (mean 7.87, max 9).
+			# INTERMITTENT AT THE HEAVY END, AND THAT IS THE HONEST READING: "still fires at attrition
+			# 12" is true of the MAX (9), not the mean (7.87). At 7 supported, 7/8 = 0 — so in the
+			# heaviest regimes the floor comes and goes rather than holding. It never goes fully inert
+			# above attrition 10, which is the property 12 loses.
+			# ORDERING AGAINST THE OTHER FLOORS IS NOT A GUESS — IT IS TWO LINES OF ENGINE.
+			# floorTypes is Info.UnitFloors.Keys sorted with StringComparer.Ordinal
+			# (UnitBuilderBotModule.cs:529) and ChooseBelowFloor returns the FIRST type under its floor
+			# (:1293). Ordinal on this twin gives aa.america < dr.america < medi.america, so when
+			# several are below floor at once THE DRONE OPERATOR IS BOUGHT BEFORE THE MEDIC. aa is held
+			# off separately by UnitDelays: 2000, i.e. 120 s at the real 16.667 ticks/s.
+			# THE PLATOON-START EXPOSURE IS GUARDED, NOT TOLERATED — see UnitDelays.dr.america below.
+			# Under the shipped default StartingUnitsClass = "none" (SpawnStartingUnits.cs:25,
+			# unoverridden in any mod YAML) the denominator is 0 at t=0 and no positive ratio can fire,
+			# so the opening call-ins are line infantry regardless. But with a LOBBY-SELECTED platoon
+			# start the denominator opens at 11, giving min(2, 11/8) = 1 immediately — and combined
+			# with the ordinal ordering above, the drone operator would be the opening support call-in,
+			# AHEAD of the first medic. An earlier revision of this block argued that was tolerable
+			# because a platoon start means there IS something to scout for. That reasoning missed the
+			# surrounding block's actual objection, which was never "nothing to scout": it is that the
+			# floor pre-empt OUTRANKS the target ceiling and every demand gate, so a cheap floored type
+			# is GUARANTEED to be the opening buy rather than merely allowed to be. This defect has
+			# shipped twice in this file already. The guard below is one-sided and costs nothing, so it
+			# is taken instead of the argument.
+			# NOT MEASURED, STATED PLAINLY: --composition-plan models only UnitTargetShares members,
+			# and this type is deliberately not one, so the replay CANNOT report dr's own buy sequence
+			# or first-buy cycle — only the shared denominator above is measured. The live infantry
+			# count may also run higher than the replay's, as the medic block notes. CensusLogInterval
+			# below is the instrument; no live match has been read for it yet.
+			dr.america: 8
 		# The denominator: every non-medic infantry type. Chosen to match the medi share derivation below
 		# EXACTLY (the same per-type sum, medics excluded) so the floor and the share express ONE ratio rather
 		# than two that have to be reconciled. Vehicles are deliberately absent — the user said "20 man
@@ -223,7 +289,7 @@ Player:
 		# READ THIS AS A HARD BAN, NOT AS FLOOR SCHEDULING. UnitDelays is consulted at all THREE call-in sites —
 		# BuildUnit, IsCompositionCandidateEligible and ChooseBelowFloor — so before tick 2000 no AA soldier can
 		# be called in by ANY lane: not the floor, not the deficit pick, not an external request. It is a
-		# capability ban on the type for the first ~80 seconds, not merely a delayed floor.
+		# capability ban on the type for the first 120 seconds, not merely a delayed floor.
 		# WHY THAT IS THE RIGHT CALL: `^AA` carries exactly ONE armament (MANPAD, `ValidTargets: Air`) and
 		# inherits ^AutoTargetAir, so an AA soldier CANNOT engage ground at all, and BOTH factions gate every
 		# attack helicopter behind `UnitDelays: 2500` (`ai.yaml` heli/littlebird/hind/mi28). Tick 2500 is
@@ -231,14 +297,36 @@ Player:
 		# so an AA soldier bought before 2000 is strictly wasted budget with nothing it could legally shoot.
 		# 2000 is derived from that gate, not guessed. A medic is useful from first contact, so it has no delay.
 		# THE COST, STATED: the starting platoon ships ZERO AA soldiers, so the shipped behaviour against the
-		# user's "there is always an AA soldier or two on the field" is honestly "NONE for the first ~80
+		# user's "there is always an AA soldier or two on the field" is honestly "NONE for the first 120
 		# seconds, then two". That is a deliberate trade of early coverage for early tempo, not an oversight.
+		# (Corrected 2026-08-27 from "~80 seconds": 2000 ticks is 120 s at the real 16.667 ticks/s. The
+		# 80 s reading is the 25-tps error CLAUDE.md tracks — the tick COUNT and the derivation from the
+		# 2500 heli gate are both unaffected, only the seconds gloss was wrong.)
 		# SCOPE: this bounds a BOT opponent. A human can rush a helicopter earlier and this does not protect
 		# against that. The follow-up the user asked for is a COMPUTED time-to-threat (enemy income vs airframe
 		# cost, plus flight time from their SR to ours) rather than a static tick; filed with the build-order
 		# design.
 		UnitDelays:
 			aa.america: 2000
+			# ===== THE PLATOON-START GUARD, AND IT IS FREE =====
+			# UnitDelays is an ABSOLUTE world-tick opening, consulted at all three call-in sites
+			# including the floor lane (ChooseBelowFloor, UnitBuilderBotModule.cs:1302), so it is the
+			# one instrument that can outrank a floor pre-empt.
+			# WHY IT COSTS EXACTLY ZERO IN THE SHIPPED CONFIGURATION: StartingUnitsClass defaults to
+			# "none", so the UnitFloorPer denominator starts at 0 and the floor cannot fire until eight
+			# supported line infantry are STANDING ON THE MAP. 300 ticks is 18 s at 16.667 ticks/s, and
+			# eight call-ins cannot walk in from the map edge in 18 s. The guard therefore binds in
+			# exactly one situation — a lobby-selected platoon start, where the denominator opens at 11
+			# and the floor would otherwise fire at t=0 — and in no other.
+			# THAT ONE-SIDEDNESS IS THE WHOLE ARGUMENT. A guard that cannot cost anything under the
+			# default is strictly better than a paragraph explaining why the exposure is tolerable,
+			# which is what this block used to contain.
+			# NOT the alternative fix: raising the UnitFloorPer denominator would also delay the
+			# opening buy, but it re-introduces the inertness cliff (see the 8-not-12 derivation above)
+			# and would trade a bounded platoon-start quirk for "never built at high attrition".
+			# 300 is a floor-clearing constant, not a tuned one — it is deliberately the smallest round
+			# value that cannot be reached under the default start, rather than a measured optimum.
+			dr.america: 300
 		# Early-econ behaviour 1: don't call in the FIRST truck while no fielded unit needs ammo. After that
 		# truck exists the standing reserve below governs alone and this no longer binds (user ruling
 		# 2026-08-17 — see the SupplyTruckFloorPer block for the split and why it is a split).

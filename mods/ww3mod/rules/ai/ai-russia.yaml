@@ -78,6 +78,11 @@ Player:
 			aa.russia: 30
 			sn.russia: 25
 			e6.russia: 20
+			# Drone operator — mirror of the America block. THE WEIGHT IS NOT WHY THIS GETS BOUGHT,
+			# MEMBERSHIP IS: this type is absent from UnitTargetShares and so is ineligible for the
+			# directed pick (UnitBuilderBotModule.cs:328); it is reached through the FLOOR lane, and
+			# ChooseBelowFloor gates on UnitsToBuild membership (:1299). See ai-america.yaml.
+			dr.russia: 20
 
 			# Vehicles -- balanced force composition
 			btr: 30
@@ -100,6 +105,9 @@ Player:
 			grad: 2
 			tunguska: 2
 			sn.russia: 3
+			# User ruling 2026-08-27: "just a couple or so is enough usually". Hard ceiling behind the
+			# floor cap; both are 2 so the floor is the only thing that moves.
+			dr.russia: 2
 		# ===== STANDING-POPULATION FLOORS (experimental-only; C# default is unset) =====
 		# Mirror of the America block — see ai-america.yaml for the full measurement. Short version: a
 		# per-mille-of-VALUE target cannot hold a small type on the map (one medic is already 34 per-mille of
@@ -113,6 +121,9 @@ Player:
 		UnitFloors:
 			medi.russia: 2
 			aa.russia: 2
+			# Drone operator — "they make none" is a FLOOR problem, not a weight problem. Cap, not
+			# target; the ratio below decides when it actually engages.
+			dr.russia: 2
 		# ===== THE FLOOR NEEDS A DENOMINATOR (user report 2026-08-15) — mirror of the America block =====
 		# See ai-america.yaml for the full argument and the measurement. Short version: a flat floor is
 		# maximally unmet at t=0 and the pre-empt outranks the ceiling and every demand gate, so a cheap
@@ -134,6 +145,23 @@ Player:
 		# 6 and 8 put it back at cycle 1 with --start platoon. The cap of 2 is unchanged.
 		UnitFloorPer:
 			medi.russia: 10
+			# Drone operator: 8 — mirror of the America block, where the full sweep and the cliff
+			# argument live. The denominator is CountSupportedForce() over UnitFloorSupportedTypes and
+			# is SHARED with the medic, and Russia measures within 0.6 of America at every attrition
+			# level (--composition-plan --start none, 200 cycles, 2026-08-27: mean/max supported
+			# 8.88/11 at attrition 15, 12.90/16 at 20, 16.23/20 at 25, 21.32/27 at 35), so one ratio
+			# serves both twins. 12 would be INERT at attrition 15 — the denominator never reaches it
+			# — which is the medic's per-20 defect and would hand back "they make none" in exactly the
+			# regime where recon matters most. 6 reaches the cap of 2 in every ordinary regime and
+			# overshoots "just a couple or so". Same unmeasured gap as America: --composition-plan
+			# models only UnitTargetShares members, so dr's own buy sequence is NOT modelled here.
+			# Ordering is readable, not unknown: floorTypes is ordinal-sorted
+			# (UnitBuilderBotModule.cs:529) and ChooseBelowFloor takes the first type under its floor
+			# (:1293), so aa.russia < dr.russia < medi.russia — the operator is bought BEFORE the
+			# medic when both are short. Under a lobby-selected platoon start that would make it the
+			# opening support call-in — GUARDED by UnitDelays.dr.russia below rather than tolerated;
+			# see ai-america.yaml, where the full argument lives.
+			dr.russia: 8
 		# Denominator: every non-medic infantry type, matching the medi share derivation in ai-america.yaml so
 		# the floor and the 17-per-mille share express ONE ratio rather than two. aa.russia deliberately has
 		# no ratio — its denominator is enemy AIR, not own army size, and UnitDelays 2000 below is the
@@ -149,6 +177,15 @@ Player:
 		# contact).
 		UnitDelays:
 			aa.russia: 2000
+			# Platoon-start guard for the drone operator — mirror of ai-america.yaml, where the full
+			# argument lives. Short version: UnitDelays is an absolute world-tick opening consulted by
+			# the floor lane too (UnitBuilderBotModule.cs:1302), and it is the only instrument that can
+			# outrank a floor pre-empt. It costs exactly zero under the shipped
+			# StartingUnitsClass = "none", because the denominator starts at 0 and eight supported line
+			# infantry cannot be standing on the map within 300 ticks (18 s at 16.667 ticks/s). It
+			# binds only under a lobby-selected platoon start, where the denominator opens at 11 and
+			# the operator would otherwise be the opening support call-in ahead of the first medic.
+			dr.russia: 300
 		# Early-econ behaviour 1: don't call in the FIRST truck while no fielded unit needs ammo. After that
 		# truck exists the standing reserve below governs alone and this no longer binds (user ruling
 		# 2026-08-17 — full reasoning in ai-america.yaml's SupplyTruckFloorPer block).

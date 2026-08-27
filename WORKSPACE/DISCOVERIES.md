@@ -11385,6 +11385,96 @@ broken: `AutoTargetPriorityInfo.ValidTargets` defaults to `Ground, Water, Air`
 the operator can already auto-acquire an enemy drone and fire `DroneJammer` through the generic band.
 Kept with a comment rather than deleted, because attaching it would **narrow** the operator to drones
 only, which is a behaviour change to make deliberately.
+
+## 2026-08-27 — A bot-issued `"ForceAttack"` is structurally ungateable, and that is why drones launch
+
+Verified statically end to end while building `DroneOperatorBotModule`, because the whole design rests
+on it and nobody had observed it.
+
+**`BotOrderGate` cannot suppress it.** Every bot order passes through `ModularBot.QueueOrder`
+(`ModularBot.cs:127`), which returns `bool` and consults `BotOrderGate.Admit` — and both
+`@experimental` twins arm that gate (`RespectCommitmentsOnIssue: true`, `ReorderDwellTicks: 120`,
+`ai.yaml:51-57`). `OrderArbitrationMath.Classify` has cases only for `Move`/`AttackMove`/
+`EnterTransport`/`DropSupplyCacheAt` (Tasking) and `Stop` (Cancel); **everything else falls to
+`default` => `Passthrough`, and `Admit` returns `Admitted` before any suppression predicate runs.** So
+`ForceAttack` can never be damped, while `Move` to the same unit can be. A module that walks a unit and
+then fires can have the walk dropped and the shot kept.
+
+**The rest of the chain**: `AttackBase.ResolveOrder` is at **`:487-510`** (not `:762-785`) and compares
+`order.OrderString` to the bare string `"ForceAttack"` (`:114`); `Target.IsValidFor` returns `true`
+unconditionally for `TargetType.Terrain` (`Target.cs:110-127`); `CarrierMaster`'s `ArmamentNames`
+defaults to `{ "primary" }` (`BaseSpawnerMaster.cs:47`), matching `^DR`'s `Armament@1`.
+
+**The spawn happens 3 s AFTER the order, not at order time.** `na.Attacking(...)` is invoked inside the
+`ScheduleDelayedAction(Info.FireDelay, ...)` callback (`Armament.cs:692`), and `FireDelay: 50` at the
+real 16.667 ticks/s is 3.0 s. Since `CarrierMaster.Attacking` early-returns on `IsTraitPaused` and
+`CarrierMaster` is `PauseOnCondition: moving`, the operator must be unpaused for that whole gap — an
+operator that starts moving during it fires the weapon and spawns nothing.
+
+**Turning is safe.** `GrantConditionOnMovementInfo.ValidMovementTypes` defaults to
+`{ Horizontal, Vertical }` and **excludes `Turn`** (`GrantConditionOnMovement.cs:25`), so rotating onto
+a target does not grant `moving`. Revocation is immediate on stop (`UpdateCondition`, `:64-80`), with
+hysteresis only on the separate `ConditionWhenStill`/`dugin` path.
+
+## 2026-08-27 — Which YAML gate catches a misspelled trait field, and which silently does not
+
+**Corrected 2026-08-27, same day.** An earlier version of this entry claimed the fast gates "do not
+validate bot-module trait fields" and generalised from two commands to all of them. That is wrong in
+the direction that matters: it would have told a future author that `make test` cannot catch a typo'd
+AI field, when it can.
+
+**`FieldLoader.UnknownFieldAction` is bound at `CheckYaml.cs:66`, BEFORE the branch**, so it is armed
+in both modes. The difference is what each mode then evaluates:
+
+* **Pathless** (`./utility.sh --check-yaml`, no map argument) calls
+  `CheckRules(modData, modData.DefaultRules)` at `:74`. Evaluating `DefaultRules` forces the ruleset
+  load, constructing every `TraitInfo` — including the `Player` actor's bot modules — so a misspelled
+  field on `DroneOperatorBotModule@experimental` **is** reported. **`make test` runs exactly this
+  form** (`Makefile:254`), so the repo's own gate does cover it.
+* **Map-scoped** (`--check-yaml <map>`) skips that call entirely and reaches `CheckRules(map.Rules)`
+  only when the map defines custom rules (`:148-151`). It lints the map, not the default ruleset.
+* **`--dump-balance-json`** never binds `UnknownFieldAction` at all.
+
+**Measured**, by inserting a bogus `MaxAirDangerTYPO` field into a live `ai.yaml` module block: both
+`--dump-balance-json` and `--check-yaml ../mods/ww3mod/maps/arena-tank-duel` (8.5 s) returned **exit
+0** and reported nothing.
+
+The positive case is stated without hedging, because the chain is complete in source: the binding at
+`:66` precedes the branch; `:74` passes `modData.DefaultRules` as an argument, and evaluating it forces
+the ruleset load that constructs every `TraitInfo`, the `Player` actor's included (`Ruleset.cs:126`);
+and `Makefile:254` invokes the pathless form. **`make test` catches a misspelled field on a bot
+module.** (An earlier revision of this entry hedged this as "read from source, not observed" — the
+hedge was about the wrong half. What was never observed is a typo being *caught*; that the pathless
+form is the one which lints the default ruleset is not in doubt.)
+
+**Record the runtime AND what it is holding back — either half alone is misleading.** The pathless
+form lints every system map as well as the default ruleset. Two independent measurements on the same
+M-series machine: **39m58s** (this branch, 75,913 lines, exit 0) and **39.1 min / 2346 s** (clean
+`main` at `e36ab29a`, 242 maps, 76,538 lines, exit 0). The runs overlapped for part of their lives, so
+both are upper bounds under contention rather than clean solo benchmarks. The map-scoped shortcut is
+~8.5 s and `--dump-balance-json` a few seconds.
+
+That gap is almost certainly *why* this project's working merge gate drifted to `make all` + NUnit +
+`--dump-balance-json`: the lint pass was not judged unnecessary, it was judged slow. But the honest
+framing is NOT "40 minutes to catch nothing". From the `main` run's summary:
+
+```
+Errors: 91 - 91 emitted, 91 distinct signatures.
+STANDING AMNESTY: 88 recorded as known-bad and did not fail this run,
+  oldest amnestied 2026-08-17 (10 days ago).
+  Largest class: 63 x "This map does not define a valid cordon."
+  (3 further entries accepted on purpose and are not debt.)
+  (350 environment-dependent, 350 of which did not occur here.)
+```
+
+So it is 40 minutes to check a floor currently carrying 88 amnestied errors, 63 of them one class.
+Anyone deciding whether to skip it needs both halves: what it costs, and what it is holding back.
+
+**Practical rule:** the fast per-map shortcut and `--dump-balance-json` are not substitutes for
+`make test` when you have added or renamed a trait field. They are still worth running — the latter
+catches load-order and resolution failures neither of the others reach — but if you skip `make test`
+after touching an AI YAML block, cross-check the block's keys against the `Info` class's
+`public readonly` fields by hand.
 ---
 
 ## 2026-08-27 — What an AIRCRAFT actually does when the break-off guard fires mid attack-run
@@ -11607,3 +11697,324 @@ template and whatever re-tuning the vehicle case needs.
 
 So the wait half of "withdraw and wait" has no way to end today **for a vehicle**, and no existing
 switch grants one — because the trait that would grant it is not on any vehicle to switch.
+`make test` when you have added or renamed a trait field, or removed an inherited trait. They are
+still worth running — `--dump-balance-json` catches load-order and resolution failures neither of the
+others reach, and it is the only one of the three that is fast enough to run on every edit — but a
+delta that touches AI YAML or actor inheritance has not been linted until the pathless form has seen
+it. If you must skip it, cross-check the block's keys against the `Info` class's `public readonly`
+fields by hand, and expect the lint pass to have opinions about conditions left unconsumed by a
+removed trait.
+
+## 2026-08-27 — `StancePositioningExecutor` cannot touch a unit that is mid-activity
+
+Reusable and load-bearing well beyond drone operators, and it cost two reviewers and an incorrect
+ruling to establish, because everyone reasoned about this trait from its *purpose* rather than its
+reachability.
+
+**The trait has exactly one mover:** `self.QueueActivity(new Move(...))` at
+`StancePositioningExecutor.cs:414`. That line sits **inside `INotifyIdle.TickIdle`** (`:277-415`),
+which the engine invokes only when `CurrentActivity == null`, and which guards itself a second time at
+`:283` with `if (self.CurrentActivity != null) return;`. There is no other `QueueActivity` or `Move`
+site in the file.
+
+**Therefore the executor can only ever reposition an IDLE unit.** Any unit holding a long-running
+activity is untouchable by it for as long as that activity lasts. Concretely for the drone operator:
+while a drone is airborne the operator holds its `Attack` activity (the launch revokes `loaded`,
+`CarrierMaster.cs:161-162`, pausing the sole armament, which is exactly the condition that makes the
+activity hold), so the executor **cannot** move it and **cannot** cause the `moving` → `TraitPaused` →
+`Recall()` chain that would destroy the sortie. The plausible-sounding failure "the positioning layer
+walks the operator off station and loses the drone" is unreachable.
+
+**What the executor CAN still do to such a unit is touch the ledger**, and that is a separate reach:
+`CommitManagement` overwrites the `PoiGoalGuard` entry with `tacpos:` and `ReleaseManagement` calls
+`Ledger.Release(self)` unconditionally, never consulting `IsCommitted`. `GoalGuardLedger.Release` is
+keyed on the ACTOR, not on the objective, so it deletes whatever claim the actor holds regardless of
+who wrote it. That is a general hazard for any module claiming a unit the executor also manages — not
+a drone-specific bug.
+
+**Practical consequence when reasoning about this trait:** ask whether the unit is idle before
+believing any claim about the executor moving it. For units that hold long activities the movement
+risk is nil and only the ledger interaction is real.
+
+**The general trap that produced this, worth naming separately:** a trait's `RequiresCondition` tells
+you when it is ENABLED, not when it ACTS. Two reviewers and a ruling reasoned about what this trait
+does to a drone operator from its gating condition alone, and all three got it wrong in the same
+direction, because the gate says nothing about `INotifyIdle` being the only entry point. When the
+question is "can this trait do X to this unit", find the call site of X, not the condition.
+
+### Verifying a condition-gating change: get all three arms
+
+Narrowing `^DR`'s executor gate to the human token produced a clean worked example of how to check
+that a condition still reaches its consumer, using `make test`'s unconsumed-condition warning as the
+instrument. All three arms were observed rather than assumed:
+
+* **Broken-and-detected (positive arm).** With the executor removed outright from `^DR`, both grants
+  were orphaned and `make test` reported `dr.america` / `dr.russia` granting
+  `enable-ai-experimental, enable-tactical-positioning` unconsumed. This is what proves the check can
+  see the failure at all — without it, a clean run means nothing.
+* **Fixed.** With the executor retained but gated to `enable-tactical-positioning` and the bot grant
+  dropped, **zero** unconsumed entries name either token anywhere in the log.
+* **Never-broken (control).** On clean `main` at `e36ab29a`, with none of this branch present, `dr`'s
+  unconsumed list is byte-for-byte the same residual as the fixed arm. So the fixed run reproduces the
+  control exactly rather than merely resembling a healthy one.
+
+The residual on all three arms is `light-damage-attained, medium-damage-attained, stance-holdfire,
+stance-ambush, stance-fireatwill` — carried by **311 distinct actors** mod-wide and unrelated to any of
+this. **The member ORDER of that list varies between occurrences within a single log** (it recurs once
+per map) while the set is stable: compare these warning lines as sets, never by text diff.
+
+## 2026-08-27 — A recon drone cannot outrange its own operator's eyes: 22 < 32
+
+**Measured in a live match, and it is a total block rather than a degradation.** One match of
+`tournament-experimental-vs-normal-2p` (`@experimental` america vs `@stable`), with
+`DroneOperatorBotModule` live: four drone operators were built across the run, and **zero drones were
+ever launched**. All 31 `[drone]` lines in `debug.log` read `no-eligible-cell`; not one `launch` line.
+
+**The arithmetic that makes it absorbing.** The drone's maximum hover distance is
+`min(weapon 25, leash 25 - margin 3)` = **22 cells** from the operator. Every unit inherits
+`^StandardVision` (`defaults.yaml:80`), a graded `Vision@10..@1` ladder. The bands that COUNT as
+verification reach **28 cells** (see the correction below). The whole 22-cell disc the drone could
+reach sits strictly inside that, so every candidate cell has `ControlField.TicksSinceVerified` ≈ 0,
+fails a `MinStalenessTicks: 500` gate, and is refused — on every evaluation, forever. **A drone can
+never be sent anywhere its own operator cannot already see.**
+
+**MEASURED, second match, per-gate counters:** 582 evaluations over ticks 1800–72000, two operators,
+**674,584 candidate cells scored and 674,584 refused as too fresh — exactly 100%.** Zero refused by
+`MaxPoiDistanceCells`, zero by `MaxAirDanger`, zero by the SR exclusion, zero already covered. Not one
+evaluation in 582 had a single cell clear the staleness gate. The state does NOT break up in late
+game: the last evaluation looks identical to the first.
+
+Provenance is not inferred this time: `debug.log` was rotated away immediately before launch, and the
+harness holds a single-instance lock, so every `[drone]` line in it is necessarily from this run. The
+harness does NOT copy `debug.log` per-run — it is the engine's one shared support directory,
+attributed by mtime (`run-test.sh:456`) — so rotating beforehand is the way to get run-scoped
+evidence out of it.
+
+CAVEAT ON THE MATCH ITSELF: both attempts ended TIMEOUT-FAIL with no tournament verdict — the first at
+the harness's 300 s default against a 720 s match clock, the second at a 900 s cap with `--speed 8`.
+So no tournament match has been observed to COMPLETE, and the win-rule never evaluated. That does not
+touch the drone finding, which is about per-evaluation behaviour over 49k ticks of real play, but it
+does mean this scenario's completion path is itself unverified.
+
+**CORRECTED 2026-08-27, same day, by a second match with per-gate counters.** An earlier revision of
+this entry said the number was 32 and that the fix was a missing "reposition leg". Both were wrong,
+and the second is wrong in the expensive direction — it would have aimed a design change at nothing.
+
+**The verifying radius is 28 cells, not 32.** `ControlField.GridCellVisible` calls
+`player.MapLayers.IsVisible(cell, 1)`, and that resolves to `ResolvedVisibility[puv] > visibility` —
+a STRICT comparison (`MapLayers.cs:579`). Its own PITFALL note explains why: tick stamps
+`ResolvedVisibility` 1 on every EXPLORED cell whether or not anything is looking, so callers pass 1
+meaning "better than merely explored". `^StandardVision`'s outermost band `Vision@1` is Strength 1
+over 28c0–32c0, which therefore does NOT verify. The strength-2 band (25c0–28c0) does. So a weakest-
+band graze already does not count as verification — but 22 < 28 all the same.
+
+**REPOSITIONING CANNOT FIX THIS.** The candidate disc is centred on the operator and the operator
+verifies 28 cells in every direction, so the disc is strictly inside the bubble no matter where the
+operator stands. Walking forward moves both together. A reposition leg is not missing, it is
+INSUFFICIENT.
+
+**But the drone is not redundant, and that is where the real fix lives.** `quadcopterdrone` inherits
+`^StandardVision` too (`^Drone` -> `^Airborne` -> `^NeutralAirborne` -> `^StandardVision`,
+`aircraft.yaml:12`). A drone hovering at the leash edge therefore verifies its OWN 28-cell bubble
+centred 22 cells away — reaching ~50 cells from the operator, of which everything beyond 28 is ground
+the operator cannot see. The drone genuinely extends the vision frontier.
+
+**So the defect is the SCORING CRITERION, not the geometry and not the positioning.** The module
+scored a candidate by the staleness of the hover cell ITSELF, which by construction sits inside the
+operator's own bubble and can never be stale. What it must score is the unverified area the drone
+would REVEAL from there — the stale ground within the drone's vision radius of the candidate cell.
+That is a scoring change of one function, not a new movement leg.
+
+**Implemented 2026-08-27. THE BENEFIT IS UNMEASURED AND MUST NOT HARDEN INTO A NUMBER.** The
+"~50 cells" reach and the claim that a drone at the leash edge reveals useful ground are arithmetic
+off the vision ladder, not observations: **no drone has ever flown in this mod under bot control.**
+The 100%-refusal figure is measured; the fix's benefit is not, and the new `MinRevealedSquares: 12`
+floor is a first estimate tuned against nothing. The next run is the first evidence either way, and
+it should be spent on a reviewed change rather than a first draft.
+
+**WHAT `MinRevealedSquares: 12` ACTUALLY MEANS ON THE GROUND, because this threshold fails
+INVISIBLY.** Set too high it reproduces the original bug exactly — zero launches forever — and the log
+looks identical to the 100%-refusal logs already collected. At `CellSize 2` one control-grid square is
+2x2 = **4 map cells**, so 12 squares is **48 map cells**, roughly a 7x7 patch. The drone's vision box
+is 2x28+1 = 57 map cells on a side, about 29x29 = ~840 grid squares. **So the threshold is ~1.4% of
+the drone's own field of view** — deliberately permissive, and "too high" is therefore an unlikely
+explanation if a future match still shows no launches.
+
+That distinction is no longer left to arithmetic: the refusal line now carries `bestreveal=` (the best
+revealed-area any candidate achieved this scan, threshold or not) alongside `minreveal=`. Zero
+`bestreveal` means nothing was revealable and the model is still wrong; `bestreveal` sitting just
+under `minreveal` means the threshold is the only thing in the way. One match distinguishes them.
+
+**CORRECTED BY A LIVE MATCH: THE FLOOR IS NOT INERT — IT BINDS HARD.** The paragraph below derived
+"inert" from a synthetic grid and a live run inverted it. Observed `bestreveal` values against a floor
+of 12 were **1, 3, 2, 6** — i.e. the floor refused every candidate on most evaluations. Both statements
+are true at once and that is the point: **the 228-square corner artefact is still there and still
+inflates every query, it is simply not enough to clear the floor when the real term is 1.**
+
+WHY THE SYNTHETIC TEST COULD NOT SEE IT, WHICH IS THE REUSABLE PART: the synthetic grid assumed
+unobserved ground is PLENTIFUL (everything outside the operator's disc was unseen). In a live match it
+is SCARCE — the bot's own units have already observed most of what is within a drone's reach, and near
+a map edge much of the query box is off-grid and clamped away by `SumInclusive` rather than counted as
+stale (`offmap` was 205, 171, 215, 115 on the observed evaluations). **A synthetic geometry test cannot
+model scarcity.** It can tell you what a formula computes; it cannot tell you what values the formula
+will actually be fed. That is the third confident derivation in one day overturned by a single run.
+
+**THE ARTEFACT ARITHMETIC ITSELF STANDS — measured, not estimated.** With a
+14-square vision radius the query box is 29x29 = 841 squares and the true disc is 613, so **up to 228
+squares of every query are corners the drone will never see**. Against a shipped
+`MinRevealedSquares: 12` that is ~19x the floor, so **every candidate clears the floor on corner
+artefact alone**, whether or not it would reveal anything real. The floor cannot refuse anything, and
+any future attempt to make it bite has to clear 228 first. Ranking still works — a leash-edge square
+measures ~439 against ~228 for one sitting on the operator, so the argmax does prefer the frontier —
+but combined with `ContactBonus 2000` being worth exactly 2 revealed squares at the x1000 scale, and
+POI distance capped at 40 and so worth 0.04 squares, **the score is effectively a pure argmax of
+revealed area**. The only remaining brake on the corner-parking failure is `MaxPoiDistanceCells`, and
+an argmax will tend to sit exactly on that boundary in the least-known direction. Pinned by
+`Model_TheBoxCornerArtefactIsLargeEnoughToMakeTheRevealFloorInert`.
+
+**The over-count is isotropic, so it does not bias toward diagonals** — an earlier worry, checked and
+dropped. What it does do is worse than a bias: it credits a candidate for ground ~40 map cells out
+that the drone will never see, so a large unobserved mass sitting diagonally off a candidate can pull
+the drone to a cell from which it reveals none of it. **That is observable in a match** as a drone
+flying toward unexplored ground and stopping short of it.
+
+**The vision box is a SQUARE, not a disc.** The summed-area query is
+rectangular, so a candidate is credited with unobserved ground in its bounding box — including the
+four corners a circular vision radius would not actually reveal, about 4/pi ~ 27% more area than the
+true disc. The bias is not uniform: it favours candidates whose unobserved ground lies DIAGONALLY from
+them over candidates with the same amount of unobserved ground lying orthogonally. **Where that
+matters is near map corners and along diagonal frontiers**, since a drone can be credited for corner
+ground it will never see and then be sent to a cell that reveals less than scored. Accepted because
+the disc-accurate alternative costs a per-candidate scan instead of four array reads — i.e. the whole
+reason this is affordable. If drones are ever observed favouring map corners, this is the first
+suspect.
+
+**WHAT IS STILL UNVERIFIED, NAMED SO IT IS NOT RE-DERIVED.** `SumInclusive` is exhaustively tested
+against brute force, and the model is tested on synthetic geometry — but **nothing tests the WIRING
+between them**: that `ChooseTargetCell` centres the query box on the right cell, uses the right
+radius, and converts map cells to grid squares in the right units. That would need a `World` stood up
+in NUnit, which was judged not worth the fresh-bug risk immediately before a run; it is a disclosed
+gap, not an oversight. **Practical consequence: if a match produces zero launches but a NON-EMPTY
+counter log, look at that wiring first, not at the scoring model.** An empty counter log means
+something else entirely — see the cost-gate entry below.
+
+**The cost model is the part most likely to be wrong in a way tests cannot see.** Scoring revealed
+area naively is ~1520 candidates x ~615 squares = ~935,000 reads per operator per evaluation, against
+~1520 for the model it replaces. Two changes bring it back: candidates are enumerated at CONTROL-GRID
+resolution rather than per map cell (~380), and revealed area is read from a summed-area table built
+once per evaluation over the whole grid (~4,096 squares on a 128x128 map at `CellSize 2`) and shared
+by every operator, after which each candidate costs FOUR array reads regardless of the drone's vision
+radius. Net: O(gridW x gridH) once plus ~380 O(1) queries per operator — the same order as before and
+now independent of `DroneVisionCells`. A naive implementation of the same formula is correct and
+unshippable, which is the trap worth remembering.
+
+**Method note worth keeping:** this was invisible to 17 passing pure-math tests and to five
+independently re-derived static links in the order path, because none of them could see the *field
+values* the predicates would be fed at runtime. The single instrument that settled it was one log line
+per refusal. Counting distinct issued target cells per operator — the stated settling observation —
+returned not "one" (fix did not take) or "two or more" (works) but **zero**, which is a third outcome
+neither arm of the planned test anticipated.
+
+## 2026-08-27 — How to make the global `debug.log` trustworthy for one run
+
+This project's standing note says the engine's `debug.log` is global, has no run identity, and must
+not be trusted to belong to the run you just did. True, and it stops there — which leaves anyone
+needing log evidence with no method. There is one, it is two commands, and it removes the inference
+entirely rather than reducing it.
+
+**Rotate the log aside immediately before launching, then read what is left.**
+
+```sh
+mv "$HOME/Library/Application Support/OpenRA/Logs/debug.log" \
+   "$HOME/Library/Application Support/OpenRA/Logs/debug.log.pre-<run>.bak"
+./tools/autotest/run-test.sh --hidden --timeout <N> <scenario>
+```
+
+The harness takes a single-instance lock (`run-test.sh`, `LOCK_DIR`) precisely because the engine's
+support directory is shared, so with the file rotated away and the lock held, **every line in the new
+`debug.log` is necessarily from this run.** Provenance becomes structural instead of being argued from
+timestamps and actor-id alignment.
+
+**Why not just read the run directory:** the harness does NOT copy `debug.log` per-run. The support
+directory is shared and crash artifacts are attributed by MTIME (`run-test.sh:456`), so on a normal
+(non-crash) run the result dir contains `result.json` and nothing else. Rotating beforehand is the
+substitute for a per-run copy that does not exist.
+
+Keep the `.bak` until the evidence is extracted — the rotation is also what makes a second run's
+lines distinguishable from the first's, which matters when re-running the same scenario after a fix.
+
+## 2026-08-27 — A cost gate that skipped more than the cost
+
+Recorded because the shape recurs and the symptom is silence rather than an error.
+
+Building a shared summed-area table once per evaluation is a legitimate saving, and the obvious guard
+— "only build it if some operator could act on it" — was written as:
+
+```csharp
+if (!satBuilt && CanLaunchNow(op, out _, out _)) { BuildStaleSat(); satBuilt = true; }
+if (satBuilt) TaskOperator(bot, op, tick, contacts, pois);   // <-- the defect
+```
+
+The second line makes the whole of `TaskOperator` conditional on the table, not just the scan that
+needs it. Everything ABOVE the launch check — releasing a dry operator's ledger claim, clearing its
+sortie record, and **re-committing the claim every cycle** — is unrelated to the table and is not
+optional. And `CanLaunchNow` is false exactly while a drone is airborne, i.e. **the success case**, so
+the skipped cycles were the ones during a working sortie: `ReevaluateInterval 200` against
+`CommitmentTicks 500` and a ~1000-tick sortie means the claim lapses mid-flight, the offence module is
+free to recruit the operator, and moving it recalls the drone. Order-dependent too — an operator is
+skipped only if no lower-ActorID operator was ready first, so with both airborne nothing ran at all.
+
+**The diagnostic would have gone silent with it.** `TaskOperator` also owns the `no-eligible-cell`
+line, so the log would have been EMPTY rather than wrong — indistinguishable at a glance from "the
+module isn't running", after a match that otherwise looked like the previous one.
+
+**Rule of thumb:** a guard added for COST must gate only the expensive computation, never a call that
+also performs bookkeeping. Build lazily at the point of use instead — same saving, no coupling.
+
+## 2026-08-27 — First drone flights, and what one match could and could not settle
+
+**Drones fly.** Three sorties in one match, against a lifetime total of zero before this. Launch lines
+`op=30 cell=37,9 dist=21`, `op=69 cell=33,9 dist=21`, `op=142 cell=35,9 dist=22`, at ticks 1200, 2400
+and 13800. Every one is at `dist` 21-22 against a 22-cell maximum — the drone parks at the LEASH EDGE,
+which is what an argmax over revealed area predicts and is precisely the position the old
+hover-cell-staleness model could never select.
+
+**The air-danger gate is real, and its previous zeros were an artefact.** `ScoreCandidate` returns at
+the first failing gate, so the earlier run's "zero refused by danger" meant "staleness rejected
+everything first", not "danger passed". On live data it refused 35 candidates in one evaluation while
+`bestreveal` was 39 — i.e. revealable ground existed and the drone declined the contested cells rather
+than donating itself. Correct behaviour, observed for the first time.
+
+**The retask path is REACHED but was never USED.** At tick 15200 `op=142` was re-evaluated after its
+own launch with `covered=2` — the flown cell retired, the operator considered for a second sortie.
+That had never happened at any point in this module's history. But no operator ever issued a second
+distinct cell: three launches, three operators, one cell each, all `retask=first`. **Question left
+open, deliberately unresolved rather than squinted into a verdict:** "the retask path is broken" and
+"the retask path works but no operator survives to use it" both fit, and the log cannot separate them
+because an operator with an airborne drone is silent at every log site. A `[drone] ... operator-lost`
+line at the removal path now records an operator removed while holding a standing order, which
+distinguishes them on the next run at the cost of one line.
+
+**AND THE MODULE WENT SILENT AFTER TICK 15200** — no `[drone]` line at all for the remaining ~55,000
+ticks of a match that reached 70,548. Two readings: no operator existed (all lost, none replaced), or
+operators existed and never reached either log site. Same instrument settles it.
+
+**Clustering is measured; its CAUSE is not.** All three launches landed on `y=9` within a four-cell
+span of `x`. Two explanations produce an identical signature and want opposite fixes:
+* INSUFFICIENT DISCOUNTING — `covered` retires only the exact flown cell, and an adjacent grid centre
+  is 2 cells away against 28-cell vision, so the next operator scores near-identical revealed area.
+* GEOMETRIC CONSTRAINT — operators spawn at the Supply Route, a fixed beachhead near a map edge, so
+  much of every candidate disc is off-grid and only one direction offers unclamped unobserved ground.
+**Measured: 42-53% of every candidate disc was clamped off-map** (`offmap` 205/171/215/186/115 against
+`scored` 199/233/189/218/291). That is real support for the geometric reading, and it was in the data
+before anyone thought to look for it. It does NOT exclude the other. The timing separation of the
+three launches does not discriminate either, because the discounting effect works through `covered`
+across evaluations rather than through a shared table within one. **The observation that separates
+them is the operator's OWN position at launch**, which the launch line did not record and now does
+(`opcell=`): distinct operator positions converging on one lane favours geometry; operators sitting
+near each other leaves the two genuinely confounded, which is a result to report rather than a coin
+to flip.
+
+**Not checked: whether a drone flew toward unexplored ground and stopped short of it.** That is the
+corner-artefact prediction, and the log records the target cell but nothing about what the drone
+actually observed once there, so this match says nothing about it either way.

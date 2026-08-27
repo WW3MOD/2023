@@ -853,6 +853,94 @@ Player:
 		# already AT a post are left alone. Default 0 (off) on the engine class => @stable twin byte-identical.
 		StarvingRecruitThresholdPerMille: 250
 
+	# ===== RECON DRONES (experimental-only; there is no @stable twin, deliberately) =====
+	# User report 2026-08-27: "I want the experimental bot to use drones ... but now they make none."
+	# Production is the other half and lives on the UnitBuilder twins (UnitFloors/UnitFloorPer
+	# dr.america / dr.russia). This module is what makes a bought operator actually fly anything.
+	# WHY A MODULE AND NOT A SETTING ON AN EXISTING ONE: launching a drone is a force-fire at a
+	# TERRAIN cell and nothing else. CarrierMaster.Attacking opens with a Terrain-only guard, so an
+	# ordinary attack order at an actor fires the weapon and spawns nothing — no existing module
+	# issues that order, and none of them know the operator must then stand still for 60s.
+	# NO @stable TWIN ON PURPOSE: a wholly new experimental-gated module cannot move the benchmark
+	# control, which sidesteps the shared-trait default-to-baseline rule entirely.
+	# See DOCS/reference/architecture.md "Adding a behavioural field to a trait shared by both bot
+	# profiles".
+	DroneOperatorBotModule@experimental:
+		RequiresCondition: enable-ai-experimental && (player.nato || player.brics)
+		# Slow by design: a sortie is ~80s end to end (3s FireDelay + 60s loiter + 9s rearm + 12s
+		# BurstWait) at the real 16.667 ticks/s, so a faster cadence cannot start more sorties and
+		# only risks disturbing a parked operator.
+		# ===== THIS INTERVAL IS RACING THE ENGINE'S OWN AUTO-RELAUNCH, AND CURRENTLY WINS =====
+		# WRITE THIS DOWN BECAUSE NOTHING ASSERTS IT. The module does not clear the held Attack
+		# activity; it replaces it by issuing a fresh unqueued ForceAttack. Left alone, the engine
+		# re-fires that held activity at the OLD cell by itself, so the module must get an evaluation
+		# in during the window where the operator is docked and has not yet successfully relaunched.
+		# The arithmetic, from dock at T:
+		#   T+0    PickupSlave sets IsLaunched=false, RearmTicks=150, re-grants `loaded`
+		#          (CarrierMaster.cs:263-272) => the armament unpauses and the held activity fires.
+		#   T+50   FireDelay elapses, Attacking() runs, GetLaunchable() finds RearmTicks ~100 > 0 and
+		#          returns null (:238-247, :142-144). The shot is WASTED — and note `loaded` is NOT
+		#          revoked, because the revoke at :161-162 sits after that early return.
+		#   T+250  BurstWait: 200 expires, the next shot goes.
+		#   T+300  Attacking() runs again with RearmTicks at 0 and the drone actually launches.
+		# So the module has ~300 ticks of docked window against a 200-tick cadence, and an evaluation
+		# always lands inside it. THE MARGIN IS 100 TICKS AND IT IS NOT ENFORCED ANYWHERE: lower
+		# RearmTicks (^DR) or BurstWait (DroneTargeter), or raise this interval, and the guarantee
+		# disappears silently — the symptom would be a drone that keeps re-flying its first cell.
+		ReevaluateInterval: 200
+		OperatorActorTypes: dr.america, dr.russia
+		# Must exceed ReevaluateInterval with headroom: a commitment that lapses between two evals is
+		# an operator PoiOffensiveBotModule is free to recruit mid-sortie.
+		CommitmentTicks: 500
+		# The ENFORCED leash, in cells: CarrierSlave.MaxDistance on quadcopterdrone
+		# (aircraft.yaml:408), read at CarrierSlave.cs:131,138. NOT CarrierMasterInfo.MaxSlaveDistance,
+		# which has zero readers engine-wide and whose 20c0 was removed from ^DR on 2026-08-27.
+		LeashCells: 25
+		# The leash is re-checked only every MaxDistanceCheckTicks (20), and past it the drone is not
+		# recalled but dragged back and granted lost-connection, which ZEROES ITS VISION — a blind
+		# drone the bot still believes is scouting. Margin keeps it off that boundary.
+		LeashMarginCells: 3
+		# Ticks-since-verified above which a grid square counts as UNOBSERVED for scoring. This no
+		# longer gates the hover cell — that model could never fire, because a reachable hover cell is
+		# always inside the operator's own verified bubble (measured: 674,584 of 674,584 candidates
+		# refused, 100%, zero launches). It now decides which squares count toward revealed area.
+		MinStalenessTicks: 500
+		# The DRONE's own verifying vision radius, in cells. 28 and not 32: ^StandardVision's outermost
+		# band (Vision@1, strength 1, 28c0-32c0) does NOT verify, because ControlField.GridCellVisible
+		# tests MapLayers.IsVisible(cell, 1) and that comparison is STRICT (MapLayers.cs:579). The
+		# strength-2 band (25c0-28c0) does. Sizes the revealed-area box; raising it costs nothing per
+		# candidate, because the count is a four-read summed-area query independent of radius.
+		DroneVisionCells: 28
+		# Minimum unobserved COARSE grid squares a hover cell must reveal to justify a ~60s sortie.
+		# The floor that stops a drone being spent to uncover a sliver at the edge of known ground.
+		# NOT TUNED AGAINST PLAY: no drone has ever flown, so this is a first estimate and is the most
+		# likely thing to need adjusting once one does.
+		MinRevealedSquares: 12
+		# The unreachable-corner guard. An unbounded staleness argmax sends the drone to the map
+		# corner nothing can reach and leaves it there — the failure ScoutBotModule.cs:213-222 had to
+		# patch.
+		MaxPoiDistanceCells: 40
+		# AIR danger at the cell the DRONE hovers over. It is unarmed and 50 HP: one Stinger kills it
+		# anywhere inside a cell, and its 1-world-unit hitshape buys no protection because
+		# HitShape.TargetablePositions never reads Radius. Losing it costs 25 supply and leaves the
+		# operator holding a respawned drone it cannot launch (ammo-primary 0 while `loaded` is
+		# re-granted).
+		MaxAirDanger: 100
+		# GROUND danger at the cell the OPERATOR stands on. Separate number, separate unit, separate
+		# reason: the operator is unarmoured infantry that must stay parked for the whole loiter.
+		MaxLaunchCellDanger: 60
+		ContactBonus: 2000
+		ContactRadiusCells: 6
+		# The enemy SR is fixed, indestructible and non-capturable, so a drone parked over it learns
+		# nothing that is not already known.
+		SupplyRouteExclusionCells: 8
+		StarvingRecruitThresholdPerMille: 250
+		# Must exceed the weapon's FireDelay (50). The spawn is a delayed action owned by the Armament
+		# rather than by the attack activity, so re-ordering inside that window does not cancel the
+		# pending launch — it aims the operator at a new cell while the drone still departs for the old
+		# one. 75 leaves 25 ticks of slack.
+		LaunchSettleTicks: 75
+
 	# NOTE: No engineer (^E6) capture module wired anywhere — engineers
 	# don't capture in WW3MOD by design. The Captures trait sits on
 	# Technician (^TECN) only. See DOCS/gameplay/capturing.md.
