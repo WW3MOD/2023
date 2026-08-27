@@ -263,6 +263,49 @@ namespace OpenRA.Mods.Common.Test
 		}
 
 		/// <summary>
+		/// THE TWO-DEPOT CASE, from second-pass review. Testing affordability on the already-chosen
+		/// nearest host strands a unit that had a usable depot: two owned Logistics Centres, LC-A at 3
+		/// cells holding 750 and LC-B at 8 cells holding 2250, against an iskander whose batch costs
+		/// 1500. Pick-then-filter selects LC-A, finds it cannot pay, and concludes nothing can serve us
+		/// — while LC-B sits eight cells away fully stocked. Filter-then-pick selects LC-B.
+		/// </summary>
+		[Test]
+		public void NearestAffordableDepotWinsOverNearerPoorOne()
+		{
+			// Distances are squared, as ClosestToIgnoringPath compares them: 3c and 8c in WDist.
+			var lcA = new SupplyHuntMath.Candidate(3L * 1024 * 3 * 1024, 1);
+			var lcB = new SupplyHuntMath.Candidate(8L * 1024 * 8 * 1024, 2);
+
+			var chosen = SupplyHuntMath.SelectNearestAffordable(
+				new[] { lcA, lcB }, new[] { false, true });
+
+			Assert.That(chosen, Is.EqualTo(1),
+				"the stocked depot 8 cells out must beat the 750-supply depot at 3 cells");
+
+			Assert.That(SupplyHuntMath.SelectNearestAffordable(new[] { lcA, lcB }, new[] { false, false }),
+				Is.EqualTo(-1), "no affordable depot ⇒ nothing to seek");
+
+			Assert.That(SupplyHuntMath.SelectNearestAffordable(new[] { lcA, lcB }, new[] { true, true }),
+				Is.EqualTo(0), "with both affordable the nearer one still wins");
+		}
+
+		/// <summary>
+		/// Equidistant affordable depots must resolve by ActorID, not by enumeration order, or two
+		/// clients can dispatch the same unit to different depots and desync. Mirrors SelectNearest.
+		/// </summary>
+		[Test]
+		public void EquidistantAffordableDepotsBreakOnActorId()
+		{
+			var high = new SupplyHuntMath.Candidate(5L * 1024 * 5 * 1024, 77);
+			var low = new SupplyHuntMath.Candidate(5L * 1024 * 5 * 1024, 12);
+
+			Assert.That(SupplyHuntMath.SelectNearestAffordable(new[] { high, low }, new[] { true, true }),
+				Is.EqualTo(1), "lower ActorID wins regardless of order encountered");
+			Assert.That(SupplyHuntMath.SelectNearestAffordable(new[] { low, high }, new[] { true, true }),
+				Is.EqualTo(0));
+		}
+
+		/// <summary>
 		/// Pins the DELIBERATE divergence from AmmoEvacMath.Decide, which answers a near-identical
 		/// question for the bot module. Its budget parameter reads 0 as UNLIMITED
 		/// (PoiOffensiveBotModule.OutOfAmmoRearmSeekRadiusCells); the unit-side leash reads 0 as

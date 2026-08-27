@@ -167,13 +167,26 @@ namespace OpenRA.Mods.Common.Traits
 		/// ended at "raise NeedsResupply and stand still", which is not a decision to hold; it is a unit
 		/// stuck with its hand up.</para>
 		///
+		/// <para>WHAT SHIPS IS BROADER THAN THAT SENTENCE, and the difference is worth stating rather
+		/// than letting a doc claim outrun the code. The predicate is not "no rearm actor exists
+		/// anywhere" but "none WITHIN <c>AmmoPoolInfo.DryRearmLeashCells</c>, and none that can travel
+		/// to us". That leash ships at 30 and is overridden in no mod YAML, while maps run from 66x34 up
+		/// to 128x128 — so "more than 30 cells from your Logistics Centre" is an ordinary battlefield
+		/// distance, not an exotic one, and a wholly dry vehicle with a fully stocked LC 31 cells away
+		/// DOES evacuate. That is deliberate and pinned by
+		/// <c>DrainedDistantStaticDepotStillEvacuates</c>: a static depot beyond the leash cannot close
+		/// the gap and the unit will not cross to it, so waiting never terminates. Describe it as "none
+		/// within 30 cells", never as "none exists".</para>
+		///
 		/// <para>WHY HOLDING IS ONLY SOMETIMES WORTH IT, which is the whole content of this function:
-		/// NeedsResupply has exactly TWO readers in the engine, and only one of them can end the unit's
-		/// predicament. <c>SupplyProvider.FindNeedsResupplyTarget</c> is swept by a Hunt-stance provider
-		/// that then DRIVES to the flagged unit — that is the rescue. The other,
-		/// <c>UnitBuilderBotModule.AnyFieldedUnitNeedsResupply</c>, is a bot PRODUCTION gate: it may buy
-		/// a truck somewhere, but it neither supplies nor disposes of this actor.
-		/// So raising the flag pays off if and only if some host can travel.
+		/// NeedsResupply has exactly ONE reader in the whole engine —
+		/// <c>SupplyProvider.FindNeedsResupplyTarget</c> (SupplyProvider.cs:622), swept only by a
+		/// Hunt-stance provider that then DRIVES to the flagged unit. So raising the flag pays off if
+		/// and only if some host can travel. (Grep the PROPERTY ACCESS, not the string:
+		/// <c>UnitBuilderBotModule.AnyFieldedUnitNeedsResupply</c> merely contains the name — its body
+		/// never touches the property, computing need from Info.Ammo / CurrentAmmoCount / SupplyValue
+		/// via ResupplyDemand.UnitNeed. A previous revision of this comment miscounted it as a second
+		/// reader on the strength of the method name alone.)
 		/// Against a host that cannot move, the flag is addressed to nobody and the unit waits forever.
 		/// That is not hypothetical: in the shipped corpus every vehicle names
 		/// <c>RearmActors: logisticscenter</c> and nothing else, the Logistics Centre is a building, and
@@ -303,6 +316,45 @@ namespace OpenRA.Mods.Common.Traits
 			var best = -1;
 			for (var i = 0; i < candidates.Count; i++)
 			{
+				if (best < 0)
+				{
+					best = i;
+					continue;
+				}
+
+				var c = candidates[i];
+				var b = candidates[best];
+				if (c.DistanceSquared < b.DistanceSquared ||
+					(c.DistanceSquared == b.DistanceSquared && c.ActorId < b.ActorId))
+					best = i;
+			}
+
+			return best;
+		}
+
+		/// <summary>
+		/// <para>Index of the nearest candidate that can actually AFFORD to serve us, or -1 when none
+		/// can. <paramref name="affordable"/> is parallel to <paramref name="candidates"/>.</para>
+		///
+		/// <para>THE ORDERING IS THE WHOLE POINT: filter, THEN pick. Testing affordability on the
+		/// already-chosen nearest host instead strands a unit that had a usable depot available — two
+		/// owned Logistics Centres, one at 3 cells holding 750 and one at 8 cells holding 2250, against
+		/// an iskander needing 1500: pick-then-filter selects the 3-cell LC, finds it cannot pay, and
+		/// reports "nothing can serve us" while a fully stocked depot sits eight cells away. That was a
+		/// live defect in this file's first revision, which is why the rule now lives here with a test
+		/// rather than as two lines at the call site.</para>
+		///
+		/// <para>Same tie-break as <see cref="SelectNearest"/> — lower ActorID wins — so the choice is a
+		/// total order and two clients cannot diverge on equidistant depots.</para>
+		/// </summary>
+		public static int SelectNearestAffordable(IReadOnlyList<Candidate> candidates, IReadOnlyList<bool> affordable)
+		{
+			var best = -1;
+			for (var i = 0; i < candidates.Count; i++)
+			{
+				if (!affordable[i])
+					continue;
+
 				if (best < 0)
 				{
 					best = i;

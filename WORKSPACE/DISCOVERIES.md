@@ -11425,3 +11425,43 @@ the prose is false): `test-dry-inrange-idle-oscillation:21` calls 250 ticks "10s
 Pinned by `engine/OpenRA.Test/OpenRA.Mods.Common/AutotestTickRateTest.cs`: the constant, the mod's
 default `Timestep`, the engine's integer rate, and both scenarios' arithmetic. Verified RED at 16 (3
 failures) and at 16.667 (2 failures) before restoring 25.
+
+## 2026-08-27 — A dry vehicle in the hold-and-flag state never re-evaluates, so its "recoverable" wait cannot end by itself
+
+**Confirmed, not inferred** — read off `Actor.Tick` and the trait's declared interfaces, then cross-checked
+against the notify dispatch.
+
+`AmmoPool` declares `INotifyCreated, INotifyAttack, INotifyBecomingIdle, IResolveOrder, ISync`
+(`AmmoPool.cs:212`). It is **not** `ITick` and **not** `INotifyIdle`. `Actor.Tick` fires
+`OnBecomingIdle` only on the `!wasIdle && IsIdle` **transition** (`Actor.cs:317-323`); the per-tick
+`tickIdles` loop on the very next line requires `INotifyIdle`. The only other re-entry into
+`AutoRearmIfDry` is `INotifyAttack.Attacking`, which cannot fire on an actor with no ammunition.
+
+**So a dry unit that falls idle and stands still asks exactly once and never again.** It is not a slow
+retry loop; there is no loop.
+
+Why this bites specifically for VEHICLES, and why it matters to the `Auto` evacuate fallback
+(`wt/resupply-fallback`): that fallback deliberately answers "my depot is drained" with hold-and-flag
+rather than evacuation, on the grounds that a drained Logistics Centre is recoverable —
+`AbsorbsSupplyCache` calls `SupplyProvider.AddSupply` from nearby caches. **The unit cannot observe
+that recovery from a standstill.** And the flag it raised is unanswerable for a vehicle from both ends:
+`NeedsResupply` has exactly one reader (`SupplyProvider.FindNeedsResupplyTarget`, `SupplyProvider.cs:622`),
+swept only by a Hunt-stance provider that must DRIVE to it — and every vehicle in the mod names
+`RearmActors: logisticscenter` alone, a building. Even the wasted trip is impossible to convert: the
+three MOBILE providers (`truk`, `lccv`, `supplycache`) all set `RearmCondition: replenish-soldiers`,
+declared only on `^Soldier` (`infantry.yaml:238`), so a truck that did drive over could not serve a
+vehicle on arrival.
+
+**Not fixed, and deliberately not fixed on that branch.** The obvious repair — give `AmmoPool` a
+periodic re-ask — is structural rather than small: `AutoRearmIfDry` is the single entry point for all
+three `ResupplyBehavior` arms, so making it periodic also makes the **Evacuate** arm re-fire on a
+cadence, and that arm queues `RotateToEdge` through `QueueActivity(false, ...)`, which cancels first —
+an evacuating unit would tear down and re-issue its own departure every scan. That `AutoSeekSupplies`
+already carries a full apparatus for exactly this problem (scan intervals, `IsSeekingRearm` re-entry
+guard, stall detection, retry cooldown) is the evidence for how much machinery a safe periodic re-ask
+needs. Note that trait ALSO already solves the periodic re-ask — `ReturnWhenEmpty` +
+`EmptyScanInterval` — but ships `Enabled = false` and is declared on `^Soldier` alone, so it covers
+neither vehicles nor anyone by default.
+
+Bearing on the open user question about a "withdraw and wait" behaviour: the wait half currently has no
+way to end.

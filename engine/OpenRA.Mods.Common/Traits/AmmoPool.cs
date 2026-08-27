@@ -542,14 +542,15 @@ namespace OpenRA.Mods.Common.Traits
 					// AnyRearmHostWithinLeash / AnyMobileRearmHost, which ignore stock, while only the
 					// seek trigger reads it.
 					var leash = ResolveSeekLeash(ammoPools);
-					var host = ChooseResupplier(self);
 
-					// Affordability, matching the gate the Evacuate arm already applies. A host holding
-					// less than one batch of anything we need is a destination that cannot serve us on
-					// arrival — the LC left holding 750 after one 1500 batch is exactly that — and
-					// dispatching to it produces a shuttle rather than a rearm.
+					// The nearest AFFORDABLE host, not the nearest stocked one. A depot holding less
+					// than one batch of anything we need cannot serve us on arrival — the LC left with
+					// 750 after one 1500 batch is exactly that — so dispatching to it produces a shuttle.
+					// Choosing on affordability rather than filtering the already-chosen nearest is what
+					// keeps a unit from being stranded beside a poor depot while a stocked one sits just
+					// past it; see SupplyHuntMath.SelectNearestAffordable for the worked case.
+					var host = ChooseAffordableResupplier(self, ammoPools);
 					var suppliedHostWithinLeash = host != null
-						&& HostCanAffordSomethingWeNeed(host, ammoPools)
 						&& SupplyHuntMath.WithinCellBudget(
 							host.Location.X - self.Location.X,
 							host.Location.Y - self.Location.Y,
@@ -577,8 +578,10 @@ namespace OpenRA.Mods.Common.Traits
 							// Self-assigned because the unit has lost the weapon that defines it — which
 							// since the Essential predicate landed is NOT the same as "cannot fight at
 							// all". The errand is bounded by that reason and ends the moment it lapses.
-							// See SeekSupplyProvider.
-							AutoRearm(self, true);
+							// See SeekSupplyProvider. `host` is passed rather than re-picked: it is the
+							// nearest AFFORDABLE depot, and ChooseResupplier would return the nearest
+							// merely-stocked one.
+							AutoRearm(self, true, host);
 							break;
 
 						case SupplyHuntMath.DryAutoDisposition.HoldAndFlag:
@@ -758,9 +761,15 @@ namespace OpenRA.Mods.Common.Traits
 		/// Centre). The <see cref="Activities.RideTransport"/> branch does not, and no shipped rearm
 		/// host is boardable, so it is unreachable rather than merely unhandled.</para>
 		/// </summary>
-		public static void AutoRearm(Actor self, bool dispatchedBecauseDry)
+		/// <param name="host">The destination, when the caller has already chosen one. Null re-picks via
+		/// <see cref="ChooseResupplier"/>, which is every pre-existing caller's behaviour. It exists
+		/// because the Auto arm picks the nearest AFFORDABLE host
+		/// (<see cref="ChooseAffordableResupplier"/>) and letting this method re-pick would send the unit
+		/// to the nearest merely-stocked one instead — re-introducing, one call deeper, exactly the
+		/// shuttle that choosing on affordability was meant to prevent.</param>
+		public static void AutoRearm(Actor self, bool dispatchedBecauseDry, Actor host = null)
 		{
-			var nearestResupplier = ChooseResupplier(self);
+			var nearestResupplier = host ?? ChooseResupplier(self);
 
 			if (nearestResupplier != null)
 			{
@@ -835,6 +844,35 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// <para>The nearest host that can afford at least one batch of something we are short of, or
+		/// null. Distinct from <see cref="ChooseResupplier"/>, which returns the nearest host holding ANY
+		/// supply at all — a depot down to 750 against a 1500 batch is a destination that cannot serve us
+		/// on arrival, and dispatching to it produces a shuttle rather than a rearm.</para>
+		///
+		/// <para>Filters BEFORE picking, via <see cref="SupplyHuntMath.SelectNearestAffordable"/>. Doing
+		/// it the other way round — asking <see cref="HostCanAffordSomethingWeNeed"/> about whatever
+		/// <see cref="ChooseResupplier"/> already returned — silently strands a unit whenever a nearer
+		/// depot is too poor and a farther one is not; see that helper for the worked case.</para>
+		/// </summary>
+		public static Actor ChooseAffordableResupplier(Actor self, IEnumerable<AmmoPool> pools)
+		{
+			var candidates = new List<SupplyHuntMath.Candidate>();
+			var actors = new List<Actor>();
+			var affordable = new List<bool>();
+
+			foreach (var a in RearmCandidates(self, true))
+			{
+				candidates.Add(new SupplyHuntMath.Candidate(
+					(a.CenterPosition - self.CenterPosition).HorizontalLengthSquared, a.ActorID));
+				actors.Add(a);
+				affordable.Add(HostCanAffordSomethingWeNeed(a, pools));
+			}
+
+			var best = SupplyHuntMath.SelectNearestAffordable(candidates, affordable);
+			return best < 0 ? null : actors[best];
+		}
+
+		/// <summary>
 		/// Whether this actor declares any rearm actors at all. False for anything without a
 		/// <c>Rearmable</c> — most visibly <c>^CrewMember</c>, whose whole inheritance chain
 		/// (^CamoSoldier → ^Soldier → ^Infantry) declares none. Such a unit has no depot to be missing,
@@ -852,12 +890,10 @@ namespace OpenRA.Mods.Common.Traits
 		/// can serve us right now, to tell "someone may still drive to me" apart from "nothing ever
 		/// will" — see <see cref="SupplyHuntMath.DecideAutoDisposition"/>, where the consequence lives.</para>
 		///
-		/// <para>Mobility is the test because the only NeedsResupply reader that can actually relieve the
-		/// unit, <c>SupplyProvider.FindNeedsResupplyTarget</c>, is swept by a Hunt-stance provider that
-		/// then DRIVES to the flagged unit. (The flag's other reader,
-		/// <c>UnitBuilderBotModule.AnyFieldedUnitNeedsResupply</c>, is a bot production gate that neither
-		/// supplies nor disposes of this actor.) A building cannot answer the flag however much supply it
-		/// holds.</para>
+		/// <para>Mobility is the test because NeedsResupply's ONLY reader engine-wide,
+		/// <c>SupplyProvider.FindNeedsResupplyTarget</c> (SupplyProvider.cs:622), is swept by a
+		/// Hunt-stance provider that then DRIVES to the flagged unit. A building cannot answer the flag
+		/// however much supply it holds.</para>
 		///
 		/// <para>IGNORES CURRENT SUPPLY on purpose. A drained truck is not a truck that has ceased to
 		/// exist: it restocks and can still come. Filtering on stock here is precisely the conflation of
