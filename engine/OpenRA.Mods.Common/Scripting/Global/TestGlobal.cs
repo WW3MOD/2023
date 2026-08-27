@@ -510,6 +510,31 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			provider.TraitOrDefault<SupplyProvider>()?.SetSupply(amount);
 		}
 
+		[Desc("Send `unit` to rearm at a NAMED `host`, bypassing host selection entirely. Queues the same " +
+			"Resupply activity AmmoPool.AutoRearm's docking branch queues, with the same CloseEnough " +
+			"derivation, so the arrival being staged is the real one. Exists because every ordinary route " +
+			"to that activity — the Resupply order, AutoRearmIfDry, AutoSeekSupplies — first runs " +
+			"ChooseResupplier, which filters candidates on CurrentSupply > 0. A scenario asking what " +
+			"happens ON ARRIVAL at a depot holding nothing therefore cannot reach the question through " +
+			"any of them: the dispatcher declines to send the unit, and the run measures that filter " +
+			"instead of the arrival. Test mode only.")]
+		public void IssueResupplyAt(Actor unit, Actor host)
+		{
+			if (!TestMode.IsActive || unit == null || host == null)
+				return;
+
+			// Mirrors AmmoPool.AutoRearm's fall-through branch exactly (AmmoPool.cs:802-804), including
+			// the PITFALL recorded there: a SupplyProvider carrying a DockedCondition has no RearmsUnits
+			// trait, so Trait<RearmsUnits>() would throw and the tolerance falls back to dock-tight
+			// WDist.Zero.
+			var rearmsUnits = host.TraitOrDefault<RearmsUnits>();
+			var closeEnough = rearmsUnits != null ? rearmsUnits.Info.CloseEnough : WDist.Zero;
+
+			// dispatchedBecauseDry: false — this is a destination asked for from outside, not the unit's
+			// own answer to being unable to fight, and that flag changes the activity's exit test.
+			unit.QueueActivity(false, new Activities.Resupply(unit, host, closeEnough, dispatchedBecauseDry: false));
+		}
+
 		[Desc("A SupplyProvider's remaining supply, or -1 if the actor has no SupplyProvider. Test mode only.")]
 		public int GetSupply(Actor provider)
 		{

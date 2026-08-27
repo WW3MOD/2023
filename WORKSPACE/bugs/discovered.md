@@ -3461,13 +3461,19 @@ running game.
   cost that is never charged when the host is a docking host. Swapping the seek path
   (`AutoSeekSupplies.cs:285`) to the affordable chooser therefore looks like a parity fix with
   `AmmoPool.AutoRearmIfDry`'s Auto arm and is a REGRESSION for Logistics Centre trips: it withholds a
-  journey that would have succeeded. The same question hangs over `e36ab29a`, which put the
-  affordable chooser into that Auto arm; not re-examined here.
+  journey that would have succeeded. `e36ab29a` did exactly that in `AutoRearmIfDry`'s Auto arm — see
+  the entry below.
+  **OBSERVED, not merely derived.** `tools/autotest/scenarios/test-vehicle-rearms-at-empty-depot`
+  puts a dry `abrams` six cells from a Centre zeroed with `Test.SetSupply` and sends it there BY
+  NAME (`Test.IssueResupplyAt`, which exists because every ordinary route runs `ChooseResupplier`
+  first and that filter would decline to send it at all). Both halves asserted: ammunition arrives
+  AND supply never moves. GREEN — rearmed inside ~175 ticks with the depot still reading 0. RED
+  (`RearmActors: truk`, so the membership test at `Resupply.cs:131` fails and nothing else changes)
+  — alive and at zero rounds through tick 1500.
   **Not fixed here:** charging for the docking rearm is an economy change touching every vehicle and
   both bot profiles, and the honest first step is deciding whether free-at-the-LC is the intent
   (`economy.md` prices supply 1:1 and gives the Centre 2250, which reads like it was meant to be
-  spent). Reproduce without launching by reading the three sites above; in-game, park a dry `abrams`
-  at a Centre zeroed with `Test.SetSupply` and watch it refill.
+  spent).
   (found while working on: extending the dry-unit resupply re-ask from soldiers to vehicles)
 
 - [2026-08-27] [med] **INFERRED, NOT OBSERVED: infantry within 4 cells of an empty Logistics Centre
@@ -3489,3 +3495,38 @@ running game.
   `Test.SetSupply(Depot, 0)` at `WorldLoaded`, and assert his ammo stays at zero. If it climbs, this
   is real; `Test.GetSupply` staying at 0 while it climbs is the second half of the proof.
   (found while working on: `test-dry-soldier-retry-after-refill`, phase 1 of the vehicle re-ask work)
+
+- [2026-08-27] [high] **`e36ab29a`'s affordability pick is a regression for DOCKING hosts, which is
+  the only kind of host a vehicle has.** The merge landed two separable things in
+  `AmmoPool.AutoRearmIfDry`'s Auto arm. They do not share a verdict.
+  **The drained-versus-absent distinction STANDS.** Its hopelessness inputs (`AnyRearmHostWithinLeash`,
+  `AnyMobileRearmHost`) deliberately ignore stock, so a present-but-zeroed depot yields `HoldAndFlag`
+  rather than `Evacuate`. Nothing above disturbs that: at exactly zero supply `ChooseResupplier`
+  refuses the depot as a destination on every arm, so no unit is dispatched there in real play and
+  waiting really is the right disposition. That half is a straight improvement over driving off the
+  map permanently.
+  **The affordability pick does NOT stand.** `ChooseAffordableResupplier` asks whether a host can
+  afford one batch, and that is the wrong question for a host reached through `Resupply` — the rearm
+  there is free (see the entry above, now observed). Consequences, worst first:
+    * *No affordable host anywhere, one poor host within leash.* Pre-merge: `ChooseResupplier` returns
+      the poor depot, the unit drives over and **rearms completely, for nothing**. Post-merge: the
+      chooser returns null, `suppliedHostWithinLeash` is false, the hope scan finds the depot within
+      leash, and `SupplyHuntMath.DecideAutoDisposition` falls through to `HoldAndFlag` — the unit
+      **stands still beside a depot that would have refilled it**, flagged for a truck that, for a
+      vehicle, can never come (no truck names a vehicle clientele). Strictly worse.
+    * *The merge's own worked case* — nearest depot holds 750, one eight cells further holds 2250.
+      Both would have served for free, so the fix buys a longer drive and nothing else. Harmless,
+      but not the improvement it was merged as.
+  Reach: every vehicle (the Logistics Centre is their only host and it is a docking host), plus
+  infantry at a Centre, where it bites the `at`/`aa` specialists whose `SupplyValue: 65` makes
+  `> 0` and `>= 65` genuinely different predicates. Infantry at a TRUCK or CACHE are unaffected and
+  correctly gated: those have no `DockedCondition`, so `AutoRearm` routes them to
+  `SeekSupplyProvider` and the metered push really does pay for the ammunition.
+  **Smallest honest correction, NOT built:** the discriminator already exists one call away —
+  `AmmoPool.AutoRearm:780` routes on `string.IsNullOrEmpty(supplyProvider.Info.DockedCondition)`.
+  Teaching `HostCanAffordSomethingWeNeed` the same split — a docking host can always serve on
+  arrival, a push host must be able to afford a batch — fixes both callers at one site and leaves
+  the truck/cache behaviour byte-identical. Reverting the pick outright is the cruder alternative
+  and also loses the genuine two-depot improvement. Which to take depends on whether the free
+  docking rearm is intended, so settle that first.
+  (found while working on: extending the dry-unit resupply re-ask from soldiers to vehicles)
