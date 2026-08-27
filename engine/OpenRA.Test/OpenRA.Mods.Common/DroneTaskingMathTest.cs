@@ -146,6 +146,66 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void CanLaunch_AllowsAnOperatorThatIsStationaryButNotIdle()
+		{
+			// THE REGRESSION THAT SHIPPED. This term is "not moving", NOT "idle". After its first
+			// launch the operator is never idle again: the Attack activity holds forever because
+			// ChooseArmamentsForTarget filters IsTraitDisabled but not IsTraitPaused and ^DR does not
+			// set AbandonWhenArmamentsPaused. An idle gate here latched false for the rest of the
+			// match and capped the module at ONE sortie per operator — invisible to every other test
+			// in this file, because it lives in the activity layer rather than in the arithmetic.
+			// A wedged operator is standing perfectly still and is a valid launch platform.
+			const bool StationaryButHoldingAnAttackActivity = true;
+			Assert.That(
+				DroneTaskingMath.CanLaunch(true, true, StationaryButHoldingAnAttackActivity, 10, 22),
+				Is.True);
+		}
+
+		// ---------- ShouldRetask ----------
+
+		[Test]
+		public void ShouldRetask_OrdersTheFirstSortie()
+		{
+			Assert.That(DroneTaskingMath.ShouldRetask(false, false, int.MaxValue, 75), Is.True);
+		}
+
+		[Test]
+		public void ShouldRetask_MovesThePostWhenABetterCellAppears()
+		{
+			// The sweep depends entirely on this: the engine re-fires the held activity at the OLD
+			// cell by itself, so a new cell only ever gets flown if the module orders it.
+			Assert.That(DroneTaskingMath.ShouldRetask(true, false, 500, 75), Is.True);
+		}
+
+		[Test]
+		public void ShouldRetask_LeavesAStandingOrderAloneWhenTheCellIsUnchanged()
+		{
+			// Re-ordering the same cell would cancel and rebuild an identical activity every cycle.
+			Assert.That(DroneTaskingMath.ShouldRetask(true, true, 500, 75), Is.False);
+		}
+
+		[Test]
+		public void ShouldRetask_DoesNotDisturbAPendingFireDelay()
+		{
+			// The spawn is a delayed action owned by the Armament, not the activity, so re-ordering
+			// inside the 50-tick FireDelay does not cancel the launch — it just aims the operator
+			// elsewhere while the drone departs for the old cell. Settle first.
+			Assert.Multiple(() =>
+			{
+				Assert.That(DroneTaskingMath.ShouldRetask(true, false, 20, 75), Is.False);
+				Assert.That(DroneTaskingMath.ShouldRetask(true, false, 75, 75), Is.True);
+			});
+		}
+
+		[Test]
+		public void ShouldRetask_SettleWindowClearsTheFireDelay()
+		{
+			// Guards the config relationship rather than the function: a settle window at or below the
+			// 50-tick FireDelay would re-order mid-launch, which is the case above.
+			Assert.That(DroneTaskingMath.ShouldRetask(true, false, 50, 75), Is.False);
+		}
+
+		[Test]
 		public void CanLaunch_RefusesWhenTheArmamentIsPaused()
 		{
 			// Covers the state that looks like success: after a kill the quadcopter respawns and

@@ -11322,22 +11322,32 @@ operator that starts moving during it fires the weapon and spawns nothing.
 a target does not grant `moving`. Revocation is immediate on stop (`UpdateCondition`, `:64-80`), with
 hysteresis only on the separate `ConditionWhenStill`/`dugin` path.
 
-## 2026-08-27 — The fast YAML gates do NOT validate bot-module trait fields
+## 2026-08-27 — Which YAML gate catches a misspelled trait field, and which silently does not
 
-**Measured, not assumed.** A deliberately bogus field (`MaxAirDangerTYPO`) was inserted into a
-`DroneOperatorBotModule@experimental` block in `ai.yaml` and both fast checks returned **exit 0**:
+**Corrected 2026-08-27, same day.** An earlier version of this entry claimed the fast gates "do not
+validate bot-module trait fields" and generalised from two commands to all of them. That is wrong in
+the direction that matters: it would have told a future author that `make test` cannot catch a typo'd
+AI field, when it can.
 
-* `Mod=ww3mod ./utility.sh --dump-balance-json` — clean.
-* `Mod=ww3mod ./utility.sh --check-yaml ../mods/ww3mod/maps/<map>` (8.5 s) — clean.
+**`FieldLoader.UnknownFieldAction` is bound at `CheckYaml.cs:65`, BEFORE the branch**, so it is armed
+in both modes. The difference is what each mode then evaluates:
 
-The reason is structural: `CheckYaml.Run` binds `FieldLoader.UnknownFieldAction` but calls
-`CheckRules(modData, modData.DefaultRules)` **only inside the `if (args.Length < 2)` branch**
-(`CheckYaml.cs`). Passing a map path skips mod-rule checking entirely and lints just that map, so the
-mod-wide rule pass — the only thing that would catch a misspelled trait field on the `Player` actor —
-runs solely in the pathless mode that takes over an hour.
+* **Pathless** (`./utility.sh --check-yaml`, no map argument) calls
+  `CheckRules(modData, modData.DefaultRules)` at `:74`. Evaluating `DefaultRules` forces the ruleset
+  load, constructing every `TraitInfo` — including the `Player` actor's bot modules — so a misspelled
+  field on `DroneOperatorBotModule@experimental` **is** reported. **`make test` runs exactly this
+  form** (`Makefile:254`), so the repo's own gate does cover it.
+* **Map-scoped** (`--check-yaml <map>`) skips that call entirely and reaches `CheckRules(map.Rules)`
+  only when the map defines custom rules (`:148-151`). It lints the map, not the default ruleset.
+* **`--dump-balance-json`** never binds `UnknownFieldAction` at all.
 
-**Consequence for anyone adding a bot module:** a typo'd field name in an AI YAML block is silently
-ignored (the trait loads with the default), and no fast check will tell you. Until there is a
-mod-rules-only lint command, cross-check the block's keys against the `Info` class's
-`public readonly` fields directly. Note `--dump-balance-json` is still worth running — it catches
-load-order and resolution failures — it just does not cover this.
+**Measured**, by inserting a bogus `MaxAirDangerTYPO` field into a live `ai.yaml` module block: both
+`--dump-balance-json` and `--check-yaml ../mods/ww3mod/maps/arena-tank-duel` (8.5 s) returned **exit
+0** and reported nothing. The pathless form was NOT run to confirm the positive case — it takes over
+an hour — so the "pathless catches it" half is read from source, not observed.
+
+**Practical rule:** the fast per-map shortcut and `--dump-balance-json` are not substitutes for
+`make test` when you have added or renamed a trait field. They are still worth running — the latter
+catches load-order and resolution failures neither of the others reach — but if you skip `make test`
+after touching an AI YAML block, cross-check the block's keys against the `Info` class's
+`public readonly` fields by hand.

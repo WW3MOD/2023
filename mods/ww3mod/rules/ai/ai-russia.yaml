@@ -155,6 +155,12 @@ Player:
 			# regime where recon matters most. 6 reaches the cap of 2 in every ordinary regime and
 			# overshoots "just a couple or so". Same unmeasured gap as America: --composition-plan
 			# models only UnitTargetShares members, so dr's own buy sequence is NOT modelled here.
+			# Ordering is readable, not unknown: floorTypes is ordinal-sorted
+			# (UnitBuilderBotModule.cs:529) and ChooseBelowFloor takes the first type under its floor
+			# (:1293), so aa.russia < dr.russia < medi.russia — the operator is bought BEFORE the
+			# medic when both are short. Under a lobby-selected platoon start that makes it the opening
+			# support call-in; accepted for the same reason as America (see that file), where the full
+			# argument lives.
 			dr.russia: 8
 		# Denominator: every non-medic infantry type, matching the medi share derivation in ai-america.yaml so
 		# the floor and the 17-per-mille share express ONE ratio rather than two. aa.russia deliberately has

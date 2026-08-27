@@ -110,15 +110,26 @@ namespace OpenRA.Mods.Common.Traits
 		/// this catches — after a drone is killed the quadcopter respawns in ~9s and re-grants
 		/// `loaded`, but ammo-primary is 0, so the operator visibly HAS a drone and cannot launch it.
 		///
-		/// noDroneAirborne: the retarget branch (CarrierMaster.cs:136-138) is unreachable for ^DR, so
-		/// a second launch order while one is out cannot redirect anything. It would burn the 3s
-		/// FireDelay and a 12s BurstWait for nothing.
+		/// noDroneAirborne: the retarget branch (CarrierMaster.cs:137-140) is unreachable for ^DR, so
+		/// a second launch order while one is out cannot redirect anything. The reason is the launch
+		/// itself: it revokes `loaded` (:161-162), which pauses the only armament, so Attacking()
+		/// cannot be re-entered while a drone is out. A second order would burn the 3s FireDelay and a
+		/// 12s BurstWait for nothing.
 		///
-		/// isIdle: the operator must be PARKED. CarrierMaster carries PauseOnCondition "moving", and
-		/// TraitPaused calls SetConnection(false) AND Recall() (CarrierMaster.cs:318-322) — so any
-		/// movement throws the sortie away. It also matters at launch: Attacking() early-returns on
-		/// IsTraitPaused, and the spawn happens inside the FireDelay callback (Armament.cs:692), so a
-		/// still-moving operator fires the weapon, starts the cooldown and spawns NOTHING.
+		/// isStationary: the operator must not be MOVING. CarrierMaster carries PauseOnCondition
+		/// "moving", and TraitPaused calls SetConnection(false) AND Recall() (CarrierMaster.cs:318-322)
+		/// — so movement throws the sortie away. It also matters at launch: Attacking() early-returns
+		/// on IsTraitPaused, and the spawn happens inside the FireDelay callback (Armament.cs:692), so
+		/// a still-moving operator fires the weapon, starts the cooldown and spawns NOTHING.
+		///
+		/// THIS TERM IS "NOT MOVING", NOT "IDLE", AND THE DIFFERENCE IS THE WHOLE BUG.
+		/// After its first launch the operator is never idle again: the Attack activity holds
+		/// indefinitely because ChooseArmamentsForTarget filters IsTraitDisabled but not
+		/// IsTraitPaused, and ^DR does not opt into AbandonWhenArmamentsPaused (Attack.cs:248-256
+		/// documents exactly this wedge). An idle gate therefore latches false forever and the module
+		/// issues exactly one sortie per operator for the rest of the match. A wedged operator is
+		/// standing perfectly still and is a legitimate launch platform — what must be excluded is a
+		/// WALKING one, which is what this asks.
 		///
 		/// inRange: force-firing a cell outside weapon range makes the attack activity WALK there,
 		/// which grants `moving` and defeats the point of standing off.
@@ -126,14 +137,46 @@ namespace OpenRA.Mods.Common.Traits
 		public static bool CanLaunch(
 			bool armamentReady,
 			bool noDroneAirborne,
-			bool isIdle,
+			bool isStationary,
 			int targetDistanceCells,
 			int maxHoverDistanceCells)
 		{
-			if (!armamentReady || !noDroneAirborne || !isIdle)
+			if (!armamentReady || !noDroneAirborne || !isStationary)
 				return false;
 
 			return targetDistanceCells >= 0 && targetDistanceCells <= maxHoverDistanceCells;
+		}
+
+		/// <summary>
+		/// Whether to issue a fresh launch order this cycle.
+		///
+		/// WHY THIS EXISTS AT ALL. The engine re-fires a held Attack activity by itself every time
+		/// `loaded` comes back, so an operator left alone keeps shuttling its drone to the ONE cell it
+		/// was first given — a fixed observation post, not the rolling sweep this module is for. The
+		/// module only gets a different cell by ordering one, and an unqueued order is what clears the
+		/// held activity (Actor.QueueActivity(false, …) calls CancelActivity first). So: re-order to
+		/// move the post, stay silent to keep it.
+		///
+		/// settleTicks guards the FireDelay window. The spawn is a delayed action owned by the
+		/// Armament, not by the activity, so re-ordering inside that gap does not cancel the pending
+		/// launch — it just aims the operator somewhere else while the drone still departs for the old
+		/// cell. Leaving the order alone until it has resolved keeps the two in agreement.
+		/// </summary>
+		public static bool ShouldRetask(
+			bool hasStandingOrder,
+			bool sameCellAsOrdered,
+			int ticksSinceLaunchOrder,
+			int settleTicks)
+		{
+			if (!hasStandingOrder)
+				return true;
+
+			if (ticksSinceLaunchOrder < settleTicks)
+				return false;
+
+			// The held activity already re-fires at this cell unprompted; re-ordering it would cancel
+			// and rebuild the same activity for nothing.
+			return !sameCellAsOrdered;
 		}
 
 		/// <summary>

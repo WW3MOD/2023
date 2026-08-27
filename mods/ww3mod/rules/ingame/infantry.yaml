@@ -2366,6 +2366,23 @@ TECN:
 		Cost: 150
 	AutoTarget:
 		ScanRadius: 25
+	# ===== THE OPERATOR MUST NOT BE AUTO-REPOSITIONED =====
+	# A sortie needs this man to stand still for the whole 60s loiter: CarrierMaster below is
+	# PauseOnCondition "moving", and TraitPaused calls SetConnection(false) AND Recall()
+	# (CarrierMaster.cs:318-322), so ANY movement mid-sortie destroys it outright. The tactical
+	# positioning executor exists to walk idle combatants to better ground — for every other unit an
+	# improvement, for this one the single most destructive thing that can happen to it.
+	# IT ALSO DELETES THE BOT'S CLAIM ON THIS UNIT. StancePositioningExecutor never reads
+	# Ledger.IsCommitted: CommitManagement overwrites the entry with `tacpos:` and ReleaseManagement
+	# calls Ledger.Release(self) unconditionally — dropping the `drone:` commitment that is the ONLY
+	# thing keeping PoiOffensiveBotModule from recruiting a 150-cost unarmoured specialist into an
+	# assault wave (its ExcludeUnitTypes is inert while UseUnitRoles is true). And it moves via
+	# self.QueueActivity rather than an Order, so BotOrderGate is blind to it by construction.
+	# SCOPE: this also removes the trait for a HUMAN-owned operator, where it is gated by
+	# enable-tactical-positioning. Deliberate, and the same fix — auto-repositioning a human's operator
+	# would recall their drone just as surely. @stable satisfies neither gate, so the trait was already
+	# inert there and this cannot move the benchmark.
+	-StancePositioningExecutor:
 	CarrierMaster:
 		PauseOnCondition: moving
 		Actors: quadcopterdrone

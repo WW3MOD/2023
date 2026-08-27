@@ -77,6 +77,22 @@ namespace OpenRA.Mods.Common.Traits
 			"AutoSeekSupplies can walk it to a truck.")]
 		public readonly int StarvingRecruitThresholdPerMille = 250;
 
+		[Desc("Ticks after issuing a launch order before the module will re-order the same operator.",
+			"Must exceed the weapon's FireDelay (50): the spawn is a delayed action owned by the",
+			"Armament, so re-ordering inside that window aims the operator at a new cell while the",
+			"drone still departs for the old one.")]
+		public readonly int LaunchSettleTicks = 75;
+
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			base.RulesetLoaded(rules, ai);
+
+			// Case-harden actor-name config (see ActorNameCase). Without this the module matches only
+			// the exact spelling used here, and `DR.america` — the spelling used throughout
+			// infantry-america.yaml — would silently match nothing.
+			ActorNameCase.NormalizeInPlace(OperatorActorTypes);
+		}
+
 		public override object Create(ActorInitializer init) { return new DroneOperatorBotModule(init.Self, this); }
 	}
 
@@ -107,7 +123,16 @@ namespace OpenRA.Mods.Common.Traits
 		// precisely when the operator goes dry or the module shuts down.
 		readonly HashSet<Actor> claimed = new();
 
-		IBot lastBot;
+		// The launch order standing against each operator: which cell it was aimed at and when. Read
+		// only through the ordinal operator walk, never enumerated, so its ordering reaches no decision.
+		sealed class Sortie
+		{
+			public CPos OrderedCell;
+			public int OrderedTick;
+		}
+
+		readonly Dictionary<Actor, Sortie> sorties = new();
+
 		int reevalCountdown;
 
 		public DroneOperatorBotModule(Actor self, DroneOperatorBotModuleInfo info)
@@ -126,16 +151,35 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
-			lastBot = bot;
-
 			if (player.WinState != WinState.Undefined)
 				return;
+
+			// REFRESH THE CLAIM EVERY TICK, EVALUATE ONLY ON THE CADENCE. These are split because a
+			// third party can delete this module's claim between two evaluations:
+			// StancePositioningExecutor.CommitManagement overwrites the ledger entry with `tacpos:`
+			// and ReleaseManagement calls Ledger.Release(self) unconditionally, without ever reading
+			// IsCommitted. On a 200-tick evaluation cadence that leaves the operator unclaimed — and
+			// so recruitable by the offence FSM — for up to 200 ticks. A dictionary write per tick is
+			// far cheaper than that exposure. It does NOT make the claim safe on its own, which is why
+			// the executor is also removed from ^DR in YAML; this is the second layer, not the fix.
+			RefreshClaims(bot);
 
 			if (--reevalCountdown > 0)
 				return;
 
 			reevalCountdown = Info.ReevaluateInterval;
 			Reevaluate(bot);
+		}
+
+		void RefreshClaims(IBot bot)
+		{
+			if (goalGuard == null || claimed.Count == 0)
+				return;
+
+			var tick = world.WorldTick;
+			foreach (var op in claimed)
+				if (!op.IsDead && op.IsInWorld)
+					goalGuard.Ledger.Commit(op, "drone:" + op.ActorID.ToString(), tick, Info.CommitmentTicks);
 		}
 
 		// A disabled module must not leave units committed behind it, or the offence FSM sees an
@@ -152,6 +196,7 @@ namespace OpenRA.Mods.Common.Traits
 					goalGuard.Ledger.Release(a);
 
 			claimed.Clear();
+			sorties.Clear();
 		}
 
 		void Reevaluate(IBot bot)
@@ -188,7 +233,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Staleness IS the signal; with no ControlField there is nothing fog-legal to steer by and
 			// the module must do nothing rather than fall back on an omniscient source.
-			if (controlField == null)
+			// HasField is checked as well as null, and that is not belt-and-braces: with a live trait
+			// but no field for this player, TicksSinceVerified returns int.MaxValue for EVERY cell
+			// (ControlField.cs:921-928), so the staleness term saturates flat and the choice collapses
+			// to contact adjacency and POI distance alone. Bounded and deterministic, but it is no
+			// longer staleness-driven, and silently degrading is exactly what this module must not do.
+			if (controlField == null || !controlField.HasField(player))
 				return;
 
 			var tick = world.WorldTick;
@@ -201,8 +251,15 @@ namespace OpenRA.Mods.Common.Traits
 					return false;
 
 				goalGuard?.Ledger.Release(a);
+				sorties.Remove(a);
 				return true;
 			});
+
+			// A dead operator's standing order dies with it; anything left here would keep a stale cell
+			// alive and suppress a re-task for a replacement that reused the reference.
+			if (sorties.Count > 0)
+				foreach (var a in sorties.Keys.Where(a => a.IsDead || !a.IsInWorld).ToList())
+					sorties.Remove(a);
 
 			var operators = world.Actors
 				.Where(a => a.Owner == player
@@ -261,6 +318,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (claimed.Remove(op))
 					goalGuard?.Ledger.Release(op);
 
+				sorties.Remove(op);
 				return;
 			}
 
@@ -317,7 +375,27 @@ namespace OpenRA.Mods.Common.Traits
 			var targetCell = target.Value;
 			var distance = (targetCell - opCell).Length;
 
-			if (!DroneTaskingMath.CanLaunch(armamentReady, true, op.IsIdle, distance, maxHover))
+			// NOT op.IsIdle. After the first launch this operator is never idle again — the Attack
+			// activity holds indefinitely because ChooseArmamentsForTarget filters IsTraitDisabled but
+			// not IsTraitPaused and ^DR does not set AbandonWhenArmamentsPaused, so with the sole
+			// armament paused the activity still reports Attacking every tick (Attack.cs:243-256). An
+			// idle gate here latched false forever and capped the module at ONE sortie per operator.
+			// What actually has to be excluded is a MOVING operator, because `moving` pauses
+			// CarrierMaster and Recall()s the drone — so ask that directly.
+			var stationary = IsStationary(op);
+
+			if (!DroneTaskingMath.CanLaunch(armamentReady, true, stationary, distance, maxHover))
+				return;
+
+			// Re-order only when it changes something. The engine re-fires the held activity by itself
+			// each time `loaded` returns, so an untouched operator keeps flying to the same cell — a
+			// fixed post rather than a sweep. Ordering a DIFFERENT cell is what moves the post, and an
+			// unqueued order clears the held activity on the way in (Actor.QueueActivity(false, …)).
+			sorties.TryGetValue(op, out var sortie);
+			var sameCell = sortie != null && sortie.OrderedCell == targetCell;
+			var sinceOrder = sortie != null ? tick - sortie.OrderedTick : int.MaxValue;
+
+			if (!DroneTaskingMath.ShouldRetask(sortie != null, sameCell, sinceOrder, Info.LaunchSettleTicks))
 				return;
 
 			// Do not launch from a cell that is itself hot — the operator is unarmoured.
@@ -332,7 +410,28 @@ namespace OpenRA.Mods.Common.Traits
 			// Unqueued deliberately: AttackBase.ResolveOrder's ammo guard is scoped to unqueued
 			// orders, and a launch queued behind something else is a launch from an unknown position.
 			if (bot.QueueOrder(new Order("ForceAttack", op, Target.FromCell(world, targetCell), false)))
+			{
 				covered.Add(targetCell);
+
+				if (sortie == null)
+					sorties[op] = sortie = new Sortie();
+
+				sortie.OrderedCell = targetCell;
+				sortie.OrderedTick = tick;
+			}
+		}
+
+		// The `moving` condition, read from the same source that grants it:
+		// GrantConditionOnMovement matches ValidMovementTypes, which defaults to
+		// { Horizontal, Vertical } and deliberately EXCLUDES Turn — so an operator rotating onto its
+		// target is stationary for our purposes and does not pause CarrierMaster.
+		static bool IsStationary(Actor op)
+		{
+			var move = op.TraitOrDefault<IMove>();
+			if (move == null)
+				return true;
+
+			return (move.CurrentMovementTypes & (MovementType.Horizontal | MovementType.Vertical)) == 0;
 		}
 
 		CPos? ChooseTargetCell(CPos opCell, int maxHover, List<BeliefContact> contacts, List<ScoredPoi> pois)

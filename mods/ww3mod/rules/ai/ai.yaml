@@ -903,6 +903,11 @@ Player:
 		# nothing that is not already known.
 		SupplyRouteExclusionCells: 8
 		StarvingRecruitThresholdPerMille: 250
+		# Must exceed the weapon's FireDelay (50). The spawn is a delayed action owned by the Armament
+		# rather than by the attack activity, so re-ordering inside that window does not cancel the
+		# pending launch — it aims the operator at a new cell while the drone still departs for the old
+		# one. 75 leaves 25 ticks of slack.
+		LaunchSettleTicks: 75
 
 	# NOTE: No engineer (^E6) capture module wired anywhere — engineers
 	# don't capture in WW3MOD by design. The Captures trait sits on
