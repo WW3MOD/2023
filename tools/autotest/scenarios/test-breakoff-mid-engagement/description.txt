@@ -1,0 +1,1 @@
+Does a turreted unit ALREADY FIRING at a healthy target stop when that target goes critical mid-engagement? Two lanes: control stays healthy, subject is driven to 20% HP while under fire. Subject must go silent, control must keep firing.

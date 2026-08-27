@@ -801,6 +801,16 @@
 # 		RequiresCondition: stance-fireatwill
 # 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
 # 		InvalidTargets: NoAutoTarget
+# INHERITED BY ZERO ACTORS as of 2026-08-27 (grep "AutoTargetDrone" across mods/ — this
+# definition is the only hit). Kept, not deleted, because it is a staged part for the
+# drone-counter work and deleting it would only get it rewritten.
+#
+# It is redundant TODAY, which is why nothing needs it: AutoTargetPriorityInfo.ValidTargets
+# defaults to "Ground, Water, Air" (AutoTargetPriority.cs:21), the drone advertises Air via
+# ^NeutralAirborne's Targetable@Airborne, and ^DR already inherits ^AutoTarget. So the drone
+# operator can auto-acquire an enemy drone and fire DroneJammer at it through the generic Air
+# band without this template. Attaching it would NARROW the operator to drones only, which is
+# a behaviour change, not a wiring fix — decide that deliberately rather than by inheriting.
 ^AutoTargetDrone:
 	Inherits@HoldFireMarker: ^HoldingFireMarker
 	AutoTarget:

@@ -1,0 +1,1 @@
+Auto: an aircraft mid attack-run whose target goes critical must break off. Two lanes — A10 (fixed-wing, flies a committed pass) and Mi-28 (hover gunship) — measure shots taken after the target is doomed, plus the flight behaviour that follows.

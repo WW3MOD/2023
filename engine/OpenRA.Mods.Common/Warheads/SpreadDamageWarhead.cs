@@ -133,12 +133,22 @@ namespace OpenRA.Mods.Common.Warheads
 
 		int GetDamageFalloff(int distance)
 		{
+			return DamageFalloff(distance, Falloff, effectiveRange);
+		}
+
+		/// <summary>
+		/// Interpolates <paramref name="falloff"/> over <paramref name="effectiveRange"/> for a
+		/// distance measured FROM THE HITSHAPE EDGE, not from the victim's centre. Pure; exposed so
+		/// tests can exercise the shipped curve rather than restate it.
+		/// </summary>
+		public static int DamageFalloff(int distance, int[] falloff, WDist[] effectiveRange)
+		{
 			var inner = effectiveRange[0].Length;
 			for (var i = 1; i < effectiveRange.Length; i++)
 			{
 				var outer = effectiveRange[i].Length;
 				if (outer > distance)
-					return int2.Lerp(Falloff[i - 1], Falloff[i], distance - inner, outer - inner);
+					return int2.Lerp(falloff[i - 1], falloff[i], distance - inner, outer - inner);
 
 				inner = outer;
 			}

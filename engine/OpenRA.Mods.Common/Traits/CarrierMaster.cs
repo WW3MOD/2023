@@ -18,7 +18,7 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("This actor can spawn actors.")]
 	public class CarrierMasterInfo : BaseSpawnerMasterInfo
 	{
-		[Desc("Spawn is a missile that dies and not return.")]
+		[Desc("UNREAD - setting this does nothing. No code branches on it.")]
 		public readonly bool SpawnIsMissile = false;
 
 		[Desc("Ammo pool to drain from if slave is destroyed.")]
@@ -34,10 +34,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("After this many ticks, we remove the condition.")]
 		public readonly int LaunchingTicks = 15;
 
-		[Desc("Max distance slaves can travel from master before being recalled.")]
+		[Desc("UNREAD - setting this does nothing. The enforced leash is the slave-side",
+			"CarrierSlave.MaxDistance (in CELLS), checked at CarrierSlave.cs:131,138.")]
 		public readonly WDist MaxSlaveDistance = WDist.FromCells(18);
 
-		[Desc("Ticks between performing range checks for slave maximum distance.")]
+		[Desc("UNREAD - setting this does nothing. See MaxSlaveDistance above;",
+			"the slave-side interval is CarrierSlave.MaxDistanceCheckTicks.")]
 		public readonly int MaxSlaveDistanceCheckInterval = 50;
 
 		[Desc("Instantly repair spawners when they return?")]
