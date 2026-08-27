@@ -1,0 +1,74 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: A Depot Too Poor To Afford A Batch Is Still Worth Driving To (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Dry, on the shipped Auto disposition, and given NO order — so the only thing that can move him
+	# is AmmoPool.AutoRearmIfDry firing once at the becoming-idle transition. That single decision is
+	# the entire measurement.
+	#
+	# abrams again, and for the same two reasons as test-vehicle-rearms-at-empty-depot: it is one of
+	# the thirteen that name the Centre without declaring replenish-vehicles, so the depot's metered
+	# push arm cannot reach it and any ammunition it gains came from Resupply's free path; and its
+	# single pool has SupplyValue 30, which leaves a wide 1..29 band in which a depot is stocked and
+	# unaffordable. That band is the whole scenario.
+	Tank: abrams
+		Owner: USA
+		Location: 16,16
+	# Six cells west — comfortably inside the 30-cell DryRearmLeashCells a wholly dry unit earns, so
+	# the leash is never what decides this. It is also inside AnyRearmHostWithinLeash's reach, which
+	# is what keeps the pre-fix arm on HoldAndFlag rather than evacuating: the failure being staged
+	# is a unit STANDING STILL beside a usable depot, not one leaving the map.
+	Depot: logisticscenter
+		Owner: USA
+		Location: 10,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 16,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 50,16
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

@@ -383,10 +383,45 @@ namespace OpenRA.Mods.Common.Traits
 		/// — a host we would refuse to walk to must also be one we refuse to abandon an exit for. A host
 		/// with no SupplyProvider charges nothing (the pure RearmsUnits depot), so it always passes.</para>
 		/// </summary>
+		/// <summary>
+		/// <para>Will this host actually rearm us if we go there? NOT "is it rich" — the two questions
+		/// only coincide for a host that CHARGES, and half of them do not.</para>
+		///
+		/// <para>The split mirrors the routing <see cref="AutoRearm"/> already performs one call away
+		/// (<c>string.IsNullOrEmpty(supplyProvider.Info.DockedCondition)</c>), and it has to, or the
+		/// two disagree about the same host:</para>
+		/// <list type="bullet">
+		/// <item>No <c>DockedCondition</c> (TRUK, SUPPLYCACHE) — <see cref="Activities.SeekSupplyProvider"/>,
+		/// which walks us into the aura and rearms us through <c>SupplyProvider.Tick</c>'s delivery
+		/// path. That path is METERED (it deducts at SupplyProvider.cs:993) and refuses a batch it
+		/// cannot pay for, so affordability is exactly the right question.</item>
+		/// <item>A <c>DockedCondition</c> (the Logistics Centre), or no SupplyProvider at all —
+		/// <see cref="Activities.Resupply"/>, which sets its rearm branch from
+		/// <c>Rearmable.RearmActors</c> membership alone (Resupply.cs:131) and rearms through
+		/// <c>Rearmable.RearmTick</c> → <c>GiveAmmo</c>. Nothing charges for it: SupplyProvider
+		/// implements neither INotifyResupply nor INotifyDockHost, the only hooks Resupply fires at
+		/// the host. So the trip succeeds whatever the depot holds, and asking it to afford a batch
+		/// withholds a journey that would have worked.</item>
+		/// </list>
+		///
+		/// <para>MEASURED, not reasoned: <c>test-vehicle-rearms-at-empty-depot</c> refills a dry abrams
+		/// at a Centre holding ZERO, with the depot's supply unmoved, and its RED arm (RearmActors not
+		/// naming the Centre) leaves the same tank at zero rounds for the whole match.</para>
+		///
+		/// <para>The window this opens is narrower than it sounds and deliberately so: every caller
+		/// reaches this only for hosts <see cref="ChooseResupplier"/> already returned, and that filters
+		/// on <c>CurrentSupply &gt; 0</c>. So this changes the verdict only in the band 1..SupplyValue-1
+		/// — a Centre that has served one Iskander batch and sits at 750, which is ordinary — and never
+		/// makes a wholly drained depot a destination.</para>
+		/// </summary>
 		static bool HostCanAffordSomethingWeNeed(Actor host, IEnumerable<AmmoPool> pools)
 		{
 			var provider = host.TraitOrDefault<SupplyProvider>();
 			if (provider == null)
+				return true;
+
+			// Docking host: the rearm is free, so there is no price to check.
+			if (!string.IsNullOrEmpty(provider.Info.DockedCondition))
 				return true;
 
 			foreach (var p in pools)

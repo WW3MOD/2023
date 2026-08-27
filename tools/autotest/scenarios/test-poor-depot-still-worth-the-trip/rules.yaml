@@ -1,0 +1,40 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-poor-depot-still-worth-the-trip.lua
+
+abrams:
+	# Dry on arrival, so AmmoPool.AutoRearmIfDry's Auto arm runs for real at the becoming-idle
+	# transition rather than being staged by the test.
+	AmmoPool@1:
+		InitialAmmo: 0
+
+# NOTE THE ABSENCE OF A RULES-LEVEL RED CONTROL, which is deliberate and worth explaining, because
+# every other scenario in this pair carries one.
+#
+# The behaviour under test is a C# predicate, not a configuration value: HostCanAffordSomethingWeNeed
+# in AmmoPool.cs asked "can this depot afford a batch" where it should have asked "will this depot
+# rearm me on arrival". There is no YAML field that selects between those, and inventing one purely
+# to hold a control would ship a knob nobody wants.
+#
+# The RED arm is therefore the PRE-FIX ENGINE: delete the two-line DockedCondition early-out from
+# HostCanAffordSomethingWeNeed, rebuild, and re-run. That is the same shape the resupply-fallback
+# branch used ("sabotaged to the pre-feature behaviour"), and it is a stronger control than a YAML
+# pin because it is literally the shipped code this scenario claims to improve on.
+#
+# Expected RED: the tank never moves and never gains a round. ChooseAffordableResupplier returns
+# null for a depot holding 10 against SupplyValue 30, so suppliedHostWithinLeash is false; the hope
+# scan then finds the depot within leash (AnyRearmHostWithinLeash ignores stock), which sends
+# DecideAutoDisposition to HoldAndFlag. The tank stands beside a depot that would have refilled it,
+# flagged for a supply truck that can never serve a vehicle.
