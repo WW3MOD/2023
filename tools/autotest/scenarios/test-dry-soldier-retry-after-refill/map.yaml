@@ -1,0 +1,80 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Dry Soldier Retries After The Depot Is Refilled (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Dry from birth (rules.yaml sets InitialAmmo: 0) and given no order for the whole run. He is
+	# idle from the first tick, so AmmoPool's INotifyBecomingIdle dispatcher fires exactly ONCE —
+	# against an empty depot, which answers "nothing to walk to". Everything after that first tick
+	# is the periodic re-ask under test.
+	Hunter: ar
+		Owner: USA
+		Location: 20,16
+	# TEN cells west of the rifleman, and that distance is load-bearing in BOTH directions.
+	#
+	# FAR ENOUGH: the Centre carries TWO 4-cell infantry grants — SupplyProvider.AuraRange 4c0 (the
+	# supply-gated arm) and ProximityExternalCondition@ReplenishSoldiers (which is NOT supply-gated
+	# and enables the soldier's own free ReloadAmmoPool trickle). Inside 4 cells the man refills
+	# whether or not the depot holds anything, and this scenario would go green having measured a
+	# proximity aura instead of a dispatch. Ten cells is clear of both with margin.
+	#
+	# NEAR ENOUGH: AutoSeekSupplies.ReturnWhenEmptyLeashCells is 30 for a wholly dry unit, so the
+	# depot is a legal break-off destination, and AmmoPool.AnyRearmHostWithinLeash sees it too —
+	# which is what keeps the Auto disposition on HoldAndFlag rather than evacuating him off the
+	# map while it is drained (AmmoPool.cs "DRAINED IS NOT ABSENT").
+	#
+	# Owned by USA: ChooseResupplier filters candidates on strict `a.Owner == self.Owner`, so a
+	# Neutral depot is not a host at all and this would measure the owner filter instead.
+	Depot: logisticscenter
+		Owner: USA
+		Location: 10,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 20,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 50,16
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

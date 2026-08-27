@@ -1,0 +1,37 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-dry-soldier-retry-after-refill.lua
+
+AR:
+	# Dry on arrival, so the whole chain is dispatched by the shipped traits rather than staged by
+	# the test — the sequence under test starts at "unit has run out", not "test issues an order".
+	AmmoPool@1:
+		InitialAmmo: 0
+	# THE RED CONTROL. Uncomment the two lines below to switch off the periodic re-ask and nothing
+	# else, then re-run: the man must stay at zero ammunition for the whole match and the run must
+	# fail with the message the Lua names. It is the correct arm because it disables EXACTLY the
+	# mechanism under test, and no other route to this depot exists in this scenario:
+	#
+	#   - AutoSeekSupplies.ITick (the re-ask) returns on its first line when ReturnWhenEmpty is off.
+	#   - AutoSeekSupplies.INotifyIdle — the OTHER periodic path, left live by this control — cannot
+	#     reach a Logistics Centre at all: CanServe rejects any provider declaring a DockedCondition,
+	#     and the Centre declares unit.docked.
+	#   - AmmoPool's own INotifyBecomingIdle dispatcher fires only on the !wasIdle -> IsIdle
+	#     TRANSITION (Actor.cs:317-323), which happens once, on tick one, while the depot is empty.
+	#
+	# So with the control live nothing survives that can ask a second time, which is precisely the
+	# claim the green arm makes.
+	#AutoSeekSupplies:
+	#	ReturnWhenEmpty: false

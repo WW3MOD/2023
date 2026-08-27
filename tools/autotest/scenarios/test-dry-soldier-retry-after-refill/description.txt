@@ -1,0 +1,1 @@
+Auto: a dry rifleman standing 10 cells from an EMPTIED Logistics Centre must rearm once that depot is refilled mid-run, with no new order — proving AutoSeekSupplies.ReturnWhenEmpty re-asks periodically rather than once.
