@@ -1,0 +1,60 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# Fog off: the subject must be able to see its target continuously, so
+		# that "stopped firing" can never be "lost sight of it".
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-breakoff-mid-engagement.lua
+
+tunguska:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialEngagementStance: Defensive
+	# The whole verdict is "did the ammo count stop moving", so the pool must
+	# not be able to empty on its own. 180 stock rounds at the 30mm's cadence
+	# run out well inside the measurement window, and a dry pool is
+	# indistinguishable from a break-off in the ammo trace. The end-of-run
+	# guard asserts ammo > 0 on both lanes; this is what lets it hold.
+	# tunguska has no ReloadAmmoPool and Rearmable needs a logisticscenter
+	# that is not on this map, so the count is monotonically decreasing.
+	AmmoPool@1:
+		Ammo: 4000
+
+t90:
+	# RUN 1 FAILED HERE and the setup guard caught it rather than letting it read
+	# as a result: the subject's target died mid-measurement.
+	#
+	# A WW3MOD vehicle held under 50% HP is on a DEATH TIMER.
+	# ^EffectsWhenDamagedVehicles grants ChangesHealth@CriticalDamage
+	# (vehicles.yaml:153) with PercentageStep: -1 every Delay: 5 ticks once
+	# StartIfBelow: 50 — so a target parked at 20% loses 1% of max every 5 ticks
+	# and is dead 100 ticks later, inside this scenario's measurement window.
+	# The comment at vehicles.yaml:244 states the intent outright: "A vehicle is
+	# doomed the moment it drops below 50% HP ... with no way back."
+	#
+	# That is the same shape as the sibling scenario's helicopter problem
+	# (HeliEmergencyLanding crashes anything that reaches Critical) and it
+	# generalises: in this mod, holding ANY unit at critical damage means
+	# fighting a mechanism built to kill it. Dropping the drain is what lets the
+	# damage state be held fixed as the independent variable. The Lua also pins
+	# the health every tick, so an unknown second drain cannot reintroduce this.
+	-ChangesHealth@CriticalDamage:
+	# Two jobs. (1) Survive being shot for the whole run at 20% of maximum, so
+	# the target holds critical-damage continuously instead of dying and ending
+	# the lane. 20% of 1000000 is 200000, against at most ~4000 rounds of 30mm.
+	# (2) Keep 20% comfortably inside DamageState.Critical's <25% band
+	# (Health.cs:95) with margin for whatever lands during the settle window.
+	Health:
+		HP: 1000000

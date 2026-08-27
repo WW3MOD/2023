@@ -250,7 +250,7 @@ Rare, situational tracking loss is desired realism. The following are correct:
 Two warheads with different shapes, and BOTH are graduated:
 
 - **`TargetDamage` (the large point-damage warhead) is NOT all-or-nothing.**
-  `TargetDamageWarhead.cs:83` scales it by
+  `TargetDamageWarhead.cs:93` scales it by
   `closestActiveShape.CenterProximityPercent(victim, args.ImpactPosition)`,
   applied as a damage modifier. *(The method was called `PercentFromEdge` until it
   was renamed for exactly the misreading below; older notes and reports use the old
@@ -260,6 +260,15 @@ Two warheads with different shapes, and BOTH are graduated:
   hitshape centre**. So it is **100% at dead centre, falling linearly to 0% at
   the corner distance.** A hit is gated first by `closestDistance > Spread`
   (`:76`), i.e. it must be within `Spread` of the hull edge.
+  **The two radii disagree, and the percentage is now floored at zero.** `Spread`
+  admits a victim by distance from the hitshape **edge** while
+  `CenterProximityPercent` normalises against the **centre-to-corner** distance,
+  so on a long thin hull a victim can be admitted at a *negative* percentage —
+  and a negative damage number is a **heal**, not a rounding artefact
+  (`Health.InflictDamage` clamps into `[0, MaxHP]`, `Health.cs:189`).
+  `TargetDamageWarhead.ProximityDamagePercent` (`:31`) floors it since
+  2026-08-27. See [§10](#10-a-warhead-delivered-by-explodes-is-a-different-weapon-three-defaults-change-meaning)
+  for the delivery path on which `args.ImpactPosition` itself was wrong.
 - **`SpreadDamage` (the splash warhead) is piecewise-LINEAR, not stepped.**
   `Falloff = { 100, 37, 14, 5, 0 }` is tabulated at ranges `i * Spread`
   (`SpreadDamageWarhead.cs:28`, `:52`) and `GetDamageFalloff` **interpolates
@@ -460,42 +469,56 @@ outside this arithmetic.
 
 ### Resolve `Burst` FIRST; it decides which field you are even allowed to read
 
-`WeaponInfo.cs:113` defaults `Burst` to **1**. `Armament.UpdateBurst` (`Armament.cs:651-679`,
-whole body gated on `Weapon.BurstWait > 0` at `:653`) runs `--Burst < 1` after every shot,
-which at `Burst: 1` is always true — so it always takes the `SetBurstWait(Weapon.BurstWait)`
-branch and the `BurstDelays` branch at `:669-672` is **unreachable**. **At `Burst: 1`,
-`BurstWait` is the inter-shot interval and `BurstDelays` is dead code.** Two AA
+`WeaponInfo.cs:113` defaults `Burst` to **1**. `Armament.UpdateBurst` (`Armament.cs:715-738`,
+whole body gated on `Weapon.BurstWait > 0` at `:717`) delegates the counter step to
+`BurstSequence.Advance` (`:74-81`), which runs `--burst < 1` after every shot — always true at
+`Burst: 1` — so it always returns the completed step carrying `burstWait`, and the
+`InterShotDelay` branch is **unreachable**. **At `Burst: 1`, `BurstWait` is the inter-shot
+interval and `BurstDelays` is dead code.**
+
+> *Line citations refreshed 2026-08-27.* The arithmetic is unchanged, but the counter step moved
+> out of `UpdateBurst` into the pure `BurstSequence` helper so it could be unit-tested without a
+> `World`; older notes cite `Armament.cs:651-679` / `:653` / `:669-672` / `:655`, all superseded. Two AA
 double-launch bugs found a night apart came through different fields for exactly this reason:
 the Stryker SHORAD had `Burst: 2` and was spaced by `BurstDelays` (intra-burst), the Tunguska
 has `Burst: 1` and was spaced by `BurstWait` (inter-burst). Same cause, different knob.
 
-### `BurstDelays` must not EXCEED `BurstWait`, and tripping it is silent
+### `BurstDelays` vs `BurstWait`: the constraint that used to exist, and no longer does
 
-`Armament.cs:367` rearms a stale burst when `WorldTick - lastFiredTick > Weapon.BurstWait`.
-That line is **unreachable during the wait**: `CheckFire` returns at `:356` when `CanFire` is
-false, and `CanFire` (`:325-327`) is false while `IsWaitingBurst`, which is just
-`BurstWait > 0` (`:694`) on the per-armament countdown that `SetBurstWait(BurstDelays[k])`
-loaded and `:295-296` decrements. So the check is evaluated only on the tick the armament is
-READY — exactly once per inter-shot gap, with `WorldTick - lastFiredTick` equal to
-`BurstDelays`. **The trip condition is therefore `BurstDelays > BurstWait`, and safety is
-`BurstDelays <= BurstWait`.** An exactly-equal value is SAFE.
+**Current rule (since 2026-08-27): there is none. `BurstDelays` may exceed `BurstWait` freely.**
+The stale-burst reset is keyed off a deadline rather than off the raw gap since the last shot —
+`BurstSequence.StaleTick(worldTick, interShotDelay, burstWait)` returns
+`worldTick + interShotDelay + burstWait` (`Armament.cs:61-64`), so the clock starts when the next
+shot **fails to arrive on schedule** and then runs for one full `BurstWait`. An inter-shot delay of
+any length is now inside the deadline by construction. `IsStale` is consulted once per fire
+attempt (`:435`) and resets to a full burst (`:436`).
 
-> *Corrected 2026-08-22 during curation.* A 2026-08-21 analysis concluded the predicate was
-> `BurstDelays + 1 > BurstWait` (trip at `>=`, safety at strict `<`), hedged on trait order.
-> Re-derived: the countdown reaches zero exactly `BurstDelays` ticks after the shot under
-> **either** ordering, so the delta is exactly `BurstDelays` and there is no off-by-one. The
-> stricter rule is merely conservative, not correct. **The same wrong claim ships as a YAML
-> comment at `weapons-missiles.yaml:589-594`** and should be corrected there; nothing is
-> actually mis-tuned, since `Stinger.quad`'s 58-against-60 is safe under either reading.
+**What that replaced, and why it is worth knowing.** The old check compared
+`WorldTick - lastFiredTick > Weapon.BurstWait` — the raw gap — which a *healthy* burst trips on any
+weapon whose inter-shot delay is not shorter than its between-bursts wait. `Mandible` (delays 14,
+wait 10) and `MandibleHeavy` (20/15) are both that shape, so **those two weapons could never
+complete a burst at all**: the reset fired between their own two shots, forever. `Stinger.quad`
+(`BurstDelays: 58` against `BurstWait: 60`, `weapons-missiles.yaml`) escaped only by its margin,
+and a dated comment on that weapon shows someone had noticed the hazard for it specifically without
+generalising it. **Two of the mod's weapons were silently broken by a rule the third had a comment
+about.**
 
-**Why it matters that tripping it is silent.** It does not error and does not drop the shot.
-`UpdateBurst` runs an extra time *before* `FireBarrel`, so `--Burst` hits 0, the burst is
-declared complete, `BurstWait` is loaded, `ResetBurst` restores the count, and the shot fires
-anyway — as shot 1 of a fresh burst, with a spurious `INotifyBurstComplete.FiredBurst` on
-every shot. The weapon keeps firing one at a time forever and never enters its real
-inter-burst pause. **The discriminator, if you need to test for it: measure the gap between
-shots 2 and 3.** Uncorrupted it is `BurstWait`; corrupted it is `BurstDelays` again, because
-no burst ever completes.
+> *Superseded 2026-08-27.* This subsection previously stated the trip condition as
+> `BurstDelays > BurstWait` with safety at `<=`, correcting an earlier `+1` off-by-one reading. That
+> analysis was right about the mechanism as it then stood and is now historical: the mechanism it
+> analysed no longer exists. Two consequences for anyone reading older material — the YAML comments
+> on `Stinger.quad` and `9M311` (`weapons-missiles.yaml`) still describe the raw-gap check and cite
+> `Armament.cs:367`, a line that has moved and a rule that has gone; and **`Stinger.quad`'s
+> `BurstDelays` is 58 against a `BurstWait` of 60, not 58 against 58** — the 58-tick *wait* belongs
+> to `9M311`, the neighbouring weapon, and the two have been conflated more than once.
+
+**The raw-gap shape still exists in one place.** `Armament.cs:478` computes
+`idleLongerThanBurstWait = lastFiredTick - previousLastFiredTick > Weapon.BurstWait` to detect the
+first shot of a fresh burst for `LockAimPerBurst`. It is the same comparison and carries the same
+latent defect — but it is **currently inert**, because all five weapons setting `LockAimPerBurst`
+have `BurstDelays` far below `BurstWait` (`GradRockets` 4/100, `TosRockets` and `M270Rockets`
+10/200, `Flamespray` and `Flamespray.heavy` 1/30). Authoring a locked-aim weapon with a long
+inter-shot delay would wake it up.
 
 ### Widening an interval is only correct if the FIRST missile is lethal
 
@@ -519,3 +542,46 @@ root: the MiG-29 has `Armor: Type: Medium` with **no `Thickness`**
 (`aircraft-russia.yaml:600-601`) while the F-16 it duels has `Thickness: 10`
 (`aircraft-america.yaml:578-580`) — Thickness 0 skips the scaling block outright, so the MiG
 takes 10–20× more damage from every Pen-1 weapon than its counterpart.
+
+## 10. A warhead delivered by `Explodes` is a different weapon: three defaults change meaning
+
+A ballistic missile does not detonate as a projectile. `BallisticMissileFly` queues
+`self.Kill(self)` (`BallisticMissileFly.cs:209`) and the actor's `Explodes` trait calls
+`weapon.Impact(Target.FromPos(self.CenterPosition + Offset), source)` (`Explodes.cs:133`, which
+comments *"Cannot use Target.FromActor"* because the actor is already dead). That reaches
+`WeaponInfo.Impact(in Target, Actor firedBy)` — the **projectile-less** overload — and three
+warhead fields that behave normally everywhere else change meaning on it. All three bit the
+Iskander and HIMARS simultaneously, reported as *"the Iskander hit a tank directly and it didn't
+get destroyed"*.
+
+**1. `ImpactPosition` is not set for you.** It is assigned by seven projectile types (`Bullet`,
+`Missile`, `GravityBomb`, `LaserZap`, `Railgun`, `AreaBeam`, `InstantHit`) plus the
+`WarheadArgs(ProjectileArgs)` constructor (`WeaponInfo.cs:51`) — and, before 2026-08-27, by nothing
+on the projectile-less path, where it stayed `WPos.Zero`, **the map origin**. `TargetDamageWarhead`
+scales by `CenterProximityPercent(victim, args.ImpactPosition)`; measured from the map corner
+against a T-90's 1030-unit half-diagonal that is **−2782%**, and negative damage **heals**
+(`Health.cs:189`). The direct-hit warhead was a repair beam. `SpreadDamageWarhead` reads the same
+field for impact *orientation*, so every `Explodes` splash was computing hit direction from the
+origin too. Now set at `WeaponInfo.cs:307`.
+
+**2. `DamageAtMaxRange` is unusable — `100` is the only safe value.** `RangeDamageFactor` divides by
+`args.Weapon.Range` (`DamageWarhead.cs:138`), which is **0** for a weapon never fired from an
+armament, making `ofMax` non-finite and the cast to int not a percentage. It is meaningless in
+principle here as well: `args.Source` is the missile's own position at detonation, so the "range" is
+always zero however far the launcher stood. `TargetDamageWarhead` only consults the field when it is
+not 100 — which is why Iskander's `100` was inert while HIMARS's `80` was live and wrong.
+
+**3. `Penetration` still defaults to 1**, and on a large anti-armour warhead that is the difference
+between a kill and a scratch — see [§9](#9-sizing-a-burst-interval-use-the-missiles-maximum-lifetime-not-its-flight-time)
+and `conventions.md` instance 7. Both ballistic missiles omitted it.
+
+**Authoring rule.** A warhead reached through `Explodes` / `SpawnedExplodes` has no projectile
+behind it, so **every `WarheadArgs` field a projectile would have populated is at its default**.
+Before tuning such a weapon, list the fields its warheads read and check each one is actually
+supplied on this path. Do not assume a field is set because it is set for every other weapon you
+have looked at.
+
+> **Not a general convention:** the sibling `Warhead@Spread: SpreadDamage` does **not** uniformly
+> omit `Penetration`. `ATGM` and `RPG` leave it unset, but `Ataka` and `Hellfire` set 20, and both
+> ballistic missiles set 2500/1800. Treat the two warheads as independently tuned rather than
+> inferring one from the other.

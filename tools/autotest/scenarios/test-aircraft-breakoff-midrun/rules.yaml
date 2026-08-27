@@ -1,0 +1,78 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# Fog off. Break-off is the only live variable; a target that flickers out of
+		# vision would end the attack activity by a completely different route
+		# (FlyAttack's useLastVisibleTarget branch) and read as a break-off.
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-aircraft-breakoff-midrun.lua
+
+# The target must sit at a PRECISE fraction of max health for the whole observation
+# window: under 25% so DamageState.Critical holds critical-damage (Health.cs:95,
+# defaults.yaml:246-248), and far enough above zero that further hits in the RED arm
+# cannot kill it before the run ends. A stock t90 dies to a handful of 30mm bursts.
+#
+# Key case matters here and the failure is loud rather than silent: t90 is declared
+# LOWERCASE at vehicles-russia.yaml:277, and a `T90:` block in map rules does not merge
+# with it — it becomes a second node that collapses onto the same lowercased ActorInfo
+# key, and Ruleset.Load throws "duplicate values found for the following keys: t90".
+# A10 and MI28 below really are declared uppercase, which is why they differ. Sibling
+# scenarios overriding HALO/AA get away with uppercase for the same reason. Match the
+# declaration, do not guess — `./utility.sh --check-yaml` catches this without a launch.
+
+t90:
+	Health:
+		HP: 100000
+	# MEASURED 2026-08-27, and it silently confounded the first two runs of this
+	# scenario: EVERY vehicle carries ChangesHealth@CriticalDamage (vehicles.yaml:153,
+	# PercentageStep: -1, Delay: 5, StartIfBelow: 50), an irreversible bleed-out. A
+	# target parked at 15% therefore dies on a fixed ~75-tick clock with nothing
+	# shooting it — well inside this scenario's 250-tick observation window. Both early
+	# runs ended `tgtHp-1%` (dead) on BOTH lanes, including the lane that fired zero
+	# shots, so two thirds of each window was measuring an aircraft with a CORPSE rather
+	# than with a doomed target, which is a different question.
+	#
+	# Removing the bleed makes the t90 a stand-in carrier for "an actor holding
+	# critical-damage for a sustained period" rather than a claim about vehicles. It
+	# cannot manufacture a green: it makes the target live LONGER and stay shootable,
+	# so it strictly increases the opportunity for an unguarded aircraft to keep firing.
+	# The bleed itself is not a bug — it is what makes "already doomed" literally true
+	# in this mod, and it is the premise the break-off guard is built on.
+	-ChangesHealth@CriticalDamage:
+
+# NO AutoTarget override on the aircraft, and that is forced rather than chosen.
+#
+# DO NOT ADD AN `A10:` BLOCK TO THIS FILE, OR TO ANY MAP'S RULES. The shipped A10
+# declares two traits twice — `ReloadAmmoPool@1` at aircraft-america.yaml:499 (primary-
+# ammo) and again at :529 (secondary-ammo, evidently meant to be @2, which is what MI28
+# does correctly), and `RenderSprites` at :456 and again at :576. A plain load lets the
+# later declaration silently win, but a map-rules override forces MiniYaml.Merge, which
+# refuses the duplicate and throws:
+#   "MiniYaml.Merge, duplicate values found for the following keys: ReloadAmmoPool@1 ...
+#    RenderSprites ..."
+# So the A10 is currently un-overridable from a map. Logged in WORKSPACE/bugs/discovered.md;
+# not fixed here, because deduplicating those keys would restore the A10's 30mm reload and
+# its playertd palette — a live behavioural change that needs its own test and its own
+# commit, not a silent passenger on a diagnostic scenario.
+#
+# Nothing is lost by leaving AutoTarget alone. Unpinned, ScanRadius falls back to
+# AttackBase.GetMaximumRange — 25c0 for the A10 (Hellfire) and 22c0 for the Mi-28 (Ataka).
+# Each aircraft starts 14 cells from its own target and 44 from the other lane's, so
+# acquisition is nowhere near a boundary in either direction (AUTOTEST.md gotcha 8) and
+# neither aircraft can see the wrong t90 from its start position by any weapon it carries.
+#
+# THE RED ARM IS AN ENGINE EDIT, NOT A YAML ONE, for the same reason. Comment out the
+# break-off block in AttackFollow.Tick (the `if (RequestedTarget.Type == TargetType.Actor
+# && BreakOffApplies(...))` guard), rebuild, and run. That sabotages the mechanism under
+# test at its source and reaches BOTH lanes, which a per-actor YAML switch could not.
+# Expected RED text: "BREAK-OFF DID NOT FIRE: <n> shots taken at a critically damaged
+# target after break-off". Restore and rebuild before the green arm.

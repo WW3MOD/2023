@@ -3403,3 +3403,21 @@ running game.
   no longer be mistaken for "nothing exists nearby" and evacuated — but correcting the SEEK means
   changing `AutoRearm`'s own pick, which was judged too wide to add to a branch already under review.
   (found while working on: the Auto-stance evacuate fallback, review round 2)
+- [2026-08-27] [med] **The A10 declares two traits twice, so it is silently mis-configured AND
+  un-overridable from any map.** `mods/ww3mod/rules/ingame/aircraft-america.yaml` gives `A10:` a
+  `ReloadAmmoPool@1` at `:499` (`AmmoPool: primary-ammo`) and a second `ReloadAmmoPool@1` at `:529`
+  (`AmmoPool: secondary-ammo` — evidently meant to be `@2`, which is exactly what `MI28` does
+  correctly at `aircraft-russia.yaml:414`), plus `RenderSprites` at `:456` (`PlayerPalette: playertd`)
+  and again at `:576` (`Scale: 1.2`). On an ordinary load the later declaration wins with no
+  diagnostic, so **the A10's 30mm GAU-8 pool has no reload rule at all** (only the Hellfire pool
+  does) and the `playertd` palette is dropped. The duplication only becomes loud when a map overrides
+  the actor: that forces `MiniYaml.Merge`, which refuses and throws
+  `"duplicate values found for the following keys: ReloadAmmoPool@1 ... RenderSprites ..."`, taking
+  the whole map's ruleset down. Reproduce without launching: add any `A10:` block to a scenario's
+  `rules.yaml` and run `Mod=ww3mod ./utility.sh --check-yaml <scenario>`.
+  **Not fixed here:** deduplicating restores a reload rule and a palette, i.e. a live behavioural
+  change to a shipped unit, which wants its own commit and its own test rather than riding along on a
+  diagnostic scenario. Whoever takes it should check whether the 30mm was *intended* to be
+  non-reloading before "fixing" it.
+  (found while working on: `test-aircraft-breakoff-midrun`, where an `A10: AutoTarget: ScanRadius`
+  pin would not load)
