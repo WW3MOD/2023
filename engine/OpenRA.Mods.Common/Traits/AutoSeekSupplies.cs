@@ -194,7 +194,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Normal play is unaffected: nothing is logged outside a test.
 			if (TestMode.IsActive)
 				Log.Write("debug",
-					$"[seek] leave unit={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
+					$"[seek] leave tick={self.World.WorldTick} unit={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
 					+ $"provider={provider.Info.Name}@{provider.Location} "
 					+ $"dist={(provider.CenterPosition - self.CenterPosition).HorizontalLength / 1024}c "
 					+ $"leash={info.SupplyHuntLeashCells}c");
@@ -282,6 +282,14 @@ namespace OpenRA.Mods.Common.Traits
 			// checks neither IsInWorld nor a path (economy.md). The IsInWorld hole is real: a host loaded
 			// into a carryall is out of the world with a stale CenterPosition, so it would read as a
 			// perfectly good destination at wherever it was picked up.
+			//
+			// DO NOT swap this for ChooseAffordableResupplier without reading
+			// WORKSPACE/bugs/discovered.md 2026-08-27 first. It looks like the obvious parity fix with
+			// AmmoPool.AutoRearmIfDry's Auto arm, and for a proximity/push host (truck, cache) it would
+			// be one. For a DOCKING host it is a regression: Resupply.cs:131 sets the rearm branch from
+			// Rearmable.RearmActors membership alone and Rearmable.RearmTick hands out ammunition with
+			// no supply consulted, so a rearm at the Logistics Centre costs the depot nothing and
+			// gating the trip on affordability withholds a trip that would have worked.
 			var host = AmmoPool.ChooseResupplier(self);
 			if (host == null || !host.IsInWorld || !WithinBreakOffLeash(host))
 			{
@@ -294,7 +302,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (TestMode.IsActive)
 				Log.Write("debug",
-					$"[seek] dry unit={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
+					$"[seek] dry tick={self.World.WorldTick} unit={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
 					+ $"host={host.Info.Name}@{host.Location} leash={info.ReturnWhenEmptyLeashCells}c");
 
 			// QueueActivity(false, …) inside — the forward order is cancelled, which is the point.
@@ -349,7 +357,7 @@ namespace OpenRA.Mods.Common.Traits
 			// worse than one fighting with an empty gun, which can at least still take ground.
 			if (TestMode.IsActive)
 				Log.Write("debug",
-					$"[seek] stalled unit={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
+					$"[seek] stalled tick={self.World.WorldTick} unit={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
 					+ $"stalled={stalledTicks}t retry={info.ReturnErrandRetryTicks}t");
 
 			self.CancelActivity();

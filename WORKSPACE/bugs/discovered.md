@@ -3440,3 +3440,52 @@ running game.
   to `AUTOTEST_EXTRA_ARGS` for that scenario only. Not attempted here — it is a harness change and
   wants its own review.
   (found while working on: `wt/fog-leak`, verifying the FrozenUnderFog visibility restoration)
+
+- [2026-08-27] [high] **Rearming at the Logistics Centre is FREE — the docking path never consults
+  the depot's supply.** `Resupply.cs:131` sets its rearm branch from `Rearmable.RearmActors`
+  membership alone (`!rearmable.Info.RearmActors.Contains(host.Info.Name)`), and the rearm itself is
+  `Rearmable.RearmTick` (`Resupply.cs:301` → `Rearmable.cs:57-78`), which calls `AmmoPool.GiveAmmo`
+  and reads no `SupplyProvider` at all. Nothing downstream charges for it either: `SupplyProvider`
+  implements **neither** `INotifyResupply` nor `INotifyDockHost`, the only two hooks `Resupply` fires
+  at the host (the sole implementers engine-wide are `WithResupplyAnimation` and `WithRepairOverlay`,
+  both render traits). So any actor whose `Rearmable.RearmActors` names `logisticscenter` refills to
+  full at a Centre holding **zero** supply.
+  The depot's supply is spent only by the *push* path (`SupplyProvider.Tick`, which does deduct at
+  `:993`), and that path reaches infantry via the 4c0 aura arm and only `himars`/`iskander` via the
+  docked arm — they are the only two vehicles declaring the `replenish-vehicles` ExternalCondition
+  that `IsValidTarget`/`MatchClientele` requires. Every other vehicle naming the Centre (`humvee`,
+  `m113`, `bradley`, `abrams`, `m109`, `strykershorad`, `btr`, `bmp2`, `t90`, `giatsint`, `tunguska`,
+  `t72`, `mnly`) is invisible to the push and rearms **entirely** through the free path.
+  **Consequence for anyone touching dispatch:** `AmmoPool.ChooseResupplier`'s `CurrentSupply > 0`
+  filter and `ChooseAffordableResupplier`'s `>= SupplyValue` filter are both gating a TRIP against a
+  cost that is never charged when the host is a docking host. Swapping the seek path
+  (`AutoSeekSupplies.cs:285`) to the affordable chooser therefore looks like a parity fix with
+  `AmmoPool.AutoRearmIfDry`'s Auto arm and is a REGRESSION for Logistics Centre trips: it withholds a
+  journey that would have succeeded. The same question hangs over `e36ab29a`, which put the
+  affordable chooser into that Auto arm; not re-examined here.
+  **Not fixed here:** charging for the docking rearm is an economy change touching every vehicle and
+  both bot profiles, and the honest first step is deciding whether free-at-the-LC is the intent
+  (`economy.md` prices supply 1:1 and gives the Centre 2250, which reads like it was meant to be
+  spent). Reproduce without launching by reading the three sites above; in-game, park a dry `abrams`
+  at a Centre zeroed with `Test.SetSupply` and watch it refill.
+  (found while working on: extending the dry-unit resupply re-ask from soldiers to vehicles)
+
+- [2026-08-27] [med] **INFERRED, NOT OBSERVED: infantry within 4 cells of an empty Logistics Centre
+  may refill for free through an ungated proximity condition.** Separate from the entry above and
+  reached by a different route. `LOGISTICSCENTER` carries
+  `ProximityExternalCondition@ReplenishSoldiers` (`mods/ww3mod/rules/ingame/structures.yaml`, in the
+  block beginning at `:389`): `Condition: replenish-soldiers`, `Range: 4c0`, `ValidRelationships:
+  Ally`, and `RequiresCondition: !build-incomplete && !disabled` — **no supply term**. Every soldier
+  class declares `ReloadAmmoPool@1: RequiresCondition: replenish-soldiers`, and `ReloadAmmoPool` is
+  stock OpenRA: a timed `Reload` with no range check and no supply accounting. So the condition
+  appears to be granted, and the free trickle to run, irrespective of what the Centre holds.
+  This is *distinct from* the Centre's supply-gated `SupplyProvider` aura arm
+  (`AuraRearmCondition: replenish-soldiers`, `AuraRange: 4c0`, which does deduct) — the two grant the
+  same condition at the same radius, one metered and one not, which is likely how it went unnoticed.
+  **Explicitly not verified in game.** It was found by designing *around* it: the ten-cell separation
+  in `tools/autotest/scenarios/test-dry-soldier-retry-after-refill/map.yaml` exists to keep this out
+  of that measurement, so the scenario proves nothing about it either way.
+  **One-line experiment to confirm:** place a dry rifleman two cells from a Logistics Centre,
+  `Test.SetSupply(Depot, 0)` at `WorldLoaded`, and assert his ammo stays at zero. If it climbs, this
+  is real; `Test.GetSupply` staying at 0 while it climbs is the second half of the proof.
+  (found while working on: `test-dry-soldier-retry-after-refill`, phase 1 of the vehicle re-ask work)
