@@ -11447,10 +11447,21 @@ rather than evacuation, on the grounds that a drained Logistics Centre is recove
 that recovery from a standstill.** And the flag it raised is unanswerable for a vehicle from both ends:
 `NeedsResupply` has exactly one reader (`SupplyProvider.FindNeedsResupplyTarget`, `SupplyProvider.cs:622`),
 swept only by a Hunt-stance provider that must DRIVE to it — and every vehicle in the mod names
-`RearmActors: logisticscenter` alone, a building. Even the wasted trip is impossible to convert: the
-three MOBILE providers (`truk`, `lccv`, `supplycache`) all set `RearmCondition: replenish-soldiers`,
-declared only on `^Soldier` (`infantry.yaml:238`), so a truck that did drive over could not serve a
-vehicle on arrival.
+`RearmActors: logisticscenter` alone, a building.
+
+**Count the providers carefully — two revisions of this got it wrong.** There are exactly FOUR
+`SupplyProvider` actors in the mod: `truk`, `lccv`, `logisticscenter`, `supplycache`. Only **two**
+carry `IMove`, which is the trait `AnyMobileRearmHost` actually tests — `supplycache` is a dropped
+crate whose whole declaration is `Inherits: ^SpriteActor` (`misc.yaml:370-371`), and
+`logisticscenter` is a building. An earlier version of this entry called three of them "mobile";
+what those three actually share is `RearmCondition: replenish-soldiers`, which is a different claim.
+
+Of the two that do move, **`lccv` appears in no `RearmActors` list anywhere in the mod**, so it can
+never be a candidate for anybody regardless of mobility. That leaves `truk` as the only mobile rearm
+host any actor can reach — and `truk` serves `RearmCondition: replenish-soldiers`, declared only on
+`^Soldier` (`infantry.yaml:238`), so it could not serve a vehicle on arrival even if a vehicle named
+it. The conclusion is therefore stronger than the mobility argument alone: for a vehicle
+`AnyMobileRearmHost` is false by construction, and for infantry the mobile host set is `truk` alone.
 
 **Not fixed, and deliberately not fixed on that branch.** The obvious repair — give `AmmoPool` a
 periodic re-ask — is structural rather than small: `AutoRearmIfDry` is the single entry point for all
@@ -11461,23 +11472,44 @@ already carries a full apparatus for exactly this problem (scan intervals, `IsSe
 guard, stall detection, retry cooldown) is the evidence for how much machinery a safe periodic re-ask
 needs.
 
-### The periodic re-ask ALREADY EXISTS — and it is NOT a free answer. Three parts, all load-bearing
+**"Structural" applies to ONE of the two possible repairs, and it is not the one worth doing.**
+Making `AutoRearmIfDry` itself periodic is structural, for the reason just given. Putting the
+existing `AutoSeekSupplies` on a vehicle is not — see the section directly below, which corrects the
+belief that that trait is dormant.
 
-Bearing directly on the open user question about whether a "withdraw and wait" behaviour should exist:
+### The periodic re-ask ALREADY EXISTS AND IS ALREADY LIVE — so the ask-once gap is a VEHICLE gap
+
+Bearing directly on the open user question about whether a "withdraw and wait" behaviour should exist.
+
+**This entry originally said the machinery "ships OFF". That was wrong**, and the error was reading
+the C# defaults and stopping there instead of finishing the trace into the mod YAML. Corrected
+2026-08-27; the correction changes the SCOPE of the finding rather than a detail of it.
 
 1. **It EXISTS.** `AutoSeekSupplies.ReturnWhenEmpty` + `EmptyScanInterval` is precisely a periodic
    re-ask for a unit that has run dry, and it already carries the whole safety apparatus around it:
    scan-interval throttling, an `AmmoPool.IsSeekingRearm` re-entry guard, `ReturnErrandStallTicks`
    stall detection, and a `ReturnErrandRetryTicks` cooldown.
-2. **It is OFF.** `AutoSeekSuppliesInfo.Enabled` ships `false` (`AutoSeekSupplies.cs:34` — "Master
-   switch. Ships OFF"), and `ReturnWhenEmpty` ships `false` on top of it (`:69`). Two switches, both
-   off.
-3. **It is `^Soldier`-ONLY — and this third part is what stops it being a free answer.** The trait is
-   declared on `^Soldier` alone. `AmmoPoolInfo.DryRearmLeashCells` exists as its own separate field
-   *because* of exactly that asymmetry, its Desc recording that reading the other trait's Info "would
-   have left every vehicle unleashed while looking complete" (`AmmoPool.cs:102-113`). **Turning both
-   flags on would therefore not cover a single vehicle** — and the reported case, the Iskander, is a
-   vehicle. Anyone costing this as "flip a flag" has priced parts 1 and 2 and skipped part 3.
+2. **It is ON.** The C# defaults are indeed `false` (`AutoSeekSupplies.cs:34`/`:69`) — but `^Soldier`
+   turns BOTH on (`infantry.yaml:251-253`: `Enabled: true`, `ReturnWhenEmpty: true`). `^E6` is the
+   sole opt-out and overrides only `ReturnWhenEmpty: false` (`:1972-1973`) — an override on a
+   `^Soldier` descendant, not a second introduction. **So in the shipped mod every `^Soldier`
+   descendant except `^E6` already has a live periodic re-ask.**
+3. **It is `^Soldier`-ONLY, and that is now the whole finding rather than a caveat on it.**
+   `AutoSeekSupplies:` appears at exactly two sites mod-wide, both in `infantry.yaml` (`:251` and
+   `:1972`). The bank already holds the complementary half above: *"No vehicle has
+   `AutoSeekSupplies`."* `AmmoPoolInfo.DryRearmLeashCells` exists as its own separate field *because*
+   of that asymmetry, its Desc recording that reading the other trait's Info "would have left every
+   vehicle unleashed while looking complete" (`AmmoPool.cs:102-113`).
 
-So the wait half of "withdraw and wait" has no way to end today, and no existing switch grants one to
-the unit class that actually needs it.
+**Therefore the ask-once gap is not universal — it is a vehicle gap, and vehicles are exactly where
+the evacuation feature bites hardest**: `RearmActors: logisticscenter` alone, no mobile rearm host by
+construction, and 1500-supply batches against a 2250-supply depot. Infantry are already covered.
+
+The design consequence, stated plainly because it is the part that costs: the tractable shape is
+**extend an existing re-ask to vehicles**, not **invent one**. That is a materially smaller and
+better-understood job than the "structural" framing above implies — the apparatus, the guards and the
+tuning fields all exist and are in service; what is missing is the trait's presence on a vehicle
+template and whatever re-tuning the vehicle case needs.
+
+So the wait half of "withdraw and wait" has no way to end today **for a vehicle**, and no existing
+switch grants one — because the trait that would grant it is not on any vehicle to switch.

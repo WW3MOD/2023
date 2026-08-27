@@ -189,9 +189,15 @@ namespace OpenRA.Mods.Common.Traits
 		/// reader on the strength of the method name alone.)
 		/// Against a host that cannot move, the flag is addressed to nobody and the unit waits forever.
 		/// That is not hypothetical: in the shipped corpus every vehicle names
-		/// <c>RearmActors: logisticscenter</c> and nothing else, the Logistics Centre is a building, and
-		/// the two MOBILE providers (truk, supplycache) serve <c>RearmCondition: replenish-soldiers</c>
-		/// while vehicles declare replenish-vehicles — so no truck can rearm a vehicle even on arrival.
+		/// <c>RearmActors: logisticscenter</c> and nothing else, and the Logistics Centre is a
+		/// BUILDING — so for a vehicle this test is structurally false, always. (Count carefully before
+		/// repeating a number here; two revisions of this comment have already got it wrong. There are
+		/// four SupplyProvider actors in the mod — truk, lccv, logisticscenter, supplycache — and only
+		/// TWO carry IMove, which is what AnyMobileRearmHost actually tests: supplycache is a dropped
+		/// crate declaring nothing but <c>Inherits: ^SpriteActor</c>. Of those two, lccv appears in no
+		/// <c>RearmActors</c> list anywhere in the mod, so the only mobile rearm host anyone can reach
+		/// is truk — and truk serves <c>RearmCondition: replenish-soldiers</c>, declared only on
+		/// ^Soldier, so it could not serve a vehicle even if a vehicle did name it.)
 		/// An Iskander with no Logistics Centre is therefore flagging for a rescue the ruleset makes
 		/// impossible, which is exactly the bug this was reported as.</para>
 		///
