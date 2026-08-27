@@ -449,11 +449,20 @@ LOGISTICSCENTER:
 		FinishRepairingNotification: UnitRepaired
 		PauseOnCondition: disabled || build-incomplete
 		RequiresCondition: !build-incomplete && !disabled
-	ProximityExternalCondition@ReplenishSoldiers:
-		Condition: replenish-soldiers
-		Range: 4c0
-		RequiresCondition: !build-incomplete && !disabled
-		ValidRelationships: Ally
+	# REMOVED 2026-08-27 — ProximityExternalCondition@ReplenishSoldiers (Condition: replenish-soldiers,
+	# Range: 4c0, ValidRelationships: Ally). It carried NO supply term, and the condition it granted
+	# enables each soldier's own ReloadAmmoPool, a timed trickle with no range check and no accounting.
+	# So any infantry standing within four cells refilled for nothing, at a Centre holding nothing.
+	# MEASURED in test-who-pays-for-a-rearm: a rifleman three cells from a Centre held at ZERO gained
+	# 14 rounds in 700 ticks — one every 50, exactly ReloadAmmoPool's default Delay — with the depot
+	# reading 0 at all 28 samples. Deleting this line held him at 0 for the whole run.
+	#
+	# Nothing is lost at a STOCKED Centre: SupplyProvider grants the same condition itself to the
+	# client it is serving (SupplyProvider.cs SyncTargetCondition), and its AuraRearmCondition arm
+	# below is that grant, metered. The difference is that the metered arm serves ONE client at a time
+	# on a cadence and charges for it, where this granted the condition to everyone in range for free.
+	# This is the user's ruling — "all supply always costs, nothing is free ever" — at its one site:
+	# grep confirms replenish-soldiers was granted bare NOWHERE else in the mod.
 	SupplyProvider:
 		# 2250 = 3x the supply truck's 750, and IDENTICAL to LCCV's while undeployed. USER RULING
 		# 2026-08-22: "There is no difference between when it is driving or when it is deployed, it
@@ -477,7 +486,7 @@ LOGISTICSCENTER:
 		# checked BEFORE RearmCondition (SupplyProvider.IsValidTarget), and only ^Vehicle declares
 		# unit.docked (vehicles.yaml:29), so a widened condition list would have been rejected by the
 		# dock gate before it was ever read. 4c0 and the 6-tick cadence deliberately match
-		# ProximityExternalCondition@ReplenishSoldiers above and the supply truck respectively.
+		# the removed ProximityExternalCondition above and the supply truck respectively.
 		#
 		# COST, so the drain rate is legible: a batch is ReloadCount rounds for SupplyValue supply.
 		# An E3 rifleman is Ammo 100 / ReloadCount 20 / SupplyValue 1 (infantry.yaml), i.e. 5 supply

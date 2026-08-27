@@ -383,6 +383,53 @@ namespace OpenRA.Mods.Common.Traits
 		/// — a host we would refuse to walk to must also be one we refuse to abandon an exit for. A host
 		/// with no SupplyProvider charges nothing (the pure RearmsUnits depot), so it always passes.</para>
 		/// </summary>
+		/// <summary>
+		/// <para>THE ONE PLACE A BATCH IS PAID FOR. Both delivery models fund a rearm through here — the
+		/// proximity push in <c>SupplyProvider.Tick</c> and the docking pull in
+		/// <see cref="Rearmable.RearmTick"/> — because the alternative is two implementations of the same
+		/// arithmetic, and this codebase has already paid for that shape more than once.</para>
+		///
+		/// <para>A batch is <c>ReloadCount</c> rounds for <c>SupplyValue</c> supply. The FULL SupplyValue is
+		/// charged even when fewer rounds are handed over because the pool is nearly full. That is the
+		/// pre-existing convention on the push path and it is kept deliberately rather than tidied, so the
+		/// two paths cannot disagree about a price — but it becomes PLAYER-VISIBLE under a charged economy:
+		/// topping up two rounds of an abrams' forty-round pool costs the same 30 supply as filling five.</para>
+		///
+		/// <para><paramref name="provider"/> null means a host that charges nothing — a pure
+		/// <c>RearmsUnits</c> depot, of which this mod has none. It is not a licence for free ammunition at
+		/// a SupplyProvider host; every such host passes itself in.</para>
+		///
+		/// <para>Returns false without changing anything when the pool is full or the provider cannot afford
+		/// the batch. Callers must treat "cannot afford" as ENDING the errand rather than as a reason to
+		/// wait: a client parked at a depot that cannot pay keeps <see cref="IsSeekingRearm"/> true, which
+		/// makes StarvingRecruitGate withhold it from every bot module, and the Logistics Centre restocks
+		/// only via AbsorbsSupplyCache — an unbounded wait that deletes the unit from the game in all but
+		/// name. Partial refill, then leave; that mirrors SupplyProvider.cs:968, which has always skipped a
+		/// pool it cannot pay for rather than holding its target.</para>
+		/// </summary>
+		public static bool TryServeBatch(Actor client, AmmoPool pool, SupplyProvider provider)
+		{
+			if (pool.HasFullAmmo)
+				return false;
+
+			var cost = pool.Info.SupplyValue;
+			if (provider != null && provider.CurrentSupply < cost)
+				return false;
+
+			var batch = System.Math.Max(1, pool.Info.ReloadCount);
+			var missing = pool.Info.Ammo - pool.CurrentAmmoCount;
+			if (!pool.GiveAmmo(client, System.Math.Min(batch, missing)))
+				return false;
+
+			// Charged AFTER the ammunition lands, so a GiveAmmo that declines cannot bill the depot.
+			provider?.DeductSupply(cost);
+
+			if (!string.IsNullOrEmpty(pool.Info.RearmSound))
+				Game.Sound.PlayToPlayer(SoundType.World, client.Owner, pool.Info.RearmSound, client.CenterPosition);
+
+			return true;
+		}
+
 		static bool HostCanAffordSomethingWeNeed(Actor host, IEnumerable<AmmoPool> pools)
 		{
 			var provider = host.TraitOrDefault<SupplyProvider>();

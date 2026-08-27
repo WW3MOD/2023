@@ -733,6 +733,22 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool IsValidTarget(Actor a) { return IsValidTarget(a, out _); }
 
+		/// <summary>
+		/// <para>Could this provider's PUSH arm serve <paramref name="client"/> right now? Exposed so the
+		/// docking pull path (<c>Rearmable.RearmTick</c>) can stand down for clients this arm owns, which is
+		/// what keeps a docked himars from being served — and, once metered, CHARGED — twice.</para>
+		///
+		/// <para>Deliberately the SAME predicate the selection sweep uses rather than a second opinion about
+		/// it. A re-derived copy that drifted would produce either a double-serve or a client both arms
+		/// decline, and the second failure is silent.</para>
+		///
+		/// <para>Says nothing about SUPPLY, matching IsValidTarget: an arm that owns a client still owns it
+		/// when the depot is empty. That is the intended reading under the charging ruling — a drained depot
+		/// cannot serve, and the client should leave rather than be handed to a second arm that would serve
+		/// it for nothing.</para>
+		/// </summary>
+		public bool CanSelect(Actor client) { return IsValidTarget(client, out _); }
+
 		bool IsValidTarget(Actor a, out bool isAura)
 		{
 			isAura = false;
@@ -976,28 +992,12 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
+			// Batch math, affordability and the charge all live in AmmoPool.TryServeBatch now, shared with
+			// the docking pull path so the two cannot disagree about what a batch costs. The SELECTION above
+			// — greatest need, and only pools this depot can pay for — stays here: that is the push arm's own
+			// policy rather than part of the price.
 			if (bestPool != null)
-			{
-				// Batch math: deliver one batch of ReloadCount rounds per cycle for
-				// SupplyValue cost per batch. Falls back to 1 round per cycle when
-				// the pool has the default ReloadCount: 1.
-				var batchSize = System.Math.Max(1, bestPool.Info.ReloadCount);
-				var missing = bestPool.Info.Ammo - bestPool.CurrentAmmoCount;
-				var canAfford = currentSupply >= bestPool.Info.SupplyValue;
-
-				if (canAfford && missing > 0)
-				{
-					var roundsToGive = System.Math.Min(batchSize, missing);
-					if (bestPool.GiveAmmo(currentTarget, roundsToGive))
-					{
-						currentSupply -= bestPool.Info.SupplyValue;
-						UpdateSupplyConditions();
-
-						if (!string.IsNullOrEmpty(bestPool.Info.RearmSound))
-							Game.Sound.PlayToPlayer(SoundType.World, currentTarget.Owner, bestPool.Info.RearmSound, currentTarget.CenterPosition);
-					}
-				}
-			}
+				AmmoPool.TryServeBatch(currentTarget, bestPool, this);
 
 			// After giving ammo, drop target to re-evaluate on next scan. Order matters: the delay is
 			// read off the clientele we just served, then the latch is cleared with the target.
