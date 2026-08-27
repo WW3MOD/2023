@@ -420,7 +420,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (provider == null)
 				return true;
 
-			// Docking host: the rearm is free, so there is no price to check.
+			// SUPERSEDED 2026-08-27 by the user's charging ruling — "All supply always costs, nothing is
+			// free ever." DO NOT MERGE THIS EARLY-OUT. It encodes "a docking host can always serve on
+			// arrival", which was true of the shipped economy and is exactly backwards under the intended
+			// one: once the Logistics Centre charges, a drained Centre genuinely cannot serve, and
+			// affordability becomes the right gate for it rather than the wrong one. Kept in the tree only
+			// so the reasoning behind commit 1bfd5e2c is legible; the replacement work is metering the
+			// dock path, not exempting it.
 			if (!string.IsNullOrEmpty(provider.Info.DockedCondition))
 				return true;
 

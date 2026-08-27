@@ -5182,7 +5182,7 @@ The reported symptom was soldiers walking onto the line with no ammunition. Two 
 - `AmmoPool.AutoRearmIfAllEmpty` (`AmmoPool.cs:170`) has exactly two triggers — `INotifyAttack.Attacking` (`:247`) and `INotifyBecomingIdle` (`:252`). `AmmoPool` does not implement `ITick` (`:111`), and the `TakeAmmo` trigger is commented out (`:162-165`).
 - `AutoSeekSupplies` (the infantry low-ammo walk) is `INotifyIdle` only.
 
-So the state is sampled on the tick the last round leaves the barrel, and then never again until the unit runs out of orders. `Actor.IsIdle` is `CurrentActivity == null` (`Actor.cs:75`), and a man on an attack-move is under an activity for the whole march — so the *only* sample point is a moment when the unit is, by construction, still doing something else. **`INotifyAttack` + `INotifyBecomingIdle` is not "on change, and periodically"; it is "once, at the wrong time".** Any trait of the form "when my state becomes X, do Y" needs an `ITick` (throttled, deterministic per-actor phase from `ActorID`) if X can persist across an order — event hooks alone leave a hole the size of the behaviour.
+So the state is sampled on the tick the last round leaves the barrel, and then never again until the unit runs out of orders. `Actor.IsIdle` is `CurrentActivity == null` (`Actor.cs:75`), and a man on an attack-move is under an activity for the whole march — so the *only* sample point is a moment when the unit is, by construction, still doing something else. **`INotifyAttack` + `INotifyBecomingIdle` is not "on change, and periodically"; it is "once, at the wrong time".** **[CORRECTED 2026-08-27 — "once" is the BEST case. A unit that is already idle when it runs dry asks ZERO times: `Actor.Tick:318` recomputes `wasIdle` from `IsIdle` before testing the edge, so there is no transition to catch. See the dated entry at the end of this file.]** Any trait of the form "when my state becomes X, do Y" needs an `ITick` (throttled, deterministic per-actor phase from `ActorID`) if X can persist across an order — event hooks alone leave a hole the size of the behaviour.
 
 The generalisation worth carrying: this repo already documents the *inverse* trap for aircraft (conventions.md — a hovering helicopter's `IsIdle` is false forever, so every `IsIdle` gate on an airframe is dead code). The ground half is the same defect wearing different clothes, and both come from treating `IsIdle` as "not busy" when it means "has no queued activity at this instant".
 
@@ -12018,3 +12018,45 @@ to flip.
 **Not checked: whether a drone flew toward unexplored ground and stopped short of it.** That is the
 corner-artefact prediction, and the log records the target cell but nothing about what the drone
 actually observed once there, so this match says nothing about it either way.
+
+## 2026-08-27 — CORRECTION: a dry unit does not ask "once". If it is already idle it asks ZERO times
+
+**The earlier claim is too generous and must be read as corrected.** `DISCOVERIES.md:5185` says
+`INotifyAttack` + `INotifyBecomingIdle` is *"once, at the wrong time"*, and that wording is now
+quoted in a commit message on `main` and in a decision record. The truth is worse: **once** is the
+best case, reached only by a unit that runs dry *while busy*. A unit that is **already idle when it
+runs dry never asks at all.**
+
+`Actor.Tick` recomputes `wasIdle` from `IsIdle` at the top of every tick and only then tests
+`!wasIdle && IsIdle` (`engine/OpenRA.Game/Actor.cs:318-323`). An actor with no current activity is
+therefore idle *already* on the tick the check runs, fails the edge test, and fails it identically on
+every subsequent tick. There is no transition to catch, so `OnBecomingIdle` never fires and
+`AmmoPool.AutoRearmIfDry` is never reached. The other dispatch site cannot cover for it:
+`INotifyAttack.Attacking` requires a shot, and a unit with no ammunition does not shoot.
+
+This is not a scenario artefact. It is the ordinary state of a vehicle holding position that fires
+its last round and then stands there — and of any unit that is spawned or delivered dry and given no
+order.
+
+**Measured, and it cost two runs to see.** `test-poor-depot-still-worth-the-trip` originally placed a
+dry abrams on the map with no order. Both the RED and the GREEN arm sat at `ammo=0` for the whole
+match and failed **identically**, with the fix demonstrably present in the built source on the green
+arm. Nothing had dispatched on either side because nothing had ever asked. The RED had "passed" for
+entirely the wrong reason, and a green would have been read as proof of a fix that the control could
+not distinguish from no fix at all.
+
+**The repair, and it belongs in any future resupply scenario:** give the unit one cell of movement to
+finish. Ending a real activity is a real `!wasIdle -> IsIdle` transition. Prime *away* from the
+destination under test so that completing the priming move cannot be confused with the errand.
+
+**Known limit of the repaired instrument, stated rather than glossed.** With the priming move the
+pre-fix arm shows the tank step to the prime cell and stop (`dist` 6 -> 8, `minDist` 6, ammo 0 for
+1100 polls). That is consistent with "asked and was declined" AND with "never asked" — the two are
+only separated by an arm in which the unit *does* drive. That arm was not run: the grant was withdrawn
+when the charging ruling landed. So the priming move is *reasoned* to fix the instrument and is not
+yet *shown* to.
+
+**Why this matters more after the charging ruling than before it.** Once the Logistics Centre charges
+for a rearm, a drained depot becomes an ordinary state rather than a rare one, and units will sit dry
+beside depots far more often. A unit that never asks again is a worse defect in that world than in
+this one.
