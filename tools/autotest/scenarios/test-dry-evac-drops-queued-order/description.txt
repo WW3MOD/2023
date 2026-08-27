@@ -1,0 +1,1 @@
+Auto: a dry launcher with no depot evacuates, and the player order queued behind its last shot is dropped with it.

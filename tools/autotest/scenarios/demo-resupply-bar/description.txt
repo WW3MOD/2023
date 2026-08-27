@@ -1,0 +1,1 @@
+The resupply stance bar after the command-icons swap: Hold/Auto/Evacuate, one frame per stance.

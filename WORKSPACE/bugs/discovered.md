@@ -3391,6 +3391,18 @@ running game.
   (found while working on: verifying the three-refill-sites entry, now tagged
   `[promoted WITH A CORRECTION]`)
 
+- [2026-08-27] [low] **A reachable rearm host can go un-sought, because the nearest host is picked in
+  a different metric from the one the leash judges.** `AmmoPool.ChooseResupplier` ends in
+  `ClosestToIgnoringPath`, which ranks by `LengthSquared` (Euclidean), while the dry leash is applied
+  by `SupplyHuntMath.WithinCellBudget`, which measures `ChessboardCells` — max(|dx|,|dy|). The two
+  disagree: against a leash of 30, a host at (31,0) is Euclidean-NEARER than one at (25,25) but
+  Chebyshev-OUTSIDE, so the pick returns the one host that fails the leash and the unit does not
+  self-dispatch to the (25,25) host it could have reached. Pre-existing; the symptom is a stall, not
+  a loss. **Deliberately not fixed here:** the dangerous half was defused on `wt/resupply-fallback` —
+  `AnyRearmHostWithinLeash` sweeps every host in the leash's own Chebyshev metric, so this shape can
+  no longer be mistaken for "nothing exists nearby" and evacuated — but correcting the SEEK means
+  changing `AutoRearm`'s own pick, which was judged too wide to add to a branch already under review.
+  (found while working on: the Auto-stance evacuate fallback, review round 2)
 - [2026-08-27] [med] **The A10 declares two traits twice, so it is silently mis-configured AND
   un-overridable from any map.** `mods/ww3mod/rules/ingame/aircraft-america.yaml` gives `A10:` a
   `ReloadAmmoPool@1` at `:499` (`AmmoPool: primary-ammo`) and a second `ReloadAmmoPool@1` at `:529`

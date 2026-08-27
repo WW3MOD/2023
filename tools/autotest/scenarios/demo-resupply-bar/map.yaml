@@ -1,0 +1,78 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: Resupply Stance Bar Icons
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# The reported unit, staged exactly as reported: an iskander on the shipped default
+	# InitialResupplyBehavior: Auto (defaults.yaml:375), whose Rearmable names `logisticscenter`
+	# alone -- and there is deliberately NO logisticscenter anywhere on this map, for either side.
+	# So AmmoPool.ChooseAffordableResupplier finds nothing, AnyRearmHostWithinLeash and
+	# AnyMobileRearmHost are both false, and the Auto arm reaches Evacuate.
+	#
+	# x=10 puts it 9 cells from the western bound, so the evacuation drive is short.
+	Launcher: iskander
+		Owner: USA
+		Location: 10,16
+		Facing: 512
+	# NO enemy units anywhere on this map, and that is load-bearing twice over:
+	#   * nothing can shoot the Launcher, so Actor.IsDead becoming true can ONLY mean
+	#     RotateToEdge disposed it (RotateToEdge.cs:407). That is what makes IsDead a clean
+	#     evacuation detector rather than an ambiguous one.
+	#   * the Launcher is staged at FULL health, so ChangesHealth@CriticalDamage
+	#     (vehicles.yaml:153, StartIfBelow: 50, irreversible) never starts. A vehicle staged
+	#     under half health dies on its own clock with nothing shooting it and the verdict would
+	#     not say so.
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 10,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+	# One supplyroute per faction: keeps both alive so faction elimination cannot end the match
+	# before the Lua poller writes a verdict. USA's sits WEST, which is also the direction
+	# RotateToEdge.FindClosestSpawnAreaForOwner sends the evacuation -- away from the queued
+	# move order's destination, so the two dispositions cannot be confused.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml
