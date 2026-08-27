@@ -56,3 +56,17 @@ HIMARS:
 # skips any pool whose SupplyValue exceeds currentSupply, and the rifleman's is 1), so ammunition
 # arriving at all means an unmetered source exists. Which unmetered source is the part the RED would
 # pin.
+
+# THE INFANTRY RED CONTROL, run 2026-08-27 and left here armed-by-comment.
+#
+# Uncomment to remove the ungated proximity grant from BOTH Centres and change nothing else. The
+# rifleman must then stay at zero rounds for the whole run, and the verdict must read
+# "free infantry trickle: false. docked double-serve: true."
+#
+# The second half of that string is the control ON the control: himars uses replenish-vehicles and
+# unit.docked, neither of which this trait grants, so the eastern measurement must come out
+# BYTE-IDENTICAL to the green arm. A RED that also perturbs the himars half would have changed two
+# things — the mistake that cost a run earlier on this branch when `RearmActors: truk` silently made
+# a tank evacuate.
+#LOGISTICSCENTER:
+#	-ProximityExternalCondition@ReplenishSoldiers:

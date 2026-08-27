@@ -3476,8 +3476,8 @@ running game.
   spent).
   (found while working on: extending the dry-unit resupply re-ask from soldiers to vehicles)
 
-- [2026-08-27] [med] **INFERRED, NOT OBSERVED: infantry within 4 cells of an empty Logistics Centre
-  may refill for free through an ungated proximity condition.** Separate from the entry above and
+- [2026-08-27] [high] **OBSERVED (was inferred): infantry within 4 cells of an empty Logistics Centre
+  refill for free through an ungated proximity condition.** Separate from the entry above and
   reached by a different route. `LOGISTICSCENTER` carries
   `ProximityExternalCondition@ReplenishSoldiers` (`mods/ww3mod/rules/ingame/structures.yaml`, in the
   block beginning at `:389`): `Condition: replenish-soldiers`, `Range: 4c0`, `ValidRelationships:
@@ -3488,12 +3488,17 @@ running game.
   This is *distinct from* the Centre's supply-gated `SupplyProvider` aura arm
   (`AuraRearmCondition: replenish-soldiers`, `AuraRange: 4c0`, which does deduct) — the two grant the
   same condition at the same radius, one metered and one not, which is likely how it went unnoticed.
-  **Explicitly not verified in game.** It was found by designing *around* it: the ten-cell separation
-  in `tools/autotest/scenarios/test-dry-soldier-retry-after-refill/map.yaml` exists to keep this out
-  of that measurement, so the scenario proves nothing about it either way.
-  **One-line experiment to confirm:** place a dry rifleman two cells from a Logistics Centre,
-  `Test.SetSupply(Depot, 0)` at `WorldLoaded`, and assert his ammo stays at zero. If it climbs, this
-  is real; `Test.GetSupply` staying at 0 while it climbs is the second half of the proof.
+  **CONFIRMED 2026-08-27 by `tools/autotest/scenarios/test-who-pays-for-a-rearm`.** A rifleman three
+  cells from a Centre held at zero gained **14 rounds in 700 ticks** — one every 50 ticks, exactly
+  `ReloadAmmoPool`'s default `Delay: 50` / `Count: 1`, so the rate identifies the mechanism and not
+  merely the effect — while `Test.GetSupply` read 0 at every one of the 28 samples. RED, deleting
+  `-ProximityExternalCondition@ReplenishSoldiers:` from the Centre and changing nothing else: the
+  same rifleman stayed at **0 rounds** for the whole run, with the verdict text
+  "free infantry trickle: false. docked double-serve: true". That second clause is the control on the
+  control — the himars half of the same scenario came out byte-identical across both arms, same
+  ticks and same numbers, so the removal took away one variable and no others.
+  The metered arm provably cannot account for the green arm: `SupplyProvider.cs:968` skips any pool
+  whose `SupplyValue` exceeds `currentSupply`, and the rifleman's is 1 against a depot at 0.
   (found while working on: `test-dry-soldier-retry-after-refill`, phase 1 of the vehicle re-ask work)
 
 - [2026-08-27] [high] **`e36ab29a`'s affordability pick is a regression for DOCKING hosts, which is
@@ -3530,3 +3535,24 @@ running game.
   and also loses the genuine two-depot improvement. Which to take depends on whether the free
   docking rearm is intended, so settle that first.
   (found while working on: extending the dry-unit resupply re-ask from soldiers to vehicles)
+
+- [2026-08-27] [high] **A docked `himars`/`iskander` is served by BOTH arms at once, so one of its two
+  rounds is paid for and the other is free.** Measured, with the overlap window shown rather than
+  assumed. `tools/autotest/scenarios/test-who-pays-for-a-rearm` sends a dry himars to a Centre
+  holding a full 2250. Trajectory: docked at tick 100; at tick 150 ammo 0->1 and supply 2250->750
+  (the metered push arm, one 1500 batch); at tick 225 ammo 1->2 with supply **still 750** — and 750
+  is less than a 1500 batch, so that round provably was not paid for. Two arms, same unit, 75 ticks
+  apart, both while docked.
+  The arithmetic is why one run settles it: himars is `Ammo: 2`, `ReloadCount: 1` (default),
+  `SupplyValue: 1500`, so the push arm can afford exactly ONE round out of a 2250 depot. Rounds
+  gained beyond rounds paid for cannot have been paid for.
+  **This refuted a real worry rather than confirming a guess.** The concern going in was that
+  `SelfAssignedErrandIsOver` might end the Resupply errand on the first round, so the two arms would
+  never overlap and a null result could not be told apart from "could not have happened". The trace
+  shows they did overlap — `dispatchedBecauseDry: false` keeps that exit test from firing.
+  **Consequence for metering:** these two are the ONLY actors declaring `replenish-vehicles`, so they
+  are the only vehicles the push arm can select. Metering `Rearmable.RearmTick` without making the
+  two paths mutually exclusive for a docked actor converts today's double-REARM into a
+  double-CHARGE, on two independent cadences (`RearmDelay: 25` against the pool's own `ReloadDelay`).
+  Being individually correct is not enough; they must not both run.
+  (found while working on: metering the dock path, ahead of the design)

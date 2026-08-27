@@ -31,7 +31,7 @@
 -- not actually drained makes question 1 meaningless. All three are asserted at evaluation time.
 
 local EvalTicks = 700
-local SnapshotEvery = 100
+local SnapshotEvery = 25
 
 local FullLoad = 2250
 local HimarsBatchCost = 1500
