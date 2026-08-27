@@ -11684,23 +11684,58 @@ ever launched**. All 31 `[drone]` lines in `debug.log` read `no-eligible-cell`; 
 
 **The arithmetic that makes it absorbing.** The drone's maximum hover distance is
 `min(weapon 25, leash 25 - margin 3)` = **22 cells** from the operator. Every unit inherits
-`^StandardVision` (`defaults.yaml:80`), a graded `Vision@10..@1` ladder running from `Range: 4c0` at
-strength 10 out to **`Range: 32c0`** at strength 1. So the operator continuously observes a 32-cell
-bubble, and the whole 22-cell disc the drone could reach sits strictly inside it. Every candidate cell
-therefore has `ControlField.TicksSinceVerified` ≈ 0, fails a `MinStalenessTicks: 500` gate, and is
-refused — on every evaluation, forever. **A drone can never be sent anywhere its own operator cannot
-already see.**
+`^StandardVision` (`defaults.yaml:80`), a graded `Vision@10..@1` ladder. The bands that COUNT as
+verification reach **28 cells** (see the correction below). The whole 22-cell disc the drone could
+reach sits strictly inside that, so every candidate cell has `ControlField.TicksSinceVerified` ≈ 0,
+fails a `MinStalenessTicks: 500` gate, and is refused — on every evaluation, forever. **A drone can
+never be sent anywhere its own operator cannot already see.**
 
-**Two design choices combine to make the state absorbing**, and neither is wrong alone:
-* the candidate disc is centred on the operator's CURRENT cell, so reach is bounded by where it stands;
-* the module claims the operator in the `PoiGoalGuard` ledger so nothing else moves it — which means
-  its 32-cell bubble never goes stale, because the unit never travels.
+**MEASURED, second match, per-gate counters:** 582 evaluations over ticks 1800–72000, two operators,
+**674,584 candidate cells scored and 674,584 refused as too fresh — exactly 100%.** Zero refused by
+`MaxPoiDistanceCells`, zero by `MaxAirDanger`, zero by the SR exclusion, zero already covered. Not one
+evaluation in 582 had a single cell clear the staleness gate. The state does NOT break up in late
+game: the last evaluation looks identical to the first.
 
-The module implements the launch leg and NOT the reposition leg. The original design called for "the
-operator walks to a launch cell, not to the target"; with 22 < 32 that walk is not an optimisation,
-it is the only thing that can ever produce an eligible cell. Any future fix must either move the
-operator toward the frontier, or choose the target FIRST and then walk the operator to within 22 of
-it — not filter cells around wherever it happens to be standing.
+Provenance is not inferred this time: `debug.log` was rotated away immediately before launch, and the
+harness holds a single-instance lock, so every `[drone]` line in it is necessarily from this run. The
+harness does NOT copy `debug.log` per-run — it is the engine's one shared support directory,
+attributed by mtime (`run-test.sh:456`) — so rotating beforehand is the way to get run-scoped
+evidence out of it.
+
+CAVEAT ON THE MATCH ITSELF: both attempts ended TIMEOUT-FAIL with no tournament verdict — the first at
+the harness's 300 s default against a 720 s match clock, the second at a 900 s cap with `--speed 8`.
+So no tournament match has been observed to COMPLETE, and the win-rule never evaluated. That does not
+touch the drone finding, which is about per-evaluation behaviour over 49k ticks of real play, but it
+does mean this scenario's completion path is itself unverified.
+
+**CORRECTED 2026-08-27, same day, by a second match with per-gate counters.** An earlier revision of
+this entry said the number was 32 and that the fix was a missing "reposition leg". Both were wrong,
+and the second is wrong in the expensive direction — it would have aimed a design change at nothing.
+
+**The verifying radius is 28 cells, not 32.** `ControlField.GridCellVisible` calls
+`player.MapLayers.IsVisible(cell, 1)`, and that resolves to `ResolvedVisibility[puv] > visibility` —
+a STRICT comparison (`MapLayers.cs:579`). Its own PITFALL note explains why: tick stamps
+`ResolvedVisibility` 1 on every EXPLORED cell whether or not anything is looking, so callers pass 1
+meaning "better than merely explored". `^StandardVision`'s outermost band `Vision@1` is Strength 1
+over 28c0–32c0, which therefore does NOT verify. The strength-2 band (25c0–28c0) does. So a weakest-
+band graze already does not count as verification — but 22 < 28 all the same.
+
+**REPOSITIONING CANNOT FIX THIS.** The candidate disc is centred on the operator and the operator
+verifies 28 cells in every direction, so the disc is strictly inside the bubble no matter where the
+operator stands. Walking forward moves both together. A reposition leg is not missing, it is
+INSUFFICIENT.
+
+**But the drone is not redundant, and that is where the real fix lives.** `quadcopterdrone` inherits
+`^StandardVision` too (`^Drone` -> `^Airborne` -> `^NeutralAirborne` -> `^StandardVision`,
+`aircraft.yaml:12`). A drone hovering at the leash edge therefore verifies its OWN 28-cell bubble
+centred 22 cells away — reaching ~50 cells from the operator, of which everything beyond 28 is ground
+the operator cannot see. The drone genuinely extends the vision frontier.
+
+**So the defect is the SCORING CRITERION, not the geometry and not the positioning.** The module
+scored a candidate by the staleness of the hover cell ITSELF, which by construction sits inside the
+operator's own bubble and can never be stale. What it must score is the unverified area the drone
+would REVEAL from there — the stale ground within the drone's vision radius of the candidate cell.
+That is a scoring change of one function, not a new movement leg.
 
 **Method note worth keeping:** this was invisible to 17 passing pure-math tests and to five
 independently re-derived static links in the order path, because none of them could see the *field

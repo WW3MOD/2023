@@ -384,9 +384,13 @@ namespace OpenRA.Mods.Common.Traits
 			// Bounded output by construction: at most UnitLimits (2) lines per ReevaluateInterval.
 			if (target == null)
 			{
+				// WHICH gate refused, not merely that one did. Without this split, "no eligible cell"
+				// is compatible with three different defects that need three different fixes.
 				Log.Write("debug",
 					$"[drone] player={player.PlayerName} op={op.ActorID} no-eligible-cell "
-					+ $"hover={maxHover} covered={covered.Count} minstale={Info.MinStalenessTicks}");
+					+ $"hover={maxHover} scored={considered} fresh={refusedFresh} poi={refusedPoi} "
+					+ $"danger={refusedDanger} sr={refusedSr} covered={refusedCovered} "
+					+ $"offmap={refusedOffMap} minstale={Info.MinStalenessTicks} tick={tick}");
 
 				return;
 			}
@@ -484,10 +488,14 @@ namespace OpenRA.Mods.Common.Traits
 			return (move.CurrentMovementTypes & (MovementType.Horizontal | MovementType.Vertical)) == 0;
 		}
 
+		// Per-gate refusal tally for the last ChooseTargetCell call. Diagnostic only.
+		int refusedFresh, refusedPoi, refusedDanger, refusedSr, refusedCovered, refusedOffMap, considered;
+
 		CPos? ChooseTargetCell(CPos opCell, int maxHover, List<BeliefContact> contacts, List<ScoredPoi> pois)
 		{
 			CPos? best = null;
 			var bestScore = DroneTaskingMath.Ineligible;
+			refusedFresh = refusedPoi = refusedDanger = refusedSr = refusedCovered = refusedOffMap = considered = 0;
 
 			// Only cells the drone could actually reach and hold are candidates, so the search is a
 			// disc around the operator rather than the whole map.
@@ -499,15 +507,27 @@ namespace OpenRA.Mods.Common.Traits
 					if ((cell - opCell).Length > maxHover)
 						continue;
 
-					if (!world.Map.Contains(cell) || covered.Contains(cell))
+					if (!world.Map.Contains(cell))
+					{
+						refusedOffMap++;
 						continue;
+					}
+
+					if (covered.Contains(cell))
+					{
+						refusedCovered++;
+						continue;
+					}
 
 					// THE SUPPLY ROUTE IS NOT WORTH A SORTIE. It is a fixed, indestructible,
 					// non-buildable beachhead: nothing is ever built there and it cannot change hands
 					// (SUPPLYROUTE carries no Capturable). Watching it tells the bot only what it
 					// already knows, and the ground around it is the enemy's own back line.
 					if (NearEnemySupplyRoute(cell, contacts))
+					{
+						refusedSr++;
 						continue;
+					}
 
 					var (gx, gy) = controlField.MapCellToGridCell(cell);
 					var staleness = controlField.TicksSinceVerified(player, gx, gy);
@@ -516,14 +536,24 @@ namespace OpenRA.Mods.Common.Traits
 					var airDanger = dangerField != null ? dangerField.AirDanger(player, cell) : 0;
 					var bonus = NearContact(cell, contacts) ? Info.ContactBonus : 0;
 
+					considered++;
 					var score = DroneTaskingMath.ScoreCandidate(
 						staleness, Info.MinStalenessTicks,
 						poiDistance, Info.MaxPoiDistanceCells,
 						airDanger, Info.MaxAirDanger,
-						bonus);
+						bonus, out var refusal);
 
 					if (score == DroneTaskingMath.Ineligible)
+					{
+						switch (refusal)
+						{
+							case DroneRefusal.TooFresh: refusedFresh++; break;
+							case DroneRefusal.TooFarFromPoi: refusedPoi++; break;
+							case DroneRefusal.TooDangerous: refusedDanger++; break;
+						}
+
 						continue;
+					}
 
 					// Strict >, and the scan order is a fixed nested loop, so ties resolve to the same
 					// cell on every run rather than depending on iteration order.

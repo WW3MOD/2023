@@ -9,6 +9,15 @@
 
 namespace OpenRA.Mods.Common.Traits
 {
+	/// <summary>Why a candidate cell was refused. Diagnostic only — no decision reads it.</summary>
+	public enum DroneRefusal
+	{
+		None,
+		TooFresh,
+		TooFarFromPoi,
+		TooDangerous
+	}
+
 	public static class DroneTaskingMath
 	{
 		/// <summary>Score returned for a candidate that must never be chosen. Below every real score.</summary>
@@ -74,18 +83,50 @@ namespace OpenRA.Mods.Common.Traits
 			int maxAirDanger,
 			int contactBonus)
 		{
+			return ScoreCandidate(ticksSinceVerified, minStalenessTicks, poiDistanceCells,
+				maxPoiDistanceCells, airDanger, maxAirDanger, contactBonus, out _);
+		}
+
+		/// <summary>As the overload above, additionally reporting WHY a candidate was refused.
+		/// The reason is diagnostic only — no decision reads it — and exists because "no eligible
+		/// cell" and "which of three thresholds rejected every cell" are different questions, and only
+		/// the second one is actionable from a match log.</summary>
+		public static long ScoreCandidate(
+			int ticksSinceVerified,
+			int minStalenessTicks,
+			int poiDistanceCells,
+			int maxPoiDistanceCells,
+			int airDanger,
+			int maxAirDanger,
+			int contactBonus,
+			out DroneRefusal refusal)
+		{
+			// SINGLE IMPLEMENTATION, deliberately. The refusal reason is reported through an out
+			// parameter rather than by a parallel diagnostic predicate, because a second copy of these
+			// three thresholds is exactly the kind of duplication that drifts and then lies in the log.
+			refusal = DroneRefusal.None;
+
 			// Not stale enough to be worth a sortie: we already know what is there.
 			if (ticksSinceVerified < minStalenessTicks)
+			{
+				refusal = DroneRefusal.TooFresh;
 				return Ineligible;
+			}
 
 			// Outside the band of ground anyone is contesting. This is the unreachable-corner guard.
 			if (poiDistanceCells > maxPoiDistanceCells)
+			{
+				refusal = DroneRefusal.TooFarFromPoi;
 				return Ineligible;
+			}
 
 			// The drone is unarmed and dies to one hit of real AA; hovering it over a hot square is
 			// donating 25 supply and the next sortie with it.
 			if (airDanger > maxAirDanger)
+			{
+				refusal = DroneRefusal.TooDangerous;
 				return Ineligible;
+			}
 
 			// Saturate rather than overflow: a never-observed square reports int.MaxValue, and that
 			// must not be allowed to wrap when the bonus is added.
