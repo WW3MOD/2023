@@ -1,0 +1,58 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-who-pays-for-a-rearm.lua
+
+AR:
+	AmmoPool@1:
+		InitialAmmo: 0
+	# HOLD on both subjects, and it is a correction rather than a precaution — an earlier scenario on
+	# this branch lost a run to exactly this. Under the Auto disposition a wholly dry unit can drive
+	# off the map for a refund, and a unit that leaves the world reports IsDead through the Lua API,
+	# which reads as "it died" rather than "it evacuated". Hold makes AutoRearmIfDry raise
+	# NeedsResupply and stand still on every path.
+	#
+	# It is inert with respect to what is being measured: ReloadAmmoPool is a timed trickle gated on
+	# a condition, and consults no stance at all. It also switches off AutoSeekSupplies' seek
+	# (SupplyHuntMath.StancesPermitHunt), which is welcome here — the rifleman must stay west and be
+	# fed, or not, by the Centre he is standing next to.
+	#
+	# Both fields set because AutoTarget.cs:522 picks between them on owner, and USA is a human slot.
+	AutoTarget:
+		InitialResupplyBehavior: Hold
+		InitialResupplyBehaviorAI: Hold
+
+HIMARS:
+	AmmoPool@1:
+		InitialAmmo: 0
+	AutoTarget:
+		InitialResupplyBehavior: Hold
+		InitialResupplyBehaviorAI: Hold
+
+# NO RED ARM IS SHIPPED, and rather than invent a weak one the reason is stated.
+#
+# For the HIMARS half a separate control arm would add nothing, because the measurement is already
+# self-controlling and quantitative: the push arm can afford exactly one 1500 batch out of 2250, so
+# "only the push arm serves" predicts the specific pair (rounds gained == rounds paid for) and
+# "both serve" predicts rounds gained > rounds paid for. Both outcomes are concrete numbers and
+# either can occur; there is no way for this to pass by measuring nothing.
+#
+# For the INFANTRY half a real RED does exist and is NOT run here, for want of a launch: delete
+# `ProximityExternalCondition@ReplenishSoldiers` from LOGISTICSCENTER in this file and re-run. If
+# ammunition then stops arriving, the free route is confirmed to be that trait specifically rather
+# than something else in the Centre. What the single arm CAN establish on its own is narrower and
+# still worth having: at zero supply the metered aura provably cannot deliver (SupplyProvider.cs:968
+# skips any pool whose SupplyValue exceeds currentSupply, and the rifleman's is 1), so ammunition
+# arriving at all means an unmetered source exists. Which unmetered source is the part the RED would
+# pin.
