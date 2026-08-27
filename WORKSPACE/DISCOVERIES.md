@@ -38,9 +38,21 @@ At `7362fbc6` the id-based scheme was complete and working: `Add`/`Remove` popul
 `partitionedFrozenActorIds`, and `ITick.Tick` ran `if (dirtyFrozenActorIds.Contains(id))
 frozenActor.UpdateVisibility();` before clearing the set. `git show
 7362fbc6:engine/OpenRA.Game/Traits/Player/FrozenActorLayer.cs` has the source. Restoring it would be
-a revert against known code rather than a speculative rewrite — but it is a PERFORMANCE change
-(it avoids re-testing every frozen actor in a changed bin), and the flag mechanism is correct
-without it, so it is deliberately left undone as a separate measured decision.
+a revert against known code rather than a speculative rewrite. **It is still not worth doing, and
+the reason is now measured rather than deferred: there is no performance upside to recover.**
+
+Both mechanisms iterate every frozen actor every tick — `ITick.Tick` loops `frozenActorsById` and
+calls `frozenActor.Tick()` regardless. The id-based version then ran
+`if (dirtyFrozenActorIds.Contains(id)) UpdateVisibility()`; the flag version runs
+`if (UpdateVisibilityNextTick) UpdateVisibility()` inside that same call. **Identical iteration,
+identical `UpdateVisibility` call count** — the only difference is a `HashSet<uint>` lookup per
+actor per tick versus a bool field read, and the bool is the cheaper of the two. The id-based
+scheme's `At(bin)` spatial lookup on every shroud change is work the flag version also does.
+
+Measured on `test-case01-forest-ambush` (10 units manoeuvring, 2501 ticks, `Launch.Benchmark=`):
+`tick_actors` mean 0.52 ms, median 0.33 ms, p95 0.95 ms against a 60 ms tick budget at timestep 60
+— under 1% of budget for *everything every actor does*, of which this handler is a fraction. The
+optimisation has nothing to win.
 
 **This retroactively explains two commits that look like mistakes and were not.** `2d7603bf`
 (2026-04-16) correctly restored strict `IsVisibleInner`; every building went invisible, because the
