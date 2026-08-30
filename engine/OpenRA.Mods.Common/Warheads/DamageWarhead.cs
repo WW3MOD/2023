@@ -251,26 +251,44 @@ namespace OpenRA.Mods.Common.Warheads
 			}
 
 			// Anomaly detection, not tracing -- silent unless armour turned a lethal shot into a
-			// non-lethal one. The cheap int pre-gate runs first so the common case costs two
-			// comparisons and no trait lookup. See HitCheck for the predicate and its measurements.
+			// non-lethal one. See HitCheck for the predicate and the measurements behind it.
+			//
+			// COST, because this line sits on every warhead application in the game: the gate is one
+			// int comparison against a local plus a static call that early-returns after at most two
+			// more. No allocation, no trait lookup, no dictionary probe. An unarmoured victim never
+			// even reaches the call -- effectiveThickness is 0 and short-circuits it -- which is the
+			// overwhelming majority of hits in an infantry fight. Hoisting effectiveThickness into a
+			// local added no arithmetic; the same expression was previously written inline as the
+			// argument to ApplyPenetration.
+			//
+			// Everything past the gate is rare by construction, and that is where the two lookups
+			// live: Health for max HP, and DebugVisualizations for the on-screen banner. The second
+			// is deliberately inside `if (loud)` rather than beside it -- the advisory band DOES fire
+			// in a real match, and it must not pay for a trait lookup feeding a banner it will never
+			// draw.
 			if (effectiveThickness > 0 && HitCheck.LostMostOfItsDamage(damageBeforeArmour, damage))
 			{
 				var victimMaxHp = victim.TraitOrDefault<Health>()?.MaxHP ?? 0;
 				var loud = HitCheck.IsUnderPerforming(damageBeforeArmour, damage, effectiveThickness, victimMaxHp);
 				if (loud || HitCheck.IsUnderPerformingAgainstThinArmour(damageBeforeArmour, damage, effectiveThickness, victimMaxHp))
 				{
-					HitCheck.Report(firedBy.Info.Name, victim.Info.Name, GetType().Name, Damage, Penetration,
+					// Deduped inside Report, and the set is probed before any string is built.
+					HitCheck.Report(firedBy.Info.Name, victim.Info.Name, GetType(), Damage, Penetration,
 						damageBeforeArmour, damage, effectiveThickness, victimMaxHp);
 
 					// On-screen half of the same signal, so a developer watching a match sees the
 					// anomaly without tailing a file. Loud channel only -- the advisory band is
-					// numerous enough to clutter the screen and it is not what anyone is hunting.
-					var debugVis = firedBy.World.WorldActor.TraitOrDefault<DebugVisualizations>();
-					if (loud && debugVis != null && debugVis.DamageNumbers)
+					// numerous enough to clutter the screen and is not what anyone is hunting.
+					// NOT deduped, unlike the log: a repeat occurrence is worth seeing each time.
+					if (loud)
 					{
-						var text = $"ARMOUR {damageBeforeArmour}->{damage}";
-						firedBy.World.AddFrameEndTask(w => w.Add(
-							new FloatingText(victim.CenterPosition, Color.OrangeRed, text, 60)));
+						var debugVis = firedBy.World.WorldActor.TraitOrDefault<DebugVisualizations>();
+						if (debugVis != null && debugVis.DamageNumbers)
+						{
+							var text = $"ARMOUR {damageBeforeArmour}->{damage}";
+							firedBy.World.AddFrameEndTask(w => w.Add(
+								new FloatingText(victim.CenterPosition, Color.OrangeRed, text, 60)));
+						}
 					}
 				}
 			}

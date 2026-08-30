@@ -19,6 +19,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 
 namespace OpenRA.Mods.Common
@@ -130,23 +131,40 @@ namespace OpenRA.Mods.Common
 		// One line per distinct (shooter, warhead, victim) combination per session. Without this the
 		// log is unreadable within seconds -- the same weapon fires on the same target type
 		// thousands of times a match, and a detector nobody can read is a detector nobody runs.
-		static readonly HashSet<string> Reported = new HashSet<string>();
+		//
+		// KEYED ON A VALUE TUPLE, NOT AN INTERPOLATED STRING, AND THAT IS A HOT-PATH FIX RATHER THAN
+		// A STYLE CHOICE. The first version built "$"{shooter}|{warhead}|{damage}|{victim}"" and then
+		// probed the set with it, so a REPEATING anomaly -- the normal case for the advisory channel,
+		// where one splash warhead hits the same airframe type all match -- allocated and immediately
+		// discarded a string on every single hit, forever. A ValueTuple is a struct and the three
+		// strings in it are already-live references, so the repeat path now allocates nothing at all.
+		//
+		// LIFETIME, so this is not one day diagnosed as "the detector stopped working": this set is
+		// static and is NEVER CLEARED except by ResetForTests. That is deliberate -- "once per
+		// session" is what makes the log readable -- but it means a SECOND match in the same process
+		// inherits the first match's suppressions. If you play two matches back to back and the
+		// second one silently reproduces an anomaly you saw reported in the first, the detector is
+		// working exactly as designed and the line is missing on purpose. Restart the game to get a
+		// clean log, or call ResetForTests.
+		static readonly HashSet<(string Shooter, string Victim, Type Warhead, int WrittenDamage)> Reported = new();
 
 		/// <summary>
 		/// Logging only -- reads no simulation state it does not already have and writes nothing
 		/// back, so this cannot affect determinism or replay byte-identity.
+		///
+		/// Takes the warhead's <see cref="Type"/> rather than its name so the dedup probe compares
+		/// references and the type name is only materialised for a line that will actually be
+		/// written. The set is consulted BEFORE any string work for the same reason.
 		/// </summary>
-		public static void Report(string shooter, string victim, string warheadType, int writtenDamage,
+		public static void Report(string shooter, string victim, Type warheadType, int writtenDamage,
 			int penetration, int rawDamage, int deliveredAfterArmour, int effectiveThickness, int victimMaxHp)
 		{
-			var thin = !ArmourIsWorthSizingAgainst(effectiveThickness);
-			var key = $"{shooter}|{warheadType}|{writtenDamage}|{victim}";
-			if (!Reported.Add(key))
+			if (!Reported.Add((shooter, victim, warheadType, writtenDamage)))
 				return;
 
-			var marker = thin ? "[hitcheck-thin]" : "[HITCHECK]";
+			var marker = ArmourIsWorthSizingAgainst(effectiveThickness) ? "[HITCHECK]" : "[hitcheck-thin]";
 			Log.Write("hitcheck",
-				$"{marker} {shooter} -> {victim}: {warheadType} wrote Damage={writtenDamage} Penetration={penetration}, " +
+				$"{marker} {shooter} -> {victim}: {warheadType.Name} wrote Damage={writtenDamage} Penetration={penetration}, " +
 				$"armour {effectiveThickness} cut {rawDamage} to {deliveredAfterArmour} " +
 				$"({deliveredAfterArmour * 100 / rawDamage}%) against {victimMaxHp} HP -- would have killed, did not. " +
 				$"Size Penetration on this warhead, or confirm the reduction is intended.");

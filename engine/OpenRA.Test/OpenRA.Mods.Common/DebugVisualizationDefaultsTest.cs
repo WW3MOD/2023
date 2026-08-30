@@ -93,6 +93,19 @@ namespace OpenRA.Test
 			Assert.That(vis.DepthBuffer, Is.False);
 		}
 
+		/// <summary>
+		/// Walks up from the test binary looking for WORKSPACE/PIPELINE.md.
+		///
+		/// FRAGILITY, written here because it is invisible from the assertion that depends on it:
+		/// this fixture is coupled to that FILE PATH. If PIPELINE.md is renamed, moved, or split the
+		/// way it was already split into pipeline/items/ during 2026-08, this throws and the failure
+		/// reads like a broken test rather than like the blocker-tracking mechanism it is. The fix
+		/// then is to repoint the path, NOT to delete the fixture -- deleting it silently un-guards a
+		/// debug overlay that ships ON by default.
+		///
+		/// Deliberate trade: coupling to a path is what buys the bidirectional lock between the code
+		/// default and the release paperwork, and there is nowhere else that lock could live.
+		/// </summary>
 		static string FindPipeline()
 		{
 			var dir = new DirectoryInfo(AppContext.BaseDirectory);
@@ -105,7 +118,9 @@ namespace OpenRA.Test
 				dir = dir.Parent;
 			}
 
-			throw new FileNotFoundException("could not locate WORKSPACE/PIPELINE.md");
+			throw new FileNotFoundException(
+				"could not locate WORKSPACE/PIPELINE.md -- if it moved, repoint this test rather than " +
+				"deleting it: it is the guard on a debug overlay that ships default ON");
 		}
 	}
 }
