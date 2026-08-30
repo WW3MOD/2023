@@ -15,6 +15,12 @@
  * exception is not a special case bolted onto the default — it is the same rule stated once, that a
  * truck with nothing to give cannot be giving.
  *
+ * "EMPTY" WAS THEN GIVEN A NUMBER by a follow-up ruling the same day: at or below the transport's own
+ * RestockThreshold (50 on TRUK), not literally zero. Same rule, made actionable — a truck holding 20
+ * has nothing worth giving, and letting it deliver produced a dribble-into-the-depot-then-immediately-
+ * refill loop. The number is READ OFF THE TRANSPORT rather than restated here, so the mod carries one
+ * tuned constant for this and not two.
+ *
  * WHY BOTH TARGETERS READ ONE FUNCTION. The two directions are offered by two separate
  * IOrderTargeters (DropsSupplyCache.DeliverSupplyOrderTargeter and .RestockOrderTargeter), and
  * UnitOrderGenerator.OrderForUnit returns the FIRST of them that matches walking down OrderPriority.
@@ -23,10 +29,17 @@
  * the bug fixed once already on this pair, where Restock matched under Ctrl too and made the
  * delivery order unreachable for every truck that had served anybody.
  *
- * Reading ONE function makes the directions disjoint BY CONSTRUCTION rather than by two predicates
- * that happen to agree today: exactly one of ToHost/ToTruck/None can be returned, so no ordering of
- * the two targeters can produce a different answer. The priority between them is therefore
- * uninteresting, and that is a property of this file rather than of the numbers over there.
+ * Be precise about what that buys, because the first account of it overclaimed. A single-valued enum
+ * return cannot answer twice, so "the two directions are disjoint" is not a property anything could
+ * violate, nor one a test could fail — it is a restatement of the return type. The REAL guarantee is
+ * narrower and still worth having: both targeters read the same inputs through the same branch, so
+ * they cannot drift apart the way two hand-maintained predicates did, and the 6/7 priority between
+ * them therefore never decides anything.
+ *
+ * The property that IS worth testing is a different one — that every direction returned can actually
+ * MOVE supply on arrival (NoInputEverYieldsADirectionThatCannotMoveSupply). A direction that cannot
+ * act is not a harmless no-op: it draws a cursor promising something that will not happen, and at
+ * priority 6/7 it silently vetoes Repairable at 5, which is the trait that would have acted.
  */
 #endregion
 
@@ -55,39 +68,88 @@ namespace OpenRA.Mods.Common.Traits
 		/// <param name="forceMove">Player is holding the force-move modifier (Ctrl by default).</param>
 		/// <param name="transportSupply">Supply currently aboard the transport.</param>
 		/// <param name="transportCapacity">The transport's TotalSupply.</param>
+		/// <param name="transportRestockThreshold">
+		/// The level at or below which the transport counts as having nothing to give, and so receives
+		/// instead. This is the transport's OWN <c>SupplyProvider.RestockThreshold</c> — the number it
+		/// already uses to decide when to go and refill itself — passed in rather than restated. USER
+		/// RULING 2026-08-30: "a truck at or under 50 supply receives from the Centre; anything above 50
+		/// gives to it", chosen to reuse the tuned number already shipping on the truck instead of
+		/// introducing a second constant, and to stop a nearly-dry transport dribbling 20 supply into a
+		/// depot and immediately needing to go refill. A threshold of 0 restores the literal
+		/// empty-means-zero reading.
+		/// </param>
+		/// <param name="hostSupply">Supply currently held by the host.</param>
+		/// <param name="hostCapacity">The host's TotalSupply.</param>
 		/// <param name="hostAbsorbs">The host can receive supply (carries AbsorbsSupplyCache).</param>
 		/// <param name="hostDocks">The host can serve a docked transport (has a DockedCondition).</param>
 		/// <remarks>
-		/// THERE IS DELIBERATELY NO "is the transport damaged" TERM, and it was removed rather than never
-		/// written. The predecessor of this method carried one, on the reasoning that a Centre repairs as
-		/// well as refills so a full-but-damaged truck still has a reason to dock. That reasoning is sound
-		/// and the term still did not work: the order it steers the click to is Restock, whose activity
-		/// (<c>RestockSupply</c>) moves SUPPLY and nothing else. A full damaged truck was therefore sent
-		/// on a drive that transferred zero and repaired nothing, under an enter cursor promising service.
-		/// Returning None instead lets the click fall through to Repairable's own targeter at priority 5,
-		/// which is the trait that actually repairs — so the repair gesture is reached by deleting a term,
-		/// not by adding one.
+		/// <para>THE HOST'S POOL IS A REQUIRED PARAMETER, not an optional refinement, and it is required
+		/// because it was once absent. The first cut of this method took only the transport's supply and
+		/// capacity, so it answered ToHost for any loaded transport and any absorbing host — including a
+		/// host with no room. A Logistics Centre STARTS FULL (<c>SupplyProvider</c> initialises
+		/// <c>currentSupply</c> from <c>TotalSupply</c>), so the very first thing a player does with this
+		/// gesture — send a loaded truck to a freshly deployed Centre — drew the wrench cursor, drove the
+		/// truck the whole way, and transferred nothing. Making the pool a parameter with no default is
+		/// what stops a future call site quietly reintroducing that.</para>
+		///
+		/// <para>THERE IS DELIBERATELY NO "is the transport damaged" TERM. The predecessor carried one,
+		/// reasoning that a Centre repairs as well as refills so a full-but-damaged transport still has a
+		/// reason to dock. It is worth being precise about what deleting it did and did not do, because
+		/// the first account of this was wrong. Under the OLD polarity the term was DEAD on a Centre:
+		/// Restock was gated on <c>!ForceMove</c>, so force-move on a full transport went to Deliver and
+		/// never reached it. Deleting it therefore changed nothing observable against the code that
+		/// shipped. What it does do is keep the term from becoming live under the NEW polarity, where it
+		/// would have sent a full damaged transport to Restock — an order whose activity moves supply and
+		/// nothing else, so the drive would transfer zero and repair nothing while an enter cursor
+		/// promised service. Returning None instead lets the click fall to Repairable's own targeter at
+		/// priority 5. The honest scope of that: repair-by-click is reachable only by force-move on an
+		/// EXACTLY full transport. A damaged transport holding any supply at all still cannot be sent to
+		/// a Centre for repair by any click, before this change or after it.</para>
 		/// </remarks>
 		public static SupplyTransferDirection ResolveDirection(
-			bool forceMove, int transportSupply, int transportCapacity, bool hostAbsorbs, bool hostDocks)
+			bool forceMove, int transportSupply, int transportCapacity, int transportRestockThreshold,
+			int hostSupply, int hostCapacity, bool hostAbsorbs, bool hostDocks)
 		{
 			// The two ways of asking to be served, stated as one condition because they are one rule:
-			// force-move is the explicit request, and an empty transport is the implicit one.
-			var wantsToBeServed = forceMove || transportSupply <= 0;
+			// force-move is the explicit request, and a transport with nothing worth giving is the
+			// implicit one. "Nothing worth giving" is the threshold, not zero — see the parameter.
+			var wantsToBeServed = forceMove || transportSupply <= transportRestockThreshold;
 
 			if (wantsToBeServed)
 			{
-				// NO CURSOR OVER A NO-OP. A full transport cannot be served, so the click is refused
-				// rather than previewed with an enter cursor that would do nothing on release. This is
-				// the same rule the refused-attack work settled: the cursor and the order resolve through
-				// one method, so a direction that cannot act must not claim the click.
-				var canBeServed = transportSupply < transportCapacity;
+				// NO CURSOR OVER A NO-OP, and it takes BOTH pools to know. The transport must have room
+				// to receive and the host must have something to give; either one missing makes the
+				// order a drive that transfers nothing. This is the rule the refused-attack work settled:
+				// the cursor and the order resolve through one method, so a direction that cannot act
+				// must not claim the click. (DropsSupplyCache.NearestRestockHost has always applied the
+				// hostSupply half when picking a host automatically; the targeter never did.)
+				var canBeServed = transportSupply < transportCapacity && hostSupply > 0;
 				return hostDocks && canBeServed ? SupplyTransferDirection.ToTruck : SupplyTransferDirection.None;
 			}
 
-			// transportSupply > 0 is guaranteed here (otherwise wantsToBeServed was true), so the only
-			// open question is whether this host can take a delivery at all.
-			return hostAbsorbs ? SupplyTransferDirection.ToHost : SupplyTransferDirection.None;
+			// transportSupply > transportRestockThreshold is guaranteed here (otherwise wantsToBeServed
+			// was true), so for any threshold >= 0 there is something aboard to give. What is left to
+			// establish is that this host can take a delivery AND has somewhere to put it.
+			return hostAbsorbs && hostSupply < hostCapacity
+				? SupplyTransferDirection.ToHost
+				: SupplyTransferDirection.None;
+		}
+
+		/// <summary>
+		/// How far from a host's CENTRE cell a transport may stop and still count as having arrived.
+		///
+		/// <para>Measured from the centre because that is the cell the drive is aimed at, so the
+		/// allowance has to cover half the host's own footprint before it covers any approach margin at
+		/// all: a transport that parks legitimately alongside a 3x3 Centre is already two cells from the
+		/// centre on each axis. A flat margin looks sufficient and is not — the diagonal approach to a
+		/// 3x3 sits at dx=2, dy=2, which fails a tolerance of 2.</para>
+		/// </summary>
+		/// <param name="hostFootprintCells">The larger of the host's two footprint dimensions, or 0.</param>
+		/// <param name="approachMarginCells">How far outside the footprint a transport may stop.</param>
+		public static int ArrivalTolerance(int hostFootprintCells, int approachMarginCells)
+		{
+			var radius = hostFootprintCells > 0 ? hostFootprintCells / 2 : 0;
+			return radius + approachMarginCells;
 		}
 
 		/// <summary>

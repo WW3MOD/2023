@@ -57,14 +57,22 @@ namespace OpenRA.Mods.Common.Activities
 		readonly IMove move;
 		readonly IMoveInfo moveInfo;
 		readonly int waitTicks;
+		readonly int toleranceCells;
 
-		public DeliverSupply(Actor self, Actor host, int waitTicks)
+		public DeliverSupply(Actor self, Actor host, int waitTicks, int approachMarginCells)
 		{
 			this.host = host;
 			this.waitTicks = waitTicks;
 			supply = self.Trait<SupplyProvider>();
 			move = self.Trait<IMove>();
 			moveInfo = self.Info.TraitInfo<IMoveInfo>();
+
+			var building = host.Info.TraitInfoOrDefault<BuildingInfo>();
+			var footprint = building == null
+				? 0
+				: System.Math.Max(building.Dimensions.X, building.Dimensions.Y);
+
+			toleranceCells = SupplyTransferMath.ArrivalTolerance(footprint, approachMarginCells);
 		}
 
 		protected override void OnFirstRun(Actor self)
@@ -80,11 +88,37 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceling)
 				return true;
 
-			// The host is captured at ISSUE time and the transfer happens after a drive, so re-validate:
-			// a Centre destroyed or captured mid-drive would otherwise be credited by a dead actor. The
-			// truck simply arrives at a stale cell and keeps its load, which its owner re-decides from.
-			if (host.IsDead || !host.IsInWorld)
+			// The host is captured at ISSUE time and the transfer happens after a drive, so all three of
+			// these are re-checked on arrival rather than trusted from issue time.
+			//
+			// THE OWNERSHIP TEST IS NOT REDUNDANT WITH THE OTHER TWO, which is the trap: LOGISTICSCENTER
+			// is capturable (^Building -> ^BasicBuilding -> ^NeutralOrOccupiedCapturable) and carries
+			// OwnerLostAction: ChangeOwner, so a Centre that changes hands mid-drive is neither dead nor
+			// out of the world. Without this line the truck hands its whole load to whoever took it.
+			if (host.IsDead || !host.IsInWorld || !self.Owner.IsAlliedWith(host.Owner))
 				return true;
+
+			// ARRIVAL CHECK — the load-bearing guard, not a formality, and the same one PlaceSupplyCache
+			// and CollectSupplyCache carry. A Move to a cell with no route does not FAIL: the path finder
+			// bails to NoPath and Move.Tick treats an empty path as arrival (Move.cs:173-177), completing
+			// in ~2 ticks at the cell the truck was already standing on. Without this, ordering a truck
+			// onto a Centre it cannot reach — across water, behind a wall, on terrain its locomotor
+			// refuses — credits the Centre with the entire load from anywhere on the map.
+			//
+			// Refusing keeps the supply in the truck, which is always recoverable. Logged unconditionally
+			// and once per errand: this is one of the ways an errand that was issued, driven and
+			// completed still moves nothing, and from outside it is otherwise indistinguishable from a
+			// delivery that was never ordered.
+			var hostCell = self.World.Map.CellContaining(host.CenterPosition);
+			var delta = self.Location - hostCell;
+			if (!SupplyDropMath.ArrivedAtDropCell(delta.X, delta.Y, toleranceCells))
+			{
+				Log.Write("debug",
+					$"[supply] deliver-refused truck={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
+					+ $"reason=never-arrived host={hostCell} tolerance={toleranceCells}c "
+					+ $"amount={supply.CurrentSupply}");
+				return true;
+			}
 
 			var hostProvider = host.TraitOrDefault<SupplyProvider>();
 			if (hostProvider == null)

@@ -300,7 +300,11 @@ namespace OpenRA.Mods.Common.Traits
 				if (hostProvider == null)
 					return;
 
-				QueueDriveAndRestock(host);
+				// order.Queued, not the default false. These are the two directions of ONE gesture, and
+				// the delivery arm has always honoured Shift — so leaving this one defaulted meant
+				// Shift+click queued a delivery while Ctrl+Shift+click cleared the queue. Which of the
+				// two the modifier reached decided whether the player's existing orders survived.
+				QueueDriveAndRestock(host, order.Queued);
 				self.ShowTargetLines();
 				return;
 			}
@@ -419,7 +423,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (supply == null || self.TraitOrDefault<IMove>() == null)
 				return;
 
-			self.QueueActivity(queued, new DeliverSupply(self, host, supply.Info.RestockWaitTicks));
+			self.QueueActivity(queued,
+				new DeliverSupply(self, host, supply.Info.RestockWaitTicks, Info.DropAtToleranceCells));
 		}
 
 		void INotifyBecomingIdle.OnBecomingIdle(Actor self)
@@ -687,10 +692,16 @@ namespace OpenRA.Mods.Common.Traits
 			var hostDocks = hostProvider != null && !string.IsNullOrEmpty(hostProvider.Info.DockedCondition);
 			var hostAbsorbs = target.TraitOrDefault<AbsorbsSupplyCache>() != null;
 
+			// A host with no SupplyProvider reads as an empty pool with no capacity, which refuses both
+			// directions. AbsorbsSupplyCache requires SupplyProviderInfo, so hostAbsorbs cannot be true
+			// here without hostProvider — the zeroes are a floor, not a live case.
 			return SupplyTransferMath.ResolveDirection(
 				modifiers.HasModifier(TargetModifiers.ForceMove),
 				truckSupply.CurrentSupply,
 				truckSupply.Info.TotalSupply,
+				truckSupply.Info.RestockThreshold,
+				hostProvider?.CurrentSupply ?? 0,
+				hostProvider?.Info.TotalSupply ?? 0,
 				hostAbsorbs,
 				hostDocks);
 		}
