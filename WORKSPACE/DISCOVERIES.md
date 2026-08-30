@@ -139,6 +139,34 @@ its `target` entirely** when `Type == "Rotation"` and queues `RotateToEdge` inst
 still advertises the generic `enter` cursor (`:38`) at priority 5, beating Mobile's 4. So the cursor
 is honest about *an* order existing and silent about it being a completely different one. When
 auditing a cursor, check that the resolver actually *uses* the target it was handed.
+## 2026-08-30 — FIRST OBSERVATION of the post-delivery evacuation: the behaviour is right and the READOUT is not (`wt/truck-refills-lc`, run `260830_092643_p73567`)
+
+Until this run every account of the evacuation chain — three of them, mine included — was traced
+through source. Watched, with the camera actually on the truck, it does what the code says: a truck
+that empties itself into a Centre drives to the map edge and is sold, ~200 ticks after the transfer.
+The behaviour is the user's ruling and is not in question. **What the frames show is that none of it
+is legible**, which is a separate item:
+
+1. **The sale is silent.** No floating credit text, no notification, no marker on the truck. It
+   drives off and ceases to exist. A player who did not order it to leave gets no statement that it
+   left, why, or for how much.
+2. **The only feedback is the cash counter, and it lags badly.** In the frame captured 100 ticks
+   AFTER the sale the HUD read `21336 (+100)` while the player's actual cash was already 21675. So
+   the one signal is in the far corner of the screen, arrives seconds late, and is still climbing
+   when the event that caused it is long over.
+3. **Nothing connects the sale to the delivery** that caused it.
+4. **Arrival is hard to read too.** The drive targets the cell containing the host's CenterPosition
+   with `ignoreActor: host`, so the truck parks essentially INSIDE a 3x3 Centre's footprint and is
+   substantially occluded by the building sprite (see `001_02-delivered.png`). "My truck has arrived
+   and unloaded" is not clearly visible even when it has.
+
+**MEASUREMENT CAVEAT on any refund number taken this way.** The scenario's `cash 21045 -> 21675
+(refund 630)` spans the 200 ticks between the delivery and the sale, during which the player also
+accrued passive income — the `(+35)` / `(+100)` HUD indicators are visible in the frames. **630 is
+not the refund**; it is the refund plus income. Attributing it needs a control, and TRUK costs 1000
+so a clean figure matters if anyone tunes this. Recorded so the number is not later quoted as the
+evacuation refund.
+
 ## 2026-08-30 — The truck→LC delivery order was ALREADY SHIPPED, with the polarity inverted; the task was a reversal, not a build (`wt/truck-refills-lc`, from `main @ 48d60cb4`)
 
 The brief for this work stated that "the LC → truck direction already exists" and "the truck→LC

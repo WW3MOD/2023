@@ -35,6 +35,18 @@
 --   * THE ALLIANCE RE-CHECK for a Centre captured mid-drive. Nothing here stages a capture, and
 --     that line has never run.
 --
+-- THE CURSORS ARE ASSERTED BY NAME AND CANNOT BE SCREENSHOTTED, which is a property of the harness
+-- and not a shortcut taken here. Test.ClickCursor RESOLVES what a hover would produce; it does not
+-- move a pointer, and the harness has no hook that positions or renders one — so at capture time
+-- there is no cursor on screen to photograph. No scenario in this repo screenshots a cursor, and the
+-- two that verify cursors (test-order-cursor-and-force-fire, test-sr-evacuate-cursor) both do it by
+-- walking the order pipeline exactly as this one does. That is sound rather than second-best: the
+-- real UnitOrderGenerator.GetCursor calls CursorForOrders(OrdersForSelection(...)), which is
+-- precisely what ClickCursor calls, through an overload deliberately sharing ResolveSelection with
+-- the mouse path "so the two entry points cannot drift". What a screenshot would add is only that
+-- the NAME resolves to the intended artwork, and goldwrench is already in live use elsewhere
+-- (infantry.yaml:931) with [CursorReference] linting the name.
+--
 -- WHAT IT DOES REPORT BUT DOES NOT JUDGE: the truck evacuating after a complete delivery. That is
 -- the user's ruling of 2026-08-30 (an empty truck has done its job; its value returns to the player,
 -- as it already does for artillery and dry units), so it is INTENDED and is not asserted on either
@@ -42,16 +54,39 @@
 -- result.json rather than in the global lua.log, which carries no run identity and can only be tied
 -- to a run by mtime.
 
-local DeadlineSeconds = 40
+local DeadlineSeconds = 90
 local Threshold = 50          -- TRUK's SupplyProvider.RestockThreshold
 local TruckCapacity = 750
 
--- Long enough for RotateToEdge to have visibly committed, short enough to stay well inside
--- DeadlineSeconds so the settle can never be what times the test out. Budgeted in ticks and
--- converted, which round-trips exactly whatever TicksPerSecond happens to be.
-local SettleTicks = 150
+-- How long to keep watching the emptied truck for the sale that ends its evacuation, and how often
+-- to look. Budgeted in ticks; the cap is generous because the drive to the map edge is the variable
+-- part and a truck still driving at the cap is itself a reportable reading, not a failure.
+local EvacWatchCap = 500
+local EvacPollTicks = 5
+local EvacMidShotTicks = 100
+
+-- PITFALL: players are NOT bare globals — only map ACTORS are. A bare `USA` is nil and throws.
+local USA
 
 local r = { read = false, settling = false }
+
+-- PITFALL: a SOLD actor leaves the world without being "dead", and Test.GetSupply throws on it —
+-- "Attempted to get trait from destroyed object". `IsDead` alone is NOT enough to guard the read,
+-- which is what broke the first run of this scenario with screenshots: the periodic trace below
+-- sampled the truck's supply every 25 ticks and blew up the moment the evacuation completed. Any
+-- actor this scenario touches after the delivery can be gone, so every read goes through here.
+-- Same guard demo-heli-lanes uses, for the same reason.
+local function supplyOf(actor)
+	if actor == nil or actor.IsDead or not actor.IsInWorld then
+		return -1
+	end
+
+	return Test.GetSupply(actor)
+end
+
+local function gone(actor)
+	return actor == nil or actor.IsDead or not actor.IsInWorld
+end
 
 local function shown(v)
 	if v == nil then
@@ -72,31 +107,74 @@ local function cursorWith(load, host, modifiers)
 	return Test.ClickCursor({ Truck }, host, modifiers or "")
 end
 
--- Observe (never judge) what becomes of a truck that has just emptied itself into a Centre, and pass
--- with the reading attached. Test.Pass's note is surfaced in the verdict JSON, so this lands in the
--- run's own result.json and is attributable without relying on a global log's mtime.
-local function observeEvacuation()
-	local fate
-	if Truck.IsDead then
-		-- RotateToEdge ends in the sale, which removes the actor. This is the expected end state for
-		-- a complete delivery under TRUK's Evacuate stance.
-		fate = "truck GONE (evacuated and sold)"
-	else
-		local moved = TestHarness.CellDrift(
-			r.truckX, r.truckY, Truck.Location.X, Truck.Location.Y)
-		fate = "truck ALIVE at " .. Truck.Location.X .. "," .. Truck.Location.Y
-			.. " (" .. moved .. " cells from where it delivered)"
-			.. " supply=" .. Test.GetSupply(Truck)
-	end
-
+local function passWithReading()
 	Test.Pass("delivered=" .. r.deliveredAmount
-		.. " centre=" .. Test.GetSupply(DrainedLC)
-		.. " | after " .. SettleTicks .. " ticks: " .. fate
+		.. " centre=" .. supplyOf(DrainedLC)
+		.. " | " .. r.fate
+		.. " | cash " .. r.cashAtDelivery .. " -> " .. r.cashAfter
+		.. " (refund " .. (r.cashAfter - r.cashAtDelivery) .. ")"
 		.. " | evacuation is the 2026-08-30 ruling, reported not asserted")
 end
 
+-- Observe (never judge) what becomes of a truck that has just emptied itself into a Centre. Polls
+-- for the sale that ends the evacuation rather than sampling at one fixed moment, because the drive
+-- to the map edge is the variable part -- an earlier fixed 150-tick sample caught the truck still
+-- mid-drive and so could say nothing about whether the refund ever arrived.
+--
+-- The reading goes to Test.Pass's note, which is surfaced in the verdict JSON: that lands it in the
+-- run's own result.json rather than the global lua.log, which carries no run identity.
+local function observeEvacuation(ticksWaited)
+	-- KEEP THE CAMERA ON THE TRUCK. The first capture attempt left the camera at its opening focus
+	-- (the midpoint of the truck's start and the Centre it was NOT sent to), so the evacuation drove
+	-- out of frame and the two screenshots could not answer the question they were taken to answer:
+	-- whether the departure and its refund are legible to a player. A screenshot of the place the
+	-- subject used to be is not evidence about the subject.
+	if not gone(Truck) then
+		Camera.Position = Truck.CenterPosition
+	end
+
+	-- One frame partway through the drive, so "does it visibly leave" has a picture and not only a
+	-- pair of endpoints.
+	if ticksWaited == EvacMidShotTicks and not gone(Truck) then
+		Test.Screenshot("03-evacuating",
+			"expects: the emptied truck driving away from the Centre it just filled, toward the map"
+			.. " edge. Look for whether anything marks it as leaving to be sold rather than merely moving")
+	end
+
+	if gone(Truck) then
+		-- RotateToEdge ends in the sale, which removes the actor: the expected end state for a
+		-- complete delivery under TRUK's Evacuate stance.
+		r.fate = "truck SOLD after ~" .. ticksWaited .. " ticks of evacuating"
+		r.cashAfter = USA.Cash
+		Test.Screenshot("04-after-sale",
+			"expects: no truck on the map; player cash risen by the evacuation refund. The question is"
+			.. " whether anything on screen connects this sale to the delivery the player just ordered")
+		Trigger.AfterDelay(EvacPollTicks, passWithReading)
+		return
+	end
+
+	if ticksWaited >= EvacWatchCap then
+		local moved = TestHarness.CellDrift(r.truckX, r.truckY, Truck.Location.X, Truck.Location.Y)
+		r.fate = "truck STILL DRIVING after " .. ticksWaited .. " ticks, at "
+			.. Truck.Location.X .. "," .. Truck.Location.Y
+			.. " (" .. moved .. " cells from where it delivered), supply=" .. supplyOf(Truck)
+		r.cashAfter = USA.Cash
+		Test.Screenshot("04-still-evacuating",
+			"expects: an empty truck driving toward the map edge, having not yet reached it")
+		Trigger.AfterDelay(EvacPollTicks, passWithReading)
+		return
+	end
+
+	Trigger.AfterDelay(EvacPollTicks, function() observeEvacuation(ticksWaited + EvacPollTicks) end)
+end
+
 WorldLoaded = function()
+	USA = Player.GetPlayer("USA")
 	TestHarness.FocusBetween(Truck, StockedLC)
+
+	-- Zoomed in for the capture frames: at default zoom a truck is a few pixels on a 66x34 map and
+	-- the first attempt's screenshots were unreadable as evidence about it.
+	Test.SetZoom(2)
 
 	-- EVERY READING BELOW HAPPENS IN ONE TICK, and that is load-bearing rather than incidental.
 	-- No time passes between the SetSupply that stages a case and the ClickCursor that reads it, nor
@@ -141,7 +219,7 @@ WorldLoaded = function()
 		-- chipped truck would turn a broken Restock into a passing "enter" reading. Nothing here
 		-- shoots and the enemy SUPPLYROUTE is unarmed, so this should hold trivially -- which is
 		-- exactly why it is worth one line to check rather than to assume.
-		r.truckIntact = (not Truck.IsDead) and Truck.Health == Truck.MaxHealth
+		r.truckIntact = (not gone(Truck)) and Truck.Health == Truck.MaxHealth
 
 		-- Issued LAST, because it is the only reading that moves anything: the real delivery, routed
 		-- through the same order chain the mouse uses.
@@ -169,8 +247,8 @@ WorldLoaded = function()
 					.. " lowOnDrained=" .. shown(r.lowOnDrained)
 					.. " fullForce=" .. shown(r.fullForce)
 					.. " deliverOrder=" .. shown(r.deliverOrder)
-					.. " | truck=" .. Test.GetSupply(Truck)
-					.. " drainedLC=" .. Test.GetSupply(DrainedLC))
+					.. " | truck=" .. supplyOf(Truck)
+					.. " drainedLC=" .. supplyOf(DrainedLC))
 			end
 
 			Trigger.AfterDelay(1, report)
@@ -189,7 +267,7 @@ WorldLoaded = function()
 			return "fail: a Logistics Centre died -- nothing in this scenario should be shooting"
 		end
 
-		if not r.settling and Truck.IsDead then
+		if not r.settling and gone(Truck) then
 			return "fail: the truck died before the delivery landed -- nothing in this scenario should be shooting"
 		end
 
@@ -297,11 +375,19 @@ WorldLoaded = function()
 		if not r.settling then
 			r.settling = true
 			r.deliveredAmount = delivered
-			-- Scalars, not the CPos: the truck may be sold before the settle fires, and reading X/Y
-			-- off a stored handle then is a question about a removed actor.
+			r.cashAtDelivery = USA.Cash
+			-- Scalars, not the CPos: the truck may be sold before the watch ends, and reading X/Y off
+			-- a stored handle then is a question about a removed actor.
 			r.truckX = Truck.Location.X
 			r.truckY = Truck.Location.Y
-			Trigger.AfterDelay(SettleTicks, observeEvacuation)
+
+			-- On the truck, not on the opening focus: this frame is evidence about the truck.
+			Camera.Position = Truck.CenterPosition
+			Test.Screenshot("02-delivered",
+				"expects: the truck standing at the Centre it just filled, Centre at 750, truck empty."
+				.. " This is the frame immediately before it leaves")
+
+			observeEvacuation(0)
 		end
 
 		return false
