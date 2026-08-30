@@ -21,9 +21,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("AI behavior role for this helicopter type.")]
 		public readonly HelicopterAIRole Role = HelicopterAIRole.AttackHeavy;
 
-		[Desc("Preferred engagement range in cells. AI tries to attack from this distance.")]
-		public readonly int EngagementRange = 6;
-
 		[Desc("HP percentage below which the helicopter breaks contact and returns to base.")]
 		public readonly int FleeHealthPercent = 40;
 
@@ -36,14 +33,16 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Whether this helicopter prefers targets without anti-air nearby.")]
 		public readonly bool PreferSoftTargets = true;
 
-		[Desc("Cells to stay away from known anti-air units.")]
-		public readonly int AvoidAntiAirRange = 6;
-
-		[Desc("Priority for the AI to build this unit. Higher = more likely to be built.")]
-		public readonly int AIBuildPriority = 50;
-
-		[Desc("Maximum number of this type the AI should build.")]
-		public readonly int AIBuildLimit = 3;
+		// REMOVED 2026-08-30: EngagementRange, AvoidAntiAirRange, AIBuildPriority and AIBuildLimit. All four
+		// were declared here, set per template in aircraft-america.yaml / aircraft-russia.yaml, and read
+		// NOWHERE in the engine. Anyone reaching for the obvious lever -- "cap how many Apaches the AI buys",
+		// "keep helis this far from SAMs" -- got a silent no-op, and the real levers live elsewhere:
+		// UnitLimits on the UnitBuilderBotModule twins caps the buy, and DangerFieldAvoidance +
+		// AirDangerLeashCells on HelicopterSquadBotModule handle believed-AA standoff.
+		//
+		// AvoidAntiAirRange was deliberately DELETED rather than wired. It sits on the actor template, not on
+		// the bot module, so reading it would change behaviour for every profile at once -- campaign and
+		// @stable included -- and cannot be profile-gated where it lives.
 
 		public override object Create(ActorInitializer init) { return new AIHelicopterRole(this); }
 	}

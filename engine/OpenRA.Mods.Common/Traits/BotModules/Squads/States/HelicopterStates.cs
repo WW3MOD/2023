@@ -110,7 +110,11 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			}
 		}
 
-		protected static void SendLowAmmoUnitsHome(Squad owner)
+		// DRY, not low. The predicate below is !HasAmmo -- zero rounds in every pool -- and the old name
+		// (SendLowAmmoUnitsHome) read as though the partial-ammo case were already handled. It was not, and
+		// that gap is exactly what HelicopterSquadBotModuleInfo.EvacuateAmmoPercent now fills. The name had
+		// already misled once; renaming it is the cheapest way to stop it misleading again.
+		protected static void SendDryUnitsHome(Squad owner)
 		{
 			foreach (var u in owner.Units)
 			{
@@ -764,7 +768,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				return;
 			}
 
-			SendLowAmmoUnitsHome(owner);
+			SendDryUnitsHome(owner);
 		}
 
 		public void Deactivate(Squad owner) { }
@@ -873,7 +877,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					owner.Bot.QueueOrder(new Order("Attack", u, Target.FromActor(owner.TargetActor), false));
 			}
 
-			SendLowAmmoUnitsHome(owner);
+			SendDryUnitsHome(owner);
 		}
 
 		public void Deactivate(Squad owner) { }
@@ -904,7 +908,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 			// Send damaged units home
 			SendDamagedUnitsHome(owner);
-			SendLowAmmoUnitsHome(owner);
+			SendDryUnitsHome(owner);
 
 			// Check if squad is too damaged to re-engage — full return
 			if (GetSquadHealthPercent(owner) < CommitHealthThreshold(owner) || !SquadHasAmmo(owner))
