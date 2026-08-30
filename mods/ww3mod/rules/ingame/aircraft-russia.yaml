@@ -22,7 +22,7 @@ HALO:
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 1
 		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.medium
-		Description: Heavy transport helicopter.\n\n - Carries infantry\n - Unarmed\n - Armor: Light
+		Description: Heavy transport helicopter.\n\n - Carries infantry\n - Unarmed
 	Valued:
 		Cost: 2000
 	Tooltip:
@@ -125,7 +125,7 @@ HIND:
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 2
 		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.high
-		Description: Armored gunship with chainguns and rockets.\n\n - Dual chainguns\n - Anti-ground rockets\n - Slow but durable\n - Armor: Medium
+		Description: Armored gunship with chainguns and rockets.\n\n - Dual chainguns\n - Anti-ground rockets\n - Slow but durable
 	Tooltip:
 		Name: Mi-24 Hind
 	Valued:
@@ -299,7 +299,7 @@ MI28:
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 3
 		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.high
-		Description: Heavy attack helicopter with multi-role armament.\n\n - Chaingun + anti-tank missiles\n - Can engage aircraft\n - Armor: Medium
+		Description: Heavy attack helicopter with multi-role armament.\n\n - Chaingun + anti-tank missiles\n - Can engage aircraft
 	Tooltip:
 		Name: Mi-28
 	Valued:

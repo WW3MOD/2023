@@ -35,7 +35,7 @@ btr:
 		Queue: Vehicle
 		BuildPaletteOrder: 10
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: Wheeled amphibious APC.\n\n - 14.5mm machine gun\n - Carries 8 infantry\n - Armor: Light
+		Description: Wheeled amphibious APC.\n\n - 14.5mm machine gun\n - Carries 8 infantry
 		IconPalette: chrome
 	RenderSprites:
 		Scale: 0.9
@@ -153,7 +153,7 @@ bmp2:
 		Queue: Vehicle
 		BuildPaletteOrder: 20
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.low
-		Description: Amphibious tracked IFV with anti-armor capability.\n\n - 30mm autocannon\n - Wire-guided ATGM\n - Armor: Medium
+		Description: Amphibious tracked IFV with anti-armor capability.\n\n - 30mm autocannon\n - Wire-guided ATGM
 	Valued:
 		Cost: 1300
 	Health:
@@ -311,7 +311,7 @@ t90:
 		Queue: Vehicle
 		BuildPaletteOrder: 30
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: Main battle tank for armored ground warfare.\n\n - 125mm main gun\n - Armor: Heavy
+		Description: Main battle tank for armored ground warfare.\n\n - 125mm main gun
 	Valued:
 		Cost: 2400
 	Health:
@@ -411,7 +411,7 @@ giatsint:
 		Queue: Vehicle
 		BuildPaletteOrder: 40
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: Self-propelled howitzer for long-range bombardment.\n\n - 152mm cannon\n - Must deploy to fire\n - Armor: Light
+		Description: Self-propelled howitzer for long-range bombardment.\n\n - 152mm cannon\n - Must deploy to fire
 		IconPalette: chrome
 	Tooltip:
 		Name: 2S5 Giatsint-S
@@ -564,7 +564,7 @@ grad:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: Multiple launch rocket system for area saturation.\n\n - 40x 122mm rockets\n - Rearms at a Logistics Centre (680 supply per full load)\n - Evacuates when dry and no Centre is closer than home\n - Devastating area damage\n - Armor: Light
+		Description: Multiple launch rocket system for area saturation.\n\n - 40x 122mm rockets\n - Rearms at a Logistics Centre (680 supply per full load)\n - Evacuates when dry and no Centre is closer than home\n - Devastating area damage
 	Valued:
 		Cost: 1500
 	Tooltip:
@@ -702,7 +702,7 @@ tos:
 		Queue: Vehicle
 		BuildPaletteOrder: 60
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: Heavy MLRS with thermobaric warheads. Extreme anti-infantry effect.\n\n - 24x 220mm thermobaric rockets\n - Rearms at a Logistics Centre (960 supply per full load)\n - Evacuates when dry and no Centre is closer than home\n - Less effective vs heavy armor\n - Armor: Medium
+		Description: Heavy MLRS with thermobaric warheads. Extreme anti-infantry effect.\n\n - 24x 220mm thermobaric rockets\n - Rearms at a Logistics Centre\n - Evacuates when dry and no Centre is closer than home\n - Less effective vs heavy armor
 	Valued:
 		Cost: 2000
 	Tooltip:
@@ -836,7 +836,7 @@ tunguska:
 		Queue: Vehicle
 		BuildPaletteOrder: 70
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: Mobile anti-aircraft platform.\n\n - AA autocannon\n - Armor: Medium
+		Description: Mobile anti-aircraft platform.\n\n - AA autocannon
 	Valued:
 		Cost: 1700
 	Health:
@@ -971,7 +971,7 @@ iskander:
 		Queue: Vehicle
 		BuildPaletteOrder: 70
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.high
-		Description: Ballistic missile launcher.\n\n - 2x high-impact missiles\n - Cannot be rearmed: one load per launcher\n - Evacuates for a refund once both missiles are spent\n - Long-range precision strikes\n - Armor: Light
+		Description: Ballistic missile launcher.\n\n - 2x high-impact missiles\n - Cannot be rearmed: one load per launcher\n - Evacuates for a refund once both missiles are spent\n - Long-range precision strikes
 	Valued:
 		Cost: 6000
 	Tooltip:

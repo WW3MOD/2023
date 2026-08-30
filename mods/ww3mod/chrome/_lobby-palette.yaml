@@ -78,6 +78,15 @@
 #                  (LobbyUtils.LatencyColor) — informative status
 # us 6f93b8 / ru b87070 — faction colours (flag fills,
 #                  faction-text chat handles); see table above
+# c8a45a           supply amber — the VALUE of a CostRow in the
+#                  production tooltip, and only there. Same
+#                  informative-coding class as the green/red option
+#                  chips above: it marks the one number on the card
+#                  the player is deciding on, and separates a supply
+#                  price from the cash price directly beside it,
+#                  which the ink scale alone cannot do. Defined once,
+#                  on Label@TEMPLATE_COSTVALUE in
+#                  common|chrome/tooltips.yaml — never at a use site.
 
 # ===========================================================
 # BEVEL CONVENTION

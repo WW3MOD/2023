@@ -3445,11 +3445,19 @@ running game.
   (found while working on: curating the 2026-08-21 `BurstDelays` entry, which is the source of the
   wrong claim and is now tagged `[rejected]`)
 
-- [2026-08-22] [low] **Three helicopters advertise the wrong armour class in player-facing text.**
-  `HELI` (`aircraft-america.yaml:315`), `HIND` (`aircraft-russia.yaml:133`) and `MI28` (`:309`) carry
-  UI `Description` strings reading `Armor: Medium`, while each actor's actual `Armor: Type:` is
-  **Heavy** (`:328`, `:146`, `:322` respectively). The tooltip lies about a stat players use to pick
-  counters. Cosmetic/data only — no code reads the description.
+- [2026-08-22] [low] **FIXED (`wt/tooltip-elements`, 2026-08-30) — Three helicopters advertise the
+  wrong armour class in player-facing text.** `HELI` (`aircraft-america.yaml:315`), `HIND`
+  (`aircraft-russia.yaml:133`) and `MI28` (`:309`) carried UI `Description` strings reading
+  `Armor: Medium`, while each actor's actual `Armor: Type:` is **Heavy** (`:328`, `:146`, `:322`
+  respectively). The tooltip lied about a stat players use to pick counters. Cosmetic/data only —
+  no code reads the description.
+  **Two more of the same shape were found alongside them**: `LCCV` (`vehicles.yaml:652`) and `MNLY`
+  (`:470`) both said `Armor: None` against a real `Light` (`:663`, `:478`).
+  **Fixed by deletion, not by correction.** The armour bullet was removed from all 41 live
+  descriptions and armour is now emitted as a typed `StatRow` by `ArmorInfo`, so the number a player
+  reads is resolved from the ruleset at load time and cannot drift from it again. All five actors set
+  `Armor: Type:` on themselves rather than inheriting it, so the description text was unambiguously
+  the wrong half — this is a text fix, not a balance change, and no `Armor:` value was touched.
   (found while working on: enumerating airframe armour classes for the `Targetable@Armor` promotion)
 
 - [2026-08-22] [low] **Ten live sites assert a duration the code does not produce.** The mod runs at
