@@ -125,6 +125,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					powerIcon.Visible = power != 0;
 					powerSize = font.Measure(powerLabel.Text);
 				}
+				else
+				{
+					// A mod without a PowerManager never reaches the branch above, and Widget.Visible
+					// defaults to true — so the power sprite was drawn on every tooltip beside a
+					// permanently empty label. WW3MOD is such a mod: player.yaml has PowerManager
+					// commented out.
+					powerLabel.Visible = false;
+					powerIcon.Visible = false;
+				}
 
 				var buildTime = tooltipIcon.ProductionQueue?.GetBuildTime(actor, buildable) ?? 0;
 				var timeModifier = pm != null && pm.PowerState != PowerState.Normal ? tooltipIcon.ProductionQueue.Info.LowPowerModifier : 100;
