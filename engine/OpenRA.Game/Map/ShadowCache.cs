@@ -55,11 +55,14 @@ namespace OpenRA
 		/// <summary>
 		/// Cap on total bytes under the cache directory.
 		///
-		/// <para>The ten shipped maps come to roughly 461 MB of current content, so 1 GiB holds the
-		/// entire roster twice over and ordinary play never evicts anything. The case the cap exists
-		/// for is a mapper iterating in the editor: every save changes the map UID and therefore
-		/// mints a new entry, at up to 87 MB for the largest map, and nothing else would ever
-		/// reclaim them. 1 GiB gives such a mapper several saves of headroom and then starts
+		/// <para>The ten shipped maps come to roughly 461 MB, but that is NOT the working set: each
+		/// autotest scenario carries its own map.yaml, so it mints its own uid and its own entry even
+		/// where the terrain is identical. Playing everything plus running the autotest suite is
+		/// about 19 entries and roughly 750 MB. 1 GiB clears that, but by ~25% rather than by the
+		/// 2x an entry-per-shipped-map reading would suggest. The case the cap exists for is a mapper
+		/// iterating in the editor: every save changes the map UID and therefore mints a new entry,
+		/// at up to 87 MB for the largest map, and nothing else would ever reclaim them. From a full
+		/// 750 MB working set 1 GiB gives such a mapper only about three saves before it starts
 		/// reclaiming their own stale entries, oldest-used first.</para>
 		/// </summary>
 		public const long MaxCacheBytes = 1024L * 1024 * 1024;
@@ -144,7 +147,16 @@ namespace OpenRA
 					if (file.Length - file.Position != payloadLength)
 						return false;
 
+					var payloadStart = file.Position;
 					read(file);
+
+					// The reader must consume the payload exactly. A SHORT read is the dangerous case
+					// and the length check above cannot catch it: if the annulus geometry shrinks, the
+					// reader stops early and the leading bytes are accepted as a whole layer. That is
+					// reachable with uid, rules and AlgoVersion all unchanged — a mod-level MapGrid
+					// change alters the pair count and is in no key term.
+					if (file.Position - payloadStart != payloadLength)
+						return false;
 				}
 
 				// LRU stamp. Deliberately last-write-time rather than last-access-time: atime is
@@ -189,9 +201,11 @@ namespace OpenRA
 			{
 				// An entry bigger than the whole cap can never fit, and evicting for it would clear
 				// every other entry and then store it anyway, leaving the directory over cap with
-				// nothing else left in it. Refuse instead, so the cap holds as an invariant and the
-				// only cost is regenerating this one map next load. Unreachable today at 87 MB
-				// against 1 GiB, but MaxCacheBytes is public and a smaller cap would hit the cliff.
+				// nothing else left in it. Refuse instead; the only cost is regenerating this one map
+				// next load. Unreachable today at 87 MB against 1 GiB, but MaxCacheBytes is public and
+				// a smaller cap would hit the cliff. Note this removes one way to exceed the cap — it
+				// does not make the cap an invariant, since Evict tolerates a failed delete (see its
+				// comment); the cap is a bound on growth, not a guarantee about the directory.
 				if (payload.Length > maxBytes)
 				{
 					LogDiagnostic($"Shadow cache entry {key} is {payload.Length} bytes, over the {maxBytes} byte cap; not stored.");

@@ -18,8 +18,9 @@ namespace OpenRA.Test
 	{
 		// Reference table for uniform fully-dense (density-10) tree cells crossed on the sightline.
 		// This is the contract PIPELINE item 26 phase 1 tunes: thin line barely hides, deep cluster
-		// genuinely conceals stock Vision-3 infantry from a moderate-range viewer. Regenerating
-		// shadows.bin bakes exactly these values.
+		// genuinely conceals stock Vision-3 infantry from a moderate-range viewer. The generated LOS
+		// cache bakes exactly these values, so changing them means bumping ShadowCache.AlgoVersion —
+		// ShadowCacheKeyTermsTest.ShadowCurveMatchesTheRecordedAlgoVersion enforces that.
 		[TestCase(0, 0, TestName = "No trees on the sightline → no shadow")]
 		[TestCase(10, 1, TestName = "Thin 1-cell treeline barely hides (shadow 1)")]
 		[TestCase(20, 2, TestName = "2 dense cells still weak (at the knee, shadow 2)")]

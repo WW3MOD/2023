@@ -70,7 +70,7 @@ Scenarios are scripted map variants that share terrain with a base map but add d
 ### Creating a scenario
 
 1. Create a new map folder: `mods/ww3mod/maps/<base-map>-<scenario-name>/`
-2. Copy `map.bin`, `shadows.bin`, `map.png` from the base map
+2. Copy `map.bin` and `map.png` from the base map. **Not `shadows.bin`** — the LOS cache no longer lives in the map package and is never read from one; a stray copy is dead weight (see §The LOS cache below)
 3. Write `map.yaml` with:
    - `Categories: Scenario` and `LockPreview: True`
    - Custom players (human playable + non-playable garrison/AI factions)
@@ -107,18 +107,24 @@ Scenario titles follow the format **`<Scenario>: <Map Name>`** — scenario name
 | `Media.DisplayMessage(text, prefix)` | Chat log messages |
 | `Media.PlaySpeechNotification(player, notif)` | EVA voice lines |
 
-## Regenerating shadows.bin
+## The LOS cache (shadow/density layers)
 
-Each map keeps a precomputed `shadows.bin` LOS cache. Changes to the shadow compute pipeline (e.g. `CellLayer.IsValidCoordinate`, `RecomputeShadowFrom`, density formulas) invalidate every cached file — the bug stays baked in until the cache is rebuilt. Two ways to refresh:
+**The cache lives outside the map package and is keyed on content. No map carries a `shadows.bin`, nothing writes one, and nothing reads one.** *(Changed 2026-08-30. This section previously described per-map `shadows.bin` files refreshed by hand; every instruction in it is now wrong. `WORKSPACE/recon-shadows-on-demand.md` records why.)*
+
+Generated layers are stored in `Platform.SupportDir/Cache/shadows/<key>.bin` by `ShadowCache`, where the key is `SHA1(mapUid ‖ densityRulesHash ‖ ShadowCache.AlgoVersion)`. `Map`'s constructor probes it and, on a miss, generates and stores (`Map.LoadOrGenerateShadows`). It is out of the package deliberately: `ComputeUID` hashes the package, so a cache inside it would make the LOS data part of map identity — and a package `shadows.bin` carries no magic, no version and no rules hash, so a stale one could not be detected and would silently hand one player different concealment to everyone else. `ComputeUID` now skips the filename outright so a leftover file cannot fork a map's identity either.
+
+**After changing the shadow compute pipeline, do not regenerate anything by hand — bump `ShadowCache.AlgoVersion`.** It is part of the key, so every existing entry on every machine is rebuilt automatically. `ShadowCacheKeyTermsTest.ShadowCurveMatchesTheRecordedAlgoVersion` fails if you change one of the algorithm's constants without bumping; it cannot see a change to the *shape* of the trace, so a rewrite of the Bresenham walk or the projection maths still needs the bump made by hand.
+
+A map, actor, lua or png edit invalidates via `mapUid`, and a rules-only `Density:` edit via `densityRulesHash` — neither needs any action.
 
 ```bash
-./utility.sh --regen-shadows ../mods/ww3mod/maps/<name>   # narrow: only rewrites shadows.bin
-./utility.sh --refresh-map ../mods/ww3mod/maps/<name>     # wide: also rewrites map.yaml and map.png
+./utility.sh --regen-shadows <ABSOLUTE path to map>   # optional pre-warm; writes nothing into the package
 ```
 
-Note the `../` — `utility.sh` cd's into `engine/` before running. Saving a map in the in-game editor also triggers a regen. After a shadow-compute fix, refresh every map under `mods/ww3mod/maps/` that has a `shadows.bin` (currently: `river-zeta-ww3`, `woodland-warfare-ww3`).
+That command is now purely an optimisation — it fills the cache so a later load does not pay generation. Generation costs ~7 s for river-zeta and ~18 s for the largest map, once per map per machine.
 
-**The shadow/density layers are frozen at map load and never rebuilt at runtime.** `Map.DensityLayer` and `Map.ShadowLayer` are populated exactly once — from `shadows.bin` when present (`engine/OpenRA.Game/Map/Map.cs:469-495`), else a one-time `SetDensityLayer()`+`SetShadowLayer()` fallback after `PostInit` (`Map.cs:505-509`). The dynamic-recompute path (`Map.UpdateDensityForBuilding` / `QueueShadowUpdate` / `FlushPendingShadowUpdates`) was **disabled 260503** (too expensive mid-game — visible lag on building destruction); the `Building` add/remove density hooks that would mutate it are commented out (`Traits/Buildings/Building.cs:372-383` add, `:391-397` remove, with the dated reason inline). **Consequence:** killing a tree removes the actor and its sprite but leaves its density — and therefore its concealment / LOS blocking **and its damage-reduction cover** (`DensityModifiesDamage` samples the frozen `DensityLayer` over a per-cell window, `Infantry/DensityModifiesDamage.cs:72-87`) — baked in; burning or shelling a forest does **not** open sightlines or thin cover. Any "dynamic forest / deforestation opens lanes" idea is blocked until that 260503-disabled pipeline is re-enabled and its mid-game-lag cost solved.
+**The shadow/density layers are frozen at map load and never rebuilt at runtime.** `Map.DensityLayer` and `Map.ShadowLayer` are populated exactly once, from the cache or a one-time `SetDensityLayer()`+`SetShadowLayer()` after `PostInit` (`Map.LoadOrGenerateShadows`). The dynamic-recompute path (`Map.UpdateDensityForBuilding` / `QueueShadowUpdate` / `FlushPendingShadowUpdates`) was **disabled 260503** (too expensive mid-game — visible lag on building destruction); the `Building` add/remove density hooks that would mutate it are commented out (`Traits/Buildings/Building.cs:372-383` add, `:391-397` remove, with the dated reason inline). **Consequence:** killing a tree removes the actor and its sprite but leaves its density — and therefore its concealment / LOS blocking **and its damage-reduction cover** (`DensityModifiesDamage` samples the frozen `DensityLayer` over a per-cell window, `Infantry/DensityModifiesDamage.cs:72-87`) — baked in; burning or shelling a forest does **not** open sightlines or thin cover. Any "dynamic forest / deforestation opens lanes" idea is blocked until that 260503-disabled pipeline is re-enabled and its mid-game-lag cost solved.
+
 
 ## Asset pipeline: loose files & sprite loading
 

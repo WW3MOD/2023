@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
@@ -131,12 +132,16 @@ namespace OpenRA.Test
 		/// ShadowCache.AlgoVersion so every existing cache entry is rebuilt, then update the constant
 		/// below to the reported actual. Do NOT just update the constant.</para>
 		///
-		/// <para>Covers the ground curve and the annulus geometry. It does NOT cover the airborne
-		/// channel's /5f, the 512 obstacle height or the 2048 eye height, which are literals inside
-		/// RecomputeShadowFrom with no reachable accessor — changing one of those still silently
-		/// requires a manual bump.</para>
+		/// <para>Covers every input the generator has that is reachable from here: the ground curve,
+		/// the annulus geometry, and the three airborne-trace constants. Those three were literals
+		/// inside RecomputeShadowFrom with no accessor until they were promoted to named consts
+		/// precisely so this checksum could see them.</para>
+		///
+		/// <para>Still NOT covered: a change to the shape of the trace itself rather than to a value
+		/// it uses — the Bresenham walk, the from/to skip, or the projection maths. Those alter the
+		/// output with every constant unchanged, and a manual bump remains the only guard.</para>
 		/// </summary>
-		[Test(Description = "The shadow curve has not changed without a matching AlgoVersion bump.")]
+		[Test(Description = "The shadow algorithm's constants have not changed without a matching AlgoVersion bump.")]
 		public void ShadowCurveMatchesTheRecordedAlgoVersion()
 		{
 			var checksum = 17;
@@ -146,8 +151,14 @@ namespace OpenRA.Test
 			checksum = (checksum * 31) + Map.ForestShadowKneeDensity;
 			checksum = (checksum * 31) + MapShadowLayer.MinRange;
 			checksum = (checksum * 31) + MapShadowLayer.MaxRange;
+			checksum = (checksum * 31) + Map.ShadowEyeHeight;
+			checksum = (checksum * 31) + Map.ShadowObstacleHeight;
+			// Not float.GetHashCode(): that is not a documented cross-version-stable contract, so a
+			// runtime change to it would fail this test claiming "the algorithm changed" when nothing
+			// had. The raw bits are stable by definition.
+			checksum = (checksum * 31) + BitConverter.SingleToInt32Bits(Map.ShadowAirborneDivisor);
 
-			Assert.That(checksum, Is.EqualTo(-1804186489),
+			Assert.That(checksum, Is.EqualTo(-212740071),
 				"The shadow generation algorithm changed. Bump ShadowCache.AlgoVersion (currently " +
 				ShadowCache.AlgoVersion + ") so stale cache entries are rebuilt, then record the new checksum.");
 		}

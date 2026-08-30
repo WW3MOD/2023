@@ -1142,6 +1142,15 @@ namespace OpenRA
 
 		public const int ForestShadowKneeDensity = 20; // ~2 fully-dense tree cells stay linear
 
+		/// <summary>Viewer eye height, in world units, for the airborne line-of-sight trace.</summary>
+		public const int ShadowEyeHeight = 2048;
+
+		/// <summary>Height an obstacle is assumed to reach when testing whether it breaks the airborne trace.</summary>
+		public const int ShadowObstacleHeight = 512;
+
+		/// <summary>Divisor turning crossed density into airborne shadow. Linear on purpose — see ForestGroundShadow.</summary>
+		public const float ShadowAirborneDivisor = 5f;
+
 		/// <summary>
 		/// <para>WW3MOD forest-concealment curve. <paramref name="crossedDensity"/> is the summed tree
 		/// Building.Density of every cell strictly BETWEEN viewer and target on the sightline
@@ -1196,7 +1205,7 @@ namespace OpenRA
 				var totalGroundDensity = 0;
 				var totalAirborne = 0f;
 
-				var z_a = 2048;
+				var z_a = ShadowEyeHeight;
 				var fromCenter = CenterOfCell(fromUV.ToCPos(this));
 				var toCenter = CenterOfCell(toUV.ToCPos(this));
 				var p0 = new WPos(fromCenter.X, fromCenter.Y, z_a);
@@ -1224,15 +1233,22 @@ namespace OpenRA
 					t = Math.Max(0, Math.Min(1, t));
 					var z_los = z_a * (1 - t);
 
-					var obstacleHeight = 512;
+					var obstacleHeight = ShadowObstacleHeight;
 					if (obstacleHeight > z_los)
-						totalAirborne += DensityLayer[tile] / 5f;
+						totalAirborne += DensityLayer[tile] / ShadowAirborneDivisor;
 				}
 
-				// PITFALL: this ground curve is BAKED into shadows.bin at map load. Editing it does
-				// NOTHING for maps that ship a shadows.bin until you regen (utility --regen-shadows).
-				// A stale cache silently keeps the old concealment. Airborne stays linear on purpose
-				// (see ForestGroundShadow) — do not "fix" the asymmetry without owning the heli impact.
+				// PITFALL: this curve is BAKED into the cached layer at map load. Editing it — or any
+				// of the constants above, or the trace below — does NOTHING for a player holding a
+				// cache entry generated with the old values, and a stale entry silently keeps the old
+				// concealment for that player only, which is a desync rather than a stale render.
+				// The fix is NOT to regenerate maps by hand (no map carries a shadows.bin any more,
+				// and --regen-shadows no longer writes one). BUMP ShadowCache.AlgoVersion: it is part
+				// of the cache key, so every existing entry is rebuilt automatically.
+				// ShadowCacheKeyTermsTest.ShadowCurveMatchesTheRecordedAlgoVersion fails if you change
+				// a constant without bumping, but it cannot see a change to the trace's shape.
+				// Airborne stays linear on purpose (see ForestGroundShadow) — do not "fix" the
+				// asymmetry without owning the heli impact.
 				var groundShadow = (byte)Math.Min(ForestGroundShadow(totalGroundDensity), (int)byte.MaxValue);
 				var airborneShadow = (byte)Math.Min(Math.Ceiling(totalAirborne), byte.MaxValue);
 

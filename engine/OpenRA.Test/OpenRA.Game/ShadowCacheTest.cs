@@ -156,6 +156,19 @@ namespace OpenRA.Test
 			Assert.That(LoadOrNull("key-a"), Is.Null);
 		}
 
+		[Test(Description = "A reader that stops short of the payload end is a miss, not a prefix accepted as a whole layer.")]
+		public void APartiallyConsumedPayloadIsAMiss()
+		{
+			ShadowCache.TrySave(dir, "key-a", Payload(4096, 7), ShadowCache.MaxCacheBytes);
+
+			// Stands in for the annulus geometry shrinking: same uid, same rules, same AlgoVersion,
+			// but the reader now wants fewer bytes than the stored entry holds. The header length
+			// check cannot see this, because the file really does contain what it claims.
+			var hit = ShadowCache.TryLoad(dir, "key-a", s => s.ReadByte());
+
+			Assert.That(hit, Is.False, "A short read was accepted, serving a prefix as a complete layer.");
+		}
+
 		[Test(Description = "A file that is not a cache entry at all is a miss, not an exception.")]
 		public void GarbageEntryIsAMiss()
 		{
