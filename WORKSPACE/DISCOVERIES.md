@@ -13928,3 +13928,46 @@ the field, because the delegate is what the engine itself obeys.
 failure; two of the three instances render *plausible* output (the template's value) rather than
 nothing. A clean build and a green NUnit run carry no information about it whatsoever. It is only
 visible on screen.
+
+---
+
+## 2026-08-30 — A `[FluentReference]` field carrying a raw non-key string CANNOT fail `make test`, because Fluent misses are Warnings and the gate keys on Errors
+
+Raised as a worry about two hidden config labels (`Label@MIN_TOP_INSET: Text: 30` and
+`Label@CATEGORY_FILTER: Text: Common`), both of which put a raw non-key string into
+`LabelWidget.Text`, which is declared `[FluentReference]`. The answer is not "fine in this case" —
+it is structural, and it generalises to every `[FluentReference]` field in the mod:
+
+> **`CheckFluentReferences` reports a missing key through `emitWarning`, never `emitError`. A warning
+> is printed and then dropped on the floor. The YAML gate's pass/fail is computed from errors alone,
+> so no Fluent reference miss — however many — can turn `make test` red.**
+
+**The chain, verified in code rather than inferred from a clean run.** `CheckFluentReferences` has
+exactly two missing-key sites, `emitWarning($"Missing key ... in map ftl files ...")` (`:64`) and the
+mod-ftl equivalent (`:99`); there is no `emitError` path for a missing key at all. In
+`CheckYaml.cs`, the two emitters are asymmetric by construction: `EmitError` (`:33-38`) prints,
+does `++errors`, **and** records `LintBaseline.Signature(scope, e)`, while `EmitWarning` (`:40-43`)
+prints and does nothing else — it touches neither the counter nor the signature set. The exit
+decision is `LintBaseline.Judge(modData, Signatures, errors, …)` (`:124`), which sees only those two.
+A warning is therefore invisible to the gate at every step, not merely amnestied by
+`mods/ww3mod/lint-baseline.txt`.
+
+**Scale, from the whole-mod run of 2026-08-30** (counts measured by the manager on the pre-merge
+tree): `Warning: Missing key` × **1,644**, `Error: Missing key` × **0**. The 91 errors making up the
+recorded floor are a different population entirely — 64 cordon errors plus unknown-player and
+condition-consumption errors, with no Fluent among them.
+
+**Do not read the precedent as the reason.** `Label@CATEGORY_FILTER: Text: All` ships at
+`engine/mods/common/chrome/lobby-players.yaml:878-880` and records zero baseline entries, which is
+true and is what made the two new labels *look* safe by analogy. But the analogy is the weaker
+argument and it would have failed the moment someone used a `[FluentReference]` field with no such
+precedent. The severity asymmetry is the real reason and it covers every case.
+
+**The flip side, and it is not good news: there is effectively no gate on translation coverage.**
+1,644 missing keys is not a rounding error, and nothing in the pipeline will ever go red over it —
+adding the 1,645th costs nothing and is indistinguishable from adding none. Recorded here as an
+observation, **not** as a call to fix it now: the population is large enough that turning Fluent
+misses into errors would be a project rather than a patch, and the right move is for someone to
+decide about it deliberately rather than to discover it during an unrelated change. Note also which
+direction the risk runs — this gap cannot break the build, it can only ship a UI string that renders
+as its raw key to a player.
