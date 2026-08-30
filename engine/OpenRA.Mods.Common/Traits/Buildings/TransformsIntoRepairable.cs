@@ -75,7 +75,8 @@ namespace OpenRA.Mods.Common.Traits
 						Info.EnterCursor,
 						Info.EnterBlockedCursor,
 						CanRepairAt,
-						_ => CanRepair());
+						_ => CanRepair(),
+						CanRepairAtFrozen);
 			}
 		}
 
@@ -98,6 +99,15 @@ namespace OpenRA.Mods.Common.Traits
 		bool CanRepairAt(Actor target)
 		{
 			return Info.RepairActors.Contains(target.Info.Name);
+		}
+
+		// RepairActors is a static name list, so the fogged predicate matches the live one exactly.
+		bool CanRepairAtFrozen(ActorInfo targetInfo, TargetModifiers modifiers)
+		{
+			if (Info.RequiresForceMove && !modifiers.HasModifier(TargetModifiers.ForceMove))
+				return false;
+
+			return Info.RepairActors.Contains(targetInfo.Name);
 		}
 
 		Order IIssueOrder.IssueOrder(Actor self, IOrderTargeter order, in Target target, bool queued)

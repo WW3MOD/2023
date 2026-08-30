@@ -85,7 +85,8 @@ namespace OpenRA.Mods.Common.Traits
 						Info.EnterCursor,
 						Info.EnterBlockedCursor,
 						AircraftCanEnter,
-						target => Reservable.IsAvailableFor(target, self));
+						target => Reservable.IsAvailableFor(target, self),
+						AircraftCanEnterFrozen);
 
 					yield return new AircraftMoveOrderTargeter(this);
 				}
@@ -103,6 +104,17 @@ namespace OpenRA.Mods.Common.Traits
 		public bool AircraftCanEnter(Actor a)
 		{
 			return !self.AppearsHostileTo(a) && Info.DockActors.Contains(a.Info.Name);
+		}
+
+		// Fogged twin. DockActors is a static name list; the hostility test is already covered by
+		// EnterAlliedActorTargeter's snapshot-Owner gate on the frozen path. The cursor half
+		// (Reservable.IsAvailableFor) is live pad-reservation state and is not consulted under fog.
+		public bool AircraftCanEnterFrozen(ActorInfo targetInfo, TargetModifiers modifiers)
+		{
+			if (Info.RequiresForceMove && !modifiers.HasModifier(TargetModifiers.ForceMove))
+				return false;
+
+			return Info.DockActors.Contains(targetInfo.Name);
 		}
 
 		// Note: Returns a valid order even if the unit can't move to the target

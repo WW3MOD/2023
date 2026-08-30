@@ -10,6 +10,7 @@
 #endregion
 
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Orders;
 using OpenRA.Traits;
@@ -56,7 +57,8 @@ namespace OpenRA.Mods.Common.Traits
 					info.EnterCursor,
 					info.EnterBlockedCursor,
 					IsValidTarget,
-					CanEnter);
+					CanEnter,
+					IsValidTargetFrozen);
 			}
 		}
 
@@ -64,6 +66,16 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var vc = target.TraitOrDefault<VehicleCrew>();
 			return vc != null && vc.HasEmptySlot(info.Role);
+		}
+
+		// Fogged twin. HasEmptySlot is live occupancy — under fog it answered "is the seat in that
+		// vehicle you cannot see currently taken?", which is precisely what the player should not learn.
+		// CrewSlots is the static seat list, so the refusal that survives is the durable one: this
+		// vehicle type has no such seat at all. Whether the seat is free is discovered by driving over.
+		bool IsValidTargetFrozen(ActorInfo targetInfo, TargetModifiers modifiers)
+		{
+			var vci = targetInfo.TraitInfoOrDefault<VehicleCrewInfo>();
+			return vci != null && vci.CrewSlots.Contains(info.Role);
 		}
 
 		bool CanEnter(Actor target)

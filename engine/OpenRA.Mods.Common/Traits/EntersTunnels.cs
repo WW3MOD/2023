@@ -156,7 +156,13 @@ namespace OpenRA.Mods.Common.Traits
 
 			public override bool CanTargetFrozenActor(Actor self, FrozenActor target, TargetModifiers modifiers, ref string cursor)
 			{
-				return CanTargetActor(self, target.Actor, modifiers, ref cursor);
+				// CanTargetActor dereferences the live actor (IsDead, the TunnelEntrance trait instance),
+				// which is hidden state under fog. In practice this override is unreachable: the HACK in
+				// CanTargetActor notes that tunnel entrances must be AlwaysVisible because the engine
+				// cannot combine HiddenUnderFog with the "_" building footprint, and an AlwaysVisible
+				// actor never gets a FrozenActor. Refusing here matches RepairsBridges, which declines
+				// frozen targeting for the same "not supported under fog" reason.
+				return false;
 			}
 		}
 	}

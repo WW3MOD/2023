@@ -417,7 +417,13 @@ namespace OpenRA.Mods.Common.Traits
 
 			public override bool CanTargetFrozenActor(Actor self, FrozenActor target, TargetModifiers modifiers, ref string cursor)
 			{
-				return CanTarget(self, target.Actor);
+				// CanTarget's reservation checks (Carryable.Reserved / .Carrier / .IsTraitDisabled) are
+				// live state: under fog they would report whether a unit the player cannot see has
+				// already been claimed by another carryall. Only the static half survives.
+				if (target == null || !target.IsValid || !target.Info.HasTraitInfo<CarryableInfo>())
+					return false;
+
+				return self.Owner.IsAlliedWith(target.Owner);
 			}
 		}
 

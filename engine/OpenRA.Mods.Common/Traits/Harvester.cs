@@ -304,7 +304,10 @@ namespace OpenRA.Mods.Common.Traits
 					Info.EnterCursor,
 					Info.EnterBlockedCursor,
 					(proc, _) => IsAcceptableProcType(proc),
-					proc => proc.Trait<IAcceptResources>().AllowDocking);
+					proc => proc.Trait<IAcceptResources>().AllowDocking,
+					// DeliveryBuildings is a static name list. AllowDocking, which the cursor half reads,
+					// is live refinery state and is not consulted under fog.
+					(procInfo, _) => Info.DeliveryBuildings.Count == 0 || Info.DeliveryBuildings.Contains(procInfo.Name));
 				yield return new HarvestOrderTargeter();
 			}
 		}

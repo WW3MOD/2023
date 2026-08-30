@@ -21,15 +21,23 @@ namespace OpenRA.Mods.Common.Orders
 		readonly string enterBlockedCursor;
 		readonly Func<Actor, TargetModifiers, bool> canTarget;
 		readonly Func<Actor, bool> useEnterCursor;
+		readonly Func<ActorInfo, TargetModifiers, bool> canTargetFrozen;
 
+		/// <param name="canTargetFrozen">The fogged counterpart of <paramref name="canTarget"/>. It gets
+		/// the target's ActorInfo — never the live actor — because this runs while the player cannot see
+		/// the target, so any live state consulted here would be rendered as a cursor. It is mandatory
+		/// rather than optional so that adding a caller forces the question "which half of my predicate
+		/// survives fog?" to be answered at the call site.</param>
 		public EnterAlliedActorTargeter(string order, int priority, string enterCursor, string enterBlockedCursor,
-			Func<Actor, TargetModifiers, bool> canTarget, Func<Actor, bool> useEnterCursor)
+			Func<Actor, TargetModifiers, bool> canTarget, Func<Actor, bool> useEnterCursor,
+			Func<ActorInfo, TargetModifiers, bool> canTargetFrozen)
 			: base(order, priority, enterCursor, false, true)
 		{
 			this.enterCursor = enterCursor;
 			this.enterBlockedCursor = enterBlockedCursor;
 			this.canTarget = canTarget;
 			this.useEnterCursor = useEnterCursor;
+			this.canTargetFrozen = canTargetFrozen;
 		}
 
 		public override bool CanTargetActor(Actor self, Actor target, TargetModifiers modifiers, ref string cursor)
@@ -49,23 +57,33 @@ namespace OpenRA.Mods.Common.Orders
 			return true;
 		}
 
+		// FOG BOUNDARY. Everything below reads the FrozenActor snapshot (Info, Owner) and never
+		// target.Actor, which hands back the live actor and so would answer with state the player is
+		// not permitted to see. The answer here picks a cursor, so a leak is not theoretical: it is
+		// drawn under the mouse.
 		public override bool CanTargetFrozenActor(Actor self, FrozenActor target, TargetModifiers modifiers, ref string cursor)
 		{
-			if (target == null || target.Actor == null || target.Actor.IsDead)
+			// IsValid is a snapshot check (Owner != null). Deliberately NOT a liveness check: whether the
+			// real actor has died under fog is itself hidden information, and the order resolvers already
+			// drop a stale frozen target safely (Passenger/CrewMember.ResolveOrder null-guard it).
+			if (target == null || !target.IsValid)
 				return false;
 
-			if (!target.Actor.Info.HasTraitInfo<T>() || !canTarget(target.Actor, modifiers))
+			if (!target.Info.HasTraitInfo<T>() || !canTargetFrozen(target.Info, modifiers))
 				return false;
 
-			// Same foreign crew check for frozen actors
-			if (!self.Owner.IsAlliedWith(target.Actor.Owner) && !self.Owner.IsNeutralWith(target.Actor.Owner))
-			{
-				var vc = target.Actor.TraitOrDefault<VehicleCrew>();
-				if (vc == null || !vc.AllowForeignCrew)
-					return false;
-			}
+			// The live path also admits an enemy whose VehicleCrew.AllowForeignCrew is set. That flag is
+			// mutable trait state written by HeliEmergencyLanding, so consulting it here would announce
+			// that a helicopter the player cannot see has crash-landed. A fogged enemy is simply not
+			// targetable; once it is seen, CanTargetActor offers the order as before.
+			if (!self.Owner.IsAlliedWith(target.Owner) && !self.Owner.IsNeutralWith(target.Owner))
+				return false;
 
-			cursor = useEnterCursor(target.Actor) ? enterCursor : enterBlockedCursor;
+			// NOT useEnterCursor(...). Across the callers that predicate resolves to cargo occupancy,
+			// crew-slot occupancy, docking reservations or resupply availability — none of which the
+			// snapshot carries, and all of which are exactly what fog is meant to hide. An uninformative
+			// cursor is the honest answer; a varying one would report hidden occupancy.
+			cursor = enterCursor;
 			return true;
 		}
 	}

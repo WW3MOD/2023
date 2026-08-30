@@ -753,6 +753,21 @@ namespace OpenRA.Mods.Common.Traits
 			return AircraftCanEnter(a);
 		}
 
+		// Fogged twin of AircraftCanEnter. RearmActors/RepairActors are static name lists and survive
+		// fog; the hostility test does not need repeating because EnterAlliedActorTargeter already gates
+		// the frozen path on the snapshot Owner. RequireForceMove is applied by the callers, matching
+		// the AircraftCanEnter(a, modifiers) overload.
+		bool AircraftCanEnterFrozen(ActorInfo targetInfo, TargetModifiers modifiers)
+		{
+			if (RequireForceMove && !modifiers.HasModifier(TargetModifiers.ForceMove))
+				return false;
+
+			var canRearmAtActor = rearmable != null && rearmable.Info.RearmActors.Contains(targetInfo.Name);
+			var canRepairAtActor = repairable != null && repairable.Info.RepairActors.Contains(targetInfo.Name);
+
+			return canRearmAtActor || canRepairAtActor;
+		}
+
 		bool AircraftCanEnter(Actor a)
 		{
 			if (self.AppearsHostileTo(a))
@@ -1186,7 +1201,8 @@ namespace OpenRA.Mods.Common.Traits
 					Info.EnterCursor,
 					Info.EnterBlockedCursor,
 					(target, modifiers) => Info.CanForceLand && modifiers.HasModifier(TargetModifiers.ForceMove) && AircraftCanEnter(target),
-					target => Reservable.IsAvailableFor(target, self) && AircraftCanResupplyAt(target, true));
+					target => Reservable.IsAvailableFor(target, self) && AircraftCanResupplyAt(target, true),
+					(targetInfo, modifiers) => Info.CanForceLand && modifiers.HasModifier(TargetModifiers.ForceMove) && AircraftCanEnterFrozen(targetInfo, modifiers));
 
 				yield return new EnterAlliedActorTargeter<BuildingInfo>(
 					"Enter",
@@ -1194,7 +1210,8 @@ namespace OpenRA.Mods.Common.Traits
 					Info.EnterCursor,
 					Info.EnterBlockedCursor,
 					AircraftCanEnter,
-					target => Reservable.IsAvailableFor(target, self) && AircraftCanResupplyAt(target, !Info.TakeOffOnResupply));
+					target => Reservable.IsAvailableFor(target, self) && AircraftCanResupplyAt(target, !Info.TakeOffOnResupply),
+					AircraftCanEnterFrozen);
 
 				yield return new AircraftMoveOrderTargeter(this);
 			}

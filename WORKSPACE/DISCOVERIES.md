@@ -3,6 +3,64 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-30 — `FrozenActor.Actor` hands back the LIVE actor, so every `CanTargetFrozenActor` that touches it renders hidden state as a cursor (`wt/frozen-enter`, base `main @ 627be5a4`)
+
+**The general rule, which is the durable part: a `CanTargetFrozenActor` override may read
+`target.Info`, `target.Owner`, `target.HP`, `target.DamageState`, `target.TargetTypes` — the snapshot
+that `RefreshState()` maintains — and NOTHING through `target.Actor`.** `FrozenActor.Actor` is
+`!BackingActor.IsDead ? BackingActor : null` (`FrozenActorLayer.cs:94`): it is the real, live actor,
+not a snapshot. Because a targeter's answer selects a CURSOR, anything read through it is *drawn
+under the mouse* — this is not a latent leak, it is a rendered one.
+
+**Four overrides did it** (found by IL scan, and independently by reading — the two agreed exactly):
+`EnterAlliedActorTargeter` (`:52`), `Carryall+CarryallPickupOrderTargeter` (`:418`),
+`DeliversExperience+DeliversExperienceOrderTargeter` (`:124`), `EntersTunnels+EnterTunnelOrderTargeter`
+(`:157`). The last three have **no actors in ww3mod** (`Carryall`, `TunnelEntrance`,
+`AcceptsDeliveredExperience` appear in no rules file), so only the first ever bit.
+
+**`EnterAlliedActorTargeter` is a choke point, which is why the leak was wide.** Ten call sites pass it
+two predicates, and it fed BOTH the live actor. The `useEnterCursor` half is the damaging one — across
+callers it resolves to cargo occupancy (`Cargo.HasSpace`), crew-slot occupancy
+(`VehicleCrew.HasEmptySlot`), helipad reservation (`Reservable.IsAvailableFor`) and refinery docking
+(`IAcceptResources.AllowDocking`). Every one of those is precisely what fog exists to hide.
+
+**Why the civilian-structure hypothesis was right, mechanically.** `^CivBuilding` carries
+`Cargo: Types: Infantry, MaxWeight: 10` (`civilian.yaml:58-67`) and **41 actors inherit it**, plus
+`GTWR`/`PBOX`/`HBOX` (`structures-defenses.yaml:118/213/303`). They are owned by the Neutral player, so
+`IsNeutralWith` (`Player.cs:272`) admits them to this targeter — and, being neither owned nor allied,
+they are exactly the actors that DO get frozen under fog. Player-owned transports mostly do not leak,
+because your own and allied actors share vision and are never frozen for you. **That asymmetry is the
+whole reason the exposure concentrates on neutral civilian buildings**, and it is why `Aircraft`,
+`Harvester`, `Repairable` and `RepairableNear` are inert here: their targets are own/allied, and both
+files already say so in comments ("only valid for own/allied actors, which are guaranteed to never be
+frozen", `Aircraft.cs:1321`, `Harvester.cs:372`).
+
+**`LoadingBlocked` was the narrow half, not the wide one.** The brief that started this work named it,
+but its only writer anywhere is `HeliEmergencyLanding` (`:345`/`:427`), so it is true only for a
+crash-disabled helicopter. The wide leak was `Cargo.HasSpace` reached via `useEnterCursor`. Same file,
+same call, three lines apart — worth remembering that the named symptom was not the load-bearing one.
+
+**`VehicleCrew.AllowForeignCrew` is a third, separate leak in the same method** (`:64` pre-fix): it is
+mutable trait state written only by `HeliEmergencyLanding`, so consulting it under fog announced that a
+helicopter you cannot see has crash-landed.
+
+**Countermeasure, because prose was not going to hold this.** `FrozenActorTargetingTest` walks the IL of
+every `CanTargetFrozenActor` override in `OpenRA.Mods.Common` + `OpenRA.Game` and fails on any
+`callvirt FrozenActor.get_Actor`. It carries a resolved-call floor so a broken scanner fails instead of
+reading green. The targeter's frozen predicate is `Func<ActorInfo, TargetModifiers, bool>` and
+**mandatory**, so a new call site cannot reach the live actor by accident — the type system asks the
+question rather than a comment.
+
+**This is NOT autotest-testable, and that is a documented property, not an oversight.**
+`bugs/discovered.md:3309` records that `TestModeLogic.cs:31` sets `world.RenderPlayer = null`, under
+which every `FogObscures` overload returns false — so no scenario can produce a frozen actor for the
+local player. An NUnit structural pin was the only honest instrument available.
+
+**Open, for whoever audits garrisonable civilian structures generally:** the fog fix does not touch the
+underlying oddity that these 44-odd buildings are enterable by any player at once as far as the cursor
+is concerned, with `OwnerLostAction: ChangeOwner` reverting them to Neutral when emptied. Worth a look
+as a mechanic, separately from visibility.
+
 ## 2026-08-30 — `buildRandom` is permanently TRUE on the helicopter lanes, so their `UnitsToBuild` weights have never executed (recon, `main` @ `7de03906`)
 
 **The general shape, which outlives the helicopter case: a production lane whose unit type is
