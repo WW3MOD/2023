@@ -5,6 +5,25 @@
 
 ---
 
+- [2026-08-30] [med] **The production tooltip overlaps the production sidebar, and its panel is not
+  opaque, so anything drawn behind it shows through.** Observed on `wt/tooltip-elements` at 3584x2240:
+  the tall rifleman tooltip lands across the sidebar's icon column and unit portraits are legible
+  *through* the panel, behind the tooltip's own text.
+  **The geometry is not new.** `ProductionTooltipLogic` computes
+  `leftWidth = Math.Clamp(..., MaxTooltipWidth, MaxTooltipWidth)` — both bounds equal, so the left
+  column is unconditionally 350 and `widget.Bounds.Width` is identical to what it was before the
+  typed-row work. `TooltipContainerWidget.GetAnchoredPosition` then places it at
+  `anchor.X - tooltipWidth - AnchorGap` (`:154`), left of the sidebar, and clamps only vertically.
+  What changed is that content now reaches the panel's right edge: the old single label was
+  left-aligned and narrow, so it never occupied the region where the overlap shows.
+  **Not fixed here, deliberately** — the fix is either an opaque tooltip background or a narrower
+  right column, and both change the appearance of every tooltip in the game, which is a visual
+  decision and not this branch's to make. **Comparison against `main` was by reading the width
+  arithmetic, NOT by screenshot**, so "pre-existing" is reasoned, not observed.
+  (found while working on: the typed-element tooltip rewrite, `wt/tooltip-elements`)
+
+---
+
 > ### Reading note for the 2026-08-20 ambush/concealment/cover block below
 >
 > The eighteen entries immediately below were extracted from the nine-strand research programme in
