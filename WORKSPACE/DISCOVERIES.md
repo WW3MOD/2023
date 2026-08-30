@@ -3,6 +3,69 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-30 — Shrinking a shockwave ring shrinks its LIFETIME too, and the A/B capture that proves it must be read as brightness, not as size
+
+`ShockwaveEffect` expands at a fixed `1024 / WaveSpeed` per tick and terminates on radius, so
+bounding the ring at 60% of the wave's travel also ends it at 60% of the wave's duration — band 8's
+ring now lives 12 ticks where it lived 20. On screen that is a quicker, tighter puff, not merely a
+smaller circle. **Speed and extent are not independently expressible today**; a ring that stayed on
+screen as long while covering less ground would need a separate visual `WaveSpeed`, which nothing has
+asked for.
+
+**The trap this set for the verification, recorded because the obvious A/B capture measures the wrong
+thing.** Detonating the shipped band-8 ring beside a control with the new field zeroed out, then
+photographing both at the same instant, does NOT show one circle smaller than the other: they expand
+at identical speed, so **at any shared tick their radii are equal**. What differs is `progress`,
+which is now measured against the smaller visual radius — so the shipped ring is further through its
+fade at the same distance. Radial-averaged brightness profiles over the 2026-08-30 captures
+(`test-shockwave-ring-sizes`, 48 px per cell at `--size 1400x900`):
+
+| ring age | shipped ring | control ring |
+|---|---|---|
+| t7  | peak at 853 wdist, +34.0 | peak at 917 wdist, +43.3 |
+| t10 | peak at 1472 wdist, +36.4 | peak at 1450 wdist, +70.1 |
+| t13 | peak at 1941 wdist, +10.7 | peak at 2005 wdist, +52.9 |
+
+Same radius throughout, five times dimmer by t13, gone entirely a tick later while the control runs
+on to 4096. **A capture pair that looks like "the rings are the same size" is the expected result of
+a correct visual-radius cut, not evidence the change did nothing.** Measure the fade, or capture past
+the point where the shorter ring has already ended.
+
+**A second, worse trap in the same session: a radial-average brightness sweep is only as good as its
+CENTRE, and a wrong centre reads exactly like an absent feature.** Hunting the new TOS ring, the
+sweep was anchored on the brightest fireball centroid in the impact area. A TOS salvo has
+`Inaccuracy: 3c512`, so craters scatter over ~3.5 cells and the brightest fireball is routinely a
+*different rocket* from the one whose ring is alive — the profile then averages a real 15 px band
+across ~170 px of radius and returns noise. That produced a confident "no ring signal above terrain
+noise at any radius" for a ring that was rendering fine, and nearly got a working feature reported
+as inert. Two follow-up metrics agreed with the wrong answer: a max-contrast centre search latched
+onto the fireball's own bright edge, and a circular-arc score returned *identical centres and higher
+scores for the fainter configuration* across runs with different seeds — the tell that it was
+measuring static scene structure, not the ring.
+
+**What actually settled it was looking**: the same 320 px crop centred on the anchor impact,
+magnified 3×, under both configurations. Old values — crater, fireball, no circle. New values — a
+clean ring. Two rules follow. First, *validate the metric on a known-positive in the same frame set*
+before believing a negative; the identical sweep found the band-8 control ring at +52.9 every time,
+which is what proved the tooling sound and the centre wrong. Second, when a measurement says a
+visual feature is absent, **look at it magnified before believing the number** — this is precisely
+the coarse "is the thing on screen" judgement that captures are reliable for and pixel statistics
+are not.
+
+Two smaller things from the same session, both worth the seconds they cost:
+
+- **Map-local `rules.yaml` keys are CASE-SENSITIVE against the mod's actor names, while actor
+  placements in `map.yaml` are not.** `mods/ww3mod/rules/ingame/infantry.yaml` declares `E1:` and
+  `E3:`; a scenario override written `e1:` does not merge, it *declares a second actor type*, and the
+  failure surfaces as `LoadFromManifest<Rules>, duplicate values found for the following keys` rather
+  than as anything mentioning case.
+- **You cannot disarm an actor by removing its `Armament` and `AttackBase`.** `Turreted`,
+  `WithSpriteTurret`, `WithMuzzleOverlay` and `AutoTarget` all require them, so `-Armament@1:` /
+  `-AttackTurreted:` makes the actor fail to initialise (`ActorInfo("abrams") failed to initialize…
+  Missing: ArmamentInfo, AttackBaseInfo`) and the game dies at map load. To make a live unit
+  harmless in a scenario, give it a `NonCombatant` owner and reach it with a force-attack order
+  instead of editing its trait graph.
+
 ## 2026-08-30 — Two branches fixed one cursor defect independently, and git AUTO-MERGED their two field declarations into a duplicate (`wt/truck-refills-lc` rebased onto `a2466c3b`)
 
 `wt/cursor-honesty` (`49f2723d`) and `wt/truck-refills-lc` both noticed that `Restock` and

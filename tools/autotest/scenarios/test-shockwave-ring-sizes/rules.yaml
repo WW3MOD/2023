@@ -1,0 +1,30 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-shockwave-ring-sizes.lua
+
+# Two infantrymen used purely as detonators, so each capture shows ONE ring rather than
+# the pile of cookoffs and banded explosions a real carrier's death produces. Two actor
+# TYPES because Explodes is declared per type, and the comparison needs the shipped ring
+# and its pre-cut control on screen at the same instant. E1 and E3 carry no Explodes of
+# their own — the only one in infantry.yaml belongs to ^E4, the flamethrower.
+E1:
+	Explodes@RingUnderTest:
+		Weapon: VolatileLoad8
+		EmptyWeapon: VolatileLoad8
+
+E3:
+	Explodes@RingControl:
+		Weapon: VolatileLoad8Legacy
+		EmptyWeapon: VolatileLoad8Legacy
