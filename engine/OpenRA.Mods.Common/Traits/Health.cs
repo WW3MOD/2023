@@ -16,10 +16,20 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public class HealthInfo : TraitInfo, IHealthInfo, IRulesetLoaded, IEditorActorOptions
+	public class HealthInfo : TraitInfo, IHealthInfo, IRulesetLoaded, IEditorActorOptions, IProvideTooltipDescription
 	{
 		[Desc("HitPoints")]
 		public readonly int HP = 0;
+
+		IEnumerable<TooltipElement> IProvideTooltipDescription.ProvideTooltipDescription(ActorInfo ai, Ruleset rules, out int priority)
+		{
+			priority = 210;
+
+			if (HP <= 0)
+				return null;
+
+			return new[] { TooltipElement.Stat("Health", HP.ToString("N0")) };
+		}
 
 		[Desc("Trigger interfaces such as AnnounceOnKill?")]
 		public readonly bool NotifyAppliedDamage = true;

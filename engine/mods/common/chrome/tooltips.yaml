@@ -272,12 +272,71 @@ Background@PRODUCTION_TOOLTIP:
 			Y: 26
 			Height: 15
 			Font: TinyBold
-		Label@DESC:
+		Container@DESC:
 			X: 7
 			Y: 27
 			Height: 2
-			Font: TinyBold
-			VAlign: Top
+			Children:
+				# Per-kind style table for TooltipElementKind. These are TEMPLATES: hidden, never
+				# drawn, cloned once per row by ProductionTooltipLogic. A row's appearance is a
+				# property of its kind and is defined here exactly once — an author picks a kind,
+				# never a font or a colour. Colours are the grayscale ink scale from
+				# ww3mod/chrome/_lobby-palette.yaml; C8A45A is the sanctioned supply amber listed
+				# there under SANCTIONED EXCEPTIONS.
+				Label@TEMPLATE_SUBHEAD:
+					Visible: false
+					Height: 13
+					Font: TinyBold
+					TextColor: 969696
+					VAlign: Top
+				Label@TEMPLATE_PROSE:
+					Visible: false
+					Height: 16
+					Font: Small
+					TextColor: 969696
+					VAlign: Top
+				Label@TEMPLATE_LISTITEM:
+					Visible: false
+					Height: 17
+					Font: Small
+					TextColor: 969696
+					VAlign: Top
+				Label@TEMPLATE_STATKEY:
+					Visible: false
+					Height: 17
+					Font: TinyBold
+					TextColor: 686868
+					VAlign: Top
+				Label@TEMPLATE_STATVALUE:
+					Visible: false
+					Height: 17
+					Font: Small
+					TextColor: D4D4D4
+					Align: Right
+					VAlign: Top
+				Label@TEMPLATE_COSTVALUE:
+					Visible: false
+					Height: 17
+					Font: Small
+					TextColor: C8A45A
+					Align: Right
+					VAlign: Top
+				Label@TEMPLATE_DOTS:
+					Visible: false
+					Height: 17
+					Font: Small
+					TextColor: 404040
+					VAlign: Top
+				Label@TEMPLATE_NOTE:
+					Visible: false
+					Height: 14
+					Font: Tiny
+					TextColor: 686868
+					VAlign: Top
+				ColorBlock@TEMPLATE_SEPARATOR:
+					Visible: false
+					Height: 1
+					Color: 262626
 		Image@COST_ICON:
 			Y: 5
 			Width: 16

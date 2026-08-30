@@ -9,13 +9,18 @@
  */
 #endregion
 
+using System.Collections.Generic;
+using System.Linq;
+using OpenRA.GameRules;
+using OpenRA.Mods.Common.Warheads;
+
 namespace OpenRA.Mods.Common.Traits
 {
 	// Type tag for armor type bits
 	public class ArmorType { }
 
 	[Desc("Used to define weapon efficiency modifiers with different percentages per Type.")]
-	public class ArmorInfo : ConditionalTraitInfo
+	public class ArmorInfo : ConditionalTraitInfo, IProvideTooltipDescription
 	{
 		[Desc("Armor type determines what weapons can target this actor and their damage modifiers.")]
 		public readonly string Type = null;
@@ -27,6 +32,42 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int[] Distribution = System.Array.Empty<int>();
 
 		public override object Create(ActorInitializer init) { return new Armor(this); }
+
+		/// <summary>
+		/// <para>The armour row, resolved through the warhead <c>Versus</c> tables rather than read
+		/// straight off <see cref="Type"/>.</para>
+		///
+		/// <para>THIS IS THE TRAP IN THIS FEATURE, so it is worth being explicit. Binding the row to
+		/// <see cref="Type"/> would print "Kevlar" on all 28 infantry. <c>Kevlar</c> is set once, on the
+		/// shared infantry template, and appears in ZERO <c>Versus</c> tables — and
+		/// <c>DamageWarhead.DamageVersus</c> only applies a modifier for types a table actually names
+		/// (DamageWarhead.cs:106), so a type absent from every table takes the warhead default of 100%.
+		/// Infantry genuinely have no damage reduction, which is why their hand-written descriptions say
+		/// "No armor" and are RIGHT. Printing "Kevlar" would replace a true statement with one implying
+		/// protection the damage model does not grant.</para>
+		///
+		/// <para>So a type no warhead discriminates on is reported as None. A structured field is not
+		/// automatically a true one.</para>
+		/// </summary>
+		IEnumerable<TooltipElement> IProvideTooltipDescription.ProvideTooltipDescription(ActorInfo ai, Ruleset rules, out int priority)
+		{
+			priority = 200;
+
+			// An actor may carry several Armor@ instances; only the first contributes a row, or it
+			// would print several identically-labelled "Armour" rows with no way to tell them apart.
+			if (ai.TraitInfos<ArmorInfo>().FirstOrDefault() != this)
+				return null;
+
+			var discriminated = !string.IsNullOrEmpty(Type) && rules.Weapons.Values
+				.SelectMany(w => w.Warheads.OfType<DamageWarhead>())
+				.Any(wh => wh.Versus.ContainsKey(Type));
+
+			var value = "None";
+			if (discriminated)
+				value = Thickness > 0 ? $"{Type} — {Thickness} thick" : Type;
+
+			return new[] { TooltipElement.Stat("Armour", value) };
+		}
 	}
 
 	public class Armor : ConditionalTrait<ArmorInfo>
