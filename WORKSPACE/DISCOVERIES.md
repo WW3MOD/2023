@@ -3,6 +3,60 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-30 — `buildRandom` is permanently TRUE on the helicopter lanes, so their `UnitsToBuild` weights have never executed (recon, `main` @ `7de03906`)
+
+**The general shape, which outlives the helicopter case: a production lane whose unit type is
+excluded from squad recruitment can never leave the "early game" random-build window, because the
+window's counter is fed by the recruiter.** `UnitBuilderBotModule.BotTick` passes
+`idleUnitCount < Info.IdleBaseUnitsMaximum` as `buildRandom` (`:657`). `idleUnitCount` is written
+only by `IBotNotifyIdleBaseUnits.UpdatedIdleBaseUnits` (`:616-619`), whose only callers are
+`SquadManagerBotModule` (`:271,350,432,446`) passing `unitsHangingAroundTheBase`. On `@experimental`
+that list is permanently empty: ground units `continue` under `IgnoreGroundUnits` **without being
+added** (`SquadManagerBotModule.cs:334-340`), helicopters fail `IsAirSquadUnit` on its
+`!HasTraitInfo<AIHelicopterRoleInfo>()` clause (`:362-370`) and `continue` too, and every fixed-wing
+is `~disabled`. So `0 < 8` holds for the whole match and the pick is always
+`ChooseRandomUnitToBuild` — a **uniform** draw (`:1589-1595`) — with `UnitsToBuild` demoted to a
+membership filter (`:839-840`). `heli: 80 / littlebird: 40 / tran: 15` (`ai.yaml:1930-1933`) and
+`hind: 80 / mi28: 50 / halo: 15` (`:1841-1844`) are dead numbers. This is the same defect the ground
+twin documents against itself at `ai-america.yaml:540-542` and fixed with `CompositionDirected`; the
+heli twins never got that fix. **A weight that looks tuned is not evidence that it is read.**
+
+**Four `AIHelicopterRole` Info fields are declared and read NOWHERE in the engine**:
+`EngagementRange` (`Traits/Air/AIHelicopterRole.cs:25`), `AvoidAntiAirRange` (`:40`),
+`AIBuildPriority` (`:43`), `AIBuildLimit` (`:46`). A full-tree grep returns only the declarations.
+They are set per template with plausible values (Apache `AvoidAntiAirRange: 5`,
+`aircraft-america.yaml:310`; `AIBuildLimit: 4`, `:313`) and are the exact levers a person tuning
+helicopter behaviour from the templates would reach for first. Same trap class as
+`Armor: Indestructable` on the Supply Route: a line that looks like the mechanism and is inert.
+
+**No helicopter pays upkeep, and four in-tree comments claim otherwise.** `InfersUpkeep` is attached
+to exactly two templates — `vehicles.yaml:113` and `infantry.yaml:154` — and to no aircraft file. The
+`EvacuateWhenIdle` `[Desc]` (`HelicopterSquadBotModule.cs:259`) and three comments (`:1451`, `:1530`,
+`:2000-2001`) all justify heli evacuation by "stopping its upkeep drain". An idle helicopter costs
+**zero** per tick; the real economic case is capital at risk plus the HP-scaled refund
+(`RotateToEdge.cs:383-389`), which only ever **decreases**, so evacuating early is worth strictly more.
+
+**Helicopter target selection is OMNISCIENT while helicopter risk assessment is fog-legal — and that
+asymmetry is worse than either extreme.** `FindClosestEnemy` (`Squads/States/HelicopterStates.cs:357-370`)
+scans `world.Actors` with no visibility filter at all; the attack-run re-target (`:751-756`) and
+`CountAntiAirNearTarget` (`:372-378`) use `FindActorsInCircle`, likewise omniscient.
+`Squad.IsTargetVisible` exists (`Squads/Squad.cs:104`) and no helicopter state calls it. Meanwhile
+`DangerFieldAvoidance` routes around **believed** AA only, and believed air-danger of 0 is
+indistinguishable from "never observed" — the module concedes this at
+`HelicopterSquadBotModule.cs:175-177` and bounds the *scout* path with `ScoutMaxDistanceCells` for
+exactly that reason. **The attack path has no equivalent bound.** Net: the bot flies confidently at a
+target it should not be able to see, through AA it has no belief about.
+
+**Two naming traps in the same area.** `AmmoEvacMath.cs` is the **ground-vehicle** decision despite
+sitting in `BotModules/` next to the heli code — its only callers are `PoiOffensiveBotModule`
+(`:155`, `:2695`) and its NUnit suite; it has no aircraft caller. And `SendLowAmmoUnitsHome`
+(`HelicopterStates.cs:113-124`) tests `!HasAmmo(ammoPools)`, i.e. **dry**, not low — it reads as
+though the partial-ammo case is handled when nothing in the codebase acts on a partially-armed
+airframe at all (`HasUsableAmmo` is any-pool, `HelicopterSquadBotModule.cs:1709-1720`;
+`AirframeEvacMath.Decide` returns `None` while `loadedPools > 0`, `Air/AirframeEvacMath.cs:85-86`).
+
+Full analysis and numbered proposals: `WORKSPACE/recon-bot-helicopters.md`.
+
 ## 2026-08-30 — Two branches fixed one cursor defect independently, and git AUTO-MERGED their two field declarations into a duplicate (`wt/truck-refills-lc` rebased onto `a2466c3b`)
 
 `wt/cursor-honesty` (`49f2723d`) and `wt/truck-refills-lc` both noticed that `Restock` and
