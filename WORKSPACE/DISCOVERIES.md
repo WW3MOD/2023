@@ -3,6 +3,55 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-30 — Removing a unit's `Rearmable` does NOT make it evacuate; it makes it stand still forever (`wt/arty-doctrine`, base `main @ d9f9a83f`)
+
+**`SupplyHuntMath.DecideAutoDisposition` returns `HoldAndFlag` at `SupplyHuntMath.cs:269` for any
+actor that names no rearm actors, BEFORE it ever reaches the evacuation conjunction.** The input is
+`AmmoPool.NamesRearmActors` (`AmmoPool.cs:611`), which is false when `RearmableInfo` is null.
+
+This is deliberate and correctly documented at the site — `^CrewMember` and every ejected crewman
+carry no `Rearmable`, and *"a unit that never had a depot does not have a missing one"*. But it
+makes the obvious implementation of "this unit should not be rearmable" silently wrong. Deleting the
+`Rearmable` alone produces a unit that:
+
+* never rearms (intended), and
+* **never leaves either** — it is wholly dry, combat-inert, never disposed, raising `NeedsResupply`
+  on every pool for a rescue nothing in this ruleset can perform. That flag has exactly one reader
+  engine-wide, `SupplyProvider.FindNeedsResupplyTarget`, a Hunt-stance provider that must *drive* to
+  the client — and the only host any vehicle names is the Logistics Centre, a building.
+
+**The fix is one field, not a code change: `InitialResupplyBehavior` + `InitialResupplyBehaviorAI:
+Evacuate`.** That arm calls `ChooseResupplier`, which returns null on a null `RearmableInfo`
+(`AmmoPool.RearmCandidates` early-returns empty), and falls straight through to `EvacuateForRefund`
+— the same departure and the same refund the manual Evacuate order pays.
+
+**Why this is worth banking rather than being local trivia: the two failure modes are hard to tell
+apart from the outside.** "Ignored the depot and left" and "ignored the depot and did nothing" both
+look like *the unit did not rearm*, so any test written to confirm the removal worked will pass on
+the broken version too. `test-strategic-launcher-ignores-depot` therefore sabotages the **stance**
+in its RED arm, not the `Rearmable`.
+
+Applies to any future actor the design wants to make one-shot. Both live cases (`himars`,
+`iskander`) now set the stance explicitly, with the reasoning inline at
+`vehicles-america.yaml` / `vehicles-russia.yaml`.
+
+## 2026-08-30 — `economy.md` claims a pool tooltip that does not exist in code (`wt/arty-doctrine`)
+
+`DOCS/reference/economy.md` §"Tooltip format" states *"The pool tooltip renders the batch math
+directly"* and shows `Ammo: 900 (9 batches × 100 rounds × 5 supply = 45)`. **No code renders that.**
+Grepped `batches`, `Full refill`, and `ReloadCount`-with-`SupplyValue` across
+`engine/OpenRA.Mods.Common/Widgets/` — the only hit is `PerfDebugLogic.cs:53`, an unrelated
+performance counter. The notation exists solely as a **YAML comment convention** on `AmmoPool`
+blocks (~40 sites) and in the audit at `WORKSPACE/supply-cost-audit.md`.
+
+Consequence for anyone told to "update the player-facing ammo tooltip": there is nothing to update.
+The only player-visible per-unit text is `Buildable.Description`, free-form bullet lines, and the
+ammo *pips* (`WithAmmoPipsDecoration`), which show count and carry no cost information at all.
+
+**Left uncorrected in the doc deliberately** — this is a claim about a missing feature rather than a
+wrong number, so it wants a curation decision (build the tooltip, or retitle the section as a YAML
+comment convention) rather than a drive-by edit.
+
 ## 2026-08-27 — The frozen-actor visibility update loop is DEAD CODE, and it is the real cause of the six-month building-fog leak (`wt/fog-leak`, base `main @ 651322b3`)
 
 **`FrozenActor.UpdateVisibility()` runs exactly once per frozen actor — from the constructor
