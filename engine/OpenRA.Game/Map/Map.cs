@@ -302,11 +302,21 @@ namespace OpenRA
 			try
 			{
 				foreach (var filename in contents)
+				{
+					// shadows.bin is a derived line-of-sight cache, not map content, and is no longer
+					// written into packages at all. Leftover copies from an older checkout or an
+					// editor save must not change map identity: if they did, a developer carrying one
+					// would compute a different UID to a fresh clone of the same map and the two
+					// could not agree on it in a lobby.
+					if (filename == "shadows.bin")
+						continue;
+
 					if (filename.EndsWith(".yaml", StringComparison.Ordinal) ||
 						filename.EndsWith(".bin", StringComparison.Ordinal) ||
 						filename.EndsWith(".lua", StringComparison.Ordinal) ||
 						(format >= 12 && filename == "map.png"))
 						streams.Add(package.GetStream(filename));
+				}
 
 				// Take the SHA1
 				if (streams.Count == 0)
@@ -467,10 +477,6 @@ namespace OpenRA
 			var bbr = new PPos(Bounds.Right - 1, Bounds.Bottom - 1);
 			SetBounds(btl, bbr);
 
-			using (var s = Package.GetStream("shadows.bin"))
-				if (s != null)
-					ReadShadowsBinaryData(s);
-
 			LoadScenarios();
 
 			PostInit();
@@ -480,14 +486,21 @@ namespace OpenRA
 			// the shadow or density layers.
 			Uid = ComputeUID(Package, MapFormat);
 
-			// Fallback: if no shadows.bin was on disk, load from the out-of-package cache, and
-			// failing that compute fresh from current rules and populate the cache for next time.
 			// Deferred until after PostInit so Rules is populated (SetDensityLayer reads
 			// Rules.Actors, which is also what the cache key hashes).
-			if (ShadowLayer == null || DensityLayer == null)
-				LoadOrGenerateShadows();
+			LoadOrGenerateShadows();
 		}
 
+		/// <summary>
+		/// Load both layers from the support-dir cache, or generate them and populate it.
+		///
+		/// <para>A shadows.bin inside the map package is deliberately NOT consulted. That file
+		/// carries no magic, no algorithm version and no rules hash, so nothing about it can be
+		/// validated — a copy left behind by an editor save or an old checkout would silently
+		/// override a correctly-keyed cache and hand one player different concealment values to
+		/// everyone else. Since shadow feeds vision attenuation and firing LOS, that is a desync.
+		/// The cache is the single source, and it is the one that can prove it is current.</para>
+		/// </summary>
 		void LoadOrGenerateShadows()
 		{
 			var key = ShadowCache.ComputeKey(Uid, ShadowCache.ComputeDensityRulesHash(Rules));
@@ -498,10 +511,18 @@ namespace OpenRA
 			DensityLayer = null;
 			ShadowLayer = null;
 
+			RegenerateAndCacheShadows();
+		}
+
+		/// <summary>Rebuild both layers from current rules and store them under the current Uid.</summary>
+		void RegenerateAndCacheShadows()
+		{
 			SetDensityLayer();
 			SetShadowLayer();
 
-			ShadowCache.TrySave(key, SaveShadowsBinaryDataFromCurrentLayers());
+			ShadowCache.TrySave(
+				ShadowCache.ComputeKey(Uid, ShadowCache.ComputeDensityRulesHash(Rules)),
+				SaveShadowsBinaryData());
 		}
 
 		/// <summary>
@@ -902,11 +923,15 @@ namespace OpenRA
 			var s = root.WriteToString();
 			toPackage.Update("map.yaml", Encoding.UTF8.GetBytes(s));
 			toPackage.Update("map.bin", SaveBinaryData());
-			toPackage.Update("shadows.bin", SaveShadowsBinaryData());
 			Package = toPackage;
 
 			// Update UID to match the newly saved data
 			Uid = ComputeUID(toPackage, MapFormat);
+
+			// The edit changed the map's identity, so the layers belong under a new key. They go to
+			// the support-dir cache, never back into the package: an unvalidatable shadows.bin in
+			// the package is exactly the stale override LoadOrGenerateShadows refuses to read.
+			RegenerateAndCacheShadows();
 		}
 
 		public byte[] SaveBinaryData()
@@ -968,19 +993,11 @@ namespace OpenRA
 			return dataStream.ToArray();
 		}
 
-		public byte[] SaveShadowsBinaryData()
-		{
-			SetDensityLayer();
-			SetShadowLayer();
-
-			return SaveShadowsBinaryDataFromCurrentLayers();
-		}
-
 		/// <summary>
-		/// Serialize the layers as they currently stand, without regenerating them. Counterpart to
+		/// Serialize the layers as they currently stand. Counterpart to
 		/// <see cref="ReadShadowsBinaryData"/>; see that method for why the pair is shared.
 		/// </summary>
-		byte[] SaveShadowsBinaryDataFromCurrentLayers()
+		byte[] SaveShadowsBinaryData()
 		{
 			var dataStream = new MemoryStream();
 			using (var writer = new BinaryWriter(dataStream))
@@ -1039,12 +1056,16 @@ namespace OpenRA
 		{
 			ShadowLayer = new MapShadowLayer(this);
 
-			// Bit-identical regardless of scheduling, and MapShadowLayerParallelismTest asserts it on a
-			// real map: RecomputeShadowFrom writes only ShadowLayer[fromUV, *], which MapShadowLayer.Index
-			// maps to a slot range disjoint per from-cell, and no accumulation crosses a from-cell
-			// boundary. Everything it reads is immutable by this point — DensityLayer is fully populated
-			// by SetDensityLayer beforehand, and FindTilesInAnnulus, TilesIntersectingLine and
-			// CenterOfCell are pure over immutable data.
+			// Bit-identical regardless of scheduling: RecomputeShadowFrom writes only
+			// ShadowLayer[fromUV, *], which MapShadowLayer.Index maps to a slot range disjoint per
+			// from-cell, and no accumulation crosses a from-cell boundary. Everything it reads is
+			// immutable by this point — DensityLayer is fully populated by SetDensityLayer beforehand,
+			// and FindTilesInAnnulus, TilesIntersectingLine and CenterOfCell are pure over immutable data.
+			//
+			// MapShadowLayerParallelismTest covers the store's disjointness on a synthetic footprint;
+			// it does NOT call RecomputeShadowFrom. The real-map evidence is that regenerating
+			// river-zeta-ww3 through this loop reproduces the bytes the previous serial implementation
+			// committed, sha256 dbecdd12...f2c — verified by hand, not by that fixture.
 			Parallel.ForEach(AllCells.MapCoords, RecomputeShadowFrom);
 		}
 

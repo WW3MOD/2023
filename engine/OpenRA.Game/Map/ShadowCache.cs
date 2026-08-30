@@ -178,15 +178,33 @@ namespace OpenRA
 		/// <summary>As <see cref="TrySave(string, byte[])"/>, against an explicit cache root and cap.</summary>
 		public static void TrySave(string dir, string key, byte[] payload, long maxBytes)
 		{
+			// Declared out here so the catch can reclaim it. Flush(true) below is the most likely
+			// call in this method to throw, because a deferred ENOSPC surfaces at fsync rather than
+			// at write — and by then the temp is already on disk at full size. Leaving it would
+			// strand up to 87 MB that the reaper only revisits on the next TrySave, which on a full
+			// disk fails the same way, and which the *.bin cap accounting cannot see.
+			string temp = null;
+
 			try
 			{
+				// An entry bigger than the whole cap can never fit, and evicting for it would clear
+				// every other entry and then store it anyway, leaving the directory over cap with
+				// nothing else left in it. Refuse instead, so the cap holds as an invariant and the
+				// only cost is regenerating this one map next load. Unreachable today at 87 MB
+				// against 1 GiB, but MaxCacheBytes is public and a smaller cap would hit the cliff.
+				if (payload.Length > maxBytes)
+				{
+					LogDiagnostic($"Shadow cache entry {key} is {payload.Length} bytes, over the {maxBytes} byte cap; not stored.");
+					return;
+				}
+
 				Directory.CreateDirectory(dir);
 				Evict(dir, maxBytes - payload.Length, key);
 
 				// Write to a unique temp name and move into place, so a crash or a second process
 				// mid-write cannot leave a torn file under the real key.
 				var path = PathForKey(dir, key);
-				var temp = path + "." + Guid.NewGuid().ToString("N") + TempSuffix;
+				temp = path + "." + Guid.NewGuid().ToString("N") + TempSuffix;
 
 				using (var file = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
 				using (var writer = new BinaryWriter(file))
@@ -207,10 +225,17 @@ namespace OpenRA
 				}
 
 				File.Move(temp, path, true);
+				temp = null;
 			}
 			catch (Exception e)
 			{
 				LogDiagnostic($"Could not write shadow cache entry {key}: {e.Message}");
+
+				if (temp != null)
+				{
+					try { File.Delete(temp); }
+					catch (Exception) { }
+				}
 			}
 		}
 

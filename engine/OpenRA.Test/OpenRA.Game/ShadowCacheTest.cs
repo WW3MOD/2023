@@ -250,6 +250,36 @@ namespace OpenRA.Test
 			Assert.That(File.Exists(inFlight), Is.True, "A fresh temp must not be reaped.");
 		}
 
+		[Test(Description = "A write that fails reclaims its temp instead of stranding the payload on disk.")]
+		public void AFailedWriteLeavesNoTemp()
+		{
+			// A directory where the entry should go makes File.Move throw after the temp is fully
+			// written — the same shape as a deferred ENOSPC surfacing at fsync, which is the most
+			// likely real cause and the one that matters, since it strands up to 87 MB.
+			Directory.CreateDirectory(Path.Combine(dir, "key-a.bin"));
+
+			ShadowCache.TrySave(dir, "key-a", Payload(4096, 7), ShadowCache.MaxCacheBytes);
+
+			Assert.That(Directory.GetFiles(dir, "*.tmp"), Is.Empty, "A failed write stranded its temp file.");
+		}
+
+		[Test(Description = "An entry larger than the cap does not wipe every other entry to make room it cannot use.")]
+		public void AnOversizedEntryDoesNotWipeTheCache()
+		{
+			const int Cap = 8192;
+			ShadowCache.TrySave(dir, "keep-me", Payload(1024, 1), Cap);
+			Assert.That(LoadOrNull("keep-me"), Is.Not.Null);
+
+			// Bigger than the whole cap. Evicting for it can never make it fit.
+			ShadowCache.TrySave(dir, "oversized", Payload(Cap * 2, 2), Cap);
+
+			Assert.That(LoadOrNull("keep-me"), Is.Not.Null,
+				"An entry that cannot fit under the cap evicted the entries that could.");
+			Assert.That(LoadOrNull("oversized"), Is.Null,
+				"An entry larger than the cap was stored, putting the directory permanently over it.");
+			Assert.That(Directory.GetFiles(dir).Sum(f => new FileInfo(f).Length), Is.LessThanOrEqualTo(Cap));
+		}
+
 		[Test(Description = "A hit restamps the entry, so the cache evicts by use rather than by age.")]
 		public void AHitRefreshesTheLruStamp()
 		{

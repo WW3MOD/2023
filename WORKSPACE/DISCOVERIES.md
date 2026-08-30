@@ -8,8 +8,12 @@
 - **The result.** Same commit `55836dd8`, same map, regenerated from scratch with no cache present, on
   **Windows 11 x64** and on **macOS x86_64**, both on dotnet `6.0.428`: **byte-identical**, sha256
   `dbecdd123dfb80a9c955d00e0e60fc9c818b78dddf408e7481f128719f150f2c`, 36,871,948 bytes. The same hash
-  is also produced on macOS **Apple Silicon**, and by the `Parallel.ForEach` implementation that
-  replaced the serial loop — so it holds across two OSes, two CPU families, and two implementations.
+  is also produced by the `Parallel.ForEach` implementation that replaced the serial loop — so it
+  holds across **two OSes and two implementations, on one CPU family (x86_64)**. *(Corrected
+  2026-08-30: an earlier revision of this entry claimed "two CPU families" on the belief that the
+  macOS host was Apple Silicon. It is an Intel Core i7-9750H — `machdep.cpu.brand_string`. The
+  Apple Silicon claim was inherited from the recon and is wrong there too. Determinism across ARM
+  is therefore NOT established by this result.)*
 - **Why it was in doubt.** `RecomputeShadowFrom` accumulates in `float` (`Map.cs:1163-1169`) and
   ECMA-335 permits higher intermediate precision, so bit-identity was reasoned structurally but never
   demonstrated. `DISCOVERIES.md:2927-2979` had explicitly scoped its .NET 6/8/10 byte-identity result
@@ -28,6 +32,15 @@
 - **Correction to the recon's cost model:** generation is **0.93 µs/pair**, not the 2.29 µs/pair fitted
   there, and parallelising buys **2.4×**, not 8× — the loop is allocation- and bandwidth-bound
   (~25 M iterator allocations per generation). Corrected table in `recon-shadows-on-demand.md` §Q2.
+- **One open anomaly, carried deliberately.** A single mid-session `sha256` of cache entry
+  `3b3c3c7d…` read `df6a170f…` where every reproduction reads `dbecdd12…`. Four mechanisms have been
+  eliminated: computation nondeterminism (13 generations across 4 configurations, all reproducible),
+  each of the three map/rules configurations that entry could have come from (`dbecdd12`, `dbecdd12`,
+  `255be5e9` — none matches), a torn read (the write is temp-then-atomic-rename, so no reader can see
+  a partial file), and a framing/artifact error (the whole entry hashes `a6fe394e`, and **no** byte
+  offset from 1 to 80 of a correct entry yields `df6a170f`). The recorded size beside the anomalous
+  hash was 36,872,005 — a well-formed entry — so the file's *content* differed, not the slice taken
+  of it. **Unexplained. If shadow concealment is ever reported as inconsistent, start here.**
 
 ## 2026-08-30 — 8 of 10 shipped maps regenerate the whole `shadows.bin` LOS cache on EVERY load (29–101 s measured); `ComputeUID` hashes `shadows.bin`, so the cache is part of map identity (recon, `main` @ `627be5a4`)
 
@@ -44,8 +57,11 @@ measured `--regen-shadows` runs on map copies **outside** the repo; no tracked f
   geometry — offsets `ceil(sqrt(du²+dv²)) ∈ [2,32]` (`MapShadowLayer.cs:36-37`) clipped to `MapSize`
   (`Map.cs:1916`). `bytes = cells + 2×pairs` reproduces all four on-disk files **byte-for-byte**
   (arena 6,719,660 · siberian 28,415,043 · river-zeta 36,871,948 · woodland 45,527,532). Measured
-  Release, single-threaded, Apple Silicon: arena 66×34 = **9.25 s**, siberian-pass 97×67 = **34.04 s**
-  → `t ≈ 1.6 s + 2.29 µs × pairs` (fitted intercept matches the ~1.1 s bare-utility startup).
+  Release, single-threaded, Intel Core i7-9750H (x86_64 — *not* Apple Silicon as originally recorded):
+  arena 66×34 = **9.25 s**, siberian-pass 97×67 = **34.04 s** → `t ≈ 1.6 s + 2.29 µs × pairs`.
+  **The pair counts and file sizes are exact and still stand; the timing fit does not.** Direct
+  measurement on 2026-08-30 puts river-zeta at 17.0 s serial against this model's 43.7 s, i.e.
+  **0.93 µs/pair**, so the constant is ~2.4× too high — see `recon-shadows-on-demand.md` §Q2.
   Predicted for the uncached shipped maps: `polar-disorder` 53.6 s, `seventh-woods` 81.9 s,
   `twin-rivers` 97.3 s, **`x-lake` 100.7 s / 86.7 MB**. Cost is **independent of tree count** — every
   pair is walked regardless of density. (A near-empty map's file stores *sparse* on disk — 8 KB

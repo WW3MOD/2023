@@ -1,10 +1,15 @@
 #region Copyright & License Information
 /*
- * WW3MOD: regenerate the shadows.bin precomputed line-of-sight cache for a
- * map without going through the in-game editor. Narrower than --refresh-map
- * (which also rewrites map.yaml and map.png) — touches only shadows.bin.
- * Use after a fix to the shadow compute pipeline that invalidates cached
- * data baked into existing maps.
+ * WW3MOD: pre-warm the precomputed line-of-sight cache for a map without
+ * going through the in-game editor, so the first real load does not pay
+ * generation. Narrower than --refresh-map (which rewrites map.yaml and
+ * map.png) — this writes nothing into the map package at all.
+ *
+ * It no longer writes shadows.bin into the package. That file could not be
+ * validated on read, so a stale copy silently overrode a correctly-keyed
+ * cache; the support-dir cache is now the only source. Note that the cache
+ * invalidates itself on a map, rules or ShadowCache.AlgoVersion change, so
+ * this command is an optimisation and never a correctness requirement.
  */
 #endregion
 
@@ -22,17 +27,17 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			return args.Length >= 2;
 		}
 
-		[Desc("MAP", "Rebuild and save the shadows.bin LOS cache for a map. Does not touch map.yaml, map.png, or map.bin.")]
+		[Desc("MAP", "Pre-warm the LOS cache for a map. Writes nothing into the map package.")]
 		void IUtilityCommand.Run(Utility utility, string[] args)
 		{
 			// HACK: The engine code assumes Game.ModData is set.
-			// HACK: We know that maps can only be oramap or folders, which are ReadWrite.
 			var modData = Game.ModData = utility.ModData;
 			using (var package = new Folder(Platform.EngineDir).OpenPackage(args[1], modData.ModFiles))
 			{
+				// Constructing the map is the whole job: it loads the cache or generates and stores
+				// it. Regenerating here as well would only duplicate that work.
 				var map = new Map(modData, package);
-				((IReadWritePackage)package).Update("shadows.bin", map.SaveShadowsBinaryData());
-				Console.WriteLine($"Wrote shadows.bin for {args[1]}");
+				Console.WriteLine($"Shadow cache ready for {args[1]} (map {map.Uid})");
 			}
 		}
 	}
