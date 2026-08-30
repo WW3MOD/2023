@@ -492,12 +492,19 @@ LOGISTICSCENTER:
 		# the removed ProximityExternalCondition above and the supply truck respectively.
 		#
 		# COST, so the drain rate is legible: a batch is ReloadCount rounds for SupplyValue supply.
-		# CORRECTED 2026-08-27 — this read "5 supply for a full refill, so 2250 buys ~450" and was
-		# wrong by 11x because it counted only the E3's rifle. He is Rearmable for BOTH his pools
-		# (infantry.yaml, `AmmoPools: primary-ammo, secondary-ammo`): primary-ammo is Ammo 100 /
-		# ReloadCount 20 / SupplyValue 1 = 5 batches = 5 supply, and secondary-ammo is his RPG at
-		# Ammo 1 / SupplyValue 50 = one 50-supply batch. A full E3 refill is 55, so this Centre buys
-		# about 41 of them and a 750 truck about 13.
+		# CORRECTED 2026-08-27, then INDEPENDENTLY CORRECTED AGAIN by the 2026-08-30 economy audit —
+		# two agents found the same error a day apart, which is the reason this note is longer than
+		# the arithmetic deserves. COUNT EVERY POOL IN Rearmable.AmmoPools, not just the one whose
+		# name you recognise. This comment used to read "an E3 rifleman is Ammo 100 / ReloadCount 20
+		# / SupplyValue 1, i.e. 5 supply for a full refill — so 2250 buys ~450 rifleman refills
+		# against the truck's ~150", and it was wrong by 11x: it counted the DMR and ignored the RPG
+		# (AmmoPool@2, Ammo 1, SupplyValue 50, infantry.yaml:1245), which IS listed at
+		# infantry.yaml:1282 and so IS refilled by this aura. A full E3 refill is 5 + 50 = 55 supply.
+		# 2250 buys ~41 rifleman refills; the truck's 750 buys ~13. At AuraRearmDelay 6 that is six
+		# delivery cycles — ~2.2s and 55 supply per soldier — so a full Centre is ~90 seconds of
+		# continuous infantry service, not the quarter-hour the old figure implied.
+		# SIZING ARGUMENTS THAT CITE 450 ARE REASONING FROM THIS ERROR — and 2250 is one of them.
+		# The capacity was chosen against the wrong number and has NOT been re-decided since.
 		# The error was harmless while infantry rearmed for free. It is not harmless now.
 		AuraRearmCondition: replenish-soldiers
 		AuraRange: 4c0

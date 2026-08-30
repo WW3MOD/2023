@@ -12106,3 +12106,64 @@ counting them is its own separate false red (and nearly produced one earlier the
 **Fourth costume in one day**, which is why it is worth a section rather than a line: `grep -c`
 exiting 1 on zero matches, a wait-loop matching its own command line, `tail` in a pipe, and now a
 trailing command in a compound whose status the harness surfaces as the whole task's.
+## 2026-08-30 — Supply economics: what the paid-ammunition change will actually cost
+
+Full audit with the per-actor table at [`WORKSPACE/supply-cost-audit.md`](supply-cost-audit.md).
+Every figure below is computed from YAML by resolving full `Inherits` chains; the resolver reproduces
+the 110 / 90 / 1 counts already recorded at `economy.md:71`.
+
+**Three engine facts frame everything.** (1) The dock-at-LC rearm charges NOTHING: `Resupply.cs:301`
+calls `Rearmable.RearmTick`, and `Rearmable.cs:57-79` calls `GiveAmmo` with no `SupplyProvider`
+reference — `Resupply.cs` contains no `RemoveSupply` and no read of `SupplyValue` at all. (2)
+`ReloadAmmoPool.cs:91` likewise calls `GiveAmmo` directly, which is the free infantry path. (3) The
+paid path delivers **exactly one batch per `RearmDelay` cycle** and deducts the full `SupplyValue`
+even when it hands over fewer than `ReloadCount` rounds (`SupplyProvider.cs:983-996`, with
+`AmmoPool.GiveAmmo` clamping at `Info.Ammo`, `:247`). **The pseudocode at `economy.md:363-372` shows
+multi-batch-per-cycle math the shipped code does not implement.**
+
+**Exactly 13 ground vehicles use the free path.** Every actor naming `logisticscenter` in
+`Rearmable.RearmActors` except `HIMARS` and `iskander`, which are the only two declaring
+`replenish-vehicles` (`vehicles-america.yaml:1138`, `vehicles-russia.yaml:1029`) and so the only two
+already served by the paid `SupplyProvider` push.
+
+**Supply cost tracks munition type, not purchase price.** Supply per 1000 credits of army value spans
+55× across buyable ground units: `humvee` 12, `m113` 14, `btr` 17, `^E4` 20 … `t72` 94, `abrams` 96,
+`t90` 100, `^AR` 100 … `^E3` 550, `^E6` 620, `^AT`/`^AA` 650, `^MT` 667. One Logistics Centre fully
+refills 22,500 credits of Abrams or 3,300 credits of mortar teams. **No single `TotalSupply` can be
+right for both an armour force and an infantry force**, which is the structural constraint any depot
+re-tune runs into.
+
+**The rifleman/automatic-rifleman pair is the sharpest live case.** `^E3` and `^AR` both cost 100.
+E3's full refill is 55 (`infantry.yaml:1216`, `:1245`); AR's is 10 (`:1333`), and AR carries 5× the
+magazine at half the per-round price. E3's single RPG round at `SupplyValue: 50` is the whole gap —
+and prices at **8.3 Abrams shells** (Abrams is 240 supply for 40 rounds, `vehicles-america.yaml:530`).
+Anti-tank infantry costs more supply per shot than the armour it kills.
+
+**Three of the eight most expensive pools can never spend supply.** `tos` 960, `m270` 840, `grad` 680
+carry no `Rearmable` at all (`vehicles-russia.yaml:740`, `vehicles-america.yaml:806`,
+`vehicles-russia.yaml:613`) — documented design (`economy.md:31`). Their `SupplyValue` is a
+`CustomSellValue` evac deduction only. Likewise all eight airframes (605–1625 each): `hpad`/`afld` are
+`~disabled` and pre-placed nowhere, so **~30% of the pool-carrying roster is untouched by the change**
+and should be excluded from any post-merge depot-drain measurement.
+
+**Both factions are coherent on ammunition — this was the expected finding and it is absent.**
+`HIMARS` = `iskander` (3000), `m109` = `giatsint` (480), `F16` = `MIG` (605) exactly; `abrams` 9.6% /
+`t90` 10.0% / `t72` 9.4%; `bradley` 43.0% / `bmp2` 43.5%. The apparent `strykershorad` 1328 vs
+`tunguska` 526 gap is role, not price: **both carry `Ammo: 8` SAMs at `SupplyValue: 65`, identical**,
+and the Stryker's extra 800 is a Hellfire pod tunguska lacks (`vehicles-america.yaml:988`). Mi-28 at
+150 vs Apache 200 is Ataka vs Hellfire, deliberate and reasoned in file (`aircraft-russia.yaml:409-413`).
+
+**`^DR`'s drone is charged per launch, not per loss.** `CarrierMaster.cs:235` takes the ammo and
+`CarrierMaster` contains no `GiveAmmo` anywhere, so a drone that flies a sortie and returns intact
+still leaves its operator dry at 25 supply for the next launch. Relevant to the drone scoring work in
+flight: every recon sortie is a supply transaction, not a free repeat. (`EnterCarrierMaster.cs:49-53`
+refills the returning *slave's* own pools, bypassing `Rearmable` — that is the drone's ammunition,
+not the operator's launch count.)
+
+**`economy.md` drift found while auditing (reported, not edited — curation is a separate pass):** LC
+`TotalSupply` 3000 → 2250 (`structures.yaml:466`); LCCV Cost 1200 → 3000 (`vehicles.yaml:652`); LC
+Cost 3500 → 3000 (`structures.yaml:422`); `m109`/`giatsint` `Ammo` 39 → 40
+(`vehicles-america.yaml:656`, `vehicles-russia.yaml:470`). The `RefundPercent` invariant at
+`economy.md:177` still **holds** at the new numbers (34 ≤ 100 × 3000/3000) — the worked example is
+stale, the property is intact. Separately, `AmmoPool.cs:52-57` describes `Essential` as shipping
+"inert until someone does it"; **35 pools now author `Essential: true`.**
