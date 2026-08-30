@@ -20,6 +20,11 @@
 #   --map=<id>       Override Test.LaunchLobbyMap (default: river-zeta-ww3).
 #                    Matched against MapPreview Title, package folder, or Uid.
 #   --tab=<name>     Test.OpenLobbyTab — "match" (default), "advanced", "music".
+#   --set-options=<id>=<val>[,<id>=<val>...]
+#                    Test.SetLobbyOptions — move options off their defaults once
+#                    the lobby loads, e.g. startingcash=5000,startingunits=motorized.
+#                    Needed to capture the ACTIVE CHANGES strip, which only draws
+#                    a chip for an option that differs from its default.
 #   --hover=<id>     Test.HoverLobbyOption — hover the checkbox for this lobby
 #                    option id (e.g. "syncreports") so the capture shows its
 #                    tooltip. Tooltips are not word-wrapped, so their rendered
@@ -40,6 +45,7 @@ LABEL=""
 LOBBY_MAP="river-zeta-ww3"
 LOBBY_TAB=""
 HOVER_OPTION=""
+SET_OPTIONS=""
 WINDOW_SIZE=""
 DO_QUIT=1
 PHASE_TIMEOUT=30
@@ -49,6 +55,7 @@ while [ $# -gt 0 ]; do
 		--map=*)     LOBBY_MAP="${1#*=}"; shift ;;
 		--tab=*)     LOBBY_TAB="${1#*=}"; shift ;;
 		--hover=*)   HOVER_OPTION="${1#*=}"; shift ;;
+		--set-options=*) SET_OPTIONS="${1#*=}"; shift ;;
 		--window=*)  WINDOW_SIZE="${1#*=}"; shift ;;
 		--no-quit)   DO_QUIT=0; shift ;;
 		--timeout=*) PHASE_TIMEOUT="${1#*=}"; shift ;;
@@ -106,6 +113,11 @@ if [ -n "${HOVER_OPTION}" ]; then
 	HOVER_ARG="Test.HoverLobbyOption=${HOVER_OPTION}"
 fi
 
+SET_OPTIONS_ARG=""
+if [ -n "${SET_OPTIONS}" ]; then
+	SET_OPTIONS_ARG="Test.SetLobbyOptions=${SET_OPTIONS}"
+fi
+
 # settings.yaml is backed up and restored below, so a windowed override here
 # cannot leak into the user's saved graphics settings.
 WINDOW_ARGS=""
@@ -161,6 +173,7 @@ fi
 	"Test.LobbyReadyFile=${READY_FILE}" \
 	${LOBBY_TAB_ARG} \
 	${HOVER_ARG} \
+	${SET_OPTIONS_ARG} \
 	${WINDOW_ARGS} \
 	"Sound.Mute=true" \
 	>/dev/null 2>&1 &

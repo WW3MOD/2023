@@ -126,12 +126,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			// Size each chip to its text rather than the template's fixed 180px.
 			// 24px total internal padding (12 left + 12 right) so the label
 			// doesn't kiss the chip edges. Cap at the usable row width, NOT a
-			// magic constant: the old 260px cap silently clipped any chip whose
-			// text ran past ~236px (e.g. a long option name + value — measured
-			// "~  Starting Units  Motorized" is 210px, but longer pairs exceed
-			// 260 and overflowed the fixed background). Following the panel width
-			// makes the chip fit its text for anything short of a single label
-			// wider than the whole strip.
+			// magic constant, so the cap tracks the panel instead of needing a
+			// bump every time an option name grows.
+			//
+			// This measurement was never the reason chips overflowed their
+			// background — that was the cloned BG block keeping the template's
+			// width, fixed in AddChip below. A previous pass raised a 260px cap
+			// here to chase the same symptom and changed nothing visible.
 			var templateLabel = chipTemplate.GetOrNull<LabelWidget>("CHIP_LABEL");
 			var font = templateLabel != null ? Game.Renderer.Fonts[templateLabel.Font] : null;
 			var maxChipWidth = Math.Max(24, containerWidth - 2 * startX);
@@ -223,7 +224,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				var bg = chip.GetOrNull<ColorBlockWidget>("BG");
 				if (bg != null)
+				{
+					// BG is declared Width: PARENT_WIDTH, but that expression is
+					// evaluated once at load against the 180px template, and Clone()
+					// copies resolved bounds instead of re-running Initialize. Nothing
+					// downstream re-derives it, so the fill must be resized here or
+					// every chip paints 180px wide whatever its text says.
+					bg.Bounds.Width = chipWidth;
+					bg.Bounds.Height = chip.Bounds.Height;
 					bg.GetColor = () => ChipFill;
+				}
 
 				var lbl = chip.GetOrNull<LabelWidget>("CHIP_LABEL");
 				if (lbl != null)

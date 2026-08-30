@@ -108,6 +108,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		// Tick handler doesn't keep retouching the file every tick.
 		bool lobbyReadyMarkerWritten;
 
+		// Latches once Test.SetLobbyOptions has been issued, so the orders go out
+		// exactly once rather than every tick.
+		bool testLobbyOptionsIssued;
+
 		readonly Widget lobby;
 		readonly Widget editablePlayerTemplate;
 		readonly Widget nonEditablePlayerTemplate;
@@ -922,6 +926,32 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			return !MapIsPlayable || panel == PanelType.Kick;
 		}
 
+		static IEnumerable<(string Id, string Value)> ParseStagedLobbyOptions(string spec)
+		{
+			foreach (var pair in spec.Split(',', StringSplitOptions.RemoveEmptyEntries))
+			{
+				var split = pair.Split('=', 2);
+				if (split.Length == 2)
+					yield return (split[0].Trim(), split[1].Trim());
+			}
+		}
+
+		// Staged options round-trip through the server, so they are not reflected in
+		// LobbyInfo on the tick they are issued. Holding the ready marker until every
+		// one reads back stops a capture photographing the pre-staging lobby.
+		bool StagedLobbyOptionsLanded()
+		{
+			if (!TestMode.IsActive || string.IsNullOrEmpty(TestMode.SetLobbyOptions))
+				return true;
+
+			var current = orderManager.LobbyInfo.GlobalSettings.LobbyOptions;
+			foreach (var (id, value) in ParseStagedLobbyOptions(TestMode.SetLobbyOptions))
+				if (!current.TryGetValue(id, out var state) || state.Value != value)
+					return false;
+
+			return true;
+		}
+
 		public override void Tick()
 		{
 			if (panel == PanelType.Options && OptionsTabDisabled())
@@ -935,10 +965,21 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				pendingTestTab = null;
 			}
 
+			// WW3MOD: stage non-default lobby options for a screenshot driver,
+			// through the same order the dropdowns issue so the resulting state is
+			// indistinguishable from a human having set them by hand.
+			if (!testLobbyOptionsIssued && MapIsPlayable
+				&& TestMode.IsActive && !string.IsNullOrEmpty(TestMode.SetLobbyOptions))
+			{
+				testLobbyOptionsIssued = true;
+				foreach (var (id, value) in ParseStagedLobbyOptions(TestMode.SetLobbyOptions))
+					orderManager.IssueOrder(Order.Command($"option {id} {value}"));
+			}
+
 			// WW3MOD: drop a "lobby is ready" marker for external screenshot
 			// drivers. Fires once per lobby load — wraps the file write in a
 			// try so a filesystem error never spams the tick loop.
-			if (!lobbyReadyMarkerWritten && MapIsPlayable
+			if (!lobbyReadyMarkerWritten && MapIsPlayable && StagedLobbyOptionsLanded()
 				&& TestMode.IsActive && !string.IsNullOrEmpty(TestMode.LobbyReadyFile))
 			{
 				lobbyReadyMarkerWritten = true;
