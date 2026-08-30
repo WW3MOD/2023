@@ -126,8 +126,8 @@ namespace OpenRA.Mods.Common.Traits
 			// Gated on DamageNumbers rather than CombatGeometry since 2026-08-30: this readout used to
 			// be bundled with the hitshape and muzzle wireframes, so anyone who wanted a damage number
 			// got a screen full of geometry with it -- which is why the readout read as missing rather
-			// than as a developer feature. DamageNumbers defaults ON and is a RELEASE BLOCKER; see
-			// DebugVisualizations.DamageNumbers.
+			// than as a developer feature. DamageNumbers defaults OFF; turning it back on by default
+			// is a release blocker and is guarded. See DebugVisualizations.DamageNumbers.
 			if (debugVis == null || !debugVis.DamageNumbers || e.Damage.Value == 0)
 				return;
 

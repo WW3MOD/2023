@@ -1,24 +1,29 @@
 #region Copyright & License Information
 /*
- * Guards the one debug default that ships ON.
+ * Locks the developer overlay's default to its release paperwork, in both directions.
  *
- * DebugVisualizations.DamageNumbers defaults to true so the developer overlay is visible without
- * anyone having to switch it on (user ruling 2026-08-30). That makes it a RELEASE BLOCKER: a
- * stranger's first firefight would show floating damage numbers over every unit.
+ * DebugVisualizations.DamageNumbers now defaults FALSE, which is the shipped state. It was briefly
+ * true (user ruling 2026-08-30, deferred under blocker R17) and was flipped the same day once main
+ * began being pushed as work landed -- default-on would have put floating damage numbers over every
+ * unit on the user's next pull, under a play-through whose purpose was filing polish items.
  *
- * A comment saying "flip this before release" is not a countermeasure -- this repo has watched
- * prose fail at exactly that job more than once. So the guard is mechanical and BIDIRECTIONAL: the
- * code default and the PIPELINE.md blocker entry are locked to each other, and breaking either
- * direction fails the build.
+ * THE GUARD DID NOT RETIRE WITH R17; IT REVERSED. It now stops the overlay being turned back on
+ * without anyone filing a blocker for it:
  *
- *   default true  + no blocker entry -> FAIL ("the entry is load-bearing, put it back")
+ *   default false + no blocker entry -> pass (today, shipped)
+ *   default true  + blocker entry    -> pass (a deliberate, tracked deferral)
+ *   default true  + no blocker entry -> FAIL ("file the entry or flip it back")
  *   default false + blocker entry    -> FAIL ("you flipped it, now delete the entry")
- *   default true  + blocker entry    -> pass (today)
- *   default false + no blocker entry -> pass (shipped state)
  *
- * The failure mode this exists to prevent is not someone forgetting to flip the bool. It is someone
- * tidying the blocker list, deleting the entry because it looks like stale paperwork, and leaving
- * the overlay on with nothing anywhere to catch it.
+ * A comment saying "do not ship this on" is not a countermeasure -- this repo has watched prose fail
+ * at exactly that job more than once. The failure mode this exists to prevent is someone flipping
+ * the default for a debugging session, and that flip surviving into a release because nothing
+ * anywhere objected.
+ *
+ * The marker is matched as a WHOLE HTML COMMENT, not as a bare token, so that documentation which
+ * merely mentions the token in prose -- including the note left in PIPELINE.md where R17 used to be,
+ * and this very file -- does not count as the entry existing. That bit me while writing the
+ * discharge note.
  */
 #endregion
 
@@ -32,9 +37,11 @@ namespace OpenRA.Test
 	[TestFixture]
 	public class DebugVisualizationDefaultsTest
 	{
-		// Written into the R17 entry as an HTML comment so it survives prose edits to the entry but
-		// disappears when the entry itself is deleted.
-		const string BlockerMarker = "HITCHECK-OVERLAY-DEFAULT-ON";
+		// Matched as the whole HTML comment rather than as a bare token, so prose that merely names
+		// the marker -- the discharge note in PIPELINE.md does, and so does this file -- is not
+		// mistaken for the entry itself. Assembled from parts for the same reason: a literal here
+		// would make THIS file match a naive grep for the entry.
+		const string BlockerMarker = "<!-- " + "HITCHECK-OVERLAY-DEFAULT-ON" + " -->";
 
 		static bool DefaultDamageNumbers()
 		{
@@ -51,41 +58,48 @@ namespace OpenRA.Test
 			if (defaultOn)
 			{
 				Assert.That(entryPresent, Is.True,
-					$"DebugVisualizations.DamageNumbers still defaults to TRUE, so the developer overlay " +
-					$"ships on and a stranger sees floating damage numbers in their first firefight. The " +
-					$"'{BlockerMarker}' entry in WORKSPACE/PIPELINE.md is the thing that gets that caught " +
-					$"before release -- it is load-bearing, not stale paperwork. Put it back, or flip the " +
-					$"default to false in the same commit.");
+					$"DebugVisualizations.DamageNumbers has been turned back ON, so the developer overlay " +
+					$"ships enabled and a stranger would see floating damage numbers in their first " +
+					$"firefight. That is a release blocker and it needs an entry in WORKSPACE/PIPELINE.md " +
+					$"carrying the marker comment {BlockerMarker} so it is caught before release. File one " +
+					$"in this commit, or flip the default back to false. Note the overlay is NOT needed to " +
+					$"run the detector -- hitcheck.log is written either way; the checkbox turns the " +
+					$"on-screen half on for a session without touching the default.");
 			}
 			else
 			{
 				Assert.That(entryPresent, Is.False,
-					$"DebugVisualizations.DamageNumbers now defaults to FALSE, so the release blocker is " +
-					$"discharged. Delete the '{BlockerMarker}' entry (R17) from WORKSPACE/PIPELINE.md in " +
-					$"this commit -- a blocker list that keeps entries after they are fixed stops being " +
-					$"read.");
+					$"DebugVisualizations.DamageNumbers defaults to FALSE, so there is nothing to defer and " +
+					$"no blocker entry should exist. Delete the entry carrying {BlockerMarker} from " +
+					$"WORKSPACE/PIPELINE.md in this commit -- a blocker list that keeps entries after they " +
+					$"are discharged stops being read.");
 			}
 		}
 
 		[Test]
 		public void TheDefaultIsPinnedSoFlippingItShowsUpInADiff()
 		{
-			// Deliberately asserts the CURRENT value rather than the desired one. Its whole job is to
-			// make the flip a visible, deliberate edit to a test rather than a one-character change
-			// nobody reviews. When the default flips, this assertion flips with it, in the same commit.
-			Assert.That(DefaultDamageNumbers(), Is.True,
-				"DamageNumbers is expected to still default to true at this point in the project. If you " +
-				"have just switched it off for release, change this assertion to False and delete the R17 " +
-				"entry from WORKSPACE/PIPELINE.md.");
+			// Deliberately asserts the CURRENT value rather than a desired one. Its job is to make any
+			// flip a visible, deliberate edit to a test rather than a one-character change nobody
+			// reviews -- in EITHER direction. It flipped once already, from True to False, when the
+			// R17 deferral ran out of road on 2026-08-30.
+			Assert.That(DefaultDamageNumbers(), Is.False,
+				"DamageNumbers is expected to default to false: the overlay is developer-only and must not " +
+				"be on in a build the user play-tests. If you are deliberately turning it on, change this " +
+				"assertion to True and file the blocker entry in WORKSPACE/PIPELINE.md in the same commit. " +
+				"If you only want it for one session, use the Damage Numbers checkbox instead.");
 		}
 
 		[Test]
-		public void EveryOtherDebugVisualisationStaysOff()
+		public void EveryDebugVisualisationStaysOff()
 		{
-			// The point of DamageNumbers being separate is that it is the ONLY one on. If a second
-			// overlay ever defaults on, it needs its own blocker entry and its own argument.
+			// No debug visualisation may default on. DamageNumbers is checked separately above
+			// because it is the one that has been on before and carries the blocker machinery; the
+			// rest are swept here so a second one cannot be switched on quietly without its own
+			// entry and its own argument.
 			var vis = new DebugVisualizations();
 
+			Assert.That(vis.DamageNumbers, Is.False);
 			Assert.That(vis.CombatGeometry, Is.False);
 			Assert.That(vis.RenderGeometry, Is.False);
 			Assert.That(vis.ScreenMap, Is.False);
