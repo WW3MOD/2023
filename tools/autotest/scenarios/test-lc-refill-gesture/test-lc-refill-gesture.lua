@@ -98,6 +98,16 @@ end
 WorldLoaded = function()
 	TestHarness.FocusBetween(Truck, StockedLC)
 
+	-- EVERY READING BELOW HAPPENS IN ONE TICK, and that is load-bearing rather than incidental.
+	-- No time passes between the SetSupply that stages a case and the ClickCursor that reads it, nor
+	-- between one case and the next -- so no aura, no serve cadence and no idle path can move either
+	-- pool underneath the walk. In particular the truck cannot be nudged across the 50 threshold
+	-- between two beats, which would silently change what the boundary observables mean.
+	--
+	-- ClickCursor is what makes this possible: it issues NOTHING (it resolves the targeter chain and
+	-- returns the cursor), so ten readings leave the world exactly as they found it. If a future
+	-- edit needs a reading that ISSUES, it belongs after this block, not inside it -- and the one
+	-- that does (the delivery) is deliberately last.
 	Trigger.AfterDelay(50, function()
 		-- Restated here rather than trusted from map.yaml: these three are what make each refusal
 		-- below attributable to the pool it is testing.
@@ -123,6 +133,15 @@ WorldLoaded = function()
 		-- Force-move on an EXACTLY full truck: neither direction can act, so the click falls through
 		-- to Repairable. This is the whole remaining reach of repair-by-click on a Centre.
 		r.fullForce = cursorWith(TruckCapacity, StockedLC, "Ctrl")
+
+		-- THE PRECONDITION THE WHOLE CURSOR METHOD RESTS ON, recorded at the reading beat rather than
+		-- reasoned about. Every "enter" assertion below is only evidence for Restock while the truck
+		-- is UNDAMAGED: Repairable's EnterCursor is also "enter", and it is only the undamaged case
+		-- that pushes Repairable to "enter-blocked" and makes the three outcomes distinguishable. A
+		-- chipped truck would turn a broken Restock into a passing "enter" reading. Nothing here
+		-- shoots and the enemy SUPPLYROUTE is unarmed, so this should hold trivially -- which is
+		-- exactly why it is worth one line to check rather than to assume.
+		r.truckIntact = (not Truck.IsDead) and Truck.Health == Truck.MaxHealth
 
 		-- Issued LAST, because it is the only reading that moves anything: the real delivery, routed
 		-- through the same order chain the mouse uses.
@@ -161,12 +180,28 @@ WorldLoaded = function()
 	end)
 
 	TestHarness.AssertWithin(DeadlineSeconds, function()
-		if Truck.IsDead or StockedLC.IsDead or FullLC.IsDead or DrainedLC.IsDead then
-			return "fail: an actor died before the readings resolved -- nothing in this scenario should be shooting"
+		-- THE TRUCK IS EXPECTED TO DISAPPEAR ONCE THE DELIVERY LANDS. A complete delivery empties it,
+		-- and an empty truck evacuates and is sold (user ruling 2026-08-30) -- so this guard must stop
+		-- applying to the truck the moment the settle window opens, or the scenario fails the run for
+		-- the intended behaviour it exists to observe. The Centres are guarded throughout: none of
+		-- them has any reason to die at any point.
+		if StockedLC.IsDead or FullLC.IsDead or DrainedLC.IsDead then
+			return "fail: a Logistics Centre died -- nothing in this scenario should be shooting"
+		end
+
+		if not r.settling and Truck.IsDead then
+			return "fail: the truck died before the delivery landed -- nothing in this scenario should be shooting"
 		end
 
 		if not r.read then
 			return false
+		end
+
+		-- Checked BEFORE any cursor assertion, because it is what gives them their meaning.
+		if not r.truckIntact then
+			return "fail: the truck was damaged at the reading beat, so 'enter' no longer distinguishes"
+				.. " Restock from Repairable -- every cursor observable below is void, and a green run"
+				.. " here would have proved nothing"
 		end
 
 		-- 1. A loaded truck GIVES, and says so with the wrench.
@@ -212,14 +247,21 @@ WorldLoaded = function()
 		end
 
 		-- 5. The host's pool decides too, in both directions.
-		if r.loadedOnFull == "goldwrench" then
-			return "fail: a loaded truck hovering a FULL Centre still promised a delivery (goldwrench)."
-				.. " A Centre starts full, so this is the first thing a player tries -- and the transfer would move nothing"
+		-- ASSERTED POSITIVELY, not as "anything but goldwrench". A refusal here means neither supply
+		-- direction claimed the click, so it falls through to Repairable at priority 5, which on an
+		-- undamaged truck is exactly enter-blocked. Testing for the absence of goldwrench would also
+		-- accept an empty cursor -- i.e. it would pass with the gesture ripped out entirely, which is
+		-- the shape of vacuous assertion this scenario is being audited for.
+		if r.loadedOnFull ~= "enter-blocked" then
+			return "fail: a loaded truck hovering a FULL Centre showed '" .. shown(r.loadedOnFull)
+				.. "' instead of enter-blocked. A Centre starts full, so this is the first thing a player tries;"
+				.. " the delivery must be refused and the click must reach Repairable rather than being claimed"
 		end
 
-		if r.lowOnDrained == "enter" then
-			return "fail: an almost-empty truck hovering a DRAINED Centre still promised service (enter);"
-				.. " the Centre has nothing to give, so the truck would drive the whole way for nothing"
+		if r.lowOnDrained ~= "enter-blocked" then
+			return "fail: an almost-empty truck hovering a DRAINED Centre showed '" .. shown(r.lowOnDrained)
+				.. "' instead of enter-blocked; the Centre has nothing to give, so the truck would drive the whole"
+				.. " way for nothing and the click must be refused"
 		end
 
 		-- 6. Neither direction can act on a full truck under force-move, so the click must reach
