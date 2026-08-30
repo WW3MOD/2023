@@ -1067,14 +1067,19 @@ TosRockets:
 		ShockwaveInnerAlpha: 10
 		# Must stay well under the 10-tick life or the ring fades in as it is fading out.
 		ShockwaveFadeInTicks: 2
-		# THE REASON THIS IS NOT 0 LIKE EVERY OTHER RING IN THE MOD. Alpha falls linearly with
-		# distance travelled, so a ring is always dimmest at its widest — harmless for band 8,
-		# whose 2458 radius clears the fireball sprite in its first fifth. This ring is 2048 wide
-		# against the same ~40 px fireball, so it only escapes the explosion graphic around 40% of
-		# the way out, by which point a fade to zero has spent 40% of its alpha and the outer edge
-		# is down to 6%. Holding 35% at the edge moves the brightness to the radii where the ring
-		# is actually on open ground rather than hidden behind the fireball.
-		ShockwaveEndAlphaPercent: 35
+		# THIS RING CARRIED ShockwaveEndAlphaPercent: 35 UNTIL 2026-08-30, AND NOW CARRIES NOTHING.
+		# The 35 bought visibility in the wrong currency. Under the old straight-line fade a ring was
+		# dimmest exactly where it was widest, and this one only clears the ~40 px fireball sprite
+		# around 40% of the way out, so a fade to zero had already spent 40% of its alpha by the time
+		# anyone could see the thing — hence propping the edge up to 35%. The cost was that the last
+		# frame drawn was still a solid 27/255 band at full radius, which the user reported as the
+		# ring being "too chunky" and ending without fading.
+		#
+		# ShockwaveFadeOutExponentPercent fixes the same problem at its source and costs nothing here:
+		# 1 - p^2 is BRIGHTER than the old 35%-floored line everywhere from 20% to 60% of the travel,
+		# which is precisely the window where this ring is emerging from the fireball, and it still
+		# reaches zero. Deleting the override made the ring easier to see, not harder — do not add a
+		# floor back on the strength of the invisibility incident above without re-reading this.
 		ValidTargets: Ground, Water, Trees
 		InvalidTargets: Air
 

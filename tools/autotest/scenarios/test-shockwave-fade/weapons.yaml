@@ -1,0 +1,23 @@
+# The two rings the user named, exactly as they rendered BEFORE the fade curve changed on
+# 2026-08-30, so each capture holds the new ring beside its own control.
+#
+# Both inherit and override only the fade fields. A hand-copied duplicate of the whole warhead
+# would stop being a control the moment anyone retunes the shipped one — the same reasoning as
+# VolatileLoad8Legacy in test-shockwave-ring-sizes, and worth repeating because the failure mode
+# is silent: the control drifts, the comparison still renders, and the capture still looks fine.
+
+# The TOS ring is the one the user reported. It carried BOTH halves of the old behaviour — the
+# straight-line ramp and a 35% floor under it — so its control has to restore both, not just one.
+TosRocketsLegacyFade:
+	Inherits: TosRockets
+	Warhead@Shockwave: ShockwaveDamage
+		ShockwaveFadeOutExponentPercent: 100
+		ShockwaveEndAlphaPercent: 35
+
+# The loaded supply truck's widest band. It never had a floor — it was already fading to zero on a
+# straight line — so this control isolates the curve change on its own, which is the half of the
+# work that has no user report behind it and is therefore the half most likely to be a regression.
+VolatileLoad8LegacyFade:
+	Inherits: VolatileLoad8
+	Warhead@Shockwave: ShockwaveDamage
+		ShockwaveFadeOutExponentPercent: 100

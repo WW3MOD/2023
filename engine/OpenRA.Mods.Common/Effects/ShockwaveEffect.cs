@@ -126,9 +126,14 @@ namespace OpenRA.Mods.Common.Effects
 				? System.Math.Min(1f, (float)ticks / warhead.ShockwaveFadeInTicks)
 				: 1f;
 
-			// Fade out: smoothly reaches zero at max radius (never disappears abruptly)
-			var endAlphaFrac = warhead.ShockwaveEndAlphaPercent / 100f;
-			var fadeOut = 1f - progress * (1f - endAlphaFrac);
+			// Fade out, landing on ShockwaveEndAlphaPercent exactly at the edge the ring is drawn out to.
+			// The exponent is the difference between a ring that dissipates and one that is switched off:
+			// a straight line (exponent 100) spends alpha evenly, so the last frame is still drawn at a
+			// fifth of full brightness across a band that by then is the widest it will ever be, and that
+			// terminal band is what reads as chunky. Loading the fall into the end instead keeps the ring
+			// solid while it is growing — which is also where a small ring is fighting its own fireball
+			// sprite for visibility — and empties it over the last stretch.
+			var fadeOut = warhead.FadeOutAt(progress);
 
 			var startOuterAlpha = warhead.ShockwaveOuterAlpha / 100f;
 			var startInnerAlpha = warhead.ShockwaveInnerAlpha / 100f;

@@ -3,6 +3,51 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-30 — "make the rings fade out" was NOT a constant to change: `ShockwaveEndAlphaPercent` already defaulted to 0 and the rings already reached zero. The lever was the SHAPE of the ramp (`wt/shockwave-fade`)
+
+- **The obvious field was already correct, and that is the trap.** The user reported that shockwaves
+  are "too chunky" and should "fade more towards the end". `ShockwaveEndAlphaPercent` defaults to `0`,
+  so every ring in the mod except one was already fading to exactly zero alpha at full radius. Reading
+  the request as "set the end alpha to 0 by default" produces a diff that changes nothing for eight of
+  the nine call sites. Only `TosRockets` carried an override (`35`), and it was the ring the user
+  named — but "same goes for all shockwaves" cannot be satisfied by deleting one override.
+- **What was actually wrong was that alpha fell LINEARLY while the ring's visual mass GREW.** Ink on
+  screen is roughly `alpha × circumference × band thickness`. Circumference grows with radius and the
+  thickness ramp reaches full width at 40% of travel, so under `1 - p` the ring's total presence peaks
+  at the halfway point and is still at ~64% of that peak at 80% of the way out. A ring that is
+  mathematically "fading" the whole time still reads as solid nearly to the end.
+- **`1 - p^2` is the fix, and it is free.** It factors to `(1 + p)` times the linear ramp, so it is
+  **brighter everywhere in between and lands on identical endpoints** — it cannot darken any frame.
+  That matters because the TOS ring shipped INVISIBLE once (2026-08-30, earlier the same day) by
+  tuning down the stretch where it is still inside its own fireball sprite; any curve that is
+  pointwise ≥ the old one is immune to re-introducing that. Pinned by
+  `ShockwaveTuningTest.TheDefaultCurveNeverDarkensAnyFrameAgainstTheOldLinearRamp`.
+- **The distinguishing property of "fades at the end" is the TERMINAL SLOPE, not the endpoint.**
+  `1 - p^k` has derivative `-k` at `p = 1` versus the line's `-1`; `(1 - p)^k` looks superficially
+  similar but fades hardest at the START, which is the invisibility failure mode. Both reach zero.
+  If someone says "fade more towards the end", `1 - p^k` is the family they mean.
+
+### Capturing a shockwave ring at all — three things that cost the previous round its answer
+
+- **Photograph the LAST frame, and derive which tick that is.** `test-shockwave-ring-sizes` walked the
+  truck ring to kill+13, which is its **eleventh frame of twelve** — so it only ever photographed radii
+  where the ring was always going to be visible, and the terminal frame that the whole complaint was
+  about went unseen. The arithmetic: the effect exists from kill+1, burns `StartDelay` ticks returning
+  early, then draws while `radius <= VisualRadius` at `1024 / WaveSpeed` per tick.
+- **Put the control in the SAME FRAME.** A capture is armed one render frame before its pixels are
+  sampled, so any single shot can land a tick either side of its aim point and an absolute brightness
+  reading of "the last frame" is untrustworthy. Two rings in one frame drift together, so the
+  comparison survives what the timing does not. `Inherits:` the shipped weapon and override only the
+  fade fields, so the control cannot silently drift when the shipped one is retuned.
+- **`Test.SetZoom(2)` beats upscaling pixels.** A ring is 2–2.4 cells across, under 100 px of diameter
+  at default zoom — enough to answer "did anything render", not enough to answer "is this fading".
+  Note the capture comes back at **2× the requested window size** on a HiDPI display (`--size
+  1600x1000` → a 3200×2000 PNG), which doubles every screen-space offset you compute for cropping.
+  Cell size in screen px is `24 × zoom × 2`. The `Read` tool downscales large PNGs aggressively, so
+  crop tight (one ring per file, ~480×480 native) rather than downscaling a wide frame.
+
+> Stable, broadly applicable items should also go into CLAUDE.md.
+
 ## 2026-08-30 — 8 of 10 shipped maps regenerate the whole `shadows.bin` LOS cache on EVERY load (29–101 s measured); `ComputeUID` hashes `shadows.bin`, so the cache is part of map identity (recon, `main` @ `627be5a4`)
 
 Full write-up: [`recon-shadows-on-demand.md`](recon-shadows-on-demand.md). Static read plus four
