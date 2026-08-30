@@ -3,6 +3,43 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-30 — `iskander` and `HIMARS` carry NO `Rearmable`, so ANY resupply-selection scenario staged on them is vacuous — the detour branch is unreachable for those two whatever it is guarded on (`wt/evac-afford`, base `main @ 48d60cb4`)
+
+**The trap in one line: a resupply test that uses the unit the bug was REPORTED against can be
+measuring nothing.** The defect fixed on this branch — `AmmoPool`'s Evacuate arm picking its detour
+target by proximity and only then testing affordability — was reported against an Iskander. Staging
+the scenario with an Iskander would have produced a confident green that proved nothing at all.
+
+**Why.** `AmmoPool.RearmCandidates` returns an empty set the moment `RearmableInfo` is null
+(`AmmoPool.cs:1058-1061`), and since the strategic-launcher ruling both launchers ship without one:
+`vehicles-russia.yaml:1050` (*"NO Rearmable, and NO ExternalCondition@VehicleReplenish"*) and the
+fuller note on `HIMARS` at `vehicles-america.yaml:106`. So `ChooseResupplier` **and**
+`ChooseAffordableResupplier` both return null for those two, `evacHost` is null, the whole detour
+branch is skipped regardless of how it selects, and the launcher reaches `EvacuateForRefund`. That is
+the *designed* behaviour for strategic artillery — it is why the ruling removed `Rearmable` — so the
+unit leaves the map identically before and after any change to the selection code.
+
+**The units that genuinely reach this arm are the TACTICAL rocket artillery**: `m270`, `grad`, `tos`.
+All three ship `InitialResupplyBehavior: Evacuate` *and* `Rearmable / RearmActors: logisticscenter`,
+which is the combination the arm requires — a unit that takes the Evacuate branch AND has candidates
+for that branch to choose between. `grad`'s own comment records that it acquired `Rearmable` on
+2026-08-30 precisely because *"with none, AmmoPool.ChooseResupplier can never return a host"*
+(`vehicles-russia.yaml:132-141`).
+
+**The generalisable form, which is what makes this worth banking:** *"unit X exhibits the bug"* and
+*"unit X can exercise the code path"* are different claims, and for this mod they come apart at
+`Rearmable`. Before staging any rearm/resupply/detour scenario, check the subject actually declares
+`Rearmable` with a `RearmActors` list naming a host that exists on the map — `NamesRearmActors`
+(`AmmoPool.cs:977`) is the same predicate the engine gates on. This is a sibling of the `spawnarea`
+anchor trap already recorded for evacuation scenarios: both are "the stage silently removed the
+mechanism, and the test went green anyway".
+
+**Choosing the band, once a valid subject is picked:** the discriminator is
+`provider.CurrentSupply >= p.Info.SupplyValue`, so the scenario needs a depot stocked inside
+`1 .. SupplyValue-1` — stocked enough to survive `RearmCandidates`' `CurrentSupply > 0` filter, too
+poor to pay for a batch. `m270` gives the widest such band of the three at `SupplyValue: 70`
+(`vehicles-america.yaml:121`); `grad` is 85 and `tos` 120.
+
 ## 2026-08-30 — `Timestep` is MILLISECONDS PER TICK, there are ELEVEN of them, and only `mod.yaml:382` is the default — the number that looks like a tick rate is its inverse (`wt/postmerge-fallout`, verified against `main @ 0163ca22`)
 
 **`mods/ww3mod/mod.yaml:394` really does contain `Timestep: 40`.** That is the whole trap. A reader

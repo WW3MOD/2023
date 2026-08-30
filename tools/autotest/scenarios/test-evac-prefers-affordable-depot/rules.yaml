@@ -1,0 +1,60 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-evac-prefers-affordable-depot.lua
+
+m270:
+	# Wholly dry on arrival, so AutoRearmIfDry's Evacuate arm runs for real at the becoming-idle
+	# transition rather than being staged by the test. Wholly dry (not merely essential-dry) also
+	# earns the full 30-cell DryRearmLeashCells, which admits both depots at 4 and 8 cells -- so the
+	# leash is never what decides this.
+	#
+	# THE LUA ASSERTS THIS RESOLVED TO 0, and that is not defensive padding: an InitialAmmo that
+	# failed to apply would leave the launcher armed, never dry, never in this arm at all, and the
+	# scenario would time out looking like a regression in code it never reached.
+	AmmoPool@1:
+		InitialAmmo: 0
+
+# ==========================================================================================
+# THE RED ARM. There is deliberately no YAML control here, for the same reason
+# test-poor-depot-still-worth-the-trip has none: the behaviour under test is a C# selection
+# strategy, not a configuration value. No field selects between "pick the nearest stocked host,
+# then ask whether it can pay" and "pick the nearest host that can pay", and inventing one purely to
+# hold a control would ship a knob nobody wants.
+#
+# The RED arm is therefore the PRE-FIX ENGINE, restored exactly. In AmmoPool.cs, inside
+# `case ResupplyBehavior.Evacuate:`, revert the two coupled lines to what main @ 48d60cb4 shipped:
+#
+#     var evacHost = ChooseAffordableResupplier(self, ammoPools);      ->  ChooseResupplier(self);
+#     if (evacHost != null && SupplyHuntMath.WithinCellBudget(         ->  re-add the conjunct
+#                                                                          HostCanAffordSomethingWeNeed(evacHost, ammoPools) &&
+#
+# Leave `AutoRearm(self, true, evacHost)` alone while doing so -- passing the host is INERT under
+# the pre-fix pick, because there evacHost IS ChooseResupplier(self) and the re-pick inside
+# AutoRearm returns the same actor. That inertness is the reason the two fixes had to ship together
+# and is worth observing rather than asserting.
+#
+# EXPECTED RED, and the mechanism in full: ChooseResupplier returns NearPoorDepot (nearest by
+# CenterPosition, and stocked at 50 so it clears the CurrentSupply > 0 filter).
+# HostCanAffordSomethingWeNeed is then asked about THAT actor and answers no -- 50 < SupplyValue 70.
+# The whole detour branch is skipped and control reaches EvacuateForRefund, which queues RotateToEdge
+# and disposes the launcher at the map edge. FarRichDepot, holding 2250 and eight cells away, is
+# never consulted. The verdict must be the launcher's own early-fail string, whose stable prefix is:
+#
+#     fail: the launcher LEFT THE MAP
+#
+# Note what makes that RED attributable rather than merely red: the same string reports both depots'
+# supply at the moment of departure. NearPoorDepot still holding 50 proves the launcher took nothing
+# on the way out, and FarRichDepot still holding 2250 proves the affordable depot was never
+# considered. A bare "it died" would not distinguish evacuation from any other cause.

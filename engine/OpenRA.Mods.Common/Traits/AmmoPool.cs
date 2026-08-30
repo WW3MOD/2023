@@ -461,12 +461,16 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// <para>Could this host actually pay for a batch of something we are short of? Only asked on the
-		/// EVACUATE detour, and it is the one gate there that is not about distance.</para>
+		/// <para>Could this host actually pay for a batch of something we are short of? The one dispatch
+		/// gate that is not about distance. Reached only through
+		/// <see cref="ChooseAffordableResupplier"/>, which asks it of every candidate BEFORE picking —
+		/// both the Auto arm and the Evacuate detour choose that way, and neither re-asks it afterwards
+		/// because the answer is guaranteed by construction.</para>
 		///
-		/// <para>Everywhere else a wasted walk costs a walk. Here it costs the unit's exit: an evacuating
-		/// actor that detours to a host which cannot serve it does not resume leaving — it parks in
-		/// <see cref="Activities.SeekSupplyProvider"/>'s in-range branch, which stands still waiting for a
+		/// <para>Everywhere else a wasted walk costs a walk. On the evacuate detour it costs the unit's
+		/// exit: an evacuating actor that detours to a host which cannot serve it does not resume
+		/// leaving — it parks in <see cref="Activities.SeekSupplyProvider"/>'s in-range branch, which
+		/// stands still waiting for a
 		/// push that never comes and has no stall guard of its own (AutoSeekSupplies' guard covers only
 		/// errands that trait dispatched, on infantry). So the m270/grad/tos, which ship with
 		/// InitialResupplyBehavior: Evacuate, would trade a banked refund for a combat-inert vehicle
@@ -722,8 +726,18 @@ namespace OpenRA.Mods.Common.Traits
 					// RotateToEdge would fall back to the closest edge cell to the unit itself. The leash
 					// alone then decides, which is the user's primary criterion anyway — "any NEARBY
 					// resupply".
-					var evacHost = ChooseResupplier(self);
-					if (evacHost != null && HostCanAffordSomethingWeNeed(evacHost, ammoPools) && SupplyHuntMath.WithinCellBudget(
+					//
+					// CHOSEN ON AFFORDABILITY, not filtered after the fact — the same correction the Auto
+					// arm took at :647, and it matters MORE here. Asking ChooseResupplier first returns the
+					// nearest host holding ANY stock, so a near-but-poor depot SHADOWS a farther affordable
+					// one: the affordability question is then put to the wrong actor, it answers no, and the
+					// unit falls through to EvacuateForRefund. On the Auto arm that mistake costs a stall;
+					// on this one the unit leaves the map permanently, with a depot that would have served
+					// it sitting inside the leash. That is precisely the outcome the user ruling this arm
+					// implements forbids — "they should still go to any nearby resupply first if it is
+					// available".
+					var evacHost = ChooseAffordableResupplier(self, ammoPools);
+					if (evacHost != null && SupplyHuntMath.WithinCellBudget(
 							evacHost.Location.X - self.Location.X,
 							evacHost.Location.Y - self.Location.Y,
 							ResolveSeekLeash(ammoPools)))
@@ -744,7 +758,16 @@ namespace OpenRA.Mods.Common.Traits
 							// that prompted it, and it walks home afterwards. If the rearm does not take
 							// (host drained, unreachable), the unit goes idle still dry and arrives back
 							// here — where the host is now filtered out by CurrentSupply and it leaves.
-							AutoRearm(self, true);
+							//
+							// `evacHost` is passed rather than re-picked, exactly as the Auto arm does at
+							// :679. Every gate above — affordability, the leash, and beatsExit — was decided
+							// ABOUT this actor, so letting AutoRearm fall back to ChooseResupplier would
+							// dispatch the unit to a different one: the nearest merely-stocked depot, which
+							// is the very host affordability just rejected. Note this argument only became
+							// load-bearing when the line above started choosing on affordability; while both
+							// calls were ChooseResupplier the re-pick returned the same actor and the
+							// omission was inert. That is why the two changes are one change.
+							AutoRearm(self, true, evacHost);
 							self.ShowTargetLines();
 							break;
 						}
