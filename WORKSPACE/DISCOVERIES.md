@@ -13748,14 +13748,20 @@ comment has been corrected in place — the same mistake is easy to make again f
 
 ---
 
-## 2026-08-30 — A cloned widget's delegates close over the TEMPLATE, so any field read through a delegate is the template's, not the clone's
+## 2026-08-30 — A widget's backing FIELD and the delegate that reads it can disagree, and the engine consults the DELEGATE
 
-Found while adding a `ColorBlock` header band to the Esc-menu info panel. This is the **third**
-instance of the same family found today, and the generalisation is worth more than any of the three:
+Four instances of one pattern surfaced today. It was first written up as a *cloning* trap, and that
+framing is too narrow: the fourth involves no clone at all. The general rule:
 
-> **Widget copy constructors copy the DELEGATE, and the delegate was built in the template's
-> constructor closing over the template's `this`. So a cloned widget reads the template's field, not
-> its own — for every field that is reached through a `Func<>` rather than directly.**
+> **Widget state is reached through a `Func<>` — `IsVisible`, `GetText`, `GetColor` — and the engine
+> asks the delegate, never the field behind it. Any code that reads the FIELD is reading the stale
+> half the moment the two come apart.**
+
+**They come apart in two ways.** *Cloning* is the common one: a copy constructor copies the delegate,
+and that delegate was built in the template's constructor closing over the template's `this`, so the
+clone reads the template's field forever. *Runtime assignment* is the other, and it needs no clone at
+all: logic code writes `w.IsVisible = () => …` and leaves `w.Visible` untouched, after which the two
+disagree permanently. Instance 4 below is that second kind, which is why the cloning framing missed it.
 
 **Instance 3 — `ColorBlockWidget` (`engine/OpenRA.Mods.Common/Widgets/ColorBlockWidget.cs`).** The
 field is `Color` (`:20`) and the accessor is `GetColor` (`:21`). The `[ObjectCreator.UseCtor]`
@@ -13790,11 +13796,34 @@ empty. This is why `ScrollItemWidget.Setup` reassigns `w.IsVisible = () => true`
 those two lines are not decoration, they are the countermeasure, and any new clone site that omits
 them inherits the bug.
 
-**The operative rule when writing a clone site.** Ask, per field you care about: *is it read directly
-or through a delegate?* Directly-read fields (`Align`, `Bounds`, `Font`) survive if the copy
-constructor lists them. Delegate-read fields (`Color`, `Text`, `Visible`) do **not**, whether or not
-the copy constructor lists them — the listing is a decoy. Either reassign the delegate on the clone
-to close over the clone, or do not vary that field per clone.
+**Instance 4 — `TestModeScreenshots.FindVisible`, and NO clone is involved.** The screenshot
+harness's `click <widget-id>` verb walked the UI tree with `if (!w.Visible) return null;`. The ingame
+info panel's tab strip is authored `Visible: False` in `mods/ww3mod/chrome/ingame-info.yaml` and
+switched on by `GameInfoLogic` assigning `tabContainer.IsVisible = () => true` (`GameInfoLogic.cs:110`)
+— which never touches the field. So the field test walked straight past every tab button in the Esc
+menu and the verb reported `NO SUCH VISIBLE WIDGET` for a button plainly on screen. The engine's own
+answer was one call away and disagreed: `Widget.DrawOuter` (`Widget.cs:490`) and
+`HandleMouseInput` (`:428`) both gate on `IsVisible()`. Fixed by using `IsVisible()`. **Note what this
+one costs:** it is not a rendering bug, it is a *measurement* bug — it made a correct UI look broken to
+the tool that was supposed to inspect it, which is the most expensive direction for this failure to run.
+
+**A near-miss worth separating: the lobby chip frozen at 180px.** Reported alongside these, but the
+mechanism is NOT the same and conflating them would mislead. `Container@CHIP_TEMPLATE` is authored
+`Width: 180` (`engine/mods/common/chrome/lobby-players.yaml:1063`), and `Bounds` is a *directly-read*
+field that the copy constructor duly copies — so a clone starts at the template's width and simply
+stays there until something overwrites it, which `LobbyActiveChangesLogic` now does explicitly for the
+chip and both its children (`:223`, `:233`, `:241`). That is ordinary value inheritance, not a
+delegate reading the wrong object. **The distinction matters because the remedies differ:** a
+delegate-read field cannot be fixed by assigning the clone's field at all, whereas this one is fixed
+by exactly that.
+
+**The operative rule.** Ask, per field you care about: *is it read directly
+or through a delegate?* Directly-read fields (`Align`, `Bounds`, `Font`) behave normally and survive a
+clone if the copy constructor lists them. Delegate-read fields (`Color`, `Text`, `Visible`) do **not**,
+whether or not the copy constructor lists them — the listing is a decoy. When cloning, either reassign
+the delegate on the clone to close over the clone, or do not vary that field per clone. When *reading*
+widget state from outside — a test harness, a debug overlay, an assertion — call the delegate, never
+the field, because the delegate is what the engine itself obeys.
 
 **Why this keeps getting past the gate.** Nothing here is a compile error and nothing is a test
 failure; two of the three instances render *plausible* output (the template's value) rather than

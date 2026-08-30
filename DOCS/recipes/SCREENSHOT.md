@@ -237,6 +237,13 @@ How I decide whether a screenshot shows what it should:
 
 - `test-screenshot-smoke` — proves the pipeline. Three captures at named beats, pass.
 
-## Future (Phase 3 — sketched, not built)
+## Phase 3 — programmatic UI driving (PARTLY BUILT, not "sketched")
 
-Programmatic UI driving — `click <widget-id>`, `text <field-id> <value>` commands added to the same command-file watcher. Would let the agent stage a known lobby state ("3 slots, 1 human, 2 bots, map = River Zeta") and screenshot it. Tracker: re-plan after Phase 1/2 have been used for real.
+**`click <widget-id>` and `hover <actor-name>` are BUILT and shipping**, as cmd-file verbs alongside `screenshot` and `quit` (`engine/OpenRA.Game/TestModeScreenshots.cs`, `PollCommands`). `click` invokes the first visible widget of that id through its own `OnClick` — the same handler a real click runs — so a capture driver can change tabs, dismiss dialogs and take menu buttons without touching the host's cursor. `tools/autotest/watch-replay.sh` and `tools/autotest/screenshot-infopanel.sh` both rely on it. **Do not reimplement this**; the "sketched, not built" wording here previously said it did not exist, which is a whole session's worth of reinvention for whoever believes it.
+
+Two properties of `click` worth knowing before you use it:
+
+- **It matches on `IsVisible()`, not the raw `Visible` field** — corrected 2026-08-30. The two disagree whenever logic assigns the delegate at runtime, and the ingame info panel's `TAB_CONTAINER_N` are exactly that case (authored `Visible: False`, switched on by `GameInfoLogic` assigning `IsVisible = () => true`). Under the old field test every tab button in the Esc menu was unreachable and reported as `NO SUCH VISIBLE WIDGET`. See `WORKSPACE/DISCOVERIES.md` 2026-08-30 for the general form of this trap.
+- **A miss is logged, not thrown**: `[TestMode] external click: <id> → NO SUCH VISIBLE WIDGET` in `debug.log`. A driver that does not check for that line will happily photograph whatever was on screen instead and report it as a successful capture — which is how one run came back with two byte-identical frames of an error dialog and called them two captures. **Grep the log for the miss, and treat byte-identical captures as NO-RESULT.**
+
+Still genuinely unbuilt: `text <field-id> <value>` and key events.
