@@ -146,7 +146,18 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					var cell = self.World.Map.CellContaining(target.CenterPosition);
 					var explored = self.Owner.MapLayers.IsExplored(cell);
-					cursor = explored || info.MoveIntoShroud ? info.AttackMoveCursor : info.AttackMoveBlockedCursor;
+
+					// The ammo term mirrors ResolveOrder's gate above, INCLUDING its !order.Queued
+					// scoping. Dropping the queued half would trade one lie for its mirror: a
+					// shift-queued attack-move on a dry unit is deliberately accepted and runs once
+					// the unit has rearmed, so showing it blocked would deny an order that works.
+					// Returns true either way — the click is still consumed, and the blocked art is
+					// the only thing that tells the player why nothing happened.
+					var refused = !modifiers.HasModifier(TargetModifiers.ForceQueue) && AmmoPool.CannotFight(self);
+
+					cursor = (explored || info.MoveIntoShroud) && !refused
+						? info.AttackMoveCursor
+						: info.AttackMoveBlockedCursor;
 					return true;
 				}
 
@@ -218,7 +229,17 @@ namespace OpenRA.Mods.Common.Traits
 				if (world.Map.Contains(cell))
 				{
 					var explored = subject.Actor.Owner.MapLayers.IsExplored(cell);
-					var blocked = !explored && !info.MoveIntoShroud;
+
+					// Same ammo mirror as AttackMoveTargeter, but resolved over the WHOLE selection
+					// rather than one actor: OrderInner issues a single grouped order to every
+					// subject, and ResolveOrder drops it per-unit. So the click still achieves
+					// something while ANY subject can fight, and only reads blocked when none can —
+					// the same "refusers are silenced while somebody else acts" rule that
+					// OrderFallbackMath.SelectionSuppressesRefusers applies on the ordinary path.
+					var refused = !modifiers.HasModifier(Modifiers.Shift)
+						&& subjects.All(s => AmmoPool.CannotFight(s.Actor));
+
+					var blocked = (!explored && !info.MoveIntoShroud) || refused;
 					return blocked ? info.AttackMoveBlockedCursor : info.AttackMoveCursor;
 				}
 

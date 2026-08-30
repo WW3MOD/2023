@@ -80,9 +80,27 @@ identical `EnableStances` flag on both sides. Only one actor in the mod sets it 
 
 Ranked by *how often a player hits it* × *how misleading it is when they do*.
 
-### 1. `enter` on your own Supply Route rotates the unit off the map and sells it — VERIFIED [R]
+### 1. `enter` on your own Supply Route rotates the unit off the map and sells it — CLOSED, NOT A DEFECT
 
-**The worst finding in the audit**, and the only one whose cost is irreversible.
+> **User ruling, 2026-08-30 — intended, no change:** *"It is just a way to order evacuation by
+> in-game click (no hotkey needed), I don't see any issue. The icon is okay, there is nothing better
+> I think."*
+>
+> **The reasoning, which is the part this audit was missing:** the mouse affordance **existing
+> without a hotkey is the point**. It is not a redundant duplicate of the Evacuate command-bar
+> button — it is the no-hotkey route to the same order, and `enter` is an accepted fit for "send
+> this unit into the Supply Route and off the map".
+>
+> **Every fact below is correct and was verified.** The cursor does mean something else elsewhere,
+> the consequence *is* irreversible, and the resolver *does* discard the target it was handed. None
+> of it added up to a defect. **A divergence between what a pointer conventionally means and what an
+> order does is evidence, not a conclusion** — re-deriving these facts will reproduce the same
+> alarming and correct analysis, so the ruling is also pinned in code at `DeliversCash.cs:101`
+> (`GoDonateCash`, the `Rotation` branch) where the next reader will trip over it first.
+>
+> Retained below unchanged as the worked example of that lesson. **Do not re-file.**
+
+The mechanism, for anyone who rediscovers it:
 
 - **Display:** `DeliversCashOrderTargeter`, priority **5**, cursor `"enter"`
   (`DeliversCash.cs:38`, `:126`, `:128-139`). It accepts any target carrying
@@ -117,18 +135,24 @@ One further inconsistency worth noting: the how-to-play text says units evacuate
 Supply Route"* (`chrome/ingame-info-howtoplay.yaml:144`), but `RotateToEdge` walks to the **map
 edge**, not to the SR. The documented mental model and the code disagree independently of the cursor.
 
-**Honest fix — a design call, not a bug fix.** Two clean options:
-- **Stop showing the cursor.** Drop the mouse affordance and keep Evacuate on the button/hotkey.
-  Lowest risk, removes an irreversible mis-click, loses nothing the player cannot already do.
-- **Give it its own cursor.** Keep the gesture but stop borrowing `enter` — a distinct
-  "rotate out" cursor would make the promise honest.
+**Resolved: neither.** The gesture and the icon both stand — see the ruling at the top of this
+section.
 
-Making the order "work" is not an option here: it already works, it just is not what `enter` means.
+### 2. `attackmove` on an out-of-ammo unit does nothing at all — VERIFIED [R] — **FIXED 2026-08-30**
 
-### 2. `attackmove` on an out-of-ammo unit does nothing at all — VERIFIED [R]
+> **Fixed on this branch.** Display-side only, no new art, no behaviour change: both cursor paths
+> now show the existing `attackmove-blocked` when the order would be refused.
+> `AttackMoveTargeter.CanTarget` (`AttackMove.cs:145-162`) mirrors `ResolveOrder`'s gate per-unit;
+> `AttackMoveOrderGenerator.GetCursor` (`:229-244`) mirrors it across the whole selection, because
+> that path issues one grouped order and the click still achieves something while **any** subject
+> can fight. **Both keep the execution gate's `!order.Queued` scoping** — a shift-queued attack-move
+> on a dry unit is deliberately accepted and runs once the unit rearms, so blocking it on display
+> would have traded this lie for its exact mirror. Build clean, 1960/1960 NUnit green.
 
-- **Display:** `AttackMoveTargeter.CanTarget` (`AttackMove.cs:140-154`) checks target type, `IMove`
-  presence, and whether the cell is explored. **It never consults ammo.** Cursor: clean `attackmove`.
+What it was, before the fix above:
+
+- **Display:** `AttackMoveTargeter.CanTarget` checked target type, `IMove` presence, and whether the
+  cell was explored. **It never consulted ammo.** Cursor: clean `attackmove`.
 - **Execution:** `AttackMove.ResolveOrder:109` — `if (!order.Queued && AmmoPool.CannotFight(self))
   return;` — drops the order silently.
 
@@ -139,8 +163,9 @@ it would otherwise have made**, because the targeter won at priority 4 and consu
 The refusal is deliberate and well-reasoned (the comment at `:104-108` explains the queued/unqueued
 split). **Only its silence is the defect.**
 
-**Honest fix: stop showing the cursor** — swap to the existing `attackmove-blocked` art when
-`AmmoPool.CannotFight(self)`. The blocked cursor already exists and is already wired.
+**Fix taken: stopped showing the cursor** — swapped to the existing `attackmove-blocked` art. Note
+the click is still consumed and the unit still gets no plain-Move fallback; that was deliberate and
+is unchanged. The blocked art is now the thing that tells the player why.
 
 ### 3. `move` onto a passable-but-unreachable cell — VERIFIED [S]
 
