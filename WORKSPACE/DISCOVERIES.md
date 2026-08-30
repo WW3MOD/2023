@@ -3,6 +3,36 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-30 — Cloning a `LabelWidget` template and setting `.Text` renders the TEMPLATE's text, silently (`wt/tooltip-elements`)
+
+- **`LabelWidget`'s copy constructor does `GetText = other.GetText`** (`LabelWidget.cs:64`), and that
+  delegate is the closure `() => textCache.Update(Text)` built in the *template's* constructor
+  (`:45`). The lambda captures the template instance, so it reads the **template's** `Text` field
+  forever. Assigning `clone.Text = "..."` updates a field that nothing draws.
+- **The failure mode is the expensive part: it is silent and it looks like a layout bug.**
+  `font.Measure()` on your own string returns the right size, so every row is positioned and sized
+  correctly and the panel comes out exactly the right height — drawn entirely blank. Nothing throws,
+  nothing logs, and the natural diagnosis ("my bounds arithmetic is wrong") is the wrong one.
+- **Always set `GetText` on a cloned label, not `Text`.** The in-tree convention is
+  `label.GetText = () => value;` — this is why every `ScrollPanelWidget` item template in the codebase
+  assigns `GetText` rather than `Text`, which reads like style until you know it is load-bearing.
+  `ProductionTooltipLogic.SetText` sets both, so measuring and drawing cannot disagree.
+- `ColorBlockWidget` has the same shape (`GetColor = widget.GetColor`, `ColorBlockWidget.cs:29`) and
+  the same trap for `Color`. Cloning it is safe only while you keep the template's colour.
+
+## 2026-08-30 — The production tooltip's width is a constant, and the three-way `Max` above it is dead code (`wt/tooltip-elements`)
+
+- `ProductionTooltipLogic` computes
+  `Math.Clamp(new[]{ nameSize.X + hotkeyWidth, requiresSize.X, descSize.X }.Aggregate(Math.Max), MaxTooltipWidth, MaxTooltipWidth)`.
+  **Both clamp bounds are `MaxTooltipWidth`**, so the result is unconditionally `350` and the
+  `Aggregate(Math.Max)` feeding it cannot affect anything.
+- Consequence worth knowing before touching tooltip layout: **every production tooltip in the mod is
+  exactly 350px wide regardless of content**, and a change that makes `descSize.X` larger or smaller
+  changes nothing on screen. This is stock OpenRA code, not a WW3MOD edit.
+- Left as-is on `wt/tooltip-elements`. "Fixing" it would let narrow tooltips shrink, which changes the
+  size of every tooltip in the game — a visible change nobody asked for, hiding inside a refactor.
+  Recorded so the next reader does not see the `Max` and assume the width is dynamic.
+
 ## 2026-08-30 — "make the rings fade out" was NOT a constant to change: `ShockwaveEndAlphaPercent` already defaulted to 0 and the rings already reached zero. The lever was the SHAPE of the ramp (`wt/shockwave-fade`)
 
 - **The obvious field was already correct, and that is the trap.** The user reported that shockwaves
