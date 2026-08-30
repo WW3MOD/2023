@@ -192,9 +192,15 @@ namespace OpenRA.Mods.Common.Traits
 					.Select(arm => FormatWeaponLabel(arm.Weapon))
 					.Distinct());
 
-			return BatchSize == 1
-				? $"{label}\n  Ammo: {Ammo} × {SupplyValue} supply = {PoolBudget}"
-				: $"{label}\n  Ammo: {Ammo} ({BatchCount} batches × {BatchSize} rounds × {SupplyValue} supply = {PoolBudget})";
+			// ONE notation for one quantity. This rendered two different shapes depending on whether
+			// BatchSize was 1 -- "Ammo: 1 × 50 supply = 50" against
+			// "Ammo: 900 (9 batches × 100 rounds × 5 supply = 45)" -- so a rifleman, who carries one
+			// pool of each kind, stated the same fact two ways four lines apart. The batch form is
+			// the one economy.md documents (§"Tooltip format"); the short form was undocumented, so
+			// it is the one that goes. Singular/plural is handled rather than reading "1 batches".
+			var batches = BatchCount == 1 ? "1 batch" : $"{BatchCount} batches";
+			var rounds = BatchSize == 1 ? "1 round" : $"{BatchSize} rounds";
+			return $"{label}\n  Ammo: {Ammo} ({batches} × {rounds} × {SupplyValue} supply = {PoolBudget})";
 		}
 
 		/// <summary>
