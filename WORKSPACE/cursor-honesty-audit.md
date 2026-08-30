@@ -48,7 +48,7 @@ lines myself; **[S]** = established by a sub-audit and not independently re-read
 | `enter` on a **frozen** vehicle (CrewMember) | `EnterAlliedActorTargeter.cs:52-70` — paints full green `enter` | `CrewMember.cs:88` — `Type != TargetType.Actor` → drop | **DIVERGE (hard)** [S] |
 | `attack` on a **frozen** Supply Route | `AttacksSupplyRoutes.cs:122-133` | `AttacksSupplyRoutes.cs:77` — requires `TargetType.Actor` | **DIVERGE (latent)** [S] |
 | `assaultmove` / `assaultmove-blocked` | never emitted — `AttackMove.cs:117` hardcodes `assaultMoving = false` | n/a | **DEAD UI** [R] |
-| `move` onto a **passable but unreachable** cell | `Mobile.cs:1180` — single-cell `MovementCostForCell`, actor-blind | `PathFinder.cs:122-123` `NoPath`; `Move.cs:146-152`, `:173-177` completes without moving | **DIVERGE** [S] |
+| `move` onto a **passable but unreachable** cell | `Mobile.cs:1180` — single-cell `MovementCostForCell`, actor-blind (unchanged: the CURSOR still shows plain move, deliberately) | `Mobile.NearestMoveableCell` now clamps to the nearest REACHABLE cell via `CanReach` | **FIXED 2026-08-30** — order now works [R] |
 | `move-blocked` (ground) | `Mobile.cs:1178-1181` | `Mobile.cs:1027-1028` / `Move.cs:142` | AGREE [S] |
 | `move-rough` (`TerrainCursors`) | `Mobile.cs:1184`, dict declared `Mobile.cs:70` | — | **DEAD UI** — dict never populated in `mods/` [R] |
 | `move` / `move-blocked` (**air**) | `Aircraft.cs:1572` — blocks on `IsTraitPaused` | `Aircraft.cs:1254` — checks `IsTraitDisabled` only, queues `Fly` anyway | **MIRROR (over-warns)** [R] |
@@ -167,7 +167,22 @@ split). **Only its silence is the defect.**
 the click is still consumed and the unit still gets no plain-Move fallback; that was deliberate and
 is unchanged. The blocked art is now the thing that tells the player why.
 
-### 3. `move` onto a passable-but-unreachable cell — VERIFIED [S]
+### 3. `move` onto a passable-but-unreachable cell — VERIFIED [S] — **FIXED 2026-08-30**
+
+> **Fixed on this branch, RED/GREEN proven in game.** `Mobile.NearestMoveableCell` now requires the
+> candidate cell to be REACHABLE as well as standable (`Mobile.cs`, `CanReach`), so the annulus it
+> already walked finally does something on the case it exists for. Past `maxRange` it still returns
+> `target` unchanged, i.e. today's do-nothing — the cap was already there and did not have to be
+> invented. Uses `PathMightExistForLocomotorBlockedByImmovable`, matching the `BlockedByActor.Immovable`
+> the two neighbouring tests already use; measured with nav-guard, river-zeta has 33 components for a
+> wheeled unit with map actors placed and exactly ONE with terrain alone, so the terrain-only variant
+> would never have fired on a real map.
+>
+> **The scenario nearly measured nothing.** `test-move-unreachable-clamps` first drove the unit with
+> the Lua `unit.Move` API — which queues the Move activity directly with `evaluateNearestMovableCell`
+> FALSE, so `NearestMoveableCell` never ran. It went RED before the fix and RED after it, for the same
+> reason both times. `Test.IssueMoveOrder` was added to issue a real order, and a PITFALL now sits on
+> `MobileProperties.Move`, the line a scenario author actually reads when at risk.
 
 The most-clicked cursor in the game, and the two sides ask different questions:
 

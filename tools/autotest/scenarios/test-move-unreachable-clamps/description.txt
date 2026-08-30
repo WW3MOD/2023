@@ -1,0 +1,1 @@
+A move order onto an unreachable cell must clamp to the nearest reachable cell instead of silently doing nothing. RED pre-fix: the Rig stays on its start cell.
