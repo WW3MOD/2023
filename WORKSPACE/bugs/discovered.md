@@ -3731,3 +3731,48 @@ outside that branch's scope. Whoever picks it up should diff the two halves of e
 deleting either; the merge may be load-bearing by accident.
 
 **Confirm by:** reading the four line ranges and comparing the field sets.
+
+---
+
+## 2026-08-30: [high] OPEN — a unit whose every armament is PAUSED accepts an attack order, walks over, aims, and never goes idle again, silencing auto-target / auto-follow / auto-rearm (found while: cursor honesty audit, branch `wt/cursor-honesty`, `main @ 5a985337`)
+
+**Filed separately on purpose.** This surfaced as finding 5 of the cursor audit and was initially
+grouped with the cursor decisions. It is **not a cursor decision** — it is a live behavioural bug
+that wants fixing whichever way the cursor question goes, and folding it into a UI vote is how it
+would have disappeared.
+
+**Mechanism** (already documented at `DOCS/reference/conventions.md:346`; what is new here is the
+census). `ChooseArmamentsForTarget` filters `IsTraitDisabled` but not `IsTraitPaused`, and
+`AttackOrderTargeter` *deliberately* selects a paused armament (`AttackBase.cs:807`:
+`FirstOrDefault(x => !x.IsTraitPaused) ?? armaments.First()`). The order is accepted.
+`Armament.CanFire` then declines on pause (`Armament.cs:327`), `TickAttack` still reports
+`Attacking`, so **the activity never completes** and the unit is never idle — every `INotifyIdle`
+behaviour it owns is silenced for as long as the pause lasts.
+
+**Census, and why this is worse than it reads.** `AttackBaseInfo.AbandonWhenArmamentsPaused`
+(`AttackBase.cs:72`, default `false`) is the opt-in escape, and **exactly one actor in the mod sets
+it** — `^MEDI` (`infantry.yaml:2308`) — against **64** armament-level `PauseOnCondition` gates in
+non-husk rules. The widest live entrance is **every armed vehicle**: they all carry
+`|| empdisable || heavy-damage-attained`, and `heavy-damage-attained` is granted at damage state
+Heavy **and Critical** (`defaults.yaml:243-245`). So a tank at heavy damage — a normal, common,
+late-fight state — accepts an attack order, drives into range, aims, fires nothing, and stops
+auto-rearming and auto-targeting until it is given another order.
+
+**Note the cursor question is genuinely separate, and the obvious display "fix" would be its own
+lie.** For the ammo cases the order is truly refused (`AttackBase.cs:502`), so a blocked cursor is
+honest. For a *paused* armament the order is **accepted** and the unit really does drive over — so
+painting a blocked cursor would claim a refusal that does not happen. The honest display answer is
+not the same predicate, which is why this is filed on its own.
+
+**Fix shape:** the affected traits opt into `AbandonWhenArmamentsPaused` so the unit at least drops
+to idle. **Do NOT widen the flag into "abandon when the unit cannot fire":** `Armament.CanFire` is
+also false on `IsReloading`, `IsWaitingBurst` and `IsAiming`, all true on ordinary ticks of a healthy
+weapon, so the general form would drop every attack order in the game between shots. Pause is the
+only one of those that can *last*.
+
+**SUPPRESSION-ADJACENT, NOT PRE-AUTHORISED:** two of the live gates are `suppressed >= 10` on `^AT`
+(`infantry.yaml:1739`) and the engineer's repair armament (`:1956`). Those need specific sign-off.
+The vehicle `heavy-damage-attained` cases do not touch suppression.
+
+**Confirm by:** damage a tank to Heavy, order it to attack, and watch it aim without firing and
+without ever rearming.
