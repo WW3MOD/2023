@@ -3716,3 +3716,18 @@ running game.
   | RPG (direct, frontal) | t90 | 280 | 6000 | 4 | 120 |
 
   **The design is coherent and `Penetration: 100` is correctly sized against roof armour, not frontal.** The specialist's 3-round magazine does 30000 against an abrams' 28000 HP — it kills exactly one MBT per load, which reads deliberate. The RPG is cheaper per kill against a T-90 and worse against an abrams, which is the tradeoff you would want. **No action.** (found while working on: tooltip weapon-section mockups)
+
+---
+
+## 2026-08-30: [low] `defaults.yaml` declares two templates TWICE, and MiniYaml merges them silently (found while: cursor honesty audit, branch `wt/cursor-honesty`, `main @ 5a985337`)
+
+`^AutoTargetAir:` appears at `mods/ww3mod/rules/defaults.yaml:554` **and** `:706`;
+`^AutoTargetGroundAntiInf:` at `:606` **and** `:642`. Adjacent top-level entries merge without a
+lint error (CLAUDE.md hard rule: "blank lines between top-level entries are significant"), so the
+later block's fields silently win on any key both define.
+
+**Not investigated** — found incidentally while enumerating `AutoTarget` for the cursor audit, and
+outside that branch's scope. Whoever picks it up should diff the two halves of each pair before
+deleting either; the merge may be load-bearing by accident.
+
+**Confirm by:** reading the four line ranges and comparing the field sets.
