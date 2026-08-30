@@ -75,7 +75,10 @@ namespace OpenRA.Mods.Common.Traits
 						Info.EnterCursor,
 						Info.EnterBlockedCursor,
 						CanRepairAt,
-						_ => CanRepair());
+						_ => CanRepair(),
+						// ResolveOrder refuses frozen targets outright, so claiming the click would
+						// paint a cursor for an order it drops and eat the player's Move with it.
+						(_, _) => false);
 			}
 		}
 

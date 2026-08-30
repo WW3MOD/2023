@@ -123,11 +123,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			public override bool CanTargetFrozenActor(Actor self, FrozenActor target, TargetModifiers modifiers, ref string cursor)
 			{
-				if (target.Actor == null || target.Actor == self)
-					return false;
-
-				var targetGainsExperience = target.Actor.TraitOrDefault<GainsExperience>();
-				if (targetGainsExperience == null || targetGainsExperience.Level == targetGainsExperience.MaxLevel)
+				// GainsExperience.Level is live veterancy: comparing it to MaxLevel under fog reported how
+				// promoted a unit the player cannot see already is. Only the static "can this actor type
+				// gain experience at all" half survives; whether it is already capped is learned by
+				// driving over and having the order refused.
+				if (target == null || !target.IsValid || !target.Info.HasTraitInfo<GainsExperienceInfo>())
 					return false;
 
 				var targetInfo = target.Info.TraitInfoOrDefault<AcceptsDeliveredExperienceInfo>();

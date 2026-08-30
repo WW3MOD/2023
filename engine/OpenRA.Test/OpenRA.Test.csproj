@@ -8,6 +8,11 @@
     <ProjectReference Include="..\OpenRA.Mods.Common\OpenRA.Mods.Common.csproj">
       <Private>True</Private>
     </ProjectReference>
+    <!-- ww3mod loads OpenRA.Mods.Cnc.dll (mods/ww3mod/mod.yaml Assemblies), so its traits ship and
+         must be covered by assembly-wide fixtures such as FrozenActorTargetingTest. -->
+    <ProjectReference Include="..\OpenRA.Mods.Cnc\OpenRA.Mods.Cnc.csproj">
+      <Private>True</Private>
+    </ProjectReference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
     <PackageReference Include="NUnit" Version="3.13.3" />
     <PackageReference Include="NUnit.Console" Version="3.16.3" />

@@ -304,7 +304,11 @@ namespace OpenRA.Mods.Common.Traits
 					Info.EnterCursor,
 					Info.EnterBlockedCursor,
 					(proc, _) => IsAcceptableProcType(proc),
-					proc => proc.Trait<IAcceptResources>().AllowDocking);
+					proc => proc.Trait<IAcceptResources>().AllowDocking,
+					// ResolveOrder refuses frozen targets outright ("Deliver orders are only valid for
+					// own/allied actors, which are guaranteed to never be frozen"), so claiming the
+					// click would paint a cursor for an order it drops and eat the player's Move.
+					(_, _) => false);
 				yield return new HarvestOrderTargeter();
 			}
 		}
