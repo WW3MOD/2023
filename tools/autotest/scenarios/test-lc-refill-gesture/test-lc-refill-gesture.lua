@@ -187,8 +187,16 @@ WorldLoaded = function()
 	-- edit needs a reading that ISSUES, it belongs after this block, not inside it -- and the one
 	-- that does (the delivery) is deliberately last.
 	Trigger.AfterDelay(50, function()
-		-- Restated here rather than trusted from map.yaml: these three are what make each refusal
-		-- below attributable to the pool it is testing.
+		-- These three are what make each refusal below attributable to the pool it is testing.
+		--
+		-- HONEST NOTE ON WHAT THESE THREE LINES PROVE: nothing, currently. Each sets the value the
+		-- Centre ALREADY has from map.yaml, so they are no-ops and the same-tick visibility of
+		-- Test.SetSupply on a HOST is untested by this scenario. (It is proven for the TRANSPORT: the
+		-- truck spawns at 750 and every cursorWith below reads a different value in the same tick and
+		-- gets the matching direction.) They are kept because they put the deciding number at the
+		-- assertion rather than in another file — but if a future edit stages a host value that
+		-- DIFFERS from map.yaml and the observable does not move, suspect this before the mechanism,
+		-- and change map.yaml to match rather than assuming the SetSupply landed.
 		Test.SetSupply(StockedLC, 1000)   -- room to receive AND stock to give
 		Test.SetSupply(FullLC, 2250)      -- no room
 		Test.SetSupply(DrainedLC, 0)      -- no stock
