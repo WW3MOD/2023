@@ -11337,6 +11337,13 @@ Since the composite at that boundary is a convex combination of dark-green terra
 *lighter-than-both* pixel cannot originate in the world buffer. It is map content, UI composited over
 the world, or an artefact of the capture itself.
 
+**Unverified, and not to be re-opened.** The above is a code-reading argument only. It was never
+reconciled with the screenshot that prompted it, and the reported line was never explained — so the
+negative is *plausible*, not established. The area was closed by the user on 2026-08-30: "I dont
+think the shroud boundary is a problem anymore, we had some issues and then we solved it. I am scared
+to make any changes because we had a regression there which caused the last issue." Do not promote
+this to `DOCS/reference/` as fact, and do not re-derive it by touching render code.
+
 ### `Map.AllCells` is the full grid, so ring terrain really does draw
 
 `AllCells` spans `MPos(0,0)..MPos(MapSize.X-1, MapSize.Y-1)` (`Map.cs:461-463`, and again at
@@ -11367,10 +11374,38 @@ off-map — fails on a specific case, and it is worth knowing before a ninth swi
   `SpriteRenderable.cs:105-108`) from an aircraft correctly.
 - **It is defeated by the nuke.** The mushroom cloud is a `SpriteEffect` (`Effects/SpriteEffect.cs:35`)
   anchored at the impact `WPos` with Z≈0 and a large upward sprite — byte-identical to a tree under
-  both a Z test and any screen-space test. Nuke clouds were one of the three regressions that got
-  `c620a9f2` reverted.
-- For the record, `c620a9f2` was **not** an altitude test. It gated on the border cell's fog
-  (`ResolvedVisibility[puv] >= 10`) — an axis orthogonal to the one that would actually work.
+  both a Z test and any screen-space test. The screen-space half of that is not theory: the cloud
+  really did vanish under a bounds test on 2026-03-24. `553e7391` stripped `ISpatiallyPartitionable`
+  from `SpriteEffect` because "the ScreenMap bounds calculation couldn't accurately represent the
+  actual rendered extent (sprite offset, sequence scale, effect scale all compound)", and `95cc9a7b`
+  did the same to `NukeLaunch` and un-clamped the scissor rect. Note this is scissor/partition
+  culling — a **different mechanism** from the border-fog overlay, and four days earlier.
+
+**Corrected 2026-08-30 — the border-fog chain, read off the commits.** An earlier revision of this
+entry claimed nuke clouds were "one of the three regressions that got `c620a9f2` reverted". No part of
+that survives the history. The whole sequence is one day, 2026-03-28:
+
+| time | commit | what it did |
+|---|---|---|
+| 05:19 | `12ac0453` | **added** the second `DrawBeyondMapFog` pass after shroud, fully opaque |
+| 17:18 | `c620a9f2` | **fixed** `12ac0453` — swapped the blanket clip for a visibility gate |
+| 17:55 | `6036ccdb` | refined again: fog-matching alpha per border cell instead of opaque |
+| 18:54 | `de5c2ee3` | the actual root cause — `ShroudRenderer` treating out-of-map neighbours as same visibility |
+| 20:00 | `de4b68f3` | **removed** the second pass entirely |
+
+- **`c620a9f2` was the remedy, not the regression.** The only damage anyone enumerated is in
+  `c620a9f2`'s own message, describing its predecessor `12ac0453`: the blanket clip "clipped ALL
+  sprites extending beyond map bounds, breaking visible actors/projectiles" — two categories, and
+  from the commit *before* the one blamed.
+- **`de4b68f3` is not a revert of `c620a9f2`** and never names it. It removed the whole mechanism, by
+  then twice modified, and gave exactly **one** reason: double-darkening, because shroud already
+  covers the on-cell part and the overlay stacked further dimming on top.
+- **"Three regressions" has no source.** The phrase occurs nowhere else in the repo or in any commit
+  message, and nothing in the chain mentions the nuke at all. Treat the count as invented; the nuke
+  bullet above now cites the incidents that actually happened.
+- What survives unchanged: `c620a9f2` was **not** an altitude test. It gated on the border cell's fog
+  — `ResolvedVisibility[puv] >= 10`, confirmed in its diff — an axis orthogonal to the one that would
+  actually work.
 
 The only mechanism that survives is a partition by *source* in `GenerateRenderables` (Z==0 actors →
 clipped ground pass; Z>0 actors plus all `IEffect` renderables → unclipped late pass). Its cost is
