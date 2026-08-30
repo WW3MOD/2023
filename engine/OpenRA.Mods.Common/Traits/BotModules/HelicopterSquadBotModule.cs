@@ -178,6 +178,17 @@ namespace OpenRA.Mods.Common.Traits
 			"CarefulScoutEmployment is set.")]
 		public readonly int ScoutMaxDistanceCells = 0;
 
+		[Desc("EXPERIMENTAL: maximum distance (map cells) from the squad's own Supply Route that an ATTACK",
+			"objective may be. The attack twin of ScoutMaxDistanceCells, and it exists for the same reason.",
+			"Attack-heli target selection is OMNISCIENT — the threat-map cluster pick and FindClosestEnemy both",
+			"scan world.Actors with no visibility filter — while the risk weighed against it is fog-legal,",
+			"since air danger is stamped from the belief store. An air-danger reading of 0 means 'no BELIEVED",
+			"AA', which is indistinguishable from 'never observed', so the squad reads unscouted ground as safe",
+			"and flies at a target it should not be able to see. Geometry is the cheap honest bound on that,",
+			"and it is what the scout path already leans on before first contact.",
+			"0 = no cap (the default): every non-opted-in profile keeps its exact target selection.")]
+		public readonly int AttackMaxDistanceCells = 0;
+
 		[Desc("Use standoff (attack-move) engagement for attack-heli squads. When on, the squad FSM issues",
 			"AttackMove toward the target cell instead of a bare Attack on a single (possibly distant) target,",
 			"so AutoTarget engages the nearest in-range threat at weapon standoff and the squad only advances",

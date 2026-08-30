@@ -2093,6 +2093,11 @@ Player:
 		CarefulScoutEmployment: true
 		ScoutAirDangerSafeThreshold: 0
 		ScoutMaxDistanceCells: 40
+		# 2026-08-30: the same penetration bound on the ATTACK path, which had none. Target selection is
+		# omniscient (world.Actors, no visibility filter) while the air-danger risk read against it is
+		# fog-legal, so unscouted ground reads as safe and the squad flies at things it cannot see. 40 matches
+		# the scout bound: own half plus the contested middle. Default 0 = off, so @stable is unchanged.
+		AttackMaxDistanceCells: 40
 		# Empty-delivery commit-on-order (experimental-only, default-frozen in C#): commit each ordered transport
 		# passenger to the shared PoiGoalGuard ledger (key transport:<heliId>) while it walks to the heli, so no
 		# other module poaches it mid-board. The staged loading that fixes the empty delivery itself is an ungated

@@ -396,6 +396,36 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				.ClosestToIgnoringPath(pos);
 		}
 
+		// The squad's own Supply Route cell, or the player's home location when no SR is standing. Mirrors
+		// HelicopterSquadBotModule's own `ownSR?.Location ?? player.HomeLocation` fallback so the attack cap
+		// and the scout cap measure from the same origin.
+		protected static CPos OwnSupplyRouteCell(Squad owner)
+		{
+			var info = GetHeliModuleInfo(owner);
+			var player = owner.Bot.Player;
+			if (info != null)
+			{
+				foreach (var a in owner.World.Actors)
+					if (a.Owner == player && !a.IsDead && a.IsInWorld && info.SupplyRouteTypes.Contains(a.Info.Name))
+						return a.Location;
+			}
+
+			return player.HomeLocation;
+		}
+
+		/// <summary>Whether an attack objective is inside AttackMaxDistanceCells of the squad's own Supply
+		/// Route. 0 (the default) disables the bound, so every non-opted-in profile keeps its exact behaviour
+		/// and pays only one Info read.</summary>
+		protected static bool AttackObjectiveWithinReach(Squad owner, Actor target)
+		{
+			var info = GetHeliModuleInfo(owner);
+			if (info == null || info.AttackMaxDistanceCells <= 0)
+				return true;
+
+			var maxSq = (long)info.AttackMaxDistanceCells * info.AttackMaxDistanceCells;
+			return (long)(target.Location - OwnSupplyRouteCell(owner)).LengthSquared <= maxSq;
+		}
+
 		protected static int CountAntiAirNearTarget(Squad owner, WPos targetPos, int radiusCells)
 		{
 			var enemies = owner.World.FindActorsInCircle(targetPos, WDist.FromCells(radiusCells))
@@ -495,6 +525,20 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			}
 
 			if (target == null)
+				return;
+
+			// Penetration bound on the ATTACK path (experimental, default 0 = off), mirroring the scout's
+			// ScoutMaxDistanceCells. Both candidate sources above are omniscient — the threat-map cluster and
+			// FindClosestEnemy each scan world.Actors with no visibility filter — while the risk the squad
+			// weighs against them is fog-legal, because air danger is stamped from the belief store. Air danger
+			// of 0 therefore means "no BELIEVED AA", which is indistinguishable from "never observed". This
+			// geometry cap is what stops the squad flying confidently at something it should not be able to see,
+			// through AA it holds no belief about. The scout path has had exactly this bound for the same
+			// reason; the attack path had none.
+			//
+			// Applied here, at the single point where a target is committed, so it covers both sources rather
+			// than being written out once per candidate.
+			if (!AttackObjectiveWithinReach(owner, target))
 				return;
 
 			owner.TargetActor = target;
