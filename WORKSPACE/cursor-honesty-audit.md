@@ -44,7 +44,7 @@ lines myself; **[S]** = established by a sub-audit and not independently re-read
 | `enter-blocked` on a **full** transport | `EnterAlliedActorTargeter.cs:35-50` — `useEnterCursor` picks *art only*, returns `true` | `Passenger.cs:201-202` — `!CanEnter` → drop | **DIVERGE (soft)** [R] |
 | `guard` (command bar) on a dry unit | `GuardOrderGenerator.cs:63-73` — `GuardableInfo` only | `Guard.cs:51-59` → `AttackMoveActivity.cs:93` ends at once | **DIVERGE** [S] |
 | `deploy` (Cargo unload) | `Cargo.cs:346-347` → `CanUnload():435-447`, `BlockedByActor.None` | `UnloadCargo.cs:104-116` — `GetAvailableSubCell` default `BlockedByActor.All` | **DIVERGE** [S] |
-| `deploy` (Minelayer, no mines) | `Minelayer.cs:103` — terrain only, no ammo test | `Minelayer.cs:152-156` — also no ammo test; `LayMines.cs:94-104` returns | **DIVERGE (cat. 3)** [S] |
+| `deploy` (Minelayer, no mines) | `Minelayer.cs:104` — terrain only, no ammo test | `Minelayer.cs:187-190` — also no ammo test; `LayMines.cs:94-112` **rearms and carries on** | **AGREE — finding RETRACTED**, see below [R, corrected] |
 | `enter` on a **frozen** vehicle (CrewMember) | `EnterAlliedActorTargeter.cs:52-70` — paints full green `enter` | `CrewMember.cs:88` — `Type != TargetType.Actor` → drop | **DIVERGE (hard)** [S] |
 | `attack` on a **frozen** Supply Route | `AttacksSupplyRoutes.cs:122-133` | `AttacksSupplyRoutes.cs:77` — requires `TargetType.Actor` | **DIVERGE (latent)** [S] |
 | `assaultmove` / `assaultmove-blocked` | never emitted — `AttackMove.cs:117` hardcodes `assaultMoving = false` | n/a | **DEAD UI** [R] |
@@ -301,13 +301,36 @@ branch at all — `Deploy()` just returns at `:257-258`.
 queued deploy that lands badly is at least audible. `DropsSupplyCache` already gets this right and
 documents why (`:583-593`), so the pattern to copy is in-tree.
 
-### 10. `deploy` on a minelayer with no mines — VERIFIED [S]
+### 10. `deploy` on a minelayer with no mines — ~~VERIFIED [S]~~ **RETRACTED, NOT A DEFECT**
 
-`Minelayer.Orders` (`:98-105`) and `ResolveOrder` (`:152-156`) both check terrain and **neither
-checks ammo**; `LayMines.cs:94-104` discovers the empty pool and returns. Note its sibling
-`Demolition` *is* gated (`RequiresCondition: ammo-secondary`, `infantry.yaml:2174`) while
-`Minelayer` is not. **Honest fix: stop showing the cursor** — add `&& pool.HasAmmo` to the `Func`
-at `Minelayer.cs:103`, which makes the existing `deploy-blocked` art carry the message.
+> **Withdrawn 2026-08-30 after adversarial review.** This was wrong, the fix built from it was a
+> **false refusal**, and both have been removed. Left in place with the reasoning because the way it
+> was wrong is the more useful artefact.
+>
+> **What the code actually does.** `Minelayer.ResolveOrder` (`:187-190`) has no ammo term, and a dry
+> minelayer given `PlaceMine` does **not** fail. `LayMines.cs:94` detects the empty pool and — when a
+> rearm host exists — queues `MoveAdjacentTo` + `MoveTo` + `Resupply` and **carries on laying**
+> (`:96-112`). It gives up only at `:103-104`, when `rearmTarget == null`. `MNLY` carries
+> `Rearmable: RearmActors: logisticscenter` (`vehicles.yaml:506-508`) and the infantry minelayer
+> self-reloads via `ReloadAmmoPool@2`, so in this mod **the order is accepted and completes either
+> way**. Painting `deploy-blocked` cost the player the automatic rearm-and-lay the engine already
+> provides.
+>
+> **How the error was made, precisely.** The citation ran `LayMines.cs:94-104` and stopped one line
+> short of `:107-112`. `:94` is the **rearm trigger** — it is the proof the order is honoured, and it
+> was read as though it were the refusal. The row's own two columns already said display "terrain
+> only, no ammo test" and execution "also no ammo test", which is **AGREE**; it was recorded as
+> DIVERGE anyway. It was also the one row in its group marked `[S]` — established by a sub-audit and
+> never independently re-read — and that is exactly where the mistake survived.
+>
+> **The principle this branch had already written down, pointing the other way.** From finding 5,
+> two sections above: *"the order is accepted and the unit really does drive over — so painting a
+> blocked cursor would claim a refusal that does not happen."* Same branch, same sentence, opposite
+> conclusion. Having the right rule is not the same as applying it.
+>
+> **What survives:** the terrain term at this site is now resolved over the selection rather than
+> per-actor, so one minelayer parked on a bad cell at the head of a healthy selection no longer
+> paints the whole click blocked. That is the group A polarity ruling, not this finding.
 
 ### 11. `enter` on a fogged vehicle (CrewMember) — VERIFIED [S]
 

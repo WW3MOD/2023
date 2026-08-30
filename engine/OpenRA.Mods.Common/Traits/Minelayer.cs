@@ -101,43 +101,50 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				yield return new BeginMinefieldOrderTargeter(Info.AbilityCursor);
 				yield return new DeployOrderTargeter("PlaceMine", 5,
-					() => IsCellAcceptable(self, self.Location) && !OutOfMines()
-						? Info.DeployCursor
-						: Info.DeployBlockedCursor);
+					() => NoOneCanLayHere() ? Info.DeployBlockedCursor : Info.DeployCursor);
 			}
 		}
 
 		/// <summary>
-		/// True when nothing in the selection has a mine left to lay, so the deploy cursor should
-		/// read blocked. Same polarity as attack-move and guard, through the same combinator.
+		/// True when no minelayer in the selection is standing somewhere it could lay, so the deploy
+		/// cursor should read blocked. Same polarity as attack-move and guard, same combinator.
 		/// </summary>
 		/// <remarks>
-		/// The readiness QUESTION is deliberately not AmmoPool.CannotFight: that is "every pool is
-		/// dry", and the engineer who carries these mines also carries rifle ammo in a separate
-		/// pool. Asking the actor-wide question would leave the cursor green for a man with bullets
-		/// and no mines — which is the exact armament-scoped-vs-actor-scoped mismatch this audit
-		/// found in AttackBase. Ask the mine pool by name, as LayMines does (LayMines.cs:94).
+		/// <para>ONLY the terrain term. There is deliberately NO ammo term here, and adding one is a
+		/// false refusal — this was tried on this branch and removed after review. ResolveOrder
+		/// (below) has no ammo test either, and a dry minelayer given PlaceMine does NOT fail:
+		/// LayMines.cs:94 detects the empty pool and, when a rearm host exists, queues
+		/// MoveAdjacentTo + MoveTo + Resupply and carries on laying (`:96-112`). It gives up only at
+		/// `:103-104`, when rearmTarget is null. MNLY carries `Rearmable: RearmActors:
+		/// logisticscenter` (vehicles.yaml:506-508) and the infantry minelayer self-reloads via
+		/// ReloadAmmoPool, so in this mod the order is accepted and completes either way. Painting
+		/// it blocked would cost the player the automatic rearm-and-lay the engine already provides.
+		/// LayMines.cs:94 is the REARM TRIGGER — it is the proof the order is honoured, not a
+		/// refusal.</para>
 		///
-		/// KNOWN LIMITATION, deliberate: DeployOrderTargeter takes a zero-argument Func, so this has
-		/// no access to the queue modifier and cannot apply the !queued relaxation the other two
-		/// sites do. A shift-queued PlaceMine behind a resupply would therefore read blocked while
-		/// still being able to run. That is the over-warning direction, which is the safe one, and
-		/// being out of mines is a persistent state rather than a transient one — unlike a pause.
+		/// <para>Resolved over the selection rather than per-actor for the same reason as
+		/// AttackMove: UnitOrderGenerator.CursorForOrders keeps the FIRST result on a priority tie,
+		/// so one minelayer parked on a bad cell at the head of a healthy selection would otherwise
+		/// paint the whole click blocked.</para>
 		/// </remarks>
-		bool OutOfMines()
+		bool NoOneCanLayHere()
 		{
-			var subjects = self.World.Selection.Contains(self)
-				? self.World.Selection.Actors.Where(a => a.Info.HasTraitInfo<MinelayerInfo>())
+			var candidates = self.World.Selection.Contains(self)
+				? self.World.Selection.Actors
 				: new[] { self };
 
-			return OrderReadinessMath.ReadsAsBlocked(subjects, false, a =>
-			{
-				var pool = a.TraitsImplementing<AmmoPool>()
-					.FirstOrDefault(p => p.Info.Name == a.Trait<Minelayer>().Info.AmmoPoolName);
-
-				return pool != null && !pool.HasAmmo;
-			});
+			// Each minelayer is judged on ITS OWN cell: DeployOrderTargeter issues a per-actor
+			// PlaceMine at that actor's location, and ResolveOrder re-tests the same cell.
+			return Memo.ReadsAsBlocked(
+				self.World,
+				candidates,
+				false,
+				a => a.Info.HasTraitInfo<MinelayerInfo>(),
+				a => !a.Trait<Minelayer>().IsCellAcceptable(a, a.Location));
 		}
+
+		/// <summary>Shared across every actor's targeter — see SelectionMemo.</summary>
+		static readonly SelectionMemo Memo = new();
 
 		Order IIssueOrder.IssueOrder(Actor self, IOrderTargeter order, in Target target, bool queued)
 		{

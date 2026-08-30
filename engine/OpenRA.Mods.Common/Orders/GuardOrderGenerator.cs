@@ -69,9 +69,19 @@ namespace OpenRA.Mods.Common.Orders
 			// nothing left to fire (AttackMoveActivity.cs:93) — so the cursor promised a unit that
 			// would follow, and it never moved. Same polarity as attack-move, through the same
 			// combinator: blocked only when NOTHING in the selection can fight.
-			// queued is false because this generator is a MODE, not a modifier-click — the order it
-			// issues always executes now, so there is no "when you are able" reading to preserve.
-			if (OrderReadinessMath.ReadsAsBlocked(subjects, false, AmmoPool.CannotFight))
+			//
+			// The queued term is read from the click, NOT hardcoded false. This generator is a mode,
+			// but the click that lands in it still honours shift: OrderInner below derives
+			// `queued` the same way and puts it on the Order, and Guard.ResolveOrder passes it
+			// straight to QueueActivity. So a shift-guard on an all-dry selection really is queued
+			// and really does run once those units rearm — blocking it would be exactly the mirror
+			// lie OrderReadinessMath's queued term exists to prevent.
+			// GuardInfo is Requires<IMoveInfo>, so carrying the trait is sufficient eligibility here.
+			if (OrderReadinessMath.ReadsAsBlocked(
+				subjects,
+				mi.Modifiers.HasModifier(Modifiers.Shift),
+				a => a.Info.HasTraitInfo<GuardInfo>(),
+				AmmoPool.CannotFight))
 				return "move-blocked";
 
 			var multiple = subjects.Count() > 1;

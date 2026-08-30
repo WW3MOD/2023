@@ -130,6 +130,29 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>
+		/// Whether this actor could be given an attack-move order at all.
+		/// </summary>
+		/// <remarks>
+		/// Carrying AttackMoveInfo is NOT sufficient. The trait sits on ^AutoTarget
+		/// (defaults.yaml:388), which ^AutoTargetAir and ^AutoTargetAirICBM inherit, so immobile
+		/// AA and ICBM defences (structures-defenses.yaml:600, :685, :762) carry it as the no-op the
+		/// constructor comment describes. Both the targeter (`self.TraitOrDefault&lt;IMove&gt;() == null`)
+		/// and ResolveOrder (`move == null`) then refuse them.
+		///
+		/// This matters for the cursor because AmmoPool.AllPoolsEmpty returns FALSE for an actor
+		/// with no pools at all (AmmoPool.cs:548-560) — so a poolless defence answers "can act", and
+		/// without this filter one box-selected alongside a dry tank paints a GREEN attack-move
+		/// cursor over a click that does nothing. Shared by both display paths so they cannot drift.
+		/// </remarks>
+		internal static bool CanBeOrderedToAttackMove(Actor a)
+		{
+			return a.Info.HasTraitInfo<AttackMoveInfo>() && a.TraitOrDefault<IMove>() != null;
+		}
+
+		/// <summary>Shared across every actor's targeter — see SelectionMemo; a per-actor memo would save nothing.</summary>
+		static readonly SelectionMemo Memo = new();
+
 		class AttackMoveTargeter : IOrderTargeter
 		{
 			readonly AttackMoveInfo info;
@@ -166,14 +189,17 @@ namespace OpenRA.Mods.Common.Traits
 					// Answering per-unit would therefore show blocked or not depending on which unit
 					// happened to sort first: with one dry tank at the head of a healthy selection,
 					// the whole click reads blocked. Giving every subject the same selection-wide
-					// answer makes the tie-break irrelevant.
-					var subjects = self.World.Selection.Contains(self)
+					// answer makes the tie-break irrelevant. Memoised because this is a per-actor
+					// path asking a per-selection question.
+					var candidates = self.World.Selection.Contains(self)
 						? self.World.Selection.Actors
 						: new[] { self };
 
-					var refused = OrderReadinessMath.ReadsAsBlocked(
-						subjects.Where(a => a.Info.HasTraitInfo<AttackMoveInfo>()),
+					var refused = Memo.ReadsAsBlocked(
+						self.World,
+						candidates,
 						modifiers.HasModifier(TargetModifiers.ForceQueue),
+						CanBeOrderedToAttackMove,
 						AmmoPool.CannotFight);
 
 					cursor = (explored || info.MoveIntoShroud) && !refused
@@ -251,12 +277,15 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					var explored = subject.Actor.Owner.MapLayers.IsExplored(cell);
 
-					// Same rule as AttackMoveTargeter, through the same combinator. OrderInner issues
-					// ONE grouped order to every subject and ResolveOrder drops it per-unit, so the
-					// click still achieves something while any subject can fight.
+					// Same rule as AttackMoveTargeter, through the same combinator and the same
+					// eligibility test. OrderInner issues ONE grouped order to every subject and
+					// ResolveOrder drops it per-unit, so the click still achieves something while
+					// any subject that can actually receive it can fight. No memo needed here: this
+					// runs once per frame, not once per actor.
 					var refused = OrderReadinessMath.ReadsAsBlocked(
 						subjects.Select(s => s.Actor),
 						modifiers.HasModifier(Modifiers.Shift),
+						AttackMove.CanBeOrderedToAttackMove,
 						AmmoPool.CannotFight);
 
 					var blocked = (!explored && !info.MoveIntoShroud) || refused;
