@@ -2063,6 +2063,18 @@ Player:
 		EvacuateWhenIdle: true
 		# 2026-08-30: 500 -> 300 (≈18 s at 16.67 tps, was ≈30 s). Retires a target-less airframe sooner.
 		EvacuateIdleTicks: 300
+		# 2026-08-30: evacuate on LOW ammo, not empty ammo — the user's ask verbatim, "before it runs
+		# completely dry on ammo it can be evacuated". Every other ammo path in the tree fires at absolute
+		# zero, so a gunship with one rocket left and no rearm host was flown as though it were armed. 34% is
+		# roughly one salvo, which leaves it able to defend itself on the way out. Only applies with no rearm
+		# host (refilling beats scrapping) and only to already-idle helis, so no mission is interrupted.
+		EvacuateAmmoPercent: 34
+		# 2026-08-30: evacuate a damaged airframe that cannot be repaired. The refund is HP-scaled
+		# (RotateToEdge.DoSell pays fixedRefund * hp / maxHP), so recoverable value only ever DECREASES and
+		# every further hit is money burnt — banking 35% of 6000 beats losing 100% of it later. 35 matches the
+		# Apache's own FleeHealthPercent. Gated on the absence of a repair host, so capturing an HPAD makes the
+		# bot mend rather than scrap.
+		EvacuateBelowHealthPercent: 35
 		EvacuateHomeRadiusCells: 12
 		MissionTargetRangeCells: 60
 		# Mission-complete evac (experimental-only, default-frozen in C#): a heli that finished a mission

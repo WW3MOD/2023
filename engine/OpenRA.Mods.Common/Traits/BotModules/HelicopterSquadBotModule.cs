@@ -289,6 +289,22 @@ namespace OpenRA.Mods.Common.Traits
 			"apply to them). Only used when EvacuateWhenIdle is set.")]
 		public readonly int EvacuateIdleTicks = 500;
 
+		[Desc("EXPERIMENTAL: evacuate an idle attack heli with NO REARM HOST once its rounds across all pools",
+			"fall to or below this percent of capacity — low ammo, not empty ammo. Everything else in the tree",
+			"acts only at absolute zero (HasUsableAmmo is true while ANY pool holds a round; AirframeEvacMath",
+			"returns None while loadedPools > 0), so a gunship with one rocket left and nowhere to refill was",
+			"flown as though it were armed. Suggested 34 — roughly one salvo — which leaves the airframe able",
+			"to defend itself on the way out. Only ever evaluated for helis that are already idle, so it cannot",
+			"interrupt a mission. 0 = off (the default): only the absolute-zero branch acts on ammo.")]
+		public readonly int EvacuateAmmoPercent = 0;
+
+		[Desc("EXPERIMENTAL: evacuate an idle attack heli with NO REPAIR HOST once its health falls to or below",
+			"this percent. The salvage refund is HP-scaled (RotateToEdge.DoSell pays fixedRefund * hp / maxHP),",
+			"so a damaged airframe's recoverable value only ever DECREASES and every further hit is money burnt",
+			"— banking 35% of a 6000-cost airframe beats losing 100% of it later. Gated on the absence of a",
+			"repair host, so capturing one makes the bot mend rather than scrap. 0 = off (the default).")]
+		public readonly int EvacuateBelowHealthPercent = 0;
+
 		[Desc("Radius (map cells) around the own Supply Route within which an idle, target-less heli counts as",
 			"'loitering at home' and becomes evac-eligible. A heli forward of this (e.g. mid-withdraw near the",
 			"front) is left to the squad FSM. Only used when EvacuateWhenIdle is set.")]
@@ -1540,7 +1556,11 @@ namespace OpenRA.Mods.Common.Traits
 				var nearHome = ownSR == null || (h.Location - ownSR.Location).LengthSquared <= homeRadiusSq;
 				var hasTarget = HasWorthwhileBelievedTarget(h, missionRangeSq);
 
-				if (HeliEmploymentMath.Decide(hasUsableAmmo, canRearm, hasTarget, enemyEverObserved, nearHome, ticks, Info.EvacuateIdleTicks, Info.EvacuateForwardIdle)
+				if (HeliEmploymentMath.Decide(
+						hasUsableAmmo, canRearm, hasTarget, enemyEverObserved, nearHome, ticks,
+						Info.EvacuateIdleTicks, Info.EvacuateForwardIdle,
+						AmmoPercent(h), Info.EvacuateAmmoPercent,
+						AirframeReadiness.HasRepairHost(h), HealthPercent(h), Info.EvacuateBelowHealthPercent)
 					== HeliDisposition.Evacuate)
 					Evacuate(h);
 			}
@@ -1728,6 +1748,28 @@ namespace OpenRA.Mods.Common.Traits
 
 		// True if the heli still has a usable round in any pool. A heli carrying no AmmoPool at all is
 		// not ammo-limited, so it never counts as "spent".
+		// Rounds remaining across ALL pools as a percent of total capacity. An airframe carrying no pool at all
+		// (infinite-ammo hull) reports 100 — "never low" — so the low-ammo evac can never fire on one. Integer
+		// throughout, and a zero denominator is the no-pool case rather than a division to guard against.
+		static int AmmoPercent(Actor h)
+		{
+			var current = 0;
+			var capacity = 0;
+			foreach (var ap in h.TraitsImplementing<AmmoPool>())
+			{
+				current += ap.CurrentAmmoCount;
+				capacity += ap.Info.Ammo;
+			}
+
+			return capacity > 0 ? current * 100 / capacity : 100;
+		}
+
+		static int HealthPercent(Actor h)
+		{
+			var health = h.TraitOrDefault<IHealth>();
+			return health != null ? (int)(health.HP * 100L / health.MaxHP) : 100;
+		}
+
 		static bool HasUsableAmmo(Actor h)
 		{
 			var any = false;
@@ -2014,14 +2056,48 @@ namespace OpenRA.Mods.Common.Traits
 		//   evacuateIdleTicks    — patience window before a target-less heli is evacuated.
 		//   evacuateForwardIdle  — also evac a target-less idle heli that finished a mission FORWARD (beyond
 		//                          the home radius); when false the forward heli is HELD (frozen behaviour).
+		//   ammoPercent          — rounds remaining across all pools, as a percent of capacity.
+		//   evacuateAmmoPercent  — evacuate at or below this ammo percent when there is no rearm host.
+		//                          0 = off (frozen: only the absolute-zero branch above acts on ammo).
+		//   canRepair            — a friendly repair host exists it could be mended at.
+		//   healthPercent        — current HP as a percent of max.
+		//   evacuateBelowHealthPercent — evacuate at or below this HP percent when there is no repair host.
+		//                          0 = off (frozen).
+		//
+		// EVERY PARAMETER IS REQUIRED, deliberately. The four new ones could have been optional and every
+		// existing caller would still compile — which is exactly the failure this project keeps hitting: a
+		// pure function pinned by tests while the call site quietly never passes the new argument. Making
+		// them required means the compiler, not a test, guarantees the wiring.
 		public static HeliDisposition Decide(
 			bool hasUsableAmmo, bool canRearm, bool hasWorthwhileTarget,
 			bool contactEverObserved, bool nearHome, int idleTicks, int evacuateIdleTicks,
-			bool evacuateForwardIdle = false)
+			bool evacuateForwardIdle,
+			int ammoPercent, int evacuateAmmoPercent,
+			bool canRepair, int healthPercent, int evacuateBelowHealthPercent)
 		{
 			// Spent and unable to refill: no combat value remains — bank the salvage and stop the upkeep
 			// drain rather than parking a disarmed heli forever. Fires regardless of target/home/window/contact.
 			if (!hasUsableAmmo && !canRearm)
+				return HeliDisposition.Evacuate;
+
+			// LOW ammo, not empty ammo, and no way to refill. The user's ask verbatim: "before it runs
+			// completely dry on ammo it can be evacuated." Everything else in the tree acts at absolute zero —
+			// HasUsableAmmo is true while ANY pool holds a round, AirframeEvacMath returns None while
+			// loadedPools > 0, and SendDryUnitsHome's predicate is !HasAmmo — so a gunship with one rocket left
+			// and nowhere to rearm was flown as though it were armed.
+			//
+			// Gated on !canRearm for the same reason the branch above is: if it can refill, refilling beats
+			// scrapping. Fires regardless of the idle window, which is safe because this whole walk only ever
+			// sees helis that are already IsUnoccupied — no mission is interrupted by it.
+			if (!canRearm && evacuateAmmoPercent > 0 && ammoPercent <= evacuateAmmoPercent)
+				return HeliDisposition.Evacuate;
+
+			// Damaged past the bar with nowhere to repair. The salvage refund is HP-scaled
+			// (RotateToEdge.DoSell pays fixedRefund * hp / maxHP), so a damaged airframe's recoverable value
+			// only ever DECREASES — every further hit is money burnt. Banking 35% of 6000 beats losing 100% of
+			// it later. Gated on !canRepair so that capturing a repair host makes the bot mend rather than
+			// scrap; without that clause a map with an HPAD would still see damaged airframes retired.
+			if (!canRepair && evacuateBelowHealthPercent > 0 && healthPercent <= evacuateBelowHealthPercent)
 				return HeliDisposition.Evacuate;
 
 			// Armed (or able to rearm) but nothing believed worth striking, idle past the patience window:
