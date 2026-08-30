@@ -1841,9 +1841,15 @@ Player:
 			hind: 80
 			mi28: 50
 			halo: 15
+		# 2026-08-30: attack helis capped at ONE each (was hind 4 / mi28 3). The lane is a uniform lottery
+		# over a helicopter-only queue running in parallel with a ground lane that cannot see aircraft, so
+		# UnitLimits is its ONLY ceiling — and at 4+3 that ceiling was 34,000, roughly double the intended
+		# 15-22k mid-game army. Transports stay at 2: they are demand-gated by GateTransportOnDemand and are
+		# not part of the over-buy. Expect transient 2-of-a-type — UnitLimits counts world actors only, so
+		# call-ins still flying in from the map edge are invisible to it.
 		UnitLimits:
-			hind: 4
-			mi28: 3
+			hind: 1
+			mi28: 1
 			halo: 2
 		UnitDelays:
 			hind: 2500
@@ -1852,6 +1858,22 @@ Player:
 		GateTransportOnDemand: true
 		TransportUnitTypes: halo
 		TransportMinPassengers: 4
+		# 2026-08-30: no attack heli until the ground army is worth 14,000. UnitLimits caps HOW MANY; this
+		# caps WHEN. The V_fit table splits the roster into a core-line band (abrams 13,158 / t90 12,632 /
+		# bradley 10,714) and a specialist band (m109 30,000 / strykershorad 50,000 / grad 60,000), and a
+		# 6000-cost gunship is a specialist, so the floor must clear the core-line band or a heli displaces
+		# the army's spine. 14,000 is just above abrams' 13,158, the highest core-line V_fit.
+		# WHY NOT HIGHER: an earlier revision used 20,000, reasoning from the "~15-22k realistic mid-game
+		# army" at ai-america.yaml:343. That figure is NOT a measurement — it traces to an illustrative
+		# composition in DISCOVERIES.md summing to 18,800, which would NOT have cleared a 20,000 floor. Two
+		# further effects push the same way: truk is unarmed so GroundArmyValue() excludes it while the census
+		# that band was expressed in counted it, and GroundArmyValue() deliberately excludes pending call-ins.
+		# A floor above the army it is measuring silently disables the lane with every test still green.
+		# SCOUTS ARE NOT GATED. littlebird is Role: Scout and is the ONLY scout in the tree, so gating it
+		# would deny NATO all helicopter scouting until the floor cleared — while this same profile tunes
+		# CarefulScoutEmployment and ScoutMaxDistanceCells for it. The derivation above is about gunships.
+		MinGroundArmyValue: 14000
+		MinGroundArmyValueTypes: hind, mi28
 
 	# ===== Fixed-Wing Aircraft — America =====
 	# Fixed-wing called in via Supply Route — no AFLD needed to produce them
@@ -1930,9 +1952,12 @@ Player:
 			heli: 80
 			littlebird: 40
 			tran: 15
+		# 2026-08-30: attack helis capped at ONE each (was heli 4 / littlebird 2). See the Russia twin above
+		# for the reasoning; America's ceiling was 30,000 against the same 15-22k intended army. tran stays
+		# at 2 (demand-gated).
 		UnitLimits:
-			heli: 4
-			littlebird: 2
+			heli: 1
+			littlebird: 1
 			tran: 2
 		UnitDelays:
 			heli: 2500
@@ -1941,6 +1966,12 @@ Player:
 		GateTransportOnDemand: true
 		TransportUnitTypes: tran
 		TransportMinPassengers: 4
+		# 2026-08-30: see the Russia twin above for the derivation. Same floor, same reasoning.
+		# littlebird is deliberately ABSENT from the gated list: it is Role: Scout, and gating it would deny
+		# NATO all helicopter scouting until the floor cleared. Russia's list is gunships-only for the same
+		# reason (halo/hind/mi28 carry no scout role), so the two factions stay symmetric.
+		MinGroundArmyValue: 14000
+		MinGroundArmyValueTypes: heli
 
 	# ===== Helicopter Squad Manager — Stable twin =====
 	# 2026-08-02 promotion: @stable now runs the SAME heli behaviour as @experimental (the SR-only,
@@ -2004,6 +2035,14 @@ Player:
 		# SURFACED 2026-08-09 — see the @stable twin above for why this is written out rather than left on
 		# the C# default. Kept identical to the twin: this is a bug-class correction, not a lever.
 		AirDangerSpikeUnits: 25
+		# 2026-08-30: apply that same spike test inside HelicopterAttackRunState, whose only other exits are
+		# damage ALREADY TAKEN, the hit-and-run timer and the target dying.
+		# THIS IS INERT TODAY AND THAT IS NOT AN OVERSIGHT. HelicopterAttackRunState is constructed at exactly
+		# one place in the engine, inside `if (!standoff)` (HelicopterStates.cs:597), and StandoffEngagement is
+		# true on this profile AND on @stable — so the state is unreachable for both and this flag cannot
+		# change a match. It is set so the state is safe for whoever turns standoff off rather than being a
+		# trap for them. HeliAttackRunReachabilityTest pins the unreachability and fails when it ends.
+		WithdrawOnSpikeInAttackRun: true
 		# Forward-staging (default-frozen in C#): push idle attack helis that are
 		# still loitering near the SR forward to ~40% of the SR->top-POI vector, so they stage toward
 		# the fight instead of hovering at the SR corner. Pct clamped short of contact per the recon's
@@ -2017,14 +2056,35 @@ Player:
 		# rearward toward the squad when it lands closer. Rides on StandoffEngagement above. 4 coarse cells ≈
 		# 8 map cells. NOTE (b8d2e601, 2026-08-02): the @stable twin sets it too (:1688), so it is not
 		# experimental-only; Normal / Rush / Turtle / legacy still leave it 0.
-		MinFrontierDistanceCells: 4
+		# 2026-08-30: 4 -> 8 coarse cells (≈16 map cells). The user's report is that attack helis fly as
+		# frontline units when they should be supporting from behind, so this holds the standoff cell twice
+		# as far back. CAVEAT, stated because the recon's stated reason for this change does NOT hold: it
+		# argued 4 coarse cells put the squad exactly on the 8-map-cell radius that triggers the close-in
+		# attack run, so the standoff cancelled itself. That trigger is inside `if (!standoff)`
+		# (HelicopterStates.cs:597) and this profile sets StandoffEngagement: true, so the attack run is
+		# never reached and cannot be what defeats the standoff. The change is made on its own merits --
+		# hold further back -- and its effect is measurable only in a match.
+		MinFrontierDistanceCells: 8
 		# Mission-employment exit strategy (experimental-only, default-frozen in C#): evacuate an idle attack
 		# heli to reserves when it is spent (out of ammo, no hpad to rearm at) or has loitered near home with no
 		# believed worthwhile target — reclaiming salvage value and stopping upkeep drain instead of parking at
 		# the SR/staging corner forever. The exit half of "helicopters are perfect for short hit-and-run
 		# missions". Belief-store read (fog-legal), zero RNG. OFF for every non-experimental profile.
 		EvacuateWhenIdle: true
-		EvacuateIdleTicks: 500
+		# 2026-08-30: 500 -> 300 (≈18 s at 16.67 tps, was ≈30 s). Retires a target-less airframe sooner.
+		EvacuateIdleTicks: 300
+		# 2026-08-30: evacuate on LOW ammo, not empty ammo — the user's ask verbatim, "before it runs
+		# completely dry on ammo it can be evacuated". Every other ammo path in the tree fires at absolute
+		# zero, so a gunship with one rocket left and no rearm host was flown as though it were armed. 34% is
+		# roughly one salvo, which leaves it able to defend itself on the way out. Only applies with no rearm
+		# host (refilling beats scrapping) and only to already-idle helis, so no mission is interrupted.
+		EvacuateAmmoPercent: 34
+		# 2026-08-30: evacuate a damaged airframe that cannot be repaired. The refund is HP-scaled
+		# (RotateToEdge.DoSell pays fixedRefund * hp / maxHP), so recoverable value only ever DECREASES and
+		# every further hit is money burnt — banking 35% of 6000 beats losing 100% of it later. 35 matches the
+		# Apache's own FleeHealthPercent. Gated on the absence of a repair host, so capturing an HPAD makes the
+		# bot mend rather than scrap.
+		EvacuateBelowHealthPercent: 35
 		EvacuateHomeRadiusCells: 12
 		MissionTargetRangeCells: 60
 		# Mission-complete evac (experimental-only, default-frozen in C#): a heli that finished a mission
@@ -2055,6 +2115,11 @@ Player:
 		CarefulScoutEmployment: true
 		ScoutAirDangerSafeThreshold: 0
 		ScoutMaxDistanceCells: 40
+		# 2026-08-30: the same penetration bound on the ATTACK path, which had none. Target selection is
+		# omniscient (world.Actors, no visibility filter) while the air-danger risk read against it is
+		# fog-legal, so unscouted ground reads as safe and the squad flies at things it cannot see. 40 matches
+		# the scout bound: own half plus the contested middle. Default 0 = off, so @stable is unchanged.
+		AttackMaxDistanceCells: 40
 		# Empty-delivery commit-on-order (experimental-only, default-frozen in C#): commit each ordered transport
 		# passenger to the shared PoiGoalGuard ledger (key transport:<heliId>) while it walks to the heli, so no
 		# other module poaches it mid-board. The staged loading that fixes the empty delivery itself is an ungated

@@ -110,7 +110,11 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			}
 		}
 
-		protected static void SendLowAmmoUnitsHome(Squad owner)
+		// DRY, not low. The predicate below is !HasAmmo -- zero rounds in every pool -- and the old name
+		// (SendLowAmmoUnitsHome) read as though the partial-ammo case were already handled. It was not, and
+		// that gap is exactly what HelicopterSquadBotModuleInfo.EvacuateAmmoPercent now fills. The name had
+		// already misled once; renaming it is the cheapest way to stop it misleading again.
+		protected static void SendDryUnitsHome(Squad owner)
 		{
 			foreach (var u in owner.Units)
 			{
@@ -206,6 +210,33 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		{
 			var info = GetHeliModuleInfo(owner);
 			return info != null && info.DangerFieldAvoidance;
+		}
+
+		// "Believed air danger over this squad now exceeds the withdraw threshold." ONE copy, called from the
+		// approach state and the attack-run state — deliberately not written out twice. The two callers are
+		// reached under different conditions and only one of them is live today, so a second copy would be a
+		// copy nobody exercises, free to drift from the one that matters without any test noticing.
+		protected static bool AirDangerSpiked(Squad owner, DangerFieldLayer field)
+		{
+			var info = GetHeliModuleInfo(owner);
+			if (info == null)
+				return false;
+
+			return SquadMaxAirDanger(owner, field) > field.AirDangerUnitsToField(info.AirDangerSpikeUnits);
+		}
+
+		// Whether HelicopterAttackRunState may withdraw on an air-danger spike (default off).
+		//
+		// READ THIS BEFORE TUNING IT. HelicopterAttackRunState is currently UNREACHABLE for both shipped bot
+		// profiles. It is constructed at exactly one place in the engine (the handoff further down this file),
+		// that site sits inside `if (!standoff)`, and both HelicopterSquadBotModule@stable and @experimental
+		// set StandoffEngagement: true. So this flag changes nothing today; it makes the state safe for
+		// whoever turns standoff off, and HeliAttackRunReachabilityTest fails the moment that happens so the
+		// change is noticed rather than assumed.
+		protected static bool WithdrawOnSpikeInAttackRunEnabled(Squad owner)
+		{
+			var info = GetHeliModuleInfo(owner);
+			return info != null && info.WithdrawOnSpikeInAttackRun;
 		}
 
 		// True when Phase-4 strategic-target pinning is enabled (experimental-only, default off). Gates every
@@ -369,6 +400,36 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				.ClosestToIgnoringPath(pos);
 		}
 
+		// The squad's own Supply Route cell, or the player's home location when no SR is standing. Mirrors
+		// HelicopterSquadBotModule's own `ownSR?.Location ?? player.HomeLocation` fallback so the attack cap
+		// and the scout cap measure from the same origin.
+		protected static CPos OwnSupplyRouteCell(Squad owner)
+		{
+			var info = GetHeliModuleInfo(owner);
+			var player = owner.Bot.Player;
+			if (info != null)
+			{
+				foreach (var a in owner.World.Actors)
+					if (a.Owner == player && !a.IsDead && a.IsInWorld && info.SupplyRouteTypes.Contains(a.Info.Name))
+						return a.Location;
+			}
+
+			return player.HomeLocation;
+		}
+
+		/// <summary>Whether an attack objective is inside AttackMaxDistanceCells of the squad's own Supply
+		/// Route. 0 (the default) disables the bound, so every non-opted-in profile keeps its exact behaviour
+		/// and pays only one Info read.</summary>
+		protected static bool AttackObjectiveWithinReach(Squad owner, Actor target)
+		{
+			var info = GetHeliModuleInfo(owner);
+			if (info == null || info.AttackMaxDistanceCells <= 0)
+				return true;
+
+			var maxSq = (long)info.AttackMaxDistanceCells * info.AttackMaxDistanceCells;
+			return (long)(target.Location - OwnSupplyRouteCell(owner)).LengthSquared <= maxSq;
+		}
+
 		protected static int CountAntiAirNearTarget(Squad owner, WPos targetPos, int radiusCells)
 		{
 			var enemies = owner.World.FindActorsInCircle(targetPos, WDist.FromCells(radiusCells))
@@ -470,6 +531,30 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			if (target == null)
 				return;
 
+			// Penetration bound on the ATTACK path (experimental, default 0 = off), mirroring the scout's
+			// ScoutMaxDistanceCells. Both candidate sources above are omniscient — the threat-map cluster and
+			// FindClosestEnemy each scan world.Actors with no visibility filter — while the risk the squad
+			// weighs against them is fog-legal, because air danger is stamped from the belief store. Air danger
+			// of 0 therefore means "no BELIEVED AA", which is indistinguishable from "never observed". This
+			// geometry cap is what stops the squad flying confidently at something it should not be able to see,
+			// through AA it holds no belief about. The scout path has had exactly this bound for the same
+			// reason; the attack path had none.
+			//
+			// COVERAGE, stated exactly because an earlier version of this comment claimed "the single point
+			// where a target is committed" and that was wrong. FOUR sites write TargetActor from a fresh
+			// scan. Three are live and all three are now bounded: this one (covering both the threat-map
+			// cluster pick and the FindClosestEnemy fallback), the soft-target divert in Approach, and the
+			// re-pick in Withdraw. The fourth is the re-target inside HelicopterAttackRunState, deliberately
+			// NOT bounded because that state is unreachable on both shipped profiles (see
+			// HeliAttackRunReachabilityTest) — bounding dead code would only blur which sites carry the
+			// guarantee.
+			//
+			// Withdraw is the one that made this necessary rather than merely tidy: Idle re-picks only when
+			// TargetActor is null, so an unbounded re-pick on the way out of a fight would have reset the
+			// squad past the cap permanently, and retreating would have been the way to escape it.
+			if (!AttackObjectiveWithinReach(owner, target))
+				return;
+
 			owner.TargetActor = target;
 
 			// Pin the freshly-acquired target as the squad's strategic objective (experimental). From here
@@ -541,11 +626,15 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			{
 				// Try to find a softer target nearby
 				var leader = owner.Units.First();
+				// Bounded like the other two commit sites. The divert is only 20 cells from the leader, but
+				// the leader is already forward, so an unbounded soft-swap can walk the squad past the cap
+				// one divert at a time -- and each divert re-enters this state, so it chains.
 				var softTarget = owner.World.FindActorsInCircle(leader.CenterPosition, WDist.FromCells(20))
 					.Where(a => a.Owner != null
 						&& owner.Bot.Player.RelationshipWith(a.Owner) == PlayerRelationship.Enemy
 						&& !a.Info.HasTraitInfo<AircraftInfo>()
-						&& !IsTargetTooHot(owner, a.CenterPosition))
+						&& !IsTargetTooHot(owner, a.CenterPosition)
+						&& AttackObjectiveWithinReach(owner, a))
 					.ClosestToIgnoringPath(leader.CenterPosition);
 
 				if (softTarget != null)
@@ -580,8 +669,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			{
 				// Withdraw-on-spike: a newly-believed AA now reads over the squad's own position —
 				// stop pushing in, hand to the withdraw state (which re-routes to air-safe ground).
-				var info = GetHeliModuleInfo(owner);
-				if (SquadMaxAirDanger(owner, danger) > danger.AirDangerUnitsToField(info.AirDangerSpikeUnits))
+				if (AirDangerSpiked(owner, danger))
 				{
 					owner.FuzzyStateMachine.ChangeState(owner, new HelicopterWithdrawState());
 					return;
@@ -694,7 +782,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				return;
 			}
 
-			SendLowAmmoUnitsHome(owner);
+			SendDryUnitsHome(owner);
 		}
 
 		public void Deactivate(Squad owner) { }
@@ -724,6 +812,24 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			{
 				owner.FuzzyStateMachine.ChangeState(owner, new HelicopterWithdrawState());
 				return;
+			}
+
+			// Withdraw-on-spike, carried in from HelicopterApproachState. Without it the ONLY exits from an
+			// attack run are damage already taken (SendDamagedUnitsHome / ShouldFlee), the hit-and-run timer,
+			// and the target dying — so a newly-believed SAM lighting up over the squad cannot end the run. For
+			// a helicopter, "withdraw once you have been shot" is a decision made one salvo too late.
+			//
+			// NOT gated on StandoffEngagement, unlike the approach-state copy: reaching this state at all means
+			// standoff was FALSE, so borrowing that condition would make this permanently inert. It reads its
+			// own flag and needs only the danger layer to exist.
+			if (WithdrawOnSpikeInAttackRunEnabled(owner))
+			{
+				var spikeDanger = GetDangerField(owner);
+				if (spikeDanger != null && AirDangerSpiked(owner, spikeDanger))
+				{
+					owner.FuzzyStateMachine.ChangeState(owner, new HelicopterWithdrawState());
+					return;
+				}
 			}
 
 			// Hit-and-run: pull back after cooldown ticks
@@ -785,7 +891,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					owner.Bot.QueueOrder(new Order("Attack", u, Target.FromActor(owner.TargetActor), false));
 			}
 
-			SendLowAmmoUnitsHome(owner);
+			SendDryUnitsHome(owner);
 		}
 
 		public void Deactivate(Squad owner) { }
@@ -816,7 +922,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 			// Send damaged units home
 			SendDamagedUnitsHome(owner);
-			SendLowAmmoUnitsHome(owner);
+			SendDryUnitsHome(owner);
 
 			// Check if squad is too damaged to re-engage — full return
 			if (GetSquadHealthPercent(owner) < CommitHealthThreshold(owner) || !SquadHasAmmo(owner))
@@ -914,8 +1020,15 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 						owner.StrategicTarget = null;
 					}
 
+					// THE RE-PICK IS BOUNDED TOO, and this is not symmetry for its own sake. This is a fresh
+					// omniscient FindClosestEnemy that sets TargetActor and hands straight back to Approach,
+					// so without the bound every withdraw resets the squad to an unbounded objective and the
+					// Idle-state bound above is never consulted again (Idle only re-picks when TargetActor is
+					// null). Retreating would have been the way to escape the cap — and this batch makes
+					// withdraws MORE frequent, via the danger-spike and low-ammo work.
 					var newTarget = FindClosestEnemy(owner, leader.CenterPosition);
-					if (newTarget != null && !IsTargetTooHot(owner, newTarget.CenterPosition))
+					if (newTarget != null && !IsTargetTooHot(owner, newTarget.CenterPosition)
+						&& AttackObjectiveWithinReach(owner, newTarget))
 					{
 						owner.TargetActor = newTarget;
 						owner.FuzzyStateMachine.ChangeState(owner, new HelicopterApproachState());

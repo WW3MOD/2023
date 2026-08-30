@@ -123,7 +123,7 @@ namespace OpenRA.Mods.Common.Traits
 			"been idle past TransportIdleEvacuateTicks with no lift it can fly — no load waiting, no free mission",
 			"slot, or not mission-READY (below FleeHealthPercent 60, since with no reachable repair host the",
 			"readiness bar falls back to the flee bar and damage is one-way) — is evacuated to reserves, banking",
-			"its salvage refund and ending its upkeep drain, instead of parking at the Supply Route for the rest",
+			"its salvage refund, instead of parking at the Supply Route for the rest",
 			"of the match. Terminal by design — no hold-and-recheck. Independent of EvacuateWhenIdle, which covers",
 			"only the ATTACK roles (the idle evaluator's role filter admits AttackHeavy/AttackLight and skips",
 			"Transport entirely, so nothing ever retired a transport). OFF by default so @stable is byte-identical.")]
@@ -178,6 +178,17 @@ namespace OpenRA.Mods.Common.Traits
 			"CarefulScoutEmployment is set.")]
 		public readonly int ScoutMaxDistanceCells = 0;
 
+		[Desc("EXPERIMENTAL: maximum distance (map cells) from the squad's own Supply Route that an ATTACK",
+			"objective may be. The attack twin of ScoutMaxDistanceCells, and it exists for the same reason.",
+			"Attack-heli target selection is OMNISCIENT — the threat-map cluster pick and FindClosestEnemy both",
+			"scan world.Actors with no visibility filter — while the risk weighed against it is fog-legal,",
+			"since air danger is stamped from the belief store. An air-danger reading of 0 means 'no BELIEVED",
+			"AA', which is indistinguishable from 'never observed', so the squad reads unscouted ground as safe",
+			"and flies at a target it should not be able to see. Geometry is the cheap honest bound on that,",
+			"and it is what the scout path already leans on before first contact.",
+			"0 = no cap (the default): every non-opted-in profile keeps its exact target selection.")]
+		public readonly int AttackMaxDistanceCells = 0;
+
 		[Desc("Use standoff (attack-move) engagement for attack-heli squads. When on, the squad FSM issues",
 			"AttackMove toward the target cell instead of a bare Attack on a single (possibly distant) target,",
 			"so AutoTarget engages the nearest in-range threat at weapon standoff and the squad only advances",
@@ -212,6 +223,17 @@ namespace OpenRA.Mods.Common.Traits
 			"units: the air channel carries no territory baseline, so 0 there genuinely means 'outside every",
 			"believed AA envelope' at any scale, and converting it would change nothing (0 units = 0 raw).")]
 		public readonly int AirDangerSpikeUnits = 25;
+
+		[Desc("EXPERIMENTAL: let HelicopterAttackRunState withdraw when believed air danger over the squad",
+			"exceeds AirDangerSpikeUnits, the same test HelicopterApproachState already applies. Without it the",
+			"only exits from an attack run are damage ALREADY TAKEN, the hit-and-run timer and the target dying",
+			"— so a SAM lighting up over a 6000-cost airframe cannot end the run until it has been hit.",
+			"REACHABILITY, and read this before tuning: HelicopterAttackRunState is constructed at exactly ONE",
+			"place in the engine, inside `if (!standoff)`, and BOTH shipped bot profiles set",
+			"StandoffEngagement: true. The state is therefore dead code today and this flag changes nothing in a",
+			"match. It is here so the state is not a trap for whoever disables standoff; HeliAttackRunReachability",
+			"Test pins that fact and fails when it stops being true. Default false ⇒ frozen for every profile.")]
+		public readonly bool WithdrawOnSpikeInAttackRun = false;
 
 		[Desc("Stage-D: how far from the target (cells) to search for an AA-safe standoff cell to leash to.")]
 		public readonly int AirDangerLeashCells = 6;
@@ -256,16 +278,45 @@ namespace OpenRA.Mods.Common.Traits
 			"assets with an exit strategy. An attack heli that goes idle with no believed worthwhile target",
 			"— or is spent (out of ammo) with no rearm host to refill at — is EVACUATED to reserves via the",
 			"map edge (RotateToEdge), reclaiming its salvage value (full Cost with ammo, less spent-ammo value)",
-			"and stopping its upkeep drain, instead of parking at the SR/staging corner forever (the corner-idle",
+			"and freeing the capital it represents, instead of parking at the SR/staging corner forever (the corner-idle",
 			"bug). A believed target instead keeps the heli HELD for the squad mission loop. Fog-legal: the",
 			"'worthwhile target' read is the belief store, never ground truth. OFF by default so normal/rush/",
-			"turtle/stable stay byte-identical; only HelicopterSquadBotModule@experimental turns it on.")]
+			"turtle/stable stay byte-identical; only HelicopterSquadBotModule@experimental turns it on.",
+			"GATING IS COMPLETE, and a note dated 2026-08-30 briefly claimed otherwise here — it was wrong and",
+			"is withdrawn. EvaluateIdleHelicopters returns early unless EvacuateWhenIdle or",
+			"EvacuateIdleTransports is set, and attack helis hit a second EvacuateWhenIdle guard after that,",
+			"before the sole HeliEmploymentMath.Decide call site. @stable sets neither flag, so Decide is never",
+			"reached for it and NO branch of it — including spent-and-cannot-rearm — runs on @stable.")]
 		public readonly bool EvacuateWhenIdle = false;
 
 		[Desc("Consecutive idle ticks an attack heli must loiter near home with no believed worthwhile target",
 			"before it is evacuated to reserves. Spent-with-no-rearm helis evac immediately (this gate does not",
 			"apply to them). Only used when EvacuateWhenIdle is set.")]
 		public readonly int EvacuateIdleTicks = 500;
+
+		[Desc("EXPERIMENTAL: evacuate an idle attack heli with NO REARM HOST once its rounds across all pools",
+			"fall to or below this percent of capacity — low ammo, not empty ammo. Everything else in the tree",
+			"acts only at absolute zero (HasUsableAmmo is true while ANY pool holds a round; AirframeEvacMath",
+			"returns None while loadedPools > 0), so a gunship with one rocket left and nowhere to refill was",
+			"flown as though it were armed. Suggested 34 — roughly one salvo — which leaves the airframe able",
+			"to defend itself on the way out. Only ever evaluated for helis that are already idle, so it cannot",
+			"interrupt a mission. 0 = off (the default): only the absolute-zero branch acts on ammo.")]
+		public readonly int EvacuateAmmoPercent = 0;
+
+		[Desc("EXPERIMENTAL: evacuate an idle attack heli with NO REPAIR HOST once its health falls to or below",
+			"this percent. The salvage refund is HP-scaled (RotateToEdge.DoSell pays fixedRefund * hp / maxHP),",
+			"so a damaged airframe's recoverable value only ever DECREASES and every further hit is money burnt",
+			"— banking 35% of a 6000-cost airframe beats losing 100% of it later. Gated on the absence of a",
+			"repair host, so capturing one makes the bot mend rather than scrap. 0 = off (the default).",
+			"DOES 35 KILL ReEngageHealthPercent? No — that bar was ALREADY dead for attack helis, verified",
+			"2026-08-30 rather than assumed. SendDamagedUnitsHome consults ReEngageHealthPercent only via",
+			"AirframeReadiness.RepairRoutingBar's has-repair-host branch; a helicopter's RepairActors is 'hpad'",
+			"(aircraft.yaml), hpad carries Prerequisites: ~disabled so it is map-placed only, and it appears on",
+			"ZERO shipped maps. So HasRepairHost is always false, the routing bar is always FleeHealthPercent,",
+			"and ReEngageHealthPercent has never been reached. Setting this to the same 35 removes nothing that",
+			"was live. If an hpad is ever map-placed, the !canRepair gate above hands the airframe back to",
+			"repair before this rule can scrap it.")]
+		public readonly int EvacuateBelowHealthPercent = 0;
 
 		[Desc("Radius (map cells) around the own Supply Route within which an idle, target-less heli counts as",
 			"'loitering at home' and becomes evac-eligible. A heli forward of this (e.g. mid-withdraw near the",
@@ -281,7 +332,7 @@ namespace OpenRA.Mods.Common.Traits
 			"heli that finished a mission FORWARD (beyond EvacuateHomeRadiusCells) and has since gone idle past",
 			"the window with NO believed worthwhile target evacuates to reserves too, instead of loitering at the",
 			"front indefinitely with no follow-up mission. RotateToEdge routes it toward its OWN Supply-Route edge",
-			"(friendly side), banking the salvage refund and ending the upkeep drain. Without this, only helis",
+			"(friendly side), banking the salvage refund. Without this, only helis",
 			"idling within the home radius are reclaimed. Only used when EvacuateWhenIdle is set; OFF by default so",
 			"the frozen forward-hold behaviour is preserved for any profile that does not opt in.")]
 		public readonly bool EvacuateForwardIdle = false;
@@ -560,7 +611,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			// Exclude helis currently flying their evac: re-adopting one (it left managedHelicopters when
 			// evacuated) would put it back in the idle pool and a squad order would cancel the RotateToEdge,
-			// so the heli would fight without ammo and never stop draining upkeep. The set is only ever
+			// so the heli would fight without ammo and never be reclaimed. The set is only ever
 			// populated on the EvacuateWhenIdle path, so this clause is a no-op (byte-identical) when off.
 			var helicopters = world.ActorsHavingTrait<AIHelicopterRole>()
 				.Where(a => a.Owner == player && !a.IsDead && a.IsInWorld
@@ -1448,7 +1499,8 @@ namespace OpenRA.Mods.Common.Traits
 		// evacuated to reserves when it has no further use: either it is spent with no rearm host, or it has
 		// loitered near home past the patience window with no believed worthwhile target. Evac reclaims the
 		// heli's salvage value (RotateToEdge → GetEvacuationRefund: full Cost with ammo, less spent-ammo value) and
-		// stops its upkeep drain — the "helicopters are perfect for short hit-and-run missions" model, and the
+		// recovers the capital it is sitting on — the "helicopters are perfect for short hit-and-run missions"
+		// model, and the
 		// fix for the SR/staging corner-idle park. Deterministic: belief-store + integer geometry, ActorID-
 		// ordered iteration, ZERO random draws. Fully skipped (byte-identical) when the flag is off.
 		void EvaluateIdleHelicopters()
@@ -1518,7 +1570,11 @@ namespace OpenRA.Mods.Common.Traits
 				var nearHome = ownSR == null || (h.Location - ownSR.Location).LengthSquared <= homeRadiusSq;
 				var hasTarget = HasWorthwhileBelievedTarget(h, missionRangeSq);
 
-				if (HeliEmploymentMath.Decide(hasUsableAmmo, canRearm, hasTarget, enemyEverObserved, nearHome, ticks, Info.EvacuateIdleTicks, Info.EvacuateForwardIdle)
+				if (HeliEmploymentMath.Decide(
+						hasUsableAmmo, canRearm, hasTarget, enemyEverObserved, nearHome, ticks,
+						Info.EvacuateIdleTicks, Info.EvacuateForwardIdle,
+						AmmoPercent(h), Info.EvacuateAmmoPercent,
+						AirframeReadiness.HasRepairHost(h), HealthPercent(h), Info.EvacuateBelowHealthPercent)
 					== HeliDisposition.Evacuate)
 					Evacuate(h);
 			}
@@ -1527,7 +1583,7 @@ namespace OpenRA.Mods.Common.Traits
 		// USE-OR-EVAC for a transport heli (experimental, EvacuateIdleTransports). A transport that cannot be
 		// employed — no full minimum load waiting, no reserved mission slot to fly it in, or not mission-READY
 		// — is idle capital parked in a warzone. Past the patience window it evacuates to reserves, banking the
-		// salvage refund (RotateToEdge → GetSellValue) and ending its upkeep drain. Terminal: no hold-and-recheck.
+		// salvage refund (RotateToEdge → GetSellValue). Terminal: no hold-and-recheck.
 		// Employment always outranks retirement (TransportEmploymentMath.Decide), so a transport that could fly
 		// a lift this instant is held for TryLaunchTransportMission rather than refunded.
 		void EvaluateIdleTransport(Actor h, CPos homeCell)
@@ -1706,6 +1762,28 @@ namespace OpenRA.Mods.Common.Traits
 
 		// True if the heli still has a usable round in any pool. A heli carrying no AmmoPool at all is
 		// not ammo-limited, so it never counts as "spent".
+		// Rounds remaining across ALL pools as a percent of total capacity. An airframe carrying no pool at all
+		// (infinite-ammo hull) reports 100 — "never low" — so the low-ammo evac can never fire on one. Integer
+		// throughout, and a zero denominator is the no-pool case rather than a division to guard against.
+		static int AmmoPercent(Actor h)
+		{
+			var current = 0;
+			var capacity = 0;
+			foreach (var ap in h.TraitsImplementing<AmmoPool>())
+			{
+				current += ap.CurrentAmmoCount;
+				capacity += ap.Info.Ammo;
+			}
+
+			return capacity > 0 ? current * 100 / capacity : 100;
+		}
+
+		static int HealthPercent(Actor h)
+		{
+			var health = h.TraitOrDefault<IHealth>();
+			return health != null ? (int)(health.HP * 100L / health.MaxHP) : 100;
+		}
+
 		static bool HasUsableAmmo(Actor h)
 		{
 			var any = false;
@@ -1739,9 +1817,16 @@ namespace OpenRA.Mods.Common.Traits
 		void Evacuate(Actor h)
 		{
 			// Order, not a direct activity write. Bot logic runs on the HOST ONLY (Player.cs:224-232), so
-			// touching the activity queue here mutates synced state on one client and no other. This site is
-			// reachable on BOTH profiles — HeliEmploymentMath.Decide's spent-and-cannot-rearm branch is
-			// ungated — so unlike the PoiOffensive sweeps it exposed @stable too. "Evacuate" is resolved by
+			// touching the activity queue here mutates synced state on one client and no other.
+			//
+			// CORRECTED 2026-08-30: this comment used to claim the site was "reachable on BOTH profiles"
+			// because Decide's spent-and-cannot-rearm branch is ungated. It is not ungated. Every caller of
+			// Decide sits behind EvaluateIdleHelicopters' EvacuateWhenIdle/EvacuateIdleTransports early
+			// return, and attack helis behind a second EvacuateWhenIdle guard; @stable sets neither, so this
+			// site is @experimental-only. The wrong version of this claim propagated into the helicopter
+			// recon and from there into an Info [Desc] before it was caught.
+			//
+			// "Evacuate" is resolved by
 			// DeliversCash@Rotation (aircraft.yaml) into the same activity with the same GetSellValue()
 			// refund; unqueued, so it still cancels whatever the heli was doing.
 			bot.QueueOrder(new Order("Evacuate", h, false));
@@ -1980,6 +2065,14 @@ namespace OpenRA.Mods.Common.Traits
 	// like HeliStagingMath / HeliDangerNav — deterministic, integer-only, zero RNG.
 	public static class HeliEmploymentMath
 	{
+		// WHY EVACUATION PAYS, stated once because four comments in this file used to get it wrong. It is
+		// CAPITAL AT RISK, not upkeep. InfersUpkeep is attached to exactly two templates — ^Vehicle
+		// (vehicles.yaml:113) and the infantry base (infantry.yaml:154) — and to NO aircraft, which inherit
+		// ^Airborne instead. An idle helicopter costs ZERO upkeep, so "stop its upkeep drain" was never a
+		// reason to retire one. The real reason is that a parked airframe is several thousand of budget sitting
+		// in a warzone earning nothing, and its salvage refund is HP-scaled, so the longer it sits the less of
+		// it comes back.
+
 		// Decide the disposition of an idle attack heli.
 		//   hasUsableAmmo        — any pool still has a round.
 		//   canRearm             — a friendly rearm host exists it could refill at.
@@ -1992,18 +2085,52 @@ namespace OpenRA.Mods.Common.Traits
 		//   evacuateIdleTicks    — patience window before a target-less heli is evacuated.
 		//   evacuateForwardIdle  — also evac a target-less idle heli that finished a mission FORWARD (beyond
 		//                          the home radius); when false the forward heli is HELD (frozen behaviour).
+		//   ammoPercent          — rounds remaining across all pools, as a percent of capacity.
+		//   evacuateAmmoPercent  — evacuate at or below this ammo percent when there is no rearm host.
+		//                          0 = off (frozen: only the absolute-zero branch above acts on ammo).
+		//   canRepair            — a friendly repair host exists it could be mended at.
+		//   healthPercent        — current HP as a percent of max.
+		//   evacuateBelowHealthPercent — evacuate at or below this HP percent when there is no repair host.
+		//                          0 = off (frozen).
+		//
+		// EVERY PARAMETER IS REQUIRED, deliberately. The four new ones could have been optional and every
+		// existing caller would still compile — which is exactly the failure this project keeps hitting: a
+		// pure function pinned by tests while the call site quietly never passes the new argument. Making
+		// them required means the compiler, not a test, guarantees the wiring.
 		public static HeliDisposition Decide(
 			bool hasUsableAmmo, bool canRearm, bool hasWorthwhileTarget,
 			bool contactEverObserved, bool nearHome, int idleTicks, int evacuateIdleTicks,
-			bool evacuateForwardIdle = false)
+			bool evacuateForwardIdle,
+			int ammoPercent, int evacuateAmmoPercent,
+			bool canRepair, int healthPercent, int evacuateBelowHealthPercent)
 		{
-			// Spent and unable to refill: no combat value remains — bank the salvage and stop the upkeep
-			// drain rather than parking a disarmed heli forever. Fires regardless of target/home/window/contact.
+			// Spent and unable to refill: no combat value remains — bank the salvage rather than parking a
+			// disarmed heli forever. Fires regardless of target/home/window/contact.
 			if (!hasUsableAmmo && !canRearm)
 				return HeliDisposition.Evacuate;
 
+			// LOW ammo, not empty ammo, and no way to refill. The user's ask verbatim: "before it runs
+			// completely dry on ammo it can be evacuated." Everything else in the tree acts at absolute zero —
+			// HasUsableAmmo is true while ANY pool holds a round, AirframeEvacMath returns None while
+			// loadedPools > 0, and SendDryUnitsHome's predicate is !HasAmmo — so a gunship with one rocket left
+			// and nowhere to rearm was flown as though it were armed.
+			//
+			// Gated on !canRearm for the same reason the branch above is: if it can refill, refilling beats
+			// scrapping. Fires regardless of the idle window, which is safe because this whole walk only ever
+			// sees helis that are already IsUnoccupied — no mission is interrupted by it.
+			if (!canRearm && evacuateAmmoPercent > 0 && ammoPercent <= evacuateAmmoPercent)
+				return HeliDisposition.Evacuate;
+
+			// Damaged past the bar with nowhere to repair. The salvage refund is HP-scaled
+			// (RotateToEdge.DoSell pays fixedRefund * hp / maxHP), so a damaged airframe's recoverable value
+			// only ever DECREASES — every further hit is money burnt. Banking 35% of 6000 beats losing 100% of
+			// it later. Gated on !canRepair so that capturing a repair host makes the bot mend rather than
+			// scrap; without that clause a map with an HPAD would still see damaged airframes retired.
+			if (!canRepair && evacuateBelowHealthPercent > 0 && healthPercent <= evacuateBelowHealthPercent)
+				return HeliDisposition.Evacuate;
+
 			// Armed (or able to rearm) but nothing believed worth striking, idle past the patience window:
-			// reclaim full value + stop upkeep instead of loitering. Only once first contact has been made —
+			// reclaim full value instead of loitering. Only once first contact has been made —
 			// a believed target instead keeps the heli HELD for the squad mission loop. By default this only
 			// fires near home; EvacuateForwardIdle extends it to a heli that finished a mission FORWARD so it
 			// does not sit at the front indefinitely with no follow-up (it evacs toward its own friendly edge).

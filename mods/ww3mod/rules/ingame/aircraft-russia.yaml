@@ -7,9 +7,6 @@ HALO:
 		Role: Transport
 		FleeHealthPercent: 60
 		ReEngageHealthPercent: 90
-		PreferSoftTargets: true
-		AIBuildPriority: 30
-		AIBuildLimit: 2
 	HeliEmergencyLanding:
 		SpinsOnCrash: false
 	VehicleCrew:
@@ -104,14 +101,9 @@ HIND:
 			Gunner: has-gunner
 	AIHelicopterRole:
 		Role: AttackHeavy
-		EngagementRange: 6
 		FleeHealthPercent: 35
 		ReEngageHealthPercent: 75
 		HitAndRunCooldown: 175
-		PreferSoftTargets: false
-		AvoidAntiAirRange: 5
-		AIBuildPriority: 70
-		AIBuildLimit: 4
 	AutoTarget:
 		InitialStance: FireAtWill
 		InitialStanceAI: FireAtWill
@@ -296,14 +288,9 @@ MI28:
 			Gunner: has-gunner
 	AIHelicopterRole:
 		Role: AttackHeavy
-		EngagementRange: 7
 		FleeHealthPercent: 35
 		ReEngageHealthPercent: 75
 		HitAndRunCooldown: 200
-		PreferSoftTargets: false
-		AvoidAntiAirRange: 5
-		AIBuildPriority: 80
-		AIBuildLimit: 3
 	AutoTarget:
 		InitialStance: FireAtWill
 		InitialStanceAI: FireAtWill

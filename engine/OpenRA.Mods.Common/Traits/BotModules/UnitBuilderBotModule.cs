@@ -315,6 +315,26 @@ namespace OpenRA.Mods.Common.Traits
 			"and buy an airframe that will never carry them. Only used when GateTransportOnDemand is set.")]
 		public readonly bool RestrictLiftToLineInfantry = true;
 
+		[Desc("EXPERIMENTAL (heli economy): refuse to call in the types listed in MinGroundArmyValueTypes until",
+			"the bot's own GROUND army is worth at least this much. A UnitLimit caps how MANY of a type the bot",
+			"ends up with; it says nothing about WHEN, so a lane capped at one still buys a 6000-cost airframe",
+			"before the army it is meant to support exists. This is the 'when'.",
+			"WHY IT IS MEASURED AGAINST GROUND VALUE and not total army value: the gated types are themselves",
+			"air, so a total-value denominator would be partly self-satisfying — each airframe bought would",
+			"raise the bar it was measured against and authorise the next one. Ground value cannot do that.",
+			"The denominator counts CARRIED units (OwnedUnitsIncludingCarried) but NOT pending call-ins still",
+			"walking in from the map edge. Both choices err toward buying the airframe LATER: a boarded rifleman",
+			"is a real army and must count, while a queued one is not an army yet.",
+			"0 = off (the default), which is the frozen behaviour for normal/rush/turtle/@stable. Draws zero",
+			"random, so an unset profile reaches QueueOrder byte-identically.")]
+		public readonly int MinGroundArmyValue = 0;
+
+		[Desc("Actor types gated by MinGroundArmyValue. Inert unless that value is > 0. Listing types explicitly",
+			"(rather than gating the whole module) keeps demand-gated transports out of it — a transport is",
+			"bought against real lift demand, not against army size, and the two gates answer different",
+			"questions.")]
+		public readonly HashSet<string> MinGroundArmyValueTypes = new HashSet<string>();
+
 		[Desc("EXPERIMENTAL (composition-directed purchasing): replace the ground-unit LOTTERY with a",
 			"census-vs-target deficit pick. The frozen path buys uniformly at random (idleUnitCount stays 0",
 			"under IgnoreGroundUnits, so buildRandom is always true), which makes the STANDING composition",
@@ -876,6 +896,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (!belowFloor && Info.GateTransportOnDemand && Info.TransportUnitTypes.Contains(name) && !ShouldBuyTransport(unit))
 				return;
 
+			if (!belowFloor && RefuseUntilGroundArmy(name))
+				return;
+
 			bot.QueueOrder(Order.StartProduction(queue.Actor, name, 1));
 		}
 
@@ -897,6 +920,50 @@ namespace OpenRA.Mods.Common.Traits
 		// the building's own Cargo and ShelterPassengers mirrors it — so one walk covers transports and
 		// garrisons, and a soldier deployed to a firing port is re-added to the world and counted by the first
 		// loop instead. The two sources are therefore disjoint: no double-count.
+		// The MinGroundArmyValue predicate, in ONE place because it is read from two.
+		//
+		// BuildUnit's post-pick gates and IsCompositionCandidateEligible must agree exactly: a type the
+		// eligibility test calls buyable and the buy path then refuses wastes the whole production cycle, and
+		// the file already carries that warning against the transport gate below. Two copies of this test would
+		// be the same defect, so there is one copy and both sites call it.
+		bool RefuseUntilGroundArmy(string name)
+		{
+			if (Info.MinGroundArmyValue <= 0 || !Info.MinGroundArmyValueTypes.Contains(name))
+				return false;
+
+			return GroundArmyValue() < Info.MinGroundArmyValue;
+		}
+
+		// Budget value of every MOBILE ARMED GROUND unit this player has, carried units included.
+		//
+		// The membership predicate is deliberately the same one CaptureCoordinatorBotModule.CountOwnCombatArmy
+		// uses — armed (AttackBase), mobile (Mobile), not aircraft — so "the army" means the same thing to the
+		// procurement floor as it does to the capture floor. It sums cost where that one counts heads, which is
+		// the only difference and the reason they are not one function.
+		//
+		// The Aircraft exclusion is redundant against the Mobile requirement today (airframes carry Aircraft,
+		// not Mobile) and is kept anyway: it states the intent that air must never count toward the floor that
+		// authorises buying air, so a future amphibious or hybrid locomotor cannot quietly make the gate
+		// self-satisfying.
+		//
+		// Order-independent sum over a membership filter — world iteration order cannot leak into the decision.
+		int GroundArmyValue()
+		{
+			var value = 0;
+			foreach (var a in OwnedUnitsIncludingCarried())
+			{
+				if (!a.Info.HasTraitInfo<AttackBaseInfo>() || !a.Info.HasTraitInfo<MobileInfo>())
+					continue;
+
+				if (a.Info.HasTraitInfo<AircraftInfo>())
+					continue;
+
+				value += UnitCost(a.Info);
+			}
+
+			return value;
+		}
+
 		IEnumerable<Actor> OwnedUnitsIncludingCarried()
 		{
 			foreach (var a in world.Actors)
@@ -1964,6 +2031,9 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 
 			if (Info.GateTransportOnDemand && Info.TransportUnitTypes.Contains(name) && !ShouldBuyTransport(actorInfo))
+				return false;
+
+			if (RefuseUntilGroundArmy(name))
 				return false;
 
 			if (!CompositionNeedMath.Affordable(budget, UnitCost(actorInfo), 100))
