@@ -18,7 +18,7 @@
 -- the verdict note either way, because the number IS the deliverable here.
 
 local SettleTicks = 50 -- let the first scan/queue happen before sampling
-local SampleTicks = 250 -- 10s of samples at 25 ticks/s
+local SampleTicks = 250 -- 15s of samples: 250 ticks at the mod's real 16.67 tps (mod.yaml Timestep 60)
 
 local idleTicks = 0
 local busyTicks = 0

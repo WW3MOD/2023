@@ -42,8 +42,9 @@
 -- 25c0 ring — which is precisely the "a ring that never changes size" signature that the
 -- capture request calls BROKEN. Walker is given a real move order for exactly this reason.
 --
--- TimeToBeStill is 200 ticks (infantry.yaml:139-142) at 25 ticks/s = 8.0 seconds, not the
--- 12.0 in the request.
+-- TimeToBeStill is 200 ticks (infantry.yaml:142). At the mod's real 16.67 tps (mod.yaml
+-- Timestep 60) that is 12.0 seconds, which MATCHES the request. An earlier version of this
+-- comment divided by 25 tps, got 8.0, and concluded the request was wrong; it was not.
 --
 -- =====================================================================================
 -- CAPTURE TIMING
