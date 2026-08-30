@@ -31,6 +31,17 @@ look like *the unit did not rearm*, so any test written to confirm the removal w
 the broken version too. `test-strategic-launcher-ignores-depot` therefore sabotages the **stance**
 in its RED arm, not the `Rearmable`.
 
+**Observed, not reasoned.** RED run `260830_065529_p44302` (seed 123361560, `status=fail`) restored
+`InitialResupplyBehavior/AI: Auto` with the `Rearmable` still absent and produced:
+
+> *fail: the launcher is still on the map after 1200 ticks, holding 0 round(s) beside a depot still
+> holding 2250. It neither rearmed nor left.*
+
+Both numbers are load-bearing: `holding 0` proves it fired and entered the dry path (at 1 it never
+shot), and `depot still holding 2250` proves it drew nothing. A wholly dry unit standing beside a
+full depot, doing neither of the two things a dry unit may do. Green arm on the same build:
+`260830_065814_p44619`, seed 1689462810, `status=pass`.
+
 Applies to any future actor the design wants to make one-shot. Both live cases (`himars`,
 `iskander`) now set the stance explicitly, with the reasoning inline at
 `vehicles-america.yaml` / `vehicles-russia.yaml`.

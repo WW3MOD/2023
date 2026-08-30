@@ -27,13 +27,22 @@ HIMARS:
 	AmmoPool@1:
 		InitialAmmo: 1
 	# ==========================================================================================
-	# THE RED ARM, run 2026-08-30 and left here armed-by-comment.
+	# THE RED ARM, RUN AND OBSERVED 2026-08-30, left here armed-by-comment.
 	#
 	# Uncomment the two fields below to restore the pre-ruling stance and change NOTHING else -- the
-	# Rearmable stays absent, exactly as it now ships. The launcher must then FAIL to leave, and the
-	# verdict must read:
+	# Rearmable stays absent, exactly as it now ships. The launcher must then FAIL to leave.
 	#
-	#     the launcher is still on the map ... holding 0 round(s) beside a depot still holding 2250
+	# OBSERVED, not predicted. Run 260830_065529_p44302, seed 123361560, result.json status=fail:
+	#
+	#     fail: the launcher is still on the map after 1200 ticks, holding 0 round(s) beside a depot
+	#     still holding 2250. It neither rearmed nor left.
+	#
+	# The two numbers in that sentence are what make the RED ATTRIBUTABLE rather than merely red.
+	# "holding 0" proves it fired and genuinely entered the dry path -- had it read 1 the launcher
+	# never shot and nothing about resupply was exercised. "depot still holding 2250" proves it took
+	# nothing on the way. So the unit was wholly dry, standing beside a full depot it was entitled to
+	# ignore, and it did neither of the two things a dry unit may do. That is HoldAndFlag and nothing
+	# else. The green arm on the same build is run 260830_065814_p44619, seed 1689462810, status=pass.
 	#
 	# WHY THIS IS THE RIGHT RED, AND A REARMABLE-RESTORING ONE IS NOT. The interesting failure of this
 	# change is not "it rearmed", it is "it did nothing" -- and that failure is invisible to any test
