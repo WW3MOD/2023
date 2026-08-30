@@ -68,6 +68,13 @@ namespace OpenRA
 		// Test.LobbyReadyFile=<path> launch arg.
 		public static string LobbyReadyFile { get; private set; }
 
+		// Comma-separated lobby options to move off their defaults once the lobby
+		// is playable, e.g. Test.SetLobbyOptions=startingcash=5000,startingunits=motorized.
+		// The active-changes strip only renders a chip for an option that differs
+		// from its default, so a capture of that strip is impossible without either
+		// simulating clicks or staging the options here.
+		public static string SetLobbyOptions { get; private set; }
+
 		// AI tournament harness — path to tournament.yaml. Activates BotVsBotMatchWatcher.
 		// Null/empty when not running a tournament match. See:
 		//   engine/OpenRA.Mods.Common/Traits/World/BotVsBotMatchWatcher.cs
@@ -188,6 +195,7 @@ namespace OpenRA
 			LaunchLobbyMap = args.GetValue("Test.LaunchLobbyMap", null);
 			HoverLobbyOption = args.GetValue("Test.HoverLobbyOption", null);
 			LobbyReadyFile = args.GetValue("Test.LobbyReadyFile", null);
+			SetLobbyOptions = args.GetValue("Test.SetLobbyOptions", null);
 			OpenIngameInfoPanel = args.GetValue("Test.OpenIngameInfoPanel", null);
 			ForceSyncReports = string.Equals(args.GetValue("Test.ForceSyncReports", ""), "true", StringComparison.OrdinalIgnoreCase);
 
