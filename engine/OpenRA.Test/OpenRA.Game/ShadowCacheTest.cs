@@ -201,6 +201,55 @@ namespace OpenRA.Test
 			Assert.That(Directory.GetFiles(dir, "*.bin").Sum(f => new FileInfo(f).Length), Is.LessThanOrEqualTo(cap));
 		}
 
+		/// <remarks>
+		/// This does NOT prove the write is atomic — a writer going straight to the final path also
+		/// leaves no temp, and this test passes when it does. Atomicity rests on File.Move within a
+		/// directory being atomic, which is a platform guarantee rather than something a unit test
+		/// can show without racing a reader against a writer. What this pins is that the temp file
+		/// is always cleaned up on the success path, so temps in the directory always mean a crash.
+		/// </remarks>
+		[Test(Description = "A successful write leaves no temp litter behind.")]
+		public void WriteLeavesNoTempLitter()
+		{
+			ShadowCache.TrySave(dir, "key-a", Payload(4096, 7), ShadowCache.MaxCacheBytes);
+
+			Assert.That(Directory.GetFiles(dir, "*" + ".tmp"), Is.Empty);
+			Assert.That(Directory.GetFiles(dir), Has.Length.EqualTo(1));
+		}
+
+		[Test(Description = "Rewriting a key replaces the entry in place rather than leaving two.")]
+		public void RewritingAKeyReplacesTheEntry()
+		{
+			var first = Payload(4096, 7);
+			var second = Payload(2048, 11);
+
+			ShadowCache.TrySave(dir, "key-a", first, ShadowCache.MaxCacheBytes);
+			Assert.That(LoadOrNull("key-a"), Is.EqualTo(first));
+
+			ShadowCache.TrySave(dir, "key-a", second, ShadowCache.MaxCacheBytes);
+
+			Assert.That(Directory.GetFiles(dir), Has.Length.EqualTo(1));
+			Assert.That(LoadOrNull("key-a"), Is.EqualTo(second));
+		}
+
+		[Test(Description = "A temp orphaned by a killed process is reaped once stale, so it cannot eat the cap.")]
+		public void StaleTempFilesAreReaped()
+		{
+			var orphan = Path.Combine(dir, "key-z.bin.deadbeef.tmp");
+			File.WriteAllBytes(orphan, Payload(4096, 9));
+			File.SetLastWriteTimeUtc(orphan, DateTime.UtcNow - TimeSpan.FromHours(6));
+
+			var inFlight = Path.Combine(dir, "key-y.bin.cafebabe.tmp");
+			File.WriteAllBytes(inFlight, Payload(4096, 9));
+
+			ShadowCache.TrySave(dir, "key-a", Payload(512, 1), ShadowCache.MaxCacheBytes);
+
+			Assert.That(File.Exists(orphan), Is.False, "A stale temp should have been reaped.");
+
+			// A temp that could still belong to a write in flight must survive.
+			Assert.That(File.Exists(inFlight), Is.True, "A fresh temp must not be reaped.");
+		}
+
 		[Test(Description = "A hit restamps the entry, so the cache evicts by use rather than by age.")]
 		public void AHitRefreshesTheLruStamp()
 		{

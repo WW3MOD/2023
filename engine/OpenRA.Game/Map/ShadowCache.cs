@@ -49,6 +49,9 @@ namespace OpenRA
 		const uint Magic = 0x57335348; // "W3SH"
 		const int HeaderVersion = 1;
 
+		const string TempSuffix = ".tmp";
+		static readonly TimeSpan StaleTempAge = TimeSpan.FromHours(1);
+
 		/// <summary>
 		/// Cap on total bytes under the cache directory.
 		///
@@ -183,7 +186,7 @@ namespace OpenRA
 				// Write to a unique temp name and move into place, so a crash or a second process
 				// mid-write cannot leave a torn file under the real key.
 				var path = PathForKey(dir, key);
-				var temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+				var temp = path + "." + Guid.NewGuid().ToString("N") + TempSuffix;
 
 				using (var file = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
 				using (var writer = new BinaryWriter(file))
@@ -193,6 +196,14 @@ namespace OpenRA
 					writer.Write(key);
 					writer.Write((long)payload.Length);
 					writer.Write(payload);
+					writer.Flush();
+
+					// Flush to the disk, not just to the page cache. Without this the rename can
+					// become durable while the payload has not, leaving a file of exactly the right
+					// length whose tail is zeros after an OS crash — which passes the length check
+					// and yields a wrong shadow layer, and a wrong shadow layer is a desync. Costs
+					// nothing on the read path, and is noise next to generating the payload.
+					file.Flush(true);
 				}
 
 				File.Move(temp, path, true);
@@ -239,6 +250,18 @@ namespace OpenRA
 			var dir = new DirectoryInfo(cacheDir);
 			if (!dir.Exists)
 				return;
+
+			// A process killed mid-write leaves its temp behind. Nothing else would ever remove it,
+			// and it is invisible to the *.bin accounting below, so orphans would silently eat the
+			// cap. Only reap ones old enough that they cannot belong to a write still in flight.
+			foreach (var orphan in dir.GetFiles("*" + TempSuffix))
+			{
+				if (DateTime.UtcNow - orphan.LastWriteTimeUtc < StaleTempAge)
+					continue;
+
+				try { orphan.Delete(); }
+				catch (Exception) { }
+			}
 
 			var files = dir.GetFiles("*.bin");
 			var total = files.Sum(f => f.Length);
