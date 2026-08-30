@@ -1186,7 +1186,12 @@ namespace OpenRA.Mods.Common.Traits
 					Info.EnterCursor,
 					Info.EnterBlockedCursor,
 					(target, modifiers) => Info.CanForceLand && modifiers.HasModifier(TargetModifiers.ForceMove) && AircraftCanEnter(target),
-					target => Reservable.IsAvailableFor(target, self) && AircraftCanResupplyAt(target, true));
+					target => Reservable.IsAvailableFor(target, self) && AircraftCanResupplyAt(target, true),
+					// ResolveOrder below refuses every frozen target outright ("only valid for own/allied
+					// actors, which are guaranteed to never be frozen"). Claiming the click here would
+					// paint a green cursor for an order this trait is documented to drop, AND eat the
+					// Move the player would otherwise get. Declining keeps both honest.
+					(_, _) => false);
 
 				yield return new EnterAlliedActorTargeter<BuildingInfo>(
 					"Enter",
@@ -1194,7 +1199,8 @@ namespace OpenRA.Mods.Common.Traits
 					Info.EnterCursor,
 					Info.EnterBlockedCursor,
 					AircraftCanEnter,
-					target => Reservable.IsAvailableFor(target, self) && AircraftCanResupplyAt(target, !Info.TakeOffOnResupply));
+					target => Reservable.IsAvailableFor(target, self) && AircraftCanResupplyAt(target, !Info.TakeOffOnResupply),
+					(_, _) => false);
 
 				yield return new AircraftMoveOrderTargeter(this);
 			}

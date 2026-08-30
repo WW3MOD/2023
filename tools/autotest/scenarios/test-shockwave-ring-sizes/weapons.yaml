@@ -1,0 +1,9 @@
+# The band-8 ring exactly as it rendered BEFORE the 60% cut, for a side-by-side capture.
+# Inheriting and zeroing the one new field is deliberate: a hand-copied duplicate of the whole
+# warhead would silently stop being the control the moment anyone retunes band 8.
+# ShockwaveVisualRadius: 0 is the opt-out sentinel — VisualRadius then falls back to MaxRadius,
+# which is what every ring did before the field existed.
+VolatileLoad8Legacy:
+	Inherits: VolatileLoad8
+	Warhead@Shockwave: ShockwaveDamage
+		ShockwaveVisualRadius: 0

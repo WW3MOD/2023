@@ -3,6 +3,145 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-30 — 8 of 10 shipped maps regenerate the whole `shadows.bin` LOS cache on EVERY load (29–101 s measured); `ComputeUID` hashes `shadows.bin`, so the cache is part of map identity (recon, `main` @ `627be5a4`)
+
+Full write-up: [`recon-shadows-on-demand.md`](recon-shadows-on-demand.md). Static read plus four
+measured `--regen-shadows` runs on map copies **outside** the repo; no tracked file touched.
+
+- **The "shadows are only generated on editor save" belief is wrong, and the correction is expensive.**
+  There is a third writer: `Map.cs:500-508` computes the layers in memory at load whenever the file is
+  absent, running the identical `SetDensityLayer()`+`SetShadowLayer()` pair that the editor-save path
+  runs (`Map.cs:948-949`) — then **discards it on unload**. Only `river-zeta-ww3` and
+  `woodland-warfare-ww3` ship a `shadows.bin`; the other eight maps pay full generation on **every**
+  load. This is invisible because it is indistinguishable from a slow loading screen.
+- **Cost model, verified exactly.** Work is linear in stored (from,to) cell pairs; pairs are fixed by
+  geometry — offsets `ceil(sqrt(du²+dv²)) ∈ [2,32]` (`MapShadowLayer.cs:36-37`) clipped to `MapSize`
+  (`Map.cs:1916`). `bytes = cells + 2×pairs` reproduces all four on-disk files **byte-for-byte**
+  (arena 6,719,660 · siberian 28,415,043 · river-zeta 36,871,948 · woodland 45,527,532). Measured
+  Release, single-threaded, Apple Silicon: arena 66×34 = **9.25 s**, siberian-pass 97×67 = **34.04 s**
+  → `t ≈ 1.6 s + 2.29 µs × pairs` (fitted intercept matches the ~1.1 s bare-utility startup).
+  Predicted for the uncached shipped maps: `polar-disorder` 53.6 s, `seventh-woods` 81.9 s,
+  `twin-rivers` 97.3 s, **`x-lake` 100.7 s / 86.7 MB**. Cost is **independent of tree count** — every
+  pair is walked regardless of density. (A near-empty map's file stores *sparse* on disk — 8 KB
+  allocated for 25.5 MB logical — which is a filesystem artifact, not a cheaper computation.)
+- **`Map.ComputeUID` hashes every `.bin` in the package, so `shadows.bin` is part of map identity**
+  (`Map.cs:291-318`, the `filename.EndsWith(".bin")` clause catches `map.bin` *and* `shadows.bin`).
+  Consequences: a map with the cache and the same map without it are **different maps** to the lobby;
+  any design that has a player generate the cache *into the map package* mutates that player's UID
+  mid-lobby; and any cache keyed on the UID is **circular** until the file is moved out of the package.
+  Removing it changes those two maps' UIDs once — no hardcoded 40-hex map UIDs exist in
+  `tools/autotest/` or `mods/ww3mod/` (the 40-hex strings there are `git_sha` in `batch.meta.json`).
+- **`SetShadowLayer` is embarrassingly parallel and provably scheduling-independent.** Each from-cell
+  writes a disjoint slot range (`MapShadowLayer.cs:71-77,134`), reads a fully-populated `DensityLayer`,
+  and both enumerators are pure over immutable data (`Map.cs:1911-1919`, `CellLayer.cs:160-190`). No
+  accumulation crosses a from-cell boundary, so `Parallel.ForEach` is bit-identical. ~8× available.
+- **git accounting, for expectation-setting.** 19 tracked files but **26 distinct blob versions** in
+  history: **718.3 MB logical, 243.8 MB actual packfile cost — ~38% of the 644 MB `.git`**. gzip is
+  *not* a lever: `shadows.bin` gzips to 40.5%, but git already zlib-compresses blobs, which is exactly
+  why 718 MB occupies 244 MB. And **gitignoring reclaims zero** without a history rewrite — it stops
+  the bleed (~9.4 MB average per future regen/editor-save), never shrinks. Also: **17 of the 19 files
+  are autotest scenario duplicates** of the same two maps' terrain, so a content-keyed cache collapses
+  them to 2 entries.
+- **Untested suspect for the unsolved 2026-08-16 two-machine desync.** Shadows are simulation inputs,
+  not presentation — vision attenuation (`MapLayers.cs:363-365`), weapon firing gate
+  (`WeaponInfo.cs:148`), damage cover (`DensityModifiesDamage.cs:72-87`) — and `RecomputeShadowFrom`
+  uses `float` (`Map.cs:1163,1165,1169,1177`). Eight maps compute those floats **per machine** at load,
+  the bytes are never sync-hashed (`Sync.cs:71` cannot admit a float), so a divergence would surface
+  only at first contact near foliage — matching the observed tick-3792 fault. The cross-runtime
+  negative at `DISCOVERIES.md:2927-2979` does **not** cover this: it was one machine. **Two-minute
+  test, no code:** `--regen-shadows` the same map on both machines and `shasum` both.
+- **Latent trap:** `deltaLengthSquared` (`Map.cs:1162`) is `int` and peaks at ~1.07×10⁹ for
+  `MaxRange = 32`; the overflow ceiling is `MaxRange = 45`. Also `dH` (`Map.cs:1147`) is dead.
+- **Standing risk this makes concrete:** the `Map.cs:1172-1175` PITFALL (curve edits do nothing until
+  regen) has no mechanical guard. A `SHADOW_ALGO_VERSION` const folded into any cache key converts it
+  from silent-wrong into automatic-rebuild, and is what makes replays reproduce after a curve edit.
+## 2026-08-30 — `FrozenActor.Actor` hands back the LIVE actor, so every `CanTargetFrozenActor` that touches it renders hidden state as a cursor (`wt/frozen-enter`, base `main @ 627be5a4`)
+
+**The general rule, which is the durable part: a `CanTargetFrozenActor` override may read
+`target.Info`, `target.Owner`, `target.HP`, `target.DamageState`, `target.TargetTypes` — the snapshot
+that `RefreshState()` maintains — and NOTHING through `target.Actor`.** `FrozenActor.Actor` is
+`!BackingActor.IsDead ? BackingActor : null` (`FrozenActorLayer.cs:120`): it is the real, live actor,
+not a snapshot. Because a targeter's answer selects a CURSOR, anything read through it is *drawn
+under the mouse* — this is not a latent leak, it is a rendered one.
+
+**The rule has exactly one carve-out, and it is about the Move fallback rather than about cursors.**
+Returning false from a frozen targeter is not inert: `UnitOrderGenerator`'s second pass rewrites the
+refused click into `Target.FromCell` so Move claims it, for any Neutral or Ally owner
+(`UnitOrderGenerator.cs:311-322`, `OrderFallbackMath.cs:73-82`). And a dead ghost stays clickable —
+`FrozenActorLayer.cs:386-390` only removes a frozen actor once it stops being *visible*. So a targeter
+that claims a dead ghost issues an order its resolver discards and the unit **does not move at all**,
+where before it walked to the spot. **Declining to answer costs the player their order; that is why
+`EnterAlliedActorTargeter` is permitted to read `target.Actor == null` and only to return false.**
+The weak deadness signal that leaks back through the restored Move is the lesser evil: a silent no-op
+on the commonest fog interaction is the failure mode `wt/cursor-honesty` (`a2466c3b`) and
+`CrewMember.cs:88-93` both name as the worst available.
+
+**Four overrides did it** (found by IL scan, and independently by reading — the two agreed exactly):
+`EnterAlliedActorTargeter` (`:52`), `Carryall+CarryallPickupOrderTargeter` (`:418`),
+`DeliversExperience+DeliversExperienceOrderTargeter` (`:124`), `EntersTunnels+EnterTunnelOrderTargeter`
+(`:157`). The last three have **no actors in ww3mod** (`Carryall`, `TunnelEntrance`,
+`AcceptsDeliveredExperience` appear in no rules file), so only the first ever bit.
+
+**`EnterAlliedActorTargeter` is a choke point, which is why the leak was wide.** Ten call sites pass it
+two predicates, and it fed BOTH the live actor. The `useEnterCursor` half is the damaging one — across
+callers it resolves to cargo occupancy (`Cargo.HasSpace`), crew-slot occupancy
+(`VehicleCrew.HasEmptySlot`), helipad reservation (`Reservable.IsAvailableFor`) and refinery docking
+(`IAcceptResources.AllowDocking`). Every one of those is precisely what fog exists to hide.
+
+**Why the civilian-structure hypothesis was right, mechanically.** `^CivBuilding` carries
+`Cargo: Types: Infantry, MaxWeight: 10` (`civilian.yaml:58-67`) and **41 actors inherit it**, plus
+`GTWR`/`PBOX`/`HBOX` (`structures-defenses.yaml:118/213/303`). They are owned by the Neutral player, so
+`IsNeutralWith` (`Player.cs:272`) admits them to this targeter — and, being neither owned nor allied,
+they are exactly the actors that DO get frozen under fog. Player-owned transports mostly do not leak,
+because your own and allied actors share vision and are never frozen for you. **That asymmetry is the
+whole reason the exposure concentrates on neutral civilian buildings**, and it is why `Aircraft`,
+`Harvester`, `Repairable` and `RepairableNear` are inert here: their targets are own/allied, and both
+files already say so in comments ("only valid for own/allied actors, which are guaranteed to never be
+frozen", `Aircraft.cs:1321`, `Harvester.cs:372`).
+
+**Those seven now decline frozen targets outright rather than answering permissively.** Their resolvers
+reject every frozen target, so a permissive predicate painted a green cursor for an order the trait is
+documented to drop — and, per the carve-out above, ate the Move the player would otherwise have got.
+`(_, _) => false` is the honest answer wherever the resolver refuses frozen targets, and it is the same
+answer `RepairsBridges` and `EntersTunnels` already give. **The live surface of this targeter is
+`Passenger` and `CrewMember` only** — those two genuinely accept frozen targets and keep real
+Info-derived predicates.
+
+**`LoadingBlocked` was the narrow half, not the wide one.** The brief that started this work named it,
+but its only writer anywhere is `HeliEmergencyLanding` (`:345`/`:427`), so it is true only for a
+crash-disabled helicopter. The wide leak was `Cargo.HasSpace` reached via `useEnterCursor`. Same file,
+same call, three lines apart — worth remembering that the named symptom was not the load-bearing one.
+
+**`VehicleCrew.AllowForeignCrew` is a third, separate leak in the same method** (`:64` pre-fix): it is
+mutable trait state written only by `HeliEmergencyLanding`, so consulting it under fog announced that a
+helicopter you cannot see has crash-landed.
+
+**Countermeasure, because prose was not going to hold this.** What actually makes a new call site unable
+to reach the live actor is the SIGNATURE: the frozen predicate is
+`Func<ActorInfo, TargetModifiers, bool>` and the single constructor makes it **mandatory**, so there is
+no live `Actor` in scope to read and no overload that omits the question. That argument stands by
+itself and does not depend on any test.
+
+`FrozenActorTargetingTest` is the backstop, and its reach is narrower than it looks: it walks the IL of
+every `CanTargetFrozenActor` override in `OpenRA.Mods.Common`, `OpenRA.Game` and `OpenRA.Mods.Cnc`
+(the third because ww3mod loads it, `mod.yaml` `Assemblies`) and fails on any
+`callvirt FrozenActor.get_Actor` — but it is **one level deep**, so `return Helper(target)` where
+`Helper` does the dereference scans clean. It carries a resolved-call floor so a broken scanner fails
+rather than reads green, an override-count floor set AT the known population of 18 so losing an
+assembly reference fails instead of passing on a smaller set, and an exemption list for the one
+permitted liveness check that is asserted in BOTH directions so a stale allowance cannot silently
+license a later live read.
+
+**This is NOT autotest-testable, and that is a documented property, not an oversight.**
+`bugs/discovered.md:3309` records that `TestModeLogic.cs:31` sets `world.RenderPlayer = null`, under
+which every `FogObscures` overload returns false — so no scenario can produce a frozen actor for the
+local player. An NUnit structural pin was the only honest instrument available.
+
+**Open, for whoever audits garrisonable civilian structures generally:** the fog fix does not touch the
+underlying oddity that these 44-odd buildings are enterable by any player at once as far as the cursor
+is concerned, with `OwnerLostAction: ChangeOwner` reverting them to Neutral when emptied. Worth a look
+as a mechanic, separately from visibility.
+
 ## 2026-08-30 — `buildRandom` is permanently TRUE on the helicopter lanes, so their `UnitsToBuild` weights have never executed (recon, `main` @ `7de03906`)
 
 **The general shape, which outlives the helicopter case: a production lane whose unit type is
@@ -55,7 +194,92 @@ though the partial-ammo case is handled when nothing in the codebase acts on a p
 airframe at all (`HasUsableAmmo` is any-pool, `HelicopterSquadBotModule.cs:1709-1720`;
 `AirframeEvacMath.Decide` returns `None` while `loadedPools > 0`, `Air/AirframeEvacMath.cs:85-86`).
 
+**The `AirStrikeUnits` counter-buy window has never produced an aircraft, and the reason generalises:
+absence of a composition slot is read as absence of a BOUND.** `RequestCheapestBuildable`
+(`AdaptiveProductionBotModule.cs:558-580`) filters candidates on `Rules.Actors.ContainsKey` only
+(`:561`) — existence, not buildability — then breaks cost ties with `StringComparer.Ordinal`
+(`:562-563`), so `"a10" < "heli"` and `"frog" < "mi28"` both select the `~disabled` fixed-wing.
+`RequestUnitProduction` is `void` (`TraitsInterfaces.cs:749`), so the loop `return`s at the first
+candidate (`:575-576`) and the helicopter is never reached. The request then dies in
+`UnitBuilderBotModule.BuildUnit(bot, name)` (`:1561-1587`) **before any order is issued**: `a10`'s
+`BuildableInfo.Queue` is the empty default (`Traits/Buildable.cs:27`) because its own `Buildable`
+block declares only `Prerequisites: ~disabled` (`aircraft-america.yaml:458-459`) and
+`rules/ingame/aircraft.yaml` contains **zero `Buildable:` traits and zero `Queue:` lines** across all
+eight templates, so nothing is inherited — the `foreach` at `:1572` never executes. Belt and braces,
+`ProductionQueue.ResolveOrder:450-451` would drop it anyway (`BuildableItems()` excludes it; nothing
+in `mods/` provides the `disabled` prerequisite). The FIFO drain consumes the entry regardless
+(`:643-645`), so it silently re-requests forever with no debug line. **Consequence:
+`AirStrikeNeedWeight`, `AaWeakThreshold` and `NeedBudgetReservePct` (`ai.yaml:1440-1442`,
+`:1483-1485`) are tuning on a no-op.** The durable half is the general shape —
+`RequestIsOverCompositionCeiling` returns `false` when `Array.IndexOf(compositionTypes, name) < 0`
+(`UnitBuilderBotModule.cs:1750-1752`), so **any type deliberately excluded from composition is
+unbounded on the demand lane.** Dropping `a10`/`frog` from `AirStrikeUnits`, or making one fixed-wing
+buildable, immediately re-points the window at `heli`/`mi28` on a lane with no `UnitsToBuild`, no
+`UnitLimits`, no `UnitDelays` and no ceiling. The gun is loaded and the YAML says nothing about it.
+
 Full analysis and numbered proposals: `WORKSPACE/recon-bot-helicopters.md`.
+## 2026-08-30 — Shrinking a shockwave ring shrinks its LIFETIME too, and the A/B capture that proves it must be read as brightness, not as size
+
+`ShockwaveEffect` expands at a fixed `1024 / WaveSpeed` per tick and terminates on radius, so
+bounding the ring at 60% of the wave's travel also ends it at 60% of the wave's duration — band 8's
+ring now lives 12 ticks where it lived 20. On screen that is a quicker, tighter puff, not merely a
+smaller circle. **Speed and extent are not independently expressible today**; a ring that stayed on
+screen as long while covering less ground would need a separate visual `WaveSpeed`, which nothing has
+asked for.
+
+**The trap this set for the verification, recorded because the obvious A/B capture measures the wrong
+thing.** Detonating the shipped band-8 ring beside a control with the new field zeroed out, then
+photographing both at the same instant, does NOT show one circle smaller than the other: they expand
+at identical speed, so **at any shared tick their radii are equal**. What differs is `progress`,
+which is now measured against the smaller visual radius — so the shipped ring is further through its
+fade at the same distance. Radial-averaged brightness profiles over the 2026-08-30 captures
+(`test-shockwave-ring-sizes`, 48 px per cell at `--size 1400x900`):
+
+| ring age | shipped ring | control ring |
+|---|---|---|
+| t7  | peak at 853 wdist, +34.0 | peak at 917 wdist, +43.3 |
+| t10 | peak at 1472 wdist, +36.4 | peak at 1450 wdist, +70.1 |
+| t13 | peak at 1941 wdist, +10.7 | peak at 2005 wdist, +52.9 |
+
+Same radius throughout, five times dimmer by t13, gone entirely a tick later while the control runs
+on to 4096. **A capture pair that looks like "the rings are the same size" is the expected result of
+a correct visual-radius cut, not evidence the change did nothing.** Measure the fade, or capture past
+the point where the shorter ring has already ended.
+
+**A second, worse trap in the same session: a radial-average brightness sweep is only as good as its
+CENTRE, and a wrong centre reads exactly like an absent feature.** Hunting the new TOS ring, the
+sweep was anchored on the brightest fireball centroid in the impact area. A TOS salvo has
+`Inaccuracy: 3c512`, so craters scatter over ~3.5 cells and the brightest fireball is routinely a
+*different rocket* from the one whose ring is alive — the profile then averages a real 15 px band
+across ~170 px of radius and returns noise. That produced a confident "no ring signal above terrain
+noise at any radius" for a ring that was rendering fine, and nearly got a working feature reported
+as inert. Two follow-up metrics agreed with the wrong answer: a max-contrast centre search latched
+onto the fireball's own bright edge, and a circular-arc score returned *identical centres and higher
+scores for the fainter configuration* across runs with different seeds — the tell that it was
+measuring static scene structure, not the ring.
+
+**What actually settled it was looking**: the same 320 px crop centred on the anchor impact,
+magnified 3×, under both configurations. Old values — crater, fireball, no circle. New values — a
+clean ring. Two rules follow. First, *validate the metric on a known-positive in the same frame set*
+before believing a negative; the identical sweep found the band-8 control ring at +52.9 every time,
+which is what proved the tooling sound and the centre wrong. Second, when a measurement says a
+visual feature is absent, **look at it magnified before believing the number** — this is precisely
+the coarse "is the thing on screen" judgement that captures are reliable for and pixel statistics
+are not.
+
+Two smaller things from the same session, both worth the seconds they cost:
+
+- **Map-local `rules.yaml` keys are CASE-SENSITIVE against the mod's actor names, while actor
+  placements in `map.yaml` are not.** `mods/ww3mod/rules/ingame/infantry.yaml` declares `E1:` and
+  `E3:`; a scenario override written `e1:` does not merge, it *declares a second actor type*, and the
+  failure surfaces as `LoadFromManifest<Rules>, duplicate values found for the following keys` rather
+  than as anything mentioning case.
+- **You cannot disarm an actor by removing its `Armament` and `AttackBase`.** `Turreted`,
+  `WithSpriteTurret`, `WithMuzzleOverlay` and `AutoTarget` all require them, so `-Armament@1:` /
+  `-AttackTurreted:` makes the actor fail to initialise (`ActorInfo("abrams") failed to initialize…
+  Missing: ArmamentInfo, AttackBaseInfo`) and the game dies at map load. To make a live unit
+  harmless in a scenario, give it a `NonCombatant` owner and reach it with a force-attack order
+  instead of editing its trait graph.
 
 ## 2026-08-30 — Two branches fixed one cursor defect independently, and git AUTO-MERGED their two field declarations into a duplicate (`wt/truck-refills-lc` rebased onto `a2466c3b`)
 
@@ -11314,6 +11538,13 @@ Since the composite at that boundary is a convex combination of dark-green terra
 *lighter-than-both* pixel cannot originate in the world buffer. It is map content, UI composited over
 the world, or an artefact of the capture itself.
 
+**Unverified, and not to be re-opened.** The above is a code-reading argument only. It was never
+reconciled with the screenshot that prompted it, and the reported line was never explained — so the
+negative is *plausible*, not established. The area was closed by the user on 2026-08-30: "I dont
+think the shroud boundary is a problem anymore, we had some issues and then we solved it. I am scared
+to make any changes because we had a regression there which caused the last issue." Do not promote
+this to `DOCS/reference/` as fact, and do not re-derive it by touching render code.
+
 ### `Map.AllCells` is the full grid, so ring terrain really does draw
 
 `AllCells` spans `MPos(0,0)..MPos(MapSize.X-1, MapSize.Y-1)` (`Map.cs:461-463`, and again at
@@ -11344,10 +11575,38 @@ off-map — fails on a specific case, and it is worth knowing before a ninth swi
   `SpriteRenderable.cs:105-108`) from an aircraft correctly.
 - **It is defeated by the nuke.** The mushroom cloud is a `SpriteEffect` (`Effects/SpriteEffect.cs:35`)
   anchored at the impact `WPos` with Z≈0 and a large upward sprite — byte-identical to a tree under
-  both a Z test and any screen-space test. Nuke clouds were one of the three regressions that got
-  `c620a9f2` reverted.
-- For the record, `c620a9f2` was **not** an altitude test. It gated on the border cell's fog
-  (`ResolvedVisibility[puv] >= 10`) — an axis orthogonal to the one that would actually work.
+  both a Z test and any screen-space test. The screen-space half of that is not theory: the cloud
+  really did vanish under a bounds test on 2026-03-24. `553e7391` stripped `ISpatiallyPartitionable`
+  from `SpriteEffect` because "the ScreenMap bounds calculation couldn't accurately represent the
+  actual rendered extent (sprite offset, sequence scale, effect scale all compound)", and `95cc9a7b`
+  did the same to `NukeLaunch` and un-clamped the scissor rect. Note this is scissor/partition
+  culling — a **different mechanism** from the border-fog overlay, and four days earlier.
+
+**Corrected 2026-08-30 — the border-fog chain, read off the commits.** An earlier revision of this
+entry claimed nuke clouds were "one of the three regressions that got `c620a9f2` reverted". No part of
+that survives the history. The whole sequence is one day, 2026-03-28:
+
+| time | commit | what it did |
+|---|---|---|
+| 05:19 | `12ac0453` | **added** the second `DrawBeyondMapFog` pass after shroud, fully opaque |
+| 17:18 | `c620a9f2` | **fixed** `12ac0453` — swapped the blanket clip for a visibility gate |
+| 17:55 | `6036ccdb` | refined again: fog-matching alpha per border cell instead of opaque |
+| 18:54 | `de5c2ee3` | the actual root cause — `ShroudRenderer` treating out-of-map neighbours as same visibility |
+| 20:00 | `de4b68f3` | **removed** the second pass entirely |
+
+- **`c620a9f2` was the remedy, not the regression.** The only damage anyone enumerated is in
+  `c620a9f2`'s own message, describing its predecessor `12ac0453`: the blanket clip "clipped ALL
+  sprites extending beyond map bounds, breaking visible actors/projectiles" — two categories, and
+  from the commit *before* the one blamed.
+- **`de4b68f3` is not a revert of `c620a9f2`** and never names it. It removed the whole mechanism, by
+  then twice modified, and gave exactly **one** reason: double-darkening, because shroud already
+  covers the on-cell part and the overlay stacked further dimming on top.
+- **"Three regressions" has no source.** The phrase occurs nowhere else in the repo or in any commit
+  message, and nothing in the chain mentions the nuke at all. Treat the count as invented; the nuke
+  bullet above now cites the incidents that actually happened.
+- What survives unchanged: `c620a9f2` was **not** an altitude test. It gated on the border cell's fog
+  — `ResolvedVisibility[puv] >= 10`, confirmed in its diff — an axis orthogonal to the one that would
+  actually work.
 
 The only mechanism that survives is a partition by *source* in `GenerateRenderables` (Z==0 actors →
 clipped ground pass; Z>0 actors plus all `IEffect` renderables → unclipped late pass). Its cost is

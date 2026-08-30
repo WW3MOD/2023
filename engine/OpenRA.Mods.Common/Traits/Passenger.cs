@@ -90,7 +90,8 @@ namespace OpenRA.Mods.Common.Traits
 					Info.EnterCursor,
 					Info.EnterBlockedCursor,
 					IsCorrectCargoType,
-					CanEnter);
+					CanEnter,
+					IsCorrectCargoTypeFrozen);
 			}
 		}
 
@@ -120,10 +121,12 @@ namespace OpenRA.Mods.Common.Traits
 			// which reads as a move the player asked for rather than "that one is full".
 			//
 			// Secondary reason, recorded because it is not obvious from here:
-			// EnterAlliedActorTargeter.CanTargetFrozenActor passes the REAL actor to this predicate,
-			// so anything consulted here is also consulted for a FOGGED transport. Adding an
-			// occupancy term therefore widened a fog leak. The pre-existing LoadingBlocked leak on
-			// the same path is filed separately — do not chase it from here.
+			// EnterAlliedActorTargeter.CanTargetFrozenActor USED TO pass the REAL actor to this
+			// predicate, so anything consulted here was also consulted for a FOGGED transport, and
+			// adding an occupancy term therefore widened a fog leak. FIXED 2026-08-30: the frozen path
+			// now takes IsCorrectCargoTypeFrozen (ActorInfo only) and never calls this overload, so
+			// this paragraph no longer constrains what may be added here. The live-actor reasoning
+			// above still does.
 			return IsCorrectCargoType(target);
 		}
 
@@ -135,6 +138,20 @@ namespace OpenRA.Mods.Common.Traits
 
 			var ci = target.Info.TraitInfo<CargoInfo>();
 			return ci.Types.Contains(Info.CargoType);
+		}
+
+		// The fogged twin of IsCorrectCargoType. requireForceMove is SELF's state, so it stays; the
+		// cargo-type match is static rules, so it stays. Cargo.LoadingBlocked does NOT: it is live state
+		// on the target, and consulting it under fog reported whether an unseen transport was accepting
+		// passengers. Keeping the type match is what stops this becoming a cursor that promises an order
+		// the resolver will refuse for a reason the player could have known.
+		bool IsCorrectCargoTypeFrozen(ActorInfo targetInfo, TargetModifiers modifiers)
+		{
+			if (requireForceMove && !modifiers.HasModifier(TargetModifiers.ForceMove))
+				return false;
+
+			var ci = targetInfo.TraitInfoOrDefault<CargoInfo>();
+			return ci != null && ci.Types.Contains(Info.CargoType);
 		}
 
 		bool CanEnter(Cargo cargo)

@@ -85,7 +85,10 @@ namespace OpenRA.Mods.Common.Traits
 						Info.EnterCursor,
 						Info.EnterBlockedCursor,
 						AircraftCanEnter,
-						target => Reservable.IsAvailableFor(target, self));
+						target => Reservable.IsAvailableFor(target, self),
+						// ResolveOrder refuses frozen targets outright, so claiming the click would paint
+						// a cursor for an order this trait drops and eat the player's Move with it.
+						(_, _) => false);
 
 					yield return new AircraftMoveOrderTargeter(this);
 				}

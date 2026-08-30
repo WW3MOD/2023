@@ -1026,6 +1026,57 @@ TosRockets:
 		Damage: 1500
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
+	# Decorative overpressure ring, added 2026-08-30. A thermobaric detonation throws a
+	# visible condensation front when the air is humid enough; this is that and nothing
+	# else. Damage: 0 keeps it entirely out of balance, and ShockwaveEffect then skips its
+	# per-tick actor sweep altogether (ShockwaveDamageWarhead.DeliversDamage) rather than
+	# handing everything in range a zero-damage hit it would still notice.
+	#
+	# SIZED AGAINST THE SALVO, NOT AGAINST ONE ROCKET. Burst 24 / BurstDelays 10 puts a
+	# rocket down every 10 ticks, and a ring lives MaxRadius * WaveSpeed / 1024 = 10 ticks,
+	# so about one ring is alive at a time and a full salvo reads as a flicker travelling
+	# across the impact area rather than a wall of overlapping circles. Flight times vary
+	# with LaunchAngle and Inaccuracy, so pairs do briefly coincide — which is why the
+	# alphas are set to roughly half the VolatileLoad family's. Raising MaxRadius or
+	# WaveSpeed stacks them; redo this arithmetic before you do.
+	Warhead@Shockwave: ShockwaveDamage
+		StartDelay: 1
+		WaveSpeed: 5
+		MaxRadius: 2c0
+		Damage: 0
+		# Zero reach, so the combat-geometry overlay draws this warhead as the nothing it is.
+		Spread: 0
+		Falloff: 0
+		ShockwaveColor: FFF8F0E0
+		# 320 against a 2048 radius is 16%, against the ~40% the VolatileLoad and ballistic-missile
+		# rings carry — still clearly the thinner line this was asked for.
+		#
+		# ALPHA IS RAISED TO PAY FOR THAT THINNESS, and the first values written here were wrong.
+		# At thickness 256 / outer 14 this ring was INVISIBLE, confirmed 2026-08-30 by capturing a
+		# real TOS impact under both settings and comparing them magnified: the old one shows a
+		# crater and a fireball and no circle at all, the new one a clean ring. It was rendering
+		# the whole time — the warhead loads (a deliberately invalid ShockwaveSegments faults on
+		# `tosrockets`) and Bullet impacts pass Target.FromPos, so the position branch of
+		# DamageWarhead.DoImpact always creates the effect — it simply carried about an eighth the
+		# visual mass of band 8, a quarter the thickness at half the alpha, and the fireball sprite
+		# swallowed it. A ring nobody can see is worse than no ring.
+		ShockwaveThickness: 320
+		# A two-cell ring does not need 64 sides.
+		ShockwaveSegments: 32
+		ShockwaveOuterAlpha: 30
+		ShockwaveInnerAlpha: 10
+		# Must stay well under the 10-tick life or the ring fades in as it is fading out.
+		ShockwaveFadeInTicks: 2
+		# THE REASON THIS IS NOT 0 LIKE EVERY OTHER RING IN THE MOD. Alpha falls linearly with
+		# distance travelled, so a ring is always dimmest at its widest — harmless for band 8,
+		# whose 2458 radius clears the fireball sprite in its first fifth. This ring is 2048 wide
+		# against the same ~40 px fireball, so it only escapes the explosion graphic around 40% of
+		# the way out, by which point a fade to zero has spent 40% of its alpha and the outer edge
+		# is down to 6%. Holding 35% at the edge moves the brightness to the radii where the ring
+		# is actually on open ground rather than hidden behind the fireball.
+		ShockwaveEndAlphaPercent: 35
+		ValidTargets: Ground, Water, Trees
+		InvalidTargets: Air
 
 M270Rockets:
 	Inherits@HitEffects: ^LargeExplosionEffects

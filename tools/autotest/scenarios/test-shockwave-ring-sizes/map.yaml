@@ -1,0 +1,77 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Shockwave ring sizes — 60% cut and TOS salvo (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	RingNew: e1
+		Owner: USA
+		Location: 20,10
+	RingOld: e3
+		Owner: USA
+		Location: 40,10
+	Tos: tos
+		Owner: Russia
+		Location: 16,26
+		Facing: 512
+	# Neutral, and that is load-bearing rather than incidental. Owned by USA it auto-targeted the
+	# TOS and drove into range, and the TOS was burning before its 24th rocket left the rail.
+	# Stripping its Armament instead does not work — Turreted, WithSpriteTurret, WithMuzzleOverlay
+	# and AutoTarget all require an AttackBase, so the actor fails to initialise. A NonCombatant
+	# owner takes it out of the fight without touching its trait graph; the TOS reaches it through
+	# the force-attack flag on the order.
+	Target: abrams
+		Owner: Neutral
+		Location: 40,26
+		Facing: 768
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,14
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,14
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 33,6
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 33,30
+
+Rules: rules.yaml
+
+Weapons: weapons.yaml
