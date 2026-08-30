@@ -13391,3 +13391,63 @@ Separately confirmed the same day: regenerating river-zeta reproduces its COMMIT
 **1. `find` PATH shadowing produced an infinite silent hang.** `utility.cmd:16` used bare `find` for its VERSION check. With Git-for-Windows on PATH that resolves to `C:\Program Files\Git\usr\bin\find.exe` — GNU find — so the check errors, control falls to `:noengine`, and the script sits on `pause` FOREVER at ~0% CPU. **It looks like a slow computation, not a failure**; an agent waited ten minutes believing shadows were being generated. Fixed by calling `%SystemRoot%\System32\find.exe` by absolute path. Same family as the exit-code trap: a failure wearing the costume of progress.
 
 **2. The two launchers are NOT equivalent, and the docs assume they are.** `utility.sh:62` injects the mod id (`... OpenRA.Utility.dll "${LAUNCH_MOD}" "$@"`); `utility.cmd`'s `argC GEQ 2` branch passes `%*` verbatim. So `.\utility.cmd --regen-shadows <path>` is NOT the Windows form of `./utility.sh --regen-shadows <path>` — Windows needs `.\utility.cmd ww3mod --regen-shadows <path>`. NOT fixed: injecting `%MOD_ID%` would double it for existing script callers that already pass it, and a correct first-arg test must be verified on Windows. Documented in place; filed.
+
+## 2026-08-30 — Automatic-order recon: tactical positioning is LIVE for humans while two docs say it is off; `AmmoPool` has no `ITick` and a held unit never re-evaluates (recon, `main` @ `ee407865`)
+
+Full write-up: [`recon-automatic-orders.md`](recon-automatic-orders.md). Static read only — no build, no
+launch, no autotest.
+
+- **`StancePositioningExecutor` is granted to every human-owned combatant, and both descriptions of the
+  feature deny it.** `defaults.yaml:77-78` carries `GrantConditionOnHumanOwner@tacpos:
+  Condition: enable-tactical-positioning` on `^Combatant` (17 inheritors — effectively every combat
+  unit), self-described as "Phase-3 human enablement (RATIFIED default-ON)". The comment **17 lines
+  above it in the same file** (`:57-59`) still says "Default-OFF … Humans / @stable / @normal never
+  satisfy either ⇒ byte-identical", and the trait's own file header (`StancePositioningExecutor.cs:52-54`)
+  says "humans get it in Phase 3 … humans are byte-identical". Both are false. This is
+  conventions.md's "a change believed made, documented as made, and inert" running **in reverse** —
+  believed inert, documented as inert, actually live. Anyone triaging "why is my unit moving?" from
+  either doc concludes this cannot be the cause.
+- **`AmmoPool` has no `ITick`, and `Actor.Tick` is an if/else — so a held dry unit never reconsiders.**
+  `Actor.cs:321-333`: `if (!wasIdle && IsIdle)` runs `INotifyBecomingIdle` (AmmoPool's dispatch);
+  `else if (wasIdle)` runs `INotifyIdle.TickIdle` (AutoTarget's scan). Mutually exclusive per tick, and
+  `OnBecomingIdle` fires **only on the idle transition**. A unit that decides `HoldAndFlag` and then has
+  nothing to shoot stays idle forever, so line 321 is never taken again and `AutoRearmIfDry` never runs
+  again — a truck can park on top of it unnoticed. Two accidental rescues: `AutoSeekSupplies.ITick`
+  (`:228`), which is on **`^Soldier` alone** so no vehicle has it; and **autotargeting itself**, because
+  the attack ends immediately on `Attack.cs:117` and the resulting non-idle→idle bounce re-fires
+  `OnBecomingIdle`. **For a vehicle, the autotargeting is the only thing driving its resupply
+  re-evaluation** — which is the concrete argument against a blanket disable of automatic behaviour.
+- **AutoTarget can never preempt a running resupply errand.** Both entry points are idle-gated —
+  `TickIdle` (`AutoTarget.cs:696`) by construction, and retaliation explicitly
+  (`:645`, `if (… || !self.IsIdle || …) return;`). So **a dry unit visibly autotargeting is proof that
+  dispatch declined**, not that an errand was stomped. Useful diagnostic inversion: it turns "why did it
+  autotarget?" into the enumerable "why did dispatch decline?".
+- **`Essential` ammo pools are defeated at the idle gate for the two units that most need them.**
+  `Attack.cs:117` ends a dry unit's attack on `AmmoPool.CannotFight` = `AllPoolsEmpty` (**every** pool),
+  and its own PITFALL comment says ending there is what hands the unit to resupply. But `Essential`
+  exists precisely for a unit dry on the pool that matters while holding rounds elsewhere — for which
+  `CannotFight` is false, so the activity never ends, the unit never goes idle, and dispatch is never
+  reached. Six actors mix Essential and non-Essential pools: `^E3`, `^TL`, `^SF`, `^E6` (rescued by
+  `^Soldier`'s `AutoSeekSupplies.ITick`) and **`strykershorad` + `tunguska`, which have no ITick
+  backstop at all** — their only trigger is `INotifyAttack.Attacking` (`AmmoPool.cs:841`) on the exact
+  tick the essential pool empties. Miss it once and it never re-evaluates for the rest of the match.
+  A tunguska out of SAMs with a full cannon is the motivating example in `AmmoPool.cs:62-64`, and it is
+  the case that does not work.
+- **Two rearm paths disagree about affordability, and the gap strands the unit at the depot.**
+  `AutoSeekSupplies.cs:293` picks via `ChooseResupplier` (filters `CurrentSupply > 0`); serving requires
+  `CurrentSupply >= SupplyValue` (`AmmoPool.cs:446`). A SUPPLYCACHE holding 1–39 is therefore a legal
+  destination that cannot pay a mortar (`SupplyValue: 40`). The unit walks, gets nothing, and after
+  `ReturnErrandStallTicks: 300` (~18 s) the guard cancels and blocks retry for 500 ticks (~30 s)
+  (`AutoSeekSupplies.cs:363-366`) — leaving it standing beside the cache, autotargeting. NOT a
+  one-line fix: `:286-292` records why the two must not simply be unified (for a **docking** host,
+  rearm costs the depot nothing, so gating the trip on affordability withholds a trip that would work).
+- **`AutomaticOrder.LineColor` is a grep-complete census of self-issued orders** and is the right entry
+  point for this whole question (`AutomaticOrder.cs:43`; consumers at nine sites). It is not a complete
+  census of automatic MOVEMENT, though — `CohesionSlotMemory:238` (return-to-slot, **ungated** on
+  `^Combatant`), `EvacuateWhenUnrearmable:82`, `Cargo:829/839` and `VehicleCrew:462/643` all move a
+  player's unit without painting the colour.
+- **`EvacuateWhenUnrearmable` is a player-ONLY automatic behaviour** — `IncludeBotOwners: false`
+  (`:28`, enforced `:44`) means a spent attack helicopter flies off the map for a refund for **humans**
+  and not for bots, the inverse of the usual gating direction. Do not skip it when triaging "bot-only".
+- Stale refs, incidentally: `infantry.yaml:2014,2017` cite `AmmoPool.cs:662` / `:263`; the real sites
+  are `:841` and `:313`. Claims still true, numbers drifted.
