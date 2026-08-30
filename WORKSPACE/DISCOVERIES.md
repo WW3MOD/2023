@@ -3,6 +3,60 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-30 — five autotest scenarios silently depended on a mod-side grant, and two of them claim in comments to grant it themselves when they grant nothing (`wt/no-cover-shuffle`, base `main` @ `0294634a`)
+
+- **The setup.** `GrantConditionOnHumanOwner@tacpos` on `^Combatant` (`mods/ww3mod/rules/defaults.yaml`)
+  was the ONLY granter of `enable-tactical-positioning` anywhere in the mod. Five scenarios exercise
+  `StancePositioningExecutor` and every one of them relied on that single mod-side block:
+  `test-stance-positioning`, `test-stance-anchor-move`, `test-stance-optout`,
+  `test-stance-redirect-midadjust`, and `demo-tactical-positioning`. Deleting it would have broken
+  four tests and a demo, with nothing in any of those directories to say why.
+- **Two of them actively assert the opposite.** `test-stance-anchor-move.lua:17` said *"We also grant
+  it explicitly (idempotent) so the test is robust to grant-timing"* and
+  `test-stance-optout.lua:10` said *"we also grant explicitly for timing robustness"*. Neither ever
+  called `GrantCondition` for that token — `grep -rn 'GrantCondition' tools/autotest/scenarios/`
+  returns only the unrelated `deployed` grants. The comments describe a robustness measure that does
+  not exist, and they read as reassurance precisely where the reader should have looked hardest.
+- **Why this is worse than an ordinary stale comment.** It inverts the blast-radius estimate. Reading
+  those two files, a change to the mod-side grant looks safe for at least those scenarios; in fact it
+  breaks all five. Both were fixed by giving each scenario a `^Combatant` block in its own
+  `rules.yaml` that re-adds BOTH halves — the token in the executor's gate and the granter that
+  satisfies it — so each scenario now owns its enablement.
+- **OPEN SUSPICION, not yet audited.** If five scenarios leaned on a mod-side default while two
+  claimed to set it locally, others plausibly do the same for other traits. Worth a pass over
+  `tools/autotest/scenarios/*/`: for each scenario, does every condition/trait its assertions depend
+  on actually get set in its own `rules.yaml` or `.lua`, or is it inherited from
+  `mods/ww3mod/rules/` where an unrelated change can remove it? The tell is a comment claiming a
+  local grant with no matching `GrantCondition` call or YAML block. I found these only because I was
+  deleting the grant they depended on and grepped for consumers first.
+
+## 2026-08-30 — the lint baseline matches on `<scope> | <message>`, so a NEW map can add unrecorded errors while a grep of the whole run still looks clean (`wt/no-cover-shuffle`, base `main` @ `0294634a`)
+
+- **The signature is two-part and the scope half is easy to drop.** `mods/ww3mod/lint-baseline.txt`
+  reduces every error to `<scope> | <first line of the message>`, where scope is the map's package
+  folder name or `mod` for the mod-wide passes (stated in that file's own header). A message like
+  `This map does not define a valid cordon.` is recorded ~50 times, once per map that has it.
+- **Why that bites specifically when you ADD a map.** Any hand-rolled check of the form "is this
+  error's text somewhere in the baseline?" passes for every error a new map emits, because some
+  *other* map already contributed that text. I copied `test-stance-positioning`'s geometry into two
+  new scenarios, inherited its `Bounds: 0,0,66,34` (no cordon), and my own grep over an 80,565-line
+  run reported all 93 errors baselined. The tool disagreed:
+  `NEW: test-no-cover-shuffle | This map does not define a valid cordon.`, and the same for the other
+  new map — 2 unrecorded errors, exit 1.
+- **Do not hand-roll the comparison; read the tool's own summary.** `./utility.sh --check-yaml` is
+  itself baseline-aware and prints, at the very end after tens of thousands of lines, an
+  `N errors emitted, N distinct signatures` block naming every `NEW:` signature. That block is the
+  verdict. Counting `Error:` lines and diffing them yourself reproduces neither the scope matching
+  nor the reverse (prune) check, and the block is far enough down that `head`/mid-file greps miss it.
+- **The reverse check cannot be hand-rolled either, and failing at it is how I found this.** Grepping
+  baseline lines against the log matches nothing, ever — the log emits bare messages with no
+  `scope | ` prefix, so all 444 entries read as "no longer occurring". `LINT_BASELINE_PRUNE=true`
+  exists because lowering the floor is the tool's job, not yours.
+- **Fix beats record for a map you are adding.** The baseline header is explicit that a new error
+  should be fixed, and that adding a line is a deliberate act needing a reason. The four sibling
+  stance maps carry the cordon error as `[repo]` debt, so copying their geometry silently copies the
+  debt. `Bounds: 1,1,64,32` on a `MapSize: 66,34` map satisfies the one-cell border and costs nothing.
+
 ## 2026-08-30 — 8 of 10 shipped maps regenerate the whole `shadows.bin` LOS cache on EVERY load (29–101 s measured); `ComputeUID` hashes `shadows.bin`, so the cache is part of map identity (recon, `main` @ `627be5a4`)
 
 Full write-up: [`recon-shadows-on-demand.md`](recon-shadows-on-demand.md). Static read plus four

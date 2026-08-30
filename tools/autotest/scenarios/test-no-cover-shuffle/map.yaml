@@ -10,7 +10,11 @@ Tileset: TEMPERAT
 
 MapSize: 66,34
 
-Bounds: 0,0,66,34
+# Bounds inset by one cell on every side so the map defines a valid cordon. The sibling stance
+# scenarios this geometry was copied from use 0,0,66,34 and are recorded as lint debt in
+# mods/ww3mod/lint-baseline.txt for exactly that; there was no reason to inherit the debt. Every
+# actor here sits at x 5..60, y 16..26, so nothing is near the inset edge.
+Bounds: 1,1,64,32
 
 Visibility: MissionSelector
 
