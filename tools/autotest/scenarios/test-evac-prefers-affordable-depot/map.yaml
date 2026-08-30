@@ -1,0 +1,106 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: An Evacuating Launcher Passes a Poor Depot for an Affordable One (evacuate)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# m270, NOT iskander, and this is the single most load-bearing choice on the map.
+	#
+	# The defect was reported against an Iskander, but an iskander-based scenario measures NOTHING:
+	# since the strategic-launcher ruling (2026-08-30) iskander and HIMARS carry NO Rearmable at all,
+	# and AmmoPool.RearmCandidates returns an empty set the moment RearmableInfo is null
+	# (AmmoPool.cs:1058-1061). Both ChooseResupplier and ChooseAffordableResupplier therefore return
+	# null for those two, the detour branch is skipped whatever it is guarded on, and the launcher
+	# evacuates BY DESIGN. Such a test would pass identically before and after the fix.
+	#
+	# m270 is the tactical rocket artillery that genuinely reaches this arm: it ships
+	# InitialResupplyBehavior: Evacuate (vehicles-america.yaml:751) AND
+	# Rearmable/RearmActors: logisticscenter, so it both takes the Evacuate branch and has candidates
+	# for that branch to choose between. grad and tos would serve equally; m270 is picked for the
+	# widest unaffordable band -- its single pool is SupplyValue 70, leaving 1..69 as "stocked but
+	# cannot pay for a batch", which is the entire mechanism under test.
+	Launcher: m270
+		Owner: USA
+		Location: 30,16
+		Facing: 512
+	# THE SHADOWING DEPOT. Four cells west -- nearest by both metrics the code uses (Location
+	# chessboard for the leash and beatsExit; CenterPosition squared for the pick itself), so the
+	# pre-fix ChooseResupplier returns THIS actor and no other. Stocked, so it survives the
+	# CurrentSupply > 0 filter in RearmCandidates and is a genuine candidate; but held at 50 against
+	# SupplyValue 70 by the lua, so it cannot pay for a batch. That gap is the whole scenario.
+	NearPoorDepot: logisticscenter
+		Owner: USA
+		Location: 26,15
+	# THE DEPOT THAT SHOULD WIN. Eight cells east, twice as far, and the only one that can actually
+	# serve the launcher. Placed on the OPPOSITE side deliberately: "drove to the affordable depot"
+	# and "drove to the poor one" are then opposite directions, and neither can be confused with
+	# "left the map", which is a third direction again (west, past the poor depot, to the spawn area).
+	FarRichDepot: logisticscenter
+		Owner: USA
+		Location: 38,15
+	# THE EVACUATION ANCHOR, and it must exist or this scenario proves nothing.
+	#
+	# AmmoPool's evacuate arm computes `beatsExit = anchor == null || ResupplyBeatsExit(...)`, so with
+	# NO spawnarea on the map the anchor is null and the detour becomes UNCONDITIONAL -- the test
+	# would go green while the comparison it exists to exercise never ran. RotateToEdge's anchor is
+	# the spawnarea nearest the owner's SUPPLYROUTE; it is NOT the supplyroute and NOT the mpspawn,
+	# so placing those alone is not enough.
+	#
+	# At 5,5 it sits 25 cells (chessboard) from the launcher, comfortably farther than either depot
+	# (4 and 8). So beatsExit is TRUE for both, and cannot be what separates them -- affordability is
+	# left as the only discriminator. Neutral owner: spawnarea carries RequiresSpecificOwners with
+	# ValidOwnerNames: Neutral (misc.yaml).
+	ExitAnchor: spawnarea
+		Owner: Neutral
+		Location: 5,5
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 30,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+	# One supplyroute per faction so neither player is eliminated before the poller writes a verdict.
+	# USA's sits west at 4,4, beside the spawn area it anchors the exit to.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

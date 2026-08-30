@@ -1,0 +1,1 @@
+Evacuate: a dry m270 passes a stocked-but-unaffordable depot 4 cells away to rearm at an affordable one 8 cells away, instead of leaving the map.
