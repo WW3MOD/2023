@@ -1841,9 +1841,15 @@ Player:
 			hind: 80
 			mi28: 50
 			halo: 15
+		# 2026-08-30: attack helis capped at ONE each (was hind 4 / mi28 3). The lane is a uniform lottery
+		# over a helicopter-only queue running in parallel with a ground lane that cannot see aircraft, so
+		# UnitLimits is its ONLY ceiling — and at 4+3 that ceiling was 34,000, roughly double the intended
+		# 15-22k mid-game army. Transports stay at 2: they are demand-gated by GateTransportOnDemand and are
+		# not part of the over-buy. Expect transient 2-of-a-type — UnitLimits counts world actors only, so
+		# call-ins still flying in from the map edge are invisible to it.
 		UnitLimits:
-			hind: 4
-			mi28: 3
+			hind: 1
+			mi28: 1
 			halo: 2
 		UnitDelays:
 			hind: 2500
@@ -1930,9 +1936,12 @@ Player:
 			heli: 80
 			littlebird: 40
 			tran: 15
+		# 2026-08-30: attack helis capped at ONE each (was heli 4 / littlebird 2). See the Russia twin above
+		# for the reasoning; America's ceiling was 30,000 against the same 15-22k intended army. tran stays
+		# at 2 (demand-gated).
 		UnitLimits:
-			heli: 4
-			littlebird: 2
+			heli: 1
+			littlebird: 1
 			tran: 2
 		UnitDelays:
 			heli: 2500
