@@ -17,6 +17,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using OpenRA.FileFormats;
 using OpenRA.FileSystem;
 using OpenRA.Graphics;
@@ -467,47 +468,71 @@ namespace OpenRA
 			SetBounds(btl, bbr);
 
 			using (var s = Package.GetStream("shadows.bin"))
-			{
 				if (s != null)
-				{
-					DensityLayer = new CellLayer<byte>(this);
-					ShadowLayer = new MapShadowLayer(this);
-
-					// Read DensityLayer
-					foreach (var fromUV in AllCells.MapCoords)
-					{
-						DensityLayer[fromUV] = s.ReadUInt8();
-					}
-
-					// Read ShadowLayer
-					foreach (var fromUV in AllCells.MapCoords)
-					{
-						foreach (var toUV in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
-						{
-							var combined = s.ReadUInt16();
-							var groundShadow = (byte)(combined >> 8); // Upper 8 bits for ground shadow
-							var airShadow = (byte)(combined & 0xFF); // Lower 8 bits for air shadow
-							ShadowLayer[fromUV, toUV.ToMPos(this)] = (groundShadow, airShadow);
-						}
-					}
-				}
-			}
+					ReadShadowsBinaryData(s);
 
 			LoadScenarios();
 
 			PostInit();
 
-			// Fallback: if no shadows.bin was on disk, compute fresh from current rules.
+			// Uid is needed below to key the shadow cache. Computing it here rather than at the end
+			// of the constructor is safe: ComputeUID reads only package streams and never touches
+			// the shadow or density layers.
+			Uid = ComputeUID(Package, MapFormat);
+
+			// Fallback: if no shadows.bin was on disk, load from the out-of-package cache, and
+			// failing that compute fresh from current rules and populate the cache for next time.
 			// Deferred until after PostInit so Rules is populated (SetDensityLayer reads
-			// Rules.Actors). Makes the shadows.bin cache truly optional: deleting it after
-			// a rules change forces a one-time regen without leaving stale density baked in.
+			// Rules.Actors, which is also what the cache key hashes).
 			if (ShadowLayer == null || DensityLayer == null)
+				LoadOrGenerateShadows();
+		}
+
+		void LoadOrGenerateShadows()
+		{
+			var key = ShadowCache.ComputeKey(Uid, ShadowCache.ComputeDensityRulesHash(Rules));
+
+			if (ShadowCache.TryLoad(key, ReadShadowsBinaryData))
+				return;
+
+			DensityLayer = null;
+			ShadowLayer = null;
+
+			SetDensityLayer();
+			SetShadowLayer();
+
+			ShadowCache.TrySave(key, SaveShadowsBinaryDataFromCurrentLayers());
+		}
+
+		/// <summary>
+		/// Deserialize both layers from the flat format written by <see cref="SaveShadowsBinaryData"/>.
+		/// Shared by the in-package read and the support-dir cache read so the two can never drift —
+		/// the format is positional and carries no per-record framing, so a one-field divergence
+		/// between a reader and a writer would silently shift every subsequent value.
+		/// </summary>
+		void ReadShadowsBinaryData(Stream s)
+		{
+			var density = new CellLayer<byte>(this);
+			var shadow = new MapShadowLayer(this);
+
+			foreach (var fromUV in AllCells.MapCoords)
+				density[fromUV] = s.ReadUInt8();
+
+			foreach (var fromUV in AllCells.MapCoords)
 			{
-				SetDensityLayer();
-				SetShadowLayer();
+				foreach (var toUV in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
+				{
+					var combined = s.ReadUInt16();
+					var groundShadow = (byte)(combined >> 8); // Upper 8 bits for ground shadow
+					var airShadow = (byte)(combined & 0xFF); // Lower 8 bits for air shadow
+					shadow[fromUV, toUV.ToMPos(this)] = (groundShadow, airShadow);
+				}
 			}
 
-			Uid = ComputeUID(Package, MapFormat);
+			// Only publish once the whole payload has been consumed, so a short or corrupt stream
+			// throws and leaves the layers null for the caller to regenerate rather than half-filled.
+			DensityLayer = density;
+			ShadowLayer = shadow;
 		}
 
 		/* MapCoordsRegion ValidCellsAround(MPos from, byte size)
@@ -948,6 +973,15 @@ namespace OpenRA
 			SetDensityLayer();
 			SetShadowLayer();
 
+			return SaveShadowsBinaryDataFromCurrentLayers();
+		}
+
+		/// <summary>
+		/// Serialize the layers as they currently stand, without regenerating them. Counterpart to
+		/// <see cref="ReadShadowsBinaryData"/>; see that method for why the pair is shared.
+		/// </summary>
+		byte[] SaveShadowsBinaryDataFromCurrentLayers()
+		{
 			var dataStream = new MemoryStream();
 			using (var writer = new BinaryWriter(dataStream))
 			{
@@ -1005,8 +1039,13 @@ namespace OpenRA
 		{
 			ShadowLayer = new MapShadowLayer(this);
 
-			foreach (var fromUV in AllCells.MapCoords)
-				RecomputeShadowFrom(fromUV);
+			// Bit-identical regardless of scheduling, and MapShadowLayerParallelismTest asserts it on a
+			// real map: RecomputeShadowFrom writes only ShadowLayer[fromUV, *], which MapShadowLayer.Index
+			// maps to a slot range disjoint per from-cell, and no accumulation crosses a from-cell
+			// boundary. Everything it reads is immutable by this point — DensityLayer is fully populated
+			// by SetDensityLayer beforehand, and FindTilesInAnnulus, TilesIntersectingLine and
+			// CenterOfCell are pure over immutable data.
+			Parallel.ForEach(AllCells.MapCoords, RecomputeShadowFrom);
 		}
 
 		/// <summary>
