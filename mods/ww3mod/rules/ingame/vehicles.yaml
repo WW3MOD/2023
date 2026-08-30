@@ -430,6 +430,11 @@ MSAR:
 		AllowedTerrainTypes: Clear, Road, Rough
 		DeploySounds: placbldg.aud
 		UndeploySounds: clicky1.aud
+		# A SHIFT-QUEUED deploy is judged at the cell the MSAR reaches, not the one it was standing
+		# on when clicked, and the deploy cursor cannot know that cell in advance (zero-arg Func, no
+		# queue access). Without this the refusal was completely silent. Same notification the
+		# LOGISTICSCENTER transform uses for the same situation.
+		NoDeployNotification: BuildingCannotPlaceAudio
 		UndeployOnMove: true
 		UndeployOnPickup: true
 	WithMakeAnimation:

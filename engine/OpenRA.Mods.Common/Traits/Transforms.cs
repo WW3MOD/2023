@@ -141,6 +141,27 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool IIssueDeployOrder.CanIssueDeployOrder(Actor self, bool queued) { return !IsTraitPaused && !IsTraitDisabled; }
 
+		/// <summary>
+		/// The "cannot deploy here" sounds/speech/text, in one place because there are now two
+		/// callers that must not drift: the refusal at ORDER time below, and the refusal at
+		/// EXECUTION time in <see cref="Activities.Transform"/>.
+		/// </summary>
+		/// <remarks>
+		/// A QUEUED deploy is judged at the cell the unit REACHES, not the one it stood on when the
+		/// player clicked — DeployOrderTargeter's cursor is a zero-argument Func with no access to
+		/// the queue, so it cannot warn about a cell that does not exist yet. That makes the
+		/// execution-time refusal the only honest place to tell the player, and it used to return
+		/// in silence.
+		/// </remarks>
+		public void NotifyCannotDeploy()
+		{
+			foreach (var s in Info.NoTransformSounds)
+				Game.Sound.PlayToPlayer(SoundType.World, self.Owner, s);
+
+			Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech", Info.NoTransformNotification, self.Owner.Faction.InternalName);
+			TextNotificationsManager.AddTransientLine(self.Owner, Info.NoTransformTextNotification);
+		}
+
 		public void DeployTransform(bool queued)
 		{
 			if (!queued && !CanDeploy())
@@ -148,14 +169,7 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var order in ClearBlockersOrders(self.Location + Info.Offset))
 					self.World.IssueOrder(order);
 
-				// Only play the "Cannot deploy here" audio
-				// for non-queued orders
-				foreach (var s in Info.NoTransformSounds)
-					Game.Sound.PlayToPlayer(SoundType.World, self.Owner, s);
-
-				Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech", Info.NoTransformNotification, self.Owner.Faction.InternalName);
-				TextNotificationsManager.AddTransientLine(self.Owner, Info.NoTransformTextNotification);
-
+				NotifyCannotDeploy();
 				return;
 			}
 

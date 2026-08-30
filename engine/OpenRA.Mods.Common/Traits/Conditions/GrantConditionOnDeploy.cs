@@ -54,6 +54,23 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Play a randomly selected sound from this list when undeploying.")]
 		public readonly string[] UndeploySounds = null;
 
+		[Desc("Play a randomly selected sound from this list when a deploy is refused because the",
+			"terrain is not allowed. Same role as Transforms.NoTransformSounds.")]
+		public readonly string[] NoDeploySounds = null;
+
+		[NotificationReference("Speech")]
+		[Desc("Speech notification when a deploy is refused because the terrain is not allowed.",
+			"Defaults to silent, so an unconfigured mod is unchanged.",
+			"",
+			"WHY THIS EXISTS: a QUEUED deploy is judged at the cell the unit REACHES, and",
+			"DeployOrderTargeter's cursor is a zero-argument Func with no access to the queue — it",
+			"cannot warn about a cell that does not exist yet. Deploy() refusing in silence was",
+			"therefore the player's only feedback, and it was none at all.")]
+		public readonly string NoDeployNotification = null;
+
+		[Desc("Transient text notification shown alongside NoDeployNotification.")]
+		public readonly string NoDeployTextNotification = null;
+
 		[Desc("Skip make/deploy animation?")]
 		public readonly bool SkipMakeAnimation = false;
 
@@ -254,8 +271,17 @@ namespace OpenRA.Mods.Common.Traits
 			if (!init && DeployState != DeployState.Undeployed)
 				return;
 
+			// Refusing here is the FIRST moment a queued deploy can be judged — see
+			// NoDeployNotification. Say so rather than returning in silence.
 			if (!IsValidTerrain(self.Location))
+			{
+				if (Info.NoDeploySounds != null && Info.NoDeploySounds.Length > 0)
+					Game.Sound.PlayToPlayer(SoundType.World, self.Owner, Info.NoDeploySounds.Random(self.World.SharedRandom));
+
+				Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech", Info.NoDeployNotification, self.Owner.Faction.InternalName);
+				TextNotificationsManager.AddTransientLine(self.Owner, Info.NoDeployTextNotification);
 				return;
+			}
 
 			if (Info.DeploySounds != null && Info.DeploySounds.Length > 0)
 				Game.Sound.Play(SoundType.World, Info.DeploySounds, self.World, self.CenterPosition);
