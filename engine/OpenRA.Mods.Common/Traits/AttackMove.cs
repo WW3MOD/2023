@@ -156,13 +156,25 @@ namespace OpenRA.Mods.Common.Traits
 					var cell = self.World.Map.CellContaining(target.CenterPosition);
 					var explored = self.Owner.MapLayers.IsExplored(cell);
 
-					// The ammo term mirrors ResolveOrder's gate above, INCLUDING its !order.Queued
-					// scoping. Dropping the queued half would trade one lie for its mirror: a
-					// shift-queued attack-move on a dry unit is deliberately accepted and runs once
-					// the unit has rearmed, so showing it blocked would deny an order that works.
-					// Returns true either way — the click is still consumed, and the blocked art is
-					// the only thing that tells the player why nothing happened.
-					var refused = !modifiers.HasModifier(TargetModifiers.ForceQueue) && AmmoPool.CannotFight(self);
+					// Mirrors ResolveOrder's gate above (including its !order.Queued scoping, which
+					// OrderReadinessMath owns) but resolved over the SELECTION, not over self.
+					//
+					// It has to be the selection even though this targeter is per-unit, because
+					// UnitOrderGenerator.CursorForOrders picks ONE cursor for the whole click by
+					// MaxByOrDefault on OrderPriority — and every AttackMove result ties at 4, where
+					// MaxByOrDefault keeps the FIRST (Exts.cs:276 replaces only on strictly-greater).
+					// Answering per-unit would therefore show blocked or not depending on which unit
+					// happened to sort first: with one dry tank at the head of a healthy selection,
+					// the whole click reads blocked. Giving every subject the same selection-wide
+					// answer makes the tie-break irrelevant.
+					var subjects = self.World.Selection.Contains(self)
+						? self.World.Selection.Actors
+						: new[] { self };
+
+					var refused = OrderReadinessMath.ReadsAsBlocked(
+						subjects.Where(a => a.Info.HasTraitInfo<AttackMoveInfo>()),
+						modifiers.HasModifier(TargetModifiers.ForceQueue),
+						AmmoPool.CannotFight);
 
 					cursor = (explored || info.MoveIntoShroud) && !refused
 						? info.AttackMoveCursor
@@ -239,14 +251,13 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					var explored = subject.Actor.Owner.MapLayers.IsExplored(cell);
 
-					// Same ammo mirror as AttackMoveTargeter, but resolved over the WHOLE selection
-					// rather than one actor: OrderInner issues a single grouped order to every
-					// subject, and ResolveOrder drops it per-unit. So the click still achieves
-					// something while ANY subject can fight, and only reads blocked when none can —
-					// the same "refusers are silenced while somebody else acts" rule that
-					// OrderFallbackMath.SelectionSuppressesRefusers applies on the ordinary path.
-					var refused = !modifiers.HasModifier(Modifiers.Shift)
-						&& subjects.All(s => AmmoPool.CannotFight(s.Actor));
+					// Same rule as AttackMoveTargeter, through the same combinator. OrderInner issues
+					// ONE grouped order to every subject and ResolveOrder drops it per-unit, so the
+					// click still achieves something while any subject can fight.
+					var refused = OrderReadinessMath.ReadsAsBlocked(
+						subjects.Select(s => s.Actor),
+						modifiers.HasModifier(Modifiers.Shift),
+						AmmoPool.CannotFight);
 
 					var blocked = (!explored && !info.MoveIntoShroud) || refused;
 					return blocked ? info.AttackMoveBlockedCursor : info.AttackMoveCursor;

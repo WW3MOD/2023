@@ -100,8 +100,43 @@ namespace OpenRA.Mods.Common.Traits
 			get
 			{
 				yield return new BeginMinefieldOrderTargeter(Info.AbilityCursor);
-				yield return new DeployOrderTargeter("PlaceMine", 5, () => IsCellAcceptable(self, self.Location) ? Info.DeployCursor : Info.DeployBlockedCursor);
+				yield return new DeployOrderTargeter("PlaceMine", 5,
+					() => IsCellAcceptable(self, self.Location) && !OutOfMines()
+						? Info.DeployCursor
+						: Info.DeployBlockedCursor);
 			}
+		}
+
+		/// <summary>
+		/// True when nothing in the selection has a mine left to lay, so the deploy cursor should
+		/// read blocked. Same polarity as attack-move and guard, through the same combinator.
+		/// </summary>
+		/// <remarks>
+		/// The readiness QUESTION is deliberately not AmmoPool.CannotFight: that is "every pool is
+		/// dry", and the engineer who carries these mines also carries rifle ammo in a separate
+		/// pool. Asking the actor-wide question would leave the cursor green for a man with bullets
+		/// and no mines — which is the exact armament-scoped-vs-actor-scoped mismatch this audit
+		/// found in AttackBase. Ask the mine pool by name, as LayMines does (LayMines.cs:94).
+		///
+		/// KNOWN LIMITATION, deliberate: DeployOrderTargeter takes a zero-argument Func, so this has
+		/// no access to the queue modifier and cannot apply the !queued relaxation the other two
+		/// sites do. A shift-queued PlaceMine behind a resupply would therefore read blocked while
+		/// still being able to run. That is the over-warning direction, which is the safe one, and
+		/// being out of mines is a persistent state rather than a transient one — unlike a pause.
+		/// </remarks>
+		bool OutOfMines()
+		{
+			var subjects = self.World.Selection.Contains(self)
+				? self.World.Selection.Actors.Where(a => a.Info.HasTraitInfo<MinelayerInfo>())
+				: new[] { self };
+
+			return OrderReadinessMath.ReadsAsBlocked(subjects, false, a =>
+			{
+				var pool = a.TraitsImplementing<AmmoPool>()
+					.FirstOrDefault(p => p.Info.Name == a.Trait<Minelayer>().Info.AmmoPoolName);
+
+				return pool != null && !pool.HasAmmo;
+			});
 		}
 
 		Order IIssueOrder.IssueOrder(Actor self, IOrderTargeter order, in Target target, bool queued)

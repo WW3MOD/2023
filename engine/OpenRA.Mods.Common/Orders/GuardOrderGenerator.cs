@@ -65,6 +65,15 @@ namespace OpenRA.Mods.Common.Orders
 			if (!subjects.Any())
 				return null;
 
+			// Guard queues an AttackMoveActivity, which ends on its first tick when the guard has
+			// nothing left to fire (AttackMoveActivity.cs:93) — so the cursor promised a unit that
+			// would follow, and it never moved. Same polarity as attack-move, through the same
+			// combinator: blocked only when NOTHING in the selection can fight.
+			// queued is false because this generator is a MODE, not a modifier-click — the order it
+			// issues always executes now, so there is no "when you are able" reading to preserve.
+			if (OrderReadinessMath.ReadsAsBlocked(subjects, false, AmmoPool.CannotFight))
+				return "move-blocked";
+
 			var multiple = subjects.Count() > 1;
 			var canGuard = FriendlyGuardableUnits(world, mi)
 				.Any(a => multiple || a != subjects.First());
