@@ -3,6 +3,70 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-30 — `Timestep` is MILLISECONDS PER TICK, there are ELEVEN of them, and only `mod.yaml:382` is the default — the number that looks like a tick rate is its inverse (`wt/postmerge-fallout`, verified against `main @ 0163ca22`)
+
+**`mods/ww3mod/mod.yaml:394` really does contain `Timestep: 40`.** That is the whole trap. A reader
+looking for the tick rate finds a plausible-looking integer, in the right file, under `GameSpeeds`,
+and it is wrong twice over: it is a **duration in milliseconds**, not a rate, and it belongs to the
+**`fastest`** speed, not the default. Read as a rate it says 40 ticks/s. It actually means
+1000/40 = 25 ticks/s, on a speed nobody plays at by default.
+
+**The default, which is the only one that matters for anything computed offline:**
+`DefaultSpeed: default` (`mod.yaml:358`) selects the block at `:380-384`, whose `Timestep: 60`
+(`:382`) gives **1000/60 = 16.67 ticks per second**.
+
+**All eleven, so nobody has to guess which block a line number sits in** — `:362` 120, `:366` 100,
+`:370` 86, `:374` 75, `:378` 67, **`:382` 60 (default)**, `:386` 55, `:390` 48, `:394` 40, `:398` 34,
+`:402` 30. Every one of those is ms/tick, so the *smallest* number is the *fastest* speed. That
+inversion is why the file reads like a rate table when it is a period table.
+
+**Proof it is ms and not a rate, from the engine rather than from inference:** `GameSpeed.Timestep`
+is `public readonly int` (`engine/OpenRA.Game/GameSpeed.cs:23`) and is consumed as a millisecond
+interval (`Game.cs:988-993` uses it as `logicInterval`). Both conversions in the tree divide INTO
+1000: `AutotestTickRateTest.cs:138` computes `1000 / DefaultTimestepMs()`, and the engine's own Lua
+`DateTime.Seconds` does the same at `DateTimeGlobal.cs:31` — **in integer arithmetic**, so it yields
+**16**, not 16.67. Three bases therefore coexist (16.67 real, 16 engine-Lua, 25 harness constant);
+that tangle is already documented in `DOCS/recipes/AUTOTEST.md` and is not restated here.
+
+**How it actually bit, 2026-08-30.** A research brief for the post-merge drain-rate audit asserted
+"WW3MOD runs at 40 ticks per second" — invented by reading `:394`. It was caught only because the
+brief also said *do not inherit a duration from a comment, recompute it from the tick count*, and the
+researcher re-derived the rate and pushed back with `mod.yaml:382` and `CLAUDE.md`'s own
+`BaseTicks: 1500` = 90 s (1500/90 = 16.67). **Had it not been challenged, every duration in that
+report would have been 2.4× too short** — a `ReloadDelay` of 50 reported as 1.25 s instead of 3.00 s,
+and an entire drain-rate table built on it.
+
+**THE BANK HAS ALREADY DRIFTED ON THIS EXACT FIELD, which is the argument for a standalone entry.**
+Searching `DISCOVERIES.md` for `Timestep` today returns the same value cited at **three different
+line numbers** — `mod.yaml:379`, `:380-382`, and `:382` — plus `fastest` cited as `:392` where the
+value is at `:394` (`:392` is the `fastest:` key, not its `Timestep:`). One of those was already
+corrected once, in the 2026-08-22 curation note. A field whose citations rot this fast is a field
+where **you re-read the file instead of trusting any prose about it, including this entry.**
+
+**What guards it and what does not.** `AutotestTickRateTest.DefaultTimestepMs()`
+(`engine/OpenRA.Test/OpenRA.Mods.Common/AutotestTickRateTest.cs:83-98`) resolves the default
+properly — it reads `DefaultSpeed` and then that named block's `Timestep` — and pins it to 60, so
+**moving the default fails `dotnet test` with a named casualty.** That is real protection against the
+value changing. It is NO protection against a human or an agent reading the wrong one of eleven
+blocks, which is the failure that actually occurred; nothing can fail a build over a number someone
+typed into a prompt.
+
+**The rules, in the order you need them:**
+1. **Any duration computed from a tick count divides by 16.67** — never by an integer that happens to
+   be nearby, and never by 25 or 40.
+2. **Never cite a `Timestep` line without checking which of the eleven blocks it sits in.** The only
+   defensible citation for the default is the pair `:358` (`DefaultSpeed`) and `:382` (its value).
+3. **Prefer expressing tick-domain quantities in TICKS and converting once at the end**, which is
+   what `AUTOTEST.md` already advises for scenario deadlines and which makes the constant irrelevant.
+
+**Same class as the scar this project already carries:** `SupplyRouteContestation`'s duration comments
+were wrong by 1.5× from assuming 25 tps, corrected in-tree on 2026-08-22 while the same error stayed
+live at ten other sites — see `CLAUDE.md` and [`conventions.md`](../DOCS/reference/conventions.md)
+§"A change believed made, documented as made, and inert". The generalisation worth carrying beyond
+this field: **a units-bearing config value with no unit in its name is a trap, and it is worst when
+the wrong reading produces a plausible number** — 40 tps is not absurd, which is exactly why it
+survives review.
+
 ## 2026-08-30 — `AmmoPoolInfo.ReloadDelay` was inert while ammunition was free; post-`9e46f141` it is the **drain-rate knob for thirteen vehicles**, and 53 of 63 pools never set it (`wt/postmerge-fallout`, base `main @ 9e46f141`)
 
 **READ ONLY — no value was changed and none should be without the user. This is the report they asked for.**
