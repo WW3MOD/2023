@@ -13366,3 +13366,28 @@ Also worth recording for anyone building a per-player readout on it: `SupplyRout
 (`SupplyRouteContestation.cs:220-225`), but reaching them per player means
 `world.ActorsHavingTrait<SupplyRouteContestation>()` filtered by owner — there is no
 `PlayerActor.Trait<SupplyRouteContestation>()`.
+
+## 2026-08-30 — Shadow generation IS deterministic across machines; the desync suspect is cleared
+
+Two machines, same commit `55836dd8`, same map (`mods/ww3mod/maps/river-zeta-ww3`), both regenerating `shadows.bin` from scratch on a scratch copy:
+
+| | macOS | Windows |
+|---|---|---|
+| OS/arch | Darwin x86_64, macOS 26.5.2 | Windows 11 Home 10.0.26200, x64 |
+| dotnet | 6.0.428 | 6.0.428 |
+| sha256 | `dbecdd123dfb80a9c955d00e0e60fc9c818b78dddf408e7481f128719f150f2c` | same (case-insensitive) |
+| bytes | 36,871,948 | 36,871,948 |
+
+**Byte-identical.** So the hypothesis that unsynced per-machine shadow computation caused the unsolved 2026-08-16 two-machine desync (tick 3792) is **REFUTED**. Eight of ten maps do recompute shadows independently per machine at load, and those bytes genuinely are absent from the sync hash — but they agree, so they cannot be the divergence. Look elsewhere for that desync.
+
+Consequence for the on-demand shadow feature: **per-player generation is SAFE.** Each machine persisting what it computed cannot freeze a disagreement, because there is no disagreement.
+
+SCOPE, honestly: one map, two machines, both on the pinned `6.0.428` SDK, both x64. This does not prove determinism across SDK versions or on ARM. It is exactly what the `global.json` pin exists to guarantee, which is the reason to expect it to hold.
+
+Separately confirmed the same day: regenerating river-zeta reproduces its COMMITTED `shadows.bin` byte for byte, so the shipped cache is CURRENT — a cached player and an uncached player do not disagree today. That closes a flagged possible-live-bug.
+
+## 2026-08-30 — Two silent-failure defects in `utility.cmd`, found the hard way
+
+**1. `find` PATH shadowing produced an infinite silent hang.** `utility.cmd:16` used bare `find` for its VERSION check. With Git-for-Windows on PATH that resolves to `C:\Program Files\Git\usr\bin\find.exe` — GNU find — so the check errors, control falls to `:noengine`, and the script sits on `pause` FOREVER at ~0% CPU. **It looks like a slow computation, not a failure**; an agent waited ten minutes believing shadows were being generated. Fixed by calling `%SystemRoot%\System32\find.exe` by absolute path. Same family as the exit-code trap: a failure wearing the costume of progress.
+
+**2. The two launchers are NOT equivalent, and the docs assume they are.** `utility.sh:62` injects the mod id (`... OpenRA.Utility.dll "${LAUNCH_MOD}" "$@"`); `utility.cmd`'s `argC GEQ 2` branch passes `%*` verbatim. So `.\utility.cmd --regen-shadows <path>` is NOT the Windows form of `./utility.sh --regen-shadows <path>` — Windows needs `.\utility.cmd ww3mod --regen-shadows <path>`. NOT fixed: injecting `%MOD_ID%` would double it for existing script callers that already pass it, and a correct first-arg test must be verified on Windows. Documented in place; filed.

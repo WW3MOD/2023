@@ -13,7 +13,12 @@ title OpenRA.Utility.exe %MOD_ID%
 
 set TEMPLATE_DIR=%CD%
 if not exist %ENGINE_DIRECTORY%\bin\OpenRA.exe goto noengine
->nul find %ENGINE_VERSION% %ENGINE_DIRECTORY%\VERSION || goto noengine
+@REM PITFALL (2026-08-30): call find.exe by ABSOLUTE PATH. With Git-for-Windows on
+@REM PATH, bare `find` resolves to C:\Program Files\Git\usr\bin\find.exe -- GNU find,
+@REM whose syntax is unrelated -- so this check errored, fell through to :noengine,
+@REM and sat on `pause` FOREVER at ~0%% CPU. It looks exactly like a slow run, not a
+@REM failure: an agent waited ten minutes believing it was computing shadows.
+>nul "%SystemRoot%\System32\find.exe" %ENGINE_VERSION% %ENGINE_DIRECTORY%\VERSION || goto noengine
 cd %ENGINE_DIRECTORY%
 
 set argC=0
@@ -28,6 +33,16 @@ if %argC% == 1 (
 
 if %argC% GEQ 2 (
     @REM This option is for use by other scripts so we don't want any extra output here - before or after.
+    @REM
+    @REM NOT EQUIVALENT TO utility.sh -- KNOWN, UNFIXED (2026-08-30). utility.sh:62 injects
+    @REM the mod id for you (`... OpenRA.Utility.dll "${LAUNCH_MOD}" "$@"`); this line passes
+    @REM %* verbatim, so the caller MUST type it. `.\utility.cmd --regen-shadows <path>` is
+    @REM therefore NOT the Windows form of `./utility.sh --regen-shadows <path>` -- you want
+    @REM `.\utility.cmd ww3mod --regen-shadows <path>`.
+    @REM
+    @REM Deliberately not "fixed" by injecting %MOD_ID% here: existing script callers already
+    @REM pass it, and they would then get it twice. A correct fix needs a first-arg test and
+    @REM must be verified ON WINDOWS, which the manager who found this could not do.
     call bin\OpenRA.Utility.exe %*
     EXIT /B 0
 )
