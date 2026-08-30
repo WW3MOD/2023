@@ -1858,6 +1858,15 @@ Player:
 		GateTransportOnDemand: true
 		TransportUnitTypes: halo
 		TransportMinPassengers: 4
+		# 2026-08-30: no attack heli until the ground army is worth 20,000. UnitLimits caps HOW MANY; this
+		# caps WHEN. Derivation is in the commit message; briefly, the V_fit table splits the roster into a
+		# core-line band (abrams 13,158 / t90 12,632 / bradley 10,714) and a specialist band (m109 30,000 /
+		# strykershorad 50,000 / grad 60,000). A 6000-cost gunship is a specialist, so it must sit above the
+		# core-line band -- but the specialist band starts ABOVE the ~15-22k realistic mid-game army
+		# (ai-america.yaml:342-343), and a floor up there would switch the lane off entirely. 20,000 is the
+		# top of the realistic band: above every core-line V_fit, still reachable in a real match.
+		MinGroundArmyValue: 20000
+		MinGroundArmyValueTypes: hind, mi28
 
 	# ===== Fixed-Wing Aircraft — America =====
 	# Fixed-wing called in via Supply Route — no AFLD needed to produce them
@@ -1950,6 +1959,9 @@ Player:
 		GateTransportOnDemand: true
 		TransportUnitTypes: tran
 		TransportMinPassengers: 4
+		# 2026-08-30: see the Russia twin above for the derivation. Same floor, same reasoning.
+		MinGroundArmyValue: 20000
+		MinGroundArmyValueTypes: heli, littlebird
 
 	# ===== Helicopter Squad Manager — Stable twin =====
 	# 2026-08-02 promotion: @stable now runs the SAME heli behaviour as @experimental (the SR-only,
