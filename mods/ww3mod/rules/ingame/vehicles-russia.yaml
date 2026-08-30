@@ -564,7 +564,7 @@ grad:
 		Queue: Vehicle
 		BuildPaletteOrder: 50
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: Multiple launch rocket system for area saturation.\n\n - 40x 122mm rockets\n - One-shot magazine, evacuates after firing\n - Devastating area damage\n - Armor: Light
+		Description: Multiple launch rocket system for area saturation.\n\n - 40x 122mm rockets\n - Rearms at a Logistics Centre (680 supply per full load)\n - Evacuates when dry and no Centre is closer than home\n - Devastating area damage\n - Armor: Light
 	Valued:
 		Cost: 1500
 	Tooltip:
@@ -633,6 +633,19 @@ grad:
 		RangeCircleType: explosive
 		Color: FF0000
 		Width: 3
+	# TACTICAL rocket artillery rearms at the Centre (user ruling 2026-08-30). It carried no Rearmable
+	# at all — an accident of the YAML, not a decision: with none, AmmoPool.ChooseResupplier can never
+	# return a host and the pull path is unreachable. Deliberately NOT paired with
+	# ExternalCondition@VehicleReplenish — that enrols a unit in the Centre's metered PUSH arm, which is
+	# a separate mechanism. The pull path (Rearmable.RearmTick) has been metered since 2026-08-27, so
+	# this is charged supply, not the free refill 9e46f141 closed.
+	# Full refill: 680 supply, against a 2250 Centre = 3.3 refills.
+	# InitialResupplyBehavior stays Evacuate: a dry grad now DETOURS to a Centre when one is inside the
+	# 30-cell DryRearmLeashCells, can afford a batch, and is strictly nearer than the evacuation anchor
+	# (SupplyHuntMath.ResupplyBeatsExit) — otherwise it still leaves. It never travels backwards to rearm.
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo
 	Turreted:
 		Offset: -220,0,140
 		TurnSpeed: 20
@@ -689,7 +702,7 @@ tos:
 		Queue: Vehicle
 		BuildPaletteOrder: 60
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.medium
-		Description: Heavy MLRS with thermobaric warheads. Extreme anti-infantry effect.\n\n - 24x 220mm thermobaric rockets\n - One-shot magazine, evacuates after firing\n - Less effective vs heavy armor\n - Armor: Medium
+		Description: Heavy MLRS with thermobaric warheads. Extreme anti-infantry effect.\n\n - 24x 220mm thermobaric rockets\n - Rearms at a Logistics Centre (960 supply per full load)\n - Evacuates when dry and no Centre is closer than home\n - Less effective vs heavy armor\n - Armor: Medium
 	Valued:
 		Cost: 2000
 	Tooltip:
@@ -760,6 +773,13 @@ tos:
 		RangeCircleType: flame
 		Color: FF8000
 		Width: 4
+	# TACTICAL rocket artillery rearms at the Centre (user ruling 2026-08-30). See the fuller note on
+	# `grad` above for why this is a pull-path-only enrolment and why no VehicleReplenish condition
+	# accompanies it. Full refill: 960 supply, against a 2250 Centre = 2.3 refills — the most expensive
+	# of the three, and the only one where a second full reload needs a restocked depot.
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo
 	Turreted:
 		TurnSpeed: 20
 		Offset: -100,0,180
@@ -951,7 +971,7 @@ iskander:
 		Queue: Vehicle
 		BuildPaletteOrder: 70
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.high
-		Description: Ballistic missile launcher.\n\n - 2x high-impact missiles\n - Long-range precision strikes\n - Armor: Light
+		Description: Ballistic missile launcher.\n\n - 2x high-impact missiles\n - Cannot be rearmed: one load per launcher\n - Evacuates for a refund once both missiles are spent\n - Long-range precision strikes\n - Armor: Light
 	Valued:
 		Cost: 6000
 	Tooltip:
@@ -1002,6 +1022,12 @@ iskander:
 		# Removing RequiresForceFire would have handed bots auto-launch as a side effect; this keeps their
 		# behaviour exactly as it shipped. Manager's addition, not the user's instruction.
 		InitialStanceAI: HoldFire
+		# LOAD-BEARING — see the fuller note on `HIMARS` (vehicles-america.yaml). Removing Rearmable is
+		# NOT sufficient to make this unit leave: the default is Auto, and DecideAutoDisposition returns
+		# HoldAndFlag for any actor naming no rearm actors (SupplyHuntMath.cs:269), which would strand a
+		# spent iskander on the field forever flagging for a rescue nothing can perform.
+		InitialResupplyBehavior: Evacuate
+		InitialResupplyBehaviorAI: Evacuate
 	Passenger:
 		Voice: Move
 	Armament@1:
@@ -1022,11 +1048,10 @@ iskander:
 		RangeCircleType: explosive
 		Color: FF0000
 		Width: 5
-	Rearmable:
-		RearmActors: logisticscenter
-		AmmoPools: primary-ammo
-	ExternalCondition@VehicleReplenish:
-		Condition: replenish-vehicles
+	# NO Rearmable, and NO ExternalCondition@VehicleReplenish — see the fuller note on `HIMARS`
+	# (vehicles-america.yaml). Both halves are required: the first gates the PULL, the second is what
+	# let the Centre's PUSH arm select this actor while docked.
+	# Full refill: 3000 supply — unreachable by design; there is no rearm host.
 	AttackFrontal:
 		TargetFrozenActors: True
 		ForceFireIgnoresActors: True

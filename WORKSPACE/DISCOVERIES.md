@@ -293,6 +293,100 @@ tables, not from `Warhead.cs`.
 Related, same pass: five actors *do* have a materially wrong armour class in prose (`heli`, `hind`,
 `mi28` say Medium and are `Heavy`; `lccv`, `mnly` say None and are `Light`) — filed to
 `bugs/discovered.md`. Full context in `WORKSPACE/tooltip-audit.md`.
+## 2026-08-30 — The evacuation refund reads EVERY `AmmoPool`, not `Rearmable.AmmoPools` — so removing a `Rearmable` cannot change what a unit refunds (`wt/arty-doctrine`)
+
+Settled by reading, not by a run, when asking whether `himars`/`iskander` take a different refund
+branch now that they carry no `Rearmable`. **They do not, and the reason is a set difference worth
+knowing on its own.**
+
+`CustomSellValue.GetSellValue` (`CustomSellValue.cs:37`) iterates
+`a.TraitsImplementing<AmmoPool>()` — **every pool on the actor**. It never consults `Rearmable`.
+That is the *opposite* of the three refill sites, which iterate the filtered
+`Rearmable.RearmableAmmoPools`; `economy.md` already flags those as different sets, and this is a
+live consequence: **a pool that no host will ever refill is still deducted from the refund.**
+
+Checked every input that differs for the two launchers:
+
+| Input | Effect on the branch taken |
+|---|---|
+| no `Rearmable` | none — not read by `GetSellValue` at all |
+| no `replenish-vehicles` | none — not read anywhere in the refund path |
+| `Ammo: 2`, `SupplyValue: 1500` | `ReloadCount` is unset → `batchSize = max(1,1) = 1`, so `missingRounds / batchSize` is **exact**. The integer-truncation hazard (`PartialBatchDoesNotDeduct`) only bites when `ReloadCount > 1` — i.e. grad (5) and tos (3), not these two |
+| `CustomSellValue` | absent on all five artillery pieces (checked via `--resolved-rules`), so `baseValue = Valued.Cost` |
+| `SupplyProvider` | absent, so the `MissingSupplyValue` term is skipped — that branch is TRUK/LC-only |
+
+So a wholly dry launcher refunds `6000 − (2/1)×1500 = 3000`, handicap-adjusted
+(`ApplyHandicapRefundAdjustment`, no-op at handicap 0) and then scaled by `HP/MaxHP` at
+`RotateToEdge.cs:388`. And the call site is literally shared: `EvacuateForRefund`
+(`AmmoPool.cs:727`) is the same line `m270`/`grad`/`tos` have always reached, since they have
+shipped `InitialResupplyBehavior: Evacuate` all along.
+
+**Caveat on the existing coverage, because it is weaker than its name suggests.** `CustomSellValueTest`
+does not call `GetSellValue` — its own header says it *"reproduce[s] the formula so the contract is
+locked behind a unit test"*. It pins the arithmetic **contract**, not the code path, and would not
+catch the mirror and the implementation drifting apart. Nothing asserts the refund end-to-end in a
+running game for any actor. That is pre-existing and not specific to these two, but anyone who reads
+"the refund is unit-tested" should know which of the two things is true.
+
+## 2026-08-30 — Removing a unit's `Rearmable` does NOT make it evacuate; it makes it stand still forever (`wt/arty-doctrine`, base `main @ d9f9a83f`)
+
+**`SupplyHuntMath.DecideAutoDisposition` returns `HoldAndFlag` at `SupplyHuntMath.cs:269` for any
+actor that names no rearm actors, BEFORE it ever reaches the evacuation conjunction.** The input is
+`AmmoPool.NamesRearmActors` (`AmmoPool.cs:611`), which is false when `RearmableInfo` is null.
+
+This is deliberate and correctly documented at the site — `^CrewMember` and every ejected crewman
+carry no `Rearmable`, and *"a unit that never had a depot does not have a missing one"*. But it
+makes the obvious implementation of "this unit should not be rearmable" silently wrong. Deleting the
+`Rearmable` alone produces a unit that:
+
+* never rearms (intended), and
+* **never leaves either** — it is wholly dry, combat-inert, never disposed, raising `NeedsResupply`
+  on every pool for a rescue nothing in this ruleset can perform. That flag has exactly one reader
+  engine-wide, `SupplyProvider.FindNeedsResupplyTarget`, a Hunt-stance provider that must *drive* to
+  the client — and the only host any vehicle names is the Logistics Centre, a building.
+
+**The fix is one field, not a code change: `InitialResupplyBehavior` + `InitialResupplyBehaviorAI:
+Evacuate`.** That arm calls `ChooseResupplier`, which returns null on a null `RearmableInfo`
+(`AmmoPool.RearmCandidates` early-returns empty), and falls straight through to `EvacuateForRefund`
+— the same departure and the same refund the manual Evacuate order pays.
+
+**Why this is worth banking rather than being local trivia: the two failure modes are hard to tell
+apart from the outside.** "Ignored the depot and left" and "ignored the depot and did nothing" both
+look like *the unit did not rearm*, so any test written to confirm the removal worked will pass on
+the broken version too. `test-strategic-launcher-ignores-depot` therefore sabotages the **stance**
+in its RED arm, not the `Rearmable`.
+
+**Observed, not reasoned.** RED run `260830_065529_p44302` (seed 123361560, `status=fail`) restored
+`InitialResupplyBehavior/AI: Auto` with the `Rearmable` still absent and produced:
+
+> *fail: the launcher is still on the map after 1200 ticks, holding 0 round(s) beside a depot still
+> holding 2250. It neither rearmed nor left.*
+
+Both numbers are load-bearing: `holding 0` proves it fired and entered the dry path (at 1 it never
+shot), and `depot still holding 2250` proves it drew nothing. A wholly dry unit standing beside a
+full depot, doing neither of the two things a dry unit may do. Green arm on the same build:
+`260830_065814_p44619`, seed 1689462810, `status=pass`.
+
+Applies to any future actor the design wants to make one-shot. Both live cases (`himars`,
+`iskander`) now set the stance explicitly, with the reasoning inline at
+`vehicles-america.yaml` / `vehicles-russia.yaml`.
+
+## 2026-08-30 — `economy.md` claims a pool tooltip that does not exist in code (`wt/arty-doctrine`)
+
+`DOCS/reference/economy.md` §"Tooltip format" states *"The pool tooltip renders the batch math
+directly"* and shows `Ammo: 900 (9 batches × 100 rounds × 5 supply = 45)`. **No code renders that.**
+Grepped `batches`, `Full refill`, and `ReloadCount`-with-`SupplyValue` across
+`engine/OpenRA.Mods.Common/Widgets/` — the only hit is `PerfDebugLogic.cs:53`, an unrelated
+performance counter. The notation exists solely as a **YAML comment convention** on `AmmoPool`
+blocks (~40 sites) and in the audit at `WORKSPACE/supply-cost-audit.md`.
+
+Consequence for anyone told to "update the player-facing ammo tooltip": there is nothing to update.
+The only player-visible per-unit text is `Buildable.Description`, free-form bullet lines, and the
+ammo *pips* (`WithAmmoPipsDecoration`), which show count and carry no cost information at all.
+
+**Left uncorrected in the doc deliberately** — this is a claim about a missing feature rather than a
+wrong number, so it wants a curation decision (build the tooltip, or retitle the section as a YAML
+comment convention) rather than a drive-by edit.
 
 ## 2026-08-27 — The frozen-actor visibility update loop is DEAD CODE, and it is the real cause of the six-month building-fog leak (`wt/fog-leak`, base `main @ 651322b3`)
 
