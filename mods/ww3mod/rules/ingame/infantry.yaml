@@ -1201,7 +1201,7 @@ E1R1:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 2
 		Prerequisites: ~disabled
-		Description: Standard infantry rifleman and backbone of the fire team.\n\n - 5.56mm rifle\n - Disposable anti-tank rocket (supply: 50)\n - No armor
+		Description: Standard infantry rifleman and backbone of the fire team.\n\n - 5.56mm rifle (supply: 10 per full refill)\n - Disposable anti-tank rocket (supply: 30)\n - No armor
 	Valued:
 		Cost: 100
 	UpdatesPlayerStatistics:
@@ -1220,8 +1220,10 @@ E1R1:
 		Ammo: 100
 		ReloadCount: 20
 		AmmoCondition: ammo-primary
-		# 5.56mm rifle: 5 batches × 20 rounds × 1 supply = 5 (~5% of cost 100). E3 rifleman.
-		SupplyValue: 1
+		# 5.56mm rifle: 5 batches × 20 rounds × 2 supply = 10 (~10% of cost 100). E3 rifleman.
+		# USER RULING 2026-08-30: "Rifleman can be 30 for the AT weapon, and 10 for ammo … bullets
+		# are cheaper than AT weapons." 10 is the FULL-REFILL total, reached exactly at 5 batches.
+		SupplyValue: 2
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		RequiresCondition: replenish-soldiers
@@ -1247,9 +1249,11 @@ E1R1:
 		Armaments: secondary
 		Ammo: 1
 		AmmoCondition: ammo-secondary
-		# RPG: 1 batch × 1 round × 50 supply = 50 (~50% of cost 100). Empty
-		# rifleman evacs ~50 (line-infantry body+training baseline).
-		SupplyValue: 50
+		# RPG: 1 batch × 1 round × 30 supply = 30 (~30% of cost 100). USER RULING 2026-08-30,
+		# same ruling as the rifle above. A single-batch pool, so the total IS the SupplyValue.
+		# Empty rifleman now evacs 60, up from 45: his two pools deduct 10 + 30 from Cost 100
+		# (CustomSellValue.cs:34-45), where they used to deduct 5 + 50 = 55.
+		SupplyValue: 30
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -1321,7 +1325,7 @@ E3R1:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 3
 		Prerequisites: ~disabled
-		Description: Delivers sustained suppressive fire against area targets.\n\n - 5.56mm light machine gun\n - High ammo capacity\n - No armor
+		Description: Delivers sustained suppressive fire against area targets.\n\n - 5.56mm light machine gun (supply: 25 per full refill)\n - High ammo capacity\n - No armor
 	Valued:
 		Cost: 100
 	UpdatesPlayerStatistics:
@@ -1335,9 +1339,29 @@ E3R1:
 		Essential: true
 		Armaments: primary, garrisoned
 		Ammo: 500
-		ReloadCount: 50
+		# 20, DOWN FROM 50, and it is a PRICING decomposition rather than a pacing tweak.
+		# USER RULING 2026-08-30: the LMG's full refill is to cost 25. SupplyValue is an int
+		# (AmmoPool.cs:121) and 25 across the old 10 batches is 2.5, so 25 is unreachable without
+		# moving ReloadCount. 20 gives 25 batches at 1; the alternative, ReloadCount 100, gives
+		# 5 batches at 5. Both hit 25. THE TIEBREAK IS ROUNDING, in two places that both round in
+		# the player's disfavour or the mod's:
+		#   - REFUND. CustomSellValue deducts floor(missing / ReloadCount) × SupplyValue
+		#     (CustomSellValue.cs:42-45). At ReloadCount 100 a gunner missing 99 rounds deducts
+		#     ZERO and evacuates as though full. At 20 the residual error is at most 19 rounds,
+		#     under one supply.
+		#   - REARM. A batch charges its full SupplyValue even for a partial top-up
+		#     (AmmoPool.cs:374-411), so at 100/5 the minimum spend to gain any rounds at all is 5
+		#     — a fifth of the whole refill. At 20/1 the price tracks what was actually consumed.
+		# WHAT IT COSTS: 25 batches instead of 10, so a full refill takes 2.5× longer. Infantry are
+		# served by the push arm (LOGISTICSCENTER AuraRearmDelay 6, TRUK/SUPPLYCACHE RearmDelay 6),
+		# so at 16.67 ticks/s that is ~9.0 s rather than ~3.6 s — the longest infantry refill in the
+		# roster, for the largest infantry magazine in the roster. Deliberate, not incidental.
+		# No Burst interaction: 5.56mm.AR fires Burst 10 (weapons-ballistics.yaml), so a burst was
+		# under one batch at 50 and still is at 20.
+		ReloadCount: 20
 		AmmoCondition: ammo-primary
-		# 5.56mm LMG: 10 batches × 50 rounds × 1 supply = 10 (~10% of cost 100). AR.
+		# 5.56mm LMG: 25 batches × 20 rounds × 1 supply = 25 (~25% of cost 100). AR.
+		# Empty AR evacs 75, down from 90 (CustomSellValue.cs:34-45).
 		SupplyValue: 1
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
@@ -1842,7 +1866,7 @@ AA:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 10
 		Prerequisites: ~disabled
-		Description: Repairs vehicles and structures. Lays mines and demolishes buildings.\n\n - 9mm SMG\n - 3 explosives (supply: 50 each)\n - Repairs structures, clears mines\n - No armor
+		Description: Repairs vehicles and structures. Lays mines and demolishes buildings.\n\n - 9mm SMG (supply: 5 per full refill)\n - 3 explosives (supply: 50 each)\n - Repairs structures, clears mines\n - No armor
 	Valued:
 		Cost: 250
 	UpdatesPlayerStatistics:
