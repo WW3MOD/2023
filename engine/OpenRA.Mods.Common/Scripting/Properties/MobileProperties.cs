@@ -32,6 +32,12 @@ namespace OpenRA.Mods.Common.Scripting
 			"(in cells) that will be considered close enough to complete the activity.")]
 		public void Move(CPos cell, int closeEnough = 0)
 		{
+			// PITFALL: this is NOT the player's move order. The constructor used here leaves
+			// evaluateNearestMovableCell false, so Mobile.NearestMoveableCell never runs and the
+			// destination is used raw — no clamping to a standable cell, and no clamping to a
+			// REACHABLE one. Mobile.ResolveOrder passes true. A scenario testing anything in the
+			// order path wants Test.IssueMoveOrder instead; one written against this API was RED
+			// on the fixed build and on the broken one alike, because the code under test never ran.
 			Self.QueueActivity(new Move(Self, cell, WDist.FromCells(closeEnough)));
 		}
 

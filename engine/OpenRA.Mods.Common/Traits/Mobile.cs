@@ -67,6 +67,12 @@ namespace OpenRA.Mods.Common.Traits
 		[CursorReference(dictionaryReference: LintDictionaryReference.Values)]
 		[Desc("Cursor overrides to display for specific terrain types.",
 			"A dictionary of [terrain type]: [cursor name].")]
+		// EMPTY THROUGHOUT mods/ww3mod — no actor populates this, so the per-terrain branch in
+		// MoveOrderTargeter.CanTarget never fires and the `move-rough` art at
+		// mods/ww3mod/cursors.yaml:80 is unreachable. Unlike the assault-move cursors this one is
+		// lint-safe to delete (the reference is to dictionary VALUES, and the dictionary is empty),
+		// but it is kept because populating this dictionary is the intended way to use it and the
+		// art is already drawn. Populating it is a design change, not tidying.
 		public readonly Dictionary<string, string> TerrainCursors = new();
 
 		[CursorReference]
@@ -844,15 +850,59 @@ namespace OpenRA.Mods.Common.Traits
 			if (target == self.Location && CanStayInCell(target))
 				return target;
 
-			if (CanEnterCell(target, check: BlockedByActor.Immovable) && CanStayInCell(target))
+			if (CanEnterCell(target, check: BlockedByActor.Immovable) && CanStayInCell(target) && CanReach(target))
 				return target;
 
 			foreach (var tile in self.World.Map.FindTilesInAnnulus(target, minRange, maxRange))
-				if (CanEnterCell(tile, check: BlockedByActor.Immovable) && CanStayInCell(tile))
+				if (CanEnterCell(tile, check: BlockedByActor.Immovable) && CanStayInCell(tile) && CanReach(tile))
 					return tile;
 
 			// Couldn't find a cell
 			return target;
+		}
+
+		/// <summary>
+		/// Whether a path to <paramref name="cell"/> exists at all, as opposed to whether the cell
+		/// is one this unit could stand on.
+		/// </summary>
+		/// <remarks>
+		/// <para>WITHOUT THIS TERM THE RELOCATION ABOVE IS A NO-OP ON THE CASE IT EXISTS FOR. The
+		/// other two tests are properties of the cell alone, so a target on the far side of a river
+		/// — or inside a sealed pocket — passes both, is returned immediately, and the annulus loop
+		/// never runs. Move then finds no path, sets destination = ToCell and COMPLETES, so the unit
+		/// does not move, does not turn, and says nothing. That silence was the defect.</para>
+		///
+		/// <para>COST: this is a domain-index compare, not a search — HierarchicalPathFinder keeps
+		/// abstract domains where equal index means a path exists, so it is O(1) amortised against a
+		/// cache the pathfinder maintains anyway. The loop it sits in is already bounded by
+		/// maxRange (10 by default), and past that the method returns `target` unchanged, i.e. the
+		/// old do-nothing behaviour. So there is a cap and it did not have to be invented.</para>
+		///
+		/// <para>DETERMINISM: RebuildDomains labels components by flood-filling a HashSet, so the
+		/// index VALUES depend on enumeration order — but only domain EQUALITY is ever consumed
+		/// (HierarchicalPathFinder.cs:955, :972) and the partition is a property of connectivity, not
+		/// of iteration. The rebuild also happens on demand at the top of PathExists, so a client
+		/// that invalidated its cache at a different moment still answers from an up-to-date one.
+		/// Integer cell maths throughout, no RNG, and FindTilesInAnnulus enumerates deterministically.</para>
+		///
+		/// <para>WHY THE IMMOVABLE VARIANT and not the terrain-only one: the two cell tests above
+		/// already use BlockedByActor.Immovable, so this matches them. It also matters in practice —
+		/// measured with nav-guard, river-zeta has 33 components for a wheeled unit with its map
+		/// actors placed and exactly ONE with terrain alone, so every real pocket on that map is made
+		/// by trees and hedges rather than by ground.</para>
+		///
+		/// <para>THE POLARITY IS GUARANTEED, not merely argued. The hierarchical graph is
+		/// DELIBERATELY conservative (HierarchicalPathFinder.cs:634) — it must serve every actor
+		/// sharing the locomotor, so it carries MORE edges than any specific unit's real graph — and
+		/// PathExists states its own contract at :925-933: if it returns false, there is definitely
+		/// no path. FALSE NEGATIVES ARE THEREFORE IMPOSSIBLE, which is the only direction that could
+		/// hurt here, since it would relocate a unit away from a cell it could really have reached.
+		/// The `Might` in the method name is about the opposite direction — movable actors, which
+		/// cannot make an unreachable cell reachable.</para>
+		/// </remarks>
+		bool CanReach(CPos cell)
+		{
+			return PathFinder.PathMightExistForLocomotorBlockedByImmovable(Locomotor, self.Location, cell);
 		}
 
 		public CPos NearestCell(CPos target, Func<CPos, bool> check, int minRange, int maxRange)

@@ -34,6 +34,15 @@ namespace OpenRA.Mods.Common.Traits
 		[CursorReference]
 		public readonly string AttackMoveBlockedCursor = "attackmove-blocked";
 
+		// UNREACHABLE, deliberately kept. Assault-move is disabled in WW3MOD — both the targeter
+		// (ResolveOrder below) and AttackMoveOrderGenerator.OrderInner hardcode the non-assault
+		// branch, so neither of these two cursors is ever emitted and the art at
+		// mods/ww3mod/cursors.yaml:221-229 is dead.
+		// NOT deleted: these are [CursorReference] fields, so CheckCursors lints their DEFAULTS
+		// against the mod's cursor set. Removing the art without removing the fields reds the YAML
+		// gate; removing the fields is a bigger call than tidying dead art, which is why the
+		// scaffolding (including AssaultMoveCondition above) was kept behind a CS0414 pragma in the
+		// first place. Leave both halves together or remove both halves together.
 		[CursorReference]
 		public readonly string AssaultMoveCursor = "assaultmove";
 
@@ -121,6 +130,29 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>
+		/// Whether this actor could be given an attack-move order at all.
+		/// </summary>
+		/// <remarks>
+		/// Carrying AttackMoveInfo is NOT sufficient. The trait sits on ^AutoTarget
+		/// (defaults.yaml:388), which ^AutoTargetAir and ^AutoTargetAirICBM inherit, so immobile
+		/// AA and ICBM defences (structures-defenses.yaml:600, :685, :762) carry it as the no-op the
+		/// constructor comment describes. Both the targeter (`self.TraitOrDefault&lt;IMove&gt;() == null`)
+		/// and ResolveOrder (`move == null`) then refuse them.
+		///
+		/// This matters for the cursor because AmmoPool.AllPoolsEmpty returns FALSE for an actor
+		/// with no pools at all (AmmoPool.cs:548-560) — so a poolless defence answers "can act", and
+		/// without this filter one box-selected alongside a dry tank paints a GREEN attack-move
+		/// cursor over a click that does nothing. Shared by both display paths so they cannot drift.
+		/// </remarks>
+		internal static bool CanBeOrderedToAttackMove(Actor a)
+		{
+			return a.Info.HasTraitInfo<AttackMoveInfo>() && a.TraitOrDefault<IMove>() != null;
+		}
+
+		/// <summary>Shared across every actor's targeter — see SelectionMemo; a per-actor memo would save nothing.</summary>
+		static readonly SelectionMemo Memo = new();
+
 		class AttackMoveTargeter : IOrderTargeter
 		{
 			readonly AttackMoveInfo info;
@@ -146,7 +178,33 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					var cell = self.World.Map.CellContaining(target.CenterPosition);
 					var explored = self.Owner.MapLayers.IsExplored(cell);
-					cursor = explored || info.MoveIntoShroud ? info.AttackMoveCursor : info.AttackMoveBlockedCursor;
+
+					// Mirrors ResolveOrder's gate above (including its !order.Queued scoping, which
+					// OrderReadinessMath owns) but resolved over the SELECTION, not over self.
+					//
+					// It has to be the selection even though this targeter is per-unit, because
+					// UnitOrderGenerator.CursorForOrders picks ONE cursor for the whole click by
+					// MaxByOrDefault on OrderPriority — and every AttackMove result ties at 4, where
+					// MaxByOrDefault keeps the FIRST (Exts.cs:276 replaces only on strictly-greater).
+					// Answering per-unit would therefore show blocked or not depending on which unit
+					// happened to sort first: with one dry tank at the head of a healthy selection,
+					// the whole click reads blocked. Giving every subject the same selection-wide
+					// answer makes the tie-break irrelevant. Memoised because this is a per-actor
+					// path asking a per-selection question.
+					var candidates = self.World.Selection.Contains(self)
+						? self.World.Selection.Actors
+						: new[] { self };
+
+					var refused = Memo.ReadsAsBlocked(
+						self.World,
+						candidates,
+						modifiers.HasModifier(TargetModifiers.ForceQueue),
+						CanBeOrderedToAttackMove,
+						AmmoPool.CannotFight);
+
+					cursor = (explored || info.MoveIntoShroud) && !refused
+						? info.AttackMoveCursor
+						: info.AttackMoveBlockedCursor;
 					return true;
 				}
 
@@ -218,7 +276,19 @@ namespace OpenRA.Mods.Common.Traits
 				if (world.Map.Contains(cell))
 				{
 					var explored = subject.Actor.Owner.MapLayers.IsExplored(cell);
-					var blocked = !explored && !info.MoveIntoShroud;
+
+					// Same rule as AttackMoveTargeter, through the same combinator and the same
+					// eligibility test. OrderInner issues ONE grouped order to every subject and
+					// ResolveOrder drops it per-unit, so the click still achieves something while
+					// any subject that can actually receive it can fight. No memo needed here: this
+					// runs once per frame, not once per actor.
+					var refused = OrderReadinessMath.ReadsAsBlocked(
+						subjects.Select(s => s.Actor),
+						modifiers.HasModifier(Modifiers.Shift),
+						AttackMove.CanBeOrderedToAttackMove,
+						AmmoPool.CannotFight);
+
+					var blocked = (!explored && !info.MoveIntoShroud) || refused;
 					return blocked ? info.AttackMoveBlockedCursor : info.AttackMoveCursor;
 				}
 

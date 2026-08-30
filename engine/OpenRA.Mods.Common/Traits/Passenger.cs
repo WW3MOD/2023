@@ -107,6 +107,23 @@ namespace OpenRA.Mods.Common.Traits
 			if (requireForceMove && !modifiers.HasModifier(TargetModifiers.ForceMove))
 				return false;
 
+			// DELIBERATELY NOT `&& CanEnter(target)`. A full transport still passes targeting, still
+			// consumes the click at priority 5, and ResolveOrder then drops it — so right-clicking a
+			// full APC does nothing at all, and the dead click plus `enter-blocked` art IS the
+			// feedback that tells the player the transport is full.
+			//
+			// USER RULING, 2026-08-30 — considered and ruled against, do not re-propose without
+			// reading this. Folding CanEnter in here was built on this branch so the refused click
+			// would fall through to a Move instead. It was reverted because it is the same shape as
+			// a shipped rule — an order must never silently become a move order — and because it
+			// spent the only feedback the player has: after it, the unit drove over and stopped,
+			// which reads as a move the player asked for rather than "that one is full".
+			//
+			// Secondary reason, recorded because it is not obvious from here:
+			// EnterAlliedActorTargeter.CanTargetFrozenActor passes the REAL actor to this predicate,
+			// so anything consulted here is also consulted for a FOGGED transport. Adding an
+			// occupancy term therefore widened a fog leak. The pre-existing LoadingBlocked leak on
+			// the same path is filed separately — do not chase it from here.
 			return IsCorrectCargoType(target);
 		}
 

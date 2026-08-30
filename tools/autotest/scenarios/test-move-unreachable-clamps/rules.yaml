@@ -1,0 +1,19 @@
+# A move order onto a cell the unit cannot path to must clamp to the nearest REACHABLE
+# cell, instead of silently doing nothing.
+#
+# DefaultCash: 0 is load-bearing, not tidiness. With cash the player could produce, and a
+# named-actor predicate is only valid if the named actor is the one the system actually
+# uses (AUTOTEST.md, "the named actors were not the ones the system chose to use"). Rig is
+# the only vehicle this player will ever have.
+
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-move-unreachable-clamps.lua

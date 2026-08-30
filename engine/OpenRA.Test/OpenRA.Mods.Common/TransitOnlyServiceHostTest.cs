@@ -3,7 +3,7 @@
  * WW3MOD phantom-movement tests: the depot dock cell must STAY unstayable.
  *
  * The player-visible symptom is "a vehicle ordered to a position arrives, then backs up a bit, like
- * it got a hidden extra order". There IS a hidden extra order. Mobile.OnBecomingIdle (Mobile.cs:945)
+ * it got a hidden extra order". There IS a hidden extra order. Mobile.OnBecomingIdle (Mobile.cs:980)
  * re-orders any unit that falls idle on a cell its locomotor may pass through but not stop on:
  *
  *     if (!Locomotor.CanStayInCell(self.Location))
@@ -15,7 +15,7 @@
  * than assumed, so this fixture cannot drift if the enum is re-lettered.
  *
  * Ordinary move orders cannot strand a unit this way: Move.OnFirstRun (Move.cs:139-143) pre-corrects the
- * destination through Mobile.NearestMoveableCell, which filters on CanStayInCell (Mobile.cs:844-852), and
+ * destination through Mobile.NearestMoveableCell, which filters on CanStayInCell (Mobile.cs:853-858), and
  * every give-up branch in Move.PopPath re-checks it (Move.cs:268). The unguarded path is service docking:
  * Resupply.cs:274 uses move.MoveOntoTarget -> MoveOntoAndTurn : MoveOnto : MoveAdjacentTo. The base
  * MoveAdjacentTo.CalculatePathToTarget picks its candidates through `CanStayInCell(cell) &&

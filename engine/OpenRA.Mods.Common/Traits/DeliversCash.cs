@@ -102,7 +102,31 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				amount = CustomSellValueExts.ApplyHandicapRefundAdjustment(amount, self.Owner);
 
-				// Rotation: walk to map edge (not to the Supply Route) and refund
+				// Rotation: walk to map edge (not to the Supply Route) and refund.
+				//
+				// SETTLED — DO NOT RE-FILE. Two things here look like bugs and are not. First, this
+				// branch DISCARDS `target`: the unit walks to the nearest map edge, not to the thing
+				// that was clicked. Second, the click that gets here is an ordinary right-click on
+				// the player's own SUPPLYROUTE (structures.yaml:222, AcceptsDeliveredCash ValidTypes:
+				// Rotation) carrying the generic `enter` cursor (DeliversCashInfo.Cursor), at
+				// OrderPriority 5 — which outranks Mobile's move at 4, so the SR cannot be
+				// right-clicked to move. Every combat unit carries DeliversCash@Rotation, and the
+				// consequence is irreversible: the unit is removed for a refund.
+				//
+				// A 2026-08-30 cursor-honesty audit filed exactly that as its top defect. The user
+				// closed it as intended, no change: "It is just a way to order evacuation by in-game
+				// click (no hotkey needed), I don't see any issue. The icon is okay, there is nothing
+				// better I think."
+				//
+				// The reasoning that settles it, and the piece the audit did not have: the mouse
+				// affordance EXISTING WITHOUT A HOTKEY IS THE POINT. It is not a redundant duplicate
+				// of the Evacuate command-bar button (chrome/ingame-player.yaml:322,
+				// CommandBarLogic.cs:255) — it is the no-hotkey route to the same order, and `enter`
+				// is an accepted fit for "send this unit into the Supply Route and off the map".
+				//
+				// So: a divergence between what a pointer conventionally means and what an order does
+				// is EVIDENCE, not a conclusion. Re-deriving the facts here will reproduce the same
+				// alarming and correct analysis; the missing input was what the interaction is for.
 				self.QueueActivity(queued, new RotateToEdge(self, true, amount));
 				self.ShowTargetLines();
 				return;

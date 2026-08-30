@@ -1171,6 +1171,15 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			get
 			{
+				// Mirrors the guard IssueOrder below already applies (and Mobile.cs's on its own
+				// Orders). Without it a disabled Aircraft advertises a cursor and then declines to
+				// produce the order, which UnitOrderGenerator.CheckSameOrder reports as
+				// "BUG: in order targeter - decided on Move but then didn't order".
+				// Unreachable today — nothing in mods/ sets RequiresCondition on Aircraft — so this
+				// is symmetry, not a fix.
+				if (IsTraitDisabled)
+					yield break;
+
 				yield return new EnterAlliedActorTargeter<BuildingInfo>(
 					"ForceEnter",
 					6,
@@ -1569,7 +1578,14 @@ namespace OpenRA.Mods.Common.Traits
 				IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);
 
 				var explored = self.Owner.MapLayers.IsExplored(location);
-				cursor = !aircraft.IsTraitPaused && (explored || aircraft.Info.MoveIntoShroud) && self.World.Map.Contains(location) ?
+
+				// IsTraitPaused is deliberately NOT consulted, matching Mobile.cs's MoveOrderTargeter
+				// and the reasoning written there: ResolveOrder queues the move regardless of pause
+				// (it checks IsTraitDisabled only) and MovementSpeed is 0 while paused, so the flight
+				// simply resumes when the pause lifts. Showing BlockedCursor for a transient pause
+				// promised a refusal that never happened — live entrances are ^Drone's dronedisable
+				// and ^AircraftAffectedByEMP's empdisable. Only flag truly unreachable destinations.
+				cursor = (explored || aircraft.Info.MoveIntoShroud) && self.World.Map.Contains(location) ?
 					aircraft.Info.Cursor : aircraft.Info.BlockedCursor;
 
 				return true;

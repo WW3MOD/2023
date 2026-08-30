@@ -7,8 +7,8 @@
  * contract; these pin the two remaining shapes found by the follow-up census.
  *
  * WHY THE ENGINE DOES NOT MAKE THIS MOOT, which is the part that is easy to get wrong. Both order paths a bot
- * uses DO relocate an impassable destination: Mobile.ResolveOrder (Mobile.cs:1030) and AttackMove.ResolveOrder
- * (AttackMove.cs:116) both run the cell through Mobile.NearestMoveableCell, a radius-1..10 annulus search. So a
+ * uses DO relocate an impassable destination: Mobile.ResolveOrder (Mobile.cs:1073) and AttackMove.ResolveOrder
+ * (AttackMove.cs:125) both run the cell through Mobile.NearestMoveableCell, a radius-1..10 annulus search. So a
  * unit ordered a short way into the sea walks to the beach instead, and nothing looks wrong. The damage is in
  * the two places that search cannot reach:
  *   * beyond 10 cells of standable ground there is no answer, NearestMoveableCell returns the original cell,

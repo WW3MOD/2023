@@ -50,10 +50,16 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceling)
 				return true;
 
-			// Prevent deployment in bogus locations
+			// Prevent deployment in bogus locations.
+			// Says so out loud: a queued deploy is judged HERE, at the cell the unit actually
+			// reached, and the cursor could not have warned about it — see
+			// Transforms.NotifyCannotDeploy. This used to return in silence.
 			var transforms = self.TraitOrDefault<Transforms>();
 			if (transforms != null && !transforms.CanDeploy())
+			{
+				transforms.NotifyCannotDeploy();
 				return true;
+			}
 
 			foreach (var nt in self.TraitsImplementing<INotifyTransform>())
 				nt.BeforeTransform(self);
@@ -85,9 +91,14 @@ namespace OpenRA.Mods.Common.Activities
 				if (self.IsDead || self.WillDispose)
 					return;
 
-				// Prevent deployment in bogus locations
+				// Prevent deployment in bogus locations. The second of the two execution-time
+				// refusals — reached when the cell went bad between Tick and the frame-end task,
+				// typically because something moved into the footprint — and silent until now for
+				// the same reason as the one in Tick.
 				if (transforms != null && !transforms.CanDeploy())
 				{
+					transforms.NotifyCannotDeploy();
+
 					if (!SkipMakeAnims && makeAnimation != null)
 						makeAnimation.Forward(self, () => { IsInterruptible = true; Cancel(self, true); });
 					else

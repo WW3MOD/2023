@@ -484,6 +484,22 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			passenger.World.IssueOrder(new Order("EnterTransport", passenger, Target.FromActor(transport), queued));
 		}
 
+		[Desc("Issue a real Move order on `unit` targeting `cell`, exactly as a player right-click does. " +
+			"USE THIS RATHER THAN the activity-direct Lua `unit.Move(cell)` whenever the thing under test " +
+			"lives in the ORDER path: MobileProperties.Move queues `new Move(self, cell, range)` straight " +
+			"onto the actor, and that constructor leaves evaluateNearestMovableCell FALSE, so " +
+			"Mobile.NearestMoveableCell — and therefore all destination clamping — is never reached at " +
+			"all. Mobile.ResolveOrder passes true. A scenario using the Lua API to test clamping goes RED " +
+			"before the fix and RED after it, for the same reason both times, with the code under test " +
+			"never executed. Test mode only.")]
+		public void IssueMoveOrder(Actor unit, CPos cell, bool queued = false)
+		{
+			if (!TestMode.IsActive || unit == null)
+				return;
+
+			unit.World.IssueOrder(new Order("Move", unit, Target.FromCell(unit.World, cell), queued));
+		}
+
 		[Desc("Issue a real DropSupplyCacheAt order on `truck` targeting `cell` — the drive-out-and-drop " +
 			"errand the bot issues. Use this rather than the bare DropSupplyCache order: that one drops " +
 			"unconditionally in ResolveOrder, while the occupancy test under DropsSupplyCache.CanDropCache " +

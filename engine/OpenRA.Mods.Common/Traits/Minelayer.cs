@@ -100,9 +100,51 @@ namespace OpenRA.Mods.Common.Traits
 			get
 			{
 				yield return new BeginMinefieldOrderTargeter(Info.AbilityCursor);
-				yield return new DeployOrderTargeter("PlaceMine", 5, () => IsCellAcceptable(self, self.Location) ? Info.DeployCursor : Info.DeployBlockedCursor);
+				yield return new DeployOrderTargeter("PlaceMine", 5,
+					() => NoOneCanLayHere() ? Info.DeployBlockedCursor : Info.DeployCursor);
 			}
 		}
+
+		/// <summary>
+		/// True when no minelayer in the selection is standing somewhere it could lay, so the deploy
+		/// cursor should read blocked. Same polarity as attack-move and guard, same combinator.
+		/// </summary>
+		/// <remarks>
+		/// <para>ONLY the terrain term. There is deliberately NO ammo term here, and adding one is a
+		/// false refusal — this was tried on this branch and removed after review. ResolveOrder
+		/// (below) has no ammo test either, and a dry minelayer given PlaceMine does NOT fail:
+		/// LayMines.cs:94 detects the empty pool and, when a rearm host exists, queues
+		/// MoveAdjacentTo + MoveTo + Resupply and carries on laying (`:96-112`). It gives up only at
+		/// `:103-104`, when rearmTarget is null. MNLY carries `Rearmable: RearmActors:
+		/// logisticscenter` (vehicles.yaml:506-508) and the infantry minelayer self-reloads via
+		/// ReloadAmmoPool, so in this mod the order is accepted and completes either way. Painting
+		/// it blocked would cost the player the automatic rearm-and-lay the engine already provides.
+		/// LayMines.cs:94 is the REARM TRIGGER — it is the proof the order is honoured, not a
+		/// refusal.</para>
+		///
+		/// <para>Resolved over the selection rather than per-actor for the same reason as
+		/// AttackMove: UnitOrderGenerator.CursorForOrders keeps the FIRST result on a priority tie,
+		/// so one minelayer parked on a bad cell at the head of a healthy selection would otherwise
+		/// paint the whole click blocked.</para>
+		/// </remarks>
+		bool NoOneCanLayHere()
+		{
+			var candidates = self.World.Selection.Contains(self)
+				? self.World.Selection.Actors
+				: new[] { self };
+
+			// Each minelayer is judged on ITS OWN cell: DeployOrderTargeter issues a per-actor
+			// PlaceMine at that actor's location, and ResolveOrder re-tests the same cell.
+			return Memo.ReadsAsBlocked(
+				self.World,
+				candidates,
+				false,
+				a => a.Info.HasTraitInfo<MinelayerInfo>(),
+				a => !a.Trait<Minelayer>().IsCellAcceptable(a, a.Location));
+		}
+
+		/// <summary>Shared across every actor's targeter — see SelectionMemo.</summary>
+		static readonly SelectionMemo Memo = new();
 
 		Order IIssueOrder.IssueOrder(Actor self, IOrderTargeter order, in Target target, bool queued)
 		{

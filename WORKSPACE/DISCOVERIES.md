@@ -104,6 +104,41 @@ eleven termination causes and separates `Detonated / DudPreArm / Unterminated`, 
 **Cross-reference for the penetration half:** the `Thickness × ArmorDirectionPercent` rule and the
 "a surface showing penetration must also show attack direction" ruling are in the 2026-08-30
 `wt/tooltip-standard` entry further down; not restated here.
+## 2026-08-30 — CURSOR AND CLICK NOW SHARE ONE RESOLUTION PATH, SO EVERY SURVIVING CURSOR LIE IS DOWNSTREAM OF TARGETING — AND THE RICHEST SEAM IS TWO DIFFERENT "IS IT DRY?" PREDICATES (`wt/cursor-honesty`, verified against `main @ 5a985337`)
+
+Full audit in `WORKSPACE/cursor-honesty-audit.md`. Three transferable facts:
+
+**1. The classic divergence is already closed, so stop looking there.** `UnitOrderGenerator.GetCursor`
+(`:135`) and `Order` (`:52`) both resolve through the same `OrdersForSelection` → `OrderForUnit`
+(`:271-309`); the comment at `:132-134` says so deliberately. A cursor cannot disagree with the click
+about *which targeter won*. Surviving lies live in exactly four downstream places: `IssueOrder`
+returning null (the engine logs it itself — `CheckSameOrder`, `:325-332`), `ResolveOrder` re-checking
+a **different** predicate, the Activity declining at runtime, or the cursor naming a *different
+action* from the one performed.
+
+**2. There are TWO dryness predicates in `AttackBase` and they are not equivalent.** The actor path
+uses `armaments.All(a => a.AmmoPool != null && !a.AmmoPool.HasAmmo)` (`AttackBase.cs:809`) —
+**armament-scoped**, and an armament belonging to no pool makes the whole test false. The ground path
+and `ResolveOrder` use `AmmoPool.CannotFight(self)` (`:844`, `:502`) = `AllPoolsEmpty(self) &&
+!HasTraitInfo<AircraftInfo>()` (`AmmoPool.cs:585-588`) — **actor-scoped, and always false for
+aircraft**. Two live consequences: an engineer whose rifle and C4 are spent still shows the `repair`
+cursor (his wrench armament is in no pool, `infantry.yaml:1953-1962`) and the order is then dropped
+actor-scoped at `:502`; and for aircraft the display test is *stricter* than the execution test, the
+one place in the codebase where that asymmetry runs the safe way. **Do not "unify" these without
+reading `:495-501` and `:842-843` first** — the comment at `:842` records a previous fix mirroring
+one onto the other and picking the wrong twin.
+
+**3. Census: 64 armament-level `PauseOnCondition` gates in non-husk rules, and exactly ONE actor opts
+into `AbandonWhenArmamentsPaused`** (`^MEDI`, `infantry.yaml:2308`). Every armed vehicle carries
+`|| empdisable || heavy-damage-attained`, and `heavy-damage-attained` is granted at Heavy *and*
+Critical (`defaults.yaml:243-245`). The wedge mechanism was already documented
+(`conventions.md:346`); what was missing was how wide its live entrance is.
+
+**Bonus trap, same shape at the semantic layer:** `DeliversCash.GoDonateCash` (`:94-108`) **ignores
+its `target` entirely** when `Type == "Rotation"` and queues `RotateToEdge` instead. The targeter
+still advertises the generic `enter` cursor (`:38`) at priority 5, beating Mobile's 4. So the cursor
+is honest about *an* order existing and silent about it being a completely different one. When
+auditing a cursor, check that the resolver actually *uses* the target it was handed.
 
 ## 2026-08-30 — `Timestep` is MILLISECONDS PER TICK, there are ELEVEN of them, and only `mod.yaml:382` is the default — the number that looks like a tick rate is its inverse (`wt/postmerge-fallout`, verified against `main @ 0163ca22`)
 

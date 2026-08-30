@@ -393,7 +393,7 @@ namespace OpenRA.Mods.Common.Traits
 				// coarse GRID CENTRES (CellSize 8) that are only bounds-tested. A coastal cluster qualifies on
 				// enemies standing on the adjacent land while its centre sits offshore, and an enemy HELICOPTER
 				// over open water qualifies a centre with no land near it at all. The engine relocates a move by
-				// at most 10 cells and then resolves no destination (Mobile.cs:1030 -> NearestMoveableCell), so
+				// at most 10 cells and then resolves no destination (Mobile.cs:1073 -> NearestMoveableCell), so
 				// an unclamped centre far enough out leaves the whole pincer squad standing at base — the AI
 				// simply never attacks, with nothing in any log to say why. Clamp to ground the units can hold,
 				// using the engine's own reach so the bot's cell and the engine's cell agree.

@@ -3771,3 +3771,63 @@ running game.
   | RPG (direct, frontal) | t90 | 280 | 6000 | 4 | 120 |
 
   **The design is coherent and `Penetration: 100` is correctly sized against roof armour, not frontal.** The specialist's 3-round magazine does 30000 against an abrams' 28000 HP — it kills exactly one MBT per load, which reads deliberate. The RPG is cheaper per kill against a T-90 and worse against an abrams, which is the tradeoff you would want. **No action.** (found while working on: tooltip weapon-section mockups)
+
+---
+
+## 2026-08-30: [low] `defaults.yaml` declares two templates TWICE, and MiniYaml merges them silently (found while: cursor honesty audit, branch `wt/cursor-honesty`, `main @ 5a985337`)
+
+`^AutoTargetAir:` appears at `mods/ww3mod/rules/defaults.yaml:554` **and** `:706`;
+`^AutoTargetGroundAntiInf:` at `:606` **and** `:642`. Adjacent top-level entries merge without a
+lint error (CLAUDE.md hard rule: "blank lines between top-level entries are significant"), so the
+later block's fields silently win on any key both define.
+
+**Not investigated** — found incidentally while enumerating `AutoTarget` for the cursor audit, and
+outside that branch's scope. Whoever picks it up should diff the two halves of each pair before
+deleting either; the merge may be load-bearing by accident.
+
+**Confirm by:** reading the four line ranges and comparing the field sets.
+
+---
+
+## 2026-08-30: [high] OPEN — a unit whose every armament is PAUSED accepts an attack order, walks over, aims, and never goes idle again, silencing auto-target / auto-follow / auto-rearm (found while: cursor honesty audit, branch `wt/cursor-honesty`, `main @ 5a985337`)
+
+**Filed separately on purpose.** This surfaced as finding 5 of the cursor audit and was initially
+grouped with the cursor decisions. It is **not a cursor decision** — it is a live behavioural bug
+that wants fixing whichever way the cursor question goes, and folding it into a UI vote is how it
+would have disappeared.
+
+**Mechanism** (already documented at `DOCS/reference/conventions.md:346`; what is new here is the
+census). `ChooseArmamentsForTarget` filters `IsTraitDisabled` but not `IsTraitPaused`, and
+`AttackOrderTargeter` *deliberately* selects a paused armament (`AttackBase.cs:807`:
+`FirstOrDefault(x => !x.IsTraitPaused) ?? armaments.First()`). The order is accepted.
+`Armament.CanFire` then declines on pause (`Armament.cs:327`), `TickAttack` still reports
+`Attacking`, so **the activity never completes** and the unit is never idle — every `INotifyIdle`
+behaviour it owns is silenced for as long as the pause lasts.
+
+**Census, and why this is worse than it reads.** `AttackBaseInfo.AbandonWhenArmamentsPaused`
+(`AttackBase.cs:72`, default `false`) is the opt-in escape, and **exactly one actor in the mod sets
+it** — `^MEDI` (`infantry.yaml:2308`) — against **64** armament-level `PauseOnCondition` gates in
+non-husk rules. The widest live entrance is **every armed vehicle**: they all carry
+`|| empdisable || heavy-damage-attained`, and `heavy-damage-attained` is granted at damage state
+Heavy **and Critical** (`defaults.yaml:243-245`). So a tank at heavy damage — a normal, common,
+late-fight state — accepts an attack order, drives into range, aims, fires nothing, and stops
+auto-rearming and auto-targeting until it is given another order.
+
+**Note the cursor question is genuinely separate, and the obvious display "fix" would be its own
+lie.** For the ammo cases the order is truly refused (`AttackBase.cs:502`), so a blocked cursor is
+honest. For a *paused* armament the order is **accepted** and the unit really does drive over — so
+painting a blocked cursor would claim a refusal that does not happen. The honest display answer is
+not the same predicate, which is why this is filed on its own.
+
+**Fix shape:** the affected traits opt into `AbandonWhenArmamentsPaused` so the unit at least drops
+to idle. **Do NOT widen the flag into "abandon when the unit cannot fire":** `Armament.CanFire` is
+also false on `IsReloading`, `IsWaitingBurst` and `IsAiming`, all true on ordinary ticks of a healthy
+weapon, so the general form would drop every attack order in the game between shots. Pause is the
+only one of those that can *last*.
+
+**SUPPRESSION-ADJACENT, NOT PRE-AUTHORISED:** two of the live gates are `suppressed >= 10` on `^AT`
+(`infantry.yaml:1739`) and the engineer's repair armament (`:1956`). Those need specific sign-off.
+The vehicle `heavy-damage-attained` cases do not touch suppression.
+
+**Confirm by:** damage a tank to Heavy, order it to attack, and watch it aim without firing and
+without ever rearming.

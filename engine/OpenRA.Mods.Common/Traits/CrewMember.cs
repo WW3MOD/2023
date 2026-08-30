@@ -85,11 +85,20 @@ namespace OpenRA.Mods.Common.Traits
 			if (order.OrderString != "EnterAsCrewMember")
 				return;
 
-			if (order.Target.Type != TargetType.Actor)
+			// A FrozenActor target is accepted here, matching what the targeter already promises.
+			// EnterAlliedActorTargeter.CanTargetFrozenActor paints the full green `enter` over a
+			// fogged vehicle, and this used to discard it on TargetType alone — a green cursor
+			// followed by nothing whatever, which is the hardest kind to diagnose because nothing
+			// looks refused. Passenger.ResolveOrder already handles frozen targets this way and
+			// Enter copes with them, so only the resolver was wrong.
+			if (order.Target.Type != TargetType.Actor && order.Target.Type != TargetType.FrozenActor)
 				return;
 
-			var targetActor = order.Target.Actor;
-			if (targetActor == null || targetActor.IsDead || !CanEnter(targetActor))
+			var targetActor = order.Target.Type == TargetType.FrozenActor
+				? order.Target.FrozenActor?.Actor
+				: order.Target.Actor;
+
+			if (targetActor == null || targetActor.IsDead || !targetActor.IsInWorld || !CanEnter(targetActor))
 				return;
 
 			self.QueueActivity(order.Queued, new EnterAsCrew(self, order.Target, info.Role));
