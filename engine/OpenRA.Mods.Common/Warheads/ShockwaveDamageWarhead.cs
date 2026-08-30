@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenRA.GameRules;
 using OpenRA.Mods.Common.Effects;
+using OpenRA.Mods.Common.Graphics;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -56,16 +57,66 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("Alpha at the inner (trailing/dust) edge of the shockwave ring, 0-100.")]
 		public readonly int ShockwaveInnerAlpha = 3;
 
-		[Desc("Alpha of the shockwave ring at MaxRadius, as percentage of initial alpha (0-100).")]
+		[Desc("Alpha of the shockwave ring where it stops, as percentage of initial alpha (0-100).",
+			"That edge is ShockwaveVisualRadius when set, MaxRadius otherwise.")]
 		public readonly int ShockwaveEndAlphaPercent = 0;
 
 		[Desc("Ticks for the shockwave ring to fade in from fully transparent. Simulates fireball origin.")]
 		public readonly int ShockwaveFadeInTicks = 25;
 
+		[Desc("Radius at which the visible RING stops and its fade completes. Zero follows MaxRadius.",
+			"MaxRadius alone cannot express a small ring on a wide blast, because it bounds the",
+			"wavefront's travel and the wavefront has to REACH an actor to hurt it — so the damage",
+			"reach is min(MaxRadius, (Falloff.Length - 1) * Spread) and cutting MaxRadius to shrink",
+			"the visual silently shortens the lethal radius too whenever MaxRadius is the smaller term.",
+			"Set this instead to rescale the ring while leaving damage exactly where it was.")]
+		public readonly WDist ShockwaveVisualRadius = WDist.Zero;
+
+		[Desc("Sides in the ring polygon. Lower is cheaper and more angular; 64 suits large radii.")]
+		public readonly int ShockwaveSegments = 64;
+
+		[Desc("How fast the band grows to its full ShockwaveThickness, as a percentage of expansion",
+			"progress. 250 reaches full thickness two fifths of the way out; 100 only at the ring's edge.")]
+		public readonly int ShockwaveThicknessRampPercent = 250;
+
+		[Desc("Outer edge of the ring's bright core, as a percentage of band width from the inner edge.")]
+		public readonly int ShockwavePeakOuterPercent = 75;
+
+		[Desc("Inner edge of the ring's bright core, as a percentage of band width from the inner edge.")]
+		public readonly int ShockwavePeakInnerPercent = 55;
+
+		[Desc("How far the transparent feather overshoots the leading edge, as a percentage of band width.")]
+		public readonly int ShockwaveOuterFeatherPercent = 15;
+
 		WDist[] effectiveRange;
+
+		/// <summary>Radius the ring is drawn out to, which need not be how far the wave travels.</summary>
+		public WDist VisualRadius => ShockwaveVisualRadius.Length > 0 ? ShockwaveVisualRadius : MaxRadius;
+
+		public ShockwaveRingShape RingShape => new ShockwaveRingShape(
+			ShockwaveSegments, ShockwavePeakOuterPercent, ShockwavePeakInnerPercent, ShockwaveOuterFeatherPercent);
+
+		/// <summary>
+		/// Whether the wave carries anything worth scanning actors for. A ring that delivers no damage
+		/// is purely decorative, and the per-tick FindActorsOnCircle sweep is then not merely wasted:
+		/// a zero-damage InflictDamage still fires INotifyDamage and marks its victims as attacked.
+		/// Checks every additive term InflictDamage reads, not just Damage.
+		/// </summary>
+		public bool DeliversDamage => Damage != 0 || DamagePercent != 0 || RandomDamageAddition != 0;
 
 		void IRulesetLoaded<WeaponInfo>.RulesetLoaded(Ruleset rules, WeaponInfo info)
 		{
+			if (ShockwaveSegments < 3)
+				throw new YamlException("ShockwaveSegments must be at least 3.");
+
+			if (ShockwaveVisualRadius.Length < 0)
+				throw new YamlException("ShockwaveVisualRadius cannot be negative.");
+
+			// Past MaxRadius the wave has already ended, so the ring would be cut off mid-fade and
+			// disappear at partial alpha — subtle enough as an artefact to be worth refusing at load.
+			if (ShockwaveVisualRadius > MaxRadius)
+				throw new YamlException("ShockwaveVisualRadius cannot exceed MaxRadius; the ring cannot outlive the wave.");
+
 			if (Range != null)
 			{
 				if (Range.Length != 1 && Range.Length != Falloff.Length)

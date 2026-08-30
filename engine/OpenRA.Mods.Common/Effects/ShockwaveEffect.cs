@@ -65,6 +65,11 @@ namespace OpenRA.Mods.Common.Effects
 				return;
 			}
 
+			// A decorative ring has nobody to hurt, so skip the sweep entirely rather than paying for
+			// it and handing every actor in range a zero-damage hit they would still react to.
+			if (!warhead.DeliversDamage)
+				return;
+
 			// Find all actors within the current radius and damage those
 			// that haven't been hit yet (i.e., the wavefront just passed them)
 			foreach (var victim in world.FindActorsOnCircle(center, currentRadius))
@@ -104,8 +109,16 @@ namespace OpenRA.Mods.Common.Effects
 			if (currentRadius.Length <= 0)
 				yield break;
 
-			// Progress 0→1 as ring expands from center to max radius
-			var progress = (float)currentRadius.Length / warhead.MaxRadius.Length;
+			// The ring may be told to stop short of where the wave travels, so that a blast can keep
+			// its damage reach while showing a smaller front. When ShockwaveVisualRadius is unset this
+			// is MaxRadius, the wave finishes on the same tick, and neither branch below can fire
+			// before the `finished` guard above already has.
+			var visualRadius = warhead.VisualRadius.Length;
+			if (currentRadius.Length > visualRadius)
+				yield break;
+
+			// Progress 0→1 as ring expands from center to the edge it is drawn out to
+			var progress = (float)currentRadius.Length / visualRadius;
 
 			// Fade in: shockwave originates from fireball edge, not center
 			// Fully transparent at start, reaches full opacity after FadeInTicks
@@ -123,8 +136,10 @@ namespace OpenRA.Mods.Common.Effects
 			var outerAlpha = startOuterAlpha * fadeIn * fadeOut;
 			var innerAlpha = startInnerAlpha * fadeIn * fadeOut;
 
-			// Scale thickness with radius — starts thin, grows as the ring expands
-			var thicknessScale = System.Math.Min(1f, progress * 2.5f);
+			// Scale thickness with radius — starts thin, grows as the ring expands.
+			// The ramp is divided by 100f rather than folded into a literal so the default 250 is
+			// bit-for-bit the 2.5f that used to be written here; ShockwaveTuningTest pins it.
+			var thicknessScale = System.Math.Min(1f, progress * (warhead.ShockwaveThicknessRampPercent / 100f));
 			var currentThickness = new WDist((int)(warhead.ShockwaveThickness.Length * thicknessScale));
 
 			// Use ground-level center for the ring
@@ -139,7 +154,8 @@ namespace OpenRA.Mods.Common.Effects
 				0,
 				color,
 				outerAlpha,
-				innerAlpha);
+				innerAlpha,
+				warhead.RingShape);
 		}
 	}
 }
