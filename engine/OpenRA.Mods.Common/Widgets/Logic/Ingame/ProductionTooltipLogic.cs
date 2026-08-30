@@ -463,6 +463,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					var percent = (total * 100f) / depot;
 					contributed.Add((511, TooltipElement.Stat("Depot share", $"{percent:0.#}% of a Logistics Centre")));
 
+					// NO SHIPPED ACTOR CURRENTLY REACHES THIS BRANCH, and it is not dead code by
+					// accident — do not "fix" the Note element on the strength of never seeing it.
+					// The only refills above a Centre's 2250 belong to the strategic launchers
+					// (HIMARS, Iskander), and those are exactly the actors the Rearmable gate above
+					// excludes: they carry no Rearmable by deliberate ruling and must be evacuated
+					// rather than reloaded (vehicles-america.yaml:1153-1159). So the two conditions
+					// are currently disjoint. Re-pricing any rearmable unit past 2250, or making a
+					// launcher rearmable, brings this back. Checked against the units the tooltip
+					// audit priced, not all 54 buildables.
 					if (total > depot)
 						contributed.Add((520, TooltipElement.Note(
 							"One reload costs more supply than a full Logistics Centre holds.")));
