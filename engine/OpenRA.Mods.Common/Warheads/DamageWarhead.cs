@@ -234,10 +234,33 @@ namespace OpenRA.Mods.Common.Warheads
 			}
 
 			var thickness = victim.Trait<Armor>().Info.Thickness;
+			var damageBeforeArmour = damage;
+			var effectiveThickness = 0;
 			if (thickness != 0)
 			{
 				var armorPercent = ArmorDirectionPercent(victim, shape, args);
-				damage = ApplyPenetration(damage, Penetration, thickness * armorPercent / 100);
+
+				// Kept in a local rather than inlined into the call: this is the number
+				// ApplyPenetration actually compares against, and HitCheck below needs it. Feeding
+				// it raw Thickness instead would report every top-attack weapon as broken -- the
+				// ATGM's Penetration 100 clears an Abrams ROOF of 70 and is correctly sized, while
+				// against the frontal 700 it looks seven times under-sized.
+				effectiveThickness = thickness * armorPercent / 100;
+				damage = ApplyPenetration(damage, Penetration, effectiveThickness);
+			}
+
+			// Anomaly detection, not tracing -- silent unless armour turned a lethal shot into a
+			// non-lethal one. The cheap int pre-gate runs first so the common case costs two
+			// comparisons and no trait lookup. See HitCheck for the predicate and its measurements.
+			if (effectiveThickness > 0 && HitCheck.LostMostOfItsDamage(damageBeforeArmour, damage))
+			{
+				var victimMaxHp = victim.TraitOrDefault<Health>()?.MaxHP ?? 0;
+				if (HitCheck.IsUnderPerforming(damageBeforeArmour, damage, effectiveThickness, victimMaxHp)
+					|| HitCheck.IsUnderPerformingAgainstThinArmour(damageBeforeArmour, damage, effectiveThickness, victimMaxHp))
+				{
+					HitCheck.Report(firedBy.Info.Name, victim.Info.Name, GetType().Name, Damage, Penetration,
+						damageBeforeArmour, damage, effectiveThickness, victimMaxHp);
+				}
 			}
 
 			if (DamagePercent != 0)

@@ -361,6 +361,12 @@ namespace OpenRA
 			Log.AddChannel("nat", "nat.log");
 			Log.AddChannel("client", "client.log");
 
+			// WW3MOD: HitCheck's anomaly channel. Deliberately its own file rather than debug.log --
+			// it is meant to be watched continuously, and that only works if an empty file means
+			// "nothing is wrong". A [HITCHECK] line is a warhead whose Penetration needs sizing;
+			// [hitcheck-thin] is the advisory band. See OpenRA.Mods.Common/HitCheck.cs.
+			Log.AddChannel("hitcheck", "hitcheck.log");
+
 			var platforms = new[] { Settings.Game.Platform, "Default", null };
 			foreach (var p in platforms)
 			{
