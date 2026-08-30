@@ -96,26 +96,67 @@ namespace OpenRA.Mods.Common.Activities
 			origin = self.Location;
 		}
 
+		/// <summary>
+		/// <para>Is this host still worth walking to — which is "can it pay for a batch of something we
+		/// still want", not "does it have anything left in it". Those differ over the whole band from 1
+		/// supply up to one batch price, and that band is where this activity used to strand people: a
+		/// host in it is stocked, so a CurrentSupply &gt; 0 test keeps the unit walking, and it can never
+		/// serve, so the unit arrives and parks in the in-range branch below waiting for a push that
+		/// cannot come.</para>
+		///
+		/// <para>Shares AmmoPool.HostCanAffordSomethingWeNeed with the dispatchers rather than restating
+		/// the comparison, so a host they would refuse to send us to is one we also stop walking to. It is
+		/// the DISPATCHERS' test, not the provider's whole accept test: SupplyProvider.AcceptClient can
+		/// also decline on MinNeedThreshold, which nothing here models. That cannot bite on this path —
+		/// a unit walking here is dry, so its need is maximal — but do not read this as "the provider
+		/// would serve us".</para>
+		/// </summary>
 		bool TargetValid(Actor a)
 		{
 			if (a == null || a.IsDead || !a.IsInWorld)
 				return false;
 
 			var sp = a.TraitOrDefault<SupplyProvider>();
-			return sp != null && sp.CurrentSupply > 0;
+			return sp != null && AmmoPool.HostCanAffordSomethingWeNeed(a, pools);
 		}
 
+		/// <summary>
+		/// <para>The retarget pick, and it must apply the SAME affordability test the dispatcher used.
+		/// This runs every RetargetInterval ticks for the whole journey, so a looser test here silently
+		/// undoes an affordable dispatch one layer down: sent to the cache that can pay, the unit
+		/// retargets onto a nearer one that cannot and walks to it instead. Fixing only the choosers
+		/// leaves that hole open.</para>
+		///
+		/// <para>LEASHED, and the affordability test above is what made that mandatory. Every dispatcher
+		/// bounds the walk it orders — AutoSeekSupplies.WithinBreakOffLeash, and AmmoPool's Auto arm and
+		/// evacuate detour via <see cref="AmmoPool.ResolveSeekLeash"/> — but this re-pick never did. That
+		/// was survivable while <see cref="TargetValid"/> only failed at exactly zero supply, because the
+		/// re-pick almost never fired. Tightening it to affordability widens the failing band to
+		/// <c>1 .. batchPrice-1</c>, which for ^AT and ^AA (SupplyValue 65) is 64 wide, so the re-pick
+		/// becomes routine — and an unleashed one can send a soldier across the map to the nearest
+		/// affordable host. AutoSeekSupplies' stall guard cannot catch that: the unit is changing cells,
+		/// so its progress test keeps resetting the counter.</para>
+		///
+		/// <para>Measured from the unit's CURRENT cell, which is where the dispatchers measure from at
+		/// their own decision points; it bounds the remaining walk rather than the whole excursion.</para>
+		/// </summary>
 		Actor FindBest(Actor self)
 		{
 			var rearmInfo = self.Info.TraitInfoOrDefault<RearmableInfo>();
 			if (rearmInfo == null)
 				return null;
 
+			// Reached only with pools.Length > 0 (Tick returns earlier otherwise), so this is never the
+			// empty-set 0 that WithinCellBudget would read as "admits nothing".
+			var leash = AmmoPool.ResolveSeekLeash(pools);
+
 			return self.World.ActorsHavingTrait<SupplyProvider>()
 				.Where(a => !a.IsDead && a.IsInWorld
 					&& a.Owner == self.Owner
 					&& rearmInfo.RearmActors.Contains(a.Info.Name)
-					&& a.Trait<SupplyProvider>().CurrentSupply > 0)
+					&& SupplyHuntMath.WithinCellBudget(
+						a.Location.X - self.Location.X, a.Location.Y - self.Location.Y, leash)
+					&& AmmoPool.HostCanAffordSomethingWeNeed(a, pools))
 				.ClosestToIgnoringPath(self);
 		}
 

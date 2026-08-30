@@ -13496,3 +13496,80 @@ launch, no autotest.
   and not for bots, the inverse of the usual gating direction. Do not skip it when triaging "bot-only".
 - Stale refs, incidentally: `infantry.yaml:2014,2017` cite `AmmoPool.cs:662` / `:263`; the real sites
   are `:841` and `:313`. Claims still true, numbers drifted.
+
+---
+
+## 2026-08-30 — A dry VEHICLE never re-evaluates resupply. Settled, by reading.
+
+This has been raised and left open at least twice. The answer is **no**, and the reason is
+structural rather than a missing call.
+
+**The mechanism.** `AmmoPool` is `INotifyCreated, INotifyAttack, INotifyBecomingIdle, IResolveOrder,
+ISync` — **there is no `ITick`**. Its two dispatch triggers are therefore:
+
+- `INotifyAttack.Attacking` (`AmmoPool.cs:841`) — the single shot that empties the pool, and
+- `INotifyBecomingIdle` (`:848`) — which `Actor.cs:321` raises only on the `!wasIdle -> IsIdle`
+  **transition**.
+
+A unit that reaches `HoldAndFlag` and then has nothing to shoot at stays idle from that tick on, so
+`wasIdle` is true every subsequent tick, the transition never recurs, and `AutoRearmIfDry` never runs
+again. **A truck can park on top of it and it will not notice.**
+
+**Why infantry are fine and vehicles are not.** `AutoSeekSupplies` carries the only `ITick` in this
+system (`AutoSeekSupplies.cs:228`), and it is declared on `^Soldier` and `^E6` **only**
+(`infantry.yaml:251`, `:2021`). Every ammo-carrying vehicle has no periodic path whatsoever. The
+second, accidental rescue is `AutoTarget` itself: it issues an attack, `Attack.cs:117` ends it
+immediately on `CannotFight`, the unit goes non-idle then idle, and the transition fires. **For a
+vehicle, the autotargeting a player might want to switch off is the only thing that makes it
+re-check whether it can rearm** — which is the concrete argument against a wholesale disable of
+automatic behaviour, and the reason that proposal was dangerous.
+
+**Sharpest case**, from the same census: `strykershorad` and `tunguska` both mix `Essential` and
+non-`Essential` pools and neither carries `AutoSeekSupplies`. For those two the ONLY trigger is the
+`Attacking` notification on the exact tick the essential pool empties, because `Attack.cs:117` reads
+`AllPoolsEmpty` — false while the non-essential pool holds rounds — so the unit never goes idle
+either. One dispatch opportunity per match, and if it declines, nothing asks again.
+
+**Fix shape, NOT built here and deliberately so.** A small idle-gated `ITick` that re-asks
+`AutoRearmIfDry` on a cadence closes it, and it must be idle-gated: the gap is specifically the unit
+that decided to hold, which is idle by definition, so an ungated version would instead interrupt live
+player orders — a much larger change wearing the same clothes. It must also guard on
+`AmmoPool.IsSeekingRearm` (`:950`), because `AutoRearmIfDry` has no such guard of its own and is safe
+today only because it cannot fire while a unit is walking; a periodic caller would tear down and
+re-plan the same errand forever (`:938-940`).
+
+**Why it was not built in the same change as the affordability fix:** enabling it is a live
+behavioural change to every ammo-carrying vehicle under BOTH bot profiles, and it needs its own
+RED/GREEN pair to mean anything. Shipping it unverified alongside a verified fix would make the
+measured result unreadable; shipping it default-off with nothing enabling it would be dead code.
+It wants its own scoped change.
+
+---
+
+## 2026-08-30 — No vehicle can enter `SeekSupplyProvider`, and that is a RULESET property, not an engine invariant
+
+Established during adversarial review of the affordability fix, while sizing what a change to that
+activity could break. It is worth writing down because it makes a large surface look untested when it
+is in fact unreachable — and because one YAML line reopens it.
+
+**The chain.** `AmmoPool.AutoRearm` is the only construction site for
+`Activities.SeekSupplyProvider`, and it takes that branch only when the chosen host's
+`SupplyProvider` has an EMPTY `DockedCondition`; otherwise the unit is queued a `Resupply` instead.
+All 15 vehicles name `logisticscenter` and nothing else in `RearmActors`, and `LOGISTICSCENTER`
+(`structures.yaml:469`) is the only provider in the mod that sets `DockedCondition`. So every vehicle
+resolves to the docking path and **the live clientele of `SeekSupplyProvider` is infantry**. The
+`Evacuate` detour funnels through the same `AutoRearm`, so it does not add vehicles either.
+
+**Why it matters in both directions.**
+
+- It shrinks what a change to that activity can affect: no vehicle behaviour, and therefore no
+  vehicle-side regression surface, however the retarget or validity tests are tuned.
+- **It is one line from being false.** Adding `supplycache` or `truk` to any vehicle's `RearmActors`
+  puts vehicles into that activity for the first time, against logic that has only ever run for
+  infantry — including the in-range park branch, which has no stall guard of its own for anything
+  `AutoSeekSupplies` did not dispatch, and that trait is infantry-only.
+
+**If you are editing `RearmActors` on a vehicle, read this first.** The comment on
+`AmmoPool.HostCanAffordSomethingWeNeed` used to name the m270/grad/tos as the actors a wasted walk
+would strand at a truck; they are vehicles, so they were never reachable by that path at all. That
+comment has been corrected in place — the same mistake is easy to make again from the other side.

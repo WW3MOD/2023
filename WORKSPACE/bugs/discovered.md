@@ -3831,3 +3831,44 @@ The vehicle `heavy-damage-attained` cases do not touch suppression.
 
 **Confirm by:** damage a tank to Heavy, order it to attack, and watch it aim without firing and
 without ever rearming.
+
+---
+
+## 2026-08-30 — `test-poor-depot-still-worth-the-trip` asserts behaviour the codebase deliberately reversed 72 minutes later
+
+**Found while** fixing the affordability disagreement in `AutoSeekSupplies`' break-off arm. Not
+touched by that change (it exercises the `AmmoPool.AutoRearmIfDry` Auto arm, on a tank), so it is
+filed rather than fixed — **and it was not run**, so "is red" below is derived from reading, not
+measured.
+
+**Three commits, all 2026-08-27, in this order:**
+
+| Order | Commit | What it did |
+|---|---|---|
+| 1 (`ct` 1787844111) | `291ba846` | Wrote the "DO NOT swap this for `ChooseAffordableResupplier`" comment in `AutoSeekSupplies`, premised on a docking rearm being FREE. |
+| 2 (+27 min) | `1bfd5e2c` | Added `test-poor-depot-still-worth-the-trip` on the same premise. Its own commit subject says **"UNVERIFIED, arms not yet run"**. |
+| 3 (+44 min) | `f8b424f6` | **Metered the dock path**, falsifying the premise of both. |
+
+`Rearmable.RearmTick:106` now skips any pool the provider cannot pay for, exactly as
+`AmmoPool.TryServeBatch:446` does on the push side. So a Logistics Centre rearm is charged, and the
+scenario's central claim — "a rearm there is FREE ... so the trip is worth it" — is no longer true.
+
+**Two consequences.**
+
+1. **The scenario should be red.** Its abrams has one pool at `SupplyValue: 30` against a depot set
+   to 10. `ChooseAffordableResupplier` returns null, `DecideAutoDisposition` falls to `HoldAndFlag`,
+   and the tank never moves — so `ammo > 0` never becomes true. Even if it were dispatched,
+   `RearmTick` would now refuse the pool on arrival.
+2. **Its stated post-fix mechanism does not exist.** The failure message promises "the
+   `DockedCondition` early-out in `HostCanAffordSomethingWeNeed`". There is no such early-out —
+   `DockedCondition` appears nowhere in that method, and commit 3 went the opposite way.
+
+`test-vehicle-rearms-at-empty-depot` WAS re-pointed for the metering and says so in its header. This
+one was missed.
+
+**The question to settle before touching it:** metering the dock path and "a poor depot is still
+worth the trip" are contradictory intents, and commit 3 is the later and better-evidenced one. Most
+likely the scenario should be re-pointed to assert the tank does NOT set off (mirroring its sibling)
+rather than that it does. That is a ruling, not a cleanup — do not just flip the predicate.
+
+**Confirm by:** `./tools/autotest/run-test.sh test-poor-depot-still-worth-the-trip`.

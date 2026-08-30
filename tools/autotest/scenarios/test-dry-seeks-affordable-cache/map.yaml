@@ -1,0 +1,96 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Dry Mortar Walks Past A Cache That Cannot Pay Him (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# The user's report, staged as the affordability boundary rather than as a distance problem:
+	# "a mortar soldier that was out of ammo but still autotargeted an enemy instead of rearming at
+	# a NEARBY supply cache". The nearby cache is the trap, not the answer -- it is one supply short
+	# of what a mortar batch costs, so walking to it can never end in ammunition.
+	#
+	# `mt` carries a single Essential pool at SupplyValue 40 (infantry.yaml), the joint-highest
+	# infantry batch price in the mod, which is why the mortar is the unit most exposed to a cache
+	# that is stocked yet unaffordable. Deliberately NOT a rifleman: his 10-supply primary is
+	# affordable at almost any load, so the same scenario on `ar` cannot enter the band at all.
+	Gunner: mt
+		Owner: USA
+		Location: 14,16
+		Facing: 768
+	# 7 cells west -- NEARER, and set by Lua to 39 supply, one short of the 40 a batch costs.
+	# Outside SUPPLYCACHE's 5c0 push aura (misc.yaml), so it cannot serve him where he stands and
+	# the choice of destination is a real choice rather than a proximity accident.
+	#
+	# Owned by USA because every chooser filters hosts on strict `a.Owner == self.Owner`: a Neutral
+	# or Russia-owned cache is not a candidate at all, and the run would measure the owner filter.
+	PoorCache: supplycache
+		Owner: USA
+		Location: 7,16
+	# 23 cells east -- FARTHER, and the only host on the map that can actually pay. The whole test
+	# is which of these two the dispatcher picks: nearest-with-any-stock picks PoorCache and strands
+	# him, nearest-AFFORDABLE picks this one and he comes back with rounds.
+	#
+	# 23 IS CHOSEN TO SIT BETWEEN THE TWO LEASHES, and the scenario does not work without that.
+	# AutoSeekSupplies runs TWO dispatchers and only one of them is defective:
+	#   - the IDLE seek (INotifyIdle.TickIdle) already picks on affordability, via CanServe's
+	#     `provider.CurrentSupply >= p.Info.SupplyValue`. Its reach is SupplyHuntLeashCells: 20.
+	#   - the BREAK-OFF arm (ITick / ReturnWhenEmpty) is the one that picks on stock alone. Its
+	#     reach is ReturnWhenEmptyLeashCells: 30.
+	# At 23 cells the rich cache is OUTSIDE the idle seek's leash and INSIDE the break-off arm's, so
+	# the correct dispatcher structurally cannot reach it and only the defective one can. The first
+	# cut of this scenario put it at 11 cells and PASSED PRE-FIX: the idle seek simply walked the
+	# mortar there and rearmed him, and the run measured the arm that was never broken. Moving this
+	# actor nearer re-opens that hole silently -- the test goes green and stops meaning anything.
+	RichCache: supplycache
+		Owner: USA
+		Location: 37,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 14,16
+	# No enemy actor on the map ON PURPOSE. Autotargeting is the SYMPTOM the user saw, not the
+	# defect -- every AutoTarget entry point is idle-gated, so it can only ever fill the silence
+	# left by a resupply that was never dispatched. Staging a bait here would add a second reason
+	# for the mortar to be standing still and make a red run ambiguous between the two.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml
