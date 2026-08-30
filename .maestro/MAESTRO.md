@@ -12,6 +12,21 @@ Workers capture to `WORKSPACE/DISCOVERIES.md`; promotion into `DOCS/reference/` 
 
 Why the capture/promote split: free writes by every worker rot the bank until it has to be nuked; write-only-in-big-sessions loses the freshest context. Capture-at-discovery + verified promotion keeps both.
 
+## The user's checkouts must be left on `main` — standing rule (2026-08-30)
+
+The user tests from a second machine and stated the rule directly: **"I want main always checked out (unless there is a good reason not to) and every implementation is done in worktrees and merged back into main, so main is always stable for me to test."**
+
+That is already how this machine works. The failure was on the *other* machine, and it was a manager's doing: a prompt sent for a cross-machine comparison said `git checkout <40-hex sha>` so both halves would hash identical code — correct, and it left the user staring at `((HEAD detached at 55836dd8))`, silently pinned four merges behind `main`.
+
+**Whenever you hand the user a command, or write a prompt for an agent on another machine:**
+
+- **Never leave a checkout detached.** If you must pin a commit for a comparison, the prompt must end by returning to `main` (`git checkout main && git pull`) as a REQUIRED final step, not a courtesy.
+- Prefer a throwaway worktree at the pinned SHA over checking out a SHA in the user's working checkout at all — a worktree leaves `main` untouched and disposes cleanly.
+- If a pinned checkout is genuinely unavoidable, **say in the prompt what state the machine will be left in and how to undo it**, in the same breath as the instruction that causes it.
+- The user's checkout is a *test* environment, not scratch space. Anything that makes it non-obvious which build they are running — detached HEAD, a stray branch, uncommitted edits — costs them a play session and is worse than the problem it solved.
+
+The general shape: **an instruction that changes the user's environment must carry its own reversal.** Same discipline as removing a worktree after a merge, and it failed for the same reason — the task felt finished the moment the answer arrived.
+
 ## Dispatching workers
 
 - When briefing a worker, name the specific reference docs its task needs (per CLAUDE.md's routing table) rather than "read the docs".
