@@ -3,6 +3,34 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-30 — Two branches fixed one cursor defect independently, and git AUTO-MERGED their two field declarations into a duplicate (`wt/truck-refills-lc` rebased onto `a2466c3b`)
+
+`wt/cursor-honesty` (`49f2723d`) and `wt/truck-refills-lc` both noticed that `Restock` and
+`DeliverSupply` drew the same cursor, and both added a `DeliverSupplyCursor` field to
+`DropsSupplyCacheInfo` — at DIFFERENT points in the file, with different defaults (`"ability"` vs
+`"goldwrench"`) and contradictory `[Desc]` text. **Git reported ONE conflict, in the targeter body,
+and silently auto-merged the two field additions into two declarations of the same member.** The
+build catches that (duplicate member), so here it was loud rather than dangerous — but the lesson
+holds for the cases where it would not be: *a clean auto-merge between two independent fixes for one
+defect is not evidence that they agree.* Only the hunk both sides edited conflicts; whatever each
+side added ALONE merges cleanly no matter how much the two contradict. Read the other commit in
+full, not just the conflicted hunk.
+
+**The semantic half is the more interesting one, because preserving `main`'s guard would have
+silently reverted a user ruling.** `main`'s `RestockOrderTargeter` opened with
+`if (ForceMove) return false`, commented "stand aside for Ctrl+click, because Ctrl means DELIVER and
+priority 7 would otherwise shadow delivery's 6". That guard is correct FOR THE OLD POLARITY. Under
+the 2026-08-30 ruling Ctrl means "the Centre serves the truck" — the Restock direction — so keeping
+the line would have made Ctrl+click resolve to delivery again and undone the ruling, while looking
+like careful conflict resolution that retained a guard.
+
+The defect that guard protected against is still prevented, by a stronger mechanism: both targeters
+read one single-valued arbitration function and act on opposite answers, so at most one can match and
+the 6/7 priority is never consulted between two matches. **The general shape: when resolving a
+conflict, ask what the incoming guard was PROTECTING and whether your side prevents that outcome by
+other means — not whether the guard survived.** A guard kept out of caution can encode the very
+behaviour the branch exists to change.
+
 ## 2026-08-30 — `iskander` and `HIMARS` carry NO `Rearmable`, so ANY resupply-selection scenario staged on them is vacuous — the detour branch is unreachable for those two whatever it is guarded on (`wt/evac-afford`, base `main @ 48d60cb4`)
 
 **The trap in one line: a resupply test that uses the unit the bug was REPORTED against can be
