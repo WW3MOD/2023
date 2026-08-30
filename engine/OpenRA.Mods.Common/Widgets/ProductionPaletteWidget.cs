@@ -259,6 +259,58 @@ namespace OpenRA.Mods.Common.Widgets
 
 				RefreshIcons();
 			}
+
+			ApplyTestHover();
+		}
+
+		string appliedTestHover;
+
+		/// <summary>
+		/// Opens the production tooltip for the actor named by <c>Test.HoverProductionIcon</c>,
+		/// doing by hand what a mouse hover does: seat <see cref="TooltipIcon"/>, park the cursor
+		/// inside the icon's rect, and raise MouseEntered so the tooltip container builds.
+		/// </summary>
+		/// <remarks>
+		/// Deferred to Tick for the same reason LobbyOptionsLogic defers its hover: the icon
+		/// rectangles only exist after RefreshIcons has run a layout pass. Without this hook the
+		/// production tooltip cannot be photographed at all — it is built solely from
+		/// <see cref="MouseEntered"/>, so the only alternative is driving the OS cursor.
+		/// </remarks>
+		void ApplyTestHover()
+		{
+			if (!TestMode.IsActive)
+				return;
+
+			var requested = TestMode.HoverProductionIcon;
+			if (string.IsNullOrEmpty(requested) || requested == appliedTestHover)
+				return;
+
+			var match = icons.FirstOrDefault(i =>
+				string.Equals(i.Value.Actor.Name, requested, StringComparison.OrdinalIgnoreCase));
+
+			// The queue this palette shows may simply not contain the actor — the sidebar has one
+			// palette per queue. Leave it unapplied rather than claiming the hover, so the palette
+			// that DOES own the icon can take it on its own Tick.
+			if (match.Value == null)
+				return;
+
+			appliedTestHover = requested;
+			TooltipIcon = match.Value;
+
+			var iconRect = match.Key;
+			Viewport.LastMousePos = new int2(
+				iconRect.X + iconRect.Width / 2,
+				iconRect.Y + iconRect.Height / 2);
+
+			if (TooltipContainer != null)
+			{
+				var sidebar = Parent?.RenderBounds ?? RenderBounds;
+				tooltipContainer.Value.AnchorBounds = new Rectangle(
+					sidebar.X, iconRect.Y, sidebar.Width, iconRect.Height);
+				tooltipContainer.Value.AnchorAbove = false;
+			}
+
+			MouseEntered();
 		}
 
 		public override void MouseEntered()

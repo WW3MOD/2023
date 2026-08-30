@@ -233,8 +233,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					case TooltipElementKind.Separator:
 					{
 						y += SeparatorMargin;
-						var rule = (ColorBlockWidget)templates.Separator.Clone();
-						rule.Visible = true;
+						var rule = Show((ColorBlockWidget)templates.Separator.Clone());
 						rule.Bounds = new WidgetBounds(0, y, width, 1);
 						container.AddChild(rule);
 						y += 1 + SeparatorMargin;
@@ -259,8 +258,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					{
 						var height = AddTextRow(container, templates.Note, element.Label,
 							NoteIndent, y, width - NoteIndent, ref maxX);
-						var rule = (ColorBlockWidget)templates.Separator.Clone();
-						rule.Visible = true;
+						var rule = Show((ColorBlockWidget)templates.Separator.Clone());
 						rule.Bounds = new WidgetBounds(0, y, 1, height);
 						container.AddChild(rule);
 						y += height;
@@ -275,6 +273,25 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 
 			return new int2(maxX, y);
+		}
+
+		/// <summary>
+		/// Un-hides a cloned template. Setting <c>Visible</c> alone is NOT enough and fails silently.
+		/// </summary>
+		/// <remarks>
+		/// Same shape as <see cref="SetText"/>, one layer up the hierarchy: <c>Widget()</c> sets
+		/// <c>IsVisible = () =&gt; Visible</c> (Widget.cs:231), capturing the instance, and the copy
+		/// constructor does <c>IsVisible = widget.IsVisible</c> (:246). A clone therefore asks the
+		/// TEMPLATE whether it is visible — and the templates are declared `Visible: false`, so every
+		/// row answered false and nothing drew. Observed: the panel sized itself correctly from the
+		/// measured rows and rendered completely empty.
+		/// Every `Func` on Widget behaves this way. Reassign, never assign the backing field alone.
+		/// </remarks>
+		static T Show<T>(T widget) where T : Widget
+		{
+			widget.Visible = true;
+			widget.IsVisible = () => true;
+			return widget;
 		}
 
 		/// <summary>
@@ -299,8 +316,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		static int AddTextRow(ContainerWidget container, LabelWidget template, string text,
 			int x, int y, int width, ref int maxX)
 		{
-			var label = (LabelWidget)template.Clone();
-			label.Visible = true;
+			var label = Show((LabelWidget)template.Clone());
 
 			var font = Game.Renderer.Fonts[label.Font];
 			var wrapped = WidgetUtils.WrapText(text, width, font);
@@ -322,8 +338,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		static int AddStatRow(ContainerWidget container, TooltipRowTemplates templates,
 			TooltipElement element, int y, int width, ref int maxX)
 		{
-			var key = (LabelWidget)templates.StatKey.Clone();
-			key.Visible = true;
+			var key = Show((LabelWidget)templates.StatKey.Clone());
 			var keyText = element.Label.ToUpperInvariant();
 			SetText(key, keyText);
 
@@ -334,8 +349,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				? templates.CostValue
 				: templates.StatValue;
 
-			var value = (LabelWidget)valueTemplate.Clone();
-			value.Visible = true;
+			var value = Show((LabelWidget)valueTemplate.Clone());
 			var valueText = element.Value ?? string.Empty;
 			SetText(value, valueText);
 
@@ -353,8 +367,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var gapEnd = width - valueSize.X - ColumnGap;
 			if (gapEnd > gapStart)
 			{
-				var dots = (LabelWidget)templates.Dots.Clone();
-				dots.Visible = true;
+				var dots = Show((LabelWidget)templates.Dots.Clone());
 
 				var dotFont = Game.Renderer.Fonts[dots.Font];
 
