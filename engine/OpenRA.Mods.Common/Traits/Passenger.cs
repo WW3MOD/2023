@@ -107,7 +107,22 @@ namespace OpenRA.Mods.Common.Traits
 			if (requireForceMove && !modifiers.HasModifier(TargetModifiers.ForceMove))
 				return false;
 
-			return IsCorrectCargoType(target);
+			// CanEnter is part of the TARGETING test, not just the cursor art, so a full transport
+			// is refused here and the click falls through to Move.
+			//
+			// It used to return true and let useEnterCursor pick `enter-blocked`, which meant the
+			// targeter CONSUMED the click at priority 5 and ResolveOrder then dropped it at the
+			// CanEnter re-check below. The visible harm was not the wasted order — it was that the
+			// player lost the plain Move they would otherwise have got, so right-clicking a full APC
+			// did nothing at all. Walking over to a full transport and waiting for a seat is almost
+			// always what was meant.
+			//
+			// KNOWN CONSEQUENCE, accepted: this makes Passenger's EnterBlockedCursor unreachable —
+			// whenever this returns true, CanEnter is true, so the art is always the green one. The
+			// player is no longer told "that transport is full", they simply move. EnterBlockedCursor
+			// is still reachable through Aircraft's rearm-pad targeter and Repairable, so the art is
+			// not orphaned mod-wide, only here.
+			return IsCorrectCargoType(target) && CanEnter(target);
 		}
 
 		bool IsCorrectCargoType(Actor target)
