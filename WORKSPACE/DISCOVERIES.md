@@ -139,6 +139,58 @@ its `target` entirely** when `Type == "Rotation"` and queues `RotateToEdge` inst
 still advertises the generic `enter` cursor (`:38`) at priority 5, beating Mobile's 4. So the cursor
 is honest about *an* order existing and silent about it being a completely different one. When
 auditing a cursor, check that the resolver actually *uses* the target it was handed.
+## 2026-08-30 — The truck→LC delivery order was ALREADY SHIPPED, with the polarity inverted; the task was a reversal, not a build (`wt/truck-refills-lc`, from `main @ 48d60cb4`)
+
+The brief for this work stated that "the LC → truck direction already exists" and "the truck→LC
+direction is what is missing". **Both halves already existed.** `DropsSupplyCache` shipped three
+order targeters — `PickupSupplyOrderTargeter` (priority 8), `RestockOrderTargeter` (7) and
+`DeliverSupplyOrderTargeter` (6) — and `IResolveOrder` handled `"PickupSupply"`, `"Restock"` and
+`"DeliverSupply"`. What was actually wrong was the POLARITY: a plain click on an LC ran `Restock`
+(LC→truck) and only **Ctrl+click** ran `DeliverSupply` (truck→LC), the exact opposite of the
+2026-08-30 ruling. Both targeters were also constructed with `info.RestockCursor`, so the two
+directions were **visually identical** and nothing on screen told the player which way supply was
+about to move.
+
+The generalisable part is the search that would have found it in seconds and was not run:
+`DeliverSupply` was greppable by name in the file the brief already named. This is the CLAUDE.md
+"spend one `git log -S` or one grep on the item's central premise" rule failing again, and it failed
+at the *research* step that produced the brief rather than during the work — a premise handed over as
+established is exactly as cheap to check as an unstated one, and is trusted harder.
+
+## 2026-08-30 — A full transport steered to `Restock` gets a drive that transfers nothing and repairs nothing, under an `enter` cursor (`engine/OpenRA.Mods.Common/Traits/DropsSupplyCache.cs`)
+
+The pre-reversal `RestockOrderTargeter` accepted when `notFull || damaged`. The `damaged` term reads
+as sound design — `LOGISTICSCENTER` carries `RepairsUnits` (`structures.yaml:450`) and `TRUK` carries
+`Repairable: RepairActors: logisticscenter` (`vehicles.yaml`), so a full-but-damaged truck really does
+have a reason to dock. **It still did not work.** The order that term steers the click to is
+`Restock`, whose activity `RestockSupply` moves supply and only supply; a full damaged truck was sent
+on a drive that transferred zero and repaired nothing.
+
+Worse, the term was actively *suppressing* the repair it appeared to serve. `Repairable`'s own
+targeter sits at priority **5**, below both supply targeters, and `UnitOrderGenerator.OrderForUnit`
+returns the FIRST targeter that matches walking down priority — so a supply targeter that accepts a
+click it cannot act on is precisely what stops `Repairable` ever seeing it. **Deleting the term is
+what restores the repair gesture.** The general shape, worth carrying beyond this file: in a
+priority-ordered targeter chain, accepting a click you cannot act on is not a harmless no-op, it is a
+silent veto over every lower-priority trait — and it is invisible, because a cursor still appears.
+
+## 2026-08-30 — Emptying a truck AT a Logistics Centre hands it to `RotateToEdge`, and the gesture reversal makes that the outcome of the DEFAULT click — UNRESOLVED, NOT VERIFIED IN-GAME
+
+`DropsSupplyCache.OnBecomingIdle` fires `EvacuateOrRestock` on any tick the transport is idle and
+`CountsAsEmpty` (`DropsSupplyCache.cs:404-412`), and `TRUK` sets **`InitialResupplyBehavior: Evacuate`
+and `InitialResupplyBehaviorAI: Evacuate`** (`vehicles.yaml`), so the `Evacuate` arm is taken and the
+truck is queued a `RotateToEdge` — it **drives off the map for its evacuation refund**.
+
+Before the reversal this could only follow a deliberate Ctrl+click, so it was rare and arguably
+intended ("the truck delivered its cargo, send it home"). **After the reversal, delivery is the
+ordinary click, so the ordinary click ends with the truck leaving the map.** The other two stances
+are not obviously better: `Auto` reaches `TryQueueRestockAtNearestHost`, whose nearest host is the
+Centre just filled, which would take the delivery straight back — a deliver/restock loop. `Hold` is
+the only stance that parks the truck, and it must be set by hand.
+
+This is a product question — what *should* an emptied truck standing at a Centre do? — rather than a
+defect with an obvious fix, so it is recorded rather than patched. **Read off the code path only;
+the reversed gesture has never been run in-game.**
 
 ## 2026-08-30 — `Timestep` is MILLISECONDS PER TICK, there are ELEVEN of them, and only `mod.yaml:382` is the default — the number that looks like a tick rate is its inverse (`wt/postmerge-fallout`, verified against `main @ 0163ca22`)
 

@@ -309,7 +309,7 @@ namespace OpenRA.Mods.Common.Traits
 			get
 			{
 				for (var a = self.CurrentActivity; a != null; a = a.NextActivity)
-					if (a is RestockSupply || a is PlaceSupplyCache || a is CollectSupplyCache)
+					if (a is RestockSupply || a is PlaceSupplyCache || a is CollectSupplyCache || a is DeliverSupply)
 						return true;
 
 				return false;

@@ -33,21 +33,29 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly PlayerRelationship ValidRelationships = PlayerRelationship.Ally;
 
 		[CursorReference]
-		[Desc("Cursor for right-click on a friendly Logistics Center (default restock flow).")]
+		[Desc("Cursor for a Logistics Center that is about to serve this transport — force-move, or a",
+			"transport with nothing left to give. The transport drives in and is attended to.")]
 		public readonly string RestockCursor = "enter";
+
+		[CursorReference]
+		[Desc("Cursor for a Logistics Center this transport is about to fill. Distinct from",
+			"RestockCursor on purpose: these are the two directions of one gesture and they shared a",
+			"cursor until 2026-08-30, which is how the delivery order stayed dead and unnoticed for",
+			"months — nothing on screen told the player which way supply was about to move.",
+			"",
+			"TWO BRANCHES SPLIT THIS CURSOR PAIR INDEPENDENTLY and reached different defaults; this is",
+			"the merged result. 49f2723d chose 'ability', the mod's generic special-action cursor, on",
+			"the reasoning that the gesture was modifier-driven and no bespoke art existed. The user",
+			"then named the art: \"Use 'Enter' mouse icon for resupplying the truck and 'Wrench' icon",
+			"for resupplying the LC\" (2026-08-30). goldwrench is the mod's wrench and is already in",
+			"live use (infantry.yaml), so the ruling supersedes the placeholder. The same ruling also",
+			"makes this the DEFAULT click rather than the Ctrl+click 49f2723d described — delivery is",
+			"what a loaded transport does on a plain order now, and force-move is the inverse.")]
+		public readonly string DeliverSupplyCursor = "goldwrench";
 
 		[CursorReference]
 		[Desc("Cursor for right-click on a friendly ground supply cache the transport can collect.")]
 		public readonly string PickupCacheCursor = "enter";
-
-		[CursorReference]
-		[Desc("Cursor for Ctrl+click on a friendly Logistics Center (deliver this truck's supply TO it).",
-			"Deliberately NOT RestockCursor: the two orders move supply in OPPOSITE directions and",
-			"used to be indistinguishable on screen, which is how the delivery order stayed dead and",
-			"unnoticed for months — see RestockOrderTargeter.CanTargetActor. Defaults to the mod's",
-			"generic special-action cursor because the gesture is modifier-driven and no bespoke art",
-			"exists; re-point this field if art is ever drawn for it.")]
-		public readonly string DeliverSupplyCursor = "ability";
 
 		[CursorReference]
 		[Desc("Cursor for the deploy command when supply can be dropped as a SUPPLYCACHE.")]
@@ -309,15 +317,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (host.TraitOrDefault<AbsorbsSupplyCache>() == null)
 					return;
 
-				var move = self.TraitOrDefault<IMove>();
-				if (move == null)
-					return;
-
-				// Drive next to the LC and drop the supply on our cell. The LC's
-				// AbsorbsSupplyCache pulls the cache in on its next tick.
-				var targetCell = self.World.Map.CellContaining(host.CenterPosition);
-				self.QueueActivity(order.Queued, move.MoveTo(targetCell, 2));
-				self.QueueActivity(true, new CallFunc(() => DropSupplyCacheHere()));
+				QueueDriveAndDeliver(host, order.Queued);
 				self.ShowTargetLines();
 			}
 		}
@@ -408,6 +408,18 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			self.QueueActivity(queued, new RestockSupply(self, host, supply.Info.RestockWaitTicks));
+		}
+
+		/// <summary>Send the transport to a docking-aware host to FILL it — the exact mirror of
+		/// <see cref="QueueDriveAndRestock"/> above, and a named activity for the same reason: it is what
+		/// lets <see cref="SupplyProvider.OnSupplyErrand"/> read "this truck is committed to a delivery"
+		/// off the activity queue rather than guess it from a bare MoveTo.</summary>
+		void QueueDriveAndDeliver(Actor host, bool queued = false)
+		{
+			if (supply == null || self.TraitOrDefault<IMove>() == null)
+				return;
+
+			self.QueueActivity(queued, new DeliverSupply(self, host, supply.Info.RestockWaitTicks));
 		}
 
 		void INotifyBecomingIdle.OnBecomingIdle(Actor self)
@@ -656,6 +668,37 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>Resolves a click on a candidate host into a transfer direction, or None when this
+		/// transport cannot act on it at all. BOTH LC targeters call this and act on opposite answers,
+		/// which is what makes them disjoint by construction rather than by two predicates that happen
+		/// to agree today — see SupplyTransferMath for why that property is worth paying for here.</summary>
+		static SupplyTransferDirection DirectionFor(Actor self, Actor target, TargetModifiers modifiers)
+		{
+			if (!self.Owner.IsAlliedWith(target.Owner))
+				return SupplyTransferDirection.None;
+
+			var truckSupply = self.TraitOrDefault<SupplyProvider>();
+			if (truckSupply == null)
+				return SupplyTransferDirection.None;
+
+			// Only docking-aware providers (an LC), never a ground cache: the crate has no
+			// DockedCondition and no arrival gate, and the serve path assumes one.
+			var hostProvider = target.TraitOrDefault<SupplyProvider>();
+			var hostDocks = hostProvider != null && !string.IsNullOrEmpty(hostProvider.Info.DockedCondition);
+			var hostAbsorbs = target.TraitOrDefault<AbsorbsSupplyCache>() != null;
+
+			return SupplyTransferMath.ResolveDirection(
+				modifiers.HasModifier(TargetModifiers.ForceMove),
+				truckSupply.CurrentSupply,
+				truckSupply.Info.TotalSupply,
+				hostAbsorbs,
+				hostDocks);
+		}
+
+		/// <summary>The host serves the transport: force-move, or a transport with nothing left to give.
+		/// Keeps the enter cursor, which is also what the pre-existing Repair gesture on this same pair
+		/// shows — both mean "drive into the Centre and be attended to", so the player is not taught two
+		/// vocabularies for one meaning.</summary>
 		sealed class RestockOrderTargeter : UnitOrderTargeter
 		{
 			public RestockOrderTargeter(DropsSupplyCacheInfo info)
@@ -663,37 +706,20 @@ namespace OpenRA.Mods.Common.Traits
 
 			public override bool CanTargetActor(Actor self, Actor target, TargetModifiers modifiers, ref string cursor)
 			{
-				// STAND ASIDE FOR Ctrl+click. DeliverSupplyOrderTargeter below is the truck -> LC
-				// direction and is correctly gated on ForceMove, but it sits at priority 6 against this
-				// one's 7, and UnitOrderGenerator.OrderForUnit returns the FIRST targeter that matches
-				// walking down priority order. Without this line Restock matched under Ctrl too, so the
-				// delivery order was unreachable for any truck that was `notFull` — i.e. every truck that
-				// had served anybody, which is exactly the set with a reason to deliver. The feature was
-				// fully built and could only ever fire from a 750/750 undamaged truck. Both targeters
-				// then shared info.RestockCursor, so nothing on screen told the player Ctrl had done
-				// nothing — delivery now has its own DeliverSupplyCursor so the two directions are
-				// distinguishable before the click, not just after it.
-				if (modifiers.HasModifier(TargetModifiers.ForceMove))
-					return false;
-
-				if (!self.Owner.IsAlliedWith(target.Owner))
-					return false;
-
-				// Only docking-aware providers (LC), not ground caches.
-				var hostProvider = target.TraitOrDefault<SupplyProvider>();
-				if (hostProvider == null || string.IsNullOrEmpty(hostProvider.Info.DockedCondition))
-					return false;
-
-				var truckSupply = self.TraitOrDefault<SupplyProvider>();
-				if (truckSupply == null)
-					return false;
-
-				var notFull = truckSupply.CurrentSupply < truckSupply.Info.TotalSupply;
-				var damaged = self.TraitOrDefault<IHealth>()?.DamageState > DamageState.Undamaged;
-				if (!notFull && !damaged)
-					return false;
-
-				return true;
+				// THE ForceMove GUARD THAT USED TO BE HERE IS DELETED, NOT LOST, and the distinction is
+				// the whole of this conflict. It read "stand aside for Ctrl+click, because Ctrl means
+				// DELIVER and this targeter's priority 7 would otherwise shadow delivery's 6". That is
+				// the OLD polarity. The user's ruling of 2026-08-30 inverts it — Ctrl now means "the
+				// Centre serves the truck", which is THIS direction — so keeping the guard would make
+				// Ctrl+click resolve to delivery again and silently undo the ruling.
+				//
+				// The DEFECT it protected against is still prevented, and by a stronger mechanism than a
+				// hand-placed early return. Both targeters now read one single-valued function and act on
+				// OPPOSITE answers, so at most one of them can ever match a given click; the 6/7 priority
+				// cannot decide the player's supply direction because it is never consulted between two
+				// matches. That property was verified by adversarial review against actor and frozen-actor
+				// inputs. Reasoning in SupplyTransferMath.
+				return DirectionFor(self, target, modifiers) == SupplyTransferDirection.ToTruck;
 			}
 
 			public override bool CanTargetFrozenActor(Actor self, FrozenActor target, TargetModifiers modifiers, ref string cursor)
@@ -702,6 +728,11 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>The transport fills the host. This is the DEFAULT click for a loaded truck as of the
+		/// 2026-08-30 ruling; it was previously reachable only under Ctrl, and the polarity is now the
+		/// other way round. Carries its own wrench cursor — the two directions used to share
+		/// info.RestockCursor, so nothing on screen told the player which way supply was about to
+		/// move.</summary>
 		sealed class DeliverSupplyOrderTargeter : UnitOrderTargeter
 		{
 			public DeliverSupplyOrderTargeter(DropsSupplyCacheInfo info)
@@ -709,19 +740,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			public override bool CanTargetActor(Actor self, Actor target, TargetModifiers modifiers, ref string cursor)
 			{
-				// Default right-click on an LC goes to Restock (priority 7). Only
-				// Ctrl+click (ForceMove) means "deliver my supply to this LC".
-				if (!modifiers.HasModifier(TargetModifiers.ForceMove))
-					return false;
-
-				if (!self.Owner.IsAlliedWith(target.Owner))
-					return false;
-
-				if (target.TraitOrDefault<AbsorbsSupplyCache>() == null)
-					return false;
-
-				var truckSupply = self.TraitOrDefault<SupplyProvider>();
-				return truckSupply != null && truckSupply.CurrentSupply > 0;
+				return DirectionFor(self, target, modifiers) == SupplyTransferDirection.ToHost;
 			}
 
 			public override bool CanTargetFrozenActor(Actor self, FrozenActor target, TargetModifiers modifiers, ref string cursor)
