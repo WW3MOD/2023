@@ -1,0 +1,28 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-tactical-arty-detour-geometry.lua
+
+grad:
+	# BOTH SUBJECTS START WHOLLY DRY, so the dry path is entered from INotifyBecomingIdle rather than
+	# from a shot. Firing a grad to empty it would work -- GradRockets is Burst 40 against a 40-round
+	# pool -- but it would drag weapon range, MinRange, burst cadence, the HoldFire stance and two
+	# firing lines into a scenario about none of those things. Starting at 0 removes all of it.
+	#
+	# The lua asserts this resolved to 0 on both subjects. That is the named trap from the 9e46f141
+	# branch, where a pin resolved a value to zero through inheritance and passed happily with the bug
+	# sabotaged in -- here the hazard runs the other way, since a subject that started ARMED would
+	# never enter the dry path and would sit still looking like a considered decision.
+	AmmoPool@1:
+		InitialAmmo: 0

@@ -3,6 +3,41 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-30 — The evacuation refund reads EVERY `AmmoPool`, not `Rearmable.AmmoPools` — so removing a `Rearmable` cannot change what a unit refunds (`wt/arty-doctrine`)
+
+Settled by reading, not by a run, when asking whether `himars`/`iskander` take a different refund
+branch now that they carry no `Rearmable`. **They do not, and the reason is a set difference worth
+knowing on its own.**
+
+`CustomSellValue.GetSellValue` (`CustomSellValue.cs:37`) iterates
+`a.TraitsImplementing<AmmoPool>()` — **every pool on the actor**. It never consults `Rearmable`.
+That is the *opposite* of the three refill sites, which iterate the filtered
+`Rearmable.RearmableAmmoPools`; `economy.md` already flags those as different sets, and this is a
+live consequence: **a pool that no host will ever refill is still deducted from the refund.**
+
+Checked every input that differs for the two launchers:
+
+| Input | Effect on the branch taken |
+|---|---|
+| no `Rearmable` | none — not read by `GetSellValue` at all |
+| no `replenish-vehicles` | none — not read anywhere in the refund path |
+| `Ammo: 2`, `SupplyValue: 1500` | `ReloadCount` is unset → `batchSize = max(1,1) = 1`, so `missingRounds / batchSize` is **exact**. The integer-truncation hazard (`PartialBatchDoesNotDeduct`) only bites when `ReloadCount > 1` — i.e. grad (5) and tos (3), not these two |
+| `CustomSellValue` | absent on all five artillery pieces (checked via `--resolved-rules`), so `baseValue = Valued.Cost` |
+| `SupplyProvider` | absent, so the `MissingSupplyValue` term is skipped — that branch is TRUK/LC-only |
+
+So a wholly dry launcher refunds `6000 − (2/1)×1500 = 3000`, handicap-adjusted
+(`ApplyHandicapRefundAdjustment`, no-op at handicap 0) and then scaled by `HP/MaxHP` at
+`RotateToEdge.cs:388`. And the call site is literally shared: `EvacuateForRefund`
+(`AmmoPool.cs:727`) is the same line `m270`/`grad`/`tos` have always reached, since they have
+shipped `InitialResupplyBehavior: Evacuate` all along.
+
+**Caveat on the existing coverage, because it is weaker than its name suggests.** `CustomSellValueTest`
+does not call `GetSellValue` — its own header says it *"reproduce[s] the formula so the contract is
+locked behind a unit test"*. It pins the arithmetic **contract**, not the code path, and would not
+catch the mirror and the implementation drifting apart. Nothing asserts the refund end-to-end in a
+running game for any actor. That is pre-existing and not specific to these two, but anyone who reads
+"the refund is unit-tested" should know which of the two things is true.
+
 ## 2026-08-30 — Removing a unit's `Rearmable` does NOT make it evacuate; it makes it stand still forever (`wt/arty-doctrine`, base `main @ d9f9a83f`)
 
 **`SupplyHuntMath.DecideAutoDisposition` returns `HoldAndFlag` at `SupplyHuntMath.cs:269` for any

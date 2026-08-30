@@ -1,0 +1,130 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Dry Tactical MLRS Detours Only When the Depot Beats the Exit (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# ==========================================================================================
+	# THE ANCHOR, and getting this wrong makes the whole scenario vacuous.
+	#
+	# AmmoPool's Evacuate arm compares the distance to the depot against the distance to the
+	# EVACUATION ANCHOR (SupplyHuntMath.ResupplyBeatsExit, strict <, ties go to leaving). That anchor
+	# is RotateToEdge.FindClosestSpawnAreaForOwner, which returns the `SpawnArea` actor closest to the
+	# unit owner's ProductionFromMapEdge actor -- i.e. the `spawnarea` actor nearest USA's supplyroute.
+	# NOT the supplyroute itself, and NOT mpspawn: `spawnarea` (misc.yaml:255) is the only actor in the
+	# mod carrying SpawnArea, and SUPPLYROUTE (structures.yaml:222) is the ProductionFromMapEdge.
+	#
+	# WHEN NO spawnarea EXISTS THE COMPARISON IS SKIPPED ENTIRELY -- FindClosestSpawnAreaForOwner
+	# returns null on an empty list and the arm sets `beatsExit = anchor == null || ...`, so a null
+	# anchor makes the detour UNCONDITIONAL. Neither test-dry-evac-drops-queued-order nor
+	# test-who-pays-for-a-rearm places one, which is harmless there (no depot to detour to) and would
+	# be fatal here: both launchers would detour and this scenario would measure nothing while looking
+	# like it passed. Hence two of them, and hence the lua asserts the outcome differs between the two
+	# subjects rather than just checking each one.
+	#
+	# THE RED ARM, RUN AND OBSERVED 2026-08-30: move this actor to `Location: 40,16` and change
+	# NOTHING else. That makes it the anchor for GradFar at 26 cells against a depot at 16, flipping
+	# gate 4 from false to true, while leaving GradNear's 3-vs-13 comparison true as it already was.
+	# One unit's disposition flips, via exactly the term under test.
+	#
+	# Run 260830_070818_p45302, seed -757585002, result.json status=fail:
+	#
+	#     fail: after 2000 ticks GradNear holds 40 round(s) (alive) and GradFar is still on the map,
+	#     depot at 890 of 2250.
+	#
+	# THE DEPOT FIGURE IS THE ATTRIBUTION, and it is sharper than the assertion that caught it. A full
+	# grad refill is 8 batches x 85 = 680. The depot fell 1360 = EXACTLY TWO refills, so both
+	# launchers docked and filled to 40. GradFar did not merely fail to evacuate -- it provably took
+	# the detour, which is the specific behaviour moving the anchor was supposed to cause. GradNear's
+	# reading is byte-identical to the green arm, so the sabotage changed one thing and not two.
+	#
+	# Green arm: run 260830_071150_p45783, seed 1328732458, status=pass. Note that a PASS writes empty
+	# notes, so the green depot figure was never observed -- what the pass proves is the assertion's
+	# terms: GradFar disposed, GradNear alive holding rounds, and depot strictly below 2250. By the
+	# same arithmetic it should be 1570 (one refill), but that number is DERIVED, not measured, and is
+	# recorded here as a prediction rather than as evidence.
+	Anchor: spawnarea
+		Owner: Neutral
+		Location: 6,16
+	# A second, far one so the "closest to the owner's supply route" selection is a real selection
+	# rather than a list of one -- as on any shipped map. USA SR is at 4,16: distance-squared to
+	# Anchor is 4, to FarAnchor is 3332, so Anchor wins and the geometry below is stable.
+	FarAnchor: spawnarea
+		Owner: Neutral
+		Location: 60,30
+	# ==========================================================================================
+	# THE DEPOT. Own, and stocked to a full 2250 by the lua. 3x3, so a centre at 30,10 occupies
+	# x29..31 / y9..11 -- clear of both launchers and of both drive lanes.
+	Depot: logisticscenter
+		Owner: USA
+		Location: 30,10
+	# ==========================================================================================
+	# SUBJECT 1 -- must DETOUR. Chebyshev to the depot is 3; to the anchor at 6,16 it is 21.
+	# 3 < 21, so ResupplyBeatsExit is true and the Evacuate stance sends it to rearm instead of home.
+	GradNear: grad
+		Owner: USA
+		Location: 27,12
+	# SUBJECT 2 -- must EVACUATE, and this is the one that carries the test.
+	# Chebyshev to the depot is 16; to the anchor it is 8. 16 < 8 is FALSE, so it goes home.
+	#
+	# 16 IS DELIBERATELY WELL INSIDE THE 30-CELL DryRearmLeashCells. If the depot were outside the
+	# leash, WithinCellBudget would reject it one gate earlier and this unit would evacuate for a
+	# reason that has nothing to do with the comparison -- the scenario would still pass and would
+	# still be testing the wrong thing. The depot here is real, stocked, affordable AND in range; the
+	# ONLY thing sending this launcher home is ResupplyBeatsExit. That is the mechanism under test,
+	# and it is why the depot is 16 cells away rather than trivially adjacent.
+	GradFar: grad
+		Owner: USA
+		Location: 14,20
+	# ==========================================================================================
+	# USA's supplyroute selects WHICH spawnarea becomes the anchor (see above). Russia's keeps that
+	# faction alive so elimination cannot end the match before the poller writes a verdict.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,16
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 10,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+
+Rules: rules.yaml
