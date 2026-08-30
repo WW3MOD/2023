@@ -1,0 +1,67 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-engineer-rifle-refills.lua
+
+E6:
+	# THE DISCRIMINATOR, and it is a pair: the rifle must be empty and the C4 must be FULL.
+	#
+	# Only primary-ammo is overridden. secondary-ammo is left alone so it starts at Ammo 3
+	# (AmmoPool.cs:239 — InitialAmmo -1 means "start full"), because a partially spent C4 pool is
+	# exactly the state that HIDES this bug: while the engineer is being served for his charges he
+	# holds replenish-soldiers, and ReloadAmmoPool@1 trickles the rifle as a side effect. Full C4 is
+	# his normal state and the only one that isolates the rifle's own refill path.
+	#
+	# Asserted at load, not assumed — see the setup guard in the Lua.
+	AmmoPool@1:
+		InitialAmmo: 0
+	# HOLD on both subjects, copied from test-who-pays-for-a-rearm where an earlier run was lost to
+	# its absence: under the Auto disposition a wholly dry unit can drive off the map for a refund,
+	# and a unit that leaves the world reports IsDead through the Lua API, which reads as "it died"
+	# rather than "it evacuated".
+	#
+	# It is inert with respect to what is measured here. The aura push arm is the provider's own
+	# sweep and consults no client stance (SupplyProvider.FindGreatestNeedTarget:629-691), and
+	# ReloadAmmoPool is a timed trickle gated on a condition that reads no stance either. What Hold
+	# does switch off is AutoSeekSupplies' seek (SupplyHuntMath.StancesPermitHunt), which is welcome:
+	# both subjects must stand where they were placed and be fed, or not, by the Centre beside them.
+	#
+	# Both fields set because AutoTarget.cs:522 picks between them on owner, and USA is a human slot.
+	AutoTarget:
+		InitialResupplyBehavior: Hold
+		InitialResupplyBehaviorAI: Hold
+
+AR:
+	AmmoPool@1:
+		InitialAmmo: 0
+	AutoTarget:
+		InitialResupplyBehavior: Hold
+		InitialResupplyBehaviorAI: Hold
+
+# NO SEPARATE RED ARM IS SHIPPED, because the control is IN the scenario and runs every time.
+#
+# The AR at the eastern Centre is a positive control on the whole delivery chain: same building
+# type, same stocked supply, same 3-cell offset, same replenish-soldiers aura arm — differing only
+# in that his primary-ammo IS listed in his Rearmable.AmmoPools (infantry.yaml, ^AR) while the
+# engineer's is not (infantry.yaml, ^E6). So the three outcomes are distinguishable:
+#
+#   control gains, engineer gains        -> PASS. The listed-pool fix is live.
+#   control gains, engineer stays dry    -> FAIL, attributable to the missing list entry alone.
+#   control stays dry                    -> FAIL as "measured nothing" — the scenario did not build
+#                                           the world it describes, and the engineer's zero is
+#                                           uninformative. This is the guard that stops a staging
+#                                           failure being reported as the bug.
+#
+# The RED arm proper is the fix's own absence: revert the one-line `AmmoPools:` change on ^E6 and
+# re-run. The engineer must then end at 0 rounds while the control ends full.

@@ -492,19 +492,25 @@ LOGISTICSCENTER:
 		# the removed ProximityExternalCondition above and the supply truck respectively.
 		#
 		# COST, so the drain rate is legible: a batch is ReloadCount rounds for SupplyValue supply.
-		# CORRECTED 2026-08-27, then INDEPENDENTLY CORRECTED AGAIN by the 2026-08-30 economy audit —
-		# two agents found the same error a day apart, which is the reason this note is longer than
-		# the arithmetic deserves. COUNT EVERY POOL IN Rearmable.AmmoPools, not just the one whose
-		# name you recognise. This comment used to read "an E3 rifleman is Ammo 100 / ReloadCount 20
-		# / SupplyValue 1, i.e. 5 supply for a full refill — so 2250 buys ~450 rifleman refills
-		# against the truck's ~150", and it was wrong by 11x: it counted the DMR and ignored the RPG
-		# (AmmoPool@2, Ammo 1, SupplyValue 50, infantry.yaml:1245), which IS listed at
-		# infantry.yaml:1282 and so IS refilled by this aura. A full E3 refill is 5 + 50 = 55 supply.
-		# 2250 buys ~41 rifleman refills; the truck's 750 buys ~13. At AuraRearmDelay 6 that is six
-		# delivery cycles — ~2.2s and 55 supply per soldier — so a full Centre is ~90 seconds of
-		# continuous infantry service, not the quarter-hour the old figure implied.
-		# SIZING ARGUMENTS THAT CITE 450 ARE REASONING FROM THIS ERROR — and 2250 is one of them.
-		# The capacity was chosen against the wrong number and has NOT been re-decided since.
+		# COUNT EVERY POOL IN Rearmable.AmmoPools, not just the one whose name you recognise. This
+		# comment once read "an E3 rifleman is Ammo 100 / ReloadCount 20 / SupplyValue 1, i.e. 5
+		# supply for a full refill — so 2250 buys ~450 rifleman refills against the truck's ~150",
+		# and it was wrong by 11x: it counted the DMR and ignored the RPG (AmmoPool@2), which IS
+		# listed in his Rearmable.AmmoPools and so IS refilled by this aura. Corrected 2026-08-27,
+		# then INDEPENDENTLY CORRECTED AGAIN by the 2026-08-30 economy audit — two agents found the
+		# same error a day apart, which is why this note is longer than the arithmetic deserves.
+		#
+		# CURRENT FIGURES, after the 2026-08-30 REPRICING (user ruling: "bullets are cheaper than AT
+		# weapons"): primary-ammo is Ammo 100 / ReloadCount 20 / SupplyValue 2 = 5 batches = 10
+		# supply; secondary-ammo is his RPG at Ammo 1 / SupplyValue 30 = one 30-supply batch. A full
+		# E3 refill is 40 supply. 2250 buys ~56 of them; the truck's 750 buys ~18. Still six delivery
+		# cycles at AuraRearmDelay 6 — ~2.2s per soldier — so a full Centre is ~2 minutes of
+		# continuous infantry service, not the quarter-hour the original figure implied.
+		# (It was 55 supply, ~41 per Centre and ~90 seconds between 2026-08-27 and the repricing.)
+		#
+		# SIZING ARGUMENTS THAT CITE 450 ARE REASONING FROM THE ORIGINAL ERROR — and 2250 is one of
+		# them. The capacity was chosen against the wrong number and has NOT been re-decided since,
+		# through either correction or the repricing.
 		# The error was harmless while infantry rearmed for free. It is not harmless now.
 		AuraRearmCondition: replenish-soldiers
 		AuraRange: 4c0
