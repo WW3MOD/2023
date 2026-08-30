@@ -462,10 +462,17 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>
 		/// <para>Could this host actually pay for a batch of something we are short of? The one dispatch
-		/// gate that is not about distance. Reached only through
-		/// <see cref="ChooseAffordableResupplier"/>, which asks it of every candidate BEFORE picking —
-		/// both the Auto arm and the Evacuate detour choose that way, and neither re-asks it afterwards
-		/// because the answer is guaranteed by construction.</para>
+		/// gate that is not about distance. Reached through <see cref="ChooseAffordableResupplier"/>,
+		/// which asks it of every candidate BEFORE picking — the Auto arm, the Evacuate detour and
+		/// AutoSeekSupplies' break-off arm all choose that way, and none re-asks it afterwards because
+		/// the answer is guaranteed by construction.</para>
+		///
+		/// <para>PUBLIC because <see cref="Activities.SeekSupplyProvider"/> has to ask the SAME question
+		/// while the errand is already running: it revalidates its target and re-picks on a 25-tick
+		/// cadence, and a looser test there quietly undoes an affordable pick one layer down — the unit
+		/// is dispatched to a host that can pay and retargets onto a nearer one that cannot. Sharing this
+		/// predicate rather than restating it there is the house rule (see the three-copy note on
+		/// SupplyProvider.AcceptClient): prose is not the countermeasure.</para>
 		///
 		/// <para>Everywhere else a wasted walk costs a walk. On the evacuate detour it costs the unit's
 		/// exit: an evacuating actor that detours to a host which cannot serve it does not resume
@@ -482,7 +489,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// — a host we would refuse to walk to must also be one we refuse to abandon an exit for. A host
 		/// with no SupplyProvider charges nothing (the pure RearmsUnits depot), so it always passes.</para>
 		/// </summary>
-		static bool HostCanAffordSomethingWeNeed(Actor host, IEnumerable<AmmoPool> pools)
+		public static bool HostCanAffordSomethingWeNeed(Actor host, IEnumerable<AmmoPool> pools)
 		{
 			var provider = host.TraitOrDefault<SupplyProvider>();
 			if (provider == null)

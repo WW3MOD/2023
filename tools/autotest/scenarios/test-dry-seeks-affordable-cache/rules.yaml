@@ -1,0 +1,33 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-dry-seeks-affordable-cache.lua
+
+# Dry on arrival, so the errand is dispatched by the shipped traits rather than staged by the test:
+# the chain under test starts at "the unit is out", not at "the test issued a resupply order".
+#
+# WHICH DISPATCHER THIS SCENARIO ISOLATES, and how. Three could in principle act on a dry mortar:
+#   1. AmmoPool.AutoRearmIfDry via INotifyBecomingIdle -- fires only on the !wasIdle -> IsIdle
+#      TRANSITION (Actor.cs:321). An actor placed on the map with no activity is idle ALREADY on its
+#      first tick, so it never transitions and this arm never fires here. Do NOT add a priming move
+#      "for parity with test-poor-depot-still-worth-the-trip": that wakes this arm, which picks on
+#      affordability correctly and would mask the defect.
+#   2. AutoSeekSupplies' IDLE seek via INotifyIdle.TickIdle -- fires every tick the actor is idle,
+#      no transition needed. This arm is NOT defective. It is excluded by GEOMETRY, not by timing:
+#      the rich cache is parked outside its 20-cell leash (see map.yaml).
+#   3. AutoSeekSupplies' BREAK-OFF arm via ITick -- not idle-gated, fires every EmptyScanInterval
+#      ticks regardless. This is the defective one, and the only one that can reach the rich cache.
+MT:
+	AmmoPool@1:
+		InitialAmmo: 0

@@ -278,19 +278,26 @@ namespace OpenRA.Mods.Common.Traits
 			if (!StancesPermit())
 				return;
 
-			// ChooseResupplier filters on ownership, RearmActors membership and remaining supply only — it
-			// checks neither IsInWorld nor a path (economy.md). The IsInWorld hole is real: a host loaded
-			// into a carryall is out of the world with a stale CenterPosition, so it would read as a
-			// perfectly good destination at wherever it was picked up.
+			// The nearest AFFORDABLE host, matching AmmoPool.AutoRearmIfDry's Auto arm. Neither chooser
+			// checks IsInWorld or a path (economy.md), which is why the IsInWorld test stays below: a host
+			// loaded into a carryall is out of the world with a stale CenterPosition and would otherwise
+			// read as a perfectly good destination at wherever it was picked up.
 			//
-			// DO NOT swap this for ChooseAffordableResupplier without reading
-			// WORKSPACE/bugs/discovered.md 2026-08-27 first. It looks like the obvious parity fix with
-			// AmmoPool.AutoRearmIfDry's Auto arm, and for a proximity/push host (truck, cache) it would
-			// be one. For a DOCKING host it is a regression: Resupply.cs:131 sets the rearm branch from
-			// Rearmable.RearmActors membership alone and Rearmable.RearmTick hands out ammunition with
-			// no supply consulted, so a rearm at the Logistics Centre costs the depot nothing and
-			// gating the trip on affordability withholds a trip that would have worked.
-			var host = AmmoPool.ChooseResupplier(self);
+			// THIS USED TO BE ChooseResupplier, WHICH FILTERS ON CurrentSupply > 0, and a comment here
+			// forbade changing it. That comment's premise was that a rearm at a DOCKING host is free —
+			// "Rearmable.RearmTick hands out ammunition with no supply consulted" — so gating the trip on
+			// affordability would withhold a trip that would have worked. It is no longer true, and was
+			// already being falsified as it was written: the comment landed in 291ba846 and f8b424f6
+			// metered the dock path 72 minutes later the same afternoon. Rearmable.RearmTick now skips
+			// any pool the provider cannot pay for (Rearmable.cs:106), exactly as TryServeBatch does on
+			// the push side, so BOTH host kinds charge and affordability is the right question for both.
+			//
+			// What the old test cost, measured in test-dry-seeks-affordable-cache: a mortar whose batch
+			// costs 40, standing 7 cells from a cache holding 39 and 23 cells from one holding 45, was
+			// dispatched to the cache that could never pay him, parked inside its aura, and was still dry
+			// 1750 polls later. A cache with 1..39 in it is a legal destination under "> 0" and cannot
+			// serve anybody; under ">= one batch" it is correctly passed over.
+			var host = AmmoPool.ChooseAffordableResupplier(self, allPools);
 			if (host == null || !host.IsInWorld || !WithinBreakOffLeash(host))
 			{
 				// Nothing worth walking to. Raise the flag the Hunt-stance provider scan reads
@@ -306,7 +313,12 @@ namespace OpenRA.Mods.Common.Traits
 					+ $"host={host.Info.Name}@{host.Location} leash={info.ReturnWhenEmptyLeashCells}c");
 
 			// QueueActivity(false, …) inside — the forward order is cancelled, which is the point.
-			AmmoPool.AutoRearm(self, true);
+			//
+			// `host` is PASSED, never left to be re-picked. AutoRearm's null-host path falls back to
+			// ChooseResupplier (AmmoPool.cs:890), so omitting it re-introduces the nearest-merely-stocked
+			// pick one call deeper and throws away the choice made immediately above — the precise trap
+			// that parameter's own doc comment was written to prevent.
+			AmmoPool.AutoRearm(self, true, host);
 			self.ShowTargetLines();
 			BeginWatching();
 		}
