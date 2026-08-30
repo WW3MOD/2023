@@ -55,6 +55,14 @@ body{padding:28px 32px 60px}
 .el-meter .fill{position:absolute;left:0;top:0;bottom:0;background:var(--supply)}
 .el-meter .scale{display:flex;justify-content:space-between;font-size:10px;color:var(--ink-4);margin-top:2px}
 .el-note{font-size:10px;color:var(--ink-3);line-height:14px;padding-left:9px;border-left:1px solid var(--line);margin-top:6px}
+.el-stat .v .u{color:var(--ink-3);font-weight:normal}
+.wsec{border-left:1px solid var(--line);padding:0 0 2px 8px;margin:6px 0 8px}
+.wsec-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 3px}
+.wsec-name{font-size:10px;font-weight:bold;letter-spacing:.085em;text-transform:uppercase;color:var(--ink-2)}
+.wsec-ammo{font-size:10px;color:var(--ink-3)}
+.wsec-ammo b{color:var(--supply);font-weight:bold}
+.wsec.oneshot{border-left-color:var(--supply-dim)}
+.wsec-tag{font-size:9px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;padding:0 4px;margin-left:5px;background:var(--supply-dim);color:#f0e2c4}
 .tt-before-desc{font-size:10px;font-weight:bold;color:var(--ink);line-height:13px;white-space:pre-wrap;margin:0}
 .tt-before-head{display:flex;align-items:flex-start;justify-content:space-between;padding:3px 7px 2px}
 .annot{font-size:10px;color:var(--warn);line-height:13px;margin:6px 0 0;padding-left:9px;border-left:1px solid var(--warn);max-width:350px}
@@ -175,10 +183,26 @@ Total ammo cost: 55</p>
 
 				<div class="el-sep"></div>
 
-				<ul class="el-list">
-					<li class="el-item">5.56mm rifle <span class="qual">&mdash; 100 rds</span></li>
-					<li class="el-item">Disposable AT rocket <span class="qual">&mdash; 1 rd</span></li>
-				</ul>
+				<div class="wsec">
+					<div class="wsec-head"><span class="wsec-name">5.56mm rifle</span>
+						<span class="wsec-ammo">100 rds &middot; <b>5</b> supply</span></div>
+					<div class="el-stat"><span class="k">Damage</span><span class="dots"></span><span class="v">200 <span class="u">&times; 3 burst</span></span></div>
+					<div class="el-stat"><span class="k">Penetration</span><span class="dots"></span><span class="v">4</span></div>
+					<div class="el-stat"><span class="k">Range</span><span class="dots"></span><span class="v">14.0 <span class="u">cells</span></span></div>
+					<div class="el-stat"><span class="k">Blast</span><span class="dots"></span><span class="v">&mdash; <span class="u">direct hit only</span></span></div>
+					<div class="el-stat el-cost"><span class="k">Refill</span><span class="dots"></span><span class="v">5 &times; 1 = 5</span></div>
+				</div>
+
+				<div class="wsec oneshot">
+					<div class="wsec-head"><span class="wsec-name">Disposable AT rocket
+						<span class="wsec-tag os">one shot</span></span>
+						<span class="wsec-ammo">1 rd &middot; <b>50</b> supply</span></div>
+					<div class="el-stat"><span class="k">Damage</span><span class="dots"></span><span class="v">6 000</span></div>
+					<div class="el-stat"><span class="k">Penetration</span><span class="dots"></span><span class="v">500</span></div>
+					<div class="el-stat"><span class="k">Range</span><span class="dots"></span><span class="v">12.0 <span class="u">cells</span></span></div>
+					<div class="el-stat"><span class="k">Blast</span><span class="dots"></span><span class="v">200 <span class="u">&mdash; 0.25 cells</span></span></div>
+					<div class="el-stat el-cost"><span class="k">Refill</span><span class="dots"></span><span class="v">1 &times; 50 = 50</span></div>
+				</div>
 
 				<div class="el-sep"></div>
 
@@ -206,14 +230,18 @@ Total ammo cost: 55</p>
 		</div>
 
 		<p class="note-off">
-			<b>The rocket price is authored once.</b> The prose keeps the sentence; the armament list and
-			the refill cost are both emitted by the traits that already own those facts, so the two can no
-			longer disagree.
+			<b>Each weapon is a section, and each price is authored once.</b> The rocket's 50 now appears
+			exactly once, inside the section for the weapon that spends it. The prose keeps only its
+			sentence; every figure is emitted by the trait that owns it, so the two can no longer disagree.
 		</p>
 		<p class="note-off">
-			<b>55 supply is now a row, not a remainder.</b> It has its own label, its own colour, and the
-			meter answers the question the player is actually asking &mdash; <i>how much of my depot is
-			this?</i> Forty-one riflemen refills empty a full Centre.
+			<b>The rocket is 91% of this man's refill bill</b> &mdash; 50 of 55. On the left that ratio is
+			unrecoverable without doing the arithmetic yourself; here the two sections state it.
+		</p>
+		<p class="note-off">
+			<b>55 supply is now a row, not a remainder.</b> It has its own label and the meter answers the
+			question the player is actually asking &mdash; <i>how much of my depot is this?</i>
+			Forty-one rifleman refills empty a full Centre.
 		</p>
 		<p class="note-off">
 			<b>Nothing here is new data.</b> Speed 25 and Health 200 are
@@ -237,11 +265,21 @@ Total ammo cost: 55</p>
 
 <table class="legend">
 	<tr><td class="n">Elements used here</td>
-		<td>Header &middot; Subhead &middot; Separator &middot; Prose &middot; ListItem &middot; StatRow &middot; CostRow &middot; Note</td></tr>
+		<td>Header &middot; Subhead &middot; Separator &middot; Prose &middot; StatRow &middot; CostRow &middot; Note,
+		grouped by the <b>WeaponSection</b> container</td></tr>
+	<tr><td class="n">Section is a container</td>
+		<td>not a ninth element &mdash; everything inside it is an element that already existed. The
+		emit list gains one level of nesting, encoded as an optional <code>Group</code> string per row.</td></tr>
 	<tr><td class="n">Order</td>
 		<td>identical on every unit; absent rows simply do not emit &mdash; nothing is special-cased</td></tr>
 	<tr><td class="n">Figures</td>
-		<td>refill 55 = rifle 5 + rocket 50; 2250 / 55 = 40.9 &rarr; "41 refills"</td></tr>
+		<td>rifle <code>100 / ReloadCount 20 &times; SupplyValue 1 = 5</code>;
+			rocket <code>1 &times; 50 = 50</code>; total 55; 2250 / 55 = 40.9 &rarr; "41 refills".
+			Damage/penetration/range from <code>5.56mm.DMR</code>
+			(<code>weapons-ballistics.yaml:140</code>) and <code>RPG</code> (<code>:516</code>).</td></tr>
+	<tr><td class="n">Blast on the rifle</td>
+		<td>shown as <b>&mdash;</b>, not <b>0</b>: <code>5.56mm.DMR</code> has no
+		<code>SpreadDamage</code> warhead at all, which is a different fact from a zero-radius one.</td></tr>
 </table>
 
 </body>

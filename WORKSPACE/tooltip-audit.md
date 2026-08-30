@@ -75,11 +75,24 @@ That block is the only thing that ever assigns `powerLabel.Visible` / `powerIcon
 sets no `Visible:` on either, unlike `HOTKEY` which explicitly sets `Visible: false`
 (`tooltips.yaml:265`).
 
-Consequence: the `production-tooltip-power` sprite is drawn on **every** production tooltip in the
-mod, next to a permanently empty label; and `rightHeight` at `:159` takes the
-`powerIcon.Bounds.Bottom` branch (62px) instead of the `timeIcon` one (42px), so every tooltip is
-**20px taller than its content needs**. Filed to `bugs/discovered.md`. Not fixed here — it is a
-one-line YAML change but it is a visual change and belongs to whoever is next in that file.
+Consequence: the `production-tooltip-power` sprite — which does exist, at `chrome.yaml:144` — is
+drawn on **every** production tooltip in the mod, beside a permanently empty label.
+`powerIcon.Bounds.X` is assigned unconditionally at `:151`, so it is positioned on the right rail
+whether or not the power branch ran.
+
+> **Correction, made before fixing (2026-08-30).** The first version of this section also claimed
+> every tooltip was "20px taller than its content needs", from `rightHeight` at `:159` taking the
+> `powerIcon.Bounds.Bottom` branch. **That part is wrong.** The height is
+> `Math.Max(leftHeight, rightHeight)` where `leftHeight = 36 + descSize.Y` (`:156`) and
+> `rightHeight = 67`. The power branch only inflates anything when `descSize.Y < 31` — under about
+> three rendered lines — and every WW3MOD description plus its auto-blocks is far longer. **The
+> tooltip is never actually taller.** Only the stray sprite was real. Recorded rather than quietly
+> edited, because the overclaim came from reading the layout arithmetic without asking what values
+> actually reach it.
+
+**Fixed on this branch** in `ProductionTooltipLogic`, by giving the null-`pm` case an `else` that
+hides both widgets. The bug is generic to any mod without a `PowerManager` — the logic simply never
+handled that case — so it belongs in the logic, not in a per-mod chrome override.
 
 ---
 
