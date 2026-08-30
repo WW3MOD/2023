@@ -293,6 +293,70 @@ tables, not from `Warhead.cs`.
 Related, same pass: five actors *do* have a materially wrong armour class in prose (`heli`, `hind`,
 `mi28` say Medium and are `Heavy`; `lccv`, `mnly` say None and are `Light`) — filed to
 `bugs/discovered.md`. Full context in `WORKSPACE/tooltip-audit.md`.
+## 2026-08-30 — STAGING AN EVACUATION TEST? Without a `spawnarea` actor the detour is UNCONDITIONAL and your scenario silently measures nothing (`wt/arty-doctrine`)
+
+**Read this before staging any scenario in which a unit is supposed to choose between rearming and
+going home.** It has no symptom: the map loads, the units act, the verdict is green, and the branch
+you meant to test was never evaluated.
+
+**The evacuation anchor is neither of the two obvious guesses.** `RotateToEdge.FindClosestSpawnAreaForOwner`
+returns the **`spawnarea` actor** (`misc.yaml:255` — the only actor in the mod carrying `SpawnArea`)
+that is closest to the unit owner's **`ProductionFromMapEdge`** actor, which is `SUPPLYROUTE`
+(`structures.yaml:222`). It is **not** the supply route itself, and it is **not** `mpspawn`. Both of
+those are the natural things to reach for and both are wrong; `mpspawn` carries no `SpawnArea` at
+all.
+
+**The failure mode when none exists.** `FindClosestSpawnAreaForOwner` returns `null` on an empty
+list, and `AmmoPool`'s Evacuate arm reads:
+
+```csharp
+var beatsExit = anchor == null || SupplyHuntMath.ResupplyBeatsExit(...);
+```
+
+So a null anchor makes `beatsExit` **unconditionally true** and the unit detours to any host that
+passes the three earlier gates, no matter how far behind it that host sits. The comparison the
+scenario exists to exercise is skipped entirely.
+
+**Neither shipped evacuation scenario places one** — `test-dry-evac-drops-queued-order` and
+`test-who-pays-for-a-rearm` both omit it. That is harmless *there*, because neither map has a depot
+to detour to, so the arm short-circuits on a null `evacHost` first. **Copying either map as a
+starting point and then adding a depot is exactly how you inherit the bug**, and it is the natural
+way to author this kind of test.
+
+**How to tell you have tripped it, since green is not evidence.** A scenario testing a comparison
+needs **two subjects whose outcomes differ**, staged identically apart from the geometry. If both
+subjects take the same disposition, suspect the anchor before suspecting the units.
+`test-tactical-arty-detour-geometry` is the worked example: two grads, one depot, one anchor, and
+opposite required outcomes.
+
+## 2026-08-30 — `CustomSellValueTest` MIRRORS the sell/refund formula rather than calling it — green says the arithmetic is right, not the code (`wt/arty-doctrine`)
+
+Pre-existing, and larger than the branch that noticed it. **"The refund is unit-tested" is true of
+the arithmetic and false of the implementation**, and that sentence is easy to read the wrong way.
+
+`CustomSellValueTest` never invokes `CustomSellValue.GetSellValue`. Its own header says so:
+
+> *"The real call needs a full Actor/World harness; we reproduce the formula so the contract is
+> locked behind a unit test."*
+
+It defines private `PoolMissingValue` and `Refund` helpers that restate the batching and
+floor-at-zero rules, and asserts against those. So the 13 cases pin the **contract** — batch
+truncation, `SupplyValue <= 0` skipping, multi-pool summation, the zero floor — and would stay green
+through any change to `GetSellValue` itself, including one that stopped deducting a pool, read the
+wrong pool set, or dropped the `SupplyProvider` term.
+
+**Nothing asserts the refund end-to-end in a running game, for any actor.** No autotest reads the
+player's cash across an evacuation. `RotateToEdge` applies `HP/MaxHP` scaling
+(`RotateToEdge.cs:386-388`) and `ApplyHandicapRefundAdjustment` applies the handicap factor
+(`CustomSellValue.cs:72-80`) — **neither is covered by the mirror**, which stops at
+`GetSellValue`'s return.
+
+This matters more since 2026-08-30 than it did before: evacuation is now the entire endgame for
+`himars` and `iskander`, so the refund is the whole of what a spent strategic launcher returns to
+the player. The general shape is the thing to bank, though — **a test that reimplements the code it
+is named after is a specification, not a regression test**, and the two drift apart silently. If you
+touch `GetSellValue`, note that the suite passing tells you nothing about your change.
+
 ## 2026-08-30 — The evacuation refund reads EVERY `AmmoPool`, not `Rearmable.AmmoPools` — so removing a `Rearmable` cannot change what a unit refunds (`wt/arty-doctrine`)
 
 Settled by reading, not by a run, when asking whether `himars`/`iskander` take a different refund
@@ -321,12 +385,9 @@ So a wholly dry launcher refunds `6000 − (2/1)×1500 = 3000`, handicap-adjuste
 (`AmmoPool.cs:727`) is the same line `m270`/`grad`/`tos` have always reached, since they have
 shipped `InitialResupplyBehavior: Evacuate` all along.
 
-**Caveat on the existing coverage, because it is weaker than its name suggests.** `CustomSellValueTest`
-does not call `GetSellValue` — its own header says it *"reproduce[s] the formula so the contract is
-locked behind a unit test"*. It pins the arithmetic **contract**, not the code path, and would not
-catch the mirror and the implementation drifting apart. Nothing asserts the refund end-to-end in a
-running game for any actor. That is pre-existing and not specific to these two, but anyone who reads
-"the refund is unit-tested" should know which of the two things is true.
+**Caveat on the existing coverage:** `CustomSellValueTest` mirrors this formula rather than calling
+it, so it pins the arithmetic contract and not the code path. Filed separately above — it is
+pre-existing and applies to anyone touching `GetSellValue`, not just to these two actors.
 
 ## 2026-08-30 — Removing a unit's `Rearmable` does NOT make it evacuate; it makes it stand still forever (`wt/arty-doctrine`, base `main @ d9f9a83f`)
 
