@@ -18,7 +18,7 @@ If anything here disagrees with code, the doc is right and the code needs to cha
 
 1. **Every unit, every magazine, every supply box has a cost.** Cash spent buys ammo + body together. Selling or evacuating refunds what's left.
 2. **A unit of supply is worth a fixed amount of cash** wherever it sits — in an LC, a truck, a cache. When the player gets it back on evac, capture, or absorb, it returns at face value.
-3. **Supply is finite.** A Logistics Center spawns with a fixed pool. Trucks carry a fixed amount. Drained pools stay drained until the player brings in more supply. **An LC is obtained by deploying an `LCCV`** (`vehicles.yaml`, Cost 1200, `Prerequisites: ~techlevel.low`, `Transforms: IntoActor: logisticscenter`), or by capturing one of the Neutral pre-placed LCs on the three maps that have any. **It is NOT obtained from the build sidebar** — `logisticscenter` carries `Buildable.Prerequisites: ~disabled` (`structures.yaml:367`), so its icon never appears. *(**Corrected 2026-08-17.** This principle previously read "LCs are **not** buildable … the only ones in a match are the Neutral pre-placed ones you can capture", inferring unobtainability from `~disabled`. That inference is wrong: `Transforms.CanDeploy` (`Transforms.cs:93-99`) tests only trait-disabled state and cell placement and **never consults `Buildable.Prerequisites`**, so the deploy route is wide open. The error funded a money pump — sell value 3500 for a 1200 LCCV — fixed in the same commit. Downstream reasoning that cited the old claim: `WORKSPACE/audit/260816-bug-reconciliation.md:259`, `WORKSPACE/DISCOVERIES.md` 2026-08-16. **General lesson: `~disabled` gates the sidebar icon, not the actor's existence** — enumerate every route to an actor, not just the build queue.)*
+3. **Supply is finite.** A Logistics Center spawns with a fixed pool. Trucks carry a fixed amount. Drained pools stay drained until the player brings in more supply. **An LC is obtained by deploying an `LCCV`** (`vehicles.yaml`, Cost **3000** as of 2026-08-22 — raised from 1200 by user ruling and held equal to `logisticscenter`'s own Cost — `Prerequisites: ~techlevel.low`, `Transforms: IntoActor: logisticscenter`), or by capturing one of the Neutral pre-placed LCs on the three maps that have any. **It is NOT obtained from the build sidebar** — `logisticscenter` carries `Buildable.Prerequisites: ~disabled` (`structures.yaml:367`), so its icon never appears. *(**Corrected 2026-08-17.** This principle previously read "LCs are **not** buildable … the only ones in a match are the Neutral pre-placed ones you can capture", inferring unobtainability from `~disabled`. That inference is wrong: `Transforms.CanDeploy` (`Transforms.cs:93-99`) tests only trait-disabled state and cell placement and **never consults `Buildable.Prerequisites`**, so the deploy route is wide open. The error funded a money pump — sell value 3500 for a 1200 LCCV — fixed in the same commit. Downstream reasoning that cited the old claim: `WORKSPACE/audit/260816-bug-reconciliation.md:259`, `WORKSPACE/DISCOVERIES.md` 2026-08-16. **General lesson: `~disabled` gates the sidebar icon, not the actor's existence** — enumerate every route to an actor, not just the build queue.)*
    **The mirror image: `~techlevel.*` is decorative, not a gate.** `MapOptions.TechLevel` defaults to `"unrestricted"` (`MapOptions.cs:52`), `world.yaml:435` sets `TechLevelDropdownVisible: false` so the lobby never offers a lower one, and no map or autotest scenario overrides it (checked repo-wide at `de78a1ed`). `ProvidesTechPrerequisite@unrestricted` (`player.yaml:222-225`) grants `techlevel.infonly`, `.low`, `.medium`, `.high` and `.unrestricted` in one block, and those five are the only tiers any **live** rule asks for. So an actor whose only prerequisite is `~techlevel.<tier>` is unconditionally available — the LCCV's `~techlevel.low` above restricts nothing. Two guards, because this is a dated observation and not an invariant: a map that set `TechLevel` would re-arm every one of them; and `~techlevel.futuristic` is *asked for* by three actors while **nothing provides it**, which would make it behave exactly like `~disabled` — harmless today only because all three of those blocks are commented out (`vehicles.yaml:722`, `vehicles-america.yaml:1155`, `vehicles-russia.yaml:1064`). Uncommenting one silently yields an actor with no route into play.
 4. **Trucks, LCs, and dropped supply caches share one trait** (`SupplyProvider`). Players see the same UI (range circle, supply bar) everywhere.
 5. **`ReloadCount` is the canonical batch size for rearm.** Whether a Bradley docks at the LC or a soldier waits next to a truck, the per-pool `ReloadCount` decides how many rounds arrive per cycle and `SupplyValue` decides what one cycle costs. (Aircraft have no reachable host at all — see "What rearms what".)
@@ -57,6 +57,31 @@ The trap is that `RearmActors` has **no `^Soldier`-level declaration** — it ap
 `AmmoPool.AutoRearmIfDry` has **two** entry points, not one: `INotifyBecomingIdle` (`AmmoPool.cs:667-669`) and `INotifyAttack.Attacking` on the tick a pool's last round is spent (`:656-663`). Neither consults `AutoSeekSuppliesInfo`, so **`AutoSeekSupplies.ReturnWhenEmpty` gates only the `AutoSeekSupplies` seek** and has no authority over this path. But the attack-path dispatch is keyed on `Info.Armaments.Contains(a.Info.Name)` (`:658`) — it fires only for a *named Armament* that drew from the pool. A pool spent by a trait (`Demolish.cs:79`, `LayMines.cs:210`, both calling `TakeAmmo` directly, whose own dispatch call is commented out at `:263-266`) is invisible to the non-idle trigger. `^E6`'s C4 is the live case: no Armament named `secondary` exists on him at all.
 
 **When bounding these paths, bound the METHOD, not the notification** — that is what covers both entry points. `AmmoPoolInfo.DryRearmLeashCells` (`:113`, default 30 chessboard cells, math in `SupplyHuntMath.WithinCellBudget`) deliberately sits on `AmmoPoolInfo` rather than beside its equal-valued sibling `AutoSeekSuppliesInfo.ReturnWhenEmptyLeashCells` (`:88`), because **`AutoSeekSupplies` is declared on `^Soldier` and `^E6` only, while the dry-rearm path runs on every non-aircraft actor with an `AmmoPool`, vehicles included.** Reading the other trait's Info would have left every vehicle unleashed while looking complete at the only site anyone reads. Shared value (pinned equal by `DryRearmLeashTest`) and shared math; separate fields, on purpose.
+
+### A dry VEHICLE never re-evaluates resupply, and the autotargeting is what accidentally rescues it
+
+*(Settled by reading, 2026-08-30, after being raised and left open at least twice. This corrects an earlier and more generous phrasing — "it asks once, at the wrong time" — which is the **best** case, not the general one.)*
+
+`AmmoPool` declares `INotifyCreated, INotifyAttack, INotifyBecomingIdle, IResolveOrder, ISync` (`AmmoPool.cs:260`). **There is no `ITick` and no `INotifyIdle`**, so `AutoRearmIfDry` has exactly two triggers: `INotifyAttack.Attacking` (dispatch at `:864`) — the shot that empties the pool — and `INotifyBecomingIdle` (`:868-870`). `Actor.Tick` computes `var wasIdle = IsIdle;` *before* running the activity and then branches `if (!wasIdle && IsIdle) { …OnBecomingIdle… } else if (wasIdle) { …TickIdle… }` (`Actor.cs:318-333`) — an if/else on the **transition**, not a per-tick call.
+
+Two consequences, and the second is worse than the first:
+
+- **A unit that runs dry while busy asks once, then never again.** It stays idle from that tick on, so `!wasIdle` is false every subsequent tick and the transition cannot recur. There is no retry loop; there is no loop.
+- **A unit that is ALREADY IDLE when it runs dry asks ZERO times.** It is idle on the tick the check runs, fails the edge test, and fails it identically forever. `INotifyAttack.Attacking` cannot cover for it because a unit with no ammunition does not shoot. This is the ordinary state of a vehicle holding position that fires its last round, and of any unit spawned or delivered dry with no order — **a truck can park on top of it and it will not notice.**
+
+**Why infantry are fine and vehicles are not.** `AutoSeekSupplies` carries the only `ITick` in this system (`AutoSeekSupplies.cs:228`) and appears at exactly two sites mod-wide, both in `infantry.yaml` — `:251` on `^Soldier` (`Enabled: true`, `ReturnWhenEmpty: true`) and `:2021` on `^E6`, which opts `ReturnWhenEmpty` back off. **No vehicle has it**, which is the same asymmetry `DryRearmLeashCells` exists for (above). The second, *accidental*, rescue is `AutoTarget` itself: it issues an attack, `Attack.cs:117` ends it immediately on `AmmoPool.CannotFight`, the unit goes non-idle then idle, and the transition fires. **For a vehicle, the autotargeting a player might want to switch off is the only thing making it re-check whether it can rearm** — which is the concrete argument against any wholesale disable of automatic behaviour.
+
+**Sharpest case:** `strykershorad` and `tunguska` mix `Essential` and non-`Essential` pools and carry no `AutoSeekSupplies`. `Attack.cs:117` reads `CannotFight` = *all* pools empty, which is false while the non-essential pool holds rounds, so the unit never goes idle either — their only trigger is the `Attacking` notification on the exact tick the essential pool empties. One dispatch opportunity per match. A tunguska out of SAMs with a full cannon is the motivating example in `AmmoPool.cs`'s own `Essential` documentation, and it is the case that does not work.
+
+**Fix shape, if someone builds it:** a small `ITick` that re-asks `AutoRearmIfDry` on a cadence closes it, and it **must be idle-gated** — the gap is specifically the unit that decided to hold, which is idle by definition, so an ungated version would instead interrupt live player orders, a much larger change wearing the same clothes. It must also guard on `AmmoPool.IsSeekingRearm`, because `AutoRearmIfDry` has no such guard of its own and is safe today only because it cannot fire while a unit is walking; a periodic caller would tear down and re-plan the same errand forever.
+
+**Scenario-authoring corollary, because it has already cost two runs:** a dry unit placed on a map with no order will sit at `ammo=0` in *both* the RED and GREEN arms and fail identically, with the fix demonstrably present in the built source — nothing dispatched on either side because nothing ever asked. Give the unit one cell of movement to finish, so that completing it is a real `!wasIdle → IsIdle` transition, and prime it *away* from the destination under test so the priming move cannot be confused with the errand.
+
+### No vehicle can enter `SeekSupplyProvider` — a RULESET property, one YAML line from being false
+
+`AmmoPool.AutoRearm` is the only construction site for `Activities.SeekSupplyProvider` (`AmmoPool.cs:923`), and it takes that branch only when the chosen host's `SupplyProvider` has an **empty `DockedCondition`** (`:915-921`); otherwise the unit is queued a `Resupply` instead. Every ground vehicle names `logisticscenter` and nothing else in `RearmActors`, and `LOGISTICSCENTER` is the **only** provider in the mod that sets `DockedCondition` (`structures.yaml:496` — the mod-wide grep returns that one assignment). So every vehicle resolves to the docking path and **the live clientele of `SeekSupplyProvider` is infantry.** The `Evacuate` detour funnels through the same `AutoRearm`, so it adds no vehicles either.
+
+It matters in both directions. It **shrinks** what a change to that activity can affect — no vehicle behaviour, therefore no vehicle-side regression surface, however the retarget or validity tests are tuned. And **it is one line from being false**: adding `supplycache` or `truk` to any vehicle's `RearmActors` puts vehicles into that activity for the first time, against logic that has only ever run for infantry — including the in-range park branch, which has no stall guard of its own for anything `AutoSeekSupplies` did not dispatch, and that trait is infantry-only. **If you are editing `RearmActors` on a vehicle, read this first.**
 
 ### A rearm host refills only the pools named in `Rearmable.AmmoPools` — with one exception that is easy to miss
 
@@ -174,13 +199,13 @@ So a lone $100 infantryman is worth a tube shell but not a Grad volley — the a
 
 ### Logistics Center (LC)
 
-`Valued.Cost` 3500, but **fielded by deploying a 1200-cost `LCCV`** (see Core principle 3). Spawns with `SupplyProvider.TotalSupply: 2250` (`structures.yaml:475`). *(Corrected 2026-08-30: this read 3000, the pre-2026-08-22 value. The reduction to 2250 was a user ruling — "There is no difference between when it is driving or when it is deployed, it carries the supplies it carries" — matching LCCV's undeployed load. Sizing arguments that cite 3000 predate it.)* The pool drains as:
+`Valued.Cost` **3000**, and **fielded by deploying a `LCCV` that also costs 3000** (see Core principle 3). *(Corrected 2026-08-30: both numbers read 3500 / 1200 here, the pre-2026-08-22 values. User ruling — "the LC should cost 3000" — raised LCCV from 1200 and holds the two equal, since the same ruling treats the driving and deployed forms as one thing. `structures.yaml` `Valued: Cost: 3000`; `vehicles.yaml` LCCV `Valued: Cost: 3000`. **The `RefundPercent` invariant below still holds at the new numbers** — 34 ≤ 100 × 3000/3000 = 100 — so the property is intact and only its worked example was stale.)* Spawns with `SupplyProvider.TotalSupply: 2250` (`structures.yaml:475`). *(Corrected 2026-08-30: this read 3000, the pre-2026-08-22 value. The reduction to 2250 was a user ruling — "There is no difference between when it is driving or when it is deployed, it carries the supplies it carries" — matching LCCV's undeployed load. Sizing arguments that cite 3000 predate it.)* The pool drains as:
 - Vehicles dock and rearm directly (`SupplyValue × batches given`).
 - Trucks drive in to restock (truck pulls supply from LC; LC drops by exactly the amount taken).
 
 When the LC's pool hits zero it stops servicing rearm requests. The player deploys another LCCV, or relies on trucks that still have supply.
 
-**Salvage is capped at the LCCV's cost, and that cap is load-bearing.** `Sellable.RefundPercent: 34` on `logisticscenter` puts the sell refund at 1190 — just under the 1200 it costs to field one — and `SpawnActorsOnSell.ValuePercent: 0` stops the sale additionally emitting technicians. Without both, deploy-and-sell paid 3500 in cash plus up to five 250-credit technicians for a 1200 outlay, repeatable. `RefundPercent` rather than `CustomSellValue` deliberately: the LC is capturable (via `^BasicBuilding` → `^NeutralOrOccupiedCapturable`) and bots rank capture targets by `GetSellValue` (`CaptureManagerBotModule.cs:147`), so its strategic valuation must stay at 3500 while only its scrap value moves. **If either Cost changes, recompute: `RefundPercent ≤ 100 × LCCV.Cost / logisticscenter.Cost`.**
+**Salvage is capped at the LCCV's cost, and that cap is load-bearing.** `Sellable.RefundPercent: 34` on `logisticscenter` puts the sell refund at 1020 against the 3000 it costs to field one, and `SpawnActorsOnSell.ValuePercent: 0` stops the sale additionally emitting technicians. The money pump this closed was real at the *old* numbers: deploy-and-sell paid 3500 in cash plus up to five 250-credit technicians for a 1200 outlay, repeatable. *(Figures updated 2026-08-30 with the 3000/3000 costs above; at parity the constraint is slack — `RefundPercent ≤ 100` — rather than the tight 34-vs-34.3 it once was.)* `RefundPercent` rather than `CustomSellValue` deliberately: the LC is capturable (via `^BasicBuilding` → `^NeutralOrOccupiedCapturable`) and bots rank capture targets by `GetSellValue` (`CaptureManagerBotModule.cs:147`), so its strategic valuation must track its full Cost while only its scrap value moves. **If either Cost changes, recompute: `RefundPercent ≤ 100 × LCCV.Cost / logisticscenter.Cost`.**
 
 ### Supply Truck (TRUK)
 
@@ -359,23 +384,29 @@ Trucks, LCs, and SUPPLYCACHEs all use `SupplyProvider`. They differ only in YAML
 
 | Source | TotalSupply | RestockActors | Notes |
 |---|---|---|---|
-| `logisticscenter` | 3000 | (none) | Mounts at base; drains until empty. `AbsorbsSupplyCache` recovers dropped boxes. |
+| `logisticscenter` | 2250 | (none) | Mounts at base; drains until empty. `AbsorbsSupplyCache` recovers dropped boxes. *(Corrected 2026-08-30: this cell read 3000, contradicting the prose above it. `structures.yaml` sets `TotalSupply: 2250` and `SupplyCreditValue: 2250`.)* |
 | `truk` | 750 | `[logisticscenter]` | Mobile; drives to LC when low; can drop a SUPPLYCACHE. |
 | `supplycache` | 750 | (none) | Stationary; TRUK's own radius/rate (`5c0`/`6`). Reserves nothing (`RestockThreshold: 0`), so it serves down to supply 0, then despawns (`RemoveBelowSupply: 1`) or is captured. |
 
 ### Rearm cost math
 
-In the `SupplyProvider` rearm path (LC, truck, or cache):
-```csharp
-var roundsPerBatch = bestPool.Info.ReloadCount;       // canonical batch size
-var batchesAvailable = currentSupply / bestPool.Info.SupplyValue;
-var batchesNeeded = (missing + roundsPerBatch - 1) / roundsPerBatch;
-var batchesToGive = Math.Min(batchesNeeded, batchesAvailable);
-var roundsToGive = batchesToGive * roundsPerBatch;
+**Corrected 2026-08-30 — the multi-batch pseudocode that stood here is NOT what ships, and the difference is a rounding loss the reader would not predict.** The single serving primitive is `AmmoPool.TryServeBatch` (`AmmoPool.cs:440-461`), and it hands over **exactly one batch per call** and deducts the **full `SupplyValue` regardless of how few rounds actually landed**:
 
-bestPool.GiveAmmo(target, roundsToGive);
-currentSupply -= batchesToGive * bestPool.Info.SupplyValue;
+```csharp
+var cost = pool.Info.SupplyValue;
+if (provider != null && provider.CurrentSupply < cost)
+    return false;
+
+var batch = Math.Max(1, pool.Info.ReloadCount);
+var missing = pool.Info.Ammo - pool.CurrentAmmoCount;
+if (!pool.GiveAmmo(client, Math.Min(batch, missing)))
+    return false;
+
+// Charged AFTER the ammunition lands, so a GiveAmmo that declines cannot bill the depot.
+provider?.DeductSupply(cost);
 ```
+
+So a pool one round short of full still costs a whole batch, and a unit needing three batches takes three `RearmDelay` cycles rather than one transfer. The previous text computed `batchesToGive = Math.Min(batchesNeeded, batchesAvailable)` and charged proportionally; **any sizing argument derived from it understates both the time and the supply a refill costs.**
 
 In `CustomSellValue`:
 ```csharp

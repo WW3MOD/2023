@@ -7,7 +7,7 @@
 -- Setup is asserted rather than assumed: if he is not actually critical when the window opens, the test
 -- fails there and says so, instead of quietly measuring a healthy man who was never going to move.
 
-local ObserveTicks = 300      -- 12s at 25 ticks/s
+local ObserveTicks = 300      -- 18s: 300 ticks at the mod's real 16.67 tps (mod.yaml Timestep 60)
 local CriticalHp = 40         -- 20% of a technician's 200 HP; Critical is anything under 25%
 local CriticalCeiling = 50    -- 25% of 200 — at or below this he is in the Critical band
 
