@@ -117,7 +117,7 @@ rendered so you can choose by looking. They are not part of what I would ship. M
 					<div class="el-stat"><span class="k">Damage</span><span class="dots"></span><span class="v">20 000</span></div>
 					<div class="el-stat"><span class="k">Penetration</span><span class="dots"></span><span class="v">800</span></div>
 					<div class="el-stat"><span class="k">Range</span><span class="dots"></span><span class="v">25.0 <span class="u">cells</span></span></div>
-					<div class="el-stat"><span class="k">Blast</span><span class="dots"></span><span class="v">200 <span class="u">&mdash; 0.25 cells</span></span></div>
+					<div class="el-stat"><span class="k">Blast</span><span class="dots"></span><span class="v">3 000 <span class="u">&mdash; 0.06 cells</span></span></div>
 					<div class="el-stat el-cost"><span class="k">Refill</span><span class="dots"></span><span class="v">8 &times; 30 = 240</span></div>
 				</div>
 
@@ -156,7 +156,7 @@ rendered so you can choose by looking. They are not part of what I would ship. M
 					<div class="el-stat"><span class="k">Damage</span><span class="dots"></span><span class="v">20 000</span></div>
 					<div class="el-stat"><span class="k">Penetration</span><span class="dots"></span><span class="v">800</span></div>
 					<div class="el-stat"><span class="k">Range</span><span class="dots"></span><span class="v">25.0 <span class="u">cells</span></span></div>
-					<div class="el-stat"><span class="k">Blast</span><span class="dots"></span><span class="v">200 <span class="u">&mdash; 0.25 cells</span></span></div>
+					<div class="el-stat"><span class="k">Blast</span><span class="dots"></span><span class="v">3 000 <span class="u">&mdash; 0.06 cells</span></span></div>
 
 					<div class="candbox">
 						<div class="lbl">Candidate A — rate of fire</div>
@@ -210,7 +210,7 @@ rendered so you can choose by looking. They are not part of what I would ship. M
 					<div class="el-stat"><span class="k">Damage</span><span class="dots"></span><span class="v">500 <span class="u">&times; 4 burst</span></span></div>
 					<div class="el-stat"><span class="k">Penetration</span><span class="dots"></span><span class="v">60</span></div>
 					<div class="el-stat"><span class="k">Range</span><span class="dots"></span><span class="v">20.0 <span class="u">cells</span></span></div>
-					<div class="el-stat"><span class="k">Blast</span><span class="dots"></span><span class="v">25 <span class="u">&mdash; 0.06 cells</span></span></div>
+					<div class="el-stat"><span class="k">Blast</span><span class="dots"></span><span class="v">100 <span class="u">&mdash; 0.02 cells</span></span></div>
 					<div class="el-stat el-cost"><span class="k">Refill</span><span class="dots"></span><span class="v">9 &times; 5 = 45</span></div>
 				</div>
 
@@ -220,7 +220,7 @@ rendered so you can choose by looking. They are not part of what I would ship. M
 					<div class="el-stat"><span class="k">Damage</span><span class="dots"></span><span class="v">10 000</span></div>
 					<div class="el-stat"><span class="k">Penetration</span><span class="dots"></span><span class="v">800</span></div>
 					<div class="el-stat"><span class="k">Range</span><span class="dots"></span><span class="v">25.0 <span class="u">cells</span></span></div>
-					<div class="el-stat"><span class="k">Blast</span><span class="dots"></span><span class="v">200 <span class="u">&mdash; 0.25 cells</span></span></div>
+					<div class="el-stat"><span class="k">Blast</span><span class="dots"></span><span class="v">2 000 <span class="u">&mdash; 0.19 cells</span></span></div>
 					<div class="el-stat el-cost"><span class="k">Refill</span><span class="dots"></span><span class="v">8 &times; 75 = 600</span></div>
 				</div>
 
@@ -278,7 +278,7 @@ rendered so you can choose by looking. They are not part of what I would ship. M
 					<div class="el-stat"><span class="k">Damage</span><span class="dots"></span><span class="v">6 000</span></div>
 					<div class="el-stat"><span class="k">Penetration</span><span class="dots"></span><span class="v">500</span></div>
 					<div class="el-stat"><span class="k">Range</span><span class="dots"></span><span class="v">12.0 <span class="u">cells</span></span></div>
-					<div class="el-stat"><span class="k">Blast</span><span class="dots"></span><span class="v">200 <span class="u">&mdash; 0.25 cells</span></span></div>
+					<div class="el-stat"><span class="k">Blast</span><span class="dots"></span><span class="v">800 <span class="u">&mdash; 0.06 cells</span></span></div>
 					<div class="el-stat el-cost"><span class="k">Refill</span><span class="dots"></span><span class="v">1 &times; 50 = 50</span></div>
 				</div>
 
@@ -301,11 +301,20 @@ rendered so you can choose by looking. They are not part of what I would ship. M
 			twice, in two bases, and still never totals.
 		</p>
 		<p class="note-off">
-			<b class="bad">Note the penetration spread.</b> His disposable rocket is
+			<b class="bad">Penetration alone is misleading, and it caught me.</b> His disposable rocket is
 			<code>Penetration: 500</code>; the AT specialist's guided <code>ATGM</code> is
-			<code>Penetration: 100</code> (<code>weapons-missiles.yaml:25</code>) against an Abrams'
-			<code>Thickness: 700</code>. That asymmetry is invisible in every current tooltip and is
-			filed separately — it is a balance question, not a UI one.
+			<code>Penetration: 100</code> — which looks like the specialist is five times worse against
+			an Abrams' <code>Thickness: 700</code>. <b>It is not.</b> Penetration is compared against
+			<code>Thickness &times; ArmorDirectionPercent</code>, and the ATGM is
+			<code>TopAttack: true</code> (<code>weapons-missiles.yaml:6</code>), which selects
+			<code>Distribution[3]</code> (<code>DamageWarhead.cs:150-152</code>) — <b>10%</b> on the
+			Abrams, so effective thickness is <b>70</b> and the ATGM clears it for full damage.
+		</p>
+		<p class="note-off">
+			<b>So the tooltip must show attack direction, or the penetration row is a trap.</b> Two
+			numbers, 500 and 100, rank the wrong way round without it. That is why
+			<code>Top attack</code> is now in the shipped set rather than a candidate — it is not extra
+			detail, it is what makes the row above it readable.
 		</p>
 	</div>
 </div>
@@ -333,7 +342,7 @@ rendered so you can choose by looking. They are not part of what I would ship. M
 					<div class="el-stat"><span class="k">Penetration</span><span class="dots"></span><span class="v">2 500</span></div>
 					<div class="el-stat"><span class="k">Range</span><span class="dots"></span><span class="v">50.0 <span class="u">cells</span></span></div>
 					<div class="el-stat"><span class="k">Min range</span><span class="dots"></span><span class="v">16.0 <span class="u">cells</span></span></div>
-					<div class="el-stat"><span class="k">Blast</span><span class="dots"></span><span class="v">200 <span class="u">&mdash; 0.75 cells</span></span></div>
+					<div class="el-stat"><span class="k">Blast</span><span class="dots"></span><span class="v">2 500 <span class="u">&mdash; 0.75 cells</span></span></div>
 					<div class="el-stat el-cost"><span class="k">Refill</span><span class="dots"></span><span class="v">2 &times; 1500 = 3000</span></div>
 				</div>
 				<div class="el-sep soft"></div>
@@ -429,11 +438,93 @@ rendered so you can choose by looking. They are not part of what I would ship. M
 	</div>
 </div>
 
+<h2 class="sec">4 · The row that stops penetration lying — AT Specialist</h2>
+<div class="row">
+	<div class="col">
+		<div class="caption">Infantry <span class="tag us">AT.america</span> <span class="tag st">top attack</span></div>
+		<div class="tt">
+			<div class="tt-head">
+				<div><div class="tt-name">AT Specialist</div>
+					<div class="tt-sub"><span class="fac-us">NATO</span> &middot; ANTI-ARMOUR</div></div>
+				<div class="rail">
+					<div class="rail-item"><div class="rail-ico">$</div><div class="rail-val">300</div></div>
+					<div class="rail-item"><div class="rail-ico">&#9201;</div><div class="rail-val">0:12</div></div>
+				</div>
+			</div>
+			<div class="tt-body">
+				<p class="el-prose">Heavy anti-armour specialist with guided missiles.</p>
+				<div class="el-sep"></div>
+				<div class="wsec">
+					<div class="wsec-head"><span class="wsec-name">ATGM launcher</span>
+						<span class="wsec-ammo">3 rds &middot; <b>195</b> supply</span></div>
+					<div class="el-stat"><span class="k">Damage</span><span class="dots"></span><span class="v">10 000</span></div>
+					<div class="el-stat"><span class="k">Penetration</span><span class="dots"></span><span class="v">100</span></div>
+					<div class="el-stat"><span class="k">Attack</span><span class="dots"></span><span class="v">Top attack</span></div>
+					<div class="el-stat"><span class="k">Range</span><span class="dots"></span><span class="v">20.0 <span class="u">cells</span></span></div>
+					<div class="el-stat"><span class="k">Min range</span><span class="dots"></span><span class="v">3.0 <span class="u">cells</span></span></div>
+					<div class="el-stat"><span class="k">Blast</span><span class="dots"></span><span class="v">2 000 <span class="u">&mdash; 0.06 cells</span></span></div>
+					<div class="el-stat el-cost"><span class="k">Refill</span><span class="dots"></span><span class="v">3 &times; 65 = 195</span></div>
+				</div>
+				<div class="el-sep soft"></div>
+				<div class="el-stat"><span class="k">Armour</span><span class="dots"></span><span class="v">None</span></div>
+				<div class="el-sep soft"></div>
+				<div class="el-stat el-cost"><span class="k">Call-in</span><span class="dots"></span><span class="v cash">300 cash</span></div>
+				<div class="el-stat el-cost"><span class="k">Full refill</span><span class="dots"></span><span class="v">195 supply</span></div>
+				<div class="el-note">Top-attack missiles strike the thin roof armour of a vehicle.</div>
+			</div>
+		</div>
+	</div>
+	<div class="col" style="width:640px">
+		<div class="caption">Why that one row matters <span class="tag st">measured, not asserted</span></div>
+		<p class="note-off" style="max-width:620px">
+			Side by side, <b>Penetration 100</b> (specialist) against <b>Penetration 500</b> (the
+			rifleman's throwaway rocket) reads as though the dedicated anti-tank soldier is five times
+			worse at his job. <b>I drew exactly that conclusion and filed it as a suspected balance
+			bug. It was wrong.</b>
+		</p>
+		<p class="note-off" style="max-width:620px">
+			Penetration is compared against <code>Thickness &times; ArmorDirectionPercent</code>
+			(<code>DamageWarhead.cs:240</code>), and a <code>TopAttack</code> warhead takes
+			<code>Distribution[3]</code> — the roof.
+		</p>
+		<table class="legend" style="margin-top:6px">
+			<tr><td class="n">weapon</td><td class="n">target</td><td class="n">eff. thickness</td>
+				<td class="n">dmg / shot</td><td class="n">shots to kill</td><td class="n">supply / kill</td></tr>
+			<tr><td>ATGM &mdash; top attack</td><td>abrams 28 000 HP</td><td>700 &rarr; <b>70</b></td>
+				<td><b>10 000</b></td><td>3</td><td>195</td></tr>
+			<tr><td>ATGM &mdash; top attack</td><td>t90 24 000 HP</td><td>280 &rarr; <b>42</b></td>
+				<td><b>10 000</b></td><td>3</td><td>195</td></tr>
+			<tr><td>RPG &mdash; direct, frontal</td><td>abrams</td><td>700</td><td>4 285</td><td>7</td><td>210</td></tr>
+			<tr><td>RPG &mdash; direct, frontal</td><td>t90</td><td>280</td><td>6 000</td><td>4</td><td>120</td></tr>
+		</table>
+		<p class="note-off" style="max-width:620px">
+			<b>The design is coherent.</b> The specialist's three-round load does 30 000 against an
+			abrams' 28 000 HP — <b>exactly one MBT per magazine</b>, which reads deliberate.
+			<code>Penetration: 100</code> is sized against roof armour, not frontal. Retracted in
+			<code>bugs/discovered.md</code> rather than deleted, because the reasoning is the point.
+		</p>
+		<p class="note-off" style="max-width:620px">
+			Supply figures use the <b>2026-08-30 re-pricing</b> (rocket 30, ATGM 65 each). The rocket's
+			<b>50</b> elsewhere on this page is the pre-repricing value that worker
+			<code>4fb3b49b</code> is currently changing.
+		</p>
+	</div>
+</div>
+
 <table class="legend">
 	<tr><td class="n">Would ship</td>
 		<td><b>Damage</b> (what it does) · <b>Penetration</b> (whether it does it to armour) ·
-		<b>Range</b> (where you can stand) · <b>Blast</b> (whether it catches more than one) ·
-		<b>Refill</b> (what sustaining it costs). Ranked by what a player actually decides with.</td></tr>
+		<b>Top attack</b> when set (see below) · <b>Range</b> (where you can stand) ·
+		<b>Blast</b> (whether it catches more than one) · <b>Refill</b> (what sustaining it costs).
+		Ranked by what a player actually decides with.</td></tr>
+	<tr><td class="n">Top attack — promoted from nothing to shipped</td>
+		<td><b>Penetration is compared against <code>Thickness &times; ArmorDirectionPercent</code>, not
+		against <code>Thickness</code>.</b> A <code>TopAttack: true</code> warhead selects
+		<code>Distribution[3]</code> (<code>DamageWarhead.cs:150-152</code>) — 10% on an abrams, 15% on
+		a t90 — so the ATGM's <code>Penetration: 100</code> beats an effective 70 while the RPG's
+		<code>500</code> loses to a frontal 700. <b>Showing penetration without it ranks the two
+		weapons backwards</b>, which is exactly the false conclusion I drew and retracted. Cheap to
+		derive: one bool already on <code>WeaponInfo</code>.</td></tr>
 	<tr><td class="n">Would add if you want one more</td>
 		<td><b>Min range</b> — but only on the weapons that have one. It is decisive for artillery
 		(HIMARS cannot fire inside 16 cells) and noise everywhere else.</td></tr>
