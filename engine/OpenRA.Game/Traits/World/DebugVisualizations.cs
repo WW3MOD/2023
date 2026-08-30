@@ -22,6 +22,31 @@ namespace OpenRA.Traits
 		public bool ScreenMap;
 		public bool ActorTags;
 
+		/// <summary>
+		/// WW3MOD developer overlay: floating damage numbers on every hit, plus a highlighted
+		/// readout when HitCheck flags a shot that armour turned from lethal to harmless.
+		///
+		/// ############################################################################
+		/// # DEFAULTS TO TRUE ON PURPOSE, AND MUST BE FLIPPED TO FALSE BEFORE RELEASE. #
+		/// ############################################################################
+		///
+		/// User ruling 2026-08-30: developer-facing feedback only, no player-facing combat feedback
+		/// of any kind -- "that could be made default on for now, as long as we change it before
+		/// release so make notes appropriately". A debug overlay visible in a stranger's first match
+		/// is an immediately-visible this-is-unfinished signal, which is the release audit's own
+		/// definition of a BLOCKER.
+		///
+		/// This comment is NOT the countermeasure -- prose has failed twice in this repo already.
+		/// The load-bearing guards are the BLOCKER entry in WORKSPACE/PIPELINE.md and
+		/// DebugVisualizationDefaultsTest, which asserts this value and fails the build the moment it
+		/// changes, so flipping it is a deliberate act with a visible diff.
+		///
+		/// Previously this readout was bundled into CombatGeometry, so seeing a damage number also
+		/// drew hitshape and muzzle wireframes -- which is why it read as missing rather than as a
+		/// developer feature.
+		/// </summary>
+		public bool DamageNumbers = true;
+
 		// The depth buffer may have been left enabled by the previous world
 		// Initializing this as dirty forces us to reset the default rendering before the first render
 		bool depthBufferDirty = true;

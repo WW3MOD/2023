@@ -100,6 +100,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				showCombatCheckbox.OnClick = () => debugVis.CombatGeometry ^= true;
 			}
 
+			// WW3MOD: deliberately separate from Combat Geometry -- see DebugVisualizations.DamageNumbers.
+			// Defaults ON and is a RELEASE BLOCKER, so this box starts checked.
+			var showDamageNumbersCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_DAMAGE_NUMBERS");
+			if (showDamageNumbersCheckbox != null)
+			{
+				showDamageNumbersCheckbox.Disabled = debugVis == null;
+				showDamageNumbersCheckbox.IsChecked = () => debugVis != null && debugVis.DamageNumbers;
+				showDamageNumbersCheckbox.OnClick = () => debugVis.DamageNumbers ^= true;
+			}
+
 			var showGeometryCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_GEOMETRY");
 			if (showGeometryCheckbox != null)
 			{

@@ -123,14 +123,24 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyDamage.Damaged(Actor self, AttackInfo e)
 		{
-			if (debugVis == null || !debugVis.CombatGeometry || e.Damage.Value == 0)
+			// Gated on DamageNumbers rather than CombatGeometry since 2026-08-30: this readout used to
+			// be bundled with the hitshape and muzzle wireframes, so anyone who wanted a damage number
+			// got a screen full of geometry with it -- which is why the readout read as missing rather
+			// than as a developer feature. DamageNumbers defaults ON and is a RELEASE BLOCKER; see
+			// DebugVisualizations.DamageNumbers.
+			if (debugVis == null || !debugVis.DamageNumbers || e.Damage.Value == 0)
 				return;
 
 			if (healthInfo == null)
 				return;
 
 			var maxHP = healthInfo.MaxHP > 0 ? healthInfo.MaxHP : 1;
-			var damageText = $"{-e.Damage.Value} ({e.Damage.Value * 100 / maxHP}%)";
+
+			// Tenths, not whole percent. The motivating bug delivered 192 against 24000 HP, and
+			// integer-truncated whole percent renders that as "0%" -- indistinguishable from a
+			// rounding artefact. "0.8%" reads as a number someone got wrong, which is the point.
+			var perMille = e.Damage.Value * 1000 / maxHP;
+			var damageText = $"{-e.Damage.Value} ({perMille / 10}.{perMille % 10}%)";
 
 			self.World.AddFrameEndTask(w => w.Add(new FloatingText(self.CenterPosition, e.Attacker.OwnerColor(), damageText, 30)));
 		}

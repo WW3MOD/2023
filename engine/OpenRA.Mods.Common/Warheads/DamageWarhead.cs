@@ -12,6 +12,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.GameRules;
+using OpenRA.Mods.Common.Effects;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -255,11 +256,22 @@ namespace OpenRA.Mods.Common.Warheads
 			if (effectiveThickness > 0 && HitCheck.LostMostOfItsDamage(damageBeforeArmour, damage))
 			{
 				var victimMaxHp = victim.TraitOrDefault<Health>()?.MaxHP ?? 0;
-				if (HitCheck.IsUnderPerforming(damageBeforeArmour, damage, effectiveThickness, victimMaxHp)
-					|| HitCheck.IsUnderPerformingAgainstThinArmour(damageBeforeArmour, damage, effectiveThickness, victimMaxHp))
+				var loud = HitCheck.IsUnderPerforming(damageBeforeArmour, damage, effectiveThickness, victimMaxHp);
+				if (loud || HitCheck.IsUnderPerformingAgainstThinArmour(damageBeforeArmour, damage, effectiveThickness, victimMaxHp))
 				{
 					HitCheck.Report(firedBy.Info.Name, victim.Info.Name, GetType().Name, Damage, Penetration,
 						damageBeforeArmour, damage, effectiveThickness, victimMaxHp);
+
+					// On-screen half of the same signal, so a developer watching a match sees the
+					// anomaly without tailing a file. Loud channel only -- the advisory band is
+					// numerous enough to clutter the screen and it is not what anyone is hunting.
+					var debugVis = firedBy.World.WorldActor.TraitOrDefault<DebugVisualizations>();
+					if (loud && debugVis != null && debugVis.DamageNumbers)
+					{
+						var text = $"ARMOUR {damageBeforeArmour}->{damage}";
+						firedBy.World.AddFrameEndTask(w => w.Add(
+							new FloatingText(victim.CenterPosition, Color.OrangeRed, text, 60)));
+					}
 				}
 			}
 
