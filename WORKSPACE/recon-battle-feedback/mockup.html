@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD · battle feedback — four options for "the shot achieved nothing"</title>
+<style>
+/* Palette from mods/ww3mod/chrome/_lobby-palette.yaml (the design authority).
+   Constraint inherited from WORKSPACE/tooltip-mockups/_style.css:4-15 —
+   NO border-radius, NO box-shadow, NO gradients, NO transitions. Only what
+   ColorBlockWidget + LabelWidget can actually render. */
+:root{
+  --bg-app:#0a0a0a; --bg-panel:#141414; --bg-panel-2:#1a1a1a; --bg-banner:#1c1c1c;
+  --bg-button:#222; --bevel-light:#3a3a3a; --bevel-dark:#030303;
+  --line:#262626; --line-soft:#1d1d1d;
+  --accent:#b4b4b4; --accent-dim:#6e6e6e;
+  --ink:#d4d4d4; --ink-2:#969696; --ink-3:#686868; --ink-4:#404040;
+  --us:#6f93b8; --ru:#b87070; --ru-bg:#261616;
+  --chip-up:#6ed68a; --chip-down:#e77d7d;
+  /* pip colours read off sequences-misc.yaml naming: green/yellow/red ladder */
+  --pip-green:#6ed68a; --pip-yellow:#fad165; --pip-red:#e77d7d;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg-app);color:var(--ink);
+  font-family:'Liberation Sans','DejaVu Sans','Helvetica Neue',Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+body{padding:28px 32px 80px}
+h1{font-size:24px;font-weight:bold;margin:0 0 6px}
+.sub{font-size:12px;color:var(--ink-3);margin:0 0 4px;max-width:1000px;line-height:1.65}
+.sub code{color:var(--accent-dim)}
+.sub b{color:var(--ink-2)}
+h2{font-size:12px;font-weight:bold;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);
+  margin:40px 0 6px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.h2note{font-size:11px;color:var(--ink-3);line-height:1.6;margin:0 0 16px;max-width:1000px}
+.h2note b{color:var(--ink-2)}
+
+.row{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.card{width:300px;background:var(--bg-panel);
+  border-top:1px solid var(--bevel-light);border-left:1px solid var(--bevel-light);
+  border-right:1px solid var(--bevel-dark);border-bottom:1px solid var(--bevel-dark)}
+.card-head{padding:5px 8px 6px;background:var(--bg-banner);display:flex;
+  align-items:baseline;justify-content:space-between}
+.card-name{font-size:13px;font-weight:bold;color:var(--ink)}
+.card-tag{font-size:9px;font-weight:bold;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--bg-app);background:var(--ink-4);padding:1px 5px}
+.card-tag.now{background:#3a3a3a;color:#d0d0d0}
+.card-tag.a{background:#33465a;color:#cfe0f0}
+.card-tag.b{background:#2a623a;color:#cdeed8}
+.card-tag.c{background:#7a6435;color:#f0e2c4}
+.card-tag.d{background:#4a2a2a;color:#f0cccc}
+
+/* the little battlefield viewport */
+.scene{height:150px;background:#232a20;position:relative;overflow:hidden;
+  border-bottom:1px solid var(--line)}
+.ground{position:absolute;inset:0;
+  background-image:repeating-linear-gradient(0deg,#232a20 0 7px,#212819 7px 14px);}
+.tank{position:absolute;left:118px;top:62px;width:44px;height:26px;background:#5c6350;
+  border-top:1px solid #767e66;border-left:1px solid #767e66;
+  border-right:1px solid #3a4033;border-bottom:1px solid #3a4033}
+.tank .turret{position:absolute;left:12px;top:6px;width:20px;height:13px;background:#6a7159;
+  border-top:1px solid #838b70;border-bottom:1px solid #434a38}
+.tank .barrel{position:absolute;left:30px;top:11px;width:20px;height:3px;background:#6a7159}
+.tank.flash-red{background:#8a5148;border-top-color:#b3766a;border-left-color:#b3766a}
+.tank.flash-red .turret{background:#96594e}
+.tank.flash-grey{background:#8e9288;border-top-color:#b6b9b0;border-left-color:#b6b9b0}
+.tank.flash-grey .turret{background:#9aa094}
+
+/* impact spark */
+.spark{position:absolute;left:110px;top:58px;width:12px;height:12px;background:#e8d9a0}
+.spark.big{left:106px;top:54px;width:20px;height:20px;background:#f2c46a}
+.spark.grey{background:#c9cdd2}
+
+/* pips — the ACTUAL health readout in this mod */
+.pips{position:absolute;left:126px;top:48px;display:flex;gap:2px}
+.pip{width:6px;height:6px;background:var(--ink-4);
+  border-top:1px solid #4e4e4e;border-left:1px solid #4e4e4e}
+.pip.g{background:var(--pip-green)} .pip.y{background:var(--pip-yellow)} .pip.r{background:var(--pip-red)}
+
+/* floating damage text */
+.float{position:absolute;font-size:11px;font-weight:bold;letter-spacing:.02em}
+.float.us{color:#8fb4d8} .float.dim{color:#9aa094} .float.warn{color:var(--chip-down)}
+.float.big{font-size:13px}
+
+/* the ricochet glyph option */
+.glyph{position:absolute;font-size:10px;font-weight:bold;letter-spacing:.09em;
+  text-transform:uppercase;color:#c9cdd2}
+
+.card-body{padding:8px 9px 10px}
+.stat{display:flex;align-items:baseline;font-size:11px;line-height:17px}
+.stat .k{color:var(--ink-3);font-size:9px;font-weight:bold;letter-spacing:.07em;text-transform:uppercase}
+.stat .dots{flex:1 1 auto;margin:0 6px;border-bottom:1px dotted var(--ink-4);transform:translateY(-3px)}
+.stat .v{color:var(--ink);font-weight:bold}
+.stat .v.good{color:var(--chip-up)} .stat .v.bad{color:var(--chip-down)}
+.blurb{font-size:11px;color:var(--ink-2);line-height:16px;margin:8px 0 0}
+.blurb b{color:var(--ink)}
+.cost{font-size:10px;color:var(--ink-3);line-height:15px;margin:7px 0 0;
+  padding-left:8px;border-left:1px solid var(--line)}
+.cost b{color:var(--ink-2)}
+.wrong{font-size:10px;color:var(--chip-down);line-height:15px;margin:6px 0 0;
+  padding-left:8px;border-left:1px solid #4a2a2a}
+
+.legend{border-collapse:collapse;font-size:11px;margin-top:14px;max-width:1080px}
+.legend td{padding:6px 16px 6px 0;vertical-align:top;color:var(--ink-3);
+  border-top:1px solid var(--line-soft)}
+.legend td.n{color:var(--ink-2);font-weight:bold;white-space:nowrap}
+.legend code{color:var(--accent-dim)}
+.taste{color:#c8a45a;font-weight:bold}
+</style>
+</head>
+<body>
+
+<h1>When a shot achieves nothing, can the player tell why?</h1>
+<p class="sub">
+Four presentations of the <b>same event</b>: an RPG round striking an Abrams frontally.
+Nominal warhead damage <b>6000</b>; delivered damage <b>4285</b>, because
+<code>Penetration: 500</code> is under the frontal armour value of <b>700</b>
+(<code>weapons-ballistics.yaml:535</code>, <code>vehicles-america.yaml:497-500</code>).
+The motivating case in the brief is the same mechanism, one rung worse: raw damage
+<b>54000</b> with <code>Penetration</code> left unset, so it defaults to <b>1</b>
+(<code>DamageWarhead.cs:24</code>) and a T-90's <b>280&nbsp;mm</b> divides it down to
+<b>192</b> — <b>0.8%</b> of that tank's 24000&nbsp;HP. Pinned in
+<code>BallisticPenetrationTest.UnsetPenetrationGutsDamageAgainstArmour</code>.
+</p>
+<p class="sub">
+Every colour is from <code>mods/ww3mod/chrome/_lobby-palette.yaml</code>. Presentation choices are
+marked <span class="taste">[TASTE]</span> in the written proposal; nothing here is a shipped design.
+</p>
+
+<h2>The four options, side by side</h2>
+<p class="h2note">
+The tank sprite, the impact spark and the damage pips are drawn approximately — the point is the
+<b>information</b> each option adds, not the art. <b>Note what is absent from every panel: there is no
+health bar.</b> WW3MOD deliberately ships without one
+(<code>SelectionBarsAnnotationRenderable.cs:168-181</code>), so the pip row is the entire
+accumulated-damage readout.
+</p>
+
+<div class="row">
+
+  <!-- ============ TODAY ============ -->
+  <div class="card">
+    <div class="card-head"><span class="card-name">Today</span><span class="card-tag now">shipped</span></div>
+    <div class="scene">
+      <div class="ground"></div>
+      <div class="spark"></div>
+      <div class="tank"><div class="turret"></div><div class="barrel"></div></div>
+      <div class="pips"><i class="pip y"></i><i class="pip"></i><i class="pip"></i><i class="pip"></i></div>
+    </div>
+    <div class="card-body">
+      <div class="stat"><span class="k">Shows</span><span class="dots"></span><span class="v">an impact</span></div>
+      <div class="stat"><span class="k">Explains</span><span class="dots"></span><span class="v bad">nothing</span></div>
+      <p class="blurb">
+        A spark and <code>kaboom12.aud</code>. Identical whether the round did 6000, 4285, 192 or was
+        cancelled outright by a target-type mismatch. The single yellow pip appears on the
+        <b>first</b> hit and then does not move again for ~31 more.
+      </p>
+      <p class="wrong">This is the reported problem, not an option.</p>
+    </div>
+  </div>
+
+  <!-- ============ A: NUMBERS ============ -->
+  <div class="card">
+    <div class="card-head"><span class="card-name">A · Damage numbers</span><span class="card-tag a">exists</span></div>
+    <div class="scene">
+      <div class="ground"></div>
+      <div class="spark"></div>
+      <div class="tank"><div class="turret"></div><div class="barrel"></div></div>
+      <div class="pips"><i class="pip y"></i><i class="pip"></i><i class="pip"></i><i class="pip"></i></div>
+      <div class="float us" style="left:132px;top:28px">-4285 (15%)</div>
+      <div class="float dim" style="left:150px;top:12px">-192 (0%)</div>
+    </div>
+    <div class="card-body">
+      <div class="stat"><span class="k">Shows</span><span class="dots"></span><span class="v">exact damage</span></div>
+      <div class="stat"><span class="k">Explains</span><span class="dots"></span><span class="v bad">what, not why</span></div>
+      <p class="blurb">
+        <b>Already built and already wired.</b> <code>CombatDebugOverlay</code> is on
+        <code>^ExistsInWorld</code> (<code>defaults.yaml:4</code>) and prints exactly this string via
+        <code>FloatingText</code> (<code>CombatDebugOverlay.cs:133-135</code>) — but only behind the
+        developer <i>Show Combat Geometry</i> checkbox, which also draws hitshape wireframes.
+      </p>
+      <p class="cost"><b>Cost:</b> split one debug flag; fix the integer truncation that renders
+        192/24000 as <code>0%</code>. Engine-only, no art, no YAML.</p>
+      <p class="wrong">Turns a war game into a spreadsheet. Says <code>-192</code>, never
+        &ldquo;because the armour stopped it&rdquo;.</p>
+    </div>
+  </div>
+
+  <!-- ============ B: INEFFECTIVENESS ============ -->
+  <div class="card">
+    <div class="card-head"><span class="card-name">B · Ineffective cue</span><span class="card-tag b">recommended</span></div>
+    <div class="scene">
+      <div class="ground"></div>
+      <div class="spark grey"></div>
+      <div class="tank flash-grey"><div class="turret"></div><div class="barrel"></div></div>
+      <div class="pips"><i class="pip y"></i><i class="pip"></i><i class="pip"></i><i class="pip"></i></div>
+      <div class="glyph" style="left:150px;top:34px">&#10005; armour</div>
+    </div>
+    <div class="card-body">
+      <div class="stat"><span class="k">Shows</span><span class="dots"></span><span class="v">it bounced</span></div>
+      <div class="stat"><span class="k">Explains</span><span class="dots"></span><span class="v good">the cause</span></div>
+      <p class="blurb">
+        A <b>distinct spark</b> (hard, grey, no fireball), a <b>ricochet sound</b>, and a one-frame
+        pale tint on the victim. No arithmetic. The player learns &ldquo;my RPGs bounce off Abrams
+        frontally&rdquo; without being handed a number.
+      </p>
+      <p class="cost"><b>Cost:</b> one ratio test at <code>DamageWarhead.cs:246</code> where raw and
+        final damage are both in scope; reuses the shipped <code>FlashTarget</code> effect
+        (<code>WithHealFlash</code> is the same shape). Needs <b>one sound and one small sprite</b>.</p>
+      <p class="wrong">Needs a threshold, which is a tuning call. And a tint on a small sprite has
+        already measured as near-invisible once — see the heal-flash note below.</p>
+    </div>
+  </div>
+
+  <!-- ============ C: LAYERED ============ -->
+  <div class="card">
+    <div class="card-head"><span class="card-name">C · B, plus numbers on request</span><span class="card-tag c">B + A</span></div>
+    <div class="scene">
+      <div class="ground"></div>
+      <div class="spark grey"></div>
+      <div class="tank flash-grey"><div class="turret"></div><div class="barrel"></div></div>
+      <div class="pips"><i class="pip y"></i><i class="pip"></i><i class="pip"></i><i class="pip"></i></div>
+      <div class="glyph" style="left:150px;top:34px">&#10005; armour</div>
+      <div class="float dim" style="left:150px;top:18px">-4285 &middot; pen 500 / 700</div>
+    </div>
+    <div class="card-body">
+      <div class="stat"><span class="k">Shows</span><span class="dots"></span><span class="v">both, layered</span></div>
+      <div class="stat"><span class="k">Explains</span><span class="dots"></span><span class="v good">fully</span></div>
+      <p class="blurb">
+        The cue is always on; the arithmetic is a <b>player setting, default off</b>. The number
+        carries the comparison that caused it — <code>pen 500 / 700</code> — which is the line that
+        would have made the 192-damage bug self-evident.
+      </p>
+      <p class="cost"><b>Cost:</b> A + B, plus one settings entry. The &ldquo;why&rdquo; string needs the
+        intermediates, so it must be emitted from the warhead, not from
+        <code>INotifyDamage</code> — see the note below.</p>
+      <p class="wrong">Two surfaces to tune and two to keep honest. Most work of the four.</p>
+    </div>
+  </div>
+
+</div>
+
+<h2>Why <code>INotifyDamage</code> cannot answer &ldquo;why&rdquo;</h2>
+<p class="h2note">
+The obvious hook is the wrong one, and this is the single fact that sets the cost of every option
+above. <code>AttackInfo</code> (<code>engine/OpenRA.Game/Traits/TraitsInterfaces.cs:80-86</code>)
+carries <b>only</b> the final number:
+</p>
+
+<table class="legend">
+<tr><td class="n">In <code>AttackInfo</code></td>
+    <td><code>Damage.Value</code> (final), <code>Attacker</code>, <code>DamageState</code>,
+        <code>PreviousDamageState</code>. <b>That is the whole payload.</b> A listener sees
+        <code>-192</code> and cannot tell a small weapon from a defeated one.</td></tr>
+<tr><td class="n">Only at the warhead</td>
+    <td><code>DamageWarhead.InflictDamage</code> (<code>:220-257</code>) has <code>Damage</code> (raw),
+        <code>damage</code> (post-penetration), <code>thickness</code>, <code>armorPercent</code>,
+        <code>Penetration</code>, <code>DamageVersus(...)</code> and <code>modifiedDamage</code> all
+        live in one scope. <b>The ratio raw&nbsp;&rarr;&nbsp;final is the signal, and it exists at exactly one
+        site.</b></td></tr>
+<tr><td class="n">Already formatted</td>
+    <td><code>GunTrace</code> writes precisely this breakdown — <code>rawDamage</code>,
+        <code>afterThickness</code>, <code>thickness</code>, <code>pen</code>, <code>versus</code>,
+        <code>FINAL</code>, <code>hpBefore</code> — at <code>DamageWarhead.cs:248-249</code>. It goes
+        to <code>debug.log</code> behind <code>WW3_GUNTRACE=1</code>. <b>The explanation is computed
+        in the shipped build today and thrown away.</b></td></tr>
+</table>
+
+<h2>Two shipped precedents that constrain the design</h2>
+<table class="legend">
+<tr><td class="n">The heal flash</td>
+    <td><code>WithHealFlash</code> ships and works — measured at
+        <code>(50,98,183) &rarr; (67,137,255)</code>, a clean 1.4&times; lift. <b>And it was still at the
+        threshold of perceptibility</b>: on a ~15&nbsp;px sprite for 360&nbsp;ms it could not be told from
+        the control by eye, only under 12&times; magnification
+        (<code>WORKSPACE/medic-heal-flash-vs-control.png</code>). Any tint-based cue on
+        <i>infantry</i> inherits that risk. A tank is a bigger sprite, which is the case that matters
+        here.</td></tr>
+<tr><td class="n">The critical pip</td>
+    <td>Blink rate is already a <b>readout of remaining health</b>, ramped so every part of its range
+        reads (<code>2054b7b0</code>). It is the house precedent for <i>analog, non-numeric,
+        carried on artwork</i> — which is the argument for option B over option A.</td></tr>
+</table>
+
+<h2>The separate product question: the health bar</h2>
+<p class="h2note">
+None of the four options restores <b>accumulated</b> damage legibility, because the mod has no health
+bar by choice. A 0.8% hit lights one pip and then 31 further hits change nothing on screen. Turning
+the bar back on is the largest single legibility gain available — and the engine file asks, in as many
+words, that it not be done without asking: <i>&ldquo;Re-enabling this is a product decision, not a
+cleanup: it turns on an indicator the user switched off himself. Ask before uncommenting.&rdquo;</i>
+(<code>SelectionBarsAnnotationRenderable.cs:180-181</code>). It is raised here as a question, not
+proposed as work.
+</p>
+
+</body>
+</html>
