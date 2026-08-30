@@ -1,0 +1,1 @@
+Auto: ordering a supply truck onto a Logistics Centre must GIVE when loaded and RECEIVE when at or below RestockThreshold, with force-move inverting it, and distinct cursors for each direction.

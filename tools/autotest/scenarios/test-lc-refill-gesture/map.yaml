@@ -1,0 +1,79 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Supply Truck Refills a Logistics Centre (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Every truck and Centre below is re-staged by Test.SetSupply in WorldLoaded before it is read, so
+	# the numbers that decide each observable are stated in the Lua next to the assertion they drive
+	# rather than hidden here. The Supply inits are still set to sane starting values: SupplyProvider
+	# seeds currentSupply from TotalSupply, so anything left unstated spawns FULL, and a truck left at
+	# 0 would be driven off the map by DropsSupplyCache's idle evacuate path before the first reading.
+	Truck: truk
+		Owner: USA
+		Location: 10,16
+		Supply: 750
+	# Twenty cells east of the truck, so the delivery at the end has to actually drive: a transfer
+	# that credited the Centre without arriving would show up as the Centre filling while the truck
+	# is still sitting at x=10.
+	StockedLC: logisticscenter
+		Owner: USA
+		Location: 30,16
+		Supply: 1000
+	FullLC: logisticscenter
+		Owner: USA
+		Location: 30,10
+		Supply: 2250
+	DrainedLC: logisticscenter
+		Owner: USA
+		Location: 30,24
+		Supply: 0
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 10,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

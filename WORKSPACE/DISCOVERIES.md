@@ -3,6 +3,34 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-30 — Two branches fixed one cursor defect independently, and git AUTO-MERGED their two field declarations into a duplicate (`wt/truck-refills-lc` rebased onto `a2466c3b`)
+
+`wt/cursor-honesty` (`49f2723d`) and `wt/truck-refills-lc` both noticed that `Restock` and
+`DeliverSupply` drew the same cursor, and both added a `DeliverSupplyCursor` field to
+`DropsSupplyCacheInfo` — at DIFFERENT points in the file, with different defaults (`"ability"` vs
+`"goldwrench"`) and contradictory `[Desc]` text. **Git reported ONE conflict, in the targeter body,
+and silently auto-merged the two field additions into two declarations of the same member.** The
+build catches that (duplicate member), so here it was loud rather than dangerous — but the lesson
+holds for the cases where it would not be: *a clean auto-merge between two independent fixes for one
+defect is not evidence that they agree.* Only the hunk both sides edited conflicts; whatever each
+side added ALONE merges cleanly no matter how much the two contradict. Read the other commit in
+full, not just the conflicted hunk.
+
+**The semantic half is the more interesting one, because preserving `main`'s guard would have
+silently reverted a user ruling.** `main`'s `RestockOrderTargeter` opened with
+`if (ForceMove) return false`, commented "stand aside for Ctrl+click, because Ctrl means DELIVER and
+priority 7 would otherwise shadow delivery's 6". That guard is correct FOR THE OLD POLARITY. Under
+the 2026-08-30 ruling Ctrl means "the Centre serves the truck" — the Restock direction — so keeping
+the line would have made Ctrl+click resolve to delivery again and undone the ruling, while looking
+like careful conflict resolution that retained a guard.
+
+The defect that guard protected against is still prevented, by a stronger mechanism: both targeters
+read one single-valued arbitration function and act on opposite answers, so at most one can match and
+the 6/7 priority is never consulted between two matches. **The general shape: when resolving a
+conflict, ask what the incoming guard was PROTECTING and whether your side prevents that outcome by
+other means — not whether the guard survived.** A guard kept out of caution can encode the very
+behaviour the branch exists to change.
+
 ## 2026-08-30 — `iskander` and `HIMARS` carry NO `Rearmable`, so ANY resupply-selection scenario staged on them is vacuous — the detour branch is unreachable for those two whatever it is guarded on (`wt/evac-afford`, base `main @ 48d60cb4`)
 
 **The trap in one line: a resupply test that uses the unit the bug was REPORTED against can be
@@ -139,6 +167,163 @@ its `target` entirely** when `Type == "Rotation"` and queues `RotateToEdge` inst
 still advertises the generic `enter` cursor (`:38`) at priority 5, beating Mobile's 4. So the cursor
 is honest about *an* order existing and silent about it being a completely different one. When
 auditing a cursor, check that the resolver actually *uses* the target it was handed.
+## 2026-08-30 — FIRST OBSERVATION of the post-delivery evacuation: the behaviour is right and the READOUT is not (`wt/truck-refills-lc`, run `260830_092643_p73567`)
+
+Until this run every account of the evacuation chain — three of them, mine included — was traced
+through source. Watched, with the camera actually on the truck, it does what the code says: a truck
+that empties itself into a Centre drives to the map edge and is sold, ~200 ticks after the transfer.
+The behaviour is the user's ruling and is not in question. **What the frames show is that none of it
+is legible**, which is a separate item:
+
+1. **The sale is silent.** No floating credit text, no notification, no marker on the truck. It
+   drives off and ceases to exist. A player who did not order it to leave gets no statement that it
+   left, why, or for how much.
+2. **The only feedback is the cash counter, and it lags badly.** In the frame captured 100 ticks
+   AFTER the sale the HUD read `21336 (+100)` while the player's actual cash was already 21675. So
+   the one signal is in the far corner of the screen, arrives seconds late, and is still climbing
+   when the event that caused it is long over.
+3. **Nothing connects the sale to the delivery** that caused it.
+4. **Arrival is hard to read too.** The drive targets the cell containing the host's CenterPosition
+   with `ignoreActor: host`, so the truck parks essentially INSIDE a 3x3 Centre's footprint and is
+   substantially occluded by the building sprite (see `001_02-delivered.png`). "My truck has arrived
+   and unloaded" is not clearly visible even when it has.
+
+**MEASUREMENT CAVEAT on any refund number taken this way.** The scenario's `cash 21045 -> 21675
+(refund 630)` spans the 200 ticks between the delivery and the sale, during which the player also
+accrued passive income — the `(+35)` / `(+100)` HUD indicators are visible in the frames. **630 is
+not the refund**; it is the refund plus income. Attributing it needs a control, and TRUK costs 1000
+so a clean figure matters if anyone tunes this. Recorded so the number is not later quoted as the
+evacuation refund.
+
+## 2026-08-30 — The truck→LC delivery order was ALREADY SHIPPED, with the polarity inverted; the task was a reversal, not a build (`wt/truck-refills-lc`, from `main @ 48d60cb4`)
+
+The brief for this work stated that "the LC → truck direction already exists" and "the truck→LC
+direction is what is missing". **Both halves already existed.** `DropsSupplyCache` shipped three
+order targeters — `PickupSupplyOrderTargeter` (priority 8), `RestockOrderTargeter` (7) and
+`DeliverSupplyOrderTargeter` (6) — and `IResolveOrder` handled `"PickupSupply"`, `"Restock"` and
+`"DeliverSupply"`. What was actually wrong was the POLARITY: a plain click on an LC ran `Restock`
+(LC→truck) and only **Ctrl+click** ran `DeliverSupply` (truck→LC), the exact opposite of the
+2026-08-30 ruling. Both targeters were also constructed with `info.RestockCursor`, so the two
+directions were **visually identical** and nothing on screen told the player which way supply was
+about to move.
+
+The generalisable part is the search that would have found it in seconds and was not run:
+`DeliverSupply` was greppable by name in the file the brief already named. This is the CLAUDE.md
+"spend one `git log -S` or one grep on the item's central premise" rule failing again, and it failed
+at the *research* step that produced the brief rather than during the work — a premise handed over as
+established is exactly as cheap to check as an unstated one, and is trusted harder.
+
+## 2026-08-30 — A full transport steered to `Restock` gets a drive that transfers nothing and repairs nothing, under an `enter` cursor (`engine/OpenRA.Mods.Common/Traits/DropsSupplyCache.cs`)
+
+The pre-reversal `RestockOrderTargeter` accepted when `notFull || damaged`. The `damaged` term reads
+as sound design — `LOGISTICSCENTER` carries `RepairsUnits` (`structures.yaml:450`) and `TRUK` carries
+`Repairable: RepairActors: logisticscenter` (`vehicles.yaml`), so a full-but-damaged truck really does
+have a reason to dock. **It still did not work.** The order that term steers the click to is
+`Restock`, whose activity `RestockSupply` moves supply and only supply; a full damaged truck was sent
+on a drive that transferred zero and repaired nothing.
+
+`Repairable`'s own targeter sits at priority **5**, below both supply targeters, and
+`UnitOrderGenerator.OrderForUnit` returns the FIRST targeter that matches walking down priority — so
+a supply targeter that accepts a click it cannot act on is precisely what stops `Repairable` ever
+seeing it.
+
+**CORRECTION to the first version of this entry, which credited the effect to the wrong line.** The
+old predicate was `notFull || damaged`, so `damaged` could only matter when the transport was FULL —
+and under the old polarity Restock was gated on `!ForceMove`, so force-move on a full transport went
+to Deliver and never reached Restock either. Measured against the code that actually shipped,
+**deleting `damaged` changed nothing observable on a Centre; the term was already dead.** What the
+deletion really does is stop it becoming live under the NEW polarity, where it would have claimed the
+force-move-on-a-full-transport click for Restock and re-blocked repair. The narrower truth worth
+recording: repair-by-click is reachable only by force-move on an *exactly full* transport, and a
+damaged transport holding any supply at all cannot be sent to a Centre for repair by any click —
+before this change or after it.
+
+The general shape survives the correction and is the part worth carrying beyond this file: in a
+priority-ordered targeter chain, accepting a click you cannot act on is not a harmless no-op, it is a
+silent veto over every lower-priority trait — and it is invisible, because a cursor still appears.
+
+## 2026-08-30 — A truck that empties itself into a Logistics Centre drives off the map and is sold. This is INTENDED — user ruling, do not "fix" it
+
+`DropsSupplyCache.OnBecomingIdle` fires `EvacuateOrRestock` on any tick the transport is idle and
+`CountsAsEmpty` (`DropsSupplyCache.cs:404-412`), and `TRUK` sets **`InitialResupplyBehavior: Evacuate`
+and `InitialResupplyBehaviorAI: Evacuate`** (`vehicles.yaml`), so the `Evacuate` arm is taken and the
+truck is queued a `RotateToEdge` — it **drives off the map for its evacuation refund**.
+
+**THE PRECISE TRIGGER, which is not obvious from the code: it fires whenever the Centre had headroom
+for the WHOLE load** — i.e. on every complete delivery, and never on a partial one, because a truck
+that keeps a remainder is not `CountsAsEmpty` and the idle path is never entered.
+
+**This is the intended behaviour, ruled by the user on 2026-08-30**, chosen over parking the truck,
+over shuttling it back, and over making it stance-dependent. The reasoning, recorded because it is
+what stops the chain being read as a bug by the next person to trace it: an empty truck has done its
+job and its residual value should return to the player. WW3MOD has no factory — units are budget
+allocation — so evacuate-for-refund is already the shipped idiom for turning a spent unit back into
+budget, and artillery and dry units both do it. **A supply truck that parked instead would be the
+inconsistency, not the rule.** Before the gesture reversal this could only follow a deliberate
+Ctrl+click; it is now the ordinary outcome of the ordinary click, and that is accepted.
+
+Do not "improve" this into `Auto` or `Hold`. Two facts about those, both of which an earlier version
+of this entry got wrong: `Auto` would be a SINGLE UNDO rather than a loop — the truck restocks to
+full, is then no longer `CountsAsEmpty`, and nothing re-triggers — and `Auto` is **unreachable on
+TRUK anyway**, because `SupplyProvider.ShouldSelfRestock` returns false for `Evacuate`, which is what
+TRUK sets for both human and AI owners. `Hold` is the only stance that parks the truck and it must be
+set by hand, which remains available to a player who wants it.
+
+**Still never observed.** Every account of this chain so far, including this one, is traced through
+source rather than watched. What it looks like in motion — whether the sale reads as connected to the
+delivery the player just ordered — is a separate legibility question from whether the behaviour is
+right, and the behaviour is settled.
+
+## 2026-08-30 — A Logistics Centre STARTS FULL, so the most natural first use of a delivery gesture transfers nothing (`engine/OpenRA.Mods.Common/Traits/SupplyProvider.cs:364`)
+
+`currentSupply = init.GetValue<SupplyInit, int>(info, info.TotalSupply)` — the default is
+`TotalSupply`, not zero. A Centre deployed from an LCCV therefore begins at 2250/2250, and
+`ITransformActorInitModifier` carries a partial load across the deploy rather than starting one.
+
+The consequence for any "send a transport to fill it" gesture is that **the first thing a player will
+try is the one case with no headroom.** An order targeter that tests only the transport's pool
+answers "yes, deliver", draws its cursor, and drives the transport the whole way to move zero. The
+generalisable form: *a transfer gesture needs BOTH pools to decide whether it can act, and the one
+most likely to be forgotten is the receiver's, because the actor being clicked feels like the passive
+party.* Making the receiver's pool a required parameter of the shared decision function — rather than
+an optional refinement a call site can omit — is what keeps it from being dropped again.
+
+## 2026-08-30 — `Move` to an unreachable cell REPORTS ARRIVAL, so any transfer that runs after a drive needs an explicit arrival check (`engine/OpenRA.Mods.Common/Activities/Move.cs:173-177`)
+
+`if (path.Count == 0) { destination = mobile.ToCell; return false; }` and then, next tick,
+`if (destination == mobile.ToCell) return true`. A path the finder refused does not FAIL — it
+completes in about two ticks at the cell the unit was already standing on. Anything queued behind the
+move then runs *there*.
+
+This is already known in-tree and guarded in three places — `DropsSupplyCache.TryPlaceCacheAt` calls
+it "the load-bearing guard, not a formality", and `PlaceSupplyCache` and `CollectSupplyCache:73` both
+carry `SupplyDropMath.ArrivedAtDropCell`. **`RestockSupply` does not**, and a new `DeliverSupply`
+written by mirroring it inherited the gap: ordering a transport onto a Centre across water credited
+the whole load from anywhere on the map.
+
+Two things worth carrying forward. First, **mirroring a sibling activity copies its omissions**, and
+the omission is invisible precisely because the sibling looks canonical. Second, the tolerance must
+be measured from the host's CENTRE cell and therefore has to cover half the host's own footprint
+before any approach margin: a transport parked legitimately at the diagonal corner of a 3x3 Centre
+sits at dx=2, dy=2, which a flat tolerance of 2 rejects. `SupplyTransferMath.ArrivalTolerance`
+derives it as `footprint/2 + margin` for that reason.
+
+**`RestockSupply` still lacks this guard** — the same teleport in the other direction, draining a
+Centre into a transport that never arrived. Left alone here because it is pre-existing and on a path
+the bots use, so changing it is a behavioural change that deserves its own measured run.
+
+## 2026-08-30 — `IsDead || !IsInWorld` does NOT cover capture, and a Logistics Centre is capturable
+
+A re-validation guard of the form `if (host.IsDead || !host.IsInWorld) return;` reads like it covers
+"the host stopped being a legitimate target mid-drive". It does not cover the case most likely to
+matter for a building: **a captured actor is neither dead nor out of the world.** `LOGISTICSCENTER`
+inherits `^Building` (`structures.yaml:69`) → `^BasicBuilding` (`:10`) →
+`^NeutralOrOccupiedCapturable` (`:169-176`), and carries `OwnerLostAction: ChangeOwner` to Neutral,
+so it can change hands or go neutral while a transport is driving to it.
+
+Any activity that validates ownership at ISSUE time and transfers value at ARRIVAL time needs an
+explicit `self.Owner.IsAlliedWith(host.Owner)` re-check. The failure is silent and reads as
+generosity: the transport hands its load to whoever now owns the building.
 
 ## 2026-08-30 — `Timestep` is MILLISECONDS PER TICK, there are ELEVEN of them, and only `mod.yaml:382` is the default — the number that looks like a tick rate is its inverse (`wt/postmerge-fallout`, verified against `main @ 0163ca22`)
 
