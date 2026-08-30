@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD · in-game info panel — the Options tab</title>
+<style>
+/*
+  Constraint-faithful. Every control here is a Checkbox or DropDownButton that
+  LobbyOptionsLogic ALREADY renders — the in-game panel passes
+  configurationDisabled: () => true (GameInfoLogic.cs:172), so they draw disabled.
+  The SECTION_HEADER_TEMPLATE is the one already used by the lobby's options panel.
+*/
+:root{
+  --amber:#c9a961; --amber-d:#6f5a2e; --amber-l:#e6d09a;
+  --panel:#2f3437; --panel-2:#272c2f; --hdr:#464e53;
+  --btn:#394045; --btn-l:#5a6369; --btn-d:#1a1e21;
+  --ink:#e8e8e8; --ink2:#a8adb0; --ink3:#767c80; --ink4:#565c60;
+  --good:#6ec890; --warn:#d6a85a; --bad:#d15c5c; --line:#1d2124;
+}
+html,body{margin:0;background:#0b0d0f;color:#c8ccce;
+  font:14px/1.45 "FreeSans","Liberation Sans",Arial,sans-serif;-webkit-font-smoothing:none;}
+.doc{max-width:900px;margin:0 auto;padding:28px 20px 80px;}
+h1{font-size:22px;color:var(--amber);margin:0 0 4px;}
+h2{font-size:15px;color:var(--amber-l);margin:34px 0 6px;border-bottom:1px solid #23282b;padding-bottom:5px;}
+.sub{color:#8d9295;font-size:13px;margin:0 0 6px;}
+.cost{font-size:12px;color:#8d9295;margin:6px 0 14px;}
+.cost b{color:var(--good);}
+code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:11.5px;color:#b9c4a8;}
+.badge{display:inline-block;background:#23282b;border:1px solid #363d41;color:#9aa0a4;
+  font-size:11px;padding:1px 6px;margin-right:6px;}
+.lede{background:#15181a;border-left:3px solid var(--bad);padding:10px 14px;margin:14px 0;
+  font-size:13px;color:#aeb4b7;}
+.lede.ok{border-left-color:var(--good);}
+
+.frame{margin:12px 0 6px;width:760px;}
+.menu{position:relative;width:760px;height:500px;background:var(--panel);border:11px solid var(--amber);
+  background-image:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.10));}
+.menu .bevel{position:absolute;inset:-11px;border:11px solid transparent;
+  border-image:linear-gradient(140deg,var(--amber-l),var(--amber),var(--amber-d)) 11;pointer-events:none;}
+.btncol{position:absolute;left:5px;top:0;width:170px;height:500px;}
+.btncol .t{position:absolute;left:0;top:190px;width:170px;height:30px;text-align:center;
+  font-weight:700;color:var(--ink);line-height:30px;}
+.btncol .b{position:absolute;left:15px;width:140px;height:30px;background:var(--btn);
+  border-top:1px solid var(--btn-l);border-left:1px solid var(--btn-l);
+  border-bottom:1px solid var(--btn-d);border-right:1px solid var(--btn-d);
+  color:var(--ink);font-weight:700;text-align:center;line-height:30px;}
+.pr{position:absolute;left:175px;top:0;width:580px;height:500px;}
+.abs{position:absolute;}
+.title{left:0;top:21px;width:580px;height:25px;line-height:25px;text-align:center;font-weight:700;color:var(--ink);}
+.tab{top:50px;height:25px;width:120px;line-height:25px;text-align:center;font-weight:700;color:var(--ink);
+  background:var(--btn);border-top:1px solid var(--btn-l);border-left:1px solid var(--btn-l);
+  border-bottom:1px solid var(--btn-d);border-right:1px solid var(--btn-d);}
+.tab.on{background:#4e565b;color:#fff;border-bottom-color:#4e565b;}
+.sec{height:22px;line-height:22px;font-weight:700;font-size:11px;letter-spacing:.8px;
+  text-transform:uppercase;color:#aab0b4;border-bottom:1px solid #3b4247;}
+.lbl{height:20px;line-height:20px;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--ink3);}
+.dd{height:25px;line-height:25px;font-size:14px;color:var(--ink2);background:#30363a;
+  border-top:1px solid #454d52;border-left:1px solid #454d52;
+  border-bottom:1px solid var(--btn-d);border-right:1px solid var(--btn-d);
+  padding-left:8px;box-sizing:border-box;}
+.dd::after{content:"▾";position:absolute;right:8px;top:0;color:var(--ink4);}
+.cb{height:20px;line-height:20px;font-size:14px;color:var(--ink2);padding-left:26px;box-sizing:border-box;}
+.cb::before{content:"";position:absolute;left:0;top:2px;width:16px;height:16px;background:#2a3033;
+  border-top:1px solid #454d52;border-left:1px solid #454d52;
+  border-bottom:1px solid var(--btn-d);border-right:1px solid var(--btn-d);}
+.cb.on::after{content:"✓";position:absolute;left:3px;top:0px;color:#9fa6aa;font-size:13px;font-weight:700;}
+.sb{width:24px;background:#23282b;border:1px solid var(--btn-d);box-sizing:border-box;}
+.sb i{position:absolute;left:5px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;}
+.sbUp{top:7px;border-bottom:7px solid #9aa0a4;}
+.sbDn{bottom:7px;border-top:7px solid #9aa0a4;}
+.note{position:absolute;color:var(--warn);font-size:10px;font-weight:700;
+  font-family:"SF Mono",Menlo,monospace;white-space:nowrap;}
+.empty{position:absolute;color:#4a5054;font-size:13px;font-style:italic;}
+</style>
+</head>
+<body>
+<div class="doc">
+
+<h1>The Options tab</h1>
+<p class="sub">Answering the user’s question directly: <b>why is it empty, and what belongs in it.</b></p>
+
+<div class="lede"><b>It is not a spectator problem.</b> The tab is empty for
+<i>everyone</i> — player and spectator alike. Chain: the in-game options panel
+(<code>engine/mods/common/chrome/ingame-info-lobby-options.yaml</code>) has no
+<code>Label@CATEGORY_FILTER</code>, so <code>LobbyOptionsLogic</code> falls back to
+<code>CategoryAdvanced</code> (<code>LobbyOptionsLogic.cs:229-230</code>). Every working option —
+fog, starting cash, game speed, time limit — is classified <b>Common</b>
+(<code>:71-86</code>) and is therefore filtered out. What remains is
+<code>LobbyDummyOptions</code>, and <b>every</b> option that trait produces is stamped
+<code>Placeholder = true</code> (<code>LobbyDummyOptions.cs:37</code>). A section made entirely of
+placeholders is skipped outright (<code>LobbyOptionsLogic.cs:379-380</code>). All three Advanced
+sections are all-placeholder, so all three vanish. <code>PowersLobbyOptions</code>, the only other
+source that could have landed in “Other”, is commented out at
+<code>mods/ww3mod/rules/world.yaml:555</code>. Nothing is left to draw.</div>
+
+<div class="lede ok"><b>The fix is one label.</b> Adding
+<code>Label@CATEGORY_FILTER</code> with <code>Text: Common</code> to the in-game panel populates it
+immediately, read-only — <code>GameInfoLogic</code> already passes
+<code>configurationDisabled: () =&gt; true</code> (<code>GameInfoLogic.cs:172</code>), so the
+controls render disabled with no further work. Everything in Frame 2 below except the
+<span style="color:var(--warn)">SPECTATOR</span> section is reachable that way.</div>
+
+<h2>Frame 1 — CURRENT (what the user saw)</h2>
+<div class="frame"><div class="menu"><div class="bevel"></div>
+  <div class="btncol">
+    <div class="t">Options</div>
+    <div class="b" style="top:230px">Resume</div>
+    <div class="b" style="top:270px">Load Game</div>
+    <div class="b" style="top:310px">Save Game</div>
+    <div class="b" style="top:350px">Settings</div>
+    <div class="b" style="top:390px">Music</div>
+  </div>
+  <div class="pr">
+    <div class="abs title">Conquest: River Zeta WW3</div>
+    <div class="abs tab"    style="left:110px">Objectives</div>
+    <div class="abs tab on" style="left:230px">Options</div>
+    <div class="abs tab"    style="left:350px">How to Play</div>
+    <div class="abs" style="left:20px;top:85px;width:540px;height:365px;background:var(--panel-2);
+         border:1px solid var(--btn-d);box-sizing:border-box"></div>
+    <div class="abs sb" style="left:536px;top:85px;height:365px"><i class="sbUp"></i><i class="sbDn"></i></div>
+    <div class="empty" style="left:214px;top:255px">(nothing renders here)</div>
+  </div>
+</div></div>
+
+<h2>Frame 2 — PROPOSED (spectator)</h2>
+<p class="sub">The match’s own rules, read-only, plus the spectator controls that today only exist in
+the observer HUD strip you just covered up by opening this menu.</p>
+<div class="frame"><div class="menu"><div class="bevel"></div>
+  <div class="btncol">
+    <div class="t">Options</div>
+    <div class="b" style="top:230px">Resume</div>
+    <div class="b" style="top:270px">Load Game</div>
+    <div class="b" style="top:310px">Save Game</div>
+    <div class="b" style="top:350px">Settings</div>
+    <div class="b" style="top:390px">Music</div>
+  </div>
+  <div class="pr">
+    <div class="abs title">Conquest: River Zeta WW3</div>
+    <div class="abs tab"    style="left:110px">Objectives</div>
+    <div class="abs tab on" style="left:230px">Options</div>
+    <div class="abs tab"    style="left:350px">How to Play</div>
+
+    <div class="abs" style="left:20px;top:85px;width:540px;height:365px;background:var(--panel-2);
+         border:1px solid var(--btn-d);box-sizing:border-box"></div>
+    <div class="abs sb" style="left:536px;top:85px;height:365px"><i class="sbUp"></i><i class="sbDn"></i></div>
+
+    <!-- SPECTATOR section — the only genuinely new content -->
+    <div class="abs sec" style="left:34px;top:94px;width:490px;color:var(--warn)">Spectator</div>
+    <div class="abs lbl" style="left:34px;top:120px;width:230px">Fog view</div>
+    <div class="abs dd"  style="left:34px;top:140px;width:230px">All Players</div>
+    <div class="abs lbl" style="left:290px;top:120px;width:230px">Stats overlay</div>
+    <div class="abs dd"  style="left:290px;top:140px;width:230px">Combat</div>
+    <div class="abs cb on" style="left:34px;top:176px;width:230px">Follow selected player</div>
+    <div class="abs cb"    style="left:290px;top:176px;width:230px">Show all player chat</div>
+
+    <!-- MATCH -->
+    <div class="abs sec" style="left:34px;top:208px;width:490px">Match</div>
+    <div class="abs lbl" style="left:34px;top:234px;width:230px">Game Speed</div>
+    <div class="abs dd"  style="left:34px;top:254px;width:230px">Normal</div>
+    <div class="abs lbl" style="left:290px;top:234px;width:230px">Time Limit</div>
+    <div class="abs dd"  style="left:290px;top:254px;width:230px">No limit</div>
+    <div class="abs lbl" style="left:34px;top:288px;width:230px">Starting Units</div>
+    <div class="abs dd"  style="left:34px;top:308px;width:230px">Light Support</div>
+
+    <!-- ECONOMY -->
+    <div class="abs sec" style="left:34px;top:344px;width:490px">Economy</div>
+    <div class="abs lbl" style="left:34px;top:370px;width:230px">Starting Cash</div>
+    <div class="abs dd"  style="left:34px;top:390px;width:230px">$10,000</div>
+    <div class="abs lbl" style="left:290px;top:370px;width:230px">Passive Income</div>
+    <div class="abs dd"  style="left:290px;top:390px;width:230px">Normal</div>
+
+    <div class="note" style="left:34px;top:424px">…World section (Fog of War, Explored Map, Debug Menu) continues below the fold.</div>
+  </div>
+</div></div>
+
+<h2>Frame 3 — PROPOSED (player mid-match)</h2>
+<p class="sub">Identical, minus the Spectator section. A player wants the same thing a spectator
+wants here: <b>what rules is this match running under?</b> Today they cannot find out without
+quitting to the lobby.</p>
+<div class="frame"><div class="menu"><div class="bevel"></div>
+  <div class="btncol">
+    <div class="t">Options</div>
+    <div class="b" style="top:210px">Resume</div>
+    <div class="b" style="top:250px">Load Game</div>
+    <div class="b" style="top:290px">Save Game</div>
+    <div class="b" style="top:330px">Settings</div>
+    <div class="b" style="top:370px">Music</div>
+    <div class="b" style="top:410px">Surrender</div>
+  </div>
+  <div class="pr">
+    <div class="abs title">Conquest: River Zeta WW3</div>
+    <div class="abs tab"    style="left:110px">Objectives</div>
+    <div class="abs tab on" style="left:230px">Options</div>
+    <div class="abs tab"    style="left:350px">How to Play</div>
+
+    <div class="abs" style="left:20px;top:85px;width:540px;height:365px;background:var(--panel-2);
+         border:1px solid var(--btn-d);box-sizing:border-box"></div>
+    <div class="abs sb" style="left:536px;top:85px;height:365px"><i class="sbUp"></i><i class="sbDn"></i></div>
+
+    <div class="abs sec" style="left:34px;top:94px;width:490px">Match</div>
+    <div class="abs lbl" style="left:34px;top:120px;width:230px">Game Speed</div>
+    <div class="abs dd"  style="left:34px;top:140px;width:230px">Normal</div>
+    <div class="abs lbl" style="left:290px;top:120px;width:230px">Time Limit</div>
+    <div class="abs dd"  style="left:290px;top:140px;width:230px">No limit</div>
+    <div class="abs lbl" style="left:34px;top:174px;width:230px">Starting Units</div>
+    <div class="abs dd"  style="left:34px;top:194px;width:230px">Light Support</div>
+
+    <div class="abs sec" style="left:34px;top:230px;width:490px">Economy</div>
+    <div class="abs lbl" style="left:34px;top:256px;width:230px">Starting Cash</div>
+    <div class="abs dd"  style="left:34px;top:276px;width:230px">$10,000</div>
+    <div class="abs lbl" style="left:290px;top:256px;width:230px">Passive Income</div>
+    <div class="abs dd"  style="left:290px;top:276px;width:230px">Normal</div>
+    <div class="abs lbl" style="left:34px;top:310px;width:230px">Income Modifier</div>
+    <div class="abs dd"  style="left:34px;top:330px;width:230px">100%</div>
+    <div class="abs lbl" style="left:290px;top:310px;width:230px">Kill Bounties</div>
+    <div class="abs dd"  style="left:290px;top:330px;width:230px">Off</div>
+
+    <div class="abs sec" style="left:34px;top:366px;width:490px">World</div>
+    <div class="abs cb on" style="left:34px;top:392px;width:230px">Fog of War</div>
+    <div class="abs cb"    style="left:290px;top:392px;width:230px">Explored Map</div>
+    <div class="abs cb on" style="left:34px;top:418px;width:230px">Separate Team Spawns</div>
+    <div class="abs cb"    style="left:290px;top:418px;width:230px">Debug Menu</div>
+  </div>
+</div></div>
+
+<h2>What is reusable versus what is new work</h2>
+<p class="sub" style="line-height:1.7">
+<span class="badge" style="border-color:#2a623a;color:var(--good)">FREE</span>
+<b>Match / Economy / World sections.</b> One <code>Label@CATEGORY_FILTER: Common</code>. The rows,
+the disabled styling and the tooltips are all existing <code>LobbyOptionsLogic</code> behaviour.<br>
+<span class="badge" style="border-color:#2a623a;color:var(--good)">FREE-ish</span>
+<b>Section headers.</b> Need a <code>SECTION_HEADER_TEMPLATE</code> in the in-game panel;
+<code>AddSectionHeader</code> silently no-ops without one (<code>LobbyOptionsLogic.cs:261-262</code>).
+Copy the lobby's template.<br>
+<span class="badge" style="border-color:#6f5a2e;color:var(--warn)">REUSE</span>
+<b>Fog view.</b> <code>ObserverShroudSelectorLogic</code> already implements
+All&nbsp;Players / Disable&nbsp;Shroud / per-player and is mounted as
+<code>SHROUD_SELECTOR</code> in <code>mods/ww3mod/chrome/ingame-observer.yaml</code>. Mounting a
+second instance here is wiring, not invention.<br>
+<span class="badge" style="border-color:#6f5a2e;color:var(--warn)">REUSE</span>
+<b>Stats overlay.</b> Same story — the observer's <code>STATS_DROPDOWN</code> with its eight modes.<br>
+<span class="badge" style="border-color:#7a2a2a;color:var(--bad)">NEW</span>
+<b>Follow selected player.</b> Genuinely does not exist. The observer stats panel only does a
+one-shot <i>jump</i> to a player's base on row click; there is no continuous camera lock. This is
+the one item on the wishlist that is real new engine work.<br>
+<span class="badge" style="border-color:#7a2a2a;color:var(--bad)">NEW</span>
+<b>Show all player chat.</b> The Chat tab is hidden entirely when there is only one non-bot client
+(<code>GameInfoLogic.cs:97-98</code>), which is exactly the 6-AI spectate case. Worth revisiting
+separately; not part of this design.
+</p>
+
+</div>
+</body>
+</html>

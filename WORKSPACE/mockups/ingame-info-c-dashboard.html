@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD · in-game info panel — C: Dashboard</title>
+<style>
+/*
+  Constraint-faithful. The only genuinely new thing here is COMPOSITION:
+  a master/detail split inside the 580px PANEL_ROOT. Every widget used
+  already exists and is already instantiated elsewhere in this mod:
+    LineGraphWidget          — mods/ww3mod/chrome/ingame-observer.yaml (INCOME_GRAPH, ARMY_VALUE_GRAPH)
+    ObserverArmyIconsWidget  — mods/ww3mod/chrome/ingame-observer.yaml (ARMY_ICONS)
+    ColorBlock / ProgressBar — engine/OpenRA.Mods.Common/Widgets/
+  No new widget TYPE is invented anywhere in this file.
+*/
+:root{
+  --amber:#c9a961; --amber-d:#6f5a2e; --amber-l:#e6d09a;
+  --panel:#2f3437; --panel-2:#272c2f; --panel-3:#22272a; --hdr:#464e53;
+  --btn:#394045; --btn-l:#5a6369; --btn-d:#1a1e21;
+  --ink:#e8e8e8; --ink2:#a8adb0; --ink3:#767c80; --ink4:#565c60;
+  --line:#1d2124;
+  --p1:#d94f4f; --p2:#e07ab0; --p3:#c9c14f;
+  --p4:#5fbf6a; --p5:#7b8fe0; --p6:#a97bd6;
+  --good:#6ec890; --warn:#d6a85a; --bad:#d15c5c;
+}
+html,body{margin:0;background:#0b0d0f;color:#c8ccce;
+  font:14px/1.45 "FreeSans","Liberation Sans",Arial,sans-serif;-webkit-font-smoothing:none;}
+.doc{max-width:900px;margin:0 auto;padding:28px 20px 80px;}
+h1{font-size:22px;color:var(--amber);margin:0 0 4px;}
+h2{font-size:15px;color:var(--amber-l);margin:34px 0 6px;border-bottom:1px solid #23282b;padding-bottom:5px;}
+.sub{color:#8d9295;font-size:13px;margin:0 0 6px;}
+.cost{font-size:12px;color:#8d9295;margin:6px 0 14px;}
+.cost b{color:var(--bad);}
+code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:11.5px;color:#b9c4a8;}
+.badge{display:inline-block;background:#23282b;border:1px solid #363d41;color:#9aa0a4;
+  font-size:11px;padding:1px 6px;margin-right:6px;}
+.lede{background:#15181a;border-left:3px solid var(--amber-d);padding:10px 14px;margin:14px 0;
+  font-size:13px;color:#aeb4b7;}
+
+.frame{margin:12px 0 6px;width:760px;}
+.menu{position:relative;width:760px;height:500px;background:var(--panel);border:11px solid var(--amber);
+  background-image:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.10));}
+.menu .bevel{position:absolute;inset:-11px;border:11px solid transparent;
+  border-image:linear-gradient(140deg,var(--amber-l),var(--amber),var(--amber-d)) 11;pointer-events:none;}
+.btncol{position:absolute;left:5px;top:0;width:170px;height:500px;}
+.btncol .t{position:absolute;left:0;top:190px;width:170px;height:30px;text-align:center;
+  font-weight:700;color:var(--ink);line-height:30px;}
+.btncol .b{position:absolute;left:15px;width:140px;height:30px;background:var(--btn);
+  border-top:1px solid var(--btn-l);border-left:1px solid var(--btn-l);
+  border-bottom:1px solid var(--btn-d);border-right:1px solid var(--btn-d);
+  color:var(--ink);font-weight:700;text-align:center;line-height:30px;}
+.pr{position:absolute;left:175px;top:0;width:580px;height:500px;}
+.abs{position:absolute;}
+.title{left:0;top:21px;width:580px;height:25px;line-height:25px;text-align:center;font-weight:700;color:var(--ink);}
+.tab{top:50px;height:25px;width:120px;line-height:25px;text-align:center;font-weight:700;color:var(--ink);
+  background:var(--btn);border-top:1px solid var(--btn-l);border-left:1px solid var(--btn-l);
+  border-bottom:1px solid var(--btn-d);border-right:1px solid var(--btn-d);}
+.tab.on{background:#4e565b;color:#fff;border-bottom-color:#4e565b;}
+.h{height:24px;line-height:24px;font-weight:700;font-size:11px;color:#b9bfc3;letter-spacing:.7px;text-transform:uppercase;}
+.c{height:22px;line-height:22px;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;
+  text-shadow:1px 1px 0 rgba(0,0,0,.85);}
+.n{height:22px;line-height:22px;font-size:12px;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;}
+.sm{font-size:12px;color:var(--ink2);}
+.flag{height:16px;width:32px;position:absolute;overflow:hidden;border:1px solid rgba(0,0,0,.5);box-sizing:border-box;}
+.us{background:repeating-linear-gradient(180deg,#b22234 0 2px,#f0f0f0 2px 4px);}
+.us::before{content:"";position:absolute;left:0;top:0;width:14px;height:8px;background:#3c3b6e;}
+.ru{background:linear-gradient(180deg,#f0f0f0 0 33.3%,#0039a6 33.3% 66.6%,#d52b1e 66.6% 100%);}
+.sel{background:#3e474d;border-left:3px solid #cfd5d8;box-sizing:border-box;}
+.bar{height:4px;background:#171b1e;}
+.bar i{display:block;height:4px;}
+.icon{width:28px;height:22px;background:#31383c;border:1px solid #171b1e;box-sizing:border-box;
+  position:absolute;color:#cfd5d8;font-size:9px;text-align:center;line-height:22px;font-weight:700;}
+.icon b{position:absolute;right:1px;bottom:-1px;font-size:9px;color:#fff;text-shadow:1px 1px 0 #000;}
+.note{position:absolute;color:var(--warn);font-size:10px;font-weight:700;
+  font-family:"SF Mono",Menlo,monospace;white-space:nowrap;}
+svg{display:block;}
+</style>
+</head>
+<body>
+<div class="doc">
+
+<h1>Direction C — “Dashboard”</h1>
+<p class="sub">The actual reimagining. The flat six-row table stops being the whole tab and becomes a
+<b>standings rail</b> on the left; selecting a row fills a <b>detail pane</b> on the right with that
+player’s army-value curve, force composition and Supply Route state. It converts the Esc menu from a
+roster into the thing you actually want while watching six AIs fight.</p>
+<p class="cost"><b>Cost:</b> the largest of the three. A new logic class
+(~200 lines) driving selection state, plus reuse of <code>LineGraphWidget</code> and
+<code>ObserverArmyIconsWidget</code>, both of which take a <code>GetPlayer</code> delegate and are
+already wired that way in <code>ObserverStatsLogic</code>. <b>No new widget types.</b> Budget it as
+a multi-session piece of work, not an afternoon.</p>
+
+<div class="lede"><b>Why this is worth considering despite the cost:</b> the observer HUD already has
+all of this — eight stat modes, income and army graphs, army icons. But it lives in a 240px strip at
+the top of the screen that is only visible while you are <i>not</i> in the menu. The Esc menu is
+where you go to <i>study</i> the match, and today it shows strictly less than the HUD you just
+covered up. C closes that gap by reusing the HUD's own widgets rather than inventing anything.</div>
+
+<h2>Frame 1 — SPECTATOR, “Experimental AI 2” selected</h2>
+<div class="frame"><div class="menu"><div class="bevel"></div>
+  <div class="btncol">
+    <div class="t">Options</div>
+    <div class="b" style="top:230px">Resume</div>
+    <div class="b" style="top:270px">Load Game</div>
+    <div class="b" style="top:310px">Save Game</div>
+    <div class="b" style="top:350px">Settings</div>
+    <div class="b" style="top:390px">Music</div>
+  </div>
+  <div class="pr">
+    <div class="abs title">Conquest: River Zeta WW3</div>
+    <div class="abs tab on" style="left:110px">Objectives</div>
+    <div class="abs tab"    style="left:230px">Options</div>
+    <div class="abs tab"    style="left:350px">How to Play</div>
+
+    <!-- ===== LEFT RAIL: standings, X 20..282 ===== -->
+    <div class="abs h" style="left:22px;top:88px;width:180px">Standings</div>
+    <div class="abs h" style="left:212px;top:88px;width:60px;text-align:right">Score</div>
+    <div class="abs" style="left:20px;top:110px;width:262px;height:336px;background:var(--panel-2);
+         border:1px solid var(--btn-d);box-sizing:border-box"></div>
+
+    <!-- selected -->
+    <div class="abs sel" style="left:21px;top:114px;width:260px;height:44px"></div>
+    <div class="abs c" style="left:32px;top:118px;width:120px;color:var(--p1);font-weight:700">Experimental AI 2</div>
+    <div class="abs flag us" style="left:158px;top:121px"></div>
+    <div class="abs n" style="left:212px;top:118px;width:60px;font-weight:700;font-size:14px">360</div>
+    <div class="abs sm abs" style="left:32px;top:138px;width:240px;font-size:11px">
+      army 14,820 &nbsp;·&nbsp; 37 killed &nbsp;·&nbsp; 11 lost</div>
+    <div class="abs bar" style="left:32px;top:153px;width:240px"><i style="width:100%;background:var(--p1)"></i></div>
+
+    <div class="abs c" style="left:32px;top:164px;width:120px;color:var(--p2)">Experimental AI 4</div>
+    <div class="abs flag ru" style="left:158px;top:167px"></div>
+    <div class="abs n" style="left:212px;top:164px;width:60px;font-size:14px">329</div>
+    <div class="abs bar" style="left:32px;top:187px;width:240px"><i style="width:88%;background:var(--p2)"></i></div>
+
+    <div class="abs c" style="left:32px;top:198px;width:120px;color:var(--p3)">Experimental AI 3</div>
+    <div class="abs flag ru" style="left:158px;top:201px"></div>
+    <div class="abs n" style="left:212px;top:198px;width:60px;font-size:14px">286</div>
+    <div class="abs bar" style="left:32px;top:221px;width:240px"><i style="width:77%;background:var(--p3)"></i></div>
+
+    <div class="abs c" style="left:32px;top:232px;width:120px;color:var(--p4)">Experimental AI 6</div>
+    <div class="abs flag us" style="left:158px;top:235px"></div>
+    <div class="abs n" style="left:212px;top:232px;width:60px;font-size:14px">171</div>
+    <div class="abs bar" style="left:32px;top:255px;width:240px"><i style="width:42%;background:var(--p4)"></i></div>
+
+    <div class="abs c" style="left:32px;top:266px;width:120px;color:var(--p5)">Experimental AI 1</div>
+    <div class="abs flag us" style="left:158px;top:269px"></div>
+    <div class="abs n" style="left:212px;top:266px;width:60px;font-size:14px">151</div>
+    <div class="abs bar" style="left:32px;top:289px;width:240px"><i style="width:40%;background:var(--p5)"></i></div>
+
+    <div class="abs c" style="left:32px;top:300px;width:120px;color:var(--p6)">Experimental AI 5</div>
+    <div class="abs flag us" style="left:158px;top:303px"></div>
+    <div class="abs n" style="left:212px;top:300px;width:60px;font-size:14px">142</div>
+    <div class="abs bar" style="left:32px;top:323px;width:240px"><i style="width:34%;background:var(--p6)"></i></div>
+
+    <div class="abs" style="left:21px;top:340px;width:260px;height:20px;background:var(--hdr);
+         line-height:20px;font-weight:700;font-size:14px;color:var(--ink);padding-left:11px;box-sizing:border-box">Spectators</div>
+    <div class="abs c" style="left:32px;top:366px;width:200px">FreadyFish</div>
+
+    <!-- ===== RIGHT PANE: detail, X 292..560 ===== -->
+    <div class="abs h" style="left:292px;top:88px;width:268px">Experimental AI 2 · America</div>
+    <div class="abs" style="left:292px;top:110px;width:268px;height:336px;background:var(--panel-3);
+         border:1px solid var(--btn-d);box-sizing:border-box"></div>
+
+    <!-- army value graph (LineGraphWidget) -->
+    <div class="abs h" style="left:302px;top:116px;width:250px;font-size:10px;color:var(--ink3)">Army value · last 12 min</div>
+    <div class="abs" style="left:302px;top:136px;width:248px;height:88px;background:#191d20;border:1px solid #101315;box-sizing:border-box">
+      <svg width="246" height="86" viewBox="0 0 246 86">
+        <line x1="0" y1="21" x2="246" y2="21" stroke="#252b2f"/>
+        <line x1="0" y1="43" x2="246" y2="43" stroke="#252b2f"/>
+        <line x1="0" y1="65" x2="246" y2="65" stroke="#252b2f"/>
+        <polyline fill="none" stroke="#d94f4f" stroke-width="1.5"
+          points="0,80 20,74 41,70 61,58 82,60 102,47 123,38 143,41 164,30 184,22 205,26 225,14 245,10"/>
+        <polyline fill="none" stroke="#e07ab0" stroke-width="1" opacity=".55"
+          points="0,81 20,77 41,71 61,66 82,63 102,55 123,52 143,49 164,44 184,40 205,36 225,30 245,24"/>
+        <polyline fill="none" stroke="#5fbf6a" stroke-width="1" opacity=".35"
+          points="0,82 20,79 41,76 61,74 82,71 102,70 123,68 143,69 164,71 184,73 205,74 225,76 245,78"/>
+      </svg>
+    </div>
+    <div class="abs sm" style="left:302px;top:226px;width:248px;font-size:10px;color:var(--ink4)">
+      selected solid · rivals ghosted</div>
+
+    <!-- force composition (ObserverArmyIconsWidget) -->
+    <div class="abs h" style="left:302px;top:244px;width:250px;font-size:10px;color:var(--ink3)">Force composition</div>
+    <div class="abs icon" style="left:302px;top:264px">MBT<b>9</b></div>
+    <div class="abs icon" style="left:333px;top:264px">IFV<b>7</b></div>
+    <div class="abs icon" style="left:364px;top:264px">APC<b>4</b></div>
+    <div class="abs icon" style="left:395px;top:264px">RIF<b>18</b></div>
+    <div class="abs icon" style="left:426px;top:264px">AT<b>6</b></div>
+    <div class="abs icon" style="left:457px;top:264px">SAM<b>3</b></div>
+    <div class="abs icon" style="left:488px;top:264px">HEL<b>2</b></div>
+    <div class="abs icon" style="left:519px;top:264px">ART<b>2</b></div>
+
+    <!-- economy -->
+    <div class="abs h" style="left:302px;top:298px;width:250px;font-size:10px;color:var(--ink3)">Economy</div>
+    <div class="abs sm" style="left:302px;top:318px;width:120px">Cash</div>
+    <div class="abs n" style="left:432px;top:318px;width:118px">6,140</div>
+    <div class="abs sm" style="left:302px;top:340px;width:120px">Income / min</div>
+    <div class="abs n" style="left:432px;top:340px;width:118px;color:var(--good)">+1,850</div>
+    <div class="abs sm" style="left:302px;top:362px;width:120px">Earned / Spent</div>
+    <div class="abs n" style="left:432px;top:362px;width:118px">28,400 / 22,260</div>
+
+    <!-- supply route -->
+    <div class="abs h" style="left:302px;top:390px;width:250px;font-size:10px;color:var(--ink3)">Supply Route</div>
+    <div class="abs sm" style="left:302px;top:408px;width:120px">Contested</div>
+    <div class="abs n" style="left:432px;top:408px;width:118px;color:var(--good)">100%</div>
+    <div class="abs bar" style="left:302px;top:430px;width:248px"><i style="width:100%;background:var(--good)"></i></div>
+
+    <div class="note" style="left:292px;top:452px">Click a name on the left → the whole right pane rebinds.</div>
+  </div>
+</div></div>
+
+<h2>Frame 2 — SPECTATOR, a losing player selected</h2>
+<p class="sub">The same pane for “Experimental AI 5”. This is the frame that argues for C: the Supply
+Route bar is <b>draining</b> and production is throttled — the single most WW3MOD-specific fact about
+a match, and there is nowhere in the current menu it can be read.</p>
+<div class="frame"><div class="menu"><div class="bevel"></div>
+  <div class="btncol">
+    <div class="t">Options</div>
+    <div class="b" style="top:230px">Resume</div>
+    <div class="b" style="top:270px">Load Game</div>
+    <div class="b" style="top:310px">Save Game</div>
+    <div class="b" style="top:350px">Settings</div>
+    <div class="b" style="top:390px">Music</div>
+  </div>
+  <div class="pr">
+    <div class="abs title">Conquest: River Zeta WW3</div>
+    <div class="abs tab on" style="left:110px">Objectives</div>
+    <div class="abs tab"    style="left:230px">Options</div>
+    <div class="abs tab"    style="left:350px">How to Play</div>
+
+    <div class="abs h" style="left:22px;top:88px;width:180px">Standings</div>
+    <div class="abs h" style="left:212px;top:88px;width:60px;text-align:right">Score</div>
+    <div class="abs" style="left:20px;top:110px;width:262px;height:336px;background:var(--panel-2);
+         border:1px solid var(--btn-d);box-sizing:border-box"></div>
+
+    <div class="abs c" style="left:32px;top:118px;width:120px;color:var(--p1)">Experimental AI 2</div>
+    <div class="abs flag us" style="left:158px;top:121px"></div>
+    <div class="abs n" style="left:212px;top:118px;width:60px;font-size:14px">360</div>
+    <div class="abs bar" style="left:32px;top:141px;width:240px"><i style="width:100%;background:var(--p1)"></i></div>
+
+    <div class="abs c" style="left:32px;top:152px;width:120px;color:var(--p2)">Experimental AI 4</div>
+    <div class="abs flag ru" style="left:158px;top:155px"></div>
+    <div class="abs n" style="left:212px;top:152px;width:60px;font-size:14px">329</div>
+    <div class="abs bar" style="left:32px;top:175px;width:240px"><i style="width:88%;background:var(--p2)"></i></div>
+
+    <div class="abs c" style="left:32px;top:186px;width:120px;color:var(--p3)">Experimental AI 3</div>
+    <div class="abs flag ru" style="left:158px;top:189px"></div>
+    <div class="abs n" style="left:212px;top:186px;width:60px;font-size:14px">286</div>
+    <div class="abs bar" style="left:32px;top:209px;width:240px"><i style="width:77%;background:var(--p3)"></i></div>
+
+    <div class="abs c" style="left:32px;top:220px;width:120px;color:var(--p4)">Experimental AI 6</div>
+    <div class="abs flag us" style="left:158px;top:223px"></div>
+    <div class="abs n" style="left:212px;top:220px;width:60px;font-size:14px">171</div>
+    <div class="abs bar" style="left:32px;top:243px;width:240px"><i style="width:42%;background:var(--p4)"></i></div>
+
+    <div class="abs c" style="left:32px;top:254px;width:120px;color:var(--p5)">Experimental AI 1</div>
+    <div class="abs flag us" style="left:158px;top:257px"></div>
+    <div class="abs n" style="left:212px;top:254px;width:60px;font-size:14px">151</div>
+    <div class="abs bar" style="left:32px;top:277px;width:240px"><i style="width:40%;background:var(--p5)"></i></div>
+
+    <div class="abs sel" style="left:21px;top:286px;width:260px;height:44px"></div>
+    <div class="abs c" style="left:32px;top:290px;width:120px;color:var(--p6);font-weight:700">Experimental AI 5</div>
+    <div class="abs flag us" style="left:158px;top:293px"></div>
+    <div class="abs n" style="left:212px;top:290px;width:60px;font-weight:700;font-size:14px">142</div>
+    <div class="abs sm" style="left:32px;top:310px;width:240px;font-size:11px">
+      army 5,110 &nbsp;·&nbsp; 9 killed &nbsp;·&nbsp; 33 lost</div>
+    <div class="abs bar" style="left:32px;top:325px;width:240px"><i style="width:34%;background:var(--p6)"></i></div>
+
+    <div class="abs" style="left:21px;top:340px;width:260px;height:20px;background:var(--hdr);
+         line-height:20px;font-weight:700;font-size:14px;color:var(--ink);padding-left:11px;box-sizing:border-box">Spectators</div>
+    <div class="abs c" style="left:32px;top:366px;width:200px">FreadyFish</div>
+
+    <div class="abs h" style="left:292px;top:88px;width:268px">Experimental AI 5 · America</div>
+    <div class="abs" style="left:292px;top:110px;width:268px;height:336px;background:var(--panel-3);
+         border:1px solid var(--btn-d);box-sizing:border-box"></div>
+
+    <div class="abs h" style="left:302px;top:116px;width:250px;font-size:10px;color:var(--ink3)">Army value · last 12 min</div>
+    <div class="abs" style="left:302px;top:136px;width:248px;height:88px;background:#191d20;border:1px solid #101315;box-sizing:border-box">
+      <svg width="246" height="86" viewBox="0 0 246 86">
+        <line x1="0" y1="21" x2="246" y2="21" stroke="#252b2f"/>
+        <line x1="0" y1="43" x2="246" y2="43" stroke="#252b2f"/>
+        <line x1="0" y1="65" x2="246" y2="65" stroke="#252b2f"/>
+        <polyline fill="none" stroke="#a97bd6" stroke-width="1.5"
+          points="0,66 20,58 41,49 61,44 82,40 102,44 123,52 143,49 164,58 184,64 205,68 225,74 245,79"/>
+        <polyline fill="none" stroke="#d94f4f" stroke-width="1" opacity=".35"
+          points="0,80 20,74 41,70 61,58 82,60 102,47 123,38 143,41 164,30 184,22 205,26 225,14 245,10"/>
+      </svg>
+    </div>
+    <div class="abs sm" style="left:302px;top:226px;width:248px;font-size:10px;color:var(--bad)">
+      peaked 8 min ago, falling since</div>
+
+    <div class="abs h" style="left:302px;top:244px;width:250px;font-size:10px;color:var(--ink3)">Force composition</div>
+    <div class="abs icon" style="left:302px;top:264px">MBT<b>2</b></div>
+    <div class="abs icon" style="left:333px;top:264px">IFV<b>1</b></div>
+    <div class="abs icon" style="left:364px;top:264px">RIF<b>11</b></div>
+    <div class="abs icon" style="left:395px;top:264px">AT<b>2</b></div>
+
+    <div class="abs h" style="left:302px;top:298px;width:250px;font-size:10px;color:var(--ink3)">Economy</div>
+    <div class="abs sm" style="left:302px;top:318px;width:120px">Cash</div>
+    <div class="abs n" style="left:432px;top:318px;width:118px">2,470</div>
+    <div class="abs sm" style="left:302px;top:340px;width:120px">Income / min</div>
+    <div class="abs n" style="left:432px;top:340px;width:118px;color:var(--bad)">+240</div>
+    <div class="abs sm" style="left:302px;top:362px;width:120px">Earned / Spent</div>
+    <div class="abs n" style="left:432px;top:362px;width:118px">11,900 / 9,430</div>
+
+    <div class="abs h" style="left:302px;top:390px;width:250px;font-size:10px;color:var(--ink3)">Supply Route</div>
+    <div class="abs sm" style="left:302px;top:408px;width:150px;color:var(--warn)">Contested — production slowed</div>
+    <div class="abs n" style="left:452px;top:408px;width:98px;color:var(--warn)">38%</div>
+    <div class="abs bar" style="left:302px;top:430px;width:248px"><i style="width:38%;background:var(--warn)"></i></div>
+
+    <div class="note" style="left:292px;top:452px;color:var(--bad)">This row is the reason the match is being lost.</div>
+  </div>
+</div></div>
+
+<h2>Feasibility notes, honestly stated</h2>
+<p class="sub" style="line-height:1.7">
+<span class="badge">OK</span> The graph is <code>LineGraphWidget</code>, already fed from
+<code>PlayerStatistics.ArmySamples</code> (<code>PlayerStatistics.cs:43</code>) by the observer's
+<code>ARMY_VALUE_GRAPH</code>.<br>
+<span class="badge">OK</span> Force composition is <code>ObserverArmyIconsWidget</code>, which takes a
+<code>GetPlayer</code> delegate — pointing it at the selected player is the same call the observer
+HUD already makes.<br>
+<span class="badge">OK</span> Selection is a <code>ScrollItem</code> <code>OnClick</code> setting a
+captured field; <code>ObserverStatsLogic</code> already does click-to-act on player rows (it centres
+the viewport on their base).<br>
+<span class="badge">CARE</span> The Supply Route block needs a lookup the codebase does not currently
+do from this panel. <code>SupplyRouteContestation</code> is an <b>actor</b> trait on
+<code>SUPPLYROUTE</code> (<code>mods/ww3mod/rules/ingame/structures.yaml:303</code>), not a player
+trait, so the logic must resolve <code>world.ActorsHavingTrait&lt;SupplyRouteContestation&gt;()</code>
+filtered by owner. Cheap, but it is new code and it is the one part of C I would build first to
+de-risk.<br>
+<span class="badge">CARE</span> 268px is not much width for a detail pane. Everything above fits, but
+there is no room to add a ninth thing later without a scroll panel.
+</p>
+
+</div>
+</body>
+</html>

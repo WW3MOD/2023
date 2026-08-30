@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD · in-game info panel — B: Scoreboard</title>
+<style>
+/*
+  Constraint-faithful. Same rules as direction A: flat rectangles, 1px bevels,
+  real font sizes, absolute coordinates inside the 580px PANEL_ROOT
+  (engine/mods/common/chrome/ingame-menu.yaml:40-44).
+
+  New in B: the army-share bar is a ColorBlockWidget of computed width —
+  no new widget type. Numeric cells drop to Small (12) so seven columns fit
+  in the 514px usable row width.
+*/
+:root{
+  --amber:#c9a961; --amber-d:#6f5a2e; --amber-l:#e6d09a;
+  --panel:#2f3437; --panel-2:#272c2f; --hdr:#464e53;
+  --btn:#394045; --btn-l:#5a6369; --btn-d:#1a1e21;
+  --ink:#e8e8e8; --ink2:#a8adb0; --ink3:#767c80; --ink4:#565c60;
+  --line:#1d2124;
+  --p1:#d94f4f; --p2:#e07ab0; --p3:#c9c14f;
+  --p4:#5fbf6a; --p5:#7b8fe0; --p6:#a97bd6;
+  --good:#6ec890; --warn:#d6a85a; --bad:#d15c5c;
+}
+html,body{margin:0;background:#0b0d0f;color:#c8ccce;
+  font:14px/1.45 "FreeSans","Liberation Sans",Arial,sans-serif;-webkit-font-smoothing:none;}
+.doc{max-width:900px;margin:0 auto;padding:28px 20px 80px;}
+h1{font-size:22px;color:var(--amber);margin:0 0 4px;}
+h2{font-size:15px;color:var(--amber-l);margin:34px 0 6px;border-bottom:1px solid #23282b;padding-bottom:5px;}
+.sub{color:#8d9295;font-size:13px;margin:0 0 6px;}
+.cost{font-size:12px;color:#8d9295;margin:6px 0 14px;}
+.cost b{color:var(--warn);}
+code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:11.5px;color:#b9c4a8;}
+.badge{display:inline-block;background:#23282b;border:1px solid #363d41;
+  color:#9aa0a4;font-size:11px;padding:1px 6px;margin-right:6px;}
+
+.frame{margin:12px 0 6px;width:760px;}
+.menu{position:relative;width:760px;height:500px;background:var(--panel);
+  border:11px solid var(--amber);
+  background-image:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.10));}
+.menu .bevel{position:absolute;inset:-11px;border:11px solid transparent;
+  border-image:linear-gradient(140deg,var(--amber-l),var(--amber),var(--amber-d)) 11;pointer-events:none;}
+.btncol{position:absolute;left:5px;top:0;width:170px;height:500px;}
+.btncol .t{position:absolute;left:0;top:190px;width:170px;height:30px;text-align:center;
+  font-weight:700;color:var(--ink);line-height:30px;}
+.btncol .b{position:absolute;left:15px;width:140px;height:30px;background:var(--btn);
+  border-top:1px solid var(--btn-l);border-left:1px solid var(--btn-l);
+  border-bottom:1px solid var(--btn-d);border-right:1px solid var(--btn-d);
+  color:var(--ink);font-weight:700;text-align:center;line-height:30px;}
+.pr{position:absolute;left:175px;top:0;width:580px;height:500px;}
+.abs{position:absolute;}
+.title{left:0;top:21px;width:580px;height:25px;line-height:25px;text-align:center;font-weight:700;color:var(--ink);}
+.tab{top:50px;height:25px;width:120px;line-height:25px;text-align:center;font-weight:700;
+  color:var(--ink);background:var(--btn);border-top:1px solid var(--btn-l);border-left:1px solid var(--btn-l);
+  border-bottom:1px solid var(--btn-d);border-right:1px solid var(--btn-d);}
+.tab.on{background:#4e565b;color:#fff;border-bottom-color:#4e565b;}
+.h{height:26px;line-height:26px;font-weight:700;font-size:12px;color:#cdd2d5;
+  letter-spacing:.6px;text-transform:uppercase;}
+.c{height:22px;line-height:22px;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;
+  text-shadow:1px 1px 0 rgba(0,0,0,.85);}
+.n{height:22px;line-height:22px;font-size:12px;color:var(--ink);text-align:right;
+  font-variant-numeric:tabular-nums;text-shadow:1px 1px 0 rgba(0,0,0,.85);}
+.dim{color:var(--ink4);}
+.grp{height:20px;line-height:20px;background:var(--hdr);font-weight:700;color:var(--ink);}
+.flag{height:16px;width:32px;position:absolute;overflow:hidden;border:1px solid rgba(0,0,0,.5);box-sizing:border-box;}
+.us{background:repeating-linear-gradient(180deg,#b22234 0 2px,#f0f0f0 2px 4px);}
+.us::before{content:"";position:absolute;left:0;top:0;width:14px;height:8px;background:#3c3b6e;}
+.ru{background:linear-gradient(180deg,#f0f0f0 0 33.3%,#0039a6 33.3% 66.6%,#d52b1e 66.6% 100%);}
+.rank{height:22px;line-height:22px;font-size:12px;font-weight:700;color:var(--ink3);text-align:right;}
+.bar{height:3px;background:#1a1e21;}
+.bar i{display:block;height:3px;}
+.sb{width:24px;background:#23282b;border:1px solid var(--btn-d);box-sizing:border-box;}
+.sb i{position:absolute;left:5px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;}
+.sbUp{top:7px;border-bottom:7px solid #9aa0a4;}
+.sbDn{bottom:7px;border-top:7px solid #9aa0a4;}
+.note{position:absolute;color:var(--warn);font-size:10px;font-weight:700;
+  font-family:"SF Mono",Menlo,monospace;white-space:nowrap;}
+.lede{background:#15181a;border-left:3px solid var(--amber-d);padding:10px 14px;margin:14px 0;
+  font-size:13px;color:#aeb4b7;}
+</style>
+</head>
+<body>
+<div class="doc">
+
+<h1>Direction B — “Scoreboard”</h1>
+<p class="sub">Same flat table, but it answers <b>who is winning and why</b> instead of only
+<i>who is here</i>. Faction text is deleted (the flag already says it) and the 114px it was spending
+is repaid as four numeric columns. Rows carry a 3px army-share bar so the standings read at a glance
+without parsing digits.</p>
+<p class="cost"><b>Cost:</b> YAML for the new columns + <b>~70 lines in
+<code>GameInfoStatsLogic.cs</code></b> to bind them. Every number already exists on
+<code>PlayerStatistics</code> (<code>ArmyValue</code>, <code>UnitsKilled</code>,
+<code>DeathsCost</code>, <code>Experience</code> — <code>PlayerStatistics.cs:34-55</code>) and the
+trait is attached to every player at <code>mods/ww3mod/rules/player.yaml:204</code>. The share bar is
+a <code>ColorBlock</code> with a computed <code>Bounds.Width</code> — <b>no new widget type.</b></p>
+
+<div class="lede"><b>The one thing B gets right that A does not:</b> a spectator and a mid-match
+player must not see the same table. Army value, kill counts and cash are <i>intelligence</i>. This
+mod has spent real effort on fog discipline; a scoreboard that leaks enemy army value through the
+Esc menu would undo it. Frame 2 shows the player view with enemy intel columns redacted to
+<code>—</code>.</div>
+
+<h2>Frame 1 — SPECTATOR (full disclosure)</h2>
+<p class="sub">A spectator has no fog to respect, so every column is live. Sorted by score, as today.</p>
+<div class="frame"><div class="menu"><div class="bevel"></div>
+  <div class="btncol">
+    <div class="t">Options</div>
+    <div class="b" style="top:230px">Resume</div>
+    <div class="b" style="top:270px">Load Game</div>
+    <div class="b" style="top:310px">Save Game</div>
+    <div class="b" style="top:350px">Settings</div>
+    <div class="b" style="top:390px">Music</div>
+  </div>
+  <div class="pr">
+    <div class="abs title">Conquest: River Zeta WW3</div>
+    <div class="abs tab on" style="left:110px">Objectives</div>
+    <div class="abs tab"    style="left:230px">Options</div>
+    <div class="abs tab"    style="left:350px">How to Play</div>
+
+    <div class="abs" style="left:20px;top:95px;width:540px;height:26px;background:var(--hdr)"></div>
+    <div class="abs" style="left:20px;top:121px;width:540px;height:1px;background:#5c656b"></div>
+    <div class="abs h" style="left:46px;top:95px;width:130px">Player</div>
+    <div class="abs h" style="left:216px;top:95px;width:60px;text-align:right">Army</div>
+    <div class="abs h" style="left:280px;top:95px;width:50px;text-align:right">Kills</div>
+    <div class="abs h" style="left:334px;top:95px;width:50px;text-align:right">Lost</div>
+    <div class="abs h" style="left:388px;top:95px;width:60px;text-align:right">Cash</div>
+    <div class="abs h" style="left:452px;top:95px;width:60px;text-align:right">Score</div>
+
+    <div class="abs" style="left:20px;top:126px;width:540px;height:320px;background:var(--panel-2);
+         border:1px solid var(--btn-d);box-sizing:border-box"></div>
+    <div class="abs sb" style="left:536px;top:126px;height:320px"><i class="sbUp"></i><i class="sbDn"></i></div>
+
+    <!-- row 1 -->
+    <div class="abs rank" style="left:22px;top:133px;width:16px">1</div>
+    <div class="abs c" style="left:46px;top:133px;width:130px;color:var(--p1)">Experimental AI 2</div>
+    <div class="abs flag us" style="left:180px;top:136px"></div>
+    <div class="abs n" style="left:216px;top:133px;width:60px">14,820</div>
+    <div class="abs n" style="left:280px;top:133px;width:50px">37</div>
+    <div class="abs n" style="left:334px;top:133px;width:50px">11</div>
+    <div class="abs n" style="left:388px;top:133px;width:60px">6,140</div>
+    <div class="abs n" style="left:452px;top:133px;width:60px;font-weight:700">360</div>
+    <div class="abs bar" style="left:46px;top:156px;width:466px"><i style="width:100%;background:var(--p1)"></i></div>
+
+    <!-- row 2 -->
+    <div class="abs rank" style="left:22px;top:166px;width:16px">2</div>
+    <div class="abs c" style="left:46px;top:166px;width:130px;color:var(--p2)">Experimental AI 4</div>
+    <div class="abs flag ru" style="left:180px;top:169px"></div>
+    <div class="abs n" style="left:216px;top:166px;width:60px">13,050</div>
+    <div class="abs n" style="left:280px;top:166px;width:50px">31</div>
+    <div class="abs n" style="left:334px;top:166px;width:50px">14</div>
+    <div class="abs n" style="left:388px;top:166px;width:60px">4,880</div>
+    <div class="abs n" style="left:452px;top:166px;width:60px;font-weight:700">329</div>
+    <div class="abs bar" style="left:46px;top:189px;width:466px"><i style="width:88%;background:var(--p2)"></i></div>
+
+    <!-- row 3 -->
+    <div class="abs rank" style="left:22px;top:199px;width:16px">3</div>
+    <div class="abs c" style="left:46px;top:199px;width:130px;color:var(--p3)">Experimental AI 3</div>
+    <div class="abs flag ru" style="left:180px;top:202px"></div>
+    <div class="abs n" style="left:216px;top:199px;width:60px">11,470</div>
+    <div class="abs n" style="left:280px;top:199px;width:50px">26</div>
+    <div class="abs n" style="left:334px;top:199px;width:50px">19</div>
+    <div class="abs n" style="left:388px;top:199px;width:60px">3,210</div>
+    <div class="abs n" style="left:452px;top:199px;width:60px;font-weight:700">286</div>
+    <div class="abs bar" style="left:46px;top:222px;width:466px"><i style="width:77%;background:var(--p3)"></i></div>
+
+    <!-- row 4 -->
+    <div class="abs rank" style="left:22px;top:232px;width:16px">4</div>
+    <div class="abs c" style="left:46px;top:232px;width:130px;color:var(--p4)">Experimental AI 6</div>
+    <div class="abs flag us" style="left:180px;top:235px"></div>
+    <div class="abs n" style="left:216px;top:232px;width:60px">6,300</div>
+    <div class="abs n" style="left:280px;top:232px;width:50px">14</div>
+    <div class="abs n" style="left:334px;top:232px;width:50px">28</div>
+    <div class="abs n" style="left:388px;top:232px;width:60px">1,020</div>
+    <div class="abs n" style="left:452px;top:232px;width:60px;font-weight:700">171</div>
+    <div class="abs bar" style="left:46px;top:255px;width:466px"><i style="width:42%;background:var(--p4)"></i></div>
+
+    <!-- row 5 -->
+    <div class="abs rank" style="left:22px;top:265px;width:16px">5</div>
+    <div class="abs c" style="left:46px;top:265px;width:130px;color:var(--p5)">Experimental AI 1</div>
+    <div class="abs flag us" style="left:180px;top:268px"></div>
+    <div class="abs n" style="left:216px;top:265px;width:60px">5,940</div>
+    <div class="abs n" style="left:280px;top:265px;width:50px">12</div>
+    <div class="abs n" style="left:334px;top:265px;width:50px">30</div>
+    <div class="abs n" style="left:388px;top:265px;width:60px">840</div>
+    <div class="abs n" style="left:452px;top:265px;width:60px;font-weight:700">151</div>
+    <div class="abs bar" style="left:46px;top:288px;width:466px"><i style="width:40%;background:var(--p5)"></i></div>
+
+    <!-- row 6 -->
+    <div class="abs rank" style="left:22px;top:298px;width:16px">6</div>
+    <div class="abs c" style="left:46px;top:298px;width:130px;color:var(--p6)">Experimental AI 5</div>
+    <div class="abs flag us" style="left:180px;top:301px"></div>
+    <div class="abs n" style="left:216px;top:298px;width:60px">5,110</div>
+    <div class="abs n" style="left:280px;top:298px;width:50px">9</div>
+    <div class="abs n" style="left:334px;top:298px;width:50px">33</div>
+    <div class="abs n" style="left:388px;top:298px;width:60px">2,470</div>
+    <div class="abs n" style="left:452px;top:298px;width:60px;font-weight:700">142</div>
+    <div class="abs bar" style="left:46px;top:321px;width:466px"><i style="width:34%;background:var(--p6)"></i></div>
+
+    <div class="abs grp" style="left:22px;top:334px;width:514px;padding-left:8px;box-sizing:border-box">Spectators</div>
+    <div class="abs c" style="left:46px;top:360px;width:200px">FreadyFish</div>
+
+    <div class="note" style="left:46px;top:400px">Bar = army value as a share of the leader. Six bars beat six numbers.</div>
+  </div>
+</div></div>
+
+<h2>Frame 2 — PLAYER mid-match (intel redacted)</h2>
+<p class="sub">You are FreadyFish. You see your own numbers and your allies’; enemy army, kills, lost
+and cash read <code>—</code>. Score stays visible because it is already public today. The share bar
+is drawn only for rows you are entitled to see.</p>
+<div class="frame"><div class="menu"><div class="bevel"></div>
+  <div class="btncol">
+    <div class="t">Options</div>
+    <div class="b" style="top:210px">Resume</div>
+    <div class="b" style="top:250px">Load Game</div>
+    <div class="b" style="top:290px">Save Game</div>
+    <div class="b" style="top:330px">Settings</div>
+    <div class="b" style="top:370px">Music</div>
+    <div class="b" style="top:410px">Surrender</div>
+  </div>
+  <div class="pr">
+    <div class="abs title">Conquest: River Zeta WW3</div>
+    <div class="abs tab on" style="left:110px">Objectives</div>
+    <div class="abs tab"    style="left:230px">Options</div>
+    <div class="abs tab"    style="left:350px">How to Play</div>
+
+    <div class="abs" style="left:20px;top:88px;width:540px;height:1px;background:var(--line)"></div>
+    <div class="abs c" style="left:20px;top:94px;width:200px;font-weight:700;font-size:18px">Objective</div>
+    <div class="abs c" style="left:120px;top:94px;width:300px;font-weight:700;font-size:18px;color:var(--good)">In progress</div>
+    <div class="abs c" style="left:20px;top:120px;width:520px;color:var(--ink2)">☐&nbsp;&nbsp;Destroy all enemy forces.</div>
+
+    <div class="abs" style="left:20px;top:152px;width:540px;height:26px;background:var(--hdr)"></div>
+    <div class="abs" style="left:20px;top:178px;width:540px;height:1px;background:#5c656b"></div>
+    <div class="abs h" style="left:46px;top:152px;width:130px">Player</div>
+    <div class="abs h" style="left:216px;top:152px;width:60px;text-align:right">Army</div>
+    <div class="abs h" style="left:280px;top:152px;width:50px;text-align:right">Kills</div>
+    <div class="abs h" style="left:334px;top:152px;width:50px;text-align:right">Lost</div>
+    <div class="abs h" style="left:388px;top:152px;width:60px;text-align:right">Cash</div>
+    <div class="abs h" style="left:452px;top:152px;width:60px;text-align:right">Score</div>
+
+    <div class="abs" style="left:20px;top:183px;width:540px;height:263px;background:var(--panel-2);
+         border:1px solid var(--btn-d);box-sizing:border-box"></div>
+    <div class="abs sb" style="left:536px;top:183px;height:263px"><i class="sbUp"></i><i class="sbDn"></i></div>
+
+    <div class="abs grp" style="left:22px;top:190px;width:514px;padding-left:8px;box-sizing:border-box">Your team</div>
+
+    <div class="abs c" style="left:46px;top:216px;width:130px;color:var(--p1)">FreadyFish</div>
+    <div class="abs flag us" style="left:180px;top:219px"></div>
+    <div class="abs n" style="left:216px;top:216px;width:60px">12,410</div>
+    <div class="abs n" style="left:280px;top:216px;width:50px">28</div>
+    <div class="abs n" style="left:334px;top:216px;width:50px">9</div>
+    <div class="abs n" style="left:388px;top:216px;width:60px">5,300</div>
+    <div class="abs n" style="left:452px;top:216px;width:60px;font-weight:700">412</div>
+    <div class="abs bar" style="left:46px;top:239px;width:466px"><i style="width:100%;background:var(--p1)"></i></div>
+
+    <div class="abs c" style="left:46px;top:249px;width:130px;color:var(--p4)">Experimental AI 6</div>
+    <div class="abs flag us" style="left:180px;top:252px"></div>
+    <div class="abs n" style="left:216px;top:249px;width:60px">6,300</div>
+    <div class="abs n" style="left:280px;top:249px;width:50px">14</div>
+    <div class="abs n" style="left:334px;top:249px;width:50px">28</div>
+    <div class="abs n" style="left:388px;top:249px;width:60px">1,020</div>
+    <div class="abs n" style="left:452px;top:249px;width:60px;font-weight:700">171</div>
+    <div class="abs bar" style="left:46px;top:272px;width:466px"><i style="width:51%;background:var(--p4)"></i></div>
+
+    <div class="abs grp" style="left:22px;top:284px;width:514px;padding-left:8px;box-sizing:border-box">Hostile</div>
+
+    <div class="abs c" style="left:46px;top:310px;width:130px;color:var(--p2)">Experimental AI 4</div>
+    <div class="abs flag ru" style="left:180px;top:313px"></div>
+    <div class="abs n dim" style="left:216px;top:310px;width:60px">—</div>
+    <div class="abs n dim" style="left:280px;top:310px;width:50px">—</div>
+    <div class="abs n dim" style="left:334px;top:310px;width:50px">—</div>
+    <div class="abs n dim" style="left:388px;top:310px;width:60px">—</div>
+    <div class="abs n" style="left:452px;top:310px;width:60px;font-weight:700">329</div>
+
+    <div class="abs c" style="left:46px;top:338px;width:130px;color:var(--p3)">Experimental AI 3</div>
+    <div class="abs flag ru" style="left:180px;top:341px"></div>
+    <div class="abs n dim" style="left:216px;top:338px;width:60px">—</div>
+    <div class="abs n dim" style="left:280px;top:338px;width:50px">—</div>
+    <div class="abs n dim" style="left:334px;top:338px;width:50px">—</div>
+    <div class="abs n dim" style="left:388px;top:338px;width:60px">—</div>
+    <div class="abs n" style="left:452px;top:338px;width:60px;font-weight:700">286</div>
+
+    <div class="abs c" style="left:46px;top:366px;width:130px;color:var(--p5)">Experimental AI 1</div>
+    <div class="abs flag us" style="left:180px;top:369px"></div>
+    <div class="abs n dim" style="left:216px;top:366px;width:60px">—</div>
+    <div class="abs n dim" style="left:280px;top:366px;width:50px">—</div>
+    <div class="abs n dim" style="left:334px;top:366px;width:50px">—</div>
+    <div class="abs n dim" style="left:388px;top:366px;width:60px">—</div>
+    <div class="abs n" style="left:452px;top:366px;width:60px;font-weight:700">151</div>
+
+    <div class="note" style="left:46px;top:398px">Enemy intel columns redact until the match ends —
+      then they fill in, like the faction column already does.</div>
+  </div>
+</div></div>
+
+<h2>Why these five columns and not others</h2>
+<p class="sub" style="line-height:1.7">
+<span class="badge">Army</span> <code>PlayerStatistics.ArmyValue</code> (<code>:54</code>). The single
+best “who is winning” number in an RTS, and the one the current table conspicuously lacks.<br>
+<span class="badge">Kills / Lost</span> <code>UnitsKilled</code> / <code>UnitsDead</code>
+(<code>:48-49</code>). Together with Army they separate <i>ahead because they fought well</i> from
+<i>ahead because nobody attacked them</i> — the exact question when watching six bots.<br>
+<span class="badge">Cash</span> <code>PlayerResources.Cash</code>. In a mod where units are called in
+against a budget rather than built, banked cash is unspent combat power, not idle savings.<br>
+<span class="badge">Score</span> <code>PlayerStatistics.Experience</code> — kept, unchanged, still
+the sort key.<br>
+<span class="badge">Rejected</span> APM (<code>OrderCount</code>) — meaningless for bots and near
+meaningless for one human. Harvesters / Oil Derricks — the observer Economy tab already carries them
+and they are not decisive here. Ping — <b>not reachable</b>; <code>Session.Client</code> exposes
+<code>ConnectionQuality</code>, not a latency figure.
+</p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD · in-game info panel — A: Corrected</title>
+<style>
+/*
+  Constraint-faithful mockup. Built only from what OpenRA can render:
+    solid rectangles (ColorBlockWidget), 1px bevel lines, flat text at the
+    mod's real font sizes, Image widgets for flags. No border-radius on
+    game surfaces, no drop shadows, no gradients except GradientColorBlock.
+
+  Geometry is 1:1 with the engine. COMBINED_PANEL is 760x500
+  (engine/mods/common/chrome/ingame-menu.yaml:14-18); the left button
+  column is 175 wide and PANEL_ROOT is 580 wide at X:175 (:40-44).
+  Every X below is an absolute coordinate inside that 580px panel.
+
+  Fonts (mods/ww3mod/mod.yaml:290-310):
+    Tiny 10 · Small 12 · Regular 14 · Bold 14 · MediumBold 18
+*/
+:root{
+  --amber:#c9a961; --amber-d:#6f5a2e; --amber-l:#e6d09a;
+  --panel:#2f3437; --panel-2:#272c2f; --banner:#3a4145;
+  --btn:#394045; --btn-l:#5a6369; --btn-d:#1a1e21;
+  --row:#2b3033; --hdr:#464e53;
+  --ink:#e8e8e8; --ink2:#a8adb0; --ink3:#767c80;
+  --line:#1d2124;
+  --p1:#d94f4f; --p2:#e07ab0; --p3:#c9c14f;
+  --p4:#5fbf6a; --p5:#7b8fe0; --p6:#a97bd6;
+  --mark:#ff4d4d; --good:#6ec890;
+}
+html,body{margin:0;background:#0b0d0f;color:#c8ccce;
+  font:14px/1.45 "FreeSans","Liberation Sans",Arial,sans-serif;
+  -webkit-font-smoothing:none;}
+.doc{max-width:900px;margin:0 auto;padding:28px 20px 80px;}
+h1{font-size:22px;color:var(--amber);margin:0 0 4px;font-weight:700;}
+h2{font-size:15px;color:var(--amber-l);margin:34px 0 6px;font-weight:700;
+   border-bottom:1px solid #23282b;padding-bottom:5px;}
+.sub{color:#8d9295;font-size:13px;margin:0 0 6px;}
+.cost{font-size:12px;color:#8d9295;margin:6px 0 14px;}
+.cost b{color:var(--good);font-weight:700;}
+code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:11.5px;color:#b9c4a8;}
+
+/* ---------- game chrome ---------- */
+.frame{margin:12px 0 6px;width:760px;}
+.menu{position:relative;width:760px;height:500px;background:var(--panel);
+  border:11px solid var(--amber);
+  box-sizing:content-box;
+  background-image:
+    linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.10));}
+.menu::after{content:"";position:absolute;inset:0;
+  border:1px solid rgba(0,0,0,.55);pointer-events:none;}
+.menu .bevel{position:absolute;inset:-11px;border:11px solid transparent;
+  border-image:linear-gradient(140deg,var(--amber-l),var(--amber),var(--amber-d)) 11;
+  pointer-events:none;}
+
+/* left button column: X 5, width 170 */
+.btncol{position:absolute;left:5px;top:0;width:170px;height:500px;}
+.btncol .t{position:absolute;left:0;top:190px;width:170px;height:30px;
+  text-align:center;font-weight:700;color:var(--ink);font-size:14px;line-height:30px;}
+.btncol .b{position:absolute;left:15px;width:140px;height:30px;
+  background:var(--btn);border-top:1px solid var(--btn-l);border-left:1px solid var(--btn-l);
+  border-bottom:1px solid var(--btn-d);border-right:1px solid var(--btn-d);
+  color:var(--ink);font-weight:700;font-size:14px;text-align:center;line-height:30px;}
+
+/* PANEL_ROOT: X 175, width 580 */
+.pr{position:absolute;left:175px;top:0;width:580px;height:500px;}
+.abs{position:absolute;}
+.title{left:0;top:21px;width:580px;height:25px;line-height:25px;text-align:center;
+  font-weight:700;font-size:14px;color:var(--ink);}
+/* tab strip: TAB_CONTAINER_3 X=(580-360)/2=110, buttons Y:50 H:25 W:120 */
+.tab{top:50px;height:25px;width:120px;line-height:25px;text-align:center;
+  font-weight:700;font-size:14px;color:var(--ink);background:var(--btn);
+  border-top:1px solid var(--btn-l);border-left:1px solid var(--btn-l);
+  border-bottom:1px solid var(--btn-d);border-right:1px solid var(--btn-d);}
+.tab.on{background:#4e565b;color:#fff;border-bottom-color:#4e565b;}
+
+.hdrlbl{height:25px;line-height:25px;font-weight:700;font-size:14px;color:var(--ink);}
+.cell{height:25px;line-height:25px;font-size:14px;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-shadow:1px 1px 0 rgba(0,0,0,.85);}
+.r{text-align:right;}
+.grp{height:20px;line-height:20px;background:var(--hdr);font-weight:700;
+  font-size:14px;color:var(--ink);}
+.flag{height:16px;width:32px;position:absolute;overflow:hidden;
+  border:1px solid rgba(0,0,0,.5);box-sizing:border-box;}
+.us{background:repeating-linear-gradient(180deg,#b22234 0 2px,#f0f0f0 2px 4px);}
+.us::before{content:"";position:absolute;left:0;top:0;width:14px;height:8px;background:#3c3b6e;}
+.ru{background:linear-gradient(180deg,#f0f0f0 0 33.3%,#0039a6 33.3% 66.6%,#d52b1e 66.6% 100%);}
+.pic{width:16px;height:16px;background:#20252a;border:1px solid #10141a;box-sizing:border-box;
+  position:absolute;}
+.pic::after{content:"";position:absolute;left:4px;top:3px;width:6px;height:5px;border-radius:3px 3px 0 0;
+  background:#8b9298;}
+/* scrollbar */
+.sb{width:24px;background:#23282b;border:1px solid var(--btn-d);box-sizing:border-box;}
+.sb i{position:absolute;left:5px;width:0;height:0;border-left:6px solid transparent;
+  border-right:6px solid transparent;}
+.sbUp{top:7px;border-bottom:7px solid #9aa0a4;}
+.sbDn{bottom:7px;border-top:7px solid #9aa0a4;}
+
+/* annotation */
+.mk{position:absolute;background:var(--mark);}
+.mkv{width:1px;}
+.note{position:absolute;color:var(--mark);font-size:10px;font-weight:700;
+  font-family:"SF Mono",Menlo,monospace;white-space:nowrap;}
+.badge{display:inline-block;background:#23282b;border:1px solid #363d41;
+  color:#9aa0a4;font-size:11px;padding:1px 6px;margin-right:6px;}
+.cap{font-size:13px;color:#cfd4d6;margin:16px 0 2px;font-weight:700;}
+.cap span{color:#7f858a;font-weight:400;}
+</style>
+</head>
+<body>
+<div class="doc">
+
+<h1>Direction A — “Corrected”</h1>
+<p class="sub">The conservative baseline: <b>same table, same columns, laid out properly.</b> No new
+information, no new widgets, no new C# except a five-line clamp. This is the control the other
+directions are measured against — if the user prefers this, the whole job is a YAML afternoon.</p>
+<p class="cost"><b>Cost:</b> YAML only in <code>ingame-info.yaml</code> + <code>ingame-infostats.yaml</code>,
+plus ~6 lines in <code>GameInfoStatsLogic.cs</code> to clamp the spectator shift.
+Widgets used: <code>Container</code>, <code>Label</code>, <code>Image</code>,
+<code>ColorBlock</code>, <code>ScrollPanel</code>, <code>ScrollItem</code>, <code>Checkbox</code>,
+<code>Button</code> — <b>all already exist and are already used by this panel.</b></p>
+
+<h2>Frame 1 — CURRENT, annotated (spectator)</h2>
+<p class="sub">This reproduces the screenshot and marks every defect with its measured pixel offset.</p>
+<div class="frame"><div class="menu"><div class="bevel"></div>
+
+  <div class="btncol">
+    <div class="t">Options</div>
+    <div class="b" style="top:230px">Resume</div>
+    <div class="b" style="top:270px">Load Game</div>
+    <div class="b" style="top:310px">Save Game</div>
+    <div class="b" style="top:350px">Settings</div>
+    <div class="b" style="top:390px">Music</div>
+  </div>
+
+  <div class="pr">
+    <div class="abs title">Conquest: River Zeta WW3</div>
+    <div class="abs tab on" style="left:110px">Objectives</div>
+    <div class="abs tab"    style="left:230px">Options</div>
+    <div class="abs tab"    style="left:350px">How to Play</div>
+
+    <!-- spectator: statsHeader.Y = 81-75 = 6 → absolute 65+6 = 71 -->
+    <div class="abs hdrlbl" style="left:32px;top:71px;width:210px">Player</div>
+    <div class="abs hdrlbl" style="left:252px;top:71px;width:120px">Faction</div>
+    <div class="abs hdrlbl" style="left:419px;top:71px;width:60px">Score</div>
+
+    <!-- playerPanel.Y = 105-75 = 30 → absolute 95 -->
+    <div class="abs" style="left:20px;top:95px;width:540px;height:355px;
+         background:var(--panel-2);border:1px solid var(--btn-d);box-sizing:border-box;"></div>
+    <div class="abs sb" style="left:536px;top:95px;height:355px;">
+      <i class="sbUp"></i><i class="sbDn"></i></div>
+
+    <div class="abs pic"  style="left:30px;top:101px"></div>
+    <div class="abs cell" style="left:51px;top:97px;width:191px;color:var(--p1)">Experimental AI 2</div>
+    <div class="abs flag us" style="left:252px;top:102px"></div>
+    <div class="abs cell" style="left:286px;top:97px;width:123px">Any Side (America)</div>
+    <div class="abs cell" style="left:414px;top:97px;width:60px">360</div>
+
+    <div class="abs pic"  style="left:30px;top:131px"></div>
+    <div class="abs cell" style="left:51px;top:127px;width:191px;color:var(--p2)">Experimental AI 4</div>
+    <div class="abs flag ru" style="left:252px;top:132px"></div>
+    <div class="abs cell" style="left:286px;top:127px;width:123px">Any Side (Russia)</div>
+    <div class="abs cell" style="left:414px;top:127px;width:60px">329</div>
+
+    <div class="abs pic"  style="left:30px;top:161px"></div>
+    <div class="abs cell" style="left:51px;top:157px;width:191px;color:var(--p3)">Experimental AI 3</div>
+    <div class="abs flag ru" style="left:252px;top:162px"></div>
+    <div class="abs cell" style="left:286px;top:157px;width:123px">Any Side (Russia)</div>
+    <div class="abs cell" style="left:414px;top:157px;width:60px">286</div>
+
+    <div class="abs pic"  style="left:30px;top:191px"></div>
+    <div class="abs cell" style="left:51px;top:187px;width:191px;color:var(--p4)">Experimental AI 6</div>
+    <div class="abs flag us" style="left:252px;top:192px"></div>
+    <div class="abs cell" style="left:286px;top:187px;width:123px">Any Side (America)</div>
+    <div class="abs cell" style="left:414px;top:187px;width:60px">171</div>
+
+    <div class="abs pic"  style="left:30px;top:221px"></div>
+    <div class="abs cell" style="left:51px;top:217px;width:191px;color:var(--p5)">Experimental AI 1</div>
+    <div class="abs flag us" style="left:252px;top:222px"></div>
+    <div class="abs cell" style="left:286px;top:217px;width:123px">Any Side (America)</div>
+    <div class="abs cell" style="left:414px;top:217px;width:60px">151</div>
+
+    <div class="abs pic"  style="left:30px;top:251px"></div>
+    <div class="abs cell" style="left:51px;top:247px;width:191px;color:var(--p6)">Experimental AI 5</div>
+    <div class="abs flag us" style="left:252px;top:252px"></div>
+    <div class="abs cell" style="left:286px;top:247px;width:123px">Any Side (America)</div>
+    <div class="abs cell" style="left:414px;top:247px;width:60px">142</div>
+
+    <div class="abs grp" style="left:22px;top:280px;width:514px;padding-left:6px;
+         box-sizing:border-box;">Spectators</div>
+    <div class="abs pic"  style="left:30px;top:311px"></div>
+    <div class="abs cell" style="left:51px;top:307px;width:191px">FreadyFish</div>
+
+    <!-- ===== annotations ===== -->
+    <!-- tab overlap -->
+    <div class="mk" style="left:20px;top:75px;width:540px;height:1px;opacity:.9"></div>
+    <div class="mk mkv" style="left:32px;top:71px;height:4px;"></div>
+    <div class="note" style="left:150px;top:57px">▼ tab strip ends Y=75 — header box starts Y=71 (4px INSIDE the tabs)</div>
+    <!-- name offset -->
+    <div class="mk mkv" style="left:32px;top:88px;height:22px;"></div>
+    <div class="mk mkv" style="left:51px;top:88px;height:22px;"></div>
+    <div class="mk" style="left:32px;top:110px;width:19px;height:1px;"></div>
+    <div class="note" style="left:20px;top:112px">└ header X=32, names X=51 → 19px</div>
+    <!-- faction offset -->
+    <div class="mk mkv" style="left:252px;top:88px;height:22px;"></div>
+    <div class="mk mkv" style="left:286px;top:88px;height:22px;"></div>
+    <div class="mk" style="left:252px;top:110px;width:34px;height:1px;"></div>
+    <div class="note" style="left:214px;top:112px">└ header sits on the FLAG, not the text → 34px</div>
+    <!-- score offset -->
+    <div class="mk mkv" style="left:419px;top:88px;height:22px;"></div>
+    <div class="mk mkv" style="left:414px;top:88px;height:22px;"></div>
+    <div class="note" style="left:400px;top:112px">└ 5px, and left-aligned digits</div>
+    <div class="note" style="left:300px;top:340px">“Any Side (…)” spends 123px restating the flag.</div>
+  </div>
+</div></div>
+
+<h2>Frame 2 — CORRECTED (spectator)</h2>
+<p class="sub">One declared column grid shared by header and row. Numerics right-aligned. A header
+band separates the table from the tabs. Faction text drops the redundant “Any Side”.</p>
+<div class="frame"><div class="menu"><div class="bevel"></div>
+
+  <div class="btncol">
+    <div class="t">Options</div>
+    <div class="b" style="top:230px">Resume</div>
+    <div class="b" style="top:270px">Load Game</div>
+    <div class="b" style="top:310px">Save Game</div>
+    <div class="b" style="top:350px">Settings</div>
+    <div class="b" style="top:390px">Music</div>
+  </div>
+
+  <div class="pr">
+    <div class="abs title">Conquest: River Zeta WW3</div>
+    <div class="abs tab on" style="left:110px">Objectives</div>
+    <div class="abs tab"    style="left:230px">Options</div>
+    <div class="abs tab"    style="left:350px">How to Play</div>
+
+    <!-- content now starts at Y=85: 10px clear of the tab strip -->
+    <!-- header band -->
+    <div class="abs" style="left:20px;top:95px;width:540px;height:26px;background:var(--hdr);"></div>
+    <div class="abs" style="left:20px;top:121px;width:540px;height:1px;background:#5c656b;"></div>
+    <div class="abs hdrlbl" style="left:44px;top:95px;width:200px;height:26px;line-height:26px">Player</div>
+    <div class="abs hdrlbl" style="left:286px;top:95px;width:114px;height:26px;line-height:26px">Faction</div>
+    <div class="abs hdrlbl r" style="left:406px;top:95px;width:60px;height:26px;line-height:26px">Score</div>
+
+    <div class="abs" style="left:20px;top:126px;width:540px;height:320px;
+         background:var(--panel-2);border:1px solid var(--btn-d);box-sizing:border-box;"></div>
+    <div class="abs sb" style="left:536px;top:126px;height:320px;">
+      <i class="sbUp"></i><i class="sbDn"></i></div>
+
+    <div class="abs pic"  style="left:24px;top:134px"></div>
+    <div class="abs cell" style="left:44px;top:130px;width:200px;color:var(--p1)">Experimental AI 2</div>
+    <div class="abs flag us" style="left:250px;top:135px"></div>
+    <div class="abs cell" style="left:286px;top:130px;width:114px">America</div>
+    <div class="abs cell r" style="left:406px;top:130px;width:60px">360</div>
+
+    <div class="abs pic"  style="left:24px;top:164px"></div>
+    <div class="abs cell" style="left:44px;top:160px;width:200px;color:var(--p2)">Experimental AI 4</div>
+    <div class="abs flag ru" style="left:250px;top:165px"></div>
+    <div class="abs cell" style="left:286px;top:160px;width:114px">Russia</div>
+    <div class="abs cell r" style="left:406px;top:160px;width:60px">329</div>
+
+    <div class="abs pic"  style="left:24px;top:194px"></div>
+    <div class="abs cell" style="left:44px;top:190px;width:200px;color:var(--p3)">Experimental AI 3</div>
+    <div class="abs flag ru" style="left:250px;top:195px"></div>
+    <div class="abs cell" style="left:286px;top:190px;width:114px">Russia</div>
+    <div class="abs cell r" style="left:406px;top:190px;width:60px">286</div>
+
+    <div class="abs pic"  style="left:24px;top:224px"></div>
+    <div class="abs cell" style="left:44px;top:220px;width:200px;color:var(--p4)">Experimental AI 6</div>
+    <div class="abs flag us" style="left:250px;top:225px"></div>
+    <div class="abs cell" style="left:286px;top:220px;width:114px">America</div>
+    <div class="abs cell r" style="left:406px;top:220px;width:60px">171</div>
+
+    <div class="abs pic"  style="left:24px;top:254px"></div>
+    <div class="abs cell" style="left:44px;top:250px;width:200px;color:var(--p5)">Experimental AI 1</div>
+    <div class="abs flag us" style="left:250px;top:255px"></div>
+    <div class="abs cell" style="left:286px;top:250px;width:114px">America</div>
+    <div class="abs cell r" style="left:406px;top:250px;width:60px">151</div>
+
+    <div class="abs pic"  style="left:24px;top:284px"></div>
+    <div class="abs cell" style="left:44px;top:280px;width:200px;color:var(--p6)">Experimental AI 5</div>
+    <div class="abs flag us" style="left:250px;top:285px"></div>
+    <div class="abs cell" style="left:286px;top:280px;width:114px">America</div>
+    <div class="abs cell r" style="left:406px;top:280px;width:60px">142</div>
+
+    <div class="abs grp" style="left:22px;top:315px;width:514px;padding-left:8px;
+         box-sizing:border-box;">Spectators</div>
+    <div class="abs pic"  style="left:24px;top:344px"></div>
+    <div class="abs cell" style="left:44px;top:340px;width:200px">FreadyFish</div>
+
+    <div class="note" style="left:150px;top:78px;color:#6ec890">▼ 10px clear of the tab strip</div>
+  </div>
+</div></div>
+
+<h2>Frame 3 — CORRECTED (player mid-match)</h2>
+<p class="sub">Same grid. The objective block returns at the top, so nothing shifts and nothing
+collides — the spectator layout is the <i>same</i> layout with the objective block hidden and the
+table moved up by a <b>clamped</b> amount instead of a flat −75.</p>
+<div class="frame"><div class="menu"><div class="bevel"></div>
+
+  <div class="btncol">
+    <div class="t">Options</div>
+    <div class="b" style="top:210px">Resume</div>
+    <div class="b" style="top:250px">Load Game</div>
+    <div class="b" style="top:290px">Save Game</div>
+    <div class="b" style="top:330px">Settings</div>
+    <div class="b" style="top:370px">Music</div>
+    <div class="b" style="top:410px">Surrender</div>
+  </div>
+
+  <div class="pr">
+    <div class="abs title">Conquest: River Zeta WW3</div>
+    <div class="abs tab on" style="left:110px">Objectives</div>
+    <div class="abs tab"    style="left:230px">Options</div>
+    <div class="abs tab"    style="left:350px">How to Play</div>
+
+    <div class="abs" style="left:20px;top:88px;width:540px;height:1px;background:var(--line)"></div>
+    <div class="abs cell" style="left:20px;top:92px;width:200px;font-weight:700;font-size:18px">Objective</div>
+    <div class="abs cell" style="left:120px;top:92px;width:300px;font-weight:700;font-size:18px;
+         color:var(--good)">In progress</div>
+    <div class="abs cell" style="left:20px;top:122px;width:520px;font-size:14px;color:var(--ink2)">
+      ☐&nbsp;&nbsp;Destroy all enemy forces.</div>
+
+    <div class="abs" style="left:20px;top:152px;width:540px;height:26px;background:var(--hdr);"></div>
+    <div class="abs" style="left:20px;top:178px;width:540px;height:1px;background:#5c656b;"></div>
+    <div class="abs hdrlbl" style="left:44px;top:152px;width:200px;height:26px;line-height:26px">Player</div>
+    <div class="abs hdrlbl" style="left:286px;top:152px;width:114px;height:26px;line-height:26px">Faction</div>
+    <div class="abs hdrlbl r" style="left:406px;top:152px;width:60px;height:26px;line-height:26px">Score</div>
+
+    <div class="abs" style="left:20px;top:183px;width:540px;height:263px;
+         background:var(--panel-2);border:1px solid var(--btn-d);box-sizing:border-box;"></div>
+    <div class="abs sb" style="left:536px;top:183px;height:263px;">
+      <i class="sbUp"></i><i class="sbDn"></i></div>
+
+    <div class="abs pic"  style="left:24px;top:191px"></div>
+    <div class="abs cell" style="left:44px;top:187px;width:200px;color:var(--p1)">FreadyFish</div>
+    <div class="abs flag us" style="left:250px;top:192px"></div>
+    <div class="abs cell" style="left:286px;top:187px;width:114px">America</div>
+    <div class="abs cell r" style="left:406px;top:187px;width:60px">412</div>
+
+    <div class="abs pic"  style="left:24px;top:221px"></div>
+    <div class="abs cell" style="left:44px;top:217px;width:200px;color:var(--p2)">Experimental AI 4</div>
+    <div class="abs flag ru" style="left:250px;top:222px"></div>
+    <div class="abs cell" style="left:286px;top:217px;width:114px">Russia</div>
+    <div class="abs cell r" style="left:406px;top:217px;width:60px">329</div>
+
+    <div class="abs pic"  style="left:24px;top:251px"></div>
+    <div class="abs cell" style="left:44px;top:247px;width:200px;color:var(--p3)">Experimental AI 3</div>
+    <div class="abs flag ru" style="left:250px;top:252px"></div>
+    <div class="abs cell" style="left:286px;top:247px;width:114px">Russia</div>
+    <div class="abs cell r" style="left:406px;top:247px;width:60px">286</div>
+
+    <div class="abs pic"  style="left:24px;top:281px"></div>
+    <div class="abs cell" style="left:44px;top:277px;width:200px;color:var(--p4)">Experimental AI 6</div>
+    <div class="abs flag us" style="left:250px;top:282px"></div>
+    <div class="abs cell" style="left:286px;top:277px;width:114px">America</div>
+    <div class="abs cell r" style="left:406px;top:277px;width:60px">171</div>
+  </div>
+</div></div>
+
+<h2>What A changes, precisely</h2>
+<p class="sub" style="line-height:1.7">
+<span class="badge">1</span> Every content panel moves <code>Y: 65 → 85</code> in
+<code>mods/ww3mod/chrome/ingame-info.yaml</code>. The tab strip ends at Y=75; 85 gives a 10px gutter.<br>
+<span class="badge">2</span> The spectator branch in <code>GameInfoStatsLogic.cs:120-128</code> subtracts
+the objective block's full 75px height unconditionally. Clamp it so the header can never rise above
+the panel's own top inset — that single change is what removes the tab collision.<br>
+<span class="badge">3</span> Header X values are set equal to the row X values: Player 44, Faction 286,
+Score 406. Today they are 32 / 252 / 419 against rows at 51 / 286 / 414.<br>
+<span class="badge">4</span> <code>Align: Right</code> on Score (header and cell). The observer panel
+already does exactly this — <code>CASH_HEADER</code> in
+<code>mods/ww3mod/chrome/ingame-observer.yaml</code> carries <code>Align: Right</code>. This panel
+simply never got it.<br>
+<span class="badge">5</span> A <code>ColorBlock</code> header band + 1px rule, again copying the
+observer panel's <code>HEADER_COLOR</code> treatment.<br>
+<span class="badge">6</span> Faction shows <code>America</code> / <code>Russia</code>, not
+<code>Any Side (America)</code>. “Any Side” is the lobby <i>pick</i>, not the resolved faction, and
+the flag beside it already says the same thing twice.
+</p>
+
+</div>
+</body>
+</html>

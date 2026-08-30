@@ -12989,3 +12989,82 @@ Cost 3500 → 3000 (`structures.yaml:422`); `m109`/`giatsint` `Ammo` 39 → 40
 `economy.md:177` still **holds** at the new numbers (34 ≤ 100 × 3000/3000) — the worked example is
 stale, the property is intact. Separately, `AmmoPool.cs:52-57` describes `Essential` as shipping
 "inert until someone does it"; **35 pools now author `Essential: true`.**
+
+## 2026-08-30 — The in-game Options tab is empty for EVERYONE, and the cause is a missing one-word label
+
+Reported as a spectator problem ("the Options tab is completely empty now when spectating"). It is
+not spectator-specific — **nothing in the chain reads `LocalPlayer`, `IsObserver`, or any player
+scope.** A player mid-match sees the same empty panel.
+
+`LobbyOptionsLogic` selects its option category from a hidden `Label@CATEGORY_FILTER` inside the
+panel widget and **defaults to `CategoryAdvanced` when the label is absent**
+(`LobbyOptionsLogic.cs:229-230`). The in-game panel
+(`engine/mods/common/chrome/ingame-info-lobby-options.yaml`) carries no such label — the only one in
+the tree is `engine/mods/common/chrome/lobby-players.yaml:878`, i.e. the *pre-game lobby*. So the
+in-game panel is Advanced-only, and every working option (`fog`, `explored`, `startingcash`,
+`gamespeed`, `timelimit`, `startingunits`, `passiveincome`, `incomemodifier`, `bounty`, `cheats`,
+sync reports) is classified **Common** (`:71-86`) and filtered out (`:326-328`).
+
+What survives the filter is `LobbyDummyOptions` (attached `mods/ww3mod/rules/world.yaml:443`), and
+that trait stamps `Placeholder = true` on **every** option it yields — the wrapper at
+`LobbyDummyOptions.cs:30-40` (`:37`) covers the Rules options too, not just the unit/tuning dummies.
+`RenderAdvancedSections` then skips any section that is entirely placeholders (`:379-380`), and the
+catch-all "Other" section carries the same guard (`:391`). All three Advanced sections are
+all-placeholder, so all three vanish.
+
+The only other trait that could have yielded a non-placeholder Advanced option is
+`PowersLobbyOptions` (`airstrikes`, `airstrike-cooldown`) — **commented out** at
+`mods/ww3mod/rules/world.yaml:555`. Nothing is left to draw.
+
+**The fix is `Label@CATEGORY_FILTER` with `Text: Common` on the in-game panel.** Read-only rendering
+is already correct without further work: `GameInfoLogic.cs:172` passes
+`configurationDisabled: () => true`. Section headers additionally need a `SECTION_HEADER_TEMPLATE` —
+`AddSectionHeader` silently no-ops when it is absent (`:225`, `:261-262`), so the options would
+render un-grouped rather than not at all.
+
+**Unverified and worth one minute:** a map shipping a `ScriptLobbyDropdown` (e.g. `difficulty`)
+would be unsectioned and non-placeholder, and *would* populate "Other" — so the tab may be non-empty
+on mission maps. Checked against skirmish (River Zeta) only, and by reading rather than by opening
+the tab.
+
+## 2026-08-30 — The spectator branch of the stats panel subtracts more margin than exists
+
+`GameInfoStatsLogic.cs:119-128` hides the objective block when `world.LocalPlayer` is null and pulls
+the header row and player list up by the block's **full 75px height, unconditionally**. The panel
+itself is pinned at `Y: 65` (`mods/ww3mod/chrome/ingame-info.yaml:160-184`, inherited from
+`engine/mods/common/chrome/ingame-info.yaml:119-139`), and the tab strip occupies **Y 50→75**
+(`:38-42`). So for a spectator:
+
+```
+statsHeader.Bounds.Y: 81 − 75 = 6   →  absolute 65 + 6 = 71   ← tab strip ends at 75
+```
+
+The header row's box begins **4px inside the tab strip**. Glyphs do not visibly collide only because
+`LabelWidget` centres text vertically in its 25px box. For a player the same headers sit at
+65 + 81 = 146 and are clear.
+
+**Consequence for anyone fixing the "no margin under the tabs" complaint: moving the `Y: 65` pin is
+not sufficient.** The spectator shift is unclamped and will re-eat whatever margin is added. Both
+have to change together.
+
+Separately, the header row and the data row in `engine/mods/common/chrome/ingame-infostats.yaml` are
+two coordinate systems that were never reconciled — Player header X 32 vs name X 51 (the row
+reserves 29px for `Image@PROFILE`, the header does not); Faction header X 252 sits on the *flag*, not
+the faction text at X 286; Score header X 419 vs value X 414. And **no `Align` property appears
+anywhere in that file**, so numeric columns are left-aligned. The observer panel next door already
+does this correctly — `Align: Right` appears 20+ times in
+`mods/ww3mod/chrome/ingame-observer.yaml` (`:299`, `:308`, `:317`, …). This panel never got the pass.
+
+## 2026-08-30 — CLAUDE.md's `SupplyRouteContestation` citation is stale on both path and line
+
+`CLAUDE.md` cites the trait as "on `SUPPLYROUTE` at `structures.yaml:260`". The actual location is
+`mods/ww3mod/rules/ingame/structures.yaml:303` — note the `ingame/` path segment, and line 303, not
+260. The enclosing `SUPPLYROUTE:` actor begins at `:222`. The trait itself is unchanged and the
+CLAUDE.md prose around it (contestation ≠ capture, `BaseTicks: 1500` = 90s) still matches the file.
+
+Also worth recording for anyone building a per-player readout on it: `SupplyRouteContestation` is an
+**actor** trait on the structure, not a player trait. `ControlBar`, `ControlBarFraction`,
+`NetEnemySurplus`, `NetFriendlySurplus`, `TeamValue`, `IsPassive` are all public
+(`SupplyRouteContestation.cs:220-225`), but reaching them per player means
+`world.ActorsHavingTrait<SupplyRouteContestation>()` filtered by owner — there is no
+`PlayerActor.Trait<SupplyRouteContestation>()`.
