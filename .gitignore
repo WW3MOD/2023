@@ -64,3 +64,9 @@ __pycache__/
 
 # Cameo conversion staging (tools/cameo)
 /tools/cameo/work/
+
+# Precomputed line-of-sight caches. Regenerated on first load into
+# SupportDir/Cache/shadows, keyed on map content + density rules + algorithm
+# version, so a committed copy buys nothing — and every editor save or
+# --regen-shadows would otherwise add another ~9-25 MB to the packfile forever.
+shadows.bin

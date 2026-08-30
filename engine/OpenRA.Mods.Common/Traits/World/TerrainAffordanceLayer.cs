@@ -70,7 +70,7 @@ namespace OpenRA.Mods.Common.Traits
 			isEdge = new CellLayer<bool>(map);
 			outwardFacing = new CellLayer<WAngle>(map);
 
-			// DensityLayer is built at map load (persisted in shadows.bin). Guard anyway:
+			// DensityLayer is built at map load (cached in SupportDir, see ShadowCache). Guard anyway:
 			// a map with no cover simply yields an all-zero affordance field.
 			if (map.DensityLayer == null)
 				return;

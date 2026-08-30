@@ -180,6 +180,17 @@ namespace OpenRA
 			return Channels.TryGetValue(channelName, out var info) ? info.Filename : null;
 		}
 
+		/// <summary>
+		/// Whether a channel has been registered. Write dispatches to a background thread that
+		/// throws — fatally, and out of reach of any try/catch at the call site — on an unknown
+		/// channel, so code that logs from a context where the channel may not have been added
+		/// (unit tests, tools that register a different set) must check this first.
+		/// </summary>
+		public static bool ChannelExists(string channelName)
+		{
+			return Channels.ContainsKey(channelName);
+		}
+
 		public static void Write(string channelName, string value)
 		{
 			ChannelWriter.TryWrite(new ChannelData(channelName, value));

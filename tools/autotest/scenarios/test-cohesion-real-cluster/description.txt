@@ -8,6 +8,6 @@ adjacent to it (expect EdgeLine). Logs everything for analysis.
 
 This is a diagnostic test, not a strict pass/fail. It passes if every
 density probe in or near the cluster returns > 0 (i.e. DensityLayer is
-actually populated). Failure means shadows.bin or the density-load path
-is broken on this engine, which would explain why the bidder feels
+actually populated). Failure means the LOS cache or the density-generate
+path is broken on this engine, which would explain why the bidder feels
 random in normal play.

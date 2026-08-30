@@ -371,7 +371,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Dynamic shadow recalc disabled 260503: even buildings/decorations with Density
 			// no longer mutate the cached shadow at runtime. Shadows are computed once at map
-			// load (Map.cs SetShadowLayer fallback or shadows.bin) and stay frozen. The recalc
+			// load (Map.LoadOrGenerateShadows: support-dir cache, else generate) and stay frozen. The recalc
 			// was too expensive to run mid-game (visible lag on building destruction). Kept the
 			// code commented so we can revisit if dynamic density becomes feasible later.
 			// See RELEASE_V1.md → "Buildings & line of sight" and Map.QueueShadowUpdate.

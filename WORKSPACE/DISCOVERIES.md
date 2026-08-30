@@ -173,6 +173,102 @@ entry below — the trap is not a `LabelWidget` quirk, it is how `Widget` copies
   should be fixed, and that adding a line is a deliberate act needing a reason. The four sibling
   stance maps carry the cordon error as `[repo]` debt, so copying their geometry silently copies the
   debt. `Bounds: 1,1,64,32` on a `MapSize: 66,34` map satisfies the one-cell border and costs nothing.
+## 2026-08-30 — Shadow generation is deterministic ACROSS machines, OSes and CPU families; it is cleared as a suspect for the 2026-08-16 two-machine desync (`wt/shadow-cache`)
+
+- **The result.** Same commit `55836dd8`, same map, regenerated from scratch with no cache present, on
+  **Windows 11 x64** and on **macOS x86_64**, both on dotnet `6.0.428`: **byte-identical**, sha256
+  `dbecdd123dfb80a9c955d00e0e60fc9c818b78dddf408e7481f128719f150f2c`, 36,871,948 bytes. The same hash
+  is also produced by the `Parallel.ForEach` implementation that replaced the serial loop — so it
+  holds across **two OSes and two implementations, on one CPU family (x86_64)**. *(Corrected
+  2026-08-30: an earlier revision of this entry claimed "two CPU families" on the belief that the
+  macOS host was Apple Silicon. It is an Intel Core i7-9750H — `machdep.cpu.brand_string`. The
+  Apple Silicon claim was inherited from the recon and is wrong there too. Determinism across ARM
+  is therefore NOT established by this result.)*
+- **Why it was in doubt.** `RecomputeShadowFrom` accumulates in `float` (`Map.cs:1163-1169`) and
+  ECMA-335 permits higher intermediate precision, so bit-identity was reasoned structurally but never
+  demonstrated. `DISCOVERIES.md:2927-2979` had explicitly scoped its .NET 6/8/10 byte-identity result
+  to a single machine and named the cross-machine case untested.
+- **Why it matters beyond this feature.** Shadow feeds vision attenuation (`MapLayers.cs:363-365`) and
+  firing LOS (`WeaponInfo.cs:148`), both simulation inputs, and the bytes are never sync-hashed
+  (`Sync.cs:71` cannot admit a float). Per-machine generation therefore had exactly the shape of the
+  unsolved 2026-08-16 desync: divergence invisible until the first LOS query near foliage, i.e.
+  thousands of ticks in rather than at tick 0. **That hypothesis is now dead — look elsewhere.**
+- **Consequence for design.** Per-player generation is safe; host-authoritative distribution of the
+  cache is *not* needed, and neither is a lobby handshake to keep players in agreement about shadows.
+- **Related, same session:** the two shipped caches were confirmed **current**, not stale — regenerating
+  each with its committed file moved aside reproduces the committed bytes exactly (`river-zeta-ww3`
+  `dbecdd12…`, `woodland-warfare-ww3` `3c47e113…`). The recon had flagged staleness here as a possible
+  live bug; there was none.
+- **Correction to the recon's cost model:** generation is **0.93 µs/pair**, not the 2.29 µs/pair fitted
+  there, and parallelising buys **2.4×**, not 8× — the loop is allocation- and bandwidth-bound
+  (~25 M iterator allocations per generation). Corrected table in `recon-shadows-on-demand.md` §Q2.
+- **Gitignoring a generated file while code still WRITES it removes the only signal that it exists.**
+  Between `f1207600` and `214332a1`, `.gitignore` carried `shadows.bin` (added by `f1207600`) while
+  `Map.Save` (`Map.cs:905`) and `--regen-shadows` both still wrote one into the map package, and
+  `ComputeUID` still hashed it. So **saving a map in the editor silently forked that developer's UID
+  for the map, with no `git status` signal at all** — the file was untracked *and* ignored, so
+  nothing surfaced it. They would then fail to agree on the map in a lobby with anyone else, and the
+  in-package copy also outranked the correctly-keyed cache on load, handing them different
+  concealment values. The fix was to stop writing it, stop reading it, and drop the filename from
+  `ComputeUID`.
+  - *(Corrected: an earlier account of this said the vector was `git rm --cached` "leaving the file
+    on disk in every existing checkout". That is wrong — `git rm` deletes the file in other clones
+    on pull, and it only persisted locally in the worktree that ran the command. The write path, not
+    the untracking, is what forked identities, and it did so with the ignore rule suppressing the
+    evidence. The general lesson is the sharper one: **do not add an ignore rule for a generated
+    artifact until the code that generates it is gone**, or you convert a visible diff into a silent
+    divergence.)*
+- **A stale cache served against a changed algorithm is the worst failure this design admits, and
+  `ShadowCache.AlgoVersion` is the only thing preventing it.** It is a hand-bumped const in the cache
+  key; nothing in the language links it to the generator. The payload length cannot catch a missed
+  bump because length is purely geometric — it is `cells + 2×pairs` and is invariant under *every*
+  change to the curve, the trace or the constants. So an entry generated with the old algorithm
+  passes every check the cache makes, and serves the old concealment to that player only, for as long
+  as the entry lives. **The symptom is one player seeing through a forest that blocks everyone else,
+  which reads as a desync, not as a stale render.**
+  - **Now guarded:** `ShadowCacheKeyTermsTest.ShadowCurveMatchesTheRecordedAlgoVersion` checksums
+    `Map.ForestGroundShadow` across its whole input range plus `ForestShadowKneeDensity`,
+    `MapShadowLayer.MinRange`/`MaxRange`, and the three airborne-trace constants. Those three were
+    bare literals inside `RecomputeShadowFrom` (`2048` eye height, `512` obstacle height, `/5f`
+    airborne divisor) with no accessor; they were promoted to `Map.ShadowEyeHeight`,
+    `Map.ShadowObstacleHeight` and `Map.ShadowAirborneDivisor` **purely so the checksum could see
+    them**. Verified byte-neutral: river-zeta still regenerates to `dbecdd12…f2c` after the
+    extraction. The test fails with instructions to bump the version, not to update the constant.
+  - **STILL UNGUARDED, four routes.** Each alters the output with every key term and every
+    checksummed constant unchanged, so the bump must be made by hand:
+    1. The *shape* of the trace — the Bresenham walk in `CellLayer.TilesIntersectingLine`, the
+       from/to cell skip, or the projection maths (`t`, `z_los`).
+    2. The serialization order in `Map.SaveShadowsBinaryData`.
+    3. **`SetDensityLayer`'s summation, `DensityLayer[pos] += d.Value` (`Map.cs:1049`).** Changing
+       how overlapping density combines — saturating, max, weighted — rewrites the whole density
+       layer and therefore every shadow derived from it. This one is the easiest to miss because it
+       lives in a *different method* from the PITFALL that warns about staleness, and it does not
+       look like it is touching the shadow algorithm at all.
+    4. Annulus geometry via a mod-level `MapGrid` change, which alters the stored pair count. This
+       one is at least *detected* rather than silently wrong: the reader consumes fewer bytes than
+       the stored payload and `ShadowCache.TryLoad` now rejects the entry as a short read.
+    **If you touch any of these, bump `AlgoVersion` yourself.** The PITFALL at the end of
+    `RecomputeShadowFrom` says so inline.
+- **One open anomaly, carried deliberately.** A single mid-session `sha256` of cache entry
+  `3b3c3c7d…` read `df6a170f…` where every reproduction reads `dbecdd12…`. Four mechanisms have been
+  eliminated: computation nondeterminism (13 generations across 4 configurations, all reproducible),
+  each of the three map/rules configurations that entry could have come from (`dbecdd12`, `dbecdd12`,
+  `255be5e9` — none matches), a torn read (the write is temp-then-atomic-rename, so no reader can see
+  a partial file), and a framing/artifact error (the whole entry hashes `a6fe394e`, and **no** byte
+  offset from 1 to 80 of a correct entry yields `df6a170f`). The recorded size beside the anomalous
+  hash was 36,872,005 — a well-formed entry (header arithmetic: 4 magic + 4 version + 1+40 key
+  string + 8 length = 57) — so the file's *content* differed, not the slice taken of it.
+  - **One candidate is NOT excluded, and it is the leading one.** The torn-read elimination rests on
+    the write being temp-then-atomic-rename, which guarantees the reader never sees a *partial*
+    file — it says nothing about **durability**. `file.Flush(true)` only landed in `fd9f9be2`, the
+    *third* commit, and the anomaly was recorded before it. `recon-shadows-on-demand.md` §Watch
+    records this same machine hitting **a genuine ENOSPC in the same session, truncating one
+    benchmark write to 0 bytes**. A full or near-full disk producing a renamed entry whose payload
+    never reached the platter is exactly "right length, wrong content", and it fits the
+    wrong-once-never-again shape better than anything eliminated so far. It cannot be confirmed
+    retrospectively because the file is gone and the disk has since been freed.
+  - **Still open.** Four mechanisms eliminated, one live unexcluded candidate, no reproduction.
+    **If shadow concealment is ever reported as inconsistent, start here.**
 
 ## 2026-08-30 — 8 of 10 shipped maps regenerate the whole `shadows.bin` LOS cache on EVERY load (29–101 s measured); `ComputeUID` hashes `shadows.bin`, so the cache is part of map identity (recon, `main` @ `627be5a4`)
 
@@ -189,8 +285,11 @@ measured `--regen-shadows` runs on map copies **outside** the repo; no tracked f
   geometry — offsets `ceil(sqrt(du²+dv²)) ∈ [2,32]` (`MapShadowLayer.cs:36-37`) clipped to `MapSize`
   (`Map.cs:1916`). `bytes = cells + 2×pairs` reproduces all four on-disk files **byte-for-byte**
   (arena 6,719,660 · siberian 28,415,043 · river-zeta 36,871,948 · woodland 45,527,532). Measured
-  Release, single-threaded, Apple Silicon: arena 66×34 = **9.25 s**, siberian-pass 97×67 = **34.04 s**
-  → `t ≈ 1.6 s + 2.29 µs × pairs` (fitted intercept matches the ~1.1 s bare-utility startup).
+  Release, single-threaded, Intel Core i7-9750H (x86_64 — *not* Apple Silicon as originally recorded):
+  arena 66×34 = **9.25 s**, siberian-pass 97×67 = **34.04 s** → `t ≈ 1.6 s + 2.29 µs × pairs`.
+  **The pair counts and file sizes are exact and still stand; the timing fit does not.** Direct
+  measurement on 2026-08-30 puts river-zeta at 17.0 s serial against this model's 43.7 s, i.e.
+  **0.93 µs/pair**, so the constant is ~2.4× too high — see `recon-shadows-on-demand.md` §Q2.
   Predicted for the uncached shipped maps: `polar-disorder` 53.6 s, `seventh-woods` 81.9 s,
   `twin-rivers` 97.3 s, **`x-lake` 100.7 s / 86.7 MB**. Cost is **independent of tree count** — every
   pair is walked regardless of density. (A near-empty map's file stores *sparse* on disk — 8 KB

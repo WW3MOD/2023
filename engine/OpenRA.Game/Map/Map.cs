@@ -17,6 +17,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using OpenRA.FileFormats;
 using OpenRA.FileSystem;
 using OpenRA.Graphics;
@@ -301,11 +302,21 @@ namespace OpenRA
 			try
 			{
 				foreach (var filename in contents)
+				{
+					// shadows.bin is a derived line-of-sight cache, not map content, and is no longer
+					// written into packages at all. Leftover copies from an older checkout or an
+					// editor save must not change map identity: if they did, a developer carrying one
+					// would compute a different UID to a fresh clone of the same map and the two
+					// could not agree on it in a lobby.
+					if (filename == "shadows.bin")
+						continue;
+
 					if (filename.EndsWith(".yaml", StringComparison.Ordinal) ||
 						filename.EndsWith(".bin", StringComparison.Ordinal) ||
 						filename.EndsWith(".lua", StringComparison.Ordinal) ||
 						(format >= 12 && filename == "map.png"))
 						streams.Add(package.GetStream(filename));
+				}
 
 				// Take the SHA1
 				if (streams.Count == 0)
@@ -466,48 +477,83 @@ namespace OpenRA
 			var bbr = new PPos(Bounds.Right - 1, Bounds.Bottom - 1);
 			SetBounds(btl, bbr);
 
-			using (var s = Package.GetStream("shadows.bin"))
-			{
-				if (s != null)
-				{
-					DensityLayer = new CellLayer<byte>(this);
-					ShadowLayer = new MapShadowLayer(this);
-
-					// Read DensityLayer
-					foreach (var fromUV in AllCells.MapCoords)
-					{
-						DensityLayer[fromUV] = s.ReadUInt8();
-					}
-
-					// Read ShadowLayer
-					foreach (var fromUV in AllCells.MapCoords)
-					{
-						foreach (var toUV in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
-						{
-							var combined = s.ReadUInt16();
-							var groundShadow = (byte)(combined >> 8); // Upper 8 bits for ground shadow
-							var airShadow = (byte)(combined & 0xFF); // Lower 8 bits for air shadow
-							ShadowLayer[fromUV, toUV.ToMPos(this)] = (groundShadow, airShadow);
-						}
-					}
-				}
-			}
-
 			LoadScenarios();
 
 			PostInit();
 
-			// Fallback: if no shadows.bin was on disk, compute fresh from current rules.
+			// Uid is needed below to key the shadow cache. Computing it here rather than at the end
+			// of the constructor is safe: ComputeUID reads only package streams and never touches
+			// the shadow or density layers.
+			Uid = ComputeUID(Package, MapFormat);
+
 			// Deferred until after PostInit so Rules is populated (SetDensityLayer reads
-			// Rules.Actors). Makes the shadows.bin cache truly optional: deleting it after
-			// a rules change forces a one-time regen without leaving stale density baked in.
-			if (ShadowLayer == null || DensityLayer == null)
+			// Rules.Actors, which is also what the cache key hashes).
+			LoadOrGenerateShadows();
+		}
+
+		/// <summary>
+		/// Load both layers from the support-dir cache, or generate them and populate it.
+		///
+		/// <para>A shadows.bin inside the map package is deliberately NOT consulted. That file
+		/// carries no magic, no algorithm version and no rules hash, so nothing about it can be
+		/// validated — a copy left behind by an editor save or an old checkout would silently
+		/// override a correctly-keyed cache and hand one player different concealment values to
+		/// everyone else. Since shadow feeds vision attenuation and firing LOS, that is a desync.
+		/// The cache is the single source, and it is the one that can prove it is current.</para>
+		/// </summary>
+		void LoadOrGenerateShadows()
+		{
+			var key = ShadowCache.ComputeKey(Uid, ShadowCache.ComputeDensityRulesHash(Rules));
+
+			if (ShadowCache.TryLoad(key, ReadShadowsBinaryData))
+				return;
+
+			DensityLayer = null;
+			ShadowLayer = null;
+
+			RegenerateAndCacheShadows();
+		}
+
+		/// <summary>Rebuild both layers from current rules and store them under the current Uid.</summary>
+		void RegenerateAndCacheShadows()
+		{
+			SetDensityLayer();
+			SetShadowLayer();
+
+			ShadowCache.TrySave(
+				ShadowCache.ComputeKey(Uid, ShadowCache.ComputeDensityRulesHash(Rules)),
+				SaveShadowsBinaryData());
+		}
+
+		/// <summary>
+		/// Deserialize both layers from the flat format written by <see cref="SaveShadowsBinaryData"/>.
+		/// Shared by the in-package read and the support-dir cache read so the two can never drift —
+		/// the format is positional and carries no per-record framing, so a one-field divergence
+		/// between a reader and a writer would silently shift every subsequent value.
+		/// </summary>
+		void ReadShadowsBinaryData(Stream s)
+		{
+			var density = new CellLayer<byte>(this);
+			var shadow = new MapShadowLayer(this);
+
+			foreach (var fromUV in AllCells.MapCoords)
+				density[fromUV] = s.ReadUInt8();
+
+			foreach (var fromUV in AllCells.MapCoords)
 			{
-				SetDensityLayer();
-				SetShadowLayer();
+				foreach (var toUV in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
+				{
+					var combined = s.ReadUInt16();
+					var groundShadow = (byte)(combined >> 8); // Upper 8 bits for ground shadow
+					var airShadow = (byte)(combined & 0xFF); // Lower 8 bits for air shadow
+					shadow[fromUV, toUV.ToMPos(this)] = (groundShadow, airShadow);
+				}
 			}
 
-			Uid = ComputeUID(Package, MapFormat);
+			// Only publish once the whole payload has been consumed, so a short or corrupt stream
+			// throws and leaves the layers null for the caller to regenerate rather than half-filled.
+			DensityLayer = density;
+			ShadowLayer = shadow;
 		}
 
 		/* MapCoordsRegion ValidCellsAround(MPos from, byte size)
@@ -877,11 +923,15 @@ namespace OpenRA
 			var s = root.WriteToString();
 			toPackage.Update("map.yaml", Encoding.UTF8.GetBytes(s));
 			toPackage.Update("map.bin", SaveBinaryData());
-			toPackage.Update("shadows.bin", SaveShadowsBinaryData());
 			Package = toPackage;
 
 			// Update UID to match the newly saved data
 			Uid = ComputeUID(toPackage, MapFormat);
+
+			// The edit changed the map's identity, so the layers belong under a new key. They go to
+			// the support-dir cache, never back into the package: an unvalidatable shadows.bin in
+			// the package is exactly the stale override LoadOrGenerateShadows refuses to read.
+			RegenerateAndCacheShadows();
 		}
 
 		public byte[] SaveBinaryData()
@@ -943,11 +993,12 @@ namespace OpenRA
 			return dataStream.ToArray();
 		}
 
-		public byte[] SaveShadowsBinaryData()
+		/// <summary>
+		/// Serialize the layers as they currently stand. Counterpart to
+		/// <see cref="ReadShadowsBinaryData"/>; see that method for why the pair is shared.
+		/// </summary>
+		byte[] SaveShadowsBinaryData()
 		{
-			SetDensityLayer();
-			SetShadowLayer();
-
 			var dataStream = new MemoryStream();
 			using (var writer = new BinaryWriter(dataStream))
 			{
@@ -1005,8 +1056,17 @@ namespace OpenRA
 		{
 			ShadowLayer = new MapShadowLayer(this);
 
-			foreach (var fromUV in AllCells.MapCoords)
-				RecomputeShadowFrom(fromUV);
+			// Bit-identical regardless of scheduling: RecomputeShadowFrom writes only
+			// ShadowLayer[fromUV, *], which MapShadowLayer.Index maps to a slot range disjoint per
+			// from-cell, and no accumulation crosses a from-cell boundary. Everything it reads is
+			// immutable by this point — DensityLayer is fully populated by SetDensityLayer beforehand,
+			// and FindTilesInAnnulus, TilesIntersectingLine and CenterOfCell are pure over immutable data.
+			//
+			// MapShadowLayerParallelismTest covers the store's disjointness on a synthetic footprint;
+			// it does NOT call RecomputeShadowFrom. The real-map evidence is that regenerating
+			// river-zeta-ww3 through this loop reproduces the bytes the previous serial implementation
+			// committed, sha256 dbecdd12...f2c — verified by hand, not by that fixture.
+			Parallel.ForEach(AllCells.MapCoords, RecomputeShadowFrom);
 		}
 
 		/// <summary>
@@ -1082,6 +1142,15 @@ namespace OpenRA
 
 		public const int ForestShadowKneeDensity = 20; // ~2 fully-dense tree cells stay linear
 
+		/// <summary>Viewer eye height, in world units, for the airborne line-of-sight trace.</summary>
+		public const int ShadowEyeHeight = 2048;
+
+		/// <summary>Height an obstacle is assumed to reach when testing whether it breaks the airborne trace.</summary>
+		public const int ShadowObstacleHeight = 512;
+
+		/// <summary>Divisor turning crossed density into airborne shadow. Linear on purpose — see ForestGroundShadow.</summary>
+		public const float ShadowAirborneDivisor = 5f;
+
 		/// <summary>
 		/// <para>WW3MOD forest-concealment curve. <paramref name="crossedDensity"/> is the summed tree
 		/// Building.Density of every cell strictly BETWEEN viewer and target on the sightline
@@ -1136,7 +1205,7 @@ namespace OpenRA
 				var totalGroundDensity = 0;
 				var totalAirborne = 0f;
 
-				var z_a = 2048;
+				var z_a = ShadowEyeHeight;
 				var fromCenter = CenterOfCell(fromUV.ToCPos(this));
 				var toCenter = CenterOfCell(toUV.ToCPos(this));
 				var p0 = new WPos(fromCenter.X, fromCenter.Y, z_a);
@@ -1164,15 +1233,22 @@ namespace OpenRA
 					t = Math.Max(0, Math.Min(1, t));
 					var z_los = z_a * (1 - t);
 
-					var obstacleHeight = 512;
+					var obstacleHeight = ShadowObstacleHeight;
 					if (obstacleHeight > z_los)
-						totalAirborne += DensityLayer[tile] / 5f;
+						totalAirborne += DensityLayer[tile] / ShadowAirborneDivisor;
 				}
 
-				// PITFALL: this ground curve is BAKED into shadows.bin at map load. Editing it does
-				// NOTHING for maps that ship a shadows.bin until you regen (utility --regen-shadows).
-				// A stale cache silently keeps the old concealment. Airborne stays linear on purpose
-				// (see ForestGroundShadow) — do not "fix" the asymmetry without owning the heli impact.
+				// PITFALL: this curve is BAKED into the cached layer at map load. Editing it — or any
+				// of the constants above, or the trace below — does NOTHING for a player holding a
+				// cache entry generated with the old values, and a stale entry silently keeps the old
+				// concealment for that player only, which is a desync rather than a stale render.
+				// The fix is NOT to regenerate maps by hand (no map carries a shadows.bin any more,
+				// and --regen-shadows no longer writes one). BUMP ShadowCache.AlgoVersion: it is part
+				// of the cache key, so every existing entry is rebuilt automatically.
+				// ShadowCacheKeyTermsTest.ShadowCurveMatchesTheRecordedAlgoVersion fails if you change
+				// a constant without bumping, but it cannot see a change to the trace's shape.
+				// Airborne stays linear on purpose (see ForestGroundShadow) — do not "fix" the
+				// asymmetry without owning the heli impact.
 				var groundShadow = (byte)Math.Min(ForestGroundShadow(totalGroundDensity), (int)byte.MaxValue);
 				var airborneShadow = (byte)Math.Min(Math.Ceiling(totalAirborne), byte.MaxValue);
 
