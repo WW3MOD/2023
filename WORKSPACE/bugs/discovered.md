@@ -29,6 +29,61 @@
 
 ---
 
+## 2026-08-30: [low] OPEN — `IskanderTargeter`'s zeroing `Versus` table omits `Kevlar` and `Unarmored`, so the dummy trigger warhead delivers FULL damage to soldiers (found while: combat-feedback recon, branch `wt/recon-battle-feedback`, `main @ 5a985337`)
+
+**Established by reading; NOT measured in game.** No launch was spent on this.
+
+`IskanderTargeter` (`mods/ww3mod/rules/weapons/weapons-missiles.yaml:394-401`) is a dummy launch
+trigger — an `InstantHit` designator whose `Versus` table zeroes `None`, `Wood`, `Concrete`, `Light`,
+`Medium`, `Heavy` and `Brick` so it damages nothing. Two defects in that list:
+
+- **`Brick` is not an armour class in this mod.** The mod's population is exactly nine — `Concrete`,
+  `Heavy`, `Indestructable`, `Kevlar`, `Light`, `Medium`, `None`, `Unarmored`, `Wood`
+  (`conventions.md` §`Versus`). Zeroing `Brick` accomplishes nothing.
+- **`Kevlar` and `Unarmored` are omitted, and an omitted class is FULL damage, not zero.**
+  `DamageVersus` filters the victim's armours to the classes the table *lists*
+  (`DamageWarhead.cs:105`); an unlisted class matches nothing, `ApplyPercentageModifiers` runs over
+  an empty sequence, and the victim takes an unmodified 100%. `^Soldier` is `Type: Kevlar`
+  (`infantry.yaml:174-175`) and sets no `Thickness`, so there is no penetration division either.
+
+**Consequence:** the warhead delivers its full `Damage: 50` to any soldier at the aim point. This is
+the exact shape `conventions.md` warns about — *"a table that zeroes `None` but omits `Kevlar` is
+harmless to a civilian and lethal at full damage to every soldier"*.
+
+**Scope is small and that is why it has survived:** `TargetDamageWarhead.Spread` defaults to
+`WDist(1)` (`TargetDamageWarhead.cs:24`) and this warhead sets none, so only a hitshape edge within
+one world unit is admitted. Real, near-unobservable, one-line fix (add `Kevlar: 0` and
+`Unarmored: 0`; drop `Brick`).
+
+**Confirm by:** firing an Iskander with a soldier standing exactly on the designated cell and
+checking for a 50-damage tick, or an NUnit assertion over the resolved weapon.
+
+---
+
+## 2026-08-30: [low] OPEN — `Bullet.MinInaccuracy` OVERWRITES the computed scatter instead of flooring it, so it is a fixed inaccuracy and not a minimum (found while: combat-feedback recon, branch `wt/recon-battle-feedback`, `main @ 5a985337`)
+
+**Established by reading; NOT measured in game.**
+
+`engine/OpenRA.Mods.Common/Projectiles/Bullet.cs:206-209`:
+
+```cs
+if (info.MinInaccuracy != WDist.Zero)
+    maxInaccuracyOffset = info.MinInaccuracy.Length;
+```
+
+It assigns rather than taking `Math.Max`, which contradicts the field's own `[Desc]` — *"The minimum
+inaccuracy regardless of distance to target"* (`:33-34`). At any range where the distance-scaled
+scatter would exceed `MinInaccuracy`, the weapon becomes **more** accurate than its `Inaccuracy`
+setting asks for, rather than less.
+
+**Blast radius is one weapon:** `MinInaccuracy: 32` at
+`mods/ww3mod/rules/weapons/weapons-ballistics.yaml:217`. Grep before fixing — a fix changes that
+weapon's long-range scatter, so it is a balance change, not just a correctness fix.
+
+**Confirm by:** a resolved-stats read plus an NUnit case over the two branches; no launch needed.
+
+---
+
 ## 2026-08-30: [medium] OPEN, NOT FIXED — a DOCKED vehicle can drain a Logistics Centre past the restock reserve the push arm respects, starving the infantry aura arm (found while: auditing drain rates after `9e46f141`, branch `wt/postmerge-fallout`, `main @ 9e46f141`)
 
 **Established by reading; NOT measured in game.** No launch was spent on this — it is arithmetic over

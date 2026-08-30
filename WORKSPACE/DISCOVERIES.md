@@ -39,6 +39,71 @@ mechanism, and the test went green anyway".
 `1 .. SupplyValue-1` — stocked enough to survive `RearmCandidates`' `CurrentSupply > 0` filter, too
 poor to pay for a batch. `m270` gives the widest such band of the three at `SupplyValue: 70`
 (`vehicles-america.yaml:121`); `grad` is 85 and `tos` 120.
+## 2026-08-30 — Combat feedback: the explanation for "it fired and nothing died" is COMPUTED IN EVERY SHIPPED BUILD and thrown away, and `INotifyDamage` is structurally unable to recover it (`wt/recon-battle-feedback`, verified against `main @ 5a985337`)
+
+Data only — no build, no launch, no autotest. Full write-up: `WORKSPACE/recon-battle-feedback.md`.
+
+**Three pieces of machinery already exist, are already wired, and already run.** Anyone proposing to
+"build damage feedback" is proposing to re-route, not to build:
+
+- **`FloatingText` ships** (`engine/OpenRA.Mods.Common/Effects/FloatingText.cs:21-62`) — world-space
+  text, `TinyBold`, rises `WVec(0,0,86)`/tick, fog-suppressed at `:52-53`.
+- **`CombatDebugOverlay` already prints exact damage over every damaged actor**
+  (`:124-136`): `$"{-e.Damage.Value} ({e.Damage.Value * 100 / maxHP}%)"` handed straight to
+  `FloatingText`. **And the trait is mounted on `^ExistsInWorld` at `mods/ww3mod/rules/defaults.yaml:4`**,
+  i.e. on essentially every actor. The only gate is `debugVis.CombatGeometry`, the ingame *Show
+  Combat Geometry* checkbox (`DebugMenuLogic.cs:99-100`), which also draws hitshape wireframes — so
+  the damage readout is bundled into a developer view rather than missing. It zero-suppresses
+  (`:126`) and integer-truncates, so a 192/24000 hit prints as `0%`.
+- **`GunTrace` already formats the complete breakdown** at the moment of resolution —
+  `rawDamage`, `afterThickness`, `thickness`, `pen`, `modifiers`, `versus`, `FINAL`, `hpBefore`
+  (`DamageWarhead.cs:248-249`), behind `WW3_GUNTRACE=1`, into `debug.log`.
+
+**The structural fact that sets the cost of any feedback work: `INotifyDamage` cannot answer "why".**
+`AttackInfo` (`engine/OpenRA.Game/Traits/TraitsInterfaces.cs:80-86`) carries **only**
+`Damage.Value` (final), `Attacker`, `DamageState`, `PreviousDamageState`. A listener sees `-192` and
+cannot distinguish a small weapon from a defeated one. The intermediates live in exactly one scope,
+`DamageWarhead.InflictDamage` (`:220-257`), where at `:246` both `Damage` (raw) and `modifiedDamage`
+(final) are live along with `thickness`, `Penetration` and `DamageVersus(...)`. **The raw→final
+ratio is the signal and it is available at one site.** Caveat for anyone building there:
+`armorPercent` is a local at `:239` that dies with its `if` block, so reporting *effective* thickness
+means capturing it two lines earlier. Victim-side `IDamageModifier` results (garrison cover,
+veterancy, prone, forest density) are applied **later**, in `Health.InflictDamage`
+(`Health.cs:158-186`), and are not reachable from the warhead at all.
+
+**Why the ~109 `Penetration`-less damage warheads are NOT a systemic bug — it dissolves on the
+`Thickness` default.** About 149 `SpreadDamage`/`TargetDamage` warheads exist across
+`rules/weapons/`; roughly 40 declare `Penetration`. That reads as a mod-wide defect, since
+`Penetration` defaults to 1 (`DamageWarhead.cs:24`). It is not: `ArmorInfo.Thickness` defaults to
+**0** (`Armor.cs:24`) and `InflictDamage` skips the entire penetration branch when `thickness == 0`
+(`:237`). **No infantry sets a thickness** — `^Infantry` is `Type: None` (`infantry.yaml:36`),
+`^Soldier` is `Type: Kevlar` (`:175`), neither carries `Thickness`. Already pinned by
+`BallisticPenetrationTest.UnarmouredVictimsAreNeverDivided`, whose own comment states the conclusion.
+**Do not file this as a bug; the census number is what makes it look like one.**
+
+**The accumulated-damage half is invisible for a separate reason: there is no health bar.**
+`SelectionBarsAnnotationRenderable.cs:181` has `DrawHealthBar` commented out deliberately
+(`e670ab96`, 2024-08-13); the in-file note warns that `DrawHealthBar` and `GetHealthColor` are
+unreachable dead code, that **two people have already improved that chain believing it renders**, and
+ends *"Ask before uncommenting."* Health is read from four discrete pip bands instead
+(`Health.cs:85-105`: `Undamaged` iff `HP == MaxHP`, then 75/50/25%). **Consequence, and it is the
+sharpest statement of the reported problem:** a 192-of-24000 hit (0.8%) flips `Undamaged → Light` and
+lights one pip on the *first* hit, then roughly **31 further hits change nothing on screen**. Had the
+bar been enabled it is 3 px tall (`:120-122`) — 0.8% of a ~30 px sprite is **0.24 px**, so it would
+not have shown there either. Related dead code worth knowing about: `:142-155` is a commented-out
+**recent-damage delta bar**, i.e. someone already started building this and stopped.
+
+**A "miss" and a "weak hit" are the same event for a bullet.** `Bullet` perturbs the *aim point*, not
+the trajectory (`Bullet.cs:201-222`), then flies a fixed parabola to the displaced point and
+**always** detonates — `Explode` unconditionally calls `args.Weapon.Impact(...)` (`:388-404`). So an
+inaccurate shot still lands and a `SpreadDamage` warhead still does falloff damage from wherever it
+landed. Missiles are the exception and are already instrumented: `MissileTrace.cs:36-56` enumerates
+eleven termination causes and separates `Detonated / DudPreArm / Unterminated`, and
+`Missile.ClassifyExplosion` (`:1229-1250`) already names the clause that fired.
+
+**Cross-reference for the penetration half:** the `Thickness × ArmorDirectionPercent` rule and the
+"a surface showing penetration must also show attack direction" ruling are in the 2026-08-30
+`wt/tooltip-standard` entry further down; not restated here.
 
 ## 2026-08-30 — `Timestep` is MILLISECONDS PER TICK, there are ELEVEN of them, and only `mod.yaml:382` is the default — the number that looks like a tick rate is its inverse (`wt/postmerge-fallout`, verified against `main @ 0163ca22`)
 

@@ -12,6 +12,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.GameRules;
+using OpenRA.Mods.Common.Effects;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -234,10 +235,62 @@ namespace OpenRA.Mods.Common.Warheads
 			}
 
 			var thickness = victim.Trait<Armor>().Info.Thickness;
+			var damageBeforeArmour = damage;
+			var effectiveThickness = 0;
 			if (thickness != 0)
 			{
 				var armorPercent = ArmorDirectionPercent(victim, shape, args);
-				damage = ApplyPenetration(damage, Penetration, thickness * armorPercent / 100);
+
+				// Kept in a local rather than inlined into the call: this is the number
+				// ApplyPenetration actually compares against, and HitCheck below needs it. Feeding
+				// it raw Thickness instead would report every top-attack weapon as broken -- the
+				// ATGM's Penetration 100 clears an Abrams ROOF of 70 and is correctly sized, while
+				// against the frontal 700 it looks seven times under-sized.
+				effectiveThickness = thickness * armorPercent / 100;
+				damage = ApplyPenetration(damage, Penetration, effectiveThickness);
+			}
+
+			// Anomaly detection, not tracing -- silent unless armour turned a lethal shot into a
+			// non-lethal one. See HitCheck for the predicate and the measurements behind it.
+			//
+			// COST, because this line sits on every warhead application in the game: the gate is one
+			// int comparison against a local plus a static call that early-returns after at most two
+			// more. No allocation, no trait lookup, no dictionary probe. An unarmoured victim never
+			// even reaches the call -- effectiveThickness is 0 and short-circuits it -- which is the
+			// overwhelming majority of hits in an infantry fight. Hoisting effectiveThickness into a
+			// local added no arithmetic; the same expression was previously written inline as the
+			// argument to ApplyPenetration.
+			//
+			// Everything past the gate is rare by construction, and that is where the two lookups
+			// live: Health for max HP, and DebugVisualizations for the on-screen banner. The second
+			// is deliberately inside `if (loud)` rather than beside it -- the advisory band DOES fire
+			// in a real match, and it must not pay for a trait lookup feeding a banner it will never
+			// draw.
+			if (effectiveThickness > 0 && HitCheck.LostMostOfItsDamage(damageBeforeArmour, damage))
+			{
+				var victimMaxHp = victim.TraitOrDefault<Health>()?.MaxHP ?? 0;
+				var loud = HitCheck.IsUnderPerforming(damageBeforeArmour, damage, effectiveThickness, victimMaxHp);
+				if (loud || HitCheck.IsUnderPerformingAgainstThinArmour(damageBeforeArmour, damage, effectiveThickness, victimMaxHp))
+				{
+					// Deduped inside Report, and the set is probed before any string is built.
+					HitCheck.Report(firedBy.Info.Name, victim.Info.Name, GetType(), Damage, Penetration,
+						damageBeforeArmour, damage, effectiveThickness, victimMaxHp);
+
+					// On-screen half of the same signal, so a developer watching a match sees the
+					// anomaly without tailing a file. Loud channel only -- the advisory band is
+					// numerous enough to clutter the screen and is not what anyone is hunting.
+					// NOT deduped, unlike the log: a repeat occurrence is worth seeing each time.
+					if (loud)
+					{
+						var debugVis = firedBy.World.WorldActor.TraitOrDefault<DebugVisualizations>();
+						if (debugVis != null && debugVis.DamageNumbers)
+						{
+							var text = $"ARMOUR {damageBeforeArmour}->{damage}";
+							firedBy.World.AddFrameEndTask(w => w.Add(
+								new FloatingText(victim.CenterPosition, Color.OrangeRed, text, 60)));
+						}
+					}
+				}
 			}
 
 			if (DamagePercent != 0)

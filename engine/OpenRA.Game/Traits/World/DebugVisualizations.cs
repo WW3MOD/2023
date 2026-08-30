@@ -22,6 +22,37 @@ namespace OpenRA.Traits
 		public bool ScreenMap;
 		public bool ActorTags;
 
+		/// <summary>
+		/// WW3MOD developer overlay: floating damage numbers on every hit, plus a highlighted
+		/// readout when HitCheck flags a shot that armour turned from lethal to harmless. Toggled by
+		/// the "Damage Numbers" checkbox in the debug panel.
+		///
+		/// DEFAULTS OFF, AND TURNING IT BACK ON IS A RELEASE BLOCKER. If you set this to true you
+		/// must file a BLOCKER entry in WORKSPACE/PIPELINE.md carrying the marker
+		/// HITCHECK-OVERLAY-DEFAULT-ON in the same commit -- DebugVisualizationDefaultsTest asserts
+		/// the entry exists if and only if this is true, and will fail the build until you do.
+		/// That is not bureaucracy: a debug overlay visible in a stranger's first match is an
+		/// immediately-visible this-is-unfinished signal, which is the release audit's own
+		/// definition of a BLOCKER.
+		///
+		/// It shipped default-ON briefly (user ruling 2026-08-30, "that could be made default on for
+		/// now, as long as we change it before release"), tracked as R17. The deferral ran out of
+		/// road the same day: main is pushed as work lands and the user play-tests from another
+		/// machine, so default-on would have put damage numbers over every unit on their next pull --
+		/// and directly under a planned full play-through whose whole purpose is filing polish items,
+		/// which would then have been filed against a debug build. Flipped, R17 discharged and
+		/// deleted, and the lock left in place pointing the other way.
+		///
+		/// THE DETECTOR IS NOT AFFECTED BY THIS FLAG. HitCheck writes hitcheck.log unconditionally;
+		/// this gates only the on-screen half. Turning the overlay off costs visibility, never
+		/// detection.
+		///
+		/// Kept separate from CombatGeometry deliberately: this readout used to be bundled into it,
+		/// so asking for a damage number also drew hitshape and muzzle wireframes, which is why it
+		/// read as a missing feature rather than a developer one.
+		/// </summary>
+		public bool DamageNumbers = false;
+
 		// The depth buffer may have been left enabled by the previous world
 		// Initializing this as dirty forces us to reset the default rendering before the first render
 		bool depthBufferDirty = true;
