@@ -889,9 +889,16 @@ namespace OpenRA.Mods.Common.Traits
 		/// already use BlockedByActor.Immovable, so this matches them. It also matters in practice —
 		/// measured with nav-guard, river-zeta has 33 components for a wheeled unit with its map
 		/// actors placed and exactly ONE with terrain alone, so every real pocket on that map is made
-		/// by trees and hedges rather than by ground. The polarity is safe for this use: extra
-		/// blockers can only remove connections, so a `false` here is definitive, while the `Might`
-		/// in the name is about movable actors, which cannot make an unreachable cell reachable.</para>
+		/// by trees and hedges rather than by ground.</para>
+		///
+		/// <para>THE POLARITY IS GUARANTEED, not merely argued. The hierarchical graph is
+		/// DELIBERATELY conservative (HierarchicalPathFinder.cs:634) — it must serve every actor
+		/// sharing the locomotor, so it carries MORE edges than any specific unit's real graph — and
+		/// PathExists states its own contract at :925-933: if it returns false, there is definitely
+		/// no path. FALSE NEGATIVES ARE THEREFORE IMPOSSIBLE, which is the only direction that could
+		/// hurt here, since it would relocate a unit away from a cell it could really have reached.
+		/// The `Might` in the method name is about the opposite direction — movable actors, which
+		/// cannot make an unreachable cell reachable.</para>
 		/// </remarks>
 		bool CanReach(CPos cell)
 		{

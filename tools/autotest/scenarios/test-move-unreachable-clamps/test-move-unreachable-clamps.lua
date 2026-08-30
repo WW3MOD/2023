@@ -81,9 +81,12 @@ WorldLoaded = function()
 		end
 
 		return true
-	end, "Rig never clamped to a reachable cell: it was ordered to the unreachable ("
+	-- The message states exactly the two things the predicate tests, and no more. It used to
+	-- add "expected it to end about 2 cells from the target, at roughly (41,34)" — true of the
+	-- fixed build, but NOT something asserted here, and a failure message that claims more
+	-- than its assertion sends the next reader looking for a defect that was never measured.
+	end, "Rig never clamped to a reachable cell: ordered to the unreachable ("
 		.. TargetCell.X .. "," .. TargetCell.Y .. ") from (" .. start.X .. "," .. start.Y
 		.. ") at chessboard distance " .. startDist
-		.. ", and either never left its start cell or never got nearer. Expected it to end"
-		.. " about 2 cells from the target, at roughly (41,34).")
+		.. ", it either never left its start cell or never ended nearer the target than it began.")
 end

@@ -26,18 +26,35 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		/// <summary>How far the ENGINE will silently move a bot's destination. Both order paths a bot uses run
 		/// the cell through <see cref="Mobile.NearestMoveableCell(CPos, int, int)"/>, whose default budget is a radius-10 annulus
-		/// (Mobile.cs:811) — "Move" via Mobile.ResolveOrder (Mobile.cs:1030), "AttackMove" via
-		/// AttackMove.ResolveOrder (AttackMove.cs:116). A bot clamping its own destination should use the same
+		/// (Mobile.cs:814) — "Move" via Mobile.ResolveOrder (Mobile.cs:1073), "AttackMove" via
+		/// AttackMove.ResolveOrder (AttackMove.cs:125). A bot clamping its own destination should use the same
 		/// reach: clamping SHORTER gives up on deliveries the engine would have completed, and clamping FURTHER
 		/// picks a cell the engine would not have chosen, so the two disagree again in the other direction.
 		///
-		/// <para>MATCHING THE RADIUS DOES NOT MAKE THE TWO AGREE OUTRIGHT, and the difference is a real if narrow
-		/// hole. <see cref="PassableFor"/> tests TERRAIN only, whereas NearestMoveableCell additionally requires
-		/// <c>CanEnterCell(..., BlockedByActor.Immovable)</c> and <c>CanStayInCell</c> (Mobile.cs:847-852). So a
-		/// cell this clamp accepts as terrain-passable but which is occupied by a building — or is transit-only —
-		/// is still relocated by the engine, and any module measuring against the cell it asked for is back in the
-		/// original trap. Closing that needs an occupancy-aware oracle, which is not a pure predicate and is not
-		/// what this helper provides.</para></summary>
+		/// <para>MATCHING THE RADIUS DOES NOT MAKE THE TWO AGREE OUTRIGHT, and as of 2026-08-30 the difference is
+		/// NO LONGER NARROW. <see cref="PassableFor"/> tests TERRAIN only, whereas NearestMoveableCell requires
+		/// THREE things: <c>CanEnterCell(..., BlockedByActor.Immovable)</c>, <c>CanStayInCell</c>, and now
+		/// <c>CanReach</c> — a domain compare proving a path exists at all (Mobile.cs:853-858, :896). The first two
+		/// were always here: a cell this clamp accepts as terrain-passable but which is occupied by a building, or
+		/// is transit-only, is still relocated by the engine, and any module measuring against the cell it asked
+		/// for is back in the original trap.</para>
+		///
+		/// <para>THE THIRD TERM IS NEW AND CHANGES THE SHAPE OF THE HOLE, not just its size. What used to keep the
+		/// two aligned in the common case was the EARLY RETURN: the bot clamped to a standable cell, the engine's
+		/// first <c>if</c> accepted it unchanged, the annulus never ran, and the two scan orders never had a chance
+		/// to disagree. That early return now also requires <c>CanReach</c>, so a bot-clamped cell in a DIFFERENT
+		/// CONNECTED COMPONENT falls through to the annulus and the engine returns a different cell — picked by a
+		/// different scan order entirely (<see cref="FiresStandoffMath"/>'s NearestPassableCell walks Chebyshev
+		/// rings; Map.FindTilesInAnnulus walks Euclidean-then-hash). Measured with nav-guard, river-zeta has 33
+		/// components for a wheeled unit, so the new term can reject a clamped cell across any of the other 32.</para>
+		///
+		/// <para>THE SIGN OF THAT CHANGE IS UNMEASURED and deliberately not "fixed" back into alignment. Before the
+		/// change, a carrier ordered to an unreachable drop cell also never arrived — it stalled STATIONARY instead
+		/// of stalling ten cells away, which may well be the worse of the two. Nobody has built a scenario either
+		/// way. Callers leaning on this contract: SquadManagerBotModule.cs:403, ScoutBotModule.cs:132,
+		/// EngineerRouteOpenBotModule.cs:379, MountedTransportBotModule.cs:1425, LayeredDefenceBotModule.cs:530
+		/// and :687. Closing the hole properly needs an occupancy-and-reachability-aware oracle, which is not a
+		/// pure predicate and is not what this helper provides.</para></summary>
 		public const int EngineRelocationCells = 10;
 
 		/// <summary>A terrain-passability predicate bound to <paramref name="mover"/>'s locomotor: true when that
@@ -63,7 +80,7 @@ namespace OpenRA.Mods.Common.Traits
 		///
 		/// <para>WHY A CLAMP AND NOT JUST A REJECTION. The engine already relocates: both order paths a bot uses
 		/// run the destination through <see cref="Mobile.NearestMoveableCell(CPos, int, int)"/> over a radius-10 annulus
-		/// (Mobile.cs:1030 for "Move", AttackMove.cs:116 for "AttackMove"). So a bounds-only destination rarely
+		/// (Mobile.cs:1073 for "Move", AttackMove.cs:125 for "AttackMove"). So a bounds-only destination rarely
 		/// strands a unit — it silently MOVES THE GOALPOSTS, and the bot is never told. That is worse than a
 		/// stall wherever the module then measures against the cell it asked for: MountedTransportBotModule
 		/// compares the carrier's position to its drop cell within DropOffArrivalRadius (3), the engine parks it

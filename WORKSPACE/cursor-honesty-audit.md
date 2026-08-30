@@ -48,7 +48,7 @@ lines myself; **[S]** = established by a sub-audit and not independently re-read
 | `enter` on a **frozen** vehicle (CrewMember) | `EnterAlliedActorTargeter.cs:52-70` — paints full green `enter` | `CrewMember.cs:88` — `Type != TargetType.Actor` → drop | **DIVERGE (hard)** [S] |
 | `attack` on a **frozen** Supply Route | `AttacksSupplyRoutes.cs:122-133` | `AttacksSupplyRoutes.cs:77` — requires `TargetType.Actor` | **DIVERGE (latent)** [S] |
 | `assaultmove` / `assaultmove-blocked` | never emitted — `AttackMove.cs:117` hardcodes `assaultMoving = false` | n/a | **DEAD UI** [R] |
-| `move` onto a **passable but unreachable** cell | `Mobile.cs:1180` — single-cell `MovementCostForCell`, actor-blind (unchanged: the CURSOR still shows plain move, deliberately) | `Mobile.NearestMoveableCell` now clamps to the nearest REACHABLE cell via `CanReach` | **FIXED 2026-08-30** — order now works [R] |
+| `move` onto a **passable but unreachable** cell | `Mobile.cs:1223` — single-cell `MovementCostForCell`, actor-blind (unchanged: the CURSOR still shows plain move, deliberately) | `Mobile.NearestMoveableCell` now clamps to the nearest REACHABLE cell via `CanReach` | **FIXED 2026-08-30** — order now works [R] |
 | `move-blocked` (ground) | `Mobile.cs:1178-1181` | `Mobile.cs:1027-1028` / `Move.cs:142` | AGREE [S] |
 | `move-rough` (`TerrainCursors`) | `Mobile.cs:1184`, dict declared `Mobile.cs:70` | — | **DEAD UI** — dict never populated in `mods/` [R] |
 | `move` / `move-blocked` (**air**) | `Aircraft.cs:1572` — blocks on `IsTraitPaused` | `Aircraft.cs:1254` — checks `IsTraitDisabled` only, queues `Fly` anyway | **MIRROR (over-warns)** [R] |
@@ -187,7 +187,7 @@ is unchanged. The blocked art is now the thing that tells the player why.
 The most-clicked cursor in the game, and the two sides ask different questions:
 
 - **Display:** `MoveOrderTargeter` asks only `Locomotor.MovementCostForCell(location)`
-  (`Mobile.cs:1180`) — terrain-only, **single-cell**, actor-blind, and with no `fromCell` it skips
+  (`Mobile.cs:1223`) — terrain-only, **single-cell**, actor-blind, and with no `fromCell` it skips
   even the height-discontinuity rule. A grass cell on the far side of a river passes.
 - **Execution:** `FindPathToTargetCell` runs a full search and returns `NoPath` when the destination
   is disconnected (`PathFinder.cs:122-123`). `Move.OnFirstRun` tries all four `BlockedByActor` levels

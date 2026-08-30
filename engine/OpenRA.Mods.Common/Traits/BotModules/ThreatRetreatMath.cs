@@ -34,7 +34,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// the number. Here the bad answer is the winning answer.</para>
 		///
 		/// <para>The engine does not save this one. A "Move" order is relocated to the nearest movable cell
-		/// within 10 cells (Mobile.cs:1030 -> Mobile.NearestMoveableCell), so a retreat aimed a short way
+		/// within 10 cells (Mobile.cs:1073 -> Mobile.NearestMoveableCell), so a retreat aimed a short way
 		/// offshore lands on the beach; but a retreat aimed at open water further out than that resolves to no
 		/// destination at all and the whole fleeing squad stands still and dies (GroundStates.cs:290 issues the
 		/// order to every unit in the squad).</para></summary>
