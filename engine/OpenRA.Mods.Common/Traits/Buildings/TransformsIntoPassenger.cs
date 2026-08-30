@@ -73,7 +73,9 @@ namespace OpenRA.Mods.Common.Traits
 						Info.EnterBlockedCursor,
 						IsCorrectCargoType,
 						CanEnter,
-						IsCorrectCargoTypeFrozen);
+						// ResolveOrder refuses frozen targets outright, so claiming the click would
+						// paint a cursor for an order it drops and eat the player's Move with it.
+						(_, _) => false);
 			}
 		}
 
@@ -97,18 +99,6 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var ci = target.Info.TraitInfo<CargoInfo>();
 			return ci.Types.Contains(Info.CargoType);
-		}
-
-		// Fogged twin. This predicate was already static-only, so it survives fog intact; the leak on
-		// this targeter was in the cursor half (CanEnter reads Cargo.HasSpace), which the frozen path
-		// no longer calls.
-		bool IsCorrectCargoTypeFrozen(ActorInfo targetInfo, TargetModifiers modifiers)
-		{
-			if (Info.RequiresForceMove && !modifiers.HasModifier(TargetModifiers.ForceMove))
-				return false;
-
-			var ci = targetInfo.TraitInfoOrDefault<CargoInfo>();
-			return ci != null && ci.Types.Contains(Info.CargoType);
 		}
 
 		bool CanEnter(Actor target)

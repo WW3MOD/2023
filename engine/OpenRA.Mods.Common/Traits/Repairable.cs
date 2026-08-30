@@ -81,10 +81,9 @@ namespace OpenRA.Mods.Common.Traits
 						Info.EnterBlockedCursor,
 						CanRepairAt,
 						_ => CanRepair() || CanRearm(),
-						// RepairActors is a static name list, so the fogged predicate is the live one.
-						// The cursor half reads only SELF's damage/ammo, which fog does not hide, but the
-						// frozen path no longer varies the cursor at all — see EnterAlliedActorTargeter.
-						(targetInfo, modifiers) => CanRepairAtFrozen(targetInfo, modifiers));
+						// ResolveOrder refuses frozen targets outright, so claiming the click would
+						// paint a cursor for an order it drops and eat the player's Move with it.
+						(_, _) => false);
 			}
 		}
 
@@ -107,14 +106,6 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 
 			return Info.RepairActors.Contains(target.Info.Name);
-		}
-
-		bool CanRepairAtFrozen(ActorInfo targetInfo, TargetModifiers modifiers)
-		{
-			if (requireForceMove && !modifiers.HasModifier(TargetModifiers.ForceMove))
-				return false;
-
-			return Info.RepairActors.Contains(targetInfo.Name);
 		}
 
 		bool CanRepair()

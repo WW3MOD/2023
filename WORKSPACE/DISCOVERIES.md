@@ -8,9 +8,21 @@
 **The general rule, which is the durable part: a `CanTargetFrozenActor` override may read
 `target.Info`, `target.Owner`, `target.HP`, `target.DamageState`, `target.TargetTypes` — the snapshot
 that `RefreshState()` maintains — and NOTHING through `target.Actor`.** `FrozenActor.Actor` is
-`!BackingActor.IsDead ? BackingActor : null` (`FrozenActorLayer.cs:94`): it is the real, live actor,
+`!BackingActor.IsDead ? BackingActor : null` (`FrozenActorLayer.cs:120`): it is the real, live actor,
 not a snapshot. Because a targeter's answer selects a CURSOR, anything read through it is *drawn
 under the mouse* — this is not a latent leak, it is a rendered one.
+
+**The rule has exactly one carve-out, and it is about the Move fallback rather than about cursors.**
+Returning false from a frozen targeter is not inert: `UnitOrderGenerator`'s second pass rewrites the
+refused click into `Target.FromCell` so Move claims it, for any Neutral or Ally owner
+(`UnitOrderGenerator.cs:311-322`, `OrderFallbackMath.cs:73-82`). And a dead ghost stays clickable —
+`FrozenActorLayer.cs:386-390` only removes a frozen actor once it stops being *visible*. So a targeter
+that claims a dead ghost issues an order its resolver discards and the unit **does not move at all**,
+where before it walked to the spot. **Declining to answer costs the player their order; that is why
+`EnterAlliedActorTargeter` is permitted to read `target.Actor == null` and only to return false.**
+The weak deadness signal that leaks back through the restored Move is the lesser evil: a silent no-op
+on the commonest fog interaction is the failure mode `wt/cursor-honesty` (`a2466c3b`) and
+`CrewMember.cs:88-93` both name as the worst available.
 
 **Four overrides did it** (found by IL scan, and independently by reading — the two agreed exactly):
 `EnterAlliedActorTargeter` (`:52`), `Carryall+CarryallPickupOrderTargeter` (`:418`),
@@ -35,6 +47,14 @@ whole reason the exposure concentrates on neutral civilian buildings**, and it i
 files already say so in comments ("only valid for own/allied actors, which are guaranteed to never be
 frozen", `Aircraft.cs:1321`, `Harvester.cs:372`).
 
+**Those seven now decline frozen targets outright rather than answering permissively.** Their resolvers
+reject every frozen target, so a permissive predicate painted a green cursor for an order the trait is
+documented to drop — and, per the carve-out above, ate the Move the player would otherwise have got.
+`(_, _) => false` is the honest answer wherever the resolver refuses frozen targets, and it is the same
+answer `RepairsBridges` and `EntersTunnels` already give. **The live surface of this targeter is
+`Passenger` and `CrewMember` only** — those two genuinely accept frozen targets and keep real
+Info-derived predicates.
+
 **`LoadingBlocked` was the narrow half, not the wide one.** The brief that started this work named it,
 but its only writer anywhere is `HeliEmergencyLanding` (`:345`/`:427`), so it is true only for a
 crash-disabled helicopter. The wide leak was `Cargo.HasSpace` reached via `useEnterCursor`. Same file,
@@ -44,12 +64,21 @@ same call, three lines apart — worth remembering that the named symptom was no
 mutable trait state written only by `HeliEmergencyLanding`, so consulting it under fog announced that a
 helicopter you cannot see has crash-landed.
 
-**Countermeasure, because prose was not going to hold this.** `FrozenActorTargetingTest` walks the IL of
-every `CanTargetFrozenActor` override in `OpenRA.Mods.Common` + `OpenRA.Game` and fails on any
-`callvirt FrozenActor.get_Actor`. It carries a resolved-call floor so a broken scanner fails instead of
-reading green. The targeter's frozen predicate is `Func<ActorInfo, TargetModifiers, bool>` and
-**mandatory**, so a new call site cannot reach the live actor by accident — the type system asks the
-question rather than a comment.
+**Countermeasure, because prose was not going to hold this.** What actually makes a new call site unable
+to reach the live actor is the SIGNATURE: the frozen predicate is
+`Func<ActorInfo, TargetModifiers, bool>` and the single constructor makes it **mandatory**, so there is
+no live `Actor` in scope to read and no overload that omits the question. That argument stands by
+itself and does not depend on any test.
+
+`FrozenActorTargetingTest` is the backstop, and its reach is narrower than it looks: it walks the IL of
+every `CanTargetFrozenActor` override in `OpenRA.Mods.Common`, `OpenRA.Game` and `OpenRA.Mods.Cnc`
+(the third because ww3mod loads it, `mod.yaml` `Assemblies`) and fails on any
+`callvirt FrozenActor.get_Actor` — but it is **one level deep**, so `return Helper(target)` where
+`Helper` does the dereference scans clean. It carries a resolved-call floor so a broken scanner fails
+rather than reads green, an override-count floor set AT the known population of 18 so losing an
+assembly reference fails instead of passing on a smaller set, and an exemption list for the one
+permitted liveness check that is asserted in BOTH directions so a stale allowance cannot silently
+license a later live read.
 
 **This is NOT autotest-testable, and that is a documented property, not an oversight.**
 `bugs/discovered.md:3309` records that `TestModeLogic.cs:31` sets `world.RenderPlayer = null`, under

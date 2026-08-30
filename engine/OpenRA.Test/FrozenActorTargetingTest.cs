@@ -32,6 +32,18 @@ namespace OpenRA.Test
 		const int CallOpcode = 0x28;
 		const int CallvirtOpcode = 0x6F;
 
+		/// <summary>
+		/// The single site permitted to observe FrozenActor.Actor, and only to DECLINE the click. A dead
+		/// ghost stays clickable (FrozenActorLayer only drops a frozen actor once it stops being
+		/// visible), and claiming it would issue an order the resolver discards, leaving the unit
+		/// motionless instead of letting UnitOrderGenerator rewrite the click into a Move. The argument
+		/// is written out in full at the call site. Any other entry here is a defect.
+		/// </summary>
+		static readonly string[] LivenessCheckExemptions =
+		{
+			"OpenRA.Mods.Common.Orders.EnterAlliedActorTargeter`1.CanTargetFrozenActor"
+		};
+
 		[Test]
 		public void CanTargetFrozenActorOverridesNeverReadTheLiveActor()
 		{
@@ -67,11 +79,17 @@ namespace OpenRA.Test
 			Assert.That(resolvedCalls, Is.GreaterThan(20),
 				$"IL scan resolved only {resolvedCalls} call targets — the scanner is broken, not the code clean.");
 
-			Assert.That(offenders, Is.Empty,
+			Assert.That(offenders.Except(LivenessCheckExemptions), Is.Empty,
 				"These CanTargetFrozenActor overrides dereference FrozenActor.Actor and so let a cursor " +
 				"vary with state hidden by fog. Read target.Info / target.Owner / target.HP instead; where " +
 				"the snapshot genuinely lacks the information, the cursor must not vary at all:" +
-				Environment.NewLine + string.Join(Environment.NewLine, offenders));
+				Environment.NewLine + string.Join(Environment.NewLine, offenders.Except(LivenessCheckExemptions)));
+
+			// A stale exemption is as bad as a missing one: it would silently license a future live read
+			// at a site that no longer needs the allowance.
+			Assert.That(LivenessCheckExemptions.Except(offenders), Is.Empty,
+				"An entry in LivenessCheckExemptions no longer reads FrozenActor.Actor. Remove it, so the " +
+				"allowance cannot quietly cover a live read added later.");
 		}
 
 		[Test]
@@ -87,13 +105,28 @@ namespace OpenRA.Test
 			Assert.That(scanned.Any(n => n.StartsWith("EnterAlliedActorTargeter", StringComparison.Ordinal)), Is.True,
 				"EnterAlliedActorTargeter is no longer covered by the frozen-targeting scan.");
 
-			Assert.That(scanned.Count, Is.GreaterThan(5),
-				$"Only {scanned.Count} CanTargetFrozenActor overrides found; the reflection query has drifted.");
+			// 18 overrides across Mods.Common, Game and Mods.Cnc as of 2026-08-30. The floor is set AT the
+			// known population, not comfortably below it, so that losing an assembly reference (which is
+			// how Mods.Cnc went unscanned in the first version of this fixture) fails here instead of
+			// passing quietly on a smaller set.
+			Assert.That(scanned.Count, Is.GreaterThanOrEqualTo(18),
+				$"Only {scanned.Count} CanTargetFrozenActor overrides found, expected at least 18. Either " +
+				"an assembly is no longer referenced by OpenRA.Test, or the reflection query has drifted.");
+
+			Assert.That(scanned, Does.Contain("DisguiseOrderTargeter"),
+				"Mods.Cnc is not being scanned — ww3mod loads that assembly, so its targeters are live code.");
 		}
 
 		static IEnumerable<MethodInfo> FrozenTargetingMethods()
 		{
-			var assemblies = new[] { typeof(EnterAlliedActorTargeter<>).Assembly, typeof(FrozenActor).Assembly };
+			// Mods.Cnc is included because ww3mod loads it (mod.yaml Assemblies), so Disguise and
+			// Infiltrates ship and their frozen targeters are live code.
+			var assemblies = new[]
+			{
+				typeof(EnterAlliedActorTargeter<>).Assembly,
+				typeof(FrozenActor).Assembly,
+				typeof(OpenRA.Mods.Cnc.Traits.Infiltrates).Assembly
+			};
 
 			foreach (var assembly in assemblies)
 			{

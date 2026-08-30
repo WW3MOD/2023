@@ -76,7 +76,9 @@ namespace OpenRA.Mods.Common.Traits
 						Info.EnterBlockedCursor,
 						CanRepairAt,
 						_ => CanRepair(),
-						CanRepairAtFrozen);
+						// ResolveOrder refuses frozen targets outright, so claiming the click would
+						// paint a cursor for an order it drops and eat the player's Move with it.
+						(_, _) => false);
 			}
 		}
 
@@ -99,15 +101,6 @@ namespace OpenRA.Mods.Common.Traits
 		bool CanRepairAt(Actor target)
 		{
 			return Info.RepairActors.Contains(target.Info.Name);
-		}
-
-		// RepairActors is a static name list, so the fogged predicate matches the live one exactly.
-		bool CanRepairAtFrozen(ActorInfo targetInfo, TargetModifiers modifiers)
-		{
-			if (Info.RequiresForceMove && !modifiers.HasModifier(TargetModifiers.ForceMove))
-				return false;
-
-			return Info.RepairActors.Contains(targetInfo.Name);
 		}
 
 		Order IIssueOrder.IssueOrder(Actor self, IOrderTargeter order, in Target target, bool queued)

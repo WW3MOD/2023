@@ -63,10 +63,23 @@ namespace OpenRA.Mods.Common.Orders
 		// drawn under the mouse.
 		public override bool CanTargetFrozenActor(Actor self, FrozenActor target, TargetModifiers modifiers, ref string cursor)
 		{
-			// IsValid is a snapshot check (Owner != null). Deliberately NOT a liveness check: whether the
-			// real actor has died under fog is itself hidden information, and the order resolvers already
-			// drop a stale frozen target safely (Passenger/CrewMember.ResolveOrder null-guard it).
 			if (target == null || !target.IsValid)
+				return false;
+
+			// THE ONE PERMITTED LIVE READ ON THIS PATH, and it is here to DECLINE the click rather than
+			// to answer it. FrozenActorLayer only drops a frozen actor once it stops being visible
+			// (:386-390), so the ghost of a building that died under fog stays on screen and stays
+			// clickable. Returning true for it issues an EnterTransport that ResolveOrder then discards
+			// on the null backing actor, and the infantry does not move AT ALL. Returning false instead
+			// lets UnitOrderGenerator's second pass rewrite the click into a Move
+			// (OrderFallbackMath.AllowsMoveFallback is true for Neutral and Ally), which is what shipped
+			// before this file was touched and what the player is plainly asking for.
+			//
+			// This does leak, weakly: a dead ghost walks the unit over, a live-but-full one does not.
+			// That distinction is pre-existing, and it is the lesser evil — a silent no-op on the most
+			// common fog interaction there is, is exactly the failure wt/cursor-honesty (a2466c3b) and
+			// CrewMember.cs:88-93 both rule is the worst outcome available. Filed, not fixed here.
+			if (target.Actor == null)
 				return false;
 
 			if (!target.Info.HasTraitInfo<T>() || !canTargetFrozen(target.Info, modifiers))

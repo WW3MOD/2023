@@ -305,9 +305,10 @@ namespace OpenRA.Mods.Common.Traits
 					Info.EnterBlockedCursor,
 					(proc, _) => IsAcceptableProcType(proc),
 					proc => proc.Trait<IAcceptResources>().AllowDocking,
-					// DeliveryBuildings is a static name list. AllowDocking, which the cursor half reads,
-					// is live refinery state and is not consulted under fog.
-					(procInfo, _) => Info.DeliveryBuildings.Count == 0 || Info.DeliveryBuildings.Contains(procInfo.Name));
+					// ResolveOrder refuses frozen targets outright ("Deliver orders are only valid for
+					// own/allied actors, which are guaranteed to never be frozen"), so claiming the
+					// click would paint a cursor for an order it drops and eat the player's Move.
+					(_, _) => false);
 				yield return new HarvestOrderTargeter();
 			}
 		}
