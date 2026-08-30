@@ -754,7 +754,7 @@ m270:
 		Queue: Vehicle
 		BuildPaletteOrder: 7
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Multiple launch rocket system for area saturation.\n\n - 12x 227mm rockets\n - One-shot magazine, evacuates after firing\n - Devastating area damage\n - Armor: Light
+		Description: Multiple launch rocket system for area saturation.\n\n - 12x 227mm rockets\n - Rearms at a Logistics Centre (840 supply per full load)\n - Evacuates when dry and no Centre is closer than home\n - Devastating area damage\n - Armor: Light
 	Valued:
 		Cost: 1800
 	Tooltip:
@@ -825,6 +825,13 @@ m270:
 		RangeCircleType: explosive
 		Color: FF0000
 		Width: 4
+	# TACTICAL rocket artillery rearms at the Centre (user ruling 2026-08-30). See the fuller note on
+	# `grad` (vehicles-russia.yaml) for why this is a pull-path-only enrolment and why no
+	# VehicleReplenish condition accompanies it.
+	# Full refill: 840 supply, against a 2250 Centre = 2.7 refills.
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo
 	Turreted:
 		Offset: -300,0,50
 		# Offset: -180,0,150
