@@ -3440,3 +3440,42 @@ running game.
   to `AUTOTEST_EXTRA_ARGS` for that scenario only. Not attempted here — it is a harness change and
   wants its own review.
   (found while working on: `wt/fog-leak`, verifying the FrozenUnderFog visibility restoration)
+
+- [2026-08-30] [high] **The Logistics Centre's own sizing comment was wrong by 11×, and it is the
+  sentence the depot economy was sized against.** `structures.yaml:485-487` claimed an E3 rifleman's
+  full refill was 5 supply, so "2250 buys ~450 rifleman refills against the truck's ~150". It counted
+  only the DMR pool and ignored `AmmoPool@2 secondary-ammo` — one RPG round at `SupplyValue: 50`
+  (`infantry.yaml:1245-1251`) — which **is** in his `Rearmable.AmmoPools` (`infantry.yaml:1282`) and
+  so **is** refilled by that aura. True figures: 55 supply, **~41** refills per Centre and **~13** per
+  truck. **Comment corrected in this commit; the sizing question it misled is NOT closed.** At
+  `AuraRearmDelay: 6` a full Centre is roughly 90 seconds of continuous infantry service, and whoever
+  chose 2250 believed it was far more. Anyone re-tuning `TotalSupply` should start here.
+  (found while working on: `wt/supply-economics`, the pre-merge audit for paid ammunition)
+
+- [2026-08-30] [med] **`^E6`'s rifle has exactly one refill route and the pending "all ammo costs
+  supply" change may remove it.** `AmmoPool@1 primary-ammo` (100-round MP5, `infantry.yaml:1870`) is
+  absent from `Rearmable.AmmoPools: secondary-ammo` (`infantry.yaml:1954`), so no host touches it —
+  all three host paths iterate the filtered `RearmableAmmoPools` (`Rearmable.cs:44`). Its only refill
+  today is the free `ReloadAmmoPool@1` at `infantry.yaml:1878`. If that trait starts charging or is
+  gated, **the engineer loses his rifle permanently after one magazine** and never dispatches for it,
+  because his listed C4/mine pool keeps him non-dry. Either add `primary-ammo` to his
+  `Rearmable.AmmoPools` or confirm the change leaves `ReloadAmmoPool` free.
+  (found while working on: `wt/supply-economics`)
+
+- [2026-08-30] [low] **Two expensive pools name armaments that do not exist, so their attack-path dry
+  dispatch can never fire.** `^E6.secondary-ammo` declares `Armaments: secondary` (`infantry.yaml:1901`)
+  and `^SF.secondary-ammo` declares `Armaments: c4` (`infantry.yaml:2136`); neither actor has an
+  `Armament` by that name — both pools are consumed by traits (`Demolition.UseAmmo`,
+  `Minelayer.AmmoPoolName`). `AmmoPool`'s `INotifyAttack` dispatch is keyed on
+  `Info.Armaments.Contains(a.Info.Name)` (`AmmoPool.cs:658`), so only the idle trigger reaches them.
+  Pre-existing and already described generically at `economy.md:53`; recorded here with the numbers
+  because these are the *expensive* halves — 150 of E6's 155 and 99 of SF's 104.
+  (found while working on: `wt/supply-economics`)
+
+- [2026-08-30] [low] **`A10.Airstrike primary-ammo` has `Ammo: 40` against `ReloadCount: 25`**
+  (`aircraft-america.yaml:711-712`) — the one pool of 63 in the mod that is not an exact multiple.
+  This is precisely the floor-vs-ceiling pattern the Paladin comment (`vehicles-america.yaml:650-655`)
+  was written to prevent: `CustomSellValue` floors missing batches while the tooltip ceilings them.
+  No play impact — the actor is a support-power spawn, not buildable, with no `Rearmable` — but it is
+  the only live counterexample to an invariant two other comments assert corpus-wide.
+  (found while working on: `wt/supply-economics`)
