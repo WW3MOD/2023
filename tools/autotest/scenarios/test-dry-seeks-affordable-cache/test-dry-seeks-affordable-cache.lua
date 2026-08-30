@@ -41,6 +41,13 @@
 -- dispatcher cannot reach it. If this scenario ever goes green on a build where the break-off arm is
 -- still choosing on stock alone, check that distance FIRST.
 --
+-- WHAT THIS SCENARIO DOES NOT PIN. It proves the three "> 0" sites together stop stranding the unit;
+-- it does not isolate which one. In particular it stays green with the FindBest LEASH reverted, and
+-- with AutoSeekSupplies.CanServe restored to its own inline copy of the affordability test -- both of
+-- those were added as hardening after review, and neither is load-bearing for this geometry. The
+-- leash in particular wants its own scenario: a host affordable but very far, re-picked mid-errand,
+-- asserting the unit does NOT set off across the map. That has not been written or run.
+--
 -- WHAT MAKES A GREEN MEAN SOMETHING. The predicate is "ammo arrived", but ammo alone cannot say
 -- WHICH cache paid, and a fix that simply made everything affordable would also turn it green. So
 -- PoorCache's load is asserted to be UNTOUCHED for the whole run: at 39 against a 40 batch,

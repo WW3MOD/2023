@@ -17,17 +17,27 @@ World:
 # Dry on arrival, so the errand is dispatched by the shipped traits rather than staged by the test:
 # the chain under test starts at "the unit is out", not at "the test issued a resupply order".
 #
-# WHICH DISPATCHER THIS SCENARIO ISOLATES, and how. Three could in principle act on a dry mortar:
-#   1. AmmoPool.AutoRearmIfDry via INotifyBecomingIdle -- fires only on the !wasIdle -> IsIdle
-#      TRANSITION (Actor.cs:321). An actor placed on the map with no activity is idle ALREADY on its
-#      first tick, so it never transitions and this arm never fires here. Do NOT add a priming move
-#      "for parity with test-poor-depot-still-worth-the-trip": that wakes this arm, which picks on
-#      affordability correctly and would mask the defect.
-#   2. AutoSeekSupplies' IDLE seek via INotifyIdle.TickIdle -- fires every tick the actor is idle,
-#      no transition needed. This arm is NOT defective. It is excluded by GEOMETRY, not by timing:
-#      the rich cache is parked outside its 20-cell leash (see map.yaml).
+# WHICH DISPATCHER OPENS THE ERRAND, and what actually holds the red. Three can act on a dry mortar:
+#   1. AmmoPool.AutoRearmIfDry via INotifyBecomingIdle -- fires on the !wasIdle -> IsIdle TRANSITION
+#      (Actor.cs:321). An actor placed with no activity is idle ALREADY on its first tick, so it never
+#      transitions and this arm cannot open the errand. Do NOT add a priming move "for parity with
+#      test-poor-depot-still-worth-the-trip": that lets this arm open it instead, and it picks on
+#      affordability correctly, which would mask the defect at t=0.
+#   2. AutoSeekSupplies' IDLE seek via INotifyIdle.TickIdle -- fires every tick the actor is idle, no
+#      transition needed. NOT defective. Excluded by GEOMETRY, not timing: the rich cache sits outside
+#      its 20-cell leash (map.yaml).
 #   3. AutoSeekSupplies' BREAK-OFF arm via ITick -- not idle-gated, fires every EmptyScanInterval
-#      ticks regardless. This is the defective one, and the only one that can reach the rich cache.
+#      ticks. This is the defective one, and it is what opens the errand here.
+#
+# CORRECTED 2026-08-30 after review. An earlier version of this block said arm 1 "never fires here",
+# full stop. That is true only at t=0. Once the break-off errand is running the mortar is NOT idle;
+# when the stall guard calls self.CancelActivity() (AutoSeekSupplies.cs) he goes idle again, and THAT
+# is a real transition -- so arm 1 does fire, later, and it would pick RichCache (23 cells, inside
+# DryRearmLeashCells: 30). What keeps the run red anyway is pre-fix FindBest: parked 5 cells from
+# PoorCache and 25 from RichCache, the 25-tick retarget re-picks PoorCache, and he is already inside
+# its aura so he never moves. The [afford] trace cannot tell these two mechanisms apart -- both leave
+# him motionless at dPoor=5 -- so the trace does NOT support the older claim, and it was removed
+# rather than left standing. Anyone re-tuning this scenario should assume arm 1 is live.
 MT:
 	AmmoPool@1:
 		InitialAmmo: 0

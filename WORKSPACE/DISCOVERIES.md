@@ -13498,3 +13498,33 @@ behavioural change to every ammo-carrying vehicle under BOTH bot profiles, and i
 RED/GREEN pair to mean anything. Shipping it unverified alongside a verified fix would make the
 measured result unreadable; shipping it default-off with nothing enabling it would be dead code.
 It wants its own scoped change.
+
+---
+
+## 2026-08-30 — No vehicle can enter `SeekSupplyProvider`, and that is a RULESET property, not an engine invariant
+
+Established during adversarial review of the affordability fix, while sizing what a change to that
+activity could break. It is worth writing down because it makes a large surface look untested when it
+is in fact unreachable — and because one YAML line reopens it.
+
+**The chain.** `AmmoPool.AutoRearm` is the only construction site for
+`Activities.SeekSupplyProvider`, and it takes that branch only when the chosen host's
+`SupplyProvider` has an EMPTY `DockedCondition`; otherwise the unit is queued a `Resupply` instead.
+All 15 vehicles name `logisticscenter` and nothing else in `RearmActors`, and `LOGISTICSCENTER`
+(`structures.yaml:469`) is the only provider in the mod that sets `DockedCondition`. So every vehicle
+resolves to the docking path and **the live clientele of `SeekSupplyProvider` is infantry**. The
+`Evacuate` detour funnels through the same `AutoRearm`, so it does not add vehicles either.
+
+**Why it matters in both directions.**
+
+- It shrinks what a change to that activity can affect: no vehicle behaviour, and therefore no
+  vehicle-side regression surface, however the retarget or validity tests are tuned.
+- **It is one line from being false.** Adding `supplycache` or `truk` to any vehicle's `RearmActors`
+  puts vehicles into that activity for the first time, against logic that has only ever run for
+  infantry — including the in-range park branch, which has no stall guard of its own for anything
+  `AutoSeekSupplies` did not dispatch, and that trait is infantry-only.
+
+**If you are editing `RearmActors` on a vehicle, read this first.** The comment on
+`AmmoPool.HostCanAffordSomethingWeNeed` used to name the m270/grad/tos as the actors a wasted walk
+would strand at a truck; they are vehicles, so they were never reachable by that path at all. That
+comment has been corrected in place — the same mistake is easy to make again from the other side.

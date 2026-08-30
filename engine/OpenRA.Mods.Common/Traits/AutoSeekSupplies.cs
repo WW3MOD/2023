@@ -513,12 +513,20 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 
 			// Must be able to afford at least one batch of something we are short of, or the walk
-			// buys us nothing.
-			foreach (var p in rearmable.RearmableAmmoPools)
-				if (!p.HasFullAmmo && provider.CurrentSupply >= p.Info.SupplyValue)
-					return true;
-
-			return false;
+			// buys us nothing. Shared with every other site that asks it rather than restated here —
+			// this was the FOURTH copy, and the house rule (SupplyProvider.AcceptClient) is that a
+			// subtle predicate never gets duplicated, because prose is not the countermeasure.
+			//
+			// THE POOL SET IS THE CALLER'S CHOICE, and it is the axis on which these copies can still
+			// disagree. This site passes the REARMABLE subset, which is what the push side's canonical
+			// rule uses (SupplyProvider.AcceptClient reads rearmable.RearmableAmmoPools). The dispatch
+			// sites pass every pool instead — AmmoPool's Auto arm and evacuate detour, and
+			// SeekSupplyProvider. Across the shipped ruleset all 46 actors carrying both traits have
+			// identical sets, so the two readings coincide today and nothing observable turns on it.
+			// If an actor is ever given an AmmoPool its Rearmable does not name, they part company and
+			// THIS is where to look: the rearmable subset is the correct set for "can a host serve me",
+			// because a pool no host is allowed to fill cannot make a trip worth taking.
+			return AmmoPool.HostCanAffordSomethingWeNeed(providerActor, rearmable.RearmableAmmoPools);
 		}
 
 		/// <summary>Cached-array lookup — no closure, so the per-tick call stays allocation-free.</summary>

@@ -105,7 +105,11 @@ namespace OpenRA.Mods.Common.Activities
 		/// cannot come.</para>
 		///
 		/// <para>Shares AmmoPool.HostCanAffordSomethingWeNeed with the dispatchers rather than restating
-		/// the comparison, so a host they would refuse to send us to is one we also stop walking to.</para>
+		/// the comparison, so a host they would refuse to send us to is one we also stop walking to. It is
+		/// the DISPATCHERS' test, not the provider's whole accept test: SupplyProvider.AcceptClient can
+		/// also decline on MinNeedThreshold, which nothing here models. That cannot bite on this path —
+		/// a unit walking here is dry, so its need is maximal — but do not read this as "the provider
+		/// would serve us".</para>
 		/// </summary>
 		bool TargetValid(Actor a)
 		{
@@ -122,6 +126,19 @@ namespace OpenRA.Mods.Common.Activities
 		/// undoes an affordable dispatch one layer down: sent to the cache that can pay, the unit
 		/// retargets onto a nearer one that cannot and walks to it instead. Fixing only the choosers
 		/// leaves that hole open.</para>
+		///
+		/// <para>LEASHED, and the affordability test above is what made that mandatory. Every dispatcher
+		/// bounds the walk it orders — AutoSeekSupplies.WithinBreakOffLeash, and AmmoPool's Auto arm and
+		/// evacuate detour via <see cref="AmmoPool.ResolveSeekLeash"/> — but this re-pick never did. That
+		/// was survivable while <see cref="TargetValid"/> only failed at exactly zero supply, because the
+		/// re-pick almost never fired. Tightening it to affordability widens the failing band to
+		/// <c>1 .. batchPrice-1</c>, which for ^AT and ^AA (SupplyValue 65) is 64 wide, so the re-pick
+		/// becomes routine — and an unleashed one can send a soldier across the map to the nearest
+		/// affordable host. AutoSeekSupplies' stall guard cannot catch that: the unit is changing cells,
+		/// so its progress test keeps resetting the counter.</para>
+		///
+		/// <para>Measured from the unit's CURRENT cell, which is where the dispatchers measure from at
+		/// their own decision points; it bounds the remaining walk rather than the whole excursion.</para>
 		/// </summary>
 		Actor FindBest(Actor self)
 		{
@@ -129,10 +146,16 @@ namespace OpenRA.Mods.Common.Activities
 			if (rearmInfo == null)
 				return null;
 
+			// Reached only with pools.Length > 0 (Tick returns earlier otherwise), so this is never the
+			// empty-set 0 that WithinCellBudget would read as "admits nothing".
+			var leash = AmmoPool.ResolveSeekLeash(pools);
+
 			return self.World.ActorsHavingTrait<SupplyProvider>()
 				.Where(a => !a.IsDead && a.IsInWorld
 					&& a.Owner == self.Owner
 					&& rearmInfo.RearmActors.Contains(a.Info.Name)
+					&& SupplyHuntMath.WithinCellBudget(
+						a.Location.X - self.Location.X, a.Location.Y - self.Location.Y, leash)
 					&& AmmoPool.HostCanAffordSomethingWeNeed(a, pools))
 				.ClosestToIgnoringPath(self);
 		}

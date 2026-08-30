@@ -477,17 +477,32 @@ namespace OpenRA.Mods.Common.Traits
 		/// <para>Everywhere else a wasted walk costs a walk. On the evacuate detour it costs the unit's
 		/// exit: an evacuating actor that detours to a host which cannot serve it does not resume
 		/// leaving — it parks in <see cref="Activities.SeekSupplyProvider"/>'s in-range branch, which
-		/// stands still waiting for a
-		/// push that never comes and has no stall guard of its own (AutoSeekSupplies' guard covers only
-		/// errands that trait dispatched, on infantry). So the m270/grad/tos, which ship with
-		/// InitialResupplyBehavior: Evacuate, would trade a banked refund for a combat-inert vehicle
-		/// standing at a truck for the rest of the match. <see cref="ChooseResupplier"/> filters on
-		/// CurrentSupply &gt; 0 only, which is not the same question when a pool costs 50 a batch and the
-		/// truck is holding 3.</para>
+		/// stands still waiting for a push that never comes and has no stall guard of its own
+		/// (AutoSeekSupplies' guard covers only errands that trait dispatched, on infantry).
+		/// <see cref="ChooseResupplier"/> filters on CurrentSupply &gt; 0 only, which is not the same
+		/// question when a pool costs 50 a batch and the truck is holding 3.</para>
 		///
-		/// <para>Same affordability test AutoSeekSupplies.CanServe applies from the other side, deliberately
-		/// — a host we would refuse to walk to must also be one we refuse to abandon an exit for. A host
-		/// with no SupplyProvider charges nothing (the pure RearmsUnits depot), so it always passes.</para>
+		/// <para>This paragraph USED TO NAME the m270/grad/tos — which ship with
+		/// <c>InitialResupplyBehavior: Evacuate</c> — as the casualty. They cannot be: they are vehicles,
+		/// and no vehicle can enter that activity. <see cref="AutoRearm"/> is its only construction site
+		/// and takes the <see cref="Activities.SeekSupplyProvider"/> branch only for a host whose
+		/// <c>SupplyProvider</c> has an empty <c>DockedCondition</c>; all 15 vehicles name
+		/// <c>logisticscenter</c> and nothing else in <c>RearmActors</c>, and that is the one provider in
+		/// the mod that sets <c>DockedCondition</c>, so vehicles route to <c>Resupply</c> instead. The
+		/// live clientele of this gate is INFANTRY. Note that is a property of the RULESET, not an engine
+		/// invariant: adding <c>supplycache</c> or <c>truk</c> to a vehicle's RearmActors puts vehicles
+		/// into this activity for the first time.</para>
+		///
+		/// <para>The same test AutoSeekSupplies.CanServe applies from the other side — a host we would
+		/// refuse to walk to must also be one we refuse to abandon an exit for — and since 2026-08-30 it
+		/// is literally this method rather than a restatement of it. Two caveats on "same". The POOL SET
+		/// is the caller's: CanServe passes the Rearmable subset, the dispatch sites pass every pool, and
+		/// they coincide across the shipped ruleset without being the same expression. And this is not the
+		/// provider's whole answer: SupplyProvider.AcceptClient can also return BelowThreshold on
+		/// MinNeedThreshold, which no caller here models — irrelevant on the dry path that reaches this,
+		/// where need is maximal, but it means "the provider would accept us" is the stronger claim.
+		/// A host with no SupplyProvider charges nothing (the pure RearmsUnits depot), so it always
+		/// passes.</para>
 		/// </summary>
 		public static bool HostCanAffordSomethingWeNeed(Actor host, IEnumerable<AmmoPool> pools)
 		{
