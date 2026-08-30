@@ -481,6 +481,17 @@ LOGISTICSCENTER:
 		# physically docked at the LC to receive resupply (see Phase 1 of supply spec).
 		Range: 2c0
 		RearmDelay: 25
+		# DORMANT SINCE 2026-08-30, AND KEPT ON PURPOSE. himars and iskander were the only two actors
+		# in the mod declaring `replenish-vehicles`, and the strategic-launcher ruling removed it from
+		# both — so this push arm now has NO possible client in the shipped game. It is retained rather
+		# than deleted because it is the only metered vehicle-delivery model in the engine, it is the
+		# half of SupplyProvider that carries UpdateSupplyConditions (and through it SupplyLevelCondition
+		# and this building's eight Explodes@Band traits), and Rearmable.RearmTick still defers to it via
+		# CanSelect for any client it CAN select. Deleting it would make that deferral dead code and
+		# force a reimplementation the moment any future actor wants metered push delivery.
+		# TO RE-ARM IT, one line: add `ExternalCondition@VehicleReplenish: Condition: replenish-vehicles`
+		# to the recipient. test-who-pays-for-a-rearm does exactly that in its scenario-local rules.yaml
+		# so the docked double-serve regression stays measurable now that no shipped actor reaches it.
 		RearmCondition: replenish-vehicles
 		DockedCondition: unit.docked
 		# THE SECOND CLIENTELE: infantry, drawn from the SAME 3000 as the docked vehicles above, so

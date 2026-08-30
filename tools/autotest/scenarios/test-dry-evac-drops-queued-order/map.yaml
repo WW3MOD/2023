@@ -39,11 +39,21 @@ Players:
 		Enemies: USA
 
 Actors:
-	# The reported unit, staged exactly as reported: an iskander on the shipped default
-	# InitialResupplyBehavior: Auto (defaults.yaml:375), whose Rearmable names `logisticscenter`
-	# alone -- and there is deliberately NO logisticscenter anywhere on this map, for either side.
-	# So AmmoPool.ChooseAffordableResupplier finds nothing, AnyRearmHostWithinLeash and
-	# AnyMobileRearmHost are both false, and the Auto arm reaches Evacuate.
+	# The reported unit, staged exactly as reported: an iskander on its shipped stance, and there is
+	# deliberately NO logisticscenter anywhere on this map, for either side.
+	#
+	# WHICH ARM RUNS CHANGED ON 2026-08-30, so the comment is rewritten rather than left to rot. It
+	# used to read "the shipped default InitialResupplyBehavior: Auto (defaults.yaml:375), whose
+	# Rearmable names `logisticscenter` alone ... the Auto arm reaches Evacuate". The
+	# strategic-launcher ruling removed the iskander's Rearmable entirely and set
+	# InitialResupplyBehavior/AI: Evacuate on the actor, so today it is the EVACUATE arm:
+	# ChooseResupplier returns null with no RearmableInfo (AmmoPool.RearmCandidates) and it falls
+	# straight through to EvacuateForRefund. The Auto arm could no longer reach Evacuate here even in
+	# principle -- DecideAutoDisposition returns HoldAndFlag for an actor naming no rearm actors
+	# (SupplyHuntMath.cs:269), which is exactly why the stance had to be set explicitly.
+	#
+	# What this test measures is UNAFFECTED: both arms end at the same EvacuateForRefund, which queues
+	# RotateToEdge with QueueActivity(false, ...). The cancellation semantics under test are identical.
 	#
 	# x=10 puts it 9 cells from the western bound, so the evacuation drive is short.
 	Launcher: iskander

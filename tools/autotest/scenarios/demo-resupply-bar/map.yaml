@@ -39,11 +39,17 @@ Players:
 		Enemies: USA
 
 Actors:
-	# The reported unit, staged exactly as reported: an iskander on the shipped default
+	# The reported unit: an iskander on its shipped stance, with deliberately NO logisticscenter
+	# anywhere on this map, for either side.
+	#
+	# STALE PREMISE CORRECTED 2026-08-30. This used to assert "the shipped default
 	# InitialResupplyBehavior: Auto (defaults.yaml:375), whose Rearmable names `logisticscenter`
-	# alone -- and there is deliberately NO logisticscenter anywhere on this map, for either side.
-	# So AmmoPool.ChooseAffordableResupplier finds nothing, AnyRearmHostWithinLeash and
-	# AnyMobileRearmHost are both false, and the Auto arm reaches Evacuate.
+	# alone". The strategic-launcher ruling removed the iskander's Rearmable and set
+	# InitialResupplyBehavior/AI: Evacuate on the actor, so both clauses are now false.
+	#
+	# The DEMO is unaffected: ResupplyBehaviorSelectorLogic populates the bar for any selected
+	# own-player actor carrying an AmmoPool or SupplyProvider (:72-73) and never consults Rearmable,
+	# so the three buttons render exactly as before. Only the highlighted default moves Auto -> Evacuate.
 	#
 	# x=10 puts it 9 cells from the western bound, so the evacuation drive is short.
 	Launcher: iskander

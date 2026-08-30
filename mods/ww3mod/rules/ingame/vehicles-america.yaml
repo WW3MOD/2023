@@ -1054,7 +1054,7 @@ HIMARS:
 		Queue: Vehicle
 		BuildPaletteOrder: 8
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.high
-		Description: High Mobility Artillery Rocket System.\n\n - 2x PrSM precision missiles\n - Long-range precision strikes\n - Armor: Light
+		Description: High Mobility Artillery Rocket System.\n\n - 2x PrSM precision missiles\n - Cannot be rearmed: one load per launcher\n - Evacuates for a refund once both missiles are spent\n - Long-range precision strikes\n - Armor: Light
 	Valued:
 		Cost: 6000
 	Tooltip:
@@ -1100,6 +1100,18 @@ HIMARS:
 		# Bots hold fire too — see the matching note on `iskander` (vehicles-russia.yaml). Dropping the
 		# armament's RequiresForceFire below would otherwise hand bots auto-launch they never had.
 		InitialStanceAI: HoldFire
+		# LOAD-BEARING, and not merely tidy. Removing Rearmable is NOT sufficient to make this unit
+		# leave: the shipped default is Auto, and SupplyHuntMath.DecideAutoDisposition returns
+		# HoldAndFlag for any actor that names no rearm actors (AmmoPool.cs:611 feeds it
+		# NamesRearmActors; the guard is at SupplyHuntMath.cs:269). That guard is right for ^CrewMember
+		# — a unit that never had a depot does not have a missing one — but under the strategic-launcher
+		# ruling it would leave a spent HIMARS standing on the field forever, combat-inert, flagging for
+		# a rescue that no provider in this ruleset can perform. Evacuate takes the other arm, whose
+		# ChooseResupplier returns null with no Rearmable and falls straight through to
+		# EvacuateForRefund. This is exactly the pairing grad/m270/tos shipped with while they had no
+		# rearm host, so the two artillery classes have now swapped configurations wholesale.
+		InitialResupplyBehavior: Evacuate
+		InitialResupplyBehaviorAI: Evacuate
 	Armament@1:
 		Weapon: HIMARSTargeter
 		LocalOffset: 192,-64,176, 192,64,176 #BM - Where each rocket spawns when fired (per barrel, in turret-local coords). X=forward(+), Y=right(+)/left(-), Z=up. Two barrels alternate. Combined with the Turreted Offset (-300,0,150), the actual world spawn point is back+up of the vehicle center.
@@ -1138,11 +1150,13 @@ HIMARS:
 		HoldFireWhileMoving: True
 		SetupTicks: 100
 		PersistsAtLastTargetPosition: true #BM - Don't cancel mid-salvo if the target dies between launches; commit to firing all loaded missiles at the original target position.
-	Rearmable:
-		RearmActors: logisticscenter
-		AmmoPools: primary-ammo
-	ExternalCondition@VehicleReplenish:
-		Condition: replenish-vehicles
+	# NO Rearmable, and NO ExternalCondition@VehicleReplenish. Both halves are required: RearmActors
+	# gates the recipient-initiated PULL, the condition is what let the Centre's PUSH arm select this
+	# actor while docked, and removing only the first would have left the push arm live.
+	# STRATEGIC launchers are a single load and must LEAVE (user ruling 2026-08-30: "Iskander and
+	# HIMARS should not be rearmable, they must be evacuated"). The arithmetic already said so: a full
+	# load is 2 x 1500 = 3000 against a Centre holding 2250, so one was never fully reloadable anyway.
+	# Full refill: 3000 supply -- unreachable by design; there is no rearm host.
 	WithMuzzleOverlay:
 	WithSpriteTurret:
 		Recoils: false

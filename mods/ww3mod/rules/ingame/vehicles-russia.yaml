@@ -971,7 +971,7 @@ iskander:
 		Queue: Vehicle
 		BuildPaletteOrder: 70
 		Prerequisites: ~player.russia, ~vehicles.russia, ~techlevel.high
-		Description: Ballistic missile launcher.\n\n - 2x high-impact missiles\n - Long-range precision strikes\n - Armor: Light
+		Description: Ballistic missile launcher.\n\n - 2x high-impact missiles\n - Cannot be rearmed: one load per launcher\n - Evacuates for a refund once both missiles are spent\n - Long-range precision strikes\n - Armor: Light
 	Valued:
 		Cost: 6000
 	Tooltip:
@@ -1022,6 +1022,12 @@ iskander:
 		# Removing RequiresForceFire would have handed bots auto-launch as a side effect; this keeps their
 		# behaviour exactly as it shipped. Manager's addition, not the user's instruction.
 		InitialStanceAI: HoldFire
+		# LOAD-BEARING — see the fuller note on `HIMARS` (vehicles-america.yaml). Removing Rearmable is
+		# NOT sufficient to make this unit leave: the default is Auto, and DecideAutoDisposition returns
+		# HoldAndFlag for any actor naming no rearm actors (SupplyHuntMath.cs:269), which would strand a
+		# spent iskander on the field forever flagging for a rescue nothing can perform.
+		InitialResupplyBehavior: Evacuate
+		InitialResupplyBehaviorAI: Evacuate
 	Passenger:
 		Voice: Move
 	Armament@1:
@@ -1042,11 +1048,10 @@ iskander:
 		RangeCircleType: explosive
 		Color: FF0000
 		Width: 5
-	Rearmable:
-		RearmActors: logisticscenter
-		AmmoPools: primary-ammo
-	ExternalCondition@VehicleReplenish:
-		Condition: replenish-vehicles
+	# NO Rearmable, and NO ExternalCondition@VehicleReplenish — see the fuller note on `HIMARS`
+	# (vehicles-america.yaml). Both halves are required: the first gates the PULL, the second is what
+	# let the Centre's PUSH arm select this actor while docked.
+	# Full refill: 3000 supply — unreachable by design; there is no rearm host.
 	AttackFrontal:
 		TargetFrozenActors: True
 		ForceFireIgnoresActors: True

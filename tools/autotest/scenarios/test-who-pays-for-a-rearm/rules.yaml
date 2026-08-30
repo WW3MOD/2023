@@ -39,6 +39,26 @@ HIMARS:
 	AutoTarget:
 		InitialResupplyBehavior: Hold
 		InitialResupplyBehaviorAI: Hold
+	# RE-ARMED LOCALLY 2026-08-30, and this scenario is now the ONLY place the docked push arm has a
+	# client. The strategic-launcher ruling stripped both halves of the rearm enrolment from the two
+	# shipped actors that had it (himars, iskander), which left the Logistics Centre's
+	# `RearmCondition: replenish-vehicles` arm with no reachable client anywhere in the mod — and would
+	# have made Question 2 below permanently unmeasurable rather than merely red. The arm is retained
+	# in structures.yaml as a deliberate hook; these two traits are what plug into it.
+	#
+	# BOTH halves are required and they gate different paths: Rearmable.RearmActors admits the
+	# recipient-initiated PULL (without it ChooseResupplier returns nothing and Test.IssueResupplyAt
+	# has no host to dock at), while the ExternalCondition is what lets the Centre's metered PUSH arm
+	# SELECT this actor. The double-serve under test is precisely those two running concurrently, so
+	# restoring only one would quietly convert this into a single-arm test that still passed.
+	#
+	# The values are copied verbatim from what himars shipped with up to 28795dca; `git show
+	# 28795dca^:mods/ww3mod/rules/ingame/vehicles-america.yaml` is the reference if they need checking.
+	Rearmable:
+		RearmActors: logisticscenter
+		AmmoPools: primary-ammo
+	ExternalCondition@VehicleReplenish:
+		Condition: replenish-vehicles
 
 # NO RED ARM IS SHIPPED, and rather than invent a weak one the reason is stated.
 #

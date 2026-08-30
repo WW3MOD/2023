@@ -1,0 +1,85 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Spent Strategic Launcher Ignores a Stocked Depot and Leaves (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# The subject of the 2026-08-30 strategic-launcher ruling: "Iskander and HIMARS should not be
+	# rearmable, they must be evacuated". As of that ruling HIMARS carries no Rearmable and no
+	# ExternalCondition@VehicleReplenish, and sets InitialResupplyBehavior/AI: Evacuate.
+	#
+	# Staged at FULL health with nothing on the map able to shoot it, so Actor.IsDead can only mean
+	# RotateToEdge disposed it (RotateToEdge.cs:407) -- i.e. it evacuated. Same reasoning as
+	# test-dry-evac-drops-queued-order, including the ChangesHealth@CriticalDamage caveat: a vehicle
+	# staged under half health dies on its own clock and the verdict would not say so.
+	# Lowercase `himars` deliberately: the rules key is `HIMARS:` but Map.SetDensityLayer looks actors
+	# up in a lowercased dictionary, so the capitalised form throws KeyNotFoundException at load.
+	# river-zeta-ww3/scenarios.yaml stages it the same way.
+	Launcher: himars
+		Owner: USA
+		Location: 10,16
+		Facing: 512
+	# THE WHOLE POINT OF THIS SCENARIO. An own, stocked Logistics Centre four cells away -- the exact
+	# host HIMARS named until 28795dca, close enough that no leash, path or affordability term can
+	# explain the unit declining it. If the launcher rearms here the ruling is not implemented; if it
+	# waits here the Auto/HoldAndFlag trap has returned (see the lua header).
+	#
+	# Placed diagonally off the firing line rather than between launcher and target. Dimensions are
+	# 3,3 so a centre at 14,20 occupies 13..15 x 19..21; the shot travels due east along y=16.
+	Depot: logisticscenter
+		Owner: USA
+		Location: 14,20
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 10,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+	# One supplyroute per faction so neither side is eliminated before the poller writes a verdict.
+	# USA's sits WEST at 4,4: that is where RotateToEdge.FindClosestSpawnAreaForOwner sends the
+	# evacuation, and it is AWAY from the depot at 14,20 -- so "left the map" and "drove to the depot"
+	# are opposite directions and cannot be confused. Note the verdict does NOT read distance; see the
+	# lua header for why distance is the wrong instrument here.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml
