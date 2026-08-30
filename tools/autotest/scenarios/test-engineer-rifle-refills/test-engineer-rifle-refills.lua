@@ -44,6 +44,18 @@ local function chebyshev(a, b)
 	return dx > dy and dx or dy
 end
 
+-- DISTANCE TO THE BUILDING'S CENTRE, not to its Location corner, and the difference is the whole
+-- reason the first run of this scenario measured nothing. LOGISTICSCENTER is 3x3 (structures.yaml
+-- `Dimensions: 3,3`) and SupplyProvider.InAuraRange compares against the provider's CenterPosition
+-- (SupplyProvider.cs:1399-1402), so a subject 3 cells from the Location corner is between 2.12 and
+-- 4.74 cells from the centre depending on WHICH SIDE it stands on. The corner distance reads 3 in
+-- both cases — a number that looks correct and is measuring the wrong thing, which is exactly the
+-- false-guard shape AUTOTEST.md warns about. Location + (1,1) is the centre cell of a 3x3.
+local function distToCentre(unit, depot)
+	local c = depot.Location
+	return chebyshev(unit.Location, { X = c.X + 1, Y = c.Y + 1 })
+end
+
 WorldLoaded = function()
 	TestHarness.FocusBetween(Engineer, EngineerDepot)
 	TestHarness.Select(Engineer)
@@ -92,10 +104,10 @@ WorldLoaded = function()
 			pollCount,
 			Engineer.IsDead and -1 or Engineer.AmmoCount("primary-ammo"),
 			Engineer.IsDead and -1 or Engineer.AmmoCount("secondary-ammo"),
-			Engineer.IsDead and -1 or chebyshev(Engineer.Location, EngineerDepot.Location),
+			Engineer.IsDead and -1 or distToCentre(Engineer, EngineerDepot),
 			Test.GetSupply(EngineerDepot),
 			Control.IsDead and -1 or Control.AmmoCount("primary-ammo"),
-			Control.IsDead and -1 or chebyshev(Control.Location, ControlDepot.Location),
+			Control.IsDead and -1 or distToCentre(Control, ControlDepot),
 			Test.GetSupply(ControlDepot)))
 
 		if pollCount < EvalTicks then
@@ -113,11 +125,11 @@ WorldLoaded = function()
 
 		local rifle = Engineer.AmmoCount("primary-ammo")
 		local c4 = Engineer.AmmoCount("secondary-ammo")
-		local engDist = chebyshev(Engineer.Location, EngineerDepot.Location)
+		local engDist = distToCentre(Engineer, EngineerDepot)
 		local engDepot = Test.GetSupply(EngineerDepot)
 
 		local ctrl = Control.AmmoCount("primary-ammo")
-		local ctrlDist = chebyshev(Control.Location, ControlDepot.Location)
+		local ctrlDist = distToCentre(Control, ControlDepot)
 
 		local summary = string.format(
 			"engineer rifle=%d/%d c4=%d dist=%d, his depot holds %d of %d (spent %d) | control " ..

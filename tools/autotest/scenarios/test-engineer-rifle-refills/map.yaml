@@ -63,11 +63,17 @@ Actors:
 	ControlDepot: logisticscenter
 		Owner: USA
 		Location: 58,16
-	# FORTY-FOUR cells from the engineer, past AutoSeekSupplies' 30-cell ReturnWhenEmptyLeashCells,
-	# so neither subject can be dispatched to the other's Centre and rearm there.
+	# EAST of its depot at +3, mirroring the engineer's offset EXACTLY rather than mirroring his
+	# coordinates. That distinction cost a run on 2026-08-30. LOGISTICSCENTER is 3x3
+	# (structures.yaml, `Dimensions: 3,3`) and SupplyProvider.InAuraRange measures from the
+	# building's CenterPosition (SupplyProvider.cs:1399-1402), so a building at Location L has its
+	# centre at L+(1.5,1.5) cells. Placed at 55,16 the control sat 4.74 cells from the centre of a
+	# depot whose Location was only 3 cells away — OUTSIDE the 4c0 AuraRange — and the run failed as
+	# "measured nothing" with the depot untouched at 2250. Same-sign offsets keep both subjects at
+	# 2.12 cells from their own building's centre, symmetric by construction.
 	Control: ar
 		Owner: USA
-		Location: 55,16
+		Location: 61,16
 	SpawnUSA: mpspawn
 		Owner: Neutral
 		Location: 11,16

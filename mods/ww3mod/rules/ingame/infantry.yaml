@@ -1201,7 +1201,11 @@ E1R1:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 2
 		Prerequisites: ~disabled
-		Description: Standard infantry rifleman and backbone of the fire team.\n\n - 5.56mm rifle (supply: 10 per full refill)\n - Disposable anti-tank rocket (supply: 30)\n - No armor
+		# NO SUPPLY FIGURE IN PROSE. ProductionTooltipLogic.BuildDescriptionWithAutoBlocks
+		# (:188-215) appends AmmoPool's own per-pool block and a cross-pool total to THIS
+		# string, so a figure written here is the same quantity twice in one tooltip, in two
+		# notations, and only the engine's copy can follow the YAML when a value moves.
+		Description: Standard infantry rifleman and backbone of the fire team.\n\n - 5.56mm rifle\n - Disposable anti-tank rocket\n - No armor
 	Valued:
 		Cost: 100
 	UpdatesPlayerStatistics:
@@ -1325,7 +1329,8 @@ E3R1:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 3
 		Prerequisites: ~disabled
-		Description: Delivers sustained suppressive fire against area targets.\n\n - 5.56mm light machine gun (supply: 25 per full refill)\n - High ammo capacity\n - No armor
+		# Supply figures deliberately absent — see the note on ^E3's Description.
+		Description: Delivers sustained suppressive fire against area targets.\n\n - 5.56mm light machine gun\n - High ammo capacity\n - No armor
 	Valued:
 		Cost: 100
 	UpdatesPlayerStatistics:
@@ -1866,7 +1871,8 @@ AA:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 10
 		Prerequisites: ~disabled
-		Description: Repairs vehicles and structures. Lays mines and demolishes buildings.\n\n - 9mm SMG (supply: 5 per full refill)\n - 3 explosives (supply: 50 each)\n - Repairs structures, clears mines\n - No armor
+		# Supply figures deliberately absent — see the note on ^E3's Description.
+		Description: Repairs vehicles and structures. Lays mines and demolishes buildings.\n\n - 9mm SMG\n - 3 explosives\n - Repairs structures, clears mines\n - No armor
 	Valued:
 		Cost: 250
 	UpdatesPlayerStatistics:
