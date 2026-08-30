@@ -1,0 +1,24 @@
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Strip per-type persisted stance overrides. Load-bearing here for TWO reasons, not the usual one:
+	# a saved HoldPosition default would stop the squad executing the grouped move at all, and a saved
+	# Cohesion default of Tight would make CohesionMoveModifier CLEAR the slot instead of assigning one
+	# (CohesionMoveModifier.cs:1085-1088) — in which case nothing could drift and this test would pass
+	# without testing anything. The Lua also forces Cohesion explicitly and asserts a slot exists.
+	-UnitDefaultsManager:
+	LuaScript:
+		Scripts: test-helpers.lua, test-no-formation-drift.lua
+
+# ===== THERE IS DELIBERATELY NO OVERRIDE OF CohesionSlotMemory HERE =====
+# This scenario asserts the SHIPPED default set in mods/ww3mod/rules/defaults.yaml, namely
+# ReturnToSlotForHumanOwners: false.
+#
+# TO RED THIS TEST, paste the following at the end of this file and re-run; the displaced AR will
+# walk back to its formation slot and the run must fail with "formation drift is ACTIVE":
+#
+# ^Combatant:
+# 	CohesionSlotMemory:
+# 		ReturnToSlotForHumanOwners: true

@@ -13,9 +13,13 @@
 -- arrival tolerance is what prevents a shoved unit from mis-reading the bump as a player interrupt and
 -- churning; this asserts the steady-state no-oscillation invariant for a two-unit cover contest.
 --
--- Enablement is the real Phase-3 path: USA is human, so GrantConditionOnHumanOwner grants
--- enable-tactical-positioning at spawn. We also grant it explicitly (idempotent) so the test is robust
--- to grant-timing. The units-under-test stay FireAtWill — the executor declines anything below it
+-- Enablement is SCENARIO-LOCAL as of 2026-08-30. The shipped mod no longer grants
+-- enable-tactical-positioning to human-owned units (the cover shuffle was turned off for human
+-- players), so this scenario's rules.yaml re-adds the token to the executor's gate AND the
+-- GrantConditionOnHumanOwner that satisfies it. An earlier version of this comment claimed the test
+-- "also grants it explicitly (idempotent)" — it never did; the grant came solely from defaults.yaml,
+-- so deleting that block would have broken this test with no local trace of why.
+-- The units-under-test stay FireAtWill — the executor declines anything below it
 -- (StancePositioningExecutor.cs:318) — and combat is silenced from the ENEMY side instead: the t90s are
 -- HoldFire and are made non-auto-targetable in rules.yaml.
 
@@ -28,8 +32,7 @@ WorldLoaded = function()
 	TestHarness.FocusBetween(Rifle, EnemyB)
 	TestHarness.Select(Rifle)
 
-	-- Executor auto-enables on human-owned units via GrantConditionOnHumanOwner (Phase 3), so no
-	-- explicit grant is needed. The ARs must be FireAtWill: the executor relinquishes management of any
+	-- The executor is enabled by this scenario's own rules.yaml (see header). The ARs must be FireAtWill: the executor relinquishes management of any
 	-- unit below FireAtWill (the deliberate Ambush/HoldFire opt-out), so silencing them by fire stance —
 	-- as this test used to — switches the trait under test off entirely.
 	local combatants = { Rifle, PairL, PairR }

@@ -15,8 +15,10 @@
 --     carries the `deployed` condition. None of them ever reposition, even with the enemy sighted.
 --
 -- Everything is HoldFire (no shots ⇒ nothing dies ⇒ no suppression gate, no AutoTarget chase), so the
--- ONLY thing that moves an idle unit is the executor. All units are USA (human) so the executor is
--- auto-enabled via GrantConditionOnHumanOwner — the real Phase-3 activation path.
+-- ONLY thing that moves an idle unit is the executor. Enablement is SCENARIO-LOCAL as of 2026-08-30:
+-- the shipped mod no longer grants enable-tactical-positioning to human-owned units, so this demo's
+-- rules.yaml re-adds the token to the executor's gate AND the granter. This demo therefore shows a
+-- behaviour human players NO LONGER GET in a normal game — it documents the bot-side layer.
 
 local TPS = TestHarness.TicksPerSecond
 

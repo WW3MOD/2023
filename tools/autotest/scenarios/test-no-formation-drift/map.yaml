@@ -1,0 +1,92 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: no formation drift for human players (auto)
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# REGRESSION GUARD for the 2026-08-30 CohesionSlotMemory.ReturnToSlotForHumanOwners gate.
+#
+# Three human-owned ARs are given ONE grouped move order, which makes CohesionMoveModifier assign
+# each of them a formation slot (CohesionMoveModifier.cs:1214). That slot stays live for
+# ForgetAfterTicks — 750 ticks, ~45s at 16.67 tps — and before this change, any time the unit went
+# idle away from it, CohesionSlotMemory walked it back (TryReturnToSlot). That is the "I parked my
+# unit and it wandered off" behaviour.
+#
+# The test then displaces one unit with Teleport rather than a move order. That distinction is the
+# whole design: a fresh order would REASSIGN the slot (CohesionMoveModifier.cs:1214) and there would
+# be nothing to walk back to, whereas Teleport leaves the slot record untouched, so the leash is
+# armed and pointing at a cell the unit is no longer standing on — exactly the state that used to
+# produce the drift.
+#
+# Deliberately EMPTY of enemies and of cover: nothing to auto-target, nothing to shoot, and no
+# treeline, so the tactical-positioning executor has no threat bearing even if it were enabled.
+# Combined with the ARs being human-owned (no bot module can order them), the return-to-slot leash
+# is the ONLY thing on this map that can move a unit.
+#
+# Expected (GREEN): the displaced AR stays exactly where it was put. RED (set
+# ReturnToSlotForHumanOwners back to true on ^Combatant in rules.yaml): it walks back to its slot
+# and the run fails with "formation drift is ACTIVE".
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,19
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,19
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 5,19
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,19
+
+	# The squad. Three units is enough for CohesionMoveModifier to spread slots around the click
+	# cell; a single-unit group would be assigned the click cell itself and could never drift.
+	SquadA: ar.america
+		Owner: USA
+		Location: 20,19
+		Facing: 512
+	SquadB: ar.america
+		Owner: USA
+		Location: 21,19
+		Facing: 512
+	SquadC: ar.america
+		Owner: USA
+		Location: 22,19
+		Facing: 512
+
+Rules: rules.yaml

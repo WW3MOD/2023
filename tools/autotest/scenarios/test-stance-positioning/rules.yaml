@@ -19,3 +19,17 @@ World:
 t90:
 	Targetable:
 		TargetTypes: NoAutoTarget
+
+# RESTORES THE HUMAN ENABLEMENT THIS TEST DEPENDS ON. GrantConditionOnHumanOwner@tacpos was deleted
+# from ^Combatant in mods/ww3mod/rules/defaults.yaml on 2026-08-30 to stop the cover shuffle for human
+# players, and `enable-tactical-positioning` left the executor's gate at the same time (leaving a token
+# in the gate with no granter anywhere is a CheckConditions ERROR, not a warning). This scenario
+# exercises the executor itself — which still ships for experimental bots — on a human-owned unit, so
+# it re-adds BOTH halves locally: the token in the gate, and the granter that satisfies it. Granting
+# `enable-ai-experimental` instead would be wrong; that token also drives ClusterTargetingCondition
+# (defaults.yaml:454,472) and would change artillery behaviour alongside the executor.
+^Combatant:
+	StancePositioningExecutor:
+		RequiresCondition: enable-tactical-positioning || enable-ai-experimental
+	GrantConditionOnHumanOwner@tacpos:
+		Condition: enable-tactical-positioning
