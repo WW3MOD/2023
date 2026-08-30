@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD · tooltip — element vocabulary</title>
+<style>
+:root{--bg-app:#0a0a0a;--bg-panel:#141414;--bg-panel-2:#1a1a1a;--bg-banner:#1c1c1c;--bg-button:#222;--bevel-light:#3a3a3a;--bevel-dark:#030303;--line:#262626;--line-soft:#1d1d1d;--accent:#b4b4b4;--accent-dim:#6e6e6e;--ink:#d4d4d4;--ink-2:#969696;--ink-3:#686868;--ink-4:#404040;--us:#6f93b8;--ru:#b87070;--supply:#c8a45a;--supply-dim:#7a6435;--warn:#e77d7d}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg-app);color:var(--ink);font-family:'Liberation Sans','DejaVu Sans','Helvetica Neue',Arial,sans-serif;-webkit-font-smoothing:antialiased}
+body{padding:28px 32px 60px}
+.page-title{font-size:24px;font-weight:bold;margin:0 0 4px}
+.page-sub{font-size:12px;color:var(--ink-3);margin:0 0 30px;max-width:900px;line-height:1.6}
+.page-sub code{color:var(--accent-dim)}
+.spec{display:flex;gap:26px;align-items:flex-start;padding:14px 0;border-top:1px solid var(--line-soft)}
+.spec-meta{width:250px;flex:0 0 250px}
+.spec-name{font-size:14px;font-weight:bold;color:var(--ink);margin-bottom:3px}
+.spec-style{font-size:10px;color:var(--ink-4);line-height:15px;font-family:'DejaVu Sans Mono',monospace}
+.spec-why{font-size:11px;color:var(--ink-3);line-height:1.55;margin-top:7px}
+.spec-why b{color:var(--ink-2)}
+.spec-why .bad{color:var(--warn)}
+.demo{width:350px;flex:0 0 350px;background:var(--bg-panel);border-top:1px solid var(--bevel-light);border-left:1px solid var(--bevel-light);border-right:1px solid var(--bevel-dark);border-bottom:1px solid var(--bevel-dark);padding:8px 7px}
+.demo.banner{background:var(--bg-banner)}
+.el-head{font-size:14px;font-weight:bold;color:var(--ink);line-height:18px}
+.el-sub{font-size:10px;font-weight:bold;letter-spacing:.085em;text-transform:uppercase;color:var(--ink-3);line-height:13px;margin-top:2px}
+.el-sub .fac-us{color:var(--us)}
+.el-sub .fac-ru{color:var(--ru)}
+.el-prose{font-size:12px;color:var(--ink-2);line-height:16px;margin:0}
+.el-list{margin:0;padding:0;list-style:none}
+.el-item{font-size:12px;color:var(--ink-2);line-height:17px;padding-left:11px;position:relative}
+.el-item::before{content:"-";position:absolute;left:1px;color:var(--ink-4)}
+.el-item .qual{color:var(--ink-3)}
+.el-stat{display:flex;align-items:baseline;font-size:12px;line-height:18px}
+.el-stat .k{color:var(--ink-3);flex:0 0 auto;font-size:10px;font-weight:bold;letter-spacing:.07em;text-transform:uppercase}
+.el-stat .dots{flex:1 1 auto;margin:0 6px 0 7px;border-bottom:1px dotted var(--ink-4);transform:translateY(-3px)}
+.el-stat .v{color:var(--ink);flex:0 0 auto;font-weight:bold}
+.el-cost .v{color:var(--supply)}
+.el-cost .v.cash{color:var(--ink)}
+.el-cost .v.warn{color:var(--warn)}
+.el-sep{height:1px;background:var(--line);margin:0}
+.el-sep.soft{background:var(--line-soft)}
+.el-note{font-size:10px;color:var(--ink-3);line-height:14px;padding-left:9px;border-left:1px solid var(--line)}
+.el-note.warn{color:var(--warn);border-left-color:var(--supply-dim)}
+.el-meter .track{height:5px;background:var(--bg-button);border-top:1px solid var(--bevel-dark);border-left:1px solid var(--bevel-dark);border-right:1px solid var(--bevel-light);border-bottom:1px solid var(--bevel-light);position:relative}
+.el-meter .fill{position:absolute;left:0;top:0;bottom:0;background:var(--supply)}
+.el-meter .fill.over{background:var(--warn)}
+.el-meter .scale{display:flex;justify-content:space-between;font-size:10px;color:var(--ink-4);margin-top:2px}
+.rejected{margin-top:40px;padding-top:16px;border-top:1px solid var(--line)}
+.rejected h2{font-size:12px;font-weight:bold;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);margin:0 0 12px}
+.rejected table{border-collapse:collapse;font-size:11px;max-width:820px}
+.rejected td{padding:5px 16px 5px 0;vertical-align:top;color:var(--ink-3);border-top:1px solid var(--line-soft)}
+.rejected td.n{color:var(--ink-2);font-weight:bold;white-space:nowrap}
+.rejected code{color:var(--accent-dim)}
+.el-stat .v .u{color:var(--ink-3);font-weight:normal}
+.wsec{border-left:1px solid var(--line);padding:0 0 2px 8px;margin:0 0 8px}
+.wsec:last-child{margin-bottom:0}
+.wsec-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 3px}
+.wsec-name{font-size:10px;font-weight:bold;letter-spacing:.085em;text-transform:uppercase;color:var(--ink-2)}
+.wsec-ammo{font-size:10px;color:var(--ink-3)}
+.wsec-ammo b{color:var(--supply);font-weight:bold}
+.wsec.oneshot{border-left-color:var(--supply-dim)}
+.wsec-tag{font-size:9px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;padding:0 4px;margin-left:5px;background:var(--supply-dim);color:#f0e2c4}
+.spec-why .bad{color:var(--warn)}
+.spec-name .cand{color:var(--cand)}
+:root{--cand:#7fa8c9}
+</style>
+</head>
+<body>
+
+<h1 class="page-title">Element vocabulary</h1>
+<p class="page-sub">
+<b>Eight typed elements plus one container.</b> Each element has one style, defined once, so an author
+never chooses formatting &mdash; they choose a <i>kind</i>. All of them compose from two widgets
+OpenRA already has: <code>LabelWidget</code> and <code>ColorBlockWidget</code>. No new widget class is
+required, only a layout container and a per-kind style table. Sizes are the mod's real registered
+fonts (<code>mod.yaml:290-316</code>); colours are the canonical grayscale from
+<code>chrome/_lobby-palette.yaml</code>.
+</p>
+<p class="page-sub">
+The container &mdash; <b>WeaponSection</b>, last in the list below &mdash; is the one structural
+addition. It is deliberately <i>not</i> a ninth element: it holds elements rather than replacing them,
+so adding it costs one level of nesting in the emit list and nothing in the vocabulary.
+</p>
+
+<div class="spec">
+	<div class="spec-meta">
+		<div class="spec-name">Header</div>
+		<div class="spec-style">Bold 14 &middot; ink #d4d4d4</div>
+		<div class="spec-why">The unit name. <b>Already exists</b> as <code>Label@NAME</code>;
+		unchanged by this proposal.</div>
+	</div>
+	<div class="demo banner"><div class="el-head">Abrams M1A2</div></div>
+</div>
+
+<div class="spec">
+	<div class="spec-meta">
+		<div class="spec-name">Subhead</div>
+		<div class="spec-style">TinyBold 10 &middot; ink-3 #686868 &middot; uppercase</div>
+		<div class="spec-why">Faction and role. Separates <i>identity</i> from <i>stats</i> so the eye
+		lands once. <b class="bad">The only element needing new authoring</b> &mdash; 54 actors.</div>
+	</div>
+	<div class="demo banner">
+		<div class="el-head">Abrams M1A2</div>
+		<div class="el-sub"><span class="fac-us">NATO</span> &middot; MAIN BATTLE TANK</div>
+	</div>
+</div>
+
+<div class="spec">
+	<div class="spec-meta">
+		<div class="spec-name">Prose</div>
+		<div class="spec-style">Small 12 &middot; ink-2 #969696 &middot; wrapped</div>
+		<div class="spec-why">The opening sentence, kept verbatim from
+		<code>Buildable.Description</code>. <b>One paragraph, never a list</b> &mdash; the bullets move
+		out to <code>ListItem</code>, which is what deletes the duplicated supply figures.</div>
+	</div>
+	<div class="demo"><p class="el-prose">Standard infantry rifleman and backbone of the fire team.</p></div>
+</div>
+
+<div class="spec">
+	<div class="spec-meta">
+		<div class="spec-name">ListItem</div>
+		<div class="spec-style">Small 12 &middot; ink-2 &middot; "- " lead, qualifier in ink-3</div>
+		<div class="spec-why">Armaments and capabilities. Emitted by the traits that own the fact, so
+		the weapon and its round count cannot drift from the pool they describe.</div>
+	</div>
+	<div class="demo">
+		<ul class="el-list">
+			<li class="el-item">5.56mm rifle <span class="qual">&mdash; 100 rds</span></li>
+			<li class="el-item">Disposable AT rocket <span class="qual">&mdash; 1 rd</span></li>
+		</ul>
+	</div>
+</div>
+
+<div class="spec">
+	<div class="spec-meta">
+		<div class="spec-name">StatRow</div>
+		<div class="spec-style">key TinyBold 10 ink-3 &middot; value Small 12 bold ink &middot; dot leader</div>
+		<div class="spec-why">A <b>named quantity</b>. Two columns so values align down the card and can
+		be compared across two tooltips &mdash; impossible today, because every stat is prose inside one
+		wrapped label.</div>
+	</div>
+	<div class="demo">
+		<div class="el-stat"><span class="k">Armour</span><span class="dots"></span><span class="v">Heavy</span></div>
+		<div class="el-stat"><span class="k">Speed</span><span class="dots"></span><span class="v">90</span></div>
+		<div class="el-stat"><span class="k">Health</span><span class="dots"></span><span class="v">28 000</span></div>
+	</div>
+</div>
+
+<div class="spec">
+	<div class="spec-meta">
+		<div class="spec-name">CostRow</div>
+		<div class="spec-style">as StatRow + value in supply amber #c8a45a</div>
+		<div class="spec-why">Split from <code>StatRow</code> because a price is the one number the
+		player is <i>deciding on</i>. Carries the optional depot meter.
+		<b>[TASTE]</b> &mdash; could collapse into <code>StatRow</code> with a colour parameter.</div>
+	</div>
+	<div class="demo">
+		<div class="el-stat el-cost"><span class="k">Call-in</span><span class="dots"></span><span class="v cash">2500 cash</span></div>
+		<div class="el-stat el-cost"><span class="k">Full refill</span><span class="dots"></span><span class="v">240 supply</span></div>
+		<div class="el-meter" style="margin-top:3px">
+			<div class="track"><div class="fill" style="width:10.7%"></div></div>
+			<div class="scale"><span>10.7% of a Logistics Centre</span><span>9 refills</span></div>
+		</div>
+	</div>
+</div>
+
+<div class="spec">
+	<div class="spec-meta">
+		<div class="spec-name">Separator</div>
+		<div class="spec-style">1px ColorBlock &middot; line #262626 / line-soft #1d1d1d</div>
+		<div class="spec-why">Group boundary. Replaces the <code>\n\n</code> inside description strings
+		that does this job invisibly today &mdash; and which an author can forget, or double.</div>
+	</div>
+	<div class="demo">
+		<p class="el-prose" style="margin-bottom:7px">Main battle tank for armoured ground warfare.</p>
+		<div class="el-sep"></div>
+		<div style="height:7px"></div>
+		<div class="el-stat"><span class="k">Armour</span><span class="dots"></span><span class="v">Heavy</span></div>
+	</div>
+</div>
+
+<div class="spec">
+	<div class="spec-meta">
+		<div class="spec-name">Note</div>
+		<div class="spec-style">Tiny 10 &middot; ink-3 &middot; 1px left rule; warn variant #e77d7d</div>
+		<div class="spec-why">Caveats and conditions. Split from <code>Prose</code> so it can be
+		<i>visually demoted</i> and, in the warn variant, fired by a derived condition
+		(<code>refill &gt; 2250</code>) with no per-actor authoring.
+		<b>[TASTE]</b> &mdash; could collapse into <code>Prose</code>.</div>
+	</div>
+	<div class="demo">
+		<div class="el-note">Rearms at a Logistics Centre only.</div>
+		<div style="height:6px"></div>
+		<div class="el-note warn">One reload costs more supply than a full Logistics Centre holds.</div>
+	</div>
+</div>
+
+<div class="spec" style="border-top-width:2px;border-top-color:#333">
+	<div class="spec-meta">
+		<div class="spec-name">WeaponSection <span style="font-size:10px;color:var(--cand)">— CONTAINER</span></div>
+		<div class="spec-style">1px left rule &middot; 8px indent<br>title TinyBold 10 ink-2 &middot; ammo Tiny 10 ink-3</div>
+		<div class="spec-why"><b>Not a ninth element &mdash; a grouping construct.</b> Everything inside is
+		an element that already existed: the title reuses <code>Subhead</code>, the stats are
+		<code>StatRow</code>s, the refill is a <code>CostRow</code>. A ninth flat element would have had
+		to re-implement all three.<br><br>
+		What actually changes is that the emit list gains <b>one level of nesting</b>. Cheapest encoding:
+		keep the flat list and give each element an optional <code>Group</code>; the renderer wraps
+		consecutive rows sharing a group. No tree type.<br><br>
+		The <span class="bad">one shot</span> tag is derived from <code>Ammo == 1</code>, not authored.</div>
+	</div>
+	<div class="demo">
+		<div class="wsec">
+			<div class="wsec-head"><span class="wsec-name">25mm chaingun</span>
+				<span class="wsec-ammo">900 rds &middot; <b>45</b> supply</span></div>
+			<div class="el-stat"><span class="k">Damage</span><span class="dots"></span><span class="v">500 <span class="u">&times; 4 burst</span></span></div>
+			<div class="el-stat"><span class="k">Penetration</span><span class="dots"></span><span class="v">60</span></div>
+			<div class="el-stat"><span class="k">Range</span><span class="dots"></span><span class="v">20.0 <span class="u">cells</span></span></div>
+			<div class="el-stat el-cost"><span class="k">Refill</span><span class="dots"></span><span class="v">9 &times; 5 = 45</span></div>
+		</div>
+		<div class="wsec oneshot">
+			<div class="wsec-head"><span class="wsec-name">Disposable AT rocket
+				<span class="wsec-tag">one shot</span></span>
+				<span class="wsec-ammo">1 rd &middot; <b>50</b> supply</span></div>
+			<div class="el-stat"><span class="k">Damage</span><span class="dots"></span><span class="v">6 000</span></div>
+			<div class="el-stat"><span class="k">Penetration</span><span class="dots"></span><span class="v">500</span></div>
+			<div class="el-stat el-cost"><span class="k">Refill</span><span class="dots"></span><span class="v">1 &times; 50 = 50</span></div>
+		</div>
+	</div>
+</div>
+
+<div class="rejected">
+	<h2>The five weapon stats, and why these five</h2>
+	<table>
+		<tr><td class="n">Damage</td><td>What it does. Taken from the <code>TargetDamage</code> warhead,
+			falling back to <code>SpreadDamage</code> for the 4 reachable weapons that carry damage only
+			there (<code>MANPAD</code>, <code>Stinger.quad</code>, <code>9M311</code>,
+			<code>Flamespray</code>) — labelled <i>blast</i> when it comes from the fallback.</td></tr>
+		<tr><td class="n">Penetration</td><td>Whether the damage survives armour.
+			<code>ApplyPenetration(damage, Penetration, Thickness)</code>
+			(<code>DamageWarhead.cs:127-133</code>) — a warhead that under-penetrates keeps only
+			<code>pen/thickness</code> of its number. <b>This is the armour mechanic that actually
+			fires</b>, and it is invisible today.</td></tr>
+		<tr><td class="n">Range</td><td>Where you can stand. The most decision-relevant single number
+			on the card.</td></tr>
+		<tr><td class="n">Blast</td><td>Whether it catches more than one target.
+			<code>SpreadDamage.Spread</code>, sub-cell on nearly everything — which is itself worth
+			seeing, since it explains why splash rarely does what players expect.</td></tr>
+		<tr><td class="n">Refill</td><td>What sustaining it costs, beside the weapon that spends it.
+			This is what dissolves the "five notations for one quantity" problem: each figure finally
+			has an obvious home.</td></tr>
+	</table>
+</div>
+
+<div class="rejected">
+	<h2>Deliberately not included</h2>
+	<table>
+		<tr><td class="n">Table / grid</td>
+			<td>No tooltip datum needs more than two columns. <code>StatRow</code> already aligns values; a
+			grid would be a new widget with no caller.</td></tr>
+		<tr><td class="n">Icon + text row</td>
+			<td>Would need a sprite per stat and a sheet to hold them. The right rail already carries the
+			only two icons that exist (<code>production-tooltip-cost</code>, <code>-time</code>).</td></tr>
+		<tr><td class="n">Progress / pip bar</td>
+			<td>The depot meter is a <code>CostRow</code> sub-part, not its own element &mdash; it never
+			appears without a cost above it, so it has no independent vocabulary.</td></tr>
+		<tr><td class="n">Rich inline markup</td>
+			<td>Bold/colour spans <i>inside</i> a string would re-open exactly the ad-hoc formatting this
+			design removes. Styling is a property of the row's kind, never of characters an author typed.</td></tr>
+		<tr><td class="n">Effectiveness vs armour class</td>
+			<td>The most tempting stat and the most dangerous. <code>Kevlar</code> sits on all 28 infantry
+			and in <b>zero</b> warhead <code>Versus:</code> tables, so a lookup returns "no modifier" —
+			which would render as though armour had been consulted and found irrelevant, rather than
+			never consulted at all. <code>Penetration</code> vs <code>Armor.Thickness</code> is the
+			mechanic that actually fires, so that is what is shown.</td></tr>
+		<tr><td class="n">A zero for unset penetration</td>
+			<td>The engine default is <b>1</b> (<code>DamageWarhead.cs:24</code>), not 0, and against
+			<code>Thickness: 700</code> it delivers 0.14% of the written damage — a failure this project
+			has already hit once. 41 of 44 reachable weapons set it; the 3 that do not are targeter stubs
+			with no real damage, so the row is <b>omitted</b> rather than printed as a designed value.</td></tr>
+	</table>
+</div>
+
+</body>
+</html>

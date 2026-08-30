@@ -168,6 +168,67 @@ edited (`DOCS/reference/` is curated):** `economy.md`'s E3 figures, and the in-t
 `structures.yaml:494-501` computing "a full E3 refill is 55, so this Centre buys about 41 of them and
 a 750 truck about 13" — that comment is corrected in-tree by this branch; any copy of 55 elsewhere is
 now stale.
+## 2026-08-30 — Penetration is compared against `Thickness × ArmorDirectionPercent`, not `Thickness`, and reading it without the attack direction ranks weapons backwards (`wt/tooltip-standard`)
+
+`DamageWarhead.ApplyPenetration(damage, Penetration, thickness * armorPercent / 100)`
+(`DamageWarhead.cs:240`, helper at `:127-133`) returns full damage when `penetration >= thickness`
+and `damage * penetration / thickness` otherwise. **The thickness it uses is not the actor's
+`Armor.Thickness`** — it is that number scaled by `ArmorDirectionPercent` (`:140-152`), which for a
+`TopAttack: true` warhead returns `Armor.Distribution[3]`, the ROOF entry.
+
+The consequence, worked on shipped data:
+
+| | `Penetration` | vs abrams (`Thickness: 700`, `Distribution: 100,40,15,10,10`) | damage |
+|---|---:|---|---:|
+| `ATGM` (`TopAttack: true`) | 100 | roof = 700 × 10% = **70** → penetrates | **10000** (full) |
+| `RPG` (direct) | 500 | frontal = **700** → does not | 6000 × 500/700 = **4285** |
+
+**Read as bare fields, 100 against 500 says the dedicated anti-tank specialist is five times worse
+than a rifleman's throwaway rocket. The truth is the reverse.** I filed that comparison as a
+suspected balance bug and had to retract it (`bugs/discovered.md`, 2026-08-30). `Penetration: 100` is
+correctly sized against roof armour: the specialist's three-round magazine does 30000 against an
+abrams' 28000 HP, killing exactly one MBT per load.
+
+**Two rules this yields.** (1) Any surface showing penetration must also show attack direction, or
+it is actively misleading rather than merely incomplete. (2) `Armor.Thickness` alone never answers
+"will this hurt it" — the direction term is not a modifier you can round away; it is 10× on the
+weapon class specifically designed to exploit it.
+
+Related: `TopAttack: true` is on `ATGM` (`weapons-missiles.yaml:6`) and on the artillery rounds
+(`weapons-ballistics.yaml:880, 974, 1007, 1041`); it is NOT on `RPG`, `TankRound.*`, `WGM.*`,
+`Hellfire.*` or `Stinger.quad`, so only one infantry weapon in the mod behaves this way.
+
+Established by: reading `DamageWarhead.cs` and resolving `TopAttack`/`Distribution`/`Thickness`
+through `Inherits` chains. **Arithmetic over verified code sites — not measured in game.**
+
+## 2026-08-30 — `Kevlar` is a phantom armour type: 28 infantry wear it and no warhead has ever heard of it (`wt/tooltip-standard`, base `main @ b3a7564d`)
+
+**`Armor.Type: Kevlar` is set exactly once** — `mods/ww3mod/rules/ingame/infantry.yaml:175`, on the
+shared infantry template — and is inherited by all 28 live buildable infantry. **It appears in zero
+warhead `Versus:` tables.** Enumerating every `Versus:` block under `mods/ww3mod/rules/weapons/`
+yields only `Concrete`, `Light`, `Medium`, `Heavy`, `None`, `Wood`, `Brick`. An armour type absent
+from `Versus` takes the warhead's default multiplier, so **infantry receive 100% damage from every
+weapon in the game**.
+
+The practical consequence is the inverse of what a cross-check suggests. All 28 infantry
+descriptions say `- No armor` while the trait says `Kevlar`, which reads like 28 stale strings. It
+is the opposite: **the prose is mechanically correct and the trait string is the phantom.**
+`Unarmored` (on `truk`) is likewise absent from every table and likewise harmless.
+
+**Why this matters beyond trivia.** Any feature that surfaces armour by reading `Armor.Type` — a
+tooltip stat row, an encyclopedia entry, a bot's target-selection heuristic — will print or reason
+about a protection class that does not exist, and will look *more* authoritative for having come
+from structured data rather than prose. The type name is not a claim about the damage model; only
+the `Versus` tables are. Resolve through them, or don't surface armour automatically.
+
+Established by: enumerating `Versus:` keys across `weapons/*.yaml` and resolving `Armor.Type` through
+`Inherits` chains for all 54 live buildable actors. **Read, not measured** — no launch; the
+"absent from `Versus` ⇒ default multiplier" step is standard OpenRA semantics read from the YAML
+tables, not from `Warhead.cs`.
+
+Related, same pass: five actors *do* have a materially wrong armour class in prose (`heli`, `hind`,
+`mi28` say Medium and are `Heavy`; `lccv`, `mnly` say None and are `Light`) — filed to
+`bugs/discovered.md`. Full context in `WORKSPACE/tooltip-audit.md`.
 
 ## 2026-08-27 — The frozen-actor visibility update loop is DEAD CODE, and it is the real cause of the six-month building-fog leak (`wt/fog-leak`, base `main @ 651322b3`)
 

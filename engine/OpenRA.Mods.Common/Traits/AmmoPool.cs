@@ -192,20 +192,68 @@ namespace OpenRA.Mods.Common.Traits
 					.Select(arm => FormatWeaponLabel(arm.Weapon))
 					.Distinct());
 
-			return BatchSize == 1
-				? $"{label}\n  Ammo: {Ammo} × {SupplyValue} supply = {PoolBudget}"
-				: $"{label}\n  Ammo: {Ammo} ({BatchCount} batches × {BatchSize} rounds × {SupplyValue} supply = {PoolBudget})";
+			// ONE notation for one quantity. This rendered two different shapes depending on whether
+			// BatchSize was 1 -- "Ammo: 1 × 50 supply = 50" against
+			// "Ammo: 900 (9 batches × 100 rounds × 5 supply = 45)" -- so a rifleman, who carries one
+			// pool of each kind, stated the same fact two ways four lines apart. The batch form is
+			// the one economy.md documents (§"Tooltip format"); the short form was undocumented, so
+			// it is the one that goes. Singular/plural is handled rather than reading "1 batches".
+			var batches = BatchCount == 1 ? "1 batch" : $"{BatchCount} batches";
+			var rounds = BatchSize == 1 ? "1 round" : $"{BatchSize} rounds";
+			return $"{label}\n  Ammo: {Ammo} ({batches} × {rounds} × {SupplyValue} supply = {PoolBudget})";
 		}
 
+		/// <summary>
+		/// Turns a ruleset weapon key into something a player can read. The key itself is never
+		/// changed — only its rendering. Players were seeing raw identifiers: `5.56mm.DMR`,
+		/// `TankRound.Abrams`, `HIMARSTargeter`.
+		/// </summary>
 		static string FormatWeaponLabel(string raw)
 		{
 			if (string.IsNullOrEmpty(raw))
 				return "Weapon";
 
-			// Strip leading hat (template marker) and convert PascalCase / dashed names
-			// into a human-friendly label without changing the YAML key itself.
 			var trimmed = raw.TrimStart('^').Replace('-', ' ').Replace('_', ' ');
-			return trimmed;
+
+			var sb = new System.Text.StringBuilder(trimmed.Length + 8);
+			for (var i = 0; i < trimmed.Length; i++)
+			{
+				var c = trimmed[i];
+
+				// A dot BETWEEN TWO DIGITS is a decimal point and must survive — `5.56mm` and
+				// `12.7mm` are calibres. Any other dot is a namespace separator (`TankRound.Abrams`)
+				// and reads as a word break. Replacing all dots would render "5 56mm".
+				if (c == '.')
+				{
+					var isDecimalPoint = i > 0 && i + 1 < trimmed.Length
+						&& char.IsDigit(trimmed[i - 1]) && char.IsDigit(trimmed[i + 1]);
+					sb.Append(isDecimalPoint ? '.' : ' ');
+					continue;
+				}
+
+				if (i > 0 && char.IsUpper(c))
+				{
+					var prev = trimmed[i - 1];
+
+					// `TankRound` -> `Tank Round`.
+					var lowerToUpper = char.IsLower(prev);
+
+					// End of an acronym run that starts a new word: `HIMARSTargeter` -> `HIMARS Targeter`.
+					var acronymEnd = char.IsUpper(prev)
+						&& i + 1 < trimmed.Length && char.IsLower(trimmed[i + 1]);
+
+					// Deliberately NOT split on digit->upper. That boundary is ambiguous:
+					// `M270Rockets` wants a break and `9M311` (a real missile designation) does not,
+					// and nothing in the key distinguishes them. Leaving both joined is the safe half
+					// of the trade — it never invents a word break inside a designation.
+					if (lowerToUpper || acronymEnd)
+						sb.Append(' ');
+				}
+
+				sb.Append(c);
+			}
+
+			return string.Join(" ", sb.ToString().Split(' ', System.StringSplitOptions.RemoveEmptyEntries));
 		}
 	}
 

@@ -312,5 +312,66 @@ namespace OpenRA.Test
 			ticksPerStep = 100 * 3 / 7;
 			Assert.That(ticksPerStep, Is.EqualTo(42));
 		}
+		// --- Weapon label rendering (production tooltip) ---
+		//
+		// FormatWeaponLabel turns a ruleset weapon key into player-facing text. Before this was
+		// fixed, players saw the raw identifiers: `5.56mm.DMR`, `TankRound.Abrams`,
+		// `HIMARSTargeter`. Private static, so reached by reflection rather than widened for a test.
+		static string FormatWeaponLabel(string raw)
+		{
+			var m = typeof(AmmoPoolInfo).GetMethod("FormatWeaponLabel",
+				System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+			if (m == null)
+				throw new ArgumentException("FormatWeaponLabel not found on AmmoPoolInfo");
+
+			return (string)m.Invoke(null, new object[] { raw });
+		}
+
+		[TestCase("TankRound.Abrams", "Tank Round Abrams")]
+		[TestCase("GradRockets", "Grad Rockets")]
+		[TestCase("ArtilleryRound.Paladin", "Artillery Round Paladin")]
+		[TestCase("Hellfire.Littlebird", "Hellfire Littlebird")]
+		[TestCase("60mm_Mortar", "60mm Mortar")]
+		[TestCase("Stinger.quad", "Stinger quad")]
+		public void FormatWeaponLabelSplitsNamespacesAndPascalCase(string raw, string expected)
+		{
+			Assert.That(FormatWeaponLabel(raw), Is.EqualTo(expected));
+		}
+
+		[TestCase("5.56mm.DMR", "5.56mm DMR")]
+		[TestCase("12.7mm.Hind.AA", "12.7mm Hind AA")]
+		[TestCase("5.56mm.DMR.silencer", "5.56mm DMR silencer")]
+		public void FormatWeaponLabelKeepsDecimalPointsInCalibres(string raw, string expected)
+		{
+			// A dot between two digits is a calibre, not a namespace separator. Replacing every
+			// dot would render "5 56mm", which is worse than the raw key it was fixing.
+			Assert.That(FormatWeaponLabel(raw), Is.EqualTo(expected));
+		}
+
+		[Test]
+		public void FormatWeaponLabelSplitsAcronymRunBeforeAWord()
+		{
+			Assert.That(FormatWeaponLabel("HIMARSTargeter"), Is.EqualTo("HIMARS Targeter"));
+			Assert.That(FormatWeaponLabel("DroneTargeter"), Is.EqualTo("Drone Targeter"));
+		}
+
+		[TestCase("9M311")]
+		[TestCase("MP5")]
+		[TestCase("RPG")]
+		[TestCase("WGM")]
+		public void FormatWeaponLabelLeavesDesignationsAlone(string raw)
+		{
+			// The digit->uppercase boundary is ambiguous: `M270Rockets` wants a break and `9M311`
+			// does not, and nothing in the key distinguishes them. Never splitting there is the
+			// safe half of the trade, because it cannot invent a break inside a designation.
+			Assert.That(FormatWeaponLabel(raw), Is.EqualTo(raw));
+		}
+
+		[Test]
+		public void FormatWeaponLabelHandlesEmptyInput()
+		{
+			Assert.That(FormatWeaponLabel(null), Is.EqualTo("Weapon"));
+			Assert.That(FormatWeaponLabel(string.Empty), Is.EqualTo("Weapon"));
+		}
 	}
 }
