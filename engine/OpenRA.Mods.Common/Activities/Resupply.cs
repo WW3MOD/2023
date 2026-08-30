@@ -298,7 +298,7 @@ namespace OpenRA.Mods.Common.Activities
 			if (activeResupplyTypes.HasFlag(ResupplyType.Repair))
 				RepairTick(self);
 
-			if (activeResupplyTypes.HasFlag(ResupplyType.Rearm) && rearmable.RearmTick(self))
+			if (activeResupplyTypes.HasFlag(ResupplyType.Rearm) && rearmable.RearmTick(self, host.Actor))
 				activeResupplyTypes &= ~ResupplyType.Rearm;
 
 			foreach (var notifyResupply in notifyResupplies)

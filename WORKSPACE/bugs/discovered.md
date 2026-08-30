@@ -3440,3 +3440,184 @@ running game.
   to `AUTOTEST_EXTRA_ARGS` for that scenario only. Not attempted here — it is a harness change and
   wants its own review.
   (found while working on: `wt/fog-leak`, verifying the FrozenUnderFog visibility restoration)
+
+- [2026-08-27] [high] **Rearming at the Logistics Centre is FREE — the docking path never consults
+  the depot's supply.** `Resupply.cs:131` sets its rearm branch from `Rearmable.RearmActors`
+  membership alone (`!rearmable.Info.RearmActors.Contains(host.Info.Name)`), and the rearm itself is
+  `Rearmable.RearmTick` (`Resupply.cs:301` → `Rearmable.cs:57-78`), which calls `AmmoPool.GiveAmmo`
+  and reads no `SupplyProvider` at all. Nothing downstream charges for it either: `SupplyProvider`
+  implements **neither** `INotifyResupply` nor `INotifyDockHost`, the only two hooks `Resupply` fires
+  at the host (the sole implementers engine-wide are `WithResupplyAnimation` and `WithRepairOverlay`,
+  both render traits). So any actor whose `Rearmable.RearmActors` names `logisticscenter` refills to
+  full at a Centre holding **zero** supply.
+  The depot's supply is spent only by the *push* path (`SupplyProvider.Tick`, which does deduct at
+  `:993`), and that path reaches infantry via the 4c0 aura arm and only `himars`/`iskander` via the
+  docked arm — they are the only two vehicles declaring the `replenish-vehicles` ExternalCondition
+  that `IsValidTarget`/`MatchClientele` requires. Every other vehicle naming the Centre (`humvee`,
+  `m113`, `bradley`, `abrams`, `m109`, `strykershorad`, `btr`, `bmp2`, `t90`, `giatsint`, `tunguska`,
+  `t72`, `mnly`) is invisible to the push and rearms **entirely** through the free path.
+  **Consequence for anyone touching dispatch:** `AmmoPool.ChooseResupplier`'s `CurrentSupply > 0`
+  filter and `ChooseAffordableResupplier`'s `>= SupplyValue` filter are both gating a TRIP against a
+  cost that is never charged when the host is a docking host. Swapping the seek path
+  (`AutoSeekSupplies.cs:285`) to the affordable chooser therefore looks like a parity fix with
+  `AmmoPool.AutoRearmIfDry`'s Auto arm and is a REGRESSION for Logistics Centre trips: it withholds a
+  journey that would have succeeded. `e36ab29a` did exactly that in `AutoRearmIfDry`'s Auto arm — see
+  the entry below.
+  **OBSERVED, not merely derived.** `tools/autotest/scenarios/test-vehicle-rearms-at-empty-depot`
+  puts a dry `abrams` six cells from a Centre zeroed with `Test.SetSupply` and sends it there BY
+  NAME (`Test.IssueResupplyAt`, which exists because every ordinary route runs `ChooseResupplier`
+  first and that filter would decline to send it at all). Both halves asserted: ammunition arrives
+  AND supply never moves. GREEN — rearmed inside ~175 ticks with the depot still reading 0. RED
+  (`RearmActors: truk`, so the membership test at `Resupply.cs:131` fails and nothing else changes)
+  — alive and at zero rounds through tick 1500.
+  **Not fixed here:** charging for the docking rearm is an economy change touching every vehicle and
+  both bot profiles, and the honest first step is deciding whether free-at-the-LC is the intent
+  (`economy.md` prices supply 1:1 and gives the Centre 2250, which reads like it was meant to be
+  spent).
+  (found while working on: extending the dry-unit resupply re-ask from soldiers to vehicles)
+
+- [2026-08-27] [high] **OBSERVED (was inferred): infantry within 4 cells of an empty Logistics Centre
+  refill for free through an ungated proximity condition.** Separate from the entry above and
+  reached by a different route. `LOGISTICSCENTER` carries
+  `ProximityExternalCondition@ReplenishSoldiers` (`mods/ww3mod/rules/ingame/structures.yaml`, in the
+  block beginning at `:389`): `Condition: replenish-soldiers`, `Range: 4c0`, `ValidRelationships:
+  Ally`, and `RequiresCondition: !build-incomplete && !disabled` — **no supply term**. Every soldier
+  class declares `ReloadAmmoPool@1: RequiresCondition: replenish-soldiers`, and `ReloadAmmoPool` is
+  stock OpenRA: a timed `Reload` with no range check and no supply accounting. So the condition
+  appears to be granted, and the free trickle to run, irrespective of what the Centre holds.
+  This is *distinct from* the Centre's supply-gated `SupplyProvider` aura arm
+  (`AuraRearmCondition: replenish-soldiers`, `AuraRange: 4c0`, which does deduct) — the two grant the
+  same condition at the same radius, one metered and one not, which is likely how it went unnoticed.
+  **CONFIRMED 2026-08-27 by `tools/autotest/scenarios/test-who-pays-for-a-rearm`.** A rifleman three
+  cells from a Centre held at zero gained **14 rounds in 700 ticks** — one every 50 ticks, exactly
+  `ReloadAmmoPool`'s default `Delay: 50` / `Count: 1`, so the rate identifies the mechanism and not
+  merely the effect — while `Test.GetSupply` read 0 at every one of the 28 samples. RED, deleting
+  `-ProximityExternalCondition@ReplenishSoldiers:` from the Centre and changing nothing else: the
+  same rifleman stayed at **0 rounds** for the whole run, with the verdict text
+  "free infantry trickle: false. docked double-serve: true". That second clause is the control on the
+  control — the himars half of the same scenario came out byte-identical across both arms, same
+  ticks and same numbers, so the removal took away one variable and no others.
+  The metered arm provably cannot account for the green arm: `SupplyProvider.cs:968` skips any pool
+  whose `SupplyValue` exceeds `currentSupply`, and the rifleman's is 1 against a depot at 0.
+  (found while working on: `test-dry-soldier-retry-after-refill`, phase 1 of the vehicle re-ask work)
+
+- [2026-08-27] [high] **`e36ab29a`'s affordability pick is a regression for DOCKING hosts, which is
+  the only kind of host a vehicle has.** The merge landed two separable things in
+  `AmmoPool.AutoRearmIfDry`'s Auto arm. They do not share a verdict.
+  **The drained-versus-absent distinction STANDS.** Its hopelessness inputs (`AnyRearmHostWithinLeash`,
+  `AnyMobileRearmHost`) deliberately ignore stock, so a present-but-zeroed depot yields `HoldAndFlag`
+  rather than `Evacuate`. Nothing above disturbs that: at exactly zero supply `ChooseResupplier`
+  refuses the depot as a destination on every arm, so no unit is dispatched there in real play and
+  waiting really is the right disposition. That half is a straight improvement over driving off the
+  map permanently.
+  **The affordability pick does NOT stand.** `ChooseAffordableResupplier` asks whether a host can
+  afford one batch, and that is the wrong question for a host reached through `Resupply` — the rearm
+  there is free (see the entry above, now observed). Consequences, worst first:
+    * *No affordable host anywhere, one poor host within leash.* Pre-merge: `ChooseResupplier` returns
+      the poor depot, the unit drives over and **rearms completely, for nothing**. Post-merge: the
+      chooser returns null, `suppliedHostWithinLeash` is false, the hope scan finds the depot within
+      leash, and `SupplyHuntMath.DecideAutoDisposition` falls through to `HoldAndFlag` — the unit
+      **stands still beside a depot that would have refilled it**, flagged for a truck that, for a
+      vehicle, can never come (no truck names a vehicle clientele). Strictly worse.
+    * *The merge's own worked case* — nearest depot holds 750, one eight cells further holds 2250.
+      Both would have served for free, so the fix buys a longer drive and nothing else. Harmless,
+      but not the improvement it was merged as.
+  Reach: every vehicle (the Logistics Centre is their only host and it is a docking host), plus
+  infantry at a Centre, where it bites the `at`/`aa` specialists whose `SupplyValue: 65` makes
+  `> 0` and `>= 65` genuinely different predicates. Infantry at a TRUCK or CACHE are unaffected and
+  correctly gated: those have no `DockedCondition`, so `AutoRearm` routes them to
+  `SeekSupplyProvider` and the metered push really does pay for the ammunition.
+  **Smallest honest correction, NOT built:** the discriminator already exists one call away —
+  `AmmoPool.AutoRearm:780` routes on `string.IsNullOrEmpty(supplyProvider.Info.DockedCondition)`.
+  Teaching `HostCanAffordSomethingWeNeed` the same split — a docking host can always serve on
+  arrival, a push host must be able to afford a batch — fixes both callers at one site and leaves
+  the truck/cache behaviour byte-identical. Reverting the pick outright is the cruder alternative
+  and also loses the genuine two-depot improvement. Which to take depends on whether the free
+  docking rearm is intended, so settle that first.
+  (found while working on: extending the dry-unit resupply re-ask from soldiers to vehicles)
+
+- [2026-08-27] [high] **A docked `himars`/`iskander` is served by BOTH arms at once, so one of its two
+  rounds is paid for and the other is free.** Measured, with the overlap window shown rather than
+  assumed. `tools/autotest/scenarios/test-who-pays-for-a-rearm` sends a dry himars to a Centre
+  holding a full 2250. Trajectory: docked at tick 100; at tick 150 ammo 0->1 and supply 2250->750
+  (the metered push arm, one 1500 batch); at tick 225 ammo 1->2 with supply **still 750** — and 750
+  is less than a 1500 batch, so that round provably was not paid for. Two arms, same unit, 75 ticks
+  apart, both while docked.
+  The arithmetic is why one run settles it: himars is `Ammo: 2`, `ReloadCount: 1` (default),
+  `SupplyValue: 1500`, so the push arm can afford exactly ONE round out of a 2250 depot. Rounds
+  gained beyond rounds paid for cannot have been paid for.
+  **This refuted a real worry rather than confirming a guess.** The concern going in was that
+  `SelfAssignedErrandIsOver` might end the Resupply errand on the first round, so the two arms would
+  never overlap and a null result could not be told apart from "could not have happened". The trace
+  shows they did overlap — `dispatchedBecauseDry: false` keeps that exit test from firing.
+  **Consequence for metering:** these two are the ONLY actors declaring `replenish-vehicles`, so they
+  are the only vehicles the push arm can select. Metering `Rearmable.RearmTick` without making the
+  two paths mutually exclusive for a docked actor converts today's double-REARM into a
+  double-CHARGE, on two independent cadences (`RearmDelay: 25` against the pool's own `ReloadDelay`).
+  Being individually correct is not enough; they must not both run.
+  (found while working on: metering the dock path, ahead of the design)
+
+- [2026-08-27] [med] **"Nothing is free ever" is not yet literally true: a RESIDUE of free ammunition
+  survives the charging change, and it is deliberate scope, not an oversight.** `SupplyProvider`
+  grants its `RearmCondition`/`AuraRearmCondition` to the client it is serving
+  (`SyncTargetCondition`), and on infantry that condition is what enables the soldier's own
+  `ReloadAmmoPool` — a timed trickle with no range check and no supply accounting.
+  `ReloadAmmoPool.remainingTicks` is NOT reset when the condition drops (`PausableConditionalTrait`
+  merely stops it decrementing), so it accumulates across successive grant windows and eventually
+  fires, handing over rounds nobody paid for on top of the metered batch.
+  **Bounded, and quantified rather than waved at.** It cannot fire at a depot the provider will not
+  serve from — a drained Centre grants nothing, which is why the free-trickle removal measured clean.
+  Where it does fire, the rate is negligible against the metered arm it rides on: for an `ar` the
+  metered aura delivers `ReloadCount: 50` rounds per `AuraRearmDelay: 6` ticks, against the trickle's
+  `Count: 1` per `Delay: 50` — roughly 400x, and the soldier is full in ~60 ticks having spent 10
+  supply.
+  **Not fixed here on purpose:** closing it means gating `ReloadAmmoPool` on something other than the
+  serving condition, or resetting `remainingTicks` on grant — a second unmeasured behavioural change
+  riding alongside the charging one, which is exactly what the charging commit must not carry. Filed
+  so the user learns it in writing rather than by discovering the ruling is not literally satisfied.
+  (found while working on: metering the dock path)
+
+- [2026-08-27] [low] **Legibility regression nobody asked for: the replenishing pip now shows on one
+  soldier at a time instead of everyone at the depot.** `WithDecoration@AmmoReplenishing`
+  (`mods/ww3mod/rules/ingame/infantry.yaml:218-224`) keys on `replenish-soldiers`. That condition used
+  to come from the Logistics Centre's blanket 4c0 `ProximityExternalCondition`, so every soldier in
+  range wore the pip simultaneously. With that trait removed (charging change, 2026-08-27) the only
+  grant is `SupplyProvider`'s own, which is issued to the ONE client it is currently serving — so a
+  squad resupplying at a Centre now blinks the pip between its members rather than showing it on all
+  of them.
+  Purely visual: nothing gates on the decoration, and the underlying resupply is unchanged and faster
+  per-soldier than the trickle it replaced. **Not fixed here** because the honest fix is a decoration
+  keyed on "this pool is being refilled" rather than on the serving condition, which is a UI change
+  wanting its own look — see `DOCS/recipes/SCREENSHOT.md`, since the verdict is visual.
+  (found while working on: metering the dock path)
+
+- [2026-08-27] [med] **KNOWN LIMIT, not bounded by reading: a docked client can be starved by a
+  persistently needier neighbour.** `SupplyProvider.CanSelect` deliberately ignores `currentTarget`
+  (contention is not a refusal — `UpdateTarget` re-picks by greatest need every `ScanInterval`), so
+  `Rearmable.RearmTick` stands down for a docked client the push arm owns but is not currently
+  serving. Entered with the deferral in `f8b424f6`; this branch owns it.
+  **What CAN be proved.** With a fixed client population and no re-emptying, service terminates:
+  `CalculateNeed` is `totalMissing / totalCapacity`, every served batch strictly reduces the served
+  client's missing count, and a client reaching full returns `NoDemand` and leaves the candidate set
+  altogether. That is a strictly decreasing potential, so the docked client is eventually greatest-need
+  and is served.
+  **What CANNOT.** The argument fails as soon as a competitor's need REGENERATES — infantry fighting
+  beside the Centre, emptying and refilling — because selection is a strict `need > bestNeed` and a
+  docked himars sits at a fixed 0.5 (one of two rounds, and it cannot fire while docked:
+  `PauseOnCondition: ... unit.docked`). Whether it is ever greatest then reduces to a RATE argument —
+  the aura arm fills an `ar` at 50 rounds per 6 ticks, far faster than a rifleman consumes — which
+  holds for one neighbour and is not obviously true for a squad of ten cycling, on a Centre kept
+  topped up by `AbsorbsSupplyCache`. That is a quantitative claim about unit counts and fire rates,
+  not a structural bound, and it is not settled here.
+  **Why it matters if it happens:** the starved client stays on its `Resupply` activity, so
+  `IsSeekingRearm` is true and `StarvingRecruitGate` withholds it from every bot module — the same
+  shape as the wedge fixed in `b29930e4`, but requiring contention rather than being the steady state.
+  **And nothing times it out.** `AutoSeekSupplies.ReturnErrandStallTicks` (300) covers only errands
+  that trait dispatched via `BeginWatching`, and that trait is on `^Soldier` alone — a vehicle
+  dispatched by `AutoRearmIfDry` or by a player order has no stall guard, and `Resupply` itself
+  carries no timeout.
+  **Deliberately NOT fixed:** a speculative guard here would change behaviour nobody has measured, and
+  the obvious ones are worse than the disease — reading `currentTarget` in `CanSelect` would make a
+  client abandon the dock merely because someone else was mid-batch, which is a new stranding shape.
+  Recorded as a known limit instead.
+  (found while working on: metering the dock path — reviewer flagged, reading could not settle it)

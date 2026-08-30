@@ -1,0 +1,79 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: A Vehicle Rearms At A Logistics Centre Holding Nothing (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# An ABRAMS deliberately, and the choice is the measurement. It is one of the THIRTEEN vehicle
+	# types that name `RearmActors: logisticscenter` while NOT declaring the replenish-vehicles
+	# ExternalCondition — so SupplyProvider.IsValidTarget/MatchClientele reject it and the depot's
+	# metered push arm cannot reach it at all. Anything it gains therefore came from the OTHER path,
+	# Resupply's own RearmTick, which is the path under test.
+	#
+	# himars and iskander are the two that DO declare the condition; using either would let the
+	# metered push serve the tank and confound the whole run. Do not substitute one in.
+	#
+	# Single pool, primary-ammo: Ammo 40, ReloadCount 5, SupplyValue 30 (vehicles-america.yaml). So a
+	# served tank climbs in fives, and a metered rearm would visibly cost 30 a batch.
+	Tank: abrams
+		Owner: USA
+		Location: 16,16
+	# Six cells east of the Centre. Near enough that the drive is trivial and a failure cannot be
+	# blamed on distance; far enough that the tank must actually arrive rather than beginning the run
+	# already on top of it.
+	#
+	# The whole 3x3 footprint is `=+= +++ =+=` — OccupiedPassable corners and
+	# OccupiedPassableTransitOnly elsewhere (Building.cs:22-26) — so a vehicle can reach the centre
+	# cell that Resupply's dock-tight WDist.Zero tolerance requires.
+	Depot: logisticscenter
+		Owner: USA
+		Location: 10,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 16,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 50,16
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

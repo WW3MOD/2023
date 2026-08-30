@@ -54,24 +54,65 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyDockClient.Undocked(Actor self, Actor dock) { }
 
-		public bool RearmTick(Actor self)
+		/// <summary>
+		/// <para>The docking PULL half of resupply, and since 2026-08-27 it is METERED. It used to call
+		/// <c>GiveAmmo</c> with no host in scope at all, which made a rearm at the Logistics Centre free —
+		/// measured, not argued, in <c>test-vehicle-rearms-at-empty-depot</c>: a dry abrams refilled at a
+		/// Centre holding ZERO with the depot's supply unmoved.</para>
+		///
+		/// <para>MUTUAL EXCLUSION WITH THE PUSH ARM, which is why <paramref name="host"/> had to arrive.
+		/// A docked himars or iskander — the only two actors declaring <c>replenish-vehicles</c> — was
+		/// being served by BOTH models at once: measured at ticks 150 and 225 of
+		/// <c>test-who-pays-for-a-rearm</c>, one round paid for out of a 2250 depot and a second arriving
+		/// while supply sat at 750, which is less than the 1500 a batch costs. Metering here without
+		/// separating them would have converted that double-REARM into a double-CHARGE on two independent
+		/// cadences. So this path DEFERS to the push arm for any client that arm can select, and serves
+		/// only clients it cannot — which in this mod is every vehicle except those two.</para>
+		///
+		/// <para>Deferring rather than the reverse because the push arm carries machinery that would have
+		/// to be duplicated here otherwise: its own RearmDelay/AuraRearmDelay cadence, the rearm condition
+		/// grant, and <c>UpdateSupplyConditions</c>, which drives <c>SupplyLevelCondition</c> and through it
+		/// the Logistics Centre's eight <c>Explodes@Band</c> traits. Cutting the push arm instead would have
+		/// meant reimplementing all of that on the pull side to keep a cargo detonation honest.</para>
+		///
+		/// <para>Returns "done" — ending the errand — when every pool is full OR the host cannot afford any
+		/// pool still wanting rounds. The second case is PARTIAL REFILL THEN LEAVE, and it must not become
+		/// a wait: see <see cref="AmmoPool.TryServeBatch"/> for why a client parked at a depot that cannot
+		/// pay is withheld from every bot module for the rest of the match.</para>
+		/// </summary>
+		public bool RearmTick(Actor self, Actor host)
 		{
+			var provider = host?.TraitOrDefault<SupplyProvider>();
+
+			// WILL the push arm serve this client — not "could it own him". Conflating those two wedged
+			// a docked himars permanently in the first cut of this change: CanSelect returned
+			// IsValidTarget alone, which has no supply term, so a unit the depot could no longer afford
+			// deferred forever and never left. Returning false here is NOT an exit — once docked, this
+			// method returning TRUE is the only way out (Resupply.cs:301), because the
+			// SelfAssignedErrandIsOver escape at Resupply.cs:240 is gated on !actualResupplyStarted.
+			// CanSelect now mirrors the sweep's accept test, so a client it declines falls through to the
+			// per-pool check below, counts the pool done, and leaves with whatever it got.
+			if (provider != null && provider.CanSelect(self))
+				return false;
+
 			var rearmComplete = true;
 			foreach (var ammoPool in RearmableAmmoPools)
 			{
-				if (!ammoPool.HasFullAmmo)
+				if (ammoPool.HasFullAmmo)
+					continue;
+
+				// Nothing here can ever pay for this pool, so waiting at the depot buys nothing.
+				// Treated as "this pool is done" rather than as a reason to hold the client.
+				if (provider != null && provider.CurrentSupply < ammoPool.Info.SupplyValue)
+					continue;
+
+				if (--ammoPool.RemainingTicks <= 0)
 				{
-					if (--ammoPool.RemainingTicks <= 0)
-					{
-						ammoPool.RemainingTicks = ammoPool.Info.ReloadDelay;
-						if (!string.IsNullOrEmpty(ammoPool.Info.RearmSound))
-							Game.Sound.PlayToPlayer(SoundType.World, self.Owner, ammoPool.Info.RearmSound, self.CenterPosition);
-
-						ammoPool.GiveAmmo(self, ammoPool.Info.ReloadCount);
-					}
-
-					rearmComplete = false;
+					ammoPool.RemainingTicks = ammoPool.Info.ReloadDelay;
+					AmmoPool.TryServeBatch(self, ammoPool, provider);
 				}
+
+				rearmComplete = false;
 			}
 
 			return rearmComplete;

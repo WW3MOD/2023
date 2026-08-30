@@ -639,28 +639,15 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				if (IsValidTarget(a, out var isAura))
 				{
-					var rearmable = a.TraitOrDefault<Rearmable>();
-					if (rearmable != null && rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo))
+					var verdict = AcceptClient(a.TraitOrDefault<Rearmable>(), out var need);
+					if (verdict == SupplyAcceptance.Unaffordable)
+						hasUnaffordableTargets = true;
+					else if (verdict == SupplyAcceptance.Accept && need > bestNeed)
 					{
-						// Check if we can afford any of this target's non-full ammo pools
-						if (!rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && currentSupply >= p.Info.SupplyValue))
-						{
-							hasUnaffordableTargets = true;
-						}
-						else
-						{
-							var need = CalculateNeed(a);
-
-							// Skip units that are nearly full (e.g., 499/500 ammo)
-							if (need >= Info.MinNeedThreshold && need > bestNeed)
-							{
-								bestNeed = need;
-								best = a;
-								bestIsAura = isAura;
-							}
-						}
+						bestNeed = need;
+						best = a;
+						bestIsAura = isAura;
 					}
-
 				}
 
 				// Also consider soldiers sheltering inside a garrison building.
@@ -676,18 +663,14 @@ namespace OpenRA.Mods.Common.Traits
 						if (soldier == null || soldier.IsDead)
 							continue;
 
-						var rearmable = soldier.TraitOrDefault<Rearmable>();
-						if (rearmable == null || rearmable.RearmableAmmoPools.All(p => p.HasFullAmmo))
-							continue;
-
-						if (!rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && currentSupply >= p.Info.SupplyValue))
+						var verdict = AcceptClient(soldier.TraitOrDefault<Rearmable>(), out var need);
+						if (verdict == SupplyAcceptance.Unaffordable)
 						{
 							hasUnaffordableTargets = true;
 							continue;
 						}
 
-						var need = CalculateNeed(soldier);
-						if (need < Info.MinNeedThreshold)
+						if (verdict != SupplyAcceptance.Accept)
 							continue;
 
 						if (need > bestNeed)
@@ -708,12 +691,79 @@ namespace OpenRA.Mods.Common.Traits
 			return best;
 		}
 
-		float CalculateNeed(Actor a)
+		/// <summary>
+		/// <para>Verdict of the provider's ACCEPT test on one candidate: does it want ammunition, can we
+		/// pay for any of it, and is it needy enough to be worth a cycle.</para>
+		///
+		/// <para>Extracted 2026-08-27 because there were THREE copies of it — the aura sweep, the garrison
+		/// sweep, and <see cref="CanSelect"/> — and the last of those was hand-assembled from the other
+		/// two and got the supply term wrong, which wedged a docked himars permanently. The house rule
+		/// applies: never duplicate a subtle predicate, because prose is not the countermeasure. A guard
+		/// added to the sweep must reach CanSelect automatically or the two silently disagree about the
+		/// same client, and "both arms decline him" is a failure nobody sees.</para>
+		/// </summary>
+		enum SupplyAcceptance
 		{
-			var rearmable = a.TraitOrDefault<Rearmable>();
-			if (rearmable == null)
-				return 0f;
+			/// <summary>Nothing to give: no Rearmable, or every rearmable pool already full.</summary>
+			NoDemand,
 
+			/// <summary>Wants ammunition, but this depot cannot pay for a batch of anything it wants.</summary>
+			Unaffordable,
+
+			/// <summary>Affordable, but too nearly full to be worth a serving cycle.</summary>
+			BelowThreshold,
+
+			/// <summary>Serve it.</summary>
+			Accept,
+		}
+
+		/// <summary>
+		/// <para>The one accept test — demand, affordability, need — and it says nothing about RANGE or
+		/// about <c>currentTarget</c>. Range is <see cref="IsValidTarget"/>'s job and the two sweeps apply
+		/// it DIFFERENTLY: the aura sweep guards with it, the garrison sweep must not, because a sheltered
+		/// passenger is out of the world with a stale CenterPosition and would fail any position test.
+		/// Contention is not a refusal either — <c>UpdateTarget</c> re-picks by greatest need every scan.</para>
+		///
+		/// <para>IT TAKES THE <see cref="Rearmable"/>, NOT THE ACTOR, AND THAT IS THE GUARD. A range clause
+		/// added here would look obviously correct — it is the "accept test" — and would silently delete
+		/// the entire garrison clientele: no error, no failing scenario, because nothing exercises that
+		/// path in game. Prose does not stop that, so the parameter does: with no Actor there is no
+		/// position to test, and acquiring one means changing this signature, which is a deliberate act
+		/// rather than a one-line slip. <c>SupplyProviderAcceptTest</c> pins the whole parameter list, not
+		/// merely the absence of an Actor, because <c>WPos</c>, <c>CPos</c> and <c>Target</c> would each
+		/// do the identical damage and "pass the position in" is at least as natural a slip.</para>
+		///
+		/// <para>The guard is TIGHTER than an earlier version of this comment claimed. It said a position
+		/// remained reachable through <c>rearmable.Self.CenterPosition</c>; there is no such member.
+		/// <see cref="Rearmable"/> holds its Info and its pool array and no actor reference at all, and
+		/// <see cref="AmmoPool"/> stores none either — so nothing in this signature can reach a position
+		/// by any route. That false hole is removed rather than left standing, because a documented gap
+		/// invites the next reader to widen the signature in order to close it.</para>
+		/// </summary>
+		SupplyAcceptance AcceptClient(Rearmable rearmable, out float need)
+		{
+			need = 0f;
+
+			if (rearmable == null || !rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo))
+				return SupplyAcceptance.NoDemand;
+
+			if (!rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && currentSupply >= p.Info.SupplyValue))
+				return SupplyAcceptance.Unaffordable;
+
+			need = CalculateNeed(rearmable);
+			if (need < Info.MinNeedThreshold)
+				return SupplyAcceptance.BelowThreshold;
+
+			return SupplyAcceptance.Accept;
+		}
+
+		/// <summary>
+		/// Takes the <see cref="Rearmable"/> rather than the Actor, deliberately — see
+		/// <see cref="AcceptClient"/>. Need is a property of the pools; handing this an Actor would put a
+		/// position back within reach of the shared accept path.
+		/// </summary>
+		static float CalculateNeed(Rearmable rearmable)
+		{
 			// Need = total missing ammo weighted by SupplyValue
 			// Higher = more need
 			var totalMissing = 0f;
@@ -732,6 +782,69 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		bool IsValidTarget(Actor a) { return IsValidTarget(a, out _); }
+
+		/// <summary>
+		/// <para>WILL this provider's push arm serve <paramref name="client"/> — not merely "could it own
+		/// him". The distinction is the whole point and the first cut of this method got it wrong: it
+		/// returned <c>IsValidTarget</c> alone, which carries no supply term, so a docked himars the depot
+		/// could no longer afford was still reported as owned. <c>Rearmable.RearmTick</c> deferred, and
+		/// deferring is not an exit — once docked, RearmTick returning true is the ONLY way out
+		/// (Resupply.cs:301), and the SelfAssignedErrandIsOver escape at Resupply.cs:240 is gated on
+		/// <c>!actualResupplyStarted</c> and so unreachable after arrival. The unit stood at the depot
+		/// forever, combat-inert, withheld from every bot module by StarvingRecruitGate. That is precisely
+		/// the failure <see cref="AmmoPool.ChooseAffordableResupplier"/> guards at DISPATCH time, reintroduced
+		/// at ARRIVAL time, downstream of the guard.</para>
+		///
+		/// <para>So this mirrors the sweep's ACCEPT test, which is strictly narrower than IsValidTarget:
+		/// affordability of some non-full pool and <c>MinNeedThreshold</c> (FindGreatestNeedTarget), plus the
+		/// Tick prologue's serving guards — paused/disabled, restocking, self-removal, drained, and
+		/// remainder-reserved. A client this declines falls through to Rearmable's own per-pool affordability
+		/// check, counts the pool done, and LEAVES with whatever it got.</para>
+		///
+		/// <para>Deliberately NOT consulting <c>currentTarget</c>: contention is not a lockout.
+		/// <c>UpdateTarget</c> runs every ScanInterval unconditionally and re-picks by greatest need, so a
+		/// client waiting behind another is reconsidered each scan and wins as soon as its need is greatest.
+		/// Reading currentTarget here would make a client leave merely because someone else was mid-batch.</para>
+		///
+		/// <para>Uses the SAME IsValidTarget the sweep uses rather than a second opinion about it; the extra
+		/// clauses are added around it, not re-derived inside it.</para>
+		/// </summary>
+		public bool CanSelect(Actor client)
+		{
+			// The serving ladder, ASKED rather than reproduced. The first cut of this method wrote the
+			// five guards out longhand and thereby created a FOURTH copy of them, in the very commit
+			// that removed the third copy of the accept test — CanServeNow's own doc says it exists "so
+			// a unit deciding whether to walk here can ask instead of reproducing the rule", and it was
+			// not asked.
+			//
+			// Not padding, either: LOGISTICSCENTER ships RestockThreshold 50 with no RestockActors and
+			// RemoveBelowSupply 0, so between 1 and 49 supply it reserves its remainder and serves
+			// nobody, permanently. An E3's 1-supply pool is "affordable" at 49, so dropping the
+			// ReservesRemainderForRestock rung would wedge him on shipped configuration.
+			//
+			// NOTE what is deliberately absent: !self.IsInWorld, which TickServing tests first.
+			// CanServeNow omits it too and leaves it to callers. Unreachable on this path today —
+			// Resupply.cs:156 cancels the activity on an out-of-world host before RearmTick can run —
+			// so it is stated here rather than added, because adding it would make this method disagree
+			// with CanServeNow again for a case that cannot occur.
+			if (!CanServeNow)
+				return false;
+
+			if (!IsValidTarget(client, out _))
+				return false;
+
+			// THE SAME predicate both sweeps apply, called rather than restated. The first cut of this
+			// method restated it and omitted the supply term, which is the bug this extraction exists to
+			// make unrepeatable.
+			//
+			// A BelowThreshold client is declined here, and that is FORCED rather than incidental: the
+			// push arm would skip a nearly-full docked client too, so claiming it here would defer
+			// Rearmable.RearmTick to an arm that never serves — the wedge again. Declining hands it to
+			// the pull path, which tops it up and CHARGES for it. Docking is a deliberate act and the
+			// unit pays for what it gets. Note the asymmetry with a truck, which has no pull path, so a
+			// nearly-full unit beside one is still skipped; that is pre-existing and unchanged.
+			return AcceptClient(client.TraitOrDefault<Rearmable>(), out _) == SupplyAcceptance.Accept;
+		}
 
 		bool IsValidTarget(Actor a, out bool isAura)
 		{
@@ -976,28 +1089,12 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
+			// Batch math, affordability and the charge all live in AmmoPool.TryServeBatch now, shared with
+			// the docking pull path so the two cannot disagree about what a batch costs. The SELECTION above
+			// — greatest need, and only pools this depot can pay for — stays here: that is the push arm's own
+			// policy rather than part of the price.
 			if (bestPool != null)
-			{
-				// Batch math: deliver one batch of ReloadCount rounds per cycle for
-				// SupplyValue cost per batch. Falls back to 1 round per cycle when
-				// the pool has the default ReloadCount: 1.
-				var batchSize = System.Math.Max(1, bestPool.Info.ReloadCount);
-				var missing = bestPool.Info.Ammo - bestPool.CurrentAmmoCount;
-				var canAfford = currentSupply >= bestPool.Info.SupplyValue;
-
-				if (canAfford && missing > 0)
-				{
-					var roundsToGive = System.Math.Min(batchSize, missing);
-					if (bestPool.GiveAmmo(currentTarget, roundsToGive))
-					{
-						currentSupply -= bestPool.Info.SupplyValue;
-						UpdateSupplyConditions();
-
-						if (!string.IsNullOrEmpty(bestPool.Info.RearmSound))
-							Game.Sound.PlayToPlayer(SoundType.World, currentTarget.Owner, bestPool.Info.RearmSound, currentTarget.CenterPosition);
-					}
-				}
-			}
+				AmmoPool.TryServeBatch(currentTarget, bestPool, this);
 
 			// After giving ammo, drop target to re-evaluate on next scan. Order matters: the delay is
 			// read off the clientele we just served, then the latch is cleared with the target.

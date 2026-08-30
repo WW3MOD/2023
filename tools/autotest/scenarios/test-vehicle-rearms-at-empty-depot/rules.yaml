@@ -1,0 +1,49 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-vehicle-rearms-at-empty-depot.lua
+
+abrams:
+	# Dry on arrival. Not for dispatch reasons — the test issues the errand itself — but so that any
+	# ammunition at all appearing on this tank is unambiguous.
+	AmmoPool@1:
+		InitialAmmo: 0
+	# HOLD, in BOTH arms, and this is a correction rather than a precaution. The first RED run had a
+	# tank that "died before reaching the depot": under the Auto disposition a wholly dry unit whose
+	# RearmActors names nothing present on the map reads as unrearmable-in-principle, and the
+	# 2026-08-27 fallback correctly drives it off the map for a refund — leaving the world, which the
+	# Lua API reports as IsDead. The RED control had changed a second thing.
+	#
+	# Hold makes AmmoPool.AutoRearmIfDry raise NeedsResupply and stand still on every path, so the
+	# ONLY errand in either arm is the one Test.IssueResupplyAt issues. Both AI and human fields are
+	# set because AutoTarget.cs:522 picks between them on owner, and USA is the human slot here.
+	AutoTarget:
+		InitialResupplyBehavior: Hold
+		InitialResupplyBehaviorAI: Hold
+	# THE RED CONTROL. Uncomment to point the tank's rearm list at a host that is not on this map,
+	# leaving everything else identical, then re-run: the tank must reach the Centre and gain nothing.
+	#
+	# It is the right sabotage because Resupply.cs:131 derives its whole rearm branch from exactly
+	# this list —
+	#     cannotRearmAtHost = rearmable == null
+	#         || !rearmable.Info.RearmActors.Contains(host.Info.Name)
+	#         || every rearmable pool full
+	# — and only if that is false does ResupplyType.Rearm get set and Rearmable.RearmTick ever run.
+	# So this control removes the free rearm and nothing else: the tank is still sent, still arrives,
+	# still has empty pools, and the depot is still zeroed.
+	#
+	# `truk` rather than an empty list, so the field stays populated and NamesRearmActors stays true —
+	# an empty list would change a second thing and weaken the control.
+	#Rearmable:
+	#	RearmActors: truk

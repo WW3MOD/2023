@@ -1,0 +1,92 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Who Pays For A Rearm — Free Infantry Trickle And The Docked Double-Serve (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# ---- WEST END: is the infantry proximity trickle really free? ----
+	#
+	# TWO CENTRES, because the two questions need opposite depot states: this one must hold NOTHING
+	# so any ammunition the rifleman gains is unpaid, and the eastern one must hold a full load so
+	# the docked vehicle has something to be charged for. One depot cannot be both.
+	DrainedDepot: logisticscenter
+		Owner: USA
+		Location: 8,16
+	# TWO cells from the Centre's edge and three from its centre — comfortably inside BOTH 4c0 grants
+	# (SupplyProvider.AuraRange, which is metered, and ProximityExternalCondition@ReplenishSoldiers,
+	# which is not). Staging him outside that radius is the trap this scenario is most likely to fall
+	# into: he would gain nothing, the run would read as a clean refutation, and it would have proved
+	# only that he was standing too far away.
+	Rifleman: ar
+		Owner: USA
+		Location: 11,16
+	# ---- EAST END: while docked, do BOTH the push arm and Resupply's RearmTick deliver? ----
+	#
+	# FORTY-SEVEN cells from the rifleman, and the distance is load-bearing: AutoSeekSupplies'
+	# ReturnWhenEmptyLeashCells is 30, so this stocked Centre must be out of the dry rifleman's reach
+	# or he would be dispatched east and rearm here instead — measuring the seek rather than the
+	# trickle.
+	StockedDepot: logisticscenter
+		Owner: USA
+		Location: 58,16
+	# himars deliberately: one of only TWO actors in the mod declaring the replenish-vehicles
+	# ExternalCondition (iskander is the other), which is what lets the Centre's metered push arm
+	# select it at all. Every other vehicle is invisible to that arm, so no other vehicle could show
+	# a double-serve even if one existed.
+	#
+	# The arithmetic is why this actor and not iskander: Ammo 2, ReloadCount 1 (default), SupplyValue
+	# 1500, against the Centre's TotalSupply 2250. The push arm can therefore afford exactly ONE
+	# round and then stops — 750 remaining is less than a 1500 batch. So a second round arriving is
+	# not a timing argument, it is arithmetic: it cannot have been paid for.
+	Himars: himars
+		Owner: USA
+		Location: 54,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 11,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 32,30
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml
