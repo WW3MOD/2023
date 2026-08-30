@@ -2038,14 +2038,23 @@ Player:
 		# rearward toward the squad when it lands closer. Rides on StandoffEngagement above. 4 coarse cells ≈
 		# 8 map cells. NOTE (b8d2e601, 2026-08-02): the @stable twin sets it too (:1688), so it is not
 		# experimental-only; Normal / Rush / Turtle / legacy still leave it 0.
-		MinFrontierDistanceCells: 4
+		# 2026-08-30: 4 -> 8 coarse cells (≈16 map cells). The user's report is that attack helis fly as
+		# frontline units when they should be supporting from behind, so this holds the standoff cell twice
+		# as far back. CAVEAT, stated because the recon's stated reason for this change does NOT hold: it
+		# argued 4 coarse cells put the squad exactly on the 8-map-cell radius that triggers the close-in
+		# attack run, so the standoff cancelled itself. That trigger is inside `if (!standoff)`
+		# (HelicopterStates.cs:597) and this profile sets StandoffEngagement: true, so the attack run is
+		# never reached and cannot be what defeats the standoff. The change is made on its own merits --
+		# hold further back -- and its effect is measurable only in a match.
+		MinFrontierDistanceCells: 8
 		# Mission-employment exit strategy (experimental-only, default-frozen in C#): evacuate an idle attack
 		# heli to reserves when it is spent (out of ammo, no hpad to rearm at) or has loitered near home with no
 		# believed worthwhile target — reclaiming salvage value and stopping upkeep drain instead of parking at
 		# the SR/staging corner forever. The exit half of "helicopters are perfect for short hit-and-run
 		# missions". Belief-store read (fog-legal), zero RNG. OFF for every non-experimental profile.
 		EvacuateWhenIdle: true
-		EvacuateIdleTicks: 500
+		# 2026-08-30: 500 -> 300 (≈18 s at 16.67 tps, was ≈30 s). Retires a target-less airframe sooner.
+		EvacuateIdleTicks: 300
 		EvacuateHomeRadiusCells: 12
 		MissionTargetRangeCells: 60
 		# Mission-complete evac (experimental-only, default-frozen in C#): a heli that finished a mission
