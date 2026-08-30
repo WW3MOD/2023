@@ -1,0 +1,103 @@
+# WW3MOD-local copy of common|chrome/ingame-info-lobby-options.yaml.
+#
+# The stock panel declares no Label@CATEGORY_FILTER, so LobbyOptionsLogic falls
+# back to CategoryAdvanced (LobbyOptionsLogic.cs:228-230). Every option that is
+# actually wired — fog, explored, startingcash, gamespeed, timelimit,
+# startingunits, passiveincome, incomemodifier, bounty, separateteamspawns,
+# cheats, sync reports — is in CommonOptionIds and was therefore filtered out,
+# leaving only LobbyDummyOptions, which stamps Placeholder=true on every option
+# it yields. RenderAdvancedSections skips any section that is entirely
+# placeholders, so all of them vanished and the tab drew nothing at all.
+#
+# These are match-wide rules, identical for every client and already public in
+# the pre-game lobby. Nothing here is per-player state, so this reveals nothing
+# through fog. GameInfoLogic passes configurationDisabled: () => true
+# (GameInfoLogic.cs:172), so every control renders read-only.
+Container@LOBBY_OPTIONS_PANEL:
+	Height: PARENT_HEIGHT
+	Width: PARENT_WIDTH
+	Children:
+		ScrollPanel:
+			Logic: LobbyOptionsLogic
+			X: 20
+			Y: 20
+			Width: PARENT_WIDTH - 40
+			Height: 365
+			Children:
+				Label@CATEGORY_FILTER:
+					Visible: False
+					Text: Common
+				Container@LOBBY_OPTIONS:
+					Y: 10
+					Width: PARENT_WIDTH - 24
+					Children:
+						# Without this template AddSectionHeader silently no-ops
+						# (LobbyOptionsLogic.cs:261-262) and the options render as
+						# one ungrouped run.
+						Container@SECTION_HEADER_TEMPLATE:
+							Width: PARENT_WIDTH
+							Height: 36
+							Visible: False
+							Children:
+								Label@HEADER_LABEL:
+									X: 10
+									Y: 8
+									Width: PARENT_WIDTH - 20
+									Height: 14
+									Font: TinyBold
+									Align: Left
+									TextColor: B4B4B4
+								ColorBlock@HEADER_ACCENT:
+									X: 10
+									Y: 26
+									Width: 28
+									Height: 2
+									Color: B4B4B4FF
+						Container@CHECKBOX_ROW_TEMPLATE:
+							Width: PARENT_WIDTH
+							Height: 30
+							Children:
+								Checkbox@A:
+									X: 10
+									Width: PARENT_WIDTH / 2 - 20
+									Height: 20
+									Visible: False
+									TooltipContainer: TOOLTIP_CONTAINER
+								Checkbox@B:
+									X: PARENT_WIDTH / 2 + 10
+									Width: PARENT_WIDTH / 2 - 20
+									Height: 20
+									Visible: False
+									TooltipContainer: TOOLTIP_CONTAINER
+						Container@DROPDOWN_ROW_TEMPLATE:
+							Height: 60
+							Width: PARENT_WIDTH
+							Children:
+								LabelForInput@A_DESC:
+									X: 10
+									Width: PARENT_WIDTH / 2 - 20
+									Height: 20
+									Visible: False
+									For: A
+								DropDownButton@A:
+									X: 10
+									Y: 25
+									Width: PARENT_WIDTH / 2 - 20
+									Height: 25
+									Font: Regular
+									Visible: False
+									TooltipContainer: TOOLTIP_CONTAINER
+								LabelForInput@B_DESC:
+									X: PARENT_WIDTH / 2 + 10
+									Width: PARENT_WIDTH / 2 - 20
+									Height: 20
+									Visible: False
+									For: B
+								DropDownButton@B:
+									X: PARENT_WIDTH / 2 + 10
+									Y: 25
+									Width: PARENT_WIDTH / 2 - 20
+									Height: 25
+									Font: Regular
+									Visible: False
+									TooltipContainer: TOOLTIP_CONTAINER
