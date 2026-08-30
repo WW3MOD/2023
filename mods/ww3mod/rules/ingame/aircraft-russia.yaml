@@ -7,7 +7,6 @@ HALO:
 		Role: Transport
 		FleeHealthPercent: 60
 		ReEngageHealthPercent: 90
-		PreferSoftTargets: true
 	HeliEmergencyLanding:
 		SpinsOnCrash: false
 	VehicleCrew:
@@ -105,7 +104,6 @@ HIND:
 		FleeHealthPercent: 35
 		ReEngageHealthPercent: 75
 		HitAndRunCooldown: 175
-		PreferSoftTargets: false
 	AutoTarget:
 		InitialStance: FireAtWill
 		InitialStanceAI: FireAtWill
@@ -293,7 +291,6 @@ MI28:
 		FleeHealthPercent: 35
 		ReEngageHealthPercent: 75
 		HitAndRunCooldown: 200
-		PreferSoftTargets: false
 	AutoTarget:
 		InitialStance: FireAtWill
 		InitialStanceAI: FireAtWill

@@ -7,7 +7,6 @@ TRAN:
 		Role: Transport
 		FleeHealthPercent: 60
 		ReEngageHealthPercent: 90
-		PreferSoftTargets: true
 	HeliEmergencyLanding:
 		SpinsOnCrash: false
 	VehicleCrew:
@@ -113,7 +112,6 @@ littlebird:
 		FleeHealthPercent: 50
 		ReEngageHealthPercent: 80
 		HitAndRunCooldown: 100
-		PreferSoftTargets: true
 	RenderSprites:
 		Image: littlebird
 		PlayerPalette: playertd
@@ -299,7 +297,6 @@ HELI:
 		FleeHealthPercent: 35
 		ReEngageHealthPercent: 75
 		HitAndRunCooldown: 200
-		PreferSoftTargets: false
 	AutoTarget:
 		InitialStance: FireAtWill
 		InitialStanceAI: FireAtWill

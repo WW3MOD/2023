@@ -280,11 +280,13 @@ namespace OpenRA.Mods.Common.Traits
 			"map edge (RotateToEdge), reclaiming its salvage value (full Cost with ammo, less spent-ammo value)",
 			"and freeing the capital it represents, instead of parking at the SR/staging corner forever (the corner-idle",
 			"bug). A believed target instead keeps the heli HELD for the squad mission loop. Fog-legal: the",
-			"'worthwhile target' read is the belief store, never ground truth.",
-			"GATING, CORRECTED 2026-08-30: this flag gates the TARGET-LESS branch only. The spent-and-cannot-",
-			"rearm branch in HeliEmploymentMath.Decide is NOT flag-gated and already runs on @stable, so the",
-			"previous claim here that the whole feature was experimental-only overstated it. What this flag",
-			"actually switches is whether an ARMED but target-less heli is retired.")]
+			"'worthwhile target' read is the belief store, never ground truth. OFF by default so normal/rush/",
+			"turtle/stable stay byte-identical; only HelicopterSquadBotModule@experimental turns it on.",
+			"GATING IS COMPLETE, and a note dated 2026-08-30 briefly claimed otherwise here — it was wrong and",
+			"is withdrawn. EvaluateIdleHelicopters returns early unless EvacuateWhenIdle or",
+			"EvacuateIdleTransports is set, and attack helis hit a second EvacuateWhenIdle guard after that,",
+			"before the sole HeliEmploymentMath.Decide call site. @stable sets neither flag, so Decide is never",
+			"reached for it and NO branch of it — including spent-and-cannot-rearm — runs on @stable.")]
 		public readonly bool EvacuateWhenIdle = false;
 
 		[Desc("Consecutive idle ticks an attack heli must loiter near home with no believed worthwhile target",
@@ -305,7 +307,15 @@ namespace OpenRA.Mods.Common.Traits
 			"this percent. The salvage refund is HP-scaled (RotateToEdge.DoSell pays fixedRefund * hp / maxHP),",
 			"so a damaged airframe's recoverable value only ever DECREASES and every further hit is money burnt",
 			"— banking 35% of a 6000-cost airframe beats losing 100% of it later. Gated on the absence of a",
-			"repair host, so capturing one makes the bot mend rather than scrap. 0 = off (the default).")]
+			"repair host, so capturing one makes the bot mend rather than scrap. 0 = off (the default).",
+			"DOES 35 KILL ReEngageHealthPercent? No — that bar was ALREADY dead for attack helis, verified",
+			"2026-08-30 rather than assumed. SendDamagedUnitsHome consults ReEngageHealthPercent only via",
+			"AirframeReadiness.RepairRoutingBar's has-repair-host branch; a helicopter's RepairActors is 'hpad'",
+			"(aircraft.yaml), hpad carries Prerequisites: ~disabled so it is map-placed only, and it appears on",
+			"ZERO shipped maps. So HasRepairHost is always false, the routing bar is always FleeHealthPercent,",
+			"and ReEngageHealthPercent has never been reached. Setting this to the same 35 removes nothing that",
+			"was live. If an hpad is ever map-placed, the !canRepair gate above hands the airframe back to",
+			"repair before this rule can scrap it.")]
 		public readonly int EvacuateBelowHealthPercent = 0;
 
 		[Desc("Radius (map cells) around the own Supply Route within which an idle, target-less heli counts as",
@@ -1807,9 +1817,16 @@ namespace OpenRA.Mods.Common.Traits
 		void Evacuate(Actor h)
 		{
 			// Order, not a direct activity write. Bot logic runs on the HOST ONLY (Player.cs:224-232), so
-			// touching the activity queue here mutates synced state on one client and no other. This site is
-			// reachable on BOTH profiles — HeliEmploymentMath.Decide's spent-and-cannot-rearm branch is
-			// ungated — so unlike the PoiOffensive sweeps it exposed @stable too. "Evacuate" is resolved by
+			// touching the activity queue here mutates synced state on one client and no other.
+			//
+			// CORRECTED 2026-08-30: this comment used to claim the site was "reachable on BOTH profiles"
+			// because Decide's spent-and-cannot-rearm branch is ungated. It is not ungated. Every caller of
+			// Decide sits behind EvaluateIdleHelicopters' EvacuateWhenIdle/EvacuateIdleTransports early
+			// return, and attack helis behind a second EvacuateWhenIdle guard; @stable sets neither, so this
+			// site is @experimental-only. The wrong version of this claim propagated into the helicopter
+			// recon and from there into an Info [Desc] before it was caught.
+			//
+			// "Evacuate" is resolved by
 			// DeliversCash@Rotation (aircraft.yaml) into the same activity with the same GetSellValue()
 			// refund; unqueued, so it still cancels whatever the heli was doing.
 			bot.QueueOrder(new Order("Evacuate", h, false));

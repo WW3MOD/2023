@@ -30,19 +30,22 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Ticks of engagement before pulling back (hit-and-run cycle). 0 = stay engaged until flee threshold.")]
 		public readonly int HitAndRunCooldown = 150;
 
-		[Desc("Whether this helicopter prefers targets without anti-air nearby.")]
-		public readonly bool PreferSoftTargets = true;
-
-		// REMOVED 2026-08-30: EngagementRange, AvoidAntiAirRange, AIBuildPriority and AIBuildLimit. All four
-		// were declared here, set per template in aircraft-america.yaml / aircraft-russia.yaml, and read
-		// NOWHERE in the engine. Anyone reaching for the obvious lever -- "cap how many Apaches the AI buys",
-		// "keep helis this far from SAMs" -- got a silent no-op, and the real levers live elsewhere:
-		// UnitLimits on the UnitBuilderBotModule twins caps the buy, and DangerFieldAvoidance +
-		// AirDangerLeashCells on HelicopterSquadBotModule handle believed-AA standoff.
+		// REMOVED 2026-08-30: EngagementRange, PreferSoftTargets, AvoidAntiAirRange, AIBuildPriority and
+		// AIBuildLimit -- the exact five listed as configured-but-unread in WORKSPACE/bugs/discovered.md
+		// (2026-08-09). All five were declared here, set per template in aircraft-america.yaml /
+		// aircraft-russia.yaml, and read NOWHERE in the engine. Anyone reaching for the obvious lever --
+		// "cap how many Apaches the AI buys", "keep helis this far from SAMs", "make the Hind pick soft
+		// targets" -- got a silent no-op, while the real levers lived elsewhere: UnitLimits on the
+		// UnitBuilderBotModule twins caps the buy, and DangerFieldAvoidance + AirDangerLeashCells on
+		// HelicopterSquadBotModule handle believed-AA standoff.
 		//
 		// AvoidAntiAirRange was deliberately DELETED rather than wired. It sits on the actor template, not on
 		// the bot module, so reading it would change behaviour for every profile at once -- campaign and
 		// @stable included -- and cannot be profile-gated where it lives.
+		//
+		// PreferSoftTargets was missed by the first pass of this cleanup and caught in review. Note the
+		// behaviour its name promises DOES exist, under other names: IsTargetTooHot refuses a target with too
+		// much nearby AA, and the Approach state diverts to a softer one. It was never wired to this flag.
 
 		public override object Create(ActorInitializer init) { return new AIHelicopterRole(this); }
 	}

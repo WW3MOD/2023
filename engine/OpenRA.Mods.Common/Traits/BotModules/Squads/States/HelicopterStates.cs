@@ -540,8 +540,18 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			// through AA it holds no belief about. The scout path has had exactly this bound for the same
 			// reason; the attack path had none.
 			//
-			// Applied here, at the single point where a target is committed, so it covers both sources rather
-			// than being written out once per candidate.
+			// COVERAGE, stated exactly because an earlier version of this comment claimed "the single point
+			// where a target is committed" and that was wrong. FOUR sites write TargetActor from a fresh
+			// scan. Three are live and all three are now bounded: this one (covering both the threat-map
+			// cluster pick and the FindClosestEnemy fallback), the soft-target divert in Approach, and the
+			// re-pick in Withdraw. The fourth is the re-target inside HelicopterAttackRunState, deliberately
+			// NOT bounded because that state is unreachable on both shipped profiles (see
+			// HeliAttackRunReachabilityTest) — bounding dead code would only blur which sites carry the
+			// guarantee.
+			//
+			// Withdraw is the one that made this necessary rather than merely tidy: Idle re-picks only when
+			// TargetActor is null, so an unbounded re-pick on the way out of a fight would have reset the
+			// squad past the cap permanently, and retreating would have been the way to escape it.
 			if (!AttackObjectiveWithinReach(owner, target))
 				return;
 
@@ -616,11 +626,15 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			{
 				// Try to find a softer target nearby
 				var leader = owner.Units.First();
+				// Bounded like the other two commit sites. The divert is only 20 cells from the leader, but
+				// the leader is already forward, so an unbounded soft-swap can walk the squad past the cap
+				// one divert at a time -- and each divert re-enters this state, so it chains.
 				var softTarget = owner.World.FindActorsInCircle(leader.CenterPosition, WDist.FromCells(20))
 					.Where(a => a.Owner != null
 						&& owner.Bot.Player.RelationshipWith(a.Owner) == PlayerRelationship.Enemy
 						&& !a.Info.HasTraitInfo<AircraftInfo>()
-						&& !IsTargetTooHot(owner, a.CenterPosition))
+						&& !IsTargetTooHot(owner, a.CenterPosition)
+						&& AttackObjectiveWithinReach(owner, a))
 					.ClosestToIgnoringPath(leader.CenterPosition);
 
 				if (softTarget != null)
@@ -1006,8 +1020,15 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 						owner.StrategicTarget = null;
 					}
 
+					// THE RE-PICK IS BOUNDED TOO, and this is not symmetry for its own sake. This is a fresh
+					// omniscient FindClosestEnemy that sets TargetActor and hands straight back to Approach,
+					// so without the bound every withdraw resets the squad to an unbounded objective and the
+					// Idle-state bound above is never consulted again (Idle only re-picks when TargetActor is
+					// null). Retreating would have been the way to escape the cap — and this batch makes
+					// withdraws MORE frequent, via the danger-spike and low-ammo work.
 					var newTarget = FindClosestEnemy(owner, leader.CenterPosition);
-					if (newTarget != null && !IsTargetTooHot(owner, newTarget.CenterPosition))
+					if (newTarget != null && !IsTargetTooHot(owner, newTarget.CenterPosition)
+						&& AttackObjectiveWithinReach(owner, newTarget))
 					{
 						owner.TargetActor = newTarget;
 						owner.FuzzyStateMachine.ChangeState(owner, new HelicopterApproachState());

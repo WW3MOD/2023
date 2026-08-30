@@ -732,22 +732,35 @@ The heli one is doubly hidden because its consuming state is itself unreachable 
 are in the same units — those two are **live**, and work out to ≈60 s and ≈22 s respectively, which look
 deliberate. Logged in [`WORKSPACE/bugs/discovered.md`](../../WORKSPACE/bugs/discovered.md).
 
-### 6.7 Config fields that are never read at all
+### 6.7 Config fields that are never read at all — RESOLVED 2026-08-30
 
-`AIHelicopterRoleInfo` declares nine fields. **Five are read by no C# code anywhere in the repo** —
-`EngagementRange` (`:25`), `PreferSoftTargets` (`:37`), `AvoidAntiAirRange` (`:40`), `AIBuildPriority`
-(`:43`) and `AIBuildLimit` (`:46`) — re-verified by grep across `engine/`, which returns zero hits outside
-`AIHelicopterRole.cs` for each. The first three are nonetheless configured per airframe in the mod
-(`aircraft-america.yaml:10, :111, :115-116, :274, :278-279`; `aircraft-russia.yaml:10, :103, :107` and
-neighbours); the two `AIBuild*` fields are dead because unit call-in weight is driven by
-`UnitBuilderBotModule`'s own `UnitsToBuild`/`UnitLimits` instead. The four that *are* read are `Role`,
-`FleeHealthPercent`, `ReEngageHealthPercent` and `HitAndRunCooldown` — and the last of those is read only from
-`HelicopterStates.cs:704`, inside the state §3.2 shows is unreachable. (An earlier draft of this paragraph
-opened "Three are read by no C# code" and then named five in the same breath; §7.1 and §8 have always said
-five.)
+**All five dead fields have been deleted, with their YAML.** `AIHelicopterRoleInfo` now declares four
+fields instead of nine, and every one of them is read by C#.
 
-So: a maintainer tuning "how close does the Apache engage" or "does the Hind avoid AA" by editing
-`aircraft-america.yaml` changes **nothing**. Logged in `discovered.md`.
+The five removed were `EngagementRange`, `PreferSoftTargets`, `AvoidAntiAirRange`, `AIBuildPriority` and
+`AIBuildLimit`. All were configured per airframe in `aircraft-america.yaml` / `aircraft-russia.yaml`, so a
+maintainer tuning "how close does the Apache engage" or "does the Hind avoid AA" changed **nothing**. The
+two `AIBuild*` fields were additionally *shadowed* — call-in weight and count are driven by
+`UnitBuilderBotModule`'s own `UnitsToBuild` / `UnitLimits`.
+
+`AvoidAntiAirRange` was deleted rather than wired, deliberately: it lives on the actor template, not the bot
+module, so reading it would change behaviour for every profile at once — campaign and `@stable` included —
+and cannot be profile-gated where it sits. The behaviour `PreferSoftTargets` promised does exist under other
+names (`IsTargetTooHot` plus the Approach state's soft-target divert); it was simply never wired to the flag.
+
+The four survivors are `Role`, `FleeHealthPercent`, `ReEngageHealthPercent` and `HitAndRunCooldown`. Two of
+them carry caveats that are **not** resolved:
+
+- `HitAndRunCooldown` is read only inside `HelicopterAttackRunState`, which §2.7 and §3.2 show is unreachable
+  on both shipped profiles. Still configured on four airframes.
+- `ReEngageHealthPercent` is consulted only through `AirframeReadiness.RepairRoutingBar`'s has-repair-host
+  branch. A helicopter's `RepairActors` is `hpad`; `hpad` carries `Prerequisites: ~disabled` (map-placed
+  only) and appears on **zero shipped maps**, so `HasRepairHost` is always false, the bar always resolves to
+  `FleeHealthPercent`, and this field has never been reached in a shipped match either. Verified 2026-08-30
+  while adding `EvacuateBelowHealthPercent`, which needed to know whether it was displacing live behaviour.
+
+So of the nine original fields, five are gone and two of the four remaining are still unreachable in
+practice. Original finding logged in `discovered.md` (2026-08-09).
 
 ---
 
@@ -767,7 +780,7 @@ So: a maintainer tuning "how close does the Apache engage" or "does the Hind avo
 | `SquadManagerBotModule.CreateAttackForce` + the multi-axis split | ~60 | Dead (§2.1). The multi-axis *idea* survives and is better realised as POI axes; this implementation is a coin-flip 60% split with `ThreatMapManager` waypoints. |
 | `SquadManagerBotModule.ProtectOwn` / `RespondToAttack` | ~40 | Dead (§2.3). |
 | `IncludeInSquadTypes` | field | Its use site has been commented out since upstream (`:306-307`). |
-| `AIHelicopterRoleInfo.EngagementRange`, `PreferSoftTargets`, `AvoidAntiAirRange`, `AIBuildPriority`, `AIBuildLimit` | 5 fields | Read by nothing (§6.7). Delete the fields *and* their YAML, or implement them. Configured-but-inert is worse than absent because it invites tuning that cannot work. |
+| ~~`AIHelicopterRoleInfo.EngagementRange`, `PreferSoftTargets`, `AvoidAntiAirRange`, `AIBuildPriority`, `AIBuildLimit`~~ | ~~5 fields~~ | **DONE 2026-08-30** — all five fields and their YAML deleted (§6.7). |
 | The four inert YAML tunables (§2.8) | — | With one caveat: removing `RushInterval` changes the `LocalRandom` draw at `:210` and breaks benchmark byte-identity, so it must be a deliberate, separately-measured removal. |
 
 That is **987 lines of dead state machine plus ~130 lines of dead manager (≈1,120 total, §2.7)**, removable

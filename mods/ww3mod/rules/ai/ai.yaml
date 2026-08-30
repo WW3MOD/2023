@@ -1858,14 +1858,21 @@ Player:
 		GateTransportOnDemand: true
 		TransportUnitTypes: halo
 		TransportMinPassengers: 4
-		# 2026-08-30: no attack heli until the ground army is worth 20,000. UnitLimits caps HOW MANY; this
-		# caps WHEN. Derivation is in the commit message; briefly, the V_fit table splits the roster into a
-		# core-line band (abrams 13,158 / t90 12,632 / bradley 10,714) and a specialist band (m109 30,000 /
-		# strykershorad 50,000 / grad 60,000). A 6000-cost gunship is a specialist, so it must sit above the
-		# core-line band -- but the specialist band starts ABOVE the ~15-22k realistic mid-game army
-		# (ai-america.yaml:342-343), and a floor up there would switch the lane off entirely. 20,000 is the
-		# top of the realistic band: above every core-line V_fit, still reachable in a real match.
-		MinGroundArmyValue: 20000
+		# 2026-08-30: no attack heli until the ground army is worth 14,000. UnitLimits caps HOW MANY; this
+		# caps WHEN. The V_fit table splits the roster into a core-line band (abrams 13,158 / t90 12,632 /
+		# bradley 10,714) and a specialist band (m109 30,000 / strykershorad 50,000 / grad 60,000), and a
+		# 6000-cost gunship is a specialist, so the floor must clear the core-line band or a heli displaces
+		# the army's spine. 14,000 is just above abrams' 13,158, the highest core-line V_fit.
+		# WHY NOT HIGHER: an earlier revision used 20,000, reasoning from the "~15-22k realistic mid-game
+		# army" at ai-america.yaml:343. That figure is NOT a measurement — it traces to an illustrative
+		# composition in DISCOVERIES.md summing to 18,800, which would NOT have cleared a 20,000 floor. Two
+		# further effects push the same way: truk is unarmed so GroundArmyValue() excludes it while the census
+		# that band was expressed in counted it, and GroundArmyValue() deliberately excludes pending call-ins.
+		# A floor above the army it is measuring silently disables the lane with every test still green.
+		# SCOUTS ARE NOT GATED. littlebird is Role: Scout and is the ONLY scout in the tree, so gating it
+		# would deny NATO all helicopter scouting until the floor cleared — while this same profile tunes
+		# CarefulScoutEmployment and ScoutMaxDistanceCells for it. The derivation above is about gunships.
+		MinGroundArmyValue: 14000
 		MinGroundArmyValueTypes: hind, mi28
 
 	# ===== Fixed-Wing Aircraft — America =====
@@ -1960,8 +1967,11 @@ Player:
 		TransportUnitTypes: tran
 		TransportMinPassengers: 4
 		# 2026-08-30: see the Russia twin above for the derivation. Same floor, same reasoning.
-		MinGroundArmyValue: 20000
-		MinGroundArmyValueTypes: heli, littlebird
+		# littlebird is deliberately ABSENT from the gated list: it is Role: Scout, and gating it would deny
+		# NATO all helicopter scouting until the floor cleared. Russia's list is gunships-only for the same
+		# reason (halo/hind/mi28 carry no scout role), so the two factions stay symmetric.
+		MinGroundArmyValue: 14000
+		MinGroundArmyValueTypes: heli
 
 	# ===== Helicopter Squad Manager — Stable twin =====
 	# 2026-08-02 promotion: @stable now runs the SAME heli behaviour as @experimental (the SR-only,
