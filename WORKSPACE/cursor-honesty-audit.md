@@ -398,3 +398,123 @@ Each of these needs a launch slot.
 `defaults.yaml` declares `^AutoTargetAir:` twice (`:554`, `:706`) and `^AutoTargetGroundAntiInf:`
 twice (`:606`, `:642`). MiniYaml merges adjacent top-level entries silently. Logged in
 `WORKSPACE/bugs/discovered.md`.
+
+---
+
+# Decision groups for findings 3–11
+
+Written 2026-08-30 after findings 1 (closed, not a defect) and 2 (fixed) were resolved. The
+remaining nine are **not nine questions**. They collapse into **three genuine choices, one
+standalone, and one batch that needs no decision at all**. For each, the point is where the two
+directions diverge in *consequence*, not in implementation.
+
+## Decision A — readiness gates: should an unqueued order on a not-ready unit be *refused* or *remembered*?
+
+**Covers findings 5 (paused armament), 7 (`guard` on a dry unit), 10 (minelayer with no mines).**
+
+What the player notices today: the cursor promises, the click lands, nothing happens, and no sound
+or message explains it. What they'd notice after either fix: something honest — but two very
+different somethings.
+
+**Where the directions actually diverge:** today, `!order.Queued` is load-bearing punctuation.
+Shift-queued means *"when you are able"*; unqueued means *"now"*, and "now" is legitimately
+refusable. **Suppressing the cursor keeps that distinction and makes readiness visible in the
+pointer** — the pointer becomes a live readout of a state the player can already see in ammo pips
+and damage decoration, so nothing is leaked. **Making the order remembered deletes the
+distinction** — unqueued and shift-queued would come to mean the same thing, and the player loses
+the ability to say "go now" and be told no.
+
+That is the whole question, and it is one question, not three. My read: suppress. It preserves an
+existing, deliberate, documented semantic.
+
+**Finding 4 (engineer `repair`) is a sub-case with a clearly-right answer** and probably should not
+be part of the vote: it is not a missing test but a **scope mismatch** — display is armament-scoped
+(`AttackBase.cs:809`), execution is actor-scoped (`:502`), and a spent rifle vetoing a wrench is
+indefensible under either direction above. It only needs a ruling because `:502`'s actor scope is
+deliberate and shared with six other call sites.
+
+> **NOT PRE-AUTHORISED — suppression-adjacent.** Finding 5's live gates include
+> `PauseOnCondition: suppressed >= 10` on `^AT` (`infantry.yaml:1739`) and the engineer's repair
+> armament (`:1956`), and finding 4 is that same engineer armament. Any work here touches the
+> suppression mechanic and needs explicit sign-off beyond this group's direction.
+>
+> Finding 5 also carries a **separate and worse problem that is not a cursor decision at all**: the
+> unit accepts, walks over, aims, and never goes idle, silencing auto-target, auto-follow and
+> auto-rearm for the duration. That wants `AbandonWhenArmamentsPaused` regardless of which way A
+> goes. Do not let the cursor question absorb it.
+
+## Decision B — silent failure at the destination: tighten the cursor, or make the failure audible?
+
+**Covers findings 8 (`deploy` where nobody can exit) and 9 (queued deploy judged against the wrong cell).**
+
+**Where the directions diverge:** these two look identical and are not, because in one the cursor
+*can* know and in the other it *cannot*.
+
+- **Finding 8 — the cursor can know.** `Cargo.CanUnload()` deliberately passes
+  `BlockedByActor.None` while the activity uses `BlockedByActor.All`. Tightening the display test is
+  a one-argument change. The information consequence is mild: it reveals whether the cells around
+  **your own transport** are occupied, which is your own information. There is a real cost though —
+  the cursor would then flicker as neighbours walk past, and a "blocked" that clears in half a
+  second is its own kind of lie.
+- **Finding 9 — the cursor cannot know.** `DeployOrderTargeter` takes a **zero-argument**
+  `Func<string>` (`DeployOrderTargeter.cs:20`). It has no access to the queue and therefore cannot
+  answer for a cell the unit has not reached yet. **Tightening is not available here**; only making
+  the refusal audible from the activity is. `DropsSupplyCache` already does this and documents why
+  (`:583-593`), so the pattern is in-tree.
+
+So B is really: *do we accept a flickering cursor for 8, and do we spend the plumbing to make
+deploy failures audible for 9?* If the answer to the second is yes, it subsumes the first — an
+audible failure fixes both without touching either display test.
+
+## Decision C — a targeter that consumes the click and then discards it
+
+**Covers findings 6 (full transport) and 11 (`enter` on a fogged vehicle).**
+
+**This is the only group where the fix changes what a click *does*, not just what it shows** — so it
+carries the most regression risk and deserves the most care.
+
+**Where the directions diverge:** the shared harm is that `CanTarget` returns `true` at priority 5,
+consuming the click, and `ResolveOrder` then drops it — so the player loses the **plain Move they
+would otherwise have received**. Two ways out, and they give the player *different things*:
+
+- **Return `false` from the targeter** → the click falls through to Move. The player right-clicks a
+  full APC and their infantry walks to it. Good for finding 6, where "walk over there and wait for
+  a seat" is usually what was meant. **Costs the `enter-blocked` art its only job** — the player is
+  no longer told the transport is full, they just move.
+- **Make the order work** → queue the action and let it resolve on arrival. Good for finding 11,
+  where the target is a fogged vehicle the player genuinely wants to crew and `Passenger` already
+  implements the correct frozen-target pattern (`:133-141`, `:194-199`) for `CrewMember` to copy.
+
+Note these pull opposite ways for the two findings, which is exactly why they should be decided
+together rather than one at a time.
+
+## Standalone — finding 3, the pathing one
+
+**Only one direction is actually available, so this is a "do we spend it?" question, not a
+direction question.**
+
+Suppressing the `move` cursor over unreachable ground would require a **full pathfind per mouse
+move** (cost), and — decisively — **it would leak map connectivity through the pointer**: the player
+could sweep the mouse across unexplored terrain and read off which regions are sealed, without ever
+scouting. That is information the fog is there to withhold. **Suppression is disqualified on
+correctness, not on effort.**
+
+That leaves making the order work: clamp to the nearest *reachable* cell rather than the nearest
+*enterable* one. `Move` already relocates via `NearestMoveableCell` (`Mobile.cs:834-855`), but that
+helper tests `CanEnterCell`/`CanStayInCell` only, so on an unreachable island every candidate also
+passes and the relocation is a no-op. This touches the most-used order in the game and is the
+highest-risk item in the whole audit.
+
+## Batch — no decision needed, low risk, approve or drop as one
+
+- **Aircraft pause over-warns** (`Aircraft.cs:1572` blocks on `IsTraitPaused`; `:1254` does not).
+  One-line deletion, and `Mobile.cs:1174-1177` already documents the rationale for the ground
+  equivalent — Aircraft was simply not brought along.
+- **`assaultmove` / `assaultmove-blocked` and `move-rough` are dead art** — no code path emits
+  them. Delete or leave; no behaviour either way.
+- **`DeliverSupply` and `Restock` share one cursor** (`DropsSupplyCache.cs:653`, `:697`). Cursor
+  identity here previously hid a fully-dead feature for months (`:657-664`). Cheap legibility fix.
+- **`Aircraft.Orders` lacks the `!IsTraitDisabled` guard `Mobile.cs:1002` has.** Unreachable today;
+  a one-line guard for symmetry.
+- **Finding 12's frozen Supply Route** is latent-only, held shut by one YAML line
+  (`structures.yaml:262-263`). Worth a comment so narrowing that line does not silently open it.
