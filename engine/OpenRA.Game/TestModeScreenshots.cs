@@ -274,7 +274,14 @@ namespace OpenRA
 
 		static Widgets.Widget FindVisible(Widgets.Widget w, string id)
 		{
-			if (!w.Visible)
+			// IsVisible(), not the raw Visible field: the two disagree whenever logic
+			// code overrides the delegate, and then the field is the stale half. The
+			// ingame info panel's TAB_CONTAINER_N are authored `Visible: False` and
+			// switched on by GameInfoLogic assigning IsVisible = () => true, so a
+			// field test walks straight past every tab button in the menu. IsVisible()
+			// is also what DrawOuter (Widget.cs:490) and HandleMouseInput (:428) use,
+			// so this is the predicate a real click already obeys.
+			if (!w.IsVisible())
 				return null;
 
 			if (w.Id == id)

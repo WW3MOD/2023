@@ -178,8 +178,8 @@ ChromeLayout:
 	common|chrome/ingame-infoscripterror.yaml
 	common|chrome/ingame-infobriefing.yaml
 	common|chrome/ingame-infoobjectives.yaml
-	common|chrome/ingame-infostats.yaml
-	common|chrome/ingame-info-lobby-options.yaml
+	ww3mod|chrome/ingame-infostats.yaml
+	ww3mod|chrome/ingame-info-lobby-options.yaml
 	ww3mod|chrome/ingame-info-howtoplay.yaml
 	common|chrome/ingame-menu.yaml
 	ww3mod|chrome/ingame-observer.yaml

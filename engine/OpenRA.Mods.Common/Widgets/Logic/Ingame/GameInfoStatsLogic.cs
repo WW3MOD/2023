@@ -121,10 +121,21 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				// Expand the stats window to cover the hidden objectives
 				var objectiveGroup = widget.Get("OBJECTIVE");
 
+				// Reclaiming the block's full height can carry the header above this
+				// panel's own top gutter and under the tab strip that overlaps it. A
+				// panel may declare its floor with a hidden Label@MIN_TOP_INSET; with
+				// no such label the floor is 0 and the shift is exactly as before.
+				var minTop = 0;
+				var minTopLabel = widget.GetOrNull<LabelWidget>("MIN_TOP_INSET");
+				if (minTopLabel != null)
+					Exts.TryParseInt32Invariant(minTopLabel.Text, out minTop);
+
+				var shift = Math.Min(objectiveGroup.Bounds.Height, Math.Max(0, statsHeader.Bounds.Y - minTop));
+
 				objectiveGroup.Visible = false;
-				statsHeader.Bounds.Y -= objectiveGroup.Bounds.Height;
-				playerPanel.Bounds.Y -= objectiveGroup.Bounds.Height;
-				playerPanel.Bounds.Height += objectiveGroup.Bounds.Height;
+				statsHeader.Bounds.Y -= shift;
+				playerPanel.Bounds.Y -= shift;
+				playerPanel.Bounds.Height += shift;
 			}
 
 			if (!orderManager.LobbyInfo.Clients.Any(c => !c.IsBot && c.Index != orderManager.LocalClient?.Index && c.State != Session.ClientState.Disconnected))
@@ -255,10 +266,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					var factionName = pp.DisplayFaction.Name;
 					if (player == null || player.RelationshipWith(pp) == PlayerRelationship.Ally || player.WinState != WinState.Undefined)
 					{
+						// The resolved faction alone. "Any Side (America)" spends the
+						// column restating a lobby PICK, and the flag to its left
+						// already shows the resolved faction. The else branch below is
+						// the fog gate and is deliberately untouched: an enemy's true
+						// faction stays hidden behind DisplayFaction until the viewer
+						// is allied with them or the game is over.
 						flag.GetImageName = () => pp.Faction.InternalName;
-						factionName = pp.Faction.Name != factionName
-							? $"{FluentProvider.GetMessage(factionName)} ({FluentProvider.GetMessage(pp.Faction.Name)})"
-							: FluentProvider.GetMessage(pp.Faction.Name);
+						factionName = FluentProvider.GetMessage(pp.Faction.Name);
 					}
 					else
 					{

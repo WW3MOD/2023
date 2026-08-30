@@ -42,8 +42,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly Func<bool> configurationDisabled;
 		MapPreview mapPreview;
 
-		// Each instance of this logic is bound to one category — Common or Advanced —
-		// declared via a hidden Label@CATEGORY_FILTER inside the panel widget.
+		// Each instance of this logic is bound to one category — Common, Advanced or
+		// All — declared via a hidden Label@CATEGORY_FILTER inside the panel widget.
 		// Defaults to Advanced if no marker is found, so existing callers keep working.
 		readonly string category;
 
@@ -225,7 +225,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			sectionHeaderTemplate = optionsContainer.GetOrNull("SECTION_HEADER_TEMPLATE");
 
 			// Read this panel's category from the hidden CATEGORY_FILTER label.
-			// PLAYERS panel embeds one with "Common", Options-Bin uses "Advanced".
+			// Two panels declare one: lobby-players.yaml:880 reads "All", and
+			// ww3mod's ingame-info-lobby-options.yaml reads "Common". NO panel
+			// declares "Advanced" — it exists only as the fallback below, which is
+			// why a panel that forgets the label renders Advanced-only.
 			var categoryLabel = widget.GetOrNull<LabelWidget>("CATEGORY_FILTER");
 			category = categoryLabel?.Text ?? CategoryAdvanced;
 

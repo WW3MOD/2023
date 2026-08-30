@@ -13844,3 +13844,87 @@ resolves to the docking path and **the live clientele of `SeekSupplyProvider` is
 `AmmoPool.HostCanAffordSomethingWeNeed` used to name the m270/grad/tos as the actors a wasted walk
 would strand at a truck; they are vehicles, so they were never reachable by that path at all. That
 comment has been corrected in place — the same mistake is easy to make again from the other side.
+
+---
+
+## 2026-08-30 — A widget's backing FIELD and the delegate that reads it can disagree, and the engine consults the DELEGATE
+
+Four instances of one pattern surfaced today. It was first written up as a *cloning* trap, and that
+framing is too narrow: the fourth involves no clone at all. The general rule:
+
+> **Widget state is reached through a `Func<>` — `IsVisible`, `GetText`, `GetColor` — and the engine
+> asks the delegate, never the field behind it. Any code that reads the FIELD is reading the stale
+> half the moment the two come apart.**
+
+**They come apart in two ways.** *Cloning* is the common one: a copy constructor copies the delegate,
+and that delegate was built in the template's constructor closing over the template's `this`, so the
+clone reads the template's field forever. *Runtime assignment* is the other, and it needs no clone at
+all: logic code writes `w.IsVisible = () => …` and leaves `w.Visible` untouched, after which the two
+disagree permanently. Instance 4 below is that second kind, which is why the cloning framing missed it.
+
+**Instance 3 — `ColorBlockWidget` (`engine/OpenRA.Mods.Common/Widgets/ColorBlockWidget.cs`).** The
+field is `Color` (`:20`) and the accessor is `GetColor` (`:21`). The `[ObjectCreator.UseCtor]`
+constructor sets `GetColor = () => Color` (`:32`), which captures the *template's* `this`. The copy
+constructor (`:35-40`) copies `GetColor` (`:39`) and **does not copy `Color` at all**. `Draw` renders
+`GetColor()` (`:50`). Consequences, in order of nastiness:
+
+- A clone draws the **template's** colour. For a static colour authored once in YAML this is
+  invisibly correct, which is why `lobby-players.yaml`'s cloned `SECTION_HEADER_TEMPLATE` accent has
+  always looked right — it is right *by accident*, not by design.
+- `clone.Color` is `default(Color)` — transparent black — while the clone visibly renders the
+  template's colour. Any code that reads `Color` back off a clone gets a value that contradicts the
+  pixels.
+- Assigning `clone.Color = X` does nothing. Assigning `clone.GetColor = () => clone.Color` "fixes"
+  the binding and simultaneously turns the widget transparent, because `Color` was never copied. That
+  is a two-step trap where each step looks like the fix for the previous one.
+
+**Instance 2 — `LabelWidget` (`LabelWidget.cs`).** Same shape, and it corroborates the pattern from
+code rather than from report: the constructor sets `GetText = () => textCache.Update(Text)` (`:45`),
+capturing both the template's `Text` *and* its `CachedTransform`. The copy constructor copies `Text`
+(`:54`) **and** `GetText` (`:65`) — so `Text` is carried but is then ignored, because the surviving
+delegate still reads the template's. Setting `clone.Text` post-clone has no effect. Note the contrast
+with `Align`, which is copied (`:55`) and read *directly* in `Draw` (`:107-110`) and therefore does
+survive a clone — which is what makes the failure selective and hard to reason about from the outside.
+This is the one that rendered a blank tooltip panel earlier today.
+
+**Instance 1 — `Widget.IsVisible`.** `protected Widget() { IsVisible = () => Visible; }`
+(`engine/OpenRA.Game/Widgets/Widget.cs:231`) closing over the template's `Visible`, so every clone of
+a `Visible: False` template asks the hidden template whether to draw and the whole list renders
+empty. This is why `ScrollItemWidget.Setup` reassigns `w.IsVisible = () => true` on the clone
+(`ScrollItemWidget.cs:76`) and why `LobbyOptionsLogic.AddSectionHeader` does the same (`:269`) —
+those two lines are not decoration, they are the countermeasure, and any new clone site that omits
+them inherits the bug.
+
+**Instance 4 — `TestModeScreenshots.FindVisible`, and NO clone is involved.** The screenshot
+harness's `click <widget-id>` verb walked the UI tree with `if (!w.Visible) return null;`. The ingame
+info panel's tab strip is authored `Visible: False` in `mods/ww3mod/chrome/ingame-info.yaml` and
+switched on by `GameInfoLogic` assigning `tabContainer.IsVisible = () => true` (`GameInfoLogic.cs:110`)
+— which never touches the field. So the field test walked straight past every tab button in the Esc
+menu and the verb reported `NO SUCH VISIBLE WIDGET` for a button plainly on screen. The engine's own
+answer was one call away and disagreed: `Widget.DrawOuter` (`Widget.cs:490`) and
+`HandleMouseInput` (`:428`) both gate on `IsVisible()`. Fixed by using `IsVisible()`. **Note what this
+one costs:** it is not a rendering bug, it is a *measurement* bug — it made a correct UI look broken to
+the tool that was supposed to inspect it, which is the most expensive direction for this failure to run.
+
+**A near-miss worth separating: the lobby chip frozen at 180px.** Reported alongside these, but the
+mechanism is NOT the same and conflating them would mislead. `Container@CHIP_TEMPLATE` is authored
+`Width: 180` (`engine/mods/common/chrome/lobby-players.yaml:1063`), and `Bounds` is a *directly-read*
+field that the copy constructor duly copies — so a clone starts at the template's width and simply
+stays there until something overwrites it, which `LobbyActiveChangesLogic` now does explicitly for the
+chip and both its children (`:223`, `:233`, `:241`). That is ordinary value inheritance, not a
+delegate reading the wrong object. **The distinction matters because the remedies differ:** a
+delegate-read field cannot be fixed by assigning the clone's field at all, whereas this one is fixed
+by exactly that.
+
+**The operative rule.** Ask, per field you care about: *is it read directly
+or through a delegate?* Directly-read fields (`Align`, `Bounds`, `Font`) behave normally and survive a
+clone if the copy constructor lists them. Delegate-read fields (`Color`, `Text`, `Visible`) do **not**,
+whether or not the copy constructor lists them — the listing is a decoy. When cloning, either reassign
+the delegate on the clone to close over the clone, or do not vary that field per clone. When *reading*
+widget state from outside — a test harness, a debug overlay, an assertion — call the delegate, never
+the field, because the delegate is what the engine itself obeys.
+
+**Why this keeps getting past the gate.** Nothing here is a compile error and nothing is a test
+failure; two of the three instances render *plausible* output (the template's value) rather than
+nothing. A clean build and a green NUnit run carry no information about it whatsoever. It is only
+visible on screen.
