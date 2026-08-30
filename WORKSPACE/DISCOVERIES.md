@@ -3,6 +3,35 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-30 — `Kevlar` is a phantom armour type: 28 infantry wear it and no warhead has ever heard of it (`wt/tooltip-standard`, base `main @ b3a7564d`)
+
+**`Armor.Type: Kevlar` is set exactly once** — `mods/ww3mod/rules/ingame/infantry.yaml:175`, on the
+shared infantry template — and is inherited by all 28 live buildable infantry. **It appears in zero
+warhead `Versus:` tables.** Enumerating every `Versus:` block under `mods/ww3mod/rules/weapons/`
+yields only `Concrete`, `Light`, `Medium`, `Heavy`, `None`, `Wood`, `Brick`. An armour type absent
+from `Versus` takes the warhead's default multiplier, so **infantry receive 100% damage from every
+weapon in the game**.
+
+The practical consequence is the inverse of what a cross-check suggests. All 28 infantry
+descriptions say `- No armor` while the trait says `Kevlar`, which reads like 28 stale strings. It
+is the opposite: **the prose is mechanically correct and the trait string is the phantom.**
+`Unarmored` (on `truk`) is likewise absent from every table and likewise harmless.
+
+**Why this matters beyond trivia.** Any feature that surfaces armour by reading `Armor.Type` — a
+tooltip stat row, an encyclopedia entry, a bot's target-selection heuristic — will print or reason
+about a protection class that does not exist, and will look *more* authoritative for having come
+from structured data rather than prose. The type name is not a claim about the damage model; only
+the `Versus` tables are. Resolve through them, or don't surface armour automatically.
+
+Established by: enumerating `Versus:` keys across `weapons/*.yaml` and resolving `Armor.Type` through
+`Inherits` chains for all 54 live buildable actors. **Read, not measured** — no launch; the
+"absent from `Versus` ⇒ default multiplier" step is standard OpenRA semantics read from the YAML
+tables, not from `Warhead.cs`.
+
+Related, same pass: five actors *do* have a materially wrong armour class in prose (`heli`, `hind`,
+`mi28` say Medium and are `Heavy`; `lccv`, `mnly` say None and are `Light`) — filed to
+`bugs/discovered.md`. Full context in `WORKSPACE/tooltip-audit.md`.
+
 ## 2026-08-27 — The frozen-actor visibility update loop is DEAD CODE, and it is the real cause of the six-month building-fog leak (`wt/fog-leak`, base `main @ 651322b3`)
 
 **`FrozenActor.UpdateVisibility()` runs exactly once per frozen actor — from the constructor
