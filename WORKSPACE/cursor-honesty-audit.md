@@ -37,8 +37,8 @@ lines myself; **[S]** = established by a sub-audit and not independently re-read
 
 | Cursor | Display predicate | Execution predicate | Verdict |
 |---|---|---|---|
-| `enter` on own **Supply Route** | `DeliversCash.cs:126` (prio 5) + `:128-139`; cursor `:38` | `DeliversCash.cs:88-92` → `GoDonateCash:101-108` — **ignores the target**, queues `RotateToEdge` | **DIVERGE (semantic)** [R] |
-| `attackmove` | `AttackMove.cs:140-154` — terrain + explored only, **no ammo test** | `AttackMove.cs:109` — `!order.Queued && AmmoPool.CannotFight(self)` → drop | **DIVERGE** [R] |
+| `enter` on own **Supply Route** | `DeliversCash.cs:126` (prio 5) + `:128-139`; cursor `:38` | `DeliversCash.cs:88-92` → `GoDonateCash:101-108` — **ignores the target**, queues `RotateToEdge` | **CLOSED — intended**, user ruling 2026-08-30, pinned at `DeliversCash.cs:101` [R] |
+| `attackmove` | ~~`AttackMove.cs:140-154` — no ammo test~~ → now `:145-162` (targeter) and `:229-244` (generator), both mirroring the gate | `AttackMove.cs:109` — `!order.Queued && AmmoPool.CannotFight(self)` → drop | **FIXED 2026-08-30** — now AGREE [R] |
 | `repair` (engineer wrench) | `AttackBase.cs:809` — armament-scoped dryness | `AttackBase.cs:502` — actor-scoped `AmmoPool.CannotFight` | **DIVERGE** [R] |
 | `attack` w/ paused armament | `AttackBase.cs:807` — *deliberately* picks a paused armament | `Armament.cs:327` `CanFire` false; `Attack.cs:256` only bails if opted in | **DIVERGE (cat. 3)** [R] |
 | `enter-blocked` on a **full** transport | `EnterAlliedActorTargeter.cs:35-50` — `useEnterCursor` picks *art only*, returns `true` | `Passenger.cs:201-202` — `!CanEnter` → drop | **DIVERGE (soft)** [R] |
