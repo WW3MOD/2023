@@ -45,16 +45,32 @@ m270:
 # AutoRearm returns the same actor. That inertness is the reason the two fixes had to ship together
 # and is worth observing rather than asserting.
 #
-# EXPECTED RED, and the mechanism in full: ChooseResupplier returns NearPoorDepot (nearest by
-# CenterPosition, and stocked at 50 so it clears the CurrentSupply > 0 filter).
-# HostCanAffordSomethingWeNeed is then asked about THAT actor and answers no -- 50 < SupplyValue 70.
-# The whole detour branch is skipped and control reaches EvacuateForRefund, which queues RotateToEdge
-# and disposes the launcher at the map edge. FarRichDepot, holding 2250 and eight cells away, is
-# never consulted. The verdict must be the launcher's own early-fail string, whose stable prefix is:
+# OBSERVED, not predicted. Run 260830_082917_p55567, seed 974565182, result.json status=fail:
 #
-#     fail: the launcher LEFT THE MAP
+#     fail: the launcher LEFT THE MAP -- it evacuated for a refund rather than detouring. At
+#     departure the poor depot 4 cells away held 50 (below SupplyValue 70, correctly unaffordable)
+#     and the affordable depot 8 cells away held 2250, untouched. The arm chose its detour target by
+#     proximity and only then asked about affordability, so the far depot was never a candidate.
 #
-# Note what makes that RED attributable rather than merely red: the same string reports both depots'
-# supply at the moment of departure. NearPoorDepot still holding 50 proves the launcher took nothing
-# on the way out, and FarRichDepot still holding 2250 proves the affordable depot was never
-# considered. A bare "it died" would not distinguish evacuation from any other cause.
+# The mechanism in full: ChooseResupplier returns NearPoorDepot (nearest by CenterPosition, and
+# stocked at 50 so it clears the CurrentSupply > 0 filter). HostCanAffordSomethingWeNeed is then
+# asked about THAT actor and answers no -- 50 < SupplyValue 70. The whole detour branch is skipped
+# and control reaches EvacuateForRefund, which queues RotateToEdge and disposes the launcher at the
+# map edge. FarRichDepot, holding 2250 and eight cells away, is never consulted.
+#
+# The two numbers in that sentence are what make the RED ATTRIBUTABLE rather than merely red.
+# NearPoorDepot still at 50 proves the launcher took nothing on the way out; FarRichDepot still at
+# 2250 proves the affordable depot was never considered. A bare "it died" would not distinguish
+# evacuation from any other cause.
+#
+# THE RED ALSO PINS THE MAP GEOMETRY, which is worth stating because the scenario cannot measure it
+# directly. FarRichDepot is affordable (2250 >= 70). Had it been the nearer of the two by
+# CenterPosition, the pre-fix ChooseResupplier would have returned IT, affordability would have
+# passed, and this arm would have gone green while sabotaged. That it failed instead is in-world
+# proof that NearPoorDepot is strictly nearer -- the ordering the whole scenario rests on.
+#
+# The green arm on the restored engine is run 260830_083357_p56448, seed -816189064, status=pass.
+# Its trace (poll=50..300, printed every 50 ticks) shows `near=50` unchanged throughout and ammo
+# still 0 at poll 300, with the pass firing shortly after -- so the launcher spent ~300 ticks
+# driving PAST the poor depot before the far one paid. Against the scenario's own 1475-tick deadline
+# that is roughly a 4x margin, so the 60-second budget is generous rather than marginal.
