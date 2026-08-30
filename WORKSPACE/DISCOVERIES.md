@@ -141,6 +141,45 @@ local player. An NUnit structural pin was the only honest instrument available.
 underlying oddity that these 44-odd buildings are enterable by any player at once as far as the cursor
 is concerned, with `OwnerLostAction: ChangeOwner` reverting them to Neutral when emptied. Worth a look
 as a mechanic, separately from visibility.
+## 2026-08-30 — `AutoFollowAlly.RequireAttackBase` excludes NOTHING a medic could treat, and is load-bearing for what it does exclude (recon, `main` @ `627be5a4`)
+
+**The filed defect — "a wounded truck, engineer or other unarmed unit is never a follow candidate, so
+the casualty tier can never select one" — is empty in both halves.** Resolved through the engine's own
+inheritance merge (`./utility.sh --resolved-rules <ACTOR>`), not by reading `Inherits:` by hand:
+
+- **Every player-ownable Heal-targetable actor carries `AttackFrontal`.** All 18 infantry templates
+  and both faction variants of each, plus the 10 `crew.*` actors. That includes the three the report
+  named: `E6` (engineer), `TECN` (technician) and `DR` (drone operator) all inherit `^CamoSoldier` ->
+  `^Soldier` -> `AttackFrontal`. `TECN` is the counter-intuitive one — its own Buildable description
+  says "Unarmed" (`infantry.yaml:2377`) but it inherits `^ArmedCivilian`, which mounts a Pistol and an
+  `AttackFrontal` (`:415-417`). The description is about role, not traits.
+- **Trucks were never healable in the first place.** `Targetable@Heal` exists at exactly one place in
+  the tree — `^Infantry` (`infantry.yaml:64-66`, `RequiresCondition: !parachute && damaged &&
+  !garrisoned-at-port`) — and `HealerAutoTarget.ValidTargetTypes: Heal` (`:2262`). `TRUK`, `MSAR`,
+  `MNLY` and `LCCV` resolve with no `Targetable@Heal` at all, so `IsCasualty` returns false for them
+  whatever `CanFollow` does. Excluding a truck from follow candidacy costs nothing.
+- The only two Heal-targetable actors WITHOUT an `AttackBase` are `DELPHI` and `CHAN` — Neutral-owned
+  mission civilians, already excluded one line earlier by the owner check (`AutoFollowAlly.cs:184`).
+
+**And the filter is doing real work in the direction nobody filed.** `CanFollow` gates FOLLOW
+candidacy, not healability, and has no `Targetable@Heal` clause of its own. Relax
+`RequireAttackBase` and the escort tier — the `FindNearestAlly` path that runs when there is no
+casualty — starts anchoring medics to `TRUK`/`MSAR`/`MNLY`/`LCCV`. The introducing commit
+`e9ad9c9d` states the intent outright: "picks nearest allied actor with AttackBase … a Defensive
+medic now sticks with the squad."
+
+**The generalisable trap: a filter can look like it costs coverage while the set it removes is
+empty, because a SECOND predicate downstream already excluded the same things for a different
+reason.** Here `RequireAttackBase` (follow layer) and `ValidTargetTypes: Heal` (healer layer) happen
+to partition the same way, so the follow filter never bites on a casualty. Before "widening" a
+filter, resolve the set it actually removes — do not infer it from the filter's wording.
+
+**What makes this fragile rather than settled:** the excluded set is empty *today* by coincidence of
+two independent rulesets, and nothing pins it. Add one Heal-targetable unit without an `AttackBase`
+— an unarmed spotter, a stretcher-bearer, a healable engineer variant that drops the pistol — and
+the filed defect becomes real with no test going red. There is no rules-loading harness in
+`OpenRA.Test` (16 files, none touch `ModData`), so guarding it would mean building that machinery
+for a currently-empty set; deliberately not done.
 
 ## 2026-08-30 — `buildRandom` is permanently TRUE on the helicopter lanes, so their `UnitsToBuild` weights have never executed (recon, `main` @ `7de03906`)
 

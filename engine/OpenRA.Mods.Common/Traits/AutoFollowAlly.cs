@@ -36,7 +36,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Ticks between idle re-evaluations.")]
 		public readonly int CheckInterval = 25;
 
-		[Desc("If true, only follow allied actors that have an AttackBase (combat units).")]
+		[Desc("If true, only follow allied actors that have an AttackBase (combat units).",
+			"This costs no casualty coverage and must not be relaxed to buy some. Every player-ownable",
+			"Heal-targetable actor in the mod carries an AttackBase — including the engineer, the drone",
+			"operator, and the technician, whose Buildable description says 'Unarmed' but which inherits",
+			"^ArmedCivilian's pistol. Unarmed vehicles are not Heal-targetable at all (Targetable@Heal is",
+			"on ^Infantry alone), so IsCasualty already declines them. What this DOES exclude is those",
+			"vehicles as ESCORT anchors: turn it off and an idle medic trails the nearest supply truck",
+			"instead of the squad.")]
 		public readonly bool RequireAttackBase = true;
 
 		[Desc("A new candidate must be at least this much closer than the one currently being followed",
