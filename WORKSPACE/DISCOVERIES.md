@@ -186,28 +186,37 @@ The general shape survives the correction and is the part worth carrying beyond 
 priority-ordered targeter chain, accepting a click you cannot act on is not a harmless no-op, it is a
 silent veto over every lower-priority trait — and it is invisible, because a cursor still appears.
 
-## 2026-08-30 — Emptying a truck AT a Logistics Centre hands it to `RotateToEdge`, and the gesture reversal makes that the outcome of the DEFAULT click — UNRESOLVED, NOT VERIFIED IN-GAME
+## 2026-08-30 — A truck that empties itself into a Logistics Centre drives off the map and is sold. This is INTENDED — user ruling, do not "fix" it
 
 `DropsSupplyCache.OnBecomingIdle` fires `EvacuateOrRestock` on any tick the transport is idle and
 `CountsAsEmpty` (`DropsSupplyCache.cs:404-412`), and `TRUK` sets **`InitialResupplyBehavior: Evacuate`
 and `InitialResupplyBehaviorAI: Evacuate`** (`vehicles.yaml`), so the `Evacuate` arm is taken and the
 truck is queued a `RotateToEdge` — it **drives off the map for its evacuation refund**.
 
-Before the reversal this could only follow a deliberate Ctrl+click, so it was rare and arguably
-intended ("the truck delivered its cargo, send it home"). **After the reversal, delivery is the
-ordinary click, so the ordinary click ends with the truck leaving the map** — whenever the Centre's
-headroom is at least the truck's load, i.e. every complete delivery.
+**THE PRECISE TRIGGER, which is not obvious from the code: it fires whenever the Centre had headroom
+for the WHOLE load** — i.e. on every complete delivery, and never on a partial one, because a truck
+that keeps a remainder is not `CountsAsEmpty` and the idle path is never entered.
 
-**Two corrections to the first version of this entry, both of which overstated the alternative.**
-`Auto` would be a SINGLE UNDO, not a loop: the truck restocks to full, is then no longer
-`CountsAsEmpty`, and nothing re-triggers the path. And `Auto` is **unreachable on TRUK anyway**,
-because `SupplyProvider.ShouldSelfRestock` returns false for `Evacuate`, which is what TRUK sets for
-both human and AI owners. So `Hold` is the only stance that parks the truck, and it must be set by
-hand — that part stands.
+**This is the intended behaviour, ruled by the user on 2026-08-30**, chosen over parking the truck,
+over shuttling it back, and over making it stance-dependent. The reasoning, recorded because it is
+what stops the chain being read as a bug by the next person to trace it: an empty truck has done its
+job and its residual value should return to the player. WW3MOD has no factory — units are budget
+allocation — so evacuate-for-refund is already the shipped idiom for turning a spent unit back into
+budget, and artillery and dry units both do it. **A supply truck that parked instead would be the
+inconsistency, not the rule.** Before the gesture reversal this could only follow a deliberate
+Ctrl+click; it is now the ordinary outcome of the ordinary click, and that is accepted.
 
-This is a product question — what *should* an emptied truck standing at a Centre do? — rather than a
-defect with an obvious fix, so it is recorded rather than patched. **Read off the code path only;
-the reversed gesture has never been run in-game.**
+Do not "improve" this into `Auto` or `Hold`. Two facts about those, both of which an earlier version
+of this entry got wrong: `Auto` would be a SINGLE UNDO rather than a loop — the truck restocks to
+full, is then no longer `CountsAsEmpty`, and nothing re-triggers — and `Auto` is **unreachable on
+TRUK anyway**, because `SupplyProvider.ShouldSelfRestock` returns false for `Evacuate`, which is what
+TRUK sets for both human and AI owners. `Hold` is the only stance that parks the truck and it must be
+set by hand, which remains available to a player who wants it.
+
+**Still never observed.** Every account of this chain so far, including this one, is traced through
+source rather than watched. What it looks like in motion — whether the sale reads as connected to the
+delivery the player just ordered — is a separate legibility question from whether the behaviour is
+right, and the behaviour is settled.
 
 ## 2026-08-30 — A Logistics Centre STARTS FULL, so the most natural first use of a delivery gesture transfers nothing (`engine/OpenRA.Mods.Common/Traits/SupplyProvider.cs:364`)
 

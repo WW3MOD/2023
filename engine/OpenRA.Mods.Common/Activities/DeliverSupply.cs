@@ -95,6 +95,12 @@ namespace OpenRA.Mods.Common.Activities
 			// is capturable (^Building -> ^BasicBuilding -> ^NeutralOrOccupiedCapturable) and carries
 			// OwnerLostAction: ChangeOwner, so a Centre that changes hands mid-drive is neither dead nor
 			// out of the world. Without this line the truck hands its whole load to whoever took it.
+			//
+			// UNTESTED, DELIBERATELY RECORDED AS SUCH. Nothing in the suite exercises this line: it
+			// needs a capture to land inside the window between issue and arrival, which the scenario
+			// (test-lc-refill-gesture) does not stage and could not stage without a capture actor and
+			// timing control it has no reason to carry otherwise. It is reasoned from the trait
+			// inheritance above, not observed. Anyone touching this line should assume it has never run.
 			if (host.IsDead || !host.IsInWorld || !self.Owner.IsAlliedWith(host.Owner))
 				return true;
 
@@ -109,6 +115,13 @@ namespace OpenRA.Mods.Common.Activities
 			// and once per errand: this is one of the ways an errand that was issued, driven and
 			// completed still moves nothing, and from outside it is otherwise indistinguishable from a
 			// delivery that was never ordered.
+			//
+			// WHAT IS AND IS NOT COVERED. SupplyTransferMath.ArrivalTolerance* pins the ARITHMETIC —
+			// that the tolerance admits the diagonal corner approach and rejects a truck that never
+			// left. NOTHING PINS THE WIRING. test-lc-refill-gesture drives a real delivery, but on a map
+			// with no water and no wall, so its Centre is always reachable: delete these four lines and
+			// that scenario still passes. Verifying this guard needs a scenario staging genuinely
+			// unreachable terrain, which does not exist yet.
 			var hostCell = self.World.Map.CellContaining(host.CenterPosition);
 			var delta = self.Location - hostCell;
 			if (!SupplyDropMath.ArrivedAtDropCell(delta.X, delta.Y, toleranceCells))

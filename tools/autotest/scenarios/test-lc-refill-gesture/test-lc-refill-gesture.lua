@@ -27,15 +27,31 @@
 -- The three are distinct for an undamaged truck, and the cursor and the order resolve through one
 -- method (UnitOrderGenerator.OrderForUnit), so they cannot disagree. Every truck here is undamaged.
 --
--- The one thing NOT covered: the arrival check in DeliverSupply. Staging a Centre the truck cannot
--- path to needs terrain this map does not have, so a delivery that teleports across water would
--- still pass. Covered as arithmetic in SupplyTransferMathTest.ArrivalTolerance* only.
+-- TWO THINGS THIS SCENARIO DOES NOT COVER, stated here so a green run is not read as covering them:
+--
+--   * THE ARRIVAL CHECK in DeliverSupply. This map has no water and no wall, so the Centre is always
+--     reachable — delete the guard and this scenario still passes. Only its arithmetic is pinned,
+--     in SupplyTransferMathTest.ArrivalTolerance*.
+--   * THE ALLIANCE RE-CHECK for a Centre captured mid-drive. Nothing here stages a capture, and
+--     that line has never run.
+--
+-- WHAT IT DOES REPORT BUT DOES NOT JUDGE: the truck evacuating after a complete delivery. That is
+-- the user's ruling of 2026-08-30 (an empty truck has done its job; its value returns to the player,
+-- as it already does for artillery and dry units), so it is INTENDED and is not asserted on either
+-- way. It is observed and handed to Test.Pass as a note so the reading lands in the run's own
+-- result.json rather than in the global lua.log, which carries no run identity and can only be tied
+-- to a run by mtime.
 
 local DeadlineSeconds = 40
 local Threshold = 50          -- TRUK's SupplyProvider.RestockThreshold
 local TruckCapacity = 750
 
-local r = { read = false }
+-- Long enough for RotateToEdge to have visibly committed, short enough to stay well inside
+-- DeadlineSeconds so the settle can never be what times the test out. Budgeted in ticks and
+-- converted, which round-trips exactly whatever TicksPerSecond happens to be.
+local SettleTicks = 150
+
+local r = { read = false, settling = false }
 
 local function shown(v)
 	if v == nil then
@@ -54,6 +70,29 @@ end
 local function cursorWith(load, host, modifiers)
 	Test.SetSupply(Truck, load)
 	return Test.ClickCursor({ Truck }, host, modifiers or "")
+end
+
+-- Observe (never judge) what becomes of a truck that has just emptied itself into a Centre, and pass
+-- with the reading attached. Test.Pass's note is surfaced in the verdict JSON, so this lands in the
+-- run's own result.json and is attributable without relying on a global log's mtime.
+local function observeEvacuation()
+	local fate
+	if Truck.IsDead then
+		-- RotateToEdge ends in the sale, which removes the actor. This is the expected end state for
+		-- a complete delivery under TRUK's Evacuate stance.
+		fate = "truck GONE (evacuated and sold)"
+	else
+		local moved = TestHarness.CellDrift(
+			r.truckX, r.truckY, Truck.Location.X, Truck.Location.Y)
+		fate = "truck ALIVE at " .. Truck.Location.X .. "," .. Truck.Location.Y
+			.. " (" .. moved .. " cells from where it delivered)"
+			.. " supply=" .. Test.GetSupply(Truck)
+	end
+
+	Test.Pass("delivered=" .. r.deliveredAmount
+		.. " centre=" .. Test.GetSupply(DrainedLC)
+		.. " | after " .. SettleTicks .. " ticks: " .. fate
+		.. " | evacuation is the 2026-08-30 ruling, reported not asserted")
 end
 
 WorldLoaded = function()
@@ -208,6 +247,21 @@ WorldLoaded = function()
 			return "fail: the Centre gained more than the truck was carrying, so supply is being created"
 		end
 
-		return true
+		-- NOT `return true`. Passing here would exit the game the instant the supply lands, which is
+		-- the one moment before the thing worth watching happens. Hand off to the settle window
+		-- instead, which observes the evacuation and passes WITH a note; if that path breaks, this
+		-- predicate keeps returning false and AssertWithin fails on the deadline, which is the honest
+		-- outcome rather than a silent pass.
+		if not r.settling then
+			r.settling = true
+			r.deliveredAmount = delivered
+			-- Scalars, not the CPos: the truck may be sold before the settle fires, and reading X/Y
+			-- off a stored handle then is a question about a removed actor.
+			r.truckX = Truck.Location.X
+			r.truckY = Truck.Location.Y
+			Trigger.AfterDelay(SettleTicks, observeEvacuation)
+		end
+
+		return false
 	end, "the Centre never received the truck's load")
 end

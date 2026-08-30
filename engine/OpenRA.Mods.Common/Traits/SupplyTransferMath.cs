@@ -138,11 +138,24 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>
 		/// How far from a host's CENTRE cell a transport may stop and still count as having arrived.
 		///
-		/// <para>Measured from the centre because that is the cell the drive is aimed at, so the
-		/// allowance has to cover half the host's own footprint before it covers any approach margin at
-		/// all: a transport that parks legitimately alongside a 3x3 Centre is already two cells from the
-		/// centre on each axis. A flat margin looks sufficient and is not — the diagonal approach to a
-		/// 3x3 sits at dx=2, dy=2, which fails a tolerance of 2.</para>
+		/// <para><b>DO NOT SIMPLIFY THIS TO A CONSTANT.</b> It looks like defensive padding and it is
+		/// not: the footprint term is what makes the guard usable at all, and dropping it breaks the
+		/// feature in the direction that is hardest to diagnose — every legitimate delivery silently
+		/// refusing, with the truck parked at the Centre and the supply still aboard.</para>
+		///
+		/// <para>The arithmetic, so it does not have to be re-derived. The drive is aimed at the cell
+		/// containing the host's CenterPosition, and <c>ArrivedAtDropCell</c> tests
+		/// <c>dx² + dy² &lt;= tolerance²</c> against that cell. A 3x3 Centre occupies a ring one cell
+		/// thick around it, so a transport that stops legitimately alongside is already at dx=1..2 —
+		/// and on the diagonal approach at dx=2, dy=2, i.e. 4 + 4 = 8. A flat margin of 2 gives 4, so
+		/// it REJECTS the ordinary corner approach. Adding the footprint radius (3/2 = 1) gives 3,
+		/// hence 9, which admits the corner and still rejects anything that never left: a transport
+		/// refused a path completes its Move where it stands, which on this map is 20 cells away and
+		/// nowhere near 9.</para>
+		///
+		/// <para>The margin and the radius are therefore doing DIFFERENT jobs — the radius covers the
+		/// host's own body, the margin covers how far outside it a transport may park — and collapsing
+		/// them into one number couples the guard to one building size.</para>
 		/// </summary>
 		/// <param name="hostFootprintCells">The larger of the host's two footprint dimensions, or 0.</param>
 		/// <param name="approachMarginCells">How far outside the footprint a transport may stop.</param>
