@@ -107,22 +107,24 @@ namespace OpenRA.Mods.Common.Traits
 			if (requireForceMove && !modifiers.HasModifier(TargetModifiers.ForceMove))
 				return false;
 
-			// CanEnter is part of the TARGETING test, not just the cursor art, so a full transport
-			// is refused here and the click falls through to Move.
+			// DELIBERATELY NOT `&& CanEnter(target)`. A full transport still passes targeting, still
+			// consumes the click at priority 5, and ResolveOrder then drops it — so right-clicking a
+			// full APC does nothing at all, and the dead click plus `enter-blocked` art IS the
+			// feedback that tells the player the transport is full.
 			//
-			// It used to return true and let useEnterCursor pick `enter-blocked`, which meant the
-			// targeter CONSUMED the click at priority 5 and ResolveOrder then dropped it at the
-			// CanEnter re-check below. The visible harm was not the wasted order — it was that the
-			// player lost the plain Move they would otherwise have got, so right-clicking a full APC
-			// did nothing at all. Walking over to a full transport and waiting for a seat is almost
-			// always what was meant.
+			// USER RULING, 2026-08-30 — considered and ruled against, do not re-propose without
+			// reading this. Folding CanEnter in here was built on this branch so the refused click
+			// would fall through to a Move instead. It was reverted because it is the same shape as
+			// a shipped rule — an order must never silently become a move order — and because it
+			// spent the only feedback the player has: after it, the unit drove over and stopped,
+			// which reads as a move the player asked for rather than "that one is full".
 			//
-			// KNOWN CONSEQUENCE, accepted: this makes Passenger's EnterBlockedCursor unreachable —
-			// whenever this returns true, CanEnter is true, so the art is always the green one. The
-			// player is no longer told "that transport is full", they simply move. EnterBlockedCursor
-			// is still reachable through Aircraft's rearm-pad targeter and Repairable, so the art is
-			// not orphaned mod-wide, only here.
-			return IsCorrectCargoType(target) && CanEnter(target);
+			// Secondary reason, recorded because it is not obvious from here:
+			// EnterAlliedActorTargeter.CanTargetFrozenActor passes the REAL actor to this predicate,
+			// so anything consulted here is also consulted for a FOGGED transport. Adding an
+			// occupancy term therefore widened a fog leak. The pre-existing LoadingBlocked leak on
+			// the same path is filed separately — do not chase it from here.
+			return IsCorrectCargoType(target);
 		}
 
 		bool IsCorrectCargoType(Actor target)
