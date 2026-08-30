@@ -3,6 +3,79 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-30 — The tooltip mockups and the audit both assert HIMARS refills at a Logistics Centre; a same-day user ruling says it cannot (`wt/tooltip-elements`)
+
+- `tooltip-mockups/units.html` shows the HIMARS card carrying **"133% of a Logistics Centre"** and the
+  warning *"One reload costs more supply than a full Logistics Centre holds"*; the audit's §3 table
+  lists it as **"Refills per LC 0.8"**. Both treat the HIMARS as an LC client whose reload is merely
+  expensive.
+- **It is not a client at all.** `vehicles-america.yaml:1153-1159` removes both halves deliberately —
+  no `Rearmable` (which gates the recipient-initiated pull) and no
+  `ExternalCondition@VehicleReplenish` (which let the Centre's push arm select it while docked) —
+  under the user ruling *"Iskander and HIMARS should not be rearmable, they must be evacuated"*. The
+  in-file comment states the consequence outright: *"Full refill: 3000 supply — unreachable by design;
+  there is no rearm host."*
+- So a depot fraction on that card would be a ratio against a provider the unit can never dock with.
+  The shipped tooltip gates the row on `Rearmable` and correctly omits it, which reads as a
+  divergence from the approved mockup and is the opposite.
+- **Consequence worth knowing: the `Note` element's over-capacity warning currently has no unit that
+  can fire it.** The condition is `refill > depot`, and the only actors whose refill exceeds 2250 are
+  the strategic launchers, which are exactly the actors excluded by the `Rearmable` gate. Not
+  exhaustively verified across all 54 buildables — checked against the ones the audit priced.
+
+## 2026-08-30 — A cloned widget answers `IsVisible` from the TEMPLATE, so `Visible = true` on a clone does nothing (`wt/tooltip-elements`)
+
+**This is the one that actually cost a launch slot**, and it is the more general form of the `GetText`
+entry below — the trap is not a `LabelWidget` quirk, it is how `Widget` copies every `Func` it owns.
+
+- `Widget()` sets `IsVisible = () => Visible` (`Widget.cs:231`), capturing the instance. The copy
+  constructor then does `IsVisible = widget.IsVisible` (`:246`). **A clone therefore asks the template
+  whether it is visible** — and a template that exists to be cloned is declared `Visible: false`, so
+  every clone answered false and nothing drew.
+- **The symptom is a correctly-sized, completely empty panel, and it mimics a bounds bug perfectly.**
+  Measuring happens on your own strings and is unaffected, so the container sums the right height, the
+  panel is laid out at exactly the right size, and it renders blank. Every instinct says "my layout
+  arithmetic is wrong"; the arithmetic is fine and the rows are invisible.
+- **No non-visual gate can catch it.** `make all` clean, `dotnet test` 2032/2032 green, YAML valid —
+  all true while the feature drew nothing. Only the screenshot found it.
+- **Rule: on a cloned widget, reassign the delegate; never assign the backing field alone.**
+  `Visible = true` must be paired with `IsVisible = () => true`, exactly as `Text` must be paired with
+  `GetText`. `ProductionTooltipLogic.Show()` and `.SetText()` exist so no call site has to remember.
+- Fields with this shape on the widgets used here: `Widget.IsVisible`; `LabelWidget.GetText`,
+  `.GetColor`, `.GetContrastColorDark/Light`; `ColorBlockWidget.GetColor`. The `GetColor` ones are
+  harmless **only while a clone keeps the template's colour**, which is the case in the tooltip style
+  table — a per-clone colour would need the same treatment.
+
+## 2026-08-30 — Cloning a `LabelWidget` template and setting `.Text` renders the TEMPLATE's text, silently (`wt/tooltip-elements`)
+
+- **`LabelWidget`'s copy constructor does `GetText = other.GetText`** (`LabelWidget.cs:64`), and that
+  delegate is the closure `() => textCache.Update(Text)` built in the *template's* constructor
+  (`:45`). The lambda captures the template instance, so it reads the **template's** `Text` field
+  forever. Assigning `clone.Text = "..."` updates a field that nothing draws.
+- **The failure mode is the expensive part: it is silent and it looks like a layout bug.**
+  `font.Measure()` on your own string returns the right size, so every row is positioned and sized
+  correctly and the panel comes out exactly the right height — drawn entirely blank. Nothing throws,
+  nothing logs, and the natural diagnosis ("my bounds arithmetic is wrong") is the wrong one.
+- **Always set `GetText` on a cloned label, not `Text`.** The in-tree convention is
+  `label.GetText = () => value;` — this is why every `ScrollPanelWidget` item template in the codebase
+  assigns `GetText` rather than `Text`, which reads like style until you know it is load-bearing.
+  `ProductionTooltipLogic.SetText` sets both, so measuring and drawing cannot disagree.
+- `ColorBlockWidget` has the same shape (`GetColor = widget.GetColor`, `ColorBlockWidget.cs:29`) and
+  the same trap for `Color`. Cloning it is safe only while you keep the template's colour.
+
+## 2026-08-30 — The production tooltip's width is a constant, and the three-way `Max` above it is dead code (`wt/tooltip-elements`)
+
+- `ProductionTooltipLogic` computes
+  `Math.Clamp(new[]{ nameSize.X + hotkeyWidth, requiresSize.X, descSize.X }.Aggregate(Math.Max), MaxTooltipWidth, MaxTooltipWidth)`.
+  **Both clamp bounds are `MaxTooltipWidth`**, so the result is unconditionally `350` and the
+  `Aggregate(Math.Max)` feeding it cannot affect anything.
+- Consequence worth knowing before touching tooltip layout: **every production tooltip in the mod is
+  exactly 350px wide regardless of content**, and a change that makes `descSize.X` larger or smaller
+  changes nothing on screen. This is stock OpenRA code, not a WW3MOD edit.
+- Left as-is on `wt/tooltip-elements`. "Fixing" it would let narrow tooltips shrink, which changes the
+  size of every tooltip in the game — a visible change nobody asked for, hiding inside a refactor.
+  Recorded so the next reader does not see the `Max` and assume the width is dynamic.
+
 ## 2026-08-30 — "make the rings fade out" was NOT a constant to change: `ShockwaveEndAlphaPercent` already defaulted to 0 and the rings already reached zero. The lever was the SHAPE of the ramp (`wt/shockwave-fade`)
 
 - **The obvious field was already correct, and that is the trap.** The user reported that shockwaves

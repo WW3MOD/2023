@@ -61,6 +61,16 @@ namespace OpenRA
 		// Test.OpenIngameInfoPanel=Debug launch arg.
 		public static string OpenIngameInfoPanel { get; private set; }
 
+		// Actor name whose sidebar production icon should be hovered, so a capture can
+		// show its production tooltip. The tooltip is only ever built on a real mouse
+		// hover (ProductionPaletteWidget.MouseEntered), so without this there is no way
+		// to photograph it that does not involve driving the OS cursor.
+		//
+		// Settable, unlike the other hooks here: the "hover <actor>" cmd-file verb
+		// rewrites it mid-match so one launch can photograph several units. A launch
+		// slot is scarce enough that capturing one tooltip per run is not viable.
+		public static string HoverProductionIcon { get; set; }
+
 		// Path to a marker file LobbyLogic touches once MapIsPlayable. External
 		// drivers (tools/autotest/screenshot-lobby.sh) poll this to know when
 		// it's safe to fire a "screenshot" command — without this signal they
@@ -197,6 +207,7 @@ namespace OpenRA
 			LobbyReadyFile = args.GetValue("Test.LobbyReadyFile", null);
 			SetLobbyOptions = args.GetValue("Test.SetLobbyOptions", null);
 			OpenIngameInfoPanel = args.GetValue("Test.OpenIngameInfoPanel", null);
+			HoverProductionIcon = args.GetValue("Test.HoverProductionIcon", null);
 			ForceSyncReports = string.Equals(args.GetValue("Test.ForceSyncReports", ""), "true", StringComparison.OrdinalIgnoreCase);
 
 			// UnitLifecycleLogger gate. "true"/"1" derives a sibling of the verdict

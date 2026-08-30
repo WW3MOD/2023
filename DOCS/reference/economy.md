@@ -151,13 +151,21 @@ Batching keeps integer math honest while letting us express low per-round cost. 
 
 ### Tooltip format
 
-The pool tooltip renders the batch math directly:
+The pool tooltip renders the batch math directly, as typed rows under the weapon's name
+(`AmmoPoolInfo.ProvideTooltipDescription`):
 
 ```
-Ammo: 900 (9 batches × 100 rounds × 5 supply = 45)
+25MM CHAINGUN
+AMMO ......................... 900 rounds
+REFILL ....................... 9 × 5 = 45 supply
 ```
 
 Players see what one cycle costs and how many cycles fill the pool, not an opaque per-round number.
+
+*(Corrected 2026-08-30: this documented `Ammo: 900 (9 batches × 100 rounds × 5 supply = 45)`, one
+concatenated line. The round count moved to its own `Ammo` row when the tooltip became typed rows —
+it is a capacity, not a term of a price — leaving `batches × supply = total` as the whole of the
+refill arithmetic. The per-round figure is still never printed.)*
 
 ### Artillery salvo economics
 

@@ -169,7 +169,7 @@ namespace OpenRA.Mods.Common.Traits
 				"stand at the host permanently. Either add it to Rearmable.AmmoPools or drop Essential.");
 		}
 
-		string IProvideTooltipDescription.ProvideTooltipDescription(ActorInfo ai, Ruleset rules, out int priority)
+		IEnumerable<TooltipElement> IProvideTooltipDescription.ProvideTooltipDescription(ActorInfo ai, Ruleset rules, out int priority)
 		{
 			priority = 100;
 
@@ -197,10 +197,18 @@ namespace OpenRA.Mods.Common.Traits
 			// "Ammo: 900 (9 batches × 100 rounds × 5 supply = 45)" -- so a rifleman, who carries one
 			// pool of each kind, stated the same fact two ways four lines apart. The batch form is
 			// the one economy.md documents (§"Tooltip format"); the short form was undocumented, so
-			// it is the one that goes. Singular/plural is handled rather than reading "1 batches".
-			var batches = BatchCount == 1 ? "1 batch" : $"{BatchCount} batches";
-			var rounds = BatchSize == 1 ? "1 round" : $"{BatchSize} rounds";
-			return $"{label}\n  Ammo: {Ammo} ({batches} × {rounds} × {SupplyValue} supply = {PoolBudget})";
+			// it is the one that goes. Singular/plural is handled rather than reading "1 round".
+			//
+			// The round count moved OUT of the refill expression and into its own row: it is a
+			// capacity, not a term of a price, and the two were only ever adjacent because both
+			// had to fit on one line of one label. "8 × 30 = 240" is now the whole of the arithmetic.
+			var rounds = Ammo == 1 ? "1 round" : $"{Ammo} rounds";
+			return new[]
+			{
+				TooltipElement.Subhead(label),
+				TooltipElement.Stat("Ammo", rounds),
+				TooltipElement.Cost("Refill", $"{BatchCount} × {SupplyValue} = {PoolBudget} supply"),
+			};
 		}
 
 		/// <summary>

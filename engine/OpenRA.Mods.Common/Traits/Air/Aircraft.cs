@@ -20,7 +20,7 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	public class AircraftInfo : PausableConditionalTraitInfo, IPositionableInfo, IFacingInfo, IMoveInfo, ICruiseAltitudeInfo,
-		IActorPreviewInitInfo, IEditorActorOptions
+		IActorPreviewInitInfo, IEditorActorOptions, IProvideTooltipDescription
 	{
 		[Desc("Behavior when aircraft becomes idle. Options are Land, ReturnToBase, LeaveMap, and None.",
 			"'Land' will behave like 'None' (hover or circle) if a suitable landing site is not available.")]
@@ -53,6 +53,16 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Maximum flight speed when cruising.")]
 		public readonly int Speed = 1;
+
+		IEnumerable<TooltipElement> IProvideTooltipDescription.ProvideTooltipDescription(ActorInfo ai, Ruleset rules, out int priority)
+		{
+			priority = 300;
+
+			if (Speed <= 1)
+				return null;
+
+			return new[] { TooltipElement.Stat("Speed", Speed.ToString()) };
+		}
 
 		[Desc("If non-negative, force the aircraft to move in circles at this speed when idle (a speed of 0 means don't move), ignoring CanHover.")]
 		public readonly int IdleSpeed = -1;

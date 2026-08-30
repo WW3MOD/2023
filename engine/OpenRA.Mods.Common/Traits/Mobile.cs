@@ -24,7 +24,7 @@ namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Unit is able to move.")]
 	public class MobileInfo : PausableConditionalTraitInfo, IMoveInfo, IPositionableInfo, IFacingInfo, IActorPreviewInitInfo,
-		IEditorActorOptions
+		IEditorActorOptions, IProvideTooltipDescription
 	{
 		[LocomotorReference]
 		[FieldLoader.Require]
@@ -40,6 +40,16 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WAngle TurnSpeed = new WAngle(10);
 
 		public readonly int Speed = 1;
+
+		IEnumerable<TooltipElement> IProvideTooltipDescription.ProvideTooltipDescription(ActorInfo ai, Ruleset rules, out int priority)
+		{
+			priority = 300;
+
+			if (Speed <= 1)
+				return null;
+
+			return new[] { TooltipElement.Stat("Speed", Speed.ToString()) };
+		}
 
 		[Desc("Acceleration falloff relative max speed (for current cell layer). Use one value to have constant acceleration")]
 		public readonly int[] Acceleration = { 3, 2, 1 };

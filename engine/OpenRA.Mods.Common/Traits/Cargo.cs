@@ -24,13 +24,28 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("This actor can transport Passenger actors.")]
-	public class CargoInfo : TraitInfo, Requires<IOccupySpaceInfo>
+	public class CargoInfo : TraitInfo, Requires<IOccupySpaceInfo>, IProvideTooltipDescription
 	{
 		[Desc("Should this actor turn nutral when not loaded? For civilian buildings.")]
 		public readonly bool Neutral = false;
 
 		[Desc("The maximum sum of Passenger.Weight that this actor can support.")]
 		public readonly int MaxWeight = 0;
+
+		/// <summary>
+		/// Transport capacity. MaxWeight is a weight budget, not a headcount, so this is only a
+		/// passenger count where every passenger weighs 1 — which is the case throughout WW3MOD.
+		/// Labelled "infantry" rather than "passengers" to match the descriptions it replaces.
+		/// </summary>
+		IEnumerable<TooltipElement> IProvideTooltipDescription.ProvideTooltipDescription(ActorInfo ai, Ruleset rules, out int priority)
+		{
+			priority = 400;
+
+			if (MaxWeight <= 0)
+				return null;
+
+			return new[] { TooltipElement.Stat("Carries", $"{MaxWeight} infantry") };
+		}
 
 		[Desc("`Passenger.CargoType`s that can be loaded into this actor.")]
 		public readonly HashSet<string> Types = new HashSet<string>();

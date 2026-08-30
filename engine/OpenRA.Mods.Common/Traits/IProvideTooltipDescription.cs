@@ -9,12 +9,13 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
 	/// <summary>
-	/// <para>Implemented on a TraitInfo to contribute auto-generated text to the
+	/// <para>Implemented on a TraitInfo to contribute auto-generated rows to the
 	/// production tooltip (and any future tooltip surface). Implementations
 	/// run at rules-load time, not on a live actor, so they only depend on
 	/// static info. Runs AFTER the static <see cref="BuildableInfo.Description"/>
@@ -29,9 +30,15 @@ namespace OpenRA.Mods.Common.Traits
 	public interface IProvideTooltipDescription : ITraitInfoInterface
 	{
 		/// <summary>
-		/// Returns the formatted description block (no trailing newline) and a
-		/// rendering priority. Return null or an empty string to skip.
+		/// <para>Returns the rows this trait contributes, and a rendering priority.
+		/// Return null or an empty sequence to skip.</para>
+		///
+		/// <para>Returns typed <see cref="TooltipElement"/>s rather than a formatted string
+		/// so that styling is a property of each row's kind. While this returned a string,
+		/// every contributor was concatenated into one single-font label and a contributor
+		/// could only influence its appearance by choosing characters — which is how the
+		/// same supply figure came to be rendered in two different notations.</para>
 		/// </summary>
-		string ProvideTooltipDescription(ActorInfo ai, Ruleset rules, out int priority);
+		IEnumerable<TooltipElement> ProvideTooltipDescription(ActorInfo ai, Ruleset rules, out int priority);
 	}
 }

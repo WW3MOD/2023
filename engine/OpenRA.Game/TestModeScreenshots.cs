@@ -156,6 +156,7 @@ namespace OpenRA
 		// Command grammar (minimal):
 		//   screenshot <label>          — capture a screenshot tagged <label>
 		//   click <widget-id>           — invoke a visible widget's OnClick
+		//   hover <actor-name>          — hover that actor's sidebar production icon
 		//   quit                        — exit the game
 		//
 		// Anything else is ignored (logged to debug). Phase 3 would extend to
@@ -224,7 +225,17 @@ namespace OpenRA
 						Log.Write("debug", $"[TestMode] external click: {id} → {(hit ? "dispatched" : "NO SUCH VISIBLE WIDGET")}");
 					});
 				}
-				else if (string.Equals(line, "quit", StringComparison.OrdinalIgnoreCase))
+					// "hover <actor-name>" — arm a production-icon hover. Applied by
+					// ProductionPaletteWidget on its next Tick, which is where the icon
+					// rectangles are known. Send a screenshot on a later line (or a later
+					// write) so the tooltip has a frame to build in.
+					else if (line.StartsWith("hover ", StringComparison.OrdinalIgnoreCase))
+					{
+						var actor = line.Substring("hover ".Length).Trim();
+						TestMode.HoverProductionIcon = actor;
+						Log.Write("debug", $"[TestMode] external hover: {actor}");
+					}
+					else if (string.Equals(line, "quit", StringComparison.OrdinalIgnoreCase))
 				{
 					// Defer to RunAfterTick so this LogicTick can unwind cleanly
 					// before Game.Exit tears down the world. The wrapper script is
