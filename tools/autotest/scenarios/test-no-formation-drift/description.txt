@@ -1,0 +1,1 @@
+A human-owned unit displaced away from its live formation slot stays where it was put instead of walking back — formation drift is off for human players, while the slot record that draws order lines is still kept.

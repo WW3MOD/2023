@@ -1,0 +1,39 @@
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Strip per-type persisted stance overrides so the AR is deterministically Defensive (its YAML
+	# default) regardless of this machine's saved unit defaults. Load-bearing for THIS test in
+	# particular: a locally saved HoldPosition default would make the executor decline by stance, so
+	# the unit would sit still for the wrong reason and the test would pass without proving anything.
+	-UnitDefaultsManager:
+	LuaScript:
+		Scripts: test-helpers.lua, test-no-cover-shuffle.lua
+
+# The sighted enemy exists only to give the threat layer a bearing; the AR must never shoot at or
+# chase it, because that would move the unit for a reason unrelated to the executor and confound the
+# assertion. Dropping the auto-targetable types (leaving the inert NoAutoTarget marker) means no
+# AutoTargetPriority ValidTargets list matches it, so no attack activity is ever queued — the
+# supplyroute idiom from DOCS/recipes/AUTOTEST.md. The t90 keeps its AttackBase/AutoTarget traits, so
+# SightingThreatLayer still counts it as an armed contact (SightingThreatLayer.cs:201) and the threat
+# bearing that MinThreatIntensity gates on is unchanged.
+t90:
+	Targetable:
+		TargetTypes: NoAutoTarget
+
+# ===== THERE IS DELIBERATELY NO ENABLEMENT BLOCK HERE =====
+# This is the whole point of the test. The sibling scenarios test-stance-positioning,
+# test-stance-anchor-move, test-stance-optout and test-stance-redirect-midadjust each carry a
+# ^Combatant block re-adding `enable-tactical-positioning` to the executor's gate plus the
+# GrantConditionOnHumanOwner that satisfies it, because they exercise the executor itself. This
+# scenario asserts the SHIPPED default instead: that a human-owned unit is not enrolled at all.
+#
+# TO RED THIS TEST, paste the following at the end of this file and re-run; the AR will walk north to
+# the y=17 cover edge and the run must fail with "cover shuffle is ACTIVE":
+#
+# ^Combatant:
+# 	StancePositioningExecutor:
+# 		RequiresCondition: enable-tactical-positioning || enable-ai-experimental
+# 	GrantConditionOnHumanOwner@tacpos:
+# 		Condition: enable-tactical-positioning

@@ -23,8 +23,10 @@
 --     ReleaseManagement clears the slot BEFORE the Rifle idles, so on arrival at B nothing drags it
 --     back; the executor re-anchors at B (no threat there ⇒ it simply holds). PASS.
 --
--- Enablement is the real Phase-3 path: USA is human, so GrantConditionOnHumanOwner grants
--- enable-tactical-positioning at spawn. The Rifle stays FireAtWill — the executor declines anything
+-- Enablement is SCENARIO-LOCAL as of 2026-08-30: the shipped mod no longer grants
+-- enable-tactical-positioning to human-owned units (the cover shuffle was turned off for human
+-- players), so this scenario's rules.yaml re-adds the token to the executor's gate AND the granter.
+-- The Rifle stays FireAtWill — the executor declines anything
 -- below it (StancePositioningExecutor.cs:318) — and combat is silenced from the ENEMY side instead: the
 -- t90 is HoldFire and is made non-auto-targetable in rules.yaml, so there are no shots (⇒ no suppression
 -- gate) and no AutoTarget chase to confound the movement assertions.

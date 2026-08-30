@@ -14,6 +14,20 @@ World:
 # ExternalCondition source). Declared on ^Combatant (proven-overridable template) rather than the
 # ar.america actor key, which double-defines under this mod's map-rules merge. The executor gates on
 # this exact condition; granting it stands in for a real deploy. Additive with GrantConditionOnDeploy.
+#
+# The second pair RESTORES THE HUMAN ENABLEMENT THIS TEST DEPENDS ON (merged into the same
+# ^Combatant entry deliberately — a second top-level `^Combatant:` block would silently merge under
+# MiniYaml and is not worth the ambiguity). GrantConditionOnHumanOwner@tacpos was deleted from
+# ^Combatant in mods/ww3mod/rules/defaults.yaml on 2026-08-30 to stop the cover shuffle for human
+# players, and `enable-tactical-positioning` left the executor's gate at the same time (leaving a
+# token in the gate with no granter anywhere is a CheckConditions ERROR, not a warning). This
+# scenario exercises the executor itself — which still ships for experimental bots — on human-owned
+# units, so it re-adds BOTH halves locally. Granting `enable-ai-experimental` instead would be wrong;
+# that token also drives ClusterTargetingCondition (defaults.yaml:454,472).
 ^Combatant:
 	ExternalCondition@testdeploy:
 		Condition: deployed
+	StancePositioningExecutor:
+		RequiresCondition: enable-tactical-positioning || enable-ai-experimental
+	GrantConditionOnHumanOwner@tacpos:
+		Condition: enable-tactical-positioning

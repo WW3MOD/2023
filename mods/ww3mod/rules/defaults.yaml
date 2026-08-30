@@ -50,15 +50,36 @@
 	RenderSprites:
 
 ^Combatant:
+	# ReturnToSlotForHumanOwners added 2026-08-30, together with the removal of human tactical
+	# positioning below. A unit that had been given a grouped move order kept a formation slot for
+	# ForgetAfterTicks (750 ticks = 45s) and walked BACK to it whenever it went idle off-slot or was
+	# shoved by a passing unit — so a unit the player had since parked somewhere deliberately would
+	# set off again on its own, up to 45s after the order that assigned the slot. Off for human
+	# owners now; a parked unit stays parked.
+	# BOTS ARE UNAFFECTED. The guard (CohesionSlotMemory.cs, TryReturnToSlot) is predicated on
+	# `Owner.Playable && !Owner.IsBot`, so @stable / @normal / @experimental cannot reach it whatever
+	# this is set to, and neither can a scenario garrison (Playable: False).
+	# NOT gated by removing the trait: DrawLineToTarget.cs:181 and GroupScatterHotkeyLogic.cs:240
+	# both read the slot record to draw the player's order line and to make Group Scatter
+	# redistribute the points actually clicked. Only the return MOVE is suppressed.
 	CohesionSlotMemory:
+		ReturnToSlotForHumanOwners: false
 	# Phase 2 tactical positioning executor. MUST be declared AFTER CohesionSlotMemory:
 	# both act in INotifyIdle.TickIdle and run in declaration order — the executor rechecks
 	# CurrentActivity == null so a return-to-slot queued first this tick makes it a no-op (S6).
-	# Default-OFF: RequiresCondition gates it to experimental bots (enable-ai-experimental is
-	# granted per-unit below) and, in Phase 3, to humans (enable-tactical-positioning). Humans /
-	# @stable / @normal never satisfy either ⇒ byte-identical (UnloadOnArrival precedent).
+	# EXPERIMENTAL BOTS ONLY. enable-ai-experimental is granted per-unit below, to units owned by
+	# the experimental bot and to nothing else. Humans additionally satisfied this gate from Phase 3
+	# until 2026-08-30 via a GrantConditionOnHumanOwner@tacpos block that stood here — removed
+	# because the executor walks an idle unit up to LeashRadius cells every EvaluateCooldown ticks
+	# with no player-legible cause, and in play-testing that read as units wandering off on their
+	# own. Human-owned units now hold the cell you put them on. `enable-tactical-positioning` is
+	# granted NOWHERE in the mod and is gone from this expression: leaving it here while deleting
+	# its only granter is a CheckConditions ERROR ("consumes conditions that are not granted"),
+	# not a warning, on all 20 ^Combatant inheritors. Scenarios that exercise the executor on
+	# human units re-add BOTH halves locally — see tools/autotest/scenarios/test-stance-*/rules.yaml.
+	# @stable / @normal never satisfied either token and are unaffected.
 	StancePositioningExecutor:
-		RequiresCondition: enable-tactical-positioning || enable-ai-experimental
+		RequiresCondition: enable-ai-experimental
 		LeashRadius: 4
 		EvaluateCooldown: 30
 		MinThreatIntensity: 40
@@ -70,12 +91,6 @@
 	GrantConditionOnBotOwner@tacpos:
 		Condition: enable-ai-experimental
 		Bots: experimental
-	# Phase-3 human enablement (RATIFIED default-ON): grant the executor token to every human-owned
-	# combatant. Predicate Owner.Playable && !Owner.IsBot mirrors AutoTarget's human-defaults gate and
-	# excludes scenario garrisons (Playable: False), so garrison behaviour is unchanged. Opt-out
-	# (HoldPosition / deployed) is enforced in the executor against live SYNCED state, not this grant.
-	GrantConditionOnHumanOwner@tacpos:
-		Condition: enable-tactical-positioning
 
 ^StandardVision:
 	Vision@10:

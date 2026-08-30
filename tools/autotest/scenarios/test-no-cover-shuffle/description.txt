@@ -1,0 +1,1 @@
+A human-owned Defensive AR, placed in the exact geometry that makes the tactical-positioning executor relocate a unit, never leaves its spawn cell — the cover shuffle is off for human players.

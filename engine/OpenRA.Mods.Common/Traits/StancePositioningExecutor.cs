@@ -47,9 +47,21 @@
  *       "tacpos:" ledger key grammar, so a future operations layer can inspect and
  *       preempt tactical claims without a retrofit.
  *
- * Gated `enable-tactical-positioning || enable-ai-experimental`: default-off
- * everywhere except experimental bots (the former is granted by nothing in Phase 2;
- * humans get it in Phase 3). @stable/@normal/humans are byte-identical.
+ * Gated `enable-ai-experimental`: EXPERIMENTAL BOTS ONLY, granted per-unit by
+ * GrantConditionOnBotOwner@tacpos on ^Combatant. @stable/@normal/humans satisfy
+ * nothing and never run this trait.
+ *
+ * HUMANS RAN THIS FROM PHASE 3 UNTIL 2026-08-30 and no longer do. A second token,
+ * `enable-tactical-positioning`, was granted to every human-owned combatant by a
+ * GrantConditionOnHumanOwner@tacpos block on ^Combatant. It was removed because the
+ * executor walks an idle unit up to LeashRadius cells every EvaluateCooldown ticks
+ * with no player-legible cause, which in play-testing read as units wandering off on
+ * their own; the token is now granted nowhere in the mod and is gone from the gate.
+ * If you are chasing "why did my unit move on its own", THIS TRAIT IS NOT THE CAUSE
+ * for a human-owned unit — look at CohesionSlotMemory (return-to-slot, ungated), at
+ * AutoSeekSupplies, or at AmmoPool's resupply dispatch. Both this header and the
+ * ^Combatant comment previously asserted humans never ran this while the grant was
+ * live, so treat any older doc claiming Phase-3 human enablement as stale.
  */
 #endregion
 

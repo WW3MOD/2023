@@ -17,8 +17,9 @@ WorldLoaded = function()
 	TestHarness.FocusBetween(unit, foe)
 	TestHarness.Select(unit)
 
-	-- Phase 3: the executor auto-enables on human-owned units via GrantConditionOnHumanOwner (USA is
-	-- human), so no explicit grant is needed — the AR should relocate to the cover edge on its own.
+	-- Enablement is SCENARIO-LOCAL as of 2026-08-30: the shipped mod no longer grants
+	-- enable-tactical-positioning to human-owned units, so this scenario's rules.yaml re-adds the
+	-- token to the executor's gate AND the granter. The AR relocates to the cover edge on its own.
 
 	-- Silence both sides WITHOUT touching the AR's fire stance. The executor deliberately declines to
 	-- reposition any unit below FireAtWill (the Ambush/HoldFire "un-ambush" opt-out,

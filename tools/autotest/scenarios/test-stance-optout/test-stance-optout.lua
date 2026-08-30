@@ -6,8 +6,10 @@
 --   DeployUnit — Defensive, but the `deployed` condition is granted from Lua: the executor declines
 --                because a deployed unit's placement is deliberate (S2).
 --
--- Enablement is the real Phase-3 path (USA is human ⇒ GrantConditionOnHumanOwner grants
--- enable-tactical-positioning at spawn); we also grant explicitly for timing robustness. Assertion:
+-- Enablement is SCENARIO-LOCAL as of 2026-08-30: the shipped mod no longer grants
+-- enable-tactical-positioning to human-owned units, so this scenario's rules.yaml re-adds the token
+-- to the executor's gate AND the granter. An earlier version of this comment claimed the test "also
+-- grants explicitly for timing robustness" — it never did. Assertion:
 -- neither unit ever leaves its spawn cell during the hold window ⇒ zero executor Move orders. If the
 -- opt-out regressed, a Defensive/enabled unit in this geometry would walk to the y=17 cover edge.
 
@@ -18,8 +20,7 @@ WorldLoaded = function()
 	local holdHome = { X = HoldUnit.Location.X, Y = HoldUnit.Location.Y }
 	local deployHome = { X = DeployUnit.Location.X, Y = DeployUnit.Location.Y }
 
-	-- Executor auto-enables on human-owned units via GrantConditionOnHumanOwner (Phase 3), so no
-	-- explicit grant is needed. HoldFire silences shots (no suppression gate, no AutoTarget chase).
+	-- The executor is enabled by this scenario's own rules.yaml (see header). HoldFire silences shots (no suppression gate, no AutoTarget chase).
 	for _, u in ipairs({ HoldUnit, DeployUnit }) do
 		if not u.IsDead then u.Stance = "HoldFire" end
 	end

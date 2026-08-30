@@ -1,9 +1,13 @@
 # demo-tactical-positioning
 
-Playable demo of the Phase-3 **StancePositioningExecutor** (human enablement). All infantry are
-USA (human), so the executor is auto-enabled the real way — via `GrantConditionOnHumanOwner`
-granting `enable-tactical-positioning` to every human-owned combatant. Everything is on HoldFire,
-so nothing shoots and the **only** thing that moves an idle unit is the executor.
+Playable demo of the **StancePositioningExecutor**. Everything is on HoldFire, so nothing shoots and
+the **only** thing that moves an idle unit is the executor.
+
+> **This demo shows a behaviour human players no longer get.** Until 2026-08-30 the mod granted
+> `enable-tactical-positioning` to every human-owned combatant, so the executor ran on your units in
+> a normal game. That grant was removed — the cover shuffle read as units wandering off on their own
+> — and the executor now ships for **experimental bots only**. This demo re-adds both halves of the
+> enablement in its own `rules.yaml` so the layer stays demonstrable.
 
 Launch:
 

@@ -20,16 +20,31 @@ namespace OpenRA.Mods.Common.Traits
 		"back to the slot — keeping the squad's defensive line intact instead of letting one",
 		"unit drift into open ground after a single bump. The memory expires after",
 		"ForgetAfterTicks so a unit that's been doing something else for a while doesn't suddenly",
-		"sprint back to a stale slot.")]
+		"sprint back to a stale slot.",
+		"The walk-back is BOT-ONLY as shipped: see ReturnToSlotForHumanOwners, which the mod sets",
+		"false. The record itself is still kept for every owner because the order line and Group",
+		"Scatter read it.")]
 	public class CohesionSlotMemoryInfo : TraitInfo, Requires<MobileInfo>
 	{
 		[Desc("How many ticks since the last Assign() before the slot is treated as stale and the",
-			"return-to-slot behavior switches off. 25 ticks = 1s; 750 = 30s.")]
+			"return-to-slot behavior switches off. At 16.67 tps, 750 ticks = 45s. (These two Descs",
+			"previously said 25 ticks = 1s and 750 = 30s, the 1.5x tick-rate error catalogued in",
+			"DOCS/reference/conventions.md; the VALUES are unchanged, only the seconds were wrong.)")]
 		public readonly int ForgetAfterTicks = 750;
 
 		[Desc("Cooldown in ticks between successive return-to-slot attempts, so a unit doesn't",
-			"thrash if blocked repeatedly. 25 = 1s.")]
+			"thrash if blocked repeatedly. At 16.67 tps, 25 ticks = 1.5s.")]
 		public readonly int ReturnCooldownTicks = 25;
+
+		[Desc("Whether a unit owned by a HUMAN player walks back to its formation slot. Engine default",
+			"true preserves the historical behaviour; the mod sets it false on ^Combatant, because a",
+			"player who parks a unit somewhere expects it to stay there, and a unit re-walking to a",
+			"slot from an order given up to ForgetAfterTicks ago reads as moving on its own.",
+			"BOT-OWNED UNITS ARE UNAFFECTED WHATEVER THIS IS SET TO: the guard in TryReturnToSlot is",
+			"predicated on `Owner.Playable && !Owner.IsBot`, so no bot profile — @stable, @normal or",
+			"@experimental — can reach it. Only the return MOVE is gated; the slot record itself keeps",
+			"updating, so order lines (DrawLineToTarget) and Group Scatter are unchanged.")]
+		public readonly bool ReturnToSlotForHumanOwners = true;
 
 		public override object Create(ActorInitializer init) { return new CohesionSlotMemory(init.Self, this); }
 	}
@@ -232,6 +247,23 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			if (!mobile.CanEnterCell(assignedSlot))
+				return;
+
+			// THE ONLY GATE for human-owned return-to-slot. Both entry points — INotifyIdle.TickIdle and
+			// INotifyBlockingMove — funnel through this method, so one guard covers both.
+			// DELIBERATELY THE LAST CHECK, not the first. Everything above it still runs for a human
+			// owner, which is the point: the ForgetAfterTicks branch above must keep clearing hasSlot on
+			// schedule, because DrawLineToTarget.cs:181 draws the player's order line from that record
+			// and GroupScatterHotkeyLogic.cs:240 maps slot cells back to the points the player actually
+			// clicked. Gating earlier would leave a human's slot alive forever and quietly change what
+			// both of those read; gating here suppresses the Move and nothing else. (Making the trait a
+			// ConditionalTrait would have taken both consumers away outright.)
+			// Owner is read LIVE rather than latched at construction, so a unit changing hands mid-match
+			// gets the right behaviour with no owner-change notification: a bot that captures a human's
+			// unit starts returning to slot, and vice versa. Predicate mirrors
+			// GrantConditionOnHumanOwner.cs:43 exactly, so scenario garrisons (Playable: False) count as
+			// non-human and keep the behaviour they have always had.
+			if (!info.ReturnToSlotForHumanOwners && self.Owner.Playable && !self.Owner.IsBot)
 				return;
 
 			lastReturnTick = tick;
