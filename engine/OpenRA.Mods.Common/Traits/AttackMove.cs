@@ -34,6 +34,15 @@ namespace OpenRA.Mods.Common.Traits
 		[CursorReference]
 		public readonly string AttackMoveBlockedCursor = "attackmove-blocked";
 
+		// UNREACHABLE, deliberately kept. Assault-move is disabled in WW3MOD — both the targeter
+		// (ResolveOrder below) and AttackMoveOrderGenerator.OrderInner hardcode the non-assault
+		// branch, so neither of these two cursors is ever emitted and the art at
+		// mods/ww3mod/cursors.yaml:221-229 is dead.
+		// NOT deleted: these are [CursorReference] fields, so CheckCursors lints their DEFAULTS
+		// against the mod's cursor set. Removing the art without removing the fields reds the YAML
+		// gate; removing the fields is a bigger call than tidying dead art, which is why the
+		// scaffolding (including AssaultMoveCondition above) was kept behind a CS0414 pragma in the
+		// first place. Leave both halves together or remove both halves together.
 		[CursorReference]
 		public readonly string AssaultMoveCursor = "assaultmove";
 

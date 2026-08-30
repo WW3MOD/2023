@@ -67,6 +67,12 @@ namespace OpenRA.Mods.Common.Traits
 		[CursorReference(dictionaryReference: LintDictionaryReference.Values)]
 		[Desc("Cursor overrides to display for specific terrain types.",
 			"A dictionary of [terrain type]: [cursor name].")]
+		// EMPTY THROUGHOUT mods/ww3mod — no actor populates this, so the per-terrain branch in
+		// MoveOrderTargeter.CanTarget never fires and the `move-rough` art at
+		// mods/ww3mod/cursors.yaml:80 is unreachable. Unlike the assault-move cursors this one is
+		// lint-safe to delete (the reference is to dictionary VALUES, and the dictionary is empty),
+		// but it is kept because populating this dictionary is the intended way to use it and the
+		// art is already drawn. Populating it is a design change, not tidying.
 		public readonly Dictionary<string, string> TerrainCursors = new();
 
 		[CursorReference]

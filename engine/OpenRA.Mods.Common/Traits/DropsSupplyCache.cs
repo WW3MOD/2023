@@ -41,6 +41,15 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string PickupCacheCursor = "enter";
 
 		[CursorReference]
+		[Desc("Cursor for Ctrl+click on a friendly Logistics Center (deliver this truck's supply TO it).",
+			"Deliberately NOT RestockCursor: the two orders move supply in OPPOSITE directions and",
+			"used to be indistinguishable on screen, which is how the delivery order stayed dead and",
+			"unnoticed for months — see RestockOrderTargeter.CanTargetActor. Defaults to the mod's",
+			"generic special-action cursor because the gesture is modifier-driven and no bespoke art",
+			"exists; re-point this field if art is ever drawn for it.")]
+		public readonly string DeliverSupplyCursor = "ability";
+
+		[CursorReference]
 		[Desc("Cursor for the deploy command when supply can be dropped as a SUPPLYCACHE.")]
 		public readonly string DropCacheCursor = "deploy";
 
@@ -661,7 +670,9 @@ namespace OpenRA.Mods.Common.Traits
 				// delivery order was unreachable for any truck that was `notFull` — i.e. every truck that
 				// had served anybody, which is exactly the set with a reason to deliver. The feature was
 				// fully built and could only ever fire from a 750/750 undamaged truck. Both targeters
-				// share info.RestockCursor, so nothing on screen told the player Ctrl had done nothing.
+				// then shared info.RestockCursor, so nothing on screen told the player Ctrl had done
+				// nothing — delivery now has its own DeliverSupplyCursor so the two directions are
+				// distinguishable before the click, not just after it.
 				if (modifiers.HasModifier(TargetModifiers.ForceMove))
 					return false;
 
@@ -694,7 +705,7 @@ namespace OpenRA.Mods.Common.Traits
 		sealed class DeliverSupplyOrderTargeter : UnitOrderTargeter
 		{
 			public DeliverSupplyOrderTargeter(DropsSupplyCacheInfo info)
-				: base("DeliverSupply", 6, info.RestockCursor, false, true) { }
+				: base("DeliverSupply", 6, info.DeliverSupplyCursor, false, true) { }
 
 			public override bool CanTargetActor(Actor self, Actor target, TargetModifiers modifiers, ref string cursor)
 			{
