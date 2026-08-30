@@ -58,8 +58,21 @@ namespace OpenRA.Mods.Common.Warheads
 		public readonly int ShockwaveInnerAlpha = 3;
 
 		[Desc("Alpha of the shockwave ring where it stops, as percentage of initial alpha (0-100).",
-			"That edge is ShockwaveVisualRadius when set, MaxRadius otherwise.")]
+			"That edge is ShockwaveVisualRadius when set, MaxRadius otherwise. The default 0 means every",
+			"ring fades out completely instead of being cut off while still solid; anything above 0 leaves",
+			"a visible band at full radius that vanishes between one frame and the next.")]
 		public readonly int ShockwaveEndAlphaPercent = 0;
+
+		[Desc("Shape of the fade from full alpha down to ShockwaveEndAlphaPercent, as a percentage",
+			"exponent on expansion progress: alpha follows 1 - progress^(percent/100).",
+			"100 is a straight line, spending alpha evenly over the ring's travel. The default 200",
+			"instead holds the ring near full brightness while it is still growing and then drops it",
+			"away over the last fifth, which is what reads as a wave dissipating rather than a ring",
+			"being switched off — 1 - p^2 factors to (1 + p) times the linear ramp, so it is brighter",
+			"everywhere in between and still lands on exactly the same endpoints.",
+			"Below 100 the fade is hardest at the START, which is where a small ring is still inside",
+			"its own fireball sprite; that is how a ring gets tuned into invisibility.")]
+		public readonly int ShockwaveFadeOutExponentPercent = 200;
 
 		[Desc("Ticks for the shockwave ring to fade in from fully transparent. Simulates fireball origin.")]
 		public readonly int ShockwaveFadeInTicks = 25;
@@ -104,10 +117,27 @@ namespace OpenRA.Mods.Common.Warheads
 		/// </summary>
 		public bool DeliversDamage => Damage != 0 || DamagePercent != 0 || RandomDamageAddition != 0;
 
+		/// <summary>
+		/// Ring alpha as a fraction of its starting alpha, <paramref name="progress"/> of the way out to
+		/// the edge the ring is drawn to. Lives on the warhead rather than inline in ShockwaveEffect so
+		/// that the curve the game renders and the curve ShockwaveTuningTest pins are the same code.
+		/// </summary>
+		public float FadeOutAt(float progress)
+		{
+			var endAlphaFrac = ShockwaveEndAlphaPercent / 100f;
+			var falloff = 1f - (float)System.Math.Pow(progress, ShockwaveFadeOutExponentPercent / 100f);
+			return endAlphaFrac + (1f - endAlphaFrac) * falloff;
+		}
+
 		void IRulesetLoaded<WeaponInfo>.RulesetLoaded(Ruleset rules, WeaponInfo info)
 		{
 			if (ShockwaveSegments < 3)
 				throw new YamlException("ShockwaveSegments must be at least 3.");
+
+			// Zero would make Pow return 1 at every radius, which collapses the fade to a flat
+			// ShockwaveEndAlphaPercent and hides the mistake as "the ring just never fades".
+			if (ShockwaveFadeOutExponentPercent <= 0)
+				throw new YamlException("ShockwaveFadeOutExponentPercent must be positive.");
 
 			if (ShockwaveVisualRadius.Length < 0)
 				throw new YamlException("ShockwaveVisualRadius cannot be negative.");

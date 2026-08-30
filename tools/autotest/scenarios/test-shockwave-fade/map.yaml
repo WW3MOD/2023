@@ -1,0 +1,74 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Shockwave fade-out curve — new vs old, side by side (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Four detonators, in two pairs. Each pair is one ring under the new fade curve beside the
+	# SAME ring under the curve that shipped before it, so a single frame carries its own control
+	# and the reading survives the capture landing a tick either side of where it was aimed.
+	#
+	# Ten cells apart because the widest ring here is 2458 (2.4 cells) and the two must not touch.
+	TosNew: e1
+		Owner: USA
+		Location: 20,10
+	TosOld: e3
+		Owner: USA
+		Location: 30,10
+	TruckNew: e2
+		Owner: USA
+		Location: 20,22
+	TruckOld: ar
+		Owner: USA
+		Location: 30,22
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,16
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 33,4
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 33,30
+
+Rules: rules.yaml
+
+Weapons: weapons.yaml

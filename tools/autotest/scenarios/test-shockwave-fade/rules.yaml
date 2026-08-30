@@ -1,0 +1,43 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-shockwave-fade.lua
+
+# Infantry used purely as detonators, so each capture shows the ring and its fireball and nothing
+# else. FOUR TYPES because Explodes is declared per actor type and this scenario needs two
+# independent pairs; e1, e3, e2 and ar are the four cheapest that carry no Explodes of their own
+# (the only one in infantry.yaml belongs to ^E4, the flamethrower).
+#
+# Each detonator fires the REAL weapon, not a stripped copy. That matters most for the TOS: its
+# ring has to be judged against the ^LargeThermobaricEffects fireball it is drawn on top of,
+# because being swallowed by that sprite is how this ring shipped invisible once already.
+E1:
+	Explodes@TosRingNew:
+		Weapon: TosRockets
+		EmptyWeapon: TosRockets
+
+E3:
+	Explodes@TosRingOld:
+		Weapon: TosRocketsLegacyFade
+		EmptyWeapon: TosRocketsLegacyFade
+
+E2:
+	Explodes@TruckRingNew:
+		Weapon: VolatileLoad8
+		EmptyWeapon: VolatileLoad8
+
+AR:
+	Explodes@TruckRingOld:
+		Weapon: VolatileLoad8LegacyFade
+		EmptyWeapon: VolatileLoad8LegacyFade

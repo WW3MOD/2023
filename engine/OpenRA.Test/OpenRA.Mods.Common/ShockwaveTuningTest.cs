@@ -27,8 +27,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using OpenRA.GameRules;
 using OpenRA.Mods.Common.Graphics;
 using OpenRA.Mods.Common.Warheads;
+using OpenRA.Traits;
 
 namespace OpenRA.Test
 {
@@ -115,6 +117,122 @@ namespace OpenRA.Test
 
 			Assert.That(w.ShockwaveVisualRadius, Is.EqualTo(WDist.Zero), "the opt-in sentinel must stay zero");
 			Assert.That(w.VisualRadius, Is.EqualTo(w.MaxRadius));
+		}
+
+		// ---- The fade-out curve ----
+
+		static ShockwaveDamageWarhead Warhead(params (string Field, string Value)[] fields)
+		{
+			var w = new ShockwaveDamageWarhead();
+			foreach (var (field, value) in fields)
+				FieldLoader.LoadField(w, field, value);
+
+			return w;
+		}
+
+		/// <summary>
+		/// Whatever the curve does in between, it has to start at full alpha and land exactly on
+		/// ShockwaveEndAlphaPercent. Missing the far endpoint is the failure the user actually reported:
+		/// a ring still drawn at a fifth of full brightness on the last frame before it is removed.
+		/// </summary>
+		[Test]
+		public void EveryExponentStartsAtFullAlphaAndLandsOnTheDeclaredEndAlpha()
+		{
+			foreach (var endAlpha in new[] { 0, 1, 35, 50, 100 })
+			{
+				foreach (var exponent in new[] { 50, 100, 200, 300, 1000 })
+				{
+					var w = Warhead(("ShockwaveEndAlphaPercent", endAlpha.ToString()),
+						("ShockwaveFadeOutExponentPercent", exponent.ToString()));
+
+					Assert.That(w.FadeOutAt(0f), Is.EqualTo(1f).Within(1e-6f),
+						$"end {endAlpha} exponent {exponent}: the ring does not start at full alpha");
+					Assert.That(w.FadeOutAt(1f), Is.EqualTo(endAlpha / 100f).Within(1e-6f),
+						$"end {endAlpha} exponent {exponent}: the ring does not reach its declared end alpha");
+				}
+			}
+		}
+
+		/// <summary>
+		/// The default ring fades to NOTHING, and does its fading late. This is the whole of the user's
+		/// request of 2026-08-30 — rings that "become fully faded out" at their largest rather than
+		/// terminating while solid — so both halves are pinned: the endpoint, which is one integer away
+		/// from being lost, and the shape, which is what distinguishes the fix from the straight line
+		/// that was already reaching zero and was still being reported as chunky.
+		/// </summary>
+		[Test]
+		public void TheDefaultRingHoldsItsAlphaEarlyAndSpendsItAtTheEdge()
+		{
+			var w = new ShockwaveDamageWarhead();
+
+			Assert.That(w.ShockwaveEndAlphaPercent, Is.EqualTo(0),
+				"a ring that stops above zero alpha is cut off rather than faded out");
+			Assert.That(w.FadeOutAt(1f), Is.Zero, "the ring is still being drawn at its widest");
+
+			// Through the first third of travel the ring is barely dimmed — that stretch is where a small
+			// ring is still emerging from its own fireball sprite. The linear ramp had shed 30% by here.
+			Assert.That(w.FadeOutAt(0.3f), Is.GreaterThan(0.9f),
+				"the ring has started fading while it is still hidden inside the explosion graphic");
+
+			// And by the last twentieth it is all but gone, so nothing solid is on screen to be cut off.
+			Assert.That(w.FadeOutAt(0.95f), Is.LessThan(0.1f),
+				"the ring is still carrying a tenth of its alpha into the final frames");
+		}
+
+		/// <summary>
+		/// Exponent 100 is the documented escape hatch back to the straight-line ramp this replaced,
+		/// so it has to actually BE that ramp rather than merely resemble it.
+		/// </summary>
+		[Test]
+		public void ExponentOneHundredIsTheLinearRampItReplaced()
+		{
+			foreach (var endAlpha in new[] { 0, 35, 100 })
+			{
+				var w = Warhead(("ShockwaveEndAlphaPercent", endAlpha.ToString()),
+					("ShockwaveFadeOutExponentPercent", "100"));
+
+				for (var i = 0; i <= 1000; i++)
+				{
+					var progress = i / 1000f;
+					var linear = 1f - (progress * (1f - (endAlpha / 100f)));
+					Assert.That(w.FadeOutAt(progress), Is.EqualTo(linear).Within(1e-6f),
+						$"end {endAlpha} at progress {progress}");
+				}
+			}
+		}
+
+		/// <summary>
+		/// THE DEFAULT CURVE IS NOWHERE DIMMER THAN THE LINE IT REPLACED, and that is a safety claim,
+		/// not a cosmetic one. A shockwave ring competes with its own explosion sprite for the first
+		/// stretch of its travel, and the TOS ring was already shipped INVISIBLE once by tuning that
+		/// stretch down (see weapons-ballistics.yaml). Loading the fade into the end is only a free
+		/// change because it cannot darken any frame; if someone later drops the default below 100 this
+		/// fails, which is the point.
+		/// </summary>
+		[Test]
+		public void TheDefaultCurveNeverDarkensAnyFrameAgainstTheOldLinearRamp()
+		{
+			var w = new ShockwaveDamageWarhead();
+
+			for (var i = 0; i <= 1000; i++)
+			{
+				var progress = i / 1000f;
+				Assert.That(w.FadeOutAt(progress), Is.GreaterThanOrEqualTo((1f - progress) - 1e-6f),
+					$"the default fade is dimmer than the linear ramp at progress {progress}, " +
+					"which is how a ring gets tuned back into its own fireball");
+			}
+		}
+
+		[Test]
+		public void ANonPositiveFadeExponentIsRefusedAtLoad()
+		{
+			foreach (var bad in new[] { "0", "-100" })
+			{
+				var w = Warhead(("ShockwaveFadeOutExponentPercent", bad));
+				Assert.That(() => ((IRulesetLoaded<WeaponInfo>)w).RulesetLoaded(null, null),
+					Throws.TypeOf<YamlException>(),
+					$"ShockwaveFadeOutExponentPercent: {bad} flattens the fade to a constant instead of failing");
+			}
 		}
 
 		/// <summary>
@@ -238,6 +356,15 @@ namespace OpenRA.Test
 					$"the TOS ring declares {damaging}: {declared}. It is meant to be pure spectacle; " +
 					"giving it damage rebalances the TOS.");
 			}
+
+			// The user's report of 2026-08-30 was about THIS ring specifically: it was the only one in
+			// the mod holding alpha at full radius, and it read as ending rather than fading. Both the
+			// override and the floor it stood on are gone; either coming back reintroduces the report.
+			var endAlpha = w.Nodes.FirstOrDefault(n => n.Key == "ShockwaveEndAlphaPercent")?.Value.Value;
+			Assert.That(endAlpha ?? "0", Is.EqualTo("0"),
+				$"the TOS ring declares ShockwaveEndAlphaPercent: {endAlpha}, so it is drawn at " +
+				$"{endAlpha}% of full alpha on the last frame before it vanishes. That is the " +
+				"\"too chunky, should fade out\" report; see the comment on the warhead.");
 
 			var maxRadius = Dist(w, "MaxRadius", "TosRockets");
 			var waveSpeed = int.Parse(w.Nodes.First(n => n.Key == "WaveSpeed").Value.Value);

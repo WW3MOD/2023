@@ -674,6 +674,16 @@ IskanderExplosionAirborne:
 #
 # AffectsParent and the absence of any relationship filter match IskanderExplosion
 # exactly: these blasts hurt nearby FRIENDLY units, confirmed as intended.
+#
+# NONE OF THESE EIGHT BANDS SETS ShockwaveFadeOutExponentPercent, AND THAT IS A CHOICE.
+# On 2026-08-30 the engine default changed from a straight-line fade to 1 - p^2, so every
+# band below now holds its brightness through the middle of its travel and loses it over
+# the last fifth instead of shedding alpha evenly. These rings already ended at zero — the
+# default ShockwaveEndAlphaPercent has always been 0 — so what moved is the middle, which
+# is roughly (1 + p) times as bright as before, up to twice at the outer edge. The user
+# asked for that fade "as the default" for all shockwaves rather than for the TOS alone,
+# so it is inherited here on purpose and not pinned per band; if a later change to the
+# engine default is not wanted for volatile cargo, set the field explicitly then.
 # ---------------------------------------------------------------------------
 
 ^VolatileLoadEffects:
