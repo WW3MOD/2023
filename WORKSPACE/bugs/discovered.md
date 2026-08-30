@@ -29,6 +29,37 @@
 
 ---
 
+## 2026-08-30: [medium] OPEN, NOT FIXED — a DOCKED vehicle can drain a Logistics Centre past the restock reserve the push arm respects, starving the infantry aura arm (found while: auditing drain rates after `9e46f141`, branch `wt/postmerge-fallout`, `main @ 9e46f141`)
+
+**Established by reading; NOT measured in game.** No launch was spent on this — it is arithmetic over
+two code sites that disagree, and the symptom below is derived, not watched.
+
+**The asymmetry.** The push arm refuses to serve once supply falls under the restock reserve:
+`CanServeNow` consults `ReservesRemainderForRestock` (`SupplyProvider.cs:1145`, `:1424`), and
+`RestockThreshold` defaults to **50** (`SupplyProvider.cs:38`) with LOGISTICSCENTER setting no
+`RestockActors`. The pull arm consults **no such thing** — `Rearmable.RearmTick` tests only
+`provider.CurrentSupply < ammoPool.Info.SupplyValue` (`Rearmable.cs:105-106`) and otherwise serves.
+
+**So a docked vehicle keeps taking batches through the band the aura arm has already stood down in,
+and can take the Centre to 0.** Concretely: below 50 supply the Centre serves no infantry at all
+(that dead band is pre-existing and documented in this file's 2026-08-11 SUPPLYCACHE entry), while a
+docked `humvee` at `SupplyValue: 1` can keep drawing down to zero. Infantry standing beside the same
+building are frozen out by a reserve the vehicle is not subject to.
+
+**Why it is not obviously the wrong behaviour**, which is why this is filed rather than fixed: a
+building has no drive-home trip to reserve supply for, so arguably the *push* arm's reserve is the
+side that is wrong on LOGISTICSCENTER, not the pull arm's absence of one. That is the same shape as
+the SUPPLYCACHE entry below, which was resolved by setting `RestockThreshold: 0` on the crate rather
+than by changing engine logic. **The parallel fix would be `RestockThreshold: 0` on LOGISTICSCENTER**
+— one YAML line, and it closes the dead band in the direction that makes both arms agree.
+
+**Not taken here** because it is a live behavioural change to a shipped building on a branch whose
+mandate is an engineer fix and a read-only report, and because the user owns tuning decisions in this
+area and has not seen the drain-rate report yet.
+
+**Confirm by:** stage a docked `humvee` and an infantryman both in range of a Centre held at 60
+supply; the humvee should keep drawing past 50 while the infantryman gains nothing.
+
 ## 2026-08-23: [medium] OPEN, NOT FIXED — turning on classic mouse style makes a click on ANY ally select him instead of ordering the selected medic (found while: making the explicit heal order lock its patient, branch `wt/medic-order`, `main @ 7f6e6460`)
 
 **Trigger, exactly: Settings → classic mouse style ON.** `Settings.cs:280` ships

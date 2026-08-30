@@ -3,6 +3,172 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-30 — `AmmoPoolInfo.ReloadDelay` was inert while ammunition was free; post-`9e46f141` it is the **drain-rate knob for thirteen vehicles**, and 53 of 63 pools never set it (`wt/postmerge-fallout`, base `main @ 9e46f141`)
+
+**READ ONLY — no value was changed and none should be without the user. This is the report they asked for.**
+
+**The mechanism, and it is a genuine split.** The two resupply arms pace on **different fields**:
+
+- **Pull (docking).** `Rearmable.RearmTick` decrements `ammoPool.RemainingTicks`, and on reaching zero
+  resets it to **`ammoPool.Info.ReloadDelay`** and serves one batch (`Rearmable.cs:109-112`). Engine
+  default is **50** (`AmmoPool.cs:44`). `INotifyDockClient.Docked` resets the counter on arrival
+  (`Rearmable.cs:52`), so batch *k* lands at tick 50*k*. Pools in `RearmableAmmoPools` drain
+  **concurrently** — the loop touches every pool every tick.
+- **Push (proximity/aura).** Paced by `ActiveRearmDelay` — `AuraRearmDelay` for aura clients else
+  `RearmDelay` (`SupplyProvider.cs:249`), reset at `:1102`. **It never reads `ReloadDelay` at all**,
+  and it is one batch per cadence *across all pools*, choosing the single greatest-need pool.
+
+**Which arm serves whom, which is the part that makes `ReloadDelay` matter.** `Rearmable.RearmTick`
+defers to the push arm for any client `SupplyProvider.CanSelect` accepts (`Rearmable.cs:95-96`), and
+`CanSelect` requires clientele membership via `IsValidTarget`/`MatchClientele`
+(`SupplyProvider.cs:850-877`, `:1271-1282`). **Only `himars` and `iskander` declare
+`replenish-vehicles`**; only `^Soldier` declares `replenish-soldiers` (`infantry.yaml:238`). So every
+other Rearmable vehicle matches neither clientele, `CanSelect` is permanently false for it, and it is
+**always** served by the pull path at `ReloadDelay`. Fifteen actors carry `Rearmable`; minus those two
+that is exactly the thirteen the merge started charging.
+
+**The census.** 63 `AmmoPool` declarations under `mods/ww3mod/rules/`; **10 set `ReloadDelay`, 53 omit
+it.** (The audit's "52" was one short.) Every explicit value is on an aircraft or a defensive
+structure — `F16` 100/100 (`aircraft-america.yaml:625,652`), `HIND` 6/16
+(`aircraft-russia.yaml:188,219`), `FROG` 25 (`:522`), `MIG` 100/100 (`:645,672`), `CRAM`/`AGUN` 6/6
+(`structures-defenses.yaml:648,726`), `FTUR` 40 (`:937`). **Zero ground vehicles set it.** No pool sets
+`FullReloadTicks`/`FullReloadSteps`, so the reset is always plain `ReloadDelay`.
+
+**THE TICK RATE IS 16.67/s, NOT 25 AND NOT 40.** `Timestep: 60` on the `default` speed
+(`mod.yaml:382`, selected by `DefaultSpeed: default` at `:358`). `ReloadDelay: 50` is **3.00 s**, not
+1.25 s or 2.0 s. This entry was nearly written against 40 tps because the research brief asserted it;
+the figure was caught only because the agent was told to re-derive it. Same family as
+`conventions.md` §"A change believed made, documented as made, and inert" — do not inherit a duration
+from prose, recompute it from the tick count.
+
+**The drain table.** `ReloadDelay 50` = 3.00 s per batch per pool for all thirteen; pools concurrent;
+full `SupplyValue` is charged even for a partial batch (`AmmoPool.cs:374-411`). LOGISTICSCENTER
+`TotalSupply: 2250` (`structures.yaml:475`).
+
+| Unit | Pools: Ammo/ReloadCount/SupplyValue | Batches | Supply for a full refill | Seconds | Refills per 2250 Centre |
+|---|---|---|---|---|---|
+| **strykershorad** | 400/50/1 · 8/1/65 · 4/1/200 | 8+8+4 | **1328** | 24.0 | **1.69** |
+| bradley | 900/100/5 · 8/1/75 | 9+8 | 645 | 27.0 | 3.49 |
+| bmp2 | 900/100/5 · 8/1/65 | 9+8 | 565 | 27.0 | 3.98 |
+| tunguska | 180/30/1 · 8/1/65 | 6+8 | 526 | 24.0 | 4.28 |
+| m109 | 40/5/60 | 8 | 480 | 24.0 | 4.69 |
+| giatsint | 40/5/60 | 8 | 480 | 24.0 | 4.69 |
+| abrams | 40/5/30 | 8 | 240 | 24.0 | 9.38 |
+| t90 | 40/5/30 | 8 | 240 | 24.0 | 9.38 |
+| mnly | 10/1/25 | 10 | 250 | 30.0 | 9.00 |
+| t72 | 40/5/20 | 8 | 160 | 24.0 | 14.06 |
+| m113 | 500/50/1 | 10 | 10 | 30.0 | 225 |
+| btr | 500/50/1 | 10 | 10 | 30.0 | 225 |
+| **humvee** | 300/50/1 | 6 | **6** | 18.0 | 375 |
+
+Sources: `vehicles-america.yaml:89,245,376,401,530,647,925,953,988`;
+`vehicles-russia.yaml:70,193,223,348,463,871,901`; `vehicles-ukraine.yaml:53`; `vehicles.yaml:484`.
+**Independently cross-checked:** the merge message claims "about nine abrams refills, three and a half
+bradleys"; this arithmetic yields 9.38 and 3.49.
+
+**The outliers, named.**
+
+- **`strykershorad` is the extreme in the expensive direction: 1328 supply for one full refill, so a
+  Logistics Centre buys 1.69 of them.** Its 4-round tertiary pool alone is 800. Two SHORADs cannot
+  both refill from one Centre.
+- **`humvee` is the extreme in the other: 18.0 s of standing still to buy 6 supply** — 375 refills per
+  Centre. `m113`/`btr` are worse on time, 30.0 s for 10 supply. The cost is a rounding error and the
+  wait is not, so `ReloadDelay 50` is close to pure dead time on the cheap chassis.
+- **The structural point, which outlives any single value: duration tracks BATCH COUNT and price
+  tracks SupplyValue, and `ReloadDelay` decouples the two entirely.** Full refills span **221×** in
+  money (6 → 1328) and only **1.7×** in time (18 → 30 s). The thirteen have never been tuned against
+  each other on the time axis because until an hour ago that axis governed something free.
+- Reference point for any tuning: the push arm serves `himars` at `RearmDelay: 25` (1.5 s) per
+  1500-supply batch = **1000 supply/second**, ~30× the fastest puller.
+
+**A `RearmActors` fact worth stating plainly, because it is easy to assume otherwise: no supply truck
+can rearm any of the thirteen.** `TRUK` (`vehicles.yaml:572`), `LCCV` (`:684`) and `SUPPLYCACHE`
+(`misc.yaml:469`) declare `RearmCondition: replenish-soldiers` only, and all thirteen vehicles declare
+`RearmActors: logisticscenter` only. **This is intended, not a defect** — `ai.yaml:1180` says so in as
+many words ("vehicles pull from the Logistics Centre"). Trucks serve infantry exclusively, so "how
+many refills does a 750 truck buy" has the answer *zero* for every vehicle in the table.
+
+**Two more fields that changed meaning in the same merge.**
+
+- **`ReloadCount` became a price divisor.** `BatchCount = ceil(Ammo/ReloadCount)` multiplies
+  `SupplyValue` (`AmmoPool.cs:133-135`), so halving it doubles both the refill duration *and* the total
+  price. It is also the rounding quantum for the evacuation refund (`CustomSellValue.cs:34-42`). Three
+  couplings on one field, none of them obvious from its name.
+- **`ReloadAmmoPool` is still free, and it is the residue of the merge's own ruling.** It calls
+  `GiveAmmo` with no host and no supply term (`ReloadAmmoPool.cs:83-92`), gated only on
+  `replenish-soldiers`. Post-merge that condition is held only by the client the provider has selected
+  — so the leak shrank from "everyone within 4c0, always" to "the one client being served, while being
+  served", at 1 round per 50 ticks alongside the metered 6-tick batches. Small, bounded, and still not
+  zero.
+
+**Could not settle, stated rather than smoothed over:** whether any map-local `rules.yaml` overrides
+`ReloadDelay` (a whole-`mods/` grep finds none; individual map packages were not enumerated), and how
+many vehicles can pull from one Centre simultaneously — each runs `RearmTick` independently, so
+aggregate drain is additive, but the dock capacity was not established.
+
+## 2026-08-30 — Deleting a bare condition grant orphans every consumer that had no OTHER granter, and the tell is a trait that is now unreachable rather than an error (`wt/postmerge-fallout`, base `main @ 9e46f141`)
+
+**The instance.** `9e46f141` deleted LOGISTICSCENTER's
+`ProximityExternalCondition@ReplenishSoldiers`, which granted `replenish-soldiers` to everyone within
+4c0 unconditionally (`structures.yaml:455-468`). Correct: it was free ammunition. But the condition
+now comes from `SupplyProvider.SyncTargetCondition` alone (`SupplyProvider.cs:939-967`) and only to the
+**single client it has selected**, and selection runs through `AcceptClient`
+(`SupplyProvider.cs:743-758`), which reads demand exclusively from `Rearmable.RearmableAmmoPools` —
+the pools named in `Rearmable.AmmoPools`, filtered at `Rearmable.cs:44`.
+
+**So the delete silently converted "pools not listed in `Rearmable.AmmoPools`" from a harmless
+omission into a permanent one.** The combat engineer lists `secondary-ammo` (C4) alone while also
+carrying an SMG pool: with full C4 he presents `NoDemand` however empty his rifle is, is never
+selected, is never granted the condition, and his `ReloadAmmoPool@1` — whose sole gate is that
+condition — never runs again. His rifle never refilled again. Fixed here by listing `primary-ammo`;
+he was the only such actor (below).
+
+**THE PARTIAL SHAPE IS WHY IT SURVIVED REVIEW AND WOULD SURVIVE HAND-TESTING.** While the engineer *is*
+being served for his charges he holds the condition and the rifle trickles as a side effect. The bug
+appears only when the C4 is full — which is his normal state — so every casual test of "does the
+engineer rearm at a depot" says yes.
+
+**The transferable rule.** When you delete a condition GRANT, the compiler and the linter both stay
+silent: `RequiresCondition` on an unreachable condition is not an error, it is a trait that quietly
+never activates. **Enumerate the consumers before deleting the granter, and for each one ask whether
+any OTHER granter reaches it** — not whether the deletion looks correct at the grant site. The
+sharpest tell is the inverse of the usual one: not a failing build but a trait, still present in the
+YAML, that nothing can now switch on.
+
+**A corroborating signal that generalises: the omission was already PRICED.** The same merge added a
+costing comment to the engineer's rifle pool budgeting 5 batches at `SupplyValue: 1`
+(`infantry.yaml:1876`) — someone costed a refill for a metered path the pool was not listed to reach.
+**A cost annotation on an unreachable path is evidence the unreachability is accidental**, and it is
+cheaper to notice than the behaviour is.
+
+**Corpus check, since "is this one actor or fifty" decides the fix's shape.** Across
+`mods/ww3mod/rules/`: **107 pool-carrying actor definitions, 140 pool declarations, exactly ONE
+unlisted pool** — `primary-ammo` on `^E6`, inherited unchanged by `E6`, `E6.america` and `E6.russia`
+(none redeclares `Rearmable`) — and **zero** ghost entries naming a pool the actor lacks. The audit's
+claim held. Method: resolve `Inherits` chains, compare each actor's `AmmoPool@*.Name` set against its
+effective `Rearmable.AmmoPools`; a template-only definition counts once.
+
+**`Rearmable.AmmoPools` ORDER IS INERT, so do not read meaning into it.** The field is a `HashSet`
+(`Rearmable.cs:23-26`) and `RearmableAmmoPools` is built in the actor's **trait declaration order**,
+not the list's (`:44`). Every consumer is order-free: `AcceptClient` uses `Any` (`:747`,`:750`),
+`CalculateNeed` sums (`:771-776`), `RearmTick` serves each pool independently every tick (`:99-116`).
+
+**What canNOT reach an unlisted pool, checked because it was the obvious escape hatch:**
+`AutoSeekSupplies` gates dispatch on `AmmoPool.OutOfEssentialAmmo` (`AutoSeekSupplies.cs:253`), which
+for the engineer means "C4 empty" alone since `secondary-ammo` is `Essential: true`
+(`infantry.yaml:1900`); and `AutoRearmIfDry` from `INotifyAttack` dispatches only for a named
+`Armament`, while the C4 is spent by `Demolition`/`Minelayer` through `TakeAmmo`, whose dispatch call
+is commented out (`AmmoPool.cs:263-266`). **The engine already documents this exact hazard one step
+away and did not connect it:** `AmmoPool.cs:139-170` refuses at load to let an `Essential` pool go
+unlisted, and its own prose names `^E6`'s SMG as "one YAML line away" — reasoning about a *dispatch*
+that never ends while the *grant* had already been cut from under the same pool.
+
+**Invalidated by the item-3 pricing commit on this branch, flagged for the curation pass rather than
+edited (`DOCS/reference/` is curated):** `economy.md`'s E3 figures, and the in-tree comment at
+`structures.yaml:494-501` computing "a full E3 refill is 55, so this Centre buys about 41 of them and
+a 750 truck about 13" — that comment is corrected in-tree by this branch; any copy of 55 elsewhere is
+now stale.
+
 ## 2026-08-27 — The frozen-actor visibility update loop is DEAD CODE, and it is the real cause of the six-month building-fog leak (`wt/fog-leak`, base `main @ 651322b3`)
 
 **`FrozenActor.UpdateVisibility()` runs exactly once per frozen actor — from the constructor
