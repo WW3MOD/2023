@@ -76,22 +76,45 @@
 - `arena-tank-duel` 66×34 → **9.25 s**
 - `siberian-pass-ww3` 97×67 → **34.04 s**
 
-Fitting these two gives **`t ≈ 1.6 s + 2.29 µs × pairs`** (the implied 1.6 s intercept independently matches the ~1.1 s measured bare-utility startup, so the fit is not absorbing hidden per-map cost). Applied to the shipped set:
+Fitting these two gives **`t ≈ 1.6 s + 2.29 µs × pairs`** (the implied 1.6 s intercept independently matches the ~1.1 s measured bare-utility startup, so the fit is not absorbing hidden per-map cost).
 
-| Map | Cells | Pairs | Cache size | **Generation time** | Ships cache? |
-|---|---|---|---|---|---|
-| `arena-tank-duel` | 2,244 | 3.36 M | 6.7 MB | **9.3 s** *(measured)* | no |
-| `shellmap-open-field` | 5,704 | 12.1 M | 24.2 MB | **29.2 s** | no |
-| `siberian-pass-ww3` | 6,499 | 14.2 M | 28.4 MB | **34.0 s** *(measured)* | no |
-| `nuclear-winter-ww3` | 7,344 | 16.5 M | 33.0 MB | **39.3 s** | no |
-| `river-zeta-ww3` | 8,036 | 18.4 M | 36.9 MB | 43.7 s | ✅ yes |
-| `woodland-warfare-ww3` | 9,604 | 22.8 M | 45.5 MB | 53.6 s | ✅ yes |
-| `polar-disorder-ww3` | 9,604 | 22.8 M | 45.5 MB | **53.6 s** | no |
-| `seventh-woods-ww3` | 14,022 | 35.1 M | 70.3 MB | **81.9 s** | no |
-| `twin-rivers-ww3` | 16,384 | 41.9 M | 83.8 MB | **97.3 s** | no |
-| `x-lake-ww3` | 16,900 | 43.3 M | 86.7 MB | **100.7 s** | no |
+> ### ⚠️ CORRECTED 2026-08-30 — this model is ~2.4× too pessimistic, and the 8× parallel estimate is really 2.4×
+>
+> Measured during implementation (`wt/shadow-cache`), same machine, Release, `--regen-shadows` on a
+> copy of `river-zeta-ww3` outside the repo: **17.0 s serial**, not the 43.7 s this model predicts.
+> That is **0.93 µs/pair**, so the correct fit is roughly **`t ≈ 1.5 s + 0.93 µs × pairs`** and every
+> figure in the original column below should be scaled by **≈0.39**.
+>
+> **Stage 2 buys 2.4×, not 8×.** Same map, same machine, 12 cores: **17.0 s → 7.2 s** wall, at
+> 16.8 s → 30.4 s of *total CPU*. The loop is bound by allocation and memory bandwidth, not
+> arithmetic — `FindTilesInAnnulus` and `CellLayer.TilesIntersectingLine` are `yield`-based
+> iterators, so a full generation allocates on the order of **25 M enumerator objects** and the extra
+> cores mostly buy GC contention. The original "~8× on a modern desktop" was a textbook estimate and
+> the document's own Watch section correctly flagged it as unmeasured.
+>
+> **Corrected worst case:** `x-lake-ww3` is **≈39 s serial / ≈17 s parallel**, not 101 s. Still the
+> worst load in the game and still worth caching, but roughly a third of the headline figure — size
+> any lobby pre-warm or progress-bar decision against the corrected column.
 
-Bold = paid **on every load, today**. Independent cross-check: `RESUME-260816.md:21` records x-lake's in-memory shadow layer at 103 MiB post-optimisation, consistent with it being the largest by a wide margin.
+| Map | Cells | Pairs | Cache size | Original estimate | **Corrected serial** | **Corrected parallel** | Ships cache? |
+|---|---|---|---|---|---|---|---|
+| `arena-tank-duel` | 2,244 | 3.36 M | 6.7 MB | 9.3 s | **4.6 s** | **2.9 s** | no |
+| `shellmap-open-field` | 5,704 | 12.1 M | 24.2 MB | 29.2 s | **12.8 s** | **6.1 s** | no |
+| `siberian-pass-ww3` | 6,499 | 14.2 M | 28.4 MB | 34.0 s | **14.7 s** | **6.9 s** | no |
+| `nuclear-winter-ww3` | 7,344 | 16.5 M | 33.0 MB | 39.3 s | **16.8 s** | **7.8 s** | no |
+| `river-zeta-ww3` | 8,036 | 18.4 M | 36.9 MB | 43.7 s | **17.0 s** *(measured)* | **7.2 s** *(measured)* | ✅ yes |
+| `woodland-warfare-ww3` | 9,604 | 22.8 M | 45.5 MB | 53.6 s | **22.7 s** | **10.3 s** | ✅ yes |
+| `polar-disorder-ww3` | 9,604 | 22.8 M | 45.5 MB | 53.6 s | **22.7 s** | **10.3 s** | no |
+| `seventh-woods-ww3` | 14,022 | 35.1 M | 70.3 MB | 81.9 s | **34.1 s** | **15.1 s** | no |
+| `twin-rivers-ww3` | 16,384 | 41.9 M | 83.8 MB | 97.3 s | **40.5 s** | **17.8 s** | no |
+| `x-lake-ww3` | 16,900 | 43.3 M | 86.7 MB | 100.7 s | **41.8 s** | **18.3 s** | no |
+
+Corrected columns are extrapolated from the two river-zeta measurements via the same pair-count model;
+only river-zeta is directly measured. Note this is now paid **once per map ever**, not on every load —
+Stage 1 shipped, so the recurring cost the table was built to describe no longer exists.
+
+Independent cross-check: `RESUME-260816.md:21` records x-lake's in-memory shadow layer at 103 MiB
+post-optimisation, consistent with it being the largest by a wide margin.
 
 **Scaling is ~quadratic in linear map dimension** up to the point where the map exceeds the 65-cell annulus diameter, then linear in area. It is **independent of tree count** — the walk runs over every pair regardless of whether any density is present. (`demo-heli-lanes`'s 25.5 MB file is stored *sparse* on disk — 8 KB allocated — because it is nearly all zeros; that is a filesystem artifact, not a smaller computation.)
 
@@ -242,8 +265,12 @@ The airborne channel is `ceil(ΣD/5)` and the ground channel saturates; both are
 ## Watch
 
 - **The 2.29 µs/pair constant is from two runs on one Apple Silicon machine, Release, no repeats.** The *pair counts* and *file sizes* are exact (verified byte-for-byte on four maps) and I'd defend those anywhere; the *seconds* carry maybe ±30% across hardware. The 8× parallel speedup is a textbook estimate, not measured — memory bandwidth on an 87 MB write-out could easily make it 5×.
+  - **RESOLVED 2026-08-30, and this Watch item was right to exist: both numbers were wrong.** The constant is 0.93 µs/pair, not 2.29, and the parallel speedup is 2.4×, not 8×. See the corrected table in Q2 above. The instinct that memory bandwidth would eat the parallel win was correct; it was worse than the 5× floor guessed here.
 - **I did not verify that x-lake, twin-rivers and seventh-woods actually load** — I never launched the game (correctly, per brief). I inferred their generation cost from a verified size model, not from a stopwatch on a real load. **If I'm wrong about anything important, I'd bet on this**: there may be a map-load path I did not find that avoids the full `Map` constructor for some maps, or an existing cache layer above it, which would make the 101 s figure never actually materialise. I looked for one and found none — `Map.cs:500-508` is unconditional — but "I found no bypass" is weaker than "I watched it load".
 - **The desync hypothesis is a hypothesis.** It fits the evidence unusually well (per-machine float generation, untested cross-machine, fault at tick 3792 rather than tick 0), but I have not run the shasum test and I could easily be pattern-matching. Treat Stage 0 as the thing that decides it, not this document.
+  - **RESOLVED 2026-08-30 — Stage 0 was run and shadow generation is CLEARED as a desync suspect.** Same commit `55836dd8`, same map, regenerated from scratch on **Windows 11 x64** and on **macOS x86_64**, both dotnet `6.0.428`: byte-identical, sha256 `dbecdd12…f2c`, 36,871,948 bytes. The 2026-08-16 two-machine desync must be looked for elsewhere. This also means per-player generation is safe as designed and host-authoritative distribution is not needed.
 - **I did not confirm the two shipped caches are current.** If `river-zeta-ww3/shadows.bin` was baked before the `ForestGroundShadow` superlinear-knee change (`db9545a1`, per `DISCOVERIES.md:5908`), then a cached and an uncached player **already** disagree today. That would be a live bug that this document's Stage 0 would surface as a side effect. I flagged it rather than tested it because testing means overwriting a tracked file in a shared checkout.
+  - **RESOLVED 2026-08-30: both were current, so there was no live bug.** Regenerating each map with its committed cache moved aside reproduces the committed bytes exactly — `river-zeta-ww3` sha256 `dbecdd12…f2c` (36,871,948 B) and `woodland-warfare-ww3` `3c47e113…` (45,527,532 B). Tested on copies and by moving the tracked files aside and restoring them, never by overwriting them in place.
 - **Float determinism: I reasoned structurally, I did not prove it.** "IEEE-754 basic ops in fixed order should be bit-identical" is true in practice on SSE2/NEON but ECMA-335 permits higher intermediate precision, and `Map.cs:1163-1169` is exactly where that would bite.
+  - **RESOLVED 2026-08-30: proven across two OSes and two CPU families** (Windows 11 x64 vs macOS x86_64, and separately macOS Apple Silicon), plus across the serial and `Parallel.ForEach` implementations. All produce `dbecdd12…f2c`. The structural reasoning held; the floats at `Map.cs:1163-1169` do not diverge in practice on the platforms this ships to.
 - **Unrelated but worth knowing:** the machine's boot volume is at **97%, ~975 MB free**. My benchmark was 6.6 MB and is deleted, so this is pre-existing — but it caused a genuine `ENOSPC` mid-session and truncated one benchmark write to 0 bytes. Something else is filling that disk.

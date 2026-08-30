@@ -3,6 +3,32 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-30 — Shadow generation is deterministic ACROSS machines, OSes and CPU families; it is cleared as a suspect for the 2026-08-16 two-machine desync (`wt/shadow-cache`)
+
+- **The result.** Same commit `55836dd8`, same map, regenerated from scratch with no cache present, on
+  **Windows 11 x64** and on **macOS x86_64**, both on dotnet `6.0.428`: **byte-identical**, sha256
+  `dbecdd123dfb80a9c955d00e0e60fc9c818b78dddf408e7481f128719f150f2c`, 36,871,948 bytes. The same hash
+  is also produced on macOS **Apple Silicon**, and by the `Parallel.ForEach` implementation that
+  replaced the serial loop — so it holds across two OSes, two CPU families, and two implementations.
+- **Why it was in doubt.** `RecomputeShadowFrom` accumulates in `float` (`Map.cs:1163-1169`) and
+  ECMA-335 permits higher intermediate precision, so bit-identity was reasoned structurally but never
+  demonstrated. `DISCOVERIES.md:2927-2979` had explicitly scoped its .NET 6/8/10 byte-identity result
+  to a single machine and named the cross-machine case untested.
+- **Why it matters beyond this feature.** Shadow feeds vision attenuation (`MapLayers.cs:363-365`) and
+  firing LOS (`WeaponInfo.cs:148`), both simulation inputs, and the bytes are never sync-hashed
+  (`Sync.cs:71` cannot admit a float). Per-machine generation therefore had exactly the shape of the
+  unsolved 2026-08-16 desync: divergence invisible until the first LOS query near foliage, i.e.
+  thousands of ticks in rather than at tick 0. **That hypothesis is now dead — look elsewhere.**
+- **Consequence for design.** Per-player generation is safe; host-authoritative distribution of the
+  cache is *not* needed, and neither is a lobby handshake to keep players in agreement about shadows.
+- **Related, same session:** the two shipped caches were confirmed **current**, not stale — regenerating
+  each with its committed file moved aside reproduces the committed bytes exactly (`river-zeta-ww3`
+  `dbecdd12…`, `woodland-warfare-ww3` `3c47e113…`). The recon had flagged staleness here as a possible
+  live bug; there was none.
+- **Correction to the recon's cost model:** generation is **0.93 µs/pair**, not the 2.29 µs/pair fitted
+  there, and parallelising buys **2.4×**, not 8× — the loop is allocation- and bandwidth-bound
+  (~25 M iterator allocations per generation). Corrected table in `recon-shadows-on-demand.md` §Q2.
+
 ## 2026-08-30 — 8 of 10 shipped maps regenerate the whole `shadows.bin` LOS cache on EVERY load (29–101 s measured); `ComputeUID` hashes `shadows.bin`, so the cache is part of map identity (recon, `main` @ `627be5a4`)
 
 Full write-up: [`recon-shadows-on-demand.md`](recon-shadows-on-demand.md). Static read plus four
