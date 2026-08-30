@@ -208,6 +208,33 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			return info != null && info.DangerFieldAvoidance;
 		}
 
+		// "Believed air danger over this squad now exceeds the withdraw threshold." ONE copy, called from the
+		// approach state and the attack-run state — deliberately not written out twice. The two callers are
+		// reached under different conditions and only one of them is live today, so a second copy would be a
+		// copy nobody exercises, free to drift from the one that matters without any test noticing.
+		protected static bool AirDangerSpiked(Squad owner, DangerFieldLayer field)
+		{
+			var info = GetHeliModuleInfo(owner);
+			if (info == null)
+				return false;
+
+			return SquadMaxAirDanger(owner, field) > field.AirDangerUnitsToField(info.AirDangerSpikeUnits);
+		}
+
+		// Whether HelicopterAttackRunState may withdraw on an air-danger spike (default off).
+		//
+		// READ THIS BEFORE TUNING IT. HelicopterAttackRunState is currently UNREACHABLE for both shipped bot
+		// profiles. It is constructed at exactly one place in the engine (the handoff further down this file),
+		// that site sits inside `if (!standoff)`, and both HelicopterSquadBotModule@stable and @experimental
+		// set StandoffEngagement: true. So this flag changes nothing today; it makes the state safe for
+		// whoever turns standoff off, and HeliAttackRunReachabilityTest fails the moment that happens so the
+		// change is noticed rather than assumed.
+		protected static bool WithdrawOnSpikeInAttackRunEnabled(Squad owner)
+		{
+			var info = GetHeliModuleInfo(owner);
+			return info != null && info.WithdrawOnSpikeInAttackRun;
+		}
+
 		// True when Phase-4 strategic-target pinning is enabled (experimental-only, default off). Gates every
 		// pin read/write in the states below so that with the flag off Squad.StrategicTarget is never touched
 		// and each state's target logic is byte-identical to the frozen path.
@@ -580,8 +607,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			{
 				// Withdraw-on-spike: a newly-believed AA now reads over the squad's own position —
 				// stop pushing in, hand to the withdraw state (which re-routes to air-safe ground).
-				var info = GetHeliModuleInfo(owner);
-				if (SquadMaxAirDanger(owner, danger) > danger.AirDangerUnitsToField(info.AirDangerSpikeUnits))
+				if (AirDangerSpiked(owner, danger))
 				{
 					owner.FuzzyStateMachine.ChangeState(owner, new HelicopterWithdrawState());
 					return;
@@ -724,6 +750,24 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			{
 				owner.FuzzyStateMachine.ChangeState(owner, new HelicopterWithdrawState());
 				return;
+			}
+
+			// Withdraw-on-spike, carried in from HelicopterApproachState. Without it the ONLY exits from an
+			// attack run are damage already taken (SendDamagedUnitsHome / ShouldFlee), the hit-and-run timer,
+			// and the target dying — so a newly-believed SAM lighting up over the squad cannot end the run. For
+			// a helicopter, "withdraw once you have been shot" is a decision made one salvo too late.
+			//
+			// NOT gated on StandoffEngagement, unlike the approach-state copy: reaching this state at all means
+			// standoff was FALSE, so borrowing that condition would make this permanently inert. It reads its
+			// own flag and needs only the danger layer to exist.
+			if (WithdrawOnSpikeInAttackRunEnabled(owner))
+			{
+				var spikeDanger = GetDangerField(owner);
+				if (spikeDanger != null && AirDangerSpiked(owner, spikeDanger))
+				{
+					owner.FuzzyStateMachine.ChangeState(owner, new HelicopterWithdrawState());
+					return;
+				}
 			}
 
 			// Hit-and-run: pull back after cooldown ticks

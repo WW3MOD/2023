@@ -213,6 +213,17 @@ namespace OpenRA.Mods.Common.Traits
 			"believed AA envelope' at any scale, and converting it would change nothing (0 units = 0 raw).")]
 		public readonly int AirDangerSpikeUnits = 25;
 
+		[Desc("EXPERIMENTAL: let HelicopterAttackRunState withdraw when believed air danger over the squad",
+			"exceeds AirDangerSpikeUnits, the same test HelicopterApproachState already applies. Without it the",
+			"only exits from an attack run are damage ALREADY TAKEN, the hit-and-run timer and the target dying",
+			"— so a SAM lighting up over a 6000-cost airframe cannot end the run until it has been hit.",
+			"REACHABILITY, and read this before tuning: HelicopterAttackRunState is constructed at exactly ONE",
+			"place in the engine, inside `if (!standoff)`, and BOTH shipped bot profiles set",
+			"StandoffEngagement: true. The state is therefore dead code today and this flag changes nothing in a",
+			"match. It is here so the state is not a trap for whoever disables standoff; HeliAttackRunReachability",
+			"Test pins that fact and fails when it stops being true. Default false ⇒ frozen for every profile.")]
+		public readonly bool WithdrawOnSpikeInAttackRun = false;
+
 		[Desc("Stage-D: how far from the target (cells) to search for an AA-safe standoff cell to leash to.")]
 		public readonly int AirDangerLeashCells = 6;
 

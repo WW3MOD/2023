@@ -2025,6 +2025,14 @@ Player:
 		# SURFACED 2026-08-09 — see the @stable twin above for why this is written out rather than left on
 		# the C# default. Kept identical to the twin: this is a bug-class correction, not a lever.
 		AirDangerSpikeUnits: 25
+		# 2026-08-30: apply that same spike test inside HelicopterAttackRunState, whose only other exits are
+		# damage ALREADY TAKEN, the hit-and-run timer and the target dying.
+		# THIS IS INERT TODAY AND THAT IS NOT AN OVERSIGHT. HelicopterAttackRunState is constructed at exactly
+		# one place in the engine, inside `if (!standoff)` (HelicopterStates.cs:597), and StandoffEngagement is
+		# true on this profile AND on @stable — so the state is unreachable for both and this flag cannot
+		# change a match. It is set so the state is safe for whoever turns standoff off rather than being a
+		# trap for them. HeliAttackRunReachabilityTest pins the unreachability and fails when it ends.
+		WithdrawOnSpikeInAttackRun: true
 		# Forward-staging (default-frozen in C#): push idle attack helis that are
 		# still loitering near the SR forward to ~40% of the SR->top-POI vector, so they stage toward
 		# the fight instead of hovering at the SR corner. Pct clamped short of contact per the recon's
