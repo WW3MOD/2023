@@ -518,3 +518,85 @@ highest-risk item in the whole audit.
   a one-line guard for symmetry.
 - **Finding 12's frozen Supply Route** is latent-only, held shut by one YAML line
   (`structures.yaml:262-263`). Worth a comment so narrowing that line does not silently open it.
+
+---
+
+# Pathing (finding 3): cost and determinism, sized before building
+
+Written 2026-08-30 after the user ruled "make the order work". **Nothing built yet** — this is the
+sizing they asked for first. Headline: **the feared cost is not there, and the change is much
+smaller than the audit implied.**
+
+## The search is already bounded, and reachability is already O(1)
+
+The audit assumed "nearest reachable point" meant flooding outward until something connects. It does
+not, for two reasons found by reading:
+
+**1. Reachability is a domain-index compare, not a search.** The hierarchical pathfinder maintains
+`abstractDomains` — "if the domain index of two nodes is equal, a path exists between them"
+(`HierarchicalPathFinder.cs:126-128`). `PathExists` (`:935-976`) is a cached lookup plus, at worst,
+eight adjacent-cell probes. It is exposed as `PathFinder.PathExistsForLocomotor` (`:190`). The cache
+rebuilds only when the abstract graph changes.
+
+**2. The ring expansion already exists and is already capped.** `Mobile.NearestMoveableCell`
+(`Mobile.cs:840-861`) already walks `FindTilesInAnnulus(target, minRange, maxRange)`. The defect is
+not that it lacks a search — it is that its per-cell test is `CanEnterCell && CanStayInCell` with
+**no reachability term**, so on an unreachable island the target itself passes at `:853` and the
+annulus loop never even runs. That is why the relocation is a no-op.
+
+So the change is: add a reachability term to the existing bounded loop. Not a new search.
+
+**Worst realistic case:** `maxRange` is supplied by callers (`Move` uses 8–10 cells), so the loop is
+O(maxRange²) ≈ a few hundred cells, each an O(1) domain compare, and it runs only on a click that
+would otherwise have done nothing. **Beyond the cap it returns `target` unchanged — i.e. it degrades
+to exactly today's do-nothing behaviour, which is the radius-cap fallback the user proposed, already
+present in the code.**
+
+## Determinism
+
+- `PathExistsForLocomotor` is **already called from simulation code** — `RotateToEdge.cs:157`
+  (an activity), `AutoCarryable.cs:152`, `NavyStates.cs:36`. The primitive is therefore already
+  sync-critical and proven, not something this change introduces.
+- It reads the `BlockedByActor.None` pathfinder (`PathFinder.cs:192`), so it is **actor-independent**
+  — transient unit positions cannot perturb it.
+- `FindTilesInAnnulus` is deterministic integer cell enumeration; ties resolve to the first cell in
+  a fixed order. No RNG anywhere on the path.
+- **The one thing still to verify before merge:** `PathExists` calls `RebuildDomains()` internally,
+  which mutates a cache. The *result* is derived state and identical on every client, but the rebuild
+  *timing* differs. Needs confirming that nothing observable depends on when the rebuild happens.
+
+## The RED scenario, and specifically its discriminator
+
+The trap the user named: **do not assert "the unit moved", and do not assert on distance to an
+anchor.** The discriminator is *the unit ended nearer the target than it started, having taken a
+path*.
+
+State it as: `final_distance_to_target < initial_distance_to_target` **and** `final_cell !=
+initial_cell`, with the target inside a region the unit cannot reach.
+
+The second warning applies directly here: **ask what the assertion reports if the search silently
+returns the start cell.** That is precisely the current buggy behaviour — `NearestMoveableCell`
+returns `target`, `Move` sets `destination = mobile.ToCell` (`Move.cs:173-177`) and completes. So a
+naive "did the activity finish?" or "is the unit alive?" check passes on the bug. The `final_cell !=
+initial_cell` term is what makes the no-op fail, and the distance term is what stops a unit that
+merely shuffled one cell sideways from counting as a pass.
+
+**Not yet written or run.** Proving it RED needs a game launch, and launches are serialised on this
+project — requesting a slot rather than taking one.
+
+---
+
+# Branch note: what has and has not been seen on screen
+
+**Every cursor change on this branch is verified by compilation, unit tests and reading — not by
+looking at it.** No game has been launched from this worktree. Specifically unobserved:
+
+- the attack-move blocked cursor actually appearing for a dry unit;
+- the **mixed-selection** behaviour, which is reasoned from `MaxByOrDefault`'s tie-breaking
+  (`Exts.cs:276`) rather than watched;
+- the guard and minelayer blocked cursors;
+- the deploy refusal being **audible** (the notification is wired and configured, but nobody has
+  heard it);
+- the aircraft cursor no longer blocking under EMP.
+
+A cursor fix verified only by compilation is exactly the shape this audit exists to distrust.
