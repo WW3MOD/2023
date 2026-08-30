@@ -55,6 +55,29 @@ though the partial-ammo case is handled when nothing in the codebase acts on a p
 airframe at all (`HasUsableAmmo` is any-pool, `HelicopterSquadBotModule.cs:1709-1720`;
 `AirframeEvacMath.Decide` returns `None` while `loadedPools > 0`, `Air/AirframeEvacMath.cs:85-86`).
 
+**The `AirStrikeUnits` counter-buy window has never produced an aircraft, and the reason generalises:
+absence of a composition slot is read as absence of a BOUND.** `RequestCheapestBuildable`
+(`AdaptiveProductionBotModule.cs:558-580`) filters candidates on `Rules.Actors.ContainsKey` only
+(`:561`) — existence, not buildability — then breaks cost ties with `StringComparer.Ordinal`
+(`:562-563`), so `"a10" < "heli"` and `"frog" < "mi28"` both select the `~disabled` fixed-wing.
+`RequestUnitProduction` is `void` (`TraitsInterfaces.cs:749`), so the loop `return`s at the first
+candidate (`:575-576`) and the helicopter is never reached. The request then dies in
+`UnitBuilderBotModule.BuildUnit(bot, name)` (`:1561-1587`) **before any order is issued**: `a10`'s
+`BuildableInfo.Queue` is the empty default (`Traits/Buildable.cs:27`) because its own `Buildable`
+block declares only `Prerequisites: ~disabled` (`aircraft-america.yaml:458-459`) and
+`rules/ingame/aircraft.yaml` contains **zero `Buildable:` traits and zero `Queue:` lines** across all
+eight templates, so nothing is inherited — the `foreach` at `:1572` never executes. Belt and braces,
+`ProductionQueue.ResolveOrder:450-451` would drop it anyway (`BuildableItems()` excludes it; nothing
+in `mods/` provides the `disabled` prerequisite). The FIFO drain consumes the entry regardless
+(`:643-645`), so it silently re-requests forever with no debug line. **Consequence:
+`AirStrikeNeedWeight`, `AaWeakThreshold` and `NeedBudgetReservePct` (`ai.yaml:1440-1442`,
+`:1483-1485`) are tuning on a no-op.** The durable half is the general shape —
+`RequestIsOverCompositionCeiling` returns `false` when `Array.IndexOf(compositionTypes, name) < 0`
+(`UnitBuilderBotModule.cs:1750-1752`), so **any type deliberately excluded from composition is
+unbounded on the demand lane.** Dropping `a10`/`frog` from `AirStrikeUnits`, or making one fixed-wing
+buildable, immediately re-points the window at `heli`/`mi28` on a lane with no `UnitsToBuild`, no
+`UnitLimits`, no `UnitDelays` and no ceiling. The gun is loaded and the YAML says nothing about it.
+
 Full analysis and numbered proposals: `WORKSPACE/recon-bot-helicopters.md`.
 
 ## 2026-08-30 — Two branches fixed one cursor defect independently, and git AUTO-MERGED their two field declarations into a duplicate (`wt/truck-refills-lc` rebased onto `a2466c3b`)

@@ -328,4 +328,42 @@ These cannot be validated by reading or by a single autotest. **Each needs a mat
 
 **A second one I hold loosely:** that `UnitLimits` overshoot (§1.1) is small in practice. Delivery time from map edge is map-dependent and I did not measure it; on a large map the transient could be worse than "one extra".
 
-**What I deliberately did not check:** whether `Order.StartProduction` on an unbuildable item is rejected by the queue. This matters for one secondary path — the `AirStrikeUnits` air-strike window (`ai.yaml:1429-1442`) requests the *cheapest* named type by ordinal tie-break, which selects `a10`/`frog` (both `~disabled`) over `heli`/`mi28`. If those orders are silently rejected the window is inert and is **not** a heli source; if they are not, it is a second uncapped one. Since helicopters are exempt from `RequestIsOverCompositionCeiling` (`UnitBuilderBotModule.cs:1749-1751`, they are not in `compositionTypes`), a request that *did* land would be unbounded. **Worth ten minutes before anyone tunes that window.**
+**What I deliberately did not check:** whether `Order.StartProduction` on an unbuildable item is rejected by the queue. This matters for one secondary path — the `AirStrikeUnits` air-strike window (`ai.yaml:1429-1442`) requests the *cheapest* named type by ordinal tie-break, which selects `a10`/`frog` (both `~disabled`) over `heli`/`mi28`. If those orders are silently rejected the window is inert and is **not** a heli source; if they are not, it is a second uncapped one. Since helicopters are exempt from `RequestIsOverCompositionCeiling` (`UnitBuilderBotModule.cs:1749-1751`, they are not in `compositionTypes`), a request that *did* land would be unbounded. **Worth ten minutes before anyone tunes that window.** → **Settled; see the addendum below.**
+
+---
+
+# Addendum (2026-08-30) — the `AirStrikeUnits` window is inert, and that is not entirely good news
+
+**Answer: outcome 1. The window has never produced an aircraft, so P1/P2/P3 do not leak and need no second gate.** But it is inert by accident rather than by design, and two one-line edits uncork it as exactly the uncapped second source the question feared.
+
+## The chain, each link verified
+
+**1. The pick is always the disabled fixed-wing.** `RequestCheapestBuildable` (`AdaptiveProductionBotModule.cs:558-580`) filters candidates on `world.Map.Rules.Actors.ContainsKey(u)` **only** (`:561`) — existence in the rules, *not* buildability — then orders by `UnitCost` and breaks ties with `StringComparer.Ordinal` (`:562-563`). America's pool is `heli, a10` (`ai.yaml:1436`), both cost 6000, and `"a10" < "heli"`. Russia's is `mi28, frog` (`:1479`), both 6000, and `"frog" < "mi28"`. **The disabled airframe wins both tie-breaks.**
+
+**2. The helicopter is never reached on a later iteration.** `RequestUnitProduction` is `void` (`TraitsInterfaces.cs:749`; impl `UnitBuilderBotModule.cs:760`), so it cannot report failure. `RequestCheapestBuildable` `return 1`s immediately after the call (`:575-576`). The loop's only `continue` is the `alreadyRequested >= 2` in-flight cap (`:572-573`), which the drop-on-failure below resets to 0 every cycle. **`heli`/`mi28` is never requested by this path.**
+
+**3. The composition ceiling waves it through.** `RequestIsOverCompositionCeiling` returns `false` when `Array.IndexOf(compositionTypes, name) < 0` (`UnitBuilderBotModule.cs:1750-1752`). No aircraft is in `compositionTypes` (§1.1b), so the request is admitted unconditionally and reaches `BuildUnit(bot, name)`.
+
+**4. `Order.StartProduction` is never issued — the request dies one step before the queue.** `BuildUnit(bot, name)` (`:1561-1587`) reads `buildableInfo.Queue` and loops over it (`:1572-1577`) to find a queue with nothing already queued. **`a10`'s `Queue` is the empty default.** `BuildableInfo.Queue` initialises to `new()` (`Traits/Buildable.cs:27`); `A10`'s own `Buildable` block declares *only* `Prerequisites: ~disabled` (`aircraft-america.yaml:458-459`); and nothing is inherited, because `mods/ww3mod/rules/ingame/aircraft.yaml` contains **zero `Buildable:` traits and zero `Queue:` lines** across all eight templates (`^NeutralAirborne`, `^Airborne`, `^AirRadar`, `^Aircraft`, `^Helicopter`, `^Drone`, `^WhenDamagedAir`, `^AircraftAffectedByEMP`). So the `foreach` body never executes, `queue` stays `null`, and the method returns `false` at `:1586` **without issuing an order at all.**
+
+**5. Belt and braces — the queue would refuse it anyway.** Had `a10` carried a `Queue`, `ProductionQueue.ResolveOrder` drops it twice: `!bi.Queue.Contains(Info.Type)` (`:446-447`) and, decisively, `if (BuildableItems().All(b => b.Name != order.TargetString)) return;` (`:450-451`). `BuildableItems()` returns `buildableProducibles` (`:298`) = `Producible.Where(a => a.Value.Buildable)` (`:169`), and `Buildable` is set true only by the tech-tree callback `PrerequisitesAvailable` (`:246`). Nothing in `mods/ww3mod/` provides the `disabled` prerequisite — `grep -rn "ProvidesPrerequisite" mods/ww3mod/ | grep -i disabled` returns nothing — so `~disabled` is unsatisfiable and `a10` is never in `BuildableItems()`. `ClassicProductionQueue.BuildableItems()` only narrows further (`:79-82`, returns `NoItems` when disabled).
+
+**6. The request is consumed either way.** The FIFO drain removes the entry whether or not `BuildUnit` succeeded (`:643-645`), so `RequestedProductionCount` returns to 0 and the window re-requests `a10` on its next `EvaluationInterval: 300` (`ai.yaml:1446`) — forever, silently, with no debug line marking the failure.
+
+## Consequences
+
+**For the cap proposals: no change.** P1, P2 and P3 do not leak. No second gate is required for correctness today.
+
+**A documented bot behaviour has never fired, and its tuning is fiction.** `AirStrikeNeedWeight: 100`, `AaWeakThreshold: 2000`, `NeedBudgetReservePct: 200` (`ai.yaml:1440-1442`, `:1483-1485`) have never influenced a match, and `CompositionNeedMath.AirOpportunityScore` has never selected a purchase. Anyone tuning those numbers is tuning a no-op. This should be said out loud somewhere the next person will see it.
+
+**It is a loaded gun, and the trigger is one line.** Either making a fixed-wing buildable, or simply dropping `a10`/`frog` from `AirStrikeUnits`, immediately re-points the window at `heli`/`mi28` — which then rides the FIFO lane that applies **no `UnitsToBuild`, no `UnitLimits`, no `UnitDelays`** (`:1561-1587`) and is **exempt from the composition ceiling** (step 3). That is precisely the uncapped second heli source. It is dormant, not absent, and nothing in the YAML says so.
+
+## Two further proposals
+
+**P15 — filter `RequestCheapestBuildable` on actual buildability. Engine C#. Trivial. Low risk.**
+`AdaptiveProductionBotModule.cs:561`: intersect the pool with the player's queue `BuildableItems()` names instead of `Rules.Actors.ContainsKey`. This converts a silent permanent no-op into either a real behaviour or an honest nothing. **Ship it with eyes open**: on the current roster it makes the window start buying `heli`/`mi28`, so it must land *after* P16 or together with it, never before.
+
+**P16 — a type absent from `compositionTypes` must not be treated as unbounded. Engine C#. Small. Medium value, and it generalises.**
+`RequestIsOverCompositionCeiling` reads "no composition slot" as "no ceiling" (`:1750-1752`). For a type deliberately excluded from composition — which is exactly the helicopter situation — that is backwards: **absence of a share becomes absence of a bound.** This is the same root as §1.1(b), reached by a different path. Suggested shape: an explicit `FifoUnslottedPolicy` (default `Admit`, preserving baseline and `@stable`) with a `Refuse` setting used by `@experimental`, so an unslotted expensive type cannot be bought on the demand lane at all. Cheap insurance that makes P15 safe.
+
+**Revised recommendation:** P15 and P16 are not urgent, because nothing leaks today. They are what stops the next person's innocuous-looking edit from silently re-creating the exact bug this recon was written about.
