@@ -1,0 +1,84 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Engineer's Rifle Refills With C4 Full (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# ---- WEST END: the subject. Engineer, full C4, spent rifle, stocked Centre. ----
+	EngineerDepot: logisticscenter
+		Owner: USA
+		Location: 8,16
+	# THREE cells from the Centre's Location and two from its edge — the identical geometry
+	# test-who-pays-for-a-rearm proved is comfortably inside the 4c0 AuraRange
+	# (structures.yaml:503). Staging him outside it is the trap this scenario is most likely to
+	# fall into: he would gain nothing, the run would read as confirmation of the bug, and it
+	# would have proved only that he was standing too far away. Asserted at evaluation time.
+	Engineer: e6
+		Owner: USA
+		Location: 11,16
+	# ---- EAST END: the positive control. Same building, same distance, a soldier whose pool IS
+	# listed in his Rearmable. ----
+	#
+	# TWO CENTRES rather than one, and the separation is load-bearing. The aura arm serves ONE
+	# client at a time, chosen by greatest need (SupplyProvider.FindGreatestNeedTarget:629-691), and
+	# a dry AR scores need 1.0 (one pool, 500 rounds, all missing) against the engineer's 0.4
+	# (100 of 250 supply-weighted capacity missing). Sharing a Centre would let the control
+	# monopolise the target slot and starve the subject of service for reasons that have nothing to
+	# do with the defect — a false RED that would have blamed the fix.
+	ControlDepot: logisticscenter
+		Owner: USA
+		Location: 58,16
+	# FORTY-FOUR cells from the engineer, past AutoSeekSupplies' 30-cell ReturnWhenEmptyLeashCells,
+	# so neither subject can be dispatched to the other's Centre and rearm there.
+	Control: ar
+		Owner: USA
+		Location: 55,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 11,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 32,30
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

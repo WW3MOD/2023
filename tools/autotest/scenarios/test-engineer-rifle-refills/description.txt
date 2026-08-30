@@ -1,0 +1,4 @@
+Engineer with FULL C4 and a spent rifle, 3 cells from a stocked Logistics Centre: do rounds arrive?
+His primary-ammo must be listed in Rearmable.AmmoPools or AcceptClient reads NoDemand from the full
+C4, he is never selected, never granted replenish-soldiers, and ReloadAmmoPool@1 never runs. The AR
+at the eastern Centre is the positive control — if HE gains nothing the run measured nothing.

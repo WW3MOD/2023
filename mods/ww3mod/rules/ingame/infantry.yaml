@@ -1951,7 +1951,26 @@ AA:
 	# 	BlinkPattern: On, Off
 	Rearmable:
 		RearmActors: truk, supplycache, logisticscenter
-		AmmoPools: secondary-ammo
+		# primary-ammo ADDED 2026-08-30. Listing secondary-ammo alone made his rifle permanently
+		# unrefillable the moment 9e46f141 deleted LOGISTICSCENTER's bare
+		# ProximityExternalCondition@ReplenishSoldiers (structures.yaml:455-468). This list is the
+		# ONLY demand SupplyProvider.AcceptClient can see (SupplyProvider.cs:747, reading
+		# Rearmable.RearmableAmmoPools built at Rearmable.cs:44), so an engineer with full C4 and an
+		# empty rifle presented NoDemand, was never selected, was never granted replenish-soldiers,
+		# and his ReloadAmmoPool@1 above — whose sole gate is that condition — never ran again.
+		# Before the merge the bare proximity grant reached him regardless of demand, so the omission
+		# was invisible.
+		#
+		# THE OMISSION WAS ALREADY PRICED: the costing comment on AmmoPool@1 above budgets 5 batches
+		# at SupplyValue 1 for this exact refill. The pool was costed for a metered path it was not
+		# listed to reach.
+		#
+		# ORDER IS INERT here, so do not read meaning into it: the field is a HashSet
+		# (Rearmable.cs:23-26), and RearmableAmmoPools is built in the actor's TRAIT declaration
+		# order rather than this list's (Rearmable.cs:44). Every consumer is order-free — AcceptClient
+		# uses Any (:747,:750), CalculateNeed sums (:771-776), and RearmTick serves each pool
+		# independently every tick (Rearmable.cs:99-116).
+		AmmoPools: primary-ammo, secondary-ammo
 	# The engineer's orders ARE his purpose and none of them need ammunition: capture, bridge repair,
 	# demolition and mine-laying are all walk-to-a-place errands, and breaking one off part-way wastes
 	# the whole trip. He keeps the idle seek above — finish the job, then go restock — but never
