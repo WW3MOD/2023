@@ -3,6 +3,59 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-30 — 8 of 10 shipped maps regenerate the whole `shadows.bin` LOS cache on EVERY load (29–101 s measured); `ComputeUID` hashes `shadows.bin`, so the cache is part of map identity (recon, `main` @ `627be5a4`)
+
+Full write-up: [`recon-shadows-on-demand.md`](recon-shadows-on-demand.md). Static read plus four
+measured `--regen-shadows` runs on map copies **outside** the repo; no tracked file touched.
+
+- **The "shadows are only generated on editor save" belief is wrong, and the correction is expensive.**
+  There is a third writer: `Map.cs:500-508` computes the layers in memory at load whenever the file is
+  absent, running the identical `SetDensityLayer()`+`SetShadowLayer()` pair that the editor-save path
+  runs (`Map.cs:948-949`) — then **discards it on unload**. Only `river-zeta-ww3` and
+  `woodland-warfare-ww3` ship a `shadows.bin`; the other eight maps pay full generation on **every**
+  load. This is invisible because it is indistinguishable from a slow loading screen.
+- **Cost model, verified exactly.** Work is linear in stored (from,to) cell pairs; pairs are fixed by
+  geometry — offsets `ceil(sqrt(du²+dv²)) ∈ [2,32]` (`MapShadowLayer.cs:36-37`) clipped to `MapSize`
+  (`Map.cs:1916`). `bytes = cells + 2×pairs` reproduces all four on-disk files **byte-for-byte**
+  (arena 6,719,660 · siberian 28,415,043 · river-zeta 36,871,948 · woodland 45,527,532). Measured
+  Release, single-threaded, Apple Silicon: arena 66×34 = **9.25 s**, siberian-pass 97×67 = **34.04 s**
+  → `t ≈ 1.6 s + 2.29 µs × pairs` (fitted intercept matches the ~1.1 s bare-utility startup).
+  Predicted for the uncached shipped maps: `polar-disorder` 53.6 s, `seventh-woods` 81.9 s,
+  `twin-rivers` 97.3 s, **`x-lake` 100.7 s / 86.7 MB**. Cost is **independent of tree count** — every
+  pair is walked regardless of density. (A near-empty map's file stores *sparse* on disk — 8 KB
+  allocated for 25.5 MB logical — which is a filesystem artifact, not a cheaper computation.)
+- **`Map.ComputeUID` hashes every `.bin` in the package, so `shadows.bin` is part of map identity**
+  (`Map.cs:291-318`, the `filename.EndsWith(".bin")` clause catches `map.bin` *and* `shadows.bin`).
+  Consequences: a map with the cache and the same map without it are **different maps** to the lobby;
+  any design that has a player generate the cache *into the map package* mutates that player's UID
+  mid-lobby; and any cache keyed on the UID is **circular** until the file is moved out of the package.
+  Removing it changes those two maps' UIDs once — no hardcoded 40-hex map UIDs exist in
+  `tools/autotest/` or `mods/ww3mod/` (the 40-hex strings there are `git_sha` in `batch.meta.json`).
+- **`SetShadowLayer` is embarrassingly parallel and provably scheduling-independent.** Each from-cell
+  writes a disjoint slot range (`MapShadowLayer.cs:71-77,134`), reads a fully-populated `DensityLayer`,
+  and both enumerators are pure over immutable data (`Map.cs:1911-1919`, `CellLayer.cs:160-190`). No
+  accumulation crosses a from-cell boundary, so `Parallel.ForEach` is bit-identical. ~8× available.
+- **git accounting, for expectation-setting.** 19 tracked files but **26 distinct blob versions** in
+  history: **718.3 MB logical, 243.8 MB actual packfile cost — ~38% of the 644 MB `.git`**. gzip is
+  *not* a lever: `shadows.bin` gzips to 40.5%, but git already zlib-compresses blobs, which is exactly
+  why 718 MB occupies 244 MB. And **gitignoring reclaims zero** without a history rewrite — it stops
+  the bleed (~9.4 MB average per future regen/editor-save), never shrinks. Also: **17 of the 19 files
+  are autotest scenario duplicates** of the same two maps' terrain, so a content-keyed cache collapses
+  them to 2 entries.
+- **Untested suspect for the unsolved 2026-08-16 two-machine desync.** Shadows are simulation inputs,
+  not presentation — vision attenuation (`MapLayers.cs:363-365`), weapon firing gate
+  (`WeaponInfo.cs:148`), damage cover (`DensityModifiesDamage.cs:72-87`) — and `RecomputeShadowFrom`
+  uses `float` (`Map.cs:1163,1165,1169,1177`). Eight maps compute those floats **per machine** at load,
+  the bytes are never sync-hashed (`Sync.cs:71` cannot admit a float), so a divergence would surface
+  only at first contact near foliage — matching the observed tick-3792 fault. The cross-runtime
+  negative at `DISCOVERIES.md:2927-2979` does **not** cover this: it was one machine. **Two-minute
+  test, no code:** `--regen-shadows` the same map on both machines and `shasum` both.
+- **Latent trap:** `deltaLengthSquared` (`Map.cs:1162`) is `int` and peaks at ~1.07×10⁹ for
+  `MaxRange = 32`; the overflow ceiling is `MaxRange = 45`. Also `dH` (`Map.cs:1147`) is dead.
+- **Standing risk this makes concrete:** the `Map.cs:1172-1175` PITFALL (curve edits do nothing until
+  regen) has no mechanical guard. A `SHADOW_ALGO_VERSION` const folded into any cache key converts it
+  from silent-wrong into automatic-rebuild, and is what makes replays reproduce after a curve edit.
+
 ## 2026-08-30 — `buildRandom` is permanently TRUE on the helicopter lanes, so their `UnitsToBuild` weights have never executed (recon, `main` @ `7de03906`)
 
 **The general shape, which outlives the helicopter case: a production lane whose unit type is
