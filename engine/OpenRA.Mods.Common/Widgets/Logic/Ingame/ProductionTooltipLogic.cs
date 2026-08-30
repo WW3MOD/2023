@@ -208,16 +208,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					lines.Add((priority, text));
 			}
 
-			// Grand-total across all ammo pools when an actor has 2+ pools.
+			// What refilling this actor from empty costs, across every priced pool.
 			// Lives in the renderer (not on AmmoPoolInfo) so individual pools don't
 			// need to know about each other; the cross-pool sum is intrinsically global.
+			//
+			// UNCONDITIONAL on purpose. This was gated on `pools.Length >= 2`, which meant a
+			// single-pool actor never saw a refill cost at all: an abrams' 240 appeared only as
+			// the tail of "Ammo: 40 (8 batches x 5 rounds x 30 supply = 240)", where it reads as
+			// the result of an arithmetic expression rather than as a price. The total is a
+			// property of the ACTOR, not of its having happened to need two terms to compute.
 			var pools = actor.TraitInfos<AmmoPoolInfo>()
 				.Where(p => p.Ammo > 0 && p.SupplyValue > 0)
 				.ToArray();
-			if (pools.Length >= 2)
+			if (pools.Length > 0)
 			{
 				var total = pools.Sum(p => p.PoolBudget);
-				lines.Add((110, $"Total ammo cost: {total}"));
+				lines.Add((110, $"Full refill: {total} supply"));
 			}
 
 			if (lines.Count > 0)
