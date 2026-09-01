@@ -112,9 +112,10 @@ namespace OpenRA.Test
 			// legacy per-passenger forwarding must still be skipped for them or occupants are hit twice.
 			var damaged = DamagedMethod();
 
+			// One Where rather than two, per RCS1112. && still short-circuits, so the IL scan is not
+			// run on Damaged itself — which is the point of the token check being first.
 			var holders = CargoMethods()
-				.Where(m => m.MetadataToken != damaged.MetadataToken)
-				.Where(m => MentionsGarrisonProtection(IlScan.Scan(m)))
+				.Where(m => m.MetadataToken != damaged.MetadataToken && MentionsGarrisonProtection(IlScan.Scan(m)))
 				.Select(m => m.Name)
 				.ToArray();
 

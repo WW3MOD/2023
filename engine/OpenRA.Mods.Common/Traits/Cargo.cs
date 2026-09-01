@@ -747,23 +747,26 @@ namespace OpenRA.Mods.Common.Traits
 			return (int)((long)transportMaxHP * thresholdPercent / 100);
 		}
 
-		/// <summary>Whether the transport's damage state calls for an unordered bail-out.
-		/// Dead is deliberately excluded, and that exclusion is the whole point of this being a
+		/// <summary>
+		/// <para>Whether the transport's damage state calls for an unordered bail-out.</para>
+		///
+		/// <para>Dead is deliberately excluded, and that exclusion is the whole point of this being a
 		/// named predicate. Health clamps HP to 0 and evaluates DamageState BEFORE it notifies
 		/// Damaged (Health.cs:189-200), so the killing blow arrives here already reading Dead — and
-		/// Dead is numerically ABOVE Heavy, so a naive `>=` passes it. Bailing there would empty the
+		/// Dead is numerically ABOVE Heavy, so a naive `&gt;=` passes it. Bailing there would empty the
 		/// hold synchronously and leave INotifyKilled's EjectOnDeath iterating an empty list, so a
 		/// one-shot kill on a loaded transport would let the entire squad walk away unhurt. Once the
-		/// hull is dead the cargo belongs to Killed.
+		/// hull is dead the cargo belongs to Killed.</para>
 		///
-		/// A bailAt of Dead means OFF, and it is written out below rather than left to fall out of
-		/// the exclusion above. Both spellings return false for every input, so this branch changes
+		/// <para>A bailAt of Dead means OFF, and it is written out below rather than left to fall out
+		/// of the exclusion above. Both spellings return false for every input, so this branch changes
 		/// no behaviour — it changes why. An off position that holds only because some OTHER clause
 		/// happens to exclude Dead is one edit away from silently switching back on, and that is
 		/// exactly the failure this file already has on record: see ForwardDamageToPassengers, where
 		/// a guard written for one block acquired a second one appended beneath it without one
 		/// character of the guard changing. DamageState is a [Flags] enum with no zero member, so
-		/// Dead is the only value available to mean this.</summary>
+		/// Dead is the only value available to mean this.</para>
+		/// </summary>
 		public static bool ShouldEmergencyBail(DamageState current, DamageState bailAt)
 		{
 			if (bailAt == DamageState.Dead)
@@ -924,15 +927,17 @@ namespace OpenRA.Mods.Common.Traits
 			})));
 		}
 
-		/// <summary>The legacy share of a hull hit felt by the men riding inside.
+		/// <summary>
+		/// <para>The legacy share of a hull hit felt by the men riding inside.</para>
 		///
-		/// The GarrisonProtection check lives HERE, at the top of the only block it is about, and
-		/// must not be lifted back up into Damaged. It was written at method scope in c9699af9, when
-		/// this forwarding was the whole method and an early return was exact; 4e8e29e2 then appended
-		/// the emergency bail below it and the guard silently grew to cover that too, leaving the bail
-		/// dead on every garrisonable building for four months. Scoping it to its own method is what
-		/// keeps the next block appended to Damaged from inheriting a skip nobody wrote for it.
-		/// GarrisonBailReachabilityTest pins that.</summary>
+		/// <para>The GarrisonProtection check lives HERE, at the top of the only block it is about,
+		/// and must not be lifted back up into Damaged. It was written at method scope in c9699af9,
+		/// when this forwarding was the whole method and an early return was exact; 4e8e29e2 then
+		/// appended the emergency bail below it and the guard silently grew to cover that too, leaving
+		/// the bail dead on every garrisonable building for four months. Scoping it to its own method
+		/// is what keeps the next block appended to Damaged from inheriting a skip nobody wrote for
+		/// it. GarrisonBailReachabilityTest pins that.</para>
+		/// </summary>
 		void ForwardDamageToPassengers(Actor self, AttackInfo e, Health healthTrait)
 		{
 			// Garrison buildings get their pass-through from GarrisonProtection instead, which picks
