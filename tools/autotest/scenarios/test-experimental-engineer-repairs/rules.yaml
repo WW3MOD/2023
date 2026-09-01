@@ -1,0 +1,17 @@
+Player:
+	# Low on purpose. This scenario measures ONE engineer's employment, and every unit the bot buys is
+	# another actor that can be recruited, can wander through the measurement, or can pull the screen
+	# centroid around mid-run. 1000 leaves the economy well-formed (a zero-cash bot is a state nothing
+	# else in the suite exercises) while keeping production down to a trickle.
+	PlayerResources:
+		DefaultCash: 1000
+
+World:
+	-StartGameNotification:
+	# The bot's own Supply Route is placed explicitly in map.yaml; letting the engine also spawn a
+	# starting force would put unrecorded actors on the map and move the screen centroid.
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-experimental-engineer-repairs.lua
