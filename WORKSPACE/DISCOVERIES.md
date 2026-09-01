@@ -3,6 +3,43 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — `make nav-guard` cannot see a single autotest scenario, so it is NOT the verification for a scenario-geometry change (`wt/cordon-paydown`)
+
+**The check specified as load-bearing for the cordon paydown is structurally blind to the files that
+paydown edits.** `nav_guard.analyse` builds its map list from `modload.discover_maps(MOD_DIR)`
+(`tools/nav-guard/nav_guard.py:255`), and `discover_maps` (`tools/nav-guard/modload.py:245-247`)
+iterates `mod_dir / "maps"` only — `MOD_DIR` is `mods/ww3mod` (`nav_guard.py:34`). Everything under
+`tools/autotest/scenarios/` is outside its world. The run says so out loud if you read it:
+*"nav-guard OK: **10 maps**"*, against 254 scenario directories. Before and after insetting the bounds
+of 40 scenarios the output was byte-identical — not because nothing moved, but because nothing it looks
+at moved. The prose already existed at `test-restock-unreachable-centre/map.yaml:97` (*"nav-guard's own
+`check` does NOT cover this file"*); what is new is that this makes `make nav-guard` a **null
+verification** for the entire `tools/autotest/scenarios/` tree. A green run there is not evidence.
+
+**What IS the verification: nav-guard's DECODER, driven manually.** The library under the `check`
+command works fine on a scenario dir — `modload.load_map(Path('tools/autotest/scenarios/<name>'))` — and
+`dataclasses.replace(gm, bounds=...)` lets you build the same map at two different `Bounds` and diff the
+connectivity. The failure worth catching is *not* "fewer passable cells" (the inset removes the ring by
+construction, so that always drops); it is **an old component splitting into two new ones** — two inner
+cells whose only connection ran along the border. Map each inner cell to `(old label, new label)` and
+flag any old label reaching more than one new label. Verified RED before being trusted: walling column
+x=33 for `y in 1..H-1`, leaving only the `y=0` ring as a link, made the detector report
+`broke = {0: [0, 1]}`. Unsabotaged, all 40 maps reported clean.
+
+**A predicate trap inside that check, found by auditing my own output.** A first pass asserted "every
+locomotor must retain at least one passable cell inside the new bounds" and failed all 40 maps on
+`immobile`, `lcraft`, `naval-deep`, `naval-shallow`. None of that was the edit: those four have **zero**
+passable cells at the *original* full-map bounds too, because the 66x34 test arenas are dry land and
+`immobile` passes nothing. A degradation test must be a *comparison against the pre-change state*, never
+an absolute floor — an absolute floor on a shared model reports every pre-existing condition as your
+regression.
+
+**Also corrected: the cordon split is 23/41, not 24/40.** `lint-baseline.txt:69-70` says *"24 of the 64
+have actors standing on that ring"*. Measured with resolved footprints (`modload.actor_shape`, blocking
+∪ transit ∪ origin), it is **23**. The 64th non-insettable map is `test-drone-lost-track`, whose ring is
+completely clear — it is held back only by its pin. The two numbers coincide at 24-left-alone by
+arithmetic accident, which is how a wrong premise survives a sanity check.
+
 ## 2026-09-01 — `ChooseUnitToBuild` IS reached, on two lanes whose entire buildable pool is `~disabled` — so the weighted lottery runs, draws RNG, and is guaranteed to return null (`wt/bot-truth`)
 
 **Investigated, deliberately NOT fixed.** Recorded because the obvious reading of this defect is wrong
