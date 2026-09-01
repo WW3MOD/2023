@@ -1083,22 +1083,25 @@ namespace OpenRA.Mods.Common.Traits
 				if (!order.Target.IsValidFor(self))
 					return;
 
-				var cell = self.World.Map.Clamp(this.self.World.Map.CellContaining(order.Target.CenterPosition));
+				var cell = MoveOrderTerms.DestinationCell(self.World.Map, order.Target);
 				if (!Info.LocomotorInfo.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
 					return;
 
-				self.QueueActivity(order.Queued, WrapMove(new Move(self, cell, WDist.FromCells(8), null, true, Info.TargetLineColor)));
+				// `true` is evaluateNearestMovableCell: the relocation is resolved by Move.OnFirstRun
+				// when the move starts, not here. MoveOrderTerms owns that rule for all three sites.
+				self.QueueActivity(order.Queued, WrapMove(new Move(self, cell, WDist.FromCells(MoveOrderTerms.NearEnoughCells), null, true, Info.TargetLineColor)));
 				self.ShowTargetLines();
 			}
 			else if (order.OrderString == "ForceMove")
 			{
-				var cell = self.World.Map.Clamp(this.self.World.Map.CellContaining(order.Target.CenterPosition));
+				var cell = MoveOrderTerms.DestinationCell(self.World.Map, order.Target);
 				if (!Info.LocomotorInfo.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
 					return;
 
 				// Force-move bypasses WrapMove — pure movement, no SmartMove wrapping
 				// Force-move also disables reversing — the player wants the unit to drive forward to the target
-				self.QueueActivity(order.Queued, new Move(self, cell, WDist.FromCells(8), null, true, Info.TargetLineColor) { NoReverse = true });
+				// `true` is evaluateNearestMovableCell, as above: relocation happens when the move starts.
+				self.QueueActivity(order.Queued, new Move(self, cell, WDist.FromCells(MoveOrderTerms.NearEnoughCells), null, true, Info.TargetLineColor) { NoReverse = true });
 				self.ShowTargetLines();
 			}
 

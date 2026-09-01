@@ -1,0 +1,76 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Queued AttackMove Uses A Stale Destination (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	Hunter: abrams
+		Owner: USA
+		Location: 12,16
+		Facing: 768
+	# Four 2x2 churches tiled into one solid 4x4 block over x29..32, y15..18.
+	# The ordered cell (30,16) sits INSIDE it, and so does every cell of the
+	# Chebyshev ring 1 around it — so NearestMoveableCell cannot answer nearer
+	# than ring 2 while these stand. That two-cell gap is what separates a
+	# destination resolved at issue time from one resolved when the move starts.
+	Blocker1: v01
+		Owner: Neutral
+		Location: 29,15
+	Blocker2: v01
+		Owner: Neutral
+		Location: 31,15
+	Blocker3: v01
+		Owner: Neutral
+		Location: 29,17
+	Blocker4: v01
+		Owner: Neutral
+		Location: 31,17
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 2,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 64,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 12,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+
+Rules: rules.yaml
