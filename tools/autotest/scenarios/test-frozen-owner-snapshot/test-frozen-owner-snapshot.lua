@@ -41,6 +41,13 @@
 -- which reads no RenderPlayer. So phase 3 below is the first behavioural read of a
 -- frozen cursor in this suite, and it needs NO launch flag.
 --
+-- Its eligibility filter includes fa.HasRenderables, which is filled by
+-- FrozenUnderFog.TickRender -- an ITickRender hook, and therefore suspected of only
+-- running for on-screen actors. It is not so: World.TickRender (World.cs:527) applies
+-- ITickRender across the whole TraitDict with no viewport cull, so an off-screen ghost
+-- gets its renderables too. Box is on-screen here regardless (FocusBetween below), so
+-- this cannot be the cause if phase 3 ever reports an empty cursor.
+--
 -- DOES NOT NEED Test.KeepRenderPlayer=true. Every binding used here
 -- (FrozenActorState / FrozenActorOwner / FrozenClickCursor / GetVisibility) reads the
 -- VIEWER's own MapLayers or the frozen layer, never world.RenderPlayer. Passing the flag
@@ -136,10 +143,15 @@ WorldLoaded = function()
 			if Ticks > Grace + 300 then
 				return "fail: SETUP -- the Scout is dead but USA's ghost of Box reads state '" ..
 					state .. "' at cell visibility " .. vis .. ", never 'frozen'. 'live' means " ..
-					"something still grants USA vision of 8,16 -- check that Observer at 20,30 and " ..
-					"OwnSR at 2,30 are really out of range. 'shrouded' means the cell fell to " ..
-					"visibility 0, so the explored bit was lost and this is raw shroud rather " ..
-					"than the explored-then-fogged state a ghost needs"
+					"something USA-side still covers 8,16. ^StandardVision is a ladder out to 32 " ..
+					"CELLS (defaults.yaml:95-133), not a short sight radius -- the reported " ..
+					"visibility names the band, so read it back to a distance and find the actor " ..
+					"sitting at it. 5 is the 16c0..19c0 rung, which is what a mis-sited Observer " ..
+					"cost this scenario once already. 'shrouded' should be unreachable here: phase " ..
+					"1 only advanced because USA had real vision of the cell, so its explored bit " ..
+					"is set, and MapLayers.cs:241-256 floors an explored cell at visibility 1. If " ..
+					"you genuinely see 'shrouded', something cleared exploration -- that is a " ..
+					"finding about ResetExploration, not a geometry mistake"
 			end
 
 			return false
