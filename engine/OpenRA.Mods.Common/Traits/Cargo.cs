@@ -156,6 +156,34 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Cursor to display when unable to unload the passengers.")]
 		public readonly string UnloadBlockedCursor = "deploy-blocked";
 
+		[Desc("Ticks a blocked unload keeps retrying before it gives up, ends the activity and",
+			"reports via NoUnloadNotification. 0 disables the timeout and restores the old",
+			"retry-forever behaviour.",
+			"",
+			"INHERITED, NOT CHOSEN: 500 ticks is HelicopterSquadBotModule's own patience for exactly",
+			"this situation — UnloadRetryLimit 5 spent on a ScanInterval of 100 (:450, :1416-1427) —",
+			"so the human and the AI give up on a blocked unload at the same moment. ~30s at the",
+			"mod's default Timestep of 60ms (mod.yaml:380-382, 16.67 tps).")]
+		public readonly int BlockedUnloadTimeout = 500;
+
+		[Desc("Play a randomly selected sound from this list when an unload is abandoned because",
+			"nowhere adjacent was free. Same role as GrantConditionOnDeploy.NoDeploySounds.")]
+		public readonly string[] NoUnloadSounds = null;
+
+		[NotificationReference("Speech")]
+		[Desc("Speech notification when an unload is abandoned because nowhere adjacent was free.",
+			"Defaults to silent, so an unconfigured mod is unchanged.",
+			"",
+			"WHY THIS EXISTS: the same argument GrantConditionOnDeploy.NoDeployNotification makes.",
+			"The cursor judges the cell the transport is standing on WHEN HOVERED; the exit search",
+			"runs at the cell it actually stops on, against occupancy that has moved since, and a",
+			"QUEUED unload is not judged by the cursor at all. Abandoning in silence was therefore",
+			"the player's only feedback, and it was none at all.")]
+		public readonly string NoUnloadNotification = null;
+
+		[Desc("Transient text notification shown alongside NoUnloadNotification.")]
+		public readonly string NoUnloadTextNotification = null;
+
 		[GrantedConditionReference]
 		[Desc("The condition to grant to self while waiting for cargo to load.")]
 		public readonly string LoadingCondition = null;
@@ -358,8 +386,22 @@ namespace OpenRA.Mods.Common.Traits
 			get
 			{
 				if (!IsEmpty())
+					// BlockedByActor.All, NOT the CanUnload default. The default is BlockedByActor.None,
+					// which asks only "is any adjacent cell passable TERRAIN" — so a transport ringed
+					// entirely by other units drew the green cursor, and the most common way an unload
+					// is actually blocked was the one thing this cursor could not see. All is the same
+					// strictness the runtime picks exits at (UnloadCargo.ChooseExitSubCell via
+					// GetAvailableSubCell) and the same one the emergency bail already uses below.
+					// Immovable is the WRONG middle option: it ignores moveable-and-allied actors,
+					// which is precisely the parked friendly tank that causes this.
+					//
+					// This is a DISPLAY predicate only. ResolveOrder deliberately keeps the loose one:
+					// a ring of units shuffling past clears in a moment, and the activity's retry loop
+					// exists to wait it out, so refusing the order outright would break unloads that
+					// legitimately succeed today. The cursor warns; the order is still accepted; the
+					// activity now gives up after BlockedUnloadTimeout instead of spinning forever.
 					yield return new DeployOrderTargeter("Unload", 10,
-						() => CanUnload() ? Info.UnloadCursor : Info.UnloadBlockedCursor);
+						() => CanUnload(BlockedByActor.All) ? Info.UnloadCursor : Info.UnloadBlockedCursor);
 			}
 		}
 
@@ -445,6 +487,18 @@ namespace OpenRA.Mods.Common.Traits
 				return self.Location;
 
 			return Activity.PredictedFinalWaypoint(self);
+		}
+
+		/// <summary>Report an unload abandoned because no adjacent cell was free. Lives on the trait
+		/// rather than in UnloadCargo so the Info fields and their plumbing stay together, matching
+		/// GrantConditionOnDeploy.Deploy's refusal block.</summary>
+		public void NotifyUnloadRefused(Actor self)
+		{
+			if (Info.NoUnloadSounds != null && Info.NoUnloadSounds.Length > 0)
+				Game.Sound.PlayToPlayer(SoundType.World, self.Owner, Info.NoUnloadSounds.Random(self.World.SharedRandom));
+
+			Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech", Info.NoUnloadNotification, self.Owner.Faction.InternalName);
+			TextNotificationsManager.AddTransientLine(self.Owner, Info.NoUnloadTextNotification);
 		}
 
 		public bool CanUnload(BlockedByActor check = BlockedByActor.None)

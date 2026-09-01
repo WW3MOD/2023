@@ -202,6 +202,64 @@ honestly — the targeter's own dryness test (`AttackBase.cs:809`) and `ResolveO
 `AmmoPool.CannotFight` (`:502`) both bite — which leaves **a heavily damaged tank with full ammo** as the
 main live wedge, and that state persists until the tank is repaired. A signal for it would be stable for
 minutes, not flickering.
+## 2026-09-01 — A ring of FRIENDLY units cannot be used to block anything in a test: the blocked activity itself tells the ring to move (`wt/unload-wedge`)
+
+Found while building the RED for the blocked-unload wedge. The obvious staging for "a transport that
+cannot put anybody down" is to park your own units on all eight adjacent cells. **It dissolves itself,
+and the resulting run is a confident false green.**
+
+`UnloadCargo.Tick`'s blocked branch calls `self.NotifyBlocker(BlockedExitCells(actor))`
+(`UnloadCargo.cs:168`). That fans out through `ActorExts.NotifyBlocker` (`ActorExts.cs:62-77`) to
+every `INotifyBlockingMove` on every blocking actor, and `Mobile.OnNotifyBlockingMove`
+(`Mobile.cs:1019-1031`) is:
+
+```csharp
+if (!self.AppearsFriendlyTo(blocking)) return;   // enemies ignore it entirely
+if (self.IsIdle) { self.QueueActivity(false, new Nudge(blocking)); return; }
+IsBlocking = true;
+```
+
+So an idle FRIENDLY blocker drives out of the way on the first retry — the exit opens, the unload
+succeeds, and a scenario written to prove a transport gets stuck instead proves it does not. Three
+usable stagings, in order of faithfulness: **enemy-owned blockers** (early-out at
+`AppearsFriendlyTo`, stay put — what `test-unload-wedge-releases` uses), friendly blockers that are
+**not idle** (fall through to `IsBlocking = true`, no movement), or immobile actors.
+
+**Second trap in the same staging: infantry do not block infantry.** Passengers dismount via
+`GetAvailableSubCell` (`UnloadCargo.cs:111-115`) and up to three infantry share one cell, so a ring of
+riflemen leaves free subcells and every exit search succeeds. Only a full-cell occupant — a vehicle —
+actually blocks an infantry exit. A ring of eight riflemen looks completely blocked on screen and
+blocks nothing.
+
+**The general shape, and it outlives this scenario: "I placed obstacles" is a claim about the frame
+you are looking at, not about the tick the code runs on.** The sim has machinery whose whole job is to
+clear obstacles, and a blocked-path activity is exactly the thing that wakes it up. Before staging any
+blockage, ask *what does the code under test do when it finds itself blocked* — if the answer is "it
+asks the blockers to move", the staging is self-cancelling.
+
+## 2026-09-01 — The AI's bounded unload retry was itself disabled by the wedge it was written to survive (`wt/unload-wedge`)
+
+`HelicopterSquadBotModule.EnsureTransportsUnload` bounds its re-issue at `UnloadRetryLimit = 5`
+(`:450`) spent on `ScanInterval: 100` (`:143`) — the ~500-tick figure. It is guarded by
+`if (!IsUnoccupied(h)) continue;` (`:1421-1422`), and `AIUtils.IsUnoccupiedAirframe` (`AIUtils.cs:45-52`)
+is true only when the actor `IsIdle` or is sitting on a bare `FlyIdle`.
+
+**A transport wedged in `UnloadCargo` satisfies neither.** So the sequence was: scan 1 finds the heli
+idle, sets `retries = 1`, issues `Unload`; the activity wedges; every later scan hits the
+`!IsUnoccupied` guard and `continue`s. `retries` never reached 2, the untrack branch was never taken,
+and the airframe stayed in `transportsAwaitingUnload` pinning a reserved mission slot for the rest of
+the match — **precisely the outcome the bound exists to prevent.** The bound was correct and
+unreachable.
+
+Its stated justification was also false, which is how it survived review: the comment claimed
+*"`Cargo.ResolveOrder` DROPS an Unload with no free adjacent cell"*. `ResolveOrder` (`Cargo.cs:408`)
+tests `CanUnload()` at its `BlockedByActor.None` default, which sees terrain only — an actor-blocked
+Unload is **accepted**. Both comments corrected in this branch.
+
+**The shape worth carrying: a retry bound is only as live as the idleness test that gates it, and a
+never-completing activity defeats every `IsIdle`-shaped guard in the codebase at once.** When adding a
+bound, check that the state it polls for is actually reachable in the failure mode it is bounding —
+otherwise you have written a bound that is correct, tested, and never runs.
 
 ## 2026-09-01 — `ChooseUnitToBuild` IS reached, on two lanes whose entire buildable pool is `~disabled` — so the weighted lottery runs, draws RNG, and is guaranteed to return null (`wt/bot-truth`)
 
