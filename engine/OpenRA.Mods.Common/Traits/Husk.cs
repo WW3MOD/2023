@@ -106,6 +106,13 @@ namespace OpenRA.Mods.Common.Traits
 			dragSpeed = init.GetValue<HuskSpeedInit, int>(0);
 			finalPosition = init.World.Map.CenterOfCell(TopLeft);
 
+			// Point the wreck down the line it is about to be dragged along. Without this it keeps the facing it
+			// died with, which on a corner is the tangent of the arc it was part-way through rather than the
+			// straight line to the reserved cell -- so the wreck slides sideways. The husk sprite replaces the
+			// living one on this same tick, so aligning here is hidden by a discontinuity that already happens.
+			if (dragSpeed > 0)
+				Facing = HuskSettleGeometry.SettleFacing(finalPosition - CenterPosition, Facing);
+
 			effectiveOwner = init.GetValue<EffectiveOwnerInit, Player>(info, self.Owner);
 		}
 
@@ -193,6 +200,30 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public HuskSpeedInit(int value)
 			: base(value) { }
+	}
+
+	public static class HuskSettleGeometry
+	{
+		// Which way a wreck should point while it finishes the move it died on. The husk's drag is a straight line,
+		// so one facing covers the whole slide. Picking the nearer of travel/travel+180 keeps a unit that died
+		// REVERSING pointing backwards instead of spinning it around (^WheeledVehicle sets CanMoveBackward), and
+		// makes this a no-op on a straight leg, where Move has already aligned facing with travel.
+		public static WAngle SettleFacing(WVec travel, WAngle deathFacing)
+		{
+			if (travel.HorizontalLengthSquared == 0)
+				return deathFacing;
+
+			var forward = travel.Yaw;
+			var reverse = new WAngle(forward.Angle + 512);
+
+			return AngleBetween(deathFacing, forward) <= AngleBetween(deathFacing, reverse) ? forward : reverse;
+		}
+
+		static int AngleBetween(WAngle a, WAngle b)
+		{
+			var raw = Math.Abs(a.Angle - b.Angle);
+			return raw > 512 ? 1024 - raw : raw;
+		}
 	}
 
 	public class DragAndCrush : Activity
