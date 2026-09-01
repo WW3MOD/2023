@@ -505,8 +505,16 @@ Player:
 		# in. They sell for essentially their full cost of 100 (their pistol magazine deducts 3), and a pistol
 		# infantryman adds nothing to an armoured push. NOTE this flag is only the cashing-in half — crew are
 		# kept out of offensive recruitment on EVERY profile, flag or no flag, because putting them on an axis
-		# is a bug rather than a doctrine choice. What this buys is the disposition; what it gives up is
-		# walking them back to re-man a vehicle via EnterAsCrewMember. Default false on the @stable twin.
+		# is a bug rather than a doctrine choice. Default false on the @stable twin.
+		#
+		# LARGELY SUPERSEDED (2026-09-01) and kept as a backstop, not as the mechanism. Crew now queue their
+		# OWN one-shot evacuation at the moment they are ejected (VehicleCrewInfo.AutoEvacuateOnEject, default
+		# true), which applies to human players and to BOTH bot profiles regardless of this flag. So the
+		# disposition this flag used to buy is now baseline, and what it gives up — walking crew back to re-man
+		# a vehicle via EnterAsCrewMember — is given up on @stable too. The sweep below still catches crew whose
+		# evac some other module cancelled by re-tasking them (see the re-homing gap at
+		# PoiOffensiveBotModule.cs:2651), and it skips anyone already leaving via IsEvacuating, so the two
+		# mechanisms do not fight.
 		EvacuateEjectedCrew: true
 		# Dispersion doctrine — spread to move, mass to assault. The switch defaults OFF on the engine
 		# class, so Normal controls are untouched. NOTE (b8d2e601, 2026-08-02): @stable sets it too

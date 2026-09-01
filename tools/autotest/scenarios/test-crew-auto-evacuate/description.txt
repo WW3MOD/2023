@@ -1,0 +1,1 @@
+Ejected crew evacuate themselves off the map; a crew member given a Move order the moment he appears stays put instead.

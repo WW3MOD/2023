@@ -166,7 +166,13 @@ namespace OpenRA.Mods.Common.Traits
 			"CASHING-IN half: crew are excluded from offensive recruitment UNCONDITIONALLY, flag or no flag, because",
 			"putting pistol infantry on an axis is a bug rather than a doctrine choice. What this flag buys is the",
 			"disposition — and what it costs is the crew's other use, walking back to re-man a vehicle via",
-			"EnterAsCrewMember. OFF by default = byte-identical; only PoiOffensiveBotModule@experimental turns it on.")]
+			"EnterAsCrewMember. OFF by default; only PoiOffensiveBotModule@experimental turns it on.",
+			"LARGELY SUPERSEDED (2026-09-01): VehicleCrewInfo.AutoEvacuateOnEject (default true) now gives every",
+			"ejected crew member its own one-shot evacuation at the moment it spawns — human players and BOTH bot",
+			"profiles alike — so this flag is no longer what decides whether a bot's crew leave, and 'OFF by",
+			"default = byte-identical' no longer holds. It survives as a BACKSTOP for crew whose evac another",
+			"module cancelled by re-tasking them (the re-homing gap noted in IsEligibleCombatUnit); the sweep",
+			"skips anyone already leaving via IsEvacuating, so the two mechanisms do not fight.")]
 		public readonly bool EvacuateEjectedCrew = false;
 
 		[Desc("Out-of-ammo disposition: max distance (cells, Chebyshev) to a rearm source still worth driving to.",
