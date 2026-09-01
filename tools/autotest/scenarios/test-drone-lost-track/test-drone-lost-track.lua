@@ -331,9 +331,14 @@ tick = function()
 		local intruder = contaminatingFriendly(usa)
 		if intruder ~= nil then
 			if firstDroneTick < 0 then
-				setupFaults[#setupFaults + 1] = "a friendly gained vision of the vanish cell BEFORE any "
-					.. "drone launched, erasing the contact the launch decision reads: " .. intruder
-					.. " at t" .. elapsed
+				-- "made currently-visible", NOT "erased". Run 6 settled which one it is: the truk never
+				-- moves, so a friendly that reaches it RE-OBSERVES it and the record returns to the
+				-- fresh tier (areaSquares) rather than being removed. Either way there is no lost
+				-- contact left to decide on, so the void is right — but saying "erased" sent the last
+				-- reader looking for a removal that had not happened.
+				setupFaults[#setupFaults + 1] = "a friendly made the vanish cell currently-visible BEFORE "
+					.. "any drone launched, so the contact was no longer lost when the launch decision "
+					.. "read it: " .. intruder .. " at t" .. elapsed
 				finish()
 				return
 			elseif lateIntruder == nil then
