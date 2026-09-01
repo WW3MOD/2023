@@ -89,6 +89,13 @@ Player:
 			# (:1299), which is what this line buys. The weight itself only acts as a share ceiling
 			# in the legacy uniform lottery (:1610).
 			dr.america: 20
+			# Special forces. MEMBERSHIP, NOT THE WEIGHT — the same arithmetic spelled out on
+			# dr.america above. sf.america is deliberately absent from UnitTargetShares (and from
+			# UnitRoles), so under CompositionDirected + CompositionEnforceTargetCeiling it is
+			# ineligible for the deficit pick and is reached ONLY through the floor lane, which gates
+			# on UnitsToBuild membership (UnitBuilderBotModule.cs:1390). Without this line the floor
+			# entry below is inert. 10 mirrors mnly, the other 600-cost flat-floored specialist.
+			sf.america: 10
 
 			# Vehicles -- balanced force composition
 			humvee: 30
@@ -127,6 +134,12 @@ Player:
 			# match has yet shown what a second one would add. Cap and floor are both 1, so as with
 			# dr.america the floor is the only thing that moves.
 			mnly: 1
+			# Special forces: 2, deliberately low for a 600-cost elite. Cap sits one above the floor
+			# of 1, so unlike dr/mnly there IS one slot the floor does not pin — the second SF can
+			# only ever arrive if some other lane asks for it, and today no lane does (sf is absent
+			# from UnitTargetShares). In the shipped configuration this is effectively a cap of 1
+			# with headroom reserved for the infiltration module that is NOT part of this change.
+			sf.america: 2
 		# ===== STANDING-POPULATION FLOORS (experimental-only; C# default is unset) =====
 		# USER RULING 2026-08-14: "build medics", and "there is always an AA soldier or two on the field".
 		# A UnitTargetShares entry CANNOT deliver either, and the reason is arithmetic, not tuning. Shares are
@@ -190,6 +203,21 @@ Player:
 			# Drone operator — the user's "they make none" is a FLOOR problem, not a weight problem.
 			# See the dr.america UnitFloorPer note below for why 2 here is a cap and not a target.
 			dr.america: 2
+			# Special forces — FLAT, no UnitFloorPer, held off by UnitDelays instead: the mnly
+			# pattern, not the medi/dr one. This block's own rule is that a floored type needs a
+			# ratio OR a threat gate OR a delay, or it is an opening buy by construction; sf takes
+			# the delay (3000, see UnitDelays below), for the reason given there.
+			# WHY FLAT RATHER THAN A RATIO: a denominator here would be a number invented purely to
+			# act as an opening-buy guard, and a mis-set denominator is exactly how this file has
+			# twice shipped a floor that silently never fires (N above the denominator's ceiling ⇒
+			# min(cap, supported/N) is 0 forever). One SF is a raid capability, not a per-N-soldiers
+			# support ratio, so there is no honest denominator to pick.
+			# ORDINAL POSITION, WHICH IS NOT A GUESS: floorTypes is UnitFloors.Keys sorted with
+			# StringComparer.Ordinal (UnitBuilderBotModule.cs:566) over keys already lowercased at
+			# ruleset load (ActorNameCase), and ChooseBelowFloor returns the FIRST type under its
+			# floor (:1385). aa < dr < medi < mnly < sf, so the SF is the LAST of the five bought
+			# when several are short at once — right for the most expensive and least urgent.
+			sf.america: 1
 		# ===== THE FLOOR NEEDS A DENOMINATOR (user report 2026-08-15) =====
 		# A flat floor is maximally unmet at t=0, because at t=0 every census is zero. The pre-empt outranks
 		# the ceiling and every demand gate, and floored support types are cheap, so a flat floor does not
@@ -371,6 +399,30 @@ Player:
 			# 300 is a floor-clearing constant, not a tuned one — it is deliberately the smallest round
 			# value that cannot be reached under the default start, rather than a measured optimum.
 			dr.america: 300
+			# ===== SPECIAL FORCES: 3000, AND THIS IS A REASONED ESTIMATE, NOT A MEASUREMENT =====
+			# Said plainly because aa.america above IS derived (from the 2500 attack-heli gate) and it
+			# would be easy to read this line as carrying the same authority. It does not.
+			# WHY A DELAY AT ALL: the floor above is flat and a floor pre-empt OUTRANKS the target
+			# ceiling and every demand gate, so without this an SF is GUARANTEED to be an opening
+			# call-in. At 600 it is the most expensive infantry purchase on the roster — six line
+			# riflemen (e3 costs 100) of early tempo spent before there is a line to spend it for.
+			# That is the defect this file has already shipped twice (two t=0 medics, two t=0 supply
+			# trucks, PIPELINE 57(a)) and it runs straight into the user's ruling that "at the start
+			# we need lots of soldiers to be able to defend ourselves".
+			# WHY 3000 SPECIFICALLY: it is mnly's constant, and mnly is the true comparable — the
+			# only other 600-cost flat-floored specialist whose delay is the SOLE opening guard.
+			# dr's 300 is NOT the comparable: that is a floor-clearing platoon-start guard that works
+			# only because a per-8 denominator does the real gating, and sf has no denominator.
+			# Borrowing aa's 2000 would be worse still — it is derived from the heli gate, which has
+			# nothing to do with an infantryman, and an unanchored delay constant is precisely why
+			# the sniper floor was dropped from this block.
+			# WHERE IT MAY BE WRONG, AND IN WHICH DIRECTION: mnly's 3000 includes ~640 ticks of
+			# module scan time before the first field is laid. SF has no module (deliberately out of
+			# scope here) and fights the moment it arrives, so it has a case for being EARLIER than
+			# the minelayer by roughly that margin. 3000 is kept rather than shaving to ~2360
+			# because that would be false precision on an unmeasured quantity; if SF proves to be
+			# arriving too late to matter, this is the first number to move, and downward.
+			sf.america: 3000
 		# Early-econ behaviour 1: don't call in the FIRST truck while no fielded unit needs ammo. After that
 		# truck exists the standing reserve below governs alone and this no longer binds (user ruling
 		# 2026-08-17 — see the SupplyTruckFloorPer block for the split and why it is a split).

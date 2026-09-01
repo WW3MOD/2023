@@ -83,6 +83,13 @@ Player:
 			# directed pick (UnitBuilderBotModule.cs:328); it is reached through the FLOOR lane, and
 			# ChooseBelowFloor gates on UnitsToBuild membership (:1299). See ai-america.yaml.
 			dr.russia: 20
+			# Special forces — mirror of ai-america.yaml, where the argument lives. Short version:
+			# sf.russia is absent from UnitTargetShares (and UnitRoles), so under CompositionDirected
+			# it is reachable only through the FLOOR lane, and ChooseBelowFloor gates on UnitsToBuild
+			# membership (UnitBuilderBotModule.cs:1390). Without this line the floor entry is inert.
+			# 10 mirrors mnly, the other 600-cost flat-floored specialist. SF.russia carries a faction
+			# prerequisite (~player.russia, infantry-russia.yaml:102), so the twins field their own.
+			sf.russia: 10
 
 			# Vehicles -- balanced force composition
 			btr: 30
@@ -118,6 +125,10 @@ Player:
 			# specialist, the module commits at most one unit per field, and no live match has shown
 			# what a second would add.
 			mnly: 1
+			# Special forces: 2 — mirror of ai-america.yaml. Cap sits one above the floor of 1, so
+			# the second SF can only arrive if some other lane asks, and today none does (sf is
+			# absent from UnitTargetShares). Effectively a cap of 1 in the shipped configuration.
+			sf.russia: 2
 		# ===== STANDING-POPULATION FLOORS (experimental-only; C# default is unset) =====
 		# Mirror of the America block — see ai-america.yaml for the full measurement. Short version: a
 		# per-mille-of-VALUE target cannot hold a small type on the map (one medic is already 34 per-mille of
@@ -141,6 +152,13 @@ Player:
 			# Drone operator — "they make none" is a FLOOR problem, not a weight problem. Cap, not
 			# target; the ratio below decides when it actually engages.
 			dr.russia: 2
+			# Special forces — FLAT, no UnitFloorPer, held off by UnitDelays instead: the mnly
+			# pattern, not the medi/dr one. Full argument in ai-america.yaml. Short version: one SF
+			# is a raid capability rather than a per-N-soldiers support ratio, so there is no honest
+			# denominator to pick, and inventing one risks the silently-inert floor this file has
+			# twice shipped. ORDINAL: aa < dr < medi < mnly < sf, so the SF is the last of the five
+			# bought when several are short at once.
+			sf.russia: 1
 		# ===== THE FLOOR NEEDS A DENOMINATOR (user report 2026-08-15) — mirror of the America block =====
 		# See ai-america.yaml for the full argument and the measurement. Short version: a flat floor is
 		# maximally unmet at t=0 and the pre-empt outranks the ceiling and every demand gate, so a cheap
@@ -209,6 +227,16 @@ Player:
 			# binds only under a lobby-selected platoon start, where the denominator opens at 11 and
 			# the operator would otherwise be the opening support call-in ahead of the first medic.
 			dr.russia: 300
+			# Special forces: 3000 — mirror of ai-america.yaml, where the reasoning lives. Flagged
+			# here too because it matters: unlike aa.russia above, this is a REASONED ESTIMATE and
+			# not a derivation. It exists because the floor above is flat and a floor pre-empt
+			# outranks every gate, so without it a 600-cost SF — six line riflemen of early tempo —
+			# would be a guaranteed opening call-in ahead of the infantry the user asked for at the
+			# start. 3000 is mnly's constant because mnly is the true comparable (the other 600-cost
+			# flat-floored specialist gated by delay alone); dr's 300 is not, as that guard leans on
+			# a per-8 denominator sf does not have. May be slightly late by ~640 ticks, the minelayer
+			# module's scan lag, which sf has no equivalent of; if so this moves DOWN first.
+			sf.russia: 3000
 		# Early-econ behaviour 1: don't call in the FIRST truck while no fielded unit needs ammo. After that
 		# truck exists the standing reserve below governs alone and this no longer binds (user ruling
 		# 2026-08-17 — full reasoning in ai-america.yaml's SupplyTruckFloorPer block).
