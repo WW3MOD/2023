@@ -444,10 +444,18 @@ namespace OpenRA.Mods.Common.Traits
 		// leaves this map and (loaded) joins transportsAwaitingUnload for the existing retreat/safety net.
 		readonly Dictionary<Actor, TransportLoadTask> transportTasks = new Dictionary<Actor, TransportLoadTask>();
 
-		// Bounded retry for the still-loaded Unload re-issue (EnsureTransportsUnload). Cargo.ResolveOrder drops
-		// an Unload with no free adjacent cell, so an unbounded retry on a permanently blocked spot would pin a
-		// reserved mission slot forever.
-		const int UnloadRetryLimit = 5;
+		// Bounded retry for the still-loaded Unload re-issue (EnsureTransportsUnload), so an unbounded retry on a
+		// permanently blocked spot cannot pin a reserved mission slot forever.
+		//
+		// This used to justify itself with "Cargo.ResolveOrder drops an Unload with no free adjacent cell". It
+		// does NOT: ResolveOrder (Cargo.cs:408) tests CanUnload() at its BlockedByActor.None default, which asks
+		// only whether the adjacent TERRAIN is passable and cannot see the units standing on it. An actor-blocked
+		// Unload is accepted, not dropped. The bound was right; only its stated reason was false.
+		//
+		// Public because Cargo.BlockedUnloadTimeout is derived from it: this limit spent on ScanInterval is the
+		// only figure anyone here has committed to for "how long do we tolerate a blocked unload", and the human
+		// unload now gives up at the same moment. UnloadBudgetTest pins the two together.
+		public const int UnloadRetryLimit = 5;
 		readonly Dictionary<Actor, int> unloadRetries = new Dictionary<Actor, int>();
 
 		IBot bot;
@@ -1413,12 +1421,17 @@ namespace OpenRA.Mods.Common.Traits
 				if (!IsUnoccupied(h))
 					continue;
 
-				// BOUNDED. Cargo.ResolveOrder DROPS an Unload with no free adjacent cell, so a transport sitting
-				// somewhere permanently un-unloadable would retry on every scan without end while still counted
-				// in ActiveTransportMissions — pinning a reserved mission slot and never returning to the pool.
-				// This runs on ScanInterval (100), so the limit spends ~500 ticks of patience before giving up
-				// and untracking: the airframe is then re-poolable, and use-or-evac can retire it if it stays
-				// useless.
+				// BOUNDED, and the bound is the only thing standing between a permanently un-unloadable spot and
+				// a mission slot pinned for the rest of the match — a transport stuck there stays counted in
+				// ActiveTransportMissions and never returns to the pool. This runs on ScanInterval (100), so the
+				// limit spends ~500 ticks of patience before giving up and untracking: the airframe is then
+				// re-poolable, and use-or-evac can retire it if it stays useless.
+				//
+				// NOT because "ResolveOrder drops the order" — it does not; see UnloadRetryLimit's declaration.
+				// The order is accepted and the ACTIVITY used to spin forever, which is why IsUnoccupied above
+				// never came true and this retry never actually got to run a second time. Cargo's own
+				// BlockedUnloadTimeout now ends that activity on the same ~500-tick budget, so the heli really
+				// does come back idle and these retries are reached as designed.
 				var retries = unloadRetries.TryGetValue(h, out var r) ? r : 0;
 				if (retries >= UnloadRetryLimit)
 				{

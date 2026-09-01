@@ -946,6 +946,11 @@
 ^CargoPips:
 	Cargo:
 		LoadedCondition: loaded
+		# An unload that finds nowhere free retries for BlockedUnloadTimeout and then gives up. It
+		# used to give up silently — and before that it never gave up at all. Same notification the
+		# blocked MSAR deploy and the LOGISTICSCENTER transform already use for the same situation:
+		# "you asked for this here, and here will not take it".
+		NoUnloadNotification: BuildingCannotPlaceAudio
 	WithCargoPipsDecoration:
 		Position: Top
 		PipStride: 6,6

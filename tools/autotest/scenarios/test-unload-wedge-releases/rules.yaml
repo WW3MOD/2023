@@ -1,0 +1,27 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-unload-wedge-releases.lua
+
+# Both APCs carry the same four men, so the only variable between the two arms is
+# whether the transport is ringed. m113, not M113 — rules merge by exact case and the
+# actor is declared lowercase (vehicles-america.yaml:175); an uppercase key here would
+# add a second actor instead of merging, and both APCs would spawn empty.
+#
+# BlockedUnloadTimeout is deliberately NOT overridden. The scenario measures the shipped
+# default, so a future edit to that default has to face this scenario rather than being
+# masked by a local value.
+m113:
+	Cargo:
+		InitialUnits: E3,E3,E3,E3
