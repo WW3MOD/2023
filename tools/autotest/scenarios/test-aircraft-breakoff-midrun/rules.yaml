@@ -69,13 +69,12 @@ t90:
 # override of it merges the same duplicated `ReloadAmmoPool@1` / `RenderSprites` keys through
 # the inheritance chain and throws in the same place.
 #
-# LANE 3 IS `frog.airstrike` AS OF 2026-09-01, and no rules override is wanted for it either.
-# It was `a10.airstrike`, which never fired a shot in 400 ticks: a StrafeAttackRun rewrites the
-# requested target as TERRAIN every tick, and neither of the A10's weapons is valid against a
-# `Ground` cell, so it has no armament to fire — see the lane-3 block in the .lua. The FROG
-# variant's RocketPods IS `ValidTargets: Ground`, so it can actually execute a strafe attack,
-# which is what makes the break-off question askable at all. Left un-overridden for the same
-# reason as the other two: it is then evidence about the shipped airframe.
+# LANE 3 IS DISABLED AS OF 2026-09-01 and this file needs no entry for it. It was tried as
+# `a10.airstrike` and then as `frog.airstrike`; BOTH fired zero shots across 400 ticks, so the
+# `ValidTargets: Ground` explanation for the first failure did not survive contact with the
+# second. Do not add rules here to "fix" a strafe lane before finding out why an
+# AttackType: Strafe airframe does not engage at all — see WORKSPACE/DISCOVERIES.md and the
+# disabled block in the Lanes table of the .lua.
 #
 # Nothing is lost by leaving AutoTarget alone. Unpinned, ScanRadius falls back to
 # AttackBase.GetMaximumRange — 25c0 for the A10 (min over Hellfire/30mm is 20c0; the scan uses
@@ -89,8 +88,7 @@ t90:
 # THE RED ARM IS AN ENGINE EDIT, NOT A YAML ONE, for the same reason. Comment out the
 # break-off block in AttackFollow.Tick (the `if (RequestedTarget.Type == TargetType.Actor
 # && BreakOffApplies(...))` guard), rebuild, and run. That sabotages the mechanism under
-# test at its source and reaches ALL THREE lanes, which a per-actor YAML switch could not.
-# Expected RED text: "BREAK-OFF DID NOT FIRE [A10,MI28,FROGSTRIKE]: <n> shots ...". The lane
-# list is the whole point of that bracket — on the SHIPPED build lane 3 is predicted to fail
-# ALONE, "[FROGSTRIKE]", and the two texts must never be confused for one another.
-# Restore and rebuild before the green arm.
+# test at its source and reaches BOTH live lanes, which a per-actor YAML switch could not.
+# Expected RED text: "BREAK-OFF DID NOT FIRE [A10,MI28]: <n> shots ...". A red naming only one
+# of the two is a different result — one airframe class regressed, not the guard — and the two
+# texts must never be confused for one another. Restore and rebuild before the green arm.

@@ -3,13 +3,18 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
-## 2026-09-01 — a strafe attack run rewrites its own requested target as TERRAIN, and that ONE write produces two different-looking defects (`wt/strafe-breakoff`, `main @ 3dd67e07`)
+## 2026-09-01 — NO `AttackType: Strafe` airframe has ever been observed firing a shot, and the reason is NOT the one recorded here first (`wt/strafe-breakoff`, `main @ 3dd67e07`)
+
+> **Read the correction at the end of this entry before using any of it.** The `ValidTargets: Ground`
+> explanation below was authored as the answer, then TESTED AND FALSIFIED by a run of
+> `test-aircraft-breakoff-midrun` the same day. What survives is the terrain-target write and the
+> two-clause break-off failure; what does not is the claim that weapon target types decide which
+> symptom an airframe shows. Nothing here is promotable to `DOCS/reference/` as it stands.
 
 `StrafeAttackRun.Tick` re-sets `AttackFollow.RequestedTarget` every tick to
 `Target.FromTargetPositions(target)` (`Activities/Air/FlyAttack.cs:323-325`) — a `TargetType.Terrain`
-target (`Target.cs:33-35`), force-attack `true`, source defaulting to `AttackSource.Default`. It is one
-line, and everything below follows from it. Which symptom an `AttackType: Strafe` airframe shows is
-decided by a single YAML fact about its weapons, so the two look unrelated in a bug report.
+target (`Target.cs:33-35`), force-attack `true`, source defaulting to `AttackSource.Default`. That much
+is read straight off the code and is not in dispute.
 
 **Symptom A — structurally exempt from the break-off guard.** The guard needs
 `RequestedTarget.Type == TargetType.Actor` **and** `BreakOffApplies(Default, true)` =
@@ -27,15 +32,50 @@ fallback at `:216` is **unreachable** — the airframe is locked aiming at groun
 that ground is decided by `WeaponInfo.IsValidAgainst`, which resolves a terrain target to the **cell's**
 `TargetTypes` (`WeaponInfo.cs:235-249`), i.e. `Ground`.
 
-**So: an `AttackType: Strafe` airframe whose armaments do not list `Ground` in `ValidTargets` can never
-fire a shot, ever.** Nothing lints this pairing. `A10.Airstrike` is in that state today and was measured
-firing zero shots in 400 ticks; `FROG.Airstrike` is not (`RocketPods`, `ValidTargets: Ground`). Details
-and the candidate fix are in `WORKSPACE/bugs/discovered.md` (2026-09-01).
+From that I predicted: *an `AttackType: Strafe` airframe whose armaments do not list `Ground` in
+`ValidTargets` can never fire, and one that does list it fires normally.* `A10.Airstrike` is in the
+first state (`30mm.A10` is `Infantry, Vehicle, Defense`, `Hellfire` is `Vehicle, Air, Defense`);
+`FROG.Airstrike` is in the second (`RocketPods`, `ValidTargets: Ground`, `weapons-ballistics.yaml:912`).
+The A-10 half was already measured. The FROG half was the falsifiable half.
 
-**The trap for the next person**: the weapons involved are perfectly valid against the target *as an
-actor* (`^Vehicle` is `TargetTypes: Ground, Vehicle`). The unit acquires normally, flies a textbook
-attack run, and is silent — so reading the YAML, or watching it, both suggest the targeting is fine.
-The only place the difference is visible is the terrain branch of `IsValidAgainst`.
+### CORRECTION — the FROG half was tested and it FAILED
+
+Run `260901_085215_p7281`, seed `-1717682274`, `test-aircraft-breakoff-midrun` green arm with lane 3
+as `frog.airstrike`. Verdict FAIL, and the failure is the falsification:
+
+```
+SETUP INVALID: FROGSTRIKE never opened fire within 400 ticks;
+FROGSTRIKE target ended at hp100%, outside the <25% Critical band;
+FROGSTRIKE never opened fire before the trigger - no engagement to break off
+
+A10        shotsBefore1 SHOTSAFTER2 postGrace0 distAtCrit9  minDistAfter0  finalDist6  hpAtCrit15% tgtHp7%   ammoLeft100 alt2560
+MI28       shotsBefore1 SHOTSAFTER0 postGrace0 distAtCrit14 minDistAfter14 finalDist14 hpAtCrit15% tgtHp5%   ammoLeft206 alt1280
+FROGSTRIKE shotsBefore0 SHOTSAFTER0 postGrace0 distAtCrit-1 maxDistAfter13 finalDist11 hpAtCrit-1% tgtHp100% ammoLeft30  finalAlt1536
+   trace[13,12,12,12,12,12,12,11,11,11]
+```
+
+`shotsBefore0` as well as `shotsAfter0`: the FROG never fired even before the trigger, its target sat
+untouched at hp100%, and its trace shows it holding 11–13 cells at its cruise altitude for the whole
+window. `ValidTargets: Ground` did not make it fire. Lanes 1 and 2 reproduced their 2026-08-27 results
+exactly, so the run is sound and the instrument is not at fault.
+
+**What this leaves standing**, and it is worth more than the discarded half: **both strafe airframes in
+the mod fire zero shots, and no `AttackType: Strafe` airframe has ever been observed firing in WW3MOD.**
+Two airframes, two different weapon sets, two different owners, same result. Whatever stops them is
+common to the strafe path and is NOT weapon target types.
+
+**Untested hypotheses, recorded as untested.** I have not investigated these and none should be
+repeated as fact: (i) the aircraft never enters a `StrafeAttackRun` at all — the FROG's 11–13 cell
+standoff never closed, which is *not* what a strafe pass looks like, and `FlyAttack.cs:183` may be
+routing it to `MoveWithinRange` indefinitely; (ii) `RocketPods`' `MinRange: 4c0` interacts with the
+`minimumRange = WDist.Zero` pin at `FlyAttack.cs:180`; (iii) something gates firing before
+`ChooseArmamentsForTarget` is ever consulted, which would make the whole `IsValidAgainst` analysis
+above irrelevant rather than merely incomplete. The `distAtCrit-1` / flat trace is the cheapest thread:
+it says the lane never got close, so start with the approach, not the armaments.
+
+The A-10 filing in `WORKSPACE/bugs/discovered.md` (2026-09-01) still records a real measured defect —
+that unit fires nothing — but its stated *mechanism* inherits this same falsified reasoning and should
+be read with the same caution.
 
 **Instrumentation note, learned the expensive way**: `AmmoPoolProperties.AmmoCount` **throws** a
 `LuaException` for a pool the actor does not declare (`AmmoPoolProperties.cs:36-38`) rather than

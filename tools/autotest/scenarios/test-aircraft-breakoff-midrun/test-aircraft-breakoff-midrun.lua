@@ -72,12 +72,12 @@
 --         which is why it acquires the target, flies the run, and then never shoots. That
 --         defect is filed in WORKSPACE/bugs/discovered.md; it is NOT what this scenario asks.
 --
---         frog.airstrike is the only strafe airframe in the mod that can fire through its own
---         run: its single armament is RocketPods, `ValidTargets: Ground`
---         (weapons-ballistics.yaml:912). So this lane tests (a), which is the question the
---         scenario exists to ask.
---         Predict: lane 3 keeps firing at a doomed target indefinitely, and this scenario
---         FAILS ON THE SHIPPED BUILD naming FROGSTRIKE alone.
+--         THAT PREDICTION WAS TESTED AND FAILED. frog.airstrike carries RocketPods,
+--         `ValidTargets: Ground` (weapons-ballistics.yaml:912), and it fired ZERO shots too
+--         (run 260901_085215_p7281). So (b) is real for both strafe airframes but its stated
+--         cause is wrong, and (a) remains UNMEASURED because no strafe lane has ever engaged.
+--         Lane 3 is disabled; the falsification and the surviving facts are in
+--         WORKSPACE/DISCOVERIES.md. This scenario now measures the A10 and Mi-28 shapes only.
 --
 -- INFERENCE, NOT OBSERVATION (stated so it cannot be read as measured): the other
 -- eight AttackAircraft actors are not in this scenario. F16/FROG/MIG share A10's
@@ -170,13 +170,29 @@ local Lanes = {
 	-- (aircraft-russia.yaml:462) with InitialStance FireAtWill, so the lane acquires without
 	-- an order, and that AutoTargetInfo.BreakOffCondition defaults to `critical-damage`
 	-- (AutoTarget.cs:244) -- the guard has something to test.
-	{
-		id = "FROGSTRIKE",
-		unit = "frog.airstrike",
-		ax = 90, ay = 6, alt = 1536,
-		tx = 90, ty = 20,
-		pools = { "primary-ammo" },
-	},
+	--
+	-- LANE 3 IS DISABLED, and it is disabled because it never worked, not because it is
+	-- finished. MEASURED 2026-09-01, run 260901_085215_p7281 seed -1717682274:
+	--   FROGSTRIKE shotsBefore0 SHOTSAFTER0 postGrace0 distAtCrit-1 finalDist11
+	--              tgtHp100% ammoLeft30 finalAlt1536 trace[13,12,12,12,12,12,12,11,11,11]
+	-- Zero shots before the trigger as well as after, target untouched at full health, and a
+	-- flat 11-13 cell standoff for the whole window. `frog.airstrike` does not fire either, so
+	-- the `RocketPods` / `ValidTargets: Ground` reasoning that motivated the swap from
+	-- `a10.airstrike` is FALSIFIED -- see the correction in WORKSPACE/DISCOVERIES.md.
+	--
+	-- Re-enabling it without first finding out why a Strafe airframe does not engage just
+	-- restores a permanently SETUP-INVALID lane that masks the two lanes that do work. The
+	-- cheapest thread is the standoff, not the armaments: that trace is not what a strafe pass
+	-- looks like, so start at FlyAttack.cs:183 and ask whether a StrafeAttackRun is ever
+	-- queued at all.
+	--
+	-- {
+	-- 	id = "FROGSTRIKE",
+	-- 	unit = "frog.airstrike",
+	-- 	ax = 90, ay = 6, alt = 1536,
+	-- 	tx = 90, ty = 20,
+	-- 	pools = { "primary-ammo" },
+	-- },
 }
 
 local setupFaults = {}
@@ -285,12 +301,12 @@ local function finish()
 	--
 	-- THE LANE LIST IN BRACKETS IS LOAD-BEARING, not decoration. Two different runs fail
 	-- here and they must never be read as the same result:
-	--   [A10,MI28,FROGSTRIKE] -- the RED arm, break-off guard commented out of
-	--                            AttackFollow.Tick. Every lane fires; the gate works.
-	--   [FROGSTRIKE]          -- the SHIPPED build, and the finding this lane was added
-	--                            for: the Strafe airframe is structurally exempt while the
-	--                            two guarded shapes break off correctly.
-	-- A bare total would collapse those into one number.
+	--   [A10,MI28] -- the RED arm, break-off guard commented out of AttackFollow.Tick.
+	--                 Both lanes fire; the gate works.
+	--   [A10] or [MI28] alone -- one airframe class regressed and the other did not, which
+	--                 is the result this bracket exists to keep separable from the RED arm.
+	-- A bare total would collapse those into one number. The Strafe lane that was meant to be
+	-- the third entry here is disabled -- see the block in the Lanes table.
 	if totalShotsAfter > 0 then
 		Test.Fail("BREAK-OFF DID NOT FIRE [" .. table.concat(offenders, ",") .. "]: "
 			.. totalShotsAfter
