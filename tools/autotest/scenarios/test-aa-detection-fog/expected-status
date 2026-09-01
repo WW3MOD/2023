@@ -1,0 +1,26 @@
+skip
+MEASUREMENT HARNESS, no graded answer: every Test.Fail in the file is a STAGING fault, not a
+finding. The four are SETUP INVALID (:287), player not found (:298), AA actor missing (:308)
+and could not spawn halo (:318). The terminal verdict carries the per-lane report plus the
+pass-geometry block (minDist etc.) and asserts nothing about either.
+
+This is the fog-ON companion to test-aa-autotarget-thru-trees, stated in its own header at
+:1-3 and :10-13. The comparison it exists for happens ACROSS the two scenarios, which no
+single-run verdict can express -- a structural reason it cannot grade itself, on top of the
+missing bound.
+
+THE STAGING FAILURES STAY FAILURES. "The lanes could not be built" is a genuine red and must
+remain one; only the terminal verdict moved from Test.Pass to Test.Skip (2026-09-01). If this
+scenario reports FAIL against this declaration, the staging broke -- read the note, do not
+delete this file.
+
+WHY SKIP AND NOT PASS. `Test.Skip` is the harness's own word for "ran, produced no graded
+answer" (TestGlobal.cs) and run-batch.sh maps it to the SKIP bucket. The scenario is not
+hidden and still runs; the verdict just stops claiming an answer it never computed.
+
+REMOVE THIS FILE in the same commit as whatever bounds the lanes. test-aa-battery-volleys
+:268-297 is the worked example of how a sibling AA scenario turned a measurement into a rung.
+
+NOT EXPOSED TO expected-status.sh's KNOWN GAP. That gap is specific to `fail` declarations,
+where a watchdog TIMEOUT-FAIL also exits 1 and therefore grades green. A timeout reaches
+expected_status_grade as FAIL, and declared-`skip` + FAIL is RED.

@@ -211,7 +211,9 @@ local function finish()
 		return
 	end
 
-	Test.Pass(summary)
+	-- Skip, not Pass: every failure path above is a staging fault, so nothing here
+	-- grades the lanes it measured. The summary IS the deliverable; see expected-status.
+	Test.Skip(summary)
 end
 
 WorldLoaded = function()

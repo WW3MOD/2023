@@ -1,0 +1,26 @@
+skip
+CALIBRATION MODE, no graded answer -- declared outright in its own header at :29. The
+deliverable is the fire-lane metric block (defFired, ttfShot min/mean/max, defShots, attShots,
+casualties, cost-weighted losses) which lands in the verdict note and in debug.log per unit.
+The script polls to resolution or deadline, formats that block, and exits. It compares nothing
+against a bar.
+
+WHY SKIP AND NOT PASS, and why this one is the sharpest case in the set. The header used to
+justify its `Test.Pass` explicitly -- "never Test.Pass-less, that would be a demo" -- i.e. it
+passed in order to avoid being classified as a demo and dropped by run-batch.sh's verdict-less
+filter. That was a real constraint solved with the wrong verdict: `Test.Skip` satisfies the
+same filter (the filter greps for Test.Pass|Fail|Skip), so the scenario still runs in --all,
+while no longer contributing a green it did not earn. `Test.Skip` is the harness's own word
+for "ran, produced no graded answer" (TestGlobal.cs) and run-batch.sh maps it to the SKIP
+bucket.
+
+REMOVE THIS FILE in the same commit as whatever puts a bound on the metrics -- this scenario
+was authored to produce the numbers a bound could be set FROM, so it is a genuine candidate
+rather than a permanent diagnostic. A PASS against a live `skip` declaration grades STALE/RED
+on purpose: a scenario that STARTS grading shows up loudly instead of silently changing
+meaning.
+
+NOT EXPOSED TO expected-status.sh's KNOWN GAP. That gap is specific to `fail` declarations,
+where a watchdog TIMEOUT-FAIL also exits 1 and therefore grades green. A timeout reaches
+expected_status_grade as FAIL, and declared-`skip` + FAIL is RED -- which matters here,
+because this scenario polls for a combat resolution and has a real deadline path.

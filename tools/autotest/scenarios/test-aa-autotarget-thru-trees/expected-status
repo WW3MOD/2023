@@ -1,0 +1,24 @@
+skip
+MEASUREMENT HARNESS, no graded answer: every Test.Fail in the file is a STAGING fault, not a
+finding. The four are SETUP INVALID (:221), player not found (:232), AA actor missing (:241)
+and could not spawn halo (:251). The terminal verdict carries the tree-ladder report -- per
+rung: autoFired, autodrift, vis, radar, manualFired, drift, cell -- and asserts nothing about
+any of it. A regression in the LOS gate this scenario is named for changes characters in the
+summary and nothing else.
+
+THE STAGING FAILURES STAY FAILURES. "The ladder could not be built" is a genuine red and must
+remain one; only the terminal verdict moved from Test.Pass to Test.Skip (2026-09-01). If this
+scenario reports FAIL against this declaration, the staging broke -- read the note, do not
+delete this file.
+
+WHY SKIP AND NOT PASS. `Test.Skip` is the harness's own word for "ran, produced no graded
+answer" (TestGlobal.cs) and run-batch.sh maps it to the SKIP bucket. The scenario is not
+hidden and still runs; the verdict just stops claiming an answer it never computed.
+
+REMOVE THIS FILE in the same commit as whatever bounds the ladder. test-aa-battery-volleys
+:268-297 is the worked example of how a sibling AA scenario turned a measurement into a rung,
+control battery and all.
+
+NOT EXPOSED TO expected-status.sh's KNOWN GAP. That gap is specific to `fail` declarations,
+where a watchdog TIMEOUT-FAIL also exits 1 and therefore grades green. A timeout reaches
+expected_status_grade as FAIL, and declared-`skip` + FAIL is RED.

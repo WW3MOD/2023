@@ -132,12 +132,21 @@ if [ "$1" = "--all" ]; then
 	# Skip scenarios that can never produce a verdict. A scenario with no
 	# assertion call writes no result.json, so run-test.sh burns its FULL
 	# wall-clock timeout (300s by default, and the timeout is deliberately NOT
-	# scaled by --speed) and then synthesizes a FAIL. Nine such scenarios exist
-	# today -- test-artillery-turret is a "watch the turret rotate" demo filed
-	# under test-*, and the eight test-balance-* scenarios report numbers for a
-	# human to read rather than passing or failing. Left in, they cost ~45
-	# minutes per --all run and put nine permanent false FAILs in every
-	# regression tally, which is how a red batch stops meaning anything.
+	# scaled by --speed) and then synthesizes a FAIL. TWENTY-ONE such scenarios
+	# exist today -- nine test-balance-* reporting numbers for a human to read
+	# rather than passing or failing, three test-savegame-resume-*, three
+	# test-javelin-*, two test-burn-*, and test-artillery-turret (a "watch the
+	# turret rotate" demo filed under test-*), test-atgm-humvee-motion,
+	# test-desync-dialog, test-minelayer-mode-survives-modifiers. Left in, they
+	# cost ~105 minutes per --all run (21 x the 300s default) and put twenty-one
+	# permanent false FAILs in every regression tally, which is how a red batch
+	# stops meaning anything.
+	#
+	# Do not trust these counts over the loop below: it is the enumeration, the
+	# prose is a summary of it, and the prose drifted once already (it read
+	# "nine ... and the eight test-balance-*" while the loop was excluding 21
+	# with nine balance scenarios among them). Re-derive by running the same
+	# predicate rather than by editing this paragraph from memory.
 	#
 	# Detected rather than hardcoded, so a future verdict-less scenario is
 	# excluded automatically -- and ANNOUNCED rather than silently dropped, so a
@@ -177,7 +186,10 @@ fi
 # stops reddening every batch forever without being hidden from it. Declaring `fail` makes
 # a FAIL green AND makes a PASS red -- the same asymmetry as mods/ww3mod/lint-baseline.txt
 # and for the same reason: a floor that can only be lowered deliberately. Nothing changes
-# for a scenario with no declaration, which is all 254 of them today. See expected-status.sh.
+# for a scenario with no declaration, which is the overwhelming majority of them --
+# `ls tools/autotest/scenarios/*/expected-status` enumerates the exceptions, and is the
+# only count worth quoting, because a hardcoded one here goes stale the next time somebody
+# declares. See expected-status.sh.
 . "$(dirname "$0")/expected-status.sh"
 
 PASS=0; FAIL=0; SKIP=0; ERR=0
