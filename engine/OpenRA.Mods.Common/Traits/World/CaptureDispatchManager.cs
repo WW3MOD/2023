@@ -66,14 +66,14 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Capture units the local player owns that could take <paramref name="target"/>.
+		/// <para>Capture units the local player owns that could take <paramref name="target"/>.</para>
 		///
-		/// CaptureToNeutral is the filter that separates a technician from a rifleman. Both carry a
+		/// <para>CaptureToNeutral is the filter that separates a technician from a rifleman. Both carry a
 		/// Captures trait and both are valid against an enemy-held building, but the rifleman's sets
 		/// CaptureToNeutral, so walking it in NEUTRALISES the building rather than taking it. Sending
 		/// one here would answer "get me that oil derrick" by giving it to nobody. Selecting on the
 		/// flag rather than on the actor name keeps that true if the mod ever adds a second capture
-		/// unit.
+		/// unit.</para>
 		/// </summary>
 		static IEnumerable<TraitPair<Captures>> EligibleCapturers(World world, Actor target)
 		{
@@ -91,14 +91,14 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// The structure a capture unit already has an order for, or 0 when it is free.
+		/// <para>The structure a capture unit already has an order for, or 0 when it is free.</para>
 		///
-		/// Read off the activity queue rather than off CaptureManager, because CaptureManager does not
+		/// <para>Read off the activity queue rather than off CaptureManager, because CaptureManager does not
 		/// learn about a capture until the unit ARRIVES — StartCapture is called from
 		/// CaptureActor.TryStartEnter, not when the order resolves. A unit that is still walking is
 		/// invisible to the reservation bookkeeping, and walking is precisely the window in which this
 		/// feature would otherwise steal it. ActivitiesImplementing walks queued and child activities
-		/// too, so a capture sitting behind a move is still seen.
+		/// too, so a capture sitting behind a move is still seen.</para>
 		/// </summary>
 		public static uint CommittedTarget(Actor capturer)
 		{

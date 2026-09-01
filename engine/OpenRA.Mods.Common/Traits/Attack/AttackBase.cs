@@ -674,19 +674,21 @@ namespace OpenRA.Mods.Common.Traits
 			return !forceAttack && source != AttackSource.Default;
 		}
 
-		/// <summary>How close a unit must get before it will engage, given every armament that is valid
-		/// against the target. <paramref name="maxRanges"/> and <paramref name="paused"/> are parallel.
+		/// <summary>
+		/// <para>How close a unit must get before it will engage, given every armament that is valid
+		/// against the target. <paramref name="maxRanges"/> and <paramref name="paused"/> are parallel.</para>
 		///
-		/// Shipped behaviour (engageAtLongest false) is the MINIMUM, which brings every barrel to bear
+		/// <para>Shipped behaviour (engageAtLongest false) is the MINIMUM, which brings every barrel to bear
 		/// but silently downgrades a specialist: a unit whose long-range weapon is the RIGHT weapon
 		/// closes to its short-range weapon's band anyway, and the player sees it refuse the good
-		/// weapon and drive at the target.
+		/// weapon and drive at the target.</para>
 		///
-		/// The longest branch deliberately ignores PAUSED armaments and only falls back to them when
+		/// <para>The longest branch deliberately ignores PAUSED armaments and only falls back to them when
 		/// every one is paused, mirroring <see cref="GetMaximumRangeVersusTarget"/>. Without that a
 		/// Tunguska that had spent all 8 missiles would still hold out at the missile's 28c0 — the dry
 		/// armament is PAUSED, never disabled, so it stays in the candidate list — and would sit there
-		/// firing nothing, its 18c0 gun forever out of reach.</summary>
+		/// firing nothing, its 18c0 gun forever out of reach.</para>
+		/// </summary>
 		public static WDist EngagementMaxRange(IReadOnlyList<WDist> maxRanges, IReadOnlyList<bool> paused, bool engageAtLongest)
 		{
 			if (maxRanges.Count == 0)

@@ -30,21 +30,21 @@ namespace OpenRA.Mods.Common
 		/// The rule, with its inputs already resolved so it can be pinned without a World.
 		/// </summary>
 		/// <remarks>
-		/// <paramref name="actorIsVisible"/> is the authority — IDefaultVisibility, i.e. every way the
+		/// <para><paramref name="actorIsVisible"/> is the authority — IDefaultVisibility, i.e. every way the
 		/// game admits a player may know an actor is there. The remaining three exist only to veto it,
-		/// and that veto is the interesting part:
+		/// and that veto is the interesting part:</para>
 		///
-		/// <paramref name="positionIsUnfogged"/> is a defence-in-depth cell check added by 8db9da9e
+		/// <para><paramref name="positionIsUnfogged"/> is a defence-in-depth cell check added by 8db9da9e
 		/// against a through-fog targeting bug whose root cause was never found ("the exact edge case is
 		/// elusive"). It asks a NARROWER question than the authority does — ResolvedVisibility > 1 on one
 		/// cell — so every legitimate way of knowing about an actor that does not stamp ResolvedVisibility
 		/// is silently vetoed by it. Two have been found: FrozenUnderFog buildings (22a1ec34) and radar
 		/// contacts (this). Both are carried here as exemptions rather than by deleting the veto, because
-		/// the bug it was added for has never been reproduced and may still be live.
+		/// the bug it was added for has never been reproduced and may still be live.</para>
 		///
-		/// PITFALL for whoever finds the third one: do NOT widen this by relaxing the cell test. The
+		/// <para>PITFALL for whoever finds the third one: do NOT widen this by relaxing the cell test. The
 		/// exemption must name a specific, earned channel of knowledge, or the veto stops constraining
-		/// anything and a player can click actors the game never revealed.
+		/// anything and a player can click actors the game never revealed.</para>
 		/// </remarks>
 		public static bool IsRevealed(bool actorIsVisible, bool isFrozenUnderFog, bool positionIsUnfogged, bool isRadarDetected)
 		{

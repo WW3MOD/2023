@@ -28,20 +28,20 @@ namespace OpenRA.Mods.Common
 		public const long Infeasible = long.MaxValue;
 
 		/// <summary>
-		/// Assign capturers to targets so that the LAST capture finishes as early as possible.
+		/// <para>Assign capturers to targets so that the LAST capture finishes as early as possible.</para>
 		///
-		/// Capturers walk in parallel, so the time until every target is taken is the time of the
+		/// <para>Capturers walk in parallel, so the time until every target is taken is the time of the
 		/// SINGLE LONGEST walk, not the sum. Minimising a sum (what nearest-first greedy effectively
 		/// chases) is therefore optimising the wrong number: greedy will happily hand the one short
 		/// trip to the capturer that was the only candidate for the long one, and strand it.
 		/// This is the linear bottleneck assignment problem, and it is solved here EXACTLY —
 		/// binary search over the distinct edge costs, testing each threshold with a maximum
-		/// bipartite matching (Kuhn's augmenting paths).
+		/// bipartite matching (Kuhn's augmenting paths).</para>
 		///
-		/// Ties on the bottleneck are then broken towards lower TOTAL cost by a 2-swap pass. That
+		/// <para>Ties on the bottleneck are then broken towards lower TOTAL cost by a 2-swap pass. That
 		/// pass is a heuristic and is NOT guaranteed to find the minimum-sum solution among the
 		/// bottleneck-optimal ones — see <see cref="ReduceTotalCost"/>. Only the bottleneck itself
-		/// is optimal.
+		/// is optimal.</para>
 		/// </summary>
 		/// <param name="cost">cost[capturer, target]. Use <see cref="Infeasible"/> for a forbidden pair.</param>
 		/// <returns>assignment[capturer] = target index, or <see cref="Unassigned"/>.</returns>
@@ -104,14 +104,14 @@ namespace OpenRA.Mods.Common
 		}
 
 		/// <summary>
-		/// Among assignments that keep every edge within <paramref name="bottleneck"/>, walk downhill
+		/// <para>Among assignments that keep every edge within <paramref name="bottleneck"/>, walk downhill
 		/// on total cost with 2-swaps (swap two capturers' targets; or move a target to a currently
-		/// idle capturer). Terminates because the total strictly decreases and is bounded below.
+		/// idle capturer). Terminates because the total strictly decreases and is bounded below.</para>
 		///
-		/// This is a LOCAL search: it reaches a 2-opt local minimum, which need not be the global
+		/// <para>This is a LOCAL search: it reaches a 2-opt local minimum, which need not be the global
 		/// minimum-sum bottleneck-optimal assignment. It exists only so that slack capturers are not
 		/// sent on visibly silly walks when the bottleneck leaves a free choice; the guarantee this
-		/// function carries is that it never RAISES the bottleneck, not that the sum is optimal.
+		/// function carries is that it never RAISES the bottleneck, not that the sum is optimal.</para>
 		/// </summary>
 		static void ReduceTotalCost(long[,] cost, long bottleneck, int[] assignment)
 		{
@@ -229,17 +229,17 @@ namespace OpenRA.Mods.Common
 		}
 
 		/// <summary>
-		/// The "already committed" rule, as a pure predicate.
+		/// <para>The "already committed" rule, as a pure predicate.</para>
 		///
-		/// A capturer is available for dispatch when it is not already carrying a capture order for
+		/// <para>A capturer is available for dispatch when it is not already carrying a capture order for
 		/// some OTHER structure. Stealing a technician off an in-flight capture would make this
 		/// feature worse than selecting one by hand, because a technician is CONSUMED by a successful
 		/// capture (^CapturesNeutralBuildings sets ConsumedByCapture: true) — a stolen one does not
-		/// come back to finish the job it left.
+		/// come back to finish the job it left.</para>
 		///
-		/// A capturer already heading at <paramref name="targetId"/> counts as available, so that
+		/// <para>A capturer already heading at <paramref name="targetId"/> counts as available, so that
 		/// re-issuing the same dispatch is idempotent rather than pulling in a second technician and
-		/// spending two units on one building.
+		/// spending two units on one building.</para>
 		/// </summary>
 		/// <param name="committedTargetId">Target the capturer already has a capture order for, or 0 for none.</param>
 		public static bool IsAvailableFor(uint committedTargetId, uint targetId)

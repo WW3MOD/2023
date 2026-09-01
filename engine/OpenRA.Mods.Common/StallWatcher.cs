@@ -49,6 +49,8 @@ namespace OpenRA.Mods.Common
 		/// <summary>Returns true on the tick the follow is judged stalled, and not again until it has
 		/// stalled afresh — the accumulator resets on the way out, so a caller ticking every frame gets
 		/// one edge rather than a stream.</summary>
+		/// <param name="cell">The follower's current cell. Unchanged from the previous call is the only
+		/// evidence of a stall this class has.</param>
 		/// <param name="elapsedTicks">Ticks since the previous call. 1 for a per-tick caller, the check
 		/// interval for one that samples.</param>
 		public bool IsStalled(CPos cell, int elapsedTicks, int maxStalledTicks)
