@@ -1,0 +1,39 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# EXPLORED ON + FOG ON, both locked -- the skirmish default (player.yaml:183).
+		#
+		# This scenario is the OPPOSITE of test-evac-refund-indicator on this point, and
+		# deliberately so. Target lines are gated on World.LocalPlayer, not RenderPlayer
+		# (DrawLineToTarget.cs:80 and LineTargetExts.ShowTargetLines), and LocalPlayer is
+		# untouched by TestModeLogic -- so this run must NOT be given
+		# Test.KeepRenderPlayer=true, and needs no unscouted ground to probe for it.
+		#
+		# Explored ON is then the right choice because the evac leg runs 37 cells west
+		# across ground the tank has never been near. Under Explored OFF that ground would
+		# be black shroud, and IRenderAnnotationsWhenSelected annotations draw above the
+		# shroud regardless -- so the line would still be there, but a reader could not
+		# tell an amber line over black from a rendering artefact, and could not see the
+		# map edge it is supposed to terminate on. Explored ON puts the whole order chain
+		# over legible terrain.
+		FogCheckboxEnabled: true
+		FogCheckboxLocked: true
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-evac-queued-line.lua
+
+# Nothing may shoot. There is no enemy actor on this map, so this is belt-and-braces --
+# but a muzzle flash or a death animation anywhere on row 16 would put bright pixels on
+# the exact line the reader is being asked to trace, and the cost of being wrong about
+# it is another launch slot.
+abrams:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire

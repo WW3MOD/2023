@@ -1,0 +1,106 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# EXPLORED OFF + FOG ON, both locked. This is deliberately NOT the skirmish
+		# default (player.yaml:183 ships ExploredMapCheckboxEnabled: true), and the
+		# reason is the render-player probe rather than the subject: with Explored ON
+		# there is no unscouted ground anywhere, FarBox would sit at visibility 1
+		# instead of 0, and Test.IsMouseTargetable could no longer tell a live
+		# RenderPlayer from a null one. Explored OFF is what buys the run its ability
+		# to detect its own misconfiguration.
+		#
+		# It also gives the frame a free visual tell. Under a live RenderPlayer the
+		# map is mostly black shroud with a lit corridor along the path each subject
+		# walked; under a null one every cell renders equally lit. A reader who sees a
+		# uniformly bright map is looking at a run launched without
+		# Test.KeepRenderPlayer=true, and the Lua will have said so in the verdict.
+		#
+		# Locking both matters: an unlocked checkbox that a lobby default later flipped
+		# would silently change what the probe is measuring while the capture still
+		# looked plausible.
+		FogCheckboxEnabled: true
+		FogCheckboxLocked: true
+		ExploredMapCheckboxEnabled: false
+		ExploredMapCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-evac-refund-indicator.lua
+
+# THE ZERO-REFUND ARM.
+#
+# WHAT IS BEING TESTED is RotateToEdge.DoSell's decision to draw the tick
+# UNCONDITIONALLY on the amount. It used to be gated on `refund > 0`, which swallowed
+# the indicator for exactly the wreck whose owner most wants telling that evacuating it
+# bought nothing -- and a refund that renders as ABSENCE is indistinguishable from the
+# out-of-bounds suppression bug this whole scenario exists to photograph. So the frame
+# needs a zero next to a non-zero.
+#
+# WHY Payload: 0 AND NOT A DAMAGED TANK. The natural way to reach refund == 0 is HP
+# scaling -- `refund = fixedRefund * hp / maxHP` rounds down -- but staging it needs a
+# vehicle at well under 1/1000th health, and ^Vehicle carries
+# ChangesHealth@CriticalDamage with StartIfBelow: 50 (vehicles.yaml:184), which bleeds
+# a damaged vehicle out. The subject would race its own death against a ~7-cell drive
+# and the scenario would be flaky for a reason that has nothing to do with the
+# indicator. Payload 0 reaches the identical `refund == 0` branch deterministically:
+# DeliversCash.GoDonateCash sets `amount = info.Payload` whenever Payload is not the
+# -1 sentinel (DeliversCash.cs:96), the handicap adjustment leaves 0 at 0, and
+# DoSell's HP scaling of 0 is 0 at any health.
+#
+# STATED PLAINLY AS A GAP: this arm exercises the amount-independence of the draw, NOT
+# the HP-scaling arithmetic that produces a zero in a real match. If someone
+# reintroduced a `refund > 0` gate this catches it; if someone broke the hp/maxHP
+# rounding it does not.
+#
+# Inherits the shipped abrams (vehicles-america.yaml:456) so the two subjects are the
+# same unit in every respect except the payload, which is what makes the side-by-side
+# comparison in the frame mean something.
+pauperabrams:
+	Inherits: abrams
+	DeliversCash@Rotation:
+		Payload: 0
+
+# THE RENDER-PLAYER PROBE. A pillbox that must never be visible to USA, so its
+# mouse-targetability is a pure read of whether World.RenderPlayer is null.
+#
+# ALL TEN VISION LAYERS ARE REMOVED, exactly as test-fog-darkness-ruler's fogmarker
+# does and for a related reason: PBOX inherits ^Defense -> ^StandardVision
+# (structures-defenses.yaml:5), and a stock pillbox lighting its own 32-cell circle
+# would be an unnecessary second vision source in a scenario whose whole premise is
+# that USA's vision reaches nowhere near 60,30. Removal rather than a zeroed Range,
+# because nothing in the engine declares VisionInfo as a requirement and a Range of 0
+# beside an inherited non-zero MinRange is a self-inconsistent trait rather than an
+# absent one.
+#
+# HoldFire and a large health pool so it cannot shoot, be shot, or die and thereby
+# fail Test.IsMouseTargetable's IsDead guard for a reason unrelated to the probe.
+probebox:
+	Inherits: PBOX
+	-Vision@10:
+	-Vision@9:
+	-Vision@8:
+	-Vision@7:
+	-Vision@6:
+	-Vision@5:
+	-Vision@4:
+	-Vision@3:
+	-Vision@2:
+	-Vision@1:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	Health:
+		HP: 100000
+
+# Nothing may shoot. A muzzle flash or a death animation near the boundary would put
+# bright non-text pixels exactly where the reader is being asked to look for "+$N".
+# There is no enemy within 50 cells of either subject, so this is belt-and-braces --
+# but the cost of being wrong is an unreadable frame and another launch slot.
+abrams:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
