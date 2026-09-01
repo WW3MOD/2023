@@ -3,6 +3,59 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — A scenario must be shown to reach the STATE it tests, not merely to run and return a verdict (`wt/death-slide`)
+
+Fourth instance in one day of a single shape: **work that passes its own check without exercising the
+thing it claims to check.** The other three were an inert drone contact bonus whose test asserted
+`a > b` and was satisfied by two parts in twenty thousand; a Lua load abort that reports the same
+bare `fail` a real RED does; and a regression test that evaluated to a pass against the old code.
+
+The instance here. `test-husk-corner-slide` exists to catch a wreck crabbing sideways when its unit is
+killed **mid-corner**, and staged each lane with two queued `Move` orders — east to a waypoint, then
+south. **Two queued Moves do not produce a corner arc at all.** The first `Move` completes at its
+waypoint, the unit settles on the cell centre with `FromCell == ToCell`, and the second `Move` turns it
+in place before setting off (`Move.cs:209-215`). The arc — and with it the `ToCell` retargeting that
+*is* the bug — only happens between cells of ONE path, in `MoveFirstHalf`'s chained-turn branch
+(`Move.cs:709-722`). Three of the four lanes would have driven, stopped, turned, died and returned a
+clean green **having never cornered once.**
+
+Note what would NOT have caught it. The verdict was liveness-only and would have been honestly green.
+The screenshots would have shown wrecks, correctly settled, looking fine — because on a straight leg
+they *are* fine. Nothing in `result.json`, the frames or the log would have contradicted the story.
+The existing rules in [`AUTOTEST.md`](../DOCS/recipes/AUTOTEST.md) §"A green run is not evidence"
+don't reach it either: nothing fell back to a default, no control refused to go red, and no second
+mechanism satisfied the predicate. The setup was simply never in the state under test.
+
+**So the question to add to that section's list: not only "what would have made this fail?" but "what
+observable proves the run entered the state I am testing?"** For a corner test that is a turn actually
+occurring; assert or log it. This scenario now finds its turn at runtime by watching for the first
+change in step direction and prints the advance it fired on, so "did it corner" is a line in
+`lua.log` rather than an assumption in the author's head. Its straight-leg control lane shouts if the
+pathfinder turns it, for the same reason in reverse.
+
+Generalised: **a queued order boundary is a state boundary.** Anything that only exists *within* one
+activity — arc turning, carryover progress, mid-path retargeting — is destroyed by splitting the
+order in two, and splitting is the natural way to write the setup.
+
+## 2026-09-01 — A grep hit COUNT is not precedent; open one hit (`wt/death-slide`)
+
+Cost a run slot. Checking whether `Trigger.OnTick` existed before using it in a scenario, I grepped
+the scenario corpus, got four matching files, and treated the count as confirmation that the API was
+in use. **Three of those four hits were comments in other scenarios saying there is NO `Trigger.OnTick`
+in this engine.** The corpus contained an explicit warning and the warning became evidence for the
+opposite proposition, because no file was ever opened. The scenario aborted at load.
+
+The rule is not about Lua. **A count answers "is this string present", never "is this usage correct" —
+and a codebase that has been bitten before is exactly the codebase whose hits are warnings.** The
+better a project is at leaving notes for its future self, the more dangerous counting is, because
+prose about a trap and a use of the trap are indistinguishable to `grep -l`.
+
+Cheap habit: when a grep is load-bearing for a decision, open one hit and read it, and prefer
+`-A2`/`-B2` over `-l` so the surrounding line arrives with the match. Two of the same audit's other
+claims failed the same way when re-checked properly — `CPos` has no Lua equality binding (`WPos`
+implements `ILuaEqualityBinding`, `CPos` does not), so a `Location == someCPos` predicate compares
+nothing.
+
 ## 2026-09-01 — A dying unit's `ToCell` is already PAST the corner, so "the direction it was travelling" is the wrong thing to face a husk (`wt/death-slide`)
 
 Reported as a supply truck sliding sideways after death. The user's own diagnosis was *"the facing is
