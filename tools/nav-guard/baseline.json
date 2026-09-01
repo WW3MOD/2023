@@ -358,8 +358,8 @@
       "river-zeta-ww3": {
         "foot": {
           "components": 26,
-          "largest": 5299,
-          "passable": 5345,
+          "largest": 5311,
+          "passable": 5357,
           "pocketed": 46
         },
         "foot-amphibious": {
@@ -376,14 +376,14 @@
         },
         "foot-mountainer": {
           "components": 26,
-          "largest": 5299,
-          "passable": 5345,
+          "largest": 5311,
+          "passable": 5357,
           "pocketed": 46
         },
         "heavytracked": {
           "components": 29,
-          "largest": 5183,
-          "passable": 5292,
+          "largest": 5171,
+          "passable": 5280,
           "pocketed": 109
         },
         "heavywheeled": {
@@ -418,8 +418,8 @@
         },
         "lighttracked-amphibious": {
           "components": 27,
-          "largest": 5823,
-          "passable": 5870,
+          "largest": 5811,
+          "passable": 5858,
           "pocketed": 47
         },
         "lightwheeled": {
@@ -435,27 +435,27 @@
           "pocketed": 335
         },
         "naval-shallow": {
-          "components": 7,
-          "largest": 260,
-          "passable": 607,
-          "pocketed": 347
+          "components": 9,
+          "largest": 253,
+          "passable": 595,
+          "pocketed": 342
         },
         "template": {
           "components": 26,
-          "largest": 5286,
-          "passable": 5332,
+          "largest": 5298,
+          "passable": 5344,
           "pocketed": 46
         },
         "tracked": {
           "components": 29,
-          "largest": 5183,
-          "passable": 5292,
+          "largest": 5171,
+          "passable": 5280,
           "pocketed": 109
         },
         "tracked-amphibious": {
           "components": 27,
-          "largest": 5823,
-          "passable": 5870,
+          "largest": 5811,
+          "passable": 5858,
           "pocketed": 47
         },
         "walker": {
@@ -1520,8 +1520,8 @@
       "river-zeta-ww3": {
         "foot": {
           "components": 1,
-          "largest": 6890,
-          "passable": 6890,
+          "largest": 6902,
+          "passable": 6902,
           "pocketed": 0
         },
         "foot-amphibious": {
@@ -1538,14 +1538,14 @@
         },
         "foot-mountainer": {
           "components": 1,
-          "largest": 6890,
-          "passable": 6890,
+          "largest": 6902,
+          "passable": 6902,
           "pocketed": 0
         },
         "heavytracked": {
           "components": 33,
-          "largest": 5371,
-          "passable": 5503,
+          "largest": 5359,
+          "passable": 5491,
           "pocketed": 132
         },
         "heavywheeled": {
@@ -1580,8 +1580,8 @@
         },
         "lighttracked-amphibious": {
           "components": 31,
-          "largest": 6016,
-          "passable": 6081,
+          "largest": 6004,
+          "passable": 6069,
           "pocketed": 65
         },
         "lightwheeled": {
@@ -1597,27 +1597,27 @@
           "pocketed": 335
         },
         "naval-shallow": {
-          "components": 7,
-          "largest": 260,
-          "passable": 607,
-          "pocketed": 347
+          "components": 9,
+          "largest": 253,
+          "passable": 595,
+          "pocketed": 342
         },
         "template": {
           "components": 30,
-          "largest": 5479,
-          "passable": 5543,
+          "largest": 5491,
+          "passable": 5555,
           "pocketed": 64
         },
         "tracked": {
           "components": 33,
-          "largest": 5371,
-          "passable": 5503,
+          "largest": 5359,
+          "passable": 5491,
           "pocketed": 132
         },
         "tracked-amphibious": {
           "components": 31,
-          "largest": 6016,
-          "passable": 6081,
+          "largest": 6004,
+          "passable": 6069,
           "pocketed": 65
         },
         "walker": {
