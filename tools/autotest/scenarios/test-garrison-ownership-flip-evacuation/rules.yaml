@@ -1,0 +1,31 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Human-owned units read per-type stance defaults off this machine's unit-defaults.yaml
+	# (AutoTarget.cs:355-388). Strip it so the riflemen behave identically on every machine
+	# that runs this scenario.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-garrison-ownership-flip-evacuation.lua
+
+E1:
+	# Held silent for the same reason the houses have no enemy near them: a soldier who picks
+	# a fight can be deployed to a firing port, and a port soldier is in-world and separately
+	# rescuable. This scenario is about the SHELTER occupant, who has no exit of his own.
+	#
+	# PITFALL: BOTH stance fields, and InitialStanceAI is the one that fires for the scenario
+	# opponent. AutoTarget.cs:497 picks `Owner.IsBot || !Owner.Playable ? InitialStanceAI :
+	# InitialStance`, so InitialStance alone is silently never read for a non-Playable slot.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire

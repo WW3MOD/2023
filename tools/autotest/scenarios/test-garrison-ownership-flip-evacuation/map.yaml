@@ -1,0 +1,88 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Garrison ownership flip does not strand men (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Both houses start NEUTRAL. That is the only owner GarrisonManager will claim from
+	# (GarrisonManager.cs:259 gates the DynamicOwnership flip on the building already being
+	# Neutral), so it is also the only start state from which the flip this scenario needs
+	# can happen at all.
+	#
+	# v01 is a 2x2 church. Its Location is the top-left cell, which is where DeployToPort
+	# puts a port soldier — see IsOutOf() in the .lua for why that matters.
+	Home: v01
+		Owner: Neutral
+		Location: 24,16
+	Seized: v01
+		Owner: Neutral
+		Location: 40,16
+	# C1 garrisons Home and is the CONTROL: he proves the evacuate gesture works at all.
+	C1: e1
+		Owner: USA
+		Location: 24,20
+	# S1 garrisons Seized and is the SUBJECT: he is inside when the building is taken away.
+	S1: e1
+		Owner: USA
+		Location: 40,20
+	# Prober never garrisons anything. He exists to ask one question after the flip — can a
+	# USA soldier still be ordered INTO a Russia-owned building — which is the invariant that
+	# decides whether the stranded state is reachable in real play at all.
+	Prober: e1
+		Owner: USA
+		Location: 44,20
+	# No enemy ground unit is placed anywhere near the houses, and that is deliberate rather
+	# than incidental: GarrisonManager only deploys a soldier to a firing port once it has a
+	# CONFIRMED target (TargetConfirmTicks). With nothing to shoot at, both men stay in the
+	# Cargo shelter — which is the case the "men are lost" worry is actually about. A port
+	# soldier is an in-world actor his owner can simply force-move out, and that escape is
+	# already covered by test-garrison-force-move-eject.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,14
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,26
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 24,20
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,26
+
+Rules: rules.yaml

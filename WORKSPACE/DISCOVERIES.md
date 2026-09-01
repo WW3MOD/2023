@@ -3,6 +3,75 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — an early `return` guard silently widens its scope when new code is appended below it: `Cargo`'s emergency bail has never run for a garrison building (`wt/garrison-design`, `main @ 3dd67e07`)
+
+**The generalisable shape, which is worth more than the instance:** a guard written as an early
+`return` is only as narrow as the method was *on the day it was written*. Append anything below it
+and the guard now skips that too, silently, with its own comment still describing the smaller job.
+Nothing in review catches this — the diff shows only the appended block, and the block looks correct.
+
+**The instance.** `Cargo.INotifyDamage.Damaged` opens (`Cargo.cs:825-832`):
+
+```csharp
+if (IsEmpty()) return;
+// Skip legacy damage forwarding when GarrisonProtection handles it
+if (self.Info.HasTraitInfo<GarrisonProtectionInfo>()) return;      // :831
+```
+
+`EmergencyBailDamageState` (`:115`, default `DamageState.Heavy`) and its whole staggered bail-out
+implementation sit ~45 lines **below** that return (`:876-943`). **Every garrisonable building
+carries `GarrisonProtection`**, so the bail is unreachable on precisely the actors it matters for.
+
+**Git says it was born dead, and the order is the lesson.** `c9699af9` (2026-03-20) added the guard
+when `Damaged` contained *only* damage forwarding — correct and complete then. `4e8e29e2`
+(2026-08-10) appended the bail beneath it. The guard never changed; its meaning did.
+
+**How to find others cheaply:** `git log -S` the guard text, then check whether the method grew
+after the guard landed. A guard older than the code it precedes is the signature.
+
+## 2026-09-01 — garrisoned men in a building that changes owner do not get stranded, they DEFECT — and no Lua binding in this engine can observe the Unload owner gate (`wt/garrison-design`, `main @ 3dd67e07`)
+
+Two findings from asking "can a player evacuate men from a building an enemy now owns?"
+
+**1. The premise is unreachable, four ways.** Nothing in shipped play puts your men inside a
+building an enemy owns: `DynamicOwnership` claims a building only while it is Neutral
+(`GarrisonManager.cs:259`); `CheckOwnershipAfterExit` transfers only to a player who still has a man
+inside (`:320-330`); entry is allied-or-neutral only (`EnterAlliedActorTargeter.cs:49`), so two
+hostile garrisons can never share a hold; and `^CivBuilding` strips `CaptureManager` and both
+`Capturable` traits (`civilian.yaml:12-14`) while `OwnerLostAction` sends a defeated player's
+buildings to **Neutral**, not to the victor (`OwnerLostAction.cs:29`, default `Owner = "Neutral"`).
+
+**2. If it were reached, the men would already be the enemy's.** `Cargo` relays the owner change
+straight onto the hold (`Cargo.cs:1204-1211`):
+
+```csharp
+void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
+    foreach (var p in Passengers) p.ChangeOwner(newOwner);
+```
+
+So "permanently lost" is the right answer with the wrong mechanism — not a UI gate, a side change.
+**Note the asymmetry:** port-deployed soldiers are NOT in `Cargo.Passengers`, so they would not
+convert, and their owner can force-move them out (proven by `test-garrison-force-move-eject`).
+Shelter occupants convert; port occupants do not.
+
+**3. THE TEST-AUTHORING TRAP, and this one is general.** *No Lua binding can observe an
+order-ownership gate.* Two independent reasons, and both must be known before anyone spends a slot
+trying:
+
+- `UnitOrderGenerator` carries `self.Owner != world.LocalPlayer` **only on the `MouseInput`
+  overload** (`:236`). `Test.ClickOrder` and `Test.ClickCursor` both route through the
+  `TargetModifiers` overload (`:271`), which has no such check — they report orders a real mouse
+  could never produce.
+- The authoritative gate `ValidateOrder.cs:48` compares the subject owner's `ClientIndex` to the
+  issuing client's, but **map players share the HOST's ClientIndex** (`Player.cs:188-191`,
+  `CreateMapPlayers.cs:158-159`). In a single-client autotest the scripted "enemy" *is* the local
+  client, so the check passes unconditionally and cannot fire however the test is written.
+
+The honest instrument is a code read: `CommandBarLogic.cs:460-462` and `GarrisonPanelLogic.cs:135-137`
+both filter the selection to `a.Owner == world.LocalPlayer` before issuing. **What a scenario CAN
+see honestly is the relationship predicate inside a targeter** (e.g. `EnterAlliedActorTargeter`),
+because that lives on the shared tail of both overloads.
+
 ## 2026-09-01 — the sync tripwire has exactly ONE site engine-wide, which is why "dispatches UI handlers from Lua" is a silent bug class (`wt/cmdbar-audit`, `main @ 42548fe5`)
 
 Follow-up audit after `Test.PressHotkey` (entry below). The generalisable finding is the *shape*, not

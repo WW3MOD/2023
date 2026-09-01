@@ -4259,3 +4259,27 @@ returns nothing.
 
 Not applied here because it changes what a demo shows on screen, which wants a look rather than a
 silent edit from a tooling branch.
+
+- [2026-09-01] [med] **`Cargo`'s emergency bail-out has never run for any garrisonable building, and
+  it was born that way.** `Cargo.INotifyDamage.Damaged` returns early for any actor carrying
+  `GarrisonProtection` (`engine/OpenRA.Mods.Common/Traits/Cargo.cs:830-832`), and the entire
+  `EmergencyBailDamageState` implementation sits ~45 lines below that return (`:876-943`). **Every
+  garrisonable building carries `GarrisonProtection`**, so passengers never bail out of a burning
+  building however far it is knocked down. The guard's own comment still says it skips "legacy damage
+  forwarding" — which was true when `c9699af9` (2026-03-20) added it and the method contained nothing
+  else, and stopped being true when `4e8e29e2` (2026-08-10) appended the bail beneath it.
+  **Fix is narrowing the guard to wrap the forwarding block instead of returning** (~5 lines), but
+  that is not a pure bug fix: with the guard fixed, garrisons would bail at `Heavy` (50% HP) by
+  default, which is a real combat change and wants a design call plus a slot. Note also that
+  `bailedOut` only re-arms below the threshold (`:884-885`), and an `Indestructible` building pinned
+  at 1 HP is permanently `Critical` — so the bail would fire **once** and never again. Full analysis
+  and ranked options in `WORKSPACE/garrison-destructibility-260901.md` (P1).
+  (found while working on: garrison destructibility design audit)
+
+- [2026-09-01] [low] **`RubbleProtection`'s `[Desc]` states something false at its own default.**
+  `engine/OpenRA.Mods.Common/Traits/Garrison/GarrisonProtection.cs:27-29` describes the field as
+  *"Lower than CriticalProtection"*, but **both C# defaults are 30** — the claim holds only because
+  `^CivBuilding` overrides `CriticalProtection` to 70 (`mods/ww3mod/rules/ingame/civilian.yaml:117`).
+  GTWR/PBOX/HBOX set `CriticalProtection: 80` and omit `RubbleProtection` entirely
+  (`structures-defenses.yaml:153-156`), inheriting the 30 by omission rather than by decision.
+  Doc-only fix; no behaviour change. (found while working on: garrison destructibility design audit)
