@@ -29,9 +29,6 @@ namespace OpenRA.Test
 	[TestFixture]
 	public class FrozenActorTargetingTest
 	{
-		const int CallOpcode = 0x28;
-		const int CallvirtOpcode = 0x6F;
-
 		/// <summary>
 		/// The single site permitted to observe FrozenActor.Actor, and only to DECLINE the click. A dead
 		/// ghost stays clickable (FrozenActorLayer only drops a frozen actor once it stops being
@@ -55,15 +52,10 @@ namespace OpenRA.Test
 
 			foreach (var method in FrozenTargetingMethods())
 			{
-				var body = method.GetMethodBody();
-				if (body == null)
-					continue;
+				var scan = IlScan.Scan(method);
+				resolvedCalls += scan.ResolvedCalls;
 
-				var il = body.GetILAsByteArray();
-				if (il == null)
-					continue;
-
-				foreach (var callee in CalledMethods(method, il, ref resolvedCalls))
+				foreach (var callee in scan.Callees)
 				{
 					if (callee.MetadataToken == liveActorGetter.MetadataToken &&
 						callee.Module == liveActorGetter.Module)
@@ -150,36 +142,5 @@ namespace OpenRA.Test
 			}
 		}
 
-		static IEnumerable<MethodBase> CalledMethods(MethodInfo method, byte[] il, ref int resolvedCalls)
-		{
-			var typeArgs = method.DeclaringType.IsGenericType
-				? method.DeclaringType.GetGenericArguments()
-				: Type.EmptyTypes;
-			var methodArgs = method.IsGenericMethodDefinition ? method.GetGenericArguments() : Type.EmptyTypes;
-
-			var results = new List<MethodBase>();
-			for (var i = 0; i + 4 < il.Length; i++)
-			{
-				if (il[i] != CallOpcode && il[i] != CallvirtOpcode)
-					continue;
-
-				var token = BitConverter.ToInt32(il, i + 1);
-				try
-				{
-					var callee = method.Module.ResolveMethod(token, typeArgs, methodArgs);
-					if (callee != null)
-					{
-						resolvedCalls++;
-						results.Add(callee);
-					}
-				}
-				catch (ArgumentException)
-				{
-					// Not a method token — the byte matched mid-operand of another instruction.
-				}
-			}
-
-			return results;
-		}
 	}
 }
