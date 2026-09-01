@@ -38,7 +38,8 @@ local VanishCell = { X = 47, Y = 54 }
 local ScoutCell = { X = 47, Y = 53 }
 
 -- A hover cell counts as "on the contact" within this many cells of the vanish
--- cell. The closest candidate the leash allows is ~11 cells from V, and grid
+-- cell. The closest candidate the leash allows is 8 cells from V (30 - 22; run 8
+-- measured bestintelcell=39,51 at exactly 8), and grid
 -- candidates are spaced 2 cells apart, so 18 admits the genuine hunt cells while
 -- still excluding the whole western half of the hover disc.
 local NearVanishCells = 18

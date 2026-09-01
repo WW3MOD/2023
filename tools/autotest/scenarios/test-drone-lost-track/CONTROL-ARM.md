@@ -131,11 +131,48 @@ cell*. The launch line now carries `bestintel=`, `bestintelcell=` and `bestintel
 
 > `multiplier = (reveal − bestintelreveal) / (bestintel − intel_at_reveal_argmax)`
 
-**Decide the verdict before the run, not after.** ≤1.5× means the term is roughly right and
-this scenario is simply a hard case — report that and change nothing. ≥1.8× is a real
-shortfall worth acting on. In between is a judgement call that should be argued in the
-commit, not silently rounded up. Setting the constant to exactly the value that flips this
-scenario is tuning-to-pass and is the same move as lowering `FreshSightingTicks` was.
+**Verdict thresholds, recorded before run 8 and not moved after it:** ≤1.5× means the term
+is roughly right and this scenario is simply a hard case — change nothing. ≥1.8× is a real
+shortfall. In between is a judgement to argue in the commit, not silently round up. Setting
+the constant to exactly the value that flips this scenario is tuning-to-pass and is the same
+move as lowering `FreshSightingTicks` would have been.
+
+### Run 8 — measured: 1.19×–1.47×, inside the "roughly right" band
+
+```
+launch cell=35,31 reveal=307 border=0 intel=34 intelkey=32
+       bestintel=178 bestintelcell=39,51 bestintelreveal=95 records=1 nearby=1 tick=200
+```
+
+`border=0` confirms the exploration term is not inflated, so 307 is real ground.
+
+**The multiplier does not depend on locating the reveal argmax.** The winner `35,31` beat
+the argmax `A`, so `reveal(W) + 34 ≥ 307 + intel(A)`, and `reveal(W) ≤ 307` forces
+`intel(A) ≤ 34`. Sweeping the whole admissible range:
+
+| `intel(A)` | multiplier |
+|---|---|
+| 0 | 212/178 = 1.191 |
+| 8 (a 28-cell argmax, the observed case) | 212/170 = **1.247** |
+| 34 (upper bound) | 212/144 = 1.472 |
+
+Every admissible value is ≤1.5×. **No constant moves.**
+
+`IntelSquares` is **247**, not the 249 previously assumed — it is the only value satisfying
+both `floor(sq·4/29)=34` and `floor(sq·21/29)=178`, and it corresponds to age 71–80, i.e.
+`LastSeenTick` 120–129. The last belief pass before the t140 kill was ~t125, so the contact
+is *older* than the kill tick. That is the one-sided error predicted when the timing was
+chosen, resolving in the safe direction. `floor(247/29) = floor(249/29) = 8`, so the
+denominator was unaffected.
+
+**Scope, and it is narrower than the number looks.** This is one point, not a calibration.
+`reveal=307` is this map's strongest exploration alternative; `bestintelreveal=95` is the
+terrain around one hunt cell; and the 8-cell closest approach follows from V sitting 30
+cells out against a 22-cell leash. That geometry is close to **worst case for the term**: a
+contact nearer the operator would be reachable at lower falloff — at 0 cells the value is
+the full 247 rather than 178 — so the term would win comfortably. The honest claim is *"in a
+deliberately hard geometry it falls about 25% short of overriding the strongest available
+alternative"*, not *"the term is correctly sized"*.
 
 ## First check the run actually ran — this is not optional
 
