@@ -3,6 +3,39 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — a proximity emitter's trigger sits at the Building CENTRE, which is why the husk cover bonus never paid out; and the stationary-infantry `prone` bonus is contested in tree (`wt/forest-cover`, `main @ 4efcfe40`)
+
+**1. `ProximityExternalCondition` is anchored at `self.CenterPosition`, not at the actor's occupied
+cell, and for the mod's trees those are not the same place.** The trigger is registered in
+`AddedToWorld` at `self.CenterPosition` (+ `Info.Offset`), and a `Building`'s centre is
+`CenterOfCell(TopLeft) + CenterOffset` (`Building.cs:350`, `:207-211`), i.e. the middle of the
+**Dimensions box** — while most trees are `Dimensions: 2,2` with `Footprint: __ x_`, occupying only
+the bottom-left cell. The centre therefore lands **724 units (0.71 cells) diagonally off-trunk**.
+Consequence: `^TreeHusk`'s `Range: 384` (`husks.yaml:155-158`) is *shorter than the offset to its own
+trunk cell*. Modelled against `woodland-warfare-ww3`'s authored trees, a 384 radius grants
+`object-proximity` on **0.0%** of in-bounds cells. The one shipped emitter of the largest concealment
+lever in the game has effectively never fired. Anyone tuning a `ProximityExternalCondition` on a
+multi-cell building must add the box offset to the radius they actually want, or set `Offset:`
+(as `T01.Husk` partially does).
+
+**2. Radius is a step function, not a smooth dial.** Trees sit on whole cells, so only discrete
+separations exist. On `woodland-warfare-ww3` the share of cells receiving any cover bonus is flat at
+14.1% for R 512–724, **22.7% for R 725–1144**, 32.7% for R 1145–1618, 36.4% above. Picking a radius
+inside a plateau rather than near its edge is free robustness; picking 1025–1144 over 1024 changes
+literally nothing.
+
+**3. Whether a never-moved rifleman carries `prone` is contradicted in tree, and it is worth
+settling.** `InfantryStates` (`infantry.yaml:315-317`) grants `prone` on
+`deployed || suppressed > 30 || !moving || critical-damage`, it lives on `^CamoSoldier` which ordinary
+riflemen **do** reach (`E1.america` → `^E1:1122` → `^CamoSoldier`), and `Actor.cs:283-284` invokes
+every variable observer once with the initial condition state — so a map-placed rifleman should
+evaluate `!moving` true, take `DetectableAddativeModifier@Prone` (+1) and read **tier 4**. But two
+committed scenarios assert **tier 3** for exactly that unit: `test-visual-gauge-truth`
+(`Rifle_ExpectedTier = 3`) and `test-visual-concealment-gauge` (`ExpectedStoppedTier = 3`). One side is
+wrong and only a launch decides which. Note the same ambiguity makes
+`WORKSPACE/recon/260901-visibility-modifier-proposal.md` §2.2's *"Stopped, <12 s (prone) → 4"* row
+unsafe to reuse. `test-forest-cover-bonus` prints the control tier, so any run of it answers this.
+
 ## 2026-09-01 — `visibility-N` is an OUTPUT broadcast feeding a live gauge, not a modifier scaffold; and forest is hard concealment that no modifier can match (`wt/visibility-mods`, `main @ 3248605a`)
 
 Recon for items 7/8. Full costed proposal in

@@ -10,6 +10,11 @@
 	Inherits@DamageStates: ^DamageStates
 	Inherits@AmmoDecoration: ^AmmoDecoration
 	Inherits@Vision: ^StandardVision
+	# Concealment gauge (infantry.yaml). Vehicles already carry Detectable, so the engine was
+	# granting them visibility-N with nothing consuming it -- which is the entire content of the
+	# YAML gate's "unconsumed visibility-1..10" line. It also makes the stationary bonus below
+	# observable: without a circle there is no readout for a vehicle's concealment state.
+	Inherits@DetectableRangeCircles: ^DetectableRangeCircles
 	Inherits@DamagePips: ^DamageVehiclePips
 	Inherits@VehicleSuppression: ^VehicleSuppressionEffects
 	RenderSprites:
@@ -64,6 +69,32 @@
 	AttackMove:
 		AssaultMoveCondition: assault-move
 	Detectable:
+	# Vehicle concealment states. SIGN TRAP -- this must be a positive STATIONARY bonus, never a
+	# negative moving penalty. Detectable.Vision defaults to 2 (Detectable.cs:25) and
+	# MapLayers.IsDetected floors the threshold at 2 (MapLayers.cs:600-603), so 2 is already the
+	# most-visible reachable value: "moving: -1" would compute 1, read back as 2, and change
+	# nothing while looking correct in the YAML.
+	#   moving             -> 2 -> seen from 28c (unchanged from today)
+	#   stationary         -> 3 -> seen from 25c
+	#   stationary, firing -> 2 -> seen from 28c   (@Firing cancels @Stationary)
+	#   moving, firing     -> 1 -> floors to 2 -> 28c
+	# KNOWN DEAD SPOT, shared with infantry (see infantry.yaml:777-787): the firing penalty is
+	# free while moving, because both states already sit on the floor. Making a moving vehicle
+	# *more* visible than base would require raising ^Vehicle's base Vision, which is a separate
+	# balance decision and deliberately not taken here.
+	GrantConditionOnMovement@Visibility:
+		Condition: moving
+	GrantConditionOnAttack@Firing:
+		Condition: firinganyweapon
+		RevokeDelay: 12
+		RevokeOnNewTarget: False
+		RevokeAll: True
+	DetectableAddativeModifier@Stationary:
+		RequiresCondition: !moving
+		VisionModifier: 1
+	DetectableAddativeModifier@Firing:
+		RequiresCondition: firinganyweapon
+		VisionModifier: -1
 	ProximityCaptor:
 		Types: Vehicle
 	GpsDot:
