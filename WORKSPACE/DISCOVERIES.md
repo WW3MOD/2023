@@ -3,6 +3,51 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — `LayeredDefenceBotModule` logs under the `[exp-poi]` tag, so its unit moves read as `PoiOffensiveBotModule`'s (`wt/drone-targeting`)
+
+A log tag that names the wrong module costs you a run, because the natural response to
+"something is moving my unit" is to remove the module the tag names.
+
+- `LayeredDefenceBotModule.cs:285,321` emit `[exp-poi] disperse player=… pool=… centroid=…`.
+  Nothing named `Poi` is involved: the module is `LayeredDefence`, and `PoiOffensiveBotModule` is a
+  different trait with its own instance in `ai.yaml`.
+- In an autotest that needed the drone operator to stay put, `PoiOffensiveBotModule@experimental` and
+  `LaneAmbushBotModule@experimental` were both removed and the operator **kept being walked**. The
+  aggregate line still said `[exp-poi]`, which reads as though the removal had not taken.
+- The actor-level truth is available but only in TestMode, under a *different* tag —
+  `[defence] assign unit=21@18,45 -> 39,51 owner=… reason=contested-line` (`:548-551`). That line named
+  the mover, the actor and the destination in one go, and the module's own comment at `:544-547`
+  explains it was added precisely because the aggregate telemetry "never logged which actor it sent
+  where — so an autotest measuring a unit leaving its position could not tell a line assignment from an
+  `AutoSeekSupplies` errand".
+
+**The rule: do not infer the owning module from a log tag — grep the emitting file for the literal
+string.** A tag is a label someone typed, not a namespace the compiler checks, and there is nothing in
+the build that can notice it has drifted from the module it sits in.
+
+## 2026-09-01 — The drone module cannot launch anywhere on a map whose only POI is the enemy Supply Route (`wt/drone-targeting`)
+
+`MaxPoiDistanceCells: 40` is documented as the "unreachable corner guard", but its reach depends
+entirely on how many POIs a map has, and on some maps that set is a single point.
+
+- `PoiMap` counts two things (`PoiMap.cs:213-223`): actors named `supplyroute`, and income structures —
+  the latter only if they carry `CaptureManagerInfo`. **Own and neutral SRs are then discarded**
+  (`:326`, `if (isSupplyRoute && !enemy) continue;`), so a map with no capturable income structures has
+  exactly ONE POI: the enemy SR.
+- A drone operator standing near its own SR is by construction far from the enemy's. Measured on a
+  98x82 map with the operator at (18,45) and the enemy SR at (80,35): every candidate in the 22-cell
+  hover disc sits ≥41 cells from that single POI, so **388 of 388 candidates were refused
+  `TooFarFromPoi` at every evaluation, nine for nine, and no drone ever launched.**
+- The diagnostic split is what made this a five-minute diagnosis instead of a second match: the
+  refusal counters read `reveal=0 poi=388 danger=0 sr=0 covered=0`, and `poi` exactly equalled
+  `scored`. A bare "no eligible cell" would have been compatible with three other defects.
+
+Real maps carry income structures — River Zeta has twelve oil derricks — so this is not a live gameplay
+bug. It is a **scenario-authoring trap**: strip a map down to "just the actors my test needs" and the
+POI gate silently becomes unsatisfiable, because POIs are scenery you did not think of as
+load-bearing. **Any scenario exercising a POI-gated module needs at least one capturable income
+structure inside the acting unit's reach**, or the module under test is inert before it starts.
+
 ## 2026-09-01 — A scoring term expressed in a different unit from the one it competes against is INERT BY CONSTRUCTION, and nothing in the build, the tests or the lint can see it (`wt/drone-targeting`)
 
 The drone module shipped a believed-contact preference that **never once changed a decision**, and it
