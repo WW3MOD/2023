@@ -3,6 +3,68 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — THE RELATIONSHIP OFFSET IS A BIGGER SELECTION SPLITTER THAN THE ENTIRE YAML PRIORITY LADDER, so "equalise the Priority values" cannot merge two structures with different owners (`main @ 9cd1e0d8`)
+
+Found while costing `HANDOFF-260901.md` §C. Three durable facts, each of which was got wrong by
+reading the obvious thing instead of the chain.
+
+**1. `SelectionPriority(Actor)` subtracts `PriorityRange = 30` per relationship step — ally −30,
+neutral −60, enemy −90 (`SelectableExts.cs:29-52`) — and the whole YAML ladder spans 0–10.** Since
+`SubsetWithHighestSelectionPriority` (`:96-103`) is a group *filter* on exact equality and not a
+ranking, one relationship step is three ladder-widths of separation and can never be closed from
+YAML. Two oil derricks at identical `Priority: 0` land in different groups the moment one is
+captured: −60 neutral vs −90 enemy. **Any proposal of the form "give these actors the same
+`Priority` so they box-select together" is only valid within one owner relationship.** The same
+arithmetic is why the Ctrl override cannot rescue a deprioritised unit (already banked, 2026-08-10)
+— that entry established the group-filter mechanism; this is the other half of it.
+
+**2. An actor with a bare `Selectable:` block does NOT get `Selectable.cs:19`'s `Priority = 10`
+default if any ancestor sets the value.** FCOM and BIO declare `Selectable:` with only `Bounds:`
+(`structures-neutral.yaml:37-38`, `:73-74`) and were read as priority 10; they are **2**, from
+`^SelectableBuilding` (`defaults.yaml:1005-1008`) via `^TechBuilding` → `^BasicBuilding`
+(`structures.yaml:141`, `:7`), because MiniYaml merges trait children in place rather than
+replacing the node. The C# default only applies when *nothing in the chain* sets the field, which
+for buildings in this mod is never. Reading `Selectable.cs` to answer "what priority is this actor"
+is the trap; resolve the `Inherits` chain.
+
+**3. The capturable set is far wider than the tech buildings, and spans three selection tiers.**
+`^BasicBuilding` carries `Inherits@NeutralOrOccupiedCapturable` (`structures.yaml:10`), so *every*
+building is capturable — including `^Defense` (`structures-defenses.yaml:2`), which sits at
+`Priority: 4` via `^SelectableCombatBuilding` (`:24-27`). The tiers among capturable structures are
+**4 / 2 / 0**, not two. Anything reasoning about "capturable buildings" from the
+OILB/MISS/HOSP/FCOM/BIO list is working from a fifth of the set.
+
+**Corollary worth keeping: selection priority is invisible to the simulation.** `ISelectableInfo`
+is read in seven files, all selection/order-generator/interface; `.SelectionPriority(` has no
+caller outside `SelectableExts.cs`; `Traits/BotModules/` references none of it. So a selection
+change cannot move `@stable`, cannot desync, and needs no benchmark re-take — a rare case where
+the `CLAUDE.md` `@stable` question has a clean provable "no".
+
+**And the pruning is not silent, which is easy to assert and wrong.** The drag rollover runs the
+same filter — `WorldInteractionControllerWidget.cs:72` feeds `Selection.SetRollover` (`:80`), and
+rollover membership forces health bars on via `SelectionDecorationsBase.cs:104-107`. The surviving
+set is previewed live during the drag. It draws no outline (`RenderSelectionBox` is gated on
+`selected`, `:109`), so the tell is weak — but "the player is told nothing" is false.
+
+**Escape hatch that changes the severity of any priority complaint:** `Selection.Combine` with
+`isCombine` is `actors.UnionWith` and does **not** re-prune (`Selection.cs:108-114`). Shift-drag or
+shift-click accumulates across tiers and owners, so any mixed selection is reachable by hand today.
+
+**Straight-line dispatch distance, measured rather than guessed.** Rebuilding the `foot` graph for
+all ten shipped maps with nav-guard's decoder and running Dijkstra against the real capturable
+positions (3128 trials, seed 20260901): the straight-line-nearest capturer differs from the
+path-nearest **6.4%** of the time, is **entirely unreachable 0.5%** of the time, and the path/line
+ratio runs median 1.08, p95 1.76, **max 6.47**. Worst is `polar-disorder-ww3` at 15% wrong. The
+0.5% is the one that matters — `CaptureDispatchManager.CommittedTarget` (`:103-117`) reads the
+activity queue, so a technician sent at something it can never reach counts as busy **for the rest
+of the match**. `PathFinder.PathExistsForLocomotor` (`Traits/World/PathFinder.cs:190-193`) answers
+reachability by comparing cached abstract domain IDs (`HierarchicalPathFinder.cs:935`) — near-free,
+and enough to kill that case. True path *cost* has no cheap query: `costEstimator` is just
+`PathSearch.DefaultCostEstimator` (`:274`), a straight-line heuristic, so only a full `FindPath`
+per pair would improve on what is already there.
+
+Full costing: [`WORKSPACE/audits/260901-selection-priority-dispatch-proposal.md`](audits/260901-selection-priority-dispatch-proposal.md).
+
 ## 2026-09-01 — a proximity emitter's trigger sits at the Building CENTRE, which is why the husk cover bonus never paid out; and the stationary-infantry `prone` bonus is contested in tree (`wt/forest-cover`, `main @ 4efcfe40`)
 
 **1. `ProximityExternalCondition` is anchored at `self.CenterPosition`, not at the actor's occupied
