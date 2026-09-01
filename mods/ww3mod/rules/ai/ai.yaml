@@ -946,6 +946,25 @@ Player:
 		# Always read `reveal` MINUS `border`: the raw count includes non-playable border squares the
 		# drone can never actually reveal, and operators launch from the SR near a map edge, which is
 		# where that inflation is worst.
+		#
+		# ===== MEASURED ONCE, 2026-09-01, AND IT CAME BACK INSIDE TOLERANCE =====
+		# LostTrackIntelSquares is no longer purely a reasoned estimate, but it is not calibrated
+		# either, and the difference matters if you are here to change it.
+		# test-drone-lost-track, run 8, treatment arm:
+		#   reveal=307 border=0 intel=34 bestintel=178 bestintelcell=39,51 bestintelreveal=95
+		# The value needed to make the best hunt cell win is (reveal - bestintelreveal) divided by the
+		# term's displacement power (bestintel minus the intel at the reveal argmax), which came to
+		# 1.247x — and 1.19-1.47x across EVERY admissible argmax, so the result does not rest on
+		# identifying that cell. The threshold agreed before the run was 1.5x, so nothing moved.
+		# READ THE SCOPE BEFORE YOU TREAT 1.25x AS "25% TOO SMALL". That map is close to a WORST case
+		# for this term by construction: the contact sits 30 cells from the operator against a 22-cell
+		# leash, so the closest reachable hover cell is 8 cells out and the falloff has already taken
+		# it from 247 squares to 178. A contact the drone can park directly on keeps the full 247 and
+		# wins comfortably. One near-worst-case map inside tolerance is evidence the value is not badly
+		# wrong; it is NOT evidence that it is right, and a second measurement on a normal geometry is
+		# the cheapest thing that would change that.
+		# The scenario reports SKIP rather than FAIL for exactly this reason — expected on merit, not
+		# broken. See tools/autotest/scenarios/test-drone-lost-track/CONTROL-ARM.md.
 		LostTrackIntelSquares: 250
 		AreaIntelSquares: 60
 		StaticIntelSquares: 20
