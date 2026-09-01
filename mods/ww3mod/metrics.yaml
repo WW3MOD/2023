@@ -8,3 +8,12 @@ Metrics:
 	IncompatibleProtectedGameColor: B22222
 	IncompatibleVersionColor: D3D3D3
 	TextfieldColorHighlight: 3A3A3A
+
+	# Relationship-colour mode (Ctrl+Comma, or the Display settings checkbox). Overrides common's
+	# scheme, which paints self green and allies YELLOW. Each is the band's BASE colour: when a band
+	# holds more than one player, RelationshipShade spreads them across lightness steps of it, so keep
+	# these near 50% lightness or the ramp has to slide off-centre to fit.
+	PlayerStanceColorSelf: 1E90FF
+	PlayerStanceColorAllies: 32CD32
+	PlayerStanceColorEnemies: FF0000
+	PlayerStanceColorNeutrals: D2B48C
