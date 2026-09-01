@@ -584,17 +584,17 @@ namespace OpenRA.Traits
 		/// detects an actor concealed at <paramref name="concealment"/>.
 		/// </summary>
 		/// <remarks>
-		/// The comparison is NON-STRICT: matching the target's concealment is enough. It used to be strict,
+		/// <para>The comparison is NON-STRICT: matching the target's concealment is enough. It used to be strict,
 		/// which made the top of the ladder unwinnable — concealment is clamped into the same 1..VisionLayers-1
 		/// range the vision bands occupy (Detectable), so a target at the ceiling could not be exceeded by any
-		/// observer and was undetectable at every range, standing next to an enemy included.
+		/// observer and was undetectable at every range, standing next to an enemy included.</para>
 		///
-		/// PITFALL: level 1 can never carry detection, which is why this is a separate predicate rather than a
+		/// <para>PITFALL: level 1 can never carry detection, which is why this is a separate predicate rather than a
 		/// relaxed <see cref="IsVisible(PPos, int)"/>. Tick stamps ResolvedVisibility 1 on every EXPLORED cell
 		/// whether or not a vision source is on it, so 1 means "seen at the weakest band" and "nobody is looking"
 		/// interchangeably. Admitting it would reveal every actor standing on ground the player has ever
 		/// explored. IsVisible answers a question about the CELL and keeps the strict comparison for that
-		/// reason: its callers pass 1 meaning "better than merely explored".
+		/// reason: its callers pass 1 meaning "better than merely explored".</para>
 		/// </remarks>
 		public static bool IsDetected(int resolvedVisibility, int concealment)
 		{

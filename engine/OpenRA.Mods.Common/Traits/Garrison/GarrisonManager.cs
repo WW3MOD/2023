@@ -453,6 +453,8 @@ namespace OpenRA.Mods.Common.Traits
 		/// and only needs his condition revoked, while a SHELTER soldier is inside Cargo and has to be put
 		/// back into it.</para>
 		/// </summary>
+		/// <param name="self">The garrison building holding the soldier.</param>
+		/// <param name="passenger">The soldier to release. Ignored unless he is one of this garrison's.</param>
 		/// <param name="exitToward">When set, a port soldier is stepped onto whichever free cell adjacent
 		/// to the building lies closest to this destination, so he leaves on the side the player pointed
 		/// at. Ignored for shelter soldiers, who keep the existing drop-at-the-building-cell behaviour.</param>

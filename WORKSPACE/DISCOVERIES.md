@@ -40,6 +40,45 @@ garrisonable and carry `GarrisonProtection`, but they descend from `^Defense` an
 and silently misses those three. There are **four** definition sites for anything garrison-wide, not
 one. `GarrisonBailDisabledTest` asserts that count directly, so adding a fifth garrison building
 fails a test rather than quietly inheriting a vehicle default.
+## 2026-09-01 — `make check` FAILS IN STRATA, so the error list it prints is a floor and never a total (`main @ 9ef205c5`)
+
+Found while making `check` green from a long-red pristine `main`. The count you measure first is
+not the count you have to fix, and the reason is structural rather than incidental.
+
+**`check` is three sequential `dotnet build` lines in one recipe (`Makefile:224`, `:232`, `:240`),
+and make aborts the target at the first line that returns non-zero.** So a red `check` reports the
+errors of line 1 only; lines 2 and 3 never compile. On pristine `main` that showed **33** defects
+(the brief for this work said 28 — also a first-stratum count, taken when the tree differed).
+Fixing all 33 turned line 1 green and revealed **6 more** in `engine/OpenRA.Test`, which line 3
+builds separately because upstream gives it an `ActiveCfg` but no `Build.0` in `engine/OpenRA.sln`.
+Total was 39, in two strata. **Re-measure after every fix round; never plan against the first
+number, and never report "N errors remain" without saying which stratum you have reached.**
+
+**RCS1226 is "Add paragraph to documentation comment", NOT "add exception to documentation
+comment".** It fires when a doc element's content has blank-line-separated paragraphs that are not
+wrapped in `<para>`. This repo's house style — long explanatory `<summary>` blocks carrying several
+paragraphs — walks into it by construction, which is why 27 of the 33 were this one rule and why
+`git grep '<exception cref'` returns nothing in the whole tree. The fix is presentational and
+cannot change a claim; the far more dangerous misreading is the one the name invites, because
+"document the exception this method throws" is a *semantic* edit that a careless worker would guess
+at.
+
+**SA1612 with a SINGLE `<param>` is not an ordering problem and cannot be fixed by reordering.**
+The analyzer compares each `<param>`'s index among the `<param>` elements against that parameter's
+index in the signature, so documenting only the 3rd parameter reports "should be at position 3"
+with nothing to swap it with. Because SA1611 is `none` here (`engine/.editorconfig:666`), partial
+parameter docs ARE legal — but only as a prefix: they must start at parameter 1 and run
+contiguously. All four SA1612 sites were fixed by *adding* accurate docs for the preceding
+parameters, not by moving anything.
+
+**A deliberately-split string literal can satisfy RCS1190 by extracting a named constant.**
+`DebugVisualizationDefaultsTest.cs:44` assembled `"<!-- " + "HITCHECK-OVERLAY-DEFAULT-ON" + " -->"`
+from parts on purpose, so that the file would not itself match a naive grep for the blocker entry
+it polices — joining the literals as the analyzer asks would have defeated the guard. Hoisting the
+middle literal to `const string BlockerToken` silences RCS1190 (an identifier operand is not a
+joinable literal) and keeps the assembled marker absent from the file. **Check for a comment
+explaining a "redundant" concatenation before you join it**; two of the three RCS1190/RCS1136 sites
+here were accidental and one was load-bearing.
 
 ## 2026-09-01 — THE RELATIONSHIP OFFSET IS A BIGGER SELECTION SPLITTER THAN THE ENTIRE YAML PRIORITY LADDER, so "equalise the Priority values" cannot merge two structures with different owners (`main @ 9cd1e0d8`)
 
@@ -16451,3 +16490,37 @@ legacy branch (`ProductionFromMapEdge.cs:127`) calls this method whenever the ma
 `spawnarea` actor — which is **9 of the 10 shipped maps** (only `river-zeta-ww3` has one). Ground
 reinforcement entry cells therefore move south by `floor(sqrt(2d))` on those maps. Deliberate and
 visible, not silent drift; the next bot benchmark baseline must be re-taken.
+
+## 2026-09-02 — the map-edge tie band is zero cells wide at d=0, so "every map without a spawnarea" is not the blast radius
+
+`Map.ChooseClosestMatchingEdgeCell` sorted by `CVec.Length`, which is `Exts.ISqrt(LengthSquared)`
+with `ISqrtRoundMode.Floor` (`engine/OpenRA.Game/CVec.cs:50`, `Exts.cs:305-306`). **Flooring a sort
+key merges cells that are not equidistant into one tie**, so a stable `OrderBy` returned the first
+cell enumerated rather than the nearest one. Fixed by sorting on `LengthSquared` (`Map.cs:1875`),
+which is monotone in true distance and therefore ties only genuinely equidistant cells.
+
+**The correction worth recording is about the blast radius, not the defect.** The reasoning
+"`ProductionFromMapEdge`'s legacy branch runs on the 9 shipped maps with no `spawnarea` actor,
+therefore reinforcement entry moves on 9 maps" is WRONG, and the manager repeated it in a merge
+commit before it was checked. Whether the branch is *taken* is a different question from whether
+the *answer changes*. The tie band is `±floor(sqrt(2d))` for perpendicular distance `d`, so at
+`d=0` it is **zero cells wide** — and most shipped spawn points sit directly on an edge already
+(`1,64`, `100,7`, `30,1`, `1,22`…), where the old and new code agree exactly.
+
+Computed over every `mpspawn` on every shipped map using real `Bounds` and the actual
+`UpdateEdgeCells` enumeration order: **18 of 24 spawn points do not move at all.** The movers are
+`arena-tank-duel` (3 cells), `shellmap-open-field` (3, and it is the menu backdrop), and
+`twin-rivers-ww3` (5). `river-zeta-ww3` has a `spawnarea` so the branch is never taken there.
+
+The model was validated against all three previously observed runs before being trusted —
+`8,16 → 1,13` old / `1,16` new, and the refund scenario's two subjects at `6,14 → 1,11` and
+`6,19 → 1,16`. Arithmetic that only agrees with itself is not evidence.
+
+**General form: "the code path is reached" does not imply "the output differs".** A predicate that
+selects where a defect *can* occur is not a measurement of where it *does*, and quoting the first
+as if it were the second overstated this by 4.5x.
+
+Still carrying the same floored key and deliberately not touched: `Map.cs:1879` and `Map.cs:1889`.
+`:1889` feeds `.Take(count)` for round-robin spawn, where the tie changes *set membership* rather
+than a single winner — less predictable than the site that was fixed, and a worse thing to change
+without measuring.

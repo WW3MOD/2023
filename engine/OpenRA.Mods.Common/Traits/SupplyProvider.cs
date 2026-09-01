@@ -719,7 +719,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>
 		/// <para>The one accept test — demand, affordability, need — and it says nothing about RANGE or
-		/// about <c>currentTarget</c>. Range is <see cref="IsValidTarget"/>'s job and the two sweeps apply
+		/// about <c>currentTarget</c>. Range is <see cref="IsValidTarget(Actor, out bool)"/>'s job and the two sweeps apply
 		/// it DIFFERENTLY: the aura sweep guards with it, the garrison sweep must not, because a sheltered
 		/// passenger is out of the world with a stale CenterPosition and would fail any position test.
 		/// Contention is not a refusal either — <c>UpdateTarget</c> re-picks by greatest need every scan.</para>

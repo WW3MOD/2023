@@ -43,7 +43,7 @@ namespace OpenRA.Test
 
 			Assert.That(MapLayers.IsDetected(TopVisionBand, mostConcealed), Is.True,
 				$"An observer at the top vision band must detect a unit concealed at {mostConcealed}.");
-			Assert.That(TopVisionBand > mostConcealed, Is.True,
+			Assert.That(mostConcealed < TopVisionBand, Is.True,
 				"The top band must STRICTLY exceed maximum concealment, so this holds even if reveal is " +
 				"reverted to a strict comparison.");
 		}

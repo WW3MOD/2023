@@ -32,21 +32,21 @@ namespace OpenRA.Mods.Common
 	public static class HitCheck
 	{
 		/// <summary>
-		/// Effective thickness below which a firing is routed to the quiet channel instead.
+		/// <para>Effective thickness below which a firing is routed to the quiet channel instead.</para>
 		///
-		/// MEASURED, not guessed. Replaying the predicate over the whole shipped ruleset (every
+		/// <para>MEASURED, not guessed. Replaying the predicate over the whole shipped ruleset (every
 		/// damage warhead x every armoured actor, 14274 pairs) produced 370 firings, and ALL 370 --
 		/// not most, all -- were an area/splash companion warhead against a lightly-armoured
 		/// airframe: tran (600 HP, effective 10), heli (800 HP, 20), littlebird (300 HP, 5). A tank
 		/// round's splash not one-shotting a transport helicopter is the designed shape, not a
 		/// defect. Every one of those victims sits at or under effective thickness 20; every real
 		/// armour value a designer sizes penetration against is 150+. A floor of 50 separates the
-		/// two populations cleanly with a wide margin on both sides.
+		/// two populations cleanly with a wide margin on both sides.</para>
 		///
-		/// The trade, stated plainly: an anti-air weapon that genuinely forgot its Penetration would
+		/// <para>The trade, stated plainly: an anti-air weapon that genuinely forgot its Penetration would
 		/// land in the quiet channel rather than the loud one. That is deliberate -- 370 known-benign
 		/// firings would get the whole detector switched off inside a week, which costs more than the
-		/// hypothetical catch.
+		/// hypothetical catch.</para>
 		/// </summary>
 		public const int ArmourFloor = 50;
 
@@ -58,16 +58,16 @@ namespace OpenRA.Mods.Common
 		public const int MaxDeliveredPercent = 25;
 
 		/// <summary>
-		/// True when armour turned a lethal shot into a non-lethal one.
+		/// <para>True when armour turned a lethal shot into a non-lethal one.</para>
 		///
-		/// The severity axis is DELIBERATELY the change in outcome, not the amount of damage lost.
+		/// <para>The severity axis is DELIBERATELY the change in outcome, not the amount of damage lost.
 		/// "Damage lost" was tried first and is wrong: it fires on a 50 HP drone that the shot kills
 		/// several times over anyway, because the absolute loss is large while nothing about the
 		/// result changed. Requiring that the shot WOULD have killed and now does NOT is what makes
-		/// the flag self-justifying -- there is no reading of it that is merely a balance opinion.
+		/// the flag self-justifying -- there is no reading of it that is merely a balance opinion.</para>
 		///
-		/// Pure integer arithmetic, no world state, no allocation. Ordered so the two cheap int
-		/// tests run before the caller needs to look up the victim's health.
+		/// <para>Pure integer arithmetic, no world state, no allocation. Ordered so the two cheap int
+		/// tests run before the caller needs to look up the victim's health.</para>
 		/// </summary>
 		/// <param name="rawDamage">Warhead damage before the armour reduction.</param>
 		/// <param name="deliveredAfterArmour">Damage surviving ApplyPenetration.</param>
@@ -149,12 +149,12 @@ namespace OpenRA.Mods.Common
 		static readonly HashSet<(string Shooter, string Victim, Type Warhead, int WrittenDamage)> Reported = new();
 
 		/// <summary>
-		/// Logging only -- reads no simulation state it does not already have and writes nothing
-		/// back, so this cannot affect determinism or replay byte-identity.
+		/// <para>Logging only -- reads no simulation state it does not already have and writes nothing
+		/// back, so this cannot affect determinism or replay byte-identity.</para>
 		///
-		/// Takes the warhead's <see cref="Type"/> rather than its name so the dedup probe compares
+		/// <para>Takes the warhead's <see cref="Type"/> rather than its name so the dedup probe compares
 		/// references and the type name is only materialised for a line that will actually be
-		/// written. The set is consulted BEFORE any string work for the same reason.
+		/// written. The set is consulted BEFORE any string work for the same reason.</para>
 		/// </summary>
 		public static void Report(string shooter, string victim, Type warheadType, int writtenDamage,
 			int penetration, int rawDamage, int deliveredAfterArmour, int effectiveThickness, int victimMaxHp)
