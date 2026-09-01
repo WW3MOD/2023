@@ -3,6 +3,60 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — `visibility-N` is an OUTPUT broadcast feeding a live gauge, not a modifier scaffold; and forest is hard concealment that no modifier can match (`wt/visibility-mods`, `main @ 3248605a`)
+
+Recon for items 7/8. Full costed proposal in
+[`WORKSPACE/recon/260901-visibility-modifier-proposal.md`](recon/260901-visibility-modifier-proposal.md).
+Five findings worth keeping, in descending order of how much they would cost the next person.
+
+**1. The `visibility-1 … visibility-10` conditions are not a scaffold for visibility modifiers.** The
+handoff read the YAML gate's *"every vehicle grants unconsumed `visibility-N`"* as a half-built feature.
+It is the opposite direction: `Detectable` grants `"visibility-" + CurrentVisibility` as an **output**,
+every time the level changes (`Detectable.cs:223-229`), declared for the lint at `:52-54`. Nothing
+computes from it. **No C# consumer exists** — the only three hits across `engine/` are the declaration,
+the lint superset and the grant (`Detectable.cs:44,54,228`). The sole consumer anywhere is
+`^DetectableRangeCircles` (`infantry.yaml:808-908`), a concealment **gauge**, and it is **live**
+(`infantry.yaml:22`, uncommented). Vehicles carry `Detectable` but not the circles, so the conditions go
+unconsumed *there* — that is the whole gate message. `lint-baseline.txt` contains zero `visibility` lines.
+
+**2. Two load-bearing facts changed within a day of the 2026-08-19 recon, and its arithmetic is stale.**
+Reveal became **non-strict** in `1ff73ae5` (2026-08-20) — `IsDetected(resolved, concealment) => resolved
+>= max(concealment, 2)` (`MapLayers.cs:600-603`) — which **moved every reveal distance in the game 3 cells
+outward**. And the concealment ceiling dropped to `VisionLayers - 2` = **9**, not 10
+(`Detectable.ClampConcealment`, `Detectable.cs:118-125`), so `visibility-10` is unreachable and its 4c ring
+is dead YAML kept deliberately (`Detectable.cs:49-51`). Anyone citing
+`WORKSPACE/recon/260819-infantry-visibility-stances.md` §2.2/§3.4 must re-derive: the true table is CV 1–2 →
+28c, 3 → 25c, 4 → 22c, 5 → 19c, 6 → 16c, 7 → 13c, 8 → 10c, 9 → 7c.
+
+**3. Two floors silently eat modifiers, and both bit real content.** `ClampConcealment` floors at 1
+(`:120-121`) and `IsDetected` then floors the *threshold* at 2 (`:602`, because `ResolvedVisibility` stamps 1
+on merely-**explored** cells). Consequences: (a) **infantry's `−2` firing penalty is completely free while
+moving** — a base-3 rifleman moving is CV 2, firing takes the sum to 0 → clamp 1 → floored back to 2, so a
+moving soldier who opens fire is not one cell more visible; (b) **any negative modifier on a vehicle is inert**,
+because vehicle base is 2 (`vehicles.yaml:66`, `Detectable.cs:25`) and is already at the floor. Item 8's
+"stationary −1" must therefore be authored as a **positive stationary bonus**, never a negative moving penalty.
+
+**4. Forest is HARD concealment and it beats every modifier.** `MapLayers.AddSource` subtracts the sightline's
+forest shadow from the observer and floors the result at **1** (`MapLayers.cs:371-374`); the detection threshold
+floors at **2**. **An observer attenuated to 1 therefore detects nothing, at any range, against any concealment
+level** — independent of CV entirely. Crossing ~5 dense tree cells (density 10 each, curve at
+`Map.ForestGroundShadow`, `Map.cs:1171-1189`) blanks a strength-8 observer at 10 cells. This is the only
+concealment mechanism that works **while moving**, which is the one state every `DetectableAddativeModifier`
+fails in.
+
+**5. The cover bonus is attached to burnt trees, at a third of a cell.** `object-proximity` — the `+1/+2/+3`,
+the largest lever in the modifier table — has **exactly one emitter in the mod**: `^TreeHusk`
+(`husks/husks.yaml:155-158`), `Range: 384`. `ProximityExternalConditionInfo.Range` is a `WDist`
+(`ProximityExternalCondition.cs:27`), so **384 = 0.375 cells**. A living tree gives shadow but zero cover
+bonus; a burnt one gives the bonus only if you stand on it. All 30 tree actors share `^Tree`
+(`decoration.yaml:2`), so relocating the emitter is a one-block edit — the cheapest large lever in this area,
+with an unmeasured ~1200-proximity-trigger cost on `woodland-warfare-ww3`.
+
+**The reusable shape.** The premise check that mattered was not "is the defect real" but "what would the FIX
+look like" — grepping for a *consumer* of `visibility-N` rather than for the string itself is what turned "a
+scaffold wired to nothing" into "an output feeding a live gauge" in one search. Grepping for the symptom would
+have confirmed the handoff's reading and dispatched the work at the wrong thing.
+
 ## 2026-09-01 — the FFA condition that was named as the flip-test for keeping `FrozenUnderFog.OnOwnerChanged` is ALREADY TRUE on four shipped maps (manager check)
 
 The `wt/fog-snapshot` entry above decides to KEEP the old-owner snapshot refresh, and closes by naming
