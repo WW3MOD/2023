@@ -3899,3 +3899,43 @@ likely the scenario should be re-pointed to assert the tank does NOT set off (mi
 rather than that it does. That is a ruling, not a cleanup — do not just flip the predicate.
 
 **Confirm by:** `./tools/autotest/run-test.sh test-poor-depot-still-worth-the-trip`.
+
+---
+
+## 2026-09-01 — Shift+R (Resupply) is dead the same way Shift+E was, and the Resupply button never un-highlights
+
+**Found while** fixing the queued-Evacuate bug (`wt/evac-queue`). Both live in
+`CommandBarLogic.cs`, both are one line, and **neither was touched** — they are not the reported
+bug and changing unreported commands would widen that fix. Filed, not fixed. **Not run**: these are
+derived from reading the dispatch path, not measured in a game.
+
+**1. `Shift+R` never reaches the Resupply button.**
+
+`resupplyButton.OnClick` reads the Shift modifier and builds a queued order
+(`CommandBarLogic.cs:187-188`) — so someone clearly intended Resupply to be queueable. But
+`resupplyButton` is **absent from the `noShiftButtons` array** (`:298`, now `:317`), which is the
+only thing that strips Shift and retries a hotkey. `HotkeyReference.IsActivatedBy` compares
+modifiers for **equality** (`HotkeyReference.cs:43`), so a Shift-bearing event never matches the
+unshifted `Resupply: R` binding and `ButtonWidget.HandleKeyPress` returns false at `:157` before
+`OnKeyPress` runs. Net effect: **Shift+R does nothing at all** — not "resupplies unqueued", nothing.
+The queued-order code at `:188` is therefore reachable only by shift-*clicking* the button with the
+mouse, never by the hotkey.
+
+This is exactly the second half of the Evacuate bug. `autoEnterButton` and `patrolButton` are also
+absent; `stopButton` is absent **correctly** (a Stop must never queue).
+
+**Before fixing, settle the intent:** is Resupply *meant* to be queueable? The `:188` read of the
+Shift modifier says yes and the missing array entry says nobody ever exercised it. Adding
+`resupplyButton` to the array would switch on a queued-resupply path that has, as far as the hotkey
+is concerned, never run in shipped play — so it wants its own scenario, not a drive-by edit.
+
+**2. `resupplyHighlighted` is never decremented.**
+
+`CommandBarLogic.Tick()` (`:390-411`) counts down `deployHighlighted`, `scatterHighlighted`,
+`stopHighlighted`, `patrolHighlighted`, `autoEnterHighlighted` and `evacuateHighlighted` — but not
+`resupplyHighlighted`, which `:185`/`:193` set to 2. `IsHighlighted` is `resupplyHighlighted > 0`,
+so once the Resupply button is pressed **it stays lit for the rest of the match**. Cosmetic, and
+almost certainly an omission rather than a decision; the other six are all there.
+
+**Confirm by:** in game, press Shift+R with a unit selected that has an `AmmoPool` (nothing should
+happen, vs. bare R which resupplies); and press R once and watch the button stay highlighted.

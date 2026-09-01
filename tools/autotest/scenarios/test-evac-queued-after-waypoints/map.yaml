@@ -1,0 +1,102 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a shift-queued Evacuate runs at the END of the waypoints (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# THE GEOMETRY IS THE ASSERTION, and it is built so the two dispositions move a unit in
+# OPPOSITE directions rather than merely at different times.
+#
+#   x=8    both humvees start here
+#   x=24   first shift-waypoint (east)
+#   x=38   last shift-waypoint (east) -- where a correctly QUEUED evacuate begins its exit
+#   x=1    the western bound -- where EVERY evacuation ends, queued or not
+#
+# RotateToEdge sends a ground unit to the edge cell closest to the owner's SpawnArea
+# (FindClosestSpawnAreaForOwner -> ChooseClosestMatchingEdgeCell). SpawnUSA sits at 8,16, whose
+# nearest bound is the WEST one seven cells away -- nearer than either horizontal bound. So an
+# evacuation always drives WEST while the queued waypoints lie EAST, and "did it obey the
+# queue" is answerable from the unit's position alone:
+#
+#   * order ran immediately -> the humvee never goes east of x=20, drives west, is disposed
+#   * order ran queued      -> the humvee reaches x=38 FIRST, then turns around and exits west
+#
+# TWO UNITS, DIFFERING ONLY IN THE SHIFT MODIFIER. Both get the same two queued waypoints; one
+# is then sent Shift+E and the other a bare E. The bare-E humvee is the CONTROL: it proves the
+# hotkey reaches the command bar and that an unqueued Evacuate really does discard the queue.
+# Without it, "the Shift+E humvee never evacuated" would be indistinguishable from "the
+# Evacuate hotkey does not work in this harness at all", which is the failure this scenario is
+# most likely to suffer and least able to notice.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# NO enemy units anywhere on this map, and that is load-bearing exactly as it is in
+	# test-dry-evac-drops-queued-order: nothing can shoot either humvee, so Actor.IsDead
+	# (Disposed || health.IsDead) becoming true can ONLY mean RotateToEdge disposed it. That is
+	# what makes IsDead a clean "it evacuated" detector instead of an ambiguous one. Both are
+	# staged at full health so ChangesHealth@CriticalDamage never starts on its own clock.
+	#
+	# Separate rows so the two drives never contend for the same cells -- an immediate evacuee
+	# reversing through the queued one's lane would add a stall the verdict cannot explain.
+	QueuedUnit: humvee
+		Owner: USA
+		Location: 8,14
+		Facing: 512
+	ImmediateUnit: humvee
+		Owner: USA
+		Location: 8,18
+		Facing: 512
+
+	# The evacuation anchor. Placed between the two humvees and seven cells from the western
+	# bound, so both exits resolve to the same near edge.
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 8,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+
+	# One supplyroute per faction per AUTOTEST.md: Russia owns no units, and an actorless
+	# faction ends the match with a Mission-Accomplished overlay before the Lua poller can write
+	# a verdict. USA's sits WEST and well clear of both lanes.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

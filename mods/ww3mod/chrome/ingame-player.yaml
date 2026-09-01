@@ -323,7 +323,7 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Evacuate
-					TooltipDesc: Selected units leave the battlefield via the map edge,\nrefunding their value to your budget.\n\nActs immediately on selected units.
+					TooltipDesc: Selected units leave the battlefield via the map edge,\nrefunding their value to your budget.\n\nActs immediately on selected units.\nHold {(Shift)} to queue it behind their current orders.
 					TooltipContainer: TOOLTIP_CONTAINER
 					Children:
 						Image@ICON:
