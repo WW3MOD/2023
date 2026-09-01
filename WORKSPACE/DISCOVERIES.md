@@ -3,6 +3,96 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — `ChooseUnitToBuild` IS reached, on two lanes whose entire buildable pool is `~disabled` — so the weighted lottery runs, draws RNG, and is guaranteed to return null (`wt/bot-truth`)
+
+**Investigated, deliberately NOT fixed.** Recorded because the obvious reading of this defect is wrong
+twice, and both wrong readings point at expensive changes.
+
+**Wrong reading 1 — "the lottery is unreachable."** `buildRandom` is not a field; it is the argument
+`idleUnitCount < Info.IdleBaseUnitsMaximum` computed at `UnitBuilderBotModule.cs:677` and consumed by the
+ternary at `:850-852`. `idleUnitCount` *is* permanently 0 — `unitsHangingAroundTheBase`
+(`SquadManagerBotModule.cs:143`) has one `Add` (`:343`) gated behind `else if (Info.IgnoreGroundUnits)`
+(`:334`), and all four SquadManagers set it true (`ai.yaml:1821, 1934, 2477, 2490`). But **`0 < 0` is
+false**, and the two `.fixedwing` builders set `IdleBaseUnitsMaximum: 0` (`ai.yaml:1792, 1910`) under
+`RequiresCondition: enable-ai-any`. So on those two instances, on **both** profiles, `buildRandom` is
+false and `ChooseUnitToBuild` runs every production cycle.
+
+**Wrong reading 2 — "so those weights are live."** They are not. All four types those lanes list —
+`mig`/`frog` (`ai.yaml:1796-1797`), `a10`/`f16` (`:1914-1915`) — carry `Buildable.Prerequisites:
+~disabled` (`aircraft-russia.yaml:459, 582`; `aircraft-america.yaml:439, 566`), set deliberately in
+`f442af8a` (2026-03-24, *"hidden in normal gameplay"*). Nothing in the mod grants `disabled`. So
+`queue.BuildableItems()` never contains them, the `buildableThings.Any(b => b.Name == unit.Key)` test at
+`:1678` never passes, and the function returns null on every call. **The net effect matches the original
+report — no `UnitsToBuild` weight acts as a weight anywhere in the mod — but every step of the mechanism
+differs, and a fix aimed at the reported mechanism would have been aimed at the wrong lane.**
+
+Two further traps in the same place:
+
+- **The case-mismatch bugfix above those weights is inert.** `ai.yaml:1785-1789` states *"Keys lowercased
+  to the actor names so the pool actually builds"* (`f05e31b7`, 2026-08-02). The pool had been
+  unbuildable by prerequisite for four months. The lowercasing is correct and changes nothing — a
+  textbook *change believed made, documented as made, and inert*.
+- **The dead lanes are load-bearing as RNG ballast.** `ChooseUnitToBuild` opens with
+  `Info.UnitsToBuild.Shuffle(world.LocalRandom)` (`:1677`), and `Shuffle` (`Util.cs:184-197`) is a lazy
+  Fisher-Yates that draws `random.Next` per yielded element. The `foreach` runs to exhaustion because
+  nothing matches, so each dead lane burns a `LocalRandom` draw per cycle on every profile. `LocalRandom`
+  is excluded from the sync hash but **is** seeded from the lobby seed
+  (`architecture.md` §"Bot decisions ARE seed-reproducible"), so deleting these instances as obvious dead
+  code would shift the stream and silently invalidate the seeded `@stable` benchmark baseline.
+
+**Why the weight would still be nearly inert even if the pool were buildable.** `ChooseUnitToBuild`
+(`:1666-1684`) is not weighted sampling: it shuffles and returns the FIRST buildable entry passing
+`myUnits.Count(name) * 100 < weight * myUnits.Count`, where `myUnits` is every owned `IPositionable` —
+the whole army, not the queue. It is a share CEILING, as `ai-russia.yaml:57-59` already records. With
+`UnitLimits: mig: 2`, a `mig: 30` ceiling can only refuse while the entire army is ≤ 6 units. Past the
+opening minute it degenerates to a uniform shuffle over its own list.
+
+**The general shape: "is this code path reached?" and "can this code path produce anything?" are
+different questions, and a defect can be real while every step of its stated mechanism is false.** The
+prerequisite gate lives in a different file from the weights, in a different subsystem from the lottery,
+and neither the build, NUnit nor lint relates the two.
+
+## 2026-09-01 — The map-border artefact is PER-PLAYER ASYMMETRIC, because a coarse grid keyed on the block CENTRE cannot see the low border at all (`wt/bot-truth`)
+
+Fixing the border inflation recorded in the entry below turned up the part that entry got wrong: it is
+not a uniform band around the map. It is **one column and one row, on the high edges only**, and which
+players it taxes depends on where they spawn.
+
+- `ControlField.GridCellToMapCell` returns the block **centre**, `2g+1` at `CellSize 2`
+  (`InfluenceGridMath.GridToMapCentre`). Every shipped map carries a **one-cell** non-playable ring
+  (`Bounds: 1,1,W-2,H-2` on all 10 in `mods/ww3mod/maps`).
+- So the LOW ring is invisible to any centre-sampled test: `gx=0` maps to map cell `x=1`, which is
+  playable. Only the HIGH edge shows up, and only because the last block's centre lands past
+  `Bounds.Right`. On River Zeta (`MapSize 98x82`, `Bounds 1,1,96,80`, grid 49x41): `gx=48 → x=97 > 96`
+  and `gy=40 → y=81 > 80`. **Exactly one column and one row, 89 of 2009 squares.**
+- **Therefore the tax fell on some spawns and not others.** River Zeta's six spawns: `(9,45)` and
+  `(16,6)` sit against the LOW edges and paid **nothing**; `(88,35)` and `(81,76)` sit against the high
+  edges and paid the full amount. A 1v1 on this map could hand one bot a phantom exploration bonus its
+  opponent never saw.
+
+**The general shape, and it outlives this fix: a coarse grid that samples the block CENTRE has a
+systematically different relationship to the low and high edges of the region it covers.** The low side
+rounds inward and disappears; the high side rounds outward and persists. Any audit that reasons about
+"the border band" as a symmetric ring will mis-locate the defect and mis-size it — and any artefact that
+is asymmetric between spawns is worse than a uniform one, because it does not wash out of a benchmark.
+
+**Measured, and the second inflation SURVIVES.** Phantom squares (counted by the query, unreachable by
+the drone) before → after this fix, on River Zeta geometry, pinned in
+`DroneTaskingMathTest.Revealable_TheBorderFixLeavesTheBoxCornerArtefactStanding`:
+
+| candidate | before | after |
+|---|---|---|
+| inland (24,20) | 228 | **228** |
+| high edge (47,20) | 143 | 114 |
+| high corner (47,39) | 88 | **57** |
+
+The border fix removes the **smaller** of the two inflations. The box-corner artefact (29x29 query box
+vs the drone's 613-square vision disc) is untouched inland and is now the sole survivor — still ~19x
+`MinRevealedSquares: 12`, so **the launch floor remains inert**. Note the direction: because
+`SumInclusive` clamps the box to the grid, edge candidates already carried a *smaller* corner artefact
+than inland ones, so removing the border widens the inland advantage (gap 140 → 171) rather than
+levelling the field. Correcting one of two biases is not the same as making candidates comparable.
+
 ## 2026-09-01 — The cordon debt is 63 maps but only THREE prices, and the expensive tier is 17 benchmark maps with an income POI on the outer ring (`wt/tooling-truth`)
 
 Costing, not a fix — the paydown is the user's call. Every count below was taken statically from
@@ -342,10 +432,13 @@ one is map-dependent rather than geometric, so it does not cancel evenly between
   The module's own comment already recorded the symptom (candidates measured 42-53% clamped) and
   attributed it to map geometry; this is the mechanism underneath it.
 
-**Not fixed here, deliberately**: subtracting it would be a second unmeasured behavioural change riding
-along with the contact-tasking one. Instead a diagnostic twin summed-area table measures it and the
-launch log carries `border=`, so `reveal - border` is the real exploration signal and one match settles
-the magnitude. **The general shape: a "never observed" sentinel and "outside the playable area" are
+**FIXED 2026-09-01 (`wt/bot-truth`)** — `DroneTaskingMath.IsRevealable` now conjoins the bounds test, so
+`reveal` is already the corrected signal and `border=` in the launch log reports what was removed rather
+than what is still wrong. Two corrections to the entry above, from the fix: the band is **not** the whole
+ring but one column and one row on the HIGH edges only, so the tax was per-spawn rather than global (see
+the 2026-09-01 asymmetry entry at the top of this file); and it is the **smaller** of the two inflations —
+the box-corner artefact survives untouched at ~228 squares inland and still makes `MinRevealedSquares`
+inert. **The general shape: a "never observed" sentinel and "outside the playable area" are
 indistinguishable to any staleness test, so any field keyed on staleness silently treats the map border
 as maximally interesting.**
 

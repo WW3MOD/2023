@@ -8,6 +8,7 @@
  */
 #endregion
 
+using System;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Traits;
 
@@ -541,6 +542,141 @@ namespace OpenRA.Test
 
 				// Ranking survives the artefact: the frontier still scores far higher.
 				Assert.That(atLeashEdge, Is.GreaterThan(atOperator * 3 / 2));
+			});
+		}
+
+		// ---------- The non-playable border ----------
+
+		[Test]
+		public void Revealable_TheNonPlayableBorderIsNotUnobservedGround()
+		{
+			// RIVER ZETA'S REAL GEOMETRY, in grid squares. MapSize 98x82, Bounds 1,1,96,80
+			// (mods/ww3mod/maps/river-zeta-ww3/map.yaml) — every shipped map carries the same one-cell
+			// non-playable ring. ControlField sizes its grid from MapSize (ControlField.cs:520-521), so
+			// at CellSize 2 the grid is 49x41, and GridCellToMapCell returns the block CENTRE 2g+1. The
+			// low ring is invisible to that test (gx=0 -> map x=1, which IS playable); the HIGH edge is
+			// not: gx=48 -> x=97 > 96, gy=40 -> y=81 > 80. So exactly the last column and the last row
+			// are squares no player can ever see.
+			//
+			// A square nobody can see is never marked verified, so TicksSinceVerified returns
+			// int.MaxValue forever (ControlField.cs:921-928), which clears any >= MinStalenessTicks test.
+			// The exploration term therefore counts it as ground worth flying to.
+			const int Gw = 49, Gh = 41;
+			const int PlayableMaxX = 47, PlayableMaxY = 39;
+			const int MinStalenessTicks = 500;
+
+			bool InPlayableBounds(int gx, int gy) => gx <= PlayableMaxX && gy <= PlayableMaxY;
+
+			// EVERY PLAYABLE SQUARE IS FRESHLY OBSERVED. Real revealable ground is zero by construction,
+			// so anything the query reports is pure artefact and the number is unambiguous.
+			int Staleness(int gx, int gy) => InPlayableBounds(gx, gy) ? 0 : int.MaxValue;
+
+			var sat = new int[Gw + 1, Gh + 1];
+			DroneTaskingMath.BuildSummedArea(sat, Gw, Gh,
+				(gx, gy) => DroneTaskingMath.IsRevealable(
+					InPlayableBounds(gx, gy), Staleness(gx, gy), MinStalenessTicks));
+
+			// The uncorrected predicate: staleness alone, exactly what BuildStaleSat used to pass.
+			var inflated = new int[Gw + 1, Gh + 1];
+			DroneTaskingMath.BuildSummedArea(inflated, Gw, Gh,
+				(gx, gy) => Staleness(gx, gy) >= MinStalenessTicks);
+
+			// The worst legal candidate: the playable square nearest the high corner. Candidates are
+			// themselves bounds-checked, so gx=48/gy=40 are never offered — 47,39 is as close as a drone
+			// can be asked to hover. DroneVisionCells 28 at CellSize 2 is +/-14 squares, a 29x29 box that
+			// SumInclusive clamps to the grid.
+			const int Cx = PlayableMaxX, Cy = PlayableMaxY, VisionSquares = 14;
+
+			int At(int[,] table) => DroneTaskingMath.SumInclusive(table, Gw, Gh,
+				Cx - VisionSquares, Cy - VisionSquares, Cx + VisionSquares, Cy + VisionSquares);
+
+			Assert.Multiple(() =>
+			{
+				// RED: 31 squares of "unobserved ground" over a neighbourhood that is fully observed.
+				// 16 squares of the last column + 16 of the last row, less the corner counted twice.
+				Assert.That(At(inflated), Is.EqualTo(31),
+					"the uncorrected term must show the border inflation this test exists to remove");
+
+				// It is not a rounding detail: 31 is 2.5x MinRevealedSquares (12), so the border alone
+				// can carry a candidate over the launch floor with nothing real to see.
+				Assert.That(At(inflated), Is.GreaterThan(12 * 2));
+
+				// GREEN: the corrected term reports the truth.
+				Assert.That(At(sat), Is.EqualTo(0),
+					"fully-observed playable ground must reveal nothing");
+			});
+		}
+
+		[Test]
+		public void Revealable_StillCountsGenuinelyStalePlayableGround()
+		{
+			// The other direction, so the fix cannot be "return false" — a stale square INSIDE the
+			// playable area is exactly what the drone exists to go and look at.
+			Assert.Multiple(() =>
+			{
+				Assert.That(DroneTaskingMath.IsRevealable(true, 500, 500), Is.True, "stale and playable");
+				Assert.That(DroneTaskingMath.IsRevealable(true, int.MaxValue, 500), Is.True, "never seen, playable");
+				Assert.That(DroneTaskingMath.IsRevealable(true, 499, 500), Is.False, "too fresh");
+				Assert.That(DroneTaskingMath.IsRevealable(false, int.MaxValue, 500), Is.False, "outside the playable map");
+			});
+		}
+
+		[Test]
+		public void Revealable_TheBorderFixLeavesTheBoxCornerArtefactStanding()
+		{
+			// THE TWO ARTEFACTS ARE NEAR-ORTHOGONAL, AND THIS PINS WHICH ONE STILL DOMINATES.
+			//
+			// Inflation 1 (BOX CORNER, geometric): the query is a 29x29 BOX, the drone's vision is a
+			// DISC of 613, so up to 228 squares of every query are corners it will never see.
+			// Inflation 2 (BORDER, map-dependent): the subject of IsRevealable's bounds term.
+			//
+			// "Phantom" below is every square the query COUNTS that the drone cannot actually reveal —
+			// outside its disc, or outside the playable map. River Zeta's geometry, as above.
+			const int Gw = 49, Gh = 41, PlayableMaxX = 47, PlayableMaxY = 39, V = 14;
+
+			bool Playable(int gx, int gy) => gx <= PlayableMaxX && gy <= PlayableMaxY;
+
+			int Phantom(int cx, int cy, bool corrected)
+			{
+				var n = 0;
+				for (var gx = Math.Max(0, cx - V); gx <= Math.Min(Gw - 1, cx + V); gx++)
+					for (var gy = Math.Max(0, cy - V); gy <= Math.Min(Gh - 1, cy + V); gy++)
+					{
+						if (corrected && !Playable(gx, gy))
+							continue;
+
+						var beyondDisc = ((gx - cx) * (gx - cx)) + ((gy - cy) * (gy - cy)) > V * V;
+						if (beyondDisc || !Playable(gx, gy))
+							n++;
+					}
+
+				return n;
+			}
+
+			Assert.Multiple(() =>
+			{
+				// INLAND: untouched. The border term cannot reach a box that never leaves Bounds, so the
+				// corner artefact is exactly what it always was.
+				Assert.That(Phantom(24, 20, false), Is.EqualTo(228));
+				Assert.That(Phantom(24, 20, true), Is.EqualTo(228),
+					"the border fix must not move an inland candidate at all");
+
+				// AT THE EDGE: strictly better, and only by the border component. SumInclusive already
+				// clamps the box to the grid, so an edge candidate's corners are partly truncated anyway
+				// — which is why these totals start well below the inland 228.
+				Assert.That(Phantom(47, 20, false), Is.EqualTo(143));
+				Assert.That(Phantom(47, 20, true), Is.EqualTo(114));
+				Assert.That(Phantom(47, 39, false), Is.EqualTo(88));
+				Assert.That(Phantom(47, 39, true), Is.EqualTo(57));
+
+				// THE CONSEQUENCE WORTH WRITING DOWN. Removing the border does NOT make candidates
+				// comparable — it removes the SMALLER of the two inflations, and the survivor is largest
+				// inland. So an inland candidate remains the most over-credited of the three, by more
+				// than before, and MinRevealedSquares (12) is still nowhere near able to bind against a
+				// 228-square floor. The corner artefact is the next thing to fix, not this one.
+				Assert.That(Phantom(24, 20, true), Is.GreaterThan(Phantom(47, 39, true)));
+				Assert.That(Phantom(24, 20, true) - Phantom(47, 39, true),
+					Is.GreaterThan(Phantom(24, 20, false) - Phantom(47, 39, false)));
 			});
 		}
 

@@ -711,15 +711,15 @@ namespace OpenRA.Mods.Common.Traits
 				// positional trace can be checked against the record that caused it rather than against
 				// an intention. intel=0 on every launch means the module is still purely exploring.
 				//
-				// artefact IS THE CALIBRATION LINE, and it is here because the exploration term it
-				// competes with is inflated by a known amount. ControlField's grid spans Map.MapSize
-				// while Map.Contains tests the smaller playable Bounds, and TicksSinceVerified returns
-				// int.MaxValue for any square never verified — so the non-playable border counts as
-				// permanently unobserved and is summed into `reveal` as ground the drone will never
-				// actually reveal. Operators launch from the Supply Route, a fixed beachhead near a map
-				// edge, so this lands hardest exactly where it is used. reveal minus artefact is the
-				// real exploration signal, and it is the number LostTrackIntelSquares must be judged
-				// against — not `reveal` itself.
+				// border IS THE CALIBRATION LINE. It used to be the amount by which `reveal` was WRONG;
+				// since the border fix it is the amount that was REMOVED, so `reveal` is already the real
+				// exploration signal and is the number LostTrackIntelSquares must be judged against. It
+				// is still logged because the SIZE of the correction is what says whether an
+				// edge-launching operator's candidate set actually moved, and because a border= that
+				// starts reading 0 everywhere would mean the bounds test has silently stopped biting.
+				// WHAT THIS DOES NOT COVER: the box-corner artefact — the 29x29 query box against the
+				// drone's DISC of vision, ~228 squares inland — is untouched, and it is still large
+				// enough on its own to make MinRevealedSquares inert.
 				Log.Write("debug",
 					$"[drone] player={player.PlayerName} op={op.ActorID} launch cell={targetCell.X},{targetCell.Y} "
 					+ $"opcell={opCell.X},{opCell.Y} dist={distance} clamped={refusedOffMap} "
@@ -783,7 +783,8 @@ namespace OpenRA.Mods.Common.Traits
 		uint chosenIntelKey;
 
 		// Non-playable border squares inside the winning candidate's vision box — diagnostic only, and
-		// the amount by which bestReveal overstates real ground. See the launch log.
+		// since the border fix the amount EXCLUDED from bestReveal rather than an error left in it.
+		// See the launch log.
 		int bestBorder;
 
 		// Inclusive-prefix-sum table over the control grid: staleSat[x+1,y+1] is the number of
@@ -827,14 +828,19 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Reusing the array across evaluations is safe without clearing: every interior entry is
 			// overwritten below, and the zero border is never written at all.
+			// Both terms go through the SINGLE predicate in DroneTaskingMath.IsRevealable — read the note
+			// there for why the bounds test is load-bearing rather than defensive. Passing staleness
+			// alone here is the defect this replaced: it counted the non-playable border as permanently
+			// unobserved ground, worst exactly at the map edge where operators launch.
 			DroneTaskingMath.BuildSummedArea(staleSat, gw, gh,
-				(gx, gy) => controlField.TicksSinceVerified(player, gx, gy) >= Info.MinStalenessTicks);
+				(gx, gy) => DroneTaskingMath.IsRevealable(
+					world.Map.Contains(controlField.GridCellToMapCell(gx, gy)),
+					controlField.TicksSinceVerified(player, gx, gy),
+					Info.MinStalenessTicks));
 
-			// DIAGNOSTIC TWIN — NO DECISION READS THIS. It measures how much of the table above is the
-			// non-playable border rather than real unobserved ground, which is the correction the
-			// exploration term needs before it can be compared against the intel term. Deliberately NOT
-			// subtracted from the live score: that would be a second behavioural change riding along
-			// unmeasured with this one. Measure first, then decide, in that order.
+			// DIAGNOSTIC TWIN — NO DECISION READS THIS. It is what the live table no longer counts, kept
+			// so the launch log can still report the size of the correction rather than only its effect:
+			// `border=` is now the artefact REMOVED from `reveal`, not an outstanding error in it.
 			if (borderSat == null || borderSat.GetLength(0) != gw + 1 || borderSat.GetLength(1) != gh + 1)
 				borderSat = new int[gw + 1, gh + 1];
 

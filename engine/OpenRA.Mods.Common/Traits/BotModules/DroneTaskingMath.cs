@@ -240,6 +240,38 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// Whether a coarse grid square is ground a drone could actually GO AND REVEAL: stale enough to
+		/// be worth looking at, AND inside the playable map.
+		///
+		/// THE SECOND TERM IS THE WHOLE POINT, AND IT IS NOT A BOUNDS CHECK FOR SAFETY.
+		/// "Never observed" and "outside the playable area" are indistinguishable to any staleness test.
+		/// ControlField sizes its grid from Map.MapSize (ControlField.cs:520-521) while Map.Contains
+		/// tests the strictly smaller playable Bounds, and a square no player can ever see is never
+		/// marked verified — so TicksSinceVerified returns int.MaxValue for it forever
+		/// (ControlField.cs:921-928), which clears every staleness threshold. A summed-area table built
+		/// on staleness alone therefore counts the non-playable border as permanently unobserved ground
+		/// and pays the drone to fly at it.
+		///
+		/// It is worst exactly where it is used: operators launch from the Supply Route, a fixed
+		/// beachhead near a map edge, so their candidate boxes overlap the border band far more than an
+		/// inland unit's would. Measured on River Zeta's geometry the artefact is 31 squares over a
+		/// fully-observed neighbourhood — 2.5x MinRevealedSquares, i.e. enough on its own to carry a
+		/// candidate over the launch floor with nothing real to see
+		/// (DroneTaskingMathTest.Revealable_TheNonPlayableBorderIsNotUnobservedGround).
+		///
+		/// SumInclusive's clamp does NOT already do this: it clamps to the GRID, which is the larger
+		/// MapSize rectangle, not to Bounds.
+		///
+		/// This is a SEPARATE artefact from the box-corner one (Model_TheBoxCornerArtefact...), which is
+		/// the box-versus-disc mismatch and is geometric. Removing the border shrinks the corner
+		/// artefact wherever the two overlap and leaves it untouched inland; it does not fix it.
+		/// </summary>
+		public static bool IsRevealable(bool inPlayableBounds, int ticksSinceVerified, int minStalenessTicks)
+		{
+			return inPlayableBounds && ticksSinceVerified >= minStalenessTicks;
+		}
+
+		/// <summary>
 		/// Build an inclusive summed-area table over a grid of 0/1 values.
 		/// <paramref name="sat"/> must be (gw+1) x (gh+1); row 0 and column 0 stay zero and are the
 		/// sentinel border the query subtracts against.
