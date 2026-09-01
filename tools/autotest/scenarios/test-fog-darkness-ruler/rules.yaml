@@ -1,0 +1,72 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# EXPLORED ON + FOG ON, both locked. This is deliberately the SKIRMISH DEFAULT
+		# (player.yaml:183 ships ExploredMapCheckboxEnabled: true), not the unscouted-ground
+		# configuration the other fog scenarios use, because the question here is what the
+		# user sees in a normal match. With Explored ON there is no shroud anywhere: every
+		# cell is either covered by Observer's vision ladder or sits at visibility 1, so
+		# fogged and lit ground are adjacent in the very first frame and every pixel in the
+		# sample row is FOG rather than shroud.
+		#
+		# Locking both matters. If a lobby default ever flipped, an unlocked checkbox would
+		# silently change what the sample row is measuring and the capture would still look
+		# plausible.
+		FogCheckboxEnabled: true
+		FogCheckboxLocked: true
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-fog-darkness-ruler.lua
+
+# FogDarkness is deliberately NOT overridden here. This scenario measures whatever
+# mods/ww3mod/rules/world.yaml:241 currently ships (1.85 as of 2026-09-01), and the
+# capture is self-normalising -- the visibility-10 sample inside the same frame is the
+# unfogged reference -- so it identifies the value in force without needing a second run
+# at a second value. See description.txt for the predicted ratio ladder per candidate.
+
+# The ruler markers. PBOX is a one-cell structure with a hard silhouette, which is what
+# makes it usable as the "can I still read this as a shape" arm.
+#
+# ALL TEN VISION LAYERS ARE REMOVED. This is the load-bearing edit in the whole scenario:
+# PBOX inherits ^Defense which inherits ^StandardVision (structures-defenses.yaml:5), so a
+# stock pillbox would light its own 32-cell circle and seven of them would flatten the
+# gradient the capture exists to measure. Removal rather than a zeroed Range because
+# nothing in the engine declares VisionInfo as a requirement (unlike AutoTarget, which
+# AutoTargetPriority does require and which therefore cannot be removed), and because a
+# Range of 0 paired with an inherited non-zero MinRange is a self-inconsistent trait rather
+# than an absent one.
+fogmarker:
+	Inherits: PBOX
+	-Vision@10:
+	-Vision@9:
+	-Vision@8:
+	-Vision@7:
+	-Vision@6:
+	-Vision@5:
+	-Vision@4:
+	-Vision@3:
+	-Vision@2:
+	-Vision@1:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	Health:
+		HP: 100000
+
+# Nothing may shoot, move or die: a muzzle flash, a death animation or a drifting unit
+# would put non-terrain pixels in the sample row and every ratio read from it would be
+# wrong. There is no enemy actor on the map, so this is belt-and-braces rather than load-
+# bearing -- but the cost of being wrong about that is a silently corrupted measurement.
+abrams:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	Health:
+		HP: 100000

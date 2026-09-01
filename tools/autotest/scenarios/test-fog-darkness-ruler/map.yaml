@@ -1,0 +1,108 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: fog darkness ruler -- one sample per vision band in a single frame
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+# GEOMETRY -- the whole instrument is the geometry, so it is spelled out here.
+#
+# Observer is the ONLY vision source on the map. Every marker has all ten Vision
+# layers removed in rules.yaml, and both mpspawns are Neutral-owned (Vision's
+# ValidRelationships defaults to Ally, so a Neutral source could not reveal for
+# USA even if one existed). That is what makes distance-from-Observer the single
+# variable behind every brightness difference in the frame.
+#
+# ^StandardVision is a TEN-RUNG FALLOFF, not a switch (defaults.yaml:95-133):
+# strength 10 out to 4c0, then one step down every 3c0 until strength 1 ends at
+# 32c0. So the ground around Observer is a set of concentric rings, and a sample
+# at radius r reads the band that contains r.
+#
+# BRIGHTNESS SAMPLE ROW -- y=16, Observer's own row, deliberately kept clear of
+# every sprite so the pixels under a sample box are terrain and nothing else.
+# Sample cells run x = 9,12,15,18,21,24,27,30,33,36 then 46, i.e. radius
+# 3,6,9,12,15,18,21,24,27,30 then 40. Each of the first ten lands in the CENTRE
+# of a 3-cell-wide band, so a one-cell error in the reader's pixel mapping still
+# lands in the right band. x=46 is 40 cells out, past the 32-cell end of the
+# ladder, and is therefore explored-but-unseen ground.
+#
+# MARKER ROW -- y=22, six cells below the sample row so the sprites never touch
+# a sample box. The markers are the "can I read this as a shape" arm and double
+# as a check on the reader's cell->pixel mapping. Their radii from Observer are
+# 6.0, 8.5, 13.4, 19.0, 24.7, 30.6 and 36.5 cells, i.e. bands 9, 8, 6, 5, 3, 1
+# and explored-unseen.
+#
+# THE LAST TWO MARKERS ARE THE POINT. MarkerF at 30.6 cells is inside Observer's
+# own outermost sight rung; MarkerG at 36.5 cells is outside vision entirely. Both
+# render at visibility 1, because MapLayers.cs:255 stamps 1 on every explored cell
+# no vision source covers -- the same value the outermost rung carries. They are
+# supposed to look identical. A reader who expects "my own periphery" and "enemy
+# territory" to be distinguishable by brightness is looking for a difference the
+# engine does not draw.
+Actors:
+	Observer: abrams
+		Owner: USA
+		Location: 6,16
+		Facing: 0
+	MarkerA: fogmarker
+		Owner: USA
+		Location: 6,22
+	MarkerB: fogmarker
+		Owner: USA
+		Location: 12,22
+	MarkerC: fogmarker
+		Owner: USA
+		Location: 18,22
+	MarkerD: fogmarker
+		Owner: USA
+		Location: 24,22
+	MarkerE: fogmarker
+		Owner: USA
+		Location: 30,22
+	MarkerF: fogmarker
+		Owner: USA
+		Location: 36,22
+	MarkerG: fogmarker
+		Owner: USA
+		Location: 42,22
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,30
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 63,3
+
+Rules: rules.yaml
