@@ -61,6 +61,14 @@ World:
 # comparison in the frame mean something.
 pauperabrams:
 	Inherits: abrams
+	# Sprites resolve by ACTOR NAME, not through Inherits -- so a new actor gets its
+	# parent's traits and NONE of its artwork, and the engine dies at world load with
+	# "Image `pauperabrams` does not have any sequences defined". Two instruments authored on
+	# 2026-09-01 each burned a launch slot on exactly this (runs 260901_223928_p28219
+	# and 260901_224949_p29100) before it was understood; added here pre-emptively.
+	# No static gate can catch it: the sequence set is not resolved until world load.
+	RenderSprites:
+		Image: abrams
 	DeliversCash@Rotation:
 		Payload: 0
 
@@ -80,6 +88,14 @@ pauperabrams:
 # fail Test.IsMouseTargetable's IsDead guard for a reason unrelated to the probe.
 probebox:
 	Inherits: PBOX
+	# Sprites resolve by ACTOR NAME, not through Inherits -- so a new actor gets its
+	# parent's traits and NONE of its artwork, and the engine dies at world load with
+	# "Image `probebox` does not have any sequences defined". Two instruments authored on
+	# 2026-09-01 each burned a launch slot on exactly this (runs 260901_223928_p28219
+	# and 260901_224949_p29100) before it was understood; added here pre-emptively.
+	# No static gate can catch it: the sequence set is not resolved until world load.
+	RenderSprites:
+		Image: pbox
 	-Vision@10:
 	-Vision@9:
 	-Vision@8:
