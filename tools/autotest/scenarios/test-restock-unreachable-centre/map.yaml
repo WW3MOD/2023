@@ -90,10 +90,12 @@ Actors:
 	#
 	# Measured 2026-09-01: the walled Centre's cells form a 9-cell component that is EXACTLY its own
 	# 3x3 footprint — 30..32 x 10..12, no leaks — while both trucks and the open Centre sit in the
-	# single 2021-cell main component. Note what that shape proves: the LC's own body is not what
-	# makes it unreachable (RestockSupply drives with `ignoreActor: host`, so the Centre never blocks
-	# its own approach). The ring is. Remove one wall and the pocket merges into the main component,
-	# the northern lane becomes a second copy of the southern one, and the scenario tests nothing.
+	# single 2023-cell main component (2021 before the OccupiesSpace fix noted below freed the two
+	# mpspawn cells; the seal itself is unaffected). Note what that shape proves: the LC's own body
+	# is not what makes it unreachable (RestockSupply drives with `ignoreActor: host`, so the Centre
+	# never blocks its own approach). The ring is. Remove one wall and the pocket merges into the
+	# main component, the northern lane becomes a second copy of the southern one, and the scenario
+	# tests nothing.
 	# nav-guard's own `check` does NOT cover this file — it scans mods/ww3mod/maps only — so this
 	# snippet is the whole of the automated coverage and there is no baseline that would notice.
 	#
@@ -166,11 +168,12 @@ Actors:
 		Location: 30,26
 		Supply: 2250
 
-	# DELIBERATELY NOT ON A TRUCK'S CELL. The sibling scenario co-locates its spawn marker with its
-	# truck and works, but nav-guard models an mpspawn as occupying its cell, so co-locating makes the
-	# truck's own start cell read as blocked in the static connectivity check — and that check is the
-	# only pre-launch evidence that this map's geometry is what the scenario claims. Keeping the
-	# marker clear of both trucks keeps that evidence readable.
+	# Off the trucks' cells, but NOTHING DEPENDS ON THAT — corrected 2026-09-01. The marker was put
+	# here because nav-guard read a co-located mpspawn as blocking the truck's own start cell. That
+	# was a bug in nav-guard, not a fact about the map: `mpspawn` sets `Immobile: OccupiesSpace:
+	# false` (misc.yaml:245), so the engine gives it no occupied cells at all (Immobile.cs:41) and
+	# never adds it to the ActorMap (ActorMap.cs:413-415). The sibling scenarios co-locate marker
+	# and truck and always did work — that was the tell. Fixed in modload.py `actor_shape`.
 	SpawnUSA: mpspawn
 		Owner: Neutral
 		Location: 10,18

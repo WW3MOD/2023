@@ -59,6 +59,23 @@ def test_comments_and_values() -> None:
     check("comment-only line dropped", [n.key for n in nodes], ["Key", "Other"])
 
 
+def test_immobile_occupies_space() -> None:
+    # Immobile.cs:41 -- OccupiesSpace: false leaves OccupiedCells empty, so the actor never
+    # enters the ActorMap and cannot block. mpspawn/spawnarea/waypoint/flare/camera all set it.
+    marker = miniyaml.parse("A:\n\tImmobile:\n\t\tOccupiesSpace: false\n")[0]
+    check("OccupiesSpace: false occupies nothing",
+          modload.actor_shape("a", marker).blocking, [])
+
+    solid = miniyaml.parse("A:\n\tImmobile:\n")[0]
+    check("Immobile defaults to occupying its cell",
+          modload.actor_shape("a", solid).blocking, [(0, 0)])
+
+    # The default is `true`, so an explicit true must behave like a bare Immobile.
+    explicit = miniyaml.parse("A:\n\tImmobile:\n\t\tOccupiesSpace: true\n")[0]
+    check("OccupiesSpace: true occupies its cell",
+          modload.actor_shape("a", explicit).blocking, [(0, 0)])
+
+
 def test_footprint_chars() -> None:
     node = miniyaml.parse("A:\n\tBuilding:\n\t\tFootprint: x_+ X__\n\t\tDimensions: 3,2\n")[0]
     shape = modload.actor_shape("a", node)
