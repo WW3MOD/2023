@@ -29,6 +29,30 @@
 # If frame time suffers, do NOT rewrite -- delete the one Inherits@Cover line from ^Tree below and
 # add it to the six clump actors (TC01-TC05, T15) instead. That drops the trigger count to 647 on
 # woodland / 237 on river-zeta, at the cost of thinner cover (11.8% / 5.5% of cells).
+#
+# CLUMP TRIGGER OFFSETS (TC01-TC05). Range alone is not enough, because the anchor can sit off the
+# trees entirely. The trigger is placed at self.CenterPosition, i.e. the centre of the DIMENSIONS
+# BOX (Building.cs:350 + CenterOffset :207-211 = 512*(dim-1) per axis) -- but every clump's box
+# carries an empty padding column, and Building.Density is authored 0 there. So the box centre is
+# displaced INTO the padding, away from the authored mass: on TC04 the box centre is 1536-1846 from
+# most of its own density cells. Range is a STRICT test (ActorMap.cs:143, `< range.LengthSquared`),
+# so those cells were simply outside the circle.
+#
+# That mattered because Building.Density is exactly what the forest SHADOW reads -- Map.SetDensityLayer
+# stamps it per footprint cell at location + offset (Map.cs:1027-1053), and ForestGroundShadow sums it
+# along the sightline. Shadow and cover are the two halves of forest concealment, and before this they
+# disagreed about where the forest was for ~half the trees on the densest map (clumps are 48.5% of
+# woodland-warfare's 1202 trees, 30.1% mod-wide).
+#
+# Each Offset below recentres the trigger on the density mass. Share of authored forest density
+# falling inside its own cover circle, per map: woodland 52.9 -> 86.4%, seventh-woods 51.3 -> 82.6%,
+# twin-rivers 56.5 -> 84.3%, siberian 57.7 -> 88.9%, river-zeta 87.2 -> 96.9%. Every clump ends at
+# farthest-covered-cell 724 with 300 units of margin -- deliberately the SAME geometry the plain 2x2
+# trees already had, so no actor is perched on the strict-comparison edge. Range 1024 is unchanged:
+# this moves where the circle sits, not how big it is.
+# TC04/TC05 top out at 63.6% of their own density because they are 4x3 and one 1-cell-radius circle
+# cannot span a 3-cell-wide mass. Fixing that needs a second emitter, not a bigger radius, and is not
+# worth it until the base mechanic has been seen in play.
 ^TreeCover:
 	ProximityExternalCondition@ObjectProximity:
 		Condition: object-proximity
@@ -355,6 +379,8 @@ TC01:
 		Footprint: ==_ xx_
 		Density: 5,5,0, 10,10,0
 		Dimensions: 3,2
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -512,0,0
 	MapEditorData:
 		ExcludeTilesets: INTERIOR
 	SpawnActorOnDeath:
@@ -368,6 +394,8 @@ TC02:
 		Footprint: ==_ x=_
 		Density: 5,5,0, 10,5,0
 		Dimensions: 3,2
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -512,0,0
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 	SpawnActorOnDeath:
@@ -381,6 +409,8 @@ TC03:
 		Footprint: x=_ xx_
 		Density: 10,5,0, 10,10,0
 		Dimensions: 3,2
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -512,0,0
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 	SpawnActorOnDeath:
@@ -394,6 +424,8 @@ TC04:
 		Footprint: x==_ xx=_ x___
 		Density: 10,5,5,0, 10,10,5,0, 10,0,0,0
 		Dimensions: 4,3
+	ProximityExternalCondition@ObjectProximity:
+		Offset: -1024,-512,0
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 	SpawnActorOnDeath:
@@ -407,6 +439,8 @@ TC05:
 		Footprint: __x_ xxx_ _=x_
 		Density: 0,0,10,0, 10,10,10,0, 0,5,10,0
 		Dimensions: 4,3
+	ProximityExternalCondition@ObjectProximity:
+		Offset: 0,512,0
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 	SpawnActorOnDeath:
