@@ -65,6 +65,15 @@
 		LoadingCondition: notmobile
 		LoadedCondition: loaded
 		EjectOnDeath: True
+		# Dead means OFF (Cargo.cs ShouldEmergencyBail returns false at this threshold for every
+		# damage state). Men CAN keep sheltering in a wreck; it just gets progressively lethal, and
+		# the GarrisonProtection curve below already delivers that on its own. The engine must not
+		# march them outside on top of it — user ruling 2026-09-02, "don't force them out, let the
+		# damage curve do the work". The C# default is Heavy, i.e. 50% HP, and its own [Desc] says
+		# it "applies to ground transports only": it was chosen for burning APCs, never for
+		# buildings. Vehicles deliberately keep it. Repeated verbatim on GTWR/PBOX/HBOX
+		# (structures-defenses.yaml) because those inherit ^Defense, NOT this template.
+		EmergencyBailDamageState: Dead
 	Inherits@CargoPips: ^CargoPips
 	GarrisonManager:
 		Ports:
