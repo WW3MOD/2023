@@ -820,39 +820,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (IsEmpty())
 				return;
 
-			// Skip legacy damage forwarding when GarrisonProtection handles it
-			if (self.Info.HasTraitInfo<GarrisonProtectionInfo>())
-				return;
-
 			var healthTrait = self.Trait<Health>();
-			var damageDealt = e.Damage.Value;
 
-			// Threshold tested here rather than inside the loop so the RNG is only
-			// touched by hits that can actually produce damage — see
-			// PassengerDamageThreshold. It also keeps the ToList allocation off the
-			// path taken by every scratch and every ChangesHealth bleed tick.
-			if (damageDealt > PassengerDamageThreshold(healthTrait.MaxHP, Info.PassengerDamageThresholdPercent))
-			{
-				// Copy first — InflictDamage below can kill a passenger and reenter.
-				foreach (var passenger in Passengers.ToList())
-				{
-					if (passenger.IsDead)
-						continue;
-
-					var passengerMaxHP = passenger.Trait<Health>().MaxHP;
-					var varianceBand = Info.PassengerDamageVarianceDivisor > 0
-						? passengerMaxHP / Info.PassengerDamageVarianceDivisor
-						: 0;
-					var varianceRoll = varianceBand > 0 ? self.World.SharedRandom.Next(varianceBand) : 0;
-
-					var damageToDeal = PassengerDamageFromTransportHit(passengerMaxHP, healthTrait.MaxHP,
-						damageDealt, Info.PassengerDamageThresholdPercent, Info.PassengerDamageSharePercent,
-						varianceRoll);
-
-					if (damageToDeal > 0)
-						passenger.InflictDamage(e.Attacker, new Damage(damageToDeal));
-				}
-			}
+			ForwardDamageToPassengers(self, e, healthTrait);
 
 			// Airborne transports bail on their own threshold and never take the
 			// direct-placement path below.
@@ -934,6 +904,53 @@ namespace OpenRA.Mods.Common.Traits
 
 				BeginEmergencyBail(self);
 			})));
+		}
+
+		/// <summary>The legacy share of a hull hit felt by the men riding inside.
+		///
+		/// The GarrisonProtection check lives HERE, at the top of the only block it is about, and
+		/// must not be lifted back up into Damaged. It was written at method scope in c9699af9, when
+		/// this forwarding was the whole method and an early return was exact; 4e8e29e2 then appended
+		/// the emergency bail below it and the guard silently grew to cover that too, leaving the bail
+		/// dead on every garrisonable building for four months. Scoping it to its own method is what
+		/// keeps the next block appended to Damaged from inheriting a skip nobody wrote for it.
+		/// GarrisonBailReachabilityTest pins that.</summary>
+		void ForwardDamageToPassengers(Actor self, AttackInfo e, Health healthTrait)
+		{
+			// Garrison buildings get their pass-through from GarrisonProtection instead, which picks
+			// one sheltering occupant and scales the hit by the building's damage state
+			// (GarrisonProtection.cs:102-113). Running both would hit the men twice for one shell.
+			if (self.Info.HasTraitInfo<GarrisonProtectionInfo>())
+				return;
+
+			var damageDealt = e.Damage.Value;
+
+			// Threshold tested here rather than inside the loop so the RNG is only
+			// touched by hits that can actually produce damage — see
+			// PassengerDamageThreshold. It also keeps the ToList allocation off the
+			// path taken by every scratch and every ChangesHealth bleed tick.
+			if (damageDealt > PassengerDamageThreshold(healthTrait.MaxHP, Info.PassengerDamageThresholdPercent))
+			{
+				// Copy first — InflictDamage below can kill a passenger and reenter.
+				foreach (var passenger in Passengers.ToList())
+				{
+					if (passenger.IsDead)
+						continue;
+
+					var passengerMaxHP = passenger.Trait<Health>().MaxHP;
+					var varianceBand = Info.PassengerDamageVarianceDivisor > 0
+						? passengerMaxHP / Info.PassengerDamageVarianceDivisor
+						: 0;
+					var varianceRoll = varianceBand > 0 ? self.World.SharedRandom.Next(varianceBand) : 0;
+
+					var damageToDeal = PassengerDamageFromTransportHit(passengerMaxHP, healthTrait.MaxHP,
+						damageDealt, Info.PassengerDamageThresholdPercent, Info.PassengerDamageSharePercent,
+						varianceRoll);
+
+					if (damageToDeal > 0)
+						passenger.InflictDamage(e.Attacker, new Damage(damageToDeal));
+				}
+			}
 		}
 
 		/// <summary>Start the bail. The men leave one at a time on the same cadence an ordered

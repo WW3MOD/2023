@@ -3,6 +3,49 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — the garrison emergency bail does NOT latch on rubble; `garrison-destructibility-260901.md`'s P1 caveat is wrong in both halves
+
+The audit's P1 caveat reads: *"`bailedOut` latches and only re-arms when the damage state falls back
+below the threshold (`Cargo.cs:884-885`). An `Indestructible` building pinned at 1 HP is permanently
+`Critical`, so the bail would fire once and never again... P1 therefore makes rubble expel its current
+occupants; it does not make rubble permanently uninhabitable."* It says plainly that it read this
+rather than ran it. **Both halves are false**, and three separate pieces of code say so.
+
+**1. `Load()` clears the latch** — `Cargo.cs:695-700`, and it says why in its own comment: *"a
+transport that emptied itself under EmergencyBailDamageState and was then reloaded would hold the
+latch shut and strand the new stick — and the damage-state reset below cannot cover it, since a
+transport that is still burning never climbs back above the line."* The author anticipated exactly
+the pinned-below-threshold case the audit thought was unhandled. Re-garrisoning re-arms the bail.
+
+**2. A building pinned at 1 HP still receives damage notifications.** `Health.InflictDamage` applies
+modifiers, assigns `HP`, and then runs `notifyDamage` **unconditionally** (`Health.cs:216-218`) — there
+is no "applied damage was zero, skip the notification" branch. `GarrisonManager.GetDamageModifier`
+returns `0` at `HP <= 1` (`GarrisonManager.cs:1421-1422`), so every shell landing on rubble deals
+nothing and still calls `Cargo.Damaged` with `e.Damage.Value == 0`.
+
+**3. `Cargo.Damaged` has no zero-damage early-out.** `GarrisonProtection.Damaged`
+(`GarrisonProtection.cs:80-81`) and `GarrisonManager.Damaged` (`GarrisonManager.cs:1402-1403`) both
+open with `if (e.Damage.Value <= 0) return;`. `Cargo.Damaged` does not — it goes straight from
+`IsEmpty()` to the bail evaluation. So the zero-damage notification from #2 is a live bail trigger.
+
+At 1 HP the damage state is `Critical` (`Health.cs:105-106`), and `ShouldEmergencyBail`
+(`Cargo.cs:752-755`) is `current >= bailAt && current < Dead`, so `Critical` passes the shipped
+`Heavy` default. **Composed: garrison men who re-enter a rubble building are ejected again on the very
+next shot the building takes, forever.** Rubble is not "expelled once"; it is uninhabitable under fire.
+
+**And the threshold is not rubble — it is half health.** `EmergencyBailDamageState = DamageState.Heavy`
+(`Cargo.cs:115`) fires at 50% HP, so this applies to every merely half-wrecked building, not only the
+terminal state. That is a far larger combat change than P1 was scoped as, and it is a YAML decision
+(`EmergencyBailDamageState` on the garrison templates) that the audit explicitly reserved for the user.
+
+**The reusable shape, and it is the cheap half.** The audit reasoned about a latch by reading the
+latch. The latch was correct; what decided the behaviour was two things *outside* it — who else clears
+the flag, and whether the method is even called when the damage is zero. **When a conclusion rests on
+a flag never being reset, grep the flag's every assignment before believing it** (`grep -n bailedOut`
+is four seconds and returns the `Load()` site immediately), **and check whether the notification that
+would re-trigger it still fires when the value it carries is zero.** Both questions are static; neither
+needed a launch; either one alone would have caught this.
+
 ## 2026-09-01 — the FFA condition that was named as the flip-test for keeping `FrozenUnderFog.OnOwnerChanged` is ALREADY TRUE on four shipped maps (manager check)
 
 The `wt/fog-snapshot` entry above decides to KEEP the old-owner snapshot refresh, and closes by naming

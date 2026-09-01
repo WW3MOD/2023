@@ -169,6 +169,18 @@ setting `EmergencyBailDamageState: Critical` on the three garrison templates so 
 the building reaches the rubble floor — which is precisely the user's sentence, using a mechanism
 that already exists and needs no art.
 
+> **CORRECTED 2026-09-01 (`wt/garrison-p1p2`, implementing P1). The caveat below is wrong in both
+> halves**, and — as it admits — was read rather than run. `Cargo.Load()` clears `bailedOut`
+> (`Cargo.cs:695-700`, whose own comment describes exactly this pinned-below-threshold case), and a
+> building pinned at 1 HP still receives `Damaged` notifications carrying zero damage
+> (`Health.cs:216-218` notifies unconditionally after modifiers; `Cargo.Damaged` has no zero-damage
+> early-out, unlike its two sibling handlers). So the bail re-fires on the next shot after any
+> re-garrison: rubble becomes **uninhabitable under fire**, not merely "expelled once". And the
+> shipped threshold is `Heavy` — 50% HP, not rubble — so this covers half-wrecked buildings too.
+> Full evidence in `WORKSPACE/DISCOVERIES.md`. Consequence: the open question at the foot of this
+> document (`EmergencyBailDamageState`: Critical / Heavy / off) is **blocking, not optional**, and
+> P2 is not needed to carry "rubble is unusable" — P1 alone already does, harder than intended.
+
 **Caveat that must be stated before anyone commits to this.** `bailedOut` latches and only re-arms
 when the damage state falls back below the threshold (`Cargo.cs:884-885`). An `Indestructible`
 building pinned at 1 HP is permanently `Critical`, so **the bail would fire once and never again**.
