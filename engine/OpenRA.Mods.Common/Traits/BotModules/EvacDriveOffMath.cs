@@ -29,8 +29,10 @@ namespace OpenRA.Mods.Common.Traits
 {
 	public static class EvacDriveOffMath
 	{
-		/// <summary>Hard ceiling on a single drive-off, in ticks (25 ticks/s ⇒ 20s). Reached only by a unit so slow
-		/// that the honest duration would be a visible crawl.</summary>
+		/// <summary>Hard ceiling on a single drive-off, in ticks. At the default game speed (<c>Timestep: 60</c> ms,
+		/// mod.yaml:358 + :382 ⇒ 16.67 ticks/s) that is 30 s — the comment here said 20 s until 2026-09-01, from the
+		/// RA-era 25 tps assumption catalogued in conventions.md. Reached only by a unit so slow that the honest
+		/// duration would be a visible crawl.</summary>
 		public const int MaxDriveOffTicks = 500;
 
 		/// <summary><para>Ticks to move <paramref name="distance"/> world units at <paramref name="speed"/> world units per
