@@ -150,9 +150,14 @@ GTWR:
 		TargetScanInterval: 8
 		AmmoConservation: true
 		ReloadSwapping: true
+	# See ^CivBuilding (civilian.yaml) for why CriticalProtection moved: it is the curve's intercept
+	# at zero HP, so 80 banked almost the whole degradation into the rubble clamp. Endpoints are
+	# unchanged. RubbleProtection is now stated rather than inherited — the C# default is also 30, so
+	# this is not a behaviour change, but a fortification's terminal cover should be a decision.
 	GarrisonProtection:
 		BaseProtection: 97
-		CriticalProtection: 80
+		CriticalProtection: 50
+		RubbleProtection: 30
 		MinPassThrough: 15
 	Inherits@GarrisonHealthPips: ^GarrisonHealthPips
 	WithGarrisonDecoration:
@@ -235,9 +240,14 @@ PBOX:
 		TargetScanInterval: 8
 		AmmoConservation: true
 		ReloadSwapping: true
+	# See ^CivBuilding (civilian.yaml) for why CriticalProtection moved: it is the curve's intercept
+	# at zero HP, so 80 banked almost the whole degradation into the rubble clamp. Endpoints are
+	# unchanged. RubbleProtection is now stated rather than inherited — the C# default is also 30, so
+	# this is not a behaviour change, but a fortification's terminal cover should be a decision.
 	GarrisonProtection:
 		BaseProtection: 97
-		CriticalProtection: 80
+		CriticalProtection: 50
+		RubbleProtection: 30
 		MinPassThrough: 15
 	Inherits@GarrisonHealthPips: ^GarrisonHealthPips
 	WithGarrisonDecoration:
@@ -325,9 +335,11 @@ HBOX:
 		TargetScanInterval: 8
 		AmmoConservation: true
 		ReloadSwapping: true
+	# As GTWR/PBOX above, holding HBOX's existing 1-point-worse standing rather than levelling it.
 	GarrisonProtection:
 		BaseProtection: 96
-		CriticalProtection: 75
+		CriticalProtection: 48
+		RubbleProtection: 30
 		MinPassThrough: 15
 	Inherits@GarrisonHealthPips: ^GarrisonHealthPips
 	WithGarrisonDecoration:
