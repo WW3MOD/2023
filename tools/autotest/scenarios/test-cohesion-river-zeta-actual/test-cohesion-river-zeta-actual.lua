@@ -55,9 +55,10 @@ WorldLoaded = function()
 		end)
 	end
 
-	-- Pass after all probes have dispatched. Final delay sized for the
-	-- last probe to complete its order resolution.
+	-- Skip after all probes have dispatched. Final delay sized for the
+	-- last probe to complete its order resolution. Skip, not Pass: this is a
+	-- diagnostic that grades nothing, and the verdict must say so.
 	Trigger.AfterDelay(30 + #probes * 50 + 75, function()
-		Test.Pass(string.format("%d probes issued — see debug.log [Cohesion] lines and lua.log [density-grid]", #probes))
+		Test.Skip(string.format("%d probes issued — see debug.log [Cohesion] lines and lua.log [density-grid]", #probes))
 	end)
 end

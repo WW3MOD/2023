@@ -63,6 +63,6 @@ WorldLoaded = function()
 	end)
 
 	Trigger.AfterDelay(225, function()
-		Test.Pass("captured BEFORE baseline")
+		Test.Skip("captured BEFORE baseline")
 	end)
 end

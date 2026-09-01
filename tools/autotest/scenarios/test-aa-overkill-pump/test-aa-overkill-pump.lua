@@ -183,7 +183,10 @@ local function finish()
 		return
 	end
 
-	Test.Pass(summary)
+	-- Skip, not Pass: suppressedThroughPump is computed at :169 and only concatenated
+	-- into the summary — nothing asserts on it, so a Y->N regression would otherwise
+	-- change one character in a green. The summary IS the deliverable; see expected-status.
+	Test.Skip(summary)
 end
 
 local function wrap(actor)

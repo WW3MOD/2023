@@ -26,8 +26,10 @@
 --                  primary-ammo never reloads and each drop is a real shot).
 --   * casualties — defenders killed / attackers killed, cost-weighted.
 --
--- CALIBRATION MODE: this test PASSES on resolution or deadline once metrics are captured. The value
--- is the fire-lane metrics, not a pass/fail verdict (never Test.Pass-less — that would be a demo).
+-- CALIBRATION MODE: this test SKIPS on resolution or deadline once metrics are captured. The value
+-- is the fire-lane metrics, not a pass/fail verdict — and Test.Skip is the harness's word for
+-- exactly that ("ran, produced no graded answer"). It still reaches a verdict call, so it is not
+-- verdict-less and run-batch.sh keeps running it rather than filing it as a demo.
 
 local DEF_COST = 100   -- e3.america Valued.Cost
 local ATT_COST = 100   -- e3.russia Valued.Cost (same ^E3 base)
@@ -267,8 +269,8 @@ WorldLoaded = function()
 
 				print("[case01b] RESULT " .. note)
 
-				-- CALIBRATION: capture-mode pass. The metrics are the deliverable, not a verdict.
-				Test.Pass(note)
+				-- CALIBRATION: capture-mode skip. The metrics are the deliverable, not a verdict.
+				Test.Skip(note)
 				return
 			end
 

@@ -45,9 +45,25 @@ minutes of being read.
 ## 2026-09-01 — an `expected-status: fail` declaration also grades a WATCHDOG TIMEOUT green, because the batch reads the exit code and only `run-test.sh` knows the difference (`wt/harness-gaps`)
 
 `tools/autotest/expected-status.sh` is sound on its own terms and its selftest proves the decision
-table. The hole is at the seam, and it is **latent, not live** — no scenario declares a status today
-(`ls tools/autotest/scenarios/*/expected-status` is empty), so nothing is currently misgraded. It
-bites the first author who declares one, which is the very next step this mechanism was built for.
+table. The hole is at the seam.
+
+> **CORRECTED the same day (2026-09-01, `wt/honest-verdicts`): this gap is LIVE, not latent.**
+> The paragraph originally read *"it is **latent, not live** — no scenario declares a status today
+> (`ls tools/autotest/scenarios/*/expected-status` is empty), so nothing is currently misgraded. It
+> bites the first author who declares one."* **That author has already declared one.**
+> `tools/autotest/scenarios/test-drone-lost-track/expected-status` landed in `575e48c8` on
+> 2026-09-01 — a `fail` declaration, which is precisely the exposed kind — so a watchdog
+> TIMEOUT-FAIL on that scenario is being graded `OK(fail)` today. It absorbs "the run did not
+> happen" right now, for a real scenario, and the declaration's own file has to warn its reader
+> about it in prose because nothing in the harness can. The mitigation is not a plan any more; it
+> is a hole with a live occupant.
+>
+> **The thirteen `skip` declarations added later the same day do NOT widen it, and that asymmetry
+> is worth knowing.** The gap is specific to `fail`: a timeout exits 1, so `run-batch.sh` derives
+> `FAIL`, which matches a `fail` declaration and grades GREEN. Against a `skip` declaration that
+> same `FAIL` does not match and grades RED. So a declared-`skip` scenario that hangs still reds
+> the batch — `skip` declarations are safe to add freely, `fail` declarations are the ones that
+> need the run banner re-read. Do not read "fourteen declarations" as "fourteen exposures".
 
 **`run-test.sh` deliberately distinguishes the two failures and deliberately shares their exit code.**
 At `:932` the outcome name forks — `TIMEOUT-FAIL` when `TIMED_OUT=1`, else `FAIL` — and both `exit 1`.
