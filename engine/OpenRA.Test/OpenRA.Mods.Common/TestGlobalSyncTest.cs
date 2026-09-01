@@ -106,10 +106,19 @@ namespace OpenRA.Test
 				.Distinct();
 		}
 
-		static (bool Dispatches, bool Wrapped, int Resolved) Classify(string name)
+		/// <summary>
+		/// Counted rather than flagged, and that is the difference between this catching a partial wrap
+		/// and missing one. A boolean "does this method mention Sync.RunUnsynced anywhere" is satisfied
+		/// by a method that wraps ONE of its two dispatch sites and leaves the other bare — which is a
+		/// real shape: ClickUnloadMenuRow has two, `row.OnClick` and the CLASS_ALL button's, and an
+		/// early draft of this fixture passed with only the second wrapped. Requiring at least as many
+		/// wrappers as dispatches closes that. A method that deliberately covered two dispatches with a
+		/// single RunUnsynced would report here; none does, and the message says what to do about it.
+		/// </summary>
+		static (int Dispatches, int Wrappers, int Resolved) Classify(string name)
 		{
-			var dispatches = false;
-			var wrapped = false;
+			var dispatches = 0;
+			var wrappers = 0;
 			var resolved = 0;
 
 			foreach (var m in BodyAndLambdas(typeof(TestGlobal), name))
@@ -119,16 +128,16 @@ namespace OpenRA.Test
 				foreach (var callee in scan.Callees)
 				{
 					if (IsDispatch(callee))
-						dispatches = true;
+						dispatches++;
 
 					// Only the binding's OWN body may establish the context; a wrapper found inside the
 					// lambda would be Sync.RunUnsynced called from within already-dispatched code.
 					if (m.Name == name && IsRunUnsynced(callee))
-						wrapped = true;
+						wrappers++;
 				}
 			}
 
-			return (dispatches, wrapped, resolved);
+			return (dispatches, wrappers, resolved);
 		}
 
 		/// <summary>
@@ -144,7 +153,7 @@ namespace OpenRA.Test
 				"expected TestGlobal to expose dozens of bindings — a much smaller number means the " +
 				"reflection filter stopped matching and the rule below is checking nothing");
 
-			var dispatchers = names.Where(n => Classify(n).Dispatches).ToList();
+			var dispatchers = names.Where(n => Classify(n).Dispatches > 0).ToList();
 
 			// Named rather than merely counted. "Is.Not.Empty" would still pass with three of the four
 			// silently unrecognised, and an unrecognised binding is exempt from the rule below rather
@@ -172,12 +181,13 @@ namespace OpenRA.Test
 		{
 			foreach (var name in PublicBindingNames())
 			{
-				var (dispatches, wrapped, _) = Classify(name);
-				if (!dispatches)
+				var (dispatches, wrappers, _) = Classify(name);
+				if (dispatches == 0)
 					continue;
 
-				Assert.That(wrapped, Is.True,
-					$"TestGlobal.{name} dispatches into UI handler code without wrapping it in " +
+				Assert.That(wrappers, Is.GreaterThanOrEqualTo(dispatches),
+					$"TestGlobal.{name} makes {dispatches} dispatch call(s) into UI handler code but only " +
+					$"{wrappers} of them are wrapped in Sync.RunUnsynced. " +
 					"Sync.RunUnsynced. Lua runs inside the synced world tick, so the handler will throw " +
 					"AssertUnsynced the moment it touches client-only state — most likely by setting " +
 					"World.OrderGenerator — and will work fine until then, which is why this is a test " +

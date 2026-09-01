@@ -3,6 +3,75 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — the sync tripwire has exactly ONE site engine-wide, which is why "dispatches UI handlers from Lua" is a silent bug class (`wt/cmdbar-audit`, `main @ 42548fe5`)
+
+Follow-up audit after `Test.PressHotkey` (entry below). The generalisable finding is the *shape*, not
+the four methods fixed:
+
+**`Sync.AssertUnsynced` is called from exactly one place in the entire engine — `World.cs:170`, the
+`OrderGenerator` setter.** That single tripwire is the whole reason this class of bug survives. A test
+binding that dispatches arbitrary UI handler code from the synced Lua tick is not wrong in a way
+anything detects; it is wrong only for the subset of handlers that happen to reach that one setter.
+`PressHotkey` shipped bare and served the unload menu, the resupply bar and the evac hotkeys for
+months before the first caller asked it to engage a command-bar mode.
+
+`ClickProductionIcon` carried the identical latent bug at the same time and nobody knew:
+`SimulateIconClick → HandleEvent → HandleLeftClick → PickUpCompletedBuildingIcon` sets
+`World.OrderGenerator` to a `PlaceBuildingOrderGenerator` (`ProductionPaletteWidget.cs:384`). It has
+never fired **only because every existing caller clicks a unit icon rather than a completed building.**
+`ClickUnloadMenuRow` and `RunChatCommand` are the same shape with reach that cannot be bounded by
+reading them — a chat command set is open-ended, any trait can register one.
+
+**When auditing for this, enumerate writers of the protected state, not callers of the binding.**
+`grep -rn "OrderGenerator = \|CancelInputMode()"` across the engine gives the reachable danger set in
+one command (support powers, Minelayer, the production palette, every command-bar mode); asking
+instead "who calls `ClickProductionIcon`" would have found only the callers that already work.
+
+Two traps met while pinning it in IL, both of which make a rule silently weaker rather than noisy:
+
+- **A wrapped dispatch becomes invisible to a body-only IL scan.** `IlScan` follows
+  `call`/`callvirt`/`newobj`; a lambda is reached by `ldftn`, which it does not decode. So wrapping a
+  dispatch moves it into a display class and the detector stops seeing it — the rule would go quiet
+  exactly when it starts being satisfied. Recover lambda bodies via Roslyn's `<Caller>b__N` naming.
+- **A boolean "is it wrapped" misses a partial wrap.** A method with two dispatch sites where only one
+  is wrapped satisfies "mentions `Sync.RunUnsynced`". Count both sides and require
+  `wrappers >= dispatches`; `ClickUnloadMenuRow` has two sites and an early draft passed with one bare.
+
+Also, on method: **sabotage-to-verify-RED must be run against a COMMITTED tree.** Two "RED" runs here
+were worthless because `git checkout -- <file>` reverted uncommitted fixes along with the sabotage, so
+both runs were really measuring `main`. The tell was a failure naming the wrong method.
+
+## 2026-09-01 — the command-bar highlight, measured: exact-amber pixel counts per button across seven frames (`wt/cmdbar-audit`)
+
+First actual measurement of this bar rather than an eyeball. Method is reusable for any chrome claim:
+decode the capture to raw RGBA, count pixels exactly equal to the highlight colour, and bucket them by
+each button's rect, derived as `COMMAND_BAR(14,760) + button.X + icon(5,1)`, 24x24, doubled for the 2x
+capture. Counting an EXACT colour is what makes it a measurement — antialiasing blends everything else.
+
+Exact-(255,192,0) pixels inside each button's glyph rect, one row per frame; every other button in
+every frame was 0, and stray amber elsewhere in the bar strip was 0 in all seven:
+
+| frame | amber button | px |
+|---|---|---|
+| 01 no-mode control | *(none)* | 0 |
+| 02 attack-move | ATTACK_MOVE | 550 |
+| 03 force-move | FORCE_MOVE | 488 |
+| 04 force-attack | FORCE_ATTACK | 425 |
+| 05 guard | GUARD | 604 |
+| 06 patrol | PATROL | 604 |
+| 07 waypoint | WAYPOINT | 345 |
+
+**GUARD and PATROL both read exactly 604** — they draw the same `guard` glyph, so identical counts are
+the internal check that the rect mapping is right and the rendering deterministic. In frame 06
+AUTO_ENTER reads **0** while PATROL reads 604 *from the same source art*, which is the whole
+mode-vs-momentary split confirmed in one frame.
+
+Expect a measured count around **60% of the sheet's opaque pixel count** for the glyph, not 100%: only
+the fully-opaque core survives as the exact colour. For ATTACK_MOVE the 48x48 cell holds 936 opaque px
+of which 598 are alpha=255, and the frame shows 550 exact + 154 near-amber — the antialiased rim blends
+against the panel and lands near, not on, the value. A count near the *total* opaque figure would mean
+the sprite is being drawn without alpha blending, which is its own bug.
+
 ## 2026-09-01 — `Test.PressHotkey` could not engage a single command-bar MODE: Lua runs synced, and the real input path's `Sync.RunUnsynced` wrapper was the missing piece (`wt/cmdbar-capture`, `main @ 94f6d290`)
 
 **This is another instance of the family this project keeps rediscovering — a harness binding that
