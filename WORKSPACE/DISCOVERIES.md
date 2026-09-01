@@ -40,6 +40,41 @@ have actors standing on that ring"*. Measured with resolved footprints (`modload
 completely clear — it is held back only by its pin. The two numbers coincide at 24-left-alone by
 arithmetic accident, which is how a wrong premise survives a sanity check.
 
+## 2026-09-01 — the River Zeta cordon inset is ALREADY SHIPPED, on the same terrain, with the edge `spawnarea` markers left outside Bounds (`wt/cordon-paydown`)
+
+**The remaining 24 cordon offenders are three families plus one pin, and one family already has a working
+reference implementation in-tree.** `tools/autotest/scenarios/test-move-unreachable-clamps` carries
+`MapSize: 98,82` with `Bounds: 1,1,96,80` — inset, lint-clean, absent from `lint-baseline.txt` — and its
+`map.bin` is **byte-identical** (`b87baded7e…`) to `tournament-s1-eco-river-zeta`'s. It shares 4656 of
+that map's 4666 actors, including all 293 that touch the outer ring and all six edge `spawnarea`
+markers at exactly `8,0 / 87,0 / 0,46 / 97,34 / 7,81 / 87,81`. It differs only in test payload (adds a
+humvee and a relocated `supplyroute`, drops the two `mpspawn`/`supplyroute` pairs). So the exact edit the
+other 11 River Zeta maps need has already been made on this terrain and lives in the repo.
+
+**Why that matters more than it looks: `spawnarea` is the only gameplay-bearing thing on any of these
+rings.** Resolved per family, the ring is otherwise pure decoration —
+- **River Zeta**, 11 maps, 293 ring actors: 287 scenery (`t01`–`t17`, `tc01`–`tc04`, `v17`, `rice`,
+  `oilb`) + **6 `spawnarea`**. Zero mobile actors; `mpspawn` sits 14–17 cells in.
+- **Polar Disorder**, 6 maps, 25 ring actors: **all** scenery. `mpspawn` 4 cells in.
+- **Woodland Warfare**, 6 maps, 206 ring actors: **all** scenery. `mpspawn` 3 cells in.
+
+`spawnarea` (`mods/ww3mod/rules/misc.yaml:255-270`) is *"spawn area for supply route units"* and carries
+`Immobile: OccupiesSpace: false`, so it never blocks; `ProductionFromMapEdge.FindClosestSpawnArea`
+(`ProductionFromMapEdge.cs:56-58`) picks it purely by distance. The edge it then spawns at comes from
+`Map.ChooseClosestEdgeCell` (`Map.cs:1821-1838`), which reads **`Bounds`** — so insetting shifts the
+arrival edge inward by one cell rather than breaking it. `test-move-unreachable-clamps` is the evidence
+that this composes.
+
+**A related surprise: two of these families already place actors outside `MapSize` altogether.** River
+Zeta has 43 and Woodland Warfare 27 at `y = -1` (and `t14@-1,10`, `t15@-1,27`). Authoring scenery past
+the map edge is evidently normal for these tileset maps, which is the second reason "the inset pushes
+the ring out of play" is a weaker objection here than it sounds.
+
+**NOT verified by execution.** No scenario was launched for any of this — `test-move-unreachable-clamps`
+is argued to work from its presence in-tree, its clean lint status and its git history
+(`dc59e418`), not from a run. Anyone acting on this should still run that scenario once before
+replicating the pattern across 11 maps.
+
 ## 2026-09-01 — `ChooseUnitToBuild` IS reached, on two lanes whose entire buildable pool is `~disabled` — so the weighted lottery runs, draws RNG, and is guaranteed to return null (`wt/bot-truth`)
 
 **Investigated, deliberately NOT fixed.** Recorded because the obvious reading of this defect is wrong
