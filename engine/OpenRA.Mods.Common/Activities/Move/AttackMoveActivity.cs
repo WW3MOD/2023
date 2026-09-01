@@ -40,16 +40,51 @@ namespace OpenRA.Mods.Common.Activities
 		// end the attack-move so the unit drops to idle.
 		bool haltedForEmptyAmmo = false;
 
-		/// <summary>The original destination cell, cached at construction time for reliable group scatter extraction.</summary>
+		/// <summary>
+		/// The point Shift-G replays for this activity — see GroupScatterHotkeyLogic, which documents it
+		/// as "the MAIN points the player clicked". For a player order that is the ORDERED cell, stated by
+		/// the caller; for internal callers with no order behind them it is inferred from the move.
+		/// </summary>
 		public readonly CPos? OriginalDestination;
 
+		/// <summary>
+		/// For callers with no player order point to state — rally points, paradrops, resupply, Hunt,
+		/// Patrol, AttackWander, Reservable. The destination is INFERRED by building the move once and
+		/// reading it back, which is only sound when the move's cell is not a per-unit answer.
+		/// </summary>
 		public AttackMoveActivity(Actor self, Func<Activity> getMove, bool assaultMoving = false)
+			: this(self, getMove, assaultMoving, null) { }
+
+		/// <summary>
+		/// For a player order, which knows the cell that was clicked and must say so.
+		/// </summary>
+		/// <remarks>
+		/// Inferring it instead is a defect, and a quiet one. The player attack-move closure relocates
+		/// through Mobile.NearestMoveableCell, which is per-unit by construction — it short-circuits on
+		/// the unit's own location, tests CanEnterCell/CanStayInCell against the unit's own locomotor and
+		/// gates on CanReach, the unit's own pathfinding domain (Mobile.cs:850-871). Reading the move back
+		/// therefore records a DIFFERENT cell for each unit in one selection, and Shift-G replays cells
+		/// nobody clicked. Plain Move never had this because Mobile.ResolveOrder passes the raw cell with
+		/// evaluateNearestMovableCell: true (Mobile.cs:1092), leaving relocation to Move.OnFirstRun — so
+		/// the two order types disagreed on the same screen for the same click. Pinned by
+		/// GroupScatterWaypointTest.
+		/// </remarks>
+		public AttackMoveActivity(Actor self, Func<Activity> getMove, CPos orderedDestination, bool assaultMoving = false)
+			: this(self, getMove, assaultMoving, orderedDestination) { }
+
+		AttackMoveActivity(Actor self, Func<Activity> getMove, bool assaultMoving, CPos? orderedDestination)
 		{
 			this.getMove = getMove;
 			autoTarget = self.TraitOrDefault<AutoTarget>();
 			attackMove = self.TraitOrDefault<AttackMove>();
 			isAssaultMove = assaultMoving;
 			ChildHasPriority = false;
+
+			if (orderedDestination.HasValue)
+			{
+				OriginalDestination = orderedDestination;
+				return;
+			}
 
 			// Cache the destination before any ticks can modify it (for group scatter)
 			var tempActivity = getMove();

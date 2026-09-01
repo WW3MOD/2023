@@ -3,6 +3,84 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — Shift-G replayed cells nobody clicked, because "the point the player clicked" was inferred from a PER-UNIT answer (`wt/order-honesty`)
+
+**The shape to carry, beyond this bug: a value whose whole contract is "what the player asked for"
+must be STATED by the site that has the player's input, never read back out of the machinery that
+consumed it.** Inference is fine when the machinery is a pure carrier and silently wrong the moment
+it applies a per-unit transform — and it fails invisibly, because every unit's value is individually
+plausible.
+
+- **The defect.** `AttackMoveActivity.OriginalDestination` (`Activities/Move/AttackMoveActivity.cs`)
+  is what `GroupScatterHotkeyLogic` replays as "the MAIN points the player clicked"
+  (`GroupScatterHotkeyLogic.cs:236`, `:249-262`). It was derived by running the move closure once at
+  construction and reading the resulting `Move.Destination`. At the player order site
+  (`Traits/AttackMove.cs`) that closure relocates through `Mobile.NearestMoveableCell` first, so the
+  recorded value was the RELOCATED cell.
+- **`NearestMoveableCell` is per-unit by construction** (`Mobile.cs:850-871`): it short-circuits on
+  `target == self.Location`, tests `CanEnterCell`/`CanStayInCell` against the unit's own locomotor,
+  and gates on `CanReach`, the unit's own pathfinding domain.
+- **TWO different harms, and which one you get depends on the selection's shape.** This is the part
+  worth remembering, because testing only one shape reads as clean:
+  - **Homogeneous selection** (all same locomotor, same domain): `CanEnterCell` at
+    `BlockedByActor.Immovable` ignores movable units, so every unit relocates to the SAME cell. The
+    group consistently marches to a cell the player never clicked. Silent and self-consistent.
+  - **Heterogeneous selection** (the standard infantry + armour push): units disagree. Shift-G
+    compares chains by `(Cell, OrderType)`, so `CommonSuffixLength` (`:180-214`) collapses to 0, the
+    suffix-preservation path is skipped entirely, and the legacy global pool dedupes the divergent
+    cells as *separate waypoints* — one click becomes N, and the selection is split between them.
+- **Plain Move never had this, and the difference is one argument.** `Mobile.ResolveOrder` passes the
+  RAW cell with `evaluateNearestMovableCell: true` (`Mobile.cs:1092`), so relocation happens later in
+  `Move.OnFirstRun` and `Move.Destination` at construction — what
+  `SmartMoveActivity.OriginalDestination` captures — is still the click. So Shift-G was already
+  honest for Move and dishonest for AttackMove, on the same screen, for the same click. **A
+  same-shaped sibling that is CORRECT is the cheapest available evidence that the other one is a
+  defect rather than a design choice**; look for one before arguing from first principles.
+- **`AttackMove.cs` was the only one of the 14 `AttackMoveActivity` construction sites that
+  pre-relocated** — verified by `grep NearestMoveableCell`. Every other site (rally point, paradrop,
+  resupply, Hunt, Patrol, AttackWander, Guard, Reservable, aircraft, the Lua binding) passes a raw
+  cell, so their inferred value was already the ordered cell. The fix is therefore scoped to the one
+  player-order site, and the inferring constructor stays for the rest.
+- **Not reachable by either test suite, which is why the pin is structural.** The harm is a
+  divergence ACROSS a selection held in an internal activity field; NUnit has no World and the
+  `Test.GroupScatter` binding (`TestGlobal.cs:912`) exercises the spread but cannot assert on that
+  field. `GroupScatterWaypointTest` pins the two structural facts that together forbid it instead.
+- **Secondary repair, inferred by reading and NOT traced end to end.**
+  `GroupScatterHotkeyLogic.ResolveOrderPoint` (`:238-245`) recovers the true click point for cohesion
+  units by looking the slot cell up in `CohesionSlotMemory`, and that lookup is an EXACT cell match
+  (`CohesionSlotMemory.cs:151-164`). A relocated slot cell therefore missed the lookup precisely when
+  cohesion had assigned a slot the unit could not stand on — i.e. exactly when relocation fired.
+  Recording the ordered cell should make those lookups hit. I did not verify that the cell
+  `AttackMove.ResolveOrder` derives is bit-identical to the one `CohesionSlotMemory.Assign` records.
+
+## 2026-09-01 — The CrewMember fog cursor is NOT a defect, and the reason generalises: a shared targeter fixed once is fixed for every arm that does not override it (`wt/order-honesty`)
+
+Audited, found clean, changed nothing. Recorded so the next reader does not re-open it.
+
+- **The suspicion** was that `2579ca0a` fixed the enter-cursor leak for transports but left the
+  CrewMember arm varying with hidden state. It did not, because CrewMember does not have its own
+  targeter — it *instantiates the shared one*
+  (`CrewMember.cs:52-61`, `new EnterAlliedActorTargeter<VehicleCrewInfo>(...)`), and the fix landed in
+  `EnterAlliedActorTargeter.CanTargetFrozenActor` itself.
+- **The two live-occupancy predicates on this path are unreachable under fog.** `IsValidTarget` →
+  `VehicleCrew.HasEmptySlot` and `CanEnter` → `VehicleCrew.CanAcceptRole` are both live reads, and
+  both are reached only from `CanTargetActor`. The frozen override calls `canTargetFrozen`
+  (→ `CrewMember.IsValidTargetFrozen`, which reads only `VehicleCrewInfo.CrewSlots`, a
+  FieldLoader-populated `readonly string[]` — static rules data) and then **hardcodes**
+  `cursor = enterCursor` at `EnterAlliedActorTargeter.cs:99` instead of calling `useEnterCursor`.
+- **`FrozenActor.Owner` is a snapshot, with one upstream exception worth knowing.** `RefreshState()`
+  has exactly two callers (`FrozenUnderFog.cs:98`, `FrozenUnderFogUpdatedByGps.cs:35`) and the first
+  is gated on the actor being visible — EXCEPT `INotifyOwnerChanged.OnOwnerChanged`
+  (`FrozenUnderFog.cs:217-223`), which refreshes the OLD owner's snapshot deliberately so their
+  tooltip stops naming them as owner. So if your own vehicle is captured under fog, your ghost's
+  owner updates and ally-gated cursors change with it. That is upstream OpenRA behaviour, applies to
+  every frozen-targeting path and to the tooltip and colour long before the cursor, and is not
+  CrewMember-specific. Noted, not touched.
+- **Minor and cosmetic, not a leak:** `CrewMember.VoicePhraseForOrder` is gated on
+  `TargetType.Actor`, so ordering onto a *frozen* vehicle plays no voice line even though the
+  resolver accepts the order. It reads live `CanEnter`, but a FrozenActor target returns before that,
+  so nothing hidden escapes.
+
 ## 2026-09-01 — The cordon debt is 63 maps but only THREE prices, and the expensive tier is 17 benchmark maps with an income POI on the outer ring (`wt/tooling-truth`)
 
 Costing, not a fix — the paydown is the user's call. Every count below was taken statically from
