@@ -1288,13 +1288,17 @@ Templates:
 		Images: sbridge2d.tem
 		Size: 2,3
 		Categories: River
+		# Destroyed span (sbridge2d). Rock, not River: infantry pick over the wreckage (foot Rock: 50)
+		# while every wheeled/tracked locomotor — including the amphibious ones — has no Rock entry and
+		# so cannot use the ruin as a ford. Matches templates 531/532/235/238/241, which already type
+		# bridge structure as Rock. Placed only on river-zeta-ww3 and its autotest/tournament clones.
 		Tiles:
-			0: River
-			1: River
-			2: River
-			3: River
-			4: River
-			5: River
+			0: Rock
+			1: Rock
+			2: Rock
+			3: Rock
+			4: Rock
+			5: Rock
 	Template@534:
 		Id: 534
 		Images: sbridge2x.tem
