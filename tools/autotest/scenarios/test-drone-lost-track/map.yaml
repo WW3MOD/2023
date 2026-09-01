@@ -89,4 +89,30 @@ Actors:
 		Owner: USA-bot
 		Location: 18,45
 
+	# WITHOUT THIS THE MODULE CANNOT LAUNCH ANYWHERE, AND THAT IS NOT OBVIOUS.
+	# PoiMap counts supply routes and income structures, then DISCARDS own and
+	# neutral SRs (PoiMap.cs:326) and requires CaptureManagerInfo on income
+	# structures (:223). Strip a map to "just the actors the test needs" and the only
+	# surviving POI is the ENEMY SR — and an operator standing near its own SR is by
+	# construction far from that one. Measured on the attempt without this derrick:
+	# every candidate in the 22-cell hover disc sat >=41 cells from (80,35) against
+	# MaxPoiDistanceCells 40, so 388 of 388 candidates were refused TooFarFromPoi at
+	# all nine evaluations and no drone ever launched.
+	#
+	# One derrick fixes it because the gate is a distance to the NEAREST POI: at
+	# (38,53) the whole disc is within 40 cells (furthest corner ~38). It is a real
+	# derrick site from the source River Zeta map, so the terrain is known good, and
+	# oilb reaches CaptureManager via ^TechBuilding -> ^BasicBuilding ->
+	# ^NeutralOrOccupiedCapturable, which is what makes it count at all.
+	#
+	# It does not bias the measurement: POI distance enters the score as a bare
+	# `- poiDistanceCells` against 1000 points per revealed square, so it is a
+	# tie-break that cannot move the argmax. Its only real effect is eligibility.
+	# 2x2 (Footprint "xx xx"), so it occupies 38,53-39,54 — clear of the operator,
+	# both SRs, the scout and the enemy. The obvious placement next to the operator
+	# at (17,44) would have covered the operator's own cell.
+	PoiDerrick: oilb
+		Owner: Neutral
+		Location: 38,53
+
 Rules: rules.yaml

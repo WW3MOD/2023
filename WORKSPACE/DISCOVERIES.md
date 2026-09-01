@@ -25,6 +25,35 @@ A log tag that names the wrong module costs you a run, because the natural respo
 string.** A tag is a label someone typed, not a namespace the compiler checks, and there is nothing in
 the build that can notice it has drifted from the module it sits in.
 
+## 2026-09-01 — The actor you add to satisfy a POI gate is, by construction, a magnet that summons a unit across your map (`wt/drone-targeting`)
+
+The direct sequel to the entry below, and the sharper half: fixing the POI gate **created** the
+contamination it was meant to unblock, and the two are the same property seen twice.
+
+- `PoiMap` only counts an income structure if it carries `CaptureManagerInfo` (`PoiMap.cs:223`). So the
+  qualification for "this is a point of interest the drone may fly near" is *identical* to the
+  qualification for "this is capturable".
+- Adding one neutral `oilb` to make the hover disc eligible therefore also handed
+  `CaptureCoordinatorBotModule` a target. It reacted on the first scan:
+  `[exp-capture] ownership-snapshot … held=oilb#23@38,53 tick=28`, immediately followed by
+  `[exp-capture] tecn-floor-request … type=tecn.america floor=1 priority=True tick=28`.
+- A **floor request with `priority=True` is not budget-gated** — it went through with the player's cash
+  locked at 0, which was supposed to have removed the entire population. The technician then walked
+  from the Supply Route toward the derrick and, in passing, came within 28 cells of the cell the
+  scenario needed to stay unobserved.
+
+**The general shape: satisfying a gate by adding scenery is not inert, because the gate reads exactly
+the property that makes other modules want the thing.** Zeroing the economy does not contain it either
+— priority floor requests bypass the bank. When a scenario needs a POI purely for eligibility, expect
+the capture layer to send something at it, and place it where the resulting traffic cannot cross the
+region under measurement.
+
+Secondary geometry lesson from the same run: the confound guard was a 28-cell circle around a cell
+sitting 30 cells from the acting unit, which leaves a **two-cell shell** of safe ground near the
+player's own base. Any unit spawning at the Supply Route trips it. A guard radius derived from a
+mechanic (28 = the verifying vision radius) is correct in meaning and can still be unusable in a given
+geometry — check the guard against the map before trusting it to fire only on real contamination.
+
 ## 2026-09-01 — The drone module cannot launch anywhere on a map whose only POI is the enemy Supply Route (`wt/drone-targeting`)
 
 `MaxPoiDistanceCells: 40` is documented as the "unreachable corner guard", but its reach depends
