@@ -33,6 +33,10 @@ replaces every destructible map actor with its death husk. `--squeeze` selects t
 diagonal-squeeze rule variant: `none`, `generic` (the reverted `b164a312`), `tagged`
 (shipped, `be036370`).
 
+`report` and `pockets` also take `--scenarios`, which adds `tools/autotest/scenarios/`.
+**`check` and `bless` never do** — the gate is `mods/ww3mod/maps` only, so no green here is
+evidence about a scenario. See [What the GATE covers](#what-the-gate-covers-is-narrower-than-what-the-decoder-can-read).
+
 ## Design decisions
 
 ### Baseline: a committed file, not a git two-checkout diff
@@ -98,6 +102,94 @@ Deliberately **not** modelled, because ww3mod does not use them: terrain height
 (`MapGrid.MaximumTerrainHeight` is 0, so the height-discontinuity rule at
 `Locomotor.cs:198` can never fire) and custom movement layers (no tunnels; `cell.Layer` is
 always 0).
+
+### What the GATE covers is narrower than what the DECODER can read
+
+`check` and `bless` see **`mods/ww3mod/maps` only** — the 10 shipped playable maps. The 254
+map packages under `tools/autotest/scenarios/` are outside the baseline entirely, and this is
+the single most misread thing about the tool: **a scenario's terrain, `Bounds` or actors can
+change by any amount and `make nav-guard` stays byte-identical green.** It printed
+`10 maps, 190 map/locomotor pairs` before and after 40 scenarios were re-bounded
+(`WORKSPACE/DISCOVERIES.md`, 2026-09-01) — twice that green was nearly read as coverage. The
+green line now names its own scope for this reason.
+
+The decoder itself has no such limit, so the inspection commands can reach a scenario:
+
+```bash
+./tools/nav-guard/nav_guard.py report  --scenarios --map test-restock-unreachable-centre
+./tools/nav-guard/nav_guard.py pockets --scenarios --map test-restock-unreachable-centre --locomotor wheeled
+```
+
+Scenarios stay opt-in rather than becoming part of the gate, for two reasons that are worth
+keeping straight. The cheap one is runtime — all 254 across every locomotor is ~45 s per world
+state, against ~2 s for the gate as it stands. The load-bearing one is that **a baseline over
+254 scenarios would be re-blessed constantly**, since scenario geometry is edited as ordinary
+test authorship rather than as a reviewed map change; a baseline re-recorded that often stops
+being an absolute reference and becomes the parent-commit diff this design already rejects
+(see [Baseline](#baseline-a-committed-file-not-a-git-two-checkout-diff)).
+
+**So for scenario work the check is a comparison you run yourself, and the failure to look for
+is a SPLIT, not a shrink.** Insetting `Bounds` always removes the ring, so "fewer passable
+cells" fires every time and means nothing; what matters is an old component reaching two new
+ones — two cells whose only connection ran along the border. Build the map at both bounds with
+`dataclasses.replace(gm, bounds=...)` and map each surviving cell to `(old label, new label)`.
+Worked example, verified RED before being trusted, in the 2026-09-01 DISCOVERIES entry; a
+committed single-map instance is at `tools/autotest/scenarios/test-restock-unreachable-centre/map.yaml:74-97`.
+
+## Writing a bounds or occupancy audit with this library
+
+`modload.load_map` + `modload.actor_shape` are the repo's only resolved-rules view of what a
+map actor actually is, so ad-hoc audits get written against them — "which actors would fall
+outside a tighter `Bounds`", "which maps have something on the outer ring". Two rules, both
+learned by getting them wrong on 2026-09-01.
+
+### Resolve the FOOTPRINT, never the Location
+
+**An actor's `Location:` is one cell; the actor is not.** A scan that tests `Location` against
+the new bounds reports a map safe while part of the building hangs outside it.
+
+The measured instance: an `oilb` at `96,7` on a `98x98` map being inset to `Bounds: 1,1,96,96`.
+Its `Location` is inside — the playable x range is `1..96` — but `oilb` is `Building:
+Dimensions: 2,2`, `Footprint: xx xx`, so it occupies `(96,7) (97,7) (96,8) (97,8)` and **two of
+its four cells are outside**. A location-only scan sees nothing wrong.
+
+```python
+shape = modload.actor_shape(actor.name, rules.actor(actor.name))
+cells = [(actor.location[0] + dx, actor.location[1] + dy)
+         for dx, dy in shape.blocking + shape.transit] or [actor.location]
+```
+
+Use `blocking ∪ transit ∪ origin`: `transit` cells (`+` in the footprint) are occupied but never
+block movement, and an actor with neither still stands on its own origin cell.
+
+### Classify by the TRAIT CHAIN, never by the type name
+
+**A regex over type names is not classification.** The same 2026-09-01 survey grouped ring
+actors by name pattern and filed `oilb` with the scenery — `t01`–`t17`, `tc01`–`tc04`, `v17`,
+`rice`. It is the **Oil Derrick**: `Tooltip Name: Oil Derrick`, `CashTrickler: 50`,
+`UpdatesDerrickCount`, `CaptureManager`, `Capturable@neutral` + `Capturable@occupied`, and it is
+named in `CapturableActorTypes` on **both** bot profiles (`ai.yaml:126`, `:2240`). Calling it
+decoration would have moved a capturable income building out of play as though it were a tree.
+
+The check that was run and did not save it was mobility — and **a derrick is not mobile either**,
+so the discriminator returned the same answer for both classes it was being used to separate.
+That is the general trap: a predicate that both categories satisfy is not evidence, it is a
+coin that always lands the same way. Ask what the actor *does*:
+
+```python
+traits = {modload.base_key(n.key) for n in rules.actor(name).nodes}
+gameplay = traits & {"CashTrickler", "CaptureManager", "Capturable",
+                     "Production", "UpdatesDerrickCount", "SpawnArea"}
+```
+
+Measured against that set: `oilb` → `{Capturable, CaptureManager, CashTrickler,
+UpdatesDerrickCount}`, while `t01`, `tc01` and `rice` → `{}`. Note what is deliberately **not**
+in the set: `Targetable`, which every tree also carries — including it would rebuild the same
+failure one level down, a discriminator that answers the same for both categories it is meant to
+separate. Check your own predicate against a known member of each class before trusting it.
+
+Every claim above is one `rules.actor(<name>).nodes` dump away; make it, rather than reasoning
+from what the name looks like.
 
 ## Decoder self-check
 
@@ -201,6 +293,6 @@ far.
    (`BlockedByActor.None`, `Locomotor.cs:236-239`) and a bug in *its* invalidation could
    make a unit fail to find a path that geometrically exists. That is a pathfinder bug, not
    a connectivity regression, and this tool is blind to it by construction.
-8. **Coverage is `mods/ww3mod/maps` and nothing else — so a green run on a SCENARIO change is real but vacuous.** The baseline gates exactly the ten shipped mod maps (`baseline.json` → `states.live`/`states.dead`: `arena-tank-duel`, `nuclear-winter-ww3`, `polar-disorder-ww3`, `river-zeta-ww3`, `seventh-woods-ww3`, `shellmap-open-field`, `siberian-pass-ww3`, `twin-rivers-ww3`, `woodland-warfare-ww3`, `x-lake-ww3`). The **190 autotest scenario maps under `tools/autotest/scenarios/`** are outside it entirely (counts re-derived 2026-08-19; `find … -name map.yaml`). An autotest scenario is exactly the place a movement-rule change gets exercised and exactly the place this gate is blind — so "`make nav-guard` is green" answers a question about the shipped maps, never about the scenario you just edited. Verify a scenario-map blocking change by running it.
+8. **Coverage is `mods/ww3mod/maps` and nothing else — so a green run on a SCENARIO change is real but vacuous.** The baseline gates exactly the ten shipped mod maps (`baseline.json` → `states.live`/`states.dead`: `arena-tank-duel`, `nuclear-winter-ww3`, `polar-disorder-ww3`, `river-zeta-ww3`, `seventh-woods-ww3`, `shellmap-open-field`, `siberian-pass-ww3`, `twin-rivers-ww3`, `woodland-warfare-ww3`, `x-lake-ww3`). The **254 autotest scenario map packages under `tools/autotest/scenarios/`** are outside it entirely (re-counted 2026-09-01; the "190" this said from 2026-08-19 was already stale). An autotest scenario is exactly the place a movement-rule change gets exercised and exactly the place this gate is blind — so "`make nav-guard` is green" answers a question about the shipped maps, never about the scenario you just edited. The decoder *can* read them: see [What the GATE covers](#what-the-gate-covers-is-narrower-than-what-the-decoder-can-read) for `--scenarios` and for the split-detection a bounds change actually needs.
 9. **The baseline can be blessed away.** `bless` is one command and nothing forces a human
    to look at the diff. The gate is only as strong as the review of `baseline.json`.

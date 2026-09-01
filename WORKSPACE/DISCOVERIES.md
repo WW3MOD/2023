@@ -109,6 +109,64 @@ rows. And **no lint rule validates chrome collections at all** — nothing in
 `engine/OpenRA.Mods.Common/Lint/` references `ChromeProvider` or `ImageCollection`, so a typo'd
 `ImageCollection:` is not caught by `--check-yaml`; it throws from
 `ChromeProvider.GetImage` (`ChromeProvider.cs:149`) the first time the widget draws.
+## 2026-09-01 — nav-guard models five marker actors as solid walls, because `actor_shape` never reads `Immobile.OccupiesSpace: false` (`wt/harness-truth`)
+
+**The decoder invents walls that do not exist in game, and the cell it invents them on is
+usually a unit's start cell.** `modload.actor_shape` gives every actor without a `Building`
+trait a 1-cell blocking footprint (`modload.py`, the `else` branch — *"Mobile and the bare
+IOccupySpace traits are single-cell"*) and consults no other trait. But
+`ImmobileInfo.OccupiedCells` returns an **empty dictionary** when `OccupiesSpace` is false
+(`Immobile.cs:23-27`), so such an actor occupies nothing and cannot block anything. Five types
+mod-wide carry it, all markers: `mpspawn` (`misc.yaml:245`), `spawnarea` (`:261`), `waypoint`
+(`:278`), `camera.paradrop.detector` (`:157`), `camera.spyplane` (`:180`). nav-guard reports
+`blocking=[(0,0)]` for every one.
+
+**Consequence, and it is a false ALARM, never a false green.** A unit sharing its cell with an
+`mpspawn` — the ordinary arrangement in a scenario, which co-locates spawn markers with starting
+units — reads as standing on impassable ground and reaching nothing. Anyone hand-checking scenario
+connectivity with the decoder (now the documented practice, `AUTOTEST.md` §"Verify before you ask
+for a slot") hits this and concludes their scenario is broken when it is not. The direction is the
+saving grace: over-blocking can only invent a wall, never delete one, so `check` cannot have passed
+a real sealing-off because of it. Note also that the correct fact is already written down — the
+cordon entry below states `spawnarea` *"carries `Immobile: OccupiesSpace: false`, so it never
+blocks"*. The docs were right and the tool disagreed with them, which is why nobody caught it.
+
+**NOT fixed, deliberately, and this is the part to weigh before someone fixes it casually.**
+Honouring the flag moves **150 of the 190** baselined map/locomotor pairs — all ten gated maps
+carry markers (30 `mpspawn` + 6 `spawnarea`), e.g. `arena-tank-duel` largest `2046 → 2048`. The
+direction is growth, and `_diff_state` treats growth as an advisory note, so `check` would exit 1
+and `make nav-guard` would break until a `bless`. That re-bless is a 150-number diff in a
+committed gate baseline that several live worktrees depend on, and bundling a model correction
+into it makes the review meaningless. **It wants its own commit whose entire content is this fix
+plus the bless.** A `PITFALL` at the temptation site in `modload.py` records the defect in place
+meanwhile.
+
+## 2026-09-01 — A bounds/occupancy audit must resolve footprints and trait chains; both shortcuts failed on the SAME actor (`wt/harness-truth`)
+
+Both rules are now in [`tools/nav-guard/README.md`](../tools/nav-guard/README.md) §"Writing a
+bounds or occupancy audit with this library", with runnable snippets. Recorded here for the
+mechanism, and because the two failures compounded on one actor.
+
+**A `Location` is one cell; the actor is not.** An `oilb` at `96,7` on a `98x98` map inset to
+`Bounds: 1,1,96,96` has its Location **inside** (playable x is `1..96`) while `Building:
+Dimensions: 2,2, Footprint: xx xx` puts it on `(96,7) (97,7) (96,8) (97,8)` — **2 of 4 cells
+outside**. A location-only scan reports the map safe. Resolve `blocking ∪ transit ∪ origin` via
+`modload.actor_shape`.
+
+**Classifying by type-name regex is not classification.** The survey that grouped ring actors by
+name filed `oilb` with the scenery. Resolved, it is the Oil Derrick: `Tooltip Name: Oil Derrick`,
+`CashTrickler: 50`, `UpdatesDerrickCount`, `CaptureManager`, `Capturable@neutral` +
+`Capturable@occupied`, and named in `CapturableActorTypes` on **both** bot profiles
+(`ai.yaml:126`, `:2240`). Measured discriminator: `oilb` carries four of those gameplay traits;
+`t01`, `tc01` and `rice` carry zero.
+
+**The sharpest part is why the check that WAS run did not save it.** The survey checked mobility —
+and a derrick is not mobile, exactly like a tree. **A predicate that both categories satisfy is not
+weak evidence, it is no evidence**: it returns the same answer whichever class the actor belongs
+to, so it cannot separate them, and its agreement with the wrong answer reads as confirmation. The
+same trap sits one level down — `Targetable` looks like a gameplay discriminator and is on every
+tree. Before trusting a classifier, run it against a known member of **each** class and confirm it
+disagrees.
 
 ## 2026-09-01 — `make nav-guard` cannot see a single autotest scenario, so it is NOT the verification for a scenario-geometry change (`wt/cordon-paydown`)
 

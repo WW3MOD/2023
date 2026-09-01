@@ -37,6 +37,32 @@ The game can be launched into a small, deterministic scenario; the verdict (pass
 
 Exit codes: `0` pass, `1` fail, `2` skip, `3` error/crash/no-result.
 
+**A scenario that is SUPPOSED to fail must say so, or it reds every batch forever.**
+`run-batch.sh --all` globs every `test-*` folder and includes any scenario containing an
+assertion — its only exclusion catches scenarios with no verdict call at all. So a by-merit
+negative ("we measured it and it is within tolerance", or a knowingly-unfixed layer) becomes a
+permanent false FAIL in every regression tally, which is precisely how a red batch stops meaning
+anything. Declare the outcome instead, in the scenario's own folder:
+
+```
+tools/autotest/scenarios/test-<name>/expected-status
+----------------------------------------------------
+fail
+The negative arm is by merit: the preference has not landed yet. Delete this file
+when it does and the run goes green.
+```
+
+First non-comment line is `fail` or `skip`; the reason below it is **required**. The declared
+outcome occurring is green and prints as `OK(fail)`. **The declared outcome no longer occurring is
+RED and prints as `STALE`** — that asymmetry is the whole point, and it is the same one
+`mods/ww3mod/lint-baseline.txt` implements deliberately: a floor you can only lower on purpose.
+A declaration buys silence for exactly the one outcome it names and nothing else, so a scenario
+declared `fail` that starts *crashing* still reds. Decision table and a launch-free selftest:
+`./tools/autotest/expected-status.sh --selftest`.
+
+This is strictly better than an opt-out marker, which is why there isn't one: a scenario excluded
+from `--all` stops reporting, so if it later breaks in a new way nobody hears.
+
 **Read the verdict from the banner, not just the exit code.** Every run ends with a line
 
 ```
@@ -122,6 +148,79 @@ WorldLoaded = function()
     -- they describe the verdict in chat.
 end
 ```
+
+## Verify before you ask for a slot
+
+**Two gates check a scenario without launching it. Both take seconds, neither needs a build, and
+between them they catch the two failures that most often burn a granted run and come back as an
+ordinary `fail`: a Lua name the engine never registered, and geometry that is not what the scenario
+believes.** Run both on a new or edited scenario before requesting a slot.
+
+```bash
+make lua-gate                                              # every scenario
+./tools/lua-gate/lua_gate.py check --scenario test-<name>  # just yours
+```
+
+**What lua-gate proves:** every `Trigger.*` / `Actor.*` / `Test.*` member you name is a real binding,
+every bare actor name resolves against your own `map.yaml`, and — the one that maps directly onto a
+trap documented above — that a `.lua` file is actually **reached by a `Scripts:` line**. That last
+check is the static form of the `lua.log` at 0 bytes tell in `map.yaml` rule 5: an unwired script
+produces a scenario that runs on stock mod rules to a confident `TIMEOUT-FAIL`, and lua-gate names it
+for free instead. Exit 2 is a hard fail, exit 1 a warning; `make lua-gate` fails only on 2.
+
+**What it does not prove, and do not let a green here stand in for it:** it resolves *names*, never
+calls. Argument types, arity and order are unchecked (`Trigger.AfterDelay("soon", 5)` passes and
+throws at runtime), and **73 of the 92 actor properties are trait-gated** — `tank.Produce` is in the
+union of all actor properties, so it passes here and throws in game because the tank has no
+`Production` trait. Full limits in [`tools/lua-gate/README.md`](../../tools/lua-gate/README.md)
+§"What this does NOT check".
+
+**Geometry: use nav-guard's decoder directly.** `make nav-guard` does **not** cover
+`tools/autotest/scenarios/` — its baseline is `mods/ww3mod/maps` only, so its green is byte-identical
+before and after any scenario edit and says nothing whatever about your scenario. The decoder
+underneath it has no such limit and models what the pathfinder sees:
+
+```bash
+./tools/nav-guard/nav_guard.py report  --scenarios --map test-<name>
+./tools/nav-guard/nav_guard.py pockets --scenarios --map test-<name> --locomotor wheeled
+```
+
+`pockets` is the one to read: it prints every region that is **not** the largest, with a bounding box.
+If your scenario means to seal something off, the pocket must be exactly the shape you sealed; if it
+does not, a pocket is a unit that cannot reach what the test assumes it reaches. For a specific
+"can A reach B?" question, label the cells and compare — worked, committed example with its measured
+numbers at `tools/autotest/scenarios/test-restock-unreachable-centre/map.yaml:70-97`:
+
+```bash
+python3 - <<'PY'
+import sys; from pathlib import Path; sys.path.insert(0, 'tools/nav-guard')
+import modload, nav_guard
+rules = modload.load_mod(nav_guard.MOD_DIR)
+gm = modload.load_map(Path('tools/autotest/scenarios/test-<name>'))
+loco = [l for l in modload.world_locomotors(rules, gm.rule_overrides) if l.name == 'wheeled'][0]
+occ, _ = nav_guard.cell_occupancy(rules, gm, 'live')
+m = nav_guard.build_cell_model(rules, gm, rules.tilesets[gm.tileset], loco, occ)
+labels, sizes = nav_guard.component_labels(m, nav_guard.DEFAULT_SQUEEZE)
+left, top, w, _ = gm.bounds
+lab = lambda cx, cy: labels[(cy - top) * w + (cx - left)]
+print('reachable:', lab(10, 10) == lab(31, 11))
+PY
+```
+
+**PITFALL — the decoder over-blocks map markers, so an unreachable start cell is often the tool's
+error, not yours.** `mpspawn`, `spawnarea`, `waypoint` and the two `camera.*` actors all carry
+`Immobile: OccupiesSpace: false` and occupy **nothing** in game (`ImmobileInfo.OccupiedCells` returns
+an empty dictionary, `Immobile.cs:23-27`), but `modload.actor_shape` gives every non-`Building` actor
+a 1-cell footprint and never reads that flag — so nav-guard models all five as solid walls. A unit
+sharing its cell with an `mpspawn` therefore reads as standing on impassable ground and reaches
+nothing. **If a cell reads blocked and the only thing on it is one of those five, that is a nav-guard
+artefact — do not move your actor to satisfy it.** The error is conservative (it can only invent a
+wall, never delete one), so the `check` gate cannot have passed a real sealing-off because of it; only
+manual inspection is affected. Measured 2026-09-01, with the blast radius, in `WORKSPACE/DISCOVERIES.md`.
+
+**Neither gate is a substitute for a run.** They establish that the scenario is *well-formed* — the
+script loads, the names exist, the geometry is what you drew. They say nothing about whether your
+predicate measures the thing you care about, which is what the two sections below are for.
 
 ## Test types
 
@@ -373,6 +472,7 @@ For when you need to extend the harness (not just use it):
 | `tools/autotest/run-test.sh` | Single-test runner |
 | `tools/autotest/selftest.sh` | Self-test of run-test.sh's result reporting (no game launched) |
 | `tools/autotest/run-batch.sh` | Batch runner |
+| `tools/autotest/expected-status.sh` | Declared expected status + its decision table (`--selftest`, no game launched) |
 | `tools/autotest/list-tests.sh` | Discovery |
 
 ## Existing tests
