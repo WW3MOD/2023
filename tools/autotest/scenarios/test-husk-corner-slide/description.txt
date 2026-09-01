@@ -1,1 +1,1 @@
-Husk facing while it finishes a corner: three supply trucks are killed part-way through a 90-degree arc. Screenshot burst + [husk-settle] traces show whether the wreck points down its slide or across it.
+Husk facing while it finishes a turn. Four supply trucks; A/B/C die mid-turn, D dies on a straight leg as the control. VERDICT IS LIVENESS ONLY and cannot go red on the bug -- the crab lives in the screenshot burst and the [husk-settle] lines in debug.log. A failure raised by this scenario says STAGING-FAILURE; a bare "Fatal Lua Error" means it never ran.
