@@ -1,0 +1,92 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: drone operator tasks onto a lost-track contact
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 98,82
+
+Bounds: 0,0,98,82
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Does an @experimental drone operator send its drone to where an enemy was last
+# seen, in preference to the stalest ground it could otherwise explore?
+#
+# GEOMETRY, AND EVERY DISTANCE HERE IS LOAD-BEARING:
+#   Operator  (18,45)  — 4 cells from its own Supply Route, on ground the River
+#                        Zeta terrain has clear (the neutral derrick at 17,44).
+#   Vanish V  (47,54)  — 30 cells from the operator, which must exceed the
+#                        operator's own 28-cell verifying radius. If V sat inside
+#                        that bubble the contact would be verified-clear the
+#                        instant the scout dies and there would be nothing to
+#                        remember. This is the single easiest thing to get wrong.
+#   Hover disc         — min(weapon range, LeashCells 25 - margin 3) = 22 cells,
+#                        so the closest candidate to V is ~11 cells away. Well
+#                        inside DroneVisionCells (28), so the falloff leaves the
+#                        contact worth roughly 155 of its 250 squares there.
+#
+# WHY A SCOUT THAT DIES, RATHER THAN A UNIT THAT DRIVES AWAY. BeliefStore removes
+# any contact whose last-seen cell is currently visible (ResolveUnobserved,
+# BeliefStore.cs:263) — so an enemy that merely walks out of our vision is
+# verified-clear immediately and never becomes a "lost" contact at all. The
+# decaying-memory case requires losing the OBSERVER, which is what killing the
+# scout does: the area goes dark with the enemy's last-seen cell inside it.
+#
+# The enemy vehicle is owned by a player with NO Bot line, so nothing drives it.
+# It genuinely stays at V — the drone is meant to find it there.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 14,45
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 80,35
+
+	# Spawn anchors — required even for non-playable combatants.
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 14,45
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 80,35
+
+	# The unit under test. Placed rather than produced so the scenario does not
+	# depend on the bot's build order to reach the thing being measured.
+	Operator: dr.america
+		Owner: USA-bot
+		Location: 18,45
+
+Rules: rules.yaml

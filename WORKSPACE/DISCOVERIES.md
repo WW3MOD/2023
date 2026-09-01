@@ -21,17 +21,66 @@ into a pure function, and a unit test asserting that it helped.
   which is **true, and true by two parts in twenty thousand**. An ordering assertion cannot distinguish
   "this term decides things" from "this term breaks exact ties and nothing else".
 
-**The generalisable rule: assert the EXCHANGE RATE, not the ordering.** `Is.GreaterThan` on a scoring
-term proves only that its sign is right. What pins a term's *authority* is an equality against the term
-it trades with — here `Score(revealed: 20, intel: 40) == Score(revealed: 60)`, which fails loudly the
-moment the two drift back into different units. Both halves of the fix generalise: put competing terms
-in **one currency** so they can be added, and apply any floor to the **sum** rather than to one addend.
+**THE GENERALISABLE RULE — A TEST THAT ASSERTS AN ORDERING CANNOT DETECT THAT THE EFFECT IS
+NEGLIGIBLE.** `a > b` is satisfied by *any* margin, including one no decision will ever turn on. The
+test here was not weak by accident; it was asking the wrong question. If a term is meant to change
+behaviour, the test has to assert a **magnitude** — that the term can actually flip a realistic
+comparison — not merely a sign.
 
-**This is the same family as the module's earlier 674,584-of-674,584 refusal bug**, where the quantity
-being scored (the hover cell's own staleness) was invalidated by the drone's own presence. Both are
-arithmetic that compiles, passes review, and is inert or unsatisfiable by construction. The question to
-ask of any new scoring term: *what is one unit of this worth in units of the thing it competes with,
-and is that ratio the one I intended?*
+In practice that means asserting the **exchange rate** against the term it competes with:
+`Score(revealed: 20, intel: 40) == Score(revealed: 60)` fails loudly the moment the two drift back into
+different units, where `nearContact > blank` never could. The two structural halves of the fix
+generalise as well: put competing terms in **one currency** so they can be added, and apply any floor to
+the **sum** rather than to one addend.
+
+**This is the third member of a family this project keeps rediscovering, and the family is the point:**
+
+| | What shipped | Why nothing caught it |
+|---|---|---|
+| Drone hover scoring | Scored the hover cell's own staleness — a cell inside the operator's own verifying bubble | 674,584 of 674,584 candidates refused, 100%, for two matches. Unsatisfiable by construction |
+| Drone contact bonus | A term in a different unit from the one it competed against | Inert by construction. Its test asserted an ordering and passed by 2 parts in 20,000 |
+| The test itself | `Is.GreaterThan` standing in for "this matters" | An ordering assertion has no notion of magnitude |
+
+All three **typecheck, are configured, are genuinely executed, and pass their tests.** Build, NUnit and
+lint are all blind to every one of them, because each is a true statement about arithmetic that is not
+the statement anyone needed. The question to ask of any new scoring term: *what is one unit of this
+worth in units of the thing it competes with, and is that ratio the one I intended?*
+
+## 2026-09-01 — BeliefStore ERASES a vanished mobile before the next drone evaluation, so "weight the contact list" is a STRUCTURAL IMPOSSIBILITY, not a tuning problem (`wt/drone-targeting`)
+
+**Read this before "simplifying" `DroneOperatorBotModule`'s own contact table back onto
+`BeliefStore.Contacts()`.** That table looks like a redundant second copy of the belief store and is
+not; deleting it silently reinstates a bug that no test can see, because the module would still compile,
+still read a real fog-legal source, and still score contacts — just never the ones that matter.
+
+The arithmetic, and it is the whole argument:
+
+- A mobile contact that goes unobserved decays `Confidence = Confidence * MobileDecayPercent / 100` with
+  `MobileDecayPercent: 75` (`BeliefStore.cs:136`), i.e. `100 → 75 → 56 → 42 → 31 → 23 → 17 → 12`, and is
+  dropped once it falls below `MinConfidence: 15` (`:139`) — on the **7th** unrefreshed pass.
+- Passes are `UpdateInterval: 25` ticks apart per player (`:123`, round-robin via
+  `InfluenceStack.SubInterval`). So the store **erases a vanished mobile 175 ticks after the last
+  sighting.**
+- `DroneOperatorBotModule` evaluates every `ReevaluateInterval: 200` ticks, and can only act on an
+  evaluation where the operator is docked with ammo — a narrow window inside a **~1333-tick** sortie
+  cycle (3 s FireDelay + 60 s loiter + 9 s rearm + 12 s BurstWait at 16.667 ticks/s).
+
+**175 < 200.** A weight applied to `Contacts()` at tasking time is therefore sampling a signal whose
+lifetime is shorter than the sampling interval, and shorter again than the interval at which the
+consumer is *able to act*. It is not "sometimes stale" — for the case the feature exists to serve, the
+data is usually already gone. Statics are unaffected (exempt from decay), which is exactly why the
+defect would hide: the contact term would visibly "work" on structures and never fire on the moving
+units it was written for.
+
+The fix is to sample the store on **its** cadence (25 ticks) and hold the record on the **consumer's**
+(2000 ticks), honouring verified-clear so the memory is still disproved by observation. Widening
+`BeliefStore`'s own constants is the wrong lever and was rejected: they feed the Stage-B danger fields
+for every participant including `@stable` and humans, so a drone-tasking concern would have moved the
+benchmark control.
+
+**The general shape: before consuming a decaying signal, compare its LIFETIME against your own
+evaluation interval — and against the interval at which you can actually act on it, which is often much
+longer.** A consumer slower than the signal it reads cannot be fixed by weighting it harder.
 
 ## 2026-09-01 — `TicksSinceVerified` counts the NON-PLAYABLE MAP BORDER as unobserved ground, so the drone's revealed-area term is inflated worst exactly where drones launch (`wt/drone-targeting`)
 

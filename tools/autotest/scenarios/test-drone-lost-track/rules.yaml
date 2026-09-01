@@ -1,0 +1,54 @@
+Player:
+	-ConquestVictoryConditions:
+
+	# ===== THE TWO MODULES THAT CAN TAKE THE OPERATOR AWAY =====
+	# Both are documented competitors for this exact unit. DroneOperatorBotModule
+	# defends itself by committing the operator to the PoiGoalGuard ledger, but that
+	# commitment only exists once its own evaluation has run, so whichever module
+	# reaches the operator first wins a race the scenario has no reason to gamble
+	# on. Removing them makes "the drone never launched" mean something about the
+	# drone module rather than about a recruitment race.
+	#
+	# This narrows the bot, so the scenario is NOT a statement about @experimental as
+	# a whole — only about where the drone module aims when it holds the operator.
+	# Names verified against ai.yaml:331 and :834; the module instances are
+	# faction-suffixed elsewhere in that file, so do not pattern-match them by eye.
+	-PoiOffensiveBotModule@experimental:
+	-LaneAmbushBotModule@experimental:
+
+	MapLayers:
+		# FOG ON AND LOCKED. The entire feature is about what happens to a contact
+		# once it is no longer visible, so a run with fog off measures nothing:
+		# GetVisibility takes the "return 10 on explored cells" branch
+		# (MapLayers.cs:611-618) and no contact is ever lost in the first place.
+		# Locked so neither lobby state nor a local settings.yaml can flip it.
+		#
+		# Explored stays ON, and that is safe rather than sloppy: exploration stamps
+		# visibility 1, while ControlField.GridCellVisible tests IsVisible(cell, 1)
+		# STRICTLY (MapLayers.cs:579). Explored ground is therefore still UNVERIFIED
+		# and still counts toward the drone's revealed-area term. Only real vision
+		# moves that term, which is the quantity being competed against here.
+		FogCheckboxEnabled: true
+		FogCheckboxLocked: true
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-drone-lost-track.lua
+
+# NOTE ON WHAT IS *NOT* DISABLED HERE, BECAUSE IT IS THE MORE LIKELY CONFOUND.
+# Production is left alone. Any friendly unit that wanders within vision of the
+# vanish cell would make that cell currently-visible, and a contact whose cell is
+# visible is verified-clear on the spot (BeliefStore.cs:263) — the bot's own
+# economy would erase the memory under test. Enumerating every production module
+# to remove it is fragile (UnitBuilderBotModule alone has six faction/domain
+# variants), so the Lua guards the CONDITION instead of the cause: it fails the
+# run as SETUP INVALID if any friendly other than the drone approaches the vanish
+# cell. That turns a silent confound into an explicit, named result.

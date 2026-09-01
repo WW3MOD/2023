@@ -77,7 +77,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Worth of a contact we saw and then LOST INTO FOG, in the same unit as revealed area:",
 			"coarse grid squares. The strongest tasking signal the module has — a unit that disappeared",
 			"is a unit whose current position matters and is not known. PROVISIONAL: no drone had ever",
-			"flown when this was set, so it is a reasoned estimate and not a measurement.")]
+			"flown when this was set, so it is a reasoned estimate and not a measurement.",
+			"MUST BE >= AreaIntelSquares. The lost tier decays from this value DOWN to that floor, so",
+			"setting it lower inverts the decay — a freshly-vanished contact would score less than a",
+			"two-minute-old one. This is NOT the knob to zero in order to disable the feature: it leaves",
+			"the visible and static tiers fully active. Use IntelSampleInterval for that.")]
 		public readonly int LostTrackIntelSquares = 250;
 
 		[Desc("Worth of ground where an enemy is believed to be but is NOT an open question — currently",
@@ -103,7 +107,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Ticks between belief-store samples. The store forgets a mobile contact 175 ticks after the",
 			"last sighting (7 decay passes of 25 ticks), so this must stay well under that or a vanishing",
-			"unit is erased before the module ever records where it was.")]
+			"unit is erased before the module ever records where it was.",
+			"THIS IS ALSO THE FEATURE'S OFF SWITCH, and the only single knob that is. Set beyond the",
+			"length of a match and the contact table is never written, so every candidate scores",
+			"intelSquares 0 and tasking falls back to pure revealed-area staleness — the pre-change",
+			"behaviour, up to the old contact bonus that was worth two squares and could not decide",
+			"anything. Used as the control arm when A/B-ing this feature.")]
 		public readonly int IntelSampleInterval = 25;
 
 		[Desc("Cells around a believed enemy Supply Route that are refused as observation targets.",
