@@ -23,11 +23,15 @@ Categories: Test
 # (pointing at the cell it is leaving) while the husk's drag runs straight to the cell it never
 # entered. That gap is the sideways slide.
 #
-# THREE lanes killed at three different offsets into the arc, not one: a single offset is a bet that
-# the chosen tick lands inside the arc, and a run slot is too expensive to bet. The spread guarantees
-# at least one wreck dies mid-arc even if the speed arithmetic is off.
+# THREE arc lanes killed at three different offsets into the arc, not one: a single offset is a bet
+# that the chosen tick lands inside an arc lasting about twenty ticks, and a run slot is too expensive
+# to bet. The spread guarantees at least one wreck dies mid-arc even if the speed arithmetic is off.
 #
-# All three corners share x=30 so one fixed camera frames them together and a single screenshot burst
+# A FOURTH lane is the control, killed on the straight approach where the fix must be a no-op. See the
+# TruckD comment below -- that lane is the one that can catch a regression, and the regression it
+# catches would be more visible to players than the bug being fixed.
+#
+# All four lanes share x=30 so one fixed camera frames them together and a single screenshot burst
 # covers every lane.
 Players:
 	PlayerReference@Neutral:
@@ -78,6 +82,17 @@ Actors:
 	TruckC: truk
 		Owner: USA
 		Location: 14,22
+		Facing: 768
+
+	# CONTROL LANE. Same L-shaped course as the other three, but killed on the STRAIGHT approach well
+	# before the arc opens. This is the arm that can catch a regression rather than the reported bug:
+	# if SmoothSegmentTarget is corner-cutting the living unit's path while the husk drag always aims
+	# at the cell centre, then the facing correction is not a no-op on an ordinary straight-leg kill
+	# and shows up as a facing POP at the moment of death -- which players would see far more often
+	# than the corner case that was actually reported. Expect crab=0 here and no visible rotation.
+	TruckD: truk
+		Owner: USA
+		Location: 14,13
 		Facing: 768
 
 Rules: rules.yaml

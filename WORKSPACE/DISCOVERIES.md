@@ -3,6 +3,37 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — A dying unit's `ToCell` is already PAST the corner, so "the direction it was travelling" is the wrong thing to face a husk (`wt/death-slide`)
+
+Reported as a supply truck sliding sideways after death. The user's own diagnosis was *"the facing is
+locked as soon as it dies"*, and that is true — `Husk` reads `FacingInit` once in its constructor
+(`Husk.cs:104`), exposes `TurnSpeed => WAngle.Zero` (`:95`), and nothing writes `Facing` again, while
+the position keeps interpolating because `Drag.Tick` only calls `SetCenterPosition` (`Drag.cs:47-61`).
+
+**Acting on that framing alone produces a fix that is still wrong.** "Unlock the facing and track the
+unit's heading" restores the heading the *living* unit had, and on a corner that is not the direction
+the husk travels:
+
+- `Mobile.TopLeft` is `ToCell`, not the occupied cell (`Mobile.cs:314`), and the husk spawns at
+  `self.Location` (`SpawnActorOnDeath.cs:127`) then drags to that cell's centre (`Husk.cs:257`).
+- `MoveFirstHalf`'s chained-turn branch **retargets `ToCell` to the cell after the corner at the
+  moment the arc opens** (`Move.cs:709-722`). So a unit part-way through a corner is holding an arc
+  tangent aimed at the cell it is *leaving*, while its husk drags in a straight line to a cell it has
+  *not entered*.
+
+The direction worth facing is therefore **the drag line**, which is neither the death facing nor the
+living unit's travel direction. On a straight leg all three coincide, which is why the defect is
+invisible on most kills and why a fix derived from the drag line is a no-op there.
+
+Two corollaries worth carrying:
+
+- **`self.Location` on a dying mobile actor is a reservation, not a position.** Any death-time code
+  reading it — spawn cells, drop points, score attribution by cell — inherits this and will be up to
+  one and a half cells away from the body on a corner.
+- **`Turn` cannot be used on a husk.** `Turn.Tick` advances via `Util.TickFacing(..., TurnSpeed)`
+  (`Turn.cs:46-47`) and `Husk.TurnSpeed` is `WAngle.Zero`, so the activity never completes — the
+  `Drag(…, facing)` overload that queues a `Turn` (`Drag.cs:43-44`) would hang a wreck forever.
+
 ## 2026-08-30 — The tooltip mockups and the audit both assert HIMARS refills at a Logistics Centre; a same-day user ruling says it cannot (`wt/tooltip-elements`)
 
 - `tooltip-mockups/units.html` shows the HIMARS card carrying **"133% of a Logistics Centre"** and the
