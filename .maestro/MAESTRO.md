@@ -30,7 +30,34 @@ The general shape: **an instruction that changes the user's environment must car
 ## Dispatching workers
 
 - When briefing a worker, name the specific reference docs its task needs (per CLAUDE.md's routing table) rather than "read the docs".
-- The no-autonomous-multi-test rule binds workers you dispatch too: **your plan is not a user goahead** — get explicit user approval before any batch/tournament run.
+- ~~The no-autonomous-multi-test rule binds workers you dispatch too: **your plan is not a user goahead** — get explicit user approval before any batch/tournament run.~~ **SUPERSEDED 2026-08-19 — see the two operating rules below.** The gate is no longer "ask the user before a batch", it is **"only the manager runs it"**.
+
+## Two standing operating rules — added 2026-08-19, re-confirmed in practice 2026-09-01
+
+These are manager-facing on purpose. Workers never see this file, so **both must be restated in every worker brief** or the worker will follow `DOCS/recipes/AUTOTEST.md` and `SCREENSHOT.md`, which still tell it to run things itself.
+
+### 1. Launches serialize through the manager. Workers never start the game.
+
+The user granted full simulation/launch authority to the *manager* and attached a hard constraint, verbatim:
+
+> "You have full grants to launch simulations but I suggest you do it from here so that multiple workers are not all starting simulations. That will crash my computer. So keep an eye on the load and make sure you dont completely overload the machine."
+
+**The manager is the only party that launches anything.** No worker runs `launch-game.sh`, `run-test.sh`, `run-batch.sh`, `run-tournament.sh`, or any screenshot capture. A worker writes down what it needs run and hands it up; the manager runs it serially and feeds the result back.
+
+Consequences to carry:
+- **Every brief needs the no-launch clause explicitly**, because it contradicts the recipes the worker is told to follow by default.
+- The implement→verify loop is now split across two parties. Ask each worker for the scenario file **plus an explicit "what would count as the answer"**, so the manager can run it without re-deriving intent.
+- The worktree-build rule inverts in part: a fresh worktree still needs `make all` to compile-check, but no longer "before the first launch" — the worker never launches. **The manager's own launch must come from a tree that IS built.**
+
+### 2. Workers do not run the YAML validator. The manager runs it once, at merge.
+
+At ten concurrent workers `./utility.sh --check-yaml` became a hard serialization point. Measured 2026-08-19: one worker's validator **never got a turn** (0-byte output, idle long enough to trip a stall warning), and another measured **eight concurrent lint jobs** across sibling worktrees with its own waiting **~35 minutes**. The queue does not drain while the fleet is running, so "wait it out" is not a strategy.
+
+**Rule: workers run neither `./utility.sh --check-yaml` nor `make test`. The manager runs the YAML gate serially at merge time.** The merge gate is the one that actually protects `main`; a worker's local run is redundant with it and at this fleet size its only marginal effect is queue depth. `make all` and `dotnet test` stay with the worker — neither is contended.
+
+**Compensating requirement, so nothing is lost:** each worker must list in its report **which YAML files it touched and what it would expect lint to say if it got it wrong.** The manager checks the single gate run against those statements — that keeps the worker's intent as a checkable claim instead of discarding it.
+
+**Related hazard, restated because it nearly fired: never `pkill -f OpenRA.Utility`.** With eight concurrent jobs that kills seven siblings' work. Resolve the cwd with `lsof` and kill only your own pid.
 
 ## Batch sizing + the merge pipeline (findings, 2026-07-22 autoburn)
 
@@ -49,7 +76,7 @@ Deliberate experiment: larger per-worker batches vs one-item-per-worker, across 
 
 Orientation order for a fresh manager told "work the pipeline":
 
-1. `WORKSPACE/PIPELINE.md` — the ordered queue; top item = next to start. Items marked user-gated need explicit grants — never self-authorize. **It holds stubs only and is meant to be read whole**; the dossier for a chosen item is `WORKSPACE/pipeline/items/<NN>-<slug>.md`, and finished work lives in `WORKSPACE/pipeline/archive/` ([map](../WORKSPACE/pipeline/README.md)). **Check an item's central premise with one `git log -S`/grep before dispatching** — stale items have twice cost a worker.
+1. `WORKSPACE/PIPELINE.md` — the ordered queue; top item = next to start. Items marked user-gated need explicit grants — never self-authorize. **It holds stubs only and is meant to be read whole**; the dossier for a chosen item is `WORKSPACE/pipeline/items/<NN>-<slug>.md`, and finished work lives in `WORKSPACE/pipeline/archive/` ([map](../WORKSPACE/pipeline/README.md)). **Check an item's central premise with one `git log -S`/grep before dispatching** — stale items have twice cost a worker. **Sharper form, earned 2026-08-19 and re-confirmed 2026-09-01: a merged branch is not a finished item.** Item 64's branch is an ancestor of `main` and the feature still ships switched OFF; another item's named branch carried only test hygiene while the real fix rode a different one. Read what the branch *contained*. **And read the file, not the commit message** — one finding was nearly closed on the strength of `ed5ee6b6`, which turned out to be a `PIPELINE.md` edit, and R7 has since attracted two more commits that looked like they addressed it and touched none of its five symptoms. **Two documents agreeing on a number is not evidence.**
 2. `WORKSPACE/cases/README.md` — the scenario-case model: user-authored cases with ONE measurable bar each are the preferred unit of autonomous work. Iterate features/tuning until the case reads GREEN. Case files carry their own dependencies and status logs.
 3. `WORKSPACE/HOTBOARD.md` + `git log --oneline -20` — what just happened.
 4. The routing table in CLAUDE.md for anything a specific item touches.
