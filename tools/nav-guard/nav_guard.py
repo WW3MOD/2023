@@ -34,6 +34,12 @@ REPO = HERE.parent.parent
 MOD_DIR = REPO / "mods" / "ww3mod"
 BASELINE = HERE / "baseline.json"
 
+# Autotest scenarios are map packages too, and the decoder reads them happily -- but they are
+# NOT part of the gate. `check`/`bless` cover `mods/ww3mod/maps` only, which is why every green
+# run prints "10 maps": a scenario-geometry change cannot move that number. The inspection
+# commands take `--scenarios` to reach them; see README.md "What it does NOT cover".
+SCENARIO_DIR = REPO / "tools" / "autotest" / "scenarios"
+
 # Diagonal-squeeze rule variants. A diagonal step crosses the corner shared by four cells;
 # the two cells that are neither endpoint are its "shoulders" (DiagonalSqueezeGeometry.cs).
 #   none    no squeeze rule at all -- movement before the 2026-08-08 tank-trap work.
@@ -250,9 +256,11 @@ class MapResult:
 
 def analyse(variant: str = DEFAULT_SQUEEZE, only_maps: list[str] | None = None,
             only_locos: list[str] | None = None,
-            state: str = "live") -> tuple[ModRules, list[GameMap], list[MapResult]]:
+            state: str = "live",
+            scenarios: bool = False) -> tuple[ModRules, list[GameMap], list[MapResult]]:
     rules = modload.load_mod(MOD_DIR)
-    maps = [modload.load_map(p) for p in modload.discover_maps(MOD_DIR)]
+    roots = [SCENARIO_DIR] if scenarios else []
+    maps = [modload.load_map(p) for p in modload.discover_maps(MOD_DIR, roots)]
     if only_maps:
         maps = [m for m in maps if any(f in m.name for f in only_maps)]
 
@@ -309,8 +317,10 @@ def scripted_blockers() -> list[str]:
 
 
 def cmd_report(args) -> int:
-    _, _, results = analyse(args.squeeze, args.map, args.locomotor, args.state)
-    print(f"nav-guard report  (squeeze: {args.squeeze}, world state: {args.state})\n")
+    _, _, results = analyse(args.squeeze, args.map, args.locomotor, args.state, args.scenarios)
+    scope = "mod maps + autotest scenarios" if args.scenarios else "mod maps only"
+    print(f"nav-guard report  (squeeze: {args.squeeze}, world state: {args.state}, "
+          f"scope: {scope})\n")
     for res in results:
         print(res.name)
         if res.unknown_actors:
@@ -420,6 +430,15 @@ def cmd_check(args) -> int:
     total = sum(len(r.per_locomotor) for r in live)
     print(f"nav-guard OK: {len(live)} maps, {total} map/locomotor pairs match baseline "
           f"in both the authored and all-husks world states.")
+    # Say the scope out loud on the green line. A worker who edits a scenario's terrain,
+    # bounds or actors runs this, sees OK, and reasonably concludes the edit was checked --
+    # it was not, and the number above cannot move for a scenario change. Twice on
+    # 2026-09-01 (DISCOVERIES) that green was nearly read as coverage.
+    n_scen = sum(1 for _ in SCENARIO_DIR.glob("*/map.bin")) if SCENARIO_DIR.is_dir() else 0
+    print(f"             Scope is {MOD_DIR.name}/maps ONLY. The {n_scen} packages under "
+          f"tools/autotest/scenarios are NOT covered by this\n"
+          f"             gate and no green here says anything about them: "
+          f"'nav_guard.py report --scenarios --map <name>'.")
     return 0
 
 
@@ -460,7 +479,7 @@ def cmd_compare(args) -> int:
 def cmd_pockets(args) -> int:
     """List the cells of every non-largest component, so a finding can be eyeballed."""
     rules = modload.load_mod(MOD_DIR)
-    paths = modload.discover_maps(MOD_DIR)
+    paths = modload.discover_maps(MOD_DIR, [SCENARIO_DIR] if args.scenarios else [])
     if args.map:
         paths = [p for p in paths if any(f in p.name for f in args.map)]
 
@@ -502,18 +521,22 @@ def main(argv: list[str] | None = None) -> int:
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command")
 
-    def add_filters(p, with_state=True):
+    def add_filters(p, with_state=True, with_scenarios=False):
         p.add_argument("--map", action="append", default=[],
                        help="substring filter on map folder name; repeatable")
         p.add_argument("--locomotor", action="append", default=[],
                        help="exact locomotor name; repeatable")
+        if with_scenarios:
+            p.add_argument("--scenarios", action="store_true",
+                           help="also include tools/autotest/scenarios (~45s for all 254; "
+                                "pair with --map to inspect one). Never gated: see 'check'")
         if with_state:
             p.add_argument("--state", choices=("live", "dead"), default="live",
                            help="'dead' replaces every map actor with its death husk")
 
     p = sub.add_parser("report", help="per-map/per-locomotor component table")
     p.add_argument("--squeeze", choices=SQUEEZE_VARIANTS, default=DEFAULT_SQUEEZE)
-    add_filters(p)
+    add_filters(p, with_scenarios=True)
     p.set_defaults(func=cmd_report)
 
     p = sub.add_parser("check", help="compare against baseline.json")
@@ -532,7 +555,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("pockets", help="list non-largest components")
     p.add_argument("--squeeze", choices=SQUEEZE_VARIANTS, default=DEFAULT_SQUEEZE)
     p.add_argument("--limit", type=int, default=10)
-    add_filters(p)
+    add_filters(p, with_scenarios=True)
     p.set_defaults(func=cmd_pockets)
 
     p = sub.add_parser("validate", help="decoder self-check against map.png previews")

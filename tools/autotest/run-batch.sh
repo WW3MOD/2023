@@ -18,7 +18,16 @@
 #
 # Runs each named test sequentially via run-test.sh, prints a per-test
 # verdict line and a final summary. Exit code: 0 if all pass; otherwise
-# the count of non-pass tests (capped at 99 so the shell doesn't truncate).
+# the count of non-GREEN tests (capped at 99 so the shell doesn't truncate).
+#
+# "non-GREEN" rather than "non-pass" because a scenario may declare the outcome it is
+# SUPPOSED to produce, in a file `tools/autotest/scenarios/test-<name>/expected-status`.
+# A declared `fail` that fails is green and shows as `OK(fail)`; a declared `fail` that
+# PASSES is red and shows as `STALE`, because the declaration has outlived its reason.
+# Anything else -- a crash under a `fail` declaration, a malformed file -- is still red.
+# Without this, a scenario that legitimately fails reds every batch forever, which is
+# the "how a red batch stops meaning anything" failure the --all filter below guards
+# against from the other side. Rationale and decision table: expected-status.sh.
 #
 # --hidden / --minimized (optional, leading): forwarded to every run-test.sh as
 # its window behavior. --hidden creates the window with SDL_WINDOW_HIDDEN (never
@@ -164,7 +173,15 @@ if [ -n "${SEED}" ]; then
 	echo "==> Seed: base ${SEED}, per-test derived (base + test index, skipping 0) — reproducible"
 fi
 
+# A scenario may DECLARE the outcome it is supposed to produce, so a by-merit negative
+# stops reddening every batch forever without being hidden from it. Declaring `fail` makes
+# a FAIL green AND makes a PASS red -- the same asymmetry as mods/ww3mod/lint-baseline.txt
+# and for the same reason: a floor that can only be lowered deliberately. Nothing changes
+# for a scenario with no declaration, which is all 254 of them today. See expected-status.sh.
+. "$(dirname "$0")/expected-status.sh"
+
 PASS=0; FAIL=0; SKIP=0; ERR=0
+BAD=0; STALE=""; MISCONFIGURED=""
 LINES=""
 
 # Running offset into the base-seed sequence. Only advances when --seed is set,
@@ -194,10 +211,36 @@ for t in ${TESTS}; do
 	rc=$?
 
 	case ${rc} in
-		0) verdict="PASS"; PASS=$((PASS + 1)) ;;
-		1) verdict="FAIL"; FAIL=$((FAIL + 1)) ;;
-		2) verdict="SKIP"; SKIP=$((SKIP + 1)) ;;
-		*) verdict="ERR ($rc)"; ERR=$((ERR + 1)) ;;
+		0) outcome="PASS"; verdict="PASS";      PASS=$((PASS + 1)) ;;
+		1) outcome="FAIL"; verdict="FAIL";      FAIL=$((FAIL + 1)) ;;
+		2) outcome="SKIP"; verdict="SKIP";      SKIP=$((SKIP + 1)) ;;
+		*) outcome="ERR";  verdict="ERR ($rc)"; ERR=$((ERR + 1)) ;;
+	esac
+
+	_declared=$(expected_status_read "tools/autotest/scenarios/${t}")
+	case $(expected_status_grade "${_declared}" "${outcome}") in
+		GREEN)
+			# A declared outcome that occurred is green, and says so in the tally rather
+			# than reading as an ordinary pass -- "OK(fail)" is not the same result as
+			# "PASS" and a summary that conflated them would hide the declaration.
+			[ -n "${_declared}" ] && verdict="OK(${_declared})"
+			;;
+		STOPPED)
+			verdict="STALE"
+			BAD=$((BAD + 1))
+			STALE="${STALE} ${t}"
+			;;
+		CONFIG)
+			verdict="CONFIG"
+			BAD=$((BAD + 1))
+			# Newline-delimited: the message contains spaces, and a space-delimited
+			# accumulator word-splits it into one bogus line per word.
+			MISCONFIGURED="${MISCONFIGURED}${t}: ${_declared#ERROR:}
+"
+			;;
+		*)
+			BAD=$((BAD + 1))
+			;;
 	esac
 
 	LINES="${LINES}${verdict}|${t}
@@ -205,17 +248,37 @@ for t in ${TESTS}; do
 done
 
 TOTAL=$((PASS + FAIL + SKIP + ERR))
-NON_PASS=$((FAIL + SKIP + ERR))
 
 echo
 echo "============================================================"
 echo "  Summary (${TOTAL} tests)"
 echo "============================================================"
-printf '%s' "${LINES}" | awk -F'|' '{ printf "  %-8s %s\n", $1, $2 }'
+printf '%s' "${LINES}" | awk -F'|' '{ printf "  %-10s %s\n", $1, $2 }'
 echo "  ────────────────────────────────────────────"
 printf "  Pass: %d  Fail: %d  Skip: %d  Error: %d\n" "${PASS}" "${FAIL}" "${SKIP}" "${ERR}"
 
-if [ ${NON_PASS} -gt 99 ]; then
+# A stale declaration is reported louder than an ordinary failure, because it is the one
+# result nobody is looking for: the scenario started doing better than its note says, so
+# the note is now lying to every future reader of this batch.
+if [ -n "${STALE}" ]; then
+	echo
+	echo "  !! DECLARATION NOW STALE — these scenarios no longer produce the outcome"
+	echo "     their expected-status file declares, so the file must be deleted:"
+	for _s in ${STALE}; do
+		echo "       tools/autotest/scenarios/${_s}/expected-status"
+	done
+	echo "     Delete it in the same commit as whatever fixed the scenario."
+fi
+
+if [ -n "${MISCONFIGURED}" ]; then
+	echo
+	echo "  !! MALFORMED expected-status declaration:"
+	printf '%s' "${MISCONFIGURED}" | while IFS= read -r _m; do
+		[ -n "${_m}" ] && echo "       ${_m}"
+	done
+fi
+
+if [ ${BAD} -gt 99 ]; then
 	exit 99
 fi
-exit ${NON_PASS}
+exit ${BAD}
