@@ -19,11 +19,17 @@
 -- (2) is the one the user actually hit, so the press is driven through Test.PressHotkey, which
 -- dispatches via Ui.HandleKeyPress and walks the real widget chain in the real order.
 --
--- THE SHAPE: waypoints EAST, evacuation WEST. RotateToEdge sends a ground unit to the edge
--- nearest the owner's SpawnArea, staged at 8,16 -- seven cells from the western bound, nearer
--- than any other. So the two dispositions travel in opposite directions and cannot be confused:
---   * ran immediately -> never east of x=20, exits west, disposed
---   * ran queued      -> reaches x=38 first, THEN turns around and exits west
+-- THE SHAPE: waypoints EAST, and the discriminator is "did it get east BEFORE it was disposed".
+--   * ran immediately -> begins its exit from x=8 and can never reach x=20
+--   * ran queued      -> drives its waypoints to x=38 first, so it passes x=20 while alive
+--
+-- CORRECTED 2026-09-01 by the first green run. This block used to say the exit is anchored on the
+-- owner's SpawnArea and therefore "always WEST". It is not: `SpawnArea` is a trait on the separate
+-- `spawnarea` actor (misc.yaml:255) and NOT on `mpspawn`, so this map has zero SpawnArea actors,
+-- FindClosestSpawnAreaForOwner returns null, and RotateToEdge falls back to `self.Location` at the
+-- moment the activity STARTS. Measured: the immediate humvee exited west (1,14) and the queued one
+-- exited NORTH (33,1), because by then it was standing at 38,14. The verdict never depended on
+-- that -- see map.yaml for the full correction, and do not reintroduce a westward assumption here.
 --
 -- WHY IsDead IS THE "IT EVACUATED" DETECTOR. Nothing on this map can shoot either humvee (there
 -- are no enemy units at all) and both are staged at full health, so ChangesHealth@CriticalDamage
@@ -157,9 +163,11 @@ WorldLoaded = function()
 	Trigger.AfterDelay(ScreenshotTicks, function()
 		Test.SetZoom(1.6)
 		TestHarness.Screenshot("evac-queue-AFTER-queued-drives-east",
-			"expects: the TOP humvee is east of its start, still driving toward the 38,14 waypoint "
-			.. "with its target line ahead of it. The BOTTOM humvee has already left westward or is "
-			.. "gone. A top humvee heading WEST, or absent, is the bug this test exists for.")
+			"expects: THREE humvees were placed and two should be visible. The row-14 one is well "
+			.. "east of its start, still driving toward the 38,14 waypoint. The row-18 one is GONE "
+			.. "(it evacuated westward at once). The row-22 one is stationary near 8,22 -- it is the "
+			.. "Shift+R arm and is not expected to move. A row-14 humvee heading west, or already "
+			.. "absent, is the bug this test exists for.")
 	end)
 
 	-- Live state to lua.log. The AssertWithin failure string is evaluated EAGERLY at registration

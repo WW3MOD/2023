@@ -24,14 +24,27 @@ Categories: Test
 #   x=38   last shift-waypoint (east) -- where a correctly QUEUED evacuate begins its exit
 #   x=1    the western bound -- where EVERY evacuation ends, queued or not
 #
-# RotateToEdge sends a ground unit to the edge cell closest to the owner's SpawnArea
-# (FindClosestSpawnAreaForOwner -> ChooseClosestMatchingEdgeCell). SpawnUSA sits at 8,16, whose
-# nearest bound is the WEST one seven cells away -- nearer than either horizontal bound. So an
-# evacuation always drives WEST while the queued waypoints lie EAST, and "did it obey the
-# queue" is answerable from the unit's position alone:
+# WHICH EDGE A UNIT EXITS BY -- CORRECTED 2026-09-01 FROM THE FIRST GREEN RUN, which falsified
+# what this comment used to claim. It said RotateToEdge anchors the exit on the owner's SpawnArea
+# (via FindClosestSpawnAreaForOwner) and therefore that "an evacuation always drives WEST". Both
+# halves are wrong on this map. `SpawnArea` is a trait on the separate `spawnarea` actor
+# (misc.yaml:255), NOT on `mpspawn` -- so a map placing only mpspawn has ZERO SpawnArea actors,
+# FindClosestSpawnAreaForOwner returns null, and RotateToEdge falls back to `self.Location`: the
+# unit's own cell AT THE MOMENT THE ACTIVITY STARTS. Measured in run 260901_024015:
 #
-#   * order ran immediately -> the humvee never goes east of x=20, drives west, is disposed
-#   * order ran queued      -> the humvee reaches x=38 FIRST, then turns around and exits west
+#   immediate humvee, activity starts at 8,18  -> nearest bound is WEST  -> exits 5,17 -> 1,14
+#   queued humvee,    activity starts at ~38,14 -> nearest bound is NORTH -> exits 37,8 -> 33,1
+#
+# So the two do NOT travel in opposite directions, and nothing here may assume a westward exit.
+# THE DISCRIMINATOR IS UNAFFECTED, because it never depended on the exit edge -- only on whether
+# the humvee got EAST before it was disposed:
+#
+#   * order ran immediately -> starts its exit from x=8, so it can never reach x=20; the nearest
+#                              bound to x=8 is the western one and east is 56 cells away
+#   * order ran queued      -> drives its waypoints to x=38 FIRST, so it passes x=20 while alive
+#
+# Do not "simplify" the predicate to "did it exit via the west edge". That would have passed the
+# broken build's control arm and would fail the fixed build's queued arm.
 #
 # TWO UNITS, DIFFERING ONLY IN THE SHIFT MODIFIER. Both get the same two queued waypoints; one
 # is then sent Shift+E and the other a bare E. The bare-E humvee is the CONTROL: it proves the
@@ -91,8 +104,10 @@ Actors:
 		Location: 8,22
 		Facing: 512
 
-	# The evacuation anchor. Placed between the two humvees and seven cells from the western
-	# bound, so both exits resolve to the same near edge.
+	# NOT the evacuation anchor -- this used to say it was. `mpspawn` carries no `SpawnArea` trait
+	# (that is the separate `spawnarea` actor, misc.yaml:255), so these contribute nothing to
+	# RotateToEdge's exit choice; see the corrected note above. They are here only because
+	# AUTOTEST.md's map conventions expect a start marker per faction.
 	SpawnUSA: mpspawn
 		Owner: Neutral
 		Location: 8,16
