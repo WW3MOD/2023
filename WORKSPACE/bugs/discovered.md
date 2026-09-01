@@ -3859,6 +3859,25 @@ The vehicle `heavy-damage-attained` cases do not touch suppression.
 **Confirm by:** damage a tank to Heavy, order it to attack, and watch it aim without firing and
 without ever rearming.
 
+**2026-09-01 — STILL OPEN, and now CONFIRMED DISTINCT from `test-attackmove-dry-breaks-off`'s red,
+this time by measurement rather than by reading.** (An intermediate note withdrew this claim as
+unproven; the instrumented run has since established it.)
+
+The run reported `cannotFight=true` for both dry men and showed their activity chains moving off
+`Attack`/`AttackMoveActivity` onto `RotateToEdge`. **So in the wholly-dry case the ammo guards
+demonstrably DO release the unit.** This entry's cases are armaments paused for a reason
+`AmmoPool.CannotFight` cannot see — `heavy-damage-attained`, `empdisable`, `suppressed >= 10` — where
+`CannotFight` is *false* and no guard fires at all. `AttackBase.cs:452` states the same thing from
+the other side: `CannotFight` "is NOT sufficient on its own".
+
+**Consequences, unchanged from the original claim but now evidenced:** those scenarios are NOT the
+regression pin this entry lacks, and fixing this will not turn them green — they are already green on
+their own account. A pin for *this* entry must pause an armament while leaving the magazine loaded
+(damage a tank to Heavy), precisely so `CannotFight` stays false and this path is isolated from the
+ammo one. **`TestHarness.HoldsAttackActivity` is the assertion that pin should use** — it reads the
+activity queue directly and is exactly the observable this entry's symptom is about ("aims without
+firing and never goes idle"), without inheriting the `IsIdle` proxy problem that rotted the dry pair.
+
 ---
 
 ## 2026-08-30 — `test-poor-depot-still-worth-the-trip` asserts behaviour the codebase deliberately reversed 72 minutes later
@@ -3970,6 +3989,245 @@ unqueued orders), so it is meant to be green and presumably once was. If it turn
 regression pin that entry currently lacks.
 
 **Confirm by:** `./tools/autotest/run-test.sh test-attackmove-dry-breaks-off` on a clean `main`.
+
+### 2026-09-01 — ✅ RESOLVED AND MEASURED. The analysis below is CORRECT; a mid-course retraction of it was itself wrong and is withdrawn.
+
+**Instrumented run, `260901_073202_p95073`, execution markers present (so not a load abort):**
+
+```
+Hunter  cell=(2,13) startX=9 ammo=0 cannotFight=true idle=false idleTicks=0
+  acts=[AttackMoveActivity>SmartMoveActivity>Move>MoveFirstHalf
+      ~ RotateToEdge>SmartMoveActivity>Move>Turn ~ RotateToEdge>…>MoveSecondHalf]
+Shooter cell=(6,16) startX=9 ammo=0 cannotFight=true idle=false idleTicks=0
+  acts=[Attack>SmartMoveActivity>MoveWithinRange>Move>… ~ RotateToEdge>SmartMoveActivity>Move>…]
+```
+
+Every clause of the analysis below is confirmed: `cannotFight=true` (the guards' predicate held),
+the chain moved off the attack activity to `RotateToEdge` (the guards fired and the evacuate
+disposition took over), the men walked west from x=9, and `idleTicks=0` (the idle edge exists but is
+consumed inside the tick). **The engine is behaving correctly and both scenarios were red for a
+wrong assertion.**
+
+**Why the first fix attempt failed, and it was NOT evidence against the mechanism.** Pinning
+`InitialResupplyBehavior: Hold` in the scenario's `rules.yaml` under `^Combatant` was run and did not
+work — which prompted a retraction of this whole analysis. That retraction was an over-correction: the
+pin never took effect. `^AR` lists `Inherits@AutoTarget: ^AutoTargetLMG` **after**
+`Inherits@Type: ^CamoSoldier`, and `MiniYaml.ResolveInherits` merges parents in source order with
+later winning field-by-field — so `^AutoTarget`'s own `InitialResupplyBehavior: Auto`
+(`defaults.yaml:390`) overwrote the `Hold` set on `^Combatant`. The sibling `ScanRadius: 30` in the
+very same block *does* apply, because `^AutoTarget` never sets it. **A block that is half in force
+and half silently overridden is why this was misread as a refutation.** Written up as its own trap
+in `WORKSPACE/DISCOVERIES.md` 2026-09-01, because it generalises well past this scenario.
+
+**THE FIX AS SHIPPED — the assertion, not the configuration.** Both scenarios now assert
+`not TestHarness.HoldsAttackActivity(unit)` instead of `unit.IsIdle`. That is the observable the
+scenarios are named for, and it is strictly *stronger* than the old check: an idle unit holds no
+attack activity either, so nothing the old assertion accepted is now rejected. The `Hold` pin stays
+reverted — the scenarios run on shipped defaults, and the disposition layer is free to do whatever it
+does, which is exactly the point.
+
+**Process lesson, and the expensive one.** The first conclusion was right and was abandoned after a
+single failed prediction, without first establishing *why* the fix failed. One failed fix falsifies
+**the fix**, not necessarily the diagnosis behind it — and here the fix failed for an unrelated YAML
+inheritance reason. The correct move on that run was to instrument, which is what eventually settled
+it; retracting first cost a cycle and briefly put a wrong "the engine is broken" reading into this
+file. **Before retracting a mechanism, check that the intervention you built on it actually reached
+the code path it was aimed at.**
+
+---
+
+### 2026-09-01 — the analysis itself (CONFIRMED by the run above) (branch `wt/stuck-units`, `main @ 1fe106ff`)
+
+**It is NOT the paused-armament `[high]`.** That entry and this failure share a symptom sentence and
+nothing else, and the two are separated by a predicate the codebase already documents as distinct:
+
+- The `[high]` is about an armament paused for a reason **other than ammo** — `heavy-damage-attained`,
+  `empdisable`, `suppressed >= 10`. `AmmoPool.CannotFight` cannot see any of those, and
+  `AttackBase.cs:452` says so in terms: *"AmmoPool.CannotFight is NOT sufficient on its own: it needs
+  EVERY pool empty."* A heavy-damaged tank has ammo, so no guard fires and it really does hold the
+  order forever. **That entry stays OPEN and unfixed, and this scenario is NOT its regression pin** —
+  the speculation above that fixing it "should turn this green as a side effect" is withdrawn.
+- This scenario's men are **wholly dry**, which is exactly what `CannotFight` covers. Both guards fire.
+
+**What actually happens, traced end to end.** `ar` resolves to exactly ONE `AmmoPool`
+(`primary-ammo`, declared in `^AR` at `infantry.yaml:1342`; no ancestor of `^AR` declares another —
+checked across `^CamoSoldier`/`^Soldier`/`^Infantry`/`^AutoTargetLMG`). So after the Lua drain
+`AllPoolsEmpty` is true, `AmmoPool.CannotFight` is true, and:
+
+1. `Attack.Tick` returns true at its `CannotFight` guard (`Activities/Attack.cs:117`) — Shooter's
+   order ends. `AttackMoveActivity.Tick` does the same at `:128` — Hunter's march ends. **The guards
+   work.**
+2. The actor is momentarily `CurrentActivity == null`, and `Actor.Tick` raises `INotifyBecomingIdle`
+   on that edge (`Actor.cs:321`).
+3. `AmmoPool.OnBecomingIdle` (`:876-878`) calls `AutoRearmIfDry`, which reads `ResupplyBehavior`.
+   It is `Auto` (`defaults.yaml:390`; the scenario's `AutoTarget` override does not touch it, and
+   MiniYaml merges per field).
+4. With no rearm host on the map: `whollyDry` true, `namesRearmActors` true (`truk, supplycache,
+   logisticscenter`), `leash` 30, `suppliedHostWithinLeash`/`anyHostWithinLeash`/`anyHostCanReachUs`
+   all false → `SupplyHuntMath.DecideAutoDisposition` returns **`Evacuate`** (`SupplyHuntMath.cs:296`)
+   → `EvacuateForRefund` queues `RotateToEdge` (`AmmoPool.cs:829`).
+5. `Actor.Tick` then **runs that newly queued activity in the same tick, deliberately** — *"to avoid
+   an 'empty' null tick where the actor will (visibly, if moving) do nothing"* (`Actor.cs:322-325`).
+
+So `Actor.IsIdle` is **never observable as true from Lua**, and the men walk west toward the map edge
+to sell themselves. `AttackMoveActivity.cs:126-127` names this handoff outright — *"hands the unit to
+AmmoPool.INotifyBecomingIdle -> AutoRearmIfDry, which is what picks the right disposition per resupply
+stance (Auto: rearm, Hold: stay put and flag, **Evacuate: rotate out**)"*.
+
+**Why it passed once and went red without anyone touching it.** The scenario was written 2026-08-10
+(`68c2527a`), when the no-host `Auto` path was *"raise NeedsResupply and stand still"* — which queues
+nothing, so `IsIdle` really did become true. The **2026-08-27 user ruling** (*"'Auto' should mean that
+they evacuate if no rearm actor exists"*) replaced that branch with an evacuation. The scenario's
+proxy was invalidated seventeen days after it was authored, by a deliberate behaviour change
+elsewhere. **Same failure shape as the 2026-08-16 entry on the `@experimental` out-of-ammo sweep** —
+*"The guard under test actually WORKS, which the verdict hides. What fails is the test's PROXY."*
+That makes two, so it is a class, not an incident.
+
+**Arithmetic consistency check, which is why the note reads as a timeout rather than "died first".**
+Infantry `Speed: 25` (confirmed via `--dump-balance-json`) ≈ 41 ticks/cell. Hunter at (8,16) must
+cover ~7 cells to the edge cell near (1,16), then a 2-cell `GroundOffMapCells` drive-off: ~370 ticks
+after the evacuation starts at ~tick 30. The deadline is 15 × `TicksPerSecond` 25 = **375 ticks**. So
+the men are still walking, alive and non-idle, when the assert expires — which is exactly what
+`result.json` records (`status: fail`, the timeout note, and no `"fail: Hunter died first"`).
+
+**REJECTED FIX — tried, run, failed, reverted. Recorded so nobody retries it.** `rules.yaml` pinned
+`InitialResupplyBehavior: Hold` / `InitialResupplyBehaviorAI: Hold` under `^Combatant`, on the correct
+reasoning that `Hold` is the one disposition that queues nothing (`AmmoPool.cs`,
+`case ResupplyBehavior.Hold`: flag `NeedsResupply` and return). **The idea was sound and the pin was
+inert** — later `Inherits@` wins field-by-field, and `^AR`'s `Inherits@AutoTarget: ^AutoTargetLMG`
+re-imports `InitialResupplyBehavior: Auto` from `^AutoTarget`. To pin it for real it would have to go
+on the ACTOR (`ar:` / `abrams:`), not on a template the actor re-inherits over. **It is not needed:
+the shipped fix is the assertion, not the configuration.**
+
+**SHIPPED FIX — assert the activity, not the idleness.** Both scenarios now assert
+`not TestHarness.HoldsAttackActivity(unit)`. Strictly stronger than the old `IsIdle` check (an idle
+unit holds no attack activity either), and it survives whatever the resupply disposition layer
+decides to do next — which is the whole reason the old assertion rotted.
+
+**RED / GREEN.** GREEN is `status: pass`. The RED that proves non-vacuity is *sabotage the guard, not
+the ammo*: delete the `if (AmmoPool.CannotFight(self)) return true;` at `Activities/Attack.cs:117`
+**and** the `|| AmmoPool.CannotFight(self)` at `Move/AttackMoveActivity.cs:128`, and the run must fail
+with *"A dry man never dropped his attack order"* plus an `acts=[…]` list still showing an
+`Attack`/`AttackMoveActivity` component. Removing only one of the two is a weaker RED: Hunter's parent
+cancels his attack child before that child's guard runs, so the attack-move arm alone says nothing
+about `Activities/Attack.cs`. **The pre-fix instrumented run is itself most of that RED already** —
+it recorded the attack chains at the drain and the transition away from them, so the guard is
+observed working rather than assumed.
+
+**PREDICTION CONFIRMED: `test-attackfollow-dry-breaks-off` was red on `main`** (*"Dry Abrams never
+went idle"*), exactly as predicted from its single pool and absent `logisticscenter`. It has been
+re-pointed to the same activity assertion but **has NOT been re-run**, so its green is predicted, not
+measured.
+
+**Census of the blast radius.** Eight scenarios both assert `IsIdle` and manipulate ammo:
+`test-attackfollow-dry-breaks-off`, `test-attackmove-dry-breaks-off`, `test-dry-inrange-idle-oscillation`,
+`test-dry-soldier-retry-after-refill`, `test-poor-depot-still-worth-the-trip`,
+`test-tactical-arty-detour-geometry`, `test-vehicle-rearms-at-empty-depot`, `test-who-pays-for-a-rearm`.
+The two `*-breaks-off` are handled here. The other six were **not** examined; any of them that drives a
+unit wholly dry with no affordable host inside 30 cells is exposed to the same proxy failure.
+
+---
+
+## 2026-09-01: [low] `A10` declares `ReloadAmmoPool@1` TWICE, so its primary magazine has no reloader (found while: the fixed-wing rearm investigation, branch `wt/stuck-units`, `main @ 1fe106ff`)
+
+**Static finding, not run, and INERT TODAY** — filed because it is inert only by accident.
+
+Inside the single `A10:` actor, `ReloadAmmoPool@1:` appears at `aircraft-america.yaml:486` (pointed at
+`primary-ammo`) and again at `:516` (pointed at `secondary-ammo`). Per
+[`DOCS/reference/conventions.md`](../../DOCS/reference/conventions.md) §"A duplicate trait key inside
+ONE actor: LAST value wins, at the FIRST key's position", the second wins: **A10 ends up with one
+reloader, for `secondary-ammo`, and `primary-ammo` has none.**
+
+It cannot bite at present because both reloaders are gated `RequiresCondition: unit.docked &&
+!airborne` and an A10 can never dock — see the entry below on fixed-wing rearm. It becomes live the
+moment either that changes or an `afld` is placed. The neighbouring `F16`/`FROG`/`MIG` blocks use
+distinct `@` suffixes and are unaffected.
+
+**Fix is one character** — rename the second to `ReloadAmmoPool@2:`. Deliberately NOT done here: this
+branch is a read-only assessment of the rearm question and the change is unverifiable without a run
+that only matters once the aircraft are reachable at all.
+
+---
+
+## 2026-09-01: [closed — unreachable, documented] `A10`/`FROG`/`MIG` circle forever when dry, and cannot be fielded in normal play (found while: the fixed-wing rearm investigation, branch `wt/stuck-units`, `main @ 1fe106ff`)
+
+**Verdict: not worth fixing. Document and close.** Recorded in full because the finding is "there is
+no reachable defect here", and that is the expensive thing to re-derive.
+
+**What a dry `A10`/`FROG`/`MIG` actually does — it circles in place forever, combat-inert, and is
+never `IsIdle`.** Traced statically:
+
+1. Aircraft never enter the `AmmoPool` self-dispatch machinery at all: `AutoRearmIfDry` returns
+   immediately for anything with `AircraftInfo` (`AmmoPool.cs:637`), and `AmmoPool.CannotFight`
+   carves aircraft out by construction (`:619-621`).
+2. At zero rounds the `AmmoCondition: ammo-primary` lapses, so every armament is
+   `PauseOnCondition: !ammo-primary` paused.
+3. `FlyAttack.Tick` sees `rearmable != null && Armaments.All(x => x.IsTraitPaused)`
+   (`Activities/Air/FlyAttack.cs:85`) and queues `ReturnToBase`.
+4. `ReturnToBase.ChooseResupplier` (`:39-51`) requires `a.Owner == self.Owner` **and**
+   `RearmActors.Contains(a.Info.Name)`. With no `afld` owned by the player it returns null, and RTB
+   takes its give-up branch: `QueueChild(new FlyIdle(self, NumberOfTicksToVerifyAvailableAirport));
+   return true;` (`:127-128`). `NumberOfTicksToVerifyAvailableAirport` is 150 ≈ 9 s. **One-time
+   give-up, not a per-tick re-query** — there is no retry loop and no CPU burn.
+5. RTB completes → `Aircraft.OnBecomingIdle` → no `IdleBehavior` is set anywhere in mod YAML, so the
+   default branch queues `FlyIdle(self)` (`Air/Aircraft.cs:949`) with `ticks = -1`.
+6. `FlyIdle.Tick` returns true only on `remainingTicks == 0` or `NextActivity != null &&
+   remainingTicks < 0` (`Air/FlyIdle.cs:40`). With `-1` and nothing queued behind it, **neither ever
+   holds.** `CanHover` is false on `^Aircraft`, so `isIdleTurner` is true and the plane circles at
+   cruise speed indefinitely.
+7. It cannot recover: `ReloadAmmoPool` on all three is gated `RequiresCondition: unit.docked &&
+   !airborne`, and `EvacuateWhenUnrearmable` is declared once, inside `^Helicopter`
+   (`aircraft.yaml:195`; `^Helicopter` opens at `:160`, `^Aircraft` at `:119`). Fixed-wing inherit
+   `^Aircraft` and never get it.
+
+**Why it is unreachable, with FOUR independent locks.** The premise handed to this investigation named
+only the prerequisite; the stronger lock is the queue.
+
+1. **No production queue at all.** `A10` (`aircraft-america.yaml:445`), `F16` (`:569`),
+   `FROG` (`aircraft-russia.yaml:464`) and `MIG` (`:586`) declare a `Buildable:` with **only**
+   `Prerequisites: ~disabled` and **no `Queue:` line** — unlike every buildable aircraft above them,
+   which all carry `Queue: Aircraft`. `BuildableInfo.Queue` defaults to an empty set
+   (`Traits/Buildable.cs:27`) and both `ProductionQueue.AllBuildables` (`:241`) and `ResolveOrder`
+   (`:446`) gate on `Queue.Contains(category)`. They are in no queue and no tech tree.
+2. **`~disabled` really is unsatisfiable here.** `TechTree.HasPrerequisites` strips the tilde and
+   requires the bare token to be owned (`Player/TechTree.cs:143-144`); nothing in `mods/` provides
+   `disabled` via `ProvidesPrerequisite` (the single grep hit is an unrelated `PauseOnCondition`).
+3. **The AI wants them and still cannot have them.** `ai.yaml:1796/1914` list `mig`/`frog`/`a10`/`f16`
+   under `UnitsToBuild`, routed through `queue.BuildableItems()` which is empty for these. The
+   `@experimental` `AdaptiveProductionBotModule` scores `AirStrikeUnits: heli, a10` / `mi28, frog`
+   *without* a buildability check (`:542-553` only tests `Rules.Actors.ContainsKey`) and will request
+   an `a10` — but the request dead-ends in `UnitBuilderBotModule.BuildUnit` (`:1628-1652`), which
+   iterates the empty `buildableInfo.Queue` and returns false without issuing an order. **This is the
+   closest thing to a live path and it is closed.**
+4. **Nothing else spawns them.** Every `AirstrikePower`/`ParatroopersPower` in `player.yaml` is
+   commented out (`:106-155`), as is `PowersLobbyOptions`; no shipped map places any of the four; no
+   mod Lua references them; no crate action grants units.
+
+**CORRECTION to the premise, and it matters for anyone re-checking: "no map in the mod places an
+`afld`" is FALSE.** `tools/autotest/scenarios/test-capture-rules/map.yaml:78` places a **Neutral**
+`afld` and `:87` an enemy (Russia) one. Neither changes the verdict — `ChooseResupplier` requires
+`Owner == self.Owner`, and that map fields no aircraft — but the statement should not be repeated as
+written. (Method note: a `grep ": afld$"` over `--include=map.yaml` returned nothing and was a false
+negative; the case-insensitive substring search found both. Do not trust the anchored form here.)
+
+**The `.Airstrike` variants are SEPARATE actors and do NOT share the defect.** Only two exist —
+`A10.Airstrike` (`aircraft-america.yaml:676`) and `FROG.Airstrike` (`aircraft-russia.yaml:702`);
+**there is no `MIG.Airstrike`.** Both carry `-Rearmable:` and `-ReloadAmmoPool@1:`, so with no
+`RearmableInfo` the `rearmable != null` test at `FlyAttack.cs:85` is false and they never queue
+`ReturnToBase` at all. Both also carry `-Buildable:`, and their only producer was the commented-out
+`AirstrikePower`. **Not traced, and the one thing to check first if those powers are ever
+re-enabled:** nothing was found that removes them after a strafe run — no `RemoveSelf`, no
+`LeaveMap`, no lifetime trait — and they inherit the same default `IdleBehavior`, so on a static read
+they would loiter forever too, for a different reason.
+
+**Why "not worth fixing" rather than "add `EvacuateWhenUnrearmable` to `^Aircraft`":** the fix would be
+one line and would be correct, but it is unreachable code today and cannot be verified by any run —
+there is no way to field an `A10` to observe it. Writing an unverifiable behaviour change into a
+shared template to fix a defect nobody can trigger is worse than recording the defect. **What makes it
+worth re-reading later: the whole thing is one YAML line (`Queue: Aircraft`) away from going live, and
+the AI already has `UnitsToBuild` and `AirStrikeUnits` entries sitting there waiting for it.** If those
+four aircraft are ever re-enabled, fix the loiter and the `A10` duplicate-key bug above in the same
+change.
 
 ---
 

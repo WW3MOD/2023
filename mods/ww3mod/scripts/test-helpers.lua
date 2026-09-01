@@ -65,6 +65,13 @@ end
 --     string "fail: <reason>" to Fail immediately with that reason.
 --   * If the harness isn't active (TestMode off), the polling still runs
 --     but the eventual Pass/Fail are no-ops, so this is safe in regular maps.
+--   * `timeoutReason` may be a STRING or a FUNCTION returning one. The function form is
+--     evaluated once, at the moment of timeout, so the note can report end-of-run state
+--     (position, activity chain, counters) that no string built at setup time could carry.
+--     This matters more than it sounds: a verdict saying only "the unit never went idle" is
+--     compatible with opposite root causes, and diagnosing that by reading code instead has
+--     already produced one published wrong answer (WORKSPACE/bugs/discovered.md 2026-09-01).
+--     Every pre-existing caller passes a string and is unaffected.
 function TestHarness.AssertWithin(seconds, predicate, timeoutReason)
 	local timeoutTicks = math.floor(seconds * TestHarness.TicksPerSecond)
 	local elapsed = 0
@@ -81,12 +88,45 @@ function TestHarness.AssertWithin(seconds, predicate, timeoutReason)
 		end
 		elapsed = elapsed + 1
 		if elapsed >= timeoutTicks then
-			Test.Fail(timeoutReason or ("AssertWithin timed out after " .. seconds .. "s"))
+			local reason = timeoutReason
+			if type(reason) == "function" then reason = reason() end
+			Test.Fail(reason or ("AssertWithin timed out after " .. seconds .. "s"))
 			return
 		end
 		Trigger.AfterDelay(1, check)
 	end
 	Trigger.AfterDelay(1, check)
+end
+
+-- Does `actor` still hold an ATTACK activity anywhere in its queue?
+--
+-- USE THIS INSTEAD OF `not actor.IsIdle` WHEN THE QUESTION IS "did the unit drop its attack
+-- order". The two are not the same and the difference has cost real time:
+-- `Actor.IsIdle` is `CurrentActivity == null`, and Actor.Tick re-runs the queue in the SAME
+-- tick immediately after raising INotifyBecomingIdle (Actor.cs:322-325, deliberately, "to
+-- avoid an 'empty' null tick"). So if ANY handler queues on that edge -- AmmoPool's resupply
+-- disposition does, Aircraft always does -- the unit is never observed idle even though its
+-- order genuinely ended. Measured 2026-09-01: two dry-unit scenarios reported `idleTicks=0`
+-- while their activity chains showed the attack activity had been replaced by RotateToEdge.
+-- Asserting on idleness there tested the resupply layer; asserting on this tests the guard.
+--
+-- HEURISTIC, stated plainly: this is a TYPE-NAME prefix test. Attack activities share no
+-- interface or base class to query (Activities.Attack and AttackFollow.AttackActivity both
+-- derive straight from Activity), so there is nothing more precise to ask. It matches any
+-- queue component whose type name starts with "Attack" -- today Attack, AttackActivity and
+-- AttackMoveActivity, all three of which ARE attack orders for this purpose. If someone adds
+-- an unrelated activity named Attack*, this widens silently; that is the known cost.
+function TestHarness.HoldsAttackActivity(actor)
+	local chain = Test.ActivityChain(actor)
+	if chain == "" or chain == "(idle)" then
+		return false
+	end
+
+	-- Test.ActivityChain separates parent>child with ">" and queued entries with " | ".
+	-- Normalise to one separator and prepend it, so every component is preceded by ">" and a
+	-- single plain (non-pattern) search finds any component starting with "Attack".
+	local normalised = ">" .. chain:gsub(" | ", ">")
+	return normalised:find(">Attack", 1, true) ~= nil
 end
 
 -- Sugar for "assert this is true after `seconds` have elapsed".
