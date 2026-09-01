@@ -74,6 +74,68 @@ the ring out of play" is a weaker objection here than it sounds.
 is argued to work from its presence in-tree, its clean lint status and its git history
 (`dc59e418`), not from a run. Anyone acting on this should still run that scenario once before
 replicating the pattern across 11 maps.
+## 2026-09-01 — `oilb` is on the Polar Disorder AND River Zeta cordon rings, and it is an oil derrick: the "pure scenery" classification that cleared those families was a regex, and it is wrong (`wt/cordon-rest`)
+
+**The survey entry above bins `oilb` inside River Zeta's "287 scenery" and calls Polar Disorder's ring
+"**all** scenery". Both are wrong, and it is the same error: the classification was a name regex, never a
+rules lookup.** `OILB` (`mods/ww3mod/rules/ingame/structures-neutral.yaml:1-31`) is the Oil Derrick —
+`CashTrickler: Amount: 50`, `UpdatesDerrickCount`, `Health: 50000`, `Explodes`, `GpsDot`, and it inherits
+`^TechBuilding` -> `^BasicBuilding` -> `^NeutralOrOccupiedCapturable` (`structures.yaml:169-177`:
+`CaptureManager` + `Capturable@neutral` + `Capturable@occupied`). It is named in the bot's
+`CapturableActorTypes` on both profiles (`rules/ai/ai.yaml:126`, `:2240`) and priced in `IncomeWeights`
+(`ai.yaml:137`, `world.yaml:315`). The maps themselves say so: `tournament-s2-combat-river-zeta/map.yaml`
+carries a header comment spelling out the full inheritance chain and *"every derrick is capturable"*.
+
+**Which derricks actually straddle the cordon band**, resolved over the 2x2 `Building` footprint
+(`Footprint: xx xx`, `Dimensions: 2,2`) rather than the `Location` cell alone:
+
+| Family | Derrick | Location | Footprint cells inside after inset |
+|---|---|---|---|
+| Polar Disorder | `Actor365` | `96,7` | **2 of 4** (x=97 leaves) |
+| Polar Disorder | `Actor391` | `0,88` | **2 of 4** (x=0 leaves) |
+| River Zeta | `Actor5170` | `44,0` | **2 of 4** (y=0 leaves) |
+| Woodland Warfare | — | — | none; all 8 keep 4 of 4 |
+
+So the inset does not merely displace decoration on two of the three families — it cuts a capturable,
+income-producing POI in half, on the maps whose **scored metric is `resources_earned`**. Polar Disorder
+loses 2 of its 12 derricks to the band and River Zeta 1 of 12; Woodland Warfare loses none, which is why
+that family was the one insettable without a gameplay question.
+
+**Why "outside Bounds" is not cosmetic for a capture target.** `Map.Contains(CPos)` returns
+`Bounds.Contains(...)` on every path (`engine/OpenRA.Game/Map/Map.cs:1439-1457`, and
+`:1471-1472`/`:1494-1497` for the MPos/PPos overloads) — it consults `Bounds`, never `MapSize`. The
+locomotor treats every cell where `!Map.Contains(cell)` as unreachable, which
+`EvacDriveOffMath.cs:7` already records against `Locomotor.cs:191-193`. A half-outside derrick therefore
+sits partly on cells no unit can occupy. Whether the surviving in-bounds half still admits a capturer is
+NOT established here and cannot be settled by reading — it needs a run.
+
+**The precedent proves lint-cleanliness, not gameplay-neutrality.**
+`test-move-unreachable-clamps` really does ship this exact geometry — same `map.bin`
+(`ea8c479df8dbdfe7c5bd9c2bc8d85711`), `Bounds: 1,1,96,80`, and its 196 out-of-bounds actors include the
+same single `oilb` and the same six `spawnarea` markers. But it is a movement-clamp test: nothing in it
+ever measures derrick capture or income, so its clean status is silent on the one property the S1/S2
+economy benchmarks are built to measure.
+
+**Ring sizes, re-measured, and they do not reproduce.** Counting actors that are inside the ORIGINAL
+bounds but outside the inset (i.e. that *newly* leave the playable rectangle), the figures are River Zeta
+**196** (not 293), Polar Disorder **17** (not 25), Woodland Warfare **115** (not 206). The gap is not
+explained by the already-off-map actors the survey noted: those sit at `y = -1`, outside `MapSize`
+entirely, so they are outside the rectangle before and after and change no status (Woodland 27, River Zeta
+43; totals outside the inset are therefore 142 and 239). Whatever the survey counted, it was not this.
+**Do not reuse those three numbers.**
+
+**A second regex casualty, same ring:** `wood` — 6 of Polar Disorder's 17 ring actors — is
+`Inherits: ^Wall` (`rules/ingame/structures-defenses.yaml`), not a tree. It is a blocking structure. It
+changes nothing about the verdict, since Polar Disorder is already disqualified by its two derricks, but
+it is the same failure mode and the `wood`/`ice01`/`rice`/`v17` names are exactly the ones a regex guesses
+at.
+
+**Connectivity, for the record, is NOT the obstacle on any of the three.** Decoding `map.bin` plus actor
+footprints at both bounds through the nav-guard library and diffing components per world locomotor, every
+split is an edge nub reachable only by hugging the border: Woodland `[6,3]`/`[4,3]` cells for foot and
+`[1,1]` for vehicles; Polar Disorder's largest component goes `5885 -> [5636, 6, 1]`; River Zeta
+`1052 -> [1025, 1]`. No meaningful region divides anywhere. The blocker is the derricks, not the geometry.
+
 ## 2026-09-01 — The unload cursor and the unload RUNTIME disagree about actors, and the honest predicate is already written and already used elsewhere in the same file (`wt/player-feedback`, `main @ 1fe106ff`)
 
 **Read-only investigation, nothing fixed.** Recorded because the "blocked unload is silent" item is
