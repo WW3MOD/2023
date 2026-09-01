@@ -1868,7 +1868,8 @@ namespace OpenRA
 		// merges cells that are NOT equidistant into one tie. From a cell 7 columns off the left edge, every
 		// perimeter cell within 3 rows floors to 7 — a 7-cell tie — and OrderBy is stable, so the winner was
 		// decided by UpdateEdgeCells' enumeration order (columns appended with v ascending, :1943-1952) rather
-		// than by distance. That biased every exit toward the low-v end of its edge by up to 3 cells.
+		// than by distance. The band is +/-floor(sqrt(2d)) for perpendicular distance d, so the bias toward the
+		// low-v end of the edge GREW with distance from it — 3 cells at d=7, 6 at d=20.
 		// LengthSquared is exact, monotonic in true distance, and cheaper — no sqrt per perimeter candidate.
 		public CPos ChooseClosestMatchingEdgeCell(CPos cell, Func<CPos, bool> match)
 		{
