@@ -119,9 +119,11 @@ So deleting the `Rearmable` alone yields a unit that never rearms (intended) **a
 
 *(Promoted 2026-09-01 from DISCOVERIES.)* Relevant to anyone staging a scenario where a unit chooses between rearming and going home, because **it has no symptom**: the map loads, the units act, the verdict is green, and the branch under test was never evaluated.
 
-`RotateToEdge.FindClosestSpawnAreaForOwner` (`RotateToEdge.cs:97-120`) returns the **`spawnarea` actor** (`misc.yaml:255`, the only actor in the mod carrying `SpawnArea`) closest to the owner's `ProductionFromMapEdge` actor, which is `SUPPLYROUTE` (`structures.yaml:222`). It is **not** the Supply Route itself and **not** `mpspawn`, which carries no `SpawnArea` at all — both are the natural guesses and both are wrong. Note the anchor also falls back to the unit's own cell when the owner has no SR (`:109`), so on a map without one the "distance home" term is measured from the unit rather than from its base.
+`RotateToEdge.FindClosestSpawnAreaForOwner` (`RotateToEdge.cs:101-128`) returns the **`spawnarea` actor** (declared `misc.yaml:255`, trait at `:262` — the only actor in the mod carrying `SpawnArea`) closest to the owner's `ProductionFromMapEdge` actor, which is `SUPPLYROUTE` (`structures.yaml:222`). It is **not** the Supply Route itself and **not** `mpspawn`, which carries no `SpawnArea` at all — both are the natural guesses and both are wrong. Note the anchor also falls back to the unit's own cell when the owner has no SR (`:113`), so on a map without one the "distance home" term is measured from the unit rather than from its base.
 
-With no `spawnarea` on the map the function returns null on the empty list (`:104-105`), and `AmmoPool`'s Evacuate arm reads:
+**How often this fires: on 9 of the 10 shipped maps.** Only `river-zeta-ww3` authors `spawnarea` actors (6, one per `mpspawn`); every other shipped map and most autotest scenarios have none *(counted 2026-09-02)*. The null path is the common case, not the exception — which is also why [`game-model.md` §"Map-edge spawning"](game-model.md) had to be corrected away from an unconditional "nearest the SR".
+
+With no `spawnarea` on the map the function returns null on the empty list (`:108-109`), and `AmmoPool`'s Evacuate arm reads:
 
 ```csharp
 var beatsExit = anchor == null || SupplyHuntMath.ResupplyBeatsExit(...);   // AmmoPool.cs:776

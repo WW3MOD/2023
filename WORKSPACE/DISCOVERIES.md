@@ -44,6 +44,7 @@ explaining a "redundant" concatenation before you join it**; two of the three RC
 here were accidental and one was load-bearing.
 
 ## 2026-09-01 — THE RELATIONSHIP OFFSET IS A BIGGER SELECTION SPLITTER THAN THE ENTIRE YAML PRIORITY LADDER, so "equalise the Priority values" cannot merge two structures with different owners (`main @ 9cd1e0d8`)
+> **[promoted]** → `conventions.md` §"Selection priority is a GROUP FILTER", as two sub-bullets (curation 2026-09-02, `main @ 94020582`; every load-bearing line re-read at this commit). Banked: the `PriorityRange = 30` relationship offset (`SelectableExts.cs:27`, `:44-47`) dwarfing the ladder's span of 10, so two owners can never share a band whatever their `Priority`; and the `Priority = 10` C# default (`Traits/Selectable.cs:19`) vs `^SelectableBuilding`'s 2 (`defaults.yaml:1005-1008`), which puts an actor inheriting nothing at the TOP of the ladder. **The 3128-trial Dijkstra figures were NOT verified** and stay here — they are measurements, not mechanism. Incidental cite drift found and left for its owner: `misc.yaml:388` still cites `defaults.yaml:831-834` for `^SelectableBuilding`.
 
 Found while costing `HANDOFF-260901.md` §C. Three durable facts, each of which was got wrong by
 reading the obvious thing instead of the chain.
@@ -140,6 +141,7 @@ unsafe to reuse. `test-forest-cover-bonus` prints the control tier, so any run o
 
 ## 2026-09-01 — `visibility-N` is an OUTPUT broadcast feeding a live gauge, not a modifier scaffold; and forest is hard concealment that no modifier can match (`wt/visibility-mods`, `main @ 3248605a`)
 ## 2026-09-01 — `GarrisonProtection` computes its damage curve TWICE, and the two copies are only equal by luck
+> **[promoted]** → `architecture.md` §"Garrisoning is an OWNERSHIP transfer", sub-section "`GarrisonProtection` computes its damage curve twice" (curation 2026-09-02). **Both copies re-read and confirmed still bit-identical** — same float cast, truncation, clamp and `HP <= 1` branch. Corrected cites: `GetCurrentProtection` is `:69-80` (entry said `:63-74`), the `Damaged` copy `:95-107` (`:89-100`), the `IsDead` guard `:84` (`:78-79`); the file is 124 lines, not 130.
 
 Found while retuning the curve (`wt/garrison-p1p2`, P2). The interpolation
 `Critical + (Base - Critical) * hpPct` with the `HP <= 1` rubble override is written out in full in
@@ -254,6 +256,7 @@ a `## Watch` that merely lists doubts. Two workers this window did this; both we
 minutes of being read.
 
 ## 2026-09-01 — an `expected-status: fail` declaration also grades a WATCHDOG TIMEOUT green, because the batch reads the exit code and only `run-test.sh` knows the difference (`wt/harness-gaps`)
+> **[rejected: duplicate — already banked in-tree at the tool]** (curation 2026-09-02). `tools/autotest/expected-status.sh:30-47` carries this almost verbatim, and `DOCS/recipes/AUTOTEST.md:72` documents `TIMEOUT-FAIL` vs `FAIL`. Mechanism re-verified (`run-test.sh:932-933`, `:791-795`, `:799`). **Drift recorded so the next reader is not sent hunting:** `RUN_ID` is `run-test.sh:514` (entry says `:515`), and the batch's outcome derivation is `run-batch.sh:225-229` (entry says `:213-218`) — the same stale cite is copied into `expected-status.sh`. **Count is stale too:** 16 `expected-status` declarations now (1 `fail`, 15 `skip`), not fourteen.
 
 `tools/autotest/expected-status.sh` is sound on its own terms and its selftest proves the decision
 table. The hole is at the seam.
@@ -459,6 +462,7 @@ be read with the same caution.
 returning zero. A shared `primary-ammo + secondary-ammo` read across a lane table kills the whole run
 the moment one lane's airframe carries a single pool.
 ## 2026-09-01 — an early `return` guard silently widens its scope when new code is appended below it: `Cargo`'s emergency bail has never run for a garrison building (`wt/garrison-design`, `main @ 3dd67e07`)
+> **[promoted]** → `conventions.md` §"A killing hit fires `Damaged` AND `Killed`", as a sub-bullet (curation 2026-09-02). Banked as the general hazard — **an early-return guard silently acquires every block later appended below it** — with this as the worked instance. Corrected cites: guard `Cargo.cs:818-825`, `HasTraitInfo` test at `:824`, bail block `:857-943` (entry said `:825-832`/`:831`/`:876-943`); the gap is 32 lines, not ~45. **The same pass fixed the bank's own wrong cite for that guard** (`conventions.md` said `Cargo.cs:646-647`). Coexistence with `GarrisonProtection` re-derived by enumeration on all four `Cargo`-bearing building families.
 
 **The generalisable shape, which is worth more than the instance:** a guard written as an early
 `return` is only as narrow as the method was *on the day it was written*. Append anything below it
@@ -485,6 +489,7 @@ when `Damaged` contained *only* damage forwarding — correct and complete then.
 after the guard landed. A guard older than the code it precedes is the signature.
 
 ## 2026-09-01 — garrisoned men in a building that changes owner do not get stranded, they DEFECT — and no Lua binding in this engine can observe the Unload owner gate (`wt/garrison-design`, `main @ 3dd67e07`)
+> **[promoted]** → `architecture.md` §"Garrisoning is an OWNERSHIP transfer" (curation 2026-09-02), as the fourth consequence bullet. `Cargo.OnOwnerChanged`'s `foreach (var p in Passengers) p.ChangeOwner(newOwner);` re-read and confirmed. **Three cites corrected:** `OnOwnerChanged` is `Cargo.cs:1229-1236` (entry said `:1204-1211`, which is `INotifyActorDisposing.Disposing`); the `TargetModifiers` overload is `UnitOrderGenerator.cs:245`→`:314`, not `:271`; the command-bar filter is `CommandBarLogic.cs:469`, not `:460-462`. **The Lua-binding half stays here** — it is a statement about harness coverage, i.e. tracker material, not mechanism.
 
 Two findings from asking "can a player evacuate men from a building an enemy now owns?"
 
@@ -528,6 +533,7 @@ see honestly is the relationship predicate inside a targeter** (e.g. `EnterAllie
 because that lives on the shared tail of both overloads.
 
 ## 2026-09-01 — the sync tripwire has exactly ONE site engine-wide, which is why "dispatches UI handlers from Lua" is a silent bug class (`wt/cmdbar-audit`, `main @ 42548fe5`)
+> **[promoted]** → `conventions.md` §"`Game.RunAfterTick` runs INSIDE synced code" (curation 2026-09-02). **Uniqueness independently re-derived, not taken from the entry:** an engine-wide grep returns six `AssertUnsynced` hits — the definition (`Sync.cs:205`), the single call site, and four comments/literals in tests. **The bank's own cite was wrong and is fixed in the same pass** (`World.cs:168` → `:170`). Banked with a scope caveat the entry lacked: `Sync.RunUnsynced` has a *separate* guard (`Sync.cs:200-201`), so "one tripwire" is true only of `AssertUnsynced`. The enumerate-WRITERS-not-callers method carried across (76 sites, 14 files).
 
 Follow-up audit after `Test.PressHotkey` (entry below). The generalisable finding is the *shape*, not
 the four methods fixed:
@@ -762,6 +768,7 @@ rows. And **no lint rule validates chrome collections at all** — nothing in
 `ImageCollection:` is not caught by `--check-yaml`; it throws from
 `ChromeProvider.GetImage` (`ChromeProvider.cs:149`) the first time the widget draws.
 ## 2026-09-01 — nav-guard models five marker actors as solid walls, because `actor_shape` never reads `Immobile.OccupiesSpace: false` (`wt/harness-truth`)
+> **[rejected: superseded by its own fix, and the count is wrong even as history]** (curation 2026-09-02). The defect is FIXED in tree — `modload.py:330` now reads `elif _immobile_occupies_space(traits):`, helper at `:300-309` — and the entry immediately below (`wt/navguard-walls`) IS that fix. Re-derived: **8 actor types carry the flag, not five** (5 `Immobile: OccupiesSpace: false` blocks at `misc.yaml:157,180,245,261,278`, plus `camera.paradrop`, `camera.paradrop.detector`, `camera.spyplane` inheriting `CAMERA`), and the entry misattributes `:157` and `:180`. **This entry did surface two live doc defects, both acted on or recorded:** `DOCS/recipes/AUTOTEST.md:210-219` stated the fixed bug as current and contradicted `tools/nav-guard/README.md:97` — **corrected in this pass**; and `modload.py:337-338`'s PITFALL still says "deliberately NOT fixed here" directly above the branch that implements the fix — **left for a code owner, since this pass touched only markdown.**
 
 **The decoder invents walls that do not exist in game, and the cell it invents them on is
 usually a unit's start cell.** `modload.actor_shape` gives every actor without a `Building`
@@ -794,6 +801,7 @@ plus the bless.** A `PITFALL` at the temptation site in `modload.py` records the
 meanwhile.
 
 ## 2026-09-01 — A bounds/occupancy audit must resolve footprints and trait chains; both shortcuts failed on the SAME actor (`wt/harness-truth`)
+> **[rejected: duplicate — already promoted to the tool's own README, as the entry itself notes]** (curation 2026-09-02). `tools/nav-guard/README.md:147` §"Resolve the FOOTPRINT, never the Location" carries the `oilb` 2-of-4-cells worked example at `:154`, and `:166` §"Classify by the TRAIT CHAIN, never by the type name" carries the other half. Mechanism re-verified (`structures-neutral.yaml:13-15`, `:19-22`, `:29`; capture traits arriving via `^TechBuilding` → `^NeutralOrOccupiedCapturable`, `structures.yaml:169-177`). **Cite drift recorded:** the AI whitelist's second site is `ai.yaml:2261`, not `:2240`, and the path is `rules/ai/ai.yaml`. The one fragment with no home — *a predicate that both classes satisfy is no evidence* — is generic enough that it is covered by `README.md` §"Four shapes" #1.
 
 Both rules are now in [`tools/nav-guard/README.md`](../tools/nav-guard/README.md) §"Writing a
 bounds or occupancy audit with this library", with runnable snippets. Recorded here for the
@@ -820,6 +828,7 @@ same trap sits one level down — `Targetable` looks like a gameplay discriminat
 tree. Before trusting a classifier, run it against a known member of **each** class and confirm it
 disagrees.
 ## 2026-09-01 — nav-guard modelled every zero-footprint actor as a solid wall; the one defect it is credited with catching was this false positive (`wt/navguard-walls`)
+> **[rejected: duplicate — the fix is banked at `tools/nav-guard/README.md`]** (curation 2026-09-02). §"Zero-footprint actors" (`README.md:97`) states the current model, and the surviving second instance (aircraft, whose `OccupiedCells` is likewise empty — `Aircraft.cs:199`, `:795` — and which `actor_shape` still has no branch for) is already known-limitation #10 at `:300-307`. Engine premises re-verified (`Immobile.cs:23-27`, `:41-44`; `ActorMap.cs:413-415`), as was `supplyroute` blocking nothing (`Footprint: =+= +++ =+=`, `structures.yaml:285`, and `FOOTPRINT_BLOCKING = ("x", "X")`). **Not re-derived and still unverified here:** the 150-of-190 blast radius, the 36 freed cells, and the 5358-vs-5352 recount — all need a `nav_guard.py` run.
 
 **The bug.** `modload.actor_shape` (`tools/nav-guard/modload.py:289`) branched on `Building` only: with
 no `Building` trait it appended `(0, 0)` to `blocking` unconditionally, so anything without a footprint
@@ -871,6 +880,7 @@ re-bless.
 `(60,30)` was the *only* blocker on the SR's own cell, which is why freeing the two markers moved that
 map by +2 and not +1.
 ## 2026-09-01 — Garrisoning a civilian building TRANSFERS OWNERSHIP, and that one fact rewrites four other conclusions (`wt/garrison-audit`)
+> **[promoted IN PART, and one claim is FALSE]** (curation 2026-09-02) → `architecture.md` §"Garrisoning is an OWNERSHIP transfer". Claims 2 and 3 banked: `DynamicOwnership = true` with zero mod overrides (`GarrisonManager.cs:89`, `:260`), and the transfer to `remainingOwners.First()` with **no relationship filter** (`:307-316`, `:329`). Claim 1 was already banked at `architecture.md:203`. **Claim 4 is FALSE as written:** `CargoInfo.Neutral` is not consumerless — `UnloadCargo.cs:234` reads it (`if (cargo.PassengerCount == 0 && cargo.Info.Neutral)`) as a second, independent revert-to-neutral path on the manual-unload activity. **Cite drift:** `CheckOwnershipAfterExit` is `:299-331`; the ally comment is `:328`, not `:324`; the `WithGarrisonDecoration` block is `civilian.yaml:127-129`, not `:121-123`; the `Cargo` owner test is `:691-693`, not `:698-700`.
 
 **`GarrisonManagerInfo.DynamicOwnership` defaults `true`** (`GarrisonManager.cs:89`) and is overridden
 **nowhere** in the mod. On the first soldier entering a Neutral building, `OnPassengerEntered` calls
@@ -898,6 +908,7 @@ Four consequences that are not obvious until you know this:
    `GarrisonManager` does the work.
 
 ## 2026-09-01 — There is exactly ONE relationship check in the whole garrison entry chain, and it is at targeting time only (`wt/garrison-audit`)
+> **[promoted]** → `architecture.md` §"Garrisoning is an OWNERSHIP transfer", third consequence bullet (curation 2026-09-02). Banked with the framing that makes it actionable — **the single check is a UI affordance, not an invariant, so any order not issued through the cursor bypasses it.** Two corrections made while banking: the targeter has a **third** admit path (`EnterAlliedActorTargeter.cs:51-53`, `VehicleCrew.AllowForeignCrew` lets enemy targets through — inert for buildings, load-bearing if the rule is generalised), and `FindBestShelterSoldier` filters on **five** things, not three. **Cite drift:** `Passenger`'s re-check is `:216-241`; `Cargo.CanLoad` is `:511-518`; `FindBestShelterSoldier` opens at `:537`.
 
 Traced order-issue → resolve → activity → load. The gate appears once:
 `EnterAlliedActorTargeter.CanTargetActor`, which admits allied **or neutral** owners
@@ -922,6 +933,7 @@ Downstream: `FindBestShelterSoldier` filters candidates on dead/suppressed/armed
 deployed to a port and fired under the building owner's target selection.
 
 ## 2026-09-01 — `Indestructible` defaults ON for all 41 garrisonable actors, silently killing five death-path traits (`wt/garrison-audit`)
+> **[promoted]** → `architecture.md` §"The death path: `Indestructible` defaults ON" (curation 2026-09-02). **The count was independently re-derived and is correct: 41.** Resolved the inheritance closure of `^CivBuilding` plus `GTWR`/`PBOX`/`HBOX` — the only four `GarrisonManager:` declarations in the mod, with no `-GarrisonManager` anywhere. Banked with the `Actor.Kill()` escape (`Health.cs:245`, `ignoreModifiers: true`), which is the part a test author needs. **One factual error corrected rather than carried:** GTWR has **no** `SpawnActorOnDeath` at all; the two husk declarations are PBOX at `structures-defenses.yaml:216-217` and HBOX at `:311-312`. Also `V19`→`V19.Husk` is `civilian.yaml:431-432`, and enforcement is `:1417-1435`.
 
 `GarrisonManagerInfo.Indestructible` defaults `true` (`GarrisonManager.cs:83-85`) with **zero
 overrides** across `mods/ww3mod/rules/`. Enforced by `IDamageModifier.GetDamageModifier`
@@ -943,6 +955,7 @@ self.MaxHP` (`:1391`) with `damage == MaxHP` reduces to exactly `soldierHealth.M
 bonus (`:1392`).
 
 ## 2026-09-01 — Two garrison traits are inert on every actor that carries them (`wt/garrison-audit`)
+> **[promoted]** → `architecture.md` §"Two garrison traits are inert on every actor that carries them" (curation 2026-09-02). Both re-verified (`WithCargoPipsDecoration.cs:70`, `:97`; `AttackGarrisoned.cs:33-40`, `:55-56`, `:178-181`), and inertness follows from the 41-actor count re-derived at the entry above. **The naming trap carried across as the operationally useful half** — `PoiGarrisonBotModule` garrisons nothing (`AttackMove` at `:514`); `GarrisonBotModule:331` is the real one. **Cite drift:** the dead YAML is `civilian.yaml:131-133`, not `:125-127`; the wiring is `ai.yaml:1009`, not `:1001`; the `^CargoPips` template is `defaults.yaml:946-958`.
 
 Both look load-bearing when grepped and are not:
 
@@ -966,6 +979,7 @@ shipped bot profiles garrison.** Anyone answering "does the AI garrison?" by gre
 `BotModules/` reads the wrong file first.
 
 ## 2026-09-01 — `Actor.Trait<IHealth>()` throws; a null guard downstream of it is dead code (`wt/garrison-audit`)
+> **[promoted]** → `conventions.md` §"Engine behaviors that surprise", as a new bullet before the Disposed-actor one (curation 2026-09-02). Banked as the general rule — **the ACCESSOR you choose decides whether a downstream null guard can ever fire**, `Trait<T>()` throwing (`Actor.cs:465-467` → `TraitDictionary.cs:158-165`) versus `TraitOrDefault<T>()` (`:470-473`) — with `GarrisonProtection` as the live instance and the `Requires<>` corollary the entry identified. **All four cites had drifted and are corrected:** `health = self.Trait<IHealth>()` is `:61`, the dead guards `:71` and `:84`; `V19.Husk` opens at `civilian.yaml:435` with `-Health:` at `:441`.
 
 `GarrisonProtection.Created` does `health = self.Trait<IHealth>()` (`GarrisonProtection.cs:55`), then
 guards `health == null` in two later methods (`:65`, `:78`). Those guards can never fire:
@@ -981,6 +995,7 @@ but not `Requires<HealthInfo>`. General lesson: `Requires<>` is the only thing t
 a `self.Trait<T>()` on an unrequired trait is a runtime crash the gate is blind to.
 
 ## 2026-09-01 — `make nav-guard` cannot see a single autotest scenario, so it is NOT the verification for a scenario-geometry change (`wt/cordon-paydown`)
+> **[rejected: duplicate three times over]** (curation 2026-09-02). Already stated at `CLAUDE.md:55` (a routing-table row written for exactly this trap), `tools/nav-guard/README.md:297` (known limitation #6) and `DOCS/recipes/AUTOTEST.md:178`. Mechanism re-verified: `Makefile:250-253` passes no roots, and `analyse` does `roots = [SCENARIO_DIR] if scenarios else []` (`nav_guard.py:262-263`). **Drift:** the cite is `nav_guard.py:263`, not `:255`; `discover_maps` is `modload.py:246` and has since grown an `extra_roots` parameter whose docstring (`:249-253`) now explains the exclusion. **Count stale: 267 scenario directories, not 254** — the same 254 is repeated in the nav-guard README and should drop when someone touches it.
 
 **The check specified as load-bearing for the cordon paydown is structurally blind to the files that
 paydown edits.** `nav_guard.analyse` builds its map list from `modload.discover_maps(MOD_DIR)`
@@ -1238,6 +1253,7 @@ never-completing activity defeats every `IsIdle`-shaped guard in the codebase at
 bound, check that the state it polls for is actually reachable in the failure mode it is bounding —
 otherwise you have written a bound that is correct, tested, and never runs.
 ## 2026-09-01 — A button's `IsHighlighted` is only as visible as its icon collection's `-highlighted` twin, and `command-icons-highlighted` is a bare alias (`wt/ui-affordances`)
+> **[promoted IN PART]** → `architecture.md` §"Widget / chrome authoring gotchas", as a sub-bullet of the existing `ButtonWidget` variant bullet (curation 2026-09-02). **The panel half was already banked at `:807`; the GLYPH half is what is new** — `WidgetUtils.GetCachedStatefulImage` (`WidgetUtils.cs:50`, fallback `:52`) is a second, independent lookup, and **both arms of the fallback use the highlighted collection name**, so a bare alias produces no change because it resolves to identical regions, not because anything falls back. **Two clauses of the entry are now wrong and were NOT carried:** there is no `command-button-highlighted` collection (the mod ships `-nato-`/`-brics-` variants), and the command bar's mode buttons now draw `command-mode-icons` with a real amber twin at `chrome.yaml:284-290` — the rule stands, the shipped example was fixed in-tree.
 
 Setting `IsHighlighted` on a button does two independent things, and one of them silently does nothing
 depending on which art the button draws.
@@ -1267,6 +1283,7 @@ Two facts about `glyphs.png` found while fixing the resupply bar's instance of t
   same shape. Recorded because 1024/256 = 4 looks exactly like a shipping HiDPI bug and is not one.
 
 ## 2026-09-01 — The unload menu's 578px cliff, re-derived: `ListLayout` content height is `23N - 1`, not `23N` (`wt/ui-affordances`)
+> **[promoted]** → `architecture.md` §"Widget / chrome authoring gotchas" (curation 2026-09-02). **Arithmetic independently re-derived and it reproduces exactly:** seed `2 × TopBottomSpacing − ItemSpacing` = −1 (`ListLayout.cs:25`), +23 per row (`:29`), N=24 → 551; clip `578 − 19 − 8` = 551 (`CargoUnloadMenuLogic.cs:37`, `:189`). All cites exact. Banked with the two consequences that generalise — compute the seed before predicting a cliff, and a hidden scrollbar does not mean nothing is clipped (`ScrollPanelWidget.cs:342-345`).
 
 `CargoUnloadMenuLogic.Refresh` caps the list at `Resolution.Height - list.Bounds.Y - 2 * ScreenMargin`,
 i.e. screen height minus 27 for `unload-menu.yaml`'s `Y: 19` and `ScreenMargin` 4. Content height comes from
@@ -1281,6 +1298,7 @@ never made the tail unreachable — only unadvertised. The fix is therefore abou
 to assert is `bar shown <=> clip < content`, which holds at every window size, rather than `never clip`,
 which is a claim about one window size.
 ## 2026-09-01 — A map-level override of a TEMPLATE can be silently undone by a later `Inherits@` on the derived actor — and a sibling field in the same block that keeps working is what hides it (`wt/stuck-units`)
+> **[promoted]** → `conventions.md` §YAML, as a new subsection "Precedence inside an actor is POSITIONAL" placed before §Conditions system (curation 2026-09-02). **Verified at the ENGINE, not from the YAML that exhibited it, so the rule could be stated generally** — `ResolveInherits` (`MiniYaml.cs:449-490`) walks nodes in source order and funnels BOTH the inherit-expansion branch (`:476-477`) and own nodes (`:487`) through the same `MergeIntoResolved`, whose leaf rule is `overrideNodes.Value ?? existingNodes.Value` (`:538`). **Banked in a stronger form than the entry states:** there is no "own beats inherited" rule at all — an own field wins only because it is conventionally written below the `Inherits@` lines — and the same positionality governs `-Key:` removal (`:479-484`). The sibling-field asymmetry that hides it (`^AutoTarget` sets `InitialResupplyBehavior` at `defaults.yaml:390` and no `ScanRadius`; `^CamoSoldier` sets `ScanRadius` at `infantry.yaml:309-310`) carried across as the detector.
 
 **Cost one wrong retraction of a correct diagnosis.** A scenario `rules.yaml` set, under `^Combatant`:
 
@@ -1335,6 +1353,7 @@ actor: LAST value wins, at the FIRST key's position" covers duplicate keys *with
 the inheritance-order sibling of that trap.
 
 ## 2026-09-01 — `Actor.IsIdle` can NEVER be observed true for a unit whose idleness triggers a handler that queues work, because the engine re-runs the queue in the same tick on purpose (`wt/stuck-units`)
+> **[rejected: duplicate — `conventions.md` already banks the property; used instead to CORRECT it]** (curation 2026-09-02). The bullet at §"Engine behaviors that surprise" stated the whole conclusion already. **But both it and this entry cited the wrong mechanism, and that is fixed in this pass:** deleting the second `RunActivity` (`Actor.cs:328`) would change nothing about `IsIdle` observability — its own comment says it exists to avoid an empty null tick of *motion*. The load-bearing lines are `QueueActivity`'s `if (CurrentActivity == null) CurrentActivity = nextActivity;` (`Actor.cs:430-431`): the instant any handler queues, `IsIdle` is already false. Textbook `README.md` §"Four shapes" #3. Also corrected in the bank: `Actor.cs:295-298`→`:317-328`, `Aircraft.cs:903`→`:911`, plus the `LandAltitude` early return (`:936-943`) that the "always queues `FlyIdle`" claim overstated.
 
 > **CONFIRMED BY MEASUREMENT** — run `260901_073202_p95073`, execution markers present. Both dry men
 > reported `idleTicks=0` and `cannotFight=true` while their activity chains had already moved from
@@ -1622,6 +1641,7 @@ the verdict fails naming `[A10STRIKE]` alone, the reading held. If it PASSES, th
 and this entry should be deleted rather than softened.
 
 ## 2026-09-01 — Three lanes will not fit on the 66×34 scenario map, because AutoTarget's fallback scan radius is 25 cells and its circle is EUCLIDEAN (`wt/launch-prep`)
+> **[rejected: duplicate of an in-code comment plus two existing bank entries]** (curation 2026-09-02). The whole derivation is committed in-tree at `tools/autotest/scenarios/test-aircraft-breakoff-midrun/map.yaml:11-24`; `conventions.md` §"An armament pause collapses `AutoTarget`'s scan radius" covers the `ScanRadius: -1` → `GetMaximumRange()` fallback and §WDist covers Euclidean cell distance. **Arithmetic re-derived and correct** (√680 = 26.077; √1796 = 42.38), and the 25 is **not** a YAML default — it is `Hellfire`'s `Range: 25c0` (`weapons-missiles.yaml:244`) reached through `GetMaximumRange`, with Euclidean comparison at `WorldUtils.cs:84`. **The entry is stale on its own subject:** the scenario has since migrated to `MapSize: 100,60` and lane 3 is now `FROG.Airstrike`, not the A10's Hellfire variant. **This pass fixed the bank's drifted cites for that section** (`AutoTarget.cs:1040`/`:1095`→`:1114`/`:1177`; `infantry.yaml:288`/`:2317`→`:310`/`:2423`).
 
 Static, no launch. Worth recording because the arithmetic looks fine until you check which metric.
 
@@ -1878,6 +1898,7 @@ Two corollaries worth carrying:
 >
 > **The rule: a count is a claim, and a claim needs a source you re-ran — not a document that agrees with you.** When carrying a number forward, either paste the enumeration behind it or re-derive it. **Two documents agreeing on a figure is not evidence; it is usually one uncounted figure with two homes.**
 ## 2026-09-01 — `LayeredDefenceBotModule` logs under the `[exp-poi]` tag, so its unit moves read as `PoiOffensiveBotModule`'s (`wt/drone-targeting`)
+> **[promoted]** → `architecture.md` §"`AIUtils.BotDebug` is default-off AND chat-only", appended as the log-attribution paragraph (curation 2026-09-02). Both cites exact (`LayeredDefenceBotModule.cs:285`, `:321`, actor line `:549-551` under `TestMode.IsActive` at `:548`). **Sharpened while banking:** this is not a tag *collision* — an engine-wide grep shows `[exp-poi]` is emitted by nothing else, and `PoiOffensiveBotModule` uses `[exp-offense]`/`[exp-terr]`/`[exp-reach]`. It is a tag naming a module that never writes it, and both modules have live `@experimental` instances (`ai.yaml:331`, `:1537`), so the misattribution is realistic rather than theoretical.
 
 A log tag that names the wrong module costs you a run, because the natural response to
 "something is moving my unit" is to remove the module the tag names.
@@ -1929,6 +1950,7 @@ mechanic (28 = the verifying vision radius) is correct in meaning and can still 
 geometry — check the guard against the map before trusting it to fire only on real contamination.
 
 ## 2026-09-01 — The drone module cannot launch anywhere on a map whose only POI is the enemy Supply Route (`wt/drone-targeting`)
+> **[rejected: the mechanism is misattributed, and the conclusion is true for a different reason]** (curation 2026-09-02). The drone does not call `GetOffensiveTargets`, so `PoiMap.cs:326` — the line the entry rests on — is not on its path: `DroneOperatorBotModule.cs:492` calls `GetScoredPois`, and the discard is `TryScore`'s `if (isSupplyRoute) return false;` (`PoiMap.cs:470-471`) under `rel == Ally || actor.Owner == perspective` (`:465`). **So "own and neutral SRs are then discarded" is wrong** — the own SR is dropped, but a NEUTRAL SR is kept and scored `PoiAction.DenyCapture` (`:482`). Banking the entry as written would have put a false statement about the scoring path into the bank. The capturability gate (`PoiMap.cs:223`) and `MaxPoiDistanceCells = 40` (`DroneOperatorBotModule.cs:68`, documented at `ai.yaml:927-930`) both verified and both already legible at their declarations. The 388/388 measurement was not checked.
 
 `MaxPoiDistanceCells: 40` is documented as the "unreachable corner guard", but its reach depends
 entirely on how many POIs a map has, and on some maps that set is a single point.
@@ -1952,6 +1974,7 @@ load-bearing. **Any scenario exercising a POI-gated module needs at least one ca
 structure inside the acting unit's reach**, or the module under test is inert before it starts.
 
 ## 2026-09-01 — A scoring term expressed in a different unit from the one it competes against is INERT BY CONSTRUCTION, and nothing in the build, the tests or the lint can see it (`wt/drone-targeting`)
+> **[promoted]** → `conventions.md` §"A change believed made, documented as made, and inert", **as instance 12 and a new FIFTH shape** (curation 2026-09-02). The four existing shapes did not cover it: the expression reduces fine, the field has a reader on the correct line, and the callee does what its name says — the arithmetic is simply done in two currencies. The section heading and shape table were updated from "Four shapes, ten instances" accordingly (instance 11 was already present and unlisted). **Magnitude comparison independently re-derived:** `ContactBonus: 2000` against a `×1000` term is worth 2 revealed squares, inside a corner artefact of up to 228 (box 29×29 = 841, disc 613 — both asserted at `DroneTaskingMathTest.cs:499-511`), i.e. 0.9%. Confirmed FIXED at `46a226fa` (`DroneTaskingMath.cs:133`, `:159`), so the instance is banked as history with the dimensional detector as the reusable part.
 
 The drone module shipped a believed-contact preference that **never once changed a decision**, and it
 looked entirely healthy: an `Info` field with a `[Desc]`, a value set in `ai.yaml`, a parameter threaded
@@ -1995,6 +2018,7 @@ the statement anyone needed. The question to ask of any new scoring term: *what 
 worth in units of the thing it competes with, and is that ratio the one I intended?*
 
 ## 2026-09-01 — BeliefStore ERASES a vanished mobile before the next drone evaluation, so "weight the contact list" is a STRUCTURAL IMPOSSIBILITY, not a tuning problem (`wt/drone-targeting`)
+> **[promoted]** → `influence-stack.md` §"Stage A — belief store", as a sub-bullet of the static-vs-mobile decay bullet that already banked the constants (curation 2026-09-02). **The 175-tick figure was re-derived independently and reproduces exactly:** integer decay (`:106`) gives 100→75→56→42→31→23→17→12, below `MinConfidence` on the 7th pass, × `UpdateInterval` 25. **Checked against `README.md` §"Four shapes" #2 and it is NOT a flag-relative observation** — none of `UpdateInterval`/`MobileDecayPercent`/`MinConfidence` is set in `ai.yaml`, so these are C# defaults and the figure is structural. Banked as a constraint on consumer design (compare any cadence against 175 before reading `Contacts(player)`), with the drone's `ReevaluateInterval: 200` (`ai.yaml:898`) as the instance and the reason widening the constants was refused — they feed Stage B for `@stable` and for humans — recorded beside it.
 
 **Read this before "simplifying" `DroneOperatorBotModule`'s own contact table back onto
 `BeliefStore.Contacts()`.** That table looks like a redundant second copy of the belief store and is
@@ -2031,6 +2055,7 @@ evaluation interval — and against the interval at which you can actually act o
 longer.** A consumer slower than the signal it reads cannot be fixed by weighting it harder.
 
 ## 2026-09-01 — `TicksSinceVerified` counts the NON-PLAYABLE MAP BORDER as unobserved ground, so the drone's revealed-area term is inflated worst exactly where drones launch (`wt/drone-targeting`)
+> **[promoted]** → `influence-stack.md` §"Stage C — control field", as a sub-bullet of the verification-memory bullet (curation 2026-09-02). Banked as the GENERALISATION rather than the drone incident: **a "never observed" sentinel and "outside the playable area" are indistinguishable to any test built on `TicksSinceVerified`**, so every consumer must conjoin an explicit bounds test. Grid span (`ControlField.cs:520-521`) and sentinel (`:927-928`) exact; the reference fix is `DroneTaskingMath.cs:269-271` with its derivation at `:242-267`. **Cite corrected:** `Map.Contains` is `engine/OpenRA.Game/Map/Map.cs:1454`. **Use 31 squares, not the entry's "42-53% clamped"** — the in-code comment measures 31 on River Zeta and is the current number. Near neighbour but NOT a duplicate of `architecture.md`'s `Bounds`-vs-`MapSize` render ring; deep-linked instead.
 
 A second, independent inflation of the same `revealed` term as the box-corner artefact above — and this
 one is map-dependent rather than geometric, so it does not cancel evenly between candidates.
@@ -16166,6 +16191,7 @@ as its raw key to a player.
 ---
 
 ## 2026-09-01 — `RotateToEdge` is NOT anchored on the Supply Route on most test maps: it silently falls back to the unit's own cell
+> **[promoted]** → `game-model.md` §"Map-edge spawning" **as a CORRECTION**, plus a supporting paragraph in `economy.md` §"The evacuation anchor is the `spawnarea` actor" (curation 2026-09-02). The bank was WRONG: `game-model.md:23` asserted units *"enter from the map edge nearest to the Supply Route's SpawnArea hint"* unconditionally, and that is false on 9 of the 10 shipped maps. **Count independently re-derived: only `river-zeta-ww3` authors `spawnarea` actors (6, one per `mpspawn`); the other nine ship zero**, leaving 24 spawn points on the fallback path. Mechanism re-read — `FindClosestSpawnAreaForOwner` returns null on the empty list (`RotateToEdge.cs:108-109`) and the caller falls back to `self.Location` (`:163-168`); the code has moved out of `OnFirstRun` into a static `ChooseEdgeCell`. `economy.md`'s cite `RotateToEdge.cs:97-120` had drifted and is corrected to `:101-128`.
 
 **Measured**, not reasoned: run `260901_024015` of `test-evac-queued-after-waypoints`, which
 falsified a premise I had written into that scenario's own comments an hour earlier.
@@ -16266,6 +16292,7 @@ Two traps for whoever audits this next:
    incidental to the claim, which holds.
 
 ## 2026-09-01 — Test.Mode nulls RenderPlayer: fog captures are silently fogless without the flag
+> **[rejected: duplicate — `architecture.md:762` already carries it]** (curation 2026-09-02). The bank already states that `TestModeLogic.cs:31` nulls `RenderPlayer` and prescribes `AUTOTEST_EXTRA_ARGS="Test.KeepRenderPlayer=true"`, and §"`RenderPlayer` is render-side only" covers the short-circuit. Mechanism re-verified exact (`TestModeLogic.cs:30-31`; flag parsed `TestMode.cs:189`, property `:38`). **The two genuinely new fragments were NOT banked because neither was verified here:** the minimap counter-case (`LocalPlayer ?? RenderPlayer`, opposite resolution order ⇒ do *not* pass the flag) and the measured `FogDarkness` ladder. **The minimap claim is worth someone's ten minutes** — if true it is a real trap sitting next to a documented remedy.
 
 `TestModeLogic.cs:30-31` sets `world.RenderPlayer = null` whenever the local player is a real
 (non-spectating) player, unless `Test.KeepRenderPlayer=true` (parsed at `TestMode.cs:189`).
@@ -16293,6 +16320,7 @@ Companion ops facts from the same session:
   (confirmed three separate runs) — poll the launch log for `[TestMode] active` instead.
 
 ## 2026-09-01 — `ChooseClosestMatchingEdgeCell` has NO unique nearest cell: `CVec.Length` is an integer sqrt, so a whole run of perimeter cells ties and enumeration order decides (`wt/milestone-note`, `main @ 9ef205c5`)
+> **[rejected: superseded by the fix, and its durable half is banked from the entry at the end of this file]** (curation 2026-09-02). The sort key it describes no longer exists: `Map.cs:1874-1876` is now `OrderBy(c => (cell - c).LengthSquared)`, changed by `a035aa68` and merged as `cfd7434e`. Supporting facts still hold (`CVec.cs:50`, `Exts.cs:306`, enumeration order at `Map.cs:1934-1958` — the entry's `:1927-1947` drifted). The transferable rule — **prefer `LengthSquared` when the intent is a strict ordering, because a floored `Length` merges non-equidistant candidates into one stable-sorted tie** — is promoted to `architecture.md` §"Edge-cell selection" from the 2026-09-02 entry, per §"One home per fact".
 
 Derived statically while writing the milestone note, to explain why `test-evac-queued-line`
 (run `260901_232601_p30661`) graded FAIL with an edge node at `1,13` where the scenario had
@@ -16367,6 +16395,7 @@ they are silent — each yields a plausible number rather than an obvious failur
   linear light first; the `FogDarkness` ladder only matched prediction (mean error 0.045 against
   0.215 for the null) once this was done.
 ## 2026-09-01 — `ChooseClosestMatchingEdgeCell` sorted on a FLOORED sqrt, biasing every map-edge exit north
+> **[rejected: superseded — fixed, and one of its clauses is FALSE]** (curation 2026-09-02). The entry says so itself. **Its `@stable` blast-radius paragraph is wrong as written** — *"entry cells therefore move south by `floor(sqrt(2d))` on those maps"* applied to all 9 — and is corrected by the 2026-09-02 entry to 6 spawn points of 24 (commit `94020582`). **Two of its claims ARE still current and were carried into the bank:** `ChooseClosestMatchingEdgeCellOnSameEdge` (`Map.cs:1886`) and `GetSpawnCandidatesOnSameEdge` (`:1893`) still use the floored `.Length` key deliberately — cites drifted from `:1879`/`:1889`. Its best line survives in `architecture.md`: **determinism is not correctness — a reproducible selector can still return a demonstrably farther member of its own candidate set.**
 
 `Map.ChooseClosestMatchingEdgeCell` (`Map.cs:1867-1869`) ordered the perimeter by
 `(cell - c).Length`. `CVec.Length` is `Exts.ISqrt(LengthSquared)` (`CVec.cs:50`) and
@@ -16415,6 +16444,7 @@ reinforcement entry cells therefore move south by `floor(sqrt(2d))` on those map
 visible, not silent drift; the next bot benchmark baseline must be re-taken.
 
 ## 2026-09-02 — the map-edge tie band is zero cells wide at d=0, so "every map without a spawnarea" is not the blast radius
+> **[promoted]** → `architecture.md` §"Edge-cell selection: `CVec.Length` is a FLOORED sqrt", a new subsection under §"The black band at a map edge" (curation 2026-09-02). **Chosen as THE account of this story over the two earlier entries** (`ChooseClosestMatchingEdgeCell` ties, and the floored-sort post-mortem), which are provenance and are rejected as superseded per §"One home per fact". **Arithmetic independently re-derived:** the band is `k ≤ floor(sqrt(2d))` because `floor(sqrt(d²+k²)) == d ⇔ k² ≤ 2d`, and it is zero-width at `d = 0`; the 9-maps-with-no-`spawnarea` / 24-spawn-point census was re-counted from the map files and 18 of 24 sit at `d = 0`. Banked with the durable lesson as a first-class rule: **a predicate naming where a defect CAN occur is not a measurement of where it DOES.**
 
 `Map.ChooseClosestMatchingEdgeCell` sorted by `CVec.Length`, which is `Exts.ISqrt(LengthSquared)`
 with `ISqrtRoundMode.Floor` (`engine/OpenRA.Game/CVec.cs:50`, `Exts.cs:305-306`). **Flooring a sort
