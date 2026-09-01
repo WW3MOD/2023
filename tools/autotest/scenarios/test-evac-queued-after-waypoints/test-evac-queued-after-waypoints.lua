@@ -141,12 +141,16 @@ WorldLoaded = function()
 
 	Trigger.AfterDelay(50, LogProgress)
 
+	-- ORDERING IS LOAD-BEARING HERE. The control has to be fully DEMONSTRATED -- press consumed,
+	-- stayed west, actually evacuated -- before any verdict is returned about the queued arm.
+	-- Otherwise the interesting failure is unreachable: in the broken build the queued humvee never
+	-- evacuates, so anything gated behind `QueuedUnit.IsDead` can only ever time out, and the run
+	-- would report the generic deadline message instead of naming the rejected keypress.
 	TestHarness.AssertWithin(ticks(DeadlineTicks), function()
 		TrackEast()
 
-		-- The control first: if the bare-E press was not consumed, the Evacuate hotkey does not
-		-- reach the command bar in this harness at all and NOTHING this test reports about the
-		-- queued arm means anything. Fail loudly and differently.
+		-- 1. Harness sanity. If a bare E was consumed by no widget, the Evacuate hotkey is not
+		-- reaching the command bar in this run at all and NOTHING here is evidence about queuing.
 		if immediatePressConsumed == false then
 			return "fail: the CONTROL press was rejected -- a bare E (no modifier) was consumed by "
 				.. "no widget, so the Evacuate hotkey is not reaching the command bar in this run. "
@@ -154,6 +158,8 @@ WorldLoaded = function()
 				.. "evidence about the Shift+E path."
 		end
 
+		-- 2. The control must DISCARD its waypoints, or the two dispositions are indistinguishable
+		-- and a queued-arm pass would prove nothing.
 		if immediateWentEast then
 			return "fail: the CONTROL humvee drove EAST past x=" .. EastLineX .. " before "
 				.. "evacuating. A bare E must REPLACE the queued waypoints, not append to them. "
@@ -161,27 +167,31 @@ WorldLoaded = function()
 				.. "dispositions apart."
 		end
 
+		-- 3. Wait for the control to finish. Reaching past here means: the hotkey works, an
+		-- unqueued Evacuate discards the queue, and the exit really is westward.
 		if not ImmediateUnit.IsDead then
 			return false
 		end
 
-		-- Control satisfied: bare E evacuated immediately and westward. Now the feature.
-		if not QueuedUnit.IsDead then
-			return false
-		end
-
-		if queuedWentEast then
-			return true
-		end
-
+		-- 4. THE REPORTED BUG. Decided as soon as the control has vouched for the path -- not
+		-- gated on the queued humvee evacuating, because in the broken build it never does.
 		if queuedPressConsumed == false then
 			return "fail: Shift+E was consumed by NO widget, so no Evacuate order was ever issued "
 				.. "-- the queued evacuation did not run early, it did not run at all. This is the "
 				.. "reported bug: HotkeyReference.IsActivatedBy compares modifiers for equality, so "
 				.. "a Shift-bearing event never matches the unshifted `Evacuate: E` binding, and "
 				.. "CommandBarLogic's noShiftButtons array (the only thing that strips Shift and "
-				.. "retries) does not list evacuateButton. Meanwhile the bare-E control WAS "
-				.. "consumed, which proves the hotkey path itself is healthy."
+				.. "retries) does not list evacuateButton. The bare-E control WAS consumed on the "
+				.. "same map moments earlier, which proves the hotkey path itself is healthy."
+		end
+
+		-- 5. The order was issued. Did it wait?
+		if not QueuedUnit.IsDead then
+			return false
+		end
+
+		if queuedWentEast then
+			return true
 		end
 
 		return "fail: the shift-queued Evacuate did not wait for the waypoints -- the humvee "
