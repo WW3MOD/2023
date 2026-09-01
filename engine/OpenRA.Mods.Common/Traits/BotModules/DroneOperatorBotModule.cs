@@ -725,6 +725,8 @@ namespace OpenRA.Mods.Common.Traits
 					+ $"opcell={opCell.X},{opCell.Y} dist={distance} clamped={refusedOffMap} "
 					+ $"reveal={bestReveal} border={bestBorder} intel={chosenIntel} "
 					+ $"intelkey={(chosenIntel > 0 ? chosenIntelKey.ToString() : "none")} "
+					+ $"bestintel={bestIntel} bestintelcell={bestIntelCell.X},{bestIntelCell.Y} "
+					+ $"bestintelreveal={bestIntelReveal} "
 					+ $"records={intel.Count} nearby={nearbyIntel.Count} "
 					+ $"retask={(sortie != null ? "yes" : "first")} tick={tick}");
 
@@ -781,6 +783,17 @@ namespace OpenRA.Mods.Common.Traits
 		int bestIntel;
 		int chosenIntel;
 		uint chosenIntelKey;
+
+		// WHERE the best intel sat, and what exploration was on offer THERE. This pair is what sizes
+		// LostTrackIntelSquares, and without it the question cannot be answered from a match at all.
+		// `reveal` on the launch line is bestReveal — the maximum anywhere in the disc — NOT the
+		// winner's own revealed area, so a launch that does not go to the best-intel cell says only
+		// that intel lost, never by how much. The deficit it would have had to cover is exactly
+		// bestReveal - bestIntelReveal; its displacement power is bestIntel minus the intel at the
+		// reveal argmax. Both become readable off one launch line, so the constant can be DERIVED
+		// rather than tuned upward until the scenario passes. Diagnostic only — no decision reads it.
+		int bestIntelReveal;
+		CPos bestIntelCell;
 
 		// Non-playable border squares inside the winning candidate's vision box — diagnostic only, and
 		// since the border fix the amount EXCLUDED from bestReveal rather than an error left in it.
@@ -862,6 +875,8 @@ namespace OpenRA.Mods.Common.Traits
 			refusedReveal = refusedPoi = refusedDanger = refusedSr = refusedCovered = refusedOffMap = considered = 0;
 			bestReveal = 0;
 			bestIntel = 0;
+			bestIntelReveal = 0;
+			bestIntelCell = CPos.Zero;
 			chosenIntel = 0;
 			chosenIntelKey = 0;
 			bestBorder = 0;
@@ -919,7 +934,11 @@ namespace OpenRA.Mods.Common.Traits
 					var intelSquares = BestIntelAt(cell, out var intelKey);
 
 					if (intelSquares > bestIntel)
+					{
 						bestIntel = intelSquares;
+						bestIntelReveal = revealed;
+						bestIntelCell = cell;
+					}
 
 					considered++;
 					var score = DroneTaskingMath.ScoreCandidate(
