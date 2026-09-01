@@ -75,7 +75,7 @@ namespace OpenRA.Mods.Common.Traits
 			"reached, and two constants would drift. A bot sizing its demand search around the ordered cell",
 			"should subtract this, since the crate can land this far off it",
 			"(SupplyFollowerBotModule.DropDemandMarginCells).")]
-		public readonly int DropAtToleranceCells = 2;
+		public readonly int DropAtToleranceCells = SupplyTransferMath.DefaultApproachMarginCells;
 
 		[Desc("Image whose sprite marks the waypoint a QUEUED deploy will unload on. Defaults to the",
 			"cache actor's own artwork, so the marker is a picture of the thing that will be dropped",
@@ -411,7 +411,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (supply == null || self.TraitOrDefault<IMove>() == null)
 				return;
 
-			self.QueueActivity(queued, new RestockSupply(self, host, supply.Info.RestockWaitTicks));
+			self.QueueActivity(queued,
+				new RestockSupply(self, host, supply.Info.RestockWaitTicks, Info.DropAtToleranceCells));
 		}
 
 		/// <summary>Send the transport to a docking-aware host to FILL it — the exact mirror of

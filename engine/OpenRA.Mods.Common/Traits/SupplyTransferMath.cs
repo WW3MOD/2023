@@ -206,6 +206,9 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		public static int AmountToRestock(bool arrived, int transportSupply, int transportCapacity, int hostSupply)
 		{
+			if (!arrived)
+				return 0;
+
 			var needed = transportCapacity - transportSupply;
 			if (needed <= 0 || hostSupply <= 0)
 				return 0;
@@ -227,8 +230,13 @@ namespace OpenRA.Mods.Common.Traits
 		/// arbitration above does not consult the amount, and the activity that performs the transfer
 		/// asks only for a number.</para>
 		/// </summary>
-		public static int AmountToDeliver(int transportSupply, int hostSupply, int hostCapacity)
+		public static int AmountToDeliver(bool arrived, int transportSupply, int hostSupply, int hostCapacity)
 		{
+			// See AmountToRestock: the arrival term is a parameter of both directions so that neither
+			// activity can compute a transfer without having been made to answer whether it got there.
+			if (!arrived)
+				return 0;
+
 			if (transportSupply <= 0)
 				return 0;
 

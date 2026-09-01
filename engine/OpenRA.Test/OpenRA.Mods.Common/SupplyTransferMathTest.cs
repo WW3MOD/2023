@@ -324,7 +324,7 @@ namespace OpenRA.Test
 									Assert.That(absorbs, Is.True, "only an absorbing host takes a delivery");
 									Assert.That(carried, Is.GreaterThan(Threshold), "a transport at or below the threshold receives");
 									Assert.That(
-										SupplyTransferMath.AmountToDeliver(carried, hostSupply, HostCapacity),
+										SupplyTransferMath.AmountToDeliver(true, carried, hostSupply, HostCapacity),
 										Is.GreaterThan(0),
 										"a delivery direction must move a positive amount");
 								}
@@ -341,15 +341,28 @@ namespace OpenRA.Test
 		// ---- AmountToDeliver: the partial/partial policy lives here and nowhere else ----
 
 		[Test]
+		public void DeliveryTakesNothingWhenTheTruckNeverReachedTheCentre()
+		{
+			// The mirror of RestockTakesNothingWhenTheTruckNeverReachedTheCentre. DeliverSupply has always
+			// carried this guard as a short-circuit inside the activity; routing it through the amount
+			// instead is what makes it a property of the shared arithmetic, so the two directions now
+			// refuse identically and a test can pin both.
+			Assert.That(
+				SupplyTransferMath.AmountToDeliver(Arrived(20, 0), 750, 0, 2250),
+				Is.EqualTo(0),
+				"a truck that never reached the Centre must give NOTHING");
+		}
+
+		[Test]
 		public void DeliversWhatTheCentreHasHeadroomFor()
 		{
-			Assert.That(SupplyTransferMath.AmountToDeliver(750, 2000, 2250), Is.EqualTo(250));
+			Assert.That(SupplyTransferMath.AmountToDeliver(true, 750, 2000, 2250), Is.EqualTo(250));
 		}
 
 		[Test]
 		public void DeliversTheWholeLoadWhenItFits()
 		{
-			Assert.That(SupplyTransferMath.AmountToDeliver(750, 0, 2250), Is.EqualTo(750));
+			Assert.That(SupplyTransferMath.AmountToDeliver(true, 750, 0, 2250), Is.EqualTo(750));
 		}
 
 		[Test]
@@ -360,17 +373,17 @@ namespace OpenRA.Test
 			// earlier revision of this file asserted the same zero while the direction still said ToHost,
 			// which had the effect of pinning the defect as correct behaviour. Kept because the transfer
 			// re-reads both pools on arrival, after a drive during which the Centre may have filled.
-			Assert.That(SupplyTransferMath.AmountToDeliver(750, 2250, 2250), Is.EqualTo(0));
+			Assert.That(SupplyTransferMath.AmountToDeliver(true, 750, 2250, 2250), Is.EqualTo(0));
 		}
 
 		[Test]
 		public void NeverCreatesSupplyAndNeverGoesNegative()
 		{
-			Assert.That(SupplyTransferMath.AmountToDeliver(0, 100, 2250), Is.EqualTo(0));
+			Assert.That(SupplyTransferMath.AmountToDeliver(true, 0, 100, 2250), Is.EqualTo(0));
 
 			// An over-full host (AddSupply is documented as able to exceed TotalSupply) must yield a
 			// refusal, not a negative transfer that would credit the truck out of thin air.
-			Assert.That(SupplyTransferMath.AmountToDeliver(750, 3000, 2250), Is.EqualTo(0));
+			Assert.That(SupplyTransferMath.AmountToDeliver(true, 750, 3000, 2250), Is.EqualTo(0));
 		}
 	}
 }
