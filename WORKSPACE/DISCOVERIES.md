@@ -16413,3 +16413,37 @@ legacy branch (`ProductionFromMapEdge.cs:127`) calls this method whenever the ma
 `spawnarea` actor — which is **9 of the 10 shipped maps** (only `river-zeta-ww3` has one). Ground
 reinforcement entry cells therefore move south by `floor(sqrt(2d))` on those maps. Deliberate and
 visible, not silent drift; the next bot benchmark baseline must be re-taken.
+
+## 2026-09-02 — the map-edge tie band is zero cells wide at d=0, so "every map without a spawnarea" is not the blast radius
+
+`Map.ChooseClosestMatchingEdgeCell` sorted by `CVec.Length`, which is `Exts.ISqrt(LengthSquared)`
+with `ISqrtRoundMode.Floor` (`engine/OpenRA.Game/CVec.cs:50`, `Exts.cs:305-306`). **Flooring a sort
+key merges cells that are not equidistant into one tie**, so a stable `OrderBy` returned the first
+cell enumerated rather than the nearest one. Fixed by sorting on `LengthSquared` (`Map.cs:1875`),
+which is monotone in true distance and therefore ties only genuinely equidistant cells.
+
+**The correction worth recording is about the blast radius, not the defect.** The reasoning
+"`ProductionFromMapEdge`'s legacy branch runs on the 9 shipped maps with no `spawnarea` actor,
+therefore reinforcement entry moves on 9 maps" is WRONG, and the manager repeated it in a merge
+commit before it was checked. Whether the branch is *taken* is a different question from whether
+the *answer changes*. The tie band is `±floor(sqrt(2d))` for perpendicular distance `d`, so at
+`d=0` it is **zero cells wide** — and most shipped spawn points sit directly on an edge already
+(`1,64`, `100,7`, `30,1`, `1,22`…), where the old and new code agree exactly.
+
+Computed over every `mpspawn` on every shipped map using real `Bounds` and the actual
+`UpdateEdgeCells` enumeration order: **18 of 24 spawn points do not move at all.** The movers are
+`arena-tank-duel` (3 cells), `shellmap-open-field` (3, and it is the menu backdrop), and
+`twin-rivers-ww3` (5). `river-zeta-ww3` has a `spawnarea` so the branch is never taken there.
+
+The model was validated against all three previously observed runs before being trusted —
+`8,16 → 1,13` old / `1,16` new, and the refund scenario's two subjects at `6,14 → 1,11` and
+`6,19 → 1,16`. Arithmetic that only agrees with itself is not evidence.
+
+**General form: "the code path is reached" does not imply "the output differs".** A predicate that
+selects where a defect *can* occur is not a measurement of where it *does*, and quoting the first
+as if it were the second overstated this by 4.5x.
+
+Still carrying the same floored key and deliberately not touched: `Map.cs:1879` and `Map.cs:1889`.
+`:1889` feeds `.Take(count)` for round-robin spawn, where the tie changes *set membership* rather
+than a single winner — less predictable than the site that was fixed, and a worse thing to change
+without measuring.
