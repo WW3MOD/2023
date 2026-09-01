@@ -1,0 +1,86 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a frozen ghost's owner does not follow a capture the viewer did not see
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+# GEOMETRY
+#
+# This scenario needs the EXPLORED-THEN-FOGGED state, which is the opposite of
+# test-unscouted-building-hidden's never-scouted state and is the only state in
+# which a frozen ghost exists at all. FrozenActor.UpdateVisibility
+# (FrozenActorLayer.cs:165-194) sets Visible when every footprint cell reads
+# visibility <= 1, and Shrouded only when they all read 0. So "frozen, drawable"
+# is precisely cell visibility 1: seen once, not seen now.
+#
+# Scout at 5,16 with ^StandardVision is 3 cells from Box at 8,16, inside the
+# strength-10 band (defaults.yaml:80), so USA genuinely observes the building
+# first. The scenario then kills the Scout to drop that cell to explored-fog.
+#
+# Observer at 20,30 is the actor whose selection resolves the frozen cursor. It
+# is ~18 cells from Box -- far outside any sight band -- so it contributes no
+# vision of its own and cannot keep the ghost alive after the Scout dies. It
+# exists only because Test.FrozenClickCursor needs a non-empty selection, and
+# killing the sole USA unit would leave nothing to click with. It is kept clear
+# of OwnSR at 2,30 and SpawnUSA at 3,28 so it cannot collide with either
+# footprint at load.
+Actors:
+	Scout: abrams
+		Owner: USA
+		Location: 5,16
+		Facing: 0
+	Observer: abrams
+		Owner: USA
+		Location: 20,30
+		Facing: 0
+	Box: pbox
+		Owner: Russia
+		Location: 8,16
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 2,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 64,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 63,2
+
+Rules: rules.yaml

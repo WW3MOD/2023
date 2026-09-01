@@ -1,0 +1,47 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# FOG ON and LOCKED. With fog off, MapLayers.GetVisibility takes the
+		# "explored => 10" branch and every explored cell reads 10, so
+		# FrozenActor.UpdateVisibility (FrozenActorLayer.cs:174-186) never sets
+		# Visible -- no frozen ghost is ever created and the scenario has nothing
+		# to assert about. Phase 2 would hang rather than fail cleanly.
+		FogCheckboxEnabled: true
+		FogCheckboxLocked: true
+		# EXPLORED **OFF** and LOCKED. Explored-then-fogged is the state this
+		# scenario wants, so a pre-explored map would not break it outright the
+		# way it breaks a never-scouted test -- but it would make the Scout's
+		# observation irrelevant and would hide a regression in which the ghost
+		# appears without anyone having looked. Off means USA's knowledge of Box
+		# is traceable to exactly one act of observation.
+		ExploredMapCheckboxEnabled: false
+		ExploredMapCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-frozen-owner-snapshot.lua
+
+# Nothing may shoot. The Scout must die on the scenario's schedule and not
+# Russia's, and Box must survive to phase 4 to be re-owned. HoldFire rather than
+# `-AutoTarget:`, which does not load -- AutoTargetPriority declares AutoTarget
+# as a requirement, so removing it fails actor initialisation. Both InitialStance
+# and InitialStanceAI are set because AutoTarget picks between them on
+# owner.IsBot/Playable (AutoTarget.cs:517) and Russia is not a playable slot here.
+# HP is padded as a second line of defence in case some path fires anyway.
+PBOX:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	Health:
+		HP: 100000
+
+abrams:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	Health:
+		HP: 100000

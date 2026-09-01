@@ -715,6 +715,84 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return UnitOrderGenerator.CursorForOrders(results) ?? "";
 		}
 
+		// The three bindings below exist because the frozen-actor cursor was the one fog behaviour the
+		// suite could not reach. ClickCursor above builds Target.FromActor, so it always resolves
+		// CanTargetActor and never CanTargetFrozenActor — the arm that decides what a player may infer
+		// about a unit they cannot currently see. The only other producer of a frozen Target is
+		// UnitOrderGenerator.TargetForInput (:39), which needs a live mouse position AND a non-null
+		// RenderPlayer, and TestModeLogic.cs:31 nulls RenderPlayer. That combination is what forced the
+		// 2579ca0a enter-cursor fix to be defended by an IL byte-scan instead of a scenario.
+		//
+		// These bypass TargetForInput rather than RenderPlayer-gating it: OrdersForSelection reads no
+		// RenderPlayer, so the frozen cursor is answerable WITHOUT Test.KeepRenderPlayer=true. The
+		// frozen state itself never depended on RenderPlayer either — FrozenActor.Visible is computed
+		// from the VIEWER's own MapLayers (FrozenActorLayer.cs:174-186).
+		static FrozenActor FrozenFor(Player viewer, Actor target)
+		{
+			if (viewer?.FrozenActorLayer == null || target == null)
+				return null;
+
+			var fa = viewer.FrozenActorLayer.FromID(target.ActorID);
+			return fa != null && fa.IsValid ? fa : null;
+		}
+
+		[Desc("The state of `viewer`'s frozen-actor ghost of `target`. One of: \"none\" (no ghost — the " +
+			"actor has no FrozenUnderFog trait, or was never in this viewer's layer), \"live\" (a ghost " +
+			"exists but the viewer can currently SEE the real actor, so no stale inference is possible), " +
+			"\"shrouded\" (frozen, but under raw shroud, so it draws nothing) or \"frozen\" (the state " +
+			"under test: the viewer holds a stale ghost of a unit it cannot observe). ASSERT THIS BEFORE " +
+			"any frozen cursor or owner assertion — \"live\" or \"none\" means the scenario never reached " +
+			"the state it meant to test, and any verdict below it is vacuous. Independent of " +
+			"RenderPlayer. Test mode only.")]
+		public string FrozenActorState(Player viewer, Actor target)
+		{
+			if (!TestMode.IsActive)
+				return "none";
+
+			var fa = FrozenFor(viewer, target);
+			if (fa == null)
+				return "none";
+
+			if (!fa.Visible)
+				return "live";
+
+			return fa.Shrouded ? "shrouded" : "frozen";
+		}
+
+		[Desc("The internal name of the owner recorded on `viewer`'s frozen ghost of `target`, or \"\" " +
+			"when there is no ghost. This is the SNAPSHOT owner (FrozenActor.Owner), not the live one — " +
+			"comparing it against the live owner is how a test proves the snapshot did or did not move " +
+			"while the viewer was not looking. Test mode only.")]
+		public string FrozenActorOwner(Player viewer, Actor target)
+		{
+			if (!TestMode.IsActive)
+				return "";
+
+			return FrozenFor(viewer, target)?.Owner?.InternalName ?? "";
+		}
+
+		[Desc("The cursor name `actors` would show over `viewer`'s frozen ghost of `target` — resolved " +
+			"through UnitOrderGenerator with Target.FromFrozenActor, so it exercises the " +
+			"CanTargetFrozenActor arm that a normal ClickCursor call can never reach. Empty string when " +
+			"no order names one, or when there is no ghost. Mirrors TargetForInput's own eligibility " +
+			"filter (ITargetable + Visible + HasRenderables), so a ghost the mouse could not pick " +
+			"reports \"\" here too — call FrozenActorState first to tell that apart from a real refusal. " +
+			"Issues nothing. Test mode only.")]
+		public string FrozenClickCursor(Actor[] actors, Player viewer, Actor target, string modifiers = "")
+		{
+			if (!TestMode.IsActive || actors == null || actors.Length == 0)
+				return "";
+
+			var fa = FrozenFor(viewer, target);
+			if (fa == null || !fa.Visible || !fa.HasRenderables || !fa.Info.HasTraitInfo<ITargetableInfo>())
+				return "";
+
+			var results = UnitOrderGenerator.OrdersForSelection(
+				actors, Target.FromFrozenActor(fa), target.Location, ParseClickModifiers(modifiers));
+
+			return UnitOrderGenerator.CursorForOrders(results) ?? "";
+		}
+
 		[Desc("Issue a real AttackMove order, going through AttackMove.ResolveOrder the way a player's " +
 			"attack-move click does. Use this rather than the activity-direct Lua `unit.AttackMove`, " +
 			"which constructs AttackMoveActivity itself and never consults the order layer at all — if " +

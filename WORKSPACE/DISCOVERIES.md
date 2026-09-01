@@ -3,6 +3,87 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — `FrozenActor.Owner` has TWO exceptions, not one, and "fog cannot be tested" was false — the real gap was one missing binding (`wt/fog-truth`, `main @ 3f25f4d3`)
+
+Read off code and pinned in a scenario; **the scenario has never been run** — no launch was taken.
+The C# builds clean and `dotnet test` is green (2081 passed), which is the whole of the evidence.
+
+**1. The snapshot exception is TWO exceptions, and the second is the wide one.** `FrozenActor.Owner`
+is written only by `RefreshState()` (`FrozenActorLayer.cs:122-141`). Three call paths reach it:
+
+- `FrozenUnderFog` initial setup (`:79-90`) and `OnVisibilityChanged` (`:101-116`) — the latter is
+  the legitimate re-observation path, gated on the viewer actually seeing the actor.
+- **`FrozenUnderFog.OnOwnerChanged` (`:217-223`) — OLD OWNER ONLY.** It refreshes
+  `frozenStates[oldOwnerIndex]`, a single index, so the player who just *lost* the actor stops
+  seeing themselves named as its owner. **A third-party observer's ghost is not touched.** The
+  previously-recorded version of this finding (see the 2026-09-01 `wt/order-honesty` entry, now
+  corrected in place) read as though any observer's ghost moved; it does not.
+- **`FrozenUnderFogUpdatedByGps.OnOwnerChanged` (`Mods.Cnc/Traits/FrozenUnderFogUpdatedByGps.cs:67-70`)
+  — ALL PLAYERS.** `ActOnFrozenActorsForAllPlayers(Refresh)`, gated per player on
+  `GpsWatcher.Granted && GrantedAllies` (`:98-100`) and on `fa.HasRenderables` (`:32`). **This is the
+  broader hole and it was not written down anywhere.** It is also plainly deliberate — GPS is the
+  live-intel power, and "your ghosts update without re-observation" is what it is *for*. The mod
+  attaches it alongside `FrozenUnderFog` on `^BasicBuilding` (`ingame/structures.yaml:61`), on
+  `SUPPLYROUTE` (`:264`) and on `^Defense` (`structures-defenses.yaml:66`).
+
+**Verdict: acceptable by design, for a reason stronger than "upstream does it".** Both exceptions
+fire on `INotifyOwnerChanged`, which is the same notification that repaints the ghost and rewrites
+the tooltip. There is no ordering in which the cursor leaks something the colour and tooltip have
+not already shown — the cursor is the last link in that chain, not the first. Changing it would mean
+suppressing the *tooltip* correction too, i.e. deliberately showing a player their own lost building
+as still theirs. Not touched.
+
+**Scope, because it bounds every argument built on this:** `FrozenUnderFog` is the ONLY
+`ICreatesFrozenActors` implementor, and it is `Requires<BuildingInfo>` (`:21`). Nothing in
+`mods/ww3mod/` strips it (`grep -rn '\-FrozenUnderFog' mods/` is empty) and `^BasicBuilding` grants
+it (`ingame/structures.yaml:60`). **So every building has a ghost, no non-building has one, and any
+sentence about a frozen vehicle or frozen infantry is about a state that cannot exist.**
+
+**2. "No autotest can produce a frozen actor for the local player" was false in two independent
+ways.** Worth recording because the belief cost a structural-proof fallback on `2579ca0a`.
+
+- **`TestMode.KeepRenderPlayer` already exists**, and has since `2f56cd24` (2026-08-22).
+  `TestModeLogic.cs:30` guards the null-assignment with `&& !TestMode.KeepRenderPlayer`; the flag is
+  parsed at `TestMode.cs:189` from `Test.KeepRenderPlayer=true` (matched `OrdinalIgnoreCase` against
+  the literal `"true"` — `1` does not work), and `AUTOTEST_EXTRA_ARGS` reaches the process unquoted
+  at `run-test.sh:735` → `launch-game.sh:60`'s `"$@"`. Two scenarios already require it
+  (`test-unscouted-building-hidden`, `test-supplyroute-exempt-from-fog`).
+- **More fundamentally, the frozen STATE never depended on `RenderPlayer` at all.**
+  `FrozenActor.UpdateVisibility` (`FrozenActorLayer.cs:165-194`) reads the *viewer's* own
+  `MapLayers`, and `FrozenActorLayer` is a per-player trait. Frozen actors have existed for the
+  local player in every fogged autotest ever run. `RenderPlayer` only decides whether
+  `World.FogObscures` answers honestly (`World.cs:109-115`) and which player's ghosts the mouse
+  paths consult — a render-side concern, not a state one.
+
+**The real gap was narrow and nameable: no way to resolve a cursor against a FROZEN target.**
+`Test.ClickCursor` (`TestGlobal.cs:687`) builds `Target.FromActor`, so it always resolves
+`CanTargetActor` and can never reach the `CanTargetFrozenActor` arm. The only other producer of a
+frozen `Target` is `UnitOrderGenerator.TargetForInput` (`:39`), which needs a live mouse position
+**and** a non-null `RenderPlayer`. That conjunction — not fog, not the harness — is what forced the
+enter-cursor fix to be defended by an IL byte-scan.
+
+**Closed with three bindings and no harness change** (`TestGlobal.cs`, after `ClickCursor`):
+`Test.FrozenActorState(viewer, target)` → `none`/`live`/`shrouded`/`frozen`,
+`Test.FrozenActorOwner(viewer, target)` → the snapshot owner's `InternalName`, and
+`Test.FrozenClickCursor(actors, viewer, target, modifiers)`, which builds `Target.FromFrozenActor`
+and calls `UnitOrderGenerator.OrdersForSelection` directly. **`OrdersForSelection` reads no
+`RenderPlayer`**, so the frozen cursor is answerable *without* `Test.KeepRenderPlayer=true` —
+bypassing `TargetForInput` rather than fighting it. Scenario: `test-frozen-owner-snapshot`, which
+asserts the third-party snapshot does not follow a capture, and reads a frozen cursor on the way.
+
+**Two traps for whoever runs it.** (a) `FrozenClickCursor` mirrors `TargetForInput`'s own
+eligibility filter (`ITargetable` + `Visible` + `HasRenderables`), so an ineligible ghost returns
+`""` exactly as a genuine refusal does — always read `FrozenActorState` first to tell them apart.
+(b) `HasRenderables` is populated by `FrozenUnderFog.TickRender` (`:159-186`), an `ITickRender` hook;
+whether it fills for an off-screen ghost in a headless-ish test run **was not established** and is
+the likeliest cause of a first-run red.
+
+**Meta, and the reason this took a full audit rather than a grep:** `architecture.md`'s
+`FrozenUnderFog` section asserted the `QUICK FIX 260503` short-circuit was still live. It was
+removed by `97935007` on 2026-08-27 and the doc outlived the fix by five weeks — corrected in place
+this session. `test-unscouted-building-hidden`'s own header comment still narrates it as live; its
+assertions are correct, its prose is not.
+
 ## 2026-09-01 — `make nav-guard` cannot see a single autotest scenario, so it is NOT the verification for a scenario-geometry change (`wt/cordon-paydown`)
 
 **The check specified as load-bearing for the cordon paydown is structurally blind to the files that
@@ -462,10 +543,16 @@ Audited, found clean, changed nothing. Recorded so the next reader does not re-o
   has exactly two callers (`FrozenUnderFog.cs:98`, `FrozenUnderFogUpdatedByGps.cs:35`) and the first
   is gated on the actor being visible — EXCEPT `INotifyOwnerChanged.OnOwnerChanged`
   (`FrozenUnderFog.cs:217-223`), which refreshes the OLD owner's snapshot deliberately so their
-  tooltip stops naming them as owner. So if your own vehicle is captured under fog, your ghost's
-  owner updates and ally-gated cursors change with it. That is upstream OpenRA behaviour, applies to
-  every frozen-targeting path and to the tooltip and colour long before the cursor, and is not
-  CrewMember-specific. Noted, not touched.
+  tooltip stops naming them as owner. ~~So if your own vehicle is captured under fog, your ghost's
+  owner updates and ally-gated cursors change with it.~~ **CORRECTED 2026-09-01 (`wt/fog-truth`): a
+  vehicle can never be the subject.** `FrozenUnderFogInfo` is `Requires<BuildingInfo>`
+  (`FrozenUnderFog.cs:21`), so only actors with a `Building` trait ever have a ghost — the example
+  must read *building*, and it holds only for the player who LOST it, never for a third-party
+  observer. This entry also missed a second and WIDER exception
+  (`FrozenUnderFogUpdatedByGps.OnOwnerChanged`, which refreshes **every** player's ghost while that
+  player holds an active GPS). Both are enumerated in the 2026-09-01 `wt/fog-truth` entry at the top
+  of this file. That it is upstream OpenRA behaviour, reaches the tooltip and unit colour long
+  before the cursor, and is not CrewMember-specific all stand.
 - **Minor and cosmetic, not a leak:** `CrewMember.VoicePhraseForOrder` is gated on
   `TargetType.Actor`, so ordering onto a *frozen* vehicle plays no voice line even though the
   resolver accepts the order. It reads live `CanEnter`, but a FrozenActor target returns before that,
