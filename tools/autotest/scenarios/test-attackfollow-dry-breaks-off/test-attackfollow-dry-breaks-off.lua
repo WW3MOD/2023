@@ -23,9 +23,20 @@
 local DeadlineSeconds = 15
 local DrainAfterTicks = 25 -- 1s; the tank still has ~3 cells to close before it could fire
 
--- DIAGNOSTIC STATE — see the twin (test-attackmove-dry-breaks-off) for the reasoning. Short form:
--- "it never went idle" does not say WHETHER the attack activity refused to end or ended and was
--- immediately replaced, and those two want opposite fixes.
+-- ASSERTS ON THE ACTIVITY, NOT ON Actor.IsIdle (changed 2026-09-01). The twin
+-- (test-attackmove-dry-breaks-off) carries the full reasoning and the measurement. Short form:
+-- Actor.Tick re-runs the queue in the same tick right after INotifyBecomingIdle
+-- (Actor.cs:322-325), and AmmoPool's resupply disposition queues on exactly that edge, so a unit
+-- whose attack order genuinely ended is still never observed idle. The twin's instrumented run
+-- showed `idleTicks=0` alongside a chain that had already moved off the attack activity.
+--
+-- This scenario was NOT re-run after the change -- it was observed red on main under the old
+-- assertion, and is predicted to pass under the new one for the same reason its twin does. The
+-- abrams here has one pool and names `RearmActors: logisticscenter` with none on the map, so it
+-- takes the same evacuate branch.
+--
+-- DIAGNOSTIC STATE below: kept so that a future red says WHICH activity was being held rather
+-- than only that something was.
 local idleTicks, firstIdleTick, startX = 0, -1, -1
 local actOrder, actSeen = {}, {}
 
@@ -68,10 +79,13 @@ WorldLoaded = function()
 			actOrder[#actOrder + 1] = chain
 		end
 
-		return Gunner.IsIdle
+		-- "Dropped the attack order", not "went idle" -- see the header and the twin. A tank that
+		-- lets go of the order and is then sent elsewhere by the resupply layer has satisfied this
+		-- guard; one still holding an attack activity has not.
+		return not TestHarness.HoldsAttackActivity(Gunner)
 	end, function()
 		return string.format(
-			"Dry Abrams never went idle: it held a direct attack order it could not carry out "
+			"Dry Abrams never dropped its attack order: it held an attack activity it could not discharge "
 			.. "|| Gunner cell=(%d,%d) startX=%d ammo=%d cannotFight=%s idle=%s idleTicks=%d acts=[%s]",
 			Gunner.Location.X, Gunner.Location.Y, startX,
 			Gunner.AmmoCount("primary-ammo"), tostring(Test.CannotFight(Gunner)),

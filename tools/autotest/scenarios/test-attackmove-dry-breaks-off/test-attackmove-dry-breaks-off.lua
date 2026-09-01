@@ -19,28 +19,35 @@
 -- current order alone" — which is exactly the hole this fix fills. A truck here would
 -- mask the defect entirely.
 --
--- THIS SCENARIO IS RED AND THE CAUSE IS NOT YET ESTABLISHED (2026-09-01). Read
--- WORKSPACE/bugs/discovered.md under that date before editing anything here. Two candidate
--- stories remain, and they want OPPOSITE fixes:
+-- WHY THIS ASSERTS ON THE ACTIVITY AND NOT ON Actor.IsIdle (changed 2026-09-01, MEASURED).
+-- The original `IsIdle` assertion was correct when written and silently stopped being so.
+-- Actor.Tick re-runs the queue in the SAME tick right after raising INotifyBecomingIdle
+-- (Actor.cs:322-325, on purpose: "to avoid an 'empty' null tick"), so an idle edge consumed
+-- by any handler is invisible from Lua. AmmoPool.AutoRearmIfDry consumes exactly that edge:
+-- on the 2026-08-27 evacuate ruling, a wholly dry unit with no rearm host is sent to
+-- RotateToEdge. The instrumented run settles it -- both men reported `cannotFight=true`,
+-- `idleTicks=0`, and chains that had moved from
+--     AttackMoveActivity>SmartMoveActivity>Move   ->   RotateToEdge>SmartMoveActivity>Move
+-- while walking west from x=9 to x=2. The guard works; the proxy was measuring the resupply
+-- layer. Run dir 260901_073202_p95073.
 --
---   (A) the ammo guard fires, the attack order really does end, and something re-tasks the
---       unit within the same tick — Actor.Tick deliberately re-runs the queue after
---       INotifyBecomingIdle (Actor.cs:322-325), so an idle edge consumed by a handler is
---       invisible to Lua and IsIdle is a broken proxy;
---   (B) the guard does not release the unit at all, the original 2026-08-10 bug report is
---       still true, and this scenario has been correctly red the whole time.
+-- So the observable is "he let go of the attack order", which TestHarness.HoldsAttackActivity
+-- reads directly off the activity queue. That is strictly stronger than the old check: an idle
+-- unit holds no attack activity either, so everything the original assertion accepted this one
+-- still accepts.
 --
--- A first attempt at (A) — pinning ResupplyBehavior to Hold so the resupply disposition
--- layer queued nothing — was committed, RUN, and DID NOT FIX IT. That pin has been reverted:
--- the scenario is back on shipped defaults. Do not re-apply it without new evidence.
+-- REJECTED, and recorded because it looks obvious and was tried: pinning
+-- `InitialResupplyBehavior: Hold` in this scenario's rules.yaml to stop the disposition layer
+-- queueing. It does not work, for a reason that has nothing to do with the idea -- `^AR` lists
+-- `Inherits@AutoTarget: ^AutoTargetLMG` AFTER `Inherits@Type: ^CamoSoldier`, and later inherits
+-- win field-by-field (MiniYaml.ResolveInherits), so `^AutoTarget`'s own
+-- `InitialResupplyBehavior: Auto` (defaults.yaml:390) overwrites anything set on `^Combatant`
+-- here. The sibling `ScanRadius` in the same block DOES take effect, because `^AutoTarget`
+-- never sets it -- which is exactly what makes the trap invisible. See WORKSPACE/DISCOVERIES.md
+-- 2026-09-01.
 --
--- The diagnostics below exist to settle A vs B in one run: they report the unit's cell,
--- whether it moved, AmmoPool.CannotFight (the guards' own predicate), and the ACTIVITY CHAIN.
--- Under (A) the chain is a Move/RotateToEdge and the men have walked west; under (B) it is
--- still an attack activity at engagement range.
---
--- Do NOT widen or re-point the assertion to make this pass. A test named `...-dry-breaks-off`
--- must fail when and only when the break-off guard fails.
+-- Do NOT widen this assertion further to make a red go away. It must fail when and only when a
+-- dry unit keeps an attack activity it cannot discharge.
 --
 -- Geometry: Hunter (8,16), Target (24,16) = 16 cells, outside the AR's 14c0 reach but
 -- inside the 30c scan. Destination (50,16) is far past the target, so a unit that is
@@ -141,10 +148,15 @@ WorldLoaded = function()
 		track("Hunter", Hunter)
 		track("Shooter", Shooter)
 
-		return Hunter.IsIdle and Shooter.IsIdle
+		-- THE ASSERTION IS "he let go of the attack order", NOT "he went idle" -- see the header.
+		-- A man who drops the order and is then sent somewhere by the resupply layer has satisfied
+		-- this guard completely; a man still holding an attack activity has not, whatever else is
+		-- true of him.
+		return not TestHarness.HoldsAttackActivity(Hunter)
+			and not TestHarness.HoldsAttackActivity(Shooter)
 	end, function()
-		return "A dry man never went idle: he kept an attack order he could not carry out "
-			.. "(Hunter = attack-move / AttackMoveActivity guard, Shooter = direct attack / Attack.Tick guard) "
-			.. "|| " .. report("Hunter", Hunter) .. " || " .. report("Shooter", Shooter)
+		return "A dry man never dropped his attack order: he kept an attack activity he could not "
+			.. "discharge (Hunter = attack-move / AttackMoveActivity guard, Shooter = direct attack "
+			.. "/ Attack.Tick guard) || " .. report("Hunter", Hunter) .. " || " .. report("Shooter", Shooter)
 	end)
 end

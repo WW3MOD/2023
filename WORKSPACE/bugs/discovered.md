@@ -3859,25 +3859,24 @@ The vehicle `heavy-damage-attained` cases do not touch suppression.
 **Confirm by:** damage a tank to Heavy, order it to attack, and watch it aim without firing and
 without ever rearming.
 
-**2026-09-01 — STILL OPEN. A claim that this is DISTINCT from `test-attackmove-dry-breaks-off`'s red
-was published here and is now WITHDRAWN as unproven.**
+**2026-09-01 — STILL OPEN, and now CONFIRMED DISTINCT from `test-attackmove-dry-breaks-off`'s red,
+this time by measurement rather than by reading.** (An intermediate note withdrew this claim as
+unproven; the instrumented run has since established it.)
 
-What is solid, and is a statement about *predicates* rather than about that scenario: this entry's
-cases are armaments paused for a reason `AmmoPool.CannotFight` cannot see (`heavy-damage-attained`,
-`empdisable`, `suppressed >= 10`), and `AttackBase.cs:452` says outright that `CannotFight` "is NOT
-sufficient on its own". A heavy-damaged tank with ammo is therefore not covered by the ammo guards,
-whatever those guards do.
+The run reported `cannotFight=true` for both dry men and showed their activity chains moving off
+`Attack`/`AttackMoveActivity` onto `RotateToEdge`. **So in the wholly-dry case the ammo guards
+demonstrably DO release the unit.** This entry's cases are armaments paused for a reason
+`AmmoPool.CannotFight` cannot see — `heavy-damage-attained`, `empdisable`, `suppressed >= 10` — where
+`CannotFight` is *false* and no guard fires at all. `AttackBase.cs:452` states the same thing from
+the other side: `CannotFight` "is NOT sufficient on its own".
 
-What was asserted and **not measured**: that in the dry-scenario case the guards *do* fire, so the two
-are unrelated. A fix premised on that reading was run and did not work (see the retraction box on the
-2026-09-01 `[med]` entry further down). If the guards turn out not to release the unit either, then
-both are instances of one archetype — **order accepted, task impossible, activity spins instead of
-yielding** — and this entry and that scenario are much closer than the withdrawn claim allowed.
-
-**So treat the relationship as OPEN.** Do not assume fixing this turns those scenarios green, and do
-not assume it cannot. The instrumented run described in the retraction box decides it. A pin
-specifically for *this* entry still must pause an armament while leaving the magazine loaded — damage
-a tank to Heavy — precisely so `CannotFight` stays false and this path is isolated from the ammo one.
+**Consequences, unchanged from the original claim but now evidenced:** those scenarios are NOT the
+regression pin this entry lacks, and fixing this will not turn them green — they are already green on
+their own account. A pin for *this* entry must pause an armament while leaving the magazine loaded
+(damage a tank to Heavy), precisely so `CannotFight` stays false and this path is isolated from the
+ammo one. **`TestHarness.HoldsAttackActivity` is the assertion that pin should use** — it reads the
+activity queue directly and is exactly the observable this entry's symptom is about ("aims without
+firing and never goes idle"), without inheriting the `IsIdle` proxy problem that rotted the dry pair.
 
 ---
 
@@ -3991,58 +3990,53 @@ regression pin that entry currently lacks.
 
 **Confirm by:** `./tools/autotest/run-test.sh test-attackmove-dry-breaks-off` on a clean `main`.
 
-### 2026-09-01 — ⚠️ RETRACTED, MEASURED WRONG. Read this box before the analysis below it.
+### 2026-09-01 — ✅ RESOLVED AND MEASURED. The analysis below is CORRECT; a mid-course retraction of it was itself wrong and is withdrawn.
 
-**The section that follows made a falsifiable prediction, the prediction was run, and it FAILED.**
-It is left in place because its code reading is still accurate and someone will otherwise re-derive
-it — but its *conclusion* is not supported, and it must not be cited as settled.
+**Instrumented run, `260901_073202_p95073`, execution markers present (so not a load abort):**
 
-| Run | Arm | Verdict |
-|---|---|---|
-| `test-attackmove-dry-breaks-off` | `main`, no pin | fail |
-| `test-attackmove-dry-breaks-off` | `wt/stuck-units`, `ResupplyBehavior: Hold` pinned | **fail — identical note** |
-| `test-attackfollow-dry-breaks-off` | `main`, no pin | fail (*"Dry Abrams never went idle"*) |
+```
+Hunter  cell=(2,13) startX=9 ammo=0 cannotFight=true idle=false idleTicks=0
+  acts=[AttackMoveActivity>SmartMoveActivity>Move>MoveFirstHalf
+      ~ RotateToEdge>SmartMoveActivity>Move>Turn ~ RotateToEdge>…>MoveSecondHalf]
+Shooter cell=(6,16) startX=9 ammo=0 cannotFight=true idle=false idleTicks=0
+  acts=[Attack>SmartMoveActivity>MoveWithinRange>Move>… ~ RotateToEdge>SmartMoveActivity>Move>…]
+```
 
-The fix below rested on the claim that the idle edge is consumed by
-`AmmoPool.OnBecomingIdle` → `Evacuate` → `RotateToEdge`. If that were the whole story, pinning
-`Hold` — the one disposition that queues nothing — would have made it pass. **It did not.** So
-either something else consumes the idle edge, or the premise is wrong and the guard never fires.
+Every clause of the analysis below is confirmed: `cannotFight=true` (the guards' predicate held),
+the chain moved off the attack activity to `RotateToEdge` (the guards fired and the evacuate
+disposition took over), the men walked west from x=9, and `idleTicks=0` (the idle edge exists but is
+consumed inside the tick). **The engine is behaving correctly and both scenarios were red for a
+wrong assertion.**
 
-**The pin has been REVERTED.** Both scenarios are back on shipped defaults, because a config change
-premised on a refuted diagnosis is noise, and because "configure the test until it passes" is the
-failure mode this file exists to prevent.
+**Why the first fix attempt failed, and it was NOT evidence against the mechanism.** Pinning
+`InitialResupplyBehavior: Hold` in the scenario's `rules.yaml` under `^Combatant` was run and did not
+work — which prompted a retraction of this whole analysis. That retraction was an over-correction: the
+pin never took effect. `^AR` lists `Inherits@AutoTarget: ^AutoTargetLMG` **after**
+`Inherits@Type: ^CamoSoldier`, and `MiniYaml.ResolveInherits` merges parents in source order with
+later winning field-by-field — so `^AutoTarget`'s own `InitialResupplyBehavior: Auto`
+(`defaults.yaml:390`) overwrote the `Hold` set on `^Combatant`. The sibling `ScanRadius: 30` in the
+very same block *does* apply, because `^AutoTarget` never sets it. **A block that is half in force
+and half silently overridden is why this was misread as a refutation.** Written up as its own trap
+in `WORKSPACE/DISCOVERIES.md` 2026-09-01, because it generalises well past this scenario.
 
-**Two candidate stories remain, wanting opposite fixes:**
+**THE FIX AS SHIPPED — the assertion, not the configuration.** Both scenarios now assert
+`not TestHarness.HoldsAttackActivity(unit)` instead of `unit.IsIdle`. That is the observable the
+scenarios are named for, and it is strictly *stronger* than the old check: an idle unit holds no
+attack activity either, so nothing the old assertion accepted is now rejected. The `Hold` pin stays
+reverted — the scenarios run on shipped defaults, and the disposition layer is free to do whatever it
+does, which is exactly the point.
 
-- **(A)** the guard fires, the order really ends, and something re-tasks the unit inside the same
-  tick. `Actor.cs:322-325` re-runs the queue immediately after `INotifyBecomingIdle`, deliberately,
-  so an idle edge consumed by *any* handler is invisible to Lua and `IsIdle` is a broken proxy.
-- **(B)** the guard does not release the unit, the original 2026-08-10 report is true, and both
-  scenarios have been correctly red all along. **On the evidence so far this is the better-supported
-  story** — two scenarios, two different guards (`AttackMoveActivity` and `AttackFollow.AttackActivity`),
-  two unit classes (`ar` infantry, `abrams`), and the disposition pin changes nothing.
-
-**What was NOT established, and is the whole gap:** nothing in any run so far demonstrates the guard
-firing. Every claim that it does is a code reading. `AttackBase.cs:452` warns in terms that
-`AmmoPool.CannotFight` "is NOT sufficient on its own" — that warning is about multi-pool actors and
-`ar` has one pool, but the general lesson holds: the predicate was assumed to hold at the moment the
-guard is evaluated, never observed.
-
-**Settled by instrumentation, committed and not yet run.** Both scenarios now report, at the moment
-the deadline expires: the unit's cell and its starting cell, `AmmoCount`, `Test.CannotFight` (the
-guards' own predicate, via a new binding), whether it was ever idle and for how many ticks, and the
-**activity chain** (`Test.ActivityChain`, parent>child>… | queued). Under (A) the chain is a
-`Move`/`RotateToEdge` and the unit has walked toward the map edge; under (B) it is still an attack
-activity at engagement range. Both scenarios also `print()` an execution marker to `lua.log`, because
-a 0-byte `lua.log` was previously indistinguishable from "the script never ran".
-
-**Method note worth keeping regardless of the outcome:** the wrong conclusion was reachable because
-the verdict said only *"never went idle"*, which is compatible with both stories, and the gap was
-filled by reading rather than by measuring. The instrumentation is the durable part of this entry.
+**Process lesson, and the expensive one.** The first conclusion was right and was abandoned after a
+single failed prediction, without first establishing *why* the fix failed. One failed fix falsifies
+**the fix**, not necessarily the diagnosis behind it — and here the fix failed for an unrelated YAML
+inheritance reason. The correct move on that run was to instrument, which is what eventually settled
+it; retracting first cost a cycle and briefly put a wrong "the engine is broken" reading into this
+file. **Before retracting a mechanism, check that the intervention you built on it actually reached
+the code path it was aimed at.**
 
 ---
 
-### 2026-09-01 — original analysis (CONCLUSION REFUTED, code reading still valid) (branch `wt/stuck-units`, `main @ 1fe106ff`)
+### 2026-09-01 — the analysis itself (CONFIRMED by the run above) (branch `wt/stuck-units`, `main @ 1fe106ff`)
 
 **It is NOT the paused-armament `[high]`.** That entry and this failure share a symptom sentence and
 nothing else, and the two are separated by a predicate the codebase already documents as distinct:
@@ -4096,30 +4090,34 @@ after the evacuation starts at ~tick 30. The deadline is 15 × `TicksPerSecond` 
 the men are still walking, alive and non-idle, when the assert expires — which is exactly what
 `result.json` records (`status: fail`, the timeout note, and no `"fail: Hunter died first"`).
 
-**FIX — RUN, FAILED, AND REVERTED. Kept only so nobody retries it.** `rules.yaml` pinned
-`InitialResupplyBehavior: Hold` / `InitialResupplyBehaviorAI: Hold`. `Hold` is the one disposition
-that queues nothing
-(`AmmoPool.cs`, `case ResupplyBehavior.Hold`: flag `NeedsResupply` and return), so the unit stays idle
-once the guard releases it and `IsIdle` is a faithful proxy for "the attack order was dropped" again.
-Deliberately a pin rather than a re-pointed assertion: the disposition layer has its own coverage
-(NUnit `ResupplyAutoFallbackTest`, plus the evacuation scenarios), and a test named
-`...-dry-breaks-off` should fail when and only when the break-off guard fails.
+**REJECTED FIX — tried, run, failed, reverted. Recorded so nobody retries it.** `rules.yaml` pinned
+`InitialResupplyBehavior: Hold` / `InitialResupplyBehaviorAI: Hold` under `^Combatant`, on the correct
+reasoning that `Hold` is the one disposition that queues nothing (`AmmoPool.cs`,
+`case ResupplyBehavior.Hold`: flag `NeedsResupply` and return). **The idea was sound and the pin was
+inert** — later `Inherits@` wins field-by-field, and `^AR`'s `Inherits@AutoTarget: ^AutoTargetLMG`
+re-imports `InitialResupplyBehavior: Auto` from `^AutoTarget`. To pin it for real it would have to go
+on the ACTOR (`ar:` / `abrams:`), not on a template the actor re-inherits over. **It is not needed:
+the shipped fix is the assertion, not the configuration.**
 
-**RED / GREEN messages.** GREEN is `status: pass`. The RED that proves it non-vacuous is *sabotage the
-guard, not the ammo*: delete the `if (AmmoPool.CannotFight(self)) return true;` at
-`Activities/Attack.cs:117` **and** the `|| AmmoPool.CannotFight(self)` at
-`Move/AttackMoveActivity.cs:128`, and the run must fail with the scenario's own note — *"A dry man
-never went idle: he kept an attack order he could not carry out"*. Removing only one of the two is a
-weaker RED: Hunter's parent cancels his attack child before that child's guard runs, so the
-attack-move arm alone says nothing about `Activities/Attack.cs`.
+**SHIPPED FIX — assert the activity, not the idleness.** Both scenarios now assert
+`not TestHarness.HoldsAttackActivity(unit)`. Strictly stronger than the old `IsIdle` check (an idle
+unit holds no attack activity either), and it survives whatever the resupply disposition layer
+decides to do next — which is the whole reason the old assertion rotted.
 
-**PREDICTION, unmeasured, falsifiable: `test-attackfollow-dry-breaks-off` is red on `main` for the
-identical reason.** Its `abrams` also has exactly one pool (`primary-ammo`) and names
-`RearmActors: logisticscenter` with no Logistics Centre on its map, so it takes the same `Evacuate`
-branch. Its `rules.yaml` has been given the same `Hold` pin. **If that scenario was GREEN before this
-change, this diagnosis is wrong and wants revisiting** — the pin cannot break a passing run (`Hold`
-queues strictly less than `Auto`), so a green there proves only that its unit was already reaching
-idle, which the mechanism above says it should not have been.
+**RED / GREEN.** GREEN is `status: pass`. The RED that proves non-vacuity is *sabotage the guard, not
+the ammo*: delete the `if (AmmoPool.CannotFight(self)) return true;` at `Activities/Attack.cs:117`
+**and** the `|| AmmoPool.CannotFight(self)` at `Move/AttackMoveActivity.cs:128`, and the run must fail
+with *"A dry man never dropped his attack order"* plus an `acts=[…]` list still showing an
+`Attack`/`AttackMoveActivity` component. Removing only one of the two is a weaker RED: Hunter's parent
+cancels his attack child before that child's guard runs, so the attack-move arm alone says nothing
+about `Activities/Attack.cs`. **The pre-fix instrumented run is itself most of that RED already** —
+it recorded the attack chains at the drain and the transition away from them, so the guard is
+observed working rather than assumed.
+
+**PREDICTION CONFIRMED: `test-attackfollow-dry-breaks-off` was red on `main`** (*"Dry Abrams never
+went idle"*), exactly as predicted from its single pool and absent `logisticscenter`. It has been
+re-pointed to the same activity assertion but **has NOT been re-run**, so its green is predicted, not
+measured.
 
 **Census of the blast radius.** Eight scenarios both assert `IsIdle` and manipulate ammo:
 `test-attackfollow-dry-breaks-off`, `test-attackmove-dry-breaks-off`, `test-dry-inrange-idle-oscillation`,

@@ -628,16 +628,69 @@ handles `Scroll` events whatever `ScrollBar` is set to (`ScrollPanelWidget.cs:34
 never made the tail unreachable — only unadvertised. The fix is therefore about honesty, and the invariant
 to assert is `bar shown <=> clip < content`, which holds at every window size, rather than `never clip`,
 which is a claim about one window size.
+## 2026-09-01 — A map-level override of a TEMPLATE can be silently undone by a later `Inherits@` on the derived actor — and a sibling field in the same block that keeps working is what hides it (`wt/stuck-units`)
+
+**Cost one wrong retraction of a correct diagnosis.** A scenario `rules.yaml` set, under `^Combatant`:
+
+```
+^Combatant:
+	AutoTarget:
+		ScanRadius: 30                       # takes effect
+		InitialResupplyBehavior: Hold        # SILENTLY DISCARDED
+```
+
+`ScanRadius` applied. `InitialResupplyBehavior` did not. Both are fields of the same trait, in the
+same block, on the same template.
+
+**Mechanism.** `MiniYaml.ResolveInherits` (`engine/OpenRA.Game/MiniYaml.cs:449-489`) walks a node's
+children **in source order** and, for each `Inherits`/`Inherits@` line, merges that parent's resolved
+nodes into the accumulator via `MergeIntoResolved`. **Later parents therefore win, field by field.**
+`^AR` reads:
+
+```
+^AR:
+	Inherits@Type: ^CamoSoldier          # -> ^Combatant -> AutoTarget (the scenario's override)
+	Inherits@AutoTarget: ^AutoTargetLMG  # -> ^AutoTarget -> AutoTarget: InitialResupplyBehavior: Auto
+```
+
+`^AutoTarget` sets `InitialResupplyBehavior: Auto` (`defaults.yaml:390`) and **never sets
+`ScanRadius`**. So the later inherit clobbers one field and leaves the other alone — the override
+block looks live because the field you can easily see working *is* working.
+
+**Why this is worse than ordinary override-order trivia.** The usual mental model is "map rules beat
+mod rules", and that is true for the ACTOR's own definitions. It is not true for a TEMPLATE the actor
+re-inherits over afterwards: the map's edit to `^Combatant` is applied and then overwritten from
+`^AutoTarget`, which the map never touched. The failure is silent, per-field, and produces a
+partially-effective block — the shape most likely to be misread as a refutation of whatever the
+override was testing. It was: a correct diagnosis was retracted because the intervention built on it
+"did not work", when in fact the intervention never reached the code path.
+
+**What to do instead.** Pin on the ACTOR (`ar:` / `abrams:`), not on a shared template the actor
+inherits over — an actor's own nodes are merged last and always win. Or avoid configuration pins
+altogether and assert on the observable directly, which is what shipped here.
+
+**Detectors, cheapest first.**
+- Before trusting a template override, list the derived actor's `Inherits@` lines **in order** and
+  check whether any *later* parent sets the same field. `^AutoTarget`, `^AutoTargetLMG` and friends
+  are the common late arrivals in this mod because combat actors import them after `^Combatant`.
+- Do not infer "the block works" from one field in it working. Confirm the *specific* field.
+- Resolve the ruleset (`--dump-balance-json`, or an in-game readback) rather than reading YAML, when
+  the answer is load-bearing. Note the balance dump does not carry `AutoTarget` fields, so it would
+  not have caught this one — which is itself worth knowing.
+
+**Adjacent, already documented, different rule:** `conventions.md` §"A duplicate trait key inside ONE
+actor: LAST value wins, at the FIRST key's position" covers duplicate keys *within* one actor. This is
+the inheritance-order sibling of that trap.
+
 ## 2026-09-01 — `Actor.IsIdle` can NEVER be observed true for a unit whose idleness triggers a handler that queues work, because the engine re-runs the queue in the same tick on purpose (`wt/stuck-units`)
 
-> **SCOPE CORRECTION, same day.** The engine mechanism below is real and verified by reading. What is
-> **NOT** established is that it explains `test-attackmove-dry-breaks-off`'s red. It was published as
-> that explanation; the resulting fix (pin `ResupplyBehavior: Hold`, the one disposition that queues
-> nothing) was **run and did not work**, and has been reverted. The live alternative is that the ammo
-> guard never releases the unit at all — i.e. the original bug report is true and no proxy is at
-> fault. See `WORKSPACE/bugs/discovered.md` 2026-09-01 for the retraction and the instrumented run
-> that decides it. **Read what follows as "here is a real trap that exists", not as "here is why that
-> scenario is red".**
+> **CONFIRMED BY MEASUREMENT** — run `260901_073202_p95073`, execution markers present. Both dry men
+> reported `idleTicks=0` and `cannotFight=true` while their activity chains had already moved from
+> `AttackMoveActivity>SmartMoveActivity>Move` to `RotateToEdge>SmartMoveActivity>Move`, walking west
+> from x=9 to x=2. The order ended, the idle edge was consumed inside the tick, and `IsIdle` never
+> showed it. *(An intermediate note scoped this entry down to "a trap that exists" after a fix
+> appeared to refute it. That fix was inert for an unrelated reason — see the inherits-order entry
+> immediately below — and the scoping is withdrawn.)*
 
 **The trap is that `IsIdle` looks like a state and behaves like an *edge*.**
 
@@ -667,7 +720,7 @@ queue an activity** (`Auto` → seek *or* evacuate, `Evacuate` → evacuate). On
 `Aircraft.OnBecomingIdle` always queues (`FlyIdle`), so **an aircraft is essentially never `IsIdle`
 at all** — which is also why a dry fixed-wing loiters forever rather than stopping.
 
-**The durable lesson, which survives whichever way the open question lands.** A verdict of the form
+**The durable lesson.** A verdict of the form
 *"the unit never went idle"* is compatible with **opposite** root causes — the activity refusing to
 end, or the activity ending and being replaced within the tick — and no amount of code reading
 reliably picks between them. Diagnosing that gap by reading is what produced a confident published
@@ -677,9 +730,18 @@ own predicate), cell-versus-start-cell, and an idle-tick counter into the failur
 an execution marker, because a 0-byte `lua.log` was otherwise indistinguishable from a script that
 never ran.
 
-**Two new Lua bindings** (`TestGlobal.ActivityChain`, `TestGlobal.CannotFight`, both `TestMode`-gated)
-and `TestHarness.AssertWithin` now accepts a **function** as its timeout reason, evaluated at timeout
-so a note can carry end-of-run state. All 91 existing deadlines pass strings and are unaffected.
+**The reusable pieces this produced**, all available to any scenario:
+
+- `Test.ActivityChain(actor)` — `"Parent>Child>… | Next>…"`, or `"(idle)"`. `TestMode`-gated.
+- `Test.CannotFight(actor)` — the ammo guards' own predicate, so a failure note can answer "did the
+  guard's condition even hold?" without inferring it from an ammo count.
+- **`TestHarness.HoldsAttackActivity(actor)` — use this, not `not actor.IsIdle`, whenever the question
+  is "did the unit drop its attack order".** It is strictly stronger: an idle unit holds no attack
+  activity either, so it accepts everything `IsIdle` accepted and additionally survives the unit being
+  re-tasked. Documented as a type-name prefix heuristic, because attack activities share no interface
+  to query.
+- `TestHarness.AssertWithin` now accepts a **function** as its timeout reason, evaluated at timeout so
+  the note can carry end-of-run state. All 91 existing deadlines pass strings and are unaffected.
 
 **Related but separately verified — the census stands regardless.** Eight scenarios assert `IsIdle`
 while manipulating ammo (`test-attackfollow-dry-breaks-off`, `test-attackmove-dry-breaks-off`,
