@@ -3929,3 +3929,34 @@ BEHAVIOUR of a queued Resupply** — no scenario anywhere exercises it, and `res
 has been building queued orders since it was written without the hotkey ever being able to deliver
 one. `autoEnterButton` and `patrolButton` are still absent from the array; `stopButton` is absent
 correctly, since a Stop must never queue.
+
+---
+
+## 2026-09-01 — `demo-experimental-capture-coordinator` never runs its own Lua
+
+**Found by** the first clean-tree run of `make lua-gate` (`tools/lua-gate/`). Filed, not fixed.
+**Not run**: static finding, no launch spent.
+
+The scenario directory carries `demo-experimental-capture-coordinator.lua`, whose entire body is a
+`TestHarness.FocusBetween(NeutralBio, NeutralFcom, NeutralOilb1, NeutralOilb2)` that frames the
+camera across the contested neutral capturables. But neither its `rules.yaml` nor its `map.yaml`
+declares `LuaScript:` / `Scripts:` anywhere, so the engine never loads the file. `WorldLoaded` has
+never been called and the demo has always opened on an unframed camera.
+
+It is the only one of 214 scenarios with this shape — every other scenario declares
+`Scripts: test-helpers.lua, <scenario>.lua`. Two things are wrong together, which is why it went
+unnoticed: without the `Scripts:` line the scenario's own script is absent *and* `test-helpers.lua`
+is absent, so `TestHarness` would be nil even if the file did load.
+
+**Confirm by:** `grep -rn Scripts: tools/autotest/scenarios/demo-experimental-capture-coordinator/`
+returns nothing.
+
+**Fix is** adding the standard block to `rules.yaml` under `World:`:
+
+```
+	LuaScript:
+		Scripts: test-helpers.lua, demo-experimental-capture-coordinator.lua
+```
+
+Not applied here because it changes what a demo shows on screen, which wants a look rather than a
+silent edit from a tooling branch.
