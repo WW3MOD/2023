@@ -3,6 +3,27 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+> ## ⚠️ THIS FILE IS WRITTEN FROM BOTH ENDS. Read this before appending or curating.
+>
+> **Established 2026-09-01 by counting dates across all 507 entries at `main @ bd8e7290`.** The file has **two append regions with opposite directions**, and the seam is at **line 9072/9078**:
+>
+> | Region | Lines | Order | New entries go |
+> |---|---|---|---|
+> | **A** | 1 – 9077 | reverse-chronological, **newest first** | prepended at the **top** (line 6) |
+> | **B** | 9078 – end | chronological, **oldest first** | appended at the **bottom** |
+>
+> Region A descends 2026-08-30 → 2026-03-21. Region B ascends 2026-06-18 → 2026-08-30. **Both regions received 2026-08-30 writes**, so this is not a historical artefact that has settled — it is the live convention, and two workers on the same day will land at opposite ends of a 14,000-line file without ever seeing each other.
+>
+> **This is not cosmetic. It has already produced a duplicate:** the shadow-determinism result was written twice on 2026-08-30, at **`:176`** and **`:13676`**. The bottom copy was curated and promoted; the top copy was never seen by that pass and sat untagged. It is now marked rejected-as-duplicate below.
+>
+> **Consequences, in the order they will bite you:**
+> 1. **Before appending, grep for your subject.** A date-ordered scan of "recent entries" only ever shows you one end.
+> 2. **A curation pass must state which region it covered.** The 2026-08-27 pass touched line 12524 onward — that is deep inside region B and reached none of region A. "The pass is done" has meant "one end is done".
+> 3. **Tag geography as of 2026-09-01: 507 entries, 204 tagged, 303 untagged** — not the ~35 or the 98 that earlier estimates carried. The untagged ones are spread across BOTH regions, which is exactly what a two-ended file with one-ended curation passes produces.
+> 4. **Tags live on a `> **[promoted]**` / `> **[rejected: …]**` line BELOW the heading, never in the heading itself.** A `grep '^## .*\[promoted\]'` returns zero and looks like a totally uncurated file. Match on the blockquote line.
+>
+> **If you fix this, fix it by picking one direction and migrating the smaller region** — do not leave both conventions documented as equally valid, or the next writer will keep choosing at random.
+
 ## 2026-08-30 — The tooltip mockups and the audit both assert HIMARS refills at a Logistics Centre; a same-day user ruling says it cannot (`wt/tooltip-elements`)
 
 - `tooltip-mockups/units.html` shows the HIMARS card carrying **"133% of a Logistics Centre"** and the
@@ -173,7 +194,11 @@ entry below — the trap is not a `LabelWidget` quirk, it is how `Widget` copies
   should be fixed, and that adding a line is a deliberate act needing a reason. The four sibling
   stance maps carry the cordon error as `[repo]` debt, so copying their geometry silently copies the
   debt. `Bounds: 1,1,64,32` on a `MapSize: 66,34` map satisfies the one-cell border and costs nothing.
-## 2026-08-30 — Shadow generation is deterministic ACROSS machines, OSes and CPU families; it is cleared as a suspect for the 2026-08-16 two-machine desync (`wt/shadow-cache`)
+## 2026-08-30 — Shadow generation is deterministic ACROSS machines and OSes ~~and CPU families~~ (**one** CPU family, x86_64 — heading corrected 2026-09-01 to match this entry's own body); it is cleared as a suspect for the 2026-08-16 two-machine desync (`wt/shadow-cache`)
+
+> **[rejected: duplicate — the same result was written the same day at the other end of the file, and that copy is already promoted]** (curation 2026-09-01, `main @ bd8e7290`). The twin is the 2026-08-30 entry *"Shadow generation IS deterministic across machines; the desync suspect is cleared"*, which carries `> **[promoted]** → architecture.md §"Regenerating shadows.bin"`. Same commit `55836dd8`, same map, same sha256 `dbecdd1…`, same 36,871,948 bytes, same refuted hypothesis, same "per-player generation is SAFE" consequence. **Per README §"One home per fact", this copy is rejected rather than re-promoted.**
+> **Read this rejection as evidence, not bookkeeping — it is the two-append-region hazard firing.** Both copies were written on 2026-08-30; the curation pass that promoted the other one never saw this one, because it worked the bottom of the file and this is the top. See the banner at the head of this file.
+> **Nothing is lost by rejecting it, but one detail here is worth keeping and is NOT in the promoted twin:** this copy records that an earlier revision claimed *"two CPU families"* on the belief that the macOS host was Apple Silicon, and that it is in fact an Intel Core i7-9750H (`machdep.cpu.brand_string`). The promoted twin states the correct scope ("both x64") but not the correction that got it there. **The promoted claim is one CPU family, two OSes, two implementations — do not let the heading of this entry, which still says "CPU families", talk you back out of that.**
 
 - **The result.** Same commit `55836dd8`, same map, regenerated from scratch with no cache present, on
   **Windows 11 x64** and on **macOS x86_64**, both on dotnet `6.0.428`: **byte-identical**, sha256
