@@ -1,0 +1,22 @@
+# Eyeball-only staging for the command bar. No enemy, no economy, no victory check —
+# the only thing under inspection is chrome, so nothing here should move on its own.
+
+Player:
+	-ConquestVictoryConditions:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# UnitDefaultsManager applies this machine's saved per-type stance defaults to
+	# human-owned units (AutoTarget.cs). Strip it so which stance button reads as
+	# active in the shot does not depend on the dev's saved settings — the four stance
+	# bars share the amber highlight vocabulary this demo is inspecting.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, demo-command-bar-modes.lua
