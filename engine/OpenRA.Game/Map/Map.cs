@@ -1886,7 +1886,7 @@ namespace OpenRA
 			// cuts differently. A floored key can never sort a FARTHER cell ahead of a nearer one (it is
 			// monotone in |k|), so a single-winner pick only ever saw a tie. Take(count) is what does the
 			// damage: it cuts INSIDE a merged tie-group that is ordered by UpdateEdgeCells' enumeration
-			// (v ascending, :1940-1967) rather than by distance, so the low-v end of the band displaces
+			// (v ascending, UpdateEdgeCells below) rather than by distance, so the low-v end of the band displaces
 			// genuinely nearer cells out of the chosen SET. Measured: on twin-rivers-ww3 (hint 111,91,
 			// d=15) the old key returned rows 86-90 where the five nearest are 89-93 — 3 of 5 members
 			// wrong, and every row the old key EXCLUDED was nearer than every row it KEPT in exchange
