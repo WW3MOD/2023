@@ -44,6 +44,14 @@ World:
 # than an absent one.
 fogmarker:
 	Inherits: PBOX
+	# A NEW actor name resolves its sprites by that name, not by its parent's -- so
+	# inheriting PBOX inherits the traits but NOT the artwork, and the engine dies at world
+	# load with "Image `fogmarker` does not have any sequences defined". Confirmed by a
+	# CRASH on the first run of this scenario, 2026-09-01 (run 260901_223928_p28219).
+	# Neither lua-gate nor nav-guard can see this: both check names and geometry, and the
+	# sequence set is loaded from mods/ww3mod/sequences/ at world load, which is later.
+	RenderSprites:
+		Image: pbox
 	-Vision@10:
 	-Vision@9:
 	-Vision@8:

@@ -59,6 +59,16 @@ World:
 # for an instrument that spends its whole life standing still.
 shademarker:
 	Inherits: PBOX
+	# A NEW actor name resolves its sprites by that name, not by its parent's, so
+	# Inherits: PBOX brings the traits and NOT the artwork. Without this the engine dies at
+	# world load with "Image `shademarker` does not have any sequences defined". Confirmed
+	# by a CRASH on this scenario's first run, 2026-09-01 (run 260901_224949_p29100) -- and
+	# independently, the same day, by test-fog-darkness-ruler's first run, which is why this
+	# is a documented trap rather than one author's slip. No static gate can see it:
+	# lua-gate checks names and bindings, nav-guard checks geometry, and the sequence set is
+	# not resolved until world load.
+	RenderSprites:
+		Image: pbox
 	-Vision@10:
 	-Vision@9:
 	-Vision@8:
