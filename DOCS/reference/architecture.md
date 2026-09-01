@@ -197,10 +197,10 @@ Per-player visibility is queried as `player.MapLayers.IsVisible(cell, 1)` — th
 | ShockwaveDamageWarhead.cs | Explosive blast wave effects |
 | InfantryStates.cs | Infantry states replacing TakeCover |
 | EjectOnHusk.cs | Crew ejection from destroyed vehicles |
-| GarrisonManager.cs | Shelter/port deployment model with IDamageModifier (indestructible at 1HP), dynamic ownership (enter→claim, empty→neutral), suppression-aware ports (duck at 30+, recall at 60+, lockout), ambush integration |
+| GarrisonManager.cs | Shelter/port deployment model with IDamageModifier (indestructible at 1HP), dynamic ownership (enter→claim, empty→neutral), suppression-aware ports (recall at 60+, redeploy lockout), ambush integration. Corrected 2026-09-01: there is **no duck tier** — the `SuppressionDuckThreshold`/`IsDucking` pair was deleted and only the PITFALL at `:98` remembers it; `SuppressionRecallThreshold` (`:100`) is the sole suppression threshold |
 | GarrisonProtection.cs | Damage pass-through to shelter occupants only (port soldiers have DamageMultiplier via garrisoned-at-port condition) |
 | GarrisonPortOccupant.cs | ITargetable on infantry: directional port targetability — soldiers only targetable by enemies within port's firing arc |
-| WithGarrisonDecoration.cs | Garrison pips (centered bottom) + protection % text overlay (color-coded) + empty port indicators |
+| WithGarrisonDecoration.cs | Per-soldier 4-row pip grid, centered bottom: damage / class / ammo / suppression (`:84-88`). Corrected 2026-09-01: there is **no protection % text overlay** (the file renders no text at all) and **no empty port indicators** — `slotCount = totalCount` renders filled slots only, deliberately, per the comment at `:253-256`, so capacity is never shown. Also inherits `ValidRelationships: Ally` from `WithDecorationBase` (`:108`) and does not override it, so the whole readout is **invisible to enemies** |
 | GarrisonPanelLogic.cs | Sidebar panel for garrison management (shows deployed + shelter soldiers) — pending icon rewrite |
 | SupplyProvider.cs | Greatest-need resupply: 1 pip per cycle, cycles to unit with most need, limited supply capacity |
 | QuickRearm.cs | Enter-truck instant rearm: infantry enters Cargo, auto-ejected after delay with full ammo |
