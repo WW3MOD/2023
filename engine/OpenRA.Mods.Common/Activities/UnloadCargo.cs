@@ -114,11 +114,30 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			var pos = passenger.Trait<IPositionable>();
 
+			// Shuffle FIRST, then rank by how far astern the cell sits. OrderBy is a stable sort, so the
+			// shuffle still breaks ties between the two rear quarters and the stick does not always favour one
+			// flank — while the rear cells as a group are always tried before the beam and the bow.
+			//
+			// A RANKING, NOT A FILTER, and that distinction is load-bearing for throughput. Restricting a
+			// dismount to the three rear cells would make a full transport queue on them and turn "spread out
+			// as fast as possible" into a slower trickle than the old any-free-cell shuffle. Ordering costs
+			// nothing when the rear is clear and degrades exactly to the previous behaviour when it is not:
+			// man one takes dead astern, man two finds it occupied and takes a rear quarter, and so on
+			// outwards — which IS the fan, produced by placement alone with no extra movement.
+			//
+			// A transport with no IFacing keeps the plain shuffle: there is no "behind" to prefer.
+			var candidates = cargo.CurrentAdjacentCells.Shuffle(self.World.SharedRandom);
+			var hullFacing = self.TraitOrDefault<IFacing>();
+			if (hullFacing != null)
+			{
+				var origin = self.Location;
+				candidates = candidates.OrderBy(c => DismountGeometry.RearPreference(hullFacing.Facing, c - origin));
+			}
+
 			// Cast<T?> so FirstOrDefault yields null, not (default, Invalid), when no cell is free — Tick's
 			// exitSubCell == null branch (NotifyBlocker + retry) is unreachable without it. A post-6.0 analyzer
 			// calls this cast always-empty (CA2021); that is a false positive, do not "simplify" it away.
-			return cargo.CurrentAdjacentCells
-				.Shuffle(self.World.SharedRandom)
+			return candidates
 				.Select(c => (c, pos.GetAvailableSubCell(c)))
 				.Cast<(CPos, SubCell SubCell)?>()
 				.FirstOrDefault(s => s.Value.SubCell != SubCell.Invalid);

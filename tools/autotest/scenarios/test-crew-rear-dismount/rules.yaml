@@ -1,0 +1,24 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-crew-rear-dismount.lua
+
+abrams:
+	# Auto-evacuation OFF for this scenario ONLY, so the crew's final cells are where the DISMOUNT
+	# put them. With the shipped default (VehicleCrewInfo.AutoEvacuateOnEject: true) each man walks
+	# clear and then immediately turns for the map edge, and a position sampled after that is a
+	# statement about the evacuation route rather than about the fan. Item 2 is covered separately
+	# by test-crew-auto-evacuate; this scenario is item 3 in isolation.
+	VehicleCrew:
+		AutoEvacuateOnEject: false

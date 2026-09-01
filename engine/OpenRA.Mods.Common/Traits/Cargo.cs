@@ -223,13 +223,6 @@ namespace OpenRA.Mods.Common.Traits
 		INotifyOwnerChanged, INotifySold, INotifyActorDisposing, IIssueDeployOrder,
 		ITransformActorInitModifier
 	{
-		// Eight compass headings a bailing passenger can run in to clear the hull.
-		static readonly CVec[] BailScatterDirections =
-		{
-			new CVec(0, -1), new CVec(1, -1), new CVec(1, 0), new CVec(1, 1),
-			new CVec(0, 1), new CVec(-1, 1), new CVec(-1, 0), new CVec(-1, -1),
-		};
-
 		public readonly CargoInfo Info;
 		readonly Actor self;
 		readonly List<Actor> cargo = new List<Actor>();
@@ -1009,6 +1002,23 @@ namespace OpenRA.Mods.Common.Traits
 			self.World.AddFrameEndTask(w => w.Add(new DelayedAction(delay, () => EmergencyBailStep(self))));
 		}
 
+		/// <summary>The adjacency ring, shuffled and then ranked so the cells behind the hull are tried first.
+		/// <para>Shuffle then stable OrderBy: the rear cells always precede the beam and the bow, while the
+		/// shuffle still decides which of the two rear quarters a given man gets, so a bailing stick does not
+		/// pile onto one flank. A hull with no IFacing keeps the plain shuffle — there is no "behind" to prefer.</para>
+		/// <para>Ranking, never filtering. The caller falls through to the hull's own cell only when EVERY
+		/// adjacent cell is unusable, and narrowing this to the rear three would reach that fallback — men left
+		/// standing on a burning husk — whenever the vehicle happened to be reversed against cover.</para></summary>
+		IEnumerable<CPos> RearFirstExitCandidates(CPos origin)
+		{
+			var candidates = CurrentAdjacentCells.Shuffle(self.World.SharedRandom);
+			var hullFacing = facing.Value;
+			if (hullFacing == null)
+				return candidates;
+
+			return candidates.OrderBy(c => DismountGeometry.RearPreference(hullFacing.Facing, c - origin));
+		}
+
 		/// <summary>Put ONE passenger on the ground now. He takes a free adjacent cell, or the hull's
 		/// own cell if none is free — but every candidate is checked for passability first, so nobody
 		/// is placed on ground he cannot stand on.
@@ -1025,6 +1035,13 @@ namespace OpenRA.Mods.Common.Traits
 			// drawn at the hull for one frame, so he visually spills out of it.
 			var spawn = self.CenterPosition;
 			var husk = self.Location;
+
+			// Read once, outside the loop and outside the frame-end task. bailUnloaded is the 0-based ordinal
+			// of the man about to be placed (the caller increments it only after we return), so it is exactly
+			// the fan slot. Facing is captured here rather than in the closure because the hull may keep
+			// turning between the queue and the frame end.
+			var bailFacing = facing.Value;
+			var bailFanIndex = bailUnloaded;
 
 			// No claimed-subcell bookkeeping here, unlike the unpaced bail this
 			// replaced. Steps are at least a tick apart, so each man is genuinely in
@@ -1048,7 +1065,7 @@ namespace OpenRA.Mods.Common.Traits
 				// onto open water when it was hit mid-river, then handed each man a
 				// move order out of a cell his locomotor cannot path from.
 				(CPos Cell, SubCell SubCell)? exit = null;
-				foreach (var candidate in CurrentAdjacentCells.Shuffle(self.World.SharedRandom).Append(husk))
+				foreach (var candidate in RearFirstExitCandidates(husk).Append(husk))
 				{
 					var subCellHere = positionable.GetAvailableSubCell(candidate, SubCell.Any, self);
 					if (subCellHere == SubCell.Invalid)
@@ -1093,12 +1110,20 @@ namespace OpenRA.Mods.Common.Traits
 					// Get clear of the cookoff. ^CrewedVehicle2/3 detonate a
 					// VehicleCookoff on death with a single-tile radius, so standing
 					// on the husk is what kills a man who otherwise got out in time.
+					//
+					// Direction is rear-fanned off the hull's facing rather than a random compass roll, so a
+					// bailing stick splits back / left / right out of the vehicle's arse instead of scattering
+					// through its nose. Distance keeps its SharedRandom roll — without a varied stride the
+					// squad walks parallel lines of identical length.
 					var mobile = actor.TraitOrDefault<Mobile>();
 					if (mobile != null && !actor.IsDead)
 					{
-						var dir = BailScatterDirections[w.SharedRandom.Next(BailScatterDirections.Length)];
+						var step = bailFacing != null
+							? DismountGeometry.FanStep(bailFacing.Facing, bailFanIndex)
+							: DismountGeometry.CompassStep(w.SharedRandom.Next(DismountGeometry.CompassCount));
+
 						var dist = 2 + w.SharedRandom.Next(2);
-						actor.QueueActivity(false, mobile.MoveTo(husk + new CVec(dir.X * dist, dir.Y * dist), 0, null, true));
+						actor.QueueActivity(false, mobile.MoveTo(husk + step * dist, 0, null, true));
 					}
 
 					foreach (var nbm in actor.TraitsImplementing<INotifyBlockingMove>())
