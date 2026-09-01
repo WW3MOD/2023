@@ -3,23 +3,36 @@
 -- A button's IsHighlighted does two things. The panel swaps via
 -- ButtonWidget.DrawBackground (ButtonWidget.cs:315-320) and always worked. The glyph
 -- swaps via WidgetUtils.GetCachedStatefulImage (WidgetUtils.cs:44-54), which appends
--- "-highlighted" to the COLLECTION name -- but only for buttons that opted in through
--- WidgetUtils.BindButtonIcon (WidgetUtils.cs:324-330). The command bar does opt in for
--- every button, and command-icons-highlighted is `Inherits: command-icons` with no
--- regions, so the override and the fallback resolved to the same rectangle and the
--- glyph never changed. wt/cmdbar-highlight moves the six HELD modes onto a
--- command-mode-icons collection whose -highlighted twin points at amber recolours.
+-- "-highlighted" to the COLLECTION name, for buttons that opted in through
+-- WidgetUtils.BindButtonIcon (WidgetUtils.cs:324-330). The command bar opts in for every
+-- button, and command-icons-highlighted is `Inherits: command-icons` with no regions, so
+-- override and fallback resolved to the same rectangle and the glyph never changed. The
+-- six HELD modes now draw command-mode-icons, whose twin points at amber recolours.
 --
--- The fourth shot is the one that matters. PATROL (X 324) and AUTO_ENTER (X 358) are
--- adjacent buttons drawing the SAME `guard` glyph, but PATROL is a held mode and
--- AUTO_ENTER is a momentary flash. Only PATROL moved collections, so with Patrol
--- engaged the two must differ: amber on the left, grey on the right. If they match,
--- either the change is inert (both grey) or the collection split failed (both amber).
+-- HISTORY, because it decides what this file may assume: the first version of this demo
+-- died on its second frame. Engaging a mode sets World.OrderGenerator, and Test.PressHotkey
+-- dispatched Ui.HandleKeyPress bare from inside the synced Lua tick, so Sync.AssertUnsynced
+-- threw and shots 02-04 never happened. PressHotkey now wraps the dispatch in
+-- Sync.RunUnsynced exactly as DefaultInputHandler.OnKeyInput does (InputHandler.cs:40).
+-- That is what makes every line below reachable -- before it, NO autotest could engage any
+-- command-bar mode at all.
 --
--- Not a pass/fail test -- it stages each mode and Skips (exit code 2) once the last
--- capture has flushed.
+-- Each press records whether a widget consumed it and says so in that shot's note, because
+-- an unconsumed press produces a frame that looks exactly like an inert change.
+--
+-- Not a pass/fail test -- it stages each mode and Skips (exit code 2) once the last capture
+-- has flushed.
 
 local TPS = TestHarness.TicksPerSecond
+
+local function consumedNote(ok)
+	if ok then
+		return " [keypress consumed: yes]"
+	end
+
+	return " [keypress consumed: NO -- the mode did not engage, so this frame proves nothing " ..
+		"about the glyph either way]"
+end
 
 WorldLoaded = function()
 	TestHarness.FocusBetween(Rifle1, Apc)
@@ -31,36 +44,41 @@ WorldLoaded = function()
 	TestHarness.ScreenshotAfter(2, "01-no-mode-control",
 		"expects, bottom-left: the full command bar with a rifleman selected and NO " ..
 		"mode engaged. Every glyph grey, every panel dark. This is the baseline the " ..
-		"other three shots are read against -- any amber in this frame is a bug.")
+		"other shots are read against -- any amber in this frame is a bug.")
 
-	Trigger.AfterDelay(4 * TPS, function()
-		Test.PressHotkey("AttackMove")
-		TestHarness.ScreenshotAfter(1.5, "02-attack-move",
-			"expects: ATTACK_MOVE (leftmost button of the left command panel) drawn " ..
-			"with an AMBER glyph on the lighter highlighted panel. Every other glyph " ..
-			"on the bar stays grey. Before this branch the panel lightened but the " ..
-			"glyph stayed grey -- that is what an inert change looks like here.")
-	end)
+	-- Left command panel, 8 buttons: Attack Move, Force Move, Force Attack, Guard,
+	-- Deploy, Scatter, Stop, Waypoint. Right panel, 4: Resupply, Patrol, Auto-Enter,
+	-- Evacuate. Each mode replaces the previous one's order generator, so exactly one
+	-- glyph should be amber in each of the shots below.
+	local steps = {
+		{ key = "AttackMove", label = "02-attack-move",
+		  note = "expects: ATTACK_MOVE (1st button, LEFT panel) amber; everything else grey." },
+		{ key = "ForceMove", label = "03-force-move",
+		  note = "expects: FORCE_MOVE (2nd, LEFT) amber. Reached through the sticky " ..
+			"ForceModifiersOrderGenerator its OnClick sets, NOT through live modifier keys -- " ..
+			"PressHotkey cannot press Ctrl." },
+		{ key = "ForceAttack", label = "04-force-attack",
+		  note = "expects: FORCE_ATTACK (3rd, LEFT) amber and FORCE_MOVE grey again. If BOTH " ..
+			"are amber the two force modes are not distinguishing their modifier sets." },
+		{ key = "Guard", label = "05-guard",
+		  note = "expects: GUARD (4th, LEFT) amber, everything else grey." },
+		{ key = "Patrol", label = "06-patrol-vs-auto-enter",
+		  note = "THE DISCRIMINATING SHOT. PATROL (2nd, RIGHT) and AUTO_ENTER (3rd, RIGHT) sit " ..
+			"side by side and draw the IDENTICAL `guard` glyph, but only PATROL is a held mode " ..
+			"and only PATROL moved to command-mode-icons. Expects PATROL AMBER, AUTO_ENTER GREY. " ..
+			"Both grey = the change is inert. Both amber = the mode/momentary split failed." },
+		{ key = "WaypointMode", label = "07-waypoint",
+		  note = "expects: WAYPOINT (8th and last, LEFT panel) amber, PATROL grey again." },
+	}
 
-	Trigger.AfterDelay(8 * TPS, function()
-		Test.PressHotkey("Guard")
-		TestHarness.ScreenshotAfter(1.5, "03-guard",
-			"expects: GUARD (4th button, left panel) amber; ATTACK_MOVE back to grey " ..
-			"because setting the guard order generator replaces the attack-move one. " ..
-			"Two amber glyphs at once would mean the modes are not mutually exclusive.")
-	end)
+	for i, step in ipairs(steps) do
+		Trigger.AfterDelay((i + 1) * 4 * TPS, function()
+			local ok = Test.PressHotkey(step.key)
+			TestHarness.ScreenshotAfter(1.5, step.label, step.note .. consumedNote(ok))
+		end)
+	end
 
-	Trigger.AfterDelay(12 * TPS, function()
-		Test.PressHotkey("Patrol")
-		TestHarness.ScreenshotAfter(1.5, "04-patrol-vs-auto-enter",
-			"THE DISCRIMINATING SHOT. PATROL and AUTO_ENTER sit side by side in the " ..
-			"RIGHT command panel and draw the identical `guard` glyph. Expects PATROL " ..
-			"AMBER and AUTO_ENTER still GREY. Both grey = the change is inert. Both " ..
-			"amber = the mode/momentary split failed and command-icons got recoloured " ..
-			"wholesale. GUARD (left panel) should also be grey again by now.")
-	end)
-
-	Trigger.AfterDelay(16 * TPS, function()
+	Trigger.AfterDelay((#steps + 2) * 4 * TPS, function()
 		Test.Skip("eyeball: held command-bar modes mark their glyph, not just their panel")
 	end)
 end

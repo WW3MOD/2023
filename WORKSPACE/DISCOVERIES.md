@@ -3,6 +3,57 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — `Test.PressHotkey` could not engage a single command-bar MODE: Lua runs synced, and the real input path's `Sync.RunUnsynced` wrapper was the missing piece (`wt/cmdbar-capture`, `main @ 94f6d290`)
+
+**This is another instance of the family this project keeps rediscovering — a harness binding that
+looks like it drives the real path and silently cannot reach the thing under test** (compare the
+`make nav-guard` entry below, blind to every autotest scenario, and the `wt/fog-truth` entry above,
+where "fog cannot be tested" turned out to be one missing binding). Here the binding was not missing;
+it was subtly not the production path.
+
+`Test.PressHotkey` built a `KeyInput` and called `Ui.HandleKeyPress` directly. That walks the real
+widget chain, which is why it works for the unload menu and the resupply bar — but it is **not** what
+a real key does. `DefaultInputHandler.OnKeyInput` (`InputHandler.cs:40`) wraps that identical call in
+`Sync.RunUnsynced`, and that wrapper is what licenses a handler to touch client-only state. Lua runs
+inside the *synced* world tick, so a bare dispatch left `unsyncCount == 0`. Every command-bar mode sets
+`World.OrderGenerator`, whose setter opens with `Sync.AssertUnsynced` (`World.cs:170`) — so the press
+threw `"The current order generator may not be changed from synced code"` and killed the run instead
+of engaging the mode. Consequence: **no autotest had ever been able to engage Attack Move, Force Move,
+Force Attack, Guard, Patrol or Waypoint**, and nothing said so — the capability simply appeared absent.
+
+Two things worth carrying forward:
+
+- **The fix is to match production, not to widen permissions.** Using the same
+  `Sync.RunUnsynced(world, fn)` overload the input handler uses keeps the sync-hash guard, so a hotkey
+  that mutates simulation state still fails loudly. Note `Settings.Debug.SyncCheckUnsyncedCode`
+  defaults to **false** (`Settings.cs:186`), so that guard is normally inert — which is also why this
+  change cannot regress the existing `PressHotkey` callers.
+- **`PressHotkey` cannot press a modifier, but it can still reach a modifier-gated mode.** It does not
+  update `Game.GetModifierKeys()`, so the live-modifier arm of `IsForceModifiersActive`
+  (`CommandBarLogic.cs:448`) is unreachable. The *sticky* arm (`:445`) is not: Force Move, Force Attack
+  and Waypoint each set a `ForceModifiersOrderGenerator` in `OnClick`, and the predicate matches that
+  directly. All six modes are drivable; only the physical Ctrl/Shift path is not.
+
+## 2026-09-01 — the shipped "hand-drawn gradient" amber is 92–95% a single flat value, so a flat recolour is not an approximation of it (`wt/cmdbar-capture`)
+
+Guidance in circulation held that the active glyphs vary from (255,170,0) to (255,255,0) across
+antialiased edges and are "not a flat fill", so a uniform recolour was expected to read as wrong at
+high density. Measured against the shipped reference — `stance-icons` `defend-active`, the amber the
+stance/engagement/cohesion bars actually draw — that overstates the case substantially:
+
+| density | opaque px | distinct colours | dominant |
+|---|---|---|---|
+| 2x | 552 | 11 | **(255,192,0) — 92%** |
+| 3x | 1207 | 12 | **(255,192,0) — 95%** |
+
+Everything else is ±1–6 units of green (invisible) plus three to six pixels of pure (255,255,0) used as
+a highlight accent. So a flat (255,192,0) recolour differs from the hand-drawn treatment on well under
+a tenth of its pixels, nearly all imperceptibly — it is the same colour that art is overwhelmingly made
+of, not a flattening of a gradient. **Also worth knowing when reasoning about capture fidelity:
+`run-test.sh --size 1280x800` yields a 2560x1600 PNG on a Retina display.** `dpiScale > 1` sends
+`ChromeProvider` to `Image2x` (`ChromeProvider.cs:120`), so captures sample `glyphs-2x.png`, never
+`glyphs.png` — chrome art edited for a screenshot must be edited at 2x or the capture will not show it.
+
 ## 2026-09-01 — `FrozenActor.Owner` has TWO exceptions, not one, and "fog cannot be tested" was false — the real gap was one missing binding (`wt/fog-truth`, `main @ 3f25f4d3`)
 
 Read off code and pinned in a scenario; **the scenario has never been run** — no launch was taken.
