@@ -1,0 +1,1 @@
+Auto: dispatching technicians at several structures at once must minimise the LAST capture. The technician starting FURTHER from the near derrick must be sent at it anyway, so the nearer one is free to take the far derrick — nearest-first greedy does the mirror image and strands a technician.

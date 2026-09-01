@@ -40,6 +40,11 @@ namespace OpenRA.Mods.Common.Widgets
 
 		TraitPair<IIssueDeployOrder>[] selectedDeploys = Array.Empty<TraitPair<IIssueDeployOrder>>();
 
+		// Capturable structures in the selection that the player does NOT own. Disjoint from
+		// selectedActors by construction (that list is filtered to LocalPlayer), which is what lets
+		// Deploy carry both meanings off one key without either shadowing the other.
+		Actor[] selectedCaptureTargets = Array.Empty<Actor>();
+
 		[ObjectCreator.UseCtor]
 		public CommandBarLogic(Widget widget, World world, Dictionary<string, MiniYaml> logicArgs)
 		{
@@ -157,6 +162,9 @@ namespace OpenRA.Mods.Common.Widgets
 					UpdateStateIfNecessary();
 
 					var queued = Game.GetModifierKeys().HasModifier(Modifiers.Shift);
+					if (selectedCaptureTargets.Length > 0)
+						return false;
+
 					return !selectedDeploys.Any(pair => pair.Trait.CanIssueDeployOrder(pair.Actor, queued));
 				};
 
@@ -477,6 +485,13 @@ namespace OpenRA.Mods.Common.Widgets
 					.Select(d => new TraitPair<IIssueDeployOrder>(a, d)))
 				.ToArray();
 
+			selectedCaptureTargets = world.WorldActor.TraitOrDefault<CaptureDispatchManager>() == null
+				? Array.Empty<Actor>()
+				: world.Selection.Actors
+					.Where(a => a.Owner != world.LocalPlayer && a.IsInWorld && !a.IsDead
+						&& a.Info.HasTraitInfo<CaptureManagerInfo>())
+					.ToArray();
+
 			var cbbInfos = selectedActors.Select(a => a.Info.TraitInfoOrDefault<CommandBarBlacklistInfo>()).ToArray();
 			stopDisabled = !cbbInfos.Any(i => i == null || !i.DisableStop);
 			waypointModeDisabled = !cbbInfos.Any(i => i == null || !i.DisableWaypointMode);
@@ -501,6 +516,24 @@ namespace OpenRA.Mods.Common.Widgets
 		void PerformDeployOrderOnSelection(bool queued)
 		{
 			UpdateStateIfNecessary();
+
+			// Deploy carries a second meaning when the selection is structures rather than own units:
+			// spread the free capture units across them. The two selections cannot overlap, so this
+			// never shadows a real deploy — a mixed selection still deploys the units, because
+			// selectedCaptureTargets only fills from actors the player does not own.
+			if (selectedCaptureTargets.Length > 0 && !selectedDeploys.Any(p => p.Trait.CanIssueDeployOrder(p.Actor, queued)))
+			{
+				var dispatcher = world.WorldActor.TraitOrDefault<CaptureDispatchManager>();
+				if (dispatcher != null)
+				{
+					var dispatched = dispatcher.DispatchAcross(world, selectedCaptureTargets, queued).ToArray();
+					foreach (var o in dispatched)
+						world.IssueOrder(o);
+
+					dispatched.PlayVoiceForOrders();
+					return;
+				}
+			}
 
 			var undeployed = selectedDeploys
 				.Where(pair => pair.Actor.UnDeployed());
