@@ -25,6 +25,8 @@
 > **If you fix this, fix it by picking one direction and migrating the smaller region** — do not leave both conventions documented as equally valid, or the next writer will keep choosing at random.
 
 ## 2026-08-30 — The tooltip mockups and the audit both assert HIMARS refills at a Logistics Centre; a same-day user ruling says it cannot (`wt/tooltip-elements`)
+> **[rejected: duplicate — `economy.md:31` already carries it]** (curation 2026-09-01). `economy.md:31` states *"except `himars` and `iskander`, which rearm nowhere… carry no `Rearmable` trait at all… the LC push cannot reach them either"*, with `:35`/`:120` recording the same 2026-08-30 ruling. Mechanism re-verified at `vehicles-america.yaml:1153-1159` (`HIMARS:` opens `:1048`), and the never-fires consequence is already an in-code comment at `ProductionTooltipLogic.cs:461, 467-470`. The remainder — that the mockups and the audit are wrong — is artefact status and belongs in `WORKSPACE/`, not the bank.
+
 
 - `tooltip-mockups/units.html` shows the HIMARS card carrying **"133% of a Logistics Centre"** and the
   warning *"One reload costs more supply than a full Logistics Centre holds"*; the audit's §3 table
@@ -45,6 +47,8 @@
   exhaustively verified across all 54 buildables — checked against the ones the audit priced.
 
 ## 2026-08-30 — A cloned widget answers `IsVisible` from the TEMPLATE, so `Visible = true` on a clone does nothing (`wt/tooltip-elements`)
+> **[verified — APPROVED FOR PROMOTION, NOT YET MERGED into the bank]** (curation 2026-09-01, `main @ bd8e7290`, verified by reading the cited code). → **`architecture.md` §"Widget / chrome authoring gotchas"** (section opens `:763`). Verified verbatim: `Widget.cs:231` `protected Widget() { IsVisible = () => Visible; }` and `:246` `IsVisible = widget.IsVisible;`. **Not already banked** — `:783` states `IsVisible = () => Visible` only for the *focus* consequence, and `:774` covers the copy-constructor for plain fields; neither reaches the clone case. **Promote in the WIDER framing** (a widget's backing field and the delegate that reads it can disagree; cloning is the most common cause, runtime assignment by panel logic is another), matching decision 30, not as a cloning-only rule. **Fold in the corrected cites from the duplicate below:** `GetText = other.GetText` is `LabelWidget.cs:65` (not `:64`), and `GetColor = widget.GetColor` is `ColorBlockWidget.cs:39` (not `:29` — `:29` is the ctor signature). **This tag deliberately does NOT say `[promoted]`, because nothing has been written to `DOCS/reference/` for it yet.** Writing `[promoted]` before the merge is exactly the *documented-as-made-and-inert* failure this project catalogues; a later curator can pick this up and merge it without re-verifying.
+
 
 **This is the one that actually cost a launch slot**, and it is the more general form of the `GetText`
 entry below — the trap is not a `LabelWidget` quirk, it is how `Widget` copies every `Func` it owns.
@@ -68,6 +72,8 @@ entry below — the trap is not a `LabelWidget` quirk, it is how `Widget` copies
   table — a per-clone colour would need the same treatment.
 
 ## 2026-08-30 — Cloning a `LabelWidget` template and setting `.Text` renders the TEMPLATE's text, silently (`wt/tooltip-elements`)
+> **[rejected: duplicate of the cloned-widget entry above]** (curation 2026-09-01). This entry's own opening sentence calls itself the special case of that one. The claim is TRUE — `LabelWidget.cs:45` builds `GetText = () => textCache.Update(Text)` in the template constructor — but it adds no mechanism the general entry lacks. **Two of its cites had drifted and are corrected into the general entry rather than lost:** `GetText = other.GetText` is `LabelWidget.cs:65`, not `:64`; `GetColor = widget.GetColor` is `ColorBlockWidget.cs:39`, not `:29`.
+
 
 - **`LabelWidget`'s copy constructor does `GetText = other.GetText`** (`LabelWidget.cs:64`), and that
   delegate is the closure `() => textCache.Update(Text)` built in the *template's* constructor
@@ -85,6 +91,8 @@ entry below — the trap is not a `LabelWidget` quirk, it is how `Widget` copies
   the same trap for `Color`. Cloning it is safe only while you keep the template's colour.
 
 ## 2026-08-30 — The production tooltip's width is a constant, and the three-way `Max` above it is dead code (`wt/tooltip-elements`)
+> **[rejected: PARTLY FALSE — this is the one entry in the batch that would have put a wrong claim in the trusted bank]** (curation 2026-09-01). Half is true: `ProductionTooltipLogic.cs:159-161` is `Math.Clamp(…Aggregate(Math.Max), MaxTooltipWidth, MaxTooltipWidth)`, so `leftWidth` is unconditionally 350 and the `Max` above it cannot matter. **But the headline consequence is wrong.** `:166` sets `widget.Bounds.Width = leftWidth + rightWidth + …`, and `rightWidth = Max(powerSize.X, timeSize.X, costSize.X)` at `:162` varies with the cost and time text — so tooltips are **not** "exactly 350px wide regardless of content"; only the left column is pinned. **And "stock OpenRA code, not a WW3MOD edit" is false:** `dfd0e1ce` (Fredrik Bergelin, 2026-03-20, *"Fix tooltip width to exactly 350px (min and max) for uniform appearance"*) changed upstream's `Math.Min` to `Math.Clamp`. **Banking this as "dead code" would invite a cleanup that silently reverts a deliberate design pin.**
+
 
 - `ProductionTooltipLogic` computes
   `Math.Clamp(new[]{ nameSize.X + hotkeyWidth, requiresSize.X, descSize.X }.Aggregate(Math.Max), MaxTooltipWidth, MaxTooltipWidth)`.
@@ -98,6 +106,8 @@ entry below — the trap is not a `LabelWidget` quirk, it is how `Widget` copies
   Recorded so the next reader does not see the `Max` and assume the width is dynamic.
 
 ## 2026-08-30 — "make the rings fade out" was NOT a constant to change: `ShockwaveEndAlphaPercent` already defaulted to 0 and the rings already reached zero. The lever was the SHAPE of the ramp (`wt/shockwave-fade`)
+> **[verified — APPROVED FOR PROMOTION, NOT YET MERGED into the bank]** (curation 2026-09-01, `main @ bd8e7290`, verified by reading the cited code). → **`architecture.md`**, a short new subsection beside the custom-warhead row at `:197`. Verified: `ShockwaveEndAlphaPercent = 0` (`ShockwaveDamageWarhead.cs:64`), `ShockwaveFadeOutExponentPercent = 200` (`:75`), `FadeOutAt` (`:126-130`); the NUnit guard `TheDefaultCurveNeverDarkensAnyFrameAgainstTheOldLinearRamp` exists at `ShockwaveTuningTest.cs:213`. **Promote only the transferable rule, and deep-link the rest:** *"fade at the end" is a statement about terminal SLOPE, not end value — `1-p^k` fades late, `(1-p)^k` fades early and is how a ring gets tuned invisible.* The full rationale is already written as a `[Desc]` at `:66-75`, so restating it would break "one home per fact". **The capture sub-block (last frame, same-frame control, `Test.SetZoom`, HiDPI 2x) is recipe material and belongs in `SCREENSHOT.md`**, which currently has zero hits for `SetZoom`/`HiDPI`. **This tag deliberately does NOT say `[promoted]`, because nothing has been written to `DOCS/reference/` for it yet.** Writing `[promoted]` before the merge is exactly the *documented-as-made-and-inert* failure this project catalogues; a later curator can pick this up and merge it without re-verifying.
+
 
 - **The obvious field was already correct, and that is the trap.** The user reported that shockwaves
   are "too chunky" and should "fade more towards the end". `ShockwaveEndAlphaPercent` defaults to `0`,
@@ -142,6 +152,8 @@ entry below — the trap is not a `LabelWidget` quirk, it is how `Widget` copies
 
 > Stable, broadly applicable items should also go into CLAUDE.md.
 ## 2026-08-30 — five autotest scenarios silently depended on a mod-side grant, and two of them claim in comments to grant it themselves when they grant nothing (`wt/no-cover-shuffle`, base `main` @ `0294634a`)
+> **[rejected: status-not-mechanism — and the dependency has already been remediated]** (curation 2026-09-01). `defaults.yaml:72-79` records the `GrantConditionOnHumanOwner@tacpos` block as removed on 2026-08-30, states that `enable-tactical-positioning` is now "granted NOWHERE in the mod", and points at the scenario-local re-adds. Both scenarios that falsely claimed to grant it are fixed and now explain themselves (`test-stance-anchor-move.lua:16-21`, `test-stance-optout.lua:9-12`). The entry's remaining "OPEN SUSPICION, not yet audited" bullet is by definition a tracker item → `WORKSPACE/`.
+
 
 - **The setup.** `GrantConditionOnHumanOwner@tacpos` on `^Combatant` (`mods/ww3mod/rules/defaults.yaml`)
   was the ONLY granter of `enable-tactical-positioning` anywhere in the mod. Five scenarios exercise
@@ -169,6 +181,8 @@ entry below — the trap is not a `LabelWidget` quirk, it is how `Widget` copies
   deleting the grant they depended on and grepped for consumers first.
 
 ## 2026-08-30 — the lint baseline matches on `<scope> | <message>`, so a NEW map can add unrecorded errors while a grep of the whole run still looks clean (`wt/no-cover-shuffle`, base `main` @ `0294634a`)
+> **[verified — APPROVED FOR PROMOTION, NOT YET MERGED into the bank]** (curation 2026-09-01, `main @ bd8e7290`, verified by reading the cited code). → **`conventions.md`**, new subsection under §"Which YAML gate catches a misspelled trait field" (`:182`). Verified in the code rather than from the baseline header: `LintBaseline.Signature` is `$"{scope} | {firstLine}"` (`LintBaseline.cs:43-49`); `Judge` prints the distinct-signature count (`:149`), lists `NEW:` lines (`:151-152`), fails on any new signature (`:154-160`), and fails on a recorded error that stops occurring unless `LINT_BASELINE_PRUNE=true` (`:162-176`); prune can only remove (`:111-128`). Not in any reference doc today — only passing mentions at `conventions.md:140` and `economy.md:114`. **Two conditions on the promotion:** (1) **date or drop the volatile figures** — "~50 cordon errors" is now **64** and "444 entries" is now **441**, so promote the mechanism and leave the counts in `WORKSPACE/`; (2) add the nuance that `ClassOf` (`:98-107`) blanks backtick-quoted specifics, so the grouped amnesty output does not look like the signature it matched. **This tag deliberately does NOT say `[promoted]`, because nothing has been written to `DOCS/reference/` for it yet.** Writing `[promoted]` before the merge is exactly the *documented-as-made-and-inert* failure this project catalogues; a later curator can pick this up and merge it without re-verifying.
+
 
 - **The signature is two-part and the scope half is easy to drop.** `mods/ww3mod/lint-baseline.txt`
   reduces every error to `<scope> | <first line of the message>`, where scope is the map's package
@@ -296,6 +310,8 @@ entry below — the trap is not a `LabelWidget` quirk, it is how `Widget` copies
     **If shadow concealment is ever reported as inconsistent, start here.**
 
 ## 2026-08-30 — 8 of 10 shipped maps regenerate the whole `shadows.bin` LOS cache on EVERY load (29–101 s measured); `ComputeUID` hashes `shadows.bin`, so the cache is part of map identity (recon, `main` @ `627be5a4`)
+> **[rejected: FALSE NOW, and superseded by its own consequence]** (curation 2026-09-01). The headline claim that `ComputeUID` hashes `shadows.bin` is no longer true: `Map.cs:306-311` explicitly skips it (`if (filename == "shadows.bin") continue;`) with the comment that it is "no longer written into packages at all", `:497` records that a package-internal `shadows.bin` is deliberately not consulted, and `:1245` notes that no map carries one any more. `LoadOrGenerateShadows` reads a support-dir content-keyed cache. **`architecture.md:110-129` already banks the current model, and `:129` refutes this entry's own desync hypothesis with the two-machine byte-identity measurement.** This entry is the recon that CAUSED that fix; it is history, not reference.
+
 
 Full write-up: [`recon-shadows-on-demand.md`](recon-shadows-on-demand.md). Static read plus four
 measured `--regen-shadows` runs on map copies **outside** the repo; no tracked file touched.
@@ -351,6 +367,8 @@ measured `--regen-shadows` runs on map copies **outside** the repo; no tracked f
   regen) has no mechanical guard. A `SHADOW_ALGO_VERSION` const folded into any cache key converts it
   from silent-wrong into automatic-rebuild, and is what makes replays reproduce after a curve edit.
 ## 2026-08-30 — `FrozenActor.Actor` hands back the LIVE actor, so every `CanTargetFrozenActor` that touches it renders hidden state as a cursor (`wt/frozen-enter`, base `main @ 627be5a4`)
+> **[verified — APPROVED FOR PROMOTION, NOT YET MERGED into the bank]** (curation 2026-09-01, `main @ bd8e7290`, verified by reading the cited code). → **`architecture.md` §"Fog visibility: `Detectable` is the mod's visibility trait…"** (`:732`), as a new sub-bullet. Verified verbatim: `FrozenActorLayer.cs:120` is `public Actor Actor => !BackingActor.IsDead ? BackingActor : null;` — it hands back the **live** actor, so anything reading it inside a fog predicate is reading present-tense truth about a unit the player cannot see. The countermeasure is real and structural, not advisory: `EnterAlliedActorTargeter.cs:24` declares `Func<ActorInfo, TargetModifiers, bool> canTargetFrozen`, **mandatory in the single constructor** (`:31-33`), with the rationale at `:26-30` and a `FOG BOUNDARY` comment at `:60-62`; `FrozenActorTargetingTest.cs` guards it. Nothing in `DOCS/reference/` says this. **This tag deliberately does NOT say `[promoted]`, because nothing has been written to `DOCS/reference/` for it yet.** Writing `[promoted]` before the merge is exactly the *documented-as-made-and-inert* failure this project catalogues; a later curator can pick this up and merge it without re-verifying.
+
 
 **The general rule, which is the durable part: a `CanTargetFrozenActor` override may read
 `target.Info`, `target.Owner`, `target.HP`, `target.DamageState`, `target.TargetTypes` — the snapshot
@@ -437,6 +455,8 @@ underlying oddity that these 44-odd buildings are enterable by any player at onc
 is concerned, with `OwnerLostAction: ChangeOwner` reverting them to Neutral when emptied. Worth a look
 as a mechanic, separately from visibility.
 ## 2026-08-30 — `AutoFollowAlly.RequireAttackBase` excludes NOTHING a medic could treat, and is load-bearing for what it does exclude (recon, `main` @ `627be5a4`)
+> **[rejected: expiring-config — README §"Four shapes" #2, and the entry says so itself]** (curation 2026-09-01). The claim is TRUE today and rests entirely on the current unit roster, with nothing pinning it. Verified: `AutoFollowAlly.cs:47` (field), `:191-192` (owner check — the entry cites `:184`, drifted), `:194` (the filter); `Targetable@Heal` at exactly one site, `infantry.yaml:64`; `HealerAutoTarget.ValidTargetTypes: Heal` at `:2262`; `^ArmedCivilian` mounts Pistol + `AttackFrontal` at `:415-417`; TECN's "Unarmed" description at `:2374` (entry said `:2377`). **Adding one healable armed actor falsifies it silently, and no test or lint would notice** — which is precisely the shape the README says not to bank as an invariant.
+
 
 **The filed defect — "a wounded truck, engineer or other unarmed unit is never a follow candidate, so
 the casualty tier can never select one" — is empty in both halves.** Resolved through the engine's own
@@ -477,6 +497,8 @@ the filed defect becomes real with no test going red. There is no rules-loading 
 for a currently-empty set; deliberately not done.
 
 ## 2026-08-30 — `buildRandom` is permanently TRUE on the helicopter lanes, so their `UnitsToBuild` weights have never executed (recon, `main` @ `7de03906`)
+> **[verified — APPROVED FOR PROMOTION, NOT YET MERGED into the bank]** (curation 2026-09-01, `main @ bd8e7290`, verified by reading the cited code). → **`architecture.md` §"AI production: `UnitsToBuild` weights are share *ceilings*"** (append to the bullet at `:405`) — **the FIRST paragraph only.** Verified with drift throughout: `UnitBuilderBotModule.cs:677` (entry `:657`), `:636-638` (entry `:616-619`), `:851-852` (entry `:839-840`); `SquadManagerBotModule.cs:334`/`:343`, `IsAirSquadUnit` `:362-370` with the `!HasTraitInfo<AIHelicopterRoleInfo>()` clause at `:367`; `IgnoreGroundUnits: true` at `ai.yaml:1795, :1908`; `CompositionDirected: true` present only on the ground twins (`ai-america.yaml:545`, `ai-russia.yaml:274`), so "the heli twins never got that fix" holds. **One error to fix on promotion: `IdleBaseUnitsMaximum` is 12 (`:26`), not 8** — the entry writes "0 < 8"; the conclusion is unaffected. **Reject the `AIHelicopterRole` dead-fields paragraph — already acted on:** `Traits/Air/AIHelicopterRole.cs:33-42` records those five fields as REMOVED on 2026-08-30. **The `AirStrikeUnits` counter-buy paragraph was NOT verified** and must be re-checked before it travels. **This tag deliberately does NOT say `[promoted]`, because nothing has been written to `DOCS/reference/` for it yet.** Writing `[promoted]` before the merge is exactly the *documented-as-made-and-inert* failure this project catalogues; a later curator can pick this up and merge it without re-verifying.
+
 
 **The general shape, which outlives the helicopter case: a production lane whose unit type is
 excluded from squad recruitment can never leave the "early game" random-build window, because the
@@ -553,6 +575,9 @@ buildable, immediately re-points the window at `heli`/`mi28` on a lane with no `
 
 Full analysis and numbered proposals: `WORKSPACE/recon-bot-helicopters.md`.
 ## 2026-08-30 — Shrinking a shockwave ring shrinks its LIFETIME too, and the A/B capture that proves it must be read as brightness, not as size
+> **[promoted]** → `conventions.md` §shockwave bullet, **as a CORRECTION rather than an addition** (curation 2026-09-01, `main @ bd8e7290`). The bank was stale and is now fixed in place: it called `MaxRadius` "the visual travel limit", but rendering stops at `warhead.VisualRadius` (`ShockwaveEffect.cs:116-118`), which is `ShockwaveVisualRadius` when set and `MaxRadius` otherwise (`ShockwaveDamageWarhead.cs:107`, field `:86`, validated `:142-148`). **The durable half is the coupling, and it is what the bank now states:** `progress` is measured against `visualRadius` (`:121`), so **shrinking a ring shortens its visible LIFETIME as well as its size**, and an A/B capture at a fixed frame reads that as a brightness change. Also corrected: the thickness ramp is `progress * (ShockwaveThicknessRampPercent / 100)` at `:147`, no longer a hardcoded `* 2.5` at `:127` — the 2.5 survives as the default of `ShockwaveThicknessRampPercent = 250` (`:93`).
+> **Two parts NOT promoted:** the radial-average/centre capture methodology is recipe material for `SCREENSHOT.md`; and the sub-fact *"you cannot disarm an actor by removing `Armament`/`AttackBase` — use a `NonCombatant` owner"* is durable and unbanked (zero hits anywhere in `DOCS/`) but belongs in `conventions.md` or `AUTOTEST.md` as its own bullet. **Both are still open work.**
+
 
 `ShockwaveEffect` expands at a fixed `1024 / WaveSpeed` per tick and terminates on radius, so
 bounding the ring at 60% of the wave's travel also ends it at 60% of the wave's duration — band 8's
@@ -616,6 +641,8 @@ Two smaller things from the same session, both worth the seconds they cost:
   instead of editing its trait graph.
 
 ## 2026-08-30 — Two branches fixed one cursor defect independently, and git AUTO-MERGED their two field declarations into a duplicate (`wt/truck-refills-lc` rebased onto `a2466c3b`)
+> **[rejected: generic git semantics plus a one-off incident]** (curation 2026-09-01). Two branches adding adjacent field declarations and git auto-merging both is standard three-way-merge behaviour, not a WW3MOD mechanism, and the bank is for how *this* project works. The outcome landed and is pinned where it matters: `DropsSupplyCache.cs:54` `DeliverSupplyCursor = "goldwrench"`, asserted in `SupplyTransferMathTest.cs:238-240`. **If any part of this deserves banking it is the review habit, not the merge mechanic** — and that already lives in `CLAUDE.md`'s "read the file, not the commit message" rule.
+
 
 `wt/cursor-honesty` (`49f2723d`) and `wt/truck-refills-lc` both noticed that `Restock` and
 `DeliverSupply` drew the same cursor, and both added a `DeliverSupplyCursor` field to
@@ -644,6 +671,8 @@ other means — not whether the guard survived.** A guard kept out of caution ca
 behaviour the branch exists to change.
 
 ## 2026-08-30 — `iskander` and `HIMARS` carry NO `Rearmable`, so ANY resupply-selection scenario staged on them is vacuous — the detour branch is unreachable for those two whatever it is guarded on (`wt/evac-afford`, base `main @ 48d60cb4`)
+> **[rejected: duplicate — `economy.md:31` states it directly]** (curation 2026-09-01). *"except `himars` and `iskander`, which rearm nowhere… carry no `Rearmable` trait at all"*, restated at `:35`, `:100` and `:146`. **Cite drift in the entry, recorded so the next reader is not sent hunting:** `vehicles-russia.yaml:1051` (entry says `:1050`), and the HIMARS note is at `vehicles-america.yaml:1103-1153`, **not `:106`**. **One genuinely new clause survives and is worth a single sentence appended to `economy.md` §"Evacuate-when-dry is opt-in per actor":** before staging any rearm/resupply scenario, check the subject actually declares `Rearmable` — otherwise the scenario is vacuous and will pass for the wrong reason.
+
 
 **The trap in one line: a resupply test that uses the unit the bug was REPORTED against can be
 measuring nothing.** The defect fixed on this branch — `AmmoPool`'s Evacuate arm picking its detour
@@ -680,6 +709,8 @@ mechanism, and the test went green anyway".
 poor to pay for a batch. `m270` gives the widest such band of the three at `SupplyValue: 70`
 (`vehicles-america.yaml:121`); `grad` is 85 and `tos` 120.
 ## 2026-08-30 — Combat feedback: the explanation for "it fired and nothing died" is COMPUTED IN EVERY SHIPPED BUILD and thrown away, and `INotifyDamage` is structurally unable to recover it (`wt/recon-battle-feedback`, verified against `main @ 5a985337`)
+> **[verified — APPROVED FOR PROMOTION, NOT YET MERGED into the bank]** (curation 2026-09-01, `main @ bd8e7290`, verified by reading the cited code). → **`architecture.md`**, a new section placed near §"Widget / chrome authoring gotchas" (`:763`). Verified exactly: `CombatDebugOverlay:` sits on `^ExistsInWorld` (`defaults.yaml:4`); `AttackInfo` carries only `Damage`/`Attacker`/`DamageState`/`PreviousDamageState` (`TraitsInterfaces.cs:80-86`), which is why `INotifyDamage` **cannot** recover the reason a shot did nothing; `SelectionBarsAnnotationRenderable.cs:181` is the commented-out `DrawHealthBar` with its "Ask before uncommenting" note. `ArmorInfo.Thickness`'s `[Desc]` is at `Armor.cs:28` (entry said `:24`). `DOCS/reference/` mentions `FloatingText` only at `architecture.md:603`, in an unrelated sync context — the feedback machinery is genuinely unbanked. **Two claims NOT verified and which must be re-checked before they travel:** the "~109 of 149 warheads lack `Penetration`" census, and the `Bullet.cs` always-detonates claim. **This tag deliberately does NOT say `[promoted]`, because nothing has been written to `DOCS/reference/` for it yet.** Writing `[promoted]` before the merge is exactly the *documented-as-made-and-inert* failure this project catalogues; a later curator can pick this up and merge it without re-verifying.
+
 
 Data only — no build, no launch, no autotest. Full write-up: `WORKSPACE/recon-battle-feedback.md`.
 
@@ -745,6 +776,9 @@ eleven termination causes and separates `Detonated / DudPreArm / Unterminated`, 
 "a surface showing penetration must also show attack direction" ruling are in the 2026-08-30
 `wt/tooltip-standard` entry further down; not restated here.
 ## 2026-08-30 — CURSOR AND CLICK NOW SHARE ONE RESOLUTION PATH, SO EVERY SURVIVING CURSOR LIE IS DOWNSTREAM OF TARGETING — AND THE RICHEST SEAM IS TWO DIFFERENT "IS IT DRY?" PREDICATES (`wt/cursor-honesty`, verified against `main @ 5a985337`)
+> **[promoted IN PART]** → `conventions.md` §`OrderPriority` bullet (curation 2026-09-01, `main @ bd8e7290`). **Merged now:** the cursor and the click resolve through the SAME path — `UnitOrderGenerator.Order` (`:52`) and `GetCursor` (`:135`) both funnel into `OrdersForSelection` (`:197`/`:206`) → `OrderForUnit`, with the deliberate comment at `:131-133` — so a lying cursor and a misbehaving click are one defect. Banked together with its consequence: **a targeter that accepts a click it cannot act on is a silent veto over every lower-priority targeter and still draws a cursor**, since `OrderForUnit` takes the first acceptor walking down priority (`Repairable` is 5, `Repairable.cs:77-79`, below Restock 7 and Deliver 6). The bank's stale `UnitOrderGenerator.cs:222-234` cite was corrected to `:271-309` (sort at `:280`) in the same edit, and the file is under `OpenRA.Mods.Common/Orders/`, not `OpenRA.Game/Orders/`.
+> **NOT yet merged, both verified and both still open:** (1) **the two dryness predicates**, which belong as a fourth row in `economy.md`'s "Can this unit shoot?" table (`:344-349`) — `AttackBase.cs:809` is armament-scoped (`armaments.All(a => a.AmmoPool != null && !a.AmmoPool.HasAmmo)`) while `:844`/`:502` use actor-scoped `AmmoPool.CannotFight`; **the entry's `AmmoPool.cs:585-588` cite is wrong** (that is `AllPoolsEmpty(IEnumerable)`), the real site is `:619`, and the engineer case holds because `Armament@Repair` (`infantry.yaml:1949-1955`, entry said `:1953-1962`) declares no `AmmoPool`. (2) **`DeliversCash@Rotation`, which is the highest-value fact in this entry and reads as a live player-facing trap:** `DeliversCash.cs:101-114` discards the target when `Type == "Rotation"`, its targeter is priority 5 with `Cursor = "enter"` (`:150`, `:39`) against `Mobile.MoveOrderTargeter`'s 4 (`Mobile.cs:1220`), and `AcceptsDeliveredCash / ValidTypes: Rotation` sits at `structures.yaml:370-371` — so **right-clicking your own Supply Route irreversibly sells the unit under a generic `enter` cursor, and the SR cannot be right-clicked to move.** That belongs in `game-model.md` or `supply-route.md`. **(3) REJECTED outright: the census of 64 `PauseOnCondition` gates** — a dated count, and unverified here.
+
 
 Full audit in `WORKSPACE/cursor-honesty-audit.md`. Three transferable facts:
 
@@ -780,6 +814,8 @@ still advertises the generic `enter` cursor (`:38`) at priority 5, beating Mobil
 is honest about *an* order existing and silent about it being a completely different one. When
 auditing a cursor, check that the resolver actually *uses* the target it was handed.
 ## 2026-08-30 — FIRST OBSERVATION of the post-delivery evacuation: the behaviour is right and the READOUT is not (`wt/truck-refills-lc`, run `260830_092643_p73567`)
+> **[rejected: status-not-mechanism]** (curation 2026-09-01). A first observation from a single run, describing UX defects (no floating text, HUD lag, occlusion) rather than a mechanism anyone can point at in code. Belongs in `WORKSPACE/bugs/discovered.md`. **Its measurement caveat is sound and worth keeping where it is** — the 630 figure is refund plus passive income, not refund alone — but it is scoped to that run. **Not verified here:** the frame captures and the 21336/21675 cash figures; no run artefacts were read.
+
 
 Until this run every account of the evacuation chain — three of them, mine included — was traced
 through source. Watched, with the camera actually on the truck, it does what the code says: a truck
@@ -808,6 +844,8 @@ so a clean figure matters if anyone tunes this. Recorded so the number is not la
 evacuation refund.
 
 ## 2026-08-30 — The truck→LC delivery order was ALREADY SHIPPED, with the polarity inverted; the task was a reversal, not a build (`wt/truck-refills-lc`, from `main @ 48d60cb4`)
+> **[rejected: duplicate of an in-code comment, plus process status]** (curation 2026-09-01). The mechanism is true and was re-verified (`DropsSupplyCache.cs:583-585`, priorities 8/7/6; `IResolveOrder` at `:276`, `:290`, `:312`) — but the finding is now recorded **in the code itself** at `DropsSupplyCache.cs:745-747`, which is the better home for it. The remaining half is a process lesson that restates `CLAUDE.md`'s existing rule to spend one grep on an item's central premise before starting it.
+
 
 The brief for this work stated that "the LC → truck direction already exists" and "the truck→LC
 direction is what is missing". **Both halves already existed.** `DropsSupplyCache` shipped three
@@ -826,6 +864,8 @@ at the *research* step that produced the brief rather than during the work — a
 established is exactly as cheap to check as an unstated one, and is trusted harder.
 
 ## 2026-08-30 — A full transport steered to `Restock` gets a drive that transfers nothing and repairs nothing, under an `enter` cursor (`engine/OpenRA.Mods.Common/Traits/DropsSupplyCache.cs`)
+> **[verified — APPROVED FOR PROMOTION, NOT YET MERGED into the bank]** (curation 2026-09-01, `main @ bd8e7290`, verified by reading the cited code). → **`conventions.md`**, beside the `OrderPriority` bullet — **the general shape ONLY.** **The entry's specific predicate no longer exists:** `RestockOrderTargeter.CanTargetActor` is now `DirectionFor(...) == ToTruck` (`DropsSupplyCache.cs:734`), so the `notFull || damaged` half is historical and must not be carried. What IS durable and verified is the same rule promoted from the cursor entry above — accepting a click you cannot act on silently vetoes every lower-priority targeter while still drawing a cursor (`Repairable.cs:77-79` at priority 5, below Restock 7 and Deliver 6). **Since that general rule is now banked, this entry may well collapse into it entirely; check before writing anything new.** **This tag deliberately does NOT say `[promoted]`, because nothing has been written to `DOCS/reference/` for it yet.** Writing `[promoted]` before the merge is exactly the *documented-as-made-and-inert* failure this project catalogues; a later curator can pick this up and merge it without re-verifying.
+
 
 The pre-reversal `RestockOrderTargeter` accepted when `notFull || damaged`. The `damaged` term reads
 as sound design — `LOGISTICSCENTER` carries `RepairsUnits` (`structures.yaml:450`) and `TRUK` carries
@@ -855,6 +895,8 @@ priority-ordered targeter chain, accepting a click you cannot act on is not a ha
 silent veto over every lower-priority trait — and it is invisible, because a cursor still appears.
 
 ## 2026-08-30 — A truck that empties itself into a Logistics Centre drives off the map and is sold. This is INTENDED — user ruling, do not "fix" it
+> **[rejected: duplicate — `economy.md:226` and `:233-237` already carry the mechanism]** (curation 2026-09-01), including the `Evacuate` default and `ShouldSelfRestock`'s stance-awareness. **Cite drift recorded rather than lost:** `OnBecomingIdle` is `DropsSupplyCache.cs:430-437` (entry said `:404-412`), and `economy.md:226`'s own `vehicles.yaml:514-515` was stale — **corrected to `:535-536` in this pass.** **One clause is genuinely new and is worth a single sentence in `economy.md` §TRUK if anyone wants it:** the trigger fires on a *complete* delivery only, because a partial load never reaches `CountsAsEmpty` and so never enters the idle path.
+
 
 `DropsSupplyCache.OnBecomingIdle` fires `EvacuateOrRestock` on any tick the transport is idle and
 `CountsAsEmpty` (`DropsSupplyCache.cs:404-412`), and `TRUK` sets **`InitialResupplyBehavior: Evacuate`
@@ -887,6 +929,8 @@ delivery the player just ordered — is a separate legibility question from whet
 right, and the behaviour is settled.
 
 ## 2026-08-30 — A Logistics Centre STARTS FULL, so the most natural first use of a delivery gesture transfers nothing (`engine/OpenRA.Mods.Common/Traits/SupplyProvider.cs:364`)
+> **[verified — APPROVED FOR PROMOTION, NOT YET MERGED into the bank]** (curation 2026-09-01, `main @ bd8e7290`, verified by reading the cited code). → **`economy.md` §`LOGISTICSCENTER`** (`:210`) — for the mechanism and the design lesson, **not** the 2250 figure, which is already banked. Verified at the cited line: `SupplyProvider.cs:364` is `currentSupply = init.GetValue<SupplyInit, int>(info, info.TotalSupply)`, so the default is `TotalSupply` and **every** provider starts full, not just this one; `ITransformActorInitModifier` at `:376`; `TotalSupply: 2250` at `structures.yaml:475`. **The design lesson is the durable part** — a transfer gesture has to consult BOTH pools, because the most natural first thing a player tries (deliver into a building that is already full) is a no-op — and it is now enforced in code: `SupplyTransferMath.ResolveDirection` takes `hostSupply, hostCapacity` as required parameters (`:109-111`). **This tag deliberately does NOT say `[promoted]`, because nothing has been written to `DOCS/reference/` for it yet.** Writing `[promoted]` before the merge is exactly the *documented-as-made-and-inert* failure this project catalogues; a later curator can pick this up and merge it without re-verifying.
+
 
 `currentSupply = init.GetValue<SupplyInit, int>(info, info.TotalSupply)` — the default is
 `TotalSupply`, not zero. A Centre deployed from an LCCV therefore begins at 2250/2250, and
@@ -901,6 +945,8 @@ party.* Making the receiver's pool a required parameter of the shared decision f
 an optional refinement a call site can omit — is what keeps it from being dropped again.
 
 ## 2026-08-30 — `Move` to an unreachable cell REPORTS ARRIVAL, so any transfer that runs after a drive needs an explicit arrival check (`engine/OpenRA.Mods.Common/Activities/Move.cs:173-177`)
+> **[rejected IN PART: the central claim is a duplicate; one clause is APPROVED FOR PROMOTION and not yet merged]** (curation 2026-09-01). **Duplicate:** `conventions.md:368` already states that `Move` to an unreachable cell reports arrival, with the same citations, both confirmed at `Activities/Move/Move.cs:170-177`. **The clause worth promoting, as an addendum to that same bullet, which today says only "sharing one tolerance constant":** the arrival tolerance must be `footprint/2 + margin`, because a legitimate diagonal park at a 3x3 host is dx=2, dy=2 and a flat tolerance of 2 rejects it — `SupplyTransferMath.ArrivalTolerance` (`:162`), NUnit-pinned at `SupplyTransferMathTest.cs:202-226`. **NOT promotable: the guard census** (`DeliverSupply.cs:127`, `CollectSupplyCache.cs:73`, `DropsSupplyCache.cs:364`, and `RestockSupply.cs:83` having only the liveness half) — true today, and exactly the dated-list shape the README sends to `WORKSPACE/`.
+
 
 `if (path.Count == 0) { destination = mobile.ToCell; return false; }` and then, next tick,
 `if (destination == mobile.ToCell) return true`. A path the finder refused does not FAIL — it
@@ -925,6 +971,8 @@ Centre into a transport that never arrived. Left alone here because it is pre-ex
 the bots use, so changing it is a behavioural change that deserves its own measured run.
 
 ## 2026-08-30 — `IsDead || !IsInWorld` does NOT cover capture, and a Logistics Centre is capturable
+> **[verified — APPROVED FOR PROMOTION, NOT YET MERGED into the bank]** (curation 2026-09-01, `main @ bd8e7290`, verified by reading the cited code). → **`conventions.md`**, engine gotchas, next to the `IsInWorld`-is-not-a-tick-gate rule at `:355`. Fully verified and banked nowhere: `LOGISTICSCENTER:` (`structures.yaml:392`) inherits `^Building` (`:69`) → `^BasicBuilding` (`:10`) → `^NeutralOrOccupiedCapturable` (`:169-176`, `CaptureManager` + `Capturable@neutral`/`@occupied`), with `OwnerLostAction: ChangeOwner` / `Owner: Neutral` at `:394-396`. **So `IsDead || !IsInWorld` is not a sufficient liveness test for a host: a captured building is alive, in world, and now hostile.** The prescribed fix already ships and is the reference implementation to cite — `DeliverSupply.cs:104` reads `host.IsDead || !host.IsInWorld || !self.Owner.IsAlliedWith(host.Owner)`, with the reasoning in-file at `:91-101`. **This tag deliberately does NOT say `[promoted]`, because nothing has been written to `DOCS/reference/` for it yet.** Writing `[promoted]` before the merge is exactly the *documented-as-made-and-inert* failure this project catalogues; a later curator can pick this up and merge it without re-verifying.
+
 
 A re-validation guard of the form `if (host.IsDead || !host.IsInWorld) return;` reads like it covers
 "the host stopped being a legitimate target mid-drive". It does not cover the case most likely to
