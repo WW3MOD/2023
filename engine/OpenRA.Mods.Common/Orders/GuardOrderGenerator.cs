@@ -77,10 +77,15 @@ namespace OpenRA.Mods.Common.Orders
 			// and really does run once those units rearm — blocking it would be exactly the mirror
 			// lie OrderReadinessMath's queued term exists to prevent.
 			// GuardInfo is Requires<IMoveInfo>, so carrying the trait is sufficient eligibility here.
+			// The Disposed/IsDead guard runs FIRST: subjects is only re-filtered on
+			// SelectionChanged, so an actor that dies while the mode is held stays cached, and
+			// AmmoPool.CannotFight does trait lookups that throw on a disposed actor (same
+			// render-thread crash class as AttackMove.CanBeOrderedToAttackMove — see its remarks).
+			// ReadsAsBlocked checks canReceiveOrder before cannotAct, so guarding here covers both.
 			if (OrderReadinessMath.ReadsAsBlocked(
 				subjects,
 				mi.Modifiers.HasModifier(Modifiers.Shift),
-				a => a.Info.HasTraitInfo<GuardInfo>(),
+				a => !a.Disposed && !a.IsDead && a.Info.HasTraitInfo<GuardInfo>(),
 				AmmoPool.CannotFight))
 				return "move-blocked";
 

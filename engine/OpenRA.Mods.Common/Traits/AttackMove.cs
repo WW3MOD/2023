@@ -173,6 +173,15 @@ namespace OpenRA.Mods.Common.Traits
 		/// </remarks>
 		internal static bool CanBeOrderedToAttackMove(Actor a)
 		{
+			// The order generator caches its subjects and only re-filters on SelectionChanged
+			// (AttackMoveOrderGenerator.SelectionChanged) — an actor that dies while the mode is
+			// held stays in the cache, and GetCursor evaluates this per render frame. A trait
+			// lookup on a disposed actor throws TraitDictionary.CheckDestroyed, which crashed the
+			// game from the render thread. Dead-but-not-yet-disposed actors are refused too:
+			// they can't be ordered anything.
+			if (a.Disposed || a.IsDead)
+				return false;
+
 			return a.Info.HasTraitInfo<AttackMoveInfo>() && a.TraitOrDefault<IMove>() != null;
 		}
 
