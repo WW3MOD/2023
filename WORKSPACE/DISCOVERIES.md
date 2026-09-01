@@ -3,6 +3,45 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — a strafe attack run rewrites its own requested target as TERRAIN, and that ONE write produces two different-looking defects (`wt/strafe-breakoff`, `main @ 3dd67e07`)
+
+`StrafeAttackRun.Tick` re-sets `AttackFollow.RequestedTarget` every tick to
+`Target.FromTargetPositions(target)` (`Activities/Air/FlyAttack.cs:323-325`) — a `TargetType.Terrain`
+target (`Target.cs:33-35`), force-attack `true`, source defaulting to `AttackSource.Default`. It is one
+line, and everything below follows from it. Which symptom an `AttackType: Strafe` airframe shows is
+decided by a single YAML fact about its weapons, so the two look unrelated in a bug report.
+
+**Symptom A — structurally exempt from the break-off guard.** The guard needs
+`RequestedTarget.Type == TargetType.Actor` **and** `BreakOffApplies(Default, true)` =
+`!forceAttack && source != Default` = false (`AttackFollow.cs:181-186`, `AttackBase.cs:672-675`). The
+terrain write fails **both clauses independently**; either alone exempts it. `FlyAttack.Tick:108`,
+which writes the real actor target and source, cannot rescue it — `FlyAttack` leaves
+`ChildHasPriority` true so its own tick is skipped while the run child lives, and on the tick it does
+run, `Activity.TickOuter:132-140` ticks the freshly queued child in the SAME tick, so the terrain write
+lands last. `World.Tick` runs every actor's activities before any `ITick` trait, so `AttackFollow.Tick`
+never once observes an Actor-type requested target while a strafe run is in flight.
+
+**Symptom B — cannot fire at all.** A terrain target is unconditionally `IsValidFor`
+(`Target.cs:123-125`), so `AttackFollow.Tick:188` takes the requested branch and the opportunity-fire
+fallback at `:216` is **unreachable** — the airframe is locked aiming at ground. Whether it can shoot
+that ground is decided by `WeaponInfo.IsValidAgainst`, which resolves a terrain target to the **cell's**
+`TargetTypes` (`WeaponInfo.cs:235-249`), i.e. `Ground`.
+
+**So: an `AttackType: Strafe` airframe whose armaments do not list `Ground` in `ValidTargets` can never
+fire a shot, ever.** Nothing lints this pairing. `A10.Airstrike` is in that state today and was measured
+firing zero shots in 400 ticks; `FROG.Airstrike` is not (`RocketPods`, `ValidTargets: Ground`). Details
+and the candidate fix are in `WORKSPACE/bugs/discovered.md` (2026-09-01).
+
+**The trap for the next person**: the weapons involved are perfectly valid against the target *as an
+actor* (`^Vehicle` is `TargetTypes: Ground, Vehicle`). The unit acquires normally, flies a textbook
+attack run, and is silent — so reading the YAML, or watching it, both suggest the targeting is fine.
+The only place the difference is visible is the terrain branch of `IsValidAgainst`.
+
+**Instrumentation note, learned the expensive way**: `AmmoPoolProperties.AmmoCount` **throws** a
+`LuaException` for a pool the actor does not declare (`AmmoPoolProperties.cs:36-38`) rather than
+returning zero. A shared `primary-ammo + secondary-ammo` read across a lane table kills the whole run
+the moment one lane's airframe carries a single pool.
+
 ## 2026-09-01 — the sync tripwire has exactly ONE site engine-wide, which is why "dispatches UI handlers from Lua" is a silent bug class (`wt/cmdbar-audit`, `main @ 42548fe5`)
 
 Follow-up audit after `Test.PressHotkey` (entry below). The generalisable finding is the *shape*, not

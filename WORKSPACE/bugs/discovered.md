@@ -4259,3 +4259,54 @@ returns nothing.
 
 Not applied here because it changes what a demo shows on screen, which wants a look rather than a
 silent edit from a tooling branch.
+
+---
+
+## 2026-09-01 — `A10.Airstrike` cannot fire a single shot: its weapons are not valid against `Ground`
+
+**Found by** `test-aircraft-breakoff-midrun` (lane 3, run on `main` the morning of 2026-09-01), then
+traced statically. Filed, not fixed. The lane has since been swapped to `frog.airstrike`, which is the
+only strafe airframe in the mod that *can* fire, so the scenario can go back to asking its own question.
+
+**Measured**: `SETUP INVALID: A10STRIKE never opened fire within 400 ticks; A10STRIKE target ended at
+hp100%`. The airframe was alive, had ammo, was at its own cruise altitude, and had a valid t90 14 cells
+away. It acquires the target and flies the attack run. It never shoots.
+
+**Mechanism**, and it is entirely in the interaction between one activity and one weapon field:
+
+1. `AttackType: Strafe` makes `FlyAttack.Tick` queue a `StrafeAttackRun`
+   (`engine/OpenRA.Mods.Common/Activities/Air/FlyAttack.cs:187-188`).
+2. `StrafeAttackRun.Tick` re-sets the trait's requested target **every tick** to
+   `Target.FromTargetPositions(target)` (`FlyAttack.cs:323-325`) — a `TargetType.Terrain` target
+   (`engine/OpenRA.Game/Traits/Target.cs:33-35, 86`), force-attack `true`.
+3. A terrain target is unconditionally `IsValidFor` (`Target.cs:123-125`), so `AttackFollow.Tick`
+   takes the requested-target branch (`Traits/Attack/AttackFollow.cs:188`) and the opportunity-fire
+   fallback at `:216` is **unreachable** for the whole run.
+4. Firing then needs an armament valid against terrain, and `WeaponInfo.IsValidAgainst` resolves a
+   terrain target to the **cell's** `TargetTypes` (`engine/OpenRA.Game/GameRules/WeaponInfo.cs:235-249`)
+   — `Ground` on every tile of every shipped tileset.
+5. Neither A10 weapon lists `Ground`. `30mm.A10` inherits `^30mm`'s
+   `ValidTargets: Infantry, Vehicle, Defense` (`rules/weapons/weapons-ballistics.yaml:582`) and
+   `Hellfire` is `ValidTargets: Vehicle, Air, Defense` (`rules/weapons/weapons-missiles.yaml:243`).
+   `ChooseArmamentsForTarget` therefore returns nothing (`AttackBase.cs:458-462`), `CanAimAtTarget`
+   is false, `DoAttack` is never called.
+
+Both weapons hit the t90 perfectly well as an **actor** (`^Vehicle` is `TargetTypes: Ground, Vehicle`,
+`rules/ingame/vehicles.yaml:46-48`), which is exactly why this is invisible from the YAML: the unit
+looks armed, acquires normally, and flies a textbook attack run in silence.
+
+**The rule this implies**, and it is worth stating because nothing enforces it: *an `AttackType: Strafe`
+airframe's armaments must include `Ground` in `ValidTargets`, or the airframe can never fire.* Upstream
+OpenRA's strafing aircraft satisfy it by convention. In WW3MOD `FROG.Airstrike` satisfies it
+(`RocketPods`, `ValidTargets: Ground`, `weapons-ballistics.yaml:912`); `A10.Airstrike` does not. No lint
+rule catches this — `--check-yaml` has no notion of the pairing.
+
+**Why it has never been seen in a match**: `A10.Airstrike` is spawned only by `AirstrikePower`, and the
+airstrike powers are commented out for v1 (`rules/player.yaml:106-144`, `rules/world.yaml:552-557`). It
+is latent, not live. Whoever re-enables airstrikes post-v1 inherits an A-10 that flies over and does
+nothing.
+
+**Candidate fix** (not applied — it is a live weapon-coverage change and wants its own run): give
+`30mm.A10` an explicit `ValidTargets: Ground, Infantry, Vehicle, Defense`. Note the A-10 also cannot be
+overridden from map rules at all (the duplicate-key bug filed above), so this cannot be pinned by a
+map-rules test the way most weapon changes can — it has to be a change to the shipped weapon.
