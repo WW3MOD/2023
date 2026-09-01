@@ -3929,3 +3929,44 @@ BEHAVIOUR of a queued Resupply** — no scenario anywhere exercises it, and `res
 has been building queued orders since it was written without the hotkey ever being able to deliver
 one. `autoEnterButton` and `patrolButton` are still absent from the array; `stopButton` is absent
 correctly, since a Stop must never queue.
+## 2026-09-01: [med] `test-attackmove-dry-breaks-off` is RED on `main`, and it is very likely the standing paused-armament bug rather than a new one (found while: the queued-attack-move stale-destination fix, branch `wt/stale-order-state`, `main @ 143a4941`)
+
+**I did not chase this.** It surfaced in the regression pass for an unrelated fix, I established only
+that it is not mine, and I stopped there. What follows is the attribution evidence and nothing more.
+
+**Symptom.** `./tools/autotest/run-test.sh test-attackmove-dry-breaks-off` fails with
+
+    A dry man never went idle: he kept an attack order he could not carry out
+    (Hunter = attack-move / AttackMoveActivity guard, Shooter = direct attack / Attack.Tick guard)
+
+**NOT caused by the branch it was found on, established by a two-arm control rather than by
+argument.** The branch's only behavioural engine change is that `AttackMove.ResolveOrder` resolves
+`NearestMoveableCell` when the move starts instead of when the order is issued. Reverting *only*
+that — restoring the eager local, leaving `MoveOrderTerms` and the `Mobile` call sites in place —
+and rerunning gave a **byte-identical** failure note:
+
+| Arm | Seed | Run dir | Verdict |
+|---|---|---|---|
+| Deferred (the fix) | `859777250` | `260901_030549_p68940_test-attackmove-dry-breaks-off` | fail |
+| Eager (pre-fix control) | `2084951790` | `260901_030752_p69364_test-attackmove-dry-breaks-off` | fail |
+
+The control arm is behaviourally `main`: the two remaining engine edits are substitutions of equal
+values (`WDist.FromCells(8)` → `WDist.FromCells(MoveOrderTerms.NearEnoughCells)`, and the clamp
+helper is the same expression it replaced). So this fails on `main` too.
+
+**Most likely already filed, one entry up.** The failure text — an attack order kept, the unit never
+reaching idle — is the symptom of *"[high] OPEN — a unit whose every armament is PAUSED accepts an
+attack order, walks over, aims, and never goes idle again"* (2026-08-30). An empty ammo pool is a
+PAUSED armament (`!ammo-primary`), which is exactly that entry's mechanism, and this scenario's whole
+subject is a dry man. **I have not verified the linkage** — I did not read the scenario's Lua, did not
+check which of its two units (Hunter / Shooter) fails the predicate, and did not bisect for when it
+went red. Treat the connection as a strong lead, not a finding.
+
+**Worth knowing before anyone starts:** the scenario was introduced with `68c2527a` /
+`27763a9b` ("an attack order given to a unit with nothing to fire is now dropped", then scoped to
+unqueued orders), so it is meant to be green and presumably once was. If it turns out to be the
+2026-08-30 bug, that entry's fix shape — the affected traits opting into
+`AbandonWhenArmamentsPaused` — should turn this green as a side effect, and this scenario is then the
+regression pin that entry currently lacks.
+
+**Confirm by:** `./tools/autotest/run-test.sh test-attackmove-dry-breaks-off` on a clean `main`.

@@ -118,14 +118,33 @@ namespace OpenRA.Mods.Common.Traits
 				if (!order.Queued && AmmoPool.CannotFight(self))
 					return;
 
-				var cell = self.World.Map.Clamp(self.World.Map.CellContaining(order.Target.CenterPosition));
+				var cell = MoveOrderTerms.DestinationCell(self.World.Map, order.Target);
 				if (!Info.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
 					return;
 
-				var targetLocation = move.NearestMoveableCell(cell);
 				var assaultMoving = false; // WW3MOD: AssaultMove disabled
 
-				self.QueueActivity(order.Queued, new AttackMoveActivity(self, () => move.MoveTo(targetLocation, 8, targetLineColor: Info.TargetLineColor), assaultMoving));
+				// PITFALL: NearestMoveableCell belongs INSIDE this closure and the two obvious
+				// tidy-ups both reintroduce a shipped bug. See MoveOrderTerms for the full account.
+				//
+				// Hoisting it to a local here — which is what this line used to be — resolves it when
+				// the ORDER arrives. ResolveOrder runs immediately even for a shift-queued order, so
+				// the activity is built now and runs later, and the unit then walks to whatever was
+				// reachable at the click. test-queued-attackmove-stale-cell pins that.
+				//
+				// Switching to MoveTo(cell, …, evaluateNearestMovableCell: true) to match
+				// Mobile.ResolveOrder defers correctly but adopts Move.OnFirstRun's null-destination
+				// branch, which makes a unit ordered into a fully-occupied area stand still instead of
+				// advancing to the edge of it. NearestMoveableCell returns the cell unchanged on a
+				// miss, which is what preserves that advance.
+				//
+				// The closure runs twice — once for AttackMoveActivity's OriginalDestination probe at
+				// construction, once when the move starts. Only the second reaches the unit. The
+				// duplicate is cheap: the annulus is capped at 10 and CanReach is an O(1) domain-index
+				// compare, not a search (Mobile.cs:884-888).
+				self.QueueActivity(order.Queued, new AttackMoveActivity(self,
+					() => move.MoveTo(move.NearestMoveableCell(cell), MoveOrderTerms.NearEnoughCells, targetLineColor: Info.TargetLineColor),
+					assaultMoving));
 				self.ShowTargetLines();
 			}
 		}

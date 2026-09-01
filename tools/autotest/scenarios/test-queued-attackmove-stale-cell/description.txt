@@ -1,0 +1,1 @@
+Auto: a shift-queued attack-move must walk to the cell that is reachable when the move STARTS, not the one that was reachable when the order was issued.
