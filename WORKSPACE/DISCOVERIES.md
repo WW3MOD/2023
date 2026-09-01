@@ -3,6 +3,61 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — A scoring term expressed in a different unit from the one it competes against is INERT BY CONSTRUCTION, and nothing in the build, the tests or the lint can see it (`wt/drone-targeting`)
+
+The drone module shipped a believed-contact preference that **never once changed a decision**, and it
+looked entirely healthy: an `Info` field with a `[Desc]`, a value set in `ai.yaml`, a parameter threaded
+into a pure function, and a unit test asserting that it helped.
+
+- `DroneTaskingMath.ScoreCandidate` returned `(revealed * 1000) + contactBonus - poiDistance`, with
+  `ContactBonus: 2000` (`ai.yaml:932`, pre-change). Because the bonus is added **after** the revealed
+  count has been scaled by 1000, its true exchange rate is `2000 / 1000` = **two revealed squares**.
+- The term it competes against reaches **~841** squares (the drone's 28-cell vision box at
+  `ControlField.CellSize 2` is 29x29 grid squares) and carries a **~228-square** floor of box-corner
+  artefact on its own (pinned by `DroneTaskingMathTest.Model_TheBoxCornerArtefactIsLargeEnoughToMakeTheRevealFloorInert`).
+  The contact term was therefore worth **under 1% of the noise floor** of the term it was meant to move.
+- **Nothing could have caught it.** It typechecks; the value is configured and read; `git log -S` finds
+  it live. The existing test `Score_PrefersGroundNearBelievedContacts` asserted `nearContact > blank` —
+  which is **true, and true by two parts in twenty thousand**. An ordering assertion cannot distinguish
+  "this term decides things" from "this term breaks exact ties and nothing else".
+
+**The generalisable rule: assert the EXCHANGE RATE, not the ordering.** `Is.GreaterThan` on a scoring
+term proves only that its sign is right. What pins a term's *authority* is an equality against the term
+it trades with — here `Score(revealed: 20, intel: 40) == Score(revealed: 60)`, which fails loudly the
+moment the two drift back into different units. Both halves of the fix generalise: put competing terms
+in **one currency** so they can be added, and apply any floor to the **sum** rather than to one addend.
+
+**This is the same family as the module's earlier 674,584-of-674,584 refusal bug**, where the quantity
+being scored (the hover cell's own staleness) was invalidated by the drone's own presence. Both are
+arithmetic that compiles, passes review, and is inert or unsatisfiable by construction. The question to
+ask of any new scoring term: *what is one unit of this worth in units of the thing it competes with,
+and is that ratio the one I intended?*
+
+## 2026-09-01 — `TicksSinceVerified` counts the NON-PLAYABLE MAP BORDER as unobserved ground, so the drone's revealed-area term is inflated worst exactly where drones launch (`wt/drone-targeting`)
+
+A second, independent inflation of the same `revealed` term as the box-corner artefact above — and this
+one is map-dependent rather than geometric, so it does not cancel evenly between candidates.
+
+- `ControlField` sizes its grid from `map.MapSize` (`ControlField.cs:520-521`), but `Map.Contains(CPos)`
+  tests the **playable `Bounds`** rectangle (`Map.cs:1439-1455`), which is strictly smaller.
+- Grid squares in the border band are never visible to anyone, so `LastVerified` stays 0 and
+  `TicksSinceVerified` returns `int.MaxValue` (`ControlField.cs:921-928`). That clears any
+  `>= MinStalenessTicks` test, so the summed-area table counts the border as permanently unobserved.
+- The drone's revealed-area query is therefore partly a count of ground **the drone can never reveal,
+  because it is not in the playable map at all**. `SumInclusive` clamps to the GRID, not to `Bounds`,
+  so the existing clamp does not remove it.
+- **It lands hardest where it is used.** Operators launch from the Supply Route — a fixed beachhead near
+  a map edge — so their candidate discs overlap the border band far more than an inland unit's would.
+  The module's own comment already recorded the symptom (candidates measured 42-53% clamped) and
+  attributed it to map geometry; this is the mechanism underneath it.
+
+**Not fixed here, deliberately**: subtracting it would be a second unmeasured behavioural change riding
+along with the contact-tasking one. Instead a diagnostic twin summed-area table measures it and the
+launch log carries `border=`, so `reveal - border` is the real exploration signal and one match settles
+the magnitude. **The general shape: a "never observed" sentinel and "outside the playable area" are
+indistinguishable to any staleness test, so any field keyed on staleness silently treats the map border
+as maximally interesting.**
+
 ## 2026-08-30 — The tooltip mockups and the audit both assert HIMARS refills at a Logistics Centre; a same-day user ruling says it cannot (`wt/tooltip-elements`)
 
 - `tooltip-mockups/units.html` shows the HIMARS card carrying **"133% of a Logistics Centre"** and the

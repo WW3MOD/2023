@@ -60,16 +60,48 @@ namespace OpenRA.Test
 
 		// ---------- ScoreCandidate ----------
 		//
-		// Signature is (revealedStaleSquares, minRevealed, poiDistance, maxPoiDistance, airDanger,
-		// maxAirDanger, contactBonus). The first argument is what the drone would REVEAL from the
-		// hover cell, NOT the staleness of the hover cell itself — see the regression test below.
+		// EVERY CALL BELOW GOES THROUGH THIS HELPER, AND THAT IS A DELIBERATE GUARD RATHER THAN BREVITY.
+		// These tests were written against a 7-argument positional signature. When `intelSquares` was
+		// inserted as the second parameter, every one of those calls STILL COMPILED and still passed —
+		// re-bound one position to the right, so `Score_RefusesACellThatRevealsTooLittle` was quietly
+		// asserting a POI refusal instead. A test that passes for the wrong reason is worse than no
+		// test, and this file has already shipped one (see the note in the reveal test below). Named
+		// optional parameters mean the next signature change is a compile error in one place instead of
+		// sixteen silent rebindings.
+		//
+		// `revealed` is what the drone would REVEAL from the hover cell, NOT the staleness of the hover
+		// cell itself — see the regression test further down.
+		static long Score(
+			int revealed,
+			int intel = 0,
+			int minRevealed = 12,
+			int poi = 5,
+			int maxPoi = 40,
+			int air = 0,
+			int maxAir = 100)
+		{
+			return DroneTaskingMath.ScoreCandidate(revealed, intel, minRevealed, poi, maxPoi, air, maxAir);
+		}
+
+		static long Score(
+			out DroneRefusal refusal,
+			int revealed,
+			int intel = 0,
+			int minRevealed = 12,
+			int poi = 5,
+			int maxPoi = 40,
+			int air = 0,
+			int maxAir = 100)
+		{
+			return DroneTaskingMath.ScoreCandidate(revealed, intel, minRevealed, poi, maxPoi, air, maxAir, out refusal);
+		}
 
 		[Test]
 		public void Score_RefusesACellThatRevealsTooLittle()
 		{
 			// Not worth a 60s sortie to uncover a couple of squares.
 			Assert.That(
-				DroneTaskingMath.ScoreCandidate(3, 12, 5, 40, 0, 100, 0),
+				Score(revealed: 3),
 				Is.EqualTo(DroneTaskingMath.Ineligible));
 		}
 
@@ -85,7 +117,7 @@ namespace OpenRA.Test
 			// body scored 40 + 0 - 5 = 35, i.e. it passed on the code it claimed to catch.
 			// The scenario that actually distinguishes the two models is
 			// Model_AtTheLeashEdgeTheHoverSquareIsObservedButRevealsUnobservedGround below.
-			var score = DroneTaskingMath.ScoreCandidate(40, 12, 5, 40, 0, 100, 0);
+			var score = Score(revealed: 40);
 			Assert.That(score, Is.Not.EqualTo(DroneTaskingMath.Ineligible));
 			Assert.That(score, Is.GreaterThan(0));
 		}
@@ -96,7 +128,7 @@ namespace OpenRA.Test
 			// The unreachable-corner guard survives the model change: revealing a lot of ground nobody
 			// will ever contest is still not worth the sortie.
 			Assert.That(
-				DroneTaskingMath.ScoreCandidate(200, 12, 90, 40, 0, 100, 0),
+				Score(revealed: 200, poi: 90),
 				Is.EqualTo(DroneTaskingMath.Ineligible));
 		}
 
@@ -105,15 +137,15 @@ namespace OpenRA.Test
 		{
 			// The drone dies to one hit of real AA. Revealed area must not buy its way past danger.
 			Assert.That(
-				DroneTaskingMath.ScoreCandidate(200, 12, 5, 40, 900, 100, 0),
+				Score(revealed: 200, air: 900),
 				Is.EqualTo(DroneTaskingMath.Ineligible));
 		}
 
 		[Test]
 		public void Score_PrefersRevealingMore()
 		{
-			var less = DroneTaskingMath.ScoreCandidate(20, 12, 5, 40, 0, 100, 0);
-			var more = DroneTaskingMath.ScoreCandidate(60, 12, 5, 40, 0, 100, 0);
+			var less = Score(revealed: 20);
+			var more = Score(revealed: 60);
 			Assert.That(more, Is.GreaterThan(less));
 		}
 
@@ -122,17 +154,153 @@ namespace OpenRA.Test
 		{
 			// One extra revealed square must beat any plausible POI-distance difference, or the tie
 			// break silently becomes the primary term.
-			var nearerButBlinder = DroneTaskingMath.ScoreCandidate(20, 12, 0, 40, 0, 100, 0);
-			var fartherButRicher = DroneTaskingMath.ScoreCandidate(21, 12, 40, 40, 0, 100, 0);
+			var nearerButBlinder = Score(revealed: 20, poi: 0);
+			var fartherButRicher = Score(revealed: 21, poi: 40);
 			Assert.That(fartherButRicher, Is.GreaterThan(nearerButBlinder));
 		}
 
 		[Test]
 		public void Score_PrefersGroundNearBelievedContacts()
 		{
-			var blank = DroneTaskingMath.ScoreCandidate(20, 12, 5, 40, 0, 100, 0);
-			var nearContact = DroneTaskingMath.ScoreCandidate(20, 12, 5, 40, 0, 100, 2000);
+			var blank = Score(revealed: 20);
+			var nearContact = Score(revealed: 20, intel: 250);
 			Assert.That(nearContact, Is.GreaterThan(blank));
+		}
+
+		[Test]
+		public void Score_IntelIsInTheSameCurrencyAsRevealedArea()
+		{
+			// THE REGRESSION THIS FEATURE EXISTS TO PREVENT, AND IT IS AN ARITHMETIC ONE.
+			// The shipped contact term was `revealed * 1000 + contactBonus` with contactBonus = 2000 —
+			// worth two revealed squares against a term that reaches ~841 squares. It was configured, it
+			// typechecked, no test failed, and it could never change a decision. Pinning the EXCHANGE
+			// RATE rather than merely "contacts help" is what makes that unrepeatable: N squares of
+			// intel must move the score exactly as far as N squares of revealed area.
+			Assert.Multiple(() =>
+			{
+				Assert.That(Score(revealed: 20, intel: 40), Is.EqualTo(Score(revealed: 60)));
+				Assert.That(Score(revealed: 0, intel: 250), Is.EqualTo(Score(revealed: 250)));
+
+				// The old bonus, converted into the new currency, is worth two squares — kept executable
+				// so the measurement cannot decay into folklore.
+				Assert.That(
+					Score(revealed: 20, intel: 2000 / 1000) - Score(revealed: 20),
+					Is.EqualTo(2000));
+			});
+		}
+
+		[Test]
+		public void Score_TheRevealFloorCountsIntelToo()
+		{
+			// A contact that has JUST vanished sits on ground the player was looking at moments ago, so
+			// that ground is not yet stale and reveals almost nothing. Gate on revealed area alone and
+			// the hunt cell is refused for exactly as long as the trail is warm — the same
+			// "unsatisfiable by construction" shape as the defect that once stopped this module
+			// launching at all. The floor must therefore see the intel term.
+			//
+			// NOTE ON WHAT THIS DOES AND DOES NOT CLAIM: with the shipped numbers the floor is INERT
+			// anyway, because the box-corner artefact alone puts ~228 squares into every query (see
+			// Model_TheBoxCornerArtefactIsLargeEnoughToMakeTheRevealFloorInert). This pins the rule for
+			// when that artefact is fixed or the floor is raised to bite — it is insurance, not a live
+			// guard, and reading it as one would repeat the settleTicks mistake.
+			Assert.Multiple(() =>
+			{
+				Assert.That(Score(revealed: 2), Is.EqualTo(DroneTaskingMath.Ineligible),
+					"a cell revealing nothing and worth no intel is still refused");
+
+				Assert.That(Score(revealed: 2, intel: 250), Is.Not.EqualTo(DroneTaskingMath.Ineligible),
+					"a freshly-lost contact must clear the floor on its own");
+			});
+		}
+
+		[Test]
+		public void Score_IntelCannotBuyItsWayIntoHotAirspace()
+		{
+			// The drone dies to one hit of real AA. A believed contact is a reason to look, never a
+			// reason to donate the airframe — which is why intel joins the revealed term BEFORE the
+			// danger gate rather than being added after it.
+			Assert.That(
+				Score(revealed: 200, intel: 250, air: 900),
+				Is.EqualTo(DroneTaskingMath.Ineligible));
+		}
+
+		// ---------- IntelSquares: the lost-track tiering ----------
+
+		[Test]
+		public void Intel_LosingVisualIsWorthMoreThanKeepingIt()
+		{
+			// The whole feature in one assertion: the step UP at the moment a unit disappears. "Even more
+			// so if we lost track of a target" is this inequality and nothing else.
+			var watched = DroneTaskingMath.IntelSquares(10, false, 250, 60, 20, 50, 2000);
+			var justLost = DroneTaskingMath.IntelSquares(60, false, 250, 60, 20, 50, 2000);
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(watched, Is.EqualTo(60));
+				Assert.That(justLost, Is.GreaterThan(watched));
+				Assert.That(justLost, Is.GreaterThan(200));
+			});
+		}
+
+		[Test]
+		public void Intel_DecaysTowardTheAreaFloorRatherThanToZero()
+		{
+			var fresh = DroneTaskingMath.IntelSquares(60, false, 250, 60, 20, 50, 2000);
+			var middling = DroneTaskingMath.IntelSquares(1000, false, 250, 60, 20, 50, 2000);
+			var cold = DroneTaskingMath.IntelSquares(1950, false, 250, 60, 20, 50, 2000);
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(middling, Is.LessThan(fresh),
+					"a four-minute-old sighting is not worth a ten-second-old one");
+				Assert.That(cold, Is.LessThan(middling));
+
+				// THE FLOOR IS THE POINT. The unit is long gone from that cell, but the ground is still
+				// where the enemy was operating — so an old record degrades into a weak area preference
+				// instead of falling off a cliff into nothing.
+				Assert.That(cold, Is.GreaterThanOrEqualTo(60));
+
+				// Past the horizon it locates nothing at all and the caller drops the record.
+				Assert.That(DroneTaskingMath.IntelSquares(2000, false, 250, 60, 20, 50, 2000), Is.EqualTo(0));
+			});
+		}
+
+		[Test]
+		public void Intel_StaticsAreCheapAndDoNotDecay()
+		{
+			// A structure is not going anywhere, so its position is not the open question a sortie
+			// answers — and it must not decay, because it has not moved and never will.
+			Assert.Multiple(() =>
+			{
+				Assert.That(DroneTaskingMath.IntelSquares(10, true, 250, 60, 20, 50, 2000), Is.EqualTo(20));
+				Assert.That(DroneTaskingMath.IntelSquares(50000, true, 250, 60, 20, 50, 2000), Is.EqualTo(20));
+			});
+		}
+
+		[Test]
+		public void Intel_FalloffUsesTheDroneVisionRadiusNotAnAdjacencyStep()
+		{
+			// The previous model asked "is the hover cell within 6 cells of a contact", which understates
+			// the drone by ~4.5x: parked anywhere it verifies a 28-cell bubble. A contact 20 cells from
+			// the hover cell is comfortably observed and must still be worth something.
+			Assert.Multiple(() =>
+			{
+				Assert.That(DroneTaskingMath.IntelFalloff(250, 0, 28), Is.EqualTo(250));
+				Assert.That(DroneTaskingMath.IntelFalloff(250, 20, 28), Is.GreaterThan(0));
+				Assert.That(DroneTaskingMath.IntelFalloff(250, 20, 28), Is.LessThan(250));
+
+				// The old 6-cell step would have scored this at nothing.
+				Assert.That(DroneTaskingMath.IntelFalloff(250, 12, 28), Is.GreaterThan(100));
+
+				// Beyond vision the drone would not see the cell at all, so it is worth exactly nothing.
+				Assert.That(DroneTaskingMath.IntelFalloff(250, 29, 28), Is.EqualTo(0));
+
+				// Centring matters: closer to the last-known cell is worth more, because the uncertainty
+				// disc grows around that point.
+				Assert.That(
+					DroneTaskingMath.IntelFalloff(250, 5, 28),
+					Is.GreaterThan(DroneTaskingMath.IntelFalloff(250, 15, 28)));
+			});
 		}
 
 		[Test]
@@ -143,16 +311,16 @@ namespace OpenRA.Test
 			// different bugs needing three different fixes.
 			Assert.Multiple(() =>
 			{
-				DroneTaskingMath.ScoreCandidate(3, 12, 5, 40, 0, 100, 0, out var r1);
+				Score(out var r1, revealed: 3);
 				Assert.That(r1, Is.EqualTo(DroneRefusal.TooLittleRevealed));
 
-				DroneTaskingMath.ScoreCandidate(200, 12, 90, 40, 0, 100, 0, out var r2);
+				Score(out var r2, revealed: 200, poi: 90);
 				Assert.That(r2, Is.EqualTo(DroneRefusal.TooFarFromPoi));
 
-				DroneTaskingMath.ScoreCandidate(200, 12, 5, 40, 900, 100, 0, out var r3);
+				Score(out var r3, revealed: 200, air: 900);
 				Assert.That(r3, Is.EqualTo(DroneRefusal.TooDangerous));
 
-				DroneTaskingMath.ScoreCandidate(200, 12, 5, 40, 0, 100, 0, out var r4);
+				Score(out var r4, revealed: 200);
 				Assert.That(r4, Is.EqualTo(DroneRefusal.None));
 			});
 		}
@@ -321,7 +489,7 @@ namespace OpenRA.Test
 
 				// And the model accepts it on that basis.
 				Assert.That(
-					DroneTaskingMath.ScoreCandidate(revealed, 12, 5, 40, 0, 100, 0),
+					Score(revealed: revealed),
 					Is.Not.EqualTo(DroneTaskingMath.Ineligible));
 			});
 		}
