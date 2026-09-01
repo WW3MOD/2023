@@ -90,6 +90,7 @@ specifically) while nav-guard needs neither. `make nav-guard` is the fast inner-
 | Blocking actors | Every actor in the map's `Actors:` block, footprint from `Building.Footprint`/`Dimensions` (`x`/`X` block, `+` is transit-only, `_` empty). |
 | Crushability | `Passable.PassClasses` ∩ locomotor `Passes`. Note this is `Passes`, **not** `Crushes`: `Locomotor.IsBlockedBy` consults only `PassableClasses`. |
 | Mobile actors | Never walls — an ordinary move order uses `BlockedByActor.Immovable`, under which a movable actor does not block. |
+| Zero-footprint actors | `Immobile: OccupiesSpace: false` occupies no cell (`Immobile.cs:41`), so `ActorMap.AddInfluence` never files it (`ActorMap.cs:413-415`) and it cannot block. Covers `mpspawn`, `spawnarea`, `waypoint`, `flare` and the cameras. |
 | Diagonal squeeze | All three rule variants, edge-level. This is the part a cell-only model would miss entirely: both endpoint cells stay passable and only the *step between them* is denied. |
 | Husk state | `--state dead` substitutes every `SpawnActorOnDeath` target. |
 | Rule inheritance | A faithful subset of `MiniYaml.Merge`/`ResolveInherits`, including `-Trait:` removal and map-level `Rules:` overrides. All 126 placed actor types across the 10 maps resolve. |
@@ -204,3 +205,11 @@ far.
 8. **Coverage is `mods/ww3mod/maps` and nothing else — so a green run on a SCENARIO change is real but vacuous.** The baseline gates exactly the ten shipped mod maps (`baseline.json` → `states.live`/`states.dead`: `arena-tank-duel`, `nuclear-winter-ww3`, `polar-disorder-ww3`, `river-zeta-ww3`, `seventh-woods-ww3`, `shellmap-open-field`, `siberian-pass-ww3`, `twin-rivers-ww3`, `woodland-warfare-ww3`, `x-lake-ww3`). The **190 autotest scenario maps under `tools/autotest/scenarios/`** are outside it entirely (counts re-derived 2026-08-19; `find … -name map.yaml`). An autotest scenario is exactly the place a movement-rule change gets exercised and exactly the place this gate is blind — so "`make nav-guard` is green" answers a question about the shipped maps, never about the scenario you just edited. Verify a scenario-map blocking change by running it.
 9. **The baseline can be blessed away.** `bless` is one command and nothing forces a human
    to look at the diff. The gate is only as strong as the review of `baseline.json`.
+10. **Parked aircraft are still modelled as walls, and are not.** `actor_shape` branches on
+    `Building` and `Immobile`; an actor whose `IOccupySpace` is `Aircraft` falls through to the
+    single-cell default. The engine disagrees twice over: `AircraftInfo.OccupiedCells` returns an
+    empty dictionary unconditionally (`Aircraft.cs:199-200`) and the instance form returns
+    `landingCells`, which is empty while airborne (`:795-798`). Six actors are affected, all on
+    `shellmap-open-field` (`tran`, `littlebird`, `heli`, `halo`, `hind`, `mi28`), so that map's
+    numbers are six cells low for every locomotor. Known and deliberately not fixed in the same
+    commit as the `Immobile` correction; it needs its own re-bless.

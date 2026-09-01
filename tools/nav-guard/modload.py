@@ -286,6 +286,18 @@ def husk_of(rules: ModRules, name: str) -> str | None:
     return None
 
 
+def _immobile_occupies_space(traits: dict[str, list[Node]]) -> bool:
+    """Immobile.cs:41 -- `OccupiesSpace: false` leaves `occupied` empty, so ActorMap.AddInfluence
+    (ActorMap.cs:413-415) iterates nothing and the actor never enters a cell's influence list.
+    The pathfinder therefore cannot see it at all: it is not a wall, not even a crushable one.
+    mpspawn, spawnarea, waypoint, flare and the camera actors all set it (rules/misc.yaml).
+    """
+    immobile = traits.get("Immobile")
+    if not immobile:
+        return True
+    return (immobile[0].child_value("OccupiesSpace", "true") or "true").lower() != "false"
+
+
 def actor_shape(name: str, actor: Node) -> ActorShape:
     traits = _traits(actor)
 
@@ -304,7 +316,7 @@ def actor_shape(name: str, actor: Node) -> ActorShape:
                 blocking.append(off)
             elif c == FOOTPRINT_TRANSIT_ONLY:
                 transit.append(off)
-    else:
+    elif _immobile_occupies_space(traits):
         # No Building trait: Mobile and the bare IOccupySpace traits are single-cell.
         blocking.append((0, 0))
 

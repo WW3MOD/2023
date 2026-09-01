@@ -3,6 +3,58 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — nav-guard modelled every zero-footprint actor as a solid wall; the one defect it is credited with catching was this false positive (`wt/navguard-walls`)
+
+**The bug.** `modload.actor_shape` (`tools/nav-guard/modload.py:289`) branched on `Building` only: with
+no `Building` trait it appended `(0, 0)` to `blocking` unconditionally, so anything without a footprint
+became a one-cell wall. It never read `Immobile.OccupiesSpace`. Eight ww3mod actors set
+`OccupiesSpace: false` — `mpspawn`, `spawnarea`, `waypoint`, `flare`, `camera` and the three
+`camera.*` variants (`mods/ww3mod/rules/misc.yaml:157,180,245,261,278`) — and **every `Immobile` in the
+mod sets it false**; none also carries `Building` or `Mobile`, so the correction is unambiguous.
+
+**The engine says these occupy nothing, in two independent places.** `ImmobileInfo.OccupiedCells`
+returns an empty dictionary when the flag is false (`Immobile.cs:23-27`), and the instance ctor leaves
+`occupied` as `Array.Empty` (`:41-44`). `ActorMap.AddInfluence` then iterates that empty array
+(`ActorMap.cs:413-415`), so the actor is never in any cell's influence list and `GetActorsAt` cannot
+return it. The pathfinder does not see it at all — it is not a wall, not even a crushable one.
+
+**Blast radius: 150 of 190 map/locomotor pairs, in both world states.** Exactly 36 cells across the 10
+shipped maps (30 `mpspawn` + 6 `spawnarea`; the other six types are placed on no shipped map). Verified
+by diffing the passability grid cell-by-cell across all 380 pairs: the freed set is **exactly** those 36
+cells and no others, and **no cell anywhere became less passable**. The four locomotors that do not move
+on any map are `immobile`, `lcraft`, `naval-deep`, `naval-shallow` — the four that cannot cross the
+terrain the markers sit on. Component counts changed nowhere; only `river-zeta/immobilepara` moved
+`pocketed`, and correctly (see below).
+
+**THE FALSE POSITIVE — this is the part worth carrying.** nav-guard was credited with catching a real
+defect: a truck's start cell, co-occupied by an `mpspawn`, reading as blocked. It was this bug. The
+finding is recorded at `test-restock-unreachable-centre/map.yaml:169-173`, which moved the spawn marker
+off the truck's cell to keep the static check readable. Measured under both models: in the two sibling
+scenarios that *do* co-locate — `test-truck-dry-restock-survives` and
+`test-truck-restock-survives-cancel`, both `truk`+`mpspawn` at `(10,16)` — the old model reads that cell
+`passable=False` and the fixed model reads it `passable=True`. **Both scenarios pass at runtime and
+always did**, which the comment itself noted ("the sibling scenario co-locates … and works") — the
+contradiction was on the page and was read as a quirk of the tool rather than as a refutation of it. The
+map edit was harmless in itself, but it was work the tool generated rather than prevented. The comment
+has been corrected in place; the scenario's own premise check still prints `walled reachable: False` /
+`open reachable: True`, with the main component now 2023 rather than 2021.
+
+**Second instance of the same class, NOT fixed here and still live: aircraft.**
+`AircraftInfo.OccupiedCells` also returns an empty dictionary unconditionally
+(`engine/OpenRA.Mods.Common/Traits/Air/Aircraft.cs:199-200`), and the instance form returns
+`landingCells`, empty while airborne (`:795-798`). `actor_shape` has no `Aircraft` branch either, so a
+parked aircraft is still modelled as a wall. Six actors on `shellmap-open-field` (`tran`, `littlebird`,
+`heli`, `halo`, `hind`, `mi28`) and none on the other nine maps. This is why an independent hand-recount
+of `shellmap-open-field/heavytracked` gives **5358** against the tool's 5352: 5400 bounds cells, all
+`Clear`, minus 42 tree footprint cells — the residual 6 is exactly the aircraft. Left alone deliberately
+so the `Immobile` baseline movement stays reviewable on its own; it needs its own commit and its own
+re-bless.
+
+**A related fact worth having: `supplyroute` blocks nothing.** Its footprint is entirely transit-only
+(`+`), so `actor_shape` gives it `blocking=[]`. On `test-restock-unreachable-centre` the `mpspawn` at
+`(60,30)` was the *only* blocker on the SR's own cell, which is why freeing the two markers moved that
+map by +2 and not +1.
+
 ## 2026-09-01 — `make nav-guard` cannot see a single autotest scenario, so it is NOT the verification for a scenario-geometry change (`wt/cordon-paydown`)
 
 **The check specified as load-bearing for the cordon paydown is structurally blind to the files that
