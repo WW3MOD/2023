@@ -16,6 +16,35 @@ Player:
 	-PoiOffensiveBotModule@experimental:
 	-LaneAmbushBotModule@experimental:
 
+	# MEASURED, NOT GUESSED. The first attempt at this run was refused by the
+	# scenario's own confound guard, and the cause is in the log verbatim:
+	#   [defence] assign unit=21@18,45 -> 39,51 owner=USA-bot reason=contested-line
+	# That is LayeredDefenceBotModule AttackMoving the drone operator to within 8
+	# cells of the vanish cell, where its own 28-cell vision verifies the cell and
+	# erases the very contact under test.
+	#
+	# Note the tag: this module logs its aggregate line as `[exp-poi] disperse`,
+	# which reads like PoiOffensiveBotModule and is not. Removing the POI module
+	# alone left the operator being walked by something else entirely — do not infer
+	# the owning module from the log tag here.
+	-LayeredDefenceBotModule@experimental:
+
+	# The bot starts with 19,960 cash on this map and spends it: the same run showed
+	# `[composition] pick` calling in ar.america / at.america / e3.america, growing
+	# the dispersal pool from 1 to 5 within 160 ticks. Any of those walking east
+	# gives the player vision of the vanish cell, which is the same erasure by a
+	# different route. Zeroing the bank removes the whole population rather than
+	# requiring every module that might move a unit to be enumerated — the fragility
+	# that let LayeredDefence through in the first place.
+	# LOCKED as well as set, for the same reason the fog checkbox below is: DefaultCash
+	# is an ILobbyOptions value (PlayerResources.cs:20,32), so an unlocked one can be
+	# resolved from lobby state rather than from this file — and a scaffolding change
+	# that silently does not take is how a run becomes an arm nobody intended. 0 is a
+	# member of SelectableCash (:29), so it is a legal option and not a clamp.
+	PlayerResources:
+		DefaultCash: 0
+		CashDropdownLocked: true
+
 	MapLayers:
 		# FOG ON AND LOCKED. The entire feature is about what happens to a contact
 		# once it is no longer visible, so a run with fog off measures nothing:

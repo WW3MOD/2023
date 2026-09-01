@@ -116,7 +116,15 @@ local function contaminatingFriendly(usa)
 		end)
 
 	if #near > 0 then
-		return near[1].Type
+		-- REPORT WHERE AND HOW FAR, not just what. The first firing of this guard named
+		-- only the type ("friendly 'dr.america' gained vision"), which was true but sent
+		-- me to the engine's debug.log to find out whether that was the placed operator
+		-- or a reinforcement, and what had moved it. The answer was one line —
+		-- `[defence] assign unit=21@18,45 -> 39,51 reason=contested-line` — that the
+		-- verdict could have carried itself.
+		local a = near[1]
+		return string.format("%s at %d:%d (%dc from the vanish cell)",
+			a.Type, a.Location.X, a.Location.Y, cellDist(a.Location, VanishCell))
 	end
 
 	return nil
@@ -233,7 +241,8 @@ tick = function()
 	if elapsed > KillScoutTick then
 		local intruder = contaminatingFriendly(usa)
 		if intruder ~= nil then
-			setupFaults[#setupFaults + 1] = "friendly '" .. intruder .. "' gained vision of the vanish cell"
+			setupFaults[#setupFaults + 1] = "a friendly gained vision of the vanish cell and erased the "
+				.. "contact under test: " .. intruder
 			finish()
 			return
 		end
