@@ -111,16 +111,22 @@ namespace OpenRA.Mods.Common.Traits
 			// straight line to the reserved cell -- so the wreck slides sideways. The husk sprite replaces the
 			// living one on this same tick, so aligning here is hidden by a discontinuity that already happens.
 			var travel = finalPosition - CenterPosition;
-			var settled = HuskSettleGeometry.SettleFacing(travel, Facing);
-
-			// Computed above the assignment so that reverting ONLY the assignment gives a control arm that still
-			// reports the angle it would have used -- the crab is then a measured number in both arms.
-			if (TestMode.IsActive)
-				Log.Write("debug", $"[husk-settle] travel=({travel.X},{travel.Y}) dragSpeed={dragSpeed} " +
-					$"deathFacing={Facing.Angle} settled={settled.Angle} crab={HuskSettleGeometry.CrabAngle(travel, Facing)}");
+			var deathFacing = Facing;
+			var settled = HuskSettleGeometry.SettleFacing(travel, deathFacing);
 
 			if (dragSpeed > 0)
 				Facing = settled;
+
+			// `settled` is computed above the assignment so that reverting ONLY the assignment leaves a control
+			// arm that still reports the angle it would have used -- the crab is a measured number in both arms.
+			//
+			// `applied` is what makes the two arms DISTINGUISHABLE, and without it a green run proves nothing:
+			// every other field here is read before the assignment and so is byte-identical whether the fix is
+			// live or reverted. applied == settled means the fix ran; applied == deathFacing means it did not.
+			if (TestMode.IsActive)
+				Log.Write("debug", $"[husk-settle] travel=({travel.X},{travel.Y}) dragSpeed={dragSpeed} " +
+					$"deathFacing={deathFacing.Angle} settled={settled.Angle} " +
+					$"crab={HuskSettleGeometry.CrabAngle(travel, deathFacing)} applied={Facing.Angle}");
 
 			effectiveOwner = init.GetValue<EffectiveOwnerInit, Player>(info, self.Owner);
 		}
