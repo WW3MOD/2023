@@ -16162,3 +16162,30 @@ Two traps for whoever audits this next:
    own figure of "all 46 actors" does not reproduce; a scope-aware count with `Inherits:` and
    `-Trait:` resolved gives 37 actors carrying both traits with an explicit list. The figure is
    incidental to the claim, which holds.
+
+## 2026-09-01 — Test.Mode nulls RenderPlayer: fog captures are silently fogless without the flag
+
+`TestModeLogic.cs:30-31` sets `world.RenderPlayer = null` whenever the local player is a real
+(non-spectating) player, unless `Test.KeepRenderPlayer=true` (parsed at `TestMode.cs:189`).
+With RenderPlayer null, `FogObscures`/`ShroudObscures` short-circuit to false — the frame renders
+with NO fog and NO shroud, and nothing in the capture reveals it. Any screenshot-based check of
+world-render fog (e.g. `ShroudRenderer.FogDarkness`) taken without the flag measures a fogless
+frame and will "verify" any value. The flag needs no engine change: `run-test.sh:735` splices
+`AUTOTEST_EXTRA_ARGS` unquoted into the launcher argv (settled by the wt/visual-capture merge,
+e8b8b85d). Counter-case: the MINIMAP shroud overlay resolves its player as `LocalPlayer ??
+RenderPlayer` (opposite order), so for minimap captures the flag must NOT be passed — see the
+wt/minimap-capture merge message (9cd1e0d8).
+
+Verified on-screen 2026-09-01 (river-zeta-ww3, manual launch with the flag): measured
+fogged-terrain brightness vs lit terrain — FogDarkness 1 ≈ 30%, 1.4 ≈ 15%, 1.85 ≈ 6.4%.
+The shipped 1.85 was visually indistinguishable from unexplored shroud; retuned to 1.4
+(commit f16cdb66).
+
+Companion ops facts from the same session:
+
+- **Starting Units "None" gives zero vision sources** ⇒ with Explored Map on, the ENTIRE map is
+  explored-but-fogged — the ideal condition for measuring fog rendering, no lit patches to dodge.
+- **Manual launches persist `Mute: True`** into `~/Library/Application Support/OpenRA/settings.yaml`
+  on every exit; remove it afterwards or the user's next session runs silent.
+- **`Test.LobbyReadyFile` is never written** even when the lobby shows the green LOBBY READY chip
+  (confirmed three separate runs) — poll the launch log for `[TestMode] active` instead.
