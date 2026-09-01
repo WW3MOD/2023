@@ -453,6 +453,16 @@ _**The missing primitive this needed now EXISTS**, built for item 59: `CapturesI
 **Perceived:** a dropped player stops ruining the match.
 Written up at the user's request with the explicit instruction not to implement it now. **This is two features, not one** — continuity needs nothing transferred; admission is the entire bill, and admission is gated on determinism that is currently RED (see item 42). → [`items/55-multiplayer-continuity.md`](pipeline/items/55-multiplayer-continuity.md)
 
+### 72. (Post-release, user-requested record) AI-generated intermediate damage-state sprites for garrisonable buildings
+**Perceived:** a shelled building visibly falls apart in stages instead of snapping intact→damaged and then sitting unchanged while its cover quietly collapses.
+_Recorded 2026-09-01 at the user's request, in the same message that ruled destructibility "leave it as-is for now". **Post-release; do not pull into v1.**_
+_**The engine does NOT wait on this art.** Damage is already capped to a terminal rubble state (`GarrisonManager.cs:1415-1435`) and occupant protection already interpolates continuously with a distinct rubble tier (`GarrisonProtection.cs:63-74`). The simulation has a gradient; only the presentation is binary. Sharpening that gradient is a **YAML-only** change worth doing with today's art — see P2 in [`garrison-destructibility-260901.md`](garrison-destructibility-260901.md). Anyone reaching this item before P2 has the order backwards._ → [`items/72-garrison-damage-sprites.md`](pipeline/items/72-garrison-damage-sprites.md)
+
+### 73. (Post-release, user-requested record) Multi-block interconnected buildings — occupants relocate as parts collapse
+**Perceived:** shelling a building drives its garrison from one wing to another; a large building is fought through room by room instead of being one HP pool with men attached.
+_Recorded 2026-09-01 at the user's request, who classified it as "a lot of work" in the same breath as proposing it. **Post-release; large.**_
+_**Four parts of today's model each assume one building = one indivisible actor**: ports are fixed at actor creation (`GarrisonManager.cs:112-127`, `:210-213`), capacity is a plain `readonly int` with no condition hook (`Cargo.cs:33`), health is a single pool, and there is no interior — shelter occupants are out of the world and port occupants sit on the building's own cell. Do not estimate this without reading the dossier's trap list first._ → [`items/73-multi-block-buildings.md`](pipeline/items/73-multi-block-buildings.md)
+
 ---
 
 ## Where the rest of it went
