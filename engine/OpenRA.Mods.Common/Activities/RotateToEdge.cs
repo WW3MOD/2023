@@ -62,6 +62,8 @@ namespace OpenRA.Mods.Common.Activities
 			refundPercent = sellableInfo?.RefundPercent ?? 100;
 			fixedRefund = null;
 
+			edgeCell = ChooseEdgeCell(self);
+
 			// Tick every frame so the aircraft off-map despawn check fires while Fly is still running.
 			ChildHasPriority = false;
 		}
@@ -77,6 +79,8 @@ namespace OpenRA.Mods.Common.Activities
 			isAircraft = self.Info.HasTraitInfo<AircraftInfo>();
 			refundPercent = 100;
 			fixedRefund = refundAmount;
+
+			edgeCell = ChooseEdgeCell(self);
 
 			ChildHasPriority = false;
 		}
@@ -123,7 +127,21 @@ namespace OpenRA.Mods.Common.Activities
 			return closest;
 		}
 
-		protected override void OnFirstRun(Actor self)
+		/// <summary><para>Where this evacuation is headed. Pure: it reads world state but changes none of it, which
+		/// is what lets the CONSTRUCTOR call it — and that is the whole point.</para>
+		///
+		/// <para>This used to be inlined in <see cref="OnFirstRun"/>, so a QUEUED evacuation had no destination until
+		/// the activity actually became current. <see cref="TargetLineNodes"/> yields nothing while
+		/// <c>edgeCell</c> is null and <c>DrawLineToTarget</c> walks the whole <c>NextActivity</c> chain
+		/// (DrawLineToTarget.cs:189-194), so the queued evac leg drew no waypoint line at all until the unit
+		/// reached the waypoint before it — the reported "it shows up only at the last waypoint". Resolving here
+		/// commits the destination when the order is queued, which is what the line is claiming anyway.</para>
+		///
+		/// <para>The side effects that must NOT move earlier stay in <see cref="OnFirstRun"/>: the `evacuating`
+		/// condition (it deprioritises selection, and a unit with a queued evac is still fighting) and
+		/// <c>Aircraft.EvacuatingOffMap</c> (it disables edge repulsion, which would misbehave for the whole
+		/// queue ahead of the evac leg).</para></summary>
+		static CPos? ChooseEdgeCell(Actor self)
 		{
 			var aircraftInfo = self.Info.TraitInfoOrDefault<AircraftInfo>();
 			var mobileInfo = self.Info.TraitInfoOrDefault<MobileInfo>();
@@ -136,30 +154,53 @@ namespace OpenRA.Mods.Common.Activities
 				var searchOrigin = spawnAreaHint ?? self.Owner.HomeLocation;
 				var candidates = self.World.Map.GetSpawnCandidatesOnSameEdge(searchOrigin, 30);
 				if (candidates.Length > 0)
-					edgeCell = candidates.OrderBy(c => (self.Location - c).LengthSquared).First();
-				else
-					edgeCell = self.World.Map.ChooseClosestEdgeCell(searchOrigin);
+					return candidates.OrderBy(c => (self.Location - c).LengthSquared).First();
 
+				return self.World.Map.ChooseClosestEdgeCell(searchOrigin);
+			}
+
+			if (mobileInfo != null)
+			{
+				// Ground units retreat toward the SpawnArea edge
+				var spawnAreaHintGround = FindClosestSpawnAreaForOwner(self);
+				var searchOrigin = spawnAreaHintGround ?? self.Location;
+				return self.World.Map.ChooseClosestMatchingEdgeCell(searchOrigin,
+					c => mobileInfo.CanEnterCell(self.World, null, c) && CanReach(self, mobileInfo, c));
+			}
+
+			// No movement capability, sell immediately
+			return null;
+		}
+
+		static bool CanReach(Actor self, MobileInfo mobileInfo, CPos cell)
+		{
+			var pathFinder = self.World.WorldActor.Trait<IPathFinder>();
+			var locomotor = self.World.WorldActor.TraitsImplementing<Locomotor>().First(l => l.Info.Name == mobileInfo.Locomotor);
+			return pathFinder.PathExistsForLocomotor(locomotor, cell, self.Location);
+		}
+
+		protected override void OnFirstRun(Actor self)
+		{
+			var aircraftInfo = self.Info.TraitInfoOrDefault<AircraftInfo>();
+			var mobileInfo = self.Info.TraitInfoOrDefault<MobileInfo>();
+
+			// A destination committed at queue time was resolved from wherever the unit stood THEN. For a ground
+			// unit the one part of that answer which can genuinely go stale is reachability — a queued chain can
+			// walk the unit into a pocket the chosen cell is no longer connected to, and the move would then fail
+			// its way through the retry loop below and sell mid-map. One pathfinder query rather than a second
+			// perimeter sweep, and only on the ground path: aircraft ignore terrain, so their answer cannot rot.
+			if (aircraftInfo == null && mobileInfo != null && edgeCell.HasValue && !CanReach(self, mobileInfo, edgeCell.Value))
+				edgeCell = ChooseEdgeCell(self);
+
+			if (aircraftInfo != null && edgeCell.HasValue)
+			{
 				// Push the destination past the boundary; EvacuatingOffMap stops repulsion from snapping us back.
+				// Stays here rather than moving to ChooseEdgeCell: ComputePastEdgePos takes its direction from the
+				// unit's CURRENT position, which at queue time is not yet the approach vector.
 				aircraftDespawnPos = ComputePastEdgePos(self, edgeCell.Value, AircraftOffMapCells);
 				var aircraft = self.TraitOrDefault<Aircraft>();
 				if (aircraft != null)
 					aircraft.EvacuatingOffMap = true;
-			}
-			else if (mobileInfo != null)
-			{
-				// Ground units retreat toward the SpawnArea edge
-				var spawnAreaHintGround = FindClosestSpawnAreaForOwner(self);
-				var pathFinder = self.World.WorldActor.Trait<IPathFinder>();
-				var locomotor = self.World.WorldActor.TraitsImplementing<Locomotor>().First(l => l.Info.Name == mobileInfo.Locomotor);
-				var searchOrigin = spawnAreaHintGround ?? self.Location;
-				edgeCell = self.World.Map.ChooseClosestMatchingEdgeCell(searchOrigin,
-					c => mobileInfo.CanEnterCell(self.World, null, c) && pathFinder.PathExistsForLocomotor(locomotor, c, self.Location));
-			}
-			else
-			{
-				// No movement capability, sell immediately
-				edgeCell = null;
 			}
 
 			// Grant evacuating condition for selection deprioritization
@@ -375,6 +416,29 @@ namespace OpenRA.Mods.Common.Activities
 				yield return new TargetLineNode(Target.FromCell(self.World, edgeCell.Value), EvacuateLineColor);
 		}
 
+		/// <summary><para>Where the "+$N" refund tick is drawn. The actor's own <c>CenterPosition</c> is the wrong
+		/// answer for a SUCCESSFUL evacuation, because by then it is outside the playable area by construction —
+		/// dragged <see cref="GroundOffMapCells"/> past the boundary, or flown <see cref="AircraftOffMapCells"/>
+		/// past it. Both of FloatingText's gates resolve a position through MapLayers and both report an
+		/// out-of-bounds one as hidden (MapLayers.cs:504-505 and :576-577, the latter even with fog switched off),
+		/// so the tick was suppressed for exactly the evacuations that completed.</para>
+		///
+		/// <para>Clamping into <c>Map.Bounds</c> is the identity for every position already inside them, so the
+		/// fallback paths that sell in place — no edge cell, or the retry limit reached mid-map — draw in the same
+		/// spot they always did.</para></summary>
+		static WPos RefundTextPosition(Actor self)
+		{
+			var map = self.World.Map;
+			var uv = map.CellContaining(self.CenterPosition).ToMPos(map);
+			var (u, v) = EvacRefundTextMath.ClampToBounds(uv.U, uv.V,
+				map.Bounds.Left, map.Bounds.Top, map.Bounds.Right, map.Bounds.Bottom);
+
+			if (u == uv.U && v == uv.V)
+				return self.CenterPosition;
+
+			return map.CenterOfCell(new MPos(u, v).ToCPos(map));
+		}
+
 		void DoSell(Actor self)
 		{
 			RevokeEvacuating(self);
@@ -401,8 +465,16 @@ namespace OpenRA.Mods.Common.Activities
 			foreach (var ns in self.TraitsImplementing<INotifySold>())
 				ns.Sold(self);
 
-			if (showTicks && refund > 0 && self.Owner.IsAlliedWith(self.World.RenderPlayer))
-				self.World.AddFrameEndTask(w => w.Add(new FloatingText(self.CenterPosition, self.Owner.Color, FloatingText.FormatCashTick(refund), 30)));
+			// UNCONDITIONAL on the amount. The `refund > 0` gate used to swallow the tick for a unit whose
+			// HP-scaled refund rounded to zero — precisely the wreck whose owner most wants telling that
+			// evacuating it bought nothing. "+$0" is an answer; silence is indistinguishable from a bug.
+			if (showTicks && self.Owner.IsAlliedWith(self.World.RenderPlayer))
+			{
+				var textPos = RefundTextPosition(self);
+				self.World.AddFrameEndTask(w => w.Add(new FloatingText(
+					textPos, self.Owner.Color, FloatingText.FormatCashTick(refund),
+					EvacRefundTextMath.TickLifetime, EvacRefundTextMath.RiseRate, true)));
+			}
 
 			self.Dispose();
 		}
