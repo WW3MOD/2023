@@ -274,8 +274,9 @@ command-icons-highlighted:
 # command-icons art and command-icons-highlighted is a bare alias of command-icons.
 # It gets its own collection rather than overriding command-icons-highlighted so that the command
 # bar's momentary Stop/Deploy/Evacuate flashes are not recoloured along with it.
-# The three -active cells are recolours of the base art into the stance active amber (255,192,0),
-# occupying the previously empty right-hand end of the two command-icons rows on glyphs.png.
+# The three rectangles the -highlighted collection points at are recolours of this one's own art
+# into the stance active amber (255,192,0), and live in what was empty space at the right-hand end
+# of the two command-icons rows on glyphs.png. One 24x24 cell there is still free, at 225,232.
 resupply-icons:
 	Inherits: ^Glyphs
 	Regions:
