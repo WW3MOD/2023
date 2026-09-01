@@ -73,6 +73,12 @@ local Waypoints = {
 -- Resolved from the ISSUE-time position 8,16 over the perimeter of Bounds (1,1,64,32):
 -- 1,16 at 7 cells beats 8,1 at 15 and 8,32 at 16. See map.yaml for the full derivation and
 -- for what a LATE resolution would have produced instead.
+--
+-- 1,16 is only reachable because ChooseClosestMatchingEdgeCell sorts on LengthSquared. It
+-- used to sort on CVec.Length, which is a FLOORED integer sqrt, so 1,13 through 1,19 all
+-- scored 7 and the stable sort handed the win to the lowest row — this test's first run
+-- returned 1,13. A regression to a floored key lands on the WEST edge with the right X and
+-- a row up to 3 north, which is what WrongRowOnCorrectEdge names below.
 local ExpectedEdgeCell = { X = 1, Y = 16 }
 local LateResolutionCell = { X = 38, Y = 1 }
 
@@ -200,6 +206,13 @@ local function AssertNodes()
 	elseif Same(edge, StartCell.X, StartCell.Y) then
 		diagnosis = "the tank's own issue-time cell -- the edge search is returning its origin, "
 			.. "i.e. Map.AllEdgeCells is empty or the match predicate rejected every perimeter cell"
+	elseif edge.X == ExpectedEdgeCell.X then
+		diagnosis = "the CORRECT west edge but the wrong row. The issue-time reference is fine and "
+			.. "the feature under test works; what is broken is the tie-break in "
+			.. "Map.ChooseClosestMatchingEdgeCell. Sorting the perimeter on CVec.Length floors the "
+			.. "distance, so every row within 3 of " .. ExpectedEdgeCell.Y .. " scores the same 7 and "
+			.. "the stable sort returns the lowest -- 1,13. Check that the sort key there is still "
+			.. "LengthSquared"
 	end
 
 	failReason = "the queued evacuation's edge node is " .. diagnosis .. ". It sits at "
