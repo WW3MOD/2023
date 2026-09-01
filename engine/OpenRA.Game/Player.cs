@@ -286,21 +286,67 @@ namespace OpenRA
 			}
 		}
 
+		enum RelationshipBand { Self, Allies, Enemies, Neutrals }
+
+		/// <summary>
+		/// The single classification both the band colour and the shade rank are read from, so the two
+		/// can never disagree about which band a player is in.
+		/// </summary>
+		static RelationshipBand BandOf(Player player, Player viewer)
+		{
+			if (player == viewer)
+				return RelationshipBand.Self;
+
+			if (player.IsAlliedWith(viewer))
+				return RelationshipBand.Allies;
+
+			if (player.NonCombatant)
+				return RelationshipBand.Neutrals;
+
+			return RelationshipBand.Enemies;
+		}
+
+		/// <summary>
+		/// Ranks <paramref name="player"/> among everyone sharing its band, in World.Players order —
+		/// which is fixed at world creation and identical on every client, so a player keeps the same
+		/// shade for the whole match. Deliberately does NOT skip defeated players: a membership test
+		/// that changed mid-match would reshuffle the surviving players' shades.
+		/// </summary>
+		static (int Index, int Count) BandRank(Player player, Player viewer)
+		{
+			var band = BandOf(player, viewer);
+			var index = 0;
+			var count = 0;
+			foreach (var p in player.World.Players)
+			{
+				if (BandOf(p, viewer) != band)
+					continue;
+
+				if (p == player)
+					index = count;
+
+				count++;
+			}
+
+			return (index, count);
+		}
+
 		public static Color PlayerRelationshipColor(Player player, Player viewer)
 		{
 			if (!Game.Settings.Game.UsePlayerStanceColors || viewer == null || viewer.Spectating)
 				return player.color;
 
-			if (viewer == player)
-				return ChromeMetrics.Get<Color>("PlayerStanceColorSelf");
+			var band = BandOf(player, viewer);
+			var baseColor = ChromeMetrics.Get<Color>(band switch
+			{
+				RelationshipBand.Self => "PlayerStanceColorSelf",
+				RelationshipBand.Allies => "PlayerStanceColorAllies",
+				RelationshipBand.Neutrals => "PlayerStanceColorNeutrals",
+				_ => "PlayerStanceColorEnemies"
+			});
 
-			if (player.IsAlliedWith(viewer))
-				return ChromeMetrics.Get<Color>("PlayerStanceColorAllies");
-
-			if (player.NonCombatant)
-				return ChromeMetrics.Get<Color>("PlayerStanceColorNeutrals");
-
-			return ChromeMetrics.Get<Color>("PlayerStanceColorEnemies");
+			var (index, count) = BandRank(player, viewer);
+			return RelationshipShade.Shade(baseColor, index, count);
 		}
 
 		public Color PlayerRelationshipColor(Actor a)
@@ -314,14 +360,19 @@ namespace OpenRA
 				if (effectiveOwner != null && effectiveOwner.Disguised && !a.Owner.IsAlliedWith(renderPlayer))
 					apparentOwner = effectiveOwner.Owner;
 
-				if (apparentOwner == player)
-					return stanceColors.Self;
+				// Rank the APPARENT owner, so a disguise borrows that player's shade too and does not
+				// leak the disguised unit's real owner through an off-ramp colour.
+				var band = BandOf(apparentOwner, player);
+				var baseColor = band switch
+				{
+					RelationshipBand.Self => stanceColors.Self,
+					RelationshipBand.Allies => stanceColors.Allies,
+					RelationshipBand.Neutrals => stanceColors.Neutrals,
+					_ => stanceColors.Enemies
+				};
 
-				if (apparentOwner.IsAlliedWith(player))
-					return stanceColors.Allies;
-
-				if (!apparentOwner.NonCombatant)
-					return stanceColors.Enemies;
+				var (index, count) = BandRank(apparentOwner, player);
+				return RelationshipShade.Shade(baseColor, index, count);
 			}
 
 			return stanceColors.Neutrals;
