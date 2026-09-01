@@ -278,6 +278,11 @@ World:
 	ScenarioLobbyDropdown:
 	HealerClaimLayer:
 	UnitDefaultsManager:
+	# Right-click a capturable structure with NOTHING selected and the nearest free technician is
+	# sent at it; select several structures and press Deploy (F) to spread the free technicians
+	# across them. Only units whose Captures trait does NOT set CaptureToNeutral are dispatched,
+	# which is what keeps riflemen — who merely neutralise a building — out of it.
+	CaptureDispatchManager:
 	# PIPELINE 5 cohesion stance identities (human-facing; bot moves stay byte-identical).
 	# DP-2 SpreadHuman* = hand-tuned 'dispersed' interval (NOT weapon-AoE-derived); DP-3
 	# LooseHumanCoverSearchRadius = widened cover-first search for Loose. Defaults live in

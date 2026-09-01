@@ -1082,6 +1082,57 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			GroupScatterHotkeyLogic.PerformGroupScatter(alive[0].World, alive);
 		}
 
+		[Desc("Spread the local player's free capture units across the given structures as if the user " +
+			"had selected them and pressed Deploy (F). Returns the number of capture orders issued, " +
+			"which is 0 when every capture unit is already committed elsewhere or every structure is " +
+			"already covered. Test mode only.")]
+		public int DispatchCapture(Actor[] structures)
+		{
+			if (!TestMode.IsActive || structures == null || structures.Length == 0)
+				return 0;
+
+			var alive = structures.Where(a => a != null && a.IsInWorld && !a.IsDead).ToList();
+			if (alive.Count == 0)
+				return 0;
+
+			var world = alive[0].World;
+			var dispatcher = world.WorldActor.TraitOrDefault<CaptureDispatchManager>();
+			if (dispatcher == null)
+				return 0;
+
+			var orders = dispatcher.DispatchAcross(world, alive, false).ToArray();
+			foreach (var o in orders)
+				world.IssueOrder(o);
+
+			return orders.Length;
+		}
+
+		[Desc("The structure a capture unit already holds a capture order for, or 0 when it is free. " +
+			"Reads the activity queue, so a unit that has been ordered but is still walking reports " +
+			"its target — which CaptureManager cannot tell you, because it only learns about a " +
+			"capture when the unit arrives. Test mode only.")]
+		public uint CommittedCaptureTarget(Actor capturer)
+		{
+			if (!TestMode.IsActive || capturer == null || capturer.IsDead || !capturer.IsInWorld)
+				return 0;
+
+			return CaptureDispatchManager.CommittedTarget(capturer);
+		}
+
+		[Desc("True when the given capture unit holds a capture order for the given structure. Lets a " +
+			"scenario assert WHICH structure a unit was sent at without plumbing actor ids through " +
+			"Lua. Test mode only.")]
+		public bool IsCommittedTo(Actor capturer, Actor structure)
+		{
+			if (!TestMode.IsActive || capturer == null || structure == null)
+				return false;
+
+			if (capturer.IsDead || !capturer.IsInWorld || structure.IsDead)
+				return false;
+
+			return CaptureDispatchManager.CommittedTarget(capturer) == structure.ActorID;
+		}
+
 		[Desc("Running count of CreateEffectWarhead impacts that PASSED THE IMPACT VALIDITY GATES this " +
 			"run — impacts NOT discarded for landing on an invalid actor or invalid terrain. This is " +
 			"the only way a scenario can tell a shell that detonated from one silently swallowed at " +
