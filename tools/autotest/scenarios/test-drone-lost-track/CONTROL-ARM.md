@@ -67,6 +67,33 @@ which `TestMode` writes synchronously (`TestMode.cs:294-308`) even though the PN
 Both rules stay in force together: check the markers, and check that the verdict text is one this
 scenario authored. The markers make it an artefact check rather than a discipline.
 
+## The confound guard is armed only until the drone exists
+
+Run 4 was voided at ~t1200 by a technician 27 cells from the vanish cell — genuinely inside
+the radius at which a standard ground unit verifies that cell, so genuinely erasing the
+contact. It was also **1000 ticks after the only decision the run measures.**
+
+The launch decision resolves in a single tick. `ChooseTargetCell` reads the intel table and
+the order goes out as one unqueued `ForceAttack`, which `CarrierMaster` turns into a one-shot
+`MoveTo` (`CarrierMaster.cs:190`); the drone has no `Armament`, so the retarget loop at `:138`
+is unreachable and `TaskOperator` early-returns while a slave is out. **An airborne drone's
+destination is immutable**, so contamination after the launch cannot reach the verdict.
+
+The guard therefore fails hard only while `firstDroneTick < 0`, and records after that:
+
+| Log reads | Meaning |
+|---|---|
+| `lateintruder=none` | the guard looked after the window closed and saw nothing |
+| `lateintruder=t<tick> <who> (ignored: …; N of M samples follow it)` | contamination arrived after the decision. **Ignored on purpose.** Not a void |
+| verdict `SETUP INVALID: a friendly gained vision … BEFORE any drone launched` | a real void — the decision itself was contaminated |
+
+`N of M samples follow it` is the number that would falsify that reasoning. Every sample should
+belong to the sortie ordered *before* the contamination. Today that holds by roughly 50 ticks:
+`ReturnAfter` (1000) + the return flight + `RearmTicks` (150) + the ~300-tick docked window put
+the earliest possible SECOND launch at ~t1775, whose drone spawns after `DeadlineTicks`. **If
+`N` is a large fraction of `M`, a second sortie targeted from erased belief is feeding the
+statistic and the run is not evidence.** N of 0-2 is expected and harmless.
+
 ## How this could come back ambiguous — read before interpreting
 
 **The control's exploration target could land near the vanish cell by chance.** The hover disc has
@@ -76,7 +103,9 @@ disc. The control's argmax is deterministic (fixed nested scan order, no RNG), s
 between runs — but if it happens to sit in that overlap the control will "pass" and there is no RED.
 
 That is a result to **report and stop on**, not to re-run and not to fix by moving the threshold after
-seeing the data. The tell is the trace in the summary plus `intel=0` in the launch line: a control that
+seeing the data. **The guard narrowing above does not change this and makes it more likely to be
+seen**, not less: the control now runs its full sample window instead of being cut short at ~t1200,
+so an argmax sitting in that overlap now gets the chance to show up as a passing control. The tell is the trace in the summary plus `intel=0` in the launch line: a control that
 passes with `intel=0` has landed on the contact by exploration geometry alone, which means this map's
 geometry cannot separate the hypotheses and the scenario needs new coordinates.
 

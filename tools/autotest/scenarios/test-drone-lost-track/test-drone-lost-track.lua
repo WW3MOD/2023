@@ -58,6 +58,12 @@ local firstDroneTick = -1
 local setupFaults = {}
 local elapsed = 0
 
+-- The first contaminating friendly seen AFTER the guard window closed. Recorded and
+-- printed rather than acted on; the guard block in tick() carries the reasoning.
+local lateIntruder = nil
+local lateIntruderTick = -1
+local samplesAfterLate = 0
+
 local function cellDist(a, b)
 	local dx = a.X - b.X
 	local dy = a.Y - b.Y
@@ -87,6 +93,8 @@ end
 -- memory under test is erased by the bot's own economy and the run would report a
 -- clean-looking negative for entirely the wrong reason. Named explicitly so that
 -- cannot happen silently. The drone itself is exempt: going there is the point.
+-- THIS FUNCTION ONLY DETECTS. Whether a detection voids the run is the caller's
+-- decision and depends on WHEN it fires — see the guard block in tick().
 -- ASK THE SPATIAL QUESTION SPATIALLY. The obvious form — walk Player.GetActors()
 -- and compare each actor's Location — ABORTS THE WHOLE SCRIPT, and did: that
 -- collection includes the PLAYER ACTOR, which defines no Location, and reading a
@@ -142,10 +150,20 @@ local function summary()
 		trace = trace .. s.X .. ":" .. s.Y
 	end
 
+	-- ALWAYS PRINTED, INCLUDING WHEN NOTHING HAPPENED. A silent narrowing is how the next
+	-- reader mistakes an ignored confound for a clean run; "lateintruder=none" is the
+	-- positive statement that the guard looked and saw nothing after the window closed.
+	local late = "none"
+	if lateIntruder ~= nil then
+		late = string.format("t%d %s (ignored: after the launch decision; %d of %d samples follow it)",
+			lateIntruderTick, lateIntruder, samplesAfterLate, #samples)
+	end
+
 	return string.format(
-		"samples=%d near(<=%dc of %d:%d)=%d (%d%%) mindist=%d firstdrone=t%d op=%d:%d || trace: %s",
+		"samples=%d near(<=%dc of %d:%d)=%d (%d%%) mindist=%d firstdrone=t%d op=%d:%d "
+		.. "lateintruder=%s || trace: %s",
 		#samples, NearVanishCells, VanishCell.X, VanishCell.Y, nearCount, pct, minDist,
-		firstDroneTick, OperatorCell.X, OperatorCell.Y, trace)
+		firstDroneTick, OperatorCell.X, OperatorCell.Y, late, trace)
 end
 
 local function finish()
@@ -238,13 +256,49 @@ tick = function()
 		end
 	end
 
+	-- THE GUARD IS ARMED ONLY UNTIL THE DRONE EXISTS. AFTER THAT IT ONLY REPORTS.
+	--
+	-- Four slots were spent on this scenario and the last one died here: a technician
+	-- the bot's CaptureCoordinator requested at t28 (priority, so NOT budget-gated —
+	-- the map's DefaultCash: 0 does not stop it) walked out of the Supply Route toward
+	-- the derrick at 38,53 and clipped this circle around t1200. The run was voided
+	-- 1000 ticks after the only decision it was measuring.
+	--
+	-- The contamination is REAL and the 28-cell radius is exactly right, not merely
+	-- conservative: ^StandardVision's outermost band (Vision@1, 28c0-32c0) carries
+	-- strength 1, and MapLayers.IsVisible(cell, 1) compares STRICTLY (MapLayers.cs:579),
+	-- so strength 1 does not verify — 28 cells is the true radius at which a standard
+	-- ground unit makes the vanish cell visible and BeliefStore erases the contact.
+	-- The tecn sat at 27. It really did erase it.
+	--
+	-- What it could not do is change the answer. The launch decision resolves inside a
+	-- SINGLE tick: ChooseTargetCell reads the intel table, and the order is issued as one
+	-- unqueued ForceAttack which CarrierMaster turns into a one-shot MoveTo (CarrierMaster.cs:190).
+	-- The drone carries no Armament, so the retarget loop at :138 is unreachable, and
+	-- TaskOperator early-returns for as long as a slave is launched. An airborne drone's
+	-- destination is IMMUTABLE, so belief state erased at t1200 cannot steer a flight
+	-- ordered at t200 — voiding on it fails the run for something that cannot affect it.
+	--
+	-- Hence: fail hard before the drone exists, record and continue after. The window
+	-- closes on the OBSERVED drone rather than on a tick number on purpose — the launch
+	-- is not guaranteed at t200 (an evaluation that finds CanLaunchNow false slips to
+	-- t400, t600, ...), and a fixed-tick window would then close before the decision it
+	-- exists to protect. firstDroneTick is set in the sampling block BELOW this one and
+	-- only on sample ticks, so the guard stays armed for up to SampleEveryTicks after the
+	-- drone actually appears. That lag is in the safe direction and is left alone.
 	if elapsed > KillScoutTick then
 		local intruder = contaminatingFriendly(usa)
 		if intruder ~= nil then
-			setupFaults[#setupFaults + 1] = "a friendly gained vision of the vanish cell and erased the "
-				.. "contact under test: " .. intruder
-			finish()
-			return
+			if firstDroneTick < 0 then
+				setupFaults[#setupFaults + 1] = "a friendly gained vision of the vanish cell BEFORE any "
+					.. "drone launched, erasing the contact the launch decision reads: " .. intruder
+					.. " at t" .. elapsed
+				finish()
+				return
+			elseif lateIntruder == nil then
+				lateIntruder = intruder
+				lateIntruderTick = elapsed
+			end
 		end
 	end
 
@@ -260,6 +314,18 @@ tick = function()
 			samples[#samples + 1] = { X = c.X, Y = c.Y }
 			if d <= NearVanishCells then
 				nearCount = nearCount + 1
+			end
+
+			-- THE ONE NUMBER THAT WOULD FALSIFY THE NARROWING ABOVE, MEASURED RATHER THAN ASSUMED.
+			-- Ignoring late contamination is only sound while every sample belongs to the sortie
+			-- that was ordered before it. That holds today by ~50 ticks and nothing enforces it:
+			-- ReturnAfter (1000) + the return flight + RearmTicks (150) + the ~300-tick docked
+			-- window put the earliest possible SECOND launch at ~t1775, whose drone would spawn
+			-- after DeadlineTicks. Lower any of those, or raise the deadline, and a second sortie
+			-- targeted from erased belief starts feeding this same statistic. A nonzero count here
+			-- is the tell, and it is printed whether or not the run passes.
+			if lateIntruderTick >= 0 then
+				samplesAfterLate = samplesAfterLate + 1
 			end
 
 			if d < minDist then
