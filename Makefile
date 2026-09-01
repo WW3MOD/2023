@@ -27,12 +27,15 @@
 # to check that no map has lost reachable ground (no build required), run:
 #   make nav-guard
 #
+# to check that scenario Lua only names real engine bindings (no build required), run:
+#   make lua-gate
+#
 # the following are internal sdk helpers that are not intended to be run directly:
 #   make check-variables
 #   make check-sdk-scripts
 #   make check-packaging-scripts
 
-.PHONY: check-sdk-scripts check-packaging-scripts check-variables check-dotnet-sdk engine all clean version check-scripts check test nav-guard
+.PHONY: check-sdk-scripts check-packaging-scripts check-variables check-dotnet-sdk engine all clean version check-scripts check test nav-guard lua-gate
 .DEFAULT_GOAL := all
 
 PYTHON = $(shell command -v python3 2> /dev/null)
@@ -249,6 +252,15 @@ nav-guard:
 	@$(PYTHON) tools/nav-guard/selftest.py
 	@$(PYTHON) tools/nav-guard/nav_guard.py check
 
-test: all nav-guard
+# Static check that autotest scenario Lua only names bindings the engine registers.
+# Same shape as nav-guard: no build, no engine, no launch. Warnings (exit 1) are
+# printed but do not fail the target; only undefined references (exit 2) do. Use
+# `lua_gate.py check --strict` to make warnings fatal too.
+lua-gate:
+	@echo "Checking scenario Lua against the engine's script bindings (lua-gate)..."
+	@$(PYTHON) tools/lua-gate/lua_gate.py selftest
+	@$(PYTHON) tools/lua-gate/lua_gate.py check || [ $$? -eq 1 ]
+
+test: all nav-guard lua-gate
 	@echo "Testing $(MOD_ID) mod MiniYAML..."
 	@./utility.sh --check-yaml
