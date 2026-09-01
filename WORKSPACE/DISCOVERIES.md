@@ -16326,3 +16326,50 @@ they are silent — each yields a plausible number rather than an obvious failur
   taken on them read systematically **high** and will flatter any darkening change. Convert to
   linear light first; the `FogDarkness` ladder only matched prediction (mean error 0.045 against
   0.215 for the null) once this was done.
+## 2026-09-01 — `ChooseClosestMatchingEdgeCell` sorted on a FLOORED sqrt, biasing every map-edge exit north
+
+`Map.ChooseClosestMatchingEdgeCell` (`Map.cs:1867-1869`) ordered the perimeter by
+`(cell - c).Length`. `CVec.Length` is `Exts.ISqrt(LengthSquared)` (`CVec.cs:50`) and
+`Exts.ISqrt` defaults to `ISqrtRoundMode.Floor` (`Exts.cs:305-306`) — so the sort key is a
+FLOORED integer, and cells that are not equidistant collapse into one tie.
+
+**The band is exactly ±floor(sqrt(2d))**, where `d` is the perpendicular distance to the edge:
+`floor(sqrt(d² + k²)) == d` while `k² < 2d + 1`. LINQ `OrderBy` is stable and `UpdateEdgeCells`
+appends left/right columns with `v` ascending (`Map.cs:1943-1952`), so the winner was the
+LOWEST-v member of the band — the exit landed `floor(sqrt(2d))` cells NORTH of the true nearest
+cell, deterministically, on every call. (Top/bottom edges bias west by the same rule, and are
+enumerated first, so they win a cross-edge tie.)
+
+Three independent observations, all matching the formula before it was derived:
+
+| subject | origin | d | predicted bias | true nearest | actually returned |
+|---|---|---|---|---|---|
+| `test-evac-queued-line` Runner | 8,16 | 7 | 3 | 1,16 | **1,13** |
+| `test-evac-refund-indicator` Payer | 6,14 | 5 | 3 | 1,14 | **1,11** |
+| `test-evac-refund-indicator` Pauper | 6,19 | 5 | 3 | 1,19 | **1,16** |
+
+The refund scenario's author hit this and worked around it rather than diagnosing it — its
+predicted cells are interpolated at runtime precisely because "a note hard-coding 14 and 19 sends
+the reader to look three cells away from the text" (`test-evac-refund-indicator.lua:246-249`).
+Two scenarios bent to accommodate the bias is the signature of a defect in shared code, not of
+two mistaken tests.
+
+Fixed by sorting on `LengthSquared` — exact, monotonic in true distance, and cheaper (no ISqrt per
+perimeter candidate, which the caller doc at `RotateToEdge.cs:97-99` already flags as expensive).
+The floored key is inherited upstream code (`git log -S` finds only "Starting point (#2)"), never
+a WW3MOD decision.
+
+**Determinism is not correctness.** The old behaviour was perfectly reproducible and still returned
+a cell 8.7% farther than one in its own candidate set, from a method named `ChooseClosest…`.
+
+**Two sibling call sites still carry the same floored key and were deliberately left alone** as
+unmeasured: `ChooseClosestMatchingEdgeCellOnSameEdge` (`Map.cs:1879`) and
+`GetSpawnCandidatesOnSameEdge` (`Map.cs:1889`). The latter feeds `.Take(count)`, so there a tie
+changes set MEMBERSHIP for round-robin spawn, not just a single winner.
+
+**@stable blast radius:** `ProductionFromMapEdge` is on `SUPPLYROUTE`
+(`structures.yaml:222,365`, producing Infantry/Soldier/Vehicle/Aircraft/Helicopter) and its
+legacy branch (`ProductionFromMapEdge.cs:127`) calls this method whenever the map has no
+`spawnarea` actor — which is **9 of the 10 shipped maps** (only `river-zeta-ww3` has one). Ground
+reinforcement entry cells therefore move south by `floor(sqrt(2d))` on those maps. Deliberate and
+visible, not silent drift; the next bot benchmark baseline must be re-taken.
