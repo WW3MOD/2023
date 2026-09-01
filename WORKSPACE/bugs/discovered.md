@@ -4333,3 +4333,17 @@ map-rules test the way most weapon changes can — it has to be a change to the 
   GTWR/PBOX/HBOX set `CriticalProtection: 80` and omit `RubbleProtection` entirely
   (`structures-defenses.yaml:153-156`), inheriting the 30 by omission rather than by decision.
   Doc-only fix; no behaviour change. (found while working on: garrison destructibility design audit)
+
+- [2026-09-01] [low] **The beyond-map fog strip is drawn darker than the fog over the map, because its
+  copy of the alpha curve omits the fog palette's own alpha.**
+  `WorldRenderer.DrawBeyondMapActorFog` rebuilds ShroudRenderer's per-layer curve inline
+  (`engine/OpenRA.Game/Graphics/WorldRenderer.cs:466-493`) and composites it straight into an RGBA
+  fill. But on the map the same vertex alpha is multiplied by the layer's palette colour — the shader
+  does `c *= vTint` (`engine/glsl/combined.frag`), and the solid fog tile is palette index 12
+  throughout, which resolves through `MapLayersPalettes`' eight-entry cycle to
+  `FogColors[4] = ARGB(160,0,0,0)`. So the strip is missing a 160/255 factor per layer: at visibility 1
+  it paints 0.900 opacity where the map itself paints 0.744. The comment at `:466-468` asserts the two
+  agree. Blast radius is small — the strip only dims actor sprite pixels overhanging the map boundary —
+  which is why it was left alone rather than folded into the FogDarkness change on the same day.
+  **Fix is a 160f/255f factor in that loop**, but it lightens the border for every mod in the tree, so
+  it wants its own before/after screenshot. (found while working on: fog contrast / FogDarkness)
