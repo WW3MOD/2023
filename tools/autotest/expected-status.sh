@@ -27,6 +27,25 @@
 # is the one specific outcome the author wrote down and justified, and it fails the
 # moment reality stops matching the note.
 #
+# KNOWN GAP, and it is the one that matters most when you declare `fail` — a WATCHDOG
+# TIMEOUT is graded GREEN by a `fail` declaration. The bullet above is true for a crash
+# (exit 3 -> ERR -> RED) but NOT for a hang. run-test.sh forks the outcome name at :932
+# (`TIMEOUT-FAIL` vs `FAIL`) and deliberately gives both `exit 1`, saying so at :791-795;
+# its synthesized timeout record at :798-800 is `"status":"fail"`, schema-identical to a
+# real assertion failure. run-batch.sh derives its outcome from the exit code alone
+# (:213-218), so what reaches expected_status_grade is plain `FAIL` either way. A scenario
+# declared `fail` therefore reports OK(fail) when the game hung or never loaded its rules
+# -- i.e. it absorbs "the run did not happen", the one outcome a by-merit declaration must
+# never absorb.
+#
+# So: a `fail` declaration is only honest while the scenario still reaches a verdict under
+# its own power, and NOTHING HERE CHECKS THAT. Until it does, re-read the run banner (which
+# does print TIMEOUT-FAIL) rather than trusting an OK(fail) in the tally. The fix needs the
+# run dir plumbed out of run-test.sh -- RUN_ID/RESULT_FILE are generated there (:515, :522)
+# and never handed back, so run-batch cannot inspect the verdict file today. Full write-up,
+# including the per-scenario marker scheme that already solves this one level down
+# (`00-script-loaded` / `99-verdict-reached`), in WORKSPACE/DISCOVERIES.md 2026-09-01.
+#
 # DECLARING IT. Put a file named `expected-status` in the scenario folder:
 #
 #   tools/autotest/scenarios/test-<name>/expected-status
