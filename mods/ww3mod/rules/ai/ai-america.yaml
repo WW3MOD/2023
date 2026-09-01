@@ -97,6 +97,10 @@ Player:
 			m113: 15
 			m109: 15
 			strykershorad: 10
+			# Counter-battery radar. MEMBERSHIP, NOT WEIGHT — same lane as dr.america above: absent from
+			# UnitTargetShares, so ineligible for the directed pick, and reached through the FLOOR lane,
+			# which gates on UnitsToBuild membership (UnitBuilderBotModule.cs:1390).
+			msar: 10
 
 			# Supply trucks for field resupply (need-gated below)
 			truk: 20
@@ -116,6 +120,11 @@ Player:
 			# User ruling 2026-08-27: "just a couple or so is enough usually". This is the hard
 			# ceiling behind the floor cap; both are 2 so the floor is the only thing that moves.
 			dr.america: 2
+			# ONE, and one is the whole design. The radar's output is COVERAGE, and coverage does not
+			# stack: a second MSAR inside the first one's 42-cell disc reveals nothing the first did not,
+			# so the marginal value of number two is nearly zero against 1600 of budget. Both the floor
+			# and this limit are 1, so the floor is the only thing that moves.
+			msar: 1
 		# ===== STANDING-POPULATION FLOORS (experimental-only; C# default is unset) =====
 		# USER RULING 2026-08-14: "build medics", and "there is always an AA soldier or two on the field".
 		# A UnitTargetShares entry CANNOT deliver either, and the reason is arithmetic, not tuning. Shares are
@@ -162,6 +171,27 @@ Player:
 			# Drone operator — the user's "they make none" is a FLOOR problem, not a weight problem.
 			# See the dr.america UnitFloorPer note below for why 2 here is a cap and not a target.
 			dr.america: 2
+			# ===== COUNTER-BATTERY RADAR: A FLOOR, BECAUSE A SHARE PROVABLY CANNOT BUY ONE =====
+			# The MSAR is the mod's only counter-battery vision source and the bot had never bought one.
+			# A UnitTargetShares entry cannot fix that, and the reason is the finding this whole block
+			# already rests on: the deficit argmax picks the type furthest below target, so it stays in
+			# the big slots (abrams 190, e3 95) and never descends to a small one — medic, sniper and
+			# engineer are each bought ZERO times in 200 cycles at a 1-in-40 loss rate. A 1600-cost
+			# single-copy specialist is exactly that shape, so it gets the floor lane instead.
+			# ORDERING IS READABLE, NOT A GUESS: floorTypes is Info.UnitFloors.Keys sorted with
+			# StringComparer.Ordinal (UnitBuilderBotModule.cs:566) and ChooseBelowFloor returns the FIRST
+			# type under its floor (:1385). Ordinal gives aa.america < dr.america < medi.america < msar
+			# ('e' 0x65 < 's' 0x73 at index 1 decides the last pair), so the radar sorts LAST of the four
+			# and can never pre-empt a medic, an AA soldier or a drone operator.
+			# SORTING LAST DOES NOT SAVE IT AT t=0, AND THAT IS WHY UnitDelays.msar BELOW IS MANDATORY.
+			# At tick 0 every other floored type is held off — aa by its 2000 delay, dr by its 300 delay,
+			# medi and dr by a UnitFloorPer denominator that is still 0 — so the walk falls straight
+			# through to msar, whose flat floor of 1 is maximally unmet. Without the delay the FIRST
+			# call-in of the match is 1600 spent on a radar with nothing to detect and no army to protect
+			# it. That is not a risk, it is arithmetic: the pre-empt outranks the target ceiling and every
+			# demand gate. This exact defect has shipped twice in this file already (two t=0 medics, two
+			# t=0 supply trucks); it is not shipping a third time.
+			msar: 1
 		# ===== THE FLOOR NEEDS A DENOMINATOR (user report 2026-08-15) =====
 		# A flat floor is maximally unmet at t=0, because at t=0 every census is zero. The pre-empt outranks
 		# the ceiling and every demand gate, and floored support types are cheap, so a flat floor does not
@@ -327,6 +357,32 @@ Player:
 			# 300 is a floor-clearing constant, not a tuned one — it is deliberately the smallest round
 			# value that cannot be reached under the default start, rather than a measured optimum.
 			dr.america: 300
+			# ===== THE RADAR'S GATE, AND WHY IT IS A DELAY RATHER THAN A RATIO =====
+			# WITHOUT THIS LINE THE MSAR IS THE OPENING BUY OF EVERY MATCH — see the UnitFloors.msar
+			# block above for the walk-through. A floored type needs a ratio, a threat gate or a delay;
+			# there is no threat gate for artillery, so the choice was between the other two.
+			# A RATIO IS UNUSABLE HERE, AND THE CLIFF ARITHMETIC IS WHY — this is a derivation, not a
+			# preference. EffectiveFloor is min(cap, supported/N), and this cap is 1, so a UnitFloorPer
+			# entry would be a STEP FUNCTION that fires the instant supported reaches N. The measured
+			# denominator (CountSupportedForce over UnitFloorSupportedTypes, shared with medi and dr;
+			# --composition-plan --start none, 200 cycles) peaks at max 8 / 9 / 11 at attrition 10 / 12 /
+			# 15, so any N above ~9 is INERT in the heavy-loss regimes — the medic's per-20 defect
+			# exactly. But N at or under 9 phases a 1600-cost specialist in at the SAME moment as the
+			# 150-cost drone operator (dr.america: 8), which is not a schedule anyone would choose. The
+			# ratio has no value in that band, so it is not the instrument.
+			# 3000 IS A FLOOR-CLEARING CONSTANT, NOT A MEASURED OPTIMUM, and it is labelled that way for
+			# the same reason dr.america: 300 is. What it IS anchored to: it sits above the 2500
+			# attack-heli gate both factions carry, i.e. past the point this ruleset already treats as
+			# "the specialist phase has begun", and 3000 ticks is 180 s at the real 16.667 ticks/s.
+			# WHAT IS NOT ESTABLISHED, STATED PLAINLY RATHER THAN IMPLIED: nothing measures when enemy
+			# artillery is actually on the map and firing, which is the only thing that makes an MSAR
+			# worth its cost. Neither m109 nor grad carries any tick gate, so unlike aa.america: 2000 —
+			# which is genuinely derived from the 2500 heli gate as "the earliest an enemy airframe can
+			# be ordered" — there is no comparable earliest-artillery tick to derive from. 3000 is
+			# therefore a guard against the opening-buy defect, and only that. To tune it properly:
+			# CensusLogInterval above is already on, so a live @experimental match gives the tick at
+			# which the first enemy m109/grad appears, and that measurement should replace this constant.
+			msar: 3000
 		# Early-econ behaviour 1: don't call in the FIRST truck while no fielded unit needs ammo. After that
 		# truck exists the standing reserve below governs alone and this no longer binds (user ruling
 		# 2026-08-17 — see the SupplyTruckFloorPer block for the split and why it is a split).
