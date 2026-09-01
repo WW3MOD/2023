@@ -1,0 +1,90 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: queued evacuation draws its edge leg at ISSUE time, not on arrival
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+# GEOMETRY, AND WHY THE EVAC LEG DOUBLES BACK.
+#
+# Runner starts at 8,16 and is given three eastward waypoints -- 18,16 then 28,16 then
+# 38,16 -- and then a SHIFT-queued Evacuate. The evacuation's destination is resolved by
+# RotateToEdge.ChooseEdgeCell, which for a ground unit passes self.Location as the search
+# origin (there is no SpawnArea actor here, so FindClosestSpawnAreaForOwner returns null
+# and the fallback applies) into Map.ChooseClosestMatchingEdgeCell.
+#
+# THE FIX UNDER TEST is that ChooseEdgeCell is now called from RotateToEdge's CONSTRUCTOR
+# instead of from OnFirstRun. So self.Location is 8,16 -- where the tank stands when the
+# order is QUEUED -- and Map.AllEdgeCells is the perimeter of Bounds, so the nearest
+# perimeter cell to 8,16 is 1,16 at 7 cells, against 8,1 at 15 and 8,32 at 16. The evac
+# leg therefore runs from the LAST WAYPOINT AT 38,16 BACK WEST ACROSS THE WHOLE MAP to
+# 1,16, which is a 37-cell line that no reader can miss and no other order on this map
+# could draw.
+#
+# THAT DOUBLING-BACK IS CORRECT AND IS THE DISCRIMINATOR. Resolved late -- from 38,16,
+# where the tank would be standing when the activity finally became current -- the nearest
+# perimeter cell is 38,1 at 15 cells, against 64,16 at 26 and 1,16 at 37. A late
+# resolution would point NORTH. So the three outcomes are geometrically separated:
+#
+#   * a leg to 1,16   -> committed at issue time. This is the fix.
+#   * a leg to 38,1   -> committed on arrival, i.e. resolved from the wrong position.
+#   * no leg at all   -> the pre-fix behaviour: TargetLineNodes yields nothing while
+#                        edgeCell is null, and edgeCell was null until OnFirstRun ran.
+#
+# ROW 16 IS DELIBERATE. It puts every waypoint and the evac leg on one horizontal line,
+# so the whole order chain is a single row of the frame and the amber evac leg overlaps
+# the white move legs rather than running off somewhere a reader has to hunt for it. It
+# is also just inside the west half (16 - Bounds.Top = 15 < Height/2 = 16), which is what
+# makes Map.ChooseClosestEdgeCell's own bound selection agree with the perimeter sort --
+# stated only so that a future reader moving this row by two cells knows there is a
+# boundary at y=17 that flips the vertical candidate from Top to Bottom.
+#
+# NOTHING ELSE ON THE MAP MOVES OR SHOOTS. Any second unit with orders would draw its own
+# target lines and a reader could not attribute a leg to Runner. Both mpspawns are
+# Neutral, and there is no Russia actor at all.
+Actors:
+	Runner: abrams
+		Owner: USA
+		Location: 8,16
+		Facing: 512
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,30
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 63,3
+
+Rules: rules.yaml

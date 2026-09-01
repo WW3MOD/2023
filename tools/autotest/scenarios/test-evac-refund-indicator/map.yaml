@@ -1,0 +1,107 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: evacuation refund indicator -- +$N and +$0 at the boundary in one frame
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+# GEOMETRY -- the instrument is the geometry, so it is spelled out here.
+#
+# BOUNDS ARE 1,1,64,32, so Map.Bounds is Left=1 Top=1 Right=65 Bottom=33 with Right
+# and Bottom EXCLUSIVE. The last legal cell is 64,32 and the last legal column is
+# x=1 on the west side. That single number is what the whole capture turns on:
+# EvacRefundTextMath.ClampToBounds pulls an out-of-bounds refund tick to
+# Bounds.Left, so a WORKING clamp puts the text on column x=1 and a MISSING clamp
+# puts it near x=-1, roughly two cells out in the black void past the map. Those
+# are visibly different places in the frame, which is what lets one PNG separate
+# "the indicator is gone" from "the indicator is drawn where nobody can see it".
+#
+# BOTH SUBJECTS EXIT WEST, AND THAT IS DERIVED, NOT HOPED FOR.
+# RotateToEdge.ChooseEdgeCell takes the ground branch, whose searchOrigin is
+# self.Location (there is no SpawnArea actor on this map, so
+# FindClosestSpawnAreaForOwner returns null and the fallback applies), then calls
+# Map.ChooseClosestMatchingEdgeCell -- which sorts Map.AllEdgeCells, the perimeter
+# of BOUNDS, by straight-line distance. From 6,14 the nearest perimeter cell is
+# 1,14 at 5 cells; the nearest north cell is 6,1 at 13. From 6,19 it is 1,19 at 5
+# against 6,32 at 13. West wins by more than a factor of two in both cases, so no
+# pathing wobble can flip it.
+#
+# The unit then drives RotateToEdge.GroundOffMapCells = 2 cells PAST the boundary
+# before selling, so its CenterPosition at the moment of sale is out of bounds by
+# construction. That is the entire original bug: both of FloatingText's gates
+# resolve position through MapLayers and both answer "hidden" out of bounds
+# (MapLayers.cs:504-505 and :576-577), so the tick was suppressed for exactly the
+# evacuations that SUCCEEDED.
+#
+# TWO ROWS, FIVE CELLS APART. Payer on row 14 and Pauper on row 19 are far enough
+# apart that their two refund texts cannot overlap even after the taller one has
+# risen (RiseRate 34 world units/tick over the ~55 ticks of the older text's life
+# is about 1.8 cells), and close enough that both sit inside a 1600x900 frame at
+# zoom 2. The two are the whole point of the shot: a reader compares them.
+#
+# FARBOX IS NOT SCENERY -- IT IS THE RENDER-PLAYER PROBE. At 60,30 it is ~55 cells
+# from either subject, well past ^StandardVision's 32-cell outermost rung, and
+# Explored is OFF (rules.yaml), so USA has never looked at it and it sits at
+# visibility 0. Under a real RenderPlayer it is therefore NOT mouse-targetable;
+# under a null one MouseTargetVisibility.IsRevealed's actorIsVisible term becomes
+# true and it IS. The Lua reads exactly that and refuses to produce a verdict when
+# it comes back targetable, because a null RenderPlayer means the run was launched
+# without Test.KeepRenderPlayer=true and the frame is not a picture of what a
+# player sees. See the Lua header for why that matters here specifically.
+#
+# Both mpspawns are Neutral-owned. Vision's ValidRelationships defaults to Ally, so
+# a Neutral source cannot reveal anything for USA even if one existed -- which
+# keeps FarBox's cell at a genuine zero.
+Actors:
+	Payer: abrams
+		Owner: USA
+		Location: 6,14
+		Facing: 0
+	Pauper: pauperabrams
+		Owner: USA
+		Location: 6,19
+		Facing: 0
+	FarBox: probebox
+		Owner: Russia
+		Location: 60,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,30
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 63,3
+
+Rules: rules.yaml
