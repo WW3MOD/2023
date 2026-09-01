@@ -28,6 +28,29 @@ Map placement: units on the LEFT facing right → `Facing: 768` (East); on the R
 
 **`Mobile.Speed` in YAML is not the speed at the point of use.** `MovementSpeedForCell` appends the locomotor's per-terrain percentage to the modifier list before applying it (`Mobile.cs:826-831`), so a `lightwheeled` unit crossing `Clear` moves at **70%** of its declared figure (`world.yaml:98-101`) — a humvee's `Speed: 150` (`vehicles-america.yaml:70`) is 105 wdist/tick on open ground and only hits 150 on `Road`/`Bridge` at 100. Any timing or intercept arithmetic taken from the YAML number alone is ~30% optimistic over most of the map.
 
+## `Timestep` is MILLISECONDS PER TICK, and the number that looks like a tick rate is its inverse
+
+*(Promoted 2026-09-01 from DISCOVERIES, every citation re-read against `main @ 60c1cda4`.)*
+
+**`mods/ww3mod/mod.yaml:394` really does contain `Timestep: 40`, and that is the whole trap.** A reader hunting the tick rate finds a plausible integer, in the right file, under `GameSpeeds` — and it is wrong twice over: it is a **duration in milliseconds**, not a rate, and it belongs to the **`fastest`** speed, not the default. Read as a rate it says 40 ticks/s. It means 1000/40 = 25 ticks/s, on a speed nobody plays at.
+
+**The default is the only one that matters for anything computed offline:** `DefaultSpeed: default` (`:358`) selects the block at `:380-383`, whose `Timestep: 60` (`:382`) gives **1000/60 = 16.67 ticks per second**.
+
+**All eleven, so nobody has to guess which block a line sits in:** `:362` 120, `:366` 100, `:370` 86, `:374` 75, `:378` 67, **`:382` 60 (default)**, `:386` 55, `:390` 48, `:394` 40, `:398` 34, `:402` 30. Every one is ms/tick, so the *smallest* number is the *fastest* speed — that inversion is why the file reads like a rate table when it is a period table.
+
+**Proof it is ms, from the engine rather than by inference.** `GameSpeed.Timestep` is `public readonly int` (`engine/OpenRA.Game/GameSpeed.cs:23`) and is consumed as a millisecond interval (`Game.cs:994-999`, as `logicInterval`). Both conversions in the tree divide *into* 1000: `AutotestTickRateTest.cs:138` computes `1000 / DefaultTimestepMs()`, and the engine's own Lua `DateTime.Seconds` does the same at `DateTimeGlobal.cs:31` — **in integer arithmetic**, so it yields **16**, not 16.67. Three bases therefore coexist (16.67 real, 16 engine-Lua, 25 harness constant); that tangle is documented in [`AUTOTEST.md`](../recipes/AUTOTEST.md) and not restated here.
+
+**What guards it and what does not.** `AutotestTickRateTest.DefaultTimestepMs()` (`:83-98`) resolves the default properly — reads `DefaultSpeed`, then that named block's `Timestep` — and `:125` asserts it equals 60, so **moving the default fails `dotnet test` with a named casualty.** That is real protection against the value changing. It is **no** protection against a human or an agent reading the wrong one of eleven blocks, which is the failure that actually occurs; nothing can fail a build over a number someone typed into a prompt.
+
+**How it bit, 2026-08-30.** A research brief asserted "WW3MOD runs at 40 ticks per second", invented by reading `:394`. It was caught only because the same brief said *recompute durations from the tick count rather than inheriting them*, and the researcher re-derived the rate. **Had it not been challenged, every duration in that report would have been 2.4× too short** — a `ReloadDelay` of 50 reported as 1.25 s instead of 3.00 s, with a whole drain-rate table built on it.
+
+**The rules, in the order you need them:**
+1. **Any duration computed from a tick count divides by 16.67** — never by a nearby-looking integer, and never by 25 or 40.
+2. **Never cite a `Timestep` line without checking which of the eleven blocks it sits in.** The only defensible citation for the default is the pair `:358` and `:382`.
+3. **Prefer expressing tick-domain quantities in TICKS and converting once at the end**, which makes the constant irrelevant.
+
+**This field's citations rot unusually fast — re-read the file rather than trusting any prose about it, including this section.** A 2026-08-30 search of `DISCOVERIES.md` found the same value cited at three different line numbers, plus `fastest` cited at the line of its `fastest:` key rather than its `Timestep:`. Same family as the scar in §"A change believed made, documented as made, and inert": `SupplyRouteContestation`'s duration comments were wrong by 1.5× from assuming 25 tps. **The generalisation worth carrying beyond this field: a units-bearing config value with no unit in its name is a trap, and it is worst when the wrong reading produces a plausible number** — 40 tps is not absurd, which is exactly why it survives review.
+
 ## YAML
 
 ### Templates (prefixed with ^)
@@ -64,6 +87,16 @@ Common conditions: `airborne`, `cruising`, `moving`, `empdisable`, `dronedisable
 **The Fluent lint is bidirectional, and the unused-key half is a WARNING that rots.** `CheckFluentReferences` checks referenced-but-undefined (an error) *and* defined-but-unreferenced (`CheckUnusedKey`, `Lint/CheckFluentReferences.cs:447-455`, `emitWarning`), reached for every key of every non-external file — and a file under `mods/ww3mod/` is not external. Unused keys therefore only fail the run under `TREAT_WARNINGS_AS_ERRORS=true` (`UtilityCommands/CheckYaml.cs:51`), and they arrive in a pile nobody reads to the end. That is how the entire server/lobby notification block in `mods/ww3mod/languages/en.ftl` — 38 keys from `timeout-in` (`:84`) through `chat-temp-disabled` (`:129`) — came to be **dead**: not one of those bare names appears as a string literal anywhere in `engine/OpenRA.Game/` or `engine/OpenRA.Mods.Common/`, because the `[FluentReference]` consts name the `notification-`-prefixed forms that live in `engine/mods/common/fluent/common.ftl` (30 of the 38 have such a twin; the other 8 were renamed *and* reworded upstream). Editing the ww3mod copies changes nothing any player sees. **Treat a large standing warning count as the defect it is** — this one had a real bug hiding in it.
 
 **Grants scoped to the actor:** `GrantConditionOnBotOwner` grants only on the actor it sits on, checking `self.Owner.IsBot && Bots.Contains(self.Owner.BotType)` (`Conditions/GrantConditionOnBotOwner.cs:46`). A **unit** trait's `RequiresCondition` sees only conditions granted on that *unit*, so gating a unit trait to bot-only needs a per-unit `GrantConditionOnBotOwner` on the unit template — a Player-actor grant (e.g. the `enable-ai-experimental` grants in `ai.yaml`) does nothing for a unit trait.
+
+**Deleting a condition GRANT orphans every consumer that had no OTHER granter, and the tell is an unreachable trait rather than an error.** *(Promoted 2026-09-01 from DISCOVERIES.)* When you remove a granter, the compiler and the linter both stay silent: a `RequiresCondition` naming a now-ungrantable condition is not an error, it is a trait that quietly never activates again.
+
+The worked case. `9e46f141` deleted LOGISTICSCENTER's `ProximityExternalCondition@ReplenishSoldiers`, which had granted `replenish-soldiers` to everyone within 4c0 unconditionally (removal recorded in place at `structures.yaml:455`). That was correct — it was free ammunition. But the condition then came from `SupplyProvider.SyncTargetCondition` alone, and only to the **single client it has selected**, where selection reads demand exclusively from `Rearmable.RearmableAmmoPools`. So the delete silently converted "a pool not listed in `Rearmable.AmmoPools`" from a harmless omission into a permanent one: the combat engineer listed `secondary-ammo` (C4) alone while also carrying an SMG pool, so **with full C4 he presented `NoDemand` however empty his rifle was**, was never selected, never granted the condition, and his `ReloadAmmoPool@1` — whose sole gate is that condition — never ran again.
+
+**The partial shape is why it survived review and would survive hand-testing.** While the engineer *is* being served for his charges he holds the condition and the rifle trickles as a side effect. The bug appears only when the C4 is full — his normal state — so every casual test of "does the engineer rearm at a depot" says yes.
+
+- **The rule:** enumerate the consumers before deleting a granter, and for each one ask whether any **other** granter reaches it — not whether the deletion looks correct at the grant site.
+- **A corroborating signal that generalises:** the omission was already **priced**. The same merge added a costing comment budgeting five batches for a pool that was not listed to reach the metered path. **A cost annotation on an unreachable path is evidence the unreachability is accidental**, and it is far cheaper to notice than the behaviour is.
+- **`Rearmable.AmmoPools` order is inert** — the field is a `HashSet` (`Rearmable.cs:23-26`) and `RearmableAmmoPools` is built in the actor's *trait declaration* order, not the list's (`:44`). Do not read meaning into it.
 
 ### Faction-specific files
 
@@ -124,10 +157,31 @@ Two same-named trait nodes inside a single actor do **not** produce two traits a
 
 WW3MOD's armor population is exactly nine: `Concrete, Heavy, Indestructable, Kevlar, Light, Medium, None, Unarmored, Wood`. Two traps follow from that list:
 
-- **`Kevlar` is `^Soldier`'s armor** (`infantry.yaml:173-174`) and reaches essentially the whole combat-infantry roster by inheritance, while non-`^Soldier` actors keep `^Infantry`'s `Type: None` (`:34-35`). So a `Versus` table that zeroes `None` but omits `Kevlar` is harmless to a civilian and **lethal at full damage to every soldier** — selective in exactly the way that survives eyeballing.
+- **`Kevlar` is `^Soldier`'s armor** (`infantry.yaml:174-175`) and reaches essentially the whole combat-infantry roster by inheritance, while non-`^Soldier` actors keep `^Infantry`'s `Type: None` (`:34-35`). So a `Versus` table that zeroes `None` but omits `Kevlar` is harmless to a civilian and **lethal at full damage to every soldier** — selective in exactly the way that survives eyeballing.
+  **Sharpened 2026-09-01 (promoted from DISCOVERIES): the conditional above is currently unconditional.** `Type: Kevlar` is set exactly once in the whole ruleset, on that one template, and it appears in **zero** `Versus:` tables — enumerating every `Versus:` block under `mods/ww3mod/rules/weapons/` yields only `Concrete`, `Light`, `Medium`, `Heavy`, `None`, `Wood`, `Brick`. So **no warhead in the game modifies infantry damage by armour class at all**; every one of them lands on infantry at the unmodified 100%. `Unarmored` (on `truk`) is likewise absent from every table and likewise inert. *(A census, so it carries a date — re-run the enumeration before relying on it.)*
+  The practical consequence is the **inverse** of what a cross-check suggests. All 28 buildable infantry have descriptions reading `- No armor` while the trait says `Kevlar`, which looks like 28 stale strings. It is the opposite: **the prose is mechanically correct and the trait string is the phantom.** Any feature that surfaces armour by reading `Armor.Type` — a tooltip stat row, an encyclopedia entry, a bot targeting heuristic — will present a protection class that does not exist, and will look *more* authoritative for having come from structured data rather than from prose. **The type name is not a claim about the damage model; only the `Versus` tables are.**
 - **Writing a class name that does not exist is silently a no-op.** A shipped table zeroing `Brick` accomplishes nothing, because `Brick` is not an armor class in this mod.
 
 **So any "this weapon cannot hurt anything" judgement must be made against the ruleset's armor population, never against the table alone** — and three further shapes make such a judgement unprovable outright, because each ends at the same empty filter and therefore **fails open to full damage**: a null `ArmorInfo.Type`, a **conditional** `Armor` (it is a `ConditionalTraitInfo`, so it can be absent at runtime, and the filter also drops `IsTraitDisabled`), and a non-empty `HitShapeInfo.ArmorTypes` that excludes the class. `DangerFieldLayer.RulesetArmorTypes`/`WarheadIsHarmless` implement this test and fail open on all three; they are NUnit-pinned in `DangerFieldKernelTest`.
+
+### `Penetration` is compared against `Thickness × ArmorDirectionPercent`, so reading it without the attack direction ranks weapons BACKWARDS
+
+*(Promoted 2026-09-01 from DISCOVERIES, verified against `main @ 60c1cda4`. Arithmetic over read code — not measured in game.)*
+
+`DamageWarhead` computes `effectiveThickness = thickness * armorPercent / 100` and passes **that**, not `Armor.Thickness`, to `ApplyPenetration` (`Warheads/DamageWarhead.cs:249-250`; helper at `:128-133`, which returns full damage when `penetration >= thickness` and `damage * penetration / thickness` otherwise). `ArmorDirectionPercent` (`:140-152`) returns `Armor.Distribution[3]` — the **roof** entry — for a `TopAttack: true` warhead, and `[4]` for `BottomAttack`.
+
+Worked on shipped data against `abrams` (`Thickness: 700`, `Distribution: 100,40,15,10,10` — `vehicles-america.yaml:499-500`):
+
+| | `Penetration` | effective thickness | damage |
+|---|---:|---|---:|
+| `ATGM` (`TopAttack: true`, `weapons-missiles.yaml:6,27`) | 100 | roof = 700 × 10% = **70** → penetrates | **10000** (full) |
+| `RPG` (direct, `weapons-ballistics.yaml:535`) | 500 | frontal = **700** → does not | 6000 × 500/700 = **4285** |
+
+**Read as bare fields, 100 against 500 says the dedicated anti-tank specialist is five times worse than a rifleman's throwaway rocket. The truth is the reverse** — and that comparison was filed as a suspected balance bug and had to be retracted (`bugs/discovered.md`, 2026-08-30). `Penetration: 100` is correctly sized against roof armour. The engine now carries the same warning inline at the call site, precisely so the local is not re-inlined.
+
+Two rules follow. **(1)** Any surface showing penetration must also show attack direction, or it is actively misleading rather than merely incomplete. **(2)** `Armor.Thickness` alone never answers "will this hurt it" — the direction term is not a modifier you can round away; it is 10× on the weapon class designed to exploit it.
+
+`TopAttack: true` is set at exactly five sites: `weapons-missiles.yaml:6` (`ATGM`) and `weapons-ballistics.yaml:880, 974, 1007, 1097` (artillery rounds). It is **not** on `RPG`, `TankRound.*`, `WGM.*`, `Hellfire.*` or `Stinger.quad` — so `ATGM` is the only infantry weapon in the mod that behaves this way.
 
 ### Weapons live under `Weapons:`, and a warhead override REPLACES rather than merges
 
@@ -200,6 +254,8 @@ Consequences worth knowing before you touch the file:
 - **`ClassOf` (`:98-107`) blanks backtick-quoted specifics** when grouping for the amnesty output, so the grouped text printed to you is deliberately *not* the signature that was matched. Do not copy a grouped line into the baseline and expect it to match.
 - `Judge` prints `"{errorCount} errors emitted, {seen.Count} distinct signatures."` (`:149`) followed by `NEW:` and `FIXED:` lines — read those two lists, not the leading number.
 
+**Never read the baseline as evidence that ART is missing.** *(Promoted 2026-09-01 from DISCOVERIES.)* 356 of its 548 lines are `sprite file \`X.shp\` not found`, including `mig.shp`, `badr.shp` and `u2.shp` — all stock Red Alert sprites that ship inside `conquer.mix`, which `mod.yaml:24` mounts. **The baseline was recorded on a machine without the downloaded RA content, so the check could not see inside the mixes**, and every one of those lines is an artefact of the recording environment rather than a finding. Ruling "the sprites do not exist" off this file is a live trap that was one step from being taken. The authoritative question is answered by `Mod=ww3mod ./utility.sh --check-missing-sprites` **on a machine with content installed** — read-only, takes seconds.
+
 **Never hand-add a line to the baseline to turn a red run green without saying why in the commit message.**
 
 ## A change believed made, documented as made, and inert
@@ -258,6 +314,8 @@ The first two shapes were the whole list until 2026-08-27. The last two are newe
 - **Grep every reader of a field you are about to tune**, not its declaration. Zero readers is common and silent: `InaccuracyPerProjectile`, `DamageAtMaxRange` and `MovementInaccuracy` are all set in shipped YAML and all inert. **A reader is not enough — read the line AFTER it too.** `BurstRandomize` (instance 10) had a reader, on the right line, doing the right arithmetic, into a variable the next statement overwrote.
 - **Ask what each field a code path reads equals when NOBODY sets it.** The dangerous default is not zero-as-disabled; it is a live value that looks legitimate — `Penetration` defaults to 1 (a divisor, not a no-op), `ImpactPosition` defaults to the map origin (a valid coordinate). Then ask the second half: is that default *reachable on my delivery path*? An `Explodes` payload never goes near the projectile code that would have set it.
 - **When a comment names an intent, open the function it calls.** Instance 9 was a correct trigger calling a decrement named as a reset. The call site read exactly as intended and there was nothing to reduce.
+- **When the fix IS "correct a factual claim", grep the FILE for the claim — never your own diff.** *(Promoted 2026-09-01 from DISCOVERIES.)* One such correction cost four rounds: the original statement was wrong, the reviewer's replacement SHA was wrong, and the commit that fixed both **left the same false phrase stale ten lines below**, because the author reviewed the change they had made rather than searching for the sentence they had just declared false. **A factual claim is usually repeated near itself**, so the diff is the wrong search scope. This is not hypothetical for the reference bank either: on 2026-09-01 a stale `^E6` claim was found sitting in *two* places in `economy.md`, with three different and equally wrong line citations between them, and fixing only the first would have left the doc still asserting it.
+- **A curation pass is also a doc audit, and the two wrong statements it finds will not be the ones you were looking for.** Both `economy.md` defects above surfaced while verifying an unrelated DISCOVERIES entry against code — not by reading `economy.md`, which nobody had reason to re-read because its claims are the ones agents are told to trust. **Verifying a candidate claim against source is the only routine activity that re-reads the bank at all**, so when a promotion check touches a doc section, spend the extra minute on the surrounding paragraph.
 - **For a gate or exclusion, enumerate what can actually satisfy both sides.** A lockout between disjoint target sets, or an exclusion covering every member of a granted capability, is a no-op with a convincing name.
 - **For a guard, prove it FAILS against the thing it forbids before trusting it** — hand-author a violation and watch it error. A green build is not evidence that a validation ran. (Same RED-first discipline the behavioural work already follows; see [`DOCS/recipes/AUTOTEST.md` §"A green run is not evidence unless something could have made it RED"](../recipes/AUTOTEST.md).)
 - **When a re-gate works by narrowing `ValidTargets`, narrowing is not sufficient** — confirm the target no longer advertises anything *else* the weapon still accepts. Neither the lint nor the type system checks for a `ValidTargets` entry that can never match, or for a removal that changes no behaviour. The only reliable instrument is a reachability matrix built from the parsed corpus and diffed across the change. **Sampling will not find these, because the sample you would skip is the one the comment tells you is already handled.**
@@ -322,6 +380,20 @@ Two `utility.cmd` traps that are fixed but worth carrying, because both are **fa
 - **`cmd.exe` parses redirection operators on `@REM` lines.** An angle bracket inside a batch comment is a live redirect, not documentation — the comment removed on 2026-09-01 carried a literal bracketed path on the argument-passing branch. Keep redirect, pipe and escape characters out of `.cmd` comments.
 
 ## Engine behaviors that surprise (debugging gotchas)
+
+- **Holding a unit at `DamageState.Critical` means fighting a mechanism built to kill it, and EVERY chassis has one — in a different trait each time.** *(Promoted 2026-09-01 from DISCOVERIES.)*
+
+  | chassis | what kills it | where |
+  |---|---|---|
+  | helicopter | `HeliEmergencyLanding` — unrecoverable crash descent, always destroyed on impact | `Traits/Air/HeliEmergencyLanding.cs:22,102` |
+  | vehicle | `ChangesHealth@CriticalDamage` — `PercentageStep: -1`, `Delay: 5`, `StartIfBelow: 50` | `vehicles.yaml:153-156` |
+  | infantry | `ChangesHealth@BleedOut`, same `StartIfBelow: 50` shape | `infantry.yaml:1098` |
+
+  Only **buildings** have no such drain (`structures.yaml:74-80` spells out why: `critical-damage` is a doom marker, not a damage tier, and the only `ChangesHealth` reaching a building is `@BurnDamage`, gated on an externally-granted `onfire`). `vehicles.yaml:241-243` states the design intent outright: *"A vehicle is doomed the moment it drops below 50% HP … with no way back."*
+
+  **The number that matters for test authors: a vehicle parked at 20% of max dies 100 ticks later** (1% of max per 5 ticks, 20 → 0) — comfortably inside an ordinary measurement window. `test-aa-breakoff-critical` already had to delete `-HeliEmergencyLanding` for the helicopter form of this and its comment reads as a helicopter quirk; **it is not, it is universal.** The remedy that survives an unknown fourth drain is to **re-pin the health every tick** rather than only removing the trait you know about — `floor(20%)` never crosses the 25% Critical boundary, so the condition cannot flicker while the pin holds.
+
+  **This is also a design fact, not just a test-rig annoyance:** break-off is declining targets that every chassis is already independently killing, so the ammunition it saves is genuinely wasted, and a doomed target's remaining lifetime is bounded and knowable in each case.
 
 - **A diagonal cell step is produced by THREE independent code paths, and only one of them is the pathfinder — so a new movement rule placed in the graph is not in force.** (a) `DensePathGraph.GetConnections` → `GetPathCostToNode`, the multi-cell case; (b) **`PathFinder.FindPathToTargetCell` (`Traits/World/PathFinder.cs:106-113`), the one that is easy to miss** — for `source.Layer == target.Layer && (source - target).LengthSquared < 3` it returns the two-cell path **without building a graph at all**, and `LengthSquared == 2` *is* a diagonal, so every single-step diagonal (exactly the order a player issues when clicking just past a gap) bypasses the graph; (c) `Mobile.GetAdjacentCell`, the "back up to let others pass" sidestep, which walks all 8 `CVec.Directions` under `CanEnterCell`/`CanStayInCell` only. Any "you may not take this step" rule has to be taught to all three.
   - **And a rule whose blockage is NOT in the destination cell will spin `Move` forever unless it is also taught to `PopPath`'s escape** (`Move/Move.cs:296-303`). The blocked-handling block has exactly one path-clearing exit, and it was a plain `CanEnterCell` test — which returns *true* for a corner-squeeze, because the blockage lives in the two shoulder cells while the destination is ordinary open ground. The comment and the extra disjunct are at the site now. **General form: if your rule is a property of the *edge* rather than of the *cell*, every destination-only predicate in the movement stack is blind to it.**

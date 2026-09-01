@@ -254,6 +254,74 @@ Second constraint, less obvious: the far host must be outside **every** dispatch
 **every** cell the unit occupies, including its start — otherwise a dispatcher reaches it and the
 resulting walk is not attributable to `FindBest`. With a 23-cell walk and a 30-cell exclusion at
 both ends, a 66×34 map has no legal cell for it in any direction.
+> ## ⚠️ THIS FILE IS WRITTEN FROM BOTH ENDS. Read this before appending or curating.
+>
+> ## ✅ WHERE TO PUT A NEW ENTRY: **THE TOP**, immediately below this banner. Region B is historical — do not append to the bottom.
+>
+> **⚠️ THIS BANNER WAS MOVED TO THE TOP OF THE FILE ON 2026-09-01, AND THE REASON IS A DEFECT IN THE RULE ITSELF — KEEP IT HERE.** It was written above the entries it governs but *below the two most recent ones*, so it was not actually first in the file. A writer following it correctly — prepend at the top — landed **above** the banner, never read it, and pushed it one entry further down; two entries had already accumulated above it within a day of it being written, and it would have sunk indefinitely. **"The top" and "below this banner" name the same place only if the banner is the first thing after the preamble.** Do not add anything to this banner in a way that lets an entry precede it.
+>
+> *Ruled 2026-09-01 on the write majority, since no tooling writes this file — the only `tools/` reference to it is a CRLF comment in `git-hooks/pre-commit`.* On the last active day **34 entries landed at the top against 11 at the bottom**, so the top is already what most writers do, and it puts the newest work where a reader looks first. **The bottom region stays where it is:** migrating ~4,900 lines would rewrite the blame of every entry in it for no gain, and those entries are still correct. **Treat region B as read-only history and add nothing to it.**
+>
+> **Established 2026-09-01 by counting dates across all 507 entries at `main @ bd8e7290`.** The file has **two append regions with opposite directions**. The seam sits between the file's oldest entry, *"2026-03-21 — MCP map actor facing"*, and *"2026-06-18 — autotest/screenshot scripts need `python3` on PATH"* — around line 9200, **but find it by those two headings rather than by that number, which drifts whenever anything above it is edited**:
+>
+> | Region | Lines | Order | New entries go |
+> |---|---|---|---|
+> | **A** | 1 – 9077 | reverse-chronological, **newest first** | prepended at the **top** (line 6) |
+> | **B** | 9078 – end | chronological, **oldest first** | appended at the **bottom** |
+>
+> Region A descends 2026-08-30 → 2026-03-21. Region B ascends 2026-06-18 → 2026-08-30. **Both regions received 2026-08-30 writes**, so this is not a historical artefact that has settled — it is the live convention, and two workers on the same day will land at opposite ends of a 14,000-line file without ever seeing each other.
+>
+> **This is not cosmetic. It has already produced a duplicate:** the shadow-determinism result was written twice on 2026-08-30, at **`:176`** and **`:13676`**. The bottom copy was curated and promoted; the top copy was never seen by that pass and sat untagged. It is now marked rejected-as-duplicate below.
+>
+> **Consequences, in the order they will bite you:**
+> 1. **Before appending, grep for your subject.** A date-ordered scan of "recent entries" only ever shows you one end.
+> 2. **A curation pass must state which region it covered — and a BRIEF that scopes a pass by line number is unsafe by construction.** The 2026-08-27 pass touched line 12524 onward — deep inside region B, reaching none of region A. "The pass is done" has meant "one end is done". **Line numbers in this file are not stable across a single day**: moving this banner alone shifted every entry below it, and the 2026-09-01 brief for the region-A pass named "lines 6–1436" for a block that by dispatch time started at 1319 and ran to 1888. **Scope a pass by DATE RANGE AND REGION, never by line range** — *"the 2026-08-27 to 2026-08-30 entries in region A"* survives an edit above it; *"lines 6–1436"* does not. State the scope in the brief AND restate the resolved scope in the report, because the two can differ by the time the worker starts.
+> 3. **Tag geography, recounted correctly 2026-09-01: at `bd8e7290` the file held 507 entries, 406 tagged, 101 untagged. After the pass that added this banner: 510 entries, 430 tagged, 80 untagged. After the region-A 08-27/08-30 pass at `main @ 60c1cda4`: 520 entries, 443 tagged, 77 untagged.** The untagged ones are spread across BOTH regions, which is what a two-ended file with one-ended curation passes produces. **Of the 77 remaining, 13 are dated 2026-09-01 — live work from the current day, not yet curatable, and one of them is that pass's own method entry — so the real backlog is ~64, and it is now almost entirely 2026-07-28 to 2026-08-24 in region A plus a tail in region B.** The 08-27/08-30 region-A block is closed.
+>    - **⚠️ An earlier revision of this very bullet said "204 tagged, 303 untagged". That was WRONG, and the way it went wrong is the point.** It came from matching only `[promoted]` and `[rejected:` — see the next item. A prior audit's estimate of ~98 untagged was very nearly right; the "303" contradicted it and the contradiction was published rather than investigated. **If a count you produce disagrees with an existing one, reconcile them before writing either down.**
+> 4. **Tags live on a `> **[promoted…]**` / `> **[rejected…]**` line BELOW the heading, never in the heading itself — and THE TAG TEXT VARIES.** Real forms in this file include `[promoted]`, `[promoted, with one number corrected]`, `[promoted IN PART]`, `[promoted, WITH ITS SCOPE CORRECTED]`, `[rejected: reason]` and `[rejected — reason]`. **Match on the prefix `^> \*\*\[promoted` / `^> \*\*\[rejected` and nothing narrower.** Two traps stacked here: `grep '^## .*\[promoted\]'` returns **zero** and reads as a wholly uncurated file, and `grep 'promoted\]'` catches only the plainest form — at `bd8e7290` that found 91 lines where the true count was 292. **Also: `awk` on macOS mishandles `\*\*` in a regex; use `grep -c` or python for this, not awk.**
+>
+> **If you fix this, fix it by picking one direction and migrating the smaller region** — do not leave both conventions documented as equally valid, or the next writer will keep choosing at random.
+
+## 2026-09-01 — A curation pass is the only routine activity that re-reads the reference bank, so it is also a doc AUDIT — and the wrong statements it finds are never the ones it went looking for (`wt/docs-curation`)
+
+Method finding from the region-A 08-27/08-30 pass. **Two verifiably-wrong statements were found inside
+`DOCS/reference/economy.md` — the curated tier every worker is told to trust without re-verification —
+and neither was found by reading `economy.md`.** Both surfaced as a side effect of checking an
+unrelated DISCOVERIES entry against source.
+
+- **A `CustomSellValue` code snippet that omitted `Math.Max(1, ReloadCount)`**, so a reader
+  hand-computing a refund would **divide by zero on `himars` and `iskander`** — the exact two actors
+  the surrounding section exists to describe, and the two that genuinely leave `ReloadCount` unset. It
+  also dropped the `SupplyProvider.MissingSupplyValue` term and the `Math.Max(0, …)` floor. Found while
+  verifying *"the evacuation refund reads EVERY `AmmoPool`"*, whose only job was to confirm which
+  collection the loop iterates.
+- **A stale `^E6` divergence claim, sitting in TWO places** with three different and equally wrong line
+  citations between them. `^E6` was fixed on 2026-08-30 to list both pools (`infantry.yaml:2003`).
+  Found while verifying the condition-grant-orphaning entry.
+
+**Why this is a method and not an anecdote: nobody has a reason to re-read a curated doc.** Its claims
+are trusted by design — that is the whole point of the tier — so the folder has no routine reader.
+Verifying a candidate claim against source is the *only* scheduled activity that opens those files at
+all, and it opens them at exactly the paragraph most likely to have drifted, because the entry under
+verification is about the same mechanism. **So: when a promotion check lands you in a reference doc,
+read the surrounding paragraph, not just the sentence you came for.** Cost is a minute; both defects
+above were within three lines of a paragraph already open.
+
+**Two corollaries, both earned the hard way in this same pass:**
+
+1. **A factual claim is usually repeated near itself — grep the FILE, never your diff.** The `^E6`
+   claim was in two places; fixing only the first would have left the doc still asserting it. This is
+   the identical failure the `wt/fog-leak` entry recorded costing four correction rounds, recurring in
+   a different file five days later.
+2. **An entry accusing a doc can be the wrong half of the pair.** One entry in this block claimed
+   `economy.md` documented a tooltip that does not exist. The tooltip exists
+   (`ProductionTooltipLogic.cs:454`), the doc was right, and the entry's grep had missed a literal
+   string inside the directory it searched. **It was rejected rather than acted on only because it
+   said so itself** — it declined to edit the doc and asked for a curation decision instead. Had it
+   "helpfully" corrected `economy.md`, a correct section would have been rewritten to match a false
+   finding, and the error would have entered the trusted tier wearing a fix's clothing. **A worker
+   that finds a doc wrong should say so and stop; the standing fix-on-sight licence is for claims you
+   have re-derived, not for claims you have merely failed to confirm.**
 
 ## 2026-09-01 — The cordon debt is 63 maps but only THREE prices, and the expensive tier is 17 benchmark maps with an income POI on the outer ring (`wt/tooling-truth`)
 
@@ -304,31 +372,7 @@ redirect from a file named `path`. The comment removed on 2026-09-01 carried exa
 argument-passing branch. Unverified on Windows like the rest of that file — filed as the reason the
 replacement comment spells `PATH` instead of bracketing it. Keep redirect, pipe and escape characters
 out of `.cmd` comments; the file now greps clean for them.
-> ## ⚠️ THIS FILE IS WRITTEN FROM BOTH ENDS. Read this before appending or curating.
->
-> ## ✅ WHERE TO PUT A NEW ENTRY: **THE TOP**, immediately below this banner. Region B is historical — do not append to the bottom.
->
-> *Ruled 2026-09-01 on the write majority, since no tooling writes this file — the only `tools/` reference to it is a CRLF comment in `git-hooks/pre-commit`.* On the last active day **34 entries landed at the top against 11 at the bottom**, so the top is already what most writers do, and it puts the newest work where a reader looks first. **The bottom region stays where it is:** migrating ~4,900 lines would rewrite the blame of every entry in it for no gain, and those entries are still correct. **Treat region B as read-only history and add nothing to it.**
->
-> **Established 2026-09-01 by counting dates across all 507 entries at `main @ bd8e7290`.** The file has **two append regions with opposite directions**. The seam sits between the file's oldest entry, *"2026-03-21 — MCP map actor facing"*, and *"2026-06-18 — autotest/screenshot scripts need `python3` on PATH"* — around line 9200, **but find it by those two headings rather than by that number, which drifts whenever anything above it is edited**:
->
-> | Region | Lines | Order | New entries go |
-> |---|---|---|---|
-> | **A** | 1 – 9077 | reverse-chronological, **newest first** | prepended at the **top** (line 6) |
-> | **B** | 9078 – end | chronological, **oldest first** | appended at the **bottom** |
->
-> Region A descends 2026-08-30 → 2026-03-21. Region B ascends 2026-06-18 → 2026-08-30. **Both regions received 2026-08-30 writes**, so this is not a historical artefact that has settled — it is the live convention, and two workers on the same day will land at opposite ends of a 14,000-line file without ever seeing each other.
->
-> **This is not cosmetic. It has already produced a duplicate:** the shadow-determinism result was written twice on 2026-08-30, at **`:176`** and **`:13676`**. The bottom copy was curated and promoted; the top copy was never seen by that pass and sat untagged. It is now marked rejected-as-duplicate below.
->
-> **Consequences, in the order they will bite you:**
-> 1. **Before appending, grep for your subject.** A date-ordered scan of "recent entries" only ever shows you one end.
-> 2. **A curation pass must state which region it covered.** The 2026-08-27 pass touched line 12524 onward — that is deep inside region B and reached none of region A. "The pass is done" has meant "one end is done".
-> 3. **Tag geography, recounted correctly 2026-09-01: at `bd8e7290` the file held 507 entries, 406 tagged, 101 untagged. After the pass that added this banner: 510 entries, 430 tagged, 80 untagged.** The untagged ones are spread across BOTH regions, which is what a two-ended file with one-ended curation passes produces.
->    - **⚠️ An earlier revision of this very bullet said "204 tagged, 303 untagged". That was WRONG, and the way it went wrong is the point.** It came from matching only `[promoted]` and `[rejected:` — see the next item. A prior audit's estimate of ~98 untagged was very nearly right; the "303" contradicted it and the contradiction was published rather than investigated. **If a count you produce disagrees with an existing one, reconcile them before writing either down.**
-> 4. **Tags live on a `> **[promoted…]**` / `> **[rejected…]**` line BELOW the heading, never in the heading itself — and THE TAG TEXT VARIES.** Real forms in this file include `[promoted]`, `[promoted, with one number corrected]`, `[promoted IN PART]`, `[promoted, WITH ITS SCOPE CORRECTED]`, `[rejected: reason]` and `[rejected — reason]`. **Match on the prefix `^> \*\*\[promoted` / `^> \*\*\[rejected` and nothing narrower.** Two traps stacked here: `grep '^## .*\[promoted\]'` returns **zero** and reads as a wholly uncurated file, and `grep 'promoted\]'` catches only the plainest form — at `bd8e7290` that found 91 lines where the true count was 292. **Also: `awk` on macOS mishandles `\*\*` in a regex; use `grep -c` or python for this, not awk.**
->
-> **If you fix this, fix it by picking one direction and migrating the smaller region** — do not leave both conventions documented as equally valid, or the next writer will keep choosing at random.
+
 ## 2026-09-01 — A scenario must be shown to reach the STATE it tests, not merely to run and return a verdict (`wt/death-slide`)
 
 Fourth instance in one day of a single shape: **work that passes its own check without exercising the
@@ -1573,6 +1617,8 @@ generosity: the transport hands its load to whoever now owns the building.
 
 ## 2026-08-30 — `Timestep` is MILLISECONDS PER TICK, there are ELEVEN of them, and only `mod.yaml:382` is the default — the number that looks like a tick rate is its inverse (`wt/postmerge-fallout`, verified against `main @ 0163ca22`)
 
+> **[promoted]** → `conventions.md` §"`Timestep` is MILLISECONDS PER TICK, and the number that looks like a tick rate is its inverse" (new top-level section) (curation 2026-09-01, re-verified against `main @ 60c1cda4`). **Every one of the eleven line citations re-read from the file and all eleven are exact** (`:362` 120 … `:402` 30, `DefaultSpeed` at `:358`), as are `GameSpeed.cs:23`, `DateTimeGlobal.cs:31` and `AutotestTickRateTest.cs:83-98,138`. Two corrections applied on promotion: the `Game.cs` consumption of `Timestep` as `logicInterval` is at **`:994-999`**, not `:988-993`; and the entry says the test "pins it to 60" without citing where — it is `Assert.That(DefaultTimestepMs(), Is.EqualTo(60))` at **`AutotestTickRateTest.cs:125`**. The `default` block spans `:380-383`, not `:380-384`.
+
 **`mods/ww3mod/mod.yaml:394` really does contain `Timestep: 40`.** That is the whole trap. A reader
 looking for the tick rate finds a plausible-looking integer, in the right file, under `GameSpeeds`,
 and it is wrong twice over: it is a **duration in milliseconds**, not a rate, and it belongs to the
@@ -1636,6 +1682,8 @@ the wrong reading produces a plausible number** — 40 tps is not absurd, which 
 survives review.
 
 ## 2026-08-30 — `AmmoPoolInfo.ReloadDelay` was inert while ammunition was free; post-`9e46f141` it is the **drain-rate knob for thirteen vehicles**, and 53 of 63 pools never set it (`wt/postmerge-fallout`, base `main @ 9e46f141`)
+
+> **[promoted IN PART]** → `economy.md` §"`ReloadDelay` paces the PULL arm only, and post-`9e46f141` it is the drain-rate knob for thirteen vehicles" (new section) (curation 2026-09-01, verified against `main @ 60c1cda4`). **Promoted: the pull/push split, the clientele argument for why exactly thirteen vehicles are affected, the census, and the decoupling point** (`Rearmable.cs:109-112`, `AmmoPool.cs:44`, `SupplyProvider.cs:249`, `Rearmable.cs:95-96` all confirmed; the `RearmActors` "no truck can rearm the thirteen" paragraph confirmed against `ai.yaml:1180`). **NOT promoted: the 13-row drain table** — it is volumetric status that will rot with the next balance pass, and `README.md` §Standards puts that in `WORKSPACE/`; the structural summary (221× in money, 1.7× in time) carries the reusable half. **Citations corrected on promotion — every `ReloadDelay` line number in the entry had drifted 8–13 lines**, though every *value* is right: `F16` is at `aircraft-america.yaml:612,639` (not `625,652`), `HIND` at `aircraft-russia.yaml:180,211` (not `188,219`), `FROG` `:509` (not `:522`), `MIG` `:632,659` (not `:645,672`). `CRAM`/`AGUN`/`FTUR` at `structures-defenses.yaml:648,726,937` are exact. The count of 10 holds (the two further hits at `:991`/`:1053` are commented out, and the `weapons/*.yaml` hits are the unrelated weapon-level `ReloadDelay`).
 
 **READ ONLY — no value was changed and none should be without the user. This is the report they asked for.**
 
@@ -1740,6 +1788,8 @@ aggregate drain is additive, but the dock capacity was not established.
 
 ## 2026-08-30 — Deleting a bare condition grant orphans every consumer that had no OTHER granter, and the tell is a trait that is now unreachable rather than an error (`wt/postmerge-fallout`, base `main @ 9e46f141`)
 
+> **[promoted]** → `conventions.md` §"Conditions system", as the "Deleting a condition GRANT orphans every consumer…" block (curation 2026-09-01, verified against `main @ 60c1cda4`). Confirmed at source, and the fix is in-tree with its full reasoning preserved at `infantry.yaml:1984-2002`: `^E6` now declares `AmmoPools: primary-ammo, secondary-ammo` (`:2003`), and `structures.yaml:455` carries the `REMOVED` marker for the deleted grant. **The already-priced tell re-checked and it holds** — the costing comment budgeting 5 batches at `SupplyValue: 1` is at `infantry.yaml:1906-1907` (the entry cited `:1876`, which has drifted). **One attribution nuance worth recording rather than smoothing:** the entry credits the deletion to the merge `9e46f141` (2026-08-30) while the in-tree marker says "REMOVED 2026-08-27" — both are right, the removal rode `f8b424f6` on the merged branch. **Verifying this entry is also what surfaced the two stale `^E6` claims in `economy.md`**, corrected in the same commit.
+
 **The instance.** `9e46f141` deleted LOGISTICSCENTER's
 `ProximityExternalCondition@ReplenishSoldiers`, which granted `replenish-soldiers` to everyone within
 4c0 unconditionally (`structures.yaml:455-468`). Correct: it was free ammunition. But the condition
@@ -1802,6 +1852,8 @@ a 750 truck about 13" — that comment is corrected in-tree by this branch; any 
 now stale.
 ## 2026-08-30 — Penetration is compared against `Thickness × ArmorDirectionPercent`, not `Thickness`, and reading it without the attack direction ranks weapons backwards (`wt/tooltip-standard`)
 
+> **[promoted]** → `conventions.md` §"`Penetration` is compared against `Thickness × ArmorDirectionPercent`…" (new section, sited immediately after the `Versus` section) (curation 2026-09-01, verified against `main @ 60c1cda4`). Mechanism and both worked rows confirmed; `abrams` `Thickness: 700` / `Distribution: 100,40,15,10,10` at `vehicles-america.yaml:499-500`, `ATGM` `Penetration: 100` at `weapons-missiles.yaml:27` with `TopAttack` at `:6`, `RPG` `Penetration: 500` at `weapons-ballistics.yaml:535`. **Two citations corrected on promotion.** (1) The call is at **`DamageWarhead.cs:250`**, not `:240`, and the entry renders it as `ApplyPenetration(damage, Penetration, thickness * armorPercent / 100)` — that is a *paraphrase*; the shipped line reads `ApplyPenetration(damage, Penetration, effectiveThickness)` with the product computed into a local one line above. The distinction matters because the local exists deliberately and is commented as such. (2) The fourth artillery `TopAttack` site is **`weapons-ballistics.yaml:1097`**, not `:1041`; the other three (`:880, 974, 1007`) are exact, and the total of five sites is right. **The engine now carries this entry's own argument inline at `:243-248`**, naming the ATGM-vs-Abrams-roof case — so the conclusion is corroborated by the code, not only by the entry.
+
 `DamageWarhead.ApplyPenetration(damage, Penetration, thickness * armorPercent / 100)`
 (`DamageWarhead.cs:240`, helper at `:127-133`) returns full damage when `penetration >= thickness`
 and `damage * penetration / thickness` otherwise. **The thickness it uses is not the actor's
@@ -1835,6 +1887,8 @@ through `Inherits` chains. **Arithmetic over verified code sites — not measure
 
 ## 2026-08-30 — `Kevlar` is a phantom armour type: 28 infantry wear it and no warhead has ever heard of it (`wt/tooltip-standard`, base `main @ b3a7564d`)
 
+> **[promoted]** → `conventions.md` §"`Versus`: an OMITTED armor class is FULL damage", folded into the existing `Kevlar` bullet as a **sharpening** rather than a new section (curation 2026-09-01, verified against `main @ 60c1cda4`). That bullet already stated the conditional — *"a `Versus` table that zeroes `None` but omits `Kevlar` is … lethal at full damage to every soldier"* — so per README §"One home per fact" the entry's contribution is that **the conditional is currently unconditional**, which is the part that was missing and is the part worth acting on. Both halves re-derived independently: `Type: Kevlar` occurs exactly once in the whole ruleset (`infantry.yaml:175`), and enumerating every `Versus:` block under `rules/weapons/` yields only `Concrete, Light, Medium, Heavy, None, Wood, Brick` — **no `Kevlar`, no `Unarmored`**. One citation corrected: the existing bullet said `infantry.yaml:173-174` for the armour block; it is **`:174-175`**. Tagged as a census, so it carries a date.
+
 **`Armor.Type: Kevlar` is set exactly once** — `mods/ww3mod/rules/ingame/infantry.yaml:175`, on the
 shared infantry template — and is inherited by all 28 live buildable infantry. **It appears in zero
 warhead `Versus:` tables.** Enumerating every `Versus:` block under `mods/ww3mod/rules/weapons/`
@@ -1862,6 +1916,8 @@ Related, same pass: five actors *do* have a materially wrong armour class in pro
 `mi28` say Medium and are `Heavy`; `lccv`, `mnly` say None and are `Light`) — filed to
 `bugs/discovered.md`. Full context in `WORKSPACE/tooltip-audit.md`.
 ## 2026-08-30 — STAGING AN EVACUATION TEST? Without a `spawnarea` actor the detour is UNCONDITIONAL and your scenario silently measures nothing (`wt/arty-doctrine`)
+
+> **[promoted]** → `economy.md` §"The evacuation anchor is the `spawnarea` actor, and without one the detour is UNCONDITIONAL" (new section) (curation 2026-09-01, verified against `main @ 60c1cda4`). Every element confirmed: `FindClosestSpawnAreaForOwner` at `RotateToEdge.cs:97-120` returning null on an empty list (`:104-105`), `spawnarea` as the mod's only `SpawnArea` carrier (`misc.yaml:255`, trait at `:262`), `SUPPLYROUTE` as the `ProductionFromMapEdge` actor (`structures.yaml:222`), `mpspawn` carrying no `SpawnArea`, and the `beatsExit = anchor == null || …` short-circuit — which is at **`AmmoPool.cs:776`**, a line the entry quoted without citing. **One thing added on promotion that the entry did not carry and that changes how the anchor behaves on test maps:** `:109` reads `ownSR?.Location ?? self.Location`, so with no Supply Route the anchor silently falls back to the *unit's own cell*, making the "distance home" term zero rather than absent. That is the same fallback independently reported by the 2026-09-01 `RotateToEdge` entry near the head of this file; the two agree.
 
 **Read this before staging any scenario in which a unit is supposed to choose between rearming and
 going home.** It has no symptom: the map loads, the units act, the verdict is green, and the branch
@@ -1899,6 +1955,8 @@ opposite required outcomes.
 
 ## 2026-08-30 — `CustomSellValueTest` MIRRORS the sell/refund formula rather than calling it — green says the arithmetic is right, not the code (`wt/arty-doctrine`)
 
+> **[promoted]** → `economy.md` §"Rearm cost math", as the coverage caveat under the corrected `CustomSellValue` snippet (curation 2026-09-01, verified against `main @ 60c1cda4`). Confirmed by reading the test: `CustomSellValueTest` contains **no reference to `GetSellValue` or `CustomSellValue` outside its own doc-comment** — the only occurrences are in the header prose — and it defines the private `PoolMissingValue`/`Refund` mirrors the entry describes. The quoted header sentence is verbatim. `RotateToEdge`'s `HP/MaxHP` scaling is at **`RotateToEdge.cs:387-395`** (the entry's `:386-388` is close but the file is `Activities/RotateToEdge.cs`, not `Traits/`), and `ApplyHandicapRefundAdjustment` at `CustomSellValue.cs:72-80` is exact. **This is a clean worked instance of `README.md` §"Four shapes" #4** — a green test pinning something weaker than the claim it appears to guard — and is cross-referenced there in spirit rather than restated.
+
 Pre-existing, and larger than the branch that noticed it. **"The refund is unit-tested" is true of
 the arithmetic and false of the implementation**, and that sentence is easy to read the wrong way.
 
@@ -1926,6 +1984,8 @@ is named after is a specification, not a regression test**, and the two drift ap
 touch `GetSellValue`, note that the suite passing tells you nothing about your change.
 
 ## 2026-08-30 — The evacuation refund reads EVERY `AmmoPool`, not `Rearmable.AmmoPools` — so removing a `Rearmable` cannot change what a unit refunds (`wt/arty-doctrine`)
+
+> **[promoted]** → `economy.md` §"Rearm cost math", folded into the corrected `CustomSellValue` snippet (curation 2026-09-01, verified against `main @ 60c1cda4`). `GetSellValue` does iterate `a.TraitsImplementing<AmmoPool>()` and never consults `Rearmable` — confirmed at `CustomSellValue.cs:30-54`, along with the `SupplyProvider.MissingSupplyValue` term and the `Math.Max(0, …)` floor the entry names. **Verifying this entry is what caught the doc defect**: `economy.md`'s transcription of this very loop omitted the `Math.Max(1, ReloadCount)` batch guard, so it would divide by zero on `himars`/`iskander` — the exact two actors this entry is about, and the two the entry correctly notes leave `ReloadCount` unset. Snippet replaced with a faithful transcription in the same commit. The entry's own reasoning about why the truncation hazard does **not** bite these two (batchSize falls back to 1, so the division is exact) is right and is now stated in the doc.
 
 Settled by reading, not by a run, when asking whether `himars`/`iskander` take a different refund
 branch now that they carry no `Rearmable`. **They do not, and the reason is a set difference worth
@@ -1958,6 +2018,8 @@ it, so it pins the arithmetic contract and not the code path. Filed separately a
 pre-existing and applies to anyone touching `GetSellValue`, not just to these two actors.
 
 ## 2026-08-30 — Removing a unit's `Rearmable` does NOT make it evacuate; it makes it stand still forever (`wt/arty-doctrine`, base `main @ d9f9a83f`)
+
+> **[promoted]** → `economy.md` §"Removing a unit's `Rearmable` does NOT make it evacuate — it makes it stand still forever" (new section) (curation 2026-09-01, verified against `main @ 60c1cda4`). `if (!namesRearmActors) return DryAutoDisposition.HoldAndFlag;` confirmed at **`SupplyHuntMath.cs:269-270`**, exactly as cited, with the `^CrewMember` rationale documented at `:262-267` in the words the entry paraphrases. One citation corrected: `NamesRearmActors` is at **`AmmoPool.cs:1030`** (the static), not `:611`. **The RED-before-GREEN evidence was taken as reported, not re-run** — this pass launched nothing, per its constraints; the run IDs and the two load-bearing numbers (`holding 0`, `depot still holding 2250`) are recorded here as the entry's own claim. The promoted text rests on the code path, which was re-read, and on the test-design point, which is independent of the run.
 
 **`SupplyHuntMath.DecideAutoDisposition` returns `HoldAndFlag` at `SupplyHuntMath.cs:269` for any
 actor that names no rearm actors, BEFORE it ever reaches the evacuation conjunction.** The input is
@@ -2002,6 +2064,10 @@ Applies to any future actor the design wants to make one-shot. Both live cases (
 
 ## 2026-08-30 — `economy.md` claims a pool tooltip that does not exist in code (`wt/arty-doctrine`)
 
+> **[rejected: FALSIFIED — the tooltip exists, and the doc it accuses is correct]** (curation 2026-09-01, verified against `main @ 60c1cda4`). The entry's central claim is *"No code renders that"*, resting on a grep of `engine/OpenRA.Mods.Common/Widgets/` for `batches`, `Full refill` and `ReloadCount`-with-`SupplyValue`, reporting `PerfDebugLogic.cs:53` as the only hit. **That grep should have hit `ProductionTooltipLogic.cs:454`, which is inside the searched directory and contains the literal string `"Full refill"`:** `contributed.Add((510, TooltipElement.Cost("Full refill", $"{total} supply")))`, with the per-pool batch rows built above it at `:435-445` and a Logistics-Centre-fraction row below. The tooltip landed in `0d7663ab` (2026-08-30 05:53, *"every unit states what a full refill costs, not just multi-pool ones"*) — **before** this entry was written, so this is a grep that missed rather than a doc that lagged; the likeliest cause is a branch based ahead of the claim but a search run against a stale tree. `economy.md` §"Tooltip format" also already carried its own 2026-08-30 correction moving the round count to a typed `Ammo` row, so the doc was **twice** more current than the entry accusing it.
+>
+> **Nothing is promoted and the doc needs no change.** Recorded rather than deleted because the failure shape is worth keeping: **this is a doc-integrity complaint that was itself the wrong half of the pair.** The entry closed with *"left uncorrected in the doc deliberately — this wants a curation decision"*, which is exactly the right instinct and is what stopped a correct section being rewritten to match a false finding. **The rule it earns: a "the code does not do X" claim is a negative, and a negative from a grep is only as good as the tree the grep ran against — state the SHA you searched, or open one positive hit to prove the search was live.** Same family as the 2026-09-01 `wt/death-slide` entry near the head of this file (*"a grep hit COUNT is not precedent; open one hit"*), arrived at from the opposite direction: there a count was trusted without opening a hit, here an absence was trusted without confirming the search could see.
+
 `DOCS/reference/economy.md` §"Tooltip format" states *"The pool tooltip renders the batch math
 directly"* and shows `Ammo: 900 (9 batches × 100 rounds × 5 supply = 45)`. **No code renders that.**
 Grepped `batches`, `Full refill`, and `ReloadCount`-with-`SupplyValue` across
@@ -2018,6 +2084,12 @@ wrong number, so it wants a curation decision (build the tooltip, or retitle the
 comment convention) rather than a drive-by edit.
 
 ## 2026-08-27 — The frozen-actor visibility update loop is DEAD CODE, and it is the real cause of the six-month building-fog leak (`wt/fog-leak`, base `main @ 651322b3`)
+
+> **[promoted IN PART — and the HEADLINE IS NOW FALSE; the bug it describes is FIXED]** (curation 2026-09-01, verified against `main @ 60c1cda4`). **Read this tag before acting on anything below.** The entry says *"nothing in the engine ever sets that flag to `true` … Grep it and see."* Grepping it now finds the writer: `FrozenActorLayer.cs:327-328` runs `foreach (var fa in partitionedFrozenActors.At(new int2(uv.U, uv.V))) fa.UpdateVisibilityNextTick = true;` inside an `OnShroudChanged` handler. **`e0afecd9` ("fog: reinstate the shroud handler that marks frozen actors for re-evaluation") landed exactly the minimal repair this entry recommends**, and the diagnosis is preserved in a long comment at `:300-325`. So the entry is a correct post-mortem of a fixed defect, not a live finding — **do not re-derive "the loop is dead" from it.**
+>
+> **Promoted:** only the transferable habit, → `conventions.md` §"Detectors worth running before you believe a mechanism works", as *"when the fix IS 'correct a factual claim', grep the FILE for the claim — never your own diff"*. That rule cost this entry's author four correction rounds and it recurred in this very pass: a stale `^E6` claim was sitting in **two** places in `economy.md`, and fixing only the first would have left the doc still asserting it. **Not promoted:** the mechanism (already documented in-tree at the site, better than any doc could restate it — README §"One home per fact"); the perf measurement and the frozen-actor-collection argument (both preserved at `:276-280`); and the `influence-stack.md` fog-discipline correction, which the entry states was already applied in place. **One in-code claim spot-checked because it is the kind that inverts:** `71687440` does have exactly one parent (`c5bb5ece`), so "that resolution, not a merge" holds.
+>
+> **The benchmark warning survives the fix and is the one live consequence:** both bot profiles carried every enemy building at full confidence before 2026-08-27, so **baselines taken before that date are not comparable to later ones.**
 
 **`FrozenActor.UpdateVisibility()` runs exactly once per frozen actor — from the constructor
 (`FrozenActorLayer.cs:113`) — and never again.** Its only other call site (`:162`) is gated on
@@ -2113,6 +2185,8 @@ passes on its own, so a scenario without the control would have reported a clean
 that had made every building invisible. Do not delete those control rungs.
 ## 2026-08-27 — holding a unit at critical damage means fighting a mechanism built to kill it, on EVERY chassis (`test-breakoff-mid-engagement`, base `main @ eb2c4585`)
 
+> **[promoted]** → `conventions.md` §"Engine behaviors that surprise", as the leading bullet (curation 2026-09-01, verified against `main @ 60c1cda4`). The whole table confirmed: `ChangesHealth@CriticalDamage` with `PercentageStep: -1` / `Delay: 5` / `StartIfBelow: 50` is at **`vehicles.yaml:153-156`**, exactly as cited, and `structures.yaml:74-80` independently corroborates all three chassis — naming `critical-damage` as *"a DOOM MARKER, not a damage tier"* and giving the infantry `ChangesHealth@BleedOut` its own citation, **`infantry.yaml:1098`** (the entry only said "referenced at `structures.yaml:77`", which is where the reference lives; the primary site is now recorded). The 100-tick arithmetic for a vehicle at 20% checks out (20 steps × 5 ticks). Two small corrections: the design-intent quote spans **`vehicles.yaml:241-243`**, not `:244`; and `HeliEmergencyLanding.cs` is under **`Traits/Air/`**, not `Activities/`. **Not verified by run** — no launch this pass; the promoted text is a code-and-YAML reading, as the entry's own was.
+
 Any scenario that needs a target to SIT at `DamageState.Critical` has to defeat a per-chassis death
 timer first, and each chassis hides it in a different trait:
 
@@ -2141,6 +2215,8 @@ targets that every chassis is already independently killing, so the ammo it save
 wasted, and the doomed target's remaining lifetime is bounded and knowable in each case.
 
 ## 2026-08-27 — `lint-baseline.txt` "sprite file not found" is an artifact of running without RA content, and five aircraft husks have no aircraft (wreck gaps, `wt/wreck-gaps`, base `main @ eb2c4585`)
+
+> **[promoted IN PART]** → `conventions.md` §"The lint baseline matches on `<scope> | <message>`…", as the *"Never read the baseline as evidence that ART is missing"* paragraph (curation 2026-09-01, verified against `main @ 60c1cda4`). **Promoted: the baseline-as-artefact trap only**, which is the durable half and the one that was one step from causing a wrong ruling. Re-counted from the file: **356 `sprite file … not found` lines out of 548**, not out of 527 — the total has grown since the entry was written, the 356 has not; `mod.yaml:24` does mount `~conquer.mix`. **NOT verified: the list of five genuinely-absent files** (`b2bomb.shp`, `pip-cloak.shp`, `pip-cover.shp`, `mslo.int`, `bib3.int`) — that requires `--check-missing-sprites` on a machine with RA content installed, which this pass could not run; the promoted text therefore names the command as the authority rather than repeating its output. **NOT promoted, as duplicate:** the five-husks-with-no-aircraft census and the `^BuildingHusk` visibility material are already carried by the `[promoted]` `FrozenUnderFog` entry immediately below, whose curation re-parsed the airframe list from the file. Spot-checked anyway and both hold — `B52`, `BULL`, `U2`, `SMIG` have **zero** actor definitions in the ruleset, and `^BasicBuilding` carries `FrozenUnderFog` at exactly `structures.yaml:60`. Note `^BuildingHusk` (`husks/husks.yaml:65`) now carries a `Detectable` block whose own comment records that the `FrozenUnderFog` short-circuit the entry relied on **has since been removed**, and argues the conclusion survives on other grounds — read that comment, not this entry, for current behaviour.
 
 **Never read `lint-baseline.txt` as evidence that art is missing.** 356 of its 527 lines are
 `sprite file \`X.shp\` not found`, including `mig.shp`, `badr.shp` and `u2.shp` — all of which are
@@ -12543,7 +12619,22 @@ off-map — fails on a specific case, and it is worth knowing before a ninth swi
   `SpriteRenderable.cs:105-108`) from an aircraft correctly.
 - **It is defeated by the nuke.** The mushroom cloud is a `SpriteEffect` (`Effects/SpriteEffect.cs:35`)
   anchored at the impact `WPos` with Z≈0 and a large upward sprite — byte-identical to a tree under
-  both a Z test and any screen-space test. The screen-space half of that is not theory: the cloud
+  both a Z test and any screen-space test.
+  > **VERIFIED 2026-09-01** (this was explicitly left unverified by the 2026-08-30 pass). Confirmed,
+  > and the *reason* is sharper than the claim: the cloud's height is faked entirely outside world Z.
+  > It is `Warhead@Fireball: CreateEffect` on the `Atomic` weapon
+  > (`weapons-superweapons.yaml:28,55-63`) with `Explosions: nuke_large`, **`ScalePercent: 300`**
+  > (the "large sprite"), **`Offset: 0,-1900,0`** and **`ZOffset: 4096`**.
+  > `CreateEffectWarhead.cs:150` passes `pos + Offset * ScalePercent / 100` into the `WPos` overload
+  > at `SpriteEffect.cs:35` — so the displacement is `(0, -5700, 0)`: **all of it in screen-Y, with
+  > the Z component literally 0**, and the apparent altitude carried by a render-only `ZOffset` that
+  > no world-space test reads. **A Z-based altitude test therefore cannot distinguish the mushroom
+  > cloud from a tree even in principle**, which is a stronger statement than "Z≈0 in practice".
+  > (`NukeLaunch.cs:122` also spawns `SpriteEffect`s, but those are the ascent/descent smoke trail,
+  > not the cloud.) The nuke is live rather than vestigial: `NukePower` sits on `MSLO`
+  > (`structures-defenses.yaml:1110`) firing `MissileWeapon: atomic`.
+
+  The screen-space half of that is not theory: the cloud
   really did vanish under a bounds test on 2026-03-24. `553e7391` stripped `ISpatiallyPartitionable`
   from `SpriteEffect` because "the ScreenMap bounds calculation couldn't accurately represent the
   actual rendered extent (sprite offset, sequence scale, effect scale all compound)", and `95cc9a7b`
@@ -12559,7 +12650,7 @@ that survives the history. The whole sequence is one day, 2026-03-28:
 | 05:19 | `12ac0453` | **added** the second `DrawBeyondMapFog` pass after shroud, fully opaque |
 | 17:18 | `c620a9f2` | **fixed** `12ac0453` — swapped the blanket clip for a visibility gate |
 | 17:55 | `6036ccdb` | refined again: fog-matching alpha per border cell instead of opaque |
-| 18:54 | `de5c2ee3` | the actual root cause — `ShroudRenderer` treating out-of-map neighbours as same visibility |
+| 18:54 | `de5c2ee3` | **fixed** the actual root cause — `ShroudRenderer` was returning **shroud (0)** for out-of-map neighbours; this changed them to the cell's own visibility |
 | 20:00 | `de4b68f3` | **removed** the second pass entirely |
 
 - **`c620a9f2` was the remedy, not the regression.** The only damage anyone enumerated is in
@@ -12575,6 +12666,37 @@ that survives the history. The whole sequence is one day, 2026-03-28:
 - What survives unchanged: `c620a9f2` was **not** an altitude test. It gated on the border cell's fog
   — `ResolvedVisibility[puv] >= 10`, confirmed in its diff — an axis orthogonal to the one that would
   actually work.
+
+**Widened audit, 2026-09-01 — the misreading was NOT a one-off, and the second instance was in this
+very table.** The `c620a9f2` correction above was chased alone; a follow-up pass re-read **all nine
+commits cited anywhere in this section** against `git show` rather than against their messages (the
+five table rows, plus `553e7391`, `95cc9a7b`, `bc22c9d6`, `12e0addd`). **One further inversion, now
+fixed in the row above:**
+
+- **`de5c2ee3` read *"the actual root cause — `ShroudRenderer` treating out-of-map neighbours as same
+  visibility"*, under a column headed "what it did".** Its diff does the opposite: it **changed**
+  `GetNeighborsVisbility` **to** return the cell's own visibility, as the remedy. The root cause was
+  returning **shroud (0)**. Its message says so in one sentence — *"returned 0 (shroud) for neighbors
+  outside the map, causing a false fog gradient… **Now returns** the cell's own visibility"* — and the
+  entry took the *second* clause as the description of the defect.
+
+**So both inversions in this table have the same generator, and it is worth naming precisely:** a
+commit message that announces a fix necessarily *describes the broken behaviour in the present tense
+first*, and a table column headed "what it did" invites that description to be copied into the row.
+`c620a9f2` was blamed for damage its message was quoting from its predecessor; `de5c2ee3` was blamed
+for a behaviour its message was quoting as the fix. **Two of five rows.** The countermeasure is not
+"read the message more carefully" — it is that **a row asserting what a commit DID must be filled
+from its diff**, and a message may only be quoted as evidence of intent.
+
+Clean on inspection, so the audit is not open-ended: `12ac0453` (diff adds the second
+`DrawBeyondMapFog()` call, unconditional — matches), `6036ccdb` (adds `ComputeFogAlphaTable` and
+per-border-cell alpha — matches "refined again"), `de4b68f3` (removes the pass and its helper table,
+gives one reason, never names `c620a9f2` — matches), `553e7391`/`95cc9a7b` (both 2026-03-24, strip
+`ISpatiallyPartitionable` from `SpriteEffect` and `NukeLaunch` respectively and un-clamp the scissor
+rect — matches), `bc22c9d6` (its own in-diff comment scopes the fix to *"where there is no render
+player: the shellmap, observers, and TestMode"*, corroborating the "only fixed the shellmap" reading
+— and note this is a claim of **incompleteness**, not of damage, so it is a different shape),
+`12e0addd` (the merge carrying `bc22c9d6`; cited only for a measurement).
 
 The only mechanism that survives is a partition by *source* in `GenerateRenderables` (Z==0 actors →
 clipped ground pass; Z>0 actors plus all `IEffect` renderables → unclipped late pass). Its cost is
