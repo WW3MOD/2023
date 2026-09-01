@@ -1,0 +1,18 @@
+# Scenario overrides. Deliberately minimal: the module under test runs on its SHIPPED
+# ai.yaml configuration (DesiredCenters 1, StandoffCells 4, DangerSafeUnits 30, ScanInterval 100),
+# because a test that retunes the thing it is testing proves only that some other tuning works.
+
+Player:
+	# The LCCV costs 3000 and LogisticsCenterBotModule.MinCashToRequest is 3000, so the bot must be
+	# able to clear that bar WHILE also running its ordinary combat production — otherwise the test
+	# measures the economy ramp rather than the module. 15000 removes affordability as a variable;
+	# it does not remove the demand gate, which is what is actually under test.
+	PlayerResources:
+		DefaultCash: 15000
+
+World:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-experimental-lccv-logistics.lua

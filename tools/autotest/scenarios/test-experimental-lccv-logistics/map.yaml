@@ -1,0 +1,131 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: experimental bot buys an LCCV and deploys it as a FORWARD Logistics Center
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Asserts BOTH halves of LogisticsCenterBotModule@experimental in one run:
+#
+#   BUY    — LOGISTICSCENTER is `Prerequisites: ~disabled` and nothing grants `disabled`, so the
+#            ONLY route to one is transforming an LCCV. Nothing in rules/ai/ named `lccv` before
+#            this module, so a bot never had one. The module's demand gate must therefore pull an
+#            LCCV through the production queue on its own.
+#   DEPLOY — and then put it FORWARD. A Centre parked next to the Supply Route is 3000 credits
+#            spent to shorten a resupply round-trip that was already zero, so "a logisticscenter
+#            exists" is NOT the pass condition on its own; it must also stand clear of the SR.
+#
+# WHY THIS MAP NEEDS NO SIGHTINGS TO WORK. The siting descent walks DOWN ControlField's
+# distance-to-enemy-frontier field, and that field is SEEDED from the Voronoi over the public home
+# beachheads (ControlField.cs:620) — not from sightings. Two SRs at opposite ends therefore give a
+# populated gradient and a frontier on the midline from tick 0, which is what makes this test
+# deterministic rather than dependent on the bot happening to scout something. The pre-placed
+# forces below exist to keep the bot behaving like a bot (an army to spend budget on, an enemy to
+# form a line against), NOT to make the field work.
+#
+# GEOMETRY, and where the Centre is expected to land:
+#   USA SR      (6,16)   the @experimental bot under test
+#   Russia SR   (58,16)  control, Bot=stable
+#   Voronoi frontier     ~x=32 (the midline between the two beachheads)
+#   ControlField.CellSize is 2 (world.yaml leaves `ControlField:` bare, C# default), and the module
+#   is configured StandoffCells: 4, so the descent halts ~4 grid cells = ~8 MAP cells short of the
+#   frontier — i.e. the Centre is expected around x~24, roughly 18 cells forward of the SR.
+#   The assertion's threshold is 8 cells, less than half that, so it passes on a substantially
+#   under-performing descent and only fails if the Centre is effectively AT the SR.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Bot: stable
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,16
+
+	# Spawn anchors — MapStartingLocations.AssignSpawnPoint iterates mpspawn actors for every
+	# client (including the human Observer) and crashes if empty.
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+	# A small standing force per side. NOT what makes the test work (see the header) — it is here so
+	# the bot under test is running its ordinary module set with a real pool rather than an empty
+	# one, and so the enemy is a believed presence rather than an abstraction.
+	BotRifle1: ar.america
+		Owner: USA-bot
+		Location: 8,14
+		Facing: 768
+	BotRifle2: ar.america
+		Owner: USA-bot
+		Location: 8,15
+		Facing: 768
+	BotRifle3: ar.america
+		Owner: USA-bot
+		Location: 8,17
+		Facing: 768
+	BotRifle4: ar.america
+		Owner: USA-bot
+		Location: 8,18
+		Facing: 768
+	BotTank1: abrams
+		Owner: USA-bot
+		Location: 10,15
+		Facing: 768
+	BotTank2: abrams
+		Owner: USA-bot
+		Location: 10,17
+		Facing: 768
+
+	EnemyRifle1: e3.russia
+		Owner: Russia-bot
+		Location: 56,15
+		Facing: 256
+	EnemyRifle2: e3.russia
+		Owner: Russia-bot
+		Location: 56,17
+		Facing: 256
+	EnemyTank1: t90
+		Owner: Russia-bot
+		Location: 54,16
+		Facing: 256
+
+Rules: rules.yaml
