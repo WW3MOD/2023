@@ -268,6 +268,31 @@ command-icons:
 command-icons-highlighted:
 	Inherits: command-icons
 
+# The resupply bar is a selector bar like STANCE/ENGAGEMENT/COHESION, so its active button must
+# mark itself the way theirs do: amber glyph plus the lighter panel, not the panel alone. Those
+# three get the amber from stance-icons-highlighted; this bar cannot, because it draws 24x24
+# command-icons art and command-icons-highlighted is a bare alias of command-icons.
+# It gets its own collection rather than overriding command-icons-highlighted so that the command
+# bar's momentary Stop/Deploy/Evacuate flashes are not recoloured along with it.
+# The three -active cells are recolours of the base art into the stance active amber (255,192,0),
+# occupying the previously empty right-hand end of the two command-icons rows on glyphs.png.
+resupply-icons:
+	Inherits: ^Glyphs
+	Regions:
+		hold: 150, 207, 24, 24
+		hold-disabled: 150, 232, 24, 24
+		auto: 100, 207, 24, 24
+		auto-disabled: 100, 232, 24, 24
+		evacuate: 25, 207, 24, 24
+		evacuate-disabled: 25, 232, 24, 24
+
+resupply-icons-highlighted:
+	Inherits: resupply-icons
+	Regions:
+		hold: 200, 207, 24, 24
+		auto: 225, 207, 24, 24
+		evacuate: 200, 232, 24, 24
+
 sidebar-observer:
 	Inherits: ^Sidebar
 	Regions:

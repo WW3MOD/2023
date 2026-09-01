@@ -1,0 +1,1 @@
+Unload menu with 24 class rows: asserts the scrollbar appears exactly when the list is clipped, and clear of the count column. Run it twice, either side of 578px window height.

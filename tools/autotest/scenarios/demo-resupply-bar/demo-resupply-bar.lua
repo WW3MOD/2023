@@ -5,9 +5,10 @@
 --
 -- WHY THIS EXISTS AT ALL: the resupply bar has never rendered under any gate in this branch.
 -- `--dump-balance-json` loads rules, not chrome/, and NUnit does not draw. Every claim about
--- these three buttons so far — that `stop`/`resupply`/`force-move` read as distinct, that a
--- 24x24 icon centres in a 34x26 button at X:5,Y:1, that the selected stance is still legible now
--- that only the button background carries the highlight — is arithmetic off the YAML.
+-- these three buttons so far — that `hold`/`auto`/`evacuate` read as distinct, that a 24x24 icon
+-- centres in a 34x26 button at X:5,Y:1, that the selected stance is legible — is arithmetic off
+-- the YAML. The bar now draws resupply-icons rather than command-icons, so the active button
+-- carries an amber glyph as well as the lighter panel; capture 03 is where that shows.
 --
 -- ONE FRAME PER STANCE, driven through the real widget chain. Test.PressHotkey dispatches via
 -- Ui.HandleKeyPress, so it walks the same path a player's keypress does rather than poking the
@@ -50,8 +51,10 @@ WorldLoaded = function()
 	Trigger.AfterDelay(ticks(150), function() Test.PressHotkey("ResupplyEvacuate") end)
 	Trigger.AfterDelay(ticks(180), function()
 		TestHarness.Screenshot("03-evacuate",
-			"expects: RIGHT button now highlighted and the other two not — this is the frame that "
-			.. "shows whether the highlight is legible at all, since command-icons-highlighted "
-			.. "carries no brighter glyph variant and only the button background changes")
+			"expects: RIGHT button now highlighted and the other two not, and the highlight is now "
+			.. "TWO cues like the three bars to its left — an AMBER glyph plus the lighter panel, "
+			.. "with the other two glyphs still white. Until resupply-icons existed this bar drew "
+			.. "command-icons, whose -highlighted collection is a bare alias of it, so the glyph "
+			.. "stayed white and the panel shade was the only cue at all")
 	end)
 end

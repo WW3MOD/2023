@@ -3,6 +3,50 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — A button's `IsHighlighted` is only as visible as its icon collection's `-highlighted` twin, and `command-icons-highlighted` is a bare alias (`wt/ui-affordances`)
+
+Setting `IsHighlighted` on a button does two independent things, and one of them silently does nothing
+depending on which art the button draws.
+
+- The **panel** swaps via `ButtonWidget.DrawBackground` (`ButtonWidget.cs:315-320`), which appends
+  `-highlighted` to the *background* name. `command-button-highlighted` exists, so this half always works.
+- The **glyph** swaps via `WidgetUtils.GetCachedStatefulImage` (`WidgetUtils.cs:44-54`), which appends
+  `-highlighted` to the *collection* name and falls back to the unhighlighted sprite when the region is
+  missing. So the glyph only changes if that collection defines different rectangles.
+
+`stance-icons-highlighted` (`chrome.yaml:238-244`) remaps its four names onto the amber `-active` row at
+y=153, which is why the Stance / Engagement / Cohesion bars mark their selection with two cues.
+`command-icons-highlighted` (`:268-269`) is `Inherits: command-icons` and nothing else — **every button
+drawing `command-icons` gets the panel cue only**, including the command bar's persistent mode buttons
+(Attack Move, Force Move, Guard, Patrol, Waypoint). That is not a bug report, it is the shape of the trap:
+adding a highlight to a button here can look wired up in YAML, in logic and in review, and still produce
+no glyph change at all. Check the `-highlighted` collection, not the button.
+
+Two facts about `glyphs.png` found while fixing the resupply bar's instance of this:
+
+- The sheet is 256x256 and vertically full (`command-icons` rows end exactly at y=256), but the **right-hand
+  end of both command rows is empty** — x 200..255 at y 207..255 is four spare 24x24 cells, verified
+  transparent at all three densities. Three now hold the resupply bar's amber glyphs; one is still free.
+- **`glyphs-3x.png` is a 1024x1024 canvas carrying 3x art, not 4x art.** Padding, not a scale mismatch:
+  the stance active row reads correctly at (0, 153*3) and the region multiply is `Density * mi`
+  (`ChromeProvider.cs:177`), so `Image3x` samples right on `dpiScale > 2` displays. `flags-3x.png` is the
+  same shape. Recorded because 1024/256 = 4 looks exactly like a shipping HiDPI bug and is not one.
+
+## 2026-09-01 — The unload menu's 578px cliff, re-derived: `ListLayout` content height is `23N - 1`, not `23N` (`wt/ui-affordances`)
+
+`CargoUnloadMenuLogic.Refresh` caps the list at `Resolution.Height - list.Bounds.Y - 2 * ScreenMargin`,
+i.e. screen height minus 27 for `unload-menu.yaml`'s `Y: 19` and `ScreenMargin` 4. Content height comes from
+`ListLayout.AdjustChild` (`ListLayout.cs:22-30`), which seeds `ContentHeight = 2 * TopBottomSpacing -
+ItemSpacing` on the first child — **negative one** here, since the panel sets `TopBottomSpacing: 0` and
+`ItemSpacing: 1`. So N rows of 22px need `23N - 1`, not `23N`: 24 classes is **551px**, and all of them fit
+uncut iff screen height >= **578**. The off-by-one is easy to lose and the whole threshold turns on it.
+
+The clip was survivable rather than destructive, which is worth keeping straight: `ScrollPanelWidget`
+handles `Scroll` events whatever `ScrollBar` is set to (`ScrollPanelWidget.cs:342-346`), so a hidden bar
+never made the tail unreachable — only unadvertised. The fix is therefore about honesty, and the invariant
+to assert is `bar shown <=> clip < content`, which holds at every window size, rather than `never clip`,
+which is a claim about one window size.
+
 ## 2026-09-01 — `ChooseUnitToBuild` IS reached, on two lanes whose entire buildable pool is `~disabled` — so the weighted lottery runs, draws RNG, and is guaranteed to return null (`wt/bot-truth`)
 
 **Investigated, deliberately NOT fixed.** Recorded because the obvious reading of this defect is wrong
