@@ -18,7 +18,15 @@
 -- MapLayers, which reports anything out of bounds as hidden -- IsExplored returns false
 -- when !map.Contains (MapLayers.cs:504-505) and IsVisible returns map.Contains outright
 -- with fog off (:576-577). The rise was also lengthened from 30 ticks to 75, i.e. 1.8s
--- to 4.5s at Timestep 60. None of that has ever been looked at in a running game.
+-- to 4.5s at Timestep 60.
+--
+-- RUN HISTORY. First run 260901_225727_p29763 (seed -1418088552, with the flag) ANSWERED
+-- IT: both ticks rendered, "+$2500" and "+$0", both centred on column x=1 -- the clamped
+-- boundary column, not the void two cells left of it. Payer's glyphs occupied screen
+-- x 943..1007 y 309..326 and Pauper's x 960..991 y 895..912 in the 3200x1800 capture,
+-- which back-solves to cell centres 1,11 and 1,16 and to text ages of 47 and 14 ticks.
+-- So the clamp AND the ignoreVisibility bypass both work under a live RenderPlayer, and
+-- the zero-refund arm draws. Re-run this to DEFEND that, not to establish it.
 --
 -- =====================================================================================
 -- THE RUN IS WORTHLESS WITHOUT Test.KeepRenderPlayer=true, AND NOT FOR THE USUAL REASON
@@ -81,6 +89,23 @@
 -- not about the indicator at all.
 --
 -- =====================================================================================
+-- EVERY TICK THIS RUN REPORTS IS DateTime.GameTime. DO NOT INTRODUCE A SECOND CLOCK.
+-- =====================================================================================
+-- The screenshot's own tick in result.json is Context.World.WorldTick, stamped inside
+-- Test.Screenshot (TestGlobal.cs:102). So the sale times below are read from
+-- DateTime.GameTime, which is the same counter (DateTimeGlobal.cs:39), and the verdict
+-- states each text's AGE at the shot outright rather than leaving it to be subtracted.
+--
+-- This is not tidiness. Poll used to count its own iterations from 1, and the first one
+-- runs at WorldTick 29 (WorldLoaded -> AfterDelay(PremiseTicks) -> AfterDelay(
+-- PressPayerTick - PremiseTicks)), so a verdict reading "sold at tick 151" sat 28 ticks
+-- behind a screenshot reading "tick 227". Reading run 260901_225727_p29763, that offset
+-- made the older text look 76 ticks old -- one tick past TickLifetime -- and so supplied
+-- a confident, wrong explanation for an absence that had not happened. Both texts were on
+-- screen, at 48 and 15 ticks old. A capture instrument whose own numbers cannot be
+-- compared against its own screenshot is worse than one that reports nothing.
+--
+-- =====================================================================================
 -- READ THE FULL-RESOLUTION PNG. DO NOT DOWNSCALE IT.
 -- =====================================================================================
 -- SCREENSHOT.md's standing advice is to shrink a capture to ~1280px before Read, and for
@@ -122,8 +147,10 @@ local PressPayerTick = 28
 -- Twenty ticks after Payer, not simultaneously. Two reasons, both load-bearing: cash
 -- deltas read per-tick would merge into one unattributable number if both sales landed
 -- on the same tick, and two texts spawned together would be indistinguishable in the
--- frame if either one failed to draw. Twenty ticks is also comfortably inside
--- EvacRefundTextMath.TickLifetime = 75, so the older text is still alive at the shot.
+-- frame if either one failed to draw. THE ORDERED GAP IS NOT THE ACHIEVED ONE -- the two
+-- subjects resolve different edge cells and drive different distances, and run
+-- 260901_225727_p29763 came out 33 ticks apart, not 20 -- so nothing downstream assumes
+-- it. The verdict measures the real gap and states each text's actual age at the shutter.
 local SelectPauperTick = 45
 local PressPauperTick = 48
 
@@ -131,19 +158,37 @@ local DeadlineTicks = 600
 
 -- The capture is ONE FRAME LATE -- Test.Screenshot arms a capture and the pixels are
 -- sampled at the end of the NEXT RenderTick -- so it gets its own delay after the last
--- sale, and the verdict gets another after it. Fifteen ticks also lets the newer text
--- rise clear of the ground clutter without letting the older one (35 ticks old by then,
--- ~1.2 cells up) climb out of frame.
-local ShotDelayTicks = 15
+-- sale, and the verdict gets another after it.
+--
+-- WHY THIS IS 10 AND NOT THE ORIGINAL 15. The OLDER text's age at the shutter is
+-- (gap between the two sales) + ShotDelayTicks + 1, so every tick spent here is a tick
+-- taken off the older text's headroom against TickLifetime -- this delay is the only term
+-- in that sum the scenario controls. Run 260901_225727_p29763 measured a 33-tick gap, not
+-- the 20 this scenario aims for, because the two subjects pick different edge cells and
+-- drive different distances; that put the older text at 48/75 when the shutter fell. It
+-- worked and both texts were in frame, but 27 ticks of headroom on a design figure that
+-- had already missed by 13 is thinner than a capture costing a launch slot deserves.
+-- Ten still lets the newer text clear its own cell: at 14 ticks old the "+$0" in that run
+-- was fully legible.
+local ShotDelayTicks = 10
 local VerdictDelayTicks = 25
 
+-- Mirrors EvacRefundTextMath.TickLifetime (EvacRefundTextMath.cs:32). Used ONLY to state
+-- each text's age against its lifetime in the verdict; nothing here feeds the engine.
+local TickLifetime = 75
+
 local usa
-local tick = 0
+local pollStartTick
 local prevCash = 0
 local setupNotes = {}
 
 local payerLastCell, pauperLastCell
 local payerRec, pauperRec
+
+-- DateTime.GameTime at the moment Test.Screenshot was called, i.e. the same counter the
+-- harness stamps into result.json's screenshots[].tick. The pixels land one RenderTick
+-- later, so a text's true age is this minus its sale tick, plus one.
+local shotTick
 
 local function Clamp(v, lo, hi)
 	if v < lo then return lo end
@@ -196,34 +241,83 @@ local function PremiseFault()
 end
 
 local function TakeShot()
+	shotTick = DateTime.GameTime
+
+	-- The predicted cells are INTERPOLATED rather than asserted. The subjects START on rows
+	-- 14 and 19 but leave through whichever edge cell ChooseClosestMatchingEdgeCell picked,
+	-- and in run 260901_225727_p29763 that was rows 11 and 16 -- so a note hard-coding 14
+	-- and 19 sends the reader to look three cells away from the text.
 	TestHarness.Screenshot("evac-refund-indicator",
-		"expects: TWO floating refund ticks near the WEST map boundary, one on row 14 "
-		.. "(Payer, a positive amount) and one five cells below on row 19 (Pauper, which "
-		.. "MUST read \"+$0\" and must not be missing). Both should sit just INSIDE the "
-		.. "boundary on column x=1, i.e. at the very left edge of the lit map, NOT out in "
-		.. "the black void to the left of it -- a tick in the void is an unclamped position "
-		.. "and a tick that is absent is the original suppression bug. The row-14 text is "
-		.. "~20 ticks older so it will have drifted slightly higher; that is the rise rate "
-		.. "working, not a fault. Most of the map should be BLACK unexplored shroud with a "
-		.. "lit corridor along each subject's westward path -- a uniformly lit map means "
-		.. "RenderPlayer was null and the capture is void. Read this PNG at full "
-		.. "resolution; do not downscale it, the payload is a few glyphs of small text.")
+		"expects: TWO floating refund ticks near the WEST map boundary -- Payer (a positive "
+		.. "amount) predicted at cell " .. CellStr(PredictTextCell(payerLastCell))
+		.. " and Pauper (which MUST read \"+$0\" and must not be missing) predicted at cell "
+		.. CellStr(PredictTextCell(pauperLastCell)) .. ", each risen a little above that "
+		.. "cell. Both should sit just INSIDE the boundary on column x=1, i.e. at the very "
+		.. "left edge of the lit map, NOT out in the black void to the left of it -- a tick "
+		.. "in the void is an unclamped position and a tick that is absent is the original "
+		.. "suppression bug. The upper text is the older one and will have drifted higher; "
+		.. "that is the rise rate working, not a fault, and the verdict states both ages in "
+		.. "ticks so you need not infer it. Most of the map should be BLACK unexplored "
+		.. "shroud with a lit corridor along each subject's westward path -- a uniformly lit "
+		.. "map means RenderPlayer was null and the capture is void. Read this PNG at full "
+		.. "resolution; do not downscale it, the payload is a few glyphs of small text and "
+		.. "a resize blends them into the shroud.")
+end
+
+-- THE ONE NUMBER A READER OF THE PNG CANNOT RECONSTRUCT. An absent text has exactly two
+-- causes -- the indicator did not draw, or it had already expired when the shutter fell --
+-- and they are indistinguishable in the image. Stating the age here settles it in
+-- result.json instead of leaving it to be subtracted from three numbers on two clocks,
+-- which is how run 260901_225727_p29763 was first misread. Returns the note, and true when
+-- the text was dead, so the caller can downgrade the frame.
+local function TextAgeNote(name, rec)
+	if rec == nil then return nil, false end
+	if shotTick == nil then
+		return name .. " text age UNKNOWN (the shot never armed)", false
+	end
+
+	-- +1 because the pixels are sampled on the RenderTick after Test.Screenshot is called.
+	local age = shotTick - rec.tick + 1
+	if age >= TickLifetime then
+		return name .. " text was " .. age .. "/" .. TickLifetime
+			.. " ticks old at the shutter -- EXPIRED, so its absence from the PNG is the "
+			.. "INSTRUMENT and says nothing about the indicator", true
+	end
+
+	return name .. " text was " .. age .. "/" .. TickLifetime
+		.. " ticks old at the shutter -- ALIVE, so if it is not in the PNG it did not draw", false
 end
 
 local function Verdict()
 	local parts = {}
 
 	parts[#parts + 1] = "Payer: " .. (payerRec ~= nil
-		and ("sold at tick " .. payerRec.tick .. ", USA cash +" .. payerRec.delta
+		and ("sold at world tick " .. payerRec.tick .. ", USA cash +" .. payerRec.delta
 			.. ", last in-world cell " .. CellStr(payerLastCell)
 			.. ", text predicted at " .. CellStr(PredictTextCell(payerLastCell)))
 		or "NEVER SOLD")
 
 	parts[#parts + 1] = "Pauper: " .. (pauperRec ~= nil
-		and ("sold at tick " .. pauperRec.tick .. ", USA cash +" .. pauperRec.delta
+		and ("sold at world tick " .. pauperRec.tick .. ", USA cash +" .. pauperRec.delta
 			.. ", last in-world cell " .. CellStr(pauperLastCell)
 			.. ", text predicted at " .. CellStr(PredictTextCell(pauperLastCell)))
 		or "NEVER SOLD")
+
+	-- The ages are EXACT and each is reported for its own subject, which is why there is no
+	-- longer a gap-derived guess at whether the older text expired. The old form compared the
+	-- gap against TickLifetime directly and so could not fire until 75, but the older text
+	-- dies at gap + ShotDelayTicks + 1 -- at the then-current delay of 15 that is gap >= 59,
+	-- so the old form was silent for every gap from 59 to 74 while the frame it was blessing
+	-- had already lost one of its two arms.
+	for _, pair in ipairs({ { "Payer", payerRec }, { "Pauper", pauperRec } }) do
+		local note, expired = TextAgeNote(pair[1], pair[2])
+		if note ~= nil then
+			parts[#parts + 1] = note
+			if expired then
+				setupNotes[#setupNotes + 1] = note
+			end
+		end
+	end
 
 	if payerRec ~= nil and pauperRec ~= nil then
 		local gap = pauperRec.tick - payerRec.tick
@@ -233,14 +327,9 @@ local function Verdict()
 		-- The 20-tick stagger exists to prevent this; if it happened anyway, neither per-unit
 		-- number above means anything and the two texts will be at the same height in frame.
 		if gap == 0 then
-			setupNotes[#setupNotes + 1] = "both sales were observed on the SAME poll tick, so the "
+			setupNotes[#setupNotes + 1] = "both sales were observed on the SAME tick, so the "
 				.. "two cash deltas reported here are one combined credit counted twice and "
 				.. "neither per-unit figure can be trusted"
-		elseif gap >= 75 then
-			setupNotes[#setupNotes + 1] = "the two sales were " .. gap .. " ticks apart, which is "
-				.. "at or past EvacRefundTextMath.TickLifetime (75) -- the FIRST text had already "
-				.. "expired when the shot was armed, so its absence in the frame is the "
-				.. "instrument's fault and NOT evidence about the indicator"
 		elseif gap >= 45 then
 			setupNotes[#setupNotes + 1] = "the two sales were " .. gap .. " ticks apart, so by the "
 				.. "shot the older text had risen roughly " .. string.format("%.1f", (gap + ShotDelayTicks) * 34 / 1024)
@@ -271,18 +360,22 @@ local function Verdict()
 end
 
 local function Poll()
-	tick = tick + 1
+	-- WorldTick, not a private counter -- see the clock banner at the top of this file. The
+	-- tick recorded is the one on which the subject was OBSERVED dead, which can be one tick
+	-- after DoSell actually ran and added the text, so every age derived from it is +/-1.
+	local now = DateTime.GameTime
+	if pollStartTick == nil then pollStartTick = now end
 
 	if not Payer.IsDead then
 		payerLastCell = { X = Payer.Location.X, Y = Payer.Location.Y }
 	elseif payerRec == nil then
-		payerRec = { tick = tick, delta = usa.Cash - prevCash }
+		payerRec = { tick = now, delta = usa.Cash - prevCash }
 	end
 
 	if not Pauper.IsDead then
 		pauperLastCell = { X = Pauper.Location.X, Y = Pauper.Location.Y }
 	elseif pauperRec == nil then
-		pauperRec = { tick = tick, delta = usa.Cash - prevCash }
+		pauperRec = { tick = now, delta = usa.Cash - prevCash }
 	end
 
 	prevCash = usa.Cash
@@ -293,7 +386,7 @@ local function Poll()
 		return
 	end
 
-	if tick >= DeadlineTicks then
+	if now - pollStartTick >= DeadlineTicks then
 		local stuck = {}
 		if not Payer.IsDead then
 			stuck[#stuck + 1] = "Payer at " .. CellStr(payerLastCell)
