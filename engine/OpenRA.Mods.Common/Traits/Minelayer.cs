@@ -135,11 +135,16 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Each minelayer is judged on ITS OWN cell: DeployOrderTargeter issues a per-actor
 			// PlaceMine at that actor's location, and ResolveOrder re-tests the same cell.
+			// The Disposed/IsDead guard runs FIRST: Selection prunes per world tick but this is
+			// evaluated from the render thread, so a just-killed selection member can still be
+			// present, and the cannotAct lambda's Trait<Minelayer>() throws on a disposed actor
+			// (same crash class as AttackMove.CanBeOrderedToAttackMove — see its remarks).
+			// ReadsAsBlocked checks canReceiveOrder before cannotAct, so guarding here covers both.
 			return Memo.ReadsAsBlocked(
 				self.World,
 				candidates,
 				false,
-				a => a.Info.HasTraitInfo<MinelayerInfo>(),
+				a => !a.Disposed && !a.IsDead && a.Info.HasTraitInfo<MinelayerInfo>(),
 				a => !a.Trait<Minelayer>().IsCellAcceptable(a, a.Location));
 		}
 
