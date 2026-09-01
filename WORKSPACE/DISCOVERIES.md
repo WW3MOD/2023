@@ -218,6 +218,115 @@ re-bless.
 (`+`), so `actor_shape` gives it `blocking=[]`. On `test-restock-unreachable-centre` the `mpspawn` at
 `(60,30)` was the *only* blocker on the SR's own cell, which is why freeing the two markers moved that
 map by +2 and not +1.
+## 2026-09-01 — Garrisoning a civilian building TRANSFERS OWNERSHIP, and that one fact rewrites four other conclusions (`wt/garrison-audit`)
+
+**`GarrisonManagerInfo.DynamicOwnership` defaults `true`** (`GarrisonManager.cs:89`) and is overridden
+**nowhere** in the mod. On the first soldier entering a Neutral building, `OnPassengerEntered` calls
+`self.ChangeOwnerInPlace(passengerOwner, updateGeneration: false)` (`:256-260`); the last one out
+reverts it (`CheckOwnershipAfterExit`, `:299-333`). So "civilian buildings are Neutral-owned" is only
+true of the **empty** state, and any reasoning that treats these 41 actors as permanently Neutral —
+fog exposure, frozen-actor behaviour, territory classification — is describing half the state machine.
+Four consequences that are not obvious until you know this:
+
+1. **Occupancy pips are invisible to the enemy, structurally.** `WithGarrisonDecoration` inherits
+   `WithDecorationBaseInfo.ValidRelationships`, which defaults to `Ally` (`WithDecorationBase.cs:108`)
+   and is not overridden at `civilian.yaml:121-123`. `ShouldRender` bails unless the render player is
+   an ally of *the building's owner* (`:165-170`) — and the owner IS the garrisoning player. The whole
+   readout is shown only to the player who already knows.
+2. **`OwnerLostAction: ChangeOwner`** (`civilian.yaml:56-57`) is inert while empty (the Neutral player
+   is never defeated) and only becomes live once someone garrisons.
+3. **A fourth ownership-change route exists that has nothing to do with `Capturable`.**
+   `CheckOwnershipAfterExit` hands the building to `remainingOwners.First()` when the current owner's
+   men are gone (`:325-329`) — the set is unfiltered by relationship, though the comment at `:324`
+   says "ally". No technician, no capture trait. `game-model.md` §"Capturing neutral buildings" does
+   not mention it.
+4. **`Cargo.Neutral: true`** (`civilian.yaml:59`) reads like the mechanism and is not: `CargoInfo.Neutral`
+   (`Cargo.cs:30`) has no consumer in the engine, and `Cargo.Load` explicitly *skips* its own
+   `ChangeOwnerSync` when a `GarrisonManagerInfo` is present (`Cargo.cs:698-700`). The field is vestigial;
+   `GarrisonManager` does the work.
+
+## 2026-09-01 — There is exactly ONE relationship check in the whole garrison entry chain, and it is at targeting time only (`wt/garrison-audit`)
+
+Traced order-issue → resolve → activity → load. The gate appears once:
+`EnterAlliedActorTargeter.CanTargetActor`, which admits allied **or neutral** owners
+(`EnterAlliedActorTargeter.cs:49-54`). After that, **nothing re-checks ownership**:
+`Passenger.ResolveOrder` (`Passenger.cs:228-239`) checks target type/alive/space/cargo-type;
+`RideTransport.TryStartEnter` (`RideTransport.cs:49-61`) and `OnEnterComplete` (`:69-87`) check
+identity and space; `Cargo.CanLoad` (`Cargo.cs:518-529`) checks `LoadingBlocked`, filters and space.
+
+The `ICargoCanLoadFilter` hook (`TraitsInterfaces.cs:237`) is the seam where such a check belongs, and
+its **only implementor mod-wide is `SupplyProvider`** (`SupplyProvider.cs:225`, `:1245`) — nothing on a
+civilian building. So two **hostile** players can garrison the same house: A loads and takes ownership,
+B's already-issued order is never revalidated and loads into an enemy building.
+
+**The race window is held open deliberately, which is why it is not a one-line fix.** Both
+`ChangeOwnerInPlace` calls pass `updateGeneration: false` specifically so in-flight `Enter` activities
+are NOT invalidated (`GarrisonManager.cs:251-255`) — bumping Generation made allied soldiers cancel and
+go idle near the building. The mechanism that would close this race was switched off on purpose to fix
+a different bug. Any fix has to be a load-time predicate, not a Generation bump.
+
+Downstream: `FindBestShelterSoldier` filters candidates on dead/suppressed/armed only
+(`GarrisonManager.cs:539-558`) — **no owner filter** — so a hostile occupant is a valid candidate to be
+deployed to a port and fired under the building owner's target selection.
+
+## 2026-09-01 — `Indestructible` defaults ON for all 41 garrisonable actors, silently killing five death-path traits (`wt/garrison-audit`)
+
+`GarrisonManagerInfo.Indestructible` defaults `true` (`GarrisonManager.cs:83-85`) with **zero
+overrides** across `mods/ww3mod/rules/`. Enforced by `IDamageModifier.GetDamageModifier`
+(`:1415-1435`), which returns 0 at `HP <= 1` and otherwise scales a lethal hit to leave exactly 1 HP.
+**There is no occupancy gate** — empty buildings are immortal too, including GTWR/PBOX/HBOX.
+
+Unreachable-by-damage as a result: `Cargo.EjectOnDeath` (`civilian.yaml:67`), both `Explodes`
+(`:50-53`), every `SpawnActorOnDeath` (`V19`→`V19.Husk` `:425-426`; GTWR/PBOX husks
+`structures-defenses.yaml:211-212`, `:301-302`), and `GarrisonManager`'s own `INotifyKilled` handler
+(`:1369-1400`). GTWR/PBOX also still inherit `MustBeDestroyed` from `^Defense`
+(`structures-defenses.yaml:13`).
+
+**The one bypass, worth knowing generally:** `Health.Kill` calls `InflictDamage(..., ignoreModifiers:
+true)` (`Health.cs:243-246`) and `InflictDamage` skips every `IDamageModifier` under that flag
+(`:177`). So `Actor.Kill()` — Lua, crush, `KillsSelf` — defeats *any* `IDamageModifier`-based
+invulnerability in this engine, not just this one. And on that path the "survive with proportional
+damage" code is arithmetically guaranteed to kill: `damageToDeal = soldierHealth.MaxHP * damage /
+self.MaxHP` (`:1391`) with `damage == MaxHP` reduces to exactly `soldierHealth.MaxHP`, plus a random
+bonus (`:1392`).
+
+## 2026-09-01 — Two garrison traits are inert on every actor that carries them (`wt/garrison-audit`)
+
+Both look load-bearing when grepped and are not:
+
+- **`^CargoPips`** (`civilian.yaml:68`) never draws on a garrisonable building.
+  `WithCargoPipsDecoration` records `hasGarrisonDecoration` at `:70` and early-returns at `:97`.
+  Its only live effect is the `Cargo:` keys the template also supplies (`LoadedCondition`,
+  `NoUnloadNotification`, `defaults.yaml:947-953`) — so **removing the inherit would silently break
+  the `loaded` condition** that gates `Targetable@WhenGarrisoned` (`civilian.yaml:20-23`). Delete with
+  care.
+- **`AttackGarrisoned.PortOffsets/PortYaws/PortCones`** (e.g. `civilian.yaml:125-127`) restate the
+  `GarrisonManager.Ports` geometry and are read **only** when no `GarrisonManager` exists
+  (`AttackGarrisoned.cs:33-40`, `:55-56`, `:180-181`). All 41 actors have one, so all 41 copies are
+  dead. Two sources of truth, in sync by luck.
+
+Related naming trap: **`PoiGarrisonBotModule` does not garrison anything.** Its only order is
+`AttackMove` onto a POI cell (`PoiGarrisonBotModule.cs:514`); it contains no `Cargo`/`Passenger`/
+`GarrisonManager`/`EnterTransport` reference in 599 lines. The module that actually garrisons is
+`GarrisonBotModule` (`:331`), attached once at `ai.yaml:1001` under `enable-ai-any`, which
+`GrantConditionOnBotOwner@anyai` grants to `Bots: experimental, stable` (`ai.yaml:73-75`) — **so both
+shipped bot profiles garrison.** Anyone answering "does the AI garrison?" by grepping `Garrison` in
+`BotModules/` reads the wrong file first.
+
+## 2026-09-01 — `Actor.Trait<IHealth>()` throws; a null guard downstream of it is dead code (`wt/garrison-audit`)
+
+`GarrisonProtection.Created` does `health = self.Trait<IHealth>()` (`GarrisonProtection.cs:55`), then
+guards `health == null` in two later methods (`:65`, `:78`). Those guards can never fire:
+`Actor.Trait<T>()` → `TraitDictionary.Get<T>` throws `InvalidOperationException` when the trait is
+absent (`Actor.cs:465-468`, `TraitDictionary.cs:158-165`); `TraitOrDefault<T>` is the accessor that
+returns null (`Actor.cs:470-473`). The defensive intent is visible and defeated by the accessor choice.
+
+This is live on `V19.Husk`, which inherits `^CivBuilding` (`civilian.yaml:430`) and removes `-Health:`
+(`:434`) while keeping `GarrisonProtection` — so constructing one throws. Latent only because the husk
+is placed in no shipped map and its `SpawnActorOnDeath` parent is indestructible. **Lint cannot catch
+it:** `GarrisonProtectionInfo` declares `Requires<GarrisonManagerInfo>, Requires<CargoInfo>` (`:19`)
+but not `Requires<HealthInfo>`. General lesson: `Requires<>` is the only thing the YAML validator sees;
+a `self.Trait<T>()` on an unrequired trait is a runtime crash the gate is blind to.
 
 ## 2026-09-01 — `make nav-guard` cannot see a single autotest scenario, so it is NOT the verification for a scenario-geometry change (`wt/cordon-paydown`)
 
