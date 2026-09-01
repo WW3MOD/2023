@@ -48,7 +48,7 @@
 # WHERE THE FLOOR STANDS NOW (2026-09-01). Counted from the entries in THIS FILE, not from a run: the
 # paired CI/local measurement above has not been re-taken since 2026-08-17, so 437 and 89 are history,
 # not current readings. What is current:
-#   [repo]                  49   <- the debt figure. THIS is the number that is supposed to fall.
+#   [repo]                  26   <- the debt figure. THIS is the number that is supposed to fall.
 #   [accepted]               3
 #   [requires-ra-content]  350
 # The 87 became 88 in d5b1cd6f (2026-08-20), which added the test-crate-proximity-capture scenario and
@@ -60,16 +60,22 @@
 # raised this floor silently, which is the argument for fixing the class rather than the instance --
 # every scenario authored from an existing one copies the defect forward.
 #
-# THE LARGEST SINGLE CLASS, and it is being paid down. It was 64 of 89 on 2026-09-01 -- 72% of the
-# standing debt in one mechanical defect. `CheckMapCordon.cs:20` requires the playable `Bounds:` to be
-# inset by at least one cell from `MapSize:` on all four sides; every offender is an autotest scenario
-# under `tools/autotest/scenarios/` carrying `Bounds: 0,0,W,H`. NONE of the 10 shipped playable maps in
+# THE LARGEST SINGLE CLASS IS PAID OFF. It was 64 of 89 on 2026-09-01 -- 72% of the standing debt in one
+# mechanical defect. `CheckMapCordon.cs:20` requires the playable `Bounds:` to be inset by at least one
+# cell from `MapSize:` on all four sides; every offender is an autotest scenario under
+# `tools/autotest/scenarios/` carrying `Bounds: 0,0,W,H`. NONE of the 10 shipped playable maps in
 # `mods/ww3mod/maps` was ever affected.
 #
-# 46 have now been fixed by insetting to the compliant `1,1,W-2,H-2` form that the majority of scenarios
-# already used: 40 in the first pass, then the six woodland-warfare tournament maps. 24 remain.
+# 63 of the 64 are fixed, by insetting to the compliant `1,1,W-2,H-2` form the majority already used:
+# 40 in the first pass, then the six woodland-warfare tournament maps, then the last 17 once the derricks
+# were moved. ONE remains in [repo]: `test-drone-lost-track`, pinned do-not-rebuild for an open drone
+# proof. (`test-edge-spawn-shadow` still emits the cordon error too, but sits in [accepted] and is not
+# debt -- its playable bounds ARE the map size on purpose, which is the thing it tests.)
 #
-# WHY THE REMAINING 24 ARE NOT MORE OF THE SAME. They are three variant families -- River Zeta (11),
+# The largest class in [repo] is now 6 x "The player `X` must specify LockFaction: True." This file no
+# longer has a dominant mechanical defect, and the next reader should not go looking for one.
+#
+# WHAT THE LAST 24 COST, kept because the reasoning outlived the debt. They were three variant families -- River Zeta (11),
 # Polar Disorder (6), and a handful of savegame/cohesion scenarios -- and on two of them an `oilb` OIL
 # DERRICK straddles the cordon band. `OILB` (`structures-neutral.yaml:1-31`) is not scenery: `CashTrickler:
 # 50`, `UpdatesDerrickCount`, `Explodes`, `GpsDot`, plus `CaptureManager` and two `Capturable` traits via
@@ -110,7 +116,6 @@ test-cohesion-river-zeta-actual | The player `Multi2` must specify LockFaction: 
 test-cohesion-river-zeta-actual | The player `Multi3` must specify LockFaction: True.
 test-cohesion-river-zeta-actual | The player `Multi4` must specify LockFaction: True.
 test-cohesion-river-zeta-actual | The player `Multi5` must specify LockFaction: True.
-test-cohesion-river-zeta-actual | This map does not define a valid cordon.
 test-crate-rearm | The map allows 2 possible players, but defines only 1 spawn points.
 # Added 2026-09-01, deliberately and as DEBT, not as an amnesty of convenience. The 64th instance of the
 # class that already accounts for 63 of this section: the map declares Bounds: 0,0,98,82 against
@@ -125,29 +130,7 @@ test-experimental-poi-observe | Actor `OpponentSR` is owned by unknown player `R
 test-experimental-poi-observe | Actor `OwnSR` is owned by unknown player `USA-bot`.
 test-experimental-poi-observe | The player `Russia-bot (Normal)` enemy list contains an invalid player `USA-bot`.
 test-experimental-poi-observe | The player `USA-bot (experimental)` enemy list contains an invalid player `Russia-bot`.
-test-frontline-reachability | This map does not define a valid cordon.
 test-infantry-seek-supplies | The map allows 2 possible players, but defines only 1 spawn points.
-test-savegame-resume-riverzeta | This map does not define a valid cordon.
-test-savegame-resume-riverzeta-human | This map does not define a valid cordon.
-tournament-s1-eco-cal-nn | This map does not define a valid cordon.
-tournament-s1-eco-floor-vs-normal | This map does not define a valid cordon.
-tournament-s1-eco-polar-disorder | This map does not define a valid cordon.
-tournament-s1-eco-polar-disorder-cal-nn | This map does not define a valid cordon.
-tournament-s1-eco-polar-disorder-mirror | This map does not define a valid cordon.
-tournament-s1-eco-river-zeta | This map does not define a valid cordon.
-tournament-s1-eco-river-zeta-mirror | This map does not define a valid cordon.
-tournament-s1-eco-woodland-warfare | This map does not define a valid cordon.
-tournament-s1-eco-woodland-warfare-cal-nn | This map does not define a valid cordon.
-tournament-s1-eco-woodland-warfare-mirror | This map does not define a valid cordon.
-tournament-s2-combat-polar-disorder | This map does not define a valid cordon.
-tournament-s2-combat-polar-disorder-cal-nn | This map does not define a valid cordon.
-tournament-s2-combat-polar-disorder-mirror | This map does not define a valid cordon.
-tournament-s2-combat-river-zeta | This map does not define a valid cordon.
-tournament-s2-combat-river-zeta-cal-nn | This map does not define a valid cordon.
-tournament-s2-combat-river-zeta-mirror | This map does not define a valid cordon.
-tournament-s2-combat-woodland-warfare | This map does not define a valid cordon.
-tournament-s2-combat-woodland-warfare-cal-nn | This map does not define a valid cordon.
-tournament-s2-combat-woodland-warfare-mirror | This map does not define a valid cordon.
 
 # These five occur WITH the Red Alert content installed (verified by a local `make test`,
 # 2026-08-17), so they are not the CI-runner artifact the section below describes: the files are
