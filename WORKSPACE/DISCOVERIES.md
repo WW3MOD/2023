@@ -3,6 +3,33 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — `glyphs.png` is not vertically full: there is a 38-row free band at y=169..206, and "transparent" does not mean "unclaimed" (`wt/cmdbar-highlight`)
+
+The 2026-09-01 resupply entry below says the sheet "is 256x256 and vertically full (`command-icons`
+rows end exactly at y=256)", and that the only spare space is four 24x24 cells at the right-hand end of
+the command rows, of which one remains. **The first half is wrong and the correction is worth real
+work**: scanning the decoded alpha channel shows a fully transparent band spanning **y=169..206, the
+full 256px width** — 38 rows, room for a whole extra 24px glyph row with space to spare. Believing the
+sheet was full nearly cost this branch a canvas growth on `glyphs.png` + `glyphs-2x.png` (and the
+matching region-coordinate audit across all 18 `^Glyphs` collections) to place five glyphs that in the
+end fitted in space that was already there. `wt/cmdbar-highlight` put its five amber mode glyphs at
+y=182, x=50/75/100/125/150.
+
+**The trap that makes "is it free?" harder than grepping for transparency:** `checkmark-mute`
+(`chrome.yaml`) defines four regions — `unchecked`, `unchecked-pressed`, `checked`, `checked-pressed`
+— at (0,170) and (17,170), *inside* that transparent band. They are deliberately pointing at blank
+pixels, because a muted checkbox is supposed to draw nothing. So a region can legitimately claim
+transparent space, and **an alpha scan alone will hand you a cell that is already spoken for.** Check
+both: scan the alpha channel *and* resolve every region rectangle in every collection that inherits
+`^Glyphs` (directly or through a `-highlighted` twin) before claiming a cell.
+
+Also worth knowing when sizing art: **`glyphs-3x.png` is a 1024x1024 canvas holding 768x768 of 3x
+content**, so a naive `len(raw)/4/(256*3)` stride silently mis-reads it and reports phantom opaque
+rows. And **no lint rule validates chrome collections at all** — nothing in
+`engine/OpenRA.Mods.Common/Lint/` references `ChromeProvider` or `ImageCollection`, so a typo'd
+`ImageCollection:` is not caught by `--check-yaml`; it throws from
+`ChromeProvider.GetImage` (`ChromeProvider.cs:149`) the first time the widget draws.
+
 ## 2026-09-01 — `make nav-guard` cannot see a single autotest scenario, so it is NOT the verification for a scenario-geometry change (`wt/cordon-paydown`)
 
 **The check specified as load-bearing for the cordon paydown is structurally blind to the files that
