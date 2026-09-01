@@ -1798,6 +1798,15 @@ Player:
 		UnitLimits:
 			mig: 2
 			frog: 2
+		# EXTERNAL-REQUEST CAP. This twin is where AdaptiveProductionBotModule's call-ins actually land for
+		# BRICS: routing picks the first ENABLED twin, and this is the first one whose condition holds
+		# (enable-ai-any covers BOTH @stable and @experimental). The FIFO lane it drains applies no
+		# UnitsToBuild/UnitDelays/UnitLimits, and the composition ceiling cannot cover it either — this twin
+		# sets no CompositionDirected, so compositionTypes is null and the ceiling exits at its first guard
+		# for every type. Setting this makes an authored UnitLimits entry bind wherever it was WRITTEN
+		# (mi28's cap lives on the .heli twin, not here), which is what stops an unbounded gunship buy.
+		# Types with no authored limit are unaffected. AFFECTS @stable TOO — deliberate, see the commit.
+		EnforceExternalRequestUnitLimits: true
 
 	# experimental variant of the fixed-wing SquadManager. IMPORTANT: SquadManagerBotModule
 	# is NOT air-only — FindNewUnits recruits EVERY IPositionable unit not in
@@ -1916,6 +1925,10 @@ Player:
 		UnitLimits:
 			a10: 2
 			f16: 2
+		# EXTERNAL-REQUEST CAP — NATO's drain point. See the russia.fixedwing twin above for the full
+		# reasoning; this is the same fix on the mirrored twin (heli's cap lives on the .heli twin, not here).
+		# AFFECTS @stable TOO — deliberate, see the commit.
+		EnforceExternalRequestUnitLimits: true
 
 	# experimental variant — see the russia.fixedwing experimental note above. Excludes the capture
 	# TECN + non-combat support so the fixed-wing/ground SquadManager stops
