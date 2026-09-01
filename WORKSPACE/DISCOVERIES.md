@@ -3,6 +3,73 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — The unload cursor and the unload RUNTIME disagree about actors, and the honest predicate is already written and already used elsewhere in the same file (`wt/player-feedback`, `main @ 1fe106ff`)
+
+**Read-only investigation, nothing fixed.** Recorded because the "blocked unload is silent" item is
+usually filed as *no notification channel exists*, and that framing skips a cheaper fix sitting one
+argument away.
+
+`Cargo.CanUnload(BlockedByActor check = BlockedByActor.None)` (`Cargo.cs:450`) takes a blocking-strictness
+argument that **defaults to ignoring actors entirely** — `BlockedByActor.None` means "an actor can only
+be blocked by impassable terrain" (`TraitsInterfaces.cs:966-971`). Two callers take that default:
+
+- the cursor, `Cargo.cs:362` — `() => CanUnload() ? Info.UnloadCursor : Info.UnloadBlockedCursor`
+- order acceptance, `Cargo.cs:408` — `if (!order.Queued && !CanUnload()) return;`
+
+The runtime does not. `UnloadCargo.ChooseExitSubCell` (`:104-116`) picks via `pos.GetAvailableSubCell(c)`,
+which sees occupancy. So **a transport ringed entirely by other units shows the green `deploy` cursor,
+accepts the order, drives over, opens its doors, and unloads nobody.** `UnloadBlockedCursor`
+(`Cargo.cs:157`, art present at `cursors.yaml:170`) exists and ships, but its predicate cannot see the
+most common way an unload is actually blocked.
+
+**The strict form is already in this file and already used:** `Cargo.cs:1078`, the emergency-bailout
+loop, calls `CanUnload(BlockedByActor.All)`. `All` is also the strictness `BlockedExitCells`
+(`UnloadCargo.cs:118-124`) compares against. So making the cursor honest is a one-argument change, not
+new plumbing. `BlockedByActor.Immovable` is the WRONG middle option here: it ignores "moveable & allied"
+actors, which is precisely the stationary friendly tank that causes this in practice.
+
+**The blocked unload is a NEVER-COMPLETING activity, the same archetype as the paused-armament wedge.**
+`UnloadCargo.Tick:165-170` on a null exit does `NotifyBlocker` → `QueueChild(new Wait(10))` →
+`return false`, with **no retry counter and no timeout anywhere in the path**. So the transport never
+completes the activity and is therefore never idle — silencing its idle-driven behaviour exactly as
+`Attack.cs:248-256` does for a unit whose armaments are all paused. Two different traits, one failure
+shape: *the order was accepted, the thing cannot be done, and the activity spins instead of yielding.*
+
+**A comment in the AI states the opposite and is wrong.** `HelicopterSquadBotModule.cs:1417-1418` bounds
+its retries "BOUNDED. `Cargo.ResolveOrder` DROPS an Unload with no free adjacent cell". It does not —
+`:408` uses the actor-blind predicate, so an actor-blocked Unload is *accepted*. The bound
+(`UnloadRetryLimit = 5`, `:450`, spent on a `ScanInterval` of 100 ticks ≈ 500 ticks ≈ 30 s at the
+mod's 16.67 tps) is right defensively, but its stated reason is not. **It is also the only "how long do
+we tolerate a blocked unload" number anyone in this codebase has ever committed to**, which makes it the
+natural anchor for any player-facing threshold rather than a fresh invention.
+
+## 2026-09-01 — The rejected "64 `PauseOnCondition` gates" census, re-counted: the two widest gates are DURABLE states, not transient ones (`wt/player-feedback`, `main @ 1fe106ff`)
+
+The 2026-08-30 cursor audit's census was **rejected at curation as "a dated count, and unverified"**.
+Re-counted here against `mods/ww3mod/rules/` so the mechanism argument stops resting on a rejected
+number. Counts are of `PauseOnCondition` lines containing each token, so a gate with two tokens is
+counted twice — they are a composition profile, not a partition:
+
+| Token in the gate | Lines | How long it lasts |
+|---|---|---|
+| `empdisable` | 109 | transient — EMP duration (**not established here**) |
+| `!ammo-*` | 66 | durable — until resupplied |
+| `heavy-damage-attained` | 24 | durable — until repaired |
+| `suppressed` | 3 | transient — seconds |
+
+`heavy-damage-attained` is granted at damage state Heavy **and** Critical (`defaults.yaml:257-259`), and
+the gate it appears in is the standard armed-vehicle form `!ammo-primary || empdisable ||
+heavy-damage-attained` across all three faction files (`vehicles-america.yaml:88`, `:244`, `:375`, …;
+`vehicles-russia.yaml:69` …; `vehicles-ukraine.yaml:52`).
+
+**Why this matters for any cursor decision:** the reflexive argument against signalling a paused weapon
+is "it un-pauses moments later, so the signal flickers". That is true of `empdisable` and `suppressed`.
+It is **false of the two cases that actually reach the wedge**. The dry case is largely already refused
+honestly — the targeter's own dryness test (`AttackBase.cs:809`) and `ResolveOrder`'s
+`AmmoPool.CannotFight` (`:502`) both bite — which leaves **a heavily damaged tank with full ammo** as the
+main live wedge, and that state persists until the tank is repaired. A signal for it would be stable for
+minutes, not flickering.
+
 ## 2026-09-01 — `ChooseUnitToBuild` IS reached, on two lanes whose entire buildable pool is `~disabled` — so the weighted lottery runs, draws RNG, and is guaranteed to return null (`wt/bot-truth`)
 
 **Investigated, deliberately NOT fixed.** Recorded because the obvious reading of this defect is wrong
