@@ -54,10 +54,15 @@ if [ "$RUN_CHECK" -eq 1 ]; then
 	if [ -f "$REPO_ROOT/engine/bin/OpenRA.Utility.dll" ]; then
 		UTIL="$REPO_ROOT/utility.sh"
 		[ -x "$UTIL" ] || UTIL="$REPO_ROOT/utility.cmd"
-		"$UTIL" ww3mod --check-missing-sprites
+		# No mod id here: BOTH launchers inject it now (utility.sh:62, utility.cmd:53).
+		# Passing `ww3mod` sent it twice, and the utility reads argv[1] as the command
+		# name -- so this line raised NoSuchCommandException("ww3mod") on macOS rather
+		# than checking any sprite. It only ever worked through utility.cmd, which used
+		# to forward %* verbatim.
+		"$UTIL" --check-missing-sprites
 	else
 		echo "[cameo] SKIP: engine/bin not built. Run ./make.ps1 all, then:" >&2
-		echo "        ./utility.cmd ww3mod --check-missing-sprites" >&2
+		echo "        ./utility.cmd --check-missing-sprites" >&2
 		exit 1
 	fi
 fi

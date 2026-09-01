@@ -23,13 +23,17 @@ build.sh <SOURCEDIR>  ->  work/staging/*.png  ->  --install  ->  --check
 ./tools/cameo/build.sh ~/art/russian-infantry --install --check
 ```
 
-`--check` runs `./utility.cmd ww3mod --check-missing-sprites`, which *decodes*
-every referenced sprite — so a bad drop is caught without launching the game.
-Run it standalone any time:
+`--check` runs `--check-missing-sprites`, which *decodes* every referenced
+sprite — so a bad drop is caught without launching the game. Run it standalone
+any time, on either platform:
 
 ```bash
-./utility.cmd ww3mod --check-missing-sprites
+./utility.sh  --check-missing-sprites    # macOS / Linux
+.\utility.cmd --check-missing-sprites    # Windows
 ```
+
+Do not type the mod id. Both launchers inject it, so `ww3mod --check-missing-sprites`
+passes it twice and the utility reports no such command.
 
 Note the pre-existing baseline noise: `b2bomb.shp`, `pip-cloak.shp` and
 `pip-cover.shp` are reported missing on a clean tree. Three lines is a pass;

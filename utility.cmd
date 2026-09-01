@@ -21,31 +21,37 @@ if not exist %ENGINE_DIRECTORY%\bin\OpenRA.exe goto noengine
 >nul "%SystemRoot%\System32\find.exe" %ENGINE_VERSION% %ENGINE_DIRECTORY%\VERSION || goto noengine
 cd %ENGINE_DIRECTORY%
 
-set argC=0
-for %%x in (%*) do set /A argC+=1
+@REM EQUIVALENT TO utility.sh AS OF 2026-09-01 -- keep it that way. utility.sh:62 ends
+@REM `... OpenRA.Utility.dll "${LAUNCH_MOD}" "$@"`, so the mod id is injected and your
+@REM arguments follow it verbatim. The line below does the same, which makes
+@REM `.\utility.cmd --regen-shadows PATH` exactly the Windows form of
+@REM `./utility.sh --regen-shadows PATH`. Every doc that gives one form now gives both.
+@REM
+@REM PITFALL, and the reason PATH is spelled out above instead of in angle brackets: cmd.exe
+@REM parses redirection operators on @REM lines too, so an angle bracket in a comment is a
+@REM live redirect, not documentation. The comment this block replaced carried a literal
+@REM bracketed path on the argument-passing branch. Keep this whole file free of the
+@REM characters for redirect, pipe and escape inside comments.
+@REM
+@REM DO NOT type the mod id yourself. `.\utility.cmd ww3mod --check-yaml` now passes it
+@REM twice and the utility rejects it -- same as `./utility.sh ww3mod --check-yaml` always
+@REM has. That symmetry is the point; a first-arg test that quietly swallowed a second
+@REM `ww3mod` would leave the two scripts disagreeing again, which is what put the
+@REM previous KNOWN, UNFIXED note here in the first place.
+@REM
+@REM What this replaced: an arg COUNT test, where exactly one argument was read as a mod
+@REM id. `.\utility.cmd --regen-shadows` therefore tried to LOAD A MOD called
+@REM `--regen-shadows` and dropped into the interactive prompt -- worse than a no-op,
+@REM because it fails looking like it ran. Run with no arguments for that prompt, which
+@REM is also where you pick a different mod.
+if "%~1" == "" goto choosemod
 
-if %argC% == 0 goto choosemod
-
-if %argC% == 1 (
-    set MOD_ID=%1
-    goto loop
-)
-
-if %argC% GEQ 2 (
-    @REM This option is for use by other scripts so we don't want any extra output here - before or after.
-    @REM
-    @REM NOT EQUIVALENT TO utility.sh -- KNOWN, UNFIXED (2026-08-30). utility.sh:62 injects
-    @REM the mod id for you (`... OpenRA.Utility.dll "${LAUNCH_MOD}" "$@"`); this line passes
-    @REM %* verbatim, so the caller MUST type it. `.\utility.cmd --regen-shadows <path>` is
-    @REM therefore NOT the Windows form of `./utility.sh --regen-shadows <path>` -- you want
-    @REM `.\utility.cmd ww3mod --regen-shadows <path>`.
-    @REM
-    @REM Deliberately not "fixed" by injecting %MOD_ID% here: existing script callers already
-    @REM pass it, and they would then get it twice. A correct fix needs a first-arg test and
-    @REM must be verified ON WINDOWS, which the manager who found this could not do.
-    call bin\OpenRA.Utility.exe %*
-    EXIT /B 0
-)
+@REM This path is for use by other scripts so we don't want any extra output here - before or after.
+@REM %MOD_ID% carries its quotes over from mod.config, whose line reads MOD_ID="ww3mod".
+@REM Passing it still quoted is correct -- the argument parser strips them -- and it is
+@REM exactly what the interactive path at the bottom of this file already does.
+call bin\OpenRA.Utility.exe %MOD_ID% %*
+EXIT /B 0
 
 :choosemod
 echo ----------------------------------------
