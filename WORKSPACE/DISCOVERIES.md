@@ -16251,3 +16251,78 @@ Companion ops facts from the same session:
   on every exit; remove it afterwards or the user's next session runs silent.
 - **`Test.LobbyReadyFile` is never written** even when the lobby shows the green LOBBY READY chip
   (confirmed three separate runs) — poll the launch log for `[TestMode] active` instead.
+
+## 2026-09-01 — `ChooseClosestMatchingEdgeCell` has NO unique nearest cell: `CVec.Length` is an integer sqrt, so a whole run of perimeter cells ties and enumeration order decides (`wt/milestone-note`, `main @ 9ef205c5`)
+
+Derived statically while writing the milestone note, to explain why `test-evac-queued-line`
+(run `260901_232601_p30661`) graded FAIL with an edge node at `1,13` where the scenario had
+computed `1,16`. **The engine is right and the scenario is wrong**, and the reason generalises to
+every caller that predicts an edge cell.
+
+`Map.ChooseClosestMatchingEdgeCell` (`Map.cs:1867-1869`) is
+`AllEdgeCells.OrderBy(c => (cell - c).Length).FirstOrDefault(match)`. Two properties combine:
+
+- **`CVec.Length => Exts.ISqrt(LengthSquared)` (`CVec.cs:50`) — integer square root, truncating.**
+  From `8,16`, west-edge cell `1,y` has `LengthSquared = 49 + (16-y)^2`, and `ISqrt` returns 7 for
+  every value in 49..63. So `1,13` … `1,19` — **seven cells** — are all at distance exactly 7.
+  There is no nearest cell to be found; there is a seven-way tie.
+- **`OrderBy` is a stable sort**, so the tie is broken by position in `AllEdgeCells`, and
+  `UpdateEdgeCells` (`Map.cs:1927-1947`) emits the top and bottom rows first, then walks the west
+  edge from `Bounds.Top` downward. The topmost tied cell therefore wins: `1,13`.
+
+`1,13` is the correct, deterministic output. The scenario's map.yaml comment reasoned in exact
+Euclidean distance ("1,16 at 7 cells, against 8,1 at 15") and assumed the minimum was unique.
+
+**Two things to take from this.** First, any test or design note that predicts *which* edge cell an
+evacuation picks must enumerate the tie band `ISqrt` produces and then apply enumeration order —
+predicting a single cell from real-valued distance will be wrong whenever the origin is not on a
+lattice point that breaks the tie. Second, `ISqrt` truncation makes distance comparison coarse
+everywhere `CVec.Length` is used; prefer `LengthSquared` when the intent is a strict ordering.
+
+The rendered frame corroborates the engine, independently of the assertion: the evac leg's on-screen
+slope is +0.082 at a 48-device-px cell pitch — three rows over thirty-seven columns — i.e. it is
+drawn to `1,13`, so this is not an artefact of the test's node query.
+
+## 2026-09-01 — Shading a saturated hue by HSL lightness collapses to ~1/3.7 separation below L=0.5, because only the red channel moves (`wt/milestone-note`, `main @ 9ef205c5`)
+
+Explains the measured minimap shade gaps `44.1 / 44.1 / 11.9 / 11.9` in run
+`260901_225047_p29299` — derived from the code, and the derivation lands on the measurement, so the
+two corroborate each other.
+
+`RelationshipShade.Shade` (`engine/OpenRA.Game/Primitives/RelationshipShade.cs:39-60`) preserves hue
+and saturation exactly and varies HSL lightness only — which is what guarantees shading can never
+move a player between relationship bands, so this is a property worth keeping, not a bug. But for a
+**fully saturated** hue the HSL→RGB map has a hinge at L = 0.5:
+
+- **L > 0.5**: the dominant channel is pinned at 255 and the other two rise together. A step `d`
+  moves G and B by `255*2d` each, so ΔLuma ≈ `(0.7152 + 0.0722) * 510d` = `402d`.
+- **L < 0.5**: the other two channels sit at 0 and only the dominant one moves. For red,
+  ΔLuma ≈ `0.2126 * 510d` = `108d`.
+
+Ratio **3.70**. With five players the step is `min(PreferredStep 0.12, MaxSpan 0.44 / 4)` = `0.11`,
+giving ΔLuma 44.2 above the hinge and 11.9 below — the measured 44.1 / 11.9. Because the ramp
+centres on the base colour's lightness and the tuned red sits near 0.5, two of the four gaps fall on
+the shallow side.
+
+**Consequence for any future band widening:** adding players costs separation twice over — the step
+shrinks via `MaxSpan / (count - 1)`, *and* more of the ramp falls below the hinge where each step is
+worth 3.7× less. Perceptual separation is therefore markedly worse than the lightness arithmetic in
+`RelationshipShadeTest.cs` suggests; that test checks the ramp's spacing, which is a different claim
+from how far apart the colours look. Biasing the ramp centre above 0.5, or varying saturation as
+well as lightness, would fix it locally in `Shade`.
+
+## 2026-09-01 — Two measurement errors that both produce confident, wrong brightness readings from a capture (`wt/milestone-note`)
+
+Both were made and corrected while measuring the `FogDarkness` ladder. They are recorded because
+they are silent — each yields a plausible number rather than an obvious failure.
+
+- **Sample at DEVICE pixels, not logical ones.** `run-test.sh --size 1280x800` yields a 2560x1600
+  PNG on a Retina display (the existing chrome-art entry above notes the same 2x for
+  `ChromeProvider`). Sampling a 2x buffer at logical coordinates reads the wrong pixels — and the
+  **tell** is a set of samples that all agree: eleven fog bands reading within 4% of each other is
+  not "uniform fog", it is proof you are not sampling fog at all. Distinct predicted bands that
+  come back identical should be read as an instrument fault before it is read as a finding.
+- **Linearise sRGB before comparing brightness.** Raw byte values are gamma-encoded, so ratios
+  taken on them read systematically **high** and will flatter any darkening change. Convert to
+  linear light first; the `FogDarkness` ladder only matched prediction (mean error 0.045 against
+  0.215 for the null) once this was done.
