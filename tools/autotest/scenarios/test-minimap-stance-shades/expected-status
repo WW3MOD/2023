@@ -1,0 +1,30 @@
+skip
+CAPTURE INSTRUMENT, no graded answer. It stages six mutually hostile players on one map,
+photographs the minimap panel once, and asserts nothing about the colours in it. A human
+reads the PNG against the pixel table in description.txt and decides whether adjacent
+enemy reds are separable at 2.3 px.
+
+WHY SKIP AND NOT PASS. The Lua evaluates no predicate about the mod. Its two runtime
+checks -- that every owner has its expected marker count, and that MapLayers.GetVisibility
+reads 10 at fifteen sampled cells so the minimap's shroud overlay is transparent -- are
+guards on the INSTRUMENT, not measurements of the subject. They can only downgrade the
+frame to "not evidence"; they can never conclude anything about shade legibility. A
+Test.Pass would contribute a green to every run-batch.sh --all tally whether or not the
+capture landed, which is the exact mislabelling corrected across this suite on 2026-09-01.
+
+The shade arithmetic itself is already graded, and elsewhere: RelationshipShadeTest.cs
+pins the step schedule, the light-to-dark ordering, the no-collision property and hue
+preservation. Nothing here should duplicate that.
+
+REMOVE THIS FILE in the same commit as whatever gives the scenario a real assertion. The
+obvious candidate is a Lua binding that returns a player's resolved minimap colour, which
+would let the run assert that six distinct colours actually reached AppearsOnMiniMap
+rather than inferring it from a rainbow-vs-ramp tell in the image. That binding does not
+exist today and was deliberately not added blind; see the branch's Watch notes.
+
+A PASS against a live `skip` declaration grades RED on purpose, so a scenario that starts
+grading announces itself instead of silently changing meaning.
+
+NOT EXPOSED TO expected-status.sh's KNOWN GAP. That gap is specific to `fail`
+declarations, where a watchdog TIMEOUT-FAIL also exits 1 and therefore grades green.
+A timeout reaches expected_status_grade as FAIL, and declared-`skip` + FAIL is RED.
