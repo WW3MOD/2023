@@ -39,9 +39,39 @@ Note `margin` is negative — the observer fires *before* the control lane's slo
 pre-registered formula accommodates this; it is not an anomaly, it is what "no suppression at all"
 looks like when the observer is not waiting on anything.
 
-## Runs 2-4 — seeds 1017, 4241, -7723
+## Runs 2-4 — seeds 1017, 4241, -7723, GREEN baseline, unmodified code
 
-Pending.
+```
+run 2  seed 1017   LANE_R firedOf4=4 ticks[45,35,45,40] || observerFire40 suppressedThroughPumpN pumperFire-1
+run 3  seed 4241   LANE_R firedOf4=4 ticks[46,47,49,49] || observerFire35 suppressedThroughPumpN pumperFire-1
+run 4  seed -7723  LANE_R firedOf4=4 ticks[46,39,40,45] || observerFire40 suppressedThroughPumpN pumperFire-1
+```
+
+All four runs reported `skip` (exit 2), which is this scenario's declared-skip status and the
+expected baseline outcome — not a failure to run. `pumps615 pumpWindow5-600` on every run.
+
+## All four GREEN runs against §6's pre-registered conditions
+
+| seed | firedOf4 | lane-R ticks | rMin/rMax | spread | obs | allowance | margin |
+|---|---|---|---|---|---|---|---|
+| -2058490156 | 4 | 41,46,39,49 | 39/49 | 10 | 48 | 81 | **-1** |
+| 1017 | 4 | 45,35,45,40 | 35/45 | 10 | 40 | 77 | **-5** |
+| 4241 | 4 | 46,47,49,49 | 46/49 | 3 | 35 | 81 | **-14** |
+| -7723 | 4 | 46,39,40,45 | 39/46 | 7 | 40 | 78 | **-6** |
+
+1. `suppressedThroughPump == N` on all four. **HOLDS** — abort A does not fire.
+2. `obs <= rMax + max((rMax-rMin)*3, 32)` on all four: 48<=81, 40<=77, 35<=81, 40<=78. **HOLDS**,
+   with the pre-registered constants unmodified. Abort D does not fire.
+3. `max(margin) - min(margin) = -1 - (-14) = 13 <= 32`. **HOLDS** — abort B does not fire.
+4. `firedOf4 == 4` on all four and lane-R spreads 10/10/3/7, all `<= 32`. **HOLDS** — abort C does
+   not fire.
+
+**All four conditions hold, so §6 authorises the guard** — subject to run 6, since abort E can fire
+even when 1-4 all pass and concerns the guard's *value* rather than its *measurability*.
+
+Every margin is negative: the observer fires BEFORE the control lane's slowest shooter, on every
+seed. That is what "no suppression at all" looks like when the observer is not waiting on anything,
+and it is the same fact the 818 -> 48 collapse reports from a different direction.
 
 ## Runs 5-6 — RED pair
 
