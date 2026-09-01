@@ -87,16 +87,36 @@ end
 -- memory under test is erased by the bot's own economy and the run would report a
 -- clean-looking negative for entirely the wrong reason. Named explicitly so that
 -- cannot happen silently. The drone itself is exempt: going there is the point.
+-- ASK THE SPATIAL QUESTION SPATIALLY. The obvious form — walk Player.GetActors()
+-- and compare each actor's Location — ABORTS THE WHOLE SCRIPT, and did: that
+-- collection includes the PLAYER ACTOR, which defines no Location, and reading a
+-- property an actor does not define THROWS rather than returning nil, so an
+-- `a.Location ~= nil` guard never gets the chance to fire. Map.ActorsInCircle only
+-- ever returns world actors with positions, which makes the entire class of error
+-- unreachable instead of merely guarded. (Its own documented pitfall — returns
+-- nothing when called from WorldLoaded — does not apply: this runs only from the
+-- tick, long after load.)
 local function contaminatingFriendly(usa)
-	for _, a in ipairs(usa.GetActors()) do
-		-- The drone is exempt (going there is the point) and so is the scout, whose
-		-- corpse may linger a tick past Kill().
-		if not a.IsDead and a.IsInWorld and a ~= scout
-			and a.Type ~= "quadcopterdrone" and a.Type ~= "supplyroute" then
-			if a.Location ~= nil and cellDist(a.Location, VanishCell) <= 28 then
-				return a.Type
-			end
-		end
+	local near = Map.ActorsInCircle(
+		Map.CenterOfCell(CPos.New(VanishCell.X, VanishCell.Y)),
+		WDist.FromCells(28),
+		function(a)
+			-- The drone is exempt: going there is the entire point.
+			--
+			-- The scout needs no exemption and deliberately gets none. This guard first
+			-- runs the tick AFTER the scripted kill, so `not a.IsDead` already excludes
+			-- it. An `a ~= scout` term would have been an identity comparison between two
+			-- script actor wrappers — which nothing in the engine implements (__eq/Equals
+			-- are absent) and which no existing scenario performs; every comparison in the
+			-- corpus is against nil. Unverified semantics buying nothing.
+			return a.Owner == usa
+				and not a.IsDead
+				and a.Type ~= "quadcopterdrone"
+				and a.Type ~= "supplyroute"
+		end)
+
+	if #near > 0 then
+		return near[1].Type
 	end
 
 	return nil
