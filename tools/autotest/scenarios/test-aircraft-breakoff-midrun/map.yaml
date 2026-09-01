@@ -8,9 +8,15 @@ Author: WW3MOD autotest harness
 
 Tileset: TEMPERAT
 
-# GREW FROM 66,34 ON 2026-09-01 to take a third lane, and the size is forced rather than
+# GREW FROM 66,34 ON 2026-09-01 to take a third lane. That lane is now DISABLED (no strafe
+# airframe has ever been observed firing — see the Lanes table in the .lua), so the map is
+# currently larger than the two live lanes need. Kept at 100,60 anyway: shrinking it back
+# would have to be undone the moment lane 3 is revived, and the sizing below is the reasoning
+# that would have to be re-derived. The size is forced rather than
 # chosen. Neither aircraft pins AutoTarget.ScanRadius (see rules.yaml), so each falls back to
-# AttackBase.GetMaximumRange — 25c0 for the A10 and its Airstrike variant. ScanForTarget scans
+# AttackBase.GetMaximumRange — 25c0 for the A10 (Hellfire) and 25c0 for lane 3's
+# FROG.Airstrike (RocketPods), which is the same number the old A10.Airstrike lane 3 had, so
+# the lane pitch below is unchanged by the 2026-09-01 swap. ScanForTarget scans
 # a EUCLIDEAN circle, so three lanes on the old map (the best case being x = 10/32/54) put every
 # aircraft 26.1 cells from a neighbouring lane's t90: one cell outside the radius, which is
 # exactly the vision/acquisition boundary AUTOTEST.md gotcha 8 forbids sitting on. At 40 cells

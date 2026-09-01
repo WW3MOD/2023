@@ -153,6 +153,84 @@ unknown who" without breaking every relationship gate above and `FrozenActorsInR
 (c) `FrozenUnderFog` still `Requires<BuildingInfo>` (`:21`) and still unstripped — `grep -rn
 -- "-FrozenUnderFog" mods/` is empty, so every building has a ghost and no non-building does, and any
 sentence about a frozen vehicle describes a state that cannot exist.
+## 2026-09-01 — NO `AttackType: Strafe` airframe has ever been observed firing a shot, and the reason is NOT the one recorded here first (`wt/strafe-breakoff`, `main @ 3dd67e07`)
+
+> **Read the correction at the end of this entry before using any of it.** The `ValidTargets: Ground`
+> explanation below was authored as the answer, then TESTED AND FALSIFIED by a run of
+> `test-aircraft-breakoff-midrun` the same day. What survives is the terrain-target write and the
+> two-clause break-off failure; what does not is the claim that weapon target types decide which
+> symptom an airframe shows. Nothing here is promotable to `DOCS/reference/` as it stands.
+
+`StrafeAttackRun.Tick` re-sets `AttackFollow.RequestedTarget` every tick to
+`Target.FromTargetPositions(target)` (`Activities/Air/FlyAttack.cs:323-325`) — a `TargetType.Terrain`
+target (`Target.cs:33-35`), force-attack `true`, source defaulting to `AttackSource.Default`. That much
+is read straight off the code and is not in dispute.
+
+**Symptom A — structurally exempt from the break-off guard.** The guard needs
+`RequestedTarget.Type == TargetType.Actor` **and** `BreakOffApplies(Default, true)` =
+`!forceAttack && source != Default` = false (`AttackFollow.cs:181-186`, `AttackBase.cs:672-675`). The
+terrain write fails **both clauses independently**; either alone exempts it. `FlyAttack.Tick:108`,
+which writes the real actor target and source, cannot rescue it — `FlyAttack` leaves
+`ChildHasPriority` true so its own tick is skipped while the run child lives, and on the tick it does
+run, `Activity.TickOuter:132-140` ticks the freshly queued child in the SAME tick, so the terrain write
+lands last. `World.Tick` runs every actor's activities before any `ITick` trait, so `AttackFollow.Tick`
+never once observes an Actor-type requested target while a strafe run is in flight.
+
+**Symptom B — cannot fire at all.** A terrain target is unconditionally `IsValidFor`
+(`Target.cs:123-125`), so `AttackFollow.Tick:188` takes the requested branch and the opportunity-fire
+fallback at `:216` is **unreachable** — the airframe is locked aiming at ground. Whether it can shoot
+that ground is decided by `WeaponInfo.IsValidAgainst`, which resolves a terrain target to the **cell's**
+`TargetTypes` (`WeaponInfo.cs:235-249`), i.e. `Ground`.
+
+From that I predicted: *an `AttackType: Strafe` airframe whose armaments do not list `Ground` in
+`ValidTargets` can never fire, and one that does list it fires normally.* `A10.Airstrike` is in the
+first state (`30mm.A10` is `Infantry, Vehicle, Defense`, `Hellfire` is `Vehicle, Air, Defense`);
+`FROG.Airstrike` is in the second (`RocketPods`, `ValidTargets: Ground`, `weapons-ballistics.yaml:912`).
+The A-10 half was already measured. The FROG half was the falsifiable half.
+
+### CORRECTION — the FROG half was tested and it FAILED
+
+Run `260901_085215_p7281`, seed `-1717682274`, `test-aircraft-breakoff-midrun` green arm with lane 3
+as `frog.airstrike`. Verdict FAIL, and the failure is the falsification:
+
+```
+SETUP INVALID: FROGSTRIKE never opened fire within 400 ticks;
+FROGSTRIKE target ended at hp100%, outside the <25% Critical band;
+FROGSTRIKE never opened fire before the trigger - no engagement to break off
+
+A10        shotsBefore1 SHOTSAFTER2 postGrace0 distAtCrit9  minDistAfter0  finalDist6  hpAtCrit15% tgtHp7%   ammoLeft100 alt2560
+MI28       shotsBefore1 SHOTSAFTER0 postGrace0 distAtCrit14 minDistAfter14 finalDist14 hpAtCrit15% tgtHp5%   ammoLeft206 alt1280
+FROGSTRIKE shotsBefore0 SHOTSAFTER0 postGrace0 distAtCrit-1 maxDistAfter13 finalDist11 hpAtCrit-1% tgtHp100% ammoLeft30  finalAlt1536
+   trace[13,12,12,12,12,12,12,11,11,11]
+```
+
+`shotsBefore0` as well as `shotsAfter0`: the FROG never fired even before the trigger, its target sat
+untouched at hp100%, and its trace shows it holding 11–13 cells at its cruise altitude for the whole
+window. `ValidTargets: Ground` did not make it fire. Lanes 1 and 2 reproduced their 2026-08-27 results
+exactly, so the run is sound and the instrument is not at fault.
+
+**What this leaves standing**, and it is worth more than the discarded half: **both strafe airframes in
+the mod fire zero shots, and no `AttackType: Strafe` airframe has ever been observed firing in WW3MOD.**
+Two airframes, two different weapon sets, two different owners, same result. Whatever stops them is
+common to the strafe path and is NOT weapon target types.
+
+**Untested hypotheses, recorded as untested.** I have not investigated these and none should be
+repeated as fact: (i) the aircraft never enters a `StrafeAttackRun` at all — the FROG's 11–13 cell
+standoff never closed, which is *not* what a strafe pass looks like, and `FlyAttack.cs:183` may be
+routing it to `MoveWithinRange` indefinitely; (ii) `RocketPods`' `MinRange: 4c0` interacts with the
+`minimumRange = WDist.Zero` pin at `FlyAttack.cs:180`; (iii) something gates firing before
+`ChooseArmamentsForTarget` is ever consulted, which would make the whole `IsValidAgainst` analysis
+above irrelevant rather than merely incomplete. The `distAtCrit-1` / flat trace is the cheapest thread:
+it says the lane never got close, so start with the approach, not the armaments.
+
+The A-10 filing in `WORKSPACE/bugs/discovered.md` (2026-09-01) still records a real measured defect —
+that unit fires nothing — but its stated *mechanism* inherits this same falsified reasoning and should
+be read with the same caution.
+
+**Instrumentation note, learned the expensive way**: `AmmoPoolProperties.AmmoCount` **throws** a
+`LuaException` for a pool the actor does not declare (`AmmoPoolProperties.cs:36-38`) rather than
+returning zero. A shared `primary-ammo + secondary-ammo` read across a lane table kills the whole run
+the moment one lane's airframe carries a single pool.
 
 ## 2026-09-01 — the sync tripwire has exactly ONE site engine-wide, which is why "dispatches UI handlers from Lua" is a silent bug class (`wt/cmdbar-audit`, `main @ 42548fe5`)
 
