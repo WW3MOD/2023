@@ -3,6 +3,43 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-02 — `DamageState.Dead` is the only off switch a `DamageState` threshold field has, and relying on it was an accident until it was written down
+
+**Resolution of the garrison-bail question opened on 2026-09-01 (entry below).** The user ruled the
+emergency bail OFF for buildings — *"Don't force them out — let the damage curve do the work"* —
+while keeping `15ae7d18`'s guard fix, so the mechanism stays live and tunable for vehicles at the
+shipped `Heavy`. Three things outlive that one decision.
+
+**1. There is no `None` to switch a `DamageState` field off with.** `DamageState` is a `[Flags]` enum
+starting at `Undamaged = 1` (`TraitsInterfaces.cs:30-39`) — no zero member. The only value that reads
+as "never" is `Dead`, and it works because `ShouldEmergencyBail` is
+`current >= bailAt && current < DamageState.Dead` (`Cargo.cs:752-755` pre-change), false for every
+`current` when `bailAt` is `Dead`. **But that off-state was emergent, not designed**: the `< Dead`
+clause exists to stop a killing blow being swallowed as a bail, and an off position that holds only
+because another clause happens to exclude a value is one edit from silently switching back on —
+the same failure mode as the four-month-dead guard this branch was fixing. The sentinel is now
+written out (`if (bailAt == DamageState.Dead) return false;`), provably behaviour-neutral because
+both spellings return false for every input, and the `[Desc]` documents it. **Generalisable: when you
+rely on an "impossible" enum value as an off switch, check whether the impossibility is stated or
+merely emergent — and if it is emergent, state it.**
+
+**2. The bail's placement code has never run on a multi-cell actor and would be wrong if it did.**
+`EmergencyBailOut` keys twice off `self.Location`, the actor's **top-left cell**: `Cargo.cs:1066`
+tests `UnloadTerrainTypes` against the terrain under that one cell, and `Cargo.cs:1072`
+(`var husk = self.Location;`, consumed at `:1103`) fans the exit candidates out from it. Both are
+correct for a vehicle, which occupies one cell. For a 3×3 building the terrain gate consults one
+ninth of the footprint, and the "adjacent" exit cells on two sides are **inside the building's own
+footprint**. So the ejection may have done nothing at all even in the months it was believed live —
+which is also why no one noticed it was dead. Turning it off for buildings makes this moot today and
+does not fix it: **anyone re-enabling the bail for buildings must test placement, not just the
+trigger.**
+
+**3. `^CivBuilding` does not reach the three fortifications.** `GTWR`, `PBOX` and `HBOX` are
+garrisonable and carry `GarrisonProtection`, but they descend from `^Defense` and define their own
+`Cargo` blocks — so a `Cargo` setting made once on `^CivBuilding` covers the ~39 civilian structures
+and silently misses those three. There are **four** definition sites for anything garrison-wide, not
+one. `GarrisonBailDisabledTest` asserts that count directly, so adding a fifth garrison building
+fails a test rather than quietly inheriting a vehicle default.
 ## 2026-09-01 — `make check` FAILS IN STRATA, so the error list it prints is a floor and never a total (`main @ 9ef205c5`)
 
 Found while making `check` green from a long-red pristine `main`. The count you measure first is
@@ -215,6 +252,46 @@ with an unmeasured ~1200-proximity-trigger cost on `woodland-warfare-ww3`.
 look like" — grepping for a *consumer* of `visibility-N` rather than for the string itself is what turned "a
 scaffold wired to nothing" into "an output feeding a live gauge" in one search. Grepping for the symptom would
 have confirmed the handoff's reading and dispatched the work at the wrong thing.
+The audit's P1 caveat reads: *"`bailedOut` latches and only re-arms when the damage state falls back
+below the threshold (`Cargo.cs:884-885`). An `Indestructible` building pinned at 1 HP is permanently
+`Critical`, so the bail would fire once and never again... P1 therefore makes rubble expel its current
+occupants; it does not make rubble permanently uninhabitable."* It says plainly that it read this
+rather than ran it. **Both halves are false**, and three separate pieces of code say so.
+
+**1. `Load()` clears the latch** — `Cargo.cs:695-700`, and it says why in its own comment: *"a
+transport that emptied itself under EmergencyBailDamageState and was then reloaded would hold the
+latch shut and strand the new stick — and the damage-state reset below cannot cover it, since a
+transport that is still burning never climbs back above the line."* The author anticipated exactly
+the pinned-below-threshold case the audit thought was unhandled. Re-garrisoning re-arms the bail.
+
+**2. A building pinned at 1 HP still receives damage notifications.** `Health.InflictDamage` applies
+modifiers, assigns `HP`, and then runs `notifyDamage` **unconditionally** (`Health.cs:216-218`) — there
+is no "applied damage was zero, skip the notification" branch. `GarrisonManager.GetDamageModifier`
+returns `0` at `HP <= 1` (`GarrisonManager.cs:1421-1422`), so every shell landing on rubble deals
+nothing and still calls `Cargo.Damaged` with `e.Damage.Value == 0`.
+
+**3. `Cargo.Damaged` has no zero-damage early-out.** `GarrisonProtection.Damaged`
+(`GarrisonProtection.cs:80-81`) and `GarrisonManager.Damaged` (`GarrisonManager.cs:1402-1403`) both
+open with `if (e.Damage.Value <= 0) return;`. `Cargo.Damaged` does not — it goes straight from
+`IsEmpty()` to the bail evaluation. So the zero-damage notification from #2 is a live bail trigger.
+
+At 1 HP the damage state is `Critical` (`Health.cs:105-106`), and `ShouldEmergencyBail`
+(`Cargo.cs:752-755`) is `current >= bailAt && current < Dead`, so `Critical` passes the shipped
+`Heavy` default. **Composed: garrison men who re-enter a rubble building are ejected again on the very
+next shot the building takes, forever.** Rubble is not "expelled once"; it is uninhabitable under fire.
+
+**And the threshold is not rubble — it is half health.** `EmergencyBailDamageState = DamageState.Heavy`
+(`Cargo.cs:115`) fires at 50% HP, so this applies to every merely half-wrecked building, not only the
+terminal state. That is a far larger combat change than P1 was scoped as, and it is a YAML decision
+(`EmergencyBailDamageState` on the garrison templates) that the audit explicitly reserved for the user.
+
+**The reusable shape, and it is the cheap half.** The audit reasoned about a latch by reading the
+latch. The latch was correct; what decided the behaviour was two things *outside* it — who else clears
+the flag, and whether the method is even called when the damage is zero. **When a conclusion rests on
+a flag never being reset, grep the flag's every assignment before believing it** (`grep -n bailedOut`
+is four seconds and returns the `Load()` site immediately), **and check whether the notification that
+would re-trigger it still fires when the value it carries is zero.** Both questions are static; neither
+needed a launch; either one alone would have caught this.
 
 ## 2026-09-01 — the FFA condition that was named as the flip-test for keeping `FrozenUnderFog.OnOwnerChanged` is ALREADY TRUE on four shipped maps (manager check)
 

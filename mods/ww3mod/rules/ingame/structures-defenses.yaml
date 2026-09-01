@@ -124,6 +124,10 @@ GTWR:
 		AfterUnloadDelay: 0
 		LoadedCondition: loaded
 		EjectOnDeath: True
+		# Dead means OFF. See ^CivBuilding (civilian.yaml) for the reasoning and the user ruling of
+		# 2026-09-02. Stated here rather than inherited because this actor descends from ^Defense,
+		# not ^CivBuilding, so the template's copy does not reach it.
+		EmergencyBailDamageState: Dead
 	GarrisonManager:
 		Ports:
 			north:
@@ -224,6 +228,10 @@ PBOX:
 		AfterUnloadDelay: 0
 		LoadedCondition: loaded
 		EjectOnDeath: True
+		# Dead means OFF. See ^CivBuilding (civilian.yaml) for the reasoning and the user ruling of
+		# 2026-09-02. Stated here rather than inherited because this actor descends from ^Defense,
+		# not ^CivBuilding, so the template's copy does not reach it.
+		EmergencyBailDamageState: Dead
 	GarrisonManager:
 		Ports:
 			front:
@@ -319,6 +327,10 @@ HBOX:
 		AfterUnloadDelay: 0
 		LoadedCondition: loaded
 		EjectOnDeath: True
+		# Dead means OFF. See ^CivBuilding (civilian.yaml) for the reasoning and the user ruling of
+		# 2026-09-02. Stated here rather than inherited because this actor descends from ^Defense,
+		# not ^CivBuilding, so the template's copy does not reach it.
+		EmergencyBailDamageState: Dead
 	GarrisonManager:
 		Ports:
 			front:

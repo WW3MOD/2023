@@ -169,6 +169,18 @@ setting `EmergencyBailDamageState: Critical` on the three garrison templates so 
 the building reaches the rubble floor — which is precisely the user's sentence, using a mechanism
 that already exists and needs no art.
 
+> **CORRECTED 2026-09-01 (`wt/garrison-p1p2`, implementing P1). The caveat below is wrong in both
+> halves**, and — as it admits — was read rather than run. `Cargo.Load()` clears `bailedOut`
+> (`Cargo.cs:695-700`, whose own comment describes exactly this pinned-below-threshold case), and a
+> building pinned at 1 HP still receives `Damaged` notifications carrying zero damage
+> (`Health.cs:216-218` notifies unconditionally after modifiers; `Cargo.Damaged` has no zero-damage
+> early-out, unlike its two sibling handlers). So the bail re-fires on the next shot after any
+> re-garrison: rubble becomes **uninhabitable under fire**, not merely "expelled once". And the
+> shipped threshold is `Heavy` — 50% HP, not rubble — so this covers half-wrecked buildings too.
+> Full evidence in `WORKSPACE/DISCOVERIES.md`. Consequence: the open question at the foot of this
+> document (`EmergencyBailDamageState`: Critical / Heavy / off) is **blocking, not optional**, and
+> P2 is not needed to carry "rubble is unusable" — P1 alone already does, harder than intended.
+
 **Caveat that must be stated before anyone commits to this.** `bailedOut` latches and only re-arms
 when the damage state falls back below the threshold (`Cargo.cs:884-885`). An `Indestructible`
 building pinned at 1 HP is permanently `Critical`, so **the bail would fire once and never again**.
@@ -267,9 +279,45 @@ minimal. Both are filed as pipeline items so they are findable; neither is queue
 
 ---
 
-## Open question this branch could not settle
+## Open question this branch could not settle — SETTLED 2026-09-02
 
 **Should the emergency bail apply to buildings at all?** F4 establishes that the code intends to
 and cannot. It does not establish that a player wants his garrison walking out of a building under
 fire. P1 makes it possible; only the user can say whether it should be `Critical`, `Heavy`, or left
 off with the guard fixed and the templates opting out explicitly. Recorded rather than assumed.
+
+> **RULED 2026-09-02 by the user: OFF, with the templates opting out explicitly** — the third of the
+> three options above. His words: *"Don't force them out — let the damage curve do the work."* The
+> reasoning matters more than the value, because it constrains what a future change here may do: men
+> **can** still hide in rubble, it just becomes progressively lethal, and the already-merged
+> protection retune (`CriticalProtection` 80 → 50/35) delivers that on its own. Forcing them out
+> would mean rubble cannot be occupied at all under fire, which is the **opposite** of the intent.
+>
+> Implemented on `wt/garrison-bail`. The P1 guard fix from `15ae7d18` is kept in full — the
+> mechanism stays live, reachable and tunable, and vehicles are untouched at the shipped `Heavy`.
+> Only the four garrison actors opt out, via `Cargo.EmergencyBailDamageState: Dead`
+> (`ShouldEmergencyBail` returns false at that threshold for every damage state, and now says so in
+> its own branch rather than leaning on its exclusion of `Dead`). Pinned by
+> `GarrisonBailDisabledTest`, which fails if a fifth garrison building is added without the opt-out,
+> or if a descendant overrides it.
+>
+> **Note the opt-out sites are four, not one.** `^CivBuilding` covers the ~39 civilian structures by
+> inheritance, but `GTWR`/`PBOX`/`HBOX` descend from `^Defense` and carry their own `Cargo` blocks,
+> so the template does not reach them.
+
+## Carried forward: the bail's placement logic has never been run on a multi-cell actor
+
+Turning the bail off for buildings makes this moot **today**; it does not make it untrue. It is
+recorded here and in `WORKSPACE/DISCOVERIES.md` because the next person to enable it will hit it.
+
+`EmergencyBailOut` keys twice off `self.Location`, which is the actor's **top-left cell**:
+
+- `Cargo.cs:1066` — the `UnloadTerrainTypes` gate tests the terrain under that one cell.
+- `Cargo.cs:1072` (`var husk = self.Location;`, consumed at `:1103`) — the exit-cell fan is built
+  from cells adjacent to that one cell.
+
+Both were written for vehicles, which occupy exactly one cell, and for a vehicle both are correct.
+For a 3×3 building the terrain gate consults one ninth of the footprint, and the "adjacent" exit
+candidates on two sides are cells **inside the building's own footprint**. Nobody has ever watched
+this run on a multi-cell actor, so the ejection may do nothing at all, or place men oddly, even when
+enabled. Anyone re-enabling the bail for buildings must test placement, not just the trigger.

@@ -111,7 +111,13 @@ namespace OpenRA.Mods.Common.Traits
 			"drops are the drill delays, BeforeUnloadDelay and AfterUnloadDelay, and the wait for the ",
 			"hull to stop. The first man is out on the tick the threshold is crossed.",
 			"Applies to ground transports only; airborne ones use ",
-			"AircraftEmergencyBailDamageState below.")]
+			"AircraftEmergencyBailDamageState below. Set this to Dead to turn the bail OFF for an ",
+			"actor: ShouldEmergencyBail returns false for every damage state at that threshold, and ",
+			"says so explicitly rather than relying on its own exclusion of Dead. That is what the ",
+			"garrison buildings do — men sheltering in a wreck are meant to be able to stay and take ",
+			"the worsening damage curve, not be marched outside by the engine (user ruling, ",
+			"2026-09-02). This threshold was chosen for burning APCs and the wording above is about ",
+			"vehicles throughout; do not re-point it at buildings without re-asking that question.")]
 		public readonly DamageState EmergencyBailDamageState = DamageState.Heavy;
 
 		[Desc("As EmergencyBailDamageState, but for transports with an Aircraft trait. Held at ",
@@ -741,16 +747,31 @@ namespace OpenRA.Mods.Common.Traits
 			return (int)((long)transportMaxHP * thresholdPercent / 100);
 		}
 
-		/// <summary>Whether the transport's damage state calls for an unordered bail-out.
-		/// Dead is deliberately excluded, and that exclusion is the whole point of this being a
+		/// <summary>
+		/// <para>Whether the transport's damage state calls for an unordered bail-out.</para>
+		///
+		/// <para>Dead is deliberately excluded, and that exclusion is the whole point of this being a
 		/// named predicate. Health clamps HP to 0 and evaluates DamageState BEFORE it notifies
 		/// Damaged (Health.cs:189-200), so the killing blow arrives here already reading Dead — and
-		/// Dead is numerically ABOVE Heavy, so a naive `>=` passes it. Bailing there would empty the
+		/// Dead is numerically ABOVE Heavy, so a naive `&gt;=` passes it. Bailing there would empty the
 		/// hold synchronously and leave INotifyKilled's EjectOnDeath iterating an empty list, so a
 		/// one-shot kill on a loaded transport would let the entire squad walk away unhurt. Once the
-		/// hull is dead the cargo belongs to Killed.</summary>
+		/// hull is dead the cargo belongs to Killed.</para>
+		///
+		/// <para>A bailAt of Dead means OFF, and it is written out below rather than left to fall out
+		/// of the exclusion above. Both spellings return false for every input, so this branch changes
+		/// no behaviour — it changes why. An off position that holds only because some OTHER clause
+		/// happens to exclude Dead is one edit away from silently switching back on, and that is
+		/// exactly the failure this file already has on record: see ForwardDamageToPassengers, where
+		/// a guard written for one block acquired a second one appended beneath it without one
+		/// character of the guard changing. DamageState is a [Flags] enum with no zero member, so
+		/// Dead is the only value available to mean this.</para>
+		/// </summary>
 		public static bool ShouldEmergencyBail(DamageState current, DamageState bailAt)
 		{
+			if (bailAt == DamageState.Dead)
+				return false;
+
 			return current >= bailAt && current < DamageState.Dead;
 		}
 
@@ -820,39 +841,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (IsEmpty())
 				return;
 
-			// Skip legacy damage forwarding when GarrisonProtection handles it
-			if (self.Info.HasTraitInfo<GarrisonProtectionInfo>())
-				return;
-
 			var healthTrait = self.Trait<Health>();
-			var damageDealt = e.Damage.Value;
 
-			// Threshold tested here rather than inside the loop so the RNG is only
-			// touched by hits that can actually produce damage — see
-			// PassengerDamageThreshold. It also keeps the ToList allocation off the
-			// path taken by every scratch and every ChangesHealth bleed tick.
-			if (damageDealt > PassengerDamageThreshold(healthTrait.MaxHP, Info.PassengerDamageThresholdPercent))
-			{
-				// Copy first — InflictDamage below can kill a passenger and reenter.
-				foreach (var passenger in Passengers.ToList())
-				{
-					if (passenger.IsDead)
-						continue;
-
-					var passengerMaxHP = passenger.Trait<Health>().MaxHP;
-					var varianceBand = Info.PassengerDamageVarianceDivisor > 0
-						? passengerMaxHP / Info.PassengerDamageVarianceDivisor
-						: 0;
-					var varianceRoll = varianceBand > 0 ? self.World.SharedRandom.Next(varianceBand) : 0;
-
-					var damageToDeal = PassengerDamageFromTransportHit(passengerMaxHP, healthTrait.MaxHP,
-						damageDealt, Info.PassengerDamageThresholdPercent, Info.PassengerDamageSharePercent,
-						varianceRoll);
-
-					if (damageToDeal > 0)
-						passenger.InflictDamage(e.Attacker, new Damage(damageToDeal));
-				}
-			}
+			ForwardDamageToPassengers(self, e, healthTrait);
 
 			// Airborne transports bail on their own threshold and never take the
 			// direct-placement path below.
@@ -934,6 +925,55 @@ namespace OpenRA.Mods.Common.Traits
 
 				BeginEmergencyBail(self);
 			})));
+		}
+
+		/// <summary>
+		/// <para>The legacy share of a hull hit felt by the men riding inside.</para>
+		///
+		/// <para>The GarrisonProtection check lives HERE, at the top of the only block it is about,
+		/// and must not be lifted back up into Damaged. It was written at method scope in c9699af9,
+		/// when this forwarding was the whole method and an early return was exact; 4e8e29e2 then
+		/// appended the emergency bail below it and the guard silently grew to cover that too, leaving
+		/// the bail dead on every garrisonable building for four months. Scoping it to its own method
+		/// is what keeps the next block appended to Damaged from inheriting a skip nobody wrote for
+		/// it. GarrisonBailReachabilityTest pins that.</para>
+		/// </summary>
+		void ForwardDamageToPassengers(Actor self, AttackInfo e, Health healthTrait)
+		{
+			// Garrison buildings get their pass-through from GarrisonProtection instead, which picks
+			// one sheltering occupant and scales the hit by the building's damage state
+			// (GarrisonProtection.cs:102-113). Running both would hit the men twice for one shell.
+			if (self.Info.HasTraitInfo<GarrisonProtectionInfo>())
+				return;
+
+			var damageDealt = e.Damage.Value;
+
+			// Threshold tested here rather than inside the loop so the RNG is only
+			// touched by hits that can actually produce damage — see
+			// PassengerDamageThreshold. It also keeps the ToList allocation off the
+			// path taken by every scratch and every ChangesHealth bleed tick.
+			if (damageDealt > PassengerDamageThreshold(healthTrait.MaxHP, Info.PassengerDamageThresholdPercent))
+			{
+				// Copy first — InflictDamage below can kill a passenger and reenter.
+				foreach (var passenger in Passengers.ToList())
+				{
+					if (passenger.IsDead)
+						continue;
+
+					var passengerMaxHP = passenger.Trait<Health>().MaxHP;
+					var varianceBand = Info.PassengerDamageVarianceDivisor > 0
+						? passengerMaxHP / Info.PassengerDamageVarianceDivisor
+						: 0;
+					var varianceRoll = varianceBand > 0 ? self.World.SharedRandom.Next(varianceBand) : 0;
+
+					var damageToDeal = PassengerDamageFromTransportHit(passengerMaxHP, healthTrait.MaxHP,
+						damageDealt, Info.PassengerDamageThresholdPercent, Info.PassengerDamageSharePercent,
+						varianceRoll);
+
+					if (damageToDeal > 0)
+						passenger.InflictDamage(e.Attacker, new Damage(damageToDeal));
+				}
+			}
 		}
 
 		/// <summary>Start the bail. The men leave one at a time on the same cadence an ordered
