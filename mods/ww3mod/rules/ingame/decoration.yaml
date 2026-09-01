@@ -1,6 +1,43 @@
 
+# Living trees grant the "in cover" concealment bonus (+1/+2/+3, capped at 3 by
+# ExternalCondition@ObjectProximity TotalCap in ^DetectableInfantryStandard, infantry.yaml).
+# Before this, ^TreeHusk was the ONLY emitter of object-proximity in the mod, so a *burnt* tree
+# concealed you and a living one did not.
+#
+# Range 1024 = exactly 1 cell (WDist.FromCells, WDist.cs:35). It cannot be smaller, because the
+# trigger is placed at the Building's CENTRE (ProximityExternalCondition.AddedToWorld ->
+# self.CenterPosition; Building.cs:350 + CenterOffset :207-211) while most trees occupy only the
+# bottom-left cell of a 2x2 footprint. For Dimensions 2,2 that centre lands 512 east / 512 north
+# of the trunk cell's centre = 724 units (0.71c) diagonally off-trunk. The husk's Range: 384 is
+# therefore SHORTER than the offset to its own trunk: measured against woodland-warfare-ww3's
+# authored trees, 384 grants a bonus on 0.0% of cells. 1024 clears the 724 offset with ~300 units
+# of margin, so standing on or beside a tree reliably pays out.
+#
+# Radius is a balance dial, and it is a STEP function, not a smooth one: trees are placed on whole
+# cells, so only a few discrete separations exist and behaviour is constant between them. Measured
+# share of in-bounds cells receiving each bonus tier on woodland-warfare-ww3:
+#   R  512- 724: 14.1% any bonus /  0.0% at +3
+#   R  725-1144: 22.7% any bonus /  1.0% at +3   <-- 1024 sits here, mid-plateau
+#   R 1145-1618: 32.7% any bonus /  8.0% at +3
+#   R 1619+    : 36.4% any bonus / 12.4% at +3
+# 1024 is the conservative pick: the full +3 stays confined to genuine forest interior rather than
+# being reachable from a treeline. It is also ~120 units clear of the next step, so the choice is
+# not perched on an edge. If woods read as too thin in play, the next meaningful value is 1145
+# (anything between 1025 and 1144 changes nothing at all).
+#
+# PERFORMANCE FALLBACK: this is ~1200 new proximity triggers on the densest maps, unmeasured.
+# If frame time suffers, do NOT rewrite -- delete the one Inherits@Cover line from ^Tree below and
+# add it to the six clump actors (TC01-TC05, T15) instead. That drops the trigger count to 647 on
+# woodland / 237 on river-zeta, at the cost of thinner cover (11.8% / 5.5% of cells).
+^TreeCover:
+	ProximityExternalCondition@ObjectProximity:
+		Condition: object-proximity
+		Range: 1024
+		ValidRelationships: Neutral, Ally, Enemy
+
 ^Tree:
 	Inherits@1: ^SpriteActor
+	Inherits@Cover: ^TreeCover
 	Inherits@Shape: ^1x1Shape
 	Inherits@FireMechanic: ^BuildingAffectedByFire
 	CombatDebugOverlay:

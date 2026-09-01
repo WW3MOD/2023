@@ -1,0 +1,139 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: living trees grant the in-cover concealment bonus
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Four riflemen on one row, each with a different number of LIVING trees in reach, all
+# map-placed and never ordered anywhere. The scenario reads Detectable.CurrentVisibility
+# (Test.GetVisibilityLevel) on each and asserts the DELTA against the treeless control.
+#
+# WHY A DELTA AND NOT AN ABSOLUTE TIER. The stationary baseline is genuinely uncertain in
+# the tree of committed evidence, and the scenario must not be the place that guess gets
+# spent:
+#   * InfantryStates (infantry.yaml:315-317, inside ^CamoSoldier, which E1.america DOES
+#     reach via ^E1:1122) grants `prone` on `!moving`, and Actor.cs:283-284 invokes every
+#     variable observer once with the initial condition state -- so a never-moved rifleman
+#     reads as prone and DetectableAddativeModifier@Prone (+1) should put him on tier 4.
+#   * But two committed scenarios assert tier 3 for exactly that unit:
+#     test-visual-gauge-truth (Rifle_ExpectedTier = 3) and test-visual-concealment-gauge
+#     (ExpectedStoppedTier = 3).
+# Those cannot both be right, and settling it needs a launch. The delta absorbs it: whatever
+# the baseline is, the cover bonus adds the same +1/+2/+3 on top of it. The control tier is
+# printed so the run answers the prone question for free.
+#
+# GEOMETRY, and why these exact cells. ProximityExternalCondition places its trigger at the
+# actor's CenterPosition (AddedToWorld), which for a Building is
+# CenterOfCell(TopLeft) + CenterOffset (Building.cs:350, :207-211). For Dimensions 2,2 that
+# is (+512,+512) from the top-left cell's centre, i.e. the point where the four cells of the
+# 2x2 box meet. Distance from there to any of those four cell centres is
+# sqrt(512^2 + 512^2) = 724; the nearest cell OUTSIDE the box is 1619 away. With Range 1024
+# the in/out margin is 300 / 595 units, so nothing here sits on a boundary and no assertion
+# can flip on rounding.
+#
+#   a tree at (tx,ty) covers exactly (tx,ty) (tx+1,ty) (tx,ty+1) (tx+1,ty+1)
+#
+# T01/T02/T03 are Dimensions 2,2 Footprint '__ x_', so each OCCUPIES only (tx,ty+1) and
+# leaves the other three cells of its box walkable. Every rifleman below stands on a cell
+# that is inside the box of its trees but occupied by none of them:
+#
+#   lane      rifleman   trees placed at        trees occupy       covers rifleman?
+#   control   10,16      --                     --                 0 trees
+#   one       22,16      (22,16)                (22,17)            yes
+#   two       34,16      (34,16) (33,16)        (34,17) (33,17)    both
+#   three     46,16      (46,16) (45,16) (45,15)(46,17) (45,17) (45,16)  all three
+#
+# Lanes are 12 cells apart; a tree reaches 1 cell, so no lane can contaminate another.
+#
+# No Russian actors exist anywhere on this map. AUTOTEST.md gotcha #9 says silence the
+# ENEMY rather than the unit under test, and the cheapest way to silence an enemy that
+# would otherwise be inside AutoTarget ScanRadius 25 is to not place one: a rifleman that
+# acquires a target fires, and firing grants `firinganyweapon` at -2 vision for 12 ticks,
+# which would move the very number this scenario reads.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	Control: e1.america
+		Owner: USA
+		Location: 10,16
+		Facing: 768
+
+	Cover1: e1.america
+		Owner: USA
+		Location: 22,16
+		Facing: 768
+	Cover1TreeA: t01
+		Owner: Neutral
+		Location: 22,16
+
+	Cover2: e1.america
+		Owner: USA
+		Location: 34,16
+		Facing: 768
+	Cover2TreeA: t01
+		Owner: Neutral
+		Location: 34,16
+	Cover2TreeB: t02
+		Owner: Neutral
+		Location: 33,16
+
+	Cover3: e1.america
+		Owner: USA
+		Location: 46,16
+		Facing: 768
+	Cover3TreeA: t01
+		Owner: Neutral
+		Location: 46,16
+	Cover3TreeB: t02
+		Owner: Neutral
+		Location: 45,16
+	Cover3TreeC: t03
+		Owner: Neutral
+		Location: 45,15
+
+	# Own side only. An ENEMY Supply Route in a corner would still be a target the riflemen
+	# could acquire at ScanRadius 25, so there is none.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 3,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,30
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 62,2
+
+Rules: rules.yaml
