@@ -3,6 +3,45 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — the FFA condition that was named as the flip-test for keeping `FrozenUnderFog.OnOwnerChanged` is ALREADY TRUE on four shipped maps (manager check)
+
+The `wt/fog-snapshot` entry above decides to KEEP the old-owner snapshot refresh, and closes by naming
+the cheapest thing that would test that conclusion: *"if WW3MOD ships or gains FFA maps with 3+
+mutually hostile players, the capturer-identity leak stops being a corner case... I did not check the
+shipped maps' player configurations, which is the cheapest thing the next person could do."*
+
+Checked. **It is already true.** Spawn counts across `mods/ww3mod/maps`:
+
+| map | mpspawns |
+|---|---|
+| river-zeta-ww3 | 6 |
+| seventh-woods-ww3 | 4 |
+| twin-rivers-ww3 | 4 |
+| x-lake-ww3 | 4 |
+| the other six | 2 |
+
+And the `Players:` blocks on those maps declare `Multi0..MultiN` as `Playable: True` with `Enemies:
+Creeps` only — **no fixed teams**, so a lobby free-for-all with 3+ mutually hostile players is
+reachable today on four of ten shipped maps without authoring anything.
+
+**This does NOT overturn the decision, and it is important to be clear about why.** The argument for
+keeping is that freezing `Owner` would inject a false *friendly* — the old owner's `AutoTarget` and
+the three bot-perception sites gate on `RelationshipWith(fa.Owner) != Enemy`, so a frozen snapshot
+makes a captured building read as theirs and be skipped while an enemy shoots from it. That argument
+is independent of player count and survives intact.
+
+**What changes is the residue.** The entry above calls the unearned leak "narrow — in a 3+ hostile-player
+game the old owner learns *which* player took it". On a 6-player river-zeta FFA that is real intel
+delivered for free, not a corner case. So the follow-up the entry offers as hypothetical — *"the fix
+would then be to make the bot consumers read a separate liveness flag rather than to freeze `Owner`"* —
+is now **warranted rather than speculative**, and is filed as such.
+
+**The reusable shape.** The worker named its own flip condition, and naming it is what made the check
+cost thirty seconds. A `## Watch` that says *"here is what would make me wrong, and here is the cheapest
+way to find out"* converts an unverified claim into a task anyone can close — which is worth more than
+a `## Watch` that merely lists doubts. Two workers this window did this; both were resolved within
+minutes of being read.
+
 ## 2026-09-01 — an `expected-status: fail` declaration also grades a WATCHDOG TIMEOUT green, because the batch reads the exit code and only `run-test.sh` knows the difference (`wt/harness-gaps`)
 
 `tools/autotest/expected-status.sh` is sound on its own terms and its selftest proves the decision

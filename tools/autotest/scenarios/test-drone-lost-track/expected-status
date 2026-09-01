@@ -1,0 +1,28 @@
+fail
+The negative arm is BY MERIT: the @experimental drone operator genuinely does not
+yet prefer a lost-track contact over the stalest ground it could explore. The
+scenario and the code are both correct; the shortfall it measures sits inside the
+band CONTROL-ARM.md:135 pre-registered as "report that and change nothing" (<=1.5x).
+
+MEASURED, run 260901_084100_p5243_test-drone-lost-track, seed 119467278, on main
+at 3dd67e07 (build clean, NUnit 2104/2104):
+
+    samples=86  near(<=18c of 47:54)=0 (0%)  mindist=25
+
+25 against an 18-cell bar is a 1.389x shortfall, inside the previously-reported
+1.19-1.47x bounds. The drone flew 18:45 -> 35:31, parked there for ~60 of 86
+samples, and returned; it never approached the vanish cell. A late intruder
+(tecn.america at 21:46, t1221, 27c from the vanish cell) is correctly ignored by
+the scenario as post-decision, and 22 of the 86 samples follow it.
+
+REMOVE THIS FILE in the same commit as whatever makes the operator prefer the
+lost-track contact. A pass against a live `fail` declaration is RED on purpose:
+it means the premise moved and this note is stale.
+
+CAVEAT ON THIS DECLARATION SPECIFICALLY. Read expected-status.sh's KNOWN GAP
+section before trusting an OK(fail) here: a `fail` declaration also grades a
+watchdog TIMEOUT-FAIL as green, so this file cannot distinguish "the drone did
+not prefer the contact" from "the game hung and never reached a verdict". The
+run above did reach its own verdict under its own power -- 86 samples and a full
+position trace are the evidence of that, not the exit code. If this scenario ever
+goes quiet, re-read the run banner for TIMEOUT-FAIL rather than the batch tally.
