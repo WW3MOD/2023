@@ -247,7 +247,12 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (modifiers.Contains("Shift"))
 				mods |= Modifiers.Shift;
 
-			return palette.SimulateIconClick(actorType, MouseButton.Left, mods);
+			// Unsynced for the same reason as PressHotkey, and this one is a live trap rather than a
+			// precaution: a left click on a COMPLETED BUILDING icon reaches PickUpCompletedBuildingIcon
+			// (ProductionPaletteWidget.cs:384) via HandleEvent -> HandleLeftClick, which sets
+			// World.OrderGenerator to a PlaceBuildingOrderGenerator and would throw AssertUnsynced from
+			// the synced Lua tick. It has survived only because every existing caller clicks a UNIT.
+			return Sync.RunUnsynced(Context.World, () => palette.SimulateIconClick(actorType, MouseButton.Left, mods));
 		}
 
 		[Desc("State of the class-grouped unload menu: an empty string when it is closed, otherwise " +
@@ -327,9 +332,13 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (list.Children[index] is not ScrollItemWidget row)
 				return false;
 
+			// Invoking a widget's OnClick from the synced Lua tick is the PressHotkey trap again: these
+			// handlers are written for the unsynced input context, and Drop() reaching anything that
+			// touches client-only state would throw rather than misbehave. Written as lambdas rather
+			// than method groups so the dispatch stays visible to the IL scan in TestGlobalSyncTest.
 			if (!all)
 			{
-				row.OnClick();
+				Sync.RunUnsynced(Context.World, () => row.OnClick());
 				return true;
 			}
 
@@ -337,7 +346,7 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (allButton == null)
 				return false;
 
-			allButton.OnClick();
+			Sync.RunUnsynced(Context.World, () => allButton.OnClick());
 			return true;
 		}
 
@@ -1409,7 +1418,13 @@ namespace OpenRA.Mods.Common.Scripting.Global
 
 			var name = command.TrimStart('/').Split(' ')[0].ToLowerInvariant();
 			if (cc.Commands.TryGetValue(name, out var cmd))
-				cmd.InvokeCommand(name, "");
+			{
+				// A chat command is normally invoked from the chatbox, i.e. from the unsynced input
+				// context. The registered set is open-ended — any mod trait can add one — so what an
+				// InvokeCommand reaches cannot be bounded by reading it here, which is exactly the
+				// shape that made the PressHotkey failure survive.
+				Sync.RunUnsynced(Context.World, () => cmd.InvokeCommand(name, ""));
+			}
 		}
 
 		SightingThreatLayer Sighting()
