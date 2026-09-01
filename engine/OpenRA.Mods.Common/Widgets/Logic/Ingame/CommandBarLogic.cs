@@ -247,15 +247,28 @@ namespace OpenRA.Mods.Common.Widgets
 
 				evacuateButton.IsDisabled = () => { UpdateStateIfNecessary(); return evacuateDisabled; };
 				evacuateButton.IsHighlighted = () => evacuateHighlighted > 0;
+
+				void IssueEvacuate(bool queued)
+				{
+					PerformKeyboardOrderOnSelection(a => new Order("Evacuate", a, queued));
+				}
+
 				evacuateButton.OnClick = () =>
 				{
 					if (highlightOnButtonPress)
 						evacuateHighlighted = 2;
 
-					PerformKeyboardOrderOnSelection(a => new Order("Evacuate", a, false));
+					IssueEvacuate(Game.GetModifierKeys().HasModifier(Modifiers.Shift));
 				};
 
-				evacuateButton.OnKeyPress = ki => { evacuateHighlighted = 2; evacuateButton.OnClick(); };
+				// Reads the modifiers off the KeyInput rather than Game.GetModifierKeys(): this handler is
+				// also invoked by the MODIFIER_OVERRIDES rescue below, which hands us the real Shift-bearing
+				// event, and a synthesised press (Test.PressHotkey) never touches the global modifier state.
+				evacuateButton.OnKeyPress = ki =>
+				{
+					evacuateHighlighted = 2;
+					IssueEvacuate(ki.Modifiers.HasModifier(Modifiers.Shift));
+				};
 			}
 
 			var stopButton = widget.GetOrNull<ButtonWidget>("STOP");
@@ -295,7 +308,24 @@ namespace OpenRA.Mods.Common.Widgets
 			var keyOverrides = widget.GetOrNull<LogicKeyListenerWidget>("MODIFIER_OVERRIDES");
 			if (keyOverrides != null)
 			{
-				var noShiftButtons = new[] { guardButton, deployButton, scatterButton, attackMoveButton };
+				// PITFALL: a command button whose order can be QUEUED must be listed here, or its hotkey is
+				// dead for exactly the players trying to queue with it. HotkeyReference.IsActivatedBy
+				// compares modifiers for EQUALITY, so a hotkey bound without Shift (Evacuate: E) does not
+				// match a Shift-bearing key event, and ButtonWidget.HandleKeyPress returns false before
+				// OnKeyPress is ever reached. This loop is the only thing that strips Shift and retries;
+				// being absent from it means "Shift+<key> does nothing at all", not "does the unqueued
+				// thing". Reading the OnClick body to see whether a command honours queuing is therefore
+				// only half the answer — check this array too.
+				//
+				// resupplyButton is here for that reason and no other: its OnClick has read the Shift
+				// modifier since it was written (:187), so queued resupply was always intended, and the
+				// missing entry meant the hotkey could never deliver it. What is DEMONSTRATED is only that
+				// Shift+R now reaches the button — the BEHAVIOUR of a queued Resupply has never been
+				// exercised in a scenario. stopButton stays out deliberately: a Stop must never queue.
+				var noShiftButtons = new[]
+				{
+					guardButton, deployButton, scatterButton, attackMoveButton, evacuateButton, resupplyButton
+				};
 				var keyUpButtons = new[] { guardButton, attackMoveButton };
 				keyOverrides.AddHandler(e =>
 				{

@@ -324,8 +324,13 @@ namespace OpenRA.Mods.Common.Scripting.Global
 		[Desc("Press whatever key is currently bound to `hotkeyName` (as named in the mod's hotkey " +
 			"definitions, e.g. 'UnloadMenu'). Dispatched through Ui.HandleKeyPress, so it walks the " +
 			"real widget chain in the real order and honours a rebind rather than hardcoding a key. " +
+			"Set `shift` to add the queue-order modifier on top of the binding's own modifiers — that " +
+			"is the ONLY way to reach the CommandBarLogic MODIFIER_OVERRIDES rescue path, because a " +
+			"Shift-bearing event does not match an unshifted binding and ButtonWidget.HandleKeyPress " +
+			"rejects it before OnKeyPress. Note that this does NOT update Game.GetModifierKeys(), so a " +
+			"button reading global modifier state instead of its KeyInput sees no Shift here. " +
 			"Returns true if a widget consumed it. Test mode only.")]
-		public bool PressHotkey(string hotkeyName)
+		public bool PressHotkey(string hotkeyName, bool shift = false)
 		{
 			if (!TestMode.IsActive)
 				return false;
@@ -338,7 +343,7 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			{
 				Event = KeyInputEvent.Down,
 				Key = hotkey.Key,
-				Modifiers = hotkey.Modifiers,
+				Modifiers = shift ? hotkey.Modifiers | Modifiers.Shift : hotkey.Modifiers,
 				MultiTapCount = 1,
 			});
 		}

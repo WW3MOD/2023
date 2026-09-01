@@ -3899,3 +3899,33 @@ likely the scenario should be re-pointed to assert the tank does NOT set off (mi
 rather than that it does. That is a ruling, not a cleanup — do not just flip the predicate.
 
 **Confirm by:** `./tools/autotest/run-test.sh test-poor-depot-still-worth-the-trip`.
+
+---
+
+## 2026-09-01 — The Resupply button never un-highlights
+
+**Found while** fixing the queued-Evacuate bug (`wt/evac-queue`). Filed, not fixed. **Not run**:
+derived from reading, not measured in a game.
+
+`CommandBarLogic.Tick()` counts down `deployHighlighted`, `scatterHighlighted`, `stopHighlighted`,
+`patrolHighlighted`, `autoEnterHighlighted` and `evacuateHighlighted` — but **not**
+`resupplyHighlighted`, which `:185`/`:193` set to 2. `IsHighlighted` is `resupplyHighlighted > 0`,
+so once the Resupply button is pressed **it stays lit for the rest of the match**. Cosmetic, and
+almost certainly an omission rather than a decision; the other six are all there.
+
+Left alone deliberately when its neighbour was fixed: the Shift+R dispatch bug below was the *same
+mechanism* as the Evacuate bug and rode that fix's proof, but this is a genuinely different
+mechanism and deserves its own RED rather than being swept in on someone else's evidence.
+
+**Confirm by:** press R once with an `AmmoPool`-carrying unit selected and watch the button stay
+highlighted for the rest of the match.
+
+**Sibling, now FIXED (commit on `wt/evac-queue`, 2026-09-01):** `Shift+R` used to be dead because
+`resupplyButton` was absent from the `noShiftButtons` array — identical mechanism to the Evacuate
+bug (`HotkeyReference.IsActivatedBy` compares modifiers for equality, so a Shift-bearing event never
+matches the unshifted `Resupply: R` binding). It is in the array now and
+`test-evac-queued-after-waypoints` asserts the keypress is consumed. **What remains unproven is the
+BEHAVIOUR of a queued Resupply** — no scenario anywhere exercises it, and `resupplyButton.OnClick`
+has been building queued orders since it was written without the hotkey ever being able to deliver
+one. `autoEnterButton` and `patrolButton` are still absent from the array; `stopButton` is absent
+correctly, since a Stop must never queue.

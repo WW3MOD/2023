@@ -14021,3 +14021,56 @@ misses into errors would be a project rather than a patch, and the right move is
 decide about it deliberately rather than to discover it during an unrelated change. Note also which
 direction the risk runs — this gap cannot break the build, it can only ship a UI string that renders
 as its raw key to a player.
+
+---
+
+## 2026-09-01 — `RotateToEdge` is NOT anchored on the Supply Route on most test maps: it silently falls back to the unit's own cell
+
+**Measured**, not reasoned: run `260901_024015` of `test-evac-queued-after-waypoints`, which
+falsified a premise I had written into that scenario's own comments an hour earlier.
+
+`RotateToEdge.OnFirstRun` picks a ground unit's exit edge like this:
+
+```csharp
+var spawnAreaHintGround = FindClosestSpawnAreaForOwner(self);
+var searchOrigin = spawnAreaHintGround ?? self.Location;
+edgeCell = self.World.Map.ChooseClosestMatchingEdgeCell(searchOrigin, ...);
+```
+
+`FindClosestSpawnAreaForOwner` enumerates `ActorsWithTrait<SpawnArea>()`. **`SpawnArea` is a trait
+on the separate `spawnarea` actor (`mods/ww3mod/rules/misc.yaml:255`) — it is NOT on `mpspawn`**
+(`misc.yaml:~240`, "multiplayer player starting point"). So on any map that places `mpspawn` but no
+`spawnarea` — which is most autotest scenarios — the list is **empty**, the method returns null, and
+the exit is chosen from **`self.Location` at the instant the activity starts**. The Supply Route
+does not enter into it at all: the SR is only used *inside* that method as an anchor to choose
+*among* SpawnAreas, so with zero of them the SR's position is irrelevant.
+
+**Why this hid for so long: the fallback and the intended behaviour usually agree.** A unit
+evacuating from near its own start is near its own SR, so both rules pick the same edge. The two
+answers only diverge when the unit is somewhere else when the activity begins — which is exactly
+what a *queued* evacuation produces, and queued evacuation did not work until today.
+
+Measured divergence, same map, same run:
+
+| Unit | Cell when activity started | Exit edge | Path observed |
+|---|---|---|---|
+| immediate humvee | 8,18 | WEST (7 cells) | 9,18 → 5,17 → 1,14 |
+| queued humvee | ~38,14 | **NORTH** (13 cells) | 36,14 → 37,8 → 35,3 → 33,1 |
+
+Both owned by USA, whose SR sits at 4,4. Under the documented rule both should have exited west.
+
+**A live comment in `test-dry-evac-drops-queued-order` asserts the wrong rule** (its `map.yaml`
+`OwnSR` note: *"USA's sits WEST, which is also the direction
+RotateToEdge.FindClosestSpawnAreaForOwner sends the evacuation"*). That map places `mpspawn` and no
+`spawnarea` — `grep -c spawnarea` returns 0 — so its westward exit is the *fallback* agreeing by
+coincidence, not the anchor. **The scenario is still valid and still passes** (verified in the same
+batch): its launcher sits at 10,16, nine cells from the western bound, so both rules give west. Only
+the explanation is wrong. Left unfixed — it is not my scenario and the correction is a docs edit
+someone should make deliberately.
+
+**What to carry:** if you are writing a scenario whose geometry depends on *which edge* a unit
+evacuates by, either place an actual `spawnarea` actor or size the map so the fallback gives the
+answer you want — and never state "evacuation goes toward the SR" as a premise without checking the
+map has a `spawnarea` on it. Scenarios that DO place one: `test-evac-prefers-affordable-depot`,
+`test-tactical-arty-detour-geometry`, `test-frontline-reachability`, `test-move-unreachable-clamps`,
+`test-cohesion-river-zeta-actual`, and the river-zeta tournament/savegame maps.

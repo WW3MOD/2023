@@ -1,0 +1,128 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a shift-queued Evacuate runs at the END of the waypoints (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# THE GEOMETRY IS THE ASSERTION, and it is built so the two dispositions move a unit in
+# OPPOSITE directions rather than merely at different times.
+#
+#   x=8    both humvees start here
+#   x=24   first shift-waypoint (east)
+#   x=38   last shift-waypoint (east) -- where a correctly QUEUED evacuate begins its exit
+#   x=1    the western bound -- where EVERY evacuation ends, queued or not
+#
+# WHICH EDGE A UNIT EXITS BY -- CORRECTED 2026-09-01 FROM THE FIRST GREEN RUN, which falsified
+# what this comment used to claim. It said RotateToEdge anchors the exit on the owner's SpawnArea
+# (via FindClosestSpawnAreaForOwner) and therefore that "an evacuation always drives WEST". Both
+# halves are wrong on this map. `SpawnArea` is a trait on the separate `spawnarea` actor
+# (misc.yaml:255), NOT on `mpspawn` -- so a map placing only mpspawn has ZERO SpawnArea actors,
+# FindClosestSpawnAreaForOwner returns null, and RotateToEdge falls back to `self.Location`: the
+# unit's own cell AT THE MOMENT THE ACTIVITY STARTS. Measured in run 260901_024015:
+#
+#   immediate humvee, activity starts at 8,18  -> nearest bound is WEST  -> exits 5,17 -> 1,14
+#   queued humvee,    activity starts at ~38,14 -> nearest bound is NORTH -> exits 37,8 -> 33,1
+#
+# So the two do NOT travel in opposite directions, and nothing here may assume a westward exit.
+# THE DISCRIMINATOR IS UNAFFECTED, because it never depended on the exit edge -- only on whether
+# the humvee got EAST before it was disposed:
+#
+#   * order ran immediately -> starts its exit from x=8, so it can never reach x=20; the nearest
+#                              bound to x=8 is the western one and east is 56 cells away
+#   * order ran queued      -> drives its waypoints to x=38 FIRST, so it passes x=20 while alive
+#
+# Do not "simplify" the predicate to "did it exit via the west edge". That would have passed the
+# broken build's control arm and would fail the fixed build's queued arm.
+#
+# TWO UNITS, DIFFERING ONLY IN THE SHIFT MODIFIER. Both get the same two queued waypoints; one
+# is then sent Shift+E and the other a bare E. The bare-E humvee is the CONTROL: it proves the
+# hotkey reaches the command bar and that an unqueued Evacuate really does discard the queue.
+# Without it, "the Shift+E humvee never evacuated" would be indistinguishable from "the
+# Evacuate hotkey does not work in this harness at all", which is the failure this scenario is
+# most likely to suffer and least able to notice.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# NO enemy units anywhere on this map, and that is load-bearing exactly as it is in
+	# test-dry-evac-drops-queued-order: nothing can shoot either humvee, so Actor.IsDead
+	# (Disposed || health.IsDead) becoming true can ONLY mean RotateToEdge disposed it. That is
+	# what makes IsDead a clean "it evacuated" detector instead of an ambiguous one. Both are
+	# staged at full health so ChangesHealth@CriticalDamage never starts on its own clock.
+	#
+	# Separate rows so the two drives never contend for the same cells -- an immediate evacuee
+	# reversing through the queued one's lane would add a stall the verdict cannot explain.
+	QueuedUnit: humvee
+		Owner: USA
+		Location: 8,14
+		Facing: 512
+	ImmediateUnit: humvee
+		Owner: USA
+		Location: 8,18
+		Facing: 512
+
+	# The Shift+R arm, and it measures something DELIBERATELY WEAKER than the two above: only that
+	# the keypress REACHES the Resupply button, not that a queued resupply then behaves correctly.
+	# resupplyButton was missing from noShiftButtons by the same mechanism as evacuateButton, so
+	# Shift+R was dead in the same way; that is what is fixed and that is all this asserts. It is
+	# given no waypoints and no verdict of its own beyond press consumption, so whatever the
+	# Resupply order does to it afterwards (there is no depot on this map) cannot affect the run.
+	ResupplyUnit: humvee
+		Owner: USA
+		Location: 8,22
+		Facing: 512
+
+	# NOT the evacuation anchor -- this used to say it was. `mpspawn` carries no `SpawnArea` trait
+	# (that is the separate `spawnarea` actor, misc.yaml:255), so these contribute nothing to
+	# RotateToEdge's exit choice; see the corrected note above. They are here only because
+	# AUTOTEST.md's map conventions expect a start marker per faction.
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 8,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+
+	# One supplyroute per faction per AUTOTEST.md: Russia owns no units, and an actorless
+	# faction ends the match with a Mission-Accomplished overlay before the Lua poller can write
+	# a verdict. USA's sits WEST and well clear of both lanes.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml
