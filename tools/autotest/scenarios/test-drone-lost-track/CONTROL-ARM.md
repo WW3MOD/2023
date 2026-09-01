@@ -48,6 +48,42 @@ one.
 `records=0` in the control's `[drone]` lines is the arm's self-identifying marker: if a control run
 shows `records>0`, the edit did not take and the run must be discarded rather than interpreted.
 
+## Runs 5 and 6 both FAILED identically, and the diagnosis is a tier, not a threshold
+
+Both arms reached a real verdict with both markers and identical traces: `samples=85 near=0
+mindist=27 firstdrone=t285`, launching at 33,29 with `reveal=307`, control `intel=0`,
+treatment `intel=2`.
+
+**`intel=2` was the wrong TIER being read, not the term being too weak.** `IntelSquares`
+(`DroneTaskingMath.cs:186`) returns `areaSquares` (60) — the *currently-observed* tier — for
+any contact aged `<= FreshSightingTicks` (50, `ai.yaml:955`). The scout died at t175 and the
+only evaluation that matters is at t200, so the contact was 25 ticks old: still "under
+observation". 33,29 sits 28 cells from the vanish cell, the exact rim of `DroneVisionCells`,
+where `IntelFalloff` gives `60 * (28-28+1) / (28+1) = 2`. Both observed values reproduce to
+the digit and neither is consistent with the lost tier:
+
+| Launch | distance to V | fresh tier (60) | lost tier | observed |
+|---|---|---|---|---|
+| t200 `cell=33,29` | 28 | **2** | 8 | `intel=2` |
+| t1600 `cell=39,53` | 8 | **43** | 84 | `intel=43` |
+
+t1600 reads *fresh* as well because the wandering `e3.america` at 21:46 is 27 cells from the
+vanish cell — inside the strength-2 band — so from ~t1250 the truk is **re-observed**, not
+merely erased. The lost-track ramp this scenario exists to test was never read at either
+launch. `SpawnTick`/`KillScoutTick` moved to 25/140 so the contact is 60 ticks old at t200;
+the derivation and the two constraints that nearly collide are in the Lua.
+
+**The t1600 launch is not the mechanism working.** The control, with `records=0 intel=0`,
+chose the same cell with the same `reveal=252` — that target is the revealed-area argmax.
+No drone flew it either: the first sortie docked just after t1545 and `RearmTicks` left ~100
+ticks to run when the armament fired at ~t1650, so the shot was wasted. See the
+`DeadlineTicks` comment for why raising it would manufacture a double-PASS.
+
+**The falsifier fired and resolved clean.** `20 of 85 samples follow it` decomposes exactly:
+samples run t285–t1545 contiguously (14 outbound, 57 hovering at 33,29, 14 returning), and
+the 20 after t1251 are the last 6 hover samples plus all 14 of the return leg. Every one
+belongs to the sortie ordered at t200. Zero came from a second sortie.
+
 ## First check the run actually ran — this is not optional
 
 A Lua abort and a real failure both arrive as `status: "fail"`. The first attempt at this RED reported
