@@ -14598,3 +14598,52 @@ answer you want — and never state "evacuation goes toward the SR" as a premise
 map has a `spawnarea` on it. Scenarios that DO place one: `test-evac-prefers-affordable-depot`,
 `test-tactical-arty-detour-geometry`, `test-frontline-reachability`, `test-move-unreachable-clamps`,
 `test-cohesion-river-zeta-actual`, and the river-zeta tournament/savegame maps.
+
+---
+
+## 2026-09-01 — The affordability "pool-set divergence" is not a defect, and unifying it would break 19 actors
+
+`AutoSeekSupplies.CanServe` (`AutoSeekSupplies.cs:529`) passes `rearmable.RearmableAmmoPools` to
+`AmmoPool.HostCanAffordSomethingWeNeed`, while the dispatch sites pass every pool:
+`AutoSeekSupplies.cs:300` and `AmmoPool.cs:681,769` via `ChooseAffordableResupplier`, and
+`SeekSupplyProvider.cs:120,159` directly. The in-code comment at `AutoSeekSupplies.cs:519-528`
+flags this as a latent drift and says "if an actor is ever given an AmmoPool its Rearmable does not
+name, they part company". **Both halves of that comment check out, but the obvious remedy — make
+the dispatch sites pass `RearmableAmmoPools` too — is wrong, and this is the reason.**
+
+**19 actors carry an `AmmoPool` and NO `Rearmable` at all**, so they have no `RearmableAmmoPools`
+to pass: `HIMARS`, `iskander`, `F16`, `AGUN`, `CRAM`, `FTUR`, `A10.Airstrike`, `FROG.Airstrike`
+(the last two via `-Rearmable:`), `^CrewMember` and the ten `crew.*` actors. On `HIMARS`
+(`vehicles-america.yaml:1048`) and `iskander` (`vehicles-russia.yaml:965`) the omission is
+deliberate and carries a load-bearing comment explaining that removing `Rearmable` alone is not
+sufficient. Unifying would hand those actors an empty pool set and silently disable
+`AutoRearmIfDry`'s Auto arm and the evacuate detour for them.
+
+So the two readings are **not two spellings of one rule**; they are different questions with
+different domains:
+
+- `CanServe` asks *"will this host serve me"*, which is answered in terms of what a host is
+  ALLOWED to fill — and the host's own accept test reads the same set
+  (`SupplyProvider.AcceptClient`, `SupplyProvider.cs:747`, via `Rearmable.cs:44`). The rearmable
+  subset is correct there.
+- The dispatch sites ask *"do I have any unmet need worth driving for"*, which must include
+  non-rearmable pools, because the actor may have no `Rearmable` trait at all.
+
+**Measured, not assumed:** every actor carrying BOTH traits has identical sets today, so nothing
+observable turns on it. Verified by reading each `Rearmable.AmmoPools` field against the actor's
+declared `AmmoPool` names — including the two that looked like exceptions and are not:
+`^E1` (`infantry.yaml:1151`, `AmmoPools: primary-ammo # grenade-ammo`) and `^E6`
+(`infantry.yaml:1982`, `AmmoPools: primary-ammo, secondary-ammo` at `:2003`).
+
+Two traps for whoever audits this next:
+
+1. **`Rearmable.AmmoPools` defaults to `{"primary"}`** (`Rearmable.cs:26`) and this mod names its
+   pools `primary-ammo`. An actor given a `Rearmable:` with no `AmmoPools:` field would therefore
+   get an EMPTY `RearmableAmmoPools` and present no demand at all. No actor is in that state today,
+   but the default is a live trap and the `^E6` comment records it costing a shipped bug already.
+2. **Do not count these actors by grepping `AmmoPools:`** — that field also appears on
+   `AmmoPoolReloadBar`, `WithAmmoPipsDecoration` and `ReloadAmmoPool`. A scope-unaware count reads
+   another trait's value as `Rearmable`'s and invents divergences that are not there. The comment's
+   own figure of "all 46 actors" does not reproduce; a scope-aware count with `Inherits:` and
+   `-Trait:` resolved gives 37 actors carrying both traits with an explicit list. The figure is
+   incidental to the claim, which holds.
