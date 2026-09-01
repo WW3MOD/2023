@@ -14,31 +14,6 @@ World:
 	LuaScript:
 		Scripts: test-helpers.lua, test-attackmove-dry-breaks-off.lua
 
-# PITFALL: the ResupplyBehavior pin below is what makes Actor.IsIdle mean anything here. Without it
-# this scenario measures the RESUPPLY DISPOSITION LAYER instead of the ammo guard it is named after,
-# and reports the guard broken while the guard is working. It went red exactly that way on
-# 2026-09-01; the diagnosis is in WORKSPACE/bugs/discovered.md under that date.
-#
-# The chain, because it is not visible from the Lua. The guards under test (Activities/Attack.cs and
-# Move/AttackMoveActivity.cs, both `if (AmmoPool.CannotFight(self))`) end the attack activity, which
-# is the whole subject of this test. Ending it drops the actor to CurrentActivity == null for an
-# instant, and Actor.Tick raises INotifyBecomingIdle on that edge (Actor.cs:321-325). AmmoPool
-# answers that notification with AutoRearmIfDry, which picks a disposition from ResupplyBehavior --
-# and under `Auto`, with no rearm host anywhere on this map, SupplyHuntMath.DecideAutoDisposition
-# returns Evacuate (SupplyHuntMath.cs:296) and AmmoPool queues RotateToEdge. Actor.Tick then runs
-# that newly queued activity IN THE SAME TICK, deliberately, "to avoid an 'empty' null tick"
-# (Actor.cs:323-325). So IsIdle is never observable as true from Lua, and the man walks off the map
-# instead -- correct behaviour under the 2026-08-27 evacuate-fallback ruling, seventeen days AFTER
-# this scenario was written against the older "hold and flag" behaviour.
-#
-# `Hold` is the disposition that queues nothing at all (AmmoPool.cs, `case ResupplyBehavior.Hold`:
-# flag NeedsResupply and return). The unit therefore stays idle once the guard releases it, and
-# IsIdle is a faithful proxy for "the attack order was dropped" again.
-#
-# Pinning rather than re-pointing the assertion is deliberate: the disposition layer has its own
-# coverage (NUnit ResupplyAutoFallbackTest, plus the evacuation scenarios), and a test named
-# `...-dry-breaks-off` should fail when and only when the break-off guard fails. Asserting on
-# evacuation here would re-couple it to a policy that has already moved once.
 ^Combatant:
 	AutoTarget:
 		ScanRadius: 30
@@ -48,5 +23,3 @@ World:
 		InitialEngagementStanceAI: Defensive
 		MinimumScanTimeInterval: 16
 		MaximumScanTimeInterval: 32
-		InitialResupplyBehavior: Hold
-		InitialResupplyBehaviorAI: Hold

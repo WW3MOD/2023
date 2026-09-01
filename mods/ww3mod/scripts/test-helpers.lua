@@ -65,6 +65,13 @@ end
 --     string "fail: <reason>" to Fail immediately with that reason.
 --   * If the harness isn't active (TestMode off), the polling still runs
 --     but the eventual Pass/Fail are no-ops, so this is safe in regular maps.
+--   * `timeoutReason` may be a STRING or a FUNCTION returning one. The function form is
+--     evaluated once, at the moment of timeout, so the note can report end-of-run state
+--     (position, activity chain, counters) that no string built at setup time could carry.
+--     This matters more than it sounds: a verdict saying only "the unit never went idle" is
+--     compatible with opposite root causes, and diagnosing that by reading code instead has
+--     already produced one published wrong answer (WORKSPACE/bugs/discovered.md 2026-09-01).
+--     Every pre-existing caller passes a string and is unaffected.
 function TestHarness.AssertWithin(seconds, predicate, timeoutReason)
 	local timeoutTicks = math.floor(seconds * TestHarness.TicksPerSecond)
 	local elapsed = 0
@@ -81,7 +88,9 @@ function TestHarness.AssertWithin(seconds, predicate, timeoutReason)
 		end
 		elapsed = elapsed + 1
 		if elapsed >= timeoutTicks then
-			Test.Fail(timeoutReason or ("AssertWithin timed out after " .. seconds .. "s"))
+			local reason = timeoutReason
+			if type(reason) == "function" then reason = reason() end
+			Test.Fail(reason or ("AssertWithin timed out after " .. seconds .. "s"))
 			return
 		end
 		Trigger.AfterDelay(1, check)

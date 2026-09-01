@@ -23,7 +23,15 @@
 local DeadlineSeconds = 15
 local DrainAfterTicks = 25 -- 1s; the tank still has ~3 cells to close before it could fire
 
+-- DIAGNOSTIC STATE — see the twin (test-attackmove-dry-breaks-off) for the reasoning. Short form:
+-- "it never went idle" does not say WHETHER the attack activity refused to end or ended and was
+-- immediately replaced, and those two want opposite fixes.
+local idleTicks, firstIdleTick, startX = 0, -1, -1
+local actOrder, actSeen = {}, {}
+
 WorldLoaded = function()
+	print("[dry-breaks-off] WorldLoaded: script is executing")
+
 	TestHarness.FocusBetween(Gunner, Target)
 	TestHarness.Select(Gunner)
 
@@ -36,6 +44,8 @@ WorldLoaded = function()
 		if not Gunner.IsDead then
 			Gunner.Reload("primary-ammo", -Gunner.MaximumAmmoCount("primary-ammo"))
 		end
+		print(string.format("[dry-breaks-off] drained at tick %d: Gunner ammo=%d act=%s",
+			DateTime.GameTime, Gunner.AmmoCount("primary-ammo"), Test.ActivityChain(Gunner)))
 	end)
 
 	TestHarness.AssertWithin(DeadlineSeconds, function()
@@ -46,6 +56,25 @@ WorldLoaded = function()
 		-- order latency rather than about ammo.
 		if Gunner.AmmoCount("primary-ammo") > 0 then return false end
 
+		if startX < 0 then startX = Gunner.Location.X end
+		if Gunner.IsIdle then
+			idleTicks = idleTicks + 1
+			if firstIdleTick < 0 then firstIdleTick = DateTime.GameTime end
+		end
+
+		local chain = Test.ActivityChain(Gunner)
+		if actSeen[chain] == nil then
+			actSeen[chain] = true
+			actOrder[#actOrder + 1] = chain
+		end
+
 		return Gunner.IsIdle
-	end, "Dry Abrams never went idle: it held a direct attack order it could not carry out")
+	end, function()
+		return string.format(
+			"Dry Abrams never went idle: it held a direct attack order it could not carry out "
+			.. "|| Gunner cell=(%d,%d) startX=%d ammo=%d cannotFight=%s idle=%s idleTicks=%d acts=[%s]",
+			Gunner.Location.X, Gunner.Location.Y, startX,
+			Gunner.AmmoCount("primary-ammo"), tostring(Test.CannotFight(Gunner)),
+			tostring(Gunner.IsIdle), idleTicks, table.concat(actOrder, " ~ "))
+	end)
 end

@@ -22,20 +22,6 @@ World:
 # tank's scan range collapses to zero — see WORKSPACE/DISCOVERIES.md 2026-08-11. Pinning it is also
 # not an unshipped configuration: arena-tank-duel, river-zeta-ww3 and shellmap-open-field all pin
 # ScanRadius map-locally for the same reason.
-#
-# ResupplyBehavior is pinned to Hold for the same reason as the attack-move twin, and the full
-# explanation lives there (test-attackmove-dry-breaks-off/rules.yaml). Short form: under the default
-# `Auto`, a wholly dry unit with no rearm host on the map is sent to EVACUATE the instant the ammo
-# guard releases it, which re-queues an activity in the SAME TICK (Actor.cs:323-325) and makes
-# Actor.IsIdle unobservable -- so the scenario would report the guard broken while the guard works.
-# The abrams here is exactly that case: a single pool (primary-ammo) and `RearmActors:
-# logisticscenter`, with no Logistics Centre placed on the map.
-#
-# EVIDENCE ASYMMETRY, stated because the twin's is stronger. The twin was OBSERVED red on 2026-09-01
-# and then diagnosed. This scenario was NOT run: it is predicted red by reading the identical
-# mechanism off identical inputs. The pin is safe either way -- Hold queues strictly less than Auto,
-# so a unit that reached idle before still reaches it -- but if this was GREEN before this change,
-# the prediction was wrong and the diagnosis in discovered.md wants revisiting.
 ^Combatant:
 	AutoTarget:
 		ScanRadius: 40
@@ -45,5 +31,3 @@ World:
 		InitialEngagementStanceAI: Defensive
 		MinimumScanTimeInterval: 16
 		MaximumScanTimeInterval: 32
-		InitialResupplyBehavior: Hold
-		InitialResupplyBehaviorAI: Hold

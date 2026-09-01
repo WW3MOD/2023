@@ -894,6 +894,48 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return cells.ToArray();
 		}
 
+		[Desc("`actor`'s activity queue as a string, for putting in a failure message. Format is " +
+			"\"Parent>Child>Grandchild | Next>...\": the '>' chain is CurrentActivity and its CHILDREN " +
+			"(Activity.DebugLabelComponents), and '|' separates queued NextActivity entries. Returns " +
+			"\"(idle)\" when CurrentActivity is null — which is exactly Actor.IsIdle, so this is the " +
+			"strictly more informative version of asserting on IsIdle. " +
+			"WHY THIS EXISTS: an autotest that reports \"the unit never went idle\" cannot say WHY, and " +
+			"the two explanations demand opposite fixes — an attack activity that refuses to end is an " +
+			"engine bug, while a Move or RotateToEdge means the order DID end and something re-tasked " +
+			"the unit afterwards. Distinguishing those by reading code has already produced one " +
+			"confident wrong answer (WORKSPACE/bugs/discovered.md, 2026-09-01). Name the activity in " +
+			"the verdict instead of inferring it. Truncated at 8 queue entries so a runaway queue " +
+			"cannot flood result.json. Test mode only.")]
+		public string ActivityChain(Actor actor)
+		{
+			if (!TestMode.IsActive || actor == null)
+				return "";
+
+			if (actor.CurrentActivity == null)
+				return "(idle)";
+
+			var queued = new List<string>();
+			for (var a = actor.CurrentActivity; a != null && queued.Count < 8; a = a.NextActivity)
+				queued.Add(string.Join(">", a.DebugLabelComponents()) + (a.IsCanceling ? "(cancelling)" : ""));
+
+			return string.Join(" | ", queued);
+		}
+
+		[Desc("AmmoPool.CannotFight(actor) — \"this actor must not be holding an attack order\", i.e. " +
+			"every pool empty on a non-aircraft. This is the exact predicate the ammo guards in " +
+			"Activities/Attack.cs and Move/AttackMoveActivity.cs branch on, so reporting it in a " +
+			"failure message answers \"did the guard's condition even hold?\" without inferring it from " +
+			"an ammo count. The two are NOT the same question on a multi-pool actor: CannotFight needs " +
+			"EVERY pool empty, so draining one pool from Lua can leave it false while AmmoCount reads " +
+			"zero for the pool that was drained. Test mode only.")]
+		public bool CannotFight(Actor actor)
+		{
+			if (!TestMode.IsActive || actor == null)
+				return false;
+
+			return AmmoPool.CannotFight(actor);
+		}
+
 		[Desc("Issue the deploy order that the command bar's Deploy button — and its hotkey — produce, " +
 			"through IIssueDeployOrder exactly as CommandBarLogic.PerformDeployOrderOnSelection does. " +
 			"`queued` is the Shift modifier. There is no activity-direct equivalent worth using here: " +
