@@ -30,7 +30,11 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly BitSet<TargetableType> UseEnemyLocationTargetTypes = default;
 
 		[ActorReference(typeof(MinelayerInfo))]
-		[Desc("Actors with " + nameof(Minelayer) + "trait.")]
+		[Desc("Actors with " + nameof(Minelayer) + " trait that this module is allowed to task.",
+			"EMPTY (the default) means EVERY actor carrying the trait, which is the upstream behaviour.",
+			"Set it whenever the trait is shared with a unit whose mines are a secondary payload: in WW3MOD",
+			"^E6 engineers carry Minelayer over the same AmmoPool that Demolition spends, so an unset list",
+			"spends the demolition charges laying mines and walks non-combat support into a contested lane.")]
 		public readonly HashSet<string> MinelayingActorTypes = default;
 
 		[Desc("Find this amount of suitable actors and lay mine to a location.")]
@@ -57,6 +61,18 @@ namespace OpenRA.Mods.Common.Traits
 			"If favorite minefield positions is at the max of 5, we always merge it to closest regardless of this")]
 		public readonly int FavoritePositionDistance = 6;
 
+		[Desc("Pick the cold-start minefield location from the strategic anchors " + nameof(PoiMap) + " scores",
+			"(enemy Supply Route first, then enemy income/utility) instead of from a random enemy actor.",
+			"FALSE (the default) keeps the upstream behaviour byte-for-byte.",
+			"WHY THIS EXISTS: the upstream cold start reads world.Actors directly, which is an omniscient",
+			"scan the fog-respecting profiles forbid — and it is ALSO self-defeating, because Minelayer's",
+			"own order handler filters the field to cells the owner has explored, so a target chosen through",
+			"fog lays nothing at all and reports no error. A random enemy is not a lane either: it is re-drawn",
+			"every ScanTick, so consecutive scans point down different corridors.",
+			"FAILS CLOSED: with this set and no PoiMap or no anchor, the cold start is SKIPPED rather than",
+			"falling back to the omniscient scan — an unreachable module beats a cheating one.")]
+		public readonly bool StrategicAnchorColdStart = false;
+
 		public override object Create(ActorInitializer init) { return new MinelayerBotModule(init.Self, this); }
 	}
 
@@ -79,6 +95,7 @@ namespace OpenRA.Mods.Common.Traits
 		int alertedTicks;
 
 		PathFinder pathFinder;
+		PoiMap poiMap;
 
 		public MinelayerBotModule(Actor self, MinelayerBotModuleInfo info)
 		: base(info)
@@ -100,6 +117,48 @@ namespace OpenRA.Mods.Common.Traits
 			favoritePositionsLength = 0;
 			currentFavoritePositionIndex = 0;
 			pathFinder = self.World.WorldActor.Trait<PathFinder>();
+
+			// TraitOrDefault, not Trait: PoiMap is a WW3MOD experimental-stack trait and this module must
+			// still load on a world that has none. StrategicAnchorColdStart is what decides whether a
+			// missing one is fatal to the cold start, not this lookup.
+			poiMap = self.World.WorldActor.TraitOrDefault<PoiMap>();
+		}
+
+		// The minelayers this module is allowed to task. An empty MinelayingActorTypes means "every actor
+		// carrying the trait" (upstream behaviour); a populated one is a whitelist.
+		TraitPair<Minelayer>[] AvailableMinelayers()
+		{
+			return world.ActorsWithTrait<Minelayer>()
+				.Where(at => !unitCannotBeOrderedOrIsBusy(at.Actor)
+					&& (Info.MinelayingActorTypes == null || Info.MinelayingActorTypes.Count == 0
+						|| Info.MinelayingActorTypes.Contains(at.Actor.Info.Name)))
+				.ToArray();
+		}
+
+		// The cold-start target: where to aim when nothing has been fought over yet. Returns null when there
+		// is no legal target, and the caller then lays nothing this scan.
+		CPos? ColdStartTargetCell()
+		{
+			if (!Info.StrategicAnchorColdStart)
+			{
+				// Upstream: a random enemy actor, read straight off world.Actors.
+				var enemies = world.Actors.Where(a => IsPreferredEnemyUnit(a)).ToArray();
+				return enemies.Length == 0 ? null : enemies.Random(world.LocalRandom).Location;
+			}
+
+			if (poiMap == null)
+				return null;
+
+			// Mirrors LaneAmbushBotModule's anchor selection exactly, including suppressOmniscientThreat:
+			// the anchor POSITIONS are public map facts, but the threat term sampled at them is not.
+			// Enemy Supply Routes (Pressure) are the reinforcement sources and so the corridors worth
+			// mining; enemy income/utility (Attack) is the fallback before any SR is an offensive target.
+			var offensive = poiMap.GetOffensiveTargets(player, suppressOmniscientThreat: true);
+			var anchor = offensive.FirstOrDefault(p => p.Action == PoiAction.Pressure);
+			if (anchor.Actor == null)
+				anchor = offensive.FirstOrDefault(p => p.Action == PoiAction.Attack);
+
+			return anchor.Actor == null ? null : anchor.Location;
 		}
 
 		void IBotTick.BotTick(IBot bot)
@@ -136,20 +195,20 @@ namespace OpenRA.Mods.Common.Traits
 					// we will try find a location that at the middle of pathfinding cells
 					if (favoritePositionsLength == 0)
 					{
-						minelayers = world.ActorsWithTrait<Minelayer>().Where(at => !unitCannotBeOrderedOrIsBusy(at.Actor)).ToArray();
+						minelayers = AvailableMinelayers();
 						if (minelayers.Length == 0)
 							return;
 
-						var enemies = world.Actors.Where(a => IsPreferredEnemyUnit(a)).ToArray();
-						if (enemies.Length == 0)
+						// Ordering is load-bearing for RNG parity: on the default path this is where the
+						// enemy draw happens, and it must stay AFTER the empty-pool return above.
+						var coldStart = ColdStartTargetCell();
+						if (coldStart == null)
 							return;
-
-						var enemy = enemies.Random(world.LocalRandom);
 
 						foreach (var minelayer in minelayers)
 						{
 							var cells = pathFinder.FindPathToTargetCell(
-								minelayer.Actor, new[] { minelayer.Actor.Location }, enemy.Location, BlockedByActor.Immovable, laneBias: false);
+								minelayer.Actor, new[] { minelayer.Actor.Location }, coldStart.Value, BlockedByActor.Immovable, laneBias: false);
 							if (cells != null && cells.Count != 0)
 							{
 								AIUtils.BotDebug($"{player}: try find a location to lay mine.");
@@ -184,7 +243,7 @@ namespace OpenRA.Mods.Common.Traits
 					}
 				}
 
-				minelayers ??= world.ActorsWithTrait<Minelayer>().Where(at => !unitCannotBeOrderedOrIsBusy(at.Actor)).ToArray();
+				minelayers ??= AvailableMinelayers();
 
 				if (minelayers.Length == 0)
 					return;
