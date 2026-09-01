@@ -1,0 +1,151 @@
+MINIMAP STANCE SHADES -- can a reader separate five enemy reds at real minimap scale?
+
+WHAT THIS ANSWERS, AND WHAT IT DOES NOT
+=======================================
+Player stance colours give every player in a relationship band its own lightness step of
+that band's colour. Whether the numbers are right is settled: RelationshipShadeTest.cs
+pins the step schedule, the light-to-dark order, the no-collision property and the
+hue-preservation property. This scenario adds the one thing arithmetic cannot supply --
+whether a human looking at a 220x220 minimap panel sees five enemies or three.
+
+It grades nothing. The verdict is Test.Skip and the deliverable is one PNG.
+
+THE BAND HERE HOLDS FIVE, NOT FOUR -- READ THE INFERENCE CAREFULLY
+=================================================================
+The map has six mutually hostile players: the viewer plus five enemies. The viewer's
+Enemies band therefore has count 5, and the step is 0.11 lightness, not the 0.12 that a
+band of four (or fewer) gets.
+
+That makes this the HARDER case, and the inference is one-directional:
+
+  * If all five separate cleanly, a band of four separates too -- its steps are wider.
+    The four-red question is then answered yes and needs no second run.
+
+  * If a pair blurs, that does NOT condemn the four-player case, because 0.12 > 0.11.
+    It needs a second run with one enemy removed. That is a six-line edit to map.yaml
+    (delete PlayerReference@Enemy5, delete its Enemies entry from the other five, drop
+    its markers) and a re-run; nothing else in the scenario changes.
+
+EXPECTED COLOURS
+================
+Base FF0000 (metrics.yaml:18 PlayerStanceColorEnemies) through RelationshipShade.Shade at
+count 5, index 0 lightest:
+
+  Enemy1  L 0.72  RGB 255,112,112     Viewer   RGB  30,144,255  (Self band, count 1)
+  Enemy2  L 0.61  RGB 255, 56, 56     Neutral  RGB 210,180,140  (Neutrals band, count 1)
+  Enemy3  L 0.50  RGB 255,  0,  0
+  Enemy4  L 0.39  RGB 199,  0,  0
+  Enemy5  L 0.28  RGB 143,  0,  0
+
+The ramp is uniform in lightness but NOT in appearance. Enemy1->Enemy2->Enemy3 move green
+and blue together (a wash from pink toward pure red); Enemy3->Enemy4->Enemy5 move red
+alone. The lower half is the harder half: two fully-saturated darker reds 56 apart on a
+single channel. If anything blurs, expect it there.
+
+Index order follows World.Players, which CreateMapPlayers.cs:92 fills with the
+non-Playable map players first in map-declaration order -- so Enemy1..Enemy5 rank in the
+order they appear in map.yaml. The blocks are laid out in that same order, so the ramp
+should read monotonically lightest-to-darkest left to right. A SHUFFLED ramp is itself a
+result: the colours are all present and distinct, but the declaration-order assumption is
+wrong and the block-to-player mapping below cannot be used.
+
+FINDING THE PIXELS
+==================
+The minimap sits in the sidebar container at X: WINDOW_WIDTH - 250, Y: 10
+(ingame-player.yaml), holding Image@MINIMAP_IMAGE at +8,+40 and MiniMap@MINIMAP at +1,+1,
+220x220. So the panel's top-left corner P is:
+
+  P = (WINDOW_WIDTH - 241, 51)
+
+The map is drawn letterboxed inside it. Bounds are 96x80, so
+previewScale = min(220/96, 220/80) = 2.2917 px/cell, the drawn rect is 220x183 and the
+vertical offset is (220-183)/2 = 18. The map image's top-left corner M is:
+
+  M = P + (0, 18) = (WINDOW_WIDTH - 241, 69)
+  cell (cx,cy)  ->  M + ((cx-1) * 2.2917, (cy-1) * 2.2917)
+
+FIRST, CHECK THE SCALE. Measure the panel's width in the PNG. If it is not 220 px, the
+game is running at a UIScale other than 1 and EVERY offset below must be multiplied by
+(measured width / 220). Do this before reading anything off the table.
+
+MapSize and Bounds are copied from river-zeta-ww3 exactly (98,82 and 1,1,96,80) so that
+px-per-cell here is identical to the mod's canonical six-player map. A unit is 2.3 px.
+That fidelity is the whole reason the map is this size; a smaller map would have made
+every dot bigger than it will ever be in a real match and overstated legibility.
+
+ARM A -- REFERENCE BLOCKS, offsets from M
+=========================================
+Seven 5x5-cell blocks (11.5 px square) on cells y8..y12, i.e. y [16, 28) from M.
+
+  block          owner     x from M        expected RGB
+  1              Viewer    [ 41,  53)      30,144,255   blue
+  2              Enemy1    [ 62,  73)      255,112,112
+  3              Enemy2    [ 83,  94)      255, 56, 56
+  4              Enemy3    [103, 115)      255,  0,  0
+  5              Enemy4    [124, 135)      199,  0,  0
+  6              Enemy5    [144, 156)      143,  0,  0
+  7              Neutral   [165, 176)      210,180,140  tan
+
+These are large enough to read a mean RGB off reliably; sample the central ~6x6 px of each
+and compare with the table. This arm is the CALIBRATION, not the question -- 11 px patches
+would be legible at almost any step size. Its job is to prove the six colours are present
+and correctly ordered, so that a blur in Arm B is a perceptual finding rather than a
+broken setup.
+
+ARM B -- THE ACTUAL QUESTION, single cells at 2.3 px, offsets from M
+===================================================================
+  row 1   y [48, 51)   five dots, ramp order      x = 80, 89, 99, 108, 117
+                       owners Enemy1,2,3,4,5 left to right
+  row 2   y [62, 64)   the same five, REVERSED    x = 80, 89, 99, 108, 117
+                       owners Enemy5,4,3,2,1 left to right
+  row 3   y [76, 78)   four TOUCHING pairs        x = 76, 94, 112, 131 (each 4.6 px wide)
+                       pairs (E1,E2) (E2,E3) (E3,E4) (E4,E5), left dot lighter
+
+Row 2 exists so the answer cannot come from position: if a reader claims to see five
+distinct dots in row 1 but cannot order row 2 the same way, they are reading the ramp's
+layout rather than its colours. Row 3 is the worst case the scheme has to survive -- two
+2.3 px dots one step apart with no gap between them.
+
+WHAT COUNTS AS AN ANSWER
+========================
+For each adjacent pair, in rows 1 and 2 independently:
+
+  DISTINGUISHABLE -- the two dots read as different reds at a glance, without looking
+                     across at the Arm A blocks to check.
+  BLURRED         -- they read as the same red, and only the block ramp reveals a
+                     difference.
+
+The useful output is not a verdict but a LIST: which pairs blurred, in which row, and
+whether row 3's touching version of the same pair was worse. Expect (E3,E4) and (E4,E5)
+to be the candidates.
+
+TWO WAYS THE IMAGE IS NOT EVIDENCE
+==================================
+1. RAINBOW BLOCKS. Every player's base Color in map.yaml is a deliberate non-red rainbow
+   (cyan, magenta, yellow, orange, purple, green, grey). AppearsOnMiniMap.cs:48 falls back
+   to Owner.Color when UsePlayerStanceColors is false, so a rainbow means the launch arg
+   did not take. No Lua binding reads that setting; this is how the frame reports it.
+
+2. A "SETUP IS SUSPECT" SKIP MESSAGE in result.json. The run checks the marker count for
+   every owner and reads MapLayers.GetVisibility -- the same function the shroud overlay
+   samples -- at fifteen cells. Either failing means the frame is missing dots or is being
+   darkened unevenly, and no colour may be read off it.
+
+Also check the file size. An almost-flat PNG compresses to ~59 KB against ~1.6 MB for a
+real frame; a blank capture is the one failure here that produces a confident wrong answer
+rather than an obvious one.
+
+HOW TO RUN
+==========
+  AUTOTEST_EXTRA_ARGS='Game.UsePlayerStanceColors=true' \
+      ./tools/autotest/run-test.sh test-minimap-stance-shades
+
+run-test.sh:735 splices AUTOTEST_EXTRA_ARGS unquoted into the launcher argv and
+Settings.cs:401-404 overrides any <Section>.<Field> from there; UsePlayerStanceColors is a
+field of the Game section (Settings.cs:287) and ships false, so the arg is REQUIRED.
+
+DO NOT PASS Test.KeepRenderPlayer=true. Unlike test-fog-darkness-ruler, which needs it,
+this scenario depends on the harness's default of nulling RenderPlayer: that is what makes
+World.cs:109 FogObscures return false and lets MiniMapWidget.cs:419 keep every player's
+signature cells in the actor layer. With a render player restored, the frame would show
+only what the viewer can see and would look exactly like a colour result.
