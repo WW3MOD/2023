@@ -348,8 +348,10 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			"is the ONLY way to reach the CommandBarLogic MODIFIER_OVERRIDES rescue path, because a " +
 			"Shift-bearing event does not match an unshifted binding and ButtonWidget.HandleKeyPress " +
 			"rejects it before OnKeyPress. Note that this does NOT update Game.GetModifierKeys(), so a " +
-			"button reading global modifier state instead of its KeyInput sees no Shift here. " +
-			"Returns true if a widget consumed it. Test mode only.")]
+			"button reading global modifier state instead of its KeyInput sees no Shift here — but a " +
+			"command-bar MODE is still reachable, because its OnClick sets a sticky " +
+			"ForceModifiersOrderGenerator that IsForceModifiersActive matches without consulting the " +
+			"live modifier keys. Returns true if a widget consumed it. Test mode only.")]
 		public bool PressHotkey(string hotkeyName, bool shift = false)
 		{
 			if (!TestMode.IsActive)
@@ -359,13 +361,23 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (!hotkey.IsValid())
 				return false;
 
-			return Ui.HandleKeyPress(new KeyInput
+			var input = new KeyInput
 			{
 				Event = KeyInputEvent.Down,
 				Key = hotkey.Key,
 				Modifiers = shift ? hotkey.Modifiers | Modifiers.Shift : hotkey.Modifiers,
 				MultiTapCount = 1,
-			});
+			};
+
+			// Lua runs inside the synced world tick, and dispatching a keypress bare from there is not
+			// what a real key does: DefaultInputHandler.OnKeyInput (InputHandler.cs:40) wraps this very
+			// same Ui.HandleKeyPress call in Sync.RunUnsynced, and it is that wrapper which permits a
+			// handler to touch client-only state. Without it every command-bar MODE — each one sets
+			// World.OrderGenerator — died on AssertUnsynced instead of engaging, which made all six
+			// unreachable from any autotest. Deliberately the same overload the input handler uses, so
+			// the sync-hash guard still runs: a hotkey that mutates simulation state fails loudly here
+			// exactly as it would for a player pressing the key.
+			return Sync.RunUnsynced(Context.World, () => Ui.HandleKeyPress(input));
 		}
 
 		[Desc("Replace the local player's selection with ALL of `actors`. UserInterface.Select takes a " +
