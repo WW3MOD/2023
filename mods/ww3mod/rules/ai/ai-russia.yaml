@@ -91,6 +91,12 @@ Player:
 			giatsint: 15
 			tunguska: 10
 			grad: 10
+			# Minelayer — mirror of ai-america.yaml, where the argument lives. Short version: mnly is
+			# absent from UnitTargetShares, so under CompositionDirected it is reachable only through
+			# the FLOOR lane, and ChooseBelowFloor gates on UnitsToBuild membership. Without this line
+			# the floor entry below is inert. MNLY carries no faction prerequisite (vehicles.yaml:494 —
+			# `~techlevel.medium` only), so both twins field the same unit.
+			mnly: 10
 
 			# Supply trucks for field resupply (need-gated below)
 			truk: 20
@@ -108,6 +114,10 @@ Player:
 			# User ruling 2026-08-27: "just a couple or so is enough usually". Hard ceiling behind the
 			# floor cap; both are 2 so the floor is the only thing that moves.
 			dr.russia: 2
+			# ONE minelayer, ever — mirror of ai-america.yaml. Erring low: 600 is not a cheap
+			# specialist, the module commits at most one unit per field, and no live match has shown
+			# what a second would add.
+			mnly: 1
 		# ===== STANDING-POPULATION FLOORS (experimental-only; C# default is unset) =====
 		# Mirror of the America block — see ai-america.yaml for the full measurement. Short version: a
 		# per-mille-of-VALUE target cannot hold a small type on the map (one medic is already 34 per-mille of
@@ -121,6 +131,13 @@ Player:
 		UnitFloors:
 			medi.russia: 2
 			aa.russia: 2
+			# Minelayer — FLAT, no UnitFloorPer, held off by UnitDelays instead. The aa.russia pattern,
+			# not the medi/dr one. Full argument in ai-america.yaml: one minelayer is enough at any
+			# army size, so a per-N-soldiers denominator would be a number invented purely to act as an
+			# opening-buy guard, and a mis-set denominator is precisely how this file has twice shipped
+			# a floor that silently never fires. ORDINAL: aa < dr < medi < mnly, so the minelayer is the
+			# last of the four bought when several are short at once.
+			mnly: 1
 			# Drone operator — "they make none" is a FLOOR problem, not a weight problem. Cap, not
 			# target; the ratio below decides when it actually engages.
 			dr.russia: 2
@@ -177,6 +194,12 @@ Player:
 		# contact).
 		UnitDelays:
 			aa.russia: 2000
+			# Minelayer — mirror of ai-america.yaml, where the reasoning lives. Flagged here too because
+			# it matters: unlike the aa.russia figure above, 3000 is a REASONED ESTIMATE and not a
+			# derivation. No bot has ever fielded a minelayer. It exists because the floor above is
+			# flat, and a flat floor pre-empt outranks every gate — so without it a 600-cost minelayer
+			# would be a guaranteed opening call-in ahead of line infantry.
+			mnly: 3000
 			# Platoon-start guard for the drone operator — mirror of ai-america.yaml, where the full
 			# argument lives. Short version: UnitDelays is an absolute world-tick opening consulted by
 			# the floor lane too (UnitBuilderBotModule.cs:1302), and it is the only instrument that can
