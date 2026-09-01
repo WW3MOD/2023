@@ -21,6 +21,13 @@ namespace OpenRA.Mods.Common.Traits
 		[PaletteReference]
 		public readonly string FogPalette = "fog";
 		public readonly BlendMode ShroudBlend = BlendMode.Alpha;
+
+		[Desc("Multiplier on the alpha of every FOG layer (visibility 1-9). 1 is the engine baseline.",
+			"Does not touch the shroud layer (visibility 0), which stays fully opaque black.",
+			"Raising this darkens explored-but-unseen ground without touching fully visible ground,",
+			"which is visibility 10 and draws no fog layer at all.")]
+		public readonly float FogDarkness = 1f;
+
 		public override object Create(ActorInitializer init) { return new ShroudRenderer(init.World, this); }
 	}
 
@@ -266,7 +273,19 @@ namespace OpenRA.Mods.Common.Traits
 			UpdateShroud(new ProjectedCellRegion(map, new PPos(0, 0), new PPos(map.MapSize.X - 1, map.MapSize.Y - 1)));
 		}
 
-		static float Alpha(int index)
+		// Vertex alpha for one layer of the shroud/fog stack. The shader multiplies this by the
+		// layer's palette colour (combined.frag: "c *= vTint"), so the alpha that actually reaches
+		// the framebuffer is this value times the fog palette's own alpha — 160/255 for the solid
+		// tile, whose every pixel is palette index 12 and so resolves through MapLayersPalettes'
+		// eight-colour cycle to FogColors[4] = ARGB(160,0,0,0).
+		//
+		// Index 0 is SHROUD, not fog: it is left at 1 and unscaled so unexplored ground stays fully
+		// opaque black. Only 1..9 are fog layers, and a cell at visibility v draws every layer from
+		// v to 9, so the darkening compounds towards the low-visibility end.
+		//
+		// PITFALL: WorldRenderer.DrawBeyondMapActorFog carries a second copy of this curve for the
+		// strip outside the map grid. Change one and you must change the other.
+		public static float LayerAlpha(int index, float fogDarkness)
 		{
 			var alpha = 1f;
 
@@ -274,9 +293,14 @@ namespace OpenRA.Mods.Common.Traits
 				alpha -= (index - 1) * (1f / 12);
 
 			if (index > 0)
-				alpha /= 3;
+				alpha = Math.Min(alpha * fogDarkness / 3, 1f);
 
 			return alpha;
+		}
+
+		float Alpha(int index)
+		{
+			return LayerAlpha(index, info.FogDarkness);
 		}
 
 		void UpdateShroud(IEnumerable<PPos> region)
@@ -360,6 +384,8 @@ namespace OpenRA.Mods.Common.Traits
 
 			terrainSpriteLayer.Update(uv, sprite, paletteReference, pos, 1f, alpha, true);
 		}
+
+		float IRenderShroud.FogDarkness => info.FogDarkness;
 
 		void IRenderShroud.RenderShroud(WorldRenderer wr)
 		{
