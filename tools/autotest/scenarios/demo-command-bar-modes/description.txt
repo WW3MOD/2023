@@ -1,0 +1,1 @@
+Eyeball whether a HELD command-bar mode marks its glyph as well as its panel: four captures with nothing, Attack Move, Guard and Patrol engaged. Shot 04 is the discriminating one — Patrol and Auto-Enter draw the same glyph side by side, and only Patrol should be amber.
