@@ -1,0 +1,100 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: husk facing while it finishes a corner
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# A vehicle killed mid-move keeps dragging to the centre of the cell it had already reserved. On a
+# STRAIGHT leg the facing it died with already points down that drag, so nothing looks wrong -- which
+# is why this scenario turns. Part-way through a turn the facing a unit dies holding is the arc
+# tangent, aimed at the cell it is leaving, while the husk's drag runs straight to a cell it never
+# entered. That gap is the sideways slide.
+#
+# Each lane gets ONE Move order to a diagonal-offset destination, so the turn happens inside a single
+# path -- two queued Moves would settle the unit on the waypoint and turn it in place, producing no arc
+# at all. Lanes A/B/C die at three different offsets into that turn rather than one, because a single
+# offset is a bet that the chosen tick lands inside an arc lasting about twenty ticks, and a run slot
+# is too expensive to bet.
+#
+# Lane D is the control, on a dead-straight east course where the fix must be a no-op. It is the lane
+# that can catch a regression rather than confirm the fix, and the regression it catches would be more
+# visible to players than the bug being fixed. Read it first.
+#
+# Rows are spread and the lanes are staggered in time so that no lane drives into an earlier lane's
+# husk, and so the camera can snap to whichever truck is dying.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 3,3
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 62,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,3
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 62,30
+
+	# Three supply trucks, one per lane. Facing 768 is East (WAngle is counterclockwise), so each
+	# starts already pointing down its straight leg and the only turn in the run is the corner.
+	TruckA: truk
+		Owner: USA
+		Location: 14,6
+		Facing: 768
+	TruckB: truk
+		Owner: USA
+		Location: 14,14
+		Facing: 768
+	TruckC: truk
+		Owner: USA
+		Location: 14,22
+		Facing: 768
+
+	# CONTROL LANE. A dead-straight east course with no turn anywhere in it, killed mid-leg at full
+	# speed. This is the arm that can catch a regression rather than the reported bug: if
+	# SmoothSegmentTarget is corner-cutting the living unit's path while the husk drag always aims at
+	# the cell centre, then the facing correction is not a no-op on an ordinary straight-leg kill and
+	# shows up as a facing POP at the moment of death -- which players would see far more often than
+	# the corner case that was actually reported. Expect crab=0 here and no visible rotation. The Lua
+	# shouts in lua.log if the pathfinder turns this lane, because then it is not a control at all.
+	TruckD: truk
+		Owner: USA
+		Location: 14,29
+		Facing: 768
+
+Rules: rules.yaml

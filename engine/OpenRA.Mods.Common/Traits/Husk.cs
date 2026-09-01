@@ -106,6 +106,28 @@ namespace OpenRA.Mods.Common.Traits
 			dragSpeed = init.GetValue<HuskSpeedInit, int>(0);
 			finalPosition = init.World.Map.CenterOfCell(TopLeft);
 
+			// Point the wreck down the line it is about to be dragged along. Without this it keeps the facing it
+			// died with, which on a corner is the tangent of the arc it was part-way through rather than the
+			// straight line to the reserved cell -- so the wreck slides sideways. The husk sprite replaces the
+			// living one on this same tick, so aligning here is hidden by a discontinuity that already happens.
+			var travel = finalPosition - CenterPosition;
+			var deathFacing = Facing;
+			var settled = HuskSettleGeometry.SettleFacing(travel, deathFacing);
+
+			if (dragSpeed > 0)
+				Facing = settled;
+
+			// `settled` is computed above the assignment so that reverting ONLY the assignment leaves a control
+			// arm that still reports the angle it would have used -- the crab is a measured number in both arms.
+			//
+			// `applied` is what makes the two arms DISTINGUISHABLE, and without it a green run proves nothing:
+			// every other field here is read before the assignment and so is byte-identical whether the fix is
+			// live or reverted. applied == settled means the fix ran; applied == deathFacing means it did not.
+			if (TestMode.IsActive)
+				Log.Write("debug", $"[husk-settle] travel=({travel.X},{travel.Y}) dragSpeed={dragSpeed} " +
+					$"deathFacing={deathFacing.Angle} settled={settled.Angle} " +
+					$"crab={HuskSettleGeometry.CrabAngle(travel, deathFacing)} applied={Facing.Angle}");
+
 			effectiveOwner = init.GetValue<EffectiveOwnerInit, Player>(info, self.Owner);
 		}
 
@@ -193,6 +215,39 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public HuskSpeedInit(int value)
 			: base(value) { }
+	}
+
+	public static class HuskSettleGeometry
+	{
+		// Which way a wreck should point while it finishes the move it died on. The husk's drag is a straight line,
+		// so one facing covers the whole slide. Picking the nearer of travel/travel+180 keeps a unit that died
+		// REVERSING pointing backwards instead of spinning it around (^WheeledVehicle sets CanMoveBackward), and
+		// makes this a no-op on a straight leg, where Move has already aligned facing with travel.
+		public static WAngle SettleFacing(WVec travel, WAngle deathFacing)
+		{
+			if (travel.HorizontalLengthSquared == 0)
+				return deathFacing;
+
+			var forward = travel.Yaw;
+			var reverse = new WAngle(forward.Angle + 512);
+
+			return AngleBetween(deathFacing, forward) <= AngleBetween(deathFacing, reverse) ? forward : reverse;
+		}
+
+		// How far off its direction of travel the wreck is pointing -- the sideways slide, as a number.
+		public static int CrabAngle(WVec travel, WAngle deathFacing)
+		{
+			if (travel.HorizontalLengthSquared == 0)
+				return 0;
+
+			return AngleBetween(deathFacing, SettleFacing(travel, deathFacing));
+		}
+
+		static int AngleBetween(WAngle a, WAngle b)
+		{
+			var raw = Math.Abs(a.Angle - b.Angle);
+			return raw > 512 ? 1024 - raw : raw;
+		}
 	}
 
 	public class DragAndCrush : Activity

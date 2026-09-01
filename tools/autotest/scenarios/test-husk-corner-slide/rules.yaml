@@ -1,0 +1,41 @@
+Player:
+	# Nothing here is contested, and the trucks all die on purpose. Without this the USA player is
+	# wiped the moment the last truck dies and the Mission-Accomplished overlay ends the match before
+	# the screenshot burst has flushed.
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+TRUK:
+	# INSTRUMENTATION, not balance. A map-placed supply truck spawns with a full load, and TRUK
+	# detonates in proportion to what it was carrying -- band 8 is the largest VolatileLoad weapon in
+	# the set. Measured on the 2026-09-01 RED run: the resulting fireball covers the wreck from about
+	# six ticks after death until well past the end of the slide, so the frames could show the husk's
+	# facing at the instant of death and at no point during the movement that is the entire subject of
+	# this test. An EMPTY truck has no Explodes at all (band 0 is deliberately silent), so this is a
+	# state the unit genuinely reaches in play -- a truck that has delivered its load -- and not a
+	# fictional one invented for the camera.
+	#
+	# None of these traits touch Mobile, Husk or facing; removing them changes what is DRAWN over the
+	# wreck and nothing about where it points or how it moves.
+	#
+	# The husk's own fuelburn animation (^Husk WithAddedAnimation) is deliberately LEFT IN: it is what
+	# the player actually sees in a real game, so if it alone still hides the slide, that is a finding
+	# about the reported bug's visibility and not an artefact of this scenario.
+	-Explodes@Band1:
+	-Explodes@Band2:
+	-Explodes@Band3:
+	-Explodes@Band4:
+	-Explodes@Band5:
+	-Explodes@Band6:
+	-Explodes@Band7:
+	-Explodes@Band8:
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-husk-corner-slide.lua

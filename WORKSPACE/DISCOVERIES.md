@@ -72,6 +72,89 @@ out of `.cmd` comments; the file now greps clean for them.
 > 4. **Tags live on a `> **[promoted]**` / `> **[rejected: …]**` line BELOW the heading, never in the heading itself.** A `grep '^## .*\[promoted\]'` returns zero and looks like a totally uncurated file. Match on the blockquote line.
 >
 > **If you fix this, fix it by picking one direction and migrating the smaller region** — do not leave both conventions documented as equally valid, or the next writer will keep choosing at random.
+## 2026-09-01 — A scenario must be shown to reach the STATE it tests, not merely to run and return a verdict (`wt/death-slide`)
+
+Fourth instance in one day of a single shape: **work that passes its own check without exercising the
+thing it claims to check.** The other three were an inert drone contact bonus whose test asserted
+`a > b` and was satisfied by two parts in twenty thousand; a Lua load abort that reports the same
+bare `fail` a real RED does; and a regression test that evaluated to a pass against the old code.
+
+The instance here. `test-husk-corner-slide` exists to catch a wreck crabbing sideways when its unit is
+killed **mid-corner**, and staged each lane with two queued `Move` orders — east to a waypoint, then
+south. **Two queued Moves do not produce a corner arc at all.** The first `Move` completes at its
+waypoint, the unit settles on the cell centre with `FromCell == ToCell`, and the second `Move` turns it
+in place before setting off (`Move.cs:209-215`). The arc — and with it the `ToCell` retargeting that
+*is* the bug — only happens between cells of ONE path, in `MoveFirstHalf`'s chained-turn branch
+(`Move.cs:709-722`). Three of the four lanes would have driven, stopped, turned, died and returned a
+clean green **having never cornered once.**
+
+Note what would NOT have caught it. The verdict was liveness-only and would have been honestly green.
+The screenshots would have shown wrecks, correctly settled, looking fine — because on a straight leg
+they *are* fine. Nothing in `result.json`, the frames or the log would have contradicted the story.
+The existing rules in [`AUTOTEST.md`](../DOCS/recipes/AUTOTEST.md) §"A green run is not evidence"
+don't reach it either: nothing fell back to a default, no control refused to go red, and no second
+mechanism satisfied the predicate. The setup was simply never in the state under test.
+
+**So the question to add to that section's list: not only "what would have made this fail?" but "what
+observable proves the run entered the state I am testing?"** For a corner test that is a turn actually
+occurring; assert or log it. This scenario now finds its turn at runtime by watching for the first
+change in step direction and prints the advance it fired on, so "did it corner" is a line in
+`lua.log` rather than an assumption in the author's head. Its straight-leg control lane shouts if the
+pathfinder turns it, for the same reason in reverse.
+
+Generalised: **a queued order boundary is a state boundary.** Anything that only exists *within* one
+activity — arc turning, carryover progress, mid-path retargeting — is destroyed by splitting the
+order in two, and splitting is the natural way to write the setup.
+
+## 2026-09-01 — A grep hit COUNT is not precedent; open one hit (`wt/death-slide`)
+
+Cost a run slot. Checking whether `Trigger.OnTick` existed before using it in a scenario, I grepped
+the scenario corpus, got four matching files, and treated the count as confirmation that the API was
+in use. **Three of those four hits were comments in other scenarios saying there is NO `Trigger.OnTick`
+in this engine.** The corpus contained an explicit warning and the warning became evidence for the
+opposite proposition, because no file was ever opened. The scenario aborted at load.
+
+The rule is not about Lua. **A count answers "is this string present", never "is this usage correct" —
+and a codebase that has been bitten before is exactly the codebase whose hits are warnings.** The
+better a project is at leaving notes for its future self, the more dangerous counting is, because
+prose about a trap and a use of the trap are indistinguishable to `grep -l`.
+
+Cheap habit: when a grep is load-bearing for a decision, open one hit and read it, and prefer
+`-A2`/`-B2` over `-l` so the surrounding line arrives with the match. Two of the same audit's other
+claims failed the same way when re-checked properly — `CPos` has no Lua equality binding (`WPos`
+implements `ILuaEqualityBinding`, `CPos` does not), so a `Location == someCPos` predicate compares
+nothing.
+
+## 2026-09-01 — A dying unit's `ToCell` is already PAST the corner, so "the direction it was travelling" is the wrong thing to face a husk (`wt/death-slide`)
+
+Reported as a supply truck sliding sideways after death. The user's own diagnosis was *"the facing is
+locked as soon as it dies"*, and that is true — `Husk` reads `FacingInit` once in its constructor
+(`Husk.cs:104`), exposes `TurnSpeed => WAngle.Zero` (`:95`), and nothing writes `Facing` again, while
+the position keeps interpolating because `Drag.Tick` only calls `SetCenterPosition` (`Drag.cs:47-61`).
+
+**Acting on that framing alone produces a fix that is still wrong.** "Unlock the facing and track the
+unit's heading" restores the heading the *living* unit had, and on a corner that is not the direction
+the husk travels:
+
+- `Mobile.TopLeft` is `ToCell`, not the occupied cell (`Mobile.cs:314`), and the husk spawns at
+  `self.Location` (`SpawnActorOnDeath.cs:127`) then drags to that cell's centre (`Husk.cs:257`).
+- `MoveFirstHalf`'s chained-turn branch **retargets `ToCell` to the cell after the corner at the
+  moment the arc opens** (`Move.cs:709-722`). So a unit part-way through a corner is holding an arc
+  tangent aimed at the cell it is *leaving*, while its husk drags in a straight line to a cell it has
+  *not entered*.
+
+The direction worth facing is therefore **the drag line**, which is neither the death facing nor the
+living unit's travel direction. On a straight leg all three coincide, which is why the defect is
+invisible on most kills and why a fix derived from the drag line is a no-op there.
+
+Two corollaries worth carrying:
+
+- **`self.Location` on a dying mobile actor is a reservation, not a position.** Any death-time code
+  reading it — spawn cells, drop points, score attribution by cell — inherits this and will be up to
+  one and a half cells away from the body on a corner.
+- **`Turn` cannot be used on a husk.** `Turn.Tick` advances via `Util.TickFacing(..., TurnSpeed)`
+  (`Turn.cs:46-47`) and `Husk.TurnSpeed` is `WAngle.Zero`, so the activity never completes — the
+  `Drag(…, facing)` overload that queues a `Turn` (`Drag.cs:43-44`) would hang a wreck forever.
 
 ## 2026-08-30 — The tooltip mockups and the audit both assert HIMARS refills at a Logistics Centre; a same-day user ruling says it cannot (`wt/tooltip-elements`)
 > **[rejected: duplicate — `economy.md:31` already carries it]** (curation 2026-09-01). `economy.md:31` states *"except `himars` and `iskander`, which rearm nowhere… carry no `Rearmable` trait at all… the LC push cannot reach them either"*, with `:35`/`:120` recording the same 2026-08-30 ruling. Mechanism re-verified at `vehicles-america.yaml:1153-1159` (`HIMARS:` opens `:1048`), and the never-fires consequence is already an in-code comment at `ProductionTooltipLogic.cs:461, 467-470`. The remainder — that the mockups and the audit are wrong — is artefact status and belongs in `WORKSPACE/`, not the bank.
