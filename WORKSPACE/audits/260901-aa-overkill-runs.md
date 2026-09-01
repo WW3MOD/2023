@@ -81,3 +81,65 @@ deliberately-broken build sitting in the shared checkout while another session r
 its own hazard. Run 6 is the highest-information launch in the set and decides §3.3; abort E fires
 if `test-aa-battery-volleys` also reds under the same edit, which flips the answer to retiring the
 pump with no guard.
+
+## Runs 5-6 — the RED pair, one-line `OverkillClaim.cs` edit applied
+
+Taken in an isolated worktree (`wt/aa-red`, built clean, 0 CS errors) so a deliberately-broken
+build never sat in the shared checkout. Worktree and branch removed after; the shared checkout was
+never modified.
+
+### Run 5 — RED control for the pump, seed `-2058490156`
+
+```
+run:    260901_235622_p34923_test-aa-overkill-pump
+notes:  LANE_R firedOf4=4 ticks[41,46,39,49] || LANE_S pumps615 pumpWindow5-600
+        observerFire818 suppressedThroughPumpY pumperFire-1
+```
+
+**`observerFire` is 818 — the exact value recorded in the 2026-08-10 measurement at this same
+seed**, and `suppressedThroughPump` flips to `Y`. Against run 1's 48 on identical code but for the
+one deleted `Release();`, this is as clean a RED/GREEN pair as this project has produced: 48
+healthy, 818 sabotaged, same seed, one line apart, and the sabotaged value reproduces history to
+the digit. Lane R is byte-identical to run 1 (`41,46,39,49`), which confirms the edit touched only
+the mechanism under test.
+
+So the pump **can** detect this regression. §6 conditions 1-4 established that it can be bounded
+honestly. Neither fact settles whether it is worth keeping.
+
+### Run 6 — the non-redundancy test, same edit still applied
+
+```
+run:    260901_235815_p35390_test-aa-battery-volleys
+status: FAIL
+notes:  the stock battery fired one at a time instead of together: first shots span 36 ticks
+        against the control's 8 (allowance 32) ... One AA's commitment marks the aircraft at
+        exactly OverkillThreshold, so each joiner waits out a decay period before the next can
+        engage.
+        TEST(stock) fired4/4 spread36 [39,40,67,75] halo600
+        CTRL(disabled) fired4/4 spread8 [49,46,42,41] halo600
+```
+
+## ABORT E FIRES — the guard is NOT written
+
+`test-aa-battery-volleys` fails under the same one-line edit, so per §6-E the two guards are **not
+disjoint**: `battery-volleys` already covers this regression. The protocol's pre-registered response
+is to recommend the audit's stated alternative — **retire the pump into its shadow, keep the
+declaration, add no guard** — and let the user choose.
+
+**This is the pre-registered outcome working as designed, not a disappointment.** §6-E says in
+terms that E "can fire even when 1-4 all pass, and it should still stop the work", because A-D
+concern the pump's *measurability* while E concerns its *value*. All four measurability conditions
+passed and the pump is still not worth guarding.
+
+`battery-volleys` is moreover the **better** instrument for this regression, which strengthens the
+abort rather than merely satisfying it: it carries a control arm (`OverkillThreshold` disabled)
+that fired at spread 8 against the stock arm's 36 in the same run. The pump has no such arm — its
+own §4.3 note records that its quantity is `battery-volleys`' `test.spread` computed twice with
+nothing to cancel the rescan stagger. A guard on the pump would have been a second, weaker witness
+to a fact one instrument already establishes with a control.
+
+## Independent of the outcome
+
+§2's S2, S3 and S7 are wrong on the page and should be corrected either way: a scenario header
+asserting a fixed point of 240, and a rate of "every 5 ticks" beside a constant of `1`, will
+mislead the next reader regardless of what happens to the guard.
