@@ -226,7 +226,7 @@ namespace OpenRA.Test
 		{
 			ShadowCache.TrySave(dir, "key-a", Payload(4096, 7), ShadowCache.MaxCacheBytes);
 
-			Assert.That(Directory.GetFiles(dir, "*" + ".tmp"), Is.Empty);
+			Assert.That(Directory.GetFiles(dir, "*.tmp"), Is.Empty);
 			Assert.That(Directory.GetFiles(dir), Has.Length.EqualTo(1));
 		}
 

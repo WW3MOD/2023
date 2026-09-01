@@ -160,16 +160,16 @@ namespace OpenRA.Mods.Common.Traits
 		/// Whether this actor could be given an attack-move order at all.
 		/// </summary>
 		/// <remarks>
-		/// Carrying AttackMoveInfo is NOT sufficient. The trait sits on ^AutoTarget
+		/// <para>Carrying AttackMoveInfo is NOT sufficient. The trait sits on ^AutoTarget
 		/// (defaults.yaml:388), which ^AutoTargetAir and ^AutoTargetAirICBM inherit, so immobile
 		/// AA and ICBM defences (structures-defenses.yaml:600, :685, :762) carry it as the no-op the
 		/// constructor comment describes. Both the targeter (`self.TraitOrDefault&lt;IMove&gt;() == null`)
-		/// and ResolveOrder (`move == null`) then refuse them.
+		/// and ResolveOrder (`move == null`) then refuse them.</para>
 		///
-		/// This matters for the cursor because AmmoPool.AllPoolsEmpty returns FALSE for an actor
+		/// <para>This matters for the cursor because AmmoPool.AllPoolsEmpty returns FALSE for an actor
 		/// with no pools at all (AmmoPool.cs:548-560) — so a poolless defence answers "can act", and
 		/// without this filter one box-selected alongside a dry tank paints a GREEN attack-move
-		/// cursor over a click that does nothing. Shared by both display paths so they cannot drift.
+		/// cursor over a click that does nothing. Shared by both display paths so they cannot drift.</para>
 		/// </remarks>
 		internal static bool CanBeOrderedToAttackMove(Actor a)
 		{

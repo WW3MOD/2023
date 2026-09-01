@@ -302,10 +302,14 @@ namespace OpenRA.Mods.Common.Orders
 		/// refuses the click outright — which for a hostile target it cannot engage is the normal
 		/// outcome, rather than a Move order onto its cell.
 		/// </summary>
+		/// <param name="self">The actor resolving the click.</param>
+		/// <param name="target">What was clicked on.</param>
+		/// <param name="xy">The cell under the cursor, used to look up what else is standing there.</param>
+		/// <param name="modifiers">The target modifiers in effect for this click.</param>
 		/// <param name="allowRelocationOntoEnemy">
-		/// Set by <see cref="OrdersForSelection"/> when no other unit in the selection accepted the
-		/// click, which reopens the default order for this one. Callers resolving a single unit in
-		/// isolation want the default, false.
+		/// Set by <see cref="ResolveSelection"/>, behind both <c>OrdersForSelection</c> overloads, when
+		/// no other unit in the selection accepted the click, which reopens the default order for this
+		/// one. Callers resolving a single unit in isolation want the default, false.
 		/// </param>
 		public static UnitOrderResult OrderForUnit(Actor self, in Target target, CPos xy, TargetModifiers modifiers,
 			bool allowRelocationOntoEnemy = false)
