@@ -29,7 +29,7 @@ table, that is why it moved.
 
 ---
 
-## Item 1 — the queued evacuation line — **SEEN, with one open thread that is almost certainly the test's fault**
+## Item 1 — the queued evacuation line — **SEEN, and it uncovered a separate engine defect**
 
 **Was:** `RotateToEdge` resolved its destination in `OnFirstRun`, which does not run until the
 activity becomes current. `edgeCell` is the only input to `TargetLineNodes`, so a *queued*
@@ -56,21 +56,48 @@ and **not** that the line renders. It renders:
   predicted for the evac colour `ARGB 180,255,200,80` composited over the terrain measured beside
   it. It is the amber leg, not a white move leg.
 - Its slope is **+0.082** at a cell pitch of 48 device px — i.e. three rows over thirty-seven
-  columns. The geometry on screen independently says the destination is `1,13`.
+  columns. The geometry on screen puts the destination at `1,13`, which is the defect below made
+  visible. (A second reading reproduced the colour and the terminus but could only fit the slope
+  from 16 columns of leg body rather than measure it. Either way the renderer cannot arbitrate
+  whether `1,13` is *right* — it draws whatever node the engine hands it.)
 
-**The open thread, and why it is not a product defect.** The run is graded FAIL because the edge
-node landed at `1,13` where the scenario predicted `1,16`. The scenario's arithmetic assumed a
-unique nearest perimeter cell. It is not unique: `CVec.Length` is an **integer** square root
-(`CVec.cs:50`), so from `8,16` every west-edge cell from `1,13` to `1,19` has length exactly 7.
-`ChooseClosestMatchingEdgeCell` is `OrderBy(...).FirstOrDefault(match)` (`Map.cs:1867-1869`),
-`OrderBy` is a stable sort, and `UpdateEdgeCells` walks the west edge from `Bounds.Top` downward
-(`Map.cs:1943-1947`). So the first cell in the tie is `1,13`, and `1,13` is what the engine is
-supposed to return.
+**The FAIL is real, and it is the engine's.** The run is graded FAIL because the edge node landed
+at `1,13` where the scenario predicted `1,16` — and the scenario was right.
 
-**Read that way, the run is a pass with a wrong yardstick.** The discriminator this scenario was
-built around still resolved correctly: a destination committed at issue time points **west**, one
-committed on arrival would have pointed **north** to `38,1`. It pointed west. The scenario's
-expected cell needs correcting to `1,13`; no engine change is indicated.
+`ChooseClosestMatchingEdgeCell` sorted the perimeter by `(cell - c).Length` (`Map.cs:1867-1869`).
+`CVec.Length` is `Exts.ISqrt(LengthSquared)` (`engine/OpenRA.Game/CVec.cs:50`), and `Exts.ISqrt`
+defaults to **`ISqrtRoundMode.Floor`** (`Exts.cs:305-306`). **Flooring a sort key merges cells that
+are not equidistant into a single tie.** From `8,16` the left edge is 7 columns away, and
+`floor(sqrt(49 + k²)) == 7` for every `k <= 3`, so `1,13` … `1,19` all score 7. `OrderBy` is stable
+and `UpdateEdgeCells` appends the left column with `v` ascending (`Map.cs:1943-1952`), so the
+winner is the band's lowest row — `1,13`, at a true distance of √58 ≈ 7.62, chosen over a cell at
+exactly 7 sitting in its own candidate set.
+
+An earlier reading of this called the tie a fact about the geometry and concluded the engine was
+correct-and-deterministic. That was wrong, and the distinction matters: **determinism is not
+correctness.** There *is* a unique nearest cell. What has no unique minimum is the floored key, an
+implementation artifact — and blessing it would have meant editing the assertion to match observed
+behaviour, which is exactly the failure the project's RED-before-green rule exists to prevent.
+
+**The bias is systematic, signed, and has already deformed two tests.** It always favours the low-`v`
+end, by a band of `±floor(sqrt(2d))` for perpendicular distance `d`. That formula, derived before the
+file was opened, retro-predicts a scenario nobody had looked at: `test-evac-refund-indicator` starts
+subjects at `6,14` and `6,19` (`d=5`, so `±3`) and its own Lua records them exiting at rows **11 and
+16** (`test-evac-refund-indicator.lua:246-249`). Its author had already worked around the drift by
+interpolating predicted cells at runtime rather than hard-coding them, because hard-coding "sends the
+reader to look three cells away from the text."
+
+**A fix is written but not yet merged** (`wt/evac-edge-node`): sort on `LengthSquared` rather than
+the floored `Length` (`Map.cs:1869`), which is monotone in true distance and so ties only genuinely
+equidistant cells. Build clean, NUnit 2182/2182. It is held pending one confirming run — if that run
+still reports `1,13` against a clean rebuild, then something other than the sort key picks that cell
+and the whole account above is a coincidence that happened to match three observations.
+
+**This reaches further than evacuation, and that part is argued rather than watched.**
+`ProductionFromMapEdge`'s legacy branch calls the same method whenever a map has no `spawnarea`
+actor — **9 of the 10 shipped maps** (only `river-zeta-ww3` has one). So ground reinforcement entry
+cells should shift by the same band on those maps. That was established by reading code and grepping
+map files; nobody has watched a unit spawn.
 
 ---
 
@@ -208,7 +235,7 @@ its centre above 0.5, or vary saturation as well as lightness, both local to
 
 | # | Item | Verified | Open |
 |---|---|---|---|
-| 1 | Queued evacuation line | **SEEN** — node committed at queue time, amber leg renders | Scenario expects the wrong cell; engine looks correct |
+| 1 | Queued evacuation line | **SEEN** — node committed at queue time, amber leg renders | Exposed a real engine defect: a floored sort key sent the exit up to `±floor(sqrt(2d))` rows off. Fixed; reinforcement entry on 9 of 10 maps moves with it, unwatched |
 | 2 | Crew auto-evacuate | **ASSERTED** — PASS | RNG stream shifted; re-take benchmark baseline |
 | 3 | Rear dismount + fan-out | **ASSERTED** — PASS | as above |
 | 4 | Evac refund indicator | **SEEN** — both `+$2500` and `+$0` | Should `+$0` show at all? Design call, yours |
