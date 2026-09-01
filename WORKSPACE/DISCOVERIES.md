@@ -3,6 +3,47 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — The map-border artefact is PER-PLAYER ASYMMETRIC, because a coarse grid keyed on the block CENTRE cannot see the low border at all (`wt/bot-truth`)
+
+Fixing the border inflation recorded in the entry below turned up the part that entry got wrong: it is
+not a uniform band around the map. It is **one column and one row, on the high edges only**, and which
+players it taxes depends on where they spawn.
+
+- `ControlField.GridCellToMapCell` returns the block **centre**, `2g+1` at `CellSize 2`
+  (`InfluenceGridMath.GridToMapCentre`). Every shipped map carries a **one-cell** non-playable ring
+  (`Bounds: 1,1,W-2,H-2` on all 10 in `mods/ww3mod/maps`).
+- So the LOW ring is invisible to any centre-sampled test: `gx=0` maps to map cell `x=1`, which is
+  playable. Only the HIGH edge shows up, and only because the last block's centre lands past
+  `Bounds.Right`. On River Zeta (`MapSize 98x82`, `Bounds 1,1,96,80`, grid 49x41): `gx=48 → x=97 > 96`
+  and `gy=40 → y=81 > 80`. **Exactly one column and one row, 89 of 2009 squares.**
+- **Therefore the tax fell on some spawns and not others.** River Zeta's six spawns: `(9,45)` and
+  `(16,6)` sit against the LOW edges and paid **nothing**; `(88,35)` and `(81,76)` sit against the high
+  edges and paid the full amount. A 1v1 on this map could hand one bot a phantom exploration bonus its
+  opponent never saw.
+
+**The general shape, and it outlives this fix: a coarse grid that samples the block CENTRE has a
+systematically different relationship to the low and high edges of the region it covers.** The low side
+rounds inward and disappears; the high side rounds outward and persists. Any audit that reasons about
+"the border band" as a symmetric ring will mis-locate the defect and mis-size it — and any artefact that
+is asymmetric between spawns is worse than a uniform one, because it does not wash out of a benchmark.
+
+**Measured, and the second inflation SURVIVES.** Phantom squares (counted by the query, unreachable by
+the drone) before → after this fix, on River Zeta geometry, pinned in
+`DroneTaskingMathTest.Revealable_TheBorderFixLeavesTheBoxCornerArtefactStanding`:
+
+| candidate | before | after |
+|---|---|---|
+| inland (24,20) | 228 | **228** |
+| high edge (47,20) | 143 | 114 |
+| high corner (47,39) | 88 | **57** |
+
+The border fix removes the **smaller** of the two inflations. The box-corner artefact (29x29 query box
+vs the drone's 613-square vision disc) is untouched inland and is now the sole survivor — still ~19x
+`MinRevealedSquares: 12`, so **the launch floor remains inert**. Note the direction: because
+`SumInclusive` clamps the box to the grid, edge candidates already carried a *smaller* corner artefact
+than inland ones, so removing the border widens the inland advantage (gap 140 → 171) rather than
+levelling the field. Correcting one of two biases is not the same as making candidates comparable.
+
 ## 2026-09-01 — The cordon debt is 63 maps but only THREE prices, and the expensive tier is 17 benchmark maps with an income POI on the outer ring (`wt/tooling-truth`)
 
 Costing, not a fix — the paydown is the user's call. Every count below was taken statically from
@@ -342,10 +383,13 @@ one is map-dependent rather than geometric, so it does not cancel evenly between
   The module's own comment already recorded the symptom (candidates measured 42-53% clamped) and
   attributed it to map geometry; this is the mechanism underneath it.
 
-**Not fixed here, deliberately**: subtracting it would be a second unmeasured behavioural change riding
-along with the contact-tasking one. Instead a diagnostic twin summed-area table measures it and the
-launch log carries `border=`, so `reveal - border` is the real exploration signal and one match settles
-the magnitude. **The general shape: a "never observed" sentinel and "outside the playable area" are
+**FIXED 2026-09-01 (`wt/bot-truth`)** — `DroneTaskingMath.IsRevealable` now conjoins the bounds test, so
+`reveal` is already the corrected signal and `border=` in the launch log reports what was removed rather
+than what is still wrong. Two corrections to the entry above, from the fix: the band is **not** the whole
+ring but one column and one row on the HIGH edges only, so the tax was per-spawn rather than global (see
+the 2026-09-01 asymmetry entry at the top of this file); and it is the **smaller** of the two inflations —
+the box-corner artefact survives untouched at ~228 squares inland and still makes `MinRevealedSquares`
+inert. **The general shape: a "never observed" sentinel and "outside the playable area" are
 indistinguishable to any staleness test, so any field keyed on staleness silently treats the map border
 as maximally interesting.**
 
