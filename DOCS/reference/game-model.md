@@ -20,7 +20,11 @@ There is no "build barracks → build war factory → build radar → unlock X" 
 
 ## Map-edge spawning
 
-Units don't appear at the production building — they enter from the map edge nearest to the Supply Route's SpawnArea hint, then walk/fly across the map to the rally point. This means:
+Units don't appear at the production building — they enter from a map edge, then walk/fly across the map to the rally point.
+
+**Which edge is not reliably the Supply Route's.** *(Corrected 2026-09-02 — the previous unconditional "nearest the Supply Route's SpawnArea hint" was wrong on 9 of the 10 shipped maps.)* The SR anchors the choice only when the map authors a `spawnarea` actor: `FindClosestSpawnAreaForOwner` scans `ActorsWithTrait<SpawnArea>()` and returns null when there are none (`Activities/RotateToEdge.cs:101-109`), at which point the caller falls back to `self.Location` — the **unit's own cell** (`:163-168`). Only `river-zeta-ww3` ships `spawnarea` actors (6, one per `mpspawn`); the other nine maps have zero, as do most autotest scenarios *(counted 2026-09-02)*. So on almost every map both reinforcement entry and evacuation resolve from wherever the actor happens to be standing, **not** from the SR. Before asserting "it heads toward the SR", run `grep -c spawnarea` on the map. The anchor mechanism itself is documented in [`economy.md` §"The evacuation anchor is the `spawnarea` actor"](economy.md).
+
+This means:
 
 - Production has inherent travel time (units have to traverse from edge to SR rally before being usable)
 - Enemy can ambush reinforcements en route — and the same is true in reverse: your AI/units can ambush the enemy's reinforcement lane

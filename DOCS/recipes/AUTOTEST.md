@@ -207,16 +207,17 @@ print('reachable:', lab(10, 10) == lab(31, 11))
 PY
 ```
 
-**PITFALL — the decoder over-blocks map markers, so an unreachable start cell is often the tool's
-error, not yours.** `mpspawn`, `spawnarea`, `waypoint` and the two `camera.*` actors all carry
+**FIXED 2026-09-01 — this note used to warn that the decoder over-blocked map markers, and that is no
+longer true.** `mpspawn`, `spawnarea`, `waypoint`, `flare` and the `camera.*` actors carry
 `Immobile: OccupiesSpace: false` and occupy **nothing** in game (`ImmobileInfo.OccupiedCells` returns
-an empty dictionary, `Immobile.cs:23-27`), but `modload.actor_shape` gives every non-`Building` actor
-a 1-cell footprint and never reads that flag — so nav-guard models all five as solid walls. A unit
-sharing its cell with an `mpspawn` therefore reads as standing on impassable ground and reaches
-nothing. **If a cell reads blocked and the only thing on it is one of those five, that is a nav-guard
-artefact — do not move your actor to satisfy it.** The error is conservative (it can only invent a
-wall, never delete one), so the `check` gate cannot have passed a real sealing-off because of it; only
-manual inspection is affected. Measured 2026-09-01, with the blast radius, in `WORKSPACE/DISCOVERIES.md`.
+an empty dictionary, `Immobile.cs:23-27`), and `modload.actor_shape` now honours the flag via
+`_immobile_occupies_space` (`modload.py:300-309`, branch at `:330`), so none of them is modelled as a
+wall any more. **Do not reason from the old warning:** a cell whose only occupant is one of those
+markers is passable to the tool as well as to the game, so if such a cell now reads blocked, something
+else is on it and it is worth investigating rather than dismissing as an artefact. The historical
+version of this note, and the false positive it caused a scenario author to "fix" by moving an actor,
+are recorded in `WORKSPACE/DISCOVERIES.md`. See `tools/nav-guard/README.md` §Zero-footprint actors for
+the current model.
 
 **Neither gate is a substitute for a run.** They establish that the scenario is *well-formed* — the
 script loads, the names exist, the geometry is what you drew. They say nothing about whether your
