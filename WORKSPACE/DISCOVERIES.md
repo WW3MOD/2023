@@ -16554,3 +16554,33 @@ Still carrying the same floored key and deliberately not touched: `Map.cs:1879` 
 `:1889` feeds `.Take(count)` for round-robin spawn, where the tie changes *set membership* rather
 than a single winner — less predictable than the site that was fixed, and a worse thing to change
 without measuring.
+
+## 2026-09-02 — DR's drone jammer is live precisely BECAUSE its gun is not: `RequiresForceFire` on the primary makes the secondary the only auto-targetable armament
+
+Investigated on main @ dc2ffde6 (read-only trace; no fix needed — the config is correct as shipped).
+
+The question was whether the drone operator's `DroneJammer` ever fires on its own. It does, and the
+mechanism is a filter, not a feature: `AttackBase.ChooseArmamentsForTarget` walks ALL armaments
+(`AttackBase.cs:458-462`, default armament set at `:17`), and each armament excludes itself only by
+its own flags. DR's primary `DroneTargeter` carries `RequiresForceFire: True`
+(`infantry.yaml:2472`) so every AutoTarget scan skips it; the secondary `DroneJammer`
+(`infantry.yaml:2490-2493`) has no such flag, no `RequiresCondition`, and no `AmmoPool` binding —
+it is the sole survivor of the scan filter, and therefore DR's ONLY auto-targetable weapon.
+
+The rest of the chain: `^DR` inherits `^AutoTarget` (`defaults.yaml:372-398`) with an unconditional
+Priority-1 band and default stance FireAtWill (`AutoTarget.cs:72,75`). `^DR` deliberately removes
+`StancePositioningExecutor` and `GrantConditionOnBotOwner@tacpos` (`infantry.yaml:2443,2449`) so
+LaneAmbushBotModule cannot silence the jammer — the protective comment at `:2430-2431` says so.
+`DroneJammer` (`weapons-other.yaml:696-716`): `ValidTargets: Drone`, range 20c0, grants
+`dronedisable` for 5 ticks; `TargetTypes: Drone` exists only on `^Drone` (`aircraft.yaml:354-355`),
+sole inheritor `quadcopterdrone` (`:385`), which consumes `dronedisable` fully (`:328-343`).
+`NoSelfDefenseInterrupt: True` (`infantry.yaml:2493`) corroborates the intent
+(`SmartMoveActivity.cs:121,150`).
+
+**General form: an armament-level `RequiresForceFire` is a per-weapon opt-out from AutoTarget, so
+"does this unit auto-attack X" must be answered per armament, not per actor.** Reading the actor's
+AutoTarget config alone says yes for everything; reading the primary armament alone says never.
+
+Unverified, and only a live run can settle it: whether the jammer's 20c0 range ever overlaps a
+shipped engagement — enemy drones leash to `CarrierSlave.MaxDistance: 25` cells from THEIR
+operator, and DR sits back. The config is proven live; whether it is exercised is a map question.

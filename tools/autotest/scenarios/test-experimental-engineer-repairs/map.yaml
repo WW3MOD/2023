@@ -46,7 +46,7 @@ Players:
 		LockFaction: True
 		Faction: america
 	PlayerReference@USA-bot:
-		Name: USA-bot (experimental)
+		Name: USA-bot
 		LockFaction: True
 		LockColor: True
 		Faction: america
