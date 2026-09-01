@@ -21,12 +21,18 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Percentage of damage absorbed by the building at full HP (0-100). Remainder passes to a random shelter occupant.")]
 		public readonly int BaseProtection = 80;
 
-		[Desc("Percentage of damage absorbed at critical damage state (0-100).")]
+		[Desc("The interpolation's INTERCEPT AT ZERO HP (0-100) — NOT the value at DamageState.Critical. ",
+			"Protection is CriticalProtection + (BaseProtection - CriticalProtection) * hpPct, so this is ",
+			"only approached as HP tends to zero: at the 25% HP where DamageState.Critical actually begins, ",
+			"protection is still a quarter of the way from here up to BaseProtection. Lower it to make a ",
+			"damaged building degrade across the whole health bar instead of at the rubble clamp.")]
 		public readonly int CriticalProtection = 30;
 
-		[Desc("Percentage of damage absorbed when building is at minimum HP (rubble state, " +
-			"clamped to 1HP by GarrisonManager.Indestructible). Lower than CriticalProtection — " +
-			"represents reduced cover from heavy damage. Default 30 means soldiers take 70% of incoming damage.")]
+		[Desc("Percentage of damage absorbed when building is at minimum HP (rubble state, ",
+			"clamped to 1HP by GarrisonManager.Indestructible). This replaces the interpolation outright ",
+			"at 1 HP, so the distance between it and CriticalProtection is a cliff crossed in a single hit ",
+			"point — keep the two close unless that cliff is wanted. Both default to 30, i.e. no cliff at ",
+			"defaults. Default 30 means soldiers take 70% of incoming damage.")]
 		public readonly int RubbleProtection = 30;
 
 		[Desc("Minimum damage per hit to pass through to occupants. Hits below this deal zero to occupants.")]

@@ -4,6 +4,28 @@
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
 ## 2026-09-01 — `visibility-N` is an OUTPUT broadcast feeding a live gauge, not a modifier scaffold; and forest is hard concealment that no modifier can match (`wt/visibility-mods`, `main @ 3248605a`)
+## 2026-09-01 — `GarrisonProtection` computes its damage curve TWICE, and the two copies are only equal by luck
+
+Found while retuning the curve (`wt/garrison-p1p2`, P2). The interpolation
+`Critical + (Base - Critical) * hpPct` with the `HP <= 1` rubble override is written out in full in
+**two** places in the same 130-line file:
+
+- `GetCurrentProtection()` — `GarrisonProtection.cs:63-74`. This is the one the UI reads:
+  `GarrisonPanelLogic.cs` renders `GARRISON [Shield: 95%]` and `(95% cover)` from it.
+- `INotifyDamage.Damaged` — `GarrisonProtection.cs:89-100`. This is the one that actually inflicts
+  the damage.
+
+They are currently identical, so nothing is wrong today. The hazard is the shape: **the number the
+player is shown and the number that kills him are computed by separate code**, so a future edit to
+one produces a UI that confidently lies rather than a visible bug. `Damaged` could call
+`GetCurrentProtection()` outright — the only difference is the latter's `health.IsDead` guard, which
+`Damaged` has already applied at `:78-79`, so the fold is behaviour-identical.
+
+**Not done here on purpose:** P2 was scoped YAML-only so the manager could merge a pure tuning change,
+and a YAML retune cannot make the copies diverge (both read the same `Info` fields). Filed rather than
+fixed. Whoever next touches this curve in C# should fold it first.
+
+## 2026-09-01 — the garrison emergency bail does NOT latch on rubble; `garrison-destructibility-260901.md`'s P1 caveat is wrong in both halves
 
 Recon for items 7/8. Full costed proposal in
 [`WORKSPACE/recon/260901-visibility-modifier-proposal.md`](recon/260901-visibility-modifier-proposal.md).
