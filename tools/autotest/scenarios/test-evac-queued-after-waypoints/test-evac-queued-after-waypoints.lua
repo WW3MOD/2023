@@ -38,6 +38,14 @@
 -- upstream -- and that looks IDENTICAL to the bug under test: one humvee sitting still. The
 -- control fails in that world too, which converts a false accusation into an obviously broken
 -- scenario. Both arms differ by exactly one thing: the Shift modifier on the press.
+--
+-- A THIRD ARM, DELIBERATELY WEAKER: Shift+R. resupplyButton was missing from the same
+-- noShiftButtons array by the same mechanism, so Shift+R was dead in the same way, and its
+-- OnClick has read the Shift modifier since it was written (:187) -- queued resupply was always
+-- intended and the hotkey could simply never deliver it. This scenario asserts ONLY that the
+-- keypress now reaches the button, with a bare-R control beside it. It does NOT exercise what a
+-- queued Resupply then does; nothing anywhere does. Read the Shift+R pass as "the key is no
+-- longer swallowed", never as "queued resupply works".
 
 -- Budget in TICKS and divide back through the harness constant. TestHarness.TicksPerSecond is
 -- 25 while the mod runs at Timestep 60 = 16.67 ticks/second; the constant is deliberately wrong
@@ -59,6 +67,8 @@ local ImmediateRow = 18
 
 local PressQueuedAtTick = 10
 local PressImmediateAtTick = 20
+local PressResupplyBareAtTick = 30
+local PressResupplyShiftAtTick = 40
 local ScreenshotTicks = 260
 
 -- Latched every tick while each humvee is still alive; read by the verdict poller after it dies.
@@ -72,6 +82,14 @@ local immediateWentEast = false
 -- waiting for a timeout to imply it.
 local queuedPressConsumed = nil
 local immediatePressConsumed = nil
+
+-- The Shift+R arm. resupplyButton was absent from noShiftButtons by the identical mechanism, so
+-- Shift+R was dead the same way -- but this pair of flags is ALL that is measured for it: whether
+-- the keypress reaches the button. The behaviour of a queued Resupply is NOT exercised here and
+-- has never been exercised anywhere; see the commit message. Bare R is its own control, so a
+-- rejected Shift+R cannot be confused with "the R hotkey does not work in this harness".
+local resupplyBarePressConsumed = nil
+local resupplyShiftPressConsumed = nil
 
 local function TrackEast()
 	if not QueuedUnit.IsDead and QueuedUnit.Location.X >= EastLineX then
@@ -119,6 +137,20 @@ WorldLoaded = function()
 		TestHarness.Select(ImmediateUnit)
 		immediatePressConsumed = Test.PressHotkey("Evacuate", false)
 		print("[evac-queue] bare E consumed=" .. tostring(immediatePressConsumed))
+	end)
+
+	-- Both R presses go to the SAME humvee: consumption is a property of the widget chain, not of
+	-- the unit, so the bare press cannot influence whether the shifted one is matched.
+	Trigger.AfterDelay(PressResupplyBareAtTick, function()
+		TestHarness.Select(ResupplyUnit)
+		resupplyBarePressConsumed = Test.PressHotkey("Resupply", false)
+		print("[evac-queue] bare R consumed=" .. tostring(resupplyBarePressConsumed))
+	end)
+
+	Trigger.AfterDelay(PressResupplyShiftAtTick, function()
+		TestHarness.Select(ResupplyUnit)
+		resupplyShiftPressConsumed = Test.PressHotkey("Resupply", true)
+		print("[evac-queue] Shift+R consumed=" .. tostring(resupplyShiftPressConsumed))
 	end)
 
 	-- Mid-drive: the queued humvee should be well east, the immediate one already gone or nearly.
@@ -190,14 +222,36 @@ WorldLoaded = function()
 			return false
 		end
 
-		if queuedWentEast then
-			return true
+		if not queuedWentEast then
+			return "fail: the shift-queued Evacuate did not wait for the waypoints -- the humvee "
+				.. "evacuated without ever reaching x=" .. EastLineX .. ", having been ordered east to "
+				.. LastWaypointX .. "," .. QueuedRow .. " first. The press WAS consumed, so the order "
+				.. "was issued and merely carried the wrong queued flag: CommandBarLogic built it with "
+				.. "a hardcoded `false` instead of reading the Shift modifier."
 		end
 
-		return "fail: the shift-queued Evacuate did not wait for the waypoints -- the humvee "
-			.. "evacuated without ever reaching x=" .. EastLineX .. ", having been ordered east to "
-			.. LastWaypointX .. "," .. QueuedRow .. " first. The press WAS consumed, so the order "
-			.. "was issued and merely carried the wrong queued flag: CommandBarLogic built it with "
-			.. "a hardcoded `false` instead of reading the Shift modifier."
+		-- 6. The Evacuate arm is satisfied. The Shift+R arm is checked LAST, on purpose: it is the
+		-- weaker assertion (reachability only) and it must never be able to mask or pre-empt the
+		-- evacuate verdict this scenario primarily exists for.
+		if resupplyBarePressConsumed == false then
+			return "fail: the RESUPPLY CONTROL press was rejected -- a bare R was consumed by no "
+				.. "widget, so the Resupply hotkey is not reaching the command bar in this run and "
+				.. "the Shift+R result below cannot be interpreted. Check the humvee still carries an "
+				.. "AmmoPool, which is what un-disables the button."
+		end
+
+		if resupplyShiftPressConsumed == nil then
+			return false
+		end
+
+		if resupplyShiftPressConsumed == false then
+			return "fail: Shift+R was consumed by NO widget, so the Resupply hotkey is still dead "
+				.. "while the queue modifier is held -- the same defect as Shift+E, on the button one "
+				.. "line away in the same noShiftButtons array. Bare R WAS consumed moments earlier, "
+				.. "so the hotkey path itself is healthy. NOTE this arm asserts REACHABILITY only; it "
+				.. "says nothing about whether a queued Resupply then behaves correctly."
+		end
+
+		return true
 	end, "Neither humvee ever evacuated: no Evacuate order took effect at all within the deadline")
 end

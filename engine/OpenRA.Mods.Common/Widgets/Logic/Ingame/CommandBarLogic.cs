@@ -316,7 +316,16 @@ namespace OpenRA.Mods.Common.Widgets
 				// being absent from it means "Shift+<key> does nothing at all", not "does the unqueued
 				// thing". Reading the OnClick body to see whether a command honours queuing is therefore
 				// only half the answer — check this array too.
-				var noShiftButtons = new[] { guardButton, deployButton, scatterButton, attackMoveButton, evacuateButton };
+				//
+				// resupplyButton is here for that reason and no other: its OnClick has read the Shift
+				// modifier since it was written (:187), so queued resupply was always intended, and the
+				// missing entry meant the hotkey could never deliver it. What is DEMONSTRATED is only that
+				// Shift+R now reaches the button — the BEHAVIOUR of a queued Resupply has never been
+				// exercised in a scenario. stopButton stays out deliberately: a Stop must never queue.
+				var noShiftButtons = new[]
+				{
+					guardButton, deployButton, scatterButton, attackMoveButton, evacuateButton, resupplyButton
+				};
 				var keyUpButtons = new[] { guardButton, attackMoveButton };
 				keyOverrides.AddHandler(e =>
 				{

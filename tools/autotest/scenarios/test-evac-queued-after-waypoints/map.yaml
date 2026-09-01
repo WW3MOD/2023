@@ -80,6 +80,17 @@ Actors:
 		Location: 8,18
 		Facing: 512
 
+	# The Shift+R arm, and it measures something DELIBERATELY WEAKER than the two above: only that
+	# the keypress REACHES the Resupply button, not that a queued resupply then behaves correctly.
+	# resupplyButton was missing from noShiftButtons by the same mechanism as evacuateButton, so
+	# Shift+R was dead in the same way; that is what is fixed and that is all this asserts. It is
+	# given no waypoints and no verdict of its own beyond press consumption, so whatever the
+	# Resupply order does to it afterwards (there is no depot on this map) cannot affect the run.
+	ResupplyUnit: humvee
+		Owner: USA
+		Location: 8,22
+		Facing: 512
+
 	# The evacuation anchor. Placed between the two humvees and seven cells from the western
 	# bound, so both exits resolve to the same near edge.
 	SpawnUSA: mpspawn
