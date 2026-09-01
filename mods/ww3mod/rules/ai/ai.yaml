@@ -975,6 +975,72 @@ Player:
 		# one. 75 leaves 25 ticks of slack.
 		LaunchSettleTicks: 75
 
+	# experimental doctrine — mine the approach lanes. Until now nothing in mods/ww3mod/rules/ai/
+	# referenced MinelayerBotModule, so despite two unit types carrying the Minelayer trait the bot
+	# had never laid a mine.
+	# NO @stable TWIN ON PURPOSE, for the DroneOperatorBotModule reason above: a wholly new
+	# experimental-gated module cannot move the benchmark control, so the shared-trait
+	# default-to-baseline rule does not arise. Both C# fields this block sets are default-off on the
+	# engine class, so no other profile changes either.
+	# WHY THE MODULE FITS THE REBUILT GAME MODEL DESPITE BEING AN RA-ERA IMPORT: it is conflict-driven,
+	# not perimeter-driven. Its primary input is IBotRespondToAttack — it records where OUR actors were
+	# shot and mines there later, which is a lane/approach model already. It references no factory, no
+	# resource field and no base perimeter, so none of the usual RA carry-over traps apply.
+	MinelayerBotModule@experimental:
+		RequiresCondition: enable-ai-experimental
+		# LOWERCASE IS MANDATORY AND SILENT IF GOT WRONG. This HashSet is compared against
+		# Actor.Info.Name, which Ruleset.cs:126 lowercases at load. `MNLY` here matches nothing, the
+		# pool comes back empty, and the module does nothing at all while looking correctly configured.
+		# WHY THE WHITELIST EXISTS AT ALL — this is the load-bearing line in the block. The pool is
+		# ActorsWithTrait<Minelayer>(), and in WW3MOD that trait is NOT only on the minelayer vehicle:
+		# ^E6 engineers carry it (infantry.yaml:1929) over `secondary-ammo`, the SAME AmmoPool that
+		# Demolition spends (:1933). Unset, this module spends every engineer's 3 C4 charges laying
+		# mines and walks unarmoured non-combat support — the pool EngineerRouteOpenBotModule recruits
+		# from — down a contested lane.
+		MinelayingActorTypes: mnly
+		# Take the cold-start target from PoiMap's scored anchors (enemy Supply Route first) rather than
+		# from a random enemy actor read off world.Actors. Two reasons, and the second is the one that
+		# would have made this module inert rather than merely cheating:
+		#   FOG. The upstream scan is omniscient, which the fog-respecting profiles forbid
+		#     (DOCS/reference/influence-stack.md:39).
+		#   IT WOULD NOT HAVE WORKED. Minelayer.ResolveOrder filters the field to cells the owner has
+		#     EXPLORED (Minelayer.cs:207), so a cell picked through fog yields an empty minefield and a
+		#     silent no-op — configured, typechecked, never lays a mine.
+		# A random enemy is also not a lane: it is re-drawn every ScanTick, pointing consecutive scans
+		# down different corridors. The SR is fixed, so the corridor to it is stable across scans, and
+		# reading its position is fog-legal by the same argument LaneAmbush uses (PoiMap.cs:549-551).
+		StrategicAnchorColdStart: true
+		# TWO SCANS TO FIRST MINE, NOT ONE: the cold-start branch enqueues a position and then returns
+		# without ordering anyone ("we don't do other things in this tick"), so the first field is laid
+		# on the SECOND scan. At 16.667 ticks/s this is ~19 s per scan, i.e. ~38 s to the first mine.
+		ScanTick: 320
+		# One minelayer exists at a time (UnitLimits mnly: 1 on both builder twins), so this is
+		# descriptive rather than restrictive today. It stops a future second minelayer from being
+		# committed to the same field.
+		MaxPerAssign: 1
+		# THE WHOLE PAYLOAD GOES INTO ONE FIELD, AND THAT IS THE FIRST THING TO TUNE. Radius 1 makes the
+		# order a 3x3 box (target = pos+(1,1), ExtraLocation = pos-(1,1)); every cell of that box is
+		# within MinefieldDepth (1536 = 1.5 cells) of the box diagonal, so all 9 are admitted against a
+		# 10-mine AmmoPool. The unit then has to drive back to a logisticscenter to rearm
+		# (vehicles.yaml Rearmable), so this trades concentration against a long round trip.
+		MineFieldRadius: 1
+		# Do not drive a 600-cost UNARMED vehicle into contact. Any enemy Ground actor within
+		# AwayFromCellDistance of the intended field cancels that position outright. Mines get laid in
+		# the lulls, which is when minelaying actually happens.
+		AwayFromEnemyTargetTypes: Ground
+		AwayFromCellDistance: 9
+		# Air attackers do not make a GROUND lane. Recording the position of a helicopter that shot us
+		# would aim the minelayer at a cell no vehicle ever drives through.
+		IgnoredEnemyTargetTypes: Air, AirLight, AirMedium, AirHeavy, Helicopter
+		# When the victim is a STRUCTURE, record where the ATTACKER stood instead of the building's own
+		# cell — the building sits in our territory and is not itself a route anyone drives.
+		UseEnemyLocationTargetTypes: Structure
+		# AwayFromAlliedTargetTypes IS DELIBERATELY LEFT EMPTY, which is not the oversight it looks
+		# like. In WW3MOD own mines cannot hurt own units: ^Mine sets CrushedByRelationships to
+		# Enemy, Neutral and PassClasses: mine (misc.yaml), so friendlies pass over harmlessly. The
+		# usual "keep the field away from our own troops" argument therefore does not apply here, and
+		# populating it would only cancel positions for no safety gain.
+
 	# NOTE: No engineer (^E6) capture module wired anywhere — engineers
 	# don't capture in WW3MOD by design. The Captures trait sits on
 	# Technician (^TECN) only. See DOCS/gameplay/capturing.md.

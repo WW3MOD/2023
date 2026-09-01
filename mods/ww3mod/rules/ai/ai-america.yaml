@@ -97,6 +97,12 @@ Player:
 			m113: 15
 			m109: 15
 			strykershorad: 10
+			# Minelayer. MEMBERSHIP, NOT THE WEIGHT, IS WHY THIS GETS BOUGHT — the same arithmetic
+			# spelled out on dr.america above. mnly is deliberately absent from UnitTargetShares below,
+			# so with CompositionDirected + CompositionEnforceTargetCeiling both on it is ineligible for
+			# the deficit pick; it is reached only through the FLOOR lane, and ChooseBelowFloor gates on
+			# UnitsToBuild membership. Without this line the floor entry below is inert.
+			mnly: 10
 
 			# Supply trucks for field resupply (need-gated below)
 			truk: 20
@@ -116,6 +122,11 @@ Player:
 			# User ruling 2026-08-27: "just a couple or so is enough usually". This is the hard
 			# ceiling behind the floor cap; both are 2 so the floor is the only thing that moves.
 			dr.america: 2
+			# ONE minelayer, ever. Erring low deliberately: 600 is not a cheap specialist (4x the drone
+			# operator), the module commits at most MaxPerAssign: 1 unit per field anyway, and no live
+			# match has yet shown what a second one would add. Cap and floor are both 1, so as with
+			# dr.america the floor is the only thing that moves.
+			mnly: 1
 		# ===== STANDING-POPULATION FLOORS (experimental-only; C# default is unset) =====
 		# USER RULING 2026-08-14: "build medics", and "there is always an AA soldier or two on the field".
 		# A UnitTargetShares entry CANNOT deliver either, and the reason is arithmetic, not tuning. Shares are
@@ -159,6 +170,23 @@ Player:
 		UnitFloors:
 			medi.america: 2
 			aa.america: 2
+			# Minelayer. FLAT, WITH NO UnitFloorPer DENOMINATOR — the aa.america pattern, not the
+			# medi/dr pattern, and this is the case SupportFloorMath's own header carves out rather
+			# than an exception argued for here: "a floor on a type whose value is INDEPENDENT of army
+			# size (one scout, one capturer for a specific building) is legitimately flat. A floor on a
+			# SUPPORT type — one whose value is PROPORTIONAL to the force it serves — must not be."
+			# One minelayer denies the same lane whether it screens ten soldiers or fifty, so it is the
+			# former. Inventing a per-N-soldiers denominator for it would be inventing a number whose
+			# only real job is to act as an opening-buy guard — and a mis-set denominator is exactly how
+			# this file has twice shipped a floor that silently never fires (N above the denominator's
+			# ceiling ⇒ min(cap, supported/N) is 0 forever). UnitDelays does that job directly and
+			# cannot go inert. See UnitDelays.mnly below.
+			# ORDINAL POSITION, WHICH IS NOT A GUESS: floorTypes is UnitFloors.Keys sorted with
+			# StringComparer.Ordinal and ChooseBelowFloor returns the FIRST type under its floor, so
+			# with aa < dr < medi < mnly ('e' < 'n' decides medi.america vs mnly) the minelayer is the
+			# LAST of the four to be bought when several are short at once. That is the right order for
+			# the most expensive and least urgent of them.
+			mnly: 1
 			# Drone operator — the user's "they make none" is a FLOOR problem, not a weight problem.
 			# See the dr.america UnitFloorPer note below for why 2 here is a cap and not a target.
 			dr.america: 2
@@ -308,6 +336,22 @@ Player:
 		# design.
 		UnitDelays:
 			aa.america: 2000
+			# ===== MINELAYER: 3000, AND THIS ONE IS A REASONED ESTIMATE, NOT A MEASUREMENT =====
+			# Said plainly because the aa.america figure directly above IS derived (from the 2500
+			# attack-heli gate) and it would be easy to read this line as carrying the same authority.
+			# It does not. No bot has ever fielded a minelayer, so there is no measurement to cite.
+			# WHAT IT IS DERIVED FROM, such as it is: a minefield is worth 600 only once the enemy has
+			# committed to a lane, and the module needs two further ScanTicks (640 ticks, ~38 s) after
+			# the unit arrives before the first field is laid — the cold-start branch enqueues a
+			# position and returns without ordering anyone. 3000 ticks is 180 s at 16.667 ticks/s, so
+			# the first mines land around 3.5 minutes, by which point a front line exists.
+			# WHY A DELAY AT ALL, given the floor is only 1: the floor pre-empt OUTRANKS the target
+			# ceiling and every demand gate, and this floor is flat, so without a delay a 600-cost
+			# minelayer is GUARANTEED to be an opening call-in ahead of line infantry. That is the
+			# defect this file has already shipped twice (two t=0 medics, two t=0 supply trucks).
+			# WHAT WOULD MOVE IT: too high if matches are decided before the minelayer ever appears;
+			# too low if the bot buys one while still short of a defensible line and loses it empty.
+			mnly: 3000
 			# ===== THE PLATOON-START GUARD, AND IT IS FREE =====
 			# UnitDelays is an ABSOLUTE world-tick opening, consulted at all three call-in sites
 			# including the floor lane (ChooseBelowFloor, UnitBuilderBotModule.cs:1302), so it is the
