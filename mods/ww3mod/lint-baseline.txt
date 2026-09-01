@@ -48,23 +48,33 @@
 # WHERE THE FLOOR STANDS NOW (2026-09-01). Counted from the entries in THIS FILE, not from a run: the
 # paired CI/local measurement above has not been re-taken since 2026-08-17, so 437 and 89 are history,
 # not current readings. What is current:
-#   [repo]                  88   <- the debt figure. THIS is the number that is supposed to fall.
+#   [repo]                  89   <- the debt figure. THIS is the number that is supposed to fall.
 #   [accepted]               3
 #   [requires-ra-content]  350
 # The 87 became 88 in d5b1cd6f (2026-08-20), which added the test-crate-proximity-capture scenario and
 # with it one more inherited cordon line. The prose was not moved with it and went on saying 87 until
 # 2026-09-01 -- in the one file whose entire job is to be an accurate floor. Change the count, change
 # this block, same commit.
+# The 88 became 89 on 2026-09-01, by the same mechanism a second time: the test-drone-lost-track
+# scenario landed with `Bounds: 0,0,98,82` and inherited the cordon line. Twice now a new scenario has
+# raised this floor silently, which is the argument for fixing the class rather than the instance --
+# every scenario authored from an existing one copies the defect forward.
 #
-# THE LARGEST SINGLE CLASS, which is what to cost before anything else here: 63 of the 88 [repo]
+# THE LARGEST SINGLE CLASS, which is what to cost before anything else here: 64 of the 89 [repo]
 # entries are `This map does not define a valid cordon.` -- 72% of the standing debt is one mechanical
 # defect. `CheckMapCordon.cs:20` requires the playable `Bounds:` to be inset by at least one cell from
-# `MapSize:` on all four sides; all 63 are autotest scenarios under `tools/autotest/scenarios/` that
+# `MapSize:` on all four sides; all 64 are autotest scenarios under `tools/autotest/scenarios/` that
 # carry `Bounds: 0,0,W,H`. NONE of the 10 shipped playable maps in `mods/ww3mod/maps` is affected, and
 # 183 of the 247 scenarios already carry the compliant `1,1,W-2,H-2` form. NOT paid down here, and it
-# is not free: insetting the bounds pushes the outer ring out of play, and 24 of the 63 have actors
+# is not free: insetting the bounds pushes the outer ring out of play, and 24 of the 64 have actors
 # standing on that ring. Costed with per-map numbers in the 2026-09-01 entry in
 # `WORKSPACE/DISCOVERIES.md`; the decision is the user's.
+#
+# A SECOND COST, found 2026-09-01 and not in that costing: `Map.Contains` tests `Bounds` while
+# `ControlField.cs:520-521` sizes its grid from `MapSize`, so a never-verified border square returns
+# int.MaxValue and reads as permanently unobserved ground. Insetting bounds therefore CREATES border on
+# a map that had none, feeding an exploration-inflation bug that is itself being fixed on wt/bot-truth.
+# Sequence the paydown after that fix lands, or the two changes are entangled in one unmeasured step.
 
 [repo]
 # since 2026-08-17
@@ -92,6 +102,15 @@ test-crate-not-autotargeted | This map does not define a valid cordon.
 test-crate-proximity-capture | This map does not define a valid cordon.
 test-crate-rearm | The map allows 2 possible players, but defines only 1 spawn points.
 test-crate-rearm | This map does not define a valid cordon.
+# Added 2026-09-01, deliberately and as DEBT, not as an amnesty of convenience. The 64th instance of the
+# class that already accounts for 63 of this section: the map declares Bounds: 0,0,98,82 against
+# MapSize: 98,82, so all four of CheckMapCordon's conditions fire at once and there is no border at all.
+# The one-line fix (shrink Bounds by a cell per side) is NOT applied tonight because this map is the
+# pinned scenario for the open drone lost-track proof, which is one run from an answer and carries a
+# standing "do not rebuild" — and because Map.Contains tests Bounds, so introducing a border here feeds
+# the exploration-inflation bug being fixed on wt/bot-truth. Fix it with the rest of the cordon class
+# once that lands, so the two changes are not entangled in one unmeasured step.
+test-drone-lost-track | This map does not define a valid cordon.
 test-experimental-poi-capture | This map does not define a valid cordon.
 test-experimental-poi-harness | This map does not define a valid cordon.
 test-experimental-poi-observe | Actor `OpponentSR` is owned by unknown player `Russia-bot`.
