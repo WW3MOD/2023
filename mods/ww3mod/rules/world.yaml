@@ -234,11 +234,13 @@
 	TerrainRenderer:
 	ShroudRenderer:
 		# Explored ground with no current observer sits at visibility 1 and so draws all nine fog
-		# layers. At the engine baseline of 1 that leaves it at 25.6% of its lit brightness; 1.85
-		# leaves 6.4% — 75% darker — so terrain still reads as shape rather than detail while
-		# separating clearly from the flat black of unexplored shroud.
+		# layers. At the engine baseline of 1 that leaves it at ~26% of its lit brightness; 1.4
+		# leaves ~15% (measured on-screen 2026-09-01) — dark enough that terrain reads as shape
+		# rather than detail, while separating clearly from the flat black of unexplored shroud.
+		# The previous 1.85 measured ~6.4% and was visually indistinguishable from shroud, which
+		# defeated the separation goal — verified via Test.KeepRenderPlayer captures at 1 / 1.4 / 1.85.
 		# Fully visible ground is visibility 10, draws no fog layer at all, and is unaffected.
-		FogDarkness: 1.85
+		FogDarkness: 1.4
 	Faction@randomside:
 		Name: Any Side
 		InternalName: Random
