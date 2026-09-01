@@ -42,6 +42,78 @@ two markers written into `result.json`'s `screenshots[]` (`00-script-loaded`, `9
 scenario; nothing reads it above the scenario. *Rule for whoever closes this: a declared outcome may
 only be graded green against a verdict the scenario produced under its own power — establish that
 first, then compare the status.*
+## 2026-09-01 — the wide `FrozenActor.Owner` exception cannot fire in WW3MOD at all, and the narrow one is a single write feeding NINE consumers, six of them not UI (`wt/fog-snapshot`, `main @ 3dd67e07`)
+
+Static read only; no launch taken. Extends and corrects the `wt/fog-truth` entry below, which banked
+the two exceptions this morning. Its verdict (*acceptable by design*) survives — **but neither of its
+two supporting arguments does**, and the replacement reasons are stronger.
+
+**1. `FrozenUnderFogUpdatedByGps` is INERT in this mod. The "broader hole" is not open.** The entry
+below calls it "the wide one" and notes the mod attaches it (`ingame/structures.yaml:61`, `:264`,
+`structures-defenses.yaml:66`) — true, and it still cannot fire. Its per-player gate is
+`GpsWatcher.Granted && GrantedAllies` (`FrozenUnderFogUpdatedByGps.cs:99-101`); `Granted` is
+`actors.Count > 0 && Launched` (`GpsWatcher.cs:85`); `actors` is populated only by `GpsAdd`, whose
+**only** callers engine-wide are `GpsPower.cs:67,102,118`. **`GpsPower` appears nowhere in `mods/` or
+`tools/autotest/`** — the mod carries `GpsWatcher` on the player actor (`player.yaml:179`, which is
+what stops `FrozenUnderFogUpdatedByGps`'s constructor NRE-ing at `:54-55`) and `GpsDot` on various
+actors, but no power that launches a satellite. So `Granted` is permanently false, `GrantedAllies`
+with it, and `ActOnFrozenActorForTraits` returns at `:101` every time. **Attaching the trait is not
+the same as enabling it; the gate is content, not code.** If a `GpsPower` is ever added, this reopens
+and `test-frozen-owner-snapshot` starts failing for a legitimate reason — its header already says so.
+
+**2. "The cursor is the last link in a chain the tooltip and colour already showed" is circular.**
+That was the load-bearing sentence in the verdict below, and the tooltip is not an independent
+channel: `RefreshState()` (`FrozenActorLayer.cs:122-141`) writes `Owner`, `TargetTypes`,
+`targetablePositions`, `HP`, `DamageState`, `TooltipInfo` **and** `TooltipOwner` in one call. The
+tooltip moves because of the very write under discussion. There is no prior channel it is trailing.
+
+Nor is the old owner told by any other means: `CaptureNotificationInfo.LoseNotification` and
+`LoseTextNotification` default to null, `^BasicBuilding` declares `CaptureNotification:` bare
+(`ingame/structures.yaml:54`), and the string is overridden nowhere in `mods/` (the one
+`LoseNotification:` hit, `player.yaml:159`, is `MissionObjectives`, an unrelated trait). **In WW3MOD
+the old owner gets silence on capture.** What they do get independently is second-order — power,
+prerequisites, and the actor leaving their selection — none of which names the new owner.
+
+**3. The narrow exception's real blast radius: one write, nine consumers, and only three are UI.**
+`FrozenUnderFog.OnOwnerChanged` (`:217-224`) refreshes `frozenStates[oldOwnerIndex]` only — index
+alignment confirmed at `PlayerDictionary.cs:33-41,52`, so that is the ghost whose `Viewer` is the old
+owner, and no third party's. Every consumer below reads *the viewer's own* `FrozenActorLayer`, so all
+of them are reachable **only when the acting/render player IS the old owner**:
+
+| Consumer | Site | What the refresh changes |
+|---|---|---|
+| Mouse cursor | `UnitOrderTargeter.cs:52-58` (ghost sourced at `UnitOrderGenerator.cs:39`, `:317`) | ally-gated cursors stop offering on the lost building |
+| Tooltip | `WorldTooltipLogic.cs:82` via `TooltipOwner` | stops naming the old owner |
+| Ghost dot colour | `SightingIntelOverlay.cs:181-187` | dot repaints in the new owner's palette |
+| Auto-target | `AutoTarget.cs:1339-1341` (source), `:1396-1400`, `:1303`, `:768` | ghost flips Ally→Enemy, becomes auto-attackable |
+| Attack re-validation | `AttackBase.cs:443`; `AttackFollow.cs:316,375,428`; `AttackOmni.cs:91`; `Attack.cs:95`; `FlyAttack.cs:73,126`; `AttackMoveActivity.cs:239` | cached `lastVisibleOwner` re-derives to the new owner |
+| **Belief store** | `BeliefStore.cs:232-249` | lost building is injected as an enemy static contact at `FrozenConfidence` |
+| **Threat field** | `SightingThreatLayer.cs:225-236` | lost building starts spreading enemy threat weight |
+| **Support-power AI** | `SupportPowerDecision.cs:85-89`; `SupportPowerBotModule.cs:156-157` | lost building becomes an attractive strike target |
+| Infiltrate / disguise | `Infiltrates.cs:109`; `Disguise.cs:152` (both Mods.Cnc) | relationship gate moves — **not verified as reachable in this mod** |
+
+The last three bolded rows are the point: they are **bot perception, not UI**, and all three gate on
+`player.RelationshipWith(fa.Owner) != PlayerRelationship.Enemy`. Pre-refresh `fa.Owner` is the viewer
+themselves, and `RelationshipWith(self)` returns `Ally` (`Player.cs:250-251`), so the ghost is
+*skipped*. The tooltip argument does not reach any of them.
+
+**Verdict: keep it, and the reason is that freezing it would inject a false FRIENDLY, not merely
+withhold a truth.** After capture `self.Owner` is the new owner, so the old owner loses the
+`AlwaysVisibleRelationships: Ally` exemption at `FrozenUnderFog.cs:132-134` and the ghost becomes
+their render path. With a frozen snapshot that ghost would read as **theirs** — friendly-coloured,
+skipped by `AutoTarget` as an ally, offered ally-only cursors, absent from `BeliefStore` and
+`SightingThreatLayer`, and a bot would go on believing it owns a building an enemy is now shooting
+from. That is a worse failure than the leak it removes, and it is a *combat* failure rather than a
+cosmetic one. The genuine unearned bit is narrow: in a 3+ mutually-hostile-player game the old owner
+learns *which* player took it. There is no cheap middle setting — `Owner` doubles as the validity
+flag (`IsValid => Owner != null`, `FrozenActorLayer.cs:117`), so it cannot be blanked to "not mine,
+unknown who" without breaking every relationship gate above and `FrozenActorsInRegion`'s own filter.
+
+**What a future audit must re-check for this exception to still hold:** (a) no `GpsPower` in `mods/`;
+(b) `CaptureNotification.LoseNotification` still unset, i.e. the refresh is still the *only* channel;
+(c) `FrozenUnderFog` still `Requires<BuildingInfo>` (`:21`) and still unstripped — `grep -rn
+-- "-FrozenUnderFog" mods/` is empty, so every building has a ghost and no non-building does, and any
+sentence about a frozen vehicle describes a state that cannot exist.
 
 ## 2026-09-01 — the sync tripwire has exactly ONE site engine-wide, which is why "dispatches UI handlers from Lua" is a silent bug class (`wt/cmdbar-audit`, `main @ 42548fe5`)
 
@@ -192,6 +264,14 @@ the tooltip. There is no ordering in which the cursor leaks something the colour
 not already shown — the cursor is the last link in that chain, not the first. Changing it would mean
 suppressing the *tooltip* correction too, i.e. deliberately showing a player their own lost building
 as still theirs. Not touched.
+
+> **Verdict upheld, both arguments superseded — see the `wt/fog-snapshot` entry at the top of this
+> file (2026-09-01).** The "last link in a chain" reasoning is circular (`RefreshState()` writes
+> `TooltipOwner` and `Owner` in the same call, so the tooltip is not a prior channel), and the GPS
+> exception cannot fire in this mod at all (no `GpsPower` exists, so `GpsWatcher.Granted` is
+> permanently false). The replacement argument is that freezing the snapshot would inject a false
+> *friendly* into auto-target, `BeliefStore` and `SightingThreatLayer` — six non-UI consumers this
+> entry does not enumerate.
 
 **Scope, because it bounds every argument built on this:** `FrozenUnderFog` is the ONLY
 `ICreatesFrozenActors` implementor, and it is `Requires<BuildingInfo>` (`:21`). Nothing in
