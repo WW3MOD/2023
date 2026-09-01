@@ -135,7 +135,12 @@ _Correction to note: the false claim lives in `mod.yaml`'s comment, **not** in `
 **Perceived:** a player picks a map from the lobby list, starts, and has no Supply Route and no victory condition — an unwinnable, unexplainable match.
 `arena-tank-duel` (`Author: Combat Sim`) and `shellmap-open-field` are both `Visibility: Lobby, Shellmap`, and their `rules.yaml` strips `-ConquestVictoryConditions` and `-SpawnStartingUnits` — the latter is what places the Supply Route. **Size:** minutes.
 
-**R4. The lobby's only AI opponents are "Experimental AI" and "Stable AI 0802".** *(chrome)*
+> ⚠️ **VERDICT 2026-09-01 (`main @ bd8e7290`) — HALF SHIPPED. RE-SCOPE, DO NOT CLOSE.**
+> **Shipped:** `d02f41d0` renamed the internal build date away — `rules/ai/ai.yaml:54` now reads `Name: Standard AI` (`Type: stable` at `:55`); `:49` is `Name: Experimental AI`, `:50` `Type: experimental`. The split survives, because the build date was the part that read badly, not the split.
+> **NOT shipped, and this is the whole remaining item:** there is still **no difficulty ladder and no descriptions** — `grep -c 'Difficulty\|Description' rules/ai/ai.yaml` returns **0**.
+> **The file is `rules/ai/ai.yaml`, not `rules/ai.yaml`** — the old cite below sent at least one reader to a path that does not exist.
+
+**R4. ~~The lobby's only AI opponents are "Experimental AI" and "Stable AI 0802".~~ → RE-SCOPED: names are fixed; the ladder and descriptions are not.** *(chrome)*
 **Perceived:** in the one menu every single-player passes through, the opponent picker offers a lab name and an internal build date, with no difficulty ladder and no descriptions.
 `ai.yaml:44-51`. **Note this collides with the bot ranking rule:** it is chrome, not bot intelligence, so it is cheap and it is a blocker — the bot can stay exactly as good as it is today and this still needs fixing. **Size:** minutes for naming/descriptions; a real difficulty ladder is larger and is a separate decision.
 
@@ -154,10 +159,29 @@ _Correction to note: the false claim lives in `mod.yaml`'s comment, **not** in `
 > **The `X` buttons are all still there — verified by direct grep, not relayed: 8 of them, `Text: X` at `:655, 669, 683, 697, 711, 725, 739, 753`** (`Button@EJECT_PORT_0..7`, block `:649-753`). **None has a tooltip or a key.** Three more have real labels but neither: `EJECT_ALL:779`, `UNLOAD_ALL_TROOPS:807`, `DROP_SUPPLY:820`.
 > **Re-scope, don't close: the finding shrinks from "~50" to 11 buttons, 8 of them labelled `X`** — and the single-letter-button symptom, which is the visible half, is untouched.
 
-**R6. ~~~50~~ 11 garrison and cargo buttons have no tooltip and no hotkey; 8 are labelled just `X`.** *(chrome)*
-**Perceived:** an unexplained wall of buttons, eight of them a single letter. `ingame-player.yaml:649-820`. **Size:** hours. Widens PIPELINE item 60.
+> ✅ **VERDICT 2026-09-01 (`main @ bd8e7290`) — SUPERSEDES THE BLOCK ABOVE. TWO OF THREE HALVES SHIPPED at `06333250`. RE-SCOPE TO HOTKEYS ONLY.** Every number below re-counted in the current file, not relayed. The region moved: `GARRISON_PANEL` is now at `ingame-player.yaml:610`, `CARGO_PANEL` at `:797` (region `:610-983`); the file is 1379 lines.
+> - **Labels — DONE. `Text: X` no longer occurs anywhere in the file (0 hits).** The eight now read `Text: Out` at `:636, 653, 670, 687, 704, 721, 738, 755`. **The block above asserting `Text: X` at `:655, 669, 683, 697, 711, 725, 739, 753` is FALSE as of `06333250` and is retained only for its `ed5ee6b6` lesson.**
+> - **Tooltips — DONE.** 11 `TooltipText:` inside `:610-983`, **zero of them inside comments** (the old count's comment-trap is gone because the comments are gone).
+> - **Hotkeys — UNTOUCHED. `Key:` count inside `:610-983` is 0.**
+> The 11 buttons are `EJECT_PORT_0..7` (`:630, 647, 664, 681, 698, 715, 732, 749`), `EJECT_ALL:784`, `UNLOAD_ALL_TROOPS:958`, `DROP_SUPPLY:974`.
+> **The visible half — the wall of single-letter buttons — is fixed.** What is left is the least player-visible third of the finding, and R5's verdict already downgraded the hotkey class to COSMETIC.
 
-**R7. The install chain identifies the product as OpenRA.** *(chrome; wave-2 install audit is going deeper)*
+**R6. ~~~50~~ ~~11 garrison and cargo buttons have no tooltip and no hotkey; 8 are labelled just `X`.~~ → RE-SCOPED: labels and tooltips shipped; 11 buttons still have no hotkey. COSMETIC.** *(chrome)*
+**Perceived:** effectively fixed. The wall of `X` buttons now reads `Out` and every button explains itself on hover. `ingame-player.yaml:610-983`. **Size:** minutes, and only worth spending during final pre-release polish. Widened PIPELINE item 60 (shipped).
+
+> ❌ **VERDICT 2026-09-01 (`main @ bd8e7290`) — STILL OPEN, 0 OF 5 SYMPTOMS FIXED.** Commits have landed since that *look* like they addressed it (`d7279968` "release identity: separate the two version strings", `60969fb8` the packaging audit re-stamp); **neither touches `mod.config`, the NSI script, or `Directory.Build.props`.** This is the failure mode R6 demonstrated — **a plausible-looking commit is not evidence; the file is.** All five re-verified present at this commit:
+>
+> | Symptom | Current state |
+> |---|---|
+> | Install dir | `mod.config:89` `PACKAGING_WINDOWS_INSTALL_DIR_NAME="OpenRA WW3MOD"` |
+> | Registry key | `mod.config:93` `PACKAGING_WINDOWS_REGISTRY_KEY="OpenRAWW3MOD"` |
+> | Start Menu folder | `packaging/windows/buildpackage.nsi:54` `MUI_STARTMENUPAGE_DEFAULTFOLDER "OpenRA"` |
+> | `<Product>OpenRA</Product>` | `engine/Directory.Build.props:17` |
+> | Crash-dialog FAQ | `mod.config:51` `PACKAGING_FAQ_URL="http://wiki.openra.net/FAQ"` |
+>
+> **Two more instances the original finding missed:** `buildpackage.nsi:128` writes to `$APPDATA\OpenRA\ModMetadata`, and `:138`/`:203` name the desktop shortcut `"OpenRA - ${PACKAGING_DISPLAY_NAME}"`.
+
+**R7. The install chain identifies the product as OpenRA.** *(chrome; wave-2 install audit went deeper)*
 **Perceived:** install dir `OpenRA WW3MOD`, registry key `OpenRAWW3MOD`, Start Menu folder `OpenRA`, `<Product>OpenRA</Product>`, and the crash dialog's FAQ button opens `wiki.openra.net`. **Size:** hours. Discord rich presence needs a WW3MOD app id and is not fixable in-repo.
 
 > ✅ **VERDICT 2026-08-19 (`main @ 5890b053`) — SHIPPED. CLOSE. But the flag's mechanism is WRONG in a way that will bite the next reader.** All four `Faction@` blocks checked in `rules/world.yaml`: `@randomside` (`:236-241`, the "random vanilla side" string is gone), `@0` America (`:242-245`) and `@1` Russia (`:251-254`) all filled. `# Faction@1` Ukraine (`:246-250`) is commented out and inert.
@@ -193,6 +217,10 @@ Tracked separately from R10 so the desync fix is not confused with the phase's r
 
 ### POLISH
 
+> ❌ **VERDICT 2026-09-01 (`main @ bd8e7290`) — STILL OPEN, VERBATIM.** The overstatement lives in `mods/ww3mod/chrome/ingame-info-howtoplay.yaml`, unchanged: `:123` *"reinforcements slow, then halt, and a red bar starts filling. If it"* · `:130` *"**fills, that side is out of the match.** Yours works the same way, so"*. `:137` does add *"push them off and it recovers"*, which softens the reversibility half — **but the specific sentence R9 names is present unchanged.** A fix is one line in one file.
+> **Related and NOT the same defect — and the earlier note about it was itself stale, so re-read this rather than the version you may remember.** An abandoned 2026-08-19 branch recorded `SupplyRouteContestation.cs:73` carrying `"Supply Route overrun! Production and income frozen."` **Both halves of that cite are now wrong:** the field is at **`:98`** and reads **`"Supply Route overrun! Production frozen."`** — the "and income" claim was dropped at some point since. `PassiveTextNotification` is now defensible on its own terms, because contestation genuinely does freeze production.
+> **What IS still a second instance of R9's defect is a different line: `SupplyRouteContestation.cs:580`** emits *"has lost their Supply Route! Production frozen."* — and **ownership never transfers** (see CLAUDE.md: contesting is not capturing), so "has lost their Supply Route" overstates in exactly the way the panel does. **Fix the panel and `:580`, not `:98`.**
+
 **R9. The onboarding panel overstates Supply Route contestation.** *(chrome)*
 It says losing the Route "puts them out of the match"; the shipped mechanic makes a player **passive and reversible** (`SupplyRouteContestation.cs:354-373`). Verified accurate otherwise — its Supply Route claims check out against `structures.yaml:202-273`. **Size:** minutes.
 
@@ -218,7 +246,13 @@ Framing for this batch (why 63/64 are not one item, and what 65 has to do with e
 ### 64. Coordinated combined-arms push — the first tank attacks alone
 `[PARTIALLY SHIPPED — the rendezvous is merged but SWITCHED OFF; the speed differential is untouched and is the visible half]`
 **Perceived:** the opening push looks like a formation instead of a lone vehicle. Armour leads, a transport carrying infantry and a technician follows behind it, and the infantry arrive at the front protected rather than walking up on their own.
-**More landed than "recon":** `ef608a62` publishes `PoiOffensiveBotModule.ForwardStagingAnchor` and folds it into the transport's drop-off via a new pure `RendezvousMath` — but `RendezvousWithOffensiveStaging` defaults **false** and `ai.yaml:1625` sets it false, so both profiles are byte-identical and this has never affected play. **The remaining work is (1) enable and measure, (2) the speed differential — infantry already walk to the same anchor from tick 3; the tank simply outruns them.** → [`items/64-combined-arms-push.md`](pipeline/items/64-combined-arms-push.md)
+**More landed than "recon":** `ef608a62` publishes `PoiOffensiveBotModule.ForwardStagingAnchor` and folds it into the transport's drop-off via a new pure `RendezvousMath` — but `RendezvousWithOffensiveStaging` defaults **false** (`MountedTransportBotModule.cs:92`) and **`ai.yaml:1723`** (not `:1625`, and not `:1635` — this cite has drifted twice) sets it false, so both profiles are byte-identical and this has never affected play. **The remaining work is (1) enable and measure, (2) the speed differential — infantry already walk to the same anchor from tick 3; the tank simply outruns them.** → [`items/64-combined-arms-push.md`](pipeline/items/64-combined-arms-push.md)
+
+> ✅ **UPDATE 2026-09-01 (`main @ bd8e7290`) — THE KNOWN BLOCKER IS FIXED; THE ITEM IS NOW ONE STEP, AND THAT STEP IS A RUN.** `RendezvousMaxWithdrawCells` exists (default **6**, `MountedTransportBotModule.cs:109`, consumed at `:1589`) — that is the lower bound whose absence turned a 26-cell delivery into a shuttle.
+> **It is still switched OFF.** Exactly one YAML site sets it: `ai.yaml:1723 RendezvousWithOffensiveStaging: false`. `ai-america.yaml` and `ai-russia.yaml` touch it nowhere, so the other twin takes the `false` C# default. **Both profiles remain byte-identical, and this has still never run in a live match.**
+> **The speed differential is confirmed untouched** — no speed-matching, lead-hold or follower gate exists in the bot modules.
+> **Net effect on dispatch: do NOT send a worker to "fix the rendezvous" — it is fixed. The next action is to flip the flag and measure**, which under the standing launch rule is the manager's to run, not a worker's.
+> **One caveat worth carrying:** `RendezvousMathTest.cs:185` carries the comment *"MEASURED, NOT REASONED — run 260815_202509, seed 1017, `RendezvousWithOffensiveStaging: true`."* So the **maths** has been measured under a hand-flipped flag; **shipped play has not.** Do not read that comment as evidence the feature has run in a match.
 
 ### 65. ~~Field actors swallow artillery shells~~ **[SHIPPED `db01b0ae` — CLOSE]**
 `[the damage half was a MISATTRIBUTION and is settled; what survives is a separate balance question, not this item]`
@@ -241,7 +275,16 @@ Batch framing in [`archive/session-notes.md`](pipeline/archive/session-notes.md)
 ### 56. Supply trucks still do not commit to a delivery
 `[the item's own tag reads: HIGHEST PRIORITY IN THE WHOLE QUEUE — above item 40]`
 **Perceived:** a supply truck drives to where supplies are needed, drops its supply, and leaves. Today it goes back and forth and never commits.
-Declared fixed to the user at least three times. **The user has pre-authorised the blunt fix** — disabling danger awareness for trucks entirely is explicitly acceptable. **A green scenario does NOT close this item**; the acceptance bar is a full bot-vs-bot match on a real map, with an added precondition clause so "no truck was ever bought" reads as instrument failure rather than a negative result. Disabling danger awareness is **seven sites, not one seam**, and one of them reads a different field that no config flag reaches. → [`items/56-supply-truck-delivery.md`](pipeline/items/56-supply-truck-delivery.md)
+Declared fixed to the user at least three times. **A green scenario does NOT close this item**; the acceptance bar is a full bot-vs-bot match on a real map, with an added precondition clause so "no truck was ever bought" reads as instrument failure rather than a negative result. → [`items/56-supply-truck-delivery.md`](pipeline/items/56-supply-truck-delivery.md)
+
+> ⚠️ **THIS ITEM'S CENTRAL PREMISE WAS STALE AND IS CORRECTED HERE (2026-09-01, `main @ bd8e7290`). Read this before dispatching anyone — briefing a worker to "implement the blunt fix" would send it to write code that already exists.**
+> The struck framing said the user's pre-authorised blunt fix was unbuilt, that disabling danger awareness meant **"seven sites, not one seam"**, and that one site read a field *"that no config flag reaches"*. **All three are false.**
+> - **`IgnoreDangerForDelivery` reaches every danger gate in the module, including the `ThreatMapManager` reader.** Consumed at `SupplyFollowerBotModule.cs:721, 899, 930, 1490, 1826, 2299` — and **`:2299` is `FindSafeFollowPosition`, the `ThreatMapManager` site the dossier says no flag can reach.** The flag does reach it.
+> - **Correcting the count while we are here: that is SIX consumption sites, not seven.** The "seven sites" figure has been repeated in three documents and none of them lists seven line numbers — the 2026-08-19 note that first challenged this claim still wrote "all seven sites" above a list of six. Declaration is `:125`; `:731-732` are debug-string interpolation, not gates.
+> - **It is switched ON in shipped content.** `ai.yaml:1129` (not `:1041` — drifted) sets `IgnoreDangerForDelivery: true` on the shared `SupplyFollowerBotModule@supply`.
+> - **That instance is `enable-ai-any`, so this reaches `@stable` too** — a knowing, visible improvement flowing to the control, per CLAUDE.md policy. **The next benchmark baseline must be re-taken knowingly.**
+>
+> **So item 56 is a RUN, not a dispatch.** Its acceptance bar is unchanged and still binding. **Watch in the same match:** `test-supply-safe-front-keeps-cargo` is RED (the truck drops when it must not) and is unrefuted — if the live match looks good while that stays red, the two disagree and the scenario is the one to trust less, per this item's own founding lesson (*a test bed that always reaches a state cannot reveal a broken transition into it*).
 
 ### 57. ~~Bot build composition — one item, three symptoms, same subsystem~~ **[ALL THREE SHIPPED — CLOSE]**
 **Perceived:** delivered — the bot no longer opens with two idle supply trucks or medics, and AA soldiers are held at a standing floor of 2.
@@ -267,7 +310,11 @@ Promoted to a **hard release blocker** by the 2026-08-16 audience ruling. Four c
 ### 44. AA and autotarget arithmetic
 `[(a) DONE 16eca8e8 — confirmed live. (b) STILL OPEN; premise re-verified 2026-08-19]`
 **Perceived:** an AA battery shoots at the helicopter in front of it, instead of four AA serialising at ~185-tick spacing and taking ~34 seconds to all join.
-(b) is **blocked on test design, not engine work** — and re-checking confirmed the engine premise is untouched (`PreemptScanInterval: 25` at four bases, C# default still 0). **A run today would be worthless: the scenario's own header records that it cannot discriminate the fix at any seed. What is needed is a redesigned test, not a launch.** Three stale references inside the dossier are now corrected. → [`items/44-aa-autotarget-arithmetic.md`](pipeline/items/44-aa-autotarget-arithmetic.md)
+~~(b) is **blocked on test design, not engine work** … **A run today would be worthless.**~~ — **SUPERSEDED, see below.** The engine premise is untouched: `PreemptScanInterval: 25` at **five** inheritance bases (`defaults.yaml:396, 641, 726, 752, 833` — the old cite said four bases at `:329, 574, 659, 756`, wrong in both count and position), C# default still `0` at `AutoTarget.cs:212`, preempt read now at `:1088`. → [`items/44-aa-autotarget-arithmetic.md`](pipeline/items/44-aa-autotarget-arithmetic.md)
+
+> ✅ **UPDATE 2026-09-01 (`main @ bd8e7290`) — THE TEST REDESIGN LANDED. 44(b) IS NOW BLOCKED ON A RUN, NOT ON DESIGN.** `test-autotarget-preempt-air` asserts **attribution rather than outcome** — the old assertion could not fail, which is why the earlier RED control passed. It now requires the helicopter hit **AND** `UncommittedScanCount` unmoved since HIND arrival (`test-autotarget-preempt-air.lua:137, 163, 196`); the unaided route must pass through an uncommitted scan while preemption bypasses `ScanForTarget`. **So it discriminates by construction.**
+> **Two things to carry.** (1) It touched **engine code, not just the test** — `AutoTarget.cs:343` declares `UncommittedScanCount` (incremented at `:1166`) and `TestGlobal.cs:1195` exposes `Test.GetUncommittedScanCount`. It is claimed diagnostic-only and non-`[Sync]`; **that is the author's claim and has not been independently re-verified** — if a benchmark moves unexpectedly, look here first. (2) **No RED control has ever been run against the new assertion.**
+> **Next action is a RED+GREEN pair on one scenario** — per `AUTOTEST.md`'s standing rule the green is not evidence without the red. Under the standing launch rule the manager runs it.
 
 ### 45. Missile system
 `[BOTH previously-open deliverables DISCHARGED; ONE NEW open question named by the spec itself. Javelin still PARKED — do NOT re-dispatch it]`
