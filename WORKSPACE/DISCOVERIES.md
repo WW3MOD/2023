@@ -171,6 +171,183 @@ Two corollaries worth carrying:
 > A second instance found the same day: *"if no rearm host exists, aircraft evacuate"* is **helicopter-only** — `EvacuateWhenUnrearmable` sits on `^Helicopter` alone, so A10, FROG and MIG carry `RearmActors: afld` with no fallback at all. That one turned out to be a real gap in the game, not merely a documentation error, and it was surfaced only by re-deriving a citation instead of forwarding it.
 >
 > **The rule: a count is a claim, and a claim needs a source you re-ran — not a document that agrees with you.** When carrying a number forward, either paste the enumeration behind it or re-derive it. **Two documents agreeing on a figure is not evidence; it is usually one uncounted figure with two homes.**
+## 2026-09-01 — `LayeredDefenceBotModule` logs under the `[exp-poi]` tag, so its unit moves read as `PoiOffensiveBotModule`'s (`wt/drone-targeting`)
+
+A log tag that names the wrong module costs you a run, because the natural response to
+"something is moving my unit" is to remove the module the tag names.
+
+- `LayeredDefenceBotModule.cs:285,321` emit `[exp-poi] disperse player=… pool=… centroid=…`.
+  Nothing named `Poi` is involved: the module is `LayeredDefence`, and `PoiOffensiveBotModule` is a
+  different trait with its own instance in `ai.yaml`.
+- In an autotest that needed the drone operator to stay put, `PoiOffensiveBotModule@experimental` and
+  `LaneAmbushBotModule@experimental` were both removed and the operator **kept being walked**. The
+  aggregate line still said `[exp-poi]`, which reads as though the removal had not taken.
+- The actor-level truth is available but only in TestMode, under a *different* tag —
+  `[defence] assign unit=21@18,45 -> 39,51 owner=… reason=contested-line` (`:548-551`). That line named
+  the mover, the actor and the destination in one go, and the module's own comment at `:544-547`
+  explains it was added precisely because the aggregate telemetry "never logged which actor it sent
+  where — so an autotest measuring a unit leaving its position could not tell a line assignment from an
+  `AutoSeekSupplies` errand".
+
+**The rule: do not infer the owning module from a log tag — grep the emitting file for the literal
+string.** A tag is a label someone typed, not a namespace the compiler checks, and there is nothing in
+the build that can notice it has drifted from the module it sits in.
+
+## 2026-09-01 — The actor you add to satisfy a POI gate is, by construction, a magnet that summons a unit across your map (`wt/drone-targeting`)
+
+The direct sequel to the entry below, and the sharper half: fixing the POI gate **created** the
+contamination it was meant to unblock, and the two are the same property seen twice.
+
+- `PoiMap` only counts an income structure if it carries `CaptureManagerInfo` (`PoiMap.cs:223`). So the
+  qualification for "this is a point of interest the drone may fly near" is *identical* to the
+  qualification for "this is capturable".
+- Adding one neutral `oilb` to make the hover disc eligible therefore also handed
+  `CaptureCoordinatorBotModule` a target. It reacted on the first scan:
+  `[exp-capture] ownership-snapshot … held=oilb#23@38,53 tick=28`, immediately followed by
+  `[exp-capture] tecn-floor-request … type=tecn.america floor=1 priority=True tick=28`.
+- A **floor request with `priority=True` is not budget-gated** — it went through with the player's cash
+  locked at 0, which was supposed to have removed the entire population. The technician then walked
+  from the Supply Route toward the derrick and, in passing, came within 28 cells of the cell the
+  scenario needed to stay unobserved.
+
+**The general shape: satisfying a gate by adding scenery is not inert, because the gate reads exactly
+the property that makes other modules want the thing.** Zeroing the economy does not contain it either
+— priority floor requests bypass the bank. When a scenario needs a POI purely for eligibility, expect
+the capture layer to send something at it, and place it where the resulting traffic cannot cross the
+region under measurement.
+
+Secondary geometry lesson from the same run: the confound guard was a 28-cell circle around a cell
+sitting 30 cells from the acting unit, which leaves a **two-cell shell** of safe ground near the
+player's own base. Any unit spawning at the Supply Route trips it. A guard radius derived from a
+mechanic (28 = the verifying vision radius) is correct in meaning and can still be unusable in a given
+geometry — check the guard against the map before trusting it to fire only on real contamination.
+
+## 2026-09-01 — The drone module cannot launch anywhere on a map whose only POI is the enemy Supply Route (`wt/drone-targeting`)
+
+`MaxPoiDistanceCells: 40` is documented as the "unreachable corner guard", but its reach depends
+entirely on how many POIs a map has, and on some maps that set is a single point.
+
+- `PoiMap` counts two things (`PoiMap.cs:213-223`): actors named `supplyroute`, and income structures —
+  the latter only if they carry `CaptureManagerInfo`. **Own and neutral SRs are then discarded**
+  (`:326`, `if (isSupplyRoute && !enemy) continue;`), so a map with no capturable income structures has
+  exactly ONE POI: the enemy SR.
+- A drone operator standing near its own SR is by construction far from the enemy's. Measured on a
+  98x82 map with the operator at (18,45) and the enemy SR at (80,35): every candidate in the 22-cell
+  hover disc sits ≥41 cells from that single POI, so **388 of 388 candidates were refused
+  `TooFarFromPoi` at every evaluation, nine for nine, and no drone ever launched.**
+- The diagnostic split is what made this a five-minute diagnosis instead of a second match: the
+  refusal counters read `reveal=0 poi=388 danger=0 sr=0 covered=0`, and `poi` exactly equalled
+  `scored`. A bare "no eligible cell" would have been compatible with three other defects.
+
+Real maps carry income structures — River Zeta has twelve oil derricks — so this is not a live gameplay
+bug. It is a **scenario-authoring trap**: strip a map down to "just the actors my test needs" and the
+POI gate silently becomes unsatisfiable, because POIs are scenery you did not think of as
+load-bearing. **Any scenario exercising a POI-gated module needs at least one capturable income
+structure inside the acting unit's reach**, or the module under test is inert before it starts.
+
+## 2026-09-01 — A scoring term expressed in a different unit from the one it competes against is INERT BY CONSTRUCTION, and nothing in the build, the tests or the lint can see it (`wt/drone-targeting`)
+
+The drone module shipped a believed-contact preference that **never once changed a decision**, and it
+looked entirely healthy: an `Info` field with a `[Desc]`, a value set in `ai.yaml`, a parameter threaded
+into a pure function, and a unit test asserting that it helped.
+
+- `DroneTaskingMath.ScoreCandidate` returned `(revealed * 1000) + contactBonus - poiDistance`, with
+  `ContactBonus: 2000` (`ai.yaml:932`, pre-change). Because the bonus is added **after** the revealed
+  count has been scaled by 1000, its true exchange rate is `2000 / 1000` = **two revealed squares**.
+- The term it competes against reaches **~841** squares (the drone's 28-cell vision box at
+  `ControlField.CellSize 2` is 29x29 grid squares) and carries a **~228-square** floor of box-corner
+  artefact on its own (pinned by `DroneTaskingMathTest.Model_TheBoxCornerArtefactIsLargeEnoughToMakeTheRevealFloorInert`).
+  The contact term was therefore worth **under 1% of the noise floor** of the term it was meant to move.
+- **Nothing could have caught it.** It typechecks; the value is configured and read; `git log -S` finds
+  it live. The existing test `Score_PrefersGroundNearBelievedContacts` asserted `nearContact > blank` —
+  which is **true, and true by two parts in twenty thousand**. An ordering assertion cannot distinguish
+  "this term decides things" from "this term breaks exact ties and nothing else".
+
+**THE GENERALISABLE RULE — A TEST THAT ASSERTS AN ORDERING CANNOT DETECT THAT THE EFFECT IS
+NEGLIGIBLE.** `a > b` is satisfied by *any* margin, including one no decision will ever turn on. The
+test here was not weak by accident; it was asking the wrong question. If a term is meant to change
+behaviour, the test has to assert a **magnitude** — that the term can actually flip a realistic
+comparison — not merely a sign.
+
+In practice that means asserting the **exchange rate** against the term it competes with:
+`Score(revealed: 20, intel: 40) == Score(revealed: 60)` fails loudly the moment the two drift back into
+different units, where `nearContact > blank` never could. The two structural halves of the fix
+generalise as well: put competing terms in **one currency** so they can be added, and apply any floor to
+the **sum** rather than to one addend.
+
+**This is the third member of a family this project keeps rediscovering, and the family is the point:**
+
+| | What shipped | Why nothing caught it |
+|---|---|---|
+| Drone hover scoring | Scored the hover cell's own staleness — a cell inside the operator's own verifying bubble | 674,584 of 674,584 candidates refused, 100%, for two matches. Unsatisfiable by construction |
+| Drone contact bonus | A term in a different unit from the one it competed against | Inert by construction. Its test asserted an ordering and passed by 2 parts in 20,000 |
+| The test itself | `Is.GreaterThan` standing in for "this matters" | An ordering assertion has no notion of magnitude |
+
+All three **typecheck, are configured, are genuinely executed, and pass their tests.** Build, NUnit and
+lint are all blind to every one of them, because each is a true statement about arithmetic that is not
+the statement anyone needed. The question to ask of any new scoring term: *what is one unit of this
+worth in units of the thing it competes with, and is that ratio the one I intended?*
+
+## 2026-09-01 — BeliefStore ERASES a vanished mobile before the next drone evaluation, so "weight the contact list" is a STRUCTURAL IMPOSSIBILITY, not a tuning problem (`wt/drone-targeting`)
+
+**Read this before "simplifying" `DroneOperatorBotModule`'s own contact table back onto
+`BeliefStore.Contacts()`.** That table looks like a redundant second copy of the belief store and is
+not; deleting it silently reinstates a bug that no test can see, because the module would still compile,
+still read a real fog-legal source, and still score contacts — just never the ones that matter.
+
+The arithmetic, and it is the whole argument:
+
+- A mobile contact that goes unobserved decays `Confidence = Confidence * MobileDecayPercent / 100` with
+  `MobileDecayPercent: 75` (`BeliefStore.cs:136`), i.e. `100 → 75 → 56 → 42 → 31 → 23 → 17 → 12`, and is
+  dropped once it falls below `MinConfidence: 15` (`:139`) — on the **7th** unrefreshed pass.
+- Passes are `UpdateInterval: 25` ticks apart per player (`:123`, round-robin via
+  `InfluenceStack.SubInterval`). So the store **erases a vanished mobile 175 ticks after the last
+  sighting.**
+- `DroneOperatorBotModule` evaluates every `ReevaluateInterval: 200` ticks, and can only act on an
+  evaluation where the operator is docked with ammo — a narrow window inside a **~1333-tick** sortie
+  cycle (3 s FireDelay + 60 s loiter + 9 s rearm + 12 s BurstWait at 16.667 ticks/s).
+
+**175 < 200.** A weight applied to `Contacts()` at tasking time is therefore sampling a signal whose
+lifetime is shorter than the sampling interval, and shorter again than the interval at which the
+consumer is *able to act*. It is not "sometimes stale" — for the case the feature exists to serve, the
+data is usually already gone. Statics are unaffected (exempt from decay), which is exactly why the
+defect would hide: the contact term would visibly "work" on structures and never fire on the moving
+units it was written for.
+
+The fix is to sample the store on **its** cadence (25 ticks) and hold the record on the **consumer's**
+(2000 ticks), honouring verified-clear so the memory is still disproved by observation. Widening
+`BeliefStore`'s own constants is the wrong lever and was rejected: they feed the Stage-B danger fields
+for every participant including `@stable` and humans, so a drone-tasking concern would have moved the
+benchmark control.
+
+**The general shape: before consuming a decaying signal, compare its LIFETIME against your own
+evaluation interval — and against the interval at which you can actually act on it, which is often much
+longer.** A consumer slower than the signal it reads cannot be fixed by weighting it harder.
+
+## 2026-09-01 — `TicksSinceVerified` counts the NON-PLAYABLE MAP BORDER as unobserved ground, so the drone's revealed-area term is inflated worst exactly where drones launch (`wt/drone-targeting`)
+
+A second, independent inflation of the same `revealed` term as the box-corner artefact above — and this
+one is map-dependent rather than geometric, so it does not cancel evenly between candidates.
+
+- `ControlField` sizes its grid from `map.MapSize` (`ControlField.cs:520-521`), but `Map.Contains(CPos)`
+  tests the **playable `Bounds`** rectangle (`Map.cs:1439-1455`), which is strictly smaller.
+- Grid squares in the border band are never visible to anyone, so `LastVerified` stays 0 and
+  `TicksSinceVerified` returns `int.MaxValue` (`ControlField.cs:921-928`). That clears any
+  `>= MinStalenessTicks` test, so the summed-area table counts the border as permanently unobserved.
+- The drone's revealed-area query is therefore partly a count of ground **the drone can never reveal,
+  because it is not in the playable map at all**. `SumInclusive` clamps to the GRID, not to `Bounds`,
+  so the existing clamp does not remove it.
+- **It lands hardest where it is used.** Operators launch from the Supply Route — a fixed beachhead near
+  a map edge — so their candidate discs overlap the border band far more than an inland unit's would.
+  The module's own comment already recorded the symptom (candidates measured 42-53% clamped) and
+  attributed it to map geometry; this is the mechanism underneath it.
+
+**Not fixed here, deliberately**: subtracting it would be a second unmeasured behavioural change riding
+along with the contact-tasking one. Instead a diagnostic twin summed-area table measures it and the
+launch log carries `border=`, so `reveal - border` is the real exploration signal and one match settles
+the magnitude. **The general shape: a "never observed" sentinel and "outside the playable area" are
+indistinguishable to any staleness test, so any field keyed on staleness silently treats the map border
+as maximally interesting.**
 
 ## 2026-08-30 — The tooltip mockups and the audit both assert HIMARS refills at a Logistics Centre; a same-day user ruling says it cannot (`wt/tooltip-elements`)
 > **[rejected: duplicate — `economy.md:31` already carries it]** (curation 2026-09-01). `economy.md:31` states *"except `himars` and `iskander`, which rearm nowhere… carry no `Rearmable` trait at all… the LC push cannot reach them either"*, with `:35`/`:120` recording the same 2026-08-30 ruling. Mechanism re-verified at `vehicles-america.yaml:1153-1159` (`HIMARS:` opens `:1048`), and the never-fires consequence is already an in-code comment at `ProductionTooltipLogic.cs:461, 467-470`. The remainder — that the mockups and the audit are wrong — is artefact status and belongs in `WORKSPACE/`, not the bank.

@@ -86,15 +86,15 @@ namespace OpenRA.Mods.Common.Traits
 		/// </remarks>
 		public static long ScoreCandidate(
 			int revealedStaleSquares,
+			int intelSquares,
 			int minRevealedSquares,
 			int poiDistanceCells,
 			int maxPoiDistanceCells,
 			int airDanger,
-			int maxAirDanger,
-			int contactBonus)
+			int maxAirDanger)
 		{
-			return ScoreCandidate(revealedStaleSquares, minRevealedSquares, poiDistanceCells,
-				maxPoiDistanceCells, airDanger, maxAirDanger, contactBonus, out _);
+			return ScoreCandidate(revealedStaleSquares, intelSquares, minRevealedSquares, poiDistanceCells,
+				maxPoiDistanceCells, airDanger, maxAirDanger, out _);
 		}
 
 		/// <summary>As the overload above, additionally reporting WHY a candidate was refused.
@@ -104,12 +104,12 @@ namespace OpenRA.Mods.Common.Traits
 		/// function replaces.</summary>
 		public static long ScoreCandidate(
 			int revealedStaleSquares,
+			int intelSquares,
 			int minRevealedSquares,
 			int poiDistanceCells,
 			int maxPoiDistanceCells,
 			int airDanger,
 			int maxAirDanger,
-			int contactBonus,
 			out DroneRefusal refusal)
 		{
 			// SINGLE IMPLEMENTATION, deliberately. The refusal reason is reported through an out
@@ -117,9 +117,21 @@ namespace OpenRA.Mods.Common.Traits
 			// thresholds is exactly the kind of duplication that drifts and then lies in the log.
 			refusal = DroneRefusal.None;
 
-			// Not enough unseen ground to be worth a 60s sortie. This is also the guard that stops the
-			// drone being spent to reveal one stale square at the edge of an otherwise-known area.
-			if (revealedStaleSquares < minRevealedSquares)
+			// ONE CURRENCY. Both terms are counts of COARSE grid squares, so they can be added and the
+			// floor can be applied to the sum. The previous model kept them in different units — a
+			// `contactBonus` added AFTER the revealed term had been multiplied by 1000 — which made the
+			// shipped bonus of 2000 worth exactly two revealed squares against a term that reaches ~841
+			// squares. It typechecked, it was configured, and it could never change a decision.
+			//
+			// THE FLOOR MUST SEE THE INTEL TERM, AND THAT IS THE WHOLE REASON THIS IS A SUM RATHER THAN
+			// A LATE BONUS. A contact that has just vanished into fog sits on ground the player was
+			// looking at moments ago, so that ground is NOT yet stale and contributes almost no revealed
+			// area. Gate on `revealedStaleSquares` alone and the hunt cell is refused as "not worth a
+			// sortie" for the first MinStalenessTicks — i.e. precisely while the trail is warm. That is
+			// the same shape as the defect this module already suffered once: a threshold that the very
+			// situation it exists to serve can never satisfy.
+			var worth = revealedStaleSquares + intelSquares;
+			if (worth < minRevealedSquares)
 			{
 				refusal = DroneRefusal.TooLittleRevealed;
 				return Ineligible;
@@ -141,10 +153,90 @@ namespace OpenRA.Mods.Common.Traits
 				return Ineligible;
 			}
 
-			// Revealed area dominates; the contact bonus expresses "prefer ground someone is believed
-			// to be on"; POI distance breaks ties toward the contested middle. Scaled so that one
-			// extra revealed square outweighs a one-cell POI-distance difference.
-			return ((long)revealedStaleSquares * 1000) + contactBonus - poiDistanceCells;
+			// Revealed area and believed intel are the same currency and dominate together; POI distance
+			// breaks ties toward the contested middle. Scaled so that one extra square of either kind
+			// outweighs a one-cell POI-distance difference.
+			return ((long)worth * 1000) - poiDistanceCells;
+		}
+
+		/// <summary>
+		/// What a believed contact's last-known cell is worth, expressed in the SAME unit as revealed
+		/// area — coarse grid squares — so the two can be compared without an inter-unit conversion.
+		///
+		/// THREE TIERS, AND THE STEP BETWEEN THE FIRST TWO IS THE FEATURE.
+		/// A contact we can still see is worth something (a drone reveals the ground AROUND it, which
+		/// we cannot see) but not much, because the unit itself is not in question. The instant we lose
+		/// it the value STEPS UP to <paramref name="lostSquares"/>: a unit that just disappeared is a
+		/// unit whose position we care about and no longer have. That discontinuity at
+		/// <paramref name="freshSightingTicks"/> is deliberate and is what "even more so if we lost
+		/// track" means in arithmetic.
+		///
+		/// WHY IT DECAYS, WHICH IS NOT "OLD NEWS IS BORING". The last-known cell stops LOCATING the
+		/// unit: at WW3MOD ground speeds (~300-500 world units/tick, i.e. ~0.3-0.5 cells/tick) a unit
+		/// clears the drone's own 28-cell vision radius within ~70 ticks of vanishing, and after a
+		/// couple of minutes it could be anywhere. So the value decays toward
+		/// <paramref name="areaSquares"/> rather than toward zero — the specific unit is gone from that
+		/// cell, but the ground remains where the enemy was operating, and that is worth what any other
+		/// sighting is worth. The floor is why an old record degrades into a weak area preference
+		/// instead of vanishing in one step.
+		///
+		/// Statics get a flat, low value: a structure is not going anywhere, so its position is not the
+		/// open question that justifies spending a sortie.
+		/// </summary>
+		public static int IntelSquares(
+			int ageTicks,
+			bool isStatic,
+			int lostSquares,
+			int areaSquares,
+			int staticSquares,
+			int freshSightingTicks,
+			int memoryTicks)
+		{
+			if (ageTicks < 0)
+				return 0;
+
+			if (isStatic)
+				return staticSquares;
+
+			// Still under observation. Sampling and the belief recompute are on independent cadences, so
+			// this window must span more than one belief pass or a continuously-watched unit would
+			// flicker into the lost tier between samples and pull drones onto ground already in view.
+			if (ageTicks <= freshSightingTicks)
+				return areaSquares;
+
+			// Past the horizon the cell locates nothing; the caller drops the record entirely.
+			if (ageTicks >= memoryTicks)
+				return 0;
+
+			var span = memoryTicks - freshSightingTicks;
+			if (span <= 0)
+				return areaSquares;
+
+			return areaSquares + ((lostSquares - areaSquares) * (memoryTicks - ageTicks) / span);
+		}
+
+		/// <summary>
+		/// Discount a contact's worth by how far the candidate hover cell sits from its last-known cell.
+		///
+		/// THE RADIUS IS THE DRONE'S VISION, NOT AN ADJACENCY TEST. The previous model asked whether the
+		/// hover cell was within 6 cells of a contact, which understates the drone by a factor of ~4.5:
+		/// parked anywhere it verifies a 28-cell bubble, so a contact 20 cells from the hover cell is
+		/// still comfortably observed. Falling off across the full vision radius also encodes the thing
+		/// a step function cannot — that CENTRING on the last-known cell is what maximises the chance of
+		/// re-acquiring a unit that has since moved, because the uncertainty disc grows around it.
+		///
+		/// Same linear shape as the danger field's own kernel stamp, for consistency with the rest of
+		/// the influence stack: full value at zero distance, one-(radius+1)th at the rim.
+		/// </summary>
+		public static int IntelFalloff(int squares, int distanceCells, int visionCells)
+		{
+			if (squares <= 0 || distanceCells < 0 || visionCells < 0)
+				return 0;
+
+			if (distanceCells > visionCells)
+				return 0;
+
+			return squares * (visionCells - distanceCells + 1) / (visionCells + 1);
 		}
 
 		/// <summary>

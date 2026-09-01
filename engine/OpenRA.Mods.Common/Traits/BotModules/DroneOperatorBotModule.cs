@@ -74,12 +74,46 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Maximum GROUND danger tolerated at the cell the operator stands on to launch.")]
 		public readonly int MaxLaunchCellDanger = 60;
 
-		[Desc("Score bonus for a candidate cell adjacent to a believed enemy contact. Prefers ground",
-			"someone is actually on over blank map.")]
-		public readonly int ContactBonus = 2000;
+		[Desc("Worth of a contact we saw and then LOST INTO FOG, in the same unit as revealed area:",
+			"coarse grid squares. The strongest tasking signal the module has — a unit that disappeared",
+			"is a unit whose current position matters and is not known. PROVISIONAL: no drone had ever",
+			"flown when this was set, so it is a reasoned estimate and not a measurement.",
+			"MUST BE >= AreaIntelSquares. The lost tier decays from this value DOWN to that floor, so",
+			"setting it lower inverts the decay — a freshly-vanished contact would score less than a",
+			"two-minute-old one. This is NOT the knob to zero in order to disable the feature: it leaves",
+			"the visible and static tiers fully active. Use IntelSampleInterval for that.")]
+		public readonly int LostTrackIntelSquares = 250;
 
-		[Desc("How near a believed contact counts as 'adjacent', in cells.")]
-		public readonly int ContactRadiusCells = 6;
+		[Desc("Worth of ground where an enemy is believed to be but is NOT an open question — currently",
+			"visible, or a contact whose trail has gone cold. Also the floor the lost-track value decays",
+			"to, which turns a stale record into a weak area preference rather than into nothing.")]
+		public readonly int AreaIntelSquares = 60;
+
+		[Desc("Worth of a believed STATIC contact (structure/defence). Low: it is not going anywhere, so",
+			"its position is not the question a sortie would answer.")]
+		public readonly int StaticIntelSquares = 20;
+
+		[Desc("Ticks a lost contact is remembered after the last actual sighting, decaying throughout.",
+			"MUST EXCEED ONE SORTIE CYCLE (~1333 ticks: 3s FireDelay + 60s loiter + 9s rearm + 12s burst",
+			"wait at 16.667 ticks/s). An operator is airborne or rearming for most of its life, so a",
+			"shorter horizon expires the record before any operator is free to act on it — which",
+			"reproduces the very gap this exists to close.")]
+		public readonly int IntelMemoryTicks = 2000;
+
+		[Desc("Age below which a contact counts as still under observation rather than lost. Must span",
+			"more than one BeliefStore recompute (25 ticks) or a continuously-watched unit flickers into",
+			"the lost tier between samples.")]
+		public readonly int FreshSightingTicks = 50;
+
+		[Desc("Ticks between belief-store samples. The store forgets a mobile contact 175 ticks after the",
+			"last sighting (7 decay passes of 25 ticks), so this must stay well under that or a vanishing",
+			"unit is erased before the module ever records where it was.",
+			"THIS IS ALSO THE FEATURE'S OFF SWITCH, and the only single knob that is. Set beyond the",
+			"length of a match and the contact table is never written, so every candidate scores",
+			"intelSquares 0 and tasking falls back to pure revealed-area staleness — the pre-change",
+			"behaviour, up to the old contact bonus that was worth two squares and could not decide",
+			"anything. Used as the control arm when A/B-ing this feature.")]
+		public readonly int IntelSampleInterval = 25;
 
 		[Desc("Cells around a believed enemy Supply Route that are refused as observation targets.",
 			"The SR is fixed, indestructible and non-capturable, so there is nothing there to learn.")]
@@ -110,6 +144,9 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class DroneOperatorBotModule : ConditionalTrait<DroneOperatorBotModuleInfo>, IBotTick
 	{
+		// BeliefContact.TypeName is ActorInfo.Name, which is lowercased by the rules parser.
+		const string SupplyRouteActorType = "supplyroute";
+
 		readonly World world;
 		readonly Player player;
 
@@ -145,7 +182,53 @@ namespace OpenRA.Mods.Common.Traits
 
 		readonly Dictionary<Actor, Sortie> sorties = new();
 
+		// WHERE THE ENEMY WAS LAST SEEN, HELD LONGER THAN THE BELIEF STORE HOLDS IT.
+		//
+		// THIS IS NOT A DUPLICATE OF BeliefStore AND THE REASON IS ARITHMETIC. A mobile contact that
+		// goes unobserved decays 100 -> 75 -> 56 -> 42 -> 31 -> 23 -> 17 -> 12 and is dropped below
+		// MinConfidence (15) on the 7th unrefreshed pass; passes are UpdateInterval (25) ticks apart, so
+		// the store ERASES a vanished mobile 175 ticks after the last sighting. This module evaluates
+		// every 200 ticks and can only act when an operator is docked with ammo — a narrow window inside
+		// a ~1333-tick sortie cycle. Reading Contacts() at tasking time therefore samples a signal that
+		// has usually already expired, which is the "unsatisfiable by construction" shape that cost this
+		// module two whole matches once before. The fix is to sample the store on ITS cadence and keep
+		// the record on OURS.
+		//
+		// Widening BeliefStore's own decay was the alternative and is rejected: those constants feed the
+		// Stage-B danger fields for every participant, @stable and humans included, so they are not this
+		// module's to move.
+		sealed class IntelRecord
+		{
+			public CPos Cell;
+			public int LastSeenTick;
+			public bool IsStatic;
+		}
+
+		readonly Dictionary<uint, IntelRecord> intel = new();
+		readonly HashSet<uint> intelPresent = new();
+		readonly List<uint> intelDrop = new();
+
+		// One operator's shortlist, rebuilt per operator and SORTED BY KEY so that the argmax below has a
+		// fixed iteration order regardless of Dictionary layout — the determinism the influence stack
+		// requires, obtained by construction rather than by hoping enumeration is stable.
+		readonly struct IntelCandidate
+		{
+			public readonly uint Key;
+			public readonly CPos Cell;
+			public readonly int Squares;
+
+			public IntelCandidate(uint key, CPos cell, int squares) { Key = key; Cell = cell; Squares = squares; }
+		}
+
+		readonly List<IntelCandidate> nearbyIntel = new();
+
+		// Records already spent this evaluation. Operators are walked in ActorID order, so the second
+		// operator cannot pile onto the contact the first one just left for — the "do not send every
+		// drone to the same place" rule, enforced without any randomisation.
+		readonly HashSet<uint> claimedIntel = new();
+
 		int reevalCountdown;
+		int intelCountdown;
 
 		public DroneOperatorBotModule(Actor self, DroneOperatorBotModuleInfo info)
 			: base(info)
@@ -159,6 +242,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Deterministic initial offset, NOT a LocalRandom draw — a control game that never
 			// instantiates this module must keep its random stream untouched.
 			reevalCountdown = Info.ReevaluateInterval;
+			intelCountdown = Info.IntelSampleInterval;
 		}
 
 		void IBotTick.BotTick(IBot bot)
@@ -177,13 +261,90 @@ namespace OpenRA.Mods.Common.Traits
 			// RequiresCondition to the human token); this is the second layer, not the fix. The hazard
 			// is general, not drone-specific: GoalGuardLedger.Release is keyed on the ACTOR, not the
 			// objective, so it deletes whatever claim the actor holds regardless of who wrote it.
+			ResolveTraits();
 			RefreshClaims();
+
+			// SAMPLING RUNS ON ITS OWN CADENCE AND ABOVE THE EVALUATION RETURN, DELIBERATELY. The belief
+			// store forgets a vanished mobile in 175 ticks; the evaluation cadence is 200. Sampling from
+			// inside Reevaluate would therefore miss the majority of vanish events outright — and any
+			// early return placed above this would silently take the memory with it, which is exactly
+			// how a previous cost gate here took out the ledger claim and the diagnostics along with the
+			// work it meant to skip.
+			if (--intelCountdown <= 0)
+			{
+				intelCountdown = Info.IntelSampleInterval;
+				SampleIntel();
+			}
 
 			if (--reevalCountdown > 0)
 				return;
 
 			reevalCountdown = Info.ReevaluateInterval;
 			Reevaluate(bot);
+		}
+
+		// SNAPSHOT THE BELIEF STORE, AGE ON OUR OWN CLOCK.
+		//
+		// Fog legality is inherited rather than re-derived: every field copied here came from
+		// BeliefStore, which is built strictly from the player's own vision and FrozenActorLayer.
+		// Remembering a legally-obtained sighting for longer is still the commander's own memory — no
+		// ground truth is read at any point.
+		//
+		// LastSeenTick is copied rather than stamped with "now", so age is measured from the actual
+		// sighting and survives the store dropping the contact: the record does not restart its clock
+		// at the moment we notice it is gone.
+		void SampleIntel()
+		{
+			if (beliefStore == null)
+				return;
+
+			var tick = world.WorldTick;
+			intelPresent.Clear();
+
+			foreach (var c in beliefStore.Contacts(player))
+			{
+				// The enemy SR is fixed, indestructible and non-capturable, so it is never worth a
+				// sortie. Excluded at the source so it cannot pull a candidate from vision range either —
+				// the cell-radius refusal further down only covers cells close to it.
+				if (c.TypeName == SupplyRouteActorType)
+					continue;
+
+				intelPresent.Add(c.Key);
+
+				if (!intel.TryGetValue(c.Key, out var r))
+					intel[c.Key] = r = new IntelRecord();
+
+				r.Cell = c.Cell;
+				r.LastSeenTick = c.LastSeenTick;
+				r.IsStatic = c.IsStatic;
+			}
+
+			intelDrop.Clear();
+			foreach (var kv in intel)
+			{
+				if (intelPresent.Contains(kv.Key))
+					continue;
+
+				// Past the horizon the cell no longer locates anything — see IntelSquares.
+				if (tick - kv.Value.LastSeenTick >= Info.IntelMemoryTicks)
+				{
+					intelDrop.Add(kv.Key);
+					continue;
+				}
+
+				// VERIFIED-CLEAR, mirroring BeliefStore.ResolveUnobserved. The contact is no longer in
+				// the store and we can currently see the cell, so it is not there: it died, or it moved
+				// and was re-observed elsewhere (which updates this record under the same key). Either
+				// way the memory is spent, and without this a drone would keep being drawn back to
+				// ground it has already disproved. The `1` threshold is strict and matches the store's.
+				if (player.MapLayers != null && player.MapLayers.IsVisible(kv.Value.Cell, 1))
+					intelDrop.Add(kv.Key);
+			}
+
+			// Enumeration above only COLLECTS keys and the removal is set-based, so the resulting table
+			// does not depend on Dictionary iteration order.
+			foreach (var key in intelDrop)
+				intel.Remove(key);
 		}
 
 		void RefreshClaims()
@@ -213,9 +374,17 @@ namespace OpenRA.Mods.Common.Traits
 
 			claimed.Clear();
 			sorties.Clear();
+
+			// A disabled module holding a contact table is leaked state; ages would be meaningless by
+			// the time it came back anyway.
+			intel.Clear();
+			claimedIntel.Clear();
+			nearbyIntel.Clear();
 		}
 
-		void Reevaluate(IBot bot)
+		// Hoisted out of Reevaluate because the intel sampler needs the belief store on a faster cadence
+		// than the evaluation runs on. Each resolution is still one-shot and order-independent.
+		void ResolveTraits()
 		{
 			if (!goalGuardResolved)
 			{
@@ -246,7 +415,10 @@ namespace OpenRA.Mods.Common.Traits
 				poiMap = world.WorldActor.TraitOrDefault<PoiMap>();
 				poiMapResolved = true;
 			}
+		}
 
+		void Reevaluate(IBot bot)
+		{
 			// Staleness IS the signal; with no ControlField there is nothing fog-legal to steer by and
 			// the module must do nothing rather than fall back on an omniscient source.
 			// HasField is checked as well as null, and that is not belt-and-braces: with a live trait
@@ -332,6 +504,10 @@ namespace OpenRA.Mods.Common.Traits
 			// silent too. The table is now built lazily at first use inside ChooseTargetCell, which
 			// keeps the saving without coupling it to anything else.
 			satValidTick = -1;
+
+			// Per evaluation: last cycle's claims must not suppress this cycle's choices.
+			claimedIntel.Clear();
+
 			foreach (var op in operators)
 				TaskOperator(bot, op, tick, contacts, pois);
 		}
@@ -425,6 +601,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var opCell = op.Location;
+			BuildNearbyIntel(opCell, maxHover, tick);
 			var target = ChooseTargetCell(opCell, maxHover, contacts, pois);
 
 			// TWO DIFFERENT BUGS SHARE ONE SYMPTOM — "no second sortie" — and the live match cannot
@@ -445,7 +622,13 @@ namespace OpenRA.Mods.Common.Traits
 					+ $"hover={maxHover} scored={considered} reveal={refusedReveal} poi={refusedPoi} "
 					+ $"danger={refusedDanger} sr={refusedSr} covered={refusedCovered} "
 					+ $"offmap={refusedOffMap} bestreveal={bestReveal} minreveal={Info.MinRevealedSquares} "
-					+ $"minstale={Info.MinStalenessTicks} tick={tick}");
+					+ $"minstale={Info.MinStalenessTicks} "
+					// Intel side of the same question: were there records to steer by at all, and did any
+					// of them reach a candidate? records=0 with contacts on the map means the sampler or
+					// the reach filter is wrong; records>0 with bestintel=0 means they were all further
+					// than DroneVisionCells from every candidate.
+					+ $"records={intel.Count} nearby={nearbyIntel.Count} bestintel={bestIntel} "
+					+ $"border={bestBorder} tick={tick}");
 
 				return;
 			}
@@ -522,10 +705,34 @@ namespace OpenRA.Mods.Common.Traits
 				// Logging where the operator itself stood separates them: different operator positions
 				// converging on one lane favours (b); operators sitting near each other leaves the two
 				// confounded, which is a result to report rather than a coin to flip.
+				// intel/intelkey ARE THE VERDICT LINE FOR THIS FEATURE. "Drones prefer contacts" and
+				// "drones fly somewhere and I told a story about why" are the same trace without them:
+				// intel>0 with a key names the specific believed contact that won the cell, so a
+				// positional trace can be checked against the record that caused it rather than against
+				// an intention. intel=0 on every launch means the module is still purely exploring.
+				//
+				// artefact IS THE CALIBRATION LINE, and it is here because the exploration term it
+				// competes with is inflated by a known amount. ControlField's grid spans Map.MapSize
+				// while Map.Contains tests the smaller playable Bounds, and TicksSinceVerified returns
+				// int.MaxValue for any square never verified — so the non-playable border counts as
+				// permanently unobserved and is summed into `reveal` as ground the drone will never
+				// actually reveal. Operators launch from the Supply Route, a fixed beachhead near a map
+				// edge, so this lands hardest exactly where it is used. reveal minus artefact is the
+				// real exploration signal, and it is the number LostTrackIntelSquares must be judged
+				// against — not `reveal` itself.
 				Log.Write("debug",
 					$"[drone] player={player.PlayerName} op={op.ActorID} launch cell={targetCell.X},{targetCell.Y} "
 					+ $"opcell={opCell.X},{opCell.Y} dist={distance} clamped={refusedOffMap} "
-					+ $"reveal={bestReveal} retask={(sortie != null ? "yes" : "first")} tick={tick}");
+					+ $"reveal={bestReveal} border={bestBorder} intel={chosenIntel} "
+					+ $"intelkey={(chosenIntel > 0 ? chosenIntelKey.ToString() : "none")} "
+					+ $"records={intel.Count} nearby={nearbyIntel.Count} "
+					+ $"retask={(sortie != null ? "yes" : "first")} tick={tick}");
+
+				// Spend the record that won this cell so the next operator in the ActorID walk has to
+				// find its own contact. Claimed only on a SUCCESSFUL order: a refused launch leaves the
+				// contact available, because nobody is going.
+				if (chosenIntel > 0)
+					claimedIntel.Add(chosenIntelKey);
 
 				covered.Add(targetCell);
 
@@ -569,11 +776,24 @@ namespace OpenRA.Mods.Common.Traits
 		// bestReveal sits just under MinRevealedSquares, the threshold is the only thing in the way.
 		int bestReveal;
 
+		// Best intel value seen anywhere this scan, and the value/record that won the CHOSEN cell.
+		// bestIntel answers "was there anything to steer by"; chosenIntel answers "did it decide this".
+		int bestIntel;
+		int chosenIntel;
+		uint chosenIntelKey;
+
+		// Non-playable border squares inside the winning candidate's vision box — diagnostic only, and
+		// the amount by which bestReveal overstates real ground. See the launch log.
+		int bestBorder;
+
 		// Inclusive-prefix-sum table over the control grid: staleSat[x+1,y+1] is the number of
 		// unobserved grid squares in the rectangle (0,0)-(x,y). Rebuilt once per evaluation and shared
 		// by every operator, which is what keeps the revealed-area score affordable — see BuildStaleSat.
 		int[,] staleSat;
 		int satGw, satGh;
+
+		// Diagnostic twin of staleSat over non-playable squares. Read only by the log lines.
+		int[,] borderSat;
 
 		// Evaluation tick the table was last built for; -1 forces a rebuild on the next use.
 		int satValidTick = -1;
@@ -609,6 +829,17 @@ namespace OpenRA.Mods.Common.Traits
 			// overwritten below, and the zero border is never written at all.
 			DroneTaskingMath.BuildSummedArea(staleSat, gw, gh,
 				(gx, gy) => controlField.TicksSinceVerified(player, gx, gy) >= Info.MinStalenessTicks);
+
+			// DIAGNOSTIC TWIN — NO DECISION READS THIS. It measures how much of the table above is the
+			// non-playable border rather than real unobserved ground, which is the correction the
+			// exploration term needs before it can be compared against the intel term. Deliberately NOT
+			// subtracted from the live score: that would be a second behavioural change riding along
+			// unmeasured with this one. Measure first, then decide, in that order.
+			if (borderSat == null || borderSat.GetLength(0) != gw + 1 || borderSat.GetLength(1) != gh + 1)
+				borderSat = new int[gw + 1, gh + 1];
+
+			DroneTaskingMath.BuildSummedArea(borderSat, gw, gh,
+				(gx, gy) => !world.Map.Contains(controlField.GridCellToMapCell(gx, gy)));
 		}
 
 		CPos? ChooseTargetCell(CPos opCell, int maxHover, List<BeliefContact> contacts, List<ScoredPoi> pois)
@@ -624,6 +855,10 @@ namespace OpenRA.Mods.Common.Traits
 			var bestScore = DroneTaskingMath.Ineligible;
 			refusedReveal = refusedPoi = refusedDanger = refusedSr = refusedCovered = refusedOffMap = considered = 0;
 			bestReveal = 0;
+			bestIntel = 0;
+			chosenIntel = 0;
+			chosenIntelKey = 0;
+			bestBorder = 0;
 
 			// Candidates are GRID squares, converted to their centre map cell only to issue the order.
 			// GridCellToMapCell is deliberately not the inverse of MapCellToGridCell, so the centre is
@@ -675,14 +910,17 @@ namespace OpenRA.Mods.Common.Traits
 
 					var poiDistance = NearestPoiDistance(cell, pois);
 					var airDanger = dangerField != null ? dangerField.AirDanger(player, cell) : 0;
-					var bonus = NearContact(cell, contacts) ? Info.ContactBonus : 0;
+					var intelSquares = BestIntelAt(cell, out var intelKey);
+
+					if (intelSquares > bestIntel)
+						bestIntel = intelSquares;
 
 					considered++;
 					var score = DroneTaskingMath.ScoreCandidate(
-						revealed, Info.MinRevealedSquares,
+						revealed, intelSquares, Info.MinRevealedSquares,
 						poiDistance, Info.MaxPoiDistanceCells,
 						airDanger, Info.MaxAirDanger,
-						bonus, out var refusal);
+						out var refusal);
 
 					if (score == DroneTaskingMath.Ineligible)
 					{
@@ -702,6 +940,9 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						bestScore = score;
 						best = cell;
+						chosenIntel = intelSquares;
+						chosenIntelKey = intelKey;
+						bestBorder = DroneTaskingMath.SumInclusive(borderSat, satGw, satGh, vlo.X, vlo.Y, vhi.X, vhi.Y);
 					}
 				}
 			}
@@ -728,19 +969,70 @@ namespace OpenRA.Mods.Common.Traits
 		bool NearEnemySupplyRoute(CPos cell, List<BeliefContact> contacts)
 		{
 			foreach (var c in contacts)
-				if (c.TypeName == "supplyroute" && (c.Cell - cell).Length <= Info.SupplyRouteExclusionCells)
+				if (c.TypeName == SupplyRouteActorType && (c.Cell - cell).Length <= Info.SupplyRouteExclusionCells)
 					return true;
 
 			return false;
 		}
 
-		bool NearContact(CPos cell, List<BeliefContact> contacts)
+		// Shortlist the records that could reach ANY candidate for this operator, once, before the
+		// ~380-candidate scan runs. Without it every candidate would walk the whole table; with it the
+		// scan walks a handful. The reach bound is exact rather than generous: a candidate sits at most
+		// maxHover from the operator and a record contributes out to DroneVisionCells from a candidate,
+		// so nothing beyond the sum can matter.
+		void BuildNearbyIntel(CPos opCell, int maxHover, int tick)
 		{
-			foreach (var c in contacts)
-				if ((c.Cell - cell).Length <= Info.ContactRadiusCells)
-					return true;
+			nearbyIntel.Clear();
+			var reach = maxHover + Info.DroneVisionCells;
 
-			return false;
+			foreach (var kv in intel)
+			{
+				// Already spent by an earlier operator this evaluation.
+				if (claimedIntel.Contains(kv.Key))
+					continue;
+
+				var r = kv.Value;
+				if ((r.Cell - opCell).Length > reach)
+					continue;
+
+				var squares = DroneTaskingMath.IntelSquares(
+					tick - r.LastSeenTick, r.IsStatic,
+					Info.LostTrackIntelSquares, Info.AreaIntelSquares, Info.StaticIntelSquares,
+					Info.FreshSightingTicks, Info.IntelMemoryTicks);
+
+				if (squares <= 0)
+					continue;
+
+				nearbyIntel.Add(new IntelCandidate(kv.Key, r.Cell, squares));
+			}
+
+			// THE DETERMINISM STEP. Dictionary enumeration order is not a contract, so the list is put
+			// into ActorID order here; every downstream read walks it in that order and the argmax's
+			// tie-break therefore resolves the same way on every run and every replay. Sorting a
+			// shortlist once per operator is cheaper than defending the invariant anywhere else.
+			nearbyIntel.Sort((a, b) => a.Key.CompareTo(b.Key));
+		}
+
+		// The single best believed contact this hover cell would look at. MAX, NOT SUM, deliberately:
+		// summing would let a cluster of five fading records outbid any amount of exploration and would
+		// silently make the tuning far more aggressive than the one configured number claims. The value
+		// of a cell is the best question it answers, not the number of questions near it.
+		int BestIntelAt(CPos cell, out uint key)
+		{
+			key = 0;
+			var best = 0;
+
+			foreach (var ic in nearbyIntel)
+			{
+				var value = DroneTaskingMath.IntelFalloff(ic.Squares, (ic.Cell - cell).Length, Info.DroneVisionCells);
+				if (value > best)
+				{
+					best = value;
+					key = ic.Key;
+				}
+			}
+
+			return best;
 		}
 	}
 }

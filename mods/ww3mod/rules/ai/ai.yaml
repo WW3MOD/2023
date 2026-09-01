@@ -929,8 +929,34 @@ Player:
 		# GROUND danger at the cell the OPERATOR stands on. Separate number, separate unit, separate
 		# reason: the operator is unarmoured infantry that must stay parked for the whole loiter.
 		MaxLaunchCellDanger: 60
-		ContactBonus: 2000
-		ContactRadiusCells: 6
+		# ===== BELIEVED-CONTACT TASKING (every value here is in COARSE GRID SQUARES) =====
+		# These share a unit with the revealed-area term so the two can be compared directly. The value
+		# they replaced could not: ContactBonus was added AFTER the revealed count had been multiplied
+		# by 1000, so its 2000 was worth exactly TWO revealed squares against a term that reaches ~841.
+		# It was configured, it typechecked, and it never once changed a decision.
+		#
+		# THE TWO NUMBERS BELOW ARE PROVISIONAL AND ARE THE FIRST THING TO ADJUST. No drone had ever
+		# flown when they were chosen, so they are reasoned estimates and not measurements. What a match
+		# must SHOW to move either, read off the `[drone] ... launch` lines:
+		#   TOO HIGH if operators fly past a large dark region to reach an old contact — launches
+		#     carrying a high `intel` while `reveal` minus `border` is far below what the same disc
+		#     offered elsewhere.
+		#   TOO LOW if a unit vanishes into fog in front of a docked operator and the next launch still
+		#     reads `intel=0` while `records` is non-zero.
+		# Always read `reveal` MINUS `border`: the raw count includes non-playable border squares the
+		# drone can never actually reveal, and operators launch from the SR near a map edge, which is
+		# where that inflation is worst.
+		LostTrackIntelSquares: 250
+		AreaIntelSquares: 60
+		StaticIntelSquares: 20
+		# Must exceed one sortie cycle (~1333 ticks). An operator is airborne or rearming for most of
+		# its life, so a shorter memory expires the record before any operator is free to act on it.
+		IntelMemoryTicks: 2000
+		FreshSightingTicks: 50
+		# BeliefStore drops a mobile contact 175 ticks after the last sighting (7 decay passes of 25
+		# ticks at 75% each, floor 15). Sampling must stay well inside that window or a vanishing unit
+		# is forgotten before this module ever records where it was.
+		IntelSampleInterval: 25
 		# The enemy SR is fixed, indestructible and non-capturable, so a drone parked over it learns
 		# nothing that is not already known.
 		SupplyRouteExclusionCells: 8
