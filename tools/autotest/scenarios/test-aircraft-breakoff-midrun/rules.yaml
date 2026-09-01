@@ -64,15 +64,24 @@ t90:
 # its playertd palette — a live behavioural change that needs its own test and its own
 # commit, not a silent passenger on a diagnostic scenario.
 #
+# DO NOT ADD AN `A10.Airstrike:` BLOCK EITHER. It carries `Inherits: A10`, so a map-rules
+# override of it merges the same duplicated `ReloadAmmoPool@1` / `RenderSprites` keys through
+# the inheritance chain and throws in the same place. Lane 3 therefore takes the shipped
+# airframe exactly as it is, which is also what makes it evidence about the shipped airframe.
+#
 # Nothing is lost by leaving AutoTarget alone. Unpinned, ScanRadius falls back to
-# AttackBase.GetMaximumRange — 25c0 for the A10 (Hellfire) and 22c0 for the Mi-28 (Ataka).
-# Each aircraft starts 14 cells from its own target and 44 from the other lane's, so
-# acquisition is nowhere near a boundary in either direction (AUTOTEST.md gotcha 8) and
-# neither aircraft can see the wrong t90 from its start position by any weapon it carries.
+# AttackBase.GetMaximumRange — 25c0 for the A10 and its Airstrike variant (Hellfire) and 22c0
+# for the Mi-28 (Ataka). Each aircraft starts 14 cells from its own target and at least 42.4
+# from any other lane's (40 cells of lane pitch, and ScanForTarget's circle is Euclidean), so
+# acquisition is nowhere near a boundary in either direction (AUTOTEST.md gotcha 8) and no
+# aircraft can see a foreign t90 from its start position by any weapon it carries. The lane
+# pitch is why the map grew to 100,60; see the note in map.yaml before shrinking it back.
 #
 # THE RED ARM IS AN ENGINE EDIT, NOT A YAML ONE, for the same reason. Comment out the
 # break-off block in AttackFollow.Tick (the `if (RequestedTarget.Type == TargetType.Actor
 # && BreakOffApplies(...))` guard), rebuild, and run. That sabotages the mechanism under
-# test at its source and reaches BOTH lanes, which a per-actor YAML switch could not.
-# Expected RED text: "BREAK-OFF DID NOT FIRE: <n> shots taken at a critically damaged
-# target after break-off". Restore and rebuild before the green arm.
+# test at its source and reaches ALL THREE lanes, which a per-actor YAML switch could not.
+# Expected RED text: "BREAK-OFF DID NOT FIRE [A10,MI28,A10STRIKE]: <n> shots ...". The lane
+# list is the whole point of that bracket — on the SHIPPED build lane 3 is predicted to fail
+# ALONE, "[A10STRIKE]", and the two texts must never be confused for one another.
+# Restore and rebuild before the green arm.

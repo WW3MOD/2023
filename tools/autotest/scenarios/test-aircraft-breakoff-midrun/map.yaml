@@ -8,9 +8,21 @@ Author: WW3MOD autotest harness
 
 Tileset: TEMPERAT
 
-MapSize: 66,34
+# GREW FROM 66,34 ON 2026-09-01 to take a third lane, and the size is forced rather than
+# chosen. Neither aircraft pins AutoTarget.ScanRadius (see rules.yaml), so each falls back to
+# AttackBase.GetMaximumRange — 25c0 for the A10 and its Airstrike variant. ScanForTarget scans
+# a EUCLIDEAN circle, so three lanes on the old map (the best case being x = 10/32/54) put every
+# aircraft 26.1 cells from a neighbouring lane's t90: one cell outside the radius, which is
+# exactly the vision/acquisition boundary AUTOTEST.md gotcha 8 forbids sitting on. At 40 cells
+# apart the nearest foreign target is 42.4 cells away — a 17-cell margin.
+#
+# map.bin / map.png are demo-heli-lanes' (100,60, TEMPERAT, uniform clear terrain). Terrain is
+# not load-bearing here: nothing in this scenario walks. The t90s are created by Lua, never move
+# and never path, and the aircraft fly.
+MapSize: 100,60
 
-Bounds: 1,1,64,32
+# 1,1,W-2,H-2. NOT 0,0,W,H, which trips CheckMapCordon.
+Bounds: 1,1,98,58
 
 Visibility: MissionSelector
 
@@ -38,18 +50,25 @@ Players:
 		Color: FF4444
 		Enemies: USA
 
+# Every actor the lanes use is created from Lua, so the only placements here are the two Supply
+# Routes (one per active faction, AUTOTEST.md map.yaml rule 6) and the spawn markers. Both SRs sit
+# on row 56 — 36 rows below the lane targets — so neither can be confused for a lane's t90 by an
+# aircraft scanning 25c0, quite apart from supplyroute carrying NoAutoTarget.
 Actors:
 	OwnSR: supplyroute
 		Owner: USA
-		Location: 4,30
+		Location: 4,56
 	OpponentSR: supplyroute
 		Owner: Russia
-		Location: 60,30
+		Location: 94,56
 	SpawnUSA: mpspawn
 		Owner: Neutral
 		Location: 10,6
 	SpawnRussia: mpspawn
 		Owner: Neutral
-		Location: 54,6
+		Location: 50,6
+	SpawnThird: mpspawn
+		Owner: Neutral
+		Location: 90,6
 
 Rules: rules.yaml

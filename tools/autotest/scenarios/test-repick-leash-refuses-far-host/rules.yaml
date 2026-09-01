@@ -1,0 +1,47 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-repick-leash-refuses-far-host.lua
+
+# Dry on arrival, so the errand under test is opened by the shipped dispatcher and not by an order
+# the test issued. Which dispatcher, and why it matters here more than usual:
+#
+#   1. AmmoPool.AutoRearmIfDry via INotifyBecomingIdle fires on the !wasIdle -> IsIdle TRANSITION
+#      (Actor.cs). A map-placed actor with no activity is idle ALREADY on its first tick, so it
+#      never transitions and cannot open the errand at t=0. It DOES fire later, once the errand
+#      ends and the mortar goes idle again — see the note about that below.
+#   2. AutoSeekSupplies' IDLE seek (INotifyIdle.TickIdle) queues SeekSuppliesAndReturn, which does
+#      not contain FindBest at all. Excluded by GEOMETRY: NearCache is at 23 cells, outside its
+#      20-cell SupplyHuntLeashCells. If it ever opened the errand this scenario would measure an
+#      activity that has no leash to break.
+#   3. AutoSeekSupplies' BREAK-OFF arm (ITick, every EmptyScanInterval = 25 ticks) calls
+#      AmmoPool.AutoRearm, which queues SeekSupplyProvider (AmmoPool.cs:931). THIS is the errand
+#      under test, and NearCache at 23 cells is inside its 30-cell ReturnWhenEmptyLeashCells.
+#
+# WHAT HAPPENS AFTER THE MORTAR WALKS HOME, stated because it looks alarming in the trace and is
+# not a fault. He arrives idle and still dry, so arm 1 fires. Its Auto arm computes
+# suppliedHostWithinLeash = false (NearCache now holds 39, FarCache is 75 cells off) — which is the
+# input to the evacuation branch. It does NOT evacuate: anyHostWithinLeash asks
+# AnyRearmHostWithinLeash, which ignores stock, and NearCache is a rearm host 23 cells away, so
+# SupplyHuntMath.DecideAutoDisposition returns HoldAndFlag. The mortar stands still with
+# NeedsResupply raised. An evacuation inside the observation window would be a different
+# disposition entirely and the Lua fails the run as a setup fault rather than reading it as a pass.
+MT:
+	AmmoPool@1:
+		InitialAmmo: 0
+
+# NO override on SUPPLYCACHE. Its load is set from Lua with Test.SetSupply and read back with
+# Test.GetSupply, because the experiment needs the value to CHANGE mid-run — 45 (affordable, so the
+# errand opens) then 39 (one short of the mortar's 40-supply batch, so TargetValid goes false and
+# the re-pick fires). A rules override can only state a starting value and could not stage the
+# transition that is the entire point of the scenario.

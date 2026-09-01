@@ -33,11 +33,25 @@
 -- PersistentTargeting: false and takes the plain-clear path. If the promotion ever
 -- survives, the A10 lane is where it shows.
 --
+--   A10STRIKE  a10.airstrike -- AttackType: Strafe. Added 2026-09-01. FlyAttack.cs:188
+--         queues StrafeAttackRun, and StrafeAttackRun.Tick:323-325 RE-SETS the requested
+--         target every tick as `SetRequestedTarget(Target.FromTargetPositions(target), true)`
+--         -- a POSITION, force-attack TRUE, and no source argument, so the source defaults
+--         to AttackSource.Default (AttackFollow.cs:58-59). That fails the guard's
+--         `RequestedTarget.Type == TargetType.Actor` test AND fails
+--         `BreakOffApplies(Default, true)` = `!forceAttack && source != Default` = false.
+--         EITHER ALONE EXEMPTS IT. FlyAttack.Tick:108, which writes the real source and
+--         forceAttack, cannot rescue it: FlyAttack leaves ChildHasPriority at its default
+--         true, so its own Tick is skipped for as long as StrafeAttackRun is alive, and on
+--         the one tick it does run it queues the child and Activity.TickOuter:128-135 ticks
+--         that child in the SAME tick -- the position write always lands last.
+--         Predict: lane 3 keeps firing at a doomed target indefinitely, and this scenario
+--         FAILS ON THE SHIPPED BUILD naming A10STRIKE alone.
+--
 -- INFERENCE, NOT OBSERVATION (stated so it cannot be read as measured): the other
--- nine AttackAircraft actors are not in this scenario. F16/FROG/MIG share A10's
--- Default/!CanHover shape; littlebird/HELI/HIND share MI28's Hover shape.
--- A10.Airstrike and FROG.Airstrike are AttackType: Strafe and are a THIRD shape that
--- neither lane covers -- see the note in WORKSPACE/DISCOVERIES.md.
+-- eight AttackAircraft actors are not in this scenario. F16/FROG/MIG share A10's
+-- Default/!CanHover shape; littlebird/HELI/HIND share MI28's Hover shape; FROG.Airstrike
+-- shares A10.Airstrike's Strafe shape.
 --
 -- THE OBSERVABLE, and what could make it RED.
 -- shotsAfterCritical = ticks on which the aircraft's total ammo DECREASED after its
@@ -53,8 +67,27 @@
 --   * it ran out of ammo                     -> ammo must be > 0 at the end
 --   * the target died, so there was nothing left to shoot -> target must be alive
 --   * the manipulation never took            -> target hp must be < 25% at the end
--- Plus a contamination guard: 44 cells separate the lanes, and an aircraft that
--- wanders within 20 cells of the OTHER lane's target invalidates its own ammo trace.
+-- Plus a contamination guard: 40 cells separate adjacent lanes, and an aircraft that
+-- wanders within 20 cells of ANY other lane's target invalidates its own ammo trace.
+--
+-- WHY LANE 3's ARMING TRIGGER IS ALSO ITS PROOF-OF-POSTURE, which is the one thing a
+-- Strafe lane needs that the other two do not. The trigger fires on the lane's first
+-- ammo DECREMENT, and for a Strafe airframe a shot can only have been fired from inside
+-- a live StrafeAttackRun: FlyAttack.cs:180 pins minimumRange to zero for Strafe, so
+-- FlyAttack.Tick:183 reduces to "in max range?" -- out of range it queues MoveWithinRange
+-- and cannot fire at all, in range it queues StrafeAttackRun, which overwrites the
+-- requested target with the position write in that same tick. So "lane 3 fired" is not
+-- merely evidence that it engaged; it is evidence that the run child was alive and had
+-- written the exempt target. Without that, a break-off observed during the APPROACH --
+-- where FlyAttack.Tick's actor-target write is the last one standing and the guard CAN
+-- fire -- would read as "strafe airframes break off fine" and bury the defect.
+--
+-- EXECUTION MARKER. Every verdict string starts with `bkoff3/` and carries `obs<n>`, the
+-- number of observation ticks actually executed, and WorldLoaded prints `[bkoff3] loaded`
+-- to lua.log before it touches anything. A Lua load abort also reports status:fail, so
+-- without these a never-executed run is indistinguishable from a real RED. If a fail
+-- verdict does not begin with `bkoff3/`, the script did not run and the result is void --
+-- check lua.log is non-empty and that map.yaml still ends with its `Rules: rules.yaml`.
 
 local ArmDeadlineTicks = 400    -- must have opened fire by here, or the setup is void
 local ObserveTicks = 250        -- watch window after the target goes critical
@@ -83,8 +116,19 @@ local Lanes = {
 	{
 		id = "MI28",
 		unit = "mi28",
-		ax = 54, ay = 6, alt = 1280,
-		tx = 54, ty = 20,
+		ax = 50, ay = 6, alt = 1280,
+		tx = 50, ty = 20,
+	},
+	-- alt 2048 is A10.Airstrike's own CruiseAltitude (2c0, aircraft-america.yaml:693) --
+	-- NOT the A10's 2560. Aircraft.AddedToWorld only marks an aircraft airborne AND
+	-- cruising on the tick it appears if it is created at its own cruise height, and a
+	-- fixed-wing that starts below it spends the opening ticks climbing instead of
+	-- attacking, which eats the arming deadline for no reason.
+	{
+		id = "A10STRIKE",
+		unit = "a10.airstrike",
+		ax = 90, ay = 6, alt = 2048,
+		tx = 90, ty = 20,
 	},
 }
 
@@ -113,9 +157,13 @@ end
 local function finish()
 	local report = {}
 	local totalShotsAfter = 0
+	local offenders = {}
+	local observedTicks = 0
 
 	for _, l in ipairs(Lanes) do
 		totalShotsAfter = totalShotsAfter + l.shotsAfterGrace
+		if l.shotsAfterGrace > 0 then table.insert(offenders, l.id) end
+		if l.observed > observedTicks then observedTicks = l.observed end
 
 		local hpPct = -1
 		if not l.target.IsDead then
@@ -167,13 +215,27 @@ local function finish()
 		}, " "))
 	end
 
-	local summary = table.concat(report, " | ")
+	-- `bkoff3/` and obs<n> are the EXECUTION MARKER and ride on every verdict, pass or fail:
+	-- a Lua that aborted at load also reports status:fail, and only their presence separates
+	-- that from a run that actually measured something. obs<n> is the observation ticks the
+	-- slowest-armed lane completed, so obs0 says the arming phase never finished.
+	local summary = "bkoff3/ obs" .. observedTicks .. " " .. table.concat(report, " | ")
 
 	-- Order matters. The break-off verdict is read FIRST so the RED arm reports the
 	-- mechanism rather than the collateral (a target the un-guarded aircraft shot to
 	-- death would otherwise surface as "target died" and hide why).
+	--
+	-- THE LANE LIST IN BRACKETS IS LOAD-BEARING, not decoration. Two different runs fail
+	-- here and they must never be read as the same result:
+	--   [A10,MI28,A10STRIKE] -- the RED arm, break-off guard commented out of
+	--                           AttackFollow.Tick. Every lane fires; the gate works.
+	--   [A10STRIKE]          -- the SHIPPED build, and the finding this lane was added
+	--                           for: the Strafe airframe is structurally exempt while the
+	--                           two guarded shapes break off correctly.
+	-- A bare total would collapse those into one number.
 	if totalShotsAfter > 0 then
-		Test.Fail("BREAK-OFF DID NOT FIRE: " .. totalShotsAfter
+		Test.Fail("BREAK-OFF DID NOT FIRE [" .. table.concat(offenders, ",") .. "]: "
+			.. totalShotsAfter
 			.. " shots taken at a critically damaged target after break-off"
 			.. " (beyond a " .. GraceTicks .. "-tick grace) || " .. summary)
 		return
@@ -208,8 +270,10 @@ local function observeTick(l)
 	l.finalDist = d
 	l.finalAlt = l.plane.CenterPosition.Z
 
-	if cellDist(here, l.otherTargetCell) < ContaminationCells then
-		l.contaminated = true
+	for _, c in ipairs(l.otherTargetCells) do
+		if cellDist(here, c) < ContaminationCells then
+			l.contaminated = true
+		end
 	end
 
 	local idle = l.plane.IsIdle
@@ -305,6 +369,13 @@ local function armPhase()
 						l.finalDist = l.distAtCritical
 						l.wasIdle = l.plane.IsIdle
 						l.armed = true
+
+						-- Live values, printed rather than interpolated into a failure
+						-- string: AssertWithin-style messages are concatenated eagerly at
+						-- registration and would report the pre-run zeros forever.
+						print("[bkoff3] armed lane=" .. l.id .. " elapsed=" .. elapsed
+							.. " hpAtCrit=" .. l.hpAtCritical .. "% dist=" .. l.distAtCritical
+							.. " alt=" .. l.altAtCritical .. " ammo=" .. totalAmmo(l.plane))
 					else
 						allArmed = false
 					end
@@ -338,10 +409,16 @@ local function armPhase()
 end
 
 WorldLoaded = function()
+	-- Printed before anything else can throw: this line in lua.log is the proof that the
+	-- script loaded at all. A run whose lua.log lacks it never executed, whatever the
+	-- verdict says (AUTOTEST.md: "the tell is lua.log at 0 bytes").
+	print("[bkoff3] loaded lanes=" .. #Lanes .. " observeTicks=" .. ObserveTicks
+		.. " armDeadline=" .. ArmDeadlineTicks .. " grace=" .. GraceTicks)
+
 	local USA = Player.GetPlayer("USA")
 	local RUSSIA = Player.GetPlayer("Russia")
 	if USA == nil or RUSSIA == nil then
-		Test.Fail("setup: USA or Russia player not found")
+		Test.Fail("bkoff3/ setup: USA or Russia player not found")
 		return
 	end
 
@@ -358,7 +435,7 @@ WorldLoaded = function()
 		})
 
 		if l.plane == nil or l.target == nil then
-			Test.Fail("setup: could not spawn " .. l.unit .. " / t90 for lane " .. l.id)
+			Test.Fail("bkoff3/ setup: could not spawn " .. l.unit .. " / t90 for lane " .. l.id)
 			return
 		end
 
@@ -392,8 +469,12 @@ WorldLoaded = function()
 		l.wasIdle = false
 	end
 
-	Lanes[1].otherTargetCell = Lanes[2].targetCell
-	Lanes[2].otherTargetCell = Lanes[1].targetCell
+	for i, l in ipairs(Lanes) do
+		l.otherTargetCells = {}
+		for j, o in ipairs(Lanes) do
+			if i ~= j then table.insert(l.otherTargetCells, o.targetCell) end
+		end
+	end
 
 	TestHarness.FocusBetween(Lanes[1].plane, Lanes[1].target)
 	TestHarness.Select(Lanes[1].plane)
