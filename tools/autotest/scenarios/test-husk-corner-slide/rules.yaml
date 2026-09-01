@@ -1,0 +1,16 @@
+Player:
+	# Nothing here is contested, and the trucks all die on purpose. Without this the USA player is
+	# wiped the moment the last truck dies and the Mission-Accomplished overlay ends the match before
+	# the screenshot burst has flushed.
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-husk-corner-slide.lua

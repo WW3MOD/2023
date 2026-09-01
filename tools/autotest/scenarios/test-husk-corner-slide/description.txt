@@ -1,0 +1,1 @@
+Husk facing while it finishes a corner: three supply trucks are killed part-way through a 90-degree arc. Screenshot burst + [husk-settle] traces show whether the wreck points down its slide or across it.

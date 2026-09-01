@@ -110,8 +110,17 @@ namespace OpenRA.Mods.Common.Traits
 			// died with, which on a corner is the tangent of the arc it was part-way through rather than the
 			// straight line to the reserved cell -- so the wreck slides sideways. The husk sprite replaces the
 			// living one on this same tick, so aligning here is hidden by a discontinuity that already happens.
+			var travel = finalPosition - CenterPosition;
+			var settled = HuskSettleGeometry.SettleFacing(travel, Facing);
+
+			// Computed above the assignment so that reverting ONLY the assignment gives a control arm that still
+			// reports the angle it would have used -- the crab is then a measured number in both arms.
+			if (TestMode.IsActive)
+				Log.Write("debug", $"[husk-settle] travel=({travel.X},{travel.Y}) dragSpeed={dragSpeed} " +
+					$"deathFacing={Facing.Angle} settled={settled.Angle} crab={HuskSettleGeometry.CrabAngle(travel, Facing)}");
+
 			if (dragSpeed > 0)
-				Facing = HuskSettleGeometry.SettleFacing(finalPosition - CenterPosition, Facing);
+				Facing = settled;
 
 			effectiveOwner = init.GetValue<EffectiveOwnerInit, Player>(info, self.Owner);
 		}
@@ -217,6 +226,15 @@ namespace OpenRA.Mods.Common.Traits
 			var reverse = new WAngle(forward.Angle + 512);
 
 			return AngleBetween(deathFacing, forward) <= AngleBetween(deathFacing, reverse) ? forward : reverse;
+		}
+
+		// How far off its direction of travel the wreck is pointing -- the sideways slide, as a number.
+		public static int CrabAngle(WVec travel, WAngle deathFacing)
+		{
+			if (travel.HorizontalLengthSquared == 0)
+				return 0;
+
+			return AngleBetween(deathFacing, SettleFacing(travel, deathFacing));
 		}
 
 		static int AngleBetween(WAngle a, WAngle b)

@@ -1,0 +1,83 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: husk facing while it finishes a corner
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# A vehicle killed mid-move keeps dragging to the centre of the cell it had already reserved. On a
+# STRAIGHT leg the facing it died with already points down that drag, so nothing looks wrong -- which
+# is why this scenario corners. Each truck drives east along its own row and then jogs south, and is
+# killed part-way through the 90-degree arc, where the facing it dies holding is the arc tangent
+# (pointing at the cell it is leaving) while the husk's drag runs straight to the cell it never
+# entered. That gap is the sideways slide.
+#
+# THREE lanes killed at three different offsets into the arc, not one: a single offset is a bet that
+# the chosen tick lands inside the arc, and a run slot is too expensive to bet. The spread guarantees
+# at least one wreck dies mid-arc even if the speed arithmetic is off.
+#
+# All three corners share x=30 so one fixed camera frames them together and a single screenshot burst
+# covers every lane.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 3,3
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 62,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,3
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 62,30
+
+	# Three supply trucks, one per lane. Facing 768 is East (WAngle is counterclockwise), so each
+	# starts already pointing down its straight leg and the only turn in the run is the corner.
+	TruckA: truk
+		Owner: USA
+		Location: 14,10
+		Facing: 768
+	TruckB: truk
+		Owner: USA
+		Location: 14,16
+		Facing: 768
+	TruckC: truk
+		Owner: USA
+		Location: 14,22
+		Facing: 768
+
+Rules: rules.yaml
