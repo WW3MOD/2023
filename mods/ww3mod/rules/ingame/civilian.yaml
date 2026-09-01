@@ -112,9 +112,15 @@
 		TargetScanInterval: 8
 		AmmoConservation: true
 		ReloadSwapping: true
+	# CriticalProtection is the curve's INTERCEPT AT ZERO HP, not the value at DamageState.Critical:
+	# GetCurrentProtection interpolates Critical + (Base - Critical) * hpPct. At 70 the whole bar
+	# only moved 95 -> 70 and the remaining 70 -> 30 landed in the single hit point at the rubble
+	# clamp, so the building read as "fine, fine, fine, death trap". 35 spreads that drop across the
+	# bar instead. Both ENDPOINTS are deliberately unchanged — full health still 95, rubble still 30 —
+	# so an intact building and a ruin behave exactly as before and only the middle gets worse.
 	GarrisonProtection:
 		BaseProtection: 95
-		CriticalProtection: 70
+		CriticalProtection: 35
 		RubbleProtection: 30
 		MinPassThrough: 15
 	Inherits@GarrisonHealthPips: ^GarrisonHealthPips
