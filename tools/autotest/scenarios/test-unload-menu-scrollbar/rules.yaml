@@ -1,0 +1,27 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-unload-menu-scrollbar.lua
+
+# Same 24-class hold as test-unload-menu-classes, and for the same reason: 24 DISTINCT class
+# rows is the widest the game can legally produce, so it is the load that reaches the screen
+# height cap first. See that scenario's rules.yaml for why this particular list of actor names
+# yields 24 rows and not fewer.
+#
+# The two scenarios ask different questions of it. That one asserts the rows are NOT clipped,
+# so it only passes on a tall enough window. This one asserts the menu is HONEST about whether
+# they are, so it passes on both sides of the cliff and is the one to run at a short size.
+TRAN:
+	Cargo:
+		InitialUnits: E1,E3,AR,E2,TL,MT,SN,AT,AA,E6,E4,SF,MEDI,TECN,DR,PILOT,C2,CHAN,crew.driver.america,crew.gunner.america,crew.commander.america,crew.driver.russia,crew.gunner.russia,crew.commander.russia

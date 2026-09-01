@@ -269,12 +269,17 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return $"{menus.Length}:{(list == null ? -1 : list.Children.Count)}";
 		}
 
-		[Desc("Geometry of the open unload menu as 'rows=N content=N clip=N panel=N screen=N', or an " +
-			"empty string when it is closed. `content` is what the rows need, `clip` is the height the " +
-			"scroll panel actually gives them. A row count ALONE cannot see the bug this exists for: " +
-			"Refresh adds every class row to the list whatever the panel's height, so rows past the " +
-			"cap were counted but drawn nowhere — with ScrollBar Hidden advertising nothing. " +
-			"clip < content is that bug, in a number. Test mode only.")]
+		[Desc("Geometry of the open unload menu as 'rows=N content=N clip=N panel=N screen=N bar=N " +
+			"barleft=N countright=N', or an empty string when it is closed. `content` is what the rows " +
+			"need, `clip` is the height the scroll panel actually gives them. A row count ALONE cannot " +
+			"see the bug this exists for: Refresh adds every class row to the list whatever the panel's " +
+			"height, so rows past the cap were counted but drawn nowhere — with ScrollBar Hidden " +
+			"advertising nothing. clip < content is that bug, in a number. `bar` is 1 when the scrollbar " +
+			"is showing; it should be 1 exactly when clip < content, because a clip that is never " +
+			"advertised is the same defect wearing a scrollbar's absence. `barleft` is the bar's left " +
+			"edge in list-local x (-1 when hidden) and `countright` the right edge of a row's count " +
+			"column, so a test can prove the bar is not sitting on top of the counts — which is what " +
+			"sank the first attempt at one. Test mode only.")]
 		public string GetUnloadMenuGeometry()
 		{
 			if (!TestMode.IsActive)
@@ -285,8 +290,23 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (list == null)
 				return "";
 
+			var barVisible = list.ScrollBar != ScrollBar.Hidden;
+			var barLeft = barVisible ? list.Bounds.Width - list.ScrollbarWidth : -1;
+
+			// Read the count column off a live row rather than the template: the rows are clones and
+			// keep the width they were resolved at, which is the whole reason widening the list leaves
+			// a clear gutter for the bar.
+			var countRight = -1;
+			if (list.Children.FirstOrDefault() is Widget row)
+			{
+				var count = row.GetOrNull<LabelWidget>("CLASS_COUNT");
+				if (count != null)
+					countRight = count.Bounds.Right;
+			}
+
 			return $"rows={list.Children.Count} content={list.ContentHeight} clip={list.Bounds.Height} " +
-				$"panel={menu.Bounds.Height} screen={Game.Renderer.Resolution.Height}";
+				$"panel={menu.Bounds.Height} screen={Game.Renderer.Resolution.Height} " +
+				$"bar={(barVisible ? 1 : 0)} barleft={barLeft} countright={countRight}";
 		}
 
 		[Desc("Click a row of the open unload menu: the row itself drops one man of that class, or " +
