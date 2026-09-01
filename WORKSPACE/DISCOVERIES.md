@@ -3,6 +3,46 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — an `expected-status: fail` declaration also grades a WATCHDOG TIMEOUT green, because the batch reads the exit code and only `run-test.sh` knows the difference (`wt/harness-gaps`)
+
+`tools/autotest/expected-status.sh` is sound on its own terms and its selftest proves the decision
+table. The hole is at the seam, and it is **latent, not live** — no scenario declares a status today
+(`ls tools/autotest/scenarios/*/expected-status` is empty), so nothing is currently misgraded. It
+bites the first author who declares one, which is the very next step this mechanism was built for.
+
+**`run-test.sh` deliberately distinguishes the two failures and deliberately shares their exit code.**
+At `:932` the outcome name forks — `TIMEOUT-FAIL` when `TIMED_OUT=1`, else `FAIL` — and both `exit 1`.
+The comment at `:791-795` states the intent outright: *"same exit code, but 'the game never answered'
+and 'the game answered no' are different findings and the banner must not conflate them."* The
+distinction lives only in the banner and in the `OUTCOME` shell variable; it never reaches disk in a
+form a caller can read. The synthesized record at `:798-800` is `"status":"fail"`, identical in schema
+to a real assertion failure.
+
+**`run-batch.sh` derives its outcome from the exit code alone** (`:213-218`: `1) outcome="FAIL"`), so
+it re-conflates precisely what `run-test.sh` took care to separate, and hands `FAIL` to
+`expected_status_grade`. A scenario declared `fail` therefore reports `OK(fail)` when the game hung,
+never loaded its rules, or was killed by the watchdog at the full 300 s timeout. **The one outcome a
+by-merit declaration must never absorb is "the run did not happen", and that is exactly the one it
+absorbs.** `expected-status.sh`'s own header promises the opposite — *"Declaring `fail` does not buy
+silence for a crash"* — which holds for a crash (`exit 3` → `ERR` → RED) but not for a hang.
+
+**Why the obvious fix is not a one-liner:** `run-batch.sh` cannot inspect the verdict file, because
+`RUN_ID` and therefore `RESULT_FILE` are generated inside `run-test.sh` (`:515`, `:522`) under
+`~/.ww3mod-tests/screenshots/<RUN_ID>/` and never communicated back. Closing this means either
+plumbing the run dir out of `run-test.sh` to a known path, or giving `expected_status_grade` a
+`TIMEOUT-FAIL` actual for the table to reject — and the second still needs the first to know when to
+pass it. Re-using the exit code is not available: `run-batch` and CI both depend on `1`, which is why
+it was shared in the first place.
+
+**Scenario-level precedent for the same distinction, already solved once.**
+`tools/autotest/scenarios/test-drone-lost-track/CONTROL-ARM.md` hit this exact ambiguity from the
+other side — *"A Lua abort and a real failure both arrive as `status: fail`"* — and answered it with
+two markers written into `result.json`'s `screenshots[]` (`00-script-loaded`, `99-verdict-reached`,
+`TestMode.cs:294-308`). That is the discriminator a batch-level fix wants, and it already exists per
+scenario; nothing reads it above the scenario. *Rule for whoever closes this: a declared outcome may
+only be graded green against a verdict the scenario produced under its own power — establish that
+first, then compare the status.*
+
 ## 2026-09-01 — the sync tripwire has exactly ONE site engine-wide, which is why "dispatches UI handlers from Lua" is a silent bug class (`wt/cmdbar-audit`, `main @ 42548fe5`)
 
 Follow-up audit after `Test.PressHotkey` (entry below). The generalisable finding is the *shape*, not
