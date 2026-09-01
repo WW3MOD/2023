@@ -84,6 +84,59 @@ samples run t285–t1545 contiguously (14 outbound, 57 hovering at 33,29, 14 ret
 the 20 after t1251 are the last 6 hover samples plus all 14 of the return leg. Every one
 belongs to the sortie ordered at t200. Zero came from a second sortie.
 
+## Run 7: the lost tier is being read, and `reveal=` is NOT the winner's reveal
+
+```
+CONTROL   cell=33,29 reveal=307 intel=0  records=0 tick=200
+TREATMENT cell=35,31 reveal=307 intel=34 records=1 tick=200
+```
+
+`intel=34` is `249 · (28−25+1)/29` — the lost tier at 25 cells. The fresh tier would give 8.
+The timing fix landed and the arms diverged for the first time, so the term demonstrably
+moves the argmax.
+
+**Do not read the two `307`s as a tie between the two winning cells.** `reveal=` on the
+launch line prints `bestReveal` (`DroneOperatorBotModule.cs:726`), which is the maximum
+revealed area over *every* candidate scanned — there is no `chosenReveal`. So both arms
+reporting 307 says only that the best exploration on offer was 307 in both, which is
+expected because the worlds are identical up to t200.
+
+What *is* derivable: the control's score is `reveal·1000 − poiDistance` with intel 0
+everywhere, so its winner **is** the reveal argmax — `33,29` has reveal exactly 307. In the
+treatment that same cell carries `intel = 249·(28−28+1)/29 = 8`, so `worth = 315`. The
+winner `35,31` carries intel 34, so its own reveal `r` satisfies `r + 34 ≥ 315`:
+
+> **281 ≤ r ≤ 307** — intel overcame a reveal deficit of somewhere between **0 and 26** squares.
+
+## Sizing `LostTrackIntelSquares` — the bound you can already state, and the one you cannot
+
+The term's *displacement power* is its value at the best hunt cell minus its value at the
+reveal argmax. `IntelFalloff` is monotonically decreasing in distance, so `bestIntel` is
+always at the **closest candidate to the vanish cell**, which the leash fixes at ~11 cells:
+
+> `249·(28−11+1)/29 − 249·(28−28+1)/29 = 154 − 8 = **146 squares**`
+
+For a hunt cell to win it needs `reveal_hunt + 154 > 307 + 8`, i.e. `reveal_hunt ≥ 161`. It
+did not win, so **`reveal_hunt < 161`** — and the multiplier the constant would need is
+`(307 − reveal_hunt)/146`. Since `reveal_hunt ≥ 0`:
+
+> **the shortfall is strictly between 1.0× and 2.10×. It is NOT an order of magnitude,**
+> and that bound needs no further run. Reading `intel=34` against `reveal=307` understates
+> the term ~4×, because 34 is its value at the cell that won (25 cells out), not the 154 it
+> reaches at the hunt cell it was competing for.
+
+The exact multiplier needs one number nothing logged: the revealed area *at the best-intel
+cell*. The launch line now carries `bestintel=`, `bestintelcell=` and `bestintelreveal=`
+(diagnostic only, no decision reads them), so:
+
+> `multiplier = (reveal − bestintelreveal) / (bestintel − intel_at_reveal_argmax)`
+
+**Decide the verdict before the run, not after.** ≤1.5× means the term is roughly right and
+this scenario is simply a hard case — report that and change nothing. ≥1.8× is a real
+shortfall worth acting on. In between is a judgement call that should be argued in the
+commit, not silently rounded up. Setting the constant to exactly the value that flips this
+scenario is tuning-to-pass and is the same move as lowering `FreshSightingTicks` was.
+
 ## First check the run actually ran — this is not optional
 
 A Lua abort and a real failure both arrive as `status: "fail"`. The first attempt at this RED reported
