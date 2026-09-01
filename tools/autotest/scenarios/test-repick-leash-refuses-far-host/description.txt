@@ -1,0 +1,1 @@
+Auto: a dry mortar walking to a cache that stops being affordable mid-errand must NOT set off across the map to the next affordable one. Pins the FindBest distance leash added in 0dcbd235, which shipped with nothing testing it.

@@ -1,0 +1,100 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: The Mid-Errand Re-Pick Must Not Send A Soldier Across The Map (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+# 100,60 from demo-heli-lanes (TEMPERAT, uniform clear terrain). The size is forced by the
+# geometry below, not chosen: FarCache has to sit more than 30 chessboard cells from EVERY cell
+# the mortar occupies during the errand — including his start — and a 66,34 map cannot hold a
+# 23-cell walk plus a 30-cell exclusion at both ends of it. Terrain IS load-bearing here, unlike
+# the aircraft scenarios: the mortar walks, so an obstacle would turn a leash result into a
+# pathfinding result.
+MapSize: 100,60
+
+# 1,1,W-2,H-2. NOT 0,0,W,H, which trips CheckMapCordon.
+Bounds: 1,1,98,58
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# `mt` for the same reason test-dry-seeks-affordable-cache uses it: its single Essential pool
+	# costs 40 supply a batch (^MT, infantry.yaml:1606), the joint-highest infantry batch price in
+	# the mod, so the "stocked but unaffordable" band a cache can sit in is 1..39 — wide enough to
+	# park a cache in deliberately. On a rifleman (10 supply) the band is almost too narrow to hit.
+	# Dry on arrival via rules.yaml, so the errand is opened by the shipped dispatcher rather than
+	# staged by the test.
+	Gunner: mt
+		Owner: USA
+		Location: 20,30
+		Facing: 768
+	# 23 CELLS EAST, AND THE NUMBER IS THE SAME BAND test-dry-seeks-affordable-cache USES, for the
+	# same reason: it must sit OUTSIDE AutoSeekSupplies' idle-seek leash (SupplyHuntLeashCells: 20)
+	# and INSIDE its break-off leash (ReturnWhenEmptyLeashCells: 30). Only the break-off arm routes
+	# through AmmoPool.AutoRearm, and only AmmoPool.AutoRearm queues SeekSupplyProvider
+	# (AmmoPool.cs:931) — the activity that owns FindBest. The idle seek queues SeekSuppliesAndReturn
+	# instead (AutoSeekSupplies.cs:202), which has no FindBest and no leash to test. Move this cache
+	# inside 20 cells and the idle seek opens the errand, the scenario runs a completely different
+	# activity, and it will pass on a build with the leash ripped out.
+	#
+	# Starts AFFORDABLE (Lua sets 45) so the errand opens toward it, and is dropped to 39 mid-walk.
+	# That drop is the whole experiment: it is what makes TargetValid go false and forces the
+	# re-pick under test.
+	NearCache: supplycache
+		Owner: USA
+		Location: 43,30
+	# 75 CELLS EAST OF THE MORTAR, 52 EAST OF NearCache, and affordable all run. This is the host
+	# the unleashed re-pick would walk to. The margin is deliberately enormous rather than just
+	# sufficient: the mortar ranges over x = 20..43 during the errand, so his distance to this cache
+	# is never less than 52 against a 30-cell leash. Nothing here sits on a boundary, so a verdict
+	# cannot turn on which metric or which rounding the engine used (AUTOTEST.md gotcha 8).
+	#
+	# No dispatcher can reach it either, and that is what makes the RED arm attributable: the idle
+	# seek is leashed at 20, the break-off arm at 30 (AutoSeekSupplies.WithinBreakOffLeash), and
+	# AmmoPool's own Auto arm at ResolveSeekLeash = 30 (AmmoPool.cs:673-686). With FindBest leashed
+	# too there is NO path to this actor; with FindBest's leash reverted there is exactly one. So a
+	# mortar that heads east past NearCache did it through FindBest and through nothing else.
+	FarCache: supplycache
+		Owner: USA
+		Location: 95,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 20,30
+	# No enemy actor, for test-dry-seeks-affordable-cache's reason: a bait would give the mortar a
+	# second reason to be standing still and make a red run ambiguous.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,55
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 95,55
+
+Rules: rules.yaml

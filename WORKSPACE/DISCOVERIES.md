@@ -169,6 +169,91 @@ Audited, found clean, changed nothing. Recorded so the next reader does not re-o
   `TargetType.Actor`, so ordering onto a *frozen* vehicle plays no voice line even though the
   resolver accepts the order. It reads live `CanEnter`, but a FrozenActor target returns before that,
   so nothing hidden escapes.
+## 2026-09-01 — `AttackType: Strafe` airframes are structurally exempt from the break-off guard, and the exemption is DOUBLE (`wt/launch-prep`)
+
+Read off code and pinned in a scenario; **not measured** — no launch was run for this. Stated as a
+prediction with its falsifier, not as a result.
+
+- **The two independent exemptions.** `StrafeAttackRun.Tick` (`Activities/Air/FlyAttack.cs:323-325`)
+  re-sets the requested target every tick as
+  `attackAircraft.SetRequestedTarget(Target.FromTargetPositions(target), true)`. That is a POSITION
+  target (`Target.FromTargetPositions` builds the `(WPos, WPos[])` terrain form,
+  `Traits/Target.cs:86`), `isForceAttack: true`, and **no source argument**, so the source defaults
+  to `AttackSource.Default` (`AttackFollow.cs:58-59`). The break-off guard at
+  `AttackFollow.cs:181-186` requires `RequestedTarget.Type == TargetType.Actor` **and**
+  `BreakOffApplies(source, forceAttack)`, and the latter is
+  `!forceAttack && source != AttackSource.Default` (`AttackBase.cs:672-675`). **Either one alone
+  exempts a strafe run; both fail.** Population: `A10.Airstrike`
+  (`rules/ingame/aircraft-america.yaml:676`) and `FROG.Airstrike`
+  (`rules/ingame/aircraft-russia.yaml:701`).
+- **The obvious rescue does not apply, and this is the part that is easy to get wrong.**
+  `FlyAttack.Tick:108` writes the requested target with the REAL source and forceAttack every tick,
+  and `FlyAttack.cs:99-101` even holds an abort check for "AttackFollow cancelled our target". Both
+  are unreachable mid-run: `FlyAttack` leaves `ChildHasPriority` at its default `true`, and
+  `Activity.TickOuter:119-123` runs `TickChild(self) && (finishing || Tick(self))` — so **the parent
+  tick is skipped for as long as `StrafeAttackRun` is alive**. On the one tick `FlyAttack.Tick` does
+  run it queues the child, and `Activity.TickOuter:128-135` ("avoid a single tick delay") ticks that
+  child in the SAME tick, so the position write always lands last. Whatever order traits and
+  activities tick in, the guard never sees an Actor-typed requested target during a run.
+- **A break-off CAN still fire during the APPROACH**, when the queued child is `MoveWithinRange` and
+  nothing overwrites `FlyAttack.Tick:108`'s write. **This is the trap for anyone testing it**: a
+  scenario that dooms the target before the aircraft is in range observes a perfectly good break-off
+  and concludes strafe airframes are fine. `test-aircraft-breakoff-midrun`'s third lane keys its
+  trigger on the lane's first ammo decrement, which for a Strafe airframe can only happen from
+  inside a live `StrafeAttackRun` — `FlyAttack.cs:180` pins `minimumRange` to zero for Strafe, so
+  `:183` reduces to "in max range?", and out of range the airframe cannot fire at all.
+- **Consequence if the reading holds:** an A-10 airstrike keeps strafing a target already guaranteed
+  dead, which is exactly the waste the guard was merged (`936f1fe9`) to stop, on the airframe with
+  the least ammunition to waste (`AmmoPool@1: Ammo: 40`, plus `-Rearmable` and `-ReloadAmmoPool@1`,
+  so it never gets any back).
+
+**Falsifier, so this cannot be quietly promoted to fact:** run `test-aircraft-breakoff-midrun`. If
+the verdict fails naming `[A10STRIKE]` alone, the reading held. If it PASSES, the reading is wrong
+and this entry should be deleted rather than softened.
+
+## 2026-09-01 — Three lanes will not fit on the 66×34 scenario map, because AutoTarget's fallback scan radius is 25 cells and its circle is EUCLIDEAN (`wt/launch-prep`)
+
+Static, no launch. Worth recording because the arithmetic looks fine until you check which metric.
+
+Neither aircraft in `test-aircraft-breakoff-midrun` pins `AutoTarget.ScanRadius`, so each falls back
+to `AttackBase.GetMaximumRange` — 25c0 for the A10 and its Airstrike variant (Hellfire). The largest
+min-separation three lanes can achieve inside `Bounds: 1,1,64,32` is 22 cells (x = 10/32/54, any
+row), and `ScanForTarget` resolves through `World.FindActorsInCircle`, which is **Euclidean**: an
+aircraft at (32,6) is `sqrt(22² + 14²)` = **26.1 cells** from the neighbouring lane's target. One
+cell outside the radius — precisely the acquisition boundary AUTOTEST.md gotcha 8 forbids sitting
+on, where a run can flip on nothing. Widening the intra-lane gap to buy Euclidean margin pushes the
+targets to 22 cells apart, inside the scenario's own 20-cell contamination guard. There is no
+arrangement that satisfies both on that map; the scenario now uses `demo-heli-lanes`' 100×60
+(uniform clear terrain, `Bounds: 1,1,98,58`) at a 40-cell lane pitch, which puts the nearest foreign
+target 42.4 cells away.
+
+**General form:** a scenario's lane pitch is bounded by `GetMaximumRange` of the LONGEST-ranged
+armament any actor on it carries, not by the weapon you think is doing the work — and by the
+Euclidean distance, not the chessboard one a map-editor eye measures.
+
+## 2026-09-01 — Which dispatcher opens a resupply errand decides which ACTIVITY runs, and only one of the two contains `FindBest` (`wt/launch-prep`)
+
+Static, no launch. This is the constraint that sizes `test-repick-leash-refuses-far-host`, and
+getting it wrong yields a scenario that passes against a build with the leash ripped out.
+
+`AutoSeekSupplies` runs two dispatchers and they queue **different activities**:
+
+- the IDLE seek (`INotifyIdle.TickIdle`) queues `SeekSuppliesAndReturn` (`AutoSeekSupplies.cs:202`),
+  reach `SupplyHuntLeashCells: 20`;
+- the BREAK-OFF arm (`ITick`, every `EmptyScanInterval` = 25) calls `AmmoPool.AutoRearm`, which
+  queues `SeekSupplyProvider` (`AmmoPool.cs:931`), reach `ReturnWhenEmptyLeashCells: 30`.
+
+**`FindBest` — and therefore the 0dcbd235 leash — lives only in `SeekSupplyProvider`.**
+`SeekSuppliesAndReturn` has no re-pick and no leash to test. So a scenario about that leash must
+place its initial host in the **20 < d ≤ 30 band**, or the idle seek opens the errand and the run
+measures an activity with nothing under test in it. This is the same band, and the same reason,
+`test-dry-seeks-affordable-cache` needed for its rich cache — that scenario's first cut put it at 11
+cells and passed pre-fix.
+
+Second constraint, less obvious: the far host must be outside **every** dispatcher's leash from
+**every** cell the unit occupies, including its start — otherwise a dispatcher reaches it and the
+resulting walk is not attributable to `FindBest`. With a 23-cell walk and a 30-cell exclusion at
+both ends, a 66×34 map has no legal cell for it in any direction.
 
 ## 2026-09-01 — The cordon debt is 63 maps but only THREE prices, and the expensive tier is 17 benchmark maps with an income POI on the outer ring (`wt/tooling-truth`)
 
