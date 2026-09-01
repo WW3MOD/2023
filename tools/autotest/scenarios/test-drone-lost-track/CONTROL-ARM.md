@@ -48,6 +48,25 @@ one.
 `records=0` in the control's `[drone]` lines is the arm's self-identifying marker: if a control run
 shows `records>0`, the edit did not take and the run must be discarded rather than interpreted.
 
+## First check the run actually ran — this is not optional
+
+A Lua abort and a real failure both arrive as `status: "fail"`. The first attempt at this RED reported
+one that looked exactly like the control result it was meant to produce; only the verdict *wording*
+gave it away (`Fatal Lua Error: Actor 'player' does not define a property 'Location'` is the engine's
+phrasing, not this scenario's).
+
+The scenario now brackets itself with two markers recorded in `result.json`'s `screenshots[]` array,
+which `TestMode` writes synchronously (`TestMode.cs:294-308`) even though the PNGs land async:
+
+| `screenshots[]` contains | Meaning |
+|---|---|
+| neither marker | the script never loaded — do not interpret the status at all |
+| `00-script-loaded` only | loaded, then either aborted mid-run **or** failed setup validation in `WorldLoaded`; tell them apart by whose wording the verdict carries |
+| `00-script-loaded` **and** `99-verdict-reached` | reached a verdict through the sampling path under its own power — the status means what it says |
+
+Both rules stay in force together: check the markers, and check that the verdict text is one this
+scenario authored. The markers make it an artefact check rather than a discipline.
+
 ## How this could come back ambiguous — read before interpreting
 
 **The control's exploration target could land near the vanish cell by chance.** The hover disc has

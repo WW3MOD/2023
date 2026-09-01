@@ -141,6 +141,12 @@ local function summary()
 end
 
 local function finish()
+	-- SECOND HALF OF THE EXECUTION PROOF — see the WorldLoaded marker. Its presence
+	-- means the script reached a verdict under its own power rather than being cut
+	-- short mid-tick, which is exactly what happened on the first attempt at this
+	-- run and was only caught by reading the verdict's wording.
+	Test.Screenshot("99-verdict-reached", "scenario reached finish() and is about to emit its own verdict")
+
 	if #setupFaults > 0 then
 		Test.Fail("SETUP INVALID: " .. table.concat(setupFaults, "; ") .. " || " .. summary())
 		return
@@ -262,6 +268,28 @@ tick = function()
 end
 
 WorldLoaded = function()
+	-- EXECUTION PROOF, AND IT IS THE FIRST STATEMENT ON PURPOSE.
+	--
+	-- A Lua abort and a real failure both arrive as status "fail", and the first
+	-- attempt at this run reported one that looked exactly like the RED it was meant
+	-- to produce. Reading the verdict WORDING caught it — the text was the engine's,
+	-- not the scenario's — but that is a discipline, and a discipline is not a check.
+	--
+	-- Test.Screenshot records label, path and TICK into result.json's screenshots[]
+	-- synchronously (TestMode.cs:294-308) even though the PNG itself lands async, so
+	-- these two markers make the artefact answer the question by itself:
+	--
+	--   neither marker -> the script never loaded at all
+	--   00 only        -> it loaded, then EITHER aborted mid-run (tonight's failure)
+	--                     OR failed setup validation in WorldLoaded below. Those two
+	--                     are still told apart by whose wording the verdict carries —
+	--                     the setup failures are authored here, an abort is not.
+	--   00 and 99      -> it reached a verdict through the sampling path under its own
+	--                     power, so the status means what it says.
+	--
+	-- Placed above every actor lookup so that nothing which could throw runs first.
+	Test.Screenshot("00-script-loaded", "scenario entered WorldLoaded; no actor has been queried yet")
+
 	local usa = Player.GetPlayer("USA-bot")
 	if usa == nil then
 		Test.Fail("USA-bot player not found at load")
