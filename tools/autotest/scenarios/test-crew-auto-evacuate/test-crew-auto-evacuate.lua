@@ -17,9 +17,13 @@
 -- Half B: the ONE crew member handed a Move order the moment he appears is still in the world at
 --         the deadline, standing where he was sent.
 --
--- RED before the change: half A fails outright — nothing evacuated a human player's crew, and the
--- bot's own sweep (PoiOffensiveBotModule.SweepEjectedCrew) is gated OFF on @stable and does not act
--- on player-owned actors at all, so the crew simply stood next to the wreck forever.
+-- RED before the change: half A fails outright, because nothing evacuated crew AT EJECTION. Stated
+-- precisely, because two other evacuation paths do exist and neither covers this case:
+--   * PoiOffensiveBotModule.SweepEjectedCrew is bot-only (IsEjectedCrewSweepCandidate rejects any
+--     actor whose Owner is not the module's own player) and is gated OFF on @stable.
+--   * AmmoPool.EvacuateForRefund (AmmoPool.cs:823-830) would eventually take a crew member, but only
+--     once he has run DRY — that is 24 pistol rounds away and has nothing to do with dismounting.
+-- So a player's crew stood next to the wreck indefinitely, which is what this scenario pins.
 
 local DeadlineSeconds = 70
 local HullX = 33
