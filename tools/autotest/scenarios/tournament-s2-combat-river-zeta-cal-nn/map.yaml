@@ -10,7 +10,7 @@ Tileset: TEMPERAT
 
 MapSize: 98,82
 
-Bounds: 0,0,98,82
+Bounds: 1,1,96,80
 
 Visibility: MissionSelector
 
@@ -9138,7 +9138,7 @@ Actors:
 		Location: 69,24
 	Actor5170: oilb
 		Owner: Neutral
-		Location: 44,0
+		Location: 44,1
 	Actor5185: t03
 		Owner: Neutral
 		Location: 46,-1

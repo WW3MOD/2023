@@ -10,7 +10,7 @@ Tileset: SNOW
 
 MapSize: 98,98
 
-Bounds: 0,0,98,98
+Bounds: 1,1,96,96
 
 Visibility: MissionSelector
 
@@ -845,10 +845,10 @@ Actors:
 		Location: 10,45
 	Actor365: oilb
 		Owner: Neutral
-		Location: 96,7
+		Location: 95,7
 	Actor391: oilb
 		Owner: Neutral
-		Location: 0,88
+		Location: 1,87
 	Actor392: snowhut
 		Owner: Neutral
 		Location: 38,31
