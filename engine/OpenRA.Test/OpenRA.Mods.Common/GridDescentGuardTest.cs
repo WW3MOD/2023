@@ -43,9 +43,18 @@ namespace OpenRA.Test
 		// 4 since 2026-08-17: CaptureCoordinatorBotModule.ResolveReserveAnchor was the fourth raw site and had
 		// no guard at all; it now goes through TryResolveAnchorCell and left the scan's scope.
 		//
+		// 5 since 2026-09-02: LogisticsCenterBotModule.ChooseSite. It is raw for the ONE reason that justifies
+		// raw — TryResolveAnchorCell has no `passable` parameter, and this descent must have one. It sites a
+		// specific LCCV, a real ground mover with a locomotor, so an unreachable result is not a missed scan
+		// but a permanent stall: the walk is deterministic over a slowly-changing field, so it re-derives the
+		// same rejected cell every scan for as long as the field holds still (the measured 24-consecutive-scan
+		// outage in ForwardStagingMath's notes). Folding it onto TryResolveAnchorCell would mean dropping the
+		// terrain filter, which is the defect, not the cleanup. It makes its stall test in grid space like
+		// every other site here, which is what the scan above actually checks.
+		//
 		// If you add a raw descent, prefer routing it through TryResolveAnchorCell. If you genuinely need a new
 		// raw one, update this number and say why in the commit message — do not just make the count fit.
-		const int ExpectedRawDescentSites = 4;
+		const int ExpectedRawDescentSites = 5;
 
 		// `var (agx, agy) = <Something.>StagingCell(sgx, sgy, ...)` — the seed pair and the result pair in one
 		// match, so the guard below can be checked against the ACTUAL variables rather than a naming habit.

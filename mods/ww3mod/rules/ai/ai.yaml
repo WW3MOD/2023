@@ -982,8 +982,31 @@ Player:
 	BuildingRepairBotModule@aiplayer:
 		RequiresCondition: enable-ai-any
 
-	# TODO: LCCV deployment needs custom strategic logic (evaluate need, find safe location, escort)
-	# Disabled until we have proper decision-making infrastructure for it.
+	# LCCV -> forward LOGISTICSCENTER. LOGISTICSCENTER is Prerequisites: ~disabled and nothing grants
+	# `disabled`, so transforming an LCCV is the ONLY way any player obtains one — which is why the bot
+	# fielded supply trucks (750 supply) and never the Centre (2250, 3x on both axes).
+	#
+	# THE BUY IS NOT A UnitFloors ENTRY, AND THAT IS ARITHMETIC RATHER THAN TASTE. Both the floor lane
+	# and UnitLimits count OwnedOrPending for one actor NAME, and the LCCV is consumed by its own
+	# transform (Transform.DoTransform disposes it), so a successful deploy returns the `lccv` census to
+	# zero while the thing it bought stands on the map as a `logisticscenter`. `UnitFloors: lccv: 1`
+	# would therefore read "below floor" forever and re-buy at 3000 credits without bound. The module
+	# owns its own demand gate instead, counting the DEPLOYED form — the same mechanism, and for the
+	# same reason, as CaptureCoordinatorBotModule's TecnFloor (see ai-america.yaml, which spells out
+	# why a consumable belongs in a demand gate and not in a standing-population floor). Consequently
+	# this feature adds NO entry to UnitsToBuild / UnitFloors / UnitLimits on either twin.
+	LogisticsCenterBotModule@experimental:
+		RequiresCondition: enable-ai-experimental && (player.nato || player.brics)
+		# One Centre. Counted as deployed centres + LCCVs in transit + pending requests, so the second
+		# is never ordered while the first is still driving.
+		DesiredCenters: 1
+		# The whole point is cutting the resupply round-trip, so the site is a standoff BEHIND the
+		# believed line rather than at the rear. 4 coarse control-grid cells matches the free-pool
+		# forward staging standoff; a flat/unpopulated control field stalls the descent at the Supply
+		# Route and the module then HOLDS rather than deploying a 3000-credit Centre next to the SR it
+		# was meant to relieve.
+		StandoffCells: 4
+		DangerSafeUnits: 30
 
 	# Scouting — sends fast units to explore the map and report enemy positions
 	ScoutBotModule@america:
