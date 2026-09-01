@@ -19,6 +19,18 @@
 -- current order alone" — which is exactly the hole this fix fills. A truck here would
 -- mask the defect entirely.
 --
+-- WHY IsIdle IS ONLY A VALID PROXY BECAUSE rules.yaml PINS ResupplyBehavior TO Hold.
+-- Read that file's header before touching either. In one line: the guards under test end
+-- the attack activity, the actor drops to idle for an instant, INotifyBecomingIdle fires,
+-- and AmmoPool.AutoRearmIfDry then picks a disposition — under the default `Auto` with no
+-- rearm host that disposition is EVACUATE, which queues RotateToEdge and which Actor.Tick
+-- runs in the same tick on purpose, so IsIdle is never seen true and this scenario blames
+-- the guard for the disposition layer's work. It went red exactly that way on 2026-09-01,
+-- after the 2026-08-27 evacuate-fallback ruling landed seventeen days past this file.
+--
+-- So: if you remove the Hold pin, this test stops measuring its own subject. If you want
+-- to assert the evacuation instead, that is a different scenario, not an edit to this one.
+--
 -- Geometry: Hunter (8,16), Target (24,16) = 16 cells, outside the AR's 14c0 reach but
 -- inside the 30c scan. Destination (50,16) is far past the target, so a unit that is
 -- merely still walking has not passed the test either.

@@ -628,6 +628,54 @@ handles `Scroll` events whatever `ScrollBar` is set to (`ScrollPanelWidget.cs:34
 never made the tail unreachable — only unadvertised. The fix is therefore about honesty, and the invariant
 to assert is `bar shown <=> clip < content`, which holds at every window size, rather than `never clip`,
 which is a claim about one window size.
+## 2026-09-01 — `Actor.IsIdle` can NEVER be observed true for a unit whose idleness triggers a handler that queues work, because the engine re-runs the queue in the same tick on purpose (`wt/stuck-units`)
+
+**This invalidates `IsIdle` as an autotest proxy for "the unit's order ended", and it has already cost
+one scenario.** The trap is that `IsIdle` looks like a state and behaves like an *edge*.
+
+`Actor.Tick` (`engine/OpenRA.Game/Actor.cs:318-326`):
+
+```csharp
+var wasIdle = IsIdle;
+CurrentActivity = ActivityUtils.RunActivity(this, CurrentActivity);
+if (!wasIdle && IsIdle)
+{
+    foreach (var n in becomingIdles)
+        n.OnBecomingIdle(this);
+    // If a next activity has been queued via OnBecomingIdle, we need to start running it now,
+    // to avoid an 'empty' null tick where the actor will (visibly, if moving) do nothing.
+    CurrentActivity = ActivityUtils.RunActivity(this, CurrentActivity);
+}
+```
+
+So if **any** `INotifyBecomingIdle` implementer queues an activity, `CurrentActivity` is non-null again
+before the tick ends. Lua polls between ticks. **`IsIdle` is therefore false at every moment any script
+can see it** — the unit was idle only *inside* the engine's own tick, which is the one place nothing
+can look. There is no timing window to widen and no polling rate that catches it.
+
+**Who queues from that hook matters more than it looks.** `AmmoPool.OnBecomingIdle` →
+`AutoRearmIfDry` is the big one: it picks a disposition from `ResupplyBehavior`, and **two of the three
+queue an activity** (`Auto` → seek *or* evacuate, `Evacuate` → evacuate). Only `Hold` queues nothing.
+`Aircraft.OnBecomingIdle` always queues (`FlyIdle`), so **an aircraft is essentially never `IsIdle`
+at all** — which is also why a dry fixed-wing loiters forever rather than stopping.
+
+**The concrete cost.** `test-attackmove-dry-breaks-off` asserts `IsIdle` on a drained rifleman. Written
+2026-08-10, when the no-host `Auto` branch was "flag and stand still" — which queues nothing, so the
+proxy worked. The 2026-08-27 user ruling replaced that branch with an evacuation, and the scenario went
+red seventeen days after it was written, **reporting a working guard as broken**. Diagnosis and the fix
+(pin `InitialResupplyBehavior: Hold` in the scenario's own `rules.yaml`, isolating the activity guard
+under test from the disposition layer) are in `WORKSPACE/bugs/discovered.md` 2026-09-01.
+
+**Generalising — this is the second instance of the same class**, after the 2026-08-16 finding on the
+`@experimental` out-of-ammo sweep (*"The guard under test actually WORKS, which the verdict hides. What
+fails is the test's PROXY."*). Both were caused by a **later, deliberate** behaviour change downstream
+of the thing under test, and in both cases the scenario's failure text confidently accused the upstream
+mechanism. **Before believing an autotest that says a guard is broken, check whether the guard's
+observable consequence still belongs to the guard.** Eight scenarios currently assert `IsIdle` while
+manipulating ammo; six of them have not been examined (list in the bugs entry).
+
+**Cheap detector:** for any scenario asserting `IsIdle`, ask what the actor's `INotifyBecomingIdle`
+implementers do. If any of them can queue, the assertion is measuring them and not the activity.
 
 ## 2026-09-01 — `ChooseUnitToBuild` IS reached, on two lanes whose entire buildable pool is `~disabled` — so the weighted lottery runs, draws RNG, and is guaranteed to return null (`wt/bot-truth`)
 
