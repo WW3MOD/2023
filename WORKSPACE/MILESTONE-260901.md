@@ -180,6 +180,13 @@ band's red rather than all sharing one.
 **Verification — SEEN.** Run `260901_225047_p29299`. All five shades render, 589–620 px each. No
 rainbow fallback, and no sixth red — so the mode took, and the shading is doing what it says.
 
+The five are, darkest first: `(143,0,0)` 589 px, `(199,0,0)` 620 px, `(255,0,0)` 619 px,
+`(255,56,56)` 609 px, `(255,112,112)` 595 px. That census was taken by counting distinct colour
+clusters in the capture directly, **after** the gap figures below had been derived from the shading
+code — deliberately, because deriving "five evenly-stepped shades" from arithmetic that already
+assumes five shades exist cannot tell five real ones from four plus a duplicate. The two routes
+were taken independently and agree, so the ramp is observed rather than inferred.
+
 ### The caveat — the shades are not evenly separated, and the bottom of the ramp is where it hurts
 
 Adjacent-pair luminance gaps measure **44.1 / 44.1 / 11.9 / 11.9**. The bottom three shades are
