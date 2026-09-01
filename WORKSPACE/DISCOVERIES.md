@@ -3,6 +3,56 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — The cordon debt is 63 maps but only THREE prices, and the expensive tier is 17 benchmark maps with an income POI on the outer ring (`wt/tooling-truth`)
+
+Costing, not a fix — the paydown is the user's call. Every count below was taken statically from
+`map.yaml`; no run, no launch.
+
+- **The rule.** `CheckMapCordon.cs:20` fails a map when `Bounds.Left == 0 || Bounds.Top == 0 ||
+  Bounds.Right == MapSize.X || Bounds.Bottom == MapSize.Y` — the playable rectangle must be inset at
+  least one cell from the map edge on all four sides. The fix per map is one line:
+  `Bounds: 0,0,W,H` becomes `Bounds: 1,1,W-2,H-2`.
+- **The blast radius is smaller than 63 suggests.** All 63 live under `tools/autotest/scenarios/`.
+  **None of the 10 shipped playable maps in `mods/ww3mod/maps` is affected** — every one already
+  carries the `1,1,W-2,H-2` form — and 183 of the 247 scenarios do too. So this is not a mod-wide
+  edit; it is a defect in one generation of scenario, and the compliant form is already the in-repo
+  majority.
+- **THE SPLIT THAT MATTERS. It is not 63 of one thing, it is 40 + 6 + 17**, by what stands on the
+  ring that insetting would push out of play:
+  - **40 maps have no actor on the outer ring at all.** Mechanical, scriptable, zero gameplay delta.
+  - **6 maps** (the `tournament-*-woodland-warfare` family) have ring actors that are **purely terrain
+    decoration** — trees, `v17` village, `rice`, `wood`. A cordon is exactly where such decoration is
+    supposed to live; the shipped maps do this deliberately (`river-zeta-ww3` has 189 ring actors
+    inside a legal cordon).
+  - **17 maps** (the `river-zeta` and `polar-disorder` tournament/test families) each carry **one
+    `oilb` on the ring** — a capturable oil derrick, `$50/tick CashTrickler`, i.e. a live income POI.
+    Insetting removes a capture target from play. **These are the S1 `resources_earned` benchmark
+    maps**, so this tier cannot be paid down without knowingly re-taking the benchmark baseline.
+- **The `[accepted]` exception is exactly the right one.** Across all 64 zero-origin scenarios the
+  only `mpspawn` and the only unit (`e1.america`) sitting on a ring are in `test-edge-spawn-shadow` —
+  the single map already amnestied in `[accepted]` because it exists to test the case where the
+  playable bounds ARE the map size. The one map where the ring placement is load-bearing is the one
+  map already exempted.
+- **nav-guard cannot answer the reachability question here, and that is a scope fact, not a result.**
+  `modload.py:245 discover_maps` reads `mod_dir / "maps"` only, so the gate covers the 10 shipped maps
+  (`make nav-guard`: *10 maps, 190 map/locomotor pairs*) and has never seen a scenario. Pointing it at
+  `tools/autotest/scenarios/` is a tool change, not a run. **Do not read a green `make nav-guard` as
+  clearance for a cordon edit to a scenario** — it did not look.
+- **The trap in the tempting shortcut.** `tournament-s1-eco-river-zeta` looks like a copy of shipped
+  `river-zeta-ww3` whose `Bounds:` was edited, so "just restore the parent's line" looks free. It is
+  not a copy: the two `map.yaml` files differ by ~27.7k lines, `map.bin` differs, and the six
+  `spawnarea` markers sit one cell further OUT than the parent's. Diffing only the `MapSize`/`Bounds`
+  lines makes them look one line apart, which is how that shortcut gets believed.
+
+## 2026-09-01 — `cmd.exe` parses redirection operators on `@REM` lines, so an angle bracket in a batch comment is a live redirect (`wt/tooling-truth`)
+
+Found while rewriting `utility.cmd`. `REM` is not a comment in the sense the rest of the toolchain
+means it: the line is still tokenized, so `@REM ... --regen-shadows <path> ...` is parsed as an input
+redirect from a file named `path`. The comment removed on 2026-09-01 carried exactly that, on the
+argument-passing branch. Unverified on Windows like the rest of that file — filed as the reason the
+replacement comment spells `PATH` instead of bracketing it. Keep redirect, pipe and escape characters
+out of `.cmd` comments; the file now greps clean for them.
+
 ## 2026-08-30 — The tooltip mockups and the audit both assert HIMARS refills at a Logistics Centre; a same-day user ruling says it cannot (`wt/tooltip-elements`)
 
 - `tooltip-mockups/units.html` shows the HIMARS card carrying **"133% of a Logistics Centre"** and the

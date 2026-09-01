@@ -295,7 +295,7 @@ def main():
 			dest = os.path.join(icons_dir, f"{t}.shp")
 			shutil.copyfile(path, dest)
 			print(f"[cameo] installed {dest}")
-		print("[cameo] now verify:  ./utility.cmd ww3mod --check-missing-sprites")
+		print("[cameo] now verify:  ./utility.sh --check-missing-sprites   (.\\utility.cmd on Windows)")
 
 	return 0
 
