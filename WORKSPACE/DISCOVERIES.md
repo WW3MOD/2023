@@ -3,6 +3,55 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-01 — `ChooseUnitToBuild` IS reached, on two lanes whose entire buildable pool is `~disabled` — so the weighted lottery runs, draws RNG, and is guaranteed to return null (`wt/bot-truth`)
+
+**Investigated, deliberately NOT fixed.** Recorded because the obvious reading of this defect is wrong
+twice, and both wrong readings point at expensive changes.
+
+**Wrong reading 1 — "the lottery is unreachable."** `buildRandom` is not a field; it is the argument
+`idleUnitCount < Info.IdleBaseUnitsMaximum` computed at `UnitBuilderBotModule.cs:677` and consumed by the
+ternary at `:850-852`. `idleUnitCount` *is* permanently 0 — `unitsHangingAroundTheBase`
+(`SquadManagerBotModule.cs:143`) has one `Add` (`:343`) gated behind `else if (Info.IgnoreGroundUnits)`
+(`:334`), and all four SquadManagers set it true (`ai.yaml:1821, 1934, 2477, 2490`). But **`0 < 0` is
+false**, and the two `.fixedwing` builders set `IdleBaseUnitsMaximum: 0` (`ai.yaml:1792, 1910`) under
+`RequiresCondition: enable-ai-any`. So on those two instances, on **both** profiles, `buildRandom` is
+false and `ChooseUnitToBuild` runs every production cycle.
+
+**Wrong reading 2 — "so those weights are live."** They are not. All four types those lanes list —
+`mig`/`frog` (`ai.yaml:1796-1797`), `a10`/`f16` (`:1914-1915`) — carry `Buildable.Prerequisites:
+~disabled` (`aircraft-russia.yaml:459, 582`; `aircraft-america.yaml:439, 566`), set deliberately in
+`f442af8a` (2026-03-24, *"hidden in normal gameplay"*). Nothing in the mod grants `disabled`. So
+`queue.BuildableItems()` never contains them, the `buildableThings.Any(b => b.Name == unit.Key)` test at
+`:1678` never passes, and the function returns null on every call. **The net effect matches the original
+report — no `UnitsToBuild` weight acts as a weight anywhere in the mod — but every step of the mechanism
+differs, and a fix aimed at the reported mechanism would have been aimed at the wrong lane.**
+
+Two further traps in the same place:
+
+- **The case-mismatch bugfix above those weights is inert.** `ai.yaml:1785-1789` states *"Keys lowercased
+  to the actor names so the pool actually builds"* (`f05e31b7`, 2026-08-02). The pool had been
+  unbuildable by prerequisite for four months. The lowercasing is correct and changes nothing — a
+  textbook *change believed made, documented as made, and inert*.
+- **The dead lanes are load-bearing as RNG ballast.** `ChooseUnitToBuild` opens with
+  `Info.UnitsToBuild.Shuffle(world.LocalRandom)` (`:1677`), and `Shuffle` (`Util.cs:184-197`) is a lazy
+  Fisher-Yates that draws `random.Next` per yielded element. The `foreach` runs to exhaustion because
+  nothing matches, so each dead lane burns a `LocalRandom` draw per cycle on every profile. `LocalRandom`
+  is excluded from the sync hash but **is** seeded from the lobby seed
+  (`architecture.md` §"Bot decisions ARE seed-reproducible"), so deleting these instances as obvious dead
+  code would shift the stream and silently invalidate the seeded `@stable` benchmark baseline.
+
+**Why the weight would still be nearly inert even if the pool were buildable.** `ChooseUnitToBuild`
+(`:1666-1684`) is not weighted sampling: it shuffles and returns the FIRST buildable entry passing
+`myUnits.Count(name) * 100 < weight * myUnits.Count`, where `myUnits` is every owned `IPositionable` —
+the whole army, not the queue. It is a share CEILING, as `ai-russia.yaml:57-59` already records. With
+`UnitLimits: mig: 2`, a `mig: 30` ceiling can only refuse while the entire army is ≤ 6 units. Past the
+opening minute it degenerates to a uniform shuffle over its own list.
+
+**The general shape: "is this code path reached?" and "can this code path produce anything?" are
+different questions, and a defect can be real while every step of its stated mechanism is false.** The
+prerequisite gate lives in a different file from the weights, in a different subsystem from the lottery,
+and neither the build, NUnit nor lint relates the two.
+
 ## 2026-09-01 — The map-border artefact is PER-PLAYER ASYMMETRIC, because a coarse grid keyed on the block CENTRE cannot see the low border at all (`wt/bot-truth`)
 
 Fixing the border inflation recorded in the entry below turned up the part that entry got wrong: it is
