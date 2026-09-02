@@ -221,6 +221,18 @@ namespace OpenRA.Traits
 			}
 		}
 
+		// PITFALL: the Terrain branch compares terrainPositions — a WPos[] — with ==, i.e. BY REFERENCE,
+		// and every terrain Target allocates its own backing array (:37, :50, :86). Two independently
+		// constructed terrain Targets at the identical position are therefore NEVER equal; only a struct
+		// copy, which shares the array reference, compares equal. The position/cell/subCell terms below
+		// are unreachable for independently constructed targets — the reference check decides first.
+		//
+		// This bites anything that rebuilds a terrain Target per tick and then feeds it to a change
+		// detector. The live case is Armament.CheckFire (Armament.cs:412), which re-arms AimingDelay
+		// (default 15, Armament.cs:101) whenever the target "changed" — so a per-tick-reconstructed
+		// terrain target can never finish aiming and never fires. Pass the SAME Target through instead
+		// of rebuilding it. Semantics pinned by TargetEqualityTest; widening this to a sequence compare
+		// would also require updating GetHashCode below, which is reference-based to match.
 		public static bool operator ==(in Target me, in Target other)
 		{
 			if (me.type != other.type)
