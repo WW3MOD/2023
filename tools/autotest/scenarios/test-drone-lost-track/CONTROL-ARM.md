@@ -42,21 +42,26 @@ one.
 
 | Arm | `IntelSampleInterval` | Expected today | Log signature |
 |---|---|---|---|
-| Control (RED) | 999999 | **SKIP** — drone prefers the dark region | `records=0`, `intel=0` on every launch |
-| Treatment | 25 | **SKIP** — see run 8; a majority near V needs a larger `LostTrackIntelSquares` | `records>0`, `intel>0`, `intelkey` naming the truk |
+| Control (RED) | 999999 | **FAIL** — drone prefers the dark region | `records=0`, `intel=0` on every launch |
+| Treatment | 25 | **FAIL** — a majority near V needs a larger `LostTrackIntelSquares` | `records>0`, `intel>0`, `intelkey` naming the truk |
 
-**Both arms SKIP today, and that is the measured state, not a broken scenario.** The
-majority-of-samples bar is the design intent and has not been lowered; run 8 measured the
-term 1.247× short of clearing it and that was inside the tolerance agreed beforehand, so
-nothing changed. Only the by-merit negative skips — setup faults, no drone, and too few
-samples still FAIL, because those mean the scenario is broken rather than the answer being
-"not yet".
+**Both arms FAIL today, and that is the measured state, not a broken scenario.** The
+majority-of-samples bar is the design intent and has not been lowered.
+
+**The batch is kept green by the declaration, not by the verdict.** This scenario ships an
+`expected-status` file declaring `fail`, so FAIL grades GREEN and the verdict stays honest —
+see `tools/autotest/expected-status.sh`. An earlier revision of this branch instead softened
+the verdict to `Test.Skip`; that is now wrong twice over, because under a `fail` declaration
+SKIP grades **RED** ("declared fail, skips instead"). If the operator ever does prefer the
+contact, delete the declaration file in the same commit — a PASS against a live `fail`
+declaration is loudly RED on purpose, meaning the premise moved.
 
 Discrimination survives where it matters: **`PASS` still means only one thing.** If anyone
-raises `LostTrackIntelSquares`, the treatment goes green while the control stays SKIP. And
+raises `LostTrackIntelSquares`, the treatment goes green while the control stays FAIL. And
 a control that ever comes back `PASS` is still the ambiguity tell described below.
 The arms remain separable in the numbers even while their verdicts match — the treatment
-reaches `mindist=25` against the control's `27`.
+reaches `mindist=25` against the control's `27`, which is also the only tell that separates
+this recorded outcome from a *new* targeting regression.
 
 `records=0` in the control's `[drone]` lines is the arm's self-identifying marker: if a control run
 shows `records>0`, the edit did not take and the run must be discarded rather than interpreted.
@@ -125,18 +130,30 @@ winner `35,31` carries intel 34, so its own reveal `r` satisfies `r + 34 ≥ 315
 
 The term's *displacement power* is its value at the best hunt cell minus its value at the
 reveal argmax. `IntelFalloff` is monotonically decreasing in distance, so `bestIntel` is
-always at the **closest candidate to the vanish cell**, which the leash fixes at ~11 cells:
+always at the **closest candidate to the vanish cell**, which the leash fixes at **8** cells
+(V sits 30 cells from the operator against a 22-cell leash; run 8 measured
+`bestintelcell=39,51`, exactly 8 out):
 
-> `249·(28−11+1)/29 − 249·(28−28+1)/29 = 154 − 8 = **146 squares**`
+> `247·(28−8+1)/29 − 247·(28−28+1)/29 = 178 − 8 = **170 squares**`
 
-For a hunt cell to win it needs `reveal_hunt + 154 > 307 + 8`, i.e. `reveal_hunt ≥ 161`. It
-did not win, so **`reveal_hunt < 161`** — and the multiplier the constant would need is
-`(307 − reveal_hunt)/146`. Since `reveal_hunt ≥ 0`:
+For a hunt cell to win it needs `reveal_hunt + 178 > 307 + 8`, i.e. `reveal_hunt ≳ 137`. It
+did not win, so **`reveal_hunt < 137`** — and the multiplier the constant would need is
+`(307 − reveal_hunt)/170`. Since `reveal_hunt ≥ 0`:
 
-> **the shortfall is strictly between 1.0× and 2.10×. It is NOT an order of magnitude,**
-> and that bound needs no further run. Reading `intel=34` against `reveal=307` understates
-> the term ~4×, because 34 is its value at the cell that won (25 cells out), not the 154 it
-> reaches at the hunt cell it was competing for.
+> **the shortfall is strictly between 1.006× and 1.806×.** Reading `intel=34` against
+> `reveal=307` understates the term ~5×, because 34 is its value at the cell that won
+> (25 cells out), not the 178 it reaches at the hunt cell it was competing for.
+
+**Two corrections are folded into the block above, and both matter.** It used to read
+`~11 cells`, `249` and a displacement of `146`, giving a bound of 1.0×–2.10×. The distance
+was the falloff evaluated at the wrong range; `IntelSquares` resolves to **247**, not 249
+(see the run-8 section below). The corrected upper bound is **1.806×**, which — unlike 2.10×
+— sits *just past* the pre-registered ≥1.8× "real shortfall" line rather than far beyond it.
+Do not quietly round that back under the threshold.
+
+**This bound is still box-era in its numerator.** `reveal=307` predates `1e0226b9`; the
+displacement `170` is intel-space and survives, but `307` does not. Treat 1.006×–1.806× as
+the shape of the answer, not the answer.
 
 The exact multiplier needs one number nothing logged: the revealed area *at the best-intel
 cell*. The launch line now carries `bestintel=`, `bestintelcell=` and `bestintelreveal=`
@@ -150,26 +167,49 @@ shortfall. In between is a judgement to argue in the commit, not silently round 
 the constant to exactly the value that flips this scenario is tuning-to-pass and is the same
 move as lowering `FreshSightingTicks` would have been.
 
-### Run 8 — measured: 1.19×–1.47×, inside the "roughly right" band
+### Run 8 — the derivation stands, the NUMBER is withdrawn (stale as of `1e0226b9`)
+
+**Read this heading before the table below it.** The method here is sound and worth keeping;
+its output is not usable, and the band was never actually entered.
+
+`1e0226b9` (2026-09-02, after this run) replaced the drone's rectangular revealed-area query
+with the vision **disc**, removing up to 228 squares of corner credit per candidate — about
+19× `MinRevealedSquares`. The multiplier's numerator is `reveal − bestintelreveal`, and
+**both** of those were computed by the box. Both lose corners, so the direction of the change
+is not predictable from the old numbers: the multiplier below could move either way and must
+be re-measured before any claim about sizing is made. "≤1.5×, change nothing" was therefore
+never earned.
+
+What survives is intel-space, which the disc change did not touch: `bestintel=178`,
+`intel=34`, the `IntelSquares = 247` resolution, and the geometry.
 
 ```
 launch cell=35,31 reveal=307 border=0 intel=34 intelkey=32
        bestintel=178 bestintelcell=39,51 bestintelreveal=95 records=1 nearby=1 tick=200
 ```
 
-`border=0` confirms the exploration term is not inflated, so 307 is real ground.
+`border=0` confirms the exploration term is not inflated by non-playable border squares — but
+that is a *different* artefact from the box corners, which `border=` never counted and which
+`1e0226b9` removed separately. `border=0` does **not** make `307` disc-comparable.
 
-**The multiplier does not depend on locating the reveal argmax.** The winner `35,31` beat
-the argmax `A`, so `reveal(W) + 34 ≥ 307 + intel(A)`, and `reveal(W) ≤ 307` forces
-`intel(A) ≤ 34`. Sweeping the whole admissible range:
+**The multiplier does not depend on locating the reveal argmax** — this is the part of the
+method worth reusing on the re-measured run. The winner `35,31` beat the argmax `A`, so
+`reveal(W) + 34 ≥ 307 + intel(A)`, and `reveal(W) ≤ 307` forces `intel(A) ≤ 34`. Sweeping the
+whole admissible range gave:
 
-| `intel(A)` | multiplier |
+| `intel(A)` | multiplier (box-era, **withdrawn**) |
 |---|---|
 | 0 | 212/178 = 1.191 |
-| 8 (a 28-cell argmax, the observed case) | 212/170 = **1.247** |
+| 8 (a 28-cell argmax, the observed case) | 212/170 = 1.247 |
 | 34 (upper bound) | 212/144 = 1.472 |
 
-Every admissible value is ≤1.5×. **No constant moves.**
+Every admissible value was ≤1.5× **under the box**. Redo this sweep with disc-era `reveal`
+and `bestintelreveal` before concluding anything; the argmax-independence argument carries
+over unchanged, the arithmetic does not.
+
+The only bound derivable **without** a new run is the weak one derived above — strictly
+between 1.006× and 1.806× — and even that rests on a box-era `reveal=307`. It straddles the
+≤1.5× line and reaches just past the ≥1.8× one. **The sizing question is open.**
 
 `IntelSquares` is **247**, not the 249 previously assumed — it is the only value satisfying
 both `floor(sq·4/29)=34` and `floor(sq·21/29)=178`, and it corresponds to age 71–80, i.e.
@@ -178,14 +218,22 @@ is *older* than the kill tick. That is the one-sided error predicted when the ti
 chosen, resolving in the safe direction. `floor(247/29) = floor(249/29) = 8`, so the
 denominator was unaffected.
 
-**Scope, and it is narrower than the number looks.** This is one point, not a calibration.
-`reveal=307` is this map's strongest exploration alternative; `bestintelreveal=95` is the
-terrain around one hunt cell; and the 8-cell closest approach follows from V sitting 30
+**Scope, and it is narrower than any number here looks.** This is one point, not a
+calibration. `reveal=307` is this map's strongest exploration alternative; `bestintelreveal=95`
+is the terrain around one hunt cell; and the 8-cell closest approach follows from V sitting 30
 cells out against a 22-cell leash. That geometry is close to **worst case for the term**: a
-contact nearer the operator would be reachable at lower falloff — at 0 cells the value is
-the full 247 rather than 178 — so the term would win comfortably. The honest claim is *"in a
-deliberately hard geometry it falls about 25% short of overriding the strongest available
-alternative"*, not *"the term is correctly sized"*.
+contact nearer the operator would be reachable at lower falloff — at 0 cells the value is the
+full 247 rather than 178 — so the term would win comfortably. So whatever the re-measured
+shortfall turns out to be, it is an **upper bound on the general case**, and must never be
+read as *"the term is N% too small in general"* nor as *"the term is correctly sized"*.
+
+**What the re-measurement run must capture, because run 8 did not.** The multiplier needs
+`bestintelreveal=` off the `[drone] ... launch` line (`DroneOperatorBotModule.cs:734`). That
+line is engine-side and the Lua verdict string cannot carry it. Run 8's directory held only
+PNGs and `result.json`, and the global `debug.log` was truncated by a later launch before
+anyone read it — so a run that reached a real verdict still could not answer the question it
+was spent on. `run-test.sh` now archives `debug.log` into the run dir for every outcome:
+read `RUN_DIR/debug.log`, never the global file.
 
 ## First check the run actually ran — this is not optional
 
