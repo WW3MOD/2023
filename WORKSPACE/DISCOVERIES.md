@@ -3,6 +3,131 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-02 — Tournament matches never reach a verdict: two independent causes, and the speed multiplier is a request the loop silently under-delivers
+
+Backlog `ebdc0a9c`. Static diagnosis from the surviving run dirs; no game launched.
+
+### Cause A — `run-test.sh` cannot run a tournament scenario AT ALL. Guaranteed timeout, 100% of the time.
+
+The three surviving `tournament-experimental-vs-normal-2p` runs
+(`~/.ww3mod-tests/screenshots/260827_{035206,040555,053826}_*`) were bare `run-test.sh`
+invocations, not batches: their timeouts are 300 s (run-test.sh's DEFAULT) and 900 s, and
+`tools/autotest/tournament-results/` has no dir newer than 260811.
+
+**`run-test.sh` never passes `Test.TournamentConfig`** — `grep -n Tournament tools/autotest/run-test.sh`
+returns *nothing*; the launch arg block is `run-test.sh:721-736`. Without it,
+`BotVsBotMatchWatcher.WorldLoaded` returns at its first guard
+(`BotVsBotMatchWatcher.cs:139-140`, `string.IsNullOrEmpty(TestMode.TournamentConfigPath)`), `active`
+stays false, and `ITick.Tick` returns immediately forever (`:253-254`). The watcher is the **only**
+verdict writer for these scenarios — the map carries no Lua (`map.yaml` has no `Scripts:` node), so
+no `Test.Pass`/`Test.Fail` can ever run.
+
+**The confirming artifact is an absence.** Once armed, the watcher's first act is to open
+`Path.ChangeExtension(TestMode.ResultPath, ".watcher.log")` and append (`:146-159`), and
+`Test.ResultPath` points straight into the per-run dir (`run-test.sh:522`). All three failed run
+dirs contain `result.json` and **nothing else** — no `.watcher.log`. The watcher never got past the
+guard. The game was not hung: it was running a healthy bot match with no referee, until the
+watchdog killed it.
+
+This is independent of `--speed`, match length, map and machine. It is also **not** the grading hole
+being fixed on `wt/timeout-grade` (`bb9519f9`) — that one is *how a timeout is graded*, this one is
+*why the timeout happens*. No code overlap. They do compose, though: no tournament scenario appears
+in `expected-status.sh` today, but the moment one is added with a `fail` declaration, Cause A
+becomes invisible.
+
+### Cause B — the tournament path works, and still loses 8 of 10 matches, because the speed multiplier is a target and the wall budget treats it as a guarantee.
+
+Last real batch: `tools/autotest/tournament-results/260811_1839_tournament-s1-eco-river-zeta`,
+10 seeds, `tournament-eco-5min.yaml` (`TimeLimitSeconds: 300`, `SpeedMultiplier: 8`,
+`GameSpeed: fastest`), `max_wall_secs: 150`. **2 of 10 matches wrote a verdict.** The other 8 were
+SIGKILLed at the wall while ticking normally — their `.watcher.log` files end mid-match with
+healthy per-tick score lines, not with an error.
+
+The multiplier *did* apply: every `match_N.watcher.log` opens with
+`WorldLoaded: speed multiplier 8x — Timestep 40 → 5 ms/tick`. So the mechanism is sound. What fails
+is delivery. Ticks reached vs wall time (birth→mtime of each `watcher.log`):
+
+| match | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| ticks | 7500 | 7500 | 6750 | 5875 | 4750 | 5375 | 2875 | 4250 | 4625 | 4000 |
+| ticks/s | 65 | 62 | 53 | 51 | 40 | 49 | 23 | 40 | 44 | 34 |
+
+Timestep 5 ms **requests 200 ticks/s. The best match delivered 65 — 2.6× realized against a nominal
+8×** — and the batch decayed to 34 by match 10 (leak or thermal; not established, see below).
+
+**Mechanism, cited.** `Game.Loop` sets `logicInterval = OrderManager.SuggestedTimestep`
+(`Game.cs:999`), which for the live world is just `World.Timestep`
+(`OrderManager.cs:268-285`). That is a *target*: the loop runs **at most one** `LogicTick()` per
+iteration (`Game.cs:1028-1032` — no inner catch-up loop), and when a tick costs more than
+`logicInterval` the deficit accumulates until
+
+```csharp
+if (now - nextLogic > MaxLogicTicksBehind)   // Game.cs:1018-1020, const = 250 (:970)
+    nextLogic = now;                          // backlog silently DISCARDED
+```
+
+throws the backlog away. **Nothing logs the shortfall, and `result.json` records no achieved rate.**
+Rendering is not the bound here — the batch launches `OPENRA_WINDOW_HIDDEN=1`, so
+`Renderer.WindowIsSuspended` skips `RenderTick` (`Game.cs:1046`, `:1063`), and the render-per-logic-tick
+coupling was already gated off under `TestMode.IsActive` (`Game.cs:1040`, Option D of
+`WORKSPACE/archive/plans/260721_sim_throughput.md`). ~15 ms/tick is the sim itself. **The archived plan
+predicted "~3-4× realized"; the 260811 data says 2.6× fresh and ~1.4× by match 10.**
+
+**The budget then spends that shortfall twice over.** `MAX_WALL_SECS = TimeLimitSeconds * 4 / SPEED_MULT`
+(`run-tournament.sh:159`) budgets the *full* multiplier, so its 4× safety factor is really 4/3.1 ≈ 1.3×.
+And the budget starts at launch while the clock only starts ticking after map load: batch
+`started_at` 18:39:26, first watcher line 18:39:50 — **~24 s of the 150 s is startup**, with no
+allowance in the formula. Match 1 finished 139 s into a 150 s budget: **the batch ran at 93 % of its
+watchdog on its best match.** Everything after that is noise on top of an already-exhausted margin.
+(The `[ ${MAX_WALL_SECS} -lt 60 ] && MAX_WALL_SECS=60` clamp makes this worst at the short end:
+`tournament-smoke.yaml` computes 15 s, is clamped to 60 s, and spends ~24 s of it loading.)
+
+### Cause C — `TimeLimitTicks` hard-codes 25 tps, and 10 of 11 default configs are not running at 25 tps.
+
+`TournamentConfig.cs:100`:
+
+```csharp
+/// <summary>Convert time limit to ticks at standard 40 ms tick (25 ticks/second).</summary>
+public int TimeLimitTicks => TimeLimitSeconds * 25;
+```
+
+25 tps is true **only** at `GameSpeed: fastest` (`Timestep: 40`, `mods/ww3mod/mod.yaml:392-394`). The
+mod default is `Timestep: 60` → 16.67 tps (`:381-383`). **Every `tournament.yaml` except
+`tournament-arena-composition-2p` sets neither `GameSpeed` nor `SpeedMultiplier`** (11 files
+checked). For those ten:
+
+- `GameSpeed` unset → `run-tournament.sh:147` defaults `"default"` → Timestep 60.
+- `TimeLimitSeconds: 720` → 18000 ticks → **1080 game-seconds = 18 minutes**, not the "12 in-game
+  minutes" the file's own comment claims. Same 1.5× shape as the documented 25-vs-16.67 error in
+  `DOCS/reference/conventions.md`.
+- `SpeedMultiplier` unset → `config.SpeedMultiplier = 0` → falls back to `TestMode.SpeedMultiplier`,
+  which `run-tournament.sh:150-151` defaults to **1**. **The default tournament config runs in real
+  time**: ~18 wall-clock minutes per match (`MAX_WALL_SECS = 720*4/1 = 2880`, so the batch watchdog
+  tolerates it and nobody notices), and `run-test.sh`'s 300 s default watchdog is 3.6× too small
+  even before Cause A makes the run unwinnable anyway.
+
+### `--speed` versus its help text
+
+`run-test.sh:42-45` claims "Run the sim at N× wall-clock (1-16). Divides `world.Timestep` via
+`Test.SpeedMultiplier` — pure pacing". Three corrections:
+
+1. **The divide is integer** (`TestModeSpeedMultiplier.cs:40`, `BotVsBotMatchWatcher.cs:177`), so N×
+   is exact only when N divides the base. At the mod default 60 ms: N=7→7.5×, N=8→8.57×, N=9→10×,
+   N=11→12×, N=13→15×, **N=16→20×**. The error is toward *faster*, so it is safe for deadlines but
+   makes "N×" false and wall-clock budgets non-linear in N.
+2. **N is a request, not a rate** — see Cause B. Realized ≈ 2.6× for a 2-player bot match on this
+   machine, with no warning anywhere when it falls short.
+3. **`--speed` is inert on the tournament path**, and not because of the
+   `TournamentConfigPath` guard in `TestModeSpeedMultiplier.cs:36` — `run-tournament.sh` does not
+   call `run-test.sh` at all. It calls `launch-game.sh` directly (`:294-311`) and reads
+   `SpeedMultiplier` out of the scenario yaml. Passing `--speed` to a tournament is a no-op with no
+   diagnostic.
+
+**Rule.** A speed multiplier is a *ceiling request*. Any wall-clock budget derived from it
+(`run-tournament.sh:159`, every `--timeout` in the suite) is calibrated against a number the loop is
+free to miss silently. Budgets should be derived from a **measured** ticks/s, and the achieved rate
+belongs in `result.json`.
+
 ## 2026-09-02 — Six harness traps in one night, every one of which reports a confident WRONG answer rather than no answer
 
 All hit doing ordinary verification work in a single session, and all caught by reading
