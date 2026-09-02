@@ -44,14 +44,48 @@
 -- die under the same shell rules that out.
 --
 -- =====================================================================================
+-- WHAT THIS SCENARIO OWNS, AND WHAT IT DOES NOT
+-- =====================================================================================
+-- engine/OpenRA.Test/TreeIndestructibleScopeTest.cs is a STATIC fixture (4 tests, ~140 ms, no
+-- launch) that reads the YAML text and asserts: ^TreeIndestructible exists exactly once and
+-- says Modifier: 0; it is not on the shared ^Tree template; all 22 husk-defining decorations
+-- reach it; nothing without a husk does. That is the WIRING and the LITERAL VALUE.
+--
+-- It cannot see, and this scenario exists for, the next link in the chain: that Modifier: 0
+-- ACTUALLY PRODUCES ZERO HP LOSS when a real warhead impacts, and that no husk actor
+-- materialises. If DamageMultiplier stopped being registered as IDamageModifier, if the
+-- modifier loop in Health.InflictDamage changed, or if some warhead path bypassed modifiers,
+-- all four static tests would still pass and this one would go red.
+--
+-- So: static fixture owns "which actors are wired and what the YAML says". This owns "and it
+-- actually works when a shell lands". When something breaks, read the static fixture first --
+-- it is 140 ms and it will usually tell you which of the two layers moved.
+--
+-- =====================================================================================
 -- HOW TO PRODUCE THE RED
 -- =====================================================================================
--- In mods/ww3mod/rules/ingame/decoration.yaml, find the single line whose content is
---   Inherits@Indestructible: ^TreeIndestructible
--- (one occurrence in the file, inside the ^Tree: block) and comment it out. Rebuild, rerun.
--- Expected: FAIL naming the guard tree as dead, and a `t01.husk` in the census. If the guard
--- tree survives with that line commented out, this mechanism is NOT what is keeping trees
--- alive and the change under test is inert -- which is a finding, not a pass.
+-- In mods/ww3mod/rules/ingame/decoration.yaml, set the ^TreeIndestructible template's Modifier
+-- to 100 -- DamageMultiplier's own documented default, so the trait stays present and enabled
+-- and becomes a true no-op (Health.cs skips the multiply entirely when modifier == 100):
+--
+--   perl -0pi -e 's{(\^TreeIndestructible:\n\tDamageMultiplier\@Indestructible:\n\t\tModifier: )0\n}{${1}100\n}' \
+--     mods/ww3mod/rules/ingame/decoration.yaml
+--   git diff --numstat -- mods/ww3mod/rules/ingame/decoration.yaml   # must print exactly:  1  1
+--
+-- No rebuild needed; mod YAML is read from the source tree. Revert with `git checkout --`.
+-- Expected: FAIL naming the guard tree as dead, with a `t01.husk` in the census.
+--
+-- WHY THE MODIFIER AND NOT THE INHERIT. Deleting the `Inherits@Indestructible:` line was the
+-- original recipe and it is now the wrong instrument twice over. It changes TWO things at once
+-- -- the trait becomes absent AND its value goes away -- so a red proves only that the template
+-- as a whole matters. Flipping the number holds the wiring fixed and varies exactly one thing,
+-- which is the single claim this scenario uniquely owns. And a missing inherit is precisely
+-- what the static fixture above catches in 140 ms, so spending a game slot to re-prove it is
+-- paying the expensive instrument to answer the cheap instrument's question.
+--
+-- The anchor is also the only one that survives both layouts of the opt-in list: it matched
+-- exactly one line both before and after the 2026-09-02 scope change moved the inherit off
+-- ^Tree and onto 22 individual tree actors (verified against both revisions of the file).
 
 local ImpactX, ImpactY = 20, 17
 
@@ -155,9 +189,11 @@ local function Verdict()
 		Test.Fail("TREES ARE DESTRUCTIBLE AGAIN: the guard tree (t01 at 20,17) was killed by " ..
 			tostring(shells) .. " shell(s) = " .. tostring(damageAtGuardCell) ..
 			" damage delivered at its own cell, against " .. tostring(TreeMaxHP) .. " HP. " ..
-			"DamageMultiplier@Indestructible is not reaching it -- check that ^Tree still " ..
-			"carries `Inherits@Indestructible: ^TreeIndestructible` in decoration.yaml and " ..
-			"that Modifier is still 0. Husks now on the map: " .. censusText)
+			"Either ^TreeIndestructible no longer says Modifier: 0, or T01 no longer reaches " ..
+			"it, or Modifier: 0 has stopped zeroing damage at runtime. RUN " ..
+			"TreeIndestructibleScopeTest FIRST (~140ms, no launch): it settles the first two " ..
+			"statically, so if it is GREEN the answer is the third and the fault is in the " ..
+			"engine's damage path, not the YAML. Husks now on the map: " .. censusText)
 		return
 	end
 

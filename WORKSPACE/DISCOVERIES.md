@@ -3,38 +3,24 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
-## 2026-09-02 — Actor keys in map rules are CASE-SENSITIVE, and the error you get names the wrong line
+## 2026-09-02 — Pre-flight a scenario's rules keys by EXACT CASE before spending a game slot
 
-`test-tree-indestructible` failed to load with
-`rules.yaml:62: There are no elements with key 'SpawnActorOnDeath' to remove` — pointing at a
-`-SpawnActorOnDeath:` line. The removal was not the bug. The block was written `t03:` while
-`decoration.yaml` declares `T03:`, **so it never merged with the mod's actor at all** — it defined a
-brand-new actor whose only children were the three lines in the map, and the removal had nothing to
-remove. The neighbouring `t02:` block was equally dead; it just had no removal to throw on.
+`test-tree-indestructible` burned a 300 s slot to a rules-load failure that a text check would have
+caught in a second. The block was written `t03:` while `decoration.yaml` declares `T03:`; MiniYaml
+merges top-level keys with ordinal, case-sensitive equality, so it overrode nothing and instead
+defined a brand-new actor. The error it eventually threw named a `-SpawnActorOnDeath:` line and was
+initially misdiagnosed as a removal problem.
 
-**MiniYaml merges top-level keys with ordinal, case-SENSITIVE equality**: `MiniYaml.cs:410`
-(`ToDictionary(n => n.Key, ...)`, default comparer), `:549` (`new HashSet<string>(capacity)`),
-`:597`/`:606` (`nodes[i].Key == key`). The `ToLowerInvariant` that makes actor names feel
-case-insensitive runs **later and elsewhere** — `Ruleset.cs:126`, building `ActorInfo` objects from
-the already-merged tree. So a map's `Actors:` list may reference `t03` in any case (that lookup is
-lowercased), while a map's **rules override** must spell the key exactly as its defining file does.
-That asymmetry is what makes the trap look wrong when you hit it. **Copy the case from the file that
-defines the actor, never from the map's actor list.** In WW3MOD the trees are `T01:`–`T17:`,
-`TC01:`–`TC05:` uppercase while most units (`abrams:`, `humvee:`) are lowercase, so there is no rule
-of thumb — check.
+**The check, no build and no game slot:** list every non-indented, non-comment key in the scenario's
+`rules.yaml` and confirm each appears **verbatim** among the top-level keys of
+`mods/ww3mod/rules/**/*.yaml`. Anything matching only case-insensitively is a silent no-op override.
+`./utility.sh --check-yaml` catches this too and is the proper gate — the lesson is that for a
+scenario costing a serial game slot, lint is a **pre-flight**, not a merge-time formality.
 
-Cheap pre-flight, no build and no game slot: list every non-indented, non-comment key in the
-scenario's `rules.yaml` and confirm each appears **verbatim** among the top-level keys of
-`mods/ww3mod/rules/**/*.yaml`. Anything that only matches case-insensitively is a silent no-op
-override.
-
-**Related, and the part worth reusing:** `-Foo:` removals are applied against the node's children
-**as accumulated so far, in document order** (`MiniYaml.ResolveInherits`, `MiniYaml.cs:449-490` —
-`Inherits:` lines merge their parent in at the point they appear, `-Foo:` calls
-`resolved.RemoveAll` at the point *it* appears, and throws a load-preventing `YamlException` if the
-count is zero, `:482-483`). So removing a genuinely inherited trait is fine **only if the
-`Inherits:` line precedes the removal in the same block**; a `-Foo:` written above the `Inherits:`
-that supplies `Foo` throws even though the trait really is inherited. Ordering is load-bearing.
+The two MiniYaml traps behind it — case-sensitive top-level merge, and document-order resolution of
+removals — are written up in full, with the design consequence, in the *"Two separate MiniYaml traps
+that produce the SAME error message"* entry from `wt/tree-scope`. Read that one; this entry is only
+the operational habit. **If both land and conflict, keep theirs.**
 
 ## 2026-09-02 — Almost nothing in the mod can damage a tree, and `^Box` / `ICE##` / `UTILPOL#` are trees
 
@@ -57,10 +43,14 @@ rather than a shelling one, and why "shelling a wood sealed infantry lanes" was 
 via those weapons. Before writing anything that depends on a tree taking damage, check the WARHEAD,
 not the weapon.
 
-**`^Box` (`BOXES01-09`), `ICE01-05` and `UTILPOL1/2` all `Inherits: ^Tree`** (`decoration.yaml:176,
-527, 540, 553, 566, 575, 628, 636`), so they picked up tree invulnerability along with it on
-2026-09-02. Probably harmless — they are scenery — but it was not stated anywhere. `^AmmoBox` is
-*not* affected; it inherits `^TechBuilding`.
+**`^Tree` is not "trees".** It is this mod's base for *"neutral decoration with forest cover and
+Trees-only targeting"*, and it has 38 concrete inheritors of which only 22 are trees — `^Box` and
+through it `BOXES01-09`, plus `ICE01-05` and `UTILPOL1/2`, are the other 16 (`decoration.yaml:176,
+527, 540, 553, 566, 575, 628, 636`). Putting a behavioural trait on `^Tree` therefore hits scenery
+too, which is how `b74f2aaa` silently made crates and ice floes invulnerable; `wt/tree-scope` fixed
+it by opting the 22 trees in individually. `^AmmoBox` was never affected — it inherits
+`^TechBuilding`. The reusable part is the name: **check `^Tree`'s inheritor list before hanging
+anything on it, because the name lies.**
 
 **`Bridge.RemoveActorsFromFootprint` (`Bridge.cs:373`, fired on `DamageStateChanged == Dead` at
 `:381`) kills every actor in the bridge footprint with no trait gate at all** — via `Health.Kill`,
