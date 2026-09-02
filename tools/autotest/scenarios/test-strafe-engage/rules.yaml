@@ -1,0 +1,58 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# Fog off. A target that flickers out of vision would end the attack activity through
+		# FlyAttack's useLastVisibleTarget branch and read as "the strafe airframe disengaged",
+		# which is the exact thing this scenario exists to measure.
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-strafe-engage.lua
+
+# Key case matters and the failure is loud rather than silent: t90 is declared LOWERCASE at
+# vehicles-russia.yaml:277, and a `T90:` block here would not merge with it — it becomes a second
+# node collapsing onto the same lowercased ActorInfo key, and Ruleset.Load throws "duplicate
+# values found for the following keys: t90". Match the declaration, do not guess.
+t90:
+	Health:
+		HP: 100000
+	# Inherited verbatim from test-aircraft-breakoff-midrun's rules.yaml, and load-bearing for the
+	# same reason: EVERY vehicle carries ChangesHealth@CriticalDamage (vehicles.yaml:153,
+	# PercentageStep: -1, Delay: 5, StartIfBelow: 50), an irreversible bleed-out. Nothing here
+	# drives the target to critical deliberately, but the CONTROL lane is expected to shoot it
+	# there within the window, and once it does the target would then die on a fixed clock and
+	# take the lane's remaining observation with it. Removing the bleed keeps both lanes
+	# measuring an aircraft against a LIVE target for the whole 600 ticks.
+	-ChangesHealth@CriticalDamage:
+
+# NO override of FROG, FROG.Airstrike, or their AutoTarget, and that is forced rather than chosen.
+#
+# The whole design of this scenario is that the two lanes differ in ONE shipped field —
+# AttackAircraft.AttackType, Strafe on FROG.Airstrike (aircraft-russia.yaml:723) vs the inherited
+# Default on FROG. Overriding anything on either actor here would put a second difference into the
+# comparison and destroy the inference. In particular, do NOT "help" the strafe lane by pinning
+# AutoTarget.ScanRadius or widening FacingTolerance: if the strafe lane needs help that the
+# control lane does not, that IS the result.
+#
+# DO NOT ADD AN `A10:` OR `A10.Airstrike:` BLOCK. The shipped A10 declares ReloadAmmoPool@1 and
+# RenderSprites twice each (aircraft-america.yaml), so a map-rules override forces MiniYaml.Merge,
+# which refuses the duplicate and throws. A10.Airstrike inherits A10 and throws the same way.
+# Logged in WORKSPACE/bugs/discovered.md. This is why the strafe subject here is the FROG and not
+# the A-10, even though both are AttackType: Strafe.
+#
+# The two lanes are NOT flight-identical and this is disclosed rather than hidden. FROG.Airstrike
+# overrides Speed 420->200, TurnSpeed 12->8, CruiseAltitude 1560->1c512 and FacingTolerance 5->60
+# on top of the AttackType change. So a difference between the lanes is attributable to "the
+# .Airstrike variant", not to AttackType alone. What the comparison DOES isolate, and what no
+# previous run has had, is that both lanes carry the SAME armament (Armaments: primary ->
+# Armament@1 Weapon: RocketPods), the same AutoTarget chain (^AutoTargetGroundAntiTank, inherited),
+# the same owner, the same target actor and the same 14-cell opening geometry. Every explanation
+# that lives in the weapon, the target's TargetTypes, the terrain's TargetTypes, or acquisition
+# range therefore predicts the SAME outcome on both lanes.

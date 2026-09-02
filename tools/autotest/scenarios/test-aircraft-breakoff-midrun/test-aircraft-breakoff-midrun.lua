@@ -175,16 +175,29 @@ local Lanes = {
 	-- finished. MEASURED 2026-09-01, run 260901_085215_p7281 seed -1717682274:
 	--   FROGSTRIKE shotsBefore0 SHOTSAFTER0 postGrace0 distAtCrit-1 finalDist11
 	--              tgtHp100% ammoLeft30 finalAlt1536 trace[13,12,12,12,12,12,12,11,11,11]
-	-- Zero shots before the trigger as well as after, target untouched at full health, and a
-	-- flat 11-13 cell standoff for the whole window. `frog.airstrike` does not fire either, so
-	-- the `RocketPods` / `ValidTargets: Ground` reasoning that motivated the swap from
-	-- `a10.airstrike` is FALSIFIED -- see the correction in WORKSPACE/DISCOVERIES.md.
+	-- Zero shots before the trigger as well as after, and the target untouched at full health.
+	-- `frog.airstrike` does not fire either, so the `RocketPods` / `ValidTargets: Ground`
+	-- reasoning that motivated the swap from `a10.airstrike` is FALSIFIED -- see the correction
+	-- in WORKSPACE/DISCOVERIES.md.
+	--
+	-- THE TRACE ABOVE DOES NOT MEAN WHAT THIS BLOCK USED TO SAY IT MEANT (corrected 2026-09-02).
+	-- It was read here as "a flat 11-13 cell standoff for the whole window". It is not: it covers
+	-- the LAST 250 of 626 ticks and nothing before. observeTick is the only function that appends
+	-- to a trace, and during the arming phase it runs for a lane only once that lane has ARMED
+	-- (the `if l.armed then observeTick(l)` branch below); lane 3 never armed, so it was first
+	-- sampled at its arming DEADLINE -- which is also where minDistAfter is assigned -1, after
+	-- which `d < l.minDistAfter` can never be true again, so that field is structurally dead for
+	-- this lane and its -1 is a sentinel, not "it never got close". Lanes 1 and 2 carry 26 trace
+	-- samples and obs626; lane 3 carries 10. The strafe airframe's first 400 ticks -- the window
+	-- holding its opening pass -- were never sampled at all.
+	--
+	-- What stands without the trace is the half that matters: shotsBefore0, SHOTSAFTER0 and
+	-- ammoLeft30 against a 30-round magazine. It fired nothing across 626 ticks.
 	--
 	-- Re-enabling it without first finding out why a Strafe airframe does not engage just
-	-- restores a permanently SETUP-INVALID lane that masks the two lanes that do work. The
-	-- cheapest thread is the standoff, not the armaments: that trace is not what a strafe pass
-	-- looks like, so start at FlyAttack.cs:183 and ask whether a StrafeAttackRun is ever
-	-- queued at all.
+	-- restores a permanently SETUP-INVALID lane that masks the two lanes that do work. DO NOT
+	-- re-enable it to investigate either: tools/autotest/scenarios/test-strafe-engage exists for
+	-- that, traces from tick 0, and carries a plain-`frog` positive control so a zero is readable.
 	--
 	-- {
 	-- 	id = "FROGSTRIKE",

@@ -4128,6 +4128,46 @@ unit wholly dry with no affordable host inside 30 cells is exposed to the same p
 
 ---
 
+## 2026-09-02: [med] Fixed-wing aircraft are moved TWICE per tick and steered by two controllers that disagree — the `Fly.cs:52` PITFALL's premise stopped being true (found while: the strafe zero-shot investigation, branch `wt/strafe-zero`, `main @ 81140244`)
+
+**Static finding, not run. NOT fixed here** — it changes how every fixed-wing in the mod flies, so it
+needs its own measured commit rather than riding along on a diagnosis.
+
+`Fly.cs:52` states the invariant as a PITFALL: *"step-based movement. CanSlide aircraft move via
+CurrentVelocity in Aircraft.Tick — calling FlyTick on them double-moves unless CurrentVelocity is
+zeroed first."* Its premise is that only `CanSlide` aircraft ever carry a non-zero `CurrentVelocity`.
+That is no longer so. `Fly.Tick`'s **non-CanSlide** branch sets `aircraft.RequestedAcceleration` at
+`Fly.cs:285-286`, and nothing in `Aircraft.Tick` is gated on `CanSlide`:
+
+- `Aircraft.cs:499-510` integrates `RequestedAcceleration` into `CurrentVelocity` and clamps it to
+  `Info.Speed`;
+- `:524-527` calls `SetPosition(self, CenterPosition + CurrentVelocity)` — **movement #1**;
+- `:530-531` steers `Facing` toward `CurrentVelocity.Yaw` — **controller #1**;
+- then `Fly.Tick` reaches `FlyTick`, which moves the actor again by `FlyStep(aircraft.Facing)`
+  (`Fly.cs:56`, `Aircraft.cs:800-809`) — **movement #2** — and steers `Facing` toward its own
+  `desiredFacing` (`Fly.cs:62`) — **controller #2**.
+
+So a fixed-wing's realised track is the sum of a velocity vector and a facing-derived step that are
+not required to agree, under two turn controllers driving the same field in the same tick.
+**Population:** every non-`CanSlide` aircraft — `mods/ww3mod/rules/ingame/aircraft.yaml:340` sets
+`CanSlide: False` on the fixed-wing base, `:169` sets True on the helicopter base — so A10, F16, MIG,
+FROG and both `.Airstrike` variants, on every path that runs `Fly` (attack runs, move orders,
+`ReturnToBase`), for humans and both bot profiles.
+
+**Why it is filed as a suspicion and not as the strafe cause:** it reaches the A-10 that *does* fire
+(`test-aircraft-breakoff-midrun` lane 1, run `260901_085215_p7281`), so it cannot on its own be what
+zeroes the two `AttackType: Strafe` airframes. It matters anyway, and it matters most to that
+investigation: `StrafeAttackRun`'s first leg exits only through `Fly.cs:272-276`
+(`stopDelta.HorizontalLengthSquared < 512 * 512` against `CalculateStopPosition()`), that predicate
+reads `CurrentVelocity`, and a fixed-wing has a `CurrentVelocity` at all only because of this defect.
+Reasoning in `WORKSPACE/DISCOVERIES.md` (2026-09-02).
+
+**Do not "fix" it by zeroing `CurrentVelocity` in the fixed-wing branch without measuring.** The
+velocity path is also what feeds `CalculateStopPosition`, and `8bffb2ff` ("Aircraft stopping within
+512 of destination") put a live arrival test on top of it.
+
+---
+
 ## 2026-09-01: [low] `A10` declares `ReloadAmmoPool@1` TWICE, so its primary magazine has no reloader (found while: the fixed-wing rearm investigation, branch `wt/stuck-units`, `main @ 1fe106ff`)
 
 **Static finding, not run, and INERT TODAY** — filed because it is inert only by accident.
