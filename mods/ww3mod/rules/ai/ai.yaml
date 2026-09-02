@@ -780,6 +780,41 @@ Player:
 		# one line and the forward-assemble shape returns). Default OFF on the engine class ⇒ the @stable twin
 		# (which omits this field) is byte-identical.
 		ImmediateReinforcementCommit: true
+		# ===== COORDINATED ASSAULTS (new section — keep together for merge hygiene) =====
+		# Two or more pushes land TOGETHER instead of arriving minutes apart and being defeated in detail. An axis
+		# that reaches its START LINE holds there until (i) it out-masses what it BELIEVES is in front of it and
+		# (ii) a quorum of the other axes at their start lines is also ready — then the set releases on one eval
+		# pass. Placed LAST among the holds and AFTER the prep-fires gate, so the guns are already at their
+		# standoff anchors while the wait runs: coordinating costs no tempo that was not already being spent.
+		#
+		# HELD OFF, and that is the whole point of this section. It is a new HOLD discipline, and the standing
+		# manager decision (2026-08-04, recorded on PreparatoryFires above) is that none goes live until a
+		# user-gated sweep prices it — because @experimental's top live regression is precisely axes that hold and
+		# never close (DISCOVERIES 2026-08-03: ~85-92% of the army standing off on one SR-Pressure axis). This
+		# change was built under a no-autotest budget, so NOTHING here has been measured in a game. The code is
+		# correct and NUnit-pinned; flipping the one line below is the whole enablement, and the values below are
+		# already the intended starting point for that sweep.
+		#
+		# WHAT IT DOES NOT DO: it does not restore the forward-assemble SR flow shape. The user's SR-flow-shape
+		# decision (2026-08-05, AWAITING-USER.md:225) picked "advance immediately, singly" and is
+		# ImmediateReinforcementCommit directly above — that governs whether a FRESH REINFORCEMENT waits at the
+		# forward muster, and is untouched here. This gate lives at the far end of the approach and asks a
+		# different question. Reverting that decision remains its own one-line change; this does not do it by the
+		# side door.
+		CoordinatedAssaultEnabled: false
+		# 150 = bring half again the believed defence. RELATIVE, never absolute: the absolute floor
+		# (MinAdvanceStrength) is the shape that parked small axes in the rear all match. An axis believing it
+		# faces nothing is sufficient at any size, so an unopposed walk-in stays a walk-in.
+		AssaultMassRatioPct: 150
+		# Percentage, NOT unanimity — one pinned axis must not hold the army to the window expiry every window.
+		AssaultSyncQuorumPct: 60
+		# THE safety knob: elapsing releases the axis whichever reason was holding it, so the gate is structurally
+		# incapable of deadlocking one. 300 ticks = 18 s at Timestep 60 (16.667 ticks/s) = three re-evals at
+		# ReevaluateInterval 100, which is the resolution the release actually has.
+		AssaultSyncMaxTicks: 300
+		# The start-line band is (AssaultRadiusCells, 24]. Load-bearing, not cosmetic: a window that opened when
+		# the axis FORMED would elapse during a 40-100 cell approach and the gate would be inert on arrival.
+		AssaultSyncStartLineCells: 24
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped

@@ -749,6 +749,56 @@ namespace OpenRA.Mods.Common.Traits
 			"byte-identical. Pure SpawnFlowMath (NUnit-pinned), zero RNG.")]
 		public readonly bool ImmediateReinforcementCommit = false;
 
+		// ===== COORDINATED ASSAULTS (@experimental, default OFF) =====
+		// Mass-before-commit at the start line + multi-axis synchronized release. Pure
+		// CoordinatedAssaultMath (NUnit-pinned). See that file's header for the doctrine, the bounded-window
+		// safety property, and why the mass test is a RATIO rather than the absolute floor that already failed
+		// once in this module. Deliberately does NOT re-litigate the SR flow shape: this gate lives at the far
+		// end of the approach, not at the forward muster ImmediateReinforcementCommit governs.
+		[Desc("COORDINATED ASSAULTS (@experimental) — master flag. Two or more pushes land TOGETHER instead of",
+			"arriving minutes apart and being defeated in detail. An axis that has reached its START LINE holds",
+			"(its guns already at their standoff anchors, so the wait is spent shelling) until (i) it out-masses",
+			"what it BELIEVES is in front of it by AssaultMassRatioPct and (ii) a quorum of the other axes at",
+			"their start lines is also ready — then the set releases on the same evaluation pass. Bounded by ONE",
+			"countdown (AssaultSyncMaxTicks) covering BOTH reasons, so no combination of knobs can express a",
+			"permanent hold and a mis-set knob fails OPEN toward today's commit-on-arrival behaviour.",
+			"OFF by default ⇒ the @stable twin (which omits these fields) is byte-identical. Zero RNG.")]
+		public readonly bool CoordinatedAssaultEnabled = false;
+
+		[Desc("Coordinated assaults: how much force an axis must bring RELATIVE to the enemy force it believes is",
+			"near its objective before it commits — 150 = 'bring half again what you think is there'. Both sides",
+			"are on the same cost scale (own health-weighted build value vs believed armed contact cost x",
+			"confidence, the same pair the retreat lever compares), so the ratio is meaningful. RELATIVE on",
+			"purpose: the absolute advance-strength floor (MinAdvanceStrength) is the shape that parked units in",
+			"the rear for whole matches, because a small funded axis can never clear an absolute bar. An axis",
+			"believing it faces NOTHING is sufficient at any size, so an unopposed walk-in stays a walk-in.",
+			"Non-positive disables the mass test. Only read when CoordinatedAssaultEnabled.")]
+		public readonly int AssaultMassRatioPct = 150;
+
+		[Desc("Coordinated assaults: what PERCENTAGE of the axes at their start lines must be ready before the",
+			"set steps off. A percentage rather than unanimity so ONE pinned axis cannot hold the whole army to",
+			"the window expiry every window — a straggler is outvoted rather than obeyed. 100 asks for unanimity",
+			"and still has the window as its backstop. Non-positive disables the synchronization arm (leaving the",
+			"mass arm live). Only read when CoordinatedAssaultEnabled.")]
+		public readonly int AssaultSyncQuorumPct = 60;
+
+		[Desc("Coordinated assaults: the bounded window (ticks) an axis may spend at its start line waiting to",
+			"mass and to synchronize. THE load-bearing safety knob: elapsing releases the axis unconditionally",
+			"whichever of the two reasons was holding it, which is what makes this gate structurally incapable of",
+			"deadlocking an axis — the SectorPostureHold incident (bd3abacf) is the standing proof that in this",
+			"module a coupling which looks like caution reads in play as paralysis. Non-positive disables the gate",
+			"outright. Resolution is the re-eval cadence (ReevaluateInterval), as for the prep window. 300 ticks",
+			"is 18 s at Timestep 60 (16.667 ticks/s) — three re-evals. Only read when CoordinatedAssaultEnabled.")]
+		public readonly int AssaultSyncMaxTicks = 300;
+
+		[Desc("Coordinated assaults: how far out (cells, Chebyshev from the axis centroid) the START LINE sits.",
+			"The gate engages ONLY inside the band (AssaultRadiusCells, this] — the same productive-band",
+			"discipline PrepFireMath carries, and it is load-bearing rather than cosmetic: a window that opened",
+			"the moment an axis formed would elapse during a 60-cell approach and the gate would be inert by the",
+			"time the axis actually arrived. An axis already INSIDE AssaultRadiusCells is committed and closing",
+			"and is never pulled back to wait. Only read when CoordinatedAssaultEnabled.")]
+		public readonly int AssaultSyncStartLineCells = 24;
+
 		[Desc("PHASE 4 (@experimental) FRONTLINE STRENGTH PROFILE (sensor only — no order-issuing change).",
 			"Opts this player in to the ControlField's per-frontier-sector believed OWN-vs-ENEMY strength",
 			"profile + avenue (crossing) mapping, so a future consumer can ask 'which frontier sector is the",
@@ -1026,6 +1076,22 @@ namespace OpenRA.Mods.Common.Traits
 			public int PrepStartTick;
 			public CPos PrepTargetCell;
 			public bool OrderedPrepHold;
+
+			// COORDINATED ASSAULTS state (written only when CoordinatedAssaultEnabled ⇒ untouched, and therefore
+			// byte-identical, for every other profile). MassReady/SyncDist are recomputed for the whole live axis
+			// set ONCE per eval by CensusAssaultReadiness, so the gate and the peer census can never disagree
+			// about this axis — the two readings are one number written in one place. SyncStarted/SyncStartTick
+			// stamp the start-line window (an explicit bool because tick 0 is a legal tick); SyncTargetCell is
+			// the objective the window was opened against, so taking a NEW objective waits afresh while an
+			// ongoing approach on the same objective keeps counting. OrderedSyncHold records that the last order
+			// issued was the start-line hold, so the release forces the assault order to re-issue — the same
+			// discipline as OrderedRetreat / OrderedPrepHold.
+			public bool MassReady;
+			public int SyncDist;
+			public bool SyncStarted;
+			public int SyncStartTick;
+			public CPos SyncTargetCell;
+			public bool OrderedSyncHold;
 		}
 
 		readonly World world;
@@ -1047,6 +1113,12 @@ namespace OpenRA.Mods.Common.Traits
 		bool crossingMapResolved;
 
 		readonly List<Axis> axes = new();
+
+		// COORDINATED ASSAULTS: the per-eval peer census (see CensusAssaultReadiness). Both 0 and unread unless
+		// CoordinatedAssaultEnabled, so every other profile is byte-identical. They are cardinalities of a set,
+		// hence order-independent and needing no sort for determinism.
+		int syncParticipatingAxes;
+		int syncReadyAxes;
 
 		// Phase 1: targetId → the axis should be crewed by amphibious units (a water-only far-bank POI).
 		// Rebuilt each reeval by the reachability reshape; empty (and unread) unless ReachabilityGatingEnabled.
@@ -1562,6 +1634,20 @@ namespace OpenRA.Mods.Common.Traits
 					axis.HasOrdered = false; // set changed
 				}
 			}
+
+			// COORDINATED ASSAULTS: census the live axis set ONCE, before any order is issued, so every axis in
+			// this loop reads the SAME snapshot of who is at their start line and who is ready. Computing it per
+			// axis inside the loop would let an early axis's orders change what a later axis sees, making the
+			// joint release depend on iteration order. Skipped entirely (both counters stay 0, no Axis field is
+			// written) unless the flag is on ⇒ byte-identical for every other profile.
+			//
+			// NOTE the census deliberately spans only the LIVE set. Mission-committed axes were pulled out by
+			// PartitionHeldAxes above and are folded back after this loop, so they are invisible here — which is
+			// the behaviour we want rather than an oversight: a frozen axis is already executing its assault, so
+			// there is nothing to wait for. An axis whose peers have all committed sees participating == 1 and
+			// presses on instead of waiting out a window for company that has already gone.
+			if (Info.CoordinatedAssaultEnabled)
+				CensusAssaultReadiness();
 
 			// 9. Issue orders + (re)commit. Retire any axis that ended up below min size.
 			for (var i = axes.Count - 1; i >= 0; i--)
@@ -3267,6 +3353,41 @@ namespace OpenRA.Mods.Common.Traits
 				axis.HasOrdered = false;
 			}
 
+			// COORDINATED ASSAULTS (experimental, default off): the axis is at its start line and past every
+			// fall-back gate — hold it there until it out-masses what it believes it faces AND a quorum of the
+			// other axes at their start lines is also ready, then release the set on one evaluation pass.
+			//
+			// PLACED LAST AMONG THE HOLDS, AND AFTER THE PREP GATE, ON PURPOSE. Two reasons, both load-bearing:
+			//   * The guns are already peeled off and standing at their standoff/echelon anchors by this point
+			//     (and ContinuousBombardment keeps idle pieces shelling believed-static positions), so the
+			//     synchronization wait is spent with fires LANDING rather than with the whole axis idle. That is
+			//     the combined-arms half of this feature: the prep window and the sync window overlap instead of
+			//     queueing, so coordinating does not cost tempo it did not already spend.
+			//   * Prep is a PER-AXIS clock and sync is the GLOBAL release. Running sync first would start each
+			//     axis's prep countdown at a different tick and desynchronize the very set we just gathered.
+			//
+			// Returns WITHOUT stamping mission commitment — see ApplyMissionCommitment above: an axis marked
+			// Committed is frozen by PartitionHeldAxes, which skips CommitAndOrder entirely, so a sync-holding
+			// axis would never re-reach its own release gate and AssaultSyncMaxTicks would be a dead knob (the
+			// exact defect review FIX 4 found in the prep gate). Not stamping keeps it flowing through this
+			// method every eval, which is what makes both the countdown and the peer re-census reachable.
+			//
+			// It can never delay a genuine withdrawal: the retreat gate returned far above, and a Retreating axis
+			// is excluded from the census (SyncDist stays int.MaxValue, so the band test fails and this is false).
+			if (Info.CoordinatedAssaultEnabled && SyncHoldScreen(axis, tick))
+			{
+				OrderSyncHold(bot, axis, groupUnits, centroid, tick);
+				return;
+			}
+
+			// Released from (or never in) the sync hold: same reconciliation as the prep hold above — the last
+			// order issued was the start-line hold, so force the assault order below to re-issue.
+			if (axis.OrderedSyncHold)
+			{
+				axis.OrderedSyncHold = false;
+				axis.HasOrdered = false;
+			}
+
 			// Past every fall-back gate: this axis is assaulting, so it takes the mission-commitment baseline. Must
 			// run BEFORE the !moved early-return below so an axis that merely keeps its existing order still has its
 			// commitment refreshed — that is what the pre-hoist code did from the top of the method.
@@ -4152,6 +4273,100 @@ namespace OpenRA.Mods.Common.Traits
 			return sum;
 		}
 
+		// COORDINATED ASSAULTS: recompute, for the whole live axis set, who is AT THEIR START LINE and who among
+		// them is massed enough to commit. Called once per eval before any order issues (see the call site), so
+		// the peer counts every axis reads are one consistent snapshot.
+		//
+		// THE THREE POPULATIONS, and why each is counted the way it is:
+		//   * RETREATING axes are neither participating nor ready. An axis withdrawing is not part of an assault
+		//     wave, and counting it as an un-ready participant would let a genuine withdrawal drag the quorum
+		//     down and hold every other axis to the window expiry — the retreat gate must never acquire that
+		//     kind of second-order veto over the rest of the army.
+		//   * Axes FURTHER OUT than the start line are not participating either. They cannot assault soon, so
+		//     including them would make the quorum unreachable on any map where one axis is still crossing.
+		//   * Axes already INSIDE AssaultRadiusCells count as participating AND READY regardless of mass: they
+		//     are closing on (or in) contact, so they are already splitting the defender's attention, which is
+		//     the effect the synchronizer exists to produce. Counting them as un-ready would hold the axes that
+		//     could still join them, which is precisely backwards.
+		//
+		// SyncDist is stamped here and re-read by the gate rather than recomputed there, so the band test and
+		// the census can never disagree about one axis. Distance is over the axis's WHOLE unit set (its centroid
+		// as a body); the gate's own screen-only centroid is used for the hold CELL, not for the band decision.
+		// Zero RNG — Chebyshev on synced cell positions, and the counters are set cardinalities.
+		void CensusAssaultReadiness()
+		{
+			syncParticipatingAxes = 0;
+			syncReadyAxes = 0;
+
+			foreach (var axis in axes)
+			{
+				axis.MassReady = false;
+				axis.SyncDist = int.MaxValue;
+
+				if (axis.Units.Count == 0)
+					continue;
+
+				if (CombatRetreatMath.ShouldRetreat(Info.RetreatWhenLosing, axis.Retreat))
+					continue;
+
+				var cells = new List<(int X, int Y)>(axis.Units.Count);
+				foreach (var u in axis.Units)
+					cells.Add((u.Location.X, u.Location.Y));
+
+				var centroid = PoiOffenseMath.CellCentroid(cells);
+				axis.SyncDist = PoiOffenseMath.Chebyshev(centroid.X, centroid.Y, axis.TargetCell.X, axis.TargetCell.Y);
+
+				if (axis.SyncDist > Info.AssaultSyncStartLineCells)
+					continue;
+
+				syncParticipatingAxes++;
+
+				axis.MassReady = axis.SyncDist <= Info.AssaultRadiusCells
+					|| CoordinatedAssaultMath.MassSufficient(
+						OwnAxisStrength(axis), BelievedEnemyStrength(axis.TargetCell), Info.AssaultMassRatioPct);
+
+				if (axis.MassReady)
+					syncReadyAxes++;
+			}
+		}
+
+		// COORDINATED ASSAULTS: is this axis still waiting at its start line — to mass, or for its peers? Stamps
+		// the window on entry to the band, then defers to the pure predicate.
+		//
+		// THE BAND TEST IS WHAT MAKES THE WINDOW MEAN ANYTHING (the same reasoning PrepFireMath's reach bound
+		// carries). A window stamped when the axis FORMED would run out during a 40-100 cell approach, and the
+		// gate would be reliably expired — inert — by the time the axis actually reached somewhere worth waiting.
+		// So the window opens on ARRIVAL at the start line and not before. Leaving the band clears the stamp, so
+		// an axis that re-enters waits afresh; in practice the band is crossed once, inward, because an axis
+		// inside the assault radius is committed and closing and the gate never pulls it back out.
+		//
+		// Called ONLY under Info.CoordinatedAssaultEnabled, so no sync state is ever written for another profile.
+		// Re-entered EVERY eval while the hold is active — the sync-hold exit does not stamp mission commitment,
+		// so PartitionHeldAxes cannot freeze the axis out of this method — which is what keeps the countdown and
+		// the peer re-census reachable. Same discipline, and same reason, as PrepHoldScreen.
+		bool SyncHoldScreen(Axis axis, int tick)
+		{
+			var inBand = axis.SyncDist > Info.AssaultRadiusCells
+				&& axis.SyncDist <= Info.AssaultSyncStartLineCells;
+
+			if (!inBand)
+			{
+				axis.SyncStarted = false;
+				return false;
+			}
+
+			if (!axis.SyncStarted || axis.SyncTargetCell != axis.TargetCell)
+			{
+				axis.SyncStarted = true;
+				axis.SyncStartTick = tick;
+				axis.SyncTargetCell = axis.TargetCell;
+			}
+
+			return CoordinatedAssaultMath.ShouldHoldForSync(true, axis.MassReady,
+				syncParticipatingAxes, syncReadyAxes, Info.AssaultSyncQuorumPct,
+				tick - axis.SyncStartTick, Info.AssaultSyncMaxTicks);
+		}
+
 		// (build cost, armed) for a believed-contact type name, cached from the actor rules. An armed contact
 		// carries AttackBase; an unarmed one (supply truck, capturer) contributes no combat force to the ratio.
 		(int Cost, bool Armed) ContactFact(string typeName)
@@ -4324,6 +4539,49 @@ namespace OpenRA.Mods.Common.Traits
 			Log.Write("debug",
 				$"[exp-fires] prep-hold player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} " +
 				$"startLine={holdCell} screen={units.Length} elapsed={tick - axis.PrepStartTick} tick={tick}");
+		}
+
+		// COORDINATED ASSAULTS: hold the screen at its start line while it masses / waits for its peers. Mirrors
+		// OrderPrepHold exactly — a grouped AttackMove to where the screen already stands, so the units hold
+		// ground while still defending themselves, with the same impassable-centroid fallback and the same
+		// `moved` guard. The guard is what makes a multi-eval hold SILENT after its first order: re-issuing an
+		// identical AttackMove every eval would cancel and restart the units' own engagements, which is exactly
+		// the churn the commitment ledger and ReorderDwellTicks exist to suppress.
+		void OrderSyncHold(IBot bot, Axis axis, List<Actor> screen, (int X, int Y) centroid, int tick)
+		{
+			if (screen.Count == 0)
+				return;
+
+			var lead = screen[0];
+			foreach (var u in screen)
+				if (u.ActorID < lead.ActorID)
+					lead = u;
+
+			// A spread screen's centroid can land on water/cliff; an impassable hold cell would degrade the
+			// AttackMove to some partial move. Fall back to a cell a unit is demonstrably standing on.
+			var holdCell = new CPos(centroid.X, centroid.Y);
+			if (!world.Map.Contains(holdCell) || !WaypointPassable(lead)(holdCell))
+				holdCell = lead.Location;
+
+			var moved = !axis.HasOrdered
+				|| !axis.OrderedSyncHold
+				|| (axis.OrderedCell - holdCell).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells;
+			if (!moved)
+				return;
+
+			var units = screen.ToArray();
+			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, holdCell), false, groupedActors: units)))
+				return;
+
+			axis.OrderedCell = holdCell;
+			axis.OrderedVia = null;
+			axis.OrderedSyncHold = true;
+			axis.HasOrdered = true;
+
+			Log.Write("debug",
+				$"[exp-coord] sync-hold player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} " +
+				$"startLine={holdCell} screen={units.Length} dist={axis.SyncDist} massReady={axis.MassReady} " +
+				$"ready={syncReadyAxes}/{syncParticipatingAxes} elapsed={tick - axis.SyncStartTick} tick={tick}");
 		}
 
 		// Issue the fall-back: a grouped AttackMove toward the rally cell for every unit on the axis. Re-issued
