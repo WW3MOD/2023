@@ -407,7 +407,8 @@ _Three parts: (a) static parity audit — US vs RU roster stat/cost comparison f
 
 > ⚠️ **RE-FRAMED 2026-08-20 by the ambush research programme — the ASK is unchanged, what the test MEASURES is not. Do not close this on the strength of the research.** Re-verified at `main @ 57822b4e`: the bar numbers are live and still unratified (`parse-case01-bar.py:33-36` — `BAR_A_DEF_MAX_MEAN = 50`, `BAR_A_ATT_MIN_MEAN = 300`, `BAR_A_MIN_SEEDS = 6`, `BAR_B_DEF_MAX = 0`), so `AWAITING-USER.md` §4 is genuinely open.
 > **But the scenario grants its own gate.** `test-case01-forest-ambush.lua:3` posts the defenders as *"USA, HUMAN, Ambush stance, `enable-ambush-tactics` granted"* — a configuration **no human player can reach in a real match**, because nothing outside `LaneAmbushBotModule` and the autotests' own Lua grants that token (item **68**). A green here prices the **bot's** ambush, not the one the player gets.
-> **And the defence it measures rests on a cover term that is unreachable** (item **69**): the `+1/+2/+3` `object-proximity` ladder has one emitter repo-wide and no soldier can stand inside its radius. `AWAITING-USER.md:123`'s reassurance that the correction "widens the defenders' margin" was written before that was known — **it is not wrong about the bar, but it is no longer the whole picture.**
+> **And the defence it measures rests on a cover term that is unreachable** (item **69**): the `+1/+2/+3` `object-proximity` ladder has one emitter repo-wide and no soldier can stand inside its radius.
+> ⚠️ **SUPERSEDED 2026-09-02 — that sentence is now FALSE and it is the load-bearing half of this caveat.** Item 69's own verdict, 30-odd lines below in this file, records that `247408b8` put `^TreeCover` on `^Tree` (`decoration.yaml:56-60,141`), so **living trees emit `object-proximity` and 22.7% of in-bounds cells on woodland-warfare receive some bonus.** The cover term is reachable. **The dated block above is left unedited per the supersede-don't-rewrite rule — but do not carry "the defence rests on an unreachable term" into a dispatch.** The rest of the caveat (the scenario grants its own `enable-ambush-tactics` gate, so a green prices the *bot's* ambush) is untouched and still binding. `AWAITING-USER.md:123`'s reassurance that the correction "widens the defenders' margin" was written before that was known — **it is not wrong about the bar, but it is no longer the whole picture.**
 > **Consequence, stated plainly:** ratifying is still worth one word — it makes a red result actionable instead of arguable. Just do not read a green as *"ambush works for players."* **Do not cite this scenario as evidence the coordination works** (`ambush-programme/README.md` §5): it is ~1000 commits stale and never asserts simultaneity.
 
 **Perceived:** the payoff of 20+21, proven by a number: an equal-cost force walking into the treeline ambush is destroyed at ~3× the defenders' losses, repeatably.
@@ -420,12 +421,74 @@ Overlaps items 46 and R7. The asset-licensing half was split out as item 41. →
 
 ---
 
+## SAFE WINS & AMBITIOUS SWINGS — 2026-09-02 proposals intake **[items 74–83]**
+
+> **Source:** [`proposals/260902-safe-wins-and-swings.md`](proposals/260902-safe-wins-and-swings.md), assembled from five 2026-09-02 recon documents plus two pip notes and re-verified against code at `main @ 9b687fef`. **Every `file:line` in it was opened and read**, not relayed — a discipline that killed one proposal outright, refuted a headline sentence, corrected a cost model and found one item stronger than filed. Its own "Killed on verification — do not re-propose" list is load-bearing: **a Logistics Centre supply readout, "the game never says the SR is indestructible", "the detection margin is computed then discarded", and a self-concealment readout all SHIP.** Check that list before proposing anything adjacent.
+>
+> **⚠️ Position in the queue is NOT a ranking.** This block sits at the end of the ungated queue because it is new intake, not because it ranks below items 64/40/56. **Ordering these against the existing queue is an open call for the manager or the user** — nothing here has been ranked against anything above it.
+>
+> **Eight of the ten safe wins are NOT filed here, because workers are already implementing them** (2026-09-02): safe wins **1, 2, 3, 4** (bundled with 1), **5** (decoration half only), **6, 7** and **10**. Filing them would immediately reintroduce this queue's most expensive recurring defect. Branch corroboration at filing time: `wt/capture-affordance` (1+4), `wt/howtoplay` (2), `wt/damage-readout` (5), `wt/evac-refund` (6), `wt/contest-alarm` (7). **No branch could be named for safe wins 3 and 10** — both premises re-verified still-absent on `main`, so they are unstarted or unmerged, not shipped. **If one of those eight is later found never to have landed, re-file it from the proposal — do not assume this block covers it.**
+>
+> **The two safe wins below are here because each is blocked on something a worker cannot supply**, not because they are leftovers. **The eight swings keep their bet framing deliberately.** Three of them — 78, 81, 82 — have one-line or few-line diffs and are swings anyway: **a small diff against the mod's central mechanic or against seven units' engagement ranges is a balance change, not a safe win.** Do not let that distinction be lost by re-summarising them.
+
+### 74. Neutralising an enemy building announces it to the Neutral player and to nobody else
+`[NEEDS A USER CALL BEFORE ANY CODE — balance-adjacent, deliberately not being built]`
+**Perceived:** your rifleman turns an enemy AA gun grey after a full minute inside it. No voice line, no text, no sound — and the player who just lost it is told nothing.
+**Deliberately not in flight.** `game-model.md` already tracks soldier-neutralisation as close to unanswerable against a bot and a live balance risk; **making it audible will make players use it more.** That may well be right — an invisible dominant strategy is worse than a visible one — but it is the user's call, not a quiet ship. **Put the question, not the diff.** → [`items/74-neutralise-notification.md`](pipeline/items/74-neutralise-notification.md)
+
+### 75. Infantry give no selection feedback at all
+`[BLOCKED ON A SCREENSHOT PASS — two lines to change; the judgement is the whole item]`
+**Perceived:** you box-select six riflemen and nothing on screen changes. No bracket, no highlight, no outline.
+`ShowNever: true` occurs exactly once under `mods/` (`infantry.yaml:56`) against an engine default of `false`. **Blocked on exactly one thing: nobody can judge this by reading, and no screenshots could be taken the day it was filed.** `ShowNever` was almost certainly set on purpose. **Show the user two screenshots; do not delete the line.** → [`items/75-infantry-selection-brackets.md`](pipeline/items/75-infantry-selection-brackets.md)
+
+### 76. Wake up the vehicle that stopped fighting
+`[SWING — moves every armed vehicle on BOTH bot profiles; must be measured, not reasoned]`
+**Perceived:** a damaged tank drives over, points at the enemy, and sits there for the rest of the match — it will not shoot when repaired, react when something drives past, or go for ammo if a truck parks beside it.
+One root, four consequences: pausing an armament zeroes the autotarget scan radius, so the unit goes sensor-blind, its attack order never ends, it never re-fires the becoming-idle transition that asks for resupply, and the readout built for this cannot fire. **`4bbd0fad` fixed the cursor half only — do not read it as having addressed this.** → [`items/76-paused-armament-lockout.md`](pipeline/items/76-paused-armament-lockout.md)
+
+### 77. The enemy Supply Route promises a move order and a health bar, and honours neither
+`[SWING — cheap half is hours; the valuable half is a design decision]`
+**Perceived:** you right-click the enemy SR with your whole armoured force. The cursor says *move*. Your army drives across the map, parks on it, and stands there being shot at, firing at nothing.
+**The originating audit's "nothing ever told you it cannot be damaged" is FALSE** — the How To Play panel says it verbatim (`ingame-info-howtoplay.yaml:88-95`). The surviving defect is narrower: the panel says one thing and the cursor promises the opposite at the moment of the click. **The valuable half is the same shape as the sin `Passenger.cs:116-121` was reverted for** — silently reinterpreting one order as another. → [`items/77-enemy-sr-order-honesty.md`](pipeline/items/77-enemy-sr-order-honesty.md)
+
+### 78. Evacuation goes to the nearest wall, not home
+`[SWING — one-token diff, a balance change wearing a bugfix's clothes. ⚠️ The proposal's author flagged this as the entry they were LEAST confident about.]`
+**Perceived:** a wrecked tank deep in enemy territory banks its refund through *their* back edge, uninterceptable — so a deep raid is a free option.
+The mechanism is verified (aircraft use `self.Owner.HomeLocation`, ground uses `self.Location`; nine of ten maps have no `spawnarea`). **The PREMISE is not: nobody checked whether a unit in the enemy half is actually closer to the enemy edge, often enough to matter.** A free static settlement exists — spawn-and-bounds arithmetic over the ten maps, no launch. **Do that first; if it says the nearest edge is usually the owner's own, DROP this item.** → [`items/78-evacuation-edge-choice.md`](pipeline/items/78-evacuation-edge-choice.md)
+
+### 79. Contestation should push the beachhead back
+`[SWING — new gameplay on the mod's central mechanic; small blast radius, real balance question]`
+**Perceived:** enemy units grinding your SR make your reinforcements arrive *in the wrong place*, not just more slowly — the drop point slides along the map edge and every unit has a longer, more exposed walk.
+Both traits sit on the same actor and the edge choice funnels through one variable, so this is an `Info` field defaulting to zero displacement. **The bet: it STACKS two penalties on the losing player**, which can make comebacks worse — the opposite of what a graduated design is for. The honest version probably *replaces* part of the slowdown. → [`items/79-contestation-entry-displacement.md`](pipeline/items/79-contestation-entry-displacement.md)
+
+### 80. A player-facing channel for "your shot did nothing"
+`[SWING — the detector already runs in every shipped build; this is routing plus a design call]`
+**Perceived:** a shot that connects and accomplishes nothing looks identical to one that hurt. With no health bar and a four-band pip, dozens of hits on a high-HP vehicle change nothing visible.
+The anomaly gate runs on **every warhead application in the game** and already builds the string — gated on a developer checkbox. ⚠️ **HARD CONSTRAINT: do NOT do this by turning `DamageNumbers` on** — that default is test-guarded and was ruled a release blocker (former R17). And armour is only *one* reason a shot does nothing, so the channel can only ever be a true partial explanation. → [`items/80-ineffective-shot-channel.md`](pipeline/items/80-ineffective-shot-channel.md)
+
+### 81. Enemy aircraft cannot contest a Supply Route; friendly aircraft defend one
+`[SWING — ONE-LINE DIFF, and the clearest case of a cheap diff that is not a safe win. USER CALL.]`
+**Perceived:** you park a gunship over the enemy beachhead and the bar does not move — while a friendly gunship over *your* SR counts its full purchase price as defensive value and triples recovery.
+`IsRelevantActor` applies two different tests: an enemy actor must match `CaptorTypes`, an allied one need only cost money. Every aircraft is `Types: Plane` and `SUPPLYROUTE` overrides nothing. **The two possible fixes point in OPPOSITE balance directions** — adding `Plane` makes helicopters a cheap siege tool against a beachhead with no AA; excluding allied air is conservative. **Present as a question, not a diff.** → [`items/81-aircraft-contestation-asymmetry.md`](pipeline/items/81-aircraft-contestation-asymmetry.md)
+
+### 82. Let a specialist stand off at its long weapon's range
+`[SWING — seven YAML lines that are a balance change on seven multi-role units]`
+**Perceived:** your Bradley has anti-tank missiles that reach a long way, and drives all the way into autocannon range — into the tank's own gun — before shooting.
+`EngageAtLongestArmamentRange` defaults false and **exactly one actor opts in** (`tunguska`); the shipped default takes the *minimum* of every valid armament's range. The engine's own doc comment names the symptom in the player's words. **Wants `tools/combat-sim/` numbers BEFORE, not after, and goes through item 32's balance-proposal flow** — a range-engagement change is a stat change in all but name. → [`items/82-longest-armament-standoff.md`](pipeline/items/82-longest-armament-standoff.md)
+
+### 83. The reserve remembers — veterans come back as veterans
+`[SWING — LARGE. Reason (ii) in the dossier could kill it outright.]`
+**Perceived:** you pull out a three-chevron Abrams and it comes back as *"Abrams (Veteran III)"* — cheaper than fresh, with its chevrons and a full magazine. Today "rotate out" means *sell*.
+Closes the largest gap between what this game says it is and what it does: `supply-route.md` calls the SR where units muster from off-map reserves, **and there are no reserves.** Also fixes a real hole — veterancy is the only appreciating asset in this economy and the refund arithmetic cannot see it. ⚠️ **Its UI surface is the same unstarted work as "Cargo Phase 3", which R16 ruled too vague to dispatch — if that is hard, this is hard for the same missing design.** → [`items/83-veteran-reserve.md`](pipeline/items/83-veteran-reserve.md)
+
+---
+
 ## AMBUSH, CONCEALMENT & COVER — 2026-08-20 research programme **[USER-GATED: NOTHING IN THIS BLOCK MAY BE IMPLEMENTED]**
 
 > **Two hard gates, both the user's, both load-bearing. Neither is a manager call.**
 >
 > 1. **Nothing on stances, ambush, concealment or cover may be implemented until the user says so.** Verbatim: *"I will let you know when we are ready to implement, until then just ask me"* and *"it is my wish that you really get to the bottom of this before we start implementing."* This block therefore sits **last in execution order only because it is gated** — not because it ranks low. It is the most recent and best-evidenced work in this file.
-> 2. **Item 67 lands BEFORE item 69.** Ruled 2026-08-20 (`57822b4e`): repairing the cover ladder first makes a currently-unreachable invisibility tier reachable, so the visibility floor is cheap now and urgent later.
+> 2. ~~**Item 67 lands BEFORE item 69.**~~ **DISCHARGED BY EVENTS 2026-09-02 — both legs of it.** Ruled 2026-08-20 (`57822b4e`): repairing the cover ladder first makes a currently-unreachable invisibility tier reachable, so the visibility floor is cheap now and urgent later. **Leg 1 fell when cover became reachable** (item 69's verdict: `247408b8` shipped tree cover and it is enabled). **Leg 2 fell when the visibility floor itself shipped** — `1ff73ae5` + `1ad638e7`, both 2026-08-20, both on `main`; see item 67's verdict. **The user's ruling is not overridden here — it is spent.** Neither item now waits on the other.
 >
 > **What the research settled, and it inverts the framing every earlier ambush item used: ambush is NOT a feature to be built — it shipped.** `UnitStance { HoldFire, Ambush, FireAtWill }` is live at `AutoTarget.cs:22` (re-verified here at `main @ 57822b4e`) with a bound button, a gold `A` glyph, pre-aim, a coordinated spring, a five-trigger state machine, five passing autotests and both bot profiles. **Nine strands were dispatched and every one that examined a mechanism found it already built and quietly broken, not missing.** An item reading "design ambush", "build the ambush stance" or "add hold-fire" is describing merged work — the implementation is archived as **item 8** in [`closed-items.md`](pipeline/archive/closed-items.md).
 >
@@ -433,10 +496,31 @@ Overlaps items 46 and R7. The asset-licensing half was split out as item 41. →
 >
 > **Deliberately NOT queued: a legibility / readout item.** That is precisely the mistake manager decision 08 records — shipping a readout *around* an absent behaviour and reporting it as the answer. Legibility is a sequencing rule, not a scope rule: it follows a behaviour fix, it does not substitute for one.
 
-### 67. Clamp minimum detectability to 1 — nothing is ever fully invisible
-`[RULED by the user 2026-08-20; implementation user-gated. MUST LAND BEFORE ITEM 69]`
-**Perceived:** you can always find a man you are standing on top of. Today a sufficiently concealed unit can drop out of standard vision entirely, which the user reads as a bug, not a reward.
-User verbatim: *"I think it is an error that they can become fully invisible… I think their visibility should be at least 1 at all times."* **No clamp exists** — verified 2026-08-20, no `MinDetectab*` / `VisibilityFloor` / `MinVisibility` symbol anywhere under `engine/OpenRA.Mods.Common/Traits/` or `mods/`. Once it holds, the concealment gauge's top tier becomes unreachable and the "vanishing ring" cliff stops existing on its own. Ruling and sequencing: `57822b4e`, `ambush-programme/README.md` §7.
+### 67. ~~Clamp minimum detectability to 1 — nothing is ever fully invisible~~ → RE-SCOPED: the user's stated case SHIPPED 2026-08-20; what survives is a different, far more expensive change
+`[user-gated. The "MUST LAND BEFORE ITEM 69" sequencing ruling is DISCHARGED — see below. **Re-priced from "one-line clamp" to "moves fog rendering, radar and the AI belief layer".**]`
+
+> ❌ **VERDICT 2026-09-02 (`main @ 26f9cec0`) — "NO CLAMP EXISTS" IS FALSE, AND THE CHEAP HALF OF THIS ITEM IS ALREADY SHIPPED AND TEST-GUARDED. Do not dispatch anyone at "add the clamp".** Read from `Detectable.cs` directly, not relayed from the proposal that flagged it.
+> - **The clamp exists: `Detectable.ClampConcealment` (`engine/OpenRA.Mods.Common/Traits/Modifiers/Detectable.cs:118-125`)** — floors at 1, ceilings at `MapLayers.VisionLayers - 2` = **9** (`VisionLayers = 11`, `MapLayers.cs:75`). Called from `ITick.Tick` (`:129`) and `IsVisibleInner`. ⚠️ **The file is under `Traits/Modifiers/`, not `Traits/` — which is where the 2026-08-20 check looked.**
+> - **The floor of 1 is NOT the thing the user asked for, and this is the trap the item's title walks into.** It floors the *concealment value*, and its purpose is an internal invariant — *"0 is shroud's level and must not be a concealment value"* (`:115-116`). It is pre-existing and `1ad638e7`'s own message says so: *"The floor of 1 is untouched. It already existed, and it is at the opposite end of the scale from this change."* **A floor on concealment is not a floor on the observer's ability to see. The item's title asks for the second and names the first.**
+> - **What actually delivered the user's request is the CEILING, plus a comparison change — a two-commit pair, both 2026-08-20, both ancestors of `main`, verified with `git merge-base --is-ancestor`:** `1ff73ae5` *"Reveal is non-strict: a matching observer detects, top of the ladder included"* and `1ad638e7` *"Reserve the top vision level for observers: concealment now ceilings at 9"*, whose message opens *"Second half of the invisibility fix."*
+> - **`1ff73ae5` names the user's exact scenario in its own commit message:** *"A Sniper or SF at rank 3, stopped, computes 5 + prone + dug-in + rank-veteran = 10 and was **invisible standing next to an enemy**."* That is item 67's `Perceived` line, and it is fixed.
+> - **Guarded, not merely landed.** `engine/OpenRA.Test/OpenRA.Mods.Common/DetectableCeilingTest.cs` carries five tests including `ConcealmentCannotReachTheTopVisionBand` and `TopBandObserverDetectsTheMostConcealedUnitPossible`. The reveal predicate is `MapLayers.IsDetected` (non-strict, `:598`), deliberately kept **separate** from `IsVisible` (still strict) because level 1 doubles as the "explored, nobody looking" sentinel.
+>
+> **HOW THIS WAS MISSED, because the pattern is the one this queue keeps repeating.** The item says *"verified 2026-08-20, no `MinDetectab*` / `VisibilityFloor` / `MinVisibility` symbol anywhere."* The fix landed **2026-08-20 at 02:57**, and the symbol is called **`ClampConcealment`** — so the grep was true and useless. **The behaviour was searched for under three names it was never going to have.** Same class as item 62's `rotor-stopped` (`info.` indirection) and item 69's grant-vs-geometry miss: *grep for the behaviour, and if you cannot name it, read the file that would have to contain it.*
+>
+> **WHAT ACTUALLY SURVIVES, stated in the code's own words (`Detectable.cs:107-112`):** *"'Invisible while an enemy stands on top of it' is **closed**. 'Invisible in forest at range' is **NOT** — closing that needs the observer floor raised in `AddSource`, which also moves fog rendering, radar and the AI belief layer."*
+> **That is a different item from the one filed, and it is much more expensive.** `1ad638e7` **considered and deliberately rejected exactly that fix**: *"flooring observer strength at 2 in `MapLayers.AddSource` would fix only the forest route and collides with level 1's second job as the 'explored, nobody looking' sentinel, changing fog rendering and the AI belief layer as a side effect."* **So the remaining work is the option a previous session priced and declined — re-opening it needs a reason, not just a re-file.**
+>
+> **Three consequences worth carrying.**
+> 1. **The sequencing ruling is doubly discharged.** *"Item 67 lands before item 69"* was reasoned from cover being unreachable. Item 69's own 2026-09-02 verdict records that cover is now reachable; **and now 67's cheap half has shipped too.** Neither leg of the ruling still describes the code.
+> 2. **`@stable` moved on 2026-08-20 and the benchmark control changed.** `1ad638e7` states it outright: *"`@stable` INHERITS this rather than being gated off it… the benchmark control has changed and the next baseline must be re-taken knowingly."* **Item 43 should treat 2026-08-20 as a baseline-invalidating date.**
+> 3. ⚠️ **`1ff73ae5` was a real balance change that this queue records nowhere else.** Non-strict reveal moves the reveal radius **outward by one vision band for every unit in every match**, not only concealed ones — its own message: *"Scouting, first contact and every ambush trigger distance shift outward by one rung. That is a balance change, not just a bugfix."* **Anyone reading a post-08-20 ambush or scouting measurement against a pre-08-20 one is comparing across that shift.**
+>
+> **Trap for whoever touches `Detectable` next:** `visibility-10` is still declared in the `[GrantedConditionReference]` superset and is **never granted at runtime** — the tier-10 range circle consumes it and must survive a revert of `1ad638e7`. Do not "clean up" the unused condition.
+
+**Perceived:** the headline case is delivered — you can always find a man you are standing on top of. **What remains is not visible on its own:** a unit at high concealment can still be undetectable *at range through forest*, because the sightline's tree shadow is subtracted from the observer before their strength is stamped (`MapLayers.cs:371-374`; `Map.ForestGroundShadow` returns 2 for crossed density 11-20, and one authored tree cell is density 10 — **so an observer crossing about two dense cells stamps 8 and cannot detect a ceiling-concealment target at any range**).
+User verbatim, for the record: *"I think it is an error that they can become fully invisible… I think their visibility should be at least 1 at all times."* Original ruling and sequencing: `57822b4e`, `ambush-programme/README.md` §7.
+**Size:** ~~one line~~ **medium-to-large and cross-cutting** — the surviving change is an observer floor in `MapLayers.AddSource`, which by the code's own account moves fog rendering, radar and the AI belief layer, and collides with level 1's sentinel role. **Not a clamp. Price it as an influence-stack change** — `DOCS/reference/influence-stack.md`, whose byte-identity and zero-RNG invariants apply.
 
 ### 68. A human clicking Ambush gets a different feature from the one the bots get
 `[HEADLINE DEFECT of the 2026-08-20 programme; user-gated]`
