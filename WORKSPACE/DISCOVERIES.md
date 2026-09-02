@@ -3,6 +3,54 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-02 — Six harness traps in one night, every one of which reports a confident WRONG answer rather than no answer
+
+All hit doing ordinary verification work in a single session, and all caught by reading
+`result.json` rather than an exit status. Grouped because they share a shape: **the instrument fails
+in a way that looks exactly like a result.**
+
+**1. `git checkout <ref> -- <path>` STAGES the change, so `git diff` cannot see it.** A RED-leg guard
+tested `git diff --stat <file> | wc -l` to confirm a sabotage had applied. It *had* applied —
+`git status --porcelain` showed `M ` in the **first** column — and the guard aborted anyway. Use
+**`git diff HEAD --numstat -- <path>`**, which sees staged and unstaged alike.
+
+**2. The verdict-producing command must be LAST in its chain.** `run-test.sh` passed with exit 0; a
+`cat` appended after it failed (wrong path — see #3) and **its** exit code became the chain's, so a
+PASS was reported as a failure. This is the general form of the existing *"never pipe a verdict
+through `tail`"* rule, which is only its most famous instance. Anything appended after a verdict —
+`cat`, `grep`, `echo`, `tail` — can overwrite it **in either direction**.
+
+**3. Autotest run dirs are NOT under `tools/autotest/`.** They are written to
+`~/.ww3mod-tests/screenshots/<timestamp>_p<pid>_<test>/result.json`. The runner prints the absolute
+path on its `==> result:` line — take it from there, never construct it.
+
+**4. `Test.Skip` exits 2, and 2 is not a failure.** Two capture runs were reported as failed while
+having produced their frames perfectly. Grade `SKIP` from `result.json`, not from `$?`.
+
+**5. Every early exit must undo what the run has already done by that point.** The guard in #1 put
+its restore after the run; the abort fired before it and left a deliberately-sabotaged `Map.cs` in a
+worktree. Define a `restore()` and call it before *each* `exit`. A bash `EXIT` trap is not a
+substitute — the harness's `TaskStop` does not run them, which left that same file broken for ~2 h.
+
+**6. A `Stopwatch` pair costs 173–190 ns, so a naive per-call timer can be the same order as its own
+signal.** Timing every `UpdateProximityTrigger` call at 583 calls/tick is **~101–110 µs/tick of pure
+instrument**. Caught only because an overhead test was built and read; 1-in-64 sampling brings it to
+~1.6 µs/tick. **Measure your measurement before trusting it.**
+
+**Screenshot captures need `F` (PseudoFullscreen).** `--hidden` and `--minimized` suspend rendering
+and write blank PNGs.
+
+### The positive rule the same night produced
+
+**A green with an empty `notes` field is not evidence on its own.** `test-crew-auto-evacuate` and
+`test-crew-rear-dismount` both return `status: pass` with `notes: ""` and no screenshots. They are
+trustworthy **only** because both produced a RED on 2026-09-01 and therefore demonstrably
+discriminate. `test-sr-spawn-candidate-set` needed the identical argument: an empty-`notes` GREEN
+plus a RED reproducing the old floored-key set `1,26..1,30` verbatim. **Neither half is sufficient
+alone** — a PASS proves the code, a RED proves the test.
+
+---
+
 ## 2026-09-02 — `DamageState.Dead` is the only off switch a `DamageState` threshold field has, and relying on it was an accident until it was written down
 
 **Resolution of the garrison-bail question opened on 2026-09-01 (entry below).** The user ruled the
