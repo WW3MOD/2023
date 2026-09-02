@@ -1,0 +1,125 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: trees are indestructible and leave no husk
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# One Abrams shells one cell for ~15 seconds. Three trees stand in the blast, differing only in
+# whether the invulnerability applies to them:
+#
+#   cell      actor                   DamageMultiplier   role
+#   19,17     Sponge   t03            Modifier: 100      shell counter (6000000 HP, cannot die)
+#   20,17     Guard    t01            Modifier: 0        THE ASSERTION: must be at 2500/2500
+#   21,17     Witness  t02            Modifier: 100      must be DEAD, leaving exactly one husk
+#
+# All three are shipped tree actors under the same warhead in the same detonation. The only
+# variable is the multiplier, so "the guard survived" cannot be explained by geometry, by the
+# weapon, by armour, or by the shell never arriving -- each of those would take the other two
+# trees down with it, and each is asserted.
+#
+# GEOMETRY, and why these exact Locations. T01/T02/T03 are all `Footprint: __ x_` with
+# `Dimensions: 2,2`, so a tree authored at Location (x,y) OCCUPIES only cell (x,y+1) and leaves
+# the other three cells of its box free. Boxes may overlap; only the single `x` cell is occupied
+# (test-forest-cover-bonus relies on the same thing at 45,16 / 45,15).
+#
+# The impact point is the centre of cell 20,17. ^1x1Shape sets `UseTargetableCellsOffsets: true`
+# (defaults.yaml:1140-1146), so each tree's hitshape sits on its OCCUPIED cell rather than on the
+# 2x2 box centre -- the 724-unit box-centre offset that governs the cover radius in
+# test-forest-cover-bonus does not apply to damage. Edge distances from the impact point are
+# therefore 0 for the guard and 512 for its two neighbours, all inside the flat 100% band of
+# Falloff `100, 100` over Spread 2c0. Every tree takes the same 12000 per shell.
+#
+# The Abrams sits 7 cells south at 20,24: outside the warhead's 4c0 outer edge (it takes no splash
+# from its own shells) and inside the shell's 12c0 range with 5 cells to spare.
+#
+# PASSABILITY IS DELIBERATELY NOT ASSERTED IN THE LUA, because it is already settled here
+# STATICALLY and a moving unit would only make it flakier. nav_guard measures this map's
+# reachable-cell counts without building or launching anything:
+#
+#   python3 tools/nav-guard/nav_guard.py report --scenarios --map test-tree-indestructible
+#     foot / foot-mountainer / both amphibious variants   2048   <- the whole 64x32 Bounds
+#     tracked / wheeled / heavytracked / ... every vehicle 2045   <- 2048 minus these 3 trees
+#
+# Measured 2026-09-02 against a scratch copy of this map with `t01`/`t02`/`t03` swapped for
+# `t01.husk`/`t02.husk`/`t03.husk` and nothing else changed: foot drops 2048 -> 2045. So the
+# three-way divergence the change under test was written for is real and quantified -- infantry
+# walk through a living tree and are blocked by a stump, and vehicles are blocked by both. That
+# makes the Lua's "the tree is alive" assertion sufficient: a living tree carries the same
+# `Passable` trait it always did, and the thing that could actually regress infantry lanes is a
+# change to ^TreeHusk or to the four foot locomotors, neither of which this scenario can see.
+# Re-run the two nav_guard commands above if that divergence ever needs re-checking; it costs
+# no build and no game slot.
+#
+# NO ENEMY ACTORS EXIST ON THIS MAP, following test-forest-cover-bonus. The Abrams inherits
+# ^AutoTargetMBT, and the cheapest way to guarantee it shoots nothing except the cell it is
+# ordered to shoot is to give it nothing else to find. Trees are not auto-targetable in any case
+# (no AutoTargetPriority in the mod lists `Trees`), but an enemy Supply Route in a corner would
+# be, and a tank that wanders off to engage it stops delivering shells to the cell under test.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Trees must be Neutral: ^Tree carries RequiresSpecificOwners ValidOwnerNames: Neutral.
+	Sponge: t03
+		Owner: Neutral
+		Location: 19,16
+	Guard: t01
+		Owner: Neutral
+		Location: 20,16
+	Witness: t02
+		Owner: Neutral
+		Location: 21,16
+
+	Gun: abrams
+		Owner: USA
+		Location: 20,24
+		Facing: 0
+
+	# Own side only, as in test-forest-cover-bonus. ConquestVictoryConditions is removed in
+	# rules.yaml, but a player with no actors at all is a state this harness has no reason to
+	# explore mid-verdict.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 3,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,30
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 62,2
+
+Rules: rules.yaml
+
+Weapons: weapons.yaml

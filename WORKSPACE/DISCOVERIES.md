@@ -38,6 +38,93 @@ specific direction: every removal depends on a shared parent continuing to suppl
 day someone takes the trait off that parent, *all* the removals throw simultaneously and the mod
 stops loading. Prefer *attaching* a trait to the actors that need it over *removing* it from the
 actors that do not — attaching cannot fail at load, and it makes the revert one edit instead of N.
+## 2026-09-02 — **Bare `--check-yaml` does not lint autotest scenarios at all.** It never opens them
+
+Two scenario runs were lost to rules-load failures, and between them a clean `--check-yaml` was
+taken as evidence the second would load. It was not evidence of anything.
+
+`CheckYaml.cs:98` gets its map list from `modData.MapCache.EnumerateMapDirPackagesAndNames()`, whose
+`classification` parameter **defaults to `MapClassification.System`** (`MapCache.cs:212`).
+`mod.yaml:90` classifies `ww3mod|maps` as `System`; `tools/autotest/scenarios` is deliberately
+`Unknown` so the scenarios stay out of every UI tab. So bare `--check-yaml` lints the 10 shipped maps
+and **none of the 273 scenarios**. It is not that the check is weak for scenarios — it does not run.
+
+This is not a hole in the lint logic. `TestMap` reports `map.InvalidCustomRules` explicitly
+(`CheckYaml.cs:141-146`), and `Map.PostInit` sets that flag by catching whatever `Ruleset.Load`
+throws (`Map.cs:579-592`) — which is where actor-trait `RulesetLoaded` validation runs
+(`Ruleset.cs:49-61`). Point it at a scenario and it catches these failures precisely.
+
+**Pass the map path explicitly** (`CheckYaml.cs:100-101` takes `args[1]` as a package path under
+`Platform.EngineDir`):
+
+```
+./utility.sh --check-yaml tools/autotest/scenarios/<scenario>
+```
+
+**Confirm it printed `Testing map: <the scenario title>`.** A path it cannot open is skipped
+silently (`CheckYaml.cs:106-107` `if (package == null) continue;`) and the command then reports
+clean — the same "instrument fails in a way that looks like a result" shape as the traps above.
+
+## 2026-09-02 — Pre-flight a scenario's rules keys by EXACT CASE before spending a game slot
+
+`test-tree-indestructible` burned a 300 s slot to a rules-load failure that a text check would have
+caught in a second. The block was written `t03:` while `decoration.yaml` declares `T03:`; MiniYaml
+merges top-level keys with ordinal, case-sensitive equality, so it overrode nothing and instead
+defined a brand-new actor. The error it eventually threw named a `-SpawnActorOnDeath:` line and was
+initially misdiagnosed as a removal problem.
+
+**The check, no build and no game slot:** list every non-indented, non-comment key in the scenario's
+`rules.yaml` and confirm each appears **verbatim** among the top-level keys of
+`mods/ww3mod/rules/**/*.yaml`. Anything matching only case-insensitively is a silent no-op override.
+`./utility.sh --check-yaml` catches this too and is the proper gate — the lesson is that for a
+scenario costing a serial game slot, lint is a **pre-flight**, not a merge-time formality.
+
+The two MiniYaml traps behind it — case-sensitive top-level merge, and document-order resolution of
+removals — are written up in full, with the design consequence, in the *"Two separate MiniYaml traps
+that produce the SAME error message"* entry from `wt/tree-scope`. Read that one; this entry is only
+the operational habit. **If both land and conflict, keep theirs.**
+
+## 2026-09-02 — Almost nothing in the mod can damage a tree, and `^Box` / `ICE##` / `UTILPOL#` are trees
+
+Found while building `test-tree-indestructible`, and the first item is why that scenario ships its
+own weapon rather than borrowing a unit's.
+
+**Weapon-level `ValidTargets` gates AIMING; warhead-level `ValidTargets` gates IMPACT, and it
+defaults to `Ground, Water` (`Warhead.cs:30`).** `^Tree` is `Targetable: TargetTypes: Trees` and
+nothing else, so a warhead that does not name `Trees` skips it at `Warhead.IsValidAgainst`.
+`^ArtilleryRound` is the trap in concentrated form: it declares `ValidTargets: Ground, Trees, Water`
+at *weapon* level (`weapons-ballistics.yaml:874`) — so a Paladin aims at a tree quite happily —
+while both its damage warheads declare none, so the shell lands and does **nothing**. Enumerated
+across `mods/ww3mod/rules/weapons`, exactly four ARMAMENTS can damage a tree, and all four are
+incendiary or thermobaric: `TosRockets` (`vehicles-russia.yaml:747`), `FireballLauncher` and
+`Flamespray.heavy` (`structures-defenses.yaml:944, :950`), and `Flamespray` (`infantry.yaml:2075`).
+Everything else that can is an `Explodes` payload on a missile or superweapon —
+Iskander, HIMARS, Napalm, CrateNuke, MiniNuke, Atomic, VolatileLoad1-8. **No kinetic or HE weapon in
+the mod can hurt a tree at all**, which is why burnt trees are a flame-and-thermobaric phenomenon
+rather than a shelling one, and why "shelling a wood sealed infantry lanes" was only ever reachable
+via those weapons. Before writing anything that depends on a tree taking damage, check the WARHEAD,
+not the weapon.
+
+**`^Tree` is not "trees".** It is this mod's base for *"neutral decoration with forest cover and
+Trees-only targeting"*, and it has 38 concrete inheritors of which only 22 are trees — `^Box` and
+through it `BOXES01-09`, plus `ICE01-05` and `UTILPOL1/2`, are the other 16 (`decoration.yaml:176,
+527, 540, 553, 566, 575, 628, 636`). Putting a behavioural trait on `^Tree` therefore hits scenery
+too, which is how `b74f2aaa` silently made crates and ice floes invulnerable; `wt/tree-scope` fixed
+it by opting the 22 trees in individually. `^AmmoBox` was never affected — it inherits
+`^TechBuilding`. The reusable part is the name: **check `^Tree`'s inheritor list before hanging
+anything on it, because the name lies.**
+
+**`Bridge.RemoveActorsFromFootprint` (`Bridge.cs:373`, fired on `DamageStateChanged == Dead` at
+`:381`) kills every actor in the bridge footprint with no trait gate at all** — via `Health.Kill`,
+so `ignoreModifiers: true`, so invulnerability does not stop it. It is unreachable only because zero
+bridge actors exist in the 10 shipped maps or the 239 autotest scenarios. A user-authored map with a
+bridge over trees would delete them.
+
+**Measured statically, no build and no game slot:** on a 64x32 scenario carrying three trees,
+`nav_guard.py report --scenarios --map <name>` gives `foot` 2048 reachable cells against every
+vehicle locomotor's 2045; swap those three actors for their `.husk` forms and `foot` drops to 2045
+too. That is the "shelling a wood seals infantry lanes" divergence quantified — three cells, three
+stumps — without launching anything.
 
 ## 2026-09-02 — Six harness traps in one night, every one of which reports a confident WRONG answer rather than no answer
 
