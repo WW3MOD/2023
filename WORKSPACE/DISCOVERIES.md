@@ -3,6 +3,35 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-02 — R9's premise is half-wrong: the Supply Route defeat bar really DOES eliminate you, on exactly the maps most people play (`wt/howtoplay`, `main @ 26f9cec0`)
+
+Read-only verification while rewriting `chrome/ingame-info-howtoplay.yaml`. No launch, no build.
+
+**R9 says the panel "overstates" contestation because the shipped mechanic is "passive and
+reversible". That is true only in a team game with a surviving teammate.** `OnDefeatBarFull`
+(`SupplyRouteContestation.cs:555-607`) forks on `HasActiveTeamSupplyRoute()`: if a same-team player
+still has a live, non-passive Supply Route you go passive and can be rescued — but on the `else`
+branch it calls `ResolveTeamElimination()` (`:663`), which snapshots the team and `MarkFailed`s every
+member. The trait's own field comment says it outright at `:146-147`: *"can resolve the whole game's
+win/loss."* **In a 1v1 or a free-for-all there is never a rescuer** — the code comment at `:562-568`
+lists "a lobby team of one, the last survivor of a team, a player whose only ally is itself overrun,
+and a free-for-all player" as *all indistinguishable and all unrescuable*.
+
+So the panel's *"If it fills, that side is out of the match"* was **accurate for most shipped play**
+and wrong only in the team case. Anyone who "fixes" R9 by writing *"nobody is eliminated"* replaces a
+narrow overstatement with a broad falsehood. The panel now states the condition instead of picking a
+side. **The second R9 site named in `PIPELINE.md` (`SupplyRouteContestation.cs:580`, "has lost their
+Supply Route! Production frozen.") is the rescuable branch only, so it is already correct** — the
+elimination branch deliberately says nothing and lets the defeat line report.
+
+**Unrelated trap found in the same pass, worth its own line.** The Technician looks unbuildable:
+`^TECN` carries `Buildable: Prerequisites: ~disabled` (`infantry.yaml:2380`) and `~disabled` has no
+provider anywhere in `mods/`. It is a red herring — `TECN.america` (`infantry-america.yaml:109-113`)
+and `TECN.russia` (`infantry-russia.yaml:109-113`) each **replace** the whole `Prerequisites` value
+with `~player.<faction>, ~techlevel.infonly`, and `techlevel.infonly` is granted at every tech level
+(`player.yaml:206-225`). Capturing neutral income buildings is live. Judging a `~disabled` template
+without checking whether the faction actor overrides the field reads the exact opposite of the truth.
+
 ## 2026-09-02 — The `ticks / TicksPerSecond` idiom that test-helpers.lua recommends universally loses a tick for ~6% of budgets, and one of the two "provably inverts" scenarios did not invert — it went quietly toothless instead (`wt/tick-scenarios`, `main @ 6a7e1839`)
 
 Static + `dotnet test` (2233 green). No launch taken; the autotest suite was NOT run — the
