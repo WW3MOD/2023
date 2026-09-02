@@ -101,7 +101,7 @@ map files; nobody has watched a unit spawn.
 
 ---
 
-## Item 2 — crew auto-evacuate on eject — **ASSERTED**
+## Item 2 — crew auto-evacuate on eject — **SEEN** _(upgraded 2026-09-02)_
 
 **Was:** ejected crew stood by the wreck. **Now:** `VehicleCrewInfo.AutoEvacuateOnEject`
 (default **true**) queues a one-shot evacuation at spawn (`3ce18d71`).
@@ -109,27 +109,69 @@ map files; nobody has watched a unit spawn.
 **What you will see:** when a vehicle is destroyed, the surviving crew walk themselves off the map
 instead of milling around the hull waiting to be shot.
 
-**Verification — ASSERTED.** `test-crew-auto-evacuate` **PASS**, run `260901_212638_p19384`. This
-scenario was RED in the previous session; the staging fix (`0b630f0c`) that the handoff flagged as
-unverified is now verified, and the one-shot semantics are sound. The handoff's contingency — put
-`AutoEvacuateOnEject` back to default-false — is **not** needed.
+**Verification — SEEN.** `test-crew-evacuate-departure`, run `260902_023548_p57892`, seed
+`1118068328`. The scenario grades nothing (`Test.Skip`) — it exists to produce frames, so there is
+no verdict to lean on and the pictures are the evidence.
 
-No frame was read for this one. The assertion covers where the crew go, which is the whole claim.
+Frame `04-crew-at-boundary` reads directly: the wreck sits still and burning on the right while
+three men are strung out to the west of it, heading off the map edge. That is the claim.
+
+**The sharpest reading is a reversal, and it is ASSERTED rather than seen.** The hull faces north,
+so the fan throws one man **east** — away from the boundary they all leave by. The readout has the
+gunner at `16,16` (2 columns east of the hull at `14,16`), then `14,17`, then `9,16`, then `6,16`:
+he turns round and crosses back past his own wreck. Distance from the west boundary runs
+15 → 13 → 8 → 5, monotonic. **Nothing that merely scatters crew and stops can produce that.** But
+it comes from the position log — at this resolution the men are 2–3 px specks and individual
+identities cannot be tracked across frames by eye. The *departure* is seen; the *reversal* is
+asserted.
+
+The earlier state grade stands underneath it: `test-crew-auto-evacuate` **PASS**, run
+`260901_212638_p19384` and again at `66252ccf` on 2026-09-02. The staging fix (`0b630f0c`) the
+handoff flagged as unverified is verified, and the handoff's contingency — put
+`AutoEvacuateOnEject` back to default-false — is **not** needed.
 
 ---
 
-## Item 3 — rear dismount and fan-out — **ASSERTED**
+## Item 3 — rear dismount and fan-out — **SEEN** _(upgraded 2026-09-02)_
 
 **Was:** ejection direction was `w.SharedRandom.Next(8)` with no reference to hull facing, so
 roughly three crew in eight walked out through the front armour. **Now:** a pure
 `DismountGeometry` ranks exit cells rear-first and fans within ±90° of astern, wired into all
 three dismount paths (`3ce18d71`).
 
-**What you will see:** crew appear behind the hull, spread rather than stacked, and stop stepping
-out into whatever was shooting at them.
+**What you will see — and the earlier wording here was misleading enough to cause a wrong reading,
+so it is corrected in place.** This section used to say "crew appear behind the hull." They do not,
+mostly. `FanOffsets` is `{0, +256, −256}` and **±256 is exactly ±90°**, so a three-man crew puts
+**one man astern and the other two precisely abeam, level with the hull**. The shape is a **T, not
+an arc**, and only one of the three is literally behind the tank. Three men bunched behind the hull
+would be the *wrong* shape for this code. What actually changed is the empty side: nobody walks out
+across the nose any more.
 
-**Verification — ASSERTED.** `test-crew-rear-dismount` **PASS**, run `260901_213127_p20400`. Also
-previously RED for staging reasons, now genuinely green.
+**Verification — SEEN.** `test-crew-dismount-pinwheel`, run `260902_023202_p57552`, seed
+`-1095213372`. Four Abrams on the four cardinal facings, twelve crew, read from the per-hull
+close-ups:
+
+- **North hull** (nose up): men at 9, 3 and 6 o'clock. **Nothing above.**
+- **East hull** (nose right): men at 12 and 9 o'clock. **Nothing to the right.**
+
+**The empty side rotates with the hull, and that is the whole point of using four.** A uniform
+`Next(8)` roll clears any *single* hull's front arc 5 times in 8, so a one-tank frame would have
+looked correct in roughly one run of four. Twelve men agreeing with four *different* noses is
+`(5/8)^12` ≈ **5.5e-5** under the old code.
+
+The engine log corroborates on all four drivers, each abeam of its own hull and rotating with it:
+`north → −3,+0` (west), `west → +0,+2` (south), `south → +3,+0` (east), `east → +0,−3` (north).
+
+**Reading caveat, recorded because it nearly cost the run:** the wide frames at zoom 1.4 are too
+small — the hulls are specks and the facings unreadable. Only the 2.6 close-ups are legible, and
+even there the men are small prone specks (idle infantry go prone by design,
+`infantry.yaml:316` — twelve men lying down is the healthy state, not twelve casualties). The
+instrument shipped both scales deliberately as mutual insurance, which is the only reason one run
+sufficed. Also: **`--hidden` and `--minimized` suspend rendering and write blank PNGs** — captures
+need `F` (PseudoFullscreen).
+
+The state grade stands underneath: `test-crew-rear-dismount` **PASS**, run `260901_213127_p20400`,
+and again at `66252ccf` on 2026-09-02.
 
 **Carry this one into your next benchmark:** three `SharedRandom.Next` calls became deterministic
 fan indices, so the shared RNG stream shifts. Replays and benchmark runs diverge from anything
@@ -236,15 +278,28 @@ its centre above 0.5, or vary saturation as well as lightness, both local to
 | # | Item | Verified | Open |
 |---|---|---|---|
 | 1 | Queued evacuation line | **SEEN** — node committed at queue time, amber leg renders | Exposed a real engine defect: a floored sort key sent the exit up to `±floor(sqrt(2d))` rows off. Fixed; reinforcement entry on 9 of 10 maps moves with it, unwatched |
-| 2 | Crew auto-evacuate | **ASSERTED** — PASS | RNG stream shifted; re-take benchmark baseline |
-| 3 | Rear dismount + fan-out | **ASSERTED** — PASS | as above |
+| 2 | Crew auto-evacuate | **SEEN** — wreck holds, crew string out to the map edge | The east-thrown man's turn-back is asserted from the position log, not resolvable by eye |
+| 3 | Rear dismount + fan-out | **SEEN** — four hulls, four noses, four different empty sides | RNG stream shifted; re-take benchmark baseline |
 | 4 | Evac refund indicator | **SEEN** — both `+$2500` and `+$0` | Should `+$0` show at all? Design call, yours |
 | 5 | Fog darkness | **SEEN** — retuned 1.85 → **1.4** on the evidence | One-line dial if still wrong; dims own periphery too |
 | 6 | Minimap shading | **SEEN** — five shades, no fallback | **Bottom two gaps are 3.7× tighter than the top** |
 
-**Four of six were looked at on a running game; two were graded by state assertion and never
-watched.** Nothing here rests on code reading alone any more, which is what was missing when this
-note was refused.
+**All six have now been looked at on a running game** _(items 2 and 3 upgraded 2026-09-02; four
+were already SEEN when this note was first written)_. Nothing here rests on code reading alone, and
+nothing rests on state assertion alone either — which is what was missing when this note was
+refused, and then still partly missing when it was first written.
+
+Two instruments were built to close the last gap and are worth keeping:
+`test-crew-dismount-pinwheel` and `test-crew-evacuate-departure`. Both are `Test.Skip` with an
+`expected-status` declaring it, so neither can contribute a false green to a batch tally — they
+produce frames and grade nothing. The geometry guards remain `test-crew-rear-dismount` and
+`test-crew-auto-evacuate`.
+
+**The pinwheel's design is the transferable part.** Photographing one tank would have been worthless:
+a uniform random roll clears any single hull's front arc 5 times in 8, so one correct-looking frame
+is barely evidence at all. Four hulls on four different facings turn "did it work" into a joint
+claim no random process can satisfy by luck. When a capture is meant to prove a *directional*
+behaviour, put several orientations in the same frame.
 
 Items **7 and 8** (infantry and vehicle visibility modifiers) were gated behind this note and are
 unblocked. Note before dispatching them: `fad9e36b` found the apparent "visibility scaffold" is a
