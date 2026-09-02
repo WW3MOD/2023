@@ -717,9 +717,14 @@ namespace OpenRA.Mods.Common.Traits
 				// is still logged because the SIZE of the correction is what says whether an
 				// edge-launching operator's candidate set actually moved, and because a border= that
 				// starts reading 0 everywhere would mean the bounds test has silently stopped biting.
-				// WHAT THIS DOES NOT COVER: the box-corner artefact — the 29x29 query box against the
-				// drone's DISC of vision, ~228 squares inland — is untouched, and it is still large
-				// enough on its own to make MinRevealedSquares inert.
+				// THE BOX-CORNER ARTEFACT IS GONE, AND THAT MAKES `reveal` MEAN SOMETHING NEW. It used to
+				// carry ~228 squares of inland corner the drone could never see, which is ~19x
+				// MinRevealedSquares (12) and made the launch floor unable to refuse anything. `reveal` is
+				// now the count inside the drone's actual vision disc, so it is directly comparable to the
+				// floor for the first time. WATCH FOR THE OTHER DIRECTION ON THE NEXT MATCH: a floor that
+				// could never bite can now bite, so `no-eligible-cell` with reveal=... just under
+				// minreveal=12 is the signal that 12 is too high, NOT that the module is broken again.
+				// MinRevealedSquares was deliberately left at 12 so that this match measures one change.
 				Log.Write("debug",
 					$"[drone] player={player.PlayerName} op={op.ActorID} launch cell={targetCell.X},{targetCell.Y} "
 					+ $"opcell={opCell.X},{opCell.Y} dist={distance} clamped={refusedOffMap} "
@@ -813,6 +818,13 @@ namespace OpenRA.Mods.Common.Traits
 		int satValidTick = -1;
 		int evalTick;
 
+		// The drone's vision radius in COARSE grid squares, and the disc row half-widths for it. Both
+		// depend only on DroneVisionCells and the control grid's CellSize, so they are built once and
+		// reused for the life of the module — see DroneTaskingMath.SumDisc for why rebuilding them per
+		// candidate would eat the whole saving.
+		int visionSquares = -1;
+		int[] discHalfWidths;
+
 		// COST, IN THE SAME TERMS THE PREVIOUS MODEL WAS JUSTIFIED IN.
 		// Old model: ~1520 map cells scored per operator per evaluation, one O(1) staleness read each.
 		// The obvious form of the new model — count unobserved squares inside the drone's vision for
@@ -822,11 +834,15 @@ namespace OpenRA.Mods.Common.Traits
 		//      grid, so iterate grid squares rather than map cells: ~1520/CellSize^2 = ~380 candidates.
 		//   2. SUMMED-AREA TABLE. Built once per evaluation over the whole grid (gridW x gridH, e.g.
 		//      ~4,096 squares on a 128x128 map at CellSize 2) and shared by all operators, after which
-		//      each candidate's revealed count is FOUR array reads regardless of the drone's vision
-		//      radius.
-		// Net per evaluation: O(gridW x gridH) once, plus ~380 O(1) queries per operator. For the two
-		// operators this module may own, ~4,100 + 760 against the old ~3,040 — the same order, now
-		// independent of DroneVisionCells, and it replaces a scan that produced nothing at all.
+		//      each candidate's revealed count is a fixed number of array reads regardless of the
+		//      drone's vision radius.
+		// UPDATED WHEN THE QUERY BECAME A DISC. A disc is not a rectangle, so a candidate now costs one
+		// clamped row query per grid row — 29 x 4 = 116 reads at the shipped radius rather than 4. Net per
+		// evaluation: O(gridW x gridH) once, plus ~380 x 116 = ~44,000 reads per operator. For the two
+		// operators this module may own, ~4,100 + ~88,000 against the old ~3,040. That is a real increase
+		// and it is worth it: the box it replaces credited every candidate with ~228 squares of corner the
+		// drone cannot see, which is what made MinRevealedSquares inert. It remains 21x cheaper than the
+		// ~935,000-read per-cell form this table was introduced to avoid, on a 200-tick cadence.
 		// The table is skipped entirely when no operator is launch-ready.
 		void BuildStaleSat()
 		{
@@ -868,6 +884,16 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				BuildStaleSat();
 				satValidTick = evalTick;
+			}
+
+			// Grid-square radius of the drone's vision disc. Derived from the control grid's own CellSize
+			// rather than assumed to be 2, so a retuned grid cannot silently leave the disc the wrong size
+			// while every query still returns a plausible number.
+			var r = Info.DroneVisionCells / controlField.Info.CellSize;
+			if (r != visionSquares)
+			{
+				visionSquares = r;
+				discHalfWidths = DroneTaskingMath.BuildDiscHalfWidths(r);
 			}
 
 			CPos? best = null;
@@ -922,9 +948,13 @@ namespace OpenRA.Mods.Common.Traits
 					// What this hover cell would BUY: unobserved squares inside the drone's own vision
 					// once it is parked there. Ground already inside the operator's bubble is not stale
 					// and so contributes nothing, which is why no explicit exclusion is needed.
-					var vlo = controlField.MapCellToGridCell(new CPos(cell.X - Info.DroneVisionCells, cell.Y - Info.DroneVisionCells));
-					var vhi = controlField.MapCellToGridCell(new CPos(cell.X + Info.DroneVisionCells, cell.Y + Info.DroneVisionCells));
-					var revealed = DroneTaskingMath.SumInclusive(staleSat, satGw, satGh, vlo.X, vlo.Y, vhi.X, vhi.Y);
+					//
+					// THE DISC, NOT THE BOUNDING BOX, AND THE DIFFERENCE WAS 228 SQUARES. `cell` is this
+					// grid square's own centre, so (gx, gy) is its exact grid position and no conversion
+					// back is needed. See DroneTaskingMath.SumDisc: the box counted 841 squares against a
+					// 613-square disc, and the 228-square remainder was corners the drone can never see —
+					// enough on its own to clear MinRevealedSquares (12) and make the launch floor inert.
+					var revealed = DroneTaskingMath.SumDisc(staleSat, satGw, satGh, gx, gy, visionSquares, discHalfWidths);
 
 					if (revealed > bestReveal)
 						bestReveal = revealed;
@@ -967,7 +997,9 @@ namespace OpenRA.Mods.Common.Traits
 						best = cell;
 						chosenIntel = intelSquares;
 						chosenIntelKey = intelKey;
-						bestBorder = DroneTaskingMath.SumInclusive(borderSat, satGw, satGh, vlo.X, vlo.Y, vhi.X, vhi.Y);
+						// Same disc as the live query, so `border=` stays the correction that was actually
+						// applied to `reveal` rather than a box-shaped number no longer comparable to it.
+						bestBorder = DroneTaskingMath.SumDisc(borderSat, satGw, satGh, gx, gy, visionSquares, discHalfWidths);
 					}
 				}
 			}
