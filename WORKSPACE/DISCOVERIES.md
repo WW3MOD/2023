@@ -16771,3 +16771,58 @@ check --scenario <substring>` scopes it to one directory; appending a deliberate
 produced `[error] … no Actor property 'NoSuchPropertyXyz' exists`, and removing it returned OK. Two
 seconds, no launch, and it converts "the gate was quiet" into "the gate looked". Same RED-before-green
 discipline the run harness gets, applied to the static gate.
+
+## 2026-09-02 — A `ProximityExternalCondition` on a padded Building anchors OFF its own mass: forest cover and forest shadow disagreed about where the forest was on ~half of woodland-warfare's trees (`wt/visibility-impl`, `main @ 66252ccf`)
+
+Found while auditing the already-merged `247408b8` ("Living trees grant cover"). That commit added
+`^TreeCover` (`ProximityExternalCondition@ObjectProximity`, `Range: 1024`) to `^Tree` and picked the
+radius by clearing the 724-unit centre offset of a 2x2 `__ x_` tree. **That reasoning is correct and
+the number is right — for single-trunk trees. It does not generalise to the clumps, and the clumps
+are the bulk of the forest.**
+
+`ProximityExternalCondition` anchors its trigger at `self.CenterPosition`
+(`ProximityExternalCondition.cs:73-77`, and again at `:104`). For a Building that is the centre of the
+**Dimensions box**: `CenterOffset` = `(CenterOfCell(dim) - CenterOfCell(1,1)) / 2` = `512*(dim-1)` per
+axis (`Building.cs:207-211`, applied `:350`), on a `Rectangular` grid where
+`CenterOfCell = (1024x+512, 1024y+512)` (`Map.cs:1499-1502`, `mod.yaml:330`).
+
+Every clump actor's box carries an **empty padding column** (`TC01` footprint `==_ xx_`, `TC04`
+`x==_ xx=_ x___`), and `Building.Density` is authored `0` there. So the box centre is displaced into
+the padding, away from the authored mass. Measured distance from trigger to each authored density
+cell, against `Range: 1024` — which is a **strict** test, `HorizontalLengthSquared < range.LengthSquared`
+(`ActorMap.cs:143`), so a cell at exactly 1024 is NOT covered:
+
+| actor | dims | density inside its own cover circle |
+|---|---|---|
+| T01-T17 (single trunk) | 2x2 / 3x2 | **100%** (farthest cell 724) |
+| TC01 / TC02 / TC03 | 3x2 | 50% / 40% / 43% |
+| TC04 / TC05 | 4x3 | **27%** / 36% |
+
+**Why this mattered rather than being cosmetic:** `Building.Density` is exactly what the forest
+*shadow* reads. `Map.SetDensityLayer` stamps it per footprint cell at `location + d.Key`
+(`Map.cs:1027-1053`) and `ForestGroundShadow` sums it along the sightline (`Map.cs:1171-1189`).
+Shadow and cover are the two halves of forest concealment, and they were anchored differently —
+shadow on the authored cells, cover on the box centre. Clumps are **48.5%** of woodland-warfare-ww3's
+1202 trees and **30.1%** mod-wide, so on the flagship forest map only **52.9%** of authored forest
+density fell inside its own cover circle.
+
+Fixed with a per-actor `Offset` (which is **ADDED** to the centre — the field's own `[Desc]` said
+"Offset to subtract from center" and was backwards at both call sites; corrected in the same commit).
+`-512,0,0` on TC01-03, `-1024,-512,0` on TC04, `0,512,0` on TC05 recentres each on its density mass:
+woodland 52.9 -> 86.4%, seventh-woods 51.3 -> 82.6%, mod-wide every tree actor ends at
+farthest-covered-cell **724, margin 300** — deliberately the same geometry the plain trees already had,
+so nothing sits on the strict-comparison edge. `Range: 1024` is unchanged; this moves where the circle
+sits, not how big it is. TC04/TC05 cap at 63.6% of their own density because one 1-cell-radius circle
+cannot span a 3-cell-wide mass; that needs a second emitter, not a bigger radius.
+
+**General form, and the reason this is worth banking: `Dimensions` is a bounding box, not the shape.
+Any trait that anchors at `CenterPosition` on a Building whose footprint has empty padding will act
+off-centre from the thing players see, and the error scales with the padding, not with the actor's
+size.** `T01.Husk` already carried an `Offset` workaround (`husks.yaml:165-167`), so this had been hit
+before and not generalised.
+
+**Not verified:** everything above is geometry over authored YAML plus the cited engine code — the
+game was never launched. "Density inside the circle" is a proxy for "the circle sits where the forest
+is"; it is not a claim about which cells a unit can stand on. The existing autotest
+`test-forest-cover-bonus` places only T01/T02/T03, i.e. exactly the single-trunk case that was
+already at 100%, so it passes or fails identically before and after this fix and cannot detect it.

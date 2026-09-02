@@ -36,7 +36,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Condition is applied permanently to this actor.")]
 		public readonly bool AffectsParent = false;
 
-		[Desc("Offset to subtract from center.")]
+		[Desc("Offset ADDED to the actor's center position to place the trigger (both call sites do",
+			"position + Offset). For a Building that center is the middle of the Dimensions box, not of",
+			"the occupied footprint, so a footprint with empty padding cells anchors the trigger off its",
+			"own mass unless corrected here -- see the clump offsets in decoration.yaml.")]
 		public readonly WVec Offset = new WVec(0, 0, 0);
 
 		public readonly string EnableSound = null;
