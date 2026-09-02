@@ -3,6 +3,64 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-02 — The "accepted, impossible, spins forever" archetype has TWO roots, not one, and the move-layer root cannot fix the `Enter` half (`wt/stuck-activities`, `main @ 81140244`)
+
+Filed against the standing suspicion that the reported stuck-activity bugs share a single cause.
+**They share a SHAPE and a framework-level cause; they do not share a fixable root.** Anyone
+planning to "fix the archetype" in one patch should read this first.
+
+**The framework-level cause is real and is the honest unification.** `Activity.Tick` returns `bool`
+— done or not done. There is no failure outcome anywhere in the activity framework, so an activity
+that discovers its task is impossible has exactly two options: lie (return true, indistinguishable
+from success) or spin (return false forever). Every instance of this archetype is one of those two
+choices, which is why they look alike and why no single patch reaches them all.
+
+**Root 1 — the move layer LIES.** `Mobile.MoveResult` is declared at `Mobile.cs:282`, read at
+`MoveCooldownHelper.cs:69,76` and `MoveAdjacentTo.cs:107`, and **assigned nowhere**. It is
+permanently `InProgress` (the zero value), so all three comparisons are permanently false. `Move`
+itself does terminate on an unpathable order — `Tick:173-177` sets `destination = mobile.ToCell` and
+the next tick's `:170` equality then returns true — but it ends *indistinguishably from success*, so
+no caller can tell "arrived" from "gave up". Consequence at `MoveAdjacentTo:107-112`: the
+`CompleteDestinationReached` branch is dead, so it always falls through to `Cancel(self, true)` —
+it cancels itself on success too.
+
+**Root 2 — the activity SPINS.** A retry loop whose precondition can be permanently false, with no
+counter and no deadline. `UnloadCargo` was the known instance and was bounded on 2026-09-01
+(`e41b9240`). `Enter`'s approach loop is the same shape and was not.
+
+**The load-bearing finding: wiring `MoveResult` would NOT have fixed `Enter`.** Its escape hatch is
+doubly dead. `MoveCooldownHelper:76` only gives up when `!RetryIfDestinationBlocked`, and `Enter`
+sets `RetryIfDestinationBlocked = true` deliberately (`Enter.cs:44-48`) — so even with `MoveResult`
+assigned correctly, `Enter` would re-queue the approach forever. The comment there says genuine
+blocks "abort cleanly via `TryStartEnter`'s Cancel path", but `TryStartEnter` is only reached once
+`CanEnterTargetNow` is true, i.e. once already adjacent — which an unreachable target never is.
+**A dead escape hatch guarded by a second, independent dead escape hatch is why this survived
+review twice.**
+
+**Blast radius of the move-layer root, for whoever costs it later.** `MoveCooldownHelper` is
+consumed by `Follow`, `Enter`, `Resupply`, `MoveToDock`, `LayMines` and `LeapAttack`;
+`MoveAdjacentTo` underlies `MoveWithinRange`, `MoveOnto` and `SmartMoveActivity`. Assigning
+`MoveResult` turns two dormant branches live in essentially every "go to a thing and do something"
+activity in the game, on both bot profiles at once. That is not a change anyone should make without
+game runs, and it is why this branch bounded `Enter` instead.
+
+**Census of the four suspected instances, checked at HEAD rather than trusted from the tracker —
+two of the four are already dead and dispatching anyone at them would be wasted work.**
+
+| Reported as | State at `81140244` |
+|---|---|
+| transport ringed by its own units unloads nobody forever | **FIXED** — `UnloadCargo.cs:196-217`, `Cargo.BlockedUnloadTimeout = 500`, covered by `test-unload-wedge-releases` + `UnloadBudgetTest` |
+| aircraft that can never rearm (`A10`/`FROG`/`MIG` circle when dry) | **CLOSED, unreachable** — no fieldable `afld`, documented at `bugs/discovered.md` §2026-09-01 |
+| a dry attacker that never idles (paused-armament wedge) | **LIVE, escape exists but is opt-in and almost nobody opts in** — `AbandonWhenArmamentsPaused` is taken by exactly one actor, `^MEDI` (`infantry.yaml:2314`), against 64 armament-level `PauseOnCondition` gates. Widest entrance: every armed vehicle carries `heavy-damage-attained`, so a tank at Heavy or Critical aims forever and never fires |
+| technician sent somewhere unreachable counts busy for the match | **FIXED on this branch** — the `Enter` approach bound |
+
+**The paused-armament half is NOT fixed here and must not be folded in blind.** The audit's finding
+stands: for vehicles the refusal is *intended balance*, so the honest fix there is display-side
+(`AttackBase.cs:807` already knows it selected a paused armament and should say so), not making
+every damaged tank abandon its order. Do **not** widen the abandon test to "cannot fire" —
+`Armament.CanFire` is also false on `IsReloading` / `IsWaitingBurst` / `IsAiming`, which are true on
+ordinary ticks of a perfectly healthy weapon.
+
 ## 2026-09-02 — Six harness traps in one night, every one of which reports a confident WRONG answer rather than no answer
 
 All hit doing ordinary verification work in a single session, and all caught by reading
