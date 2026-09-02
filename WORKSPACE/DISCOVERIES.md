@@ -655,8 +655,21 @@ never handed to `CheckFire` (`Attack.cs:139`, `Enter.cs:78`, `FlyAttack.cs:113`/
 so the defect reaches the strafe path and nothing else. Nothing that works today can regress from
 fixing it, because the only actors affected already fire zero.
 
+**FIXED 2026-09-02 with shape (B) below — user's call, taken knowingly.** `StrafeAttackRun` now
+builds the ground aim point ONCE in `OnFirstRun` (`aimPoint`) and re-asserts that identical value
+every tick, so `terrainPositions` stays reference-equal and `CheckFire` sees one continuous
+engagement. The write is still needed every tick — `FlyAttack.cs:108` sets its own Actor target
+whenever `FlyAttack` ticks and the strafe point must win — but it is now the same struct rather than
+a rebuilt one. Each new run gets a fresh lock, because `FlyAttack.Tick` queues a new
+`StrafeAttackRun` when the previous completes, so re-acquiring between passes correctly costs one
+`AimingDelay` and the commitment lasts exactly one pass. **Accepted loss, stated:** a pass no longer
+curves its fire onto a target that moves after the run begins. **Incidental correction:** the
+per-tick write was previously gated on the target still being a visible Actor, which is what
+actually broke the old comment's promise to "keep the previous one if it dies or disappears" — once
+the target died the requested target simply stopped being refreshed. It is unconditional now.
+
 **Two fix shapes, and they differ ONLY on a moving target. This is a gameplay decision, not a
-mechanical one, so it is recorded rather than taken:**
+mechanical one, so it was recorded rather than taken — (B) was then chosen by the user:**
 - **(A) Cache the terrain target in `StrafeAttackRun` and rebuild it only when the aim point moves.**
   Minimal, one call site, cannot touch anything else. But a target that moves every tick still yields
   a fresh aim point every tick, `AimingDelay` still resets, and strafe still cannot hit movers. **A
@@ -668,11 +681,83 @@ mechanical one, so it is recorded rather than taken:**
 `test-strafe-engage` lane 3 (`STRAFEMOVE`, patrolling target, outside the verdict) exists to tell
 them apart: after a fix, lane 1 firing with lane 3 still zero is (A); both firing is (B).
 
-**The deeper wart, recorded but NOT the thing to fix here:** `Target`'s equality compares a `WPos[]`
-by reference, so two structurally identical Terrain targets are unequal. Widening that to a sequence
-comparison would fix this call site and any future one, but `operator ==` is on a hot path and
-changing engine-wide equality semantics has a blast radius nobody has measured. Do not reach for it
-as the quick fix.
+### THE FIX DOES NOT MAKE THE A-10 FIRE, and the 2026-09-01 `ValidTargets` analysis deserves a partial un-retraction
+
+**There were TWO independent gates stacked on the strafe path, and the first one masked the second.**
+This was found while checking whether the shipped fix reaches both strafe airframes. It does not.
+
+- **Gate 1 — the `AimingDelay` reset.** Universal: blocks every strafe airframe regardless of weapon,
+  which is why the FROG (whose weapon *can* hit ground) also fired zero and looked like proof that
+  target types were irrelevant. **Fixed 2026-09-02.**
+- **Gate 2 — the weapon cannot hit terrain.** The strafe aim point is a `TargetType.Terrain` target,
+  and `WeaponInfo.IsValidAgainst` resolves it to the **cell's** `TargetTypes`
+  (`WeaponInfo.cs:241-247`), which is `Ground` on every WW3MOD tileset. `Armament.CanFire` refuses on
+  `!Weapon.IsValidAgainst` (`Armament.cs:402`). **`A10.Airstrike`'s two weapons do not list `Ground`:**
+  `30mm.A10` inherits `^30mm` → `ValidTargets: Infantry, Vehicle, Defense`
+  (`weapons-ballistics.yaml:582`), and `Hellfire` → `ValidTargets: Vehicle, Air, Defense`
+  (`weapons-missiles.yaml:243`). `FROG.Airstrike`'s `RocketPods` **does** (`ValidTargets: Ground`,
+  `weapons-ballistics.yaml:912`). **So after the Gate 1 fix the FROG fires and the A-10 still does
+  not** — and the A-10 is the NATO airstrike, the one a player is most likely to see.
+
+**Credit where it is due: the 2026-09-01 author's `ValidTargets: Ground` reasoning was CORRECT for
+the A-10.** Their prediction was *"a Strafe airframe whose armaments do not list `Ground` can never
+fire, and one that does list it fires normally."* The first clause is right and still live. Only the
+second clause was wrong, and it was wrong because Gate 1 — which nobody had found — blocked the FROG
+too. **The retraction over-corrected**: it discarded a true half along with the false one. The
+accurate statement is *"target types are not what stops the FROG, and they are not the whole story
+for the A-10 either — but they will be, the moment Gate 1 is lifted."*
+
+**The general lesson, which is the part worth keeping:** a falsification test aimed at one hypothesis
+is only decisive if no *other* gate can produce the same null. Here the confirming case (FROG fires)
+was suppressed by an unrelated defect, so a correct theory returned a false negative. When a
+prediction of the form "X fires, Y does not" comes back "neither fires", **the first thing to suspect
+is a third mechanism upstream of both**, not that the theory is dead.
+
+**NOT fixed here, and it is a genuine design question rather than a bug to squash.** Making the A-10
+strafe work means one of: adding `Ground` to `30mm.A10`/`Hellfire`'s `ValidTargets` (which also lets
+every other user of those weapons shoot at dirt, and `30mm` is widely inherited), giving
+`A10.Airstrike` its own ground-capable armament, or making `StrafeAttackRun` aim at the actor rather
+than the ground when the armament cannot hit terrain. **Not attempted, not measured, and no run in
+this branch touches it** — `test-strafe-engage` contains no A-10 lane, because the map's 40-cell lane
+pitch (chosen so no aircraft can acquire a foreign `t90` inside 25c0) leaves no room for a fourth
+lane, and squeezing one in would risk contaminating the two lanes that carry the verdict. It needs
+its own scenario.
+
+### The general defect: a `Target` carries identity it does not have, and the strafe zero is its first known instance
+
+**Banked deliberately as the general shape, because the instance is fixed and the shape is not.**
+`Target`'s `operator ==` compares a Terrain target's `terrainPositions` — a `WPos[]` — with `==`
+(`Target.cs:233`), which is **reference** equality. `Target.FromTargetPositions` allocates a fresh
+array on every call (`Target.cs:86`). **So two Terrain targets describing the identical point in the
+identical cell are unequal**, and any consumer that reads `Target` equality as "is this the same
+thing I was looking at last tick?" gets a wrong answer for free.
+
+Today exactly one consumer asks that question: `Armament.CheckFire:412`, which uses it to decide
+whether an aim countdown restarts. And today exactly one caller feeds it a rebuilt positional target
+— `FlyAttack.cs:325`. Both halves had to be true for anything to break, which is why this survived
+from the day `StrafeAttackRun` shipped: the defect is in neither file, it is in the pairing.
+
+**Why it was NOT fixed at the source, and this is a deliberate refusal.** Widening `operator ==` to a
+sequence comparison would fix this call site and every future one. But it is on a hot path, it is
+engine-wide, and *equality* is the kind of primitive whose blast radius cannot be reasoned about from
+a single instance — every `Target` comparison in the codebase would change meaning at once, including
+ones nobody has enumerated. One instance is not evidence for that. **If it bites a second time, that
+is the evidence, and the fix is then justified rather than speculative.**
+
+**The cheap defence in the meantime, and the thing to actually watch for in review:** any new code
+that rebuilds a `Target` per tick and hands it to something that compares targets. The trap is
+invisible at both ends — the rebuild looks like ordinary target tracking, and the comparison looks
+like an ordinary staleness check. PITFALL comments are now anchored at both sites
+(`FlyAttack.cs` `StrafeAttackRun.aimPoint`, `Armament.cs` `CheckFire`) per the
+`conventions.md` convention of anchoring recurring traps at trap sites.
+
+**Instrumentation added with the fix:** `Armament.CheckFire` now writes an edge-triggered
+`CheckFire BLOCKED` line under `WW3_GUNTRACE=1` naming `AimingDelay`, whether the target was
+retargeted this tick, and which `CanFire` clause refused. Edge-triggered on a bitmask of the
+blocking reasons, so a permanently blocked armament writes one line per change of reason rather than
+one per tick. Off by default; one static bool read per call when disabled. It exists because this
+root cause was established by reading code and arithmetic rather than by observing `AimingDelay`
+directly — the next person should not have to do that again.
 
 ## 2026-09-02 — the strafe zero was still unexplained at this point: four candidate mechanisms killed, and the evidence the previous attempt left behind does not say what it was read as saying (`wt/strafe-zero`, `main @ 81140244`)
 
