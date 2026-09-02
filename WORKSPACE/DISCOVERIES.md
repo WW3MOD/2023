@@ -5,6 +5,8 @@
 
 ## 2026-09-02 — The `ticks / TicksPerSecond` idiom that test-helpers.lua recommends universally loses a tick for ~6% of budgets, and one of the two "provably inverts" scenarios did not invert — it went quietly toothless instead (`wt/tick-scenarios`, `main @ 6a7e1839`)
 
+> **[promoted]** → `conventions.md` §`Timestep`, appended to the rules list (curation 2026-09-02, `main @ 26f9cec0`). **The arithmetic was re-derived here rather than trusted, and one sub-claim is WRONG:** "1145 of the first 20000 integers come back one tick short **at 25, 16 or both**" — the count (1145), `402→401`, `29`, `57`, `113`–`116`, `201`, `203`, `205` and "multiples of 25 are always safe" all reproduce exactly, but the loss at 16 is **zero and cannot occur**, because 16 is a power of two so `t/16` and its inverse are both exact in binary. All 1145 casualties are at 25 alone. **The same wrong phrasing is now in-tree at `test-helpers.lua:31-33`** — left for a code owner, this pass touched only markdown. Banked with the mechanism (a float round-trip through a non-power-of-two divisor is not an identity) rather than the bare table. **The inner/outer deadline half is promoted separately** as the durable half of this entry: it is the reason "which scenarios go red?" is the wrong question to ask of a rate change.
+
 Static + `dotnet test` (2233 green). No launch taken; the autotest suite was NOT run — the
 tick-constant flip is still user-gated on it.
 
@@ -48,6 +50,8 @@ with `$` and that line carries a trailing comment. A scan that returns a subset 
 how you find out your scan is broken; had the tripwire not already named two, the miss would have
 been invisible and reported as "only one scenario is affected".
 ## 2026-09-02 — A run dir preserved the PNGs and the verdict and threw away the only file that could interpret them: `run-test.sh` never archived `debug.log` (`wt/drone-losttrack`, `main @ 6a7e1839`)
+
+> **[rejected: superseded by its own fix, plus tracker material]** (curation 2026-09-02, `main @ 26f9cec0`). The entry states the fix landed on its own branch, so its headline claim — *"anything the engine logs is gone at the next launch unless the harness copies it"* — is no longer true of the tree and would mislead as a bank statement. The `CONTROL-ARM.md` band arithmetic and the drone sizing postscript are a live measurement dispute, i.e. `WORKSPACE/` material by §"Reference ≠ tracker". **The one durable fragment is already banked from elsewhere in this pass**: the harness-level rule that a FAIL can be a dead script rather than a finding is promoted from the `wt/stuck-activities` lua-gate entry. Worth re-reading if the archival regresses: the shape *a verdict that is genuinely correct can still carry an unsupported conclusion, and the arithmetic reaching it will typecheck* is good, but it is an instance of README §"Four shapes" #3 rather than a new rule.
 
 Static + `make all` + NUnit. No launch taken. Two findings, and the first applies to all 273 scenarios.
 
@@ -116,6 +120,8 @@ capable of winning cells outright, which it demonstrably was not when `reveal` r
 possibility rather than a premise-change to be surprised by.
 ## 2026-09-02 — `TooltipOwner`'s one-reader premise is now compiler-proven, and the fog leak it carries turns out to be reachable WITHOUT any scouting step (`wt/tooltip-owner`, `main @ 6a7e1839`)
 
+> **[promoted in part; finding 4 rejected: SUPERSEDED, and it is the load-bearing one]** (curation 2026-09-02, `main @ 26f9cec0`). **Finding 1's project-scope caveat is promoted** into `conventions.md` §"A grep census is a SAMPLE…" — re-derived, correct, and banked with the mechanism the entry omits (the two projects ARE in `OpenRA.sln`; they lack a `Release|Any CPU.Build.0` entry). **Finding 4 is now FALSE and must not be promoted or cited:** it says *"`AffectsMapLayer` does **not** implement `INotifyOwnerChanged` (`:42-43`), so … the vision does not move at all"*. It was true at `6a7e1839`, and `49afe9e9` "Vision follows a building that changes hands" (2026-09-02 08:58, on `main`) added the interface plus an `OnOwnerChanged` → `UpdateCells` body at `AffectsMapLayer.cs:175-181`. Verified by reading the file at HEAD and diffing against `git show 6a7e1839:`. **Everything downstream of finding 4 inverts**: the in-place capture paths now DO move vision, so the old owner's ghost can freeze and the tooltip leak is reachable through engineer capture — which is what the entry treated as the not-yet case. The `[HIGH]` bug in `WORKSPACE/bugs/discovered.md` that finding 4 leans on described the same defect and has been **marked FIXED in this pass**. Findings 2, 3, 5 and 6 were not verified here and stay unpromoted. **Shape worth noting: the entry cited the exact lines that refute it today — an accurate citation is a claim about a commit, not about the tree.**
+
 Static + builds + `dotnet test`. No launch taken.
 
 **1. The census, run the way the previous entry asked for it.** `[Obsolete("ZZCENSUS")]` on
@@ -183,6 +189,8 @@ indistinguishable from plain fog to the frozen-actor machinery. Not a bug — bu
 sites something in a strength-1 band and calls it "visible" is wrong.
 
 ## 2026-09-02 — A grep census is a SAMPLE whose recall nobody checks, but it is consumed as a measurement. Three censuses of `FrozenActor.Owner` returned 9, 17 and 27; the compiler returns 47 (`wt/frozen-capture`, `main @ b83c21bb`)
+
+> **[promoted]** → `conventions.md` §"A grep census is a SAMPLE whose recall nobody checks", a new subsection under §"A green analyzer gate means what the TARGET GRAPH reaches" (curation 2026-09-02, `main @ 26f9cec0`). **Two premises re-derived rather than trusted, and one needed correcting.** (a) *"This repo sets no `TreatWarningsAsErrors`"* is true of the project files — zero hits across `.props`/`.targets`/`.csproj` — but **`-warnaserror` is passed on the command line by `make check`** (`Makefile:211`, `engine/Makefile:104`, `make.ps1:165`), so the census must be run with `make all` and would fail exactly as the rename does if run under `check`. The entry does not say this and an agent reading it would draw the wrong general conclusion. (b) The "eight projects, not eleven" claim is **correct, and I nearly rejected it**: `engine/OpenRA.sln` lists ten `Project(` entries including `OpenRA.Test` and `OpenRA.WindowsLauncher`, so the sln reads like a refutation — but neither has a `Release|Any CPU.Build.0` entry, so a Release build skips them. **The exclusion is in the solution's configuration block, not its project list**, and that mechanism is banked because the obvious check disproves the true claim. The 47-site result itself is NOT re-run here (no build this pass) and is banked as the entry's measurement, with the method attached as the rule requires. Also banked: the technique cannot answer "implementors of interface I", and the non-C# surfaces sit outside the instrument entirely.
 
 Static + one build. No launch taken. **This is the general lesson; the domain findings it came from
 are the entry below.**
@@ -384,6 +392,8 @@ consumers that omit them being wrong.
 
 ## 2026-09-02 — Two separate MiniYaml traps that produce the SAME error message
 
+> **[rejected: duplicate — already banked in full]** (curation 2026-09-02, `main @ 26f9cec0`). `conventions.md` §"The override isn't taking effect" cause 2 carries the ordinal case-sensitive merge with `MiniYaml.cs:410` and **all three** distinguishing error messages, and §"Removing an inherited trait" carries the document-order resolution, the `:482-483` throw and the entry's design consequence (*prefer attaching over removing*) almost verbatim. Both re-verified at source this pass: `.ToDictionary(n => n.Key, …)` with the default comparer at `:410`, and `ResolveInherits` walking children in order with `RemoveAll` throwing at `:482-483`. **One wrong cite in the bank found and FIXED in this pass:** it said the `ToLowerInvariant` runs at `Ruleset.cs:114` — it is `:126`, the `ActorInfo` ctor lambda inside the `MergeOrDefault("Manifest,Rules", …)` call at `:125-127`.
+
 Both surface as `There are no elements with key \`X\` to remove`, both prevent the mod loading at
 all — every map, not just the one at fault, because rules resolve once at load. They have different
 causes and different fixes, and one was initially misdiagnosed as the other.
@@ -419,6 +429,8 @@ stops loading. Prefer *attaching* a trait to the actors that need it over *remov
 actors that do not — attaching cannot fail at load, and it makes the revert one edit instead of N.
 ## 2026-09-02 — **Bare `--check-yaml` does not lint autotest scenarios at all.** It never opens them
 
+> **[rejected: duplicate — already banked]** (curation 2026-09-02, `main @ 26f9cec0`). `conventions.md` §"Scenarios are NOT maps to the tooling" carries the `CheckYaml.cs:98` / `MapCache.cs:212` `MapClassification.System` default, the targeted invocation, and the `Testing map:` confirmation requirement. **It also carries the sharper version of the entry's last paragraph**: a non-existent path is loud in every shape, and the silent `if (package == null) continue;` is reachable only by aiming one level too deep at `…/<name>/map.yaml`. **Two corrections made to that section in this pass, neither from this entry:** `utility.sh:61` → `:53` (the file is 54 lines; `:54` is the `dotnet` line), and a new warning that running the command from `engine/` dies with exit 126 and a zero-byte log because `engine/utility.sh` is tracked mode `100644`.
+
 Two scenario runs were lost to rules-load failures, and between them a clean `--check-yaml` was
 taken as evidence the second would load. It was not evidence of anything.
 
@@ -446,6 +458,8 @@ clean — the same "instrument fails in a way that looks like a result" shape as
 
 ## 2026-09-02 — Pre-flight a scenario's rules keys by EXACT CASE before spending a game slot
 
+> **[rejected: duplicate, and the entry defers to the other one itself]** (curation 2026-09-02). Its own closing line says *"If both land and conflict, keep theirs"*. The mechanism is banked at `conventions.md` §"The override isn't taking effect" cause 2; the operational habit — lint a scenario as a **pre-flight** rather than a merge-time formality, because a scenario costs a serial game slot — is already the standing instruction in `CLAUDE.md` and `DOCS/recipes/AUTOTEST.md`. Nothing here is unbanked.
+
 `test-tree-indestructible` burned a 300 s slot to a rules-load failure that a text check would have
 caught in a second. The block was written `t03:` while `decoration.yaml` declares `T03:`; MiniYaml
 merges top-level keys with ordinal, case-sensitive equality, so it overrode nothing and instead
@@ -464,6 +478,8 @@ that produce the SAME error message"* entry from `wt/tree-scope`. Read that one;
 the operational habit. **If both land and conflict, keep theirs.**
 
 ## 2026-09-02 — Almost nothing in the mod can damage a tree, and `^Box` / `ICE##` / `UTILPOL#` are trees
+
+> **[promoted]** → `conventions.md` §"There are TWO `ValidTargets` gates on every shot", a new subsection in the ValidTargets cluster (curation 2026-09-02, `main @ 26f9cec0`). **Mechanism re-read at source, not taken from the entry:** `Warhead.ValidTargets` really does default to `new("Ground", "Water")` (`Warhead.cs:30`, exact), and `^ArtilleryRound` really does declare `ValidTargets: Ground, Trees, Water` at weapon level (`weapons-ballistics.yaml:874`) while **both** damage warheads declare only `InvalidTargets: Air` and no `ValidTargets` at all (`:889-898`) — so the shell aims and does nothing. Banked as the general asymmetry (weapon gates AIMING, warhead gates IMPACT, and only the warhead has a default) with the artillery case as the worked instance, because the generalisation is what transfers. The `^Tree`-name-lies half is banked as a corollary; note it is **already documented in-tree** at `decoration.yaml:143-145`, so the bank deep-links the behaviour rather than restating the inheritor list. **NOT promoted, because not verified here:** the "exactly four armaments can damage a tree" enumeration and the `Bridge.RemoveActorsFromFootprint` claim — both are counts, and this pass has just banked a rule against publishing counts without their method.
 
 Found while building `test-tree-indestructible`, and the first item is why that scenario ships its
 own weapon rather than borrowing a unit's.
@@ -505,6 +521,8 @@ vehicle locomotor's 2045; swap those three actors for their `.husk` forms and `f
 too. That is the "shelling a wood seals infantry lanes" divergence quantified — three cells, three
 stumps — without launching anything.
 ## 2026-09-02 — Tournament matches never reach a verdict: two independent causes, and the speed multiplier is a request the loop silently under-delivers
+
+> **[rejected: tracker material]** (curation 2026-09-02, `main @ 26f9cec0`). Causes A and B are a live defect report and a machine-specific throughput measurement — `WORKSPACE/` by §"Reference ≠ tracker"; the realized-vs-requested tick rates would be false on another machine within a month. **Cause C WAS verified here and is a genuine eleventh instance of the 25-tps family** that `conventions.md` §`Timestep` already documents: `TournamentConfig.cs:101` really is `TimeLimitTicks => TimeLimitSeconds * 25` under a doc comment at `:100` asserting "standard 40 ms tick", while the mod default is `Timestep: 60` = 16.67 tps (`mod.yaml:382`) and only `fastest` is 40 ms (`:394`). Not promoted because the bank already states the rule and the instance list is maintained as a dated census in §"A change believed made, documented as made, and inert" — **this belongs on that list, and adding it is a code-owner task, not a doc edit.** Cite drift recorded: the property is `:101`, not `:100`. The closing rule (*a speed multiplier is a ceiling request; any wall-clock budget derived from it is calibrated against a number the loop may silently miss*) is good but rests on `Game.cs` mechanics not re-read this pass.
 
 Backlog `ebdc0a9c`. Static diagnosis from the surviving run dirs; no game launched.
 
@@ -630,6 +648,8 @@ free to miss silently. Budgets should be derived from a **measured** ticks/s, an
 belongs in `result.json`.
 ## 2026-09-02 — The "fog is untestable from the player's seat" gap has been CLOSED SINCE 2026-09-01 08:28 and nobody wrote it down; what is actually missing is a RED (`wt/frozen-actor`, `main @ 81140244`)
 
+> **[rejected: tracker material]** (curation 2026-09-02). This is backlog-item status — whether `fbfefc1c` is answerable, and which artefact outranks which — which is `WORKSPACE/` by §"Reference ≠ tracker". **Its transferable lesson is already a hard rule in `CLAUDE.md`** (*a merged branch is not a finished item; read the file, not the commit message*), and this entry is a strong worked instance of it: three prose artefacts agreed the scenario could not freeze its building while a `result.json` on disk said it had. Kept unpromoted but flagged — if the "read the artefact, not the prose" rule ever needs a citation, cite this. **Not verified here:** the run record and the phase-chain argument both need files this pass did not open.
+
 Static read plus the two archived run records; no launch taken this session.
 
 **Backlog item `fbfefc1c` ("no autotest can produce a frozen actor for the local player — fog
@@ -689,6 +709,8 @@ is the fence that stops the fix being over-applied to all players on the way pas
 needs its own scenario, written from the old owner's seat, and this one cannot be adapted into it.
 ## 2026-09-02 — The Lua bare-dispatch bug has NO second instance: 21 of 22 script globals are clean, and the reason is structural (`wt/lua-sync-audit`, `main @ 81140244`)
 
+> **[rejected: negative result, correctly scoped to the tracker]** (curation 2026-09-02). The entry's own framing is right — it exists so the question is not re-derived — but *"21 of 22 script globals are clean"* is a census, and this pass has just banked a rule against publishing counts as measurements without their method. It also expires the moment a global is added. **The one durable fragment is banked from a sibling entry**: `TestGlobal` is the outlier because it is the only global whose job is to drive the UI, which is the structural reason, and it is implied by `conventions.md` §"`Game.RunAfterTick` runs INSIDE synced code". The methodological line is the best thing here and is worth carrying forward by hand: **a RED leg against only the new fixture cannot distinguish "this closes a hole" from "this restates a rule already enforced" — the load-bearing run is the OLD fixture against the same sabotage.**
+
 Closes backlog `4b3773c2`. **This is a negative result and the point is that it should not be
 re-derived.** The `PressHotkey` family (`wt/cmdbar-capture` / `wt/cmdbar-audit`, 2026-09-01) fixed
 four methods; all four were in `TestGlobal`, which is **one of 22 registered `ScriptGlobal`s**. The
@@ -723,6 +745,8 @@ works. The load-bearing second run is checking out the OLD fixture against the *
 it **passed**, which is the actual measurement of what the widening bought. A RED leg against only
 the new code cannot distinguish "this closes a hole" from "this restates a rule already enforced".
 ## 2026-09-02 — `make lua-gate` proves a binding's NAME resolves, never that its RETURN VALUE can cross back into Lua — and a script that calls one dies below the floor of every in-script arm (`wt/stuck-activities`)
+
+> **[promoted]** → `conventions.md` §"Scenarios are NOT maps to the tooling", as three additions (curation 2026-09-02, `main @ 26f9cec0`). **`ScriptTypes.ToLuaValue` re-read in full at `ScriptTypes.cs:153-196`** and the conversion set is exactly as claimed — `LuaValue`, `null`, `double`, `int`, `bool`, `string`, `IScriptBindable`, `Array`, then `throw new InvalidOperationException($"Cannot convert type '{obj.GetType()}' to Lua…")`; `is int` does not match a boxed `uint`. Banked: the gate's blindness, the three-blind-gates framing (with the instruction to assume a fourth until its file list has been read), and **the fourth-outcome rule** — a fatal Lua error is a state no in-script arm can reach, so check the log for a fatal before believing a FAIL is about the code under test. The "reachable only from a failure branch is invisible to every green run" line is banked as the reason it matters. The `lua_gate.py:162` / denylist detail stays here as implementation history.
 
 **Third gate today found blind to something people assumed it covered** — after `make nav-guard`
 not covering `tools/autotest/scenarios/` and bare `--check-yaml` linting none of the 273 scenarios.
@@ -765,6 +789,8 @@ the second one is a scenario bug while the first is a finding. **When triaging a
 for a fatal before believing the verdict is about the code under test.**
 
 ## 2026-09-02 — The "accepted, impossible, spins forever" archetype has TWO roots, not one, and the move-layer root cannot fix the `Enter` half (`wt/stuck-activities`, `main @ 81140244`)
+
+> **[promoted]** → `conventions.md` §Engine behaviors that surprise, as a new bullet above the `MoveResult` one plus two sub-bullets under it (curation 2026-09-02, `main @ 26f9cec0`). **The framework-level root is the promotion** — `Activity.Tick` returns `bool` (`Activity.cs:177`, confirmed), so an activity that finds its task impossible can only lie or spin, which is why the archetype has no single patch. **Every cite re-derived, and three had drifted with the fix that merged since:** `Mobile.MoveResult` is `Mobile.cs:282` (the bank's own text said `:265` — **fixed in this pass**); the enum is `TraitsInterfaces.cs:872-878` with `InProgress` the zero value (bank said `:868-873` — **also fixed**); and `RetryIfDestinationBlocked = true` is now `Enter.cs:73`, not `:44-48`. The "assigned nowhere" claim re-verified by engine-wide grep: the only non-comment hits are the declaration and the three reads. The double-dead-escape-hatch finding and the blast-radius list are banked because they are what stop someone "just wiring up `MoveResult`". **NOT promoted: the four-instance census table** — it is tracker state and two of its rows are already stale by design.
 
 Filed against the standing suspicion that the reported stuck-activity bugs share a single cause.
 **They share a SHAPE and a framework-level cause; they do not share a fixable root.** Anyone
@@ -824,6 +850,8 @@ ordinary ticks of a perfectly healthy weapon.
 
 ## 2026-09-02 — Six harness traps in one night, every one of which reports a confident WRONG answer rather than no answer
 
+> **[rejected: recipe/tracker material, one fragment promoted]** (curation 2026-09-02, `main @ 26f9cec0`). Traps 1, 3, 4, 5 and 6 are harness operating procedure and belong to `DOCS/recipes/AUTOTEST.md` and the tools' own READMEs, where 3 and 4 already live; trap 6's nanosecond figures are a machine measurement. **Trap 2 IS promoted** — into `conventions.md` §"Scenarios are NOT maps to the tooling", widening the existing "do not pipe the run" line: the general form is that **the verdict-producing command must be LAST in its chain**, `tail` is only its most famous instance, and an appended `cat`/`grep`/`echo` can flip a result **in either direction**. That widening is worth banking precisely because the narrow rule is already well known and reads as covering the case it does not. The positive rule at the end (a green with an empty `notes` field is evidence only alongside a RED that discriminates) is already the standing RED-before-green rule.
+
 All hit doing ordinary verification work in a single session, and all caught by reading
 `result.json` rather than an exit status. Grouped because they share a shape: **the instrument fails
 in a way that looks exactly like a result.**
@@ -871,6 +899,8 @@ alone** — a PASS proves the code, a RED proves the test.
 ---
 
 ## 2026-09-02 — `DamageState.Dead` is the only off switch a `DamageState` threshold field has, and relying on it was an accident until it was written down
+
+> **[promoted]** → `conventions.md` §"`DamageState` has no `None`", a new subsection (curation 2026-09-02, `main @ 26f9cec0`). **Enum re-read exact:** `[Flags] enum DamageState { Undamaged = 1 … Dead = 32 }` at `TraitsInterfaces.cs:30-39` — no zero member, so `Dead` really is the only value that reads as "never". Banked as the generalisation the entry itself identifies (**check whether an "impossible" enum value's impossibility is stated or merely emergent, and if emergent, state it**) with the `current >= threshold && current < Dead` shape as the mechanism, deliberately written trait-agnostically rather than as a `Cargo` fact so it transfers to the next `DamageState` field. Cross-linked to §"A change believed made… and inert", which is the same family. **Findings 2 and 3 stay here** — the multi-cell placement bug and the four-garrison-definition-sites count are `Cargo`-specific tracker material, and finding 3 is a count.
 
 **Resolution of the garrison-bail question opened on 2026-09-01 (entry below).** The user ruled the
 emergency bail OFF for buildings — *"Don't force them out — let the damage curve do the work"* —
@@ -1471,6 +1501,8 @@ returning zero. A shared `primary-ammo + secondary-ammo` read across a lane tabl
 the moment one lane's airframe carries a single pool.
 ## 2026-09-02 — ROOT CAUSE: an `AttackType: Strafe` airframe can never fire, because the strafe run hands `Armament.CheckFire` a target that is never `Equals` to the one it saw last tick, so `AimingDelay` is reset forever (`wt/strafe-zero`, `main @ 6a7e1839`)
 
+> **[promoted]** → `architecture.md` §"The break-off guard cancels the ATTACK", as a sub-bullet under the Strafe bullet (curation 2026-09-02, `main @ 26f9cec0`). **Mechanism re-read at HEAD and the fix has landed:** `Armament.CheckFire` is now `:415`, the reference-comparison PITFALL is carried in-tree at `:417-424`, and `AimingDelay = Info.AimingDelay` is `:429` (the entry's `:412`/`:415` are pre-fix). Banked as the **general rule** — *if you hand `CheckFire` a target, hand it the SAME value while the engagement lasts; a positional target rebuilt per tick is a permanent no-fire* — rather than as the strafe incident, because the trap belongs to `Target`'s reference equality and is reachable by any caller. **This also answers a standing "measure this before relying on it" note that the bank has carried since the break-off work**: the strafe exemption from the break-off guard was never observable, because the airframes it exempts fired zero shots. The measured run numbers stay here as provenance. **The entry below (`81140244`, "still unexplained") is rejected as superseded by this one**, per §"One home per fact".
+
 **Confirmed by code, and every measured number in run `260902_061538_p86992` (seed `-487937878`)
 falls out of it.** Supersedes the "still unexplained" entry below, which was written before the run.
 
@@ -1624,6 +1656,8 @@ root cause was established by reading code and arithmetic rather than by observi
 directly — the next person should not have to do that again.
 
 ## 2026-09-02 — the strafe zero was still unexplained at this point: four candidate mechanisms killed, and the evidence the previous attempt left behind does not say what it was read as saying (`wt/strafe-zero`, `main @ 81140244`)
+
+> **[rejected: superseded by the ROOT CAUSE entry above, which was written after the run]** (curation 2026-09-02). Its four killed candidate mechanisms are real negative results and stay here as provenance; the positive answer is banked from the entry above per §"One home per fact". Its most durable line survives in the promotion: *the evidence a previous attempt leaves behind does not always say what it was read as saying.*
 
 > **SUPERSEDED on its central question by the entry above, which names the root cause.** Everything
 > below stands as written — the four eliminations and the instrument correction are still correct and
@@ -17996,6 +18030,8 @@ already at 100%, so it passes or fails identically before and after this fix and
 ---
 
 ## 2026-09-02 — `ChangeOwnerInPlaceSync` silently skips every trait that rebuilds owner-dependent state in `AddedToWorld`
+
+> **[promoted]** → `architecture.md` §"Garrisoning is an OWNERSHIP transfer", as a new subsection *"`ChangeOwnerInPlaceSync` skips the remove/re-add bracket"* (curation 2026-09-02, `main @ 26f9cec0`). **The general form is the promotion, and it survives its own casualty being fixed.** Every cite re-read and confirmed: `ChangeOwnerInPlaceSync` at `Actor.cs:545`, `ChangeOwnerSync` at `:569` with the `World.Remove` bracket and the *"momentarily remove from world"* comment, and the duplicate-key throw at `MapLayers.cs:324`. **Note for anyone reading the `Vision` casualty paragraph: it is now FIXED** — `49afe9e9` added `INotifyOwnerChanged` to `AffectsMapLayer`. **This entry's PITFALL is the reason that fix is shaped the way it is:** the shipped handler carries `if (!self.IsInWorld) return;` (`AffectsMapLayer.cs:175-181`) with an in-code comment reproducing this entry's crash argument. Banked with that guard as a standing instruction for the next retrofit, since the notification fires on both paths and only one has the actor in the world. **NOT promoted:** the owner-keyed world-index group (`TechTree`, `SupportPowerManager`, `ActorIndex.OwnerAndNames`), which the entry itself flags as reported-not-verified, and which this pass did not verify either.
 
 `Actor.ChangeOwnerInPlaceSync` (`engine/OpenRA.Game/Actor.cs:545-563`) sets `Owner` and fires
 `INotifyOwnerChanged` **only**. `ChangeOwnerSync` (`:569-593`) brackets the same work in
