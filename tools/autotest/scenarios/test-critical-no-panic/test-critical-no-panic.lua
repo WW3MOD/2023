@@ -7,9 +7,24 @@
 -- Setup is asserted rather than assumed: if he is not actually critical when the window opens, the test
 -- fails there and says so, instead of quietly measuring a healthy man who was never going to move.
 
-local ObserveTicks = 300      -- 18s: 300 ticks at the mod's real 16.67 tps (mod.yaml Timestep 60)
+local ObserveTicks = 300      -- 18.75s: 300 ticks at the mod's real 16 tps (mod.yaml Timestep 60)
+local SetupTicks = 25         -- wounding him into Critical, before the observation window opens
 local CriticalHp = 40         -- 20% of a technician's 200 HP; Critical is anything under 25%
 local CriticalCeiling = 50    -- 25% of 200 — at or below this he is in the Critical band
+
+-- THE OUTER DEADLINE IS BUDGETED IN TICKS AND CONVERTED BACK, NOT WRITTEN AS A SECONDS LITERAL.
+-- Every quantity this run waits on is a raw tick count that does NOT move with
+-- TestHarness.TicksPerSecond: the setup delay is a Trigger.AfterDelay in ticks, and the window is
+-- ObserveTicks polls. A seconds literal would be the ONLY scaling term in the comparison, which is
+-- what made this scenario a casualty of that constant — the run needs SetupTicks + ObserveTicks =
+-- 325 polls, while AssertWithin(20) is 500 ticks at the harness's 25 and only 320 at the engine's
+-- real 16. Five ticks short: the predicate could never reach `ticks >= ObserveTicks`, and the run
+-- would fail on "observation window never completed" having measured nothing at all.
+--
+-- Dividing by the same constant the helper multiplies by round-trips exactly (checked at both 25
+-- and 16), so this is 375 ticks whatever the constant says. Do not turn it back into a literal.
+local OuterTicks = SetupTicks + ObserveTicks + 50   -- the 325 the run needs, plus scheduling slop
+local OuterSeconds = OuterTicks / TestHarness.TicksPerSecond
 
 local startX, startY
 local observing = false
@@ -23,7 +38,7 @@ WorldLoaded = function()
 	-- the sim's back.
 	Tecn.Health = CriticalHp
 
-	Trigger.AfterDelay(25, function()
+	Trigger.AfterDelay(SetupTicks, function()
 		if Tecn.IsDead then
 			Test.Fail("technician died before the observation window opened")
 			return
@@ -52,7 +67,7 @@ WorldLoaded = function()
 	-- Failure string is deliberately STATIC: AssertWithin's message argument is evaluated eagerly at
 	-- registration, so any counter interpolated here would report its value from before the run began.
 	-- Live numbers go to lua.log through the periodic print below.
-	TestHarness.AssertWithin(20, function()
+	TestHarness.AssertWithin(OuterSeconds, function()
 		if Tecn.IsDead then
 			return "fail: technician died before the observation window closed"
 		end

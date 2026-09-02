@@ -17,12 +17,22 @@ TestHarness = {}
 -- against this value, several knowingly (test-tunguska-missile-standoff:25 "Left alone
 -- deliberately"; test-depot-vacate-phantom:32 "Generous on purpose"), and correcting it shortens
 -- all of them by a third in one edit that cannot be validated without running the whole suite.
--- Two scenarios provably stop passing the moment it moves; both are pinned by
--- engine/OpenRA.Test/OpenRA.Mods.Common/AutotestTickRateTest.cs, which fails at `dotnet test`
--- rather than silently in a game nobody reran. Change this number only together with those.
+-- The two scenarios that used to be casualties of moving it (test-critical-no-panic,
+-- test-autotarget-preempt-air) were re-authored on 2026-09-02 and are now immune; the fixture
+-- engine/OpenRA.Mods.Common/AutotestTickRateTest.cs proves that at BOTH rates and still fails at
+-- `dotnet test` if this number moves, because the REST of the suite has not been audited.
+--
+-- Note what that audit has to look for. Only one of those two actually went red at 16. The other
+-- kept passing while an INNER deadline it contains became unreachable — a scenario that silently
+-- stopped enforcing its own budget. Shortening every deadline by a third produces some red runs and
+-- some greens that have quietly stopped measuring, and the second kind is the one to hunt.
 --
 -- WRITING A NEW SCENARIO: budget in TICKS and convert with `ticks / TestHarness.TicksPerSecond`,
--- as the medic scenarios do. That round-trips exactly and is immune to whatever this value is.
+-- as the medic scenarios do. That is immune to whatever this value is — but it does NOT always
+-- round-trip exactly, contrary to what this comment claimed until 2026-09-02: AssertWithin recovers
+-- the budget with math.floor, and 1145 of the first 20000 integers come back one tick short at 25,
+-- 16 or both (402 -> 401; also 29, 57, 113-116, 201, 203, 205). Multiples of 25 are always safe.
+-- Do not spend that tick twice by trimming a deadline to its measured margin as well.
 TestHarness.TicksPerSecond = 25
 
 -- Center the camera on the geometric midpoint of the given actors.

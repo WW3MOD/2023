@@ -66,17 +66,37 @@
 --     ------------------
 --          ~91 ticks  worst case; 110 is that plus headroom and no more.
 --
--- PITFALL: this deadline is in TICKS on purpose — there are two different time
--- bases in play and mixing them silently halves or doubles the budget.
---   * DateTime.Seconds uses the ENGINE rate, 1000 / Timestep. mod.yaml's default
---     speed is Timestep 60, so that is 16 ticks/s and DateTime.Seconds(5) is 80
---     ticks — BELOW the 91-tick budget, i.e. a deadline that fails a working fix.
---   * TestHarness.TicksPerSecond is 25 and applies only to AssertWithin's outer
---     timeout, which is why that one is still expressed in seconds below.
+-- PITFALL: EVERY duration in this scenario is in TICKS on purpose. Three different
+-- second→tick bases exist in this codebase and mixing them silently stretches or
+-- shrinks a budget:
+--   * DateTime.Seconds uses the ENGINE rate, 1000 / Timestep, in INTEGER division
+--     (DateTimeGlobal.cs:31). mod.yaml's default speed is Timestep 60, so that is
+--     16 ticks/s — DateTime.Seconds(5) is 80 ticks, BELOW the 91-tick budget below,
+--     i.e. a deadline that fails a working fix.
+--   * TestHarness.TicksPerSecond is 25 and governs AssertWithin's outer timeout.
+--   * The two disagree by 25/16, so a scenario that expresses one side of a
+--     comparison in each has a pass condition that moves when either changes.
+--
+-- This scenario used to do exactly that, and it was the reason it could not survive a
+-- correction of the harness constant: the outer timeout was the seconds literal 10
+-- while the two quantities it has to cover — the spawn delay and DeadlineTicks — were
+-- both on the engine base. 10 harness-seconds is 250 ticks at 25 but only 160 at the
+-- engine's real 16, against the 174 the run needs (64 spawn + 110 deadline). The
+-- scenario would NOT have gone red at 16: a healthy build engages ~91 ticks after
+-- arrival, at poll ~155, so it would keep passing with five ticks to spare while
+-- DeadlineTicks — the responsiveness budget this whole comment block derives — became
+-- unreachable and stopped being enforced at all. A silently toothless green.
+--
+-- So the spawn delay is now a raw tick count rather than DateTime.Seconds, and the
+-- outer timeout is budgeted in ticks and converted back through the same constant
+-- AssertWithin multiplies by (exact round-trip, checked at both 25 and 16). Nothing
+-- here depends on either rate any more. Do not reintroduce a seconds literal.
 -- 110 ticks is ~6.9s of game time at the default speed.
 
-local SpawnHeliAfterSeconds = 4
+local SpawnHeliAfterTicks = 64                      -- 4s at the engine's 16 ticks/s
 local DeadlineTicks = 110
+local OuterTicks = SpawnHeliAfterTicks + DeadlineTicks + 51   -- 225: the 174 needed, plus headroom
+local OuterSeconds = OuterTicks / TestHarness.TicksPerSecond
 
 local function cellPos(cx, cy, altitude)
 	return WPos.New(cx * 1024 + 512, cy * 1024 + 512, altitude or 0)
@@ -112,7 +132,7 @@ WorldLoaded = function()
 	-- had one, under the wrong theory that the bug needed a non-idle unit. It is the
 	-- opposite: idle-while-firing-at-a-persistent-target IS the locked state, so such
 	-- a guard would fail the very path being tested.
-	Trigger.AfterDelay(DateTime.Seconds(SpawnHeliAfterSeconds), function()
+	Trigger.AfterDelay(SpawnHeliAfterTicks, function()
 		if Shorad.IsDead then
 			return
 		end
@@ -137,9 +157,9 @@ WorldLoaded = function()
 		uncommittedAtSpawn = Test.GetUncommittedScanCount(Shorad)
 	end)
 
-	-- Outer timeout is on TestHarness's 25 ticks/s base and must comfortably exceed the
-	-- spawn delay (4s = 64 engine ticks) plus DeadlineTicks: 10 * 25 = 250 > 174.
-	TestHarness.AssertWithin(10, function()
+	-- Outer timeout must comfortably exceed the spawn delay plus DeadlineTicks: 225 > 174,
+	-- and it is 225 ticks at any TestHarness.TicksPerSecond (see the PITFALL block above).
+	TestHarness.AssertWithin(OuterSeconds, function()
 		if reported then
 			return false
 		end
