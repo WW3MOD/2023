@@ -18175,3 +18175,87 @@ reaches SUPPLYROUTE via `Inherits@ExistsInWorld` → `^ExistsInWorld` (`structur
 Generalises past production: any scenario reading where a unit *arrived*, *spawned* or *stopped*
 by polling `Actor.Location` is reading its destination, not its position. Use a notification hook,
 or `CenterPosition` if only an approximate position is needed.
+
+## 2026-09-02 — `ChangeOwnerInPlaceSync`'s blast radius is exactly TWO channels, and both are enumerable
+
+The in-place ownership path differs from `ChangeOwnerSync` (`Actor.cs:545-563` vs `:569-593`) in
+precisely two ways, and nothing else:
+
+1. It skips `INotifyAddedToWorld` / `INotifyRemovedFromWorld` on the flipping actor's own traits.
+2. It skips the **`World.ActorAdded` / `World.ActorRemoved` events** (`World.cs:394-412`), which are
+   global subscriptions held by player- and world-level objects.
+
+**Both paths DO fire `INotifyOwnerChanged`, and both fan out to `World.WorldActor`'s traits as well
+as the actor's own** (`Actor.cs:558-562`, `:585-589`). That second fan-out is the non-obvious part:
+a player- or world-level trait CAN be notified about some other actor changing hands. It is already
+load-bearing — `ExternalCondition.OnOwnerChanged` uses it to reach every
+`INotifyProximityOwnerChanged` in the world (`ExternalCondition.cs:277-282`). **This is the channel
+any fix for a channel-2 subscriber should use.**
+
+Channel 2 is small and greppable: `Actor(Added|Removed)\s*\+=` returns **eight** sites engine-wide.
+Channel 1 is a reflection question, not a grep question (see next entry).
+
+**Do not reflexively copy `AffectsMapLayer`'s `IsInWorld` guard** (`AffectsMapLayer.cs:174-180`).
+That guard exists only because that class ALSO has the world hooks and would double-add. A
+channel-2 subscriber has no such hooks, and `ChangeOwnerSync` fires the notification while the actor
+is out of the world — so a handler there **must** run in that window or mobile actors stop
+transferring. Same-looking fix, opposite requirement.
+
+Full census, symptoms and refutations: `WORKSPACE/recon/260902-ownership-blast-radius.md`.
+
+## 2026-09-02 — Reflection over the loaded assemblies answers "implements A but not B"; grep cannot
+
+The `[Obsolete("ZZCENSUS")]` + `CS0618` trick finds consumers of a MEMBER. It cannot answer "which
+classes implement interface A but not interface B" — an invariant grep is structurally bad at, since
+the interface may be inherited from an abstract base and never named in the file.
+
+A throwaway NUnit case does it exactly, in ~40 lines and ~110 ms:
+
+```csharp
+foreach (var t in asm.GetTypes().Where(t => t.IsClass && !t.IsAbstract)) {
+    var i = t.GetInterfaces();   // transitive closure — inherited interfaces included
+    if ((i.Contains(typeof(INotifyAddedToWorld)) || i.Contains(typeof(INotifyRemovedFromWorld)))
+        && !i.Contains(typeof(INotifyOwnerChanged)))
+        rows.Add(t.FullName);
+}
+```
+
+Anchor each assembly with `typeof(SomePublicType).Assembly`. Three gotchas, each of which cost a
+run or a compile:
+
+- **`TestContext.Progress.WriteLine` does NOT survive `dotnet test`'s default console logger.** The
+  test passes and the output vanishes. Write to a file from inside the test.
+- Many Cnc trait classes are **internal**: `typeof(TSResourceLayer)` fails with `CS0122`. Use a
+  public type such as `ChronoshiftPaletteEffect` to anchor `OpenRA.Mods.Cnc`.
+- `GetInterfaces()` returning the transitive closure is what makes this a **regression check**, not
+  just a census: after `0d862eeb` added `INotifyOwnerChanged` to `AffectsMapLayer`, all four
+  subclasses (`Vision`, `Radar`, `CounterBatteryRadar`, `CreatesShroud`) drop out of the result set
+  — direct evidence the base-class handler reaches every subclass.
+
+It narrows the reading list; it does not do the reading. Of 37 hits, 12 died to a YAML-presence grep
+and the other 25 had to be read for actual owner-dependence.
+
+## 2026-09-02 — WW3MOD capture is TWO in-place flips, not one; soldiers clear, only Technicians own
+
+`infantry.yaml:916-939`, with the rule stated in-comment at `:922-926` ("Soldiers CLEAR, they never
+own"):
+
+- `^CapturesOccupiedBuildings` — any soldier, `CaptureTypes: building-occupied`,
+  `ValidRelationships: Enemy`, `CaptureToNeutral: true`, `CaptureDelay: 1000`. Drops an enemy
+  building to **Neutral**.
+- `^CapturesNeutralBuildings` — Technician, `CaptureTypes: building-neutral`, `CaptureDelay: 20`,
+  `ConsumedByCapture: true`. Installs ownership from **Neutral**.
+
+`Capturable` itself carries **no relationship filter** — `Capturable.cs:23` declares only `Types`.
+All gating lives on the `Captures` side.
+
+Two consequences that are easy to get wrong when reasoning about ownership bugs:
+
+- **Taking an enemy building runs `ChangeOwnerInPlaceSync` twice**, with a Neutral state in between.
+  Any analysis that models capture as one flip is wrong, and anything that treats a NonCombatant
+  owner as "can't happen mid-match" is wrong too.
+- A `Creeps`-owned actor may still be an **enemy**: on `nuclear-winter-ww3`, `Creeps` is
+  `NonCombatant: True` *and* `Enemies: Multi0, Multi1` (`map.yaml:26-29`). NonCombatant and
+  neutral-relationship are independent, and `UnitLifecycleLogger.IsInteresting` filters on the
+  former (`:280-281`) — so a Creeps-owned structure is untracked at spawn and, because the in-place
+  path fires no `ActorAdded`, stays untracked after a player captures it.
