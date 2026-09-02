@@ -4457,3 +4457,18 @@ map-rules test the way most weapon changes can — it has to be a change to the 
   which is why it was left alone rather than folded into the FogDarkness change on the same day.
   **Fix is a 160f/255f factor in that loop**, but it lightens the border for every mod in the tree, so
   it wants its own before/after screenshot. (found while working on: fog contrast / FogDarkness)
+
+- [2026-09-02] [MED] **Roughly 60% of tournament losses are credited to nobody: `kills_cost` and
+  `deaths_cost` do not reconcile between the two players.** In the only non-void run in the tree
+  (`260902_0641_tournament-arena-composition-2p`, verdict v7, 2 matches), USA-bot's `deaths_cost` is
+  $14,350 while Russia-bot's `kills_cost` is $4,500; summed both ways across all 4 player-records,
+  $49,150 died and only $19,150 was credited as killed. In a 2-player match with no third party those
+  two totals should agree. Candidate causes, none tested: crew ejection double-counting (a dying
+  vehicle spawns 3 crew that then die separately — crew is 100% loss in this corpus); damage with no
+  attributable killer; or the two accumulators in
+  `engine/OpenRA.Mods.Common/Traits/World/BotVsBotMatchWatcher.cs` / `Tournament/MatchTypes.cs` simply
+  ranging over different actor sets. **This matters beyond bookkeeping**: `deaths_cost` is the headline
+  combat-efficiency metric in every bot benchmark, so if it is inflated relative to `kills_cost` then
+  every trade ratio ever computed is biased against whichever bot loses more vehicles. Diagnosable
+  statically by reading both accumulators — no game run needed. Not mentioned in any existing doc.
+  (found while working on: loss mining, WORKSPACE/analysis/0902-loss-mining.md §1.2)
