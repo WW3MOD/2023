@@ -134,10 +134,6 @@
 
 [repo]
 # since 2026-08-17
-demo-experimental-capture-coordinator | Actor `OpponentSR` is owned by unknown player `Russia-bot`.
-demo-experimental-capture-coordinator | Actor `OwnSR` is owned by unknown player `USA-bot`.
-demo-experimental-capture-coordinator | The player `Russia-bot (Normal)` enemy list contains an invalid player `USA-bot`.
-demo-experimental-capture-coordinator | The player `USA-bot (experimental)` enemy list contains an invalid player `Russia-bot`.
 mod | Lint pass (CheckFluentReferences) lacks the know-how to test translatable field `ResourceTypeInfo.Name` - previous warnings may be incorrect
 test-cohesion-river-zeta-actual | The player `Multi0` must specify LockFaction: True.
 test-cohesion-river-zeta-actual | The player `Multi1` must specify LockFaction: True.
@@ -155,10 +151,6 @@ test-crate-rearm | The map allows 2 possible players, but defines only 1 spawn p
 # the exploration-inflation bug being fixed on wt/bot-truth. Fix it with the rest of the cordon class
 # once that lands, so the two changes are not entangled in one unmeasured step.
 test-drone-lost-track | This map does not define a valid cordon.
-test-experimental-poi-observe | Actor `OpponentSR` is owned by unknown player `Russia-bot`.
-test-experimental-poi-observe | Actor `OwnSR` is owned by unknown player `USA-bot`.
-test-experimental-poi-observe | The player `Russia-bot (Normal)` enemy list contains an invalid player `USA-bot`.
-test-experimental-poi-observe | The player `USA-bot (experimental)` enemy list contains an invalid player `Russia-bot`.
 test-infantry-seek-supplies | The map allows 2 possible players, but defines only 1 spawn points.
 
 # These five occur WITH the Red Alert content installed (verified by a local `make test`,
