@@ -792,6 +792,21 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return FrozenFor(viewer, target)?.Owner?.InternalName ?? "";
 		}
 
+		[Desc("The internal name of the owner the TOOLTIP would print over `viewer`'s frozen ghost of " +
+			"`target` (FrozenActor.TooltipOwner), or \"\" when there is no ghost. This is a DIFFERENT " +
+			"field from FrozenActorOwner and the two are meant to disagree after a capture the viewer " +
+			"did not witness: Owner follows the captor so targeting stays correct, TooltipOwner holds " +
+			"at the last owner this viewer actually saw so the tooltip cannot name the captor. Reading " +
+			"both in one assertion is how a test tells the shipped fix apart from the rejected one " +
+			"(freezing Owner), which would break every relationship predicate. Test mode only.")]
+		public string FrozenActorTooltipOwner(Player viewer, Actor target)
+		{
+			if (!TestMode.IsActive)
+				return "";
+
+			return FrozenFor(viewer, target)?.TooltipOwner?.InternalName ?? "";
+		}
+
 		[Desc("The cursor name `actors` would show over `viewer`'s frozen ghost of `target` — resolved " +
 			"through UnitOrderGenerator with Target.FromFrozenActor, so it exercises the " +
 			"CanTargetFrozenActor arm that a normal ClickCursor call can never reach. Empty string when " +
