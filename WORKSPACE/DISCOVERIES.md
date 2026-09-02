@@ -3,6 +3,51 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-02 — The `ticks / TicksPerSecond` idiom that test-helpers.lua recommends universally loses a tick for ~6% of budgets, and one of the two "provably inverts" scenarios did not invert — it went quietly toothless instead (`wt/tick-scenarios`, `main @ 6a7e1839`)
+
+Static + `dotnet test` (2233 green). No launch taken; the autotest suite was NOT run — the
+tick-constant flip is still user-gated on it.
+
+**The round-trip is not always exact, and nothing said so.** `test-helpers.lua:24-25` tells every
+scenario author to "budget in TICKS and convert with `ticks / TestHarness.TicksPerSecond`... That
+round-trips exactly and is immune to whatever this value is." The second half is true; the first is
+not. `AssertWithin` recovers the budget as `math.floor(seconds * TicksPerSecond)`, and for
+**1145 of the first 20000 integers** that returns `ticks - 1` at 25, 16 or both — `402` becomes
+`401`, and `29`, `57`, `113`–`116`, `201`, `203`, `205` are all lossy. Multiples of 25 are always
+safe (`250`, `375`); many neighbouring values are not. One tick rarely matters, but the idiom is
+sold as exact and is used to size deadlines that are then trimmed to their measured margin, so the
+loss lands exactly where the headroom has already been spent. Both re-authored budgets (`225`,
+`375`) were chosen to round-trip exactly at both rates and are now asserted to, in
+`AutotestTickRateTest.AssertDeadlineIsRateImmune`.
+
+**The two scenarios pinned at `ba0bbee8` were not the same kind of casualty, and the more dangerous
+one is the one that kept passing.** That pin's message says correcting the constant makes
+`test-autotarget-preempt-air` "structurally impossible to pass". Re-derived: it does not.
+- `test-critical-no-panic` genuinely inverted — the run needs `SetupTicks 25 + ObserveTicks 300 =
+  325` polls, and `AssertWithin(20)` yields 500 ticks at 25 but **320** at 16. Five short, so the
+  predicate could never reach `ticks >= ObserveTicks` and every run would fail on "observation
+  window never completed" having measured nothing. Reproduced by executing the pre-fix Lua at 16.
+- `test-autotarget-preempt-air` would have stayed **green**. It needs `64` (spawn) `+ 110`
+  (`DeadlineTicks`) `= 174`, and at 16 the outer is 160 — but a healthy build engages ~91 ticks
+  after arrival, i.e. at poll ~155, comfortably inside 160. What breaks is the *inner* deadline:
+  at 174 > 160 it becomes unreachable, so the 110-tick responsiveness budget that the scenario's
+  own 15-line comment block derives stops being enforced, and any real failure gets reported by the
+  generic outer string instead of the diagnostic one carrying the uncommitted-scan attribution.
+
+**The general form, and it inverts the usual reading of a tick-rate bug.** A scaled deadline that
+becomes too short does not necessarily produce a red run. Where the deadline sits *outside* a
+tighter inner budget, shrinking it past that inner budget disables the inner assertion while leaving
+the outer one satisfiable — the test keeps passing and quietly stops measuring its subject. "Which
+scenarios go red?" is therefore the wrong question to ask of a rate change; "which assertions stop
+being reachable?" is the right one, and only the second finds this class.
+
+**Method note.** An independent structural scan of all 276 scenarios reproduced exactly the two
+already named, so the pinned set was right even where its reasoning was not — but the first pass of
+that scan **missed `test-critical-no-panic`**, because the regex anchored `local ObserveTicks = 300`
+with `$` and that line carries a trailing comment. A scan that returns a subset of a known answer is
+how you find out your scan is broken; had the tripwire not already named two, the miss would have
+been invisible and reported as "only one scenario is affected".
+
 ## 2026-09-02 — A grep census is a SAMPLE whose recall nobody checks, but it is consumed as a measurement. Three censuses of `FrozenActor.Owner` returned 9, 17 and 27; the compiler returns 47 (`wt/frozen-capture`, `main @ b83c21bb`)
 
 Static + one build. No launch taken. **This is the general lesson; the domain findings it came from
