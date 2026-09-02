@@ -519,5 +519,76 @@ namespace OpenRA.Test
 			Assert.That(fitEligible[0], Is.True,
 				"At V_fit = 1000*cost/target the slot is eligible again — a threshold, not a ban.");
 		}
+
+		[Test]
+		public void GroupCompletion_FinishesAStartedGroupAndNeverStartsOne()
+		{
+			// Slot 0 has one of a wanted pair — the measured abrams case. Slot 1 wants a pair and has none,
+			// so it must NOT be chosen: this only ever finishes a group, so it cannot introduce a class the
+			// deficit pick had no interest in.
+			var counts = new[] { 1, 0, 5 };
+			var minSizes = new[] { 2, 2, 2 };
+
+			Assert.That(ForceCompositionMath.SelectGroupCompletion(counts, minSizes, AllEligible(3)), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void GroupCompletion_IgnoresCompleteGroupsAndUnlistedSlots()
+		{
+			// count >= min is done; min <= 1 is an unlisted/inert slot. Neither is a candidate, so a config
+			// that lists nothing meaningful returns -1 rather than picking slot 0 by default.
+			Assert.That(ForceCompositionMath.SelectGroupCompletion(
+				new[] { 3, 2 }, new[] { 2, 2 }, AllEligible(2)), Is.EqualTo(-1), "both groups are complete");
+
+			Assert.That(ForceCompositionMath.SelectGroupCompletion(
+				new[] { 1, 1 }, new[] { 0, 1 }, AllEligible(2)), Is.EqualTo(-1), "sizes 0 and 1 are inert");
+		}
+
+		[Test]
+		public void GroupCompletion_PrefersTheSmallestRemainingGap()
+		{
+			// Slot 2 is one short, slot 0 is three short. Finishing one usable formation beats advancing two
+			// toward viability, so the nearly-complete group wins.
+			var counts = new[] { 1, 0, 2 };
+			var minSizes = new[] { 4, 3, 3 };
+
+			Assert.That(ForceCompositionMath.SelectGroupCompletion(counts, minSizes, AllEligible(3)), Is.EqualTo(2));
+		}
+
+		[Test]
+		public void GroupCompletion_TieBreaksToTheLowerOrdinal()
+		{
+			var counts = new[] { 1, 1 };
+			var minSizes = new[] { 2, 2 };
+
+			Assert.That(ForceCompositionMath.SelectGroupCompletion(counts, minSizes, AllEligible(2)), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void GroupCompletion_IsSubordinateToEligibility()
+		{
+			// The whole safety argument for running this BEFORE the deficit argmax: it selects only within the
+			// set affordability, UnitLimits and the ceiling already approved. An ineligible slot — priced out,
+			// at its cap, or struck as over-target — must stay unbuyable however incomplete its group is.
+			var counts = new[] { 1, 1 };
+			var minSizes = new[] { 2, 2 };
+
+			Assert.That(ForceCompositionMath.SelectGroupCompletion(counts, minSizes, new[] { false, true }),
+				Is.EqualTo(1));
+			Assert.That(ForceCompositionMath.SelectGroupCompletion(counts, minSizes, new[] { false, false }),
+				Is.EqualTo(-1), "nothing eligible ⇒ no group pick, so the caller falls through to the deficit path");
+		}
+
+		[Test]
+		public void GroupCompletion_DegenerateInputsReturnMinusOne()
+		{
+			Assert.That(ForceCompositionMath.SelectGroupCompletion(null, new[] { 2 }, AllEligible(1)), Is.EqualTo(-1));
+			Assert.That(ForceCompositionMath.SelectGroupCompletion(new[] { 1 }, null, AllEligible(1)), Is.EqualTo(-1));
+			Assert.That(ForceCompositionMath.SelectGroupCompletion(new[] { 1 }, new[] { 2 }, null), Is.EqualTo(-1));
+
+			// Short companion arrays read as "not a candidate", never as an index crash.
+			Assert.That(() => ForceCompositionMath.SelectGroupCompletion(
+				new[] { 1, 1, 1 }, new[] { 2 }, AllEligible(1)), Throws.Nothing);
+		}
 	}
 }
