@@ -207,13 +207,29 @@ Two authoring traps that both end in a confident wrong answer rather than an err
 
 **When overriding an existing warhead, restate its TYPE and every field the consumer reads.** `WeaponInfo.LoadWarheads` (`GameRules/WeaponInfo.cs:200-206`) builds each warhead with `Game.CreateObject<IWarhead>(node.Value.Value + "Warhead")` — **the node's *value* names the type**, so `Warhead@Spread:` written bare resolves `"Warhead"` and fails; write `Warhead@Spread: SpreadDamage`. And because the object is constructed fresh and `FieldLoader` fills only the fields present, **every omitted field falls back to the ENGINE default, not to the mod's value.** This is the opposite of the trait path, which merges per-field (see the duplicate-trait-key section above). The worked example: an override that restated only `Damage` and omitted `Penetration: 15` silently got the engine's `Penetration = 1` (`Warheads/DamageWarhead.cs:24`), which against a `Thickness: 10` target took the reduction branch and cut the intended effect by an order of magnitude — **and the scenario still completed and reported `pass`**, returning a confident number about a world that was never built.
 
-### Blank lines are significant
+### "The override isn't taking effect" — blank lines are only the first of three causes
 
-Templates and top-level entries must be separated by a blank line. The MiniYaml parser silently merges adjacent ones, producing confusing override behavior — not a parse error. If a template "isn't taking effect," check the blank lines first.
+**1. Blank lines are significant.** Templates and top-level entries must be separated by a blank line. The parser silently merges adjacent ones, producing confusing override behavior — not a parse error. Cheapest to check, so check it first.
+
+**2. Top-level keys merge with ORDINAL, CASE-SENSITIVE equality.** `MiniYaml.Merge` keys its tree with a plain `ToDictionary` (`MiniYaml.cs:410`), and every merge path underneath compares keys with `==` on a default-comparer `HashSet`/list scan (`:550`, `:597`, `:606`). So a rules override written `t03:` against `decoration.yaml`'s `T03:` does not override that actor — it contributes a **separate top-level key**. The `ToLowerInvariant` that makes actor names *feel* case-insensitive runs later and elsewhere (`Ruleset.cs:114`, building `ActorInfo` from the already-merged tree), which is why a map's `Actors:` list may spell a type in any case (`Actor.cs:194` lowercases before lookup) while **a rules override must match the defining file's casing exactly**. There is no rule of thumb: trees are uppercase `T01:`–`T17:`, most units are lowercase — read the defining file.
+
+How it surfaces depends on what is inside the mis-cased block, and none of the three messages mentions case:
+
+- **Contains a `-Trait:`** → `There are no elements with key 'X' to remove`, thrown during inheritance resolution (`MiniYaml.cs:482-483`). The trait was never present *in any source for that key*, because the key is new. This fires first and masks the next one.
+- **Field overrides only** → both keys survive to `Ruleset`, both lowercase to the same name, and `ToDictionaryWithConflictLog` throws `LoadFromManifest<Rules>, duplicate values found for the following keys` (`Exts.cs:466`, `:491`).
+- **An abstract `^Template`** → **silent.** The `filterNode` argument drops `^`-prefixed keys before the duplicate check (`Ruleset.cs:127` for mod rules, `:185` for map rules), so a mis-cased `^vehicle:` never collides; it simply sits unused, because `Inherits:` also resolves ordinally (`MiniYaml.cs:459`). The only tell is a `Parent type '^Vehicle' not found` if nothing supplies the correctly-cased name.
+
+Both throwing forms prevent the mod loading **at all** — every map, not just the one at fault, because rules resolve once at load. Inside a map's `rules.yaml` even that is swallowed and reappears elsewhere; see [§Removing an inherited trait](#removing-an-inherited-trait--key-matches-the-full-node-key).
+
+**3. Ordering inside the actor.** `Inherits@` and `-Key:` both apply at the point they appear, so a later parent can overwrite the field you set and a removal above its `Inherits@` is undone by it — [§Precedence inside an actor is POSITIONAL](#precedence-inside-an-actor-is-positional--a-later-inherits-overwrites-an-earlier-own-field-including-a-maps-override).
+
+**Detector for all three:** `--dump-balance-json` ([below](#resolve-the-ruleset-before-you-trust-an-inheritance-edit---dump-balance-json)) resolves the whole ruleset in seconds without a game slot.
 
 ### Removing an inherited trait: `-Key` matches the FULL node key
 
 `-TraitName:` removes an inherited node only by **exact key match, including any `@label`** — `ResolveInherits` does `resolved.RemoveAll(r => r.Key == removed)` and throws `There are no elements with key '<key>' to remove` if nothing matched (`MiniYaml.cs:482-483`). So `-SquadManagerBotModule:` does **not** remove `SquadManagerBotModule@experimental.america.fixedwing`; you must write `-SquadManagerBotModule@experimental.america.fixedwing:`. There is no "remove all instances of this trait type" wildcard form — each labeled instance must be listed.
+
+**Prefer ATTACHING a trait to the actors that need it over REMOVING it from the actors that do not.** Because a `-Key:` matching nothing is fatal, every removal is a standing dependency on a shared parent continuing to supply that trait — so the day someone takes the trait off the parent, *all N* removals throw at once and the mod stops loading, at N sites none of which were touched. Attaching cannot fail at load, and it makes the revert one edit instead of N.
 
 **A REDUNDANT removal is a hard error too, and inside a map's `rules.yaml` that error is SWALLOWED.** Stripping a trait on a base actor and then stripping it again on a derived actor that already `Inherits:` the stripped parent leaves the second `-Key:` with nothing to match, so it throws like any other mismatch. In mod rules that surfaces as a load-error dialog; in **map** rules it does not — `Map.PostInit` wraps the whole rules load in a `catch`, logs `Failed to load rules for <title> with error` to `debug.log`, sets `InvalidCustomRules`, and **falls back to `Ruleset.LoadDefaultsForTileSet`** (`Map.cs:540-547`; the scenario-rules loader has an identical catch at `:698-704`). Every actor type the map defined then ceases to exist. The map does not report a rules problem — it dies later and elsewhere, typically in the density pass at `actorsRules[actorType]` (`Map.cs:988`) with `KeyNotFoundException: The given key '<your custom actor>' was not present in the dictionary`, which reads exactly like a typo in the map's actor list and is nothing of the sort. **On a `KeyNotFoundException` naming a map-defined actor type, grep `debug.log` for `Failed to load rules` before debugging the actor list.**
 
@@ -267,6 +283,31 @@ Consequences worth knowing before you touch the file:
 **Never read the baseline as evidence that ART is missing.** *(Promoted 2026-09-01 from DISCOVERIES.)* 356 of its 548 lines are `sprite file \`X.shp\` not found`, including `mig.shp`, `badr.shp` and `u2.shp` — all stock Red Alert sprites that ship inside `conquer.mix`, which `mod.yaml:24` mounts. **The baseline was recorded on a machine without the downloaded RA content, so the check could not see inside the mixes**, and every one of those lines is an artefact of the recording environment rather than a finding. Ruling "the sprites do not exist" off this file is a live trap that was one step from being taken. The authoritative question is answered by `Mod=ww3mod ./utility.sh --check-missing-sprites` **on a machine with content installed** — read-only, takes seconds.
 
 **Never hand-add a line to the baseline to turn a red run green without saying why in the commit message.**
+
+### Scenarios are NOT maps to the tooling, so every map-shaped gate silently covers 10 files and skips 273
+
+**The generalisation first, because it has already caught two independent tools and will catch a third.** `mods/ww3mod/maps` is declared `System` (`mod.yaml:90`) while `tools/autotest/scenarios` is declared `Unknown` (`mod.yaml:107`). Any tool that enumerates "the maps" gets the 10 shipped maps and none of the 273 scenarios. **Before trusting any gate to cover a scenario change, find the line where it builds its file list and check which classification or directory it names.** A green run is otherwise byte-identical whether your scenario is perfect or unparseable.
+
+The two known instances:
+
+- **`./utility.sh --check-yaml` with no argument** — and therefore `make test` — takes its list from `modData.MapCache.EnumerateMapDirPackagesAndNames()` (`CheckYaml.cs:98`), whose `classification` parameter **defaults to `MapClassification.System`** (`MapCache.cs:212`). The lint logic itself is fine: `TestMap` reports `map.InvalidCustomRules` (`CheckYaml.cs:141-146`), which `Map.PostInit` sets by catching whatever `Ruleset.Load` throws. It simply never opens the scenario files.
+- **`make nav-guard`** — its baseline is `mods/ww3mod/maps` only. See [`tools/nav-guard/README.md`](../../tools/nav-guard/README.md); that misread cost two workers on 2026-09-01.
+
+**`Unknown` is deliberate, so do not "fix" it upstream.** `mod.yaml:93-106` carries a fifteen-line comment: the classification is what keeps scenarios out of every UI tab (lobby, missions, main-menu chooser) while the engine still resolves them by folder name, because `Game.LoadMap` matches on Uid or package folder name and reads neither `Class` nor `Visibility`. Reclassifying them to widen a lint gate would put 273 test scenarios in the player's map lists.
+
+**The targeted form does lint a scenario, and the path is relative to `engine/`:**
+
+```sh
+./utility.sh --check-yaml ../tools/autotest/scenarios/<name>      # from the repo root
+```
+
+`CheckYaml.cs:100-101` accepts `args[1]` as a package path under `new Folder(Platform.EngineDir)`, and the effective root is `<repo>/engine` because `utility.sh:61` `cd`s there before launching — so the repo-root-relative path everyone writes first resolves to `<repo>/engine/tools/…` and fails. (Same note, from the scenario-authoring side, at [`DOCS/recipes/AUTOTEST.md`](../recipes/AUTOTEST.md):74.) Two further differences from the pathless run: it skips the baseline judgement entirely (`:116-122` returns early), so it fails on *any* error rather than against the recorded floor; and it lints the map's own rules rather than `DefaultRules`, so it does **not** catch a misspelled trait field on a mod-level block — see [§Which YAML gate catches a misspelled trait field](#which-yaml-gate-catches-a-misspelled-trait-field--the-fast-ones-do-not).
+
+**What is loud and what is silent, verified rather than assumed.** A path that does not exist is **loud in every shape**: `Folder.OpenPackage` reaches `ZipFileLoader.TryParseReadWritePackage`, whose `File.OpenRead` is unguarded (`ZipFile.cs:226`), so a missing parent directory throws `DirectoryNotFoundException` and a missing name inside an existing directory throws `FileNotFoundException`. `CheckYaml.cs:127-131` catches both, prints `Failed with exception:` and exits 1. So a typo in the scenario name cannot masquerade as a pass. The silent `if (package == null) continue;` (`:106-107`) is reachable only when the path **exists as a file that is not a parseable package** — i.e. pointing at `…/<name>/map.yaml` instead of at the scenario directory. **Confirm you saw `Testing map: <title>` (`:136`)** — belt-and-braces against a typo, load-bearing against a path aimed one level too deep.
+
+**And do not pipe the run.** The utility's exit code is the evidence; a `| grep` appended to it reports the pipeline's status instead, which is the standing "never pipe a verdict" rule reappearing inside the tool you are using to investigate a coverage gap.
+
+**The NUnit option, and why nobody has taken it.** An `engine/OpenRA.Test/` fixture that loads all 273 scenarios' rules would close the gap in CI, and it is possible but not cheap: **nothing in the test project constructs a `ModData`** (zero references), so the mod-filesystem bootstrap would have to be built from scratch. The one `Ruleset` a test does build is hand-assembled in memory from synthetic `ActorInfo`s with no YAML behind it (`ShadowCacheKeyTermsTest.cs:40-55`), so it is not a starting point. The cost is the bootstrap, not the ruleset.
 
 ## A change believed made, documented as made, and inert
 

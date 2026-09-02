@@ -30,6 +30,12 @@ Small items (17, 18, 22, 32) stay inline in `PIPELINE.md` — a dossier file for
 
 **Before dispatching anyone at an item**, spend one `git log -S <symbol>` or one grep on its central premise. This is the cheapest check in the project and it is the one this queue has most often skipped. Stubs carrying ⚠️ in `PIPELINE.md` already failed it once.
 
+**But grepping for the defect only proves the defect is real — it cannot tell you the item is DONE.** Three ways that check passes while the answer is wrong (all observed 2026-09-02):
+
+- **A merged branch is not a finished item.** One item's branch was already an ancestor of `main` while the feature still shipped switched off. `git merge-base --is-ancestor` answers *did this land*, not *is this on*. **Read the value the running code reads** — the `RequiresCondition`, the default on the Info field, the YAML that grants it.
+- **A named branch is not the change.** Another item's branch carried only test hygiene while the real fix rode a different one. Search for the *behaviour* across branches, not for the item's name.
+- **Read the file, not the commit message.** One finding was nearly closed on a commit whose subject matched exactly and whose diff turned out to be a `PIPELINE.md` edit. And **two documents agreeing on a number is not evidence** — docs get copied from each other; only the code is a source.
+
 **Keep the live file readable whole.** That is the acceptance bar, not a style preference. If `PIPELINE.md` starts growing dossier-shaped prose again, move it here.
 
 ## What survives the split, and what does not
