@@ -47,7 +47,11 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 		// Integer division rounded to nearest, sign-correct (den assumed > 0). Interpolates cells
 		// along a line without floating point, so the sampled path is identical on every client.
-		static int RoundDiv(int num, int den)
+		// INTERNAL rather than private for one reason: FlankingMath scales the same perpendicular offset
+		// and must round it the same way. Copying four lines of sign-correct rounding into a second file is
+		// the exact divergence this codebase has already been bitten by (BotGeometry's header) — one
+		// definition, two callers, and the byte-identity argument only has to be made once.
+		internal static int RoundDiv(int num, int den)
 		{
 			return num >= 0 ? (num + den / 2) / den : -((-num + den / 2) / den);
 		}

@@ -781,6 +781,56 @@ Player:
 		# (which omits this field) is byte-identical.
 		ImmediateReinforcementCommit: true
 
+		# ===== FLANKING MANEUVER — @experimental ONLY (2026-09-02) ===================================
+		# Added as one contiguous block at the END of this trait so parallel work on the fields above
+		# conflicts on a different hunk.
+		#
+		# WHAT CHANGES: an attack axis stops arriving as a single frontal blob. A MINORITY flank element
+		# (35%, min 2 hulls) peels off, swings through a lateral waypoint offset perpendicular to the
+		# approach, and comes in on a second bearing; the MAJORITY main element presses the direct axis
+		# but holds at standoff until the flank is level, so both arrive together. Which side the flank
+		# swings to is chosen by LOWER believed ground-danger exposure along the two-leg route — so it
+		# goes around the weak shoulder, and that emerges from the Stage-B/C field rather than being
+		# scripted.
+		#
+		# NOT the Stage-E flow-around (DangerFieldRouting above). Stage E returns null the moment the
+		# beeline is already safe, because its job is to skirt a strongpoint. This is a doctrine and must
+		# fire against an undefended approach too — hence separate math (FlankingMath), which reuses
+		# Stage E's exposure measure and rounding rather than copying them.
+		#
+		# Every field here defaults OFF/inert on the shared engine class ⇒ the @stable twin (which omits
+		# them entirely) keeps the undivided single-group assault byte-identical. Needs a DangerFieldLayer
+		# for the side choice; with no field the split never happens. Zero RNG: the force is partitioned by
+		# a stable ActorID order and the lane by integer geometry over a fixed two-candidate order.
+		#
+		# The converge hold is BOUNDED at 4 evals on purpose. The flank's remaining route is a
+		# straight-line estimate, so broken ground can make "the flank is nearly level" permanently false;
+		# an unbounded wait on an estimate is a veto wearing the costume of a delay — the exact shape the
+		# Phase-5 SectorPostureHold stall already cost us. Budget is monotone within an axis lifetime and
+		# is NOT refunded on release, so a hold/advance duty cycle is not reachable either. Set it to 0 to
+		# keep the two-bearing split but drop the synchronisation.
+		#
+		# Values are conservative first guesses, NOT measured — no autotest or tournament has run against
+		# them. The benchmark ladder (WORKSPACE/ai-bench/, user-gated) is the tuning path. Offset 4 + 1 per
+		# unit, capped at 12 and additionally at half the approach, puts a 6-hull axis at 30 cells on a
+		# ~34-degree convergence; the half-approach cap is what stops the flank leg ever being a longer
+		# walk than the assault itself.
+		FlankingEnabled: true
+		FlankMinForceSize: 6
+		FlankMinApproachCells: 12
+		FlankSharePct: 35
+		FlankMinElementSize: 2
+		FlankOffsetBaseCells: 4
+		FlankOffsetPerUnitCells: 1
+		FlankOffsetMaxCells: 12
+		FlankConvergeStandoffCells: 14
+		FlankConvergeToleranceCells: 4
+		FlankConvergeMaxHoldEvals: 4
+		# IN DANGER UNITS (100 = one reference contact at point-blank), converted to raw field units at the
+		# call site. Matches the mild-danger threshold used elsewhere in this trait.
+		FlankEngagedDangerUnits: 30
+		# ===== end FLANKING MANEUVER ================================================================
+
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped
 	# under assault) so the income isn't ninja-recaptured. Reads PoiMap's defensive
