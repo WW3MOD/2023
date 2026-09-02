@@ -100,9 +100,11 @@ local SpongeMaxHP = 6000000
 local PerShellDamage = 12000
 
 -- Budgeted in TICKS and converted where a helper wants seconds, per test-helpers.lua. Firing
--- starts late enough for the turret to have traversed; 475 ticks of fire at ReloadDelay 10 is
--- more than the Abrams' 40-round AmmoPool can supply, so the run is ammo-bound (~40 shells)
--- rather than clock-bound, and the shell count does not drift with harness timing.
+-- starts late enough for the turret to have traversed; 475 ticks of fire at BurstWait 10 offers
+-- ~47 shots, more than the Abrams' 40-round AmmoPool can supply, so the run is ammo-bound (~40
+-- shells) rather than clock-bound and the shell count does not drift with harness timing.
+-- BurstWait, not ReloadDelay, is the cadence here: Burst defaults to 1, so BurstStep.Advance
+-- completes on the first shot and returns burstWait as the delay (Armament.cs:74-81).
 local FireStartTick = 25
 local VerdictTick = 500
 

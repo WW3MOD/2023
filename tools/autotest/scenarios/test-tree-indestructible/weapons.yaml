@@ -33,10 +33,34 @@
 # Thickness, so it defaults to 0 and the penetration path short-circuits (DamageWarhead.cs:237-250).
 # Damage arrives unmodified except by the victim's own IDamageModifier traits -- which is precisely
 # the one thing this scenario is here to measure.
+#
+# VALIDATED AGAINST ALL 59 ARMAMENT-REFERENCED WEAPONS IN THE MOD, not eyeballed from a couple of
+# them -- the first draft was written from the SHAPE of other weapons and cost two game slots to
+# two separate missing pieces. Resolving Inherits and taking the weapon-level field of every weapon
+# any Armament points at: `BurstWait` appears in 59/59 and is the ONLY universal field that was
+# absent here. Everything else missing is genuinely optional -- `Report` (51/59) is a sound,
+# `Warhead@Target`/`@Effect`/`@Suppression_*` are deliberate omissions, `Burst`/`BurstDelays` (30/59)
+# default to 1 and to unused.
+#
+# BurstWait is not cosmetic and not merely required: with Burst at its default of 1,
+# BurstStep.Advance decrements to 0 on the first shot and returns `wait = burstWait`
+# (Armament.cs:74-81), so BURSTWAIT IS THE INTER-SHOT CADENCE for this weapon and ReloadDelay is
+# inoperative (no Magazine). 10 ticks over the ~475-tick fire window offers ~47 shots, so the run
+# stays bounded by the Abrams' 40-round AmmoPool rather than by the clock. The engine requires it
+# non-zero at Armament.cs:184-185 -- a fork-added check, since WeaponInfo.BurstWait defaults to 0
+# and no [FieldLoader.Require] marks it.
+#
+# ClearSightThreshold: 255 copies ^ArtilleryRound (weapons-ballistics.yaml:874) and disables the
+# shadow/density line-of-sight gate. Strictly it is belt-and-braces: the firing line runs straight
+# north from 20,24 to 20,17 and crosses only the guard tree's own cell, whose density 10 scores 2
+# against the default threshold of 5 (WeaponInfo.cs:151) and would pass. But "would pass" is the
+# reasoning that has already cost two slots on this file, and the field is a targeting gate with no
+# effect on the damage arithmetic, so it costs nothing to remove the question entirely.
 TreeGuardShell:
 	ValidTargets: Ground, Trees, Water
 	Range: 12c0
-	ReloadDelay: 10
+	BurstWait: 10
+	ClearSightThreshold: 255
 	Projectile: Bullet
 		Speed: 1000
 		Blockable: false

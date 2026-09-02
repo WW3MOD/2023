@@ -3,6 +3,33 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-02 — **Bare `--check-yaml` does not lint autotest scenarios at all.** It never opens them
+
+Two scenario runs were lost to rules-load failures, and between them a clean `--check-yaml` was
+taken as evidence the second would load. It was not evidence of anything.
+
+`CheckYaml.cs:98` gets its map list from `modData.MapCache.EnumerateMapDirPackagesAndNames()`, whose
+`classification` parameter **defaults to `MapClassification.System`** (`MapCache.cs:212`).
+`mod.yaml:90` classifies `ww3mod|maps` as `System`; `tools/autotest/scenarios` is deliberately
+`Unknown` so the scenarios stay out of every UI tab. So bare `--check-yaml` lints the 10 shipped maps
+and **none of the 273 scenarios**. It is not that the check is weak for scenarios — it does not run.
+
+This is not a hole in the lint logic. `TestMap` reports `map.InvalidCustomRules` explicitly
+(`CheckYaml.cs:141-146`), and `Map.PostInit` sets that flag by catching whatever `Ruleset.Load`
+throws (`Map.cs:579-592`) — which is where actor-trait `RulesetLoaded` validation runs
+(`Ruleset.cs:49-61`). Point it at a scenario and it catches these failures precisely.
+
+**Pass the map path explicitly** (`CheckYaml.cs:100-101` takes `args[1]` as a package path under
+`Platform.EngineDir`):
+
+```
+./utility.sh --check-yaml tools/autotest/scenarios/<scenario>
+```
+
+**Confirm it printed `Testing map: <the scenario title>`.** A path it cannot open is skipped
+silently (`CheckYaml.cs:106-107` `if (package == null) continue;`) and the command then reports
+clean — the same "instrument fails in a way that looks like a result" shape as the traps above.
+
 ## 2026-09-02 — Pre-flight a scenario's rules keys by EXACT CASE before spending a game slot
 
 `test-tree-indestructible` burned a 300 s slot to a rules-load failure that a text check would have
