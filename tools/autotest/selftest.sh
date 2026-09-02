@@ -1,10 +1,16 @@
 #!/bin/sh
-# WW3MOD autotest harness — self-test for run-test.sh's RESULT REPORTING.
+# WW3MOD autotest harness — self-test for run-test.sh's RESULT REPORTING, and for
+# run-batch.sh's GRADING of it.
 #
 # This does NOT start a game and does NOT test any gameplay. It drives
 # run-test.sh with a stub launcher (AUTOTEST_LAUNCHER) and a sandboxed HOME, and
 # asserts that each way a run can end is reported as a distinct named outcome
-# with the right exit code.
+# with the right exit code — then drives run-batch.sh the same way to assert that
+# an `expected-status` declaration cannot absorb one of the ways a run FAILS TO
+# HAPPEN. That last section is here rather than in expected-status.sh's own
+# `--selftest` for a reason worth remembering: the decision table was correct
+# throughout the entire life of the bug it guards, which lived in what reached
+# the table, not in the table.
 #
 # Why it exists: between 2026-08-10 and 2026-08-12 the harness destroyed or
 # misreported a verdict four times — a shared result path overwritten by a
@@ -277,6 +283,99 @@ if printf '%s' "${ERRONLY}" | grep -q 'AUTOTEST_VERDICT outcome=FAIL'; then
 	echo "  ok    stderr of a failing run      carries the verdict independently"
 else
 	echo "  FAIL  stderr of a failing run      silent when stdout is redirected"
+	FAILURES=$((FAILURES + 1))
+fi
+
+echo
+echo "==> a declaration cannot absorb a run that never happened"
+
+# The bug this section exists for: run-batch graded a scenario's declaration against
+# run-test.sh's EXIT CODE, and exit 1 means both "the scenario failed" and "the watchdog
+# killed it". A scenario declaring `fail` therefore reported OK(fail) — green, batch exit
+# 0 — when the game hung and no assertion ever ran.
+#
+# Driven end-to-end through run-batch.sh rather than through expected_status_grade,
+# because the decision table was never the broken part: what was broken was what reached
+# it. A unit test of the grader passed throughout the entire life of the bug.
+#
+# The scenario is DISCOVERED, not named. Hardcoding one means this section silently stops
+# testing anything the day that declaration is deleted — the same class of vacuous green
+# it exists to prevent.
+BATCH="./tools/autotest/run-batch.sh"
+. ./tools/autotest/expected-status.sh
+DECL_FAIL=""
+for _d in tools/autotest/scenarios/*/; do
+	if [ "$(expected_status_read "${_d%/}")" = "fail" ]; then
+		DECL_FAIL=$(basename "${_d%/}")
+		break
+	fi
+done
+
+if [ -z "${DECL_FAIL}" ]; then
+	# Not a failure: the repo may legitimately carry no by-merit negative right now.
+	echo "  skip  no scenario declares 'fail'  nothing to prove the absorption against"
+else
+	echo "  ..    using ${DECL_FAIL} (declares 'fail')"
+
+	# RED ARM: the run hangs. Must be red, and must be named as not-run, not as FAIL.
+	H=$(new_home batchhang)
+	STUB=$(make_stub batchhang <<'EOF'
+#!/bin/sh
+sleep 120
+EOF
+)
+	OUT=$(HOME="${H}" AUTOTEST_LAUNCHER="${STUB}" "${BATCH}" --hidden --timeout 2 --speed 1 \
+		"${DECL_FAIL}" 2>&1); RC=$?
+	if [ "${RC}" != "0" ] && printf '%s' "${OUT}" | grep -q 'NEVER REACHED A VERDICT'; then
+		echo "  ok    hang under a 'fail' declaration  batch exit ${RC}, reported as not-run"
+	else
+		echo "  FAIL  hang under a 'fail' declaration  batch exit ${RC}; wanted non-zero and a"
+		echo "        NEVER REACHED A VERDICT block. A hung run is being graded green."
+		FAILURES=$((FAILURES + 1))
+	fi
+	if printf '%s' "${OUT}" | grep -q 'OK(fail)'; then
+		echo "  FAIL  hang shown as OK(fail)          the declaration absorbed the timeout"
+		FAILURES=$((FAILURES + 1))
+	fi
+
+	# GREEN ARM, and it is not optional: without it the red above is equally satisfied by
+	# a "fix" that simply broke every `fail` declaration. The scenario must still be able
+	# to reach its declared outcome under its own power and count as green.
+	H=$(new_home batchfail)
+	STUB=$(make_stub batchfail <<EOF
+#!/bin/sh
+${result_path_from_argv}
+printf '{"name":"x","status":"fail","notes":"stub"}' > "\${RP}"
+EOF
+)
+	OUT=$(HOME="${H}" AUTOTEST_LAUNCHER="${STUB}" "${BATCH}" --hidden --speed 1 \
+		"${DECL_FAIL}" 2>&1); RC=$?
+	if [ "${RC}" = "0" ] && printf '%s' "${OUT}" | grep -q 'OK(fail)'; then
+		echo "  ok    genuine fail under 'fail'       still green, still shown as OK(fail)"
+	else
+		echo "  FAIL  genuine fail under 'fail'       batch exit ${RC}; wanted 0 and OK(fail)."
+		echo "        The by-merit negative no longer grades green."
+		FAILURES=$((FAILURES + 1))
+	fi
+fi
+
+# run-batch names its own outcome file per test. An AUTOTEST_OUTCOME_FILE already in the
+# environment — pointing somewhere unwritable, or at another run's result — must be
+# overridden, not inherited, or one stale path silently regrades a whole batch.
+H=$(new_home inherited)
+STUB=$(make_stub inherited <<EOF
+#!/bin/sh
+${result_path_from_argv}
+printf '{"name":"x","status":"pass","notes":"stub"}' > "\${RP}"
+EOF
+)
+OUT=$(HOME="${H}" AUTOTEST_LAUNCHER="${STUB}" \
+	AUTOTEST_OUTCOME_FILE="${SANDBOX}/no/such/dir/outcome" \
+	"${BATCH}" --hidden --speed 1 "${SCENARIO}" 2>&1); RC=$?
+if [ "${RC}" = "0" ]; then
+	echo "  ok    outcome channel is per-batch    an inherited path does not regrade a run"
+else
+	echo "  FAIL  outcome channel is per-batch    inherited AUTOTEST_OUTCOME_FILE broke it"
 	FAILURES=$((FAILURES + 1))
 fi
 

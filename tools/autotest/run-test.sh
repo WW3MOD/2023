@@ -141,6 +141,22 @@
 #       run-test.sh foo | tail; rc=${PIPESTATUS[0]}   # bash/zsh only
 #   or read the AUTOTEST_VERDICT line instead of the exit code.
 #
+#   FOR A PARENT SCRIPT, use the file instead of the stream. Set
+#   AUTOTEST_OUTCOME_FILE=<path> in the environment and this runner writes
+#
+#       outcome=<OUTCOME> exit=<n> test=<name> run=<run-id>
+#
+#   to that path from the same EXIT trap that prints the banner — so it is
+#   written on every exit path, including a crash or Ctrl-C. It exists because
+#   the two ways to read the banner are both traps for a caller: letting the run
+#   print to the terminal means you never captured the line, and capturing it
+#   through a pipe is exactly how the exit code gets lost. A file is neither.
+#   Unset (the default) it costs nothing and nothing is written.
+#
+#   run-batch.sh depends on this: exit 1 is shared by a real assertion FAIL and
+#   a watchdog TIMEOUT-FAIL, and a scenario carrying a `fail` declaration must
+#   never have a hang graded as its declared outcome. See expected-status.sh.
+#
 # Result files are PER-RUN, never shared. Each invocation gets its own
 # directory (timestamp + pid + test name) under ~/.ww3mod-tests/screenshots/,
 # holding that run's result.json, screenshots and lifecycle log. Concurrent
@@ -251,6 +267,15 @@ emit_verdict() {
 	printf '============================================================\n'
 	printf 'AUTOTEST_VERDICT outcome=%s exit=%s test=%s run=%s\n' \
 		"${OUTCOME}" "${_code}" "${TEST_NAME}" "${RUN_ID}"
+	# Same line, to a path the CALLER named — the parent-process channel described
+	# in the header. Written here so it shares every guarantee the banner has:
+	# emitted from the EXIT trap, so no exit path skips it, and never routed
+	# through a pipe, so reading it cannot cost the caller its exit code.
+	if [ -n "${AUTOTEST_OUTCOME_FILE:-}" ]; then
+		printf 'outcome=%s exit=%s test=%s run=%s\n' \
+			"${OUTCOME}" "${_code}" "${TEST_NAME}" "${RUN_ID}" \
+			> "${AUTOTEST_OUTCOME_FILE}" 2>/dev/null || true
+	fi
 	# Non-PASS also goes to stderr, but ONLY when stdout is not a terminal —
 	# i.e. exactly when stdout might be piped into a filter or redirected to a
 	# log and the verdict could be lost. On a tty the human already sees it, and

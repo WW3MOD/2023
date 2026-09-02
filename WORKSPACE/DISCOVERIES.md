@@ -724,6 +724,40 @@ minutes of being read.
 ## 2026-09-01 — an `expected-status: fail` declaration also grades a WATCHDOG TIMEOUT green, because the batch reads the exit code and only `run-test.sh` knows the difference (`wt/harness-gaps`)
 > **[rejected: duplicate — already banked in-tree at the tool]** (curation 2026-09-02). `tools/autotest/expected-status.sh:30-47` carries this almost verbatim, and `DOCS/recipes/AUTOTEST.md:72` documents `TIMEOUT-FAIL` vs `FAIL`. Mechanism re-verified (`run-test.sh:932-933`, `:791-795`, `:799`). **Drift recorded so the next reader is not sent hunting:** `RUN_ID` is `run-test.sh:514` (entry says `:515`), and the batch's outcome derivation is `run-batch.sh:225-229` (entry says `:213-218`) — the same stale cite is copied into `expected-status.sh`. **Count is stale too:** 16 `expected-status` declarations now (1 `fail`, 15 `skip`), not fourteen.
 
+> **CLOSED 2026-09-02 (`wt/timeout-grade`). Read this before the analysis below, because that
+> analysis's own "why the obvious fix is not a one-liner" paragraph is WRONG about where the fix had
+> to go, and the way it is wrong generalises.** It frames the fix around the verdict FILE —
+> *"`run-batch.sh` cannot inspect the verdict file, because `RUN_ID` and therefore `RESULT_FILE` are
+> generated inside `run-test.sh` and never communicated back"* — all true, and all beside the point.
+> **Nothing in the verdict file was ever needed.** `run-test.sh` had already decided the thing the
+> grader lacked, and was already printing it: `OUTCOME=TIMEOUT-FAIL`. The distinction did not need
+> re-deriving from disk, only carrying across one process boundary. The fix is
+> `AUTOTEST_OUTCOME_FILE` — an env var naming a file that `run-test.sh`'s EXIT trap writes
+> `outcome=… exit=…` into, which `run-batch.sh` sets per test and reads back. Not the stdout banner,
+> because both ways of reading a stream are traps for a caller: letting the run print to the terminal
+> means the line was never captured, and capturing it through a pipe is how this harness has lost an
+> exit code twice. **Generalised: when a distinction is missing downstream, first ask whether
+> upstream already computed it and merely failed to hand it over. "Reconstruct it from the artifact"
+> was a day of imagined work standing in for a side channel.**
+>
+> Grading now runs on the OUTCOME NAME, never the exit code, and `expected_status_grade` carries one
+> explicit ALLOWLIST — only `PASS`/`FAIL`/`SKIP` mean the scenario answered; every other name is
+> `NOTRUN` and red under any declaration. Exit codes are untouched (0/1/2/3): widening them would
+> have paid for this fix with a different silent break in every existing caller.
+>
+> **The measurement that matters most, and the reason the guard is at the batch level:** a scratch
+> tree pairing the OLD `run-batch.sh` with the NEW `expected-status.sh` still graded a timeout
+> `OK(fail)`, exit 0. **The decision table was correct throughout the entire life of the bug** — a
+> unit test of the grader would have passed every day it was broken. So the regression guard is an
+> end-to-end `run-batch.sh` run under a hanging stub launcher, in `selftest.sh`, with a
+> genuine-`fail` green arm beside it so a "fix" that merely broke all `fail` declarations cannot
+> pass it. That section DISCOVERS the declared-`fail` scenario rather than naming one, so deleting
+> `test-drone-lost-track`'s declaration cannot quietly make the guard vacuous.
+>
+> The `skip`-asymmetry note below was re-verified and is correct. It is also the tell that named the
+> fix: the hole existed only where the exit-code collapse happened to land on the declared value, so
+> `skip` was safe by luck rather than by check — which is the argument for grading on names at all.
+
 `tools/autotest/expected-status.sh` is sound on its own terms and its selftest proves the decision
 table. The hole is at the seam.
 

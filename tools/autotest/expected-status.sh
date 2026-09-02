@@ -27,24 +27,39 @@
 # is the one specific outcome the author wrote down and justified, and it fails the
 # moment reality stops matching the note.
 #
-# KNOWN GAP, and it is the one that matters most when you declare `fail` — a WATCHDOG
-# TIMEOUT is graded GREEN by a `fail` declaration. The bullet above is true for a crash
-# (exit 3 -> ERR -> RED) but NOT for a hang. run-test.sh forks the outcome name at :932
-# (`TIMEOUT-FAIL` vs `FAIL`) and deliberately gives both `exit 1`, saying so at :791-795;
-# its synthesized timeout record at :798-800 is `"status":"fail"`, schema-identical to a
-# real assertion failure. run-batch.sh derives its outcome from the exit code alone
-# (:213-218), so what reaches expected_status_grade is plain `FAIL` either way. A scenario
-# declared `fail` therefore reports OK(fail) when the game hung or never loaded its rules
-# -- i.e. it absorbs "the run did not happen", the one outcome a by-merit declaration must
-# never absorb.
+# THE FOURTH BULLET, which is the one that makes the other three safe — A DECLARATION IS
+# ONLY EVER SATISFIED BY A SCENARIO THAT REACHED A VERDICT UNDER ITS OWN POWER. A watchdog
+# timeout, a crash, a Ctrl-C, a run that produced no verdict at all: none of these can be
+# green, whatever is declared. This is `NOTRUN` below, and it is an ALLOWLIST — only PASS,
+# FAIL and SKIP count as the scenario answering. Anything else is the HARNESS answering,
+# and "the run did not happen" is the one outcome a by-merit declaration must never absorb.
 #
-# So: a `fail` declaration is only honest while the scenario still reaches a verdict under
-# its own power, and NOTHING HERE CHECKS THAT. Until it does, re-read the run banner (which
-# does print TIMEOUT-FAIL) rather than trusting an OK(fail) in the tally. The fix needs the
-# run dir plumbed out of run-test.sh -- RUN_ID/RESULT_FILE are generated there (:515, :522)
-# and never handed back, so run-batch cannot inspect the verdict file today. Full write-up,
-# including the per-scenario marker scheme that already solves this one level down
-# (`00-script-loaded` / `99-verdict-reached`), in WORKSPACE/DISCOVERIES.md 2026-09-01.
+# It used to. Until 2026-09-02 a hang was graded GREEN by a `fail` declaration, and the
+# reason is worth keeping because it is a plumbing shape that recurs: run-test.sh forks the
+# outcome NAME for a timeout (`TIMEOUT-FAIL` vs `FAIL`) but deliberately gives both `exit 1`,
+# and its synthesized timeout record is `"status":"fail"` — schema-identical to a real
+# assertion failure. run-batch.sh derived its outcome from the EXIT CODE alone, so the fork
+# was erased before the grader ever saw it and plain `FAIL` arrived either way. The bug was
+# never in this decision table; it was in what reached it. A crash was red only by luck of
+# collapsing onto a different exit code (3 -> ERR), not because anything checked.
+#
+# THE FIX IS A SIDE CHANNEL, not a richer exit code. run-test.sh's EXIT trap writes
+# `outcome=<NAME> exit=<n> test=<t> run=<id>` to the path in AUTOTEST_OUTCOME_FILE, and
+# run-batch.sh names one file per test and reads the precise OUTCOME back from it. A file
+# rather than the stdout banner because both stream reads are traps for a caller: leaving
+# the run to print to the terminal means the line was never captured, and capturing it
+# through a pipe is exactly how an exit code gets lost -- twice, in this harness, on record.
+# Exit codes were left alone deliberately: run-batch, CI and every existing caller depend on
+# 0/1/2/3, and widening them would have paid for this fix with a different silent break.
+#
+# Two things follow for anyone editing this file. (1) The allowlist is here and ONLY here --
+# run-batch does not re-derive it, so a harness outcome added to run-test.sh later is RED by
+# default rather than quietly satisfying somebody's declaration. (2) If the outcome file is
+# missing or disagrees with the exit code, run-batch reports `NO-OUTCOME` / `OUTCOME-MISMATCH`
+# rather than falling back to the exit code, because a silent fallback is this same bug again.
+# One level down, inside a scenario, the marker scheme (`00-script-loaded` /
+# `99-verdict-reached`) answers the same question about the Lua; see CONTROL-ARM.md and
+# WORKSPACE/DISCOVERIES.md 2026-09-01.
 #
 # DECLARING IT. Put a file named `expected-status` in the scenario folder:
 #
@@ -62,8 +77,12 @@
 #
 # USAGE
 #   expected_status_read  <scenario-dir>          -> echoes "" | "fail" | "skip" | "ERROR:msg"
-#   expected_status_grade <declared> <actual>     -> echoes GREEN|RED|STOPPED|CONFIG
+#   expected_status_grade <declared> <outcome>    -> GREEN|RED|STOPPED|NOTRUN|CONFIG
 #   ./expected-status.sh --selftest               -> proves the decision table, no launch
+#
+# <outcome> is run-test.sh's OUTCOME NAME -- PASS, FAIL, SKIP, TIMEOUT-FAIL, CRASH,
+# NO-RESULT, BAD-VERDICT, INTERRUPTED, HARNESS-ERROR -- NOT an exit-code bucket.
+# Passing a bucket is the bug described above: it erases TIMEOUT-FAIL into FAIL.
 
 # Echo the declared status for a scenario dir, or nothing if undeclared.
 # An unreadable/ill-formed declaration echoes "ERROR:<msg>" so the caller can fail loudly
@@ -106,9 +125,10 @@ expected_status_read() {
 	echo "${_esr_status}"
 }
 
-# Grade an actual verdict against a declaration.
+# Grade a run's OUTCOME NAME against a declaration.
 #   GREEN   counts as a pass for the batch's exit code
 #   STOPPED the declared outcome no longer occurs -- the declaration is stale (RED)
+#   NOTRUN  the scenario never reached a verdict under its own power (RED)
 #   RED     an outcome nobody declared
 #   CONFIG  the declaration itself is malformed (RED)
 expected_status_grade() {
@@ -117,6 +137,17 @@ expected_status_grade() {
 
 	case "${_esg_declared}" in
 		ERROR:*) echo "CONFIG"; return 0 ;;
+	esac
+
+	# THE ALLOWLIST, and the only copy of it. These three outcomes -- and no others --
+	# mean the scenario ran and answered. Every other name run-test.sh can report is
+	# the harness giving up, and is graded NOTRUN whatever is declared: an empty value
+	# (the outcome never reached us) lands here too, so a broken plumb is loud rather
+	# than green. Adding a case here is how a future outcome becomes declarable; there
+	# is nowhere else to change, and the default for anything new is RED.
+	case "${_esg_actual}" in
+		PASS|FAIL|SKIP) : ;;
+		*) echo "NOTRUN"; return 0 ;;
 	esac
 
 	if [ -z "${_esg_declared}" ]; then
@@ -158,19 +189,36 @@ _expected_status_selftest() {
 	_check "undeclared, passes"            ""      PASS GREEN
 	_check "undeclared, fails"             ""      FAIL RED
 	_check "undeclared, skips"             ""      SKIP RED
-	_check "undeclared, errors"            ""      ERR  RED
+	_check "undeclared, errors"            ""      ERR  NOTRUN
 	# Declared fail: the by-merit negative.
 	_check "declared fail, fails"          "fail"  FAIL GREEN
 	_check "declared fail, STOPS failing"  "fail"  PASS STOPPED
 	_check "declared fail, skips instead"  "fail"  SKIP RED
-	_check "declared fail, crashes"        "fail"  ERR  RED
 	# Declared skip.
 	_check "declared skip, skips"          "skip"  SKIP GREEN
 	_check "declared skip, STOPS skipping" "skip"  PASS STOPPED
 	_check "declared skip, fails instead"  "skip"  FAIL RED
-	# Malformed declarations are never silently ignored.
+	# THE HOLE THIS TABLE WAS WRITTEN AROUND. Every one of these is the harness giving
+	# up, and none of them may be absorbed by a declaration. The first row is the bug:
+	# a hang reached the grader as plain FAIL and read as the declared outcome.
+	_check "declared fail, HANGS"          "fail"  TIMEOUT-FAIL NOTRUN
+	_check "declared fail, crashes"        "fail"  CRASH        NOTRUN
+	_check "declared fail, no verdict"     "fail"  NO-RESULT    NOTRUN
+	_check "declared fail, bad verdict"    "fail"  BAD-VERDICT  NOTRUN
+	_check "declared fail, interrupted"    "fail"  INTERRUPTED  NOTRUN
+	_check "declared fail, harness broke"  "fail"  HARNESS-ERROR NOTRUN
+	_check "declared skip, HANGS"          "skip"  TIMEOUT-FAIL NOTRUN
+	_check "undeclared, HANGS"             ""      TIMEOUT-FAIL NOTRUN
+	# The outcome never reached the grader at all: loud, never green.
+	_check "declared fail, outcome lost"   "fail"  NO-OUTCOME       NOTRUN
+	_check "declared fail, plumb mismatch" "fail"  OUTCOME-MISMATCH NOTRUN
+	_check "declared fail, empty outcome"  "fail"  ""               NOTRUN
+	_check "undeclared, empty outcome"     ""      ""               NOTRUN
+	# Malformed declarations are never silently ignored -- and outrank NOTRUN, because
+	# the file has to be fixed either way.
 	_check "malformed declaration"         "ERROR:bad" FAIL CONFIG
 	_check "malformed, would-be green"     "ERROR:bad" PASS CONFIG
+	_check "malformed, and it hung"        "ERROR:bad" TIMEOUT-FAIL CONFIG
 
 	echo
 	echo "file parsing"
