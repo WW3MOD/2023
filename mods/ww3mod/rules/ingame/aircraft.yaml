@@ -197,6 +197,19 @@
 		TargetTypes: Helicopter
 	DeliversCash@Rotation:
 		Type: Rotation
+	# COPIED from ^Aircraft above, deliberately NOT hoisted into ^Airborne. ^Helicopter inherits
+	# ^Airborne, not ^Aircraft, so it was the one template in the mod carrying EvacuateWhenUnrearmable
+	# (the only occurrence anywhere) and no marker for it — six live helicopters flying off the map
+	# with nothing on screen. Hoisting the block up to ^Airborne would MERGE with ^Aircraft's copy
+	# rather than replace it, so the tidier-looking edit leaves two declarations of the same key.
+	# The `evacuating` token is already in scope here: ExternalCondition@Evacuating is declared in
+	# ^NeutralAirborne (:14-15), which ^Airborne inherits at :101.
+	WithDecoration@Evacuating:
+		Image: pips
+		Sequence: pip-orange
+		Position: TopRight
+		RequiresCondition: evacuating
+		ValidRelationships: Ally
 	HeliEmergencyLanding:
 		AutorotationDescentRate: 20
 		CrashDescentRate: 50
