@@ -164,8 +164,6 @@ dotnet_diagnostic.CA1847.severity = warning
 
 dotnet_diagnostic.RCS1080.severity = warning
 
-pagare qui sotto
-
 # Use read-only auto-implemented property.
 
 dotnet_diagnostic.RCS1170.severity = warning
