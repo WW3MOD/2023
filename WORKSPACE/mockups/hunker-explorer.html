@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD — hunker tradeoff explorer</title>
+<style>
+  :root{
+    --bg:#14161a; --panel:#1e2126; --panel2:#191c21; --line:#2f343b;
+    --tx:#c8cdd4; --dim:#7b838d; --dimmer:#565d66;
+    --amber:#f0a818; --red:#d2492a; --green:#6f9b4a; --blue:#4a7c9b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);
+       font:13px/1.5 "Segoe UI",-apple-system,Helvetica,Arial,sans-serif;padding:24px 28px 60px}
+  h1{font-size:18px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin:0 0 3px}
+  h2{font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--amber);
+     margin:0 0 10px;padding-bottom:5px;border-bottom:1px solid var(--line)}
+  .sub{color:var(--dim);font-size:12px;margin:0 0 18px}
+  .ref{color:var(--dimmer);font-size:11px;font-family:ui-monospace,Menlo,monospace}
+  code{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9db8c9}
+
+  .grid{display:grid;grid-template-columns:minmax(300px,1fr) minmax(340px,1.15fr) minmax(280px,1fr);gap:14px;align-items:start}
+  .panel{background:var(--panel);border:1px solid var(--line);padding:14px}
+
+  /* sliders */
+  .ctl{margin-bottom:16px}
+  .ctl .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+  .ctl .name{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim)}
+  .ctl .val{font-family:ui-monospace,Menlo,monospace;font-size:19px;font-weight:700;line-height:1}
+  .ctl .hint{font-size:10.5px;color:var(--dimmer);margin-top:4px}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:16px;background:transparent;cursor:pointer;margin:0}
+  input[type=range]::-webkit-slider-runnable-track{height:6px;background:#0c0e11;border:1px solid var(--line)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:16px;margin-top:-6px;
+    background:var(--tx);border:1px solid #000;border-radius:1px}
+  input[type=range]::-moz-range-track{height:6px;background:#0c0e11;border:1px solid var(--line)}
+  input[type=range]::-moz-range-thumb{width:12px;height:16px;background:var(--tx);border:1px solid #000;border-radius:1px}
+
+  /* battlefield preview */
+  .field{background:repeating-linear-gradient(45deg,#3a3a2c 0 6px,#36362a 6px 12px);
+         border:1px solid #00000060;height:92px;display:flex;align-items:center;justify-content:center;gap:34px;position:relative}
+  .field .cap{position:absolute;left:5px;top:4px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#00000090}
+  .unit{position:relative;width:24px;height:34px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+  .sprite{background:#5d6b4f;border:1px solid #2b3325;transition:width .12s,height .12s,opacity .12s}
+  .barB{position:absolute;top:-9px;left:50%;transform:translateX(-50%);width:24px}
+  .barB .track{height:3px;background:#00000090;border:1px solid #ffffff20;position:relative;overflow:hidden}
+  .barB .fill{position:absolute;left:0;top:0;bottom:0}
+  .barB .thr{position:absolute;top:-1px;bottom:-1px;left:30%;width:1px;background:#ffffff70}
+  .barH{position:absolute;top:-14px;left:50%;transform:translateX(-50%);width:24px}
+  .barH .track{height:2px;background:#00000090;border:1px solid #ffffff18;position:relative}
+  .barH .fill{position:absolute;left:0;top:0;bottom:0;background:var(--blue)}
+  .ring{position:absolute;border:1px solid #ffffff30;border-radius:50%;pointer-events:none;transition:all .12s}
+  .zoomwrap{height:96px;background:#0e1013;border:1px solid var(--line);display:flex;align-items:center;
+            justify-content:center;overflow:hidden;position:relative;margin-top:8px}
+  .zoomwrap .cap{position:absolute;left:5px;top:4px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dimmer)}
+  .zoom{transform:scale(4.5);image-rendering:pixelated}
+
+  /* stat rows */
+  .stat{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+  .stat .k{flex:0 0 92px;font-size:11px;color:var(--dim)}
+  .stat .meter{flex:1;height:9px;background:#0c0e11;border:1px solid var(--line);position:relative;overflow:hidden}
+  .stat .meter i{position:absolute;left:0;top:0;bottom:0;transition:width .12s,background .12s}
+  .stat .meter .ghost{position:absolute;top:0;bottom:0;width:1px;background:#ffffff55}
+  .stat .v{flex:0 0 60px;text-align:right;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;font-weight:600}
+  .statnote{font-size:10.5px;color:var(--dimmer);margin:-3px 0 9px 100px}
+
+  /* curve */
+  svg{display:block;width:100%;height:auto}
+  .curvewrap{background:#0c0e11;border:1px solid var(--line);padding:8px 8px 4px;margin-top:4px}
+  .clegend{display:flex;gap:14px;font-size:10.5px;color:var(--dim);margin-top:6px;flex-wrap:wrap}
+  .clegend span:before{content:"";display:inline-block;width:14px;height:2px;margin-right:5px;vertical-align:3px}
+  .cl-r:before{background:var(--red)} .cl-g:before{background:var(--green)} .cl-b:before{background:var(--blue);height:6px;width:2px;vertical-align:-1px}
+
+  .verdict{margin-top:12px;padding:10px 12px;font-size:12px;border-left:2px solid var(--dim);background:var(--panel2);line-height:1.5}
+  .verdict b{color:var(--tx)}
+  .verdict.ok{border-left-color:var(--green)} .verdict.bad{border-left-color:var(--red)} .verdict.warn{border-left-color:var(--amber)}
+
+  /* presets + questions */
+  .presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+  button.p{background:#262a30;border:1px solid var(--line);color:var(--tx);font:inherit;font-size:11px;
+           padding:6px 9px;cursor:pointer;text-align:left;flex:1 1 auto}
+  button.p:hover{background:#31363d;border-color:#4a515a}
+  button.p.on{border-color:var(--amber);color:var(--amber)}
+
+  .q{margin-bottom:16px}
+  .q .qt{font-size:11.5px;color:var(--tx);margin-bottom:7px;line-height:1.45}
+  .q .qt em{color:var(--dim);font-style:normal;font-size:10.5px;display:block;margin-top:3px}
+  label.opt{display:flex;gap:7px;align-items:flex-start;padding:6px 8px;border:1px solid var(--line);
+            margin-bottom:4px;cursor:pointer;font-size:11.5px;background:var(--panel2)}
+  label.opt:hover{border-color:#4a515a}
+  label.opt input{margin:2px 0 0}
+  label.opt.sel{border-color:var(--amber);background:#f0a8180d}
+  label.opt .od{display:block;color:var(--dim);font-size:10.5px;margin-top:2px;line-height:1.4}
+  textarea,input[type=text]{width:100%;background:#0c0e11;border:1px solid var(--line);color:var(--tx);
+    font:inherit;font-size:11.5px;padding:7px 8px;resize:vertical}
+  textarea:focus,input[type=text]:focus{outline:none;border-color:var(--amber)}
+  button.send{width:100%;background:var(--amber);border:0;color:#14161a;font:inherit;font-weight:700;
+    font-size:12.5px;letter-spacing:.05em;text-transform:uppercase;padding:11px;cursor:pointer;margin-top:10px}
+  button.send:hover{background:#ffb92e}
+  button.send.done{background:var(--green);color:#0e1013}
+  .model{font-size:10.5px;color:var(--dimmer);line-height:1.55;margin-top:10px;border-top:1px solid var(--line);padding-top:9px}
+  .model b{color:var(--dim)}
+</style>
+</head>
+<body>
+
+<h1>Hunker tradeoff explorer</h1>
+<p class="sub">Suppression ladder values are the shipped ones. The hunker axis is a <b>proposal</b> — its curve is drawn from the model spelled out bottom-right, so you can argue with the shape, not just the idea.
+<span class="ref">main @ 6a7e1839</span></p>
+
+<div class="grid">
+
+  <!-- ============ LEFT: inputs ============ -->
+  <div class="panel">
+    <h2>Inputs</h2>
+
+    <div class="ctl">
+      <div class="top"><span class="name">Suppression &middot; incoming</span><span class="val" id="sVal">0</span></div>
+      <input type="range" id="sup" min="0" max="100" value="0">
+      <div class="hint" id="sHint">Not player-controlled. Decays 1 per 5 ticks — a full 100 → 0 takes ~30 s.</div>
+    </div>
+
+    <div class="ctl">
+      <div class="top"><span class="name">Hunker depth &middot; proposed</span><span class="val" id="hVal" style="color:var(--blue)">0</span></div>
+      <input type="range" id="hunk" min="0" max="100" value="0">
+      <div class="hint">The new voluntary axis. Buys protection with firepower, continuously — no mode to be thrown into.</div>
+    </div>
+
+    <div class="field">
+      <span class="cap">1× · as it appears in game</span>
+      <div class="unit" id="unit1"></div>
+      <div class="unit" id="unit2"></div>
+    </div>
+    <div class="zoomwrap">
+      <span class="cap">4.5× inset</span>
+      <div class="zoom"><div class="unit" id="unit3" style="background:repeating-linear-gradient(45deg,#3a3a2c 0 6px,#36362a 6px 12px);width:44px;height:40px;justify-content:center;padding-top:14px"></div></div>
+    </div>
+    <p style="font-size:10.5px;color:var(--dimmer);margin:7px 0 0">
+      Amber bar = suppression, tick at the prone threshold (30). Blue bar above it = hunker depth.
+      The grey ring is the existing concealment circle — the range at which a standard observer first sees him. It shrinks as he digs in.
+    </p>
+
+    <h2 style="margin-top:22px">Scenarios</h2>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <!-- ============ MIDDLE: readout + curve ============ -->
+  <div class="panel">
+    <h2>What he can still do</h2>
+    <div id="stats"></div>
+
+    <h2 style="margin-top:20px">The tradeoff, as a curve</h2>
+    <p style="font-size:11px;color:var(--dim);margin:-4px 0 6px">
+      Horizontal axis is hunker depth 0 → 100 at the suppression you have set. Both curves are in the same units:
+      percentage points of a <em>calm, standing</em> soldier.
+    </p>
+    <div class="curvewrap">
+      <svg id="curve" viewBox="0 0 420 190" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+    <div class="clegend">
+      <span class="cl-r">Firepower given up</span>
+      <span class="cl-g">Incoming damage avoided</span>
+      <span class="cl-b">your current depth</span>
+    </div>
+    <p style="font-size:10.5px;color:var(--dimmer);margin:7px 0 0;line-height:1.5">
+      <b style="color:var(--amber)">Read the break-even mark sceptically.</b> The two curves are not really in the same currency —
+      one is firepower, the other is survival — so putting them on one axis assumes <b>1 point of damage avoided is worth
+      1 point of firepower given up</b>. That exchange rate is a design judgement, not something the code tells us.
+      Change it and the mark slides. The <em>shapes</em> are the trustworthy part: red is flat at the top of the ladder, green never is.
+    </p>
+
+    <div class="verdict" id="verdict"></div>
+  </div>
+
+  <!-- ============ RIGHT: questions ============ -->
+  <div class="panel">
+    <h2>Decisions I need from you</h2>
+
+    <div class="q" id="q-readout">
+      <div class="qt">1 · Which suppression readout do you want?
+        <em>Today it is ten discrete pips, visible only while selected.</em></div>
+      <label class="opt"><input type="radio" name="readout" value="pips"><span><b>Keep the ten pips</b>
+        <span class="od">Ships today. Reads severity but not trend — band 7 looks the same climbing or falling.</span></span></label>
+      <label class="opt"><input type="radio" name="readout" value="bar-trend"><span><b>Continuous bar + trend arrow</b>
+        <span class="od">Length carries severity, a ▲/▼ glyph carries direction. The glyph is 4×4 px at 1× — marginal on a high-DPI screen.</span></span></label>
+      <label class="opt"><input type="radio" name="readout" value="bar-cap"><span><b>Continuous bar, trend by moving edge</b>
+        <span class="od">Same bar, no glyph: a bright cap leads the fill when climbing, trails it when decaying. Motion reads at any resolution.</span></span></label>
+      <label class="opt"><input type="radio" name="readout" value="other"><span><b>Something else</b>
+        <span class="od"><input type="text" id="readoutOther" placeholder="describe it…" style="margin-top:4px"></span></span></label>
+    </div>
+
+    <div class="q" id="q-control">
+      <div class="qt">2 · The hard one — who decides to hunker?
+        <em>Note the starting point: prone is <b>already</b> automatic at suppression &gt; 30, and <code>dugin</code> already
+        arrives on its own after 12 s of standing still. Fully manual would be a change of direction, not a default.</em></div>
+      <label class="opt"><input type="radio" name="control" value="automatic"><span><b>Automatic — depth tracks suppression</b>
+        <span class="od">Extends what prone already does. Zero new APM. But the player cannot choose to eat suppression in order to keep shooting.</span></span></label>
+      <label class="opt"><input type="radio" name="control" value="ordered"><span><b>Player-ordered — an explicit depth order</b>
+        <span class="od">Maximum control, maximum clicks. Risks the classic failure: correct play becomes re-issuing an order every few seconds.</span></span></label>
+      <label class="opt"><input type="radio" name="control" value="stance"><span><b>Stance-driven — set a policy, unit executes</b>
+        <span class="od">Player sets "hold fire &amp; cover" / "fight through" per squad; the automatic curve runs inside that policy. One decision per squad, not per second.</span></span></label>
+      <label class="opt"><input type="radio" name="control" value="other"><span><b>Something else</b>
+        <span class="od"><input type="text" id="controlOther" placeholder="describe it…" style="margin-top:4px"></span></span></label>
+    </div>
+
+    <div class="q">
+      <div class="qt">3 · Anything the curve gets wrong?
+        <em>Especially: is giving up <b>all</b> fire at depth 100 right, or should a deep-hunkered man keep a token last-ditch shot?</em></div>
+      <textarea id="note" rows="4" placeholder="free text — this comes back to me verbatim"></textarea>
+    </div>
+
+    <button class="send" id="send">Send these settings back</button>
+
+    <div class="model">
+      <b>The proposed model, in full</b> — argue with these five lines.<br>
+      Everything geometric hangs off <b>one continuous posture axis</b>: standing → prone → deep. Suppression &gt; 30 forces posture to at
+      least prone (shipped behaviour); hunker depth pushes it further. Built that way, no input step produces an output step.<br>
+      · <b>Hit radius</b> 30 standing → 20 prone (<b>both shipped today</b>) → 14 at full depth, interpolated. Damage scales with area: 100% → 44% → 22%.<br>
+      · <b>Speed</b> follows the same posture curve — 100% standing, exactly the shipped 60% at prone, 0 at full depth — then the band penalty on top.<br>
+      · <b>Firepower</b> ×(1 − depth): reaches zero at 100. "They must emerge to fire."<br>
+      · <b>Suppression intake</b> ×(1 − 0.7·depth): a deep-hunkered man accrues suppression at 30% rate. This is the term that actually breaks a pin.<br>
+      · <b>Vision</b> ×(1 − 0.6·depth), and <b>+1 concealment tier</b> past depth 50, <b>+2</b> past 85 — same integer ladder as prone and dug-in.
+      Concealment is the one term that <em>does</em> step, because the engine's <code>Detectable</code> tiers are genuinely integers.
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ---------- shipped ladders ----------
+const band   = s => s <= 0 ? 0 : Math.ceil(s / 10);
+const lin    = b => b === 0 ? 100 : (10 - b) * 10;   // speed, vision, burst
+const wait   = b => b === 0 ? 100 : 100 + b * 10;
+const inacc  = b => b === 0 ? 100 : 100 + b * 20;
+const hueS   = s => s === 0 ? '#6f9b4a' : s <= 30 ? '#8faf4a' : s <= 70 ? '#f0a818' : '#d2492a';
+
+// ---------- proposed hunker model ----------
+// Posture is ONE continuous axis, 0 = standing to 1 = deepest hunker, with shipped prone
+// sitting at P_PRONE. Suppression > 30 forces posture to at least prone; hunker depth can
+// push it further. Everything geometric reads off posture, so no input step causes an
+// output step — the whole point of the design is a gradient, not a mode.
+const P_PRONE = 0.375;
+// Two-segment lerp pinned to the SHIPPED prone value at P_PRONE. A single straight line
+// cannot pass through all three anchors, and forcing one silently moved prone off its real
+// number — so radius and speed share this helper rather than each carrying their own copy.
+const viaProne = (p, standing, prone, deep) => p <= P_PRONE
+  ? standing + (prone - standing) * (p / P_PRONE)
+  : prone + (deep - prone) * ((p - P_PRONE) / (1 - P_PRONE));
+
+function model(s, h){
+  const b = band(s), d = h / 100;
+  const posture  = Math.max(s > 30 ? P_PRONE : 0, d);
+  const prone    = posture >= P_PRONE;
+
+  const radius   = viaProne(posture, 30, 20, 14);              // 30 standing → 20 prone (shipped) → 14 deep
+  const hitArea  = Math.round(radius * radius / 9);            // % of standing area (30² = 900)
+  const speed    = lin(b) * viaProne(posture, 1, 0.6, 0);      // 100% → shipped 60% at prone → 0
+  const vision   = lin(b) * (1 - 0.6 * d);
+  const burst    = lin(b) * (1 - d);
+  const rof      = burst / wait(b) * 100;                       // % of calm rate of fire
+  const acc      = 100 / inacc(b) * 100;                        // % of calm accuracy
+  const intake   = 100 * (1 - 0.7 * d);
+  let conceal    = (prone ? 1 : 0) + (h >= 50 ? 1 : 0) + (h >= 85 ? 1 : 0);
+
+  // output = can he actually contribute? blind means no target acquisition.
+  const output   = vision <= 0 ? 0 : rof / 100 * acc / 100 * 100;
+  // exposure = how much damage he eats. area, less the concealment that stops him being shot at all.
+  const exposure = hitArea * (1 - 0.10 * conceal);
+
+  return { b, prone, posture, radius, hitArea, speed, vision, burst, rof, acc, intake, conceal, output, exposure };
+}
+
+// ---------- state ----------
+const S = { suppression: 0, hunker: 0, readout: null, readoutOther: '', control: null, controlOther: '', presets: [], note: '' };
+
+const PRESETS = [
+  { id:'mortar',   label:'Under mortar fire, hunkered deep',  s:70,  h:85 },
+  { id:'advance',  label:'Advancing under light fire',        s:22,  h:10 },
+  { id:'pinned',   label:'Pinned and blind at band 10',       s:100, h:0  },
+  { id:'pinnedhk', label:'Pinned — but hunkering out of it',  s:100, h:75 },
+  { id:'calm',     label:'Calm, digging in on an objective',  s:0,   h:60 }
+];
+
+// ---------- element builders ----------
+function drawUnit(el, s, h, showRing){
+  const m = model(s, h), d = h / 100;
+  el.innerHTML = '';
+
+  if (showRing){
+    const r = document.createElement('div'); r.className = 'ring';
+    const size = 66 - m.conceal * 11;
+    r.style.width = r.style.height = size + 'px';
+    r.style.left = 'calc(50% - ' + size / 2 + 'px)';
+    r.style.bottom = (-size / 2 + 9) + 'px';
+    el.appendChild(r);
+  }
+
+  const sp = document.createElement('div'); sp.className = 'sprite';
+  const p = m.posture;
+  if (p <= P_PRONE){                       // standing 12×18 → prone 20×8
+    const t = p / P_PRONE;
+    sp.style.width = (12 + 8 * t) + 'px'; sp.style.height = (18 - 10 * t) + 'px';
+  } else {                                 // prone 20×8 → deep 16×6
+    const t = (p - P_PRONE) / (1 - P_PRONE);
+    sp.style.width = (20 - 4 * t) + 'px'; sp.style.height = (8 - 2 * t) + 'px';
+  }
+  sp.style.opacity = 1 - 0.30 * (m.conceal / 3);
+  el.appendChild(sp);
+
+  const bar = document.createElement('div'); bar.className = 'barB';
+  bar.innerHTML = '<div class="track"><div class="fill"></div><div class="thr"></div></div>';
+  const f = bar.querySelector('.fill');
+  f.style.width = s + '%'; f.style.background = hueS(s);
+  el.appendChild(bar);
+
+  if (h > 0){
+    const hb = document.createElement('div'); hb.className = 'barH';
+    hb.innerHTML = '<div class="track"><div class="fill"></div></div>';
+    hb.querySelector('.fill').style.width = h + '%';
+    el.appendChild(hb);
+  }
+}
+
+function statRow(k, val, pct, colour, ghostPct, note){
+  const w = document.createElement('div');
+  const r = document.createElement('div'); r.className = 'stat';
+  r.innerHTML = '<span class="k">' + k + '</span>' +
+    '<span class="meter"><i style="width:' + Math.max(0, Math.min(100, pct)) + '%;background:' + colour + '"></i>' +
+    (ghostPct != null ? '<span class="ghost" style="left:' + Math.max(0, Math.min(100, ghostPct)) + '%"></span>' : '') +
+    '</span>' +
+    '<span class="v" style="color:' + colour + '">' + val + '</span>';
+  w.appendChild(r);
+  if (note){ const n = document.createElement('div'); n.className = 'statnote'; n.innerHTML = note; w.appendChild(n); }
+  return w;
+}
+
+const col = v => v <= 0 ? '#d2492a' : v < 35 ? '#d2492a' : v < 70 ? '#f0a818' : '#6f9b4a';
+const colInv = v => v >= 70 ? '#6f9b4a' : v >= 35 ? '#f0a818' : '#d2492a';
+
+// ---------- render ----------
+function render(){
+  const s = S.suppression, h = S.hunker;
+  const m = model(s, h), base = model(s, 0);
+
+  document.getElementById('sVal').textContent = s;
+  document.getElementById('sVal').style.color = hueS(s);
+  document.getElementById('hVal').textContent = h;
+  document.getElementById('sHint').textContent = s === 0
+    ? 'Not player-controlled. Decays 1 per 5 ticks — a full 100 → 0 takes ~30 s.'
+    : 'Band ' + m.b + ' of 10. At this level, ~' + (s / 100 * 30).toFixed(0) + ' s of quiet to clear it completely.';
+
+  drawUnit(document.getElementById('unit1'), s, 0, false);
+  drawUnit(document.getElementById('unit2'), s, h, true);
+  drawUnit(document.getElementById('unit3'), s, h, false);
+
+  const st = document.getElementById('stats'); st.innerHTML = '';
+  st.appendChild(statRow('Speed', Math.round(m.speed) + '%', m.speed, col(m.speed), base.speed,
+    m.prone ? 'includes the 60% prone penalty that fires automatically past suppression 30' : null));
+  st.appendChild(statRow('Vision', Math.round(m.vision) + '%', m.vision, col(m.vision), base.vision,
+    m.vision <= 0 ? '<b style="color:var(--red)">blind — cannot acquire a target at all</b>' : null));
+  st.appendChild(statRow('Shots / min', Math.round(m.rof) + '%', m.rof, col(m.rof), base.rof,
+    'burst ' + Math.round(m.burst) + '% ÷ burst-wait ' + wait(m.b) + '%'));
+  st.appendChild(statRow('Accuracy', Math.round(m.acc) + '%', m.acc, col(m.acc), null,
+    'shots scatter ' + (inacc(m.b) / 100) + '× wider than calm'));
+  st.appendChild(statRow('Hit area', m.hitArea + '%', 100 - m.hitArea, colInv(100 - m.hitArea), 100 - base.hitArea,
+    'hit circle radius ' + m.radius.toFixed(1) + ' — <b>shipped mechanism</b>, 30 standing / 20 prone'));
+  st.appendChild(statRow('Concealment', '+' + m.conceal, m.conceal / 3 * 100, colInv(m.conceal / 3 * 100), null,
+    m.conceal ? 'harder to see — the grey ring shrinks by one band per tier' : 'no bonus; he is as visible as a standing man'));
+  st.appendChild(statRow('Suppr. intake', Math.round(m.intake) + '%', 100 - m.intake, colInv(100 - m.intake), null,
+    h > 0 ? 'he soaks up suppression <b>' + Math.round(100 - m.intake) + '% slower</b> — this is what breaks a pin' : 'full rate'));
+
+  drawCurve(s, h);
+  drawVerdict(s, h, m, base);
+  post();
+}
+
+// ---------- curve ----------
+function drawCurve(s, h){
+  const W = 420, H = 190, L = 34, R = 10, T = 12, B = 26;
+  const px = d => L + d / 100 * (W - L - R);
+  const py = v => (H - B) - v / 100 * (H - B - T);
+
+  const base = model(s, 0);
+  let cost = [], gain = [];
+  for (let d = 0; d <= 100; d += 2){
+    const m = model(s, d);
+    cost.push([d, base.output - m.output]);          // firepower given up (pp of calm output)
+    gain.push([d, base.exposure - m.exposure]);      // incoming damage avoided (pp of standing area)
+  }
+  const path = a => a.map((p, i) => (i ? 'L' : 'M') + px(p[0]).toFixed(1) + ',' + py(p[1]).toFixed(1)).join(' ');
+
+  // crossover: first depth where avoided damage exceeds firepower lost
+  let cross = null;
+  for (let i = 0; i < cost.length; i++) if (gain[i][1] > cost[i][1]) { cross = cost[i][0]; break; }
+
+  let g = '';
+  for (let v = 0; v <= 100; v += 25){
+    g += '<line x1="' + L + '" y1="' + py(v) + '" x2="' + (W - R) + '" y2="' + py(v) + '" stroke="#2f343b" stroke-width="1"/>' +
+         '<text x="' + (L - 6) + '" y="' + (py(v) + 3.5) + '" fill="#565d66" font-size="9" text-anchor="end" font-family="monospace">' + v + '</text>';
+  }
+  for (let d = 0; d <= 100; d += 25){
+    g += '<text x="' + px(d) + '" y="' + (H - B + 14) + '" fill="#565d66" font-size="9" text-anchor="middle" font-family="monospace">' + d + '</text>';
+  }
+  g += '<text x="' + ((L + W - R) / 2) + '" y="' + (H - 3) + '" fill="#7b838d" font-size="9" text-anchor="middle" letter-spacing="1">HUNKER DEPTH</text>';
+
+  if (cross !== null && cross > 0){
+    g += '<rect x="' + px(cross) + '" y="' + T + '" width="' + (px(100) - px(cross)) + '" height="' + (H - B - T) + '" fill="#6f9b4a" opacity="0.07"/>' +
+         '<line x1="' + px(cross) + '" y1="' + T + '" x2="' + px(cross) + '" y2="' + (H - B) + '" stroke="#6f9b4a" stroke-width="1" stroke-dasharray="3 3"/>' +
+         '<text x="' + (px(cross) + 4) + '" y="' + (T + 9) + '" fill="#6f9b4a" font-size="9" font-family="monospace">break-even ' + cross + ' (1:1 assumed)</text>';
+  }
+
+  g += '<path d="' + path(gain) + '" fill="none" stroke="#6f9b4a" stroke-width="2"/>';
+  g += '<path d="' + path(cost) + '" fill="none" stroke="#d2492a" stroke-width="2"/>';
+
+  const mNow = model(s, h);
+  g += '<line x1="' + px(h) + '" y1="' + T + '" x2="' + px(h) + '" y2="' + (H - B) + '" stroke="#4a7c9b" stroke-width="2"/>';
+  g += '<circle cx="' + px(h) + '" cy="' + py(base.output - mNow.output) + '" r="3.5" fill="#d2492a" stroke="#14161a" stroke-width="1.5"/>';
+  g += '<circle cx="' + px(h) + '" cy="' + py(base.exposure - mNow.exposure) + '" r="3.5" fill="#6f9b4a" stroke="#14161a" stroke-width="1.5"/>';
+
+  document.getElementById('curve').innerHTML = g;
+  document.getElementById('curve').dataset.cross = cross === null ? '' : cross;
+}
+
+// ---------- verdict ----------
+function drawVerdict(s, h, m, base){
+  const v = document.getElementById('verdict');
+  const lost = base.output - m.output, saved = base.exposure - m.exposure;
+  const cross = document.getElementById('curve').dataset.cross;
+  let cls = 'warn', txt;
+
+  if (s === 0 && h === 0){
+    cls = 'ok';
+    txt = '<b>Nothing is happening.</b> Full speed, full vision, full rate of fire, and a full-size target. ' +
+          'Drag suppression up to see the ladder bite, or drag hunker up to see what he would pay for cover he does not need yet.';
+  } else if (base.output <= 0.01){
+    cls = 'ok';
+    txt = '<b>Hunkering here is nearly free.</b> At band ' + m.b + ' he already contributes <b>nothing</b> — ' +
+          'burst is at ' + Math.round(lin(m.b)) + '% and vision at ' + Math.round(lin(m.b)) + '%, so there is no firepower left to trade away. ' +
+          'Every point of depth is pure profit: ' + Math.round(saved) + ' points of incoming damage avoided for a firepower cost of zero. ' +
+          '<b>This is the case that justifies the whole system</b> — and it is exactly where a player currently has no move at all.';
+  } else if (h === 0){
+    cls = 'warn';
+    txt = '<b>He is taking the ladder with nothing given back.</b> ' +
+          (m.prone ? 'Prone has fired automatically, so his hit area is already down to ' + m.hitArea + '% — that part works today. '
+                   : 'Still standing: full ' + m.hitArea + '% hit area. ') +
+          'But every other axis is a straight penalty. ' +
+          (cross ? 'On this curve, depth past <b>' + cross + '</b> would buy more than it costs.' : 'At this suppression, no depth pays for itself — he should be shooting, not hiding.');
+  } else if (lost > saved){
+    cls = 'bad';
+    txt = '<b>Hunkering too deep for the fire coming in.</b> He is giving up <b>' + Math.round(lost) + '</b> points of firepower to avoid <b>' +
+          Math.round(saved) + '</b> points of damage. ' +
+          (cross ? 'Depth ' + cross + ' is where that flips.' : 'At suppression ' + s + ' there is no depth where it flips — the fire is not heavy enough to hide from.');
+  } else {
+    cls = 'ok';
+    txt = '<b>Good trade.</b> ' + Math.round(saved) + ' points of incoming damage avoided for ' + Math.round(lost) +
+          ' points of firepower — and he soaks suppression <b>' + Math.round(100 - m.intake) + '% slower</b>, ' +
+          'so he climbs out of the band instead of sinking further into it. ' +
+          (m.vision <= 0 ? '<b style="color:var(--red)">Note he is blind here</b> — he will not see what walks up to him.' : '');
+  }
+  v.className = 'verdict ' + cls;
+  v.innerHTML = txt;
+}
+
+// ---------- artifact messaging ----------
+function post(){
+  window.parent.postMessage({ type: 'maestro:artifact_state', state: snapshot() }, '*');
+}
+function snapshot(){
+  const m = model(S.suppression, S.hunker);
+  return {
+    suppression: S.suppression, hunker: S.hunker,
+    readout: S.readout, readoutOther: S.readoutOther,
+    control: S.control, controlOther: S.controlOther,
+    presetsClicked: S.presets, note: S.note,
+    derived: { band: m.b, speed: Math.round(m.speed), vision: Math.round(m.vision),
+               shotsPerMin: Math.round(m.rof), hitArea: m.hitArea, conceal: m.conceal,
+               suppressionIntake: Math.round(m.intake) }
+  };
+}
+
+// ---------- wiring ----------
+const sup = document.getElementById('sup'), hunk = document.getElementById('hunk');
+sup.addEventListener('input', () => { S.suppression = +sup.value; syncPresetHighlight(); render(); });
+hunk.addEventListener('input', () => { S.hunker = +hunk.value; syncPresetHighlight(); render(); });
+
+const pw = document.getElementById('presets');
+PRESETS.forEach(p => {
+  const b = document.createElement('button');
+  b.className = 'p'; b.textContent = p.label; b.dataset.id = p.id;
+  b.addEventListener('click', () => {
+    S.suppression = p.s; S.hunker = p.h;
+    sup.value = p.s; hunk.value = p.h;
+    if (!S.presets.includes(p.id)) S.presets.push(p.id);
+    syncPresetHighlight(); render();
+  });
+  pw.appendChild(b);
+});
+function syncPresetHighlight(){
+  [...pw.children].forEach(b => {
+    const p = PRESETS.find(x => x.id === b.dataset.id);
+    b.classList.toggle('on', p.s === S.suppression && p.h === S.hunker);
+  });
+}
+
+function radios(name, key){
+  document.querySelectorAll('input[name="' + name + '"]').forEach(r => {
+    r.addEventListener('change', () => {
+      S[key] = r.value;
+      document.querySelectorAll('input[name="' + name + '"]').forEach(o => o.closest('.opt').classList.toggle('sel', o.checked));
+      post();
+    });
+  });
+}
+radios('readout', 'readout');
+radios('control', 'control');
+
+function otherField(id, name, key){
+  const el = document.getElementById(id);
+  el.addEventListener('click', e => e.stopPropagation());
+  el.addEventListener('input', e => {
+    S[key] = e.target.value;
+    if (e.target.value){
+      const r = document.querySelector('input[name="' + name + '"][value="other"]');
+      if (r && !r.checked){
+        r.checked = true; S[name] = 'other';
+        document.querySelectorAll('input[name="' + name + '"]').forEach(o => o.closest('.opt').classList.toggle('sel', o.checked));
+      }
+    }
+    post();
+  });
+}
+otherField('readoutOther', 'readout', 'readoutOther');
+otherField('controlOther', 'control', 'controlOther');
+document.getElementById('note').addEventListener('input', e => { S.note = e.target.value; post(); });
+
+document.getElementById('send').addEventListener('click', () => {
+  const st = snapshot();
+  const bits = [];
+  bits.push('suppression ' + st.suppression + ' / hunker ' + st.hunker);
+  if (st.readout) bits.push('readout: ' + (st.readout === 'other' ? (st.readoutOther || 'other') : st.readout));
+  if (st.control) bits.push('hunker control: ' + (st.control === 'other' ? (st.controlOther || 'other') : st.control));
+  if (st.note) bits.push('note: ' + st.note.slice(0, 120));
+  window.parent.postMessage({ type: 'maestro:artifact_submit', state: st, summary: bits.join(' · ') }, '*');
+  const b = document.getElementById('send');
+  b.classList.add('done'); b.textContent = 'Sent ✓  — move anything and send again';
+  setTimeout(() => { b.classList.remove('done'); b.textContent = 'Send these settings back'; }, 2600);
+});
+
+window.addEventListener('message', e => {
+  if (!e.data || e.data.type !== 'maestro:artifact_hydrate' || !e.data.state) return;
+  const st = e.data.state;
+  if (typeof st.suppression === 'number'){ S.suppression = st.suppression; sup.value = st.suppression; }
+  if (typeof st.hunker === 'number'){ S.hunker = st.hunker; hunk.value = st.hunker; }
+  if (Array.isArray(st.presetsClicked)) S.presets = st.presetsClicked;
+  if (typeof st.note === 'string'){ S.note = st.note; document.getElementById('note').value = st.note; }
+  if (typeof st.readoutOther === 'string'){ S.readoutOther = st.readoutOther; document.getElementById('readoutOther').value = st.readoutOther; }
+  if (typeof st.controlOther === 'string'){ S.controlOther = st.controlOther; document.getElementById('controlOther').value = st.controlOther; }
+  ['readout','control'].forEach(k => {
+    if (!st[k]) return;
+    S[k] = st[k];
+    const r = document.querySelector('input[name="' + k + '"][value="' + st[k] + '"]');
+    if (r){ r.checked = true; r.closest('.opt').classList.add('sel'); }
+  });
+  syncPresetHighlight(); render();
+});
+
+render();
+</script>
+</body>
+</html>
