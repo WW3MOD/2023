@@ -1,0 +1,42 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-crew-evacuate-departure.lua
+
+abrams:
+	# STAGING ONLY, and deliberately the SAME staging as test-crew-rear-dismount and
+	# test-crew-dismount-pinwheel apart from the one line that is the whole point of this scenario:
+	# AutoEvacuateOnEject is NOT overridden here. It keeps its shipped default of true
+	# (VehicleCrew.cs:69). That is the subject; overriding it would be photographing a setting.
+	#
+	# The hull must survive, for the same reason as in the pinwheel scenario and one more besides:
+	# it is the fixed reference the crew's departure is measured against. A frame of three men in
+	# open grass says nothing about whether they left anything. See
+	# test-crew-dismount-pinwheel/rules.yaml for the full bleed argument (vehicles.yaml:184-186,
+	# design stated at vehicles.yaml:243-250).
+	-ChangesHealth@CriticalDamage:
+	VehicleCrew:
+		# Finishing shot can never exceed 100% of hull MaxHP, so crewDamage stays 0. Beyond keeping
+		# the men alive to be photographed, this matters for THIS scenario specifically: a wounded
+		# crew member goes prone and moves at roughly 60% speed (InfantryStates.ProneCondition), so
+		# one hurt man would lag the other two and the frames would show a straggler that the reader
+		# could easily take for a man who is not evacuating at all.
+		CrewDamageThresholdPercent: 100
+		# Clamped to zero stacks so the crew do not inherit the hull's burn — a crew member on fire
+		# both bleeds out mid-walk and draws a flame overlay about his own size at the 0.6 sprite
+		# scale of crew.*.america (crew.yaml:112).
+		CrewFireStackOffset: -99
+	# GrantStackingConditionOnHealthFraction@OnFire is left ALONE, so the hull smokes. Here that is
+	# not merely tolerated but wanted: the plume is what makes the stationary wreck legible as the
+	# thing the men are walking away from, across three frames in which everything else moves.

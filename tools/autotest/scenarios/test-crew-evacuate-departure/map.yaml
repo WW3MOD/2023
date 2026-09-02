@@ -1,0 +1,87 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: CAPTURE: Ejected crew walk themselves off the map (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Terrain is the flat empty plate copied byte-for-byte from test-crew-rear-dismount. Nothing between
+# the hull and the west boundary, so the walk is a straight line and a man's position in frame is
+# where the evacuation put him rather than where a detour did.
+#
+# ============================================================================================
+# WHY THE HULL SITS AT 14,16 — the number is chosen, not arbitrary
+# ============================================================================================
+# RotateToEdge leaves by the CLOSEST map-edge cell, and this frame is only readable if that edge is
+# a known one that fits on screen next to the hull. Bounds are 1,1,64,32, so from 14,16 the
+# perimeter distances are:
+#
+#   west  (x=1)   13   <- the winner, and it wins outright
+#   north (y=1)   15
+#   south (y=32)  16
+#   east  (x=64)  50
+#
+# The 2-cell margin over north is deliberate. A TIE would be decided by
+# ChooseClosestMatchingEdgeCell's sort, and MILESTONE-260901.md item 1 documents that its key is a
+# FLOORED length (Map.cs:1869 via CVec.Length -> Exts.ISqrt, default ISqrtRoundMode.Floor), which
+# merges cells that are not equidistant and resolves them by iteration order. A hull placed at 16,16
+# would have tied west against north at 15 apiece and could have walked its crew off the TOP of the
+# frame instead — a capture ruined by an engine defect that is fixed on a branch but not merged.
+#
+# That same floor still biases WHICH ROW on the west edge is chosen, by +-floor(sqrt(2*13)) = +-5,
+# so the exit cell is somewhere in y 11..21 rather than exactly 1,16. That is expected and harmless
+# here: the camera covers it, and this scenario makes no claim about the row.
+#
+# FACING 0 IS NORTH (WAngle is counterclockwise; DOCS/reference/conventions.md), and that is also
+# chosen. The rear fan of a north-facing hull sends the three men SOUTH, EAST and WEST — so exactly
+# one of them starts out walking AWAY from the edge they are all about to leave by. His reversal
+# between frame 02 and frame 03 is the clearest single thing in this capture: the fan put him east
+# of the hull, and the evacuation turns him round and takes him west past it. A hull facing west
+# would have hidden that by sending everyone the right way from the start.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	Tank: abrams
+		Owner: USA
+		Location: 14,16
+		Facing: 0
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 14,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+
+Rules: rules.yaml

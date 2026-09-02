@@ -1,0 +1,38 @@
+CAPTURE INSTRUMENT (Test.Skip, grades nothing): five frames from one fixed camera of an ejected Abrams crew walking themselves off the west map edge.
+
+The hull stays burning in place as the fixed reference the departure is measured against. Frames
+02a and 02b are deliberate near-duplicates 60 ticks apart, bracketing a ~59-tick window; only one of
+them has to land, and the tick schedule in the Lua carries the arithmetic.
+
+WHAT THE READER IS LOOKING FOR. A TREND, not a tableau: three men who START near the burning hull
+(frame 02) and are progressively further toward the boundary in frames 03 and 04, with the hull
+motionless and smoking in the same place throughout as the reference. A single frame of men standing
+near a wreck is equally consistent with the OLD behaviour, where crew ejected and then stood there.
+
+THE SINGLE CLEAREST READING is the east man's reversal. The hull faces north, so the rear fan sends
+the three men south, east and west — one of them starts out walking AWAY from the boundary. Between
+frames 02 and 03 he turns round and crosses back past the hull. Crew that merely spread out and stop
+cannot produce that. The facing was chosen to force it; map.yaml carries the derivation, along with
+why the hull sits at 14,16 rather than a rounder 16,16 (which would have tied west against north for
+nearest edge and could have sent everyone off the top of the frame).
+
+FRAME 04 IS EXPECTED TO SHOW FEWER THAN THREE MEN. The fan gives the three different head starts, so
+they reach the edge tens of seconds apart and the early ones have already crossed and been disposed;
+anywhere from zero to three is a correct result and the printed readout says which. This is not
+sloppiness in the schedule — there is no tick at which all three are reliably at the boundary, and
+authoring one would be asserting a timetable rather than a behaviour. "Empty because they left" and
+"empty because they died" look identical in that frame, which is why the frame 03 readout has to be
+read with it. The actual failure to look for is men standing STILL in mid-field on the same cells
+frame 03 showed.
+
+Actor.Location IS ToCell. Every man is moving at every shutter here, so a printed cell can be one
+cell further along the route than the sprite. Always at most one, always in the direction of travel.
+A one-cell disagreement between readout and image is expected and is not the image being wrong.
+
+WHY SKIP AND NOT PASS. The Lua evaluates no predicate about the mod. Its checks — that the hull
+resolved and reports its authored facing, that the requested zoom was not clamped, that three crew
+are alive at each shutter — are guards on the INSTRUMENT and can only downgrade the frames to "not
+evidence". The behaviour itself is graded by test-crew-auto-evacuate, which also covers the part no
+picture can show: that the evacuation is one-shot and that a real player order cancels it.
+
+REMOVE THIS FILE in the same commit as whatever gives the scenario a real assertion.

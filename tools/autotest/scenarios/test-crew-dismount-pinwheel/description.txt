@@ -1,0 +1,33 @@
+CAPTURE INSTRUMENT (Test.Skip, grades nothing): six frames of crew bailing from four Abrams on four different facings — does the empty exit arc point where each hull points?
+
+Photographs a crew bail-out from four Abrams carrying the four cardinal hull facings, so a human can
+see whether the men come out of the BACK.
+
+Six PNGs: 01 the undamaged four-hull reference (read it first, it fixes the facings from clean
+hulls), 02 the wide result, 03-06 one close-up per hull. Verdict is Test.Skip.
+
+WHAT THE READER IS LOOKING FOR. Around each hull the three crew occupy three of the four cardinal
+directions and leave ONE empty, and the empty one must be the direction that hull points. Four
+hulls, four different empty sides. The correlation is the evidence: the pre-3ce18d71 code rolled
+`SharedRandom.Next(8)` with no reference to facing, and a uniform roll clears one hull's front arc
+5 times in 8 — so a single-hull frame proves nothing, while twelve men agreeing with four different
+noses is (5/8)^12 = 5.5e-5 under the old behaviour.
+
+THE SHAPE IS A T, NOT AN ARC. DismountGeometry.FanOffsets is { 0, +256, -256, ... } and +-256 is
+exactly +-90 degrees, so a three-man crew puts ONE man strictly astern and TWO exactly abeam. Three
+men bunched behind the hull would be the wrong shape for this code. Grading a correct frame as a
+failure on this point is the most likely reader error and is why it is stated three times.
+
+WHY SKIP AND NOT PASS. The Lua evaluates no predicate about the mod. Its runtime checks — that each
+hull reports its authored IFacing, that twelve crew are out and idle, that each is attributable to
+exactly one hull — are guards on the INSTRUMENT. They can only downgrade a frame to "not evidence";
+they can never conclude anything about the dismount. The geometry itself is already graded by
+test-crew-rear-dismount, and nothing here should duplicate that.
+
+The printed per-man offsets are a CROSS-CHECK, not the answer. If the readout and the picture
+disagree, the picture is not of that state and neither claim survives. Reading the offsets as the
+verification would launder MILESTONE-260901's ASSERTED grade into a SEEN one, which is the single
+thing this scenario exists not to do.
+
+REMOVE THIS FILE in the same commit as whatever gives the scenario a real assertion. There is no
+obvious candidate: the question is perceptual, and the state half is covered next door.
