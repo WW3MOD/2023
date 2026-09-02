@@ -711,11 +711,13 @@ because this branch is filing only.
 
 ## 2026-08-20: [low] OPEN, NOT FIXED — `Makefile`'s `clean` target still uses `find -exec`, the exact exit-code-swallowing hole that was fixed in `all` the same day (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
 
-`Makefile:192` (mono) and `:194` (dotnet) both run
-`@find . -maxdepth 1 -name '*.sln' -exec $(DOTNET) clean \;`. **`find` exits 0 whatever the command
-it ran returned**, so a failed clean reports success and every consumer downstream believes it.
+`Makefile:190` runs `@find . -maxdepth 1 -name '*.sln' -exec $(DOTNET) clean \;`. **`find` exits 0
+whatever the command it ran returned**, so a failed clean reports success and every consumer
+downstream believes it. (Still OPEN as of 2026-09-02. This entry originally cited *two* such lines,
+`:192` mono and `:194` dotnet; the mono branch was deleted with `RUNTIME=mono` support on
+`wt/mono-removal`, so there is now one line, renumbered. The defect itself is untouched.)
 
-The `all` target at `:175-186` was repaired for precisely this and carries a comment naming the
+The `all` target at `:182-186` was repaired for precisely this and carries a comment naming the
 consequence: *"NOT `find -exec`: find exits 0 whatever the command it ran returned, so a failed
 mod-solution build reported success here and every consumer downstream believed it — including the
 launchers, which then started the game on stale binaries."* `clean` was not given the same
@@ -1026,6 +1028,22 @@ until the TFM moves, and its 0 may mean "cannot fire" rather than "nothing to fi
 > `PACKAGING_APPIMAGE_DEPENDENCIES_TEMP_ARCHIVE_NAME` has "mono" in its *value* and a live consumer in the
 > Linux AppImage build, while the neighbouring `MONO`-named variables have none. The names do not predict
 > which is which.
+
+> **SUPERSEDED 2026-09-02 on branch `wt/mono-removal`: the removal WAS done, at the user's direction and
+> over the plan's recommendation.** Every statement above about mono still being present is now history —
+> do not act on it. `RUNTIME` is gone from both Makefiles, the `RUNTIME` positional parameter is gone from
+> `install_assemblies` (7 args → 6) and `install_mod_assemblies` (5 → 3) with all 13 call sites updated,
+> the mono launcher branch is gone from all six `.sh` launchers, the macOS bundle's mono slice and
+> `apphost-mono.c` / `checkmono.c` are deleted, and `Directory.Build.props` no longer has a
+> `netstandard2.1` branch. The plan's consumer table was re-derived before use and was exactly right,
+> including the `PACKAGING_APPIMAGE_DEPENDENCIES_TEMP_ARCHIVE_NAME` trap.
+>
+> **`make RUNTIME=mono all` no longer fails with three `CS0117`** — it fails at `Makefile:73` with an
+> explicit "no longer supported" `$(error)`. That guard is deliberate: without it the flag would be
+> silently ignored and yield a net6 build the caller believed was mono. It matches only the literal
+> `mono`, so an unrelated exported `RUNTIME` in the environment cannot break the build.
+>
+> The cost of restoring mono is now the estimate recorded above *plus* reverting this removal.
 
 ## 2026-08-16: [high] UNTRIAGED — LIVE MONEY PUMP: buy an LCCV for 1200, deploy it, sell the Logistics Centre for 3500. +2300 per cycle, unlimited (found while: economy audit, `main @ d919c81a`)
 

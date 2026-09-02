@@ -4,7 +4,16 @@
 Follow-up to `WORKSPACE/bugs/discovered.md:85` (the `Linux (mono)` CI job deletion) and to
 `e5f03d73` (analyzer gate to 10/10).
 
-This is a **plan, not an execution**. Nothing in this document has been applied.
+> **STATUS 2026-09-02: EXECUTED on branch `wt/mono-removal`, at the user's direction.** The verdict
+> below ("do not do the full removal") was overridden deliberately, not missed — read it as the
+> argument that was heard and outweighed, not as current guidance. Tiers 0, 1 AND 2 are all done, plus
+> surfaces this plan did not list: `engine/OpenRA.Game/OpenRA.Game.csproj`,
+> `engine/packaging/linux/openra.in` and `openra-server.in`, `engine/packaging/macos/utility.m`,
+> `engine/.github/workflows/ci.yml` and `engine/INSTALL.md`. The consumer table below was re-derived
+> against the tree before use and was exactly correct. Two things it did not predict are recorded in
+> the closure note in [`WORKSPACE/bugs/discovered.md`](../bugs/discovered.md).
+
+This was a **plan, not an execution**, when written; nothing in it had been applied at that time.
 
 ---
 

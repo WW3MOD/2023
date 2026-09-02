@@ -3,11 +3,8 @@
 # to compile, run:
 #   make
 #
-# to compile using Mono (version 6.4 or greater) instead of .NET 6, run:
-#   make RUNTIME=mono
-#
 # to compile using system libraries for native dependencies, run:
-#   make [RUNTIME=net6] TARGETPLATFORM=unix-generic
+#   make TARGETPLATFORM=unix-generic
 #
 # to remove the files created by compiling, run:
 #   make clean
@@ -19,10 +16,10 @@
 #   make check-scripts
 #
 # to check the engine and your mod dlls for StyleCop violations, run:
-#   make [RUNTIME=net6] check
+#   make check
 #
 # to check your mod yaml for errors, run:
-#   make [RUNTIME=net6] test
+#   make test
 #
 # to check that no map has lost reachable ground (no build required), run:
 #   make nav-guard
@@ -59,7 +56,6 @@ HAS_LUAC = $(shell command -v luac 2> /dev/null)
 LUA_FILES = $(shell find mods/*/maps/* -iname '*.lua' 2> /dev/null)
 MOD_SOLUTION_FILES = $(shell find . -maxdepth 1 -iname '*.sln' 2> /dev/null)
 
-MSBUILD = msbuild -verbosity:m -nologo -nodeReuse:false
 DOTNET = dotnet
 
 # The SDK keeps MSBuild worker nodes alive for ~15 minutes after every build. On a dev box that
@@ -70,7 +66,14 @@ DOTNET = dotnet
 # `dotnet build-server shutdown`.
 export MSBUILDDISABLENODEREUSE = 1
 
-RUNTIME ?= net6
+# RUNTIME=mono was removed: the SDK builds net6 only. Refuse the flag rather than ignoring it,
+# so a stale invocation fails loudly instead of quietly producing a net6 build that the caller
+# believes is a mono one. Only the literal "mono" is rejected, so an unrelated exported RUNTIME
+# in the environment cannot break the build.
+ifeq ($(RUNTIME), mono)
+$(error RUNTIME=mono is no longer supported; this SDK builds net6 only. Drop RUNTIME=mono.)
+endif
+
 CONFIGURATION ?= Release
 DOTNET_RID = $(shell ${DOTNET} --info | grep RID: | cut -w -f3)
 ARCH_X64 = $(shell echo ${DOTNET_RID} | grep x64)
@@ -174,28 +177,17 @@ check-dotnet-sdk:
 
 engine: check-variables check-sdk-scripts
 	@./fetch-engine.sh || (printf "Unable to continue without engine files\n"; exit 1)
-	@cd $(ENGINE_DIRECTORY) && make RUNTIME=$(RUNTIME) TARGETPLATFORM=$(TARGETPLATFORM) all
+	@cd $(ENGINE_DIRECTORY) && make TARGETPLATFORM=$(TARGETPLATFORM) all
 
 all: check-dotnet-sdk engine
-ifeq ($(RUNTIME), mono)
-	@command -v $(MSBUILD) >/dev/null || (echo "OpenRA requires the '$(MSBUILD)' tool provided by Mono >= 6.4."; exit 1)
-ifneq ("$(MOD_SOLUTION_FILES)","")
 # NOT `find -exec`: find exits 0 whatever the command it ran returned, so a failed mod-solution
 # build reported success here and every consumer downstream believed it -- including the
 # launchers, which then started the game on stale binaries.
-	@set -e; for sln in $(MOD_SOLUTION_FILES); do $(MSBUILD) -t:Build -restore -p:Configuration=${CONFIGURATION} -p:TargetPlatform=$(TARGETPLATFORM) -p:Mono=true "$$sln"; done
-endif
-else
 	@set -e; for sln in $(MOD_SOLUTION_FILES); do $(DOTNET) build "$$sln" -c ${CONFIGURATION} -p:TargetPlatform=$(TARGETPLATFORM); done
-endif
 
 clean: engine
 ifneq ("$(MOD_SOLUTION_FILES)","")
-ifeq ($(RUNTIME), mono)
-	@find . -maxdepth 1 -name '*.sln' -exec $(MSBUILD) -t:clean \;
-else
 	@find . -maxdepth 1 -name '*.sln' -exec $(DOTNET) clean \;
-endif
 endif
 	@cd $(ENGINE_DIRECTORY) && make clean
 
@@ -216,10 +208,6 @@ endif
 check: engine
 ifneq ("$(MOD_SOLUTION_FILES)","")
 	@echo "Compiling in Debug mode..."
-ifeq ($(RUNTIME), mono)
-# Enabling EnforceCodeStyleInBuild and GenerateDocumentationFile as a workaround for some code style rules (in particular IDE0005) being bugged and not reporting warnings/errors otherwise.
-	@$(MSBUILD) -t:clean\;build -restore -p:Configuration=Debug -warnaserror -p:TargetPlatform=$(TARGETPLATFORM) -p:Mono=true -p:EnforceCodeStyleInBuild=true -p:GenerateDocumentationFile=true
-else
 # Enabling EnforceCodeStyleInBuild and GenerateDocumentationFile as a workaround for some code style rules (in particular IDE0005) being bugged and not reporting warnings/errors otherwise.
 	@$(DOTNET) build -c Debug -nologo -warnaserror -p:TargetPlatform=$(TARGETPLATFORM) -p:EnforceCodeStyleInBuild=true -p:GenerateDocumentationFile=true
 # The line above builds WW3MOD.sln, which is only OpenRA.Game + OpenRA.Mods.Common -- 2 of the
@@ -238,7 +226,6 @@ else
 # (engine/packaging/functions.sh:67), so a Release build would ship the Windows launcher DLL inside
 # the Linux and macOS packages.
 	@$(DOTNET) build engine/OpenRA.Test/OpenRA.Test.csproj -c Debug -nologo -warnaserror -p:TargetPlatform=$(TARGETPLATFORM) -p:EnforceCodeStyleInBuild=true -p:GenerateDocumentationFile=true
-endif
 endif
 	@echo "Checking for explicit interface violations..."
 	@./utility.sh --check-explicit-interfaces
