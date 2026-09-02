@@ -5,8 +5,19 @@
 
 ---
 
-- [2026-09-02] [HIGH] **Capturing a building leaves its vision with the PREVIOUS owner, permanently,
-  and gives the captor none.** `Vision` derives from `AffectsMapLayer` (`Vision.cs:29`), which
+- [2026-09-02] [HIGH] **~~Capturing a building leaves its vision with the PREVIOUS owner~~ — FIXED
+  the same day by `49afe9e9` "Vision follows a building that changes hands" (on `main`; confirmed at
+  `26f9cec0` during the 2026-09-02 curation pass).** `AffectsMapLayer` now DOES implement
+  `INotifyOwnerChanged`, and its `OnOwnerChanged` calls `UpdateCells` behind an `IsInWorld` guard
+  (`AffectsMapLayer.cs:175-181`) — i.e. exactly the repair the "Not fixed here" note below proposed.
+  **The report below is preserved as written and is accurate for the pre-fix tree only; do not act on
+  it.** Two consequences for anyone holding a conclusion that rested on it: the standing fog leak on
+  both sides of every capture is closed, and the tooltip-identity leak is **now reachable through
+  engineer capture**, which the note below correctly predicted would happen "the moment this is
+  fixed". Any claim of the form *"`AffectsMapLayer` does not implement `INotifyOwnerChanged`"* — it
+  appears in the 2026-09-02 `wt/tooltip-owner` DISCOVERIES entry, citing these same lines — is stale
+  and must not be promoted.
+  ~~`Vision` derives from `AffectsMapLayer` (`Vision.cs:29`), which~~
   implements `INotifyAddedToWorld` / `INotifyRemovedFromWorld` / `INotifyCenterPositionChanged` /
   `INotifyMoving` / `ITick` but **not `INotifyOwnerChanged`** (`AffectsMapLayer.cs:42-43`). Its
   `UpdateCells` — the only thing that re-evaluates `AddCellsToPlayerMapLayer`, and hence the only
