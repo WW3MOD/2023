@@ -38,7 +38,8 @@ local VanishCell = { X = 47, Y = 54 }
 local ScoutCell = { X = 47, Y = 53 }
 
 -- A hover cell counts as "on the contact" within this many cells of the vanish
--- cell. The closest candidate the leash allows is ~11 cells from V, and grid
+-- cell. The closest candidate the leash allows is 8 cells from V (30 - 22; run 8
+-- measured bestintelcell=39,51 at exactly 8), and grid
 -- candidates are spaced 2 cells apart, so 18 admits the genuine hunt cells while
 -- still excluding the whole western half of the hover disc.
 local NearVanishCells = 18
@@ -237,10 +238,40 @@ local function finish()
 
 	-- The preference criterion. A drone that merely passed overhead on its way
 	-- somewhere else cannot clear a majority-of-samples bar.
+	--
+	-- THE NEGATIVE IS BY MERIT, AND IT STAYS A FAIL. This branch briefly reported SKIP so a
+	-- by-design negative could not turn the batch permanently red. That problem is real, but
+	-- main solved it a better way while this work sat unmerged: `expected-status` (added
+	-- 575e48c8, hardened 7da74c4a) declares the by-merit outcome in a FILE beside the scenario
+	-- and grades the run against it, so the batch goes green without the verdict having to lie.
+	-- This scenario's declaration is `fail`, so FAIL here is GREEN and a PASS is loudly RED as
+	-- "the premise moved" — see tools/autotest/expected-status.sh.
+	--
+	-- DO NOT RE-FLIP THIS TO Test.Skip. Under a `fail` declaration, SKIP grades RED
+	-- ("declared fail, skips instead" in that file's selftest), which is the precise disease
+	-- both mechanisms exist to prevent. The declaration and the verdict have to agree, and the
+	-- declaration is the half that is meant to move: delete the file in the same commit as
+	-- whatever makes the operator actually prefer the contact.
+	--
+	-- WHAT A DECLARATION CANNOT TELL YOU, and it is the same gap either mechanism leaves: a NEW
+	-- targeting regression that moves the drone off the contact for some reason unrelated to
+	-- term weight reads exactly like the recorded outcome. The tell is in the summary rather
+	-- than the verdict — the treatment reached mindist=25 against the control's 27, so a
+	-- treatment run whose mindist regresses to 27+ has lost the effect even though the verdict
+	-- is unchanged.
 	if (nearCount * 2) >= #samples then
 		Test.Pass("drone spent the majority of its flight on the lost-track contact || " .. summary())
 	else
-		Test.Fail("drone did NOT prefer the lost-track contact || " .. summary())
+		Test.Fail("drone did NOT prefer the lost-track contact — EXPECTED ON MERIT, see this "
+			.. "scenario's expected-status file. The term demonstrably moves the chosen cell "
+			.. "toward the contact but does not override the best exploration alternative in "
+			.. "this deliberately hard geometry (contact 30 cells out against a 22-cell leash, "
+			.. "so the best hunt cell sits at maximum falloff). HOW SHORT IS CURRENTLY UNKNOWN: "
+			.. "the only measurement predates 1e0226b9, which replaced the drone's rectangular "
+			.. "revealed-area query with the vision disc and so changed both `reveal` and "
+			.. "`bestintelreveal` — the numerator of the multiplier. Re-measure with "
+			.. "./tools/autotest/run-test.sh test-drone-lost-track and read bestintel/"
+			.. "bestintelreveal off the [drone] launch line in RUN_DIR/debug.log. || " .. summary())
 	end
 end
 

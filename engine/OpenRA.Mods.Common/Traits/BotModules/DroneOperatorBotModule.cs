@@ -730,7 +730,8 @@ namespace OpenRA.Mods.Common.Traits
 					+ $"opcell={opCell.X},{opCell.Y} dist={distance} clamped={refusedOffMap} "
 					+ $"reveal={bestReveal} border={bestBorder} intel={chosenIntel} "
 					+ $"intelkey={(chosenIntel > 0 ? chosenIntelKey.ToString() : "none")} "
-					+ $"bestintel={bestIntel} bestintelcell={bestIntelCell.X},{bestIntelCell.Y} "
+					+ $"bestintel={bestIntel} "
+					+ $"bestintelcell={(bestIntel > 0 ? $"{bestIntelCell.X},{bestIntelCell.Y}" : "none")} "
 					+ $"bestintelreveal={bestIntelReveal} "
 					+ $"records={intel.Count} nearby={nearbyIntel.Count} "
 					+ $"retask={(sortie != null ? "yes" : "first")} tick={tick}");

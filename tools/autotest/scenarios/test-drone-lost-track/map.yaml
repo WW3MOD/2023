@@ -28,9 +28,14 @@ Categories: Test
 #                        instant the scout dies and there would be nothing to
 #                        remember. This is the single easiest thing to get wrong.
 #   Hover disc         — min(weapon range, LeashCells 25 - margin 3) = 22 cells,
-#                        so the closest candidate to V is ~11 cells away. Well
-#                        inside DroneVisionCells (28), so the falloff leaves the
-#                        contact worth roughly 155 of its 250 squares there.
+#                        so the closest candidate to V is 30 - 22 = 8 cells away.
+#                        Well inside DroneVisionCells (28), so the falloff leaves
+#                        the contact worth ~181 of its 250 squares there.
+#                        MEASURED, run 8: bestintelcell=39,51 — 8 cells from V, 21
+#                        from the operator — carrying bestintel=178. This line used
+#                        to read "~11 cells away" and "roughly 155", which is the
+#                        same falloff evaluated at the wrong distance; the error
+#                        propagated into a later analysis before the log caught it.
 #
 # WHY A SCOUT THAT DIES, RATHER THAN A UNIT THAT DRIVES AWAY. BeliefStore removes
 # any contact whose last-seen cell is currently visible (ResolveUnobserved,
