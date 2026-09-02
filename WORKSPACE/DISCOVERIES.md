@@ -13,11 +13,16 @@ defaults to `Ground, Water` (`Warhead.cs:30`).** `^Tree` is `Targetable: TargetT
 nothing else, so a warhead that does not name `Trees` skips it at `Warhead.IsValidAgainst`.
 `^ArtilleryRound` is the trap in concentrated form: it declares `ValidTargets: Ground, Trees, Water`
 at *weapon* level (`weapons-ballistics.yaml:874`) — so a Paladin aims at a tree quite happily —
-while both its damage warheads declare none, so the shell lands and does **nothing**. Mod-wide the
-only damage warheads listing `Trees` belong to `IskanderExplosion`, `HIMARSExplosion`,
-`NapalmExplosion`/`NapalmFX` and `CrateNuke`, every one an `Explodes` payload on a missile actor
-rather than an armament. **Before writing anything that depends on a tree taking damage, check the
-WARHEAD, not the weapon.**
+while both its damage warheads declare none, so the shell lands and does **nothing**. Enumerated
+across `mods/ww3mod/rules/weapons`, exactly four ARMAMENTS can damage a tree, and all four are
+incendiary or thermobaric: `TosRockets` (`vehicles-russia.yaml:747`), `FireballLauncher` and
+`Flamespray.heavy` (`structures-defenses.yaml:944, :950`), and `Flamespray` (`infantry.yaml:2075`).
+Everything else that can is an `Explodes` payload on a missile or superweapon —
+Iskander, HIMARS, Napalm, CrateNuke, MiniNuke, Atomic, VolatileLoad1-8. **No kinetic or HE weapon in
+the mod can hurt a tree at all**, which is why burnt trees are a flame-and-thermobaric phenomenon
+rather than a shelling one, and why "shelling a wood sealed infantry lanes" was only ever reachable
+via those weapons. Before writing anything that depends on a tree taking damage, check the WARHEAD,
+not the weapon.
 
 **`^Box` (`BOXES01-09`), `ICE01-05` and `UTILPOL1/2` all `Inherits: ^Tree`** (`decoration.yaml:176,
 527, 540, 553, 566, 575, 628, 636`), so they picked up tree invulnerability along with it on

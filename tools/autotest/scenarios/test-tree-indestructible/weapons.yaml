@@ -1,14 +1,19 @@
 # The shell this scenario shells the wood with. Hand-built rather than borrowed from a shipped
 # unit, for two reasons that both come down to "the fixture must not drift":
 #
-#   1. NO SHIPPED UNIT WEAPON DAMAGES A TREE. Warhead.ValidTargets defaults to `Ground, Water`
-#      (Warhead.cs:30) and ^Tree is Targetable ONLY as `Trees` (decoration.yaml, ^Tree). Weapon-level
-#      ValidTargets gates AIMING, not impact -- ^ArtilleryRound declares `Ground, Trees, Water` at
-#      weapon level but its TargetDamage/SpreadDamage warheads declare none, so an artillery shell
-#      lands on a tree and does nothing at all. The mod's only damage warheads that list `Trees` are
-#      missile/superweapon payloads (IskanderExplosion, HIMARSExplosion, NapalmExplosion, CrateNuke),
-#      each delivered by Explodes on a missile actor. Borrowing one would tie this test to a balance
-#      pass on that missile.
+#   1. ONLY INCENDIARY AND THERMOBARIC WEAPONS CAN DAMAGE A TREE, and all of them are actively
+#      balance-tuned. Warhead.ValidTargets defaults to `Ground, Water` (Warhead.cs:30) and ^Tree is
+#      Targetable ONLY as `Trees`, so a warhead that does not name `Trees` cannot touch one.
+#      Weapon-level ValidTargets gates AIMING, not impact: ^ArtilleryRound declares
+#      `Ground, Trees, Water` at weapon level (weapons-ballistics.yaml:874) so a Paladin aims at a
+#      tree quite happily, while neither of its damage warheads names Trees -- the shell lands and
+#      does nothing. Enumerated across mods/ww3mod/rules/weapons, the weapons with a Trees-valid
+#      DAMAGE warhead are exactly: the four armaments TosRockets (vehicles-russia.yaml:747),
+#      FireballLauncher + Flamespray.heavy (structures-defenses.yaml:944, :950) and Flamespray
+#      (infantry.yaml:2075), plus the Explodes payloads Iskander/HIMARS/Napalm/CrateNuke/MiniNuke/
+#      Atomic/VolatileLoad1-8. Flame and thermobaric, which is exactly why burnt trees exist.
+#      Borrowing any of them ties this scenario's arithmetic to the next balance pass on that
+#      weapon -- and TosRockets in particular already has two scenarios devoted to it being retuned.
 #   2. THE NUMBER HAS TO BE ARITHMETIC, not "enough". The scenario reports total damage delivered at
 #      the guarded tree's cell as a multiple of the tree's 2500 HP, and that only works if damage
 #      per shell is a known constant.
