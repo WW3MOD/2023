@@ -47,6 +47,73 @@ that scan **missed `test-critical-no-panic`**, because the regex anchored `local
 with `$` and that line carries a trailing comment. A scan that returns a subset of a known answer is
 how you find out your scan is broken; had the tripwire not already named two, the miss would have
 been invisible and reported as "only one scenario is affected".
+## 2026-09-02 — A run dir preserved the PNGs and the verdict and threw away the only file that could interpret them: `run-test.sh` never archived `debug.log` (`wt/drone-losttrack`, `main @ 6a7e1839`)
+
+Static + `make all` + NUnit. No launch taken. Two findings, and the first applies to all 273 scenarios.
+
+**`run-test.sh` located `debug.log` and never copied it.** `find_debug_log`
+(`tools/autotest/run-test.sh:377`) existed only to *diagnose* the TIMEOUT and CRASH paths
+(`:802`, `:864`); on the normal verdict path nothing touched it. So a run dir held
+`result.json`, `manifest.json` and the marker PNGs — and the engine-side module diagnostics
+(`[drone]`, `[defence] assign`, `[composition] pick`) stayed in a **single global file that
+the next launch truncates.**
+
+That is not hypothetical: it has already destroyed a measurement. Run
+`260901_084100_p5243_test-drone-lost-track` reached a real verdict under its own power (both
+execution markers in `result.json`), and interpreting it needed `bestintelreveal=` off a
+`[drone] ... launch` line (`DroneOperatorBotModule.cs:734`) — the one quantity that sizes
+`LostTrackIntelSquares`. Checked 2026-09-02: the run dir has no log, and
+`~/Library/Application Support/OpenRA/Logs/debug.log` was 1615 bytes with **zero** `[drone]`
+lines. The slot was spent, the verdict was sound, and the question it was spent on is still
+open. **A Lua verdict string can only carry what Lua can see; anything the engine logs is
+gone at the next launch unless the harness copies it.** Fixed here — archived for every
+outcome including CRASH/NO-RESULT, which are the runs whose log matters most.
+
+**Second finding, and it is why a `fail` declaration read as settled.** The `expected-status`
+for `test-drone-lost-track` justified "inside the pre-registered <=1.5x change-nothing band"
+with *"25 against an 18-cell bar is a 1.389x shortfall"*. 1.389 is `mindist /
+NearVanishCells` — **a ratio of cell distances.** The band at `CONTROL-ARM.md:135` is
+pre-registered for the `LostTrackIntelSquares` **multiplier**, defined at `CONTROL-ARM.md:130`
+in *score* space as `(reveal - bestintelreveal) / (bestintel - intel_at_reveal_argmax)`. Two
+different units, so the band was never entered. The bound that *is* derivable without a run
+is **1.0x-2.10x** (`CONTROL-ARM.md:118-127`), which straddles both the 1.5x and 1.8x
+thresholds — open, not settled. The cited "previously-reported 1.19-1.47x bounds" appear
+nowhere in the repo, which is the same objection a worker had already raised against the
+1.247x figure that file replaced; an unsourced number survived being replaced by keeping its
+range.
+
+**The shape worth keeping: a verdict that is genuinely correct can still carry an unsupported
+conclusion, and the arithmetic that reaches it will typecheck.** Both numbers here were real
+measurements of real things. Dividing one by the other produced a dimensionless quantity that
+looked like the pre-registered one and was not.
+
+**POSTSCRIPT, AND IT IS THE ANSWER THE SIZING QUESTION WAS WAITING FOR — found in the global
+`debug.log` before it was overwritten again.** A `tournament-arena-composition-2p` match run on
+current code (post-`1e0226b9`) logged **seven** `[drone] ... launch` lines, and *every one of
+them is intel-driven*:
+
+    tick=800   cell=27,15  reveal=67  intel=28  bestintelcell=27,15
+    tick=2400  cell=23,29  reveal=5   intel=53  bestintelcell=23,29
+    tick=2400  cell=39,3   reveal=14  intel=55  bestintelcell=39,3
+    tick=3800  cell=25,27  reveal=1   intel=49  bestintelcell=25,27
+    tick=4000  cell=27,23  reveal=0   intel=47  bestintel=47
+    tick=4200  cell=25,25  reveal=0   intel=49  bestintel=49
+    tick=4400  cell=23,27  reveal=0   intel=49  bestintel=49
+
+Five of seven chose `bestintelcell` exactly; the other two carry `intel == bestintel` and differ
+only by the POI-distance tiebreak — still intel-driven. `reveal` has collapsed from the ~307 the
+box reported to **0-67**, and at four launches `worth` clears `MinRevealedSquares` (12) on the
+intel term ALONE, which is precisely what `ScoreCandidate`'s "the floor must see the intel term"
+comment (`DroneTaskingMath.cs:126-132`) was written for. **`no-eligible-cell` count in that whole
+match: zero** — the watch item for the newly-biting floor did not fire.
+
+**Do not over-read it.** That is a different map at later ticks, with `clamped=191-198` (most
+candidates refused off-grid) and a well-explored board, so little stale ground remains to
+compete. `test-drone-lost-track` decides at t200 on a 98x82 map that is entirely unexplored,
+where `reveal` will be far larger. What this does establish is DIRECTION: the intel term is now
+capable of winning cells outright, which it demonstrably was not when `reveal` reached 841. The
+`fail` declaration should be treated as live but unconfirmed, and a PASS is now a real
+possibility rather than a premise-change to be surprised by.
 
 ## 2026-09-02 — A grep census is a SAMPLE whose recall nobody checks, but it is consumed as a measurement. Three censuses of `FrozenActor.Owner` returned 9, 17 and 27; the compiler returns 47 (`wt/frozen-capture`, `main @ b83c21bb`)
 
