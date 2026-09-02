@@ -16584,3 +16584,190 @@ AutoTarget config alone says yes for everything; reading the primary armament al
 Unverified, and only a live run can settle it: whether the jammer's 20c0 range ever overlaps a
 shipped engagement — enemy drones leash to `CarrierSlave.MaxDistance: 25` cells from THEIR
 operator, and DR sits back. The config is proven live; whether it is exercised is a map question.
+## 2026-09-02 — The two floored-key siblings measured: one is DEAD CODE, the other displaces the helicopter spawn band 3 cells north on twin-rivers (`wt/edge-siblings`, `main @ 77e1ad09`)
+
+Follow-up to the `ChooseClosestMatchingEdgeCell` fix (`a035aa68`), which deliberately left two
+sibling sites carrying the floored `.Length` sort key as unmeasured. Both are now measured over the
+real shipped maps. **They are not one finding, they are two, and they need opposite treatments.**
+
+**Cites re-derived at `77e1ad09`** (the bank's `:1879`/`:1889` and `:1886`/`:1893` have both drifted):
+`ChooseClosestMatchingEdgeCellOnSameEdge` is `Map.cs:1883-1887`, sort at **`:1886`**;
+`GetSpawnCandidatesOnSameEdge` is `Map.cs:1893-1897`, sort at **`:1896`**.
+
+### Site 1 (`:1886`) is dead code and has been since `1c92ba27`
+
+`ChooseClosestMatchingEdgeCellOnSameEdge` has **zero callers** — one `.cs` occurrence in the whole
+tree, its own definition. Traced through history: `fb1cdbb5` introduced it with exactly one caller
+in `ProductionFromMapEdge.cs`; `1c92ba27` ("Constrain edge spawning to 3 cells max with center
+preference") replaced that caller with `GetSpawnCandidatesOnSameEdge` and left the method behind.
+No Lua, YAML or doc reference either. **Its behaviour cannot be measured because nothing invokes
+it**, which also means changing it is provably inert rather than merely unmeasured — a distinction
+worth keeping, since "unverifiable" and "no-op" are being treated as the same risk here and are not.
+
+### Site 2 (`:1896`) — what it feeds, and why the count matters more than the key
+
+Three callers, and **they split into two regimes that the `.Take(count)` framing alone does not
+separate**:
+
+| caller | count | what it does with the result |
+|---|---|---|
+| `FlyOffMap.cs:70` | 30 | **re-sorts** by `LengthSquared` from the aircraft, `.First()` (`:75`) |
+| `RotateToEdge.cs:155` | 30 | **re-sorts** by `LengthSquared` from the aircraft, `.First()` (`:157`) |
+| `ProductionFromMapEdge.cs:101,122` | `SpawnCandidateCount = 5` (`:24`, no YAML override) | **round-robin by array index** (`:105-107`, `:146-150`) |
+
+For the two count=30 callers the returned ORDER is discarded — only membership can matter, and only
+at the rank-30 tail. **The caller that is actually exposed is `ProductionFromMapEdge` at count=5**,
+where the array index *is* the spawn sequence.
+
+**The sort key can never reorder a farther cell ahead of a nearer one** — `floor(sqrt(d²+k²))` is
+monotone non-decreasing in `|k|`, so it can only ever *tie* them. The damage is done entirely by
+`.Take` cutting **inside** a merged tie-group, where the group is ordered `v`-ascending (i.e. by
+`UpdateEdgeCells` enumeration, `Map.cs:1934-1961`) rather than by `|k|`. For count=5 the sets
+diverge exactly when the half-band `b = floor(sqrt(2d)) >= 3`, i.e. **`d >= 5`**.
+
+### Measured over all 10 shipped maps, 30 spawn points
+
+Model validated FIRST against the three documented `ChooseClosestMatchingEdgeCell` observations
+(`8,16 → 1,13` old / `1,16` new; `6,14 → 1,11`/`1,14`; `6,19 → 1,16`/`1,19` on `Bounds 1,1,64,32`) —
+all three reproduced exactly before it was pointed at anything unknown.
+
+Set membership diverges on **5 of 30** spawn points for the count=5 caller. Worst case, and the only
+one big enough to be worth a fix on its own:
+
+```
+twin-rivers-ww3, both eastern spawns (mpspawn 112,92 and 112,28; SR hint 111,91 / 111,27; d=15, b=5)
+  OLD Take(5): (126,86) (126,87) (126,88) (126,89) (126,90)     <- band centred 3 cells NORTH
+  NEW Take(5): (126,91) (126,90) (126,92) (126,89) (126,93)
+  3 of 5 members differ, and EVERY old-only cell is farther than EVERY new-only cell:
+  old-only 15.811 / 15.524 / 15.297  vs  new-only 15.000 / 15.033 / 15.133
+```
+
+Also divergent: `arena-tank-duel` (57,15) and `shellmap-open-field` (83,29), both `d=7` — 1 of 5
+members wrong, 7.616 kept in place of 7.280. `woodland-warfare` (0,3), `d=1` — see the duplicate
+note below.
+
+**`river-zeta-ww3` is completely unaffected, and that is the mechanism, not luck.** It is the only
+map authoring `spawnarea` actors, and all six sit exactly ON the bounds edge, so `d = 0`; at `d = 0`
+the floored key equals `|k|` and the two sorts are byte-identical. The other nine maps have no
+`spawnarea`, so `searchOrigin` falls back to the SR's own location — `mpspawn + CVec(-1,-1)` — which
+is what puts `d` above zero at all. **The maps that opted into the hint mechanism are the ones the
+defect cannot reach.**
+
+### Two things found on the way that are independent of the sort key
+
+- **`AllEdgeCells` contains each of the four corners TWICE.** `UpdateEdgeCells` emits `(u, Top)` and
+  `(u, bottom)` for every `u`, then `(Left, v)` and `(Right-1, v)` for every `v`, so each corner is
+  appended by both loops (192 entries, 188 distinct on `Bounds 1,1,64,32`). A `Take(5)` window that
+  reaches a corner can therefore hand `ProductionFromMapEdge` an array with a repeated cell — the
+  round-robin then has 5 slots but 4 distinct destinations. Observed on `woodland-warfare` (0,3),
+  where the *fixed* key produces `[(1,3),(1,2),(1,4),(1,1),(1,1)]`. **Sorting exactly makes this
+  MORE likely, not less**, because the two identical copies get identical keys and sort adjacently.
+  Any fix to `:1896` should `.Distinct()` before `.Take()`, or it trades a small bias for a
+  duplicated spawn cell.
+- **`GetSameEdgeCells` is not a pure line.** Its filter is `|U - Bounds.Left| <= 1`, which admits the
+  top/bottom row cells at `u = Left+1` as well as the column. Those sit one cell off the column line,
+  so even a `d=0` hint has a 2-D candidate set — which is why `siberian-pass` and `polar-disorder`
+  show a rank-30 membership difference at `d=0`, where the 1-D model predicts none.
+
+### Recommendation
+
+**`:1886` — delete it.** Dead since `1c92ba27`, and a method named `ChooseClosestMatching…` that
+does not return the closest is a loaded trap for whoever calls it next; they would inherit verbatim
+the defect just fixed next door. Conservative fallback if deleting a public `Map` API is unwanted:
+change the key to `LengthSquared` and comment that it is currently uncalled.
+
+**`:1896` — change it, but only together with a scenario that can tell the two apart.** The
+twin-rivers case is a real, systematic, signed 3-cell northward displacement of the helicopter entry
+band on a shipped competitive map. It is NOT safe to land on the shipped-map evidence alone, because
+the widest band any shipped map offers is `b=5` and 2 of 5 members survive it.
+
+**Discriminating scenario geometry (computed, not guessed):** `Bounds 1,1,64,64` (MapSize 66,66),
+hint at `21,32` → `d=20`, `b=6`, 13-cell tie-group.
+
+```
+OLD Take(5): (1,26) (1,27) (1,28) (1,29) (1,30)    farthest 20.881
+NEW Take(5): (1,32) (1,31) (1,33) (1,30) (1,34)    farthest 20.100
+intersection = {(1,30)} — 4 of 5 members differ
+```
+
+Place a `spawnarea` at `21,32` so `spawnAreaHint.HasValue` and **both** the ground (`:122`) and air
+(`:101`) branches route through `:1896`; ground units are the easier readout. Produce 5 units and
+record entry cells. RED = the old key, asserted by the specific text "entry cell 1,26 expected 1,32",
+not merely by a failing count. Shipped maps separate the two behaviours by 3 of 5 at best and would
+be the weaker instrument, the same reason `test-sr-entry-cell` holds `d` where the band is 5 wide.
+
+## 2026-09-02 — Fixing the `Take(count)` sibling: `.Distinct()` is load-bearing, and "a superset can only improve" is WRONG (`wt/edge-siblings`, `main @ 77e1ad09`)
+
+Implementation follow-up to the measurement entry above. Three things came out of building it that the
+measurement did not predict, and one of them refuted my own stated reasoning.
+
+**`ChooseClosestMatchingEdgeCellOnSameEdge` deleted rather than fixed.** Zero callers since
+`1c92ba27`. Fixing a method nothing invokes buys nothing and leaves a `ChooseClosest…` that does not
+return the closest sitting next to the one that was just fixed, primed for the next caller.
+
+**`GetSpawnCandidatesOnSameEdge` is now `OrderBy(LengthSquared).Distinct().Take(count)`** (`Map.cs:1883`).
+`CPos` is `IEquatable<CPos>` with a `Bits`-based `GetHashCode` (`CPos.cs:19,57,59`), so `Distinct()`
+takes the fast generic path — no boxing, no comparer allocation per call.
+
+### The claim I got wrong, and the measurement that caught it
+
+I argued in the previous entry's recommendation that the two `count=30` callers could not regress,
+because `.Distinct()` frees slots and so yields a **superset** of the old candidates — and a superset
+re-sorted from the aircraft can only produce a nearer-or-equal winner. **That is false.** `Take(30)` is
+a fixed budget: dedupe frees slots, but the corrected sort *also reorders*, so the new set is the 30
+nearest **to the hint** and is NOT a superset of the old 30. An aircraft parked far from the hint can be
+nearer to a cell only the OLD set contained.
+
+Swept **every in-bounds cell as a hypothetical aircraft position**, for all 30 shipped spawn points,
+against `RotateToEdge.cs:155`:
+
+| | |
+|---|---|
+| spawn points where some aircraft position gets a farther exit | **2 of 30** (`arena-tank-duel` 6,16; `polar-disorder-ww3` 96,16) |
+| worst regression anywhere on any shipped map | **exactly 1.000 cells** |
+| aircraft positions helped vs hurt, summed | **47 232 better / 918 worse** |
+
+Both regressions are the same shape: one corner cell swapped for its neighbour, where the *gained*
+cell is genuinely nearer the hint (15.52 vs 15.81; 15.00 vs 15.03). The method does what it promises;
+the loser is an aircraft in the opposite map corner, which the "~15 cells either side of the SpawnArea"
+evacuation zone never intended to serve anyway. **Bounded at one cell, and directionally correct — but
+it is a real regression and was not predicted by reasoning.**
+
+**Which caller was actually verified: `RotateToEdge.cs:155`.** `FlyOffMap.cs:70` shares the site but
+reaches it only when a `spawnarea` exists (`FindOwnerSpawnArea` returns null otherwise and the caller
+falls back to `ChooseClosestEdgeCell`), i.e. only `river-zeta-ww3`'s 6 points — a subset of the sweep,
+all of which came back *better* or *identical*, zero regressions. Stated separately because "indifferent
+to order" and "indifferent to membership" are different claims and only the second one needed measuring.
+
+**`.Distinct()` is not cosmetic even at `count=30`.** On **5 of 30** spawn points the OLD 30-cell array
+already contained a duplicate corner (`29/30` distinct), silently wasting a round-robin slot. Those are
+exactly the five rows contributing the 4 200–6 528 improved aircraft positions.
+
+### The discriminating scenario, and what it does NOT cover
+
+`test-sr-spawn-candidate-set` — `Bounds 1,1,64,64`, `spawnarea` at `21,32` (`d=20`, band ±6, west edge
+wins by an 11-cell margin so no cross-edge tie is in play). Five back-to-back `Produce` calls read the
+array out by index, because `ProductionFromMapEdge.Produce` resolves its cell and advances
+`nextCandidateIndex` **synchronously**, deferring only actor creation to a frame-end task:
+
+```
+old (floored) : 1,26 1,27 1,28 1,29 1,30
+new (exact)   : 1,32 1,31 1,33 1,30 1,34     -- intersection {1,30}; first unit 6 cells apart
+```
+
+Entry cells latched in `Trigger.OnProduction`, never polled from `Actor.Location` — see the
+2026-09-01 entry for why that distinction cost a run.
+
+**The scenario cannot test `.Distinct()`.** Its Take window is rows 30–34, nowhere near a corner, so the
+guard is inert and a green here says nothing about it. That is recorded in the map.yaml header so a
+future reader does not mistake coverage. Exercising it needs a hint diagonally adjacent to a corner
+(`2,2` on these Bounds yields `[(2,1),(1,2),(1,1),(1,1),(1,3)]` **without** the guard) — a different map,
+and an honest gap rather than a covered one.
+
+### Method note: prove your static gate actually reads your file
+
+`make lua-gate` passing on a new scenario is not evidence until you have seen it fail. `lua_gate.py
+check --scenario <substring>` scopes it to one directory; appending a deliberate `OwnSR.NoSuchPropertyXyz`
+produced `[error] … no Actor property 'NoSuchPropertyXyz' exists`, and removing it returned OK. Two
+seconds, no launch, and it converts "the gate was quiet" into "the gate looked". Same RED-before-green
+discipline the run harness gets, applied to the static gate.
