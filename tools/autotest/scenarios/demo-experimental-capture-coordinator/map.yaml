@@ -42,14 +42,14 @@ Players:
 		LockFaction: True
 		Faction: america
 	PlayerReference@USA-bot:
-		Name: USA-bot (experimental)
+		Name: USA-bot
 		LockFaction: True
 		Faction: america
 		Bot: experimental
 		Color: 4488FF
 		Enemies: Russia-bot
 	PlayerReference@Russia-bot:
-		Name: Russia-bot (Normal)
+		Name: Russia-bot
 		LockFaction: True
 		Faction: russia
 		Bot: stable
