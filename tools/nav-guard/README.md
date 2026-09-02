@@ -106,13 +106,23 @@ always 0).
 
 ### What the GATE covers is narrower than what the DECODER can read
 
-`check` and `bless` see **`mods/ww3mod/maps` only** — the 10 shipped playable maps. The 254
-map packages under `tools/autotest/scenarios/` are outside the baseline entirely, and this is
+`check` and `bless` see **`mods/ww3mod/maps` only** — the 10 shipped playable maps. The 273
+map packages under `tools/autotest/scenarios/` (each carries a `map.yaml`; the count was 254 when
+this was written on 2026-09-01 and grows) are outside the baseline entirely, and this is
 the single most misread thing about the tool: **a scenario's terrain, `Bounds` or actors can
 change by any amount and `make nav-guard` stays byte-identical green.** It printed
 `10 maps, 190 map/locomotor pairs` before and after 40 scenarios were re-bounded
 (`WORKSPACE/DISCOVERIES.md`, 2026-09-01) — twice that green was nearly read as coverage. The
 green line now names its own scope for this reason.
+
+**This is not a nav-guard quirk — it is the house pattern, and knowing it here is your reason to
+suspect it elsewhere.** Bare `./utility.sh --check-yaml` (and therefore `make test`) has the same
+hole from the same cause: scenarios are classified `Unknown` rather than `System`, so every
+map-shaped file list skips them. Assume any gate you are about to trust for a scenario change has
+it too, until you have read the line where it builds its list. Both instances, and the targeted
+invocations that DO reach a scenario, are in
+[`DOCS/reference/conventions.md`](../../DOCS/reference/conventions.md) §"Scenarios are NOT maps to
+the tooling".
 
 The decoder itself has no such limit, so the inspection commands can reach a scenario:
 

@@ -284,6 +284,31 @@ Consequences worth knowing before you touch the file:
 
 **Never hand-add a line to the baseline to turn a red run green without saying why in the commit message.**
 
+### Scenarios are NOT maps to the tooling, so every map-shaped gate silently covers 10 files and skips 273
+
+**The generalisation first, because it has already caught two independent tools and will catch a third.** `mods/ww3mod/maps` is declared `System` (`mod.yaml:90`) while `tools/autotest/scenarios` is declared `Unknown` (`mod.yaml:107`). Any tool that enumerates "the maps" gets the 10 shipped maps and none of the 273 scenarios. **Before trusting any gate to cover a scenario change, find the line where it builds its file list and check which classification or directory it names.** A green run is otherwise byte-identical whether your scenario is perfect or unparseable.
+
+The two known instances:
+
+- **`./utility.sh --check-yaml` with no argument** — and therefore `make test` — takes its list from `modData.MapCache.EnumerateMapDirPackagesAndNames()` (`CheckYaml.cs:98`), whose `classification` parameter **defaults to `MapClassification.System`** (`MapCache.cs:212`). The lint logic itself is fine: `TestMap` reports `map.InvalidCustomRules` (`CheckYaml.cs:141-146`), which `Map.PostInit` sets by catching whatever `Ruleset.Load` throws. It simply never opens the scenario files.
+- **`make nav-guard`** — its baseline is `mods/ww3mod/maps` only. See [`tools/nav-guard/README.md`](../../tools/nav-guard/README.md); that misread cost two workers on 2026-09-01.
+
+**`Unknown` is deliberate, so do not "fix" it upstream.** `mod.yaml:93-106` carries a fifteen-line comment: the classification is what keeps scenarios out of every UI tab (lobby, missions, main-menu chooser) while the engine still resolves them by folder name, because `Game.LoadMap` matches on Uid or package folder name and reads neither `Class` nor `Visibility`. Reclassifying them to widen a lint gate would put 273 test scenarios in the player's map lists.
+
+**The targeted form does lint a scenario, and the path is relative to `engine/`:**
+
+```sh
+./utility.sh --check-yaml ../tools/autotest/scenarios/<name>      # from the repo root
+```
+
+`CheckYaml.cs:100-101` accepts `args[1]` as a package path under `new Folder(Platform.EngineDir)`, and the effective root is `<repo>/engine` because `utility.sh:61` `cd`s there before launching — so the repo-root-relative path everyone writes first resolves to `<repo>/engine/tools/…` and fails. (Same note, from the scenario-authoring side, at [`DOCS/recipes/AUTOTEST.md`](../recipes/AUTOTEST.md):74.) Two further differences from the pathless run: it skips the baseline judgement entirely (`:116-122` returns early), so it fails on *any* error rather than against the recorded floor; and it lints the map's own rules rather than `DefaultRules`, so it does **not** catch a misspelled trait field on a mod-level block — see [§Which YAML gate catches a misspelled trait field](#which-yaml-gate-catches-a-misspelled-trait-field--the-fast-ones-do-not).
+
+**What is loud and what is silent, verified rather than assumed.** A path that does not exist is **loud in every shape**: `Folder.OpenPackage` reaches `ZipFileLoader.TryParseReadWritePackage`, whose `File.OpenRead` is unguarded (`ZipFile.cs:226`), so a missing parent directory throws `DirectoryNotFoundException` and a missing name inside an existing directory throws `FileNotFoundException`. `CheckYaml.cs:127-131` catches both, prints `Failed with exception:` and exits 1. So a typo in the scenario name cannot masquerade as a pass. The silent `if (package == null) continue;` (`:106-107`) is reachable only when the path **exists as a file that is not a parseable package** — i.e. pointing at `…/<name>/map.yaml` instead of at the scenario directory. **Confirm you saw `Testing map: <title>` (`:136`)** — belt-and-braces against a typo, load-bearing against a path aimed one level too deep.
+
+**And do not pipe the run.** The utility's exit code is the evidence; a `| grep` appended to it reports the pipeline's status instead, which is the standing "never pipe a verdict" rule reappearing inside the tool you are using to investigate a coverage gap.
+
+**The NUnit option, and why nobody has taken it.** An `engine/OpenRA.Test/` fixture that loads all 273 scenarios' rules would close the gap in CI, and it is possible but not cheap: **nothing in the test project constructs a `ModData`** (zero references), so the mod-filesystem bootstrap would have to be built from scratch. The one `Ruleset` a test does build is hand-assembled in memory from synthetic `ActorInfo`s with no YAML behind it (`ShadowCacheKeyTermsTest.cs:40-55`), so it is not a starting point. The cost is the bootstrap, not the ruleset.
+
 ## A change believed made, documented as made, and inert
 
 **The most expensive defect shape in this codebase is not a missing mechanism. It is a mechanism that is present, documented, wired up, lint-clean — and evaluates to nothing.** Six separate defects fixed on 2026-08-22 were all this shape, and none of them was found by reading the code, because reading is exactly what these survive: the comment beside them is accurate about intent, the citation is real, the field is genuinely set, the trait is genuinely mounted. What is false is the *value the expression produces at the inputs the mod actually supplies*.
