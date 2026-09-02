@@ -18060,3 +18060,32 @@ of source and YAML. The least-certain claim is that the old owner retains *live*
 explored/fogged terrain; that chain runs through `MapLayers.Tick` (`:226-285`), whose `explored` gate
 (`:241`) and `visibility = 1` floor (`:255-256`) I did not trace through every caller. Full recon,
 costed options and the test that would settle it: `WORKSPACE/recon/260902-capture-vision-transfer.md`.
+## 2026-09-02 — `Actor.Location` LEADS a moving unit by one cell; never poll it for a spawn cell
+
+`Actor.Location` is `OccupiesSpace.TopLeft` (`Actor.cs:78`), and for a Mobile actor
+`TopLeft => ToCell` (`Mobile.cs:314`) — **the cell being moved INTO**. `ToCell` is assigned when a
+move BEGINS, not when it completes; `Mobile.IsLeavingCell` encodes the same semantics
+(`ToCell != location && FromCell == location`). So `Actor.Location` runs one cell AHEAD of where
+the unit physically is, and **unit speed is irrelevant to how fast it changes** — a Speed-25
+rifleman's reported cell jumps just as fast as a tank's.
+
+This inverts the intuition that a slow unit gives a poll a wide margin. It does not: the margin is
+zero, because the first tick of the queued move is enough.
+
+**Cost:** run `260902_000616_p36750_test-sr-entry-cell` failed reporting entry at `2,16`. The unit
+had entered at `1,16` (correct) and taken one step east toward its rally; a 2-tick-later poll of
+`Actor.Location` read the second cell of the walk. The independent tell that it was an instrument
+fault, not an engine one: with `Bounds 1,1,64,32` the perimeter is x=1, x=64, y=1, y=32, so `2,16`
+is **not in `Map.AllEdgeCells`** and `ChooseClosestMatchingEdgeCell` could not have returned it.
+A reported "entry cell" that is not on the perimeter is by construction a measurement artifact.
+
+**The correct latch for a production entry cell is `Trigger.OnProduction`.** It fires from
+`INotifyProduction.UnitProduced` (`ScriptTriggers.cs:156-168`), which `ProductionFromMapEdge`
+raises at `:199-200` — inside the same frame-end task, after `CreateActor` and after the MoveTo is
+QUEUED but before any activity has TICKED, so `ToCell` is still the spawn cell. `ScriptTriggers`
+reaches SUPPLYROUTE via `Inherits@ExistsInWorld` → `^ExistsInWorld` (`structures.yaml:223`,
+`defaults.yaml:7`).
+
+Generalises past production: any scenario reading where a unit *arrived*, *spawned* or *stopped*
+by polling `Actor.Location` is reading its destination, not its position. Use a notification hook,
+or `CenterPosition` if only an approximate position is needed.
