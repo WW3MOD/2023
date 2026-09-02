@@ -27,7 +27,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("HP percentage the helicopter must reach after repair before being sent out again.")]
 		public readonly int ReEngageHealthPercent = 80;
 
-		[Desc("Ticks of engagement before pulling back (hit-and-run cycle). 0 = stay engaged until flee threshold.")]
+		[Desc("SQUAD UPDATES of engagement before pulling back (hit-and-run cycle), NOT world ticks: attackTicks++",
+			"once per Tick(Squad), and heli squads update once per SquadUpdateInterval (5) bot ticks -- so 150",
+			"here is 750 world ticks, ~45 s at the default 60 ms timestep.",
+			"0 = stay engaged until flee threshold.")]
 		public readonly int HitAndRunCooldown = 150;
 
 		// REMOVED 2026-08-30: EngagementRange, PreferSoftTargets, AvoidAntiAirRange, AIBuildPriority and

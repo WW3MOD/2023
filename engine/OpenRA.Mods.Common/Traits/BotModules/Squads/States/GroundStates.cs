@@ -307,7 +307,11 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 	class GroundUnitsRegroupState : GroundStateBase, IState
 	{
 		int regroupTicks;
-		const int MaxRegroupTicks = 750; // ~12.5 seconds to regroup before re-engaging or dissolving
+		// 750 SQUAD UPDATES, not world ticks: regroupTicks++ once per Tick(Squad), and SquadManagerBotModule
+		// calls Squad.Update() once per AttackForceInterval (75) bot ticks -- so 56,250 world ticks, ~56 min at
+		// the default 60 ms timestep, NOT the ~12.5 s this comment used to claim. Unreachable today (every
+		// SquadManagerBotModule instance sets IgnoreGroundUnits). Re-derive before porting the idea.
+		const int MaxRegroupTicks = 750;
 
 		public void Activate(Squad owner)
 		{
