@@ -59,10 +59,58 @@
 		Range: 1024
 		ValidRelationships: Neutral, Ally, Enemy
 
+# TREES ARE INDESTRUCTIBLE (2026-09-02, owner ruling: "stop all burnt trees from appearing" /
+# "same for living or burnt trees, for now"). Modifier 0 is the engine's own documented idiom for
+# invulnerability (DamageMultiplier.cs:16 "Use 0 to make actor invulnerable"). A tree can still be
+# shot at and can still be set on fire; it simply never loses HP, so it never dies and its .Husk
+# never spawns.
+#
+# TO REVERT: delete the single `Inherits@Indestructible:` line from ^Tree below. Nothing else was
+# removed -- every SpawnActorOnDeath entry and every T##.Husk / TC0#.Husk definition in
+# rules/husks/husks.yaml is left intact and merely DORMANT, so trees become destructible again
+# exactly as before with that one edit.
+#
+# WHY INDESTRUCTIBLE RATHER THAN "spawn an invisible husk that copies the living tree's cover":
+# destroying a tree today diverges from the living tree in three directions at once, and only one
+# of them is the cover bonus.
+#   1. CONCEALMENT SUBSTRATE DOES NOT CHANGE AT ALL. Map.DensityLayer is stamped once at map load
+#      from the map's *authored actor definitions* (Map.cs:1027-1053, called at :520) and nothing
+#      recomputes it -- UpdateShadowForCells / the density mutator are both marked CURRENTLY UNUSED
+#      (Map.cs:1071-1079, :1260) and have no callers. So a burnt tree already conceals exactly as
+#      much as a living one for the forest-shadow half of the mechanic. Killing the sprite while the
+#      shadow stays is the incoherence, not the parity.
+#   2. COVER BONUS COLLAPSES. ^TreeHusk carries Range: 384 (down to 182 per husk) against the living
+#      tree's 1024. Per the measurement in the comment above, 384 pays out on 0.0% of cells -- so
+#      the bonus does not shrink, it disappears.
+#   3. PASSABILITY FLIPS THE WRONG WAY. ^Tree has `Passable: PassClasses: tree` and the four foot
+#      locomotors declare `Passes: ... tree` (world.yaml:30,45,62,78), so INFANTRY WALK THROUGH a
+#      living tree. ^TreeHusk has no Passable trait at all, so the burnt stump blocks them. Shooting
+#      a wood therefore seals infantry lanes that were open. (Vehicles are blocked either way, and
+#      building placement is blocked either way -- the husk occupies its cell just as the tree does,
+#      so destroying a tree never freed a build spot and nothing is lost there.)
+# An invisible husk fixes (2) only, leaves (3), and makes (1) visually absurd by removing the sprite
+# while the concealment it casts stays. Indestructibility fixes all three with one line.
+#
+# NOT REACHED BY THIS: Health.Kill() passes ignoreModifiers:true (Health.cs:245), so a direct Kill
+# still removes a tree. That path is unreachable from gameplay -- Passable.OnBeingCrushed is gated on
+# CrushedByRelationships, which ^Tree leaves at the default None (Passable.cs:45, :100) -- and it is
+# deliberately left open so a Lua scenario can still delete a tree if one ever needs to.
+#
+# DEFERRED, DO NOT BUILD: recomputing forest shadow when trees die (owner: "it gets complicated and
+# it is not the right time now to invest time into"). Treating living and burnt identically is what
+# makes that unnecessary for now.
+^TreeIndestructible:
+	DamageMultiplier@Indestructible:
+		Modifier: 0
+
 ^Tree:
 	Inherits@1: ^SpriteActor
 	Inherits@Cover: ^TreeCover
+	Inherits@Indestructible: ^TreeIndestructible
 	Inherits@Shape: ^1x1Shape
+	# Now inert: with damage scaled to 0 the burn tick (ChangesHealth@BurnDamage) subtracts nothing
+	# and the tree never leaves DamageState.Undamaged, so the burn overlays never reach their
+	# MinimumDamageState either. Left in place so reverting the line above restores fire behaviour too.
 	Inherits@FireMechanic: ^BuildingAffectedByFire
 	CombatDebugOverlay:
 	BlocksProjectiles:
