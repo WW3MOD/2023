@@ -262,9 +262,12 @@ namespace OpenRA.Mods.Common.Traits
 		/// <para>SumInclusive's clamp does NOT already do this: it clamps to the GRID, which is the larger
 		/// MapSize rectangle, not to Bounds.</para>
 		///
-		/// <para>This is a SEPARATE artefact from the box-corner one (Model_TheBoxCornerArtefact...), which is
-		/// the box-versus-disc mismatch and is geometric. Removing the border shrinks the corner
-		/// artefact wherever the two overlap and leaves it untouched inland; it does not fix it.</para>
+		/// <para>This is a SEPARATE artefact from the box-corner one, which was the box-versus-disc mismatch and
+		/// is geometric rather than map-dependent. Removing the border shrinks the corner artefact wherever
+		/// the two overlap and leaves it untouched inland; it never fixed it. The corner artefact is now
+		/// addressed independently by <see cref="SumDisc"/>, and the two remain orthogonal: this bounds test
+		/// is still required, because a disc that hangs off the playable area would otherwise count the
+		/// non-playable border inside the disc.</para>
 		/// </summary>
 		public static bool IsRevealable(bool inPlayableBounds, int ticksSinceVerified, int minStalenessTicks)
 		{
@@ -313,6 +316,71 @@ namespace OpenRA.Mods.Common.Traits
 				return 0;
 
 			return sat[x1 + 1, y1 + 1] - sat[x0, y1 + 1] - sat[x1 + 1, y0] + sat[x0, y0];
+		}
+
+		/// <summary>
+		/// <para>Half-widths of a filled disc of the given radius, indexed by |dy|: entry dy is the largest
+		/// w with w² + dy² &lt;= radius². <paramref name="radiusSquares"/> is in COARSE grid squares.</para>
+		///
+		/// <para>WHY THIS EXISTS: the revealed-area query used to be the drone's vision BOX, while the drone's
+		/// vision is a DISC. At the shipped 14-square radius the box is 29x29 = 841 squares against a disc
+		/// of 613, so up to 228 squares of every query were corners the drone can never see. That is not a
+		/// rounding detail — it is ~19x MinRevealedSquares (12), so every candidate cleared the launch floor
+		/// on corner artefact alone regardless of whether it would reveal anything real, and the floor was
+		/// inert. It is also state-dependent rather than a constant offset: a candidate whose CORNERS are
+		/// stale and whose disc is fresh outscored one that would actually see something.</para>
+		///
+		/// <para>INTEGER ARITHMETIC, NOT Math.Sqrt, AND THAT IS LOAD-BEARING. This feeds a bot decision, and
+		/// the influence stack's contract is byte-identity across runs and runtimes. A float sqrt at a
+		/// boundary case (dy=13 sits at 27, one under 5² + 13² = 194 &lt;= 196) could round differently on a
+		/// different runtime and silently change which cells a drone is offered. The widening loop cannot.</para>
+		/// </summary>
+		public static int[] BuildDiscHalfWidths(int radiusSquares)
+		{
+			if (radiusSquares < 0)
+				radiusSquares = 0;
+
+			var halfWidths = new int[radiusSquares + 1];
+			var rsq = radiusSquares * radiusSquares;
+
+			for (var dy = 0; dy <= radiusSquares; dy++)
+			{
+				var w = 0;
+				while (((w + 1) * (w + 1)) + (dy * dy) <= rsq)
+					w++;
+
+				halfWidths[dy] = w;
+			}
+
+			return halfWidths;
+		}
+
+		/// <summary>
+		/// <para>Count of set squares inside the DISC of <paramref name="radiusSquares"/> centred on
+		/// (<paramref name="cx"/>, <paramref name="cy"/>), as one clamped row-range query per grid row.</para>
+		///
+		/// <para>COST, STATED PLAINLY BECAUSE IT IS THE REASON THE BOX WAS THERE. This is (2r+1) queries per
+		/// candidate instead of one — 29 x 4 = 116 array reads at the shipped radius, against 4 for the box.
+		/// Across ~380 candidates that is ~44,000 reads per operator per evaluation, on a cadence of 200
+		/// ticks with at most two operators. It is 21x cheaper than the ~935,000 per-cell form the summed-area
+		/// table was introduced to avoid, and it is EXACT rather than an octagon approximation — the strips
+		/// reproduce the 613-square disc exactly, which is what makes the artefact removal assertable.</para>
+		///
+		/// <para><paramref name="halfWidths"/> depends only on the radius, so it is built once and reused;
+		/// rebuilding it per candidate would dominate the saving this decomposition is spending.</para>
+		/// </summary>
+		public static int SumDisc(int[,] sat, int gw, int gh, int cx, int cy, int radiusSquares, int[] halfWidths)
+		{
+			// Rows fully off-grid contribute nothing: SumInclusive clamps y to the grid, which leaves
+			// y0 > y1 for a row above or below it, and that returns 0 rather than a wrapped read.
+			var total = 0;
+			for (var dy = -radiusSquares; dy <= radiusSquares; dy++)
+			{
+				var hw = halfWidths[dy < 0 ? -dy : dy];
+				total += SumInclusive(sat, gw, gh, cx - hw, cy + dy, cx + hw, cy + dy);
+			}
+
+			return total;
 		}
 
 		/// <summary>
