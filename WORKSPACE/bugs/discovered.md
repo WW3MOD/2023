@@ -4457,3 +4457,19 @@ map-rules test the way most weapon changes can — it has to be a change to the 
   which is why it was left alone rather than folded into the FogDarkness change on the same day.
   **Fix is a 160f/255f factor in that loop**, but it lightens the border for every mod in the tree, so
   it wants its own before/after screenshot. (found while working on: fog contrast / FogDarkness)
+
+- [2026-09-02] [low] **The Supply Route control bar turns yellow one percentage point before
+  production is actually slowed.** `SupplyRouteContestation`'s two consumers of `SlowdownThreshold`
+  use different comparisons: `ISelectionBar.GetColor` returns LimeGreen only while
+  `barPercent > SlowdownThreshold` (`SupplyRouteContestation.cs:890`), so **50% renders yellow**,
+  while `IProductionSpeedModifier.GetProductionSpeedModifier` returns a full `100` on
+  `barPercent >= SlowdownThreshold` (`:867`), so **50% is still full speed**. The colour therefore
+  warns one point early: at the shipped `SlowdownThreshold: 50` the bar is yellow across a band where
+  reinforcements are arriving at completely normal speed. Time cost of the point is 5 ticks (0.3s) at
+  the `MinTicks: 500` floor and 15 ticks (0.9s) at reference surplus, so it is invisible in play — it
+  matters only to anyone using the colour as a co-signature for the slowdown state, which the
+  slowdown call-out's manual verification does. **Fix is one character** (`>` to `>=` at `:890`, or
+  the converse at `:867`), but it moves a shipped visual for every Supply Route and the two-sided
+  choice is a design call — yellow should probably mean "degraded", which argues for changing the
+  colour rather than the modifier. Predates the slowdown call-out; not introduced by it.
+  (found while working on: safe win 7, the slowdown threshold call-out)

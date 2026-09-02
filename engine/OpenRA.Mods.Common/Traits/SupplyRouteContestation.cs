@@ -84,6 +84,33 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Text notification when contestation begins.")]
 		public readonly string ContestationTextNotification = "Supply Route contested!";
 
+		// Empty by default because no shipped Speech clip says this. The nearest candidates in
+		// rules/sound/notifications.yaml are LowPower, OnHold and NoBuild, all of which name a
+		// mechanic this mod does not have; a wrong-sounding voice line is worse than none. The field
+		// exists so a designer can wire a clip without touching C#. Guarded at the call site.
+		[NotificationReference("Speech")]
+		[Desc("Speech notification when the control bar first falls below SlowdownThreshold.",
+			"Empty by default — no shipped clip says 'reinforcements are arriving slower'.")]
+		public readonly string SlowdownNotification = "";
+
+		[Desc("Text notification when the control bar first falls below SlowdownThreshold, which is",
+			"the tick reinforcements actually begin arriving slower.")]
+		public readonly string SlowdownTextNotification = "Supply Route degraded! Reinforcements arriving slower.";
+
+		// 100 reproduces the shipped behaviour EXACTLY, and the shipped behaviour is the complaint:
+		// the contested warning had one reset, `controlBar >= BarMax`, so a bar oscillating between
+		// 40% and 95% for twenty minutes warned once and never again. Lowering this re-arms both the
+		// contested warning and the slowdown call-out once the bar climbs back to it.
+		//
+		// It governs BOTH latches on purpose. The slowdown call-out fires at SlowdownThreshold, so
+		// re-arming it at that same percentage would give it zero hysteresis — a bar hovering on the
+		// threshold would chatter at the NotifyInterval ceiling. Sharing this field means the gap
+		// between re-arm and re-fire is (RearmThresholdPercent - SlowdownThreshold), a real band.
+		[Desc("Bar percentage (0-100) the control bar must recover to before the contested warning and",
+			"the slowdown call-out will fire again. 100 = re-arm only on full recovery (shipped",
+			"behaviour: a bar that never refills warns exactly once per match).")]
+		public readonly int RearmThresholdPercent = 100;
+
 		[NotificationReference("Speech")]
 		[Desc("Speech notification when defeat bar starts filling.")]
 		public readonly string DefeatWarningNotification = "BaseAttack";
@@ -191,12 +218,21 @@ namespace OpenRA.Mods.Common.Traits
 		long lastNotifyTime;
 		long lastDefeatNotifyTime;
 
-		// Deliberately NOT [Sync]. Notification latches: their only consumers are OnContestationStarted
-		// and OnDefeatPhaseStarted, which do speech, radar pings and a screen flash — never a
-		// simulation decision. They are written solely from comparisons on controlBar/defeatBar, both of
-		// which ARE hashed, so they carry no divergence signal those two do not already carry.
+		// A THIRD timestamp rather than sharing lastNotifyTime, and the fast-assault case is why.
+		// Contestation is announced on the bar's first tick of depletion; the slowdown call-out fires
+		// when it crosses SlowdownThreshold. At the shipped floor MinTicks=500 a full bar drains in
+		// 500 ticks, so the crossing lands 250 ticks — 15s at the mod's 60ms timestep — after the
+		// contested line, inside the 30s NotifyInterval. Sharing the timestamp would swallow the
+		// slowdown call-out in precisely the assault fast enough to make it matter.
+		long lastSlowdownNotifyTime;
+
+		// Deliberately NOT [Sync]. Notification latches: their only consumers are OnContestationStarted,
+		// OnDefeatPhaseStarted and OnSlowdownStarted, which do speech, radar pings and a screen flash —
+		// never a simulation decision. They are written solely from comparisons on controlBar/defeatBar,
+		// both of which ARE hashed, so they carry no divergence signal those two do not already carry.
 		bool wasContested;
 		bool wasInDefeatPhase;
+		bool wasSlowed;
 
 		// SIMULATION. Forces the production modifier to 0 and is the flag HasActiveTeamSupplyRoute reads
 		// across every player when deciding team elimination.
@@ -213,6 +249,7 @@ namespace OpenRA.Mods.Common.Traits
 			controlBar = info.BarMax;
 			lastNotifyTime = -info.NotifyInterval;
 			lastDefeatNotifyTime = -info.NotifyInterval;
+			lastSlowdownNotifyTime = -info.NotifyInterval;
 		}
 
 		// Accessors for AttackSupplyRoute / external queries.
@@ -402,6 +439,42 @@ namespace OpenRA.Mods.Common.Traits
 			return (int)Math.Max(1, Math.Max(floor, scaled));
 		}
 
+		// Pure decision: is production below full speed at this bar level? Deliberately mirrors
+		// IProductionSpeedModifier.GetProductionSpeedModifier limb for limb rather than approximating
+		// it — an empty bar returns 0 there (hard lockout) and everything below SlowdownThreshold
+		// returns a scaled figure, so both are "slowed". If the two ever disagree the call-out would
+		// announce a slowdown the player is not experiencing, which is worse than the silence it
+		// replaces.
+		public static bool IsProductionSlowed(int controlBar, int barMax, int slowdownThreshold)
+		{
+			if (controlBar <= 0)
+				return true;
+
+			if (barMax <= 0)
+				return false;
+
+			return controlBar * 100 / barMax < slowdownThreshold;
+		}
+
+		// Pure decision: has the control bar recovered far enough to re-arm the warnings?
+		//
+		// The >= 100 limb returns the ORIGINAL expression rather than letting the percentage
+		// arithmetic below happen to agree with it. The two are equivalent for controlBar <= barMax,
+		// but this trait's shipped behaviour is the benchmark control for @stable, so the default path
+		// says "unchanged" in the code instead of asking a reader to re-derive it — the same reason
+		// ContestTicksToFull returns early at weakness 0.
+		public static bool ShouldRearmWarning(int controlBar, int barMax, int rearmThresholdPercent)
+		{
+			if (barMax <= 0)
+				return true;
+
+			var clamped = Math.Min(Math.Max(rearmThresholdPercent, 0), 100);
+			if (clamped >= 100)
+				return controlBar >= barMax;
+
+			return controlBar * 100 / barMax >= clamped;
+		}
+
 		void ITick.Tick(Actor self)
 		{
 			// Player already defeated or SR changed to non-playable owner (e.g. Neutral after defeat) — nothing to do
@@ -428,6 +501,15 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						wasContested = true;
 						OnContestationStarted();
+					}
+
+					// The tick reinforcements actually start arriving slower. Separate from the
+					// contested warning above because they are separate events: contestation is the
+					// enemy arriving, this is the enemy costing you something.
+					if (!wasSlowed && IsProductionSlowed(controlBar, info.BarMax, info.SlowdownThreshold))
+					{
+						wasSlowed = true;
+						OnSlowdownStarted();
 					}
 				}
 				else
@@ -496,8 +578,15 @@ namespace OpenRA.Mods.Common.Traits
 						? info.FriendlyRecoveryMultiplier : 1;
 					controlBar = Math.Min(info.BarMax, controlBar + recoveryRate * friendlyBoost);
 
-					if (controlBar >= info.BarMax)
+					// Both latches re-arm on the same band, so the gap between re-arming the slowdown
+					// call-out and re-firing it is (RearmThresholdPercent - SlowdownThreshold). At the
+					// default 100 that gap is 50 points and neither warning can repeat until the bar
+					// is genuinely full again — which is today's behaviour, unchanged.
+					if (ShouldRearmWarning(controlBar, info.BarMax, info.RearmThresholdPercent))
+					{
 						wasContested = false;
+						wasSlowed = false;
+					}
 				}
 			}
 		}
@@ -525,6 +614,31 @@ namespace OpenRA.Mods.Common.Traits
 
 			self.World.AddFrameEndTask(w =>
 				w.Add(new FlashTarget(self, Color.Orange, 0.5f, 5, 4, 0)));
+		}
+
+		// No radar ping and no extra flash, unlike the two warnings either side of this one. The
+		// building is already flashing every FlashInterval for as long as it is contested, and this
+		// event fires mid-siege when the player has been pinged at it once already; a second ping at
+		// the same cell reports nothing new. What is new is the sentence.
+		void OnSlowdownStarted()
+		{
+			if (Game.RunTime <= lastSlowdownNotifyTime + info.NotifyInterval)
+				return;
+
+			lastSlowdownNotifyTime = Game.RunTime;
+
+			var localPlayer = self.World.LocalPlayer;
+			if (localPlayer == null || localPlayer.Spectating)
+				return;
+
+			if (self.Owner != localPlayer && !localPlayer.IsAlliedWith(self.Owner))
+				return;
+
+			if (!string.IsNullOrEmpty(info.SlowdownNotification))
+				Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech",
+					info.SlowdownNotification, self.Owner.Faction.InternalName);
+
+			TextNotificationsManager.AddTransientLine(self.Owner, info.SlowdownTextNotification);
 		}
 
 		void OnDefeatPhaseStarted()
