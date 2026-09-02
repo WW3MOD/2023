@@ -87,5 +87,43 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			return ApplyHandicapRefundAdjustment(a.GetSellValue(), a.Owner);
 		}
+
+		/// <summary>
+		/// Apply the one term of the evacuation payout that is read on ARRIVAL rather than frozen at
+		/// order time: the fraction of health the actor still has.
+		/// </summary>
+		/// <remarks>
+		/// PITFALL: <see cref="GetEvacuationRefund"/> carries no health term, so it is NOT the cash the
+		/// player receives — RotateToEdge.DoSell scales it by HP/MaxHP on arrival. Any surface that
+		/// shows a player what an evacuation is worth must apply this too, or it promises a number the
+		/// game does not honour. It lives here, called by both, rather than inline in each.
+		/// </remarks>
+		public static int ScaleRefundByHealth(int refund, Actor a)
+		{
+			var health = a.TraitOrDefault<IHealth>();
+			var hp = health != null ? (long)health.HP : 1L;
+			var maxHp = health != null ? (long)health.MaxHP : 1L;
+			return EvacRefundPreviewMath.ScaleByHealth(refund, hp, maxHp);
+		}
+
+		/// <summary>
+		/// Cash the player would receive for evacuating this actor RIGHT NOW: the same expression
+		/// DeliversCash.GoDonateCash freezes into the activity, scaled by current health the way
+		/// RotateToEdge.DoSell scales it on arrival. Returns 0 for an actor the Evacuate order does not
+		/// reach (no <c>DeliversCash@Rotation</c>).
+		/// </summary>
+		/// <remarks>
+		/// Exact for a unit that reaches the map edge in the state it is in now. A unit shot on the way
+		/// out arrives worth less, because the health term — and only the health term — is re-read there.
+		/// </remarks>
+		public static int GetEvacuationRefundNow(this Actor a)
+		{
+			var rotation = a.Info.TraitInfos<DeliversCashInfo>().FirstOrDefault(di => di.Type == "Rotation");
+			if (rotation == null)
+				return 0;
+
+			var baseAmount = rotation.Payload == -1 ? a.GetSellValue() : rotation.Payload;
+			return ScaleRefundByHealth(ApplyHandicapRefundAdjustment(baseAmount, a.Owner), a);
+		}
 	}
 }

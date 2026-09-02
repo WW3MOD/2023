@@ -446,10 +446,10 @@ namespace OpenRA.Mods.Common.Activities
 
 			if (fixedRefund.HasValue)
 			{
-				// Rotation: use pre-calculated amount, scale by HP
-				var hp = health != null ? (long)health.HP : 1L;
-				var maxHP = health != null ? (long)health.MaxHP : 1L;
-				refund = (int)(fixedRefund.Value * hp / maxHP);
+				// Rotation: use pre-calculated amount, scale by HP. Shared with the Evacuate button's
+				// refund preview (CustomSellValueExts.GetEvacuationRefundNow) so the figure the player
+				// was shown and the cash they are paid cannot drift apart on the health term.
+				refund = CustomSellValueExts.ScaleRefundByHealth(fixedRefund.Value, self);
 			}
 			else
 			{

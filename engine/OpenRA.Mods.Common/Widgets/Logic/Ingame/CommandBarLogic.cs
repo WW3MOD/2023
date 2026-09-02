@@ -256,6 +256,26 @@ namespace OpenRA.Mods.Common.Widgets
 				evacuateButton.IsDisabled = () => { UpdateStateIfNecessary(); return evacuateDisabled; };
 				evacuateButton.IsHighlighted = () => evacuateHighlighted > 0;
 
+				// The button's copy has always promised "refunding their value to your budget" without ever
+				// naming the value — no UI surface in this game reads what a fielded unit is worth. Evaluated
+				// per hover (ButtonTooltipLogic bakes the desc lines when the tooltip opens), which is exactly
+				// when the "one more fight, or bank it" decision is being made.
+				var baseEvacuateDesc = evacuateButton.GetTooltipDesc;
+				evacuateButton.GetTooltipDesc = () =>
+				{
+					UpdateStateIfNecessary();
+
+					var evacuable = selectedActors
+						.Where(a => a.Info.TraitInfos<DeliversCashInfo>().Any(di => di.Type == "Rotation"))
+						.ToArray();
+
+					var line = EvacRefundPreviewMath.FormatRefundLine(
+						evacuable.Sum(a => a.GetEvacuationRefundNow()), evacuable.Length, selectedActors.Length);
+
+					var desc = baseEvacuateDesc();
+					return line == null ? desc : $"{desc}\n\n{line}";
+				};
+
 				void IssueEvacuate(bool queued)
 				{
 					PerformKeyboardOrderOnSelection(a => new Order("Evacuate", a, queued));
