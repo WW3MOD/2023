@@ -5,6 +5,23 @@
 
 ---
 
+- [2026-09-02] [low] **`test-frozen-owner-snapshot` cannot fail on the owner-change path anyone is
+  actually worried about, and its name does not say so.** `FrozenUnderFog.OnOwnerChanged` (`:217-224`)
+  refreshes `frozenStates[oldOwnerIndex]` and nothing else — **only the old owner's ghost moves.** The
+  scenario deliberately makes USA a *third party* (`test-frozen-owner-snapshot.lua:24-25`: "USA saw the
+  building while it was Russian, and USA must still believe it is Russian after it changes hands"),
+  which is precisely the ghost this path leaves alone. So it asserts the correct behaviour of the
+  untouched case and is structurally incapable of observing the leak. It is also the **only** scenario
+  of 276 that calls the frozen Lua bindings at all.
+  **Not a code defect — a naming/coverage one.** The risk is that a future worker reads a green
+  `test-frozen-owner-snapshot` as assurance over the old-owner-as-viewer path and plans against it.
+  Fix is either a second scenario making the old owner the viewer, or a header line in the existing
+  one stating what it does not cover (its `RED-ARM.md` already documents adjacent limits, so that is
+  the cheap half). **No launch was taken to confirm; this is read off the Lua and the engine path.**
+  (found while working on: verifying the frozen-actor owner-change claims, `wt/frozen-capture`)
+
+---
+
 - [2026-08-30] [med] **The production tooltip overlaps the production sidebar, and its panel is not
   opaque, so anything drawn behind it shows through.** Observed on `wt/tooltip-elements` at 3584x2240:
   the tall rifleman tooltip lands across the sidebar's icon column and unit portraits are legible
