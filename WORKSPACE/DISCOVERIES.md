@@ -905,6 +905,22 @@ untouched at hp100%, and its trace shows it holding 11–13 cells at its cruise 
 window. `ValidTargets: Ground` did not make it fire. Lanes 1 and 2 reproduced their 2026-08-27 results
 exactly, so the run is sound and the instrument is not at fault.
 
+> **CORRECTION (2026-09-02, `wt/strafe-zero`) — "for the whole window" is wrong, and so is the
+> closing directive of this entry, which was derived from it.** That trace covers the LAST 250 of
+> 626 ticks and nothing before. `observeTick` is the only function that appends to a lane's trace,
+> and during the arming phase it runs for a lane **only once that lane has armed**
+> (`test-aircraft-breakoff-midrun.lua:409`, `if l.armed then observeTick(l)`); lane 3 never armed,
+> so it was first sampled at its arming DEADLINE (`:469-472`). The surviving `result.json` for this
+> very run shows it: lanes 1 and 2 carry **26** trace samples and `obs626`, lane 3 carries **10**, at
+> one sample per 25 observed ticks. **The strafe airframe's first 400 ticks — the window containing
+> its opening pass — produced no distance data at all.** `minDistAfter-1` is not a measurement
+> either: the deadline branch assigns `l.minDistAfter = -1`, after which `if d < l.minDistAfter` can
+> never be true again, so the field is structurally dead for any lane that fails to arm.
+> **The half that needs no trace survives untouched** — `shotsBefore0`, `SHOTSAFTER0` and
+> `ammoLeft30` against a 30-round magazine. The FROG fired nothing across 626 ticks, and the
+> `ValidTargets: Ground` falsification rests on exactly that. What does not survive is any claim
+> about *where the airframe went*. See the 2026-09-02 entry below.
+
 **What this leaves standing**, and it is worth more than the discarded half: **both strafe airframes in
 the mod fire zero shots, and no `AttackType: Strafe` airframe has ever been observed firing in WW3MOD.**
 Two airframes, two different weapon sets, two different owners, same result. Whatever stops them is
@@ -916,8 +932,11 @@ standoff never closed, which is *not* what a strafe pass looks like, and `FlyAtt
 routing it to `MoveWithinRange` indefinitely; (ii) `RocketPods`' `MinRange: 4c0` interacts with the
 `minimumRange = WDist.Zero` pin at `FlyAttack.cs:180`; (iii) something gates firing before
 `ChooseArmamentsForTarget` is ever consulted, which would make the whole `IsValidAgainst` analysis
-above irrelevant rather than merely incomplete. The `distAtCrit-1` / flat trace is the cheapest thread:
-it says the lane never got close, so start with the approach, not the armaments.
+above irrelevant rather than merely incomplete. ~~The `distAtCrit-1` / flat trace is the cheapest
+thread: it says the lane never got close, so start with the approach, not the armaments.~~
+**RETRACTED 2026-09-02** — see the correction above. `distAtCrit-1` is a never-armed sentinel, not a
+distance, and the flat trace does not cover the approach it was read as describing. Hypothesis (i)
+is additionally refuted by geometry rather than by any run: see the 2026-09-02 entry below.
 
 The A-10 filing in `WORKSPACE/bugs/discovered.md` (2026-09-01) still records a real measured defect —
 that unit fires nothing — but its stated *mechanism* inherits this same falsified reasoning and should
@@ -927,6 +946,79 @@ be read with the same caution.
 `LuaException` for a pool the actor does not declare (`AmmoPoolProperties.cs:36-38`) rather than
 returning zero. A shared `primary-ammo + secondary-ammo` read across a lane table kills the whole run
 the moment one lane's airframe carries a single pool.
+## 2026-09-02 — the strafe zero is still unexplained, but four candidate mechanisms are now dead and the evidence the last attempt left behind does not say what it was read as saying (`wt/strafe-zero`, `main @ 81140244`)
+
+**No root cause here. This entry is a narrowing plus a correction**, and the correction is the part
+that changes what the next person should do. Read it with the 2026-09-01 retraction above, whose
+"whole window" sentence and closing directive are struck out there for the reason given.
+
+**The population is two actors and only two.** `grep -rn "AttackType" mods/ww3mod/rules/` returns
+five hits: three `Hover` and two `Strafe` — `A10.Airstrike` (`aircraft-america.yaml:695`) and
+`FROG.Airstrike` (`aircraft-russia.yaml:723`). Both are power-spawned `.Airstrike` variants; neither
+is buildable. So "no `AttackType: Strafe` airframe has ever been observed firing" is a statement
+about two actors, and any fix has exactly that blast radius.
+
+**Geometry refutes untested hypothesis (i) without needing a run.** (i) said the aircraft may never
+enter a `StrafeAttackRun`, with `FlyAttack.cs:183` routing it to `MoveWithinRange` indefinitely. It
+cannot, at that scenario's geometry. `FlyAttack.cs:180` pins `minimumRange = WDist.Zero` for Strafe,
+and `Target.IsInRange(pos, WDist.Zero)` is false unless the positions coincide
+(`Target.cs:196-203`, `HorizontalLengthSquared <= 0`). `lastVisibleMaximumRange` is
+`GetMaximumRangeVersusTarget` = RocketPods' `Range: 25c0` (`weapons-ballistics.yaml:914`), and the
+lane opens at 14 cells. So `!IsInRange(pos, 25c0) || IsInRange(pos, 0)` is `false || false` — the
+`MoveWithinRange` branch at `:183-184` is **unreachable on tick 1**, and `:187-188` queues
+`StrafeAttackRun` immediately. The strafe run IS entered; the question is what it does next.
+
+**Four mechanisms checked and eliminated.** Recorded because each looks plausible from the armchair
+and each costs a worker an hour:
+- **Terrain has no `Ground` target type.** FALSE. Every WW3MOD tileset declares
+  `TargetTypes: Ground` on clear terrain (`mods/ww3mod/tilesets/*.yaml`), so the terrain target that
+  `StrafeAttackRun.Tick` writes (`FlyAttack.cs:323-325`) resolves valid through
+  `WeaponInfo.cs:235-249` for a `ValidTargets: Ground` weapon.
+- **The test target has no `Ground` target type.** FALSE. `t90` is
+  `TargetTypes: Ground, Vehicle, Heavy` (`vehicles-russia.yaml:328`), so RocketPods is valid against
+  it as an actor too, and `AutoTarget` can acquire it.
+- **`WDist.MaxValue` overflows the range comparison in the strafe exit leg.** FALSE, and worth
+  killing explicitly because it is arithmetically seductive: `StrafeAttackRun.OnFirstRun` queues
+  `Fly(..., exitRange + distanceToTurn, WDist.MaxValue, ...)`, and `int.MaxValue` squared would wrap
+  to 1 in `int`. It does not wrap: `WDist.LengthSquared` is `(long)Length * Length` (`WDist.cs:30`).
+- **`AutoTarget` cannot see the target.** FALSE. `ScanRadius` is unpinned so it falls back to
+  `ab.GetMaximumRange()` (`AutoTarget.cs:1114`, `:1177`) = 25c0 against a target at 14 cells, and
+  `^AutoTargetGroundAntiTank` bands `Vehicle` at priority 3 (`defaults.yaml:677-679`).
+
+**A real defect found on the way, NOT yet shown to be the cause, and deliberately not fixed here.**
+**Fixed-wing aircraft are moved twice per tick and steered by two controllers that disagree.**
+`Fly.cs:52` carries a PITFALL asserting the invariant — *"CanSlide aircraft move via CurrentVelocity
+in Aircraft.Tick — calling FlyTick on them double-moves unless CurrentVelocity is zeroed first"* —
+and the fixed-wing branch violates it: `Fly.cs:285-286`, inside the **non-CanSlide** `else`, sets
+`aircraft.RequestedAcceleration`. `Aircraft.Tick` then integrates that into `CurrentVelocity`
+(`Aircraft.cs:499-510`), calls `SetPosition(self, CenterPosition + CurrentVelocity)` (`:527`) and
+steers `Facing` toward `CurrentVelocity.Yaw` (`:530-531`) — **none of it gated on `CanSlide`** —
+after which `Fly.Tick` moves the actor again through `FlyTick`/`FlyStep(Facing)` and steers `Facing`
+toward its own `desiredFacing`. The PITFALL's premise, that only CanSlide aircraft carry a
+`CurrentVelocity`, stopped being true when `RequestedAcceleration` was added to the fixed-wing path.
+It reaches every fixed-wing, including the A-10 that *does* fire, so it is not on its own the strafe
+discriminator — but any model of what a strafe airframe's track looks like that assumes one movement
+source per tick is wrong. Filed in `bugs/discovered.md`.
+
+**Where the remaining suspicion sits**, recorded as untested. `StrafeAttackRun`'s first leg is
+`Fly(self, target, target.CenterPosition)` (`FlyAttack.cs:314`), the 3-arg constructor, so
+`minRange == maxRange == WDist.Zero` and the annulus exit at `Fly.cs:278-281` is dead
+(`maxRange.Length > 0` is false). Its **only** early exits are the overshoot check and the WW3MOD
+addition at `Fly.cs:272-276` — `stopDelta.HorizontalLengthSquared < 512 * 512` against
+`aircraft.CalculateStopPosition()`, introduced by `8bffb2ff` ("Aircraft stopping within 512 of
+destination", 2025-04-22) before that branch was split into slider and fixed-wing paths. That single
+predicate decides when a strafe dive is considered "arrived", it is computed from `CurrentVelocity`,
+and `CurrentVelocity` for a fixed-wing exists only because of the double-move above. This is a
+suspicion, not a finding; it has not been instrumented.
+
+**The instrument for the next attempt is committed: `tools/autotest/scenarios/test-strafe-engage`.**
+Two lanes, traced from tick 0 rather than from an arming deadline: `frog.airstrike` (Strafe) as the
+subject and plain `frog` (Default) as a positive control carrying the same `RocketPods`, the same
+`^AutoTargetGroundAntiTank` chain, the same owner, the same `t90` and the same 14-cell opening. Every
+explanation living in the weapon, the target's types, the terrain's types or acquisition range
+predicts the same outcome on BOTH lanes, so a run where the control fires and the subject does not
+eliminates all of them at once. Its `Test.Fail` is the informative outcome and the traces are the
+payload; a verdict of `INSTRUMENT DEAD` means the control fired nothing and the run says nothing.
 ## 2026-09-01 — an early `return` guard silently widens its scope when new code is appended below it: `Cargo`'s emergency bail has never run for a garrison building (`wt/garrison-design`, `main @ 3dd67e07`)
 > **[promoted]** → `conventions.md` §"A killing hit fires `Damaged` AND `Killed`", as a sub-bullet (curation 2026-09-02). Banked as the general hazard — **an early-return guard silently acquires every block later appended below it** — with this as the worked instance. Corrected cites: guard `Cargo.cs:818-825`, `HasTraitInfo` test at `:824`, bail block `:857-943` (entry said `:825-832`/`:831`/`:876-943`); the gap is 32 lines, not ~45. **The same pass fixed the bank's own wrong cite for that guard** (`conventions.md` said `Cargo.cs:646-647`). Coexistence with `GarrisonProtection` re-derived by enumeration on all four `Cargo`-bearing building families.
 
