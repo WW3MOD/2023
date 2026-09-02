@@ -3,6 +3,204 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-02 — A grep census is a SAMPLE whose recall nobody checks, but it is consumed as a measurement. Three censuses of `FrozenActor.Owner` returned 9, 17 and 27; the compiler returns 47 (`wt/frozen-capture`, `main @ b83c21bb`)
+
+Static + one build. No launch taken. **This is the general lesson; the domain findings it came from
+are the entry below.**
+
+**The numbers, in the order they were produced.**
+
+| Count | Method | Missed |
+|---|---|---|
+| 9 | hand-built table, 2026-09-01 `wt/fog-snapshot` entry | 38 sites |
+| 17 | fresh subagent grep census | 30 sites, **including `SupportPowerDecision.cs:89`, which the brief commissioning it had itself named** |
+| 27 | my own union grep, deliberately widened to `(fa\|frozen*\|ghost*\|FrozenActor)\.Owner` | 20 sites |
+| **47** | **compiler** — 44 external + 3 internal to `FrozenActor` | — (recall-complete for C#) |
+
+Each census was produced by someone trying to be thorough, and **none of the first three carried any
+statement of its own method or recall.** They were written as counts and read as counts. The 17 was
+believed over the 9 purely because it was larger and more recent.
+
+**Why the greps missed, concretely.** `SupportPowerDecision.cs:89` reads
+`consideration.GetAttractiveness(scrutinized, firedBy.RelationshipWith(scrutinized.Owner))`. The
+variable is `scrutinized`. No identifier-based pattern anyone would think to write matches it, and
+no amount of widening the *identifier* alternation fixes the class of problem — the binding name is
+unbounded. **An identifier grep can only find consumers whose author happened to share your
+vocabulary.**
+
+**The instrument that IS recall-complete, and it costs one build.** Mark the member obsolete, build
+the solution, read the warnings:
+
+```csharp
+[Obsolete("ZZCENSUS")] public Player Owner { get; private set; }
+```
+```bash
+make all 2>&1 | grep "warning CS0618"   # exit 0; every assembly reports
+```
+
+Two details that make this work here and are worth knowing before reaching for it:
+- **This repo sets no `TreatWarningsAsErrors`** (no hit in any `.props`/`.targets`/`.csproj`), so
+  `CS0618` stays a warning, the build succeeds, and **all** assemblies compile and report. Renaming
+  the member instead — the obvious first idea, and what I tried first — makes it an *error*, so the
+  build stops at the first failing project and you get `Mods.Common` only. That partial run returned
+  37 and looked complete.
+- Revert by restoring the one line. Confirm with `git status --porcelain` before committing.
+
+**What the 20 sites nobody had enumerated actually contain.** This is why the recall gap is not
+academic: the missed set is not a tail of trivia, it includes the two most consequential consumers.
+
+- **`Warhead.cs:87`** — `IsValidAgainst(FrozenActor victim, Actor firedBy)`, the *damage* path. Every
+  warhead's relationship check against a ghost reads the snapshot owner. Absent from all three greps.
+- **`AttacksSupplyRoutes.cs:127,130`** — WW3MOD's **own** trait, gating the SR-attack cursor in
+  `CanTargetFrozenActor`. A mod-specific consumer of the core mechanic, in none of the censuses.
+- `EnterAlliedActorTargeter.cs:92`, `CaptureManager.cs:138`, `Captures.cs:173`, `Carryall.cs:426`,
+  `DeliversCash.cs:168`, `DeliversExperience.cs:134`, `Demolition.cs:164`, `EngineerRepair.cs:144`,
+  `InstantlyRepairs.cs:160`, `SupportPowerDecision.cs:114`, `Disguise.cs:307`,
+  `Infiltrates.cs:149`, `TestGlobal.cs:792`.
+
+**The same disease, measured a second way.** "87 `INotifyOwnerChanged` implementors" is wrong. At
+this commit: **58 files** contain the string, **106 total mentions**, **52** lines match a
+declaration-shaped pattern (`class .*INotifyOwnerChanged|, INotifyOwnerChanged|: INotifyOwnerChanged`).
+Three defensible numbers for three different questions, and "implementors" names none of them
+unambiguously. The claimed 87 matches nothing.
+
+### The rule
+
+**Write an enumeration as a claim with its method attached, never as a bare number.** Not
+*"17 sites"* but *"17 sites; grep `\bfa\.Owner\b` over `engine/**/*.cs`; recall unverified"*. The
+bare number is indistinguishable from a measurement at the point of reuse, and it will be reused —
+all three counts above were carried into downstream design arguments, and the 9 became a published
+table that a later worker planned against.
+
+**Corollary: if a design decision depends on the completeness of an enumeration, buy the
+recall-complete instrument.** For a C# member that is one obsolete attribute and one build. It is
+cheaper than the design being wrong, and far cheaper than a fifth census.
+
+**This is the same family as the six harness traps recorded below (2026-09-02) — the instrument
+fails in a way that looks exactly like a result.** The census is its purest form: unlike a gate that
+skips a directory, a grep census has no scope you could inspect and no place where it announces what
+it did not examine. Compare also
+[`DOCS/reference/conventions.md`](../DOCS/reference/conventions.md) §"Scenarios are NOT maps to the
+tooling" and §"A green analyzer gate means what the TARGET GRAPH reaches, not what the solution
+lists" — both are the scope-blindness version of this.
+
+---
+
+## 2026-09-02 — Five corrections to the frozen-actor owner-change picture, and the leak under discussion has NO instrument (`wt/frozen-capture`, `main @ b83c21bb`)
+
+Static read plus one throwaway build; no launch. These re-derive and correct the 2026-09-01
+`wt/fog-snapshot` entry further down this file. **Four of the five survived; the line numbers did
+not, and one framing claim failed outright.** Recorded because a worker had to establish all of this
+before concluding that a proposed "liveness flag" fix could not work — that worker correctly wrote
+no code, so none of it was in the repo.
+
+**1. CONFIRMED — `RelationshipWith(null)` returns `Ally` for a combatant, and that is why the whole
+freeze-`Owner` family of fixes is dead.** `Player.cs:254-255` (**not** `:255-256` as claimed):
+`if (other == null || other.Spectating) return NonCombatant ? Neutral : Ally;`. The self case is
+`:250-251`. So a **null-`Owner` ghost is skipped by every `!= Enemy` predicate for exactly the same
+reason a self-owned one is** — blanking `Owner` to mean "not mine, unknown who" produces the same
+false-friendly the 2026-09-01 verdict rejected. `IsValid => Owner != null`
+(`FrozenActorLayer.cs:117`, exact) is why `Owner` doubles as the validity flag and cannot be blanked
+anyway.
+
+**A separate liveness flag does not rescue it either**, and the reason is worth stating because it
+is not obvious: consumers do not branch on a guard you could replace, they feed `Owner` into
+`RelationshipWith` and branch on the *answer*. A flag replaces the **guard**, not the **decision
+input**. Confirmed against the shape of all 44 external sites in the census above.
+
+**2. CONFIRMED — the ghost sprite does NOT recolour on the plain owner-change path.**
+`FrozenUnderFog.UpdateFrozenActor` (`:95-99`) is two statements: a `VisibilityHash` bit and
+`frozenActor.RefreshState()`. `RefreshState` (`FrozenActorLayer.cs:122-141`) writes `Owner`,
+`TargetTypes`, `targetablePositions`, `HP`, `DamageState`, `TooltipInfo`, `TooltipOwner` — and
+touches no renderable. `NeedRenderables` has exactly **three** writers engine-wide:
+`FrozenActorLayer.cs:93` (ctor, from `startsRevealed`), `:193` (`UpdateVisibility`, on a
+false→true visibility edge), and `FrozenUnderFogUpdatedByGps.cs:36`; it is read and cleared at
+`FrozenUnderFog.cs:167,180`. **So on a plain capture the visible leak is `TooltipOwner` and the GPS
+dot, not the sprite** — the cached `Renderables` array keeps the old owner's colours until the
+viewer re-observes.
+
+**3. CONFIRMED as a live path — but "probably the dominant one" FAILED.** `SUPPLYCACHE`
+(`mods/ww3mod/rules/misc.yaml:370`) does carry both `Building: Dimensions: 1,1` (`:396-397`, which is
+what satisfies `FrozenUnderFog`'s `Requires<BuildingInfo>` and gives a crate a ghost at all),
+`FrozenUnderFog:` (`:400`) and `ProximityCapturable:` (`:419`, `Range: 2c512`, `Sticky: true`). The
+chain completes: `ProximityCapturable.ChangeOwnership` → `ChangeOwnerInPlaceSync` for
+`BuildingInfo` holders (`:223`) → `INotifyOwnerChanged` fired at `Actor.cs:558-562` →
+`FrozenUnderFog.OnOwnerChanged`. **Any ground unit walking within 2c512 flips a crate with no order
+and no activity, and that refreshes the previous owner's ghost.** The original investigation never
+followed it.
+
+**What does not hold is "dominant".** Buildings are broadly capturable in this mod: `^BasicBuilding`
+(`ingame/structures.yaml:1`) carries `Inherits@NeutralOrOccupiedCapturable` (`:10`) resolving to
+`Capturable@neutral` / `@occupied` (`:169-176`), stripped only by `civilian.yaml:13-14` and three
+`structures-defenses.yaml` sites. Engineer capture is therefore a live path on nearly every building
+in the game. `ProximityCapturable` is **one** unenumerated path, notable for needing no order — not
+the main one. Two further constraints, both already in the YAML's own comments and both verified:
+`ActorEntered` classifies by relationship to `OriginalOwner` (`ProximityCapturable.cs:110`), so a
+friendly unit is never a captor; and `Sticky: true` means a cache flips at most once.
+
+**4. CONFIRMED, with a gate the claim missed — and still INERT.**
+`FrozenUnderFogUpdatedByGps.OnOwnerChanged` (`:68-71`) does refresh **every** player's ghost via
+`ActOnFrozenActorsForAllPlayers(Refresh)`, and `Refresh` (`:29-38`) sets **both** `RefreshState()`
+and `NeedRenderables = true` — a genuine recolour, strictly more than path 2. The per-player gate is
+`Granted && GrantedAllies` (`:99-101`) as claimed. **Unrecorded third gate: `Refresh` also requires
+`fa.HasRenderables` (`:33`)**, so it only touches ghosts already revealed. Attachment sites confirmed
+exactly: `ingame/structures.yaml:61`, `:264`, `ingame/structures-defenses.yaml:66`.
+**The 2026-09-01 finding that this cannot fire in WW3MOD still holds** — `Granted` is
+`actors.Count > 0 && Launched` (`GpsWatcher.cs:85`) and `grep -rn GpsPower mods/` is empty.
+
+> **Audit note on that premise's own wording.** The 2026-09-01 entry states *"`GpsPower` appears
+> nowhere in `mods/` or `tools/autotest/`"*. As of this commit the `tools/autotest/` half is
+> **literally false**: two hits, both prose in
+> `tools/autotest/scenarios/test-frozen-owner-snapshot/RED-ARM.md:103,105` describing this very
+> condition. Substantively nothing changed — neither is rules content — but a future audit running
+> that grep gets a non-empty result and must not read it as the premise breaking. **A re-check
+> instruction should name the file types it means.**
+
+**5. CONFIRMED — `TooltipOwner` has exactly one reader, and here is the method so the claim can be
+re-tested rather than re-trusted.** Declared `FrozenActorLayer.cs:51`, written **only**
+`:139` (inside `RefreshState`), read **only** `WorldTooltipLogic.cs:82`. Method: repo-wide grep
+across *all* file types, not just `.cs` (the only other hits are this file and a scenario's
+`RED-ARM.md`); plus a check for the two ways a reader could hide from grep — **no
+`ScriptPropertyGroup` anywhere references `FrozenActor`**, and `FrozenActor` is not a `FieldLoader`
+/ `Info` type, so there is no reflective or YAML-driven binding. The single Lua surface onto
+`FrozenActor` is `TestGlobal.cs` (`FrozenFor:751`, `FrozenActorState:768`, `FrozenActorOwner:787`,
+`FrozenClickCursor`), and it exposes **`Owner`, not `TooltipOwner`** (`:792`). Recall here is
+argued, not compiler-proven — the obsolete-attribute instrument above would settle it for one build
+if a design decision comes to depend on it.
+
+**Line-number correction:** the second identity leak is `SightingIntelOverlay.cs:187`
+(`wr.Palette(info.DotPalettePrefix + fa.Owner.InternalName)`), **not `:186`**. The
+2026-09-01 entry's range `:181-187` was right.
+
+### The gap: no scenario can observe the leak under discussion
+
+`FrozenUnderFog.OnOwnerChanged` (`:217-224`) refreshes `frozenStates[oldOwnerIndex]` and nothing
+else — **only the old owner's ghost moves.** The suite's one frozen-owner scenario,
+`test-frozen-owner-snapshot`, deliberately makes **USA a third party** ("USA saw the building while
+it was Russian, and USA must still believe it is Russian after it changes hands",
+`test-frozen-owner-snapshot.lua:24-25`). A third party's ghost is exactly the one this path does
+*not* touch.
+
+So the scenario is **structurally incapable of failing on the leak anyone is worried about**: it
+asserts the correct behaviour of the untouched case. It is also the only scenario in all 276 that
+calls the frozen Lua bindings at all (`grep -rln 'FrozenActorOwner\|FrozenActorState\|FrozenClickCursor'
+tools/autotest/scenarios` → that scenario only). **The old-owner-as-viewer path has no instrument.**
+Anyone proposing a change to it is working unmeasured, and should say so.
+
+### One thing checked and cleared, recorded so it is not re-raised
+
+`AttacksSupplyRoutes.cs:127,130` reads `target.Owner` in `CanTargetFrozenActor` with **no `IsValid`
+guard**, unlike `BeliefStore.cs:234` and `SightingIntelOverlay.cs:181` which both check explicitly.
+Given finding 1 that looks like a live null→`Ally` bug. **It is not:** every producer of a frozen
+`Target` filters validity at the source — `ScreenMap.frozenActorIsValid` is applied in
+`FrozenActorsAtMouse` (`:155`) and `RenderableFrozenActorsInBox` (`:210`), and
+`FrozenActorsInRegion` filters at `FrozenActorLayer.cs:424,436`. **Validity is a producer-side
+invariant in this codebase, not a consumer-side one**, which is why the explicit checks in
+`BeliefStore` / `SightingThreatLayer` / `SightingIntelOverlay` are redundant rather than the
+consumers that omit them being wrong.
+
+---
+
 ## 2026-09-02 — Two separate MiniYaml traps that produce the SAME error message
 
 Both surface as `There are no elements with key \`X\` to remove`, both prevent the mod loading at
@@ -912,6 +1110,10 @@ only be graded green against a verdict the scenario produced under its own power
 first, then compare the status.*
 ## 2026-09-01 — the wide `FrozenActor.Owner` exception cannot fire in WW3MOD at all, and the narrow one is a single write feeding NINE consumers, six of them not UI (`wt/fog-snapshot`, `main @ 3dd67e07`)
 
+> **"NINE consumers" in this heading is wrong — the measured figure is 44.** Verdict and per-row
+> reasoning survive; the enumeration does not. See §3 below and the 2026-09-02 census entry at the
+> top of this file.
+
 Static read only; no launch taken. Extends and corrects the `wt/fog-truth` entry below, which banked
 the two exceptions this morning. Its verdict (*acceptable by design*) survives — **but neither of its
 two supporting arguments does**, and the replacement reasons are stronger.
@@ -943,6 +1145,13 @@ the old owner gets silence on capture.** What they do get independently is secon
 prerequisites, and the actor leaving their selection — none of which names the new owner.
 
 **3. The narrow exception's real blast radius: one write, nine consumers, and only three are UI.**
+
+> **The count is wrong — there are 44 external consumers, not nine.** Measured by compiler
+> (obsolete-attribute census) on 2026-09-02 at `main @ b83c21bb`; see the entry at the top of this
+> file. The table below is a valid *sample* and its per-row reasoning stands, but it is not the
+> population, and two of the largest omissions are `Warhead.cs:87` (the damage path) and
+> `AttacksSupplyRoutes.cs:127,130` (WW3MOD's own SR-cursor trait). **Do not plan a change against
+> this table's completeness.**
 `FrozenUnderFog.OnOwnerChanged` (`:217-224`) refreshes `frozenStates[oldOwnerIndex]` only — index
 alignment confirmed at `PlayerDictionary.cs:33-41,52`, so that is the ghost whose `Viewer` is the old
 owner, and no third party's. Every consumer below reads *the viewer's own* `FrozenActorLayer`, so all
