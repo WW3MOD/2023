@@ -102,6 +102,42 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void Killed_CreditsTheKillerTypeWithoutTouchingItsOwnLifecycle()
+		{
+			// The credit side of the ledger, added for TradeEfficiencyMath: Killed() records what a type
+			// DESTROYED. It must not disturb produced/alive/lost, which describe what happened TO the type —
+			// the trade ratio is meaningless if a kill also reads as a production or a loss.
+			var t = new UnitTypeTelemetry();
+			t.Produced("tank", 1000);
+			t.Killed("tank", 700);
+			t.Killed("tank", 300);
+
+			var tank = t["tank"];
+			Assert.That(tank.KilledCount, Is.EqualTo(2));
+			Assert.That(tank.KilledCost, Is.EqualTo(1000));
+			Assert.That(tank.ProducedCount, Is.EqualTo(1), "a kill is not a production");
+			Assert.That(tank.AliveCount, Is.EqualTo(1), "a kill does not change how many of ours are alive");
+			Assert.That(tank.LostCount, Is.EqualTo(0), "a kill is not a loss");
+		}
+
+		[Test]
+		public void KilledAndLost_AreIndependentAxesOfTheSameType()
+		{
+			// A type can be simultaneously productive and expensive; the trade ratio divides one by the
+			// other, so they must accumulate separately rather than netting off.
+			var t = new UnitTypeTelemetry();
+			t.Produced("apc", 400);
+			t.Killed("apc", 2500);
+			t.Lost("apc", 400);
+			t.RemoveAlive("apc", 400);
+
+			var apc = t["apc"];
+			Assert.That(apc.KilledCost, Is.EqualTo(2500));
+			Assert.That(apc.LostCost, Is.EqualTo(400));
+			Assert.That(apc.AliveCount, Is.EqualTo(0));
+		}
+
+		[Test]
 		public void Sorted_IsDeterministicOrdinalByActorName()
 		{
 			var t = new UnitTypeTelemetry();

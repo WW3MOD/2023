@@ -798,12 +798,81 @@ Player:
 			medi.america: support
 			e6.america: support
 			tecn.america: support
-		# Counter bias (v1, minimal): believed enemy class -> own role, as a percent contribution scaled
+		# Counter bias (v2): believed enemy class -> own role, as a percent contribution scaled
 		# by that class's SHARE of the believed enemy force. Fog-legal — the believed composition comes
 		# from the same belief store AdaptiveProduction reads, never ground truth. Clamped to
 		# +/-CounterBiasMaxPct and renormalised, so it nudges the shape above without replacing it.
 		# Believed enemy infantry answers the FOOT line (buy more of our own infantry), not the armour line.
+		#
+		# ===== v2 RETUNE (2026-09-02) — three cells added after auditing v1 against the damage model =====
+		# v1 was labelled "minimal" and had exactly three cells. Two of its zeros were costing real value:
+		#
+		# (1) armor>armorline was 0, so believed enemy ARMOUR raised ONLY at.america. That points the entire
+		#     anti-armour response at the WEAKEST anti-armour weapon we own. WW3MOD resolves anti-armour
+		#     through Penetration vs Armor Thickness, not a Versus table (DamageWarhead.ApplyPenetration,
+		#     engine/OpenRA.Mods.Common/Warheads/DamageWarhead.cs:127-134: full damage when penetration >=
+		#     thickness, otherwise damage * penetration / thickness). The numbers:
+		#       ATGM (at.america) Damage 10000 / Penetration 100   — weapons-missiles.yaml:26-27
+		#       TankRound (abrams) Damage 15000 / Penetration 1000 — weapons-ballistics.yaml:890-891
+		#       abrams Thickness 700 (vehicles-america.yaml:499), t90 Thickness 280 (vehicles-russia.yaml:321)
+		#     TankRound out-penetrates every vehicle in the game, so it lands its full 15000. ATGM against an
+		#     abrams lands 10000*100/700 = 1428, i.e. 10.5x less per shot; against a t90, 3571, i.e. 4.2x less.
+		#     The MBT is the anti-armour unit; AT infantry is the CHEAP one. Both now respond.
+		#     armorline gets the smaller PERCENTAGE (30 vs 40) and still moves far more budget, because its
+		#     base is 330 per-mille against antitank's 66 — +30% of 330 is ~99, +40% of 66 is ~26. The split
+		#     is deliberate: antitank keeps the higher rate because it is what the bot can still afford when
+		#     it is broke, which is exactly when an armour push arrives.
+		#
+		# (2) Neither indirect-fire role answered believed enemy INFANTRY, though both exist to kill it:
+		#       60mm_Mortar  ValidTargets: Infantry, Unarmored, Light / InvalidTargets: Concrete, Heavy
+		#                    (weapons-ballistics.yaml:786-787) — it CANNOT shoot heavy armour at all.
+		#       ArtilleryRound Damage 15000 + Spread 3000 (weapons-ballistics.yaml:890-896).
+		#     artillery carries the larger lift (30) because it was never the type that drifted.
+		#     JUDGEMENT CALL, flagged for review: mt.america gets a lift at all, and it is deliberately kept
+		#     BELOW infantryline's. The mortar cap above is a standing decision and this partially reopens it
+		#     — but conditionally, and only while foot infantry is actually the believed threat. The drift the
+		#     cap fixed came from the uniform lottery, not from mortars being the wrong buy against infantry.
+		#     At 15, a 100%-infantry read moves mt from 37 per-mille to ~43.
+		#
+		# NOT CHANGED, deliberately: air>antiair stays 60, and there is still no NEGATIVE cell anywhere.
+		# Renormalisation already does the de-prioritising — every cell above is positive, so raising the
+		# roles that answer the believed threat squeezes the ones that do not. That is what now trims AA
+		# when the enemy fields no aircraft: aa.america is ungated by design (the baseline picket, see the
+		# header comment), and this squeeze is the gentle instrument for it rather than a second hard cap.
 		CounterMatrixPct:
 			air>antiair: 60
+			armor>armorline: 30
 			armor>antitank: 40
 			infantry>infantryline: 20
+			infantry>artillery: 30
+			infantry>mortar: 15
+		# ===== TRADE-EFFICIENCY FEEDBACK (experimental-only; C# default 0 = off) =====
+		# The counter matrix above biases by what the enemy is BELIEVED to field. It has no way to notice
+		# that the shape it is holding is LOSING. This closes that loop from our own ledger: per composed
+		# type, kill value dealt vs our value lost (UnitTypeTelemetry, fed by the UpdatesPlayerStatistics
+		# callbacks that already ran), compared against the same ratio for our whole army, applied after the
+		# counter bias. Reads no enemy actor and no belief store, so it adds no fog surface.
+		# Conservative first setting: half the measured deviation, clamped to +/-25% of the base share, and
+		# nothing at all until a type has 2000 value of evidence on the board.
+		TradeFeedbackMaxPct: 25
+		TradeFeedbackScalePct: 50
+		TradeEvidenceFloor: 2000
+		# ===== GROUP COMPLETION (experimental-only; unset default = off) =====
+		# WORKSPACE/analysis/0902-loss-mining.md 1.3 measured abrams at 2 produced / 2 lost and t90 at 2/2,
+		# with zero survivors — "never bought in pairs, never survives". The purchasing half of that is the
+		# deficit argmax: buying one abrams lifts its census, so the next cycle picks a different class and
+		# the tank goes out alone. Once one is owned, this makes the second finish the pair before the
+		# budget scatters.
+		#
+		# SCOPE, stated plainly. This fixes ONLY the buy pattern. The analysis is explicit that *why* they
+		# die is NOT established (no killer/killed pairing survives in the artifacts, and it warns that
+		# anyone fixing survivability from this data is guessing), so nothing here claims to fix deployment
+		# — sending the pair out together is PoiOffensive's decision, not this module's. The evidence is
+		# also T-A at n=2 matches, which is why the size is the smallest one that means anything (2, a
+		# pair) rather than a trio.
+		#
+		# NOT COVERED: littlebird and halo, the other 1/1 and 2/2 losses in the same finding. They are
+		# helicopters, deliberately absent from UnitTargetShares (deferred to their own lane), and this
+		# selection only ranges over composed types — so their singleton problem is untouched by this knob.
+		MinGroupSizes:
+			abrams: 2
