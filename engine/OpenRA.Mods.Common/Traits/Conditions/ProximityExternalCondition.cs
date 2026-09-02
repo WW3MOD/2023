@@ -102,7 +102,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
-			if (self.CenterPosition != cachedPosition || desiredRange != cachedRange || desiredVRange != cachedVRange)
+			if (self.CenterPosition + Info.Offset != cachedPosition || desiredRange != cachedRange || desiredVRange != cachedVRange)
 			{
 				cachedPosition = self.CenterPosition + Info.Offset;
 				cachedRange = desiredRange;
