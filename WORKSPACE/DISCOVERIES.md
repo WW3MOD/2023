@@ -308,6 +308,41 @@ while the exception `68ed8366` wants to remove only ever touches the OLD OWNER's
 implementation of `68ed8366` therefore leaves this scenario GREEN.** It is not that item's test; it
 is the fence that stops the fix being over-applied to all players on the way past. `68ed8366` still
 needs its own scenario, written from the old owner's seat, and this one cannot be adapted into it.
+## 2026-09-02 — The Lua bare-dispatch bug has NO second instance: 21 of 22 script globals are clean, and the reason is structural (`wt/lua-sync-audit`, `main @ 81140244`)
+
+Closes backlog `4b3773c2`. **This is a negative result and the point is that it should not be
+re-derived.** The `PressHotkey` family (`wt/cmdbar-capture` / `wt/cmdbar-audit`, 2026-09-01) fixed
+four methods; all four were in `TestGlobal`, which is **one of 22 registered `ScriptGlobal`s**. The
+obvious follow-up question — does the pattern repeat in the other 21? — had not been asked.
+
+**It does not, and not by luck.** The bug needs a binding that *invokes a widget handler delegate*.
+A grep for `Ui.` / `OnClick` / `.Invoke` / `OrderGenerator` / `CancelInputMode` / `Widget` across the
+other 21 returns **four hits, none of them a dispatch**: `ActorGlobal.cs:87` (`MethodInfo.Invoke` —
+reflection over an `ActorInit`, not `Action.Invoke`), `UtilsGlobal.cs:152` (`WidgetUtils.FormatTime`,
+pure string formatting), `UserInterfaceGlobal.cs:29` (*assigns* `GetText`/`GetColor` lambdas, never
+calls one), and `UserInterfaceGlobal.cs:42`. The other 17 globals are value math (`CPos`, `CVec`,
+`WPos`, `WVec`, `WDist`, `Angle`, `HSLColor`, `DateTime`), trait pokes (`Lighting`, `Radar`,
+`MiniMap`, `Beacon`, `Media`), or pure simulation (`Player`, `Map`, `Actor`, `Reinforcements`,
+`Trigger`). The 39 `Scripting/Properties` classes return **zero** hits on the same grep.
+`TestGlobal` is the outlier because it is the only global whose *job* is to drive the UI.
+
+**`UserInterface.Select` is the interesting near-miss and is clean by INHERITANCE.** It reaches
+`world.OrderGenerator` via `Selection.Combine`, but `Selection.cs:125` already wraps that in
+`Sync.RunUnsynced`, and only the OrderGenerator *setter* carries `AssertUnsynced` — this is a read
+plus a `SelectionChanged` call. Worth knowing that the IL detector would neither flag nor credit it:
+it counts wrappers in the binding's own body only, and `SelectionChanged` is not in `IsDispatch`.
+
+**The real defect found was in the guard, not the code.** `TestGlobalSyncTest` was hardcoded to
+`typeof(TestGlobal)` at two sites while its docstring claimed to pin the property for "a binding".
+Widened to all 22 (now `ScriptGlobalSyncTest`), with Mods.Cnc scanned too — it registers no globals
+today, and the `FrozenActorTargetingTest` note at `:102` records that assembly going unscanned in
+*that* fixture's first version, i.e. the same mistake one layer down.
+
+**Method note — the counterfactual is what makes a RED leg mean anything.** Sabotaging a bare
+dispatch into `UserInterfaceGlobal` and watching the NEW fixture go red only shows the fixture
+works. The load-bearing second run is checking out the OLD fixture against the *same* sabotage:
+it **passed**, which is the actual measurement of what the widening bought. A RED leg against only
+the new code cannot distinguish "this closes a hole" from "this restates a rule already enforced".
 
 ## 2026-09-02 — Six harness traps in one night, every one of which reports a confident WRONG answer rather than no answer
 

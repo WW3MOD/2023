@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * A Lua test binding that dispatches into UI handler code must do it inside Sync.RunUnsynced.
+ * A Lua binding that dispatches into UI handler code must do it inside Sync.RunUnsynced.
  *
  * Lua runs inside the SYNCED world tick. Real input does not: DefaultInputHandler.OnKeyInput
  * (InputHandler.cs:40) wraps Ui.HandleKeyPress in Sync.RunUnsynced, and that wrapper is what
@@ -21,6 +21,20 @@
  * So the property being pinned is not "these four methods are correct today". It is that a binding
  * CANNOT acquire a dispatch call without also acquiring the wrapper, which is the only way to stop
  * the fifth instance of this from being found by a crash months later.
+ *
+ * SCOPE, WIDENED 2026-09-02. The four fixes and the first version of this fixture were both scoped
+ * to TestGlobal, which is one of 22 registered ScriptGlobals — so the property above was pinned for
+ * a single type while the docstring claimed it of "a binding". An audit of the other 21 found no
+ * second instance (they are overwhelmingly value math and trait pokes; none invokes a widget
+ * handler), so this widening fixes no bug. It exists because "no instance today" is exactly the
+ * state TestGlobal was in for months, and the type set is the one axis along which this fixture
+ * could go stale without anyone noticing.
+ *
+ * KNOWN EXEMPTION: property accessors. PublicBindingNames filters IsSpecialName, so `Camera.Position`
+ * — assignable from Lua, and its setter reaches the client-only Viewport — is not scanned. No global
+ * property accessor dispatches a handler today (checked 2026-09-02), and nothing on the Viewport
+ * carries an AssertUnsynced, so this is a coverage gap rather than a live hole. Left deliberately:
+ * widening the member set is a second, independently-motivated change and belongs with a finding.
  */
 #endregion
 
@@ -30,11 +44,12 @@ using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Scripting.Global;
+using OpenRA.Scripting;
 
 namespace OpenRA.Test
 {
 	[TestFixture]
-	public class TestGlobalSyncTest
+	public class ScriptGlobalSyncTest
 	{
 		/// <summary>
 		/// Entry points that run handler code written for the unsynced input context. Matched by name
@@ -69,6 +84,27 @@ namespace OpenRA.Test
 		}
 
 		/// <summary>
+		/// Every registered ScriptGlobal, not just TestGlobal. Mods.Cnc is scanned because ww3mod loads
+		/// that assembly (mod.yaml Assemblies), so a global added there would be live Lua surface; it
+		/// holds none today, which is why <see cref="TheScanReadsEveryScriptGlobal"/> asserts on a
+		/// Mods.Common name rather than on a Cnc one that does not exist to be asserted.
+		/// </summary>
+		static List<Type> ScriptGlobalTypes()
+		{
+			var assemblies = new[]
+			{
+				typeof(TestGlobal).Assembly,
+				typeof(OpenRA.Mods.Cnc.Traits.Infiltrates).Assembly
+			};
+
+			return assemblies
+				.SelectMany(a => a.GetTypes())
+				.Where(t => !t.IsAbstract && typeof(ScriptGlobal).IsAssignableFrom(t))
+				.OrderBy(t => t.FullName, StringComparer.Ordinal)
+				.ToList();
+		}
+
+		/// <summary>
 		/// A method's own body plus the bodies of its lambdas. Both halves are needed and neither is
 		/// optional: IlScan follows call/callvirt/newobj only, and a lambda is reached by `ldftn`, which
 		/// it does not decode — so after a dispatch is wrapped, the dispatch call moves into a closure
@@ -97,9 +133,9 @@ namespace OpenRA.Test
 			return found;
 		}
 
-		static IEnumerable<string> PublicBindingNames()
+		static IEnumerable<string> PublicBindingNames(Type type)
 		{
-			return typeof(TestGlobal)
+			return type
 				.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
 				.Where(m => !m.IsSpecialName)
 				.Select(m => m.Name)
@@ -115,13 +151,13 @@ namespace OpenRA.Test
 		/// wrappers as dispatches closes that. A method that deliberately covered two dispatches with a
 		/// single RunUnsynced would report here; none does, and the message says what to do about it.
 		/// </summary>
-		static (int Dispatches, int Wrappers, int Resolved) Classify(string name)
+		static (int Dispatches, int Wrappers, int Resolved) Classify(Type type, string name)
 		{
 			var dispatches = 0;
 			var wrappers = 0;
 			var resolved = 0;
 
-			foreach (var m in BodyAndLambdas(typeof(TestGlobal), name))
+			foreach (var m in BodyAndLambdas(type, name))
 			{
 				var scan = IlScan.Scan(m);
 				resolved += scan.ResolvedCalls;
@@ -146,14 +182,37 @@ namespace OpenRA.Test
 		/// clean in exactly the same way whether every binding is wrapped or nothing was scanned at all.
 		/// </summary>
 		[Test]
-		public void TheScanActuallyReadsTestGlobal()
+		public void TheScanReadsEveryScriptGlobal()
 		{
-			var names = PublicBindingNames().ToList();
-			Assert.That(names.Count, Is.GreaterThan(40),
+			var types = ScriptGlobalTypes();
+
+			// 22 registered globals as of 2026-09-02. The floor is set AT the known population rather
+			// than comfortably below it, so that a reflection query which silently stops matching — or
+			// an assembly that stops being referenced — fails here instead of passing on a smaller set.
+			Assert.That(types.Count, Is.GreaterThanOrEqualTo(22),
+				$"Only {types.Count} ScriptGlobal types found, expected at least 22. Either the " +
+				"reflection query has drifted or OpenRA.Test lost an assembly reference, and the rule " +
+				"below is now checking a subset without saying so.");
+
+			Assert.That(types, Does.Contain(typeof(TestGlobal)),
+				"TestGlobal is not in the scanned set — it is the type this fixture was written for.");
+			Assert.That(types.Select(t => t.Name), Does.Contain("UserInterfaceGlobal"),
+				"UserInterfaceGlobal is not in the scanned set, so the 2026-09-02 widening past " +
+				"TestGlobal has come undone and this is a single-type fixture again.");
+
+			// TestGlobal is the only global that dispatches today, so it is also the only place the
+			// detector can be shown to still work. A fixture that scanned 22 types and recognised a
+			// dispatch in none of them would be indistinguishable from one whose IsDispatch had rotted.
+			var testGlobalBindings = PublicBindingNames(typeof(TestGlobal)).ToList();
+			Assert.That(testGlobalBindings.Count, Is.GreaterThan(40),
 				"expected TestGlobal to expose dozens of bindings — a much smaller number means the " +
 				"reflection filter stopped matching and the rule below is checking nothing");
 
-			var dispatchers = names.Where(n => Classify(n).Dispatches > 0).ToList();
+			var dispatchers = types
+				.SelectMany(t => PublicBindingNames(t)
+					.Where(n => Classify(t, n).Dispatches > 0)
+					.Select(n => (Type: t, Name: n)))
+				.ToList();
 
 			// Named rather than merely counted. "Is.Not.Empty" would still pass with three of the four
 			// silently unrecognised, and an unrecognised binding is exempt from the rule below rather
@@ -161,15 +220,20 @@ namespace OpenRA.Test
 			// route: PressHotkey and RunChatCommand through a named callee inside a lambda,
 			// ClickProductionIcon through a named callee, ClickUnloadMenuRow only through Action.Invoke
 			// recovered from a display class. A regression in any one of those paths shows up here.
+			var testGlobalDispatchers = dispatchers
+				.Where(d => d.Type == typeof(TestGlobal))
+				.Select(d => d.Name)
+				.ToList();
+
 			foreach (var expected in new[] { "PressHotkey", "ClickProductionIcon", "ClickUnloadMenuRow", "RunChatCommand" })
-				Assert.That(dispatchers, Does.Contain(expected),
+				Assert.That(testGlobalDispatchers, Does.Contain(expected),
 					$"`{expected}` dispatches into UI handler code but the detector no longer sees it, so " +
 					"the rule below now exempts it instead of checking it. IsDispatch or BodyAndLambdas " +
 					"has gone stale.");
 
-			foreach (var n in dispatchers)
-				Assert.That(Classify(n).Resolved, Is.GreaterThan(0),
-					$"scanned no call at all in `{n}` — IlScan read nothing and cannot have checked it");
+			foreach (var (type, name) in dispatchers)
+				Assert.That(Classify(type, name).Resolved, Is.GreaterThan(0),
+					$"scanned no call at all in `{type.Name}.{name}` — IlScan read nothing and cannot have checked it");
 		}
 
 		/// <summary>
@@ -179,20 +243,23 @@ namespace OpenRA.Test
 		[Test]
 		public void EveryUiDispatchingBindingRunsUnsynced()
 		{
-			foreach (var name in PublicBindingNames())
+			foreach (var type in ScriptGlobalTypes())
 			{
-				var (dispatches, wrappers, _) = Classify(name);
-				if (dispatches == 0)
-					continue;
+				foreach (var name in PublicBindingNames(type))
+				{
+					var (dispatches, wrappers, _) = Classify(type, name);
+					if (dispatches == 0)
+						continue;
 
-				Assert.That(wrappers, Is.GreaterThanOrEqualTo(dispatches),
-					$"TestGlobal.{name} makes {dispatches} dispatch call(s) into UI handler code but only " +
-					$"{wrappers} of them are wrapped in Sync.RunUnsynced. " +
-					"Sync.RunUnsynced. Lua runs inside the synced world tick, so the handler will throw " +
-					"AssertUnsynced the moment it touches client-only state — most likely by setting " +
-					"World.OrderGenerator — and will work fine until then, which is why this is a test " +
-					"and not a review comment. Wrap the dispatch the way DefaultInputHandler.OnKeyInput " +
-					"does (InputHandler.cs:40): Sync.RunUnsynced(Context.World, () => ...).");
+					Assert.That(wrappers, Is.GreaterThanOrEqualTo(dispatches),
+						$"{type.Name}.{name} makes {dispatches} dispatch call(s) into UI handler code but only " +
+						$"{wrappers} of them are wrapped in Sync.RunUnsynced. " +
+						"Lua runs inside the synced world tick, so the handler will throw " +
+						"AssertUnsynced the moment it touches client-only state — most likely by setting " +
+						"World.OrderGenerator — and will work fine until then, which is why this is a test " +
+						"and not a review comment. Wrap the dispatch the way DefaultInputHandler.OnKeyInput " +
+						"does (InputHandler.cs:40): Sync.RunUnsynced(Context.World, () => ...).");
+				}
 			}
 		}
 	}
