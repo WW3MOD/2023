@@ -1,0 +1,26 @@
+skip
+
+CAPTURE INSTRUMENT, no graded answer. It bails one Abrams crew, photographs them four times from a
+fixed camera as they walk off the west edge, and asserts nothing about whether they got there.
+
+WHY SKIP AND NOT PASS. The Lua evaluates no predicate about the mod. Its checks -- that the hull
+resolved and reports its authored north facing, that the requested zoom was not clamped away, and
+that three crew are alive at each shutter -- are guards on the INSTRUMENT, not measurements of the
+subject. They can only downgrade the frames to "not evidence". A Test.Pass would contribute a green
+to every run-batch.sh --all tally whether or not the capture landed, which is the mislabelling
+corrected across this suite on 2026-09-01.
+
+The behaviour is already graded next door. test-crew-auto-evacuate asserts that crew left alone
+leave the world and that the ONE man handed a real Move order is still standing where he was sent --
+the one-shot, freely-overridable semantics, which no picture can show.
+
+Note that frame 04 is deliberately allowed to come back empty of infantry: that means the crew
+crossed the boundary before the shutter, which is the feature working. A scenario that FAILED on
+that would be asserting a schedule, not a behaviour.
+
+A PASS against a live `skip` declaration grades RED on purpose, so a scenario that starts grading
+announces itself instead of silently changing meaning.
+
+NOT EXPOSED TO expected-status.sh's KNOWN GAP. That gap is specific to `fail` declarations, where a
+watchdog TIMEOUT-FAIL also exits 1 and therefore grades green. A timeout reaches
+expected_status_grade as FAIL, and declared-`skip` + FAIL is RED.
