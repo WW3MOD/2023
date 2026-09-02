@@ -1002,6 +1002,78 @@ namespace OpenRA.Mods.Common.Traits
 			"Only read when MissionCommitmentEnabled.")]
 		public readonly int MissionBetterOppMarginSlopePct = 0;
 
+		// ===== FLANKING MANEUVER (@experimental) — added as one block so parallel edits to this Info class
+		// ===== conflict on a single hunk. Decision math is the pure FlankingMath (NUnit-pinned).
+
+		[Desc("FLANKING MANEUVER. Split an attack axis into a MAIN element (majority, presses the direct axis)",
+			"and a FLANK element (minority, swings through a lateral waypoint and comes in on a second bearing).",
+			"The lateral side is chosen by LOWER believed ground-danger exposure, so the flank goes around the",
+			"weak shoulder. The main element then HOLDS at standoff until the flank is level, so both arrive",
+			"together instead of feeding in piecemeal. Distinct from the Stage-E flow-around (DangerFieldRouting),",
+			"which only fires when the beeline is unsafe: this is a doctrine and fires against a clear approach",
+			"too. Needs a DangerFieldLayer for the side choice; with no field it is inert. OFF by default so the",
+			"frozen @stable twin and every legacy profile keep the undivided single-group assault byte-identical;",
+			"only PoiOffensiveBotModule@experimental turns it on. Zero RNG — the force is partitioned by a stable",
+			"ActorID order and the lane by integer geometry over a fixed candidate order.")]
+		public readonly bool FlankingEnabled = false;
+
+		[Desc("Flanking: minimum axis force before a split is considered. Below this the axis assaults undivided —",
+			"cutting a small force in two produces two elements that each lose their own fight. Only read when",
+			"FlankingEnabled.")]
+		public readonly int FlankMinForceSize = 6;
+
+		[Desc("Flanking: minimum centroid-to-objective distance (cells) before a split is considered. Inside this",
+			"there is no room to swing wide before contact, so the axis assaults undivided. Only read when",
+			"FlankingEnabled.")]
+		public readonly int FlankMinApproachCells = 12;
+
+		[Desc("Flanking: percent of the axis force assigned to the FLANK element. Deliberately a MINORITY — the",
+			"main element must stay the force the defender has to face, or the maneuver is just two small",
+			"attacks. Clamped by FlankMinElementSize on both sides. Only read when FlankingEnabled.")]
+		public readonly int FlankSharePct = 35;
+
+		[Desc("Flanking: minimum units in EITHER element. A force smaller than twice this can never split.",
+			"Only read when FlankingEnabled.")]
+		public readonly int FlankMinElementSize = 2;
+
+		[Desc("Flanking: base lateral offset (cells) of the flank waypoint from the approach axis.",
+			"Only read when FlankingEnabled.")]
+		public readonly int FlankOffsetBaseCells = 4;
+
+		[Desc("Flanking: extra lateral offset (cells) per unit in the axis force — a bigger force needs a wider",
+			"berth to read as a separate bearing rather than a wider blob. Only read when FlankingEnabled.")]
+		public readonly int FlankOffsetPerUnitCells = 1;
+
+		[Desc("Flanking: absolute ceiling on the lateral offset (cells). The offset is ALSO capped at half the",
+			"approach distance regardless of this, so the flank leg is never a longer walk than the assault —",
+			"at that cap the two bearings converge about 45 degrees apart. Only read when FlankingEnabled.")]
+		public readonly int FlankOffsetMaxCells = 12;
+
+		[Desc("Flanking converge: how close (cells) the MAIN element must be to the objective before it will hold",
+			"for the flank at all. Beyond this it keeps advancing — the converge is a decision made at the",
+			"objective, not a reason to dawdle across open ground. Only read when FlankingEnabled.")]
+		public readonly int FlankConvergeStandoffCells = 14;
+
+		[Desc("Flanking converge: how much further (cells) the flank's remaining route may be before the main",
+			"element stops waiting and assaults. The arrival window, in distance rather than ticks — the flank's",
+			"remaining route is a straight-line ESTIMATE, so this absorbs the error. Only read when FlankingEnabled.")]
+		public readonly int FlankConvergeToleranceCells = 4;
+
+		[Desc("Flanking converge: maximum re-evals the main element may spend held waiting for the flank, after",
+			"which it assaults regardless. BOUNDED ON PURPOSE — the wait is keyed on a straight-line estimate that",
+			"broken ground can make permanently unreachable, and an unbounded wait on an estimate is a veto",
+			"wearing the costume of a delay (the Phase-5 posture hold paid for this once already). The budget is",
+			"monotone within an axis lifetime and is NOT refunded on release. 0 disables the hold entirely (the",
+			"flank still splits and routes wide, both elements simply advance without synchronising).",
+			"Only read when FlankingEnabled.")]
+		public readonly int FlankConvergeMaxHoldEvals = 4;
+
+		[Desc("Flanking degrade: believed ground danger at the flank element's own position above which the flank",
+			"counts as ENGAGED, releasing the main element's hold immediately so both commit. A flank already in",
+			"contact is not maneuvering, and holding the main element back means the defender fights half a force",
+			"twice. IN DANGER UNITS (100 = one reference contact at point-blank). Only read when FlankingEnabled.")]
+		public readonly int FlankEngagedDangerUnits = 30;
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			base.RulesetLoaded(rules, ai);
@@ -1104,6 +1176,22 @@ namespace OpenRA.Mods.Common.Traits
 			public int SyncStartTick;
 			public CPos SyncTargetCell;
 			public bool OrderedSyncHold;
+
+			// FLANKING MANEUVER state (written only when FlankingEnabled is on ⇒ untouched, and therefore
+			// byte-identical, for every other profile). The flank element carries its OWN order-repath state,
+			// deliberately separate from the main element's OrderedCell/OrderedVia/HasOrdered: the two elements
+			// are ordered independently in the same eval, and sharing one slot would make each element's re-issue
+			// gate read the other's destination. FlankOrdered is cleared whenever an eval declines to split, so a
+			// force that drops below the split bar and later recovers re-issues the maneuver from scratch rather
+			// than trusting a stale waypoint. ConvergeHoldEvals is the monotone hold budget (see
+			// FlankingMath.StepHold); OrderedConvergeHold records that the main element's last order was the
+			// converge hold, so its release forces the assault to re-issue — the same discipline as
+			// OrderedRetreat / OrderedPrepHold.
+			public CPos? OrderedFlankVia;
+			public CPos OrderedFlankCell;
+			public bool FlankOrdered;
+			public int ConvergeHoldEvals;
+			public bool OrderedConvergeHold;
 		}
 
 		readonly World world;
@@ -3432,6 +3520,102 @@ namespace OpenRA.Mods.Common.Traits
 			// commitment refreshed — that is what the pre-hoist code did from the top of the method.
 			ApplyMissionCommitment();
 
+			// FLANKING MANEUVER (experimental, default off): peel a minority FLANK element off the line group and
+			// send it wide through a lateral waypoint, so the objective is approached on two bearings instead of
+			// one. Mirrors the fires/screen split above — the flank is ordered inside the helper and groupUnits
+			// NARROWS to the main element, so everything downstream (Stage-E detour, cohesion, the assault order)
+			// operates on the main element alone and is byte-identical when no split happens. Placed AFTER the
+			// prep-fires hold on purpose: a prep-holding axis must not shed half its force onto a separate route
+			// while it waits at the start line.
+			List<Actor> flankElement = null;
+			if (Info.FlankingEnabled)
+			{
+				flankElement = TryOrderFlank(bot, axis, groupUnits, centroid, distToTarget, tick);
+
+				if (flankElement != null)
+				{
+					var flankSet = new HashSet<Actor>(flankElement);
+					groupUnits = groupUnits.Where(u => !flankSet.Contains(u)).ToList();
+
+					// The main element is a different force standing in a different place: re-derive the geometry
+					// the detour/cohesion/assault gates below all key on, or they read the undivided axis's shape.
+					cells.Clear();
+					foreach (var u in groupUnits)
+						cells.Add((u.Location.X, u.Location.Y));
+
+					centroid = PoiOffenseMath.CellCentroid(cells);
+					distToTarget = PoiOffenseMath.Chebyshev(centroid.X, centroid.Y, axis.TargetCell.X, axis.TargetCell.Y);
+					clumpRadius = PoiOffenseMath.MaxChebyshev(cells, centroid.X, centroid.Y);
+				}
+				else if (axis.FlankOrdered)
+				{
+					// Declined to split this eval (force fell below the bar, no passable lane, or the order was
+					// refused). Drop the stale flank bookkeeping so a later re-split issues the whole maneuver
+					// afresh instead of trusting a waypoint nothing is travelling to. Clearing HasOrdered forces
+					// the assault below to re-issue as ONE group: without it the ex-flank units would coast on
+					// the queued objective leg of a maneuver that no longer exists, rejoining the axis only by
+					// accident of that leg pointing at the same cell.
+					axis.FlankOrdered = false;
+					axis.OrderedFlankVia = null;
+					axis.HasOrdered = false;
+				}
+			}
+
+			// CONVERGE SYNCHRONISATION: hold the main element at standoff until the flank is level, so the two
+			// elements arrive together rather than the main element hitting the objective alone and the flank
+			// walking into an already-decided fight. BOUNDED by FlankConvergeMaxHoldEvals — the flank's remaining
+			// route is a straight-line estimate and broken ground can make it permanently unreachable, so an
+			// unbounded wait would be a silent freeze (the Phase-5 posture-hold failure, which is why the budget
+			// is monotone and not refunded on release). Returns WITHOUT clearing OrderedConvergeHold, exactly as
+			// the prep hold does, so the release below is what forces the assault to re-issue.
+			if (flankElement != null && Info.FlankConvergeMaxHoldEvals > 0 && axis.OrderedFlankVia.HasValue && groupUnits.Count > 0)
+			{
+				var flankCells = new List<(int X, int Y)>(flankElement.Count);
+				foreach (var u in flankElement)
+					flankCells.Add((u.Location.X, u.Location.Y));
+
+				var flankCentroid = PoiOffenseMath.CellCentroid(flankCells);
+				var flankCentroidCell = new CPos(flankCentroid.X, flankCentroid.Y);
+
+				// Engaged = believed danger where the flank actually STANDS, not at its objective: a flank in
+				// contact is fighting, not maneuvering, and the main element must stop waiting for it.
+				var flankEngaged = dangerField != null
+					&& dangerField.GroundDanger(player, flankCentroidCell) >= GroundDangerLevel(Info.FlankEngagedDangerUnits);
+
+				var flankRemaining = FlankingMath.RouteRemainingCells(
+					flankCentroidCell, axis.OrderedFlankVia.Value, axis.TargetCell);
+
+				var budgetSpent = FlankingMath.HoldBudgetExhausted(axis.ConvergeHoldEvals, Info.FlankConvergeMaxHoldEvals);
+				var wantsHold = FlankingMath.MainShouldHold(distToTarget, flankRemaining,
+					Info.FlankConvergeStandoffCells, Info.FlankConvergeToleranceCells, flankEngaged);
+				var convergeHold = !budgetSpent && wantsHold;
+
+				axis.ConvergeHoldEvals = FlankingMath.StepHold(
+					axis.ConvergeHoldEvals, convergeHold, Info.FlankConvergeMaxHoldEvals);
+
+				if (wantsHold)
+					Log.Write("debug",
+						$"[exp-flank] {(convergeHold ? "hold" : "override")} player={player.PlayerName} " +
+						$"target={axis.TargetName}#{axis.TargetId} mainRemaining={distToTarget} " +
+						$"flankRemaining={flankRemaining} engaged={flankEngaged} " +
+						$"evals={axis.ConvergeHoldEvals}/{Info.FlankConvergeMaxHoldEvals} tick={tick}");
+
+				if (convergeHold)
+				{
+					OrderConvergeHold(bot, axis, groupUnits, centroid, tick);
+					return;
+				}
+			}
+
+			// Released from (or never in) the converge hold: the last order was a hold at standoff, so force the
+			// assault below to re-issue rather than assume the stale hold order still stands — the same
+			// discipline as the OrderedRetreat / OrderedPrepHold reconciliations above.
+			if (axis.OrderedConvergeHold)
+			{
+				axis.OrderedConvergeHold = false;
+				axis.HasOrdered = false;
+			}
+
 			// Stage-E flow-around: when the axis centroid's straight approach to the objective crosses
 			// ground-danger above the threshold (a defended strongpoint / choke), route it through a
 			// lateral waypoint that lowers the worst-case exposure — attacks skirt kill zones instead of
@@ -4629,6 +4813,133 @@ namespace OpenRA.Mods.Common.Traits
 				$"[exp-coord] sync-hold player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} " +
 				$"startLine={holdCell} screen={units.Length} dist={axis.SyncDist} massReady={axis.MassReady} " +
 				$"ready={syncReadyAxes}/{syncParticipatingAxes} elapsed={tick - axis.SyncStartTick} tick={tick}");
+		}
+
+		// FLANKING MANEUVER: pick a minority flank element, choose its lateral lane off the believed danger
+		// field, and issue its two-leg route (wide waypoint, then the objective). Returns the flank element so
+		// the caller can narrow the main group, or NULL for "no split this eval" — every decline path returns
+		// null and leaves the axis on the undivided assault, so the maneuver degrades to the pre-flanking
+		// behaviour rather than to a half-issued one. Decisions are the pure FlankingMath; zero RNG.
+		//
+		// LEDGER: the flank element needs no commitment of its own. CommitAndOrder commits every axis member
+		// under the single offense:<targetId> key BEFORE this split, and both elements are pursuing that same
+		// objective — committing the flank under a second key would silently overwrite the incumbent claim
+		// (GoalGuardLedger.Commit is keyed on the actor), and a new objective prefix would fail open in the
+		// arbitration rank table. One axis, one objective, two elements.
+		List<Actor> TryOrderFlank(IBot bot, Axis axis, List<Actor> groupUnits, (int X, int Y) centroid, int distToTarget, int tick)
+		{
+			// The lane choice IS a believed-danger read; with no field there is no weak shoulder to swing
+			// around, so the axis assaults undivided rather than flanking blind.
+			if (dangerField == null || groupUnits.Count == 0)
+				return null;
+
+			if (!FlankingMath.ShouldSplit(groupUnits.Count, distToTarget, Info.FlankMinForceSize, Info.FlankMinApproachCells))
+				return null;
+
+			var flankSize = FlankingMath.FlankElementSize(groupUnits.Count, Info.FlankSharePct, Info.FlankMinElementSize);
+			if (flankSize <= 0)
+				return null;
+
+			var offsetCells = FlankingMath.LateralOffsetCells(groupUnits.Count, distToTarget,
+				Info.FlankOffsetBaseCells, Info.FlankOffsetPerUnitCells, Info.FlankOffsetMaxCells);
+			if (offsetCells <= 0)
+				return null;
+
+			// Stable ActorID order. Which units flank is arbitrary doctrine, but it must be the SAME arbitrary
+			// on every client, and ActorID is the only total order here that does not depend on the order the
+			// axis list happened to be built in.
+			var ordered = groupUnits.OrderBy(u => u.ActorID).ToList();
+			var flank = ordered.GetRange(0, flankSize);
+
+			// The lateral offset is perpendicular to the MAIN ELEMENT's attack axis, not to the whole axis's
+			// blended centroid. That distinction is load-bearing across re-evals: once the flank has swung
+			// wide the blended centroid drags toward it, so a waypoint recomputed off the blend sits further
+			// out every eval and the flank creeps away from the objective under its own influence. The main
+			// element stays on the axis, so anchoring here is stable. Falls back to the passed-in centroid on
+			// the degenerate all-flank partition, which FlankElementSize's floor already prevents.
+			var mainCells = new List<(int X, int Y)>(ordered.Count - flankSize);
+			for (var i = flankSize; i < ordered.Count; i++)
+				mainCells.Add((ordered[i].Location.X, ordered[i].Location.Y));
+
+			var axisOrigin = mainCells.Count > 0 ? PoiOffenseMath.CellCentroid(mainCells) : centroid;
+			var originCell = new CPos(axisOrigin.X, axisOrigin.Y);
+
+			var ground = GroundDangerSampler(dangerField);
+			var passable = WaypointPassable(flank[0]);
+			var via = FlankingMath.ChooseFlankWaypoint(originCell, axis.TargetCell, offsetCells, ground, passable, out var side);
+
+			// Neither lateral lane is standable (a coastal or cliff-bounded approach): assault undivided rather
+			// than order the flank element into terrain it will only pathfind back out of.
+			if (!via.HasValue)
+				return null;
+
+			var moved = !axis.FlankOrdered
+				|| (axis.OrderedFlankCell - axis.TargetCell).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells
+				|| ViaChanged(axis.OrderedFlankVia, via, Info.RepathThresholdCells);
+
+			if (moved)
+			{
+				var units = flank.ToArray();
+
+				// ALL-OR-NOTHING, for the same reason as the Stage-E chain: the lateral leg is non-queued and so
+				// suppressible, while the QUEUED objective leg would still execute — marching the flank element
+				// straight up the main axis, which is the single outcome this maneuver exists to prevent. On a
+				// refusal return null: these units re-join the main element for this eval and the next re-eval
+				// issues the maneuver whole.
+				if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, via.Value), false, groupedActors: units)))
+					return null;
+
+				if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, axis.TargetCell), true, groupedActors: units)))
+					return null;
+
+				axis.OrderedFlankCell = axis.TargetCell;
+				axis.OrderedFlankVia = via;
+				axis.FlankOrdered = true;
+
+				Log.Write("debug",
+					$"[exp-flank] order player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} " +
+					$"via={via.Value} side={side} offset={offsetCells} flank={units.Length} " +
+					$"main={groupUnits.Count - units.Length} distToTarget={distToTarget} tick={tick}");
+			}
+
+			return flank;
+		}
+
+		// FLANKING converge hold: keep the main element where it stands while the flank comes level. An
+		// AttackMove to its own centroid is the hold (units still defend themselves and still shoot back) —
+		// the same shape as the prep-fires start line, and gated the same way so a already-holding element is
+		// not re-ordered every eval.
+		void OrderConvergeHold(IBot bot, Axis axis, List<Actor> main, (int X, int Y) centroid, int tick)
+		{
+			var lead = main[0];
+			foreach (var u in main)
+				if (u.ActorID < lead.ActorID)
+					lead = u;
+
+			// A spread element's centroid can land on water/cliff; an impassable hold cell would degrade the
+			// AttackMove to some partial move. Fall back to a cell a unit is demonstrably standing on.
+			var holdCell = new CPos(centroid.X, centroid.Y);
+			if (!world.Map.Contains(holdCell) || !WaypointPassable(lead)(holdCell))
+				holdCell = lead.Location;
+
+			var moved = !axis.HasOrdered
+				|| !axis.OrderedConvergeHold
+				|| (axis.OrderedCell - holdCell).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells;
+			if (!moved)
+				return;
+
+			var units = main.ToArray();
+			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, holdCell), false, groupedActors: units)))
+				return;
+
+			axis.OrderedCell = holdCell;
+			axis.OrderedVia = null;
+			axis.OrderedConvergeHold = true;
+			axis.HasOrdered = true;
+
+			Log.Write("debug",
+				$"[exp-flank] converge-hold player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} " +
+				$"standoff={holdCell} main={units.Length} evals={axis.ConvergeHoldEvals} tick={tick}");
 		}
 
 		// Issue the fall-back: a grouped AttackMove toward the rally cell for every unit on the axis. Re-issued
