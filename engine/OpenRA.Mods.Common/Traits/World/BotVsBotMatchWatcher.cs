@@ -21,10 +21,11 @@
  *     "seed": <int>,
  *     "git_sha": "<run-tournament.sh stamps this>",
  *     "duration_ticks": <int>,
- *     "winner_client_index": <int>,
+ *     "winner_player_index": <int>,   // index into "players"; -1 when there is no winner
+ *     "winner_client_index": <int>,   // ALWAYS 0 for map-player bots — see the PITFALL below
  *     "win_reason": "sr_capture"|"time_limit"|...,
  *     "players": [
- *       { "name": "...", "client_index": 0,
+ *       { "name": "...", "player_index": 0, "client_index": 0,
  *         "score_total": <long>,
  *         "score_components": { "army_value": ..., "capture_income": ..., ... },
  *         "stats": { "units_killed": ..., "units_dead": ..., "buildings_killed": ...,
@@ -62,6 +63,10 @@
  * counts, poi_income_gross), a top-level "capture_events" stream, and per-player
  * "income_samples" timeseries (the latter gated by EmitTimeseries, default true). Nothing
  * feeds a scorer/win rule, draws RNG, or mutates sim state — byte-identical simulation.
+ * v8 (additive, schema-stable): added "winner_player_index" and per-player "player_index",
+ * because "client_index" is NOT a player identity for map-player bots and reads 0 for every
+ * one of them (PITFALL at SerializeVerdict). Both new fields index into "players". Telemetry
+ * only — no scorer, no win rule, no RNG, no sim state: byte-identical simulation.
  *
  * See:
  *   WORKSPACE/plans/260511_ai_tournament_harness.md
@@ -512,16 +517,30 @@ namespace OpenRA.Mods.Common.Traits
 			// Manual JSON build (no System.Text.Json dependency on the engine project).
 			// Embedded inside TestMode's `notes` string field — escaping done by TestMode.WriteResult.
 			var sb = new StringBuilder();
+
+			// PITFALL: Player.ClientIndex is NOT a player identity here. A map-player bot has no
+			// client, so Player.cs:191 gives it the *host's* index — 0 — for every such player.
+			// Both bots in a tournament match therefore serialize "client_index":0, which makes
+			// "winner_client_index" match every player and none of them. An analyst who joined on
+			// it measured a 100% win rate for both bots simultaneously. Same shape as the
+			// PlayerResources.Tick `Playable` pitfall: a lobby-slot field read as participant
+			// identity. Position within "players" is the identity that exists, so emit that; the
+			// client fields stay for schema stability and must not be joined on.
+			var order = verdict.Scores.Keys.ToList();
+			var winnerIndex = verdict.Winner != null ? order.IndexOf(verdict.Winner) : -1;
+
 			sb.Append("{");
-			sb.Append("\"verdict_version\":7,");
+			sb.Append("\"verdict_version\":8,");
 			sb.Append($"\"seed\":{seed},");
 			sb.Append($"\"duration_ticks\":{verdict.EndTick},");
+			sb.Append($"\"winner_player_index\":{winnerIndex},");
 			sb.Append($"\"winner_client_index\":{verdict.Winner?.ClientIndex ?? -1},");
 			sb.Append($"\"winner_name\":\"{Escape(verdict.Winner?.PlayerName ?? "")}\",");
 			sb.Append($"\"win_reason\":\"{Escape(verdict.Reason)}\",");
 			sb.Append("\"players\":[");
 
 			var first = true;
+			var playerIndex = 0;
 			foreach (var kv in verdict.Scores)
 			{
 				if (!first) sb.Append(",");
@@ -532,6 +551,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				sb.Append("{");
 				sb.Append($"\"name\":\"{Escape(player.PlayerName)}\",");
+				sb.Append($"\"player_index\":{playerIndex++},");
 				sb.Append($"\"client_index\":{player.ClientIndex},");
 				sb.Append($"\"bot_type\":\"{Escape(player.BotType ?? "")}\",");
 				sb.Append($"\"faction\":\"{Escape(player.Faction?.InternalName ?? "")}\",");

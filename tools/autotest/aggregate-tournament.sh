@@ -72,7 +72,8 @@ p2 = players[1] if len(players) > 1 else {}
 
 def comp(p, key): return p.get("score_components", {}).get(key, 0)
 
-winner_idx = verdict.get("winner_client_index", -1)
+# Join on winner_name, never on winner_client_index: map-player bots all report
+# client_index 0, so that field matches every player at once (verdict v8 header).
 winner_name = verdict.get("winner_name", "")
 reason = verdict.get("win_reason", "")
 duration = verdict.get("duration_ticks", 0)
@@ -155,7 +156,6 @@ for m in matches:
 
     # Faction attribution: map winner_name to that player's faction (when
     # the verdict has the faction field, added in Round 15).
-    winner_idx = v.get("winner_client_index", -1)
     for p in players:
         if p.get("name", "") == w:
             f = p.get("faction", "")
