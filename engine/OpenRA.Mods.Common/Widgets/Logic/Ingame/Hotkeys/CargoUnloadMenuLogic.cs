@@ -34,7 +34,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 		// rows (ScrollPanelWidget.cs:236) — an always-on bar therefore sat on top of the count column and
 		// hid it, visible in the first capture of this menu as rows with no counts at all. Refresh widens
 		// the menu by the bar's width when it turns the bar on, so it gets a gutter instead of the counts.
-		const int ScreenMargin = 4;
+		//
+		// The sizing itself lives in UnloadMenuGeometry so NUnit can pin it without a renderer; this file
+		// keeps the widget wiring. One copy of the arithmetic, deliberately.
+		const int ScreenMargin = UnloadMenuGeometry.ScreenMargin;
 
 		readonly World world;
 
@@ -181,24 +184,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 				list.AddChild(row);
 			}
 
-			// Size to the content, capped by the screen rather than by a fixed row count. The previous
-			// fixed 380px held 16 rows, chosen for the 16 combat classes — but Cargo `Types: Infantry`
-			// also accepts civilians, pilots and ejected vehicle crews, which is 24 distinct classes
-			// (552px of rows) all loadable into one 36-slot Chinook. Rows past the cap were drawn
-			// nowhere, and with `ScrollBar: Hidden` nothing advertised that they existed.
-			var ceiling = Math.Max(rowTemplate.Bounds.Height, Game.Renderer.Resolution.Height - list.Bounds.Y - 2 * ScreenMargin);
-			list.Bounds.Height = Math.Min(ceiling, list.ContentHeight);
-			menu.Bounds.Height = list.Bounds.Y + list.Bounds.Height + ScreenMargin;
+			// Size to the content, capped by the screen rather than by a fixed row count, and advertise the
+			// cap exactly when it bites. Under roughly 578px of screen height the 24 rows stop fitting and
+			// the tail is cut off; the wheel still reaches it — ScrollPanelWidget handles Scroll whatever
+			// ScrollBar is set to — but with the bar hidden nothing told the player the rest was there.
+			// The arithmetic, and why each term is what it is, is in UnloadMenuGeometry.
+			var layout = UnloadMenuGeometry.Measure(Game.Renderer.Resolution.Height, list.Bounds.Y,
+				rowTemplate.Bounds.Height, list.ContentHeight, list.ScrollbarWidth, listWidth, menuWidth);
 
-			// Under roughly 578px of screen height the 24 rows stop fitting and the tail is cut off.
-			// The wheel still reaches it — ScrollPanelWidget handles Scroll whatever ScrollBar is set
-			// to — but with the bar hidden nothing told the player the rest was there. Advertise it
-			// exactly when the cap bites, and widen by the bar's width so it gets its own gutter: the
-			// rows keep the width they were cloned at, so the count column stays clear of it.
-			var overflows = list.ContentHeight > list.Bounds.Height;
-			list.ScrollBar = overflows ? ScrollBar.Right : ScrollBar.Hidden;
-			list.Bounds.Width = listWidth + (overflows ? list.ScrollbarWidth : 0);
-			menu.Bounds.Width = menuWidth + (overflows ? list.ScrollbarWidth : 0);
+			list.Bounds.Height = layout.ClipHeight;
+			menu.Bounds.Height = layout.MenuHeight;
+			list.ScrollBar = layout.Overflows ? ScrollBar.Right : ScrollBar.Hidden;
+			list.Bounds.Width = layout.ListWidth;
+			menu.Bounds.Width = layout.MenuWidth;
 
 			// Refresh also runs after the menu has been placed — units already ordered to Enter can
 			// still board while it is open, which adds rows and can be what pushes it into overflow.
