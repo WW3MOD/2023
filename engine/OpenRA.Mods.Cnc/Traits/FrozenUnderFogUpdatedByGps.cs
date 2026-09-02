@@ -32,7 +32,14 @@ namespace OpenRA.Mods.Cnc.Traits
 			// This only makes sense if the frozen actor has already been revealed (i.e. has renderables)
 			if (fa.HasRenderables)
 			{
-				fa.RefreshState();
+				// refreshTooltipOwner: true, unlike FrozenUnderFog.OnOwnerChanged. Naming the new
+				// owner IS what a granted GPS buys -- this whole trait exists so ownership changes
+				// under fog become visible to the holder, and ActOnFrozenActorForTraits (:99-101)
+				// already gates every call on GpsWatcher.Granted && GrantedAllies. Inert in ww3mod
+				// as of 2026-09-02: nothing in mods/ carries GivesGps or GpsPower, so Granted is
+				// never true and this lambda never runs. If a GPS power is ever added, this line is
+				// the deliberate exemption to the tooltip-identity rule, not an oversight.
+				fa.RefreshState(refreshTooltipOwner: true);
 				fa.NeedRenderables = true;
 			}
 		};

@@ -114,6 +114,73 @@ where `reveal` will be far larger. What this does establish is DIRECTION: the in
 capable of winning cells outright, which it demonstrably was not when `reveal` reached 841. The
 `fail` declaration should be treated as live but unconfirmed, and a PASS is now a real
 possibility rather than a premise-change to be surprised by.
+## 2026-09-02 — `TooltipOwner`'s one-reader premise is now compiler-proven, and the fog leak it carries turns out to be reachable WITHOUT any scouting step (`wt/tooltip-owner`, `main @ 6a7e1839`)
+
+Static + builds + `dotnet test`. No launch taken.
+
+**1. The census, run the way the previous entry asked for it.** `[Obsolete("ZZCENSUS")]` on
+`FrozenActor.TooltipOwner`, then a build of **every project in the tree** — the eight the engine
+solution builds, plus `OpenRA.Test`, `OpenRA.WindowsLauncher` and `tools/fp-determinism`, which
+`make all` does **not** touch (its two solutions cover Game/Platforms/Server/Utility/Launcher/
+Mods.Common/Mods.D2k/Mods.Cnc and then Game + Mods.Common again). **Exactly two `CS0618` sites**:
+the write at `FrozenActorLayer.cs:140` inside `RefreshState`, and the read at
+`WorldTooltipLogic.cs:82`. Entry 5 of the 2026-09-02 frozen-capture set argued this correctly from
+grep plus a reflection audit; it is now measured. **A `make all` alone is NOT a complete C# census
+of this repo** — three projects sit outside it, and one of them is the test assembly.
+
+**2. Non-C# surfaces, stated rather than assumed.** `TooltipOwner` appears in **no** `.yaml`, `.lua`
+or chrome file anywhere in the tree — the only non-`.cs` hits are prose in `DISCOVERIES.md` and
+`test-frozen-owner-snapshot/RED-ARM.md`. It cannot be reached from MiniYaml at all (it is a runtime
+property on `FrozenActor`, not a `FieldLoader` `Info` field), and the only Lua surface onto
+`FrozenActor` is hand-written C# in `TestGlobal.cs`, which the same compiler pass covers.
+
+**3. `FrozenUnderFogUpdatedByGps` is a second `RefreshState` caller and it is INERT in ww3mod.**
+`Mods.Cnc/.../:35` refreshes every player's ghost on owner change, gated on
+`GpsWatcher.Granted && GrantedAllies` (`:99-101`). `GpsWatcher` is mounted (`player.yaml:179`) and
+`GpsDot` is on many actors, but **nothing anywhere under `mods/` carries `GivesGps` or `GpsPower`**,
+so `Granted` is never true and the lambda never runs. Naming the captor is what a GPS is *for*, so
+that call site keeps `refreshTooltipOwner: true` deliberately — but it is a dormant exemption, not
+a live one, and a future GPS power would silently re-open the tooltip channel.
+
+**4. The leak needs no scouting step, because a building reveals its own footprint to its owner —
+but WHICH ownership-change path you take decides whether the vision ever leaves.**
+`^BasicBuilding` mounts `Vision@3/@2/@1` (`structures.yaml:14-23`: strength 3 out to 1c0, 2 to 2c0,
+1 to 3c0), so an owner **always** has real vision of their own building's cell and the ghost of it
+reads `live` for free. Whether the capture takes that away depends entirely on the call:
+
+- `Actor.ChangeOwnerSync` (`Actor.cs:577-592`) removes and re-adds the actor, which fires
+  `AffectsMapLayer`'s add/remove hooks and rebuilds every player's vision sources. Vision moves.
+  This is the path Lua `actor.Owner =` takes (`GeneralProperties.cs:63`).
+- `Actor.ChangeOwnerInPlaceSync` (`:545-563`) skips that cycle. `AffectsMapLayer` does **not**
+  implement `INotifyOwnerChanged` (`:42-43`), so nothing re-evaluates `Vision`'s owner-relationship
+  gate and **the vision does not move at all.** Both real capture paths take this branch for
+  buildings on purpose (`CaptureActor.cs:140-143`, `ProximityCapturable.cs:222-227`).
+
+So a scenario for this case needs no Scout and no kill — the state transition is produced by the
+event under test, provided the event is a full `ChangeOwner`.
+`test-frozen-tooltip-owner-hidden` is built that way, and is the first scenario in the suite whose
+viewer is the **old owner**, i.e. the first to execute `FrozenUnderFog.OnOwnerChanged`'s body under
+assertion at all. **It is NOT a faithful model of an engineer capture today**, because that path
+leaves the old owner's vision in place and their ghost therefore never freezes — see the
+[HIGH] entry in `WORKSPACE/bugs/discovered.md`. It models the code path correctly, and it models
+gameplay correctly once that bug is fixed.
+
+Note also what this does *not* say: the old owner has sight at the instant of capture either way, so
+the leak was never "they had no way to know". It is that the ghost tooltip stays hoverable
+indefinitely afterwards. Free intel at leisure, not free intel at the moment.
+
+**5. Withholding `TooltipOwner` costs fidelity in the mirror case, and there is no third option.**
+`RefreshState` runs again for a viewer only when they **regain** sight (`OnVisibilityChanged`,
+`FrozenUnderFog.cs:112`) — losing sight refreshes nothing. So a player who watches their building
+being captured and then looks away holds a ghost still labelled with their own name until they
+scout it again. That is the price of the ruling and it is the right way round: it misinforms only
+a player who already knows the answer.
+
+**6. `Vision@1` grants strength 1, which `UpdateVisibility` counts as FOGGED.** `Visible` is set
+unless some footprint cell reads `cv > 1` (`FrozenActorLayer.cs:176-186`), and the explored-but-
+unseen floor is also 1 (`MapLayers.cs:241-256`). So `^BasicBuilding`'s outer ring (2c0..3c0) is
+indistinguishable from plain fog to the frozen-actor machinery. Not a bug — but any scenario that
+sites something in a strength-1 band and calls it "visible" is wrong.
 
 ## 2026-09-02 — A grep census is a SAMPLE whose recall nobody checks, but it is consumed as a measurement. Three censuses of `FrozenActor.Owner` returned 9, 17 and 27; the compiler returns 47 (`wt/frozen-capture`, `main @ b83c21bb`)
 
@@ -276,9 +343,11 @@ across *all* file types, not just `.cs` (the only other hits are this file and a
 `ScriptPropertyGroup` anywhere references `FrozenActor`**, and `FrozenActor` is not a `FieldLoader`
 / `Info` type, so there is no reflective or YAML-driven binding. The single Lua surface onto
 `FrozenActor` is `TestGlobal.cs` (`FrozenFor:751`, `FrozenActorState:768`, `FrozenActorOwner:787`,
-`FrozenClickCursor`), and it exposes **`Owner`, not `TooltipOwner`** (`:792`). Recall here is
-argued, not compiler-proven — the obsolete-attribute instrument above would settle it for one build
-if a design decision comes to depend on it.
+`FrozenClickCursor`), and it exposes **`Owner`, not `TooltipOwner`** (`:792`). ~~Recall here is
+argued, not compiler-proven~~ — **SETTLED 2026-09-02 on `wt/tooltip-owner`: the obsolete-attribute
+instrument was run across all eleven projects and returned exactly these two sites.** See the
+`wt/tooltip-owner` entry at the top of this file, which also records that `make all` misses three
+projects including `OpenRA.Test`, so the census had to be widened by hand.
 
 **Line-number correction:** the second identity leak is `SightingIntelOverlay.cs:187`
 (`wr.Palette(info.DotPalettePrefix + fa.Owner.InternalName)`), **not `:186`**. The

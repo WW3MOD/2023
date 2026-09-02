@@ -1,0 +1,119 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: the ghost of a building captured under fog must not name the captor
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+# GEOMETRY
+#
+# THE VIEWER IS THE OLD OWNER. That is the whole difference from
+# test-frozen-owner-snapshot, which deliberately makes the viewer a third party
+# and therefore never exercises FrozenUnderFog.OnOwnerChanged's body at all --
+# that handler touches frozenStates[oldOwnerIndex] and nobody else's. Until this
+# scenario existed, the branch under test here had never been observed by any
+# scenario in the suite.
+#
+# NO SCOUT IS NEEDED, AND THAT IS NOT AN OVERSIGHT. The sister scenario needs a
+# Scout because its Box belongs to Russia, so USA has to earn sight of the cell
+# and then lose it. Here Box belongs to USA from tick 0, and ^BasicBuilding
+# mounts its own Vision ladder (structures.yaml:14-23: strength 3 out to 1c0,
+# 2 to 2c0, 1 to 3c0). A building therefore reveals its own footprint to its
+# owner permanently, so USA's ghost of Box reads 'live' with no help -- and the
+# CAPTURE is what takes that vision away. The transition this scenario needs is
+# produced by the event under test rather than staged around it.
+#
+# THAT LAST STEP DEPENDS ON WHICH OWNERSHIP-CHANGE CALL IS USED, and the choice
+# here is deliberate. Lua `Box.Owner = russia` routes through Actor.ChangeOwner
+# -> ChangeOwnerSync (GeneralProperties.cs:63; Actor.cs:577-592), which
+# momentarily removes and re-adds the actor and so rebuilds every player's
+# vision sources -- USA loses the cell, Russia gains it. An ENGINEER capture
+# does NOT do this: CaptureActor.cs:140-143 branches on BuildingInfo to
+# ChangeOwnerInPlaceSync specifically to skip that cascade, and AffectsMapLayer
+# (Vision's base) has no INotifyOwnerChanged, so the vision never moves at all.
+# ProximityCapturable.cs:222-227 branches the same way. That is logged as a
+# separate [HIGH] bug in WORKSPACE/bugs/discovered.md; until it is fixed, a
+# capture-driven version of this scenario would sit at state 'live' forever and
+# could not be written. Do NOT "improve" this scenario by replacing the Lua
+# assignment with a real capture without checking that bug first.
+#
+# That also settles the question of whether the explored bit is set when the
+# verdict is read: USA held real vision of 8,16 for every tick up to the
+# capture, and explored is monotonic (MapLayers.cs:241-256 floors an explored
+# cell at visibility 1; only ResetExploration clears it, on defeat). So after
+# the capture the cell reads exactly 1 -- fogged, not shrouded -- which is the
+# one band in which a ghost both exists and draws.
+#
+# Observer at 52,16 is on Box's row, 52-8 = 44 cells, checkable by eye with no
+# square roots. ^StandardVision IS A 32-CELL LADDER, NOT A SIGHT RADIUS
+# (defaults.yaml:95-133): ten Vision traits, strength 10 out to 4c0 then one
+# rung per 3 cells down to strength 1 over 28c0..32c0. 44 clears the outermost
+# rung by 12. An 18-cell placement is NOT far enough -- that mistake cost the
+# sister scenario a whole run, landing the cell on the strength-5 rung forever.
+# The Observer exists for two reasons: Test.FrozenClickCursor needs a non-empty
+# selection, and phase 3's cursor read is what proves FrozenActor.Owner still
+# moved. Without it the scenario could not tell the shipped fix apart from the
+# rejected one.
+#
+# OwnSR at 2,30 is 15.2 cells from Box and is deliberately NOT moved: SUPPLYROUTE
+# carries no Vision trait at all (structures.yaml:222-320), so it contributes
+# nothing at any distance, and pushing it away would imply a sight radius it does
+# not have. 52,16 is 18.4 cells from OpponentSR at 64,30 -- outside both its 3x3
+# footprint and SupplyRouteContestation's 10c0 ring (structures.yaml:303-305), so
+# no contestation fires. SpawnUSA/SpawnRussia are mpspawns (misc.yaml:239) and are
+# visionless.
+Actors:
+	Observer: abrams
+		Owner: USA
+		Location: 52,16
+		Facing: 0
+	Box: pbox
+		Owner: USA
+		Location: 8,16
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 2,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 64,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 63,2
+
+Rules: rules.yaml

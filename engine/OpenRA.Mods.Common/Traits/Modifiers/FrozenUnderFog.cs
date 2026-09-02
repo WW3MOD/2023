@@ -83,7 +83,7 @@ namespace OpenRA.Mods.Common.Traits
 					var state = frozenStates[playerIndex];
 					var frozen = state.FrozenActor;
 					if ((startsRevealed && self.TraitOrDefault<Cloak>() == null) || state.IsVisible)
-						UpdateFrozenActor(frozen, playerIndex);
+						UpdateFrozenActor(frozen, playerIndex, refreshTooltipOwner: true);
 
 					frozen.RefreshHidden();
 				}
@@ -92,10 +92,12 @@ namespace OpenRA.Mods.Common.Traits
 			created = true;
 		}
 
-		void UpdateFrozenActor(FrozenActor frozenActor, int playerIndex)
+		// Not defaulted, for the same reason RefreshState's parameter is not: all three call sites
+		// are in this file and one of them must pass false.
+		void UpdateFrozenActor(FrozenActor frozenActor, int playerIndex, bool refreshTooltipOwner)
 		{
 			VisibilityHash |= 1 << (playerIndex % 32);
-			frozenActor.RefreshState();
+			frozenActor.RefreshState(refreshTooltipOwner);
 		}
 
 		void ICreatesFrozenActors.OnVisibilityChanged(FrozenActor frozen)
@@ -109,8 +111,10 @@ namespace OpenRA.Mods.Common.Traits
 			var isVisible = !frozen.Visible;
 			state.IsVisible = isVisible;
 
+			// refreshTooltipOwner: true — isVisible means the viewer can SEE the real actor right
+			// now, so anything this records is information they are entitled to.
 			if (isVisible)
-				UpdateFrozenActor(frozen, frozen.Viewer.World.Players.IndexOf(frozen.Viewer));
+				UpdateFrozenActor(frozen, frozen.Viewer.World.Players.IndexOf(frozen.Viewer), refreshTooltipOwner: true);
 
 			frozen.RefreshHidden();
 		}
@@ -216,10 +220,28 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
 		{
-			// Force a state update for the old owner so the tooltip etc doesn't show them as the owner
+			// Force a state update for the old owner so their ghost stops behaving as if the actor
+			// were still theirs -- Owner, TargetTypes and health all move to the captor's reality, so
+			// the old owner's units correctly treat the building as hostile from this tick.
+			//
+			// TooltipOwner is the one field held back. This handler fires for a player who, in the
+			// case that matters, cannot see the cell: refreshing it would print the captor's name and
+			// colour in the ghost's tooltip and hand a free answer to "which of the other five took
+			// it" on any FFA map (river-zeta-ww3 ships 6 mpspawns; seventh-woods, twin-rivers and
+			// x-lake ship 4 each with no fixed teams). The ghost keeps naming the last owner this
+			// viewer actually observed.
+			//
+			// That the building changed hands is NOT hidden and cannot be: the old owner's units must
+			// keep treating it as an enemy, which is visible in cursors and autotarget. Only the
+			// captor's identity is separable, and only here.
+			//
+			// Consequence worth knowing: a player who WATCHES the capture, then looks away, gets a
+			// ghost still labelled with their own name -- RefreshState only runs again when they
+			// regain sight (OnVisibilityChanged, :112). That is a fidelity loss for a player who
+			// already knows the answer, traded for the leak against the player who does not.
 			var oldOwnerIndex = self.World.Players.IndexOf(oldOwner);
 			var frozen = frozenStates[oldOwnerIndex].FrozenActor;
-			UpdateFrozenActor(frozen, oldOwnerIndex);
+			UpdateFrozenActor(frozen, oldOwnerIndex, refreshTooltipOwner: false);
 			frozen.RefreshHidden();
 		}
 
