@@ -1111,12 +1111,21 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			"Reads the activity queue, so a unit that has been ordered but is still walking reports " +
 			"its target — which CaptureManager cannot tell you, because it only learns about a " +
 			"capture when the unit arrives. Test mode only.")]
-		public uint CommittedCaptureTarget(Actor capturer)
+		// RETURNS int, NOT uint, and that is not cosmetic: ScriptTypes.ToLuaValue converts double,
+		// int, bool, string, IScriptBindable and Array, and nothing else — a boxed uint does not
+		// match `is int`, so it reached the final throw and killed the script outright with
+		// "Cannot convert type 'System.UInt32' to Lua". This was the only binding in the whole
+		// scripting surface returning an unconvertible type, and lua-gate cannot see it: the gate
+		// resolves that a NAME is registered, never that its return value can cross back.
+		//
+		// ActorID is uint and is narrowed here. It comes from a sequential counter, so reaching
+		// int.MaxValue would need 2^31 actors in one match; the world runs out of memory first.
+		public int CommittedCaptureTarget(Actor capturer)
 		{
 			if (!TestMode.IsActive || capturer == null || capturer.IsDead || !capturer.IsInWorld)
 				return 0;
 
-			return CaptureDispatchManager.CommittedTarget(capturer);
+			return (int)CaptureDispatchManager.CommittedTarget(capturer);
 		}
 
 		[Desc("True when the given capture unit holds a capture order for the given structure. Lets a " +

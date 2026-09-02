@@ -1,0 +1,116 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a technician sent somewhere unreachable is released, not lost (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# GEOMETRY IS THE WHOLE TEST. Two arms, far enough apart that neither can influence the other.
+#
+# WEDGE ARM, around x=20. TechRinged stands on 20,16 inside a closed ring of eight ENEMY tanks
+# on all eight neighbouring cells. It is ordered to capture DerrickTarget at 40,16 — a perfectly
+# ordinary derrick on open ground that it simply cannot walk to, because it cannot leave its own
+# cell. That is the archetype under test: the order is accepted, the task is impossible, and
+# before the fix the Enter activity re-queued an approach move forever.
+#
+# WHY RING THE TECHNICIAN AND NOT THE DERRICK. OILB is 2x2 with an all-'x' footprint
+# (structures-neutral.yaml:14-15), so sealing it needs twelve tanks placed exactly right and a
+# single mistake leaves a gap, the technician strolls in, and the run is wasted. Ringing one
+# infantry cell needs eight and is the same geometry test-unload-wedge-releases already proves
+# holds. Unreachability is unreachability whichever end is sealed.
+#
+# WHY THE RING IS RUSSIAN. Mobile.OnNotifyBlockingMove queues a Nudge on any blocker that is
+# FRIENDLY and idle, so a ring of friendly tanks dissolves itself and the scenario would report a
+# confident pass having measured nothing. An enemy blocker returns early at the AppearsFriendlyTo
+# check and stays put. Both sides are put on HoldFire in Lua so the ring is geometry, not a
+# firefight — a dead ring tank opens the cage.
+#
+# WHY THE RING IS TANKS AND NOT INFANTRY. Infantry share subcells, up to three to a cell, so a
+# ring of riflemen leaves the technician a way out. Only full-cell occupants actually seal it.
+#
+# CONTROL ARM, around x=46. TechFree and DerrickFree are alone on open ground with nothing in
+# between. It gets the same kind of order on the same tick and must capture. If it does not, the
+# order path, the map or the actors are the confound and the wedge arm's result means nothing.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	# Named USA/Russia to match every other scenario, and because a player named "Player" would
+	# shadow the Lua `Player` global table that Player.GetPlayer lives on.
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		Faction: america
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		Faction: russia
+		Enemies: USA
+
+Actors:
+	SpawnPlayer: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnEnemy: mpspawn
+		Owner: Neutral
+		Location: 60,16
+
+	TechRinged: tecn
+		Owner: USA
+		Location: 20,16
+
+	# The eight neighbours of 20,16. Order here matches ringNames in the Lua so a failure names
+	# the tank that let the technician out.
+	RingNW: t90
+		Owner: Russia
+		Location: 19,15
+	RingN: t90
+		Owner: Russia
+		Location: 20,15
+	RingNE: t90
+		Owner: Russia
+		Location: 21,15
+	RingW: t90
+		Owner: Russia
+		Location: 19,16
+	RingE: t90
+		Owner: Russia
+		Location: 21,16
+	RingSW: t90
+		Owner: Russia
+		Location: 19,17
+	RingS: t90
+		Owner: Russia
+		Location: 20,17
+	RingSE: t90
+		Owner: Russia
+		Location: 21,17
+
+	DerrickTarget: oilb
+		Owner: Neutral
+		Location: 40,16
+
+	TechFree: tecn
+		Owner: USA
+		Location: 46,26
+
+	DerrickFree: oilb
+		Owner: Neutral
+		Location: 50,26
+
+Rules: rules.yaml

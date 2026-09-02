@@ -27,10 +27,35 @@ namespace OpenRA.Mods.Common.Activities
 		readonly Color? targetLineColor;
 		readonly MoveCooldownHelper moveCooldownHelper;
 
+		/// <summary>Evidence that the approach will never arrive. Shared with AutoFollowAlly and
+		/// AttendAllyActivity rather than re-derived here — the predicate has traps in it that two copies
+		/// would drift apart on.</summary>
+		readonly StallWatcher approachStall = new();
+
+		/// <summary>World tick of the previous approach-stall check, so the budget is spent in real ticks.
+		/// The check below runs only when an approach move has just ended, which is every other tick at
+		/// this activity's (0, 1) cooldown and rarer behind a long move — passing 1 would make the budget
+		/// mean whatever the caller's cadence happened to be.</summary>
+		int lastApproachCheckTick = -1;
+
 		Target target;
 		Target lastVisibleTarget;
 		bool useLastVisibleTarget;
 		EnterState lastState = EnterState.Approaching;
+
+		/// <summary>
+		/// Ticks of approach without gaining a single cell before the order is abandoned. 0 disables the
+		/// bound for a subclass that has a better test of its own.
+		/// </summary>
+		/// <remarks>
+		/// Matches Cargo.BlockedUnloadTimeout deliberately: that is the only figure anyone in this
+		/// codebase has committed to for "how long do we keep trying something that may be impossible",
+		/// and a player who watches a technician give up and a transport give up wants one answer to
+		/// "how patient is this game", not two. ~30 s at the mod's 16.67 tps.
+		/// </remarks>
+		public const int DefaultMaxStalledApproachTicks = 500;
+
+		protected virtual int MaxStalledApproachTicks => DefaultMaxStalledApproachTicks;
 
 		protected Enter(Actor self, in Target target, Color? targetLineColor = null)
 		{
@@ -48,6 +73,8 @@ namespace OpenRA.Mods.Common.Activities
 				RetryIfDestinationBlocked = true,
 				Cooldown = (0, 1)
 			};
+
+			approachStall.MarkProgress(self.Location);
 		}
 
 		/// <summary>
@@ -111,6 +138,33 @@ namespace OpenRA.Mods.Common.Activities
 					// We are not next to the target - lets fix that
 					if (target.Type != TargetType.Invalid && !move.CanEnterTargetNow(self, target))
 					{
+						// BOUNDED. Reaching here means an approach move has just ENDED without putting us
+						// beside the target, and the only response available is to queue another one — so
+						// a target that can never be reached loops here for the rest of the match. That is
+						// not a hypothetical: MoveAdjacentTo cannot report failure (Mobile.MoveResult is
+						// never assigned), and MoveCooldownHelper's designed escape for it is doubly dead
+						// here because this activity opts into RetryIfDestinationBlocked. The unit is never
+						// idle while it loops, which silences every IsIdle-shaped guard it owns — for a
+						// technician that means CaptureDispatchManager.CommittedTarget reads the queued
+						// capture and counts him busy forever.
+						//
+						// The retry itself is worth keeping: traffic clears, bridges get repaired, and the
+						// approach then succeeds. Only the "forever" part is wrong. One cell of ground
+						// gained resets the whole budget, so a unit walking a long way round never spends
+						// it — only one that is getting nowhere does.
+						if (MaxStalledApproachTicks > 0)
+						{
+							var now = self.World.WorldTick;
+							var elapsed = lastApproachCheckTick < 0 ? 1 : now - lastApproachCheckTick;
+							lastApproachCheckTick = now;
+
+							if (approachStall.IsStalled(self.Location, elapsed, MaxStalledApproachTicks))
+							{
+								Cancel(self, true);
+								return true;
+							}
+						}
+
 						// Target lines are managed by this trait, so we do not pass targetLineColor
 						moveCooldownHelper.NotifyMoveQueued();
 						var initialTargetPosition = (useLastVisibleTarget ? lastVisibleTarget : target).CenterPosition;
