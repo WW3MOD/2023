@@ -814,7 +814,16 @@ Player:
 		AssaultSyncMaxTicks: 300
 		# The start-line band is (AssaultRadiusCells, 24]. Load-bearing, not cosmetic: a window that opened when
 		# the axis FORMED would elapse during a 40-100 cell approach and the gate would be inert on arrival.
+		# ALSO the ratchet threshold: inside this the axis is committed and the muster-ward holds may not march
+		# it back out (loss-mining 2026-09-02 §1.1 — the army parked at 24+ while the ring it was contesting is
+		# 10, because the damper/posture holds kept re-asserting a standoff computed from the believed front).
 		AssaultSyncStartLineCells: 24
+		# TELEMETRY ONLY, drives no decision: SupplyRouteContestation.Range is 10c0
+		# (structures.yaml:303), and AssaultRadiusCells (15) is already OUTSIDE it — so "reached the assault
+		# radius" never meant "is contesting". Emitted as ring=/insideRing= on the [exp-offense] order line, and
+		# only under the flag above, so existing log consumers see a byte-identical line. This is what makes
+		# §1.1 directly measurable next run instead of inferred from an order distance.
+		AssaultRingCells: 10
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped

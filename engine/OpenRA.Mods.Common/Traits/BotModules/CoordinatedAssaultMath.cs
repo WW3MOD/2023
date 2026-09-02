@@ -143,5 +143,46 @@ namespace OpenRA.Mods.Common.Traits
 
 			return !QuorumMet(readyAxes, participatingAxes, quorumPct);
 		}
+
+		/// <summary><para>Has this axis crossed its POINT OF NO RETURN — close enough to the objective that the
+		/// muster-ward holds must stop pulling it back, so it closes into the ring where its presence actually
+		/// does something?</para>
+		///
+		/// <para>THE DEFECT THIS EXISTS TO CLOSE (loss-mining 2026-09-02 §1.1). The bot's only offensive action
+		/// is Pressure against a Supply Route, and SupplyRouteContestation.Range is 10 cells — but across the
+		/// valid corpus the committed order distance never fell below 24. The army stood at ~2.4x the radius at
+		/// which pressure has any effect, so the contestation bar could not move no matter how long it sat there.
+		/// The assault ORDER is not the culprit: it is a plain AttackMove to the objective cell. What keeps the
+		/// axis out is that the muster-ward holds (the damper's massing arm, the sector-posture hold) re-order it
+		/// REARWARD to a staging anchor that is itself a fixed standoff behind the believed front — and, because
+		/// the opportunistic-advance feature is switched off, that anchor never moves up either. So the army's
+		/// resting position is a standoff computed from the FRONT, with no relation to the ring it was sent to
+		/// contest, and every eval that ends in a hold re-asserts it.</para>
+		///
+		/// <para>This is the ratchet that ends it: inside the start line the axis has committed, and a hold that
+		/// would march it back out is suppressed. Only the muster-ward holds are affected. A GENUINE RETREAT IS
+		/// NOT A MUSTER-WARD HOLD and is never suppressed — the caller keeps its retreat gate strictly upstream
+		/// of this, exactly as SpawnFlowMath.SuppressMassingHold is conjunctive on the post-retreat dwell for the
+		/// same reason. A losing axis still withdraws; it simply cannot be parked outside the ring while healthy.
+		/// </para>
+		///
+		/// <para>Note the asymmetry with <see cref="ShouldHoldForSync"/>, and that it is deliberate: sync holds an
+		/// axis OUTSIDE the start line, this frees it INSIDE. The two cannot fight over the same axis because
+		/// their bands do not overlap, and together they give the intended shape — gather at the start line,
+		/// release as a body, then close without being second-guessed.</para>
+		///
+		/// <para>A non-positive <paramref name="startLineCells"/> disables the ratchet (nothing is ever inside),
+		/// which is the fail-safe direction here: it restores today's behaviour rather than freeing an axis from
+		/// every hold. Pure, integer-only, zero RNG.</para></summary>
+		public static bool PastPointOfNoReturn(bool enabled, int distToTargetCells, int startLineCells)
+		{
+			if (!enabled)
+				return false;
+
+			if (startLineCells <= 0)
+				return false;
+
+			return distToTargetCells <= startLineCells;
+		}
 	}
 }

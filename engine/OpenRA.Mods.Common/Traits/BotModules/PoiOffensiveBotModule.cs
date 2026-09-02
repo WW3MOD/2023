@@ -799,6 +799,18 @@ namespace OpenRA.Mods.Common.Traits
 			"and is never pulled back to wait. Only read when CoordinatedAssaultEnabled.")]
 		public readonly int AssaultSyncStartLineCells = 24;
 
+		[Desc("Coordinated assaults: the EFFECTIVE RING of the objective in cells — the radius inside which a",
+			"committed force actually does something. For the bot's only offensive action (Pressure against a",
+			"Supply Route) that is SupplyRouteContestation.Range, which ships at 10c0; note AssaultRadiusCells",
+			"(15) is already OUTSIDE it, so 'reached the assault radius' never meant 'is contesting'.",
+			"TELEMETRY ONLY — this drives no decision. It is emitted on the [exp-offense] order line as",
+			"ring=/insideRing= so the next run can measure directly whether committed force closes into the ring,",
+			"which is the question the 2026-09-02 loss-mining pass could only answer by inference from an order",
+			"distance that never fell below 24. Deliberately not wired to the cohesion switch or the assault",
+			"radius: re-aiming those is a behavioural change and nothing here has been measured in a game.",
+			"Emitted only when CoordinatedAssaultEnabled, so existing log consumers are unaffected.")]
+		public readonly int AssaultRingCells = 10;
+
 		[Desc("PHASE 4 (@experimental) FRONTLINE STRENGTH PROFILE (sensor only — no order-issuing change).",
 			"Opts this player in to the ControlField's per-frontier-sector believed OWN-vs-ENEMY strength",
 			"profile + avenue (crossing) mapping, so a future consumer can ask 'which frontier sector is the",
@@ -3132,7 +3144,28 @@ namespace OpenRA.Mods.Common.Traits
 			// so a damped axis is never marked Committed (same discipline as the retreat above). Inert when off.
 			// SR flow shape: ImmediateReinforcementCommit suppresses (b) entirely — see DamperShouldHold — so under
 			// that doctrine only (a) can reach this hold, and FillHoldEvals below then only ever tallies dwell evals.
-			var damperHold = Info.RetreatDamperEnabled && rallyCell.HasValue && DamperShouldHold(axis);
+			// COORDINATED ASSAULTS — CLOSE-IN RATCHET (loss-mining 2026-09-02 §1.1). Once the axis is inside its
+			// start line it has committed, and the muster-ward holds below stop being allowed to march it back
+			// out. Without this the army's resting position is a staging anchor set from the believed FRONT with
+			// no relation to the ring it was sent to contest: the corpus never saw a committed order inside 24
+			// cells while SupplyRouteContestation.Range is 10, so Pressure was geometrically incapable of moving
+			// the contestation bar. The assault ORDER was never the problem — it is a plain AttackMove to the
+			// objective — so the fix is to stop re-asserting the standoff, not to re-aim the order.
+			//
+			// SCOPE, and it is deliberately narrow: this suppresses the damper's massing arm and the sector
+			// posture hold ONLY. The genuine-retreat gate is ABOVE and already returned, so a losing axis still
+			// withdraws — the same conjunctive discipline SpawnFlowMath.SuppressMassingHold uses against the
+			// post-retreat dwell. A healthy axis can no longer be parked outside the ring; a losing one is not
+			// forced into it.
+			//
+			// Reads axis.SyncDist, which CensusAssaultReadiness stamped for the whole live set before this loop,
+			// so the ratchet and the sync gate cannot disagree about where this axis is. Both are guarded on the
+			// same flag, so with it off SyncDist is never written, the ratchet is constant-false, and every hold
+			// below behaves exactly as it does today ⇒ byte-identical.
+			var pastNoReturn = CoordinatedAssaultMath.PastPointOfNoReturn(
+				Info.CoordinatedAssaultEnabled, axis.SyncDist, Info.AssaultSyncStartLineCells);
+
+			var damperHold = !pastNoReturn && Info.RetreatDamperEnabled && rallyCell.HasValue && DamperShouldHold(axis);
 
 			// Step the hold counter the eval cap reads. Stepped on every pass (not only when holding) so the budget
 			// clears the moment the massing EPISODE ends — but it must PERSIST across the release itself, or the cap
@@ -3204,7 +3237,13 @@ namespace OpenRA.Mods.Common.Traits
 			// Counter stepped INSIDE the enabled guard and only on a hold, so with the knob at its 0 default
 			// PostureBudgetExhausted is constant-false, `postureHold` is exactly the old PostureShouldHold, and the
 			// only difference is a write nobody reads ⇒ byte-identical for every profile that does not opt in.
-			if (Info.SectorPostureHoldEnabled && rallyCell.HasValue)
+			// The close-in ratchet applies here too, and this is the hold it most needs to bind: the posture hold
+			// is the one documented as capable of freezing an axis in place indefinitely (failure shape (A), the
+			// silent stall), and an axis frozen at the standoff is exactly the corpus's ~24-cell park. Inside the
+			// start line the axis presses on regardless of how the sector reads — it has already committed, and
+			// a caution applied at that range is the veto-wearing-a-delay's-costume this module has hit before.
+			// Constant-false when CoordinatedAssaultEnabled is off ⇒ byte-identical.
+			if (Info.SectorPostureHoldEnabled && rallyCell.HasValue && !pastNoReturn)
 			{
 				var budgetSpent = FrontlineAllocationMath.PostureBudgetExhausted(
 					axis.PostureHoldEvals, Info.SectorPostureHoldMaxEvals);
@@ -3480,8 +3519,16 @@ namespace OpenRA.Mods.Common.Traits
 
 			var viaLog = detourVia.HasValue ? $" via={detourVia.Value}" : "";
 			var cohesionLog = dispersion ? $" cohesion={wantMode}" : "";
+
+			// Ring telemetry (loss-mining §1.1). APPENDED at the end of the line and only under the coordinated-
+			// assault flag, so every existing consumer of [exp-offense] order — and the @stable twin — sees a
+			// byte-identical line. This is the field that turns "the order distance never fell below 24" from an
+			// inference into a direct reading: insideRing=False on every sample IS the defect, stated as such.
+			var ringLog = Info.CoordinatedAssaultEnabled
+				? $" ring={Info.AssaultRingCells} insideRing={distToTarget <= Info.AssaultRingCells}"
+				: "";
 			Log.Write("debug",
-				$"[exp-offense] order player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} action={axis.Action} units={units.Length}{cohesionLog}{viaLog} clumpRadius={clumpRadius} distToTarget={distToTarget} tick={tick}");
+				$"[exp-offense] order player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} action={axis.Action} units={units.Length}{cohesionLog}{viaLog} clumpRadius={clumpRadius} distToTarget={distToTarget} tick={tick}{ringLog}");
 			AIUtils.BotDebug("AI ({0}): exp-offense — axis {1}@{2} ({3} units, score={4})",
 				player.ClientIndex, axis.TargetName, axis.TargetCell, units.Length, axis.Score);
 		}

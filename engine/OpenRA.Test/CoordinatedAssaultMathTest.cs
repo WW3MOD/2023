@@ -160,5 +160,72 @@ namespace OpenRA.Test
 			Assert.That(CoordinatedAssaultMath.ShouldHoldForSync(true, false, 4, 0, 0, 0, Window), Is.True,
 				"quorum 0 does NOT disable the mass arm");
 		}
+
+		// The close-in ratchet (loss-mining 2026-09-02 §1.1): the army parked at 24+ cells while the ring it was
+		// sent to contest is 10, because the muster-ward holds kept re-asserting a standoff computed from the
+		// believed front. These pin that an axis inside the start line is freed from those holds.
+		const int StartLine = 24;
+		const int Ring = 10;
+
+		[Test]
+		public void PastPointOfNoReturn_FreesAnAxisThatHasClosedInside()
+		{
+			Assert.That(CoordinatedAssaultMath.PastPointOfNoReturn(true, StartLine, StartLine), Is.True,
+				"exactly on the start line counts as committed");
+			Assert.That(CoordinatedAssaultMath.PastPointOfNoReturn(true, Ring, StartLine), Is.True,
+				"inside the contestation ring is certainly committed");
+			Assert.That(CoordinatedAssaultMath.PastPointOfNoReturn(true, 0, StartLine), Is.True,
+				"on the objective");
+		}
+
+		[Test]
+		public void PastPointOfNoReturn_LeavesAnApproachingAxisUnderTheNormalHolds()
+		{
+			// Outside the start line the ordinary disciplines still apply — the ratchet is a commitment rule,
+			// not a blanket suppression of every hold in the module.
+			Assert.That(CoordinatedAssaultMath.PastPointOfNoReturn(true, StartLine + 1, StartLine), Is.False,
+				"one cell outside the start line still holds normally");
+			Assert.That(CoordinatedAssaultMath.PastPointOfNoReturn(true, 40, StartLine), Is.False,
+				"a fresh far-out axis is untouched");
+
+			// This is the value the corpus actually reported, and the whole point: at 24 with the shipped start
+			// line the axis IS committed and must no longer be marched back to the standoff.
+			Assert.That(CoordinatedAssaultMath.PastPointOfNoReturn(true, 24, StartLine), Is.True,
+				"the observed 24-cell park is inside the start line ⇒ freed to close");
+		}
+
+		[Test]
+		public void PastPointOfNoReturn_FailsSafeTowardTodaysBehaviour()
+		{
+			// Disabled, and a mis-set start line, both resolve to "nothing is inside" — restoring the current
+			// holds rather than freeing every axis from all of them. Note this is the OPPOSITE direction to the
+			// sync gate's fail-open, and deliberately so: the unsafe direction here is suppressing holds.
+			Assert.That(CoordinatedAssaultMath.PastPointOfNoReturn(false, 0, StartLine), Is.False,
+				"flag off ⇒ ratchet inert even on the objective");
+			Assert.That(CoordinatedAssaultMath.PastPointOfNoReturn(true, 0, 0), Is.False,
+				"zero start line ⇒ ratchet disabled");
+			Assert.That(CoordinatedAssaultMath.PastPointOfNoReturn(true, 0, -1), Is.False,
+				"negative start line ⇒ ratchet disabled");
+		}
+
+		[Test]
+		public void SyncHoldAndRatchetBandsDoNotOverlap()
+		{
+			// The two gates must never fight over one axis: sync holds OUTSIDE the start line, the ratchet frees
+			// INSIDE it. Asserted across the band because an overlap would mean an axis simultaneously told to
+			// wait and told it may not be held.
+			for (var d = 0; d <= 60; d++)
+			{
+				var inRatchet = CoordinatedAssaultMath.PastPointOfNoReturn(true, d, StartLine);
+
+				// The sync gate only ever engages inside the band its caller enforces, (AssaultRadius, StartLine];
+				// beyond the start line the caller does not consult it at all. So the only cells where both could
+				// speak are d <= StartLine, and there the ratchet is what governs.
+				if (d > StartLine)
+					Assert.That(inRatchet, Is.False, $"d={d} is outside the start line ⇒ ratchet silent");
+				else
+					Assert.That(inRatchet, Is.True, $"d={d} is inside the start line ⇒ ratchet governs");
+			}
+		}
 	}
 }
