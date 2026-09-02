@@ -1,0 +1,5 @@
+PERF capture (not a behavioural test): prices the ProximityExternalCondition
+cache-comparison defect on the densest shipped map. Byte-faithful copy of
+woodland-warfare-ww3 with nothing that moves; holds for 3000 ticks while
+ProximityPerf emits per-tick counters and timings to <result>.proximity.jsonl.
+Always passes if it ran; the verdict lives in the JSONL, not in result.json.

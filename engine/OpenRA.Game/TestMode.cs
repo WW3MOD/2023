@@ -155,6 +155,13 @@ namespace OpenRA
 		// verdict, anything else is an explicit path.
 		public static string MissileTraceLogPath { get; private set; }
 
+		// Resolved output path for the per-tick proximity-trigger cost trace
+		// (ProximityPerf.cs). Null/empty = the instrument is inert (no file, no
+		// timestamps, no counters). Set via the Test.ProximityPerfLog launch arg,
+		// same shape as Test.MissileTraceLog: `true` derives a `.proximity.jsonl`
+		// sibling of the verdict, anything else is an explicit path.
+		public static string ProximityPerfLogPath { get; private set; }
+
 		// false suppresses the per-tick lines and keeps only the per-missile summary
 		// records. Set via Test.MissileTraceMode=summary. The engagement-distance
 		// sweep produces thousands of missiles and only needs the summaries.
@@ -235,6 +242,18 @@ namespace OpenRA
 						: Path.ChangeExtension(ResultPath, ".missiles.jsonl");
 				else
 					MissileTraceLogPath = missileArg;
+			}
+
+			var proximityArg = args.GetValue("Test.ProximityPerfLog", null);
+			if (!string.IsNullOrEmpty(proximityArg))
+			{
+				var lower = proximityArg.ToLowerInvariant();
+				if (lower == "true" || lower == "1")
+					ProximityPerfLogPath = string.IsNullOrEmpty(ResultPath)
+						? null
+						: Path.ChangeExtension(ResultPath, ".proximity.jsonl");
+				else
+					ProximityPerfLogPath = proximityArg;
 			}
 
 			var syncHashArg = args.GetValue("Test.SyncHashLog", null);

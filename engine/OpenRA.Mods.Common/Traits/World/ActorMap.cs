@@ -14,6 +14,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Primitives;
+using OpenRA.Support;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -143,6 +144,12 @@ namespace OpenRA.Mods.Common.Traits
 					.Where(a => (a.CenterPosition - position).HorizontalLengthSquared < range.LengthSquared
 						&& (vRange.Length == 0 || (a.World.Map.DistanceAboveTerrain(a.CenterPosition).LengthSquared <= vRange.LengthSquared))));
 
+				if (ProximityPerf.Enabled)
+				{
+					ProximityPerf.Rebuilds++;
+					ProximityPerf.Matched += currentActors.Count;
+				}
+
 				if (onActorEntered != null)
 					foreach (var a in currentActors)
 						if (!oldActors.Contains(a))
@@ -211,6 +218,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyCreated.Created(Actor self)
 		{
+			// Must precede the early return below, which fires on any map with no
+			// custom movement layers.
+			ProximityPerf.Initialize(TestMode.ProximityPerfLogPath);
+
 			var customMovementLayers = self.TraitsImplementing<ICustomMovementLayer>().ToList();
 			if (customMovementLayers.Count == 0)
 				return;
@@ -473,6 +484,9 @@ namespace OpenRA.Mods.Common.Traits
 		void ITick.Tick(Actor self)
 		{
 			TickFunction();
+
+			if (ProximityPerf.Enabled)
+				ProximityPerf.Emit(self.World.WorldTick, proximityTriggers.Count, PerfHistory.Items["tick_time"].LastValue);
 		}
 
 		public void TickFunction()
@@ -509,8 +523,16 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var t in cellTriggers)
 				t.Value.Tick(this);
 
+			// One timestamp pair for the whole loop, not one per trigger: at ~1200
+			// triggers a per-trigger pair would cost more than the work it measures.
+			var instrumented = ProximityPerf.Enabled;
+			var started = instrumented ? ProximityPerf.Timestamp() : 0;
+
 			foreach (var t in proximityTriggers)
 				t.Value.Tick(this);
+
+			if (instrumented)
+				ProximityPerf.RebuildStopwatchTicks += ProximityPerf.Timestamp() - started;
 		}
 
 		public int AddCellTrigger(CPos[] cells, Action<Actor> onEntry, Action<Actor> onExit)
@@ -581,13 +603,48 @@ namespace OpenRA.Mods.Common.Traits
 			if (!proximityTriggers.TryGetValue(id, out var t))
 				return;
 
+			// SAMPLED, not per-call. A Stopwatch pair measures ~190 ns on the
+			// development machine (ProximityPerfOverheadTest), and timing all ~583
+			// updates a tick would bury ~110 us/tick of instrument inside a signal
+			// plausibly the same size. One call in ReindexSampleRate is timed and
+			// the total is reconstructed downstream as mean x updates; the sample
+			// count is emitted so that reconstruction is auditable rather than
+			// implied.
+			var sampled = ProximityPerf.Enabled && ProximityPerf.ShouldSampleReindex();
+			var started = sampled ? ProximityPerf.Timestamp() : 0;
+
 			foreach (var bin in BinsInBox(t.TopLeft, t.BottomRight))
+			{
+				if (ProximityPerf.Enabled)
+				{
+					ProximityPerf.BinVisits++;
+
+					// Length of the linear scan List.Remove is about to perform. This,
+					// not the bin count, is the work the re-index actually does.
+					ProximityPerf.BinScan += bin.ProximityTriggers.Count;
+				}
+
 				bin.ProximityTriggers.Remove(t);
+			}
 
 			t.Update(newPos, newRange, newVRange);
 
 			foreach (var bin in BinsInBox(t.TopLeft, t.BottomRight))
+			{
+				if (ProximityPerf.Enabled)
+					ProximityPerf.BinVisits++;
+
 				bin.ProximityTriggers.Add(t);
+			}
+
+			if (ProximityPerf.Enabled)
+				ProximityPerf.Updates++;
+
+			if (sampled)
+			{
+				ProximityPerf.ReindexSamples++;
+				ProximityPerf.ReindexSampleStopwatchTicks += ProximityPerf.Timestamp() - started;
+			}
 		}
 
 		public void AddPosition(Actor a, IOccupySpace ios)

@@ -1,0 +1,27 @@
+Player:
+	-ConquestVictoryConditions:
+
+World:
+	-StartGameNotification:
+	# NOTHING MAY MOVE. This is a cost measurement, and a moving actor dirties
+	# every proximity trigger in its ActorMap bin (ActorMap.TickFunction, the
+	# addActorPosition / removeActorPosition passes) — which is a SECOND source
+	# of trigger rebuilds that would be indistinguishable from the cache-miss
+	# source this scenario exists to price. With no units, every rebuild counted
+	# is attributable to the ProximityExternalCondition cache comparison and to
+	# nothing else.
+	#
+	# This also makes the capture a deliberate UPPER BOUND on the defect's share
+	# of tick time, in both directions at once: a real match has a larger
+	# tick_time (bigger denominator) AND fewer cache-attributable rebuilds
+	# (triggers near moving units were going to be dirtied anyway). So an
+	# "invisible here" verdict generalises to real play; a "visible here"
+	# verdict does NOT, and would need a busy re-run before anyone acts on it.
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Strip persisted per-type stance defaults — a locally-saved unit default
+	# must not be able to vary a timing capture between two machines.
+	-UnitDefaultsManager:
+	LuaScript:
+		Scripts: test-helpers.lua, perf-proximity-woodland.lua
