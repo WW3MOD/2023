@@ -1,52 +1,138 @@
 Player:
-	# ===== Baseline ground production — Russia (enable-ai-player, non-Experimental) =====
+	# ===== Ground production — Russia, @stable twin =====
 	# Split (early-econ PIPELINE 12): Experimental uses the @russia.experimental twin below.
-	# The `!enable-ai-experimental` guard keeps exactly one UnitBuilder enabled per player —
-	# Stable holds this frozen block. Mirrors the HelicopterSquad split.
+	# THIS is the @stable twin, despite the legacy `.normal` key (kept to avoid churn in DOCS/bots/
+	# and in the NUnit fixtures that name it). Its gate was `enable-ai-player &&
+	# !enable-ai-experimental` until the 2026-09-02 promotion re-stated it as the explicit
+	# `enable-ai-stable` — the same resolved set, since enable-ai-player is granted only to
+	# experimental+stable. Exactly one UnitBuilder is still enabled per player.
+	# NO LONGER FROZEN: synced to the @experimental twin at that promotion.
 	UnitBuilderBotModule@russia.normal:
-		RequiresCondition: enable-ai-player && !enable-ai-experimental && player.brics
+		RequiresCondition: enable-ai-stable && player.brics
+		# 2026-09-02 promotion — full @experimental parity. Fields below are a verbatim copy of the
+		# @experimental twin's values at this ref; see that block for per-flag rationale.
 		UnitQueues: Vehicle, Infantry
 		UnitsToBuild:
-			# Conscripts -- low priority, mainly for capturing
 			tecn.russia: 500
-
-			# Core infantry -- high priority mix
 			e3.russia: 120
 			ar.russia: 100
 			tl.russia: 80
 			e2.russia: 60
-
-			# Support infantry
 			at.russia: 50
 			mt.russia: 40
 			medi.russia: 40
 			aa.russia: 30
 			sn.russia: 25
 			e6.russia: 20
-
-			# Vehicles -- balanced force composition
+			dr.russia: 20
+			sf.russia: 10
 			btr: 30
 			bmp2: 25
 			t90: 20
 			giatsint: 15
 			tunguska: 10
 			grad: 10
-
-			# Supply trucks for field resupply
+			mnly: 10
+			msar: 10
 			truk: 20
-
 		UnitLimits:
-			truk: 4
+			truk: 12
 			tecn.russia: 3
 			e6.russia: 2
 			giatsint: 3
 			grad: 2
 			tunguska: 2
 			sn.russia: 3
+			dr.russia: 2
+			mnly: 1
+			msar: 1
+			sf.russia: 2
+		UnitFloors:
+			medi.russia: 2
+			aa.russia: 2
+			mnly: 1
+			dr.russia: 2
+			msar: 1
+			sf.russia: 1
+		UnitFloorPer:
+			medi.russia: 10
+			dr.russia: 8
+		UnitFloorSupportedTypes: e3.russia, ar.russia, tl.russia, e2.russia, at.russia, mt.russia, aa.russia, sn.russia, e6.russia, tecn.russia
+		CensusLogInterval: 40
+		UnitDelays:
+			aa.russia: 2000
+			mnly: 3000
+			dr.russia: 300
+			msar: 3000
+			sf.russia: 3000
+		GateResupplyOnAmmoNeed: true
+		ResupplyUnitTypes: truk
+		SupplyDemandSizing: true
+		SupplyStarvingThresholdPerMille: 250
+		SupplyCustomersPerTruck: 6
+		SupplyDemandOvercompensationPercent: 200
+		SupplyTruckFloor: 3
+		SupplyTruckFloorPer: 10
+		SupplyTruckCeiling: 6
+		SupplySizeFromNeed: true
+		SupplyPrecedenceStallCycles: 4
+		ScaleAntiAirToThreat: true
+		AntiAirUnitTypes: tunguska
+		AntiAirBaseline: 0
+		AntiAirPerObservedAir: 1
+		CompositionDirected: true
+		CompositionEnforceTargetCeiling: true
+		CompositionCeilingExemptTypes: tecn.russia
+		UnitTargetShares:
+			t90: 190
+			bmp2: 140
+			btr: 70
+			giatsint: 35
+			grad: 25
+			tunguska: 50
+			truk: 40
+			e3.russia: 95
+			ar.russia: 78
+			tl.russia: 62
+			e2.russia: 47
+			at.russia: 66
+			mt.russia: 37
+			aa.russia: 28
+			sn.russia: 12
+			medi.russia: 17
+			e6.russia: 8
+			tecn.russia: 8
+		UnitRoles:
+			t90: armorline
+			bmp2: armorline
+			e3.russia: infantryline
+			ar.russia: infantryline
+			tl.russia: infantryline
+			e2.russia: infantryline
+			at.russia: antitank
+			tunguska: antiair
+			aa.russia: antiair
+			mt.russia: mortar
+			giatsint: artillery
+			grad: artillery
+			btr: recon
+			sn.russia: recon
+			truk: support
+			medi.russia: support
+			e6.russia: support
+			tecn.russia: support
+		CounterMatrixPct:
+			air>antiair: 60
+			armor>antitank: 40
+			infantry>infantryline: 20
 
 	# ===== Experimental AI — Russia ground production (early-econ PIPELINE 12) =====
-	# Byte-for-byte copy of @russia.normal's UnitsToBuild/UnitLimits PLUS the default-off early-econ
-	# gates (behaviours 1 & 2). Experimental-only; Stable keeps the frozen twin above.
+	# CORRECTED 2026-09-02: this comment used to read "byte-for-byte copy of @russia.normal PLUS the
+	# default-off early-econ gate ... Experimental-only; Stable keeps the frozen twin above." That is no
+	# longer true in either half. The 2026-09-02 parity promotion synced @russia.normal UP to this block,
+	# so the two are now field-identical and the early-econ gates below (behaviours 1 & 2) are LIVE ON
+	# BOTH profiles. The engine flags still default false, so the two twins remain the only places they
+	# turn on; @experimental is still the only block the optimization loop edits.
 	#   * GateResupplyOnAmmoNeed — no FIRST supply truck while every truck-rearmable unit has full ammo;
 	#     once one exists the demand-sized reserve buys freely (2026-08-17 split).
 	#   * ScaleAntiAirToThreat — cap vehicle AA (tunguska) to OBSERVED enemy air; aa.russia (cheap AA

@@ -1,53 +1,139 @@
 Player:
-	# ===== Baseline ground production — America (enable-ai-player, non-Experimental) =====
-	# Split (early-econ PIPELINE 12): Experimental uses the @america.experimental twin below
-	# (need-gated trucks + threat-scaled AA). The `!enable-ai-experimental` guard keeps exactly
-	# one UnitBuilder enabled per player — Stable holds this frozen block (it has
-	# enable-ai-player but not enable-ai-experimental). Mirrors the HelicopterSquad split.
+	# ===== Ground production — America, @stable twin =====
+	# Split (early-econ PIPELINE 12): Experimental uses the @america.experimental twin below.
+	# THIS is the @stable twin, despite the legacy `.normal` key (kept to avoid churn in DOCS/bots/
+	# and in the NUnit fixtures that name it). Its gate was `enable-ai-player &&
+	# !enable-ai-experimental` until the 2026-09-02 promotion re-stated it as the explicit
+	# `enable-ai-stable` — the same resolved set, since enable-ai-player is granted only to
+	# experimental+stable. Exactly one UnitBuilder is still enabled per player.
+	# NO LONGER FROZEN: synced to the @experimental twin at that promotion, so the early-econ gates
+	# (need-gated trucks + threat-scaled AA) now apply to @stable too.
 	UnitBuilderBotModule@america.normal:
-		RequiresCondition: enable-ai-player && !enable-ai-experimental && player.nato
+		RequiresCondition: enable-ai-stable && player.nato
+		# 2026-09-02 promotion — full @experimental parity. Fields below are a verbatim copy of the
+		# @experimental twin's values at this ref; see that block for per-flag rationale.
 		UnitQueues: Vehicle, Infantry
 		UnitsToBuild:
-			# Conscripts -- low priority, mainly for capturing
 			tecn.america: 500
-
-			# Core infantry -- high priority mix
 			e3.america: 120
 			ar.america: 100
 			tl.america: 80
 			e2.america: 60
-
-			# Support infantry
 			at.america: 50
 			mt.america: 40
 			medi.america: 40
 			aa.america: 30
 			sn.america: 25
 			e6.america: 20
-
-			# Vehicles -- balanced force composition
+			dr.america: 20
+			sf.america: 10
 			humvee: 30
 			bradley: 25
 			abrams: 20
 			m113: 15
 			m109: 15
 			strykershorad: 10
-
-			# Supply trucks for field resupply
+			mnly: 10
+			msar: 10
 			truk: 20
-
 		UnitLimits:
-			truk: 4
+			truk: 12
 			tecn.america: 3
 			e6.america: 2
 			m109: 3
 			strykershorad: 2
 			sn.america: 3
+			dr.america: 2
+			mnly: 1
+			msar: 1
+			sf.america: 2
+		UnitFloors:
+			medi.america: 2
+			aa.america: 2
+			mnly: 1
+			dr.america: 2
+			msar: 1
+			sf.america: 1
+		UnitFloorPer:
+			medi.america: 10
+			dr.america: 8
+		UnitFloorSupportedTypes: e3.america, ar.america, tl.america, e2.america, at.america, mt.america, aa.america, sn.america, e6.america, tecn.america
+		CensusLogInterval: 40
+		UnitDelays:
+			aa.america: 2000
+			mnly: 3000
+			dr.america: 300
+			msar: 3000
+			sf.america: 3000
+		GateResupplyOnAmmoNeed: true
+		ResupplyUnitTypes: truk
+		SupplyDemandSizing: true
+		SupplyStarvingThresholdPerMille: 250
+		SupplyCustomersPerTruck: 6
+		SupplyDemandOvercompensationPercent: 200
+		SupplyTruckFloor: 3
+		SupplyTruckFloorPer: 10
+		SupplyTruckCeiling: 6
+		SupplySizeFromNeed: true
+		SupplyPrecedenceStallCycles: 4
+		ScaleAntiAirToThreat: true
+		AntiAirUnitTypes: strykershorad
+		AntiAirBaseline: 0
+		AntiAirPerObservedAir: 1
+		CompositionDirected: true
+		CompositionEnforceTargetCeiling: true
+		CompositionCeilingExemptTypes: tecn.america
+		UnitTargetShares:
+			abrams: 190
+			bradley: 140
+			humvee: 40
+			m113: 30
+			m109: 60
+			strykershorad: 50
+			truk: 40
+			e3.america: 95
+			ar.america: 78
+			tl.america: 62
+			e2.america: 47
+			at.america: 66
+			mt.america: 37
+			aa.america: 28
+			sn.america: 12
+			medi.america: 17
+			e6.america: 8
+			tecn.america: 8
+		UnitRoles:
+			abrams: armorline
+			bradley: armorline
+			e3.america: infantryline
+			ar.america: infantryline
+			tl.america: infantryline
+			e2.america: infantryline
+			at.america: antitank
+			strykershorad: antiair
+			aa.america: antiair
+			mt.america: mortar
+			m109: artillery
+			humvee: recon
+			sn.america: recon
+			m113: support
+			truk: support
+			medi.america: support
+			e6.america: support
+			tecn.america: support
+		CounterMatrixPct:
+			air>antiair: 60
+			armor>antitank: 40
+			infantry>infantryline: 20
 
 	# ===== Experimental AI — America ground production (early-econ PIPELINE 12) =====
-	# Byte-for-byte copy of @america.normal's UnitsToBuild/UnitLimits PLUS three default-off
-	# early-econ gates (behaviours 1 & 2). Experimental-only condition; Stable keeps the
-	# frozen twin above. The engine flags default false, so this block is the ONLY place they turn on.
+	# CORRECTED 2026-09-02: this comment used to read "byte-for-byte copy of @america.normal PLUS three
+	# default-off gates ... Experimental-only condition; Stable keeps the frozen twin above. The engine
+	# flags default false, so this block is the ONLY place they turn on." None of that holds now. The
+	# 2026-09-02 parity promotion synced @america.normal UP to this block, so the two are field-identical
+	# and the early-econ gates below (behaviours 1 & 2) are LIVE ON BOTH profiles. The engine flags still
+	# default false, so the two twins remain the only places they turn on; @experimental is still the
+	# only block the optimization loop edits.
 	#   * GateResupplyOnAmmoNeed — no FIRST supply truck while every truck-rearmable unit has full ammo;
 	#     once one exists the demand-sized reserve buys freely (2026-08-17 split).
 	#   * ScaleAntiAirToThreat — cap vehicle AA (strykershorad) to OBSERVED enemy air; aa.america
