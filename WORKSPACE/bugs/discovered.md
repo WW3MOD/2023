@@ -18,6 +18,113 @@
   appears in the 2026-09-02 `wt/tooltip-owner` DISCOVERIES entry, citing these same lines — is stale
   and must not be promoted.
   ~~`Vision` derives from `AffectsMapLayer` (`Vision.cs:29`), which~~
+## TRIAGE LEDGER — 2026-09-02, `wt/bug-triage`, against `main @ 26f9cec0`
+
+**Read this before you pick anything up.** All 157 entries were re-checked against the code as it is
+today, not against the entry text. Nothing was measured — this was a static pass under a launch
+embargo, so every verdict below is "the mechanism is / is not present in source", never "the symptom
+does / does not occur in play". Individual high-risk entries also carry an inline
+`**[TRIAGE 2026-09-02: …]**` tag; this ledger is keyed by entry title so it survives line drift.
+
+### Already fixed — do NOT dispatch a worker onto these
+
+| Entry | Verdict |
+|---|---|
+| capture leaves vision with the previous owner (2026-09-02) | FIXED `49afe9e9` — `AffectsMapLayer` now implements `INotifyOwnerChanged` |
+| `object-proximity` cover ladder geometrically unreachable (2026-08-20, `[high]`) | **PREMISE FALSE** — see inline tag; all 20 husk blocks carry a non-zero `Offset:`, and `^TreeCover` emits it from living trees |
+| LIVE MONEY PUMP, LCCV/Logistics Centre (2026-08-16, `[high]`) | FIXED — both now `Cost: 3000`; round trip is value-neutral |
+| `m109`/`giatsint` refund 4 free shells (2026-08-16) | FIXED — `Ammo: 40`, an exact multiple of `ReloadCount: 5` |
+| faction tooltips render a literal `\n` (2026-08-16) | FIXED `1c30bef7` — `LobbyUtils.SplitDescription` unescapes |
+| `humvee` declares `RenderSprites` twice (2026-08-14) | FIXED `bba63d11` — one node now carries both fields |
+| veteran `OverrideActor` case crash (2026-08-11) | FIXED `1b984a56` (data half); engine indexer still case-sensitive — see LIVE table |
+| partial-dry rifleman move wedge (2026-08-11, `[HIGH]`) | FIXED — `SmartMoveActivity` `!IsTraitPaused` filter |
+| nothing weighs ammo state against recruitment (2026-08-10) | FIXED — `StarvingRecruitGate.cs` |
+| batch-match windows black on Windows (2026-07-22) | FIXED `d716eade` — `SDL_WINDOW_HIDDEN` |
+| B1 walk-back residual (2026-07-22) | FIXED (merge `2bf335cf`) |
+| `UnitDefaultsManager` writes into synced sim fields (2026-07-22) | FIXED `8afcbbf8` |
+| `make.ps1 test` RED on three actors (2026-08-08) | FIXED `4d3c8f90` |
+| 402-of-496 `--check-yaml` errors (2026-08-12) | FIXED `4d3c8f90` — same defect |
+| mounted transports never dismount (2026-07-21) | FIXED — `UnloadOnArrival` true on both twins |
+| called-in helis loiter at the map edge (2026-07-21) | FIXED — `StageIdleHelicopters` / `ForwardStaging` |
+| AI attack helicopters benched with no HPAD (2026-07-21, `[high]`) | FIXED `fba34159` — `AirframeReadiness.HasRearmHost` |
+| out-of-ammo evac units recruited onto offensive axes (2026-07-21) | FIXED — `SkipOutOfAmmoUnits` + `IsEvacuating` guard |
+| five unread `AIHelicopterRoleInfo` fields (2026-08-09) | FIXED — all five deleted 2026-08-30 |
+| `Resupply` freezes `activeResupplyTypes` in ctor (2026-08-11) | FIXED — `ChildHasPriority` |
+| SUPPLYCACHE below 50 serves nobody (2026-08-11) | FIXED — `RestockThreshold: 0` |
+| `SupplyProvider.restocking` latches forever (2026-08-11, `[high]`) | FIXED — field replaced by an activity-queue walk |
+| bot map-players have no economy (2026-08-14, `[high]`) | FIXED — `PlayerResources.cs:208`. **Companion still LIVE:** `SpawnStartingUnits.cs:70` is still `if (p.Playable)` |
+| five command-bar visibility settings never read (2026-08-19) | FIXED by deletion — zero hits repo-wide |
+| SR defeat line claims income frozen (2026-08-19) | FIXED — line now reads "Production frozen." |
+| TAKE_COVER exact cost of removal (2026-08-19) | FIXED `b62ee52f` — historical record only |
+| concealment bonus only from burnt trees (2026-08-20) | FIXED `247408b8`, and now **inverted**: trees are indestructible as of 2026-09-02, so living trees are the only source |
+| gauge draws nothing at maximum concealment (2026-08-20) | FIXED — `WithRangeCircle@Detectable10` |
+| `test-attackmove-dry-breaks-off` RED (2026-09-01) | FIXED — both scenarios re-pointed to `not HoldsAttackActivity` (green is predicted, never run) |
+| `WDist.Zero` subcell dock (2026-08-12, `[high]`) | FIXED — subcell offset applied |
+| Garrison truck claim / SupplyFollower claim leak / `SafeFollowDistance` / stale `@stable` comments / UnitBuilder + `AirUnitsTypes` case keys / spread-prefix / danger-scale set | all FIXED, confirmed present |
+
+### Premise no longer holds — the entry describes a mechanism that was rebuilt
+
+- **idle supply seek refuses the Logistics Centre** (2026-08-21): still refuses, but the
+  `ProximityExternalCondition@ReplenishSoldiers` the entry reasons from was **deleted 2026-08-27** and
+  replaced by a metered `AuraRearmCondition` arm on the same `SupplyProvider`. Re-derive before acting.
+- **vehicles carry a bare `Detectable:`** (2026-08-20): `vehicles.yaml` now carries `@Stationary` and
+  `@Firing` additive modifiers plus per-actor overrides.
+- **`StancePositioningExecutor` header claims humans byte-identical** (2026-08-20): header was corrected
+  2026-08-30; the human grant site is gone.
+- **eight locomotors `Crushes: fence`** (2026-08-09): already retracted in-file; retraction stands.
+- **ATGM penetration** (2026-08-22): already retracted in-file; retraction stands.
+
+### Confirmed still LIVE (highest-consequence first)
+
+`Mobile.MoveResult` declared and read but **never assigned engine-wide** — 3 hits, all `==`
+comparisons; three traits now carry defensive comments naming it. Unchanged and still the largest
+single defect in this file. · `ActorInfoDictionary`'s `string` indexer does not lowercase while the
+`SystemActors` overload beside it does. · a unit whose every armament is PAUSED never goes idle
+(`AbandonWhenArmamentsPaused` still opt-in, `^MEDI` only). · fixed-wing aircraft moved twice per tick
+by two disagreeing controllers. · `TestHarness.TicksPerSecond = 25` against a 60 ms timestep — root of
+the 1.5× duration error; still 25. · `SeekSupplyProvider` `moveQueued` latch · `SeekSuppliesAndReturn`
+never ticks · `Resupply` has no arrival deadline · `closeEnough = WDist.Zero` at an LC · `dugin` timer
+· −2 firing penalty on `primary` only · prone damage reduction inert · frozen map density · garrison
+force-deploy ignores stance · `haltedForAmbush` never cleared · `stance-ambush`/`stance-holdfire`
+consumed by nothing · `GoalGuardLedger.Release` keyed on actor · `CheckOwnershipAfterExit` ·
+`AdaptiveProductionBotModule` stale-intel gate · autotest lock misses tournaments · triage reads the
+wrong `debug.log` · `rotor-stopped` ungranted · `pips.shp` not shipped · ~38 orphan Fluent strings ·
+`FTUR` self-disarms (actor is `~disabled`, so unreachable) · AA missiles set no `Penetration` ·
+Iskander/HIMARS `Versus` omits `Kevlar`/`Unarmored` · "Built:" shows today's date · seven stale
+`map.png` · tree husks occupy more cells than the tree · `A10` duplicate `ReloadAmmoPool@1` **and** a
+second undocumented duplicate `RenderSprites` in the same actor · `demo-experimental-capture-coordinator`
+never runs its own Lua · `A10.Airstrike` weapons not valid against `Ground`.
+
+### Fixed by this pass — see commit on `wt/bug-triage`
+
+`Makefile` `clean` `find -exec` · `run-demo.sh` `set -e` swallowing the exit-3 mapping · Resupply
+button never un-highlights · three stale duration/gate comments · the stray Italian phrase in
+`.editorconfig`.
+
+### Corrections to entries in this file
+
+- The **root `.editorconfig` is structurally dead**, which is far larger than the filed Italian-phrase
+  entry: **zero** valid section headers in 203 lines — every `[*]` / `[*.cs]` / `[*.{yml,yaml}]` is
+  escaped as `\[\*\]` and run together with its directives on one line. The file therefore scopes no
+  rule at all; `engine/.editorconfig` is doing the real work. **Un-mangling it is NOT a drive-by** — it
+  would activate ~100 analyzer severities against the mod solution in one step. Filed, not fixed.
+- The `^AutoTargetGroundAntiInf:` duplicate in `defaults.yaml` is **byte-identical**, so the merge is
+  inert and deleting a copy buys nothing; the neighbouring `^AutoTargetGroundAssaultMove` /
+  `^AutoTargetGroundAntiInfandAir` entries have **no blank line between them**, which is the exact
+  MiniYaml adjacency hazard `CLAUDE.md` warns about. Left alone deliberately: zero upside, and it
+  cannot be lint-checked under this pass's embargo.
+- `strykershorad` sidebar description: still wrong, but the entry's quoted text has drifted — the
+  trailing `\n - Armor: Medium` is no longer present. Left alone: naming its armament is a content call
+  (the mount is `Hellfire.strykershorad`, not obviously a SAM).
+- Several entries' arithmetic is wrong in the entry's own favour: the "one rock beats five trees" claim
+  is 50 vs 50 (**equal**), and the prone-damage census is 125 `DamageTypes:` declarations, not 109.
+- Entries in the 2026-08-20 ambush/concealment/cover block are triaged but **deliberately not fixed** —
+  standing user instruction that stances/ambush/concealment/cover are not implemented without say-so.
+
+---
+
+- [2026-09-02] [HIGH] **Capturing a building leaves its vision with the PREVIOUS owner, permanently,
+  and gives the captor none.** `Vision` derives from `AffectsMapLayer` (`Vision.cs:29`), which
   implements `INotifyAddedToWorld` / `INotifyRemovedFromWorld` / `INotifyCenterPositionChanged` /
   `INotifyMoving` / `ITick` but **not `INotifyOwnerChanged`** (`AffectsMapLayer.cs:42-43`). Its
   `UpdateCells` — the only thing that re-evaluates `AddCellsToPlayerMapLayer`, and hence the only
@@ -403,6 +510,19 @@ the value on `^Airborne` at HEAD is 3. Conclusion unaffected (Penetration 15 exc
 
 ## 2026-08-20: [high] OPEN, NOT FIXED — the `object-proximity` cover ladder is geometrically unreachable: the three largest concealment bonuses in the game can never be granted (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
 
+> **[TRIAGE 2026-09-02, `main @ 26f9cec0`: PREMISE FALSE — do not action this.]** Two of the load-bearing
+> claims do not survive a re-read. (1) "the trigger point is the husk's own cell centre": all 20 husk
+> `ProximityExternalCondition@ObjectProximity` blocks carry a **non-zero `Offset:`** (`0,650,0`,
+> `-512,768,0`, `-512,64,0`, … `mods/ww3mod/rules/husks/husks.yaml:167`ff), applied in both
+> `AddedToWorld` and `Tick`, deliberately pushing the trigger circle ~0.5–0.75 cells off the impassable
+> husk cell onto walkable ground. The whole "244–771 WDist, zero of 23 sub-cells reachable" derivation is
+> measured from the wrong centre. (2) "`^TreeHusk` is the only emitter": `^TreeCover`
+> (`mods/ww3mod/rules/decoration.yaml:56-60`) emits `object-proximity` at `Range: 1024` from **living**
+> trees, and its own header records that it was added precisely to end the burnt-only behaviour. Trees
+> were additionally made indestructible on 2026-09-02 (`decoration.yaml:62`), so husks barely spawn and
+> living trees are now the ladder's main source. Minor: there are 19 per-actor overrides plus a base of
+> 384, not 20 overrides. **Static re-read only; nothing measured.**
+
 Standing next to cover contributes **exactly zero** concealment. `@InCover1/2/3`
 (`infantry.yaml:707-715`, worth **+1/+2/+3** — bigger than prone and dug-in combined) consume
 `object-proximity`, and the **only** emitter in the mod is
@@ -774,6 +894,12 @@ because this branch is filing only.
 
 ## 2026-08-20: [low] OPEN, NOT FIXED — `Makefile`'s `clean` target still uses `find -exec`, the exact exit-code-swallowing hole that was fixed in `all` the same day (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
 
+> **[TRIAGE 2026-09-02: CONFIRMED LIVE, and FIXED on `wt/bug-triage`.]** Verified verbatim at
+> `Makefile:190`, directly below the `all:` target whose comment (`:183-185`) explains the identical
+> hole. Now mirrors `all:`: `@set -e; for sln in $(MOD_SOLUTION_FILES); do $(DOTNET) clean "$$sln"; done`.
+> **What would have caught it:** nothing in the suite — no gate asserts on `make clean`'s exit code. The
+> honest catch is the one that happened, i.e. someone reading the two targets side by side.
+
 `Makefile:190` runs `@find . -maxdepth 1 -name '*.sln' -exec $(DOTNET) clean \;`. **`find` exits 0
 whatever the command it ran returned**, so a failed clean reports success and every consumer
 downstream believes it. (Still OPEN as of 2026-09-02. This entry originally cited *two* such lines,
@@ -985,6 +1111,17 @@ unobservable from a test today.
 
 ## 2026-08-19: [low] OPEN, NOT FIXED — a stray Italian phrase sits in the root `.editorconfig` analyzer block (found while: auditing the `make check` analyzer gate, branch `wt/build-gate`, `main @ 08b255f7`)
 
+> **[TRIAGE 2026-09-02: CONFIRMED LIVE, FIXED on `wt/bug-triage` — but the filed defect is the small
+> half of a much larger one.]** The phrase was at `.editorconfig:167`, alone on its line; deleted.
+> **The larger finding: this file has ZERO valid section headers in 203 lines.** Every `[*]`, `[*.cs]`
+> and `[*.{yml,yaml}]` is escaped as `\[\*\]` and run together with its directives on a single line, and
+> `root = true` / `charset=utf-8` are buried inside the leading `;` comment. `grep -c '^\['` returns 0.
+> With no section header, **no rule in the file has a scope, so the root `.editorconfig` configures
+> nothing at all** — `engine/.editorconfig` is doing the real work, which is why nobody noticed.
+> **Deliberately NOT repaired here.** Un-mangling it would switch on ~100 analyzer severities against
+> the mod solution in a single step, which is a `make check` blast radius, not a drive-by. Needs its own
+> branch and a run of the analyzer gate.
+
 `.editorconfig:167` reads `pagare qui sotto` — an accidental paste, landed in `c6b0232f` (2025-04-22,
 commit message `1`), sitting between the `RCS1080` and `RCS1170` severity settings.
 
@@ -1110,6 +1247,12 @@ until the TFM moves, and its 0 may mean "cannot fire" rather than "nothing to fi
 
 ## 2026-08-16: [high] UNTRIAGED — LIVE MONEY PUMP: buy an LCCV for 1200, deploy it, sell the Logistics Centre for 3500. +2300 per cycle, unlimited (found while: economy audit, `main @ d919c81a`)
 
+> **[TRIAGE 2026-09-02, `main @ 26f9cec0`: FIXED — closed.]** Both costs were equalised: `LCCV` is
+> `Cost: 3000` (`mods/ww3mod/rules/ingame/vehicles.yaml`) and `LOGISTICSCENTER` is `Cost: 3000`
+> (`mods/ww3mod/rules/ingame/structures.yaml`), so the round trip is value-neutral. An in-file comment
+> names this exploit and records the invariant `RefundPercent <= 100 * LCCV.Cost / this Cost`, with a
+> "RECOMPUTE THIS if either Cost changes" warning. **Read off the YAML; not played.**
+
 **The loop, entirely in shipped UI:** `LCCV` is buildable (`vehicles.yaml:612-617`,
 `Queue: Vehicle`, `Prerequisites: ~techlevel.low`, `Cost: 1200`) and the Supply Route produces the
 Vehicle queue (`structures.yaml:318-319`). Deploy it — `Transforms: IntoActor: logisticscenter`
@@ -1179,6 +1322,10 @@ caps at 432.
 artillery pieces — a 1-shell buff, not a balance event.
 
 ## 2026-08-16: [medium] UNTRIAGED — faction tooltips render a literal `\n`; the descriptions written today use an escape the faction picker never unescapes (found while: netcode audit, `main @ 8b4ae9cd`)
+
+> **[TRIAGE 2026-09-02, `main @ 26f9cec0`: FIXED — closed.]** `1c30bef7`. `LobbyUtils.SplitDescription`
+> now reads `SplitOnFirstToken(description?.Replace("\\n", "\n"))`, and both call sites go through it.
+> The source strings still use the escape (`mods/ww3mod/rules/world.yaml`), which is now correct.
 
 `75ac6941` (2026-08-16) wrote faction descriptions into `mods/ww3mod/rules/world.yaml:241,245,254`
 in the form `Description: America\nNATO's lead power. ...`.
@@ -1292,6 +1439,16 @@ the user everything they were part-way through observing, and the header activel
 Workaround until fixed: do not use Restart in a harness scenario; relaunch the demo instead.
 
 ## 2026-08-15: [medium] OPEN — every demo is killed after exactly 300s by a watchdog that waits for a verdict demos are designed never to write (found while: showing the user demo-heli-weapons, branch `wt/heli-gun`)
+
+> **[TRIAGE 2026-09-02: SPLIT. The exit-code half is FIXED on `wt/bug-triage`; the 300 s half is left
+> alone deliberately.]** Second, separate defect found while reading this: `run-demo.sh` sets `set -e`
+> at `:17` and then called `run-test.sh` as a **bare command**, so any non-zero exit killed the script
+> on that line and the `rc -eq 3 → exit 0` mapping below it could never be consulted. Since a demo never
+> writes a verdict, `run-test.sh` **always** exits 3 — so the one mapping the script exists to perform
+> was unreachable, and every demo reported failure to its caller. Now
+> `if ./tools/autotest/run-test.sh --visible --audio "$@"; then rc=0; else rc=$?; fi`.
+> **The `TIMEOUT_SECS=300` half is NOT fixed** — picking a human-viewing timeout is a judgement call,
+> not a defect with a right answer. **Static fix; no demo was run (launch embargo).**
 
 `run-demo.sh` delegates to `run-test.sh --visible --audio "$@"` (`run-demo.sh:50`) and inherits its
 `TIMEOUT_SECS=300` default (`run-test.sh:150`). That watchdog kills the game and synthesizes a FAIL when
@@ -1524,6 +1681,12 @@ both consumers degrade to doing nothing rather than failing.
 
 ## 2026-08-14: [medium] OPEN — `humvee` declares `RenderSprites` twice, so no map can override anything on it (found while: building the Javelin §6 measurement rig, branch `wt/javelin-probe`)
 
+> **[TRIAGE 2026-09-02, `main @ 26f9cec0`: FIXED — closed.]** `bba63d11`. `humvee` now has a single
+> `RenderSprites:` node carrying both `Scale: 0.9` and `Image: humvee`
+> (`mods/ww3mod/rules/ingame/vehicles-america.yaml`), preceded by a comment dated 260817 naming
+> `MergePartial` / `IntoDictionaryWithConflictLog` as the real throw site. Note the fix commit's subject
+> leads with the Mi-28, so `git log --oneline` does not show this — read the file, not the message.
+
 `vehicles-america.yaml:28` (`RenderSprites: Scale: 0.9`) and `vehicles-america.yaml:156`
 (`RenderSprites: Image: humvee`) are two sibling nodes with the same key under the same actor.
 
@@ -1553,6 +1716,12 @@ Worked around in `mods/ww3mod/scripts/javelin-probe-lib.lua` by leaving the Humv
 8000 HP and respawning it after each kill instead of overriding `Health`.
 
 ## 2026-08-14: [high] OPEN — a bot cannot recover from having its base cleared: `CaptureCoordinatorBotModule` never reclaims its own neutralised structures, and technicians are capped at 3 (found while: widening soldier-clears-to-Neutral to all buildings, branch `wt/clear-all-buildings`)
+
+> **[TRIAGE 2026-09-02: STRAY DUPLICATE HEADING — no body.]** This heading is byte-identical to the
+> fully-written entry further down (same date, same severity, same title), which carries the body plus
+> two 2026-08-14 CORRECTION blocks. Kept rather than deleted so the duplication stays visible. **Read
+> the other copy; this one says nothing.**
+
 ## 2026-08-14: [low] OPEN, DEFERRED BY DECISION — a dispatched reclaim capturer never aborts, however hot the target turns while it walks (found while: bot reclaim review, branch `wt/bot-reclaim`)
 
 Recorded so it is not rediscovered as a defect. `ReconcileGuardCommitments` releases a capturer's commitment only when the target is captured or gone, so nothing re-evaluates between dispatch and arrival — including the moment the technician's OWN vision finally reveals whatever is standing in the base. The believed fields that gated the dispatch are, for a reclaim target specifically, anti-correlated with the threat (the evicted building was the vision source), so the arrival is the first honest read anyone gets.
@@ -2124,6 +2293,12 @@ User still reports "helis fly to the map corner and stay" after the `SkipRearmRe
 - **A fix is tractable but is a NEW behavior, not a bug fix — and its safety needs a run.** The clean shape (mirroring `MountedTransportBotModule.PreContactStagingCell` + `DeliverBeforeContact`, `MountedTransportBotModule.cs:521-535`): add an `@experimental`-only, default-off field to `HelicopterSquadBotModule` that issues a `Move` to a forward staging cell (a fraction of SR→top-`PoiMap`-offensive-target) for managed helis that are idle, not in a squad, and still sitting near the SR. Default-off keeps controls/@stable byte-identical. **NOT implemented here (code-only session, no benchmark):** forward-staging idle *ammo-less* attack helis toward the enemy POI can fly them into AA with no target and worsen heli K:D — the exact tradeoff only a benchmark can settle. Verification pass must measure heli survival / K:D with the flag on vs off, confirm staging does not fly ammo-less helis into AA, and confirm it does not starve the 2-ready squad-formation threshold, BEFORE enabling it on `@experimental`.
 
 ## 2026-07-21: [high] AI attack helicopters permanently benched with no HPAD (found while: playtest bug triage)
+
+> **[TRIAGE 2026-09-02, `main @ 26f9cec0`: FIXED — closed.]** `fba34159`. `HelicopterSquadBotModule`
+> now gates on `AirframeReadiness.AmmoReadyToLaunch(AirframeReadiness.HasRearmHost(h), …)` — the
+> full-ammo launch bar is dropped when the world contains no rearm host at all, and the HP bar got the
+> same treatment. Note the fix accepts the no-HPAD reality rather than adding a helipad, which is the
+> correct shape for this mod: there is no production, so a bot cannot build one.
 `HelicopterSquadBotModule.IsReadyForMission` (`engine/OpenRA.Mods.Common/Traits/BotModules/HelicopterSquadBotModule.cs:399-408`) requires every AmmoPool `HasFullAmmo`; attack helis only refill while `unit.docked` at an `hpad` (`mods/ww3mod/rules/ingame/aircraft-russia.yaml:178` etc.) and the mod builds no HPAD, so after the first shot no squad ever forms and the heli idles at its edge/rally cell forever. Distinct from the production-side `SkipRearmBuildingCheck`, which does not cover the squad path. Fix options in `WORKSPACE/plans/260721_playtest_bugs_triage.md` (Bug 2).
 
 ## 2026-07-21: [med] Out-of-ammo evac units recruited onto offensive axes (found while: playtest bug triage)
@@ -2149,6 +2324,14 @@ Relevant if picking this up further: the supply path gained `Log.Write` instrume
 
 ## 2026-08-09: [med] `AIHelicopterRole.HitAndRunCooldown` counts SQUAD UPDATES, not ticks — and its consuming state is unreachable on both shipped profiles (found while: documenting the squad/combat-state layer, `DOCS/bots/05-squads-and-combat-states.md`)
 
+> **[TRIAGE 2026-09-02: CONFIRMED LIVE, `[Desc]` half FIXED on `wt/bug-triage`.]** Re-derived:
+> `attackTicks++` is in `Tick(Squad owner)` (`HelicopterStates.cs:805`) and heli squads update once per
+> `SquadUpdateInterval` (5) bot ticks (`HelicopterSquadBotModule.cs:573-576`) — so 150 is 750 world
+> ticks, ~45 s at the default 60 ms timestep. The `[Desc]` said "Ticks of engagement"; it now says
+> SQUAD UPDATES and shows the derivation. **Only the description changed — the value is untouched, and
+> the unreachability half (`StandoffEngagement: true` on both profiles) is NOT addressed**, because
+> deleting a state machine is a design call, not a drive-by.
+
 Two independent defects on the same field, same family as the `EvacDangerThreshold` 60-vs-66,834 constant.
 
 **(1) Wrong unit.** `[Desc]` says "Ticks of engagement before pulling back" (`Traits/Air/AIHelicopterRole.cs:33-34`), but the counter it feeds — `HelicopterAttackRunState.attackTicks` (`Squads/States/HelicopterStates.cs:685`, compared at `:709`) — is incremented once per `Squad.Update()`, and heli squads update every `SquadUpdateInterval` = 5 world ticks (`HelicopterSquadBotModule.cs:146`, `:508-512`). So the Apache's `HitAndRunCooldown: 200` (`mods/ww3mod/rules/ingame/aircraft-america.yaml:277`) is 1000 world ticks ≈ **60 s** at the default `Timestep: 60` (`mods/ww3mod/mod.yaml:369-371`), not 200 ticks ≈ 12 s. Same for `stuckTicks > 200` (`:651`, ≈60 s) and `withdrawTicks < 75` (`:797`, ≈22 s) — those two look deliberately chosen for the real duration, which makes the `[Desc]` the outlier rather than the code.
@@ -2171,12 +2354,27 @@ Why it matters beyond tidiness: these are the knobs whose NAMES promise exactly 
 
 ## 2026-08-09: [low, dead-code] `GroundUnitsRegroupState.MaxRegroupTicks` comment is off by ~270× (found while: documenting the squad/combat-state layer)
 
+> **[TRIAGE 2026-09-02: CONFIRMED LIVE, and FIXED on `wt/bug-triage`.]** Re-derived rather than taken on
+> trust: `regroupTicks++` sits in `Tick(Squad owner)` (`GroundStates.cs:322`), and `SquadManagerBotModule`
+> calls `s.Update()` once per `AttackForceInterval` (75) bot ticks (`:279-284`) — so 750 is 56,250 world
+> ticks, ~56 min at the default 60 ms timestep, against a comment claiming ~12.5 s. Comment replaced with
+> one that states the mechanism and shows its inputs, so the next reader can re-derive instead of
+> trusting a number. Also notes the state is unreachable today (`IgnoreGroundUnits: true` on every
+> `SquadManagerBotModule` instance). Zero behaviour change — the constant is untouched.
+
 `const int MaxRegroupTicks = 750; // ~12.5 seconds to regroup before re-engaging or dissolving` (`Squads/States/GroundStates.cs:302`). `regroupTicks` increments once per `Squad.Update()` (`:314`), and ground squads would update every `AttackForceInterval` = 75 world ticks (`SquadManagerBotModule.cs:72`, `:274-279`) — so the real window is 56,250 world ticks ≈ **56 minutes** at the default `Timestep: 60`. Even read as raw ticks it would be 45 s, not 12.5 s.
 
 **Unreachable, and recorded only for the class.** `GroundUnitsRegroupState` cannot execute on either shipped profile (all four `SquadManagerBotModule` instances set `IgnoreGroundUnits: true`; see `DOCS/bots/05-squads-and-combat-states.md` §2.1). Logged because it is the same defect family as `HitAndRunCooldown` above and as `EvacDangerThreshold` — a duration constant written against an assumed per-tick cadence that is actually per-module-update. Anyone porting the regroup idea into `PoiOffensiveBotModule` must re-derive the number rather than carry it across.
 
 
 ## 2026-08-09: [low, doc-in-code] `HelicopterSquadBotModule`'s `goalGuard` field comment claims a gate the code 90 lines later does not apply (found while: the `DOCS/bots/` cross-document reconciliation pass, `main @ 25a8aebd`)
+
+> **[TRIAGE 2026-09-02: CONFIRMED LIVE, and FIXED on `wt/bug-triage`.]** The field comment at `:468-470`
+> claimed the ledger is "Resolved ONLY when CommitTransportPassengers is on, so the frozen/@stable path
+> never looks it up ⇒ byte-identical". `Initialize()` resolves it **unconditionally** (`:561`), and the
+> comment sitting directly above that line already says so and explains why (the READ side is a real
+> availability gate for every profile; only the WRITES stay gated). The field comment was the stale one;
+> rewritten to match. Comment only — zero behaviour change.
 
 The field declaration at `engine/OpenRA.Mods.Common/Traits/BotModules/HelicopterSquadBotModule.cs:403-406` reads:
 
@@ -3430,6 +3628,16 @@ which is exactly what the radar fix's own MouseTargetVisibilityTest already does
 
 ## 2026-08-21 — [med] The idle supply seek refuses the Logistics Centre for infantry, on a false premise
 
+> **[TRIAGE 2026-09-02, `main @ 26f9cec0`: STILL LIVE, but THIS ENTRY'S PREMISE IS GONE — re-derive
+> before acting.]** The refusal itself survives: `AutoSeekSupplies.cs:506` still rejects any provider
+> carrying a `DockedCondition`, and the Logistics Centre still declares one. But the entry's argument
+> rests on the free `ProximityExternalCondition@ReplenishSoldiers` aura, and **that was deleted
+> 2026-08-27** — `mods/ww3mod/rules/ingame/structures.yaml:455-461` records the removal with the
+> measurement that motivated it (a rifleman three cells from an *empty* Centre gained 14 rounds in 700
+> ticks, free). Its replacement is a **metered** arm on the same `SupplyProvider`
+> (`AuraRearmCondition: replenish-soldiers`, `AuraRange: 4c0`, `AuraRearmDelay: 6`, `:526-528`). So
+> "he'd get it free anyway from the aura" is no longer true, which changes what the right fix is.
+
 `AutoSeekSupplies.CanServe` rejects any provider carrying a `DockedCondition`
 (`AutoSeekSupplies.cs:465`) with the comment *"A docking-gated provider (the Logistics Center's
 unit.docked) does not resupply by proximity — walking into its aura would achieve nothing"*, and
@@ -4003,6 +4211,15 @@ rather than that it does. That is a ruling, not a cleanup — do not just flip t
 ---
 
 ## 2026-09-01 — The Resupply button never un-highlights
+
+> **[TRIAGE 2026-09-02: CONFIRMED LIVE, and FIXED on `wt/bug-triage`.]** `resupplyHighlighted` is set
+> to 2 at `CommandBarLogic.cs:193`, `:201` and `:207` and read by `IsHighlighted` at `:189`, but the
+> `Tick()` decrement block at `:430-446` steps `deploy`, `scatter`, `stop`, `patrol`, `autoEnter` and
+> `evacuate` and **not** `resupply` — so the first Resupply press latches the button lit for the rest of
+> the match. Added the missing two lines. Cosmetic only: nothing else reads `IsHighlighted`.
+> **What would have caught it:** a screenshot two frames apart across a Resupply press — there is no
+> autotest binding for command-bar highlight state, and adding one for a cosmetic flag is not worth it.
+> **Not visually confirmed here (launch embargo); the mechanism is read off the widget.**
 
 **Found while** fixing the queued-Evacuate bug (`wt/evac-queue`). Filed, not fixed. **Not run**:
 derived from reading, not measured in a game.

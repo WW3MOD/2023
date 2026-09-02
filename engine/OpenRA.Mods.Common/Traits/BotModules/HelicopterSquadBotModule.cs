@@ -465,9 +465,10 @@ namespace OpenRA.Mods.Common.Traits
 		BeliefStore beliefStore;
 		BotBlackboard blackboard;
 
-		// Per-unit commitment ledger (shared PoiGoalGuard). Resolved ONLY when CommitTransportPassengers is on,
-		// so the frozen/@stable path never looks it up ⇒ byte-identical. Null when the player has no PoiGoalGuard
-		// ⇒ every commit/release below is inert. Mirrors MountedTransportBotModule.goalGuard.
+		// Per-unit commitment ledger (shared PoiGoalGuard). Resolved UNCONDITIONALLY for every profile -- see
+		// Initialize(), where the READ side is a real availability gate. Only the WRITES stay gated on
+		// CommitTransportPassengers via CommitOnOrderMath. Null when the player has no PoiGoalGuard
+		// ⇒ every commit/release below is inert.
 		PoiGoalGuard goalGuard;
 
 		// Cross-module poach-safety seam with the OTHER half of the transport system. The ledger cannot carry

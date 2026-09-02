@@ -468,6 +468,9 @@ namespace OpenRA.Mods.Common.Widgets
 			if (autoEnterHighlighted > 0)
 				autoEnterHighlighted--;
 
+			if (resupplyHighlighted > 0)
+				resupplyHighlighted--;
+
 			if (evacuateHighlighted > 0)
 				evacuateHighlighted--;
 

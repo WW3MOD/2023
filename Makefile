@@ -187,7 +187,8 @@ all: check-dotnet-sdk engine
 
 clean: engine
 ifneq ("$(MOD_SOLUTION_FILES)","")
-	@find . -maxdepth 1 -name '*.sln' -exec $(DOTNET) clean \;
+# Same reason as `all` above: `find -exec` exits 0 whatever the command returned.
+	@set -e; for sln in $(MOD_SOLUTION_FILES); do $(DOTNET) clean "$$sln"; done
 endif
 	@cd $(ENGINE_DIRECTORY) && make clean
 

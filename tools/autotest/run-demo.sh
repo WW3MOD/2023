@@ -48,8 +48,10 @@ fi
 # and sound is on (demos are interactive). Demos won't write result.json, so
 # run-test.sh exits 3 ("no result"); we treat that as success here because
 # verdict-less is the demo's whole point.
-./tools/autotest/run-test.sh --visible --audio "$@"
-rc=$?
+# `set -e` is on, so this must not be a bare command: a non-zero exit would kill the
+# script here and the exit-3 mapping below would never be consulted -- which is every
+# demo, since a demo never writes a verdict.
+if ./tools/autotest/run-test.sh --visible --audio "$@"; then rc=0; else rc=$?; fi
 
 if [ ${rc} -eq 3 ]; then
 	exit 0
