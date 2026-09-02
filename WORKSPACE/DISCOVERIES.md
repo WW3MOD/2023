@@ -3,6 +3,39 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-02 — Actor keys in map rules are CASE-SENSITIVE, and the error you get names the wrong line
+
+`test-tree-indestructible` failed to load with
+`rules.yaml:62: There are no elements with key 'SpawnActorOnDeath' to remove` — pointing at a
+`-SpawnActorOnDeath:` line. The removal was not the bug. The block was written `t03:` while
+`decoration.yaml` declares `T03:`, **so it never merged with the mod's actor at all** — it defined a
+brand-new actor whose only children were the three lines in the map, and the removal had nothing to
+remove. The neighbouring `t02:` block was equally dead; it just had no removal to throw on.
+
+**MiniYaml merges top-level keys with ordinal, case-SENSITIVE equality**: `MiniYaml.cs:410`
+(`ToDictionary(n => n.Key, ...)`, default comparer), `:549` (`new HashSet<string>(capacity)`),
+`:597`/`:606` (`nodes[i].Key == key`). The `ToLowerInvariant` that makes actor names feel
+case-insensitive runs **later and elsewhere** — `Ruleset.cs:126`, building `ActorInfo` objects from
+the already-merged tree. So a map's `Actors:` list may reference `t03` in any case (that lookup is
+lowercased), while a map's **rules override** must spell the key exactly as its defining file does.
+That asymmetry is what makes the trap look wrong when you hit it. **Copy the case from the file that
+defines the actor, never from the map's actor list.** In WW3MOD the trees are `T01:`–`T17:`,
+`TC01:`–`TC05:` uppercase while most units (`abrams:`, `humvee:`) are lowercase, so there is no rule
+of thumb — check.
+
+Cheap pre-flight, no build and no game slot: list every non-indented, non-comment key in the
+scenario's `rules.yaml` and confirm each appears **verbatim** among the top-level keys of
+`mods/ww3mod/rules/**/*.yaml`. Anything that only matches case-insensitively is a silent no-op
+override.
+
+**Related, and the part worth reusing:** `-Foo:` removals are applied against the node's children
+**as accumulated so far, in document order** (`MiniYaml.ResolveInherits`, `MiniYaml.cs:449-490` —
+`Inherits:` lines merge their parent in at the point they appear, `-Foo:` calls
+`resolved.RemoveAll` at the point *it* appears, and throws a load-preventing `YamlException` if the
+count is zero, `:482-483`). So removing a genuinely inherited trait is fine **only if the
+`Inherits:` line precedes the removal in the same block**; a `-Foo:` written above the `Inherits:`
+that supplies `Foo` throws even though the trait really is inherited. Ordering is load-bearing.
+
 ## 2026-09-02 — Almost nothing in the mod can damage a tree, and `^Box` / `ICE##` / `UTILPOL#` are trees
 
 Found while building `test-tree-indestructible`, and the first item is why that scenario ships its
