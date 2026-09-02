@@ -17923,3 +17923,71 @@ game was never launched. "Density inside the circle" is a proxy for "the circle 
 is"; it is not a claim about which cells a unit can stand on. The existing autotest
 `test-forest-cover-bonus` places only T01/T02/T03, i.e. exactly the single-trunk case that was
 already at 100%, so it passes or fails identically before and after this fix and cannot detect it.
+
+---
+
+## 2026-09-02 — `ChangeOwnerInPlaceSync` silently skips every trait that rebuilds owner-dependent state in `AddedToWorld`
+
+`Actor.ChangeOwnerInPlaceSync` (`engine/OpenRA.Game/Actor.cs:545-563`) sets `Owner` and fires
+`INotifyOwnerChanged` **only**. `ChangeOwnerSync` (`:569-593`) brackets the same work in
+`World.Remove`/`World.Add`. That bracket is not incidental — in stock OpenRA it is what rebuilds
+owner-dependent cached state in traits that never implement `INotifyOwnerChanged` at all. They get
+fixed up for free by the remove/re-add, so **the interface being absent is not evidence the trait
+does not need it.**
+
+Introduced by `deee6733` (2026-04-06) and taken by three capture sites — `CaptureActor.cs:140-141`,
+`ProximityCapturable.cs:224-225`, `ProximityCapturableBase.cs:190-191` — plus `GarrisonManager.cs:260,
+:324, :329`, which predates it. **Garrison is the high-traffic path, not capture.**
+
+Confirmed casualty: `AffectsMapLayer` (`:42-43`) implements `INotifyAddedToWorld`/`RemovedFromWorld`
+but not `INotifyOwnerChanged`, and its subclass `Vision` snapshots
+`self.Owner.RelationshipWith(p)` at add time (`Vision.cs:50`) into a per-player dictionary keyed by
+the trait instance (`MapLayers.cs:116`). A captured building therefore keeps feeding its **old** owner
+vision and gives the captor none, for the building's whole lifetime — `ITick` only re-runs on a
+range or disabled-state change (`AffectsMapLayer.cs:146-147`), so nothing self-heals.
+`^BasicBuilding` carries three such Vision layers to `3c0` and inherits `^NeutralOrOccupiedCapturable`
+(`structures.yaml:9`, `:13-24`), so this reaches essentially every building in the mod.
+
+**General form worth banking: after `ChangeOwnerInPlaceSync`, audit any trait that caches
+owner-derived state in `AddedToWorld`, `Created` or a constructor. The absence of
+`INotifyOwnerChanged` is the bug's signature, not its absolution.** The same root cause also skips
+`World.ActorAdded`/`ActorRemoved` (`World.cs:397`, `:407`), so owner-keyed world indexes —
+`TechTree`, `SupportPowerManager`, `ActorIndex.OwnerAndNames` — never see the flip either. *(That
+last group is reported but not personally verified.)*
+
+### PITFALL: a naive `INotifyOwnerChanged` on `AffectsMapLayer` is a hard crash, not a slow path
+
+`MapLayers.AddSource` throws `InvalidOperationException("Attempting to add duplicate mapLayer")` on a
+duplicate key (`MapLayers.cs:323-324`). `ChangeOwnerSync` fires `INotifyOwnerChanged` **while the
+actor is out of the world** (`Actor.cs:578-592`: `World.Remove` → notify → `World.Add`). A handler
+that unconditionally calls `UpdateCells` therefore re-adds the source at step 3, and
+`AddedToWorld` — which adds **without** removing first (`AffectsMapLayer.cs:188-189`, unlike
+`UpdateCells` at `:167`) — throws at step 4. This fires on every non-building owner change, i.e.
+every infantry and vehicle. Guard with `if (!self.IsInWorld) return;`, which is already the idiom
+three times in that same file (`:110`, `:140`, `:209`).
+
+`RevealsMap` (`RevealsShroud.cs:28`, `:56-67`) is the in-repo precedent — the sibling map-layer trait
+that *does* handle `INotifyOwnerChanged`, which is good evidence the `AffectsMapLayer` omission is an
+oversight. **But its handler must not be copied verbatim:** it carries no `IsInWorld` guard and does
+not need one, because it implements neither world hook and manages cells via
+`TraitEnabled`/`TraitDisabled` (`:81-90`) instead. Copying the visible pattern without its invisible
+precondition ships the crash.
+
+### The "~0.5s freeze on capture" comment is one unmeasured estimate, and its stated cause is wrong
+
+The figure appears at `Actor.cs:528` and all three capture sites. `git log -S` returns exactly one
+origin: `deee6733`, whose message attributes it to `World.Remove`/`Add` firing "on every
+AffectsMapLayer trait (Vision/Radar/Shroud), each iterating all players". **`World.Add`/`Remove`
+notify only the traits of the actor passed in** (`World.cs:394-412`) — one building, three Vision
+traits, not ten-plus and not world-wide. The arithmetic gives ~240 cell-updates per capture across
+eight players (`3c0` → `r=4` at `MapLayers.cs:294`, ~28 cells in range), which is microseconds — off
+from 0.5s by ~4 orders of magnitude. The freeze may well have been real; the attribution to vision
+recalc is not supported. **Consequence: "revert to `ChangeOwnerSync`" and "add `INotifyOwnerChanged`"
+are not the same repair.** The latter never calls `World.Remove`/`Add` and so cannot reintroduce the
+hitch, whatever its true size.
+
+**Not verified:** no game was launched and nothing was compiled — all of the above is static reading
+of source and YAML. The least-certain claim is that the old owner retains *live* vision rather than
+explored/fogged terrain; that chain runs through `MapLayers.Tick` (`:226-285`), whose `explored` gate
+(`:241`) and `visibility = 1` floor (`:255-256`) I did not trace through every caller. Full recon,
+costed options and the test that would settle it: `WORKSPACE/recon/260902-capture-vision-transfer.md`.
