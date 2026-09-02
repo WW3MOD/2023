@@ -3,6 +3,64 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-02 — `Captures.CanTargetActor`'s blocked-cursor branch means "not a capture target", not "a capture target you cannot take" — so the proposed one-token fix would have swallowed every infantry right-click in the game (`wt/capture-affordance`, `main @ 26f9cec0`)
+
+Static only. `make all` clean, `dotnet test` 2248 green; **NUnit does not reach any of this** and no
+launch was taken (embargo).
+
+**The proposal.** `260902-safe-wins-and-swings.md` item 1 reads `Captures.cs:142-149` — which writes
+`cursor = captures.Info.EnterBlockedCursor` and then `return false`, discarding the write — and
+prescribes returning `true` instead, citing `EnterAlliedActorTargeter.cs:56` as the correct
+contrasting pattern two files away. It flags one risk: `OrderPriority: 6` (`Captures.cs:81`) is above
+`EnterTransport` at 5, so a soldier who is both capturer and passenger could have a boarding click
+swallowed. That risk is real, it is much larger than described, and it is not the largest one.
+
+**`EnterAlliedActorTargeter` is not the analogous pattern, and that is the whole finding.** It runs
+its *kind* test first and returns **false** there — `if (!target.Info.HasTraitInfo<T>() ||
+!canTarget(target, modifiers)) return false;` (`:45-46`) — and only reaches the blocked-cursor line
+(`:56`) for targets that genuinely are transports. `Captures.CanTargetActor` has no such split: the
+single refusal branch fires both when the target carries **no `CaptureManager` at all** and when it
+carries one this unit cannot take. Returning `true` from it therefore accepts *every actor click*,
+not every capture-target click.
+
+Nothing upstream narrows it. `UnitOrderTargeter.CanTarget` (`UnitOrderTargeter.cs:40-63`) filters
+only on target type (Actor/FrozenActor), the ForceAttack modifier, and ally/enemy gating — and
+`CaptureOrderTargeter` is constructed `targetEnemyUnits: true, targetAllyUnits: true`
+(`Captures.cs:137`), so nothing is gated out. Every actor target reaches `CanTargetActor`.
+
+**Consequences, in descending order of severity.** All three are at priority 6:
+- **Attack is also 6** (`AttackBase.cs:475`, `new AttackOrderTargeter(this, 6)`). `OrderForUnit`
+  orders by `OrderByDescending` (`UnitOrderGenerator.cs:323`), a stable sort, so a tie is broken by
+  trait declaration order. Whether a rifleman shoots an enemy tank or issues a dead `CaptureActor`
+  against it would be decided by YAML trait ordering.
+- **`EnterTransport` is 5** (`Passenger.cs:87-94`). Resolved empirically rather than assumed:
+  **34 actors carry both `Captures` and `Passenger`** — every E1/E3/AR/TL variant, TECN and PILOT —
+  and **6 carry both `Cargo` and `Capturable`**: `bmp2`, `bradley`, `btr`, `humvee`, `m113`,
+  `strykershorad`. Boarding your own APC is a capturer clicking a capturable transport, so it would
+  break for every infantryman in the game.
+- **Move is 4** (`Mobile.cs:1223`), which is the case the proposal wants to fix and the only one it
+  would.
+
+**The garrison case is NOT a casualty, and the obvious grep says it is.** A naive scan finds
+`^CivBuilding` carrying both `Capturable` and `Cargo`; it does not, because `civilian.yaml:11-15`
+removes the capture traits (`-CaptureManager:`, `-Capturable@neutral:`, `-Capturable@occupied:`).
+Any resolver used to answer "which actors have both" must honour `-Trait:` removals **in
+inheritance order** or it reports 45 overlaps where there are 6.
+
+**What the correct fix has to do**, none of which is one token: split the kind test from the
+permission test as `EnterAlliedActorTargeter` does (return `false` for `targetManager == null`), and
+then keep returning `false` for Enemy targets too, or infantry stop being able to attack enemy
+vehicles they cannot capture. What is left — Neutral targets carrying a live `CaptureManager` — is
+the oil-derrick case the proposal actually describes, and even there neutral transports and
+`AMMOBOX*` remain to be checked. The alternative shape, surfacing the discarded cursor from
+`UnitOrderGenerator` rather than consuming the click, has to respect the READINESS POLARITY ruling
+recorded in `a2466c3b` ("blocked only when NOTHING in the selection can act") — the same branch
+shipped a false-blocked defect of exactly that shape, caught in review, because `CursorForOrders`
+picks one cursor by `MaxByOrDefault` and equal priorities tie.
+
+**Standing correction to the proposal's sizing.** Item 1 is filed there as the safest win on the
+list, explicitly "hours" and needing "no new design decision". It is neither.
+
 ## 2026-09-02 — The `ticks / TicksPerSecond` idiom that test-helpers.lua recommends universally loses a tick for ~6% of budgets, and one of the two "provably inverts" scenarios did not invert — it went quietly toothless instead (`wt/tick-scenarios`, `main @ 6a7e1839`)
 
 Static + `dotnet test` (2233 green). No launch taken; the autotest suite was NOT run — the

@@ -80,6 +80,17 @@ The mechanism exists; what is missing is a readout, a message, or a few lines of
 
 ## 1. The "you cannot capture that" cursor is computed, then thrown away
 
+> **CORRECTED 2026-09-02 (`wt/capture-affordance`) — DO NOT APPLY THE FIX AS WRITTEN BELOW.**
+> The prescribed one-token change (`return false` → `return true`) is not a safe win: it would
+> accept **every actor click** by all 34 capturer infantry at priority 6, tying with Attack
+> (`AttackBase.cs:475`) and outranking `EnterTransport` (5) and Move (4). The refusal branch at
+> `Captures.cs:145-149` also fires when the target carries **no `CaptureManager` at all**, so it
+> does not mean "a capture target you cannot take". `EnterAlliedActorTargeter` is not the analogous
+> pattern: it returns `false` from its kind test first (`:45-46`) and reaches its blocked-cursor
+> line only for real transports. The defect described below is real and still worth fixing; the
+> sizing ("hours", "no new design decision") is not. Evidence, the empirical actor counts and what a
+> correct fix must do: `WORKSPACE/DISCOVERIES.md`, entry dated 2026-09-02.
+
 **Why this one first.** It is the earliest and most frequent thing a new player does — walk a man
 into a building — and it is the one place where the game *affirmatively lies*: it paints a move
 cursor for an order it will never carry out. The art exists, the `Info` field exists, the correct

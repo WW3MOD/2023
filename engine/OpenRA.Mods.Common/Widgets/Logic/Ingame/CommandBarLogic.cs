@@ -45,6 +45,12 @@ namespace OpenRA.Mods.Common.Widgets
 		// Deploy carry both meanings off one key without either shadowing the other.
 		Actor[] selectedCaptureTargets = Array.Empty<Actor>();
 
+		// Whether the dispatch meaning of Deploy would actually issue an order. NOT derivable from
+		// selectedCaptureTargets: owning a capturable structure in the selection says nothing about
+		// owning a unit that can take it, and a rifleman does not count (CaptureToNeutral, filtered
+		// in EligibleCapturers). Refreshed in RefreshCaptureDispatchAvailability.
+		bool captureDispatchAvailable;
+
 		[ObjectCreator.UseCtor]
 		public CommandBarLogic(Widget widget, World world, Dictionary<string, MiniYaml> logicArgs)
 		{
@@ -162,7 +168,7 @@ namespace OpenRA.Mods.Common.Widgets
 					UpdateStateIfNecessary();
 
 					var queued = Game.GetModifierKeys().HasModifier(Modifiers.Shift);
-					if (selectedCaptureTargets.Length > 0)
+					if (captureDispatchAvailable)
 						return false;
 
 					return !selectedDeploys.Any(pair => pair.Trait.CanIssueDeployOrder(pair.Actor, queued));
@@ -445,6 +451,12 @@ namespace OpenRA.Mods.Common.Widgets
 			if (evacuateHighlighted > 0)
 				evacuateHighlighted--;
 
+			// The selection hash cannot carry this one. Whether a capture unit is free is world state,
+			// so it changes with the selection untouched — the technician dies, or finishes a job and
+			// becomes available again — and a button cached only on selection would keep answering with
+			// whatever was true when the structure was clicked.
+			RefreshCaptureDispatchAvailability();
+
 			base.Tick();
 		}
 
@@ -497,6 +509,35 @@ namespace OpenRA.Mods.Common.Widgets
 			waypointModeDisabled = !cbbInfos.Any(i => i == null || !i.DisableWaypointMode);
 
 			selectionHash = world.Selection.Hash;
+
+			RefreshCaptureDispatchAvailability();
+		}
+
+		/// <summary>
+		/// <para>Whether pressing Deploy would dispatch a capture unit, asked by running the very call the
+		/// button's own click handler makes. Probing the real generator rather than reimplementing its
+		/// eligibility is the point: <see cref="CaptureDispatchManager.DispatchAcross"/> pools capturers
+		/// across the whole selection and marks unit/structure pairs infeasible individually, so any
+		/// cheaper predicate here would be a second implementation free to disagree with the click.
+		/// It is a pure generator — it reads world state and builds Orders, and issues nothing.</para>
+		///
+		/// <para>NOT called from the IsDisabled predicate, which runs every frame the command bar draws.
+		/// EligibleCapturers scans world.ActorsWithTrait&lt;Captures&gt;() per structure, so this is bounded
+		/// to selection changes and ticks, and skipped outright in the overwhelmingly common case where
+		/// the selection holds no capturable structure at all.</para>
+		/// </summary>
+		void RefreshCaptureDispatchAvailability()
+		{
+			if (selectedCaptureTargets.Length == 0)
+			{
+				captureDispatchAvailable = false;
+				return;
+			}
+
+			// queued only sets a flag on the Orders produced; it cannot change whether any are.
+			var dispatcher = world.WorldActor.TraitOrDefault<CaptureDispatchManager>();
+			captureDispatchAvailable = dispatcher != null
+				&& dispatcher.DispatchAcross(world, selectedCaptureTargets, false).Any();
 		}
 
 		void PerformKeyboardOrderOnSelection(Func<Actor, Order> f)
