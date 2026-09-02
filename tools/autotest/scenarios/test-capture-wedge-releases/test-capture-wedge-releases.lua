@@ -90,9 +90,11 @@ Tick = function()
 	end
 
 	if not TechRinged.IsDead then
-		-- The technician must LEAVE his cell for this to be about walking rather than about the
-		-- bound; if he ever does, the cage failed and checkRing above will usually have said so.
-		if Test.CommittedCaptureTarget(TechRinged) ~= 0 then
+		-- IsCommittedTo, not CommittedCaptureTarget ~= 0, and the difference is not stylistic. The
+		-- claim under test is that he stops being committed TO DERRICKTARGET; a bare "committed to
+		-- something" would also read true if he picked up some other capture on the way, which
+		-- would make a release look like a non-release. The bool binding also cannot marshal-fail.
+		if Test.IsCommittedTo(TechRinged, DerrickTarget) then
 			sawCommitted = true
 		elseif sawCommitted and releasedTick == nil then
 			releasedTick = ticks - orderedAt

@@ -3,6 +3,48 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-02 — `make lua-gate` proves a binding's NAME resolves, never that its RETURN VALUE can cross back into Lua — and a script that calls one dies below the floor of every in-script arm (`wt/stuck-activities`)
+
+**Third gate today found blind to something people assumed it covered** — after `make nav-guard`
+not covering `tools/autotest/scenarios/` and bare `--check-yaml` linting none of the 273 scenarios.
+Worth reading as a set: all three are green-by-construction on the thing you wanted checked.
+
+**The trap.** `ScriptTypes.ToLuaValue` (`ScriptTypes.cs:153-196`) converts `LuaValue`, `null`,
+`double`, `int`, `bool`, `string`, `IScriptBindable` and `Array`, and **throws on everything else**.
+C# `is int` does **not** match a boxed `uint`, so a binding declared `public uint Foo()` reaches the
+final `throw` and takes the whole script down: *"Cannot convert type 'System.UInt32' to Lua. Class
+must implement IScriptBindable."*
+
+**lua-gate passed it, and its model already had the answer.** `class_members` records each member's
+return type (`{"kind", "type", "line"}`, `lua_gate.py:162`) and the selftest even asserts on that
+field — but `check_file` only ever asked whether the NAME was in `members`. The type sat one
+dictionary key away from the check that would have caught this statically, for free, in a tool that
+takes seconds and needs no build. **Now closed**: a `warn`-severity check against a denylist of
+unconvertible primitives (`uint`, `long`, `ulong`, `short`, `ushort`, `byte`, `sbyte`, `float`,
+`decimal`, `char`). Warn rather than error so `make lua-gate` (which fails only on exit 2) cannot be
+broken by it.
+
+**`Test.CommittedCaptureTarget` was the only offender in the entire scripting surface** — swept
+across every `*/Scripting/` tree, engine-wide, one hit. Fixed to return `int`.
+
+**The detail that makes this worse than a plain broken binding.** The one pre-existing caller,
+`test-capture-dispatch-bottleneck.lua:55`, reaches it **only after both `IsCommittedTo` checks have
+returned false** — i.e. exclusively on that scenario's own failure path, to explain *"committed to
+something that is neither derrick"*. So the landmine was armed to detonate precisely when the
+scenario most needed its diagnostic, replacing an explanatory FAIL with a bare crash. A latent
+defect reachable only from a failure branch is invisible to every green run, forever.
+
+**A fatal Lua error is a state no in-script arm can reach, and that is structural, not an
+oversight.** A scenario written with GREEN / defect-FAIL / VOID arms — the discipline that lets a
+broken scenario be told apart from a broken fix — still has a fourth outcome underneath all three:
+the script dies before any arm evaluates, and the run reports a bare `AUTOTEST_VERDICT outcome=FAIL`
+with no verdict line. **No arm can cover this, because arms are code in the process that just
+died.** The countermeasure has to live one level up, and there are exactly two places for it:
+statically in lua-gate (done here), and in the harness, which could distinguish *"FAIL with a
+verdict"* from *"FAIL with a fatal and no verdict"* — today they are the same outcome string, and
+the second one is a scenario bug while the first is a finding. **When triaging a FAIL, check the log
+for a fatal before believing the verdict is about the code under test.**
+
 ## 2026-09-02 — The "accepted, impossible, spins forever" archetype has TWO roots, not one, and the move-layer root cannot fix the `Enter` half (`wt/stuck-activities`, `main @ 81140244`)
 
 Filed against the standing suspicion that the reported stuck-activity bugs share a single cause.
