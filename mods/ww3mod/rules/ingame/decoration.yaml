@@ -59,10 +59,95 @@
 		Range: 1024
 		ValidRelationships: Neutral, Ally, Enemy
 
+# TREES ARE INDESTRUCTIBLE (2026-09-02, owner ruling: "stop all burnt trees from appearing" /
+# "same for living or burnt trees, for now"). Modifier 0 is the engine's own documented idiom for
+# invulnerability (DamageMultiplier.cs:16 "Use 0 to make actor invulnerable"). A tree can still be
+# shot at and can still be set on fire; it simply never loses HP, so it never dies and its .Husk
+# never spawns.
+#
+# TO REVERT: set `Modifier: 100` below (or comment the Modifier line out -- DamageMultiplier's own
+# default is 100). ONE edit in ONE place, whatever the opt-in list grows to. Nothing else was
+# removed -- every SpawnActorOnDeath entry and every T##.Husk / TC0#.Husk definition in
+# rules/husks/husks.yaml is left intact and merely DORMANT, so trees become destructible again
+# exactly as before. Do NOT revert by deleting the `Inherits@Indestructible:` lines one by one;
+# that is 22 edits to achieve what one number does.
+#
+# THIS IS OPT-IN, ON THE TREE ACTORS -- NOT ON ^Tree. It was on ^Tree for one commit and that was a
+# bug: ^Tree is not trees-only. It is this mod's general base for "neutral decoration with forest
+# cover and Trees-only targeting", and 16 of its 38 concrete inheritors are not trees -- BOXES01-09
+# (via ^Box), ICE01-05, UTILPOL1-2. Those were silently made invulnerable too, which the owner did
+# not ask for and could not have seen: unlike trees, none of them has a .Husk, so none of them can
+# produce the burnt-sprite artifact that motivated this at all. They are left destructible.
+#
+# WHY OPT-IN RATHER THAN "inherit on ^Tree and -DamageMultiplier@Indestructible on the 16 others":
+#   a) FAILS SAFE IN THE DIRECTION YOU CAN SEE. A new tree added below that forgets its
+#      Inherits@Indestructible line is a destructible tree -- which shows up in play as the exact
+#      burnt-tree sprite the owner reported, gets noticed, and costs one line to fix. Opt-out fails
+#      the other way: a new decoration that forgets to remove the trait is silently bulletproof
+#      forever, and nobody ever observes a crate failing to burn.
+#   b) THE OPT-OUT REVERT CANNOT BE DONE BY HALVES. `-Trait:` is not a no-op when the trait is
+#      absent. ResolveInherits accumulates a node's children in DOCUMENT ORDER: `Inherits:` merges
+#      its parent in at the point it appears, and `-Foo:` calls RemoveAll at the point IT appears,
+#      throwing a load-preventing YamlException if the count is zero (MiniYaml.cs:449-490, throw at
+#      :482-483). Removing a genuinely inherited trait is therefore fine -- the `Inherits:` line
+#      supplying it just has to come first in the same block -- so the opt-out shape would work
+#      today. Its REVERT would not: deleting the inherit from ^Tree while 16
+#      `-DamageMultiplier@Indestructible:` lines still expected it makes all 16 throw at once, and
+#      the mod stops loading entirely, every map. Loud rather than silent, but it is a 17-edit
+#      revert with a mod-wide trap in the middle, against one number here.
+#   c) ^Tree stays semantically neutral. A gameplay ruling about trees does not belong on a template
+#      that ice floes and utility poles share.
+#
+# GUARDED BY: engine/OpenRA.Test/TreeIndestructibleScopeTest.cs -- a static NUnit fixture, no game
+# launch. It pins both directions (every husk-spawner is invulnerable; nothing without a husk is)
+# because this defect class is INVISIBLE at runtime: a crate that wrongly survives napalm looks
+# exactly like a crate.
+#
+# WHY INDESTRUCTIBLE RATHER THAN "spawn an invisible husk that copies the living tree's cover":
+# destroying a tree today diverges from the living tree in three directions at once, and only one
+# of them is the cover bonus.
+#   1. CONCEALMENT SUBSTRATE DOES NOT CHANGE AT ALL. Map.DensityLayer is stamped once at map load
+#      from the map's *authored actor definitions* (Map.cs:1027-1053, called at :520) and nothing
+#      recomputes it -- UpdateShadowForCells / the density mutator are both marked CURRENTLY UNUSED
+#      (Map.cs:1071-1079, :1260) and have no callers. So a burnt tree already conceals exactly as
+#      much as a living one for the forest-shadow half of the mechanic. Killing the sprite while the
+#      shadow stays is the incoherence, not the parity.
+#   2. COVER BONUS COLLAPSES. ^TreeHusk carries Range: 384 (down to 182 per husk) against the living
+#      tree's 1024. Per the measurement in the comment above, 384 pays out on 0.0% of cells -- so
+#      the bonus does not shrink, it disappears.
+#   3. PASSABILITY FLIPS THE WRONG WAY. ^Tree has `Passable: PassClasses: tree` and the four foot
+#      locomotors declare `Passes: ... tree` (world.yaml:30,45,62,78), so INFANTRY WALK THROUGH a
+#      living tree. ^TreeHusk has no Passable trait at all, so the burnt stump blocks them. Shooting
+#      a wood therefore seals infantry lanes that were open. (Vehicles are blocked either way, and
+#      building placement is blocked either way -- the husk occupies its cell just as the tree does,
+#      so destroying a tree never freed a build spot and nothing is lost there.)
+# An invisible husk fixes (2) only, leaves (3), and makes (1) visually absurd by removing the sprite
+# while the concealment it casts stays. Indestructibility fixes all three with one line.
+#
+# NOT REACHED BY THIS: Health.Kill() passes ignoreModifiers:true (Health.cs:245), so a direct Kill
+# still removes a tree. That path is unreachable from gameplay -- Passable.OnBeingCrushed is gated on
+# CrushedByRelationships, which ^Tree leaves at the default None (Passable.cs:45, :100) -- and it is
+# deliberately left open so a Lua scenario can still delete a tree if one ever needs to.
+#
+# DEFERRED, DO NOT BUILD: recomputing forest shadow when trees die (owner: "it gets complicated and
+# it is not the right time now to invest time into"). Treating living and burnt identically is what
+# makes that unnecessary for now.
+^TreeIndestructible:
+	DamageMultiplier@Indestructible:
+		Modifier: 0
+
 ^Tree:
 	Inherits@1: ^SpriteActor
 	Inherits@Cover: ^TreeCover
 	Inherits@Shape: ^1x1Shape
+	# NO Inherits@Indestructible HERE -- see the ^TreeIndestructible block above. This template is
+	# shared with BOXES01-09, ICE01-05 and UTILPOL1-2, which stay destructible; the T##/TC0# actors
+	# opt in individually.
+	#
+	# ^BuildingAffectedByFire stays on for everything. On an opted-in tree it is inert (the burn tick
+	# ChangesHealth@BurnDamage subtracts 0, so the tree never leaves DamageState.Undamaged and the
+	# burn overlays never reach their MinimumDamageState); on a box or an ice floe it still works as
+	# it always did. Restoring Modifier: 100 restores fire behaviour on trees too, with no edit here.
 	Inherits@FireMechanic: ^BuildingAffectedByFire
 	CombatDebugOverlay:
 	BlocksProjectiles:
@@ -160,6 +245,7 @@
 
 T01:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: __ x_
 		Density: 0,0, 10,0
@@ -173,6 +259,7 @@ T01:
 		ShowOwnerRow: false
 T02:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: __ x_
 		Density: 0,0, 10,0
@@ -186,6 +273,7 @@ T02:
 		ShowOwnerRow: false
 T03:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: __ x_
 		Density: 0,0, 10,0
@@ -199,6 +287,7 @@ T03:
 		ShowOwnerRow: false
 T04:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: __ x_
 		Density: 0,0, 10,0
@@ -212,6 +301,7 @@ T04:
 		ShowOwnerRow: false
 T05:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: __ x_
 		Density: 0,0, 10,0
@@ -225,6 +315,7 @@ T05:
 		ShowOwnerRow: false
 T06:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: __ x_
 		Density: 0,0, 10,0
@@ -238,6 +329,7 @@ T06:
 		ShowOwnerRow: false
 T07:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: __ x_
 		Density: 0,0, 10,0
@@ -251,6 +343,7 @@ T07:
 		ShowOwnerRow: false
 T08:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: x_
 		Density: 5,0
@@ -262,6 +355,7 @@ T08:
 		ShowOwnerRow: false
 T09:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	MapEditorData:
 		ExcludeTilesets: TEMPERAT, SNOW, INTERIOR
 	SpawnActorOnDeath:
@@ -271,6 +365,7 @@ T09:
 		ShowOwnerRow: false
 T10:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: __ xx
 		Density: 0,0, 10,10
@@ -284,6 +379,7 @@ T10:
 		ShowOwnerRow: false
 T11:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: __ xx
 		Density: 0,0, 10,10
@@ -297,6 +393,7 @@ T11:
 		ShowOwnerRow: false
 T12:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: __ x_
 		Density: 0,0, 10,0
@@ -310,6 +407,7 @@ T12:
 		ShowOwnerRow: false
 T13:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: __ x_
 		Density: 0,0, 10,0
@@ -323,6 +421,7 @@ T13:
 		ShowOwnerRow: false
 T14:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: ___ _x_
 		Density: 0,0,0, 0,10,0
@@ -336,6 +435,7 @@ T14:
 		ShowOwnerRow: false
 T15:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: ___ _x_
 		Density: 0,0,0, 0,15,0
@@ -349,6 +449,7 @@ T15:
 		ShowOwnerRow: false
 T16:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: __ x_
 		Density: 0,0, 10,0
@@ -362,6 +463,7 @@ T16:
 		ShowOwnerRow: false
 T17:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: __ x_
 		Density: 0,0, 10,0
@@ -375,6 +477,7 @@ T17:
 		ShowOwnerRow: false
 TC01:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: ==_ xx_
 		Density: 5,5,0, 10,10,0
@@ -390,6 +493,7 @@ TC01:
 		ShowOwnerRow: false
 TC02:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: ==_ x=_
 		Density: 5,5,0, 10,5,0
@@ -405,6 +509,7 @@ TC02:
 		ShowOwnerRow: false
 TC03:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: x=_ xx_
 		Density: 10,5,0, 10,10,0
@@ -420,6 +525,7 @@ TC03:
 		ShowOwnerRow: false
 TC04:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: x==_ xx=_ x___
 		Density: 10,5,5,0, 10,10,5,0, 10,0,0,0
@@ -435,6 +541,7 @@ TC04:
 		ShowOwnerRow: false
 TC05:
 	Inherits: ^Tree
+	Inherits@Indestructible: ^TreeIndestructible
 	Building:
 		Footprint: __x_ xxx_ _=x_
 		Density: 0,0,10,0, 10,10,10,0, 0,5,10,0
