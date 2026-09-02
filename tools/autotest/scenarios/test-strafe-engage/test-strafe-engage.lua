@@ -76,6 +76,31 @@ local Lanes = {
 		ax = 50, ay = 6, alt = 1560,
 		tx = 50, ty = 20,
 	},
+	-- LANE 3 IS DIAGNOSTIC ONLY and is deliberately OUTSIDE the pass/fail logic in finish().
+	-- Added 2026-09-02, once the root cause was pinned to Armament.CheckFire:412-419 resetting
+	-- AimingDelay whenever the Target it is handed is not `Equals` to the previous one.
+	--
+	-- WHAT IT DISCRIMINATES, and it discriminates nothing until a fix exists. The two candidate
+	-- fixes differ ONLY on a target that is moving:
+	--   * Cache the terrain target in StrafeAttackRun and rebuild it only when the aim point
+	--     moves. A STATIONARY target then presents one stable Target and the airframe fires --
+	--     but a MOVING target still produces a fresh aim point every tick, so AimingDelay still
+	--     resets forever and lane 3 still reads shots0. That is a HALF FIX, and lane 1 alone
+	--     cannot see the difference: it would go green either way.
+	--   * Lock the aim point for the duration of one run (a strafe pass is committed to a ground
+	--     point). Then AimingDelay is paid once per run and BOTH lane 1 and lane 3 fire.
+	-- So: after a fix, lane1-fires + lane3-zero means the half fix; both firing means the whole
+	-- one. Before a fix, lane 3 reads shots0 for the same reason lane 1 does and adds nothing.
+	{
+		id = "STRAFEMOVE",
+		unit = "frog.airstrike",
+		ax = 90, ay = 6, alt = 1536,
+		tx = 90, ty = 20,
+		-- Patrols between ty and ty+6, well inside its own lane: 40 cells of pitch to lane 2
+		-- leaves a 17-cell margin outside the 25c0 acquisition radius even at the near end of
+		-- the patrol, so this lane still cannot contaminate the ones that carry the verdict.
+		patrolTo = 26,
+	},
 }
 
 -- Both airframes declare exactly ONE ammo pool, primary-ammo (FROG AmmoPool@1, and
@@ -167,6 +192,22 @@ local function observeTick(l)
 	end
 	l.prevAmmo = ammo
 
+	-- Measured against the target's CURRENT cell, not its spawn cell, so the patrolling lane's
+	-- distances mean the same thing as the stationary lanes'.
+	if not l.target.IsDead then l.targetCell = l.target.Location end
+
+	-- Re-issue the patrol on a fixed cadence rather than on IsIdle: a Mobile actor is briefly
+	-- idle mid-order and an idle-keyed re-order would stutter it in place, which would make the
+	-- aim point stand still and quietly turn this lane back into a second copy of lane 1.
+	if l.patrolTo ~= nil and not l.target.IsDead and l.observed % 60 == 0 then
+		l.patrolAtFar = not l.patrolAtFar
+		if l.patrolAtFar then
+			l.target.Move(CPos.New(l.tx, l.patrolTo))
+		else
+			l.target.Move(CPos.New(l.tx, l.ty))
+		end
+	end
+
 	local d = cellDist(l.plane.Location, l.targetCell)
 	if d < l.minDist then l.minDist = d end
 	if d > l.maxDist then l.maxDist = d end
@@ -234,6 +275,7 @@ WorldLoaded = function()
 		l.finalDist = -1
 		l.finalAlt = -1
 		l.trace = {}
+		l.patrolAtFar = false
 	end
 
 	local remaining = ObserveTicks

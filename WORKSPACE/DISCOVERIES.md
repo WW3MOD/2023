@@ -605,7 +605,84 @@ be read with the same caution.
 `LuaException` for a pool the actor does not declare (`AmmoPoolProperties.cs:36-38`) rather than
 returning zero. A shared `primary-ammo + secondary-ammo` read across a lane table kills the whole run
 the moment one lane's airframe carries a single pool.
-## 2026-09-02 — the strafe zero is still unexplained, but four candidate mechanisms are now dead and the evidence the last attempt left behind does not say what it was read as saying (`wt/strafe-zero`, `main @ 81140244`)
+## 2026-09-02 — ROOT CAUSE: an `AttackType: Strafe` airframe can never fire, because the strafe run hands `Armament.CheckFire` a target that is never `Equals` to the one it saw last tick, so `AimingDelay` is reset forever (`wt/strafe-zero`, `main @ 6a7e1839`)
+
+**Confirmed by code, and every measured number in run `260902_061538_p86992` (seed `-487937878`)
+falls out of it.** Supersedes the "still unexplained" entry below, which was written before the run.
+
+**The chain, one link per line:**
+
+1. `StrafeAttackRun.Tick` calls `attackAircraft.SetRequestedTarget(Target.FromTargetPositions(target), true)`
+   **every tick** (`Activities/Air/FlyAttack.cs:323-325`).
+2. `Target.FromTargetPositions(in Target t)` is
+   `new Target(t.CenterPosition, t.Positions.ToArray())` (`Traits/Target.cs:86`). **`.ToArray()`
+   allocates a fresh `WPos[]` on every call**, unconditionally.
+3. `AttackFollow.Tick` passes that target to `DoAttack` (`AttackFollow.cs:198`), which reaches
+   `a.CheckFire(self, facing, evaluatedTarget)` (`AttackBase.cs:422-423`).
+4. `CheckFire` opens with `if (!target.Equals(oldTarget))` (`Armament.cs:412`), and `Target`'s
+   `operator ==` for `TargetType.Terrain` compares `me.terrainPositions == other.terrainPositions`
+   (`Target.cs:233`) — a `WPos[]` compared with `==`, i.e. **by REFERENCE**. A newly allocated array
+   is never reference-equal to the previous one, so **two consecutive strafe targets against a
+   motionless actor never compare equal.**
+5. So `AimingDelay = Info.AimingDelay` fires every tick (`Armament.cs:415`). The default is **15**
+   (`Armament.cs:101`) and nothing in `mods/` lowers it — the mod's only overrides raise it, to
+   30–50 on vehicles.
+6. `AimingDelay` is decremented at most **one** per tick (`Armament.cs:354-355`), which the reset
+   restores in the same tick, so it never reaches zero.
+7. `CanFire` bails on `IsAiming` (`Armament.cs:392`), and `IsAiming => AimingDelay > 0`
+   (`Armament.cs:751`). `CheckFire` returns null at `:421-422` — **before `FireBarrel`, before
+   `UpdateMagazine`, before `UpdateBurst`.**
+
+**Therefore no `AttackType: Strafe` airframe can fire, ever, with any weapon, at any range, on any
+map.** It is not a tuning problem and there is no configuration that escapes it.
+
+**Every measured number fits, including two that nothing else explained:**
+- `ammoLeft30` of 30 on the subject. The magazine is untouched because `UpdateMagazine`
+  (`Armament.cs:445`) is downstream of the `CanFire` bail — not one round was spent, not even a miss.
+- `firstShotTick20` on the CONTROL lane. The control holds an **Actor** target, whose `operator ==`
+  compares `me.Actor == other.Actor && me.generation == other.generation` (`Target.cs:237`) and is
+  stable tick to tick, so its `AimingDelay` counts 15 down to 0 exactly once. **15 of those 20 ticks
+  are the aiming delay**, the rest the approach.
+- Both strafe airframes, two different weapon sets, two different owners, the same zero. The gate is
+  upstream of the weapon entirely, which is why `ValidTargets` never had anything to do with it.
+- `minDist0` with `shots0`: the airframe flies a correct pass and is simply forbidden to shoot.
+
+**BLAST RADIUS IS EXACTLY ONE CALL SITE, and this is the reassuring part.** `FromTargetPositions`
+has 12 callers; **eleven assign to a `lastVisibleTarget` field** used only as a movement fallback and
+never handed to `CheckFire` (`Attack.cs:139`, `Enter.cs:78`, `FlyAttack.cs:113`/`:124`, `Fly.cs:148`,
+`FlyFollow.cs:60`, `Follow.cs:57`, `MoveAdjacentTo.cs:80`, `AttackFollow.cs:406`/`:426`,
+`LeapAttack.cs:88`). **`FlyAttack.cs:325` is the only one whose result becomes a `RequestedTarget`**,
+so the defect reaches the strafe path and nothing else. Nothing that works today can regress from
+fixing it, because the only actors affected already fire zero.
+
+**Two fix shapes, and they differ ONLY on a moving target. This is a gameplay decision, not a
+mechanical one, so it is recorded rather than taken:**
+- **(A) Cache the terrain target in `StrafeAttackRun` and rebuild it only when the aim point moves.**
+  Minimal, one call site, cannot touch anything else. But a target that moves every tick still yields
+  a fresh aim point every tick, `AimingDelay` still resets, and strafe still cannot hit movers. **A
+  half fix, and a stationary-target test cannot tell it from a whole one.**
+- **(B) Lock the aim point for the duration of one run**, which is what a committed strafe pass
+  physically is. `AimingDelay` is then paid once per run and movers work. Costs the intra-run
+  tracking that `FlyAttack.cs:321-322`'s comment asks for ("update the position if we seen the target
+  move").
+`test-strafe-engage` lane 3 (`STRAFEMOVE`, patrolling target, outside the verdict) exists to tell
+them apart: after a fix, lane 1 firing with lane 3 still zero is (A); both firing is (B).
+
+**The deeper wart, recorded but NOT the thing to fix here:** `Target`'s equality compares a `WPos[]`
+by reference, so two structurally identical Terrain targets are unequal. Widening that to a sequence
+comparison would fix this call site and any future one, but `operator ==` is on a hot path and
+changing engine-wide equality semantics has a blast radius nobody has measured. Do not reach for it
+as the quick fix.
+
+## 2026-09-02 — the strafe zero was still unexplained at this point: four candidate mechanisms killed, and the evidence the previous attempt left behind does not say what it was read as saying (`wt/strafe-zero`, `main @ 81140244`)
+
+> **SUPERSEDED on its central question by the entry above, which names the root cause.** Everything
+> below stands as written — the four eliminations and the instrument correction are still correct and
+> still worth reading — except its closing "where the remaining suspicion sits" paragraph, which
+> pointed at `Fly.cs:272-276` / `CalculateStopPosition`. **That suspicion was wrong and the run
+> killed it**: the subject reached `minDist0`, so the dive terminates correctly and movement was
+> never the fault. The entry flagged it as weak on exactly the right grounds (the arithmetic put the
+> stop point ~1.9 cells out, not 12), and that caveat is why it was cheap to discard.
 
 **No root cause here. This entry is a narrowing plus a correction**, and the correction is the part
 that changes what the next person should do. Read it with the 2026-09-01 retraction above, whose
