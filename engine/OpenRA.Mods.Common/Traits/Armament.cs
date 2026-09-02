@@ -237,6 +237,11 @@ namespace OpenRA.Mods.Common.Traits
 		public int AimInitialTicksBefore { get; protected set; }
 		public Target? Target { get; protected set; }
 		Target? oldTarget = null;
+
+		// Diagnostic only, and read ONLY inside a GunTrace.Enabled branch: last set of CanFire
+		// blocking reasons, so the trace is edge-triggered instead of one line per tick. Kept
+		// updated unconditionally so enabling the trace mid-game cannot miss the first transition.
+		int lastBlockMask = -1;
 		int lastFiredTick = -1;
 
 		// Tick at which an unfinished burst counts as interrupted and is restarted from full.
@@ -409,7 +414,16 @@ namespace OpenRA.Mods.Common.Traits
 		// The world coordinate model uses Actor.Orientation
 		public virtual Barrel CheckFire(Actor self, IFacing facing, in Target target)
 		{
-			if (!target.Equals(oldTarget))
+			// PITFALL: this treats "not Equals to last tick's target" as a fresh ACQUISITION and
+			// restarts the aim countdown. Target's operator== compares a Terrain target's
+			// terrainPositions array BY REFERENCE (Target.cs:233), and Target.FromTargetPositions
+			// allocates a new one per call (Target.cs:86) — so any caller that rebuilds a
+			// positional target every tick resets AimingDelay forever and can never fire. That is
+			// not hypothetical: it is what made every AttackType: Strafe airframe fire zero shots
+			// until 2026-09-02 (see FlyAttack.cs StrafeAttackRun.aimPoint). If you hand this method
+			// a target, hand it the SAME value while the engagement lasts.
+			var retargeted = !target.Equals(oldTarget);
+			if (retargeted)
 			{
 				oldTarget = target;
 				AimingDelay = Info.AimingDelay;
@@ -419,7 +433,41 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			if (!CanFire(self, target))
+			{
+				// Env-gated (WW3_GUNTRACE=1), and edge-triggered so a permanently blocked armament
+				// writes one line per change of reason rather than one per tick. This exists
+				// because the aim-reset defect above was diagnosed by reading code and arithmetic;
+				// the trace makes the same claim directly observable.
+				if (GunTrace.Enabled)
+				{
+					var blockMask =
+						(IsReloading ? 1 : 0)
+						| (IsWaitingBurst ? 2 : 0)
+						| (IsAiming ? 4 : 0)
+						| (IsTraitPaused ? 8 : 0)
+						| (turret != null && !turret.HasAchievedDesiredFacing ? 16 : 0)
+						| (!target.IsInRange(self.CenterPosition, MaxRange()) ? 32 : 0)
+						| (Weapon.MinRange != WDist.Zero && target.IsInRange(self.CenterPosition, Weapon.MinRange) ? 64 : 0)
+						| (!Weapon.IsValidAgainst(target, self.World, self) ? 128 : 0);
+
+					if (blockMask != lastBlockMask)
+					{
+						lastBlockMask = blockMask;
+						GunTrace.Write(
+							$"CheckFire BLOCKED shooter={self.Info.Name} armament={Info.Name} weapon={Info.Weapon}"
+							+ $" targetType={target.Type} retargetedThisTick={retargeted}"
+							+ $" aimingDelay={AimingDelay}/{Info.AimingDelay} mask={blockMask}"
+							+ $" [reloading={IsReloading} waitingBurst={IsWaitingBurst} aiming={IsAiming}"
+							+ $" paused={IsTraitPaused} outOfMaxRange={!target.IsInRange(self.CenterPosition, MaxRange())}"
+							+ $" insideMinRange={Weapon.MinRange != WDist.Zero && target.IsInRange(self.CenterPosition, Weapon.MinRange)}"
+							+ $" invalidTarget={!Weapon.IsValidAgainst(target, self.World, self)}]");
+					}
+				}
+
 				return null;
+			}
+
+			lastBlockMask = 0;
 
 			// Per-weapon LOS gate. The unit-level gate in AttackBase / AutoTarget uses the
 			// most permissive threshold across all armaments (so units don't refuse to fire

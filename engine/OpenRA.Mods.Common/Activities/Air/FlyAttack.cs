@@ -287,6 +287,24 @@ namespace OpenRA.Mods.Common.Activities
 
 		Target target;
 
+		// The ground point this pass is committed to, built ONCE in OnFirstRun and re-asserted
+		// unchanged every tick. Locking it is what makes a Strafe airframe able to fire at all.
+		//
+		// PITFALL, and it cost this trait its entire firing ability from the day StrafeAttackRun
+		// shipped: rebuilding this every tick made the airframe RE-ACQUIRE its own target every
+		// tick. Target.FromTargetPositions is `new Target(t.CenterPosition, t.Positions.ToArray())`
+		// (Target.cs:86) — .ToArray() allocates a fresh WPos[] per call — and Target's operator==
+		// for TargetType.Terrain compares terrainPositions with ==, i.e. BY REFERENCE
+		// (Target.cs:233). So two consecutive rebuilds against a motionless actor never compare
+		// equal, Armament.CheckFire:412 treated every tick as a new target and reset AimingDelay to
+		// Info.AimingDelay (15 by default, Armament.cs:101/:415), and a counter decremented at most
+		// once per tick (Armament.cs:354-355) never reached zero. CanFire then bailed on IsAiming
+		// (Armament.cs:392/:751) and CheckFire returned before FireBarrel — so NO AttackType: Strafe
+		// airframe could fire, ever, with any weapon, at any range. Measured
+		// (test-strafe-engage, 2026-09-02): the airframe flew a correct pass to minDist0 and spent
+		// zero of thirty rounds. Assign this field once; do not "refresh" it.
+		Target aimPoint;
+
 		public StrafeAttackRun(AttackAircraft attackAircraft, Aircraft aircraft, in Target t, WDist exitRange)
 		{
 			ChildHasPriority = false;
@@ -302,6 +320,20 @@ namespace OpenRA.Mods.Common.Activities
 			// The target may have died while this activity was queued
 			if (target.IsValidFor(self))
 			{
+				// A strafing run is a COMMITTED PASS: the aircraft picks a line, dives, fires along
+				// it and pulls out. Freezing the aim point here is that commitment expressed in
+				// code, and it is deliberately traded against the intra-run tracking the old
+				// comment below asked for — a pass no longer curves its fire onto a target that
+				// runs. That loss is knowing: a strafe run that follows a fleeing target is not a
+				// behaviour anyone asked for, and it is a smaller problem to add back on top of a
+				// lane that can shoot than to keep one that cannot.
+				//
+				// Each new run gets a fresh lock, because FlyAttack.Tick queues a new
+				// StrafeAttackRun once this one completes — so "the duration of one run" is exactly
+				// the scope of the commitment, and re-acquiring between passes correctly costs one
+				// AimingDelay.
+				aimPoint = Target.FromTargetPositions(target);
+
 				QueueChild(new Fly(self, target, target.CenterPosition));
 				QueueChild(new FlyForward(self, exitRange));
 
@@ -318,11 +350,18 @@ namespace OpenRA.Mods.Common.Activities
 			if (TickChild(self) || IsCanceling)
 				return true;
 
-			// Strafe attacks target the ground below the original target
-			// Update the position if we seen the target move; keep the previous one if it dies or disappears
-			target = target.Recalculate(self.Owner, out var targetIsHiddenActor);
-			if (!targetIsHiddenActor && target.Type == TargetType.Actor)
-				attackAircraft.SetRequestedTarget(Target.FromTargetPositions(target), true);
+			// Strafe attacks target the ground below the original target. Re-assert the SAME value
+			// every tick rather than a rebuilt one: the write is still needed, because FlyAttack
+			// sets its own Actor target whenever it ticks (FlyAttack.cs:108) and this must win, but
+			// passing the identical struct keeps terrainPositions reference-equal so CheckFire sees
+			// one continuous engagement instead of a new target per tick.
+			//
+			// Unconditional now, where the rebuild was gated on the target still being a visible
+			// Actor. That gate is what actually broke "keep the previous one if it dies or
+			// disappears": once the target died the requested target simply stopped being
+			// refreshed. A committed pass keeps shooting the ground it aimed at.
+			if (aimPoint.Type != TargetType.Invalid)
+				attackAircraft.SetRequestedTarget(aimPoint, true);
 
 			return false;
 		}

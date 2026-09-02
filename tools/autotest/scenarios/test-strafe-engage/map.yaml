@@ -68,5 +68,8 @@ Actors:
 	SpawnRussia: mpspawn
 		Owner: Neutral
 		Location: 50,6
+	SpawnThird: mpspawn
+		Owner: Neutral
+		Location: 90,6
 
 Rules: rules.yaml
