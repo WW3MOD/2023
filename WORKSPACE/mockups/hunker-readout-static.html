@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD — suppression readout comparison sheet</title>
+<style>
+  :root{
+    --bg:#14161a; --panel:#1e2126; --panel2:#191c21; --line:#2f343b;
+    --tx:#c8cdd4; --dim:#7b838d; --dimmer:#565d66;
+    --amber:#f0a818; --red:#d2492a; --green:#6f9b4a; --blue:#4a7c9b;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--tx);
+    font:13px/1.5 "Segoe UI",-apple-system,Helvetica,Arial,sans-serif;
+    padding:28px 32px 80px;
+  }
+  h1{font-size:19px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin:0 0 4px}
+  h2{font-size:14px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+     color:var(--amber);margin:38px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  h3{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:20px 0 8px}
+  .sub{color:var(--dim);font-size:12px;margin:0 0 6px}
+  .ref{color:var(--dimmer);font-size:11px;font-family:ui-monospace,Menlo,monospace}
+  p{max-width:104ch}
+  code{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#9db8c9;background:#00000040;padding:1px 4px;border-radius:2px}
+
+  .note{background:var(--panel2);border-left:2px solid var(--amber);padding:10px 14px;margin:14px 0;max-width:104ch}
+  .note.warn{border-left-color:var(--red)}
+  .note.good{border-left-color:var(--green)}
+  .note b{color:var(--tx)}
+
+  /* ---- state strip ---- */
+  .strip{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap;margin-top:14px}
+  .state{
+    flex:1 1 200px;min-width:196px;background:var(--panel);border:1px solid var(--line);
+    display:flex;flex-direction:column;
+  }
+  .state header{padding:8px 10px;border-bottom:1px solid var(--line);background:#00000030}
+  .state header .n{font-size:22px;font-weight:700;font-family:ui-monospace,Menlo,monospace;line-height:1}
+  .state header .lbl{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-top:3px}
+  .state .body{padding:10px;flex:1;display:flex;flex-direction:column;gap:10px}
+
+  /* battlefield swatch — REAL SIZE */
+  .field{
+    background:
+      repeating-linear-gradient(45deg,#3a3a2c 0 6px,#36362a 6px 12px);
+    border:1px solid #00000060; height:76px; position:relative;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .unit{position:relative;width:24px;height:32px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+  .sprite{width:12px;height:18px;background:#5d6b4f;border:1px solid #2b3325;border-radius:2px 2px 0 0}
+  .sprite.prone{width:20px;height:8px;border-radius:2px}
+  .selbox{position:absolute;inset:-2px -3px;border:1px solid #ffffff55;border-top-color:#ffffff88}
+  .selbox:before,.selbox:after{content:"";position:absolute;width:4px;height:4px;border:1px solid #fff9;}
+  .selbox:before{left:-1px;top:-1px;border-right:0;border-bottom:0}
+  .selbox:after{right:-1px;top:-1px;border-left:0;border-bottom:0}
+
+  /* readout A: ten discrete pips, real size */
+  .pipsA{position:absolute;top:-7px;left:50%;transform:translateX(-50%);display:flex;gap:1px}
+  .pipsA i{width:2px;height:4px;background:#3a3f45;display:block}
+  /* readout B: continuous bar + trend, real size */
+  .barB{position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:24px}
+  .barB .track{height:3px;background:#00000090;border:1px solid #ffffff20;position:relative;overflow:hidden}
+  .barB .fill{position:absolute;left:0;top:0;bottom:0}
+  .barB .thr{position:absolute;top:-1px;bottom:-1px;left:30%;width:1px;background:#ffffff70}
+  .barB .trend{position:absolute;right:-6px;top:-2px;font-size:8px;line-height:1;font-family:ui-monospace,Menlo,monospace}
+
+  .zoom{transform:scale(4);transform-origin:center;image-rendering:pixelated}
+  .zoomwrap{height:60px;display:flex;align-items:center;justify-content:center;
+            background:#0e1013;border:1px solid var(--line);position:relative;overflow:hidden}
+  .zoomwrap .tag{position:absolute;left:4px;top:3px;font-size:9px;letter-spacing:.1em;color:var(--dimmer);text-transform:uppercase}
+
+  /* number rows */
+  .rows{display:flex;flex-direction:column;gap:3px;font-size:11.5px}
+  .row{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+  .row .k{color:var(--dim)}
+  .row .v{font-family:ui-monospace,Menlo,monospace;font-weight:600;text-align:right;white-space:nowrap}
+  .plain{font-size:11.5px;color:var(--tx);border-top:1px solid var(--line);padding-top:8px;line-height:1.45}
+
+  /* comparison table */
+  table{border-collapse:collapse;width:100%;max-width:1100px;font-size:12px;margin-top:8px}
+  th,td{border:1px solid var(--line);padding:6px 9px;text-align:left}
+  th{background:#00000040;color:var(--dim);font-weight:600;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+  td.num{font-family:ui-monospace,Menlo,monospace;text-align:right}
+  tr:nth-child(even) td{background:#ffffff04}
+
+  .side{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px}
+  .card{flex:1 1 380px;background:var(--panel);border:1px solid var(--line);padding:14px}
+  .card h4{margin:0 0 8px;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--tx)}
+  .verdict{margin-top:10px;padding:8px 10px;font-size:11.5px;border-radius:2px}
+  .verdict.ok{background:#6f9b4a20;border-left:2px solid var(--green)}
+  .verdict.bad{background:#d2492a20;border-left:2px solid var(--red)}
+
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:11px;color:var(--dim);margin-top:8px}
+  .legend span:before{content:"";display:inline-block;width:9px;height:9px;margin-right:5px;vertical-align:-1px}
+  .lg-g:before{background:var(--green)} .lg-a:before{background:var(--amber)} .lg-r:before{background:var(--red)}
+</style>
+</head>
+<body>
+
+<h1>Suppression readout — comparison sheet</h1>
+<p class="sub">Every number on this page is read out of the shipped rules, not invented.
+<span class="ref">main @ 6a7e1839 · mods/ww3mod/rules/ingame/infantry.yaml</span></p>
+
+<div class="note warn">
+<b>Two corrections to the brief I was given, found while reading the file.</b> Both change the design conversation.
+<br><br>
+<b>1. Prone is not inert — it halves your hit area.</b> The brief said the five prone <em>damage</em> tiers almost never fire, which is true.
+But <code>HitShape@Cover</code> (<code>infantry.yaml:143-146</code>) shrinks the soldier's hit circle from <b>radius 30 to radius 20</b> the moment he goes prone.
+That is an area ratio of <b>44%</b> — a prone soldier is a <b>56% smaller target</b>, and this fires against <em>everything</em>, not just warheads with a matching damage type.
+So a protection term tied to suppression <b>already exists and already works</b>. It arrives as geometry, not as a damage modifier, which is why a grep for damage multipliers missed it.
+<br><br>
+<b>2. There is already a passive, time-based hunker.</b> <code>GrantConditionOnMovement</code> (<code>:139-141</code>) grants <code>dugin</code> after
+<code>TimeToBeStill: 200</code> — 200 ticks ≈ <b>12 seconds</b> of holding position — and <code>dugin</code> buys <b>+1 concealment tier</b> (<code>:774-776</code>).
+So "stay still, become harder to see" ships today. The proposed hunker is not a new idea in this codebase; it is an <b>existing idea with no readout and no player control</b>.
+</div>
+
+<h2>1 · The five states, at the size they actually appear</h2>
+<p class="sub">The unit sprites are drawn at 24×32 px — a real infantry footprint. The readouts above their heads are at <b>1×</b>. Zoomed insets follow underneath each one.</p>
+
+<div class="strip" id="strip"></div>
+
+<div class="legend">
+  <span class="lg-g">band 1–3, still fighting</span>
+  <span class="lg-a">band 4–7, degraded</span>
+  <span class="lg-r">band 8–10, combat-ineffective</span>
+</div>
+
+<h2>2 · The two candidate treatments, head to head</h2>
+
+<div class="side">
+  <div class="card">
+    <h4>A · Ten discrete pips <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">— what ships today</span></h4>
+    <p style="font-size:12px;margin:0 0 8px">
+      <code>WithDecoration@Suppression_1..10</code> draws one of ten <code>pip-suppression-N</code> images at <code>Position: Top</code>,
+      <code>RequiresSelection: true</code>. Ten hues, one per band of 10.
+    </p>
+    <div class="zoomwrap" style="height:74px"><span class="tag">4× inset</span>
+      <div class="zoom" id="zoomA"></div>
+    </div>
+    <div class="verdict bad">
+      <b>Reads severity, not trend.</b> Band 7 looks identical whether it is climbing towards pinned or decaying back to safe — and those demand opposite orders.
+      It also vanishes when you deselect, so you cannot watch a squad you are not clicking on.
+      At 1× the ten steps are distinguishable by <em>colour</em> only; the width never changes, so peripheral vision gets nothing.
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>B · Continuous bar + trend arrow <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">— proposed</span></h4>
+    <p style="font-size:12px;margin:0 0 8px">
+      One 24 px track. Fill length = suppression. Fill colour = severity. A one-character arrow on the right edge = sign of the last ~½ s of change.
+      A hairline tick sits at <b>30</b>, the prone threshold, so the player can see the line he is about to cross.
+    </p>
+    <div class="zoomwrap" style="height:74px"><span class="tag">4× inset</span>
+      <div class="zoom" id="zoomB"></div>
+    </div>
+    <div class="verdict ok">
+      <b>Length carries severity even out of focus</b>, so colour is reinforcement rather than the only channel — this also survives red-green colourblindness, which A does not.
+      The arrow answers the actual question: <em>is this getting worse?</em>
+      Cost: 3 px of vertical space and one more sprite row than A.
+    </div>
+  </div>
+</div>
+
+<div class="note">
+<b>Honest legibility note at real size.</b> At 1× the trend arrow in B is a 4×4 px glyph. On this page, on a desktop monitor, it is legible but marginal —
+and it would be the first thing to fail on a 4K screen at default UI scale. If B is chosen I would drop the arrow glyph and instead
+<b>animate the trailing edge of the fill</b>: a brighter 2 px cap that leads the bar when climbing and lags behind it when decaying.
+Same information, no glyph, and it reads at any resolution because it is motion rather than shape. Treatment C below shows it.
+</div>
+
+<h3>C · The same bar, trend shown by a leading edge instead of a glyph</h3>
+<div class="zoomwrap" style="height:80px;max-width:420px"><span class="tag">4× inset · animated</span>
+  <div class="zoom" id="zoomC"></div>
+</div>
+<p class="sub" style="margin-top:8px">Left: climbing — the bright cap runs ahead of the fill. Right: decaying — the cap trails behind it. Watch for two seconds; the difference is pre-attentive.</p>
+
+<h2>3 · What every band actually costs</h2>
+<p class="sub">Straight from the five ladders. <b>Shots/min vs calm</b> is derived — <code>BurstMultiplier ÷ BurstWaitMultiplier</code> — because those two stack and neither alone tells you the firing rate.</p>
+
+<table id="ladder"></table>
+
+<div class="note">
+<b>The single most important row is band 10.</b> Speed 0, vision 0, burst 0. A pinned soldier cannot move, cannot see and cannot shoot —
+he is already contributing nothing. That is what makes the hunker proposal cheap at the top of the ladder: <b>at band 10 there is no firepower left to trade away.</b>
+The interactive explorer draws that as a curve; it is the crux of whether the system is worth building.
+</div>
+
+<div class="note warn">
+<b>An asymmetry worth a decision.</b> The speed ladder is gated <code>!panicking &amp;&amp; suppressed &gt; N</code>, but vision, burst, burst-wait and inaccuracy are <b>not</b>.
+So a panicking soldier drops the suppression speed penalty (panic sets its own speed) while keeping all four combat penalties. That is probably intentional —
+panic is a movement state — but it means "suppressed" is not one coherent state in the code, and any readout showing a single number is
+smoothing over a real seam. Flagging it, not fixing it.
+</div>
+
+<h2>4 · Where a hunker axis would attach</h2>
+<p>
+  Today suppression is a <b>single involuntary axis</b>: it goes up when shot at, decays at 1 point per 5 ticks (≈ <b>30 s</b> for a full 100 → 0 at 16.67 tps),
+  and every one of its five effects is a penalty. The player's only input is <em>leave</em>.
+</p>
+<p>
+  The proposal adds a <b>second, voluntary axis</b> — hunker depth — that the player controls, which buys protection with firepower.
+  The two existing pieces it should be built out of, rather than alongside:
+</p>
+<ul style="max-width:104ch">
+  <li><b>Hit-circle radius</b> — already 30 standing / 20 prone. Hunker depth continues that same shrink downwards. One mechanism, three points on it, no new damage system.</li>
+  <li><b>Concealment tier</b> — already +1 prone, +1 dug-in, −2 while firing. Hunker adds tiers on the same integer ladder, and the existing grey range circle already renders it.</li>
+</ul>
+<p>
+  Built that way the "new" system is mostly <b>exposing controls and a readout for machinery that is already in the build</b>, which is a much smaller
+  change than it sounds — and it matches the recorded preference for a gradient that prices a bad state rather than a mode that throws the player out of it.
+</p>
+
+<script>
+const TPS = 16.67;
+const band = s => s <= 0 ? 0 : Math.ceil(s / 10);
+const speed = b => b === 0 ? 100 : (10 - b) * 10;
+const vision = speed, burst = speed;
+const wait = b => b === 0 ? 100 : 100 + b * 10;
+const inacc = b => b === 0 ? 100 : 100 + b * 20;
+const rof = b => b === 0 ? 100 : Math.round(burst(b) / wait(b) * 100);
+const hue = s => s === 0 ? '#6f9b4a' : s <= 30 ? '#8faf4a' : s <= 70 ? '#f0a818' : '#d2492a';
+
+const STATES = [
+  {s:0,   lbl:'Calm',            trend:0,  prone:false,
+   plain:'Full speed, full vision, full rate of fire. Standing, so a radius-30 target.'},
+  {s:25,  lbl:'Light fire',      trend:+1, prone:false,
+   plain:'Moves at 70%, fires about half as often, shots scatter 1.6×. Still upright — still a full-size target.'},
+  {s:35,  lbl:'Prone threshold', trend:+1, prone:true,
+   plain:'Just crossed 30, so he drops prone on his own: speed falls to 36% (60% band × 60% prone) but his hit area halves. First point where suppression buys something back.'},
+  {s:75,  lbl:'Heavy',           trend:+1, prone:true,
+   plain:'Crawling at 12%, sees a fifth as far, fires a tenth as often with 2.6× scatter. Present on the map, absent from the fight.'},
+  {s:100, lbl:'Pinned',          trend:-1, prone:true,
+   plain:'Cannot move. Cannot see. Cannot fire. Decays to zero in 30 seconds if the shooting stops.'}
+];
+
+function pipsA(s){
+  const b = band(s), w = document.createElement('div'); w.className = 'pipsA';
+  for (let i = 1; i <= 10; i++){
+    const p = document.createElement('i');
+    if (i <= b) p.style.background = hue(s);
+    w.appendChild(p);
+  }
+  return w;
+}
+function barB(s, trend, cap){
+  const w = document.createElement('div'); w.className = 'barB';
+  w.innerHTML = '<div class="track"><div class="fill"></div><div class="thr"></div></div>';
+  const f = w.querySelector('.fill');
+  f.style.width = s + '%'; f.style.background = hue(s);
+  if (cap && s > 0 && s < 100){
+    const c = document.createElement('div');
+    c.style.cssText = 'position:absolute;top:0;bottom:0;width:2px;background:#fff;opacity:.85;left:' +
+      (trend > 0 ? 'calc(' + s + '% - 1px)' : 'calc(' + s + '% - 3px)');
+    w.querySelector('.track').appendChild(c);
+  } else if (trend !== 0){
+    const t = document.createElement('div');
+    t.className = 'trend'; t.textContent = trend > 0 ? '▲' : '▼';
+    t.style.color = trend > 0 ? '#d2492a' : '#6f9b4a';
+    w.appendChild(t);
+  }
+  return w;
+}
+function unit(s, prone, readout, trend, sel){
+  const u = document.createElement('div'); u.className = 'unit';
+  if (sel){ const b = document.createElement('div'); b.className = 'selbox'; u.appendChild(b); }
+  const sp = document.createElement('div'); sp.className = 'sprite' + (prone ? ' prone' : '');
+  u.appendChild(sp);
+  if (readout === 'A') u.appendChild(pipsA(s));
+  if (readout === 'B') u.appendChild(barB(s, trend, false));
+  if (readout === 'C') u.appendChild(barB(s, trend, true));
+  return u;
+}
+
+const strip = document.getElementById('strip');
+STATES.forEach(st => {
+  const b = band(st.s);
+  const el = document.createElement('div'); el.className = 'state';
+  el.innerHTML =
+    '<header><div class="n" style="color:' + hue(st.s) + '">' + st.s +
+    '<span style="font-size:11px;color:var(--dim);font-weight:400"> / 100</span></div>' +
+    '<div class="lbl">' + st.lbl + (b ? ' &middot; band ' + b : '') + '</div></header>';
+
+  const body = document.createElement('div'); body.className = 'body';
+
+  const fieldA = document.createElement('div'); fieldA.className = 'field';
+  fieldA.appendChild(unit(st.s, st.prone, 'A', st.trend, true));
+  const capA = document.createElement('div');
+  capA.style.cssText = 'font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--dimmer);margin:-4px 0 -4px';
+  capA.textContent = 'A · pips (1×, selected)';
+
+  const fieldB = document.createElement('div'); fieldB.className = 'field';
+  fieldB.appendChild(unit(st.s, st.prone, 'B', st.trend, false));
+  const capB = document.createElement('div');
+  capB.style.cssText = capA.style.cssText;
+  capB.textContent = 'B · bar + trend (1×, unselected)';
+
+  body.appendChild(capA); body.appendChild(fieldA);
+  body.appendChild(capB); body.appendChild(fieldB);
+
+  const rows = document.createElement('div'); rows.className = 'rows';
+  const put = (k, v, c) => {
+    const r = document.createElement('div'); r.className = 'row';
+    r.innerHTML = '<span class="k">' + k + '</span><span class="v" style="color:' + (c || 'var(--tx)') + '">' + v + '</span>';
+    rows.appendChild(r);
+  };
+  const dim = v => v === 100 ? 'var(--dim)' : v === 0 ? 'var(--red)' : v < 40 ? 'var(--red)' : 'var(--amber)';
+  const eff = st.prone ? Math.round(speed(b) * 0.6) : speed(b);
+  put('Speed', eff + '%' + (st.prone ? ' *' : ''), dim(eff));
+  put('Vision', vision(b) + '%', dim(vision(b)));
+  put('Shots/min', rof(b) + '%', dim(rof(b)));
+  put('Scatter', inacc(b) / 100 + '×', b >= 5 ? 'var(--red)' : b ? 'var(--amber)' : 'var(--dim)');
+  put('Hit radius', (st.prone ? 20 : 30) + (st.prone ? ' ↓' : ''), st.prone ? 'var(--green)' : 'var(--dim)');
+  put('Hit area', (st.prone ? 44 : 100) + '%', st.prone ? 'var(--green)' : 'var(--dim)');
+  body.appendChild(rows);
+
+  const pl = document.createElement('div'); pl.className = 'plain'; pl.textContent = st.plain;
+  body.appendChild(pl);
+  el.appendChild(body);
+  strip.appendChild(el);
+});
+
+// zoom insets
+(function(){
+  const mk = (r, s, trend, prone) => {
+    const f = document.createElement('div');
+    f.style.cssText = 'background:repeating-linear-gradient(45deg,#3a3a2c 0 6px,#36362a 6px 12px);' +
+                      'width:40px;height:40px;display:flex;align-items:center;justify-content:center';
+    f.appendChild(unit(s, prone, r, trend, r === 'A'));
+    return f;
+  };
+  const wrapA = document.getElementById('zoomA');
+  wrapA.style.cssText = 'display:flex;gap:2px';
+  [10, 35, 65, 95].forEach(s => wrapA.appendChild(mk('A', s, 1, s > 30)));
+
+  const wrapB = document.getElementById('zoomB');
+  wrapB.style.cssText = 'display:flex;gap:2px';
+  [10, 35, 65, 95].forEach(s => wrapB.appendChild(mk('B', s, s > 80 ? -1 : 1, s > 30)));
+
+  const wrapC = document.getElementById('zoomC');
+  wrapC.style.cssText = 'display:flex;gap:10px';
+  wrapC.appendChild(mk('C', 55, 1, true));
+  wrapC.appendChild(mk('C', 55, -1, true));
+  // animate the two C caps
+  const caps = wrapC.querySelectorAll('.track > div:last-child');
+  let t = 0;
+  setInterval(() => {
+    t += 0.06;
+    const osc = Math.sin(t) * 2.2;
+    if (caps[0]) caps[0].style.transform = 'translateX(' + (1.6 + osc * 0.5) + 'px)';
+    if (caps[1]) caps[1].style.transform = 'translateX(' + (-1.6 - osc * 0.5) + 'px)';
+  }, 40);
+})();
+
+// ladder table
+(function(){
+  const t = document.getElementById('ladder');
+  let h = '<tr><th>Band</th><th>Suppression</th><th>Speed</th><th>Vision</th><th>Burst</th>' +
+          '<th>Burst wait</th><th>Scatter</th><th>Shots/min<br>vs calm</th><th>In plain language</th></tr>';
+  const words = [
+    'Untouched.',
+    'Barely notices. A tenth off everything.',
+    'Noticeably slower, noticeably sloppier.',
+    'Down a third. Still a soldier.',
+    '<b>Goes prone here.</b> Half speed on paper, a third in practice — but half the target.',
+    'Half of everything gone. Fires at a third of normal rate.',
+    'Sees 40% as far. More missing than hitting.',
+    'Crawling. Fires once for every five shots he used to.',
+    'A tenth of a soldier. Effectively spectating.',
+    'Nearly inert. One shot for every ten.',
+    '<b>Pinned.</b> Cannot move, cannot see, cannot fire.'
+  ];
+  for (let b = 0; b <= 10; b++){
+    const rng = b === 0 ? '0' : ((b - 1) * 10 + 1) + '–' + (b * 10);
+    const c = b === 0 ? 'var(--green)' : b <= 3 ? '#8faf4a' : b <= 7 ? 'var(--amber)' : 'var(--red)';
+    h += '<tr>' +
+      '<td class="num" style="color:' + c + ';font-weight:700">' + b + '</td>' +
+      '<td class="num">' + rng + '</td>' +
+      '<td class="num">' + speed(b) + '%</td>' +
+      '<td class="num">' + vision(b) + '%</td>' +
+      '<td class="num">' + burst(b) + '%</td>' +
+      '<td class="num">' + wait(b) + '%</td>' +
+      '<td class="num">' + (inacc(b) / 100) + '×</td>' +
+      '<td class="num" style="color:' + c + ';font-weight:700">' + rof(b) + '%</td>' +
+      '<td style="font-size:11.5px">' + words[b] + '</td></tr>';
+  }
+  t.innerHTML = h;
+})();
+</script>
+</body>
+</html>
