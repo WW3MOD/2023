@@ -86,10 +86,15 @@ The part no test covers. In a live match, on your own Supply Route:
 
 1. **Drive an enemy force into your own contestation circle and leave it there.** You should get
    "Supply Route contested!" plus the orange ping immediately, as today.
-2. **Watch the selection bar go from green to yellow.** `ISelectionBar.GetColor` flips at
-   `barPercent > SlowdownThreshold`, i.e. the same 50% crossing. **The new line must appear on the
-   same tick the bar turns yellow** — that is the cheapest visual co-signature available, and if the
-   line appears while the bar is still green the two thresholds have drifted apart.
+2. **Watch the selection bar go from green to yellow. The line comes just AFTER, not with it.**
+   The two thresholds are off by one percentage point in the shipped code and I did not change
+   either: `ISelectionBar.GetColor` goes yellow at `barPercent > SlowdownThreshold` being false,
+   i.e. **at 50%**, while `GetProductionSpeedModifier` still returns a full 100 at 50% and only
+   tapers below it — so the call-out fires at **49%**. At the fastest shipped drain
+   (`MinTicks: 500`) one percentage point is 5 ticks = 0.3s; at reference surplus it is 15 ticks =
+   0.9s. So expect yellow-then-line within a second, and **do not report the gap as a bug** — it is
+   pre-existing and logged in `WORKSPACE/bugs/discovered.md`. What *would* be a bug is the line
+   arriving while the bar is still green, or more than a second or two after it turns.
    Expected text: *"Supply Route degraded! Reinforcements arriving slower."*
 3. **Listen for nothing.** `SlowdownNotification` defaults to `""` and is guarded by
    `!string.IsNullOrEmpty`, so there should be **no** voice line — no clip in
