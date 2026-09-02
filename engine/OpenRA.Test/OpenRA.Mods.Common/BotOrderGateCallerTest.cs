@@ -55,7 +55,17 @@ namespace OpenRA.Test
 		// module is mid-way through moving. Measured on the day it landed: 6 of 11 of its offers were refused
 		// by exactly that rule. It checks its result; a refusal is logged as `topup-refused` and the
 		// passenger is neither reserved nor committed.
-		const int ExpectedRecurringSites = 5;
+		//
+		// 6 since 2026-09-02: CounterBatteryRadarBotModule's DRIVE to the deploy site. It satisfies both
+		// halves of the Recurring contract — the module re-offers the drive every ReevaluateInterval (100 t)
+		// bounded by MoveSettleTicks, and the errand record is written only inside the accepted branch, so a
+		// refusal leaves no memory claiming the radar was sent anywhere.
+		// ITS SIBLING ORDER IS DELIBERATELY *NOT* RECURRING and that asymmetry is the point: the
+		// "GrantConditionOnDeploy" order in the same method is left Protected, because it is a terminal
+		// transition rather than a re-offered errand. A dropped deploy is not a delay — MSAR grants Radar and
+		// CounterBatteryRadar only while `deployed`, so losing that one order silently costs the entire
+		// feature, which is exactly the case the Protected default exists for.
+		const int ExpectedRecurringSites = 6;
 
 		static long Cell(int x, int y) => OrderArbitrationMath.DestinationKey(false, 0, x, y, true);
 		static List<BotOrderTarget> One(uint id, string objective = null, bool busy = true)
@@ -415,7 +425,8 @@ namespace OpenRA.Test
 			Assert.That(recurringSites, Is.EqualTo(ExpectedRecurringSites),
 				$"expected exactly {ExpectedRecurringSites} BotOrderDamping.Recurring call sites — "
 				+ "MountedTransport passenger boarding, MountedTransport mid-load top-up, LayeredDefence line "
-				+ "assignment x2, and PoiOffensive StageFreePool. If you added or removed one deliberately, "
+				+ "assignment x2, PoiOffensive StageFreePool, and CounterBatteryRadar's drive to the deploy "
+				+ "site. If you added or removed one deliberately, "
 				+ "update ExpectedRecurringSites "
 				+ "and say why in the commit message; if you did not, the scan has lost sight of a site it "
 				+ "is supposed to be policing.");

@@ -97,6 +97,11 @@ Player:
 			# the floor entry below is inert. MNLY carries no faction prerequisite (vehicles.yaml:494 —
 			# `~techlevel.medium` only), so both twins field the same unit.
 			mnly: 10
+			# Counter-battery radar — mirror of the America block. MEMBERSHIP, NOT WEIGHT: absent from
+			# UnitTargetShares, reached through the FLOOR lane, which gates on UnitsToBuild membership
+			# (UnitBuilderBotModule.cs:1390). MSAR is faction-neutral — it carries no `Buildable: Factions:`
+			# and neither vehicles-america.yaml nor vehicles-russia.yaml overrides it — so both twins get it.
+			msar: 10
 
 			# Supply trucks for field resupply (need-gated below)
 			truk: 20
@@ -118,6 +123,9 @@ Player:
 			# specialist, the module commits at most one unit per field, and no live match has shown
 			# what a second would add.
 			mnly: 1
+			# ONE — mirror of the America block. Coverage does not stack: a second MSAR inside the first
+			# one's 42-cell disc reveals nothing new, so number two is ~zero value against 1600 of budget.
+			msar: 1
 		# ===== STANDING-POPULATION FLOORS (experimental-only; C# default is unset) =====
 		# Mirror of the America block — see ai-america.yaml for the full measurement. Short version: a
 		# per-mille-of-VALUE target cannot hold a small type on the map (one medic is already 34 per-mille of
@@ -135,12 +143,22 @@ Player:
 			# not the medi/dr one. Full argument in ai-america.yaml: one minelayer is enough at any
 			# army size, so a per-N-soldiers denominator would be a number invented purely to act as an
 			# opening-buy guard, and a mis-set denominator is precisely how this file has twice shipped
-			# a floor that silently never fires. ORDINAL: aa < dr < medi < mnly, so the minelayer is the
-			# last of the four bought when several are short at once.
+			# a floor that silently never fires. ORDINAL: aa < dr < medi < mnly < msar, so the minelayer
+			# is bought after every cheap specialist and before only the radar when several are short
+			# at once.
 			mnly: 1
 			# Drone operator — "they make none" is a FLOOR problem, not a weight problem. Cap, not
 			# target; the ratio below decides when it actually engages.
 			dr.russia: 2
+			# Counter-battery radar — mirror of ai-america.yaml, where the full argument lives. Short
+			# version: a per-mille share provably cannot buy a 1600-cost single-copy specialist (the
+			# argmax never descends to a small slot — measured ZERO medics/snipers/engineers in 200
+			# cycles at a 1-in-40 loss rate), so it takes the floor lane. Ordinal sort puts msar LAST of
+			# the five floored types here too (aa.russia < dr.russia < medi.russia < mnly < msar), so it
+			# never pre-empts them — but at t=0 every one of those is held off by a delay or a zero
+			# denominator, so the walk reaches msar and it becomes the opening buy. UnitDelays.msar
+			# below is what prevents that and is MANDATORY, not defensive.
+			msar: 1
 		# ===== THE FLOOR NEEDS A DENOMINATOR (user report 2026-08-15) — mirror of the America block =====
 		# See ai-america.yaml for the full argument and the measurement. Short version: a flat floor is
 		# maximally unmet at t=0 and the pre-empt outranks the ceiling and every demand gate, so a cheap
@@ -209,6 +227,16 @@ Player:
 			# binds only under a lobby-selected platoon start, where the denominator opens at 11 and
 			# the operator would otherwise be the opening support call-in ahead of the first medic.
 			dr.russia: 300
+			# Counter-battery radar gate — mirror of ai-america.yaml, where the derivation lives. Short
+			# version: without this the MSAR is the opening buy of every match, because the floor
+			# pre-empt outranks the ceiling and every demand gate and nothing else is eligible at t=0. A
+			# UnitFloorPer ratio cannot do the job — cap 1 makes it a step function at supported == N,
+			# and the shared denominator's max is 9/11 at attrition 12/15, so N above ~9 is inert while
+			# N at or below 9 phases a 1600-cost specialist in alongside the 150-cost drone. 3000 sits
+			# above the 2500 attack-heli gate (180 s at 16.667 ticks/s) and is a floor-clearing constant,
+			# NOT a measured optimum: neither grad nor m109 carries a tick gate, so there is no
+			# earliest-artillery tick to derive from the way aa.russia: 2000 derives from the heli gate.
+			msar: 3000
 		# Early-econ behaviour 1: don't call in the FIRST truck while no fielded unit needs ammo. After that
 		# truck exists the standing reserve below governs alone and this no longer binds (user ruling
 		# 2026-08-17 — full reasoning in ai-america.yaml's SupplyTruckFloorPer block).

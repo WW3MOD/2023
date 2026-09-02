@@ -1,0 +1,1 @@
+Auto: the @experimental bot must buy exactly one MSAR and deploy it within 6000 ticks, unaided — no msar is pre-placed and the script never issues the deploy. Long run by design (the shipped UnitDelays gate is 3000 ticks and is deliberately not stubbed out): run with --speed 4 --timeout 420.

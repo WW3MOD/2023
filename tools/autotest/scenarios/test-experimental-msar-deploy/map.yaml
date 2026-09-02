@@ -1,0 +1,68 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: experimental bot buys and deploys one MSAR (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Bot: stable
+		Color: FF4444
+		Enemies: USA-bot
+
+# NOTHING HERE IS AN MSAR, DELIBERATELY, AND THE TEST IS WORTHLESS IF THAT CHANGES.
+# The predicate is "USA-bot owns exactly one deployed msar". A pre-placed one satisfies it without
+# the bot doing anything, which would turn a procurement-and-siting test into a test that the
+# harness can count actors. Same reason the Lua never calls Test.IssueDeploy: the bot must issue
+# that order itself. The two Supply Routes are the call-in beachheads (one per player, as shipped)
+# and are what the siting module measures its rear band from.
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+Rules: rules.yaml

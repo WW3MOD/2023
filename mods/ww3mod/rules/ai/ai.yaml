@@ -861,6 +861,22 @@ Player:
 		# already AT a post are left alone. Default 0 (off) on the engine class => @stable twin byte-identical.
 		StarvingRecruitThresholdPerMille: 250
 
+	# ===== COUNTER-BATTERY RADAR (experimental-only; there is no @stable twin, deliberately) =====
+	# MSAR is the mod's ONLY counter-battery vision source, and before this it was human-only in both
+	# halves: `msar` had zero hits anywhere under rules/ai (never bought), and no bot module anywhere
+	# issued the "GrantConditionOnDeploy" order (never deployed). Production is the other half and
+	# lives on the UnitBuilder twins (UnitFloors/UnitLimits/UnitDelays msar).
+	# WHY A MODULE AND NOT A SETTING ON AN EXISTING ONE: nothing else in the tree drives a unit
+	# somewhere and then deploys it in place, and the siting rule is specific — rear band, own-SR
+	# bearing, and a DEPLOY terrain whitelist narrower than the locomotor, which every existing
+	# "walk to a cell" caller would clamp against the locomotor alone and land it where deploy is
+	# silently refused. It also has to OWN the unit permanently: UndeployOnMove revokes the coverage,
+	# so a radar any other module can recruit is a radar that stops working the first time it is.
+	# NO @stable TWIN ON PURPOSE: a wholly new experimental-gated module cannot move the benchmark
+	# control, which sidesteps the shared-trait default-to-baseline rule entirely.
+	CounterBatteryRadarBotModule@experimental:
+		RequiresCondition: enable-ai-experimental && (player.nato || player.brics)
+
 	# ===== RECON DRONES (experimental-only; there is no @stable twin, deliberately) =====
 	# User report 2026-08-27: "I want the experimental bot to use drones ... but now they make none."
 	# Production is the other half and lives on the UnitBuilder twins (UnitFloors/UnitFloorPer

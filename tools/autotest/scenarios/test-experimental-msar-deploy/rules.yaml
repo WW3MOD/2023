@@ -1,0 +1,44 @@
+Player:
+	# A conquest win would end the run before the radar's 3000-tick gate even opens.
+	-ConquestVictoryConditions:
+
+	# 7500, and it must be a member of PlayerResources.SelectableCash (PlayerResources.cs:30) or the
+	# lobby cannot resolve it. The MSAR costs 1600, and the floor lane is affordability-gated
+	# (ChooseBelowFloor -> CompositionNeedMath.Affordable), so a bank that never clears 1600 turns
+	# "the floor never fired" and "the bot could not pay" into one indistinguishable timeout. 7500
+	# clears it several times over while still leaving the bot poor enough not to flood the map.
+	# LOCKED as well as set: DefaultCash is an ILobbyOptions value (PlayerResources.cs:20,32), so an
+	# unlocked one can be resolved from lobby state rather than from this file, and scaffolding that
+	# silently does not take is how a run becomes an arm nobody intended.
+	PlayerResources:
+		DefaultCash: 7500
+		CashDropdownLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-experimental-msar-deploy.lua
+
+# WHAT IS DELIBERATELY *NOT* DISABLED HERE.
+#
+# No bot module is removed. The drone scenario removes PoiOffensive / LaneAmbush / LayeredDefence
+# because a recruitment race would confound it; here the opposite is true. Those three are exactly
+# the modules that could steal the radar and Move it — and UndeployOnMove: true means a Move revokes
+# `deployed` — so CounterBatteryRadarBotModule's per-tick PoiGoalGuard claim is PART OF WHAT IS
+# UNDER TEST. Removing the competitors would test the siting arithmetic against no opposition and
+# report green on a build whose ledger claim never worked.
+#
+# Fog is left at the mod default rather than forced. The predicate reads
+# Test.HasCounterBatteryRadarCover for USA-bot at the radar's OWN cell, which is a property of that
+# player's MapLayers and does not depend on the fog setting either way.
+#
+# The 3000-tick UnitDelays gate is left AT ITS SHIPPED VALUE. Overriding it would make the run much
+# shorter, and it was considered and rejected: the delay is the only thing standing between this
+# feature and the opening-buy defect that has already shipped twice in ai-america.yaml, so a
+# scenario that stubs it out cannot notice if it is later removed. The cost is a long run — see the
+# --speed guidance in description.txt.
