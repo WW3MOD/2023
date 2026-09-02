@@ -249,6 +249,65 @@ checked). For those ten:
 (`run-tournament.sh:159`, every `--timeout` in the suite) is calibrated against a number the loop is
 free to miss silently. Budgets should be derived from a **measured** ticks/s, and the achieved rate
 belongs in `result.json`.
+## 2026-09-02 — The "fog is untestable from the player's seat" gap has been CLOSED SINCE 2026-09-01 08:28 and nobody wrote it down; what is actually missing is a RED (`wt/frozen-actor`, `main @ 81140244`)
+
+Static read plus the two archived run records; no launch taken this session.
+
+**Backlog item `fbfefc1c` ("no autotest can produce a frozen actor for the local player — fog
+behaviour is untestable from the player's seat") is answerable NO on three independent grounds, and
+the third one is a passing run that no commit message mentions.**
+
+1. `Test.KeepRenderPlayer` has existed since `2f56cd24`. 2. The frozen STATE never depended on
+`RenderPlayer` at all — `FrozenActor.UpdateVisibility` reads the *viewer's* own `MapLayers`
+(`FrozenActorLayer.cs:165-194`), and `FrozenActorLayer` is per-player. Both of these were already
+recorded by `4812c0c5`. 3. **The new part: `test-frozen-owner-snapshot` RAN AND PASSED** —
+`~/.ww3mod-tests/screenshots/260901_082819_p3797_test-frozen-owner-snapshot/result.json`,
+`{"status":"pass"}` at 06:28:46Z, 5½ minutes after `2f798036` moved the mis-sited Observer.
+
+**Both commits either side of that run say the opposite.** `2f798036`'s message ends *"Still unrun
+after this change; phases 3 and 4 have never executed"* — true when written at 08:23:10, falsified at
+08:28:46, never corrected. `description.txt` carried the same sentence into the tree, and the
+follow-up `172f7b85` (08:42) did not revisit it. **A worker dispatched at this item a day later reads
+three artefacts that agree the scenario cannot freeze its building, and one `result.json` — which
+nothing points at — that says it did.** The run record outlived every prose claim about it. This is
+the `git log`-before-you-start rule from CLAUDE.md in a form grep does not reach: the premise was not
+merely stale, it was contradicted by an artefact sitting on disk the whole time.
+
+**The pass is structurally non-vacuous, which is checkable without launching anything.** The lone
+`return true` (`test-frozen-owner-snapshot.lua:213`) is inside phase 4; phase 4 is entered only at
+`:180`, phase 3 only at `:139` (requires `state == "frozen"`), phase 2 only at `:121` (requires
+`state == "live"` **and** `SeenOwner == "Russia"`). So the pass entails the whole chain, including
+`:170` — meaning **that run is also the first behavioural confirmation that a frozen-actor cursor
+resolves at all**, the thing `2579ca0a` had to be defended by an IL byte-scan for want of it.
+
+**What IS still missing, and it is the part worth doing: the verdict arm has never fired.** The only
+red this scenario has ever produced is a `SETUP` fault from a mis-sited Observer (`260901_080822`).
+A guard observed only passing is not yet known to be a guard. Sabotage, compile-verified this
+session: widen `FrozenUnderFog.OnOwnerChanged` (`:217-224`) from `frozenStates[oldOwnerIndex]` to a
+loop over all players — the "consistency fix" the scenario names as its prime suspect at `:206-207`.
+It lands on the verdict and not on phase 4's two setup re-checks, because `RefreshState()`
+(`FrozenActorLayer.cs:121-140`) writes `Owner` but neither `Visible` nor `Shrouded`, and
+`Test.FrozenActorState` (`TestGlobal.cs:777-780`) branches only on those two. Full arm, expected
+failure text, and run order: `tools/autotest/scenarios/test-frozen-owner-snapshot/RED-ARM.md`.
+
+**Bearing on backlog item `68ed8366` (give bot-perception sites a liveness flag so `FrozenActor.Owner`
+can be frozen): the item is REAL, and this scenario is NOT its regression test.** Re-verified the
+load-bearing claim from `172f7b85` against current code: `BeliefStore.cs:237` and
+`SightingThreatLayer.cs:230` are both literally
+`if (player.RelationshipWith(fa.Owner) != PlayerRelationship.Enemy) continue;`, and
+`SupportPowerDecision`'s frozen-actor arm — the `GetAttractiveness(FrozenActor, ...)` overload at
+`:181`, gate at `:183-184`, called with `firedBy.RelationshipWith(scrutinized.Owner)` from `:89` and
+`:114` — returns 0 unless `stance == Against`, which defaults to `Enemy` at `:127`. Since `RelationshipWith(self)` is `Ally`, freezing the
+snapshot without a liveness concept makes a captured building read FRIENDLY to its former owner at
+all three — absent from the belief and threat fields while an enemy shoots from it. **No such flag
+exists today under any name:** `FrozenActor.IsValid` is only `Owner != null` (`:117`), and
+`Visible`/`Shrouded`/`Hidden` describe the ghost's draw state, not whether its `Owner` is current.
+The distinction `68ed8366` needs — *"this ghost's ownership datum is stale"* — is genuinely absent.
+**But note the direction: `test-frozen-owner-snapshot` asserts a THIRD PARTY's snapshot holds still,
+while the exception `68ed8366` wants to remove only ever touches the OLD OWNER's ghost. A correct
+implementation of `68ed8366` therefore leaves this scenario GREEN.** It is not that item's test; it
+is the fence that stops the fix being over-applied to all players on the way past. `68ed8366` still
+needs its own scenario, written from the old owner's seat, and this one cannot be adapted into it.
 
 ## 2026-09-02 — Six harness traps in one night, every one of which reports a confident WRONG answer rather than no answer
 
