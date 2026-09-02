@@ -19,10 +19,13 @@ REMOVE THIS FILE in the same commit as whatever makes the operator prefer the
 lost-track contact. A pass against a live `fail` declaration is RED on purpose:
 it means the premise moved and this note is stale.
 
-CAVEAT ON THIS DECLARATION SPECIFICALLY. Read expected-status.sh's KNOWN GAP
-section before trusting an OK(fail) here: a `fail` declaration also grades a
-watchdog TIMEOUT-FAIL as green, so this file cannot distinguish "the drone did
-not prefer the contact" from "the game hung and never reached a verdict". The
-run above did reach its own verdict under its own power -- 86 samples and a full
-position trace are the evidence of that, not the exit code. If this scenario ever
-goes quiet, re-read the run banner for TIMEOUT-FAIL rather than the batch tally.
+THE CAVEAT THAT SAT HERE IS RETIRED (2026-09-02). It warned that a `fail`
+declaration also graded a watchdog TIMEOUT-FAIL green, so this file could not
+distinguish "the drone did not prefer the contact" from "the game hung and never
+reached a verdict", and told the reader to re-read the run banner rather than
+trust an OK(fail) in the tally. The harness now draws that distinction itself:
+run-batch.sh grades on run-test.sh's OUTCOME NAME rather than its exit code, so
+a hang, a crash or a lost outcome is RED under any declaration and is listed
+under "NEVER REACHED A VERDICT". An OK(fail) here now means the scenario reached
+a verdict under its own power. Keep the evidence habit regardless -- 86 samples
+and a position trace are why the measurement above is believable, not the tally.

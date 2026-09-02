@@ -60,6 +60,18 @@ A declaration buys silence for exactly the one outcome it names and nothing else
 declared `fail` that starts *crashing* still reds. Decision table and a launch-free selftest:
 `./tools/autotest/expected-status.sh --selftest`.
 
+**A declaration is only ever satisfied by a scenario that reached a verdict under its own power.**
+A hang, a crash, a Ctrl-C, a run whose rules never loaded: all red under any declaration, listed
+in the summary under `!! NEVER REACHED A VERDICT`. Until 2026-09-02 a *hang* was the exception and
+graded green — `run-batch.sh` derived the outcome from the exit code, and exit 1 means both
+"the scenario answered no" (`FAIL`) and "the watchdog killed it" (`TIMEOUT-FAIL`), so a declared
+`fail` reported `OK(fail)` for a run that never happened. It now grades on the OUTCOME NAME,
+carried out of `run-test.sh` in `AUTOTEST_OUTCOME_FILE` (written from the same EXIT trap as the
+banner, so no exit path skips it). If that name is missing or disagrees with the exit code you get
+`NO-OUTCOME` / `OUTCOME-MISMATCH` — red, never a fallback to the exit code, because the fallback
+*is* the bug. The end-to-end proof is in `selftest.sh`; the decision table alone was green
+throughout the entire life of the defect, which is why the check lives at the batch level.
+
 This is strictly better than an opt-out marker, which is why there isn't one: a scenario excluded
 from `--all` stops reporting, so if it later breaks in a new way nobody hears.
 

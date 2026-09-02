@@ -29,6 +29,13 @@
 # the "how a red batch stops meaning anything" failure the --all filter below guards
 # against from the other side. Rationale and decision table: expected-status.sh.
 #
+# A declaration is graded against run-test.sh's OUTCOME NAME, never against its exit code.
+# The two are not interchangeable: exit 1 covers both a real assertion FAIL and a watchdog
+# TIMEOUT-FAIL, so grading on the code let a `fail` declaration report OK(fail) for a run
+# that hung and never happened. The name arrives via AUTOTEST_OUTCOME_FILE, written by
+# run-test.sh's EXIT trap. A hang, crash or lost outcome is red under ANY declaration and
+# is listed under "NEVER REACHED A VERDICT" in the summary.
+#
 # --hidden / --minimized (optional, leading): forwarded to every run-test.sh as
 # its window behavior. --hidden creates the window with SDL_WINDOW_HIDDEN (never
 # mapped, never focus-steals) — the unattended profile, and the one to use on
@@ -193,8 +200,14 @@ fi
 . "$(dirname "$0")/expected-status.sh"
 
 PASS=0; FAIL=0; SKIP=0; ERR=0
-BAD=0; STALE=""; MISCONFIGURED=""
+BAD=0; STALE=""; MISCONFIGURED=""; NOTRUN=""
 LINES=""
+
+# Where run-test.sh hands its precise OUTCOME name back. One path, rewritten per test,
+# and deleted before each run so a run that somehow writes nothing cannot be graded on
+# its predecessor's outcome. Carries the pid so two concurrent batches cannot share it.
+BATCH_OUTCOME_FILE="${TMPDIR:-/tmp}/ww3mod-batch-outcome.$$"
+trap 'rm -f "${BATCH_OUTCOME_FILE}"' EXIT
 
 # Running offset into the base-seed sequence. Only advances when --seed is set,
 # so with no seed the run-test.sh invocation below is byte-for-byte unchanged.
@@ -219,14 +232,46 @@ for t in ${TESTS}; do
 		_seed_offset=$((_seed_offset + 1))
 	fi
 
-	./tools/autotest/run-test.sh ${WINDOW_ARGS} ${TIMEOUT_ARGS} ${SPEED_ARGS} ${SEED_ARGS} "${t}"
+	rm -f "${BATCH_OUTCOME_FILE}"
+	AUTOTEST_OUTCOME_FILE="${BATCH_OUTCOME_FILE}" \
+		./tools/autotest/run-test.sh ${WINDOW_ARGS} ${TIMEOUT_ARGS} ${SPEED_ARGS} ${SEED_ARGS} "${t}"
 	rc=$?
 
+	# The tally stays exit-code shaped: Pass/Fail/Skip/Error are what CI and every
+	# existing reader of this summary expect, and run-test.sh's codes are unchanged.
 	case ${rc} in
-		0) outcome="PASS"; verdict="PASS";      PASS=$((PASS + 1)) ;;
-		1) outcome="FAIL"; verdict="FAIL";      FAIL=$((FAIL + 1)) ;;
-		2) outcome="SKIP"; verdict="SKIP";      SKIP=$((SKIP + 1)) ;;
-		*) outcome="ERR";  verdict="ERR ($rc)"; ERR=$((ERR + 1)) ;;
+		0) verdict="PASS";      PASS=$((PASS + 1)) ;;
+		1) verdict="FAIL";      FAIL=$((FAIL + 1)) ;;
+		2) verdict="SKIP";      SKIP=$((SKIP + 1)) ;;
+		*) verdict="ERR ($rc)"; ERR=$((ERR + 1)) ;;
+	esac
+
+	# GRADING, HOWEVER, USES THE PRECISE OUTCOME NAME, never the exit code. exit 1 is
+	# shared by a real assertion FAIL and a watchdog TIMEOUT-FAIL; grading on ${rc}
+	# is what let a `fail` declaration absorb a hang -- a run that never happened,
+	# recorded as a pass. run-test.sh writes the name it actually decided on to
+	# AUTOTEST_OUTCOME_FILE from its EXIT trap, so there is no exit path that leaves
+	# this file unwritten. Read from the file rather than the stdout banner because
+	# capturing stdout is what costs a caller its exit code (this harness has lost one
+	# to a pipe twice) -- and the two must agree, so we check that they do.
+	outcome=$(sed -n 's/^outcome=\([^ ]*\).*/\1/p' "${BATCH_OUTCOME_FILE}" 2>/dev/null | head -1)
+	_rt_exit=$(sed -n 's/^.* exit=\([^ ]*\).*/\1/p' "${BATCH_OUTCOME_FILE}" 2>/dev/null | head -1)
+	if [ -z "${outcome}" ]; then
+		# NO FALLBACK TO ${rc} ON PURPOSE. Deriving the outcome from the exit code is
+		# precisely the bug being fixed, so doing it "just as a fallback" reinstates it
+		# in the one situation where the harness is already known to be misbehaving.
+		outcome="NO-OUTCOME"
+	elif [ "${_rt_exit}" != "${rc}" ]; then
+		# The runner's own record of how it exited disagrees with the code we received:
+		# something between the two is rewriting the verdict. Never gradeable.
+		outcome="OUTCOME-MISMATCH"
+	fi
+
+	# Show the precise name whenever it is not the exit-code bucket, so TIMEOUT-FAIL
+	# and CRASH stop reading as an indistinguishable "FAIL" / "ERR (3)" in the summary.
+	case "${outcome}" in
+		PASS|FAIL|SKIP) : ;;
+		*) verdict="${outcome}" ;;
 	esac
 
 	_declared=$(expected_status_read "tools/autotest/scenarios/${t}")
@@ -241,6 +286,10 @@ for t in ${TESTS}; do
 			verdict="STALE"
 			BAD=$((BAD + 1))
 			STALE="${STALE} ${t}"
+			;;
+		NOTRUN)
+			BAD=$((BAD + 1))
+			NOTRUN="${NOTRUN} ${t}(${outcome})"
 			;;
 		CONFIG)
 			verdict="CONFIG"
@@ -280,6 +329,21 @@ if [ -n "${STALE}" ]; then
 		echo "       tools/autotest/scenarios/${_s}/expected-status"
 	done
 	echo "     Delete it in the same commit as whatever fixed the scenario."
+fi
+
+# The run did not happen. Reported separately from an ordinary failure because it is a
+# different KIND of result: a FAIL is the scenario answering no, and these are the harness
+# giving up -- nothing was measured, so nothing was learned, and no declaration can make
+# one of them green. This block is also the thing that makes an `expected-status` file
+# safe to write: without it, "declared fail" quietly covered "never loaded its rules".
+if [ -n "${NOTRUN}" ]; then
+	echo
+	echo "  !! NEVER REACHED A VERDICT — these scenarios hung, crashed or were killed,"
+	echo "     so the run did not happen and no expected-status declaration grades them"
+	echo "     green. Read the run banner and the debug.log before re-running:"
+	for _n in ${NOTRUN}; do
+		echo "       ${_n}"
+	done
 fi
 
 if [ -n "${MISCONFIGURED}" ]; then
