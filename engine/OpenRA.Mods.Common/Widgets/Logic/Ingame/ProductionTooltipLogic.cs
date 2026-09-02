@@ -436,6 +436,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					contributed.Add((priority, row));
 			}
 
+			// Upkeep's NEGATIVE case, which no trait can state because the trait is what is missing.
+			// InfersUpkeep is declared on ^Vehicle and ^Infantry only, so aircraft and structures have
+			// nothing to contribute a row — and a figure that appears on the whole ground roster and
+			// then silently vanishes on helicopters reads as a bug rather than as information.
+			// "Costs nothing to own" is a real asymmetry in this economy and is worth saying out loud.
+			if (!actor.HasTraitInfo<InfersUpkeepInfo>())
+				contributed.Add((InfersUpkeepInfo.TooltipPriority, InfersUpkeepInfo.NoUpkeepRow()));
+
 			// What refilling this actor from empty costs, across every priced pool.
 			// Lives in the renderer (not on AmmoPoolInfo) so individual pools don't
 			// need to know about each other; the cross-pool sum is intrinsically global.
