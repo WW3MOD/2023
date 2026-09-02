@@ -31,18 +31,32 @@ so `Granted` is never true and the lambda never runs. Naming the captor is what 
 that call site keeps `refreshTooltipOwner: true` deliberately — but it is a dormant exemption, not
 a live one, and a future GPS power would silently re-open the tooltip channel.
 
-**4. The leak needs no scouting step, because a building reveals its own footprint to its owner.**
+**4. The leak needs no scouting step, because a building reveals its own footprint to its owner —
+but WHICH ownership-change path you take decides whether the vision ever leaves.**
 `^BasicBuilding` mounts `Vision@3/@2/@1` (`structures.yaml:14-23`: strength 3 out to 1c0, 2 to 2c0,
-1 to 3c0). So an owner **always** has real vision of their own building's cell, and the ghost of it
-reads `live` for free — and the *capture itself* is what removes that vision, because the `Vision`
-traits move to the captor with the actor. Two consequences. (a) A scenario for this case needs no
-Scout and no kill: the state transition under test is produced by the event under test.
+1 to 3c0), so an owner **always** has real vision of their own building's cell and the ghost of it
+reads `live` for free. Whether the capture takes that away depends entirely on the call:
+
+- `Actor.ChangeOwnerSync` (`Actor.cs:577-592`) removes and re-adds the actor, which fires
+  `AffectsMapLayer`'s add/remove hooks and rebuilds every player's vision sources. Vision moves.
+  This is the path Lua `actor.Owner =` takes (`GeneralProperties.cs:63`).
+- `Actor.ChangeOwnerInPlaceSync` (`:545-563`) skips that cycle. `AffectsMapLayer` does **not**
+  implement `INotifyOwnerChanged` (`:42-43`), so nothing re-evaluates `Vision`'s owner-relationship
+  gate and **the vision does not move at all.** Both real capture paths take this branch for
+  buildings on purpose (`CaptureActor.cs:140-143`, `ProximityCapturable.cs:222-227`).
+
+So a scenario for this case needs no Scout and no kill — the state transition is produced by the
+event under test, provided the event is a full `ChangeOwner`.
 `test-frozen-tooltip-owner-hidden` is built that way, and is the first scenario in the suite whose
 viewer is the **old owner**, i.e. the first to execute `FrozenUnderFog.OnOwnerChanged`'s body under
-assertion at all. (b) The old owner does have sight at the instant of capture, so the leak is not
-"they had no way to know" — it is that vision and ownership end on the *same tick* while the ghost
-tooltip stays hoverable indefinitely afterwards. Free intel at leisure, not free intel at the
-moment.
+assertion at all. **It is NOT a faithful model of an engineer capture today**, because that path
+leaves the old owner's vision in place and their ghost therefore never freezes — see the
+[HIGH] entry in `WORKSPACE/bugs/discovered.md`. It models the code path correctly, and it models
+gameplay correctly once that bug is fixed.
+
+Note also what this does *not* say: the old owner has sight at the instant of capture either way, so
+the leak was never "they had no way to know". It is that the ghost tooltip stays hoverable
+indefinitely afterwards. Free intel at leisure, not free intel at the moment.
 
 **5. Withholding `TooltipOwner` costs fidelity in the mirror case, and there is no third option.**
 `RefreshState` runs again for a viewer only when they **regain** sight (`OnVisibilityChanged`,

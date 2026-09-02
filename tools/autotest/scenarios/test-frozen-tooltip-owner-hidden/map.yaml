@@ -53,9 +53,22 @@ Players:
 # mounts its own Vision ladder (structures.yaml:14-23: strength 3 out to 1c0,
 # 2 to 2c0, 1 to 3c0). A building therefore reveals its own footprint to its
 # owner permanently, so USA's ghost of Box reads 'live' with no help -- and the
-# CAPTURE is what takes that vision away, because the Vision traits move to the
-# captor with the actor. The transition this scenario needs is produced by the
-# event under test rather than staged around it.
+# CAPTURE is what takes that vision away. The transition this scenario needs is
+# produced by the event under test rather than staged around it.
+#
+# THAT LAST STEP DEPENDS ON WHICH OWNERSHIP-CHANGE CALL IS USED, and the choice
+# here is deliberate. Lua `Box.Owner = russia` routes through Actor.ChangeOwner
+# -> ChangeOwnerSync (GeneralProperties.cs:63; Actor.cs:577-592), which
+# momentarily removes and re-adds the actor and so rebuilds every player's
+# vision sources -- USA loses the cell, Russia gains it. An ENGINEER capture
+# does NOT do this: CaptureActor.cs:140-143 branches on BuildingInfo to
+# ChangeOwnerInPlaceSync specifically to skip that cascade, and AffectsMapLayer
+# (Vision's base) has no INotifyOwnerChanged, so the vision never moves at all.
+# ProximityCapturable.cs:222-227 branches the same way. That is logged as a
+# separate [HIGH] bug in WORKSPACE/bugs/discovered.md; until it is fixed, a
+# capture-driven version of this scenario would sit at state 'live' forever and
+# could not be written. Do NOT "improve" this scenario by replacing the Lua
+# assignment with a real capture without checking that bug first.
 #
 # That also settles the question of whether the explored bit is set when the
 # verdict is read: USA held real vision of 8,16 for every tick up to the

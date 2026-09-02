@@ -5,6 +5,41 @@
 
 ---
 
+- [2026-09-02] [HIGH] **Capturing a building leaves its vision with the PREVIOUS owner, permanently,
+  and gives the captor none.** `Vision` derives from `AffectsMapLayer` (`Vision.cs:29`), which
+  implements `INotifyAddedToWorld` / `INotifyRemovedFromWorld` / `INotifyCenterPositionChanged` /
+  `INotifyMoving` / `ITick` but **not `INotifyOwnerChanged`** (`AffectsMapLayer.cs:42-43`). Its
+  `UpdateCells` — the only thing that re-evaluates `AddCellsToPlayerMapLayer`, and hence the only
+  thing that re-runs `Vision`'s `self.Owner.RelationshipWith(p)` gate (`Vision.cs:48-53`) — runs on
+  add-to-world, on a position change, or on `ITick` **only when the range or trait-disabled state
+  changes** (`AffectsMapLayer.cs:136-159`). A captured building does none of those: it never moves,
+  its range never changes, and `^BasicBuilding`'s `Vision@3/@2/@1` carry no `RequiresCondition`.
+  Upstream this is harmless because `Actor.ChangeOwnerSync` momentarily removes and re-adds the
+  actor (`Actor.cs:577-592`), firing the add/remove hooks and rebuilding the sources. **But both
+  real capture paths deliberately skip that cycle for buildings**: `CaptureActor.cs:140-143`
+  (engineer capture) and `ProximityCapturable.cs:222-227` both branch on
+  `HasTraitInfo<BuildingInfo>()` to `ChangeOwnerInPlaceSync`, whose doc-comment names the skipped
+  work as *"the expensive shroud/vision recalc cascade ... (causes a ~0.5s freeze on capture)"*. The
+  perf motive is presumably real; the correctness cost appears not to have been noticed.
+  **Effect:** every building you have ever lost keeps feeding you vision out to 3c0 forever, and the
+  player who took it gains nothing from it. A standing fog leak on both sides of every capture,
+  considerably larger than any tooltip.
+  **Interaction with `wt/tooltip-owner`:** it also means the old owner still SEES the captured cell,
+  so their ghost never freezes and the tooltip-identity leak that branch fixes is currently
+  unreachable *through the in-place capture paths*. It stays reachable through every caller that
+  uses the full `ChangeOwner` — Lua `actor.Owner =` (`GeneralProperties.cs:63`),
+  `ChangeOwnerWarhead`, `OwnerLostAction`, `TemporaryOwnerManager`, `BaseSpawnerSlave` — and would
+  become reachable through engineer capture the moment this is fixed. The tooltip fix is therefore
+  correct and forward-safe rather than dead, but do not expect to reproduce the leak by walking an
+  engineer into a building until this is resolved.
+  **Not fixed here** — the obvious repair (have `AffectsMapLayer` implement `INotifyOwnerChanged`
+  and call `UpdateCells`) reintroduces exactly the cascade those two call sites were written to
+  avoid, so it needs a perf answer and a decision, not a drive-by. **No launch taken; read off the
+  traits.**
+  (found while working on: withholding the captor's identity in the frozen tooltip, `wt/tooltip-owner`)
+
+---
+
 - [2026-09-02] [low] **`test-frozen-owner-snapshot` cannot fail on the owner-change path anyone is
   actually worried about, and its name does not say so.** `FrozenUnderFog.OnOwnerChanged` (`:217-224`)
   refreshes `frozenStates[oldOwnerIndex]` and nothing else — **only the old owner's ghost moves.** The
