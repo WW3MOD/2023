@@ -166,6 +166,57 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// The approach margin used when a caller has no tuned one to hand. Referenced by
+		/// <c>DropsSupplyCacheInfo.DropAtToleranceCells</c> rather than restated there, so the mod carries
+		/// one number for this and not two — the same discipline the RestockThreshold parameter above is
+		/// documented under.
+		/// </summary>
+		public const int DefaultApproachMarginCells = 2;
+
+		/// <summary>
+		/// Has a transport on a supply errand actually reached its host?
+		///
+		/// <para>THE ONE COMPOSITION OF footprint -> tolerance -> distance, and it exists as a named method
+		/// because having the three steps written out at each errand is what let one of them ship without
+		/// the check at all. <see cref="DeliverSupply"/> carried the guard from the start;
+		/// <see cref="RestockSupply"/>, its documented mirror, never had it, and the asymmetry survived
+		/// review because the arithmetic was open-coded at the one site that had it rather than named.</para>
+		///
+		/// <para>Why the guard is load-bearing rather than defensive: a Move to a cell with no route does
+		/// not FAIL. <c>PathFinder</c> bails to NoPath, and <c>Move.Tick</c> treats an empty path as arrival
+		/// (Move.cs:173-177) — it sets destination to the current cell and completes in about two ticks. So
+		/// an errand that transfers supply on completion transfers it from wherever the transport happened
+		/// to be standing when the order was given.</para>
+		/// </summary>
+		public static bool ArrivedAtHost(int dx, int dy, int hostFootprintCells, int approachMarginCells)
+		{
+			return SupplyDropMath.ArrivedAtDropCell(
+				dx, dy, ArrivalTolerance(hostFootprintCells, approachMarginCells));
+		}
+
+		/// <summary>
+		/// How much supply a restock moves from host to transport — the mirror of
+		/// <see cref="AmountToDeliver"/>, and deliberately the same shape so the two directions of one
+		/// gesture cannot drift apart.
+		///
+		/// <para>THE ARRIVAL TERM IS A PARAMETER RATHER THAN THE CALLER'S BUSINESS, and that is the whole
+		/// point of routing the amount through here: an activity cannot compute a transfer without having
+		/// been made to answer whether it arrived. Passing <c>false</c> yields zero, so the failure mode is
+		/// "the truck keeps its load", which is always recoverable.</para>
+		/// </summary>
+		public static int AmountToRestock(bool arrived, int transportSupply, int transportCapacity, int hostSupply)
+		{
+			if (!arrived)
+				return 0;
+
+			var needed = transportCapacity - transportSupply;
+			if (needed <= 0 || hostSupply <= 0)
+				return 0;
+
+			return needed < hostSupply ? needed : hostSupply;
+		}
+
+		/// <summary>
 		/// How much supply a delivery moves from transport to host.
 		///
 		/// <para>THIS IS THE PARTIAL/PARTIAL POLICY, and it is deliberately the only place that decides
@@ -179,8 +230,13 @@ namespace OpenRA.Mods.Common.Traits
 		/// arbitration above does not consult the amount, and the activity that performs the transfer
 		/// asks only for a number.</para>
 		/// </summary>
-		public static int AmountToDeliver(int transportSupply, int hostSupply, int hostCapacity)
+		public static int AmountToDeliver(bool arrived, int transportSupply, int hostSupply, int hostCapacity)
 		{
+			// See AmountToRestock: the arrival term is a parameter of both directions so that neither
+			// activity can compute a transfer without having been made to answer whether it got there.
+			if (!arrived)
+				return 0;
+
 			if (transportSupply <= 0)
 				return 0;
 

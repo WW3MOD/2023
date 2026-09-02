@@ -570,17 +570,11 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// Shift `from` toward `toward` by `cells` map cells. Coincident points return `from` unchanged.
+		// Body extracted to BotGeometry 2026-09-02 — it was byte-identical to LayeredDefence's private
+		// copy and a third module now needs it.
 		static CPos ShiftToward(CPos from, CPos toward, int cells)
 		{
-			var dx = toward.X - from.X;
-			var dy = toward.Y - from.Y;
-			var len = System.Math.Sqrt(dx * dx + dy * dy);
-			if (len < 1)
-				return from;
-
-			var sx = (int)System.Math.Round(dx / len * cells);
-			var sy = (int)System.Math.Round(dy / len * cells);
-			return new CPos(from.X + sx, from.Y + sy);
+			return BotGeometry.ShiftToward(from, toward, cells);
 		}
 	}
 }

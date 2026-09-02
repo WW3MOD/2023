@@ -1,0 +1,80 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-tree-indestructible.lua
+
+# The gun. Only the shell changes: TankRound.Abrams cannot damage a tree at all (see weapons.yaml),
+# so leaving it would give a vacuous green. Everything else about the Abrams is left stock --
+# AmmoPool 40 rounds, VehicleCrew, AttackTurreted -- because those are the parts that make a
+# map-placed tank actually shoot, and test-balance-tank-1v1 already demonstrates they work
+# untouched. 40 rounds x 12000 = 480000, which is 192x the tree's 2500 HP; ammo is not the limit.
+abrams:
+	Armament@1:
+		Weapon: TreeGuardShell
+
+# ------------------------------------------------------------------------------------------
+# THE TWO CONTROL TREES. Both are ordinary shipped tree actors with the invulnerability put
+# BACK to a no-op, which is what makes this scenario unable to pass vacuously.
+#
+# THE KEYS BELOW MUST BE `T02:`/`T03:`, MATCHING decoration.yaml's CASE EXACTLY. This cost a
+# run on 2026-09-02: written as `t02:`/`t03:` they did not override anything, they DEFINED TWO
+# NEW ACTORS. MiniYaml merges top-level keys with ordinal, case-SENSITIVE string equality
+# (MiniYaml.cs:410 ToDictionary with the default comparer, :549 HashSet with the default
+# comparer, :597/:606 `nodes[i].Key == key`); the ToLowerInvariant that makes actor names
+# case-insensitive happens later and elsewhere, in Ruleset.LoadRules (Ruleset.cs:126), when
+# ActorInfo objects are built from the ALREADY-merged tree. `abrams:` above is lowercase only
+# because vehicles-america.yaml:456 declares it that way. Copy the case from the defining file,
+# never from the map's Actors list -- actor TYPE references there really are case-insensitive,
+# which is exactly what makes this trap look wrong.
+#
+# Modifier: 100 rather than `-DamageMultiplier@Indestructible:`. The removal form would work
+# today but breaks the RED procedure: with the `Inherits@Indestructible:` line on ^Tree
+# commented out there is no such trait to remove, and the sabotage run would be testing the
+# removal syntax instead of the mechanism. Setting Modifier: 100 behaves identically in BOTH
+# states -- it overrides the trait where it exists and adds an inert one where it does not.
+#
+# WHY A DESTRUCTIBLE TREE AND NOT SOME OTHER WITNESS. The failure this guards against is a
+# fixture that cannot hurt a TREE specifically -- a warhead whose ValidTargets lost `Trees`
+# leaves every non-tree witness bleeding normally while every tree on the map sits at full HP,
+# and the scenario would report "trees are indestructible" for entirely the wrong reason. Only
+# a tree that DOES die rules that out.
+# ------------------------------------------------------------------------------------------
+
+# WITNESS: dies on the first shell, and its T02.Husk is the census baseline. Its husk is left
+# INTACT on purpose. A husk count of exactly one, of a type this scenario knows the name of,
+# proves the census can see a husk at all -- a bare "zero husks" assertion is satisfied just as
+# well by a broken detector as by a working guard.
+T02:
+	DamageMultiplier@Indestructible:
+		Modifier: 100
+
+# SPONGE: the shell counter. Same falloff position as the witness, so it takes exactly 12000 per
+# shell, and 6000000 HP means it cannot die inside 40 rounds (500 would be needed). Its HP loss
+# divided by 12000 is the number of shells that landed -- the quantity the verdict reports, and
+# the thing that makes "enough damage to have destroyed it before" arithmetic instead of a claim.
+#
+# ITS SpawnActorOnDeath IS DELIBERATELY LEFT ALONE. A `-SpawnActorOnDeath:` here was the line
+# that failed to load on 2026-09-02, and once the key casing above is right the removal WOULD
+# work -- T03 declares the trait literally (decoration.yaml:243) and MergePartial appends this
+# block's children after it, so it is in `resolved` by the time the removal is reached. It is
+# still not worth having. The sponge dying is already caught twice, earlier and with better
+# messages than a missing husk would give: the explicit `Sponge.IsDead` SETUP check fires first,
+# and failing that the census reports "got 2: t02.husk t03.husk" and names the actor. A removal
+# that only matters in a state two other assertions already own is one more thing that can stop
+# the map loading, and a map that does not load runs none of them.
+T03:
+	DamageMultiplier@Indestructible:
+		Modifier: 100
+	Health:
+		HP: 6000000

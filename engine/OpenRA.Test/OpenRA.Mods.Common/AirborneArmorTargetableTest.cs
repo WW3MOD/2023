@@ -124,9 +124,10 @@ namespace OpenRA.Test
 				// of a Supply Route: on its wheels, undamaged, not EMP'd. Each one only ever ADDS a
 				// target type in some other state, so reading them this way is the conservative choice.
 				case "!parachute": return true;
-				case "damaged": return false;
-				case "critical-damage": return false;
-				case "empdisable": return false;
+				case "damaged":
+				case "critical-damage":
+				case "empdisable":
+					return false;
 				default:
 					throw new InvalidOperationException(
 						$"unrecognised Targetable RequiresCondition '{requiresCondition}' on an aircraft. " +

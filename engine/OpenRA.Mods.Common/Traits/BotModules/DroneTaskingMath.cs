@@ -26,23 +26,23 @@ namespace OpenRA.Mods.Common.Traits
 		public const long Ineligible = long.MinValue;
 
 		/// <summary>
-		/// The furthest a drone may be asked to hover from the operator, in cells.
+		/// <para>The furthest a drone may be asked to hover from the operator, in cells.</para>
 		///
-		/// TWO SEPARATE LIMITS BIND HERE AND THE SMALLER ONE WINS.
+		/// <para>TWO SEPARATE LIMITS BIND HERE AND THE SMALLER ONE WINS.
 		/// (1) The weapon: DroneTargeter's range is what decides whether the launch order can be
 		/// executed from where the operator is standing at all.
 		/// (2) The leash: CarrierSlave.MaxDistance (25 cells, aircraft.yaml) checked every
 		/// MaxDistanceCheckTicks. Past it the drone is NOT recalled — it is dragged 10% back and
 		/// granted lost-connection, which zeroes its vision. A drone sitting past the leash is
-		/// therefore worse than useless: it is a blind unit the bot believes is scouting.
+		/// therefore worse than useless: it is a blind unit the bot believes is scouting.</para>
 		///
-		/// CarrierMasterInfo.MaxSlaveDistance is NOT one of these limits. It has no readers
+		/// <para>CarrierMasterInfo.MaxSlaveDistance is NOT one of these limits. It has no readers
 		/// engine-wide (CarrierMaster.cs:38) — the field is inert, and the 20c0 on ^DR is decoration.
-		/// Anything built on that number is standoff arithmetic against a constant nothing reads.
+		/// Anything built on that number is standoff arithmetic against a constant nothing reads.</para>
 		///
-		/// The margin exists because the leash check is periodic rather than continuous and the
+		/// <para>The margin exists because the leash check is periodic rather than continuous and the
 		/// operator may be nudged after launch; sitting exactly on the boundary invites the
-		/// lost-connection grant on the next check.
+		/// lost-connection grant on the next check.</para>
 		/// </summary>
 		public static int MaxHoverDistanceCells(int weaponRangeCells, int leashCells, int marginCells)
 		{
@@ -54,9 +54,9 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Score a candidate HOVER cell by the unobserved ground the drone would REVEAL from there.
+		/// <para>Score a candidate HOVER cell by the unobserved ground the drone would REVEAL from there.</para>
 		///
-		/// THIS REPLACED A SCORING MODEL THAT COULD NEVER FIRE, AND THE DIFFERENCE IS THE WHOLE POINT.
+		/// <para>THIS REPLACED A SCORING MODEL THAT COULD NEVER FIRE, AND THE DIFFERENCE IS THE WHOLE POINT.
 		/// The previous version scored the hover cell by its OWN staleness. That is unsatisfiable by
 		/// construction: the hover cell must be within the drone's leash of the operator (22 cells),
 		/// while the operator itself verifies everything within 28 cells (^StandardVision's bands down
@@ -64,18 +64,18 @@ namespace OpenRA.Mods.Common.Traits
 		/// ControlField.GridCellVisible tests MapLayers.IsVisible(cell, 1) and that comparison is
 		/// STRICT, MapLayers.cs:579). So every reachable hover cell sits inside the operator's own
 		/// verified bubble and is permanently fresh. Measured over one match: 674,584 of 674,584
-		/// candidates refused as too fresh, exactly 100%, across 582 evaluations and 70k ticks.
+		/// candidates refused as too fresh, exactly 100%, across 582 evaluations and 70k ticks.</para>
 		///
-		/// What makes a drone worth launching is not that the cell it sits on is unknown — it is that
+		/// <para>What makes a drone worth launching is not that the cell it sits on is unknown — it is that
 		/// the drone carries its own vision (quadcopterdrone inherits ^StandardVision via
 		/// ^Drone -> ^Airborne -> ^NeutralAirborne), so parked at the leash edge it verifies a bubble
 		/// centred 22 cells out and sees ground the operator cannot. Ground already inside the
 		/// operator's bubble contributes nothing here automatically, because it is not stale — the
-		/// exclusion needs no special case.
+		/// exclusion needs no special case.</para>
 		///
-		/// revealedStaleSquares is a count of COARSE ControlField grid squares, not map cells, and the
+		/// <para>revealedStaleSquares is a count of COARSE ControlField grid squares, not map cells, and the
 		/// caller obtains it in O(1) from a summed-area table. See DroneOperatorBotModule for why the
-		/// resolution and the table are both load-bearing for cost rather than for correctness.
+		/// resolution and the table are both load-bearing for cost rather than for correctness.</para>
 		/// </summary>
 		/// <remarks>
 		/// The danger term is AIR danger: this is where the DRONE hovers, and it dies to one hit of
@@ -160,28 +160,28 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// What a believed contact's last-known cell is worth, expressed in the SAME unit as revealed
-		/// area — coarse grid squares — so the two can be compared without an inter-unit conversion.
+		/// <para>What a believed contact's last-known cell is worth, expressed in the SAME unit as revealed
+		/// area — coarse grid squares — so the two can be compared without an inter-unit conversion.</para>
 		///
-		/// THREE TIERS, AND THE STEP BETWEEN THE FIRST TWO IS THE FEATURE.
+		/// <para>THREE TIERS, AND THE STEP BETWEEN THE FIRST TWO IS THE FEATURE.
 		/// A contact we can still see is worth something (a drone reveals the ground AROUND it, which
 		/// we cannot see) but not much, because the unit itself is not in question. The instant we lose
 		/// it the value STEPS UP to <paramref name="lostSquares"/>: a unit that just disappeared is a
 		/// unit whose position we care about and no longer have. That discontinuity at
 		/// <paramref name="freshSightingTicks"/> is deliberate and is what "even more so if we lost
-		/// track" means in arithmetic.
+		/// track" means in arithmetic.</para>
 		///
-		/// WHY IT DECAYS, WHICH IS NOT "OLD NEWS IS BORING". The last-known cell stops LOCATING the
+		/// <para>WHY IT DECAYS, WHICH IS NOT "OLD NEWS IS BORING". The last-known cell stops LOCATING the
 		/// unit: at WW3MOD ground speeds (~300-500 world units/tick, i.e. ~0.3-0.5 cells/tick) a unit
 		/// clears the drone's own 28-cell vision radius within ~70 ticks of vanishing, and after a
 		/// couple of minutes it could be anywhere. So the value decays toward
 		/// <paramref name="areaSquares"/> rather than toward zero — the specific unit is gone from that
 		/// cell, but the ground remains where the enemy was operating, and that is worth what any other
 		/// sighting is worth. The floor is why an old record degrades into a weak area preference
-		/// instead of vanishing in one step.
+		/// instead of vanishing in one step.</para>
 		///
-		/// Statics get a flat, low value: a structure is not going anywhere, so its position is not the
-		/// open question that justifies spending a sortie.
+		/// <para>Statics get a flat, low value: a structure is not going anywhere, so its position is not the
+		/// open question that justifies spending a sortie.</para>
 		/// </summary>
 		public static int IntelSquares(
 			int ageTicks,
@@ -216,17 +216,17 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Discount a contact's worth by how far the candidate hover cell sits from its last-known cell.
+		/// <para>Discount a contact's worth by how far the candidate hover cell sits from its last-known cell.</para>
 		///
-		/// THE RADIUS IS THE DRONE'S VISION, NOT AN ADJACENCY TEST. The previous model asked whether the
+		/// <para>THE RADIUS IS THE DRONE'S VISION, NOT AN ADJACENCY TEST. The previous model asked whether the
 		/// hover cell was within 6 cells of a contact, which understates the drone by a factor of ~4.5:
 		/// parked anywhere it verifies a 28-cell bubble, so a contact 20 cells from the hover cell is
 		/// still comfortably observed. Falling off across the full vision radius also encodes the thing
 		/// a step function cannot — that CENTRING on the last-known cell is what maximises the chance of
-		/// re-acquiring a unit that has since moved, because the uncertainty disc grows around it.
+		/// re-acquiring a unit that has since moved, because the uncertainty disc grows around it.</para>
 		///
-		/// Same linear shape as the danger field's own kernel stamp, for consistency with the rest of
-		/// the influence stack: full value at zero distance, one-(radius+1)th at the rim.
+		/// <para>Same linear shape as the danger field's own kernel stamp, for consistency with the rest of
+		/// the influence stack: full value at zero distance, one-(radius+1)th at the rim.</para>
 		/// </summary>
 		public static int IntelFalloff(int squares, int distanceCells, int visionCells)
 		{
@@ -240,14 +240,49 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Build an inclusive summed-area table over a grid of 0/1 values.
-		/// <paramref name="sat"/> must be (gw+1) x (gh+1); row 0 and column 0 stay zero and are the
-		/// sentinel border the query subtracts against.
+		/// <para>Whether a coarse grid square is ground a drone could actually GO AND REVEAL: stale enough to
+		/// be worth looking at, AND inside the playable map.</para>
 		///
-		/// THE THRESHOLD IS APPLIED HERE, AT BUILD TIME, and that is not a detail. The table sums an
+		/// <para>THE SECOND TERM IS THE WHOLE POINT, AND IT IS NOT A BOUNDS CHECK FOR SAFETY.
+		/// "Never observed" and "outside the playable area" are indistinguishable to any staleness test.
+		/// ControlField sizes its grid from Map.MapSize (ControlField.cs:520-521) while Map.Contains
+		/// tests the strictly smaller playable Bounds, and a square no player can ever see is never
+		/// marked verified — so TicksSinceVerified returns int.MaxValue for it forever
+		/// (ControlField.cs:921-928), which clears every staleness threshold. A summed-area table built
+		/// on staleness alone therefore counts the non-playable border as permanently unobserved ground
+		/// and pays the drone to fly at it.</para>
+		///
+		/// <para>It is worst exactly where it is used: operators launch from the Supply Route, a fixed
+		/// beachhead near a map edge, so their candidate boxes overlap the border band far more than an
+		/// inland unit's would. Measured on River Zeta's geometry the artefact is 31 squares over a
+		/// fully-observed neighbourhood — 2.5x MinRevealedSquares, i.e. enough on its own to carry a
+		/// candidate over the launch floor with nothing real to see
+		/// (DroneTaskingMathTest.Revealable_TheNonPlayableBorderIsNotUnobservedGround).</para>
+		///
+		/// <para>SumInclusive's clamp does NOT already do this: it clamps to the GRID, which is the larger
+		/// MapSize rectangle, not to Bounds.</para>
+		///
+		/// <para>This is a SEPARATE artefact from the box-corner one, which was the box-versus-disc mismatch and
+		/// is geometric rather than map-dependent. Removing the border shrinks the corner artefact wherever
+		/// the two overlap and leaves it untouched inland; it never fixed it. The corner artefact is now
+		/// addressed independently by <see cref="SumDisc"/>, and the two remain orthogonal: this bounds test
+		/// is still required, because a disc that hangs off the playable area would otherwise count the
+		/// non-playable border inside the disc.</para>
+		/// </summary>
+		public static bool IsRevealable(bool inPlayableBounds, int ticksSinceVerified, int minStalenessTicks)
+		{
+			return inPlayableBounds && ticksSinceVerified >= minStalenessTicks;
+		}
+
+		/// <summary>
+		/// <para>Build an inclusive summed-area table over a grid of 0/1 values.
+		/// <paramref name="sat"/> must be (gw+1) x (gh+1); row 0 and column 0 stay zero and are the
+		/// sentinel border the query subtracts against.</para>
+		///
+		/// <para>THE THRESHOLD IS APPLIED HERE, AT BUILD TIME, and that is not a detail. The table sums an
 		/// INDICATOR (is this square unobserved: 1 or 0). A table built over raw staleness values and
 		/// thresholded at query time would sum ticks, and the resulting number would be meaningless —
-		/// large where one square is ancient rather than where many squares are unseen.
+		/// large where one square is ancient rather than where many squares are unseen.</para>
 		/// </summary>
 		public static void BuildSummedArea(int[,] sat, int gw, int gh, Func<int, int, bool> isSet)
 		{
@@ -262,14 +297,14 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Count of set squares in the INCLUSIVE rectangle [x0..x1] x [y0..y1], clamped to the grid.
+		/// <para>Count of set squares in the INCLUSIVE rectangle [x0..x1] x [y0..y1], clamped to the grid.
 		/// Four array reads regardless of the rectangle's size — which is the whole reason the drone's
-		/// vision radius costs nothing per candidate.
+		/// vision radius costs nothing per candidate.</para>
 		///
-		/// Clamping happens BEFORE the corner reads so a box hanging off two edges at once is still a
+		/// <para>Clamping happens BEFORE the corner reads so a box hanging off two edges at once is still a
 		/// valid query rather than an index throw or a silently wrong sum. An off-by-one here does not
 		/// crash: it mis-scores every candidate near a grid edge, symmetrically, in a way that no
-		/// score-comparison test would notice — hence the explicit boundary tests.
+		/// score-comparison test would notice — hence the explicit boundary tests.</para>
 		/// </summary>
 		public static int SumInclusive(int[,] sat, int gw, int gh, int x0, int y0, int x1, int y1)
 		{
@@ -284,40 +319,105 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Whether a launch order may be issued THIS tick.
+		/// <para>Half-widths of a filled disc of the given radius, indexed by |dy|: entry dy is the largest
+		/// w with w² + dy² &lt;= radius². <paramref name="radiusSquares"/> is in COARSE grid squares.</para>
 		///
-		/// EVERY TERM IS A SEPARATE FAILURE THAT LOOKS LIKE SUCCESS.
+		/// <para>WHY THIS EXISTS: the revealed-area query used to be the drone's vision BOX, while the drone's
+		/// vision is a DISC. At the shipped 14-square radius the box is 29x29 = 841 squares against a disc
+		/// of 613, so up to 228 squares of every query were corners the drone can never see. That is not a
+		/// rounding detail — it is ~19x MinRevealedSquares (12), so every candidate cleared the launch floor
+		/// on corner artefact alone regardless of whether it would reveal anything real, and the floor was
+		/// inert. It is also state-dependent rather than a constant offset: a candidate whose CORNERS are
+		/// stale and whose disc is fresh outscored one that would actually see something.</para>
 		///
-		/// armamentReady: ^DR's primary Armament is PauseOnCondition "!loaded || !ammo-primary", so
+		/// <para>INTEGER ARITHMETIC, NOT Math.Sqrt, AND THAT IS LOAD-BEARING. This feeds a bot decision, and
+		/// the influence stack's contract is byte-identity across runs and runtimes. A float sqrt at a
+		/// boundary case (dy=13 sits at 27, one under 5² + 13² = 194 &lt;= 196) could round differently on a
+		/// different runtime and silently change which cells a drone is offered. The widening loop cannot.</para>
+		/// </summary>
+		public static int[] BuildDiscHalfWidths(int radiusSquares)
+		{
+			if (radiusSquares < 0)
+				radiusSquares = 0;
+
+			var halfWidths = new int[radiusSquares + 1];
+			var rsq = radiusSquares * radiusSquares;
+
+			for (var dy = 0; dy <= radiusSquares; dy++)
+			{
+				var w = 0;
+				while (((w + 1) * (w + 1)) + (dy * dy) <= rsq)
+					w++;
+
+				halfWidths[dy] = w;
+			}
+
+			return halfWidths;
+		}
+
+		/// <summary>
+		/// <para>Count of set squares inside the DISC of <paramref name="radiusSquares"/> centred on
+		/// (<paramref name="cx"/>, <paramref name="cy"/>), as one clamped row-range query per grid row.</para>
+		///
+		/// <para>COST, STATED PLAINLY BECAUSE IT IS THE REASON THE BOX WAS THERE. This is (2r+1) queries per
+		/// candidate instead of one — 29 x 4 = 116 array reads at the shipped radius, against 4 for the box.
+		/// Across ~380 candidates that is ~44,000 reads per operator per evaluation, on a cadence of 200
+		/// ticks with at most two operators. It is 21x cheaper than the ~935,000 per-cell form the summed-area
+		/// table was introduced to avoid, and it is EXACT rather than an octagon approximation — the strips
+		/// reproduce the 613-square disc exactly, which is what makes the artefact removal assertable.</para>
+		///
+		/// <para><paramref name="halfWidths"/> depends only on the radius, so it is built once and reused;
+		/// rebuilding it per candidate would dominate the saving this decomposition is spending.</para>
+		/// </summary>
+		public static int SumDisc(int[,] sat, int gw, int gh, int cx, int cy, int radiusSquares, int[] halfWidths)
+		{
+			// Rows fully off-grid contribute nothing: SumInclusive clamps y to the grid, which leaves
+			// y0 > y1 for a row above or below it, and that returns 0 rather than a wrapped read.
+			var total = 0;
+			for (var dy = -radiusSquares; dy <= radiusSquares; dy++)
+			{
+				var hw = halfWidths[dy < 0 ? -dy : dy];
+				total += SumInclusive(sat, gw, gh, cx - hw, cy + dy, cx + hw, cy + dy);
+			}
+
+			return total;
+		}
+
+		/// <summary>
+		/// <para>Whether a launch order may be issued THIS tick.</para>
+		///
+		/// <para>EVERY TERM IS A SEPARATE FAILURE THAT LOOKS LIKE SUCCESS.</para>
+		///
+		/// <para>armamentReady: ^DR's primary Armament is PauseOnCondition "!loaded || !ammo-primary", so
 		/// an unpaused armament is exactly "a drone is docked AND there is ammo to replace it if it
 		/// dies". Reading the armament's own pause state rather than re-deriving those two conditions
 		/// is deliberate: it cannot drift out of agreement with the YAML gate. Note the nasty state
 		/// this catches — after a drone is killed the quadcopter respawns in ~9s and re-grants
-		/// `loaded`, but ammo-primary is 0, so the operator visibly HAS a drone and cannot launch it.
+		/// `loaded`, but ammo-primary is 0, so the operator visibly HAS a drone and cannot launch it.</para>
 		///
-		/// noDroneAirborne: the retarget branch (CarrierMaster.cs:137-140) is unreachable for ^DR, so
+		/// <para>noDroneAirborne: the retarget branch (CarrierMaster.cs:137-140) is unreachable for ^DR, so
 		/// a second launch order while one is out cannot redirect anything. The reason is the launch
 		/// itself: it revokes `loaded` (:161-162), which pauses the only armament, so Attacking()
 		/// cannot be re-entered while a drone is out. A second order would burn the 3s FireDelay and a
-		/// 12s BurstWait for nothing.
+		/// 12s BurstWait for nothing.</para>
 		///
-		/// isStationary: the operator must not be MOVING. CarrierMaster carries PauseOnCondition
+		/// <para>isStationary: the operator must not be MOVING. CarrierMaster carries PauseOnCondition
 		/// "moving", and TraitPaused calls SetConnection(false) AND Recall() (CarrierMaster.cs:318-322)
 		/// — so movement throws the sortie away. It also matters at launch: Attacking() early-returns
 		/// on IsTraitPaused, and the spawn happens inside the FireDelay callback (Armament.cs:692), so
-		/// a still-moving operator fires the weapon, starts the cooldown and spawns NOTHING.
+		/// a still-moving operator fires the weapon, starts the cooldown and spawns NOTHING.</para>
 		///
-		/// THIS TERM IS "NOT MOVING", NOT "IDLE", AND THE DIFFERENCE IS THE WHOLE BUG.
+		/// <para>THIS TERM IS "NOT MOVING", NOT "IDLE", AND THE DIFFERENCE IS THE WHOLE BUG.
 		/// After its first launch the operator is never idle again: the Attack activity holds
 		/// indefinitely because ChooseArmamentsForTarget filters IsTraitDisabled but not
 		/// IsTraitPaused, and ^DR does not opt into AbandonWhenArmamentsPaused (Attack.cs:248-256
 		/// documents exactly this wedge). An idle gate therefore latches false forever and the module
 		/// issues exactly one sortie per operator for the rest of the match. A wedged operator is
 		/// standing perfectly still and is a legitimate launch platform — what must be excluded is a
-		/// WALKING one, which is what this asks.
+		/// WALKING one, which is what this asks.</para>
 		///
-		/// inRange: force-firing a cell outside weapon range makes the attack activity WALK there,
-		/// which grants `moving` and defeats the point of standing off.
+		/// <para>inRange: force-firing a cell outside weapon range makes the attack activity WALK there,
+		/// which grants `moving` and defeats the point of standing off.</para>
 		/// </summary>
 		public static bool CanLaunch(
 			bool armamentReady,
@@ -333,26 +433,26 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Whether to issue a fresh launch order this cycle.
+		/// <para>Whether to issue a fresh launch order this cycle.</para>
 		///
-		/// WHY THIS EXISTS AT ALL. The engine re-fires a held Attack activity by itself every time
+		/// <para>WHY THIS EXISTS AT ALL. The engine re-fires a held Attack activity by itself every time
 		/// `loaded` comes back, so an operator left alone keeps shuttling its drone to the ONE cell it
 		/// was first given — a fixed observation post, not the rolling sweep this module is for. The
 		/// module only gets a different cell by ordering one, and an unqueued order is what clears the
 		/// held activity (Actor.QueueActivity(false, …) calls CancelActivity first). So: re-order to
-		/// move the post, stay silent to keep it.
+		/// move the post, stay silent to keep it.</para>
 		///
-		/// settleTicks guards the FireDelay window: the spawn is a delayed action owned by the Armament,
+		/// <para>settleTicks guards the FireDelay window: the spawn is a delayed action owned by the Armament,
 		/// not by the activity, so re-ordering inside that gap does not cancel the pending launch — it
-		/// just aims the operator somewhere else while the drone still departs for the old cell.
+		/// just aims the operator somewhere else while the drone still departs for the old cell.</para>
 		///
-		/// BE CLEAR ABOUT WHAT ACTUALLY PROTECTS THAT WINDOW TODAY: it is NOT this parameter. The
+		/// <para>BE CLEAR ABOUT WHAT ACTUALLY PROTECTS THAT WINDOW TODAY: it is NOT this parameter. The
 		/// caller stamps OrderedTick from the tick captured in its evaluation, and evaluations are
 		/// exactly ReevaluateInterval apart, so ticksSinceLaunchOrder is always ReevaluateInterval at
 		/// the shipped cadence and this branch is unreachable. The real invariant is
 		/// ReevaluateInterval (200) > FireDelay (50), which nothing asserts. settleTicks is insurance
 		/// that keeps the rule correct if the cadence is ever lowered, not a live guard — do not read
-		/// its presence as evidence the window is defended.
+		/// its presence as evidence the window is defended.</para>
 		/// </summary>
 		public static bool ShouldRetask(
 			bool hasStandingOrder,

@@ -25,10 +25,12 @@ Background@CARGO_UNLOAD_MENU:
 			ItemSpacing: 1
 			BorderWidth: 0
 			Background:
-			# The bar is drawn whether or not the content overflows, and a right-hand bar does not
-			# inset the rows, so it lands on top of the count column. The menu sizes itself to its
-			# content instead, capped only by the screen height (CargoUnloadMenuLogic.Refresh) — the
-			# worst case is 24 classes / 552px, which fits on any resolution the game runs at.
+			# Hidden is the resting state only. The bar is drawn whether or not the content overflows,
+			# and a right-hand bar does not inset the rows, so leaving it on would put it on top of the
+			# count column. The menu sizes itself to its content instead, capped by the screen height,
+			# and CargoUnloadMenuLogic.Refresh switches this to Right — widening the menu by the bar's
+			# width to give it a gutter — only when that cap actually clips rows. Worst case is 24
+			# classes / 551px of content, which needs 578px of screen height to fit uncut.
 			ScrollBar: Hidden
 			Children:
 				ScrollItem@CLASS_TEMPLATE:

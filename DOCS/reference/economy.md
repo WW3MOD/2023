@@ -97,7 +97,41 @@ Three refill sites iterate the filtered `Rearmable.RearmableAmmoPools` (built at
 
 **The reliable resolution is three hops, every time:** pool `Armaments:` → the matching `Armament@N.Weapon:` → that weapon's `ValidTargets`/`InvalidTargets`. `SupplyValue` corroborates but measures expense, not role.
 
-**`Rearmable.AmmoPools` and "every `AmmoPool` on the actor" are different sets, and among actors that HAVE a `Rearmable`, `^E6` is the only divergence in the corpus** — it declares `AmmoPools: secondary-ammo` (`infantry.yaml:1917`) while carrying a 100-round `primary-ammo` (`:1836`). Resolved across all 879 rule entries; 110 carry a pool, 90 of those have a `Rearmable`, one diverges. (Scope caveat: 20 actors hold pools with **no** `Rearmable` at all — the crew templates, `F16`, `AGUN`, `CRAM`, `FTUR`, `himars`, `iskander` and the two airstrike variants (**swapped 2026-08-30**: this list read `grad`, `m270`, `tos` before the artillery-doctrine ruling). Read "only divergence" as scoped to actors that have one.) Any per-pool trigger that sends a unit to a host for a pool the host will not refill produces a seek→refill→still-empty→seek loop — and `^E6` being the single case is exactly what makes it easy to test against 13 actors and conclude the sets are identical.
+**`Rearmable.AmmoPools` and "every `AmmoPool` on the actor" are different sets** — `Rearmable` genuinely filters (`Rearmable.cs:44`), so the distinction is structural and permanent. **What is not permanent is the corpus, and it has changed: as of 2026-08-30 no actor carrying a `Rearmable` diverges.** `^E6` was the sole case and is fixed — it now declares `AmmoPools: primary-ammo, secondary-ammo` (`infantry.yaml:2003`) beside its 100-round `primary-ammo` (`:1900-1907`). Resolved across all 879 rule entries; 110 carry a pool, 90 of those have a `Rearmable`. (Scope caveat: 20 actors hold pools with **no** `Rearmable` at all — the crew templates, `F16`, `AGUN`, `CRAM`, `FTUR`, `himars`, `iskander` and the two airstrike variants (**swapped 2026-08-30**: this list read `grad`, `m270`, `tos` before the artillery-doctrine ruling). The zero-divergence count is scoped to actors that have one.)
+
+**The structural warning stands and is why this section survives the fix:** any per-pool trigger that sends a unit to a host for a pool the host will not refill produces a seek→refill→still-empty→seek loop. Zero divergences today is a dated observation, not an invariant — one unlisted pool re-creates it, and neither the build nor the linter will say so.
+
+> *(Corrected 2026-09-01, found while verifying a DISCOVERIES entry rather than by reading this file.)* This paragraph and its near-duplicate under [§"The vehicle ammo roster"](#the-vehicle-ammo-roster--every-armed-vehicle-carries-a-live-pool) **both** asserted `^E6` still lists `secondary-ammo` alone, between them citing three different and now-wrong line numbers for the same two facts. The divergence closed when `9e46f141` deleted LOGISTICSCENTER's bare `ProximityExternalCondition@ReplenishSoldiers`, which made the omission load-bearing: with the grant gone, `Rearmable.AmmoPools` is the only demand `SupplyProvider.AcceptClient` can see, so an engineer with full C4 and an empty rifle presented `NoDemand` permanently and his rifle never refilled again. Full reasoning is preserved at the fix site, `infantry.yaml:1984-2002`.
+
+### Removing a unit's `Rearmable` does NOT make it evacuate — it makes it stand still forever
+
+*(Promoted 2026-09-01 from DISCOVERIES, verified against `main @ 60c1cda4`.)* The obvious implementation of "this unit should not be rearmable" is silently wrong, and the two failure modes are indistinguishable from outside.
+
+`SupplyHuntMath.DecideAutoDisposition` returns `HoldAndFlag` at `SupplyHuntMath.cs:269-270` for any actor that names no rearm actors, **before** it ever reaches the evacuation conjunction. The input is `AmmoPool.NamesRearmActors` (`AmmoPool.cs:1030`), false when `RearmableInfo` is null. This is deliberate and documented at the site — `^CrewMember` and every ejected crewman carry no `Rearmable`, and *a unit that never had a depot does not have a missing one*.
+
+So deleting the `Rearmable` alone yields a unit that never rearms (intended) **and never leaves** — wholly dry, combat-inert, never disposed, raising `NeedsResupply` on every pool for a rescue this ruleset cannot perform. That flag has one reader engine-wide, `SupplyProvider.FindNeedsResupplyTarget`, a Hunt-stance provider that must *drive* to the client; the only host any vehicle names is the Logistics Centre, a building.
+
+**The fix is one field, not a code change:** `InitialResupplyBehavior` + `InitialResupplyBehaviorAI: Evacuate`. That arm calls `ChooseResupplier`, which returns null on a null `RearmableInfo` (`AmmoPool.RearmCandidates` early-returns empty) and falls straight through to `EvacuateForRefund` — the same departure and refund the manual Evacuate order pays. Both live cases (`himars`, `iskander`) set the stance explicitly.
+
+**Why this is worth knowing rather than local trivia:** "ignored the depot and left" and "ignored the depot and did nothing" both look like *the unit did not rearm*, so **any test written to confirm the removal worked passes on the broken version too.** `test-strategic-launcher-ignores-depot` therefore sabotages the *stance* in its RED arm, not the `Rearmable`.
+
+### The evacuation anchor is the `spawnarea` actor, and without one the detour is UNCONDITIONAL
+
+*(Promoted 2026-09-01 from DISCOVERIES.)* Relevant to anyone staging a scenario where a unit chooses between rearming and going home, because **it has no symptom**: the map loads, the units act, the verdict is green, and the branch under test was never evaluated.
+
+`RotateToEdge.FindClosestSpawnAreaForOwner` (`RotateToEdge.cs:101-128`) returns the **`spawnarea` actor** (declared `misc.yaml:255`, trait at `:262` — the only actor in the mod carrying `SpawnArea`) closest to the owner's `ProductionFromMapEdge` actor, which is `SUPPLYROUTE` (`structures.yaml:222`). It is **not** the Supply Route itself and **not** `mpspawn`, which carries no `SpawnArea` at all — both are the natural guesses and both are wrong. Note the anchor also falls back to the unit's own cell when the owner has no SR (`:113`), so on a map without one the "distance home" term is measured from the unit rather than from its base.
+
+**How often this fires: on 9 of the 10 shipped maps.** Only `river-zeta-ww3` authors `spawnarea` actors (6, one per `mpspawn`); every other shipped map and most autotest scenarios have none *(counted 2026-09-02)*. The null path is the common case, not the exception — which is also why [`game-model.md` §"Map-edge spawning"](game-model.md) had to be corrected away from an unconditional "nearest the SR".
+
+With no `spawnarea` on the map the function returns null on the empty list (`:108-109`), and `AmmoPool`'s Evacuate arm reads:
+
+```csharp
+var beatsExit = anchor == null || SupplyHuntMath.ResupplyBeatsExit(...);   // AmmoPool.cs:776
+```
+
+A null anchor makes `beatsExit` **unconditionally true**, so the unit detours to any host passing the three earlier gates however far behind it that host sits. The comparison the scenario exists to exercise is skipped.
+
+Neither shipped evacuation scenario places one (`test-dry-evac-drops-queued-order`, `test-who-pays-for-a-rearm`) — harmless there, because neither map has a depot to detour to and the arm short-circuits on a null `evacHost` first. **Copying either as a starting point and then adding a depot is exactly how the bug is inherited**, and it is the natural way to author this kind of test. **A scenario testing a comparison needs two subjects whose outcomes differ, staged identically apart from the geometry**; if both take the same disposition, suspect the anchor before the units.
 
 ### A trait default is a DECISION the actor never made, and an omitted field can cancel a stated one
 
@@ -191,6 +225,21 @@ Players see what one cycle costs and how many cycles fill the pool, not an opaqu
 concatenated line. The round count moved to its own `Ammo` row when the tooltip became typed rows —
 it is a capacity, not a term of a price — leaving `batches × supply = total` as the whole of the
 refill arithmetic. The per-round figure is still never printed.)*
+
+### `ReloadDelay` paces the PULL arm only, and post-`9e46f141` it is the drain-rate knob for thirteen vehicles
+
+*(Promoted 2026-09-01 from DISCOVERIES, mechanism re-derived; the entry's volumetric drain table was left in `WORKSPACE/` as dated status rather than promoted here.)* The two resupply arms pace on **different fields**, and until ammunition acquired a price the difference did not matter.
+
+- **Pull (docking).** `Rearmable.RearmTick` decrements `ammoPool.RemainingTicks` and on reaching zero resets it to **`ammoPool.Info.ReloadDelay`** and serves one batch (`Rearmable.cs:109-112`). Engine default is **50** (`AmmoPool.cs:44`). `INotifyDockClient.Docked` resets the counter on arrival (`Rearmable.cs:52`), so batch *k* lands at tick 50*k*. Pools in `RearmableAmmoPools` drain **concurrently** — the loop touches every pool every tick.
+- **Push (proximity/aura).** Paced by `ActiveRearmDelay` — `AuraRearmDelay` for aura clients, else `RearmDelay` (`SupplyProvider.cs:249`). **It never reads `ReloadDelay` at all**, and serves one batch per cadence *across all pools*, choosing the single greatest-need pool.
+
+**Which arm serves whom is what makes `ReloadDelay` matter.** `Rearmable.RearmTick` defers to the push arm for any client `SupplyProvider.CanSelect` accepts (`Rearmable.cs:95-96`), and `CanSelect` requires clientele membership via `IsValidTarget`/`MatchClientele`. **Only `himars` and `iskander` declare `replenish-vehicles`**; only `^Soldier` declares `replenish-soldiers` (`infantry.yaml:238`). Every other `Rearmable` vehicle matches neither clientele, `CanSelect` is permanently false for it, and it is **always** served by the pull path at `ReloadDelay`. Fifteen actors carry `Rearmable`; minus those two, exactly the thirteen the merge started charging.
+
+**The census, as of 2026-09-01: 10 pools set `ReloadDelay`, and every one is an aircraft or a defensive structure.** `F16` 100/100 (`aircraft-america.yaml:612,639`), `HIND` 6/16 (`aircraft-russia.yaml:180,211`), `FROG` 25 (`:509`), `MIG` 100/100 (`:632,659`), `CRAM`/`AGUN` 6/6 (`structures-defenses.yaml:648,726`), `FTUR` 40 (`:937`). **Zero ground vehicles set it**, so all thirteen run at the engine default of 50 — **3.00 s per batch per pool at 16.67 ticks/s, not 1.25 s or 2.0 s** (see [`conventions.md` §`Timestep`](conventions.md#timestep-is-milliseconds-per-tick-and-the-number-that-looks-like-a-tick-rate-is-its-inverse)). No pool sets `FullReloadTicks`/`FullReloadSteps`, so the reset is always plain `ReloadDelay`.
+
+**The structural consequence, which outlives any single value: duration tracks BATCH COUNT and price tracks `SupplyValue`, and `ReloadDelay` decouples them entirely.** Across the thirteen, a full refill spans **221×** in money and only **1.7×** in time. They have never been tuned against each other on the time axis, because until `9e46f141` that axis governed something free.
+
+**A `RearmActors` fact worth stating plainly, because the opposite is easy to assume: no supply truck can rearm any of the thirteen.** `TRUK` (`vehicles.yaml:572`), `LCCV` (`:684`) and `SUPPLYCACHE` (`misc.yaml:469`) declare `RearmCondition: replenish-soldiers` only, and all thirteen vehicles declare `RearmActors: logisticscenter` only. **This is intended** — `ai.yaml:1180` says so in as many words. "How many refills does a 750 truck buy" has the answer *zero* for every vehicle.
 
 ### Artillery salvo economics
 
@@ -363,7 +412,7 @@ Aircraft are carved out of the per-actor grain deliberately: a dry airframe reco
 
 Two alternatives that are simply wrong at every grain: `Rearmable.RearmableAmmoPools` (answers a different question) and the `^AmmoDecoration` red-pip condition (implied by emptiness, not equal to it).
 
-**`Rearmable.AmmoPools` and "every `AmmoPool` on the actor" are DIFFERENT SETS — and on 13 of 14 infantry classes they coincide, which is exactly what makes the wrong one look right.** `Rearmable` filters to its declared list (`Rearmable.cs:44`), so it answers "which pools does a *host* refill?", not "which pools does this unit have?". Of the 14 `infantry.yaml` classes carrying both traits (`^E1 ^E3 ^AR ^E2 ^TL ^MT ^SN ^AT ^AA ^E6 ^E4 ^SF ^DR ^PILOT`), the three two-pool combat classes (`^E3`, `^TL`, `^SF`) all list both pools — so a test on any of them passes either way. **`^E6` is the single divergence:** it lists only `secondary-ammo` (`infantry.yaml:1941-1943`) while also carrying a 100-round `primary-ammo` (`:1859-1863`). Scope the count to `infantry.yaml` — `^CrewMember` (`crew.yaml:5`) is a 15th armed man-class with a single, listed pool, so counting it gives 14 of 15 instead.
+**`Rearmable.AmmoPools` and "every `AmmoPool` on the actor" are DIFFERENT SETS — and on 13 of 14 infantry classes they coincide, which is exactly what makes the wrong one look right.** `Rearmable` filters to its declared list (`Rearmable.cs:44`), so it answers "which pools does a *host* refill?", not "which pools does this unit have?". Of the 14 `infantry.yaml` classes carrying both traits (`^E1 ^E3 ^AR ^E2 ^TL ^MT ^SN ^AT ^AA ^E6 ^E4 ^SF ^DR ^PILOT`), the three two-pool combat classes (`^E3`, `^TL`, `^SF`) all list both pools — so a test on any of them passes either way. **`^E6` was the single divergence and no longer is** — it listed `secondary-ammo` alone while carrying a 100-round `primary-ammo`, and was fixed on 2026-08-30 to `AmmoPools: primary-ammo, secondary-ammo` (`infantry.yaml:2003`; pool at `:1900-1907`). **So all 14 now coincide, and that is worse for a test author, not better:** there is currently no actor in `infantry.yaml` on which picking the wrong set fails, so a test that reads `TraitsImplementing<AmmoPool>()` where it means `RearmableAmmoPools` passes everywhere and pins nothing. Treat the two as different sets on principle; do not infer from a green test that they are the same. *(Corrected 2026-09-01 — see the fuller note under [§"Pool NAME never implies pool ROLE"](#pool-name-never-implies-pool-role), which carried the same stale claim.)* Scope the count to `infantry.yaml` — `^CrewMember` (`crew.yaml:5`) is a 15th armed man-class with a single, listed pool, so counting it gives 15 of 15 instead.
 
 **The caveat on `IsTraitPaused` attaches to the QUESTION, not to the predicate.** `AmmoPool.cs:210-214` warns against "every armament paused" as a `CannotFight` substitute, and that warning is right *for resupply dispatch* — but pause-for-any-reason is exactly correct for "should I stop walking to aim at this?", where it also picks up `suppressed >= 10`, `empdisable`, `heavy-damage-attained` and `inwater`, each of which wedges a move by the identical route. A warning recorded against one call site is not a global prohibition. *(That comment's stated example is itself inaccurate — see the note at the site; the caveat stands on the other terms.)*
 
@@ -425,17 +474,36 @@ provider?.DeductSupply(cost);
 
 So a pool one round short of full still costs a whole batch, and a unit needing three batches takes three `RearmDelay` cycles rather than one transfer. The previous text computed `batchesToGive = Math.Min(batchesNeeded, batchesAvailable)` and charged proportionally; **any sizing argument derived from it understates both the time and the supply a refill costs.**
 
-In `CustomSellValue`:
+In `CustomSellValue.GetSellValue` (`CustomSellValue.cs:30-54`) — **transcribed from the source, not paraphrased**:
 ```csharp
+var missingAmmoValue = 0;
 foreach (var pool in a.TraitsImplementing<AmmoPool>())
 {
-    if (pool.Info.SupplyValue > 0)
-    {
-        var missingBatches = (pool.Info.Ammo - pool.CurrentAmmoCount) / pool.Info.ReloadCount;
-        missingAmmoValue += missingBatches * pool.Info.SupplyValue;
-    }
+    if (pool.Info.SupplyValue <= 0)
+        continue;
+
+    var batchSize = System.Math.Max(1, pool.Info.ReloadCount);   // NOT a bare ReloadCount
+    var missingRounds = pool.Info.Ammo - pool.CurrentAmmoCount;
+    var missingBatches = missingRounds / batchSize;
+    missingAmmoValue += missingBatches * pool.Info.SupplyValue;
 }
+
+// Deduct value of missing supply on a SupplyProvider host (LC, truck, cache).
+var supplyProvider = a.TraitOrDefault<SupplyProvider>();
+if (supplyProvider != null)
+    missingAmmoValue += supplyProvider.MissingSupplyValue;
+
+return System.Math.Max(0, baseValue - missingAmmoValue);
 ```
+
+*(Corrected 2026-09-01.* The version that stood here divided by a bare `pool.Info.ReloadCount` and stopped at the loop. **Three defects, in descending order of consequence:**
+- **`Math.Max(1, ReloadCount)` was missing, and `ReloadCount` is genuinely unset on shipped actors** — `himars` and `iskander` (`Ammo: 2`, `SupplyValue: 1500`) leave it at 0. Anyone hand-computing a refund for the two units this section exists to describe would have divided by zero. In the real code `batchSize` falls back to 1, so their `missingRounds / batchSize` is exact and the integer-truncation hazard does not apply to them at all — the opposite of what the old snippet implies.
+- **The `SupplyProvider.MissingSupplyValue` term was absent**, so refunds for TRUK / LC / SUPPLYCACHE read low.
+- **The `Math.Max(0, …)` floor was absent**, so a wholly dry expensive-ammo actor read as a negative refund.
+
+**Note what this iterates: `TraitsImplementing<AmmoPool>()` — every pool on the actor, never `Rearmable.AmmoPools`.** That is the *opposite* of the three refill sites, and it is a live consequence rather than trivia: **a pool no host will ever refill is still deducted from the refund.** Removing an actor's `Rearmable` therefore cannot change what it refunds.
+
+**Coverage caveat, because "the refund is unit-tested" is true of the arithmetic and false of the code.** `CustomSellValueTest` never calls `GetSellValue`; its own header says the real call needs a full Actor/World harness, so it defines private `PoolMissingValue`/`Refund` helpers and asserts against those. Its 13 cases would stay green through a change that stopped deducting a pool, read the wrong pool set, or dropped the `SupplyProvider` term — and they do not reach `RotateToEdge`'s `HP/MaxHP` scaling (`RotateToEdge.cs:387-395`) or `ApplyHandicapRefundAdjustment` (`CustomSellValue.cs:72-80`) at all. Nothing asserts the refund end-to-end in a running game, for any actor.)
 
 ### LC restock drain
 

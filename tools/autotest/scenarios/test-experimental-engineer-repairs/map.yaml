@@ -1,0 +1,114 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Experimental bot employs its combat engineer (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Does EngineerOperatorBotModule@experimental actually EMPLOY the E6 the bot already buys?
+#
+# Before this module, the only thing that ever moved an engineer was EngineerRouteOpenBotModule's
+# bridge trigger — ^E6 carries `AIUnitRole: Role: Logistics` and every free-pool module sets
+# UseUnitRoles: true, so the role filter excludes him from assault, ambush, garrison and line duty
+# alike, and he stands at the Supply Route for the whole match. This scenario stages the REPAIR
+# employment, which is the one that can be asserted numerically without any fog dependency.
+#
+# THE SUBJECT IS A VEHICLE AND NOT A BUILDING, AND THAT IS NOT A STYLE CHOICE. Buildings take the
+# `damaged` condition from `ExternalCondition@Damaged` on ^BasicBuilding (structures.yaml:11-12) —
+# it is granted by another trait, not derived from health — so a building at 75% HP does NOT present
+# Targetable@BuildingRepair and the repair armament would never fire at it. Vehicles inherit
+# ^DamageStates, whose GrantConditionOnDamageState@Damaged (defaults.yaml:240-242) is automatic.
+# Staging this on a building would produce a confident FAIL that blamed the module.
+#
+# ONLY ONE Playable: True (the spectator). Both other slots are non-playable so their actors are not
+# dropped to Neutral — see AUTOTEST.md map.yaml rule 3.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia
+	# NO BOT ON THIS SLOT, DELIBERATELY. Russia holds a Supply Route and nothing else, which keeps the
+	# faction alive (AUTOTEST.md map.yaml rule 6) without giving the experimental bot anything to see.
+	# That matters for the assertion: with no enemy ever observed there is no believed enemy static, so
+	# the BREACH employment — which outranks repair — cannot fire and steal the engineer.
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	# THE CASUALTY. Damaged to 75% from Lua at WorldLoaded — map.yaml has no Health init and no
+	# committed scenario uses one. 75% and not 50%: ^EffectsWhenDamagedVehicles carries
+	# `ChangesHealth@CriticalDamage` with `StartIfBelow: 50` and `PercentageStep: -1`
+	# (vehicles.yaml:184-187), so a vehicle staged below half BLEEDS OUT and would race the 1%-per-burst
+	# repair in the opposite direction. At 75% the DamageState is Light/Medium — enough for
+	# GrantConditionOnDamageState@Damaged, not enough to bleed.
+	Casualty: abrams
+		Owner: USA-bot
+		Location: 22,16
+	# FOUR CELLS EAST OF THE CASUALTY. Deliberately short: Armament@Repair's weapon has Range: 1c0
+	# (weapons-other.yaml:368-370) — ONE cell — so this is a walk-all-the-way-to-it job, not a standoff,
+	# and a short walk keeps the measurement inside the window even at infantry speed.
+	# THE ACTOR NAME MUST CARRY THE FACTION SUFFIX. EngineerOperatorBotModuleInfo.OperatorActorTypes is
+	# { e6.america, e6.russia }; a bare `e6` is a real actor that the module will not recognise, and the
+	# scenario would fail with the engineer standing still — indistinguishable from the module being
+	# broken. This is the single binding most likely to be got wrong here.
+	Engineer: e6.america
+		Owner: USA-bot
+		Location: 26,16
+	# ---- THE DISCRIMINATOR ----
+	# Two riflemen far to the south-east, outside ScreenHomeExclusionCells (12) of the SR, so the SCREEN
+	# employment has a live anchor. Screen ranks BELOW repair, so a correct module walks the engineer 4
+	# cells WEST to the casualty; a module whose priority order is inverted walks him ~14 cells EAST to
+	# the screen centroid instead. Without these the scenario would prove only that the engineer took the
+	# one job on offer, which is a much weaker claim than the one it is making.
+	ScreenDecoyA: e3.america
+		Owner: USA-bot
+		Location: 56,28
+	ScreenDecoyB: e3.america
+		Owner: USA-bot
+		Location: 57,28
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,4
+	# Spawn anchors — needed even with non-playable combatants.
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,4
+
+Rules: rules.yaml

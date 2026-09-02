@@ -65,6 +65,15 @@
 		LoadingCondition: notmobile
 		LoadedCondition: loaded
 		EjectOnDeath: True
+		# Dead means OFF (Cargo.cs ShouldEmergencyBail returns false at this threshold for every
+		# damage state). Men CAN keep sheltering in a wreck; it just gets progressively lethal, and
+		# the GarrisonProtection curve below already delivers that on its own. The engine must not
+		# march them outside on top of it — user ruling 2026-09-02, "don't force them out, let the
+		# damage curve do the work". The C# default is Heavy, i.e. 50% HP, and its own [Desc] says
+		# it "applies to ground transports only": it was chosen for burning APCs, never for
+		# buildings. Vehicles deliberately keep it. Repeated verbatim on GTWR/PBOX/HBOX
+		# (structures-defenses.yaml) because those inherit ^Defense, NOT this template.
+		EmergencyBailDamageState: Dead
 	Inherits@CargoPips: ^CargoPips
 	GarrisonManager:
 		Ports:
@@ -112,9 +121,15 @@
 		TargetScanInterval: 8
 		AmmoConservation: true
 		ReloadSwapping: true
+	# CriticalProtection is the curve's INTERCEPT AT ZERO HP, not the value at DamageState.Critical:
+	# GetCurrentProtection interpolates Critical + (Base - Critical) * hpPct. At 70 the whole bar
+	# only moved 95 -> 70 and the remaining 70 -> 30 landed in the single hit point at the rubble
+	# clamp, so the building read as "fine, fine, fine, death trap". 35 spreads that drop across the
+	# bar instead. Both ENDPOINTS are deliberately unchanged — full health still 95, rubble still 30 —
+	# so an intact building and a ruin behave exactly as before and only the middle gets worse.
 	GarrisonProtection:
 		BaseProtection: 95
-		CriticalProtection: 70
+		CriticalProtection: 35
 		RubbleProtection: 30
 		MinPassThrough: 15
 	Inherits@GarrisonHealthPips: ^GarrisonHealthPips

@@ -791,12 +791,18 @@
 #
 # Tier -> radius is derived from the code, NOT from the arithmetic table in
 # WORKSPACE/recon/260819-infantry-visibility-stances.md §3.4:
-#   - Detectable clamps its level to [1, MapLayers.VisionLayers - 1] = [1, 10] BEFORE assigning
-#     CurrentVisibility and granting "visibility-<N>" (Detectable.cs:82-87,162; MapLayers.cs:75).
+#   - Detectable clamps its level to [1, MapLayers.VisionLayers - 2] = [1, 9] BEFORE assigning
+#     CurrentVisibility and granting "visibility-<N>" (Detectable.ClampConcealment, Detectable.cs:118-125
+#     and :127-138; MapLayers.VisionLayers = 11 at MapLayers.cs:75).
 #     visibility-0, -11 and -12 therefore CANNOT be granted, and have no entry here.
-#   - Reveal requires an observer strength greater than OR EQUAL TO the level (MapLayers.IsDetected),
-#     so the radius for visibility-N is the outer Range of the ^StandardVision band at Strength N
-#     (defaults.yaml:47-84). PITFALL: this ladder reused band N+1's Range while the comparison was
+#     NOR CAN visibility-10: the ceiling is one BELOW the top vision band so that the strongest observer
+#     still strictly exceeds the best concealment (rationale in full at Detectable.cs:88-117, pinned by
+#     DetectableCeilingTest). The @Detectable10 / 4c ring below is therefore DEAD YAML TODAY -- kept
+#     deliberately, because Detectable.cs:49-51 keeps level 10 declared so this ring survives a revert
+#     of the ceiling. Do not delete it to silence a lint; do not read it as reachable either.
+#   - Reveal requires an observer strength greater than OR EQUAL TO the level (MapLayers.IsDetected,
+#     MapLayers.cs:600-603), so the radius for visibility-N is the outer Range of the ^StandardVision
+#     band at Strength N (defaults.yaml:95-134). PITFALL: this ladder reused band N+1's Range while the comparison was
 #     strict, and every circle moved out one band (~3 cells) when the comparison did. Do not "restore"
 #     the old numbers without also restoring the strict compare -- they are one fact, not two.
 #   - visibility-1 is the exception: band 1 (28c-32c) can never reveal, because MapLayers stamps level

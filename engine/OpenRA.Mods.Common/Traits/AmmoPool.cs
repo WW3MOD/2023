@@ -909,6 +909,10 @@ namespace OpenRA.Mods.Common.Traits
 		/// Centre). The <see cref="Activities.RideTransport"/> branch does not, and no shipped rearm
 		/// host is boardable, so it is unreachable rather than merely unhandled.</para>
 		/// </summary>
+		/// <param name="self">The unit being sent to rearm.</param>
+		/// <param name="dispatchedBecauseDry">True when the unit raised this errand itself because it
+		/// cannot fight, false when the player asked for the destination. Has no default on purpose —
+		/// see the summary.</param>
 		/// <param name="host">The destination, when the caller has already chosen one. Null re-picks via
 		/// <see cref="ChooseResupplier"/>, which is every pre-existing caller's behaviour. It exists
 		/// because the Auto arm picks the nearest AFFORDABLE host

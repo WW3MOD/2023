@@ -87,7 +87,7 @@ function build_platform()
 	fi
 
 	echo "Building core files (${PLATFORM})"
-	install_assemblies "${TEMPLATE_ROOT}/${ENGINE_DIRECTORY}" "${BUILTDIR}" "win-${PLATFORM}" "net6" "False" "${PACKAGING_COPY_CNC_DLL}" "${PACKAGING_COPY_D2K_DLL}"
+	install_assemblies "${TEMPLATE_ROOT}/${ENGINE_DIRECTORY}" "${BUILTDIR}" "win-${PLATFORM}" "False" "${PACKAGING_COPY_CNC_DLL}" "${PACKAGING_COPY_D2K_DLL}"
 	install_data "${TEMPLATE_ROOT}/${ENGINE_DIRECTORY}" "${BUILTDIR}"
 
 	# GPLv3 section 6: ships next to COPYING so the binary states where its source lives.
@@ -99,7 +99,7 @@ function build_platform()
 	done
 
 	echo "Building mod files (${PLATFORM})"
-	install_mod_assemblies "${TEMPLATE_ROOT}" "${BUILTDIR}" "win-${PLATFORM}" "net6" "${TEMPLATE_ROOT}/${ENGINE_DIRECTORY}"
+	install_mod_assemblies "${TEMPLATE_ROOT}" "${BUILTDIR}" "win-${PLATFORM}"
 
 	cp -Lr "${TEMPLATE_ROOT}/mods/"* "${BUILTDIR}/mods"
 

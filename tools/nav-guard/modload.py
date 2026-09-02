@@ -8,6 +8,7 @@ nobody checks is a number nobody should trust.
 from __future__ import annotations
 
 import struct
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -242,9 +243,19 @@ def _read_map_bin(path: Path, width: int, height: int):
     return tiles, heights, resources
 
 
-def discover_maps(mod_dir: Path) -> list[Path]:
-    return sorted(p for p in (mod_dir / "maps").iterdir()
-                  if (p / "map.bin").exists() and (p / "map.yaml").exists())
+def discover_maps(mod_dir: Path, extra_roots: Sequence[Path] = ()) -> list[Path]:
+    """Map packages under `mod_dir/maps`, plus every package under each extra root.
+
+    `extra_roots` is how autotest scenarios get in. They are NOT included by default and
+    must never be: `baseline.json` is keyed by package name, so anything discovered here
+    that is not in the baseline reads as "new map" and the gate's numbers move. Callers
+    that compare against the baseline (`check`, `bless`) pass nothing; the inspection
+    commands take `--scenarios`.
+    """
+    roots = [mod_dir / "maps", *extra_roots]
+    return sorted((p for root in roots if root.is_dir() for p in root.iterdir()
+                   if (p / "map.bin").exists() and (p / "map.yaml").exists()),
+                  key=lambda p: (p.parent.name, p.name))
 
 
 # ------------------------------------------------------------------- resolved actor info
@@ -286,6 +297,18 @@ def husk_of(rules: ModRules, name: str) -> str | None:
     return None
 
 
+def _immobile_occupies_space(traits: dict[str, list[Node]]) -> bool:
+    """Immobile.cs:41 -- `OccupiesSpace: false` leaves `occupied` empty, so ActorMap.AddInfluence
+    (ActorMap.cs:413-415) iterates nothing and the actor never enters a cell's influence list.
+    The pathfinder therefore cannot see it at all: it is not a wall, not even a crushable one.
+    mpspawn, spawnarea, waypoint, flare and the camera actors all set it (rules/misc.yaml).
+    """
+    immobile = traits.get("Immobile")
+    if not immobile:
+        return True
+    return (immobile[0].child_value("OccupiesSpace", "true") or "true").lower() != "false"
+
+
 def actor_shape(name: str, actor: Node) -> ActorShape:
     traits = _traits(actor)
 
@@ -304,8 +327,18 @@ def actor_shape(name: str, actor: Node) -> ActorShape:
                 blocking.append(off)
             elif c == FOOTPRINT_TRANSIT_ONLY:
                 transit.append(off)
-    else:
+    elif _immobile_occupies_space(traits):
         # No Building trait: Mobile and the bare IOccupySpace traits are single-cell.
+        # PITFALL: this is NOT true of `Immobile: OccupiesSpace: false`, which occupies
+        # nothing at all -- ImmobileInfo.OccupiedCells returns an empty dictionary
+        # (Immobile.cs:23-27). Five marker types carry it (mpspawn, spawnarea, waypoint,
+        # camera.paradrop.detector, camera.spyplane) and every one is modelled here as a
+        # solid 1-cell wall, so a unit sharing a cell with an mpspawn reads as standing on
+        # impassable ground. Known and deliberately NOT fixed here: correcting it moves 150
+        # of the 190 baselined map/locomotor pairs and needs its own reviewed `bless`.
+        # The error is conservative -- it invents walls, never removes them -- so `check`
+        # cannot have passed a real sealing-off because of it. Measured 2026-09-01;
+        # blast radius in WORKSPACE/DISCOVERIES.md.
         blocking.append((0, 0))
 
     pass_classes: frozenset[str] = frozenset()

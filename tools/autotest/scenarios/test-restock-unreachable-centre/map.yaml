@@ -1,0 +1,190 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Restock at an Unreachable Logistics Centre Moves Nothing (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# TWO IDENTICAL LANES THAT DIFFER ONLY BY THE WALL. Same truck type, same starting supply, same
+	# 21-cell separation, same order issued on the same tick. The northern Centre is sealed inside a
+	# concrete ring; the southern one is in the open. Any difference in outcome is therefore
+	# attributable to reachability and to nothing else — which is the whole reason the open lane is
+	# here. Without it a scenario that simply never got started would report the walled Centre
+	# untouched and pass while proving nothing.
+	#
+	# Supply inits are stated on every actor rather than left to default. SupplyProvider seeds
+	# currentSupply from TotalSupply, so anything unstated spawns FULL, and the two trucks' starting
+	# load is what decides the direction of the gesture.
+
+	# --- Northern lane: the Centre the truck cannot reach ---
+	# 50 is EXACTLY TRUK's SupplyProvider.RestockThreshold, which is the inclusive receiving boundary
+	# (SupplyTransferMath.ResolveDirection: `transportSupply <= transportRestockThreshold`). At 50 the
+	# plain click resolves to ToTruck and issues Restock, which is the order under test. It is also
+	# safely above zero, so the truck does not spawn already counting as empty.
+	TruckWalled: truk
+		Owner: USA
+		Location: 10,10
+		Supply: 50
+	# 3x3, so it occupies 30..32 x 10..12 and RestockSupply drives at its centre cell 31,11 —
+	# 21 cells from the truck, against an arrival tolerance of 3 (footprint radius 1 + margin 2).
+	WalledLC: logisticscenter
+		Owner: USA
+		Location: 30,10
+		Supply: 2250
+
+	# THE SEAL: the complete 16-cell perimeter of the 5x5 block around the Centre. Complete matters —
+	# a ring with a diagonal gap is not a seal, because vehicles move diagonally.
+	#
+	# THE SEAL IS VERIFIED STATICALLY, NOT ASSUMED, and it can be re-verified without a launch. This
+	# geometry is the premise the whole scenario rests on, so it is checked with nav-guard's own
+	# decoder — the same code that models what the pathfinder sees:
+	#
+	#   python3 - <<'PY'
+	#   import sys; from pathlib import Path; sys.path.insert(0, 'tools/nav-guard')
+	#   import modload, nav_guard
+	#   rules = modload.load_mod(nav_guard.MOD_DIR)
+	#   gm = modload.load_map(Path('tools/autotest/scenarios/test-restock-unreachable-centre'))
+	#   loco = [l for l in modload.world_locomotors(rules, gm.rule_overrides) if l.name == 'wheeled'][0]
+	#   occ, _ = nav_guard.cell_occupancy(rules, gm, 'live')
+	#   m = nav_guard.build_cell_model(rules, gm, rules.tilesets[gm.tileset], loco, occ)
+	#   labels, sizes = nav_guard.component_labels(m, nav_guard.DEFAULT_SQUEEZE)
+	#   left, top, w, _ = gm.bounds
+	#   lab = lambda cx, cy: labels[(cy - top) * w + (cx - left)]
+	#   print('walled reachable:', lab(10, 10) == lab(31, 11))   # must be False
+	#   print('open   reachable:', lab(10, 26) == lab(31, 27))   # must be True
+	#   PY
+	#
+	# Measured 2026-09-01: the walled Centre's cells form a 9-cell component that is EXACTLY its own
+	# 3x3 footprint — 30..32 x 10..12, no leaks — while both trucks and the open Centre sit in the
+	# single 2023-cell main component (2021 before the OccupiesSpace fix noted below freed the two
+	# mpspawn cells; the seal itself is unaffected). Note what that shape proves: the LC's own body
+	# is not what makes it unreachable (RestockSupply drives with `ignoreActor: host`, so the Centre
+	# never blocks its own approach). The ring is. Remove one wall and the pocket merges into the
+	# main component, the northern lane becomes a second copy of the southern one, and the scenario
+	# tests nothing.
+	# nav-guard's own `check` does NOT cover this file — it scans mods/ww3mod/maps only — so this
+	# snippet is the whole of the automated coverage and there is no baseline that would notice.
+	#
+	# BRIK IS THE ONLY WALL IN THIS MOD THAT BLOCKS THIS TRUCK, and the choice is load-bearing rather
+	# than cosmetic. SBAG, FENC, BARB, CYCL and WOOD all carry `CrushedByRelationships: Enemy`; BRIK's
+	# `Passable` block gates on `PassClasses: heavywall`, and `heavywall` appears nowhere in this mod
+	# outside the wall definitions themselves — no locomotor lists it — so nothing can pass it. The
+	# walls are USA-owned, the same player as the truck, so even the crush relationship is Ally and
+	# cannot fire. Swap the actor type here for any other wall and the truck drives straight through,
+	# the Centre becomes reachable, and this scenario silently starts testing nothing.
+	Wall01: brik
+		Owner: USA
+		Location: 29,9
+	Wall02: brik
+		Owner: USA
+		Location: 30,9
+	Wall03: brik
+		Owner: USA
+		Location: 31,9
+	Wall04: brik
+		Owner: USA
+		Location: 32,9
+	Wall05: brik
+		Owner: USA
+		Location: 33,9
+	Wall06: brik
+		Owner: USA
+		Location: 29,10
+	Wall07: brik
+		Owner: USA
+		Location: 33,10
+	Wall08: brik
+		Owner: USA
+		Location: 29,11
+	Wall09: brik
+		Owner: USA
+		Location: 33,11
+	Wall10: brik
+		Owner: USA
+		Location: 29,12
+	Wall11: brik
+		Owner: USA
+		Location: 33,12
+	Wall12: brik
+		Owner: USA
+		Location: 29,13
+	Wall13: brik
+		Owner: USA
+		Location: 30,13
+	Wall14: brik
+		Owner: USA
+		Location: 31,13
+	Wall15: brik
+		Owner: USA
+		Location: 32,13
+	Wall16: brik
+		Owner: USA
+		Location: 33,13
+
+	# --- Southern lane: the control, identical but reachable ---
+	# 16 cells of clear ground south of the ring, so the two lanes cannot interact: the nearest Centre
+	# to each truck is its own (21 cells) rather than the other lane's (~26), which matters because an
+	# emptied truck picks a restock host by distance on its own.
+	TruckOpen: truk
+		Owner: USA
+		Location: 10,26
+		Supply: 50
+	OpenLC: logisticscenter
+		Owner: USA
+		Location: 30,26
+		Supply: 2250
+
+	# Off the trucks' cells, but NOTHING DEPENDS ON THAT — corrected 2026-09-01. The marker was put
+	# here because nav-guard read a co-located mpspawn as blocking the truck's own start cell. That
+	# was a bug in nav-guard, not a fact about the map: `mpspawn` sets `Immobile: OccupiesSpace:
+	# false` (misc.yaml:245), so the engine gives it no occupied cells at all (Immobile.cs:41) and
+	# never adds it to the ActorMap (ActorMap.cs:413-415). The sibling scenarios co-locate marker
+	# and truck and always did work — that was the tell. Fixed in modload.py `actor_shape`.
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 10,18
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

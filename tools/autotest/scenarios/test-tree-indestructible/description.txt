@@ -1,0 +1,1 @@
+Guards the "trees are indestructible, burnt trees never appear" ruling. One Abrams shells cell 20,17 for ~19s; the t01 there must end at 2500/2500 HP and leave no t01.husk, while destructible control trees either side of it (DamageMultiplier forced to 100) prove the shell can and does kill a tree.

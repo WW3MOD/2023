@@ -1,0 +1,112 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a frozen ghost's owner does not follow a capture the viewer did not see
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+# GEOMETRY
+#
+# This scenario needs the EXPLORED-THEN-FOGGED state, which is the opposite of
+# test-unscouted-building-hidden's never-scouted state and is the only state in
+# which a frozen ghost exists at all. FrozenActor.UpdateVisibility
+# (FrozenActorLayer.cs:165-194) sets Visible when every footprint cell reads
+# visibility <= 1, and Shrouded only when they all read 0. So "frozen, drawable"
+# is precisely cell visibility 1: seen once, not seen now.
+#
+# ^StandardVision IS A 32-CELL LADDER, NOT A SIGHT RADIUS. defaults.yaml:95-133
+# mounts ten Vision traits on every vehicle: strength 10 out to 4c0, then one
+# rung per 3 cells, down to strength 1 over the annulus 28c0..32c0. Resolved
+# visibility for a cell is the HIGHEST band covering it (MapLayers.cs:241-251).
+# The first version of this scenario put the Observer 18.4 cells from Box and
+# called that "far outside any sight band"; 18.4 falls in Vision@5's 16c0..19c0
+# annulus, so the cell sat at visibility 5 forever and phase 2 timed out having
+# never reached 'frozen'. Anything that must NOT see a cell has to be beyond
+# 32 cells from it, not beyond 10.
+#
+# Scout at 5,16 is 3 cells from Box at 8,16, inside the strength-10 band, so USA
+# genuinely observes the building first. The scenario then kills the Scout.
+#
+# Observer at 52,16 is the actor whose selection resolves the frozen cursor. It
+# is on Box's own row, 52-8 = 44 cells away, so the distance is checkable by eye
+# with no square roots: 44 > 32, past the outermost rung by 12 cells. It exists
+# only because Test.FrozenClickCursor needs a non-empty selection, and killing
+# the sole USA unit would leave nothing to click with. Moving it east brings it
+# nearer OpponentSR at 64,30, so check that too: 52,16 is 18.4 cells from it,
+# outside both the 3x3 footprint and SupplyRouteContestation's 10c0 ring
+# (structures.yaml:303-305), so no contestation fires and nothing else changes.
+#
+# OVERSHOOT IS NOT A RISK HERE, contrary to the obvious worry that pushing the
+# Observer too far drops the cell into raw shroud. MapLayers.cs:241-256 floors
+# resolved visibility at 1 for any cell whose explored bit is set, and explored
+# is monotonic (only ResetExploration clears it, on defeat). Once the Scout has
+# looked, 8,16 cannot read 0 again, so there is no upper bound to respect --
+# only the 32-cell lower one.
+#
+# OwnSR at 2,30 is 15.2 cells from Box and is deliberately NOT moved: SUPPLYROUTE
+# carries no Vision trait at all (structures.yaml:222-320), so it contributes
+# nothing at any distance. Do not "fix" it by pushing it away -- that would imply
+# a sight radius it does not have. The failing run corroborates this from the
+# outside: 15.2 cells is Vision@6's rung, so had the SR carried vision the log
+# would have read 6, and it read 5.  SpawnUSA at 3,28 is an mpspawn (misc.yaml:239),
+# also visionless. The Scout's husk grants no sight either, by explicit design
+# (husks.yaml:10-15).
+Actors:
+	Scout: abrams
+		Owner: USA
+		Location: 5,16
+		Facing: 0
+	Observer: abrams
+		Owner: USA
+		Location: 52,16
+		Facing: 0
+	Box: pbox
+		Owner: Russia
+		Location: 8,16
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 2,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 64,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 63,2
+
+Rules: rules.yaml

@@ -1,0 +1,31 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-crew-auto-evacuate.lua
+
+abrams:
+	# STAGING ONLY, and deliberately NOT touching AutoEvacuateOnEject — that is the thing under test
+	# here and it stays at its shipped default of true.
+	#
+	# Same three confound removals as test-crew-rear-dismount, for the same reason: crew eject at
+	# HP < 50%, and ^EffectsWhenDamagedVehicles bleeds any vehicle below that line to death by design
+	# (ChangesHealth@CriticalDamage, vehicles.yaml:153-156, reached via ^TrackedVehicle -> ^Vehicle at
+	# vehicles.yaml:8). The dying hull cooks off within a tile and the crew spawn hurt and burning, so
+	# without these the scenario is asking whether crew evacuated when the real answer is that they
+	# died. A dead crew member and an evacuated one are both "gone from the world", which is exactly
+	# the confusion this scenario must not have.
+	-ChangesHealth@CriticalDamage:
+	VehicleCrew:
+		CrewDamageThresholdPercent: 100
+		CrewFireStackOffset: -99

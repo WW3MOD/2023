@@ -711,15 +711,20 @@ namespace OpenRA.Mods.Common.Traits
 				// positional trace can be checked against the record that caused it rather than against
 				// an intention. intel=0 on every launch means the module is still purely exploring.
 				//
-				// artefact IS THE CALIBRATION LINE, and it is here because the exploration term it
-				// competes with is inflated by a known amount. ControlField's grid spans Map.MapSize
-				// while Map.Contains tests the smaller playable Bounds, and TicksSinceVerified returns
-				// int.MaxValue for any square never verified — so the non-playable border counts as
-				// permanently unobserved and is summed into `reveal` as ground the drone will never
-				// actually reveal. Operators launch from the Supply Route, a fixed beachhead near a map
-				// edge, so this lands hardest exactly where it is used. reveal minus artefact is the
-				// real exploration signal, and it is the number LostTrackIntelSquares must be judged
-				// against — not `reveal` itself.
+				// border IS THE CALIBRATION LINE. It used to be the amount by which `reveal` was WRONG;
+				// since the border fix it is the amount that was REMOVED, so `reveal` is already the real
+				// exploration signal and is the number LostTrackIntelSquares must be judged against. It
+				// is still logged because the SIZE of the correction is what says whether an
+				// edge-launching operator's candidate set actually moved, and because a border= that
+				// starts reading 0 everywhere would mean the bounds test has silently stopped biting.
+				// THE BOX-CORNER ARTEFACT IS GONE, AND THAT MAKES `reveal` MEAN SOMETHING NEW. It used to
+				// carry ~228 squares of inland corner the drone could never see, which is ~19x
+				// MinRevealedSquares (12) and made the launch floor unable to refuse anything. `reveal` is
+				// now the count inside the drone's actual vision disc, so it is directly comparable to the
+				// floor for the first time. WATCH FOR THE OTHER DIRECTION ON THE NEXT MATCH: a floor that
+				// could never bite can now bite, so `no-eligible-cell` with reveal=... just under
+				// minreveal=12 is the signal that 12 is too high, NOT that the module is broken again.
+				// MinRevealedSquares was deliberately left at 12 so that this match measures one change.
 				Log.Write("debug",
 					$"[drone] player={player.PlayerName} op={op.ActorID} launch cell={targetCell.X},{targetCell.Y} "
 					+ $"opcell={opCell.X},{opCell.Y} dist={distance} clamped={refusedOffMap} "
@@ -797,7 +802,8 @@ namespace OpenRA.Mods.Common.Traits
 		CPos bestIntelCell;
 
 		// Non-playable border squares inside the winning candidate's vision box — diagnostic only, and
-		// the amount by which bestReveal overstates real ground. See the launch log.
+		// since the border fix the amount EXCLUDED from bestReveal rather than an error left in it.
+		// See the launch log.
 		int bestBorder;
 
 		// Inclusive-prefix-sum table over the control grid: staleSat[x+1,y+1] is the number of
@@ -813,6 +819,13 @@ namespace OpenRA.Mods.Common.Traits
 		int satValidTick = -1;
 		int evalTick;
 
+		// The drone's vision radius in COARSE grid squares, and the disc row half-widths for it. Both
+		// depend only on DroneVisionCells and the control grid's CellSize, so they are built once and
+		// reused for the life of the module — see DroneTaskingMath.SumDisc for why rebuilding them per
+		// candidate would eat the whole saving.
+		int visionSquares = -1;
+		int[] discHalfWidths;
+
 		// COST, IN THE SAME TERMS THE PREVIOUS MODEL WAS JUSTIFIED IN.
 		// Old model: ~1520 map cells scored per operator per evaluation, one O(1) staleness read each.
 		// The obvious form of the new model — count unobserved squares inside the drone's vision for
@@ -822,11 +835,15 @@ namespace OpenRA.Mods.Common.Traits
 		//      grid, so iterate grid squares rather than map cells: ~1520/CellSize^2 = ~380 candidates.
 		//   2. SUMMED-AREA TABLE. Built once per evaluation over the whole grid (gridW x gridH, e.g.
 		//      ~4,096 squares on a 128x128 map at CellSize 2) and shared by all operators, after which
-		//      each candidate's revealed count is FOUR array reads regardless of the drone's vision
-		//      radius.
-		// Net per evaluation: O(gridW x gridH) once, plus ~380 O(1) queries per operator. For the two
-		// operators this module may own, ~4,100 + 760 against the old ~3,040 — the same order, now
-		// independent of DroneVisionCells, and it replaces a scan that produced nothing at all.
+		//      each candidate's revealed count is a fixed number of array reads regardless of the
+		//      drone's vision radius.
+		// UPDATED WHEN THE QUERY BECAME A DISC. A disc is not a rectangle, so a candidate now costs one
+		// clamped row query per grid row — 29 x 4 = 116 reads at the shipped radius rather than 4. Net per
+		// evaluation: O(gridW x gridH) once, plus ~380 x 116 = ~44,000 reads per operator. For the two
+		// operators this module may own, ~4,100 + ~88,000 against the old ~3,040. That is a real increase
+		// and it is worth it: the box it replaces credited every candidate with ~228 squares of corner the
+		// drone cannot see, which is what made MinRevealedSquares inert. It remains 21x cheaper than the
+		// ~935,000-read per-cell form this table was introduced to avoid, on a 200-tick cadence.
 		// The table is skipped entirely when no operator is launch-ready.
 		void BuildStaleSat()
 		{
@@ -841,14 +858,19 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Reusing the array across evaluations is safe without clearing: every interior entry is
 			// overwritten below, and the zero border is never written at all.
+			// Both terms go through the SINGLE predicate in DroneTaskingMath.IsRevealable — read the note
+			// there for why the bounds test is load-bearing rather than defensive. Passing staleness
+			// alone here is the defect this replaced: it counted the non-playable border as permanently
+			// unobserved ground, worst exactly at the map edge where operators launch.
 			DroneTaskingMath.BuildSummedArea(staleSat, gw, gh,
-				(gx, gy) => controlField.TicksSinceVerified(player, gx, gy) >= Info.MinStalenessTicks);
+				(gx, gy) => DroneTaskingMath.IsRevealable(
+					world.Map.Contains(controlField.GridCellToMapCell(gx, gy)),
+					controlField.TicksSinceVerified(player, gx, gy),
+					Info.MinStalenessTicks));
 
-			// DIAGNOSTIC TWIN — NO DECISION READS THIS. It measures how much of the table above is the
-			// non-playable border rather than real unobserved ground, which is the correction the
-			// exploration term needs before it can be compared against the intel term. Deliberately NOT
-			// subtracted from the live score: that would be a second behavioural change riding along
-			// unmeasured with this one. Measure first, then decide, in that order.
+			// DIAGNOSTIC TWIN — NO DECISION READS THIS. It is what the live table no longer counts, kept
+			// so the launch log can still report the size of the correction rather than only its effect:
+			// `border=` is now the artefact REMOVED from `reveal`, not an outstanding error in it.
 			if (borderSat == null || borderSat.GetLength(0) != gw + 1 || borderSat.GetLength(1) != gh + 1)
 				borderSat = new int[gw + 1, gh + 1];
 
@@ -863,6 +885,16 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				BuildStaleSat();
 				satValidTick = evalTick;
+			}
+
+			// Grid-square radius of the drone's vision disc. Derived from the control grid's own CellSize
+			// rather than assumed to be 2, so a retuned grid cannot silently leave the disc the wrong size
+			// while every query still returns a plausible number.
+			var r = Info.DroneVisionCells / controlField.Info.CellSize;
+			if (r != visionSquares)
+			{
+				visionSquares = r;
+				discHalfWidths = DroneTaskingMath.BuildDiscHalfWidths(r);
 			}
 
 			CPos? best = null;
@@ -917,9 +949,13 @@ namespace OpenRA.Mods.Common.Traits
 					// What this hover cell would BUY: unobserved squares inside the drone's own vision
 					// once it is parked there. Ground already inside the operator's bubble is not stale
 					// and so contributes nothing, which is why no explicit exclusion is needed.
-					var vlo = controlField.MapCellToGridCell(new CPos(cell.X - Info.DroneVisionCells, cell.Y - Info.DroneVisionCells));
-					var vhi = controlField.MapCellToGridCell(new CPos(cell.X + Info.DroneVisionCells, cell.Y + Info.DroneVisionCells));
-					var revealed = DroneTaskingMath.SumInclusive(staleSat, satGw, satGh, vlo.X, vlo.Y, vhi.X, vhi.Y);
+					//
+					// THE DISC, NOT THE BOUNDING BOX, AND THE DIFFERENCE WAS 228 SQUARES. `cell` is this
+					// grid square's own centre, so (gx, gy) is its exact grid position and no conversion
+					// back is needed. See DroneTaskingMath.SumDisc: the box counted 841 squares against a
+					// 613-square disc, and the 228-square remainder was corners the drone can never see —
+					// enough on its own to clear MinRevealedSquares (12) and make the launch floor inert.
+					var revealed = DroneTaskingMath.SumDisc(staleSat, satGw, satGh, gx, gy, visionSquares, discHalfWidths);
 
 					if (revealed > bestReveal)
 						bestReveal = revealed;
@@ -962,7 +998,9 @@ namespace OpenRA.Mods.Common.Traits
 						best = cell;
 						chosenIntel = intelSquares;
 						chosenIntelKey = intelKey;
-						bestBorder = DroneTaskingMath.SumInclusive(borderSat, satGw, satGh, vlo.X, vlo.Y, vhi.X, vhi.Y);
+						// Same disc as the live query, so `border=` stays the correction that was actually
+						// applied to `reveal` rather than a box-shaped number no longer comparable to it.
+						bestBorder = DroneTaskingMath.SumDisc(borderSat, satGw, satGh, gx, gy, visionSquares, discHalfWidths);
 					}
 				}
 			}

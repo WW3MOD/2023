@@ -537,13 +537,16 @@ namespace OpenRA.Mods.Common.Traits
 			return res != null ? (long)res.Cash + res.Resources : 0;
 		}
 
-		// Cost of the cheapest buildable-in-rules member of a pool; int.MaxValue when the pool has no known
-		// member (so the affordability gate rejects it — we cannot buy what does not exist).
+		// Cost of the cheapest member of a pool we could ACTUALLY obtain right now; int.MaxValue when there is
+		// none (so the affordability gate rejects the class — we cannot buy what cannot be produced, and a
+		// class that cannot be bought must not win the argmax).
+		// Shares IsRequestable with RequestCheapestBuildable BY CONSTRUCTION: if the gate priced a pool off a
+		// member the request path then refuses to ask for, the lane would win its cycle and buy nothing.
 		int CheapestBuildableCost(HashSet<string> pool)
 		{
 			var min = int.MaxValue;
 			foreach (var u in pool)
-				if (world.Map.Rules.Actors.TryGetValue(u, out var ai))
+				if (IsRequestable(u) && world.Map.Rules.Actors.TryGetValue(u, out var ai))
 				{
 					var cost = UnitCost(ai);
 					if (cost > 0 && cost < min)
@@ -553,14 +556,76 @@ namespace OpenRA.Mods.Common.Traits
 			return min;
 		}
 
+		// Whether the demand-queue BuildUnit could ACTUALLY produce this type — existing in the rules is not
+		// enough, and the difference is not academic. The air-strike pools pair a live airframe with a
+		// deliberately disabled one (heli+a10, mi28+frog) whose Buildable carries `Prerequisites: ~disabled`
+		// and NO Queue at all. All four cost 6000, so the cheapest-first sort is a dead tie and the ordinal
+		// tie-break takes a10 before heli and frog before mi28 — the disabled airframe every time. The request
+		// loop then returns at its first candidate, and because the disabled airframe always sorted first it
+		// was always that candidate — so the loop stopped there and BuildUnit dropped it against an empty
+		// Buildable.Queue without a word. The buildable airframe sat one position behind, never reached.
+		//
+		// Tested against the player's real queues rather than the rules alone, so an unmet prerequisite
+		// (~disabled, techlevel) is caught here instead of failing silently two hops later. Reads synced game
+		// state only; no random draw.
+		bool IsBuildable(string name)
+		{
+			if (!world.Map.Rules.Actors.TryGetValue(name, out var ai))
+				return false;
+
+			var buildable = ai.TraitInfoOrDefault<BuildableInfo>();
+			if (buildable == null || buildable.Queue.Count == 0)
+				return false;
+
+			var queues = AIUtils.FindQueuesByCategory(player);
+			foreach (var category in buildable.Queue)
+				foreach (var queue in queues[category])
+					if (queue.BuildableItems().Any(b => b.Name == name))
+						return true;
+
+			return false;
+		}
+
+		// Buildable AND not already at its authored cap on the twin that will drain the request. The cap half
+		// matters for the same reason the buildability half does, one layer down: a request is counted as MADE
+		// the instant it is handed over (this returns 1 as soon as RequestUnitProduction is called), so an
+		// at-cap class would win the need argmax, spend one of MaxRequestsPerCycle, and then be refused on
+		// drain — buying nothing. At the shipped MaxRequestsPerCycle of 2 that is half the cycle budget,
+		// recurring every evaluation cycle for as long as the class sits at cap. Asking here moves the argmax
+		// on to a counter that can actually be delivered.
+		//
+		// Conservative when the producer is not a UnitBuilder twin (no cap knowable ⇒ no refusal), which
+		// preserves the pre-cap behaviour exactly.
+		bool IsRequestable(string name)
+		{
+			if (!IsBuildable(name))
+				return false;
+
+			return !(SelectUnitProducer() is UnitBuilderBotModule builder && builder.IsExternalRequestAtCap(name));
+		}
+
 		// Request the cheapest buildable member of a pool (cheapest first, name-ordinal tie-break — deterministic,
 		// no random draw), respecting the same <=2-in-flight cap the other paths use. Returns 1 on a request, else 0.
 		int RequestCheapestBuildable(HashSet<string> pool)
 		{
 			var ordered = pool
-				.Where(u => world.Map.Rules.Actors.ContainsKey(u))
+				.Where(IsRequestable)
 				.OrderBy(u => UnitCost(world.Map.Rules.Actors[u]))
-				.ThenBy(u => u, StringComparer.Ordinal);
+				.ThenBy(u => u, StringComparer.Ordinal)
+				.ToList();
+
+			// UNCONDITIONAL, and the whole point of the exercise: a pool that can never be satisfied used to
+			// decline here in total silence, cycle after cycle, while still consuming a MaxRequestsPerCycle
+			// slot upstream. Bounded at one line per declining pool per evaluation cycle.
+			if (ordered.Count == 0)
+			{
+				if (pool.Count > 0)
+					Log.Write("debug", $"[composition] need-request DECLINED tick={world.WorldTick} "
+						+ $"player={player.InternalName} pool={string.Join("/", pool.OrderBy(u => u, StringComparer.Ordinal))} "
+						+ "reason=no pool member is both buildable and under its cap");
+
+				return 0;
+			}
 
 			var producer = SelectUnitProducer();
 			if (producer == null)

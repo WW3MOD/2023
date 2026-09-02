@@ -41,7 +41,8 @@ namespace OpenRA.Test
 		// the marker -- the discharge note in PIPELINE.md does, and so does this file -- is not
 		// mistaken for the entry itself. Assembled from parts for the same reason: a literal here
 		// would make THIS file match a naive grep for the entry.
-		const string BlockerMarker = "<!-- " + "HITCHECK-OVERLAY-DEFAULT-ON" + " -->";
+		const string BlockerToken = "HITCHECK-OVERLAY-DEFAULT-ON";
+		const string BlockerMarker = "<!-- " + BlockerToken + " -->";
 
 		static bool DefaultDamageNumbers()
 		{

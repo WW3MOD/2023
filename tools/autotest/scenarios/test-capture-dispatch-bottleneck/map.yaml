@@ -1,0 +1,82 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: AUTO: capture dispatch minimises the LAST capture, not the first
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# GEOMETRY IS THE WHOLE TEST. Two technicians, two derricks, on one row so that straight-line
+# distance and walking distance agree and the numbers below can be read off the x coordinates.
+#
+#   TechFar  x=8    TechNear x=20    DerrickNear x=22           DerrickFar x=46
+#
+#   TechFar  -> DerrickNear = 14      TechFar  -> DerrickFar = 38
+#   TechNear -> DerrickNear = 2       TechNear -> DerrickFar = 26
+#
+# Nearest-first greedy takes the globally cheapest pair FIRST: TechNear -> DerrickNear at 2.
+# That leaves TechFar the 38-cell walk, so the last derrick lands at 38. Pairing them the other
+# way costs 14 and 26, so the last derrick lands at 26 — technicians walk in parallel, so the
+# time to take both is the LONGER walk, not the sum. The names say which technician is nearer
+# to which derrick, so a failure message reads as a sentence.
+#
+# The discriminator is therefore an identity, not a stopwatch: the correct dispatch sends the
+# technician that starts FURTHEST from DerrickNear at it anyway, precisely because the other
+# one is the only one that can reach DerrickFar in reasonable time. Greedy does the intuitive
+# thing and is wrong. Both algorithms eventually capture both derricks, so a scenario that only
+# asserted "both captured" would go green against either and prove nothing.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	# Named USA/Russia to match every other scenario, and because a player named "Player" would
+	# shadow the Lua `Player` global table that Player.GetPlayer lives on.
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		Faction: america
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		Faction: russia
+		Enemies: USA
+
+Actors:
+	SpawnPlayer: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnEnemy: mpspawn
+		Owner: Neutral
+		Location: 60,16
+
+	# The two technicians under test. TechFar starts further from DerrickNear than TechNear
+	# does — that is the point, and the correct dispatch sends TechFar at DerrickNear anyway.
+	TechFar: tecn
+		Owner: USA
+		Location: 8,16
+	TechNear: tecn
+		Owner: USA
+		Location: 20,16
+
+	DerrickNear: oilb
+		Owner: Neutral
+		Location: 22,16
+	DerrickFar: oilb
+		Owner: Neutral
+		Location: 46,16
+
+Rules: rules.yaml

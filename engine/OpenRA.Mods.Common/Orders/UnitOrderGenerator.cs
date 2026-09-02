@@ -46,9 +46,38 @@ namespace OpenRA.Mods.Common.Orders
 			return Target.FromCell(world, cell);
 		}
 
+		/// <summary>
+		/// With an empty selection there is no actor to resolve an order against, so the stock path
+		/// below yields nothing. This is the seam where a click on a capturable structure can instead
+		/// pick its own unit — see CaptureDispatchManager. Returns null unless the world opts in by
+		/// carrying that trait, which keeps every other mod on the stock behaviour.
+		/// </summary>
+		static CaptureDispatchManager DispatcherForEmptySelection(World world, in Target target)
+		{
+			if (world.Selection.Actors.Count != 0 || target.Type != TargetType.Actor)
+				return null;
+
+			return world.WorldActor.TraitOrDefault<CaptureDispatchManager>();
+		}
+
 		public virtual IEnumerable<Order> Order(World world, CPos cell, int2 worldPixel, MouseInput mi)
 		{
 			var target = TargetForInput(world, cell, worldPixel, mi);
+
+			var dispatcher = DispatcherForEmptySelection(world, target);
+			if (dispatcher != null)
+			{
+				var dispatchQueued = mi.Modifiers.HasModifier(Modifiers.Shift);
+				var dispatched = dispatcher.DispatchAt(world, target.Actor, dispatchQueued).ToList();
+				if (dispatched.Count > 0)
+				{
+					foreach (var o in dispatched)
+						yield return o;
+
+					yield break;
+				}
+			}
+
 			var orderResults = OrdersForSelection(world.Selection.Actors, target, cell, mi);
 
 			var actorsInvolved = orderResults.Select(o => o.Actor).Distinct();
@@ -135,6 +164,16 @@ namespace OpenRA.Mods.Common.Orders
 				var cursor = CursorForOrders(OrdersForSelection(world.Selection.Actors, target, cell, mi));
 				if (cursor != null)
 					return cursor;
+
+				// With nothing selected the loop above produced no orders, so the pointer is free to
+				// name the dispatch instead of the select it would otherwise show.
+				var dispatcher = DispatcherForEmptySelection(world, target);
+				if (dispatcher != null)
+				{
+					var dispatchCursor = dispatcher.CursorForState(dispatcher.Evaluate(world, target.Actor, out _));
+					if (dispatchCursor != null)
+						return dispatchCursor;
+				}
 
 				useSelect = target.Type == TargetType.Actor && target.Actor.Info.HasTraitInfo<ISelectableInfo>() &&
 					(mi.Modifiers.HasModifier(Modifiers.Shift) || world.Selection.Actors.Count == 0);
@@ -263,10 +302,14 @@ namespace OpenRA.Mods.Common.Orders
 		/// refuses the click outright — which for a hostile target it cannot engage is the normal
 		/// outcome, rather than a Move order onto its cell.
 		/// </summary>
+		/// <param name="self">The actor resolving the click.</param>
+		/// <param name="target">What was clicked on.</param>
+		/// <param name="xy">The cell under the cursor, used to look up what else is standing there.</param>
+		/// <param name="modifiers">The target modifiers in effect for this click.</param>
 		/// <param name="allowRelocationOntoEnemy">
-		/// Set by <see cref="OrdersForSelection"/> when no other unit in the selection accepted the
-		/// click, which reopens the default order for this one. Callers resolving a single unit in
-		/// isolation want the default, false.
+		/// Set by <see cref="ResolveSelection"/>, behind both <c>OrdersForSelection</c> overloads, when
+		/// no other unit in the selection accepted the click, which reopens the default order for this
+		/// one. Callers resolving a single unit in isolation want the default, false.
 		/// </param>
 		public static UnitOrderResult OrderForUnit(Actor self, in Target target, CPos xy, TargetModifiers modifiers,
 			bool allowRelocationOntoEnemy = false)

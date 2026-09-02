@@ -1,0 +1,99 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# FOG ON, EXPLORED OFF, both locked, and every part of that matters.
+		#
+		# FOG ON: Test.GetVisibility returns the raw ResolvedVisibility band only while fog is
+		# enabled. With fog off, MapLayers.GetVisibility (MapLayers.cs:661-669) collapses to
+		# "10 if explored else 0" and the 1-vs-3 distinction this whole scenario turns on
+		# stops existing.
+		#
+		# EXPLORED OFF: unexplored ground resolves to 0, explored-but-unwatched ground resolves
+		# to 1 (the floor at MapLayers.cs:255-256). Leaving Explored ON would stamp 1 over the
+		# entire map before the first tick and destroy the 0/1/3 ladder the assertions read.
+		#
+		# LOCKED: an unlocked checkbox would let a lobby default silently change what is being
+		# measured while the scenario still looked plausible.
+		FogCheckboxEnabled: true
+		FogCheckboxLocked: true
+		ExploredMapCheckboxEnabled: false
+		ExploredMapCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Human-owned units read per-type stance defaults off this machine's unit-defaults.yaml
+	# (AutoTarget.cs:355-388). Strip it so the riflemen behave identically on every machine.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-capture-vision-handover.lua
+
+# THE SUBJECT'S VISION, REPLACED WHOLESALE. This is the load-bearing edit in the scenario and
+# it is not tidying.
+#
+# A stock v01 has TEN Vision traits and EVERY ONE of them carries RequiresCondition: loaded.
+# ^CivBuilding (civilian.yaml:2-4) inherits ^TechBuilding -> ^BasicBuilding, which supplies
+# Vision@3/@2/@1 unconditionally, and ALSO inherits ^StandardVisionWhenLoaded, whose ten
+# layers collide on those same three keys and win on the fields they set — including
+# RequiresCondition. So an ungarrisoned church sees nothing, and garrisoning one turns on a
+# strength-10 bubble out to 4c0.
+#
+# Both halves of that would wreck the measurement:
+#   1. A conditional Vision trait SELF-HEALS across the flip. `loaded` is granted as the
+#      soldier enters and the ownership flip is queued as a frame-end task, so ITick
+#      (AffectsMapLayer.cs:143-147) sees CachedTraitDisabled change and calls UpdateCells with
+#      the owner ALREADY updated. That repairs the very staleness under test — through a
+#      trigger that has nothing to do with the fix — and whether it wins is a race on
+#      intra-tick actor order. A scenario built on the stock traits could go green against the
+#      live bug.
+#   2. Strength 10 out to 4c0 would swamp the probe cell for the captor whatever happened.
+#
+# Vision@PROBE is therefore UNCONDITIONAL, which makes the instrument exact: nothing can
+# update it after AddedToWorld except an owner-change hook. No condition flips, the building
+# never moves, and ITick early-returns because neither Range nor the disabled state changes.
+# Of the five triggers that can call UpdateCells, this scenario leaves exactly one live.
+V01:
+	-Vision@10:
+	-Vision@9:
+	-Vision@8:
+	-Vision@7:
+	-Vision@6:
+	-Vision@5:
+	-Vision@4:
+	-Vision@3:
+	-Vision@2:
+	-Vision@1:
+	Vision@PROBE:
+		Strength: 3
+		Range: 4c0
+
+# ^Infantry inherits ^StandardVision (infantry.yaml:19) — ten layers reaching 32c0, which on a
+# 64x32 map means one rifleman lights everything for his owner and no probe cell anywhere is
+# quiet. Replaced with a single 2c0 bubble, which is small enough that Trooper's closest
+# approach to the probe cell (~4.1 cells, walking to the Fort's south face) never touches it,
+# and still large enough for Phase 3 to read Sentry's own cell.
+E1:
+	-Vision@10:
+	-Vision@9:
+	-Vision@8:
+	-Vision@7:
+	-Vision@6:
+	-Vision@5:
+	-Vision@4:
+	-Vision@3:
+	-Vision@2:
+	-Vision@1:
+	Vision@SENTRY:
+		Strength: 3
+		Range: 2c0
+	# Held silent: a soldier who picks a fight can be deployed to a firing port, and a port
+	# soldier is in-world at the building's Location, where he would light the probe cell
+	# himself. BOTH stance fields — AutoTarget.cs:497 reads InitialStanceAI for a non-Playable
+	# slot, so InitialStance alone is silently never consulted for the opponent.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire

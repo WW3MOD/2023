@@ -719,7 +719,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>
 		/// <para>The one accept test — demand, affordability, need — and it says nothing about RANGE or
-		/// about <c>currentTarget</c>. Range is <see cref="IsValidTarget"/>'s job and the two sweeps apply
+		/// about <c>currentTarget</c>. Range is <see cref="IsValidTarget(Actor, out bool)"/>'s job and the two sweeps apply
 		/// it DIFFERENTLY: the aura sweep guards with it, the garrison sweep must not, because a sheltered
 		/// passenger is out of the world with a stale CenterPosition and would fail any position test.
 		/// Contention is not a refusal either — <c>UpdateTarget</c> re-picks by greatest need every scan.</para>
@@ -1126,7 +1126,17 @@ namespace OpenRA.Mods.Common.Traits
 			// The whole errand — drive, settle, transfer — as ONE named activity, so the truck's intent
 			// lives in the activity queue rather than in a bool alongside it. See RestockSupply for what
 			// the bool cost.
-			self.QueueActivity(false, new RestockSupply(self, restockTarget, Info.RestockWaitTicks));
+			//
+			// The approach margin is read off DropsSupplyCache when the actor carries it — TRUK does
+			// (vehicles.yaml), and that is the tuned number the player-ordered restock already uses, so
+			// taking it here keeps ONE margin per actor rather than one per call site. An actor with a
+			// SupplyProvider but no DropsSupplyCache falls back to the same constant that trait defaults
+			// to, rather than to a literal repeated here.
+			var dropsCache = self.Info.TraitInfoOrDefault<DropsSupplyCacheInfo>();
+			var approachMargin = dropsCache?.DropAtToleranceCells ?? SupplyTransferMath.DefaultApproachMarginCells;
+
+			self.QueueActivity(false,
+				new RestockSupply(self, restockTarget, Info.RestockWaitTicks, approachMargin));
 
 			// Follow rally point if the restock target has one.
 			var rp = restockTarget.TraitOrDefault<RallyPoint>();

@@ -57,22 +57,22 @@ namespace OpenRA.Mods.Common.Activities
 		readonly IMove move;
 		readonly IMoveInfo moveInfo;
 		readonly int waitTicks;
-		readonly int toleranceCells;
+		readonly int hostFootprintCells;
+		readonly int approachMarginCells;
 
 		public DeliverSupply(Actor self, Actor host, int waitTicks, int approachMarginCells)
 		{
 			this.host = host;
 			this.waitTicks = waitTicks;
+			this.approachMarginCells = approachMarginCells;
 			supply = self.Trait<SupplyProvider>();
 			move = self.Trait<IMove>();
 			moveInfo = self.Info.TraitInfo<IMoveInfo>();
 
 			var building = host.Info.TraitInfoOrDefault<BuildingInfo>();
-			var footprint = building == null
+			hostFootprintCells = building == null
 				? 0
 				: System.Math.Max(building.Dimensions.X, building.Dimensions.Y);
-
-			toleranceCells = SupplyTransferMath.ArrivalTolerance(footprint, approachMarginCells);
 		}
 
 		protected override void OnFirstRun(Actor self)
@@ -119,26 +119,34 @@ namespace OpenRA.Mods.Common.Activities
 			// WHAT IS AND IS NOT COVERED. SupplyTransferMath.ArrivalTolerance* pins the ARITHMETIC —
 			// that the tolerance admits the diagonal corner approach and rejects a truck that never
 			// left. NOTHING PINS THE WIRING. test-lc-refill-gesture drives a real delivery, but on a map
-			// with no water and no wall, so its Centre is always reachable: delete these four lines and
-			// that scenario still passes. Verifying this guard needs a scenario staging genuinely
-			// unreachable terrain, which does not exist yet.
+			// with no water and no wall, so its Centre is always reachable: delete these lines and that
+			// scenario still passes. Verifying this guard needs a scenario staging genuinely unreachable
+			// terrain, which does not exist yet.
+			//
+			// The composition footprint -> tolerance -> distance is ArrivedAtHost rather than three steps
+			// written out here. Open-coding it is exactly how RestockSupply — this activity's documented
+			// mirror — came to ship with no arrival check at all: there was no named thing for it to be
+			// missing, so nothing looked absent.
 			var hostCell = self.World.Map.CellContaining(host.CenterPosition);
 			var delta = self.Location - hostCell;
-			if (!SupplyDropMath.ArrivedAtDropCell(delta.X, delta.Y, toleranceCells))
-			{
+			var arrived = SupplyTransferMath.ArrivedAtHost(
+				delta.X, delta.Y, hostFootprintCells, approachMarginCells);
+
+			if (!arrived)
 				Log.Write("debug",
 					$"[supply] deliver-refused truck={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
-					+ $"reason=never-arrived host={hostCell} tolerance={toleranceCells}c "
+					+ $"reason=never-arrived host={hostCell} "
+					+ $"tolerance={SupplyTransferMath.ArrivalTolerance(hostFootprintCells, approachMarginCells)}c "
 					+ $"amount={supply.CurrentSupply}");
-				return true;
-			}
 
 			var hostProvider = host.TraitOrDefault<SupplyProvider>();
 			if (hostProvider == null)
 				return true;
 
+			// The arrival term is a parameter of the amount rather than a short-circuit above it, matching
+			// RestockSupply. Both directions of this gesture now refuse through the same shape.
 			var given = SupplyTransferMath.AmountToDeliver(
-				supply.CurrentSupply, hostProvider.CurrentSupply, hostProvider.Info.TotalSupply);
+				arrived, supply.CurrentSupply, hostProvider.CurrentSupply, hostProvider.Info.TotalSupply);
 
 			// DeductSupply before AddSupply, and only credit the host if the deduction actually took:
 			// the pair must never create supply, and DeductSupply is the half that can refuse.

@@ -17,12 +17,22 @@ TestHarness = {}
 -- against this value, several knowingly (test-tunguska-missile-standoff:25 "Left alone
 -- deliberately"; test-depot-vacate-phantom:32 "Generous on purpose"), and correcting it shortens
 -- all of them by a third in one edit that cannot be validated without running the whole suite.
--- Two scenarios provably stop passing the moment it moves; both are pinned by
--- engine/OpenRA.Test/OpenRA.Mods.Common/AutotestTickRateTest.cs, which fails at `dotnet test`
--- rather than silently in a game nobody reran. Change this number only together with those.
+-- The two scenarios that used to be casualties of moving it (test-critical-no-panic,
+-- test-autotarget-preempt-air) were re-authored on 2026-09-02 and are now immune; the fixture
+-- engine/OpenRA.Mods.Common/AutotestTickRateTest.cs proves that at BOTH rates and still fails at
+-- `dotnet test` if this number moves, because the REST of the suite has not been audited.
+--
+-- Note what that audit has to look for. Only one of those two actually went red at 16. The other
+-- kept passing while an INNER deadline it contains became unreachable — a scenario that silently
+-- stopped enforcing its own budget. Shortening every deadline by a third produces some red runs and
+-- some greens that have quietly stopped measuring, and the second kind is the one to hunt.
 --
 -- WRITING A NEW SCENARIO: budget in TICKS and convert with `ticks / TestHarness.TicksPerSecond`,
--- as the medic scenarios do. That round-trips exactly and is immune to whatever this value is.
+-- as the medic scenarios do. That is immune to whatever this value is — but it does NOT always
+-- round-trip exactly, contrary to what this comment claimed until 2026-09-02: AssertWithin recovers
+-- the budget with math.floor, and 1145 of the first 20000 integers come back one tick short at 25,
+-- 16 or both (402 -> 401; also 29, 57, 113-116, 201, 203, 205). Multiples of 25 are always safe.
+-- Do not spend that tick twice by trimming a deadline to its measured margin as well.
 TestHarness.TicksPerSecond = 25
 
 -- Center the camera on the geometric midpoint of the given actors.
@@ -65,6 +75,13 @@ end
 --     string "fail: <reason>" to Fail immediately with that reason.
 --   * If the harness isn't active (TestMode off), the polling still runs
 --     but the eventual Pass/Fail are no-ops, so this is safe in regular maps.
+--   * `timeoutReason` may be a STRING or a FUNCTION returning one. The function form is
+--     evaluated once, at the moment of timeout, so the note can report end-of-run state
+--     (position, activity chain, counters) that no string built at setup time could carry.
+--     This matters more than it sounds: a verdict saying only "the unit never went idle" is
+--     compatible with opposite root causes, and diagnosing that by reading code instead has
+--     already produced one published wrong answer (WORKSPACE/bugs/discovered.md 2026-09-01).
+--     Every pre-existing caller passes a string and is unaffected.
 function TestHarness.AssertWithin(seconds, predicate, timeoutReason)
 	local timeoutTicks = math.floor(seconds * TestHarness.TicksPerSecond)
 	local elapsed = 0
@@ -81,12 +98,45 @@ function TestHarness.AssertWithin(seconds, predicate, timeoutReason)
 		end
 		elapsed = elapsed + 1
 		if elapsed >= timeoutTicks then
-			Test.Fail(timeoutReason or ("AssertWithin timed out after " .. seconds .. "s"))
+			local reason = timeoutReason
+			if type(reason) == "function" then reason = reason() end
+			Test.Fail(reason or ("AssertWithin timed out after " .. seconds .. "s"))
 			return
 		end
 		Trigger.AfterDelay(1, check)
 	end
 	Trigger.AfterDelay(1, check)
+end
+
+-- Does `actor` still hold an ATTACK activity anywhere in its queue?
+--
+-- USE THIS INSTEAD OF `not actor.IsIdle` WHEN THE QUESTION IS "did the unit drop its attack
+-- order". The two are not the same and the difference has cost real time:
+-- `Actor.IsIdle` is `CurrentActivity == null`, and Actor.Tick re-runs the queue in the SAME
+-- tick immediately after raising INotifyBecomingIdle (Actor.cs:322-325, deliberately, "to
+-- avoid an 'empty' null tick"). So if ANY handler queues on that edge -- AmmoPool's resupply
+-- disposition does, Aircraft always does -- the unit is never observed idle even though its
+-- order genuinely ended. Measured 2026-09-01: two dry-unit scenarios reported `idleTicks=0`
+-- while their activity chains showed the attack activity had been replaced by RotateToEdge.
+-- Asserting on idleness there tested the resupply layer; asserting on this tests the guard.
+--
+-- HEURISTIC, stated plainly: this is a TYPE-NAME prefix test. Attack activities share no
+-- interface or base class to query (Activities.Attack and AttackFollow.AttackActivity both
+-- derive straight from Activity), so there is nothing more precise to ask. It matches any
+-- queue component whose type name starts with "Attack" -- today Attack, AttackActivity and
+-- AttackMoveActivity, all three of which ARE attack orders for this purpose. If someone adds
+-- an unrelated activity named Attack*, this widens silently; that is the known cost.
+function TestHarness.HoldsAttackActivity(actor)
+	local chain = Test.ActivityChain(actor)
+	if chain == "" or chain == "(idle)" then
+		return false
+	end
+
+	-- Test.ActivityChain separates parent>child with ">" and queued entries with " | ".
+	-- Normalise to one separator and prepend it, so every component is preceded by ">" and a
+	-- single plain (non-pattern) search finds any component starting with "Attack".
+	local normalised = ">" .. chain:gsub(" | ", ">")
+	return normalised:find(">Attack", 1, true) ~= nil
 end
 
 -- Sugar for "assert this is true after `seconds` have elapsed".

@@ -1,0 +1,47 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-crew-rear-dismount.lua
+
+abrams:
+	# STAGING ONLY. Every override below removes a confound between "the crew ejected" and "the crew
+	# are still alive and standing where the fan sent them". None of them touch the geometry this
+	# scenario asserts — the fan bearing, the walk distance and the rear-half-plane check are all
+	# untouched shipped behaviour.
+	#
+	# WHY THIS IS NEEDED, from the 2026-09-01 RED (seed -2084768515, "live crew=1 ... tank died").
+	# Crew eject at EjectionDamageState: Heavy, i.e. HP < 50%. But ^EffectsWhenDamagedVehicles carries
+	# ChangesHealth@CriticalDamage with StartIfBelow: 50 (vehicles.yaml:153-156), reached from abrams
+	# via ^TrackedVehicle -> ^Vehicle (vehicles.yaml:8). So a vehicle whose crew are bailing is ALWAYS
+	# bleeding to death at 1% of MaxHP every 5 ticks — that is the shipped design, stated outright at
+	# vehicles.yaml:243-250 ("A vehicle is doomed the moment it drops below 50% HP"). There is no HP
+	# value that ejects the crew and leaves the hull stable, so the first version of this scenario
+	# could not have worked at any damage level.
+	#
+	# Losing the hull is not itself the problem; losing the CREW is. The dying tank cooks off within a
+	# tile, and the crew were already spawned hurt (finishing-shot damage) and burning (inherited fire
+	# stacks), so two of the three were dead before the sample. Hence three removals:
+	-ChangesHealth@CriticalDamage:
+	VehicleCrew:
+		# Auto-evacuation OFF for this scenario ONLY. With the shipped default the crew walk clear and
+		# then immediately turn for the map edge, and a position sampled after that describes the
+		# evacuation route rather than the fan. Item 2 is covered by test-crew-auto-evacuate; this
+		# scenario is item 3 in isolation.
+		AutoEvacuateOnEject: false
+		# Threshold at 100% of hull MaxHP means the finishing shot can never exceed it, so crewDamage
+		# stays 0 and nobody spawns wounded. The damage-scaling behaviour has its own scenario
+		# (test-crew-instakill); mixing it in here only decides whether this test gets its sample.
+		CrewDamageThresholdPercent: 100
+		# Clamped to zero stacks, so crew do not inherit the hull's burn and bleed out mid-walk.
+		CrewFireStackOffset: -99

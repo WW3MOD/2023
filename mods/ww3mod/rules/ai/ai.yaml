@@ -505,8 +505,16 @@ Player:
 		# in. They sell for essentially their full cost of 100 (their pistol magazine deducts 3), and a pistol
 		# infantryman adds nothing to an armoured push. NOTE this flag is only the cashing-in half — crew are
 		# kept out of offensive recruitment on EVERY profile, flag or no flag, because putting them on an axis
-		# is a bug rather than a doctrine choice. What this buys is the disposition; what it gives up is
-		# walking them back to re-man a vehicle via EnterAsCrewMember. Default false on the @stable twin.
+		# is a bug rather than a doctrine choice. Default false on the @stable twin.
+		#
+		# LARGELY SUPERSEDED (2026-09-01) and kept as a backstop, not as the mechanism. Crew now queue their
+		# OWN one-shot evacuation at the moment they are ejected (VehicleCrewInfo.AutoEvacuateOnEject, default
+		# true), which applies to human players and to BOTH bot profiles regardless of this flag. So the
+		# disposition this flag used to buy is now baseline, and what it gives up — walking crew back to re-man
+		# a vehicle via EnterAsCrewMember — is given up on @stable too. The sweep below still catches crew whose
+		# evac some other module cancelled by re-tasking them (see the re-homing gap at
+		# PoiOffensiveBotModule.cs:2651), and it skips anyone already leaving via IsEvacuating, so the two
+		# mechanisms do not fight.
 		EvacuateEjectedCrew: true
 		# Dispersion doctrine — spread to move, mass to assault. The switch defaults OFF on the engine
 		# class, so Normal controls are untouched. NOTE (b8d2e601, 2026-08-02): @stable sets it too
@@ -853,6 +861,22 @@ Player:
 		# already AT a post are left alone. Default 0 (off) on the engine class => @stable twin byte-identical.
 		StarvingRecruitThresholdPerMille: 250
 
+	# ===== COUNTER-BATTERY RADAR (experimental-only; there is no @stable twin, deliberately) =====
+	# MSAR is the mod's ONLY counter-battery vision source, and before this it was human-only in both
+	# halves: `msar` had zero hits anywhere under rules/ai (never bought), and no bot module anywhere
+	# issued the "GrantConditionOnDeploy" order (never deployed). Production is the other half and
+	# lives on the UnitBuilder twins (UnitFloors/UnitLimits/UnitDelays msar).
+	# WHY A MODULE AND NOT A SETTING ON AN EXISTING ONE: nothing else in the tree drives a unit
+	# somewhere and then deploys it in place, and the siting rule is specific — rear band, own-SR
+	# bearing, and a DEPLOY terrain whitelist narrower than the locomotor, which every existing
+	# "walk to a cell" caller would clamp against the locomotor alone and land it where deploy is
+	# silently refused. It also has to OWN the unit permanently: UndeployOnMove revokes the coverage,
+	# so a radar any other module can recruit is a radar that stops working the first time it is.
+	# NO @stable TWIN ON PURPOSE: a wholly new experimental-gated module cannot move the benchmark
+	# control, which sidesteps the shared-trait default-to-baseline rule entirely.
+	CounterBatteryRadarBotModule@experimental:
+		RequiresCondition: enable-ai-experimental && (player.nato || player.brics)
+
 	# ===== RECON DRONES (experimental-only; there is no @stable twin, deliberately) =====
 	# User report 2026-08-27: "I want the experimental bot to use drones ... but now they make none."
 	# Production is the other half and lives on the UnitBuilder twins (UnitFloors/UnitFloorPer
@@ -986,6 +1010,143 @@ Player:
 		# one. 75 leaves 25 ticks of slack.
 		LaunchSettleTicks: 75
 
+	# experimental doctrine — mine the approach lanes. Until now nothing in mods/ww3mod/rules/ai/
+	# referenced MinelayerBotModule, so despite two unit types carrying the Minelayer trait the bot
+	# had never laid a mine.
+	# NO @stable TWIN ON PURPOSE, for the DroneOperatorBotModule reason above: a wholly new
+	# experimental-gated module cannot move the benchmark control, so the shared-trait
+	# default-to-baseline rule does not arise. Both C# fields this block sets are default-off on the
+	# engine class, so no other profile changes either.
+	# WHY THE MODULE FITS THE REBUILT GAME MODEL DESPITE BEING AN RA-ERA IMPORT: it is conflict-driven,
+	# not perimeter-driven. Its primary input is IBotRespondToAttack — it records where OUR actors were
+	# shot and mines there later, which is a lane/approach model already. It references no factory, no
+	# resource field and no base perimeter, so none of the usual RA carry-over traps apply.
+	MinelayerBotModule@experimental:
+		RequiresCondition: enable-ai-experimental
+		# LOWERCASE IS MANDATORY AND SILENT IF GOT WRONG. This HashSet is compared against
+		# Actor.Info.Name, which Ruleset.cs:126 lowercases at load. `MNLY` here matches nothing, the
+		# pool comes back empty, and the module does nothing at all while looking correctly configured.
+		# WHY THE WHITELIST EXISTS AT ALL — this is the load-bearing line in the block. The pool is
+		# ActorsWithTrait<Minelayer>(), and in WW3MOD that trait is NOT only on the minelayer vehicle:
+		# ^E6 engineers carry it (infantry.yaml:1929) over `secondary-ammo`, the SAME AmmoPool that
+		# Demolition spends (:1933). Unset, this module spends every engineer's 3 C4 charges laying
+		# mines and walks unarmoured non-combat support — the pool EngineerRouteOpenBotModule recruits
+		# from — down a contested lane.
+		MinelayingActorTypes: mnly
+		# Take the cold-start target from PoiMap's scored anchors (enemy Supply Route first) rather than
+		# from a random enemy actor read off world.Actors. Two reasons, and the second is the one that
+		# would have made this module inert rather than merely cheating:
+		#   FOG. The upstream scan is omniscient, which the fog-respecting profiles forbid
+		#     (DOCS/reference/influence-stack.md:39).
+		#   IT WOULD NOT HAVE WORKED. Minelayer.ResolveOrder filters the field to cells the owner has
+		#     EXPLORED (Minelayer.cs:207), so a cell picked through fog yields an empty minefield and a
+		#     silent no-op — configured, typechecked, never lays a mine.
+		# A random enemy is also not a lane: it is re-drawn every ScanTick, pointing consecutive scans
+		# down different corridors. The SR is fixed, so the corridor to it is stable across scans, and
+		# reading its position is fog-legal by the same argument LaneAmbush uses (PoiMap.cs:549-551).
+		StrategicAnchorColdStart: true
+		# TWO SCANS TO FIRST MINE, NOT ONE: the cold-start branch enqueues a position and then returns
+		# without ordering anyone ("we don't do other things in this tick"), so the first field is laid
+		# on the SECOND scan. At 16.667 ticks/s this is ~19 s per scan, i.e. ~38 s to the first mine.
+		ScanTick: 320
+		# One minelayer exists at a time (UnitLimits mnly: 1 on both builder twins), so this is
+		# descriptive rather than restrictive today. It stops a future second minelayer from being
+		# committed to the same field.
+		MaxPerAssign: 1
+		# THE WHOLE PAYLOAD GOES INTO ONE FIELD, AND THAT IS THE FIRST THING TO TUNE. Radius 1 makes the
+		# order a 3x3 box (target = pos+(1,1), ExtraLocation = pos-(1,1)); every cell of that box is
+		# within MinefieldDepth (1536 = 1.5 cells) of the box diagonal, so all 9 are admitted against a
+		# 10-mine AmmoPool. The unit then has to drive back to a logisticscenter to rearm
+		# (vehicles.yaml Rearmable), so this trades concentration against a long round trip.
+		MineFieldRadius: 1
+		# Do not drive a 600-cost UNARMED vehicle into contact. Any enemy Ground actor within
+		# AwayFromCellDistance of the intended field cancels that position outright. Mines get laid in
+		# the lulls, which is when minelaying actually happens.
+		AwayFromEnemyTargetTypes: Ground
+		AwayFromCellDistance: 9
+		# Air attackers do not make a GROUND lane. Recording the position of a helicopter that shot us
+		# would aim the minelayer at a cell no vehicle ever drives through.
+		IgnoredEnemyTargetTypes: Air, AirLight, AirMedium, AirHeavy, Helicopter
+		# When the victim is a STRUCTURE, record where the ATTACKER stood instead of the building's own
+		# cell — the building sits in our territory and is not itself a route anyone drives.
+		UseEnemyLocationTargetTypes: Structure
+		# AwayFromAlliedTargetTypes IS DELIBERATELY LEFT EMPTY, which is not the oversight it looks
+		# like. In WW3MOD own mines cannot hurt own units: ^Mine sets CrushedByRelationships to
+		# Enemy, Neutral and PassClasses: mine (misc.yaml), so friendlies pass over harmlessly. The
+		# usual "keep the field away from our own troops" argument therefore does not apply here, and
+		# populating it would only cancel positions for no safety gain.
+
+	# ===== COMBAT ENGINEERS (experimental-only; there is no @stable twin, deliberately) =====
+	# The bot BUYS engineers and then parks them. Both faction UnitBuilder twins carry e6 at
+	# UnitsToBuild 20 / UnitTargetShares 8 / UnitLimits 2, but ^E6 also carries
+	# `AIUnitRole: Role: Logistics` and every free-pool module sets UseUnitRoles: true — so the role
+	# filter excludes him from assault, ambush, garrison and line duty alike. Before this module the
+	# ONLY thing that ever moved an engineer was EngineerRouteOpenBotModule's bridge trigger, which
+	# fires only when a repairable crossing happens to sit in the believed-weakest enemy sector.
+	# THIS IS NOT THE CAPTURE MODULE THE NOTE BELOW RULES OUT, and the distinction is not a
+	# formality: this module never issues a capture order and ^E6 carries no Captures trait to issue
+	# one with. It employs the three abilities he already has and never uses — Demolition (3 C4),
+	# Armament@Repair and Armament@ClearMines.
+	# NEITHER OF THE TWO YAML-ONLY SHORTCUTS WORKS, so do not "simplify" this away. Removing e6 from
+	# LayeredDefence's ExcludedActorTypes does nothing, because that instance sets UseUnitRoles: true
+	# and the exclusion list is inert under it. Changing the AIUnitRole does something worse: it puts
+	# a 250-cost unarmoured specialist on the assault line.
+	# NO @stable TWIN ON PURPOSE: a wholly new experimental-gated module cannot move the benchmark
+	# control, which sidesteps the shared-trait default-to-baseline rule entirely.
+	# See DOCS/reference/architecture.md "Adding a behavioural field to a trait shared by both bot
+	# profiles".
+	EngineerOperatorBotModule@experimental:
+		RequiresCondition: enable-ai-experimental && (player.nato || player.brics)
+		# Faster than the drone module's cadence because an engineer has no sortie cycle to respect.
+		# How often he is actually DISTURBED is OrderSettleTicks below, not this.
+		ReevaluateInterval: 100
+		# Must exceed ReevaluateInterval by enough that a claim cannot lapse between two evaluations.
+		CommitmentTicks: 300
+		# ===== THE ANTI-LIVELOCK NUMBER, AND IT IS THE ONE TO SUSPECT FIRST =====
+		# Every order this module issues is unqueued, and an unqueued order CANCELS the current
+		# activity. A Demolish walk that is cancelled does NOT spend the charge, so the module simply
+		# re-picks the same target and starts the walk again — on screen that is an engineer
+		# wandering between two buildings and never blowing either. Held for the full window even
+		# when a better job has appeared. Must comfortably exceed the walk time across
+		# BreachMaxDistanceCells at infantry speed.
+		OrderSettleTicks: 200
+		# ^E6 spends C4 through the Demolition trait's UseAmmo, NOT through an Armament — there is no
+		# Armament named `secondary` on the actor at all — so no armament pause state can answer
+		# "has he a charge left" and the pool is read by name.
+		DemolitionAmmoPoolName: secondary-ammo
+		BreachMaxDistanceCells: 30
+		# The legally-measurable stand-in for "an axis is stalled against it": OUR OWN armed units
+		# near the believed static. A defence with none of our troops near it is not blocking
+		# anything, and walking an unarmoured 250-cost specialist to it alone donates the charges.
+		BreachMinFriendlyNearby: 2
+		BreachFriendlyRadiusCells: 8
+		# ===== THIS IS THE FOG GUARD, NOT A TUNING KNOB =====
+		# Read EngineerTaskingMath.IsBreachViable before touching it. The module must hand the engine
+		# a real Actor to build the "C4" order (Demolish derives from Enter, and Enter only ever
+		# enters a TargetType.Actor), and that lookup can succeed or FAIL — the failure being itself
+		# information, namely that the believed structure is already dead. Requiring a fresh sighting
+		# removes the leak at source. Nothing downstream enforces this: TargetExtensions.Recalculate
+		# returns an Actor target unmodified with targetIsHiddenActor false whenever viewer.IsBot, so
+		# the engine would happily let a bot demolish something it has never seen.
+		# Must span more than one BeliefStore recompute (25 ticks) or a watched structure flickers
+		# out of eligibility between passes.
+		BreachContactFreshnessTicks: 50
+		# Armament@Repair's weapon has Range: 1c0 — ONE CELL — so this is a walk-to-it distance, not
+		# a standoff. He must end up adjacent or the armament never fires.
+		RepairMaxDistanceCells: 25
+		# Everything spawns at the Supply Route, so without this exclusion the screen centroid IS the
+		# beachhead and the engineer never leaves it — the exact behaviour this module exists to end.
+		ScreenHomeExclusionCells: 12
+		# Damping on the parking employments. Re-ordering on every centroid twitch cancels the repair
+		# armament's auto-acquired target each cycle, so the group under fire — the group that needs
+		# repairs — is the one whose engineer never completes a burst.
+		AnchorShiftCells: 4
+		# A dry engineer is released and left IDLE rather than ordered, and that is the only way he
+		# rearms: ^E6 sets AutoSeekSupplies ReturnWhenEmpty: false, so the periodic empty-check
+		# dispatch is OFF for him (AutoSeekSupplies.cs:230) and only the INotifyBecomingIdle handoff
+		# remains. Any order issued here would suppress it.
+		StarvingRecruitThresholdPerMille: 250
+
 	# NOTE: No engineer (^E6) capture module wired anywhere — engineers
 	# don't capture in WW3MOD by design. The Captures trait sits on
 	# Technician (^TECN) only. See DOCS/gameplay/capturing.md.
@@ -993,8 +1154,31 @@ Player:
 	BuildingRepairBotModule@aiplayer:
 		RequiresCondition: enable-ai-any
 
-	# TODO: LCCV deployment needs custom strategic logic (evaluate need, find safe location, escort)
-	# Disabled until we have proper decision-making infrastructure for it.
+	# LCCV -> forward LOGISTICSCENTER. LOGISTICSCENTER is Prerequisites: ~disabled and nothing grants
+	# `disabled`, so transforming an LCCV is the ONLY way any player obtains one — which is why the bot
+	# fielded supply trucks (750 supply) and never the Centre (2250, 3x on both axes).
+	#
+	# THE BUY IS NOT A UnitFloors ENTRY, AND THAT IS ARITHMETIC RATHER THAN TASTE. Both the floor lane
+	# and UnitLimits count OwnedOrPending for one actor NAME, and the LCCV is consumed by its own
+	# transform (Transform.DoTransform disposes it), so a successful deploy returns the `lccv` census to
+	# zero while the thing it bought stands on the map as a `logisticscenter`. `UnitFloors: lccv: 1`
+	# would therefore read "below floor" forever and re-buy at 3000 credits without bound. The module
+	# owns its own demand gate instead, counting the DEPLOYED form — the same mechanism, and for the
+	# same reason, as CaptureCoordinatorBotModule's TecnFloor (see ai-america.yaml, which spells out
+	# why a consumable belongs in a demand gate and not in a standing-population floor). Consequently
+	# this feature adds NO entry to UnitsToBuild / UnitFloors / UnitLimits on either twin.
+	LogisticsCenterBotModule@experimental:
+		RequiresCondition: enable-ai-experimental && (player.nato || player.brics)
+		# One Centre. Counted as deployed centres + LCCVs in transit + pending requests, so the second
+		# is never ordered while the first is still driving.
+		DesiredCenters: 1
+		# The whole point is cutting the resupply round-trip, so the site is a standoff BEHIND the
+		# believed line rather than at the rear. 4 coarse control-grid cells matches the free-pool
+		# forward staging standoff; a flat/unpopulated control field stalls the descent at the Supply
+		# Route and the module then HOLDS rather than deploying a 3000-credit Centre next to the SR it
+		# was meant to relieve.
+		StandoffCells: 4
+		DangerSafeUnits: 30
 
 	# Scouting — sends fast units to explore the map and report enemy positions
 	ScoutBotModule@america:
@@ -1817,6 +2001,15 @@ Player:
 		UnitLimits:
 			mig: 2
 			frog: 2
+		# EXTERNAL-REQUEST CAP. This twin is where AdaptiveProductionBotModule's call-ins actually land for
+		# BRICS: routing picks the first ENABLED twin, and this is the first one whose condition holds
+		# (enable-ai-any covers BOTH @stable and @experimental). The FIFO lane it drains applies no
+		# UnitsToBuild/UnitDelays/UnitLimits, and the composition ceiling cannot cover it either — this twin
+		# sets no CompositionDirected, so compositionTypes is null and the ceiling exits at its first guard
+		# for every type. Setting this makes an authored UnitLimits entry bind wherever it was WRITTEN
+		# (mi28's cap lives on the .heli twin, not here), which is what stops an unbounded gunship buy.
+		# Types with no authored limit are unaffected. AFFECTS @stable TOO — deliberate, see the commit.
+		EnforceExternalRequestUnitLimits: true
 
 	# experimental variant of the fixed-wing SquadManager. IMPORTANT: SquadManagerBotModule
 	# is NOT air-only — FindNewUnits recruits EVERY IPositionable unit not in
@@ -1935,6 +2128,10 @@ Player:
 		UnitLimits:
 			a10: 2
 			f16: 2
+		# EXTERNAL-REQUEST CAP — NATO's drain point. See the russia.fixedwing twin above for the full
+		# reasoning; this is the same fix on the mirrored twin (heli's cap lives on the .heli twin, not here).
+		# AFFECTS @stable TOO — deliberate, see the commit.
+		EnforceExternalRequestUnitLimits: true
 
 	# experimental variant — see the russia.fixedwing experimental note above. Excludes the capture
 	# TECN + non-combat support so the fixed-wing/ground SquadManager stops

@@ -50,14 +50,22 @@ namespace OpenRA.Mods.Common.Activities
 		readonly IMove move;
 		readonly IMoveInfo moveInfo;
 		readonly int waitTicks;
+		readonly int hostFootprintCells;
+		readonly int approachMarginCells;
 
-		public RestockSupply(Actor self, Actor host, int waitTicks)
+		public RestockSupply(Actor self, Actor host, int waitTicks, int approachMarginCells)
 		{
 			this.host = host;
 			this.waitTicks = waitTicks;
+			this.approachMarginCells = approachMarginCells;
 			supply = self.Trait<SupplyProvider>();
 			move = self.Trait<IMove>();
 			moveInfo = self.Info.TraitInfo<IMoveInfo>();
+
+			var building = host.Info.TraitInfoOrDefault<BuildingInfo>();
+			hostFootprintCells = building == null
+				? 0
+				: System.Math.Max(building.Dimensions.X, building.Dimensions.Y);
 		}
 
 		protected override void OnFirstRun(Actor self)
@@ -83,14 +91,41 @@ namespace OpenRA.Mods.Common.Activities
 			if (host.IsDead || !host.IsInWorld)
 				return true;
 
+			// ARRIVAL CHECK — the guard this activity shipped WITHOUT, while the mirror it is documented
+			// against (DeliverSupply) has carried it from the start. A Move to a cell with no route does
+			// not fail: the path finder bails to NoPath and Move.Tick treats an empty path as arrival
+			// (Move.cs:173-177), completing in about two ticks at the cell the truck was already on. So
+			// without this, ordering a truck to restock at a Centre it cannot reach — across water, behind
+			// a wall, on terrain its locomotor refuses — DRAINED that Centre from anywhere on the map and
+			// filled the truck for free.
+			//
+			// Refusing leaves the supply in the Centre, which is always recoverable. Logged for the same
+			// reason the delivery side logs: an errand that was issued, driven and completed but moved
+			// nothing is otherwise indistinguishable from one that was never ordered.
+			var hostCell = self.World.Map.CellContaining(host.CenterPosition);
+			var delta = self.Location - hostCell;
+			var arrived = SupplyTransferMath.ArrivedAtHost(
+				delta.X, delta.Y, hostFootprintCells, approachMarginCells);
+
+			if (!arrived)
+				Log.Write("debug",
+					$"[supply] restock-refused truck={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
+					+ $"reason=never-arrived host={hostCell} "
+					+ $"tolerance={SupplyTransferMath.ArrivalTolerance(hostFootprintCells, approachMarginCells)}c "
+					+ $"held={supply.CurrentSupply}");
+
 			var hostProvider = host.TraitOrDefault<SupplyProvider>();
 			if (hostProvider == null)
 				return true;
 
 			// No free refills — the host's pool drops by exactly what was transferred, capped at what it
-			// has on hand, so a truck may leave partially full.
-			var needed = supply.Info.TotalSupply - supply.CurrentSupply;
-			var taken = System.Math.Min(needed, hostProvider.CurrentSupply);
+			// has on hand, so a truck may leave partially full. The arrival term is passed INTO the amount
+			// rather than short-circuiting above it, and that is deliberate: it is what makes the refusal
+			// a property of the shared arithmetic that a test can pin, rather than a line in an activity
+			// that only a live scenario could exercise. Refusing leaves the supply in the Centre.
+			var taken = SupplyTransferMath.AmountToRestock(
+				arrived, supply.CurrentSupply, supply.Info.TotalSupply, hostProvider.CurrentSupply);
+
 			if (taken > 0 && hostProvider.DeductSupply(taken))
 				supply.AddSupply(taken);   // clears the residue-unusable latch on a genuine refill
 

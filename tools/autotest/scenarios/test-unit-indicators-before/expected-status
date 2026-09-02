@@ -1,0 +1,23 @@
+skip
+SCREENSHOT CAPTURE HARNESS, no graded answer. This is the BEFORE half of the
+test-unit-indicators pair: the identical scene with the two new decorations stripped in
+rules.yaml, captured twice so a reader has a baseline to judge the AFTER run against. The
+`expects:` strings are captions addressed to that reader, not assertions, and the Lua
+evaluates no predicate.
+
+The comparison this scenario exists for happens ACROSS two runs, which no single-run verdict
+can express -- that is the structural reason it cannot grade itself, not an oversight.
+
+WHY SKIP AND NOT PASS. Until 2026-09-01 the terminal verdict was `Test.Pass`, so this
+scenario contributed a green to every `run-batch.sh --all` tally regardless of what was drawn.
+`Test.Skip` is the harness's own word for "ran, produced no graded answer" (TestGlobal.cs) and
+run-batch.sh maps it to the SKIP bucket. The scenario is not hidden and still runs; the
+verdict just stops claiming an answer it never computed.
+
+REMOVE THIS FILE in the same commit as whatever gives the scenario a real assertion. A PASS
+against a live `skip` declaration grades STALE/RED on purpose: a scenario that STARTS grading
+shows up loudly instead of silently changing meaning.
+
+NOT EXPOSED TO expected-status.sh's KNOWN GAP. That gap is specific to `fail` declarations,
+where a watchdog TIMEOUT-FAIL also exits 1 and therefore grades green. A timeout reaches
+expected_status_grade as FAIL, and declared-`skip` + FAIL is RED.

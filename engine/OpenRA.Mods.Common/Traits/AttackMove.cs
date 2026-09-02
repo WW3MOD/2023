@@ -138,12 +138,19 @@ namespace OpenRA.Mods.Common.Traits
 				// advancing to the edge of it. NearestMoveableCell returns the cell unchanged on a
 				// miss, which is what preserves that advance.
 				//
-				// The closure runs twice — once for AttackMoveActivity's OriginalDestination probe at
-				// construction, once when the move starts. Only the second reaches the unit. The
-				// duplicate is cheap: the annulus is capped at 10 and CanReach is an O(1) domain-index
-				// compare, not a search (Mobile.cs:884-888).
+				// `cell` is passed SEPARATELY as the order point, and that is not a convenience. It is
+				// what Shift-G replays, and it must be a property of the click rather than of the unit.
+				// The activity's other constructor infers it by running this closure once and reading the
+				// move back — which yields the RELOCATED cell, and NearestMoveableCell answers per-unit,
+				// so one click by a selection recorded a different cell for every unit. Pinned by
+				// GroupScatterWaypointTest; the full account is on the constructor.
+				//
+				// Stating it also means the closure now runs ONCE, when the move starts, instead of twice.
+				// That is safe to rely on: Move's constructors and SmartMove's wrapper are pure field
+				// assignment (Move.cs:57-108), so the discarded probe had no effect and drew no RNG.
 				self.QueueActivity(order.Queued, new AttackMoveActivity(self,
 					() => move.MoveTo(move.NearestMoveableCell(cell), MoveOrderTerms.NearEnoughCells, targetLineColor: Info.TargetLineColor),
+					cell,
 					assaultMoving));
 				self.ShowTargetLines();
 			}
@@ -153,19 +160,28 @@ namespace OpenRA.Mods.Common.Traits
 		/// Whether this actor could be given an attack-move order at all.
 		/// </summary>
 		/// <remarks>
-		/// Carrying AttackMoveInfo is NOT sufficient. The trait sits on ^AutoTarget
+		/// <para>Carrying AttackMoveInfo is NOT sufficient. The trait sits on ^AutoTarget
 		/// (defaults.yaml:388), which ^AutoTargetAir and ^AutoTargetAirICBM inherit, so immobile
 		/// AA and ICBM defences (structures-defenses.yaml:600, :685, :762) carry it as the no-op the
 		/// constructor comment describes. Both the targeter (`self.TraitOrDefault&lt;IMove&gt;() == null`)
-		/// and ResolveOrder (`move == null`) then refuse them.
+		/// and ResolveOrder (`move == null`) then refuse them.</para>
 		///
-		/// This matters for the cursor because AmmoPool.AllPoolsEmpty returns FALSE for an actor
+		/// <para>This matters for the cursor because AmmoPool.AllPoolsEmpty returns FALSE for an actor
 		/// with no pools at all (AmmoPool.cs:548-560) — so a poolless defence answers "can act", and
 		/// without this filter one box-selected alongside a dry tank paints a GREEN attack-move
-		/// cursor over a click that does nothing. Shared by both display paths so they cannot drift.
+		/// cursor over a click that does nothing. Shared by both display paths so they cannot drift.</para>
 		/// </remarks>
 		internal static bool CanBeOrderedToAttackMove(Actor a)
 		{
+			// The order generator caches its subjects and only re-filters on SelectionChanged
+			// (AttackMoveOrderGenerator.SelectionChanged) — an actor that dies while the mode is
+			// held stays in the cache, and GetCursor evaluates this per render frame. A trait
+			// lookup on a disposed actor throws TraitDictionary.CheckDestroyed, which crashed the
+			// game from the render thread. Dead-but-not-yet-disposed actors are refused too:
+			// they can't be ordered anything.
+			if (a.Disposed || a.IsDead)
+				return false;
+
 			return a.Info.HasTraitInfo<AttackMoveInfo>() && a.TraitOrDefault<IMove>() != null;
 		}
 

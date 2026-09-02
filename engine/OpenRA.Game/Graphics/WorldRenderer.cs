@@ -47,6 +47,7 @@ namespace OpenRA.Graphics
 		readonly HardwarePalette palette = new();
 		readonly Dictionary<string, PaletteReference> palettes = new();
 		readonly IRenderTerrain terrainRenderer;
+		readonly IRenderShroud shroudRenderer;
 		readonly Lazy<DebugVisualizations> debugVis;
 		readonly Func<string, PaletteReference> createPaletteReference;
 		readonly bool enableDepthBuffer;
@@ -81,6 +82,7 @@ namespace OpenRA.Graphics
 			TerrainLighting = world.WorldActor.TraitOrDefault<ITerrainLighting>();
 			renderers = world.WorldActor.TraitsImplementing<IRenderer>().ToArray();
 			terrainRenderer = world.WorldActor.TraitOrDefault<IRenderTerrain>();
+			shroudRenderer = world.WorldActor.TraitOrDefault<IRenderShroud>();
 
 			debugVis = Exts.Lazy(() => world.WorldActor.TraitOrDefault<DebugVisualizations>());
 
@@ -466,6 +468,14 @@ namespace OpenRA.Graphics
 			// Precompute combined fog alpha for each visibility level (0-10).
 			// For visibility V, fog layers V through 9 are drawn by ShroudRenderer.
 			// Combined alpha = 1 - product of (1 - layerAlpha) for each layer.
+			//
+			// PITFALL: this per-layer curve is a second copy of ShroudRenderer.LayerAlpha, which
+			// lives in Mods.Common and so cannot be called from here. FogDarkness is read off the
+			// renderer to keep the two scaling together; the curve itself must be kept in step by
+			// hand. The copies are NOT equivalent today — this one omits the fog palette's own
+			// alpha, so the strip outside the grid is drawn darker than the fog over the map at
+			// the same visibility. That predates FogDarkness and is left alone here.
+			var fogDarkness = shroudRenderer?.FogDarkness ?? 1f;
 			var fogAlphas = new float[MapLayers.VisionLayers];
 			fogAlphas[0] = 1f;
 			fogAlphas[10] = 0f;
@@ -477,7 +487,7 @@ namespace OpenRA.Graphics
 					var a = 1f;
 					if (layer > 1)
 						a -= (layer - 1) / 12f;
-					a /= 3f;
+					a = Math.Min(a * fogDarkness / 3f, 1f);
 					transparency *= 1f - a;
 				}
 

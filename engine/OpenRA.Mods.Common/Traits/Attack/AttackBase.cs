@@ -674,19 +674,61 @@ namespace OpenRA.Mods.Common.Traits
 			return !forceAttack && source != AttackSource.Default;
 		}
 
-		/// <summary>How close a unit must get before it will engage, given every armament that is valid
-		/// against the target. <paramref name="maxRanges"/> and <paramref name="paused"/> are parallel.
+		/// <summary>
+		/// <para>Whether an attack order is REFUSED OUTRIGHT because nothing that could engage this target
+		/// is able to fire. <paramref name="armamentPauses"/> is IsTraitPaused for each armament
+		/// ChooseArmamentsForTarget returned — that method filters disabled armaments but not paused ones,
+		/// so every entry here is otherwise valid against the target.</para>
 		///
-		/// Shipped behaviour (engageAtLongest false) is the MINIMUM, which brings every barrel to bear
+		/// <para>THE OPT-IN IS THE WHOLE PREDICATE, and that is the point. Without
+		/// <see cref="AttackBaseInfo.AbandonWhenArmamentsPaused"/> the order is ACCEPTED: the unit closes,
+		/// aims, and holds through the pause, which is the wanted default for a brief one. With it,
+		/// Attack.TickAttack returns UnableToAttack on the first tick, so the activity completes having
+		/// moved nothing. Those are opposite outcomes, and only the second is a refusal — so this is the
+		/// one question a cursor may ask about a paused weapon. Painting a blocked cursor on the first
+		/// case would claim a refusal that does not happen, which is the error that got the minelayer
+		/// finding retracted on 2026-08-30.</para>
+		///
+		/// <para>An EMPTY list is deliberately NOT a refusal, unlike the List.TrueForAll it replaces: both
+		/// callers already return before they get here on an empty armament set, so the case is
+		/// unreachable, and of the two vacuous answers a false refusal is the one this codebase has
+		/// actually shipped and had to retract.</para>
+		/// </summary>
+		public static bool RefusesForPause(bool abandonWhenArmamentsPaused, bool attackBasePaused, IReadOnlyList<bool> armamentPauses)
+		{
+			if (!abandonWhenArmamentsPaused)
+				return false;
+
+			// DoAttack skips every armament wholesale on the base's own pause, so a paused base wedges
+			// identically with armaments that are all perfectly live.
+			if (attackBasePaused)
+				return true;
+
+			if (armamentPauses.Count == 0)
+				return false;
+
+			for (var i = 0; i < armamentPauses.Count; i++)
+				if (!armamentPauses[i])
+					return false;
+
+			return true;
+		}
+
+		/// <summary>
+		/// <para>How close a unit must get before it will engage, given every armament that is valid
+		/// against the target. <paramref name="maxRanges"/> and <paramref name="paused"/> are parallel.</para>
+		///
+		/// <para>Shipped behaviour (engageAtLongest false) is the MINIMUM, which brings every barrel to bear
 		/// but silently downgrades a specialist: a unit whose long-range weapon is the RIGHT weapon
 		/// closes to its short-range weapon's band anyway, and the player sees it refuse the good
-		/// weapon and drive at the target.
+		/// weapon and drive at the target.</para>
 		///
-		/// The longest branch deliberately ignores PAUSED armaments and only falls back to them when
+		/// <para>The longest branch deliberately ignores PAUSED armaments and only falls back to them when
 		/// every one is paused, mirroring <see cref="GetMaximumRangeVersusTarget"/>. Without that a
 		/// Tunguska that had spent all 8 missiles would still hold out at the missile's 28c0 — the dry
 		/// armament is PAUSED, never disabled, so it stays in the candidate list — and would sit there
-		/// firing nothing, its 18c0 gun forever out of reach.</summary>
+		/// firing nothing, its 18c0 gun forever out of reach.</para>
+		/// </summary>
 		public static WDist EngagementMaxRange(IReadOnlyList<WDist> maxRanges, IReadOnlyList<bool> paused, bool engageAtLongest)
 		{
 			if (maxRanges.Count == 0)
@@ -803,10 +845,19 @@ namespace OpenRA.Mods.Common.Traits
 				if (!armaments.Any())
 					return false;
 
-				armaments = armaments.OrderByDescending(x => x.MaxRange());
-				var a = armaments.FirstOrDefault(x => !x.IsTraitPaused) ?? armaments.First();
+				var ordered = armaments.OrderByDescending(x => x.MaxRange()).ToList();
+				var a = ordered.FirstOrDefault(x => !x.IsTraitPaused) ?? ordered[0];
 
-				if (armaments.All(armament => armament.AmmoPool != null && !armament.AmmoPool.HasAmmo))
+				if (ordered.TrueForAll(armament => armament.AmmoPool != null && !armament.AmmoPool.HasAmmo))
+					return false;
+
+				// The activity refuses this order outright when the unit opts into abandon-on-pause, so the
+				// cursor must not promise it. Returning FALSE rather than painting a blocked cursor is the
+				// selection-polarity ruling of 2026-08-30 — show the cursor for the capable and drop the
+				// others in silence — so one paused unit cannot blank the click for a healthy selection.
+				// Without the opt-in this must stay silent: the order is then accepted and the unit really
+				// does close and aim, so a refusal here would be the mirror lie.
+				if (RefusesForPause(ab.Info.AbandonWhenArmamentsPaused, ab.IsTraitPaused, ordered.ConvertAll(x => x.IsTraitPaused)))
 					return false;
 
 				var outOfRange = !target.IsInRange(self.CenterPosition, a.MaxRange()) ||
@@ -844,8 +895,13 @@ namespace OpenRA.Mods.Common.Traits
 				if (AmmoPool.CannotFight(self))
 					return false;
 
-				armaments = armaments.OrderByDescending(x => x.MaxRange());
-				var a = armaments.FirstOrDefault(x => !x.IsTraitPaused) ?? armaments.First();
+				var ordered = armaments.OrderByDescending(x => x.MaxRange()).ToList();
+				var a = ordered.FirstOrDefault(x => !x.IsTraitPaused) ?? ordered[0];
+
+				// Same refusal as CanTargetActor — force-fire at ground runs the same Attack activity and
+				// is abandoned by the same gate, so it must be answered the same way.
+				if (RefusesForPause(ab.Info.AbandonWhenArmamentsPaused, ab.IsTraitPaused, ordered.ConvertAll(x => x.IsTraitPaused)))
+					return false;
 
 				cursor = !target.IsInRange(self.CenterPosition, a.MaxRange())
 					? ab.Info.OutsideRangeCursor ?? a.Info.OutsideRangeCursor

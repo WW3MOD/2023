@@ -1,0 +1,1 @@
+Do living trees grant the in-cover concealment bonus? Four riflemen with 0/1/2/3 trees in reach; asserts +1/+2/+3 tier delta against a treeless control.

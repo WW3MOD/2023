@@ -521,11 +521,22 @@ namespace OpenRA.Mods.Common.Traits
 			// disagree. This site passes the REARMABLE subset, which is what the push side's canonical
 			// rule uses (SupplyProvider.AcceptClient reads rearmable.RearmableAmmoPools). The dispatch
 			// sites pass every pool instead — AmmoPool's Auto arm and evacuate detour, and
-			// SeekSupplyProvider. Across the shipped ruleset all 46 actors carrying both traits have
-			// identical sets, so the two readings coincide today and nothing observable turns on it.
-			// If an actor is ever given an AmmoPool its Rearmable does not name, they part company and
-			// THIS is where to look: the rearmable subset is the correct set for "can a host serve me",
-			// because a pool no host is allowed to fill cannot make a trip worth taking.
+			// SeekSupplyProvider. Every actor carrying both traits has identical sets, so the two
+			// readings coincide today and nothing observable turns on it. If an actor is ever given an
+			// AmmoPool its Rearmable does not name, they part company and THIS is where to look: the
+			// rearmable subset is the correct set for "can a host serve me", because a pool no host is
+			// allowed to fill cannot make a trip worth taking.
+			//
+			// DO NOT "FIX" THE DIVERGENCE BY MAKING THE DISPATCH SITES PASS THIS SET TOO. That is the
+			// obvious remedy and it is wrong: 19 actors carry an AmmoPool and NO Rearmable at all —
+			// HIMARS, iskander, F16, AGUN, CRAM, FTUR, both .Airstrike variants and the crew actors —
+			// so there is no rearmable subset for them to pass, and handing those an empty set would
+			// silently disable AutoRearmIfDry's Auto arm and the evacuate detour on every one of them.
+			// On HIMARS and iskander the missing Rearmable is deliberate and separately documented.
+			// The two sites ask DIFFERENT QUESTIONS, not one question two ways: this one asks whether a
+			// HOST will serve us, the dispatch sites ask whether we have any unmet need at all — which
+			// has to include pools no host may fill, because the actor may have no Rearmable to name
+			// them. Worked through in WORKSPACE/DISCOVERIES.md, 2026-09-01.
 			return AmmoPool.HostCanAffordSomethingWeNeed(providerActor, rearmable.RearmableAmmoPools);
 		}
 

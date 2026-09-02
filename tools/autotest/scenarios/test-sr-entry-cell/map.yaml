@@ -1,0 +1,92 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: SR reinforcement enters at the TRUE nearest edge cell, not the tie-band's north end
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+# WHAT THIS MEASURES, AND WHY IT IS A SECOND SITE OF THE SAME DEFECT.
+#
+# Map.ChooseClosestMatchingEdgeCell used to order the perimeter by CVec.Length, which is
+# Exts.ISqrt(LengthSquared) with ISqrtRoundMode.Floor (CVec.cs:50, Exts.cs:305-306). Flooring a
+# sort key merges cells that are NOT equidistant into one tie, and since OrderBy is stable and
+# UpdateEdgeCells appends the left/right columns with v ASCENDING (Map.cs:1943-1952), the winner
+# was always the tie band's lowest row. The band is exactly +/-floor(sqrt(2d)) for perpendicular
+# distance d. test-evac-queued-line caught this on the EVACUATION path; this scenario pins the
+# OTHER caller, which is the one that actually matters in play.
+#
+# THAT OTHER CALLER IS REINFORCEMENT ENTRY. ProductionFromMapEdge sits on SUPPLYROUTE
+# (structures.yaml:222,365, producing Infantry/Soldier/Vehicle/Aircraft/Helicopter) and its
+# ground branch takes a LEGACY path whenever FindClosestSpawnArea returns null --
+# ProductionFromMapEdge.cs:117-132 -- which calls ChooseClosestMatchingEdgeCell with the SR's own
+# cell as the search origin. Every ground reinforcement enters at whatever that returns
+# (LocationInit, :185). So the bias moved where units walk in, on every map with no spawnarea
+# actor -- which is 9 of the 10 shipped maps.
+#
+# THE ONE THING THIS MAP MUST NOT HAVE IS A `spawnarea` ACTOR. With one present,
+# FindClosestSpawnArea returns non-null, the branch flips to GetSpawnCandidatesOnSameEdge, and
+# this test would pass while measuring nothing at all. `mpspawn` is a DIFFERENT actor and does
+# not carry the SpawnArea trait (misc.yaml:239 vs :255) -- the two below are inert here and are
+# present only so the map is well-formed.
+#
+# GEOMETRY. The SR sits at 14,16, so d = 13 to the west boundary at x=1, against 15 to the north
+# edge, 16 to the south and 50 to the east. The west edge wins outright and no cross-edge tie is
+# possible. The floored band is +/-floor(sqrt(26)) = +/-5, i.e. rows 11..21 all scored 13:
+#
+#   * entry at 1,16  -> the TRUE nearest cell. This is the fixed behaviour.
+#   * entry at 1,11  -> the band's north end, i.e. the floored sort key is back.
+#   * entry at 1,y for y in 12..21 -> still inside the band; a partial or different tie-break.
+#   * entry anywhere with x != 1   -> a wrong edge entirely, which is a different bug.
+#
+# FIVE CELLS OF SEPARATION is deliberate. d was chosen to make the band wide: the pre-fix and
+# post-fix answers are far enough apart that no rounding, footprint or subcell question can
+# confuse one for the other.
+#
+# NOTHING ELSE PRODUCES OR MOVES. rules.yaml strips SpawnStartingUnits and MapStartingLocations,
+# and no e1.america is placed on the map, so the single produced rifleman is unambiguously the
+# subject -- GetActorsByType cannot pick up a decoy.
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 14,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 30,8
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 50,24
+
+Rules: rules.yaml

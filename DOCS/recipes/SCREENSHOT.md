@@ -235,7 +235,10 @@ How I decide whether a screenshot shows what it should:
 
 ## Existing scenarios using this
 
-- `test-screenshot-smoke` — proves the pipeline. Three captures at named beats, pass.
+- `test-screenshot-smoke` — exercises the pipeline. Three captures at named beats, then
+  `Test.Skip`. It **asserts nothing**: whether the PNGs landed and whether the verdict JSON's
+  `screenshots[]` lists all three is read out of the run directory by you, not by the script.
+  Its verdict was `Test.Pass` until 2026-09-01, which made it read as a guard it never was.
 
 ## Phase 3 — programmatic UI driving (PARTLY BUILT, not "sketched")
 

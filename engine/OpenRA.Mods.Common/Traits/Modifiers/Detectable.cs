@@ -89,12 +89,12 @@ namespace OpenRA.Mods.Common.Traits
 		/// Clamps a composed concealment level into the range detection can actually resolve.
 		/// </summary>
 		/// <remarks>
-		/// The ceiling is VisionLayers - 2 — one BELOW the top vision band — and that gap is the whole point.
+		/// <para>The ceiling is VisionLayers - 2 — one BELOW the top vision band — and that gap is the whole point.
 		/// Concealment and observer strength share a single 1..VisionLayers-1 ladder, so while concealment
 		/// could reach the top, the strongest observer in the game could at best match it and a unit at the
-		/// ceiling was undetectable at every range by everything.
+		/// ceiling was undetectable at every range by everything.</para>
 		///
-		/// State the guarantee exactly, because the obvious phrasing is wrong and this comment carried it.
+		/// <para>State the guarantee exactly, because the obvious phrasing is wrong and this comment carried it.
 		/// The gap guarantees that an observer whose STAMPED strength reaches the ceiling detects. On a bare
 		/// sightline that is ^StandardVision's strength-9 band, i.e. inside 7 cells. It does NOT mean "inside
 		/// 7 cells" in general: MapLayers.AddSource subtracts the sightline's forest shadow from the observer
@@ -102,18 +102,18 @@ namespace OpenRA.Mods.Common.Traits
 		/// 11-20, and one authored tree cell is density 10 — so an observer crossing about two dense cells
 		/// stamps 8 and cannot detect a ceiling-concealment target at ANY range. That is not a corner case:
 		/// the term that carries a unit to the ceiling is object-proximity, i.e. being surrounded by the very
-		/// density that casts the shadow.
+		/// density that casts the shadow.</para>
 		///
-		/// What IS unconditional is the adjacent case, which is what the ruling was about. Shadow entries
+		/// <para>What IS unconditional is the adjacent case, which is what the ruling was about. Shadow entries
 		/// exist only for viewer/target pairs 2-32 cells apart (Map.RecomputeShadowFrom's annulus) and the
 		/// walk skips the from and to cells (Map.cs:1150-1155), so an observer standing next to the target
 		/// crosses nothing, stamps full strength, and detects. "Invisible while an enemy stands on top of it"
 		/// is closed. "Invisible in forest at range" is NOT — closing that needs the observer floor raised in
-		/// AddSource, which also moves fog rendering, radar and the AI belief layer.
+		/// AddSource, which also moves fog rendering, radar and the AI belief layer.</para>
 		///
-		/// The ceiling holds whether reveal is strict or not, so it does not depend on IsDetected staying
+		/// <para>The ceiling holds whether reveal is strict or not, so it does not depend on IsDetected staying
 		/// non-strict. The floor of 1 is pre-existing and stays: 0 is shroud's level and must not be a
-		/// concealment value.
+		/// concealment value.</para>
 		/// </remarks>
 		public static int ClampConcealment(int concealment)
 		{

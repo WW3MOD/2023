@@ -1,0 +1,23 @@
+skip
+
+CAPTURE INSTRUMENT, no graded answer. It stages four Abrams on the four cardinal facings,
+photographs their crews bailing out six times, and asserts nothing about where the men went.
+A human reads the PNGs against the per-frame notes and decides.
+
+WHY SKIP AND NOT PASS. The Lua evaluates no predicate about the mod. Its three runtime checks --
+that every hull reports the IFacing map.yaml authored, that twelve crew are in the world and idle
+at the shutter, and that each man is within 4 cells of exactly one hull and 8 from the rest -- are
+guards on the INSTRUMENT, not measurements of the subject. They can only downgrade the frames to
+"not evidence". A Test.Pass would contribute a green to every run-batch.sh --all tally whether or
+not the capture landed, which is the mislabelling corrected across this suite on 2026-09-01.
+
+The dismount geometry itself is already graded, and next door: test-crew-rear-dismount asserts the
+rear half-plane, the strictly-astern man and the three distinct cells, and DismountGeometryTest.cs
+pins the fan arithmetic at every facing. Nothing here should duplicate either.
+
+A PASS against a live `skip` declaration grades RED on purpose, so a scenario that starts grading
+announces itself instead of silently changing meaning.
+
+NOT EXPOSED TO expected-status.sh's KNOWN GAP. That gap is specific to `fail` declarations, where a
+watchdog TIMEOUT-FAIL also exits 1 and therefore grades green. A timeout reaches
+expected_status_grade as FAIL, and declared-`skip` + FAIL is RED.

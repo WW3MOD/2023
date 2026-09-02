@@ -253,7 +253,11 @@ namespace OpenRA.Mods.Common.Activities
 			// The AttackBase's own pause has to be tested too: DoAttack below skips every armament
 			// wholesale on `!attack.IsTraitPaused`, so a paused base wedges identically with armaments
 			// that are all perfectly live.
-			if (attack.Info.AbandonWhenArmamentsPaused && (attack.IsTraitPaused || armaments.TrueForAll(a => a.IsTraitPaused)))
+			// SHARED with AttackOrderTargeter, which must refuse exactly the orders this abandons. Do not
+			// re-inline it: the cursor and the activity disagreeing about a paused weapon is the defect
+			// the shared form exists to make impossible.
+			if (AttackBase.RefusesForPause(
+				attack.Info.AbandonWhenArmamentsPaused, attack.IsTraitPaused, armaments.ConvertAll(a => a.IsTraitPaused)))
 				return AttackStatus.UnableToAttack;
 
 			// Update ranges

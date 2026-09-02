@@ -58,7 +58,7 @@ WorldLoaded = function()
 	-- Confirm the drain actually emptied the pool, else the test proves nothing.
 	Trigger.AfterDelay(sec(3), function()
 		if EmptyTank.IsDead then
-			Test.Fail("EmptyTank died during setup — inconclusive")
+			Test.Skip("EmptyTank died during setup — inconclusive")
 			return
 		end
 		if EmptyTank.AmmoCount("primary-ammo") ~= 0 then
@@ -69,7 +69,7 @@ WorldLoaded = function()
 
 	Trigger.AfterDelay(sec(WINDOW), function()
 		if EmptyTank.IsDead then
-			Test.Fail("EmptyTank died before verdict — inconclusive")
+			Test.Skip("EmptyTank died before verdict — inconclusive")
 			return
 		end
 

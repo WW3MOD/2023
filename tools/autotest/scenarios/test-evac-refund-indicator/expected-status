@@ -1,0 +1,35 @@
+skip
+CAPTURE INSTRUMENT, no graded answer. It evacuates two tanks off the west edge and
+photographs the refund ticks they leave behind. It asserts nothing about whether the
+ticks rendered, because nothing it can call CAN see that: no Lua binding reports a live
+FloatingText, and the two things that were fixed -- the Map.Bounds clamp on the spawn
+position and FloatingText's ignoreVisibility bypass -- are both purely presentational
+and reach the screen without passing through any state a script can read.
+
+WHY SKIP AND NOT PASS. The Lua evaluates no predicate about the mod. Its runtime checks
+are guards on the INSTRUMENT: that World.RenderPlayer is live (via a never-scouted
+pillbox's mouse-targetability), that both subjects actually sold and how much the engine
+credited, that the two sales landed close enough together for both ticks to still be
+alive in one frame, and that the Payload: 0 override really produced a zero. Every one
+of those can only downgrade the frame to "not evidence". None can conclude that the
+indicator works. A Test.Pass would contribute a green to every run-batch.sh --all tally
+whether or not a single pixel of text rendered.
+
+The parts that ARE gradeable are graded elsewhere and nothing here should duplicate
+them: OpenRA.Test/EvacRefundTextMathTest.cs pins ClampToBounds and the lifetime/rise
+arithmetic.
+
+REMOVE THIS FILE in the same commit as whatever gives the scenario a real assertion. The
+obvious candidate is a Lua binding that reports the world's live FloatingText effects --
+their text, position and remaining lifetime -- which would let the run assert that a tick
+carrying "+$0" exists at the clamped boundary cell instead of asking a human to read four
+glyphs off a PNG. Test.GetImpactEffectCount (TestGlobal.cs:1143) is the precedent for
+counting effects from Lua, so the shape is established; it was deliberately not added
+blind because the useful version needs position and text, not a count.
+
+A PASS against a live `skip` declaration grades RED on purpose, so a scenario that starts
+grading announces itself instead of silently changing meaning.
+
+NOT EXPOSED TO expected-status.sh's KNOWN GAP. That gap is specific to `fail`
+declarations, where a watchdog TIMEOUT-FAIL also exits 1 and therefore grades green.
+A timeout reaches expected_status_grade as FAIL, and declared-`skip` + FAIL is RED.

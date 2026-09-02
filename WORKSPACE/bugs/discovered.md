@@ -5,6 +5,58 @@
 
 ---
 
+- [2026-09-02] [HIGH] **Capturing a building leaves its vision with the PREVIOUS owner, permanently,
+  and gives the captor none.** `Vision` derives from `AffectsMapLayer` (`Vision.cs:29`), which
+  implements `INotifyAddedToWorld` / `INotifyRemovedFromWorld` / `INotifyCenterPositionChanged` /
+  `INotifyMoving` / `ITick` but **not `INotifyOwnerChanged`** (`AffectsMapLayer.cs:42-43`). Its
+  `UpdateCells` — the only thing that re-evaluates `AddCellsToPlayerMapLayer`, and hence the only
+  thing that re-runs `Vision`'s `self.Owner.RelationshipWith(p)` gate (`Vision.cs:48-53`) — runs on
+  add-to-world, on a position change, or on `ITick` **only when the range or trait-disabled state
+  changes** (`AffectsMapLayer.cs:136-159`). A captured building does none of those: it never moves,
+  its range never changes, and `^BasicBuilding`'s `Vision@3/@2/@1` carry no `RequiresCondition`.
+  Upstream this is harmless because `Actor.ChangeOwnerSync` momentarily removes and re-adds the
+  actor (`Actor.cs:577-592`), firing the add/remove hooks and rebuilding the sources. **But both
+  real capture paths deliberately skip that cycle for buildings**: `CaptureActor.cs:140-143`
+  (engineer capture) and `ProximityCapturable.cs:222-227` both branch on
+  `HasTraitInfo<BuildingInfo>()` to `ChangeOwnerInPlaceSync`, whose doc-comment names the skipped
+  work as *"the expensive shroud/vision recalc cascade ... (causes a ~0.5s freeze on capture)"*. The
+  perf motive is presumably real; the correctness cost appears not to have been noticed.
+  **Effect:** every building you have ever lost keeps feeding you vision out to 3c0 forever, and the
+  player who took it gains nothing from it. A standing fog leak on both sides of every capture,
+  considerably larger than any tooltip.
+  **Interaction with `wt/tooltip-owner`:** it also means the old owner still SEES the captured cell,
+  so their ghost never freezes and the tooltip-identity leak that branch fixes is currently
+  unreachable *through the in-place capture paths*. It stays reachable through every caller that
+  uses the full `ChangeOwner` — Lua `actor.Owner =` (`GeneralProperties.cs:63`),
+  `ChangeOwnerWarhead`, `OwnerLostAction`, `TemporaryOwnerManager`, `BaseSpawnerSlave` — and would
+  become reachable through engineer capture the moment this is fixed. The tooltip fix is therefore
+  correct and forward-safe rather than dead, but do not expect to reproduce the leak by walking an
+  engineer into a building until this is resolved.
+  **Not fixed here** — the obvious repair (have `AffectsMapLayer` implement `INotifyOwnerChanged`
+  and call `UpdateCells`) reintroduces exactly the cascade those two call sites were written to
+  avoid, so it needs a perf answer and a decision, not a drive-by. **No launch taken; read off the
+  traits.**
+  (found while working on: withholding the captor's identity in the frozen tooltip, `wt/tooltip-owner`)
+
+---
+
+- [2026-09-02] [low] **`test-frozen-owner-snapshot` cannot fail on the owner-change path anyone is
+  actually worried about, and its name does not say so.** `FrozenUnderFog.OnOwnerChanged` (`:217-224`)
+  refreshes `frozenStates[oldOwnerIndex]` and nothing else — **only the old owner's ghost moves.** The
+  scenario deliberately makes USA a *third party* (`test-frozen-owner-snapshot.lua:24-25`: "USA saw the
+  building while it was Russian, and USA must still believe it is Russian after it changes hands"),
+  which is precisely the ghost this path leaves alone. So it asserts the correct behaviour of the
+  untouched case and is structurally incapable of observing the leak. It is also the **only** scenario
+  of 276 that calls the frozen Lua bindings at all.
+  **Not a code defect — a naming/coverage one.** The risk is that a future worker reads a green
+  `test-frozen-owner-snapshot` as assurance over the old-owner-as-viewer path and plans against it.
+  Fix is either a second scenario making the old owner the viewer, or a header line in the existing
+  one stating what it does not cover (its `RED-ARM.md` already documents adjacent limits, so that is
+  the cheap half). **No launch was taken to confirm; this is read off the Lua and the engine path.**
+  (found while working on: verifying the frozen-actor owner-change claims, `wt/frozen-capture`)
+
+---
+
 - [2026-08-30] [med] **The production tooltip overlaps the production sidebar, and its panel is not
   opaque, so anything drawn behind it shows through.** Observed on `wt/tooltip-elements` at 3584x2240:
   the tall rifleman tooltip lands across the sidebar's icon column and unit portraits are legible
@@ -711,11 +763,13 @@ because this branch is filing only.
 
 ## 2026-08-20: [low] OPEN, NOT FIXED — `Makefile`'s `clean` target still uses `find -exec`, the exact exit-code-swallowing hole that was fixed in `all` the same day (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
 
-`Makefile:192` (mono) and `:194` (dotnet) both run
-`@find . -maxdepth 1 -name '*.sln' -exec $(DOTNET) clean \;`. **`find` exits 0 whatever the command
-it ran returned**, so a failed clean reports success and every consumer downstream believes it.
+`Makefile:190` runs `@find . -maxdepth 1 -name '*.sln' -exec $(DOTNET) clean \;`. **`find` exits 0
+whatever the command it ran returned**, so a failed clean reports success and every consumer
+downstream believes it. (Still OPEN as of 2026-09-02. This entry originally cited *two* such lines,
+`:192` mono and `:194` dotnet; the mono branch was deleted with `RUNTIME=mono` support on
+`wt/mono-removal`, so there is now one line, renumbered. The defect itself is untouched.)
 
-The `all` target at `:175-186` was repaired for precisely this and carries a comment naming the
+The `all` target at `:182-186` was repaired for precisely this and carries a comment naming the
 consequence: *"NOT `find -exec`: find exits 0 whatever the command it ran returned, so a failed
 mod-solution build reported success here and every consumer downstream believed it — including the
 launchers, which then started the game on stale binaries."* `clean` was not given the same
@@ -1026,6 +1080,22 @@ until the TFM moves, and its 0 may mean "cannot fire" rather than "nothing to fi
 > `PACKAGING_APPIMAGE_DEPENDENCIES_TEMP_ARCHIVE_NAME` has "mono" in its *value* and a live consumer in the
 > Linux AppImage build, while the neighbouring `MONO`-named variables have none. The names do not predict
 > which is which.
+
+> **SUPERSEDED 2026-09-02 on branch `wt/mono-removal`: the removal WAS done, at the user's direction and
+> over the plan's recommendation.** Every statement above about mono still being present is now history —
+> do not act on it. `RUNTIME` is gone from both Makefiles, the `RUNTIME` positional parameter is gone from
+> `install_assemblies` (7 args → 6) and `install_mod_assemblies` (5 → 3) with all 13 call sites updated,
+> the mono launcher branch is gone from all six `.sh` launchers, the macOS bundle's mono slice and
+> `apphost-mono.c` / `checkmono.c` are deleted, and `Directory.Build.props` no longer has a
+> `netstandard2.1` branch. The plan's consumer table was re-derived before use and was exactly right,
+> including the `PACKAGING_APPIMAGE_DEPENDENCIES_TEMP_ARCHIVE_NAME` trap.
+>
+> **`make RUNTIME=mono all` no longer fails with three `CS0117`** — it fails at `Makefile:73` with an
+> explicit "no longer supported" `$(error)`. That guard is deliberate: without it the flag would be
+> silently ignored and yield a net6 build the caller believed was mono. It matches only the literal
+> `mono`, so an unrelated exported `RUNTIME` in the environment cannot break the build.
+>
+> The cost of restoring mono is now the estimate recorded above *plus* reverting this removal.
 
 ## 2026-08-16: [high] UNTRIAGED — LIVE MONEY PUMP: buy an LCCV for 1200, deploy it, sell the Logistics Centre for 3500. +2300 per cycle, unlimited (found while: economy audit, `main @ d919c81a`)
 
@@ -3859,6 +3929,25 @@ The vehicle `heavy-damage-attained` cases do not touch suppression.
 **Confirm by:** damage a tank to Heavy, order it to attack, and watch it aim without firing and
 without ever rearming.
 
+**2026-09-01 — STILL OPEN, and now CONFIRMED DISTINCT from `test-attackmove-dry-breaks-off`'s red,
+this time by measurement rather than by reading.** (An intermediate note withdrew this claim as
+unproven; the instrumented run has since established it.)
+
+The run reported `cannotFight=true` for both dry men and showed their activity chains moving off
+`Attack`/`AttackMoveActivity` onto `RotateToEdge`. **So in the wholly-dry case the ammo guards
+demonstrably DO release the unit.** This entry's cases are armaments paused for a reason
+`AmmoPool.CannotFight` cannot see — `heavy-damage-attained`, `empdisable`, `suppressed >= 10` — where
+`CannotFight` is *false* and no guard fires at all. `AttackBase.cs:452` states the same thing from
+the other side: `CannotFight` "is NOT sufficient on its own".
+
+**Consequences, unchanged from the original claim but now evidenced:** those scenarios are NOT the
+regression pin this entry lacks, and fixing this will not turn them green — they are already green on
+their own account. A pin for *this* entry must pause an armament while leaving the magazine loaded
+(damage a tank to Heavy), precisely so `CannotFight` stays false and this path is isolated from the
+ammo one. **`TestHarness.HoldsAttackActivity` is the assertion that pin should use** — it reads the
+activity queue directly and is exactly the observable this entry's symptom is about ("aims without
+firing and never goes idle"), without inheriting the `IsIdle` proxy problem that rotted the dry pair.
+
 ---
 
 ## 2026-08-30 — `test-poor-depot-still-worth-the-trip` asserts behaviour the codebase deliberately reversed 72 minutes later
@@ -3971,6 +4060,285 @@ regression pin that entry currently lacks.
 
 **Confirm by:** `./tools/autotest/run-test.sh test-attackmove-dry-breaks-off` on a clean `main`.
 
+### 2026-09-01 — ✅ RESOLVED AND MEASURED. The analysis below is CORRECT; a mid-course retraction of it was itself wrong and is withdrawn.
+
+**Instrumented run, `260901_073202_p95073`, execution markers present (so not a load abort):**
+
+```
+Hunter  cell=(2,13) startX=9 ammo=0 cannotFight=true idle=false idleTicks=0
+  acts=[AttackMoveActivity>SmartMoveActivity>Move>MoveFirstHalf
+      ~ RotateToEdge>SmartMoveActivity>Move>Turn ~ RotateToEdge>…>MoveSecondHalf]
+Shooter cell=(6,16) startX=9 ammo=0 cannotFight=true idle=false idleTicks=0
+  acts=[Attack>SmartMoveActivity>MoveWithinRange>Move>… ~ RotateToEdge>SmartMoveActivity>Move>…]
+```
+
+Every clause of the analysis below is confirmed: `cannotFight=true` (the guards' predicate held),
+the chain moved off the attack activity to `RotateToEdge` (the guards fired and the evacuate
+disposition took over), the men walked west from x=9, and `idleTicks=0` (the idle edge exists but is
+consumed inside the tick). **The engine is behaving correctly and both scenarios were red for a
+wrong assertion.**
+
+**Why the first fix attempt failed, and it was NOT evidence against the mechanism.** Pinning
+`InitialResupplyBehavior: Hold` in the scenario's `rules.yaml` under `^Combatant` was run and did not
+work — which prompted a retraction of this whole analysis. That retraction was an over-correction: the
+pin never took effect. `^AR` lists `Inherits@AutoTarget: ^AutoTargetLMG` **after**
+`Inherits@Type: ^CamoSoldier`, and `MiniYaml.ResolveInherits` merges parents in source order with
+later winning field-by-field — so `^AutoTarget`'s own `InitialResupplyBehavior: Auto`
+(`defaults.yaml:390`) overwrote the `Hold` set on `^Combatant`. The sibling `ScanRadius: 30` in the
+very same block *does* apply, because `^AutoTarget` never sets it. **A block that is half in force
+and half silently overridden is why this was misread as a refutation.** Written up as its own trap
+in `WORKSPACE/DISCOVERIES.md` 2026-09-01, because it generalises well past this scenario.
+
+**THE FIX AS SHIPPED — the assertion, not the configuration.** Both scenarios now assert
+`not TestHarness.HoldsAttackActivity(unit)` instead of `unit.IsIdle`. That is the observable the
+scenarios are named for, and it is strictly *stronger* than the old check: an idle unit holds no
+attack activity either, so nothing the old assertion accepted is now rejected. The `Hold` pin stays
+reverted — the scenarios run on shipped defaults, and the disposition layer is free to do whatever it
+does, which is exactly the point.
+
+**Process lesson, and the expensive one.** The first conclusion was right and was abandoned after a
+single failed prediction, without first establishing *why* the fix failed. One failed fix falsifies
+**the fix**, not necessarily the diagnosis behind it — and here the fix failed for an unrelated YAML
+inheritance reason. The correct move on that run was to instrument, which is what eventually settled
+it; retracting first cost a cycle and briefly put a wrong "the engine is broken" reading into this
+file. **Before retracting a mechanism, check that the intervention you built on it actually reached
+the code path it was aimed at.**
+
+---
+
+### 2026-09-01 — the analysis itself (CONFIRMED by the run above) (branch `wt/stuck-units`, `main @ 1fe106ff`)
+
+**It is NOT the paused-armament `[high]`.** That entry and this failure share a symptom sentence and
+nothing else, and the two are separated by a predicate the codebase already documents as distinct:
+
+- The `[high]` is about an armament paused for a reason **other than ammo** — `heavy-damage-attained`,
+  `empdisable`, `suppressed >= 10`. `AmmoPool.CannotFight` cannot see any of those, and
+  `AttackBase.cs:452` says so in terms: *"AmmoPool.CannotFight is NOT sufficient on its own: it needs
+  EVERY pool empty."* A heavy-damaged tank has ammo, so no guard fires and it really does hold the
+  order forever. **That entry stays OPEN and unfixed, and this scenario is NOT its regression pin** —
+  the speculation above that fixing it "should turn this green as a side effect" is withdrawn.
+- This scenario's men are **wholly dry**, which is exactly what `CannotFight` covers. Both guards fire.
+
+**What actually happens, traced end to end.** `ar` resolves to exactly ONE `AmmoPool`
+(`primary-ammo`, declared in `^AR` at `infantry.yaml:1342`; no ancestor of `^AR` declares another —
+checked across `^CamoSoldier`/`^Soldier`/`^Infantry`/`^AutoTargetLMG`). So after the Lua drain
+`AllPoolsEmpty` is true, `AmmoPool.CannotFight` is true, and:
+
+1. `Attack.Tick` returns true at its `CannotFight` guard (`Activities/Attack.cs:117`) — Shooter's
+   order ends. `AttackMoveActivity.Tick` does the same at `:128` — Hunter's march ends. **The guards
+   work.**
+2. The actor is momentarily `CurrentActivity == null`, and `Actor.Tick` raises `INotifyBecomingIdle`
+   on that edge (`Actor.cs:321`).
+3. `AmmoPool.OnBecomingIdle` (`:876-878`) calls `AutoRearmIfDry`, which reads `ResupplyBehavior`.
+   It is `Auto` (`defaults.yaml:390`; the scenario's `AutoTarget` override does not touch it, and
+   MiniYaml merges per field).
+4. With no rearm host on the map: `whollyDry` true, `namesRearmActors` true (`truk, supplycache,
+   logisticscenter`), `leash` 30, `suppliedHostWithinLeash`/`anyHostWithinLeash`/`anyHostCanReachUs`
+   all false → `SupplyHuntMath.DecideAutoDisposition` returns **`Evacuate`** (`SupplyHuntMath.cs:296`)
+   → `EvacuateForRefund` queues `RotateToEdge` (`AmmoPool.cs:829`).
+5. `Actor.Tick` then **runs that newly queued activity in the same tick, deliberately** — *"to avoid
+   an 'empty' null tick where the actor will (visibly, if moving) do nothing"* (`Actor.cs:322-325`).
+
+So `Actor.IsIdle` is **never observable as true from Lua**, and the men walk west toward the map edge
+to sell themselves. `AttackMoveActivity.cs:126-127` names this handoff outright — *"hands the unit to
+AmmoPool.INotifyBecomingIdle -> AutoRearmIfDry, which is what picks the right disposition per resupply
+stance (Auto: rearm, Hold: stay put and flag, **Evacuate: rotate out**)"*.
+
+**Why it passed once and went red without anyone touching it.** The scenario was written 2026-08-10
+(`68c2527a`), when the no-host `Auto` path was *"raise NeedsResupply and stand still"* — which queues
+nothing, so `IsIdle` really did become true. The **2026-08-27 user ruling** (*"'Auto' should mean that
+they evacuate if no rearm actor exists"*) replaced that branch with an evacuation. The scenario's
+proxy was invalidated seventeen days after it was authored, by a deliberate behaviour change
+elsewhere. **Same failure shape as the 2026-08-16 entry on the `@experimental` out-of-ammo sweep** —
+*"The guard under test actually WORKS, which the verdict hides. What fails is the test's PROXY."*
+That makes two, so it is a class, not an incident.
+
+**Arithmetic consistency check, which is why the note reads as a timeout rather than "died first".**
+Infantry `Speed: 25` (confirmed via `--dump-balance-json`) ≈ 41 ticks/cell. Hunter at (8,16) must
+cover ~7 cells to the edge cell near (1,16), then a 2-cell `GroundOffMapCells` drive-off: ~370 ticks
+after the evacuation starts at ~tick 30. The deadline is 15 × `TicksPerSecond` 25 = **375 ticks**. So
+the men are still walking, alive and non-idle, when the assert expires — which is exactly what
+`result.json` records (`status: fail`, the timeout note, and no `"fail: Hunter died first"`).
+
+**REJECTED FIX — tried, run, failed, reverted. Recorded so nobody retries it.** `rules.yaml` pinned
+`InitialResupplyBehavior: Hold` / `InitialResupplyBehaviorAI: Hold` under `^Combatant`, on the correct
+reasoning that `Hold` is the one disposition that queues nothing (`AmmoPool.cs`,
+`case ResupplyBehavior.Hold`: flag `NeedsResupply` and return). **The idea was sound and the pin was
+inert** — later `Inherits@` wins field-by-field, and `^AR`'s `Inherits@AutoTarget: ^AutoTargetLMG`
+re-imports `InitialResupplyBehavior: Auto` from `^AutoTarget`. To pin it for real it would have to go
+on the ACTOR (`ar:` / `abrams:`), not on a template the actor re-inherits over. **It is not needed:
+the shipped fix is the assertion, not the configuration.**
+
+**SHIPPED FIX — assert the activity, not the idleness.** Both scenarios now assert
+`not TestHarness.HoldsAttackActivity(unit)`. Strictly stronger than the old `IsIdle` check (an idle
+unit holds no attack activity either), and it survives whatever the resupply disposition layer
+decides to do next — which is the whole reason the old assertion rotted.
+
+**RED / GREEN.** GREEN is `status: pass`. The RED that proves non-vacuity is *sabotage the guard, not
+the ammo*: delete the `if (AmmoPool.CannotFight(self)) return true;` at `Activities/Attack.cs:117`
+**and** the `|| AmmoPool.CannotFight(self)` at `Move/AttackMoveActivity.cs:128`, and the run must fail
+with *"A dry man never dropped his attack order"* plus an `acts=[…]` list still showing an
+`Attack`/`AttackMoveActivity` component. Removing only one of the two is a weaker RED: Hunter's parent
+cancels his attack child before that child's guard runs, so the attack-move arm alone says nothing
+about `Activities/Attack.cs`. **The pre-fix instrumented run is itself most of that RED already** —
+it recorded the attack chains at the drain and the transition away from them, so the guard is
+observed working rather than assumed.
+
+**PREDICTION CONFIRMED: `test-attackfollow-dry-breaks-off` was red on `main`** (*"Dry Abrams never
+went idle"*), exactly as predicted from its single pool and absent `logisticscenter`. It has been
+re-pointed to the same activity assertion but **has NOT been re-run**, so its green is predicted, not
+measured.
+
+**Census of the blast radius.** Eight scenarios both assert `IsIdle` and manipulate ammo:
+`test-attackfollow-dry-breaks-off`, `test-attackmove-dry-breaks-off`, `test-dry-inrange-idle-oscillation`,
+`test-dry-soldier-retry-after-refill`, `test-poor-depot-still-worth-the-trip`,
+`test-tactical-arty-detour-geometry`, `test-vehicle-rearms-at-empty-depot`, `test-who-pays-for-a-rearm`.
+The two `*-breaks-off` are handled here. The other six were **not** examined; any of them that drives a
+unit wholly dry with no affordable host inside 30 cells is exposed to the same proxy failure.
+
+---
+
+## 2026-09-02: [med] Fixed-wing aircraft are moved TWICE per tick and steered by two controllers that disagree — the `Fly.cs:52` PITFALL's premise stopped being true (found while: the strafe zero-shot investigation, branch `wt/strafe-zero`, `main @ 81140244`)
+
+**Static finding, not run. NOT fixed here** — it changes how every fixed-wing in the mod flies, so it
+needs its own measured commit rather than riding along on a diagnosis.
+
+`Fly.cs:52` states the invariant as a PITFALL: *"step-based movement. CanSlide aircraft move via
+CurrentVelocity in Aircraft.Tick — calling FlyTick on them double-moves unless CurrentVelocity is
+zeroed first."* Its premise is that only `CanSlide` aircraft ever carry a non-zero `CurrentVelocity`.
+That is no longer so. `Fly.Tick`'s **non-CanSlide** branch sets `aircraft.RequestedAcceleration` at
+`Fly.cs:285-286`, and nothing in `Aircraft.Tick` is gated on `CanSlide`:
+
+- `Aircraft.cs:499-510` integrates `RequestedAcceleration` into `CurrentVelocity` and clamps it to
+  `Info.Speed`;
+- `:524-527` calls `SetPosition(self, CenterPosition + CurrentVelocity)` — **movement #1**;
+- `:530-531` steers `Facing` toward `CurrentVelocity.Yaw` — **controller #1**;
+- then `Fly.Tick` reaches `FlyTick`, which moves the actor again by `FlyStep(aircraft.Facing)`
+  (`Fly.cs:56`, `Aircraft.cs:800-809`) — **movement #2** — and steers `Facing` toward its own
+  `desiredFacing` (`Fly.cs:62`) — **controller #2**.
+
+So a fixed-wing's realised track is the sum of a velocity vector and a facing-derived step that are
+not required to agree, under two turn controllers driving the same field in the same tick.
+**Population:** every non-`CanSlide` aircraft — `mods/ww3mod/rules/ingame/aircraft.yaml:340` sets
+`CanSlide: False` on the fixed-wing base, `:169` sets True on the helicopter base — so A10, F16, MIG,
+FROG and both `.Airstrike` variants, on every path that runs `Fly` (attack runs, move orders,
+`ReturnToBase`), for humans and both bot profiles.
+
+**Why it is filed as a suspicion and not as the strafe cause:** it reaches the A-10 that *does* fire
+(`test-aircraft-breakoff-midrun` lane 1, run `260901_085215_p7281`), so it cannot on its own be what
+zeroes the two `AttackType: Strafe` airframes. It matters anyway, and it matters most to that
+investigation: `StrafeAttackRun`'s first leg exits only through `Fly.cs:272-276`
+(`stopDelta.HorizontalLengthSquared < 512 * 512` against `CalculateStopPosition()`), that predicate
+reads `CurrentVelocity`, and a fixed-wing has a `CurrentVelocity` at all only because of this defect.
+Reasoning in `WORKSPACE/DISCOVERIES.md` (2026-09-02).
+
+**Do not "fix" it by zeroing `CurrentVelocity` in the fixed-wing branch without measuring.** The
+velocity path is also what feeds `CalculateStopPosition`, and `8bffb2ff` ("Aircraft stopping within
+512 of destination") put a live arrival test on top of it.
+
+---
+
+## 2026-09-01: [low] `A10` declares `ReloadAmmoPool@1` TWICE, so its primary magazine has no reloader (found while: the fixed-wing rearm investigation, branch `wt/stuck-units`, `main @ 1fe106ff`)
+
+**Static finding, not run, and INERT TODAY** — filed because it is inert only by accident.
+
+Inside the single `A10:` actor, `ReloadAmmoPool@1:` appears at `aircraft-america.yaml:486` (pointed at
+`primary-ammo`) and again at `:516` (pointed at `secondary-ammo`). Per
+[`DOCS/reference/conventions.md`](../../DOCS/reference/conventions.md) §"A duplicate trait key inside
+ONE actor: LAST value wins, at the FIRST key's position", the second wins: **A10 ends up with one
+reloader, for `secondary-ammo`, and `primary-ammo` has none.**
+
+It cannot bite at present because both reloaders are gated `RequiresCondition: unit.docked &&
+!airborne` and an A10 can never dock — see the entry below on fixed-wing rearm. It becomes live the
+moment either that changes or an `afld` is placed. The neighbouring `F16`/`FROG`/`MIG` blocks use
+distinct `@` suffixes and are unaffected.
+
+**Fix is one character** — rename the second to `ReloadAmmoPool@2:`. Deliberately NOT done here: this
+branch is a read-only assessment of the rearm question and the change is unverifiable without a run
+that only matters once the aircraft are reachable at all.
+
+---
+
+## 2026-09-01: [closed — unreachable, documented] `A10`/`FROG`/`MIG` circle forever when dry, and cannot be fielded in normal play (found while: the fixed-wing rearm investigation, branch `wt/stuck-units`, `main @ 1fe106ff`)
+
+**Verdict: not worth fixing. Document and close.** Recorded in full because the finding is "there is
+no reachable defect here", and that is the expensive thing to re-derive.
+
+**What a dry `A10`/`FROG`/`MIG` actually does — it circles in place forever, combat-inert, and is
+never `IsIdle`.** Traced statically:
+
+1. Aircraft never enter the `AmmoPool` self-dispatch machinery at all: `AutoRearmIfDry` returns
+   immediately for anything with `AircraftInfo` (`AmmoPool.cs:637`), and `AmmoPool.CannotFight`
+   carves aircraft out by construction (`:619-621`).
+2. At zero rounds the `AmmoCondition: ammo-primary` lapses, so every armament is
+   `PauseOnCondition: !ammo-primary` paused.
+3. `FlyAttack.Tick` sees `rearmable != null && Armaments.All(x => x.IsTraitPaused)`
+   (`Activities/Air/FlyAttack.cs:85`) and queues `ReturnToBase`.
+4. `ReturnToBase.ChooseResupplier` (`:39-51`) requires `a.Owner == self.Owner` **and**
+   `RearmActors.Contains(a.Info.Name)`. With no `afld` owned by the player it returns null, and RTB
+   takes its give-up branch: `QueueChild(new FlyIdle(self, NumberOfTicksToVerifyAvailableAirport));
+   return true;` (`:127-128`). `NumberOfTicksToVerifyAvailableAirport` is 150 ≈ 9 s. **One-time
+   give-up, not a per-tick re-query** — there is no retry loop and no CPU burn.
+5. RTB completes → `Aircraft.OnBecomingIdle` → no `IdleBehavior` is set anywhere in mod YAML, so the
+   default branch queues `FlyIdle(self)` (`Air/Aircraft.cs:949`) with `ticks = -1`.
+6. `FlyIdle.Tick` returns true only on `remainingTicks == 0` or `NextActivity != null &&
+   remainingTicks < 0` (`Air/FlyIdle.cs:40`). With `-1` and nothing queued behind it, **neither ever
+   holds.** `CanHover` is false on `^Aircraft`, so `isIdleTurner` is true and the plane circles at
+   cruise speed indefinitely.
+7. It cannot recover: `ReloadAmmoPool` on all three is gated `RequiresCondition: unit.docked &&
+   !airborne`, and `EvacuateWhenUnrearmable` is declared once, inside `^Helicopter`
+   (`aircraft.yaml:195`; `^Helicopter` opens at `:160`, `^Aircraft` at `:119`). Fixed-wing inherit
+   `^Aircraft` and never get it.
+
+**Why it is unreachable, with FOUR independent locks.** The premise handed to this investigation named
+only the prerequisite; the stronger lock is the queue.
+
+1. **No production queue at all.** `A10` (`aircraft-america.yaml:445`), `F16` (`:569`),
+   `FROG` (`aircraft-russia.yaml:464`) and `MIG` (`:586`) declare a `Buildable:` with **only**
+   `Prerequisites: ~disabled` and **no `Queue:` line** — unlike every buildable aircraft above them,
+   which all carry `Queue: Aircraft`. `BuildableInfo.Queue` defaults to an empty set
+   (`Traits/Buildable.cs:27`) and both `ProductionQueue.AllBuildables` (`:241`) and `ResolveOrder`
+   (`:446`) gate on `Queue.Contains(category)`. They are in no queue and no tech tree.
+2. **`~disabled` really is unsatisfiable here.** `TechTree.HasPrerequisites` strips the tilde and
+   requires the bare token to be owned (`Player/TechTree.cs:143-144`); nothing in `mods/` provides
+   `disabled` via `ProvidesPrerequisite` (the single grep hit is an unrelated `PauseOnCondition`).
+3. **The AI wants them and still cannot have them.** `ai.yaml:1796/1914` list `mig`/`frog`/`a10`/`f16`
+   under `UnitsToBuild`, routed through `queue.BuildableItems()` which is empty for these. The
+   `@experimental` `AdaptiveProductionBotModule` scores `AirStrikeUnits: heli, a10` / `mi28, frog`
+   *without* a buildability check (`:542-553` only tests `Rules.Actors.ContainsKey`) and will request
+   an `a10` — but the request dead-ends in `UnitBuilderBotModule.BuildUnit` (`:1628-1652`), which
+   iterates the empty `buildableInfo.Queue` and returns false without issuing an order. **This is the
+   closest thing to a live path and it is closed.**
+4. **Nothing else spawns them.** Every `AirstrikePower`/`ParatroopersPower` in `player.yaml` is
+   commented out (`:106-155`), as is `PowersLobbyOptions`; no shipped map places any of the four; no
+   mod Lua references them; no crate action grants units.
+
+**CORRECTION to the premise, and it matters for anyone re-checking: "no map in the mod places an
+`afld`" is FALSE.** `tools/autotest/scenarios/test-capture-rules/map.yaml:78` places a **Neutral**
+`afld` and `:87` an enemy (Russia) one. Neither changes the verdict — `ChooseResupplier` requires
+`Owner == self.Owner`, and that map fields no aircraft — but the statement should not be repeated as
+written. (Method note: a `grep ": afld$"` over `--include=map.yaml` returned nothing and was a false
+negative; the case-insensitive substring search found both. Do not trust the anchored form here.)
+
+**The `.Airstrike` variants are SEPARATE actors and do NOT share the defect.** Only two exist —
+`A10.Airstrike` (`aircraft-america.yaml:676`) and `FROG.Airstrike` (`aircraft-russia.yaml:702`);
+**there is no `MIG.Airstrike`.** Both carry `-Rearmable:` and `-ReloadAmmoPool@1:`, so with no
+`RearmableInfo` the `rearmable != null` test at `FlyAttack.cs:85` is false and they never queue
+`ReturnToBase` at all. Both also carry `-Buildable:`, and their only producer was the commented-out
+`AirstrikePower`. **Not traced, and the one thing to check first if those powers are ever
+re-enabled:** nothing was found that removes them after a strafe run — no `RemoveSelf`, no
+`LeaveMap`, no lifetime trait — and they inherit the same default `IdleBehavior`, so on a static read
+they would loiter forever too, for a different reason.
+
+**Why "not worth fixing" rather than "add `EvacuateWhenUnrearmable` to `^Aircraft`":** the fix would be
+one line and would be correct, but it is unreachable code today and cannot be verified by any run —
+there is no way to field an `A10` to observe it. Writing an unverifiable behaviour change into a
+shared template to fix a defect nobody can trigger is worse than recording the defect. **What makes it
+worth re-reading later: the whole thing is one YAML line (`Queue: Aircraft`) away from going live, and
+the AI already has `UnitsToBuild` and `AirStrikeUnits` entries sitting there waiting for it.** If those
+four aircraft are ever re-enabled, fix the loiter and the `A10` duplicate-key bug above in the same
+change.
+
 ---
 
 ## 2026-09-01 — `demo-experimental-capture-coordinator` never runs its own Lua
@@ -4001,3 +4369,91 @@ returns nothing.
 
 Not applied here because it changes what a demo shows on screen, which wants a look rather than a
 silent edit from a tooling branch.
+
+---
+
+## 2026-09-01 — `A10.Airstrike` cannot fire a single shot: its weapons are not valid against `Ground`
+
+**Found by** `test-aircraft-breakoff-midrun` (lane 3, run on `main` the morning of 2026-09-01), then
+traced statically. Filed, not fixed. The lane has since been swapped to `frog.airstrike`, which is the
+only strafe airframe in the mod that *can* fire, so the scenario can go back to asking its own question.
+
+**Measured**: `SETUP INVALID: A10STRIKE never opened fire within 400 ticks; A10STRIKE target ended at
+hp100%`. The airframe was alive, had ammo, was at its own cruise altitude, and had a valid t90 14 cells
+away. It acquires the target and flies the attack run. It never shoots.
+
+**Mechanism**, and it is entirely in the interaction between one activity and one weapon field:
+
+1. `AttackType: Strafe` makes `FlyAttack.Tick` queue a `StrafeAttackRun`
+   (`engine/OpenRA.Mods.Common/Activities/Air/FlyAttack.cs:187-188`).
+2. `StrafeAttackRun.Tick` re-sets the trait's requested target **every tick** to
+   `Target.FromTargetPositions(target)` (`FlyAttack.cs:323-325`) — a `TargetType.Terrain` target
+   (`engine/OpenRA.Game/Traits/Target.cs:33-35, 86`), force-attack `true`.
+3. A terrain target is unconditionally `IsValidFor` (`Target.cs:123-125`), so `AttackFollow.Tick`
+   takes the requested-target branch (`Traits/Attack/AttackFollow.cs:188`) and the opportunity-fire
+   fallback at `:216` is **unreachable** for the whole run.
+4. Firing then needs an armament valid against terrain, and `WeaponInfo.IsValidAgainst` resolves a
+   terrain target to the **cell's** `TargetTypes` (`engine/OpenRA.Game/GameRules/WeaponInfo.cs:235-249`)
+   — `Ground` on every tile of every shipped tileset.
+5. Neither A10 weapon lists `Ground`. `30mm.A10` inherits `^30mm`'s
+   `ValidTargets: Infantry, Vehicle, Defense` (`rules/weapons/weapons-ballistics.yaml:582`) and
+   `Hellfire` is `ValidTargets: Vehicle, Air, Defense` (`rules/weapons/weapons-missiles.yaml:243`).
+   `ChooseArmamentsForTarget` therefore returns nothing (`AttackBase.cs:458-462`), `CanAimAtTarget`
+   is false, `DoAttack` is never called.
+
+Both weapons hit the t90 perfectly well as an **actor** (`^Vehicle` is `TargetTypes: Ground, Vehicle`,
+`rules/ingame/vehicles.yaml:46-48`), which is exactly why this is invisible from the YAML: the unit
+looks armed, acquires normally, and flies a textbook attack run in silence.
+
+**The rule this implies**, and it is worth stating because nothing enforces it: *an `AttackType: Strafe`
+airframe's armaments must include `Ground` in `ValidTargets`, or the airframe can never fire.* Upstream
+OpenRA's strafing aircraft satisfy it by convention. In WW3MOD `FROG.Airstrike` satisfies it
+(`RocketPods`, `ValidTargets: Ground`, `weapons-ballistics.yaml:912`); `A10.Airstrike` does not. No lint
+rule catches this — `--check-yaml` has no notion of the pairing.
+
+**Why it has never been seen in a match**: `A10.Airstrike` is spawned only by `AirstrikePower`, and the
+airstrike powers are commented out for v1 (`rules/player.yaml:106-144`, `rules/world.yaml:552-557`). It
+is latent, not live. Whoever re-enables airstrikes post-v1 inherits an A-10 that flies over and does
+nothing.
+
+**Candidate fix** (not applied — it is a live weapon-coverage change and wants its own run): give
+`30mm.A10` an explicit `ValidTargets: Ground, Infantry, Vehicle, Defense`. Note the A-10 also cannot be
+overridden from map rules at all (the duplicate-key bug filed above), so this cannot be pinned by a
+map-rules test the way most weapon changes can — it has to be a change to the shipped weapon.
+- [2026-09-01] [med] **`Cargo`'s emergency bail-out has never run for any garrisonable building, and
+  it was born that way.** `Cargo.INotifyDamage.Damaged` returns early for any actor carrying
+  `GarrisonProtection` (`engine/OpenRA.Mods.Common/Traits/Cargo.cs:830-832`), and the entire
+  `EmergencyBailDamageState` implementation sits ~45 lines below that return (`:876-943`). **Every
+  garrisonable building carries `GarrisonProtection`**, so passengers never bail out of a burning
+  building however far it is knocked down. The guard's own comment still says it skips "legacy damage
+  forwarding" — which was true when `c9699af9` (2026-03-20) added it and the method contained nothing
+  else, and stopped being true when `4e8e29e2` (2026-08-10) appended the bail beneath it.
+  **Fix is narrowing the guard to wrap the forwarding block instead of returning** (~5 lines), but
+  that is not a pure bug fix: with the guard fixed, garrisons would bail at `Heavy` (50% HP) by
+  default, which is a real combat change and wants a design call plus a slot. Note also that
+  `bailedOut` only re-arms below the threshold (`:884-885`), and an `Indestructible` building pinned
+  at 1 HP is permanently `Critical` — so the bail would fire **once** and never again. Full analysis
+  and ranked options in `WORKSPACE/garrison-destructibility-260901.md` (P1).
+  (found while working on: garrison destructibility design audit)
+
+- [2026-09-01] [low] **`RubbleProtection`'s `[Desc]` states something false at its own default.**
+  `engine/OpenRA.Mods.Common/Traits/Garrison/GarrisonProtection.cs:27-29` describes the field as
+  *"Lower than CriticalProtection"*, but **both C# defaults are 30** — the claim holds only because
+  `^CivBuilding` overrides `CriticalProtection` to 70 (`mods/ww3mod/rules/ingame/civilian.yaml:117`).
+  GTWR/PBOX/HBOX set `CriticalProtection: 80` and omit `RubbleProtection` entirely
+  (`structures-defenses.yaml:153-156`), inheriting the 30 by omission rather than by decision.
+  Doc-only fix; no behaviour change. (found while working on: garrison destructibility design audit)
+
+- [2026-09-01] [low] **The beyond-map fog strip is drawn darker than the fog over the map, because its
+  copy of the alpha curve omits the fog palette's own alpha.**
+  `WorldRenderer.DrawBeyondMapActorFog` rebuilds ShroudRenderer's per-layer curve inline
+  (`engine/OpenRA.Game/Graphics/WorldRenderer.cs:466-493`) and composites it straight into an RGBA
+  fill. But on the map the same vertex alpha is multiplied by the layer's palette colour — the shader
+  does `c *= vTint` (`engine/glsl/combined.frag`), and the solid fog tile is palette index 12
+  throughout, which resolves through `MapLayersPalettes`' eight-entry cycle to
+  `FogColors[4] = ARGB(160,0,0,0)`. So the strip is missing a 160/255 factor per layer: at visibility 1
+  it paints 0.900 opacity where the map itself paints 0.744. The comment at `:466-468` asserts the two
+  agree. Blast radius is small — the strip only dims actor sprite pixels overhanging the map boundary —
+  which is why it was left alone rather than folded into the FogDarkness change on the same day.
+  **Fix is a 160f/255f factor in that loop**, but it lightens the border for every mod in the tree, so
+  it wants its own before/after screenshot. (found while working on: fog contrast / FogDarkness)

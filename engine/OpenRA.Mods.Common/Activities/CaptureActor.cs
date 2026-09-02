@@ -22,10 +22,19 @@ namespace OpenRA.Mods.Common.Activities
 		Actor enterActor;
 		CaptureManager enterCaptureManager;
 
+		/// <summary>
+		/// The actor this capture was ORDERED at, recorded at construction. enterActor below is only
+		/// populated once the activity ticks, so it is null for a capture that is still queued behind
+		/// something else — which is exactly the case a dispatcher has to see in order not to steal a
+		/// technician that already has a job.
+		/// </summary>
+		public Actor OrderedTarget { get; }
+
 		public CaptureActor(Actor self, in Target target, Color? targetLineColor)
 			: base(self, target, targetLineColor)
 		{
 			manager = self.Trait<CaptureManager>();
+			OrderedTarget = target.Type == TargetType.Actor ? target.Actor : null;
 		}
 
 		protected override void TickInner(Actor self, in Target target, bool targetIsDeadOrHiddenActor)

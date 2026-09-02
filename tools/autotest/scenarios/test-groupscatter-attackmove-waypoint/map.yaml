@@ -1,0 +1,167 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Group Scatter Replays The Clicked AttackMove Cell (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# THE DIVERGENCE LEVER, and it is terrain-like rather than destructible on purpose.
+	# Locomotor@FOOT lists sandbag in Passes (world.yaml:29), so infantry walks through these
+	# cells untouched. Every vehicle locomotor lists only `Passes: field`, and the two that
+	# name sandbag under Crushes only crush it when SBAG.Passable.CrushedByRelationships is
+	# satisfied — that is `Enemy` (structures-defenses.yaml:365-368), and these are NEUTRAL.
+	# So no unit in this scenario can crush them: the block is stable for the whole run, and
+	# nothing is destroyed that could open a hole mid-test and move the answer under us.
+	# Neutral also keeps them off every AutoTarget list, so no unit stops to shoot them.
+	#
+	# 5x5 over x14..18, y14..18. The clicked cell (16,16) is the centre, so Chebyshev rings 1
+	# and 2 around it are entirely sandbag and a blocked unit cannot answer nearer than ring 3.
+	Sbag01: sbag
+		Owner: Neutral
+		Location: 14,14
+	Sbag02: sbag
+		Owner: Neutral
+		Location: 15,14
+	Sbag03: sbag
+		Owner: Neutral
+		Location: 16,14
+	Sbag04: sbag
+		Owner: Neutral
+		Location: 17,14
+	Sbag05: sbag
+		Owner: Neutral
+		Location: 18,14
+	Sbag06: sbag
+		Owner: Neutral
+		Location: 14,15
+	Sbag07: sbag
+		Owner: Neutral
+		Location: 15,15
+	Sbag08: sbag
+		Owner: Neutral
+		Location: 16,15
+	Sbag09: sbag
+		Owner: Neutral
+		Location: 17,15
+	Sbag10: sbag
+		Owner: Neutral
+		Location: 18,15
+	Sbag11: sbag
+		Owner: Neutral
+		Location: 14,16
+	Sbag12: sbag
+		Owner: Neutral
+		Location: 15,16
+	Sbag13: sbag
+		Owner: Neutral
+		Location: 16,16
+	Sbag14: sbag
+		Owner: Neutral
+		Location: 17,16
+	Sbag15: sbag
+		Owner: Neutral
+		Location: 18,16
+	Sbag16: sbag
+		Owner: Neutral
+		Location: 14,17
+	Sbag17: sbag
+		Owner: Neutral
+		Location: 15,17
+	Sbag18: sbag
+		Owner: Neutral
+		Location: 16,17
+	Sbag19: sbag
+		Owner: Neutral
+		Location: 17,17
+	Sbag20: sbag
+		Owner: Neutral
+		Location: 18,17
+	Sbag21: sbag
+		Owner: Neutral
+		Location: 14,18
+	Sbag22: sbag
+		Owner: Neutral
+		Location: 15,18
+	Sbag23: sbag
+		Owner: Neutral
+		Location: 16,18
+	Sbag24: sbag
+		Owner: Neutral
+		Location: 17,18
+	Sbag25: sbag
+		Owner: Neutral
+		Location: 18,18
+	# The two units under test. Both are given the SAME attack-move click, and they disagree
+	# about what cell that click means: Rifle can stand on it, Truck cannot.
+	# Rifle is listed first and is nearer the clicked cell than the far cell, which is what
+	# makes GroupScatter's closest-unassigned-waypoint assignment deterministic.
+	Rifle: e1
+		Owner: USA
+		Location: 12,16
+		Facing: 512
+	Truck: humvee
+		Owner: USA
+		Location: 12,26
+		Facing: 512
+	# SETUP CONTROLS. Neither takes part in the scatter; both exist so that a run which
+	# proves nothing says so instead of reading green. They demonstrate, in the same run and
+	# in BOTH arms, that the premise the whole scenario rests on actually holds: that
+	# infantry can stand inside this block and vehicles cannot.
+	SentinelInf: e1
+		Owner: USA
+		Location: 12,21
+		Facing: 512
+	SentinelVeh: humvee
+		Owner: USA
+		Location: 12,11
+		Facing: 512
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 2,30
+	# Parked in the far corner, ~32 cells from the farthest point any unit under test
+	# travels, so no attack-move scan can acquire it and stall a unit short of its cell.
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 64,2
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 12,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 62,2
+
+Rules: rules.yaml

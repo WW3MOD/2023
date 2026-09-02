@@ -233,6 +233,14 @@
 			Beach: 1
 	TerrainRenderer:
 	ShroudRenderer:
+		# Explored ground with no current observer sits at visibility 1 and so draws all nine fog
+		# layers. At the engine baseline of 1 that leaves it at ~26% of its lit brightness; 1.4
+		# leaves ~15% (measured on-screen 2026-09-01) — dark enough that terrain reads as shape
+		# rather than detail, while separating clearly from the flat black of unexplored shroud.
+		# The previous 1.85 measured ~6.4% and was visually indistinguishable from shroud, which
+		# defeated the separation goal — verified via Test.KeepRenderPlayer captures at 1 / 1.4 / 1.85.
+		# Fully visible ground is visibility 10, draws no fog layer at all, and is unaffected.
+		FogDarkness: 1.4
 	Faction@randomside:
 		Name: Any Side
 		InternalName: Random
@@ -272,6 +280,11 @@ World:
 	ScenarioLobbyDropdown:
 	HealerClaimLayer:
 	UnitDefaultsManager:
+	# Right-click a capturable structure with NOTHING selected and the nearest free technician is
+	# sent at it; select several structures and press Deploy (F) to spread the free technicians
+	# across them. Only units whose Captures trait does NOT set CaptureToNeutral are dispatched,
+	# which is what keeps riflemen — who merely neutralise a building — out of it.
+	CaptureDispatchManager:
 	# PIPELINE 5 cohesion stance identities (human-facing; bot moves stay byte-identical).
 	# DP-2 SpreadHuman* = hand-tuned 'dispersed' interval (NOT weapon-AoE-derived); DP-3
 	# LooseHumanCoverSearchRadius = widened cover-first search for Loose. Defaults live in

@@ -45,6 +45,18 @@ LUA_ENTRY_POINTS = {"WorldLoaded", "Tick"}
 # of that type can be checked. Anything not in here is left alone.
 SCALAR_TYPES = {"Actor", "Player", "CPos", "CVec", "WPos", "WVec", "WDist", "WAngle"}
 
+# ScriptTypes.ToLuaValue (ScriptTypes.cs:153-196) converts LuaValue, null, double, int, bool,
+# string, IScriptBindable and Array, and THROWS on everything else. C# `is int` does not match a
+# boxed uint, so a binding declared with any type below returns a value that cannot cross back
+# into Lua: the call kills the script outright, before any Test.Pass/Fail arm can run.
+#
+# This is the gate's blind spot that motivated the check. Resolving that a NAME is registered
+# says nothing about whether its RETURN VALUE can be marshalled, and a scenario calling such a
+# binding passes lua-gate and then dies at runtime with no verdict.
+UNCONVERTIBLE_RETURN_TYPES = frozenset((
+    "uint", "long", "ulong", "short", "ushort", "byte", "sbyte", "float", "decimal", "char",
+))
+
 
 # --------------------------------------------------------------------------------------
 # C# source scanning
@@ -542,6 +554,17 @@ def check_file(lua_path, api, extra_globals, actor_globals, findings):
                     "error", rel, line, f"{base}.{member}",
                     f"table '{base}' ({tables[base]['class']}) defines no member "
                     f"'{member}'.{extra}"))
+            else:
+                rtype = tables[base]["members"][member]["type"].rstrip("?")
+                if rtype in UNCONVERTIBLE_RETURN_TYPES:
+                    findings.append(Finding(
+                        "warn", rel, line, f"{base}.{member}",
+                        f"'{base}.{member}' is registered, but returns '{rtype}', which "
+                        f"ScriptTypes.ToLuaValue cannot convert — it handles double, int, bool, "
+                        f"string, IScriptBindable and Array, and a boxed '{rtype}' matches none "
+                        f"of them. CALLING THIS KILLS THE SCRIPT ('Cannot convert type') before "
+                        f"any Test.Pass/Fail arm can run, so the run reports a bare FAIL with no "
+                        f"verdict. Fix the BINDING's return type (int or double), not the call."))
             continue
 
         if base in typed:

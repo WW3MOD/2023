@@ -119,7 +119,20 @@ namespace OpenRA.Traits
 		// PITFALL: returns null when BackingActor is dead (commonly seen post-superweapon). Always null-check at call sites — `target.FrozenActor.Actor.Owner` will NRE.
 		public Actor Actor => !BackingActor.IsDead ? BackingActor : null; // Updated from 'Actor'
 
-		public void RefreshState()
+		// refreshTooltipOwner is deliberately REQUIRED, not defaulted: a silent default is how the
+		// only caller that must pass false would drift back to true unnoticed. TooltipOwner is the
+		// sole field here whose refresh can hand a viewer intel it did not earn — it is read once
+		// engine-wide, by WorldTooltipLogic.cs:82, to draw the ghost's owner name and colour, and
+		// FrozenUnderFog.OnOwnerChanged fires that refresh for a player who by definition cannot see
+		// the cell. Confirmed one reader by compiler census ([Obsolete] + CS0618 across all 11
+		// projects, 2026-09-02), not by grep.
+		//
+		// Owner is refreshed unconditionally and must stay that way. Freezing it was the rejected
+		// fix: Player.RelationshipWith(null) returns Ally (Player.cs:254-255) and a stale owner is
+		// no better, so every `!= Enemy` predicate — AutoTarget, cursors, weapon validity, bot
+		// perception — would skip an enemy ghost. Withholding the captor's NAME is separable from
+		// the fact of the capture; the fact is not hideable and is not being hidden.
+		public void RefreshState(bool refreshTooltipOwner)
 		{
 			Owner = BackingActor.Owner; // Updated from 'Actor'
 			TargetTypes = BackingActor.GetEnabledTargetTypes(); // Updated from 'Actor'
@@ -136,7 +149,8 @@ namespace OpenRA.Traits
 			if (tooltip != null)
 			{
 				TooltipInfo = tooltip.TooltipInfo;
-				TooltipOwner = tooltip.Owner;
+				if (refreshTooltipOwner)
+					TooltipOwner = tooltip.Owner;
 			}
 		}
 

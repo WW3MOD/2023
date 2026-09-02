@@ -268,6 +268,54 @@ command-icons:
 command-icons-highlighted:
 	Inherits: command-icons
 
+# The command bar draws two kinds of button from one icon collection: modes the player HOLDS
+# (Attack Move, Force Move, Force Attack, Guard, Patrol, Waypoint), and momentary actions that
+# flash once on use (Stop, Deploy, Resupply, Scatter, Auto-Enter). Only the modes should take the
+# amber glyph, so they draw command-mode-icons instead: identical base art, but with a
+# -highlighted twin that remaps to amber recolours placed in the free band at y=182.
+# Filling command-icons-highlighted would have been one edit instead of these seven, and was
+# rejected for a specific reason rather than on principle: `guard` is drawn by Guard and Patrol
+# (modes) AND by Auto-Enter (momentary), so an amber `guard` there would be ambiguous between
+# "Guard mode is engaged" and "Auto-Enter just fired" on two buttons of the same bar carrying
+# the same art. Routing by collection separates them; routing by glyph name cannot.
+command-mode-icons:
+	Inherits: command-icons
+
+command-mode-icons-highlighted:
+	Inherits: command-icons
+	Regions:
+		attack-move: 50, 182, 24, 24
+		force-move: 75, 182, 24, 24
+		force-attack: 100, 182, 24, 24
+		guard: 125, 182, 24, 24
+		queue-orders: 150, 182, 24, 24
+
+# The resupply bar is a selector bar like STANCE/ENGAGEMENT/COHESION, so its active button must
+# mark itself the way theirs do: amber glyph plus the lighter panel, not the panel alone. Those
+# three get the amber from stance-icons-highlighted; this bar cannot, because it draws 24x24
+# command-icons art and command-icons-highlighted is a bare alias of command-icons.
+# It gets its own collection rather than overriding command-icons-highlighted so that the command
+# bar's momentary Stop/Deploy/Evacuate flashes are not recoloured along with it.
+# The three rectangles the -highlighted collection points at are recolours of this one's own art
+# into the stance active amber (255,192,0), and live in what was empty space at the right-hand end
+# of the two command-icons rows on glyphs.png. One 24x24 cell there is still free, at 225,232.
+resupply-icons:
+	Inherits: ^Glyphs
+	Regions:
+		hold: 150, 207, 24, 24
+		hold-disabled: 150, 232, 24, 24
+		auto: 100, 207, 24, 24
+		auto-disabled: 100, 232, 24, 24
+		evacuate: 25, 207, 24, 24
+		evacuate-disabled: 25, 232, 24, 24
+
+resupply-icons-highlighted:
+	Inherits: resupply-icons
+	Regions:
+		hold: 200, 207, 24, 24
+		auto: 225, 207, 24, 24
+		evacuate: 200, 232, 24, 24
+
 sidebar-observer:
 	Inherits: ^Sidebar
 	Regions:

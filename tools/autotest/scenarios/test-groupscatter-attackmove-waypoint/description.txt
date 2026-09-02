@@ -1,0 +1,1 @@
+Auto: Group Scatter must replay the cell the player clicked for an attack-move. One click given to an infantryman and a vehicle that disagree about whether that cell is enterable must stay ONE waypoint, not become two.

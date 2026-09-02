@@ -41,6 +41,15 @@ namespace OpenRA.Mods.Common.Activities
 		// Passengers unloaded so far by this activity — drives the group pacing.
 		int unloaded;
 
+		/// <summary>Ticks held on the retry loop since the last passenger got out, or since the activity
+		/// started. Reset by a successful dismount, so this measures a CONSECUTIVE blocked spell rather
+		/// than total time spent unloading a big stick.</summary>
+		int blockedTicks;
+
+		/// <summary>Ticks to wait between exit-search attempts. Named because BlockedUnloadTimeout is a
+		/// tick budget spent in these increments, so the two have to be read together.</summary>
+		const int BlockedRetryDelay = 10;
+
 		public UnloadCargo(Actor self, WDist unloadRange, bool unloadAll = true, CPos? markerCell = null)
 			: this(self, Target.Invalid, unloadRange, unloadAll)
 		{
@@ -105,11 +114,30 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			var pos = passenger.Trait<IPositionable>();
 
+			// Shuffle FIRST, then rank by how far astern the cell sits. OrderBy is a stable sort, so the
+			// shuffle still breaks ties between the two rear quarters and the stick does not always favour one
+			// flank — while the rear cells as a group are always tried before the beam and the bow.
+			//
+			// A RANKING, NOT A FILTER, and that distinction is load-bearing for throughput. Restricting a
+			// dismount to the three rear cells would make a full transport queue on them and turn "spread out
+			// as fast as possible" into a slower trickle than the old any-free-cell shuffle. Ordering costs
+			// nothing when the rear is clear and degrades exactly to the previous behaviour when it is not:
+			// man one takes dead astern, man two finds it occupied and takes a rear quarter, and so on
+			// outwards — which IS the fan, produced by placement alone with no extra movement.
+			//
+			// A transport with no IFacing keeps the plain shuffle: there is no "behind" to prefer.
+			var candidates = cargo.CurrentAdjacentCells.Shuffle(self.World.SharedRandom);
+			var hullFacing = self.TraitOrDefault<IFacing>();
+			if (hullFacing != null)
+			{
+				var origin = self.Location;
+				candidates = candidates.OrderBy(c => DismountGeometry.RearPreference(hullFacing.Facing, c - origin));
+			}
+
 			// Cast<T?> so FirstOrDefault yields null, not (default, Invalid), when no cell is free — Tick's
 			// exitSubCell == null branch (NotifyBlocker + retry) is unreachable without it. A post-6.0 analyzer
 			// calls this cast always-empty (CA2021); that is a false positive, do not "simplify" it away.
-			return cargo.CurrentAdjacentCells
-				.Shuffle(self.World.SharedRandom)
+			return candidates
 				.Select(c => (c, pos.GetAvailableSubCell(c)))
 				.Cast<(CPos, SubCell SubCell)?>()
 				.FirstOrDefault(s => s.Value.SubCell != SubCell.Invalid);
@@ -165,10 +193,32 @@ namespace OpenRA.Mods.Common.Activities
 				var exitSubCell = ChooseExitSubCell(actor);
 				if (exitSubCell == null)
 				{
+					// BOUNDED. This branch used to return false forever on a BlockedRetryDelay loop with
+					// no counter and no timeout, so a transport that could never place anybody never
+					// completed this activity and was therefore never idle — silencing every idle-driven
+					// behaviour it owns, including the AI's own "has it finished?" gate. The retry itself
+					// is worth keeping: a ring of units shuffling past clears in a moment and the unload
+					// then succeeds. Only the "forever" part was wrong.
+					blockedTicks += BlockedRetryDelay;
+					if (cargo.Info.BlockedUnloadTimeout > 0 && blockedTicks >= cargo.Info.BlockedUnloadTimeout)
+					{
+						cargo.NotifyUnloadRefused(self);
+
+						// Finish(), not a bare return true: an aircraft that came down to unload has to
+						// go back up even when it unloaded nobody. Ending here without the TakeOff would
+						// trade a spinning transport for a grounded one — idle, responsive, and sitting
+						// at land altitude in whatever the LZ turned out to be.
+						return Finish();
+					}
+
 					self.NotifyBlocker(BlockedExitCells(actor));
-					QueueChild(new Wait(10));
+					QueueChild(new Wait(BlockedRetryDelay));
 					return false;
 				}
+
+				// Somebody got out, so the blocked spell is over: a stick that dismounts one man every
+				// few seconds through a tight gap must not accumulate its way into the timeout.
+				blockedTicks = 0;
 
 				// Check for pre-queued rally point before unloading
 				var rallyTarget = cargo.GetEjectRally(actor.ActorID);
@@ -206,15 +256,7 @@ namespace OpenRA.Mods.Common.Activities
 			}
 
 			if (!unloadAll || !cargo.CanUnload())
-			{
-				if (cargo.Info.AfterUnloadDelay > 0)
-					QueueChild(new Wait(cargo.Info.AfterUnloadDelay, false));
-
-				if (takeOffAfterUnload)
-					QueueChild(new TakeOff(self));
-
-				return true;
-			}
+				return Finish();
 
 			// Pace the rest of the stick. Without this the loop unloads one passenger
 			// per tick and a full transport empties in well under a second, which reads
@@ -227,6 +269,20 @@ namespace OpenRA.Mods.Common.Activities
 				QueueChild(new Wait(delay));
 
 			return false;
+		}
+
+		/// <summary>Queue the post-unload tail and end the activity. Shared by the normal completion and
+		/// by the blocked-unload timeout so the two cannot drift — the abandon path needs the TakeOff
+		/// just as much as the success path does.</summary>
+		bool Finish()
+		{
+			if (cargo.Info.AfterUnloadDelay > 0)
+				QueueChild(new Wait(cargo.Info.AfterUnloadDelay, false));
+
+			if (takeOffAfterUnload)
+				QueueChild(new TakeOff(self));
+
+			return true;
 		}
 
 		/// <summary>Ticks to hold before the next passenger steps out. The rhythm itself lives in

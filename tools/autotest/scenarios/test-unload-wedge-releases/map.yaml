@@ -1,0 +1,87 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a blocked unload releases the transport instead of spinning (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	RingedAPC: m113
+		Owner: USA
+		Location: 20,14
+		Facing: 768
+	FreeAPC: m113
+		Owner: USA
+		Location: 46,14
+		Facing: 768
+	RingN: t90
+		Owner: Russia
+		Location: 20,13
+	RingS: t90
+		Owner: Russia
+		Location: 20,15
+	RingW: t90
+		Owner: Russia
+		Location: 19,14
+	RingE: t90
+		Owner: Russia
+		Location: 21,14
+	RingNW: t90
+		Owner: Russia
+		Location: 19,13
+	RingNE: t90
+		Owner: Russia
+		Location: 21,13
+	RingSW: t90
+		Owner: Russia
+		Location: 19,15
+	RingSE: t90
+		Owner: Russia
+		Location: 21,15
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,5
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,28
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 33,5
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 33,28
+
+Rules: rules.yaml

@@ -69,6 +69,6 @@ WorldLoaded = function()
 	end)
 
 	Trigger.AfterDelay(225, function()
-		Test.Pass("captured cluster + asymmetry probe")
+		Test.Skip("captured cluster + asymmetry probe")
 	end)
 end

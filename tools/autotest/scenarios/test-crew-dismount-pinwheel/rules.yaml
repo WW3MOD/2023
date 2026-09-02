@@ -1,0 +1,58 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-crew-dismount-pinwheel.lua
+
+abrams:
+	# STAGING ONLY, and every line of it is copied from test-crew-rear-dismount/rules.yaml except
+	# where noted. That is deliberate: the graded scenario and this capture must photograph and
+	# assert the SAME staged world, or the picture is of a situation the guard never checked.
+	#
+	# WHY THE BLEED HAS TO GO (from the 2026-09-01 RED, seed -2084768515, "live crew=1 ... tank
+	# died"). Crew eject at EjectionDamageState: Heavy, HP < 50%. But ^EffectsWhenDamagedVehicles
+	# carries ChangesHealth@CriticalDamage with StartIfBelow: 50 (vehicles.yaml:184-186), reached
+	# from abrams via ^TrackedVehicle -> ^Vehicle. So a vehicle whose crew are bailing is ALWAYS
+	# bleeding out — the shipped design, stated at vehicles.yaml:243-250. There is no HP value that
+	# ejects the crew and leaves the hull standing, and a capture needs the hull standing: it is the
+	# reference object the whole frame is read against. A wreck that has finished dying tells the
+	# reader nothing about which way it was pointing.
+	-ChangesHealth@CriticalDamage:
+	VehicleCrew:
+		# Auto-evacuation OFF, and this is the one staging choice a reader should push back on, so
+		# here is the argument. With the shipped default TRUE, each man walks his 2-3 cell fan leg
+		# and then IMMEDIATELY turns for the map edge. Ejections are 30 +- 15 ticks apart
+		# (EjectionDelay/Variance on abrams, vehicles-america.yaml:474-475), so by the time the third
+		# man reaches his fan cell the first has been evacuating for 60-90 ticks and is several cells
+		# gone in a direction that has nothing to do with the fan. THERE IS NO TICK AT WHICH ALL
+		# THREE OF A HULL'S CREW ARE ON THEIR FAN CELLS with the default on — not a timing problem
+		# that a better-chosen shutter could solve, a property of the staggered ejection. So a
+		# picture of the fan requires this off, and item 2's own picture requires it on. That is why
+		# the auto-evacuate capture is a separate scenario (test-crew-evacuate-departure) and a
+		# separate run, rather than another beat in this one.
+		AutoEvacuateOnEject: false
+		# Threshold at 100% of hull MaxHP means the finishing shot can never exceed it, so crewDamage
+		# stays 0 and nobody spawns wounded. A wounded man goes prone (InfantryStates.ProneCondition)
+		# and renders as a different, smaller sprite — which would be read as "the crew look wrong"
+		# in a frame whose entire subject is where men are standing.
+		CrewDamageThresholdPercent: 100
+		# Clamped to zero stacks so the crew do not inherit the hull's burn. Crew that are themselves
+		# on fire draw a flame overlay roughly their own size, which at the 0.6 sprite scale of
+		# crew.*.america (crew.yaml:112) would be most of the man.
+		CrewFireStackOffset: -99
+	# NOT REMOVED, on purpose: GrantStackingConditionOnHealthFraction@OnFire (vehicles.yaml:217-222)
+	# still lights the HULLS. At 40% HP that is ~2 of 10 stacks — a small plume on the hull cell,
+	# clear of every crew cell 2-3 cells out. Leaving it costs a little hull legibility in the
+	# damaged frames and buys the frames being of the game as it actually ships. The undamaged
+	# reference capture (01) is taken before any of it starts, which is what the reader uses to fix
+	# the four facings; see the Watch note on branch wt/crew-capture.

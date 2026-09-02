@@ -65,7 +65,7 @@ if [ ! -d "${OUTPUTDIR}" ]; then
 fi
 
 echo "Building core files"
-install_assemblies "${TEMPLATE_ROOT}/${ENGINE_DIRECTORY}" "${APPDIR}/usr/lib/openra" "linux-x64" "net6" "True" "${PACKAGING_COPY_CNC_DLL}" "${PACKAGING_COPY_D2K_DLL}"
+install_assemblies "${TEMPLATE_ROOT}/${ENGINE_DIRECTORY}" "${APPDIR}/usr/lib/openra" "linux-x64" "True" "${PACKAGING_COPY_CNC_DLL}" "${PACKAGING_COPY_D2K_DLL}"
 install_data "${TEMPLATE_ROOT}/${ENGINE_DIRECTORY}" "${APPDIR}/usr/lib/openra"
 
 # GPLv3 section 6: ships next to COPYING so the binary states where its source lives.
@@ -77,7 +77,7 @@ for f in ${PACKAGING_COPY_ENGINE_FILES}; do
 done
 
 echo "Building mod files"
-install_mod_assemblies "${TEMPLATE_ROOT}" "${APPDIR}/usr/lib/openra" "linux-x64" "net6" "${TEMPLATE_ROOT}/${ENGINE_DIRECTORY}"
+install_mod_assemblies "${TEMPLATE_ROOT}" "${APPDIR}/usr/lib/openra" "linux-x64"
 
 cp -Lr "${TEMPLATE_ROOT}/mods/"* "${APPDIR}/usr/lib/openra/mods"
 
@@ -150,4 +150,4 @@ chmod a+x appimagetool-x86_64.AppImage
 ARCH=x86_64 ./appimagetool-x86_64.AppImage "${APPDIR}" "${OUTPUTDIR}/${PACKAGING_INSTALLER_NAME}-${TAG}-x86_64.AppImage"
 
 # Clean up
-rm -rf appimagetool-x86_64.AppImage "${PACKAGING_APPIMAGE_DEPENDENCIES_TEMP_ARCHIVE_NAME}" "${APPDIR}"
+rm -rf appimagetool-x86_64.AppImage "${APPDIR}"

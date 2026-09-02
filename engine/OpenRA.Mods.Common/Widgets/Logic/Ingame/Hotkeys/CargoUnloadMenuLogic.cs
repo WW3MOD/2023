@@ -28,12 +28,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 	[ChromeLogicArgsHotkeys("UnloadMenuKey")]
 	public class CargoUnloadMenuLogic : SingleHotkeyBaseLogic
 	{
-		// A scrollbar was tried and removed: ScrollPanelWidget draws it unconditionally rather than on
-		// overflow, and for a right-hand bar ChildOrigin does not inset the rows
-		// (ScrollPanelWidget.cs:236), so it sat on top of the count column and hid it — visible in the
-		// first capture of this menu as rows with no counts at all. The menu therefore grows to fit its
-		// content instead, and the only ceiling on it is the screen (see Refresh).
-		const int ScreenMargin = 4;
+		// The menu grows to fit its content and is capped only by the screen (see Refresh). A scrollbar
+		// is shown only when that cap actually bites, because ScrollPanelWidget draws the bar whenever
+		// it is enabled rather than on overflow, and for a right-hand bar ChildOrigin does not inset the
+		// rows (ScrollPanelWidget.cs:236) — an always-on bar therefore sat on top of the count column and
+		// hid it, visible in the first capture of this menu as rows with no counts at all. Refresh widens
+		// the menu by the bar's width when it turns the bar on, so it gets a gutter instead of the counts.
+		//
+		// The sizing itself lives in UnloadMenuGeometry so NUnit can pin it without a renderer; this file
+		// keeps the widget wiring. One copy of the arithmetic, deliberately.
+		const int ScreenMargin = UnloadMenuGeometry.ScreenMargin;
 
 		readonly World world;
 
@@ -41,6 +45,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 		MaskWidget mask;
 		ScrollPanelWidget list;
 		ScrollItemWidget rowTemplate;
+
+		// Widths as authored, captured before Refresh starts adding and removing the scrollbar gutter.
+		// Refresh runs repeatedly (Drop and Tick both call it), so the gutter has to be reapplied from
+		// a fixed base rather than added to whatever the width happens to be now.
+		int listWidth;
+		int menuWidth;
 
 		Actor transport;
 		Cargo cargo;
@@ -116,6 +126,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 
 			list = menu.Get<ScrollPanelWidget>("CLASS_LIST");
 			rowTemplate = list.Get<ScrollItemWidget>("CLASS_TEMPLATE");
+			listWidth = list.Bounds.Width;
+			menuWidth = menu.Bounds.Width;
 			list.RemoveChildren();
 
 			var keys = menu.GetOrNull<LogicKeyListenerWidget>("MENU_KEYHANDLER");
@@ -172,14 +184,26 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 				list.AddChild(row);
 			}
 
-			// Size to the content, capped by the screen rather than by a fixed row count. The previous
-			// fixed 380px held 16 rows, chosen for the 16 combat classes — but Cargo `Types: Infantry`
-			// also accepts civilians, pilots and ejected vehicle crews, which is 24 distinct classes
-			// (552px of rows) all loadable into one 36-slot Chinook. Rows past the cap were drawn
-			// nowhere, and with `ScrollBar: Hidden` nothing advertised that they existed.
-			var ceiling = Math.Max(rowTemplate.Bounds.Height, Game.Renderer.Resolution.Height - list.Bounds.Y - 2 * ScreenMargin);
-			list.Bounds.Height = Math.Min(ceiling, list.ContentHeight);
-			menu.Bounds.Height = list.Bounds.Y + list.Bounds.Height + ScreenMargin;
+			// Size to the content, capped by the screen rather than by a fixed row count, and advertise the
+			// cap exactly when it bites. Under roughly 578px of screen height the 24 rows stop fitting and
+			// the tail is cut off; the wheel still reaches it — ScrollPanelWidget handles Scroll whatever
+			// ScrollBar is set to — but with the bar hidden nothing told the player the rest was there.
+			// The arithmetic, and why each term is what it is, is in UnloadMenuGeometry.
+			var layout = UnloadMenuGeometry.Measure(Game.Renderer.Resolution.Height, list.Bounds.Y,
+				rowTemplate.Bounds.Height, list.ContentHeight, list.ScrollbarWidth, listWidth, menuWidth);
+
+			list.Bounds.Height = layout.ClipHeight;
+			menu.Bounds.Height = layout.MenuHeight;
+			list.ScrollBar = layout.Overflows ? ScrollBar.Right : ScrollBar.Hidden;
+			list.Bounds.Width = layout.ListWidth;
+			menu.Bounds.Width = layout.MenuWidth;
+
+			// Refresh also runs after the menu has been placed — units already ordered to Enter can
+			// still board while it is open, which adds rows and can be what pushes it into overflow.
+			// Re-clamp rather than reposition: moving the menu out from under the cursor mid-click
+			// would be worse than the gutter hanging off the edge it is being kept out of.
+			menu.Bounds.X = menu.Bounds.X.Clamp(ScreenMargin,
+				Math.Max(ScreenMargin, Game.Renderer.Resolution.Width - menu.Bounds.Width - ScreenMargin));
 		}
 
 		/// <summary>Grouped rows for the live passenger list. Shared with the sidebar panel via

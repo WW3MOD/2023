@@ -1,0 +1,66 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: command bar held-mode glyph highlight
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Same staging as demo-command-bar-reflow, and for the same reason: infantry satisfy
+# both Passenger (AUTO_ENTER) and IMove (PATROL), so the right-hand command panel comes
+# up with live buttons instead of greyed ones. That matters more here than there -- a
+# greyed button draws its `-disabled` glyph regardless of highlight state, so if PATROL
+# and AUTO_ENTER were dead the discriminating shot would show two grey glyphs and look
+# exactly like an inert change. The APC gives AUTO_ENTER a real transport to point at.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	Rifle1: e1
+		Owner: Me
+		Location: 20,16
+		Facing: 768
+	Rifle2: e1
+		Owner: Me
+		Location: 21,16
+		Facing: 768
+	Rifle3: e1
+		Owner: Me
+		Location: 22,16
+		Facing: 768
+
+	Apc: m113
+		Owner: Me
+		Location: 24,16
+		Facing: 768
+
+Rules: rules.yaml

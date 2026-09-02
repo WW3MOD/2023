@@ -1,0 +1,1 @@
+A truck ordered to restock at a walled-in Logistics Centre must take NOTHING from it; an identical truck ordered at an identical but reachable Centre must be filled. Pins RestockSupply's arrival guard.

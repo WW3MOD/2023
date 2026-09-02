@@ -1,0 +1,1 @@
+Men garrisoned in a building whose ownership flips to an enemy cannot be evacuated by their own player - and that is safe only because no legitimate path puts them there. Asserts all three limbs: the owner CAN evacuate his own garrison, a soldier CANNOT be ordered into an enemy-owned building, and a non-owner's evacuate gesture is refused.

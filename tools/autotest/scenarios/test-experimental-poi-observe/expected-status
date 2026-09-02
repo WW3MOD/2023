@@ -1,0 +1,23 @@
+skip
+BOUNDED OBSERVATION, no graded answer -- and its own header says so at :1. It runs the
+experimental-vs-normal capture skirmish for a fixed ~55s window so the engine's
+[experimental-poi] dispersion and [experimental-capture] commitment lines accumulate in
+debug.log, then exits so the agent can read them. The health criterion in the header
+(commitN == 1 per TECN per target) is addressed to that reader; the Lua evaluates nothing.
+
+WHY SKIP AND NOT PASS. Until 2026-09-01 the terminal verdict was `Test.Pass` -- a bare
+one, carrying not even a note -- so this scenario contributed a green to every
+`run-batch.sh --all` tally regardless of what the log showed. `Test.Skip` is the harness's
+own word for "ran, produced no graded answer" (TestGlobal.cs) and run-batch.sh maps it to
+the SKIP bucket. The scenario is not hidden and still runs; the verdict just stops
+claiming an answer it never computed.
+
+REMOVE THIS FILE in the same commit as whatever turns the header's commitN criterion into
+a Lua predicate. A PASS against a live `skip` declaration grades STALE/RED on purpose: a
+scenario that STARTS grading shows up loudly instead of silently changing meaning.
+
+NOT EXPOSED TO expected-status.sh's KNOWN GAP. That gap is specific to `fail`
+declarations, where a watchdog TIMEOUT-FAIL also exits 1 and therefore grades green.
+A timeout reaches expected_status_grade as FAIL, and declared-`skip` + FAIL is RED --
+which matters here, because this scenario runs a full bot match and is one of the more
+plausible candidates for a hang.

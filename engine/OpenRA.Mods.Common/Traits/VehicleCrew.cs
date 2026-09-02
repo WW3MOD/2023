@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Activities;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -61,6 +62,19 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Whether ejected crew inherit the vehicle's veterancy rank.")]
 		public readonly bool TransferVeterancy = true;
 
+		[Desc("Queue a one-shot Evacuate (walk to the map edge and refund) on each crew member the moment it ",
+			"is spawned, after the walk clear of the husk. Implements the 2026-09-01 ruling that crew and pilots ",
+			"auto-evacuate as soon as they are out. It is an ordinary top-level activity, so ANY subsequent ",
+			"player or bot order cancels it — a one-time disposition, not a standing mode.")]
+		public readonly bool AutoEvacuateOnEject = true;
+
+		[Desc("Cells the crew walks clear of the husk before evacuating. A random 0..EjectWalkDistanceVariance ",
+			"is added on top so a full crew does not arrive in a straight line.")]
+		public readonly int EjectWalkDistance = 2;
+
+		[Desc("Random extra cells added to EjectWalkDistance, exclusive upper bound. 0 disables the variance.")]
+		public readonly int EjectWalkDistanceVariance = 2;
+
 		[Desc("Fraction of vehicle MaxHP the finishing shot must exceed before crew start taking damage. E.g. 25 = 25%.")]
 		public readonly int CrewDamageThresholdPercent = 25;
 
@@ -83,11 +97,6 @@ namespace OpenRA.Mods.Common.Traits
 	// exclusion is AllowForeignCrew.
 	public class VehicleCrew : INotifyCreated, INotifyDamageStateChanged, ITick, INotifyKilled, ISync
 	{
-		// Clockwise from north. Indexed by SharedRandom.Next(8) when walking an ejected
-		// crew clear of the husk; shared by both evacuation paths so they cannot drift.
-		static readonly int[] EvacOffsetX = { 0, 1, 1, 1, 0, -1, -1, -1 };
-		static readonly int[] EvacOffsetY = { -1, -1, 0, 1, 1, 1, 0, -1 };
-
 		readonly Actor self;
 		readonly VehicleCrewInfo info;
 		readonly string[] ejectionOrder;
@@ -99,6 +108,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		IHealth health;
 		Mobile mobile;
+		IFacing hullFacing;
 
 		// Damage value of the hit that pushed the vehicle into critical state.
 		// Locked in on the critical transition and used to scale crew damage.
@@ -214,6 +224,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			health = self.Trait<IHealth>();
 			mobile = self.TraitOrDefault<Mobile>();
+			hullFacing = self.TraitOrDefault<IFacing>();
 
 			// All crew start present — grant all conditions
 			for (var i = 0; i < info.CrewSlots.Length; i++)
@@ -405,26 +416,16 @@ namespace OpenRA.Mods.Common.Traits
 
 			var damageToApply = crewDamage;
 			var spawnLocation = self.Location;
+
+			// Fan slot for this man. nextEjectionIndex is the ejection ordinal and only ever increases within
+			// one bail-out, so successive crew get successive fan bearings without any extra synced state.
+			var fanIndex = nextEjectionIndex;
+
 			self.World.AddFrameEndTask(w =>
 			{
-				// Spawn at the husk's centre cell — visually the crew emerges
-				// from the vehicle's hatch — then queue a Nudge so they
-				// immediately walk to an adjacent cell. SetPosition bypasses
-				// CanEnterCell so the cell-occupancy check in the husk doesn't
-				// block placement. If there's truly no adjacent free cell the
-				// Nudge no-ops and the crew stays on the husk; that's the
-				// realistic "couldn't get clear" outcome for a wrecked vehicle
-				// boxed in by other husks.
-				var crew = w.CreateActor(false, actorType, td);
-				var positionable = crew.TraitOrDefault<IPositionable>();
-				if (positionable == null)
-				{
-					crew.Dispose();
+				var crew = SpawnCrewActor(w, actorType, td, spawnLocation);
+				if (crew == null)
 					return;
-				}
-
-				positionable.SetPosition(crew, spawnLocation);
-				w.Add(crew);
 
 				// Inherit the wreck's burn intensity. ^Infantry already includes
 				// ^InfantryAffectedByFire which registers the `onfire` external
@@ -448,24 +449,73 @@ namespace OpenRA.Mods.Common.Traits
 				if (damageToApply > 0)
 					crew.InflictDamage(self, new Damage(damageToApply));
 
-				// Walk 2–3 cells in a random direction so crew clears the
-				// husk's cookoff radius (0c512 = ½ cell). evaluateNearestMovableCell
-				// falls back if the chosen path is blocked by other husks.
-				var mobile = crew.TraitOrDefault<Mobile>();
-				if (mobile != null && !crew.IsDead)
-				{
-					var dir = w.SharedRandom.Next(8);
-					var dx = EvacOffsetX[dir];
-					var dy = EvacOffsetY[dir];
-					var dist = 2 + w.SharedRandom.Next(2);
-					var target = spawnLocation + new CVec(dx * dist, dy * dist);
-					crew.QueueActivity(false, mobile.MoveTo(target, 0, null, true));
-				}
-
-				var nbms = crew.TraitsImplementing<INotifyBlockingMove>();
-				foreach (var nbm in nbms)
-					nbm.OnNotifyBlockingMove(crew, crew);
+				QueueDismountWalk(w, crew, spawnLocation, fanIndex);
 			});
+		}
+
+		/// <summary>Create an ejected crew actor on the husk's own cell and put it in the world.
+		/// <para>Spawning ON the hull is deliberate — visually the man emerges from the hatch — and SetPosition
+		/// bypasses CanEnterCell so the husk's own occupancy cannot block placement. Getting him CLEAR is
+		/// <see cref="QueueDismountWalk"/>'s job. Returns null (having disposed the actor) if the rules gave us
+		/// something that cannot be positioned.</para></summary>
+		Actor SpawnCrewActor(World w, string actorType, TypeDictionary td, CPos spawnLocation)
+		{
+			var crew = w.CreateActor(false, actorType, td);
+			var positionable = crew.TraitOrDefault<IPositionable>();
+			if (positionable == null)
+			{
+				crew.Dispose();
+				return null;
+			}
+
+			positionable.SetPosition(crew, spawnLocation);
+			w.Add(crew);
+			return crew;
+		}
+
+		/// <summary>Walk a just-ejected man clear of the husk, then hand him his one-shot evacuation.
+		/// <para>Shared by both ejection paths (staged bail-out and the heli safe-landing dump) so the two
+		/// cannot drift apart again — they previously carried byte-identical copies of this block.</para>
+		/// <para>DIRECTION is rear-fanned off the hull's facing rather than a random compass roll, so the crew
+		/// comes out of the BACK of the vehicle and splits left / right / straight back
+		/// (<see cref="DismountGeometry"/>). A hull with no IFacing at all — nothing shipped, but the trait
+		/// does not require one — falls back to the old random compass step.</para>
+		/// <para>DISTANCE keeps its SharedRandom roll: the fan fixes the bearing, and without a varied stride a
+		/// four-man crew walks four parallel lines of identical length.</para>
+		/// <para>The walk is what clears the husk's cookoff radius (0c512 = ½ cell); MoveTo's nearest-movable-cell
+		/// fallback covers a lane blocked by other husks, and if nothing is reachable the man stays on the hull —
+		/// the realistic "couldn't get clear" outcome.</para></summary>
+		void QueueDismountWalk(World w, Actor crew, CPos spawnLocation, int fanIndex)
+		{
+			var crewMobile = crew.TraitOrDefault<Mobile>();
+			if (crewMobile != null && !crew.IsDead)
+			{
+				var step = hullFacing != null
+					? DismountGeometry.FanStep(hullFacing.Facing, fanIndex)
+					: DismountGeometry.CompassStep(w.SharedRandom.Next(DismountGeometry.CompassCount));
+
+				var dist = info.EjectWalkDistance;
+				if (info.EjectWalkDistanceVariance > 0)
+					dist += w.SharedRandom.Next(info.EjectWalkDistanceVariance);
+
+				crew.QueueActivity(false, crewMobile.MoveTo(spawnLocation + step * dist, 0, null, true));
+
+				// One-shot Evacuate, QUEUED behind the walk so the man clears the cookoff before turning for
+				// the map edge. Queued at TOP LEVEL, which is what PoiOffensiveBotModule.IsEvacuating walks
+				// (NextActivity only) — so the bot's own crew sweep sees this man is already leaving and will
+				// not re-issue an order that would cancel it.
+				//
+				// A direct QueueActivity rather than an "Evacuate" order: this runs inside VehicleCrew's synced
+				// tick on every client, so it is already replicated. Issuing a network order from here would
+				// emit one PER CLIENT for the same ejection. Same activity and the same handicap-adjusted
+				// refund the Evacuate order reaches via DeliversCash@Rotation, so a crew member who leaves this
+				// way is worth exactly what one the player retired by hand is worth.
+				if (info.AutoEvacuateOnEject)
+					crew.QueueActivity(true, new RotateToEdge(crew, true, crew.GetEvacuationRefund()));
+			}
+
+			foreach (var nbm in crew.TraitsImplementing<INotifyBlockingMove>())
+				nbm.OnNotifyBlockingMove(crew, crew);
 		}
 
 		int CrewMaxHPFromRules(string actorType)
@@ -575,6 +625,12 @@ namespace OpenRA.Mods.Common.Traits
 		public void EjectAllCrew()
 		{
 			ejecting = false;
+
+			// Fan slot, advanced per man actually placed. Local rather than synced: this method empties the
+			// whole vehicle in one deterministic pass, so every client walks the same order and reaches the
+			// same value at each step.
+			var fanIndex = 0;
+
 			foreach (var slotName in ejectionOrder)
 			{
 				if (!slotIndexByName.TryGetValue(slotName, out var idx))
@@ -613,39 +669,18 @@ namespace OpenRA.Mods.Common.Traits
 				}
 
 				var spawnLocation = self.Location;
+				var slotFanIndex = fanIndex++;
 				self.World.AddFrameEndTask(w =>
 				{
-					// Same hatch-emerge model as EjectCrewMember: spawn at the
-					// airframe's cell, then Nudge to an adjacent cell.
-					var crew = w.CreateActor(false, actorType, td);
-					var positionable = crew.TraitOrDefault<IPositionable>();
-					if (positionable == null)
-					{
-						crew.Dispose();
+					// Same hatch-emerge model as EjectCrewMember: spawn at the airframe's cell, then walk
+					// clear. A safe landing has no cookoff to escape, but the visual still reads better when
+					// the crew walks away rather than huddling on the fuselage — and they leave out of the
+					// BACK of it, fanned, on the same shared path.
+					var crew = SpawnCrewActor(w, actorType, td, spawnLocation);
+					if (crew == null)
 						return;
-					}
 
-					positionable.SetPosition(crew, spawnLocation);
-					w.Add(crew);
-
-					// Same evacuation as EjectCrewMember — clear the airframe
-					// by 2-3 cells. (Heli-safe-landing doesn't have a cookoff,
-					// but the visual still reads better when crew walks away
-					// rather than huddling on top of the husk.)
-					var mobile = crew.TraitOrDefault<Mobile>();
-					if (mobile != null)
-					{
-						var dir = w.SharedRandom.Next(8);
-						var dx = EvacOffsetX[dir];
-						var dy = EvacOffsetY[dir];
-						var dist = 2 + w.SharedRandom.Next(2);
-						var target = spawnLocation + new CVec(dx * dist, dy * dist);
-						crew.QueueActivity(false, mobile.MoveTo(target, 0, null, true));
-					}
-
-					var nbms = crew.TraitsImplementing<INotifyBlockingMove>();
-					foreach (var nbm in nbms)
-						nbm.OnNotifyBlockingMove(crew, crew);
+					QueueDismountWalk(w, crew, spawnLocation, slotFanIndex);
 				});
 			}
 		}

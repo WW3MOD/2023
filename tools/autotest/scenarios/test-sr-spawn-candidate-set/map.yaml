@@ -1,0 +1,102 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: the SR spawn-candidate SET is the five nearest edge cells, not the tie band's north end
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,66
+
+Bounds: 1,1,64,64
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+# WHAT THIS MEASURES, AND HOW IT DIFFERS FROM test-sr-entry-cell.
+#
+# test-sr-entry-cell pins Map.ChooseClosestMatchingEdgeCell -- a SINGLE-WINNER pick, taken on the
+# legacy branch that runs when no spawnarea actor exists. This scenario pins the OTHER sibling,
+# Map.GetSpawnCandidatesOnSameEdge, which returns a SET and is reached only when a spawnarea IS
+# present (ProductionFromMapEdge.cs:121-122). The two tests must both exist because the defect
+# expresses differently in each, and only one of them was fixed first.
+#
+# WHY A SET IS A DIFFERENT PROBLEM. The old sort key was CVec.Length = Exts.ISqrt(LengthSquared)
+# with ISqrtRoundMode.Floor (CVec.cs:50, Exts.cs:305-306). A floored key can NEVER sort a farther
+# cell ahead of a nearer one -- it is monotone in the along-edge offset, so it only ever TIES them.
+# Take(count) is what does the damage: it cuts INSIDE a merged tie group whose internal order is
+# UpdateEdgeCells' enumeration (v ascending, Map.cs:1940-1967), not distance. So cells at the
+# low-v end of the band displace genuinely nearer cells out of the chosen set entirely.
+#
+# THIS MAP MUST HAVE A spawnarea ACTOR -- the exact inverse of test-sr-entry-cell's requirement.
+# Without one, FindClosestSpawnArea returns null, ProductionFromMapEdge takes its legacy branch
+# (:123-132) and this test would pass while measuring the OTHER method. `mpspawn` does not carry
+# the SpawnArea trait (misc.yaml:239 vs :255); only `spawnarea` does, and it must be owned by
+# Neutral (RequiresSpecificOwners, misc.yaml:268-269). It sets OccupiesSpace: false, so it cannot
+# collide with the SR's 3x3 footprint.
+#
+# GEOMETRY, AND WHY d=20 RATHER THAN A SHIPPED MAP'S d.
+# The spawnarea sits at 21,32, so the perpendicular distance to the west boundary at x=1 is
+# d = 20, against 31 north, 32 south and 43 east. The west edge wins by an 11-cell margin, so no
+# cross-edge tie-break is involved and GetSameEdgeCells' min-distance choice cannot be the thing
+# under test. The floored band is +/-floor(sqrt(2*20)) = +/-6, i.e. rows 26..38 all scored 20.
+#
+# The whole point of d=20 is SEPARATION. SpawnCandidateCount is 5 (ProductionFromMapEdge.cs:24,
+# no YAML override), and with a 13-row band the two behaviours share exactly ONE member:
+#
+#   old (floored) : 1,26  1,27  1,28  1,29  1,30
+#   new (exact)   : 1,32  1,31  1,33  1,30  1,34
+#
+# The first unit alone separates them by SIX cells. The widest band any shipped map offers is
+# +/-5 (twin-rivers-ww3, d=15), where 2 of 5 members survive and the first unit moves only 3 --
+# a measurably weaker instrument, which is why this scenario does not simply reuse a shipped map.
+#
+# WHAT THIS SCENARIO DOES *NOT* COVER. The same fix added .Distinct() before .Take(), because
+# UpdateEdgeCells appends each of the four CORNERS twice. That guard is inert here: the Take
+# window is rows 30..34, nowhere near a corner, and the candidate list has no duplicate inside it.
+# Do not read a green here as evidence the dedupe works. The reachable real-map case is
+# woodland-warfare-ww3's north-west spawn; a scenario for it would need a hint at d~1 diagonally
+# adjacent to a corner (e.g. 2,2 on these Bounds), which is a different map.
+#
+# NOTHING ELSE PRODUCES OR MOVES. rules.yaml strips SpawnStartingUnits and MapStartingLocations,
+# and no e1.america is placed, so the five produced riflemen are unambiguously the subject.
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 27,32
+	SpawnHint: spawnarea
+		Owner: Neutral
+		Location: 21,32
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 27,32
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 50,32
+
+Rules: rules.yaml

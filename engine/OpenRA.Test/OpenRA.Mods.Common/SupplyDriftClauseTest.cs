@@ -47,7 +47,7 @@ namespace OpenRA.Test
 		}
 
 		/// <summary>
-		/// Read a `local NAME = <int>` declaration out of a scenario script. The allowance the drift
+		/// Read a `local NAME = &lt;int&gt;` declaration out of a scenario script. The allowance the drift
 		/// clause rests on lives in the scenario file and nowhere else, so a test that restates the
 		/// number as its own constant pins nothing — it agrees with itself no matter what the scenario
 		/// says. Reading the real declaration is what makes the assertion able to fail.

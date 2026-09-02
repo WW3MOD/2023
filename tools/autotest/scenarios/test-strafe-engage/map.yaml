@@ -1,0 +1,75 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: Strafe airframe engagement
+
+Author: WW3MOD autotest harness
+
+Tileset: TEMPERAT
+
+# map.bin / map.png are test-aircraft-breakoff-midrun's (100,60, TEMPERAT, uniform clear
+# terrain), which are demo-heli-lanes' in turn. Terrain is not load-bearing: nothing here walks.
+# The t90s are created by Lua, never move and never path, and the aircraft fly.
+#
+# LANE PITCH IS FORCED, NOT CHOSEN, and the reasoning is inherited wholesale from
+# test-aircraft-breakoff-midrun's map.yaml. Neither aircraft pins AutoTarget.ScanRadius, so both
+# fall back to AttackBase.GetMaximumRange = 25c0 (RocketPods, weapons-ballistics.yaml:914).
+# ScanForTarget scans a EUCLIDEAN circle. At 40 cells of lane pitch the nearest FOREIGN t90 is
+# sqrt(40^2 + 14^2) = 42.4 cells away — a 17-cell margin outside the 25c0 radius, so neither
+# aircraft can acquire the other lane's target and the two lanes cannot contaminate each other.
+# 100,60 is kept rather than shrunk so the two lanes sit on the same coordinates they do in the
+# break-off scenario, which is what makes the two runs comparable.
+MapSize: 100,60
+
+# 1,1,W-2,H-2. NOT 0,0,W,H, which trips CheckMapCordon.
+Bounds: 1,1,98,58
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+# Every actor the lanes use is created from Lua, so the only placements here are the two Supply
+# Routes (one per active faction, AUTOTEST.md map.yaml rule 6) and the spawn markers. Both SRs sit
+# on row 56 — 36 rows below the lane targets — so neither can be confused for a lane's t90 by an
+# aircraft scanning 25c0, quite apart from supplyroute carrying NoAutoTarget.
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,56
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 94,56
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 10,6
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 50,6
+	SpawnThird: mpspawn
+		Owner: Neutral
+		Location: 90,6
+
+Rules: rules.yaml

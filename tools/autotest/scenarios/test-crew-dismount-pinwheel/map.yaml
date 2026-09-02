@@ -1,0 +1,116 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: CAPTURE: Crew dismount pinwheel — four hull facings, four exit arcs (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Terrain is the flat empty plate copied byte-for-byte from test-crew-rear-dismount, which took it
+# from test-crew-instakill. No obstacle anywhere near any of the four hulls, so every crew member's
+# walk-away leg is a straight line and the cell he stops on is the one the fan chose rather than one
+# a detour happened to reach. For a capture that is even more load-bearing than for an assertion: a
+# detour does not merely move a number, it puts a man in the picture where the reader will read him
+# as evidence of a bearing nothing ever chose.
+#
+# ============================================================================================
+# WHY FOUR HULLS AND NOT ONE — the entire design argument for this scenario
+# ============================================================================================
+# test-crew-rear-dismount already photographs nothing and asserts everything, on ONE north-facing
+# hull. A capture of that same single hull would be a weak picture, because a reader cannot tell a
+# rear dismount from a lucky roll: the pre-3ce18d71 code was a uniform SharedRandom.Next(8) compass
+# step, and a uniform roll puts a given man clear of the front 5 times in 8. Three men, one hull —
+# roughly one frame in four of the OLD behaviour would have looked correct.
+#
+# What no random roll can fake is a CORRELATION between the empty arc and the hull it belongs to.
+# So the four hulls carry the four cardinal facings, and the frame's claim is not "the men are
+# behind the tank" but "the gap in each triad points the way that tank's hull points, four times,
+# four different directions". Under the old uniform roll the probability of even the weak form of
+# that (no man in any hull's front 3-cell arc, 12 men) is (5/8)^12 = 5.5e-5.
+#
+# ============================================================================================
+# FACING IS COUNTERCLOCKWISE. This is the trap the whole feature exists inside; see
+# DOCS/reference/conventions.md and the header of DismountGeometry.cs.
+# ============================================================================================
+#   WAngle    0 = North      256 = WEST      512 = South      768 = EAST
+# OpenRA screen space is north = -Y, and this mod's MapGrid is Type: Rectangular (mod.yaml:330),
+# NOT isometric — so map north really is straight up on screen and "12 o'clock" in the capture
+# notes means what it says. On an isometric grid every direction word below would be wrong.
+#
+# Derived exit cells, from DismountGeometry: rear bearing = facing + 512, then FanOffsets
+# { 0, +256, -256 } for the three men in EjectionOrder (Commander, Gunner, Driver —
+# vehicles-america.yaml:473). +-256 is exactly +-90 degrees, so of a THREE-man crew only the first
+# man goes strictly astern and the other two go exactly abeam. That is the shipped fan, and the
+# capture notes must describe that shape rather than "all three behind", or the reader will grade a
+# correct frame as a failure.
+#
+#   HullNorth  facing 0    rear South   men at S, E, W    empty arc points NORTH  (12 o'clock)
+#   HullEast   facing 768  rear West    men at W, N, S    empty arc points EAST   ( 3 o'clock)
+#   HullSouth  facing 512  rear North   men at N, W, E    empty arc points SOUTH  ( 6 o'clock)
+#   HullWest   facing 256  rear East    men at E, N, S    empty arc points WEST   ( 9 o'clock)
+#
+# Walk distance is EjectWalkDistance 2 + SharedRandom.Next(2), i.e. 2 or 3 cells, and it is the ONLY
+# rolled quantity in the placement. Bearings are fully determined.
+#
+# SEPARATION. Hulls sit 24 cells apart in X and 12 in Y. Crew reach at most 3 cells, so the nearest
+# two men belonging to different hulls are 18 cells apart across and 6 down — comfortably more than
+# the 4-cell radius the Lua uses to attribute a man to a hull, which it re-checks at runtime rather
+# than trusting this comment.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	HullNorth: abrams
+		Owner: USA
+		Location: 20,11
+		Facing: 0
+	HullEast: abrams
+		Owner: USA
+		Location: 44,11
+		Facing: 768
+	HullSouth: abrams
+		Owner: USA
+		Location: 20,23
+		Facing: 512
+	HullWest: abrams
+		Owner: USA
+		Location: 44,23
+		Facing: 256
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 4,4
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+
+Rules: rules.yaml

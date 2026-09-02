@@ -12,7 +12,7 @@
 -- Activity.TickOuter:123-126 -- with ChildHasPriority (FlyAttack's default) the parent
 -- tick is short-circuited by `TickChild(self) && ...`, so FlyAttack.Tick DOES NOT RUN
 -- while a child activity is alive. FlyAttack's own abort check for exactly this
--- situation ("Check that AttackFollow hasn't cancelled the target", FlyAttack.cs:99-101)
+-- situation ("Check that AttackFollow hasn't cancelled the target", FlyAttack.cs:101-102)
 -- lives in that tick. Therefore:
 --
 --   MI28  AttackType: Hover, CanHover -- in range, FlyAttack queues no run child, so
@@ -22,7 +22,7 @@
 --         FlyAttackRun (Fly-in, FlyForward 1, Fly-out). Those are children, so the
 --         abort check cannot be consulted until the run ENDS. FlyAttackRun.Tick only
 --         self-cancels when the target becomes INVALID or has no valid weapons
---         (FlyAttack.cs:263-265); a critically damaged target is neither.
+--         (FlyAttack.cs:275-276); a critically damaged target is neither.
 --         Predict: the pass is flown to completion with the guns silent, and the
 --         activity only ends afterwards.
 --
@@ -33,16 +33,62 @@
 -- PersistentTargeting: false and takes the plain-clear path. If the promotion ever
 -- survives, the A10 lane is where it shows.
 --
+--   FROGSTRIKE  frog.airstrike -- AttackType: Strafe. Added 2026-09-01 as a10.airstrike and
+--         SWAPPED to frog.airstrike the same day, because the first run of the A10 variant
+--         found something sharper than the exemption this lane was built to catch.
+--
+--         ONE WRITE, TWO SYMPTOMS, and which one an airframe gets is decided entirely by its
+--         weapons. FlyAttack.cs:187-188 queues StrafeAttackRun, whose Tick RE-SETS the
+--         requested target every tick as
+--         `SetRequestedTarget(Target.FromTargetPositions(target), true)` (FlyAttack.cs:323-325)
+--         -- a TERRAIN target (Target.cs:33-35 -- FromTargetPositions builds one from the
+--         actor's positions), force-attack TRUE, and no source argument, so the source
+--         defaults to AttackSource.Default (AttackFollow.cs:58-59).
+--
+--         (a) BREAK-OFF EXEMPTION. The guard needs `RequestedTarget.Type == TargetType.Actor`
+--             AND `BreakOffApplies(Default, true)` = `!forceAttack && source != Default`
+--             = false. EITHER ALONE EXEMPTS IT. FlyAttack.Tick:108, which writes the real
+--             actor target and source, cannot rescue it: FlyAttack leaves ChildHasPriority at
+--             its default true, so its own Tick is skipped for as long as StrafeAttackRun is
+--             alive, and on the one tick it does run it queues the child and
+--             Activity.TickOuter:132-140 ticks that child in the SAME tick -- the terrain
+--             write always lands last. World.Tick runs every actor's activities before any
+--             ITick trait, so AttackFollow.Tick never once observes an Actor-type
+--             RequestedTarget while the run is in flight.
+--
+--         (b) CANNOT FIRE AT ALL. A terrain target is unconditionally IsValidFor
+--             (Target.cs:123-125), so AttackFollow.Tick:188 takes the requested branch and the
+--             opportunity-fire fallback at :216 is UNREACHABLE -- the airframe is locked aiming
+--             at ground it may not be able to shoot. Whether it can is decided by
+--             WeaponInfo.IsValidAgainst, which resolves a terrain target to the CELL's
+--             TargetTypes (WeaponInfo.cs:235-249) -- `Ground` on every TEMPERAT tile.
+--
+--         MEASURED 2026-09-01, and it is (b) that the A10 variant hits: lane 3 as
+--         `a10.airstrike` never armed -- "A10STRIKE never opened fire within 400 ticks", target
+--         still at hp100%. Neither of its weapons lists Ground. 30mm.A10 inherits ^30mm's
+--         `ValidTargets: Infantry, Vehicle, Defense` (weapons-ballistics.yaml:582) and Hellfire
+--         is `Vehicle, Air, Defense` (weapons-missiles.yaml:243). Both are perfectly valid
+--         against the t90 as an ACTOR (^Vehicle is `Ground, Vehicle`, vehicles.yaml:46-48),
+--         which is why it acquires the target, flies the run, and then never shoots. That
+--         defect is filed in WORKSPACE/bugs/discovered.md; it is NOT what this scenario asks.
+--
+--         THAT PREDICTION WAS TESTED AND FAILED. frog.airstrike carries RocketPods,
+--         `ValidTargets: Ground` (weapons-ballistics.yaml:912), and it fired ZERO shots too
+--         (run 260901_085215_p7281). So (b) is real for both strafe airframes but its stated
+--         cause is wrong, and (a) remains UNMEASURED because no strafe lane has ever engaged.
+--         Lane 3 is disabled; the falsification and the surviving facts are in
+--         WORKSPACE/DISCOVERIES.md. This scenario now measures the A10 and Mi-28 shapes only.
+--
 -- INFERENCE, NOT OBSERVATION (stated so it cannot be read as measured): the other
--- nine AttackAircraft actors are not in this scenario. F16/FROG/MIG share A10's
--- Default/!CanHover shape; littlebird/HELI/HIND share MI28's Hover shape.
--- A10.Airstrike and FROG.Airstrike are AttackType: Strafe and are a THIRD shape that
--- neither lane covers -- see the note in WORKSPACE/DISCOVERIES.md.
+-- eight AttackAircraft actors are not in this scenario. F16/FROG/MIG share A10's
+-- Default/!CanHover shape; littlebird/HELI/HIND share MI28's Hover shape; A10.Airstrike
+-- shares FROG.Airstrike's Strafe shape but cannot fire through it, per (b) above.
 --
 -- THE OBSERVABLE, and what could make it RED.
 -- shotsAfterCritical = ticks on which the aircraft's total ammo DECREASED after its
--- target was driven under 25% health. Decrements, not net, because both airframes
--- carry ReloadAmmoPool and a refill would otherwise mask a shot.
+-- target was driven under 25% health. Decrements, not net, because the A10 and Mi-28
+-- carry ReloadAmmoPool and a refill would otherwise mask a shot. (The Airstrike variants
+-- strip it, so lane 3 cannot refill -- see the ammoLeft0 note at the dry-gun fault.)
 -- RED arm = comment out the break-off guard in AttackFollow.Tick and rebuild. It has to
 -- be the engine edit rather than a YAML `BreakOffCondition:` switch, because the A10
 -- cannot be overridden from map rules at all right now — see the note in rules.yaml.
@@ -53,8 +99,27 @@
 --   * it ran out of ammo                     -> ammo must be > 0 at the end
 --   * the target died, so there was nothing left to shoot -> target must be alive
 --   * the manipulation never took            -> target hp must be < 25% at the end
--- Plus a contamination guard: 44 cells separate the lanes, and an aircraft that
--- wanders within 20 cells of the OTHER lane's target invalidates its own ammo trace.
+-- Plus a contamination guard: 40 cells separate adjacent lanes, and an aircraft that
+-- wanders within 20 cells of ANY other lane's target invalidates its own ammo trace.
+--
+-- WHY LANE 3's ARMING TRIGGER IS ALSO ITS PROOF-OF-POSTURE, which is the one thing a
+-- Strafe lane needs that the other two do not. The trigger fires on the lane's first
+-- ammo DECREMENT, and for a Strafe airframe a shot can only have been fired from inside
+-- a live StrafeAttackRun: FlyAttack.cs:180 pins minimumRange to zero for Strafe, so
+-- FlyAttack.Tick:183 reduces to "in max range?" -- out of range it queues MoveWithinRange
+-- and cannot fire at all, in range it queues StrafeAttackRun, which overwrites the
+-- requested target with the position write in that same tick. So "lane 3 fired" is not
+-- merely evidence that it engaged; it is evidence that the run child was alive and had
+-- written the exempt target. Without that, a break-off observed during the APPROACH --
+-- where FlyAttack.Tick's actor-target write is the last one standing and the guard CAN
+-- fire -- would read as "strafe airframes break off fine" and bury the defect.
+--
+-- EXECUTION MARKER. Every verdict string starts with `bkoff3/` and carries `obs<n>`, the
+-- number of observation ticks actually executed, and WorldLoaded prints `[bkoff3] loaded`
+-- to lua.log before it touches anything. A Lua load abort also reports status:fail, so
+-- without these a never-executed run is indistinguishable from a real RED. If a fail
+-- verdict does not begin with `bkoff3/`, the script did not run and the result is void --
+-- check lua.log is non-empty and that map.yaml still ends with its `Rules: rules.yaml`.
 
 local ArmDeadlineTicks = 400    -- must have opened fire by here, or the setup is void
 local ObserveTicks = 250        -- watch window after the target goes critical
@@ -73,19 +138,74 @@ local ContaminationCells = 20
 -- of them necessarily fall outside it. The grace cannot hide a disabled guard.
 local GraceTicks = 2
 
+-- `pools` is per-lane and is NOT cosmetic: AmmoPoolProperties.AmmoCount THROWS a LuaException
+-- for a pool the actor does not declare (AmmoPoolProperties.cs:36-38), which aborts the whole
+-- run rather than returning zero. frog.airstrike carries ONE pool -- FROG declares only
+-- `primary-ammo` (aircraft-russia.yaml:505) -- while the A10 and Mi-28 carry both. A shared
+-- {primary,secondary} list would have killed the script on lane 3's first ammo read.
 local Lanes = {
 	{
 		id = "A10",
 		unit = "a10",
 		ax = 10, ay = 6, alt = 2560,
 		tx = 10, ty = 20,
+		pools = { "primary-ammo", "secondary-ammo" },
 	},
 	{
 		id = "MI28",
 		unit = "mi28",
-		ax = 54, ay = 6, alt = 1280,
-		tx = 54, ty = 20,
+		ax = 50, ay = 6, alt = 1280,
+		tx = 50, ty = 20,
+		pools = { "primary-ammo", "secondary-ammo" },
 	},
+	-- alt 1536 is FROG.Airstrike's own CruiseAltitude (1c512, aircraft-russia.yaml:719) --
+	-- NOT the FROG's 1560, and not the A10's 2560. Aircraft.AddedToWorld only marks an
+	-- aircraft airborne AND cruising on the tick it appears if it is created at its own
+	-- cruise height, and a fixed-wing that starts below it spends the opening ticks climbing
+	-- instead of attacking, which eats the arming deadline for no reason.
+	--
+	-- A Russian airframe under the USA player is deliberate and already precedented by the
+	-- Mi-28 lane above: Actor.Create takes the owner as given, and nothing here is
+	-- faction-gated. What matters is that FROG inherits ^AutoTargetGroundAntiTank
+	-- (aircraft-russia.yaml:462) with InitialStance FireAtWill, so the lane acquires without
+	-- an order, and that AutoTargetInfo.BreakOffCondition defaults to `critical-damage`
+	-- (AutoTarget.cs:244) -- the guard has something to test.
+	--
+	-- LANE 3 IS DISABLED, and it is disabled because it never worked, not because it is
+	-- finished. MEASURED 2026-09-01, run 260901_085215_p7281 seed -1717682274:
+	--   FROGSTRIKE shotsBefore0 SHOTSAFTER0 postGrace0 distAtCrit-1 finalDist11
+	--              tgtHp100% ammoLeft30 finalAlt1536 trace[13,12,12,12,12,12,12,11,11,11]
+	-- Zero shots before the trigger as well as after, and the target untouched at full health.
+	-- `frog.airstrike` does not fire either, so the `RocketPods` / `ValidTargets: Ground`
+	-- reasoning that motivated the swap from `a10.airstrike` is FALSIFIED -- see the correction
+	-- in WORKSPACE/DISCOVERIES.md.
+	--
+	-- THE TRACE ABOVE DOES NOT MEAN WHAT THIS BLOCK USED TO SAY IT MEANT (corrected 2026-09-02).
+	-- It was read here as "a flat 11-13 cell standoff for the whole window". It is not: it covers
+	-- the LAST 250 of 626 ticks and nothing before. observeTick is the only function that appends
+	-- to a trace, and during the arming phase it runs for a lane only once that lane has ARMED
+	-- (the `if l.armed then observeTick(l)` branch below); lane 3 never armed, so it was first
+	-- sampled at its arming DEADLINE -- which is also where minDistAfter is assigned -1, after
+	-- which `d < l.minDistAfter` can never be true again, so that field is structurally dead for
+	-- this lane and its -1 is a sentinel, not "it never got close". Lanes 1 and 2 carry 26 trace
+	-- samples and obs626; lane 3 carries 10. The strafe airframe's first 400 ticks -- the window
+	-- holding its opening pass -- were never sampled at all.
+	--
+	-- What stands without the trace is the half that matters: shotsBefore0, SHOTSAFTER0 and
+	-- ammoLeft30 against a 30-round magazine. It fired nothing across 626 ticks.
+	--
+	-- Re-enabling it without first finding out why a Strafe airframe does not engage just
+	-- restores a permanently SETUP-INVALID lane that masks the two lanes that do work. DO NOT
+	-- re-enable it to investigate either: tools/autotest/scenarios/test-strafe-engage exists for
+	-- that, traces from tick 0, and carries a plain-`frog` positive control so a zero is readable.
+	--
+	-- {
+	-- 	id = "FROGSTRIKE",
+	-- 	unit = "frog.airstrike",
+	-- 	ax = 90, ay = 6, alt = 1536,
+	-- 	tx = 90, ty = 20,
+	-- 	pools = { "primary-ammo" },
+	-- },
 }
 
 local setupFaults = {}
@@ -101,9 +221,13 @@ local function cellDist(a, b)
 	return dy
 end
 
-local function totalAmmo(a)
-	if a.IsDead then return 0 end
-	return a.AmmoCount("primary-ammo") + a.AmmoCount("secondary-ammo")
+local function totalAmmo(l)
+	if l.plane.IsDead then return 0 end
+	local n = 0
+	for _, p in ipairs(l.pools) do
+		n = n + l.plane.AmmoCount(p)
+	end
+	return n
 end
 
 local function addFault(s)
@@ -113,9 +237,13 @@ end
 local function finish()
 	local report = {}
 	local totalShotsAfter = 0
+	local offenders = {}
+	local observedTicks = 0
 
 	for _, l in ipairs(Lanes) do
 		totalShotsAfter = totalShotsAfter + l.shotsAfterGrace
+		if l.shotsAfterGrace > 0 then table.insert(offenders, l.id) end
+		if l.observed > observedTicks then observedTicks = l.observed end
 
 		local hpPct = -1
 		if not l.target.IsDead then
@@ -124,7 +252,14 @@ local function finish()
 
 		if l.plane.IsDead then addFault(l.id .. " aircraft died") end
 		if l.target.IsDead then addFault(l.id .. " target died") end
-		if not l.plane.IsDead and totalAmmo(l.plane) <= 0 then
+		-- Lane 3 is the one that can realistically reach this, and only in the arm where the
+		-- guard fails: frog.airstrike carries 30 rockets, no ReloadAmmoPool and no Rearmable,
+		-- and RocketPods is Burst 10, so an unguarded lane empties in ~3 bursts. That is not a
+		-- void run -- the break-off verdict above is evaluated FIRST and will already have
+		-- latched, because a single Burst-10 volley at BurstDelays 1 puts ~8 decrements outside
+		-- the 2-tick grace. A dry lane 3 reported WITHOUT a break-off failure is the real
+		-- setup fault: it means the gun went silent for a reason other than the guard.
+		if not l.plane.IsDead and totalAmmo(l) <= 0 then
 			addFault(l.id .. " aircraft ended dry - a silent gun proves nothing")
 		end
 		if not l.target.IsDead and hpPct >= 25 then
@@ -155,7 +290,7 @@ local function finish()
 			"trace[" .. table.concat(l.trace, ",") .. "]",
 			"hpAtCrit" .. l.hpAtCritical .. "%",
 			"tgtHp" .. hpPct .. "%",
-			"ammoLeft" .. totalAmmo(l.plane),
+			"ammoLeft" .. totalAmmo(l),
 			-- Altitude is pure diagnosis. Nothing in the suite has ever spawned a
 			-- fixed-wing airborne, so if the A10 lane fails mutely these two numbers say
 			-- whether it was flying at all. Both lanes are created at exactly their own
@@ -167,13 +302,27 @@ local function finish()
 		}, " "))
 	end
 
-	local summary = table.concat(report, " | ")
+	-- `bkoff3/` and obs<n> are the EXECUTION MARKER and ride on every verdict, pass or fail:
+	-- a Lua that aborted at load also reports status:fail, and only their presence separates
+	-- that from a run that actually measured something. obs<n> is the observation ticks the
+	-- slowest-armed lane completed, so obs0 says the arming phase never finished.
+	local summary = "bkoff3/ obs" .. observedTicks .. " " .. table.concat(report, " | ")
 
 	-- Order matters. The break-off verdict is read FIRST so the RED arm reports the
 	-- mechanism rather than the collateral (a target the un-guarded aircraft shot to
 	-- death would otherwise surface as "target died" and hide why).
+	--
+	-- THE LANE LIST IN BRACKETS IS LOAD-BEARING, not decoration. Two different runs fail
+	-- here and they must never be read as the same result:
+	--   [A10,MI28] -- the RED arm, break-off guard commented out of AttackFollow.Tick.
+	--                 Both lanes fire; the gate works.
+	--   [A10] or [MI28] alone -- one airframe class regressed and the other did not, which
+	--                 is the result this bracket exists to keep separable from the RED arm.
+	-- A bare total would collapse those into one number. The Strafe lane that was meant to be
+	-- the third entry here is disabled -- see the block in the Lanes table.
 	if totalShotsAfter > 0 then
-		Test.Fail("BREAK-OFF DID NOT FIRE: " .. totalShotsAfter
+		Test.Fail("BREAK-OFF DID NOT FIRE [" .. table.concat(offenders, ",") .. "]: "
+			.. totalShotsAfter
 			.. " shots taken at a critically damaged target after break-off"
 			.. " (beyond a " .. GraceTicks .. "-tick grace) || " .. summary)
 		return
@@ -190,7 +339,7 @@ end
 local function observeTick(l)
 	if l.plane.IsDead then return end
 
-	local ammo = totalAmmo(l.plane)
+	local ammo = totalAmmo(l)
 	if ammo < l.prevAmmo then
 		l.shotsAfter = l.shotsAfter + 1
 		if l.observed >= GraceTicks then l.shotsAfterGrace = l.shotsAfterGrace + 1 end
@@ -208,8 +357,10 @@ local function observeTick(l)
 	l.finalDist = d
 	l.finalAlt = l.plane.CenterPosition.Z
 
-	if cellDist(here, l.otherTargetCell) < ContaminationCells then
-		l.contaminated = true
+	for _, c in ipairs(l.otherTargetCells) do
+		if cellDist(here, c) < ContaminationCells then
+			l.contaminated = true
+		end
 	end
 
 	local idle = l.plane.IsIdle
@@ -273,7 +424,7 @@ local function armPhase()
 					l.armed = true
 					l.distAtCritical = -1
 				else
-					local ammo = totalAmmo(l.plane)
+					local ammo = totalAmmo(l)
 					if ammo < l.prevAmmo then
 						l.shotsBefore = l.shotsBefore + 1
 						l.firedBefore = true
@@ -305,6 +456,13 @@ local function armPhase()
 						l.finalDist = l.distAtCritical
 						l.wasIdle = l.plane.IsIdle
 						l.armed = true
+
+						-- Live values, printed rather than interpolated into a failure
+						-- string: AssertWithin-style messages are concatenated eagerly at
+						-- registration and would report the pre-run zeros forever.
+						print("[bkoff3] armed lane=" .. l.id .. " elapsed=" .. elapsed
+							.. " hpAtCrit=" .. l.hpAtCritical .. "% dist=" .. l.distAtCritical
+							.. " alt=" .. l.altAtCritical .. " ammo=" .. totalAmmo(l))
 					else
 						allArmed = false
 					end
@@ -338,10 +496,16 @@ local function armPhase()
 end
 
 WorldLoaded = function()
+	-- Printed before anything else can throw: this line in lua.log is the proof that the
+	-- script loaded at all. A run whose lua.log lacks it never executed, whatever the
+	-- verdict says (AUTOTEST.md: "the tell is lua.log at 0 bytes").
+	print("[bkoff3] loaded lanes=" .. #Lanes .. " observeTicks=" .. ObserveTicks
+		.. " armDeadline=" .. ArmDeadlineTicks .. " grace=" .. GraceTicks)
+
 	local USA = Player.GetPlayer("USA")
 	local RUSSIA = Player.GetPlayer("Russia")
 	if USA == nil or RUSSIA == nil then
-		Test.Fail("setup: USA or Russia player not found")
+		Test.Fail("bkoff3/ setup: USA or Russia player not found")
 		return
 	end
 
@@ -358,7 +522,7 @@ WorldLoaded = function()
 		})
 
 		if l.plane == nil or l.target == nil then
-			Test.Fail("setup: could not spawn " .. l.unit .. " / t90 for lane " .. l.id)
+			Test.Fail("bkoff3/ setup: could not spawn " .. l.unit .. " / t90 for lane " .. l.id)
 			return
 		end
 
@@ -367,7 +531,7 @@ WorldLoaded = function()
 		l.target.Stance = "HoldFire"
 
 		l.targetCell = l.target.Location
-		l.prevAmmo = totalAmmo(l.plane)
+		l.prevAmmo = totalAmmo(l)
 		l.shotsBefore = 0
 		l.shotsAfter = 0
 		l.shotsAfterGrace = 0
@@ -392,8 +556,12 @@ WorldLoaded = function()
 		l.wasIdle = false
 	end
 
-	Lanes[1].otherTargetCell = Lanes[2].targetCell
-	Lanes[2].otherTargetCell = Lanes[1].targetCell
+	for i, l in ipairs(Lanes) do
+		l.otherTargetCells = {}
+		for j, o in ipairs(Lanes) do
+			if i ~= j then table.insert(l.otherTargetCells, o.targetCell) end
+		end
+	end
 
 	TestHarness.FocusBetween(Lanes[1].plane, Lanes[1].target)
 	TestHarness.Select(Lanes[1].plane)

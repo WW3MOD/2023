@@ -473,7 +473,17 @@ namespace OpenRA.Traits
 	public interface INotifyIdle { void TickIdle(Actor self); }
 
 	public interface IRenderAboveWorld { void RenderAboveWorld(Actor self, WorldRenderer wr); }
-	public interface IRenderShroud { void RenderShroud(WorldRenderer wr); }
+	public interface IRenderShroud
+	{
+		void RenderShroud(WorldRenderer wr);
+
+		/// <summary>
+		/// Multiplier applied to each fog layer's alpha; 1 is the engine baseline. Exposed so the
+		/// beyond-map fog strip in <see cref="Graphics.WorldRenderer"/>, which cannot see the
+		/// renderer's TraitInfo from OpenRA.Game, scales in step with the fog drawn over the map.
+		/// </summary>
+		float FogDarkness { get; }
+	}
 
 	[RequireExplicitImplementation]
 	public interface IRenderTerrain { void RenderTerrain(WorldRenderer wr, Viewport viewport); }

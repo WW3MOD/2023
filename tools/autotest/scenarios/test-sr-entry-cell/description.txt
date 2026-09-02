@@ -1,0 +1,1 @@
+Auto: a ground reinforcement must enter at the TRUE nearest map-edge cell to its Supply Route (1,16 for an SR at 14,16), not at the north end of the floored-sqrt tie band (1,11). Pins ProductionFromMapEdge's legacy no-spawnarea branch, the caller that decides reinforcement entry on 9 of the 10 shipped maps.

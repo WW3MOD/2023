@@ -247,7 +247,12 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (modifiers.Contains("Shift"))
 				mods |= Modifiers.Shift;
 
-			return palette.SimulateIconClick(actorType, MouseButton.Left, mods);
+			// Unsynced for the same reason as PressHotkey, and this one is a live trap rather than a
+			// precaution: a left click on a COMPLETED BUILDING icon reaches PickUpCompletedBuildingIcon
+			// (ProductionPaletteWidget.cs:384) via HandleEvent -> HandleLeftClick, which sets
+			// World.OrderGenerator to a PlaceBuildingOrderGenerator and would throw AssertUnsynced from
+			// the synced Lua tick. It has survived only because every existing caller clicks a UNIT.
+			return Sync.RunUnsynced(Context.World, () => palette.SimulateIconClick(actorType, MouseButton.Left, mods));
 		}
 
 		[Desc("State of the class-grouped unload menu: an empty string when it is closed, otherwise " +
@@ -269,12 +274,17 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return $"{menus.Length}:{(list == null ? -1 : list.Children.Count)}";
 		}
 
-		[Desc("Geometry of the open unload menu as 'rows=N content=N clip=N panel=N screen=N', or an " +
-			"empty string when it is closed. `content` is what the rows need, `clip` is the height the " +
-			"scroll panel actually gives them. A row count ALONE cannot see the bug this exists for: " +
-			"Refresh adds every class row to the list whatever the panel's height, so rows past the " +
-			"cap were counted but drawn nowhere — with ScrollBar Hidden advertising nothing. " +
-			"clip < content is that bug, in a number. Test mode only.")]
+		[Desc("Geometry of the open unload menu as 'rows=N content=N clip=N panel=N screen=N bar=N " +
+			"barleft=N countright=N', or an empty string when it is closed. `content` is what the rows " +
+			"need, `clip` is the height the scroll panel actually gives them. A row count ALONE cannot " +
+			"see the bug this exists for: Refresh adds every class row to the list whatever the panel's " +
+			"height, so rows past the cap were counted but drawn nowhere — with ScrollBar Hidden " +
+			"advertising nothing. clip < content is that bug, in a number. `bar` is 1 when the scrollbar " +
+			"is showing; it should be 1 exactly when clip < content, because a clip that is never " +
+			"advertised is the same defect wearing a scrollbar's absence. `barleft` is the bar's left " +
+			"edge in list-local x (-1 when hidden) and `countright` the right edge of a row's count " +
+			"column, so a test can prove the bar is not sitting on top of the counts — which is what " +
+			"sank the first attempt at one. Test mode only.")]
 		public string GetUnloadMenuGeometry()
 		{
 			if (!TestMode.IsActive)
@@ -285,8 +295,23 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (list == null)
 				return "";
 
+			var barVisible = list.ScrollBar != ScrollBar.Hidden;
+			var barLeft = barVisible ? list.Bounds.Width - list.ScrollbarWidth : -1;
+
+			// Read the count column off a live row rather than the template: the rows are clones and
+			// keep the width they were resolved at, which is the whole reason widening the list leaves
+			// a clear gutter for the bar.
+			var countRight = -1;
+			if (list.Children.FirstOrDefault() is Widget row)
+			{
+				var count = row.GetOrNull<LabelWidget>("CLASS_COUNT");
+				if (count != null)
+					countRight = count.Bounds.Right;
+			}
+
 			return $"rows={list.Children.Count} content={list.ContentHeight} clip={list.Bounds.Height} " +
-				$"panel={menu.Bounds.Height} screen={Game.Renderer.Resolution.Height}";
+				$"panel={menu.Bounds.Height} screen={Game.Renderer.Resolution.Height} " +
+				$"bar={(barVisible ? 1 : 0)} barleft={barLeft} countright={countRight}";
 		}
 
 		[Desc("Click a row of the open unload menu: the row itself drops one man of that class, or " +
@@ -307,9 +332,13 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (list.Children[index] is not ScrollItemWidget row)
 				return false;
 
+			// Invoking a widget's OnClick from the synced Lua tick is the PressHotkey trap again: these
+			// handlers are written for the unsynced input context, and Drop() reaching anything that
+			// touches client-only state would throw rather than misbehave. Written as lambdas rather
+			// than method groups so the dispatch stays visible to the IL scan in TestGlobalSyncTest.
 			if (!all)
 			{
-				row.OnClick();
+				Sync.RunUnsynced(Context.World, () => row.OnClick());
 				return true;
 			}
 
@@ -317,7 +346,7 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (allButton == null)
 				return false;
 
-			allButton.OnClick();
+			Sync.RunUnsynced(Context.World, () => allButton.OnClick());
 			return true;
 		}
 
@@ -328,8 +357,10 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			"is the ONLY way to reach the CommandBarLogic MODIFIER_OVERRIDES rescue path, because a " +
 			"Shift-bearing event does not match an unshifted binding and ButtonWidget.HandleKeyPress " +
 			"rejects it before OnKeyPress. Note that this does NOT update Game.GetModifierKeys(), so a " +
-			"button reading global modifier state instead of its KeyInput sees no Shift here. " +
-			"Returns true if a widget consumed it. Test mode only.")]
+			"button reading global modifier state instead of its KeyInput sees no Shift here — but a " +
+			"command-bar MODE is still reachable, because its OnClick sets a sticky " +
+			"ForceModifiersOrderGenerator that IsForceModifiersActive matches without consulting the " +
+			"live modifier keys. Returns true if a widget consumed it. Test mode only.")]
 		public bool PressHotkey(string hotkeyName, bool shift = false)
 		{
 			if (!TestMode.IsActive)
@@ -339,13 +370,23 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (!hotkey.IsValid())
 				return false;
 
-			return Ui.HandleKeyPress(new KeyInput
+			var input = new KeyInput
 			{
 				Event = KeyInputEvent.Down,
 				Key = hotkey.Key,
 				Modifiers = shift ? hotkey.Modifiers | Modifiers.Shift : hotkey.Modifiers,
 				MultiTapCount = 1,
-			});
+			};
+
+			// Lua runs inside the synced world tick, and dispatching a keypress bare from there is not
+			// what a real key does: DefaultInputHandler.OnKeyInput (InputHandler.cs:40) wraps this very
+			// same Ui.HandleKeyPress call in Sync.RunUnsynced, and it is that wrapper which permits a
+			// handler to touch client-only state. Without it every command-bar MODE — each one sets
+			// World.OrderGenerator — died on AssertUnsynced instead of engaging, which made all six
+			// unreachable from any autotest. Deliberately the same overload the input handler uses, so
+			// the sync-hash guard still runs: a hotkey that mutates simulation state fails loudly here
+			// exactly as it would for a player pressing the key.
+			return Sync.RunUnsynced(Context.World, () => Ui.HandleKeyPress(input));
 		}
 
 		[Desc("Replace the local player's selection with ALL of `actors`. UserInterface.Select takes a " +
@@ -695,6 +736,99 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return UnitOrderGenerator.CursorForOrders(results) ?? "";
 		}
 
+		// The three bindings below exist because the frozen-actor cursor was the one fog behaviour the
+		// suite could not reach. ClickCursor above builds Target.FromActor, so it always resolves
+		// CanTargetActor and never CanTargetFrozenActor — the arm that decides what a player may infer
+		// about a unit they cannot currently see. The only other producer of a frozen Target is
+		// UnitOrderGenerator.TargetForInput (:39), which needs a live mouse position AND a non-null
+		// RenderPlayer, and TestModeLogic.cs:31 nulls RenderPlayer. That combination is what forced the
+		// 2579ca0a enter-cursor fix to be defended by an IL byte-scan instead of a scenario.
+		//
+		// These bypass TargetForInput rather than RenderPlayer-gating it: OrdersForSelection reads no
+		// RenderPlayer, so the frozen cursor is answerable WITHOUT Test.KeepRenderPlayer=true. The
+		// frozen state itself never depended on RenderPlayer either — FrozenActor.Visible is computed
+		// from the VIEWER's own MapLayers (FrozenActorLayer.cs:174-186).
+		static FrozenActor FrozenFor(Player viewer, Actor target)
+		{
+			if (viewer?.FrozenActorLayer == null || target == null)
+				return null;
+
+			var fa = viewer.FrozenActorLayer.FromID(target.ActorID);
+			return fa != null && fa.IsValid ? fa : null;
+		}
+
+		[Desc("The state of `viewer`'s frozen-actor ghost of `target`. One of: \"none\" (no ghost — the " +
+			"actor has no FrozenUnderFog trait, or was never in this viewer's layer), \"live\" (a ghost " +
+			"exists but the viewer can currently SEE the real actor, so no stale inference is possible), " +
+			"\"shrouded\" (frozen, but under raw shroud, so it draws nothing) or \"frozen\" (the state " +
+			"under test: the viewer holds a stale ghost of a unit it cannot observe). ASSERT THIS BEFORE " +
+			"any frozen cursor or owner assertion — \"live\" or \"none\" means the scenario never reached " +
+			"the state it meant to test, and any verdict below it is vacuous. Independent of " +
+			"RenderPlayer. Test mode only.")]
+		public string FrozenActorState(Player viewer, Actor target)
+		{
+			if (!TestMode.IsActive)
+				return "none";
+
+			var fa = FrozenFor(viewer, target);
+			if (fa == null)
+				return "none";
+
+			if (!fa.Visible)
+				return "live";
+
+			return fa.Shrouded ? "shrouded" : "frozen";
+		}
+
+		[Desc("The internal name of the owner recorded on `viewer`'s frozen ghost of `target`, or \"\" " +
+			"when there is no ghost. This is the SNAPSHOT owner (FrozenActor.Owner), not the live one — " +
+			"comparing it against the live owner is how a test proves the snapshot did or did not move " +
+			"while the viewer was not looking. Test mode only.")]
+		public string FrozenActorOwner(Player viewer, Actor target)
+		{
+			if (!TestMode.IsActive)
+				return "";
+
+			return FrozenFor(viewer, target)?.Owner?.InternalName ?? "";
+		}
+
+		[Desc("The internal name of the owner the TOOLTIP would print over `viewer`'s frozen ghost of " +
+			"`target` (FrozenActor.TooltipOwner), or \"\" when there is no ghost. This is a DIFFERENT " +
+			"field from FrozenActorOwner and the two are meant to disagree after a capture the viewer " +
+			"did not witness: Owner follows the captor so targeting stays correct, TooltipOwner holds " +
+			"at the last owner this viewer actually saw so the tooltip cannot name the captor. Reading " +
+			"both in one assertion is how a test tells the shipped fix apart from the rejected one " +
+			"(freezing Owner), which would break every relationship predicate. Test mode only.")]
+		public string FrozenActorTooltipOwner(Player viewer, Actor target)
+		{
+			if (!TestMode.IsActive)
+				return "";
+
+			return FrozenFor(viewer, target)?.TooltipOwner?.InternalName ?? "";
+		}
+
+		[Desc("The cursor name `actors` would show over `viewer`'s frozen ghost of `target` — resolved " +
+			"through UnitOrderGenerator with Target.FromFrozenActor, so it exercises the " +
+			"CanTargetFrozenActor arm that a normal ClickCursor call can never reach. Empty string when " +
+			"no order names one, or when there is no ghost. Mirrors TargetForInput's own eligibility " +
+			"filter (ITargetable + Visible + HasRenderables), so a ghost the mouse could not pick " +
+			"reports \"\" here too — call FrozenActorState first to tell that apart from a real refusal. " +
+			"Issues nothing. Test mode only.")]
+		public string FrozenClickCursor(Actor[] actors, Player viewer, Actor target, string modifiers = "")
+		{
+			if (!TestMode.IsActive || actors == null || actors.Length == 0)
+				return "";
+
+			var fa = FrozenFor(viewer, target);
+			if (fa == null || !fa.Visible || !fa.HasRenderables || !fa.Info.HasTraitInfo<ITargetableInfo>())
+				return "";
+
+			var results = UnitOrderGenerator.OrdersForSelection(
+				actors, Target.FromFrozenActor(fa), target.Location, ParseClickModifiers(modifiers));
+
+			return UnitOrderGenerator.CursorForOrders(results) ?? "";
+		}
+
 		[Desc("Issue a real AttackMove order, going through AttackMove.ResolveOrder the way a player's " +
 			"attack-move click does. Use this rather than the activity-direct Lua `unit.AttackMove`, " +
 			"which constructs AttackMoveActivity itself and never consults the order layer at all — if " +
@@ -794,6 +928,48 @@ namespace OpenRA.Mods.Common.Scripting.Global
 							cells.Add(actor.World.Map.CellContaining(n.Target.CenterPosition));
 
 			return cells.ToArray();
+		}
+
+		[Desc("`actor`'s activity queue as a string, for putting in a failure message. Format is " +
+			"\"Parent>Child>Grandchild | Next>...\": the '>' chain is CurrentActivity and its CHILDREN " +
+			"(Activity.DebugLabelComponents), and '|' separates queued NextActivity entries. Returns " +
+			"\"(idle)\" when CurrentActivity is null — which is exactly Actor.IsIdle, so this is the " +
+			"strictly more informative version of asserting on IsIdle. " +
+			"WHY THIS EXISTS: an autotest that reports \"the unit never went idle\" cannot say WHY, and " +
+			"the two explanations demand opposite fixes — an attack activity that refuses to end is an " +
+			"engine bug, while a Move or RotateToEdge means the order DID end and something re-tasked " +
+			"the unit afterwards. Distinguishing those by reading code has already produced one " +
+			"confident wrong answer (WORKSPACE/bugs/discovered.md, 2026-09-01). Name the activity in " +
+			"the verdict instead of inferring it. Truncated at 8 queue entries so a runaway queue " +
+			"cannot flood result.json. Test mode only.")]
+		public string ActivityChain(Actor actor)
+		{
+			if (!TestMode.IsActive || actor == null)
+				return "";
+
+			if (actor.CurrentActivity == null)
+				return "(idle)";
+
+			var queued = new List<string>();
+			for (var a = actor.CurrentActivity; a != null && queued.Count < 8; a = a.NextActivity)
+				queued.Add(string.Join(">", a.DebugLabelComponents()) + (a.IsCanceling ? "(cancelling)" : ""));
+
+			return string.Join(" | ", queued);
+		}
+
+		[Desc("AmmoPool.CannotFight(actor) — \"this actor must not be holding an attack order\", i.e. " +
+			"every pool empty on a non-aircraft. This is the exact predicate the ammo guards in " +
+			"Activities/Attack.cs and Move/AttackMoveActivity.cs branch on, so reporting it in a " +
+			"failure message answers \"did the guard's condition even hold?\" without inferring it from " +
+			"an ammo count. The two are NOT the same question on a multi-pool actor: CannotFight needs " +
+			"EVERY pool empty, so draining one pool from Lua can leave it false while AmmoCount reads " +
+			"zero for the pool that was drained. Test mode only.")]
+		public bool CannotFight(Actor actor)
+		{
+			if (!TestMode.IsActive || actor == null)
+				return false;
+
+			return AmmoPool.CannotFight(actor);
 		}
 
 		[Desc("Issue the deploy order that the command bar's Deploy button — and its hotkey — produce, " +
@@ -919,6 +1095,66 @@ namespace OpenRA.Mods.Common.Scripting.Global
 				return;
 
 			GroupScatterHotkeyLogic.PerformGroupScatter(alive[0].World, alive);
+		}
+
+		[Desc("Spread the local player's free capture units across the given structures as if the user " +
+			"had selected them and pressed Deploy (F). Returns the number of capture orders issued, " +
+			"which is 0 when every capture unit is already committed elsewhere or every structure is " +
+			"already covered. Test mode only.")]
+		public int DispatchCapture(Actor[] structures)
+		{
+			if (!TestMode.IsActive || structures == null || structures.Length == 0)
+				return 0;
+
+			var alive = structures.Where(a => a != null && a.IsInWorld && !a.IsDead).ToList();
+			if (alive.Count == 0)
+				return 0;
+
+			var world = alive[0].World;
+			var dispatcher = world.WorldActor.TraitOrDefault<CaptureDispatchManager>();
+			if (dispatcher == null)
+				return 0;
+
+			var orders = dispatcher.DispatchAcross(world, alive, false).ToArray();
+			foreach (var o in orders)
+				world.IssueOrder(o);
+
+			return orders.Length;
+		}
+
+		[Desc("The structure a capture unit already holds a capture order for, or 0 when it is free. " +
+			"Reads the activity queue, so a unit that has been ordered but is still walking reports " +
+			"its target — which CaptureManager cannot tell you, because it only learns about a " +
+			"capture when the unit arrives. Test mode only.")]
+		// RETURNS int, NOT uint, and that is not cosmetic: ScriptTypes.ToLuaValue converts double,
+		// int, bool, string, IScriptBindable and Array, and nothing else — a boxed uint does not
+		// match `is int`, so it reached the final throw and killed the script outright with
+		// "Cannot convert type 'System.UInt32' to Lua". This was the only binding in the whole
+		// scripting surface returning an unconvertible type, and lua-gate cannot see it: the gate
+		// resolves that a NAME is registered, never that its return value can cross back.
+		//
+		// ActorID is uint and is narrowed here. It comes from a sequential counter, so reaching
+		// int.MaxValue would need 2^31 actors in one match; the world runs out of memory first.
+		public int CommittedCaptureTarget(Actor capturer)
+		{
+			if (!TestMode.IsActive || capturer == null || capturer.IsDead || !capturer.IsInWorld)
+				return 0;
+
+			return (int)CaptureDispatchManager.CommittedTarget(capturer);
+		}
+
+		[Desc("True when the given capture unit holds a capture order for the given structure. Lets a " +
+			"scenario assert WHICH structure a unit was sent at without plumbing actor ids through " +
+			"Lua. Test mode only.")]
+		public bool IsCommittedTo(Actor capturer, Actor structure)
+		{
+			if (!TestMode.IsActive || capturer == null || structure == null)
+				return false;
+
+			if (capturer.IsDead || !capturer.IsInWorld || structure.IsDead)
+				return false;
+
+			return CaptureDispatchManager.CommittedTarget(capturer) == structure.ActorID;
 		}
 
 		[Desc("Running count of CreateEffectWarhead impacts that PASSED THE IMPACT VALIDITY GATES this " +
@@ -1257,7 +1493,13 @@ namespace OpenRA.Mods.Common.Scripting.Global
 
 			var name = command.TrimStart('/').Split(' ')[0].ToLowerInvariant();
 			if (cc.Commands.TryGetValue(name, out var cmd))
-				cmd.InvokeCommand(name, "");
+			{
+				// A chat command is normally invoked from the chatbox, i.e. from the unsynced input
+				// context. The registered set is open-ended — any mod trait can add one — so what an
+				// InvokeCommand reaches cannot be bounded by reading it here, which is exactly the
+				// shape that made the PressHotkey failure survive.
+				Sync.RunUnsynced(Context.World, () => cmd.InvokeCommand(name, ""));
+			}
 		}
 
 		SightingThreatLayer Sighting()

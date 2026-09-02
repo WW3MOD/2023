@@ -1864,19 +1864,16 @@ namespace OpenRA
 			return edge.V == Bounds.Bottom ? unProjected.MaxBy(x => x.V) : unProjected.MinBy(x => x.V);
 		}
 
+		// LengthSquared, not Length: CVec.Length is Exts.ISqrt with ISqrtRoundMode.Floor, and flooring a sort key
+		// merges cells that are NOT equidistant into one tie. From a cell 7 columns off the left edge, every
+		// perimeter cell within 3 rows floors to 7 — a 7-cell tie — and OrderBy is stable, so the winner was
+		// decided by UpdateEdgeCells' enumeration order (columns appended with v ascending, :1943-1952) rather
+		// than by distance. The band is +/-floor(sqrt(2d)) for perpendicular distance d, so the bias toward the
+		// low-v end of the edge GREW with distance from it — 3 cells at d=7, 6 at d=20.
+		// LengthSquared is exact, monotonic in true distance, and cheaper — no sqrt per perimeter candidate.
 		public CPos ChooseClosestMatchingEdgeCell(CPos cell, Func<CPos, bool> match)
 		{
-			return AllEdgeCells.OrderBy(c => (cell - c).Length).FirstOrDefault(c => match(c));
-		}
-
-		/// <summary>
-		/// Find the closest matching edge cell on the same map edge as the hint cell.
-		/// The hint should be on or near a map edge. Only cells on that same edge are considered.
-		/// </summary>
-		public CPos ChooseClosestMatchingEdgeCellOnSameEdge(CPos hint, Func<CPos, bool> match)
-		{
-			var candidates = GetSameEdgeCells(hint);
-			return candidates.OrderBy(c => (hint - c).Length).FirstOrDefault(c => match(c));
+			return AllEdgeCells.OrderBy(c => (cell - c).LengthSquared).FirstOrDefault(c => match(c));
 		}
 
 		/// <summary>
@@ -1885,8 +1882,25 @@ namespace OpenRA
 		/// </summary>
 		public CPos[] GetSpawnCandidatesOnSameEdge(CPos hint, int count)
 		{
+			// LengthSquared, not Length — same defect as ChooseClosestMatchingEdgeCell above, but here it
+			// cuts differently. A floored key can never sort a FARTHER cell ahead of a nearer one (it is
+			// monotone in |k|), so a single-winner pick only ever saw a tie. Take(count) is what does the
+			// damage: it cuts INSIDE a merged tie-group that is ordered by UpdateEdgeCells' enumeration
+			// (v ascending, UpdateEdgeCells below) rather than by distance, so the low-v end of the band displaces
+			// genuinely nearer cells out of the chosen SET. Measured: on twin-rivers-ww3 (hint 111,91,
+			// d=15) the old key returned rows 86-90 where the five nearest are 89-93 — 3 of 5 members
+			// wrong, and every row the old key EXCLUDED was nearer than every row it KEPT in exchange
+			// (15.00/15.03/15.13 excluded, against 15.30/15.52/15.81 kept).
+			//
+			// Distinct() before Take() is NOT tidying and must not be removed: UpdateEdgeCells appends
+			// each of the four CORNERS twice (once from the row loop, once from the column loop —
+			// 192 entries, 188 distinct on Bounds 1,1,64,32). Sorting exactly makes the two copies score
+			// identically and land adjacently, so a Take window that reaches a corner hands the caller a
+			// repeated cell. ProductionFromMapEdge round-robins this array by index
+			// (ProductionFromMapEdge.cs:105-107,146-150), so a duplicate silently costs it a distinct
+			// spawn destination — 5 slots, 4 cells. Exact sorting makes that MORE likely, not less.
 			var candidates = GetSameEdgeCells(hint);
-			return candidates.OrderBy(c => (hint - c).Length).Take(count).ToArray();
+			return candidates.OrderBy(c => (hint - c).LengthSquared).Distinct().Take(count).ToArray();
 		}
 
 		IEnumerable<CPos> GetSameEdgeCells(CPos hint)

@@ -2,7 +2,7 @@
 --
 -- Runs the experimental (USA, left) vs Normal (Russia, right) capture skirmish for a
 -- fixed window so the engine's [experimental-poi] dispersion + [experimental-capture] commitment
--- logs accumulate, then Test.Pass() so the game auto-exits and the runner can
+-- logs accumulate, then Test.Skip() so the game auto-exits and the runner can
 -- read them. Read AppData/Roaming/OpenRA/Logs/debug.log afterward:
 --   [experimental-poi] disperse ...   -> Phase 0 death-ball pooling evidence
 --   [experimental-capture] pre-scan ... committed=.. commitN=..  -> Phase 1 no-thrash
@@ -11,8 +11,9 @@
 WorldLoaded = function()
 	TestHarness.FocusBetween(NeutralBio, NeutralFcom, NeutralOilb1, NeutralOilb2)
 
-	-- ~55s of simulation, then exit with a pass verdict (observation only).
+	-- ~55s of simulation, then exit with a skip verdict (observation only —
+	-- nothing here is graded, so pass would overstate what the run proved).
 	Trigger.AfterDelay(55 * TestHarness.TicksPerSecond, function()
-		Test.Pass()
+		Test.Skip()
 	end)
 end

@@ -27,6 +27,6 @@ WorldLoaded = function()
 	Trigger.AfterDelay(2 * TicksPerDisplayedMinute, function()
 		TestHarness.Screenshot("03-tick-2000",
 			"expects: HUD clock reads 02:00 — exactly double the 01:00 shot, proving the mapping is linear in ticks")
-		Test.Pass("clock screenshots captured at ticks 0 / 1000 / 2000")
+		Test.Skip("clock screenshots captured at ticks 0 / 1000 / 2000")
 	end)
 end

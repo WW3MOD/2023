@@ -107,7 +107,7 @@ Container@PLAYER_WIDGETS:
 						Image@ICON:
 							X: 5
 							Y: 1
-							ImageCollection: command-icons
+							ImageCollection: command-mode-icons
 							ImageName: attack-move
 				Button@FORCE_MOVE:
 					Logic: AddFactionSuffixLogic
@@ -128,7 +128,7 @@ Container@PLAYER_WIDGETS:
 						Image@ICON:
 							X: 5
 							Y: 1
-							ImageCollection: command-icons
+							ImageCollection: command-mode-icons
 							ImageName: force-move
 				Button@FORCE_ATTACK:
 					Logic: AddFactionSuffixLogic
@@ -149,7 +149,7 @@ Container@PLAYER_WIDGETS:
 						Image@ICON:
 							X: 5
 							Y: 1
-							ImageCollection: command-icons
+							ImageCollection: command-mode-icons
 							ImageName: force-attack
 				Button@GUARD:
 					Logic: AddFactionSuffixLogic
@@ -168,7 +168,7 @@ Container@PLAYER_WIDGETS:
 						Image@ICON:
 							X: 5
 							Y: 1
-							ImageCollection: command-icons
+							ImageCollection: command-mode-icons
 							ImageName: guard
 				Button@DEPLOY:
 					Logic: AddFactionSuffixLogic
@@ -228,7 +228,7 @@ Container@PLAYER_WIDGETS:
 						Image@ICON:
 							X: 5
 							Y: 1
-							ImageCollection: command-icons
+							ImageCollection: command-mode-icons
 							ImageName: guard
 				Button@AUTO_ENTER:
 					Logic: AddFactionSuffixLogic
@@ -309,7 +309,7 @@ Container@PLAYER_WIDGETS:
 						Image@ICON:
 							X: 5
 							Y: 1
-							ImageCollection: command-icons
+							ImageCollection: command-mode-icons
 							ImageName: queue-orders
 				Button@EVACUATE:
 					Logic: AddFactionSuffixLogic
@@ -563,8 +563,8 @@ Container@PLAYER_WIDGETS:
 						Image@ICON:
 							X: 5
 							Y: 1
-							ImageCollection: command-icons
-							ImageName: stop
+							ImageCollection: resupply-icons
+							ImageName: hold
 				Button@RESUPPLY_AUTO:
 					Logic: AddFactionSuffixLogic
 					X: 34
@@ -584,8 +584,8 @@ Container@PLAYER_WIDGETS:
 						Image@ICON:
 							X: 5
 							Y: 1
-							ImageCollection: command-icons
-							ImageName: resupply
+							ImageCollection: resupply-icons
+							ImageName: auto
 				Button@RESUPPLY_EVACUATE:
 					Logic: AddFactionSuffixLogic
 					X: 68
@@ -605,8 +605,8 @@ Container@PLAYER_WIDGETS:
 						Image@ICON:
 							X: 5
 							Y: 1
-							ImageCollection: command-icons
-							ImageName: force-move
+							ImageCollection: resupply-icons
+							ImageName: evacuate
 		Container@GARRISON_PANEL:
 			Logic: GarrisonPanelLogic
 			X: WINDOW_WIDTH - 240

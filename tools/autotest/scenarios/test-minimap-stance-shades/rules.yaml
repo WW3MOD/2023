@@ -1,0 +1,93 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# FOG OFF + EXPLORED ON, both locked. THIS IS THE LOAD-BEARING EDIT OF THE WHOLE
+		# SCENARIO, and it is deliberately NOT the skirmish default (player.yaml ships fog on).
+		#
+		# The minimap masks its actor layer twice, independently, and this closes the second:
+		#
+		#   1. MiniMapWidget.cs:419 skips any actor for which world.FogObscures(actor) is
+		#      true. Under the autotest harness that is already off: TestModeLogic.cs:30-31
+		#      nulls RenderPlayer and World.cs:109 short-circuits FogObscures to false when
+		#      RenderPlayer is null. Nothing here is needed for that one.
+		#
+		#   2. MiniMapWidget.cs:362-363 composites a SHROUD SPRITE over the actor layer, and
+		#      that sprite is built from currentPlayer -- resolved at :103 as
+		#      `LocalPlayer ?? RenderPlayer`, i.e. the LOCAL player, NOT the render player.
+		#      Nulling RenderPlayer does not disarm it. UpdateShroudCell (:249-259) paints
+		#      opaque black at visibility 0 and alpha 200-20*cv otherwise, so at visibility 1
+		#      -- which MapLayers.cs:262 stamps on every explored cell no vision source covers
+		#      -- it paints alpha 180: near-black over the dots.
+		#
+		# With fog OFF and explored ON, MapLayers.cs:662-691 returns visibility 10 for every
+		# cell in the map, so alpha is 200-200 = 0 and the sprite is fully transparent
+		# everywhere. That is what makes the frame show all six players' units rather than
+		# only the ones the viewer happens to light.
+		#
+		# EXPLORED MUST STAY ON. With fog off and explored OFF, ExploreAll never runs, the
+		# fall-through at :688 finds ResolvedVisibility 0, and GetVisibility returns 0 --
+		# OPAQUE BLACK over the entire minimap. That failure mode looks like "the minimap
+		# broke", not like a colour result, but it is one checkbox away and is why both are
+		# locked: an unlocked checkbox that a lobby default later flipped would silently
+		# change what this capture is showing while it still looked plausible.
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-minimap-stance-shades.lua
+
+# The marker. One cell, immobile, hard silhouette -- the same choice and the same reasoning
+# as test-fog-darkness-ruler's `fogmarker`, so the two instruments stay comparable.
+#
+# AppearsOnMiniMap is NOT declared here and must not be: PBOX inherits it from
+# ^ExistsInWorld (defaults.yaml:2-3), which is what puts every actor in the mod on the
+# minimap in the first place. Declaring it again would be a second trait instance.
+# Its ValidRelationships default (Ally|Neutral|Enemy, AppearsOnMiniMap.cs:24) admits every
+# band, and nothing in mods/ww3mod overrides it, so the :45 relationship filter never
+# excludes any of these markers.
+#
+# ALL TEN VISION LAYERS ARE REMOVED, for a different reason than the fog ruler's. Here it
+# is cost, not correctness: fog is off, so vision cannot change any pixel in the frame, but
+# 193 markers each resolving a 32-cell vision circle every tick is a large amount of work
+# for an instrument that spends its whole life standing still.
+shademarker:
+	Inherits: PBOX
+	# A NEW actor name resolves its sprites by that name, not by its parent's, so
+	# Inherits: PBOX brings the traits and NOT the artwork. Without this the engine dies at
+	# world load with "Image `shademarker` does not have any sequences defined". Confirmed
+	# by a CRASH on this scenario's first run, 2026-09-01 (run 260901_224949_p29100) -- and
+	# independently, the same day, by test-fog-darkness-ruler's first run, which is why this
+	# is a documented trap rather than one author's slip. No static gate can see it:
+	# lua-gate checks names and bindings, nav-guard checks geometry, and the sequence set is
+	# not resolved until world load.
+	RenderSprites:
+		Image: pbox
+	-Vision@10:
+	-Vision@9:
+	-Vision@8:
+	-Vision@7:
+	-Vision@6:
+	-Vision@5:
+	-Vision@4:
+	-Vision@3:
+	-Vision@2:
+	-Vision@1:
+	# Nothing may shoot or die. All six players are declared mutual Enemies -- which is what
+	# puts the five of them in the viewer's Enemies band and is the entire point -- so
+	# without this the markers would open fire on each other, and a death animation or a
+	# missing block would change the frame between arming the capture and sampling it.
+	# Removal of the armament is not an option (^AutoTargetGroundAntiInfDefense's
+	# AutoTargetPriority requires AutoTarget), so the stance is pinned instead and the
+	# health is set far beyond what one weapon could chew through in the run's lifetime.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	Health:
+		HP: 100000

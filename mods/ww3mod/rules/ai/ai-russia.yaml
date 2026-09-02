@@ -83,6 +83,13 @@ Player:
 			# directed pick (UnitBuilderBotModule.cs:328); it is reached through the FLOOR lane, and
 			# ChooseBelowFloor gates on UnitsToBuild membership (:1299). See ai-america.yaml.
 			dr.russia: 20
+			# Special forces — mirror of ai-america.yaml, where the argument lives. Short version:
+			# sf.russia is absent from UnitTargetShares (and UnitRoles), so under CompositionDirected
+			# it is reachable only through the FLOOR lane, and ChooseBelowFloor gates on UnitsToBuild
+			# membership (UnitBuilderBotModule.cs:1390). Without this line the floor entry is inert.
+			# 10 mirrors mnly, the other 600-cost flat-floored specialist. SF.russia carries a faction
+			# prerequisite (~player.russia, infantry-russia.yaml:102), so the twins field their own.
+			sf.russia: 10
 
 			# Vehicles -- balanced force composition
 			btr: 30
@@ -91,6 +98,17 @@ Player:
 			giatsint: 15
 			tunguska: 10
 			grad: 10
+			# Minelayer — mirror of ai-america.yaml, where the argument lives. Short version: mnly is
+			# absent from UnitTargetShares, so under CompositionDirected it is reachable only through
+			# the FLOOR lane, and ChooseBelowFloor gates on UnitsToBuild membership. Without this line
+			# the floor entry below is inert. MNLY carries no faction prerequisite (vehicles.yaml:494 —
+			# `~techlevel.medium` only), so both twins field the same unit.
+			mnly: 10
+			# Counter-battery radar — mirror of the America block. MEMBERSHIP, NOT WEIGHT: absent from
+			# UnitTargetShares, reached through the FLOOR lane, which gates on UnitsToBuild membership
+			# (UnitBuilderBotModule.cs:1390). MSAR is faction-neutral — it carries no `Buildable: Factions:`
+			# and neither vehicles-america.yaml nor vehicles-russia.yaml overrides it — so both twins get it.
+			msar: 10
 
 			# Supply trucks for field resupply (need-gated below)
 			truk: 20
@@ -108,6 +126,17 @@ Player:
 			# User ruling 2026-08-27: "just a couple or so is enough usually". Hard ceiling behind the
 			# floor cap; both are 2 so the floor is the only thing that moves.
 			dr.russia: 2
+			# ONE minelayer, ever — mirror of ai-america.yaml. Erring low: 600 is not a cheap
+			# specialist, the module commits at most one unit per field, and no live match has shown
+			# what a second would add.
+			mnly: 1
+			# ONE — mirror of the America block. Coverage does not stack: a second MSAR inside the first
+			# one's 42-cell disc reveals nothing new, so number two is ~zero value against 1600 of budget.
+			msar: 1
+			# Special forces: 2 — mirror of ai-america.yaml. Cap sits one above the floor of 1, so
+			# the second SF can only arrive if some other lane asks, and today none does (sf is
+			# absent from UnitTargetShares). Effectively a cap of 1 in the shipped configuration.
+			sf.russia: 2
 		# ===== STANDING-POPULATION FLOORS (experimental-only; C# default is unset) =====
 		# Mirror of the America block — see ai-america.yaml for the full measurement. Short version: a
 		# per-mille-of-VALUE target cannot hold a small type on the map (one medic is already 34 per-mille of
@@ -121,9 +150,33 @@ Player:
 		UnitFloors:
 			medi.russia: 2
 			aa.russia: 2
+			# Minelayer — FLAT, no UnitFloorPer, held off by UnitDelays instead. The aa.russia pattern,
+			# not the medi/dr one. Full argument in ai-america.yaml: one minelayer is enough at any
+			# army size, so a per-N-soldiers denominator would be a number invented purely to act as an
+			# opening-buy guard, and a mis-set denominator is precisely how this file has twice shipped
+			# a floor that silently never fires. ORDINAL: aa < dr < medi < mnly < msar < sf, so the
+			# minelayer is bought after every cheap specialist and before only the radar and the SF
+			# when several are short at once.
+			mnly: 1
 			# Drone operator — "they make none" is a FLOOR problem, not a weight problem. Cap, not
 			# target; the ratio below decides when it actually engages.
 			dr.russia: 2
+			# Counter-battery radar — mirror of ai-america.yaml, where the full argument lives. Short
+			# version: a per-mille share provably cannot buy a 1600-cost single-copy specialist (the
+			# argmax never descends to a small slot — measured ZERO medics/snipers/engineers in 200
+			# cycles at a 1-in-40 loss rate), so it takes the floor lane. Ordinal sort puts msar fifth
+			# of the six floored types here too (aa.russia < dr.russia < medi.russia < mnly < msar <
+			# sf.russia), so it pre-empts only the SF — but at t=0 every type ahead of it is held off
+			# by a delay or a zero denominator, so the walk reaches msar and it becomes the opening
+			# buy. UnitDelays.msar below is what prevents that and is MANDATORY, not defensive.
+			msar: 1
+			# Special forces — FLAT, no UnitFloorPer, held off by UnitDelays instead: the mnly
+			# pattern, not the medi/dr one. Full argument in ai-america.yaml. Short version: one SF
+			# is a raid capability rather than a per-N-soldiers support ratio, so there is no honest
+			# denominator to pick, and inventing one risks the silently-inert floor this file has
+			# twice shipped. ORDINAL: aa < dr < medi < mnly < msar < sf, so the SF is the last of the
+			# six bought when several are short at once.
+			sf.russia: 1
 		# ===== THE FLOOR NEEDS A DENOMINATOR (user report 2026-08-15) — mirror of the America block =====
 		# See ai-america.yaml for the full argument and the measurement. Short version: a flat floor is
 		# maximally unmet at t=0 and the pre-empt outranks the ceiling and every demand gate, so a cheap
@@ -177,6 +230,12 @@ Player:
 		# contact).
 		UnitDelays:
 			aa.russia: 2000
+			# Minelayer — mirror of ai-america.yaml, where the reasoning lives. Flagged here too because
+			# it matters: unlike the aa.russia figure above, 3000 is a REASONED ESTIMATE and not a
+			# derivation. No bot has ever fielded a minelayer. It exists because the floor above is
+			# flat, and a flat floor pre-empt outranks every gate — so without it a 600-cost minelayer
+			# would be a guaranteed opening call-in ahead of line infantry.
+			mnly: 3000
 			# Platoon-start guard for the drone operator — mirror of ai-america.yaml, where the full
 			# argument lives. Short version: UnitDelays is an absolute world-tick opening consulted by
 			# the floor lane too (UnitBuilderBotModule.cs:1302), and it is the only instrument that can
@@ -186,6 +245,26 @@ Player:
 			# binds only under a lobby-selected platoon start, where the denominator opens at 11 and
 			# the operator would otherwise be the opening support call-in ahead of the first medic.
 			dr.russia: 300
+			# Counter-battery radar gate — mirror of ai-america.yaml, where the derivation lives. Short
+			# version: without this the MSAR is the opening buy of every match, because the floor
+			# pre-empt outranks the ceiling and every demand gate and nothing else is eligible at t=0. A
+			# UnitFloorPer ratio cannot do the job — cap 1 makes it a step function at supported == N,
+			# and the shared denominator's max is 9/11 at attrition 12/15, so N above ~9 is inert while
+			# N at or below 9 phases a 1600-cost specialist in alongside the 150-cost drone. 3000 sits
+			# above the 2500 attack-heli gate (180 s at 16.667 ticks/s) and is a floor-clearing constant,
+			# NOT a measured optimum: neither grad nor m109 carries a tick gate, so there is no
+			# earliest-artillery tick to derive from the way aa.russia: 2000 derives from the heli gate.
+			msar: 3000
+			# Special forces: 3000 — mirror of ai-america.yaml, where the reasoning lives. Flagged
+			# here too because it matters: unlike aa.russia above, this is a REASONED ESTIMATE and
+			# not a derivation. It exists because the floor above is flat and a floor pre-empt
+			# outranks every gate, so without it a 600-cost SF — six line riflemen of early tempo —
+			# would be a guaranteed opening call-in ahead of the infantry the user asked for at the
+			# start. 3000 is mnly's constant because mnly is the true comparable (the other 600-cost
+			# flat-floored specialist gated by delay alone); dr's 300 is not, as that guard leans on
+			# a per-8 denominator sf does not have. May be slightly late by ~640 ticks, the minelayer
+			# module's scan lag, which sf has no equivalent of; if so this moves DOWN first.
+			sf.russia: 3000
 		# Early-econ behaviour 1: don't call in the FIRST truck while no fielded unit needs ammo. After that
 		# truck exists the standing reserve below governs alone and this no longer binds (user ruling
 		# 2026-08-17 — full reasoning in ai-america.yaml's SupplyTruckFloorPer block).

@@ -403,6 +403,23 @@ namespace OpenRA.Mods.Common.Traits
 			"CompositionEnforceTargetCeiling is set.")]
 		public readonly HashSet<string> CompositionCeilingExemptTypes = new HashSet<string>();
 
+		[Desc("Apply the authored UnitLimits cap to EXTERNAL (FIFO) requests on this twin, resolving the limit",
+			"across ALL of the player's ENABLED UnitBuilder twins rather than this one's own dictionary.",
+			"WHY IT IS NOT THE COMPOSITION CEILING'S JOB: an external request is routed to the first ENABLED",
+			"twin (AdaptiveRoutingMath), and on all four live profiles that is a .fixedwing twin, which sets no",
+			"CompositionDirected — so compositionTypes is null and RequestIsOverCompositionCeiling returns",
+			"'not over' at its first guard, never reaching the per-slot test. The FIFO lane therefore has NO cap",
+			"at all today, for any type. WHY ACROSS TWINS: the cap for a type is authored on the twin that owns",
+			"it (heli's UnitLimits lives on the .heli twin), not on the twin that drains the FIFO, so reading",
+			"only Info.UnitLimits here would find nothing. Only the two .fixedwing twins can ever drain (they are",
+			"the sole enable-ai-any twins that are first-enabled for their faction), so setting it there covers",
+			"@stable and @experimental alike. Default false = the uncapped path, byte-identical. Types nobody",
+			"authored a UnitLimits entry for are unaffected even when this is on. NOTE the asymmetry with the",
+			"normal purchase path: there an entry of 0 means NEVER BUILD, whereas this lane reads 0 the same as",
+			"no entry at all — no cap. No shipped twin authors a 0, so the two cannot disagree today, but a",
+			"future 0 would restrict the normal path while leaving this one open.")]
+		public readonly bool EnforceExternalRequestUnitLimits = false;
+
 		[Desc("Own units currently granted this condition are EXCLUDED from the composition census.",
 			"An evacuating unit is leaving the battlefield, so it is not force-in-being and must not",
 			"suppress a replacement buy. Empty ⇒ no exclusion.")]
@@ -667,8 +684,15 @@ namespace OpenRA.Mods.Common.Traits
 				var buildRequest = queuedBuildRequests.FirstOrDefault();
 				if (buildRequest != null)
 				{
-					if (!RequestIsOverCompositionCeiling(buildRequest))
-						BuildUnit(bot, buildRequest);
+					// Every refusal below is REPORTED. This lane's failures were previously indistinguishable
+					// from it never having run: BuildUnit returns a bare false and the request is dropped, so a
+					// permanently-unbuildable type could be re-requested every cycle forever in total silence.
+					if (RequestIsOverCompositionCeiling(buildRequest))
+						LogExternalRefusal(buildRequest, "composition-ceiling");
+					else if (ExternalRequestUnitLimit(buildRequest, out var authoredLimit))
+						LogExternalRefusal(buildRequest, $"unit-limit {CountOwned(buildRequest)}/{authoredLimit}");
+					else if (!BuildUnit(bot, buildRequest))
+						LogExternalRefusal(buildRequest, ExternalRequestBlockReason(buildRequest));
 
 					queuedBuildRequests.Remove(buildRequest);
 				}
@@ -1829,6 +1853,96 @@ namespace OpenRA.Mods.Common.Traits
 					player, name);
 
 			return over;
+		}
+
+		// The cap the composition ceiling above cannot supply for this lane. On every live profile the twin
+		// that drains the FIFO is a .fixedwing twin, which sets no CompositionDirected — so compositionTypes
+		// is null there and the ceiling returns "not over" at its very first guard, for EVERY type. Without
+		// this the single-name BuildUnit overload applies no UnitsToBuild, no UnitDelays and no UnitLimits,
+		// leaving external requests wholly unbounded.
+		//
+		// The limit is resolved across the player's ENABLED twins, not read from this one: a type's cap is
+		// authored on the twin that owns it (heli's lives on the .heli twin), never on the draining twin.
+		//
+		// Not subject to CompositionCeilingExemptTypes, and the capture floor it exists for is unaffected
+		// anyway: tecn rides priorityBuildRequests (TecnRequestPriority is set on both profiles), which is
+		// drained above WITHOUT passing through here at all. Even on the dead fall-back path the numbers do
+		// not collide — TecnFloor is 1 against a tecn cap of 3.
+		//
+		// COUPLED SETS: this walks TraitsImplementing<UnitBuilderBotModule> while the routing that decides
+		// who drains walks TraitsImplementing<IBotRequestUnitProduction>. Identical today, and the cap is
+		// only correct while they stay so — a second IBotRequestUnitProduction implementer would be routed
+		// requests whose limits this scan cannot see.
+		bool ExternalRequestUnitLimit(string name, out int limit)
+		{
+			limit = 0;
+			if (!Info.EnforceExternalRequestUnitLimits)
+				return false;
+
+			var builders = player.PlayerActor.TraitsImplementing<UnitBuilderBotModule>().ToArray();
+			var enabled = new bool[builders.Length];
+			var authored = new int[builders.Length];
+			for (var i = 0; i < builders.Length; i++)
+			{
+				enabled[i] = !builders[i].IsTraitDisabled;
+				authored[i] = builders[i].Info.UnitLimits != null
+					&& builders[i].Info.UnitLimits.TryGetValue(name, out var l) ? l : 0;
+			}
+
+			limit = ExternalRequestLimitMath.TightestLimit(enabled, authored);
+			return ExternalRequestLimitMath.IsOverLimit(CountOwned(name), limit);
+		}
+
+		// Asked by the REQUESTER before it elects a class, because a request is counted as made the instant it
+		// is handed over — the requester cannot see that this twin will refuse it on drain. Without this the
+		// cap above turns a wasted buy into a wasted CYCLE: the at-cap class keeps winning the need argmax,
+		// spends one of MaxRequestsPerCycle, and produces nothing. At the shipped MaxRequestsPerCycle of 2
+		// that is half the budget, every cycle, for as long as the class stays at cap.
+		public bool IsExternalRequestAtCap(string name)
+		{
+			return ExternalRequestUnitLimit(name, out _);
+		}
+
+		// WORLD ACTORS only — the same population UnitLimits counts everywhere else in this file, so the
+		// external lane and the normal purchase path cannot disagree about what "how many do I have" means.
+		int CountOwned(string name)
+		{
+			return world.Actors.Count(a => a.Owner == player && a.Info.Name == name);
+		}
+
+		// Why BuildUnit declined, in the caller's vocabulary. BuildUnit itself can only return a bare false,
+		// and the three reasons below are wildly different problems: a permanent rules mistake, a missing
+		// queue, and ordinary transient contention that will clear next cycle. Reached only AFTER BuildUnit
+		// has returned false, so the actor is known to exist — BuildUnit resolves it through the Rules.Actors
+		// indexer and would have thrown otherwise. Indexed the same way here rather than guarded, so a
+		// diagnosis this lane could never actually emit is not advertised.
+		string ExternalRequestBlockReason(string name)
+		{
+			var actorInfo = world.Map.Rules.Actors[name];
+
+			var buildableInfo = actorInfo.TraitInfoOrDefault<BuildableInfo>();
+			if (buildableInfo == null)
+				return "actor has no Buildable trait";
+
+			if (buildableInfo.Queue.Count == 0)
+				return "Buildable declares no Queue (unbuildable by rules)";
+
+			var categories = string.Join("/", buildableInfo.Queue.OrderBy(q => q, StringComparer.Ordinal));
+			var queues = AIUtils.FindQueuesByCategory(player);
+			if (!buildableInfo.Queue.Any(q => queues[q].Any()))
+				return $"player owns no {categories} queue";
+
+			return $"every {categories} queue is busy";
+		}
+
+		// UNCONDITIONAL, unlike LogPick which shares the census opt-in: the twin that drains this lane is a
+		// .fixedwing twin and no live profile sets CensusLogInterval there, so gating this would reproduce
+		// precisely the silence being fixed — a request refused every cycle forever with nothing recorded.
+		// Volume is bounded at one line per drained request (at most one request drains per FeedbackTime).
+		void LogExternalRefusal(string name, string reason)
+		{
+			Log.Write("debug", $"[composition] external-request REFUSED tick={world.WorldTick} "
+				+ $"player={player.InternalName} type={name} reason={reason}");
 		}
 
 		// Own-force census in VALUE (ValuedInfo.Cost), bucketed into the ordinal slots. Two deliberate details:

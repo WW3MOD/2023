@@ -1,0 +1,50 @@
+Player:
+	# USA loses its only building at phase 1 and must NOT be defeated for it -- a
+	# defeat would call ResetExploration, clear the explored bit at 8,16 and drop
+	# the ghost to 'shrouded', which is the one state in which HasRenderables is
+	# false and the verdict could not be read.
+	-ConquestVictoryConditions:
+	MapLayers:
+		# FOG ON and LOCKED. With fog off, MapLayers.GetVisibility takes the
+		# "explored => 10" branch and every explored cell reads 10, so
+		# FrozenActor.UpdateVisibility (FrozenActorLayer.cs:174-186) never sets
+		# Visible -- no frozen ghost is ever created and the scenario has nothing
+		# to assert about. Phase 2 would hang rather than fail cleanly.
+		FogCheckboxEnabled: true
+		FogCheckboxLocked: true
+		# EXPLORED **OFF** and LOCKED. Here it is load-bearing in a way it is not
+		# for the sister scenario: with the map pre-explored, USA would hold the
+		# explored bit at 8,16 without Box ever having revealed it, so a
+		# regression in which the ghost survives for reasons unrelated to
+		# ownership would still look green.
+		ExploredMapCheckboxEnabled: false
+		ExploredMapCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-frozen-tooltip-owner-hidden.lua
+
+# Nothing may shoot. Box must survive to the verdict, and after the capture it
+# belongs to Russia and sits on USA's Observer's side of an Enemies: line.
+# HoldFire rather than `-AutoTarget:`, which does not load -- AutoTargetPriority
+# declares AutoTarget as a requirement, so removing it fails actor
+# initialisation. Both InitialStance and InitialStanceAI are set because
+# AutoTarget picks between them on owner.IsBot/Playable (AutoTarget.cs:517) and
+# Russia is not a playable slot here. HP is padded as a second line of defence.
+PBOX:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	Health:
+		HP: 100000
+
+abrams:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	Health:
+		HP: 100000

@@ -21,23 +21,27 @@ namespace OpenRA
 		void RemoveIncomingDamage(int percent);
 	}
 
-	/// <summary>One shooter's single outstanding overkill claim.
+	/// <summary>
+	/// <para>One shooter's single outstanding overkill claim.</para>
 	///
-	/// A claim is a PREDICTION — "I am about to put this much of your health on the floor" — registered at the
+	/// <para>A claim is a PREDICTION — "I am about to put this much of your health on the floor" — registered at the
 	/// moment a unit commits, so that other units scanning in the same window see the target as already spoken
 	/// for before any damage has landed. It is a RESERVATION, NOT A LEDGER ENTRY, and the two properties below
-	/// are what make it one rather than the other:
+	/// are what make it one rather than the other:</para>
 	///
+	/// <para>
 	///   * ONE SHOOTER IS ONE CLAIM. Re-committing replaces the held claim instead of stacking on it, so a unit
 	///     that re-acquires the same target every rescan cannot inflate the tally on its own.
 	///   * A CLAIM IS HANDED BACK WHEN THE SHOT RESOLVES (Armament, at projectile creation). Past that point the
 	///     prediction has become a real projectile and the target's actual health carries the information; a
 	///     reservation still held would double-count against the damage that is now inbound.
+	/// </para>
 	///
-	/// Without the second property claims only ever accumulate — the shared tally is nudged up by every
+	/// <para>Without the second property claims only ever accumulate — the shared tally is nudged up by every
 	/// commitment and pulled down by nothing but the periodic halving in Actor.Tick. A busy target then reads as
 	/// permanently over-committed and AutoTarget.ChooseTarget declines it, which is the "my AA won't autotarget"
-	/// defect: a battery engages one unit at a time, each joiner waiting out a decay period.</summary>
+	/// defect: a battery engages one unit at a time, each joiner waiting out a decay period.</para>
+	/// </summary>
 	public sealed class OverkillClaim
 	{
 		IOverkillTally target;
@@ -79,14 +83,16 @@ namespace OpenRA
 
 	public static class OverkillClaimMath
 	{
-		/// <summary>The tally left after a claim of <paramref name="claimPercent"/> is handed back.
+		/// <summary>
+		/// <para>The tally left after a claim of <paramref name="claimPercent"/> is handed back.</para>
 		///
-		/// PITFALL: clamped at zero rather than trusted. The tally decays independently of any claim — Actor.Tick
+		/// <para>PITFALL: clamped at zero rather than trusted. The tally decays independently of any claim — Actor.Tick
 		/// halves it every 60 ticks — so a claim held across a decay boundary is worth less on the tally than the
 		/// number the shooter recorded. Subtracting the recorded number unclamped would drive the tally negative.
 		/// The clamp can under-count when a second shooter still holds a live claim, and that is the deliberate
 		/// direction to err in: under-counting makes units MORE willing to engage, while over-counting is the
-		/// defect this whole mechanism exists to avoid.</summary>
+		/// defect this whole mechanism exists to avoid.</para>
+		/// </summary>
 		public static int Release(int tally, int claimPercent)
 		{
 			return Math.Max(0, tally - claimPercent);
