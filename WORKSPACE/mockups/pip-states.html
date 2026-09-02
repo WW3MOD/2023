@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD — detectability pip: state schematic</title>
+<style>
+  :root {
+    --bg: #101316;
+    --panel: #1a1f24;
+    --panel2: #21272d;
+    --line: #313a42;
+    --ink: #dfe6ec;
+    --dim: #95a4b1;
+    --yellow: #ecc73c;
+    --orange: #ee7d1e;
+    --red: #e0392c;
+    --green: #4eae54;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 32px 90px;
+    background: var(--bg); color: var(--ink);
+    font: 15px/1.65 -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 27px; margin: 0 0 6px; letter-spacing: -0.2px; }
+  h2 { font-size: 20px; margin: 52px 0 6px; padding-bottom: 9px; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 16px; margin: 30px 0 10px; color: #c8d4de; }
+  p { margin: 10px 0; max-width: 900px; }
+  .sub { color: var(--dim); font-size: 13.5px; margin-bottom: 4px; }
+  code {
+    font: 12.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace;
+    background: #262d34; padding: 1px 5px; border-radius: 3px; color: #b8e0c8;
+  }
+  b { color: #fff; }
+  .note {
+    background: var(--panel); border-left: 3px solid var(--orange);
+    padding: 14px 18px; margin: 18px 0; border-radius: 0 5px 5px 0;
+  }
+  .note.red { border-left-color: var(--red); }
+  .note.green { border-left-color: var(--green); }
+  .note.yellow { border-left-color: var(--yellow); }
+  .note p:first-child { margin-top: 0; }
+  .note p:last-child { margin-bottom: 0; }
+
+  .row { display: flex; gap: 18px; flex-wrap: wrap; margin: 20px 0 8px; align-items: stretch; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px; padding: 14px 14px 16px; margin: 0;
+    flex: 1 1 0; min-width: 210px; text-align: center;
+  }
+  .panel svg { display: block; margin: 0 auto; }
+  .cap-title { font-size: 15px; font-weight: 700; margin-top: 6px; }
+  .cap-body { font-size: 13px; line-height: 1.5; color: var(--dim); margin-top: 6px; text-align: left; }
+  table { border-collapse: collapse; margin: 18px 0; font-size: 13.5px; width: 100%; max-width: 940px; }
+  th, td { border: 1px solid var(--line); padding: 7px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--panel2); font-weight: 600; }
+  td.num { font-family: ui-monospace, Menlo, monospace; }
+
+  .matrix { display: grid; grid-template-columns: 152px repeat(4, 1fr); gap: 10px; margin: 18px 0; align-items: center; }
+  .matrix .hd { font-size: 12.5px; color: var(--dim); text-align: center; line-height: 1.35; padding-bottom: 4px; }
+  .matrix .rowlab { font-size: 13.5px; font-weight: 600; padding-right: 10px; }
+  .matrix .rowlab span { display: block; font-weight: 400; font-size: 12px; color: var(--dim); margin-top: 3px; }
+  .cell { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 8px 4px 6px; text-align: center; }
+  .cell svg { display: block; margin: 0 auto; }
+  .cell .cl { font-size: 11.5px; color: var(--dim); margin-top: 1px; }
+</style>
+</head>
+<body>
+
+<!-- shared soldier figure: origin at his feet, centred on x -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <radialGradient id="gY"><stop offset=".35" stop-color="#ecc73c" stop-opacity=".30"/><stop offset="1" stop-color="#ecc73c" stop-opacity="0"/></radialGradient>
+  <radialGradient id="gA"><stop offset=".35" stop-color="#f0b232" stop-opacity=".30"/><stop offset="1" stop-color="#f0b232" stop-opacity="0"/></radialGradient>
+  <radialGradient id="gM"><stop offset=".35" stop-color="#f09425" stop-opacity=".32"/><stop offset="1" stop-color="#f09425" stop-opacity="0"/></radialGradient>
+  <radialGradient id="gO"><stop offset=".35" stop-color="#ee7d1e" stop-opacity=".32"/><stop offset="1" stop-color="#ee7d1e" stop-opacity="0"/></radialGradient>
+  <radialGradient id="gR"><stop offset=".35" stop-color="#e0392c" stop-opacity=".46"/><stop offset="1" stop-color="#e0392c" stop-opacity="0"/></radialGradient>
+  <g id="sold">
+    <ellipse cx="0" cy="3" rx="27" ry="6.5" fill="#000" opacity=".4"/>
+    <rect x="-11.5" y="-27" width="9" height="29" rx="4" fill="#5d6a58" stroke="#39422f" stroke-width="1.4"/>
+    <rect x="2.5" y="-27" width="9" height="29" rx="4" fill="#5d6a58" stroke="#39422f" stroke-width="1.4"/>
+    <rect x="-21" y="-56" width="7.5" height="28" rx="3.7" fill="#68765f" stroke="#39422f" stroke-width="1.4"/>
+    <rect x="13.5" y="-56" width="7.5" height="28" rx="3.7" fill="#68765f" stroke="#39422f" stroke-width="1.4"/>
+    <rect x="-14.5" y="-60" width="29" height="37" rx="9" fill="#7b8a70" stroke="#39422f" stroke-width="1.6"/>
+    <circle cx="0" cy="-72" r="12.5" fill="#8e9c81" stroke="#39422f" stroke-width="1.6"/>
+    <path d="M -13 -75 A 13 13 0 0 1 13 -75 Z" fill="#6f7d64" stroke="#39422f" stroke-width="1.4"/>
+    <rect x="-35" y="11" width="70" height="10" rx="3" fill="#232a30" stroke="#454f58" stroke-width="1.2"/>
+    <rect x="-33" y="13" width="49" height="6" rx="2" fill="#4eae54"/>
+  </g>
+</defs></svg>
+
+<div class="wrap">
+
+<h1>Detectability pip — state schematic</h1>
+<p class="sub">Schematic, not final art. Every number and code reference below was read out of the tree at
+<code>main @ fa284169</code>. Figures are inline SVG at diagram scale — the shipped pip is a small sprite; these
+are blown up so the <em>shapes</em> can be argued about.</p>
+
+<!-- ============ FINDINGS ============ -->
+<h2>Five things read out of the code that reshape this</h2>
+
+<div class="note green">
+<p><b>1. Orange already ships. It waits on nothing.</b></p>
+<p><code>AutoTarget.cs:765-781</code>: a unit in Ambush with a live target pre-aims at <code>:765</code>, asks
+<code>var isSpotted = self.CanBeViewedByPlayer(targetOwner)</code> at <code>:769</code>, and then —
+on the <code>!stage3</code> branch, which is <b>every human-controlled unit</b>, since
+<code>stage3 = AmbushTacticsGranted(self)</code> (<code>:720</code>) is a bot-only condition —</p>
+<p style="margin:12px 0 12px 6px; padding-left:14px; border-left:2px solid #3d5c44"><code>if (isSpotted || ambushTriggered) { … Attack(…); }</code><br><code>return;</code></p>
+<p>So he rotates onto the target, asks whether that enemy can see him, and <b>returns without firing when the
+answer is no</b>. That is the orange state, running in the shipped game today, with no prerequisite — and with
+no readout whatsoever. Only the <em>movement</em> halt is gated behind <code>enable-ambush-tactics</code>
+(<code>AttackMoveActivity.cs:190-195</code>); the fire veto, the commoner half, is not.</p>
+<p><b>This is the single strongest argument for the whole feature.</b> Orange is not a state to design and build.
+It is a state the player is already in, several times a minute, with nothing on screen to tell him.</p>
+</div>
+
+<div class="note red">
+<p><b>2. Spotted and blocked are not a collision — they are a contradiction.</b></p>
+<p>Being seen is the veto's <em>exit condition</em>. The line is literally
+<code>if (isSpotted || ambushTriggered)</code> → Attack. The moment red becomes true, orange stops being true
+<b>by construction</b>. A precedence scheme for "both at once" would be machinery for a case the code mostly
+forbids.</p>
+<p>That inverts the reason for the conclusion without changing it. Not <em>"they collide constantly, so they
+need separate channels"</em> but <b>"they barely collide — so give colour wholly to the detectability
+continuum and spend one cheap second channel on the rare veto."</b></p>
+</div>
+
+<div class="note">
+<p><b>3. Even so, colour cannot carry both — and the reason is sharper than a clash of hues.</b></p>
+<p>The veto is live <em>only</em> while not spotted. So "blocked" occupies precisely the not-yet-red band —
+which is the entire territory of the graded yellow in §2. It is not that the ramp happens to pass through
+orange; it is that <b>blocked lives inside the ramp for its whole duration</b>. One channel cannot express a
+continuum and a bit that is defined over the same interval.</p>
+<p>The good news is how cheap the fix is. The veto is <em>one bit</em>, off most of the time, so it needs a
+modifier and not a scale.</p>
+</div>
+
+<div class="note yellow">
+<p><b>4. The cheapest second channel costs one character.</b></p>
+<p><code>WithSpottedDecoration</code> extends <code>WithTextDecoration</code> (<code>:45</code>) — the mark is
+<em>text</em>, not a sprite. So a hollow-centre modifier is a one-glyph substitution,
+<b><span style="font-size:17px">◆</span> → <span style="font-size:17px">◇</span></b>, with no new art, no new
+sprite row and no extra footprint. Drawn as candidate <b>H</b> below.</p>
+<p><em>Caveat carried honestly:</em> §1's kite and §2's ramp assume a filled shape whose hue is the signal. A
+text glyph's colour is set per-decoration, so the ramp is still expressible — but the <em>kite</em> silhouette
+in these drawings is schematic. If the mark stays text, the real shape is whatever the font gives.</p>
+</div>
+
+<div class="note">
+<p><b>5. Two costs the pictures would otherwise hide.</b></p>
+<p><b>A graded ramp will step, not glide.</b> <code>RecalculationInterval = 7</code> (<code>:33</code>) with the
+answer cached in between — at 16.67 tps that is a refresh roughly <b>2.4× per second</b>. That is fine for a
+binary badge, which is what it was tuned for, and visibly chunky for a gradient meant to read as motion. If
+grading is adopted, that interval has to come down, and that cost belongs here rather than arriving as a
+surprise later.</p>
+<p><b>The bottom of the scale is not "safe".</b> The anti-wallhack rule (<code>:20-22</code>,
+<code>:105-111</code>) means an enemy who can see <em>you</em> but whom <em>you</em> have not spotted lights
+nothing. So an empty pip means <b>"you know of no watcher"</b> — never "you are unobserved". That is a lie the
+engine deliberately refuses to tell, and every label on this readout has to survive it.</p>
+</div>
+
+<div class="note" style="border-left-color:#5d6a75">
+<p><b>Minor, but worth catching early:</b> <code>^HoldingFireMarker</code> (<code>defaults.yaml:847-856</code>)
+already draws <code>pip-orange</code> at <code>Position: TopRight</code> for a deliberately-set stance. An orange
+detectability pip at <code>Top</code> would put <b>two orange pips on one soldier</b> meaning different things.
+A naming collision to resolve, not a reason to change course.</p>
+</div>
+
+<!-- ============ SECTION 1 ============ -->
+<h2>1 · The three states, plus the baseline</h2>
+<p>A soldier with his health bar beneath him and the pip hovering above, centred. The pip is a kite — widest above
+its midpoint, tapering to a point underneath so it reads as belonging to the man below it rather than floating free.</p>
+
+<div class="row">
+
+  <figure class="panel">
+    <svg viewBox="0 0 190 232" width="190" height="232" role="img" aria-label="No pip">
+      <text x="95" y="80" fill="#5c6873" font-size="13" text-anchor="middle" font-family="sans-serif">— no pip —</text>
+      <use href="#sold" x="95" y="196"/>
+    </svg>
+    <div class="cap-title" style="color:#94a2ae">Clear</div>
+    <div class="cap-body">No enemy <em>we are aware of</em>. Nothing is drawn — the absence of a pip is the fourth
+    state and by far the most common. Per finding 5 this means <b>"no watcher known"</b>, not "unobserved":
+    someone you have not spotted may be looking straight at you.</div>
+  </figure>
+
+  <figure class="panel">
+    <svg viewBox="0 0 190 232" width="190" height="232" role="img" aria-label="Yellow pip">
+      <circle cx="95" cy="73" r="46" fill="url(#gY)"/>
+      <path d="M 95 106 L 76 78 L 95 44 L 114 78 Z" fill="#ecc73c" stroke="#7d6810" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M 95 106 L 76 78 L 95 44 Z" fill="#fff" opacity=".16"/>
+      <use href="#sold" x="95" y="196"/>
+    </svg>
+    <div class="cap-title" style="color:var(--yellow)">Yellow — contact</div>
+    <div class="cap-body">We can see an enemy, and that enemy's vision envelope reaches us. <b>He could see you.</b>
+    Not a claim that he does. This is the state the asymmetry rule permits: built only from enemies
+    <em>we</em> already know about.</div>
+  </figure>
+
+  <figure class="panel">
+    <svg viewBox="0 0 190 232" width="190" height="232" role="img" aria-label="Orange pip">
+      <circle cx="95" cy="73" r="46" fill="url(#gO)"/>
+      <path d="M 95 106 L 76 78 L 95 44 L 114 78 Z" fill="#ee7d1e" stroke="#833f05" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M 95 106 L 76 78 L 95 44 Z" fill="#fff" opacity=".16"/>
+      <use href="#sold" x="95" y="196"/>
+    </svg>
+    <div class="cap-title" style="color:var(--orange)">Orange — vetoed</div>
+    <div class="cap-body">On Ambush, aimed at a live target, <b>and not firing</b> — because that target cannot see
+    him and the veto at <code>AutoTarget.cs:774</code> returns without attacking. Not a proposal: this is the
+    shipped code path for every human unit, currently with no indication on screen.</div>
+  </figure>
+
+  <figure class="panel">
+    <svg viewBox="0 0 190 232" width="190" height="232" role="img" aria-label="Red pip">
+      <circle cx="95" cy="73" r="52" fill="url(#gR)"/>
+      <path d="M 95 106 L 76 78 L 95 44 L 114 78 Z" fill="#e0392c" stroke="#6d120b" stroke-width="2.4" stroke-linejoin="round"/>
+      <path d="M 95 106 L 76 78 L 95 44 Z" fill="#fff" opacity=".16"/>
+      <use href="#sold" x="95" y="196"/>
+    </svg>
+    <div class="cap-title" style="color:var(--red)">Red — spotted</div>
+    <div class="cap-body">An enemy we know about <b>does</b> see us, confirmed against his own shroud. Exactly what
+    <code>WithSpottedDecoration</code> already computes and ships. It is also the veto's exit condition — which is
+    why orange and red are mostly sequential rather than simultaneous.</div>
+  </figure>
+
+</div>
+
+<!-- ============ SECTION 2 ============ -->
+<h2>2 · Yellow does not have to be flat</h2>
+<p>A flat yellow covers everything from <em>"an enemy is somewhere out there"</em> to <em>"one more step and he
+has you."</em> Those are different orders. The margin that separates them is already computed and discarded —
+<code>VisionCovers</code> (<code>:136-157</code>) weighs each observer's band strength against
+<code>CurrentVisibility</code> and its range against the actual distance, then throws both away at
+<code>return true</code>. Grading needs no new spatial query, only a different return type.</p>
+<p class="sub">Nothing here computes <em>closing speed</em>, so "two seconds from being seen" is not free. What is
+free is <b>how deep inside his envelope you already are</b>.</p>
+
+<div class="row">
+  <figure class="panel">
+    <svg viewBox="0 0 150 108" width="150" height="108">
+      <circle cx="75" cy="51" r="42" fill="url(#gY)"/>
+      <path d="M 75 84 L 56 56 L 75 22 L 94 56 Z" fill="#ecc73c" stroke="#7d6810" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M 75 84 L 56 56 L 75 22 Z" fill="#fff" opacity=".16"/>
+    </svg>
+    <div class="cap-title" style="color:var(--yellow);font-size:14px">Deep in cover</div>
+    <div class="cap-body">Inside his outer band only. Large margin.</div>
+  </figure>
+  <figure class="panel">
+    <svg viewBox="0 0 150 108" width="150" height="108">
+      <circle cx="75" cy="51" r="42" fill="url(#gA)"/>
+      <path d="M 75 84 L 56 56 L 75 22 L 94 56 Z" fill="#f0b232" stroke="#7d5d10" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M 75 84 L 56 56 L 75 22 Z" fill="#fff" opacity=".16"/>
+    </svg>
+    <div class="cap-title" style="color:#f0b232;font-size:14px">Closing</div>
+    <div class="cap-body">Margin shrinking. Same channel, no new glyph.</div>
+  </figure>
+  <figure class="panel">
+    <svg viewBox="0 0 150 108" width="150" height="108">
+      <circle cx="75" cy="51" r="42" fill="url(#gM)"/>
+      <path d="M 75 84 L 56 56 L 75 22 L 94 56 Z" fill="#f09425" stroke="#7d4d10" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M 75 84 L 56 56 L 75 22 Z" fill="#fff" opacity=".16"/>
+    </svg>
+    <div class="cap-title" style="color:#f09425;font-size:14px">Marginal</div>
+    <div class="cap-body">One tier from being seen. This is also where the veto lives — see finding 3.</div>
+  </figure>
+  <figure class="panel">
+    <svg viewBox="0 0 150 108" width="150" height="108">
+      <circle cx="75" cy="51" r="48" fill="url(#gR)"/>
+      <path d="M 75 84 L 56 56 L 75 22 L 94 56 Z" fill="#e0392c" stroke="#6d120b" stroke-width="2.4" stroke-linejoin="round"/>
+      <path d="M 75 84 L 56 56 L 75 22 Z" fill="#fff" opacity=".16"/>
+    </svg>
+    <div class="cap-title" style="color:var(--red);font-size:14px">Spotted</div>
+    <div class="cap-body">Margin gone. Red is the end of the same ramp, not a separate light.</div>
+  </figure>
+</div>
+
+<p><b>Two costs, both real.</b> The ramp occupies the whole not-spotted interval, which is exactly where the veto
+also lives — so the veto must be a <em>modifier</em>, never a hue (finding 3). And at
+<code>RecalculationInterval = 7</code> the ramp updates about 2.4× a second, so it will <b>step</b> rather than
+glide unless that interval comes down (finding 5). If the ramp is adopted, red should also keep something
+categorical that no yellow ever has — the red pips on this page carry a heavier outline and wider glow for that
+reason, so "spotted" stays a step rather than just a shade.</p>
+
+<!-- ============ SECTION 3 ============ -->
+<h2>3 · The veto is a bit, not a colour — so which modifier?</h2>
+<p>Because being seen <em>ends</em> the veto (finding 2), the common life of these two states is a
+<b>sequence</b>, not an overlap. Drawn as one:</p>
+
+<div class="row">
+  <figure class="panel">
+    <svg viewBox="0 0 170 118" width="170" height="118">
+      <circle cx="85" cy="50" r="40" fill="url(#gO)"/>
+      <path d="M 85 82 L 68 56 L 85 24 L 102 56 Z" fill="#ee7d1e" stroke="#833f05" stroke-width="1.6" stroke-linejoin="round"/>
+    </svg>
+    <div class="cap-title" style="color:var(--orange);font-size:14px">1 · Aimed, vetoed</div>
+    <div class="cap-body">Target acquired, turret rotated (<code>:765</code>), <code>isSpotted</code> false —
+    <code>return</code> without firing. Can last indefinitely.</div>
+  </figure>
+  <figure class="panel">
+    <svg viewBox="0 0 170 118" width="170" height="118">
+      <circle cx="85" cy="50" r="44" fill="url(#gR)"/>
+      <path d="M 85 82 L 68 56 L 85 24 L 102 56 Z" fill="#e0392c" stroke="#6d120b" stroke-width="2.4" stroke-linejoin="round"/>
+    </svg>
+    <div class="cap-title" style="color:var(--red);font-size:14px">2 · Seen — veto exits</div>
+    <div class="cap-body"><code>isSpotted</code> flips true, the branch is taken, he attacks. Orange did not lose
+    a precedence contest; it <b>ceased to hold</b>.</div>
+  </figure>
+  <figure class="panel">
+    <svg viewBox="0 0 170 118" width="170" height="118">
+      <circle cx="85" cy="50" r="44" fill="url(#gR)"/>
+      <path d="M 85 82 L 68 56 L 85 24 L 102 56 Z" fill="#e0392c" stroke="#6d120b" stroke-width="2.4" stroke-linejoin="round"/>
+      </svg>
+    <div class="cap-title" style="color:var(--red);font-size:14px">3 · Sprung — terminal</div>
+    <div class="cap-body"><code>ambushTriggered</code> latches and is <b>never cleared except on stance reset</b>
+    (<code>:383-389</code>, <code>:1013</code>). He keeps firing from here on.</div>
+  </figure>
+</div>
+
+<p>So the question is not precedence. It is: <b>what cheap modifier marks the veto while colour carries the
+continuum?</b> Three candidates, shown on yellow (the state the veto actually occupies):</p>
+
+<div class="row">
+  <figure class="panel">
+    <svg viewBox="0 0 160 116" width="160" height="116">
+      <circle cx="80" cy="54" r="35" fill="none" stroke="#ee7d1e" stroke-width="4.5"/>
+      <path d="M 80 84 L 62 58 L 80 26 L 98 58 Z" fill="#ecc73c" stroke="#7d6810" stroke-width="1.6" stroke-linejoin="round"/>
+    </svg>
+    <div class="cap-title" style="font-size:14px">R · Ring</div>
+    <div class="cap-body">Unmistakable and fully independent of hue. <b>Cost:</b> largest footprint, and it must
+    not be mistaken for a selection box or a range circle — the UI already draws both as circles.</div>
+  </figure>
+  <figure class="panel">
+    <svg viewBox="0 0 160 116" width="160" height="116">
+      <path d="M 80 84 L 62 58 L 70 36 L 80 52 L 90 36 L 98 58 Z" fill="#ecc73c" stroke="#7d6810" stroke-width="1.6" stroke-linejoin="round"/>
+    </svg>
+    <div class="cap-title" style="font-size:14px">S · Split top</div>
+    <div class="cap-body">No added footprint at all. <b>Cost:</b> at the shipped mark's real size the split is a
+    couple of pixels — the option most likely to pass review on paper and fail on a 4K screen.</div>
+  </figure>
+  <figure class="panel" style="outline:1px dashed #4e7a56; outline-offset:-1px">
+    <svg viewBox="0 0 160 116" width="160" height="116">
+      <path d="M 80 84 L 62 58 L 80 26 L 98 58 Z" fill="none" stroke="#ecc73c" stroke-width="4.5" stroke-linejoin="round"/>
+    </svg>
+    <div class="cap-title" style="font-size:14px;color:#8fce8f">H · Hollow centre</div>
+    <div class="cap-body"><b>One character.</b> The mark is <code>WithTextDecoration</code> (<code>:45</code>), so
+    this is <span style="font-size:15px">◆</span> → <span style="font-size:15px">◇</span> — no art, no sprite row,
+    no footprint change. Hue survives intact because the glyph is still coloured. <b>Cost:</b> a hollow glyph is
+    lighter on screen, so a vetoed soldier reads as slightly less urgent than an un-vetoed one at the same
+    detectability — which is arguably correct.</div>
+  </figure>
+</div>
+
+<div class="note green">
+<p><b>Recommendation.</b> <b>H</b>. It is the only one whose implementation cost is a single glyph, it leaves the
+colour channel entirely free for the §2 continuum, and it changes no layout. R is the fallback if the hollow form
+proves too faint in play; S should be dropped — it spends silhouette for no benefit R and H do not already give
+more cheaply.</p>
+</div>
+
+<h3>Where they genuinely do coexist — two narrow cases</h3>
+<p>The contradiction is not total. Two situations put a real red and a real veto on the same soldier, and both
+are more drawable than the general case.</p>
+
+<div class="row">
+  <figure class="panel" style="flex:1 1 46%">
+    <svg viewBox="0 0 340 170" width="100%" height="170">
+      <circle cx="86" cy="46" r="42" fill="url(#gR)"/>
+      <path d="M 86 78 L 68 52 L 86 20 L 104 52 Z" fill="none" stroke="#e0392c" stroke-width="4.5" stroke-linejoin="round"/>
+      <use href="#sold" x="86" y="140" transform="scale(0.72) translate(33,55)"/>
+      <line x1="118" y1="98" x2="196" y2="70" stroke="#5d6a75" stroke-width="1.6" stroke-dasharray="4 3"/>
+      <circle cx="212" cy="64" r="13" fill="#5c4a4a" stroke="#8a6060" stroke-width="1.5"/>
+      <text x="212" y="69" fill="#e8c0c0" font-size="12" text-anchor="middle" font-family="sans-serif">T</text>
+      <text x="212" y="92" fill="#95a4b1" font-size="11.5" text-anchor="middle" font-family="sans-serif">his target —</text>
+      <text x="212" y="106" fill="#95a4b1" font-size="11.5" text-anchor="middle" font-family="sans-serif">cannot see him</text>
+      <line x1="118" y1="112" x2="272" y2="126" stroke="#e0605a" stroke-width="1.6"/>
+      <circle cx="290" cy="128" r="13" fill="#5c3a3a" stroke="#c05050" stroke-width="1.6"/>
+      <text x="290" y="133" fill="#f0c0c0" font-size="12" text-anchor="middle" font-family="sans-serif">3</text>
+      <text x="290" y="153" fill="#e0908a" font-size="11.5" text-anchor="middle" font-family="sans-serif">third party — sees him</text>
+    </svg>
+    <div class="cap-title" style="font-size:14px">Third party sees him while he aims at someone who cannot</div>
+    <div class="cap-body">The veto tests <em>his target's</em> vision (<code>targetOwner</code> at
+    <code>:768-769</code>), but the pip tests <em>any</em> known enemy. So a flanker watching him does not release
+    the veto. <b>Genuinely both: red hue, hollow centre.</b> This is the case candidate H handles for free.</div>
+  </figure>
+
+  <figure class="panel" style="flex:1 1 46%">
+    <svg viewBox="0 0 340 170" width="100%" height="170">
+      <circle cx="86" cy="46" r="40" fill="url(#gY)"/>
+      <path d="M 86 78 L 68 52 L 86 20 L 104 52 Z" fill="#ecc73c" stroke="#7d6810" stroke-width="1.6" stroke-linejoin="round"/>
+      <use href="#sold" x="86" y="140" transform="scale(0.72) translate(33,55)"/>
+      <path d="M 120 104 L 168 96 L 162 88 L 196 100 L 162 112 L 168 104 Z" fill="#f0c040" opacity=".9"/>
+      <text x="243" y="86" fill="#f0d090" font-size="12.5" font-family="sans-serif">firing — but</text>
+      <text x="243" y="103" fill="#f0d090" font-size="12.5" font-family="sans-serif">still concealed</text>
+      <text x="243" y="126" fill="#95a4b1" font-size="11.5" font-family="sans-serif">pip says "not seen"</text>
+      <text x="243" y="141" fill="#95a4b1" font-size="11.5" font-family="sans-serif">and that is true</text>
+    </svg>
+    <div class="cap-title" style="font-size:14px">The terminal spring latch</div>
+    <div class="cap-body">Once <code>ambushTriggered</code> latches it never clears (<code>:1013</code> aside), so
+    a sprung soldier <b>keeps firing after he re-conceals</b> — pip yellow, weapon live.
+    <b>No visual scheme fixes this.</b> The pip is reporting detectability honestly; what breaks is the player's
+    inference that "not red" implies "not shooting". Worth saying out loud rather than designing around.</div>
+  </figure>
+</div>
+
+<!-- ============ SECTION 4 ============ -->
+<h2>4 · What the pip would be reading — all of it already ships</h2>
+<p>Concealment in WW3MOD is an integer ladder of additive modifiers. Nothing below is proposed; it is all live.</p>
+
+<table>
+  <tr><th>Modifier</th><th style="width:86px">Tiers</th><th>Source</th></tr>
+  <tr><td>Prone</td><td class="num">+1</td><td><code>DetectableAddativeModifier@Prone</code> · <code>infantry.yaml:771-773</code></td></tr>
+  <tr><td>Dug in (still ≥ 200 ticks ≈ 12 s)</td><td class="num">+1</td><td><code>@Dugin</code> · <code>:774-776</code>, granted by <code>GrantConditionOnMovement</code> · <code>:139-142</code></td></tr>
+  <tr><td>Moving</td><td class="num">−1</td><td><code>@Moving</code> · <code>:785-787</code></td></tr>
+  <tr><td>Firing any weapon</td><td class="num">−2</td><td><code>@Firing</code> · <code>:782-784</code>, held 12 ticks after the shot</td></tr>
+</table>
+
+<p>So the orange state is not a new rule — it is a readout of arithmetic the player is already subject to and
+cannot currently see. A dug-in prone soldier is <b>+2</b>; the moment he fires he is <b>0</b>, and stays there for
+12 ticks. That swing is what the veto at <code>AutoTarget.cs:774</code> is protecting, and the entire
+content of the orange state.</p>
+
+<h3>The prone cliff — why hunker depth must not simply grant <code>prone</code></h3>
+<p>Prone protection ships as geometry, not as a damage modifier: <code>HitShape@Cover</code> swaps the hit circle
+from radius 30 to radius 20 (<code>infantry.yaml:143-150</code>). Drawn to scale:</p>
+
+<div class="row" style="align-items:flex-start">
+  <figure class="panel" style="flex:0 0 306px">
+    <svg viewBox="0 0 280 196" width="280" height="196">
+      <circle cx="140" cy="96" r="90" fill="#e0392c" opacity=".2" stroke="#e0392c" stroke-width="2"/>
+      <circle cx="140" cy="96" r="60" fill="#4eae54" opacity=".5" stroke="#4eae54" stroke-width="2"/>
+      <line x1="140" y1="96" x2="230" y2="96" stroke="#f08a80" stroke-width="2"/>
+      <line x1="140" y1="96" x2="140" y2="36" stroke="#1e2e1e" stroke-width="2"/>
+      <text x="186" y="89" fill="#f5a49b" font-size="13.5" text-anchor="middle" font-family="sans-serif">r 30</text>
+      <text x="131" y="66" fill="#cdeece" font-size="13.5" text-anchor="end" font-family="sans-serif">r 20</text>
+      <text x="140" y="184" fill="#95a4b1" font-size="12.5" text-anchor="middle" font-family="sans-serif">standing vs prone hit circle</text>
+    </svg>
+    <div class="cap-body" style="text-align:center">Area ratio <b>44%</b> — a prone soldier is a <b>56% smaller
+    target</b>, against every warhead, with no damage-type gating.</div>
+  </figure>
+  <div style="flex:1 1 380px; min-width:320px">
+    <p style="margin-top:4px">That is a large, real, already-shipping protection term. It is also a <b>cliff</b>:
+    wiring "hunker depth" as <em>grant the <code>prone</code> condition</em> takes the player from 100% to 44% hit
+    area <b>in one click</b>, and leaves no gradient to tune afterwards.</p>
+    <p>Posture should be continuous, with prone as an <em>interior anchor</em> on the same axis — the radius
+    already moves, so let depth move it smoothly and let 20 be a point on the curve rather than its only
+    destination.</p>
+    <p>One more wrinkle before anything is wired: prone is <b>not</b> only a suppression effect.
+    <code>ProneCondition: deployed || suppressed &gt; 30 || !moving || critical-damage</code>
+    (<code>infantry.yaml:315</code>) — <code>!moving</code> means <b>standing still already puts a soldier
+    prone</b>, independent of suppression. Any hunker control arrives on top of an axis the player is unknowingly
+    driving already.</p>
+  </div>
+</div>
+
+<p class="sub" style="margin-top:40px">Sources:
+<code>engine/OpenRA.Mods.Common/Traits/Render/WithSpottedDecoration.cs</code>,
+<code>mods/ww3mod/rules/ingame/infantry.yaml</code>, <code>mods/ww3mod/rules/defaults.yaml</code>.
+Tree <code>main @ fa284169</code>.</p>
+
+</div>
+</body>
+</html>

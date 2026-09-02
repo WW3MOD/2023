@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD — detectability pip explorer</title>
+<style>
+  :root {
+    --bg:#101316; --panel:#1a1f24; --panel2:#21272d; --line:#313a42;
+    --ink:#dfe6ec; --dim:#95a4b1;
+    --yellow:#ecc73c; --orange:#ee7d1e; --red:#e0392c; --green:#4eae54;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:34px 30px 80px; background:var(--bg); color:var(--ink);
+         font:15px/1.6 -apple-system,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:1180px; margin:0 auto; }
+  h1 { font-size:25px; margin:0 0 4px; }
+  h2 { font-size:18px; margin:34px 0 6px; padding-bottom:8px; border-bottom:1px solid var(--line); }
+  p { margin:9px 0; max-width:900px; }
+  .sub { color:var(--dim); font-size:13.5px; }
+  code { font:12.5px ui-monospace,Menlo,monospace; background:#262d34; padding:1px 5px;
+         border-radius:3px; color:#b8e0c8; }
+  b { color:#fff; }
+
+  .cols { display:flex; gap:20px; align-items:flex-start; margin-top:22px; flex-wrap:wrap; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:18px 20px; }
+  .controls { flex:1 1 400px; min-width:360px; }
+  .stage { flex:1 1 480px; min-width:400px; }
+
+  .ctl { margin-bottom:19px; }
+  .ctl label { display:flex; justify-content:space-between; font-size:13.5px; font-weight:600; margin-bottom:6px; }
+  .ctl label .v { font-family:ui-monospace,Menlo,monospace; color:var(--dim); font-weight:400; }
+  .ctl .hint { font-size:12px; color:var(--dim); margin-top:5px; line-height:1.45; }
+  input[type=range] { width:100%; accent-color:#e0a02c; height:22px; }
+
+  .seg { display:flex; gap:7px; }
+  .seg button {
+    flex:1; background:var(--panel2); color:var(--dim); border:1px solid var(--line);
+    border-radius:6px; padding:9px 6px; font:600 13px inherit; cursor:pointer; line-height:1.3;
+  }
+  .seg button small { display:block; font-weight:400; font-size:11px; margin-top:2px; opacity:.85; }
+  .seg button[aria-pressed=true] { background:#2f3b45; color:#fff; border-color:#6b8595; }
+
+  .toggle { display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; }
+  .toggle .box {
+    width:44px; height:24px; border-radius:13px; background:#2c343b; border:1px solid var(--line);
+    position:relative; transition:background .12s;
+  }
+  .toggle .box::after {
+    content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%;
+    background:#8d9aa5; transition:left .12s, background .12s;
+  }
+  .toggle[aria-pressed=true] .box { background:#3d6a45; }
+  .toggle[aria-pressed=true] .box::after { left:22px; background:#a8e0ac; }
+
+  .readout { width:100%; border-collapse:collapse; font-size:13px; margin-top:12px; }
+  .readout td { padding:5px 8px; border-bottom:1px solid #262d34; }
+  .readout td:first-child { color:var(--dim); }
+  .readout td:last-child { text-align:right; font-family:ui-monospace,Menlo,monospace; }
+
+  .statebar { padding:11px 14px; border-radius:7px; font-size:14px; font-weight:600; margin-bottom:14px;
+              background:var(--panel2); border-left:4px solid #555; }
+  .warn { background:#2e2318; border-left:4px solid var(--orange); padding:11px 14px; border-radius:0 6px 6px 0;
+          font-size:13px; margin-top:14px; color:#f2cf9f; }
+  .warn.hide { display:none; }
+
+  .submit {
+    margin-top:20px; width:100%; padding:13px; border-radius:7px; border:1px solid #3f7a4a;
+    background:#2f5c39; color:#dff5e2; font:600 14px inherit; cursor:pointer;
+  }
+  .submit:hover { background:#386c43; }
+  .sent { text-align:center; font-size:12.5px; color:#8fce8f; margin-top:8px; min-height:16px; }
+  textarea {
+    width:100%; background:#151a1f; color:var(--ink); border:1px solid var(--line);
+    border-radius:6px; padding:9px; font:13px inherit; resize:vertical; min-height:58px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Detectability pip — explorer</h1>
+<p class="sub">Drive a soldier from unwatched through nearly-seen to spotted and watch the pip respond.
+Companion to <code>pip-states.html</code>. Model is a schematic of the shipped arithmetic
+(<code>infantry.yaml</code> concealment ladder), not the engine itself — the thresholds are illustrative, the
+<b>tier values are real</b>.</p>
+
+<div class="cols">
+
+  <!-- ================= CONTROLS ================= -->
+  <div class="card controls">
+
+    <div class="ctl">
+      <label>Enemy proximity <span class="v" id="vProx">60</span></label>
+      <input type="range" id="prox" min="0" max="100" value="60">
+      <div class="hint">How deep inside a <em>known</em> enemy's vision envelope he is. The quantity <code>VisionCovers</code>
+        (<code>:136-157</code>) already computes and discards. <b>0 means "you know of no watcher", never
+        "you are safe"</b> — the anti-wallhack rule (<code>:20-22</code>) deliberately hides observers you have
+        not spotted yourself.</div>
+    </div>
+
+    <div class="ctl">
+      <label>Suppression <span class="v" id="vSup">0</span></label>
+      <input type="range" id="sup" min="0" max="100" value="0">
+      <div class="hint">Involuntary, 0–100. Past <b>30</b> it forces prone on its own
+        (<code>ProneCondition</code>, <code>infantry.yaml:315</code>).</div>
+    </div>
+
+    <div class="ctl">
+      <label>Hunker depth <span class="v" id="vHunk">0</span></label>
+      <input type="range" id="hunk" min="0" max="100" value="0">
+      <div class="hint">The proposed voluntary axis. Prone is an <em>interior anchor</em> at 35, dug-in at 70 —
+        deliberately not a single on/off grant, so the hit radius moves continuously instead of stepping
+        30 → 20 in one click.</div>
+    </div>
+
+    <div class="ctl">
+      <label style="display:block; margin-bottom:8px">Ambush state</label>
+      <div class="seg" id="amb">
+        <button data-v="off" aria-pressed="false">Off<small>fires freely</small></button>
+        <button data-v="holding" aria-pressed="true">Holding<small>veto active</small></button>
+        <button data-v="sprung" aria-pressed="false">Sprung<small>latched, terminal</small></button>
+      </div>
+      <div class="hint"><b>Holding</b> is the shipped veto: <code>AutoTarget.cs:774</code> pre-aims and
+        <code>return</code>s without firing while his target cannot see him. <b>Sprung</b> is
+        <code>ambushTriggered</code>, which never clears except on stance reset (<code>:1013</code>) — so he keeps
+        firing even after re-concealing.</div>
+    </div>
+
+    <div class="ctl">
+      <label style="display:block; margin-bottom:8px">A third party can see him</label>
+      <div class="toggle" id="third" role="button" tabindex="0" aria-pressed="false">
+        <span class="box"></span><span id="thirdLbl">Off</span>
+      </div>
+      <div class="hint">The veto tests <em>his target's</em> vision (<code>targetOwner</code>,
+        <code>:768-769</code>); the pip tests <b>any</b> known enemy. Turn this on to reach the one case where
+        spotted and vetoed genuinely coexist.</div>
+    </div>
+
+    <div class="ctl">
+      <label style="display:block; margin-bottom:8px">Veto modifier — the open question</label>
+      <div class="seg" id="treat">
+        <button data-v="H" aria-pressed="true">H<small>hollow ◇</small></button>
+        <button data-v="R" aria-pressed="false">R<small>ring</small></button>
+        <button data-v="S" aria-pressed="false">S<small>split top</small></button>
+        <button data-v="N" aria-pressed="false">N<small>none</small></button>
+      </div>
+      <div class="hint">Colour carries detectability in all four; this picks what marks the veto.
+        <b>N</b> shows what is lost with no second channel at all.</div>
+    </div>
+
+    <div class="ctl">
+      <label style="display:block; margin-bottom:8px">Graded yellow</label>
+      <div class="toggle" id="graded" role="button" tabindex="0" aria-pressed="true">
+        <span class="box"></span><span id="gradedLbl">On — yellow deepens as the margin closes</span>
+      </div>
+      <div class="hint">Off = flat yellow, which is what <code>WithSpottedDecoration</code>'s docs deliberately
+        specify (<code>:16-18</code>). Note the cost either way: <code>RecalculationInterval = 7</code>
+        (<code>:33</code>) refreshes about 2.4× a second, so a ramp will <b>step, not glide</b> until that
+        comes down.</div>
+    </div>
+
+    <div class="ctl" style="margin-bottom:10px">
+      <label style="display:block; margin-bottom:8px">Anything you want to say about it</label>
+      <textarea id="notes" placeholder="Optional — comes back with the answer."></textarea>
+    </div>
+
+    <button class="submit" id="send">Send this answer back to Claude</button>
+    <div class="sent" id="sentMsg"></div>
+  </div>
+
+  <!-- ================= STAGE ================= -->
+  <div class="card stage">
+    <div class="statebar" id="stateBar">—</div>
+
+    <svg viewBox="0 0 460 296" width="100%" height="296" id="fig">
+      <defs>
+        <radialGradient id="glow"><stop offset=".35" id="g0"/><stop offset="1" id="g1"/></radialGradient>
+      </defs>
+
+      <line x1="243" y1="14" x2="243" y2="282" stroke="#2b333a" stroke-width="1"/>
+
+      <!-- pip -->
+      <circle id="pipGlow" cx="120" cy="66" r="50" fill="url(#glow)"/>
+      <circle id="pipRing" cx="120" cy="66" r="34" fill="none" stroke="#ee7d1e" stroke-width="4.5" opacity="0"/>
+      <path id="pipShape" d="" stroke-width="1.8" stroke-linejoin="round" opacity="0"/>
+      <text id="pipNone" x="120" y="72" fill="#5c6873" font-size="13" text-anchor="middle" font-family="sans-serif">— no pip —</text>
+
+      <!-- soldier -->
+      <g id="soldier"></g>
+
+      <!-- hit-circle inset, its own diagram -->
+      <text x="352" y="34" fill="#95a4b1" font-size="12.5" text-anchor="middle" font-family="sans-serif">Hit circle, to scale</text>
+      <circle cx="352" cy="128" r="60" fill="none" stroke="#5a656f" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <circle id="hitCirc" cx="352" cy="128" r="60" fill="#e0392c" opacity=".26" stroke="#e0392c" stroke-width="1.8"/>
+      <text x="352" y="211" fill="#f5a49b" font-size="13" text-anchor="middle" font-family="sans-serif" id="rTxt">radius 30.0</text>
+      <text x="352" y="230" fill="#c8d4de" font-size="13" text-anchor="middle" font-family="sans-serif" id="aTxt">area 100% of standing</text>
+      <text x="352" y="256" fill="#7d8892" font-size="11.5" text-anchor="middle" font-family="sans-serif">dashed = standing baseline, r 30</text>
+      <text x="352" y="272" fill="#7d8892" font-size="11.5" text-anchor="middle" font-family="sans-serif">prone anchor r 20 = 44% area</text>
+    </svg>
+
+    <table class="readout">
+      <tr><td>Concealment tiers</td><td id="oTiers">0</td></tr>
+      <tr><td>&nbsp;&nbsp;from prone / dug-in / moving</td><td id="oBreak">—</td></tr>
+      <tr><td>Effective exposure</td><td id="oExp">0</td></tr>
+      <tr><td>Exposure if he fires (−2 tiers)</td><td id="oExpFire">0</td></tr>
+      <tr><td>Posture</td><td id="oPost">standing</td></tr>
+      <tr><td>Hit radius / area vs standing</td><td id="oHit">30 · 100%</td></tr>
+      <tr><td>Detect state</td><td id="oDet">—</td></tr>
+      <tr><td>Veto holding fire</td><td id="oBlk">no</td></tr>
+    </table>
+
+    <div class="warn hide" id="warn"></div>
+  </div>
+</div>
+
+<h2>What this model does and does not claim</h2>
+<p>The <b>concealment tiers are read from the shipped file</b>: prone <code>+1</code>, dug-in <code>+1</code>,
+moving <code>−1</code>, firing <code>−2</code> (<code>infantry.yaml:771-787</code>). The hit radii
+<code>30 → 20</code> and the <code>44%</code> area ratio are <code>HitShape@Cover</code> (<code>:143-150</code>).
+The veto is <code>AutoTarget.cs:765-781</code>, on the ungated <code>!stage3</code> path every human unit takes.
+The <b>mapping from tiers to an "exposure" number is invented for this page</b> — the engine resolves visibility
+per vision band against <code>CurrentVisibility</code>, not on a 0–100 scale. Treat the <em>shape</em> of the
+response as the claim, not the numbers on it.</p>
+
+<h2>Three things worth driving deliberately</h2>
+<p><b>1 · What the veto costs with no second channel.</b> Set the modifier to <b>N</b>, Ambush to
+<b>Holding</b>, proximity around 70. The soldier is aimed at a target and deliberately not firing, and nothing
+on screen says so. That is the shipped game today.</p>
+<p><b>2 · The one real overlap.</b> Keep Holding, turn <b>third party</b> on. The pip goes red — someone sees
+him — while the veto stays shut, because the veto tests <em>his target's</em> vision, not everyone's. Colour
+carries one fact and the modifier the other; switch between <b>H</b>, <b>R</b> and <b>S</b> to compare.</p>
+<p><b>3 · The case no pip can fix.</b> Set Ambush to <b>Sprung</b> with third party off and proximity around 50.
+He is firing, and the pip correctly reads not-spotted, because he is not spotted.
+<code>ambushTriggered</code> is terminal. The readout is honest; the inference "not red, so not shooting" is
+what fails, and no visual scheme repairs that.</p>
+
+<script>
+(function () {
+  var S = { modifier:"H", graded:true, ambush:"holding", thirdParty:false, proximity:60, suppression:0, hunker:0, notes:"" };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  var COL = {
+    contact:  { fill:"#ecc73c", stroke:"#7d6810", name:"contact" },
+    closing:  { fill:"#f0b232", stroke:"#7d5d10", name:"closing" },
+    marginal: { fill:"#f09425", stroke:"#7d4d10", name:"marginal" },
+    spotted:  { fill:"#e0392c", stroke:"#6d120b", name:"spotted" },
+    vetoed:   { fill:"#ee7d1e", stroke:"#833f05", name:"vetoed" }
+  };
+
+  function derive() {
+    var prone = S.hunker >= 35 || S.suppression > 30;
+    var dugin = S.hunker >= 70;
+    var tiers = (prone ? 1 : 0) + (dugin ? 1 : 0);
+
+    var exposure  = Math.max(0, Math.min(100, S.proximity - tiers * 12));
+    var expIfFire = Math.max(0, Math.min(100, S.proximity - (tiers - 2) * 12));
+
+    var det;
+    if (S.proximity === 0) det = "clear";
+    else if (exposure >= 85) det = "spotted";
+    else if (exposure >= 65) det = "marginal";
+    else if (exposure >= 35) det = "closing";
+    else det = "contact";
+
+    // His TARGET seeing him is the veto's exit condition (AutoTarget.cs:774). A third party seeing him
+    // lights the pip but does NOT release the veto — the one genuine coexistence case.
+    var targetSees = det === "spotted";
+    if (S.thirdParty && det !== "clear") det = "spotted";
+
+    // Veto: holding, with a known enemy, and his target cannot see him yet.
+    var vetoed = S.ambush === "holding" && det !== "clear" && !targetSees;
+    // Sprung and concealed: firing while the pip honestly reads "not seen".
+    var latchLie = S.ambush === "sprung" && !targetSees && !S.thirdParty && det !== "clear";
+
+    // Hit radius: continuous, prone (r20) is an interior anchor rather than the only destination.
+    var radius = 30 - 10 * Math.min(1, S.hunker / 70);
+    if (S.suppression > 30) radius = Math.min(radius, 20);
+    var areaPct = Math.round((radius * radius) / 9);
+
+    return { prone:prone, dugin:dugin, tiers:tiers, exposure:exposure, expIfFire:expIfFire,
+             det:det, vetoed:vetoed, targetSees:targetSees, latchLie:latchLie,
+             radius:radius, areaPct:areaPct };
+  }
+
+  function pipColour(d) {
+    if (d.det === "clear") return null;
+    if (d.det === "spotted") return COL.spotted;
+    if (!S.graded) return COL.contact;
+    if (d.det === "marginal") return COL.marginal;
+    if (d.det === "closing") return COL.closing;
+    return COL.contact;
+  }
+
+  var KITE  = "M 120 100 L 101 72 L 120 38 L 139 72 Z";
+  var SPLIT = "M 120 100 L 101 72 L 109 50 L 120 66 L 131 50 L 139 72 Z";
+
+  function soldierSVG(prone, dugin) {
+    var s = '';
+    if (prone) {
+      // lying down, head to the left — drawn at the same visual weight as the standing figure
+      s += '<ellipse cx="120" cy="200" rx="52" ry="7" fill="#000" opacity=".45"/>';
+      s += '<rect x="152" y="180" width="16" height="9" rx="4" fill="#4c574a" stroke="#39422f" stroke-width="1.4"/>';
+      s += '<rect x="130" y="176" width="28" height="15" rx="7" fill="#5d6a58" stroke="#39422f" stroke-width="1.5"/>';
+      s += '<rect x="92" y="169" width="46" height="24" rx="11" fill="#7b8a70" stroke="#39422f" stroke-width="1.7"/>';
+      s += '<rect x="96" y="186" width="34" height="8" rx="4" fill="#68765f" stroke="#39422f" stroke-width="1.3"/>';
+      s += '<line x1="98" y1="172" x2="76" y2="167" stroke="#3a3228" stroke-width="4" stroke-linecap="round"/>';
+      s += '<circle cx="82" cy="180" r="13" fill="#8e9c81" stroke="#39422f" stroke-width="1.7"/>';
+      s += '<path d="M 69 177 A 13 13 0 0 1 95 177 Z" fill="#6f7d64" stroke="#39422f" stroke-width="1.4"/>';
+      if (dugin) s += '<path d="M 60 197 Q 120 183 180 197 L 180 204 L 60 204 Z" fill="#4a4030" stroke="#2f2a1f" stroke-width="1.5"/>';
+    } else {
+      s += '<ellipse cx="120" cy="199" rx="27" ry="6.5" fill="#000" opacity=".45"/>';
+      s += '<rect x="108.5" y="169" width="9" height="29" rx="4" fill="#5d6a58" stroke="#39422f" stroke-width="1.4"/>';
+      s += '<rect x="122.5" y="169" width="9" height="29" rx="4" fill="#5d6a58" stroke="#39422f" stroke-width="1.4"/>';
+      s += '<rect x="99" y="140" width="7.5" height="28" rx="3.7" fill="#68765f" stroke="#39422f" stroke-width="1.4"/>';
+      s += '<rect x="133.5" y="140" width="7.5" height="28" rx="3.7" fill="#68765f" stroke="#39422f" stroke-width="1.4"/>';
+      s += '<rect x="105.5" y="136" width="29" height="37" rx="9" fill="#7b8a70" stroke="#39422f" stroke-width="1.6"/>';
+      s += '<circle cx="120" cy="124" r="12.5" fill="#8e9c81" stroke="#39422f" stroke-width="1.6"/>';
+      s += '<path d="M 107 121 A 13 13 0 0 1 133 121 Z" fill="#6f7d64" stroke="#39422f" stroke-width="1.4"/>';
+    }
+    s += '<rect x="85" y="207" width="70" height="10" rx="3" fill="#232a30" stroke="#454f58" stroke-width="1.2"/>';
+    s += '<rect x="87" y="209" width="49" height="6" rx="2" fill="#4eae54"/>';
+    return s;
+  }
+
+  function render() {
+    var d = derive();
+
+    $("vProx").textContent = S.proximity;
+    $("vSup").textContent  = S.suppression;
+    $("vHunk").textContent = S.hunker;
+
+    // pip — colour is the continuum; the veto is a shape modifier only
+    var c = pipColour(d);
+    var shape = $("pipShape"), ring = $("pipRing"), none = $("pipNone"), glow = $("pipGlow");
+    if (!c) {
+      shape.setAttribute("opacity", "0");
+      ring.setAttribute("opacity", "0");
+      glow.setAttribute("opacity", "0");
+      none.setAttribute("opacity", "1");
+    } else {
+      none.setAttribute("opacity", "0");
+      var hollow = (S.modifier === "H" && d.vetoed);
+      var split  = (S.modifier === "S" && d.vetoed);
+      shape.setAttribute("d", split ? SPLIT : KITE);
+      shape.setAttribute("fill", hollow ? "none" : c.fill);
+      shape.setAttribute("stroke", hollow ? c.fill : c.stroke);
+      shape.setAttribute("stroke-width", hollow ? "5" : (d.det === "spotted" ? "2.6" : "1.8"));
+      shape.setAttribute("opacity", "1");
+      ring.setAttribute("opacity", (S.modifier === "R" && d.vetoed) ? "1" : "0");
+      ring.setAttribute("stroke", c.fill);
+      $("g0").setAttribute("stop-color", c.fill);
+      $("g0").setAttribute("stop-opacity", d.det === "spotted" ? ".46" : ".30");
+      $("g1").setAttribute("stop-color", c.fill);
+      $("g1").setAttribute("stop-opacity", "0");
+      glow.setAttribute("opacity", "1");
+    }
+
+    // hit circle — 3px on screen per 1 unit of radius
+    $("hitCirc").setAttribute("r", d.radius * 2);
+    $("rTxt").textContent = "radius " + d.radius.toFixed(1);
+    $("aTxt").textContent = "area " + d.areaPct + "% of standing";
+
+    $("soldier").innerHTML = soldierSVG(d.prone, d.dugin);
+
+    // readout
+    var parts = [];
+    if (d.prone) parts.push("prone +1");
+    if (d.dugin) parts.push("dug-in +1");
+    $("oTiers").textContent   = (d.tiers >= 0 ? "+" : "") + d.tiers;
+    $("oBreak").textContent   = parts.length ? parts.join(", ") : "none";
+    $("oExp").textContent     = d.exposure;
+    $("oExpFire").textContent = d.expIfFire + (d.expIfFire >= 85 ? "  \u2192 would be seen" : "");
+    $("oPost").textContent    = d.dugin ? "dug in" : (d.prone ? "prone" : "standing");
+    $("oHit").textContent     = d.radius.toFixed(1) + " \u00b7 " + d.areaPct + "%";
+    $("oDet").textContent     = d.det + (d.det === "clear" ? " (no watcher known)" : "");
+    $("oBlk").textContent     = d.vetoed ? "yes \u2014 holding fire" : "no";
+
+    var bar = $("stateBar"), txt, col;
+    if (d.det === "clear")   { txt = "No watcher known \u2014 not the same as unobserved"; col = "#6d7a85"; }
+    else if (d.vetoed && d.det === "spotted")
+                             { txt = "Spotted by a third party, still vetoed \u2014 the real overlap"; col = COL.spotted.fill; }
+    else if (d.vetoed)       { txt = "Vetoed \u2014 aimed, and returning without firing";  col = COL.marginal.fill; }
+    else if (d.det === "spotted") { txt = "Spotted \u2014 an enemy we know about can see him"; col = COL.spotted.fill; }
+    else                     { txt = "Contact \u2014 he could be seen (" + d.det + ")";    col = COL.contact.fill; }
+    bar.textContent = txt;
+    bar.style.borderLeftColor = col;
+    bar.style.color = col;
+
+    var w = $("warn"), msg = "";
+    if (d.latchLie)
+      msg = "<b>The pip is honest and the inference still breaks.</b> He is sprung, so he is firing \u2014 but his " +
+            "target cannot see him, so the pip correctly reads not-spotted. <code>ambushTriggered</code> is " +
+            "terminal (<code>:1013</code>). No visual scheme fixes this one; only the player's assumption that " +
+            "\"not red\" implies \"not shooting\" is wrong.";
+    else if (S.modifier === "N" && d.vetoed)
+      msg = "<b>Information lost.</b> He is vetoed \u2014 aimed at a target and deliberately not firing \u2014 and " +
+            "with no second channel the pip cannot say so. This is what the veto costs when colour is the only " +
+            "channel.";
+    else if (d.vetoed && d.det === "spotted")
+      msg = "<b>The genuine overlap.</b> A third party sees him, so the pip is red; his own target still cannot, " +
+            "so the veto at <code>:774</code> has not released. Colour carries one fact, the modifier the other.";
+    if (msg) { w.innerHTML = msg; w.classList.remove("hide"); }
+    else     { w.classList.add("hide"); }
+
+    post("maestro:artifact_state");
+  }
+
+  function post(type, extra) {
+    var msg = { type: type, state: S };
+    if (extra) msg.summary = extra;
+    try { window.parent.postMessage(msg, "*"); } catch (e) {}
+  }
+
+  // ---- wiring ----
+  function slider(id, key) {
+    $(id).addEventListener("input", function () { S[key] = +this.value; render(); });
+  }
+  slider("prox", "proximity");
+  slider("sup", "suppression");
+  slider("hunk", "hunker");
+
+  function toggle(id, key, on, off, lbl) {
+    var el = $(id);
+    function flip() {
+      S[key] = !S[key];
+      el.setAttribute("aria-pressed", String(S[key]));
+      $(lbl).textContent = S[key] ? on : off;
+      render();
+    }
+    el.addEventListener("click", flip);
+    el.addEventListener("keydown", function (e) {
+      if (e.key === " " || e.key === "Enter") { e.preventDefault(); flip(); }
+    });
+  }
+  toggle("third", "thirdParty", "On — a flanker has eyes on him", "Off", "thirdLbl");
+  toggle("graded", "graded",
+    "On — yellow deepens as the margin closes", "Off — flat yellow, as the docs specify", "gradedLbl");
+
+  function seg(id, key) {
+    Array.prototype.forEach.call($(id).children, function (b) {
+      b.addEventListener("click", function () {
+        S[key] = b.dataset.v;
+        Array.prototype.forEach.call($(id).children, function (o) {
+          o.setAttribute("aria-pressed", String(o.dataset.v === S[key]));
+        });
+        render();
+      });
+    });
+  }
+  seg("amb", "ambush");
+  seg("treat", "modifier");
+
+  $("notes").addEventListener("input", function () { S.notes = this.value.slice(0, 600); render(); });
+
+  $("send").addEventListener("click", function () {
+    var d = derive();
+    post("maestro:artifact_submit",
+      "Veto modifier " + S.modifier + ", graded yellow " + (S.graded ? "on" : "off") +
+      " — viewing a soldier at " + d.det + (d.vetoed ? ", vetoed" : "") + ".");
+    $("sentMsg").textContent = "Sent. Keep adjusting and send again if you change your mind.";
+  });
+
+  // ---- hydrate: restore prior settings instead of resetting them ----
+  window.addEventListener("message", function (e) {
+    if (!e.data || e.data.type !== "maestro:artifact_hydrate" || !e.data.state) return;
+    var st = e.data.state;
+    ["modifier", "graded", "ambush", "thirdParty", "proximity", "suppression", "hunker", "notes"]
+      .forEach(function (k) { if (st[k] !== undefined) S[k] = st[k]; });
+    $("prox").value = S.proximity; $("sup").value = S.suppression; $("hunk").value = S.hunker;
+    $("notes").value = S.notes || "";
+    $("third").setAttribute("aria-pressed", String(S.thirdParty));
+    $("thirdLbl").textContent = S.thirdParty ? "On — a flanker has eyes on him" : "Off";
+    $("graded").setAttribute("aria-pressed", String(S.graded));
+    $("gradedLbl").textContent = S.graded ? "On — yellow deepens as the margin closes" : "Off — flat yellow, as the docs specify";
+    Array.prototype.forEach.call($("amb").children, function (o) {
+      o.setAttribute("aria-pressed", String(o.dataset.v === S.ambush));
+    });
+    Array.prototype.forEach.call($("treat").children, function (o) {
+      o.setAttribute("aria-pressed", String(o.dataset.v === S.modifier));
+    });
+    render();
+  });
+
+  render();
+})();
+</script>
+</div>
+</body>
+</html>
