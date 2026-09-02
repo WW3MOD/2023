@@ -1,31 +1,60 @@
 fail
 The negative arm is BY MERIT: the @experimental drone operator genuinely does not
 yet prefer a lost-track contact over the stalest ground it could explore. The
-scenario and the code are both correct; the shortfall it measures sits inside the
-band CONTROL-ARM.md:135 pre-registered as "report that and change nothing" (<=1.5x).
+scenario and the code are both correct.
 
 MEASURED, run 260901_084100_p5243_test-drone-lost-track, seed 119467278, on main
 at 3dd67e07 (build clean, NUnit 2104/2104):
 
     samples=86  near(<=18c of 47:54)=0 (0%)  mindist=25
 
-25 against an 18-cell bar is a 1.389x shortfall, inside the previously-reported
-1.19-1.47x bounds. The drone flew 18:45 -> 35:31, parked there for ~60 of 86
-samples, and returned; it never approached the vanish cell. A late intruder
-(tecn.america at 21:46, t1221, 27c from the vanish cell) is correctly ignored by
-the scenario as post-decision, and 22 of the 86 samples follow it.
+The drone flew 18:45 -> 35:31, parked there for ~60 of 86 samples, and returned;
+it never approached the vanish cell. A late intruder (tecn.america at 21:46, t1221,
+27c from the vanish cell) is correctly ignored by the scenario as post-decision,
+and 22 of the 86 samples follow it. Both execution markers present.
+
+THE OUTCOME ABOVE STANDS. TWO CLAIMS THAT SAT HERE ARE WITHDRAWN (2026-09-02).
+
+1. "25 against an 18-cell bar is a 1.389x shortfall, inside the pre-registered
+   <=1.5x band" COMPARED TWO DIFFERENT QUANTITIES. 1.389 is mindist/NearVanishCells
+   -- a ratio of CELL DISTANCES. The <=1.5x / >=1.8x band at CONTROL-ARM.md:135 is
+   pre-registered for the LostTrackIntelSquares MULTIPLIER, which CONTROL-ARM.md:130
+   defines in SCORE space as
+       (reveal - bestintelreveal) / (bestintel - intel_at_reveal_argmax)
+   How far the drone parked from the vanish cell does not convert into how much
+   larger the intel constant would have to be, so the band was never entered and
+   "change nothing" was never earned. The accompanying "previously-reported
+   1.19-1.47x bounds" are recorded nowhere in this repo -- the same objection a
+   worker already raised against the 1.247x figure this file replaced.
+
+   THE BOUND THAT IS ACTUALLY DERIVABLE, and it needs no further run: reveal_hunt
+   >= 0 and the hunt cell lost, so the multiplier lies strictly between 1.0x and
+   2.10x (CONTROL-ARM.md:118-127). That straddles BOTH thresholds. The sizing
+   question is OPEN, not settled.
+
+2. THE MEASUREMENT IS STALE. It predates 1e0226b9, which replaced the drone's
+   rectangular revealed-area query with the vision DISC and removed up to 228
+   squares of corner credit per candidate -- ~19x MinRevealedSquares (12). Every
+   `reveal` in the run above was computed by the box. Both the hunt cell and the
+   reveal argmax lose corners, so the direction of the change is NOT predictable
+   from the old numbers and must be re-measured.
+
+WHAT THE NEXT RUN MUST CAPTURE, BECAUSE THE LAST ONE DID NOT. The multiplier needs
+`bestintelreveal=` off the `[drone] ... launch` line (DroneOperatorBotModule.cs:734).
+That line is engine-side and the Lua verdict string cannot carry it. The 260901 run
+dir held only PNGs and result.json, and the global debug.log had been truncated by a
+later launch before anyone read it -- so a run that reached a real verdict still
+could not answer the question it was spent on. run-test.sh now archives debug.log
+into the run dir for every outcome; read RUN_DIR/debug.log, never the global file.
 
 REMOVE THIS FILE in the same commit as whatever makes the operator prefer the
 lost-track contact. A pass against a live `fail` declaration is RED on purpose:
 it means the premise moved and this note is stale.
 
-THE CAVEAT THAT SAT HERE IS RETIRED (2026-09-02). It warned that a `fail`
-declaration also graded a watchdog TIMEOUT-FAIL green, so this file could not
-distinguish "the drone did not prefer the contact" from "the game hung and never
-reached a verdict", and told the reader to re-read the run banner rather than
-trust an OK(fail) in the tally. The harness now draws that distinction itself:
-run-batch.sh grades on run-test.sh's OUTCOME NAME rather than its exit code, so
-a hang, a crash or a lost outcome is RED under any declaration and is listed
-under "NEVER REACHED A VERDICT". An OK(fail) here now means the scenario reached
-a verdict under its own power. Keep the evidence habit regardless -- 86 samples
-and a position trace are why the measurement above is believable, not the tally.
+The harness distinguishes "did not prefer the contact" from "never reached a
+verdict" by itself: run-batch.sh grades on run-test.sh's OUTCOME NAME rather than
+its exit code, so a hang, a crash or a lost outcome is RED under any declaration and
+is listed under "NEVER REACHED A VERDICT". An OK(fail) here means the scenario
+reached a verdict under its own power. Keep the evidence habit regardless -- 86
+samples and a position trace are why the measurement above is believable, not the
+tally.

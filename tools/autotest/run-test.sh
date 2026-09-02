@@ -582,7 +582,7 @@ fi
 [ -n "${WINDOW_POS_ENV}" ] && echo "==> Position: ${WINDOW_POS_ENV} on ${SCREEN_W}x${SCREEN_H}"
 [ -n "${TEST_DESCRIPTION}" ] && echo "==> Description: ${TEST_DESCRIPTION}"
 echo "==> Run id:      ${RUN_ID}"
-echo "==> Run dir:     ${RUN_DIR}   (result.json + screenshots + lifecycle log)"
+echo "==> Run dir:     ${RUN_DIR}   (result.json + screenshots + lifecycle log + debug.log)"
 echo "==> Result file: ${RESULT_FILE}"
 echo
 
@@ -846,6 +846,34 @@ if [ -n "${PREV_APP}" ]; then
 fi
 
 echo
+
+# ARCHIVE THE ENGINE LOG INTO THE RUN DIR, FOR EVERY OUTCOME.
+#
+# debug.log is a SINGLE GLOBAL FILE that the next launch truncates, so every
+# diagnostic the scenario's own verdict string does not carry lives for exactly as
+# long as nobody runs another test. The verdict is a Lua string; the module
+# diagnostics — `[drone]` launch lines, `[defence] assign`, `[composition] pick` —
+# are engine-side and reachable only here.
+#
+# THIS HAS ALREADY DESTROYED A MEASUREMENT. Run 260901_084100_p5243 reached a real
+# verdict under its own power, and interpreting it needed `bestintelreveal=` off a
+# `[drone] launch` line — the one number that sizes LostTrackIntelSquares. By the
+# time anyone went looking, a later launch had overwritten the file, and the run
+# dir held only PNGs and result.json. The run was spent and the question stayed open.
+#
+# Copied on the CRASH and NO-RESULT paths too, and deliberately so: a run with no
+# verdict is the one whose log matters most. Best-effort throughout — a failure to
+# copy must never change OUTCOME.
+if [ -d "${RUN_DIR}" ]; then
+	_dbg_save="$(find_debug_log)"
+	if [ -n "${_dbg_save}" ] && [ -f "${_dbg_save}" ]; then
+		cp "${_dbg_save}" "${RUN_DIR}/debug.log" 2>/dev/null || true
+		_lua_save="$(dirname "${_dbg_save}")/lua.log"
+		if [ -f "${_lua_save}" ]; then
+			cp "${_lua_save}" "${RUN_DIR}/lua.log" 2>/dev/null || true
+		fi
+	fi
+fi
 
 if [ ! -f "${RESULT_FILE}" ]; then
 	# A MISSING RESULT IS A NAMED OUTCOME, NEVER SILENCE AND NEVER A PASS. Both a
