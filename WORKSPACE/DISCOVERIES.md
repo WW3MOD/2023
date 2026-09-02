@@ -3,6 +3,42 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-02 — Two separate MiniYaml traps that produce the SAME error message
+
+Both surface as `There are no elements with key \`X\` to remove`, both prevent the mod loading at
+all — every map, not just the one at fault, because rules resolve once at load. They have different
+causes and different fixes, and one was initially misdiagnosed as the other.
+
+**1. Top-level rule keys merge with ORDINAL, CASE-SENSITIVE equality.** `MiniYaml.cs:410`
+(`ToDictionary` with the default comparer), `:549`, `:597`, `:606`. A map rules block written
+`t02:` / `t03:` against `decoration.yaml`'s `T02:` / `T03:` does **not** override anything — it
+defines a **brand-new actor** carrying only the lines written there. A `-SpawnActorOnDeath:` inside
+it then has nothing to remove, because the trait was never present in *any* source for that key.
+This was the actual cause of the 2026-09-02 load failure (`rules.yaml:62`), which never got as far
+as starting the game: no Lua ran and the run timed out at 300 s with no verdict.
+
+The trap is that the `ToLowerInvariant` which makes actor names *feel* case-insensitive runs later
+and elsewhere — `Ruleset.cs:126`, building `ActorInfo` from the already-merged tree. So a map's
+`Actors:` list may spell a type in any case, but **a map's rules override must match the defining
+file's casing exactly**. There is no rule of thumb: trees are uppercase `T01:`–`T17:`, most units
+are lowercase.
+
+**2. Removals resolve in DOCUMENT ORDER against what has accumulated so far.**
+`MiniYaml.ResolveInherits` (`:449-490`) walks a node's children in order: `Inherits:` merges its
+parent in *at the point it appears*, and `-Foo:` calls `RemoveAll` *at the point it appears*,
+throwing at `:482-483` if the count is zero.
+
+So removing a genuinely inherited trait **is** supported — but only if the `Inherits:` line
+supplying it precedes the removal in the same block. A `-Foo:` written *above* its `Inherits:`
+throws even though the trait really is inherited. **Ordering is load-bearing.**
+
+**Design consequence.** This makes a fleet of `-Trait:` opt-outs order-sensitive rather than unsafe,
+and its failures loud rather than silent — which is worth something. But it stays fragile in one
+specific direction: every removal depends on a shared parent continuing to supply the trait, so the
+day someone takes the trait off that parent, *all* the removals throw simultaneously and the mod
+stops loading. Prefer *attaching* a trait to the actors that need it over *removing* it from the
+actors that do not — attaching cannot fail at load, and it makes the revert one edit instead of N.
+
 ## 2026-09-02 — Six harness traps in one night, every one of which reports a confident WRONG answer rather than no answer
 
 All hit doing ordinary verification work in a single session, and all caught by reading
