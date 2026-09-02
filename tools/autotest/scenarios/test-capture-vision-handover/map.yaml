@@ -1,0 +1,85 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Vision follows a building that changes hands (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Terrain copied verbatim from test-garrison-ownership-flip-evacuation (same MapSize and
+# Bounds), which already sites a garrisonable 2x2 on row 16.
+#
+# WHY THE GEOMETRY IS THE WHOLE SCENARIO. The reading only means something if the probe cell
+# is lit by the FORT AND BY NOTHING ELSE, so every other vision source on the map is either
+# stripped in rules.yaml or parked far away, and Phase 0 refuses to continue unless the
+# baseline it predicts is the baseline it measures. See rules.yaml for the strip list.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# THE SUBJECT. Starts Neutral because GarrisonManager.cs:259 claims a building only while
+	# it is Neutral — that gate makes Neutral the only possible pre-flip owner on this path,
+	# and (see the .lua header) Neutral being a world-start owner is what makes the LEAK half
+	# observable at all.
+	#
+	# v01 is a 2x2 church; Location is its top-left cell, so its footprint is 30,16..31,17.
+	Fort: v01
+		Owner: Neutral
+		Location: 30,16
+	# Walks north into Fort. Approaches from the SOUTH so that his own (deliberately shortened)
+	# vision never touches the probe cell to the north — his closest approach to the probe is
+	# ~4.1 cells and rules.yaml caps E1 vision at 2c0.
+	Trooper: e1
+		Owner: USA
+		Location: 30,22
+	# Never garrisons anything and never moves. He exists only for Phase 3: flipping HIS owner
+	# goes through Actor.ChangeOwnerSync (the World.Remove/Add path every non-building actor
+	# still takes), which fires INotifyOwnerChanged while he is OUT of the world. That is the
+	# case the IsInWorld guard in AffectsMapLayer exists for. Parked in the far south-west so
+	# his 2c0 bubble cannot reach the probe cell.
+	Sentry: e1
+		Owner: USA
+		Location: 10,27
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,14
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,26
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 30,22
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,26
+
+Rules: rules.yaml

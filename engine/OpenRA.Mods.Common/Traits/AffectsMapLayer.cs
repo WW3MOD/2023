@@ -40,7 +40,7 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	public abstract class AffectsMapLayer : ConditionalTrait<AffectsMapLayerInfo>, IAffectsMapLayer, ISync, INotifyAddedToWorld,
-		INotifyRemovedFromWorld, INotifyMoving, INotifyCenterPositionChanged, ITick
+		INotifyRemovedFromWorld, INotifyMoving, INotifyCenterPositionChanged, INotifyOwnerChanged, ITick
 	{
 		readonly HashSet<PPos> footprint;
 
@@ -155,6 +155,27 @@ namespace OpenRA.Mods.Common.Traits
 				checkTick = 10;
 				UpdateCells(self);
 			} */
+
+			UpdateCells(self);
+		}
+
+		// Sources are keyed by this trait instance and hold a snapshot of the ownership
+		// relationships taken when UpdateCells last ran, so an owner change disturbs nothing.
+		// Buildings flip via ChangeOwnerInPlaceSync, which skips World.Remove/Add — so without
+		// this hook none of the other four triggers fire on a stationary captured building, and
+		// the old owner keeps the source forever while the new owner never gets one.
+		//
+		// PITFALL: the IsInWorld guard is load-bearing, and RevealsMap (RevealsShroud.cs:54) is
+		// NOT the pattern to copy — it omits the guard safely only because it has no
+		// INotifyAddedToWorld/RemovedFromWorld, managing cells via TraitEnabled/TraitDisabled.
+		// This class has those hooks, and ChangeOwnerSync (Actor.cs:578-592, still the path for
+		// every non-building actor) fires this notification while the actor is out of the world.
+		// Recomputing there would AddSource, and the following AddedToWorld adds again without
+		// removing first (:188 vs UpdateCells' :167) → duplicate-key throw at MapLayers.cs:323.
+		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
+		{
+			if (!self.IsInWorld)
+				return;
 
 			UpdateCells(self);
 		}
