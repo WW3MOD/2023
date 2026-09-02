@@ -3,6 +3,39 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-02 — Almost nothing in the mod can damage a tree, and `^Box` / `ICE##` / `UTILPOL#` are trees
+
+Found while building `test-tree-indestructible`, and the first item is why that scenario ships its
+own weapon rather than borrowing a unit's.
+
+**Weapon-level `ValidTargets` gates AIMING; warhead-level `ValidTargets` gates IMPACT, and it
+defaults to `Ground, Water` (`Warhead.cs:30`).** `^Tree` is `Targetable: TargetTypes: Trees` and
+nothing else, so a warhead that does not name `Trees` skips it at `Warhead.IsValidAgainst`.
+`^ArtilleryRound` is the trap in concentrated form: it declares `ValidTargets: Ground, Trees, Water`
+at *weapon* level (`weapons-ballistics.yaml:874`) — so a Paladin aims at a tree quite happily —
+while both its damage warheads declare none, so the shell lands and does **nothing**. Mod-wide the
+only damage warheads listing `Trees` belong to `IskanderExplosion`, `HIMARSExplosion`,
+`NapalmExplosion`/`NapalmFX` and `CrateNuke`, every one an `Explodes` payload on a missile actor
+rather than an armament. **Before writing anything that depends on a tree taking damage, check the
+WARHEAD, not the weapon.**
+
+**`^Box` (`BOXES01-09`), `ICE01-05` and `UTILPOL1/2` all `Inherits: ^Tree`** (`decoration.yaml:176,
+527, 540, 553, 566, 575, 628, 636`), so they picked up tree invulnerability along with it on
+2026-09-02. Probably harmless — they are scenery — but it was not stated anywhere. `^AmmoBox` is
+*not* affected; it inherits `^TechBuilding`.
+
+**`Bridge.RemoveActorsFromFootprint` (`Bridge.cs:373`, fired on `DamageStateChanged == Dead` at
+`:381`) kills every actor in the bridge footprint with no trait gate at all** — via `Health.Kill`,
+so `ignoreModifiers: true`, so invulnerability does not stop it. It is unreachable only because zero
+bridge actors exist in the 10 shipped maps or the 239 autotest scenarios. A user-authored map with a
+bridge over trees would delete them.
+
+**Measured statically, no build and no game slot:** on a 64x32 scenario carrying three trees,
+`nav_guard.py report --scenarios --map <name>` gives `foot` 2048 reachable cells against every
+vehicle locomotor's 2045; swap those three actors for their `.husk` forms and `foot` drops to 2045
+too. That is the "shelling a wood seals infantry lanes" divergence quantified — three cells, three
+stumps — without launching anything.
+
 ## 2026-09-02 — Six harness traps in one night, every one of which reports a confident WRONG answer rather than no answer
 
 All hit doing ordinary verification work in a single session, and all caught by reading

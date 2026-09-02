@@ -1,0 +1,43 @@
+# The shell this scenario shells the wood with. Hand-built rather than borrowed from a shipped
+# unit, for two reasons that both come down to "the fixture must not drift":
+#
+#   1. NO SHIPPED UNIT WEAPON DAMAGES A TREE. Warhead.ValidTargets defaults to `Ground, Water`
+#      (Warhead.cs:30) and ^Tree is Targetable ONLY as `Trees` (decoration.yaml, ^Tree). Weapon-level
+#      ValidTargets gates AIMING, not impact -- ^ArtilleryRound declares `Ground, Trees, Water` at
+#      weapon level but its TargetDamage/SpreadDamage warheads declare none, so an artillery shell
+#      lands on a tree and does nothing at all. The mod's only damage warheads that list `Trees` are
+#      missile/superweapon payloads (IskanderExplosion, HIMARSExplosion, NapalmExplosion, CrateNuke),
+#      each delivered by Explodes on a missile actor. Borrowing one would tie this test to a balance
+#      pass on that missile.
+#   2. THE NUMBER HAS TO BE ARITHMETIC, not "enough". The scenario reports total damage delivered at
+#      the guarded tree's cell as a multiple of the tree's 2500 HP, and that only works if damage
+#      per shell is a known constant.
+#
+# EVERYTHING BELOW IS CHOSEN TO MAKE PER-SHELL DAMAGE EXACTLY 12000 AT ALL THREE TREE CELLS:
+#   Falloff `100, 100` over Spread 2c0 interpolates between two 100s, so every point within 2048
+#   units of the impact takes the full 12000 -- and all three trees sit at edge-distance 0 or 512.
+#   That is what lets the sponge tree's HP loss be divided by 12000 to get an exact shell count.
+#   Beyond 2c0 it interpolates 100 -> 0 and is zero past 4c0, so the Abrams 7 cells south takes none.
+#   Inaccuracy is unset (0) so the impact point is the cell centre every time, not a scatter.
+#   Blockable: false so ^Tree's own BlocksProjectiles (MaxBypass 4 / BypassChance 80) cannot
+#   intercept a shell aimed at the tree it is attached to. That would not change the verdict, but it
+#   would make the shell count non-deterministic, and the shell count is the evidence.
+#
+# NO Versus BLOCK, DELIBERATELY: DamageWarhead skips DamageVersus entirely when Versus is empty
+# (DamageWarhead.cs:101-103), so Armor `Wood` neither helps nor hurts. And ^Tree's Armor sets no
+# Thickness, so it defaults to 0 and the penetration path short-circuits (DamageWarhead.cs:237-250).
+# Damage arrives unmodified except by the victim's own IDamageModifier traits -- which is precisely
+# the one thing this scenario is here to measure.
+TreeGuardShell:
+	ValidTargets: Ground, Trees, Water
+	Range: 12c0
+	ReloadDelay: 10
+	Projectile: Bullet
+		Speed: 1000
+		Blockable: false
+	Warhead@Spread: SpreadDamage
+		Spread: 2c0
+		Falloff: 100, 100
+		Damage: 12000
+		ValidTargets: Ground, Trees, Water
+		DamageTypes: ExplosionDeath
