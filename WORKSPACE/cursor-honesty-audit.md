@@ -40,7 +40,7 @@ lines myself; **[S]** = established by a sub-audit and not independently re-read
 | `enter` on own **Supply Route** | `DeliversCash.cs:126` (prio 5) + `:128-139`; cursor `:38` | `DeliversCash.cs:88-92` → `GoDonateCash:101-108` — **ignores the target**, queues `RotateToEdge` | **CLOSED — intended**, user ruling 2026-08-30, pinned at `DeliversCash.cs:101` [R] |
 | `attackmove` | ~~`AttackMove.cs:140-154` — no ammo test~~ → now `:145-162` (targeter) and `:229-244` (generator), both mirroring the gate | `AttackMove.cs:109` — `!order.Queued && AmmoPool.CannotFight(self)` → drop | **FIXED 2026-08-30** — now AGREE [R] |
 | `repair` (engineer wrench) | `AttackBase.cs:809` — armament-scoped dryness | `AttackBase.cs:502` — actor-scoped `AmmoPool.CannotFight` | **DIVERGE** [R] |
-| `attack` w/ paused armament | `AttackBase.cs:807` — *deliberately* picks a paused armament | `Armament.cs:327` `CanFire` false; `Attack.cs:256` only bails if opted in | **DIVERGE (cat. 3)** [R] |
+| `attack` w/ paused armament | `AttackBase.cs:807` — *deliberately* picks a paused armament | `Armament.cs:327` `CanFire` false; `Attack.cs:256` only bails if opted in | **RULED 2026-09-02** — silent WITHOUT the abandon opt-in (nothing is refused), refused WITH it. See §"Decision A closed" |
 | `enter-blocked` on a **full** transport | `EnterAlliedActorTargeter.cs:35-50` — `useEnterCursor` picks *art only*, returns `true` | `Passenger.cs:201-202` — `!CanEnter` → drop | **DIVERGE (soft)** [R] |
 | `guard` (command bar) on a dry unit | `GuardOrderGenerator.cs:63-73` — `GuardableInfo` only | `Guard.cs:51-59` → `AttackMoveActivity.cs:93` ends at once | **DIVERGE** [S] |
 | `deploy` (Cargo unload) | `Cargo.cs:346-347` → `CanUnload():435-447`, `BlockedByActor.None` | `UnloadCargo.cs:104-116` — `GetAvailableSubCell` default `BlockedByActor.All` | **DIVERGE** [S] |
@@ -636,5 +636,102 @@ looking at it.** No game has been launched from this worktree. Specifically unob
 - the deploy refusal being **audible** (the notification is wired and configured, but nobody has
   heard it);
 - the aircraft cursor no longer blocking under EMP.
+
+---
+
+# Decision A closed — 2026-09-02: what the cursor may say about a paused weapon
+
+**Branch `wt/paused-cursor`, base `main @ 4f574e3b`. Static reading, build and NUnit. No launch.**
+
+The question as put: *should the cursor say anything when your unit's weapon is paused?*
+
+**Answer: no — with one exception, and the exception is already named by a field that exists.**
+Without `AbandonWhenArmamentsPaused` the cursor must stay exactly as it is. With it, the cursor must
+refuse. That is not a compromise between two positions; it is the same rule — *say what the game
+will do* — applied to two genuinely different behaviours that look identical on screen.
+
+## The reframing that motivated this item, and the one part of it that does not hold
+
+It was offered as: the census shows many pause gates against a single opt-in; the widest entrance is
+every armed vehicle at heavy damage; refusing to fire there is **intended balance**, not a bug; so
+the missing thing is **feedback, not behaviour** — and a cursor reading "this unit cannot fire right
+now" honours the standing *gradient over hard transitions* preference, where one that refuses the
+order does not.
+
+**Three of those four claims verified and are load-bearing.** The armed-vehicle gate
+`!ammo-primary || empdisable || heavy-damage-attained` is on all three faction files;
+`heavy-damage-attained` is granted at Heavy *and* Critical; the state persists until repair, so the
+"it un-pauses in a moment" defence is genuinely false for the case that matters. `^MEDI` is still
+the only `AbandonWhenArmamentsPaused: true` in the mod.
+
+**The fourth does not survive contact with the code, and for a mechanical reason rather than a
+matter of taste: in this codebase a blocked cursor is not a way of saying "cannot fire". It is a way
+of saying "this click will be dropped."** `OrderReadinessMath`'s own header defines it that way for
+every readiness-gated cursor in the game. So there is no available cursor that means what the
+reframing wants it to mean, and three separate things go wrong if one is used anyway.
+
+**1. Nothing is being refused, so there is nothing to report.** With the opt-in off — every actor
+but the medic — `Attack.TickAttack` runs straight past the pause into the ordinary
+`needsToMove` branch and queues `MoveWithinRange`. The tank *accepts the order and drives over*.
+Painting it blocked would claim a refusal that does not happen, which is precisely the error that
+got the minelayer finding retracted on 2026-08-30 — and commit `39975620` predicted this specific
+instance in advance: *"the obvious display fix would be its own lie, since a paused armament ACCEPTS
+the order where a dry one is refused."* The dry case is honestly refusable because `ResolveOrder`
+really does drop it. The paused case is not the same shape.
+
+**2. The polarity ruling makes the cursor structurally incapable of answering this question — this
+is the new argument, and it is the decisive one.** The user's own ruling of 2026-08-30, encoded in
+`OrderReadinessMath`, is *show the cursor for the capable and silently drop the others; blocked only
+when NOTHING in the selection can act.* A player almost never has exactly one heavily damaged tank
+selected. Select four tanks of which one is at Heavy, and the correct cursor under that ruling is
+the ordinary green `attack` — so the signal is absent **exactly in the case the player most needs
+it**, and present only when the whole group is crippled, when they can already see it. The cursor is
+a single glyph for the whole click; it can never point at *which* tank will not shoot. A per-unit
+persistent state cannot be reported through a per-click all-or-nothing channel. Even a perfectly
+built version of the requested feature would be silent when it mattered.
+
+**3. There is no art for it.** `cursors.yaml` has `attack` and `attackoutsiderange` and no
+`attack-blocked`. The nearest existing glyph is `generic-blocked`, which reads "nothing will
+happen" — over-claiming in exactly the direction reason 1 rules out.
+
+## What the cursor MAY say, and why this one is safe
+
+`AbandonWhenArmamentsPaused` flips the outcome completely. With it set, `TickAttack` returns
+`UnableToAttack` on the **first** tick, `attackStatus` never reaches `NeedsToTurn`, `Tick` returns
+true, and the activity completes **having moved nothing**. That is a real refusal, and this file
+already states the doctrine that governs it, at `AttackBase.cs:670`: *"an explicit order is answered
+at the targeting layer or not at all — never accepted and then silently dropped mid-activity."*
+The abandon path is the one place in this family that violates its own file's rule.
+
+So the targeter now refuses exactly what the activity abandons, via one shared predicate
+(`AttackBase.RefusesForPause`) called from both sides. It **returns `false` rather than painting a
+blocked cursor** — that is the "silently drop the incapable" half of the polarity ruling, and it is
+also why this change cannot reintroduce the mixed-selection bug that `9bf6a96a` fixed: a refusing
+actor withdraws from the click instead of blanking it for everyone else.
+
+**Today this changes one thing:** a medic garrisoned at a port (`^MEDI` pauses its `AttackFrontal`
+on `garrisoned-at-port`) stops showing the `heal` cursor over a wounded ally it would have accepted
+and then dropped on tick one. **Its larger value is forward-proofing:** the moment anyone opts a unit
+into abandon, the cursor is already correct, instead of opening a fresh divergence that nobody
+re-audits.
+
+## What this deliberately does NOT fix
+
+**The wedge is still the real defect, and it is behavioural.** A tank at Heavy accepts, drives over,
+aims, and never goes idle — silencing auto-target, auto-follow and auto-rearm. The sharpest form of
+the harm is that *the wedge blocks the unit's own escape from the state that caused it*: the
+autonomy that would take it to be repaired or resupplied is exactly what being non-idle switches
+off. "Stable for minutes" is true, and it is an argument for opting armed vehicles into
+`AbandonWhenArmamentsPaused` — **which is a balance decision, not a cursor one**, because it changes
+what the unit does with the order rather than what the pointer says about it. Ruling that is out of
+scope here and is the natural next item. The cursor follows it for free.
+
+**Where the feedback actually belongs:** "this unit will not fire" is a persistent property of a
+unit, and the channels this game already has for that are per-unit and always-on — the damage state
+the player can see, and the selection decorations. A pointer that appears only while hovering, and
+only when every selected unit is affected, is the wrong instrument for it. That is also the reading
+most faithful to *gradient over hard transitions*: the damage curve already prices the state, and
+the honest complaint underneath this item is that the unit does not act like a unit that has been
+priced.
 
 A cursor fix verified only by compilation is exactly the shape this audit exists to distrust.
