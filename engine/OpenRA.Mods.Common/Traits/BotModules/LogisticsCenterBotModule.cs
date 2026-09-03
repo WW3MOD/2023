@@ -78,6 +78,43 @@ namespace OpenRA.Mods.Common.Traits
 			"until it can actually pay rather than parking a stalled order in front of the army.")]
 		public readonly int MinCashToRequest = 3000;
 
+		[Desc("USER RULING 2026-09-03: require DEMONSTRATED need before spending 3000 on a Centre, instead",
+			"of buying one the moment the quota is unfilled and the money is there. See",
+			"LogisticsCenterDemandMath for the model and the ruling it implements. False reproduces the",
+			"pre-2026-09-03 answer exactly (quota + MinCashToRequest, no need model, no capture veto) so",
+			"the whole thing can be A/B'd from YAML. Defaulted TRUE, not false, because this trait is",
+			"declared only under enable-ai-experimental (ai.yaml) — it is not shared with @stable, so there",
+			"is no benchmark baseline for a false default to protect, and a default-off fix would be a gate",
+			"whose only purpose is withholding it.")]
+		public readonly bool RequireDemand = true;
+
+		[Desc("Actor types priced as the ALTERNATIVE purchase — the thing given up by buying a Centre.",
+			"The main battle tank: abrams is 2500 and t90 2400 against the Centre's 3000, which is the",
+			"user's 'it costs more than a tank'. Cost is read from the RULESET at decision time, never",
+			"hard-coded, so a balance pass that reprices the tank moves this decision with it. The most",
+			"expensive resolvable type wins, so a faction fielding several still compares against its",
+			"real main line.")]
+		public readonly HashSet<string> TankActorTypes = new() { "abrams", "t90" };
+
+		[Desc("How far from the Supply Route, in map cells, a rearmable unit must be to count as a FORWARD",
+			"customer — one whose rearm round-trip a forward Centre would actually shorten. Units nearer",
+			"than this are inside the beachhead's own catchment and a Centre saves them nothing, which is",
+			"precisely the opening the ruling forbids buying in.")]
+		public readonly int ForwardCustomerCells = 12;
+
+		[Desc("The walk, in map cells, that SURVIVES the Centre: from the fighting line back to a Centre",
+			"sited a standoff behind it. Subtracted from the customers' distance to the Supply Route to",
+			"give the trip actually saved. An estimate rather than a derivation — StandoffCells is in",
+			"COARSE control-grid cells and converting it here would import the grid/map-cell confusion",
+			"this module's own siting comments warn about.")]
+		public readonly int ResidualTripCells = 6;
+
+		[Desc("How far from the Supply Route, in map cells, a capturable Centre may be and still VETO a",
+			"purchase. Bounded on purpose: three shipped maps place neutral Centres in pairs, one per",
+			"side, so an unbounded veto lets the ENEMY's Centre — which this bot will never reach — block",
+			"the buy for the whole match, turning 'prefer the free one' into 'never own one'.")]
+		public readonly int CaptureConsiderCells = 40;
+
 		[Desc("Ticks after a production request before another may be issued for the same need. The",
 			"priority lane retries its own head until built, so re-requesting faster only inflates the",
 			"pending count this module's own gate reads.")]
@@ -125,6 +162,7 @@ namespace OpenRA.Mods.Common.Traits
 			// YAML keeps its authored case, so `LCCV` would otherwise match nothing.
 			ActorNameCase.NormalizeInPlace(McvActorTypes);
 			ActorNameCase.NormalizeInPlace(CenterActorTypes);
+			ActorNameCase.NormalizeInPlace(TankActorTypes);
 		}
 
 		public override object Create(ActorInitializer init) { return new LogisticsCenterBotModule(init.Self, this); }
@@ -314,7 +352,8 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var pending = unitProducers.Sum(u => u.RequestedProductionCount(bot, buildType));
-			if (centers + mcvsAlive + pending >= Info.DesiredCenters)
+			var held = centers + mcvsAlive + pending;
+			if (held >= Info.DesiredCenters)
 				return;
 
 			// Don't park an unaffordable 3000-credit order in front of the combat buys.
@@ -325,6 +364,29 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (lastRequestTick >= 0 && tick - lastRequestTick < Info.RequestStaleTicks)
 				return;
+
+			// THE DEMAND TERMS (user ruling 2026-09-03). Everything above is the pre-existing quota and
+			// affordability floor; everything below is the need model that was missing entirely, which is
+			// why the bot bought a Centre ~6 s in with full-ammo infantry standing on the beachhead.
+			var capturable = CapturableCentersWithinReach();
+			var (forwardValue, needPerMille, forwardCells) = MeasureForwardCustomers();
+			var tankCost = ResolveTankCost();
+
+			if (!LogisticsCenterDemandMath.ShouldRequestCenter(
+					held, Info.DesiredCenters, capturable,
+					funds, UnitCostOf(buildType), tankCost,
+					forwardValue, needPerMille, forwardCells, Info.ResidualTripCells,
+					Info.RequireDemand))
+			{
+				// Logged at the refusal, with every term the decision read. The diagnosis this needed was
+				// "which number said no", and a line that recomputes later can disagree with the decision
+				// it claims to explain.
+				Log.Write("debug",
+					$"[logistics] player={player.PlayerName} refuse-buy held={held} capturable={capturable} "
+					+ $"fwd-value={forwardValue} need-permille={needPerMille} fwd-cells={forwardCells} "
+					+ $"tank={tankCost} funds={funds} tick={tick}");
+				return;
+			}
 
 			// ROUTE TO THE FIRST PRODUCER THAT ACCEPTS. A player carries several UnitBuilder twins, all
 			// but one condition-disabled per game; a disabled twin answers the interface but never ticks,
@@ -362,6 +424,113 @@ namespace OpenRA.Mods.Common.Traits
 
 			return Info.McvActorTypes.OrderBy(t => t, StringComparer.Ordinal)
 				.FirstOrDefault(t => buildable.Contains(t));
+		}
+
+		int UnitCostOf(string actorName)
+		{
+			if (actorName == null || !world.Map.Rules.Actors.TryGetValue(actorName, out var ai))
+				return 0;
+
+			return ai.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
+		}
+
+		/// <summary>What a tank costs right now, read from the ruleset rather than written down here, so a
+		/// balance pass that reprices the main battle tank moves the opportunity-cost comparison with it.
+		/// The dearest resolvable type wins: a faction fielding several should compare the Centre against
+		/// its real main line, not against the cheapest thing in the list.</summary>
+		int ResolveTankCost()
+		{
+			var cost = 0;
+			foreach (var name in Info.TankActorTypes)
+			{
+				var c = UnitCostOf(name);
+				if (c > cost)
+					cost = c;
+			}
+
+			return cost;
+		}
+
+		/// <summary><para>Capturable Centres near enough to be worth waiting for instead of buying.</para>
+		///
+		/// <para>Read from the SAME list CaptureCoordinatorBotModule dispatches from — PoiMap.GetCaptureTargets
+		/// — and that agreement is the point rather than convenience. A stricter source here would let this
+		/// module buy a 3000-credit Centre while the capture module is already driving a technician at a
+		/// free one, which is the exact waste being fixed. Consequence stated plainly: GetCaptureTargets is
+		/// map-wide and not fog-filtered, so this inherits that module's omniscience about POI existence.
+		/// No new omniscience is introduced, and DistanceCells is measured from this player's own Supply
+		/// Route by PoiMap itself.</para></summary>
+		int CapturableCentersWithinReach()
+		{
+			if (poiMap == null)
+				return 0;
+
+			var n = 0;
+			foreach (var poi in poiMap.GetCaptureTargets(player))
+				if (Info.CenterActorTypes.Contains(poi.Actor.Info.Name)
+					&& poi.DistanceCells <= Info.CaptureConsiderCells)
+					n++;
+
+			return n;
+		}
+
+		/// <summary><para>The forward customers a Centre would actually serve: total credit value, their mean
+		/// ammo need in per mille, and their mean distance from the Supply Route in cells.</para>
+		///
+		/// <para>A customer is a unit whose Rearmable lists a CenterActorType — infantry carry
+		/// `RearmActors: truk, supplycache, logisticscenter` (infantry.yaml), so the set is defined by the
+		/// ruleset and not by a second list here that could drift from it. FORWARD is ForwardCustomerCells
+		/// from the SR: nearer units are inside the beachhead's own catchment and a forward Centre saves
+		/// them nothing.</para>
+		///
+		/// <para>Need uses ResupplyDemand.UnitNeed, the same missing/capacity metric SupplyProvider itself
+		/// uses and the same one the supply-truck gate reads, so the two economy decisions cannot disagree
+		/// about how empty a soldier is. MEAN rather than max, deliberately: one dry scout must not price a
+		/// 3000-credit depot for an otherwise full army, and the value model is about how much of the army's
+		/// time is going into round-trips, which is an average.</para>
+		///
+		/// <para>Returns (0, 0, 0) when there are no forward customers — no army forward, nothing to save,
+		/// and ForwardResupplyValue is zero for that reason rather than by a special case.</para></summary>
+		(int Value, int NeedPerMille, int DistanceCells) MeasureForwardCustomers()
+		{
+			var srCell = poiMap?.OwnSupplyRoute(player)?.Location;
+			if (srCell == null)
+				return (0, 0, 0);
+
+			var value = 0;
+			var needSum = 0L;
+			var distSum = 0L;
+			var count = 0;
+
+			foreach (var a in world.Actors)
+			{
+				if (a.Owner != player || a.IsDead || !a.IsInWorld)
+					continue;
+
+				var rearmable = a.TraitOrDefault<Rearmable>();
+				if (rearmable == null || !rearmable.Info.RearmActors.Overlaps(Info.CenterActorTypes))
+					continue;
+
+				var pools = rearmable.RearmableAmmoPools;
+				if (pools == null || pools.Length == 0)
+					continue;
+
+				var cells = (a.Location - srCell.Value).Length;
+				if (cells < Info.ForwardCustomerCells)
+					continue;
+
+				var need = ResupplyDemand.UnitNeed(pools.Select(p => (p.Info.Ammo, p.CurrentAmmoCount, p.Info.SupplyValue)));
+
+				value += a.Info.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
+				needSum += (int)(need * 1000);
+				distSum += cells;
+				count++;
+			}
+
+			if (count == 0)
+				return (0, 0, 0);
+
+			return (value, (int)(needSum / count), (int)(distSum / count));
 		}
 
 		void TaskMcv(IBot bot, Actor mcv, int tick)

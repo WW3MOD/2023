@@ -3,6 +3,47 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-03 — A demand gate with no demand term: LogisticsCenterBotModule bought a 3000-credit Centre at t+6s, and the supply-truck ammo bar was 10x looser than the ruling it implements (`wt/bot-lc-economy`, `main @ cb68ce61`)
+
+Static only. `dotnet build` clean, `dotnet test` 2345 green. **No launch was taken** — the two
+scenarios named below are written and handed up unrun.
+
+**Two separate shapes of the same class of bug, and the difference is worth keeping.**
+
+**(1) A gate that was never written, reading as a gate that was mistuned.**
+`LogisticsCenterBotModule.MaintainCenterDemand` (`Traits/BotModules/LogisticsCenterBotModule.cs:303`
+at cb68ce61) is commented "THE DEMAND GATE" and tested exactly two things: `centers + mcvs + pending
+>= DesiredCenters`, and `funds >= MinCashToRequest`. With `DesiredCenters: 1` and `MinCashToRequest:
+3000` against the default opening balance, the FIRST evaluation buys — `ScanInterval` is 100 ticks,
+so ~6 s in. There was no need term to mistune; there was no need term. The name of the method is what
+made this survive review, and the generalisable half is that **a demand gate whose inputs are all
+supply-side quantities (quota, cash) is not a demand gate** — grep the inputs, not the identifier.
+
+**(2) A gate that WAS written, wired correctly, and reading the wrong constant.** The supply-truck
+ammo gate shipped at `5e4ed8d1` (2026-08-17) and is live and correct in shape:
+`SupplyPrecedenceMath.RefuseResupplyBuy` is called from both sites, the first-truck latch works. But
+the bar it feeds is `UnitBuilderBotModule.ResupplyNeedThreshold`, default **0.05**, and
+`ResupplyDemand.UnitNeed` returns *missing/capacity* — so 0.05 means "has fired 5% of his magazine".
+The 2026-08-14 ruling it cites was "below full ammo", which 0.05 is a fair reading of; the 2026-09-03
+ruling is "below half ammo", which is 0.5. **A correct implementation of a superseded ruling looks
+identical to a bug from the outside**, and `git log --grep` finds the commit that proves the feature
+exists while saying nothing about whether its constant still matches what the user now wants.
+
+**The trap the two share:** `ResupplyNeedThreshold` is read by BOTH `AnyFieldedUnitNeedsResupply`
+(the opening gate) and the needy-customer count that sizes the standing fleet
+(`SupplyFleetUnderDesired` -> `SupplyPrecedenceMath.SizingCustomers`). Raising it in place to honour
+an OPENING ruling would silently shrink the MID-MATCH reserve, which the same user wants kept. Fixed
+with a separate `FirstTruckNeedThreshold` scoped to `!heldFirstSupplyTruck`. Before editing a
+threshold, grep every reader of it — the field name says what it measures, not how many decisions
+hang off it.
+
+**Also found:** `tools/autotest/scenarios/test-experimental-lccv-logistics` asserts the SITING
+descent and reaches it only by first getting an LCCV bought. Its map parks the entire pre-placed force
+2-4 cells from the SR, so the new demand terms are zero there and the buy is correctly refused —
+which would have read as a siting regression. It now sets `RequireDemand: false`. **A negative-gate
+change silently invalidates every existing scenario that depended on the positive behaviour as a
+precondition rather than as its subject.**
+
 ## 2026-09-03 — The helicopter corner is a velocity-space CHORD, not a circular arc, so the corner-cut lead is `sin(theta/2)` and not the textbook `tan(theta/2)` (`wt/heli-waypoint-flow`, `main @ 414a84aa`)
 
 Static only. `make all` clean, `dotnet test` 2288 green. **No launch was taken**, so nothing below is
