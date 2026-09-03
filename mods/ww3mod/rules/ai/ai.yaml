@@ -1187,6 +1187,78 @@ Player:
 		# was meant to relieve.
 		StandoffCells: 4
 		DangerSafeUnits: 30
+		# ===== WHEN TO BUY ONE AT ALL (user ruling 2026-09-03) =====
+		# REPORTED: "The bots now buys Logistics centers... We definitely do not need them at the start of
+		# the game, as in this game they bough one almost right away. It is expensive and has no purpose in
+		# the beginning because all units are fully armed." And, on the same map: "there are already a
+		# neutral LC on each side, so the bots should instead capture the exisiting one."
+		#
+		# WHAT WAS WRONG: the module's demand gate tested only `centers + mcvs + pending < DesiredCenters`
+		# and `funds >= MinCashToRequest`. With DesiredCenters 1 and the default opening balance, the FIRST
+		# evaluation (ScanInterval 100 ticks, ~6 s) bought one. There was no need term to mistune — there
+		# was no need term at all.
+		#
+		# WHAT SHIPS NOW: LogisticsCenterDemandMath.ShouldRequestCenter. The Centre's value is TEMPO, not
+		# capability — "Units can always evacuate to rearm", so a Centre only shortens a journey the bot
+		# could make anyway. That value is priced in credits and must beat a tank:
+		#     value = forwardArmyValue × ammoNeed × tripSaved   (all three, multiplied)
+		#     buy iff value > tankCost AND funds >= centreCost + tankCost AND nothing capturable in reach
+		# Any one factor at zero refuses, which is what makes the opening refuse for three reasons at once:
+		# nobody forward, nobody short of ammo, and a small army.
+		RequireDemand: true
+		# The alternative purchase, priced from the RULESET at decision time so a balance pass moves the
+		# comparison with it: abrams 2500 / t90 2400 against the Centre's 3000 — the user's "it costs more
+		# than a tank". Dearest resolvable type wins.
+		TankActorTypes: abrams, t90
+		# A rearmable unit this far from the Supply Route counts as a FORWARD customer; nearer ones are
+		# inside the beachhead's own catchment and a forward Centre saves them nothing.
+		ForwardCustomerCells: 12
+		# The walk that survives the Centre: fighting line back to the Centre's standoff. Subtracted from
+		# the customers' distance to give the trip actually saved. An estimate, not a derivation —
+		# StandoffCells above is in COARSE control-grid cells and converting it here would import the
+		# grid/map-cell confusion this module's siting code warns about.
+		ResidualTripCells: 6
+		# How far a capturable Centre may be and still VETO the purchase. Bounded on purpose: woodland-
+		# warfare, river-zeta and polar-disorder each place neutral Centres in PAIRS, one per side, so an
+		# unbounded veto would let the ENEMY's Centre block the buy for the whole match — turning "prefer
+		# the free one" into "never own one".
+		CaptureConsiderCells: 40
+		# WORKED EXAMPLE, so the bar is legible and tunable rather than folklore. 12000 credits of army,
+		# 40 cells out, 60% depleted: tripSaved = 1000×(40−6)/40 = 850‰; value = 12000×600×850/1e6 = 6120,
+		# which beats a 2500 tank, so it buys. The same army at full ammo, or parked on the SR, is worth 0.
+		# ===== KEEPING IT STOCKED (user ruling 2026-09-03) =====
+		# "Bots needs to learn how to resupply the LC (I think that should work now by sending a truck to
+		# it, to transfer supplies to the LC from the truck. But make sure that works both for bots and
+		# humans)."
+		#
+		# THE HUMAN HALF ALREADY WORKED and is not changed. LOGISTICSCENTER carries AbsorbsSupplyCache
+		# (structures.yaml:560), which is what DropsSupplyCache.ResolveOrder:312 requires before it will
+		# accept a DeliverSupply order; TRUK carries DropsSupplyCache (vehicles.yaml:695) so it can issue
+		# one; and Activities/DeliverSupply.cs:148-154 does the DeductSupply/AddSupply transfer directly
+		# into the Centre's stock. DeliverSupply is the DEFAULT left-click of a loaded truck on a Centre.
+		# What was missing is that NO BOT MODULE EVER ISSUED IT — a bot's Centre ran to zero and stayed
+		# there, which is the reported "units travel to an empty LC and then just sit there".
+		#
+		# So the bot now issues THE SAME ORDER a human does. Bot and human share one code path; the bot has
+		# no private transfer rule that can drift from what the player sees.
+		#
+		# ARBITRATION, which is the part that would otherwise break. SupplyFollowerBotModule@supply also
+		# tasks trucks, and two modules ordering one truck is order-spam that resets a drive every scan.
+		# This takes a BotBlackboard claim ("logistics-delivery") BEFORE ordering; the follower drops any
+		# truck claimed by another module from its roster entirely (IsClaimedByOtherModule), so a claimed
+		# truck vanishes from its scan rather than being fought over. The claim is released the moment the
+		# errand ends — truck gone, Centre gone or captured away, truck empty, Centre full, or truck idle —
+		# which hands it straight back rather than stranding it claimed-forever.
+		RestockCenters: true
+		SupplyTruckActorTypes: truk
+		# Send at half empty, NOT at zero: waiting for empty means waiting until the Centre has already
+		# failed the units standing at it, which is the symptom being fixed.
+		CenterRestockThresholdPerMille: 500
+		# Smallest transfer worth a truck's whole errand, and the anti-oscillation term — a truck that
+		# delivers a trickle drops below the follower's RestockThreshold, is released as spent, and is
+		# immediately re-dispatched.
+		MinDeliverySupply: 250
+		MaxDeliveryDistanceCells: 40
 
 	# Scouting — sends fast units to explore the map and report enemy positions
 	ScoutBotModule@america:

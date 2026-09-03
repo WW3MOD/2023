@@ -170,6 +170,89 @@ and `AmmoPool.CurrentAmmoCount`, both already simulation state reached through s
 `ChooseAffordableResupplier` picks the nearest affordable by Euclidean distance. An affordable host
 can therefore sit inside the leash while the *chosen* one falls outside it; the disposition is then
 `HoldAndFlag` where `SeekRearm` would be right. Safe, but it wants a leash-aware chooser.
+## 2026-09-03 — Truck-to-LC supply transfer already worked for HUMANS; what was missing is that no bot module ever issued the order (`wt/bot-lc-economy`, `main @ cb68ce61`)
+
+Static only. `dotnet build` clean, `dotnet test` 2358 green. **No launch was taken** — the scenario
+below is written and handed up unrun, so nothing here is an in-game observation.
+
+**The user hedged ("I think that should work now") and the hedge resolves in their favour.** Traced
+end to end rather than assumed, because the brief explicitly warned against taking the convenient
+outcome:
+
+* `LOGISTICSCENTER` carries `AbsorbsSupplyCache` (`mods/ww3mod/rules/ingame/structures.yaml:560`).
+  That trait is the **gate on the order itself** — `DropsSupplyCache.ResolveOrder:319` returns early
+  unless the target has it, so its presence is what makes an LC a legal delivery target at all.
+* `TRUK` carries `DropsSupplyCache` (`mods/ww3mod/rules/ingame/vehicles.yaml:695`), which is the trait
+  that *issues* the order and holds the targeters.
+* `Activities/DeliverSupply.cs:148-154` does `supply.DeductSupply(given)` then
+  `hostProvider.AddSupply(given)`, sized by `SupplyTransferMath.AmountToDeliver` — a direct atomic
+  transfer into the Centre's stock, **not** a crate drop that the Centre then absorbs.
+* `DeliverSupply` is the DEFAULT left-click of a loaded truck on a Centre; Ctrl+click is the mirror.
+
+**What was actually missing:** `grep -rn "DeliverSupply" engine/OpenRA.Mods.Common/Traits/BotModules/`
+returns **only prose**. No bot module ever issued the order, so a bot's Centre ran to zero and stayed
+there. The generalisable half: *"is the feature implemented"* and *"is anything wired to trigger it"*
+are separate questions, and a feature with a complete engine path, a cursor, a targeter and a test
+scenario can still be **unreachable for one of the two kinds of player**. Grep the CALLERS, not the
+capability.
+
+**BotBlackboard is the arbitration between truck-tasking modules, and it is one-sided in a way worth
+knowing.** `SupplyFollowerBotModule` filters its roster on `IsClaimedByOtherModule`
+(`SupplyFollowerBotModule.cs:2576-2583`): `claimant != null && claimant != "supply-follow"`. So a
+truck claimed under **any** other name vanishes from its scan entirely — claiming is how you take a
+truck without a fight. Note it does **not** consult `PoiGoalGuard.Ledger`, which is the OTHER claim
+system in this codebase and the one `LogisticsCenterBotModule` was already using for its LCCVs. **Two
+independent claim registries exist and they do not see each other**; picking the wrong one for a given
+counterparty means your claim is invisible. The rule of thumb: claim in whichever registry the module
+you need to keep OFF the unit actually reads.
+
+**The release is the half that goes wrong**, and it already has precedent in-tree: the 2026-08-04
+entry in `WORKSPACE/bugs/discovered.md` records a module dropping a unit from its roster while keeping
+its blackboard claim, leaving it alive-and-claimed forever and invisible to every claim-respecting
+module. `SupplyFollowerBotModule.cs:745-761` now releases on the same edge it drops. Any new claimant
+needs the release enumerated — including **owner change**, since a Centre captured away mid-drive
+leaves a truck driving at a building that is no longer yours.
+
+## 2026-09-03 — A demand gate with no demand term: LogisticsCenterBotModule bought a 3000-credit Centre at t+6s, and the supply-truck ammo bar was 10x looser than the ruling it implements (`wt/bot-lc-economy`, `main @ cb68ce61`)
+
+Static only. `dotnet build` clean, `dotnet test` 2345 green. **No launch was taken** — the two
+scenarios named below are written and handed up unrun.
+
+**Two separate shapes of the same class of bug, and the difference is worth keeping.**
+
+**(1) A gate that was never written, reading as a gate that was mistuned.**
+`LogisticsCenterBotModule.MaintainCenterDemand` (`Traits/BotModules/LogisticsCenterBotModule.cs:303`
+at cb68ce61) is commented "THE DEMAND GATE" and tested exactly two things: `centers + mcvs + pending
+>= DesiredCenters`, and `funds >= MinCashToRequest`. With `DesiredCenters: 1` and `MinCashToRequest:
+3000` against the default opening balance, the FIRST evaluation buys — `ScanInterval` is 100 ticks,
+so ~6 s in. There was no need term to mistune; there was no need term. The name of the method is what
+made this survive review, and the generalisable half is that **a demand gate whose inputs are all
+supply-side quantities (quota, cash) is not a demand gate** — grep the inputs, not the identifier.
+
+**(2) A gate that WAS written, wired correctly, and reading the wrong constant.** The supply-truck
+ammo gate shipped at `5e4ed8d1` (2026-08-17) and is live and correct in shape:
+`SupplyPrecedenceMath.RefuseResupplyBuy` is called from both sites, the first-truck latch works. But
+the bar it feeds is `UnitBuilderBotModule.ResupplyNeedThreshold`, default **0.05**, and
+`ResupplyDemand.UnitNeed` returns *missing/capacity* — so 0.05 means "has fired 5% of his magazine".
+The 2026-08-14 ruling it cites was "below full ammo", which 0.05 is a fair reading of; the 2026-09-03
+ruling is "below half ammo", which is 0.5. **A correct implementation of a superseded ruling looks
+identical to a bug from the outside**, and `git log --grep` finds the commit that proves the feature
+exists while saying nothing about whether its constant still matches what the user now wants.
+
+**The trap the two share:** `ResupplyNeedThreshold` is read by BOTH `AnyFieldedUnitNeedsResupply`
+(the opening gate) and the needy-customer count that sizes the standing fleet
+(`SupplyFleetUnderDesired` -> `SupplyPrecedenceMath.SizingCustomers`). Raising it in place to honour
+an OPENING ruling would silently shrink the MID-MATCH reserve, which the same user wants kept. Fixed
+with a separate `FirstTruckNeedThreshold` scoped to `!heldFirstSupplyTruck`. Before editing a
+threshold, grep every reader of it — the field name says what it measures, not how many decisions
+hang off it.
+
+**Also found:** `tools/autotest/scenarios/test-experimental-lccv-logistics` asserts the SITING
+descent and reaches it only by first getting an LCCV bought. Its map parks the entire pre-placed force
+2-4 cells from the SR, so the new demand terms are zero there and the buy is correctly refused —
+which would have read as a siting regression. It now sets `RequireDemand: false`. **A negative-gate
+change silently invalidates every existing scenario that depended on the positive behaviour as a
+precondition rather than as its subject.**
 
 ## 2026-09-03 — The helicopter corner is a velocity-space CHORD, not a circular arc, so the corner-cut lead is `sin(theta/2)` and not the textbook `tan(theta/2)` (`wt/heli-waypoint-flow`, `main @ 414a84aa`)
 

@@ -1,0 +1,132 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: the bot buys NEITHER a Logistics Center NOR a supply truck in the opening
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# USER REPORT 2026-09-03, from a watched bot-vs-bot game, and this scenario is that report:
+#   "The bots now buys Logistics centers... We definitely do not need them at the start of the game,
+#    as in this game they bough one almost right away. It is expensive and has no purpose in the
+#    beginning because all units are fully armed... The bots now also bought two supply trucks right
+#    after they bought the LC, and they are also useless in the beginning."
+#
+# WHAT THIS ASSERTS: a NEGATIVE, held for a window long enough that the buy would certainly have
+# happened. The shipped gate bought a Centre at the FIRST evaluation — ScanInterval is 100 ticks, so
+# ~6 s in — because it tested only `quota unfilled` and `funds >= 3000`. The window here is 2400
+# ticks, 24x that first evaluation, so a pass is not a race that the module happened to lose.
+#
+# WHY THIS MAP IS THE OPENING BY CONSTRUCTION, rather than by starting a clock and hoping:
+#   * Every pre-placed unit stands 2-4 cells from its own Supply Route (SR at 6,16; force at x=8..10),
+#     which is INSIDE ForwardCustomerCells (12). There are therefore no forward customers at all, so
+#     the Centre's trip-saving term is zero however long the run goes.
+#   * Every unit spawns at FULL ammo, so both the Centre's ammo-need term and the supply truck's
+#     FirstTruckNeedThreshold (0.5, "below half ammo") read zero.
+#   * NO neutral logisticscenter is placed, deliberately. The capture veto must NOT be what produces
+#     the pass here — this scenario has to fail if the need model is removed even while the capture
+#     veto still works. The capture path is asserted separately, and on its own map, by
+#     test-lc-prefers-a-capturable-centre.
+#   * The two sides are far apart (x=6 vs x=58) and no engagement is scripted, so nobody is expected
+#     to spend ammo inside the window. If units DO meet and fight, see the .lua header: that is the
+#     one benign way this scenario can go amber, and it reports it distinguishably.
+#
+# CASH IS DELIBERATELY GENEROUS (15000, set in rules.yaml). Poverty would make this pass for the
+# wrong reason — the bot cannot buy what it cannot afford, and a test that proves only that is worth
+# nothing. 15000 clears the Centre's 3000 and the new `centre + tank` affordability bar (5500) with
+# room to spare, so the ONLY thing left refusing the purchase is the demand model under test.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Bot: stable
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,16
+
+	# Spawn anchors — MapStartingLocations.AssignSpawnPoint iterates mpspawn actors for every
+	# client (including the human Observer) and crashes if empty.
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+	# The opening force, held tight to the Supply Route ON PURPOSE — this is the "all units are fully
+	# armed" and "nobody is forward" condition the ruling describes, expressed as geometry.
+	BotRifle1: ar.america
+		Owner: USA-bot
+		Location: 8,14
+		Facing: 768
+	BotRifle2: ar.america
+		Owner: USA-bot
+		Location: 8,15
+		Facing: 768
+	BotRifle3: ar.america
+		Owner: USA-bot
+		Location: 8,17
+		Facing: 768
+	BotRifle4: ar.america
+		Owner: USA-bot
+		Location: 8,18
+		Facing: 768
+	BotTank1: abrams
+		Owner: USA-bot
+		Location: 10,15
+		Facing: 768
+	BotTank2: abrams
+		Owner: USA-bot
+		Location: 10,17
+		Facing: 768
+
+	EnemyRifle1: e3.russia
+		Owner: Russia-bot
+		Location: 56,15
+		Facing: 256
+	EnemyRifle2: e3.russia
+		Owner: Russia-bot
+		Location: 56,17
+		Facing: 256
+	EnemyTank1: t90
+		Owner: Russia-bot
+		Location: 54,16
+		Facing: 256
+
+Rules: rules.yaml

@@ -1,0 +1,132 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: the bot sends a supply truck to refill a drained Logistics Center
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# USER RULING 2026-09-03: "Bots needs to learn how to resupply the LC (I think that should work now by
+# sending a truck to it, to transfer supplies to the LC from the truck. But make sure that works both
+# for bots and humans)."
+#
+# WHAT IS AND IS NOT UNDER TEST. The TRANSFER already worked for a human before this change and is not
+# touched by it: LOGISTICSCENTER carries AbsorbsSupplyCache (structures.yaml:560) so
+# DropsSupplyCache.ResolveOrder accepts a DeliverSupply order, TRUK carries DropsSupplyCache
+# (vehicles.yaml:695) so it can issue one, and Activities/DeliverSupply.cs does the transfer directly
+# into the Centre's stock. What was missing is that no BOT module ever issued that order. So this
+# scenario tests the DISPATCH, and it necessarily exercises the transfer as a consequence — which is
+# the point of the bot sharing the human's order rather than mirroring it.
+#
+# HOW THE SETUP FORCES THE DECISION, rather than waiting for a match to drift into it:
+#   * The Centre is PRE-PLACED and owned by the bot, so LogisticsCenterBotModule's purchase gate is not
+#     involved at all — this scenario must not depend on the bot deciding to buy one, which is a
+#     different decision tested on a different map (test-lc-refuses-the-opening-buy).
+#   * The Centre is DRAINED at map load by the .lua, below CenterRestockThresholdPerMille (500). It
+#     cannot be authored empty in YAML — SupplyProvider has no starting-stock override — so the drain is
+#     scripted, and the .lua asserts the drain took before it asserts anything else.
+#   * TWO trucks are placed at different distances, which is the discriminator: the dispatch ranks
+#     DISTANCE-DOMINANT, so the NEAR truck must be the one that moves. A run where the far truck goes
+#     instead is a ranking regression that "the Centre got refilled" would hide.
+#
+# GEOMETRY:
+#   USA SR       (6,16)
+#   Centre       (20,16)   14 cells from the SR, inside MaxDeliveryDistanceCells (40)
+#   NearTruck    (24,16)   4 cells from the Centre  <- must be the one dispatched
+#   FarTruck     (10,22)   ~12 cells from the Centre
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Bot: stable
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,16
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+	# The Centre under test, ALREADY OWNED so the purchase gate is out of the picture entirely.
+	BotCentre: logisticscenter
+		Owner: USA-bot
+		Location: 20,16
+
+	# The near truck — the one the distance-dominant ranking must choose.
+	NearTruck: truk
+		Owner: USA-bot
+		Location: 24,16
+		Facing: 768
+
+	# The far truck. Present ONLY so that "a truck was dispatched" is not the same statement as "the
+	# right truck was dispatched".
+	FarTruck: truk
+		Owner: USA-bot
+		Location: 10,22
+		Facing: 768
+
+	# A small force so the bot runs its ordinary module set rather than an empty one, and so
+	# SupplyFollowerBotModule has something to want the trucks FOR — which is what makes the blackboard
+	# arbitration real in this scenario rather than theoretical.
+	BotRifle1: ar.america
+		Owner: USA-bot
+		Location: 26,14
+		Facing: 768
+	BotRifle2: ar.america
+		Owner: USA-bot
+		Location: 26,18
+		Facing: 768
+	BotTank1: abrams
+		Owner: USA-bot
+		Location: 26,16
+		Facing: 768
+
+	EnemyRifle1: e3.russia
+		Owner: Russia-bot
+		Location: 56,15
+		Facing: 256
+	EnemyTank1: t90
+		Owner: Russia-bot
+		Location: 54,16
+		Facing: 256
+
+Rules: rules.yaml

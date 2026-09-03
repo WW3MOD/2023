@@ -9,6 +9,23 @@ Player:
 	# it does not remove the demand gate, which is what is actually under test.
 	PlayerResources:
 		DefaultCash: 15000
+	# THE DEMAND GATE IS SWITCHED OFF HERE, DELIBERATELY — without this line the scenario stops
+	# passing on 2026-09-03, and would be read as a siting regression when it is not one.
+	#
+	# This test asserts the SITING DESCENT ("a test of the siting descent and not merely of the
+	# purchase", per its own .lua header), and it can only reach the descent by first getting an LCCV
+	# bought. The new purchase gate (user ruling 2026-09-03) requires FORWARD customers carrying real
+	# ammo need before it will spend 3000 credits, and this map parks its entire pre-placed force at
+	# x=8..10 against a Supply Route at x=6 — 2 to 4 cells, well inside ForwardCustomerCells (12).
+	# The demand terms are therefore zero here and the buy is refused. Correctly refused; but this
+	# scenario is not the place that measures it.
+	#
+	# RequireDemand: false restores exactly the pre-2026-09-03 gate (quota + MinCashToRequest), which
+	# is the condition this scenario was written against, so what it asserts is unchanged. The
+	# economics it turns off are asserted on their own maps by test-lc-refuses-the-opening-buy and
+	# test-lc-prefers-a-capturable-centre. Nothing goes unmeasured.
+	LogisticsCenterBotModule@experimental:
+		RequireDemand: false
 
 World:
 	-StartGameNotification:

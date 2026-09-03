@@ -490,6 +490,17 @@ Player:
 		# 2026-08-17 — see the SupplyTruckFloorPer block for the split and why it is a split).
 		GateResupplyOnAmmoNeed: true
 		ResupplyUnitTypes: truk
+		# USER RULING 2026-09-03, watching a bot-vs-bot game: "unless at least one soldier is below half
+		# ammo, we should not waste money on supply trucks". The gate above already shipped on 2026-08-17;
+		# the BAR it read did not match the ruling. ResupplyNeedThreshold is 0.05 — SupplyProvider's
+		# SERVICE bar, at which a soldier who has fired 5% of his magazine already counts as needing
+		# resupply — so the first contact of the match bought a truck. 0.5 is "half his magazine gone",
+		# the ruling as written.
+		# OPENING BAR ONLY. Once the first truck exists the service bar governs again, which is why this
+		# is a separate field rather than an edit to ResupplyNeedThreshold: that one ALSO sizes the
+		# standing reserve below (SupplyDemandSizing's needy-customer count), and shrinking that mid-match
+		# reserve is the opposite of what the same user asked for.
+		FirstTruckNeedThreshold: 0.5
 		# ===== DEMAND-SIZED SUPPLY FLEET =====
 		# Measured 2026-08-10 (user's 30-minute match, debug.log): ONE standing truck per player for the whole
 		# game, with a large fraction of the infantry out of ammo. 14 truck actor-ids appear across the match,
