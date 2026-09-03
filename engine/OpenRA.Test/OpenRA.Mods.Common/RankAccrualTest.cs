@@ -292,6 +292,179 @@ namespace OpenRA.Test
 
 		#endregion
 
+		#region Recovery: whole units evacuated
+
+		[TestCase(1)]
+		[TestCase(2)]
+		[TestCase(3)]
+		public void EvacuatingAWholeUnitAddsOneOfItsRank(int rank)
+		{
+			var s = Stock(240);
+			s.CreditWhole(rank);
+
+			Assert.That(s.Total(rank), Is.EqualTo(1));
+			Assert.That(s.Peek(), Is.EqualTo(rank));
+		}
+
+		[Test]
+		public void EvacuatedStockSpendsLikeAccruedStock()
+		{
+			var s = Stock(240);
+			s.CreditWhole(2);
+
+			Assert.That(s.Peek(), Is.EqualTo(2));
+			s.Spend(2);
+			Assert.That(s.Total(2), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void AccruedStockIsSpentBeforeRecoveredStock()
+		{
+			// Draining the capped pool first is what lets the wall clock start granting again
+			// instead of idling full.
+			var s = Stock(240);
+			RunTo(s, 1200);
+			s.CreditWhole(1);
+
+			Assert.That(s.Stock[0], Is.EqualTo(1));
+			Assert.That(s.BonusStock[0], Is.EqualTo(1));
+
+			s.Spend(1);
+			Assert.That(s.Stock[0], Is.EqualTo(0));
+			Assert.That(s.BonusStock[0], Is.EqualTo(1));
+		}
+
+		#endregion
+
+		#region Recovery: crew fractional credit
+
+		[Test]
+		public void ASingleCrewMemberOfTwoLeavesAPartialTimer()
+		{
+			var s = Stock(240);
+			s.CreditShare(1, 100, 200);
+
+			Assert.That(s.Total(1), Is.EqualTo(0), "half a crew is not yet a rank");
+			Assert.That(s.PendingCreditTicks(1), Is.EqualTo(600), "half of the 1200-tick interval");
+		}
+
+		[Test]
+		public void AFullCrewOfTwoCompletesExactlyOneRank()
+		{
+			var s = Stock(240);
+			s.CreditShare(1, 100, 200);
+			s.CreditShare(1, 100, 200);
+
+			Assert.That(s.Total(1), Is.EqualTo(1));
+			Assert.That(s.PendingCreditTicks(1), Is.EqualTo(0), "no surplus banked past the whole crew");
+		}
+
+		[Test]
+		public void AFullCrewOfThreeCompletesExactlyOneRank()
+		{
+			// 1/3 does not divide the interval evenly, so this also pins the rounding: three shares
+			// of 400 ticks each against a 1200-tick interval must still land on exactly one.
+			var s = Stock(240);
+			for (var i = 0; i < 3; i++)
+				s.CreditShare(1, 100, 300);
+
+			Assert.That(s.Total(1), Is.EqualTo(1));
+		}
+
+		[Test]
+		public void PartialCreditPersistsAndAddsUpAcrossWrecks()
+		{
+			var s = Stock(240);
+			s.CreditShare(1, 100, 200);   // one man out of the first tank
+			Assert.That(s.Total(1), Is.EqualTo(0));
+
+			s.CreditShare(1, 100, 200);   // one man out of a second tank of the same type
+			Assert.That(s.Total(1), Is.EqualTo(1), "two half-crews recovered are worth one rank");
+		}
+
+		[Test]
+		public void MixedRankCrewCreditsDifferentTiers()
+		{
+			// A rank-2 commander and a rank-1 driver each credit their own tier, not a shared one.
+			var s = Stock(240);
+			s.CreditShare(2, 100, 200);
+			s.CreditShare(1, 100, 200);
+
+			Assert.That(s.PendingCreditTicks(1), Is.EqualTo(600));
+			Assert.That(s.PendingCreditTicks(2), Is.EqualTo(1800), "half of rank-2's 3600-tick interval");
+			Assert.That(s.Total(1), Is.EqualTo(0));
+			Assert.That(s.Total(2), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void CrewShareIsScaledToItsOwnTiersInterval()
+		{
+			// A full crew must be worth exactly one rank at every tier, even though the tiers have
+			// very different intervals.
+			var s = Stock(240);
+			s.CreditShare(3, 100, 200);
+			s.CreditShare(3, 100, 200);
+
+			Assert.That(s.Total(3), Is.EqualTo(1));
+		}
+
+		[Test]
+		public void CreditingAnOutOfRangeTierIsIgnored()
+		{
+			var s = Stock(240);
+			s.CreditWhole(0);
+			s.CreditWhole(4);
+			s.CreditShare(4, 100, 100);
+
+			Assert.That(s.Peek(), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void ZeroOrNegativeShareCreditsNothing()
+		{
+			var s = Stock(240);
+			s.CreditShare(1, 0, 200);
+			s.CreditShare(1, 100, 0);
+
+			Assert.That(s.PendingCreditTicks(1), Is.EqualTo(0));
+		}
+
+		#endregion
+
+		#region Recovery is exempt from the cap
+
+		[Test]
+		public void RecoveryPushesStockAboveTheCapButAccrualDoesNot()
+		{
+			var s = Stock(240);
+
+			// Accrual alone stops dead at the rank-1 cap of 3, however long it runs.
+			RunTo(s, 1200 * 20);
+			Assert.That(s.Stock[0], Is.EqualTo(3));
+
+			// Recovering units pushes past it.
+			s.CreditWhole(1);
+			s.CreditWhole(1);
+			Assert.That(s.Total(1), Is.EqualTo(5), "cap 3 accrued plus 2 recovered");
+
+			// And running the clock further still adds nothing, so the cap still binds accrual.
+			RunTo(s, 1200 * 40);
+			Assert.That(s.Total(1), Is.EqualTo(5));
+		}
+
+		[Test]
+		public void RecoveryPastTheCapAtEveryTier()
+		{
+			var s = Stock(240);
+			RunTo(s, 10800);
+			Assert.That(new[] { s.Total(1), s.Total(2), s.Total(3) }, Is.EqualTo(new[] { 3, 2, 1 }));
+
+			s.CreditWhole(3);
+			Assert.That(s.Total(3), Is.EqualTo(2), "rank-3 cap is 1; recovery takes it to 2");
+		}
+
+		#endregion
+
 		#region Determinism
 
 		[Test]

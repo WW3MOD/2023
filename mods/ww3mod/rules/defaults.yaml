@@ -271,6 +271,8 @@
 			400: rank-veteran
 			800: rank-veteran
 		LevelUpImage: crate-effects
+	# Evacuating a ranked unit intact returns that rank to the purchase stock.
+	CreditsRankOnEvacuation:
 	# ConditionModifier@Rank_1:
 	# 	RequiresCondition: rank-veteran == 1
 	# 	Condition: suppressed

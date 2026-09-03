@@ -87,6 +87,19 @@ namespace OpenRA.Mods.Common.Traits
 
 			return 0;
 		}
+
+		/// <summary>
+		/// Ticks of progress a recovered crew member is worth: its share of the crew, measured
+		/// against the full interval for its tier. A whole crew's shares sum to the interval, which
+		/// is what makes returning everyone worth exactly one rank.
+		/// </summary>
+		public static int ShareTicks(int interval, int numerator, int denominator)
+		{
+			if (denominator <= 0 || numerator <= 0)
+				return 0;
+
+			return (int)Math.Min(int.MaxValue, (long)interval * numerator / denominator);
+		}
 	}
 
 	/// <summary>
@@ -95,10 +108,19 @@ namespace OpenRA.Mods.Common.Traits
 	/// </summary>
 	public sealed class UnitRankStock
 	{
+		/// <summary>Accrued from the wall clock. Capped.</summary>
 		public readonly int[] Stock = new int[RankAccrual.MaxPurchasableRank];
+
+		/// <summary>
+		/// Earned by recovering units and crew alive. Deliberately NOT capped: you fielded and
+		/// brought these home, so they are earned rather than accrued, and only recovery can push a
+		/// type's holding above its cap.
+		/// </summary>
+		public readonly int[] BonusStock = new int[RankAccrual.MaxPurchasableRank];
 
 		readonly int[] intervals = new int[RankAccrual.MaxPurchasableRank];
 		readonly int[] nextGrantTick = new int[RankAccrual.MaxPurchasableRank];
+		readonly int[] creditTicks = new int[RankAccrual.MaxPurchasableRank];
 		readonly int[] caps;
 
 		public UnitRankStock(int buildTimeTicks, int rank1Multiplier, int higherTierMultiplier, int[] caps)
@@ -124,8 +146,18 @@ namespace OpenRA.Mods.Common.Traits
 					ref Stock[tier - 1], ref nextGrantTick[tier - 1]);
 		}
 
+		/// <summary>Everything held of a tier, accrued plus recovered.</summary>
+		public int Total(int tier) => Stock[tier - 1] + BonusStock[tier - 1];
+
 		/// <summary>Highest tier held, without consuming it.</summary>
-		public int Peek() => RankAccrual.HighestHeldTier(Stock);
+		public int Peek()
+		{
+			for (var tier = RankAccrual.MaxPurchasableRank; tier >= 1; tier--)
+				if (Total(tier) > 0)
+					return tier;
+
+			return 0;
+		}
 
 		/// <summary>Consume one unit of <paramref name="tier"/>. Tier 0 is a no-op.</summary>
 		public void Spend(int tier)
@@ -133,9 +165,46 @@ namespace OpenRA.Mods.Common.Traits
 			if (tier < 1 || tier > RankAccrual.MaxPurchasableRank)
 				return;
 
+			// Accrued stock first: it is the pool that sits against a cap, and draining it lets the
+			// wall clock start granting again instead of idling full. Invisible to the player either
+			// way - both pools spend as the same rank.
 			if (Stock[tier - 1] > 0)
 				Stock[tier - 1]--;
+			else if (BonusStock[tier - 1] > 0)
+				BonusStock[tier - 1]--;
 		}
+
+		/// <summary>A whole unit of this type came home alive at <paramref name="tier"/>.</summary>
+		public void CreditWhole(int tier)
+		{
+			if (tier < 1 || tier > RankAccrual.MaxPurchasableRank)
+				return;
+
+			BonusStock[tier - 1]++;
+		}
+
+		/// <summary>
+		/// One crew member of this vehicle type came home alive at <paramref name="tier"/>, worth
+		/// numerator/denominator of the crew. Partial credit persists until it completes, so a crew
+		/// recovered piecemeal across several wrecks still adds up.
+		/// </summary>
+		public void CreditShare(int tier, int numerator, int denominator)
+		{
+			if (tier < 1 || tier > RankAccrual.MaxPurchasableRank)
+				return;
+
+			var interval = intervals[tier - 1];
+			creditTicks[tier - 1] += RankAccrual.ShareTicks(interval, numerator, denominator);
+
+			while (creditTicks[tier - 1] >= interval)
+			{
+				creditTicks[tier - 1] -= interval;
+				BonusStock[tier - 1]++;
+			}
+		}
+
+		/// <summary>Progress banked toward the next recovered rank of this tier, in ticks.</summary>
+		public int PendingCreditTicks(int tier) => creditTicks[tier - 1];
 	}
 
 	[TraitLocation(SystemActors.Player)]
@@ -215,13 +284,31 @@ namespace OpenRA.Mods.Common.Traits
 				stock.Advance(ticks);
 		}
 
-		/// <summary>Stock held of a tier (1-3) for an actor type. Read-only; safe from render code.</summary>
+		/// <summary>Stock held of a tier (1-3) for an actor type, accrued plus recovered.
+		/// Read-only; safe to call from render code.</summary>
 		public int StockOf(string actorName, int tier)
 		{
 			if (tier < 1 || tier > RankAccrual.MaxPurchasableRank)
 				return 0;
 
-			return stocks.TryGetValue(actorName, out var stock) ? stock.Stock[tier - 1] : 0;
+			return stocks.TryGetValue(actorName, out var stock) ? stock.Total(tier) : 0;
+		}
+
+		/// <summary>A whole unit of this type reached safety at this rank. Exempt from the cap.</summary>
+		public void CreditWholeUnit(string actorName, int tier)
+		{
+			if (stocks.TryGetValue(actorName, out var stock))
+				stock.CreditWhole(tier);
+		}
+
+		/// <summary>
+		/// A crew member reached safety at this rank. Credits the vehicle type it came out of - not
+		/// vehicles in general - by its share of that vehicle's crew.
+		/// </summary>
+		public void CreditCrewShare(string vehicleName, int tier, int numerator, int denominator)
+		{
+			if (stocks.TryGetValue(vehicleName, out var stock))
+				stock.CreditShare(tier, numerator, denominator);
 		}
 
 		/// <summary>The rank the next purchase of this type would arrive at, or 0 for none.</summary>

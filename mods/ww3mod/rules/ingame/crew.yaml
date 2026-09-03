@@ -44,6 +44,10 @@
 		AmmoPools: primary-ammo
 	GainsExperience:
 		ExperienceModifier: 1
+	# Getting this man to the map edge alive credits his share of the crew back
+	# toward the rank of the exact vehicle he bailed out of. VehicleCrew tags him
+	# with that vehicle on spawn; an untagged crew actor credits nothing.
+	CreditsRankOnEvacuation:
 	WithDecoration@Class:
 		Sequence: empty_class
 	Passenger:
