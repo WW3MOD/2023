@@ -3,6 +3,86 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-03 — The helicopter corner is a velocity-space CHORD, not a circular arc, so the corner-cut lead is `sin(theta/2)` and not the textbook `tan(theta/2)` (`wt/heli-waypoint-flow`, `main @ 414a84aa`)
+
+Static only. `make all` clean, `dotnet test` 2288 green. **No launch was taken**, so nothing below is
+an in-game observation; the cross-check that makes it more than algebra is named at the end.
+
+**Why the standard formula is wrong here.** Every reference on corner-cutting gives the tangent
+distance to a constant-radius arc, `r*tan(theta/2)` with `r = v^2/a`. That models a *steered* vehicle
+holding constant lateral acceleration. A `CanSlide` aircraft is not steered: it is a point mass, and
+`Aircraft.CalculateAccelerationToWaypoint` (`Traits/Air/Aircraft.cs:433-477`) returns
+`MaxAcceleration` in the direction `(desiredVelocity - CurrentVelocity)`, where `desiredVelocity` for
+a plain move leg is the full-speed vector at the *next* waypoint. That target is **constant across
+the corner**, so the acceleration is always parallel to the same difference vector and the velocity
+tip travels a straight **chord** in velocity space, shortening at exactly `a` per tick. Working it
+through (`Activities/Air/AircraftCornerMath.cs` header carries the four lines):
+
+    d = (v^2 / a) * sin(theta/2)
+
+`tan` diverges at 180 degrees and overshoots badly well before that; `sin` is bounded by `v^2/a` at
+every deflection. At a right angle the two differ by 41%, which is about 1.7 cells of lead for a live
+helicopter — the difference between rejoining the outbound leg and sailing past it.
+
+**The generalisable half:** before reaching for a vehicle-dynamics formula in this engine, check
+whether the thing is *steered* or *velocity-driven*. Ground `Mobile` units turn; `CanSlide` aircraft
+do not, and a formula that assumes a turn radius is answering a question the code never asks. The
+same distinction decides whether `TurnSpeed` is load-bearing at all: for a slider it is **not**, and
+this is easy to get backwards. `Aircraft.Tick:530-531` sets `Facing` from `CurrentVelocity.Yaw`
+*after* the move, so on a `CanSlide` airframe facing is a **consequence** of the trajectory and never
+an input to it. Tuning `TurnSpeed` to change how a helicopter corners changes only which way the
+sprite points.
+
+**Semi-implicit Euler is exact along the bisector, by luck rather than design.** `Aircraft.Tick`
+adds acceleration then moves by the new velocity, so the summed displacement is
+`T*(v_in+v_out)/2 + (v_out-v_in)/2` rather than the continuous `T*(v_in+v_out)/2`. The extra
+half-step lies along the chord, which is **perpendicular to the bisector** for two equal-length
+vectors, so it contributes exactly zero to the release distance and the formula needs no correction.
+
+**A CLOSED FORM FOR THE OFF-AXIS EXCURSION IS NOT AVAILABLE, AND THE OBVIOUS ONE IS WRONG BY 3x.**
+The same reasoning suggests the airframe should rejoin the outbound leg displaced sideways by about
+`v*sin(theta/2)` — 173 WDist, ~0.17 cells, at 245 through a right angle. **An earlier revision of
+this entry stated that as a bound and it is false.** Simulating the actual integer path over the
+scenario's geometry (`tools/heli-corner-model/model.py`, which uses the engine's own `WAngle` tables,
+`Exts.ISqrt` and C# truncating division rather than float equivalents) measures **516 WDist, ~0.50
+cells, exactly 3.0x** the closed form at the shipped default. The discrepancy is stable: within
+±40 WDist across sampling windows from 6 to 10 cells.
+
+**The mechanism is NOT established and this entry deliberately does not name one.** The leading
+candidate is that `CalculateAccelerationToWaypoint` recomputes `direction` from the *current*
+position every tick (`Aircraft.cs:456`), so `desiredVelocity` chases a POINT and is not the constant
+vector the derivation assumes across a ~35-tick corner. An attempt to isolate that by freezing the
+desired direction produced a result that could not be reconciled with a hand-derivation of the same
+arm, so the candidate is recorded as untested rather than as the answer. **The operative, verified
+fact is the 3x, not the story about it** — and the practical consequence is the same either way:
+*take any lateral-deviation threshold from the model, never from `v*sin(theta/2)`.*
+
+**A related bound that IS geometry and does hold:** the minimum speed through a corner is
+`v*cos(theta/2)` — 173 at 90 degrees but only 94 at the 135-degree cornering cap. A min-speed
+threshold is therefore tied to the corner angle it was derived for and does not transfer between
+scenarios.
+
+**The cross-check worth having, because the derivation is otherwise unfalsified.** The same model
+says proportional braking begins at `v^2/2a`, which for the live `HELI` (Speed 245,
+`MaxAcceleration` 10 — the trait default, unoverridden anywhere in `mods/`) is 3001 WDist, **2.93
+cells**. Commit `02006314`, written by someone watching the game, independently states helicopters
+"smoothly brake over ~2.7 cells". Two routes to the same number, one algebraic and one observational.
+That is evidence the *model* matches the shipped controller; it is **not** evidence that any
+particular release distance looks right on screen, which only a run can settle.
+
+**TWO pre-existing determinism hazards found in passing, NOT fixed here.** Both are IEEE floats
+inside the synchronised simulation on the helicopter movement path:
+
+- `(int)Math.Sqrt(2.0 * Info.MaxAcceleration * distance)` in `CalculateAccelerationToWaypoint`
+  (`Aircraft.cs:464`), whose result selects `desiredVelocity`.
+- `(float)Info.Speed / horizontalSpeed` in `Aircraft.Tick` (`:521`), **single** precision, the
+  speed-cap ratio applied to `CurrentVelocity`. Easy to miss next to the first one.
+
+Both land in `CurrentVelocity`, which is integrated into position. This is the same class of defect
+`afac22a8` removed from the ground movement path, and the same argument applies: the risk is not that
+they currently miscalculate but that nothing stops them. Left alone deliberately — changing either
+moves every helicopter approach in the game and belongs in its own branch with its own before/after.
+`Exts.ISqrt` (`Exts.cs:306`) is the in-tree integer replacement for the first.
 ## 2026-09-03 — Armour is TWO independent halves, and only one of them is gated on a Versus table (`wt/tooltip-cleanup`, `main @ d4e0b1cf`)
 
 Found while answering "why does every soldier's tooltip say Armour: None?".

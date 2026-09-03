@@ -20,6 +20,64 @@ namespace OpenRA.Mods.Common.Activities
 		bool useLastVisibleTarget;
 		readonly List<WPos> positionBuffer = new List<WPos>();
 
+		/// <summary>Horizontal distance to the waypoint when this leg first ticked, which bounds how much of the
+		/// leg the corner is allowed to eat. Negative until the first tick has run.</summary>
+		int legLength = -1;
+
+		/// <summary>True when this leg is a plain fly-to-a-point move with no standoff annulus. An attack run,
+		/// a landing approach and a return-to-base leg all carry a min or max range and stop somewhere on a ring
+		/// rather than on the target, so their arrival point is not known here and they are never cornered
+		/// through.</summary>
+		bool IsPlainWaypointLeg => minRange.Length == 0 && maxRange.Length == 0;
+
+		/// <summary>The point this leg is flying to, for the PRECEDING leg to read when deciding how early to
+		/// release its own waypoint. Read before this activity has ever ticked, so it reports the target the
+		/// activity was constructed with.</summary>
+		bool TryGetLegTarget(out WPos pos)
+		{
+			var leg = useLastVisibleTarget ? lastVisibleTarget : target;
+			if (leg.Type == TargetType.Invalid)
+			{
+				pos = WPos.Zero;
+				return false;
+			}
+
+			pos = leg.CenterPosition;
+			return true;
+		}
+
+		/// <summary><para>How far short of this leg's waypoint to drop it and take up the next one, so the
+		/// airframe turns the corner as an arc at speed. Zero means "no early release": either there is no next
+		/// leg (a terminal waypoint, which must still decelerate and stop exactly on the point) or the corner is
+		/// too sharp to fly.</para>
+		///
+		/// <para>Deliberately narrow about what counts as a corner. Both legs must be plain waypoint moves, the
+		/// next activity must be a Fly rather than a Land/attack/child activity, and the outbound direction must
+		/// be resolvable — anything else falls through to the unchanged behaviour. The failure mode of guessing
+		/// wrong here is an airframe that abandons a waypoint it was supposed to stop on.</para></summary>
+		int EarlyReleaseDistance(int speed, WAngle inboundYaw, WPos waypoint)
+		{
+			// No IsCanceling test: Tick returns from the cancel branch above long before reaching the slider
+			// path, so a cancelling activity never gets here.
+			if (aircraft.Info.WaypointReleaseAggression <= 0 || !IsPlainWaypointLeg)
+				return 0;
+
+			if (NextActivity is not Fly nextLeg || !nextLeg.IsPlainWaypointLeg || !nextLeg.TryGetLegTarget(out var nextPos))
+				return 0;
+
+			var outbound = nextPos - waypoint;
+			if (outbound.HorizontalLengthSquared == 0)
+				return 0;
+
+			var deflection = AircraftCornerMath.Deflection(inboundYaw, outbound.Yaw);
+			if (!AircraftCornerMath.ShouldReleaseEarly(true, aircraft.Info.WaypointReleaseAggression,
+				deflection, aircraft.Info.MaxCorneringDeflection))
+				return 0;
+
+			return AircraftCornerMath.ReleaseDistance(speed, aircraft.Info.MaxAcceleration,
+				deflection, aircraft.Info.WaypointReleaseAggression, legLength);
+		}
+
 		public Fly(Actor self, in Target t, WDist nearEnough, WPos? initialTargetPosition = null, Color? targetLineColor = null)
 				: this(self, t, initialTargetPosition, targetLineColor)
 		{
@@ -164,6 +222,9 @@ namespace OpenRA.Mods.Common.Activities
 				var speed = aircraft.CurrentVelocity.HorizontalLength;
 				var distToTarget = delta.HorizontalLength;
 
+				if (legLength < 0)
+					legLength = distToTarget;
+
 				// Precise arrival: when slow enough and close enough, snap to exact target and stop
 				if (speed <= aircraft.Info.MaxAcceleration && distToTarget <= aircraft.Info.MaxAcceleration * 3)
 				{
@@ -192,10 +253,44 @@ namespace OpenRA.Mods.Common.Activities
 
 				var desiredFacing = delta.HorizontalLengthSquared != 0 ? delta.Yaw : aircraft.Facing;
 
-				// Helicopters always decelerate toward their target — even when activities are
-				// queued after (like Land). This prevents the jarring instant-stop snap that occurs
-				// when isFinalWaypoint is false and the helicopter flies at full speed until overshoot.
-				var acceleration = aircraft.CalculateAccelerationToWaypoint(checkTarget.CenterPosition, true);
+				// CORNERING. An intermediate waypoint is dropped BEFORE the airframe reaches it, at the
+				// distance AircraftCornerMath derives from the deflection into the next leg, so the turn is
+				// flown as an arc at speed and the airframe rejoins the outbound leg's line instead of braking
+				// to a halt on the point and setting off again.
+				//
+				// This restores the intent of the pre-02006314 arrangement (isFinalWaypoint = NextActivity ==
+				// null, still live on the fixed-wing path below) WITHOUT restoring its defect. That version
+				// only skipped the braking; it still flew all the way to the waypoint, arrived at full speed
+				// with nowhere to go and was snapped to a dead stop by the overshoot branch — which is exactly
+				// why it was removed. The difference is the release: the airframe never arrives at an
+				// intermediate waypoint at all, so there is no arrival-at-speed left to resolve. The floor of
+				// one tick's travel inside ReleaseDistance is what extends that guarantee to a straight-through
+				// waypoint, where the geometric distance is ~0.
+				//
+				// "never arrives" is not literally true, and the exception is worth knowing: Repulse
+				// (Aircraft.cs:641) adds a further FlyStep AFTER the velocity step, so a crowded airframe can
+				// be pushed past a waypoint it would otherwise have released before. That is benign here --
+				// this check sits ABOVE the overshoot branch and the handoff keeps the velocity, so the
+				// 02006314 snap still cannot happen; the airframe merely releases a tick late.
+				//
+				// The inbound direction is the airframe's actual velocity, not the bearing to the waypoint:
+				// the derivation's v_in is a velocity, and on the tick the release fires the two have already
+				// diverged slightly. Falls back to the bearing from a standing start.
+				var inboundYaw = speed > 0 ? aircraft.CurrentVelocity.Yaw : desiredFacing;
+				var releaseDistance = EarlyReleaseDistance(speed, inboundYaw, checkTarget.CenterPosition);
+				if (releaseDistance > 0 && distToTarget <= releaseDistance)
+				{
+					// Hand off to the next leg with the velocity untouched. RunActivity ticks the successor in
+					// this same tick, so it sets the new acceleration before Aircraft.Tick applies anything —
+					// there is no coasting gap and no facing discontinuity.
+					return true;
+				}
+
+				// Decelerate onto the waypoint whenever it is NOT being cornered through: a final waypoint, a
+				// corner too sharp to arc, a standoff leg, or the feature switched off. Passing true here even
+				// when activities are queued after (like Land) is deliberate and predates this change — it is
+				// what stops the jarring instant-stop snap on a landing approach.
+				var acceleration = aircraft.CalculateAccelerationToWaypoint(checkTarget.CenterPosition, releaseDistance == 0);
 				aircraft.RequestedAcceleration = new WVec(acceleration.X, acceleration.Y, 0);
 
 				// Inside the minimum range, reverse

@@ -1,0 +1,28 @@
+Player:
+	# Nothing is contested here and neither helicopter can be killed, but leaving the victory conditions in
+	# lets the match end the instant the scripted actors are the only thing left, which can cut the frame
+	# burst short. Same reason as test-husk-corner-slide.
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+MI28:
+	# THE ENTIRE CONTROL ARM IS THIS ONE FIELD. 0 is the documented off-switch on
+	# Aircraft.WaypointReleaseAggression: AircraftCornerMath.ShouldReleaseEarly returns false for every
+	# deflection, Fly.EarlyReleaseDistance returns 0, and the CanSlide branch passes stopAtWaypoint: true
+	# exactly as it did before this change. So LaneOff flies the pre-change code path, in the same match,
+	# on the same tick, over the same geometry as LaneOn.
+	#
+	# Nothing else about MI28 is touched. If a second override ever appears in this block, the arms have
+	# stopped differing by one thing and the comparison is no longer worth anything.
+	Aircraft:
+		WaypointReleaseAggression: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-heli-corner-flow.lua
