@@ -1,0 +1,19 @@
+# Scenario overrides. Deliberately minimal: LogisticsCenterBotModule runs on its SHIPPED ai.yaml
+# configuration (RestockCenters true, CenterRestockThresholdPerMille 500, MinDeliverySupply 250,
+# MaxDeliveryDistanceCells 40), because a test that retunes the thing it is testing proves only that
+# some other tuning works.
+
+Player:
+	# Enough that nothing in this run is decided by poverty. The Centre is pre-placed and the trucks are
+	# pre-placed, so no purchase is needed at all — this only keeps the bot's ordinary production alive
+	# so SupplyFollowerBotModule has a reason to want the trucks, which is what makes the blackboard
+	# arbitration real here rather than theoretical.
+	PlayerResources:
+		DefaultCash: 15000
+
+World:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-bot-restocks-its-logistics-center.lua

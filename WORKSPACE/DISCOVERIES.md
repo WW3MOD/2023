@@ -3,6 +3,49 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-03 — Truck-to-LC supply transfer already worked for HUMANS; what was missing is that no bot module ever issued the order (`wt/bot-lc-economy`, `main @ cb68ce61`)
+
+Static only. `dotnet build` clean, `dotnet test` 2358 green. **No launch was taken** — the scenario
+below is written and handed up unrun, so nothing here is an in-game observation.
+
+**The user hedged ("I think that should work now") and the hedge resolves in their favour.** Traced
+end to end rather than assumed, because the brief explicitly warned against taking the convenient
+outcome:
+
+* `LOGISTICSCENTER` carries `AbsorbsSupplyCache` (`mods/ww3mod/rules/ingame/structures.yaml:560`).
+  That trait is the **gate on the order itself** — `DropsSupplyCache.ResolveOrder:319` returns early
+  unless the target has it, so its presence is what makes an LC a legal delivery target at all.
+* `TRUK` carries `DropsSupplyCache` (`mods/ww3mod/rules/ingame/vehicles.yaml:695`), which is the trait
+  that *issues* the order and holds the targeters.
+* `Activities/DeliverSupply.cs:148-154` does `supply.DeductSupply(given)` then
+  `hostProvider.AddSupply(given)`, sized by `SupplyTransferMath.AmountToDeliver` — a direct atomic
+  transfer into the Centre's stock, **not** a crate drop that the Centre then absorbs.
+* `DeliverSupply` is the DEFAULT left-click of a loaded truck on a Centre; Ctrl+click is the mirror.
+
+**What was actually missing:** `grep -rn "DeliverSupply" engine/OpenRA.Mods.Common/Traits/BotModules/`
+returns **only prose**. No bot module ever issued the order, so a bot's Centre ran to zero and stayed
+there. The generalisable half: *"is the feature implemented"* and *"is anything wired to trigger it"*
+are separate questions, and a feature with a complete engine path, a cursor, a targeter and a test
+scenario can still be **unreachable for one of the two kinds of player**. Grep the CALLERS, not the
+capability.
+
+**BotBlackboard is the arbitration between truck-tasking modules, and it is one-sided in a way worth
+knowing.** `SupplyFollowerBotModule` filters its roster on `IsClaimedByOtherModule`
+(`SupplyFollowerBotModule.cs:2576-2583`): `claimant != null && claimant != "supply-follow"`. So a
+truck claimed under **any** other name vanishes from its scan entirely — claiming is how you take a
+truck without a fight. Note it does **not** consult `PoiGoalGuard.Ledger`, which is the OTHER claim
+system in this codebase and the one `LogisticsCenterBotModule` was already using for its LCCVs. **Two
+independent claim registries exist and they do not see each other**; picking the wrong one for a given
+counterparty means your claim is invisible. The rule of thumb: claim in whichever registry the module
+you need to keep OFF the unit actually reads.
+
+**The release is the half that goes wrong**, and it already has precedent in-tree: the 2026-08-04
+entry in `WORKSPACE/bugs/discovered.md` records a module dropping a unit from its roster while keeping
+its blackboard claim, leaving it alive-and-claimed forever and invisible to every claim-respecting
+module. `SupplyFollowerBotModule.cs:745-761` now releases on the same edge it drops. Any new claimant
+needs the release enumerated — including **owner change**, since a Centre captured away mid-drive
+leaves a truck driving at a building that is no longer yours.
+
 ## 2026-09-03 — A demand gate with no demand term: LogisticsCenterBotModule bought a 3000-credit Centre at t+6s, and the supply-truck ammo bar was 10x looser than the ruling it implements (`wt/bot-lc-economy`, `main @ cb68ce61`)
 
 Static only. `dotnet build` clean, `dotnet test` 2345 green. **No launch was taken** — the two

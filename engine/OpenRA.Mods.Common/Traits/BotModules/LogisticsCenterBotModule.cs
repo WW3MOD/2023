@@ -148,6 +148,31 @@ namespace OpenRA.Mods.Common.Traits
 			"legal site on a busy front.")]
 		public readonly int RefusedCellCooldownTicks = 500;
 
+		[Desc("USER RULING 2026-09-03: 'Bots needs to learn how to resupply the LC.' Send a loaded supply",
+			"truck to a Centre that has run down, using the SAME DeliverSupply order a human issues by",
+			"left-clicking a loaded truck on one — see LogisticsCenterRestockMath for the trace showing the",
+			"human path already works and that no bot module ever issued the order.")]
+		public readonly bool RestockCenters = true;
+
+		[Desc("Actor types treated as supply trucks for the restock errand. Matches",
+			"SupplyFollowerBotModule.SupplyTruckTypes; a type not on BOTH lists is either never dispatched",
+			"or never handed back.")]
+		public readonly HashSet<string> SupplyTruckActorTypes = new() { "truk" };
+
+		[Desc("Stock level, in PER MILLE of the Centre's capacity, below which a delivery is dispatched.",
+			"Not zero, deliberately: waiting for empty means waiting until the Centre has already failed",
+			"the units standing at it, which is the reported symptom. 500 sends a truck at half empty.")]
+		public readonly int CenterRestockThresholdPerMille = 500;
+
+		[Desc("Smallest transfer worth a truck's whole errand. Also the anti-oscillation term: a truck that",
+			"delivers a trickle drops below the follower's RestockThreshold, is released as spent, and is",
+			"immediately re-dispatched.")]
+		public readonly int MinDeliverySupply = 250;
+
+		[Desc("Furthest a truck will be pulled off its follow duty to make a delivery. A truck hauled",
+			"across the map is one not serving the army it was following, and it arrives after the need.")]
+		public readonly int MaxDeliveryDistanceCells = 40;
+
 		[Desc("Cells from the chosen site at which the truck counts as ARRIVED and deploys where it",
 			"stands. Not leniency: Mobile.NearestMoveableCell can park a bot's destination up to",
 			"BotTerrain.EngineRelocationCells away, and a module that insists on its exact cell re-issues",
@@ -163,6 +188,7 @@ namespace OpenRA.Mods.Common.Traits
 			ActorNameCase.NormalizeInPlace(McvActorTypes);
 			ActorNameCase.NormalizeInPlace(CenterActorTypes);
 			ActorNameCase.NormalizeInPlace(TankActorTypes);
+			ActorNameCase.NormalizeInPlace(SupplyTruckActorTypes);
 		}
 
 		public override object Create(ActorInitializer init) { return new LogisticsCenterBotModule(init.Self, this); }
@@ -195,6 +221,17 @@ namespace OpenRA.Mods.Common.Traits
 		// would otherwise repeat the refusal.
 		readonly Dictionary<CPos, int> refusedCells = new();
 		readonly List<CPos> refusedExpired = new();
+
+		BotBlackboard blackboard;
+		bool blackboardResolved;
+
+		// Trucks dispatched to refill a Centre: truck -> the Centre it was sent to. Keyed by truck because
+		// the claim is per-truck and the release must be too; the Centre is held so the errand can be ended
+		// when THAT building dies or is captured away, not merely when the truck stops.
+		readonly Dictionary<Actor, Actor> deliveryErrands = new();
+		readonly List<Actor> endedErrands = new();
+
+		const string DeliveryClaim = "logistics-delivery";
 
 		int scanCountdown;
 		int lastRequestTick = -1;
@@ -260,6 +297,15 @@ namespace OpenRA.Mods.Common.Traits
 				poiMap = world.WorldActor.TraitOrDefault<PoiMap>();
 				poiMapResolved = true;
 			}
+
+			if (!blackboardResolved)
+			{
+				// Same resolution as SupplyFollowerBotModule's, including the !IsTraitDisabled filter: a
+				// disabled blackboard answers the trait query but arbitrates nothing, and claiming against
+				// it would mean believing a truck was reserved when the follower could still see it.
+				blackboard = player.PlayerActor.TraitsImplementing<BotBlackboard>().FirstOrDefault(b => !b.IsTraitDisabled);
+				blackboardResolved = true;
+			}
 		}
 
 		void RefreshClaims()
@@ -281,6 +327,15 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var a in claimed)
 					goalGuard.Ledger.Release(a);
 
+			// The blackboard claims too, and for the same reason: a disabled module that keeps them leaves
+			// every dispatched truck reserved to a module that will never tick again, so SupplyFollower
+			// never sees them and the bot silently loses its supply fleet.
+			if (blackboard != null)
+				foreach (var truck in deliveryErrands.Keys)
+					if (truck != null && blackboard.IsUnitClaimedBy(truck, DeliveryClaim))
+						blackboard.ReleaseUnit(truck);
+
+			deliveryErrands.Clear();
 			claimed.Clear();
 			refusedCells.Clear();
 		}
@@ -320,6 +375,163 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var mcv in mcvs)
 				TaskMcv(bot, mcv, tick);
+
+			MaintainCenterStock(bot, tick);
+		}
+
+		/// <summary><para>Keep a deployed Centre STOCKED, by sending it a loaded supply truck.</para>
+		///
+		/// <para>An unstocked Centre is worth nothing — the reported symptom is units driving to one and
+		/// then sitting at it — so buying one and siting it correctly is only two thirds of the job. This
+		/// issues the SAME "DeliverSupply" order a human issues by left-clicking a loaded truck on a Centre
+		/// (DropsSupplyCache.ResolveOrder:312), so bot and human go down one code path and the bot cannot
+		/// acquire a private transfer rule that drifts from what the player sees.</para></summary>
+		void MaintainCenterStock(IBot bot, int tick)
+		{
+			if (!Info.RestockCenters)
+				return;
+
+			ReleaseFinishedErrands();
+
+			var centers = world.Actors
+				.Where(a => a.Owner == player && !a.IsDead && a.IsInWorld
+					&& Info.CenterActorTypes.Contains(a.Info.Name))
+				.OrderBy(a => a.ActorID)
+				.ToList();
+
+			if (centers.Count == 0)
+				return;
+
+			foreach (var center in centers)
+			{
+				var provider = center.TraitOrDefault<SupplyProvider>();
+				if (provider == null)
+					continue;
+
+				if (!LogisticsCenterRestockMath.CentreNeedsRestock(
+						provider.CurrentSupply, provider.Info.TotalSupply, Info.CenterRestockThresholdPerMille))
+					continue;
+
+				// Already have a truck on the way to THIS Centre. Re-ordering here is the order-spam that
+				// resets a drive every scan and never arrives.
+				if (deliveryErrands.ContainsValue(center))
+					continue;
+
+				var headroom = provider.Info.TotalSupply - provider.CurrentSupply;
+				var truck = ChooseDeliveryTruck(center, headroom);
+				if (truck == null)
+					continue;
+
+				// CLAIM BEFORE ORDERING. SupplyFollowerBotModule drops any truck claimed by another module
+				// from its roster entirely (IsClaimedByOtherModule), so this is what stops the two of us
+				// issuing competing Move orders to one truck every scan.
+				if (blackboard != null && !blackboard.ClaimUnit(truck, DeliveryClaim))
+					continue;
+
+				deliveryErrands[truck] = center;
+
+				// UNQUEUED: this supersedes whatever follow order the truck was running, which is the point
+				// — the delivery is the more urgent errand and a queued one would run after a follow that
+				// may never end.
+				bot.QueueOrder(new Order("DeliverSupply", truck, Target.FromActor(center), false));
+
+				var truckSupply = truck.TraitOrDefault<SupplyProvider>();
+				Log.Write("debug",
+					$"[logistics] player={player.PlayerName} deliver truck={truck.ActorID} "
+					+ $"center={center.ActorID}@{center.Location.X},{center.Location.Y} "
+					+ $"center-supply={provider.CurrentSupply}/{provider.Info.TotalSupply} "
+					+ $"truck-supply={(truckSupply != null ? truckSupply.CurrentSupply : -1)} tick={tick}");
+			}
+		}
+
+		/// <summary>The nearest loaded truck worth pulling off follow duty for this Centre, or null. Ranked
+		/// by LogisticsCenterRestockMath.DispatchRank (distance dominant, load as tie-break) with ActorID as
+		/// the final tie-break, so world iteration order cannot decide — the determinism invariant.</summary>
+		Actor ChooseDeliveryTruck(Actor center, int headroom)
+		{
+			Actor best = null;
+			var bestRank = long.MaxValue;
+			var bestId = uint.MaxValue;
+
+			foreach (var a in world.Actors)
+			{
+				if (a.Owner != player || a.IsDead || !a.IsInWorld)
+					continue;
+
+				if (!Info.SupplyTruckActorTypes.Contains(a.Info.Name))
+					continue;
+
+				// Someone else's truck this scan. Note the asymmetry with our own claim: a truck we already
+				// hold is excluded above by deliveryErrands, so this only skips OTHER modules' work.
+				if (blackboard != null)
+				{
+					var claimant = blackboard.GetUnitClaimant(a);
+					if (claimant != null && claimant != DeliveryClaim)
+						continue;
+				}
+
+				if (deliveryErrands.ContainsKey(a))
+					continue;
+
+				var sp = a.TraitOrDefault<SupplyProvider>();
+				if (sp == null || sp.CountsAsEmpty)
+					continue;
+
+				var distance = (a.Location - center.Location).Length;
+				if (!LogisticsCenterRestockMath.WorthDispatching(
+						sp.CurrentSupply, headroom, distance, Info.MinDeliverySupply, Info.MaxDeliveryDistanceCells))
+					continue;
+
+				var rank = LogisticsCenterRestockMath.DispatchRank(
+					distance, LogisticsCenterRestockMath.TransferableAmount(sp.CurrentSupply, headroom));
+
+				if (rank < bestRank || (rank == bestRank && a.ActorID < bestId))
+				{
+					best = a;
+					bestRank = rank;
+					bestId = a.ActorID;
+				}
+			}
+
+			return best;
+		}
+
+		/// <summary>Hand back every truck whose errand has ended. Releasing is the half that goes wrong: a
+		/// module that claims and forgets leaves the unit alive-and-claimed forever, invisible to every
+		/// other claim-respecting module. See LogisticsCenterRestockMath.ErrandEnded for the conditions and
+		/// why truck-idle releases rather than retries.</summary>
+		void ReleaseFinishedErrands()
+		{
+			if (deliveryErrands.Count == 0)
+				return;
+
+			endedErrands.Clear();
+
+			foreach (var kv in deliveryErrands)
+			{
+				var truck = kv.Key;
+				var center = kv.Value;
+
+				var truckGone = truck == null || truck.IsDead || !truck.IsInWorld;
+				var centerGone = center == null || center.IsDead || !center.IsInWorld || center.Owner != player;
+
+				var truckSupply = truckGone ? null : truck.TraitOrDefault<SupplyProvider>();
+				var centerSupply = centerGone ? null : center.TraitOrDefault<SupplyProvider>();
+
+				var truckEmpty = truckSupply == null || truckSupply.CountsAsEmpty;
+				var centerFull = centerSupply != null && centerSupply.CurrentSupply >= centerSupply.Info.TotalSupply;
+
+				if (LogisticsCenterRestockMath.ErrandEnded(
+						truckGone, centerGone, truckEmpty, centerFull, !truckGone && truck.IsIdle))
+					endedErrands.Add(truck);
+			}
+
+			foreach (var truck in endedErrands)
+			{
+				deliveryErrands.Remove(truck);
+				if (truck != null && blackboard != null && blackboard.IsUnitClaimedBy(truck, DeliveryClaim))
+					blackboard.ReleaseUnit(truck);
+			}
 		}
 
 		void ExpireRefusals(int tick)
