@@ -5,6 +5,23 @@
 
 ---
 
+- [2026-09-03] [MEDIUM] **`t72` carries the generic APC armour distribution, so its roof is 5.3× a
+  T-90's and top-attack weapons are half-effective against it.** `t72`
+  (`mods/ww3mod/rules/ingame/vehicles-ukraine.yaml:25-26`) is an MBT with `Thickness: 280` —
+  identical to `t90` — but its `Distribution` is the boilerplate `100,80,80,80,60` shared by all 13
+  non-MBT vehicles, rather than a tank profile like `t90`'s `100,60,40,15,15`
+  (`vehicles-russia.yaml:322`) or `abrams`' `100,40,15,10,10` (`vehicles-america.yaml:500`).
+  Derived roof armour is therefore **224mm against the T-90's 42mm**, and side is 224 against 168.
+  **Live consequence:** `ATGM` (the Javelin) is `TopAttack: true` with `Penetration: 100`
+  (`weapons-missiles.yaml:6`), so `ArmorDirectionPercent` selects `Distribution[3]`
+  (`DamageWarhead.cs:152-155`) and `effectiveThickness = 280*80/100 = 224` (`:249`). Against the
+  T-90's roof of 42 the round penetrates and deals full damage; against the T-72's 224 it does not,
+  and `ApplyPenetration` scales damage to `100/224` ≈ **45%** (`:128-133`). A top-attack missile is
+  less than half as effective against the cheaper, weaker tank — the inverse of the intent.
+  Computed from source, **not measured in play**. The fix is a one-line YAML change, but which
+  profile a T-72 should carry is a balance decision, so it was deliberately left alone.
+  (found while working on: `wt/armour-diagram`, the per-facing armour tooltip mockup, `main @ 925b5b82`)
+
 - [2026-09-02] [HIGH] **~~Capturing a building leaves its vision with the PREVIOUS owner~~ — FIXED
   the same day by `49afe9e9` "Vision follows a building that changes hands" (on `main`; confirmed at
   `26f9cec0` during the 2026-09-02 curation pass).** `AffectsMapLayer` now DOES implement
