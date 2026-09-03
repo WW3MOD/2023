@@ -1,0 +1,96 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: helicopter keeps its speed through an intermediate waypoint
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Two helicopters fly the SAME L -- twenty cells east, then twenty-two cells north -- with the corner
+# given as a shift-queued intermediate waypoint. The only difference between them is one Info field.
+#
+# THE ARMS ARE IN ONE RUN, WHICH IS THE POINT. LaneOn is a HELI at the shipped default
+# (WaypointReleaseAggression 100). LaneOff is an MI28 with that field forced to 0 in rules.yaml, which is
+# the documented off-switch and restores the pre-change decelerate-and-stop path exactly. The two airframes
+# are the same numbers where it matters -- both inherit ^Helicopter, both are Speed 245, both take the
+# Aircraft default MaxAcceleration of 10, both are AIHelicopterRole AttackHeavy -- so a speed difference at
+# the corner is attributable to the field and not to the unit. Running the control in a separate match
+# would have made it attributable to neither.
+#
+# Legs are deliberately EQUAL LENGTH between the lanes (20 cells then 22). The release distance is capped
+# at half the leg to stop a short leg being dropped on its first tick, so two lanes with different leg
+# lengths could sit on opposite sides of that cap and differ for a reason that has nothing to do with the
+# feature under test.
+#
+# The north legs are 30 cells apart in x so the two arcs never share screen space and a frame cannot be
+# read as the wrong lane. Helicopters are airborne and do not block each other, so the separation is for
+# the camera, not for the simulation.
+#
+# GEOMETRY. The corner is a true 90 degrees. At Speed 245 with acceleration 10 the derived release distance
+# is (245^2/10) * sin(45 deg) = 4244 WDist, about 4.1 cells before the corner, and the turn itself takes
+# about 35 ticks. LaneOn should therefore leave its east leg roughly four cells short of x=26 and never
+# touch the waypoint cell at all. LaneOff should fly to it, stop dead on it, and set off north again.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 3,3
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 62,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,3
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 62,30
+
+	# Facing 768 is East (WAngle is counterclockwise), so both airframes start pointing down their first
+	# leg and the only turn in the run is the corner under test.
+	#
+	# TREATMENT: the shipped default. Flies (6,28) -> (26,28) -> (26,6).
+	LaneOn: heli
+		Owner: USA
+		Location: 6,28
+		Facing: 768
+
+	# CONTROL: WaypointReleaseAggression forced to 0 in rules.yaml. Flies (36,28) -> (56,28) -> (56,6).
+	# Owned by USA rather than Russia on purpose -- a hostile airframe would be shot at, and an engagement
+	# is a speed change this test would misread as a cornering result.
+	LaneOff: mi28
+		Owner: USA
+		Location: 36,28
+		Facing: 768
+
+Rules: rules.yaml
