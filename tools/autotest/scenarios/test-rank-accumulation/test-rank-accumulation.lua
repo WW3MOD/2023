@@ -64,13 +64,14 @@
 -- =====================================================================================
 -- THE SCHEDULE
 -- =====================================================================================
--- abrams costs 2500, so its base build time is 2500/10 = 250 ticks. rules.yaml sets
--- Rank1IntervalMultiplier to 400, making the rank-1 interval exactly 4 x 250 = 1000 ticks, so
--- accrual grants land at ticks 1000, 2000, 3000. The cap is 3 and is never reached here.
+-- This scenario runs the SHIPPED configuration -- rules.yaml overrides nothing. abrams costs 2500,
+-- so its build time is 2500/10 = 250 ticks, and at the shipped Rank1IntervalMultiplier of 500
+-- percent ("every 5 units built can get rank 1", the user's rule) the rank-1 interval is
+-- 5 x 250 = 1250 ticks. Grants land at 1250, 2500, 3750. The cap is 3 and is never reached here.
 --
---   Phase A  order at tick 60.   Bank is empty (first grant is at 1000).  EXPECT level 0.
+--   Phase A  order at tick 60.   Bank is empty (first grant is at 1250).  EXPECT level 0.
 --                                Guards against handing out rank for free.
---   Phase B  order at tick 1050. One grant has landed, unspent.           EXPECT level 1.
+--   Phase B  order at tick 1300. One grant has landed, unspent.           EXPECT level 1.
 --                                Proves accrual -> queue -> delivered actor, and SPENDS the bank.
 --   Phase C  evacuate B's tank, then order once the credit is seen.       EXPECT level 1.
 --
@@ -80,17 +81,31 @@
 -- evacuation only when it lands within three ticks of the tank's disposal -- the credit is raised
 -- from INotifySold.Sold at exactly that moment. The one reading this cannot separate is an accrual
 -- grant arriving simultaneously with the evacuation; the schedule keeps them apart by fitting the
--- whole of phase C inside the 1000-tick gap between grants.
+-- whole of phase C inside the 1250-tick gap between grants.
+--
+-- ONE-TICK RACE, worth knowing before editing any assertion here. A purchase SPENDS the bank on the
+-- tick the unit is produced, but DrainPending deliberately defers reading that unit's level to the
+-- following poll. So for exactly one tick the bank reads 0 while `#produced` has not yet counted
+-- the unit that emptied it. Any assertion phrased as "the bank is empty, therefore X" will fire
+-- inside that window; phrase timer assertions against the RISE HISTORY (`stockRises`), which a
+-- spend never rewrites, and spend assertions against `produced[i].bankAfter`, sampled at delivery.
 
-local RankInterval = 1000       -- Rank1IntervalMultiplier 400 percent x abrams build time 250
-local BuildTicks = 250          -- 2500 cost / 10
+-- SHIPPED values, not staged ones -- rules.yaml deliberately overrides nothing. Kept as an
+-- arithmetic derivation rather than a literal so the failure strings below quote whatever is
+-- actually configured; a hardcoded literal here is what made the previous run's verdict quote a
+-- multiplier the mod does not ship.
+local BuildTicks = 250              -- abrams: 2500 cost / 10
+local Rank1Multiplier = 500         -- RankAccumulationInfo.Rank1IntervalMultiplier default
+local RankInterval = BuildTicks * Rank1Multiplier / 100   -- 1250
 
 local PhaseATick = 60
-local PhaseBTick = 1050
+
+-- Shortly after the first grant lands at RankInterval.
+local PhaseBTick = RankInterval + 50
 
 -- The deadline exists to stop a hung run, not to grade timing: everything actually graded is
 -- latched by the poller as it happens.
-local DeadlineTicks = 4000
+local DeadlineTicks = 5000
 
 local Cash = 200000
 
@@ -149,6 +164,7 @@ local function ProducedText()
 	for i = 1, #produced do
 		local tag = phaseOfProduction[i] or ("#" .. i)
 		parts[#parts + 1] = tag .. ": level " .. produced[i].level .. " at t=" .. produced[i].tick
+			.. " bankAfter=" .. produced[i].bankAfter
 	end
 
 	return table.concat(parts, ", ")
@@ -195,8 +211,15 @@ end
 local function DrainPending()
 	for i = 1, #pending do
 		local unit = pending[i]
-		produced[#produced + 1] = { level = unit.Level, tick = now }
-		print("[rank] unit #" .. #produced .. " reads level " .. unit.Level .. " at tick " .. now)
+		-- The bank AT the moment of delivery is recorded alongside the level, because the pair is
+		-- what makes a red self-diagnosing: "level 1, bank 1->0" is a working spend, "level 1, bank
+		-- unchanged" is a grant that was never consumed, and "level 0, bank 1" is a delivery that
+		-- never read the bank. Printing only one of the two is what made the previous run's verdict
+		-- unreadable.
+		local bank = Stock()
+		produced[#produced + 1] = { level = unit.Level, tick = now, bankAfter = bank }
+		print("[rank] unit #" .. #produced .. " delivered at tick " .. now
+			.. " level=" .. unit.Level .. " bankAfterDelivery=" .. bank)
 
 		if #produced == 2 then
 			tankB = unit
@@ -273,8 +296,9 @@ WorldLoaded = function()
 	Trigger.OnProduction(Depot, OnProduced)
 
 	UserInterface.SetMissionText(
-		"RANK ACCUMULATION: buy at t=60 (expect rank 0), at t=1050 (expect rank 1 from the "
-		.. "t=1000 grant), then evacuate that tank and buy again (expect rank 1 from the credit).")
+		"RANK ACCUMULATION: buy at t=" .. PhaseATick .. " (expect rank 0), at t=" .. PhaseBTick
+		.. " (expect rank 1 from the t=" .. RankInterval .. " grant), then evacuate that tank and "
+		.. "buy again (expect rank 1 from the credit).")
 
 	Trigger.AfterDelay(PhaseATick, function()
 		Test.QueueProduction(USA, "abrams", 1)
@@ -325,10 +349,11 @@ WorldLoaded = function()
 		-- PHASE A: a purchase made before any grant must arrive unranked.
 		-- ---------------------------------------------------------------------------
 		if #produced < 1 then
-			-- Order at 60 + 250 build + the delivery drive. 900 leaves room and still lands
-			-- before the t=1000 grant, so a late phase-A unit can never pick up a rank it was
-			-- not supposed to have and quietly turn this into a different test.
-			if now > 900 then
+			-- Order at 60 + 250 build + the delivery drive. Derived from the interval rather than
+			-- hardcoded so it always lands BEFORE the first grant: a phase-A unit arriving after
+			-- one had landed could pick up a rank it was never meant to have, quietly turning this
+			-- into a different test that still went green.
+			if now > RankInterval - 100 then
 				return "GATE 2: no unit was produced at all by tick " .. now .. ", though phase A "
 					.. "was ordered at tick " .. PhaseATick .. " and abrams builds in " .. BuildTicks
 					.. " ticks. Nothing about ranks can be concluded. Most likely the order never "
@@ -352,12 +377,21 @@ WorldLoaded = function()
 		-- ---------------------------------------------------------------------------
 		-- PHASE B: the first grant must land, and must reach the next purchase.
 		-- ---------------------------------------------------------------------------
-		if #produced < 2 and stockNow == 0 and now > RankInterval + 100 then
-			return "PHASE B: the bank for abrams was still empty at tick " .. now .. ", but a "
-				.. "rank-1 grant was due at tick " .. RankInterval .. " (interval = "
-				.. "Rank1IntervalMultiplier 400 percent x build time " .. BuildTicks .. "). The "
-				.. "accrual timer is not running, or is running at the wrong rate. Bank history: "
-				.. RisesText()
+		-- "Did the timer ever fire?" is answered by the RISE HISTORY, never by the instantaneous
+		-- bank. This assertion used to read `stockNow == 0` and accused the timer of being dead on a
+		-- run whose own log showed it firing on time -- because the phase-B purchase had legitimately
+		-- SPENT the stock moments earlier. The spend and the production callback land on the same
+		-- tick, but the produced unit is only counted on the FOLLOWING poll (DrainPending defers the
+		-- level read by one tick on purpose), so there is a one-tick window where the bank is
+		-- already zero and `#produced` has not caught up. The old condition fired inside exactly
+		-- that window. A recorded rise is never removed by a spend, so this cannot recur.
+		if #stockRises == 0 and now > RankInterval + 100 then
+			return "PHASE B: the bank for abrams never rose at any point up to tick " .. now
+				.. ", but a rank-1 grant was due at tick " .. RankInterval .. " (interval = "
+				.. Rank1Multiplier .. " percent x build time " .. BuildTicks .. "). The accrual "
+				.. "timer is not running, or is running at the wrong rate. This assertion is about "
+				.. "the TIMER only: it fires just when NO grant was ever observed, so a bank emptied "
+				.. "by a purchase can never produce this message."
 		end
 
 		if #produced < 2 then
@@ -379,14 +413,15 @@ WorldLoaded = function()
 				.. "consuming it. Bank history: " .. RisesText()
 		end
 
-		-- The purchase must have SPENT it. A bank still full here means rank is granted without
-		-- being consumed, which would make every later purchase of this type free.
-		if stockNow ~= 0 and now < RankInterval * 2 then
-			return "PHASE B: the abrams arrived at level 1 correctly, but the bank still reads "
-				.. stockNow .. " after the purchase instead of 0, and the next accrual grant is "
-				.. "not due until tick " .. (RankInterval * 2) .. ". The rank was granted without "
-				.. "being spent, so every future purchase of this type would also be free. Look at "
-				.. "SpendRank being committed on the successful-Produce branch."
+		-- The purchase must have SPENT it. Read from the sample taken AT delivery rather than from
+		-- the live bank, so a later accrual grant cannot refill it and mask an unspent rank.
+		if produced[2].bankAfter ~= 0 then
+			return "PHASE B: the abrams arrived at level 1 correctly, but the bank still read "
+				.. produced[2].bankAfter .. " at the moment of delivery (tick " .. produced[2].tick
+				.. ") instead of 0, and the next accrual grant was not due until tick "
+				.. (RankInterval * 2) .. ". The rank was granted without being spent, so every "
+				.. "future purchase of this type would also be free. Look at SpendRank being "
+				.. "committed on the successful-Produce branch. Bank history: " .. RisesText()
 		end
 
 		if tankB == nil then

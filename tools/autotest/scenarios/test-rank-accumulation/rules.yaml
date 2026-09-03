@@ -3,13 +3,15 @@ Player:
 	MapLayers:
 		ExploredMapCheckboxEnabled: true
 		FogCheckboxEnabled: false
-	# STAGING, not a balance opinion. The shipped multiplier is 500 (rank-1 every five build times),
-	# which for a 2500-cost abrams is 5 x 250 = 1250 ticks. 400 makes it exactly 1000, so every
-	# boundary in the schedule below is a round number and the three phases can be placed by reading
-	# the numbers rather than by trusting arithmetic in a comment. Nothing else is touched: the
-	# tier multiplier and the 3/2/1 caps stay at their shipped values.
-	RankAccumulation:
-		Rank1IntervalMultiplier: 400
+	# RankAccumulation is deliberately NOT overridden: this scenario runs the SHIPPED numbers
+	# (rank-1 every 5 build times, each tier 3x rarer, caps 3/2/1), so the abrams rank-1 interval is
+	# 5 x 250 = 1250 ticks.
+	#
+	# An earlier version staged Rank1IntervalMultiplier to 400 so the schedule landed on round
+	# thousands, and that cost a run: the verdict string quoted "400 percent" and was reasonably
+	# read as the shipped value, which looks like a 20 percent deviation from the user's "every 5
+	# units built can get rank 1". Round numbers in a schedule are not worth a scenario that grades
+	# a configuration nothing ships.
 
 World:
 	-StartGameNotification:
