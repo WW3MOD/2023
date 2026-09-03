@@ -885,6 +885,21 @@
 # cell clear of its soldier and you cannot tell which unit it belongs to in a crowd. Halved to
 # 8 and 16, which tucks the mark against the damage pip (6px wide at x=0, so ±3) without
 # overlapping it. Vehicles have a wider box and were never the problem.
+#
+# The visibility mark is now a GRADED DIAMOND, not the binary red "!". It answers "how visible
+# is this unit" rather than "has it been seen", and it is on every unit all the time rather than
+# only while spotted. Fill is the coarse channel (hollow while concealed, solid once exposed);
+# colour is the fine one. Only the top band is enemy-derived — the rest reads the unit's own
+# posture, which is what keeps the anti-wallhack asymmetry rule intact. Rationale and every
+# reversal point: WORKSPACE/diamond-pip-design-260903.md.
+#
+# Text and Color below are NOT the diamond. They are the old mark, kept verbatim so that
+# `Graded: false` restores it exactly in one line, with no other edit anywhere. Text is
+# [FieldLoader.Require] on the base trait, so it has to stay present regardless.
+#
+# The knobs are repeated here at their C# defaults on purpose: this pip has never been seen on
+# screen and a tuning round is expected, and tuning in YAML costs no rebuild. If they drift from
+# the C# defaults, YAML wins — these lines are the live values.
 ^UnitIndicators:
 	WithSpottedDecoration:
 		RequiresSelection: false
@@ -892,6 +907,24 @@
 		Margin: -8,0
 		Text: !
 		Color: FF4A3C
+		# Off switch for the whole feature.
+		Graded: true
+		# Band boundaries, on EXPOSURE. Exposure is the inverse of Detectable.CurrentVisibility and
+		# runs the other way: 1 = as hidden as the clamp allows, 9 = nothing hiding the unit at all.
+		# Raising a ceiling moves MORE units into the lower, calmer band.
+		ConcealedExposureCeiling: 3
+		LowExposureCeiling: 5
+		ModerateExposureCeiling: 7
+		# Density knob. Concealed = draw on everything; Moderate = only units becoming visible;
+		# Spotted = the old mark's density with the new glyph.
+		MinimumDrawnGrade: Concealed
+		SolidFromGrade: Moderate
+		ConcealedColor: 6E9E76
+		LowColor: ECC73C
+		ModerateColor: F0B232
+		HighColor: F09425
+		# Deliberately the same red the "!" used, so the state players already know keeps its colour.
+		SpottedColor: FF4A3C
 	WithStanceDecoration@Fire:
 		RequiresSelection: false
 		Axis: Fire

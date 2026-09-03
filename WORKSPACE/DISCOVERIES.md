@@ -3,6 +3,34 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-03 — `WithTextDecoration` has the same silent-nothing trap as a missing `.shp`, and the obvious diamond falls into it (`wt/diamond-pip`, `main @ 925b5b82`)
+
+`defaults.yaml:844-846` warns that a sequence naming a file the mod does not ship falls back to
+`pips.shp` and renders **nothing**. The text medium has the identical failure and it is not written
+down anywhere: `WithTextDecorationInfo.Text` is drawn through `SpriteFont`, and a codepoint the font
+does not carry produces nothing or a notdef box. `WithTextDecorationInfo.RulesetLoaded`
+(`engine/OpenRA.Mods.Common/Traits/Render/WithTextDecoration.cs:37-43`) validates that the FONT is
+listed in `mod.yaml` — it does not and cannot validate that the font contains the characters.
+
+**`engine/mods/common/FreeSansBold.ttf` ships no Geometric Shapes block at all.** Parsed from its own
+`cmap` (Windows BMP subtable, format 4): U+25A0 BLACK SQUARE, U+25B2 BLACK UP TRIANGLE, U+25C6 BLACK
+DIAMOND, U+25C7 WHITE DIAMOND and U+25C8 all map to **glyph 0**. So `◆` / `◇` — the pair proposed at
+`WORKSPACE/notes/detectability-pip-code-truth.md:96-97` as costing "literally one character" — would
+have shipped as an invisible decoration, with the trait working perfectly.
+
+The diamonds the font DOES carry, confirmed present in `cmap` and carrying real outlines in `glyf`:
+
+| char | codepoint | glyph | contours | bbox |
+|---|---|---|---|---|
+| `◊` | U+25CA LOZENGE | 2144 | 2 (hollow) | (16,-26)-(518,744) |
+| `♦` | U+2666 BLACK DIAMOND SUIT | 2152 | 1 (solid) | (8,-56)-(587,748) |
+
+**Rule of thumb for any future text decoration: FreeSans/FreeSansBold covers Latin, punctuation,
+arrows and dingbat-ish suits, but not the Geometric Shapes block.** Verify a codepoint before
+spending design on it — parsing the cmap takes about twenty lines of Python and needs no game launch.
+Write chosen glyphs as `\uXXXX` escapes in C# so a re-encoding cannot swap them silently.
+
+
 ## 2026-09-03 — The `debug.log` copied into an autotest run directory can be a DIFFERENT game's log (`wt/capture-fix`, `main @ cb68ce61`)
 
 Two scenarios failed and the run directories were handed over as *"the only evidence"*. Neither
