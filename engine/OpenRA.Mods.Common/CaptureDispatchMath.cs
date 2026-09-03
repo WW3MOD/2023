@@ -262,5 +262,23 @@ namespace OpenRA.Mods.Common
 
 			return false;
 		}
+
+		/// <summary>
+		/// <para>Whether a click that the current selection had no answer for should become a dispatch.</para>
+		///
+		/// <para>The question is what the SELECTION produced, not whether it was empty. UnitOrderGenerator
+		/// .OrderForUnit returns null for any actor the local player does not own, so selecting the
+		/// structure itself resolves to zero orders exactly as selecting nothing does — which is why the
+		/// gesture has to key off this rather than off Selection.Actors.Count, the test that made
+		/// clicking a selected structure do nothing at all.</para>
+		///
+		/// <para>It is also what keeps capture from competing with attack on an enemy building. Combat
+		/// units in the selection DO resolve an order at one, so the count is non-zero and the attack
+		/// stands; dispatch only ever fills a silence. No modifier key is needed to separate them.</para>
+		/// </summary>
+		public static bool SelectionYieldsToDispatch(int resolvedOrderCount)
+		{
+			return resolvedOrderCount == 0;
+		}
 	}
 }

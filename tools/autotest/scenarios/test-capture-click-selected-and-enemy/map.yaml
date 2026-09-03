@@ -1,0 +1,95 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: AUTO: capture dispatch survives the target being selected, and reaches enemy structures
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS IS FOR. The dispatch gesture used to be gated on the SELECTION BEING EMPTY, so
+# left-clicking a structure and then right-clicking it did nothing at all — the most natural way
+# for a player to express "that one". The gate is now the number of orders the selection actually
+# RESOLVED, which is zero both for an empty selection and for a selection holding only actors the
+# player does not own (UnitOrderGenerator.OrderForUnit returns null for those).
+#
+# The same change is what lets the gesture reach ENEMY structures. Nothing ever restricted the
+# dispatcher to neutral targets — CaptureManager.CanTarget already admits an enemy-held building
+# for a technician — so the empty-selection gate was the whole of the restriction in practice,
+# because a player looking at an enemy building almost always has units selected.
+#
+# THREE TECHNICIANS, because a successful dispatch COMMITS the technician it picked and the next
+# click then correctly reports 0 free. One per positive assertion keeps each one independent.
+#
+# GEOMETRY IS NOT THE TEST HERE and is deliberately uninteresting: every technician is nearer to
+# its own derrick than to any other, so no assertion below depends on which one gets picked. That
+# question is the bottleneck scenario's job, not this one's.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		Faction: america
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		Faction: russia
+		Enemies: USA
+
+Actors:
+	SpawnPlayer: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnEnemy: mpspawn
+		Owner: Neutral
+		Location: 60,16
+
+	# One technician per positive assertion. Spread along the row so each is unambiguously the
+	# nearest free capturer to the derrick its assertion is about.
+	TechA: tecn
+		Owner: USA
+		Location: 10,10
+	TechB: tecn
+		Owner: USA
+		Location: 10,16
+	TechC: tecn
+		Owner: USA
+		Location: 10,22
+
+	# The conscript exists only to prove the dispatch STANDS DOWN when the selection can answer
+	# the click itself. It carries ^CapturesOccupiedBuildings, so right-clicking an enemy building
+	# with it selected resolves a real order (it clears the building) and dispatch must not fire.
+	Conscript: e1
+		Owner: USA
+		Location: 12,16
+
+	DerrickNeutral: oilb
+		Owner: Neutral
+		Location: 30,22
+
+	# Two enemy derricks: one for the nothing-selected assertion, one for the selected assertion.
+	# They must be distinct actors, because a structure a technician is already walking at is
+	# reported AlreadyCovered and a second click at it correctly issues nothing.
+	DerrickEnemyA: oilb
+		Owner: Russia
+		Location: 30,10
+	DerrickEnemyB: oilb
+		Owner: Russia
+		Location: 30,16
+
+Rules: rules.yaml

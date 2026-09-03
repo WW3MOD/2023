@@ -116,6 +116,23 @@ namespace OpenRA.Mods.Common.Traits
 			return 0;
 		}
 
+		/// <summary>
+		/// Capture units eligible against a FROZEN target — one the player remembers but cannot currently
+		/// see. CaptureManager.CanTarget has its own frozen overload reading the remembered owner and the
+		/// actor type's Capturable types, which is the same information the stock capture targeter acts
+		/// on, so a dispatch is never better informed than an ordinary right-click would have been.
+		/// </summary>
+		static IEnumerable<TraitPair<Captures>> EligibleCapturers(World world, FrozenActor target)
+		{
+			return world.ActorsWithTrait<Captures>()
+				.Where(p => p.Actor.Owner == world.LocalPlayer
+					&& !p.Actor.IsDead
+					&& p.Actor.IsInWorld
+					&& !p.Trait.IsTraitDisabled
+					&& !p.Trait.Info.CaptureToNeutral
+					&& p.Trait.CaptureManager.CanTarget(target));
+		}
+
 		/// <summary>Decide what a click on <paramref name="target"/> should do, and pick the unit.</summary>
 		public CaptureDispatchState Evaluate(World world, Actor target, out Actor capturer)
 		{
@@ -124,16 +141,44 @@ namespace OpenRA.Mods.Common.Traits
 			if (world.LocalPlayer == null || target == null || target.IsDead || !target.IsInWorld)
 				return CaptureDispatchState.NotATarget;
 
-			var eligible = EligibleCapturers(world, target).ToList();
+			return EvaluateCore(EligibleCapturers(world, target).ToList(), target.ActorID, target.CenterPosition, out capturer);
+		}
+
+		/// <summary>
+		/// <see cref="Evaluate(World, Actor, out Actor)"/> for a target under fog. The backing actor
+		/// supplies the ID the commitment bookkeeping is keyed on, so a technician already walking at a
+		/// building is recognised whether the player can currently see it or not.
+		/// </summary>
+		public CaptureDispatchState Evaluate(World world, FrozenActor target, out Actor capturer)
+		{
+			capturer = null;
+
+			if (world.LocalPlayer == null || target == null || target.BackingActor == null
+				|| target.BackingActor.IsDead || !target.BackingActor.IsInWorld)
+				return CaptureDispatchState.NotATarget;
+
+			return EvaluateCore(
+				EligibleCapturers(world, target).ToList(), target.BackingActor.ActorID, target.CenterPosition, out capturer);
+		}
+
+		/// <summary>
+		/// The shared decision, so the live and frozen paths cannot drift on which unit gets picked or on
+		/// when a click counts as already covered.
+		/// </summary>
+		static CaptureDispatchState EvaluateCore(
+			List<TraitPair<Captures>> eligible, uint targetId, WPos targetPosition, out Actor capturer)
+		{
+			capturer = null;
+
 			if (eligible.Count == 0)
 				return CaptureDispatchState.NotATarget;
 
 			var committed = eligible.Select(p => CommittedTarget(p.Actor)).ToList();
-			if (CaptureDispatchMath.IsAlreadyCovered(committed, target.ActorID))
+			if (CaptureDispatchMath.IsAlreadyCovered(committed, targetId))
 				return CaptureDispatchState.AlreadyCovered;
 
 			var free = eligible
-				.Where((p, i) => CaptureDispatchMath.IsAvailableFor(committed[i], target.ActorID))
+				.Where((p, i) => CaptureDispatchMath.IsAvailableFor(committed[i], targetId))
 				.ToList();
 
 			if (free.Count == 0)
@@ -141,7 +186,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Nearest free unit. ActorID breaks distance ties so a click is reproducible.
 			capturer = free
-				.OrderBy(p => (target.CenterPosition - p.Actor.CenterPosition).LengthSquared)
+				.OrderBy(p => (targetPosition - p.Actor.CenterPosition).LengthSquared)
 				.ThenBy(p => p.Actor.ActorID)
 				.First()
 				.Actor;
@@ -170,6 +215,15 @@ namespace OpenRA.Mods.Common.Traits
 				yield break;
 
 			yield return new Order("CaptureActor", capturer, Target.FromActor(target), queued);
+		}
+
+		/// <summary>Send the nearest free capture unit at a structure the player can only remember.</summary>
+		public IEnumerable<Order> DispatchAt(World world, FrozenActor target, bool queued)
+		{
+			if (Evaluate(world, target, out var capturer) != CaptureDispatchState.Available)
+				yield break;
+
+			yield return new Order("CaptureActor", capturer, Target.FromFrozenActor(target), queued);
 		}
 
 		/// <summary>
