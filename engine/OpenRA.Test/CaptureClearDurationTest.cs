@@ -130,5 +130,48 @@ namespace OpenRA.Test
 				"clearing an enemy-held structure is now no slower than taking an undefended neutral " +
 				"one, which inverts the intended cost of contesting a building.");
 		}
+
+		[Test]
+		public void InfantryCoverACellInAboutFortyOneTicks()
+		{
+			// NOT a balance assertion — a guard on the premise every capture AUTOTEST BUDGET rests on.
+			//
+			// Both capture scenarios allow a technician a fixed number of ticks to walk to a derrick
+			// and take it. That allowance is only meaningful against a known speed, and the first run
+			// of test-capture-click-selected-and-enemy failed purely because the budget was computed
+			// without it: 20-cell walks against 900 ticks, when 20 cells cost ~819 ticks of pure
+			// movement. The verdict read "dispatched at but never captured", which looks exactly like
+			// a defect in the capture activity, and was reported as one.
+			//
+			// If infantry speed is ever retuned, the scenarios silently go tight again and fail the
+			// same misleading way. This is the thing that fails loudly first.
+			var nodes = MiniYaml.FromFile(InfantryRulesPath());
+
+			var infantry = nodes.FirstOrDefault(n => n.Key == "^Infantry");
+			Assert.That(infantry, Is.Not.Null, "^Infantry is no longer a top-level node in infantry.yaml.");
+
+			var mobile = infantry.Value.Nodes.FirstOrDefault(n => n.Key == "Mobile");
+			Assert.That(mobile, Is.Not.Null, "^Infantry no longer declares Mobile.");
+
+			var speed = mobile.Value.Nodes.FirstOrDefault(n => n.Key == "Speed")?.Value.Value?.Trim();
+			Assert.That(speed, Is.Not.Null, "^Infantry's Mobile no longer sets Speed explicitly.");
+
+			var unitsPerTick = int.Parse(speed, System.Globalization.CultureInfo.InvariantCulture);
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(unitsPerTick, Is.EqualTo(25), "infantry speed moved.");
+
+				// 1024 world units to the cell. Asserted as a range because the point is the ORDER OF
+				// MAGNITUDE the budgets were sized against, not the exact quotient.
+				var ticksPerCell = 1024 / unitsPerTick;
+				Assert.That(ticksPerCell, Is.InRange(35, 45),
+					"a technician no longer covers a cell in roughly 41 ticks, so every walk budget in " +
+					"tools/autotest/scenarios/test-capture-* was sized against the wrong speed. Those " +
+					"budgets carry the arithmetic in their map.yaml headers — re-derive them before " +
+					"trusting a green run, and expect a red one to blame the capture activity rather " +
+					"than the clock.");
+			});
+		}
 	}
 }
