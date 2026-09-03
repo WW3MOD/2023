@@ -21,6 +21,7 @@
 	Inherits@Visibility: ^DetectableInfantryStandard
 	Inherits@DetectableRangeCircles: ^DetectableRangeCircles
 	Inherits@RankPipsAdjustmentInfantry: ^RankPipsAdjustmentInfantry
+	Inherits@SpottedPipAdjustmentInfantry: ^SpottedPipAdjustmentInfantry
 	ExternalCondition@Evacuating:
 		Condition: evacuating
 	ExternalCondition@Panicking:
@@ -754,6 +755,23 @@
 		Margin: 10,0
 	WithDecoration@Rank_4:
 		Margin: 10,0
+
+# Infantry-only Y for the visibility diamond, same override idiom as ^RankPipsAdjustmentInfantry
+# directly above and for the same underlying reason: infantry author their damage pip higher than
+# vehicles do, so a decoration stacked on top of it cannot share one margin across both chassis.
+# ^DamageInfantryPips puts a 6x6 dot at Margin 0,-5; ^DamageVehiclePips puts a 17x5 bar at 0,0.
+# The dot's top edge is therefore 6px above the bar's, and the base value in ^UnitIndicators (-10,
+# which clears the bar) would leave the diamond overlapping the dot.
+#
+# DERIVED: DecorationRowGeometry.InfantryDiamondMarginY = -16, same 3px clearance as vehicles get.
+# Retune DecorationRowGeometry.DiamondPipClearance, not this literal. X is 0 for the same reason it
+# is 0 there -- Position: Top negates Margin.X, so 0 is the only value that centres.
+#
+# ORDERING IS LOAD-BEARING: ^Infantry must inherit this AFTER Inherits@Selection pulls in
+# ^UnitIndicators, because Inherits@ applies where it appears. It does -- line 23 against line 11.
+^SpottedPipAdjustmentInfantry:
+	WithSpottedDecoration:
+		Margin: 0,-16
 
 ^DetectableInfantryStandard:
 	ExternalCondition@ObjectProximity:

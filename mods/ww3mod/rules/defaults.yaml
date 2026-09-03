@@ -904,7 +904,20 @@
 	WithSpottedDecoration:
 		RequiresSelection: false
 		Position: Top
-		Margin: -8,0
+		# Centred above the damage pip. Both numbers are DERIVED -- see DecorationRowGeometry.cs, which
+		# carries the arithmetic and the unit tests. Retune the clearance there, not this literal.
+		#   X = DecorationRowGeometry.CentredMarginX = 0.
+		#     PITFALL: 0 is the ONLY value that centres, and a non-zero one does not mean what it looks
+		#     like. Position: Top NEGATES Margin.X (SelectionDecorations.cs:58), so the -8 this used to
+		#     carry -- inherited from the binary "!" this replaced -- drew 8px to the RIGHT of centre,
+		#     not the left. That was the reported bug.
+		#   Y = DecorationRowGeometry.VehicleDiamondMarginY = -10.
+		#     Clears the top of the 17x5 vehicle damage bar by 3px. Infantry author their pip 5px
+		#     higher and a pixel taller, so one margin cannot serve both: ^SpottedPipAdjustmentInfantry
+		#     in infantry.yaml carries the infantry value. -10 puts the diamond level with the two
+		#     stance glyphs, which sit out at x +8 and +16 and so clear a centred ~6px glyph -- but
+		#     only by about 2px, so widening the glyph is not free.
+		Margin: 0,-10
 		Text: !
 		Color: FF4A3C
 		# Off switch for the whole feature.
