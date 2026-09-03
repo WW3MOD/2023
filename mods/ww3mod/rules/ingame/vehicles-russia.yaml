@@ -75,8 +75,16 @@ btr:
 		ReloadCount: 50
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 14.5mm HMG: 10 batches × 50 rounds × 1 supply = 10 (~1.7% of cost 600).
-		SupplyValue: 1
+		# 12.7mm HMG: 10 batches × 50 rounds × 8 supply = 80 (~13.3% of cost 600).
+		# 0.16/round — 3.2x the 5.56mm rifle anchor (AR, 1 per 20). Was 1 per 50, i.e.
+		# 0.02/round: a heavy machine gun cartridge at two fifths of a rifle round.
+		#
+		# EQUAL TO THE m113 ON PURPOSE. This comment used to say 14.5mm, and a BTR-80's real gun
+		# is indeed a 14.5mm KPVT — but the Armament above fires `12.7mm.MG`, which is the SAME
+		# WEAPON KEY the m113 fires. Pricing one round two ways by faction is the fault this pass
+		# exists to remove, so the shipped weapon wins over the comment. If the 14.5mm distinction
+		# is wanted it needs its own weapon, not a different ammunition price on a shared one.
+		SupplyValue: 8
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 7, 3
@@ -198,8 +206,12 @@ bmp2:
 		ReloadCount: 100
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 30mm: 9 batches × 100 rounds × 5 supply = 45 (~3.5% of cost 1300).
-		SupplyValue: 5
+		# 30mm 2A42: 9 batches × 100 rounds × 32 supply = 288 (~22.2% of cost 1300).
+		# 0.32/round — 6.4x the 5.56mm rifle anchor. Was 5 per 100, i.e. 0.05/round: a 30mm
+		# autocannon shell priced identically to a rifle cartridge. Above the bradley's 25mm
+		# (0.28) on calibre. The full-refill share now sits in the tank band (t90 23.3%), which
+		# is the honest reading of emptying a 900-round autocannon magazine.
+		SupplyValue: 32
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -902,8 +914,11 @@ tunguska:
 		ReloadCount: 30
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 30mm AA: 6 batches × 30 rounds × 1 supply = 6 (~0.4% of cost 1700).
-		SupplyValue: 1
+		# 30mm 2A38 AA: 6 batches × 30 rounds × 10 supply = 60 (~3.5% of cost 1700).
+		# 0.33/round, matching the bmp2's 30mm. Was 1 per 30, i.e. 0.03/round — a 30mm shell at
+		# two thirds of a rifle cartridge. The missiles (65/round) remain the real ammunition
+		# bill on this platform; the cannon is the cheap half, just no longer free.
+		SupplyValue: 10
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 6
