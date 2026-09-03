@@ -859,24 +859,43 @@ Player:
 		# line, and only when the assault geometry is live, so existing log consumers see a byte-identical line.
 		# This is what makes §1.1 directly measurable instead of inferred from an order distance.
 		AssaultRingCells: 10
-		# ===== CLOSE-IN RATCHET — ON (2026-09-03) ====================================================
-		# The ANTI-hold half of the section above, split off CoordinatedAssaultEnabled so it can go live on its
-		# own. Once an axis is inside AssaultSyncStartLineCells it has committed, and the muster-ward holds may
-		# not march it back out.
+		# ===== CLOSE-IN RATCHET — MEASURED, DID NOT WIN, LEFT OFF (2026-09-03) =======================
+		# The ANTI-hold half of the section above, split off CoordinatedAssaultEnabled so it could be priced on
+		# its own. Once an axis is inside AssaultSyncStartLineCells it has committed, and the muster-ward holds
+		# may not march it back out.
 		#
-		# WHY THE SPLIT WAS NECESSARY, and it is the whole finding: one flag gated three things — the sync HOLD
-		# (SyncHoldScreen), this anti-hold RATCHET, and the ring telemetry that measures either. With it off,
-		# CensusAssaultReadiness never runs, so axis.MassReady is never assigned (it is not that the mass test
-		# fails — the code computing it does not execute), SyncDist is never stamped, PastPointOfNoReturn is
-		# constant-false, and insideRing is never emitted. So the fix for the standoff, the instrument that
-		# measures the standoff, and the readiness census were all switched off by one line — and that same line
-		# arms a NEW hold discipline the 2026-08-04 manager decision says must not go live unpriced, against a
-		# profile whose top regression is axes that hold and never close. Turning it on wholesale to reach the
-		# ratchet would have enabled the exact shape the ratchet exists to prevent.
+		# WHY THE SPLIT EXISTS, and it is the durable finding even though the toggle lost: one flag gated three
+		# things — the sync HOLD (SyncHoldScreen), this anti-hold RATCHET, and the ring telemetry that measures
+		# either. With it off, CensusAssaultReadiness never runs, so axis.MassReady is never assigned (it is not
+		# that the mass test fails — the code computing it does not execute), SyncDist is never stamped,
+		# PastPointOfNoReturn is constant-false, and insideRing is never emitted. The fix for the standoff, the
+		# instrument that measures it, and the readiness census were all switched off by one line, and that same
+		# line arms a NEW hold the 2026-08-04 manager decision says must not go live unpriced.
+		#
+		# THE ARM DID NOT WIN, so per ship-scope the toggle does not ship on. 10-game mirror-paired sweep
+		# (River Zeta x3 + mirror x2, Polar Disorder x3 + mirror x2), read PER BOT because both profiles run
+		# PoiOffensiveBotModule and pooling halves an @experimental-only effect:
+		#   * inside10 (force reaching the contestation ring) 1.3% -> 1.3%, t=-0.01 — no effect at all.
+		#   * the ratchet's own precondition (syncDist <= AssaultSyncStartLineCells) was met in 9.2% of samples.
+		#   * trade ratio trended down 0.70 -> 0.51, NOT significant (Welch t=-1.58, CI [-9742, +1032]).
+		# AND THE PREMISE IT WAS BUILT ON IS REFUTED. The 2026-09-02 loss-mining read was that the damper and
+		# SectorPostureHold kept re-asserting a standoff. They barely fire: [exp-posture] logs 10 (exp) / 12
+		# (stable) lines across 10 matches against ~2000 orders per bot. What actually happens is TARGET CHURN —
+		# 100% of axis retires are reason=dropped, in all four arm/bot cells (300/300, 293/293, 342/342,
+		# 362/362) against ~340 axes created. Axes form, walk a median ~50 cells, and dissolve mid-approach when
+		# their target leaves the sticky top-k. A ratchet that only suppresses holds cannot help with that.
+		#
+		# THE REAL LEVER is axis target stickiness (SelectStickyTargets). Deliberately NOT implemented here: it
+		# is unpriced, and bolting it on would have left both it and this unmeasured.
+		#
+		# KEEP THE PLUMBING. Setting this true is still the way to get syncDist=/insideRing= readouts, and a
+		# future stickiness sweep should enable it in BOTH its baseline and fix arms so the telemetry is present
+		# without confounding the comparison. With it false the census does not run and @experimental attack
+		# behaviour is identical to pre-bundle.
 		#
 		# CoordinatedAssaultEnabled stays FALSE above: the sync hold remains unpriced and is NOT enabled here.
 		# Default OFF on the engine class ⇒ the @stable twin (which omits this field) is byte-identical.
-		CloseInRatchetEnabled: true
+		CloseInRatchetEnabled: false
 
 		# ===== FLANKING MANEUVER — @experimental ONLY (2026-09-02) ===================================
 		# Added as one contiguous block at the END of this trait so parallel work on the fields above
