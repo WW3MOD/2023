@@ -47,7 +47,10 @@ namespace OpenRA.Mods.Common.Traits.Render
 			}
 		}
 
-		static int2 GetDecorationMargin(string pos, int2 margin)
+		// Public so the sign convention can be asserted: for Top and TopRight the X is NEGATED, which
+		// reads backwards at every call site in YAML and is what put the visibility diamond 8px right
+		// of centre. See DecorationRowGeometry for the rest of the model.
+		public static int2 GetDecorationMargin(string pos, int2 margin)
 		{
 			switch (pos)
 			{
