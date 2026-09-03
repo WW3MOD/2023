@@ -57,7 +57,9 @@ namespace OpenRA.Mods.Common.Activities
 		/// wrong here is an airframe that abandons a waypoint it was supposed to stop on.</para></summary>
 		int EarlyReleaseDistance(int speed, WAngle inboundYaw, WPos waypoint)
 		{
-			if (aircraft.Info.WaypointReleaseAggression <= 0 || !IsPlainWaypointLeg || IsCanceling)
+			// No IsCanceling test: Tick returns from the cancel branch above long before reaching the slider
+			// path, so a cancelling activity never gets here.
+			if (aircraft.Info.WaypointReleaseAggression <= 0 || !IsPlainWaypointLeg)
 				return 0;
 
 			if (NextActivity is not Fly nextLeg || !nextLeg.IsPlainWaypointLeg || !nextLeg.TryGetLegTarget(out var nextPos))
@@ -264,6 +266,12 @@ namespace OpenRA.Mods.Common.Activities
 				// intermediate waypoint at all, so there is no arrival-at-speed left to resolve. The floor of
 				// one tick's travel inside ReleaseDistance is what extends that guarantee to a straight-through
 				// waypoint, where the geometric distance is ~0.
+				//
+				// "never arrives" is not literally true, and the exception is worth knowing: Repulse
+				// (Aircraft.cs:641) adds a further FlyStep AFTER the velocity step, so a crowded airframe can
+				// be pushed past a waypoint it would otherwise have released before. That is benign here --
+				// this check sits ABOVE the overshoot branch and the handoff keeps the velocity, so the
+				// 02006314 snap still cannot happen; the airframe merely releases a tick late.
 				//
 				// The inbound direction is the airframe's actual velocity, not the bearing to the waypoint:
 				// the derivation's v_in is a velocity, and on the tick the release fires the two have already

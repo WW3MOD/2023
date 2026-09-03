@@ -9,7 +9,7 @@
  * actually promises and the ones a wrong rewrite would break.
  *
  * The live helicopter configuration is used throughout so the numbers mean something: HELI is Speed 245 in
- * aircraft-america.yaml and MaxAcceleration is the Aircraft default of 10, unoverridden anywhere in mods/.
+ * mods/ww3mod/rules/ingame/aircraft-america.yaml and MaxAcceleration is the Aircraft default of 10, unoverridden anywhere in mods/.
  */
 #endregion
 

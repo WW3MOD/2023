@@ -36,9 +36,13 @@
  * T*(v_in + v_out)/2 + (v_out - v_in)/2 rather than the continuous T*(v_in + v_out)/2. The extra half-step
  * (v_out - v_in)/2 is the chord direction, which is PERPENDICULAR to the bisector for two equal-length
  * vectors — so it contributes exactly zero along the bisector and the formula above needs no correction.
- * It does contribute off-axis: the airframe rejoins the outbound leg offset laterally by about
- * v*sin(theta/2), which is a one-tick-scale artefact (~0.17 cells for a HELI at 245 taking a right-angle
- * corner) and is the floor on any lateral-deviation assertion written against this.
+ * It does contribute off-axis: the closed form says the airframe rejoins the outbound leg offset laterally
+ * by about v*sin(theta/2), a one-tick-scale artefact of ~0.17 cells for a HELI at 245 taking a right-angle
+ * corner. DO NOT USE THAT AS A BOUND. Simulating the real integer path (tools/heli-corner-model/model.py)
+ * measures 516 WDist, ~0.50 cells — 3.0x the closed form — at the shipped default. The closed form
+ * under-predicts and the reason is NOT established; see WORKSPACE/DISCOVERIES.md, which records the
+ * measurement and explicitly declines to name a mechanism. Any lateral-deviation threshold must be taken
+ * from the model, not from v*sin(theta/2).
  *
  * WHY THE COUNTERCLOCKWISE WAngle CONVENTION CANNOT INVERT THIS. Everything here consumes
  * WAngle.AngleDiff, a MAGNITUDE in [0, 512]. There is no signed turn direction anywhere in this file, so
@@ -47,7 +51,8 @@
  *
  * DETERMINISM: pure integer arithmetic, zero random draws, no collection iteration, no floating point.
  * Deliberately so — Aircraft.CalculateAccelerationToWaypoint still runs a double through Math.Sqrt inside
- * the synchronised simulation (Aircraft.cs:450) and this file does not add a second such site. That
+ * the synchronised simulation (Aircraft.cs:464), and Aircraft.Tick a single-precision divide at :521;
+ * this file does not add a third such site. That
  * pre-existing float is recorded in WORKSPACE/DISCOVERIES.md; it is not touched here because changing it is
  * a live behaviour change to every helicopter approach and belongs in its own branch.
  */
@@ -114,8 +119,10 @@ namespace OpenRA.Mods.Common.Activities
 		/// old failure mode in miniature, and it costs one addition to make it unreachable instead of
 		/// negligible.</para>
 		///
-		/// <para>CAPPED AT HALF THE LEG, applied before the floor. The geometric distance is ~5.9 cells for a
-		/// right-angle corner at a HELI's 245, which is longer than plenty of legs a player will draw. Without a
+		/// <para>CAPPED AT HALF THE LEG, applied before the floor. The geometric distance is 4243 WDist, about
+		/// 4.1 cells, for a right-angle corner at a HELI's 245 — longer than plenty of legs a player will draw.
+		/// (5.9 cells is v^2/a, the value BEFORE the sin(45 deg) factor; an earlier revision of this comment
+		/// reasoned the cap against that larger number.) Without a
 		/// cap the release fires on the leg's FIRST tick, the waypoint is dropped before the airframe has flown
 		/// any of it, and a chain of closely-spaced waypoints collapses in a single tick into a straight run at
 		/// the last one — the path silently not being flown at all. Half the leg guarantees every waypoint is
