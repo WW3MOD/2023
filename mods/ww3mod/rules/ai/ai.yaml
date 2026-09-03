@@ -855,10 +855,28 @@ Player:
 		AssaultSyncStartLineCells: 24
 		# TELEMETRY ONLY, drives no decision: SupplyRouteContestation.Range is 10c0
 		# (structures.yaml:303), and AssaultRadiusCells (15) is already OUTSIDE it — so "reached the assault
-		# radius" never meant "is contesting". Emitted as ring=/insideRing= on the [exp-offense] order line, and
-		# only under the flag above, so existing log consumers see a byte-identical line. This is what makes
-		# §1.1 directly measurable next run instead of inferred from an order distance.
+		# radius" never meant "is contesting". Emitted as ring=/insideRing=/syncDist= on the [exp-offense] order
+		# line, and only when the assault geometry is live, so existing log consumers see a byte-identical line.
+		# This is what makes §1.1 directly measurable instead of inferred from an order distance.
 		AssaultRingCells: 10
+		# ===== CLOSE-IN RATCHET — ON (2026-09-03) ====================================================
+		# The ANTI-hold half of the section above, split off CoordinatedAssaultEnabled so it can go live on its
+		# own. Once an axis is inside AssaultSyncStartLineCells it has committed, and the muster-ward holds may
+		# not march it back out.
+		#
+		# WHY THE SPLIT WAS NECESSARY, and it is the whole finding: one flag gated three things — the sync HOLD
+		# (SyncHoldScreen), this anti-hold RATCHET, and the ring telemetry that measures either. With it off,
+		# CensusAssaultReadiness never runs, so axis.MassReady is never assigned (it is not that the mass test
+		# fails — the code computing it does not execute), SyncDist is never stamped, PastPointOfNoReturn is
+		# constant-false, and insideRing is never emitted. So the fix for the standoff, the instrument that
+		# measures the standoff, and the readiness census were all switched off by one line — and that same line
+		# arms a NEW hold discipline the 2026-08-04 manager decision says must not go live unpriced, against a
+		# profile whose top regression is axes that hold and never close. Turning it on wholesale to reach the
+		# ratchet would have enabled the exact shape the ratchet exists to prevent.
+		#
+		# CoordinatedAssaultEnabled stays FALSE above: the sync hold remains unpriced and is NOT enabled here.
+		# Default OFF on the engine class ⇒ the @stable twin (which omits this field) is byte-identical.
+		CloseInRatchetEnabled: true
 
 		# ===== FLANKING MANEUVER — @experimental ONLY (2026-09-02) ===================================
 		# Added as one contiguous block at the END of this trait so parallel work on the fields above

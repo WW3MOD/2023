@@ -808,8 +808,25 @@ namespace OpenRA.Mods.Common.Traits
 			"which is the question the 2026-09-02 loss-mining pass could only answer by inference from an order",
 			"distance that never fell below 24. Deliberately not wired to the cohesion switch or the assault",
 			"radius: re-aiming those is a behavioural change and nothing here has been measured in a game.",
-			"Emitted only when CoordinatedAssaultEnabled, so existing log consumers are unaffected.")]
+			"Emitted whenever the assault geometry is live (see CloseInRatchetEnabled), so existing log",
+			"consumers are unaffected.")]
 		public readonly int AssaultRingCells = 10;
+
+		[Desc("CLOSE-IN RATCHET (@experimental) — the ANTI-hold half of the coordinated-assault work, split out",
+			"so it can go live without the sync HOLD. Once an axis is inside AssaultSyncStartLineCells it has",
+			"committed, and the muster-ward holds (the retreat damper's massing arm and SectorPostureHold) may",
+			"no longer march it back out. The genuine-retreat gate is upstream and already returned, so a losing",
+			"axis still withdraws — this only stops a HEALTHY axis being parked outside the ring it was sent to",
+			"contest. Enabling this also runs CensusAssaultReadiness (which stamps the SyncDist the ratchet",
+			"reads — without it SyncDist is 0 and the ratchet would read as unconditionally past the start",
+			"line) and emits the ring=/insideRing= telemetry.",
+			"WHY SEPARATE FROM CoordinatedAssaultEnabled: that flag also arms SyncHoldScreen, a NEW hold",
+			"discipline. The standing manager decision (2026-08-04) is that no new hold goes live until a",
+			"user-gated sweep prices it — and @experimental's top live regression is axes that hold and never",
+			"close, which a new hold could deepen. One flag conflating a hold with an anti-hold meant the",
+			"standoff fix could not be enabled without also enabling the thing it guards against.",
+			"OFF by default ⇒ the @stable twin (which omits this field) is byte-identical. Zero RNG.")]
+		public readonly bool CloseInRatchetEnabled = false;
 
 		[Desc("PHASE 4 (@experimental) FRONTLINE STRENGTH PROFILE (sensor only — no order-issuing change).",
 			"Opts this player in to the ControlField's per-frontier-sector believed OWN-vs-ENEMY strength",
@@ -1746,7 +1763,7 @@ namespace OpenRA.Mods.Common.Traits
 			// the behaviour we want rather than an oversight: a frozen axis is already executing its assault, so
 			// there is nothing to wait for. An axis whose peers have all committed sees participating == 1 and
 			// presses on instead of waiting out a window for company that has already gone.
-			if (Info.CoordinatedAssaultEnabled)
+			if (AssaultGeometryLive)
 				CensusAssaultReadiness();
 
 			// 9. Issue orders + (re)commit. Retire any axis that ended up below min size.
@@ -3263,7 +3280,7 @@ namespace OpenRA.Mods.Common.Traits
 			// same flag, so with it off SyncDist is never written, the ratchet is constant-false, and every hold
 			// below behaves exactly as it does today ⇒ byte-identical.
 			var pastNoReturn = CoordinatedAssaultMath.PastPointOfNoReturn(
-				Info.CoordinatedAssaultEnabled, axis.SyncDist, Info.AssaultSyncStartLineCells);
+				AssaultGeometryLive, axis.SyncDist, Info.AssaultSyncStartLineCells);
 
 			var damperHold = !pastNoReturn && Info.RetreatDamperEnabled && rallyCell.HasValue && DamperShouldHold(axis);
 
@@ -3720,8 +3737,8 @@ namespace OpenRA.Mods.Common.Traits
 			// assault flag, so every existing consumer of [exp-offense] order — and the @stable twin — sees a
 			// byte-identical line. This is the field that turns "the order distance never fell below 24" from an
 			// inference into a direct reading: insideRing=False on every sample IS the defect, stated as such.
-			var ringLog = Info.CoordinatedAssaultEnabled
-				? $" ring={Info.AssaultRingCells} insideRing={distToTarget <= Info.AssaultRingCells}"
+			var ringLog = AssaultGeometryLive
+				? $" ring={Info.AssaultRingCells} insideRing={distToTarget <= Info.AssaultRingCells} syncDist={axis.SyncDist}"
 				: "";
 			Log.Write("debug",
 				$"[exp-offense] order player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} action={axis.Action} units={units.Length}{cohesionLog}{viaLog} clumpRadius={clumpRadius} distToTarget={distToTarget} tick={tick}{ringLog}");
@@ -4515,6 +4532,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			return sum;
 		}
+
+		// Is the assault GEOMETRY live — i.e. does axis.SyncDist get stamped this eval? Both the sync hold and
+		// the close-in ratchet read it, so either flag requires the census. Single source of truth on purpose:
+		// the ratchet reading a SyncDist the census never wrote would see 0, and 0 <= startLine is "past the
+		// point of no return" for every axis on the map, silently suppressing every muster-ward hold.
+		bool AssaultGeometryLive => Info.CoordinatedAssaultEnabled || Info.CloseInRatchetEnabled;
 
 		// COORDINATED ASSAULTS: recompute, for the whole live axis set, who is AT THEIR START LINE and who among
 		// them is massed enough to commit. Called once per eval before any order issues (see the call site), so
