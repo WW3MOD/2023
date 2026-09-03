@@ -1575,14 +1575,38 @@ Player:
 		#
 		# AND HERE IS THE SPECIFIC WAY THAT COST ARRIVES, named rather than left to be discovered. NoDemand is
 		# easy to hit: cluster selection needs only NeedScore > 0, which is ammoNeed x 1000, so four men at 95%
-		# ammo score 200 with ZERO starving men — while the drop needs DropMinStarvingUnits (1) actually
-		# starving within DropDemandRadiusCells of the anchor. A truck vetoed NoDemand falls through to the
-		# follow path, and with the detour off that path now drives it in a straight line at the platoon
-		# centroid. So the flag creates a route to dying WITHOUT delivering, which is exactly the walk-back
-		# signal above. Watch for `drop-declined reason=NoDemand` immediately followed by truck losses; if that
-		# is what a real match shows, the demand gate and the follow leash are the levers, not this flag.
+		# ammo score 200 with ZERO starving men — while the drop needs DropMinStarvingUnits (3, NOT 1 as this
+		# line claimed until 2026-09-03; it has been 3 since a86e2fb6, so the gate is stricter than the note
+		# implied) actually starving within DropDemandRadiusCells of the anchor. A truck vetoed NoDemand falls
+		# through to the follow path, and with the detour off that path now drives it in a straight line at the
+		# platoon centroid. So the flag creates a route to dying WITHOUT delivering, which is exactly the
+		# walk-back signal above. Watch for `drop-declined reason=NoDemand` immediately followed by truck
+		# losses; if that is what a real match shows, the demand gate and the follow leash are the levers, not
+		# this flag.
+		#
+		# THAT PREDICTION WAS RE-RUN AT HEAD ON 2026-09-03 AND HELD. Tournament match at c9626273: NoDemand was
+		# 54.1% of drop-declines, delivery success 15.0%, truck loss-rate 27% (exp) / 42% (stable) — all inside
+		# the ranges measured before the main merge, so LogisticsCenterBotModule's RequireDemand/RestockCenters
+		# did NOT fix this. The targeted readout that settles the mechanism is the [supply] cluster line: of the
+		# 455 clusters selection KEPT, 450 (98.9%) held fewer starving men than the drop requires and 371
+		# (81.5%) held ZERO. Selection and the drop were asking different questions. The demand gate named above
+		# is therefore the lever taken (SelectionMinStarvingUnits below); the FOLLOW LEASH is deliberately NOT
+		# touched — 434 of those 455 clusters were already on the short 35-cell leash, so trip length is not
+		# what is producing the refusals, and changing two things at once would price neither.
 		# ===================================================================================================
 		IgnoreDangerForDelivery: true
+		# THE DEMAND GATE (2026-09-03), the lever the block above pre-registered. A truck is now only
+		# DISPATCHED to a cluster that holds at least one starving soldier, instead of to anything with any
+		# ammo need at all. Lower than DropMinStarvingUnits (3) on purpose: dispatch and drop read demand at
+		# different times and over different sets, so matching the numbers would cancel the anticipatory trips
+		# that are the reason to send a truck early. At 1 this removes only the 81.5% of kept clusters that had
+		# NOBODY starving — a cluster that cannot turn into a valid drop except by starving from zero mid-trip.
+		#
+		# SCOPE — SHARED, DECLARED, NOT SILENT. SupplyFollowerBotModule@supply is a SINGLE enable-ai-any
+		# instance with no @stable twin, so this key moves @stable as well as @experimental. Intended per
+		# CLAUDE.md (@stable inherits improvements) and the next benchmark baseline must be re-taken knowingly.
+		# The C# default is 0 (gate off), so nothing moves for a profile that does not set this key.
+		SelectionMinStarvingUnits: 1
 		# The four keys below are now overridden by the flag above and are kept, unchanged, as the record of
 		# what the principled version was. Item 40 (danger-scale rework) is the work that would let them mean
 		# something again; until the danger UNIT is right, they gate on a scale that fires unconditionally.

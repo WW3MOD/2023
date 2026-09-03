@@ -444,6 +444,20 @@ namespace OpenRA.Mods.Common.Traits
 			"the anchor to justify unloading. Floored at 1 by SupplyDropMath — 0 cannot mean 'no requirement'.")]
 		public readonly int DropMinStarvingUnits = 3;
 
+		[Desc("SELECTION-side demand gate: how many starving soldiers a cluster must hold before a truck is",
+			"DISPATCHED to it at all. Cluster admission otherwise asks only NeedScore(AmmoNeed) > 0 — any",
+			"partial ammo, so four men at 95% score 200 with nobody starving — while the DROP demands",
+			"DropMinStarvingUnits actually starving near the anchor and refuses NoDemand otherwise. The truck",
+			"pays the whole round trip to be turned away on arrival.",
+			"DELIBERATELY A LOWER BAR THAN DropMinStarvingUnits, not the same number: the two read demand at",
+			"different TIMES (this at dispatch, that on arrival) and over different SETS (cluster membership vs",
+			"a radius around the anchor), so matching them would suppress the anticipatory trips that are the",
+			"reason to dispatch early. At 1 it removes only clusters with no starvation whatever, which cannot",
+			"become a valid drop except by starving from zero mid-trip.",
+			"May empty the cluster list, unlike the danger gate's relief valve — that is intended here: with no",
+			"cluster worth serving the trucks hold instead of driving out to be refused. 0 disables the gate.")]
+		public readonly int SelectionMinStarvingUnits = 0;
+
 		[Desc("Drop-and-leave: minimum stock a truck must hold to be worth a drop. Below this it keeps serving",
 			"from its own aura instead of littering crates that vanish at the cache's RemoveBelowSupply.")]
 		public readonly int DropMinSupply = 250;
@@ -973,6 +987,16 @@ namespace OpenRA.Mods.Common.Traits
 
 				clusters = SelectServableClusters(clusters, releaseLevel);
 			}
+
+			// DEMAND GATE, applied to whichever branch above produced the list so the two paths cannot
+			// diverge on what counts as worth serving. Both admit a cluster on ammo need alone; the drop
+			// then asks for starving bodies. Measured on a HEAD tournament match (VERIFY0903 baseline,
+			// match 1): of 455 clusters selection kept, 450 (98.9%) could not clear DropMinStarvingUnits
+			// and 371 (81.5%) held ZERO starving units — which is what makes NoDemand ~54% of all
+			// drop-declines and holds delivery success near 15%. See the field's Desc for why this bar is
+			// deliberately lower than the drop's rather than the same number.
+			if (Info.SelectionMinStarvingUnits > 0)
+				clusters = clusters.Where(c => c.StarvingUnits >= Info.SelectionMinStarvingUnits).ToList();
 
 			var hunt = SupplyTruckHuntMath.ShouldHunt(Info.IdleTruckHunt, isExperimentalBot);
 
