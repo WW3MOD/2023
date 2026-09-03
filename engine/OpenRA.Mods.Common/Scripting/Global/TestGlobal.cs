@@ -1042,6 +1042,26 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return mgr.GetDefaults(key)?.FireStance == value;
 		}
 
+		[Desc("Set an actor's ENGAGEMENT stance (HoldPosition / Defensive / Hunt) — the movement axis, " +
+			"which is a different enum from the fire stance that actor.Stance reads and writes. " +
+			"Returns false if the actor has no AutoTarget or the name is unknown, so a test can assert " +
+			"its own setup took effect rather than measuring a stance that never changed. Test mode only.")]
+		public bool SetEngagementStance(Actor actor, string stance)
+		{
+			if (!TestMode.IsActive || actor == null || actor.IsDead || !actor.IsInWorld)
+				return false;
+
+			var autoTarget = actor.TraitOrDefault<AutoTarget>();
+			if (autoTarget == null)
+				return false;
+
+			if (!System.Enum.TryParse<EngagementStance>(stance, true, out var value))
+				return false;
+
+			autoTarget.SetEngagementStance(actor, value);
+			return autoTarget.EngagementStanceValue == value;
+		}
+
 		[Desc("Read Map.DensityLayer at a cell. Returns the byte value (0-255) summed from all " +
 			"density-bearing actors whose footprint covers this cell. Test mode only.")]
 		public int GetDensity(CPos cell)

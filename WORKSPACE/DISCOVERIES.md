@@ -3,6 +3,49 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-03 — AutoTarget has TWO stance enums, and "Fire at will vs Hunt" is a false choice (`wt/capture-ux`, `main @ 414a84aa`)
+
+Found while designing autonomous capture. A recurring question of the form *"should this behaviour
+run on Fire at will, or on Hunt?"* has no answer as posed, because **those two names are values of
+different enums on different axes** (`Traits/AutoTarget.cs:22-24`):
+
+```csharp
+public enum UnitStance       { HoldFire, Ambush, FireAtWill }        // may I act?
+public enum EngagementStance { HoldPosition, Defensive, Hunt }       // how far do I roam?
+```
+
+A unit holds one of each simultaneously. The shipped defaults for a human-owned unit are
+**FireAtWill + Defensive** (`:75`, `:167`); bot-owned and non-playable owners read the separate
+`InitialStanceAI` / `InitialEngagementStanceAI` pair (`:517-519`), which are the same two values
+today but are free to diverge.
+
+**The generalisable shape: gate on `UnitStance`, size on `EngagementStance`.** Any new autonomous
+behaviour gets a free off-switch (HoldFire), a free "stay put" (HoldPosition → radius 0) and a free
+eagerness dial (Hunt → longer radius) without inventing a single new control. `AutoFollowAlly`
+already reads HoldPosition this way (`FollowStances`, `AutoFollowAlly.cs:30-33`), and
+`SupplyHuntMath.StancesPermitHunt` already takes both axes plus `ResupplyBehavior` as three separate
+arguments — the precedent existed but was not written down as a rule.
+
+**Corollary worth carrying: "default ON" is cheap when the default stance is permissive.** A trait
+that gates on `UnitStance != HoldFire` is on for every fresh unit with no YAML, which is how
+`AutoCaptureNearby` meets a default-ON requirement without a per-actor field.
+
+## 2026-09-03 — `CashTrickler.Amount` is the only value signal on tech buildings; they carry no `Valued` (`wt/capture-ux`, `main @ 414a84aa`)
+
+`OILB` and its neighbours in `ingame/structures-neutral.yaml` inherit `^TechBuilding` and define
+**no `Valued` trait at all** — `grep -n "Valued" mods/ww3mod/rules/ingame/structures-neutral.yaml`
+returns nothing. So `Valued.Cost`, the reflex answer to "what is this structure worth", is **0 or
+absent for exactly the structures anyone wants to score**. What distinguishes an oil derrick is
+`CashTrickler: Amount: 50` (`:19-20`).
+
+The bot avoids the problem by not asking the actor at all: `CaptureCoordinatorBotModule
+.GetIncomeWeight` (`:1956-1969`) reads a designer-authored `IncomeWeights` dictionary off its own
+`Info`. **That makes the bot's scoring unreusable from player-facing code** — it is bot YAML, not a
+property of the structure — which is worth knowing before writing "reuse the bot's capture scoring"
+into a brief. `CaptureReclaimMath` does not help either: its five public methods are budget/demand
+arithmetic (`CombinedCaptureDemand`, `ReclaimBudget`, …) and none of them ranks a target.
+
+
 ## 2026-09-02 — R9's premise is half-wrong: the Supply Route defeat bar really DOES eliminate you, on exactly the maps most people play (`wt/howtoplay`, `main @ 26f9cec0`)
 
 Read-only verification while rewriting `chrome/ingame-info-howtoplay.yaml`. No launch, no build.

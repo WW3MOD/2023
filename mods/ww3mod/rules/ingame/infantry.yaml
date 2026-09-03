@@ -2374,6 +2374,12 @@ MEDI:
 	Inherits@Type: ^ArmedCivilian
 	Inherits@Selection: ^SelectableSupportUnit
 	Inherits@Capture: ^CapturesNeutralBuildings
+	# An idle technician takes a capturable structure next to it without being told. Defaults are
+	# used deliberately: ON, 8 cells on the default Defensive stance, 20 on Hunt, nothing at all on
+	# HoldPosition, and off entirely on the HoldFire stance. Bot-owned technicians are skipped —
+	# CaptureCoordinatorBotModule already schedules them, and two schedulers on one consumable unit
+	# fight. See AutoCaptureNearbyInfo for the reasoning behind each.
+	AutoCaptureNearby:
 	-Wanders:
 	Tooltip:
 		Name: Technician

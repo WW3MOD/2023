@@ -1,0 +1,1 @@
+Auto: an idle technician must capture a nearby capturable structure with no order given, on neutral and enemy-held alike. It must NOT do so on the HoldFire stance, and must NOT reach a structure outside the conservative default radius until the player asks for eagerness by switching it to Hunt.
