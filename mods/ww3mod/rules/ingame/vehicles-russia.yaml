@@ -1050,6 +1050,10 @@ iskander:
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
 		SupplyValue: 1500
+		# The bound armament fires IskanderTargeter, a dummy trigger; the missile the player is
+		# buying is the IskanderMissile actor spawned by MissileSpawnerMaster below. Without this
+		# the heading read "ISKANDER TARGETER" above "AMMO 2 rounds", naming the sight.
+		TooltipName: Ballistic missile
 	RenderRangeCircle@1:
 		Armament: primary
 		RangeCircleType: explosive

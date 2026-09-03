@@ -1948,6 +1948,9 @@ AA:
 		# C4 / AT mine: 3 batches × 1 charge × 50 supply = 150 (~60% of cost 250).
 		# Empty engineer evacs ~100 (line-infantry baseline).
 		SupplyValue: 50
+		# No armament binds this pool — the charges are spent by Demolition — so the heading fell
+		# back to the pool key and read "SECONDARY", which names a slot rather than a munition.
+		TooltipName: Demolition charge
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -2201,6 +2204,9 @@ E4:
 		# C4: 3 batches × 1 charge × 33 supply = 99 (~17% of cost 600). SF is
 		# the elite tier — empty SF evacs ~501 (operator training is the bulk).
 		SupplyValue: 33
+		# As ^E6: Armaments names `c4`, which no Armament declares, so the heading fell back to the
+		# pool key and read "SECONDARY". The charges are spent by Demolition.
+		TooltipName: Demolition charge
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -2493,6 +2499,9 @@ TECN:
 		# Recon drone: 1 batch × 1 drone × 25 supply = 25 (~17% of cost 150).
 		# Disposable quadcopter — cheap relative to a guided munition.
 		SupplyValue: 25
+		# DroneTargeter is a dummy trigger (Damage: 0, and the armament sets AmmoUsage: 0); the pool
+		# counts quadcopters released by CarrierMaster. The heading read "DRONE TARGETER".
+		TooltipName: Recon drone
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		RequiresCondition: replenish-soldiers

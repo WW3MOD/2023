@@ -1137,6 +1137,9 @@ HIMARS:
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
 		SupplyValue: 1500
+		# Same shape as the Iskander: HIMARSTargeter is a dummy trigger and the rocket is the
+		# HIMARSMissile actor. The heading read "HIMARS TARGETER" — the launcher, not the round.
+		TooltipName: Guided rocket
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3

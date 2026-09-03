@@ -120,6 +120,24 @@ namespace OpenRA.Mods.Common.Traits
 			"this pool, and deducted from sell/evac refund per missing batch.")]
 		public readonly int SupplyValue = 1;
 
+		[Desc("Heading for this pool in the production tooltip, overriding the name derived from the",
+			"armament's weapon. Purely cosmetic — nothing dispatches on it.",
+			"",
+			"WHY AN OVERRIDE IS NEEDED AT ALL, given the deriving code already prettifies the key: on",
+			"some actors the bound armament is a DUMMY TRIGGER and its weapon key names the mechanism",
+			"rather than the munition. The Iskander's armament fires `IskanderTargeter`, an InstantHit",
+			"with Damage: 50 and every Versus at 0 — it hits nothing. What the launcher actually",
+			"delivers is the IskanderMissile ACTOR, spawned by MissileSpawnerMaster, and what the pool",
+			"counts is two of those. So the derived heading read 'ISKANDER TARGETER' above 'AMMO 2",
+			"rounds', naming the sight instead of the missile. Same shape on HIMARS, and on the drone",
+			"operator, whose DroneTargeter does Damage: 0 with AmmoUsage: 0 and whose pool counts",
+			"quadcopters.",
+			"",
+			"Set this ONLY where the derived name is wrong about what the player is buying. It is not a",
+			"place to restyle names that derive correctly — every heading that can come from the weapon",
+			"key should keep coming from it, so a weapon rename cannot leave a stale label behind.")]
+		public readonly string TooltipName = null;
+
 		[Desc("Sound to play for each reloaded ammo magazine.")]
 		public readonly string RearmSound = null;
 
@@ -195,12 +213,15 @@ namespace OpenRA.Mods.Common.Traits
 				.ToArray();
 
 			string label;
-			if (armaments.Length == 0)
+			if (!string.IsNullOrEmpty(TooltipName))
+				label = TooltipName;
+			else if (armaments.Length == 0)
 				label = FormatPoolLabel(Name);
 			else
-				label = string.Join(" + ", armaments
+				label = MergeVariantLabels(armaments
 					.Select(arm => FormatWeaponLabel(arm.Weapon))
-					.Distinct());
+					.Distinct()
+					.ToArray());
 
 			// Singular/plural is handled rather than reading "1 round".
 			var rounds = Ammo == 1 ? "1 round" : $"{Ammo} rounds";
@@ -246,6 +267,53 @@ namespace OpenRA.Mods.Common.Traits
 				return $"{supplyValue} supply per round";
 
 			return $"{supplyValue} supply per {batchSize} rounds";
+		}
+
+		/// <summary>
+		/// <para>Collapses the targeting-MODE variants of one mount back into the single weapon a
+		/// player sees. Five shipped actors mount one gun twice — once ground, once air — so that
+		/// AutoTarget can pick a mode, and both armaments draw the same magazine. The heading listed
+		/// both: the littlebird read "7.62MM MINIGUN + 7.62MM MINIGUN AA", which describes two
+		/// miniguns above a round count for one. Same on HIND, MI28, tunguska.</para>
+		///
+		/// <para>THE MERGE IS DELIBERATELY NARROW, because the join it replaces is sometimes RIGHT.
+		/// FTUR really does feed two different weapons — FireballLauncher and Flamespray.heavy — from
+		/// one pool, and "FIREBALL LAUNCHER + FLAMESPRAY HEAVY" is the honest heading for that. So a
+		/// merge only happens when the labels share a leading run of whole words AND every remainder
+		/// is a short all-caps token: the AA/AG mode suffixes and nothing else.</para>
+		///
+		/// <para>The all-caps test is what keeps it safe rather than merely convenient. Without it the
+		/// rule is "share any word prefix", and a pool feeding a 7.62mm minigun and a 7.62mm sniper
+		/// would collapse to "7.62MM" — dropping the weapon rather than the mode, which is the very
+		/// failure this method exists to prevent. A suffix must look like a mode to be treated as one.</para>
+		/// </summary>
+		public static string MergeVariantLabels(string[] labels)
+		{
+			if (labels.Length <= 1)
+				return labels.Length == 1 ? labels[0] : "Weapon";
+
+			var split = labels.Select(l => l.Split(' ')).ToArray();
+
+			var common = 0;
+			var shortest = split.Min(w => w.Length);
+			while (common < shortest && split.All(w => w[common] == split[0][common]))
+				common++;
+
+			// No shared stem at all: genuinely different weapons on one magazine.
+			if (common == 0)
+				return string.Join(" + ", labels);
+
+			// Every word past the stem must look like a targeting-mode tag (AA, AG). Anything longer
+			// or mixed-case is part of a weapon's actual name and must not be discarded.
+			if (!split.All(w => w.Skip(common).All(IsModeTag)))
+				return string.Join(" + ", labels);
+
+			return string.Join(" ", split[0].Take(common));
+		}
+
+		static bool IsModeTag(string word)
+		{
+			return word.Length > 0 && word.Length <= 3 && word.All(char.IsUpper);
 		}
 
 		/// <summary>
