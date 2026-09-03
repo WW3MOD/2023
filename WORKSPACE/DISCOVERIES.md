@@ -3,6 +3,32 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-03 — Selection bars have NO frozen-under-fog path, so the live/frozen split that has bitten this repo repeatedly cannot apply to them (`wt/defeated-sr-bar`, `main @ 414a84aa`)
+
+Read-only tracing while fixing the defeated-SR contestation bar. Worth recording because the standing
+instinct here — correct for tooltips and owner display — is "check whether the frozen path draws this
+separately, or you will fix it for one viewer and not the other". **For selection bars that question
+has a definite answer: there is no second path.**
+
+Annotations are collected in exactly one place, `WorldRenderer.cs:251`
+(`World.ApplyToActorsWithTrait<IRenderAnnotations>`), which walks **live actors only**. `FrozenActor`
+(`engine/OpenRA.Game/Traits/Player/FrozenActorLayer.cs:35`) caches `IRenderable[] Renderables` —
+populated from `IRender`, the sprite path — and has no annotation member at all. `ISelectionBar` is
+reached only via `IRenderAnnotations` → `SelectionDecorationsBase.DrawDecorations`
+(`SelectionDecorationsBase.cs:62-133`) → `SelectionBarsAnnotationRenderable` /
+`IsometricSelectionBarsAnnotationRenderable`, whose constructors both take an `Actor`. A `FrozenActor`
+cannot be passed to either.
+
+Consequence: a fogged actor draws **no** selection bar for the fogged viewer, not a stale one —
+`SelectionDecorationsBase.cs:65` returns empty on `FogObscures(self) && !Selection.Contains(self)`
+before any bar logic runs. So a bar-visibility fix inside a trait is complete on its own, and there is
+no observer-vs-owner divergence to chase.
+
+**`IAlwaysVisibleBar` is WW3MOD-local, with exactly one implementer and one consumer.** Declared at
+`engine/OpenRA.Game/Traits/TraitsInterfaces.cs:304`, implemented only by `SupplyRouteContestation`,
+read only at `SelectionDecorationsBase.cs:94`. Anything wanting an unselected bar goes through that
+one loop — which is also why a wrong predicate there is a whole-screen bug rather than a local one.
+
 ## 2026-09-02 — R9's premise is half-wrong: the Supply Route defeat bar really DOES eliminate you, on exactly the maps most people play (`wt/howtoplay`, `main @ 26f9cec0`)
 
 Read-only verification while rewriting `chrome/ingame-info-howtoplay.yaml`. No launch, no build.

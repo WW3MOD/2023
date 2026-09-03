@@ -475,10 +475,36 @@ namespace OpenRA.Mods.Common.Traits
 			return controlBar * 100 / barMax >= clamped;
 		}
 
+		// Pure decision: is this Supply Route's owner still an active participant, i.e. can controlBar
+		// and defeatBar still move? Tick returns early when this is false, so both bars are frozen at
+		// whatever value they held at that moment and stay there for the rest of the match.
+		//
+		// ShowBarWithoutSelection reads the SAME predicate, and that shared reading is the point: an
+		// unselected bar is a live alert ("someone is at your Supply Route right now"), so it must not
+		// outlive the simulation that feeds it. A defeated owner leaves controlBar at 0 and defeatBar
+		// full, which is a permanently true `controlBar < BarMax` and was drawing a full red bar over
+		// that Supply Route for the rest of the game.
+		//
+		// NonCombatant/Playable are here and not just WinState because ownership can be handed to
+		// Neutral on defeat, and Neutral's WinState is Undefined — checking WinState alone would let
+		// the bar come back for exactly the actors this is meant to quiet.
+		public static bool OwnerStillPlaying(WinState winState, bool nonCombatant, bool playable)
+		{
+			return winState == WinState.Undefined && !nonCombatant && playable;
+		}
+
+		// Pure decision: the whole of IAlwaysVisibleBar.ShowBarWithoutSelection. A depleted bar earns
+		// the unselected slot only while its owner is still playing; anyone else's is history and is
+		// reachable by clicking the actor.
+		public static bool ShouldShowBarWithoutSelection(WinState winState, bool nonCombatant, bool playable, int controlBar, int barMax)
+		{
+			return OwnerStillPlaying(winState, nonCombatant, playable) && controlBar < barMax;
+		}
+
 		void ITick.Tick(Actor self)
 		{
 			// Player already defeated or SR changed to non-playable owner (e.g. Neutral after defeat) — nothing to do
-			if (self.Owner.WinState != WinState.Undefined || self.Owner.NonCombatant || !self.Owner.Playable)
+			if (!OwnerStillPlaying(self.Owner.WinState, self.Owner.NonCombatant, self.Owner.Playable))
 				return;
 
 			if (++scanTick >= info.ScanInterval)
@@ -1013,7 +1039,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool ISelectionBar.DisplayWhenEmpty => true;
 
-		// IAlwaysVisibleBar: show the bar without selection when being contested
-		bool IAlwaysVisibleBar.ShowBarWithoutSelection => controlBar < info.BarMax;
+		// IAlwaysVisibleBar: show the bar without selection when being contested, but only while the
+		// owner can still act on it. Once they are out, the bars stop moving (see OwnerStillPlaying)
+		// and the SR falls back to the ordinary selection-only path — ISelectionBar.DisplayWhenEmpty
+		// still draws the final state whenever a player selects the actor.
+		bool IAlwaysVisibleBar.ShowBarWithoutSelection =>
+			ShouldShowBarWithoutSelection(self.Owner.WinState, self.Owner.NonCombatant, self.Owner.Playable, controlBar, info.BarMax);
 	}
 }
