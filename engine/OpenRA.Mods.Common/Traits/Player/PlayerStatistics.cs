@@ -180,6 +180,13 @@ namespace OpenRA.Mods.Common.Traits
 	// Per-actor-type composition tally for a single player: how many of a type were
 	// produced (entered play), lost (killed in combat), and remain alive at match end,
 	// with the cost/value totals alongside each count.
+	//
+	// KilledCount/KilledCost are the CREDIT side of the same ledger: what units OF THIS TYPE
+	// destroyed, attributed to the killer's own actor type. Paired with LostCost it gives a
+	// per-type trade ratio ("this class returns 1.4x what it costs us"), which is what
+	// TradeEfficiencyMath turns into a purchasing bias. Kept here rather than in a new trait
+	// because UpdatesPlayerStatistics.Killed already resolves both the attacker and the exact
+	// cost this needs — the tally is one more addition on a line that already runs.
 	public sealed class UnitTypeTally
 	{
 		public int ProducedCount;
@@ -188,6 +195,8 @@ namespace OpenRA.Mods.Common.Traits
 		public long LostCost;
 		public int AliveCount;
 		public long AliveValue;
+		public int KilledCount;
+		public long KilledCost;
 	}
 
 	// Observer-only aggregation of per-actor-type production/loss for one player.
@@ -226,6 +235,16 @@ namespace OpenRA.Mods.Common.Traits
 			var t = Get(actorName);
 			t.LostCount++;
 			t.LostCost += cost;
+		}
+
+		/// <summary>Credit <paramref name="actorName"/> (the KILLER's type) with destroying
+		/// <paramref name="cost"/> of enemy value. Alive/produced counts are untouched — this records what
+		/// the type achieved, not what happened to it.</summary>
+		public void Killed(string actorName, int cost)
+		{
+			var t = Get(actorName);
+			t.KilledCount++;
+			t.KilledCost += cost;
 		}
 
 		public void AddAlive(string actorName, int cost)
@@ -339,7 +358,17 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			if (!self.Owner.NonCombatant)
+			{
 				attackerStats.KillsCost += cost;
+
+				// Per-type credit, mirroring the aggregate above. Normalised exactly like the victim-side
+				// actorName (OverrideActor first, then lowercased) so a veteran variant credits the type the
+				// composition config actually names — e3r1.america's kills land on e3.america, which is the
+				// key UnitTargetShares/UnitRoles are written against.
+				var attackerInfo = e.Attacker.Info.TraitInfoOrDefault<UpdatesPlayerStatisticsInfo>();
+				var attackerName = (attackerInfo?.OverrideActor ?? e.Attacker.Info.Name).ToLowerInvariant();
+				attackerStats.UnitTypeStats.Killed(attackerName, cost);
+			}
 		}
 
 		void INotifyCreated.Created(Actor self)

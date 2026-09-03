@@ -82,10 +82,14 @@ namespace OpenRA.Mods.Common.Traits
 			"of buying one the moment the quota is unfilled and the money is there. See",
 			"LogisticsCenterDemandMath for the model and the ruling it implements. False reproduces the",
 			"pre-2026-09-03 answer exactly (quota + MinCashToRequest, no need model, no capture veto) so",
-			"the whole thing can be A/B'd from YAML. Defaulted TRUE, not false, because this trait is",
-			"declared only under enable-ai-experimental (ai.yaml) — it is not shared with @stable, so there",
-			"is no benchmark baseline for a false default to protect, and a default-off fix would be a gate",
-			"whose only purpose is withholding it.")]
+			"the whole thing can be A/B'd from YAML. Defaulted TRUE, not false, because a default-off fix",
+			"would be a gate whose only purpose is withholding it (CLAUDE.md: @stable inherits improvements).",
+			"CORRECTION 2026-09-03: this Desc previously said the trait 'is declared only under",
+			"enable-ai-experimental — it is not shared with @stable, so there is no benchmark baseline for a",
+			"false default to protect'. That is wrong. LogisticsCenterBotModule@stable exists (ai.yaml:3095)",
+			"and omits this key, so @stable INHERITS the true default and its behaviour did move. Deliberate",
+			"and allowed, but it means the next @stable benchmark baseline must be re-taken knowingly rather",
+			"than assumed unchanged.")]
 		public readonly bool RequireDemand = true;
 
 		[Desc("Actor types priced as the ALTERNATIVE purchase — the thing given up by buying a Centre.",

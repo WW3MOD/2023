@@ -749,6 +749,85 @@ namespace OpenRA.Mods.Common.Traits
 			"byte-identical. Pure SpawnFlowMath (NUnit-pinned), zero RNG.")]
 		public readonly bool ImmediateReinforcementCommit = false;
 
+		// ===== COORDINATED ASSAULTS (@experimental, default OFF) =====
+		// Mass-before-commit at the start line + multi-axis synchronized release. Pure
+		// CoordinatedAssaultMath (NUnit-pinned). See that file's header for the doctrine, the bounded-window
+		// safety property, and why the mass test is a RATIO rather than the absolute floor that already failed
+		// once in this module. Deliberately does NOT re-litigate the SR flow shape: this gate lives at the far
+		// end of the approach, not at the forward muster ImmediateReinforcementCommit governs.
+		[Desc("COORDINATED ASSAULTS (@experimental) — master flag. Two or more pushes land TOGETHER instead of",
+			"arriving minutes apart and being defeated in detail. An axis that has reached its START LINE holds",
+			"(its guns already at their standoff anchors, so the wait is spent shelling) until (i) it out-masses",
+			"what it BELIEVES is in front of it by AssaultMassRatioPct and (ii) a quorum of the other axes at",
+			"their start lines is also ready — then the set releases on the same evaluation pass. Bounded by ONE",
+			"countdown (AssaultSyncMaxTicks) covering BOTH reasons, so no combination of knobs can express a",
+			"permanent hold and a mis-set knob fails OPEN toward today's commit-on-arrival behaviour.",
+			"OFF by default ⇒ the @stable twin (which omits these fields) is byte-identical. Zero RNG.")]
+		public readonly bool CoordinatedAssaultEnabled = false;
+
+		[Desc("Coordinated assaults: how much force an axis must bring RELATIVE to the enemy force it believes is",
+			"near its objective before it commits — 150 = 'bring half again what you think is there'. Both sides",
+			"are on the same cost scale (own health-weighted build value vs believed armed contact cost x",
+			"confidence, the same pair the retreat lever compares), so the ratio is meaningful. RELATIVE on",
+			"purpose: the absolute advance-strength floor (MinAdvanceStrength) is the shape that parked units in",
+			"the rear for whole matches, because a small funded axis can never clear an absolute bar. An axis",
+			"believing it faces NOTHING is sufficient at any size, so an unopposed walk-in stays a walk-in.",
+			"Non-positive disables the mass test. Only read when CoordinatedAssaultEnabled.")]
+		public readonly int AssaultMassRatioPct = 150;
+
+		[Desc("Coordinated assaults: what PERCENTAGE of the axes at their start lines must be ready before the",
+			"set steps off. A percentage rather than unanimity so ONE pinned axis cannot hold the whole army to",
+			"the window expiry every window — a straggler is outvoted rather than obeyed. 100 asks for unanimity",
+			"and still has the window as its backstop. Non-positive disables the synchronization arm (leaving the",
+			"mass arm live). Only read when CoordinatedAssaultEnabled.")]
+		public readonly int AssaultSyncQuorumPct = 60;
+
+		[Desc("Coordinated assaults: the bounded window (ticks) an axis may spend at its start line waiting to",
+			"mass and to synchronize. THE load-bearing safety knob: elapsing releases the axis unconditionally",
+			"whichever of the two reasons was holding it, which is what makes this gate structurally incapable of",
+			"deadlocking an axis — the SectorPostureHold incident (bd3abacf) is the standing proof that in this",
+			"module a coupling which looks like caution reads in play as paralysis. Non-positive disables the gate",
+			"outright. Resolution is the re-eval cadence (ReevaluateInterval), as for the prep window. 300 ticks",
+			"is 18 s at Timestep 60 (16.667 ticks/s) — three re-evals. Only read when CoordinatedAssaultEnabled.")]
+		public readonly int AssaultSyncMaxTicks = 300;
+
+		[Desc("Coordinated assaults: how far out (cells, Chebyshev from the axis centroid) the START LINE sits.",
+			"The gate engages ONLY inside the band (AssaultRadiusCells, this] — the same productive-band",
+			"discipline PrepFireMath carries, and it is load-bearing rather than cosmetic: a window that opened",
+			"the moment an axis formed would elapse during a 60-cell approach and the gate would be inert by the",
+			"time the axis actually arrived. An axis already INSIDE AssaultRadiusCells is committed and closing",
+			"and is never pulled back to wait. Only read when CoordinatedAssaultEnabled.")]
+		public readonly int AssaultSyncStartLineCells = 24;
+
+		[Desc("Coordinated assaults: the EFFECTIVE RING of the objective in cells — the radius inside which a",
+			"committed force actually does something. For the bot's only offensive action (Pressure against a",
+			"Supply Route) that is SupplyRouteContestation.Range, which ships at 10c0; note AssaultRadiusCells",
+			"(15) is already OUTSIDE it, so 'reached the assault radius' never meant 'is contesting'.",
+			"TELEMETRY ONLY — this drives no decision. It is emitted on the [exp-offense] order line as",
+			"ring=/insideRing= so the next run can measure directly whether committed force closes into the ring,",
+			"which is the question the 2026-09-02 loss-mining pass could only answer by inference from an order",
+			"distance that never fell below 24. Deliberately not wired to the cohesion switch or the assault",
+			"radius: re-aiming those is a behavioural change and nothing here has been measured in a game.",
+			"Emitted whenever the assault geometry is live (see CloseInRatchetEnabled), so existing log",
+			"consumers are unaffected.")]
+		public readonly int AssaultRingCells = 10;
+
+		[Desc("CLOSE-IN RATCHET (@experimental) — the ANTI-hold half of the coordinated-assault work, split out",
+			"so it can go live without the sync HOLD. Once an axis is inside AssaultSyncStartLineCells it has",
+			"committed, and the muster-ward holds (the retreat damper's massing arm and SectorPostureHold) may",
+			"no longer march it back out. The genuine-retreat gate is upstream and already returned, so a losing",
+			"axis still withdraws — this only stops a HEALTHY axis being parked outside the ring it was sent to",
+			"contest. Enabling this also runs CensusAssaultReadiness (which stamps the SyncDist the ratchet",
+			"reads — without it SyncDist is 0 and the ratchet would read as unconditionally past the start",
+			"line) and emits the ring=/insideRing= telemetry.",
+			"WHY SEPARATE FROM CoordinatedAssaultEnabled: that flag also arms SyncHoldScreen, a NEW hold",
+			"discipline. The standing manager decision (2026-08-04) is that no new hold goes live until a",
+			"user-gated sweep prices it — and @experimental's top live regression is axes that hold and never",
+			"close, which a new hold could deepen. One flag conflating a hold with an anti-hold meant the",
+			"standoff fix could not be enabled without also enabling the thing it guards against.",
+			"OFF by default ⇒ the @stable twin (which omits this field) is byte-identical. Zero RNG.")]
+		public readonly bool CloseInRatchetEnabled = false;
+
 		[Desc("PHASE 4 (@experimental) FRONTLINE STRENGTH PROFILE (sensor only — no order-issuing change).",
 			"Opts this player in to the ControlField's per-frontier-sector believed OWN-vs-ENEMY strength",
 			"profile + avenue (crossing) mapping, so a future consumer can ask 'which frontier sector is the",
@@ -940,6 +1019,78 @@ namespace OpenRA.Mods.Common.Traits
 			"Only read when MissionCommitmentEnabled.")]
 		public readonly int MissionBetterOppMarginSlopePct = 0;
 
+		// ===== FLANKING MANEUVER (@experimental) — added as one block so parallel edits to this Info class
+		// ===== conflict on a single hunk. Decision math is the pure FlankingMath (NUnit-pinned).
+
+		[Desc("FLANKING MANEUVER. Split an attack axis into a MAIN element (majority, presses the direct axis)",
+			"and a FLANK element (minority, swings through a lateral waypoint and comes in on a second bearing).",
+			"The lateral side is chosen by LOWER believed ground-danger exposure, so the flank goes around the",
+			"weak shoulder. The main element then HOLDS at standoff until the flank is level, so both arrive",
+			"together instead of feeding in piecemeal. Distinct from the Stage-E flow-around (DangerFieldRouting),",
+			"which only fires when the beeline is unsafe: this is a doctrine and fires against a clear approach",
+			"too. Needs a DangerFieldLayer for the side choice; with no field it is inert. OFF by default so the",
+			"frozen @stable twin and every legacy profile keep the undivided single-group assault byte-identical;",
+			"only PoiOffensiveBotModule@experimental turns it on. Zero RNG — the force is partitioned by a stable",
+			"ActorID order and the lane by integer geometry over a fixed candidate order.")]
+		public readonly bool FlankingEnabled = false;
+
+		[Desc("Flanking: minimum axis force before a split is considered. Below this the axis assaults undivided —",
+			"cutting a small force in two produces two elements that each lose their own fight. Only read when",
+			"FlankingEnabled.")]
+		public readonly int FlankMinForceSize = 6;
+
+		[Desc("Flanking: minimum centroid-to-objective distance (cells) before a split is considered. Inside this",
+			"there is no room to swing wide before contact, so the axis assaults undivided. Only read when",
+			"FlankingEnabled.")]
+		public readonly int FlankMinApproachCells = 12;
+
+		[Desc("Flanking: percent of the axis force assigned to the FLANK element. Deliberately a MINORITY — the",
+			"main element must stay the force the defender has to face, or the maneuver is just two small",
+			"attacks. Clamped by FlankMinElementSize on both sides. Only read when FlankingEnabled.")]
+		public readonly int FlankSharePct = 35;
+
+		[Desc("Flanking: minimum units in EITHER element. A force smaller than twice this can never split.",
+			"Only read when FlankingEnabled.")]
+		public readonly int FlankMinElementSize = 2;
+
+		[Desc("Flanking: base lateral offset (cells) of the flank waypoint from the approach axis.",
+			"Only read when FlankingEnabled.")]
+		public readonly int FlankOffsetBaseCells = 4;
+
+		[Desc("Flanking: extra lateral offset (cells) per unit in the axis force — a bigger force needs a wider",
+			"berth to read as a separate bearing rather than a wider blob. Only read when FlankingEnabled.")]
+		public readonly int FlankOffsetPerUnitCells = 1;
+
+		[Desc("Flanking: absolute ceiling on the lateral offset (cells). The offset is ALSO capped at half the",
+			"approach distance regardless of this, so the flank leg is never a longer walk than the assault —",
+			"at that cap the two bearings converge about 45 degrees apart. Only read when FlankingEnabled.")]
+		public readonly int FlankOffsetMaxCells = 12;
+
+		[Desc("Flanking converge: how close (cells) the MAIN element must be to the objective before it will hold",
+			"for the flank at all. Beyond this it keeps advancing — the converge is a decision made at the",
+			"objective, not a reason to dawdle across open ground. Only read when FlankingEnabled.")]
+		public readonly int FlankConvergeStandoffCells = 14;
+
+		[Desc("Flanking converge: how much further (cells) the flank's remaining route may be before the main",
+			"element stops waiting and assaults. The arrival window, in distance rather than ticks — the flank's",
+			"remaining route is a straight-line ESTIMATE, so this absorbs the error. Only read when FlankingEnabled.")]
+		public readonly int FlankConvergeToleranceCells = 4;
+
+		[Desc("Flanking converge: maximum re-evals the main element may spend held waiting for the flank, after",
+			"which it assaults regardless. BOUNDED ON PURPOSE — the wait is keyed on a straight-line estimate that",
+			"broken ground can make permanently unreachable, and an unbounded wait on an estimate is a veto",
+			"wearing the costume of a delay (the Phase-5 posture hold paid for this once already). The budget is",
+			"monotone within an axis lifetime and is NOT refunded on release. 0 disables the hold entirely (the",
+			"flank still splits and routes wide, both elements simply advance without synchronising).",
+			"Only read when FlankingEnabled.")]
+		public readonly int FlankConvergeMaxHoldEvals = 4;
+
+		[Desc("Flanking degrade: believed ground danger at the flank element's own position above which the flank",
+			"counts as ENGAGED, releasing the main element's hold immediately so both commit. A flank already in",
+			"contact is not maneuvering, and holding the main element back means the defender fights half a force",
+			"twice. IN DANGER UNITS (100 = one reference contact at point-blank). Only read when FlankingEnabled.")]
+		public readonly int FlankEngagedDangerUnits = 30;
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			base.RulesetLoaded(rules, ai);
@@ -1026,6 +1177,38 @@ namespace OpenRA.Mods.Common.Traits
 			public int PrepStartTick;
 			public CPos PrepTargetCell;
 			public bool OrderedPrepHold;
+
+			// COORDINATED ASSAULTS state (written only when CoordinatedAssaultEnabled ⇒ untouched, and therefore
+			// byte-identical, for every other profile). MassReady/SyncDist are recomputed for the whole live axis
+			// set ONCE per eval by CensusAssaultReadiness, so the gate and the peer census can never disagree
+			// about this axis — the two readings are one number written in one place. SyncStarted/SyncStartTick
+			// stamp the start-line window (an explicit bool because tick 0 is a legal tick); SyncTargetCell is
+			// the objective the window was opened against, so taking a NEW objective waits afresh while an
+			// ongoing approach on the same objective keeps counting. OrderedSyncHold records that the last order
+			// issued was the start-line hold, so the release forces the assault order to re-issue — the same
+			// discipline as OrderedRetreat / OrderedPrepHold.
+			public bool MassReady;
+			public int SyncDist;
+			public bool SyncStarted;
+			public int SyncStartTick;
+			public CPos SyncTargetCell;
+			public bool OrderedSyncHold;
+
+			// FLANKING MANEUVER state (written only when FlankingEnabled is on ⇒ untouched, and therefore
+			// byte-identical, for every other profile). The flank element carries its OWN order-repath state,
+			// deliberately separate from the main element's OrderedCell/OrderedVia/HasOrdered: the two elements
+			// are ordered independently in the same eval, and sharing one slot would make each element's re-issue
+			// gate read the other's destination. FlankOrdered is cleared whenever an eval declines to split, so a
+			// force that drops below the split bar and later recovers re-issues the maneuver from scratch rather
+			// than trusting a stale waypoint. ConvergeHoldEvals is the monotone hold budget (see
+			// FlankingMath.StepHold); OrderedConvergeHold records that the main element's last order was the
+			// converge hold, so its release forces the assault to re-issue — the same discipline as
+			// OrderedRetreat / OrderedPrepHold.
+			public CPos? OrderedFlankVia;
+			public CPos OrderedFlankCell;
+			public bool FlankOrdered;
+			public int ConvergeHoldEvals;
+			public bool OrderedConvergeHold;
 		}
 
 		readonly World world;
@@ -1047,6 +1230,12 @@ namespace OpenRA.Mods.Common.Traits
 		bool crossingMapResolved;
 
 		readonly List<Axis> axes = new();
+
+		// COORDINATED ASSAULTS: the per-eval peer census (see CensusAssaultReadiness). Both 0 and unread unless
+		// CoordinatedAssaultEnabled, so every other profile is byte-identical. They are cardinalities of a set,
+		// hence order-independent and needing no sort for determinism.
+		int syncParticipatingAxes;
+		int syncReadyAxes;
 
 		// Phase 1: targetId → the axis should be crewed by amphibious units (a water-only far-bank POI).
 		// Rebuilt each reeval by the reachability reshape; empty (and unread) unless ReachabilityGatingEnabled.
@@ -1562,6 +1751,20 @@ namespace OpenRA.Mods.Common.Traits
 					axis.HasOrdered = false; // set changed
 				}
 			}
+
+			// COORDINATED ASSAULTS: census the live axis set ONCE, before any order is issued, so every axis in
+			// this loop reads the SAME snapshot of who is at their start line and who is ready. Computing it per
+			// axis inside the loop would let an early axis's orders change what a later axis sees, making the
+			// joint release depend on iteration order. Skipped entirely (both counters stay 0, no Axis field is
+			// written) unless the flag is on ⇒ byte-identical for every other profile.
+			//
+			// NOTE the census deliberately spans only the LIVE set. Mission-committed axes were pulled out by
+			// PartitionHeldAxes above and are folded back after this loop, so they are invisible here — which is
+			// the behaviour we want rather than an oversight: a frozen axis is already executing its assault, so
+			// there is nothing to wait for. An axis whose peers have all committed sees participating == 1 and
+			// presses on instead of waiting out a window for company that has already gone.
+			if (AssaultGeometryLive)
+				CensusAssaultReadiness();
 
 			// 9. Issue orders + (re)commit. Retire any axis that ended up below min size.
 			for (var i = axes.Count - 1; i >= 0; i--)
@@ -3058,7 +3261,28 @@ namespace OpenRA.Mods.Common.Traits
 			// so a damped axis is never marked Committed (same discipline as the retreat above). Inert when off.
 			// SR flow shape: ImmediateReinforcementCommit suppresses (b) entirely — see DamperShouldHold — so under
 			// that doctrine only (a) can reach this hold, and FillHoldEvals below then only ever tallies dwell evals.
-			var damperHold = Info.RetreatDamperEnabled && rallyCell.HasValue && DamperShouldHold(axis);
+			// COORDINATED ASSAULTS — CLOSE-IN RATCHET (loss-mining 2026-09-02 §1.1). Once the axis is inside its
+			// start line it has committed, and the muster-ward holds below stop being allowed to march it back
+			// out. Without this the army's resting position is a staging anchor set from the believed FRONT with
+			// no relation to the ring it was sent to contest: the corpus never saw a committed order inside 24
+			// cells while SupplyRouteContestation.Range is 10, so Pressure was geometrically incapable of moving
+			// the contestation bar. The assault ORDER was never the problem — it is a plain AttackMove to the
+			// objective — so the fix is to stop re-asserting the standoff, not to re-aim the order.
+			//
+			// SCOPE, and it is deliberately narrow: this suppresses the damper's massing arm and the sector
+			// posture hold ONLY. The genuine-retreat gate is ABOVE and already returned, so a losing axis still
+			// withdraws — the same conjunctive discipline SpawnFlowMath.SuppressMassingHold uses against the
+			// post-retreat dwell. A healthy axis can no longer be parked outside the ring; a losing one is not
+			// forced into it.
+			//
+			// Reads axis.SyncDist, which CensusAssaultReadiness stamped for the whole live set before this loop,
+			// so the ratchet and the sync gate cannot disagree about where this axis is. Both are guarded on the
+			// same flag, so with it off SyncDist is never written, the ratchet is constant-false, and every hold
+			// below behaves exactly as it does today ⇒ byte-identical.
+			var pastNoReturn = CoordinatedAssaultMath.PastPointOfNoReturn(
+				AssaultGeometryLive, axis.SyncDist, Info.AssaultSyncStartLineCells);
+
+			var damperHold = !pastNoReturn && Info.RetreatDamperEnabled && rallyCell.HasValue && DamperShouldHold(axis);
 
 			// Step the hold counter the eval cap reads. Stepped on every pass (not only when holding) so the budget
 			// clears the moment the massing EPISODE ends — but it must PERSIST across the release itself, or the cap
@@ -3130,7 +3354,13 @@ namespace OpenRA.Mods.Common.Traits
 			// Counter stepped INSIDE the enabled guard and only on a hold, so with the knob at its 0 default
 			// PostureBudgetExhausted is constant-false, `postureHold` is exactly the old PostureShouldHold, and the
 			// only difference is a write nobody reads ⇒ byte-identical for every profile that does not opt in.
-			if (Info.SectorPostureHoldEnabled && rallyCell.HasValue)
+			// The close-in ratchet applies here too, and this is the hold it most needs to bind: the posture hold
+			// is the one documented as capable of freezing an axis in place indefinitely (failure shape (A), the
+			// silent stall), and an axis frozen at the standoff is exactly the corpus's ~24-cell park. Inside the
+			// start line the axis presses on regardless of how the sector reads — it has already committed, and
+			// a caution applied at that range is the veto-wearing-a-delay's-costume this module has hit before.
+			// Constant-false when CoordinatedAssaultEnabled is off ⇒ byte-identical.
+			if (Info.SectorPostureHoldEnabled && rallyCell.HasValue && !pastNoReturn)
 			{
 				var budgetSpent = FrontlineAllocationMath.PostureBudgetExhausted(
 					axis.PostureHoldEvals, Info.SectorPostureHoldMaxEvals);
@@ -3279,10 +3509,141 @@ namespace OpenRA.Mods.Common.Traits
 				axis.HasOrdered = false;
 			}
 
+			// COORDINATED ASSAULTS (experimental, default off): the axis is at its start line and past every
+			// fall-back gate — hold it there until it out-masses what it believes it faces AND a quorum of the
+			// other axes at their start lines is also ready, then release the set on one evaluation pass.
+			//
+			// PLACED LAST AMONG THE HOLDS, AND AFTER THE PREP GATE, ON PURPOSE. Two reasons, both load-bearing:
+			//   * The guns are already peeled off and standing at their standoff/echelon anchors by this point
+			//     (and ContinuousBombardment keeps idle pieces shelling believed-static positions), so the
+			//     synchronization wait is spent with fires LANDING rather than with the whole axis idle. That is
+			//     the combined-arms half of this feature: the prep window and the sync window overlap instead of
+			//     queueing, so coordinating does not cost tempo it did not already spend.
+			//   * Prep is a PER-AXIS clock and sync is the GLOBAL release. Running sync first would start each
+			//     axis's prep countdown at a different tick and desynchronize the very set we just gathered.
+			//
+			// Returns WITHOUT stamping mission commitment — see ApplyMissionCommitment above: an axis marked
+			// Committed is frozen by PartitionHeldAxes, which skips CommitAndOrder entirely, so a sync-holding
+			// axis would never re-reach its own release gate and AssaultSyncMaxTicks would be a dead knob (the
+			// exact defect review FIX 4 found in the prep gate). Not stamping keeps it flowing through this
+			// method every eval, which is what makes both the countdown and the peer re-census reachable.
+			//
+			// It can never delay a genuine withdrawal: the retreat gate returned far above, and a Retreating axis
+			// is excluded from the census (SyncDist stays int.MaxValue, so the band test fails and this is false).
+			if (Info.CoordinatedAssaultEnabled && SyncHoldScreen(axis, tick))
+			{
+				OrderSyncHold(bot, axis, groupUnits, centroid, tick);
+				return;
+			}
+
+			// Released from (or never in) the sync hold: same reconciliation as the prep hold above — the last
+			// order issued was the start-line hold, so force the assault order below to re-issue.
+			if (axis.OrderedSyncHold)
+			{
+				axis.OrderedSyncHold = false;
+				axis.HasOrdered = false;
+			}
+
 			// Past every fall-back gate: this axis is assaulting, so it takes the mission-commitment baseline. Must
 			// run BEFORE the !moved early-return below so an axis that merely keeps its existing order still has its
 			// commitment refreshed — that is what the pre-hoist code did from the top of the method.
 			ApplyMissionCommitment();
+
+			// FLANKING MANEUVER (experimental, default off): peel a minority FLANK element off the line group and
+			// send it wide through a lateral waypoint, so the objective is approached on two bearings instead of
+			// one. Mirrors the fires/screen split above — the flank is ordered inside the helper and groupUnits
+			// NARROWS to the main element, so everything downstream (Stage-E detour, cohesion, the assault order)
+			// operates on the main element alone and is byte-identical when no split happens. Placed AFTER the
+			// prep-fires hold on purpose: a prep-holding axis must not shed half its force onto a separate route
+			// while it waits at the start line.
+			List<Actor> flankElement = null;
+			if (Info.FlankingEnabled)
+			{
+				flankElement = TryOrderFlank(bot, axis, groupUnits, centroid, distToTarget, tick);
+
+				if (flankElement != null)
+				{
+					var flankSet = new HashSet<Actor>(flankElement);
+					groupUnits = groupUnits.Where(u => !flankSet.Contains(u)).ToList();
+
+					// The main element is a different force standing in a different place: re-derive the geometry
+					// the detour/cohesion/assault gates below all key on, or they read the undivided axis's shape.
+					cells.Clear();
+					foreach (var u in groupUnits)
+						cells.Add((u.Location.X, u.Location.Y));
+
+					centroid = PoiOffenseMath.CellCentroid(cells);
+					distToTarget = PoiOffenseMath.Chebyshev(centroid.X, centroid.Y, axis.TargetCell.X, axis.TargetCell.Y);
+					clumpRadius = PoiOffenseMath.MaxChebyshev(cells, centroid.X, centroid.Y);
+				}
+				else if (axis.FlankOrdered)
+				{
+					// Declined to split this eval (force fell below the bar, no passable lane, or the order was
+					// refused). Drop the stale flank bookkeeping so a later re-split issues the whole maneuver
+					// afresh instead of trusting a waypoint nothing is travelling to. Clearing HasOrdered forces
+					// the assault below to re-issue as ONE group: without it the ex-flank units would coast on
+					// the queued objective leg of a maneuver that no longer exists, rejoining the axis only by
+					// accident of that leg pointing at the same cell.
+					axis.FlankOrdered = false;
+					axis.OrderedFlankVia = null;
+					axis.HasOrdered = false;
+				}
+			}
+
+			// CONVERGE SYNCHRONISATION: hold the main element at standoff until the flank is level, so the two
+			// elements arrive together rather than the main element hitting the objective alone and the flank
+			// walking into an already-decided fight. BOUNDED by FlankConvergeMaxHoldEvals — the flank's remaining
+			// route is a straight-line estimate and broken ground can make it permanently unreachable, so an
+			// unbounded wait would be a silent freeze (the Phase-5 posture-hold failure, which is why the budget
+			// is monotone and not refunded on release). Returns WITHOUT clearing OrderedConvergeHold, exactly as
+			// the prep hold does, so the release below is what forces the assault to re-issue.
+			if (flankElement != null && Info.FlankConvergeMaxHoldEvals > 0 && axis.OrderedFlankVia.HasValue && groupUnits.Count > 0)
+			{
+				var flankCells = new List<(int X, int Y)>(flankElement.Count);
+				foreach (var u in flankElement)
+					flankCells.Add((u.Location.X, u.Location.Y));
+
+				var flankCentroid = PoiOffenseMath.CellCentroid(flankCells);
+				var flankCentroidCell = new CPos(flankCentroid.X, flankCentroid.Y);
+
+				// Engaged = believed danger where the flank actually STANDS, not at its objective: a flank in
+				// contact is fighting, not maneuvering, and the main element must stop waiting for it.
+				var flankEngaged = dangerField != null
+					&& dangerField.GroundDanger(player, flankCentroidCell) >= GroundDangerLevel(Info.FlankEngagedDangerUnits);
+
+				var flankRemaining = FlankingMath.RouteRemainingCells(
+					flankCentroidCell, axis.OrderedFlankVia.Value, axis.TargetCell);
+
+				var budgetSpent = FlankingMath.HoldBudgetExhausted(axis.ConvergeHoldEvals, Info.FlankConvergeMaxHoldEvals);
+				var wantsHold = FlankingMath.MainShouldHold(distToTarget, flankRemaining,
+					Info.FlankConvergeStandoffCells, Info.FlankConvergeToleranceCells, flankEngaged);
+				var convergeHold = !budgetSpent && wantsHold;
+
+				axis.ConvergeHoldEvals = FlankingMath.StepHold(
+					axis.ConvergeHoldEvals, convergeHold, Info.FlankConvergeMaxHoldEvals);
+
+				if (wantsHold)
+					Log.Write("debug",
+						$"[exp-flank] {(convergeHold ? "hold" : "override")} player={player.PlayerName} " +
+						$"target={axis.TargetName}#{axis.TargetId} mainRemaining={distToTarget} " +
+						$"flankRemaining={flankRemaining} engaged={flankEngaged} " +
+						$"evals={axis.ConvergeHoldEvals}/{Info.FlankConvergeMaxHoldEvals} tick={tick}");
+
+				if (convergeHold)
+				{
+					OrderConvergeHold(bot, axis, groupUnits, centroid, tick);
+					return;
+				}
+			}
+
+			// Released from (or never in) the converge hold: the last order was a hold at standoff, so force the
+			// assault below to re-issue rather than assume the stale hold order still stands — the same
+			// discipline as the OrderedRetreat / OrderedPrepHold reconciliations above.
+			if (axis.OrderedConvergeHold)
+			{
+				axis.OrderedConvergeHold = false;
+				axis.HasOrdered = false;
+			}
 
 			// Stage-E flow-around: when the axis centroid's straight approach to the objective crosses
 			// ground-danger above the threshold (a defended strongpoint / choke), route it through a
@@ -3371,8 +3732,16 @@ namespace OpenRA.Mods.Common.Traits
 
 			var viaLog = detourVia.HasValue ? $" via={detourVia.Value}" : "";
 			var cohesionLog = dispersion ? $" cohesion={wantMode}" : "";
+
+			// Ring telemetry (loss-mining §1.1). APPENDED at the end of the line and only under the coordinated-
+			// assault flag, so every existing consumer of [exp-offense] order — and the @stable twin — sees a
+			// byte-identical line. This is the field that turns "the order distance never fell below 24" from an
+			// inference into a direct reading: insideRing=False on every sample IS the defect, stated as such.
+			var ringLog = AssaultGeometryLive
+				? $" ring={Info.AssaultRingCells} insideRing={distToTarget <= Info.AssaultRingCells} syncDist={axis.SyncDist}"
+				: "";
 			Log.Write("debug",
-				$"[exp-offense] order player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} action={axis.Action} units={units.Length}{cohesionLog}{viaLog} clumpRadius={clumpRadius} distToTarget={distToTarget} tick={tick}");
+				$"[exp-offense] order player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} action={axis.Action} units={units.Length}{cohesionLog}{viaLog} clumpRadius={clumpRadius} distToTarget={distToTarget} tick={tick}{ringLog}");
 			AIUtils.BotDebug("AI ({0}): exp-offense — axis {1}@{2} ({3} units, score={4})",
 				player.ClientIndex, axis.TargetName, axis.TargetCell, units.Length, axis.Score);
 		}
@@ -4164,6 +4533,106 @@ namespace OpenRA.Mods.Common.Traits
 			return sum;
 		}
 
+		// Is the assault GEOMETRY live — i.e. does axis.SyncDist get stamped this eval? Both the sync hold and
+		// the close-in ratchet read it, so either flag requires the census. Single source of truth on purpose:
+		// the ratchet reading a SyncDist the census never wrote would see 0, and 0 <= startLine is "past the
+		// point of no return" for every axis on the map, silently suppressing every muster-ward hold.
+		bool AssaultGeometryLive => Info.CoordinatedAssaultEnabled || Info.CloseInRatchetEnabled;
+
+		// COORDINATED ASSAULTS: recompute, for the whole live axis set, who is AT THEIR START LINE and who among
+		// them is massed enough to commit. Called once per eval before any order issues (see the call site), so
+		// the peer counts every axis reads are one consistent snapshot.
+		//
+		// THE THREE POPULATIONS, and why each is counted the way it is:
+		//   * RETREATING axes are neither participating nor ready. An axis withdrawing is not part of an assault
+		//     wave, and counting it as an un-ready participant would let a genuine withdrawal drag the quorum
+		//     down and hold every other axis to the window expiry — the retreat gate must never acquire that
+		//     kind of second-order veto over the rest of the army.
+		//   * Axes FURTHER OUT than the start line are not participating either. They cannot assault soon, so
+		//     including them would make the quorum unreachable on any map where one axis is still crossing.
+		//   * Axes already INSIDE AssaultRadiusCells count as participating AND READY regardless of mass: they
+		//     are closing on (or in) contact, so they are already splitting the defender's attention, which is
+		//     the effect the synchronizer exists to produce. Counting them as un-ready would hold the axes that
+		//     could still join them, which is precisely backwards.
+		//
+		// SyncDist is stamped here and re-read by the gate rather than recomputed there, so the band test and
+		// the census can never disagree about one axis. Distance is over the axis's WHOLE unit set (its centroid
+		// as a body); the gate's own screen-only centroid is used for the hold CELL, not for the band decision.
+		// Zero RNG — Chebyshev on synced cell positions, and the counters are set cardinalities.
+		void CensusAssaultReadiness()
+		{
+			syncParticipatingAxes = 0;
+			syncReadyAxes = 0;
+
+			foreach (var axis in axes)
+			{
+				axis.MassReady = false;
+				axis.SyncDist = int.MaxValue;
+
+				if (axis.Units.Count == 0)
+					continue;
+
+				if (CombatRetreatMath.ShouldRetreat(Info.RetreatWhenLosing, axis.Retreat))
+					continue;
+
+				var cells = new List<(int X, int Y)>(axis.Units.Count);
+				foreach (var u in axis.Units)
+					cells.Add((u.Location.X, u.Location.Y));
+
+				var centroid = PoiOffenseMath.CellCentroid(cells);
+				axis.SyncDist = PoiOffenseMath.Chebyshev(centroid.X, centroid.Y, axis.TargetCell.X, axis.TargetCell.Y);
+
+				if (axis.SyncDist > Info.AssaultSyncStartLineCells)
+					continue;
+
+				syncParticipatingAxes++;
+
+				axis.MassReady = axis.SyncDist <= Info.AssaultRadiusCells
+					|| CoordinatedAssaultMath.MassSufficient(
+						OwnAxisStrength(axis), BelievedEnemyStrength(axis.TargetCell), Info.AssaultMassRatioPct);
+
+				if (axis.MassReady)
+					syncReadyAxes++;
+			}
+		}
+
+		// COORDINATED ASSAULTS: is this axis still waiting at its start line — to mass, or for its peers? Stamps
+		// the window on entry to the band, then defers to the pure predicate.
+		//
+		// THE BAND TEST IS WHAT MAKES THE WINDOW MEAN ANYTHING (the same reasoning PrepFireMath's reach bound
+		// carries). A window stamped when the axis FORMED would run out during a 40-100 cell approach, and the
+		// gate would be reliably expired — inert — by the time the axis actually reached somewhere worth waiting.
+		// So the window opens on ARRIVAL at the start line and not before. Leaving the band clears the stamp, so
+		// an axis that re-enters waits afresh; in practice the band is crossed once, inward, because an axis
+		// inside the assault radius is committed and closing and the gate never pulls it back out.
+		//
+		// Called ONLY under Info.CoordinatedAssaultEnabled, so no sync state is ever written for another profile.
+		// Re-entered EVERY eval while the hold is active — the sync-hold exit does not stamp mission commitment,
+		// so PartitionHeldAxes cannot freeze the axis out of this method — which is what keeps the countdown and
+		// the peer re-census reachable. Same discipline, and same reason, as PrepHoldScreen.
+		bool SyncHoldScreen(Axis axis, int tick)
+		{
+			var inBand = axis.SyncDist > Info.AssaultRadiusCells
+				&& axis.SyncDist <= Info.AssaultSyncStartLineCells;
+
+			if (!inBand)
+			{
+				axis.SyncStarted = false;
+				return false;
+			}
+
+			if (!axis.SyncStarted || axis.SyncTargetCell != axis.TargetCell)
+			{
+				axis.SyncStarted = true;
+				axis.SyncStartTick = tick;
+				axis.SyncTargetCell = axis.TargetCell;
+			}
+
+			return CoordinatedAssaultMath.ShouldHoldForSync(true, axis.MassReady,
+				syncParticipatingAxes, syncReadyAxes, Info.AssaultSyncQuorumPct,
+				tick - axis.SyncStartTick, Info.AssaultSyncMaxTicks);
+		}
+
 		// (build cost, armed) for a believed-contact type name, cached from the actor rules. An armed contact
 		// carries AttackBase; an unarmed one (supply truck, capturer) contributes no combat force to the ratio.
 		(int Cost, bool Armed) ContactFact(string typeName)
@@ -4299,43 +4768,180 @@ namespace OpenRA.Mods.Common.Traits
 			return AdvanceUnderCoverMath.NormalizeSuppression(total, defenders);
 		}
 
-		// Hold the screen at its start line: a grouped AttackMove to the screen's own centroid, so it stops
-		// advancing but stays combat-ready (attack-move ⇒ it still engages what comes at it) while the guns work the
-		// objective. Re-issued only on ENTERING the hold or when the start line drifted past the repath threshold —
-		// a screen already standing keeps its order instead of chattering every re-eval — the same dedup shape as
-		// OrderRetreat. Deterministic: the representative is the LOWEST-ActorID screen unit (an explicit total
-		// order), never list position.
-		void OrderPrepHold(IBot bot, Axis axis, List<Actor> screen, (int X, int Y) centroid, int tick)
+		// The BODY shared by all three start-line holds (prep-fires, coordinated-assault sync, flanking
+		// converge). Each is the same order: a grouped AttackMove onto the element's own centroid, so it stops
+		// advancing but stays combat-ready (attack-move ⇒ it still engages what comes at it). Re-issued only on
+		// ENTERING the hold — that is what `alreadyHolding` carries — or when the start line drifted past the
+		// repath threshold, so an element already standing keeps its order instead of chattering every re-eval;
+		// the same dedup shape as OrderRetreat. Re-issuing an identical AttackMove every eval would cancel and
+		// restart the units' own engagements, which is exactly the churn the commitment ledger and
+		// ReorderDwellTicks exist to suppress.
+		//
+		// Returns TRUE only when an order was actually issued, i.e. only when the caller may advance its own
+		// Ordered*Hold flag and log. The three false paths — nothing to order, already holding, order refused —
+		// all leave every piece of axis bookkeeping untouched, so a dropped order can never leave the module
+		// believing the element was told to hold. Deterministic: the representative is the LOWEST-ActorID unit
+		// (an explicit total order), never list position; zero draws.
+		bool TryOrderHold(IBot bot, Axis axis, List<Actor> units, (int X, int Y) centroid, bool alreadyHolding, out CPos holdCell)
 		{
-			var lead = screen[0];
-			foreach (var u in screen)
+			holdCell = default;
+			if (units.Count == 0)
+				return false;
+
+			var lead = units[0];
+			foreach (var u in units)
 				if (u.ActorID < lead.ActorID)
 					lead = u;
 
-			// A spread screen's centroid can land on water/cliff; an impassable hold cell would degrade the
+			// A spread element's centroid can land on water/cliff; an impassable hold cell would degrade the
 			// AttackMove to some partial move. Fall back to a cell a unit is demonstrably standing on.
-			var holdCell = new CPos(centroid.X, centroid.Y);
+			holdCell = new CPos(centroid.X, centroid.Y);
 			if (!world.Map.Contains(holdCell) || !WaypointPassable(lead)(holdCell))
 				holdCell = lead.Location;
 
 			var moved = !axis.HasOrdered
-				|| !axis.OrderedPrepHold
+				|| !alreadyHolding
 				|| (axis.OrderedCell - holdCell).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells;
 			if (!moved)
-				return;
+				return false;
 
-			var units = screen.ToArray();
-			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, holdCell), false, groupedActors: units)))
-				return;
+			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, holdCell), false, groupedActors: units.ToArray())))
+				return false;
 
 			axis.OrderedCell = holdCell;
 			axis.OrderedVia = null;
-			axis.OrderedPrepHold = true;
 			axis.HasOrdered = true;
+			return true;
+		}
+
+		// Hold the screen at its start line while the guns work the objective.
+		void OrderPrepHold(IBot bot, Axis axis, List<Actor> screen, (int X, int Y) centroid, int tick)
+		{
+			if (!TryOrderHold(bot, axis, screen, centroid, axis.OrderedPrepHold, out var holdCell))
+				return;
+
+			axis.OrderedPrepHold = true;
 
 			Log.Write("debug",
 				$"[exp-fires] prep-hold player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} " +
-				$"startLine={holdCell} screen={units.Length} elapsed={tick - axis.PrepStartTick} tick={tick}");
+				$"startLine={holdCell} screen={screen.Count} elapsed={tick - axis.PrepStartTick} tick={tick}");
+		}
+
+		// COORDINATED ASSAULTS: hold the screen at its start line while it masses / waits for its peers.
+		void OrderSyncHold(IBot bot, Axis axis, List<Actor> screen, (int X, int Y) centroid, int tick)
+		{
+			if (!TryOrderHold(bot, axis, screen, centroid, axis.OrderedSyncHold, out var holdCell))
+				return;
+
+			axis.OrderedSyncHold = true;
+
+			Log.Write("debug",
+				$"[exp-coord] sync-hold player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} " +
+				$"startLine={holdCell} screen={screen.Count} dist={axis.SyncDist} massReady={axis.MassReady} " +
+				$"ready={syncReadyAxes}/{syncParticipatingAxes} elapsed={tick - axis.SyncStartTick} tick={tick}");
+		}
+
+		// FLANKING MANEUVER: pick a minority flank element, choose its lateral lane off the believed danger
+		// field, and issue its two-leg route (wide waypoint, then the objective). Returns the flank element so
+		// the caller can narrow the main group, or NULL for "no split this eval" — every decline path returns
+		// null and leaves the axis on the undivided assault, so the maneuver degrades to the pre-flanking
+		// behaviour rather than to a half-issued one. Decisions are the pure FlankingMath; zero RNG.
+		//
+		// LEDGER: the flank element needs no commitment of its own. CommitAndOrder commits every axis member
+		// under the single offense:<targetId> key BEFORE this split, and both elements are pursuing that same
+		// objective — committing the flank under a second key would silently overwrite the incumbent claim
+		// (GoalGuardLedger.Commit is keyed on the actor), and a new objective prefix would fail open in the
+		// arbitration rank table. One axis, one objective, two elements.
+		List<Actor> TryOrderFlank(IBot bot, Axis axis, List<Actor> groupUnits, (int X, int Y) centroid, int distToTarget, int tick)
+		{
+			// The lane choice IS a believed-danger read; with no field there is no weak shoulder to swing
+			// around, so the axis assaults undivided rather than flanking blind.
+			if (dangerField == null || groupUnits.Count == 0)
+				return null;
+
+			if (!FlankingMath.ShouldSplit(groupUnits.Count, distToTarget, Info.FlankMinForceSize, Info.FlankMinApproachCells))
+				return null;
+
+			var flankSize = FlankingMath.FlankElementSize(groupUnits.Count, Info.FlankSharePct, Info.FlankMinElementSize);
+			if (flankSize <= 0)
+				return null;
+
+			var offsetCells = FlankingMath.LateralOffsetCells(groupUnits.Count, distToTarget,
+				Info.FlankOffsetBaseCells, Info.FlankOffsetPerUnitCells, Info.FlankOffsetMaxCells);
+			if (offsetCells <= 0)
+				return null;
+
+			// Stable ActorID order. Which units flank is arbitrary doctrine, but it must be the SAME arbitrary
+			// on every client, and ActorID is the only total order here that does not depend on the order the
+			// axis list happened to be built in.
+			var ordered = groupUnits.OrderBy(u => u.ActorID).ToList();
+			var flank = ordered.GetRange(0, flankSize);
+
+			// The lateral offset is perpendicular to the MAIN ELEMENT's attack axis, not to the whole axis's
+			// blended centroid. That distinction is load-bearing across re-evals: once the flank has swung
+			// wide the blended centroid drags toward it, so a waypoint recomputed off the blend sits further
+			// out every eval and the flank creeps away from the objective under its own influence. The main
+			// element stays on the axis, so anchoring here is stable. Falls back to the passed-in centroid on
+			// the degenerate all-flank partition, which FlankElementSize's floor already prevents.
+			var mainCells = new List<(int X, int Y)>(ordered.Count - flankSize);
+			for (var i = flankSize; i < ordered.Count; i++)
+				mainCells.Add((ordered[i].Location.X, ordered[i].Location.Y));
+
+			var axisOrigin = mainCells.Count > 0 ? PoiOffenseMath.CellCentroid(mainCells) : centroid;
+			var originCell = new CPos(axisOrigin.X, axisOrigin.Y);
+
+			var ground = GroundDangerSampler(dangerField);
+			var passable = WaypointPassable(flank[0]);
+			var via = FlankingMath.ChooseFlankWaypoint(originCell, axis.TargetCell, offsetCells, ground, passable, out var side);
+
+			// Neither lateral lane is standable (a coastal or cliff-bounded approach): assault undivided rather
+			// than order the flank element into terrain it will only pathfind back out of.
+			if (!via.HasValue)
+				return null;
+
+			var moved = !axis.FlankOrdered
+				|| (axis.OrderedFlankCell - axis.TargetCell).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells
+				|| ViaChanged(axis.OrderedFlankVia, via, Info.RepathThresholdCells);
+
+			if (moved)
+			{
+				var units = flank.ToArray();
+
+				// ALL-OR-NOTHING, for the same reason as the Stage-E chain: the lateral leg is non-queued and so
+				// suppressible, while the QUEUED objective leg would still execute — marching the flank element
+				// straight up the main axis, which is the single outcome this maneuver exists to prevent. On a
+				// refusal return null: these units re-join the main element for this eval and the next re-eval
+				// issues the maneuver whole.
+				if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, via.Value), false, groupedActors: units)))
+					return null;
+
+				if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, axis.TargetCell), true, groupedActors: units)))
+					return null;
+
+				axis.OrderedFlankCell = axis.TargetCell;
+				axis.OrderedFlankVia = via;
+				axis.FlankOrdered = true;
+
+				Log.Write("debug",
+					$"[exp-flank] order player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} " +
+					$"via={via.Value} side={side} offset={offsetCells} flank={units.Length} " +
+					$"main={groupUnits.Count - units.Length} distToTarget={distToTarget} tick={tick}");
+			}
+
+			return flank;
+		}
+
+		// FLANKING converge hold: keep the main element where it stands while the flank comes level.
+		void OrderConvergeHold(IBot bot, Axis axis, List<Actor> main, (int X, int Y) centroid, int tick)
+		{
+			if (!TryOrderHold(bot, axis, main, centroid, axis.OrderedConvergeHold, out var holdCell))
+				return;
+
+			axis.OrderedConvergeHold = true;
+
+			Log.Write("debug",
+				$"[exp-flank] converge-hold player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} " +
+				$"standoff={holdCell} main={main.Count} evals={axis.ConvergeHoldEvals} tick={tick}");
 		}
 
 		// Issue the fall-back: a grouped AttackMove toward the rally cell for every unit on the axis. Re-issued

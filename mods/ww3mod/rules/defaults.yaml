@@ -67,17 +67,19 @@
 	# Phase 2 tactical positioning executor. MUST be declared AFTER CohesionSlotMemory:
 	# both act in INotifyIdle.TickIdle and run in declaration order — the executor rechecks
 	# CurrentActivity == null so a return-to-slot queued first this tick makes it a no-op (S6).
-	# EXPERIMENTAL BOTS ONLY. enable-ai-experimental is granted per-unit below, to units owned by
-	# the experimental bot and to nothing else. Humans additionally satisfied this gate from Phase 3
-	# until 2026-08-30 via a GrantConditionOnHumanOwner@tacpos block that stood here — removed
-	# because the executor walks an idle unit up to LeashRadius cells every EvaluateCooldown ticks
-	# with no player-legible cause, and in play-testing that read as units wandering off on their
-	# own. Human-owned units now hold the cell you put them on. `enable-tactical-positioning` is
-	# granted NOWHERE in the mod and is gone from this expression: leaving it here while deleting
-	# its only granter is a CheckConditions ERROR ("consumes conditions that are not granted"),
-	# not a warning, on all 20 ^Combatant inheritors. Scenarios that exercise the executor on
-	# human units re-add BOTH halves locally — see tools/autotest/scenarios/test-stance-*/rules.yaml.
-	# @stable / @normal never satisfied either token and are unaffected.
+	# BOT-OWNED UNITS ONLY. enable-ai-experimental is granted per-unit below. Humans additionally
+	# satisfied this gate from Phase 3 until 2026-08-30 via a GrantConditionOnHumanOwner@tacpos block
+	# that stood here — removed because the executor walks an idle unit up to LeashRadius cells every
+	# EvaluateCooldown ticks with no player-legible cause, and in play-testing that read as units
+	# wandering off on their own. Human-owned units now hold the cell you put them on.
+	# `enable-tactical-positioning` is granted NOWHERE in the mod and is gone from this expression:
+	# leaving it here while deleting its only granter is a CheckConditions ERROR ("consumes conditions
+	# that are not granted"), not a warning, on all 20 ^Combatant inheritors. Scenarios that exercise
+	# the executor on human units re-add BOTH halves locally — see
+	# tools/autotest/scenarios/test-stance-*/rules.yaml.
+	#
+	# 2026-09-02 PROMOTION — @stable now satisfies this too, via the widened Bots: list below. Until
+	# today @stable could not reach the executor at all, and the YAML gate was the whole mechanism.
 	StancePositioningExecutor:
 		RequiresCondition: enable-ai-experimental
 		LeashRadius: 4
@@ -85,12 +87,24 @@
 		MinThreatIntensity: 40
 		MaxSuppressionToMove: 30
 		FacingToleranceAngle: 256
-	# Per-unit membership condition: only units owned by the experimental bot enable the executor.
+	# Per-unit membership condition: units owned by EITHER shipping bot enable the executor.
 	# (The like-named ai.yaml grant is on the PLAYER actor; a unit trait's RequiresCondition only
-	# sees conditions granted on the unit, so the executor needs its own per-unit grant.)
+	# sees conditions granted on the unit, so the executor needs its own per-unit grant. The two are
+	# independent despite sharing a name — widening this one does NOT widen any player-actor gate.)
+	#
+	# 2026-09-02: `stable` added for the full-parity promotion. This ONE line is the entire mechanism
+	# for three consumers of the per-unit token — StancePositioningExecutor above, and the two
+	# AutoTarget.ClusterTargetingCondition sites on ^AutoTargetArtillery / ^AutoTargetArtilleryInfantry.
+	# Those two CANNOT take a boolean expression: ClusterTargetingCondition is a plain condition NAME
+	# read via self.GetConditionCount() (AutoTarget.cs:252, :1352), so `a || b` there would look up a
+	# condition literally called "a || b" and silently never match. Widening the grant is the only
+	# lever that reaches them. The token's name is now historical — read it as "bot-owned unit".
+	# NOT renamed on purpose: tools/autotest/scenarios/test-stance-*/rules.yaml re-add this token by
+	# name, and scenarios are invisible to the map-shaped lint gates, so a rename would break them
+	# with every gate still green.
 	GrantConditionOnBotOwner@tacpos:
 		Condition: enable-ai-experimental
-		Bots: experimental
+		Bots: experimental, stable
 
 ^StandardVision:
 	Vision@10:
@@ -463,10 +477,11 @@
 
 ^AutoTargetArtillery:
 	Inherits: ^AutoTarget
-	# AoE-aware cluster targeting (PIPELINE item 14). Gated to @experimental bot-owned pieces: the
-	# enable-ai-experimental token is granted per-unit only to that bot (defaults.yaml ^Combatant grant /
-	# ai.yaml), so human- and @stable-owned artillery never satisfy it — cluster scoring is inert and
-	# byte-identical for them. Humans can opt in later by pointing this at a human-granted token.
+	# AoE-aware cluster targeting (PIPELINE item 14). Gated to BOT-owned pieces: the
+	# enable-ai-experimental token is granted per-unit to both shipping bots (defaults.yaml ^Combatant
+	# grant, :106), so human-owned artillery never satisfies it — cluster scoring is inert and
+	# byte-identical for humans. Humans can opt in later by pointing this at a human-granted token.
+	# 2026-09-02: @stable reaches this as of the full-parity promotion (it was inert there before).
 	# NOTE-3 — the two fires-economics scopes differ, so a new rocket unit needs BOTH hooks: the EV
 	# fire gate (item 19) keys off the DYNAMIC role model (UnitRoleResolver IndirectFireKind, derived from
 	# salvo Burst) and so covers any IndirectFire actor automatically; this cluster term keys off EXPLICIT
@@ -490,7 +505,8 @@
 
 ^AutoTargetArtilleryInfantry:
 	Inherits: ^AutoTarget
-	# AoE-aware cluster targeting (PIPELINE item 14) — see ^AutoTargetArtillery. Gated to @experimental.
+	# AoE-aware cluster targeting (PIPELINE item 14) — see ^AutoTargetArtillery. Gated to bot-owned
+	# units; live on BOTH bots as of the 2026-09-02 full-parity promotion.
 	AutoTarget:
 		ClusterTargetingCondition: enable-ai-experimental
 	AutoTargetPriority@Infantry:

@@ -302,6 +302,57 @@ namespace OpenRA.Mods.Common.Traits
 			return DeficitAt(targetsPerMille, SharesPerMille(adjusted), slot) <= 0;
 		}
 
+		/// <summary><para>Pick an eligible slot that has STARTED a high-value group but not finished it — count is
+		/// non-zero and still below <paramref name="minGroupSizes"/>. Returns the one with the SMALLEST remaining
+		/// gap (closest to a viable group), ties broken by the LOWER ordinal index; -1 when nothing qualifies.</para>
+		///
+		/// <para>WHY THIS EXISTS: the deficit argmax buys the class furthest below target, and buying it moves it
+		/// up, so the NEXT cycle almost always picks a different class. Across a run of cycles that scatters the
+		/// budget — measured as expensive classes bought strictly one at a time and lost one at a time
+		/// (WORKSPACE/analysis/0902-loss-mining.md §1.3: littlebird 2 produced / 2 lost, halo 1/1, abrams 2/2,
+		/// t90 2/2, no survivors). A lone MBT or a lone attack helicopter is close to pure waste; the same money
+		/// as a pair is not. Finishing the group already begun converts a scatter into a usable formation.</para>
+		///
+		/// <para>SMALLEST GAP, not largest: completing one group beats advancing three toward viability, and it is
+		/// the choice that reaches a usable formation soonest. A zero count is deliberately NOT a candidate — this
+		/// only ever FINISHES a group, it never starts one, so it cannot override the designer's shape with a
+		/// class the deficit pick had no interest in.</para>
+		///
+		/// <para>Eligibility is the caller's already-filtered set (affordable, under UnitLimit, and — when the
+		/// ceiling is on — not over target). Deliberately subordinate to all three: this reorders WITHIN what the
+		/// bot was already willing to buy, so it can never buy past a target or past a cap. A null/empty
+		/// <paramref name="minGroupSizes"/>, or all-zero sizes, makes this an inert -1.</para></summary>
+		public static int SelectGroupCompletion(int[] counts, int[] minGroupSizes, bool[] eligible)
+		{
+			if (counts == null || minGroupSizes == null || eligible == null)
+				return -1;
+
+			var best = -1;
+			var bestGap = int.MaxValue;
+
+			for (var i = 0; i < counts.Length; i++)
+			{
+				if (i >= eligible.Length || !eligible[i] || i >= minGroupSizes.Length)
+					continue;
+
+				var min = minGroupSizes[i];
+				var count = counts[i];
+
+				// Never STARTS a group (count 0) and never runs past it (count >= min).
+				if (min <= 1 || count <= 0 || count >= min)
+					continue;
+
+				var gap = min - count;
+				if (gap < bestGap)
+				{
+					bestGap = gap;
+					best = i;
+				}
+			}
+
+			return best;
+		}
+
 		/// <summary>The deficit the selection was made on — exposed so the caller can log it without
 		/// recomputing. Safe on an out-of-range index (returns 0).</summary>
 		public static int DeficitAt(int[] targetsPerMille, int[] censusPerMille, int index)

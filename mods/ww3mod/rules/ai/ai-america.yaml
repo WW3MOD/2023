@@ -1,57 +1,152 @@
 Player:
-	# ===== Baseline ground production — America (enable-ai-player, non-Experimental) =====
-	# Split (early-econ PIPELINE 12): Experimental uses the @america.experimental twin below
-	# (need-gated trucks + threat-scaled AA). The `!enable-ai-experimental` guard keeps exactly
-	# one UnitBuilder enabled per player — Stable holds this frozen block (it has
-	# enable-ai-player but not enable-ai-experimental). Mirrors the HelicopterSquad split.
+	# ===== Ground production — America, @stable twin =====
+	# Split (early-econ PIPELINE 12): Experimental uses the @america.experimental twin below.
+	# THIS is the @stable twin, despite the legacy `.normal` key (kept to avoid churn in DOCS/bots/
+	# and in the NUnit fixtures that name it). Its gate was `enable-ai-player &&
+	# !enable-ai-experimental` until the 2026-09-02 promotion re-stated it as the explicit
+	# `enable-ai-stable` — the same resolved set, since enable-ai-player is granted only to
+	# experimental+stable. Exactly one UnitBuilder is still enabled per player.
+	# NO LONGER FROZEN: synced to the @experimental twin at that promotion, so the early-econ gates
+	# (need-gated trucks + threat-scaled AA) now apply to @stable too.
 	UnitBuilderBotModule@america.normal:
-		RequiresCondition: enable-ai-player && !enable-ai-experimental && player.nato
+		RequiresCondition: enable-ai-stable && player.nato
+		# 2026-09-02 promotion — full @experimental parity. Fields below are a verbatim copy of the
+		# @experimental twin's values at this ref; see that block for per-flag rationale.
 		UnitQueues: Vehicle, Infantry
 		UnitsToBuild:
-			# Conscripts -- low priority, mainly for capturing
 			tecn.america: 500
-
-			# Core infantry -- high priority mix
 			e3.america: 120
 			ar.america: 100
 			tl.america: 80
 			e2.america: 60
-
-			# Support infantry
 			at.america: 50
 			mt.america: 40
 			medi.america: 40
 			aa.america: 30
 			sn.america: 25
 			e6.america: 20
-
-			# Vehicles -- balanced force composition
+			dr.america: 20
+			sf.america: 10
 			humvee: 30
 			bradley: 25
 			abrams: 20
 			m113: 15
 			m109: 15
 			strykershorad: 10
-
-			# Supply trucks for field resupply
+			mnly: 10
+			msar: 10
 			truk: 20
-
 		UnitLimits:
-			truk: 4
+			truk: 12
 			tecn.america: 3
 			e6.america: 2
 			m109: 3
 			strykershorad: 2
 			sn.america: 3
+			dr.america: 2
+			mnly: 1
+			msar: 1
+			sf.america: 2
+		UnitFloors:
+			medi.america: 2
+			aa.america: 2
+			mnly: 1
+			dr.america: 2
+			msar: 1
+			sf.america: 1
+		UnitFloorPer:
+			medi.america: 10
+			dr.america: 8
+		UnitFloorSupportedTypes: e3.america, ar.america, tl.america, e2.america, at.america, mt.america, aa.america, sn.america, e6.america, tecn.america
+		CensusLogInterval: 40
+		UnitDelays:
+			aa.america: 2000
+			mnly: 3000
+			dr.america: 300
+			msar: 3000
+			sf.america: 3000
+		GateResupplyOnAmmoNeed: true
+		ResupplyUnitTypes: truk
+		SupplyDemandSizing: true
+		SupplyStarvingThresholdPerMille: 250
+		SupplyCustomersPerTruck: 6
+		SupplyDemandOvercompensationPercent: 200
+		SupplyTruckFloor: 3
+		SupplyTruckFloorPer: 10
+		SupplyTruckCeiling: 6
+		SupplySizeFromNeed: true
+		SupplyPrecedenceStallCycles: 4
+		ScaleAntiAirToThreat: true
+		AntiAirUnitTypes: strykershorad
+		AntiAirBaseline: 0
+		AntiAirPerObservedAir: 1
+		CompositionDirected: true
+		CompositionEnforceTargetCeiling: true
+		CompositionCeilingExemptTypes: tecn.america
+		UnitTargetShares:
+			abrams: 190
+			bradley: 140
+			humvee: 40
+			m113: 30
+			m109: 60
+			strykershorad: 50
+			truk: 40
+			e3.america: 95
+			ar.america: 78
+			tl.america: 62
+			e2.america: 47
+			at.america: 66
+			mt.america: 37
+			aa.america: 28
+			sn.america: 12
+			medi.america: 17
+			e6.america: 8
+			tecn.america: 8
+		UnitRoles:
+			abrams: armorline
+			bradley: armorline
+			e3.america: infantryline
+			ar.america: infantryline
+			tl.america: infantryline
+			e2.america: infantryline
+			at.america: antitank
+			strykershorad: antiair
+			aa.america: antiair
+			mt.america: mortar
+			m109: artillery
+			humvee: recon
+			sn.america: recon
+			m113: support
+			truk: support
+			medi.america: support
+			e6.america: support
+			tecn.america: support
+		CounterMatrixPct:
+			air>antiair: 60
+			armor>antitank: 40
+			infantry>infantryline: 20
 
 	# ===== Experimental AI — America ground production (early-econ PIPELINE 12) =====
-	# Byte-for-byte copy of @america.normal's UnitsToBuild/UnitLimits PLUS three default-off
-	# early-econ gates (behaviours 1 & 2). Experimental-only condition; Stable keeps the
-	# frozen twin above. The engine flags default false, so this block is the ONLY place they turn on.
+	# CORRECTED 2026-09-02: this comment used to read "byte-for-byte copy of @america.normal PLUS three
+	# default-off gates ... Experimental-only condition; Stable keeps the frozen twin above. The engine
+	# flags default false, so this block is the ONLY place they turn on." None of that holds now. The
+	# 2026-09-02 parity promotion synced @america.normal UP to this block AS OF THAT PROMOTION (main @
+	# 26f9cec0), so the early-econ gates below (behaviours 1 & 2) are LIVE ON BOTH profiles. The engine
+	# flags still default false, so the two twins remain the only places they turn on; @experimental is
+	# still the only block the optimization loop edits.
 	#   * GateResupplyOnAmmoNeed — no FIRST supply truck while every truck-rearmable unit has full ammo;
 	#     once one exists the demand-sized reserve buys freely (2026-08-17 split).
 	#   * ScaleAntiAirToThreat — cap vehicle AA (strykershorad) to OBSERVED enemy air; aa.america
 	#     (cheap AA infantry) stays ungated as the baseline picket.
+	#
+	# THE TWINS ARE NO LONGER FIELD-IDENTICAL, BY DESIGN — do not "fix" the gap by copying values down.
+	# The promotion snapshot is the TOURNAMENT CONTROL, and post-promotion @experimental work is what is
+	# being priced against it, so improvements land here only and reach @stable at the NEXT promotion.
+	# USER RULING 2026-09-02: CLAUDE.md's "@stable inherits improvements" rule applies AT promotions, not
+	# continuously between them. Diverged so far: composition v2 — the three CounterMatrixPct cells
+	# (armor>armorline, infantry>artillery, infantry>mortar), TradeFeedback*, and MinGroupSizes. The last
+	# two also default off in C#, so @stable would sit at baseline for them either way; the counter matrix
+	# is the one where @stable carries its own older live tuning rather than nothing.
 	UnitBuilderBotModule@america.experimental:
 		RequiresCondition: enable-ai-experimental && player.nato
 		UnitQueues: Vehicle, Infantry
@@ -809,12 +904,81 @@ Player:
 			medi.america: support
 			e6.america: support
 			tecn.america: support
-		# Counter bias (v1, minimal): believed enemy class -> own role, as a percent contribution scaled
+		# Counter bias (v2): believed enemy class -> own role, as a percent contribution scaled
 		# by that class's SHARE of the believed enemy force. Fog-legal — the believed composition comes
 		# from the same belief store AdaptiveProduction reads, never ground truth. Clamped to
 		# +/-CounterBiasMaxPct and renormalised, so it nudges the shape above without replacing it.
 		# Believed enemy infantry answers the FOOT line (buy more of our own infantry), not the armour line.
+		#
+		# ===== v2 RETUNE (2026-09-02) — three cells added after auditing v1 against the damage model =====
+		# v1 was labelled "minimal" and had exactly three cells. Two of its zeros were costing real value:
+		#
+		# (1) armor>armorline was 0, so believed enemy ARMOUR raised ONLY at.america. That points the entire
+		#     anti-armour response at the WEAKEST anti-armour weapon we own. WW3MOD resolves anti-armour
+		#     through Penetration vs Armor Thickness, not a Versus table (DamageWarhead.ApplyPenetration,
+		#     engine/OpenRA.Mods.Common/Warheads/DamageWarhead.cs:127-134: full damage when penetration >=
+		#     thickness, otherwise damage * penetration / thickness). The numbers:
+		#       ATGM (at.america) Damage 10000 / Penetration 100   — weapons-missiles.yaml:26-27
+		#       TankRound (abrams) Damage 15000 / Penetration 1000 — weapons-ballistics.yaml:890-891
+		#       abrams Thickness 700 (vehicles-america.yaml:499), t90 Thickness 280 (vehicles-russia.yaml:321)
+		#     TankRound out-penetrates every vehicle in the game, so it lands its full 15000. ATGM against an
+		#     abrams lands 10000*100/700 = 1428, i.e. 10.5x less per shot; against a t90, 3571, i.e. 4.2x less.
+		#     The MBT is the anti-armour unit; AT infantry is the CHEAP one. Both now respond.
+		#     armorline gets the smaller PERCENTAGE (30 vs 40) and still moves far more budget, because its
+		#     base is 330 per-mille against antitank's 66 — +30% of 330 is ~99, +40% of 66 is ~26. The split
+		#     is deliberate: antitank keeps the higher rate because it is what the bot can still afford when
+		#     it is broke, which is exactly when an armour push arrives.
+		#
+		# (2) Neither indirect-fire role answered believed enemy INFANTRY, though both exist to kill it:
+		#       60mm_Mortar  ValidTargets: Infantry, Unarmored, Light / InvalidTargets: Concrete, Heavy
+		#                    (weapons-ballistics.yaml:786-787) — it CANNOT shoot heavy armour at all.
+		#       ArtilleryRound Damage 15000 + Spread 3000 (weapons-ballistics.yaml:890-896).
+		#     artillery carries the larger lift (30) because it was never the type that drifted.
+		#     JUDGEMENT CALL, flagged for review: mt.america gets a lift at all, and it is deliberately kept
+		#     BELOW infantryline's. The mortar cap above is a standing decision and this partially reopens it
+		#     — but conditionally, and only while foot infantry is actually the believed threat. The drift the
+		#     cap fixed came from the uniform lottery, not from mortars being the wrong buy against infantry.
+		#     At 15, a 100%-infantry read moves mt from 37 per-mille to ~43.
+		#
+		# NOT CHANGED, deliberately: air>antiair stays 60, and there is still no NEGATIVE cell anywhere.
+		# Renormalisation already does the de-prioritising — every cell above is positive, so raising the
+		# roles that answer the believed threat squeezes the ones that do not. That is what now trims AA
+		# when the enemy fields no aircraft: aa.america is ungated by design (the baseline picket, see the
+		# header comment), and this squeeze is the gentle instrument for it rather than a second hard cap.
 		CounterMatrixPct:
 			air>antiair: 60
+			armor>armorline: 30
 			armor>antitank: 40
 			infantry>infantryline: 20
+			infantry>artillery: 30
+			infantry>mortar: 15
+		# ===== TRADE-EFFICIENCY FEEDBACK (experimental-only; C# default 0 = off) =====
+		# The counter matrix above biases by what the enemy is BELIEVED to field. It has no way to notice
+		# that the shape it is holding is LOSING. This closes that loop from our own ledger: per composed
+		# type, kill value dealt vs our value lost (UnitTypeTelemetry, fed by the UpdatesPlayerStatistics
+		# callbacks that already ran), compared against the same ratio for our whole army, applied after the
+		# counter bias. Reads no enemy actor and no belief store, so it adds no fog surface.
+		# Conservative first setting: half the measured deviation, clamped to +/-25% of the base share, and
+		# nothing at all until a type has 2000 value of evidence on the board.
+		TradeFeedbackMaxPct: 25
+		TradeFeedbackScalePct: 50
+		TradeEvidenceFloor: 2000
+		# ===== GROUP COMPLETION (experimental-only; unset default = off) =====
+		# WORKSPACE/analysis/0902-loss-mining.md 1.3 measured abrams at 2 produced / 2 lost and t90 at 2/2,
+		# with zero survivors — "never bought in pairs, never survives". The purchasing half of that is the
+		# deficit argmax: buying one abrams lifts its census, so the next cycle picks a different class and
+		# the tank goes out alone. Once one is owned, this makes the second finish the pair before the
+		# budget scatters.
+		#
+		# SCOPE, stated plainly. This fixes ONLY the buy pattern. The analysis is explicit that *why* they
+		# die is NOT established (no killer/killed pairing survives in the artifacts, and it warns that
+		# anyone fixing survivability from this data is guessing), so nothing here claims to fix deployment
+		# — sending the pair out together is PoiOffensive's decision, not this module's. The evidence is
+		# also T-A at n=2 matches, which is why the size is the smallest one that means anything (2, a
+		# pair) rather than a trio.
+		#
+		# NOT COVERED: littlebird and halo, the other 1/1 and 2/2 losses in the same finding. They are
+		# helicopters, deliberately absent from UnitTargetShares (deferred to their own lane), and this
+		# selection only ranges over composed types — so their singleton problem is untouched by this knob.
+		MinGroupSizes:
+			abrams: 2

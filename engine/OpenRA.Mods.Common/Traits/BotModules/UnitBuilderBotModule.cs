@@ -385,6 +385,44 @@ namespace OpenRA.Mods.Common.Traits
 			"a single scouted unit must not re-plan the army.")]
 		public readonly int ThreatDeadbandPerMille = 30;
 
+		[Desc("EXPERIMENTAL (trade-efficiency feedback): clamp, in percent of the base target share, on the",
+			"bias applied from how well each composed type is ACTUALLY trading this match. Per type the bot",
+			"compares its own kill-value-per-loss-value ratio against the same ratio for its whole army, and",
+			"nudges the target share toward the classes beating that average. The comparison is RELATIVE on",
+			"purpose: a bot that is losing trades below break-even in every role at once, so an absolute test",
+			"would downweight everything, which renormalisation turns straight back into a no-op.",
+			"Applied AFTER CounterMatrixPct, so 'what the enemy fields' sets the shape and 'what is working'",
+			"corrects it. Reads only our OWN losses and kills (UnitTypeTelemetry) — no belief store, no enemy",
+			"actor inspection, so it adds no fog surface.",
+			"0 (the default) disables the pass entirely ⇒ the targets are exactly what ApplyCounterBias",
+			"returned, so normal/rush/turtle/@stable are byte-identical.")]
+		public readonly int TradeFeedbackMaxPct = 0;
+
+		[Desc("Scales the measured percentage deviation from the army-average trade ratio before it is",
+			"clamped to TradeFeedbackMaxPct. 100 = apply the deviation as measured; 50 = half of it.",
+			"Inert unless TradeFeedbackMaxPct is positive.")]
+		public readonly int TradeFeedbackScalePct = 100;
+
+		[Desc("EXPERIMENTAL (group completion): minimum viable group size per composed actor type. Once the bot",
+			"owns at least ONE of a listed type but fewer than this many, that type wins the composition pick",
+			"until the group is complete, instead of the deficit argmax scattering to the next-most-deficient",
+			"class. Aimed at the measured pattern where expensive classes are bought strictly one at a time and",
+			"lost one at a time (WORKSPACE/analysis/0902-loss-mining.md 1.3: littlebird 2 produced / 2 lost,",
+			"halo 1/1, abrams 2/2, t90 2/2, zero survivors).",
+			"NEVER starts a group and never exceeds the size — a zero count is not a candidate, so this cannot",
+			"introduce a type the deficit pick did not already want. It is also strictly SUBORDINATE to",
+			"affordability, UnitLimits and CompositionEnforceTargetCeiling: the selection runs inside the",
+			"already-filtered eligible set, so it reorders buys the bot had decided to make and can never buy",
+			"past a target or a cap. A size of 0 or 1 is inert for that type.",
+			"Unset (the default) disables the pass ⇒ normal/rush/turtle/@stable are byte-identical.")]
+		public readonly Dictionary<string, int> MinGroupSizes = null;
+
+		[Desc("Minimum (killed + lost) VALUE a type must have accumulated before its trade ratio biases",
+			"anything, and the smoothing floor on the ratio's divisor. Doing double duty is deliberate: it",
+			"stops the first skirmish re-planning the army, AND stops a type that has lost nothing yet from",
+			"reading as an infinite ratio. Inert unless TradeFeedbackMaxPct is positive.")]
+		public readonly int TradeEvidenceFloor = 2000;
+
 		[Desc("EXPERIMENTAL (composition ceilings): stop the three lanes that buy PAST UnitTargetShares.",
 			"All three effects are inert without this flag:",
 			"  * a cycle where composed types are buildable but all priced out or at their UnitLimit DECLINES",
@@ -553,6 +591,20 @@ namespace OpenRA.Mods.Common.Traits
 		bool beliefStoreResolved;
 		int lastThreatTick = -1;
 
+		// Trade-efficiency feedback state. The telemetry trait is resolved once and the bias recomputed at
+		// most once per world tick, so the two BuildUnit calls in one BotTick cycle read ONE consistent
+		// bias vector rather than two snapshots taken either side of a kill.
+		PlayerStatistics ownStatistics;
+		bool ownStatisticsResolved;
+		int[] tradeBiasPct;
+		int lastTradeTick = -1;
+
+		// Group-completion state. Null (not merely all-zero) when MinGroupSizes names nothing we compose, so
+		// the caller can skip the owned-unit count entirely on the inert path.
+		int[] compositionMinGroupSizes;
+		int[] compositionCounts;
+		int lastCountsTick = -1;
+
 		// The believed-enemy classification is the existing 3-way split (see AdaptiveProductionBotModule
 		// .ClassifyContact); this array fixes both the ordinal slot order and the YAML key spelling.
 		static readonly string[] ThreatClasses = { "air", "armor", "infantry" };
@@ -663,6 +715,63 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			smoothedThreatShares = new int[ThreatClasses.Length];
+
+			// Group completion: flatten MinGroupSizes onto the same ordinal slots. Left NULL unless at least
+			// one composed type asks for a group of 2+, so the inert path never pays for the owned-unit count.
+			if (Info.MinGroupSizes != null && Info.MinGroupSizes.Count > 0)
+			{
+				var sizes = new int[compositionTypes.Length];
+				var anyGroup = false;
+				for (var i = 0; i < compositionTypes.Length; i++)
+				{
+					if (!Info.MinGroupSizes.TryGetValue(compositionTypes[i], out var min) || min <= 1)
+						continue;
+
+					sizes[i] = min;
+					anyGroup = true;
+				}
+
+				if (anyGroup)
+					compositionMinGroupSizes = sizes;
+				else
+					AIUtils.BotDebug("{0} MinGroupSizes names no composed type with a size above 1 — group completion stays off.", player);
+			}
+		}
+
+		// Owned count per composition slot, DERIVED from the value census rather than counted separately.
+		//
+		// Every contribution to CensusValues is exactly one unit's UnitCost, and UnitCost(ActorInfo) reads
+		// ValuedInfo.Cost — a per-TYPE constant with no per-actor variation. So slot i's census value is
+		// exactly count_i * cost_i and the division is exact, not an estimate.
+		//
+		// WHY NOT A SECOND SCAN: the census is not a plain world walk. It credits PENDING call-ins at full
+		// cost, credits units sitting inside transports and garrisons (which are absent from world.Actors
+		// entirely), credits both request lists, and honours CensusExcludeCondition. A hand-rolled head count
+		// would miss all five and drift from the census the moment any of them changed. Missing the pending
+		// credit alone reproduces the exact overshoot the census comment above documents: the purchase cycle
+		// is 30 ticks and a reinforcement walks in from the map edge far slower, so group completion would
+		// re-pick the same type every cycle and order a column of tanks before the first one arrived.
+		int[] CompositionCounts()
+		{
+			if (compositionCounts != null && world.WorldTick == lastCountsTick)
+				return compositionCounts;
+
+			lastCountsTick = world.WorldTick;
+
+			var values = CensusValues();
+			var counts = new int[compositionTypes.Length];
+			for (var i = 0; i < compositionTypes.Length; i++)
+			{
+				if (!world.Map.Rules.Actors.TryGetValue(compositionTypes[i], out var ai))
+					continue;
+
+				var cost = UnitCost(ai);
+				if (cost > 0)
+					counts[i] = values[i] / cost;
+			}
+
+			compositionCounts = counts;
+			return compositionCounts;
 		}
 
 		void IBotNotifyIdleBaseUnits.UpdatedIdleBaseUnits(List<Actor> idleUnits)
@@ -1752,8 +1861,7 @@ namespace OpenRA.Mods.Common.Traits
 				return null;
 
 			var census = ForceCompositionMath.SharesPerMille(CensusValues());
-			var targets = ForceCompositionMath.ApplyCounterBias(compositionTargets, UpdateThreatShares(),
-				counterMatrix, Info.CounterBiasMaxPct, Info.ThreatDeadbandPerMille);
+			var targets = EffectiveTargets();
 
 			// Materialize once: BuildableItems() is a lazy query and eligibility probes it per slot.
 			var buildableNames = new HashSet<string>(buildableThings.Select(b => b.Name));
@@ -1818,6 +1926,24 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.CompositionEnforceTargetCeiling)
 				eligible = ForceCompositionMath.ApplyCeilingEligibility(targets, census, eligible);
 
+			// GROUP COMPLETION (experimental) — runs BEFORE the deficit argmax but strictly INSIDE the
+			// eligibility set the ceiling and affordability filters just produced, so it can only reorder buys
+			// the bot had already decided it was willing to make. It finishes a high-value group that is already
+			// started rather than letting the argmax scatter to the next-most-deficient class, which is what
+			// leaves single aircraft and single MBTs on the map. Inert while MinGroupSizes is unset.
+			if (compositionMinGroupSizes != null)
+			{
+				var counts = CompositionCounts();
+				var groupIdx = ForceCompositionMath.SelectGroupCompletion(counts, compositionMinGroupSizes, eligible);
+				if (groupIdx >= 0)
+				{
+					LogPick("group-completion", compositionTypes[groupIdx], $"queue={queue.Info.Type} "
+						+ $"have={counts[groupIdx]} min={compositionMinGroupSizes[groupIdx]}");
+
+					return world.Map.Rules.Actors[compositionTypes[groupIdx]];
+				}
+			}
+
 			var idx = ForceCompositionMath.SelectDeficit(targets, census, eligible);
 			if (idx < 0)
 			{
@@ -1874,8 +2000,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!world.Map.Rules.Actors.TryGetValue(name, out var actorInfo))
 				return false;
 
-			var targets = ForceCompositionMath.ApplyCounterBias(compositionTargets, UpdateThreatShares(),
-				counterMatrix, Info.CounterBiasMaxPct, Info.ThreatDeadbandPerMille);
+			var targets = EffectiveTargets();
 
 			var over = ForceCompositionMath.RequestExceedsCeiling(CensusValues(), slot, UnitCost(actorInfo), targets);
 			if (over)
@@ -2090,6 +2215,59 @@ namespace OpenRA.Mods.Common.Traits
 				if (slot >= 0 && world.Map.Rules.Actors.TryGetValue(request, out var requestInfo))
 					values[slot] += UnitCost(requestInfo);
 			}
+		}
+
+		// The target vector every composition decision is made against: the designer's shares, biased by what
+		// the enemy is BELIEVED to field, then corrected by what is ACTUALLY trading well for us. Both passes
+		// renormalise to exactly 1000, and both are inert at their defaults.
+		//
+		// ONE function rather than the same two lines at each call site: the module's own deficit pick and the
+		// external-request ceiling MUST judge against the identical vector, or a type the pick considers short
+		// can be simultaneously refused by the ceiling as over-target.
+		int[] EffectiveTargets()
+		{
+			var targets = ForceCompositionMath.ApplyCounterBias(compositionTargets, UpdateThreatShares(),
+				counterMatrix, Info.CounterBiasMaxPct, Info.ThreatDeadbandPerMille);
+
+			if (Info.TradeFeedbackMaxPct <= 0)
+				return targets;
+
+			return TradeEfficiencyMath.ApplyBias(targets, UpdateTradeBias());
+		}
+
+		// Per-slot trade bias from our OWN ledger. FOG-FREE: UnitTypeTelemetry counts what our units killed and
+		// what we lost — facts the player always holds, never a belief about enemy composition.
+		int[] UpdateTradeBias()
+		{
+			if (!ownStatisticsResolved)
+			{
+				ownStatisticsResolved = true;
+				ownStatistics = player.PlayerActor.TraitOrDefault<PlayerStatistics>();
+			}
+
+			if (ownStatistics == null || compositionTypes == null)
+				return null;
+
+			if (world.WorldTick == lastTradeTick && tradeBiasPct != null)
+				return tradeBiasPct;
+
+			lastTradeTick = world.WorldTick;
+
+			var killed = new long[compositionTypes.Length];
+			var lost = new long[compositionTypes.Length];
+			for (var i = 0; i < compositionTypes.Length; i++)
+			{
+				// Indexed lookup over OUR ordinal slot order — never a Dictionary enumeration, which is
+				// unspecified and would desync two clients on the same seed.
+				var tally = ownStatistics.UnitTypeStats[compositionTypes[i]];
+				killed[i] = tally.KilledCost;
+				lost[i] = tally.LostCost;
+			}
+
+			tradeBiasPct = TradeEfficiencyMath.BiasPercent(killed, lost, Info.TradeEvidenceFloor,
+				Info.TradeFeedbackScalePct, Info.TradeFeedbackMaxPct);
+
+			return tradeBiasPct;
 		}
 
 		// Believed enemy value per class -> per-mille shares -> integer EMA. FOG-LEGAL: the belief store is the

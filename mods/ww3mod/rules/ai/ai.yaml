@@ -18,16 +18,49 @@ Player:
 	#                                       ground production). Historically the Normal AI's
 	#                                       baseline; now that Normal/Rush/Turtle are gone it
 	#                                       overlaps enable-ai-any (both surviving bots hold
-	#                                       both). Kept as a distinct gate because some blocks
-	#                                       still combine it with !enable-ai-experimental to
-	#                                       resolve to Stable-only (see @america.normal /
-	#                                       @russia.normal unit builders).
+	#                                       both). 2026-09-02: the last `!enable-ai-experimental`
+	#                                       blocks were re-gated to an explicit `enable-ai-stable`,
+	#                                       so NOTHING resolves to Stable-only by negation any more.
+	#                                       Prefer `enable-ai-stable` for new Stable-only blocks —
+	#                                       it says what it means and survives a third bot type.
+	#                                       (The @america.normal / @russia.normal / @america.heli /
+	#                                       @russia.heli KEYS are legacy names kept to avoid churn in
+	#                                       docs and NUnit fixtures; their gate is enable-ai-stable.)
 	#
 	#   enable-ai-experimental  granted to: experimental — use for NEW Experimental-only modules
 	#   enable-ai-stable        granted to: stable — snapshot of the last validated Experimental
-	#                                       config (promotion policy: SPEC.md §Bot pair). Promoted
-	#                                       2026-08-02 to FULL @experimental parity; @stable now also
-	#                                       participates in the influence stack (InfluenceStack.cs).
+	#                                       config (promotion policy: SPEC.md §13). See the promotion
+	#                                       history immediately below.
+	#
+	# ===== PROMOTION HISTORY =====
+	#   2026-08-02  FULL parity (b8d2e601). Renamed 0730 -> "Stable AI 0802". InfluenceStack.Participates
+	#               widened to admit `stable`, so the fog-legal consumer flags stopped being inert.
+	#   2026-08-19  Display-only rename "Stable AI 0802" -> "Standard AI" (d02f41d0). No behaviour change.
+	#   2026-09-02  FULL parity again, at main @ 26f9cec0. Renamed -> "Standard AI 0902".
+	#               *** THE ai-bench BASELINE MUST BE RE-TAKEN. *** @stable behaviour moves a long way:
+	#               every @experimental/@stable twin is now field-identical (11 pairs re-synced), SIX
+	#               modules that had no @stable twin at all gained one (CounterBatteryRadar, DroneOperator,
+	#               Minelayer, EngineerOperator, LogisticsCenter, EngineerRouteOpen), the four
+	#               `!enable-ai-experimental` unit builders were re-gated to an explicit `enable-ai-stable`
+	#               and synced to their experimental twins, and the per-unit tactical token in
+	#               defaults.yaml was widened to `stable` (StancePositioningExecutor + both
+	#               AutoTarget cluster-targeting sites). Any benchmark taken before this ref is void.
+	#
+	#               NOT AT PARITY — two behaviours remain @experimental-only and the YAML gate is NOT
+	#               the mechanism, so this promotion could not reach them. Both are C# bot-type
+	#               comparisons that exist because their module is a SHARED enable-ai-any singleton,
+	#               where a YAML flag would hit both profiles at once:
+	#                 * idle-truck hunt — SupplyFollowerBotModule.cs:704 feeds
+	#                   SupplyTruckHuntMath.ShouldHunt (SupplyTruckHuntMath.cs:219). `IdleTruckHunt: true`
+	#                   on a @stable-reachable block is INERT.
+	#                 * garrison commit-on-order — GarrisonBotModule.cs:228 feeds
+	#                   PoiGoalGuard.ShouldCommitShared (PoiGoalGuard.cs:305). `CommitGarrisonedUnits: true`
+	#                   is likewise INERT for @stable.
+	#               Closing these needs an engine change (split the module, or widen the comparison),
+	#               not a YAML edit. Do not "fix" them by setting the flags — that changes nothing.
+	#
+	# ===== ModularBot instances =====
+	#
 	# Bot-brain Stage 1 — the order funnel gate, ON for BOTH profiles.
 	#
 	# Turned on for @stable deliberately, per settled CLAUDE.md policy: @stable inherits
@@ -51,7 +84,9 @@ Player:
 		RespectCommitmentsOnIssue: true
 		ReorderDwellTicks: 120
 	ModularBot@stable:
-		Name: Standard AI
+		# MMDD stamp = the promotion this snapshot was taken at (history above). The "Standard"
+		# wording is deliberate and predates the stamp — see d02f41d0.
+		Name: Standard AI 0902
 		Type: stable
 		RespectCommitmentsOnIssue: true
 		ReorderDwellTicks: 120
@@ -780,6 +815,137 @@ Player:
 		# one line and the forward-assemble shape returns). Default OFF on the engine class ⇒ the @stable twin
 		# (which omits this field) is byte-identical.
 		ImmediateReinforcementCommit: true
+		# ===== COORDINATED ASSAULTS (new section — keep together for merge hygiene) =====
+		# Two or more pushes land TOGETHER instead of arriving minutes apart and being defeated in detail. An axis
+		# that reaches its START LINE holds there until (i) it out-masses what it BELIEVES is in front of it and
+		# (ii) a quorum of the other axes at their start lines is also ready — then the set releases on one eval
+		# pass. Placed LAST among the holds and AFTER the prep-fires gate, so the guns are already at their
+		# standoff anchors while the wait runs: coordinating costs no tempo that was not already being spent.
+		#
+		# HELD OFF, and that is the whole point of this section. It is a new HOLD discipline, and the standing
+		# manager decision (2026-08-04, recorded on PreparatoryFires above) is that none goes live until a
+		# user-gated sweep prices it — because @experimental's top live regression is precisely axes that hold and
+		# never close (DISCOVERIES 2026-08-03: ~85-92% of the army standing off on one SR-Pressure axis). This
+		# change was built under a no-autotest budget, so NOTHING here has been measured in a game. The code is
+		# correct and NUnit-pinned; flipping the one line below is the whole enablement, and the values below are
+		# already the intended starting point for that sweep.
+		#
+		# WHAT IT DOES NOT DO: it does not restore the forward-assemble SR flow shape. The user's SR-flow-shape
+		# decision (2026-08-05, AWAITING-USER.md:225) picked "advance immediately, singly" and is
+		# ImmediateReinforcementCommit directly above — that governs whether a FRESH REINFORCEMENT waits at the
+		# forward muster, and is untouched here. This gate lives at the far end of the approach and asks a
+		# different question. Reverting that decision remains its own one-line change; this does not do it by the
+		# side door.
+		CoordinatedAssaultEnabled: false
+		# 150 = bring half again the believed defence. RELATIVE, never absolute: the absolute floor
+		# (MinAdvanceStrength) is the shape that parked small axes in the rear all match. An axis believing it
+		# faces nothing is sufficient at any size, so an unopposed walk-in stays a walk-in.
+		AssaultMassRatioPct: 150
+		# Percentage, NOT unanimity — one pinned axis must not hold the army to the window expiry every window.
+		AssaultSyncQuorumPct: 60
+		# THE safety knob: elapsing releases the axis whichever reason was holding it, so the gate is structurally
+		# incapable of deadlocking one. 300 ticks = 18 s at Timestep 60 (16.667 ticks/s) = three re-evals at
+		# ReevaluateInterval 100, which is the resolution the release actually has.
+		AssaultSyncMaxTicks: 300
+		# The start-line band is (AssaultRadiusCells, 24]. Load-bearing, not cosmetic: a window that opened when
+		# the axis FORMED would elapse during a 40-100 cell approach and the gate would be inert on arrival.
+		# ALSO the ratchet threshold: inside this the axis is committed and the muster-ward holds may not march
+		# it back out (loss-mining 2026-09-02 §1.1 — the army parked at 24+ while the ring it was contesting is
+		# 10, because the damper/posture holds kept re-asserting a standoff computed from the believed front).
+		AssaultSyncStartLineCells: 24
+		# TELEMETRY ONLY, drives no decision: SupplyRouteContestation.Range is 10c0
+		# (structures.yaml:303), and AssaultRadiusCells (15) is already OUTSIDE it — so "reached the assault
+		# radius" never meant "is contesting". Emitted as ring=/insideRing=/syncDist= on the [exp-offense] order
+		# line, and only when the assault geometry is live, so existing log consumers see a byte-identical line.
+		# This is what makes §1.1 directly measurable instead of inferred from an order distance.
+		AssaultRingCells: 10
+		# ===== CLOSE-IN RATCHET — MEASURED, DID NOT WIN, LEFT OFF (2026-09-03) =======================
+		# The ANTI-hold half of the section above, split off CoordinatedAssaultEnabled so it could be priced on
+		# its own. Once an axis is inside AssaultSyncStartLineCells it has committed, and the muster-ward holds
+		# may not march it back out.
+		#
+		# WHY THE SPLIT EXISTS, and it is the durable finding even though the toggle lost: one flag gated three
+		# things — the sync HOLD (SyncHoldScreen), this anti-hold RATCHET, and the ring telemetry that measures
+		# either. With it off, CensusAssaultReadiness never runs, so axis.MassReady is never assigned (it is not
+		# that the mass test fails — the code computing it does not execute), SyncDist is never stamped,
+		# PastPointOfNoReturn is constant-false, and insideRing is never emitted. The fix for the standoff, the
+		# instrument that measures it, and the readiness census were all switched off by one line, and that same
+		# line arms a NEW hold the 2026-08-04 manager decision says must not go live unpriced.
+		#
+		# THE ARM DID NOT WIN, so per ship-scope the toggle does not ship on. 10-game mirror-paired sweep
+		# (River Zeta x3 + mirror x2, Polar Disorder x3 + mirror x2), read PER BOT because both profiles run
+		# PoiOffensiveBotModule and pooling halves an @experimental-only effect:
+		#   * inside10 (force reaching the contestation ring) 1.3% -> 1.3%, t=-0.01 — no effect at all.
+		#   * the ratchet's own precondition (syncDist <= AssaultSyncStartLineCells) was met in 9.2% of samples.
+		#   * trade ratio trended down 0.70 -> 0.51, NOT significant (Welch t=-1.58, CI [-9742, +1032]).
+		# AND THE PREMISE IT WAS BUILT ON IS REFUTED. The 2026-09-02 loss-mining read was that the damper and
+		# SectorPostureHold kept re-asserting a standoff. They barely fire: [exp-posture] logs 10 (exp) / 12
+		# (stable) lines across 10 matches against ~2000 orders per bot. What actually happens is TARGET CHURN —
+		# 100% of axis retires are reason=dropped, in all four arm/bot cells (300/300, 293/293, 342/342,
+		# 362/362) against ~340 axes created. Axes form, walk a median ~50 cells, and dissolve mid-approach when
+		# their target leaves the sticky top-k. A ratchet that only suppresses holds cannot help with that.
+		#
+		# THE REAL LEVER is axis target stickiness (SelectStickyTargets). Deliberately NOT implemented here: it
+		# is unpriced, and bolting it on would have left both it and this unmeasured.
+		#
+		# KEEP THE PLUMBING. Setting this true is still the way to get syncDist=/insideRing= readouts, and a
+		# future stickiness sweep should enable it in BOTH its baseline and fix arms so the telemetry is present
+		# without confounding the comparison. With it false the census does not run and @experimental attack
+		# behaviour is identical to pre-bundle.
+		#
+		# CoordinatedAssaultEnabled stays FALSE above: the sync hold remains unpriced and is NOT enabled here.
+		# Default OFF on the engine class ⇒ the @stable twin (which omits this field) is byte-identical.
+		CloseInRatchetEnabled: false
+
+		# ===== FLANKING MANEUVER — @experimental ONLY (2026-09-02) ===================================
+		# Added as one contiguous block at the END of this trait so parallel work on the fields above
+		# conflicts on a different hunk.
+		#
+		# WHAT CHANGES: an attack axis stops arriving as a single frontal blob. A MINORITY flank element
+		# (35%, min 2 hulls) peels off, swings through a lateral waypoint offset perpendicular to the
+		# approach, and comes in on a second bearing; the MAJORITY main element presses the direct axis
+		# but holds at standoff until the flank is level, so both arrive together. Which side the flank
+		# swings to is chosen by LOWER believed ground-danger exposure along the two-leg route — so it
+		# goes around the weak shoulder, and that emerges from the Stage-B/C field rather than being
+		# scripted.
+		#
+		# NOT the Stage-E flow-around (DangerFieldRouting above). Stage E returns null the moment the
+		# beeline is already safe, because its job is to skirt a strongpoint. This is a doctrine and must
+		# fire against an undefended approach too — hence separate math (FlankingMath), which reuses
+		# Stage E's exposure measure and rounding rather than copying them.
+		#
+		# Every field here defaults OFF/inert on the shared engine class ⇒ the @stable twin (which omits
+		# them entirely) keeps the undivided single-group assault byte-identical. Needs a DangerFieldLayer
+		# for the side choice; with no field the split never happens. Zero RNG: the force is partitioned by
+		# a stable ActorID order and the lane by integer geometry over a fixed two-candidate order.
+		#
+		# The converge hold is BOUNDED at 4 evals on purpose. The flank's remaining route is a
+		# straight-line estimate, so broken ground can make "the flank is nearly level" permanently false;
+		# an unbounded wait on an estimate is a veto wearing the costume of a delay — the exact shape the
+		# Phase-5 SectorPostureHold stall already cost us. Budget is monotone within an axis lifetime and
+		# is NOT refunded on release, so a hold/advance duty cycle is not reachable either. Set it to 0 to
+		# keep the two-bearing split but drop the synchronisation.
+		#
+		# Values are conservative first guesses, NOT measured — no autotest or tournament has run against
+		# them. The benchmark ladder (WORKSPACE/ai-bench/, user-gated) is the tuning path. Offset 4 + 1 per
+		# unit, capped at 12 and additionally at half the approach, puts a 6-hull axis at 30 cells on a
+		# ~34-degree convergence; the half-approach cap is what stops the flank leg ever being a longer
+		# walk than the assault itself.
+		FlankingEnabled: true
+		FlankMinForceSize: 6
+		FlankMinApproachCells: 12
+		FlankSharePct: 35
+		FlankMinElementSize: 2
+		FlankOffsetBaseCells: 4
+		FlankOffsetPerUnitCells: 1
+		FlankOffsetMaxCells: 12
+		FlankConvergeStandoffCells: 14
+		FlankConvergeToleranceCells: 4
+		FlankConvergeMaxHoldEvals: 4
+		# IN DANGER UNITS (100 = one reference contact at point-blank), converted to raw field units at the
+		# call site. Matches the mild-danger threshold used elsewhere in this trait.
+		FlankEngagedDangerUnits: 30
+		# ===== end FLANKING MANEUVER ================================================================
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped
@@ -1428,14 +1594,38 @@ Player:
 		#
 		# AND HERE IS THE SPECIFIC WAY THAT COST ARRIVES, named rather than left to be discovered. NoDemand is
 		# easy to hit: cluster selection needs only NeedScore > 0, which is ammoNeed x 1000, so four men at 95%
-		# ammo score 200 with ZERO starving men — while the drop needs DropMinStarvingUnits (1) actually
-		# starving within DropDemandRadiusCells of the anchor. A truck vetoed NoDemand falls through to the
-		# follow path, and with the detour off that path now drives it in a straight line at the platoon
-		# centroid. So the flag creates a route to dying WITHOUT delivering, which is exactly the walk-back
-		# signal above. Watch for `drop-declined reason=NoDemand` immediately followed by truck losses; if that
-		# is what a real match shows, the demand gate and the follow leash are the levers, not this flag.
+		# ammo score 200 with ZERO starving men — while the drop needs DropMinStarvingUnits (3, NOT 1 as this
+		# line claimed until 2026-09-03; it has been 3 since a86e2fb6, so the gate is stricter than the note
+		# implied) actually starving within DropDemandRadiusCells of the anchor. A truck vetoed NoDemand falls
+		# through to the follow path, and with the detour off that path now drives it in a straight line at the
+		# platoon centroid. So the flag creates a route to dying WITHOUT delivering, which is exactly the
+		# walk-back signal above. Watch for `drop-declined reason=NoDemand` immediately followed by truck
+		# losses; if that is what a real match shows, the demand gate and the follow leash are the levers, not
+		# this flag.
+		#
+		# THAT PREDICTION WAS RE-RUN AT HEAD ON 2026-09-03 AND HELD. Tournament match at c9626273: NoDemand was
+		# 54.1% of drop-declines, delivery success 15.0%, truck loss-rate 27% (exp) / 42% (stable) — all inside
+		# the ranges measured before the main merge, so LogisticsCenterBotModule's RequireDemand/RestockCenters
+		# did NOT fix this. The targeted readout that settles the mechanism is the [supply] cluster line: of the
+		# 455 clusters selection KEPT, 450 (98.9%) held fewer starving men than the drop requires and 371
+		# (81.5%) held ZERO. Selection and the drop were asking different questions. The demand gate named above
+		# is therefore the lever taken (SelectionMinStarvingUnits below); the FOLLOW LEASH is deliberately NOT
+		# touched — 434 of those 455 clusters were already on the short 35-cell leash, so trip length is not
+		# what is producing the refusals, and changing two things at once would price neither.
 		# ===================================================================================================
 		IgnoreDangerForDelivery: true
+		# THE DEMAND GATE (2026-09-03), the lever the block above pre-registered. A truck is now only
+		# DISPATCHED to a cluster that holds at least one starving soldier, instead of to anything with any
+		# ammo need at all. Lower than DropMinStarvingUnits (3) on purpose: dispatch and drop read demand at
+		# different times and over different sets, so matching the numbers would cancel the anticipatory trips
+		# that are the reason to send a truck early. At 1 this removes only the 81.5% of kept clusters that had
+		# NOBODY starving — a cluster that cannot turn into a valid drop except by starving from zero mid-trip.
+		#
+		# SCOPE — SHARED, DECLARED, NOT SILENT. SupplyFollowerBotModule@supply is a SINGLE enable-ai-any
+		# instance with no @stable twin, so this key moves @stable as well as @experimental. Intended per
+		# CLAUDE.md (@stable inherits improvements) and the next benchmark baseline must be re-taken knowingly.
+		# The C# default is 0 (gate off), so nothing moves for a profile that does not set this key.
+		SelectionMinStarvingUnits: 1
 		# The four keys below are now overridden by the flag above and are kept, unchanged, as the record of
 		# what the principled version was. Item 40 (danger-scale rework) is the work that would let them mean
 		# something again; until the danger UNIT is right, they gate on a scale that fires unconditionally.
@@ -1903,10 +2093,8 @@ Player:
 	# (a bot is never both). Mirrors the HelicopterSquadBotModule split (commit cf7f826b).
 	MountedTransportBotModule@poi:
 		RequiresCondition: enable-ai-stable
-		# Scan often — passengers spend only a short window idle near the SR
-		# before LayeredDefence sends them forward. The relaxed filter (see
-		# the trait) also grabs non-idle passengers in the reserve zone, but
-		# we still want quick reaction to fresh production.
+		# 2026-09-02 promotion — full @experimental parity. Fields below are a verbatim copy of the
+		# @experimental twin's values at this ref; see that block for per-flag rationale.
 		ScanInterval: 50
 		CarrierTypes: bradley, bmp2, m113
 		PassengerTypes: e3.america, e3.russia, ar.america, ar.russia, at.america, at.russia, sn.america, sn.russia, tl.america, tl.russia, medi.america, medi.russia, e2.america, e2.russia, mt.america, mt.russia, aa.america, aa.russia, e4.america, e4.russia
@@ -1916,22 +2104,7 @@ Player:
 		LoadingTimeoutTicks: 1500
 		DropOffArrivalRadius: 3
 		ReturnArrivalRadius: 5
-		# 2026-08-02 promotion — full @experimental transport parity. DeliverBeforeContact/PickupCorridor/
-		# UnloadOnArrival are engine-independent; BelievedDangerStandoff reads the danger field, now LIVE
-		# for @stable (influence-stack participation). See the @experimental twin for per-flag rationale.
-		#
-		# 2026-08-15 — HELD AT false ON PURPOSE, and this is a hold, not a gate. Until today this field was
-		# DEAD CONFIG: PickDropOffCell consulted DeliverBeforeContact only where the frontline was null, and
-		# InfluenceMapMath.DeriveFrontline never returns null — so the true set here has never once changed
-		# @stable's behaviour. The fallback is fixed this commit, which would make it live on both twins
-		# simultaneously; false pins @stable at EXACTLY the behaviour it has always had (no pre-contact
-		# delivery) while the never-executed path is proven on @experimental first.
-		#
-		# This does NOT withhold a fix from @stable on principle — that would be against policy. It sequences
-		# ONE un-run behavioural change at a time, on a profile that is the benchmark control and already took
-		# a knowing change today (CommitPassengers). Flip this back to true to promote, in its own commit, so
-		# the baseline is re-taken for one change rather than two.
-		DeliverBeforeContact: false
+		DeliverBeforeContact: true
 		PreContactStagingPct: 50
 		UnloadOnArrival: true
 		PickupCorridorCells: 6
@@ -1939,19 +2112,12 @@ Player:
 		StandoffDangerUnits: 10
 		StandoffMarginCells: 2
 		StandoffMaxBackoffCells: 20
-		# 2026-08-15 transport loading. BEHAVIOURAL CHANGE TO @stable — deliberate, not drift; re-take the
-		# benchmark baseline. Carriers stopped driving off at MinPassengersPerLoad (2) while the other three
-		# soldiers they had just ordered aboard were still walking; they now wait for the seats they actually
-		# ordered, bounded by BoardingStallTicks and LoadingTimeoutTicks so they can never hang. The capture
-		# ferry now also carries escort in the technician's four spare seats instead of driving it out alone.
+		CommitPassengers: true
 		FillBeforeDeparture: true
 		BoardingStallTicks: 250
 		CaptureFerryEscortSeats: 3
-		# Required for the above to actually hold on this profile. Without it this module leaves goalGuard
-		# null, so offense's BuildFreePool — which honours the ledger but NOT the bespoke IsPassengerReserved
-		# seam — treats a soldier walking up the ramp as free and re-tasks it away. Waiting for a fuller load
-		# against a module that keeps removing the passengers is just a slower half-empty departure.
-		CommitPassengers: true
+		TopUpDuringLoading: true
+		RendezvousWithOffensiveStaging: false
 
 	# Experimental twin. NOTE (b8d2e601, 2026-08-02): neither behaviour below is experimental-only any
 	# more — the @poi (stable) twin above was promoted to the same config. Both are default-frozen on
@@ -2121,10 +2287,16 @@ Player:
 	# Helicopters are called in via Supply Route — no HPAD needed to produce them
 	# BUGFIX (case-mismatch, see russia.fixedwing above): uppercase keys never matched the lowercased
 	# actor names, so Russia built NO helicopters at all. Keys lowercased to the actor names.
-	# Frozen twin — Stable only (`enable-ai-any && !enable-ai-experimental`, mirroring the ground-production
-	# split in ai-america.yaml). Experimental uses the demand-gated twin below.
+	# The @stable twin, despite the legacy `.heli` key (kept to avoid churn in DOCS/bots/ and in the
+	# NUnit fixtures that name it). Gate was `enable-ai-any && !enable-ai-experimental` until the
+	# 2026-09-02 promotion re-stated it as the explicit `enable-ai-stable` — same resolved set, since
+	# enable-ai-any is granted only to experimental+stable. NO LONGER FROZEN: synced to the demand-gated
+	# @experimental twin below at that promotion, so the attack-heli caps and the transport demand gate
+	# now apply here too.
 	UnitBuilderBotModule@russia.heli:
-		RequiresCondition: enable-ai-any && !enable-ai-experimental && player.brics
+		RequiresCondition: enable-ai-stable && player.brics
+		# 2026-09-02 promotion — full @experimental parity. Fields below are a verbatim copy of the
+		# @experimental twin's values at this ref; see that block for per-flag rationale.
 		IdleBaseUnitsMaximum: 8
 		SkipRearmBuildingCheck: true
 		UnitQueues: Aircraft
@@ -2133,18 +2305,26 @@ Player:
 			mi28: 50
 			halo: 15
 		UnitLimits:
-			hind: 4
-			mi28: 3
+			hind: 1
+			mi28: 1
 			halo: 2
 		UnitDelays:
 			hind: 2500
 			mi28: 3500
 			halo: 2500
+		GateTransportOnDemand: true
+		TransportUnitTypes: halo
+		TransportMinPassengers: 4
+		MinGroundArmyValue: 14000
+		MinGroundArmyValueTypes: hind, mi28
 
 	# ===== Experimental helicopter production — Russia (transport demand gate) =====
-	# Byte-for-byte copy of @russia.heli PLUS the default-off transport demand gate. The frozen weights buy
-	# the halo on a flat lottery weight with NO demand test, so it is called in during the opening and then
-	# parks at the Supply Route for the match (River Zeta issue 4). GateTransportOnDemand refuses the call-in
+	# STALE UNTIL 2026-09-02, now corrected: this used to be "a byte-for-byte copy of @russia.heli PLUS
+	# the default-off transport demand gate". The 2026-09-02 parity promotion synced @russia.heli UP to
+	# this block, so the two are now field-identical and the gate is live on BOTH profiles. The old frozen
+	# weights bought the halo on a flat lottery weight with NO demand test, so it was called in during the
+	# opening and then parked at the Supply Route for the match (River Zeta issue 4) — and that was still
+	# @stable's behaviour up to this promotion. GateTransportOnDemand refuses the call-in
 	# unless a full minimum load of infantry is actually waiting AND no idle halo we already own could carry
 	# them (transports-first). Attack helis (hind/mi28) are untouched.
 	# COMPOSITION: helicopters stay deliberately absent from the ground twins' UnitTargetShares (deferred to
@@ -2240,10 +2420,16 @@ Player:
 	# random path both discarded them — ONLY `littlebird` (already lowercase) ever matched. THIS is the
 	# reported "US bots only ever buy the littlebird, never the attack helicopter." Keys lowercased so the
 	# Apache/Chinook enter the pool at their intended weight/limit/delay.
-	# Frozen twin — Stable only (`enable-ai-any && !enable-ai-experimental`, mirroring the ground-production
-	# split in ai-america.yaml). Experimental uses the demand-gated twin below.
+	# The @stable twin, despite the legacy `.heli` key (kept to avoid churn in DOCS/bots/ and in the
+	# NUnit fixtures that name it). Gate was `enable-ai-any && !enable-ai-experimental` until the
+	# 2026-09-02 promotion re-stated it as the explicit `enable-ai-stable` — same resolved set, since
+	# enable-ai-any is granted only to experimental+stable. NO LONGER FROZEN: synced to the demand-gated
+	# @experimental twin below at that promotion, so the attack-heli caps and the transport demand gate
+	# now apply here too.
 	UnitBuilderBotModule@america.heli:
-		RequiresCondition: enable-ai-any && !enable-ai-experimental && player.nato
+		RequiresCondition: enable-ai-stable && player.nato
+		# 2026-09-02 promotion — full @experimental parity. Fields below are a verbatim copy of the
+		# @experimental twin's values at this ref; see that block for per-flag rationale.
 		IdleBaseUnitsMaximum: 8
 		SkipRearmBuildingCheck: true
 		UnitQueues: Aircraft
@@ -2252,16 +2438,23 @@ Player:
 			littlebird: 40
 			tran: 15
 		UnitLimits:
-			heli: 4
-			littlebird: 2
+			heli: 1
+			littlebird: 1
 			tran: 2
 		UnitDelays:
 			heli: 2500
 			littlebird: 2500
 			tran: 2500
+		GateTransportOnDemand: true
+		TransportUnitTypes: tran
+		TransportMinPassengers: 4
+		MinGroundArmyValue: 14000
+		MinGroundArmyValueTypes: heli
 
 	# ===== Experimental helicopter production — America (transport demand gate) =====
-	# Byte-for-byte copy of @america.heli PLUS the default-off transport demand gate. See the Russia twin
+	# STALE UNTIL 2026-09-02, now corrected: this used to be "a byte-for-byte copy of @america.heli PLUS
+	# the default-off transport demand gate". The 2026-09-02 parity promotion synced @america.heli UP to
+	# this block, so the two are now field-identical. See the Russia twin
 	# above for the rationale: the frozen weights buy the tran with NO demand test, so it idles at the SR all
 	# match. Attack helis (heli/littlebird) are untouched, and helicopters remain absent from the ground
 	# twins' UnitTargetShares — the gate rides the post-pick path, so it composes with CompositionDirected.
@@ -2306,27 +2499,50 @@ Player:
 	# DangerFieldAvoidance + frontier standoff read the influence stack, now LIVE for @stable.
 	HelicopterSquadBotModule@stable:
 		RequiresCondition: enable-ai-stable
+		# 2026-09-02 promotion — full @experimental parity. Fields below are a verbatim copy of the
+		# @experimental twin's values at this ref; see that block for per-flag rationale.
 		AttackSquadSize: 2
 		AttackSquadSizeBonus: 1
 		AttackCooldown: 900
+		AllowSoloAttackHeli: true
+		MinAttackSquadSize: 1
+		PairUpIncomeThreshold: 6000
 		ScoutInterval: 400
 		TransportInterval: 600
 		TransportMinInfantry: 4
 		MaxActiveSquads: 3
 		StandoffEngagement: true
 		DangerFieldAvoidance: true
-		# SURFACED 2026-08-09, previously running on the C# default. The Stage-D withdraw-on-spike level,
-		# now in DANGER UNITS against the AIR reference (100 = one reference AIR-threatening contact at
-		# point-blank — NOT the ground reference; the two channels are stamped from different weapon sets).
-		# Written here because the value moved: a behavioural default that changes with nothing in the YAML
-		# to show it is the silent drift CLAUDE.md forbids, and this trait is declared on both twins.
-		# Low on purpose — helicopters die fast, so withdrawing while only partway into a believed AA
-		# envelope is the correct asymmetry. AirDangerSafeThreshold stays a literal 0 and is NOT in units.
 		AirDangerSpikeUnits: 25
+		WithdrawOnSpikeInAttackRun: true
 		ForwardStaging: true
 		ForwardStagingPct: 40
 		ForwardStagingMaxDistanceCells: 8
-		MinFrontierDistanceCells: 4
+		MinFrontierDistanceCells: 8
+		EvacuateWhenIdle: true
+		EvacuateIdleTicks: 300
+		EvacuateAmmoPercent: 34
+		EvacuateBelowHealthPercent: 35
+		EvacuateHomeRadiusCells: 12
+		MissionTargetRangeCells: 60
+		EvacuateForwardIdle: true
+		StrategicTargetPinning: true
+		PinCommitWindowTicks: 1200
+		CarefulScoutEmployment: true
+		ScoutAirDangerSafeThreshold: 0
+		ScoutMaxDistanceCells: 40
+		AttackMaxDistanceCells: 40
+		CommitTransportPassengers: true
+		FlightPathHysteresis: true
+		FlightPathHysteresisCells: 3
+		RiskWeightedDropSite: true
+		DropSiteCandidatePois: 6
+		DropEnemyControlWeight: 100
+		DropDangerWeight: 100
+		DropReachWeight: 5
+		TransportMissionSlots: 1
+		EvacuateIdleTransports: true
+		TransportIdleEvacuateTicks: 900
 
 	# Experimental twin. SkipRearmReadyCheck used to sit on both twins to route around a readiness
 	# gate that no heli could ever satisfy (attack helis refill only at an hpad, and none exists);
@@ -2493,12 +2709,16 @@ Player:
 
 	# ===== Stable AI — snapshot of the validated Experimental config =====
 	#
-	# 2026-08-02 PROMOTION (user-authorised): these @stable modules are now a FULL copy of the
-	# @experimental config above — same modules enabled, same flags, same tuning — gated on
-	# `enable-ai-stable` instead of `enable-ai-experimental`. A 30-0 benchmark + live-play confirmed
-	# @experimental outclassed the previous frozen @stable (0730), so @stable was promoted to parity
-	# (renamed 0730 -> 0802). The two profiles remain a SEPARATE A/B pair: @experimental can diverge
-	# again by editing only the @experimental blocks; @stable is re-synced at the next promotion.
+	# 2026-09-02 PROMOTION (user-authorised) — supersedes the 2026-08-02 one. These @stable modules are
+	# again a FULL copy of the @experimental config above — same modules enabled, same flags, same
+	# tuning — gated on `enable-ai-stable` instead of `enable-ai-experimental`. The two profiles remain
+	# a SEPARATE A/B pair: @experimental can diverge again by editing only the @experimental blocks;
+	# @stable is re-synced at the next promotion. Full drift list + the two behaviours this promotion
+	# could NOT reach: see the PROMOTION HISTORY block at the top of this file.
+	#
+	# THE ai-bench BASELINE IS VOID until re-taken. This moved @stable a long way — it is not a
+	# no-op sync (2026-08-02 context: a 30-0 benchmark + live play had confirmed @experimental
+	# outclassed the then-frozen @stable 0730, which is why parity promotion is the standing policy).
 	#
 	# NOTE — @stable is NO LONGER byte-identical to the old frozen bot. As part of this promotion,
 	# InfluenceStack.Participates (InfluenceStack.cs) was widened so `stable` bots ALSO build the
@@ -2510,11 +2730,17 @@ Player:
 	# historical for @stable now that the twins opt in. The two world layers are RNG-free (deterministic
 	# stagger offsets), so adding a participant introduces no new RNG / desync.
 	#
-	# STRUCTURE — most modules are an independent @stable twin (own block, `enable-ai-stable`). Three
+	# STRUCTURE — most modules are an independent @stable twin (own block, `enable-ai-stable`). These
 	# do NOT follow that shape:
 	#   * PoiGoalGuard is NOT twinned — consumers fetch it via single-instance
 	#     player.TraitOrDefault<PoiGoalGuard>(), so a second instance throws. Defined ONCE above, gated
 	#     `enable-ai-experimental || enable-ai-stable` (SHARED). Both profiles share its one setting.
+	#     Re-verified 2026-09-02: it is still the ONLY bot module resolved that way (10 call sites,
+	#     e.g. ModularBot.cs:115). Every module twinned in this promotion was grep-checked first.
+	#   * The four unit builders keyed @america.normal / @russia.normal / @america.heli / @russia.heli
+	#     ARE the @stable twins despite their legacy key names — re-gated 2026-09-02 from
+	#     `!enable-ai-experimental` to an explicit `enable-ai-stable`. Keys kept to avoid churn in
+	#     DOCS/bots/ and in NUnit fixtures that name them.
 	#   * MountedTransportBotModule is split (@poi = stable, @experimental twin); consumers use the
 	#     multi-safe TraitsImplementing<T>().FirstOrDefault(!IsTraitDisabled) lookup.
 	#   * HelicopterSquadBotModule@stable (above, in the heli section) is likewise a twin resolved via
@@ -2531,10 +2757,13 @@ Player:
 
 	CaptureCoordinatorBotModule@stable.tecn:
 		RequiresCondition: enable-ai-stable
+		# 2026-09-02 promotion — full @experimental parity. Fields below are a verbatim copy of the
+		# @experimental twin's values at this ref; see that block for per-flag rationale.
 		CapturingActorTypes: tecn,tecn.russia,tecn.america
 		UseUnitRoles: true
 		CapturableActorTypes: oilb,bio,miss,fcom,hosp,logisticscenter
 		CheckCaptureTargetsForVisibility: false
+		StarvingRecruitThresholdPerMille: 250
 		ScanInterval: 75
 		MaximumCaptureTargetOptions: 12
 		IncomeWeights:
@@ -2544,6 +2773,9 @@ Player:
 			miss: 10
 			hosp: 20
 		DefaultIncomeWeight: 10
+		CaptureSupplyDepots: true
+		SupplyDepotActorTypes: logisticscenter
+		SupplyDepotIncomeWeight: 25
 		DistanceHalfLifeCells: 20
 		SafetyEnemyScanRadiusCells: 6
 		SafetyMultiplierSafe: 100
@@ -2556,21 +2788,11 @@ Player:
 		DefenseFriendlyScanRadiusCells: 6
 		DefenseSummonCount: 3
 		DefenseEnemyValueThreshold: 200
-		# 2026-08-02 promotion — full @experimental.tecn parity (values mirror the @experimental
-		# block above; see that block for the per-flag rationale). @stable now participates in the
-		# influence stack (InfluenceStack.cs), so the fog-legal capture levers below are LIVE, not inert.
 		TecnFloor: 1
 		TecnRequestStaleTicks: 200
 		ScaleTecnFloorToPois: true
 		TecnFloorMax: 5
 		TecnRequestPriority: true
-		# 2026-08-14: newly SET here (this twin previously omitted it, taking the inert engine default of 100).
-		# @stable gets the reclaim lever, so it can enter the same spiral — a backlog that does not shrink pins
-		# the floor at TecnFloorMax while TecnRequestPriority routes those buys ahead of combat production, with
-		# the base already down. Adding the brake alongside the feature that needs it. SCOPED to the reclaim
-		# increment in code, so with no reclaim candidates @stable's ordinary capture race is byte-identical to
-		# leaving this unset — the benchmark control is not disturbed. See @experimental.tecn.
-		TecnFloorArmyShareCapPct: 50
 		CaptureFanoutEnabled: true
 		UseTransportForDistantCaptures: true
 		TransportCaptureMinDistanceCells: 12
@@ -2590,43 +2812,24 @@ Player:
 		SafeDangerUnits: 10
 		SafeMaxDistanceFromSRCells: 24
 		LightEscortSize: 2
-		# Retreat-when-done (orderless-at-hostile-location bug fix): send a done/target-gone TECN home to our SR
-		# instead of leaving it idle at the front. Bug-class fix enabled on both live .tecn twins; engine default
-		# stays false so any profile omitting the module is byte-identical. See @experimental.tecn for rationale.
+		CommitSupportUnits: true
+		TecnFloorArmyShareCapPct: 50
 		RetreatCapturerWhenDone: true
-		# Same bug class as RetreatCapturerWhenDone above and enabled on both twins for the same reason: an
-		# undispatchable capturer was dropped on the floor with no order and no claim, which is what left it in
-		# the idle unclaimed pool GarrisonBotModule recruits from. @stable participates in the influence stack,
-		# so the reserve muster's ControlField descent works here identically. See @experimental.tecn.
 		StageIdleCapturers: true
 		ReserveStandoffCells: 10
-		# @stable BEHAVIOUR MOVES HERE, DELIBERATELY — the next benchmark baseline must be re-taken knowingly.
-		# Enabled on both twins for the same reason ReclaimNeutralisedStructures below is: the beachhead clog is a
-		# measured defect in shared code, not a tuning lever, and withholding a fix from the control only makes
-		# the control less like the game. The C# default is 0 (OFF) precisely so this line is a visible act rather
-		# than silent drift. NOT separately measured on @stable: the reserve path, its config and its arithmetic
-		# are identical across the twins, so the @experimental measurement carries — but that is an argument, and
-		# the baseline re-take is what will confirm it.
 		ReserveFallbackCells: 6
-		# Reclaim our own cleared base — enabled on BOTH twins for the same reason RetreatCapturerWhenDone is: it
-		# is a regression fix, not a tuning lever. Without it a raided @stable bot sits next to its own neutralised
-		# AA defences, airfields and production forever, because PoiMap never discovers a non-income structure as
-		# a POI. @stable behaviour DOES move here; the next benchmark baseline must be re-taken knowingly. See
-		# @experimental.tecn for the full rationale, including why the danger gate is a backstop rather than the
-		# primary protection and why 8 (below SafeDangerUnits) rather than 30.
 		ReclaimNeutralisedStructures: true
 		ReclaimMaxDangerUnits: 8
 		ReclaimMaxDistanceFromSRCells: 24
 
 	PoiOffensiveBotModule@stable:
 		RequiresCondition: enable-ai-stable
+		# 2026-09-02 promotion — full @experimental parity. Fields below are a verbatim copy of the
+		# @experimental twin's values at this ref; see that block for per-flag rationale.
 		ReevaluateInterval: 100
 		UnitsPerAxis: 8
 		MinAxisSize: 3
 		MaxAxes: 4
-		# 2026-08-02 promotion — full @experimental parity (values mirror the @experimental block
-		# above; see it for per-flag rationale). @stable now participates in the influence stack, so
-		# DangerFieldRouting / StrategicRepoint / believed-danger buckets / frontier standoff are LIVE.
 		EarlyGameSpread: true
 		EarlyGameDurationTicks: 4500
 		EarlyUnitsPerAxis: 3
@@ -2634,18 +2837,42 @@ Player:
 		AxisCommitmentTicks: 250
 		ReassignScoreThresholdPct: 30
 		RepathThresholdCells: 3
+		MissionCommitmentEnabled: true
+		MissionCommitmentWindowTicks: 400
+		MissionDangerSpikePct: 50
+		MissionDangerSpikeFloorUnits: 30
+		MissionBetterOppMarginPct: 50
+		MissionIneffectiveNumerator: 1
+		MissionIneffectiveDenominator: 2
+		MissionScoreQuantizeBandPct: 60
+		AllocationScoreQuantizeBandPct: 0
+		Aggressiveness: 50
+		MissionBetterOppMarginSlopePct: 0
+		OpportunisticAdvanceEnabled: false
+		AdvanceMaxSectors: 3
+		AdvanceMaxSectorsSlopePct: 7
+		AdvanceDangerCeilingUnits: 6
+		AdvanceDangerCeilingSlopePct: 40
+		AdvanceMinUnits: 2
+		AdvanceForceCap: 5
+		AdvanceForceCapSlopePct: 7
+		AdvanceSpreadRings: 1
+		AdvanceHysteresisCells: 0
 		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
 		UseUnitRoles: true
+		TransportStandoffEnabled: true
+		TransportStandoffMaxHoldTicks: 1500
 		SkipOutOfAmmoUnits: true
+		StarvingRecruitThresholdPerMille: 250
+		EvacuateOutOfAmmoUnits: true
+		OutOfAmmoRearmSeekRadiusCells: 40
+		EvacuateEjectedCrew: true
 		CohesionSwitchEnabled: true
 		AssaultRadiusCells: 15
 		ApproachCohesion: Spread
 		AssaultCohesion: Tight
 		SrPressureScoreMultiplier: 260
 		DangerFieldRouting: true
-		# SURFACED 2026-08-09 — mirrors the @experimental block. Written out rather than left on the C#
-		# default because the value moved, and a behavioural default that changes with nothing in the
-		# YAML to show it is the silent drift CLAUDE.md forbids. In DANGER UNITS.
 		GroundDangerSafeUnits: 30
 		StrategicRepointEnabled: true
 		BopBoostMultiplier: 150
@@ -2655,6 +2882,10 @@ Player:
 		BelievedDangerSafeMultiplier: 100
 		BelievedDangerMildMultiplier: 60
 		BelievedDangerHostileMultiplier: 20
+		ReachabilityGatingEnabled: true
+		ReachabilityRepairableMultiplier: 60
+		ReachabilityAmphibiousMultiplier: 30
+		ReachabilityUnreachableMultiplier: 10
 		FiresStandoff: true
 		FiresEvGate: true
 		EchelonPositioning: true
@@ -2663,9 +2894,47 @@ Player:
 		EchelonTolerance: 2c0
 		EchelonScreenRangeFallback: 5c0
 		MinFrontierDistanceCells: 4
+		ContinuousBombardment: true
+		PreparatoryFires: false
+		PrepFireMaxTicks: 150
+		SuppressionCoordinatedAdvance: false
+		PrepSuppressionThreshold: 60
+		PrepSuppressionRadius: 5c0
+		RetreatWhenLosing: true
+		NoReinforceLostFights: true
+		RetreatForceRatioPct: 200
+		ReengageForceRatioPct: 120
+		RetreatSustainEvals: 2
+		ForceRatioRadiusCells: 8
+		RetreatSafeDistanceCells: 10
+		ForwardStagingEnabled: true
+		StagingStandoffCells: 6
+		StagingDangerSafeUnits: 10
+		StagingSpreadStepCells: 2
+		StagingFallbackCells: 6
+		StagingHysteresisCells: 3
+		StagingMaxDescentSteps: 64
+		RetreatDamperEnabled: true
+		RetreatReadvanceDwellEvals: 3
+		MinAdvanceStrength: 1200
+		MaxAdvanceHoldEvals: 6
+		FoldShortRangeAdIntoLine: false
+		FrontlineProfileEnabled: true
+		WeakestPointBiasEnabled: true
+		WeakestPointBiasMultiplier: 150
+		SectorPostureHoldEnabled: true
+		SectorPostureHoldRatioPct: 200
+		SectorPostureHoldOwnFloor: 3
+		SectorPostureHoldMaxEvals: 3
+		LateralSpreadEnabled: true
+		SrPoolSharePct: 40
+		ForwardMusterEnabled: true
+		ImmediateReinforcementCommit: true
 
 	PoiGarrisonBotModule@stable:
 		RequiresCondition: enable-ai-stable
+		# 2026-09-02 promotion — full @experimental parity. Fields below are a verbatim copy of the
+		# @experimental twin's values at this ref; see that block for per-flag rationale.
 		ReevaluateInterval: 100
 		ValuePerGarrisonUnit: 50
 		MinGarrison: 1
@@ -2675,10 +2944,8 @@ Player:
 		GarrisonCommitmentTicks: 250
 		RepathThresholdCells: 3
 		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
-		# 2026-08-02 promotion — full @experimental parity (mirrors the @experimental garrison block).
-		# @stable now participates in the influence stack, so DefendRepoint (believed-danger defend
-		# ordering + size bump) is LIVE, not inert.
 		UseUnitRoles: true
+		StarvingRecruitThresholdPerMille: 250
 		DefendRepointEnabled: true
 		BelievedDangerMildUnits: 30
 		BelievedDangerHostileUnits: 100
@@ -2692,6 +2959,8 @@ Player:
 	# UnitsPerAmbush = 4 units max so it never starves offense.
 	LaneAmbushBotModule@stable:
 		RequiresCondition: enable-ai-stable
+		# 2026-09-02 promotion — full @experimental parity. Fields below are a verbatim copy of the
+		# @experimental twin's values at this ref; see that block for per-flag rationale.
 		ReevaluateInterval: 100
 		MaxAmbushes: 2
 		UnitsPerAmbush: 2
@@ -2702,18 +2971,18 @@ Player:
 		RepathThresholdCells: 3
 		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
 		UseUnitRoles: true
+		StarvingRecruitThresholdPerMille: 250
 
 	AdaptiveProductionBotModule@stable.america:
 		RequiresCondition: enable-ai-stable && player.nato
+		# 2026-09-02 promotion — full @experimental parity. Fields below are a verbatim copy of the
+		# @experimental twin's values at this ref; see that block for per-flag rationale.
 		EvaluationInterval: 300
 		MaxRequestsPerCycle: 2
 		AntiVehicleUnits: at.america, abrams, bradley
 		AntiInfantryUnits: e3.america, ar.america, humvee
 		AntiAirUnits: aa.america, strykershorad
 		MinEnemySightings: 3
-		# 2026-08-02 promotion — full @experimental.america parity. SR-defense reads the belief store,
-		# now LIVE for @stable (influence-stack participation). RouteToEnabledProducer is the delivery
-		# fix (route counter-buys to the first ENABLED UnitBuilder twin) — engine-independent, always live.
 		UseUnitRoles: true
 		SupplyRouteDefenseEnabled: true
 		SupplyRouteScanRadius: 10
@@ -2721,18 +2990,25 @@ Player:
 		SupplyRouteAirValueThreshold: 1000
 		SupplyRouteInfantryValueThreshold: 1000
 		RouteToEnabledProducer: true
+		CompositionNeedEnabled: true
+		AirStrikeUnits: heli, a10
+		AntiArmorNeedWeight: 100
+		AntiInfantryNeedWeight: 100
+		AntiAirNeedWeight: 100
+		AirStrikeNeedWeight: 100
+		AaWeakThreshold: 2000
+		NeedBudgetReservePct: 200
 
 	AdaptiveProductionBotModule@stable.russia:
 		RequiresCondition: enable-ai-stable && player.brics
+		# 2026-09-02 promotion — full @experimental parity. Fields below are a verbatim copy of the
+		# @experimental twin's values at this ref; see that block for per-flag rationale.
 		EvaluationInterval: 300
 		MaxRequestsPerCycle: 2
 		AntiVehicleUnits: at.russia, t90, bmp2
 		AntiInfantryUnits: e3.russia, ar.russia, btr
 		AntiAirUnits: aa.russia, tunguska
 		MinEnemySightings: 3
-		# 2026-08-02 promotion — full @experimental.russia parity. SR-defense reads the belief store,
-		# now LIVE for @stable (influence-stack participation). RouteToEnabledProducer is the delivery
-		# fix (route counter-buys to the first ENABLED UnitBuilder twin) — engine-independent, always live.
 		UseUnitRoles: true
 		SupplyRouteDefenseEnabled: true
 		SupplyRouteScanRadius: 10
@@ -2740,9 +3016,19 @@ Player:
 		SupplyRouteAirValueThreshold: 1000
 		SupplyRouteInfantryValueThreshold: 1000
 		RouteToEnabledProducer: true
+		CompositionNeedEnabled: true
+		AirStrikeUnits: mi28, frog
+		AntiArmorNeedWeight: 100
+		AntiInfantryNeedWeight: 100
+		AntiAirNeedWeight: 100
+		AirStrikeNeedWeight: 100
+		AaWeakThreshold: 2000
+		NeedBudgetReservePct: 200
 
 	LayeredDefenceBotModule@stable:
 		RequiresCondition: enable-ai-stable
+		# 2026-09-02 promotion — full @experimental parity. Fields below are a verbatim copy of the
+		# @experimental twin's values at this ref; see that block for per-flag rationale.
 		ScanInterval: 75
 		AssignCooldownTicks: 250
 		MainLineStandoffCells: 8
@@ -2750,33 +3036,34 @@ Player:
 		FriendlyGapWeight: 2
 		EnemyWeaknessWeight: 1
 		MaxAssignsPerScan: 6
-		# 2026-08-02 promotion — @experimental parity: role-based line eligibility (drops SHORAD/MANPADS
-		# by class, cures the :349 defect). ScreenUnitTypes still partitions screen vs main line.
+		RespectCommitmentLedger: true
+		CommitLineAssignments: true
 		UseUnitRoles: true
+		StarvingRecruitThresholdPerMille: 250
+		ManTheLineEnabled: true
+		ManTheLineMinThreat: 1
 		ScreenUnitTypes: e3.america, e3.russia, ar.america, ar.russia, at.america, at.russia, sn.america, sn.russia, tl.america, tl.russia, medi.america, medi.russia
 		MainLineUnitTypes: e2.america, e2.russia, mt.america, mt.russia, aa.america, aa.russia, e4.america, e4.russia, abrams, t90, m109, paladin, grad, tos, m270, strykershorad, tunguska
 		ExcludedActorTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, humvee, btr, bradley, bmp2, m113
 
 	SquadManagerBotModule@stable.russia.fixedwing:
 		RequiresCondition: enable-ai-stable && player.brics
+		# 2026-09-02 promotion — full @experimental parity. Fields below are a verbatim copy of the
+		# @experimental twin's values at this ref; see that block for per-flag rationale.
 		SquadSize: 2
 		SquadSizeRandomBonus: 1
 		RushInterval: 600
 		AttackScanRadius: 48
-		# BUGFIX (case-mismatch, same family as the UnitBuilder keys above): AirUnitsTypes is a case-SENSITIVE
-		# HashSet<string> (SquadManagerBotModule.cs:31) tested against actor names lowercased at load, so uppercase
-		# MIG/FROG never matched. UseUnitRoles now drives IsAirSquadUnit, but TryToRushAttack reads AirUnitsTypes
-		# UNCONDITIONALLY (:421 own-unit filter, :430 "don't rush enemy aircraft") — so uppercase let own aircraft
-		# be scooped into a ground rush and enemy aircraft be rushed. Keys lowercased to the actor names.
 		AirUnitsTypes: mig, frog
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 		IgnoreGroundUnits: true
 		ExcludeFromSquadsTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk
-		# 2026-08-02 promotion — @experimental parity: pick air-squad airframes by UnitRoleResolver.
 		UseUnitRoles: true
 
 	SquadManagerBotModule@stable.america.fixedwing:
 		RequiresCondition: enable-ai-stable && player.nato
+		# 2026-09-02 promotion — full @experimental parity. Fields below are a verbatim copy of the
+		# @experimental twin's values at this ref; see that block for per-flag rationale.
 		SquadSize: 2
 		SquadSizeRandomBonus: 1
 		RushInterval: 600
@@ -2785,5 +3072,84 @@ Player:
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 		IgnoreGroundUnits: true
 		ExcludeFromSquadsTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk
-		# 2026-08-02 promotion — @experimental parity: pick air-squad airframes by UnitRoleResolver.
 		UseUnitRoles: true
+
+	# ===== 2026-09-02 promotion — modules that had NO @stable twin until this promotion =====
+	# Each block below is a verbatim copy of its @experimental twin's field values at this ref,
+	# re-gated onto enable-ai-stable. See the @experimental block for per-flag rationale.
+	# None of these is a single-instance lookup: no consumer resolves them via
+	# player.TraitOrDefault<T>(), so a second instance on the player actor is safe (verified by
+	# grep at this ref). PoiGoalGuard remains the one module that MUST stay shared rather than
+	# twinned — it IS fetched via TraitOrDefault (ModularBot.cs:115 and 9 other sites).
+
+	CounterBatteryRadarBotModule@stable:
+		RequiresCondition: enable-ai-stable && (player.nato || player.brics)
+
+	DroneOperatorBotModule@stable:
+		RequiresCondition: enable-ai-stable && (player.nato || player.brics)
+		ReevaluateInterval: 200
+		OperatorActorTypes: dr.america, dr.russia
+		CommitmentTicks: 500
+		LeashCells: 25
+		LeashMarginCells: 3
+		MinStalenessTicks: 500
+		DroneVisionCells: 28
+		MinRevealedSquares: 12
+		MaxPoiDistanceCells: 40
+		MaxAirDanger: 100
+		MaxLaunchCellDanger: 60
+		LostTrackIntelSquares: 250
+		AreaIntelSquares: 60
+		StaticIntelSquares: 20
+		IntelMemoryTicks: 2000
+		FreshSightingTicks: 50
+		IntelSampleInterval: 25
+		SupplyRouteExclusionCells: 8
+		StarvingRecruitThresholdPerMille: 250
+		LaunchSettleTicks: 75
+
+	MinelayerBotModule@stable:
+		RequiresCondition: enable-ai-stable
+		MinelayingActorTypes: mnly
+		StrategicAnchorColdStart: true
+		ScanTick: 320
+		MaxPerAssign: 1
+		MineFieldRadius: 1
+		AwayFromEnemyTargetTypes: Ground
+		AwayFromCellDistance: 9
+		IgnoredEnemyTargetTypes: Air, AirLight, AirMedium, AirHeavy, Helicopter
+		UseEnemyLocationTargetTypes: Structure
+
+	EngineerOperatorBotModule@stable:
+		RequiresCondition: enable-ai-stable && (player.nato || player.brics)
+		ReevaluateInterval: 100
+		CommitmentTicks: 300
+		OrderSettleTicks: 200
+		DemolitionAmmoPoolName: secondary-ammo
+		BreachMaxDistanceCells: 30
+		BreachMinFriendlyNearby: 2
+		BreachFriendlyRadiusCells: 8
+		BreachContactFreshnessTicks: 50
+		RepairMaxDistanceCells: 25
+		ScreenHomeExclusionCells: 12
+		AnchorShiftCells: 4
+		StarvingRecruitThresholdPerMille: 250
+
+	LogisticsCenterBotModule@stable:
+		RequiresCondition: enable-ai-stable && (player.nato || player.brics)
+		DesiredCenters: 1
+		StandoffCells: 4
+		DangerSafeUnits: 30
+
+	EngineerRouteOpenBotModule@stable:
+		RequiresCondition: enable-ai-stable
+		RouteOpenEnabled: true
+		ScanInterval: 100
+		MissionTimeoutTicks: 1500
+		RetryCooldownTicks: 900
+		MaxAttemptsPerHut: 3
+		ScreenSize: 3
+		StarvingRecruitThresholdPerMille: 250
+		ScreenStandoffCells: 3
+		CommitTtlTicks: 400
+		ExcludedActorTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, humvee, btr, bradley, bmp2, m113

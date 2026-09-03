@@ -680,8 +680,11 @@ there.
 
 ## 13. The Experimental / Stable bot pair (promotion policy)
 
-There is no "V1", so the old "V2" name is retired. The lobby now offers five
-bots; the loop touches exactly one of them.
+There is no "V1", so the old "V2" name is retired. **Only TWO bots ship**
+(Experimental and Stable); the loop touches exactly one of them. The
+Normal / Rush / Turtle entry below is historical — those bots and their
+`enable-ai-rush` / `enable-ai-turtle` / `enable-ai-legacy-only` conditions were
+removed 2026-07-30. *(Corrected 2026-09-02: this section still said "five bots".)*
 
 - **Experimental AI** (`ModularBot@experimental`, `enable-ai-experimental`) — the
   optimization loop's **working bot**. Every hypothesis/cycle edits *these*
@@ -691,22 +694,42 @@ bots; the loop touches exactly one of them.
   of the last *validated* Experimental config, frozen *between* promotions. Its
   modules under the `enable-ai-stable` gate in `mods/ww3mod/rules/ai/ai.yaml` are
   a byte-for-byte copy of the Experimental modules at the moment of the last
-  promotion. *Since the 2026-08-02 promotion ("Stable AI 0802") this is a
-  full-parity copy: every experimental module has a `@stable` twin and stable
-  participates in the influence stack (`InfluenceStack.Participates` accepts
-  `BotType == "stable"`).*
-  **Two exceptions** are *shared*, not twinned: `PoiGoalGuard` and
-  `MountedTransportBotModule` are fetched by consumers via a single-instance
-  `player.TraitOrDefault<T>()` lookup, so a second trait instance on one player
-  throws at runtime (`Actor player has multiple traits of type …`). They are
-  therefore defined once, gated `enable-ai-experimental || enable-ai-stable`, and
-  shared by both bots — i.e. **not** independently frozen. Every other strategic
-  module (capture scoring, offense axes, garrison, adaptive production, layered
-  defence, fixed-wing squad managers) *is* an independent `@stable` copy, so the
-  bulk of the tunable surface is snapshotted. Making the two shared modules
-  independently freezable would need an engine change (switch those lookups to an
-  enabled-aware `TraitsImplementing<T>().FirstOrDefault(...)`); backlogged, not
-  required for the pair to work.
+  promotion. *Since the 2026-09-02 promotion ("Standard AI 0902", at
+  `main @ 26f9cec0`) this is again a full-parity copy: every experimental module
+  has a `@stable` twin and stable participates in the influence stack
+  (`InfluenceStack.Participates` accepts `BotType == "stable"`,
+  `InfluenceStack.cs:48`).*
+
+  **ONE exception** is *shared*, not twinned: `PoiGoalGuard` is fetched by
+  consumers via a single-instance `player.TraitOrDefault<T>()` lookup, so a second
+  trait instance on one player throws at runtime (`Actor player has multiple traits
+  of type …`). It is therefore defined once, gated
+  `enable-ai-experimental || enable-ai-stable`, and shared by both bots — i.e.
+  **not** independently frozen. Every other strategic module *is* an independent
+  `@stable` copy. Making it independently freezable would need an engine change
+  (switch those lookups to an enabled-aware
+  `TraitsImplementing<T>().FirstOrDefault(...)`); backlogged, not required for the
+  pair to work.
+
+  *(Corrected 2026-09-02: this list previously also named
+  `MountedTransportBotModule` as shared. It is not, and had not been since
+  2026-08-02 — it is a twin pair `@poi` (stable) / `@experimental`, and all four of
+  its consumers already use the multi-safe
+  `TraitsImplementing<>().FirstOrDefault(m => !m.IsTraitDisabled)` lookup
+  (`CaptureCoordinatorBotModule.cs:1815`, `PoiOffensiveBotModule.cs:2080`,
+  `LayeredDefenceBotModule.cs:364`, `HelicopterSquadBotModule.cs:486`).
+  `HelicopterSquadBotModule` is a twin pair on the same footing.)*
+
+  **Parity has a C# floor the promotion cannot reach.** Two behaviours are gated by
+  a bot-type comparison in engine code rather than by a YAML condition, because
+  their module is a single shared `enable-ai-any` instance where a YAML flag would
+  hit both profiles at once. Copying config down does **not** enable them for
+  Stable, and setting the flags on a Stable-reachable block is inert:
+  `IdleTruckHunt` (`SupplyFollowerBotModule.cs:704` →
+  `SupplyTruckHuntMath.ShouldHunt`, `SupplyTruckHuntMath.cs:219`) and
+  `CommitGarrisonedUnits` (`GarrisonBotModule.cs:228` →
+  `PoiGoalGuard.ShouldCommitShared`, `PoiGoalGuard.cs:305`). Closing them needs an
+  engine change, not a promotion.
 - **Normal / Rush / Turtle** (`@normal` / `@rush` / `@turtle`) — the **frozen
   control AIs / measuring sticks** (§4.2, §11). The loop **never** updates them;
   if they drift, every historical result is invalidated.

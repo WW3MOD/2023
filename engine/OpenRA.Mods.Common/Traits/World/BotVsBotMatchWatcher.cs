@@ -21,10 +21,11 @@
  *     "seed": <int>,
  *     "git_sha": "<run-tournament.sh stamps this>",
  *     "duration_ticks": <int>,
- *     "winner_client_index": <int>,
+ *     "winner_player_index": <int>,   // index into "players"; -1 when there is no winner
+ *     "winner_client_index": <int>,   // ALWAYS 0 for map-player bots — see the PITFALL below
  *     "win_reason": "sr_capture"|"time_limit"|...,
  *     "players": [
- *       { "name": "...", "client_index": 0,
+ *       { "name": "...", "player_index": 0, "client_index": 0,
  *         "score_total": <long>,
  *         "score_components": { "army_value": ..., "capture_income": ..., ... },
  *         "stats": { "units_killed": ..., "units_dead": ..., "buildings_killed": ...,
@@ -62,6 +63,10 @@
  * counts, poi_income_gross), a top-level "capture_events" stream, and per-player
  * "income_samples" timeseries (the latter gated by EmitTimeseries, default true). Nothing
  * feeds a scorer/win rule, draws RNG, or mutates sim state — byte-identical simulation.
+ * v8 (additive, schema-stable): added "winner_player_index" and per-player "player_index",
+ * because "client_index" is NOT a player identity for map-player bots and reads 0 for every
+ * one of them (PITFALL at SerializeVerdict). Both new fields index into "players". Telemetry
+ * only — no scorer, no win rule, no RNG, no sim state: byte-identical simulation.
  *
  * See:
  *   WORKSPACE/plans/260511_ai_tournament_harness.md
@@ -229,6 +234,32 @@ namespace OpenRA.Mods.Common.Traits
 					var owned = string.Join(", ", world.Actors.Where(a => a.Owner == player).Select(a => a.Info.Name));
 					diag($"  → {player.InternalName} has NO {info.SupplyRouteActorType} (their actors: {owned})");
 				}
+			}
+
+			// Assign each tracked side its attribution key. Iterating OriginalSrOwner means the key
+			// equals the side's position in the verdict's `players` array (both are built from this
+			// same insertion order), so capture_events' old_owner/new_owner join directly against
+			// player_index. Distinct by construction — which is the property ClientIndex lacked.
+			var sideIndex = 0;
+			foreach (var p in state.OriginalSrOwner.Keys)
+				state.TrackedSideIndex[p] = sideIndex++;
+
+			// Guard the invariant the ClientIndex bug broke: the key the capture-event stream is
+			// WRITTEN with must be the same identity the verdict READS BACK with. Any producer that
+			// derives the key some other way (ClientIndex being the tempting one, since it is right
+			// there on Player) files both sides under one key and misattributes silently — every
+			// existing assertion still passes. Fail the match loudly instead.
+			foreach (var p in state.OriginalSrOwner.Keys)
+			{
+				if (OwnerIndex(p) == state.TrackedSideIndexFor(p))
+					continue;
+
+				diag($"attribution key mismatch for {p.InternalName}: stream={OwnerIndex(p)} verdict={state.TrackedSideIndexFor(p)}");
+				TestMode.WriteResult("fail", "tournament: capture-event attribution key is not a player identity");
+				active = false;
+				finished = true;
+				Game.Exit();
+				return;
 			}
 
 			if (state.OriginalSrOwner.Count < 2)
@@ -432,8 +463,11 @@ namespace OpenRA.Mods.Common.Traits
 			return set;
 		}
 
-		// ClientIndex for owner fields; -1 for Neutral / any non-combatant (spec §2.1).
-		static int OwnerIndex(Player p) => (p == null || p.NonCombatant) ? -1 : p.ClientIndex;
+		// TrackedSideIndex for owner fields; -1 for Neutral / any non-combatant / any untracked
+		// player (spec §2.1). This deliberately does NOT use Player.ClientIndex — see the PITFALL
+		// in SerializeVerdict: every map-player bot inherits the host's client index, so keying
+		// the event stream on it filed both sides' captures under one key.
+		int OwnerIndex(Player p) => (p == null || p.NonCombatant) ? -1 : state.TrackedSideIndexFor(p);
 
 		// Option 4.D (spec §3.2) — read-only per-player POI-ONLY gross-income integrator. The
 		// POI-filtered twin of AccumulateGrossIncome: sums only IncomeEntries whose ActorType is a
@@ -512,16 +546,30 @@ namespace OpenRA.Mods.Common.Traits
 			// Manual JSON build (no System.Text.Json dependency on the engine project).
 			// Embedded inside TestMode's `notes` string field — escaping done by TestMode.WriteResult.
 			var sb = new StringBuilder();
+
+			// PITFALL: Player.ClientIndex is NOT a player identity here. A map-player bot has no
+			// client, so Player.cs:191 gives it the *host's* index — 0 — for every such player.
+			// Both bots in a tournament match therefore serialize "client_index":0, which makes
+			// "winner_client_index" match every player and none of them. An analyst who joined on
+			// it measured a 100% win rate for both bots simultaneously. Same shape as the
+			// PlayerResources.Tick `Playable` pitfall: a lobby-slot field read as participant
+			// identity. Position within "players" is the identity that exists, so emit that; the
+			// client fields stay for schema stability and must not be joined on.
+			var order = verdict.Scores.Keys.ToList();
+			var winnerIndex = verdict.Winner != null ? order.IndexOf(verdict.Winner) : -1;
+
 			sb.Append("{");
-			sb.Append("\"verdict_version\":7,");
+			sb.Append("\"verdict_version\":8,");
 			sb.Append($"\"seed\":{seed},");
 			sb.Append($"\"duration_ticks\":{verdict.EndTick},");
+			sb.Append($"\"winner_player_index\":{winnerIndex},");
 			sb.Append($"\"winner_client_index\":{verdict.Winner?.ClientIndex ?? -1},");
 			sb.Append($"\"winner_name\":\"{Escape(verdict.Winner?.PlayerName ?? "")}\",");
 			sb.Append($"\"win_reason\":\"{Escape(verdict.Reason)}\",");
 			sb.Append("\"players\":[");
 
 			var first = true;
+			var playerIndex = 0;
 			foreach (var kv in verdict.Scores)
 			{
 				if (!first) sb.Append(",");
@@ -532,6 +580,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				sb.Append("{");
 				sb.Append($"\"name\":\"{Escape(player.PlayerName)}\",");
+				sb.Append($"\"player_index\":{playerIndex++},");
 				sb.Append($"\"client_index\":{player.ClientIndex},");
 				sb.Append($"\"bot_type\":\"{Escape(player.BotType ?? "")}\",");
 				sb.Append($"\"faction\":\"{Escape(player.Faction?.InternalName ?? "")}\",");
@@ -573,7 +622,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				// v6 (Option 4.D): per-side capture-contest + POI income rollups, computed from the
 				// observation-only capture-event stream + live hold/income accumulators. Additive.
-				var roll = PoiRollup.Compute(state.CaptureEvents, player.ClientIndex);
+				var roll = PoiRollup.Compute(state.CaptureEvents, state.TrackedSideIndexFor(player));
 				sb.Append($"\"time_to_first_capture_tick\":{roll.FirstCaptureTick},");
 				sb.Append($"\"hold_ticks\":{state.PoiHoldTicksFor(player)},");
 				sb.Append($"\"captures_count\":{roll.Captures},");
