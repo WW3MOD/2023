@@ -1,0 +1,1 @@
+Auto: two WGM lanes at moving t90s. Control Bradley stays healthy and its missile tracks and hits; test Bradley is crippled to DamageState.Heavy mid-flight (still ALIVE) and its missile must go ballistic and miss.
