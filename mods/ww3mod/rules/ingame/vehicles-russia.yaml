@@ -353,10 +353,17 @@ t90:
 		ReloadCount: 5
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 125mm: 8 batches × 5 shells × 30 supply = 240 (10% of cost 2400).
-		# Mirrors Abrams — modern MBT main-gun ammo is cheap relative to
-		# the platform regardless of generation.
-		SupplyValue: 30
+		# 125mm 3BM-series APFSDS. 70 supply buys one 5-shell batch, so a full 40-round
+		# load is 8 batches at 70 = 560 (23.3% of cost 2400, 25% of a Logistics Centre).
+		#
+		# CHEAPER PER SHELL THAN THE ABRAMS' 80: a tungsten-alloy penetrator in a two-piece
+		# separate-loading charge costs less to manufacture than the M829's depleted-uranium
+		# long rod. See the matching note on abrams (vehicles-america.yaml) for the full
+		# reasoning and for what this deliberately does NOT model.
+		#
+		# No longer "mirrors Abrams". The two were byte-identical at 30, which meant the
+		# roster's two headline units were economically indistinguishable.
+		SupplyValue: 70
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 3

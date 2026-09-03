@@ -216,15 +216,32 @@ The pool tooltip renders the batch math directly, as typed rows under the weapon
 ```
 25MM CHAINGUN
 AMMO ......................... 900 rounds
-REFILL ....................... 9 × 5 = 45 supply
+REFILL ............... 5 supply per 100 rounds
 ```
 
-Players see what one cycle costs and how many cycles fill the pool, not an opaque per-round number.
+Players see what one cycle costs and how much ammunition that cycle buys. The per-round figure is
+still never printed: the charge is per batch, so `SupplyValue / ReloadCount` would be a rate nobody
+can actually transact at — a pool one round short pays a whole batch (`AmmoPool.TryServeBatch`).
+
+The batch is stated **in rounds** rather than as a bare count, and there are three shapes:
+
+| Condition | Renders |
+|---|---|
+| `BatchCount == 1` (one purchase fills the pool) | `30 supply` |
+| `BatchSize == 1` | `8 supply per round` |
+| otherwise | `5 supply per 100 rounds` |
 
 *(Corrected 2026-08-30: this documented `Ammo: 900 (9 batches × 100 rounds × 5 supply = 45)`, one
 concatenated line. The round count moved to its own `Ammo` row when the tooltip became typed rows —
-it is a capacity, not a term of a price — leaving `batches × supply = total` as the whole of the
-refill arithmetic. The per-round figure is still never printed.)*
+it is a capacity, not a term of a price.)*
+
+*(Corrected 2026-09-03: this documented `REFILL ... 9 × 5 = 45 supply`. **That form was reported as a
+bug and it was a real one.** On a T-90 it rendered `8 × 30 = 240` directly beneath `AMMO 40 rounds`;
+the 8 is a batch count, but the row above had just denominated everything in rounds and nothing on
+the refill line said otherwise, so the two rows read as contradicting each other. The leading bare
+count is gone and the batch now names its unit. The per-pool total went with it — it was the other
+half of the ambiguity and is not a sum the player ever pays in one transaction; `FULL REFILL` states
+the fill-from-empty cost unconditionally.)*
 
 ### `ReloadDelay` paces the PULL arm only, and post-`9e46f141` it is the drain-rate knob for thirteen vehicles
 
