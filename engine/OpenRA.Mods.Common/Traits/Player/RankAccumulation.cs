@@ -284,6 +284,13 @@ namespace OpenRA.Mods.Common.Traits
 				stock.Advance(ticks);
 		}
 
+		/// <summary>
+		/// Whether this actor type accrues at all. <see cref="StockOf"/> answers 0 for an untracked
+		/// type, which is indistinguishable from a tracked type whose bank is merely empty; a caller
+		/// needing to tell a misspelled or non-accruing name apart from a real zero asks here.
+		/// </summary>
+		public bool Tracks(string actorName) => stocks.ContainsKey(actorName);
+
 		/// <summary>Stock held of a tier (1-3) for an actor type, accrued plus recovered.
 		/// Read-only; safe to call from render code.</summary>
 		public int StockOf(string actorName, int tier)
