@@ -184,15 +184,19 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Walk the actor's armaments and pick out the ones that draw from this pool.
 			// Multiple armaments can share one pool (e.g. dual-barrel burst weapons), so
-			// list all the weapon names, joined with '+'. Falls back to the pool name if
-			// no armaments link here (defensive — should not happen in well-formed YAML).
+			// list all the weapon names, joined with '+'.
+			//
+			// THE NO-ARMAMENT BRANCH IS NOT DEFENSIVE AND IS NOT MALFORMED YAML, which is what it
+			// used to claim. Three shipped pools meter an ability that is not an armament at all and
+			// so can never bind: minelayer's mines-ammo (Armaments: None, spent by Minelayer), and
+			// the demolition charges on e6 and sf (spent by Demolition). They reach it every time.
 			var armaments = ai.TraitInfos<ArmamentInfo>()
 				.Where(arm => Armaments.Contains(arm.Name))
 				.ToArray();
 
 			string label;
 			if (armaments.Length == 0)
-				label = FormatWeaponLabel(Name);
+				label = FormatPoolLabel(Name);
 			else
 				label = string.Join(" + ", armaments
 					.Select(arm => FormatWeaponLabel(arm.Weapon))
@@ -242,6 +246,31 @@ namespace OpenRA.Mods.Common.Traits
 				return $"{supplyValue} supply per round";
 
 			return $"{supplyValue} supply per {batchSize} rounds";
+		}
+
+		/// <summary>
+		/// <para>The heading for a pool that no armament draws from, built from the pool's own
+		/// <see cref="Name"/> because there is no weapon to name.</para>
+		///
+		/// <para>Strips a trailing "ammo", which every pool name in the mod carries as a suffix. It is
+		/// a functional key, not a word for a player: minelayer's pool rendered the heading
+		/// "MINES AMMO" directly above a row reading "AMMO 10 rounds", so the tooltip said "ammo"
+		/// twice in two lines and the first one was an internal identifier — the exact thing
+		/// <see cref="FormatWeaponLabel"/> exists to keep off the screen. Now "MINES".</para>
+		///
+		/// <para>Kept separate from <see cref="FormatWeaponLabel"/> rather than folded into it: that
+		/// one formats authored WEAPON keys, and a weapon legitimately ending in "Ammo" must not be
+		/// truncated. Only pool names are known to carry the suffix as noise.</para>
+		/// </summary>
+		static string FormatPoolLabel(string poolName)
+		{
+			var label = FormatWeaponLabel(poolName);
+
+			const string Suffix = " ammo";
+			if (label.EndsWith(Suffix, System.StringComparison.OrdinalIgnoreCase) && label.Length > Suffix.Length)
+				label = label.Substring(0, label.Length - Suffix.Length);
+
+			return label;
 		}
 
 		/// <summary>

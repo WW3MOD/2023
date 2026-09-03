@@ -1665,7 +1665,7 @@ MT:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 7
 		Prerequisites: ~disabled
-		Description: Long-range precision shooter. Hard to detect (-2 detection), prioritizes high-value targets.
+		Description: Long-range precision shooter. Hard to detect, prioritizes high-value targets.
 	Valued:
 		Cost: 400
 	UpdatesPlayerStatistics:
