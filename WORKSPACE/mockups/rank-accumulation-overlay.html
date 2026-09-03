@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD — accumulated-rank overlay on the buy menu</title>
+<style>
+  :root {
+    --bg:#101316; --panel:#1a1f24; --panel2:#21272d; --line:#313a42;
+    --ink:#dfe6ec; --dim:#95a4b1;
+    --yellow:#ecc73c; --orange:#ee7d1e; --red:#e0392c; --green:#4eae54;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:34px 30px 80px; background:var(--bg); color:var(--ink);
+         font:15px/1.6 -apple-system,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:1180px; margin:0 auto; }
+  h1 { font-size:25px; margin:0 0 4px; }
+  h2 { font-size:18px; margin:34px 0 6px; padding-bottom:8px; border-bottom:1px solid var(--line); }
+  h3 { font-size:14px; margin:20px 0 8px; color:var(--dim); text-transform:uppercase; letter-spacing:.06em; }
+  p { margin:9px 0; max-width:900px; }
+  .sub { color:var(--dim); font-size:13.5px; }
+  code { font:12.5px ui-monospace,Menlo,monospace; background:#262d34; padding:1px 5px;
+         border-radius:3px; color:#b8e0c8; }
+  b { color:#fff; }
+
+  .cols { display:flex; gap:20px; align-items:flex-start; margin-top:22px; flex-wrap:wrap; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:18px 20px; }
+  .controls { flex:1 1 340px; min-width:320px; }
+  .stage { flex:1 1 600px; min-width:480px; }
+
+  .ctl { margin-bottom:17px; }
+  .ctl label { display:flex; justify-content:space-between; font-size:13.5px; font-weight:600; margin-bottom:6px; }
+  .ctl label .v { font-family:ui-monospace,Menlo,monospace; color:var(--dim); font-weight:400; }
+  .ctl .hint { font-size:12px; color:var(--dim); margin-top:5px; line-height:1.45; }
+  input[type=range] { width:100%; accent-color:#e0a02c; height:22px; }
+  input[type=color] { width:100%; height:30px; background:var(--panel2); border:1px solid var(--line);
+                      border-radius:6px; padding:2px; cursor:pointer; }
+
+  .seg { display:flex; gap:7px; }
+  .seg button {
+    flex:1; background:var(--panel2); color:var(--dim); border:1px solid var(--line);
+    border-radius:6px; padding:9px 6px; font:600 13px inherit; cursor:pointer; line-height:1.3;
+  }
+  .seg button small { display:block; font-weight:400; font-size:11px; margin-top:2px; opacity:.85; }
+  .seg button[aria-pressed=true] { background:#2f3b45; color:#fff; border-color:#6b8595; }
+
+  .readout { width:100%; border-collapse:collapse; font-size:13px; margin-top:12px; }
+  .readout td { padding:5px 8px; border-bottom:1px solid #262d34; }
+  .readout td:first-child { color:var(--dim); }
+  .readout td:last-child { text-align:right; font-family:ui-monospace,Menlo,monospace; }
+
+  .warn { background:#2e2318; border-left:4px solid var(--orange); padding:11px 14px; border-radius:0 6px 6px 0;
+          font-size:13px; margin-top:14px; color:#f2cf9f; max-width:900px; }
+  .ok { background:#182619; border-left:4px solid var(--green); padding:11px 14px; border-radius:0 6px 6px 0;
+        font-size:13px; margin-top:14px; color:#bde3c0; max-width:900px; }
+
+  .submit {
+    margin-top:20px; width:100%; padding:13px; border-radius:7px; border:1px solid #3f7a4a;
+    background:#2f5c39; color:#dff5e2; font:600 14px inherit; cursor:pointer;
+  }
+  .submit:hover { background:#386c43; }
+  .sent { text-align:center; font-size:12.5px; color:#8fce8f; margin-top:8px; min-height:16px; }
+  textarea {
+    width:100%; background:#151a1f; color:var(--ink); border:1px solid var(--line);
+    border-radius:6px; padding:9px; font:13px inherit; resize:vertical; min-height:52px;
+  }
+
+  /* --- the buy-menu button itself --- */
+  .grid { display:flex; flex-wrap:wrap; gap:26px 22px; margin-top:6px; }
+  .cell { text-align:center; }
+  .cell .cap { font-size:11.5px; color:var(--dim); margin-top:7px; line-height:1.35; max-width:150px; }
+  .cell .cap b { color:#e8eef3; font-weight:600; display:block; }
+
+  .btn { image-rendering:pixelated; display:block; margin:0 auto;
+         border:1px solid #0b0e11; box-shadow:0 0 0 1px #3a444d; }
+
+  .oneone { display:flex; gap:2px; align-items:flex-end; margin-top:4px; }
+  .oneone .btn { box-shadow:0 0 0 1px #2c343b; }
+  .scalenote { font-size:12px; color:var(--dim); margin:6px 0 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Accumulated rank — buy-menu overlay</h1>
+<p class="sub">
+  Off-map reserves accrue veterancy for every unit type over time. The buy button has to say, at a
+  glance and without a hover, <b>how many free ranks of each tier are waiting</b> — because buying
+  spends the highest one first, the top tier is what the player actually gets on the next click.
+</p>
+
+<div class="ok">
+  <b>Why these are line strokes and not glyphs or sprites.</b> A worker found earlier today that
+  <code>engine/mods/common/FreeSansBold.ttf</code> ships <b>no Geometric Shapes block</b> — U+25C6 and
+  neighbours map to glyph 0 and render as nothing, silently, with the trait working perfectly. There is
+  a matching pitfall for sequence names the mod does not ship. So every chevron below is drawn with
+  <code>RgbaColorRenderer.DrawLine(points, width, colour)</code> — the same primitive the existing
+  lime auto-build stripe already uses at <code>ProductionPaletteWidget.cs:778</code>, chosen there for
+  exactly this reason. A polyline cannot resolve to nothing. Only the <b>count digits</b> use a font,
+  and they reuse <code>TinyBold</code>, already proven to render digits by the queue badge at
+  <code>ProductionPaletteWidget.cs:807-822</code>.
+</div>
+
+<div class="cols">
+
+  <div class="card controls">
+    <h3 style="margin-top:0">Tuning</h3>
+
+    <div class="ctl">
+      <label>Chevron width <span class="v" id="vW">7 px</span></label>
+      <input type="range" id="cw" min="5" max="11" step="1" value="7">
+      <div class="hint">Horizontal span of one chevron.</div>
+    </div>
+
+    <div class="ctl">
+      <label>Chevron height <span class="v" id="vH">3 px</span></label>
+      <input type="range" id="ch" min="2" max="6" step="1" value="3">
+      <div class="hint">Rise of the apex above the two tips.</div>
+    </div>
+
+    <div class="ctl">
+      <label>Stack pitch <span class="v" id="vP">4 px</span></label>
+      <input type="range" id="cp" min="3" max="8" step="1" value="4">
+      <div class="hint">Vertical gap between stacked chevrons. Rank&nbsp;2 = two stacked, rank&nbsp;3 = three.</div>
+    </div>
+
+    <div class="ctl">
+      <label>Stroke width <span class="v" id="vS">1.0 px</span></label>
+      <input type="range" id="cs" min="1" max="2.5" step="0.25" value="1">
+      <div class="hint">Thicker reads better at 1:1 but bleeds into the icon art.</div>
+    </div>
+
+    <div class="ctl">
+      <label>Gold</label>
+      <input type="color" id="cc" value="#f0d27a">
+      <div class="hint">The user asked for “light gold”. Default <code>#F0D27A</code>. Drawn with a
+        1&nbsp;px black contrast pass underneath, like every other overlay in this widget.</div>
+    </div>
+
+    <div class="ctl">
+      <label>Bottom margin <span class="v" id="vB">3 px</span></label>
+      <input type="range" id="cb" min="1" max="8" step="1" value="3">
+      <div class="hint">Distance from the tips of the lowest chevron to the button's bottom edge.</div>
+    </div>
+
+    <div class="ctl">
+      <label style="margin-bottom:7px">Tier order, left to right</label>
+      <div class="seg" id="segOrder">
+        <button data-v="high" aria-pressed="true">Highest first<small>What you get next, leftmost</small></button>
+        <button data-v="low" aria-pressed="false">Lowest first<small>Reads 1,2,3 like a scale</small></button>
+      </div>
+    </div>
+
+    <div class="ctl">
+      <label style="margin-bottom:7px">Count display</label>
+      <div class="seg" id="segCount">
+        <button data-v="gt1" aria-pressed="true">Only when &gt;1<small>User's wording</small></button>
+        <button data-v="always" aria-pressed="false">Always<small>Even for a single one</small></button>
+      </div>
+    </div>
+
+    <div class="ctl">
+      <label style="margin-bottom:7px">Show rank-4 star</label>
+      <div class="seg" id="segStar">
+        <button data-v="off" aria-pressed="true">Off<small>Unreachable here</small></button>
+        <button data-v="on" aria-pressed="false">Show it<small>For reuse elsewhere</small></button>
+      </div>
+      <div class="hint">Rank&nbsp;4 <b>can never appear in this menu</b> — purchase stock caps at 3 by
+        design, and rank 4 is forged in combat only. Turn it on only to judge the glyph for reuse on
+        the in-world selection decoration.</div>
+    </div>
+
+    <table class="readout">
+      <tr><td>Button size</td><td>64 × 48 px</td></tr>
+      <tr><td>Strip footprint</td><td id="roFoot">— </td></tr>
+      <tr><td>Free width left</td><td id="roFree">—</td></tr>
+      <tr><td>Collides with</td><td id="roColl">nothing</td></tr>
+    </table>
+
+    <textarea id="note" placeholder="Anything to change? (optional)"></textarea>
+    <button class="submit" id="send">Send these settings back</button>
+    <div class="sent" id="sent"></div>
+  </div>
+
+  <div class="card stage">
+    <h3 style="margin-top:0">States, at 4× — a real 64×48 button</h3>
+    <p class="sub" style="font-size:12.5px;margin-top:0">
+      Every button below also carries the overlays that already exist, so you can see the rank strip
+      against real competition for space: the top-right two-number queue badge, the centre
+      <code>READY</code> / timer text, and the 3&nbsp;px lime auto-build stripe on the left edge.
+    </p>
+    <div class="grid" id="grid"></div>
+
+    <h3>The same states at 1:1</h3>
+    <p class="scalenote">This is the actual on-screen size. If it is not legible here, it is not legible in game.</p>
+    <div class="oneone" id="oneone"></div>
+  </div>
+
+</div>
+
+<h2>What the strip encodes</h2>
+<p>
+  One entry per tier <b>currently held</b>. A tier with zero stock draws nothing at all — an empty
+  button stays completely clean, which matters because most buttons are empty most of the time. Each
+  entry is a stack of <i>N</i> chevrons for tier <i>N</i>, so the glyph itself names the rank the way
+  military insignia does, and a count digit sits to its right when more than one of that tier is held.
+</p>
+<p>
+  The strip is anchored <b>bottom-left</b> because that is the only corner of this button nothing else
+  claims: the queue badge owns top-right (<code>countRightAnchor = IconSize.X - 3</code>,
+  <code>ProductionPaletteWidget.cs:199</code>), the ready/hold/time text owns the centre, and the
+  auto-build stripe owns a 3&nbsp;px column on the far left, which the strip starts clear of.
+</p>
+
+<div class="warn">
+  <b>Caps are 3 / 2 / 1.</b> So the widest case this strip ever has to draw is the full
+  <code>3× rank-1, 2× rank-2, 1× rank-3</code> — the last state in the gallery. That is the layout
+  budget; nothing wider can occur.
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var cw = document.getElementById("cw"), ch = document.getElementById("ch"),
+      cp = document.getElementById("cp"), cs = document.getElementById("cs"),
+      cc = document.getElementById("cc"), cb = document.getElementById("cb");
+
+  var order = "high", countMode = "gt1", star = "off";
+
+  // stock = [rank1, rank2, rank3]; queued = number in the production queue; ready = show READY text
+  var STATES = [
+    { s:[0,0,0], q:0, label:"Nothing held",       note:"The common case. Button is untouched." },
+    { s:[1,0,0], q:0, label:"One rank-1",         note:"No digit — a lone chevron means exactly one." },
+    { s:[3,0,0], q:0, label:"Three rank-1s",      note:"At the rank-1 cap. Further grants are wasted." },
+    { s:[2,1,0], q:0, label:"Mixed, two tiers",   note:"Buying now yields the rank-2, not a rank-1." },
+    { s:[3,2,1], q:0, label:"Full 3 / 2 / 1",     note:"Every cap met. The widest the strip ever gets." },
+    { s:[1,1,0], q:3, label:"Mixed + queue badge",note:"Against the existing top-right badge and timer." },
+    { s:[0,2,0], q:1, label:"Rank-2 only, READY", note:"Rank-1 spent already; centre text overlaps nothing." }
+  ];
+
+  function chevron(cx, baseY, w, h, stroke, colour, opacity) {
+    // Polyline of 3 points: left tip, apex, right tip. Identical shape to the C# call
+    //   RgbaColorRenderer.DrawLine(points, width, colour, connectSegments: true)
+    var half = w / 2;
+    var pts = (cx - half) + "," + baseY + " " + cx + "," + (baseY - h) + " " + (cx + half) + "," + baseY;
+    return '<polyline points="' + pts + '" fill="none" stroke="' + colour +
+           '" stroke-width="' + stroke + '" stroke-linecap="butt" stroke-linejoin="miter"' +
+           (opacity ? ' opacity="' + opacity + '"' : '') + ' />';
+  }
+
+  function starGlyph(cx, baseY, w, stroke, colour, opacity) {
+    // 4-point sparkle rather than a 5-point star: at 7-9 px a 5-point star outline is mush,
+    // but a 4-point sparkle stays readable because every stroke is axis-aligned or 45 degrees.
+    var r = w / 2, cy = baseY - r;
+    var d = [
+      cx + "," + (cy - r), (cx + r * 0.30) + "," + (cy - r * 0.30), (cx + r) + "," + cy,
+      (cx + r * 0.30) + "," + (cy + r * 0.30), cx + "," + (cy + r),
+      (cx - r * 0.30) + "," + (cy + r * 0.30), (cx - r) + "," + cy,
+      (cx - r * 0.30) + "," + (cy - r * 0.30)
+    ].join(" ");
+    return '<polygon points="' + d + '" fill="' + colour + '" stroke="' + colour +
+           '" stroke-width="' + (stroke * 0.5) + '"' + (opacity ? ' opacity="' + opacity + '"' : '') + ' />';
+  }
+
+  // Bitmap-ish digit, 3x5, so the mockup does not imply a font the widget will not use for shape.
+  // (The widget really will use TinyBold here — digits are proven to render by the queue badge.)
+  function digit(n, x, baseY, colour) {
+    return '<text x="' + x + '" y="' + baseY + '" fill="' + colour +
+           '" font-family="ui-monospace,Menlo,monospace" font-size="8" font-weight="700" ' +
+           'style="paint-order:stroke" stroke="#000" stroke-width="1.6">' + n + '</text>';
+  }
+
+  function measure() {
+    var w = +cw.value, h = +ch.value, p = +cp.value;
+    var digitW = 5, gap = 2, entryGap = 4;
+    return { w:w, h:h, p:p, digitW:digitW, gap:gap, entryGap:entryGap,
+             stroke:+cs.value, colour:cc.value, bottom:+cb.value,
+             maxEntryW: w + gap + digitW };
+  }
+
+  function strip(stock, m) {
+    // Which tiers are held, in the chosen reading order.
+    var tiers = [];
+    for (var t = 1; t <= 3; t++) if (stock[t - 1] > 0) tiers.push(t);
+    if (order === "high") tiers.reverse();
+
+    var out = "", x = 4;               // start clear of the 3px auto-build stripe
+    var baseY = 48 - m.bottom;         // tips of the LOWEST chevron sit here
+    var widest = 0;
+
+    tiers.forEach(function (t) {
+      var n = stock[t - 1];
+      var showStar = (star === "on" && t === 4);
+      var glyphW = m.w;
+      var cx = x + glyphW / 2;
+
+      // Stack t chevrons, bottom-aligned: chevron i sits i*pitch above the base.
+      for (var i = 0; i < t; i++) {
+        out += chevron(cx, baseY - i * m.p, m.w, m.h, m.stroke, "#000", 1);   // contrast pass
+      }
+      for (i = 0; i < t; i++) {
+        out += chevron(cx, baseY - i * m.p - 0.0, m.w, m.h, m.stroke, m.colour, 1);
+      }
+
+      var entryW = glyphW;
+      if (n > 1 || countMode === "always") {
+        out += digit(n, x + glyphW + m.gap, baseY + 1, m.colour);
+        entryW += m.gap + m.digitW;
+      }
+      x += entryW + m.entryGap;
+      widest = x;
+      void showStar;
+    });
+
+    if (star === "on") {
+      var cx4 = x + m.w / 2;
+      out += starGlyph(cx4, baseY, m.w, m.stroke, "#000", 1);
+      out += starGlyph(cx4, baseY, m.w - 1, m.stroke, m.colour, 1);
+      x += m.w + m.entryGap;
+      widest = x;
+    }
+
+    return { svg: out, width: widest ? widest - m.entryGap - 4 : 0 };
+  }
+
+  function button(state, scale, m) {
+    var W = 64, H = 48;
+    var st = strip(state.s, m);
+
+    var body = "";
+    // icon art placeholder — a flat silhouette so the overlays are judged, not the sprite
+    body += '<rect x="0" y="0" width="64" height="48" fill="#2b3138"/>';
+    body += '<rect x="0" y="0" width="64" height="48" fill="url(#vig)"/>';
+    body += '<g opacity="0.55" fill="#79868f">' +
+            '<rect x="16" y="24" width="32" height="9" rx="1"/>' +
+            '<rect x="22" y="18" width="16" height="7" rx="1"/>' +
+            '<rect x="36" y="20" width="18" height="2"/>' +
+            '<circle cx="21" cy="34" r="3"/><circle cx="30" cy="34" r="3"/><circle cx="39" cy="34" r="3"/>' +
+            '</g>';
+
+    // existing overlay: lime auto-build stripe (only on the queued example)
+    if (state.q > 1) body += '<rect x="0" y="0" width="3" height="48" fill="#32cd32"/>';
+
+    // existing overlay: top-right two-number queue badge
+    if (state.q > 0) {
+      body += '<text x="61" y="10" text-anchor="end" fill="#ffd700" font-family="ui-monospace,Menlo,monospace" ' +
+              'font-size="9" font-weight="700" style="paint-order:stroke" stroke="#000" stroke-width="2">' +
+              state.q + '</text>';
+    }
+    // existing overlay: centre text
+    if (state.label.indexOf("READY") >= 0) {
+      body += '<text x="32" y="27" text-anchor="middle" fill="#fff" font-family="ui-monospace,Menlo,monospace" ' +
+              'font-size="9" font-weight="700" style="paint-order:stroke" stroke="#000" stroke-width="2">READY</text>';
+    } else if (state.q > 0) {
+      body += '<text x="32" y="27" text-anchor="middle" fill="#fff" font-family="ui-monospace,Menlo,monospace" ' +
+              'font-size="9" font-weight="700" style="paint-order:stroke" stroke="#000" stroke-width="2">0:12</text>';
+    }
+
+    body += st.svg;
+
+    return '<svg class="btn" width="' + (W * scale) + '" height="' + (H * scale) + '" viewBox="0 0 64 48">' +
+           '<defs><radialGradient id="vig" cx="50%" cy="42%" r="72%">' +
+           '<stop offset="0%" stop-color="#39424a"/><stop offset="100%" stop-color="#20262c"/>' +
+           '</radialGradient></defs>' + body + '</svg>';
+  }
+
+  function render() {
+    var m = measure();
+    document.getElementById("vW").textContent = m.w + " px";
+    document.getElementById("vH").textContent = m.h + " px";
+    document.getElementById("vP").textContent = m.p + " px";
+    document.getElementById("vS").textContent = (+cs.value).toFixed(2) + " px";
+    document.getElementById("vB").textContent = m.bottom + " px";
+
+    var g = "", o = "";
+    STATES.forEach(function (s) {
+      g += '<div class="cell">' + button(s, 4, m) +
+           '<div class="cap"><b>' + s.label + '</b>' + s.note + '</div></div>';
+      o += button(s, 1, m);
+    });
+    document.getElementById("grid").innerHTML = g;
+    document.getElementById("oneone").innerHTML = o;
+
+    // worst case is the full 3/2/1 state
+    var worst = strip([3, 2, 1], m);
+    var topOfStack = 48 - m.bottom - (2 * m.p + m.h);
+    document.getElementById("roFoot").textContent = worst.width + " × " + (48 - m.bottom - topOfStack) + " px";
+    document.getElementById("roFree").textContent = (64 - 4 - worst.width) + " px";
+    document.getElementById("roColl").textContent =
+      (topOfStack < 30 ? "centre text!" : worst.width > 60 ? "right edge!" : "nothing");
+
+    post("maestro:artifact_state", {
+      chevronWidth: m.w, chevronHeight: m.h, stackPitch: m.p, strokeWidth: +cs.value,
+      gold: m.colour, bottomMargin: m.bottom, tierOrder: order, countDisplay: countMode,
+      showRank4Star: star === "on", worstCaseStripWidth: worst.width
+    });
+    geometry();
+  }
+
+  function post(type, state, summary) {
+    var msg = { type: type, state: state };
+    if (summary) msg.summary = summary;
+    try { window.parent.postMessage(msg, "*"); } catch (e) {}
+  }
+  function geometry() {
+    try {
+      window.parent.postMessage({ type: "maestro:artifact_geometry",
+        height: document.documentElement.scrollHeight }, "*");
+    } catch (e) {}
+  }
+
+  function wireSeg(id, setter) {
+    var root = document.getElementById(id);
+    root.addEventListener("click", function (e) {
+      var b = e.target.closest("button");
+      if (!b) return;
+      Array.prototype.forEach.call(root.querySelectorAll("button"), function (x) {
+        x.setAttribute("aria-pressed", String(x === b));
+      });
+      setter(b.getAttribute("data-v"));
+      render();
+    });
+  }
+  wireSeg("segOrder", function (v) { order = v; });
+  wireSeg("segCount", function (v) { countMode = v; });
+  wireSeg("segStar",  function (v) { star = v; });
+
+  [cw, ch, cp, cs, cb].forEach(function (s) { s.addEventListener("input", render); });
+  cc.addEventListener("input", render);
+
+  document.getElementById("send").addEventListener("click", function () {
+    var m = measure();
+    post("maestro:artifact_submit", {
+      chevronWidth: m.w, chevronHeight: m.h, stackPitch: m.p, strokeWidth: +cs.value,
+      gold: m.colour, bottomMargin: m.bottom, tierOrder: order, countDisplay: countMode,
+      showRank4Star: star === "on", note: document.getElementById("note").value
+    }, "Rank overlay: chevron " + m.w + "x" + m.h + " px, pitch " + m.p + ", stroke " +
+       (+cs.value) + ", gold " + m.colour + ", " + (order === "high" ? "highest-first" : "lowest-first") +
+       ", count " + (countMode === "gt1" ? "only when >1" : "always"));
+    document.getElementById("sent").textContent = "Sent.";
+  });
+
+  window.addEventListener("message", function (e) {
+    if (!e.data || e.data.type !== "maestro:artifact_hydrate" || !e.data.state) return;
+    var s = e.data.state;
+    if (s.chevronWidth) cw.value = s.chevronWidth;
+    if (s.chevronHeight) ch.value = s.chevronHeight;
+    if (s.stackPitch) cp.value = s.stackPitch;
+    if (s.strokeWidth) cs.value = s.strokeWidth;
+    if (s.gold) cc.value = s.gold;
+    if (s.bottomMargin != null) cb.value = s.bottomMargin;
+    if (s.tierOrder) order = s.tierOrder;
+    if (s.countDisplay) countMode = s.countDisplay;
+    render();
+  });
+
+  render();
+})();
+</script>
+</div>
+</body>
+</html>

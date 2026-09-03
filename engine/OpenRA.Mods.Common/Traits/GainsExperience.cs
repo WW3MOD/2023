@@ -60,6 +60,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Actor self;
 		readonly GainsExperienceInfo info;
 		readonly int initialExperience;
+		readonly int initialLevels;
 
 		readonly List<(int RequiredExperience, string Condition)> nextLevel = new();
 
@@ -79,6 +80,7 @@ namespace OpenRA.Mods.Common.Traits
 			Experience = 0;
 			MaxLevel = info.Conditions.Count;
 			initialExperience = init.GetValue<ExperienceInit, int>(info, 0);
+			initialLevels = init.GetValue<VeterancyLevelInit, int>(info, 0);
 		}
 
 		void INotifyCreated.Created(Actor self)
@@ -90,6 +92,14 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (initialExperience > 0)
 				GiveExperience(initialExperience, info.SuppressLevelupAnimation);
+
+			// Levels rather than raw experience, for callers that know the rank they want and should
+			// not have to re-derive this trait's cost-scaled thresholds to express it. Applied here
+			// rather than in the constructor because nextLevel is only populated above.
+			// Always silent: the non-silent path branches on World.RenderPlayer, and a level-up
+			// fanfare on every unit that arrives pre-ranked would be noise anyway.
+			if (initialLevels > 0)
+				GiveLevels(initialLevels, true);
 		}
 
 		public bool CanGainLevel => Level < MaxLevel;
@@ -155,6 +165,15 @@ namespace OpenRA.Mods.Common.Traits
 	sealed class ExperienceInit : ValueActorInit<int>
 	{
 		public ExperienceInit(TraitInfo info, int value)
+			: base(info, value) { }
+	}
+
+	/// <summary>Start this actor at a veterancy level, clamped to MaxLevel. Additive with any
+	/// ProducibleWithLevel on the same actor, and order-independent with it because GiveLevels
+	/// clamps.</summary>
+	public sealed class VeterancyLevelInit : ValueActorInit<int>
+	{
+		public VeterancyLevelInit(TraitInfo info, int value)
 			: base(info, value) { }
 	}
 }

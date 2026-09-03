@@ -142,6 +142,7 @@ namespace OpenRA.Mods.Common.Traits
 		protected PlayerResources playerResources;
 		protected DeveloperMode developerMode;
 		protected TechTree techTree;
+		protected RankAccumulation rankAccumulation;
 
 		public Actor Actor => self;
 
@@ -175,6 +176,7 @@ namespace OpenRA.Mods.Common.Traits
 			playerResources = self.Owner.PlayerActor.Trait<PlayerResources>();
 			developerMode = self.Owner.PlayerActor.Trait<DeveloperMode>();
 			techTree = self.Owner.PlayerActor.Trait<TechTree>();
+			rankAccumulation = self.Owner.PlayerActor.TraitOrDefault<RankAccumulation>();
 
 			productionTraits = self.TraitsImplementing<Production>().Where(p => p.Info.Produces.Contains(Info.Type)).ToArray();
 			CacheProducibles();
@@ -196,6 +198,7 @@ namespace OpenRA.Mods.Common.Traits
 			playerResources = newOwner.PlayerActor.Trait<PlayerResources>();
 			developerMode = newOwner.PlayerActor.Trait<DeveloperMode>();
 			techTree = newOwner.PlayerActor.Trait<TechTree>();
+			rankAccumulation = newOwner.PlayerActor.TraitOrDefault<RankAccumulation>();
 
 			if (!Info.Sticky)
 			{
@@ -699,22 +702,46 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 			}
 
-			var inits = new TypeDictionary
-			{
-				new OwnerInit(self.Owner),
-				new FactionInit(BuildableInfo.GetInitialFaction(unit, Faction))
-			};
+			var inits = CreateProductionInits(unit, BuildableInfo.GetInitialFaction(unit, Faction), out var rank);
 
 			var bi = unit.TraitInfo<BuildableInfo>();
 			var type = developerMode.AllTech ? Info.Type : (bi.BuildAtProductionType ?? Info.Type);
 			var item = Queue.First(i => i.Done && i.Item == unit.Name);
 			if (!mostLikelyProducerTrait.IsTraitPaused && mostLikelyProducerTrait.Produce(self, unit, type, inits, item.TotalCost))
 			{
+				CommitRank(unit, rank);
 				EndProduction(item);
 				return true;
 			}
 
 			return false;
+		}
+
+		/// <summary>
+		/// The inits every BuildUnit override hands to Production.Produce, plus the accumulated free
+		/// rank this purchase will arrive at. <paramref name="rank"/> is only PEEKED here: Produce can
+		/// still fail (no exit available, another producer tried next), and a failed attempt must not
+		/// burn stock. The caller commits with <see cref="CommitRank"/> once the actor is really out.
+		/// </summary>
+		protected TypeDictionary CreateProductionInits(ActorInfo unit, string faction, out int rank)
+		{
+			var inits = new TypeDictionary
+			{
+				new OwnerInit(self.Owner),
+				new FactionInit(faction)
+			};
+
+			rank = rankAccumulation?.PeekRank(unit.Name) ?? 0;
+			if (rank > 0)
+				inits.Add(new VeterancyLevelInit(unit.TraitInfo<GainsExperienceInfo>(), rank));
+
+			return inits;
+		}
+
+		/// <summary>Spend the rank chosen by <see cref="CreateProductionInits"/>, now that the unit exists.</summary>
+		protected void CommitRank(ActorInfo unit, int rank)
+		{
+			rankAccumulation?.SpendRank(unit.Name, rank);
 		}
 	}
 

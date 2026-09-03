@@ -1,0 +1,29 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+	# STAGING, not a balance opinion. The shipped multiplier is 500 (rank-1 every five build times),
+	# which for a 2500-cost abrams is 5 x 250 = 1250 ticks. 400 makes it exactly 1000, so every
+	# boundary in the schedule below is a round number and the three phases can be placed by reading
+	# the numbers rather than by trusting arithmetic in a comment. Nothing else is touched: the
+	# tier multiplier and the 3/2/1 caps stay at their shipped values.
+	RankAccumulation:
+		Rank1IntervalMultiplier: 400
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-rank-accumulation.lua
+
+abrams:
+	# The tank sold in phase C must survive the walk to the map edge, and ^EffectsWhenDamagedVehicles
+	# bleeds a damaged vehicle to death by design. Nothing damages it here, but removing the bleed
+	# costs nothing and forecloses the reading where phase C fails because the tank died rather than
+	# because the evacuation credit did not land.
+	-ChangesHealth@CriticalDamage:
