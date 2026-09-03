@@ -5,8 +5,22 @@
 
 ---
 
-- [2026-09-03] [MEDIUM] **`t72` carries the generic APC armour distribution, so its roof is 5.3× a
-  T-90's and top-attack weapons are half-effective against it.** `t72`
+- [2026-09-03] [DORMANT — NOT LIVE] **`t72` carries the generic APC armour distribution, so its roof
+  is 5.3× a T-90's and top-attack weapons would be half-effective against it.**
+  **DOWNGRADED FROM [MEDIUM] THE SAME DAY, BY THE MANAGER, AFTER TWO WORKERS CONTRADICTED EACH OTHER.**
+  The arithmetic below is correct and was re-derived; the word "Live" in it was not.
+  `mods/ww3mod/rules/ingame/vehicles-ukraine.yaml` **is not in `mod.yaml`'s `Rules:` list and is not
+  referenced by any map** — verified by `grep -rn "vehicles-ukraine" mods/`, which returns nothing at
+  all. The game never opens the file, so no `t72` can exist in a match and nothing here can be
+  observed in play. A second worker auditing tooltip data found the same thing independently while
+  resolving actor inheritance against what `mod.yaml` actually loads; that is what surfaced the
+  conflict. **Keep this entry rather than deleting it**: it becomes live the instant anyone adds the
+  file to `mod.yaml`, which is a plausible thing to do, since the file is a complete, costed,
+  buildable tank. Fix the distribution in the same change that wires the file up.
+  **General lesson, and the reason this is written at length**: a defect derived correctly from a YAML
+  file is not a defect in the game until you have checked the file is loaded. Deriving from source is
+  necessary but not sufficient — `mod.yaml`'s `Rules:` list is the boundary of what exists.
+  The original entry follows, unedited except for this header. `t72`
   (`mods/ww3mod/rules/ingame/vehicles-ukraine.yaml:25-26`) is an MBT with `Thickness: 280` —
   identical to `t90` — but its `Distribution` is the boilerplate `100,80,80,80,60` shared by all 13
   non-MBT vehicles, rather than a tank profile like `t90`'s `100,60,40,15,15`
