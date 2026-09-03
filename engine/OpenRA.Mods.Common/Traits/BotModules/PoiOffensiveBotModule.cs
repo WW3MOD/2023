@@ -4745,85 +4745,76 @@ namespace OpenRA.Mods.Common.Traits
 			return AdvanceUnderCoverMath.NormalizeSuppression(total, defenders);
 		}
 
-		// Hold the screen at its start line: a grouped AttackMove to the screen's own centroid, so it stops
-		// advancing but stays combat-ready (attack-move ⇒ it still engages what comes at it) while the guns work the
-		// objective. Re-issued only on ENTERING the hold or when the start line drifted past the repath threshold —
-		// a screen already standing keeps its order instead of chattering every re-eval — the same dedup shape as
-		// OrderRetreat. Deterministic: the representative is the LOWEST-ActorID screen unit (an explicit total
-		// order), never list position.
-		void OrderPrepHold(IBot bot, Axis axis, List<Actor> screen, (int X, int Y) centroid, int tick)
+		// The BODY shared by all three start-line holds (prep-fires, coordinated-assault sync, flanking
+		// converge). Each is the same order: a grouped AttackMove onto the element's own centroid, so it stops
+		// advancing but stays combat-ready (attack-move ⇒ it still engages what comes at it). Re-issued only on
+		// ENTERING the hold — that is what `alreadyHolding` carries — or when the start line drifted past the
+		// repath threshold, so an element already standing keeps its order instead of chattering every re-eval;
+		// the same dedup shape as OrderRetreat. Re-issuing an identical AttackMove every eval would cancel and
+		// restart the units' own engagements, which is exactly the churn the commitment ledger and
+		// ReorderDwellTicks exist to suppress.
+		//
+		// Returns TRUE only when an order was actually issued, i.e. only when the caller may advance its own
+		// Ordered*Hold flag and log. The three false paths — nothing to order, already holding, order refused —
+		// all leave every piece of axis bookkeeping untouched, so a dropped order can never leave the module
+		// believing the element was told to hold. Deterministic: the representative is the LOWEST-ActorID unit
+		// (an explicit total order), never list position; zero draws.
+		bool TryOrderHold(IBot bot, Axis axis, List<Actor> units, (int X, int Y) centroid, bool alreadyHolding, out CPos holdCell)
 		{
-			var lead = screen[0];
-			foreach (var u in screen)
+			holdCell = default;
+			if (units.Count == 0)
+				return false;
+
+			var lead = units[0];
+			foreach (var u in units)
 				if (u.ActorID < lead.ActorID)
 					lead = u;
 
-			// A spread screen's centroid can land on water/cliff; an impassable hold cell would degrade the
+			// A spread element's centroid can land on water/cliff; an impassable hold cell would degrade the
 			// AttackMove to some partial move. Fall back to a cell a unit is demonstrably standing on.
-			var holdCell = new CPos(centroid.X, centroid.Y);
+			holdCell = new CPos(centroid.X, centroid.Y);
 			if (!world.Map.Contains(holdCell) || !WaypointPassable(lead)(holdCell))
 				holdCell = lead.Location;
 
 			var moved = !axis.HasOrdered
-				|| !axis.OrderedPrepHold
+				|| !alreadyHolding
 				|| (axis.OrderedCell - holdCell).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells;
 			if (!moved)
-				return;
+				return false;
 
-			var units = screen.ToArray();
-			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, holdCell), false, groupedActors: units)))
-				return;
+			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, holdCell), false, groupedActors: units.ToArray())))
+				return false;
 
 			axis.OrderedCell = holdCell;
 			axis.OrderedVia = null;
-			axis.OrderedPrepHold = true;
 			axis.HasOrdered = true;
+			return true;
+		}
+
+		// Hold the screen at its start line while the guns work the objective.
+		void OrderPrepHold(IBot bot, Axis axis, List<Actor> screen, (int X, int Y) centroid, int tick)
+		{
+			if (!TryOrderHold(bot, axis, screen, centroid, axis.OrderedPrepHold, out var holdCell))
+				return;
+
+			axis.OrderedPrepHold = true;
 
 			Log.Write("debug",
 				$"[exp-fires] prep-hold player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} " +
-				$"startLine={holdCell} screen={units.Length} elapsed={tick - axis.PrepStartTick} tick={tick}");
+				$"startLine={holdCell} screen={screen.Count} elapsed={tick - axis.PrepStartTick} tick={tick}");
 		}
 
-		// COORDINATED ASSAULTS: hold the screen at its start line while it masses / waits for its peers. Mirrors
-		// OrderPrepHold exactly — a grouped AttackMove to where the screen already stands, so the units hold
-		// ground while still defending themselves, with the same impassable-centroid fallback and the same
-		// `moved` guard. The guard is what makes a multi-eval hold SILENT after its first order: re-issuing an
-		// identical AttackMove every eval would cancel and restart the units' own engagements, which is exactly
-		// the churn the commitment ledger and ReorderDwellTicks exist to suppress.
+		// COORDINATED ASSAULTS: hold the screen at its start line while it masses / waits for its peers.
 		void OrderSyncHold(IBot bot, Axis axis, List<Actor> screen, (int X, int Y) centroid, int tick)
 		{
-			if (screen.Count == 0)
+			if (!TryOrderHold(bot, axis, screen, centroid, axis.OrderedSyncHold, out var holdCell))
 				return;
 
-			var lead = screen[0];
-			foreach (var u in screen)
-				if (u.ActorID < lead.ActorID)
-					lead = u;
-
-			// A spread screen's centroid can land on water/cliff; an impassable hold cell would degrade the
-			// AttackMove to some partial move. Fall back to a cell a unit is demonstrably standing on.
-			var holdCell = new CPos(centroid.X, centroid.Y);
-			if (!world.Map.Contains(holdCell) || !WaypointPassable(lead)(holdCell))
-				holdCell = lead.Location;
-
-			var moved = !axis.HasOrdered
-				|| !axis.OrderedSyncHold
-				|| (axis.OrderedCell - holdCell).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells;
-			if (!moved)
-				return;
-
-			var units = screen.ToArray();
-			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, holdCell), false, groupedActors: units)))
-				return;
-
-			axis.OrderedCell = holdCell;
-			axis.OrderedVia = null;
 			axis.OrderedSyncHold = true;
-			axis.HasOrdered = true;
 
 			Log.Write("debug",
 				$"[exp-coord] sync-hold player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} " +
-				$"startLine={holdCell} screen={units.Length} dist={axis.SyncDist} massReady={axis.MassReady} " +
+				$"startLine={holdCell} screen={screen.Count} dist={axis.SyncDist} massReady={axis.MassReady} " +
 				$"ready={syncReadyAxes}/{syncParticipatingAxes} elapsed={tick - axis.SyncStartTick} tick={tick}");
 		}
 
@@ -4917,41 +4908,17 @@ namespace OpenRA.Mods.Common.Traits
 			return flank;
 		}
 
-		// FLANKING converge hold: keep the main element where it stands while the flank comes level. An
-		// AttackMove to its own centroid is the hold (units still defend themselves and still shoot back) —
-		// the same shape as the prep-fires start line, and gated the same way so a already-holding element is
-		// not re-ordered every eval.
+		// FLANKING converge hold: keep the main element where it stands while the flank comes level.
 		void OrderConvergeHold(IBot bot, Axis axis, List<Actor> main, (int X, int Y) centroid, int tick)
 		{
-			var lead = main[0];
-			foreach (var u in main)
-				if (u.ActorID < lead.ActorID)
-					lead = u;
-
-			// A spread element's centroid can land on water/cliff; an impassable hold cell would degrade the
-			// AttackMove to some partial move. Fall back to a cell a unit is demonstrably standing on.
-			var holdCell = new CPos(centroid.X, centroid.Y);
-			if (!world.Map.Contains(holdCell) || !WaypointPassable(lead)(holdCell))
-				holdCell = lead.Location;
-
-			var moved = !axis.HasOrdered
-				|| !axis.OrderedConvergeHold
-				|| (axis.OrderedCell - holdCell).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells;
-			if (!moved)
+			if (!TryOrderHold(bot, axis, main, centroid, axis.OrderedConvergeHold, out var holdCell))
 				return;
 
-			var units = main.ToArray();
-			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, holdCell), false, groupedActors: units)))
-				return;
-
-			axis.OrderedCell = holdCell;
-			axis.OrderedVia = null;
 			axis.OrderedConvergeHold = true;
-			axis.HasOrdered = true;
 
 			Log.Write("debug",
 				$"[exp-flank] converge-hold player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} " +
-				$"standoff={holdCell} main={units.Length} evals={axis.ConvergeHoldEvals} tick={tick}");
+				$"standoff={holdCell} main={main.Count} evals={axis.ConvergeHoldEvals} tick={tick}");
 		}
 
 		// Issue the fall-back: a grouped AttackMove toward the rally cell for every unit on the axis. Re-issued

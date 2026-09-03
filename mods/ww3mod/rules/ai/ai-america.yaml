@@ -130,14 +130,23 @@ Player:
 	# CORRECTED 2026-09-02: this comment used to read "byte-for-byte copy of @america.normal PLUS three
 	# default-off gates ... Experimental-only condition; Stable keeps the frozen twin above. The engine
 	# flags default false, so this block is the ONLY place they turn on." None of that holds now. The
-	# 2026-09-02 parity promotion synced @america.normal UP to this block, so the two are field-identical
-	# and the early-econ gates below (behaviours 1 & 2) are LIVE ON BOTH profiles. The engine flags still
-	# default false, so the two twins remain the only places they turn on; @experimental is still the
-	# only block the optimization loop edits.
+	# 2026-09-02 parity promotion synced @america.normal UP to this block AS OF THAT PROMOTION (main @
+	# 26f9cec0), so the early-econ gates below (behaviours 1 & 2) are LIVE ON BOTH profiles. The engine
+	# flags still default false, so the two twins remain the only places they turn on; @experimental is
+	# still the only block the optimization loop edits.
 	#   * GateResupplyOnAmmoNeed — no FIRST supply truck while every truck-rearmable unit has full ammo;
 	#     once one exists the demand-sized reserve buys freely (2026-08-17 split).
 	#   * ScaleAntiAirToThreat — cap vehicle AA (strykershorad) to OBSERVED enemy air; aa.america
 	#     (cheap AA infantry) stays ungated as the baseline picket.
+	#
+	# THE TWINS ARE NO LONGER FIELD-IDENTICAL, BY DESIGN — do not "fix" the gap by copying values down.
+	# The promotion snapshot is the TOURNAMENT CONTROL, and post-promotion @experimental work is what is
+	# being priced against it, so improvements land here only and reach @stable at the NEXT promotion.
+	# USER RULING 2026-09-02: CLAUDE.md's "@stable inherits improvements" rule applies AT promotions, not
+	# continuously between them. Diverged so far: composition v2 — the three CounterMatrixPct cells
+	# (armor>armorline, infantry>artillery, infantry>mortar), TradeFeedback*, and MinGroupSizes. The last
+	# two also default off in C#, so @stable would sit at baseline for them either way; the counter matrix
+	# is the one where @stable carries its own older live tuning rather than nothing.
 	UnitBuilderBotModule@america.experimental:
 		RequiresCondition: enable-ai-experimental && player.nato
 		UnitQueues: Vehicle, Infantry
