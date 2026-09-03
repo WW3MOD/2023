@@ -3,6 +3,34 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-03 — An autotest assertion on a CONSUMABLE quantity must read a history, not the live value (`wt/rank-verdict-fix`, `main @ ba5e1d0c`)
+
+`test-rank-accumulation` returned **the wrong verdict while its own log disproved it**: it reported
+*"the bank was still empty at tick 1301 ... the accrual timer is not running"* on a run whose log
+showed `bank rose to 1 at tick 999` and the bank holding 1 continuously from 999 to 1299. The timer
+was fine; the phase-B **purchase had spent the stock**, which is the feature working.
+
+**Mechanism, and it generalises.** The assertion was `#produced < 2 and stockNow == 0 and now >
+deadline`. The spend and the production notification land on the *same* simulation tick, but the
+scenario deliberately deferred reading the produced unit's level to the *following* poll (to avoid
+depending on `GainsExperience.Created` ordering inside `CreateActor`'s frame-end task). That opens a
+**one-tick window in which the consumable reads 0 and the counter of what consumed it has not caught
+up** — and the guard fired inside exactly that window.
+
+The rule: **for "did it ever happen", assert on an append-only history; for "was it consumed",
+assert on a value sampled at the consuming event.** Never on the live quantity, which is by
+definition the one thing both a working spend and a dead producer drive to zero. Here that became a
+recorded `stockRises` list (a spend never rewrites a past rise) plus a `bankAfter` sampled at
+delivery (a later grant cannot refill it and mask an unspent rank). The same shape applies to ammo,
+cash, supply and charge — any test whose subject is spent by the thing it is watching for.
+
+**Corollary for verdict strings: never hardcode a tuning value into one.** The same run's verdict
+quoted `Rank1IntervalMultiplier 400 percent`, a *scenario-local staging override*, and it was
+reasonably read as the shipped value — which made a correct 500 percent (the user's "every 5 units
+built can get rank 1") look like a 20 percent deviation. Derive the number in the message from the
+constant the scenario actually runs, and prefer running the SHIPPED configuration over a staged one
+that makes the schedule land on round numbers.
+
 ## 2026-09-03 — A stock OpenRA scripting binding is a BAD PRIOR in this mod; read `TestGlobal.cs` first (`wt/rank-scenario-fix`, `main @ 50526b80`)
 
 `test-rank-accumulation` died on its first order with *"Actor 'supplyroute' does not define a
