@@ -23,10 +23,15 @@ namespace OpenRA.Mods.Common.Activities
 		CaptureManager enterCaptureManager;
 
 		/// <summary>
-		/// The actor this capture was ORDERED at, recorded at construction. enterActor below is only
+		/// <para>The actor this capture was ORDERED at, recorded at construction. enterActor below is only
 		/// populated once the activity ticks, so it is null for a capture that is still queued behind
 		/// something else — which is exactly the case a dispatcher has to see in order not to steal a
-		/// technician that already has a job.
+		/// technician that already has a job.</para>
+		///
+		/// <para>A capture ordered at a FROZEN actor records the actor behind it, not null. The commitment
+		/// is against the building, and whether the player could see it at the moment of the click is not
+		/// something the bookkeeping should turn on — reading null here would let the next click dispatch
+		/// a second technician at a structure one is already walking to.</para>
 		/// </summary>
 		public Actor OrderedTarget { get; }
 
@@ -34,7 +39,13 @@ namespace OpenRA.Mods.Common.Activities
 			: base(self, target, targetLineColor)
 		{
 			manager = self.Trait<CaptureManager>();
-			OrderedTarget = target.Type == TargetType.Actor ? target.Actor : null;
+
+			OrderedTarget = target.Type switch
+			{
+				TargetType.Actor => target.Actor,
+				TargetType.FrozenActor => target.FrozenActor.BackingActor,
+				_ => null
+			};
 		}
 
 		protected override void TickInner(Actor self, in Target target, bool targetIsDeadOrHiddenActor)

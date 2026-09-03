@@ -47,38 +47,67 @@ namespace OpenRA.Mods.Common.Orders
 		}
 
 		/// <summary>
-		/// With an empty selection there is no actor to resolve an order against, so the stock path
-		/// below yields nothing. This is the seam where a click on a capturable structure can instead
-		/// pick its own unit — see CaptureDispatchManager. Returns null unless the world opts in by
-		/// carrying that trait, which keeps every other mod on the stock behaviour.
+		/// The seam where a click nobody in the selection answered can instead pick its own capture unit
+		/// — see CaptureDispatchManager. Returns null unless the world opts in by carrying that trait,
+		/// which keeps every other mod on the stock behaviour.
 		/// </summary>
-		static CaptureDispatchManager DispatcherForEmptySelection(World world, in Target target)
+		/// <remarks>
+		/// Frozen actors are admitted as well as live ones. An enemy structure is usually under fog, and
+		/// the stock capture targeter already accepts one (Captures.CaptureOrderTargeter
+		/// .CanTargetFrozenActor), so refusing it here would make the dispatch gesture the only way of
+		/// ordering a capture that stops working at the shroud line.
+		/// </remarks>
+		static CaptureDispatchManager DispatcherFor(World world, in Target target)
 		{
-			if (world.Selection.Actors.Count != 0 || target.Type != TargetType.Actor)
+			if (target.Type != TargetType.Actor && target.Type != TargetType.FrozenActor)
 				return null;
 
 			return world.WorldActor.TraitOrDefault<CaptureDispatchManager>();
+		}
+
+		/// <summary>
+		/// Orders for a click the selection had no answer for. Gated on the RESOLVED ORDER COUNT rather
+		/// than on the selection being empty: see CaptureDispatchMath.SelectionYieldsToDispatch for why
+		/// those are different tests, and why this one is what lets a selected structure be clicked.
+		/// </summary>
+		/// <remarks>
+		/// Public so the scripted test API can resolve a click through the SAME decision the mouse uses.
+		/// A scenario that re-implemented this rule would keep passing after the rule changed, which is
+		/// the one thing an autotest for this gesture must not do.
+		/// </remarks>
+		public static List<Order> DispatchOrders(World world, in Target target, List<UnitOrderResult> orderResults, bool queued)
+		{
+			if (!CaptureDispatchMath.SelectionYieldsToDispatch(orderResults.Count))
+				return null;
+
+			var dispatcher = DispatcherFor(world, target);
+			if (dispatcher == null)
+				return null;
+
+			var dispatched = target.Type == TargetType.FrozenActor
+				? dispatcher.DispatchAt(world, target.FrozenActor, queued).ToList()
+				: dispatcher.DispatchAt(world, target.Actor, queued).ToList();
+
+			return dispatched.Count > 0 ? dispatched : null;
 		}
 
 		public virtual IEnumerable<Order> Order(World world, CPos cell, int2 worldPixel, MouseInput mi)
 		{
 			var target = TargetForInput(world, cell, worldPixel, mi);
 
-			var dispatcher = DispatcherForEmptySelection(world, target);
-			if (dispatcher != null)
-			{
-				var dispatchQueued = mi.Modifiers.HasModifier(Modifiers.Shift);
-				var dispatched = dispatcher.DispatchAt(world, target.Actor, dispatchQueued).ToList();
-				if (dispatched.Count > 0)
-				{
-					foreach (var o in dispatched)
-						yield return o;
-
-					yield break;
-				}
-			}
-
 			var orderResults = OrdersForSelection(world.Selection.Actors, target, cell, mi);
+
+			// Attempted only once the selection has been resolved and produced nothing, so a selection
+			// that CAN act on the target — combat units on an enemy building — keeps its own order and
+			// is never overridden by a dispatch.
+			var dispatched = DispatchOrders(world, target, orderResults, mi.Modifiers.HasModifier(Modifiers.Shift));
+			if (dispatched != null)
+			{
+				foreach (var o in dispatched)
+					yield return o;
+
+				yield break;
+			}
 
 			var actorsInvolved = orderResults.Select(o => o.Actor).Distinct();
 			if (!actorsInvolved.Any())
@@ -161,18 +190,27 @@ namespace OpenRA.Mods.Common.Orders
 				// Resolved for the whole selection, exactly as the click will be: the cursor has to
 				// name the order the player is about to get, or the two disagree and the pointer
 				// stops meaning anything.
-				var cursor = CursorForOrders(OrdersForSelection(world.Selection.Actors, target, cell, mi));
+				var orderResults = OrdersForSelection(world.Selection.Actors, target, cell, mi);
+				var cursor = CursorForOrders(orderResults);
 				if (cursor != null)
 					return cursor;
 
-				// With nothing selected the loop above produced no orders, so the pointer is free to
-				// name the dispatch instead of the select it would otherwise show.
-				var dispatcher = DispatcherForEmptySelection(world, target);
-				if (dispatcher != null)
+				// The selection answered nothing, so the pointer is free to name the dispatch instead of
+				// the select it would otherwise show. Gated on the same count Order() dispatches on, so
+				// the two cannot disagree about whether this click is a dispatch.
+				if (CaptureDispatchMath.SelectionYieldsToDispatch(orderResults.Count))
 				{
-					var dispatchCursor = dispatcher.CursorForState(dispatcher.Evaluate(world, target.Actor, out _));
-					if (dispatchCursor != null)
-						return dispatchCursor;
+					var dispatcher = DispatcherFor(world, target);
+					if (dispatcher != null)
+					{
+						var state = target.Type == TargetType.FrozenActor
+							? dispatcher.Evaluate(world, target.FrozenActor, out _)
+							: dispatcher.Evaluate(world, target.Actor, out _);
+
+						var dispatchCursor = dispatcher.CursorForState(state);
+						if (dispatchCursor != null)
+							return dispatchCursor;
+					}
 				}
 
 				useSelect = target.Type == TargetType.Actor && target.Actor.Info.HasTraitInfo<ISelectableInfo>() &&

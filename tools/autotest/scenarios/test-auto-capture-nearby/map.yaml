@@ -1,0 +1,98 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: AUTO: idle technicians capture nearby structures by themselves, graded by stance
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS IS FOR. AutoCaptureNearby makes an IDLE technician walk to a capturable structure and
+# take it without being ordered to. The behaviour ships ON, so the fixtures that matter most are the
+# ones proving it can be turned OFF and that it does not roam.
+#
+# THE RADII UNDER TEST are AutoCaptureNearbyInfo's defaults: 8 cells on the Defensive engagement
+# stance (the shipped default), 20 on Hunt, 0 on HoldPosition. The fire stance is a separate axis:
+# HoldFire switches the behaviour off entirely.
+#
+# GEOMETRY. Every technician sits on its own row so no two scans can see the same structure, which
+# is what keeps the four arms independent. Distances are pure x-offsets on a shared row, so
+# straight-line and walking distance agree and the numbers can be read off the coordinates.
+#
+#   TechDefault   x=10 row 6    DerrickNear  x=15 row 6    ->  5 cells: inside 8, must be taken
+#   TechHoldFire  x=10 row 12   DerrickQuiet x=15 row 12   ->  5 cells: inside 8, must NOT be taken
+#   TechRoam      x=10 row 18   DerrickFar   x=25 row 18   -> 15 cells: outside 8, inside 20
+#   TechEnemy     x=10 row 26   DerrickEnemy x=15 row 26   ->  5 cells, RUSSIA-OWNED, must be taken
+#
+# TechRoam is the graded-eagerness arm and is checked TWICE: still un-captured while Defensive,
+# then captured after being switched to Hunt. A single check could not tell "Hunt reaches further"
+# from "the walk was slow".
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		Faction: america
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		Faction: russia
+		Enemies: USA
+
+Actors:
+	SpawnPlayer: mpspawn
+		Owner: Neutral
+		Location: 4,16
+	SpawnEnemy: mpspawn
+		Owner: Neutral
+		Location: 60,16
+
+	# ARM 1 — the default case. Untouched technician, untouched stance, derrick 5 cells away.
+	TechDefault: tecn
+		Owner: USA
+		Location: 10,6
+	DerrickNear: oilb
+		Owner: Neutral
+		Location: 15,6
+
+	# ARM 2 — the off switch. Identical geometry to arm 1; the ONLY difference is the fire stance,
+	# which the script sets to HoldFire before anything has had time to move.
+	TechHoldFire: tecn
+		Owner: USA
+		Location: 10,12
+	DerrickQuiet: oilb
+		Owner: Neutral
+		Location: 15,12
+
+	# ARM 3 — the leash, and then the Hunt upgrade. 15 cells: outside the Defensive 8, inside Hunt 20.
+	TechRoam: tecn
+		Owner: USA
+		Location: 10,18
+	DerrickFar: oilb
+		Owner: Neutral
+		Location: 25,18
+
+	# ARM 4 — enemy-held, to prove the behaviour is not neutral-only.
+	TechEnemy: tecn
+		Owner: USA
+		Location: 10,26
+	DerrickEnemy: oilb
+		Owner: Russia
+		Location: 15,26
+
+Rules: rules.yaml

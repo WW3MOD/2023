@@ -918,7 +918,15 @@
 	Captures@OCCUPIED:
 		CaptureTypes: building-occupied
 		PlayerExperience: 0
-		CaptureDelay: 1000
+		# 500 ticks = 30.0 s. The mod runs at Timestep 60 ms (mod.yaml GameSpeeds, DefaultSpeed:
+		# default), i.e. 16.667 ticks/s — NOT the 25 tps several in-tree comments still assume.
+		# Halved from 1000 (60.0 s) on 2026-09-03: clearing an oil derrick read as interminable.
+		# This delay is spent STANDING ADJACENT, before the soldier enters — CaptureManager.cs:232
+		# gates entry on currentTargetDelay >= CaptureDelay, and currentTargetDelay increments once
+		# per tick from Enter's Approaching state. So it is the whole of the "waits, then enters,
+		# then clears" the player sees; the walk to get there is the only other cost and is
+		# distance-dependent rather than a constant. Pinned in CaptureClearDurationTest.
+		CaptureDelay: 500
 		# Soldiers CLEAR, they never own. Walking into any enemy-held building
 		# drops it to Neutral and the soldier walks back out alive; installing
 		# your own owner still needs a Technician (^CapturesNeutralBuildings),
@@ -2366,6 +2374,12 @@ MEDI:
 	Inherits@Type: ^ArmedCivilian
 	Inherits@Selection: ^SelectableSupportUnit
 	Inherits@Capture: ^CapturesNeutralBuildings
+	# An idle technician takes a capturable structure next to it without being told. Defaults are
+	# used deliberately: ON, 8 cells on the default Defensive stance, 20 on Hunt, nothing at all on
+	# HoldPosition, and off entirely on the HoldFire stance. Bot-owned technicians are skipped —
+	# CaptureCoordinatorBotModule already schedules them, and two schedulers on one consumable unit
+	# fight. See AutoCaptureNearbyInfo for the reasoning behind each.
+	AutoCaptureNearby:
 	-Wanders:
 	Tooltip:
 		Name: Technician
