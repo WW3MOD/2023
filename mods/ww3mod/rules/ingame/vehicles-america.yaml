@@ -535,9 +535,19 @@ abrams:
 		ReloadCount: 5
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 120mm: 8 batches × 5 shells × 30 supply = 240 (9.6% of cost 2500).
-		# Tank ammo is cheap relative to the platform; empty tank evacs ~90%.
-		SupplyValue: 30
+		# 120mm M829-series APFSDS. 80 supply buys one 5-shell batch, so a full 40-round
+		# load is 8 batches at 80 = 640 (25.6% of cost 2500, 28% of a Logistics Centre).
+		#
+		# DEARER PER SHELL THAN THE T-90's 70, and the reason is the penetrator: the M829
+		# family uses a DEPLETED-URANIUM long rod, the expensive way to build this round.
+		# The T-90's 3BM series uses a tungsten-alloy rod in a two-piece separate-loading
+		# charge, cheaper to manufacture. That is the whole of the 80/70 split — a
+		# materials-and-manufacture difference, not a performance claim. No damage,
+		# penetration or Ammo count is touched by it. Autoloader-vs-human-loader and
+		# carousel-vs-bustle are the other real T-90/Abrams differences, but they govern
+		# rate of fire and survivability rather than what a shell costs, so neither is
+		# priced here.
+		SupplyValue: 80
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 3
