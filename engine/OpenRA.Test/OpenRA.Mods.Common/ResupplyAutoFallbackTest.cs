@@ -8,13 +8,20 @@
  * that they evacuate if no rearm actor exists, and 'Evacuate' just means they evacuate no matter
  * what" — leaving immediately, with no grace period.
  *
+ * SUPERSEDED IN PART — LC-empty-rearm, this branch. USER RULING: "Empty LC should count as no LC, as
+ * far as auto-rearming goes. Units evacuate instead if there is no LC WITH SUPPLIES." The
+ * drained-is-not-absent rule below used to apply to BOTH hope inputs; it now applies only to the
+ * MOBILE one. A drained truck restocks and can drive to us, so it is still a reason to wait; a drained
+ * BUILDING cannot, and waiting beside one never terminated — HoldAndFlag's only payoff is
+ * NeedsResupply, whose sole reader drives to the flagged UNIT and never resupplies a depot. The
+ * reported symptom was units standing at an empty Logistics Centre indefinitely.
+ *
  * The fixture is built around the distinctions that must NOT be collapsed into each other, because
  * every one of them has already been got wrong once:
- *   * a host that is DRAINED versus one that is ABSENT. Review of the first cut found the call site
- *     computed "no host" from ChooseResupplier, which filters on CurrentSupply > 0 — and since
- *     RearmsUnits appears nowhere in mods/ww3mod, that filter applies to every host in the game. An
- *     emptied Logistics Centre therefore read as "no depot exists" and units were spent against a
- *     condition AbsorbsSupplyCache clears. Case 6 below is that defect.
+ *   * a host that is DRAINED versus one that is ABSENT — now asked only of MOBILE hosts, per above.
+ *     Review of the first cut found the call site computed "no host" from ChooseResupplier, which
+ *     filters on CurrentSupply > 0 — and since RearmsUnits appears nowhere in mods/ww3mod, that filter
+ *     applies to every host in the game.
  *   * a host that is merely FAR versus one that CANNOT MOVE. Only the second is hopeless.
  *   * a unit that can fire NOTHING versus one that has merely lost its defining weapon.
  *   * a unit whose depot is MISSING versus one that never had a Rearmable at all (^CrewMember).
@@ -51,9 +58,11 @@ namespace OpenRA.Mods.Common.Test
 		const bool CanBeServedNow = true;
 		const bool NothingCanServeUsNow = false;
 
-		// Hope inputs. Both ignore stock — a drained depot still EXISTS, and a drained truck still moves.
-		const bool ADepotIsNearby = true;
-		const bool NoDepotNearby = false;
+		// Hope inputs, and they no longer agree about stock — see the LC-empty-rearm ruling in the header.
+		// The depot term now means "a host near enough AND able to serve us"; the mobility term still
+		// ignores stock, because a drained truck restocks and can drive to us.
+		const bool AServingDepotIsNearby = true;
+		const bool NoServingDepotNearby = false;
 		const bool SomethingCanDriveToUs = true;
 		const bool NothingCanDriveToUs = false;
 
@@ -68,28 +77,34 @@ namespace OpenRA.Mods.Common.Test
 		{
 			Assert.That(
 				SupplyHuntMath.DecideAutoDisposition(CanMove, WhollyDry, NamesRearmActors, SeekingEnabled,
-					NothingCanServeUsNow, NoDepotNearby, NothingCanDriveToUs),
+					NothingCanServeUsNow, NoServingDepotNearby, NothingCanDriveToUs),
 				Is.EqualTo(SupplyHuntMath.DryAutoDisposition.Evacuate),
 				"an Auto unit with no rearm actor in the world must leave, not stand still with its hand up");
 		}
 
 		/// <summary>
-		/// THE DEFECT THE FIRST CUT SHIPPED — the twelfth case, added on review. A Logistics Centre that
-		/// exists and is right there but holds no supply is NOT the condition the evacuation was designed
-		/// for. It is recoverable: AbsorbsSupplyCache calls SupplyProvider.AddSupply from nearby caches.
-		/// And it is the ROUTINE state rather than an edge case — the iskander's pool is
-		/// `SupplyValue: 1500` against the LC's `TotalSupply: 2250`, so one LC cannot fill one Iskander
-		/// twice and CurrentSupply == 0 is where it normally ends up. Evacuating here spends a 6000-credit
-		/// unit permanently against a condition one supply truck clears.
+		/// <para>THE INPUT WHOSE MEANING CHANGED. This case was added on review as
+		/// `DrainedButPresentDepotHoldsRatherThanEvacuating`, asserting that an EMPTY depot beside us is
+		/// worth waiting at because AbsorbsSupplyCache can refill it. The LC-empty-rearm user ruling
+		/// overturned that reading: a drained static depot is now excluded upstream by
+		/// AmmoPool.AnyRearmHostWithinLeash, so this input can no longer be reached with an empty one.</para>
+		///
+		/// <para>The ASSERTION is unchanged and still worth pinning, because the combination is still
+		/// reachable — just for a different reason. AnyRearmHostWithinLeash sweeps every host with the
+		/// leash's CHESSBOARD metric, while ChooseAffordableResupplier picks the nearest affordable by
+		/// EUCLIDEAN distance. So an affordable host can sit inside the leash while the one actually
+		/// chosen sits outside it, giving exactly these inputs. Holding is the safe answer there (SeekRearm
+		/// would be the right one, and needs a leash-aware chooser — recorded in DISCOVERIES).</para>
 		/// </summary>
 		[Test]
-		public void DrainedButPresentDepotHoldsRatherThanEvacuating()
+		public void ServingDepotNearbyButNotTheChosenOneHoldsRatherThanEvacuating()
 		{
 			Assert.That(
 				SupplyHuntMath.DecideAutoDisposition(CanMove, WhollyDry, NamesRearmActors, SeekingEnabled,
-					NothingCanServeUsNow, ADepotIsNearby, NothingCanDriveToUs),
+					NothingCanServeUsNow, AServingDepotIsNearby, NothingCanDriveToUs),
 				Is.EqualTo(SupplyHuntMath.DryAutoDisposition.HoldAndFlag),
-				"an empty depot we are standing next to is one supply transfer from serving — do not spend the unit");
+				"a host inside the leash CAN still serve us — do not spend the unit merely because the " +
+				"nearest-by-Euclid affordable host fell outside the chessboard leash");
 		}
 
 		/// <summary>
@@ -101,7 +116,7 @@ namespace OpenRA.Mods.Common.Test
 		{
 			Assert.That(
 				SupplyHuntMath.DecideAutoDisposition(CanMove, WhollyDry, NamesRearmActors, SeekingEnabled,
-					NothingCanServeUsNow, NoDepotNearby, NothingCanDriveToUs),
+					NothingCanServeUsNow, NoServingDepotNearby, NothingCanDriveToUs),
 				Is.EqualTo(SupplyHuntMath.DryAutoDisposition.Evacuate),
 				"nothing near, nothing mobile — waiting here never terminates whatever the stock levels do");
 		}
@@ -112,7 +127,7 @@ namespace OpenRA.Mods.Common.Test
 		{
 			Assert.That(
 				SupplyHuntMath.DecideAutoDisposition(CanMove, WhollyDry, NamesRearmActors, SeekingEnabled,
-					CanBeServedNow, ADepotIsNearby, NothingCanDriveToUs),
+					CanBeServedNow, AServingDepotIsNearby, NothingCanDriveToUs),
 				Is.EqualTo(SupplyHuntMath.DryAutoDisposition.SeekRearm),
 				"a Logistics Centre inside the leash with stock in it is still worth driving to");
 		}
@@ -129,7 +144,7 @@ namespace OpenRA.Mods.Common.Test
 		{
 			Assert.That(
 				SupplyHuntMath.DecideAutoDisposition(CanMove, WhollyDry, NamesRearmActors, SeekingEnabled,
-					NothingCanServeUsNow, NoDepotNearby, SomethingCanDriveToUs),
+					NothingCanServeUsNow, NoServingDepotNearby, SomethingCanDriveToUs),
 				Is.EqualTo(SupplyHuntMath.DryAutoDisposition.HoldAndFlag),
 				"a truck can come to us, so raising NeedsResupply is a real plan and not a stall");
 		}
@@ -145,7 +160,7 @@ namespace OpenRA.Mods.Common.Test
 		public void UnitThatNamesNoRearmActorsIsNeverEvacuated()
 		{
 			foreach (var seeking in new[] { SeekingEnabled, SeekingDisabled })
-				foreach (var near in new[] { ADepotIsNearby, NoDepotNearby })
+				foreach (var near in new[] { AServingDepotIsNearby, NoServingDepotNearby })
 					foreach (var mobile in new[] { SomethingCanDriveToUs, NothingCanDriveToUs })
 						Assert.That(
 							SupplyHuntMath.DecideAutoDisposition(CanMove, WhollyDry, NamesNoRearmActors, seeking,
@@ -164,7 +179,7 @@ namespace OpenRA.Mods.Common.Test
 		[Test]
 		public void DisabledSeekingHoldsRatherThanEvacuating()
 		{
-			foreach (var near in new[] { ADepotIsNearby, NoDepotNearby })
+			foreach (var near in new[] { AServingDepotIsNearby, NoServingDepotNearby })
 				foreach (var mobile in new[] { SomethingCanDriveToUs, NothingCanDriveToUs })
 					Assert.That(
 						SupplyHuntMath.DecideAutoDisposition(CanMove, WhollyDry, NamesRearmActors, SeekingDisabled,
@@ -181,7 +196,7 @@ namespace OpenRA.Mods.Common.Test
 		public void ImmobileActorIsNeverSentAnywhere()
 		{
 			foreach (var served in new[] { CanBeServedNow, NothingCanServeUsNow })
-				foreach (var near in new[] { ADepotIsNearby, NoDepotNearby })
+				foreach (var near in new[] { AServingDepotIsNearby, NoServingDepotNearby })
 					foreach (var mobile in new[] { SomethingCanDriveToUs, NothingCanDriveToUs })
 						Assert.That(
 							SupplyHuntMath.DecideAutoDisposition(Immobile, WhollyDry, NamesRearmActors, SeekingEnabled,
@@ -202,7 +217,7 @@ namespace OpenRA.Mods.Common.Test
 		{
 			foreach (var seeking in new[] { SeekingEnabled, SeekingDisabled })
 				foreach (var served in new[] { CanBeServedNow, NothingCanServeUsNow })
-					foreach (var near in new[] { ADepotIsNearby, NoDepotNearby })
+					foreach (var near in new[] { AServingDepotIsNearby, NoServingDepotNearby })
 						foreach (var mobile in new[] { SomethingCanDriveToUs, NothingCanDriveToUs })
 							Assert.That(
 								SupplyHuntMath.DecideAutoDisposition(CanMove, StillArmed, NamesRearmActors, seeking,
@@ -220,13 +235,13 @@ namespace OpenRA.Mods.Common.Test
 		{
 			Assert.That(
 				SupplyHuntMath.DecideAutoDisposition(CanMove, StillArmed, NamesRearmActors, SeekingEnabled,
-					CanBeServedNow, ADepotIsNearby, NothingCanDriveToUs),
+					CanBeServedNow, AServingDepotIsNearby, NothingCanDriveToUs),
 				Is.EqualTo(SupplyHuntMath.DryAutoDisposition.SeekRearm),
 				"essential-dry with a reachable stocked depot still tops up — the seek tier is unchanged");
 
 			Assert.That(
 				SupplyHuntMath.DecideAutoDisposition(CanMove, StillArmed, NamesRearmActors, SeekingEnabled,
-					NothingCanServeUsNow, NoDepotNearby, NothingCanDriveToUs),
+					NothingCanServeUsNow, NoServingDepotNearby, NothingCanDriveToUs),
 				Is.EqualTo(SupplyHuntMath.DryAutoDisposition.HoldAndFlag),
 				"and with nothing to reach it keeps today's flag-and-stay rather than leaving");
 		}
@@ -244,7 +259,7 @@ namespace OpenRA.Mods.Common.Test
 					foreach (var names in new[] { NamesRearmActors, NamesNoRearmActors })
 						foreach (var seeking in new[] { SeekingEnabled, SeekingDisabled })
 							foreach (var served in new[] { CanBeServedNow, NothingCanServeUsNow })
-								foreach (var near in new[] { ADepotIsNearby, NoDepotNearby })
+								foreach (var near in new[] { AServingDepotIsNearby, NoServingDepotNearby })
 									foreach (var mobile in new[] { SomethingCanDriveToUs, NothingCanDriveToUs })
 									{
 										var action = SupplyHuntMath.DecideAutoDisposition(
@@ -324,7 +339,7 @@ namespace OpenRA.Mods.Common.Test
 
 			Assert.That(
 				SupplyHuntMath.DecideAutoDisposition(CanMove, WhollyDry, NamesRearmActors, SeekingDisabled,
-					NothingCanServeUsNow, NoDepotNearby, NothingCanDriveToUs),
+					NothingCanServeUsNow, NoServingDepotNearby, NothingCanDriveToUs),
 				Is.EqualTo(SupplyHuntMath.DryAutoDisposition.HoldAndFlag),
 				"and a 0 leash on the unit side holds rather than seeking OR evacuating");
 		}

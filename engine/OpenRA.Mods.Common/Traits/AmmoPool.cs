@@ -524,8 +524,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (provider == null)
 				return true;
 
+			// The per-pool rule lives in SupplyHuntMath so it can be pinned without a World, and is CALLED
+			// rather than restated — this method is the sole Actor-shaped wrapper around it.
 			foreach (var p in pools)
-				if (!p.HasFullAmmo && provider.CurrentSupply >= p.Info.SupplyValue)
+				if (SupplyHuntMath.HostCanServePool(provider.CurrentSupply, p.CurrentAmmoCount, p.Info.Ammo, p.Info.SupplyValue))
 					return true;
 
 			return false;
@@ -668,14 +670,14 @@ namespace OpenRA.Mods.Common.Traits
 					// in ResupplyAutoFallbackTest, and deliberately NOT AmmoEvacMath.Decide, whose
 					// budget parameter reads 0 as UNLIMITED where this one reads 0 as "admits nothing".
 					//
-					// DRAINED IS NOT ABSENT. ChooseResupplier filters on CurrentSupply > 0, and with
-					// RearmsUnits absent from this mod that filter applies to EVERY host — so a null
-					// answer here means "no depot with stock", not "no depot". The evacuation gate must
-					// never be computed from it: an empty Logistics Centre is refilled by
-					// AbsorbsSupplyCache, and with SupplyValue 1500 against TotalSupply 2250 an emptied
-					// LC is where an Iskander NORMALLY leaves it. So the hopelessness inputs below ask
-					// AnyRearmHostWithinLeash / AnyMobileRearmHost, which ignore stock, while only the
-					// seek trigger reads it.
+					// DRAINED IS NOT ABSENT — still true of a TRUCK, no longer true of a DEPOT, and the
+					// split is the whole of this task's user ruling ("Empty LC should count as no LC, as
+					// far as auto-rearming goes"). AnyRearmHostWithinLeash now requires the host to be
+					// able to serve us, because waiting beside a static depot that cannot pay never
+					// terminates: NeedsResupply's only reader drives to the flagged UNIT and no mechanism
+					// reads it as "resupply my depot". AnyMobileRearmHost still ignores stock, because a
+					// drained truck restocks and can come — which is what keeps infantry holding as before.
+					// See AnyRearmHostWithinLeash for the full reversal note.
 					var leash = ResolveSeekLeash(ammoPools);
 
 					// The nearest AFFORDABLE host, not the nearest stocked one. A depot holding less
@@ -698,7 +700,7 @@ namespace OpenRA.Mods.Common.Traits
 					var whollyDry = AllPoolsEmpty(ammoPools);
 					var namesRearmActors = NamesRearmActors(self);
 					var mayEvacuate = whollyDry && namesRearmActors && leash > 0 && !suppliedHostWithinLeash;
-					var anyHostWithinLeash = mayEvacuate && AnyRearmHostWithinLeash(self, leash);
+					var anyHostWithinLeash = mayEvacuate && AnyRearmHostWithinLeash(self, leash, ammoPools);
 					var anyHostCanReachUs = mayEvacuate && !anyHostWithinLeash && AnyMobileRearmHost(self);
 
 					switch (SupplyHuntMath.DecideAutoDisposition(
@@ -1080,24 +1082,54 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// <para>Whether any rearm host that EXISTS — drained or not — sits inside
-		/// <paramref name="leashCells"/>. This is the "worth waiting beside" test: an empty Logistics
-		/// Centre we are parked next to is one <c>AbsorbsSupplyCache</c> transfer away from serving
-		/// again, so its emptiness is not a reason to leave the map.</para>
+		/// <para>Whether any rearm host inside <paramref name="leashCells"/> can SERVE US RIGHT NOW —
+		/// the "worth waiting beside" test.</para>
+		///
+		/// <para>USER RULING (this is the reversal, stated plainly rather than buried): "Empty LC should
+		/// count as no LC, as far as auto-rearming goes. Units evacuate instead if there is no LC WITH
+		/// SUPPLIES." This method previously swept <c>RearmCandidates(self, false)</c> — hosts that EXIST,
+		/// stock ignored — on the argument that a drained Logistics Centre is one
+		/// <c>AbsorbsSupplyCache</c> transfer from serving again and so is not a reason to leave the map.
+		/// That argument is what produced the reported symptom: a dry vehicle beside an empty Centre took
+		/// the <c>HoldAndFlag</c> arm and stood there indefinitely.</para>
+		///
+		/// <para>WHY WAITING THERE COULD NEVER TERMINATE, which is what makes the old reasoning wrong on
+		/// its own terms rather than merely overruled. <c>HoldAndFlag</c> raises <c>NeedsResupply</c>, and
+		/// that flag has exactly ONE reader engine-wide — <c>SupplyProvider.FindNeedsResupplyTarget</c>,
+		/// swept by a Hunt-stance provider that then DRIVES to the flagged unit. A Logistics Centre is a
+		/// BUILDING and cannot answer it, and nothing in the engine reads the flag as "bring supply to my
+		/// DEPOT". So the refill the old comment was waiting for is not something the waiting unit's flag
+		/// can ever summon; it depends entirely on the player (or, once <c>wt/bot-lc-economy</c> lands, a
+		/// bot) independently deciding to truck supply to that Centre. Holding was a bet on an outside
+		/// event, not a plan.</para>
+		///
+		/// <para>WHAT KEEPS THIS FROM OVER-EVACUATING is that the sibling input
+		/// <c>anyHostCanReachUs</c> (<see cref="AnyMobileRearmHost"/>) still IGNORES stock, deliberately
+		/// and unchanged: a drained TRUCK restocks and can drive to us, so it remains a reason to wait.
+		/// Infantry name <c>truk</c> in their <c>RearmActors</c> and therefore still hold and flag exactly
+		/// as before. The behaviour change lands on units whose only host is a static depot that cannot
+		/// serve them — in the shipped ruleset, every vehicle, whose <c>RearmActors</c> is
+		/// <c>logisticscenter</c> alone. That is precisely the reported case.</para>
 		///
 		/// <para>Chessboard metric, matching the leash rather than <see cref="ChooseResupplier"/>'s
-		/// Euclidean nearest-pick. That mismatch is pre-existing and still costs a stall in one shape
-		/// (nearest-by-Euclid outside the leash while a farther host is inside it) — but because THIS
-		/// test sweeps every host with the leash's own metric, that shape can no longer be mistaken for
-		/// hopelessness and evacuated.</para>
+		/// Euclidean nearest-pick. That mismatch is pre-existing: nearest-by-Euclid-affordable can sit
+		/// outside the leash while a different affordable host sits inside it. Because this test sweeps
+		/// every host with the leash's own metric, that shape still resolves to HoldAndFlag rather than
+		/// being mistaken for hopelessness — which is a safe answer, though SeekRearm would be the right
+		/// one. Fixing it means making <see cref="ChooseAffordableResupplier"/> leash-aware; out of scope
+		/// here and recorded in WORKSPACE/DISCOVERIES.md.</para>
 		/// </summary>
-		public static bool AnyRearmHostWithinLeash(Actor self, int leashCells)
+		/// <param name="pools">The pool set the CALLER dispatched on — every pool, matching
+		/// <see cref="AutoRearmIfDry"/>. Passing the narrower <c>Rearmable</c> subset here would make this
+		/// test stricter than the dispatch test it has to agree with.</param>
+		public static bool AnyRearmHostWithinLeash(Actor self, int leashCells, IEnumerable<AmmoPool> pools)
 		{
 			foreach (var candidate in RearmCandidates(self, false))
 				if (SupplyHuntMath.WithinCellBudget(
 					candidate.Location.X - self.Location.X,
 					candidate.Location.Y - self.Location.Y,
-					leashCells))
+					leashCells)
+					&& HostCanAffordSomethingWeNeed(candidate, pools))
 					return true;
 
 			return false;

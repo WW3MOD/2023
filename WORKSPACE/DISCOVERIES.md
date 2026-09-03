@@ -3,6 +3,55 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-03 — "Empty LC" is an AFFORDABILITY band, not a zero, and the two halves of one rearm errand disagreed about it (`wt/lc-empty-rearm`, `main @ bf1d0793`)
+
+Static only. `dotnet build` clean, `dotnet test` 2337 green (2329 before). **No launch was taken** —
+the scenario `tools/autotest/scenarios/test-lc-drains-mid-errand` is written and unrun.
+
+**The band, and why it is the whole bug.** `AmmoPool.RearmCandidates` filters hosts on
+`CurrentSupply > 0`, so the whole range `1 .. batchPrice-1` is *stocked and unable to serve anybody*:
+`Rearmable.RearmTick` (`Rearmable.cs:106`) and `AmmoPool.TryServeBatch` both skip a pool the provider
+cannot pay for. In this mod that band is where the Logistics Centre **normally sits** — an iskander
+batch is `SupplyValue: 1500` against the Centre's `TotalSupply: 2250`
+(`vehicles-russia.yaml:1038-1045`, `structures.yaml`), so one missile leaves 750 behind. Any fix
+written against `CurrentSupply == 0` misses the reported unit entirely.
+
+**The two halves of one errand had drifted.** `AmmoPool.AutoRearm` routes a docking-gated host (the
+LC) to `Resupply` and everything else (truck/cache) to `SeekSupplyProvider`. `SeekSupplyProvider`
+re-asks `HostCanAffordSomethingWeNeed` every tick via its `TargetValid` (`SeekSupplyProvider.cs:114`)
+and `SupplyHuntMath.NextState` answers `!providerUsable` with `Returning`. `Resupply` re-asked only
+`SelfAssignedErrandIsOver` — "am I still dry?" — and never whether the host could still serve
+(`Resupply.cs:240`). So the truck half had been fixed and the LC half had not, which is exactly why
+the user's report names the LC.
+
+**The stall was the idle re-decision, not the arrival.** Arrival already terminated correctly:
+`RearmTick` refuses the pool and reports it done, so the activity ends. The unit then went idle *at*
+the depot, and `AutoRearmIfDry`'s hopelessness test asked `AnyRearmHostWithinLeash`, which swept
+`RearmCandidates(self, requireSupply: false)` — hosts that EXIST. The drained Centre it was parked at
+therefore counted as a reason to wait, giving `HoldAndFlag`. That disposition's only payoff is
+`NeedsResupply`, whose sole engine-wide reader (`SupplyProvider.FindNeedsResupplyTarget`) drives to
+the flagged **unit**; nothing anywhere reads it as "resupply my depot". Waiting beside a static
+drained depot could therefore never terminate — the refill it was waiting for depended on the player
+independently trucking supply there.
+
+**A shipped scenario now rests on a premise the engine falsified.**
+`tools/autotest/scenarios/test-poor-depot-still-worth-the-trip` asserts that a dry tank SHOULD drive
+to a Centre holding less than one batch, on the stated grounds that "a rearm there is FREE —
+`Rearmable.RearmTick` hands out ammunition with no supply consulted". That claim was true when
+written and was falsified 72 minutes later the same afternoon: `291ba846` wrote the comment,
+`f8b424f6` metered the dock path, and `Rearmable.cs:106` now meters it. `AutoSeekSupplies.cs:286-299`
+records the same correction from the other side. **Read `Rearmable.cs:83-118` before trusting any
+claim that docking rearm is unmetered** — several comments across the tree still assert it.
+
+**Determinism note.** The new predicate `SupplyHuntMath.HostCanServePool` is four ints and two
+comparisons — no float, no RNG, no `[Sync]` added and none needed: it reads `SupplyProvider.CurrentSupply`
+and `AmmoPool.CurrentAmmoCount`, both already simulation state reached through synced actors.
+
+**Adjacent, not fixed here.** `AnyRearmHostWithinLeash` measures in chessboard cells while
+`ChooseAffordableResupplier` picks the nearest affordable by Euclidean distance. An affordable host
+can therefore sit inside the leash while the *chosen* one falls outside it; the disposition is then
+`HoldAndFlag` where `SeekRearm` would be right. Safe, but it wants a leash-aware chooser.
+
 ## 2026-09-03 — The helicopter corner is a velocity-space CHORD, not a circular arc, so the corner-cut lead is `sin(theta/2)` and not the textbook `tan(theta/2)` (`wt/heli-waypoint-flow`, `main @ 414a84aa`)
 
 Static only. `make all` clean, `dotnet test` 2288 green. **No launch was taken**, so nothing below is
