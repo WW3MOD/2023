@@ -58,9 +58,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			ActorInfo lastActor = null;
 			var lastHotkey = Hotkey.Invalid;
 			var lastPowerState = pm?.PowerState ?? PowerState.Normal;
-			var descContainerY = descContainer.Bounds.Y;
+			var descContainerY = descContainer.Bounds.Y + ProductionTooltipLayout.DescriptionTopMargin;
 			var descContainerPadding = descContainer.Bounds.Height;
-			const int MaxTooltipWidth = 350;
 
 			tooltipContainer.BeforeRender = () =>
 			{
@@ -156,20 +155,30 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				costLabel.GetColor = () => pr.Cash + pr.Resources >= cost ? Color.White : Color.Red;
 				var costSize = font.Measure(costLabel.Text);
 
+				// The description and the stat rows wrap to the FULL content width now. They used to
+				// wrap to the left column's width and stop short of the cost gutter, which is what put
+				// the band of dead space down the right of every tooltip.
 				var elements = BuildElements(actor, mapRules, buildable);
 				descContainer.RemoveChildren();
-				descContainer.Bounds.Width = MaxTooltipWidth;
-				var descSize = LayOutElements(descContainer, templates, elements, MaxTooltipWidth);
+				descContainer.Bounds.Width = ProductionTooltipLayout.ContentWidth;
+				var descSize = LayOutElements(descContainer, templates, elements, ProductionTooltipLayout.ContentWidth);
 				descContainer.Bounds.Height = descSize.Y + descContainerPadding;
 
-				var leftWidth = Math.Clamp(
-					new[] { nameSize.X + hotkeyWidth, requiresSize.X, descSize.X }.Aggregate(Math.Max),
-					MaxTooltipWidth, MaxTooltipWidth);
-				var rightWidth = Math.Max(powerSize.X, costSize.X);
+				var margin = nameLabel.Bounds.X;
+				var costWidth = Math.Max(powerSize.X, costSize.X);
+				var nameRowWidth = ProductionTooltipLayout.NameRowContentWidth(
+					nameSize.X, hotkeyWidth, costWidth, costIcon.Bounds.Width, iconMargin);
 
-				powerIcon.Bounds.X = costIcon.Bounds.X = leftWidth + 2 * nameLabel.Bounds.X;
-				powerLabel.Bounds.X = costLabel.Bounds.X = costIcon.Bounds.Right + iconMargin;
-				widget.Bounds.Width = leftWidth + rightWidth + 3 * nameLabel.Bounds.X + costIcon.Bounds.Width + iconMargin;
+				widget.Bounds.Width = ProductionTooltipLayout.PanelWidth(
+					margin, nameRowWidth, requiresSize.X, descSize.X);
+
+				// Cost onto the name's row, flush right. The chrome already gives COST and COST_ICON a Y
+				// that lands on the name row (1 and 5 against the name's 3), so only X moves here —
+				// they were only ever below the name because the gutter put them in a column of their own.
+				powerLabel.Bounds.X = costLabel.Bounds.X =
+					ProductionTooltipLayout.CostLabelX(widget.Bounds.Width, margin, costWidth);
+				powerIcon.Bounds.X = costIcon.Bounds.X = ProductionTooltipLayout.CostIconX(
+					costLabel.Bounds.X, iconMargin, costIcon.Bounds.Width);
 
 				// Set the bottom margin to match the left margin
 				var leftHeight = descContainer.Bounds.Bottom + descContainer.Bounds.X;

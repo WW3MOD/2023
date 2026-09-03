@@ -3,6 +3,55 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-03 — A glyph decoration is centred on its EM BOX, not on its ink, so it hangs `fontsize/2` below where it looks centred (`wt/visual-layout`, `main @ 03c77208`)
+
+Found while fixing the visibility diamond's position; **read from source, not measured on screen.**
+
+`WithTextDecoration.RenderDecoration` draws at `screenPos - size / 2`
+(`engine/OpenRA.Mods.Common/Traits/Render/WithTextDecoration.cs:66`, and the graded override at
+`WithSpottedDecoration.cs:170`), which looks like it centres the glyph on the decoration origin. It
+does not, and the gap is large enough to matter at these sizes:
+
+1. `SpriteFont.Measure` returns a height of **`rows * size`** — `engine/OpenRA.Game/Graphics/SpriteFont.cs:244`
+   — so for a single-line string that is the font's point size, *whatever character was measured*. The
+   returned height is a property of the font, not of the glyph. Width is the sum of glyph **advances**
+   (`:247-253`), which is likewise not the ink width.
+2. `SpriteFont.DrawText` then adds a further `size` to get from the passed location to the baseline:
+   `location += new float2(0, size)` at `:99`, commented "offset from the baseline position".
+
+Net: **the baseline lands `size / 2` below the nominal origin.** For the TinyBold the decorations use
+(`mods/ww3mod/mod.yaml`, Size 10) that is 5px. Every baseline-sitting glyph — diamonds, digits,
+capitals, the `X`/`A`/`H`/`>` stance letters — therefore puts *all* of its ink below the point it is
+nominally centred on, reaching ~5px down and only ~2px up.
+
+This is why the diamond read as "too far down" at `Margin.Y: 0`: its ink hung 5px past the top of the
+decoration bounds and straight through the vehicle damage bar at `y -2..+2`. Lifting a glyph clear of
+something needs `half the sprite + clearance + 5`, not `half the sprite + clearance`.
+
+Sprite decorations (`WithDecoration.cs:106`) are genuinely centred, because a sprite's size *is* its
+ink. So a glyph and a sprite authored at the same `Margin` do **not** line up — worth knowing before
+placing one next to the other. Arithmetic and tests:
+`engine/OpenRA.Mods.Common/Traits/Render/DecorationRowGeometry.cs`.
+
+## 2026-09-03 — The production tooltip's width was a `Math.Clamp` with equal bounds, so measured content silently overflowed (`wt/visual-layout`, `main @ 03c77208`)
+
+`ProductionTooltipLogic.cs:165-167` (before this branch) read:
+
+```csharp
+var leftWidth = Math.Clamp(
+    new[] { nameSize.X + hotkeyWidth, requiresSize.X, descSize.X }.Aggregate(Math.Max),
+    MaxTooltipWidth, MaxTooltipWidth);
+```
+
+Both bounds are `MaxTooltipWidth`, so this is `leftWidth = 350` and the three measurements are
+computed and thrown away. It reads as "fit the content, up to a cap" and behaves as "ignore the
+content". Consequence: a name or a prerequisite list wider than 350px drew **outside** the panel
+rather than widening it — the clamp could only ever shrink the panel's idea of its content, never
+grow it. Replaced with an honest `max` (`ProductionTooltipLayout.PanelWidth`).
+
+Worth grepping for the shape generally: `Math.Clamp(x, K, K)` is always `K`, and it is easy to write
+by accident when a min and a max constant are named similarly.
+
 ## 2026-09-03 — `WithTextDecoration` has the same silent-nothing trap as a missing `.shp`, and the obvious diamond falls into it (`wt/diamond-pip`, `main @ 925b5b82`)
 
 `defaults.yaml:844-846` warns that a sequence naming a file the mod does not ship falls back to
