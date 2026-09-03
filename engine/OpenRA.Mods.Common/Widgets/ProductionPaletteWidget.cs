@@ -146,12 +146,17 @@ namespace OpenRA.Mods.Common.Widgets
 		// silently, and a sequence naming a file the mod does not ship falls back to pips.shp and
 		// also renders nothing. A polyline cannot resolve to nothing. Only the count digits use a
 		// font, and they reuse overlayFont, already proven on digits by the queue badge below.
+		// The five values below are the USER'S, submitted 2026-09-03 from
+		// WORKSPACE/mockups/rank-accumulation-overlay.html after comparing them at true pixel size.
+		// Do not tidy them toward round numbers: 6x3 and a 1.25 stroke were chosen against each
+		// other, and the stroke is a float on purpose — RgbaColorRenderer.DrawLine takes a float
+		// width, so 1.25 is a real value here and not a rounding of 1.
 		public readonly Color RankColor = Color.FromArgb(255, 240, 210, 122);
-		public readonly int RankChevronWidth = 7;
+		public readonly int RankChevronWidth = 6;
 		public readonly int RankChevronHeight = 3;
 		public readonly int RankChevronPitch = 4;
-		public readonly int RankStrokeWidth = 1;
-		public readonly int RankBottomMargin = 3;
+		public readonly float RankStrokeWidth = 1.25f;
+		public readonly int RankBottomMargin = 2;
 		public readonly int RankLeftMargin = 4;
 		public readonly int RankEntryGap = 4;
 		public readonly int RankGlyphCountGap = 2;
@@ -875,15 +880,17 @@ namespace OpenRA.Mods.Common.Widgets
 					for (var i = 0; i < tier; i++)
 						DrawChevron(x, baseY - i * RankChevronPitch);
 
-					var entryWidth = RankChevronWidth;
-					if (held > 1)
-					{
-						var text = held.ToString();
-						var pos = new float2(x + RankChevronWidth + RankGlyphCountGap,
-							baseY - overlayFont.Measure(text).Y + 1);
-						overlayFont.DrawTextWithContrast(text, pos, RankColor, Color.Black, 1);
-						entryWidth += RankGlyphCountGap + overlayFont.Measure(text).X;
-					}
+					// The count is drawn even at 1. The original spec said "whenever there is more
+					// than 1", but the user compared both at size and submitted countDisplay:always
+					// — a digit that appears and disappears makes the strip's width jump as stock
+					// changes, and a lone chevron reads as an unlabelled decoration rather than as
+					// a quantity. Every entry is therefore glyph + digit, and the strip only
+					// changes width when a whole tier appears.
+					var text = held.ToString();
+					var pos = new float2(x + RankChevronWidth + RankGlyphCountGap,
+						baseY - overlayFont.Measure(text).Y + 1);
+					overlayFont.DrawTextWithContrast(text, pos, RankColor, Color.Black, 1);
+					var entryWidth = RankChevronWidth + RankGlyphCountGap + overlayFont.Measure(text).X;
 
 					x += entryWidth + RankEntryGap;
 				}
