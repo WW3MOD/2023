@@ -3,6 +3,62 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-03 — A stock OpenRA scripting binding is a BAD PRIOR in this mod; read `TestGlobal.cs` first (`wt/rank-scenario-fix`, `main @ 50526b80`)
+
+`test-rank-accumulation` died on its first order with *"Actor 'supplyroute' does not define a
+property 'Build'"* — before a single assertion ran. Fixing that revealed the same shape twice more.
+**Three consecutive stock scripting APIs did not exist in this mod**, and the failure is always the
+same: a runtime "does not define a property" that kills the script at its first use — or worse, a
+silent no-op.
+
+1. **`actor.Build`** — `ProductionProperties.Build` (`ProductionProperties.cs:145`) is an **actor**
+   property; its constructor does `self.TraitsImplementing<ProductionQueue>()`, so it exists only on
+   an actor that itself holds queues. WW3MOD has no factories: the Supply Route is a spawn point and
+   the queues live on the **player**. The property is simply absent from `supplyroute`.
+2. **`actor.Sell`** — `SellableProperties` requires `SellableInfo`, and in this mod **`Sellable` is
+   on structures only** (every hit is `structures*.yaml`; the naval ones are commented out). No
+   vehicle or infantry actor has it.
+3. **`Evacuate`** — not a Lua property at all. There is **nothing named Evacuate anywhere under
+   `engine/OpenRA.Mods.Common/Scripting/`**. It is a raw order string, issued by bot modules
+   (`HelicopterSquadBotModule.cs:1846`, `PoiOffensiveBotModule.cs:2790`) and reached from a scenario
+   only through the command bar: `TestHarness.Select` then `Test.PressHotkey("Evacuate")`.
+
+**The mod ships its own test-only scripting global** — `engine/OpenRA.Mods.Common/Scripting/Global/TestGlobal.cs`,
+exposed as `Test.*` — precisely because the stock bindings do not cover what this mod does. It
+carries `QueueProduction`, `PressHotkey`, `SelectActors`, `ClickOrder`, `IssueMoveOrder`,
+`IssueResupply`, `ClickProductionIcon` and ~50 more. **Check it before reaching for a stock
+binding**; the mod-specific seam usually exists and is usually the intended route.
+
+**Grepping for prior art misled rather than helped.** `grep -rn "\.Build(" tools/autotest/scenarios/`
+returns four confident-looking hits — all `JavelinProbe.Build(TRIGGERS, 3)`, a **scenario-local
+helper of the same name** with no relation to either binding. Four call sites reads as an
+established idiom. When checking whether a scripting API is real, confirm it in
+`engine/OpenRA.Mods.Common/Scripting/`, not by counting scenario hits.
+
+**`Test.QueueProduction` fails silently.** It returns `void` and simply `return`s when
+`FindQueueForActor` finds no enabled queue (`TestGlobal.cs:494-496`). A scenario that mis-types an
+actor name, or names one whose `Buildable.Queue` no player queue serves, waits forever for a unit
+and reports a generic timeout. Assert that something was produced, and name that cause in the
+failure string.
+
+**`ProductionFromMapEdge` raises both production notifications**, so `Trigger.OnProduction(producer, fn)`
+works for Supply Route deliveries: `INotifyProduction` on `self` at `:200-202`, then
+`INotifyOtherProduction` world-wide at `:203-205`. Worth knowing because that trigger is the only
+clean route to the produced actor — **Lua exposes no stable actor identity**, so a
+`GetActorsByType` poll cannot be de-duplicated (`ActorID` is C#-only and the script wrapper has no
+`__tostring`).
+
+**`TestHarness.AssertWithin`'s `timeoutReason` may be a FUNCTION**, evaluated at timeout rather than
+at registration (`mods/ww3mod/scripts/test-helpers.lua:85`). Failure strings returned from the
+predicate are still built at the moment they are returned, but the timeout note can report
+end-of-run counters — the only way a timing-out scenario can say what it was waiting for.
+
+**`ScenarioLuaParsesTest` really does cover new scenarios** — verified by injecting `local x = = 1`
+and watching it fail naming the file and line, rather than assuming. It parses every
+`tools/autotest/scenarios/**/*.lua` under the engine's own Lua 5.1 runtime. This is one
+scenario-shaped gate that does NOT have the "scenarios are not maps to the tooling" hole, and it is
+cheap insurance against burning an autotest slot on a typo.
+
 ## 2026-09-03 — `Rules.Actors` contains the `^` inherit templates, and four other findings from the rank-accumulation build (`wt/rank-accumulation`, `main @ 5d824817`)
 
 **`world.Map.Rules.Actors.Values` yields the abstract `^Foo` templates alongside real actors.** Any

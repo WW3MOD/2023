@@ -517,6 +517,32 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			queue.ResolveOrder(player.PlayerActor, order);
 		}
 
+		[Desc("Banked accumulated purchase ranks of `tier` (1-3) held for `actorType` by `player`, " +
+			"counting both the timer-accrued stock and the stock returned by evacuation. Returns -1 " +
+			"when the player has no RankAccumulation trait, -2 when `tier` is out of range, and -3 " +
+			"when `actorType` does not accrue at all (misspelled, not Buildable, or lacking " +
+			"GainsExperience). Those three are worth distinguishing because StockOf answers a plain " +
+			"0 for all of them, which is indistinguishable from a tracked-but-empty bank — and " +
+			"produced-unit levels, the only other way to observe this, cannot tell them apart " +
+			"either. Test mode only.")]
+		public int GetRankStock(Player player, string actorType, int tier)
+		{
+			if (!TestMode.IsActive || player == null)
+				return -1;
+
+			if (tier < 1 || tier > RankAccrual.MaxPurchasableRank)
+				return -2;
+
+			var accumulation = player.PlayerActor.TraitOrDefault<RankAccumulation>();
+			if (accumulation == null)
+				return -1;
+
+			if (!accumulation.Tracks(actorType))
+				return -3;
+
+			return accumulation.StockOf(actorType, tier);
+		}
+
 		[Desc("Issue a real EnterTransport order on `passenger` targeting `transport`. Goes through " +
 			"Passenger.ResolveOrder so the resulting RideTransport activity has its target-line " +
 			"color set, matching player right-click orders (the activity-direct Lua " +
