@@ -185,6 +185,20 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Maximum acceleration for the aircraft.")]
 		public readonly int MaxAcceleration = 10;
 
+		[Desc("CanSlide only. How aggressively an INTERMEDIATE waypoint is released early so the airframe arcs",
+			"through the corner at speed instead of stopping on the point. Percentage of the geometric release",
+			"distance derived in AircraftCornerMath; 100 flies the corner the geometry asks for, lower values",
+			"release later and cut the corner less, higher values release earlier and cut wider.",
+			"0 disables the feature and restores decelerate-and-stop on every waypoint.",
+			"Never applies to the FINAL waypoint, which always decelerates and stops on the point.")]
+		public readonly int WaypointReleaseAggression = 100;
+
+		[Desc("CanSlide only, and only when WaypointReleaseAggression is above 0. Deflection between the",
+			"current leg and the next past which no arc is flown and the airframe decelerates onto the",
+			"waypoint as before. 512 is a full reversal, which cannot be arced at all; the default 384",
+			"(135 degrees) is the point past which the arc stops resembling a turn and becomes a stop-and-go.")]
+		public readonly WAngle MaxCorneringDeflection = new(384);
+
 		public WAngle GetInitialFacing() { return InitialFacing; }
 		public WDist GetCruiseAltitude() { return CruiseAltitude; }
 		public Color GetTargetLineColor() { return TargetLineColor; }

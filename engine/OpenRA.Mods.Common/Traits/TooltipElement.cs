@@ -37,6 +37,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>A demoted caveat, dimmer and smaller than Prose.</summary>
 		Note,
+
+		/// <summary>Blank vertical space between two subsections — one weapon and the next.</summary>
+		SubsectionGap,
+
+		/// <summary>Blank vertical space between two blocks — the weapons and the actor's own stats.</summary>
+		SectionGap,
 	}
 
 	/// <summary>
@@ -53,6 +59,16 @@ namespace OpenRA.Mods.Common.Traits
 		public static TooltipElement Separator()
 		{
 			return new TooltipElement(TooltipElementKind.Separator, null, null);
+		}
+
+		public static TooltipElement SubsectionGap()
+		{
+			return new TooltipElement(TooltipElementKind.SubsectionGap, null, null);
+		}
+
+		public static TooltipElement SectionGap()
+		{
+			return new TooltipElement(TooltipElementKind.SectionGap, null, null);
 		}
 
 		public static TooltipElement Prose(string text)

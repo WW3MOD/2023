@@ -1,0 +1,28 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-capture-click-selected-and-enemy.lua
+
+# AUTONOMOUS CAPTURE IS SWITCHED OFF FOR THIS SCENARIO, and it has to be.
+#
+# This test is about the right-click GESTURE: which clicks reach the dispatcher and which are
+# correctly answered by the selection instead. AutoCaptureNearby ships enabled on ^TECN, so with it
+# live an idle technician would take the derrick beside it on its own initiative and every
+# assertion below would pass whether the click did anything or not. The confound is not
+# hypothetical: the derricks here sit 6 cells from their technicians, well inside the trait's
+# 8-cell default radius.
+#
+# Disabled by setting Enabled rather than by `-AutoCaptureNearby:` so the trait still loads and a
+# rename would fail the lint here instead of silently removing nothing.
+^TECN:
+	AutoCaptureNearby:
+		Enabled: false

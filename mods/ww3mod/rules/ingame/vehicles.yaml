@@ -290,42 +290,16 @@
 	TurretTurnSpeedMultiplier@CriticalDamage:
 		Modifier: 0
 		RequiresCondition: heavy-damage-attained
-	# The readout for everything above. Crossing 50% fires FIVE things at once — turret locked
-	# (:290), ground speed halved (:181), every Armament paused (the `heavy-damage-attained` term
-	# in ~24 PauseOnCondition gates across vehicles-america/russia/ukraine), autotarget scan radius
-	# collapsed to zero via AttackBase.GetMaximumRange skipping paused armaments
-	# (AttackBase.cs:596-597 -> AutoTarget.cs:1114), and a 1%/5-tick bleed (:184). Until now the only
-	# thing on screen was the damage pip going red and the smoke igniting, so the player reads "full
-	# ammo, clear shot, refuses to fire" as a bug. The behaviour is a settled user ruling; this is
-	# presentation only and grants nothing.
+	# NO readout for the above, by user ruling (2026-09-03). 27210e9c hung a red `X` here to mark the
+	# five things crossing 50% fires at once — turret locked (:290), ground speed halved (:181), every
+	# Armament paused, autotarget scan radius collapsed to zero, a 1%/5-tick bleed (:184) — on the
+	# argument that "full ammo, clear shot, refuses to fire" otherwise reads as a bug.
 	#
-	# NOT a countdown. A timer invites "so can I stop it?" and today the answer is "reach a Logistics
-	# Centre", which seven of ten shipped maps do not have. That is a design conversation, left out.
-	#
-	# MEDIUM: text, not a pip. Every pip idiom here is spoken for (4x4 pips2 colour dots, 6x3
-	# suppression/defense chevrons, the 17x5 damage bar) and a new colour would read as one of them.
-	# Text also needs no new art — which matters, because the PITFALL at defaults.yaml:844-846 is
-	# that a sequence naming a file the mod does not ship falls back to pips.shp and renders NOTHING.
-	#
-	# GLYPH: `X` is the mod's existing mark for "this unit is not shooting" — WithStanceDecoration
-	# draws a near-white X for a deliberately-set HoldFire stance. Red X is the involuntary half of
-	# the same sentence: not firing, and not because you asked. Deliberately NOT reusing A/H/>/!,
-	# which are Ambush, HoldPosition, Hunt and Spotted.
-	#
-	# SLOT: Top row (y=0), Margin.X -16. `Top` NEGATES margin.X (SelectionDecorations.cs:58), so this
-	# is 16px RIGHT of box centre. That row currently holds the 17x5 damage bar (x -8..+8) and the
-	# spotted `!` at x=+8; the rank chevron is 9px wide out at x -12..-20 on the other side. x=+16 is
-	# the only clear cell on the row, and it completes the right lane's 2x2 grid — the engagement
-	# stance glyph already sits directly above it at (+16, -10), with the fire stance glyph above the
-	# spotted `!` at (+8, -10). Static on purpose: the damage bar beside it is already pulsing, and a
-	# second blinking mark 8px away would read as one flickering blob.
-	WithTextDecoration@HeavyDamage:
-		Text: X
-		Color: FF3B3B
-		Position: Top
-		Margin: -16, 0
-		RequiresCondition: heavy-damage-attained
-		ValidRelationships: Ally
+	# The user reverted it having been told exactly that, so do NOT re-add it as an oversight: the fire
+	# and the blinking health bar already say "damaged and doomed", and they judged a second red mark
+	# 8px from a pulsing damage bar to cost more attention than the one non-redundant bit it carried.
+	# The disarmament rule is learned once and then known. If a future task wants to surface it, the
+	# open question is a QUIETER treatment, not this one again.
 
 # Crew-condition-driven vehicle disability — used by vehicles with VehicleCrew trait
 # Replaces blanket SpeedMultiplier@CriticalDamage / TurretTurnSpeedMultiplier@CriticalDamage
@@ -456,7 +430,7 @@ MSAR:
 		IconPalette: chrometd
 		Prerequisites: ~techlevel.medium
 		BuildDurationModifier: 50
-		Description: Locates enemy artillery by sound. Deploys for counter-battery targeting.\n\n - Passive detection system\n - Must deploy to operate
+		Description: Locates enemy artillery by sound. A passive detection system; must deploy to operate for counter-battery targeting.
 	Valued:
 		Cost: 1600
 	UpdatesPlayerStatistics:
@@ -534,7 +508,7 @@ MNLY:
 		Queue: Vehicle
 		BuildPaletteOrder: 98
 		Prerequisites: ~techlevel.medium
-		Description: Deploys anti-vehicle and anti-personnel mines.\n\n - 10 land mines\n - Unarmed
+		Description: Deploys anti-vehicle and anti-personnel mines. Unarmed.
 	Valued:
 		Cost: 600
 	Tooltip:
@@ -605,7 +579,7 @@ TRUK:
 		Queue: Vehicle
 		BuildPaletteOrder: 103
 		Prerequisites: ~techlevel.low
-		Description: Dedicated supply truck.\n\n - Passively resupplies nearby units\n - Can drop supplies as a ground cache\n - Unarmed
+		Description: Dedicated supply truck. Passively resupplies nearby units and can drop supplies as a ground cache. Unarmed.
 	Valued:
 		Cost: 1000
 	Tooltip:
@@ -716,7 +690,7 @@ LCCV:
 		Queue: Vehicle
 		BuildPaletteOrder: 150
 		Prerequisites: ~techlevel.low
-		Description: Deploys into a Logistics Center for field resupply of vehicles and infantry.\n\n - Unarmed
+		Description: Deploys into a Logistics Center for field resupply of vehicles and infantry. Unarmed.
 	# USER RULING 2026-08-22: "the LC should cost 3000". Raised from 1200 and held equal to
 	# LOGISTICSCENTER's Cost, since the same ruling treats the driving and deployed forms as one thing.
 	# 3000 credits for 2250 supply is exactly 3x the supply truck's 1000 for 750 on both axes.

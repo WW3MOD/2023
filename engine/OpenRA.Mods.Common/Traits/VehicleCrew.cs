@@ -62,6 +62,25 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Whether ejected crew inherit the vehicle's veterancy rank.")]
 		public readonly bool TransferVeterancy = true;
 
+		[Desc("Relative worth of each slot when a recovered crew member credits rank back to this ",
+			"vehicle type (see CreditsRankOnEvacuation). Any slot not listed weighs 100, so the default ",
+			"is UNIFORM: a two-man crew splits 50/50, a three-man crew a third each, and returning the ",
+			"whole crew is worth exactly one rank however many there are. There is no per-role value ",
+			"anywhere in the unit data to derive weights from - every crew actor inherits ^CrewMember at ",
+			"a flat Cost: 100 - so a commander is deliberately worth the same as a driver until someone ",
+			"sets this.")]
+		public readonly Dictionary<string, int> CrewSlotWeights = new Dictionary<string, int>();
+
+		/// <summary>This slot's share of the crew, as numerator/denominator over all slots.</summary>
+		public (int Numerator, int Denominator) CrewShare(string slotName)
+		{
+			var total = 0;
+			foreach (var slot in CrewSlots)
+				total += CrewSlotWeights.TryGetValue(slot, out var w) ? w : 100;
+
+			return (CrewSlotWeights.TryGetValue(slotName, out var mine) ? mine : 100, total);
+		}
+
 		[Desc("Queue a one-shot Evacuate (walk to the map edge and refund) on each crew member the moment it ",
 			"is spawned, after the walk clear of the husk. Implements the 2026-09-01 ruling that crew and pilots ",
 			"auto-evacuate as soon as they are out. It is an ordinary top-level activity, so ANY subsequent ",
@@ -423,7 +442,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			self.World.AddFrameEndTask(w =>
 			{
-				var crew = SpawnCrewActor(w, actorType, td, spawnLocation);
+				var crew = SpawnCrewActor(w, actorType, td, spawnLocation, slotName);
 				if (crew == null)
 					return;
 
@@ -458,7 +477,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// bypasses CanEnterCell so the husk's own occupancy cannot block placement. Getting him CLEAR is
 		/// <see cref="QueueDismountWalk"/>'s job. Returns null (having disposed the actor) if the rules gave us
 		/// something that cannot be positioned.</para></summary>
-		Actor SpawnCrewActor(World w, string actorType, TypeDictionary td, CPos spawnLocation)
+		Actor SpawnCrewActor(World w, string actorType, TypeDictionary td, CPos spawnLocation, string slotName)
 		{
 			var crew = w.CreateActor(false, actorType, td);
 			var positionable = crew.TraitOrDefault<IPositionable>();
@@ -466,6 +485,16 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				crew.Dispose();
 				return null;
+			}
+
+			// Remember which vehicle type this man came out of, and what fraction of its crew he is,
+			// so that getting him home credits rank back to THAT vehicle rather than to vehicles in
+			// general. Set here because this is the one spawn both ejection paths funnel through.
+			var credit = crew.TraitOrDefault<CreditsRankOnEvacuation>();
+			if (credit != null)
+			{
+				var (numerator, denominator) = info.CrewShare(slotName);
+				credit.SetCrewOrigin(self.Info.Name, numerator, denominator);
 			}
 
 			positionable.SetPosition(crew, spawnLocation);
@@ -676,7 +705,7 @@ namespace OpenRA.Mods.Common.Traits
 					// clear. A safe landing has no cookoff to escape, but the visual still reads better when
 					// the crew walks away rather than huddling on the fuselage — and they leave out of the
 					// BACK of it, fanned, on the same shared path.
-					var crew = SpawnCrewActor(w, actorType, td, spawnLocation);
+					var crew = SpawnCrewActor(w, actorType, td, spawnLocation, slotName);
 					if (crew == null)
 						return;
 

@@ -40,7 +40,7 @@ humvee:
 		Queue: Vehicle
 		BuildPaletteOrder: 1
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Fast wheeled transport with mounted gun.\n\n - 7.62mm machine gun\n - Carries 8 infantry
+		Description: Fast wheeled transport with mounted gun.
 	Valued:
 		Cost: 500
 	Tooltip:
@@ -94,8 +94,11 @@ humvee:
 		ReloadCount: 50
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 7.62mm MG: 6 batches × 50 rounds × 1 supply = 6 (~1% of unit cost 450).
-		SupplyValue: 1
+		# 7.62mm MG: 6 batches × 50 rounds × 4 supply = 24 (~4.8% of cost 500).
+		# 0.08/round — 1.6x the 5.56mm rifle anchor, matching the real cartridge-cost ratio
+		# between 7.62x51mm and 5.56x45mm. Was 1 per 50 (0.02/round), below the rifle.
+		# (The old comment also said cost 450; Valued.Cost is 500.)
+		SupplyValue: 4
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 7, 3
@@ -208,7 +211,7 @@ m113:
 		Queue: Vehicle
 		BuildPaletteOrder: 2
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Amphibious tracked APC with heavy machine gun.\n\n - 12.7mm HMG\n - Carries 12 infantry
+		Description: Amphibious tracked APC with heavy machine gun.
 		IconPalette: chrome
 	RenderSprites:
 		Image: m113
@@ -250,8 +253,10 @@ m113:
 		ReloadCount: 50
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 12.7mm HMG: 10 batches × 50 rounds × 1 supply = 10 (~1.4% of cost 700).
-		SupplyValue: 1
+		# 12.7mm M2: 10 batches × 50 rounds × 8 supply = 80 (~11.4% of cost 700).
+		# 0.16/round — 3.2x the 5.56mm rifle anchor. Was 1 per 50 (0.02/round). A step below
+		# the btr's 14.5mm (0.20), which is the larger cartridge.
+		SupplyValue: 8
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 7, 3
@@ -331,7 +336,7 @@ bradley:
 		Queue: Vehicle
 		BuildPaletteOrder: 3
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Tracked IFV with anti-armor capability.\n\n - 25mm chaingun\n - 2x wire-guided ATGMs\n - Carries 6 infantry
+		Description: Tracked IFV with anti-armor capability.
 	Valued:
 		Cost: 1500
 	UpdatesPlayerStatistics:
@@ -381,8 +386,11 @@ bradley:
 		ReloadCount: 100
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 25mm Bushmaster: 9 batches × 100 rounds × 5 supply = 45 (3% of cost 1500).
-		SupplyValue: 5
+		# 25mm Bushmaster: 9 batches × 100 rounds × 28 supply = 252 (~16.8% of cost 1500).
+		# 0.28/round — 5.6x the 5.56mm rifle anchor. Was 5 per 100 (0.05/round), identical to a
+		# rifle cartridge. Below the bmp2's 30mm (0.32) on calibre, which is the one real
+		# difference between the two IFVs' main guns.
+		SupplyValue: 28
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -489,7 +497,7 @@ abrams:
 		Queue: Vehicle
 		BuildPaletteOrder: 4
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Main battle tank for armored ground warfare.\n\n - 120mm main gun
+		Description: Main battle tank for armored ground warfare.
 	Valued:
 		Cost: 2500
 	Health:
@@ -535,9 +543,19 @@ abrams:
 		ReloadCount: 5
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 120mm: 8 batches × 5 shells × 30 supply = 240 (9.6% of cost 2500).
-		# Tank ammo is cheap relative to the platform; empty tank evacs ~90%.
-		SupplyValue: 30
+		# 120mm M829-series APFSDS. 80 supply buys one 5-shell batch, so a full 40-round
+		# load is 8 batches at 80 = 640 (25.6% of cost 2500, 28% of a Logistics Centre).
+		#
+		# DEARER PER SHELL THAN THE T-90's 70, and the reason is the penetrator: the M829
+		# family uses a DEPLETED-URANIUM long rod, the expensive way to build this round.
+		# The T-90's 3BM series uses a tungsten-alloy rod in a two-piece separate-loading
+		# charge, cheaper to manufacture. That is the whole of the 80/70 split — a
+		# materials-and-manufacture difference, not a performance claim. No damage,
+		# penetration or Ammo count is touched by it. Autoloader-vs-human-loader and
+		# carousel-vs-bustle are the other real T-90/Abrams differences, but they govern
+		# rate of fire and survivability rather than what a shell costs, so neither is
+		# priced here.
+		SupplyValue: 80
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 9, 3
@@ -587,7 +605,7 @@ m109:
 		Queue: Vehicle
 		BuildPaletteOrder: 6
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Self-propelled howitzer for long-range bombardment.\n\n - 155mm cannon\n - Must deploy to fire
+		Description: Self-propelled howitzer for long-range bombardment. Must deploy to fire.
 	Tooltip:
 		Name: Paladin
 	AnnounceOnSeen:
@@ -754,7 +772,7 @@ m270:
 		Queue: Vehicle
 		BuildPaletteOrder: 7
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Multiple launch rocket system for area saturation.\n\n - 12x 227mm rockets\n - Rearms at a Logistics Centre (840 supply per full load)\n - Evacuates when dry and no Centre is closer than home\n - Devastating area damage
+		Description: Multiple launch rocket system for area saturation. Devastating area damage. Rearms at a Logistics Centre, and evacuates when dry if no Centre is closer than home.
 	Valued:
 		Cost: 1800
 	Tooltip:
@@ -890,7 +908,7 @@ strykershorad:
 		Queue: Vehicle
 		BuildPaletteOrder: 5
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Wheeled IFV for rapid troop transport.\n\n - Autocannon\n - Carries infantry
+		Description: Wheeled IFV for rapid troop transport.
 	Valued:
 		Cost: 2500
 	UpdatesPlayerStatistics:
@@ -936,8 +954,11 @@ strykershorad:
 		ReloadCount: 50
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 25mm: 8 batches × 50 rounds × 1 supply = 8 (~0.3% of cost 2500).
-		SupplyValue: 1
+		# 25mm: 8 batches × 50 rounds × 14 supply = 112 (~4.5% of cost 2500).
+		# 0.28/round, the same 25mm rate as the bradley — it is the same weapon key
+		# (25mm.Bradley). Was 1 per 50 (0.02/round), i.e. the identical round cost 2.5x less
+		# here than on the bradley for no stated reason.
+		SupplyValue: 14
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 6
@@ -1054,7 +1075,7 @@ HIMARS:
 		Queue: Vehicle
 		BuildPaletteOrder: 8
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.high
-		Description: High Mobility Artillery Rocket System.\n\n - 2x PrSM precision missiles\n - Cannot be rearmed: one load per launcher\n - Evacuates for a refund once both missiles are spent\n - Long-range precision strikes
+		Description: High Mobility Artillery Rocket System for long-range precision strikes. Cannot be rearmed: one load per launcher, and it evacuates for a refund once both missiles are spent.
 	Valued:
 		Cost: 6000
 	Tooltip:
@@ -1127,6 +1148,9 @@ HIMARS:
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
 		SupplyValue: 1500
+		# Same shape as the Iskander: HIMARSTargeter is a dummy trigger and the rocket is the
+		# HIMARSMissile actor. The heading read "HIMARS TARGETER" — the launcher, not the round.
+		TooltipName: Guided rocket
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3

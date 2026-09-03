@@ -1,0 +1,181 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: with a neutral Logistics Center in reach the bot captures rather than buys
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# USER REPORT 2026-09-03, watching a bot-vs-bot game on a map that already carried neutral Centres:
+#   "On this particular map there are already a neutral LC on each side, so the bots should instead
+#    capture the exisiting one."
+#
+# THIS SCENARIO IS THE COMPLEMENT OF test-lc-refuses-the-opening-buy, and the difference between the
+# two maps is the whole experiment. That one refuses because there is NO DEMAND. This one deliberately
+# CREATES the demand — a real forward army, far from the SR — so that the demand model says "buy",
+# and then places a neutral Centre in reach so the capture veto is the only thing left refusing. If
+# the veto is deleted, this scenario buys and fails; if the demand model is deleted, the OTHER
+# scenario buys and fails. Neither can cover for the other.
+#
+# HOW THE DEMAND IS MANUFACTURED, since it must survive the gate on its own terms:
+#   * SR at (6,16); the forward platoon stands at x=30..32, i.e. ~25 cells out — comfortably past
+#     ForwardCustomerCells (12). TripSaving = 1000*(25-6)/25 ≈ 760 per mille.
+#   * The forward group is 4 abrams (2500 each) plus 6 riflemen, ~11500 credits of forward army, so
+#     the value term clears a 2500 tank by a wide margin once any ammo need exists.
+#   * Ammo need is NOT scripted here and does not need to be: the forward platoon is placed in
+#     contact with the Russian force, so it fights and spends ammo within the window. That is also
+#     why this scenario runs a longer window than the opening one.
+#
+# THE NEUTRAL CENTRE at (20,16) is 14 cells from the USA SR — inside CaptureConsiderCells (40) and
+# therefore a valid veto. It is placed BEHIND the forward platoon rather than between the two SRs, so
+# it is plausibly capturable by this bot rather than contested at the midline.
+#
+# WHAT THE SECOND, ENEMY-SIDE CENTRE IS FOR. (52,16) is 46 cells from the USA SR, i.e. OUTSIDE
+# CaptureConsiderCells. It reproduces the shipped maps' pairing (woodland-warfare, river-zeta and
+# polar-disorder each place one per side) and it is the regression guard for the distance bound: if
+# CaptureConsiderCells is ever removed or set map-wide, the enemy's Centre would veto this bot's
+# purchase forever. That failure is invisible in this scenario's PASS — see the .lua, which reports
+# the distance to whichever Centre it credits so the bound can be read off a passing run.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Bot: stable
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,16
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+	# THE FREE CENTRE, on this bot's side of the map and within CaptureConsiderCells of its SR.
+	# LOGISTICSCENTER is capturable via ^BasicBuilding -> ^NeutralOrOccupiedCapturable
+	# (structures.yaml:10, :169), so a technician can take it; PoiMap discovers it because
+	# `logisticscenter` carries an IncomeWeights entry (SupplyDepotIncomeWeight 25).
+	NeutralCentre: logisticscenter
+		Owner: Neutral
+		Location: 20,16
+
+	# The far one, OUTSIDE the bound. See the header — this is the pairing the shipped maps use and
+	# the guard against a map-wide veto.
+	FarCentre: logisticscenter
+		Owner: Neutral
+		Location: 52,16
+
+	# Home guard, near the SR.
+	BotRifle1: ar.america
+		Owner: USA-bot
+		Location: 8,15
+		Facing: 768
+	BotRifle2: ar.america
+		Owner: USA-bot
+		Location: 8,17
+		Facing: 768
+
+	# THE FORWARD PLATOON — this is what makes the demand model say "buy", so that the capture veto
+	# is the only thing that can refuse. ~25 cells from the SR, in contact with the enemy so it
+	# spends ammo without any scripting.
+	FwdTank1: abrams
+		Owner: USA-bot
+		Location: 30,14
+		Facing: 768
+	FwdTank2: abrams
+		Owner: USA-bot
+		Location: 30,16
+		Facing: 768
+	FwdTank3: abrams
+		Owner: USA-bot
+		Location: 30,18
+		Facing: 768
+	FwdTank4: abrams
+		Owner: USA-bot
+		Location: 32,16
+		Facing: 768
+	FwdRifle1: ar.america
+		Owner: USA-bot
+		Location: 31,13
+		Facing: 768
+	FwdRifle2: ar.america
+		Owner: USA-bot
+		Location: 31,15
+		Facing: 768
+	FwdRifle3: ar.america
+		Owner: USA-bot
+		Location: 31,17
+		Facing: 768
+	FwdRifle4: ar.america
+		Owner: USA-bot
+		Location: 31,19
+		Facing: 768
+	FwdRifle5: ar.america
+		Owner: USA-bot
+		Location: 32,14
+		Facing: 768
+	FwdRifle6: ar.america
+		Owner: USA-bot
+		Location: 32,18
+		Facing: 768
+
+	# The opposing line, close enough that the forward platoon engages and burns ammo.
+	EnemyRifle1: e3.russia
+		Owner: Russia-bot
+		Location: 38,15
+		Facing: 256
+	EnemyRifle2: e3.russia
+		Owner: Russia-bot
+		Location: 38,17
+		Facing: 256
+	EnemyRifle3: e3.russia
+		Owner: Russia-bot
+		Location: 39,16
+		Facing: 256
+	EnemyTank1: t90
+		Owner: Russia-bot
+		Location: 40,15
+		Facing: 256
+	EnemyTank2: t90
+		Owner: Russia-bot
+		Location: 40,17
+		Facing: 256
+
+Rules: rules.yaml

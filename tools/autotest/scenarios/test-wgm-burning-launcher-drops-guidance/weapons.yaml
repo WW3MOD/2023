@@ -1,0 +1,5 @@
+# Burst 1 keeps the test deterministic — one missile in the air per lane, so the
+# MissileTrace record index maps 1:1 onto the lane that fired it. Copied verbatim
+# from test-wgm-target-dies-midflight, which relies on the same property.
+WGM.bradley:
+	Burst: 1

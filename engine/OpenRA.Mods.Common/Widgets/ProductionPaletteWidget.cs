@@ -141,8 +141,24 @@ namespace OpenRA.Mods.Common.Widgets
 		public readonly Color AutoStripeColor = Color.LimeGreen;
 		public readonly int AutoStripeWidth = 3;
 
+		// Accumulated free ranks, bottom-left. Chevrons are POLYLINES, not glyphs and not sprites:
+		// FreeSansBold ships no Geometric Shapes block, so U+25C6 and neighbours render as nothing
+		// silently, and a sequence naming a file the mod does not ship falls back to pips.shp and
+		// also renders nothing. A polyline cannot resolve to nothing. Only the count digits use a
+		// font, and they reuse overlayFont, already proven on digits by the queue badge below.
+		public readonly Color RankColor = Color.FromArgb(255, 240, 210, 122);
+		public readonly int RankChevronWidth = 7;
+		public readonly int RankChevronHeight = 3;
+		public readonly int RankChevronPitch = 4;
+		public readonly int RankStrokeWidth = 1;
+		public readonly int RankBottomMargin = 3;
+		public readonly int RankLeftMargin = 4;
+		public readonly int RankEntryGap = 4;
+		public readonly int RankGlyphCountGap = 2;
+
 		Player cachedQueueOwner;
 		IProductionIconOverlay[] pios;
+		RankAccumulation rankAccumulation;
 
 		[CustomLintableHotkeyNames]
 		public static IEnumerable<string> LinterHotkeyNames(MiniYamlNode widgetNode, Action<string> emitError)
@@ -629,6 +645,7 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			cachedQueueOwner = CurrentQueue.Actor.Owner;
 			pios = cachedQueueOwner.PlayerActor.TraitsImplementing<IProductionIconOverlay>().ToArray();
+			rankAccumulation = cachedQueueOwner.PlayerActor.TraitOrDefault<RankAccumulation>();
 		}
 
 		public void RefreshIcons()
@@ -822,6 +839,80 @@ namespace OpenRA.Mods.Common.Widgets
 					overlayFont.DrawTextWithContrast(totalText, totalPos, totalColor, Color.Black, 1);
 				}
 			}
+
+			DrawAccumulatedRanks();
+		}
+
+		/// <summary>
+		/// The free ranks banked for each buildable, along the bottom-left of its button. One entry
+		/// per tier actually held - a type with nothing banked draws nothing at all, which is most of
+		/// them most of the time. Tiers run highest-first from the left, because the highest is what
+		/// the next click actually spends.
+		/// <para>Bottom-left is the only corner of this button nothing else claims: the two-number
+		/// queue badge owns top-right, the ready/hold/time text owns the centre, and the auto-build
+		/// stripe owns a 3px column on the far left that RankLeftMargin starts clear of.</para>
+		/// </summary>
+		void DrawAccumulatedRanks()
+		{
+			if (rankAccumulation == null)
+				return;
+
+			foreach (var icon in icons.Values)
+			{
+				var x = icon.Pos.X + RankLeftMargin;
+
+				// Tips of the lowest chevron in each stack sit on this line, so stacks of different
+				// heights stay bottom-aligned with each other.
+				var baseY = icon.Pos.Y + IconSize.Y - RankBottomMargin;
+
+				for (var tier = RankAccrual.MaxPurchasableRank; tier >= 1; tier--)
+				{
+					var held = rankAccumulation.StockOf(icon.Name, tier);
+					if (held <= 0)
+						continue;
+
+					// Tier N is a stack of N chevrons, the way rank insignia reads.
+					for (var i = 0; i < tier; i++)
+						DrawChevron(x, baseY - i * RankChevronPitch);
+
+					var entryWidth = RankChevronWidth;
+					if (held > 1)
+					{
+						var text = held.ToString();
+						var pos = new float2(x + RankChevronWidth + RankGlyphCountGap,
+							baseY - overlayFont.Measure(text).Y + 1);
+						overlayFont.DrawTextWithContrast(text, pos, RankColor, Color.Black, 1);
+						entryWidth += RankGlyphCountGap + overlayFont.Measure(text).X;
+					}
+
+					x += entryWidth + RankEntryGap;
+				}
+			}
+		}
+
+		/// <summary>One chevron: a three-point polyline with its apex above the two tips, drawn over
+		/// a one-pixel black offset copy so it stays readable against pale icon art.</summary>
+		void DrawChevron(float x, float y)
+		{
+			var half = RankChevronWidth / 2f;
+			var cx = x + half;
+
+			var shadow = new[]
+			{
+				new float3(x + 1, y + 1, 0),
+				new float3(cx + 1, y - RankChevronHeight + 1, 0),
+				new float3(x + RankChevronWidth + 1, y + 1, 0)
+			};
+
+			var body = new[]
+			{
+				new float3(x, y, 0),
+				new float3(cx, y - RankChevronHeight, 0),
+				new float3(x + RankChevronWidth, y, 0)
+			};
+
+			Game.Renderer.RgbaColorRenderer.DrawLine(shadow, RankStrokeWidth, Color.Black, true);
+			Game.Renderer.RgbaColorRenderer.DrawLine(body, RankStrokeWidth, RankColor, true);
 		}
 
 		public override string GetCursor(int2 pos)

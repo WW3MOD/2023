@@ -1,0 +1,66 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-lc-drains-mid-errand.lua
+
+^Combatant:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+		InitialEngagementStance: Defensive
+		InitialEngagementStanceAI: Defensive
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32
+
+^Soldier:
+	AutoSeekSupplies:
+		# ISOLATION, and stricter than the sibling scenario's. There are two traits that can send a dry
+		# soldier to a depot: this one, and AmmoPool.AutoRearmIfDry off INotifyBecomingIdle. Only the
+		# second produces the Resupply activity whose mid-flight re-check this scenario measures, and
+		# only the second owns the HoldAndFlag disposition that produced "they just wait there".
+		#
+		# Switching the whole trait off (rather than neutering one threshold, as
+		# test-lc-errand-ends-when-rearmed-en-route does) means a green here CANNOT come from
+		# AutoSeekSupplies' own ReturnWhenEmpty arm re-dispatching the unit. That arm already picks on
+		# affordability and would mask the defect under test.
+		#
+		# Enabled ships false on the engine class, so this is restating the default rather than
+		# suppressing shipped behaviour — but state it, because the mod may turn it on later and this
+		# scenario would then silently start measuring a different trait.
+		Enabled: false
+
+# Dry on arrival, so the errand is dispatched by the shipped traits rather than staged by the test —
+# the chain under test starts at "unit has nothing to fire", not "test issues an order".
+AR:
+	AmmoPool@1:
+		InitialAmmo: 0
+
+LOGISTICSCENTER:
+	SupplyProvider:
+		# Required, and NOT scenario convenience — the same correction
+		# test-lc-errand-ends-when-rearmed-en-route documents for SUPPLYCACHE. SupplyProvider stops
+		# serving outright below RestockThreshold (default 50, SupplyProvider.cs:254) unless
+		# KeepServingBelowThreshold, which needs EvacuateOnUnusableResidue — true only on TRUK.
+		#
+		# Without this, the .lua's drain to 5 would stop the depot serving for a reason that has
+		# nothing to do with affordability, and the run would go green on the wrong mechanism. Zeroing
+		# it isolates the ONE variable this scenario is about: whether a depot holding less than one
+		# batch price still counts as a rearm destination.
+		RestockThreshold: 0
+		# NOTE on why the drained depot STAYS drained for the length of the run, since the scenario
+		# depends on it: restocking is driven by SupplyProviderInfo.RestockActors, an actor-name set
+		# that is empty on LOGISTICSCENTER, and the map deliberately carries no supply truck or cache.
+		# There is no `SelfRestock` field to switch off — the first draft of this file invented one, and
+		# an unknown key here is a lint error rather than a no-op.

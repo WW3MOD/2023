@@ -56,6 +56,38 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// <para>IS THIS DEPOT A VALID REARM DESTINATION for one pool — the whole "empty LC counts as no
+		/// LC" rule, reduced to four integers so it can be pinned without an Actor or a World. Both
+		/// clauses are load-bearing and each has already been the whole bug on its own.</para>
+		///
+		/// <para>EMPTINESS IS AFFORDABILITY, NOT ZERO. The predicate everyone reaches for first is
+		/// <c>CurrentSupply &gt; 0</c>, which is what <c>AmmoPool.RearmCandidates</c> still applies
+		/// as a coarse pre-filter. It is the wrong question over the whole band <c>1 .. batchPrice-1</c>:
+		/// a host in that band is STOCKED, so it keeps attracting units, and it can serve NOBODY, because
+		/// <c>Rearmable.RearmTick</c> skips any pool the provider cannot pay for (Rearmable.cs:106) and
+		/// <c>AmmoPool.TryServeBatch</c> does the same on the push side. The band is not narrow in this
+		/// mod: an iskander's batch is <c>SupplyValue: 1500</c> against the Logistics Centre's
+		/// <c>TotalSupply: 2250</c>, so the Centre spends most of its life holding 750 — stocked,
+		/// useless, and a magnet. That 750 is the user's reported symptom, not a zero.</para>
+		///
+		/// <para>WANTING ROUNDS IS THE OTHER HALF. A full pool makes any host unable to serve it, however
+		/// rich, so a unit already loaded must not count a depot as a reason to stay.</para>
+		///
+		/// <para>Callers pass this per pool and take the disjunction — one servable pool is enough to make
+		/// the trip worth taking. Kept per-pool rather than over a collection so the live callers
+		/// (<see cref="AmmoPool.HostCanAffordSomethingWeNeed"/>, re-asked every tick for the whole journey
+		/// by <c>SeekSupplyProvider.TargetValid</c>) stay allocation-free.</para>
+		/// </summary>
+		/// <param name="hostSupply">The depot's current supply.</param>
+		/// <param name="currentRounds">Rounds the pool holds now.</param>
+		/// <param name="capacity">Rounds the pool holds when full (<c>AmmoPoolInfo.Ammo</c>).</param>
+		/// <param name="batchPrice">Supply one batch costs (<c>AmmoPoolInfo.SupplyValue</c>).</param>
+		public static bool HostCanServePool(int hostSupply, int currentRounds, int capacity, int batchPrice)
+		{
+			return currentRounds < capacity && hostSupply >= batchPrice;
+		}
+
+		/// <summary>
 		/// The stance gate: every axis must permit the run, and each says no for its own reason.
 		/// Resupply must be Auto — Hold means "stay put, a truck will come to me", and Evacuate is
 		/// owned by the out-of-ammo evac path, which takes precedence over any local errand.
@@ -201,20 +233,19 @@ namespace OpenRA.Mods.Common.Traits
 		/// An Iskander with no Logistics Centre is therefore flagging for a rescue the ruleset makes
 		/// impossible, which is exactly the bug this was reported as.</para>
 		///
-		/// <para>DRAINED IS NOT ABSENT, and conflating the two is the defect this signature exists to
-		/// make impossible. <c>RearmsUnits</c> appears NOWHERE in mods/ww3mod, so every rearm host in
-		/// this mod is a <c>SupplyProvider</c> and <c>AmmoPool.ChooseResupplier</c> filters them on
-		/// <c>CurrentSupply &gt; 0</c> — meaning "no host found" silently also means "the depot is
-		/// standing right there but empty". Evacuating on THAT spends the unit permanently against a
-		/// recoverable condition: <c>AbsorbsSupplyCache</c> calls <c>SupplyProvider.AddSupply</c> from
-		/// nearby caches, so a drained Logistics Centre is one truck away from serving again. And it is
-		/// the ROUTINE state, not an edge case — the iskander's pool is <c>SupplyValue: 1500</c> against
-		/// the Logistics Centre's <c>TotalSupply: 2250</c>, so one LC cannot fill one Iskander twice and
-		/// <c>CurrentSupply == 0</c> is where it normally ends up. Hence
-		/// <paramref name="anyHostWithinLeash"/> and <paramref name="anyHostCanReachUs"/> are asked
-		/// about hosts that EXIST, ignoring their current stock, while
-		/// <paramref name="suppliedHostWithinLeash"/> is the separate question of whether one can serve
-		/// us right now.</para>
+		/// <para>DRAINED IS NOT ABSENT — TRUE OF A TRUCK, FALSE OF A DEPOT, and the asymmetry is the point.
+		/// The two hope inputs used to agree that a drained host still counts, on the grounds that
+		/// <c>AbsorbsSupplyCache</c> can refill a Logistics Centre. USER RULING (LC-empty-rearm): "Empty
+		/// LC should count as no LC, as far as auto-rearming goes. Units evacuate instead if there is no
+		/// LC WITH SUPPLIES." So <paramref name="anyHostWithinLeash"/> is now asked about hosts that can
+		/// SERVE US, while <paramref name="anyHostCanReachUs"/> alone still ignores stock.</para>
+		///
+		/// <para>The asymmetry is not arbitrary: <c>HoldAndFlag</c>'s entire payoff is
+		/// <c>NeedsResupply</c>, whose only reader drives to the flagged UNIT. A truck can answer that; a
+		/// building never can, and no mechanism anywhere reads the flag as "bring supply to my depot". So
+		/// waiting beside a drained STATIC depot was a bet on the player independently trucking supply
+		/// there, and the unit stood combat-inert until they did. Waiting for a drained MOBILE host is
+		/// still a real plan, and infantry — who name <c>truk</c> — are unaffected.</para>
 		///
 		/// <para>ZERO-SEMANTICS, and this is the trap: <paramref name="seekingEnabled"/> is a SEPARATE
 		/// input from the leash booleans precisely so a disabled leash cannot be mistaken for a distant
@@ -246,8 +277,11 @@ namespace OpenRA.Mods.Common.Traits
 		/// positive. See the zero-semantics paragraph above.</param>
 		/// <param name="suppliedHostWithinLeash">Whether a host that can afford a batch we are short of
 		/// sits inside the leash — the seek trigger, and the only input that reads current stock.</param>
-		/// <param name="anyHostWithinLeash">Whether any host EXISTS inside the leash, drained or not.
-		/// A depot we are standing next to is worth waiting at even while it is empty.</param>
+		/// <param name="anyHostWithinLeash">Whether any host inside the leash can SERVE US — i.e. afford a
+		/// batch of a pool we still want. Reads stock, since the user ruling above; a depot we are
+		/// standing next to that cannot pay is not worth waiting at. Weaker than
+		/// <paramref name="suppliedHostWithinLeash"/> only in the Euclid/Chebyshev mismatch shape, where
+		/// an affordable host is inside the leash but is not the one the chooser picked.</param>
 		/// <param name="anyHostCanReachUs">Whether any host that exists could travel to us — in practice
 		/// whether any is mobile. A static depot beyond the leash can never close the gap.</param>
 		public static DryAutoDisposition DecideAutoDisposition(bool canMove, bool whollyDry,

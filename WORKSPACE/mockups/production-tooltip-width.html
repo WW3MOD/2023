@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Production tooltip — width and cost row</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 20px 26px;
+    background: #17181a; color: #b8bcc2;
+    font: 12px/1.5 -apple-system, "Segoe UI", system-ui, sans-serif;
+  }
+  h1 { font-size: 14px; margin: 0 0 3px; color: #e6e8ea; font-weight: 600; }
+  .sub { font-size: 11px; color: #6f757c; margin: 0 0 16px; }
+  .panes { display: flex; gap: 26px; align-items: flex-start; flex-wrap: wrap; }
+  .pane h2 {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .09em;
+    color: #6f757c; margin: 0 0 7px; font-weight: 600;
+  }
+  .pane h2 b { color: #c8a45a; font-weight: 600; }
+
+  /* ---- the tooltip itself, at 1 CSS px == 1 game px ---- */
+  .tip {
+    position: relative; box-sizing: border-box;
+    background: #1e2124; border: 1px solid #3a3f45;
+    font-family: "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+  }
+  .tip .row-name { position: relative; height: 23px; }
+  .nm { position: absolute; font-size: 14px; font-weight: 700; color: #e8eaec; top: 3px; }
+  .cost { position: absolute; font-size: 14px; font-weight: 700; color: #fff; top: 4px; }
+  .cicon {
+    position: absolute; width: 16px; height: 16px; top: 5px;
+    background: #c8a45a; border-radius: 2px;
+    box-shadow: inset 0 0 0 2px #1e2124, inset 0 0 0 4px #c8a45a;
+  }
+  .desc { position: relative; }
+  .subhead { font-size: 10px; font-weight: 700; color: #969696; height: 13px; }
+  .prose  { font-size: 12px; color: #969696; }
+  .li     { font-size: 12px; color: #969696; height: 17px; }
+  .note   { font-size: 10px; color: #686868; height: 14px; }
+  .sep    { height: 1px; background: #262626; }
+  .stat   { position: relative; height: 17px; }
+  .stat .k { position: absolute; left: 0;  font-size: 10px; font-weight: 700; color: #686868; }
+  .stat .v { position: absolute; right: 0; font-size: 12px; color: #d4d4d4; }
+  .stat .cv{ position: absolute; right: 0; font-size: 12px; color: #c8a45a; }
+  .stat .d { position: absolute; overflow: hidden; white-space: nowrap; color: #404040; font-size: 12px; }
+
+  /* the wasted band the user photographed */
+  .deadband {
+    position: absolute; top: 0; bottom: 0;
+    background: repeating-linear-gradient(135deg, #d9534f22 0 5px, transparent 5px 10px);
+    border-left: 1px dashed #d9534f88; pointer-events: none;
+  }
+  .deadlbl {
+    position: absolute; bottom: 3px; font-size: 9px; color: #d9534f;
+    writing-mode: vertical-rl; letter-spacing: .05em;
+  }
+  .measure { margin-top: 7px; font-size: 10px; color: #6f757c; }
+  .measure b { color: #9aa0a6; font-weight: 600; }
+
+  /* ---- controls ---- */
+  .ctrls {
+    margin-top: 24px; padding-top: 16px; border-top: 1px solid #2a2e33;
+    display: flex; gap: 26px; flex-wrap: wrap; align-items: flex-end;
+  }
+  .ctrl { display: flex; flex-direction: column; gap: 5px; }
+  .ctrl label { font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: #6f757c; }
+  .ctrl .val { font-size: 11px; color: #e6e8ea; font-variant-numeric: tabular-nums; }
+  .ctrl .val em { color: #6f757c; font-style: normal; }
+  input[type=range] { width: 190px; accent-color: #c8a45a; }
+  button {
+    background: #c8a45a; color: #17181a; border: 0; border-radius: 3px;
+    padding: 8px 15px; font-size: 11px; font-weight: 700; cursor: pointer;
+    letter-spacing: .03em;
+  }
+  button:hover { background: #d8b46a; }
+  .hint { font-size: 10px; color: #565b61; margin-top: 9px; }
+</style>
+</head>
+<body>
+
+<h1>Production tooltip — cost on the name row, panel narrowed</h1>
+<p class="sub">
+  1&nbsp;CSS&nbsp;pixel = 1 game pixel. Fonts are a stand-in for FreeSans/FreeSansBold at the
+  same sizes, so text widths are close but not exact — judge the proportions, not the kerning.
+</p>
+
+<div class="panes">
+  <div class="pane">
+    <h2>Before — <b>as shipped</b></h2>
+    <div id="beforeTip"></div>
+    <div class="measure">panel <b id="beforeW">—</b> · content stops at <b id="beforeC">—</b></div>
+  </div>
+  <div class="pane">
+    <h2>After — <b>this branch</b></h2>
+    <div id="afterTip"></div>
+    <div class="measure">panel <b id="afterW">—</b> · content runs to <b id="afterC">—</b> · <b id="delta">—</b></div>
+  </div>
+</div>
+
+<div class="ctrls">
+  <div class="ctrl">
+    <label for="cw">Content width</label>
+    <span class="val" id="cwv">280 <em>px — ProductionTooltipLayout.ContentWidth</em></span>
+    <input type="range" id="cw" min="180" max="360" step="2" value="280">
+  </div>
+  <div class="ctrl">
+    <label for="gap">Name → cost gap</label>
+    <span class="val" id="gapv">12 <em>px — NameCostGap</em></span>
+    <input type="range" id="gap" min="4" max="40" step="1" value="12">
+  </div>
+  <div class="ctrl">
+    <label for="dtm">Margin above description</label>
+    <span class="val" id="dtmv">4 <em>px — DescriptionTopMargin</em></span>
+    <input type="range" id="dtm" min="0" max="16" step="1" value="4">
+  </div>
+  <button id="send">Use these numbers</button>
+</div>
+<p class="hint">
+  Moving a slider is free and silently kept — nothing is sent until you press the button.
+  Press it once you are happy and I will read the three numbers back.
+</p>
+
+<script>
+(function () {
+  var MARGIN = 7, ICON_W = 16, ICON_GAP = 3, OLD_CONTENT = 350;
+  var COST_TEXT = "1200", NAME_TEXT = "M1A2 Abrams";
+
+  function el(tag, cls, css, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (css) for (var k in css) n.style[k] = css[k];
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  // Rows shared by both panes, so any difference on screen is layout and nothing else.
+  var BODY = [
+    { k: "prose", t: "Main battle tank. Composite armour front, vulnerable flanks and rear; needs infantry screening in close terrain." },
+    { k: "sep" },
+    { k: "subhead", t: "120MM SMOOTHBORE" },
+    { k: "stat", key: "DAMAGE",  val: "140" },
+    { k: "stat", key: "RANGE",   val: "7c0" },
+    { k: "stat", key: "RELOAD",  val: "3.2s" },
+    { k: "stat", key: "PER SHOT", val: "$14", cost: true },
+    { k: "subgap" },
+    { k: "subhead", t: "COAXIAL MG" },
+    { k: "stat", key: "DAMAGE",  val: "18" },
+    { k: "stat", key: "RANGE",   val: "4c0" },
+    { k: "secgap" },
+    { k: "stat", key: "ARMOUR",  val: "Heavy" },
+    { k: "stat", key: "SPEED",   val: "85" },
+    { k: "note", t: "Cannot fire on the move above half speed." }
+  ];
+
+  // Build one tooltip. `contentW` is the wrap width; `insetRight` is the dead gutter the old
+  // layout left below the cost column (zero in the new one).
+  function build(contentW, insetRight, descTopMargin, nameGap, showDeadBand) {
+    var panelW = contentW + insetRight + 2 * MARGIN;
+    var tip = el("div", "tip", { width: panelW + "px" });
+
+    var nameRow = el("div", "row-name");
+    nameRow.appendChild(el("span", "nm", { left: MARGIN + "px" }, NAME_TEXT));
+
+    // Old: cost lives in a gutter column past the content. New: flush to the right margin.
+    var costW = 31;
+    var costX = insetRight > 0
+      ? contentW + 2 * MARGIN + ICON_W + ICON_GAP
+      : panelW - MARGIN - costW;
+    nameRow.appendChild(el("span", "cost", { left: costX + "px" }, COST_TEXT));
+    nameRow.appendChild(el("span", "cicon", { left: (costX - ICON_GAP - ICON_W) + "px" }));
+    tip.appendChild(nameRow);
+
+    var desc = el("div", "desc", {
+      marginLeft: MARGIN + "px", width: contentW + "px",
+      paddingTop: descTopMargin + "px", paddingBottom: MARGIN + "px"
+    });
+
+    BODY.forEach(function (r) {
+      if (r.k === "sep")    { desc.appendChild(el("div", null, { height: "5px" }));
+                              desc.appendChild(el("div", "sep"));
+                              desc.appendChild(el("div", null, { height: "5px" })); return; }
+      if (r.k === "subgap") { desc.appendChild(el("div", null, { height: "6px" })); return; }
+      if (r.k === "secgap") { desc.appendChild(el("div", null, { height: "12px" })); return; }
+      if (r.k === "subhead"){ desc.appendChild(el("div", "subhead", null, r.t)); return; }
+      if (r.k === "prose")  { desc.appendChild(el("div", "prose", null, r.t)); return; }
+      if (r.k === "note")   { desc.appendChild(el("div", "note", { paddingLeft: "9px" }, r.t)); return; }
+
+      var row = el("div", "stat");
+      row.appendChild(el("span", "k", null, r.key));
+      row.appendChild(el("span", r.cost ? "cv" : "v", null, r.val));
+      var dots = el("span", "d", { left: "0", right: "0", textAlign: "center", opacity: ".5" },
+        "................................................................");
+      row.appendChild(dots);
+      row.appendChild(el("span", "k", { background: "#1e2124", paddingRight: "4px" }, r.key));
+      row.appendChild(el("span", r.cost ? "cv" : "v", { background: "#1e2124", paddingLeft: "4px" }, r.val));
+      desc.appendChild(row);
+    });
+
+    tip.appendChild(desc);
+
+    if (showDeadBand) {
+      var band = el("div", "deadband", {
+        left: (contentW + MARGIN) + "px", width: (insetRight + MARGIN) + "px", top: "26px"
+      });
+      tip.appendChild(band);
+      tip.appendChild(el("div", "deadlbl", {
+        left: (contentW + MARGIN + 4) + "px", top: "34px"
+      }, (insetRight + MARGIN) + "px unused"));
+    }
+    return { node: tip, panelW: panelW };
+  }
+
+  var cw = document.getElementById("cw"),
+      gap = document.getElementById("gap"),
+      dtm = document.getElementById("dtm");
+
+  function render() {
+    var contentW = +cw.value, nameGap = +gap.value, descTop = +dtm.value;
+
+    document.getElementById("cwv").innerHTML  = contentW + ' <em>px — ProductionTooltipLayout.ContentWidth</em>';
+    document.getElementById("gapv").innerHTML = nameGap + ' <em>px — NameCostGap</em>';
+    document.getElementById("dtmv").innerHTML = descTop + ' <em>px — DescriptionTopMargin</em>';
+
+    // "Before" is fixed: 350 content plus the 31+16+3+7 cost gutter it always carried.
+    var oldGutter = 31 + ICON_W + ICON_GAP + MARGIN;
+    var before = build(OLD_CONTENT, oldGutter, 0, 12, true);
+    var after  = build(contentW, 0, descTop, nameGap, false);
+
+    var bh = document.getElementById("beforeTip"), ah = document.getElementById("afterTip");
+    bh.innerHTML = ""; bh.appendChild(before.node);
+    ah.innerHTML = ""; ah.appendChild(after.node);
+
+    document.getElementById("beforeW").textContent = before.panelW + "px";
+    document.getElementById("beforeC").textContent = (OLD_CONTENT + MARGIN) + "px";
+    document.getElementById("afterW").textContent  = after.panelW + "px";
+    document.getElementById("afterC").textContent  = (contentW + MARGIN) + "px";
+
+    var pct = Math.round(100 * (before.panelW - after.panelW) / before.panelW);
+    document.getElementById("delta").textContent = pct + "% narrower";
+
+    post("maestro:artifact_state", { contentWidth: contentW, nameCostGap: nameGap, descriptionTopMargin: descTop, resultingPanelWidth: after.panelW, reductionPercent: pct });
+    geometry();
+  }
+
+  function post(type, state, summary) {
+    var msg = { type: type, state: state };
+    if (summary) msg.summary = summary;
+    window.parent.postMessage(msg, "*");
+  }
+  function geometry() {
+    window.parent.postMessage({ type: "maestro:artifact_geometry", height: document.documentElement.scrollHeight }, "*");
+  }
+
+  [cw, gap, dtm].forEach(function (s) { s.addEventListener("input", render); });
+
+  document.getElementById("send").addEventListener("click", function () {
+    var contentW = +cw.value, nameGap = +gap.value, descTop = +dtm.value;
+    var panelW = contentW + 2 * MARGIN;
+    post("maestro:artifact_submit",
+      { contentWidth: contentW, nameCostGap: nameGap, descriptionTopMargin: descTop, resultingPanelWidth: panelW },
+      "Tooltip: ContentWidth " + contentW + "px, NameCostGap " + nameGap + "px, DescriptionTopMargin " + descTop + "px (panel " + panelW + "px)");
+  });
+
+  window.addEventListener("message", function (e) {
+    if (e.data && e.data.type === "maestro:artifact_hydrate" && e.data.state) {
+      var s = e.data.state;
+      if (s.contentWidth) cw.value = s.contentWidth;
+      if (s.nameCostGap) gap.value = s.nameCostGap;
+      if (s.descriptionTopMargin != null) dtm.value = s.descriptionTopMargin;
+      render();
+    }
+  });
+
+  render();
+  window.addEventListener("load", geometry);
+})();
+</script>
+</body>
+</html>

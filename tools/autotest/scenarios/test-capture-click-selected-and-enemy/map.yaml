@@ -1,0 +1,123 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: AUTO: capture dispatch survives the target being selected, and reaches enemy structures
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS IS FOR. The dispatch gesture used to be gated on the SELECTION BEING EMPTY, so
+# left-clicking a structure and then right-clicking it did nothing at all — the most natural way for
+# a player to name "that one". The gate is now the number of orders the selection actually RESOLVED,
+# which is zero both for an empty selection and for a selection holding only actors the player does
+# not own (UnitOrderGenerator.OrderForUnit returns null for those).
+#
+# The same change is what lets the gesture reach ENEMY structures. Nothing ever restricted the
+# dispatcher to neutral targets — CaptureManager.CanTarget already admits an enemy-held building for
+# a technician — so the empty-selection gate was the whole of the restriction in practice.
+#
+# ------------------------------------------------------------------------------------------------
+# WALK BUDGETS, AND WHY THE FIRST RUN OF THIS MAP FAILED (2026-09-03).
+#
+# The first layout put each derrick 20 cells from its technician and allowed 900 ticks. That cannot
+# work, and the arithmetic was available before the run:
+#
+#     ^Infantry Mobile Speed is 25 world units/tick, and a cell is 1024 units
+#     => ONE CELL COSTS 40.96 TICKS
+#     => a 19-cell approach (the derrick is 2x2, so its near edge is one cell in) is 778 ticks
+#        + CaptureDelay 20 + moving into the target ~60  =  ~860 ticks against a 900-tick budget
+#
+# A 4% margin, spent before the unit turned around. The run failed with "dispatched at but never
+# captured", which reads exactly like a code defect and was reported as one; the orders were issued
+# correctly and the technicians were simply still walking when the verdict was taken.
+#
+# THE DELAY IS 20 TICKS, NOT 500, and the difference matters for anyone re-deriving this. 500 ticks
+# is ^CapturesOccupiedBuildings' CaptureDelay — the SOLDIER clearing an enemy building. A technician
+# does not carry that template at all: it has only ^CapturesNeutralBuildings (CaptureDelay 20), and
+# CaptureManager.ValidCapturesWithLowestSabotageThreshold picks from the CAPTOR's own Captures
+# traits, so a technician takes an enemy derrick on the 20-tick path just as it takes a neutral one.
+#
+# Gaps are now 6 cells: 5 * 40.96 = 205 + 20 + ~60 = ~285 ticks against SettleTicks 600, a 2.1x
+# margin.
+#
+# ------------------------------------------------------------------------------------------------
+# THREE TECHNICIANS, because a successful dispatch COMMITS the technician it picked and the next
+# click then correctly reports 0 free. One per positive assertion keeps each one independent. Rows
+# are 6 apart and the dispatcher picks the NEAREST FREE technician, so each click's captor is
+# unambiguous — verified rather than assumed:
+#
+#   click DerrickEnemyA(16,10)  TechA 6.00   TechB  8.49   TechC 13.42   -> TechA
+#   click DerrickEnemyB(16,16)  TechB 6.00   TechC  8.49   (TechA busy)  -> TechB
+#   click DerrickNeutral(16,22) TechC 6.00   (TechA, TechB busy)         -> TechC
+#
+# AutoCaptureNearby is disabled in rules.yaml — see the note there. With it live, every derrick here
+# is inside its technician's 8-cell radius and would be captured with no click at all.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		Faction: america
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		Faction: russia
+		Enemies: USA
+
+Actors:
+	SpawnPlayer: mpspawn
+		Owner: Neutral
+		Location: 4,16
+	SpawnEnemy: mpspawn
+		Owner: Neutral
+		Location: 60,16
+
+	# One technician per positive assertion, each unambiguously nearest to its own derrick.
+	TechA: tecn
+		Owner: USA
+		Location: 10,10
+	TechB: tecn
+		Owner: USA
+		Location: 10,16
+	TechC: tecn
+		Owner: USA
+		Location: 10,22
+
+	# The conscript exists only to prove the dispatch STANDS DOWN when the selection can answer the
+	# click itself. It carries ^CapturesOccupiedBuildings, so right-clicking an enemy building with
+	# it selected resolves a real order (it clears the building) and dispatch must not fire.
+	Conscript: e1
+		Owner: USA
+		Location: 12,16
+
+	# Two enemy derricks: one for the nothing-selected assertion, one for the selected assertion.
+	# They must be distinct actors, because a structure a technician is already walking at is
+	# reported AlreadyCovered and a second click at it correctly issues nothing.
+	DerrickEnemyA: oilb
+		Owner: Russia
+		Location: 16,10
+	DerrickEnemyB: oilb
+		Owner: Russia
+		Location: 16,16
+
+	DerrickNeutral: oilb
+		Owner: Neutral
+		Location: 16,22
+
+Rules: rules.yaml

@@ -5,6 +5,37 @@
 
 ---
 
+- [2026-09-03] [DORMANT — NOT LIVE] **`t72` carries the generic APC armour distribution, so its roof
+  is 5.3× a T-90's and top-attack weapons would be half-effective against it.**
+  **DOWNGRADED FROM [MEDIUM] THE SAME DAY, BY THE MANAGER, AFTER TWO WORKERS CONTRADICTED EACH OTHER.**
+  The arithmetic below is correct and was re-derived; the word "Live" in it was not.
+  `mods/ww3mod/rules/ingame/vehicles-ukraine.yaml` **is not in `mod.yaml`'s `Rules:` list and is not
+  referenced by any map** — verified by `grep -rn "vehicles-ukraine" mods/`, which returns nothing at
+  all. The game never opens the file, so no `t72` can exist in a match and nothing here can be
+  observed in play. A second worker auditing tooltip data found the same thing independently while
+  resolving actor inheritance against what `mod.yaml` actually loads; that is what surfaced the
+  conflict. **Keep this entry rather than deleting it**: it becomes live the instant anyone adds the
+  file to `mod.yaml`, which is a plausible thing to do, since the file is a complete, costed,
+  buildable tank. Fix the distribution in the same change that wires the file up.
+  **General lesson, and the reason this is written at length**: a defect derived correctly from a YAML
+  file is not a defect in the game until you have checked the file is loaded. Deriving from source is
+  necessary but not sufficient — `mod.yaml`'s `Rules:` list is the boundary of what exists.
+  The original entry follows, unedited except for this header. `t72`
+  (`mods/ww3mod/rules/ingame/vehicles-ukraine.yaml:25-26`) is an MBT with `Thickness: 280` —
+  identical to `t90` — but its `Distribution` is the boilerplate `100,80,80,80,60` shared by all 13
+  non-MBT vehicles, rather than a tank profile like `t90`'s `100,60,40,15,15`
+  (`vehicles-russia.yaml:322`) or `abrams`' `100,40,15,10,10` (`vehicles-america.yaml:500`).
+  Derived roof armour is therefore **224mm against the T-90's 42mm**, and side is 224 against 168.
+  **Live consequence:** `ATGM` (the Javelin) is `TopAttack: true` with `Penetration: 100`
+  (`weapons-missiles.yaml:6`), so `ArmorDirectionPercent` selects `Distribution[3]`
+  (`DamageWarhead.cs:152-155`) and `effectiveThickness = 280*80/100 = 224` (`:249`). Against the
+  T-90's roof of 42 the round penetrates and deals full damage; against the T-72's 224 it does not,
+  and `ApplyPenetration` scales damage to `100/224` ≈ **45%** (`:128-133`). A top-attack missile is
+  less than half as effective against the cheaper, weaker tank — the inverse of the intent.
+  Computed from source, **not measured in play**. The fix is a one-line YAML change, but which
+  profile a T-72 should carry is a balance decision, so it was deliberately left alone.
+  (found while working on: `wt/armour-diagram`, the per-facing armour tooltip mockup, `main @ 925b5b82`)
+
 - [2026-09-02] [HIGH] **~~Capturing a building leaves its vision with the PREVIOUS owner~~ — FIXED
   the same day by `49afe9e9` "Vision follows a building that changes hands" (on `main`; confirmed at
   `26f9cec0` during the 2026-09-02 curation pass).** `AffectsMapLayer` now DOES implement

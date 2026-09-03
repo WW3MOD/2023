@@ -226,7 +226,7 @@ namespace OpenRA.Mods.Common.Activities
 				if (returningHome)
 					return TickReturnHome(self);
 
-				// The one bit of the frozen set that can go stale mid-walk, re-asked once per tick.
+				// The two bits of the frozen set that can go stale mid-walk, re-asked once per tick.
 				//
 				// Only while still EN ROUTE: once actualResupplyStarted the unit is standing at the
 				// host with the dock notifications sent, and the right thing then is to fill up and
@@ -239,7 +239,7 @@ namespace OpenRA.Mods.Common.Activities
 				// rather than a new one.
 				if (!actualResupplyStarted
 					&& activeResupplyTypes.HasFlag(ResupplyType.Rearm)
-					&& AmmoPool.SelfAssignedErrandIsOver(dispatchedBecauseDry, pools))
+					&& (AmmoPool.SelfAssignedErrandIsOver(dispatchedBecauseDry, pools) || !HostStillWorthReaching()))
 				{
 					activeResupplyTypes &= ~ResupplyType.Rearm;
 
@@ -322,6 +322,45 @@ namespace OpenRA.Mods.Common.Activities
 			}
 
 			return false;
+		}
+
+		/// <summary>
+		/// <para>Can the host we are walking to still pay for a batch of something we want — asked every
+		/// tick of the approach, because the answer was frozen in the constructor and the depot is being
+		/// drained by everyone else in the meantime.</para>
+		///
+		/// <para>THE REPORTED BUG, in one sentence: a unit dispatched to a stocked Logistics Centre that
+		/// ran dry while it walked used to arrive anyway and stand there. The dock path could not fix
+		/// itself on arrival either — <c>Rearmable.RearmTick</c> correctly declines to serve a pool the
+		/// provider cannot pay for and reports the pool done, so the activity ends with the unit parked at
+		/// a useless depot, and the idle re-decision then chose to wait beside it
+		/// (<see cref="AmmoPool.AnyRearmHostWithinLeash"/>, fixed in the same change).</para>
+		///
+		/// <para>PARITY, not a new idea. <see cref="SeekSupplyProvider"/> runs the truck/cache half of the
+		/// very same errand and has re-asked exactly this since the affordability work landed — its
+		/// <c>TargetValid</c> is <see cref="AmmoPool.HostCanAffordSomethingWeNeed"/>, and
+		/// <see cref="SupplyHuntMath.NextState"/> answers <c>!providerUsable</c> with <c>Returning</c>.
+		/// The Logistics Centre half was simply never given the same test, and the two halves of one user
+		/// report should not behave differently. Going HOME rather than stopping where we stand is that
+		/// same parity: it is what the truck half does on a drained provider.</para>
+		///
+		/// <para>THE POOL SET IS <c>pools</c> — every pool, the set the DISPATCHERS chose on
+		/// (<see cref="AmmoPool.ChooseAffordableResupplier"/>), not the narrower <c>Rearmable</c> subset.
+		/// An exit test stricter than the dispatch test that started the errand would end it on tick one
+		/// for any actor whose two sets differ; that is the trap EssentialAmmoTest's
+		/// <c>TheErrandExitTestCannotBeSatisfiedAtDispatch</c> exists to pin, in its other form.</para>
+		///
+		/// <para>NO THRASH GUARD, deliberately. Abandoning hands the unit back to
+		/// <see cref="AmmoPool.AutoRearmIfDry"/> on the next idle, which re-picks with
+		/// <see cref="AmmoPool.ChooseAffordableResupplier"/> — so the depot we just walked away from is
+		/// excluded by the same predicate that made us leave, and cannot be re-chosen until it can
+		/// genuinely serve us. Re-choosing it once it CAN is correct rather than oscillation.</para>
+		/// </summary>
+		bool HostStillWorthReaching()
+		{
+			// Host death and removal are handled by the isHostInvalid branch above; this is only about
+			// supply. A host with no SupplyProvider charges nothing and always passes.
+			return AmmoPool.HostCanAffordSomethingWeNeed(host.Actor, pools);
 		}
 
 		/// <summary>Switch to the walk home. Returns what Tick should return.</summary>

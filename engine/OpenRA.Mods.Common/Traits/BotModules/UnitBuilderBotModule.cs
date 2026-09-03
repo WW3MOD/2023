@@ -1,4 +1,4 @@
-#region Copyright & License Information
+﻿#region Copyright & License Information
 /*
  * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
@@ -123,6 +123,21 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Ammo-need fraction (0-1) at/above which a fielded unit counts as needing resupply.",
 			"Mirrors SupplyProvider.MinNeedThreshold so a near-full unit (e.g. 499/500) does not trigger a truck.")]
 		public readonly float ResupplyNeedThreshold = 0.05f;
+
+		[Desc("Ammo-need fraction (0-1) for the FIRST truck only, i.e. while the heldFirstSupplyTruck latch",
+			"is still open. USER RULING 2026-09-03: 'unless at least one soldier is below half ammo, we",
+			"should not waste money on supply trucks' — that is need >= 0.5, where ResupplyNeedThreshold's",
+			"0.05 counts a soldier who has fired 5% of his magazine.",
+			"SEPARATE from ResupplyNeedThreshold rather than a change to it, and that scoping is the point:",
+			"that field is ALSO the needy-customer bar the demand-sized fleet is sized from",
+			"(SupplyFleetUnderDesired -> SupplyPrecedenceMath.SizingCustomers), so raising it in place would",
+			"silently shrink the standing mid-match reserve — which the same user wants kept ('When some",
+			"units are about to run out of ammo we buy one'). The ruling is about the OPENING, so it is",
+			"applied where the opening is decided and nowhere else.",
+			"NEGATIVE (the default) => fall back to ResupplyNeedThreshold, i.e. baseline: any profile that",
+			"does not set this is byte-identical, and @stable short-circuits on GateResupplyOnAmmoNeed",
+			"before reaching it at all.")]
+		public readonly float FirstTruckNeedThreshold = -1f;
 
 		[Desc("EXPERIMENTAL: size the ResupplyUnitTypes fleet from the number of STARVING customers instead of",
 			"letting the composition target share decide it. The share cannot size logistics: shares are",
@@ -906,7 +921,8 @@ namespace OpenRA.Mods.Common.Traits
 			Log.Write("debug", $"[composition] census tick={world.WorldTick} player={player.InternalName} "
 				+ $"cash={AvailableBudget()} starving={starving} needy={needy} trucks-desired={desired} "
 				+ $"bank-spell={supplyBankedCycles} bank-best={supplyBankBestCash} bank-stalled={supplyBankStalled} "
-				+ $"ammo-need={AnyFieldedUnitNeedsResupply()} held-first-truck={heldFirstSupplyTruck} {econ} "
+				+ $"ammo-need={AnyFieldedUnitNeedsResupply(EffectiveResupplyThreshold())} "
+				+ $"ammo-bar={EffectiveResupplyThreshold()} held-first-truck={heldFirstSupplyTruck} {econ} "
 				+ $"(type=inWorld+inCargo/census‰vtarget‰) {string.Join(" ", parts)}");
 		}
 
@@ -1020,7 +1036,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (!belowFloor && Info.GateResupplyOnAmmoNeed && Info.ResupplyUnitTypes.Contains(name)
 				&& SupplyPrecedenceMath.RefuseResupplyBuy(
-					SupplyFleetUnderDesired(name), heldFirstSupplyTruck, AnyFieldedUnitNeedsResupply()))
+					SupplyFleetUnderDesired(name), heldFirstSupplyTruck, AnyFieldedUnitNeedsResupply(EffectiveResupplyThreshold())))
 				return;
 
 			if (!belowFloor && Info.ScaleAntiAirToThreat && Info.AntiAirUnitTypes.Contains(name) && !ShouldBuildMoreAntiAir())
@@ -1121,7 +1137,9 @@ namespace OpenRA.Mods.Common.Traits
 		// Behaviour 1: is there meaningful ammo need among fielded units a gated truck can rearm? Mirrors
 		// SupplyProvider's own metric (ResupplyDemand.UnitNeed) over each such unit's truck-rearmable pools,
 		// short-circuiting on the first needy unit. Pure decision in ResupplyDemand; this only reads trait state.
-		bool AnyFieldedUnitNeedsResupply()
+		// The bar is a PARAMETER because the first truck and the standing reserve answer to different
+		// rulings — see FirstTruckNeedThreshold. EffectiveResupplyThreshold picks which one is in force.
+		bool AnyFieldedUnitNeedsResupply(float threshold)
 		{
 			foreach (var a in OwnedUnitsIncludingCarried())
 			{
@@ -1134,11 +1152,23 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				var need = ResupplyDemand.UnitNeed(pools.Select(p => (p.Info.Ammo, p.CurrentAmmoCount, p.Info.SupplyValue)));
-				if (ResupplyDemand.MeetsThreshold(need, Info.ResupplyNeedThreshold))
+				if (ResupplyDemand.MeetsThreshold(need, threshold))
 					return true;
 			}
 
 			return false;
+		}
+
+		/// <summary>Which ammo bar is in force this cycle. Before the first truck the OPENING ruling governs
+		/// (FirstTruckNeedThreshold, "below half ammo"); after the latch closes the standing reserve governs
+		/// and the ordinary service bar applies, so mid-match sizing is untouched. A negative
+		/// FirstTruckNeedThreshold is the unset default and falls back to baseline.</summary>
+		float EffectiveResupplyThreshold()
+		{
+			if (heldFirstSupplyTruck || Info.FirstTruckNeedThreshold < 0f)
+				return Info.ResupplyNeedThreshold;
+
+			return Info.FirstTruckNeedThreshold;
 		}
 
 		// ===== Demand-sized supply fleet (@experimental) =====
@@ -2316,7 +2346,7 @@ namespace OpenRA.Mods.Common.Traits
 			// becomes "eligible" for a buy that the buy path then refuses, wasting the cycle.
 			if (Info.GateResupplyOnAmmoNeed && Info.ResupplyUnitTypes.Contains(name)
 				&& SupplyPrecedenceMath.RefuseResupplyBuy(
-					SupplyFleetUnderDesired(name), heldFirstSupplyTruck, AnyFieldedUnitNeedsResupply()))
+					SupplyFleetUnderDesired(name), heldFirstSupplyTruck, AnyFieldedUnitNeedsResupply(EffectiveResupplyThreshold())))
 				return false;
 
 			if (Info.ScaleAntiAirToThreat && Info.AntiAirUnitTypes.Contains(name) && !ShouldBuildMoreAntiAir())

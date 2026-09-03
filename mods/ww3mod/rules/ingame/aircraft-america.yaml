@@ -22,7 +22,7 @@ TRAN:
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 1
 		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.medium
-		Description: Fast transport helicopter.\n\n - Carries infantry\n - Unarmed
+		Description: Fast transport helicopter. Unarmed.
 	Valued:
 		Cost: 2000
 	Tooltip:
@@ -124,7 +124,7 @@ littlebird:
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 2
 		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.medium
-		Description: Light scout helicopter with dual chainguns.\n\n - 2x 7.62mm miniguns\n - Fast and agile
+		Description: Light scout helicopter with dual chainguns. Fast and agile.
 	Tooltip:
 		Name: Littlebird
 	Valued:
@@ -178,8 +178,11 @@ littlebird:
 		Ammo: 160
 		ReloadCount: 40
 		AmmoCondition: ammo-primary
-		# 7.62mm minigun: 4 batches × 40 rounds × 1 supply = 4 (~0.1% of cost 3000).
-		SupplyValue: 1
+		# 7.62mm minigun: 4 batches × 40 rounds × 3 supply = 12 (~0.4% of cost 3000).
+		# 0.075/round, the 7.62mm rate (humvee 0.08, to the nearest whole supply on a batch
+		# of 40). Was 1 per 40 (0.025/round), half a rifle cartridge. The Hellfires
+		# (200/round) remain the real ammunition bill on this airframe.
+		SupplyValue: 3
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -305,7 +308,7 @@ HELI:
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 3
 		Prerequisites: ~player.america, ~aircraft.america, ~techlevel.high
-		Description: Heavy attack helicopter with multi-role armament.\n\n - Chaingun + anti-tank missiles\n - Can engage aircraft
+		Description: Heavy attack helicopter with multi-role armament. Can engage aircraft.
 	Tooltip:
 		Name: Apache
 	Valued:
@@ -352,8 +355,10 @@ HELI:
 		Ammo: 200
 		ReloadCount: 40
 		AmmoCondition: ammo-primary
-		# 30mm chain gun: 5 batches × 40 rounds × 5 supply = 25 (~0.4% of cost 6000).
-		SupplyValue: 5
+		# 30mm chain gun: 5 batches × 40 rounds × 13 supply = 65 (~1.1% of cost 6000).
+		# 0.325/round, the 30mm rate (bmp2 0.32, tunguska 0.33). Was 5 per 40 (0.125/round),
+		# a 30mm shell at 2.5x a rifle cartridge. Hellfires (200/round) still dominate.
+		SupplyValue: 13
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -481,8 +486,12 @@ A10:
 		ReloadCount: 25
 		AmmoCondition: ammo-primary
 		Armaments: primary
-		# 30mm GAU-8: 4 batches × 25 rounds × 5 supply = 20 (~0.3% of cost 6000).
-		SupplyValue: 5
+		# 30mm GAU-8: 4 batches × 25 rounds × 10 supply = 40 (~0.7% of cost 6000).
+		# 0.40/round — above the 0.32 plain-30mm rate because PGU-14 is a depleted-uranium
+		# armour-piercing incendiary, not an HE chain-gun shell. Same lever, and the same
+		# direction, as the abrams/t90 split (80 vs 70) on DU-versus-tungsten penetrator.
+		# Was 5 per 25 (0.20/round).
+		SupplyValue: 10
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -637,8 +646,10 @@ F16:
 		Ammo: 150
 		ReloadCount: 30
 		ReloadDelay: 100
-		# 20mm M61 cannon: 5 batches × 30 rounds × 1 supply = 5 (~0.08% of cost 6000).
-		SupplyValue: 1
+		# 20mm M61 cannon: 5 batches × 30 rounds × 7 supply = 35 (~0.6% of cost 6000).
+		# 0.233/round, the 20mm rate — between the 14.5mm HMG (0.20) and 25mm (0.28).
+		# Was 1 per 30 (0.033/round), two thirds of a rifle cartridge for a 20mm shell.
+		SupplyValue: 7
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud

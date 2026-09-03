@@ -180,15 +180,12 @@ namespace OpenRA.Mods.Common.Traits
 				if (p.Trait.IsTraitPaused)
 					continue;
 
-				var inits = new TypeDictionary
-				{
-					new OwnerInit(self.Owner),
-					new FactionInit(BuildableInfo.GetInitialFaction(unit, p.Trait.Faction))
-				};
+				var inits = CreateProductionInits(unit, BuildableInfo.GetInitialFaction(unit, p.Trait.Faction), out var rank);
 
 				var item = Queue.First(i => i.Done && i.Item == unit.Name);
 				if (p.Trait.Produce(p.Actor, unit, type, inits, item.TotalCost))
 				{
+					CommitRank(unit, rank);
 					EndProduction(item);
 					return true;
 				}

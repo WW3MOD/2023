@@ -3,6 +3,705 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-03 — `Rules.Actors` contains the `^` inherit templates, and four other findings from the rank-accumulation build (`wt/rank-accumulation`, `main @ 5d824817`)
+
+**`world.Map.Rules.Actors.Values` yields the abstract `^Foo` templates alongside real actors.** Any
+trait that enumerates the ruleset to build a per-type table must filter them or it silently creates
+entries for `^GainsExperience`, `^CrewMember` and friends. The house pattern is
+`ai.Name.StartsWith("^", StringComparison.Ordinal)` — `ControlField.cs:531`,
+`DangerFieldLayer.cs:422` and `:828`, `CheckUnitRoleTable.cs:186`. Nothing warns you; a template that
+happens to carry the traits you filter on just becomes a phantom row.
+
+**`ProducibleWithLevel` cannot deliver a dynamic level.** Its `InitialLevels` is a `TraitInfo` field
+read at load time (`ProducibleWithLevel.cs:24`), so it can only ever express a constant. Anything
+needing "whatever this player has banked" must reach `GainsExperience` another way. The near-miss
+alternative, `ExperienceInit`, carries raw *experience points*, not levels, and the thresholds are
+`Conditions` keys multiplied by `Valued.Cost` (`GainsExperience.cs:87-89`) — so using it means
+duplicating that derivation at the call site and keeping the copy in step by hand.
+
+**`GainsExperience.GiveLevels` clamps and is therefore order-independent**, so two independent
+callers on the same actor compose safely: `newLevel = Min(Level + n, MaxLevel)` (`:102`). A unit
+carrying both `ProducibleWithLevel` and another level source lands on the same rank whichever runs
+first. The non-silent path, though, branches on `self.Owner == self.World.RenderPlayer` (`:128`) —
+client-local. It only guards a sprite effect and a sound, so it is not a desync, but granting
+silently means the branch is never reached at all.
+
+**`INotifySold.Sold` is a reliable "this actor got home alive" signal; `Selling` is not.** `Sold`
+fires from exactly two places: `RotateToEdge.cs:466`, reached only by an actor that physically
+reached the map edge, and `Sell.cs:45` for a building selling in place. `Sellable.cs:83` raises
+`Selling` — the *intent* — so a unit ordered to evacuate and killed en route raises `Selling` and
+never `Sold`. Reading the wrong one turns "recovered" into "tried to recover".
+
+**Crew size across the shipped roster, since the three-man tank crew is the minority.** 9 of 14
+vehicles are two-slot `Driver, Gunner`; 5 are three-slot with a `Commander`
+(`vehicles-america.yaml:310, :471, :882`, `vehicles-russia.yaml:138, :296, :830`). Aircraft: 1
+`Pilot` only, 2 `Pilot, Copilot`, 3 `Pilot, Gunner`. **There is no per-role value anywhere in the
+data** — every crew actor inherits `^CrewMember` at a flat `Cost: 100` (`crew.yaml:14-15`), so a
+commander is worth exactly what a driver is worth. Any design assuming otherwise is assuming data
+that does not exist.
+
+**Known gap, not fixed:** `CreditsRankOnEvacuation`'s crew-origin tag is set directly on the trait by
+`VehicleCrew.SpawnCrewActor` rather than through an `ActorInit`, so it does not survive a save/load
+round trip. Left as is because a crew member's whole lifetime is the seconds between bailing out and
+reaching the edge; if saves ever need to cover it, the fix is an init consumed in the constructor.
+
+## 2026-09-03 — A UI difference expressed as an alpha RATIO is a contrast difference, and only survives where the background is black (`wt/range-circle-dim`, `main @ 03c77208`)
+
+Reported as "artillery range circles: the outermost ring is prominent below the map edge, but over the
+map they are all dimmed". Established by reading the render path; **no game launch, nothing measured.**
+
+**There is no second draw path to blame.** `WorldRenderer.DrawAnnotations` is called from
+`Game.cs:910` inside `Renderer.BeginUI()` — *after* `worldRenderer.Draw()` has finished, so annotations
+never meet the depth buffer (`WorldRenderer.cs:378` disables it), the shroud, or any post-process pass
+(`ApplyPostProcessing(AfterShroud)` is the last thing `Draw()` does, `:388`). `RgbaColorRenderer.DrawLine`
+premultiplies and uses `BlendMode.Alpha` (`RgbaColorRenderer.cs:56-70`). So an on-map segment and an
+off-map segment of the same ring are the same call with the same colour, differing only in the
+destination pixel — which rules out ordering, pass and blend-mode explanations by construction.
+
+**The general rule.** Alpha blending is `dst + a*(src - dst)`. Two elements separated by an alpha gap
+`g` therefore land on screen separated by `g * |src - dst|` per channel. Against black that factor is
+maximal; against lit terrain it collapses. `RangeCircleGrouping` set the envelope to the configured
+alpha (35) and the interior to a quarter of it (8) — a gap of 27/255 that reads plainly over the
+beyond-map band and is a few units per channel over ground.
+
+**So the off-map region is a false witness.** `DrawBeyondMapFog` (`WorldRenderer.cs:404`) paints that
+band fully opaque black, which is the single best background any faint annotation can have. Anything
+tuned or *reviewed* against it is being judged under best case. Verify low-alpha UI over bright terrain.
+
+**Why it looked artillery-specific, and is not.** Grouping needs two selected allied actors sharing a
+`RangeCircleType` **and** an equal current range (`RangeCircleGrouping.cs:50`) — two identical tanks
+qualify exactly as two identical Paladins do. What artillery has is *radius*: the mod's weapon ranges
+run 0–50 cells and the artillery band is 20–50, so artillery rings are the only ones that routinely
+reach the black band where the intended styling is visible at all. The user's "only artillery" is a
+sampling artefact of which rings can reach the witness, not a property of artillery.
+## 2026-09-03 — A glyph decoration is centred on its EM BOX, not on its ink, so it hangs `fontsize/2` below where it looks centred (`wt/visual-layout`, `main @ 03c77208`)
+
+Found while fixing the visibility diamond's position; **read from source, not measured on screen.**
+
+`WithTextDecoration.RenderDecoration` draws at `screenPos - size / 2`
+(`engine/OpenRA.Mods.Common/Traits/Render/WithTextDecoration.cs:66`, and the graded override at
+`WithSpottedDecoration.cs:170`), which looks like it centres the glyph on the decoration origin. It
+does not, and the gap is large enough to matter at these sizes:
+
+1. `SpriteFont.Measure` returns a height of **`rows * size`** — `engine/OpenRA.Game/Graphics/SpriteFont.cs:244`
+   — so for a single-line string that is the font's point size, *whatever character was measured*. The
+   returned height is a property of the font, not of the glyph. Width is the sum of glyph **advances**
+   (`:247-253`), which is likewise not the ink width.
+2. `SpriteFont.DrawText` then adds a further `size` to get from the passed location to the baseline:
+   `location += new float2(0, size)` at `:99`, commented "offset from the baseline position".
+
+Net: **the baseline lands `size / 2` below the nominal origin.** For the TinyBold the decorations use
+(`mods/ww3mod/mod.yaml`, Size 10) that is 5px. Every baseline-sitting glyph — diamonds, digits,
+capitals, the `X`/`A`/`H`/`>` stance letters — therefore puts *all* of its ink below the point it is
+nominally centred on, reaching ~5px down and only ~2px up.
+
+This is why the diamond read as "too far down" at `Margin.Y: 0`: its ink hung 5px past the top of the
+decoration bounds and straight through the vehicle damage bar at `y -2..+2`. Lifting a glyph clear of
+something needs `half the sprite + clearance + 5`, not `half the sprite + clearance`.
+
+Sprite decorations (`WithDecoration.cs:106`) are genuinely centred, because a sprite's size *is* its
+ink. So a glyph and a sprite authored at the same `Margin` do **not** line up — worth knowing before
+placing one next to the other. Arithmetic and tests:
+`engine/OpenRA.Mods.Common/Traits/Render/DecorationRowGeometry.cs`.
+
+## 2026-09-03 — The production tooltip's width was a `Math.Clamp` with equal bounds, so measured content silently overflowed (`wt/visual-layout`, `main @ 03c77208`)
+
+`ProductionTooltipLogic.cs:165-167` (before this branch) read:
+
+```csharp
+var leftWidth = Math.Clamp(
+    new[] { nameSize.X + hotkeyWidth, requiresSize.X, descSize.X }.Aggregate(Math.Max),
+    MaxTooltipWidth, MaxTooltipWidth);
+```
+
+Both bounds are `MaxTooltipWidth`, so this is `leftWidth = 350` and the three measurements are
+computed and thrown away. It reads as "fit the content, up to a cap" and behaves as "ignore the
+content". Consequence: a name or a prerequisite list wider than 350px drew **outside** the panel
+rather than widening it — the clamp could only ever shrink the panel's idea of its content, never
+grow it. Replaced with an honest `max` (`ProductionTooltipLayout.PanelWidth`).
+
+Worth grepping for the shape generally: `Math.Clamp(x, K, K)` is always `K`, and it is easy to write
+by accident when a min and a max constant are named similarly.
+## 2026-09-03 — Three launchers fire a DUMMY weapon, so anything reading the armament names the mechanism (`wt/tooltip-economy`, `main @ 03c77208`)
+
+`iskander`, `HIMARS` and `DR` all bind their ammo pool to an armament whose weapon does nothing.
+`IskanderTargeter` (`weapons-missiles.yaml:380-401`) is an `InstantHit` carrying `Damage: 50` with
+**every `Versus` entry at 0**; `HIMARSTargeter` (`:403`) inherits it; `DroneTargeter`
+(`weapons-other.yaml:687-694`) is `Damage: 0` and its armament additionally sets `AmmoUsage: 0`
+(`infantry.yaml:2483`). The thing actually delivered is a spawned ACTOR — `MissileSpawnerMaster`
+(`vehicles-russia.yaml:1082`, `vehicles-america.yaml:1160`) or `CarrierMaster` for the drone.
+
+**Consequence beyond tooltips:** any code reasoning about a unit's firepower by reading its
+`Armament` → `Weapon` → warhead will conclude these three are harmless. The damage lives on the
+spawned actor's own weapon (`IskanderExplosion`), not on anything reachable from the launcher's
+armament. Worth checking before trusting a threat-assessment or scoring path that walks armaments.
+
+## 2026-09-03 — `SupplyValue` is per BATCH, and per-round prices were uncorrelated with calibre (`wt/tooltip-economy`, `main @ 03c77208`)
+
+`AmmoPool.TryServeBatch` (`engine/OpenRA.Mods.Common/Traits/AmmoPool.cs:578-594`) takes
+`cost = pool.Info.SupplyValue` as **one flat charge** and serves `Min(Max(1, ReloadCount), missing)`
+rounds, so per-round price is `SupplyValue / ReloadCount` and a pool one round short still pays a
+whole batch. Reading `SupplyValue` as a per-round price understates cheap-batch pools by up to 100×.
+
+Auditing all 123 shipped pools arithmetically (`WORKSPACE/ammo_audit.py`) found **thirteen pools where
+a larger-calibre round cost at or below the 5.56mm rifle anchor** of 0.05/round — a 30mm autocannon
+shell on the `bmp2` cost exactly what a rifle cartridge cost. Repriced by calibre in `c4cb3c23`.
+
+**The reusable check, which is the part worth keeping:** group every pool by the *weapon key* its
+armaments name and assert one per-round price per key. That caught `25mm.Bradley` costing 2.5× less on
+`strykershorad` than on `bradley`, and it caught a mistake of my own — the `btr`'s comment says
+14.5mm KPVT (true of a real BTR-80) but its armament fires `12.7mm.MG`, **the same key the m113
+fires**, so pricing them apart on the strength of the comment would have created the very split being
+removed. A comment describing a unit's real-world armament is not evidence of what the ruleset does.
+
+## 2026-09-03 — `WithTextDecoration` has the same silent-nothing trap as a missing `.shp`, and the obvious diamond falls into it (`wt/diamond-pip`, `main @ 925b5b82`)
+
+`defaults.yaml:844-846` warns that a sequence naming a file the mod does not ship falls back to
+`pips.shp` and renders **nothing**. The text medium has the identical failure and it is not written
+down anywhere: `WithTextDecorationInfo.Text` is drawn through `SpriteFont`, and a codepoint the font
+does not carry produces nothing or a notdef box. `WithTextDecorationInfo.RulesetLoaded`
+(`engine/OpenRA.Mods.Common/Traits/Render/WithTextDecoration.cs:37-43`) validates that the FONT is
+listed in `mod.yaml` — it does not and cannot validate that the font contains the characters.
+
+**`engine/mods/common/FreeSansBold.ttf` ships no Geometric Shapes block at all.** Parsed from its own
+`cmap` (Windows BMP subtable, format 4): U+25A0 BLACK SQUARE, U+25B2 BLACK UP TRIANGLE, U+25C6 BLACK
+DIAMOND, U+25C7 WHITE DIAMOND and U+25C8 all map to **glyph 0**. So `◆` / `◇` — the pair proposed at
+`WORKSPACE/notes/detectability-pip-code-truth.md:96-97` as costing "literally one character" — would
+have shipped as an invisible decoration, with the trait working perfectly.
+
+The diamonds the font DOES carry, confirmed present in `cmap` and carrying real outlines in `glyf`:
+
+| char | codepoint | glyph | contours | bbox |
+|---|---|---|---|---|
+| `◊` | U+25CA LOZENGE | 2144 | 2 (hollow) | (16,-26)-(518,744) |
+| `♦` | U+2666 BLACK DIAMOND SUIT | 2152 | 1 (solid) | (8,-56)-(587,748) |
+
+**Rule of thumb for any future text decoration: FreeSans/FreeSansBold covers Latin, punctuation,
+arrows and dingbat-ish suits, but not the Geometric Shapes block.** Verify a codepoint before
+spending design on it — parsing the cmap takes about twenty lines of Python and needs no game launch.
+Write chosen glyphs as `\uXXXX` escapes in C# so a re-encoding cannot swap them silently.
+
+## 2026-09-03 — Armour has FIVE facings and all five are authored, but only two actors differentiate them (`wt/armour-diagram`, `main @ 925b5b82`)
+
+Established by reading source for a tooltip mockup; **no game launch, nothing measured.**
+
+**`ArmorInfo.Distribution` is `{ Front, Side, Rear, Top, Bottom }` in percent** (`Armor.cs:31-32`),
+consumed only by `DamageWarhead.ArmorDirectionPercent` (`DamageWarhead.cs:142-219`). Top and bottom
+are real, distinct facings chosen by an explicit weapon flag — `TopAttack` → `[3]` (`:152-155`),
+`BottomAttack` → `[4]` (`:156-159`) — not an approximation of something else. `BottomAttack` is
+authored on exactly one weapon, `ATMine` (`weapons-explosions.yaml:245`).
+
+Three things that are easy to get wrong:
+
+1. **Five slots, four values.** `distribution[1]` is read for *both* flanks (`:210-211`), so left and
+   right cannot differ. Any UI must show one mirrored side number.
+2. **The entries are percentages, never millimetres.** The per-facing mm figure is derived at
+   `effectiveThickness = thickness * armorPercent / 100` (`:249`, **integer** division) and exists as
+   a number nowhere in the YAML. `Thickness` itself is genuinely mm-scaled (`Armor.cs:28-29`) and
+   coherent across the roster (aircraft 3–20, APC 10–19, MBT 280–700, bunker 2000), so the tooltip's
+   `mm` is the engine's own unit, not an invention.
+3. **The horizontal facings interpolate; roof and belly do not.** `:177-214` blends between
+   neighbours by impact angle — the authored numbers are exact at the four cardinals and smooth
+   between. The two flag-selected facings are hard switches.
+
+**Only `abrams` (`100,40,15,10,10`) and `t90` (`100,60,40,15,15`) are differentiated.** Thirteen of
+the sixteen vehicles that author `Distribution` carry the identical flat `100,80,80,80,60`; the
+`^Vehicle` fallback is `100,50,25,10,10` (`vehicles.yaml:27`). **Every `Distribution` in the mod is
+in `vehicles*.yaml`** — aircraft, structures and defences author `Thickness` but no `Distribution`,
+and `ArmorDirectionPercent` returns a flat 100% unless `distribution.Length == 5` (`:150`), so their
+armour really is uniform. Consequence for any per-facing UI: it is a **vehicles-only** feature and is
+near-mute on 13 of the 16.
+
+This turned up a live authoring bug — `t72` is a 280mm MBT wearing the APC boilerplate, giving it a
+224mm roof against the T-90's 42mm and halving `ATGM` effectiveness against it. Filed in
+`WORKSPACE/bugs/discovered.md` (2026-09-03), not fixed.
+
+**Layout fact for anyone touching the production tooltip:** the description column is **exactly
+350px, always** — `MaxTooltipWidth = 350` (`ProductionTooltipLogic.cs:63`) and
+`leftWidth = Math.Clamp(…, 350, 350)` (`:165-167`), a clamp with equal bounds, so it is a constant
+independent of content. **Width is free; height is the only contested axis.** Stat rows are ~13px
+from font measurement (`AddStatRow` returns `max(keySize.Y, valueSize.Y)`, `:388,416`) and **not**
+the `Height: 17` the chrome templates declare (`tooltips.yaml:304-316`).
+
+Full write-up with the option costings: `WORKSPACE/recon-armour-facings.md`.
+Mockup: `WORKSPACE/mockups/armour-facing-diagram.html`.
+
+## 2026-09-03 — The `debug.log` copied into an autotest run directory can be a DIFFERENT game's log (`wt/capture-fix`, `main @ cb68ce61`)
+
+Two scenarios failed and the run directories were handed over as *"the only evidence"*. Neither
+`debug.log` was from the run it sat in. Checked, not assumed:
+
+| check | `test-auto-capture-nearby` run dir | that scenario |
+|---|---|---|
+| max `tick=` in log | **10613** | ended at tick 701 |
+| players named | Experimental AI 1–4 | only Neutral, USA, Russia |
+| actor coords | `oilb#1299@80,78` | `Bounds: 1,1,64,32` — y=78 cannot exist |
+| mentions its own actors | **0** | `TechHoldFire`, `DerrickQuiet`, … |
+
+The sibling directory was the same shape (tick 10080, six AI players). **Both files end mid-line on
+a bare `[`** — the signature of copying a file another process is still appending to. So the
+harness is picking up a shared/rolling `debug.log` being written by a concurrent OpenRA instance
+rather than the run's own output. `lua.log` was **0 bytes** in both.
+
+**Consequence: for a `--hidden` run, `result.json`'s one-line verdict is the ONLY trustworthy
+artefact.** Screenshots are listed but never written (rendering is suspended), the logs may belong
+to someone else, and there is no third channel. Anything you want to know afterwards has to be put
+there by the scenario itself, in the verdict string.
+
+**So write attribution INTO the assertion, not around it.** A scenario asserting *"this structure
+must not change hands"* cannot say WHICH unit took it, and that ambiguity cost a full round-trip
+here: a technician six cells outside its intended arm captured the derrick an off-switch test was
+watching, and the verdict blamed the off switch. Concrete lever in this mod: a capture CONSUMES the
+captor (`ConsumedByCapture`, `EnterBehaviour: Dispose`), so `actor.IsDead` is a per-unit statement
+about who did the work — assert that alongside ownership. And have every failure print the whole
+board rather than returning on the first bad check, because "one arm broke" and "nothing ran" are
+different diagnoses that a single-line verdict otherwise cannot distinguish.
+
+## 2026-09-03 — A radius is a circle: autotest arms separated by ROWS are not separated (`wt/capture-fix`, `main @ cb68ce61`)
+
+`test-auto-capture-nearby` laid four independent arms on rows 6/12/18/26 and reasoned about
+x-offsets along each row, under a comment asserting they could not interact. They interacted at
+**7.81 cells** — `sqrt(5² + 6²)` — inside an 8-cell scan radius, so a technician from one arm
+captured another arm's structure and the run failed blaming shipped code that was fine.
+
+Two compounding traps, both arithmetic:
+
+- **Measure centre to centre, not Location to Location.** A 2x2 building's `CenterPosition` sits at
+  `Location + (1.0, 1.0)` cells while a 1x1 unit's sits at `Location + (0.5, 0.5)`, so working in
+  `Location` coordinates understates every unit-to-building distance by ~0.5 cells. Re-deriving the
+  same map with the offsets moved one pair from 20.59 (safe) to **19.24** (inside a 20-cell Hunt
+  radius) — a second latent failure the first correction would have missed.
+- **A walk budget needs the speed.** `^Infantry` `Mobile: Speed: 25` world units/tick against 1024
+  units/cell is **40.96 ticks per cell**. A 20-cell approach is ~819 ticks; the sibling scenario
+  allowed 900 for the walk *plus* the capture, a ~4% margin, and failed with a verdict
+  ("dispatched at but never captured") that reads exactly like a defect in the capture activity.
+
+**Generalisable: when an autotest's arms are supposed to be independent, enumerate every
+cross-pair mechanically before the run.** Both errors here were a five-line script away and neither
+was visible by reading. `CaptureClearDurationTest.InfantryCoverACellInAboutFortyOneTicks` now pins
+the speed the budgets were sized against, so a retune fails loudly instead of re-tightening them.
+
+## 2026-09-03 — A missile that loses guidance keeps being MEASURED against its real target, so `min_dist` is a true miss distance (`wt/missile-guidance`, `main @ cb68ce61`)
+
+Static only — build clean, `dotnet test` 2336 green, **no launch taken**.
+
+**`targetPosition` is updated independently of the steering decision.** In `Missile.Tick` the block
+that refreshes `targetPosition` from the live target (`Projectiles/Missile.cs:1079-1089`) sits
+*above* the freefall/homing branch and is gated only on `args.GuidedTarget.IsValidFor(...) && lockOn`
+— not on whether guidance is being applied. So when a missile drops to `FreefallTick` it stops
+*steering*, but the trace keeps comparing it against where the target actually is.
+`MissileTrace.MinDist` is "closest 3D approach to targetPosition (segment-exact)"
+(`Projectiles/MissileTrace.cs:99`), which therefore reads as the genuine miss distance against a
+*moving* target rather than the distance to a frozen last-known point. That is what makes
+`min_dist > close_enough` a valid pass criterion for any "the missile should stop tracking"
+scenario — and `close_enough` is in the same record (`:86`, surfaced by
+`TestGlobal.GetMissileRecord`), so such a scenario can derive its threshold instead of hard-coding
+a distance.
+
+**Corollary for scenario authors: a stationary target cannot detect a guidance drop.** `FreefallTick`
+(`Projectiles/Missile.cs:546-556`) keeps the current velocity and adds gravity — the missile flies
+*on*, it is not removed. A ballistic missile already pointed at a stationary target still lands on
+it. The target has to move across the missile's path for the drop to be observable at all.
+
+**`VehicleCrew` ejection never kills the vehicle.** `INotifyKilled.Killed` only clears slot
+bookkeeping (`Traits/VehicleCrew.cs:321-336`), and the ejection path is a wait-for-stop plus a
+countdown (`:285-319`). So there is a long window — hundreds of ticks, bounded by the 1%-per-5-tick
+`ChangesHealth` bleed — in which a vehicle sits at `DamageState.Heavy` with `Actor.IsDead == false`.
+Any rule keyed on "the crew has bailed" is therefore *not* subsumed by an existing `IsDead` check,
+and a test for one must assert the launcher is still alive or it silently measures the other path.
+
+**The 50% / 25% split, at the code level.** `Health.DamageState` (`Traits/Health.cs:105-109`) returns
+`Critical` below 25% and `Heavy` below 50%, both strict. `heavy-damage-attained` is
+`ValidDamageStates: Heavy, Critical` (`rules/defaults.yaml:256-258`) and so equals
+`>= DamageState.Heavy` = HP < 50%; `critical-damage` is `Critical` alone (`:259-261`) = HP < 25%.
+`DamageState` is `[Flags]` with ascending powers of two
+(`OpenRA.Game/Traits/TraitsInterfaces.cs:31-39`), so `>=` is a valid ordering test and is the
+engine's own idiom for exactly this question (`Traits/VehicleCrew.cs:245`).
+## 2026-09-03 — "Empty LC" is an AFFORDABILITY band, not a zero, and the two halves of one rearm errand disagreed about it (`wt/lc-empty-rearm`, `main @ bf1d0793`)
+
+Static only. `dotnet build` clean, `dotnet test` 2337 green (2329 before). **No launch was taken** —
+the scenario `tools/autotest/scenarios/test-lc-drains-mid-errand` is written and unrun.
+
+**The band, and why it is the whole bug.** `AmmoPool.RearmCandidates` filters hosts on
+`CurrentSupply > 0`, so the whole range `1 .. batchPrice-1` is *stocked and unable to serve anybody*:
+`Rearmable.RearmTick` (`Rearmable.cs:106`) and `AmmoPool.TryServeBatch` both skip a pool the provider
+cannot pay for. In this mod that band is where the Logistics Centre **normally sits** — an iskander
+batch is `SupplyValue: 1500` against the Centre's `TotalSupply: 2250`
+(`vehicles-russia.yaml:1038-1045`, `structures.yaml`), so one missile leaves 750 behind. Any fix
+written against `CurrentSupply == 0` misses the reported unit entirely.
+
+**The two halves of one errand had drifted.** `AmmoPool.AutoRearm` routes a docking-gated host (the
+LC) to `Resupply` and everything else (truck/cache) to `SeekSupplyProvider`. `SeekSupplyProvider`
+re-asks `HostCanAffordSomethingWeNeed` every tick via its `TargetValid` (`SeekSupplyProvider.cs:114`)
+and `SupplyHuntMath.NextState` answers `!providerUsable` with `Returning`. `Resupply` re-asked only
+`SelfAssignedErrandIsOver` — "am I still dry?" — and never whether the host could still serve
+(`Resupply.cs:240`). So the truck half had been fixed and the LC half had not, which is exactly why
+the user's report names the LC.
+
+**The stall was the idle re-decision, not the arrival.** Arrival already terminated correctly:
+`RearmTick` refuses the pool and reports it done, so the activity ends. The unit then went idle *at*
+the depot, and `AutoRearmIfDry`'s hopelessness test asked `AnyRearmHostWithinLeash`, which swept
+`RearmCandidates(self, requireSupply: false)` — hosts that EXIST. The drained Centre it was parked at
+therefore counted as a reason to wait, giving `HoldAndFlag`. That disposition's only payoff is
+`NeedsResupply`, whose sole engine-wide reader (`SupplyProvider.FindNeedsResupplyTarget`) drives to
+the flagged **unit**; nothing anywhere reads it as "resupply my depot". Waiting beside a static
+drained depot could therefore never terminate — the refill it was waiting for depended on the player
+independently trucking supply there.
+
+**A shipped scenario now rests on a premise the engine falsified.**
+`tools/autotest/scenarios/test-poor-depot-still-worth-the-trip` asserts that a dry tank SHOULD drive
+to a Centre holding less than one batch, on the stated grounds that "a rearm there is FREE —
+`Rearmable.RearmTick` hands out ammunition with no supply consulted". That claim was true when
+written and was falsified 72 minutes later the same afternoon: `291ba846` wrote the comment,
+`f8b424f6` metered the dock path, and `Rearmable.cs:106` now meters it. `AutoSeekSupplies.cs:286-299`
+records the same correction from the other side. **Read `Rearmable.cs:83-118` before trusting any
+claim that docking rearm is unmetered** — several comments across the tree still assert it.
+
+**Determinism note.** The new predicate `SupplyHuntMath.HostCanServePool` is four ints and two
+comparisons — no float, no RNG, no `[Sync]` added and none needed: it reads `SupplyProvider.CurrentSupply`
+and `AmmoPool.CurrentAmmoCount`, both already simulation state reached through synced actors.
+
+**Adjacent, not fixed here.** `AnyRearmHostWithinLeash` measures in chessboard cells while
+`ChooseAffordableResupplier` picks the nearest affordable by Euclidean distance. An affordable host
+can therefore sit inside the leash while the *chosen* one falls outside it; the disposition is then
+`HoldAndFlag` where `SeekRearm` would be right. Safe, but it wants a leash-aware chooser.
+## 2026-09-03 — Truck-to-LC supply transfer already worked for HUMANS; what was missing is that no bot module ever issued the order (`wt/bot-lc-economy`, `main @ cb68ce61`)
+
+Static only. `dotnet build` clean, `dotnet test` 2358 green. **No launch was taken** — the scenario
+below is written and handed up unrun, so nothing here is an in-game observation.
+
+**The user hedged ("I think that should work now") and the hedge resolves in their favour.** Traced
+end to end rather than assumed, because the brief explicitly warned against taking the convenient
+outcome:
+
+* `LOGISTICSCENTER` carries `AbsorbsSupplyCache` (`mods/ww3mod/rules/ingame/structures.yaml:560`).
+  That trait is the **gate on the order itself** — `DropsSupplyCache.ResolveOrder:319` returns early
+  unless the target has it, so its presence is what makes an LC a legal delivery target at all.
+* `TRUK` carries `DropsSupplyCache` (`mods/ww3mod/rules/ingame/vehicles.yaml:695`), which is the trait
+  that *issues* the order and holds the targeters.
+* `Activities/DeliverSupply.cs:148-154` does `supply.DeductSupply(given)` then
+  `hostProvider.AddSupply(given)`, sized by `SupplyTransferMath.AmountToDeliver` — a direct atomic
+  transfer into the Centre's stock, **not** a crate drop that the Centre then absorbs.
+* `DeliverSupply` is the DEFAULT left-click of a loaded truck on a Centre; Ctrl+click is the mirror.
+
+**What was actually missing:** `grep -rn "DeliverSupply" engine/OpenRA.Mods.Common/Traits/BotModules/`
+returns **only prose**. No bot module ever issued the order, so a bot's Centre ran to zero and stayed
+there. The generalisable half: *"is the feature implemented"* and *"is anything wired to trigger it"*
+are separate questions, and a feature with a complete engine path, a cursor, a targeter and a test
+scenario can still be **unreachable for one of the two kinds of player**. Grep the CALLERS, not the
+capability.
+
+**BotBlackboard is the arbitration between truck-tasking modules, and it is one-sided in a way worth
+knowing.** `SupplyFollowerBotModule` filters its roster on `IsClaimedByOtherModule`
+(`SupplyFollowerBotModule.cs:2576-2583`): `claimant != null && claimant != "supply-follow"`. So a
+truck claimed under **any** other name vanishes from its scan entirely — claiming is how you take a
+truck without a fight. Note it does **not** consult `PoiGoalGuard.Ledger`, which is the OTHER claim
+system in this codebase and the one `LogisticsCenterBotModule` was already using for its LCCVs. **Two
+independent claim registries exist and they do not see each other**; picking the wrong one for a given
+counterparty means your claim is invisible. The rule of thumb: claim in whichever registry the module
+you need to keep OFF the unit actually reads.
+
+**The release is the half that goes wrong**, and it already has precedent in-tree: the 2026-08-04
+entry in `WORKSPACE/bugs/discovered.md` records a module dropping a unit from its roster while keeping
+its blackboard claim, leaving it alive-and-claimed forever and invisible to every claim-respecting
+module. `SupplyFollowerBotModule.cs:745-761` now releases on the same edge it drops. Any new claimant
+needs the release enumerated — including **owner change**, since a Centre captured away mid-drive
+leaves a truck driving at a building that is no longer yours.
+
+## 2026-09-03 — A demand gate with no demand term: LogisticsCenterBotModule bought a 3000-credit Centre at t+6s, and the supply-truck ammo bar was 10x looser than the ruling it implements (`wt/bot-lc-economy`, `main @ cb68ce61`)
+
+Static only. `dotnet build` clean, `dotnet test` 2345 green. **No launch was taken** — the two
+scenarios named below are written and handed up unrun.
+
+**Two separate shapes of the same class of bug, and the difference is worth keeping.**
+
+**(1) A gate that was never written, reading as a gate that was mistuned.**
+`LogisticsCenterBotModule.MaintainCenterDemand` (`Traits/BotModules/LogisticsCenterBotModule.cs:303`
+at cb68ce61) is commented "THE DEMAND GATE" and tested exactly two things: `centers + mcvs + pending
+>= DesiredCenters`, and `funds >= MinCashToRequest`. With `DesiredCenters: 1` and `MinCashToRequest:
+3000` against the default opening balance, the FIRST evaluation buys — `ScanInterval` is 100 ticks,
+so ~6 s in. There was no need term to mistune; there was no need term. The name of the method is what
+made this survive review, and the generalisable half is that **a demand gate whose inputs are all
+supply-side quantities (quota, cash) is not a demand gate** — grep the inputs, not the identifier.
+
+**(2) A gate that WAS written, wired correctly, and reading the wrong constant.** The supply-truck
+ammo gate shipped at `5e4ed8d1` (2026-08-17) and is live and correct in shape:
+`SupplyPrecedenceMath.RefuseResupplyBuy` is called from both sites, the first-truck latch works. But
+the bar it feeds is `UnitBuilderBotModule.ResupplyNeedThreshold`, default **0.05**, and
+`ResupplyDemand.UnitNeed` returns *missing/capacity* — so 0.05 means "has fired 5% of his magazine".
+The 2026-08-14 ruling it cites was "below full ammo", which 0.05 is a fair reading of; the 2026-09-03
+ruling is "below half ammo", which is 0.5. **A correct implementation of a superseded ruling looks
+identical to a bug from the outside**, and `git log --grep` finds the commit that proves the feature
+exists while saying nothing about whether its constant still matches what the user now wants.
+
+**The trap the two share:** `ResupplyNeedThreshold` is read by BOTH `AnyFieldedUnitNeedsResupply`
+(the opening gate) and the needy-customer count that sizes the standing fleet
+(`SupplyFleetUnderDesired` -> `SupplyPrecedenceMath.SizingCustomers`). Raising it in place to honour
+an OPENING ruling would silently shrink the MID-MATCH reserve, which the same user wants kept. Fixed
+with a separate `FirstTruckNeedThreshold` scoped to `!heldFirstSupplyTruck`. Before editing a
+threshold, grep every reader of it — the field name says what it measures, not how many decisions
+hang off it.
+
+**Also found:** `tools/autotest/scenarios/test-experimental-lccv-logistics` asserts the SITING
+descent and reaches it only by first getting an LCCV bought. Its map parks the entire pre-placed force
+2-4 cells from the SR, so the new demand terms are zero there and the buy is correctly refused —
+which would have read as a siting regression. It now sets `RequireDemand: false`. **A negative-gate
+change silently invalidates every existing scenario that depended on the positive behaviour as a
+precondition rather than as its subject.**
+
+## 2026-09-03 — The helicopter corner is a velocity-space CHORD, not a circular arc, so the corner-cut lead is `sin(theta/2)` and not the textbook `tan(theta/2)` (`wt/heli-waypoint-flow`, `main @ 414a84aa`)
+
+Static only. `make all` clean, `dotnet test` 2288 green. **No launch was taken**, so nothing below is
+an in-game observation; the cross-check that makes it more than algebra is named at the end.
+
+**Why the standard formula is wrong here.** Every reference on corner-cutting gives the tangent
+distance to a constant-radius arc, `r*tan(theta/2)` with `r = v^2/a`. That models a *steered* vehicle
+holding constant lateral acceleration. A `CanSlide` aircraft is not steered: it is a point mass, and
+`Aircraft.CalculateAccelerationToWaypoint` (`Traits/Air/Aircraft.cs:433-477`) returns
+`MaxAcceleration` in the direction `(desiredVelocity - CurrentVelocity)`, where `desiredVelocity` for
+a plain move leg is the full-speed vector at the *next* waypoint. That target is **constant across
+the corner**, so the acceleration is always parallel to the same difference vector and the velocity
+tip travels a straight **chord** in velocity space, shortening at exactly `a` per tick. Working it
+through (`Activities/Air/AircraftCornerMath.cs` header carries the four lines):
+
+    d = (v^2 / a) * sin(theta/2)
+
+`tan` diverges at 180 degrees and overshoots badly well before that; `sin` is bounded by `v^2/a` at
+every deflection. At a right angle the two differ by 41%, which is about 1.7 cells of lead for a live
+helicopter — the difference between rejoining the outbound leg and sailing past it.
+
+**The generalisable half:** before reaching for a vehicle-dynamics formula in this engine, check
+whether the thing is *steered* or *velocity-driven*. Ground `Mobile` units turn; `CanSlide` aircraft
+do not, and a formula that assumes a turn radius is answering a question the code never asks. The
+same distinction decides whether `TurnSpeed` is load-bearing at all: for a slider it is **not**, and
+this is easy to get backwards. `Aircraft.Tick:530-531` sets `Facing` from `CurrentVelocity.Yaw`
+*after* the move, so on a `CanSlide` airframe facing is a **consequence** of the trajectory and never
+an input to it. Tuning `TurnSpeed` to change how a helicopter corners changes only which way the
+sprite points.
+
+**Semi-implicit Euler is exact along the bisector, by luck rather than design.** `Aircraft.Tick`
+adds acceleration then moves by the new velocity, so the summed displacement is
+`T*(v_in+v_out)/2 + (v_out-v_in)/2` rather than the continuous `T*(v_in+v_out)/2`. The extra
+half-step lies along the chord, which is **perpendicular to the bisector** for two equal-length
+vectors, so it contributes exactly zero to the release distance and the formula needs no correction.
+
+**A CLOSED FORM FOR THE OFF-AXIS EXCURSION IS NOT AVAILABLE, AND THE OBVIOUS ONE IS WRONG BY 3x.**
+The same reasoning suggests the airframe should rejoin the outbound leg displaced sideways by about
+`v*sin(theta/2)` — 173 WDist, ~0.17 cells, at 245 through a right angle. **An earlier revision of
+this entry stated that as a bound and it is false.** Simulating the actual integer path over the
+scenario's geometry (`tools/heli-corner-model/model.py`, which uses the engine's own `WAngle` tables,
+`Exts.ISqrt` and C# truncating division rather than float equivalents) measures **516 WDist, ~0.50
+cells, exactly 3.0x** the closed form at the shipped default. The discrepancy is stable: within
+±40 WDist across sampling windows from 6 to 10 cells.
+
+**The mechanism is NOT established and this entry deliberately does not name one.** The leading
+candidate is that `CalculateAccelerationToWaypoint` recomputes `direction` from the *current*
+position every tick (`Aircraft.cs:456`), so `desiredVelocity` chases a POINT and is not the constant
+vector the derivation assumes across a ~35-tick corner. An attempt to isolate that by freezing the
+desired direction produced a result that could not be reconciled with a hand-derivation of the same
+arm, so the candidate is recorded as untested rather than as the answer. **The operative, verified
+fact is the 3x, not the story about it** — and the practical consequence is the same either way:
+*take any lateral-deviation threshold from the model, never from `v*sin(theta/2)`.*
+
+**A related bound that IS geometry and does hold:** the minimum speed through a corner is
+`v*cos(theta/2)` — 173 at 90 degrees but only 94 at the 135-degree cornering cap. A min-speed
+threshold is therefore tied to the corner angle it was derived for and does not transfer between
+scenarios.
+
+**The cross-check worth having, because the derivation is otherwise unfalsified.** The same model
+says proportional braking begins at `v^2/2a`, which for the live `HELI` (Speed 245,
+`MaxAcceleration` 10 — the trait default, unoverridden anywhere in `mods/`) is 3001 WDist, **2.93
+cells**. Commit `02006314`, written by someone watching the game, independently states helicopters
+"smoothly brake over ~2.7 cells". Two routes to the same number, one algebraic and one observational.
+That is evidence the *model* matches the shipped controller; it is **not** evidence that any
+particular release distance looks right on screen, which only a run can settle.
+
+**TWO pre-existing determinism hazards found in passing, NOT fixed here.** Both are IEEE floats
+inside the synchronised simulation on the helicopter movement path:
+
+- `(int)Math.Sqrt(2.0 * Info.MaxAcceleration * distance)` in `CalculateAccelerationToWaypoint`
+  (`Aircraft.cs:464`), whose result selects `desiredVelocity`.
+- `(float)Info.Speed / horizontalSpeed` in `Aircraft.Tick` (`:521`), **single** precision, the
+  speed-cap ratio applied to `CurrentVelocity`. Easy to miss next to the first one.
+
+Both land in `CurrentVelocity`, which is integrated into position. This is the same class of defect
+`afac22a8` removed from the ground movement path, and the same argument applies: the risk is not that
+they currently miscalculate but that nothing stops them. Left alone deliberately — changing either
+moves every helicopter approach in the game and belongs in its own branch with its own before/after.
+`Exts.ISqrt` (`Exts.cs:306`) is the in-tree integer replacement for the first.
+## 2026-09-03 — Armour is TWO independent halves, and only one of them is gated on a Versus table (`wt/tooltip-cleanup`, `main @ d4e0b1cf`)
+
+Found while answering "why does every soldier's tooltip say Armour: None?".
+
+**`ArmorInfo.Type` and `ArmorInfo.Thickness` are consumed by different code on different terms, and
+conflating them is easy because they are adjacent fields on one trait.**
+
+- `Type` is inert unless some warhead's `Versus` table names it. `DamageWarhead.DamageVersus`
+  (`DamageWarhead.cs:106`) only applies a modifier for types a table actually lists, so an unlisted
+  type takes the default 100%. The tables in `mods/ww3mod/rules/weapons/` discriminate on exactly
+  seven names: `Light`, `Medium`, `Heavy`, `Concrete`, `Wood`, `Brick`, `None`.
+- `Thickness` is read straight off the trait at `DamageWarhead.cs:237` and compared against the
+  warhead's `Penetration` on **every** hit, whatever the type is called. It never consults a table.
+
+Two live consequences:
+
+**`Kevlar` is authored but inert.** `mods/ww3mod/rules/ingame/infantry.yaml:174-175` sets
+`Armor: Type: Kevlar` on `^Soldier`, and it is the ONLY occurrence of the string `Kevlar` anywhere
+under `mods/`. So every soldier resolves to Kevlar and gets nothing for it. Giving infantry real
+protection is a `Versus:` edit in the weapons files, or a `Thickness:`, not an `Armor.Type:` edit —
+the type is already set.
+
+**`gtwr` had 25mm of armour and a tooltip that said None.** `structures-defenses.yaml:103-105` is
+`Type: Unarmored, Thickness: 25`. `Unarmored` is a *target type* here as well as an armour type
+(`weapons-ballistics.yaml:14, 178`) which is why it reads as familiar, but it is in no `Versus`
+table. The tooltip gated the whole row on the type being discriminated, so the thickness was
+suppressed with it. It is the only shipped actor in that position — the sole `Thickness > 0` paired
+with an undiscriminated type. Fixed in `ArmorInfo.FormatArmour`.
+
+Related: **`Thickness` is millimetres** (`Armor.cs:28`, and `BallisticPenetrationTest.cs:265` writes
+it that way), but the tooltip rendered it as a bare `"{N} thick"`. Now `"{N}mm"`.
+
+## 2026-09-03 — WW3MOD build time is Cost / 10 for every buildable but one (`wt/tooltip-cleanup`, `main @ d4e0b1cf`)
+
+`BuildableInfo.BuildDuration` defaults to -1, meaning "derive from cost", and **no actor in the mod
+authors it** — `grep -rn "BuildDuration" mods/` returns exactly one line, and it is a
+`BuildDurationModifier`. So `ProductionQueue.GetBuildTime` (`ProductionQueue.cs:546-552`) falls
+through to `GetProductionCost(unit) / 10` throughout.
+
+The composition around it is almost entirely inert, which is the part worth recording because the
+config *looks* active:
+
+- `msar` sets `BuildDurationModifier: 50` (`vehicles.yaml:458`) — the one real deviation. Cost 1600,
+  so 160 ticks becomes 80.
+- `BuildTimeSpeedReduction` and `BuildingCountBuildTimeMultipliers` in `player.yaml:29, 39, 51, 63,
+  76, 88` are **dead**. Both are read only inside `if (info.SpeedUp)`
+  (`ClassicProductionQueue.cs:143`, `ClassicParallelProductionQueue.cs:219`), `SpeedUp` defaults to
+  `false` (`:27` / `:28`), and nothing in `mods/` sets it. The arrays are authored, plausible, and
+  never consulted.
+- `ParallelPenaltyBuildTimeMultipliers: 100` (`player.yaml:64`) affects `RemainingTimeActual`, not
+  `GetBuildTime`, and 100 is a no-op anyway.
+- `HandicapProductionMultiplier` (`defaults.yaml:1047`) IS live and does scale both cost and time,
+  but returns 100 at handicap 0 (`HandicapProductionMultiplier.cs:23-30`), which is the default.
+
+## 2026-09-03 — `Cargo.MaxWeight` is a weight budget the tooltip prints as a headcount (`wt/tooltip-cleanup`, `main @ d4e0b1cf`)
+
+`Cargo.cs:47` renders `$"{MaxWeight} infantry"`. That is only a passenger count while every passenger
+weighs 1 — which is true today, because `Passenger.Weight` defaults to 1 (`Passenger.cs:29`) and is
+never overridden in `mods/`. The trait documents this. Recorded because the first `Passenger.Weight:
+2` authored in this mod silently makes every transport tooltip overstate its capacity, and nothing
+will fail.
+
+Found via the reverse error: `pbox` and `hbox` descriptions claimed "Garrisons 2 soldiers" against a
+`MaxWeight` of 4 (`structures-defenses.yaml:225`, `:324`), so the hand-written figure and the
+generated row disagreed on screen.
+
+## 2026-09-03 — Selection bars have NO frozen-under-fog path, so the live/frozen split that has bitten this repo repeatedly cannot apply to them (`wt/defeated-sr-bar`, `main @ 414a84aa`)
+
+Read-only tracing while fixing the defeated-SR contestation bar. Worth recording because the standing
+instinct here — correct for tooltips and owner display — is "check whether the frozen path draws this
+separately, or you will fix it for one viewer and not the other". **For selection bars that question
+has a definite answer: there is no second path.**
+
+Annotations are collected in exactly one place, `WorldRenderer.cs:251`
+(`World.ApplyToActorsWithTrait<IRenderAnnotations>`), which walks **live actors only**. `FrozenActor`
+(`engine/OpenRA.Game/Traits/Player/FrozenActorLayer.cs:35`) caches `IRenderable[] Renderables` —
+populated from `IRender`, the sprite path — and has no annotation member at all. `ISelectionBar` is
+reached only via `IRenderAnnotations` → `SelectionDecorationsBase.DrawDecorations`
+(`SelectionDecorationsBase.cs:62-133`) → `SelectionBarsAnnotationRenderable` /
+`IsometricSelectionBarsAnnotationRenderable`, whose constructors both take an `Actor`. A `FrozenActor`
+cannot be passed to either.
+
+Consequence: a fogged actor draws **no** selection bar for the fogged viewer, not a stale one —
+`SelectionDecorationsBase.cs:65` returns empty on `FogObscures(self) && !Selection.Contains(self)`
+before any bar logic runs. So a bar-visibility fix inside a trait is complete on its own, and there is
+no observer-vs-owner divergence to chase.
+
+**`IAlwaysVisibleBar` is WW3MOD-local, with exactly one implementer and one consumer.** Declared at
+`engine/OpenRA.Game/Traits/TraitsInterfaces.cs:304`, implemented only by `SupplyRouteContestation`,
+read only at `SelectionDecorationsBase.cs:94`. Anything wanting an unselected bar goes through that
+one loop — which is also why a wrong predicate there is a whole-screen bug rather than a local one.
+## 2026-09-03 — A player-visible order modifier can be lost at the REPLAY step, long past the generator that coloured the line (`wt/alt-attackmove`, `main @ 414a84aa`)
+
+Reported as "Alt-queueing from the SR turns the line red, but helicopters get a move order instead".
+Static analysis plus `make all` / `dotnet test` (2274 green). No launch — scenario authored, not run.
+
+**The red line was never evidence about the order the unit runs.** The SR rally line is drawn by
+`RallyPointIndicator` from the waypoint's own `RallyOrderType`, which `RallyPoint.ResolveOrder`
+(`RallyPoint.cs:197-199`) stored correctly. Everything from modifier detection through `Order.ExtraData`
+encoding to rendering was right for aircraft. The tag was discarded at the very last step —
+`ProductionFromMapEdge.BuildWaypointActivity` gated the attack-move replay on
+`case RallyOrderType.AttackMove when move is Mobile:`, and an aircraft's `IMove` is `Aircraft`, so
+every airframe fell through to the `default:` plain-Move arm **and its Green target line**. Ground
+units were unaffected, which is why it read as an aircraft bug rather than a rally bug.
+
+**The general shape worth remembering: a modifier has a producer, an encoder, a renderer and a
+REPLAYER, and only the replayer can disagree with the other three while still looking correct on
+screen.** When a player reports "the UI says X but the unit does Y", the UI is testimony about the
+encoder, not about the executor — start at the executor.
+
+**`move is Mobile` is not a synonym for "can attack-move" and never was.** `AttackMoveActivity` drives
+an `IMove` and never mentions `Mobile`; the player's own Alt+click path applies no locomotor guard
+(`AttackMove.ResolveOrder`); and the engine already queues an `AttackMoveActivity` for aircraft on the
+normal production rally path (`Aircraft.cs:1526`). The guard's comment asserted "aircraft don't have a
+meaningful AttackMove path", which those three sites each independently contradict. The correct
+predicate is `AttackMove.CanBeOrderedToAttackMove(actor)` — the same one the cursor and the order
+resolver consult, so the SR agrees with the click by construction rather than by coincidence.
+
+**Corpus check, in case anyone re-derives this from the YAML: it is not a YAML gap.** Resolving
+`Inherits@`/`-Key:` across `mods/ww3mod/rules/` gives 100 producible actors, 79 of them mobile, and
+**all 79 carry `AttackMove`** — every helicopter and plane included, via a bare `AttackMove:` on
+`^NeutralAirborne` (`aircraft.yaml:73`) that `^Helicopter` reaches through `^Airborne`. The only
+mobile producible without it is `LCCV`, which removes it deliberately (`vehicles.yaml:714`). No naval
+unit is producible at all — `naval.yaml` is commented out in its entirety.
+
+**Trap for anyone testing SR production from Lua.** `Test.QueueProduction` looks the actor up with a
+plain `TryGetValue` on `Rules.Actors`, whose keys are `ToLowerInvariant` (`Ruleset.cs:126`). Passing
+an actor name in its YAML casing — `"HELI"` — finds no queue and returns **silently**, so the scenario
+produces nothing and times out with whatever its real assertion says. The failure message will blame
+the behaviour under test.
+## 2026-09-03 — AutoTarget has TWO stance enums, and "Fire at will vs Hunt" is a false choice (`wt/capture-ux`, `main @ 414a84aa`)
+
+Found while designing autonomous capture. A recurring question of the form *"should this behaviour
+run on Fire at will, or on Hunt?"* has no answer as posed, because **those two names are values of
+different enums on different axes** (`Traits/AutoTarget.cs:22-24`):
+
+```csharp
+public enum UnitStance       { HoldFire, Ambush, FireAtWill }        // may I act?
+public enum EngagementStance { HoldPosition, Defensive, Hunt }       // how far do I roam?
+```
+
+A unit holds one of each simultaneously. The shipped defaults for a human-owned unit are
+**FireAtWill + Defensive** (`:75`, `:167`); bot-owned and non-playable owners read the separate
+`InitialStanceAI` / `InitialEngagementStanceAI` pair (`:517-519`), which are the same two values
+today but are free to diverge.
+
+**The generalisable shape: gate on `UnitStance`, size on `EngagementStance`.** Any new autonomous
+behaviour gets a free off-switch (HoldFire), a free "stay put" (HoldPosition → radius 0) and a free
+eagerness dial (Hunt → longer radius) without inventing a single new control. `AutoFollowAlly`
+already reads HoldPosition this way (`FollowStances`, `AutoFollowAlly.cs:30-33`), and
+`SupplyHuntMath.StancesPermitHunt` already takes both axes plus `ResupplyBehavior` as three separate
+arguments — the precedent existed but was not written down as a rule.
+
+**Corollary worth carrying: "default ON" is cheap when the default stance is permissive.** A trait
+that gates on `UnitStance != HoldFire` is on for every fresh unit with no YAML, which is how
+`AutoCaptureNearby` meets a default-ON requirement without a per-actor field.
+
+## 2026-09-03 — `CashTrickler.Amount` is the only value signal on tech buildings; they carry no `Valued` (`wt/capture-ux`, `main @ 414a84aa`)
+
+`OILB` and its neighbours in `ingame/structures-neutral.yaml` inherit `^TechBuilding` and define
+**no `Valued` trait at all** — `grep -n "Valued" mods/ww3mod/rules/ingame/structures-neutral.yaml`
+returns nothing. So `Valued.Cost`, the reflex answer to "what is this structure worth", is **0 or
+absent for exactly the structures anyone wants to score**. What distinguishes an oil derrick is
+`CashTrickler: Amount: 50` (`:19-20`).
+
+The bot avoids the problem by not asking the actor at all: `CaptureCoordinatorBotModule
+.GetIncomeWeight` (`:1956-1969`) reads a designer-authored `IncomeWeights` dictionary off its own
+`Info`. **That makes the bot's scoring unreusable from player-facing code** — it is bot YAML, not a
+property of the structure — which is worth knowing before writing "reuse the bot's capture scoring"
+into a brief. `CaptureReclaimMath` does not help either: its five public methods are budget/demand
+arithmetic (`CombinedCaptureDemand`, `ReclaimBudget`, …) and none of them ranks a target.
+
+
 ## 2026-09-02 — R9's premise is half-wrong: the Supply Route defeat bar really DOES eliminate you, on exactly the maps most people play (`wt/howtoplay`, `main @ 26f9cec0`)
 
 Read-only verification while rewriting `chrome/ingame-info-howtoplay.yaml`. No launch, no build.

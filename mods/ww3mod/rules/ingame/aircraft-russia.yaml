@@ -22,7 +22,7 @@ HALO:
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 1
 		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.medium
-		Description: Heavy transport helicopter.\n\n - Carries infantry\n - Unarmed
+		Description: Heavy transport helicopter. Unarmed.
 	Valued:
 		Cost: 2000
 	Tooltip:
@@ -125,7 +125,7 @@ HIND:
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 2
 		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.high
-		Description: Armored gunship with chainguns and rockets.\n\n - Dual chainguns\n - Anti-ground rockets\n - Slow but durable
+		Description: Armored gunship with chainguns and rockets. Slow but durable.
 	Tooltip:
 		Name: Mi-24 Hind
 	Valued:
@@ -179,8 +179,10 @@ HIND:
 		ReloadCount: 30
 		ReloadDelay: 6
 		AmmoCondition: ammo-primary
-		# 12.7mm chin gun: 5 batches × 30 rounds × 1 supply = 5 (~0.13% of cost 4000).
-		SupplyValue: 1
+		# 12.7mm chin gun: 5 batches × 30 rounds × 5 supply = 25 (~0.6% of cost 4000).
+		# 0.167/round, the 12.7mm rate (m113 0.16). Was 1 per 30 (0.033/round).
+		# The rocket pods (80/round) remain this airframe's real ammunition bill.
+		SupplyValue: 5
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -299,7 +301,7 @@ MI28:
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 3
 		Prerequisites: ~player.russia, ~aircraft.russia, ~techlevel.high
-		Description: Heavy attack helicopter with multi-role armament.\n\n - Chaingun + anti-tank missiles\n - Can engage aircraft
+		Description: Heavy attack helicopter with multi-role armament. Can engage aircraft.
 	Tooltip:
 		Name: Mi-28
 	Valued:
@@ -352,9 +354,10 @@ MI28:
 		Ammo: 200
 		ReloadCount: 40
 		AmmoCondition: ammo-primary
-		# 30mm chain gun: 5 batches × 40 rounds × 5 supply = 25 (~0.4% of cost 6000).
-		# Mirrors Apache.
-		SupplyValue: 5
+		# 30mm chain gun: 5 batches × 40 rounds × 13 supply = 65 (~1.1% of cost 6000).
+		# 0.325/round, the 30mm rate. Was 5 per 40 (0.125/round).
+		# Mirrors Apache — same weapon key (30mm.Heli), so it must stay equal.
+		SupplyValue: 13
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
 		Sound: minelay1.aud
@@ -657,9 +660,10 @@ MIG:
 		Ammo: 150
 		ReloadCount: 30
 		ReloadDelay: 100
-		# 20mm cannon: 5 batches × 30 rounds × 1 supply = 5 (~0.08% of cost 6000).
-		# Mirrors F-16.
-		SupplyValue: 1
+		# 20mm cannon: 5 batches × 30 rounds × 7 supply = 35 (~0.6% of cost 6000).
+		# 0.233/round, the 20mm rate. Was 1 per 30 (0.033/round).
+		# Mirrors F-16 — same weapon key (20mm_CRAM), so it must stay equal.
+		SupplyValue: 7
 	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud

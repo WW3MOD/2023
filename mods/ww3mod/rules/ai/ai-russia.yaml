@@ -356,6 +356,11 @@ Player:
 		# 2026-08-17 — full reasoning in ai-america.yaml's SupplyTruckFloorPer block).
 		GateResupplyOnAmmoNeed: true
 		ResupplyUnitTypes: truk
+		# USER RULING 2026-09-03: "unless at least one soldier is below half ammo, we should not waste
+		# money on supply trucks". Mirror of the America block — see ai-america.yaml for why this is a
+		# separate field and not an edit to ResupplyNeedThreshold (that one also sizes the standing
+		# reserve below, and this ruling is about the OPENING only).
+		FirstTruckNeedThreshold: 0.5
 		# ===== DEMAND-SIZED SUPPLY FLEET =====
 		# Mirror of the America block — see ai-america.yaml for the full rationale and the measurement. Short
 		# version: UnitTargetShares: truk: 40 is a share of army VALUE, which caps a 1000-cost truck at one per

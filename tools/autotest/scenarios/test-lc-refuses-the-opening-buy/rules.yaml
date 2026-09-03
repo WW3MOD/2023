@@ -1,0 +1,19 @@
+# Scenario overrides. Deliberately minimal: the modules under test run on their SHIPPED ai.yaml and
+# ai-america.yaml configuration (RequireDemand true, ForwardCustomerCells 12, ResidualTripCells 6,
+# CaptureConsiderCells 40, FirstTruckNeedThreshold 0.5), because a test that retunes the thing it is
+# testing proves only that some other tuning works.
+
+Player:
+	# GENEROUS ON PURPOSE — see map.yaml. A poor bot refuses the purchase for a reason that has
+	# nothing to do with the feature, and the test would then pass with the feature deleted. 15000
+	# clears the Centre's 3000, the LCCV's 3000, and the new `centre + tank` bar of 5500, so the only
+	# thing left saying no is the demand model.
+	PlayerResources:
+		DefaultCash: 15000
+
+World:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-lc-refuses-the-opening-buy.lua

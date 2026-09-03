@@ -325,5 +325,31 @@ namespace OpenRA.Test
 			// technician in the list would make every structure look taken.
 			Assert.That(CaptureDispatchMath.IsAlreadyCovered(new uint[] { 0, 0, 0 }, 0), Is.False);
 		}
+
+		[TestCase]
+		public void ASelectionThatAnsweredNothingYieldsToTheDispatch()
+		{
+			// The regression this exists for: the gate used to be "is the selection EMPTY", so
+			// left-clicking a structure and then right-clicking it did nothing at all. Selecting a
+			// structure the player does not own resolves to zero orders — UnitOrderGenerator.OrderForUnit
+			// returns null for any actor the local player does not own — so a selected structure and an
+			// empty selection reach this with the same count, which is the point of keying off the count.
+			Assert.That(CaptureDispatchMath.SelectionYieldsToDispatch(0), Is.True);
+		}
+
+		[TestCase]
+		public void ASelectionThatResolvedAnOrderKeepsIt()
+		{
+			// This is what stops capture-dispatch competing with attack on an enemy building. Combat
+			// units resolve an attack order at one, so the count is non-zero and the attack stands. If
+			// this ever admits a non-zero count, right-clicking an enemy structure with an army selected
+			// silently becomes a capture instead of an attack — and no modifier key would be needed to
+			// separate them, because there would no longer be a separation.
+			Assert.Multiple(() =>
+			{
+				Assert.That(CaptureDispatchMath.SelectionYieldsToDispatch(1), Is.False);
+				Assert.That(CaptureDispatchMath.SelectionYieldsToDispatch(12), Is.False);
+			});
+		}
 	}
 }

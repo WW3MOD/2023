@@ -120,6 +120,24 @@ namespace OpenRA.Mods.Common.Traits
 			"this pool, and deducted from sell/evac refund per missing batch.")]
 		public readonly int SupplyValue = 1;
 
+		[Desc("Heading for this pool in the production tooltip, overriding the name derived from the",
+			"armament's weapon. Purely cosmetic — nothing dispatches on it.",
+			"",
+			"WHY AN OVERRIDE IS NEEDED AT ALL, given the deriving code already prettifies the key: on",
+			"some actors the bound armament is a DUMMY TRIGGER and its weapon key names the mechanism",
+			"rather than the munition. The Iskander's armament fires `IskanderTargeter`, an InstantHit",
+			"with Damage: 50 and every Versus at 0 — it hits nothing. What the launcher actually",
+			"delivers is the IskanderMissile ACTOR, spawned by MissileSpawnerMaster, and what the pool",
+			"counts is two of those. So the derived heading read 'ISKANDER TARGETER' above 'AMMO 2",
+			"rounds', naming the sight instead of the missile. Same shape on HIMARS, and on the drone",
+			"operator, whose DroneTargeter does Damage: 0 with AmmoUsage: 0 and whose pool counts",
+			"quadcopters.",
+			"",
+			"Set this ONLY where the derived name is wrong about what the player is buying. It is not a",
+			"place to restyle names that derive correctly — every heading that can come from the weapon",
+			"key should keep coming from it, so a weapon rename cannot leave a stale label behind.")]
+		public readonly string TooltipName = null;
+
 		[Desc("Sound to play for each reloaded ammo magazine.")]
 		public readonly string RearmSound = null;
 
@@ -169,46 +187,158 @@ namespace OpenRA.Mods.Common.Traits
 				"stand at the host permanently. Either add it to Rearmable.AmmoPools or drop Essential.");
 		}
 
+		/// <summary>
+		/// The weapons band. Named because the tooltip renderer has to recognise where the weapon
+		/// sections stop and the actor's own stats begin, in order to put a wider gap there.
+		/// </summary>
+		public const int TooltipPriority = 100;
+
 		IEnumerable<TooltipElement> IProvideTooltipDescription.ProvideTooltipDescription(ActorInfo ai, Ruleset rules, out int priority)
 		{
-			priority = 100;
+			priority = TooltipPriority;
 
 			if (Ammo <= 0 || SupplyValue <= 0)
 				return null;
 
 			// Walk the actor's armaments and pick out the ones that draw from this pool.
 			// Multiple armaments can share one pool (e.g. dual-barrel burst weapons), so
-			// list all the weapon names, joined with '+'. Falls back to the pool name if
-			// no armaments link here (defensive — should not happen in well-formed YAML).
+			// list all the weapon names, joined with '+'.
+			//
+			// THE NO-ARMAMENT BRANCH IS NOT DEFENSIVE AND IS NOT MALFORMED YAML, which is what it
+			// used to claim. Three shipped pools meter an ability that is not an armament at all and
+			// so can never bind: minelayer's mines-ammo (Armaments: None, spent by Minelayer), and
+			// the demolition charges on e6 and sf (spent by Demolition). They reach it every time.
 			var armaments = ai.TraitInfos<ArmamentInfo>()
 				.Where(arm => Armaments.Contains(arm.Name))
 				.ToArray();
 
 			string label;
-			if (armaments.Length == 0)
-				label = FormatWeaponLabel(Name);
+			if (!string.IsNullOrEmpty(TooltipName))
+				label = TooltipName;
+			else if (armaments.Length == 0)
+				label = FormatPoolLabel(Name);
 			else
-				label = string.Join(" + ", armaments
+				label = MergeVariantLabels(armaments
 					.Select(arm => FormatWeaponLabel(arm.Weapon))
-					.Distinct());
+					.Distinct()
+					.ToArray());
 
-			// ONE notation for one quantity. This rendered two different shapes depending on whether
-			// BatchSize was 1 -- "Ammo: 1 × 50 supply = 50" against
-			// "Ammo: 900 (9 batches × 100 rounds × 5 supply = 45)" -- so a rifleman, who carries one
-			// pool of each kind, stated the same fact two ways four lines apart. The batch form is
-			// the one economy.md documents (§"Tooltip format"); the short form was undocumented, so
-			// it is the one that goes. Singular/plural is handled rather than reading "1 round".
-			//
-			// The round count moved OUT of the refill expression and into its own row: it is a
-			// capacity, not a term of a price, and the two were only ever adjacent because both
-			// had to fit on one line of one label. "8 × 30 = 240" is now the whole of the arithmetic.
+			// Singular/plural is handled rather than reading "1 round".
 			var rounds = Ammo == 1 ? "1 round" : $"{Ammo} rounds";
 			return new[]
 			{
 				TooltipElement.Subhead(label),
 				TooltipElement.Stat("Ammo", rounds),
-				TooltipElement.Cost("Refill", $"{BatchCount} × {SupplyValue} = {PoolBudget} supply"),
+				TooltipElement.Cost("Refill", FormatRefill(SupplyValue, BatchSize, BatchCount)),
 			};
+		}
+
+		/// <summary>
+		/// <para>What one purchase of this pool's ammunition costs, and how much ammunition it buys.
+		/// Pure so the four shapes can be read and tested without a ruleset.</para>
+		///
+		/// <para>THE ROW ABOVE THIS ONE IS DENOMINATED IN ROUNDS, so every number here has to say
+		/// whether it is one. This read <c>"{BatchCount} × {SupplyValue} = {PoolBudget} supply"</c> —
+		/// on a T-90, "8 × 30 = 240" sitting directly under "40 rounds". Both numbers were right: 8 is
+		/// the BATCH count, 40 rounds divided by a ReloadCount of 5. But nothing on the line said so,
+		/// and a player who has just read "40 rounds" reads the 8 as rounds too and sees the tooltip
+		/// contradict itself. That report is what this format exists to answer.</para>
+		///
+		/// <para>So the batch is named in the unit the player already has — rounds — and the leading
+		/// bare count goes. "30 supply per 5 rounds" cannot be misread, and it is also literally what
+		/// <see cref="TryServeBatch"/> charges: one SupplyValue buys one ReloadCount of rounds, and a
+		/// pool one round short still pays the whole batch.</para>
+		///
+		/// <para>The per-pool TOTAL is deliberately no longer here. It was the other half of the
+		/// ambiguity, it is not a price the player ever pays as a single transaction, and the
+		/// cross-pool "Full refill" row states the actual fill-from-empty cost unconditionally
+		/// (ProductionTooltipLogic). A rate is the more useful of the two for deciding whether a
+		/// weapon is expensive to fire.</para>
+		/// </summary>
+		public static string FormatRefill(int supplyValue, int batchSize, int batchCount)
+		{
+			// One batch fills the pool, so there is no rate to state and no arithmetic to show — the
+			// price IS the total. Covers every single-shot launcher: the RPG rendered "1 × 30 = 30
+			// supply", where the multiplier by one was pure noise.
+			if (batchCount <= 1)
+				return $"{supplyValue} supply";
+
+			if (batchSize == 1)
+				return $"{supplyValue} supply per round";
+
+			return $"{supplyValue} supply per {batchSize} rounds";
+		}
+
+		/// <summary>
+		/// <para>Collapses the targeting-MODE variants of one mount back into the single weapon a
+		/// player sees. Five shipped actors mount one gun twice — once ground, once air — so that
+		/// AutoTarget can pick a mode, and both armaments draw the same magazine. The heading listed
+		/// both: the littlebird read "7.62MM MINIGUN + 7.62MM MINIGUN AA", which describes two
+		/// miniguns above a round count for one. Same on HIND, MI28, tunguska.</para>
+		///
+		/// <para>THE MERGE IS DELIBERATELY NARROW, because the join it replaces is sometimes RIGHT.
+		/// FTUR really does feed two different weapons — FireballLauncher and Flamespray.heavy — from
+		/// one pool, and "FIREBALL LAUNCHER + FLAMESPRAY HEAVY" is the honest heading for that. So a
+		/// merge only happens when the labels share a leading run of whole words AND every remainder
+		/// is a short all-caps token: the AA/AG mode suffixes and nothing else.</para>
+		///
+		/// <para>The all-caps test is what keeps it safe rather than merely convenient. Without it the
+		/// rule is "share any word prefix", and a pool feeding a 7.62mm minigun and a 7.62mm sniper
+		/// would collapse to "7.62MM" — dropping the weapon rather than the mode, which is the very
+		/// failure this method exists to prevent. A suffix must look like a mode to be treated as one.</para>
+		/// </summary>
+		public static string MergeVariantLabels(string[] labels)
+		{
+			if (labels.Length <= 1)
+				return labels.Length == 1 ? labels[0] : "Weapon";
+
+			var split = labels.Select(l => l.Split(' ')).ToArray();
+
+			var common = 0;
+			var shortest = split.Min(w => w.Length);
+			while (common < shortest && split.All(w => w[common] == split[0][common]))
+				common++;
+
+			// No shared stem at all: genuinely different weapons on one magazine.
+			if (common == 0)
+				return string.Join(" + ", labels);
+
+			// Every word past the stem must look like a targeting-mode tag (AA, AG). Anything longer
+			// or mixed-case is part of a weapon's actual name and must not be discarded.
+			if (!split.All(w => w.Skip(common).All(IsModeTag)))
+				return string.Join(" + ", labels);
+
+			return string.Join(" ", split[0].Take(common));
+		}
+
+		static bool IsModeTag(string word)
+		{
+			return word.Length > 0 && word.Length <= 3 && word.All(char.IsUpper);
+		}
+
+		/// <summary>
+		/// <para>The heading for a pool that no armament draws from, built from the pool's own
+		/// <see cref="Name"/> because there is no weapon to name.</para>
+		///
+		/// <para>Strips a trailing "ammo", which every pool name in the mod carries as a suffix. It is
+		/// a functional key, not a word for a player: minelayer's pool rendered the heading
+		/// "MINES AMMO" directly above a row reading "AMMO 10 rounds", so the tooltip said "ammo"
+		/// twice in two lines and the first one was an internal identifier — the exact thing
+		/// <see cref="FormatWeaponLabel"/> exists to keep off the screen. Now "MINES".</para>
+		///
+		/// <para>Kept separate from <see cref="FormatWeaponLabel"/> rather than folded into it: that
+		/// one formats authored WEAPON keys, and a weapon legitimately ending in "Ammo" must not be
+		/// truncated. Only pool names are known to carry the suffix as noise.</para>
+		/// </summary>
+		static string FormatPoolLabel(string poolName)
+		{
+			var label = FormatWeaponLabel(poolName);
+
+			const string Suffix = " ammo";
+			if (label.EndsWith(Suffix, System.StringComparison.OrdinalIgnoreCase) && label.Length > Suffix.Length)
+				label = label.Substring(0, label.Length - Suffix.Length);
+
+			return label;
 		}
 
 		/// <summary>
@@ -518,8 +648,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (provider == null)
 				return true;
 
+			// The per-pool rule lives in SupplyHuntMath so it can be pinned without a World, and is CALLED
+			// rather than restated — this method is the sole Actor-shaped wrapper around it.
 			foreach (var p in pools)
-				if (!p.HasFullAmmo && provider.CurrentSupply >= p.Info.SupplyValue)
+				if (SupplyHuntMath.HostCanServePool(provider.CurrentSupply, p.CurrentAmmoCount, p.Info.Ammo, p.Info.SupplyValue))
 					return true;
 
 			return false;
@@ -662,14 +794,14 @@ namespace OpenRA.Mods.Common.Traits
 					// in ResupplyAutoFallbackTest, and deliberately NOT AmmoEvacMath.Decide, whose
 					// budget parameter reads 0 as UNLIMITED where this one reads 0 as "admits nothing".
 					//
-					// DRAINED IS NOT ABSENT. ChooseResupplier filters on CurrentSupply > 0, and with
-					// RearmsUnits absent from this mod that filter applies to EVERY host — so a null
-					// answer here means "no depot with stock", not "no depot". The evacuation gate must
-					// never be computed from it: an empty Logistics Centre is refilled by
-					// AbsorbsSupplyCache, and with SupplyValue 1500 against TotalSupply 2250 an emptied
-					// LC is where an Iskander NORMALLY leaves it. So the hopelessness inputs below ask
-					// AnyRearmHostWithinLeash / AnyMobileRearmHost, which ignore stock, while only the
-					// seek trigger reads it.
+					// DRAINED IS NOT ABSENT — still true of a TRUCK, no longer true of a DEPOT, and the
+					// split is the whole of this task's user ruling ("Empty LC should count as no LC, as
+					// far as auto-rearming goes"). AnyRearmHostWithinLeash now requires the host to be
+					// able to serve us, because waiting beside a static depot that cannot pay never
+					// terminates: NeedsResupply's only reader drives to the flagged UNIT and no mechanism
+					// reads it as "resupply my depot". AnyMobileRearmHost still ignores stock, because a
+					// drained truck restocks and can come — which is what keeps infantry holding as before.
+					// See AnyRearmHostWithinLeash for the full reversal note.
 					var leash = ResolveSeekLeash(ammoPools);
 
 					// The nearest AFFORDABLE host, not the nearest stocked one. A depot holding less
@@ -692,7 +824,7 @@ namespace OpenRA.Mods.Common.Traits
 					var whollyDry = AllPoolsEmpty(ammoPools);
 					var namesRearmActors = NamesRearmActors(self);
 					var mayEvacuate = whollyDry && namesRearmActors && leash > 0 && !suppliedHostWithinLeash;
-					var anyHostWithinLeash = mayEvacuate && AnyRearmHostWithinLeash(self, leash);
+					var anyHostWithinLeash = mayEvacuate && AnyRearmHostWithinLeash(self, leash, ammoPools);
 					var anyHostCanReachUs = mayEvacuate && !anyHostWithinLeash && AnyMobileRearmHost(self);
 
 					switch (SupplyHuntMath.DecideAutoDisposition(
@@ -1074,24 +1206,54 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// <para>Whether any rearm host that EXISTS — drained or not — sits inside
-		/// <paramref name="leashCells"/>. This is the "worth waiting beside" test: an empty Logistics
-		/// Centre we are parked next to is one <c>AbsorbsSupplyCache</c> transfer away from serving
-		/// again, so its emptiness is not a reason to leave the map.</para>
+		/// <para>Whether any rearm host inside <paramref name="leashCells"/> can SERVE US RIGHT NOW —
+		/// the "worth waiting beside" test.</para>
+		///
+		/// <para>USER RULING (this is the reversal, stated plainly rather than buried): "Empty LC should
+		/// count as no LC, as far as auto-rearming goes. Units evacuate instead if there is no LC WITH
+		/// SUPPLIES." This method previously swept <c>RearmCandidates(self, false)</c> — hosts that EXIST,
+		/// stock ignored — on the argument that a drained Logistics Centre is one
+		/// <c>AbsorbsSupplyCache</c> transfer from serving again and so is not a reason to leave the map.
+		/// That argument is what produced the reported symptom: a dry vehicle beside an empty Centre took
+		/// the <c>HoldAndFlag</c> arm and stood there indefinitely.</para>
+		///
+		/// <para>WHY WAITING THERE COULD NEVER TERMINATE, which is what makes the old reasoning wrong on
+		/// its own terms rather than merely overruled. <c>HoldAndFlag</c> raises <c>NeedsResupply</c>, and
+		/// that flag has exactly ONE reader engine-wide — <c>SupplyProvider.FindNeedsResupplyTarget</c>,
+		/// swept by a Hunt-stance provider that then DRIVES to the flagged unit. A Logistics Centre is a
+		/// BUILDING and cannot answer it, and nothing in the engine reads the flag as "bring supply to my
+		/// DEPOT". So the refill the old comment was waiting for is not something the waiting unit's flag
+		/// can ever summon; it depends entirely on the player (or, once <c>wt/bot-lc-economy</c> lands, a
+		/// bot) independently deciding to truck supply to that Centre. Holding was a bet on an outside
+		/// event, not a plan.</para>
+		///
+		/// <para>WHAT KEEPS THIS FROM OVER-EVACUATING is that the sibling input
+		/// <c>anyHostCanReachUs</c> (<see cref="AnyMobileRearmHost"/>) still IGNORES stock, deliberately
+		/// and unchanged: a drained TRUCK restocks and can drive to us, so it remains a reason to wait.
+		/// Infantry name <c>truk</c> in their <c>RearmActors</c> and therefore still hold and flag exactly
+		/// as before. The behaviour change lands on units whose only host is a static depot that cannot
+		/// serve them — in the shipped ruleset, every vehicle, whose <c>RearmActors</c> is
+		/// <c>logisticscenter</c> alone. That is precisely the reported case.</para>
 		///
 		/// <para>Chessboard metric, matching the leash rather than <see cref="ChooseResupplier"/>'s
-		/// Euclidean nearest-pick. That mismatch is pre-existing and still costs a stall in one shape
-		/// (nearest-by-Euclid outside the leash while a farther host is inside it) — but because THIS
-		/// test sweeps every host with the leash's own metric, that shape can no longer be mistaken for
-		/// hopelessness and evacuated.</para>
+		/// Euclidean nearest-pick. That mismatch is pre-existing: nearest-by-Euclid-affordable can sit
+		/// outside the leash while a different affordable host sits inside it. Because this test sweeps
+		/// every host with the leash's own metric, that shape still resolves to HoldAndFlag rather than
+		/// being mistaken for hopelessness — which is a safe answer, though SeekRearm would be the right
+		/// one. Fixing it means making <see cref="ChooseAffordableResupplier"/> leash-aware; out of scope
+		/// here and recorded in WORKSPACE/DISCOVERIES.md.</para>
 		/// </summary>
-		public static bool AnyRearmHostWithinLeash(Actor self, int leashCells)
+		/// <param name="pools">The pool set the CALLER dispatched on — every pool, matching
+		/// <see cref="AutoRearmIfDry"/>. Passing the narrower <c>Rearmable</c> subset here would make this
+		/// test stricter than the dispatch test it has to agree with.</param>
+		public static bool AnyRearmHostWithinLeash(Actor self, int leashCells, IEnumerable<AmmoPool> pools)
 		{
 			foreach (var candidate in RearmCandidates(self, false))
 				if (SupplyHuntMath.WithinCellBudget(
 					candidate.Location.X - self.Location.X,
 					candidate.Location.Y - self.Location.Y,
-					leashCells))
+					leashCells)
+					&& HostCanAffordSomethingWeNeed(candidate, pools))
 					return true;
 
 			return false;

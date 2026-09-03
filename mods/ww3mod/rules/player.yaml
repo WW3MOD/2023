@@ -15,6 +15,9 @@ Player:
 	ProvidesMiniMap:
 	ProximityCaptor:
 		Types: Infantry, Vehicle, Plane, Ship
+	# Free veterancy accruing per unit type while it goes unbought. Defaults are
+	# rank-1 every 5 build times, each tier up 3x rarer, caps 3/2/1.
+	RankAccumulation:
 	ClassicProductionQueue@Building:
 		Type: Building
 		DisplayOrder: 1

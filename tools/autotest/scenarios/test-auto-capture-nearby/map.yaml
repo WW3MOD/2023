@@ -1,0 +1,144 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: AUTO: idle technicians capture nearby structures by themselves, graded by stance
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS IS FOR. AutoCaptureNearby makes an IDLE technician walk to a capturable structure and
+# take it without being ordered to. The behaviour ships ON, so the fixtures that matter most are the
+# ones proving it can be turned OFF and that it does not roam.
+#
+# THE RADII UNDER TEST are AutoCaptureNearbyInfo's defaults: 8 cells on the Defensive engagement
+# stance (the shipped default), 20 on Hunt, 0 on HoldPosition. The fire stance is a separate axis:
+# HoldFire switches the behaviour off entirely.
+#
+# ------------------------------------------------------------------------------------------------
+# GEOMETRY, AND THE MISTAKE THE FIRST VERSION OF THIS MAP MADE (2026-09-03).
+#
+# The first layout put the four arms on rows 6/12/18/26 and reasoned about x-offsets along each row,
+# under a comment claiming "every technician sits on its own row so no two scans can see the same
+# structure". That is false, and it is false by 0.19 of a cell: the radius is a CIRCLE, and rows six
+# apart are not six cells apart once there is an x-offset as well.
+#
+#     TechRoam(10,18) -> DerrickQuiet(15,12) = sqrt(5^2 + 6^2) = 7.81 cells, INSIDE the 8-cell radius
+#
+# DerrickQuiet was TechRoam's only candidate (its own DerrickFar sat at 15, outside 8), so TechRoam
+# took the derrick the HoldFire technician was supposed to leave alone, and the run failed blaming
+# the off switch. It also made the leash arm pass VACUOUSLY: DerrickFar went uncaptured because
+# TechRoam had wandered off to DerrickQuiet, not because the radius bound it.
+#
+# THE RULE THIS MAP NOW FOLLOWS: every technician must be within radius of its OWN derrick and
+# outside radius of EVERY other, measured as the euclidean distance the CODE actually uses.
+#
+# MEASURE CENTRE TO CENTRE, NOT LOCATION TO LOCATION. AutoCaptureNearby compares
+# (target.CenterPosition - self.CenterPosition).HorizontalLength, and a 2x2 derrick's centre is NOT
+# its Location cell: the footprint spans two cells on each axis, so the centre sits at Location +
+# (1.0, 1.0) cells while a 1x1 technician's sits at Location + (0.5, 0.5). Working in Location
+# coordinates understates every technician-to-derrick distance by about half a cell — which is the
+# same order as the 0.19 of a cell that produced the failure above. Verified pair by pair, with the
+# offsets, before this file was written:
+#
+#   Defensive (8 cells)           TechDefault  -> DerrickNear     6.52   only candidate
+#                                 TechEnemy    -> DerrickEnemy    6.52   only candidate
+#                                 TechHoldFire -> DerrickQuiet    6.52   only candidate (stance OFF)
+#                                 TechRoam     -> nothing at all  (DerrickFar is 12.51, outside 8)
+#
+#   Hunt (20 cells), TechRoam     -> DerrickFar    12.51   INSIDE
+#                                 -> DerrickNear   23.51   outside
+#                                 -> DerrickEnemy  23.93   outside
+#                                 -> DerrickQuiet  26.73   outside
+#
+# TechRoam is the only unit ever switched to Hunt, and it is switched only after the other arms have
+# resolved, so the 20-cell radius is the only one that has to clear the whole board. It does.
+#
+# THE PROPERTY THAT MAKES THE OFF-SWITCH ARM MEAN ANYTHING: TechHoldFire is the ONLY unit on this
+# map that can reach DerrickQuiet at ANY radius the trait can produce — 6.52 cells for it, 26.73 for
+# the next nearest technician even on Hunt. So a USA-owned DerrickQuiet can only mean the off switch
+# failed, which is precisely what the first version of this map could not say.
+#
+# ------------------------------------------------------------------------------------------------
+# WALK BUDGETS. ^Infantry Mobile Speed is 25 world units/tick and a cell is 1024, so a technician
+# covers ONE CELL IN 40.96 TICKS. That number is why the sibling scenario's first run failed, and it
+# is why the gaps here are 6 cells rather than 20:
+#
+#   6-cell gap: ~5 cells of approach (the derrick is 2x2, so its near edge is one cell in)
+#               5 * 40.96 = 205 ticks, + CaptureDelay 20, + entering ~60, + up to 40 for the first
+#               idle scan  =>  ~330 ticks against SettleTicks 700, a 2.1x margin.
+#  12-cell gap: 11 * 40.96 = 451 + 20 + 60 + 40  =>  ~570 against RoamTicks 1100, a 1.9x margin.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		Faction: america
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		Faction: russia
+		Enemies: USA
+
+Actors:
+	SpawnPlayer: mpspawn
+		Owner: Neutral
+		Location: 2,16
+	SpawnEnemy: mpspawn
+		Owner: Neutral
+		Location: 63,30
+
+	# ARM 1 — the default case. Untouched technician, untouched stance, derrick 6 cells away.
+	TechDefault: tecn
+		Owner: USA
+		Location: 6,6
+	DerrickNear: oilb
+		Owner: Neutral
+		Location: 12,6
+
+	# ARM 4 — enemy-held, to prove the behaviour is not neutral-only. Same 6-cell gap as arm 1.
+	TechEnemy: tecn
+		Owner: USA
+		Location: 6,26
+	DerrickEnemy: oilb
+		Owner: Russia
+		Location: 12,26
+
+	# ARM 3 — the leash, then the Hunt upgrade. 12.51 cells: outside Defensive 8, inside Hunt 20.
+	# Parked mid-map because it is the only unit that ever gets the 20-cell radius, so it is the one
+	# whose separation from every other derrick has to hold at 20 rather than at 8. Sat six cells
+	# further left until the centre offsets were worked through: from there DerrickNear measured
+	# 19.24 centre to centre and would have been inside the Hunt radius.
+	TechRoam: tecn
+		Owner: USA
+		Location: 34,16
+	DerrickFar: oilb
+		Owner: Neutral
+		Location: 46,16
+
+	# ARM 2 — the off switch, and the arm the first run got wrong. Exiled to the far corner: at 30.27
+	# cells from TechRoam it is outside even the Hunt radius, so nothing but TechHoldFire can reach
+	# it and a capture here can only mean the off switch failed.
+	TechHoldFire: tecn
+		Owner: USA
+		Location: 60,6
+	DerrickQuiet: oilb
+		Owner: Neutral
+		Location: 60,12
+
+Rules: rules.yaml
