@@ -186,7 +186,7 @@ namespace OpenRA.Test
 			// (OwnerIndex maps every NonCombatant to -1). The classifier only sees
 			// (oldWasNeutral: false, newPreviouslyOwned: false, oldWasTrackedBot: true) and so
 			// labels it `steal` — misleading in the raw event stream, but it cannot move a
-			// tally, because no side has ClientIndex -1 and the gain branch never fires.
+			// tally, because no tracked side is keyed -1 and the gain branch never fires.
 			Assert.That(PoiEventClassifier.Classify(false, false, true), Is.EqualTo(PoiEventClassifier.Steal));
 
 			var events = new List<PoiCaptureEvent>
@@ -230,6 +230,41 @@ namespace OpenRA.Test
 
 			var r0 = PoiRollup.Compute(events, 0);
 			Assert.That(r0.Losses, Is.EqualTo(1));
+		}
+
+		[Test]
+		public void EveryEventIsCreditedToExactlyOneSide()
+		{
+			// REGRESSION SHAPE — the ClientIndex misattribution. Owner fields used to be
+			// Player.ClientIndex, which every map-player bot inherits from the host (Player.cs:191),
+			// so both bots keyed 0 and each side's rollup absorbed the other's captures. The
+			// signature is a conservation failure: per-side tallies sum to more than the events
+			// that actually happened. Note this pins the CONSUMER's behaviour given a collapsed
+			// key; the producer is guarded at runtime in BotVsBotMatchWatcher.DiscoverSrsOnFirstTick,
+			// because Player needs a World and cannot be constructed here.
+			var collapsed = new List<PoiCaptureEvent>
+			{
+				Ev(100, -1, 0, PoiEventClassifier.Capture),
+				Ev(300, -1, 0, PoiEventClassifier.Capture),
+			};
+
+			Assert.That(PoiRollup.Compute(collapsed, 0).Captures, Is.EqualTo(2),
+				"a shared key merges both sides into a single tally");
+
+			var distinct = new List<PoiCaptureEvent>
+			{
+				Ev(100, -1, 0, PoiEventClassifier.Capture),
+				Ev(300, -1, 1, PoiEventClassifier.Capture),
+			};
+
+			var d0 = PoiRollup.Compute(distinct, 0);
+			var d1 = PoiRollup.Compute(distinct, 1);
+			Assert.That(d0.Captures, Is.EqualTo(1));
+			Assert.That(d1.Captures, Is.EqualTo(1));
+			Assert.That(d0.Captures + d1.Captures, Is.EqualTo(distinct.Count),
+				"with distinct keys every capture is credited exactly once across sides");
+			Assert.That(d0.FirstCaptureTick, Is.EqualTo(100));
+			Assert.That(d1.FirstCaptureTick, Is.EqualTo(300));
 		}
 	}
 }

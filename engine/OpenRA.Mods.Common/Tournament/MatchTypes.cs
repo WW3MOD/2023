@@ -87,6 +87,13 @@ namespace OpenRA.Mods.Common.Tournament
 		/// <summary>Per-player income timeseries samples (spec §2.2).</summary>
 		public readonly Dictionary<Player, List<IncomeSample>> IncomeSamples = new Dictionary<Player, List<IncomeSample>>();
 
+		/// <summary>Attribution key for the capture-event stream: the tracked side's position in
+		/// OriginalSrOwner insertion order, which is also the order the verdict's `players` array is
+		/// built in — so this equals the emitted `player_index`. Player.ClientIndex must NOT be used
+		/// for this (see the PITFALL at BotVsBotMatchWatcher.SerializeVerdict): map-player bots all
+		/// inherit the host's client index, collapsing both sides onto one key.</summary>
+		public readonly Dictionary<Player, int> TrackedSideIndex = new Dictionary<Player, int>();
+
 		public long CaptureIncomeFor(Player p) => CaptureIncome.TryGetValue(p, out var v) ? v : 0;
 		public long KillsValueFor(Player p) => KillsValue.TryGetValue(p, out var v) ? v : 0;
 
@@ -94,12 +101,17 @@ namespace OpenRA.Mods.Common.Tournament
 
 		public long PoiHoldTicksFor(Player p) => PoiHoldTicks.TryGetValue(p, out var v) ? v : 0;
 		public long PoiIncomeFor(Player p) => PoiIncome.TryGetValue(p, out var v) ? v.Value : 0;
+
+		/// <summary>Attribution key for p, or -1 if p is not a tracked side (Neutral, a
+		/// non-combatant, or any player without an SR).</summary>
+		public int TrackedSideIndexFor(Player p) => p != null && TrackedSideIndex.TryGetValue(p, out var v) ? v : -1;
 	}
 
 	/// <summary>
 	/// One ownership transition of an income POI (spec §2.1). A plain data record appended to
 	/// MatchTrackingState.CaptureEvents by the watcher's read-only poll; never read by sim code.
-	/// Owner fields are ClientIndex, or -1 for Neutral (and for the vacated side of a `destroyed`).
+	/// Owner fields are MatchTrackingState.TrackedSideIndex (== the verdict's `player_index`), or -1
+	/// for Neutral / any untracked player (and for the vacated side of a `destroyed`).
 	/// </summary>
 	public struct PoiCaptureEvent
 	{
@@ -166,9 +178,11 @@ namespace OpenRA.Mods.Common.Tournament
 		public int Recaptures;
 		public int Losses;             // events where this side was the OldOwner (lost the POI)
 
-		/// <summary>Reduce the event stream for one player (by ClientIndex). Pure over the recorded
-		/// stream — no World/Actor reads — so it is NUnit-pinnable.</summary>
-		public static PoiRollup Compute(IReadOnlyList<PoiCaptureEvent> events, int clientIndex)
+		/// <summary>Reduce the event stream for one side, keyed by its TrackedSideIndex. Pure over
+		/// the recorded stream — no World/Actor reads — so it is NUnit-pinnable. The key must be a
+		/// per-player identity: passing one that both sides share (as Player.ClientIndex is) makes
+		/// every event count for both, which is silent and survives every existing assertion.</summary>
+		public static PoiRollup Compute(IReadOnlyList<PoiCaptureEvent> events, int sideIndex)
 		{
 			var r = new PoiRollup { FirstCaptureTick = -1 };
 			if (events == null)
@@ -176,7 +190,7 @@ namespace OpenRA.Mods.Common.Tournament
 
 			foreach (var ev in events)
 			{
-				if (ev.NewOwner == clientIndex)
+				if (ev.NewOwner == sideIndex)
 				{
 					switch (ev.Event)
 					{
@@ -190,7 +204,7 @@ namespace OpenRA.Mods.Common.Tournament
 						r.FirstCaptureTick = ev.Tick;
 				}
 
-				if (ev.OldOwner == clientIndex)
+				if (ev.OldOwner == sideIndex)
 					r.Losses++;
 			}
 
