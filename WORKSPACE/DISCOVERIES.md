@@ -3,6 +3,36 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-03 — A UI difference expressed as an alpha RATIO is a contrast difference, and only survives where the background is black (`wt/range-circle-dim`, `main @ 03c77208`)
+
+Reported as "artillery range circles: the outermost ring is prominent below the map edge, but over the
+map they are all dimmed". Established by reading the render path; **no game launch, nothing measured.**
+
+**There is no second draw path to blame.** `WorldRenderer.DrawAnnotations` is called from
+`Game.cs:910` inside `Renderer.BeginUI()` — *after* `worldRenderer.Draw()` has finished, so annotations
+never meet the depth buffer (`WorldRenderer.cs:378` disables it), the shroud, or any post-process pass
+(`ApplyPostProcessing(AfterShroud)` is the last thing `Draw()` does, `:388`). `RgbaColorRenderer.DrawLine`
+premultiplies and uses `BlendMode.Alpha` (`RgbaColorRenderer.cs:56-70`). So an on-map segment and an
+off-map segment of the same ring are the same call with the same colour, differing only in the
+destination pixel — which rules out ordering, pass and blend-mode explanations by construction.
+
+**The general rule.** Alpha blending is `dst + a*(src - dst)`. Two elements separated by an alpha gap
+`g` therefore land on screen separated by `g * |src - dst|` per channel. Against black that factor is
+maximal; against lit terrain it collapses. `RangeCircleGrouping` set the envelope to the configured
+alpha (35) and the interior to a quarter of it (8) — a gap of 27/255 that reads plainly over the
+beyond-map band and is a few units per channel over ground.
+
+**So the off-map region is a false witness.** `DrawBeyondMapFog` (`WorldRenderer.cs:404`) paints that
+band fully opaque black, which is the single best background any faint annotation can have. Anything
+tuned or *reviewed* against it is being judged under best case. Verify low-alpha UI over bright terrain.
+
+**Why it looked artillery-specific, and is not.** Grouping needs two selected allied actors sharing a
+`RangeCircleType` **and** an equal current range (`RangeCircleGrouping.cs:50`) — two identical tanks
+qualify exactly as two identical Paladins do. What artillery has is *radius*: the mod's weapon ranges
+run 0–50 cells and the artillery band is 20–50, so artillery rings are the only ones that routinely
+reach the black band where the intended styling is visible at all. The user's "only artillery" is a
+sampling artefact of which rings can reach the witness, not a property of artillery.
+
 ## 2026-09-03 — `WithTextDecoration` has the same silent-nothing trap as a missing `.shp`, and the obvious diamond falls into it (`wt/diamond-pip`, `main @ 925b5b82`)
 
 `defaults.yaml:844-846` warns that a sequence naming a file the mod does not ship falls back to
