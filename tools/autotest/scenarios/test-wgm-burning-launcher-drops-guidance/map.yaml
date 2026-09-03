@@ -1,0 +1,86 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: WGM burning launcher drops guidance (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Two independent lanes, fired STRICTLY SEQUENTIALLY so the MissileTrace record
+	# order is deterministic: record 1 is the control, record 2 is the test.
+	#
+	# Lane separation is load-bearing. Bradley<->own-target is 22 cells, inside WGM's
+	# 25c range and outside the 25mm's 20c, so only the WGM can reach — the same
+	# isolation test-wgm-target-dies-midflight relies on. Bradley<->OTHER lane's target
+	# is sqrt(22^2 + 18^2) = 28.4 cells, outside WGM range, so neither Bradley can
+	# acquire across lanes and the operator-retarget path cannot quietly rescue the
+	# test missile by swinging it onto the control lane.
+	#
+	# One Supply Route per side, parked mid-map away from both lanes: required so
+	# neither faction is eliminated mid-run (that ends the match in Mission
+	# Accomplished and the Lua poller never returns a verdict). SR carries
+	# Targetable.TargetTypes=NoAutoTarget so it cannot become a retarget candidate.
+	# Always include one SR per active faction in test maps — see DOCS/recipes/AUTOTEST.md.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 3,17
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 62,17
+	BradleyControl: bradley
+		Owner: USA
+		Location: 12,8
+		Facing: 768
+	TargetControl: t90
+		Owner: Russia
+		Location: 34,8
+	BradleyTest: bradley
+		Owner: USA
+		Location: 12,26
+		Facing: 768
+	TargetTest: t90
+		Owner: Russia
+		Location: 34,26
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 12,8
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 34,8
+
+Rules: rules.yaml
+
+Weapons: weapons.yaml

@@ -107,7 +107,9 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Run out of fuel after covering this distance. Zero for defaulting to weapon range. Negative for unlimited fuel.")]
 		public readonly WDist RangeLimit = WDist.Zero;
 
-		[Desc("Loses guidance if shooter dies.")]
+		[Desc("Loses guidance if the shooter dies, or is crippled at DamageState.Heavy or worse",
+			"(the 50% HP line where the vehicle burns and its crew bails out). A missile already",
+			"in flight goes ballistic and flies on past the target; it is not removed.")]
 		public readonly bool ManualGuidance = false;
 
 		[Desc("If the target dies mid-flight, an operator can re-acquire a new enemy.",
@@ -976,6 +978,37 @@ namespace OpenRA.Mods.Common.Projectiles
 				/ 1024;
 		}
 
+		/// <summary>
+		/// True when the operator behind a manually-guided missile can no longer steer it, because
+		/// the launcher is dead or is burning with its crew climbing out.
+		///
+		/// VOCABULARY, and it is the easy thing to get wrong here: the threshold is
+		/// <see cref="DamageState.Heavy"/>-or-worse, i.e. the `heavy-damage-attained` token
+		/// (defaults.yaml:256-258, ValidDamageStates: Heavy, Critical) — HP below 50%. It is NOT
+		/// the `critical-damage` token, which is a separate marker at 25%. 50% is the line the
+		/// rest of the mod already treats as doom: VehicleCrew ejects the crew there
+		/// (EjectionDamageState defaults to Heavy, VehicleCrew.cs:55,245), the fire ramp ignites
+		/// there (^EffectsWhenDamagedVehicles GrantStackingConditionOnHealthFraction StartFraction
+		/// 50), and the WGM armament is already paused there — so on the Bradley and BMP this
+		/// only ever reaches missiles that were ALREADY in flight when the launcher crossed it.
+		///
+		/// Dead is subsumed rather than tested separately: Actor.GetDamageState returns Dead when
+		/// the actor is Disposed or at HP &lt;= 0 (Actor.cs:595-601), which covers every case
+		/// Actor.IsDead reports (Actor.cs:76). An actor with no Health trait reads Undamaged and
+		/// keeps guidance, matching IsDead == false for the same actor.
+		///
+		/// Pure function of its two arguments so it is testable without a World. Determinism: both
+		/// inputs are already synced — ManualGuidance is weapon YAML, and the damage state is
+		/// derived from Health.HP ([Sync], Health.cs:88) by integer comparison alone
+		/// (Health.cs:95-116). No float, no RNG, no new synced field.
+		/// </summary>
+		public static bool GuidanceLost(bool manualGuidance, DamageState launcherDamageState)
+		{
+			// DamageState is [Flags] with ascending powers of two, so `>=` is an ordering test.
+			// This is the engine's own idiom for the same question (VehicleCrew.cs:245).
+			return manualGuidance && launcherDamageState >= DamageState.Heavy;
+		}
+
 		public void Tick(World world)
 		{
 			ticks++;
@@ -1003,6 +1036,11 @@ namespace OpenRA.Mods.Common.Projectiles
 					.Rotate(new WRot(WAngle.Zero, WAngle.Zero, WAngle.FromFacing(hFacing)));
 			}
 
+			// Has the operator stopped flying this missile? Sampled once per tick so the
+			// retarget gate below and the guidance gate further down cannot disagree within
+			// a tick. See GuidanceLost for why the threshold is Heavy and not Critical.
+			var guidanceLost = GuidanceLost(info.ManualGuidance, args.SourceActor.GetDamageState());
+
 			// Operator retargeting: when the missile loses its target mid-flight (target
 			// died or became invalid) and the shooter is still alive, the human operator
 			// behind the wire-guide can swing onto a different enemy. Veterancy reduces
@@ -1011,7 +1049,14 @@ namespace OpenRA.Mods.Common.Projectiles
 			//
 			// A target in Critical damage state also counts as "dead" for retargeting:
 			// no point spending the warhead on a wreck that's about to die anyway.
-			if (info.OperatorRetargetTicks > 0 && !args.SourceActor.IsDead)
+			//
+			// A crew that has bailed out cannot re-acquire either, so a launcher that is
+			// burning stops retargeting at the same instant it stops steering. Without this
+			// the missile would go ballistic below while still swinging args.GuidedTarget
+			// onto fresh victims and banking them into abandonedTargets — bookkeeping for a
+			// missile nobody is flying. Hellfire leaves ManualGuidance false and so is
+			// unaffected here: guidanceLost is constant false for it.
+			if (info.OperatorRetargetTicks > 0 && !args.SourceActor.IsDead && !guidanceLost)
 			{
 				var targetValid = args.GuidedTarget.IsValidFor(args.SourceActor);
 				if (targetValid && args.GuidedTarget.Actor != null)
@@ -1108,7 +1153,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			lastTargetPosition = targetPosition;
 
 			WVec move;
-			if (state == States.Freefall || (info.ManualGuidance && args.SourceActor.IsDead))
+			if (state == States.Freefall || guidanceLost)
 			{
 				move = FreefallTick();
 

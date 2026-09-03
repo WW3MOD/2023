@@ -3,6 +3,43 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-03 — A missile that loses guidance keeps being MEASURED against its real target, so `min_dist` is a true miss distance (`wt/missile-guidance`, `main @ cb68ce61`)
+
+Static only — build clean, `dotnet test` 2336 green, **no launch taken**.
+
+**`targetPosition` is updated independently of the steering decision.** In `Missile.Tick` the block
+that refreshes `targetPosition` from the live target (`Projectiles/Missile.cs:1079-1089`) sits
+*above* the freefall/homing branch and is gated only on `args.GuidedTarget.IsValidFor(...) && lockOn`
+— not on whether guidance is being applied. So when a missile drops to `FreefallTick` it stops
+*steering*, but the trace keeps comparing it against where the target actually is.
+`MissileTrace.MinDist` is "closest 3D approach to targetPosition (segment-exact)"
+(`Projectiles/MissileTrace.cs:99`), which therefore reads as the genuine miss distance against a
+*moving* target rather than the distance to a frozen last-known point. That is what makes
+`min_dist > close_enough` a valid pass criterion for any "the missile should stop tracking"
+scenario — and `close_enough` is in the same record (`:86`, surfaced by
+`TestGlobal.GetMissileRecord`), so such a scenario can derive its threshold instead of hard-coding
+a distance.
+
+**Corollary for scenario authors: a stationary target cannot detect a guidance drop.** `FreefallTick`
+(`Projectiles/Missile.cs:546-556`) keeps the current velocity and adds gravity — the missile flies
+*on*, it is not removed. A ballistic missile already pointed at a stationary target still lands on
+it. The target has to move across the missile's path for the drop to be observable at all.
+
+**`VehicleCrew` ejection never kills the vehicle.** `INotifyKilled.Killed` only clears slot
+bookkeeping (`Traits/VehicleCrew.cs:321-336`), and the ejection path is a wait-for-stop plus a
+countdown (`:285-319`). So there is a long window — hundreds of ticks, bounded by the 1%-per-5-tick
+`ChangesHealth` bleed — in which a vehicle sits at `DamageState.Heavy` with `Actor.IsDead == false`.
+Any rule keyed on "the crew has bailed" is therefore *not* subsumed by an existing `IsDead` check,
+and a test for one must assert the launcher is still alive or it silently measures the other path.
+
+**The 50% / 25% split, at the code level.** `Health.DamageState` (`Traits/Health.cs:105-109`) returns
+`Critical` below 25% and `Heavy` below 50%, both strict. `heavy-damage-attained` is
+`ValidDamageStates: Heavy, Critical` (`rules/defaults.yaml:256-258`) and so equals
+`>= DamageState.Heavy` = HP < 50%; `critical-damage` is `Critical` alone (`:259-261`) = HP < 25%.
+`DamageState` is `[Flags]` with ascending powers of two
+(`OpenRA.Game/Traits/TraitsInterfaces.cs:31-39`), so `>=` is a valid ordering test and is the
+engine's own idiom for exactly this question (`Traits/VehicleCrew.cs:245`).
+
 ## 2026-09-03 — The helicopter corner is a velocity-space CHORD, not a circular arc, so the corner-cut lead is `sin(theta/2)` and not the textbook `tan(theta/2)` (`wt/heli-waypoint-flow`, `main @ 414a84aa`)
 
 Static only. `make all` clean, `dotnet test` 2288 green. **No launch was taken**, so nothing below is
