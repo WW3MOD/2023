@@ -198,23 +198,50 @@ namespace OpenRA.Mods.Common.Traits
 					.Select(arm => FormatWeaponLabel(arm.Weapon))
 					.Distinct());
 
-			// ONE notation for one quantity. This rendered two different shapes depending on whether
-			// BatchSize was 1 -- "Ammo: 1 × 50 supply = 50" against
-			// "Ammo: 900 (9 batches × 100 rounds × 5 supply = 45)" -- so a rifleman, who carries one
-			// pool of each kind, stated the same fact two ways four lines apart. The batch form is
-			// the one economy.md documents (§"Tooltip format"); the short form was undocumented, so
-			// it is the one that goes. Singular/plural is handled rather than reading "1 round".
-			//
-			// The round count moved OUT of the refill expression and into its own row: it is a
-			// capacity, not a term of a price, and the two were only ever adjacent because both
-			// had to fit on one line of one label. "8 × 30 = 240" is now the whole of the arithmetic.
+			// Singular/plural is handled rather than reading "1 round".
 			var rounds = Ammo == 1 ? "1 round" : $"{Ammo} rounds";
 			return new[]
 			{
 				TooltipElement.Subhead(label),
 				TooltipElement.Stat("Ammo", rounds),
-				TooltipElement.Cost("Refill", $"{BatchCount} × {SupplyValue} = {PoolBudget} supply"),
+				TooltipElement.Cost("Refill", FormatRefill(SupplyValue, BatchSize, BatchCount)),
 			};
+		}
+
+		/// <summary>
+		/// <para>What one purchase of this pool's ammunition costs, and how much ammunition it buys.
+		/// Pure so the four shapes can be read and tested without a ruleset.</para>
+		///
+		/// <para>THE ROW ABOVE THIS ONE IS DENOMINATED IN ROUNDS, so every number here has to say
+		/// whether it is one. This read <c>"{BatchCount} × {SupplyValue} = {PoolBudget} supply"</c> —
+		/// on a T-90, "8 × 30 = 240" sitting directly under "40 rounds". Both numbers were right: 8 is
+		/// the BATCH count, 40 rounds divided by a ReloadCount of 5. But nothing on the line said so,
+		/// and a player who has just read "40 rounds" reads the 8 as rounds too and sees the tooltip
+		/// contradict itself. That report is what this format exists to answer.</para>
+		///
+		/// <para>So the batch is named in the unit the player already has — rounds — and the leading
+		/// bare count goes. "30 supply per 5 rounds" cannot be misread, and it is also literally what
+		/// <see cref="TryServeBatch"/> charges: one SupplyValue buys one ReloadCount of rounds, and a
+		/// pool one round short still pays the whole batch.</para>
+		///
+		/// <para>The per-pool TOTAL is deliberately no longer here. It was the other half of the
+		/// ambiguity, it is not a price the player ever pays as a single transaction, and the
+		/// cross-pool "Full refill" row states the actual fill-from-empty cost unconditionally
+		/// (ProductionTooltipLogic). A rate is the more useful of the two for deciding whether a
+		/// weapon is expensive to fire.</para>
+		/// </summary>
+		public static string FormatRefill(int supplyValue, int batchSize, int batchCount)
+		{
+			// One batch fills the pool, so there is no rate to state and no arithmetic to show — the
+			// price IS the total. Covers every single-shot launcher: the RPG rendered "1 × 30 = 30
+			// supply", where the multiplier by one was pure noise.
+			if (batchCount <= 1)
+				return $"{supplyValue} supply";
+
+			if (batchSize == 1)
+				return $"{supplyValue} supply per round";
+
+			return $"{supplyValue} supply per {batchSize} rounds";
 		}
 
 		/// <summary>
