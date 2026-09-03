@@ -3,6 +3,46 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-03 — A player-visible order modifier can be lost at the REPLAY step, long past the generator that coloured the line (`wt/alt-attackmove`, `main @ 414a84aa`)
+
+Reported as "Alt-queueing from the SR turns the line red, but helicopters get a move order instead".
+Static analysis plus `make all` / `dotnet test` (2274 green). No launch — scenario authored, not run.
+
+**The red line was never evidence about the order the unit runs.** The SR rally line is drawn by
+`RallyPointIndicator` from the waypoint's own `RallyOrderType`, which `RallyPoint.ResolveOrder`
+(`RallyPoint.cs:197-199`) stored correctly. Everything from modifier detection through `Order.ExtraData`
+encoding to rendering was right for aircraft. The tag was discarded at the very last step —
+`ProductionFromMapEdge.BuildWaypointActivity` gated the attack-move replay on
+`case RallyOrderType.AttackMove when move is Mobile:`, and an aircraft's `IMove` is `Aircraft`, so
+every airframe fell through to the `default:` plain-Move arm **and its Green target line**. Ground
+units were unaffected, which is why it read as an aircraft bug rather than a rally bug.
+
+**The general shape worth remembering: a modifier has a producer, an encoder, a renderer and a
+REPLAYER, and only the replayer can disagree with the other three while still looking correct on
+screen.** When a player reports "the UI says X but the unit does Y", the UI is testimony about the
+encoder, not about the executor — start at the executor.
+
+**`move is Mobile` is not a synonym for "can attack-move" and never was.** `AttackMoveActivity` drives
+an `IMove` and never mentions `Mobile`; the player's own Alt+click path applies no locomotor guard
+(`AttackMove.ResolveOrder`); and the engine already queues an `AttackMoveActivity` for aircraft on the
+normal production rally path (`Aircraft.cs:1526`). The guard's comment asserted "aircraft don't have a
+meaningful AttackMove path", which those three sites each independently contradict. The correct
+predicate is `AttackMove.CanBeOrderedToAttackMove(actor)` — the same one the cursor and the order
+resolver consult, so the SR agrees with the click by construction rather than by coincidence.
+
+**Corpus check, in case anyone re-derives this from the YAML: it is not a YAML gap.** Resolving
+`Inherits@`/`-Key:` across `mods/ww3mod/rules/` gives 100 producible actors, 79 of them mobile, and
+**all 79 carry `AttackMove`** — every helicopter and plane included, via a bare `AttackMove:` on
+`^NeutralAirborne` (`aircraft.yaml:73`) that `^Helicopter` reaches through `^Airborne`. The only
+mobile producible without it is `LCCV`, which removes it deliberately (`vehicles.yaml:714`). No naval
+unit is producible at all — `naval.yaml` is commented out in its entirety.
+
+**Trap for anyone testing SR production from Lua.** `Test.QueueProduction` looks the actor up with a
+plain `TryGetValue` on `Rules.Actors`, whose keys are `ToLowerInvariant` (`Ruleset.cs:126`). Passing
+an actor name in its YAML casing — `"HELI"` — finds no queue and returns **silently**, so the scenario
+produces nothing and times out with whatever its real assertion says. The failure message will blame
+the behaviour under test.
+
 ## 2026-09-02 — R9's premise is half-wrong: the Supply Route defeat bar really DOES eliminate you, on exactly the maps most people play (`wt/howtoplay`, `main @ 26f9cec0`)
 
 Read-only verification while rewriting `chrome/ingame-info-howtoplay.yaml`. No launch, no build.
