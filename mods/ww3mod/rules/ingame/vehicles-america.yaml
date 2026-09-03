@@ -94,8 +94,11 @@ humvee:
 		ReloadCount: 50
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 7.62mm MG: 6 batches × 50 rounds × 1 supply = 6 (~1% of unit cost 450).
-		SupplyValue: 1
+		# 7.62mm MG: 6 batches × 50 rounds × 4 supply = 24 (~4.8% of cost 500).
+		# 0.08/round — 1.6x the 5.56mm rifle anchor, matching the real cartridge-cost ratio
+		# between 7.62x51mm and 5.56x45mm. Was 1 per 50 (0.02/round), below the rifle.
+		# (The old comment also said cost 450; Valued.Cost is 500.)
+		SupplyValue: 4
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 7, 3
@@ -250,8 +253,10 @@ m113:
 		ReloadCount: 50
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 12.7mm HMG: 10 batches × 50 rounds × 1 supply = 10 (~1.4% of cost 700).
-		SupplyValue: 1
+		# 12.7mm M2: 10 batches × 50 rounds × 8 supply = 80 (~11.4% of cost 700).
+		# 0.16/round — 3.2x the 5.56mm rifle anchor. Was 1 per 50 (0.02/round). A step below
+		# the btr's 14.5mm (0.20), which is the larger cartridge.
+		SupplyValue: 8
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 7, 3
@@ -381,8 +386,11 @@ bradley:
 		ReloadCount: 100
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 25mm Bushmaster: 9 batches × 100 rounds × 5 supply = 45 (3% of cost 1500).
-		SupplyValue: 5
+		# 25mm Bushmaster: 9 batches × 100 rounds × 28 supply = 252 (~16.8% of cost 1500).
+		# 0.28/round — 5.6x the 5.56mm rifle anchor. Was 5 per 100 (0.05/round), identical to a
+		# rifle cartridge. Below the bmp2's 30mm (0.32) on calibre, which is the one real
+		# difference between the two IFVs' main guns.
+		SupplyValue: 28
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3
@@ -946,8 +954,11 @@ strykershorad:
 		ReloadCount: 50
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 25mm: 8 batches × 50 rounds × 1 supply = 8 (~0.3% of cost 2500).
-		SupplyValue: 1
+		# 25mm: 8 batches × 50 rounds × 14 supply = 112 (~4.5% of cost 2500).
+		# 0.28/round, the same 25mm rate as the bradley — it is the same weapon key
+		# (25mm.Bradley). Was 1 per 50 (0.02/round), i.e. the identical round cost 2.5x less
+		# here than on the bradley for no stated reason.
+		SupplyValue: 14
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 6
@@ -1137,6 +1148,9 @@ HIMARS:
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
 		SupplyValue: 1500
+		# Same shape as the Iskander: HIMARSTargeter is a dummy trigger and the rocket is the
+		# HIMARSMissile actor. The heading read "HIMARS TARGETER" — the launcher, not the round.
+		TooltipName: Guided rocket
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 3

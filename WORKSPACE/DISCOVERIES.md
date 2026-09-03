@@ -80,6 +80,37 @@ grow it. Replaced with an honest `max` (`ProductionTooltipLayout.PanelWidth`).
 
 Worth grepping for the shape generally: `Math.Clamp(x, K, K)` is always `K`, and it is easy to write
 by accident when a min and a max constant are named similarly.
+## 2026-09-03 — Three launchers fire a DUMMY weapon, so anything reading the armament names the mechanism (`wt/tooltip-economy`, `main @ 03c77208`)
+
+`iskander`, `HIMARS` and `DR` all bind their ammo pool to an armament whose weapon does nothing.
+`IskanderTargeter` (`weapons-missiles.yaml:380-401`) is an `InstantHit` carrying `Damage: 50` with
+**every `Versus` entry at 0**; `HIMARSTargeter` (`:403`) inherits it; `DroneTargeter`
+(`weapons-other.yaml:687-694`) is `Damage: 0` and its armament additionally sets `AmmoUsage: 0`
+(`infantry.yaml:2483`). The thing actually delivered is a spawned ACTOR — `MissileSpawnerMaster`
+(`vehicles-russia.yaml:1082`, `vehicles-america.yaml:1160`) or `CarrierMaster` for the drone.
+
+**Consequence beyond tooltips:** any code reasoning about a unit's firepower by reading its
+`Armament` → `Weapon` → warhead will conclude these three are harmless. The damage lives on the
+spawned actor's own weapon (`IskanderExplosion`), not on anything reachable from the launcher's
+armament. Worth checking before trusting a threat-assessment or scoring path that walks armaments.
+
+## 2026-09-03 — `SupplyValue` is per BATCH, and per-round prices were uncorrelated with calibre (`wt/tooltip-economy`, `main @ 03c77208`)
+
+`AmmoPool.TryServeBatch` (`engine/OpenRA.Mods.Common/Traits/AmmoPool.cs:578-594`) takes
+`cost = pool.Info.SupplyValue` as **one flat charge** and serves `Min(Max(1, ReloadCount), missing)`
+rounds, so per-round price is `SupplyValue / ReloadCount` and a pool one round short still pays a
+whole batch. Reading `SupplyValue` as a per-round price understates cheap-batch pools by up to 100×.
+
+Auditing all 123 shipped pools arithmetically (`WORKSPACE/ammo_audit.py`) found **thirteen pools where
+a larger-calibre round cost at or below the 5.56mm rifle anchor** of 0.05/round — a 30mm autocannon
+shell on the `bmp2` cost exactly what a rifle cartridge cost. Repriced by calibre in `c4cb3c23`.
+
+**The reusable check, which is the part worth keeping:** group every pool by the *weapon key* its
+armaments name and assert one per-round price per key. That caught `25mm.Bradley` costing 2.5× less on
+`strykershorad` than on `bradley`, and it caught a mistake of my own — the `btr`'s comment says
+14.5mm KPVT (true of a real BTR-80) but its armament fires `12.7mm.MG`, **the same key the m113
+fires**, so pricing them apart on the strength of the comment would have created the very split being
+removed. A comment describing a unit's real-world armament is not evidence of what the ruleset does.
 
 ## 2026-09-03 — `WithTextDecoration` has the same silent-nothing trap as a missing `.shp`, and the obvious diamond falls into it (`wt/diamond-pip`, `main @ 925b5b82`)
 

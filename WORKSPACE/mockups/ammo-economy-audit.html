@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD — ammunition economy audit + tooltip naming</title>
+<style>
+  :root {
+    --bg:#101316; --panel:#1a1f24; --panel2:#21272d; --line:#313a42;
+    --ink:#dfe6ec; --dim:#95a4b1;
+    --yellow:#ecc73c; --orange:#ee7d1e; --red:#e0392c; --green:#4eae54; --blue:#5a9fd4;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:34px 30px 90px; background:var(--bg); color:var(--ink);
+         font:15px/1.6 -apple-system,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:1240px; margin:0 auto; }
+  h1 { font-size:25px; margin:0 0 4px; }
+  h2 { font-size:18px; margin:36px 0 6px; padding-bottom:8px; border-bottom:1px solid var(--line); }
+  h3 { font-size:15px; margin:20px 0 4px; }
+  p { margin:9px 0; max-width:980px; }
+  .sub { color:var(--dim); font-size:13.5px; }
+  code { font:12.5px ui-monospace,Menlo,monospace; background:#262d34; padding:1px 5px;
+         border-radius:3px; color:#b8e0c8; }
+  b { color:#fff; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:18px 20px; }
+
+  .verdict { background:#16211a; border-left:4px solid var(--green); padding:14px 18px;
+             border-radius:0 7px 7px 0; margin:18px 0; }
+  .verdict.bad  { background:#2a1a18; border-left-color:var(--red); }
+  .verdict.warn { background:#2e2318; border-left-color:var(--orange); }
+  .verdict.info { background:#161f27; border-left-color:var(--blue); }
+  .verdict h3 { margin:0 0 6px; font-size:15px; }
+  .verdict p { margin:6px 0; font-size:14px; }
+
+  table.data { width:100%; border-collapse:collapse; font-size:13.5px; margin:14px 0; }
+  table.data th { text-align:left; padding:7px 10px; border-bottom:1px solid var(--line);
+                  color:var(--dim); font-weight:600; font-size:12.5px; text-transform:uppercase;
+                  letter-spacing:.04em; white-space:nowrap; }
+  table.data th.s { cursor:pointer; user-select:none; }
+  table.data th.s:hover { color:var(--ink); }
+  table.data th.s[aria-sort]:not([aria-sort=none]) { color:var(--yellow); }
+  table.data td { padding:6px 10px; border-bottom:1px solid #262d34; vertical-align:top; }
+  table.data td.n { text-align:right; font-family:ui-monospace,Menlo,monospace; white-space:nowrap; }
+  table.data td.why { color:var(--dim); font-size:12.5px; line-height:1.5; }
+  table.data tr.hot td { background:#2a1f18; }
+  .up { color:var(--orange); }
+  .was { color:var(--dim); text-decoration:line-through; }
+
+  /* ---------- review list ---------- */
+  .review { border:1px solid #4a3a24; background:#1d1a15; border-radius:10px; padding:4px 20px 20px; }
+  .item { border-bottom:1px solid #33302a; padding:18px 0; }
+  .item:last-child { border-bottom:0; }
+  .item h3 { margin:0 0 4px; font-size:15px; color:#f0dfae; }
+  .item .ev { font-size:12.5px; color:var(--dim); margin:6px 0 10px; max-width:940px; }
+  .item .ev b { color:#e8eef3; }
+  .seg { display:flex; gap:6px; flex-wrap:wrap; }
+  .seg button {
+    background:var(--panel2); color:var(--dim); border:1px solid var(--line);
+    border-radius:6px; padding:7px 13px; font:600 12.5px inherit; cursor:pointer; line-height:1.25;
+  }
+  .seg button:hover { border-color:#6b8595; }
+  .seg button[aria-pressed=true] { background:#2f3b45; color:#fff; border-color:#6b8595; }
+  .seg button[aria-pressed=true][data-v=change] { background:#3d2a22; border-color:#a2603c; color:#ffd9c2; }
+  .seg button[aria-pressed=true][data-v=leave]  { background:#22331f; border-color:#4e8447; color:#d4f0d0; }
+  textarea { width:100%; max-width:700px; background:#151a1f; color:var(--ink); border:1px solid var(--line);
+             border-radius:6px; padding:9px; font:13px inherit; resize:vertical; min-height:64px; margin-top:8px; }
+  .submit { margin-top:16px; padding:12px 24px; border-radius:7px; border:1px solid #3f7a4a;
+            background:#2f5c39; color:#dff5e2; font:600 14px inherit; cursor:pointer; }
+  .submit:hover { background:#386c43; }
+  .sent { font-size:12.5px; color:#8fce8f; margin-top:8px; min-height:17px; }
+  .tag { display:inline-block; font-size:10.5px; letter-spacing:.05em; text-transform:uppercase;
+         padding:2px 7px; border-radius:4px; margin-left:8px; vertical-align:2px; font-weight:700; }
+  .tag.same { background:#3a2320; color:#f0b3a6; }
+  .tag.des  { background:#233042; color:#a8cbe8; }
+  .tag.play { background:#332c18; color:#e8cf9a; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Ammunition economy audit &amp; tooltip naming</h1>
+<p class="sub">Branch <code>wt/tooltip-economy</code>, based on <code>main @ 03c77208</code>.
+Two commits: <code>22b2e9d4</code> naming, <code>c4cb3c23</code> economics.
+Numbers are arithmetic over the shipped ammo pools (<code>WORKSPACE/ammo_audit.py</code>) — not simulation.
+<code>dump-stats.sh</code> cannot back them: the solution builds only <code>OpenRA.Game</code> and
+<code>Mods.Common</code>, and <code>tools/combat-sim/data/stats.json</code> carries no ammo-pool data.</p>
+
+<div class="verdict info">
+  <h3>The mechanic these numbers rest on</h3>
+  <p><code>SupplyValue</code> is charged <b>per batch</b>, not per round. <code>AmmoPool.TryServeBatch</code>
+  deducts one flat <code>SupplyValue</code> and serves <code>Min(ReloadCount, missing)</code> rounds — so the
+  per-round price is <code>SupplyValue / ReloadCount</code>, and a pool one round short still pays a whole
+  batch. Verified by reading the method, not taken on trust.</p>
+</div>
+
+<h2>1 &nbsp;The Iskander — what it actually does</h2>
+<p>The user hedged on the spawns-as-an-actor part. It is correct, and it matters for the name.
+<code>IskanderTargeter</code> is an <code>InstantHit</code> with <code>Damage: 50</code> and <b>every
+<code>Versus</code> at 0</b> — it hits nothing at all. The launcher's <code>MissileSpawnerMaster</code>
+(<code>vehicles-russia.yaml:1082</code>) releases the real <code>IskanderMissile</code> actor.</p>
+<p>So the row counts <b>two missiles, not two targeting cycles</b> — confirmed independently by the two
+loaded-missile sprites, which gate on <code>ammo-primary == 2</code> and <code>ammo-primary</code>.
+Renaming it to a missile is right, and <b>"Ballistic missile"</b> is what shipped.</p>
+
+<h3>Every heading that named a mechanism instead of a munition</h3>
+<table class="data">
+  <thead><tr><th>Actor</th><th>Was</th><th>Now</th><th>Why it was wrong</th></tr></thead>
+  <tbody>
+    <tr class="hot"><td><code>iskander</code></td><td class="was">ISKANDER TARGETER</td><td><b>BALLISTIC MISSILE</b></td>
+      <td class="why">Armament fires a 0-effect dummy trigger; the missile is a spawned actor.</td></tr>
+    <tr class="hot"><td><code>HIMARS</code></td><td class="was">HIMARS TARGETER</td><td><b>GUIDED ROCKET</b></td>
+      <td class="why">Identical shape — found by auditing, not reported. <code>HIMARSTargeter</code> inherits the Iskander's dummy warhead.</td></tr>
+    <tr class="hot"><td><code>DR</code></td><td class="was">DRONE TARGETER</td><td><b>RECON DRONE</b></td>
+      <td class="why">Also found by auditing. <code>DroneTargeter</code> is <code>Damage: 0</code> and its armament sets <code>AmmoUsage: 0</code>; the pool counts quadcopters released by <code>CarrierMaster</code>.</td></tr>
+    <tr><td><code>E6</code>, <code>SF</code></td><td class="was">SECONDARY</td><td><b>DEMOLITION CHARGE</b></td>
+      <td class="why">The naming decision that was left open. No armament binds these pools — the charges are spent by the <code>Demolition</code> trait — so the heading fell back to the pool key and named a <i>slot</i>. "Demolition charge" matches the trait that spends them and their own C4 comments.</td></tr>
+    <tr><td><code>littlebird</code>, <code>HIND</code>,<br><code>MI28</code>, <code>tunguska</code></td>
+      <td class="was">7.62MM MINIGUN +<br>7.62MM MINIGUN AA</td><td><b>7.62MM MINIGUN</b></td>
+      <td class="why">One mount listed twice so AutoTarget can pick a ground or air mode, both drawing one magazine. Now merged when the labels share a run of whole words <i>and</i> every remainder is a short all-caps mode tag. <code>FTUR</code>, which really does feed two different weapons from one pool, still lists both.</td></tr>
+  </tbody>
+</table>
+<p class="sub">Carried by a new optional <code>AmmoPoolInfo.TooltipName</code> — an override, so pool
+<code>Name</code> keys stay functional and wired into <code>Rearmable.AmmoPools</code>, and headings that
+derive correctly keep deriving. <b>No layout change</b>; labels and YAML values only.</p>
+
+<h2>2 &nbsp;Ammunition repricing — what changed</h2>
+<p>The BTR was real: <b>1 supply per 50 rounds = 0.02/round</b>, against the automatic rifleman's
+<b>0.05/round</b> (<code>AR</code>, 1 per 20). A heavy machine gun cartridge cost two fifths of a rifle
+round. It was not isolated — <b>thirteen pools priced a larger round at or below the rifle anchor</b>,
+including a 30mm autocannon shell at exactly a rifle cartridge's price.</p>
+
+<div class="verdict warn">
+  <h3>The scale, and what is honest about it</h3>
+  <p>Anchor held at <b>0.05/round</b> for 5.56mm; everything larger placed above it by calibre:</p>
+  <p style="font-family:ui-monospace,Menlo,monospace;font-size:13px">
+  7.62mm <b>0.08</b> &nbsp;|&nbsp; 12.7mm <b>0.16</b> &nbsp;|&nbsp; 20mm <b>0.23</b> &nbsp;|&nbsp;
+  25mm <b>0.28</b> &nbsp;|&nbsp; 30mm <b>0.32</b> &nbsp;|&nbsp; GAU-8 DU <b>0.40</b></p>
+  <p><b>Compressed, not literal.</b> Real cartridge costs run roughly 140× from 5.56mm to 30mm; applied
+  literally to a 900-round magazine that makes an IFV cost more to rearm than to call in. What is preserved
+  is the <i>ordering</i> and the rough ratios between classes — the user's 3× floor for the BTR is cleared
+  at 3.2×.</p>
+</div>
+
+<table class="data" id="changes">
+  <thead><tr>
+    <th class="s" data-k="unit">Unit</th><th>Weapon</th>
+    <th class="s n" data-k="mult">×/round</th>
+    <th class="n">Per round</th><th class="n">SupplyValue</th>
+    <th class="s n" data-k="delta">Full refill</th>
+    <th>Justification</th>
+  </tr></thead>
+  <tbody></tbody>
+</table>
+<p class="sub">"Full refill" is fill-from-empty cost; the bracket is that as a share of the unit's call-in cost.
+Click <b>×/round</b>, <b>Full refill</b> or <b>Unit</b> to re-sort.</p>
+
+<div class="verdict bad">
+  <h3>The one place I had to overrule my own justification</h3>
+  <p>The BTR was going to 0.20/round on the strength of its comment reading <b>14.5mm KPVT</b> — which is
+  correct for a real BTR-80. But its <code>Armament</code> fires <code>12.7mm.MG</code>, <b>the same weapon
+  key the m113 fires</b>. Pricing one round two ways by faction is the exact fault this pass removes, so the
+  shipped data beat the comment and both sit at 8. The stale comment is corrected in place. If the 14.5mm
+  distinction is wanted it needs its own weapon, not a different ammunition price on a shared one.</p>
+</div>
+
+<div class="verdict">
+  <h3>Consistency check</h3>
+  <p>Every weapon key now carries <b>exactly one</b> per-round price, except two left deliberately for your
+  ruling (items 2 and 3 below). Three keys were split before this pass; the <code>25mm.Bradley</code> split —
+  the identical round costing 2.5× less on the strykershorad than on the bradley — is closed.</p>
+</div>
+
+<div class="verdict warn">
+  <h3>What I could not check <span class="tag play">not play-tested</span></h3>
+  <p>I did not launch the game (manager runs launches serially). These are static numbers; the balance
+  consequence of the two IFV rises in particular is a play-test question, and it is item 8 below.
+  <b>@stable economics move</b> — both bot profiles buy this ammunition, so the next benchmark baseline
+  must be re-taken knowingly. That is stated in the commit message.</p>
+</div>
+
+<h2>3 &nbsp;Review list — things I did not change</h2>
+<p>Each of these is a judgement call I did not think was mine to make. Rule on them and I will apply the
+result. Defaults are <b>Leave as-is</b>.</p>
+
+<div class="review" id="review"></div>
+
+<div style="margin-top:18px">
+  <label class="sub" for="notes">Anything else, or reasoning you want recorded:</label>
+  <textarea id="notes" placeholder="optional"></textarea>
+  <div><button class="submit" id="send">Send rulings</button></div>
+  <div class="sent" id="sent"></div>
+</div>
+
+</div>
+<script>
+"use strict";
+
+var CHANGES = [
+  { unit:"strykershorad", w:"25mm Bushmaster", oldSV:1, newSV:14, rc:50, batches:8, cost:2500,
+    why:"Same weapon key (25mm.Bradley) as the bradley, which charged 2.5x more for the identical round. Now equal." },
+  { unit:"tunguska", w:"30mm 2A38 AA", oldSV:1, newSV:10, rc:30, batches:6, cost:1700,
+    why:"A 30mm shell at two thirds of a rifle cartridge. Its missiles (65/round) remain the real bill; the cannon is the cheap half, just no longer free." },
+  { unit:"btr", w:"12.7mm HMG", oldSV:1, newSV:8, rc:50, batches:10, cost:600,
+    why:"THE REPORTED ONE. 3.2x the rifle anchor, clearing the stated 3x floor. Equal to m113 — same weapon key." },
+  { unit:"m113", w:"12.7mm M2", oldSV:1, newSV:8, rc:50, batches:10, cost:700,
+    why:"Same fault, same weapon key as the btr, so the same price." },
+  { unit:"F16", w:"20mm M61", oldSV:1, newSV:7, rc:30, batches:5, cost:6000,
+    why:"A 20mm shell below a rifle cartridge. Sits between 12.7mm and 25mm." },
+  { unit:"MIG", w:"20mm cannon", oldSV:1, newSV:7, rc:30, batches:5, cost:6000,
+    why:"Same weapon key (20mm_CRAM) as the F16, so it must stay equal." },
+  { unit:"bmp2", w:"30mm 2A42", oldSV:5, newSV:32, rc:100, batches:9, cost:1300,
+    why:"A 30mm autocannon shell priced identically to a rifle cartridge. Above the bradley's 25mm on calibre — the one real difference between the two IFVs' guns." },
+  { unit:"bradley", w:"25mm Bushmaster", oldSV:5, newSV:28, rc:100, batches:9, cost:1500,
+    why:"As bmp2: a 25mm shell at a rifle cartridge's price. Below 30mm on calibre." },
+  { unit:"HIND", w:"12.7mm chin gun", oldSV:1, newSV:5, rc:30, batches:5, cost:4000,
+    why:"12.7mm rate, matching m113/btr. Its rocket pods (80/round) remain the real bill." },
+  { unit:"humvee", w:"7.62mm MG", oldSV:1, newSV:4, rc:50, batches:6, cost:500,
+    why:"1.6x the rifle anchor, matching the real 7.62x51 to 5.56x45 cartridge ratio. (Its comment also said cost 450; Valued.Cost is 500 — corrected.)" },
+  { unit:"littlebird", w:"7.62mm minigun", oldSV:1, newSV:3, rc:40, batches:4, cost:3000,
+    why:"Half a rifle cartridge for the same class of round. 3 supply is the 7.62mm rate to the nearest whole supply on a 40-round batch." },
+  { unit:"HELI", w:"30mm chain gun", oldSV:5, newSV:13, rc:40, batches:5, cost:6000,
+    why:"30mm rate. Hellfires (200/round) still dominate this airframe's bill." },
+  { unit:"MI28", w:"30mm chain gun", oldSV:5, newSV:13, rc:40, batches:5, cost:6000,
+    why:"Same weapon key (30mm.Heli) as HELI, so it must stay equal." },
+  { unit:"A10", w:"30mm GAU-8", oldSV:5, newSV:10, rc:25, batches:4, cost:6000,
+    why:"Above plain 30mm because PGU-14 is a depleted-uranium AP incendiary, not an HE chain-gun shell — the same lever, same direction, as today's abrams/t90 split on penetrator type." }
+];
+
+var REVIEW = [
+  { id:"infantry-refill", tag:["des","Design statement"],
+    t:"Infantry refills cost most of a replacement — is that deliberate?",
+    ev:"<b>AT</b> and <b>AA</b> refill at 195 against a 300 call-in (65%). <b>MT</b> 200/300 (67%), " +
+       "<b>E6</b> charges 150/250 (60%), <b>SN</b> 200/400 (50%), <b>E2</b> 50/100 (50%). Rearming an AT " +
+       "team costs nearly what a fresh one costs, so there is little reason to ever pull one back. " +
+       "Plausibly deliberate — for a missile team the missiles genuinely <i>are</i> the unit — but it is " +
+       "the sharpest economic statement in the roster and it is written down nowhere." },
+  { id:"cram-20mm", tag:["same","Same weapon, two prices"],
+    t:"20mm_CRAM costs 21x more on the CRAM structure than on the F16 and MIG",
+    ev:"Identical weapon key. <b>CRAM</b> is 20 supply per 4 rounds = <b>5.0/round</b>; the aircraft are now " +
+       "<b>0.233/round</b>. Either the structure is heavily overpriced, or static defences are meant to pay " +
+       "more than aircraft for the same shell. I left every structure out of the calibre pass rather than " +
+       "guess which. <b>AGUN</b>'s AACannon sits in the same tier at 5.0/round." },
+  { id:"rocketpods", tag:["same","Same weapon, two prices"],
+    t:"RocketPods costs 1.9x more on the FROG than on the HIND",
+    ev:"Identical weapon key. <b>HIND</b> 80 per 10 rounds = <b>8.0/round</b>; <b>FROG</b> 75 per 5 = " +
+       "<b>15.0/round</b>. Small enough that it may be intentional platform tuning, but nothing states it." },
+  { id:"strategic-parity", tag:["des","Design statement"],
+    t:"A HIMARS rocket and an Iskander ballistic missile cost exactly the same (1500)",
+    ev:"Both platforms cost 6000 and hold 2 rounds. In reality a GMLRS rocket and a 9M723 are roughly 20x " +
+       "apart. Realism says split them; both being the faction-mirror strategic launcher says keep parity. " +
+       "That is a balance call, not a data fix, so I left it. <b>Related tooltip question:</b> neither unit " +
+       "has <code>Rearmable</code> at all — by design, they evacuate for a refund — so the REFILL row states " +
+       "a price for a transaction that can never happen on either." },
+  { id:"sniper-ammo", tag:["des","Design statement"],
+    t:"The sniper's 7.62mm costs 80x the team leader's 7.62mm",
+    ev:"<b>SN</b> is 20 per 5 rounds = <b>4.0/round</b>; <b>TL</b>'s DMR is <b>0.05/round</b>. Different " +
+       "weapon keys (<code>7.62mm.Sniper</code> vs <code>7.62mm.DMR</code>), and match-grade ammunition is a " +
+       "legitimate justification — but 80x is a large number to rest on it. The full refill is 50% of the " +
+       "sniper's cost, so it reads as a deliberate elite-tier statement rather than an oversight." },
+  { id:"flame-fuel", tag:["des","Design statement"],
+    t:"Flamethrower fuel is now the only thing left below the rifle anchor",
+    ev:"<b>E4</b>'s Flamespray is <b>0.033/round</b> against the rifle's 0.05. Fuel is genuinely cheap and " +
+       "it is not a calibre, so I deliberately did not sweep it up in a calibre pass — but it does mean one " +
+       "burst of thickened fuel is costed below one rifle cartridge." },
+  { id:"structures", tag:["des","Design statement"],
+    t:"Structures were excluded from the pass entirely — should they follow the unit ladder?",
+    ev:"<b>FTUR</b>'s full refill is <b>2 supply</b> on a 1000-cost structure (0.2%) — effectively free to " +
+       "sustain forever. At the other extreme <b>CRAM</b> and <b>AGUN</b> are at 5.0/round. Static defences " +
+       "may deserve their own rules (they cannot retreat, and sustainment is arguably part of their value), " +
+       "which is why I did not apply the unit ladder to them unilaterally." },
+  { id:"ifv-impact", tag:["play","Needs a play-test"],
+    t:"The two IFVs took the largest sustainment rise — does it play?",
+    ev:"<b>bmp2</b> full refill 45 &rarr; 288 (3.5% &rarr; <b>22.2%</b> of call-in cost); <b>bradley</b> " +
+       "45 &rarr; 252 (3.0% &rarr; <b>16.8%</b>). That deliberately puts them in the tank band (t90 23.3%, " +
+       "abrams 25.6%), which I think is the honest reading of emptying a 900-round autocannon magazine. " +
+       "But I could not launch the game, and this is the change most likely to be felt. Say the word and I " +
+       "will halve the autocannon end of the ladder." },
+  { id:"atgm-split", tag:["des","Design statement"],
+    t:"The bradley's ATGM costs more than the bmp2's (75 vs 65)",
+    ev:"<code>WGM.bradley</code> vs <code>WGM</code> — different keys, so this is authored, not an accident. " +
+       "A TOW-2 really is a larger and more expensive missile than a Konkurs, so I think this one is already " +
+       "correct and I mention it only so the faction asymmetry is on the record rather than discovered later." }
+];
+
+/* ---------- render changes ---------- */
+function perRound(sv, rc) { return sv / Math.max(1, rc); }
+CHANGES.forEach(function (c) {
+  c.oldPR = perRound(c.oldSV, c.rc);
+  c.newPR = perRound(c.newSV, c.rc);
+  c.mult = c.newPR / c.oldPR;
+  c.oldFull = c.batches * c.oldSV;
+  c.newFull = c.batches * c.newSV;
+  c.delta = c.newFull - c.oldFull;
+});
+
+var sortKey = "mult", sortDir = -1;
+function renderChanges() {
+  var rows = CHANGES.slice().sort(function (a, b) {
+    if (sortKey === "unit") return sortDir * a.unit.localeCompare(b.unit);
+    return sortDir * (a[sortKey] - b[sortKey]);
+  });
+  var tb = document.querySelector("#changes tbody");
+  tb.innerHTML = "";
+  rows.forEach(function (c, i) {
+    var tr = document.createElement("tr");
+    if (i < 3) tr.className = "hot";
+    var pctOld = (100 * c.oldFull / c.cost).toFixed(1);
+    var pctNew = (100 * c.newFull / c.cost).toFixed(1);
+    tr.innerHTML =
+      "<td><code>" + c.unit + "</code></td>" +
+      "<td>" + c.w + "</td>" +
+      "<td class='n up'><b>" + (c.mult % 1 ? c.mult.toFixed(1) : c.mult) + "&times;</b></td>" +
+      "<td class='n'><span class='was'>" + c.oldPR.toFixed(3) + "</span> &rarr; <b>" + c.newPR.toFixed(3) + "</b></td>" +
+      "<td class='n'><span class='was'>" + c.oldSV + "</span> &rarr; <b>" + c.newSV + "</b></td>" +
+      "<td class='n'><span class='was'>" + c.oldFull + "</span> &rarr; <b>" + c.newFull + "</b><br>" +
+        "<span class='sub'>" + pctOld + "% &rarr; " + pctNew + "%</span></td>" +
+      "<td class='why'>" + c.why + "</td>";
+    tb.appendChild(tr);
+  });
+  document.querySelectorAll("#changes th.s").forEach(function (th) {
+    th.setAttribute("aria-sort", th.dataset.k === sortKey ? (sortDir < 0 ? "descending" : "ascending") : "none");
+  });
+  geometry();
+}
+document.querySelectorAll("#changes th.s").forEach(function (th) {
+  th.addEventListener("click", function () {
+    if (sortKey === th.dataset.k) sortDir = -sortDir;
+    else { sortKey = th.dataset.k; sortDir = th.dataset.k === "unit" ? 1 : -1; }
+    renderChanges();
+  });
+});
+
+/* ---------- render review ---------- */
+var rulings = {};
+var OPTS = [["leave", "Leave as-is"], ["change", "Change it"], ["discuss", "Let's discuss"]];
+function renderReview() {
+  var host = document.getElementById("review");
+  REVIEW.forEach(function (r, n) {
+    rulings[r.id] = "leave";
+    var d = document.createElement("div");
+    d.className = "item";
+    var seg = OPTS.map(function (o) {
+      return "<button data-id='" + r.id + "' data-v='" + o[0] + "' aria-pressed='" +
+        (o[0] === "leave") + "'>" + o[1] + "</button>";
+    }).join("");
+    d.innerHTML =
+      "<h3>" + (n + 1) + ". " + r.t + "<span class='tag " + r.tag[0] + "'>" + r.tag[1] + "</span></h3>" +
+      "<div class='ev'>" + r.ev + "</div><div class='seg'>" + seg + "</div>";
+    host.appendChild(d);
+  });
+  host.addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-id]");
+    if (!b) return;
+    rulings[b.dataset.id] = b.dataset.v;
+    host.querySelectorAll("button[data-id='" + b.dataset.id + "']").forEach(function (x) {
+      x.setAttribute("aria-pressed", String(x === b));
+    });
+    readback();
+  });
+}
+
+/* ---------- postMessage ---------- */
+function state() {
+  return { rulings: rulings, notes: document.getElementById("notes").value.slice(0, 4000) };
+}
+function readback() {
+  window.parent.postMessage({ type: "maestro:artifact_state", state: state() }, "*");
+}
+function geometry() {
+  window.parent.postMessage(
+    { type: "maestro:artifact_geometry", height: document.documentElement.scrollHeight }, "*");
+}
+document.getElementById("notes").addEventListener("input", readback);
+document.getElementById("send").addEventListener("click", function () {
+  var changed = Object.keys(rulings).filter(function (k) { return rulings[k] !== "leave"; });
+  window.parent.postMessage({
+    type: "maestro:artifact_submit",
+    state: state(),
+    summary: changed.length
+      ? "Rulings on " + changed.length + " of " + REVIEW.length + " review items: " + changed.join(", ")
+      : "Reviewed all " + REVIEW.length + " items — leave everything as-is"
+  }, "*");
+  document.getElementById("sent").textContent = "Sent.";
+});
+window.addEventListener("message", function (e) {
+  if (e.data && e.data.type === "maestro:artifact_hydrate" && e.data.state) {
+    var s = e.data.state;
+    if (s.notes) document.getElementById("notes").value = s.notes;
+    if (s.rulings) Object.keys(s.rulings).forEach(function (k) {
+      rulings[k] = s.rulings[k];
+      document.querySelectorAll("button[data-id='" + k + "']").forEach(function (x) {
+        x.setAttribute("aria-pressed", String(x.dataset.v === s.rulings[k]));
+      });
+    });
+  }
+});
+
+renderChanges();
+renderReview();
+window.addEventListener("load", geometry);
+geometry();
+</script>
+</body>
+</html>
