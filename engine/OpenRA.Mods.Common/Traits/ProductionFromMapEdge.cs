@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Activities;
@@ -207,28 +208,19 @@ namespace OpenRA.Mods.Common.Traits
 			return true;
 		}
 
-		// Replay a rally-point waypoint as the matching unit-side activity. Aircraft
-		// don't have a meaningful AttackMove path, so they fall back to plain Move
-		// regardless of the waypoint type — keeps existing helicopter/plane flight
-		// behavior intact when SR rallies get modifier-tagged. The target-line color
-		// passed here is what the produced unit shows when it is selected — matches
-		// the convention for player-issued orders (Move = Green, AttackMove = OrangeRed,
-		// ForceMove = DeepSkyBlue).
+		// Replay a rally-point waypoint as the matching unit-side activity. RallyOrderReplayMath owns
+		// the decision — including why the eligibility test must not be a locomotor test, which is what
+		// used to strand every aircraft on a plain Move under a red SR line.
 		static OpenRA.Activities.Activity BuildWaypointActivity(Actor self, IMove move, RallyPointWaypoint wp)
 		{
-			switch (wp.OrderType)
-			{
-				case RallyOrderType.AttackMove when move is Mobile:
-					return new AttackMoveActivity(self,
-						() => move.MoveTo(wp.Cell, 1, evaluateNearestMovableCell: true, targetLineColor: Color.OrangeRed));
+			var plan = RallyOrderReplayMath.Resolve(wp.OrderType, AttackMove.CanBeOrderedToAttackMove(self));
 
-				case RallyOrderType.ForceMove:
-					return move.MoveTo(wp.Cell, 2, evaluateNearestMovableCell: true, targetLineColor: Color.DeepSkyBlue);
+			Func<OpenRA.Activities.Activity> getMove = () => move.MoveTo(wp.Cell, plan.NearEnoughCells,
+				evaluateNearestMovableCell: true, targetLineColor: plan.TargetLineColor);
 
-				case RallyOrderType.Move:
-				default:
-					return move.MoveTo(wp.Cell, 2, evaluateNearestMovableCell: true, targetLineColor: Color.Green);
-			}
+			return plan.Effective == RallyOrderType.AttackMove
+				? new AttackMoveActivity(self, getMove)
+				: getMove();
 		}
 	}
 

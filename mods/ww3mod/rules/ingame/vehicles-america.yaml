@@ -40,7 +40,7 @@ humvee:
 		Queue: Vehicle
 		BuildPaletteOrder: 1
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Fast wheeled transport with mounted gun.\n\n - 7.62mm machine gun\n - Carries 8 infantry
+		Description: Fast wheeled transport with mounted gun.
 	Valued:
 		Cost: 500
 	Tooltip:
@@ -208,7 +208,7 @@ m113:
 		Queue: Vehicle
 		BuildPaletteOrder: 2
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Amphibious tracked APC with heavy machine gun.\n\n - 12.7mm HMG\n - Carries 12 infantry
+		Description: Amphibious tracked APC with heavy machine gun.
 		IconPalette: chrome
 	RenderSprites:
 		Image: m113
@@ -331,7 +331,7 @@ bradley:
 		Queue: Vehicle
 		BuildPaletteOrder: 3
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Tracked IFV with anti-armor capability.\n\n - 25mm chaingun\n - 2x wire-guided ATGMs\n - Carries 6 infantry
+		Description: Tracked IFV with anti-armor capability.
 	Valued:
 		Cost: 1500
 	UpdatesPlayerStatistics:
@@ -489,7 +489,7 @@ abrams:
 		Queue: Vehicle
 		BuildPaletteOrder: 4
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Main battle tank for armored ground warfare.\n\n - 120mm main gun
+		Description: Main battle tank for armored ground warfare.
 	Valued:
 		Cost: 2500
 	Health:
@@ -587,7 +587,7 @@ m109:
 		Queue: Vehicle
 		BuildPaletteOrder: 6
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Self-propelled howitzer for long-range bombardment.\n\n - 155mm cannon\n - Must deploy to fire
+		Description: Self-propelled howitzer for long-range bombardment. Must deploy to fire.
 	Tooltip:
 		Name: Paladin
 	AnnounceOnSeen:
@@ -754,7 +754,7 @@ m270:
 		Queue: Vehicle
 		BuildPaletteOrder: 7
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Multiple launch rocket system for area saturation.\n\n - 12x 227mm rockets\n - Rearms at a Logistics Centre (840 supply per full load)\n - Evacuates when dry and no Centre is closer than home\n - Devastating area damage
+		Description: Multiple launch rocket system for area saturation. Devastating area damage. Rearms at a Logistics Centre, and evacuates when dry if no Centre is closer than home.
 	Valued:
 		Cost: 1800
 	Tooltip:
@@ -890,7 +890,7 @@ strykershorad:
 		Queue: Vehicle
 		BuildPaletteOrder: 5
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.medium
-		Description: Wheeled IFV for rapid troop transport.\n\n - Autocannon\n - Carries infantry
+		Description: Wheeled IFV for rapid troop transport.
 	Valued:
 		Cost: 2500
 	UpdatesPlayerStatistics:
@@ -1054,7 +1054,7 @@ HIMARS:
 		Queue: Vehicle
 		BuildPaletteOrder: 8
 		Prerequisites: ~player.america, ~vehicles.america, ~techlevel.high
-		Description: High Mobility Artillery Rocket System.\n\n - 2x PrSM precision missiles\n - Cannot be rearmed: one load per launcher\n - Evacuates for a refund once both missiles are spent\n - Long-range precision strikes
+		Description: High Mobility Artillery Rocket System for long-range precision strikes. Cannot be rearmed: one load per launcher, and it evacuates for a refund once both missiles are spent.
 	Valued:
 		Cost: 6000
 	Tooltip:

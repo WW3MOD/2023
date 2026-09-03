@@ -92,7 +92,7 @@ GTWR:
 		BuildPaletteOrder: 0
 		Prerequisites: ~disabled
 		IconPalette: chrometd
-		Description: Static defense effective against infantry.\n\n - Machine gun emplacement
+		Description: Machine gun emplacement. Static defense effective against infantry.
 	Valued:
 		Cost: 200
 	Tooltip:
@@ -198,7 +198,7 @@ PBOX:
 		Queue: Defense
 		BuildPaletteOrder: 1
 		Prerequisites: ~disabled
-		Description: Reinforced bunker emplacement.\n\n - Garrisons 2 soldiers\n - Soldiers fire from inside
+		Description: Reinforced bunker emplacement. Garrisoned soldiers fire from inside.
 	Tooltip:
 		Name: Bunker
 	Valued:
@@ -294,7 +294,7 @@ HBOX:
 		Queue: Defense
 		BuildPaletteOrder: 4
 		Prerequisites: ~disabled
-		Description: Hidden bunker, hard to detect.\n\n - Garrisons 2 soldiers\n - Camouflaged
+		Description: Hidden bunker, camouflaged and hard to detect.
 	Tooltip:
 		Name: Camo Pillbox
 	Valued:
@@ -1118,7 +1118,7 @@ MSLO:
 		Queue: Defense
 		BuildPaletteOrder: 10
 		Prerequisites: ~disabled
-		Description: Strategic nuclear missile silo.\n\n - Fires a nuclear missile\n - Devastating area of effect
+		Description: Strategic nuclear missile silo. Fires a nuclear missile with a devastating area of effect.
 	Tooltip:
 		Name: Nuclear Missile Silo
 	Valued:

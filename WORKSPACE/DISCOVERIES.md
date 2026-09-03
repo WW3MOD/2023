@@ -59,6 +59,178 @@ the same class of defect `afac22a8` removed from the ground movement path, and t
 applies: the risk is not that it currently miscalculates but that nothing stops it. It is left alone
 deliberately — changing it moves every helicopter approach in the game and belongs in its own branch
 with its own before/after. `Exts.ISqrt` (`Exts.cs:306`) is the in-tree integer replacement.
+## 2026-09-03 — Armour is TWO independent halves, and only one of them is gated on a Versus table (`wt/tooltip-cleanup`, `main @ d4e0b1cf`)
+
+Found while answering "why does every soldier's tooltip say Armour: None?".
+
+**`ArmorInfo.Type` and `ArmorInfo.Thickness` are consumed by different code on different terms, and
+conflating them is easy because they are adjacent fields on one trait.**
+
+- `Type` is inert unless some warhead's `Versus` table names it. `DamageWarhead.DamageVersus`
+  (`DamageWarhead.cs:106`) only applies a modifier for types a table actually lists, so an unlisted
+  type takes the default 100%. The tables in `mods/ww3mod/rules/weapons/` discriminate on exactly
+  seven names: `Light`, `Medium`, `Heavy`, `Concrete`, `Wood`, `Brick`, `None`.
+- `Thickness` is read straight off the trait at `DamageWarhead.cs:237` and compared against the
+  warhead's `Penetration` on **every** hit, whatever the type is called. It never consults a table.
+
+Two live consequences:
+
+**`Kevlar` is authored but inert.** `mods/ww3mod/rules/ingame/infantry.yaml:174-175` sets
+`Armor: Type: Kevlar` on `^Soldier`, and it is the ONLY occurrence of the string `Kevlar` anywhere
+under `mods/`. So every soldier resolves to Kevlar and gets nothing for it. Giving infantry real
+protection is a `Versus:` edit in the weapons files, or a `Thickness:`, not an `Armor.Type:` edit —
+the type is already set.
+
+**`gtwr` had 25mm of armour and a tooltip that said None.** `structures-defenses.yaml:103-105` is
+`Type: Unarmored, Thickness: 25`. `Unarmored` is a *target type* here as well as an armour type
+(`weapons-ballistics.yaml:14, 178`) which is why it reads as familiar, but it is in no `Versus`
+table. The tooltip gated the whole row on the type being discriminated, so the thickness was
+suppressed with it. It is the only shipped actor in that position — the sole `Thickness > 0` paired
+with an undiscriminated type. Fixed in `ArmorInfo.FormatArmour`.
+
+Related: **`Thickness` is millimetres** (`Armor.cs:28`, and `BallisticPenetrationTest.cs:265` writes
+it that way), but the tooltip rendered it as a bare `"{N} thick"`. Now `"{N}mm"`.
+
+## 2026-09-03 — WW3MOD build time is Cost / 10 for every buildable but one (`wt/tooltip-cleanup`, `main @ d4e0b1cf`)
+
+`BuildableInfo.BuildDuration` defaults to -1, meaning "derive from cost", and **no actor in the mod
+authors it** — `grep -rn "BuildDuration" mods/` returns exactly one line, and it is a
+`BuildDurationModifier`. So `ProductionQueue.GetBuildTime` (`ProductionQueue.cs:546-552`) falls
+through to `GetProductionCost(unit) / 10` throughout.
+
+The composition around it is almost entirely inert, which is the part worth recording because the
+config *looks* active:
+
+- `msar` sets `BuildDurationModifier: 50` (`vehicles.yaml:458`) — the one real deviation. Cost 1600,
+  so 160 ticks becomes 80.
+- `BuildTimeSpeedReduction` and `BuildingCountBuildTimeMultipliers` in `player.yaml:29, 39, 51, 63,
+  76, 88` are **dead**. Both are read only inside `if (info.SpeedUp)`
+  (`ClassicProductionQueue.cs:143`, `ClassicParallelProductionQueue.cs:219`), `SpeedUp` defaults to
+  `false` (`:27` / `:28`), and nothing in `mods/` sets it. The arrays are authored, plausible, and
+  never consulted.
+- `ParallelPenaltyBuildTimeMultipliers: 100` (`player.yaml:64`) affects `RemainingTimeActual`, not
+  `GetBuildTime`, and 100 is a no-op anyway.
+- `HandicapProductionMultiplier` (`defaults.yaml:1047`) IS live and does scale both cost and time,
+  but returns 100 at handicap 0 (`HandicapProductionMultiplier.cs:23-30`), which is the default.
+
+## 2026-09-03 — `Cargo.MaxWeight` is a weight budget the tooltip prints as a headcount (`wt/tooltip-cleanup`, `main @ d4e0b1cf`)
+
+`Cargo.cs:47` renders `$"{MaxWeight} infantry"`. That is only a passenger count while every passenger
+weighs 1 — which is true today, because `Passenger.Weight` defaults to 1 (`Passenger.cs:29`) and is
+never overridden in `mods/`. The trait documents this. Recorded because the first `Passenger.Weight:
+2` authored in this mod silently makes every transport tooltip overstate its capacity, and nothing
+will fail.
+
+Found via the reverse error: `pbox` and `hbox` descriptions claimed "Garrisons 2 soldiers" against a
+`MaxWeight` of 4 (`structures-defenses.yaml:225`, `:324`), so the hand-written figure and the
+generated row disagreed on screen.
+
+## 2026-09-03 — Selection bars have NO frozen-under-fog path, so the live/frozen split that has bitten this repo repeatedly cannot apply to them (`wt/defeated-sr-bar`, `main @ 414a84aa`)
+
+Read-only tracing while fixing the defeated-SR contestation bar. Worth recording because the standing
+instinct here — correct for tooltips and owner display — is "check whether the frozen path draws this
+separately, or you will fix it for one viewer and not the other". **For selection bars that question
+has a definite answer: there is no second path.**
+
+Annotations are collected in exactly one place, `WorldRenderer.cs:251`
+(`World.ApplyToActorsWithTrait<IRenderAnnotations>`), which walks **live actors only**. `FrozenActor`
+(`engine/OpenRA.Game/Traits/Player/FrozenActorLayer.cs:35`) caches `IRenderable[] Renderables` —
+populated from `IRender`, the sprite path — and has no annotation member at all. `ISelectionBar` is
+reached only via `IRenderAnnotations` → `SelectionDecorationsBase.DrawDecorations`
+(`SelectionDecorationsBase.cs:62-133`) → `SelectionBarsAnnotationRenderable` /
+`IsometricSelectionBarsAnnotationRenderable`, whose constructors both take an `Actor`. A `FrozenActor`
+cannot be passed to either.
+
+Consequence: a fogged actor draws **no** selection bar for the fogged viewer, not a stale one —
+`SelectionDecorationsBase.cs:65` returns empty on `FogObscures(self) && !Selection.Contains(self)`
+before any bar logic runs. So a bar-visibility fix inside a trait is complete on its own, and there is
+no observer-vs-owner divergence to chase.
+
+**`IAlwaysVisibleBar` is WW3MOD-local, with exactly one implementer and one consumer.** Declared at
+`engine/OpenRA.Game/Traits/TraitsInterfaces.cs:304`, implemented only by `SupplyRouteContestation`,
+read only at `SelectionDecorationsBase.cs:94`. Anything wanting an unselected bar goes through that
+one loop — which is also why a wrong predicate there is a whole-screen bug rather than a local one.
+## 2026-09-03 — A player-visible order modifier can be lost at the REPLAY step, long past the generator that coloured the line (`wt/alt-attackmove`, `main @ 414a84aa`)
+
+Reported as "Alt-queueing from the SR turns the line red, but helicopters get a move order instead".
+Static analysis plus `make all` / `dotnet test` (2274 green). No launch — scenario authored, not run.
+
+**The red line was never evidence about the order the unit runs.** The SR rally line is drawn by
+`RallyPointIndicator` from the waypoint's own `RallyOrderType`, which `RallyPoint.ResolveOrder`
+(`RallyPoint.cs:197-199`) stored correctly. Everything from modifier detection through `Order.ExtraData`
+encoding to rendering was right for aircraft. The tag was discarded at the very last step —
+`ProductionFromMapEdge.BuildWaypointActivity` gated the attack-move replay on
+`case RallyOrderType.AttackMove when move is Mobile:`, and an aircraft's `IMove` is `Aircraft`, so
+every airframe fell through to the `default:` plain-Move arm **and its Green target line**. Ground
+units were unaffected, which is why it read as an aircraft bug rather than a rally bug.
+
+**The general shape worth remembering: a modifier has a producer, an encoder, a renderer and a
+REPLAYER, and only the replayer can disagree with the other three while still looking correct on
+screen.** When a player reports "the UI says X but the unit does Y", the UI is testimony about the
+encoder, not about the executor — start at the executor.
+
+**`move is Mobile` is not a synonym for "can attack-move" and never was.** `AttackMoveActivity` drives
+an `IMove` and never mentions `Mobile`; the player's own Alt+click path applies no locomotor guard
+(`AttackMove.ResolveOrder`); and the engine already queues an `AttackMoveActivity` for aircraft on the
+normal production rally path (`Aircraft.cs:1526`). The guard's comment asserted "aircraft don't have a
+meaningful AttackMove path", which those three sites each independently contradict. The correct
+predicate is `AttackMove.CanBeOrderedToAttackMove(actor)` — the same one the cursor and the order
+resolver consult, so the SR agrees with the click by construction rather than by coincidence.
+
+**Corpus check, in case anyone re-derives this from the YAML: it is not a YAML gap.** Resolving
+`Inherits@`/`-Key:` across `mods/ww3mod/rules/` gives 100 producible actors, 79 of them mobile, and
+**all 79 carry `AttackMove`** — every helicopter and plane included, via a bare `AttackMove:` on
+`^NeutralAirborne` (`aircraft.yaml:73`) that `^Helicopter` reaches through `^Airborne`. The only
+mobile producible without it is `LCCV`, which removes it deliberately (`vehicles.yaml:714`). No naval
+unit is producible at all — `naval.yaml` is commented out in its entirety.
+
+**Trap for anyone testing SR production from Lua.** `Test.QueueProduction` looks the actor up with a
+plain `TryGetValue` on `Rules.Actors`, whose keys are `ToLowerInvariant` (`Ruleset.cs:126`). Passing
+an actor name in its YAML casing — `"HELI"` — finds no queue and returns **silently**, so the scenario
+produces nothing and times out with whatever its real assertion says. The failure message will blame
+the behaviour under test.
+## 2026-09-03 — AutoTarget has TWO stance enums, and "Fire at will vs Hunt" is a false choice (`wt/capture-ux`, `main @ 414a84aa`)
+
+Found while designing autonomous capture. A recurring question of the form *"should this behaviour
+run on Fire at will, or on Hunt?"* has no answer as posed, because **those two names are values of
+different enums on different axes** (`Traits/AutoTarget.cs:22-24`):
+
+```csharp
+public enum UnitStance       { HoldFire, Ambush, FireAtWill }        // may I act?
+public enum EngagementStance { HoldPosition, Defensive, Hunt }       // how far do I roam?
+```
+
+A unit holds one of each simultaneously. The shipped defaults for a human-owned unit are
+**FireAtWill + Defensive** (`:75`, `:167`); bot-owned and non-playable owners read the separate
+`InitialStanceAI` / `InitialEngagementStanceAI` pair (`:517-519`), which are the same two values
+today but are free to diverge.
+
+**The generalisable shape: gate on `UnitStance`, size on `EngagementStance`.** Any new autonomous
+behaviour gets a free off-switch (HoldFire), a free "stay put" (HoldPosition → radius 0) and a free
+eagerness dial (Hunt → longer radius) without inventing a single new control. `AutoFollowAlly`
+already reads HoldPosition this way (`FollowStances`, `AutoFollowAlly.cs:30-33`), and
+`SupplyHuntMath.StancesPermitHunt` already takes both axes plus `ResupplyBehavior` as three separate
+arguments — the precedent existed but was not written down as a rule.
+
+**Corollary worth carrying: "default ON" is cheap when the default stance is permissive.** A trait
+that gates on `UnitStance != HoldFire` is on for every fresh unit with no YAML, which is how
+`AutoCaptureNearby` meets a default-ON requirement without a per-actor field.
+
+## 2026-09-03 — `CashTrickler.Amount` is the only value signal on tech buildings; they carry no `Valued` (`wt/capture-ux`, `main @ 414a84aa`)
+
+`OILB` and its neighbours in `ingame/structures-neutral.yaml` inherit `^TechBuilding` and define
+**no `Valued` trait at all** — `grep -n "Valued" mods/ww3mod/rules/ingame/structures-neutral.yaml`
+returns nothing. So `Valued.Cost`, the reflex answer to "what is this structure worth", is **0 or
+absent for exactly the structures anyone wants to score**. What distinguishes an oil derrick is
+`CashTrickler: Amount: 50` (`:19-20`).
+
+The bot avoids the problem by not asking the actor at all: `CaptureCoordinatorBotModule
+.GetIncomeWeight` (`:1956-1969`) reads a designer-authored `IncomeWeights` dictionary off its own
+`Info`. **That makes the bot's scoring unreusable from player-facing code** — it is bot YAML, not a
+property of the structure — which is worth knowing before writing "reuse the bot's capture scoring"
+into a brief. `CaptureReclaimMath` does not help either: its five public methods are budget/demand
+arithmetic (`CombinedCaptureDemand`, `ReclaimBudget`, …) and none of them ranks a target.
+
 
 ## 2026-09-02 — R9's premise is half-wrong: the Supply Route defeat bar really DOES eliminate you, on exactly the maps most people play (`wt/howtoplay`, `main @ 26f9cec0`)
 

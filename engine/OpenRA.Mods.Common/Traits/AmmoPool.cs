@@ -169,9 +169,15 @@ namespace OpenRA.Mods.Common.Traits
 				"stand at the host permanently. Either add it to Rearmable.AmmoPools or drop Essential.");
 		}
 
+		/// <summary>
+		/// The weapons band. Named because the tooltip renderer has to recognise where the weapon
+		/// sections stop and the actor's own stats begin, in order to put a wider gap there.
+		/// </summary>
+		public const int TooltipPriority = 100;
+
 		IEnumerable<TooltipElement> IProvideTooltipDescription.ProvideTooltipDescription(ActorInfo ai, Ruleset rules, out int priority)
 		{
-			priority = 100;
+			priority = TooltipPriority;
 
 			if (Ammo <= 0 || SupplyValue <= 0)
 				return null;

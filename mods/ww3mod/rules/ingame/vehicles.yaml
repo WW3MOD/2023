@@ -456,7 +456,7 @@ MSAR:
 		IconPalette: chrometd
 		Prerequisites: ~techlevel.medium
 		BuildDurationModifier: 50
-		Description: Locates enemy artillery by sound. Deploys for counter-battery targeting.\n\n - Passive detection system\n - Must deploy to operate
+		Description: Locates enemy artillery by sound. A passive detection system; must deploy to operate for counter-battery targeting.
 	Valued:
 		Cost: 1600
 	UpdatesPlayerStatistics:
@@ -534,7 +534,7 @@ MNLY:
 		Queue: Vehicle
 		BuildPaletteOrder: 98
 		Prerequisites: ~techlevel.medium
-		Description: Deploys anti-vehicle and anti-personnel mines.\n\n - 10 land mines\n - Unarmed
+		Description: Deploys anti-vehicle and anti-personnel mines. Unarmed.
 	Valued:
 		Cost: 600
 	Tooltip:
@@ -605,7 +605,7 @@ TRUK:
 		Queue: Vehicle
 		BuildPaletteOrder: 103
 		Prerequisites: ~techlevel.low
-		Description: Dedicated supply truck.\n\n - Passively resupplies nearby units\n - Can drop supplies as a ground cache\n - Unarmed
+		Description: Dedicated supply truck. Passively resupplies nearby units and can drop supplies as a ground cache. Unarmed.
 	Valued:
 		Cost: 1000
 	Tooltip:
@@ -716,7 +716,7 @@ LCCV:
 		Queue: Vehicle
 		BuildPaletteOrder: 150
 		Prerequisites: ~techlevel.low
-		Description: Deploys into a Logistics Center for field resupply of vehicles and infantry.\n\n - Unarmed
+		Description: Deploys into a Logistics Center for field resupply of vehicles and infantry. Unarmed.
 	# USER RULING 2026-08-22: "the LC should cost 3000". Raised from 1200 and held equal to
 	# LOGISTICSCENTER's Cost, since the same ruling treats the driving and deployed forms as one thing.
 	# 3000 credits for 2250 supply is exactly 3x the supply truck's 1000 for 750 on both axes.

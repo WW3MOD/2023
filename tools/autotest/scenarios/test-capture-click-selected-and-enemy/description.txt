@@ -1,0 +1,1 @@
+Auto: right-clicking a capturable structure must dispatch a technician even when that structure is SELECTED, and must work on enemy-held structures as well as neutral ones. It must still stand down when the selection can answer the click itself, so an army clicking an enemy building attacks it rather than silently capturing it.

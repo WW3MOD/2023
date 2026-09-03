@@ -1042,6 +1042,26 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return mgr.GetDefaults(key)?.FireStance == value;
 		}
 
+		[Desc("Set an actor's ENGAGEMENT stance (HoldPosition / Defensive / Hunt) — the movement axis, " +
+			"which is a different enum from the fire stance that actor.Stance reads and writes. " +
+			"Returns false if the actor has no AutoTarget or the name is unknown, so a test can assert " +
+			"its own setup took effect rather than measuring a stance that never changed. Test mode only.")]
+		public bool SetEngagementStance(Actor actor, string stance)
+		{
+			if (!TestMode.IsActive || actor == null || actor.IsDead || !actor.IsInWorld)
+				return false;
+
+			var autoTarget = actor.TraitOrDefault<AutoTarget>();
+			if (autoTarget == null)
+				return false;
+
+			if (!System.Enum.TryParse<EngagementStance>(stance, true, out var value))
+				return false;
+
+			autoTarget.SetEngagementStance(actor, value);
+			return autoTarget.EngagementStanceValue == value;
+		}
+
 		[Desc("Read Map.DensityLayer at a cell. Returns the byte value (0-255) summed from all " +
 			"density-bearing actors whose footprint covers this cell. Test mode only.")]
 		public int GetDensity(CPos cell)
@@ -1120,6 +1140,38 @@ namespace OpenRA.Mods.Common.Scripting.Global
 				world.IssueOrder(o);
 
 			return orders.Length;
+		}
+
+		[Desc("Resolve a right-click on `target` while `selection` is selected, exactly as the mouse " +
+			"would, and issue whatever comes out. Returns the number of CAPTURE-DISPATCH orders issued: " +
+			"0 both when the selection answered the click itself (so dispatch correctly stood down, as " +
+			"an army clicking an enemy building must) and when no free capture unit exists. Pass an " +
+			"empty selection for the nothing-selected case. Test mode only.")]
+		// Routed through UnitOrderGenerator.DispatchOrders rather than calling the dispatcher directly,
+		// so a scenario tests the rule the mouse actually applies. Calling
+		// CaptureDispatchManager.DispatchAt here instead would bypass the selection gate — which is the
+		// entire subject of the test — and pass no matter what that gate said.
+		public int CaptureClick(Actor[] selection, Actor target)
+		{
+			if (!TestMode.IsActive || target == null || target.IsDead || !target.IsInWorld)
+				return 0;
+
+			var world = target.World;
+			var actors = (selection ?? Array.Empty<Actor>())
+				.Where(a => a != null && a.IsInWorld && !a.IsDead)
+				.ToArray();
+
+			var clicked = Target.FromActor(target);
+			var orderResults = UnitOrderGenerator.OrdersForSelection(actors, clicked, target.Location, TargetModifiers.None);
+
+			var dispatched = UnitOrderGenerator.DispatchOrders(world, clicked, orderResults, false);
+			if (dispatched == null)
+				return 0;
+
+			foreach (var o in dispatched)
+				world.IssueOrder(o);
+
+			return dispatched.Count;
 		}
 
 		[Desc("The structure a capture unit already holds a capture order for, or 0 when it is free. " +

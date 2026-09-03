@@ -918,7 +918,15 @@
 	Captures@OCCUPIED:
 		CaptureTypes: building-occupied
 		PlayerExperience: 0
-		CaptureDelay: 1000
+		# 500 ticks = 30.0 s. The mod runs at Timestep 60 ms (mod.yaml GameSpeeds, DefaultSpeed:
+		# default), i.e. 16.667 ticks/s — NOT the 25 tps several in-tree comments still assume.
+		# Halved from 1000 (60.0 s) on 2026-09-03: clearing an oil derrick read as interminable.
+		# This delay is spent STANDING ADJACENT, before the soldier enters — CaptureManager.cs:232
+		# gates entry on currentTargetDelay >= CaptureDelay, and currentTargetDelay increments once
+		# per tick from Enter's Approaching state. So it is the whole of the "waits, then enters,
+		# then clears" the player sees; the walk to get there is the only other cost and is
+		# distance-dependent rather than a constant. Pinned in CaptureClearDurationTest.
+		CaptureDelay: 500
 		# Soldiers CLEAR, they never own. Walking into any enemy-held building
 		# drops it to Neutral and the soldier walks back out alive; installing
 		# your own owner still needs a Technician (^CapturesNeutralBuildings),
@@ -1129,7 +1137,7 @@
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 1
 		Prerequisites: ~disabled
-		Description: Basic militia infantry with minimal training.\n\n - 5.56mm assault rifle
+		Description: Basic militia infantry with minimal training.
 	Valued:
 		Cost: 50
 	Armament@1:
@@ -1211,7 +1219,7 @@ E1R1:
 		# (:188-215) appends AmmoPool's own per-pool block and a cross-pool total to THIS
 		# string, so a figure written here is the same quantity twice in one tooltip, in two
 		# notations, and only the engine's copy can follow the YAML when a value moves.
-		Description: Standard infantry rifleman and backbone of the fire team.\n\n - 5.56mm rifle\n - Disposable anti-tank rocket
+		Description: Standard infantry rifleman and backbone of the fire team.
 	Valued:
 		Cost: 100
 	UpdatesPlayerStatistics:
@@ -1336,7 +1344,7 @@ E3R1:
 		BuildPaletteOrder: 3
 		Prerequisites: ~disabled
 		# Supply figures deliberately absent — see the note on ^E3's Description.
-		Description: Delivers sustained suppressive fire against area targets.\n\n - 5.56mm light machine gun\n - High ammo capacity
+		Description: Delivers sustained suppressive fire against area targets. Carries a large ammunition load.
 	Valued:
 		Cost: 100
 	UpdatesPlayerStatistics:
@@ -1423,7 +1431,7 @@ AR:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 4
 		Prerequisites: ~disabled
-		Description: High-explosive specialist effective against infantry and light vehicles.\n\n - Grenade launcher\n - 30 round magazine
+		Description: High-explosive specialist effective against infantry and light vehicles.
 	Valued:
 		Cost: 100
 	UpdatesPlayerStatistics:
@@ -1496,7 +1504,7 @@ E2R1:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 5
 		Prerequisites: ~disabled
-		Description: Squad leader and designated marksman. Boosts morale of nearby soldiers.\n\n - 7.62mm DMR\n - 40mm grenade launcher\n - Morale boost aura (4 cells)
+		Description: Squad leader and designated marksman. Boosts the morale of friendly soldiers within 4 cells.
 	Valued:
 		Cost: 200
 	UpdatesPlayerStatistics:
@@ -1584,7 +1592,7 @@ TL:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 6
 		Prerequisites: ~disabled
-		Description: Indirect fire support unit with long range HE shells.\n\n - 60mm mortar\n - 25 round capacity\n - Must stop to fire
+		Description: Indirect fire support unit with long range HE shells. Must stop to fire.
 	Valued:
 		Cost: 300
 	UpdatesPlayerStatistics:
@@ -1657,7 +1665,7 @@ MT:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 7
 		Prerequisites: ~disabled
-		Description: Long-range precision shooter. Hard to detect, prioritizes high-value targets.\n\n - 7.62mm sniper rifle\n - Low visibility (-2 detection)
+		Description: Long-range precision shooter. Hard to detect (-2 detection), prioritizes high-value targets.
 	Valued:
 		Cost: 400
 	UpdatesPlayerStatistics:
@@ -1730,7 +1738,7 @@ SN:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 8
 		Prerequisites: ~disabled
-		Description: Heavy anti-armor specialist with guided missiles.\n\n - ATGM launcher\n - 3 missiles, top-attack mode\n - Suppressed when under fire
+		Description: Heavy anti-armor specialist with top-attack guided missiles. Suppressed when under fire.
 	Tooltip:
 		Name: AT Specialist
 	Valued:
@@ -1801,7 +1809,7 @@ AT:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 9
 		Prerequisites: ~disabled
-		Description: Short-range anti-air defense for infantry formations.\n\n - MANPAD launcher\n - 3 missiles
+		Description: Short-range anti-air defense for infantry formations.
 	Tooltip:
 		Name: AA Specialist
 	Valued:
@@ -1878,7 +1886,7 @@ AA:
 		BuildPaletteOrder: 10
 		Prerequisites: ~disabled
 		# Supply figures deliberately absent — see the note on ^E3's Description.
-		Description: Repairs vehicles and structures. Lays mines and demolishes buildings.\n\n - 9mm SMG\n - 3 explosives\n - Repairs structures, clears mines
+		Description: Repairs vehicles and structures. Lays mines, clears mines and demolishes buildings.
 	Valued:
 		Cost: 250
 	UpdatesPlayerStatistics:
@@ -2061,7 +2069,7 @@ E6:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 11
 		Prerequisites: ~disabled
-		Description: Close-range area denial. Devastating against infantry clusters.\n\n - Flamethrower\n - Causes panic and fire damage\n - Volatile — explodes on death
+		Description: Close-range area denial. Devastating against infantry clusters. Causes panic and fire damage, and is volatile — it explodes on death.
 	Valued:
 		Cost: 150
 	UpdatesPlayerStatistics:
@@ -2141,7 +2149,7 @@ E4:
 		Prerequisites: ~disabled
 		Queue: Infantry
 		IconPalette: chrome
-		Description: Elite infiltration and demolition specialist.\n\n - 5.56mm suppressed rifle\n - 3 C4 charges\n - Low visibility, all-terrain
+		Description: Elite infiltration and demolition specialist. Low visibility, all-terrain.
 	Mobile:
 		Speed: 32
 		Locomotor: foot-amphibious-mountainer
@@ -2240,7 +2248,7 @@ SF:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 13
 		Prerequisites: ~disabled
-		Description: Field medic that auto-heals nearby wounded soldiers.\n\n - Heals infantry automatically\n - Prioritizes critical casualties\n - Unarmed
+		Description: Field medic that auto-heals nearby wounded soldiers, prioritizing critical casualties. Unarmed.
 	Valued:
 		# 250, was 100 (user ruling 2026-08-23: "we end up with too many medics, I think it should be a
 		# more specialized unit"). Upkeep follows automatically — InfersUpkeep PermilleCost: 5 on
@@ -2366,6 +2374,12 @@ MEDI:
 	Inherits@Type: ^ArmedCivilian
 	Inherits@Selection: ^SelectableSupportUnit
 	Inherits@Capture: ^CapturesNeutralBuildings
+	# An idle technician takes a capturable structure next to it without being told. Defaults are
+	# used deliberately: ON, 8 cells on the default Defensive stance, 20 on Hunt, nothing at all on
+	# HoldPosition, and off entirely on the HoldFire stance. Bot-owned technicians are skipped —
+	# CaptureCoordinatorBotModule already schedules them, and two schedulers on one consumable unit
+	# fight. See AutoCaptureNearbyInfo for the reasoning behind each.
+	AutoCaptureNearby:
 	-Wanders:
 	Tooltip:
 		Name: Technician
@@ -2377,7 +2391,7 @@ MEDI:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 16
 		Prerequisites: ~disabled
-		Description: Operates buildings and captures neutral structures.\n\n - Unarmed
+		Description: Operates buildings and captures neutral structures. Unarmed.
 	Valued:
 		Cost: 250
 	UpdatesPlayerStatistics:
@@ -2416,7 +2430,7 @@ TECN:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 70
 		Prerequisites: ~disabled
-		Description: Deploys recon drones and jams enemy drones.\n\n - Reconnaissance drone\n - Drone jammer weapon
+		Description: Deploys recon drones and jams enemy drones.
 	Valued:
 		Cost: 150
 	AutoTarget:
