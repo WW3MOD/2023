@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD — per-facing armour row, four options</title>
+<style>
+  :root {
+    --bg:#101316; --panel:#1a1f24; --panel2:#21272d; --line:#313a42;
+    --ink:#dfe6ec; --dim:#95a4b1;
+    --yellow:#ecc73c; --orange:#ee7d1e; --red:#e0392c; --green:#4eae54;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:34px 30px 80px; background:var(--bg); color:var(--ink);
+         font:15px/1.6 -apple-system,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:1240px; margin:0 auto; }
+  h1 { font-size:25px; margin:0 0 4px; }
+  h2 { font-size:18px; margin:34px 0 6px; padding-bottom:8px; border-bottom:1px solid var(--line); }
+  h3 { font-size:15px; margin:20px 0 4px; }
+  p { margin:9px 0; max-width:960px; }
+  .sub { color:var(--dim); font-size:13.5px; }
+  code { font:12.5px ui-monospace,Menlo,monospace; background:#262d34; padding:1px 5px;
+         border-radius:3px; color:#b8e0c8; }
+  b { color:#fff; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:18px 20px; }
+
+  .verdict { background:#16211a; border-left:4px solid var(--green); padding:14px 18px;
+             border-radius:0 7px 7px 0; margin:18px 0; }
+  .verdict.bad { background:#2a1a18; border-left-color:var(--red); }
+  .verdict.warn { background:#2e2318; border-left-color:var(--orange); }
+  .verdict h3 { margin:0 0 6px; font-size:15px; }
+  .verdict p { margin:6px 0; font-size:14px; }
+
+  table.data { width:100%; border-collapse:collapse; font-size:13.5px; margin:14px 0; }
+  table.data th { text-align:left; padding:7px 10px; border-bottom:1px solid var(--line);
+                  color:var(--dim); font-weight:600; font-size:12.5px; text-transform:uppercase;
+                  letter-spacing:.04em; }
+  table.data td { padding:6px 10px; border-bottom:1px solid #262d34; }
+  table.data td.n { text-align:right; font-family:ui-monospace,Menlo,monospace; }
+  table.data tr.hot td { background:#2a1f18; }
+
+  /* ---------- controls ---------- */
+  .bar { display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start; margin:20px 0 6px; }
+  .ctl { min-width:180px; }
+  .ctl > label { display:block; font-size:12.5px; font-weight:600; margin-bottom:7px; color:var(--dim);
+                 text-transform:uppercase; letter-spacing:.05em; }
+  .seg { display:flex; gap:6px; flex-wrap:wrap; }
+  .seg button {
+    background:var(--panel2); color:var(--dim); border:1px solid var(--line);
+    border-radius:6px; padding:8px 11px; font:600 13px inherit; cursor:pointer; line-height:1.25;
+  }
+  .seg button small { display:block; font-weight:400; font-size:10.5px; margin-top:2px; opacity:.8; }
+  .seg button[aria-pressed=true] { background:#2f3b45; color:#fff; border-color:#6b8595; }
+  textarea { width:100%; max-width:560px; background:#151a1f; color:var(--ink); border:1px solid var(--line);
+             border-radius:6px; padding:9px; font:13px inherit; resize:vertical; min-height:54px; }
+  .submit { margin-top:12px; padding:12px 22px; border-radius:7px; border:1px solid #3f7a4a;
+            background:#2f5c39; color:#dff5e2; font:600 14px inherit; cursor:pointer; }
+  .submit:hover { background:#386c43; }
+  .sent { font-size:12.5px; color:#8fce8f; margin-top:8px; min-height:16px; }
+
+  /* ---------- the tooltip mock ---------- */
+  /* Everything inside .tt is authored in TRUE GAME PIXELS. The zoom control scales it. */
+  .stagegrid { display:flex; gap:26px; flex-wrap:wrap; align-items:flex-start; margin-top:8px; }
+  .opt { background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:16px 18px 18px;
+         flex:0 0 auto; }
+  .opt.pick { border-color:#6b8595; box-shadow:0 0 0 1px #6b8595 inset; }
+  .opt h3 { margin:0 0 2px; font-size:15px; }
+  .opt .cost { font-size:12.5px; color:var(--dim); margin-bottom:12px; }
+  .opt .cost b { color:var(--yellow); font-weight:600; }
+  .opt .why { font-size:12.5px; color:var(--dim); margin-top:12px; max-width:430px; line-height:1.5; }
+  .ttbox { overflow:hidden; }
+  .tt {
+    position:relative; background:#1b1b1b; border:1px solid #3a3a3a;
+    transform-origin:top left; font-family:"Segoe UI",Tahoma,sans-serif;
+  }
+  .tt .nm  { position:absolute; font-weight:700; color:#fff; }
+  .tt .cst { position:absolute; font-weight:700; color:#fff; text-align:right; }
+  .tt .csti{ position:absolute; background:#c8a45a; border-radius:2px; }
+  .tt .row { position:absolute; white-space:nowrap; }
+  .tt .k   { color:#686868; font-weight:700; }
+  .tt .v   { color:#d4d4d4; text-align:right; }
+  .tt .cv  { color:#c8a45a; text-align:right; }
+  .tt .dots{ color:#404040; overflow:hidden; }
+  .tt .sub { color:#969696; font-weight:700; }
+  .tt .pro { color:#969696; }
+  .tt .sep { position:absolute; background:#262626; }
+  .tt .note{ color:#686868; }
+
+  .legend { font-size:12.5px; color:var(--dim); margin-top:6px; }
+  .swatch { display:inline-block; width:11px; height:11px; border-radius:2px; vertical-align:-1px; margin-right:4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Per-facing armour in the production tooltip — four options</h1>
+<p class="sub">Mockup only; nothing here is implemented. Base <code>main @ 925b5b82</code>.
+Every armour number shown is <b>read from shipped YAML</b>, not invented — see the findings below for
+<code>file:line</code>. Tooltip geometry is authored at <b>true game pixels</b> and scaled by the zoom
+control, so the heights quoted are the real cost.</p>
+
+<!-- ============================================================ FINDINGS ============ -->
+<h2>First: what the engine actually supports</h2>
+
+<div class="verdict">
+  <h3>All five facings you named are real, and all five are authored today.</h3>
+  <p><code>ArmorInfo.Distribution</code> is a five-element array — <code>{ Front, Side, Rear, Top, Bottom }</code>
+  — declared at <code>engine/OpenRA.Mods.Common/Traits/Armor.cs:31-32</code>. It is consumed by
+  <code>DamageWarhead.ArmorDirectionPercent</code> (<code>Warheads/DamageWarhead.cs:142-219</code>).
+  <b>Top and bottom are genuinely distinct facings, not an approximation.</b> A weapon with
+  <code>TopAttack: true</code> takes index <b>[3]</b> (<code>:152-155</code>); <code>BottomAttack: true</code>
+  takes index <b>[4]</b> (<code>:156-159</code>). Your hedge — <i>"and even top and bottom … I think"</i> —
+  was right on both counts.</p>
+</div>
+
+<p>Two corrections to how you described it, both of which matter for the diagram:</p>
+
+<ul>
+<li><b>Left and right are not separate.</b> The array has five slots but only <b>four distinct values</b>:
+index <code>[1]</code> is read for <i>both</i> the left and the right flank
+(<code>DamageWarhead.cs:210-211</code> — <code>leftDamage</code> and <code>rightDamage</code> both multiply
+by <code>distribution[1]</code>). So it is front / side / rear / roof / belly, and a diagram must print one
+side number, mirrored, not two.</li>
+
+<li><b>The values are percentages, not millimetres.</b> <code>Distribution</code> entries are percent of
+<code>Thickness</code>. The engine computes
+<code>effectiveThickness = thickness * armorPercent / 100</code> (<code>DamageWarhead.cs:249</code>, integer
+division) and compares <i>that</i> against the warhead's <code>Penetration</code>. So the per-facing
+millimetre figures a diagram would show are <b>derived</b>, not authored — a real quantity, but one that
+does not exist as a number anywhere in the YAML.</li>
+</ul>
+
+<h3>Is "mm" a fiction?</h3>
+<p>No, but it is a loose one. <code>Thickness</code> is declared
+<code>[Desc("Armor thickness in mm.")]</code> at <code>Armor.cs:28-29</code>, and the scale is internally
+coherent across the roster — aircraft skin 3–20, an APC 10–19, an MBT 280–700, a hardened bunker 2000. It
+is compared directly against warhead <code>Penetration</code>, which is the same scale. So the unit is the
+engine's own and the tooltip is not making it up. Whether individual values match reality is a
+<i>balance</i> question and separate: the T-90's 280 is well under commonly-cited real frontal figures.</p>
+
+<div class="verdict warn">
+  <h3>The catch: only two actors in the whole mod have an interesting profile.</h3>
+  <p>Sixteen vehicles author <code>Distribution</code>. <b>Thirteen of them use the identical flat line
+  <code>100,80,80,80,60</code></b> — front/side/rear/roof all within 20% of each other. Only
+  <b><code>abrams</code></b> (<code>100,40,15,10,10</code>, <code>vehicles-america.yaml:500</code>) and
+  <b><code>t90</code></b> (<code>100,60,40,15,15</code>, <code>vehicles-russia.yaml:322</code>) are
+  differentiated. On a Humvee the diagram would read 10 / 8 / 8 / 8 / 6 — four near-identical numbers and a
+  shape that says nothing. <b>Pick the Humvee in the control below to see how weak that case looks.</b></p>
+</div>
+
+<div class="verdict bad">
+  <h3>And the diagram immediately exposes a live authoring bug: the T-72.</h3>
+  <p><code>t72</code> (<code>vehicles-ukraine.yaml:25-26</code>) is an MBT with <code>Thickness: 280</code>
+  — identical to the T-90 — but it carries the generic APC line <code>100,80,80,80,60</code>. Its roof is
+  therefore <b>224mm against the T-90's 42mm, 5.3× thicker</b>, and its side is 224 against 168. That is
+  almost certainly a copy-paste of the boilerplate onto a tank rather than a deliberate choice.</p>
+  <p>It has a real balance consequence <i>today</i>: the Javelin/<code>ATGM</code> is
+  <code>TopAttack: true</code> with <code>Penetration: 100</code> (<code>weapons-missiles.yaml:6</code>).
+  Against a T-90 roof of 42 it penetrates and deals full damage. Against a T-72 roof of <b>224</b> it does
+  not — <code>ApplyPenetration</code> (<code>DamageWarhead.cs:128-133</code>) scales damage to
+  <code>100/224</code>, about <b>45%</b>. A top-attack missile is less than half as effective against the
+  <i>cheaper, weaker</i> tank. I have <b>not</b> fixed this — it is outside this mockup's scope and it is a
+  balance call, not a typo I should make unilaterally. Logged to
+  <code>WORKSPACE/bugs/discovered.md</code>.</p>
+  <p><b>This is the strongest argument for building the feature at all:</b> the bug has been sitting in the
+  YAML unnoticed, and any of these four options would have made it visible the first time someone hovered
+  a T-72.</p>
+</div>
+
+<h3>Scope: vehicles only</h3>
+<p>Every <code>Distribution</code> in the mod is in <code>vehicles*.yaml</code>. Aircraft, structures and
+defences author <code>Thickness</code> but <b>no</b> <code>Distribution</code> — and
+<code>ArmorDirectionPercent</code> returns a flat 100% unless <code>distribution.Length == 5</code>
+(<code>DamageWarhead.cs:150</code>), so their armour genuinely is uniform. <b>The diagram must fall back to
+today's single-value row for them</b>, which every option below does.</p>
+
+<h3>One nuance a four-number diagram slightly overstates</h3>
+<p>The horizontal facings are not four discrete zones. <code>ArmorDirectionPercent</code> linearly
+interpolates between neighbours by impact angle (<code>DamageWarhead.cs:177-214</code>): a hit exactly on
+the nose gets 100% of the front value, a hit at 45° gets a half-and-half blend of front and side. The
+authored numbers are <b>exact at the four cardinals</b> and smooth between them. Roof and belly are the
+exception — they are hard switches on the weapon flag, with no blending at all.</p>
+
+<!-- ============================================================ CONTROLS ============ -->
+<h2>Compare the options</h2>
+
+<div class="bar">
+  <div class="ctl">
+    <label>Vehicle — real shipped data</label>
+    <div class="seg" id="veh">
+      <button data-v="t90" aria-pressed="true">T-90<small>differentiated</small></button>
+      <button data-v="abrams" aria-pressed="false">Abrams<small>differentiated</small></button>
+      <button data-v="t72" aria-pressed="false">T-72<small>the bug</small></button>
+      <button data-v="humvee" aria-pressed="false">Humvee<small>flat / weak case</small></button>
+    </div>
+  </div>
+  <div class="ctl">
+    <label>Zoom</label>
+    <div class="seg" id="zoom">
+      <button data-v="1" aria-pressed="false">1&times;<small>true size</small></button>
+      <button data-v="2" aria-pressed="true">2&times;<small>legible</small></button>
+      <button data-v="3" aria-pressed="false">3&times;</button>
+    </div>
+  </div>
+  <div class="ctl">
+    <label>Which do you want built?</label>
+    <div class="seg" id="pick">
+      <button data-v="A" aria-pressed="false">A<small>silhouette</small></button>
+      <button data-v="B" aria-pressed="false">B<small>rosette</small></button>
+      <button data-v="C" aria-pressed="false">C<small>one line</small></button>
+      <button data-v="D" aria-pressed="false">D<small>bars</small></button>
+      <button data-v="none" aria-pressed="false">None<small>leave as-is</small></button>
+    </div>
+  </div>
+</div>
+
+<p class="legend">
+  <span class="swatch" style="background:#c8a45a"></span>Supply amber and every other colour below are the
+  sanctioned tooltip palette from <code>engine/mods/common/chrome/tooltips.yaml:286-339</code> — no new
+  colours are introduced by any option.
+</p>
+
+<div class="stagegrid" id="stage"></div>
+
+<h2>What each option costs</h2>
+<table class="data">
+  <thead><tr><th>Option</th><th>Armour block height</th><th>Added vs today</th><th>Panel growth</th><th>Build cost</th></tr></thead>
+  <tbody id="costtable"></tbody>
+</table>
+<p class="sub">"Panel growth" is against the T-90's current content height of <b>137px</b>
+(prose 13 + separator 11 + subhead 10 + two ammo rows 26 + section gap 12 + five stat rows 65). Row
+heights are the font-measured values the renderer actually uses, not the template <code>Height:</code>
+fields — <code>AddStatRow</code> returns <code>max(keySize.Y, valueSize.Y)</code>
+(<code>ProductionTooltipLogic.cs:388,416</code>), and the in-code comment at
+<code>:226-227</code> puts a stat row at "about 13px". Treat them as ±2px.</p>
+
+<h2>Your notes</h2>
+<textarea id="notes" placeholder="Anything you want changed about the option you picked — sizing, which facings to show, whether roof/belly deserve equal billing…"></textarea>
+<div><button class="submit" id="send">Send my choice back to Claude</button></div>
+<div class="sent" id="sentMsg"></div>
+
+<h2>Constraints I worked inside</h2>
+<ul>
+<li><b>The content column is exactly 350px, always.</b> <code>MaxTooltipWidth = 350</code>
+(<code>ProductionTooltipLogic.cs:63</code>) and <code>leftWidth</code> is
+<code>Math.Clamp(…, MaxTooltipWidth, MaxTooltipWidth)</code> (<code>:165-167</code>) — a clamp with equal
+bounds, so it is a constant regardless of content. <b>Width is free; height is the only contested axis.</b>
+Every option below exploits that by laying out horizontally.</li>
+<li><b>Absolute pixel layout.</b> <code>LayOutElements</code> stacks rows by incrementing <code>y</code>
+(<code>:244-305</code>). A diagram is a new <code>TooltipElementKind</code> that returns its own height —
+structurally the same as the existing <code>Separator</code> case, which already draws a
+<code>ColorBlockWidget</code> at an explicit <code>WidgetBounds</code> (<code>:254-261</code>).</li>
+<li><b>Another worker owns the ammo and refill rows</b> (<code>wt/tooltip-ammo</code>). The
+<code>TANK ROUND …</code> / <code>AMMO</code> / <code>REFILL</code> band and the 12px
+<code>SectionGap</code> above <code>ARMOUR</code> are drawn here as they stand at
+<code>925b5b82</code> and may move under them. I changed nothing there.</li>
+<li><b>No new colours and no new sprite art</b> in any option — A's silhouette is inline vector, not a
+unit sprite, so it needs no per-actor asset and cannot go stale when art changes.</li>
+</ul>
+
+<h2>Honest assessment</h2>
+<p>If you want my read: <b>C is the one I would ship, and B is the one to pick if C feels too plain.</b>
+The reason is the flat-distribution finding above — for 13 of 16 vehicles a diagram draws a large, careful
+picture of four numbers that are nearly the same, which is a lot of tooltip real estate spent conveying
+"this vehicle is not directional". C degrades gracefully there — it reads
+<code>Light — 10 / 8 / 8mm</code> over a legend line and costs 12px; A and D still draw the full picture
+for 74px and 57px respectively.</p>
+<p>But that argument inverts if you intend to <b>differentiate the rest of the roster</b>. If every APC and
+SPG gets a hand-authored profile, the flat case disappears and A becomes worth its 74px. That is a content
+decision, not a UI one, and it is yours — so I have built all four rather than pre-empting it.</p>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------------------------------------------------------------- data
+  // Every field below is read from shipped YAML at main @ 925b5b82. No placeholders.
+  var VEHICLES = {
+    t90: { label:"T-90", cost:2400, hp:24000, speed:100, type:"Heavy", thickness:280,
+           dist:[100,60,40,15,15], weapon:"TANK ROUND T90", ammo:"40 rounds",
+           refill:"8 × 30 = 240 supply", total:"240 supply",
+           desc:"Main battle tank for armored ground warfare.",
+           src:"vehicles-russia.yaml:320-322" },
+    abrams:{ label:"Abrams", cost:2500, hp:28000, speed:90, type:"Heavy", thickness:700,
+           dist:[100,40,15,10,10], weapon:"TANK ROUND ABRAMS", ammo:"40 rounds",
+           refill:"8 × 30 = 240 supply", total:"240 supply",
+           desc:"Main battle tank for armored ground warfare.",
+           src:"vehicles-america.yaml:498-500" },
+    t72:  { label:"T-72", cost:1700, hp:10000, speed:67, type:"Heavy", thickness:280,
+           dist:[100,80,80,80,60], weapon:"TANK ROUND T72", ammo:"40 rounds",
+           refill:"8 × 20 = 160 supply", total:"160 supply",
+           desc:"Main Battle Tank",
+           src:"vehicles-ukraine.yaml:24-26" },
+    humvee:{ label:"Humvee", cost:500, hp:4000, speed:150, type:"Light", thickness:10,
+           dist:[100,80,80,80,60], weapon:"7.62MM MG", ammo:"300 rounds",
+           refill:"6 × 1 = 6 supply", total:"6 supply",
+           desc:"Fast wheeled transport with mounted gun.",
+           src:"vehicles-america.yaml:59-60" }
+  };
+
+  var S = { vehicle:"t90", zoom:2, preferred:null, notes:"" };
+
+  // effectiveThickness = thickness * pct / 100, INTEGER division — DamageWarhead.cs:249
+  function facings(v) {
+    return v.dist.map(function (p) { return Math.floor(v.thickness * p / 100); });
+  }
+
+  // ---------------------------------------------------------------- tooltip renderer
+  // All coordinates are TRUE GAME PIXELS.
+  var PANEL_W = 420,   // leftWidth 350 + cost text ~30 + 3*7 margins + icon 16 + iconMargin 3
+      COL_X   = 7,     // descContainer.Bounds.X — tooltips.yaml:276
+      COL_W   = 350,   // MaxTooltipWidth — ProductionTooltipLogic.cs:63
+      DESC_Y  = 27;    // descContainer.Bounds.Y — tooltips.yaml:277
+
+  var H_STAT = 13, H_SUB = 10, H_PROSE = 13, H_NOTE = 11,
+      SEP_MARGIN = 5, SECTION_GAP = 12;
+
+  function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+
+  // A two-column stat row with dot leaders, mirroring AddStatRow (ProductionTooltipLogic.cs:367-417).
+  function statRow(y, key, value, amber) {
+    return '<div class="row k" style="left:0;top:' + y + 'px;font-size:9px;line-height:' + H_STAT + 'px">' + esc(key) + '</div>'
+         + '<div class="row dots" style="left:0;top:' + y + 'px;width:' + COL_W + 'px;font-size:11px;line-height:'
+           + H_STAT + 'px;text-align:center">' + new Array(46).join(".") + '</div>'
+         + '<div class="row ' + (amber ? "cv" : "v") + '" style="left:0;top:' + y + 'px;width:' + COL_W
+           + 'px;font-size:11px;line-height:' + H_STAT + 'px;text-align:right;background:#1b1b1b;'
+           + 'padding-left:6px;box-sizing:border-box">'
+         + '<span style="background:#1b1b1b;padding-left:5px">' + esc(value) + '</span></div>';
+  }
+  function keyOnly(y, key) {
+    return '<div class="row k" style="left:0;top:' + y + 'px;font-size:9px;line-height:' + H_STAT + 'px">' + esc(key) + '</div>';
+  }
+
+  // ---------------------------------------------------------------- the four armour blocks
+  // Each returns { html, height } and is drawn into the 350px column at local y = 0.
+
+  var STRONG = "#d4d4d4", WEAK = "#c8a45a", DIM = "#686868", METAL = "#3a4149", METAL2 = "#4a535c";
+
+  // Shared: colour a facing by how much of the front value it retains.
+  function tone(val, front) {
+    if (front <= 0) return STRONG;
+    var r = val / front;
+    if (r >= 0.85) return "#d4d4d4";
+    if (r >= 0.50) return "#b9b08a";
+    return "#c8a45a";
+  }
+
+  // ---- A: plan-view silhouette, nose right, laid out horizontally to spend width not height
+  function blockA(v, f) {
+    var H = 72;
+    var cx = 168, cy = 34;                 // hull centre
+    var s = '<svg width="' + COL_W + '" height="' + H + '" style="display:block">';
+    // tracks
+    s += '<rect x="' + (cx-46) + '" y="' + (cy-21) + '" width="88" height="9" rx="3" fill="' + METAL + '"/>';
+    s += '<rect x="' + (cx-46) + '" y="' + (cy+12) + '" width="88" height="9" rx="3" fill="' + METAL + '"/>';
+    // hull, nose to the right
+    s += '<path d="M' + (cx-46) + ' ' + (cy-13) + ' L' + (cx+30) + ' ' + (cy-13)
+       + ' L' + (cx+48) + ' ' + cy + ' L' + (cx+30) + ' ' + (cy+13)
+       + ' L' + (cx-46) + ' ' + (cy+13) + ' Z" fill="' + METAL2 + '" stroke="#697682" stroke-width="1"/>';
+    // turret + barrel
+    s += '<circle cx="' + (cx-4) + '" cy="' + cy + '" r="11" fill="#5a646e" stroke="#7d8b97" stroke-width="1"/>';
+    s += '<rect x="' + (cx+6) + '" y="' + (cy-2) + '" width="42" height="4" rx="1" fill="#7d8b97"/>';
+
+    function lab(x, y, anchor, name, val, col) {
+      return '<text x="' + x + '" y="' + y + '" text-anchor="' + anchor + '" font-family="Segoe UI,sans-serif" '
+           + 'font-size="8" fill="' + DIM + '" letter-spacing="0.5">' + name + '</text>'
+           + '<text x="' + x + '" y="' + (y + 11) + '" text-anchor="' + anchor + '" font-family="Segoe UI,sans-serif" '
+           + 'font-size="12" font-weight="700" fill="' + col + '">' + val + '</text>';
+    }
+    // front (right of nose), rear (left of tail), side above and below
+    s += lab(cx + 58, cy - 5,  "start", "FRONT", f[0], tone(f[0], f[0]));
+    s += lab(cx - 58, cy - 5,  "end",   "REAR",  f[2], tone(f[2], f[0]));
+    s += lab(cx - 4,  12,      "middle","SIDE",  f[1], tone(f[1], f[0]));
+    s += '<text x="' + (cx-4) + '" y="' + (H - 2) + '" text-anchor="middle" font-family="Segoe UI,sans-serif" '
+       + 'font-size="8" fill="' + DIM + '">(mirrored)</text>';
+    // roof / belly at the far right, stacked
+    s += lab(COL_W - 2, 16, "end", "ROOF ↓",  f[3], tone(f[3], f[0]));
+    s += lab(COL_W - 2, 46, "end", "BELLY ↑", f[4], tone(f[4], f[0]));
+    s += '</svg>';
+
+    return { html: keyOnly(0, "ARMOUR")
+                 + '<div class="row v" style="left:0;top:0;width:' + COL_W + 'px;font-size:11px;line-height:'
+                   + H_STAT + 'px;text-align:right">' + esc(v.type) + ' — ' + v.thickness + 'mm</div>'
+                 + '<div style="position:absolute;left:0;top:' + (H_STAT + 2) + 'px">' + s + '</div>',
+             height: H_STAT + 2 + H };
+  }
+
+  // ---- B: abstract rosette. Values sit INSIDE the shape, so it needs no outside margin.
+  function blockB(v, f) {
+    var H = 60;
+    var R = 28, cx = COL_W - 34, cy = 30;   // right-aligned badge
+    function wedge(a0, a1) {
+      var p = [], i;
+      for (i = 0; i <= 1; i++) {
+        var a = (a0 + (a1 - a0) * i) * Math.PI / 180;
+        p.push([cx + R * Math.cos(a), cy + R * Math.sin(a)]);
+      }
+      return "M" + cx + " " + cy + " L" + p[0][0].toFixed(1) + " " + p[0][1].toFixed(1)
+           + " A" + R + " " + R + " 0 0 1 " + p[1][0].toFixed(1) + " " + p[1][1].toFixed(1) + " Z";
+    }
+    var s = '<svg width="' + COL_W + '" height="' + H + '" style="display:block">';
+    // four wedges: front = right (nose points right, consistent with A)
+    var defs = [ [-45, 45, f[0], "F"], [45, 135, f[1], "S"], [135, 225, f[2], "R"], [225, 315, f[1], "S"] ];
+    defs.forEach(function (d) {
+      var ratio = f[0] > 0 ? d[2] / f[0] : 1;
+      var fill = "rgba(200,164,90," + (0.16 + 0.34 * ratio).toFixed(2) + ")";
+      s += '<path d="' + wedge(d[0], d[1]) + '" fill="' + fill + '" stroke="#4a535c" stroke-width="1"/>';
+    });
+    // numbers inside each wedge
+    function num(ang, val) {
+      var a = ang * Math.PI / 180, r = R * 0.60;
+      return '<text x="' + (cx + r * Math.cos(a)).toFixed(1) + '" y="' + (cy + r * Math.sin(a) + 3.5).toFixed(1)
+           + '" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9" font-weight="700" fill="'
+           + tone(val, f[0]) + '">' + val + '</text>';
+    }
+    s += num(0, f[0]) + num(90, f[1]) + num(180, f[2]) + num(270, f[1]);
+    // nose marker so "which way is front" is unambiguous
+    s += '<path d="M' + (cx + R + 3) + ' ' + cy + ' l-5 -4 v8 z" fill="#8d9aa5"/>';
+    s += '</svg>';
+
+    var textX = 0;
+    var lines =
+        '<div class="row" style="left:' + textX + 'px;top:16px;font-size:11px;line-height:13px;color:#d4d4d4">'
+      +   esc(v.type) + ' — ' + v.thickness + 'mm front'
+      + '</div>'
+      + '<div class="row note" style="left:' + textX + 'px;top:30px;font-size:9px;line-height:12px">'
+      +   'side ' + f[1] + ' · rear ' + f[2] + '</div>'
+      + '<div class="row note" style="left:' + textX + 'px;top:42px;font-size:9px;line-height:12px">'
+      +   'roof ' + f[3] + ' · belly ' + f[4] + '</div>';
+
+    return { html: keyOnly(0, "ARMOUR") + lines
+                 + '<div style="position:absolute;left:0;top:0">' + s + '</div>',
+             height: H };
+  }
+
+  // ---- C: one line, plus one Note line as legend. Nearly free.
+  function blockC(v, f) {
+    var val = f[0] + " / " + f[1] + " / " + f[2] + "mm";
+    var note = "front / side / rear · roof " + f[3] + " · belly " + f[4];
+    return { html: statRow(0, "ARMOUR", v.type + " — " + val)
+                 + '<div class="sep" style="left:0;top:' + (H_STAT + 1) + 'px;width:1px;height:' + H_NOTE + 'px"></div>'
+                 + '<div class="row note" style="left:9px;top:' + (H_STAT + 1) + 'px;font-size:9px;line-height:'
+                   + H_NOTE + 'px">' + esc(note) + '</div>',
+             height: H_STAT + 1 + H_NOTE };
+  }
+
+  // ---- D: bar ladder, weakest facing last. Reads as a ranking rather than a picture.
+  function blockD(v, f) {
+    var names = ["FRONT", "SIDE", "REAR", "ROOF", "BELLY"];
+    var order = [0, 1, 2, 3, 4];
+    var barX = 62, barW = 210, rowH = 11;
+    var out = keyOnly(0, "ARMOUR")
+            + '<div class="row v" style="left:0;top:0;width:' + COL_W + 'px;font-size:11px;line-height:'
+              + H_STAT + 'px;text-align:right">' + esc(v.type) + ' — ' + v.thickness + 'mm</div>';
+    order.forEach(function (idx, i) {
+      var y = H_STAT + 2 + i * rowH;
+      var w = f[0] > 0 ? Math.max(2, Math.round(barW * f[idx] / f[0])) : barW;
+      out += '<div class="row note" style="left:9px;top:' + y + 'px;font-size:9px;line-height:' + rowH + 'px">'
+           + names[idx] + '</div>'
+           + '<div style="position:absolute;left:' + barX + 'px;top:' + (y + 3) + 'px;width:' + barW
+           + 'px;height:5px;background:#262626;border-radius:1px"></div>'
+           + '<div style="position:absolute;left:' + barX + 'px;top:' + (y + 3) + 'px;width:' + w
+           + 'px;height:5px;background:' + tone(f[idx], f[0]) + ';border-radius:1px"></div>'
+           + '<div class="row" style="left:' + (barX + barW + 6) + 'px;top:' + y + 'px;font-size:10px;line-height:'
+           + rowH + 'px;color:' + tone(f[idx], f[0]) + ';font-weight:700">' + f[idx] + '</div>';
+    });
+    return { html: out, height: H_STAT + 2 + 5 * rowH };
+  }
+
+  // ---- today, for the baseline card
+  function blockNow(v) {
+    return { html: statRow(0, "ARMOUR", v.type + " — " + v.thickness + "mm"), height: H_STAT };
+  }
+
+  // ---------------------------------------------------------------- full panel
+  function panel(v, armourFn) {
+    var f = facings(v);
+    var y = 0, body = "";
+
+    body += '<div class="row pro" style="left:0;top:' + y + 'px;width:' + COL_W + 'px;font-size:11px;line-height:'
+          + H_PROSE + 'px">' + esc(v.desc) + '</div>';
+    y += H_PROSE;
+
+    y += SEP_MARGIN;
+    body += '<div class="sep" style="left:0;top:' + y + 'px;width:' + COL_W + 'px;height:1px"></div>';
+    y += 1 + SEP_MARGIN;
+
+    body += '<div class="row sub" style="left:0;top:' + y + 'px;font-size:9px;line-height:' + H_SUB + 'px">'
+          + esc(v.weapon) + '</div>';
+    y += H_SUB;
+    body += statRow(y, "AMMO", v.ammo);      y += H_STAT;
+    body += statRow(y, "REFILL", v.refill, true); y += H_STAT;
+
+    y += SECTION_GAP;
+
+    var blk = armourFn(v, f);
+    body += '<div style="position:absolute;left:0;top:' + y + 'px;width:' + COL_W + 'px;height:' + blk.height + 'px">'
+          + blk.html + '</div>';
+    y += blk.height;
+
+    body += statRow(y, "HEALTH", v.hp.toLocaleString("en-US")); y += H_STAT;
+    body += statRow(y, "SPEED", String(v.speed));               y += H_STAT;
+    body += statRow(y, "UPKEEP", "None");                       y += H_STAT;
+    body += statRow(y, "Full refill", v.total, true);           y += H_STAT;
+
+    var panelH = DESC_Y + y + COL_X;
+    var html =
+      '<div class="tt" style="width:' + PANEL_W + 'px;height:' + panelH + 'px;transform:scale(' + S.zoom + ')">'
+      + '<div class="nm" style="left:7px;top:3px;font-size:13px;line-height:23px">' + esc(v.label) + '</div>'
+      + '<div class="csti" style="left:371px;top:8px;width:11px;height:11px"></div>'
+      + '<div class="cst" style="left:330px;top:4px;width:82px;font-size:13px;line-height:21px">' + v.cost + '</div>'
+      + '<div style="position:absolute;left:' + COL_X + 'px;top:' + DESC_Y + 'px;width:' + COL_W + 'px">'
+      +   body
+      + '</div></div>';
+
+    return { html: html, w: PANEL_W * S.zoom, h: panelH * S.zoom, blockH: blk.height, contentH: y };
+  }
+
+  // ---------------------------------------------------------------- options table
+  var OPTIONS = [
+    { id:"A", title:"A — Plan-view silhouette", fn:blockA,
+      why:"Reads instantly and needs no legend — you know which number is the nose because you can see "
+        + "the nose. Laid out horizontally to spend the free 350px of width instead of scarce height. The "
+        + "silhouette is generic vector, not a unit sprite, so it costs no art and never goes stale. "
+        + "Weakness: on a flat-distribution vehicle it draws a large picture to say very little.",
+      build:"Highest. New TooltipElementKind + a vector widget; +74px." },
+    { id:"B", title:"B — Abstract rosette", fn:blockB,
+      why:"No vehicle art at all — a four-wedge compass with the value inside each wedge, so it needs no "
+        + "margin around the shape and tucks against the right edge with the text beside it. Wedge fill "
+        + "tracks the proportion, so the T-72's uniform ring is visibly wrong at a glance. Roof and belly "
+        + "are text, which is honest — they are not directions in the plane.",
+      build:"Medium. Same widget work as A, simpler geometry; +47px." },
+    { id:"C", title:"C — One line + legend", fn:blockC,
+      why:"Costs one extra Note line and reuses the existing stat-row and Note machinery — no new widget "
+        + "type, no vector drawing. Degrades perfectly on flat vehicles, where it just reads 10 / 8 / 8mm. "
+        + "Weakness: 280 / 168 / 112 needs the legend underneath to be unambiguous, and roof/belly are "
+        + "demoted to small text.",
+      build:"Lowest by far. Reuses the existing Stat and Note kinds; +12px." },
+    { id:"D", title:"D — Bar ladder", fn:blockD,
+      why:"Turns the facings into a ranking. The bar length is the comparison, so the eye lands on the "
+        + "weakest facing without reading a number — which is the tactically useful fact. Handles roof "
+        + "and belly as equals rather than as an afterthought, which neither A nor B really does. "
+        + "Weakness: no spatial meaning, so it still has to name the facings in words.",
+      build:"Medium-low. Five ColorBlock pairs, no vector path work; +57px." }
+  ];
+
+  var BASE_CONTENT = 137;
+
+  function render() {
+    var v = VEHICLES[S.vehicle];
+    var stage = document.getElementById("stage");
+    var now = panel(v, blockNow);
+
+    var html = '<div class="opt"><h3>Today</h3>'
+             + '<div class="cost">Armour block <b>13px</b> — the single row you have now.</div>'
+             + '<div class="ttbox" style="width:' + now.w + 'px;height:' + now.h + 'px">' + now.html + '</div>'
+             + '<div class="why">The baseline. One stat row: type, an em dash, and <code>Thickness</code> '
+             + 'straight off the trait. Everything the diagram would show is already computable from this '
+             + 'number plus <code>Distribution</code> — it is simply not shown.</div></div>';
+
+    OPTIONS.forEach(function (o) {
+      var p = panel(v, o.fn);
+      var added = p.blockH - 13;
+      html += '<div class="opt' + (S.preferred === o.id ? " pick" : "") + '"><h3>' + o.title + '</h3>'
+            + '<div class="cost">Armour block <b>' + p.blockH + 'px</b> — '
+            + (added >= 0 ? "+" : "") + added + 'px vs today, panel '
+            + (added >= 0 ? "+" : "") + Math.round(100 * added / BASE_CONTENT) + '%</div>'
+            + '<div class="ttbox" style="width:' + p.w + 'px;height:' + p.h + 'px">' + p.html + '</div>'
+            + '<div class="why">' + o.why + '</div></div>';
+    });
+    stage.innerHTML = html;
+
+    // cost table
+    var rows = '<tr><td>Today — single row</td><td class="n">13px</td><td class="n">—</td>'
+             + '<td class="n">—</td><td>ships</td></tr>';
+    OPTIONS.forEach(function (o) {
+      var p = panel(v, o.fn), added = p.blockH - 13;
+      rows += '<tr' + (S.preferred === o.id ? ' class="hot"' : '') + '><td>' + o.title + '</td>'
+            + '<td class="n">' + p.blockH + 'px</td>'
+            + '<td class="n">' + (added >= 0 ? "+" : "") + added + 'px</td>'
+            + '<td class="n">' + (added >= 0 ? "+" : "") + Math.round(100 * added / BASE_CONTENT) + '%</td>'
+            + '<td>' + o.build + '</td></tr>';
+    });
+    document.getElementById("costtable").innerHTML = rows;
+
+    post("maestro:artifact_state");
+    geometry();
+  }
+
+  function geometry() {
+    try {
+      window.parent.postMessage({ type:"maestro:artifact_geometry",
+        height: document.documentElement.scrollHeight }, "*");
+    } catch (e) {}
+  }
+  function post(type, summary) {
+    var msg = { type:type, state:S };
+    if (summary) msg.summary = summary;
+    try { window.parent.postMessage(msg, "*"); } catch (e) {}
+  }
+
+  // ---------------------------------------------------------------- wiring
+  function seg(id, key, cast) {
+    var host = document.getElementById(id);
+    host.addEventListener("click", function (e) {
+      var b = e.target.closest("button");
+      if (!b) return;
+      S[key] = cast ? cast(b.dataset.v) : b.dataset.v;
+      Array.prototype.forEach.call(host.children, function (o) {
+        o.setAttribute("aria-pressed", String(o === b));
+      });
+      render();
+    });
+  }
+  seg("veh", "vehicle");
+  seg("zoom", "zoom", Number);
+  seg("pick", "preferred");
+
+  document.getElementById("notes").addEventListener("input", function () {
+    S.notes = this.value.slice(0, 600);
+    post("maestro:artifact_state");
+  });
+
+  document.getElementById("send").addEventListener("click", function () {
+    var lbl = S.preferred === "none" ? "none — leave the row as it is"
+            : S.preferred ? "option " + S.preferred : "no option picked yet";
+    post("maestro:artifact_submit",
+      "Armour row: " + lbl + " (viewing " + VEHICLES[S.vehicle].label + ")"
+      + (S.notes ? " — " + S.notes : ""));
+    document.getElementById("sentMsg").textContent =
+      "Sent. Change your mind and press again — the latest send is the one that counts.";
+  });
+
+  window.addEventListener("message", function (e) {
+    if (!e.data || e.data.type !== "maestro:artifact_hydrate" || !e.data.state) return;
+    var st = e.data.state;
+    ["vehicle", "zoom", "preferred", "notes"].forEach(function (k) {
+      if (st[k] !== undefined) S[k] = st[k];
+    });
+    document.getElementById("notes").value = S.notes || "";
+    [["veh","vehicle"],["zoom","zoom"],["pick","preferred"]].forEach(function (pair) {
+      var host = document.getElementById(pair[0]);
+      Array.prototype.forEach.call(host.children, function (o) {
+        o.setAttribute("aria-pressed", String(String(o.dataset.v) === String(S[pair[1]])));
+      });
+    });
+    render();
+  });
+
+  render();
+  window.addEventListener("load", geometry);
+})();
+</script>
+
+</div>
+</body>
+</html>

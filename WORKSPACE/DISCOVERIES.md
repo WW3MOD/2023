@@ -3,6 +3,51 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-03 — Armour has FIVE facings and all five are authored, but only two actors differentiate them (`wt/armour-diagram`, `main @ 925b5b82`)
+
+Established by reading source for a tooltip mockup; **no game launch, nothing measured.**
+
+**`ArmorInfo.Distribution` is `{ Front, Side, Rear, Top, Bottom }` in percent** (`Armor.cs:31-32`),
+consumed only by `DamageWarhead.ArmorDirectionPercent` (`DamageWarhead.cs:142-219`). Top and bottom
+are real, distinct facings chosen by an explicit weapon flag — `TopAttack` → `[3]` (`:152-155`),
+`BottomAttack` → `[4]` (`:156-159`) — not an approximation of something else. `BottomAttack` is
+authored on exactly one weapon, `ATMine` (`weapons-explosions.yaml:245`).
+
+Three things that are easy to get wrong:
+
+1. **Five slots, four values.** `distribution[1]` is read for *both* flanks (`:210-211`), so left and
+   right cannot differ. Any UI must show one mirrored side number.
+2. **The entries are percentages, never millimetres.** The per-facing mm figure is derived at
+   `effectiveThickness = thickness * armorPercent / 100` (`:249`, **integer** division) and exists as
+   a number nowhere in the YAML. `Thickness` itself is genuinely mm-scaled (`Armor.cs:28-29`) and
+   coherent across the roster (aircraft 3–20, APC 10–19, MBT 280–700, bunker 2000), so the tooltip's
+   `mm` is the engine's own unit, not an invention.
+3. **The horizontal facings interpolate; roof and belly do not.** `:177-214` blends between
+   neighbours by impact angle — the authored numbers are exact at the four cardinals and smooth
+   between. The two flag-selected facings are hard switches.
+
+**Only `abrams` (`100,40,15,10,10`) and `t90` (`100,60,40,15,15`) are differentiated.** Thirteen of
+the sixteen vehicles that author `Distribution` carry the identical flat `100,80,80,80,60`; the
+`^Vehicle` fallback is `100,50,25,10,10` (`vehicles.yaml:27`). **Every `Distribution` in the mod is
+in `vehicles*.yaml`** — aircraft, structures and defences author `Thickness` but no `Distribution`,
+and `ArmorDirectionPercent` returns a flat 100% unless `distribution.Length == 5` (`:150`), so their
+armour really is uniform. Consequence for any per-facing UI: it is a **vehicles-only** feature and is
+near-mute on 13 of the 16.
+
+This turned up a live authoring bug — `t72` is a 280mm MBT wearing the APC boilerplate, giving it a
+224mm roof against the T-90's 42mm and halving `ATGM` effectiveness against it. Filed in
+`WORKSPACE/bugs/discovered.md` (2026-09-03), not fixed.
+
+**Layout fact for anyone touching the production tooltip:** the description column is **exactly
+350px, always** — `MaxTooltipWidth = 350` (`ProductionTooltipLogic.cs:63`) and
+`leftWidth = Math.Clamp(…, 350, 350)` (`:165-167`), a clamp with equal bounds, so it is a constant
+independent of content. **Width is free; height is the only contested axis.** Stat rows are ~13px
+from font measurement (`AddStatRow` returns `max(keySize.Y, valueSize.Y)`, `:388,416`) and **not**
+the `Height: 17` the chrome templates declare (`tooltips.yaml:304-316`).
+
+Full write-up with the option costings: `WORKSPACE/recon-armour-facings.md`.
+Mockup: `WORKSPACE/mockups/armour-facing-diagram.html`.
+
 ## 2026-09-03 — The `debug.log` copied into an autotest run directory can be a DIFFERENT game's log (`wt/capture-fix`, `main @ cb68ce61`)
 
 Two scenarios failed and the run directories were handed over as *"the only evidence"*. Neither
