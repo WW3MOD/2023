@@ -3,6 +3,48 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-03 — `Rules.Actors` contains the `^` inherit templates, and four other findings from the rank-accumulation build (`wt/rank-accumulation`, `main @ 5d824817`)
+
+**`world.Map.Rules.Actors.Values` yields the abstract `^Foo` templates alongside real actors.** Any
+trait that enumerates the ruleset to build a per-type table must filter them or it silently creates
+entries for `^GainsExperience`, `^CrewMember` and friends. The house pattern is
+`ai.Name.StartsWith("^", StringComparison.Ordinal)` — `ControlField.cs:531`,
+`DangerFieldLayer.cs:422` and `:828`, `CheckUnitRoleTable.cs:186`. Nothing warns you; a template that
+happens to carry the traits you filter on just becomes a phantom row.
+
+**`ProducibleWithLevel` cannot deliver a dynamic level.** Its `InitialLevels` is a `TraitInfo` field
+read at load time (`ProducibleWithLevel.cs:24`), so it can only ever express a constant. Anything
+needing "whatever this player has banked" must reach `GainsExperience` another way. The near-miss
+alternative, `ExperienceInit`, carries raw *experience points*, not levels, and the thresholds are
+`Conditions` keys multiplied by `Valued.Cost` (`GainsExperience.cs:87-89`) — so using it means
+duplicating that derivation at the call site and keeping the copy in step by hand.
+
+**`GainsExperience.GiveLevels` clamps and is therefore order-independent**, so two independent
+callers on the same actor compose safely: `newLevel = Min(Level + n, MaxLevel)` (`:102`). A unit
+carrying both `ProducibleWithLevel` and another level source lands on the same rank whichever runs
+first. The non-silent path, though, branches on `self.Owner == self.World.RenderPlayer` (`:128`) —
+client-local. It only guards a sprite effect and a sound, so it is not a desync, but granting
+silently means the branch is never reached at all.
+
+**`INotifySold.Sold` is a reliable "this actor got home alive" signal; `Selling` is not.** `Sold`
+fires from exactly two places: `RotateToEdge.cs:466`, reached only by an actor that physically
+reached the map edge, and `Sell.cs:45` for a building selling in place. `Sellable.cs:83` raises
+`Selling` — the *intent* — so a unit ordered to evacuate and killed en route raises `Selling` and
+never `Sold`. Reading the wrong one turns "recovered" into "tried to recover".
+
+**Crew size across the shipped roster, since the three-man tank crew is the minority.** 9 of 14
+vehicles are two-slot `Driver, Gunner`; 5 are three-slot with a `Commander`
+(`vehicles-america.yaml:310, :471, :882`, `vehicles-russia.yaml:138, :296, :830`). Aircraft: 1
+`Pilot` only, 2 `Pilot, Copilot`, 3 `Pilot, Gunner`. **There is no per-role value anywhere in the
+data** — every crew actor inherits `^CrewMember` at a flat `Cost: 100` (`crew.yaml:14-15`), so a
+commander is worth exactly what a driver is worth. Any design assuming otherwise is assuming data
+that does not exist.
+
+**Known gap, not fixed:** `CreditsRankOnEvacuation`'s crew-origin tag is set directly on the trait by
+`VehicleCrew.SpawnCrewActor` rather than through an `ActorInit`, so it does not survive a save/load
+round trip. Left as is because a crew member's whole lifetime is the seconds between bailing out and
+reaching the edge; if saves ever need to cover it, the fix is an init consumed in the constructor.
+
 ## 2026-09-03 — A UI difference expressed as an alpha RATIO is a contrast difference, and only survives where the background is black (`wt/range-circle-dim`, `main @ 03c77208`)
 
 Reported as "artillery range circles: the outermost ring is prominent below the map edge, but over the

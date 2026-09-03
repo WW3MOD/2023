@@ -1,0 +1,1 @@
+Purchased units arrive at the free rank banked for their type; buying spends it; evacuating a ranked unit returns it to the bank.
