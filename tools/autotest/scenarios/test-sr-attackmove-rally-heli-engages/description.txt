@@ -1,0 +1,1 @@
+Auto: SR with AttackMove-rally produces a HELI that actually runs AttackMoveActivity, not a plain Move.
