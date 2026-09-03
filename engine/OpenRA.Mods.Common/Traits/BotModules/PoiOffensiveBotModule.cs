@@ -2721,10 +2721,18 @@ namespace OpenRA.Mods.Common.Traits
 			// predicate reads.
 			foreach (var unit in world.Actors.Where(IsOutOfAmmoSweepCandidate).ToList())
 			{
-				// Source DISCOVERY stays with the engine's own scan (ownership + RearmActors + remaining supply),
-				// so the bot and the unit-side trait agree on what counts as a host. Note it does NOT path-check,
-				// so "reachable" is existence plus the Chebyshev seek budget below — a deliberate cheap proxy.
-				var host = AmmoPool.ChooseResupplier(unit);
+				// Source DISCOVERY stays with the engine's own scan (ownership + RearmActors + supply), so the
+				// bot and the unit-side trait agree on what counts as a host. Note it does NOT path-check, so
+				// "reachable" is existence plus the Chebyshev seek budget below — a deliberate cheap proxy.
+				//
+				// AFFORDABLE, not merely stocked. This was ChooseResupplier, whose filter is CurrentSupply > 0
+				// — which admits a Logistics Centre holding 750 against the 1500 a batch costs, so the sweep
+				// drove dry hulls to depots that could not serve them and they parked there. Same correction
+				// the three unit-side dispatchers already took; this was the last caller still choosing on
+				// stock alone. Candidates are AllPoolsEmpty by IsOutOfAmmoSweepCandidate, so every pool wants
+				// rounds and the affordability question is purely about the depot.
+				var pools = unit.TraitsImplementing<AmmoPool>();
+				var host = AmmoPool.ChooseAffordableResupplier(unit, pools);
 				var distance = host != null
 					? PoiOffenseMath.Chebyshev(unit.Location.X, unit.Location.Y, host.Location.X, host.Location.Y)
 					: 0;
@@ -2745,7 +2753,11 @@ namespace OpenRA.Mods.Common.Traits
 						// picks SeekSupplyProvider / RideTransport / Resupply per host kind (AmmoPool.cs:277-312).
 						// Its flag-only else-branch is unreachable here — we only call it with a live host.
 						// dispatchedBecauseDry: the sweep's own candidate filter IS AllPoolsEmpty (IsOutOfAmmo).
-						AmmoPool.AutoRearm(unit, true);
+						//
+						// `host` is PASSED. Omitting it lets AutoRearm re-pick via ChooseResupplier one call
+						// deeper, which would hand back the nearest merely-stocked depot and throw away the
+						// affordable choice made above — the exact trap that parameter was added to prevent.
+						AmmoPool.AutoRearm(unit, true, host);
 						sought++;
 						break;
 

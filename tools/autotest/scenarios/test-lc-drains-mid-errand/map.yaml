@@ -1,0 +1,96 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: LC Drains Mid-Errand, Unit Rearms Elsewhere (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# THE USER REPORT: "units go to the LC even if it is empty, and they just wait there", plus the
+	# harder half — "if the supplies runs out, any unit queued to rearm there should cancel that
+	# order, and go somewhere else to rearm".
+	#
+	# Staged as TWO Logistics Centres so the scenario measures the recovery rather than the giving-up:
+	# the unit must abandon a depot that went dry under it AND reach one that can actually serve.
+	# Geometry is deliberately reused from test-lc-errand-ends-when-rearmed-en-route (same map.bin,
+	# same 66x34 bounds) so the two LC-errand scenarios are comparable.
+	#
+	# Hunter starts dry (AR: InitialAmmo 0 in rules.yaml), so nothing here issues a rearm order — the
+	# shipped traits pick the destination. The only dispatcher left alive is
+	# AmmoPool.AutoRearmIfDry via INotifyBecomingIdle; AutoSeekSupplies is switched off in rules.yaml
+	# so a green cannot come from the other mechanism.
+	Hunter: ar
+		Owner: USA
+		Location: 34,16
+		Facing: 768
+	# THE ERRAND TARGET, chosen because it is nearest: chebyshev max(8,4)=8, euclidean ~8.94 from the
+	# Hunter, against FarDepot's ~17.09. ChooseAffordableResupplier picks on EUCLIDEAN distance, so
+	# this one wins the initial pick while both are stocked.
+	#
+	# The .lua drains it to 5 once the Hunter is under way. 5 is below AR's batch price of 10
+	# (AmmoPool@1 SupplyValue: 10, ReloadCount 6, infantry.yaml) and ABOVE zero — that band is the
+	# whole point. A CurrentSupply > 0 filter still admits a depot holding 5, so a fix written against
+	# "empty means zero" leaves this scenario red.
+	#
+	# Offset in Y from the Hunter's line so the walk to FarDepot is not routed through this building's
+	# 3x3 footprint.
+	NearDepot: logisticscenter
+		Owner: USA
+		Location: 26,12
+	# THE ALTERNATIVE, and the thing "goes somewhere else to rearm" has to mean. Further away
+	# (chebyshev 16, euclidean ~17.09) but still inside AmmoPoolInfo.DryRearmLeashCells, which ships
+	# at 30 and is overridden in no mod YAML — so once NearDepot stops counting, this one is a legal
+	# seek target rather than an evacuation trigger.
+	#
+	# 17 cells from the Hunter's start, so he begins well outside its 4c0 infantry aura and cannot be
+	# topped up by it before the errand is even dispatched.
+	FarDepot: logisticscenter
+		Owner: USA
+		Location: 18,22
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 34,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml
