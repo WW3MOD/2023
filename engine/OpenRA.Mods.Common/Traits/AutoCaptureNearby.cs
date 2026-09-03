@@ -128,8 +128,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (!AutoCaptureMath.StancePermitsAutoCapture(fireStance))
 				return;
 
+			var engagementStance = autoTarget?.EngagementStanceValue ?? EngagementStance.Defensive;
 			var radiusCells = AutoCaptureMath.RadiusCellsForStance(
-				autoTarget?.EngagementStanceValue ?? EngagementStance.Defensive,
+				engagementStance,
 				info.DefensiveRadiusCells,
 				info.HuntRadiusCells);
 
@@ -139,6 +140,21 @@ namespace OpenRA.Mods.Common.Traits
 			var target = FindTarget(radiusCells);
 			if (target == null)
 				return;
+
+			// EDGE, TestMode only. This trait walks a unit off its position on its own initiative and
+			// was, until now, silent — so an autotest could see a structure change hands but not WHICH
+			// technician did it. That cost a whole run: a scenario asserting "the HoldFire technician
+			// must not capture this derrick" failed because a DIFFERENT technician six cells away took
+			// it, and the one-line verdict blamed the off switch. One line per decision, naming the
+			// captor, the target and the radius that admitted it. AutoSeekSupplies carries the same
+			// instrumentation for the same reason. Normal play is unaffected.
+			if (TestMode.IsActive)
+				Log.Write("debug",
+					$"[autocap] take tick={self.World.WorldTick} unit={self.Info.Name}#{self.ActorID}@{self.Location} "
+					+ $"owner={self.Owner.PlayerName} target={target.Info.Name}#{target.ActorID}@{target.Location} "
+					+ $"targetowner={target.Owner.PlayerName} "
+					+ $"dist={(target.CenterPosition - self.CenterPosition).HorizontalLength * 100 / 1024}/100c "
+					+ $"fire={fireStance} engagement={engagementStance} radius={radiusCells}c");
 
 			self.QueueActivity(false, new CaptureActor(self, Target.FromActor(target), captures[0].Info.TargetLineColor));
 			self.ShowTargetLines();
@@ -182,7 +198,16 @@ namespace OpenRA.Mods.Common.Traits
 				// actors, and this radius is short enough that anything inside it is next to a unit the
 				// player owns. A shroud test here would make the behaviour depend on which client is
 				// asking, and this runs on the synced side.
-				var distance = (a.CenterPosition - self.CenterPosition).Length;
+				//
+				// HORIZONTAL length, and re-tested against AutoCaptureMath.WithinRadius rather than left
+				// to FindActorsInCircle. The spatial query is a coarse pre-filter — it is free to hand
+				// back more than it was asked for, and it measures on its own terms. Until this line the
+				// radius that actually bound the behaviour was the query's and WithinRadius was dead
+				// code that four NUnit cases pinned, so the tests were asserting a predicate the game
+				// never consulted. The one that runs must be the one under test.
+				var distance = (a.CenterPosition - self.CenterPosition).HorizontalLength;
+				if (!AutoCaptureMath.WithinRadius(distance, radiusCells))
+					continue;
 
 				candidates.Add(new AutoCaptureMath.Candidate(distance, StructureValue(a), a.ActorID));
 				actors.Add(a);

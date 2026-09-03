@@ -3,6 +3,62 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-03 — The `debug.log` copied into an autotest run directory can be a DIFFERENT game's log (`wt/capture-fix`, `main @ cb68ce61`)
+
+Two scenarios failed and the run directories were handed over as *"the only evidence"*. Neither
+`debug.log` was from the run it sat in. Checked, not assumed:
+
+| check | `test-auto-capture-nearby` run dir | that scenario |
+|---|---|---|
+| max `tick=` in log | **10613** | ended at tick 701 |
+| players named | Experimental AI 1–4 | only Neutral, USA, Russia |
+| actor coords | `oilb#1299@80,78` | `Bounds: 1,1,64,32` — y=78 cannot exist |
+| mentions its own actors | **0** | `TechHoldFire`, `DerrickQuiet`, … |
+
+The sibling directory was the same shape (tick 10080, six AI players). **Both files end mid-line on
+a bare `[`** — the signature of copying a file another process is still appending to. So the
+harness is picking up a shared/rolling `debug.log` being written by a concurrent OpenRA instance
+rather than the run's own output. `lua.log` was **0 bytes** in both.
+
+**Consequence: for a `--hidden` run, `result.json`'s one-line verdict is the ONLY trustworthy
+artefact.** Screenshots are listed but never written (rendering is suspended), the logs may belong
+to someone else, and there is no third channel. Anything you want to know afterwards has to be put
+there by the scenario itself, in the verdict string.
+
+**So write attribution INTO the assertion, not around it.** A scenario asserting *"this structure
+must not change hands"* cannot say WHICH unit took it, and that ambiguity cost a full round-trip
+here: a technician six cells outside its intended arm captured the derrick an off-switch test was
+watching, and the verdict blamed the off switch. Concrete lever in this mod: a capture CONSUMES the
+captor (`ConsumedByCapture`, `EnterBehaviour: Dispose`), so `actor.IsDead` is a per-unit statement
+about who did the work — assert that alongside ownership. And have every failure print the whole
+board rather than returning on the first bad check, because "one arm broke" and "nothing ran" are
+different diagnoses that a single-line verdict otherwise cannot distinguish.
+
+## 2026-09-03 — A radius is a circle: autotest arms separated by ROWS are not separated (`wt/capture-fix`, `main @ cb68ce61`)
+
+`test-auto-capture-nearby` laid four independent arms on rows 6/12/18/26 and reasoned about
+x-offsets along each row, under a comment asserting they could not interact. They interacted at
+**7.81 cells** — `sqrt(5² + 6²)` — inside an 8-cell scan radius, so a technician from one arm
+captured another arm's structure and the run failed blaming shipped code that was fine.
+
+Two compounding traps, both arithmetic:
+
+- **Measure centre to centre, not Location to Location.** A 2x2 building's `CenterPosition` sits at
+  `Location + (1.0, 1.0)` cells while a 1x1 unit's sits at `Location + (0.5, 0.5)`, so working in
+  `Location` coordinates understates every unit-to-building distance by ~0.5 cells. Re-deriving the
+  same map with the offsets moved one pair from 20.59 (safe) to **19.24** (inside a 20-cell Hunt
+  radius) — a second latent failure the first correction would have missed.
+- **A walk budget needs the speed.** `^Infantry` `Mobile: Speed: 25` world units/tick against 1024
+  units/cell is **40.96 ticks per cell**. A 20-cell approach is ~819 ticks; the sibling scenario
+  allowed 900 for the walk *plus* the capture, a ~4% margin, and failed with a verdict
+  ("dispatched at but never captured") that reads exactly like a defect in the capture activity.
+
+**Generalisable: when an autotest's arms are supposed to be independent, enumerate every
+cross-pair mechanically before the run.** Both errors here were a five-line script away and neither
+was visible by reading. `CaptureClearDurationTest.InfantryCoverACellInAboutFortyOneTicks` now pins
+the speed the budgets were sized against, so a retune fails loudly instead of re-tightening them.
+
+
 ## 2026-09-03 — The helicopter corner is a velocity-space CHORD, not a circular arc, so the corner-cut lead is `sin(theta/2)` and not the textbook `tan(theta/2)` (`wt/heli-waypoint-flow`, `main @ 414a84aa`)
 
 Static only. `make all` clean, `dotnet test` 2288 green. **No launch was taken**, so nothing below is
