@@ -48,6 +48,16 @@ namespace OpenRA.Mods.Common.Traits
 		///
 		/// <para>So a type no warhead discriminates on is reported as None. A structured field is not
 		/// automatically a true one.</para>
+		///
+		/// <para>BUT <see cref="Type"/> AND <see cref="Thickness"/> ARE TWO INDEPENDENT HALVES of the
+		/// armour model, and only the first is gated on a Versus table. Thickness is read straight off
+		/// the trait and compared against the warhead's Penetration on every hit
+		/// (DamageWarhead.cs:237), whatever the type is called. Reporting it only when the TYPE
+		/// happened to be discriminated made the row lie about gtwr — Unarmored, which no Versus table
+		/// names, with a real Thickness of 25 (structures-defenses.yaml:103-105) — by printing "None"
+		/// for a building whose armour subtracts damage from every weapon that fails to penetrate it.
+		/// It is the only shipped actor in that position; infantry set no Thickness at all, so their
+		/// "None" was true for both halves and stays true.</para>
 		/// </summary>
 		IEnumerable<TooltipElement> IProvideTooltipDescription.ProvideTooltipDescription(ActorInfo ai, Ruleset rules, out int priority)
 		{
@@ -62,11 +72,25 @@ namespace OpenRA.Mods.Common.Traits
 				.SelectMany(w => w.Warheads.OfType<DamageWarhead>())
 				.Any(wh => wh.Versus.ContainsKey(Type));
 
-			var value = "None";
-			if (discriminated)
-				value = Thickness > 0 ? $"{Type} — {Thickness} thick" : Type;
+			return new[] { TooltipElement.Stat("Armour", FormatArmour(Type, Thickness, discriminated)) };
+		}
 
-			return new[] { TooltipElement.Stat("Armour", value) };
+		/// <summary>
+		/// The armour row's value, given a type, its thickness, and whether any warhead's
+		/// <c>Versus</c> table names that type. Split out from the caller, which needs a whole loaded
+		/// Ruleset, so the four combinations can be read and tested on their own.
+		/// </summary>
+		public static string FormatArmour(string type, int thickness, bool discriminated)
+		{
+			// "mm" rather than the previous bare "N thick": Thickness is documented in millimetres,
+			// every other surface in the codebase writes it that way, and "700 thick" is a number a
+			// player cannot place on any scale.
+			var millimetres = thickness > 0 ? $"{thickness}mm" : null;
+
+			if (discriminated)
+				return millimetres != null ? $"{type} — {millimetres}" : type;
+
+			return millimetres ?? "None";
 		}
 	}
 
