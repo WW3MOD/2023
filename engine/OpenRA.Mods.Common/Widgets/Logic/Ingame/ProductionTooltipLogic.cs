@@ -46,11 +46,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var templates = new TooltipRowTemplates(descContainer);
 			descContainer.RemoveChildren();
 
+			// TIME_ICON is no longer drawn (see the build-time block below), but it is still the
+			// widget that authors the gap between an icon and its label in every mod's chrome —
+			// COST_ICON and POWER_ICON declare no X at all and are positioned from here.
 			var iconMargin = timeIcon.Bounds.X;
 
 			var font = Game.Renderer.Fonts[nameLabel.Font];
 			var requiresFont = Game.Renderer.Fonts[requiresLabel.Font];
-			var formatBuildTime = new CachedTransform<int, string>(time => WidgetUtils.FormatTime(time, world.Timestep));
 			var requiresFormat = requiresLabel.Text;
 
 			ActorInfo lastActor = null;
@@ -139,12 +141,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					powerIcon.Visible = false;
 				}
 
-				var buildTime = tooltipIcon.ProductionQueue?.GetBuildTime(actor, buildable) ?? 0;
-				var timeModifier = pm != null && pm.PowerState != PowerState.Normal ? tooltipIcon.ProductionQueue.Info.LowPowerModifier : 100;
-
-				timeLabel.Text = formatBuildTime.Update((buildTime * timeModifier) / 100);
-				timeLabel.TextColor = (pm != null && pm.PowerState != PowerState.Normal && tooltipIcon.ProductionQueue.Info.LowPowerModifier > 100) ? Color.Red : Color.White;
-				var timeSize = font.Measure(timeLabel.Text);
+				// No build-time readout. Build time in WW3MOD is BuildableInfo.BuildDuration, which no
+				// actor authors, so ProductionQueue.GetBuildTime falls through to Cost / 10 for all of
+				// them (ProductionQueue.cs:546-552) — the clock was restating the cash figure printed
+				// directly above it. The one deviation, msar's BuildDurationModifier: 50
+				// (vehicles.yaml:458), is not worth a permanent row on all 54 buildables.
+				// Hidden rather than deleted from chrome: cnc and d2k declare their own
+				// PRODUCTION_TOOLTIP against this same logic, and Widget.Visible defaults to TRUE, so
+				// dropping the Get() here would draw an orphan clock sprite beside an empty label.
+				timeLabel.Visible = false;
+				timeIcon.Visible = false;
 
 				costLabel.Text = cost.ToString();
 				costLabel.GetColor = () => pr.Cash + pr.Resources >= cost ? Color.White : Color.Red;
@@ -159,17 +165,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var leftWidth = Math.Clamp(
 					new[] { nameSize.X + hotkeyWidth, requiresSize.X, descSize.X }.Aggregate(Math.Max),
 					MaxTooltipWidth, MaxTooltipWidth);
-				var rightWidth = new[] { powerSize.X, timeSize.X, costSize.X }.Aggregate(Math.Max);
+				var rightWidth = Math.Max(powerSize.X, costSize.X);
 
-				timeIcon.Bounds.X = powerIcon.Bounds.X = costIcon.Bounds.X = leftWidth + 2 * nameLabel.Bounds.X;
-				timeLabel.Bounds.X = powerLabel.Bounds.X = costLabel.Bounds.X = timeIcon.Bounds.Right + iconMargin;
-				widget.Bounds.Width = leftWidth + rightWidth + 3 * nameLabel.Bounds.X + timeIcon.Bounds.Width + iconMargin;
+				powerIcon.Bounds.X = costIcon.Bounds.X = leftWidth + 2 * nameLabel.Bounds.X;
+				powerLabel.Bounds.X = costLabel.Bounds.X = costIcon.Bounds.Right + iconMargin;
+				widget.Bounds.Width = leftWidth + rightWidth + 3 * nameLabel.Bounds.X + costIcon.Bounds.Width + iconMargin;
 
 				// Set the bottom margin to match the left margin
 				var leftHeight = descContainer.Bounds.Bottom + descContainer.Bounds.X;
 
 				// Set the bottom margin to match the top margin
-				var rightHeight = (powerLabel.Visible ? powerIcon.Bounds.Bottom : timeIcon.Bounds.Bottom) + costIcon.Bounds.Top;
+				var rightHeight = (powerLabel.Visible ? powerIcon.Bounds.Bottom : costIcon.Bounds.Bottom) + costIcon.Bounds.Top;
 
 				widget.Bounds.Height = Math.Max(leftHeight, rightHeight);
 
@@ -216,6 +222,21 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		const int ColumnGap = 6;
 
 		/// <summary>
+		/// Blank space between one weapon's rows and the next weapon's subhead. A stat row measures
+		/// about 13px in the Small font these templates use, so this is the "half a row" the sections
+		/// are meant to be held apart by. Tune here; nothing else reads it.
+		/// </summary>
+		const int SubsectionGapHeight = 6;
+
+		/// <summary>
+		/// Blank space between the last weapon row and the first actor-wide row. Deliberately about
+		/// twice <see cref="SubsectionGapHeight"/>: the two gaps only do their job if a player can
+		/// tell them apart at a glance, which is the whole complaint — with no gap at all, ARMOUR,
+		/// HEALTH and SPEED read as more rows belonging to the grenade launcher above them.
+		/// </summary>
+		const int SectionGapHeight = 12;
+
+		/// <summary>
 		/// Stacks one widget per row down the container and returns the size consumed. Replaces
 		/// measuring one wrapped string: each row is now measured in its own font, which is the
 		/// thing a single <c>LabelWidget</c> could not do however the yaml was written.
@@ -239,6 +260,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						y += 1 + SeparatorMargin;
 						break;
 					}
+
+					case TooltipElementKind.SubsectionGap:
+						y += SubsectionGapHeight;
+						break;
+
+					case TooltipElementKind.SectionGap:
+						y += SectionGapHeight;
+						break;
 
 					case TooltipElementKind.Subhead:
 						y += AddTextRow(container, templates.Subhead, element.Label.ToUpperInvariant(),
@@ -461,16 +490,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var total = pools.Sum(p => p.PoolBudget);
 				contributed.Add((510, TooltipElement.Cost("Full refill", $"{total} supply")));
 
-				// The refill as a fraction of one Logistics Centre — but only for actors a Centre
-				// can actually rearm. Rearmable is that test: without it no host, LC or truck, ever
-				// puts a round in this actor, so relating its refill to a Centre's capacity would be
-				// comparing against a provider it cannot use.
+				// Rearmable is the test for relating this actor to a Centre at all: without it no
+				// host, LC or truck, ever puts a round in it, so a Centre's capacity is a provider it
+				// cannot use. The "Depot share" percentage that used to be stated here is gone at the
+				// user's request; the comparison survives only as the over-capacity warning below,
+				// which is a caveat rather than a number the player has to interpret.
 				var depot = LogisticsCentreCapacity(rules);
 				if (depot > 0 && actor.HasTraitInfo<RearmableInfo>())
 				{
-					var percent = (total * 100f) / depot;
-					contributed.Add((511, TooltipElement.Stat("Depot share", $"{percent:0.#}% of a Logistics Centre")));
-
 					// NO SHIPPED ACTOR CURRENTLY REACHES THIS BRANCH, and it is not dead code by
 					// accident — do not "fix" the Note element on the strength of never seeing it.
 					// The only refills above a Centre's 2250 belong to the strategic launchers
@@ -489,10 +516,52 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (contributed.Count > 0)
 			{
 				elements.Add(TooltipElement.Separator());
-				elements.AddRange(contributed.OrderBy(c => c.Priority).Select(c => c.Element));
+
+				// OrderBy is a stable sort, so the rows a single contributor emitted stay in the order
+				// it emitted them — which is what keeps each weapon's Subhead attached to its own Ammo
+				// and Refill rows once the gaps below are placed between them.
+				elements.AddRange(WithSectionGaps(contributed.OrderBy(c => c.Priority).ToList()));
 			}
 
 			return elements;
+		}
+
+		/// <summary>
+		/// <para>Places the vertical gaps in an already-ordered contribution list: a small one before
+		/// every weapon subhead after the first, and a larger one where the weapons band ends and the
+		/// actor's own stats begin.</para>
+		///
+		/// <para>Separated from <see cref="BuildElements"/>, which needs a whole loaded Ruleset, so
+		/// that where the gaps land is decided by a function that can be read and tested on its own.
+		/// The gaps are element KINDS, not pixel counts, for the same reason every other row is: the
+		/// height each one turns into belongs to the renderer.</para>
+		/// </summary>
+		public static List<TooltipElement> WithSectionGaps(IReadOnlyList<(int Priority, TooltipElement Element)> ordered)
+		{
+			var result = new List<TooltipElement>();
+
+			for (var i = 0; i < ordered.Count; i++)
+			{
+				var element = ordered[i].Element;
+
+				if (i > 0)
+				{
+					// Leaving the weapons band. Tested on the PREVIOUS row's priority rather than by
+					// looking for the first non-Subhead: an actor with no priced ammo pool contributes
+					// no weapon rows at all, and must not get a leading gap before its Armour row.
+					var leftWeapons = ordered[i - 1].Priority == AmmoPoolInfo.TooltipPriority
+						&& ordered[i].Priority != AmmoPoolInfo.TooltipPriority;
+
+					if (leftWeapons)
+						result.Add(TooltipElement.SectionGap());
+					else if (element.Kind == TooltipElementKind.Subhead)
+						result.Add(TooltipElement.SubsectionGap());
+				}
+
+				result.Add(element);
+			}
+
+			return result;
 		}
 
 		/// <summary>
