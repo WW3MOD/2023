@@ -3,6 +3,72 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-03 — Armour is TWO independent halves, and only one of them is gated on a Versus table (`wt/tooltip-cleanup`, `main @ d4e0b1cf`)
+
+Found while answering "why does every soldier's tooltip say Armour: None?".
+
+**`ArmorInfo.Type` and `ArmorInfo.Thickness` are consumed by different code on different terms, and
+conflating them is easy because they are adjacent fields on one trait.**
+
+- `Type` is inert unless some warhead's `Versus` table names it. `DamageWarhead.DamageVersus`
+  (`DamageWarhead.cs:106`) only applies a modifier for types a table actually lists, so an unlisted
+  type takes the default 100%. The tables in `mods/ww3mod/rules/weapons/` discriminate on exactly
+  seven names: `Light`, `Medium`, `Heavy`, `Concrete`, `Wood`, `Brick`, `None`.
+- `Thickness` is read straight off the trait at `DamageWarhead.cs:237` and compared against the
+  warhead's `Penetration` on **every** hit, whatever the type is called. It never consults a table.
+
+Two live consequences:
+
+**`Kevlar` is authored but inert.** `mods/ww3mod/rules/ingame/infantry.yaml:174-175` sets
+`Armor: Type: Kevlar` on `^Soldier`, and it is the ONLY occurrence of the string `Kevlar` anywhere
+under `mods/`. So every soldier resolves to Kevlar and gets nothing for it. Giving infantry real
+protection is a `Versus:` edit in the weapons files, or a `Thickness:`, not an `Armor.Type:` edit —
+the type is already set.
+
+**`gtwr` had 25mm of armour and a tooltip that said None.** `structures-defenses.yaml:103-105` is
+`Type: Unarmored, Thickness: 25`. `Unarmored` is a *target type* here as well as an armour type
+(`weapons-ballistics.yaml:14, 178`) which is why it reads as familiar, but it is in no `Versus`
+table. The tooltip gated the whole row on the type being discriminated, so the thickness was
+suppressed with it. It is the only shipped actor in that position — the sole `Thickness > 0` paired
+with an undiscriminated type. Fixed in `ArmorInfo.FormatArmour`.
+
+Related: **`Thickness` is millimetres** (`Armor.cs:28`, and `BallisticPenetrationTest.cs:265` writes
+it that way), but the tooltip rendered it as a bare `"{N} thick"`. Now `"{N}mm"`.
+
+## 2026-09-03 — WW3MOD build time is Cost / 10 for every buildable but one (`wt/tooltip-cleanup`, `main @ d4e0b1cf`)
+
+`BuildableInfo.BuildDuration` defaults to -1, meaning "derive from cost", and **no actor in the mod
+authors it** — `grep -rn "BuildDuration" mods/` returns exactly one line, and it is a
+`BuildDurationModifier`. So `ProductionQueue.GetBuildTime` (`ProductionQueue.cs:546-552`) falls
+through to `GetProductionCost(unit) / 10` throughout.
+
+The composition around it is almost entirely inert, which is the part worth recording because the
+config *looks* active:
+
+- `msar` sets `BuildDurationModifier: 50` (`vehicles.yaml:458`) — the one real deviation. Cost 1600,
+  so 160 ticks becomes 80.
+- `BuildTimeSpeedReduction` and `BuildingCountBuildTimeMultipliers` in `player.yaml:29, 39, 51, 63,
+  76, 88` are **dead**. Both are read only inside `if (info.SpeedUp)`
+  (`ClassicProductionQueue.cs:143`, `ClassicParallelProductionQueue.cs:219`), `SpeedUp` defaults to
+  `false` (`:27` / `:28`), and nothing in `mods/` sets it. The arrays are authored, plausible, and
+  never consulted.
+- `ParallelPenaltyBuildTimeMultipliers: 100` (`player.yaml:64`) affects `RemainingTimeActual`, not
+  `GetBuildTime`, and 100 is a no-op anyway.
+- `HandicapProductionMultiplier` (`defaults.yaml:1047`) IS live and does scale both cost and time,
+  but returns 100 at handicap 0 (`HandicapProductionMultiplier.cs:23-30`), which is the default.
+
+## 2026-09-03 — `Cargo.MaxWeight` is a weight budget the tooltip prints as a headcount (`wt/tooltip-cleanup`, `main @ d4e0b1cf`)
+
+`Cargo.cs:47` renders `$"{MaxWeight} infantry"`. That is only a passenger count while every passenger
+weighs 1 — which is true today, because `Passenger.Weight` defaults to 1 (`Passenger.cs:29`) and is
+never overridden in `mods/`. The trait documents this. Recorded because the first `Passenger.Weight:
+2` authored in this mod silently makes every transport tooltip overstate its capacity, and nothing
+will fail.
+
+Found via the reverse error: `pbox` and `hbox` descriptions claimed "Garrisons 2 soldiers" against a
+`MaxWeight` of 4 (`structures-defenses.yaml:225`, `:324`), so the hand-written figure and the
+generated row disagreed on screen.
+
 ## 2026-09-03 — Selection bars have NO frozen-under-fog path, so the live/frozen split that has bitten this repo repeatedly cannot apply to them (`wt/defeated-sr-bar`, `main @ 414a84aa`)
 
 Read-only tracing while fixing the defeated-SR contestation bar. Worth recording because the standing

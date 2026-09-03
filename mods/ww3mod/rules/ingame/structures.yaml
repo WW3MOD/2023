@@ -288,7 +288,7 @@ SUPPLYROUTE:
 		Queue: Building
 		BuildPaletteOrder: 1000
 		Prerequisites: ~disabled
-		Description: Delivers reinforcements from off-map.\n\n - Units spawn at map edge\n - Walk to rally point
+		Description: Delivers reinforcements from off-map. Units spawn at the map edge and walk to the rally point.
 	Tooltip:
 		Name: Supply Route
 	Health:
@@ -412,7 +412,7 @@ LOGISTICSCENTER:
 		Queue: Building
 		BuildPaletteOrder: 1000
 		Prerequisites: ~disabled
-		Description: Service depot for vehicle repair and rearming.\n\n - Repairs damaged vehicles\n - Restocks ammunition
+		Description: Service depot that repairs damaged vehicles and restocks their ammunition.
 	Tooltip:
 		Name: Logistics Center
 	# USER RULING 2026-08-22: "the LC should cost 3000". Held EQUAL to LCCV's cost, because the same
@@ -594,7 +594,7 @@ HPAD:
 		Queue: Building
 		BuildPaletteOrder: 7
 		Prerequisites: ~disabled, ~techlevel.medium
-		Description: Produces and rearms helicopters.\n\n - Helicopter production\n - On-map rearm point
+		Description: Produces helicopters and serves as an on-map rearm point for them.
 	Valued:
 		Cost: 1000
 	Tooltip:
@@ -662,7 +662,7 @@ AFLD:
 		Queue: Building
 		BuildPaletteOrder: 8
 		Prerequisites: ~disabled, ~techlevel.medium
-		Description: Produces and rearms fixed-wing aircraft.\n\n - Airplane production\n - On-map rearm point
+		Description: Produces fixed-wing aircraft and serves as an on-map rearm point for them.
 	Valued:
 		Cost: 1500
 	Tooltip:
