@@ -229,7 +229,7 @@ const IMG_cmissicon='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAYAA
 
 const POWERS = [
   { id:'kinzhal', side:'ru', name:'Kh-47M2 Kinzhal', sub:'Air-launched hypersonic, conventional warhead',
-    icon:'precicon', art:'reuse', artNote:'precicon &mdash; caption reads PRECISION STR', engine:'edge entry',
+    icon:'precicon', art:'have', artNote:'ships &mdash; precicon, PRECISION STR', engine:'edge entry',
     intercept:'no', price:4000, on:true,
     note:'Mach 10 terminal, no practical intercept. Fast, precise, single point.' },
   { id:'usfast', side:'us', name:'US fast strike', sub:'Chosen in panel C',
@@ -238,16 +238,16 @@ const POWERS = [
     note:'The Kinzhal counterpart. Panel C decides what it actually is.' },
   { id:'kalibr', side:'ru', name:'3M-14 Kalibr', sub:'Sea/ground-launched cruise missile',
     icon:'artystrikicon', art:'new', artNote:'artystrikicon reads ARTY BARRAGE', engine:'edge entry',
-    intercept:'yes', price:1500, on:true,
-    note:'Subsonic, long run-in, shootable by AA vehicles. Cheap and spammable.' },
+    intercept:'yes', price:1500, on:false,
+    note:'DEFERRED in the recommended cut — nothing in the shipped game can currently intercept anything.' },
   { id:'tomahawk', side:'us', name:'BGM-109 Tomahawk', sub:'Cruise missile',
     icon:'artystrikicon', art:'new', artNote:'new 64&times;48 cameo', engine:'edge entry',
-    intercept:'yes', price:1500, on:true,
-    note:'The US mirror of Kalibr. Same tier, same counters.' },
+    intercept:'yes', price:1500, on:false,
+    note:'DEFERRED in the recommended cut. The US mirror of Kalibr, same tier and counters.' },
   { id:'nuke', side:'both', name:'Tactical nuclear strike', sub:'The shipped Atomic warhead',
-    icon:'atomicon', art:'have', artNote:'atomicon &mdash; caption reads NUCLEAR BOMB', engine:'none',
-    intercept:'no', price:15000, on:false,
-    note:'Weapon, art, audio and beacon all ship today. The open question is design, not code.' }
+    icon:'atomicon', art:'have', artNote:'ships &mdash; atomicon, NUCLEAR BOMB', engine:'none',
+    intercept:'no', price:15000, on:true,
+    note:'Weapon, art, audio and beacon all ship today. Recommended IN, lobby-gated OFF by default.' }
 ];
 
 const US_OPTIONS = [
@@ -263,10 +263,10 @@ const US_OPTIONS = [
 ];
 
 const PRESETS = [
+  { id:'rec',  label:'★ Recommended (3)', pick:['kinzhal','usfast','nuke'] },
   { id:'min',  label:'Minimum (2)',   pick:['kinzhal','usfast'] },
-  { id:'rec',  label:'Recommended (4)', pick:['kinzhal','usfast','kalibr','tomahawk'] },
-  { id:'all',  label:'Everything (5)', pick:['kinzhal','usfast','kalibr','tomahawk','nuke'] },
-  { id:'cheap',label:'Art-cheapest (3)', pick:['kinzhal','usfast','nuke'] }
+  { id:'four', label:'With cruise tier (4)', pick:['kinzhal','usfast','kalibr','tomahawk'] },
+  { id:'all',  label:'Everything (5)', pick:['kinzhal','usfast','kalibr','tomahawk','nuke'] }
 ];
 
 const TANK = 2450;
@@ -431,8 +431,8 @@ document.getElementById('send').onclick = () => {
   setTimeout(()=>document.getElementById('sent').textContent='',2500);
 };
 document.getElementById('reset').onclick = () => {
-  POWERS.forEach(p => { const d = ({kinzhal:[4000,true],usfast:[4000,true],kalibr:[1500,true],
-    tomahawk:[1500,true],nuke:[15000,false]})[p.id]; p.price=d[0]; p.on=d[1]; });
+  POWERS.forEach(p => { const d = ({kinzhal:[4000,true],usfast:[4000,true],kalibr:[1500,false],
+    tomahawk:[1500,false],nuke:[15000,true]})[p.id]; p.price=d[0]; p.on=d[1]; });
   usPick='mop'; renderAll();
 };
 window.addEventListener('message', e => {

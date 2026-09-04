@@ -1,8 +1,11 @@
 # Missile strike powers — design proposal for v1
 
-**Written against `main @ 2c8488ef`.** Static analysis only; **no game was launched and no autotest
-was run** — launches serialize through the parent manager by standing instruction, so every claim
-here is read from code, and the runs that would settle the rest are listed in §8.
+**Written against `main @ 84077cc4`.** The four research passes below were run at `2c8488ef`; the
+two commits since (`8bbc1585`, `84077cc4` — the buy-menu redesign) were checked against this
+proposal and change nothing in it, for the reason given in §2.6. **Static analysis only; no game was
+launched and no autotest was run** — launches serialize through the parent manager by standing
+instruction, so every claim here is read from code, and the runs that would settle the rest are
+listed in §8.
 
 **Tick rate is 16.667 tps** (`Timestep: 60` ms). Every duration below uses that, not 25.
 
@@ -28,34 +31,88 @@ option live so they can be moved and sent back.
 
 ## 1. The recommendation, up front
 
-**Ship four buy entries built from two missile profiles, and add the nuclear strike as a fifth entry
-that is lobby-gated OFF by default.**
+**Ship three buy entries: the Kinzhal, one US fast strike, and the tactical nuclear strike. Defer
+the cruise-missile tier entirely.**
 
-| # | Power | Faction | Speed | Interceptable | Art |
-|---|---|---|---|---|---|
-| 1 | **Kh-47M2 Kinzhal** | Russia | fast | **no** | reuse `precicon` or new |
-| 2 | **US fast strike** (§4) | America | fast | **no** | new cameo |
-| 3 | **3M-14 Kalibr** | Russia | slow | **yes — AA vehicles** | new cameo |
-| 4 | **BGM-109 Tomahawk** | America | slow | **yes — AA vehicles** | new cameo |
-| 5 | **Tactical nuclear strike** | both | — | no | **ships today** (`atomicon`) |
+| # | Power | Faction | Interceptable | Cameo |
+|---|---|---|---|---|
+| 1 | **Kh-47M2 Kinzhal** | Russia | no | **ships** — `precicon`, captioned `PRECISION STR` |
+| 2 | **US fast strike** (§4) | America | no | **one new cameo** |
+| 3 | **Tactical nuclear strike** | both | no | **ships** — `atomicon`, captioned `NUCLEAR BOMB` |
 
-**Why four and not two.** Counts go in twos, because every power needs a factional pair. Two entries
-(one fast strike each) would prove the pipeline and cost the least — but it drops the interceptable
-tier, which is the half of the user's concept with any tactical texture in it. Four entries cost
-**one extra YAML profile**, not one extra feature: both tiers are the same trait separated by three
-numbers (§5). The expensive part — off-map delivery — is paid once and serves all four.
+*Deferred to v1.1: 3M-14 Kalibr and BGM-109 Tomahawk — the interceptable cruise tier.*
 
-**Why the nuke is a near-free fifth.** Its weapon, art, audio, beacon and cursor all ship today; the
-only thing missing was a way to buy and fire it, which is exactly what this feature builds. Adding
-it costs one buildable entry. **Gating it OFF by default keeps the doomsday design conversation out
-of a locked v1** while letting anyone who wants it tick a box. If the user would rather not see it
-at all in v1, dropping it is one deleted entry.
+This is the mockup's **"Art-cheapest (3)"** preset, and the three arguments for it converge:
 
-**What to defer.** Everything in `WORKSPACE/archive/plans/260324-nukes.md` beyond the single tactical
-launch — the DEFCON ladder, the win-condition inversion where the player who orders the all-out
-strike is declared the loser. That is a separate system touching `MustBeDestroyed` and the
-`TimeLimitManager` block (`world.yaml:548-562`). §7 argues it gets *cheaper*, not harder, by shipping
-this first.
+**1. The cruise tier's whole selling point does not work in the shipped game.** Its reason to exist
+is that you can shoot it down — and **nothing in the mod can currently intercept anything** (§2.3,
+independently confirmed by the parent). Shipping it honestly means also repairing the counter-layer,
+which is a second feature with its own balance pass. Deferring it removes that dependency completely.
+
+**2. It is the only cut that needs no changes to any existing unit.** An uninterceptable-only first
+cut requires **no** `ICBM` additions to `Stinger.quad` or `9M311`, and no `^AutoTargetAAIFV` priority
+edit. Blast radius on shipped balance: **zero**. The cruise tier is what drags other actors in.
+
+**3. Art.** Two of the three entries ship with correct captions today; the cruise tier needs two new
+cameos and is the most art-expensive part of the feature (§6). One new cameo for the whole first cut,
+against three.
+
+It also lands closest to what the user actually asked for — *"just a few powers for now, see how they
+land"* — while still answering three of their four named ideas. The one deferred is the one whose
+supporting machinery is broken.
+
+**Why the nuke stays in rather than being the thing deferred.** It is the cheapest entry in the
+table: weapon, art, audio, beacon and cursor all ship today, and the only missing piece was ever a
+way to buy and fire it — which is exactly what this feature builds. The user asked for it by name.
+**Ship it lobby-gated, default OFF**, so the unresolved doomsday design in
+`WORKSPACE/archive/plans/260324-nukes.md` stays out of a locked v1 while remaining one tickbox away.
+If the user would rather not see it at all, deleting the entry is a one-line change.
+
+**Cost of adding the cruise tier back later:** one YAML actor profile per faction, two cameos, and
+`ICBM` on two weapons plus one auto-target template. **No engine work** — it shares the delivery
+trait built for the first cut. It is a genuinely cheap follow-on *once the counter-layer works*.
+
+---
+
+## 1a. Correcting the framing: both tiers are actors, and that is good news
+
+The parent's reading — *"the uninterceptable Kinzhal can be whatever is cheapest to build, while the
+interceptable cruise missile must be an actor"* — is half right, and the half that fails is the one
+that would have shaped the build.
+
+**The cruise half holds and is verified.** A projectile cannot be targeted: `IProjectile` is a marker
+on `IEffect`, which declares only `Tick` and `Render` (`WeaponInfo.cs:71`, `IEffect.cs:17-21`).
+Anything shootable must be an actor, which is exactly `^ShootableMissile`.
+
+**The Kinzhal half does not survive the user's own requirement.** The cheapest untargetable delivery
+is `NukePower`, whose missile is a `NukeLaunch` effect — untargetable by construction. But
+**`NukePower` descends vertically onto the target and cannot be made to arrive from anywhere else.**
+Read directly at `84077cc4`:
+
+```csharp
+// engine/OpenRA.Mods.Common/Projectiles/NukeLaunch.cs:73-78
+var offset = new WVec(WDist.Zero, WDist.Zero, velocity * (impactDelay - turn));
+ascendSource  = launchPos;
+ascendTarget  = launchPos + offset;
+descendSource = targetPos + offset;   // directly above the target
+descendTarget = targetPos;
+```
+
+The offset is **Z-only**. `descendSource` is the target's own position raised straight up, so the
+descent is always vertical. `SkipAscent` sets `turn = 0` (`:62`), which makes the offset *larger* —
+it starts the missile *higher*, still directly overhead. There is no field that reaches it. This is
+structural, not a tuning gap.
+
+The user asked for a strike that *"comes in from the map edge at high speed"*. **So the Kinzhal
+cannot use the cheap path either, and both tiers end up as actors on one shared delivery trait.**
+
+**That is the good news, not the bad.** The engine's actor/projectile line does not split the
+feature into two implementation shapes — the map-edge requirement collapses them onto one. There is
+**one** delivery trait to write, and the tiers differ only in YAML. Untargetability becomes a
+`TargetTypes` value that nothing lists, not a different kind of object — which is also why the
+deferred cruise tier costs no engine work to add back.
+
+---
 
 ---
 
@@ -200,17 +257,76 @@ mechanism a DEFCON ladder would later need.
 
 ---
 
-## 3. How many powers, and which
+### 2.6 The buy-menu redesign does not reach this feature — checked, not assumed
 
-Answered in §1: **four entries, two profiles, plus a default-off nuke.**
+`WORKSPACE/buymenu-redesign-note.md` §0.1 (on `main` since `84077cc4`) establishes that the apparent
+free space around the icon grid **is the sidebar frame**: `x 0–40` is an opaque brushed-metal panel
+with a 3 px bevel, `x 229–237` the right bevel, and both sit *outside* the three columns — so a mark
+drawn there cannot name a single unit. That is a geometry fact and it kills a whole class of sidebar
+ideas.
 
-The cost of adding the rest later is low and worth stating so the user can defer without fear. Once
-the delivery power exists and one profile is tuned, **a further power is a YAML block plus a cameo** —
-new actor definition, new buildable entry, new lobby checkbox. No engine work, no new mechanism.
-The only powers that would cost more are ones needing a *different delivery* (a loitering weapon, a
-multi-warhead salvo landing on separate points, anything that persists on the map).
+**It does not touch this feature, for a structural reason.** The powers bin is
+`Container@SUPPORT_POWERS` at `X: 10, Y: 10` (`ingame-player.yaml:16-38`) — a **top-level sibling**
+of `Container@SIDEBAR_PRODUCTION` (`:1149`), not a child of it. It sits in the game viewport at
+screen top-left, has no columns, and draws its **own** per-icon frame: `background-supportoverlay`
+at 62×46, cloned per icon by `SupportPowerBinLogic`. Nothing in this proposal depends on space near
+the production palette, and no power icon is ever drawn inside the sidebar frame.
+
+The one place the feature *does* touch the sidebar is the Powers tab, and the redesign note carries
+the four spare tab slots forward from the audit unchanged (`:65`). A Powers tab remains the **fourth
+visible tab of seven slots**, at no layout cost.
+
+### 2.7 The disabled counter-layer is a real v1 gap — and it is not this feature's to fix
+
+All three ICBM-capable defences ship gated off, while the launchers that outrange them do not:
+
+| Actor | Cost | `Buildable.Prerequisites` |
+|---|---|---|
+| `CRAM` | 1000 | `~disabled` |
+| `AGUN` | 800 | `~disabled` |
+| `SAM` | 2000 | `~disabled` |
+| `iskander` / `HIMARS` | 6000 | `~player.<faction>, ~vehicles.<faction>, ~techlevel.high` — **buildable** |
+
+**Recommendation: enabling them is NOT part of this first cut, and the parent should take it as a
+separate v1 balance item.** Three reasons:
+
+1. **It is not caused by this feature and does not block it.** The gap exists today because of the
+   shipped Iskander and HIMARS. With the cruise tier deferred (§1), nothing in the first cut is
+   interceptable, so the first cut neither creates nor depends on the gap.
+2. **Un-gating three defence structures is a balance change with its own blast radius** — new
+   buildables in the Defense queue, new counters to existing aircraft, and a benchmark re-baseline.
+   Bundling it into a powers proposal would hide a balance decision inside a feature.
+3. **It is the prerequisite for the deferred tier, so it wants to land first anyway.** Repairing the
+   counter-layer and then adding the cruise missiles is the right order; doing both at once means
+   neither can be evaluated.
+
+**One caution for whoever picks it up.** Un-gating is one line each, but `20mm_CRAM` — the gun on
+the actor literally named for counter-rocket defence — has the **lowest muzzle velocity in the mod**
+and misses a ballistic missile by ~11 cells (§2.2). **Enabling `CRAM` would ship a counter-battery
+building that cannot hit what it is named for.** The only weapon that comfortably runs a missile
+down is `SurfaceToAirMissile` at speed 800, on `SAM`. That item is a weapons fix, not a prerequisite
+edit, and should be scoped as one.
 
 ---
+
+## 3. How many powers, and what is deferred
+
+Answered in §1: **three entries — Kinzhal, one US fast strike, and the tactical nuke. The
+cruise-missile tier is deferred.**
+
+**Explicitly deferred, against the user's four named ideas:**
+
+| User's idea | Verdict |
+|---|---|
+| Kinzhal hypersonic, uninterceptable | **ships** |
+| A US near-equivalent | **ships** — §4 picks which |
+| Cruise missiles, shootable by AA vehicles not MANPADs | **deferred to v1.1** — its counter-layer does not work (§2.7) |
+| Nuclear strike as a power | **ships, lobby-gated OFF by default** |
+
+Adding a further power later is a YAML block plus a cameo — new actor definition, buildable entry,
+lobby checkbox. **No engine work**, because the delivery trait built for the first cut serves any
+number of them. The only powers that would cost more are ones needing a *different delivery*: a
+loitering weapon, a salvo landing on separate aim points, or anything that persists on the map.
 
 ## 4. What is the US answer to the Kinzhal?
 
@@ -243,7 +359,53 @@ priority is shipping.
 
 ---
 
-## 5. Interception, stated as the shipped design
+## 4a. The art cost — this shaped the first cut rather than being found after it
+
+The sequence bindings at `sequences-misc.yaml:14-42` look like a ready-made set of power cameos, and
+every reference resolves cleanly. **The names lie.** Decoded through the engine's own SHP loader
+(`WORKSPACE/mockups/buymenu_shp_dump.py`) and looked at:
+
+| Sequence / SHP | What the picture actually is | Baked caption |
+|---|---|---|
+| `icon: abomb` → `atomicon.shp` | mushroom cloud | **`NUCLEAR BOMB`** ✔ usable |
+| `icon: precicon` → `precicon.shp` | explosion on a target | **`PRECISION STR`** ✔ usable |
+| `icon: cmissicon` → `cmissicon.shp` | **biohazard trefoil** | `CHEMICAL STRIKE` ✘ |
+| `missicon.shp` | **a building** | `TECH CENTER` ✘ |
+| `icon: artyicon` → `artystrikicon.shp` | rockets in flight | `ARTY BARRAGE` ✘ |
+| `v2rlicon.shp` | truck-mounted launcher | `V2 LAUNCHER` ✘ |
+| `icon: paranuke` → `paranukeicon.shp` | falling bomb + canopy | `PARANUKE` ✘ |
+
+**`cmissicon` is a chemical strike, not a cruise missile.** Anyone costing this feature off the
+sequence names — as this agent initially did — concludes the cruise-missile art is free. It is not.
+Captions are **baked into the pixels** at rows 42–46 of each 64×48 cameo, so a wrong caption is not
+a config change.
+
+And the pipeline does not cover them: `tools/cameo/convert.py` carries a **49-entry roster with zero
+power icons in it**, so any new power cameo needs the roster extended as well as the art drawn.
+
+### What each candidate cut costs in new cameos
+
+| Cut | New cameos needed |
+|---|---|
+| **Recommended (3): Kinzhal, US strike, nuke** | **1** — Kinzhal reuses `precicon`, nuke uses `atomicon` |
+| Four (adds the cruise pair) | **3** |
+| All five ideas | **3–4** |
+
+**This is why the cruise tier is the right thing to defer and the nuke is the wrong thing.** The
+nuke is the only entry in the whole feature whose cameo is both present *and* correctly captioned;
+the cruise pair is the most art-expensive part of it.
+
+**One honest wrinkle in the recommended cut:** reusing `precicon` for the Kinzhal gives Russia a
+generic `PRECISION STR` caption while America gets bespoke art. If that asymmetry reads badly, the
+fix is a second new cameo — two total, still cheaper than any other cut.
+
+---
+
+## 5. Interception — the design for the deferred tier
+
+*The recommended first cut contains nothing interceptable, so none of this is v1 work. It is
+recorded because it is the design the cruise tier would ship with, and because the numbers are what
+justify deferring it.*
 
 Both tiers use `BallisticMissile` — arc-only, no level-flight cruise mode, but `LaunchAngle` defaults
 to `WAngle.Zero` (`BallisticMissile.cs:27`), so a near-flat run-in is expressible. The two profiles
@@ -379,13 +541,19 @@ harness's other artefacts are not trustworthy.
 
 ## 9. What the user needs to rule on
 
-1. **Four entries plus a default-off nuke** — or two, or all five on by default?
-2. **Which US answer** — LRHW (safe), MOP bunker-buster (recommended), or JASSM salvo?
-3. **Prices.** Proposed in the mockup and movable there: cruise 1500, fast strike 4000, nuke 15000,
-   against a main battle tank at ~2450 and an Iskander at 6000 for two shots.
-4. **Is the cruise tier worth its risk?** Its selling point is a counter-path that has probably never
-   worked in a live game (§2.3). Shipping only the uninterceptable tier is smaller and safer, and
-   loses the tactical texture.
+1. **Three powers, or more?** Recommended: Kinzhal, one US fast strike, and the nuke, with the
+   cruise-missile tier deferred to v1.1. The alternative is four or five entries, at the cost of two
+   more cameos and a dependency on a counter-layer that does not currently work.
+2. **Which US answer** (§4) — LRHW "Dark Eagle" (safe, and effectively a Kinzhal reskin), the
+   **GBU-57 MOP bunker-buster** (recommended — makes the factions play differently for one extra
+   warhead profile), or a JASSM-ER salvo (most distinctive, most expensive).
+3. **Prices.** Movable in the mockup. Proposed: fast strike 4000, nuke 15000, against a main battle
+   tank at ~2450 and an Iskander at 6000 for two shots. The warhead anchors in §5a are what these
+   should be argued from.
+4. **Does the nuke ship at all in v1?** Recommended in, lobby-gated OFF by default. It is the
+   cheapest entry in the table and the user asked for it by name, but it is also the one carrying an
+   unresolved design in their own words.
+5. **Should the Kinzhal reuse the `PRECISION STR` cameo**, or wait for bespoke art? (§4a)
 
 ## 10. The single biggest risk
 
