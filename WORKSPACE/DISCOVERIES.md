@@ -3,6 +3,69 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-04 — Autobuild is a per-ITEM flag, not a mode; and the buy-menu rank strip lands on baked cameo text (`wt/buymenu-audit`, `main @ d421e4ca`)
+
+Read-only audit of the production sidebar. Full writeup: `WORKSPACE/recon/buymenu-audit.md`.
+
+**1. There is no autobuild queue.** `ProductionItem.Infinite`
+(`engine/OpenRA.Mods.Common/Traits/Player/ProductionQueue.cs:772`) is a per-entry bool. Its only
+effect is in `EndProduction` (`:645-649`): a flagged entry, on completion, appends a fresh copy **at
+the queue tail**. So autobuild is the *lowest*-priority thing in a queue, never tops up to a target,
+never reads what you own, and "cycle size" is just how many flagged entries you Alt+clicked. Any doc
+or copy describing it as a mode, a target count, or a ratio against your army is wrong.
+
+**2. Two autobuild scopes share one flag, and the wider one silently overwrites the narrower.**
+Per-icon Alt+click sets `Infinite` on those entries (`ProductionPaletteWidget.cs:458`); per-tab
+Alt+click runs `ToggleRepeatProduction`, which does `foreach (var item in Queue) item.Infinite =
+RepeatMode` over **every type in the tab** (`ProductionQueue.cs:536-543`), and while RepeatMode is on
+`BeginProduction` flags every new item too (`:655-657`). Toggling the tab off therefore strips
+per-icon autobuild you set deliberately, and while it is on a plain left-click is an autobuild order
+that looks identical to a normal one.
+
+**3. One right-click on a mixed stack refunds and deletes the manual copies too.**
+`CancelProductionInner` (`:610-635`): if *any* entry of the clicked type carries `Infinite`, it
+strips the flag from all of them and removes every queued entry of that type except the in-flight
+one — it never checks which ones were actually flagged.
+
+**4. `ClassicParallelProductionQueue.IsProducing` returns `Queue.Contains(item)`
+(`ClassicParallelProductionQueue.cs:143-146`) — true for everything.** Any widget state derived from
+`IsProducing` is therefore structurally dead on the infantry tab, which is the only queue using that
+class (`mods/ww3mod/rules/player.yaml:57`). Today that kills the "waiting" colour and the lone-item
+count badge (`ProductionPaletteWidget.cs:777`, `:825`). **Check this override before deriving
+anything from `IsProducing`.**
+
+**5. The infantry countdown under-reports by exactly 2× with ≥2 types queued.** [derived, not
+observed] With `ParallelPenaltyBuildTimeMultipliers: 100` (`player.yaml:69`, one element),
+`TickInner` advances on every second tick (`ClassicParallelProductionQueue.cs:110-117`) and rotates
+types after each advance (`:125-130`), so an entry advances once per `2n` ticks with *n* types
+queued — while `RemainingTimeActual` (`:230-239`) reports `remaining × n`.
+
+**6. `ProductionIconOverlayManager` is declared but inert, and cannot carry banked ranks.**
+`mods/ww3mod/rules/player.yaml:233-236` declares it, but `grep -rn "WithProductionIconOverlay" mods/`
+returns **nothing**, so `overlayActive` is never populated and `IsOverlayActive` is always false
+(`ProductionIconOverlayManager.cs:92-98`). Structurally it is one sprite fixed at construction
+(`:66-68`), a `bool` per actor, driven by player-global TechTree prerequisites — it cannot express a
+tier or a count, and its `Offset` is hardcoded (`:85-90`). **The art it names is good though:**
+`mods/ww3mod/bits/misc/ui/iconchevrons.shp` is md5-identical to stock RA's, 4 frames of gold rank
+insignia with ink 14×10 / 14×14 / 14×18 / 15×16 — five times the area of the 6×3 polylines the
+widget hand-draws today.
+
+**7. Cameo geometry, measured by decoding the shipped SHPs.** 204 icons are 64×48, 40 are 60×48,
+against a 62×46 cell (`ingame-player.yaml:1180`) — so 64-wide art bleeds 2 px left over the 1 px
+gutter and 60-wide art leaves 2 px bare at the right. **Every cameo bakes its name into art rows
+41–46 (= cell rows 38–45), full width**, which matches the generator at `tools/cameo/convert.py:133-147`
+and is confirmed by decoding ten shipped files. The rank strip added in `908a2719` occupies cell rows
+33–45 across x 4–54 at full 3/2/1 stock, i.e. straight over that name band. That commit's claim that
+"bottom-left is the only corner nothing else claims" enumerates the widget's own overlays and misses
+the caption, because the caption is pixels in the `.shp` rather than a draw call. **When placing
+anything on a production icon, the art is not a blank canvas — decode it first.**
+`WORKSPACE/mockups/buymenu_shp_dump.py` does that without launching anything.
+
+**8. None of the icon's modifiers are documented in game.** The only player-facing mention of any of
+this is the three category-tab tooltips (`ingame-player.yaml:1208`, `:1226`, `:1244`), which describe
+the *tab*. Alt (autobuild), Shift (×5), **Ctrl (queue-jump — insert at position 1,
+`ProductionQueue.cs:659-661`)** and Ctrl+Alt (select-by-type) are undiscoverable.
+
 ## 2026-09-03 — An autotest assertion on a CONSUMABLE quantity must read a history, not the live value (`wt/rank-verdict-fix`, `main @ ba5e1d0c`)
 
 `test-rank-accumulation` returned **the wrong verdict while its own log disproved it**: it reported
