@@ -5,7 +5,7 @@
 -- =====================================================================================
 -- Accumulated purchase ranks: every buildable combat type banks free veterancy over time, and the
 -- next purchase of that type arrives at the highest rank banked. The arithmetic is already covered
--- by 45 NUnit cases over pure functions (RankAccrualTest). What those cannot reach is the
+-- by 59 NUnit cases over pure functions (RankAccrualTest). What those cannot reach is the
 -- INTEGRATION, and that is the whole reason this scenario exists:
 --
 --   * that the timer actually runs in a live world and fills the bank,
@@ -65,13 +65,21 @@
 -- THE SCHEDULE
 -- =====================================================================================
 -- This scenario runs the SHIPPED configuration -- rules.yaml overrides nothing. abrams costs 2500,
--- so its build time is 2500/10 = 250 ticks, and at the shipped Rank1IntervalMultiplier of 500
--- percent ("every 5 units built can get rank 1", the user's rule) the rank-1 interval is
--- 5 x 250 = 1250 ticks. Grants land at 1250, 2500, 3750. The cap is 3 and is never reached here.
+-- so its build time is 2500/10 = 250 ticks, and the shipped curve turns that into a rank-1 interval
+-- of 6666 ticks. The curve is NOT linear in build time any more: the cost term is the geometric
+-- mean sqrt(buildTime x CostReferenceBuildTicks), added to a flat Rank1BaseIntervalTicks floor and
+-- capped by Rank1MaxIntervalTicks, which is what holds the whole roster inside a 3:1 spread. See
+-- RankAccrual.Rank1IntervalTicks. Grants land at 6666 and 13332; the cap is 3 and is never reached.
 --
---   Phase A  order at tick 60.   Bank is empty (first grant is at 1250).  EXPECT level 0.
+-- That interval is deliberately slow -- the retune of 2026-09-04 made it about 5x slower for a tank
+-- and 120x slower for the cheapest infantry -- so THIS SCENARIO IS NOW LONG. It needs roughly 9200
+-- ticks to reach a verdict where the previous version needed 3000. That is inherent to grading the
+-- shipped rate: the only way to make it quick again is to stage a faster multiplier in rules.yaml,
+-- which is exactly the mistake documented below and must not be reintroduced.
+--
+--   Phase A  order at tick 60.   Bank is empty (first grant is at 6666).  EXPECT level 0.
 --                                Guards against handing out rank for free.
---   Phase B  order at tick 1300. One grant has landed, unspent.           EXPECT level 1.
+--   Phase B  order at tick 6716. One grant has landed, unspent.           EXPECT level 1.
 --                                Proves accrual -> queue -> delivered actor, and SPENDS the bank.
 --   Phase C  evacuate B's tank, then order once the credit is seen.       EXPECT level 1.
 --
@@ -81,7 +89,7 @@
 -- evacuation only when it lands within three ticks of the tank's disposal -- the credit is raised
 -- from INotifySold.Sold at exactly that moment. The one reading this cannot separate is an accrual
 -- grant arriving simultaneously with the evacuation; the schedule keeps them apart by fitting the
--- whole of phase C inside the 1250-tick gap between grants.
+-- whole of phase C inside the 6666-tick gap between grants, which the retune made roomier.
 --
 -- ONE-TICK RACE, worth knowing before editing any assertion here. A purchase SPENDS the bank on the
 -- tick the unit is produced, but DrainPending deliberately defers reading that unit's level to the
@@ -95,8 +103,37 @@
 -- actually configured; a hardcoded literal here is what made the previous run's verdict quote a
 -- multiplier the mod does not ship.
 local BuildTicks = 250              -- abrams: 2500 cost / 10
-local Rank1Multiplier = 500         -- RankAccumulationInfo.Rank1IntervalMultiplier default
-local RankInterval = BuildTicks * Rank1Multiplier / 100   -- 1250
+local BaseTicks = 2400              -- RankAccumulationInfo.Rank1BaseIntervalTicks default
+local ReferenceTicks = 100          -- RankAccumulationInfo.CostReferenceBuildTicks default
+local Rank1Multiplier = 2700        -- RankAccumulationInfo.Rank1IntervalMultiplier default
+local MaxRank1Ticks = 9000          -- RankAccumulationInfo.Rank1MaxIntervalTicks default
+
+-- Mirrors Exts.ISqrt's floor rounding exactly. Written as an integer routine rather than
+-- math.floor(math.sqrt(n)) because on a perfect square the float form can land a hair below the
+-- root and floor to root-1, which would silently shift every tick in the schedule by 27.
+local function ISqrt(n)
+	if n < 2 then
+		return n
+	end
+
+	local root = math.floor(math.sqrt(n))
+	while root * root > n do
+		root = root - 1
+	end
+
+	while (root + 1) * (root + 1) <= n do
+		root = root + 1
+	end
+
+	return root
+end
+
+-- RankAccrual.Rank1IntervalTicks, in Lua. Integer division at the same place C# truncates.
+local RankInterval = BaseTicks + math.floor(ISqrt(BuildTicks * ReferenceTicks) * Rank1Multiplier / 100)
+if RankInterval > MaxRank1Ticks then
+	RankInterval = MaxRank1Ticks
+end
+-- = 2400 + floor(158 * 2700 / 100) = 2400 + 4266 = 6666
 
 local PhaseATick = 60
 
@@ -104,8 +141,10 @@ local PhaseATick = 60
 local PhaseBTick = RankInterval + 50
 
 -- The deadline exists to stop a hung run, not to grade timing: everything actually graded is
--- latched by the poller as it happens.
-local DeadlineTicks = 5000
+-- latched by the poller as it happens. Sized from the schedule rather than fixed, because the
+-- interval is now long enough that a stale literal would time the run out before phase B.
+-- PhaseBTick + build + the evacuation drive (1200) + phase C's delivery budget (900), plus slack.
+local DeadlineTicks = PhaseBTick + 4300   -- 11016
 
 local Cash = 200000
 
@@ -387,9 +426,14 @@ WorldLoaded = function()
 		-- that window. A recorded rise is never removed by a spend, so this cannot recur.
 		if #stockRises == 0 and now > RankInterval + 100 then
 			return "PHASE B: the bank for abrams never rose at any point up to tick " .. now
-				.. ", but a rank-1 grant was due at tick " .. RankInterval .. " (interval = "
-				.. Rank1Multiplier .. " percent x build time " .. BuildTicks .. "). The accrual "
-				.. "timer is not running, or is running at the wrong rate. This assertion is about "
+				.. ", but a rank-1 grant was due at tick " .. RankInterval .. " (base " .. BaseTicks
+				.. " + " .. Rank1Multiplier .. " percent of sqrt(build time " .. BuildTicks
+				.. " x reference " .. ReferenceTicks .. "), capped at " .. MaxRank1Ticks .. "). The "
+				.. "accrual timer is not running, or is running at the wrong rate. If the shipped "
+				.. "curve was retuned, the five constants at the top of this file must move with it: "
+				.. "they are copies of RankAccumulationInfo's defaults, not readings of them, and "
+				.. "RankAccrualTest.ShippedCurveIsTheTraitDefault is what catches the C# half. "
+				.. "This assertion is about "
 				.. "the TIMER only: it fires just when NO grant was ever observed, so a bank emptied "
 				.. "by a purchase can never produce this message."
 		end

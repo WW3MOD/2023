@@ -16,6 +16,39 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	/// <summary>
+	/// The shape of the accrual clock, resolved once from the rules. Bundled rather than passed as
+	/// loose ints so that adding a knob does not ripple through every call site, and so a test can
+	/// hand the whole curve over as one value.
+	/// </summary>
+	public readonly struct RankCurve
+	{
+		/// <summary>Ticks every type waits regardless of cost. The floor the cheapest unit sits on.</summary>
+		public readonly int BaseTicks;
+
+		/// <summary>Build time the cost term is compressed against. See <see cref="RankAccrual.Rank1IntervalTicks"/>.</summary>
+		public readonly int ReferenceBuildTicks;
+
+		/// <summary>Percentage of the compressed cost term added to <see cref="BaseTicks"/>.</summary>
+		public readonly int Rank1Multiplier;
+
+		/// <summary>Ceiling on the rank-1 interval. Zero or less disables the ceiling.</summary>
+		public readonly int MaxRank1Ticks;
+
+		/// <summary>Percentage each tier above 1 multiplies the previous tier's interval by.</summary>
+		public readonly int HigherTierMultiplier;
+
+		public RankCurve(int baseTicks, int referenceBuildTicks, int rank1Multiplier, int maxRank1Ticks,
+			int higherTierMultiplier)
+		{
+			BaseTicks = baseTicks;
+			ReferenceBuildTicks = referenceBuildTicks;
+			Rank1Multiplier = rank1Multiplier;
+			MaxRank1Ticks = maxRank1Ticks;
+			HigherTierMultiplier = higherTierMultiplier;
+		}
+	}
+
+	/// <summary>
 	/// Pure arithmetic behind accumulated purchase ranks. Every method here is ints in, ints out,
 	/// with no World, no Actor and no RNG, so the whole state machine is covered by plain NUnit
 	/// fixtures without standing up a simulation.
@@ -40,20 +73,49 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Ticks between two grants of <paramref name="tier"/> for a unit whose base build time is
-		/// <paramref name="buildTimeTicks"/>. Tier 1 is rank1Multiplier percent of build time; each
-		/// step up multiplies by higherTierMultiplier percent.
-		/// Linear in build time, and therefore linear in cost, which is the point: spending an equal
-		/// budget across the roster accrues an equal amount of free rank whatever you spend it on.
+		/// Ticks between two rank-1 grants for a unit whose base build time is
+		/// <paramref name="buildTimeTicks"/>.
+		///
+		/// Deliberately NOT linear in build time. Accrual runs on the wall clock, but a linear
+		/// interval prices it in production time, and the two only agree for a player producing flat
+		/// out. Measured in seconds - which is what a player actually experiences - linear scaling
+		/// spread the shipped roster 120:1, from a 50-credit Conscript to a 6000-credit Iskander, so
+		/// the cheapest unit filled its whole bank before the dearest had earned anything.
+		///
+		/// The cost term is therefore the geometric mean of this unit's build time and a fixed
+		/// reference, sqrt(build * reference). Square-rooting turns that 120:1 input range into
+		/// roughly 11:1, the flat base term compresses what is left, and MaxRank1Ticks caps it
+		/// outright - so cost still orders the roster, but within a bounded ratio.
 		/// </summary>
-		public static int IntervalTicks(int buildTimeTicks, int tier, int rank1Multiplier, int higherTierMultiplier)
+		public static int Rank1IntervalTicks(int buildTimeTicks, RankCurve curve)
+		{
+			var build = Math.Max(1, buildTimeTicks);
+			var reference = Math.Max(1, curve.ReferenceBuildTicks);
+
+			// Integer square root: no float anywhere on this path, so every client agrees exactly.
+			var compressed = Exts.ISqrt((long)build * reference);
+
+			var interval = curve.BaseTicks + compressed * curve.Rank1Multiplier / 100;
+			if (curve.MaxRank1Ticks > 0)
+				interval = Math.Min(interval, curve.MaxRank1Ticks);
+
+			return (int)Math.Max(1, Math.Min(int.MaxValue, interval));
+		}
+
+		/// <summary>
+		/// Ticks between two grants of <paramref name="tier"/>. Tier 1 is
+		/// <see cref="Rank1IntervalTicks"/>; each step up multiplies by HigherTierMultiplier percent.
+		/// The tier ceiling is applied to rank 1 before the tiers are stepped, so the bound on the
+		/// cheapest:dearest ratio holds at every tier rather than only at the first.
+		/// </summary>
+		public static int IntervalTicks(int buildTimeTicks, int tier, RankCurve curve)
 		{
 			if (tier < 1 || tier > MaxPurchasableRank)
 				throw new ArgumentOutOfRangeException(nameof(tier));
 
-			var interval = (long)Math.Max(1, buildTimeTicks) * rank1Multiplier / 100;
+			var interval = (long)Rank1IntervalTicks(buildTimeTicks, curve);
 			for (var i = 1; i < tier; i++)
-				interval = interval * higherTierMultiplier / 100;
+				interval = interval * curve.HigherTierMultiplier / 100;
 
 			return (int)Math.Max(1, Math.Min(int.MaxValue, interval));
 		}
@@ -123,12 +185,12 @@ namespace OpenRA.Mods.Common.Traits
 		readonly int[] creditTicks = new int[RankAccrual.MaxPurchasableRank];
 		readonly int[] caps;
 
-		public UnitRankStock(int buildTimeTicks, int rank1Multiplier, int higherTierMultiplier, int[] caps)
+		public UnitRankStock(int buildTimeTicks, RankCurve curve, int[] caps)
 		{
 			this.caps = caps;
 			for (var tier = 1; tier <= RankAccrual.MaxPurchasableRank; tier++)
 			{
-				var interval = RankAccrual.IntervalTicks(buildTimeTicks, tier, rank1Multiplier, higherTierMultiplier);
+				var interval = RankAccrual.IntervalTicks(buildTimeTicks, tier, curve);
 				intervals[tier - 1] = interval;
 
 				// Seeded from tick 0, never from the tick this object happened to be constructed on,
@@ -213,12 +275,27 @@ namespace OpenRA.Mods.Common.Traits
 		"type is what lets its rank pile up. Attach to the Player actor.")]
 	public class RankAccumulationInfo : TraitInfo
 	{
-		[Desc("Ticks between rank-1 grants, as a percentage of the unit's base build time.",
-			"500 = every five build times. Build time is cost / 10 ticks, so this is linear in cost.")]
-		public readonly int Rank1IntervalMultiplier = 500;
+		[Desc("Ticks added to every type's rank-1 interval whatever it costs. This is the floor:",
+			"the cheapest unit in the game waits about this long for its first free rank.",
+			"2400 ticks is 2m24s at the default 60ms timestep.")]
+		public readonly int Rank1BaseIntervalTicks = 2400;
+
+		[Desc("Build time, in ticks, that the cost term is compressed against. The cost term is",
+			"sqrt(buildTime * this), so a unit built in exactly this many ticks contributes exactly",
+			"this many ticks before Rank1IntervalMultiplier is applied. Raising it stretches the",
+			"whole roster; it does not change the ordering. 100 ticks is a 1000-credit unit.")]
+		public readonly int CostReferenceBuildTicks = 100;
+
+		[Desc("Percentage of the compressed cost term added to Rank1BaseIntervalTicks.",
+			"This is the only knob that widens or narrows the gap between cheap and expensive units.")]
+		public readonly int Rank1IntervalMultiplier = 2700;
+
+		[Desc("Hard ceiling on the rank-1 interval, in ticks. Bounds the cheapest:dearest ratio no",
+			"matter what anything costs. 0 disables the ceiling. 9000 ticks is 9m00s.")]
+		public readonly int Rank1MaxIntervalTicks = 9000;
 
 		[Desc("Each tier above 1 multiplies the previous tier's interval by this percentage.",
-			"300 gives rank-2 at 15x build time and rank-3 at 45x.")]
+			"300 puts rank 3 at nine times the rank-1 wait, which is what keeps it rare.")]
 		public readonly int HigherTierIntervalMultiplier = 300;
 
 		[Desc("Maximum stock held per tier, lowest tier first. Must have exactly three entries;",
@@ -241,6 +318,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		public RankAccumulation(World world, RankAccumulationInfo info)
 		{
+			var curve = new RankCurve(info.Rank1BaseIntervalTicks, info.CostReferenceBuildTicks,
+				info.Rank1IntervalMultiplier, info.Rank1MaxIntervalTicks, info.HigherTierIntervalMultiplier);
+
 			if (info.Caps.Length != RankAccrual.MaxPurchasableRank)
 				throw new YamlException(
 					$"{nameof(RankAccumulationInfo)}.{nameof(RankAccumulationInfo.Caps)} needs exactly " +
@@ -262,8 +342,7 @@ namespace OpenRA.Mods.Common.Traits
 				var buildTime = RankAccrual.BaseBuildTimeTicks(
 					valued?.Cost ?? 0, buildable.BuildDuration, buildable.BuildDurationModifier);
 
-				stocks[actor.Name] = new UnitRankStock(buildTime,
-					info.Rank1IntervalMultiplier, info.HigherTierIntervalMultiplier, info.Caps);
+				stocks[actor.Name] = new UnitRankStock(buildTime, curve, info.Caps);
 			}
 		}
 

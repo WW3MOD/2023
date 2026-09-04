@@ -18,13 +18,28 @@ namespace OpenRA.Test
 	[TestFixture]
 	public class RankAccrualTest
 	{
-		const int Rank1Mult = 500;      // rank 1 every 5 build times
-		const int HigherMult = 300;     // each tier up is 3x the previous
 		static readonly int[] Caps = { 3, 2, 1 };
+
+		/// <summary>
+		/// A deliberately plain curve for the state-machine fixtures below: no base term and no
+		/// ceiling, with the reference set to the build time they all use, so the cost term collapses
+		/// to sqrt(240*240) = 240 and a rank-1 interval is a round 1200 ticks. Those fixtures are
+		/// about caps, spending and recovery, not about tuning; keeping their arithmetic legible is
+		/// worth more there than running them on the shipped numbers. The shipped numbers are pinned
+		/// separately, against the trait's own defaults, in "The shipped curve" below.
+		/// </summary>
+		static readonly RankCurve TestCurve = new(0, 240, 500, 0, 300);
+
+		/// <summary>Exactly what RankAccumulationInfo ships. Asserted to match in ShippedCurveIsTheTraitDefault.</summary>
+		static readonly RankCurve ShippedCurve = new(2400, 100, 2700, 9000, 300);
+
+		// Build times of the cheapest and dearest types that actually accrue, at cost / 10.
+		const int ConscriptTicks = 5;      // E1, 50 credits
+		const int IskanderTicks = 600;     // iskander / HELI / MIG and the rest of the 6000-credit tier
 
 		static UnitRankStock Stock(int buildTimeTicks)
 		{
-			return new UnitRankStock(buildTimeTicks, Rank1Mult, HigherMult, Caps);
+			return new UnitRankStock(buildTimeTicks, TestCurve, Caps);
 		}
 
 		/// <summary>Run a stock forward to an absolute tick.</summary>
@@ -56,7 +71,8 @@ namespace OpenRA.Test
 		[Test]
 		public void BuildDurationModifierIsApplied()
 		{
-			// msar is the one shipped actor that deviates, at BuildDurationModifier: 50.
+			// No accruing type currently sets it - MSAR, the one actor that does, is a support vehicle
+			// without GainsExperience and so is never tracked - but the path is live for anything added.
 			Assert.That(RankAccrual.BaseBuildTimeTicks(2400, -1, 50), Is.EqualTo(120));
 		}
 
@@ -69,32 +85,24 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void Rank1IntervalIsFiveBuildTimes()
+		public void ReferenceBuildTimeCollapsesTheCostTermToItself()
 		{
-			Assert.That(RankAccrual.IntervalTicks(240, 1, Rank1Mult, HigherMult), Is.EqualTo(1200));
+			// sqrt(240 * 240) == 240, so a unit built in exactly the reference time contributes the
+			// reference before the multiplier. This is what makes TestCurve's arithmetic round.
+			Assert.That(RankAccrual.IntervalTicks(240, 1, TestCurve), Is.EqualTo(1200));
 		}
 
 		[Test]
 		public void HigherTiersAreThreeTimesRarerEachStep()
 		{
-			Assert.That(RankAccrual.IntervalTicks(240, 2, Rank1Mult, HigherMult), Is.EqualTo(3600));
-			Assert.That(RankAccrual.IntervalTicks(240, 3, Rank1Mult, HigherMult), Is.EqualTo(10800));
-		}
-
-		[Test]
-		public void IntervalIsLinearInCost()
-		{
-			// The user's requirement: spending an equal budget across the roster must accrue an equal
-			// amount of free rank. A unit costing 30x as much must wait exactly 30x as long.
-			var cheap = RankAccrual.IntervalTicks(RankAccrual.BaseBuildTimeTicks(200, -1, 100), 1, Rank1Mult, HigherMult);
-			var dear = RankAccrual.IntervalTicks(RankAccrual.BaseBuildTimeTicks(6000, -1, 100), 1, Rank1Mult, HigherMult);
-			Assert.That(dear, Is.EqualTo(cheap * 30));
+			Assert.That(RankAccrual.IntervalTicks(240, 2, TestCurve), Is.EqualTo(3600));
+			Assert.That(RankAccrual.IntervalTicks(240, 3, TestCurve), Is.EqualTo(10800));
 		}
 
 		[Test]
 		public void IntervalIsNeverZero()
 		{
-			Assert.That(RankAccrual.IntervalTicks(1, 1, 0, 0), Is.EqualTo(1));
+			Assert.That(RankAccrual.IntervalTicks(1, 1, new RankCurve(0, 0, 0, 0, 0)), Is.EqualTo(1));
 		}
 
 		[TestCase(0)]
@@ -102,7 +110,148 @@ namespace OpenRA.Test
 		public void IntervalRejectsTiersOutsideOneToThree(int tier)
 		{
 			Assert.Throws<ArgumentOutOfRangeException>(
-				() => RankAccrual.IntervalTicks(240, tier, Rank1Mult, HigherMult));
+				() => RankAccrual.IntervalTicks(240, tier, TestCurve));
+		}
+
+		#endregion
+
+		#region The curve compresses cost rather than tracking it
+
+		[Test]
+		public void CostStillOrdersTheRoster()
+		{
+			// Compression must not flatten the roster: a dearer unit always waits at least as long,
+			// and the endpoints must be genuinely apart rather than clamped together.
+			var previous = 0;
+			for (var buildTicks = 1; buildTicks <= 1000; buildTicks++)
+			{
+				var interval = RankAccrual.Rank1IntervalTicks(buildTicks, ShippedCurve);
+				Assert.That(interval, Is.GreaterThanOrEqualTo(previous), $"went backwards at T={buildTicks}");
+				previous = interval;
+			}
+
+			Assert.That(RankAccrual.Rank1IntervalTicks(IskanderTicks, ShippedCurve),
+				Is.GreaterThan(RankAccrual.Rank1IntervalTicks(ConscriptTicks, ShippedCurve) * 2),
+				"the dearest unit must still be meaningfully rarer than the cheapest");
+		}
+
+		[Test]
+		public void SpreadAcrossTheRosterStaysWithinThreeAndAHalfToOne()
+		{
+			// The property this retune exists for. Linear scaling spread the shipped roster 120:1 in
+			// wall-clock, which is what let cheap infantry fill their bank in seconds. Cost may still
+			// order the roster, but the ratio between its ends is bounded.
+			var cheapest = RankAccrual.Rank1IntervalTicks(ConscriptTicks, ShippedCurve);
+			var dearest = RankAccrual.Rank1IntervalTicks(IskanderTicks, ShippedCurve);
+
+			Assert.That(dearest * 100 / cheapest, Is.LessThanOrEqualTo(350),
+				$"cheapest {cheapest} ticks vs dearest {dearest} ticks");
+		}
+
+		[Test]
+		public void TheCeilingBoundsTheSpreadForAnyCostAtAll()
+		{
+			// Stronger than the roster check, and the reason the ceiling exists: however expensive a
+			// unit added later is, it can never wait more than MaxRank1Ticks. The floor is the T=1
+			// interval, so this bounds the ratio for the whole input domain and not just for today's
+			// roster.
+			var floor = RankAccrual.Rank1IntervalTicks(1, ShippedCurve);
+
+			foreach (var buildTicks in new[] { 1, 5, 600, 10_000, 1_000_000, int.MaxValue })
+			{
+				var interval = RankAccrual.Rank1IntervalTicks(buildTicks, ShippedCurve);
+				Assert.That(interval, Is.LessThanOrEqualTo(ShippedCurve.MaxRank1Ticks), $"T={buildTicks}");
+				Assert.That(interval * 100 / floor, Is.LessThanOrEqualTo(350), $"T={buildTicks}");
+			}
+		}
+
+		[Test]
+		public void TheCeilingAppliesBeforeTheTiersAreStepped()
+		{
+			// Clamping rank 1 and then stepping is what carries the ratio bound up to rank 3. Were the
+			// clamp applied per tier instead, every tier would collapse onto the same ceiling.
+			var capped = RankAccrual.IntervalTicks(int.MaxValue, 1, ShippedCurve);
+			Assert.That(RankAccrual.IntervalTicks(int.MaxValue, 3, ShippedCurve), Is.EqualTo(capped * 9));
+		}
+
+		[Test]
+		public void ZeroCeilingDisablesTheCeiling()
+		{
+			var uncapped = new RankCurve(2400, 100, 2700, 0, 300);
+			Assert.That(RankAccrual.Rank1IntervalTicks(100_000, uncapped),
+				Is.GreaterThan(ShippedCurve.MaxRank1Ticks));
+		}
+
+		#endregion
+
+		#region The shipped curve
+
+		[Test]
+		public void ShippedCurveIsTheTraitDefault()
+		{
+			// Everything in this region grades the numbers players actually get. If a default moves in
+			// RankAccumulationInfo without this fixture moving with it, this is what fails - so the
+			// wall-clock figures below can never quietly come to describe a config nobody ships.
+			var info = new RankAccumulationInfo();
+
+			Assert.That(info.Rank1BaseIntervalTicks, Is.EqualTo(ShippedCurve.BaseTicks));
+			Assert.That(info.CostReferenceBuildTicks, Is.EqualTo(ShippedCurve.ReferenceBuildTicks));
+			Assert.That(info.Rank1IntervalMultiplier, Is.EqualTo(ShippedCurve.Rank1Multiplier));
+			Assert.That(info.Rank1MaxIntervalTicks, Is.EqualTo(ShippedCurve.MaxRank1Ticks));
+			Assert.That(info.HigherTierIntervalMultiplier, Is.EqualTo(ShippedCurve.HigherTierMultiplier));
+			Assert.That(info.Caps, Is.EqualTo(Caps));
+		}
+
+		// Ticks, at the default 60ms timestep, so 16.67 ticks per second.
+		// Conscript: 2994 = 2m59s, 8982 = 8m58s, 26946 = 26m56s.
+		// Iskander:  8988 = 8m59s, 26964 = 26m57s, 80892 = 80m53s.
+		[TestCase(ConscriptTicks, 1, 2994)]
+		[TestCase(ConscriptTicks, 2, 8982)]
+		[TestCase(ConscriptTicks, 3, 26946)]
+		[TestCase(IskanderTicks, 1, 8988)]
+		[TestCase(IskanderTicks, 2, 26964)]
+		[TestCase(IskanderTicks, 3, 80892)]
+		public void ShippedIntervalsAtTheEndsOfTheRoster(int buildTicks, int tier, int expected)
+		{
+			Assert.That(RankAccrual.IntervalTicks(buildTicks, tier, ShippedCurve), Is.EqualTo(expected));
+		}
+
+		[Test]
+		public void TheCheapestUnitTakesMinutesNotSeconds()
+		{
+			// The user's headline complaint: a 50-credit Conscript used to bank a rank every 25 ticks,
+			// a second and a half, and filled all three tiers inside fourteen seconds. The brief for
+			// this retune asks for two to four minutes before the first one.
+			var firstRank = RankAccrual.IntervalTicks(ConscriptTicks, 1, ShippedCurve);
+
+			Assert.That(firstRank, Is.InRange(2000, 4000), "2000 ticks is 2m00s, 4000 is 4m00s");
+		}
+
+		[Test]
+		public void RankThreeIsRareEvenForTheCheapestUnit()
+		{
+			// "A rank 3 should be very rare." Grading against a 20-minute match: the first accrued
+			// rank-3 must land beyond it, so seeing one at all means a long game or a recovered crew.
+			const int TwentyMinutes = 20 * 60 * 1000 / 60;
+
+			Assert.That(RankAccrual.IntervalTicks(ConscriptTicks, 3, ShippedCurve),
+				Is.GreaterThan(TwentyMinutes));
+		}
+
+		[Test]
+		public void EveryTierIsSlowerThanItWasBeforeTheRetune()
+		{
+			// No unit anywhere on the roster may accrue faster than it did at the old linear 500%,
+			// because the whole point was "much slower in general".
+			foreach (var buildTicks in new[] { ConscriptTicks, 10, 20, 40, 60, 150, 250, 400, IskanderTicks })
+			{
+				for (var tier = 1; tier <= RankAccrual.MaxPurchasableRank; tier++)
+				{
+					var old = RankAccrual.IntervalTicks(buildTicks, tier, new RankCurve(0, buildTicks, 500, 0, 300));
+					Assert.That(RankAccrual.IntervalTicks(buildTicks, tier, ShippedCurve),
+						Is.GreaterThan(old), $"T={buildTicks} tier {tier}");
+				}
+			}
 		}
 
 		#endregion

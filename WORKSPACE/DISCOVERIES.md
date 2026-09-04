@@ -19078,3 +19078,44 @@ Two consequences that are easy to get wrong when reasoning about ownership bugs:
   neutral-relationship are independent, and `UnitLifecycleLogger.IsInteresting` filters on the
   former (`:280-281`) — so a Creeps-owned structure is untracked at spawn and, because the in-place
   path fires no `ActorAdded`, stays untracked after a player captures it.
+
+## 2026-09-04 — Rank accrual runs on wall clock; the roster's cost spread is 120:1, not 30:1
+
+`RankAccumulation.cs` derives its interval from a unit's **nominal** build time
+(`RankAccrual.BaseBuildTimeTicks`, `cost / 10 x BuildDurationModifier`), and advances it from
+`ITick` — so the interval is priced in production time but *spent* in wall-clock time. The two only
+agree for a player producing that type flat out, which is the opposite of the behaviour the feature
+rewards.
+
+The cheapest accruing type is **E1 Conscript at 50 credits**, not the 200-credit Team Leader that
+earlier analysis used as the floor. Against the 6000-credit tier (`iskander`, `HELI`, `MIG`, `A10`,
+`F16`, `FROG`, `MI28`, `HIMARS`) that is a **120:1** build-time spread. Under the old linear 500%
+multiplier a Conscript banked a rank every 25 ticks — **1.5 s** at the default 60 ms timestep — and
+filled all three tiers in 13.5 s. Dump the tracked roster with `WORKSPACE/mockups/roster_dump.py`
+(71 entries, faction clones included); it mirrors the trait's `Buildable` + `GainsExperience` filter.
+
+## 2026-09-04 — The infantry parallel queue is a round-robin THROTTLE, never a speed-up
+
+Infantry are the only class on `ClassicParallelProductionQueue` (`player.yaml:55`); the other five
+queues are plain `ClassicProductionQueue`. It is widely assumed this lets infantry build faster than
+their nominal time. It does the reverse, for two independent reasons:
+
+- **`TickInner` advances ONE item per tick** (`ClassicParallelProductionQueue.cs:~82`,
+  `Queue.FirstOrDefault(i => !i.Paused)`), then rotates that type to the back of the queue. That is
+  identical in aggregate to the serial queue, which ticks `Queue[0]` only.
+- With **2+ distinct types** queued, `parallelBuilds > 0` and the `penalty` accumulator
+  (`:104-114`) makes it **skip every other tick**: `penalty` goes `-100 -> table[i]` (tick),
+  `table[i] - 100 >= 0 -> return` (skip). So aggregate infantry throughput is *half* the serial rate,
+  split round-robin between the types.
+
+`ParallelPenaltyBuildTimeMultipliers: 100` at `player.yaml:67` is a single-element array, so the
+lookup `[Math.Min(parallelBuilds, Length - 1)]` is always index 0 — the penalty never scales with
+how many types are queued, but the every-other-tick skip still applies.
+
+Separately, the `BuildingCountBuildTimeMultipliers: 100, 75, ...` on that same queue is **dead
+config**: `GetBuildTime`'s use of it is gated on `SpeedUp` (`:216`), which defaults to `false`
+(`:28`) and is set nowhere in `mods/`. This is the same conclusion previously reached for the serial
+queue but for a *different* reason — there the array was unreachable, here the whole branch is.
+Either way `selfsameProductionsCount` cannot move anything, and it could not affect accrual regardless:
+`RankAccrual.BaseBuildTimeTicks` deliberately does not call `GetBuildTime` at all
+(`RankAccumulation.cs:30-35`).
