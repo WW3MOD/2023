@@ -3,6 +3,114 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-04 - `make.ps1 test` lints autotest scenarios BY NAME. CLAUDE.md says it does not, and that belief shipped a broken branch
+
+**VERIFIED, not inferred.** A full-capture `.\make.ps1 test` run prints a `Testing map:` line per
+linted map, and three of the four scenarios added by `wt/powers-two` are in it by title:
+
+    Testing map: TEST: GBU-57 wrecks a hardened structure and only dents a tank
+    Testing map: TEST: tactical nuke arrives from the edge and levels the aim point
+    Testing map: TEST: tactical nuke is absent from the bin at its shipped default
+
+The fourth failed the gate, which is how this was found. `wt/powers-two @ 4c0a5e2a` came back 22
+errors against a 21-signature baseline:
+
+    NEW: test-power-buy-loop | Actor `powerproxy.strike` is not constructible
+
+`powerproxy.strike` is defined **only** in that scenario's `rules.yaml` and is never placed in its
+`map.yaml`. The passes that caught it — `CheckTraitPrerequisites`, `CheckTooltips`,
+`CheckInteractable` — all iterate `rules.Actors`, the whole merged ruleset, not the placed actors.
+**A scenario's rules override is linted as rules, whether or not anything uses them.**
+
+### How much is linted: the counts reconcile exactly to "all of them"
+
+Linted-map totals from three gate runs, against directory counts read from the same three refs:
+
+| Ref | Linted maps reported | `mods/ww3mod/maps/` dirs | `tools/autotest/scenarios/` dirs | sum |
+|---|---|---|---|---|
+| `89c59b15` | 299 | 10 | 289 | **299** |
+| `d824b919` | 300 | 10 | 290 | **300** |
+| `4c0a5e2a` | 304 | 10 | 294 | **304** |
+
+Three for three, no residual. The straightforward reading is that the linted set is **every shipped
+map plus every scenario directory, with no unlinted subset.** Every scenario dir in the tree carries
+both a `map.yaml` and a `map.bin`, so there is no obvious candidate for an excluded group either.
+
+**This contradicts a 86-shipped + 218-scenario split read off the same output**, and that
+discrepancy is NOT resolved here — 86 does not match the 10 directories under `mods/ww3mod/maps/` at
+any of the three refs, and 218 leaves 76 scenarios unaccounted for. **Settle it by counting the
+`Testing map:` lines directly** rather than trusting either reading:
+
+```powershell
+$o = .\make.ps1 test 2>&1 | Out-String
+($o -split "`n" | Where-Object { $_ -match '^Testing map:' }).Count   # expect 304 at 4c0a5e2a
+```
+
+and diff those titles against `ls -d tools/autotest/scenarios/*/`. Until someone does, treat the
+coverage question as **"probably all, arithmetic says all, list not yet read."** The count evidence
+above is derived from directory listings, not from the map list itself.
+
+### What is still open
+
+1. **Whether Linux `make test` and the bare `./utility.sh --check-yaml` behave the same.** The
+   routing table's `MapClassification.Unknown` claim is written about those forms, not about
+   `make.ps1 test`. Neither has been run against this question by anyone. Both documents could be
+   accurate about what they describe and simply silent on the Windows path.
+2. **The routing table's scenario count is stale** — it says 273; there are 294 directories at
+   `4c0a5e2a`. Worth noting for whoever corrects it, because a stale denominator is what makes a
+   partial-coverage claim look plausible.
+
+### Which way to be wrong
+
+The old belief — "scenarios are invisible to the gate" — is strictly the more dangerous of the two,
+because it tells an author that a lint error in a scenario cannot reach the merge gate. That is how
+`4c0a5e2a` was committed carrying a comment, *in the file that failed*, asserting exactly that. The
+opposite error (assuming coverage a scenario does not have) costs a surprise later; this one costs a
+red gate now. **Work on the assumption that the gate reaches your scenario.**
+
+`make nav-guard`'s exclusion of scenarios is independently confirmed and is NOT in question here.
+
+### Two traps that cost time on the way to this
+
+**The error body is multi-line.** `Missing:` and `Unresolved:` sections follow the headline, so
+tailing or truncating the output discards the only part that names the unsatisfied dependency. Same
+shape as the `Testing map:` finding below. Capture the whole thing.
+
+**A constructibility failure can be reproduced without the gate, in ~20 ms.** `ActorInfo` has a
+`(string name, params TraitInfo[])` constructor, and `TraitsInConstructOrder()` is the exact method
+whose exception `CheckTraitPrerequisites.cs:42` reports. An NUnit test can build a candidate actor's
+trait set by hand and get the gate's verdict with no mod load, no World and no launch slot.
+`BuyLoopProxyTest` does this in both directions and is how the fix here was checked red-then-green.
+
+## 2026-09-04 - `Tooltip` + `Buildable` + `Interactable` are a locked chain on any bodiless proxy
+
+Found fixing the above, and it invalidated the fix that was drafted first.
+
+A support-power buy proxy has no `IOccupySpace` — that is the point of it (`Production.Produce`'s
+bodiless branch, `Production.cs:126-131`). Three constraints then close on each other:
+
+1. `TooltipInfoBase : ConditionalTraitInfo, Requires<IMouseBoundsInfo>` (`Tooltip.cs:16`). A
+   positionless actor has no `Selectable`, no `IsometricSelectable` and no `Interactable`, so
+   `Tooltip` alone makes it unconstructible.
+2. So drop `Tooltip`? **No.** `CheckTooltips` emits *"The following buildable actor has no (enabled)
+   Tooltip"* for any actor carrying `BuildableInfo` (`CheckTooltips.cs:28-35`), and a buy-menu item
+   must be `Buildable`. Dropping it trades one red gate for another.
+3. Which leaves `Interactable:` as the only trait a bodiless actor can supply to close the chain:
+
+       Buildable =(CheckTooltips)=> Tooltip =(Requires)=> IMouseBoundsInfo <= Interactable
+
+**`Interactable` is inert here**, which is worth stating because it looks like decoration on an actor
+that can never be moused over: `Bounds` is null, so `MouseoverBounds` falls through to `AutoBounds`,
+which reduces over an empty `IAutoMouseBounds` set to `default(Rectangle)`, and
+`ScreenMap.TickRender` drops an empty bounds rather than indexing it (`ScreenMap.cs:213-228`).
+`CheckInteractable` only rejects `Bounds` that are *present and* non-positive
+(`CheckInteractable.cs:57-65`), so a bare `Interactable:` is clean.
+
+**The general shape worth carrying:** a trait's `Requires<>` attribute is only half of what a lint
+gate enforces. The other half is the `ILintRulesPass` set, which can require the *presence* of a
+trait that itself requires something else. Checking one and not the other is how a fix passes
+locally and fails the gate a second time.
+
 ## 2026-09-04 - A `TargetDamage` warhead aimed at a big building's own map cell delivers ~33%
 
 Found while sizing the GBU-57's warhead, and it is **live today on the shipped Kinzhal**, not a

@@ -30,11 +30,53 @@ powerproxy.strike:
 	# against the actor's RenderSprites image, so a proxy pointed at kinzhalmissile — which ships
 	# only an `idle` — would have no cameo to draw. It is never actually drawn in this run (the
 	# Defense queue has no sidebar tab in this mod), but a Phase 2 worker copying this shape into
-	# the real menu would hit it immediately, and a dangling sequence reference is a lint error the
-	# scenario gates would not have caught either: scenarios are not maps to the tooling.
+	# the real menu would hit it immediately.
+	#
+	# CORRECTION, 2026-09-04. This comment used to end "...and a dangling sequence reference is a
+	# lint error the scenario gates would not have caught either: scenarios are not maps to the
+	# tooling." THAT WAS WRONG, and this file is the proof: `make.ps1 test` linted this scenario and
+	# failed the merge gate on it.
+	#
+	# VERIFIED: `make.ps1 test` prints a `Testing map:` line per linted map, and the three sibling
+	# missile-power scenarios appear there by title. The linted-map total also matches
+	# (shipped maps + scenario directories) exactly at three refs -- 299 = 10+289 at 89c59b15,
+	# 300 = 10+290 at d824b919, 304 = 10+294 here -- so the gate very likely reaches EVERY scenario.
+	#
+	# STILL OPEN, and do not read this comment as settling either: whether Linux `make test` and the
+	# bare `./utility.sh --check-yaml` behave the same (CLAUDE.md's routing table is written about
+	# THOSE forms, not this one, and neither has been run against the question), and a reported
+	# 86-shipped + 218-scenario split of the same 304 that does not reconcile with the directory
+	# counts. Details and the one command that would settle it: WORKSPACE/DISCOVERIES.md.
+	#
+	# The safe assumption is the inverted one: WRITE AS IF THE GATE LINTS YOUR SCENARIO. Being wrong
+	# that way costs nothing; being wrong the old way is what put this file in front of the manager.
 	RenderSprites:
 		Image: iskander
 	AlwaysVisible:
+	# NOT DECORATION, AND NOT ABOUT THE MOUSE. `Tooltip` below is
+	# `TooltipInfoBase : ConditionalTraitInfo, Requires<IMouseBoundsInfo>` (Tooltip.cs:16), and a
+	# bodiless proxy satisfies that from nowhere -- it has no Selectable, no IsometricSelectable and,
+	# without this line, no Interactable. ActorInfo.TraitsInConstructOrder then throws
+	#   Missing: OpenRA.Traits.IMouseBoundsInfo
+	#   Unresolved: TooltipInfo: { OpenRA.Traits.IMouseBoundsInfo }
+	# and CheckTraitPrerequisites reports `Actor `powerproxy.strike` is not constructible`. That is
+	# what this scenario failed the merge gate on at 4c0a5e2a. BuyLoopProxyTest pins both directions.
+	#
+	# Interactable is inert on an actor with no position: Bounds is null, so MouseoverBounds falls to
+	# AutoBounds, which reduces over an empty IAutoMouseBounds set to default(Rectangle), and
+	# ScreenMap.TickRender drops an empty bounds rather than indexing it (ScreenMap.cs:213-228).
+	#
+	# THERE IS NO ALTERNATIVE FIX -- do not "simplify" this by deleting Tooltip instead. `Tooltip`
+	# is not optional on this actor: CheckTooltips emits "The following buildable actor has no
+	# (enabled) Tooltip" for ANY actor carrying BuildableInfo (CheckTooltips.cs:33-35), and a
+	# buy-menu item must carry Buildable. So the three traits are locked together:
+	#
+	#     Buildable  =(CheckTooltips)=>  Tooltip  =(Requires)=>  IMouseBoundsInfo  <= Interactable
+	#
+	# Dropping Tooltip trades a CheckTraitPrerequisites error for a CheckTooltips one. Interactable
+	# is the only trait on that chain a bodiless proxy can actually supply, and it is inert as shown
+	# above. BuyLoopProxyTest.DroppingTooltipIsNotAValidAlternativeFix pins the whole chain.
+	Interactable:
 	Buildable:
 		Queue: Defense
 		BuildPaletteOrder: 1
