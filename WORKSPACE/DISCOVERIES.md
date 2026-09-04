@@ -3,6 +3,235 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-04 - A Lua test binding that answers two questions in one string fails its callers silently
+
+`Test.GetSupportPowerState(player, orderKey)` was written to return a state token **and** append the
+set of keys the power bin would draw:
+
+    "hidden (bin: KinzhalStrike)"
+
+Every caller then had to know the answer was decorated. **Three of the four did not** — including
+both call sites in the file whose own header documented the format, written in the same sitting by
+the same author:
+
+| Site | Comparison | Actual behaviour |
+|---|---|---|
+| `test-tacnuke-lobby-gated-off:92` | `state ~= "hidden"` | never matches → **run failed** |
+| `test-tacnuke-lobby-gated-off:60` | `~= "absent" and ~= "hidden"` | always true → gate not gating |
+| `test-tacnuke-delivers:123` | `~= "ready" and ~= "charging:0"` | always true → would have failed the same way |
+| `test-power-buy-loop:183` | `== "absent" or == "no-manager"` | never true → **a guard that cannot fire** |
+
+The failing run reported *`state 'hidden (bin: KinzhalStrike)', where 'hidden' was required`* — the
+shipped game behaving exactly as designed, and the test unable to say so.
+
+**The two failure modes are not equally visible, and the quiet one is worse.** A comparison that can
+never be TRUE reads, at a glance and in a passing run, as "that condition simply did not occur". The
+buy-loop control guard was inert from the moment it was written, and nothing would ever have said so:
+a mod with no working support powers would have walked straight past it into the real assertions.
+
+**The fix is to the API, not to careful callers.** Split into `GetSupportPowerState` (one bare token)
+and `GetSupportPowerBin` (the key list). That also made one caller honest: `test-power-buy-loop` had
+been passing an `orderKey` it did not care about purely to harvest the suffix, and now asks the
+question it actually has.
+
+**Why this class is specific to the script bindings.** These are consumed from Lua, so there is no
+compiler and no type to constrain the contract. A C# caller comparing an enum could not make this
+mistake; a Lua caller comparing a string cannot avoid making it, unless the vocabulary is small,
+bare, and pinned. `SupportPowerStateVocabularyTest` pins it from both ends — `TokensAreBare` (the one
+that would have caught this) and a scan of every scenario's comparisons against the producible set.
+Both were verified to go RED by reintroducing the exact defect before being committed.
+
+**The general rule worth carrying: a `Test.*` binding should return ONE thing.** If a scenario wants
+two facts, give it two bindings. The cost of a second binding is about fifteen lines; the cost of a
+decorated return is a burned launch slot and, worse, assertions that silently stop asserting.
+
+*(Second-order: `ActivateSupportPower` returns `not-ready:<n>` while `GetSupportPowerState` returns
+`charging:<n>` for the same situation. Two vocabularies for one concept, on two bindings a scenario
+uses together. Left alone here — renaming a shipped return is not this commit's business — but it is
+the next thing in this area likely to confuse someone.)*
+
+## 2026-09-04 - `make.ps1 test` lints autotest scenarios BY NAME. CLAUDE.md says it does not, and that belief shipped a broken branch
+
+**VERIFIED, not inferred.** A full-capture `.\make.ps1 test` run prints a `Testing map:` line per
+linted map, and three of the four scenarios added by `wt/powers-two` are in it by title:
+
+    Testing map: TEST: GBU-57 wrecks a hardened structure and only dents a tank
+    Testing map: TEST: tactical nuke arrives from the edge and levels the aim point
+    Testing map: TEST: tactical nuke is absent from the bin at its shipped default
+
+The fourth failed the gate, which is how this was found. `wt/powers-two @ 4c0a5e2a` came back 22
+errors against a 21-signature baseline:
+
+    NEW: test-power-buy-loop | Actor `powerproxy.strike` is not constructible
+
+`powerproxy.strike` is defined **only** in that scenario's `rules.yaml` and is never placed in its
+`map.yaml`. The passes that caught it — `CheckTraitPrerequisites`, `CheckTooltips`,
+`CheckInteractable` — all iterate `rules.Actors`, the whole merged ruleset, not the placed actors.
+**A scenario's rules override is linted as rules, whether or not anything uses them.**
+
+### How much is linted: the counts reconcile exactly to "all of them"
+
+Linted-map totals from three gate runs, against directory counts read from the same three refs:
+
+| Ref | Linted maps reported | `mods/ww3mod/maps/` dirs | `tools/autotest/scenarios/` dirs | sum |
+|---|---|---|---|---|
+| `89c59b15` | 299 | 10 | 289 | **299** |
+| `d824b919` | 300 | 10 | 290 | **300** |
+| `4c0a5e2a` | 304 | 10 | 294 | **304** |
+
+Three for three, no residual. The straightforward reading is that the linted set is **every shipped
+map plus every scenario directory, with no unlinted subset.** Every scenario dir in the tree carries
+both a `map.yaml` and a `map.bin`, so there is no obvious candidate for an excluded group either.
+
+**This contradicts a 86-shipped + 218-scenario split read off the same output**, and that
+discrepancy is NOT resolved here — 86 does not match the 10 directories under `mods/ww3mod/maps/` at
+any of the three refs, and 218 leaves 76 scenarios unaccounted for. **Settle it by counting the
+`Testing map:` lines directly** rather than trusting either reading:
+
+```powershell
+$o = .\make.ps1 test 2>&1 | Out-String
+($o -split "`n" | Where-Object { $_ -match '^Testing map:' }).Count   # expect 304 at 4c0a5e2a
+```
+
+and diff those titles against `ls -d tools/autotest/scenarios/*/`. Until someone does, treat the
+coverage question as **"probably all, arithmetic says all, list not yet read."** The count evidence
+above is derived from directory listings, not from the map list itself.
+
+### What is still open
+
+1. **Whether Linux `make test` and the bare `./utility.sh --check-yaml` behave the same.** The
+   routing table's `MapClassification.Unknown` claim is written about those forms, not about
+   `make.ps1 test`. Neither has been run against this question by anyone. Both documents could be
+   accurate about what they describe and simply silent on the Windows path.
+2. **The routing table's scenario count is stale** — it says 273; there are 294 directories at
+   `4c0a5e2a`. Worth noting for whoever corrects it, because a stale denominator is what makes a
+   partial-coverage claim look plausible.
+
+### Which way to be wrong
+
+The old belief — "scenarios are invisible to the gate" — is strictly the more dangerous of the two,
+because it tells an author that a lint error in a scenario cannot reach the merge gate. That is how
+`4c0a5e2a` was committed carrying a comment, *in the file that failed*, asserting exactly that. The
+opposite error (assuming coverage a scenario does not have) costs a surprise later; this one costs a
+red gate now. **Work on the assumption that the gate reaches your scenario.**
+
+`make nav-guard`'s exclusion of scenarios is independently confirmed and is NOT in question here.
+
+### Two traps that cost time on the way to this
+
+**The error body is multi-line.** `Missing:` and `Unresolved:` sections follow the headline, so
+tailing or truncating the output discards the only part that names the unsatisfied dependency. Same
+shape as the `Testing map:` finding below. Capture the whole thing.
+
+**A constructibility failure can be reproduced without the gate, in ~20 ms.** `ActorInfo` has a
+`(string name, params TraitInfo[])` constructor, and `TraitsInConstructOrder()` is the exact method
+whose exception `CheckTraitPrerequisites.cs:42` reports. An NUnit test can build a candidate actor's
+trait set by hand and get the gate's verdict with no mod load, no World and no launch slot.
+`BuyLoopProxyTest` does this in both directions and is how the fix here was checked red-then-green.
+
+## 2026-09-04 - `Tooltip` + `Buildable` + `Interactable` are a locked chain on any bodiless proxy
+
+Found fixing the above, and it invalidated the fix that was drafted first.
+
+A support-power buy proxy has no `IOccupySpace` — that is the point of it (`Production.Produce`'s
+bodiless branch, `Production.cs:126-131`). Three constraints then close on each other:
+
+1. `TooltipInfoBase : ConditionalTraitInfo, Requires<IMouseBoundsInfo>` (`Tooltip.cs:16`). A
+   positionless actor has no `Selectable`, no `IsometricSelectable` and no `Interactable`, so
+   `Tooltip` alone makes it unconstructible.
+2. So drop `Tooltip`? **No.** `CheckTooltips` emits *"The following buildable actor has no (enabled)
+   Tooltip"* for any actor carrying `BuildableInfo` (`CheckTooltips.cs:28-35`), and a buy-menu item
+   must be `Buildable`. Dropping it trades one red gate for another.
+3. Which leaves `Interactable:` as the only trait a bodiless actor can supply to close the chain:
+
+       Buildable =(CheckTooltips)=> Tooltip =(Requires)=> IMouseBoundsInfo <= Interactable
+
+**`Interactable` is inert here**, which is worth stating because it looks like decoration on an actor
+that can never be moused over: `Bounds` is null, so `MouseoverBounds` falls through to `AutoBounds`,
+which reduces over an empty `IAutoMouseBounds` set to `default(Rectangle)`, and
+`ScreenMap.TickRender` drops an empty bounds rather than indexing it (`ScreenMap.cs:213-228`).
+`CheckInteractable` only rejects `Bounds` that are *present and* non-positive
+(`CheckInteractable.cs:57-65`), so a bare `Interactable:` is clean.
+
+**The general shape worth carrying:** a trait's `Requires<>` attribute is only half of what a lint
+gate enforces. The other half is the `ILintRulesPass` set, which can require the *presence* of a
+trait that itself requires something else. Checking one and not the other is how a fix passes
+locally and fails the gate a second time.
+
+## 2026-09-04 - A `TargetDamage` warhead aimed at a big building's own map cell delivers ~33%
+
+Found while sizing the GBU-57's warhead, and it is **live today on the shipped Kinzhal**, not a
+property of the new work.
+
+`TargetDamageWarhead` scales every hit by `HitShape.CenterProximityPercent` — distance from the
+victim's **centre**, normalised against its half-diagonal. A building's `Location` in a map (and the
+cell a player clicks) is its **top-left footprint cell**, not its centre:
+`BuildingInfo.CenterOffset` adds `(Dimensions * 1024 / 2) - (512, 512)`
+(`Building.cs:207-210`), which for any 3x3 is a full cell diagonally.
+
+For a Logistics Center (3x3, hitshape ±1536, half-diagonal 2172) that is 1448 units of offset:
+
+    proximity = 100 * (1 - 1448 / 2172) = 33%
+
+So `IskanderExplosion`'s `Warhead@Target: 54000` arrives as **~18,000** when the missile comes down
+on the building's corner cell rather than its middle, and the Kinzhal's total against a 60,000 HP
+building drops from ~61,000 (a kill) to ~25,000 (less than half). Which cell of a building the
+player clicked silently changes whether a support power kills it.
+
+**Two things follow.**
+
+1. **`SpreadDamage` does not have this problem** and is the better primitive for anything aimed at
+   structures. It measures `DistanceFromEdge` against the hitshape
+   (`SpreadDamageWarhead.cs`, `DamageCalculationType.HitShape`, the default), which is **zero
+   anywhere inside the building**. `MOPPenetration`'s `Warhead@Penetrate` is written as SpreadDamage
+   for exactly this reason.
+2. **`Spread` does not rescue it.** Widening `Spread` only widens *admission*; the proximity
+   percentage is computed independently, so a wider Spread admits more victims at low percentages
+   rather than restoring damage to the intended one. (`BallisticPenetrationTest` already pins the
+   related floor — an admitted near-miss used to read NEGATIVE and heal its target.)
+
+**Not fixed here, deliberately.** Changing `IskanderExplosion` is a balance change to a shipped
+weapon used by the Iskander launcher as well as the Kinzhal, and it wants its own item with a
+benchmark re-baseline. Recorded so whoever picks it up knows the size of it.
+
+## 2026-09-04 - A lobby-gated support power is still a key in `SupportPowerManager.Powers`
+
+`SupportPowerManager.ActorAdded` registers **every** `SupportPower` trait on the actor, disabled
+ones included (`SupportPowerManager.cs:58-74`) — it iterates `TraitsImplementing<SupportPower>()`,
+which does not filter on `IsTraitDisabled`. So a power switched off by `RequiresCondition` is
+present in `Powers`, and anything that probes it by key reports `not-ready`, which is
+**indistinguishable from a power that is merely still charging**.
+
+What actually differs is `SupportPowerInstance.Disabled`, and that is the predicate
+`SupportPowersWidget` filters its icon list on (`SupportPowersWidget.cs:136`). "Is the icon drawn?"
+and "can it fire right now?" are therefore different questions with different answers, and only the
+second was reachable from Lua.
+
+**Consequence for tests:** a scenario asserting that a gated-off power is absent could only ever
+observe a timeout, which also passes on a mod where nothing works at all.
+`Test.GetSupportPowerState(player, orderKey)` was added for this — it returns
+`ready` / `charging:<n>` / `hidden` / `absent` plus the full set of keys the bin *would* draw, so
+absence becomes a positive reading. `test-tacnuke-lobby-gated-off` uses it, with the un-gated
+Kinzhal as a live control in the same tick.
+
+## 2026-09-04 - `GrantConditionOnLobbyOption`'s polarity decides what an UNREGISTERED option does
+
+The trait falls back to `OptionOrDefault(Option, !GrantWhenOptionDisabled)`
+(`GrantConditionOnLobbyOption.cs:47`) when the lobby never registered the option at all — a stripped
+`PowersLobbyOptions`, an old saved session, a map that removes the trait.
+
+That makes the two ways of writing "gate a feature on a checkbox" **not equivalent**:
+
+| Form | Absent option resolves to |
+|---|---|
+| `Condition: X-disabled`, `GrantWhenOptionDisabled: true`, power `RequiresCondition: !X-disabled` | **feature OFF** |
+| `Condition: X-allowed`, `GrantWhenOptionDisabled: false`, power `RequiresCondition: X-allowed` | **feature ON** |
+
+Both read identically at a glance and behave identically in a normal lobby. For anything that must
+fail safe — the tactical nuclear strike is the live case — only the first form is correct. The
+shipped `GrantConditionOnLobbyOption@airstrikes` block already uses it; that now has a stated reason
+rather than being a coincidence.
+
 ## 2026-09-04 - `Testing map:` sits at the TOP of lint output, so tailing it produces a false negative
 
 CLAUDE.md's rule for the targeted scenario lint is right and load-bearing: *"Confirm the lint really

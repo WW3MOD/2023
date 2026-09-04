@@ -416,3 +416,92 @@ EmpBomb:
 		SmudgeType: Scorch
 		InvalidTargets: Vehicle, Structure, Wall
 		Size: 1
+
+# GBU-57A/B Massive Ordnance Penetrator -- the payload of the US bunker-buster support power.
+# Delivered by Explodes on the gbu57bomb actor, the same way IskanderExplosion is delivered by the
+# Kinzhal, so every constraint that applies to an Explodes payload applies here (see the three
+# pinned in BallisticPenetrationTest: Penetration must be set, DamageAtMaxRange must be 100, and
+# ImpactPosition must be recorded).
+#
+# THIS WARHEAD IS THE FEATURE. The proposal (260904-missile-powers.md §4 option b) chose the MOP
+# over a Kinzhal reskin on exactly one argument: "Russia buys SPEED, America buys PENETRATION -- the
+# US strike hits structures far harder and units far less." If the numbers below do not produce that
+# asymmetry then the design decision was not implemented, only the code path was. So they are picked
+# to be measurable rather than to be pretty, and MissilePowerAsymmetryTest reads them straight back
+# out of this file and asserts the ratio.
+#
+# THE SPLIT IS A TARGET-TYPE FILTER, NOT A `Versus:` TABLE, and that is deliberate. `Versus` is a
+# per-ARMOUR-TYPE multiplier and DamageWarhead.DamageVersus only applies rows the table actually
+# names (DamageWarhead.cs:102-109) -- a type absent from the table takes the default 100%. The mod
+# uses nine armour types (Concrete, Heavy, Light, Medium, Wood, None, Unarmored, Kevlar,
+# Indestructable), so expressing "structures only" as a Versus table means enumerating all of them
+# and silently mis-hitting whichever one is added next. It also could not work at all: gtwr is a
+# STRUCTURE whose armour type is `Unarmored` and mslo is a structure typed `Concrete`, so armour
+# type does not partition structures from units in this mod. TargetTypes does:
+# ^BasicBuilding grants `Structure` to every building (structures.yaml:27-28) and no vehicle,
+# aircraft or infantry template carries it.
+#
+# WHY THE MOP DOES SO LITTLE TO A TANK PARKED ON THE AIM POINT, in case that reads as a bug: a
+# 13-tonne penetrator buries itself before detonating. The surface signature of a weapon designed to
+# reach 60 m of reinforced concrete is small, and everything above ground gets the blowback, not the
+# charge. Warhead@Surface below IS that blowback.
+MOPPenetration:
+	Inherits@HitEffects: ^HugeExplosionEffects
+	ValidTargets: Ground, Structure, Trees, Water
+
+	# THE PENETRATING CHARGE. Structures only -- see the note above.
+	#
+	# SpreadDamage, NOT TargetDamage, AND THE REASON IS GEOMETRY RATHER THAN AREA. TargetDamage
+	# scales every hit by HitShape.CenterProximityPercent -- distance from the victim's CENTRE
+	# against its half-diagonal (TargetDamageWarhead.DoImpact). A building's `Location` in a map is
+	# its TOP-LEFT cell, not its centre: BuildingInfo.CenterOffset adds
+	# (Dimensions * 1024 / 2) - (512, 512) (Building.cs:207-210), which for any 3x3 is a full cell
+	# diagonally. So a player clicking the corner cell of a Logistics Center is 1448 units from its
+	# centre against a half-diagonal of 2172 -- 33% proximity, and the 165000 below would arrive as
+	# 54450. The bunker buster would then kill a 60000 HP building only by the surface warhead's
+	# margin, and would NOT kill mslo at all, purely because of which cell was clicked.
+	#
+	# SpreadDamage measures `DistanceFromEdge` from the victim's HITSHAPE instead
+	# (SpreadDamageWarhead.cs, DamageCalculationType.HitShape, the default), which is ZERO anywhere
+	# inside the building. Full damage wherever on the target you aim, which is what a weapon that
+	# burrows under a structure should do.
+	Warhead@Penetrate: SpreadDamage
+		ValidTargets: Structure
+		# 2.75x a Logistics Center's 60000 HP and 1.22x the 135000 of mslo, the toughest building in
+		# the mod. One MOP is meant to END a hardened structure, not soften it -- that is the whole
+		# purchase.
+		Damage: 165000
+		# Clears the thickest armour in the game (mslo, Concrete 2000, and it carries no
+		# Distribution so no hit-direction discount ever reduces it). A bunker buster that could be
+		# stopped by armour thickness would be the one weapon in the mod whose name is a lie.
+		Penetration: 5000
+		# Falloff [100, 0] over Spread 512 makes effectiveRange [0, 512]: full damage to a structure
+		# the bomb landed INSIDE (edge distance 0) and nothing to one more than half a cell clear of
+		# it. Deliberately NOT a wider band -- this must not chain through a base. A neighbouring
+		# building is only touched at all if the bomb came down within half a cell of the wall
+		# between them, and even then it is interpolated down toward zero.
+		Spread: 512
+		Falloff: 100, 0
+		DamageTypes: ExplosionDeath
+
+	# THE SURFACE EFFECT. Everything the buried charge does not reach, including structures (they
+	# carry `Ground` as well as `Structure`, so a building takes this on top of the penetrator).
+	# 9000 is 32% of an Abrams' 28000 HP: a tank standing exactly on the aim point is hurt and lives.
+	# That number is the counterweight to the 165000 above and moving one without the other undoes
+	# the asymmetry.
+	Warhead@Surface: SpreadDamage
+		Spread: 1c0
+		Damage: 9000
+		# Enough for any vehicle in the mod (thickest is the Abrams' 700 frontal) so the surface
+		# effect is not silently divided away the way IskanderExplosion's was before 260827.
+		Penetration: 2500
+		# Steep. At 1 cell 45%, at 2 cells 15%, gone by 4. A crater, not a blast radius.
+		Falloff: 100, 45, 15, 5, 1
+		ValidTargets: Ground, Trees, Water
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+
+	Warhead@Crater: LeaveSmudge
+		Size: 2
+		SmudgeType: Crater
+		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees

@@ -1,0 +1,45 @@
+# Tactical nuclear strike delivery autotest overrides.
+
+World:
+	# THE OVERRIDE THIS SCENARIO IS BUILT AROUND. The tactical nuke ships lobby-gated and OFF
+	# (proposal §9.4), so without this the power's trait is disabled by
+	# `RequiresCondition: !tacnuke-disabled` and there is nothing to fire. Enabled AND locked, the
+	# same shape the shipped Kinzhal scenario uses for MapLayers' explored/fog checkboxes: locking
+	# it means no lobby default, host setting or saved session can move it out from under the run.
+	#
+	# Its sibling test-tacnuke-lobby-gated-off deliberately omits this block, which is the whole
+	# content of that scenario.
+	PowersLobbyOptions:
+		TacticalNukeCheckboxEnabled: true
+		TacticalNukeCheckboxLocked: true
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
+	# spawn assignment -- see the geometry note in map.yaml.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-tacnuke-delivers.lua
+
+Player:
+	# Charged at t=0 instead of after the shipped 11250-tick (675 s) placeholder. That placeholder
+	# encodes the approved 15000-credit price against the 4000-credit fast strikes; waiting it out
+	# would spend eleven minutes of a launch slot measuring a number this scenario is not about.
+	MissileStrikePower@TacNuke:
+		ChargeInterval: 1
+		StartFullyCharged: true
+	# The 30-cell blast will kill everything USA owns except its Supply Route; without this the
+	# match would end on elimination before the poller writes a verdict.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored, so the poller's view of the missile and the victim is never
+	# a visibility artefact. The power's own 20c0 CameraRange is irrelevant under this and is
+	# deliberately not exercised -- it reveals shroud, and there is none.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# No cash -> no production, so GetActorsByType("tacnukemissile") cannot pick up a second missile
+	# from anywhere.
+	PlayerResources:
+		DefaultCash: 0

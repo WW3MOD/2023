@@ -144,6 +144,124 @@ Player:
 		# AbombLaunchDetected would announce a nuke. Phase 2 audio should replace this.
 		IncomingSpeechNotification: EnemyUnitsApproaching
 		SupportPowerPaletteOrder: 1
+	# PHASE 2 of the missile strike powers: the remaining two of the three approved entries
+	# (WORKSPACE/proposals/260904-missile-powers.md §1). Both ride the SAME MissileStrikePower trait
+	# the Kinzhal above proved in game at 894e8dc4 -- there is exactly one delivery mechanism in this
+	# feature, and adding a second would be the mistake §1a warns about.
+	#
+	# THE PRICES ARE NOT WIRED, AND THAT IS INHERITED FROM THE KINZHAL, NOT NEW HERE. §9.3 approves
+	# 4000 for the fast-strike tier and 15000 for the nuke, but the buy/bank model that would charge
+	# them is the bodiless-proxy production loop in §2.4, which needs a sidebar tab -- and the tab
+	# button draws a 16x16 glyph from the `production-icons` collection (chrome.yaml:157-177), which
+	# has regions for building/defense/infantry/vehicle/aircraft/ship and NONE for powers. That is
+	# art. So these carry ChargeInterval placeholders exactly as the Kinzhal does, but the
+	# placeholders ENCODE THE APPROVED PRICE RATIO rather than being arbitrary, so the relative
+	# scarcity is already right and only the currency is missing:
+	#     Kinzhal   4000 -> 3000 ticks (180 s)   [above, shipped]
+	#     GBU-57    4000 -> 3000 ticks (180 s)   same tier, same price, same interval
+	#     tac nuke 15000 -> 11250 ticks (675 s)  15000/4000 = 3.75x, so 3000 x 3.75
+	# All at Timestep 60 = 16.667 tps. NOT 25 tps: that figure, asserted by several in-tree
+	# comments, understates every duration by 1.5x.
+	MissileStrikePower@GBU57:
+		OrderName: GBU57Strike
+		Prerequisites: player.america
+		# INTERIM ART, ruled by the manager rather than left blocked on a drawing. §4a wanted one new
+		# cameo for the US strike and flagged reusing `precicon` as an asymmetry -- Russia generic,
+		# America bespoke. That worry does not apply now the two powers are FACTION-LOCKED to
+		# opposite sides: `Prerequisites: player.america` here against `player.russia` on the Kinzhal
+		# means no player ever holds both, so no player can see the repeat. And PRECISION STRIKE is
+		# not a wrong caption for a GBU-57.
+		# DO NOT "improve" this to cmissicon or missicon however their names read: captions are baked
+		# into the cameo PIXELS at rows 42-46, and those two are a biohazard trefoil captioned
+		# CHEMICAL STRIKE and a building captioned TECH CENTER (§4a).
+		Icon: precicon
+		Name: GBU-57 Bunker Buster
+		Description: Massive Ordnance Penetrator dropped on the target area.\nDevastating against hardened structures, weak against armour.\nEnters from the map edge nearest your Supply Route.
+		ChargeInterval: 3000
+		Cursor: nuke
+		MissileActor: gbu57bomb
+		# 12 cells, HALF AGAIN the Kinzhal's 8, and the two numbers do different jobs. Both powers
+		# shape their approach with altitude rather than LaunchAngle, because LaunchAngle's apex
+		# scales with shot length (BallisticMissileFly.cs:88-90) and altitude does not. But the MOP
+		# flies at Speed 500 against the Kinzhal's 2000, so at the SAME altitude its descent would be
+		# four times shallower over the same ground. 12 cells buys back the near-vertical terminal
+		# plunge a bunker buster is supposed to have.
+		SpawnAltitude: 12c0
+		CameraRange: 8c0
+		CameraSpawnAdvance: 25
+		CameraRemoveDelay: 100
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		DisplayTimerRelationships: Ally
+		BeaconPoster: precbcon
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		# Same placeholder as the Kinzhal, and the same reason: notifications.yaml has no
+		# conventional-strike warning line, and AbombLaunchDetected would announce a nuke this is
+		# not. Replace both together when the audio lands.
+		IncomingSpeechNotification: EnemyUnitsApproaching
+		SupportPowerPaletteOrder: 2
+	# The lobby gate for the tactical nuclear strike. §9.4: it ships, defaulting OFF, because the
+	# doomsday design it belongs to (WORKSPACE/archive/plans/260324-nukes.md) is unresolved in the
+	# user's own words, while the user asked for the power itself by name.
+	#
+	# THE POLARITY IS THE SAFETY PROPERTY. GrantConditionOnLobbyOption falls back to
+	# OptionOrDefault(Option, !GrantWhenOptionDisabled) when the option is not registered at all
+	# (GrantConditionOnLobbyOption.cs:47) -- so written THIS way round, an absent option reads false,
+	# `tacnuke-disabled` is granted anyway, and the power stays hidden. Written the other way round
+	# (Condition: tacnuke-allowed, GrantWhenOptionDisabled: false) the identical absence would
+	# default to TRUE and hand every player a nuke. Do not invert this.
+	GrantConditionOnLobbyOption@tacnuke:
+		Option: tactical-nuke
+		Condition: tacnuke-disabled
+		GrantWhenOptionDisabled: true
+	MissileStrikePower@TacNuke:
+		# RequiresCondition, NOT PauseOnCondition, and the difference is visible to the player.
+		# SupportPowersWidget filters the bin on `!p.Disabled` (SupportPowersWidget.cs:136), and
+		# IsTraitDisabled reaches Disabled through SupportPowerInstance.Tick
+		# (SupportPowerManager.cs:196-200), so this makes the icon ABSENT. PauseOnCondition would
+		# instead leave a clickable-but-inert cameo reading "ON HOLD" (SupportPowersWidget.cs:241-244),
+		# which is the wrong answer for a power the host chose not to enable. §2.5.
+		RequiresCondition: !tacnuke-disabled
+		OrderName: TacNukeStrike
+		# NO Prerequisites, and that is deliberate: §1's table lists this entry's faction as "both".
+		# It is the only one of the three approved powers that is not faction-locked.
+		# `abomb` resolves to atomicon.shp (sequences-misc.yaml:16), the ONE power cameo in the mod
+		# whose baked caption -- NUCLEAR BOMB -- is correct for its picture (§4a).
+		Icon: abomb
+		Name: Tactical Nuclear Strike
+		Description: Low-yield nuclear warhead delivered from off-map reserves.\nDevastates a wide area and sets everything in it alight.\nEnters from the map edge nearest your Supply Route.
+		ChargeInterval: 11250
+		Cursor: nuke
+		MissileActor: tacnukemissile
+		SpawnAltitude: 8c0
+		# 20c0, matching mslo's NukePower rather than the 8c0 the two conventional strikes use: the
+		# Atomic blast wave has MaxRadius 30c0, so a camera sized for a conventional strike would
+		# show the player a fraction of what they just did.
+		CameraRange: 20c0
+		CameraSpawnAdvance: 25
+		# 1000 ticks = 60 s, matching mslo. The Atomic warhead's own effects run to tick ~213 (the
+		# outermost suppression band), so a 100-tick camera would close mid-detonation.
+		CameraRemoveDelay: 1000
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		# Ally, Neutral, Enemy -- matching mslo's NukePower. EVERYONE watches a nuke timer; that is
+		# what a deterrent is for, and it is the one power in the mod where hiding the clock from the
+		# victim would be worse design rather than better.
+		DisplayTimerRelationships: Ally, Neutral, Enemy
+		BeaconPoster: atomicon
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		# The one power in this feature whose shipped notification line is CORRECT rather than a
+		# placeholder, so unlike the two conventional strikes this does not want replacing later.
+		IncomingSpeechNotification: AbombLaunchDetected
+		SupportPowerPaletteOrder: 3
 	# Airstrikes disabled for v1 — re-enable post-v1 by uncommenting this whole block
 	# AND the PowersLobbyOptions trait in world.yaml. The A10.Airstrike / FROG.Airstrike
 	# unit defs are still in aircraft-america.yaml / aircraft-russia.yaml (orphan, harmless

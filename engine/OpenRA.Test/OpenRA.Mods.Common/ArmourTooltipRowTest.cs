@@ -87,11 +87,22 @@ namespace OpenRA.Test
 			// The premise of the infantry answer. If a Versus: Kevlar entry is ever authored, soldiers
 			// start having real armour and their row should stop saying None — this is the thing that
 			// should fail when that happens.
+			// COMMENTS ARE STRIPPED FIRST, and that is a correction rather than a loosening. The
+			// premise above is about an authored `Versus: Kevlar` ROW; a raw whole-file substring
+			// search also fires on prose. It did: MOPPenetration's header enumerates the mod's nine
+			// armour types to explain why the GBU-57's structure/unit split is a target-type filter
+			// and NOT a Versus table — precisely because a type left out of a table silently takes
+			// 100%, which is the same finding this fixture exists to protect. A test that forbids
+			// naming the trap in a comment pushes the next author toward writing a vaguer comment,
+			// not a safer weapon. A real row cannot hide in a comment, so nothing detectable is lost.
 			foreach (var path in Directory.EnumerateFiles(FindRules("weapons"), "*.yaml"))
-				Assert.That(File.ReadAllText(path), Does.Not.Contain("Kevlar"),
-					$"{Path.GetFileName(path)} now mentions Kevlar. Infantry carry Armor.Type: Kevlar " +
-					"(infantry.yaml, ^Soldier) and the tooltip reports None only because no warhead " +
-					"discriminates on it. Re-check the armour row against this file.");
+			{
+				var rules = string.Join("\n", File.ReadAllLines(path).Select(l => l.Split('#')[0]));
+				Assert.That(rules, Does.Not.Contain("Kevlar"),
+					$"{Path.GetFileName(path)} now mentions Kevlar OUTSIDE A COMMENT. Infantry carry " +
+					"Armor.Type: Kevlar (infantry.yaml, ^Soldier) and the tooltip reports None only " +
+					"because no warhead discriminates on it. Re-check the armour row against this file.");
+			}
 		}
 
 		[Test]

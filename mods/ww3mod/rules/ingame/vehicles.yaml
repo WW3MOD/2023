@@ -990,3 +990,75 @@ LCCV:
 # 	RenderSprites:
 # 		Image: harv
 # 	-MapEditorData:
+
+# The delivery body for the tactical nuclear strike support power (player.yaml,
+# MissileStrikePower@TacNuke). It lives in the FACTION-NEUTRAL vehicles.yaml, unlike kinzhalmissile
+# (vehicles-russia.yaml) and gbu57bomb (vehicles-america.yaml), because the nuke is the one entry in
+# the approved three that both factions buy -- proposal §1, "Faction: both".
+#
+# The power it belongs to is LOBBY-GATED AND DEFAULTS OFF. This actor existing costs nothing when
+# the gate is off: the power's trait is disabled by `RequiresCondition: !tacnuke-disabled`, so
+# nothing ever creates one.
+TacNukeMissile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 0
+	Tooltip:
+		Name: Tactical Nuclear Missile
+	RenderSprites:
+		Scale: 1.05
+	Health:
+		HP: 100
+	# Unacquirable, same mechanism and same PITFALL as kinzhalmissile and gbu57bomb: overriding the
+	# inherited `ICBM` types rather than removing the Targetable traits, because
+	# WeaponInfo.IsValidAgainst gates on GetEnabledTargetTypes (WeaponInfo.cs:256-264) and an actor
+	# with no target types is invalid for every weapon, splash included. `Hypersonic` is reused from
+	# the Kinzhal rather than inventing a fourth unlisted type -- this missile is in the same
+	# uninterceptable speed class and no weapon lists either name.
+	Targetable@Ground:
+		TargetTypes: Hypersonic
+		RequiresCondition: !airborne
+	Targetable@Airborne:
+		TargetTypes: Hypersonic
+		RequiresCondition: airborne
+	BallisticMissile:
+		# 30, for the distance-independence reason documented on kinzhalmissile: the arc apex scales
+		# with shot length (BallisticMissileFly.cs:88-90), so a steep LaunchAngle would make the
+		# missile climb after entering the map by more on a big map than a small one.
+		LaunchAngle: 30
+		# 900 wdist/tick = 14.6 cells/s. Deliberately BETWEEN the Kinzhal's 2000 and the MOP's 500:
+		# fast enough that it cannot be reacted to, slow enough that the beacon and the incoming
+		# warning are on screen for a beat before a 30-cell blast wave arrives. A 47-cell shot is
+		# 48128/900 = 53 ticks = 3.2 s at Timestep 60.
+		Speed: 900
+		Acceleration: 0
+		InitialSpeedPercent: 100
+		TerminalSpeed: 1100
+		TerminalAcceleration: 40
+		LaunchRiseTicks: 0
+		PostErectionWaitTicks: 0
+		VisualPitchMultiplier: 47
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Type: CenterPosition
+		Offsets: -650, 0, 200
+	# Reuses `Atomic` (weapons-superweapons.yaml) UNCHANGED, exactly as the Kinzhal reuses
+	# IskanderExplosion unchanged. Atomic is already the mod's shipped nuclear warhead -- mslo's
+	# NukePower fires it (structures-defenses.yaml, `MissileWeapon: atomic`) -- and the proposal's
+	# balance anchor (§5a) is stated in terms of it: ~266000 peak on an Abrams, vaporises to ~8.4
+	# cells, kills infantry to ~23, sets structures alight to ~28.
+	#
+	# ONE REAL DIFFERENCE FROM mslo's DELIVERY, and it is not a defect: NukePower detonates at
+	# DetonationAltitude 6c256, an AIRBURST. This arrives on the deck, because BallisticMissileFly
+	# ends with SetPosition(self, targetPos) at terrain level and then Kill
+	# (BallisticMissileFly.cs:207-209). A ground burst is the more honest read of "tactical" anyway,
+	# and every Atomic warhead is height-agnostic except the AirThreshold rows, which gate AIR
+	# victims rather than the burst.
+	#
+	# Plain, ungated Explodes for the reasons kinzhalmissile documents: SpawnedExplodes needs a
+	# BaseSpawnerSlave master this actor does not have, and an `airborne` gate never fires because
+	# the SetPosition above revokes `airborne` before the queued kill lands.
+	Explodes:
+		Weapon: Atomic

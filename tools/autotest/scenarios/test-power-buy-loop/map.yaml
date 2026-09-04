@@ -1,0 +1,106 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a bodiless proxy produces and its support power reaches the bin
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES: proposal §8 item 4 — "Does a bodiless proxy really produce? The whole buy loop
+# is traced statically and never run. THE ANSWER: does the cameo complete and an icon appear
+# top-left." That question has been open since the proposal was written and no run has touched it.
+#
+# READ THIS FIRST, BECAUSE THE SCENARIO'S SHAPE DEPENDS ON IT. The buy loop is NOT wired into the
+# shipped mod, and this scenario does not pretend it is. The three approved powers currently sit on
+# the Player actor behind ChargeInterval placeholders, exactly as the Kinzhal shipped at d824b919.
+# Wiring the real buy menu needs a Powers sidebar tab, and ProductionTypeButton draws a 16x16 glyph
+# out of the `production-icons` collection (chrome.yaml:157-177), which carries regions for
+# building/defense/infantry/vehicle/aircraft/ship and none for powers. That is art, not config.
+#
+# So the proxy below is defined in this scenario's own rules.yaml. What that costs and what it still
+# buys, stated plainly so nobody over-reads the result:
+#
+#   IT DOES PROVE the engine mechanism the whole Phase 2 buy model rests on, end to end and for the
+#   first time: a producee with no IOccupySpace takes Production.Produce's bodiless branch
+#   (Production.cs:126-131), reaches the world through DoProduction's CreateActor, is seen by
+#   SupportPowerManager.ActorAdded, and its SupportPower becomes an icon the bin would draw. It also
+#   exercises the crash §2.4 found and nobody has hit — ProductionPaletteWidget.cs:683 calls
+#   item.TraitInfo<RenderSpritesInfo>() UNGUARDED, so a proxy without RenderSprites throws — which is
+#   why the proxy carries RenderSprites and why the three commented powerproxy.* blocks at
+#   misc.yaml:318-368 are NOT a drop-in template.
+#
+#   IT DOES NOT PROVE that the shipped mod has a buy menu, that the prices in §9.3 are charged, or
+#   that a Powers tab renders. None of those exist yet. A green run here means Phase 2 is unblocked
+#   on everything except the tab glyph.
+#
+# THE PROXY RIDES THE `Defense` QUEUE rather than a new `Powers` one, and that is deliberate: the
+# Defense queue already exists on the Player actor (player.yaml) and SUPPLYROUTE's
+# `Production@Local` already produces it (structures.yaml). Introducing a queue type here would add
+# a second unproven thing to a run whose whole value is isolating one. Defense has no sidebar tab in
+# this mod either — every actor on it is gated behind `~disabled` — which is exactly why it is free
+# to borrow.
+#
+# GEOMETRY. Russia home 6,17 -> edge cell 1,17 by the derivation in test-missile-strike-power's
+# map.yaml. The victim at 44,17 is 43 cells from that entry.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 6,17
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 58,17
+
+Actors:
+	# OwnSR is not scenery here: it carries the `Production@Local` trait that produces the Defense
+	# queue, so it is the factory the proxy is built at. Without it the queue would tick with
+	# anyEnabledProduction false (ProductionQueue.cs:320-328) and the item would never start.
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 6,17
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 58,17
+
+	# The thing the bought strike is fired at, so the run proves the whole loop rather than stopping
+	# at "an icon appeared". abrams: 28,000 HP; the proxy's power delivers a kinzhalmissile carrying
+	# IskanderExplosion, ~62,800 on it, so arrival means death.
+	Victim: abrams
+		Owner: USA
+		Location: 44,17
+		Facing: 256
+
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+Rules: rules.yaml
