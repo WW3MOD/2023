@@ -612,6 +612,49 @@ namespace OpenRA.Test
 			Assert.That(s.Total(3), Is.EqualTo(2), "rank-3 cap is 1; recovery takes it to 2");
 		}
 
+		[Test]
+		public void EvacuationCreditPushesAHoldingIntoDoubleFigures()
+		{
+			// The production icon prints this number beside its chevron, so how wide it can get is a
+			// layout question and not only a simulation one. There is no ceiling: CreditWhole adds to
+			// BonusStock with no cap check, so a player who evacuates veterans steadily can bank a
+			// two-digit count of a tier whose cap is 3. Budget two digits, not one.
+			// No accrual at all, so every one of these came home alive and the rank-1 cap of 3 is the
+			// only thing that could have stopped it.
+			var s = Stock(240);
+			for (var i = 0; i < 14; i++)
+				s.CreditWhole(1);
+
+			Assert.That(s.Total(1), Is.EqualTo(14), "the rank-1 cap is 3 and does not apply to recovery");
+			Assert.That(s.Total(1).ToString().Length, Is.EqualTo(2));
+
+			// And the tier the icon draws is still 1 - depth never promotes.
+			Assert.That(s.Peek(), Is.EqualTo(1));
+		}
+
+		[Test]
+		public void TheChevronShowsTheTierThatWouldBeSpent()
+		{
+			// The icon draws exactly one chevron, chosen by Peek, and Spend only ever touches that
+			// tier. These two must not be able to disagree: a mark naming a tier the purchase will
+			// not consume is worse than no mark.
+			var s = Stock(240);
+			RunTo(s, 10800);
+
+			for (var expected = 3; expected >= 1; expected--)
+			{
+				Assert.That(s.Peek(), Is.EqualTo(expected));
+				Assert.That(RankAccrual.HighestHeldTier(new[] { s.Total(1), s.Total(2), s.Total(3) }),
+					Is.EqualTo(expected), "Peek and HighestHeldTier are two implementations of one rule");
+
+				// Drain the tier the mark is currently naming.
+				while (s.Total(expected) > 0)
+					s.Spend(expected);
+			}
+
+			Assert.That(s.Peek(), Is.EqualTo(0), "nothing banked draws no chevron at all");
+		}
+
 		#endregion
 
 		#region Determinism

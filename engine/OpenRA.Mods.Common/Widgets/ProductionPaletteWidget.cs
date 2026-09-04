@@ -127,43 +127,72 @@ namespace OpenRA.Mods.Common.Widgets
 		float2 iconOffset, holdOffset, readyOffset, timeOffset;
 		float countRightAnchor;
 		float countTopY;
-		float countBottomY;
 
-		// Visual states for the two-number queue badge
-		public readonly Color CountNowColor = Color.White;          // top: "now" — items in a row at the head
-		public readonly Color CountTotalActiveColor = Color.White;  // bottom when no gap and no auto
-		public readonly Color CountTotalWaitingColor = Color.Gold;  // bottom when this type isn't at the head
-		public readonly Color CountTotalAutoColor = Color.LimeGreen; // bottom when any copies are infinite
+		// The split queue badge, top-right, right-aligned: the manual count in white with the
+		// auto-build count in lime beside it, so "3+2" says three of these were ordered and two more
+		// keep coming. Manual and auto-build entries are the SAME kind of object in one FIFO list -
+		// Infinite is just a flag on an entry (ProductionQueue.cs:645-649) - and this is the only
+		// place the mix is stated. It replaces both the old "now"/"total" stack, whose top number
+		// answered a question nobody asks, and the lime stripe that used to run down the left edge
+		// carrying the same single bit as the badge's colour.
+		public readonly Color CountManualColor = Color.White;
+		public readonly Color CountAutoColor = Color.LimeGreen;
+		public readonly string CountAutoPrefix = "+";
+		public readonly int CountRightMargin = 3;
+		public readonly int CountTopMargin = 1;
 
-		// Lime stripe down the LEFT edge of the icon when any item of this type is in auto-build mode.
-		// Drawn with the primitive renderer to avoid font-glyph problems (FreeSansBold doesn't carry
-		// the ∞ glyph at TinyBold size — it rendered as a missing-glyph box).
-		public readonly Color AutoStripeColor = Color.LimeGreen;
-		public readonly int AutoStripeWidth = 3;
-
-		// Accumulated free ranks, bottom-left. Chevrons are POLYLINES, not glyphs and not sprites:
-		// FreeSansBold ships no Geometric Shapes block, so U+25C6 and neighbours render as nothing
-		// silently, and a sequence naming a file the mod does not ship falls back to pips.shp and
-		// also renders nothing. A polyline cannot resolve to nothing. Only the count digits use a
-		// font, and they reuse overlayFont, already proven on digits by the queue badge below.
-		// The five values below are the USER'S, submitted 2026-09-03 from
-		// WORKSPACE/mockups/rank-accumulation-overlay.html after comparing them at true pixel size.
-		// Do not tidy them toward round numbers: 6x3 and a 1.25 stroke were chosen against each
-		// other, and the stroke is a float on purpose — RgbaColorRenderer.DrawLine takes a float
-		// width, so 1.25 is a real value here and not a rounding of 1.
+		// The held-rank chevron, top-left: ONE sprite for the highest tier banked, because that is
+		// the only tier a purchase can spend (RankAccrual.HighestHeldTier, RankAccumulation.cs:141-152).
+		// Drawn from the shipped iconchevrons art rather than from the polyline strip it replaces,
+		// which ran x 4-54 and y 33-45 at full 3/2/1 and collided with the caption baked into the
+		// bottom 8 rows of every cameo. The per-tier breakdown it gives up lives in the production
+		// tooltip now. ProductionIconOverlayManager is deliberately NOT used: it is inert in this mod
+		// and its one-sprite-per-actor shape cannot express a tier.
+		//
+		// Sequences are named <prefix><tier>: rank1, rank2, rank3. Not a [SequenceReference] - the
+		// prefix alone is not a sequence, and the widget's own ClockSequence carries no attribute
+		// either. A prefix naming sequences that do not exist fails loudly when the first chevron is
+		// drawn, which is the good failure; the silent one is art, and that is guarded by the sprite
+		// being a real SHP frame rather than a glyph.
+		public readonly string RankSequencePrefix = "rank";
+		public readonly string RankAnimation = "iconchevrons";
+		public readonly string RankPalette = "chrome";
 		public readonly Color RankColor = Color.FromArgb(255, 240, 210, 122);
-		public readonly int RankChevronWidth = 6;
-		public readonly int RankChevronHeight = 3;
-		public readonly int RankChevronPitch = 4;
-		public readonly float RankStrokeWidth = 1.25f;
-		public readonly int RankBottomMargin = 2;
-		public readonly int RankLeftMargin = 4;
-		public readonly int RankEntryGap = 4;
-		public readonly int RankGlyphCountGap = 2;
+
+		// Top-left inset of the chevron sprite, in cell coordinates.
+		public readonly int2 RankChevronOffset = new int2(1, 1);
+
+		// Top-left of the count, in cell coordinates: 1 px right of the chevron's ink, which is 14
+		// wide at every tier. NOT derived from the sprite's drawn width - ShpTDLoader trims a frame
+		// to its used rect and then pads that back out with a 1 px transparent border and an even-
+		// size fudge (ShpTDLoader.cs:113-134), so Sprite.Size reports 16 for 14 columns of ink and
+		// deriving from it would sit the count 2 px right of where the approved mockup puts it.
+		public readonly int2 RankCountOffset = new int2(16, 2);
+
+		// Blank pixels the count keeps clear of the queue badge before it gives way entirely.
+		public readonly int RankCountBadgeGap = 1;
+
+		// The count is suppressed at 1: a lone chevron already says "one banked", and a digit that
+		// appears and disappears makes the mark's width jump as stock changes. Note this is the
+		// OPPOSITE ruling to the strip this replaces, which drew the digit always - there the digit
+		// was needed to tell three side-by-side tier entries apart, and here there is only ever one.
+		public readonly int RankCountMinimum = 2;
+
+		// U+00D7 MULTIPLICATION SIGN, glyph 153 in FreeSansBold with a 52-byte outline - verified by
+		// parsing the font's cmap and loca, not assumed. A glyph the font lacks renders as NOTHING at
+		// all, silently, with the widget working perfectly, which is the trap this feature has now
+		// sprung three times. Do not swap this for a Geometric Shapes or arrow character.
+		public readonly string RankCountPrefix = "\u00D7";
 
 		Player cachedQueueOwner;
 		IProductionIconOverlay[] pios;
 		RankAccumulation rankAccumulation;
+		PaletteReference rankPalette;
+
+		// One sprite per purchasable tier, built on first use rather than in Initialize: mods with no
+		// RankAccumulation trait (ra, cnc, d2k all share this widget) never reach the load, so they
+		// never need the sequences this names.
+		Sprite[] rankChevrons;
 
 		[CustomLintableHotkeyNames]
 		public static IEnumerable<string> LinterHotkeyNames(MiniYamlNode widgetNode, Action<string> emitError)
@@ -214,13 +243,10 @@ namespace OpenRA.Mods.Common.Widgets
 
 			iconOffset = 0.5f * IconSize.ToFloat2() + IconSpriteOffset;
 
-			// Two-number queue badge in the TOP-RIGHT corner, stacked vertically. Top row = "now"
-			// (items in a row at queue head); bottom row = total of this type. Right-aligned, so we
-			// keep an x-anchor here and subtract measured text width per draw.
-			countRightAnchor = IconSize.X - 3;
-			var lineHeight = overlayFont.Measure("0").Y;
-			countTopY = 1;
-			countBottomY = countTopY + lineHeight - 1;
+			// Split queue badge in the TOP-RIGHT corner, on ONE line. Right-aligned, so we keep an
+			// x-anchor here and subtract measured text width per draw - twice now, once per half.
+			countRightAnchor = IconSize.X - CountRightMargin;
+			countTopY = CountTopMargin;
 
 			holdOffset = iconOffset - overlayFont.Measure(HoldText) / 2;
 			readyOffset = iconOffset - overlayFont.Measure(ReadyText) / 2;
@@ -671,6 +697,10 @@ namespace OpenRA.Mods.Common.Widgets
 			var oldIconCount = DisplayedIconCount;
 			DisplayedIconCount = 0;
 
+			// Resolved here rather than in Initialize for the same reason the clock's is: the world's
+			// palettes are guaranteed present by the time a queue has been handed to us.
+			rankPalette = worldRenderer.Palette(RankPalette);
+
 			var rb = RenderBounds;
 			var faction = producer.Trait.Faction;
 
@@ -720,9 +750,6 @@ namespace OpenRA.Mods.Common.Widgets
 
 			var buildableItems = CurrentQueue.BuildableItems();
 
-			// Walk the global queue once to get a positional view we can use to compute "now" counts.
-			var allQueued = (IList<ProductionItem>)CurrentQueue.AllQueued();
-
 			// Icons
 			Game.Renderer.EnableAntialiasingFilter();
 			foreach (var icon in icons.Values)
@@ -734,8 +761,8 @@ namespace OpenRA.Mods.Common.Widgets
 					WidgetUtils.DrawSpriteCentered(pio.Sprite, worldRenderer.Palette(pio.Palette), icon.Pos + iconOffset + pio.Offset(IconSize));
 
 				// Build progress — only show the clock on the icon that's actually being produced.
-				// Showing empty clocks on every queued icon was misleading; the count badge now
-				// signals "queued, waiting" instead.
+				// Showing empty clocks on every queued icon was misleading; a queued type that is not
+				// at the head of the FIFO is signalled by carrying a badge and no countdown.
 				if (icon.Queued.Count > 0)
 				{
 					var first = icon.Queued[0];
@@ -760,166 +787,133 @@ namespace OpenRA.Mods.Common.Widgets
 			foreach (var icon in icons.Values)
 			{
 				var total = icon.Queued.Count;
-				if (total == 0)
-					continue;
+				var showRank = true;
 
-				var first = icon.Queued[0];
-				var anyInfinite = false;
-				for (var i = 0; i < icon.Queued.Count; i++)
+				// Left edge of whatever the queue badge occupies on line 1, so the rank count knows
+				// how much room it has. The whole cell width when there is no badge at all.
+				var badgeLeft = icon.Pos.X + IconSize.X;
+
+				if (total > 0)
 				{
-					if (icon.Queued[i].Infinite)
+					var first = icon.Queued[0];
+					var auto = 0;
+					for (var i = 0; i < icon.Queued.Count; i++)
+						if (icon.Queued[i].Infinite)
+							auto++;
+
+					var manual = total - auto;
+					var waiting = !CurrentQueue.IsProducing(first) && !first.Done;
+
+					// Center text — READY / ON HOLD / time — unchanged.
+					if (first.Done)
 					{
-						anyInfinite = true;
-						break;
+						if (ReadyTextStyle == ReadyTextStyleOptions.Solid || orderManager.LocalFrameNumber * worldRenderer.World.Timestep / 360 % 2 == 0)
+							overlayFont.DrawTextWithContrast(ReadyText, icon.Pos + readyOffset, Color.White, Color.Black, 1);
+						else if (ReadyTextStyle == ReadyTextStyleOptions.AlternatingColor)
+							overlayFont.DrawTextWithContrast(ReadyText, icon.Pos + readyOffset, ReadyTextAltColor, Color.Black, 1);
 					}
+					else if (first.Paused)
+						overlayFont.DrawTextWithContrast(HoldText,
+							icon.Pos + holdOffset,
+							Color.White, Color.Black, 1);
+					else if (!waiting && DrawTime)
+						overlayFont.DrawTextWithContrast(WidgetUtils.FormatTime(first.Queue.RemainingTimeActual(first), World.Timestep),
+							icon.Pos + timeOffset,
+							Color.White, Color.Black, 1);
+
+					badgeLeft = DrawQueueBadge(icon, manual, auto);
+
+					showRank = ProductionIconMarks.ShowRankMark(true, first.Done, first.Paused, waiting, DrawTime);
 				}
 
-				var waiting = !CurrentQueue.IsProducing(first) && !first.Done;
-
-				// "Now" count = number of consecutive items of this type starting at the global
-				// queue head. Reads as "how many of these will produce in a row right now".
-				// Only meaningful (non-zero) for the icon whose type is at queue[0].
-				var nowCount = 0;
-				for (var i = 0; i < allQueued.Count; i++)
-				{
-					if (allQueued[i].Item == icon.Name)
-						nowCount++;
-					else
-						break;
-				}
-
-				// Lime stripe down the left edge: this type has at least one auto-build copy. Drawn
-				// as a primitive so it never depends on a missing font glyph.
-				if (anyInfinite)
-				{
-					var stripe = new Rectangle(
-						(int)icon.Pos.X,
-						(int)icon.Pos.Y,
-						AutoStripeWidth,
-						IconSize.Y);
-					WidgetUtils.FillRectWithColor(stripe, AutoStripeColor);
-				}
-
-				// Center text — READY / ON HOLD / time — unchanged.
-				if (first.Done)
-				{
-					if (ReadyTextStyle == ReadyTextStyleOptions.Solid || orderManager.LocalFrameNumber * worldRenderer.World.Timestep / 360 % 2 == 0)
-						overlayFont.DrawTextWithContrast(ReadyText, icon.Pos + readyOffset, Color.White, Color.Black, 1);
-					else if (ReadyTextStyle == ReadyTextStyleOptions.AlternatingColor)
-						overlayFont.DrawTextWithContrast(ReadyText, icon.Pos + readyOffset, ReadyTextAltColor, Color.Black, 1);
-				}
-				else if (first.Paused)
-					overlayFont.DrawTextWithContrast(HoldText,
-						icon.Pos + holdOffset,
-						Color.White, Color.Black, 1);
-				else if (!waiting && DrawTime)
-					overlayFont.DrawTextWithContrast(WidgetUtils.FormatTime(first.Queue.RemainingTimeActual(first), World.Timestep),
-						icon.Pos + timeOffset,
-						Color.White, Color.Black, 1);
-
-				// Two-number badge in the TOP-RIGHT corner, right-aligned.
-				// Top row "now" only when there's a gap (now < total) AND this type is at the head.
-				// Bottom row "total" when total > 1 OR the type is waiting (so a lone queued copy
-				// still gets a "1" indicator).
-				var showTop = nowCount > 0 && nowCount < total;
-				var showBottom = total > 1 || waiting;
-
-				if (showTop)
-				{
-					var nowText = nowCount.ToString();
-					var nowWidth = overlayFont.Measure(nowText).X;
-					var nowPos = new float2(icon.Pos.X + countRightAnchor - nowWidth, icon.Pos.Y + countTopY);
-					overlayFont.DrawTextWithContrast(nowText, nowPos, CountNowColor, Color.Black, 1);
-				}
-
-				if (showBottom)
-				{
-					var totalText = total.ToString();
-					var totalWidth = overlayFont.Measure(totalText).X;
-					var totalY = showTop ? countBottomY : countTopY;
-					var totalPos = new float2(icon.Pos.X + countRightAnchor - totalWidth, icon.Pos.Y + totalY);
-					var totalColor = anyInfinite ? CountTotalAutoColor
-						: waiting ? CountTotalWaitingColor
-						: CountTotalActiveColor;
-					overlayFont.DrawTextWithContrast(totalText, totalPos, totalColor, Color.Black, 1);
-				}
+				if (showRank)
+					DrawHeldRank(icon, badgeLeft);
 			}
-
-			DrawAccumulatedRanks();
 		}
 
 		/// <summary>
-		/// The free ranks banked for each buildable, along the bottom-left of its button. One entry
-		/// per tier actually held - a type with nothing banked draws nothing at all, which is most of
-		/// them most of the time. Tiers run highest-first from the left, because the highest is what
-		/// the next click actually spends.
-		/// <para>Bottom-left is the only corner of this button nothing else claims: the two-number
-		/// queue badge owns top-right, the ready/hold/time text owns the centre, and the auto-build
-		/// stripe owns a 3px column on the far left that RankLeftMargin starts clear of.</para>
+		/// The split queue badge, top-right: the manual count in white and the recycling count in
+		/// lime, laid right to left from the same anchor so the pair reads as one number. Returns the
+		/// x it grew leftwards to, which is the room the rank count on the same line has left.
 		/// </summary>
-		void DrawAccumulatedRanks()
+		float DrawQueueBadge(ProductionIcon icon, int manual, int auto)
 		{
-			if (rankAccumulation == null)
-				return;
+			var anchor = icon.Pos.X + countRightAnchor;
+			var y = icon.Pos.Y + countTopY;
 
-			foreach (var icon in icons.Values)
+			var autoText = ProductionIconMarks.AutoBadgeText(manual, auto, CountAutoPrefix);
+			if (autoText != null)
 			{
-				var x = icon.Pos.X + RankLeftMargin;
-
-				// Tips of the lowest chevron in each stack sit on this line, so stacks of different
-				// heights stay bottom-aligned with each other.
-				var baseY = icon.Pos.Y + IconSize.Y - RankBottomMargin;
-
-				for (var tier = RankAccrual.MaxPurchasableRank; tier >= 1; tier--)
-				{
-					var held = rankAccumulation.StockOf(icon.Name, tier);
-					if (held <= 0)
-						continue;
-
-					// Tier N is a stack of N chevrons, the way rank insignia reads.
-					for (var i = 0; i < tier; i++)
-						DrawChevron(x, baseY - i * RankChevronPitch);
-
-					// The count is drawn even at 1. The original spec said "whenever there is more
-					// than 1", but the user compared both at size and submitted countDisplay:always
-					// — a digit that appears and disappears makes the strip's width jump as stock
-					// changes, and a lone chevron reads as an unlabelled decoration rather than as
-					// a quantity. Every entry is therefore glyph + digit, and the strip only
-					// changes width when a whole tier appears.
-					var text = held.ToString();
-					var pos = new float2(x + RankChevronWidth + RankGlyphCountGap,
-						baseY - overlayFont.Measure(text).Y + 1);
-					overlayFont.DrawTextWithContrast(text, pos, RankColor, Color.Black, 1);
-					var entryWidth = RankChevronWidth + RankGlyphCountGap + overlayFont.Measure(text).X;
-
-					x += entryWidth + RankEntryGap;
-				}
+				anchor -= overlayFont.Measure(autoText).X;
+				overlayFont.DrawTextWithContrast(autoText, new float2(anchor, y), CountAutoColor, Color.Black, 1);
 			}
+
+			var manualText = ProductionIconMarks.ManualBadgeText(manual);
+			if (manualText != null)
+			{
+				anchor -= overlayFont.Measure(manualText).X;
+				overlayFont.DrawTextWithContrast(manualText, new float2(anchor, y), CountManualColor, Color.Black, 1);
+			}
+
+			return anchor;
 		}
 
-		/// <summary>One chevron: a three-point polyline with its apex above the two tips, drawn over
-		/// a one-pixel black offset copy so it stays readable against pale icon art.</summary>
-		void DrawChevron(float x, float y)
+		/// <summary>
+		/// One chevron sprite in the top-left for the highest tier banked against this type, with the
+		/// count beside it once there is more than one. Nothing is drawn for a type holding nothing,
+		/// which is most of them most of the time.
+		/// <para>Top-left is the only corner this can live in. Bottom-left and bottom-right are 8 of
+		/// their 12 rows caption ink baked into the cameo art, and top-right is the queue badge - so a
+		/// tier-3 sprite, the tallest at 18 rows, only clears the caption by starting from the top.
+		/// Its ink runs to cell row 18 against a caption starting at row 38.</para>
+		/// </summary>
+		void DrawHeldRank(ProductionIcon icon, float badgeLeft)
 		{
-			var half = RankChevronWidth / 2f;
-			var cx = x + half;
+			if (rankAccumulation == null || rankPalette == null)
+				return;
 
-			var shadow = new[]
+			var tier = rankAccumulation.PeekRank(icon.Name);
+			if (tier < 1)
+				return;
+
+			// The sprite's own Offset is subtracted back out so the position given is the top-left of
+			// the frame's INK: SHP frames are trimmed to their used rect and carry a re-centring
+			// offset, which SpriteRenderer.DrawSprite adds back (SpriteRenderer.cs:148-160).
+			var sprite = RankChevron(tier);
+			Game.Renderer.SpriteRenderer.DrawSprite(sprite, rankPalette,
+				icon.Pos + RankChevronOffset - sprite.Offset);
+
+			var held = rankAccumulation.StockOf(icon.Name, tier);
+			var text = ProductionIconMarks.RankCountText(held, RankCountMinimum, RankCountPrefix);
+			if (text == null)
+				return;
+
+			var pos = icon.Pos + RankCountOffset;
+			if (!ProductionIconMarks.RankCountFits(pos.X, overlayFont.Measure(text).X, badgeLeft, RankCountBadgeGap))
+				return;
+
+			overlayFont.DrawTextWithContrast(text, pos, RankColor, Color.Black, 1);
+		}
+
+		/// <summary>
+		/// The chevron sprite for a tier, resolved once. Deferred out of Initialize so that a mod
+		/// sharing this widget without a RankAccumulation trait never asks for sequences it does not
+		/// declare - only DrawHeldRank reaches here, and it returns early without the trait.
+		/// </summary>
+		Sprite RankChevron(int tier)
+		{
+			if (rankChevrons == null)
 			{
-				new float3(x + 1, y + 1, 0),
-				new float3(cx + 1, y - RankChevronHeight + 1, 0),
-				new float3(x + RankChevronWidth + 1, y + 1, 0)
-			};
+				rankChevrons = new Sprite[RankAccrual.MaxPurchasableRank];
+				var anim = new Animation(World, RankAnimation);
+				for (var t = 1; t <= RankAccrual.MaxPurchasableRank; t++)
+				{
+					anim.Play(ProductionIconMarks.ChevronSequence(RankSequencePrefix, t));
+					rankChevrons[t - 1] = anim.Image;
+				}
+			}
 
-			var body = new[]
-			{
-				new float3(x, y, 0),
-				new float3(cx, y - RankChevronHeight, 0),
-				new float3(x + RankChevronWidth, y, 0)
-			};
-
-			Game.Renderer.RgbaColorRenderer.DrawLine(shadow, RankStrokeWidth, Color.Black, true);
-			Game.Renderer.RgbaColorRenderer.DrawLine(body, RankStrokeWidth, RankColor, true);
+			return rankChevrons[tier - 1];
 		}
 
 		public override string GetCursor(int2 pos)

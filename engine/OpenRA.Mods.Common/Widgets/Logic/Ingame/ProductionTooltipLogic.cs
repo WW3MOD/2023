@@ -55,8 +55,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var requiresFont = Game.Renderer.Fonts[requiresLabel.Font];
 			var requiresFormat = requiresLabel.Text;
 
+			// Banked purchase ranks, per tier. The production icon shows only the HIGHEST tier held,
+			// because that is the only one a purchase can spend — the depth behind it ("I am three
+			// deep in rank-1s") was deliberately traded off the cameo to clear the caption band baked
+			// into its bottom 8 rows, and this is where it went. Read live: unlike everything else on
+			// this tooltip it is player state, not ruleset, so it also has to join the cache key
+			// below or a stale count would sit under the cursor until the player moved it.
+			var rankAccumulation = player.PlayerActor.TraitOrDefault<RankAccumulation>();
+			var held = new int[RankAccrual.MaxPurchasableRank];
+
 			ActorInfo lastActor = null;
 			var lastHotkey = Hotkey.Invalid;
+			var lastRankSignature = -1;
 			var lastPowerState = pm?.PowerState ?? PowerState.Normal;
 			var descContainerY = descContainer.Bounds.Y + ProductionTooltipLayout.DescriptionTopMargin;
 			var descContainerPadding = descContainer.Bounds.Height;
@@ -70,7 +80,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					return;
 
 				var hotkey = tooltipIcon.Hotkey?.GetValue() ?? Hotkey.Invalid;
-				if (actor == lastActor && hotkey == lastHotkey && (pm == null || pm.PowerState == lastPowerState))
+
+				var rankSignature = 0;
+				for (var tier = 1; tier <= RankAccrual.MaxPurchasableRank; tier++)
+				{
+					held[tier - 1] = rankAccumulation?.StockOf(actor.Name, tier) ?? 0;
+					rankSignature = rankSignature * 397 + held[tier - 1];
+				}
+
+				if (actor == lastActor && hotkey == lastHotkey && rankSignature == lastRankSignature
+					&& (pm == null || pm.PowerState == lastPowerState))
 					return;
 
 				var tooltip = actor.TraitInfos<TooltipInfo>().FirstOrDefault(info => info.EnabledByDefault);
@@ -159,6 +178,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				// wrap to the left column's width and stop short of the cost gutter, which is what put
 				// the band of dead space down the right of every tooltip.
 				var elements = BuildElements(actor, mapRules, buildable);
+				elements.AddRange(BankedRankRows(held));
 				descContainer.RemoveChildren();
 				descContainer.Bounds.Width = ProductionTooltipLayout.ContentWidth;
 				var descSize = LayOutElements(descContainer, templates, elements, ProductionTooltipLayout.ContentWidth);
@@ -190,6 +210,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				lastActor = actor;
 				lastHotkey = hotkey;
+				lastRankSignature = rankSignature;
 				if (pm != null)
 					lastPowerState = pm.PowerState;
 			};
@@ -571,6 +592,36 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 
 			return result;
+		}
+
+		/// <summary>
+		/// <para>The banked-rank block: a subhead, one row per tier actually held with its depth, and
+		/// a line naming the tier the next purchase would arrive at. A type holding nothing
+		/// contributes no rows at all, which is most of them most of the time.</para>
+		///
+		/// <para>Tiers run highest-first, matching the order the icon strip used to draw them in and
+		/// putting the tier that will actually be spent at the top. Counts are printed as-is and can
+		/// exceed the {3,2,1} accrual caps: those bound the wall-clock grant only, and CreditWhole
+		/// adds to BonusStock uncapped (RankAccumulation.cs:239-246), so evacuating veterans can
+		/// legitimately bank double figures.</para>
+		/// </summary>
+		public static List<TooltipElement> BankedRankRows(IReadOnlyList<int> held)
+		{
+			var rows = new List<TooltipElement>();
+			var highest = RankAccrual.HighestHeldTier(held);
+			if (highest < 1)
+				return rows;
+
+			rows.Add(TooltipElement.SectionGap());
+			rows.Add(TooltipElement.Subhead("Banked ranks"));
+
+			for (var tier = highest; tier >= 1; tier--)
+				if (held[tier - 1] > 0)
+					rows.Add(TooltipElement.Stat($"Rank {tier}", held[tier - 1].ToString()));
+
+			rows.Add(TooltipElement.Prose($"The next one you order arrives at rank {highest}."));
+
+			return rows;
 		}
 
 		/// <summary>
