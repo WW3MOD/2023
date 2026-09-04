@@ -1,0 +1,91 @@
+# Buy -> bank -> fire loop autotest overrides.
+#
+# UNLIKE THE OTHER THREE MISSILE-POWER SCENARIOS, this one DEFINES something rather than only
+# reaching shipped config, and the map.yaml header explains why: the buy loop is not wired into the
+# mod (it needs a Powers sidebar tab, which needs a 16x16 glyph that does not exist). The engine
+# mechanism underneath it is what proposal §8 item 4 asks about, and that is what this file builds
+# the minimum of.
+#
+# EVERYTHING HERE IS THE MINIMUM. If a Phase 2 worker copies this block into the mod they must
+# re-derive the prices, the prerequisites and the queue; this is a probe, not a template.
+
+# THE BODILESS PROXY. No IOccupySpace trait of any kind, which is the whole point: it takes
+# Production.Produce's bodiless branch (Production.cs:126-131), which exists precisely so a
+# purchase can produce something that is not a unit.
+powerproxy.strike:
+	# 4000 credits — the price §9.3 approves for the fast-strike tier. Real money is spent, so the
+	# scenario also proves the purchase is charged rather than free.
+	Valued:
+		Cost: 4000
+	Tooltip:
+		Name: Missile Strike (bought)
+	# LOAD-BEARING, AND THE ONE TRAP §2.4 FOUND THAT CRASHES RATHER THAN HANGS.
+	# ProductionPaletteWidget.cs:683 calls item.TraitInfo<RenderSpritesInfo>() UNGUARDED, so a
+	# buy-menu item without RenderSprites throws. The three commented powerproxy.* blocks at
+	# misc.yaml:318-368 carry none — they were Red Alert crate grants, never sidebar items, and they
+	# are NOT a drop-in template.
+	#
+	# Image points at `iskander` SPECIFICALLY BECAUSE THAT SEQUENCE BLOCK HAS AN `icon:` MEMBER
+	# (sequences.yaml, `icon: iskandericon`). Buildable.Icon defaults to "icon" and is resolved
+	# against the actor's RenderSprites image, so a proxy pointed at kinzhalmissile — which ships
+	# only an `idle` — would have no cameo to draw. It is never actually drawn in this run (the
+	# Defense queue has no sidebar tab in this mod), but a Phase 2 worker copying this shape into
+	# the real menu would hit it immediately, and a dangling sequence reference is a lint error the
+	# scenario gates would not have caught either: scenarios are not maps to the tooling.
+	RenderSprites:
+		Image: iskander
+	AlwaysVisible:
+	Buildable:
+		Queue: Defense
+		BuildPaletteOrder: 1
+		# 25 ticks = 1.5 s at Timestep 60, instead of the cost-derived time a 4000-credit item would
+		# otherwise take. The scenario is measuring whether production COMPLETES and what happens
+		# when it does, not how long a queue takes; leaving it cost-derived would spend most of a
+		# launch slot watching a progress bar.
+		BuildDuration: 25
+	# The power the purchase banks. Deliberately its own OrderName, so it cannot be confused with the
+	# shipped MissileStrikePower@Kinzhal on the Player actor — which is present in this run too (the
+	# player is Russia) and acts as a control for the bin reading.
+	MissileStrikePower@Bought:
+		OrderName: BoughtStrike
+		Icon: precicon
+		Name: Bought Missile Strike
+		Description: A strike bought from the reserve and held until used.
+		# StartFullyCharged with a 0 interval is what makes a bought power a BANKED one rather than a
+		# second timer: you paid for it, so it is ready the moment it arrives.
+		ChargeInterval: 0
+		StartFullyCharged: true
+		# OneShot removes the icon after use (SupportPowerInstance, oneShotFired), which is the
+		# 'spend it' half of buy -> bank -> fire and is asserted at the end of the run.
+		OneShot: true
+		# AllowMultiple: true keys each purchase by ActorID (SupportPowerManager.cs:48-51), so N buys
+		# become N icons. That makes the key `BoughtStrike_<ActorID>` and therefore unpredictable
+		# from Lua, which is why the scenario reads the BIN LISTING out of Test.GetSupportPowerState
+		# and matches the key out of it rather than naming one.
+		AllowMultiple: true
+		Cursor: nuke
+		MissileActor: kinzhalmissile
+		SpawnAltitude: 8c0
+		DisplayBeacon: False
+		SelectTargetSpeechNotification: SelectTarget
+
+Player:
+	# Enough for exactly two purchases, so the run proves money is actually deducted (the verdict
+	# prints cash before and after) without any risk of the queue stalling on funds.
+	PlayerResources:
+		DefaultCash: 10000
+	# Elimination would end the match before the poller writes a verdict.
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-power-buy-loop.lua

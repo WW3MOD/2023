@@ -1,0 +1,40 @@
+# GBU-57 asymmetry autotest overrides.
+#
+# DELIBERATELY MINIMAL, and for the same reason test-missile-strike-power's is: the point of the run
+# is what the SHIPPED MOPPenetration warhead and gbu57bomb actor do, so nothing about the warhead,
+# the flight or the entry point is restated here. A local copy of any damage number would go stale
+# the moment weapons-superweapons.yaml moved, and the verdict would then be measuring this file.
+#
+# The overrides that ARE here are about reachability and about not measuring a timer.
+
+Player:
+	# The power's ONLY departure from shipping config, and it is the same one the Kinzhal scenario
+	# makes: charged at t=0 and re-armed in a tick, instead of the shipped 3000-tick (180 s)
+	# placeholder. Two things need it -- waiting out one interval would spend three minutes of a
+	# launch slot, and the scenario fires TWICE in one run.
+	MissileStrikePower@GBU57:
+		ChargeInterval: 1
+		StartFullyCharged: true
+	# Faction elimination would end the match before the Lua poller writes a verdict.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored, so neither victim's health readings nor the missile's
+	# position are a visibility artefact.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# No cash -> no production. The only actors in the world are the six placed ones plus the two
+	# bombs the power delivers, so GetActorsByType("gbu57bomb") cannot pick up a third from anywhere.
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
+	# spawn assignment -- see the geometry note in map.yaml.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-gbu57-asymmetry.lua

@@ -562,12 +562,24 @@ World:
 			1: WarningOneMinuteRemaining
 	ColorPickerManager:
 		PreviewActor: e3.colorpicker
-	# Airstrikes disabled for v1 — re-enable post-v1 by uncommenting this trait
-	# AND the AirstrikePower@America/@Russia + GrantConditionOnLobbyOption@airstrikes
-	# blocks in player.yaml. See CLAUDE/RELEASE_V1.md (Deferred to v1.1).
-	# PowersLobbyOptions:
-	# 	AirstrikeCheckboxDisplayOrder: 81
-	# 	AirstrikeCooldownDisplayOrder: 82
+	# LIVE as of the Phase 2 missile powers, for ONE option: the tactical nuclear strike gate.
+	# player.yaml's GrantConditionOnLobbyOption@tacnuke reads `tactical-nuke` from here, and the
+	# power's RequiresCondition makes its icon absent when the host leaves it off (the default).
+	#
+	# The trait's OTHER two options belong to the airstrikes, which stay disabled for v1 -- so they
+	# are HIDDEN rather than deleted. Hiding is the right lever: the fields keep documenting what
+	# the airstrike re-enable will need, `airstrikes` keeps registering with its default so
+	# GrantConditionOnLobbyOption@airstrikes resolves the moment that block is uncommented, and
+	# nothing in the lobby advertises a feature that is not there.
+	# Re-enabling airstrikes post-v1 = flip these two Visible flags back to True and uncomment the
+	# AirstrikePower@America/@Russia + GrantConditionOnLobbyOption@airstrikes blocks in player.yaml.
+	# See CLAUDE/RELEASE_V1.md (Deferred to v1.1).
+	PowersLobbyOptions:
+		AirstrikeCheckboxVisible: False
+		AirstrikeCheckboxDisplayOrder: 81
+		AirstrikeCooldownVisible: False
+		AirstrikeCooldownDisplayOrder: 82
+		TacticalNukeCheckboxDisplayOrder: 83
 	OrderEffects:
 		TerrainFlashImage: moveflsh
 		TerrainFlashSequence: idle

@@ -1,0 +1,1 @@
+Auto: with NO lobby override at all, asserts the tactical nuclear strike is 'hidden' from the power bin while the un-gated Kinzhal is live on the same player in the same tick. The Kinzhal is a positive control: without it, a mod in which no power works would pass. Guards the shipped default that a game nobody configured ships no nuke.

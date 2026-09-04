@@ -1,0 +1,156 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: GBU-57 wrecks a hardened structure and only dents a tank
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES, and it is a DESIGN claim rather than a code path. The delivery mechanism is
+# already proven: test-missile-strike-power passed at 894e8dc4 and MissileStrikePower is unchanged
+# here. What has never been observed is the reason the GBU-57 was chosen over an LRHW "Dark Eagle"
+# reskin (proposal §4, option b): "Russia buys SPEED, America buys PENETRATION -- the US strike hits
+# structures far harder and units far less."
+#
+# So this scenario fires ONE power at TWO victims and prints BOTH damage figures into the verdict.
+# A run that only asserted "the building died" would pass just as happily on a Kinzhal reskin, which
+# is the exact outcome the proposal rejected. The tank's survival is as load-bearing as the
+# building's death and is asserted with equal weight.
+#
+# THE PAIR IS MATCHED BY PRICE, NOT BY DURABILITY, because "which is this good against" is a
+# purchasing question:
+#
+#   Logistics Center  3000 credits  60,000 HP  Concrete, Thickness 0   (structures.yaml)
+#   Abrams            2500 credits  28,000 HP  Heavy, Thickness 700    (vehicles-america.yaml:464)
+#
+# PREDICTED, by the arithmetic MissilePowerAsymmetryTest performs over the shipped YAML. That
+# fixture is green in-tree, so this run is checking that the ENGINE agrees with the model, not
+# discovering the numbers:
+#
+#   MOPPenetration on the Logistics Center = 165,000 (Warhead@Penetrate, ValidTargets: Structure --
+#                                                     SpreadDamage measured from the hitshape edge,
+#                                                     so full damage anywhere inside the building)
+#                                          +   9,000 (Warhead@Surface)
+#                                          = 174,000 -> 2.9x its 60,000 HP, DEAD
+#   MOPPenetration on the Abrams           =   9,000 (Warhead@Surface only -- a vehicle carries no
+#                                                     `Structure` target type, so the penetrating
+#                                                     charge never applies to it)
+#                                          -> 32% of 28,000 HP, ALIVE at ~19,000
+#   ratio 19.3 : 1
+#
+# For contrast, the same arithmetic on the Kinzhal's IskanderExplosion is 61,000 vs 62,800 -- a
+# ratio of 0.97, i.e. no asymmetry at all. That contrast is what makes 19.3 a design decision rather
+# than a property every missile in the mod happens to have. It is checked in NUnit rather than here
+# because the Kinzhal is faction-locked to Russia and this scenario's firing player is America.
+#
+# THE TWO STRIKES ARE SEQUENTIAL AND THE VICTIMS ARE 12 CELLS APART. rules.yaml drops
+# ChargeInterval to 1 with StartFullyCharged, so the power re-arms in a tick and both shots fit in
+# one run. 12 cells is far outside MOPPenetration's widest warhead (Warhead@Surface, Spread 1c0
+# with a falloff that is zero past 4 cells), so neither strike can contaminate the other's reading.
+#
+# GEOMETRY. Same derivation as test-missile-strike-power, with America in the west slot:
+#   America HomeLocation 6,17 · Bounds Rectangle(left=1, top=1, w=64, h=32)
+#   Map.ChooseClosestEdgeCell (Map.cs:1821-1835):
+#     horizontalBound = (6-1=5) < 64/2=32   -> Bounds.Left = 1
+#     verticalBound   = (17-1=16) < 32/2=16 is FALSE -> Bounds.Bottom = 33
+#     du = |1-6| = 5, dv = |33-17| = 16, du < dv -> edge = (1, 17)
+#   Both aim points (36,17 and 48,17) are >= 35 cells east of that entry cell, so the entry check
+#   below still discriminates a spawned-on-target bug from a real off-map flight.
+#
+#   Flight: 35 cells = 35840 wdist at Speed 500 -> 72 ticks (4.3 s at Timestep 60), against the
+#   Kinzhal's 24 for a comparable shot. The MOP is DELIBERATELY the slow one; the Lua budget is
+#   loose enough (300 ticks per strike) that this is not a speed assertion.
+#
+# WHY MapStartingLocations IS REMOVED IN rules.yaml: America is the playable client player, so
+# Player.HomeLocation would otherwise come from a spawn assigner (Player.cs:182) and the edge
+# derivation above would depend on which mpspawn it picked. With the trait gone, assignSpawnPoints
+# is null and HomeLocation falls back to the pinned PlayerReference value.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	# America is the PLAYABLE player: MissileStrikePower@GBU57 carries
+	# `Prerequisites: player.america`, and Test.ActivateSupportPower issues the order through the
+	# local client's order stream.
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 6,17
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 58,17
+
+Actors:
+	# One Supply Route per side so neither faction is eliminated before the poller writes a verdict
+	# (AUTOTEST.md map.yaml rule 6). SUPPLYROUTE carries Targetable.TargetTypes: NoAutoTarget, so no
+	# warhead in the mod is valid against it -- including MOPPenetration, whose Warhead@Penetrate is
+	# gated on `Structure`.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 6,17
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 58,17
+
+	# THE HARDENED STRUCTURE, AND ITS LOCATION IS 35,16 TO PUT ITS CENTRE ON 36,17 -- which is the
+	# cell the Lua aims at. A building's map `Location` is the TOP-LEFT of its footprint, not its
+	# centre: BuildingInfo.CenterOffset adds (Dimensions * 1024 / 2) - (512, 512)
+	# (Building.cs:207-210), a full cell diagonally for any 3x3. Placing it at 36,17 and aiming at
+	# 36,17 would put the impact on the building's top-left CORNER.
+	#
+	# That no longer changes the damage -- MOPPenetration's Warhead@Penetrate is SpreadDamage, which
+	# measures distance from the HITSHAPE EDGE and reads zero anywhere inside the building -- and
+	# the warhead is written that way deliberately for this reason. But it is still centred here, so
+	# that the geometry the scenario states is the geometry it has, and so a future reader does not
+	# have to re-derive the offset to trust the verdict. If Warhead@Penetrate is ever changed back
+	# to TargetDamage, this placement is what stops the run silently measuring a 33% corner hit.
+	#
+	# The 3x3 footprint then covers 35-37 x 16-18. Its centre is 21 cells from OpponentSR at 58,17,
+	# well outside every MOPPenetration warhead (widest is Warhead@Surface, zero past 4 cells), so
+	# the strike cannot eliminate Russia by accident, and 12 cells clear of the Abrams.
+	StructVictim: logisticscenter
+		Owner: Russia
+		Location: 35,16
+
+	# THE UNIT OF COMPARABLE VALUE, 24 cells further east and 12 clear of OpponentSR.
+	# An Abrams under a Russian flag is deliberate rather than an oversight: this is the EXACT
+	# profile MissilePowerAsymmetryTest models (28,000 HP, Heavy, Thickness 700 -- the thickest
+	# vehicle armour in the mod), so the run and the fixture are measuring the same victim. A t90
+	# would be more natural for the owner and would prove less: 24,000 HP and Thickness 280 is a
+	# strictly easier target, and the point here is that even the mod's toughest tank survives.
+	TankVictim: abrams
+		Owner: Russia
+		Location: 48,17
+		Facing: 256
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+Rules: rules.yaml

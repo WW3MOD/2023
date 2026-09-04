@@ -1610,6 +1610,40 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return "issued";
 		}
 
+		[Desc("Report what the top-left support power bin would DRAW for `orderKey`, which is not " +
+			"the same question as whether the power can fire. Returns 'ready', 'charging:<ticks>', " +
+			"'hidden', 'absent' or 'no-manager', each suffixed with the full set of keys the bin " +
+			"would currently draw. " +
+			"THE DISTINCTION 'hidden' EXISTS FOR IS THE ONE A SCENARIO CANNOT OTHERWISE SEE: " +
+			"SupportPowerManager.ActorAdded registers EVERY SupportPower trait on the actor " +
+			"(SupportPowerManager.cs:58-74), disabled ones included, so a power switched off by " +
+			"RequiresCondition is still a key in Powers and ActivateSupportPower reports it as " +
+			"'not-ready' -- indistinguishable from one that is merely still charging. What actually " +
+			"differs is SupportPowerInstance.Disabled, and that is exactly what SupportPowersWidget " +
+			"filters the bin on (SupportPowersWidget.cs:136). This reads that predicate directly, so " +
+			"a lobby-gated power and a recharging one can be told apart. Test mode only.")]
+		public string GetSupportPowerState(Player player, string orderKey)
+		{
+			if (!TestMode.IsActive || player == null)
+				return "no-manager";
+
+			var manager = player.PlayerActor.TraitOrDefault<SupportPowerManager>();
+			if (manager == null)
+				return "no-manager";
+
+			// The same expression SupportPowersWidget.cs:136 builds its icon list from.
+			var drawn = manager.Powers.Values.Where(p => !p.Disabled).Select(p => p.Key).ToArray();
+			var bin = $" (bin: {(drawn.Length > 0 ? string.Join(",", drawn) : "empty")})";
+
+			if (!manager.Powers.TryGetValue(orderKey, out var power))
+				return "absent" + bin;
+
+			if (power.Disabled)
+				return "hidden" + bin;
+
+			return (power.Ready ? "ready" : $"charging:{power.RemainingTicks}") + bin;
+		}
+
 		SightingThreatLayer Sighting()
 		{
 			return Context.World?.WorldActor.TraitOrDefault<SightingThreatLayer>();

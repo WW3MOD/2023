@@ -1,0 +1,111 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: tactical nuke arrives from the edge and levels the aim point
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES: that the tactical nuclear strike, once the host has switched it ON in the
+# lobby, actually delivers. Its sibling test-tacnuke-lobby-gated-off asserts the other half — that
+# with the lobby option at its shipped default the power is not in the bin at all. The two are
+# separate scenarios rather than one because they need OPPOSITE lobby state, which is a rules-level
+# fact fixed before the first tick, not something a script can toggle mid-run.
+#
+# THE ONE OVERRIDE THAT MATTERS is in rules.yaml: `PowersLobbyOptions: TacticalNukeCheckboxEnabled:
+# true` + `Locked: true`. That is the same lever the shipped Kinzhal scenario already uses for
+# MapLayers' explored/fog checkboxes, so the mechanism is precedented rather than novel here.
+#
+# WHY THE VICTIM IS A t90 AND NOT A BUILDING. This scenario is about DELIVERY, not about warhead
+# shape — the Atomic warhead is reused unchanged from mslo's NukePower and was not written by this
+# work. A tank is the cleanest possible read on "the warhead went off where it was aimed": Atomic's
+# ThermalVaporize alone is 200,000 at Spread 3c0 against a t90's 24,000 HP, so arrival means death
+# and non-arrival means a live tank, with no ambiguous middle.
+#
+# THE BLAST IS ENORMOUS AND THE MAP IS SMALL, so placement is constrained rather than free:
+# Warhead@BlastWave has MaxRadius 30c0. On a 64x32 playfield essentially everything is inside it.
+# That is fine for what is asserted — `-ConquestVictoryConditions` in rules.yaml stops an
+# elimination from ending the match early, and SUPPLYROUTE carries
+# `Targetable.TargetTypes: NoAutoTarget`, which no Atomic warhead lists, so both Supply Routes are
+# untouched however close the detonation lands. Do NOT "fix" a future version of this by moving the
+# Supply Routes further away: the reason they survive is the target-type table, not the distance.
+#
+# GEOMETRY, same derivation as test-missile-strike-power:
+#   Russia HomeLocation 6,17 · Bounds Rectangle(left=1, top=1, w=64, h=32)
+#   Map.ChooseClosestEdgeCell (Map.cs:1821-1835):
+#     horizontalBound = (6-1=5) < 64/2=32 -> Bounds.Left = 1
+#     verticalBound   = (17-1=16) < 32/2=16 is FALSE -> Bounds.Bottom = 33
+#     du = |1-6| = 5, dv = |33-17| = 16, du < dv -> edge = (1, 17)
+#   Victim at 40,17 is 39 cells from that entry cell.
+#   Flight: 39 cells = 39936 wdist at Speed 900 -> 44 ticks (2.7 s at Timestep 60).
+#
+# WHY RUSSIA FIRES rather than America: nothing about the power requires it — MissileStrikePower
+# @TacNuke carries NO Prerequisites, because §1's table lists this entry's faction as "both", and
+# that absence is itself worth exercising. Russia was picked so that a run of this scenario and a
+# run of test-gbu57-asymmetry between them prove the unlocked power works from a faction that is
+# NOT the one the other new power is locked to.
+#
+# WHY MapStartingLocations IS REMOVED IN rules.yaml: Russia is the playable client player, so
+# Player.HomeLocation would otherwise come from a spawn assigner (Player.cs:182) and the edge
+# derivation above would depend on which mpspawn it picked.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 6,17
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 58,17
+
+Actors:
+	# One Supply Route per side so neither faction is eliminated before the poller writes a verdict
+	# (AUTOTEST.md map.yaml rule 6). Both are inside the 30-cell blast and both survive it, for the
+	# target-type reason in the header.
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 6,17
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 58,17
+
+	# THE VICTIM. t90: 24,000 HP, Heavy armour, Thickness 280 (vehicles-russia.yaml:289). Atomic's
+	# ThermalVaporize is 200,000 at Penetration 5000, so this is a binary read.
+	Victim: t90
+		Owner: USA
+		Location: 40,17
+		Facing: 256
+
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+Rules: rules.yaml

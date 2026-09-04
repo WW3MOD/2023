@@ -1242,6 +1242,71 @@ HIMARSMissile:
 		Weapon: HIMARSExplosion
 		RequiresCondition: airborne
 
+GBU57Bomb:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 0
+	Tooltip:
+		Name: GBU-57 MOP
+	RenderSprites:
+		Scale: 1.1
+	Health:
+		HP: 100
+	# UNACQUIRABLE, by the same mechanism the Kinzhal uses (vehicles-russia.yaml) and for the same
+	# reason: the first cut of the missile powers is the uninterceptable tier (proposal §1). The
+	# THEMATIC reason differs and is worth stating so nobody "fixes" it into a speed value -- the
+	# Kinzhal cannot be caught because it is too fast, the MOP cannot be caught because nothing in
+	# the mod can reach the B-2 that drops it. `Penetrator` is a target type no weapon in the mod
+	# lists, so no armament acquires this actor.
+	# PITFALL: do NOT express that as `-Targetable@Ground:` / `-Targetable@Airborne:`.
+	# WeaponInfo.IsValidAgainst gates on victim.GetEnabledTargetTypes() (WeaponInfo.cs:256-264), so
+	# an actor with NO target types is invalid for EVERY weapon -- including splash it stands in.
+	# Overriding the types keeps it damageable and merely unacquirable.
+	Targetable@Ground:
+		TargetTypes: Penetrator
+		RequiresCondition: !airborne
+	Targetable@Airborne:
+		TargetTypes: Penetrator
+		RequiresCondition: airborne
+	BallisticMissile:
+		# 30 for the same distance-independence reason as the Kinzhal: BallisticMissileFly derives
+		# the arc apex as hDist * Tan(LaunchAngle) / (4*1024) (BallisticMissileFly.cs:88-90), so a
+		# steep angle makes the missile CLIMB after entering the map by an amount that scales with
+		# the length of the shot. The near-vertical terminal look comes from SpawnAltitude in
+		# player.yaml, which does not scale.
+		LaunchAngle: 30
+		# 500 wdist/tick = 8.1 cells/s, against the Kinzhal's 2000 (32.6). FOUR TIMES SLOWER, and
+		# that is the point of the power rather than an oversight: the proposal's asymmetry is
+		# "Russia buys speed, America buys penetration", so the US strike must be visibly the slow
+		# one. A 47-cell shot takes 48128/500 = 96 ticks = 5.8 s at Timestep 60, against the
+		# Kinzhal's 24 ticks -- long enough that the beacon is a real warning.
+		Speed: 500
+		# Acceleration 0 + InitialSpeedPercent 100 keeps BallisticMissileFly.EstimateArcTicks on its
+		# exact hDist/Speed branch, so the flight time above is arithmetic rather than a simulation.
+		Acceleration: 0
+		InitialSpeedPercent: 100
+		# The terminal dive is the weapon. A MOP penetrates on kinetic energy, so it accelerates
+		# hard past the apex: the past-apex branch uses TerminalAcceleration when it is > 0
+		# (BallisticMissileFly.cs:212-219), taking 500 -> 900 (14.6 cells/s) over 10 ticks.
+		TerminalSpeed: 900
+		TerminalAcceleration: 40
+		# Dropped in already falling, so there is no erector to wait for. Non-zero here would hang
+		# the bomb motionless in the air at the map edge.
+		LaunchRiseTicks: 0
+		PostErectionWaitTicks: 0
+		VisualPitchMultiplier: 55
+	# NO LeavesTrailsCA, unlike the Kinzhal, and this is a deliberate visual difference rather than
+	# an omission: the MOP is an unpowered gravity penetrator with no motor to smoke. ^ShootableMissile
+	# ships no trail either, so this is simply not added.
+	#
+	# Plain Explodes, ungated, for the two reasons the Kinzhal documents: SpawnedExplodes calls
+	# self.Trait<BaseSpawnerSlave>() unconditionally (SpawnedExplodes.cs:63) and this bomb has no
+	# master, and a `RequiresCondition: airborne` gate would never fire -- BallisticMissileFly's last
+	# act is SetPosition(self, targetPos) then Kill (BallisticMissileFly.cs:207-209), which drops the
+	# actor below MinAirborneAltitude and revokes `airborne` before the queued kill lands.
+	Explodes:
+		Weapon: MOPPenetration
+
 # PRSM:
 # 	Inherits@Type: ^TrackedVehicle
 # 	Inherits@GainsExperience: ^GainsExperience

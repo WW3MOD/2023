@@ -1,0 +1,1 @@
+Auto: answers proposal SS8 item 4 — does a bodiless proxy really produce? Buys a spaceless 4000-credit proxy on the Defense queue, asserts cash is deducted, that a support power icon appears in the bin, that firing it delivers a missile from the map edge and kills its target, and that OneShot then removes the icon. Buy -> bank -> fire -> spend, never run before.

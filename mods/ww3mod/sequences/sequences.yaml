@@ -377,6 +377,23 @@ kinzhalmissile:
 		ZOffset: 1023
 		Scale: 0.8
 
+# The two Phase 2 missile-power bodies. Both reuse the Iskander missile art, as kinzhalmissile
+# above does -- the mod has no bespoke sprite for either and CheckSequences requires the image to
+# resolve. Scale is the only thing distinguishing them in flight: the GBU-57 is a 13-tonne
+# penetrator, so it renders largest once RenderSprites.Scale is applied on top (1.1 x 0.9 = 0.99
+# effective, against the Kinzhal 0.95 x 0.8 = 0.76); the tactical nuke sits between them at 0.89.
+gbu57bomb:
+	idle: iskander-missile
+		Facings: 32
+		ZOffset: 1023
+		Scale: 0.9
+
+tacnukemissile:
+	idle: iskander-missile
+		Facings: 32
+		ZOffset: 1023
+		Scale: 0.85
+
 shootableshipmissile:
 	idle: iskander-missile
 		Facings: 32

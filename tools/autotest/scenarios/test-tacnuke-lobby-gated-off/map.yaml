@@ -1,0 +1,98 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: tactical nuke is absent from the bin at its shipped default
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES: the SHIPPED DEFAULT. The tactical nuclear strike goes into v1 lobby-gated and
+# OFF (proposal §9.4), because the doomsday design it belongs to is unresolved in the user's own
+# words while the user asked for the power itself by name. "Defaults off" is a claim about a game
+# nobody configured, and it is the kind of claim that is true when written and quietly false three
+# commits later — a renamed lobby option id, an inverted GrantWhenOptionDisabled, a
+# PauseOnCondition swapped in for a RequiresCondition, and the nuke is on for everyone with no
+# error anywhere.
+#
+# SO THIS SCENARIO'S rules.yaml DELIBERATELY OVERRIDES NOTHING ABOUT THE POWER. No
+# PowersLobbyOptions block, no ChargeInterval, no StartFullyCharged. Its whole content is the
+# ABSENCE of the block its sibling test-tacnuke-delivers carries. Anything added here that touches
+# the gate destroys what is being measured.
+#
+# HOW ABSENCE IS OBSERVED, because "nothing happened" is the weakest possible evidence and this
+# scenario refuses to rest on it. SupportPowerManager.ActorAdded registers EVERY SupportPower trait
+# on the Player actor including disabled ones (SupportPowerManager.cs:58-74), so a gated-off power
+# is still a key in Powers and Test.ActivateSupportPower reports it as 'not-ready:<n>' —
+# indistinguishable from one that is simply still charging. Test.GetSupportPowerState instead reads
+# SupportPowerInstance.Disabled, which is exactly the predicate SupportPowersWidget filters its icon
+# list on (SupportPowersWidget.cs:136), and returns 'hidden' plus the full set of keys the bin WOULD
+# draw. That is a positive reading of an absence rather than a timeout.
+#
+# THE POSITIVE CONTROL IN THE SAME RUN. Russia's Kinzhal is NOT lobby-gated and must still be in
+# the bin. Without it, a scenario that broke the whole support power system — a Player actor with no
+# SupportPowerManager, a mod that failed to load player.yaml — would report 'hidden' for the nuke
+# and PASS while proving nothing. With it, the verdict has to show one power present and the other
+# absent, on the same player, in the same tick.
+#
+# THIS SCENARIO NEVER FIRES ANYTHING, so there is no geometry to derive and no victim. The single
+# t90 exists only so USA owns something and the run looks like a game.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	# Russia, so the Kinzhal control is available: MissileStrikePower@Kinzhal carries
+	# `Prerequisites: player.russia`.
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 6,17
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 58,17
+
+Actors:
+	# One Supply Route per side so neither faction is eliminated before the poller writes a verdict
+	# (AUTOTEST.md map.yaml rule 6).
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 6,17
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 58,17
+
+	Bystander: t90
+		Owner: USA
+		Location: 40,17
+		Facing: 256
+
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+Rules: rules.yaml

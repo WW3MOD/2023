@@ -1,0 +1,33 @@
+# Tactical nuclear strike LOBBY GATE (default OFF) autotest overrides.
+#
+# READ THE MAP.YAML HEADER BEFORE ADDING ANYTHING HERE. This scenario measures the SHIPPED DEFAULT,
+# so its value is in what it does NOT override:
+#
+#   * NO PowersLobbyOptions block. The nuke checkbox must arrive at its C# default of false.
+#   * NO MissileStrikePower@TacNuke block. Not ChargeInterval, not StartFullyCharged. The power is
+#     never fired here, and forcing it charged would say nothing about whether it is visible.
+#   * NO MissileStrikePower@Kinzhal block either — the Kinzhal is the positive control, and it must
+#     be observed exactly as it ships.
+#
+# Adding any of those turns a real assertion into a tautology. If a future edit needs one of them,
+# it needs a different scenario.
+
+Player:
+	# Nothing here touches the powers. Elimination would end the match before the poller writes a
+	# verdict; fog off keeps the readings clean. Both are harness hygiene, not gate state.
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-tacnuke-lobby-gated-off.lua

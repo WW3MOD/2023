@@ -3,6 +3,80 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-04 - A `TargetDamage` warhead aimed at a big building's own map cell delivers ~33%
+
+Found while sizing the GBU-57's warhead, and it is **live today on the shipped Kinzhal**, not a
+property of the new work.
+
+`TargetDamageWarhead` scales every hit by `HitShape.CenterProximityPercent` — distance from the
+victim's **centre**, normalised against its half-diagonal. A building's `Location` in a map (and the
+cell a player clicks) is its **top-left footprint cell**, not its centre:
+`BuildingInfo.CenterOffset` adds `(Dimensions * 1024 / 2) - (512, 512)`
+(`Building.cs:207-210`), which for any 3x3 is a full cell diagonally.
+
+For a Logistics Center (3x3, hitshape ±1536, half-diagonal 2172) that is 1448 units of offset:
+
+    proximity = 100 * (1 - 1448 / 2172) = 33%
+
+So `IskanderExplosion`'s `Warhead@Target: 54000` arrives as **~18,000** when the missile comes down
+on the building's corner cell rather than its middle, and the Kinzhal's total against a 60,000 HP
+building drops from ~61,000 (a kill) to ~25,000 (less than half). Which cell of a building the
+player clicked silently changes whether a support power kills it.
+
+**Two things follow.**
+
+1. **`SpreadDamage` does not have this problem** and is the better primitive for anything aimed at
+   structures. It measures `DistanceFromEdge` against the hitshape
+   (`SpreadDamageWarhead.cs`, `DamageCalculationType.HitShape`, the default), which is **zero
+   anywhere inside the building**. `MOPPenetration`'s `Warhead@Penetrate` is written as SpreadDamage
+   for exactly this reason.
+2. **`Spread` does not rescue it.** Widening `Spread` only widens *admission*; the proximity
+   percentage is computed independently, so a wider Spread admits more victims at low percentages
+   rather than restoring damage to the intended one. (`BallisticPenetrationTest` already pins the
+   related floor — an admitted near-miss used to read NEGATIVE and heal its target.)
+
+**Not fixed here, deliberately.** Changing `IskanderExplosion` is a balance change to a shipped
+weapon used by the Iskander launcher as well as the Kinzhal, and it wants its own item with a
+benchmark re-baseline. Recorded so whoever picks it up knows the size of it.
+
+## 2026-09-04 - A lobby-gated support power is still a key in `SupportPowerManager.Powers`
+
+`SupportPowerManager.ActorAdded` registers **every** `SupportPower` trait on the actor, disabled
+ones included (`SupportPowerManager.cs:58-74`) — it iterates `TraitsImplementing<SupportPower>()`,
+which does not filter on `IsTraitDisabled`. So a power switched off by `RequiresCondition` is
+present in `Powers`, and anything that probes it by key reports `not-ready`, which is
+**indistinguishable from a power that is merely still charging**.
+
+What actually differs is `SupportPowerInstance.Disabled`, and that is the predicate
+`SupportPowersWidget` filters its icon list on (`SupportPowersWidget.cs:136`). "Is the icon drawn?"
+and "can it fire right now?" are therefore different questions with different answers, and only the
+second was reachable from Lua.
+
+**Consequence for tests:** a scenario asserting that a gated-off power is absent could only ever
+observe a timeout, which also passes on a mod where nothing works at all.
+`Test.GetSupportPowerState(player, orderKey)` was added for this — it returns
+`ready` / `charging:<n>` / `hidden` / `absent` plus the full set of keys the bin *would* draw, so
+absence becomes a positive reading. `test-tacnuke-lobby-gated-off` uses it, with the un-gated
+Kinzhal as a live control in the same tick.
+
+## 2026-09-04 - `GrantConditionOnLobbyOption`'s polarity decides what an UNREGISTERED option does
+
+The trait falls back to `OptionOrDefault(Option, !GrantWhenOptionDisabled)`
+(`GrantConditionOnLobbyOption.cs:47`) when the lobby never registered the option at all — a stripped
+`PowersLobbyOptions`, an old saved session, a map that removes the trait.
+
+That makes the two ways of writing "gate a feature on a checkbox" **not equivalent**:
+
+| Form | Absent option resolves to |
+|---|---|
+| `Condition: X-disabled`, `GrantWhenOptionDisabled: true`, power `RequiresCondition: !X-disabled` | **feature OFF** |
+| `Condition: X-allowed`, `GrantWhenOptionDisabled: false`, power `RequiresCondition: X-allowed` | **feature ON** |
+
+Both read identically at a glance and behave identically in a normal lobby. For anything that must
+fail safe — the tactical nuclear strike is the live case — only the first form is correct. The
+shipped `GrantConditionOnLobbyOption@airstrikes` block already uses it; that now has a stated reason
+rather than being a coincidence.
+
 ## 2026-09-04 - `Testing map:` sits at the TOP of lint output, so tailing it produces a false negative
 
 CLAUDE.md's rule for the targeted scenario lint is right and load-bearing: *"Confirm the lint really
