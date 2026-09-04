@@ -144,6 +144,25 @@
     &ldquo;= tanks&rdquo; prices each strike against a main battle tank (T-90 2400 / Abrams 2500, mean 2450).
     For scale: rifleman&nbsp;100, Bradley&nbsp;1500, Tunguska&nbsp;1700, Stryker-SHORAD&nbsp;2500,
     Iskander &amp; HIMARS&nbsp;6000 <i>for two shots</i>, nuclear silo&nbsp;50000.
+    <br><br>
+    <b>What the warheads actually do</b>, by arithmetic over the shipped YAML (the combat-sim cannot
+    answer this &mdash; it needs a build that does not exist and its committed stats are stale):
+    <code>IskanderExplosion</code> does <b>~62,800</b> to an Abrams on a direct hit, against
+    <b>28,000</b> HP &mdash; 2.24&times; overkill, and that is the shipped conventional ballistic
+    missile. <code>Atomic</code> does <b>~266,000</b>: a 6.25-cell airburst that vaporises to ~8.4
+    cells, kills infantry to ~23 and sets structures alight to ~28. A Kinzhal should read as
+    <i>one Iskander missile, without having to drive the launcher there</i>. Past roughly
+    <b>80,000</b> a conventional missile stops reading as a missile and starts reading as a small nuke.
+    <br><br>
+    <b>Speeds</b>, at 16.667&nbsp;tps (<code>cells/s = Speed &times; 0.016276</code>): fast tier at
+    <code>Speed 2000</code> = 32.6&nbsp;c/s, <b>3.8&times; an F-16</b>, crossing 50 cells in
+    <b>1.5&nbsp;s</b>. Cruise tier at <code>Speed 350</code> = 5.7&nbsp;c/s, <b>8.8&nbsp;s</b> over the
+    same run &mdash; slower than every aircraft in the game. Shipped anchors: Iskander missile 600,
+    HIMARS rocket 500, F-16 525, A-10 390.
+    <br><br>
+    <b>None of them can touch the Supply Route.</b> It carries <code>TargetTypes: NoAutoTarget</code>
+    and no weapon in the mod lists it, so every warhead is rejected &mdash; including the nuke. These
+    are tools for killing armies and buildings, never a win button.
   </div>
 </div>
 
