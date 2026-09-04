@@ -53,7 +53,31 @@ used by shipped aircraft (`aircraft-america.yaml:310`, `aircraft-russia.yaml:127
 > in a live match. **The check that would confirm it:** a scenario that launches an Iskander at a
 > base defended by a `strykershorad` and asserts the missile reaches the ground.
 
-## 3. "AA vehicles yes, MANPADs no" has a hardware discriminator already sitting in the data
+## 3. "AA vehicles yes, MANPADs no" — CORRECTED. My discriminator was doctrinally right and mechanically backwards.
+
+> **⚠️ REFUTED BY `WORKSPACE/recon/powers-interception.md` §4, and the refutation is load-bearing.**
+> I proposed splitting on the gun: AA vehicles carry a rapid-fire cannon, the MANPAD does not, and
+> real cruise-missile defence is a gun problem. **In this engine a gun cannot hit a missile at all.**
+> `Bullet` flies to `args.PassiveTarget` — the target's position at the instant of firing
+> (`Bullet.cs:201`) — with **no lead solution**. Against a missile at 516–600 WDist/tick the lead
+> error is 10–12 cells at max range for `20mm_CRAM`, `30mm.Tunguska.AA` and `25mm.Bradley`, against
+> a 426-WDist hitshape. The mod already documents this for aircraft at
+> `weapons-ballistics.yaml:713-716`. Only homing `Missile` projectiles lead
+> (`Missile.cs:1148`, `WVec.CalculateLeadTarget`).
+>
+> **The correct dial is interceptor missile speed**, and it happens to be self-enforcing:
+> `MANPAD` flies at 450 and physically cannot catch a 516–600 missile; `Stinger.quad` and `9M311`
+> (the two AA vehicles) fly at 600; `SurfaceToAirMissile` (the disabled `SAM`) flies at 800.
+> So the split the user asked for is achieved by adding `ICBM` to **two missile weapons**, not to
+> any gun — a blast radius of exactly `strykershorad` and `tunguska`, and `25mm.Bradley` is left
+> untouched, which also avoids arming every Bradley.
+>
+> **The reasoning error worth keeping:** I checked what the shipped data *permitted* and never asked
+> whether the shot could *connect*. A target-type gate opening onto a weapon that cannot hit is not
+> a countermeasure. The section below is preserved as written, because the hardware observation is
+> still true and still useful for naming and flavour — it is only the *mechanism* that is wrong.
+
+### Original text, preserved
 
 The user asked for cruise missiles interceptable by AA vehicles but not by MANPADs. The obvious
 worry is that this is arbitrary — the mod deliberately models Stinger as Stinger regardless of
@@ -74,11 +98,12 @@ problem — seconds of engagement window, low IR signature, volume of fire — w
 (Counter-Rocket, Artillery and Mortar; a gun system) is one of the three actors already on the ICBM
 list. Nothing about Stinger needs to change.
 
-So the design rule is **guns intercept missiles, shoulder-fired IR missiles do not**, and the
+~~So the design rule is **guns intercept missiles, shoulder-fired IR missiles do not**, and the
 implementation is adding `ICBM` to the `ValidTargets` of two cannon weapons plus the AA vehicles'
-auto-target priorities.
+auto-target priorities.~~ **Struck — see the correction above. The rule is
+*fast interceptor missiles catch slow strike missiles*, and the two cannons are irrelevant.**
 
-**Caveat, and it is the same shape as the `^30mm` blast-radius problem at
+**Caveat — now moot, and moot in the cheap direction, since the corrected fix never touches a gun. Kept because it is the same shape as the `^30mm` blast-radius problem at
 `WORKSPACE/recon/powers-and-preloaded-transports.md` §1.3:** `25mm.Bradley` is named for the
 Bradley, so adding `ICBM` to it likely arms every Bradley too. The YAML at
 `vehicles-america.yaml:871` already carries a commented `# 30mm.Stryker`, which suggests a
