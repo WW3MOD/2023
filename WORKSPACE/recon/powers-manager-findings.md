@@ -182,6 +182,32 @@ new queue would copy. `WORKSPACE/recon/buymenu-audit.md` §6.1 establishes the t
 **seven** 28×28 slots on a 31 px pitch with three occupied, so a Powers tab is a free insert and
 would be the **fourth visible tab, not the seventh**.
 
+## 9. Both missile tiers can be one trait, separated by three numbers
+
+`BallisticMissile` (`engine/OpenRA.Mods.Common/Traits/BallisticMissile.cs:20`) is described as
+*"will fly in ballistic path then will detonate itself upon reaching target"* — it is arc-only,
+there is no level-flight cruise mode. **But `LaunchAngle` defaults to `WAngle.Zero`** (`:27`), so a
+near-flat launch is expressible, and the arc degenerates to a shallow run-in.
+
+That means the Kinzhal tier and the cruise tier can share one trait and differ only in YAML:
+
+| | Kinzhal (hypersonic) | Kalibr / Tomahawk (cruise) |
+|---|---|---|
+| `LaunchAngle` | high — steep arc, comes down on the target | low — flat, long visible run-in |
+| `Speed` | high (Iskander uses `600`) | low (trait default is `17`) |
+| `TerminalSpeed` / `TerminalAcceleration` | set, so it accelerates into the dive (`:90, :94`) | unset — constant speed, easy to lead |
+| `Targetable` | removed or a type nothing lists | `ICBM`, as `^ShootableMissile` ships |
+
+`Speed` is *WDist per tick*, so at 16.667 tps a `Speed: 600` missile covers 10 000 WDist/s ≈ 9.8
+cells/s. The trait default of `17` is ≈ 0.28 cells/s — the usable range is enormous and the two
+tiers will read as visibly different without any code.
+
+**One flag, unverified:** `MinAirborneAltitude: 5` (`:97`) decides when the `airborne` condition
+applies. A deliberately flat cruise missile may never clear it, which would flip which of
+`Explodes` / `SpawnedExplodes` fires (they are split on exactly that condition in
+`IskanderMissile`). **The check:** set a low `LaunchAngle` on a test missile and observe which
+warhead fires — needs a run, so it belongs to the parent manager.
+
 ---
 
 ## What I did not verify
