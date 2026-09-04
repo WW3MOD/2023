@@ -3,6 +3,41 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-04 - `Testing map:` sits at the TOP of lint output, so tailing it produces a false negative
+
+CLAUDE.md's rule for the targeted scenario lint is right and load-bearing: *"Confirm the lint really
+ran by requiring `Testing map:` in its output."* The trap is **where that line sits**.
+
+`utility.cmd --check-yaml <mapdir>` emits `Testing map: <title>` as one of the FIRST lines, then
+roughly 300 lines of `grants conditions that are not consumed` warnings. So the common habit of
+inspecting the tail -- `| Select-Object -Last 25`, or `| tail -25` -- shows only the warning block
+and **no `Testing map:` line**, which reads exactly like the "scenario was silently not linted"
+failure the rule exists to catch.
+
+**This fired for real.** On 2026-09-04 a manager applied the rule to a tailed output, concluded a
+freshly authored scenario was malformed, ran two control lints against a shipped map and an existing
+scenario to "confirm" it, and was wrong on all three readings. The scenario had linted correctly the
+whole time; the missing line was an artifact of the filter, not of the tool.
+
+**Check for it with a filter over the whole output, never a tail:**
+
+```powershell
+$o = .\utility.cmd --check-yaml "..\tools\autotest\scenarios\<name>" 2>&1 | Out-String
+($o -split "`n") | Where-Object { $_ -notmatch 'grants conditions that are not consumed' -and $_.Trim() -ne '' }
+```
+
+For a clean scenario that prints exactly one line: the `Testing map:` header. Anything else it prints
+is a real finding.
+
+**The general form, which is the part worth carrying:** when a rule says *"require string X to prove
+the tool ran"*, grep the WHOLE output for X. Sampling either end of it can only produce false
+negatives, and a false negative on a proof-of-execution check is indistinguishable from the failure
+being checked for.
+
+Related and still true: scenarios are invisible to `make nav-guard` and to bare `--check-yaml`
+(they classify as `MapClassification.Unknown`), so the targeted form above is the only thing that
+lints one at all.
+
 ## 2026-09-04 — A `SupportPower` on the PLAYER actor does register; `SpawnedExplodes` needs a master; and `BallisticMissileFly`'s acceleration simulation had no reader (`wt/powers-delivery`, `main @ a1df97d2`)
 
 Building `MissileStrikePower`, Phase 1 of the missile strike powers. **All static: no game was
