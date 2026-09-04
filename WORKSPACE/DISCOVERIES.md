@@ -67,6 +67,46 @@ returning a status string (`issued` / `not-ready:<n>` / `unknown-power:<key> (ha
 `IsValidTarget(targetTypes)` (`WeaponInfo.cs:256-264`), and splash warheads run each candidate
 through it. An actor with no enabled target types is invalid for every weapon. To make a missile
 unacquirable, OVERRIDE `TargetTypes` to a value nothing lists rather than removing the trait.
+## 2026-09-04 — `Sprite.Size` is the padded trim rect, not the ink; and the buy menu's two marks share one 10 px line (`wt/quiet-grid`, `main @ a1df97d2`)
+
+Building option A of `WORKSPACE/buymenu-redesign-note.md` — one chevron top-left, one split badge
+top-right, the lime autobuild stripe deleted.
+
+**1. A SHP sprite's drawn width is NOT its ink width, and the difference is 2 px here.**
+`ShpTDLoader` trims each frame to its used rect and then pads that back out: a 1 px transparent
+border on each side that has room for one (`ShpTDLoader.cs:113-124`), plus an even-size fudge
+(`:130-134`). `iconchevrons.shp` frame 0 has 14x10 of ink at the frame's own (0,0), so `left` and
+`top` cannot be decremented, `right` and `bottom` each grow by 1, and the fudge rounds 15x11 up —
+`Sprite.Size` reports **16x12 for 14x10 of ink**. Positioning a neighbouring label off
+`sprite.Size.X` therefore lands 2 px right of where the art looks like it ends. Anything that has
+to align *to the ink* needs a measured constant, not the sprite.
+
+The counterpart is that `Sprite.Offset` makes exact placement easy in the other direction:
+`SpriteRenderer.DrawSprite` adds it to the location given (`SpriteRenderer.cs:148-160`), so passing
+`wanted - sprite.Offset` puts the trimmed block's **top-left** exactly at `wanted`, independent of
+how much padding the loader added. `DrawSpriteCentered` is the same trick for the frame's centre.
+
+**2. The redesign note's "nothing is drawn below cell row 12" is not what the approved mockup
+draws, and the real number is 18.** The mockup's own `drawQuiet` places a tier-3 chevron at cell
+(1,1) with 18 rows of ink (`buymenu-redesign.html:382-399`), so the mark runs to **cell row 18**;
+row 12 is only true for the badge and for a tier-1 chevron. This is harmless — the constraint that
+actually binds is the caption baked at cell rows 38-45, and 18 clears it by 19 rows, which is the
+figure the note's own §3 quotes. Worth recording because "row 12" was carried forward verbatim into
+a work brief as a hard constraint that the approved design does not meet.
+
+**3. The two surviving marks share line 1, so they can collide — at 5 badge glyphs.** Both are on
+the same 10 px row of a 62 px cell: the rank count sits at x 16 and is 18 px wide at two digits
+(right edge 33), and the badge is right-anchored at x 59. Every glyph in play advances 6 px
+(digits 5.56 and both `+` and `×` 5.84 at TinyBold, from the font's own `hmtx`, rounded up). So a
+badge of five glyphs — `12+10`, i.e. 22 of one type queued in a mixed stack — reaches back to x 29
+and lands on the count. Reachable, since queue depth is unbounded and `BonusStock` is uncapped.
+Handled by measuring both at draw time and dropping the **count**, never the chevron
+(`ProductionIconMarks.RankCountFits`).
+
+**4. Glyph coverage, re-verified by parsing the font rather than trusting the note.** In
+`engine/mods/common/FreeSansBold.ttf`: `+` is glyph 14 with a 44-byte outline and `×` (U+00D7) is
+glyph 153 with 52 bytes. `↻` U+21BB, `∞` U+221E, `◆` U+25C6 and `▲` U+25B2 all map to glyph 0.
+`mods/ww3mod/mod.yaml` still declares no `Symbols` font, so `symbolFont` is null with no fallback.
 
 ## 2026-09-04 — The sidebar's "free" gutter and right margin are frame art drawn OVER the palette; and FreeSansBold has no ↻ either (`wt/buymenu-redesign`, `main @ 2c8488ef`)
 
