@@ -539,6 +539,15 @@ rank:
 iconchevrons:
 	veteran:
 		Offset: 2, 2
+	# Banked purchase ranks on a production icon, drawn by ProductionPaletteWidget for the
+	# highest tier held. Frames 0/1/2 are one/two/three chevrons; frame 3 is the elite star and
+	# has no tier to belong to - RankAccrual.MaxPurchasableRank is 3. No Offset: the widget
+	# places these by the top-left of their ink and subtracts the sprite's own offset back out.
+	rank1:
+	rank2:
+		Start: 1
+	rank3:
+		Start: 2
 
 mpspawn:
 	idle:
