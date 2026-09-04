@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rank accrual retune — full roster, old vs new</title>
+<style>
+  :root {
+    --bg: #14171c; --panel: #1b1f26; --line: #2b313b; --ink: #dfe4ec;
+    --dim: #8b95a5; --old: #d9694f; --new: #57b894; --hi: #e2c15c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 20px; background: var(--bg); color: var(--ink);
+    font: 13px/1.5 "Segoe UI", system-ui, sans-serif;
+  }
+  h1 { font-size: 17px; margin: 0 0 3px; font-weight: 600; }
+  .sub { color: var(--dim); margin-bottom: 16px; font-size: 12px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 6px; padding: 14px 16px; margin-bottom: 14px;
+  }
+  .knobs { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px 20px; }
+  .knob label { display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); }
+  .knob label b { color: var(--hi); font-variant-numeric: tabular-nums; font-weight: 600; }
+  .knob input[type=range] { width: 100%; margin: 4px 0 0; accent-color: #57b894; }
+  .knob .note { font-size: 10px; color: #6b7481; margin-top: 2px; }
+  .verdicts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .v { padding: 5px 10px; border-radius: 4px; font-size: 11px; border: 1px solid var(--line); background: #171b21; }
+  .v b { color: var(--hi); font-variant-numeric: tabular-nums; }
+  .v.ok { border-color: #2f5c4a; } .v.bad { border-color: #6b3b30; }
+  .v.ok b { color: var(--new); } .v.bad b { color: var(--old); }
+  .bar { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  button {
+    background: #232833; color: var(--ink); border: 1px solid var(--line);
+    border-radius: 4px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 12px;
+  }
+  button:hover { border-color: #4a5462; background: #2b313b; }
+  button.primary { background: #2c5a49; border-color: #3d7a63; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { padding: 3px 8px; text-align: right; border-bottom: 1px solid #22262e; white-space: nowrap; }
+  th {
+    position: sticky; top: 0; background: var(--panel); font-size: 10px; color: var(--dim);
+    text-transform: uppercase; letter-spacing: .05em; cursor: pointer; user-select: none;
+  }
+  th:hover { color: var(--ink); }
+  td.name, th.name { text-align: left; }
+  td.q { text-align: left; color: var(--dim); font-size: 11px; }
+  .oldcol { color: var(--old); } .newcol { color: var(--new); }
+  .grp { border-left: 1px solid var(--line); }
+  tbody tr:hover { background: #1e232b; }
+  .spark { height: 5px; border-radius: 3px; background: var(--new); display: inline-block; vertical-align: middle; }
+  .wrap { max-height: 620px; overflow: auto; }
+  .foot { color: var(--dim); font-size: 11px; margin-top: 12px; }
+  code { background: #232833; padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<h1>Rank accrual retune — wall-clock time to each free rank</h1>
+<div class="sub">
+  Every unit that accrues (Buildable + GainsExperience), at the default 60&nbsp;ms timestep =
+  16.67&nbsp;ticks/sec. <span class="oldcol">Old</span> = shipped this morning, linear 500% of build
+  time. <span class="newcol">New</span> = the proposed compressed curve. Sorted by cost; click any
+  header to re-sort.
+</div>
+
+<div class="panel">
+  <div class="knobs" id="knobs"></div>
+  <div class="verdicts" id="verdicts"></div>
+</div>
+
+<div class="panel">
+  <div class="bar">
+    <button id="reset">Reset to proposed defaults</button>
+    <button id="send" class="primary">Send these numbers back to Claude</button>
+    <span id="sent" style="color:var(--dim);font-size:11px"></span>
+  </div>
+  <div class="wrap">
+    <table>
+      <thead><tr>
+        <th class="name" data-k="n">Unit</th>
+        <th class="q" data-k="q">Queue</th>
+        <th data-k="c">Cost</th>
+        <th data-k="t">Build</th>
+        <th class="grp oldcol" data-k="o1">old r1</th>
+        <th class="oldcol" data-k="o2">old r2</th>
+        <th class="oldcol" data-k="o3">old r3</th>
+        <th class="grp newcol" data-k="n1">new r1</th>
+        <th class="newcol" data-k="n2">new r2</th>
+        <th class="newcol" data-k="n3">new r3</th>
+        <th class="grp" data-k="x">slower by</th>
+        <th class="name">new r1 relative</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div class="foot">
+    New rank-1 interval =
+    <code>min(Base + Mult% &times; &#8730;(buildTicks &times; Reference), Ceiling)</code>,
+    each tier up &times; the tier multiplier. Build time is <code>cost / 10</code> ticks.
+    Integer square root throughout (<code>Exts.ISqrt</code>) — no floating point in the shipped path.
+  </div>
+</div>
+
+<script>
+const ROSTER = [
+{"n":"Conscript","a":"E1","c":50,"t":5,"q":"Infantry"},
+{"n":"Automatic Rifleman","a":"AR","c":100,"t":10,"q":"Infantry"},
+{"n":"Grenadier","a":"E2","c":100,"t":10,"q":"Infantry"},
+{"n":"Rifleman","a":"E3","c":100,"t":10,"q":"Infantry"},
+{"n":"Drone operator","a":"DR","c":150,"t":15,"q":"Infantry"},
+{"n":"Flamethrower","a":"E4","c":150,"t":15,"q":"Infantry"},
+{"n":"Team Leader","a":"TL","c":200,"t":20,"q":"Infantry"},
+{"n":"Combat Engineer","a":"E6","c":250,"t":25,"q":"Infantry"},
+{"n":"Medic","a":"MEDI","c":250,"t":25,"q":"Infantry"},
+{"n":"Technician","a":"TECN","c":250,"t":25,"q":"Infantry"},
+{"n":"AA Specialist","a":"AA","c":300,"t":30,"q":"Infantry"},
+{"n":"AT Specialist","a":"AT","c":300,"t":30,"q":"Infantry"},
+{"n":"Mortar","a":"MT","c":300,"t":30,"q":"Infantry"},
+{"n":"Sniper","a":"SN","c":400,"t":40,"q":"Infantry"},
+{"n":"Humvee","a":"humvee","c":500,"t":50,"q":"Vehicle"},
+{"n":"Special Forces","a":"SF","c":600,"t":60,"q":"Infantry"},
+{"n":"BTR-80","a":"btr","c":600,"t":60,"q":"Vehicle"},
+{"n":"M113 APC","a":"m113","c":700,"t":70,"q":"Vehicle"},
+{"n":"BMP-2","a":"bmp2","c":1300,"t":130,"q":"Vehicle"},
+{"n":"Bradley","a":"bradley","c":1500,"t":150,"q":"Vehicle"},
+{"n":"BM-21 Grad","a":"grad","c":1500,"t":150,"q":"Vehicle"},
+{"n":"2K22 Tunguska","a":"tunguska","c":1700,"t":170,"q":"Vehicle"},
+{"n":"2S5 Giatsint-S","a":"giatsint","c":1800,"t":180,"q":"Vehicle"},
+{"n":"Paladin","a":"m109","c":1800,"t":180,"q":"Vehicle"},
+{"n":"M270 MLRS","a":"m270","c":1800,"t":180,"q":"Vehicle"},
+{"n":"Halo","a":"HALO","c":2000,"t":200,"q":"Aircraft"},
+{"n":"Chinook","a":"TRAN","c":2000,"t":200,"q":"Aircraft"},
+{"n":"TOS","a":"tos","c":2000,"t":200,"q":"Vehicle"},
+{"n":"T-90","a":"t90","c":2400,"t":240,"q":"Vehicle"},
+{"n":"Abrams M1A2","a":"abrams","c":2500,"t":250,"q":"Vehicle"},
+{"n":"Stryker SHORAD","a":"strykershorad","c":2500,"t":250,"q":"Vehicle"},
+{"n":"Littlebird","a":"littlebird","c":3000,"t":300,"q":"Aircraft"},
+{"n":"Mi-24 Hind","a":"HIND","c":4000,"t":400,"q":"Aircraft"},
+{"n":"Attack Aircraft","a":"A10","c":6000,"t":600,"q":"-"},
+{"n":"F-16","a":"F16","c":6000,"t":600,"q":"-"},
+{"n":"Su-25 Frogfoot","a":"FROG","c":6000,"t":600,"q":"-"},
+{"n":"Apache","a":"HELI","c":6000,"t":600,"q":"Aircraft"},
+{"n":"HIMARS","a":"HIMARS","c":6000,"t":600,"q":"Vehicle"},
+{"n":"Mi-28","a":"MI28","c":6000,"t":600,"q":"Aircraft"},
+{"n":"MiG-29 Fulcrum","a":"MIG","c":6000,"t":600,"q":"-"},
+{"n":"Iskander","a":"iskander","c":6000,"t":600,"q":"Vehicle"}
+];
+
+const TPS = 1000 / 60;                   // mod.yaml GameSpeeds "default": Timestep 60
+const OLD = { mult: 500, higher: 300 };  // what shipped this morning
+
+const DEFAULTS = { base: 2400, ref: 100, mult: 2700, cap: 9000, higher: 300 };
+const KNOBS = [
+  { k: 'base',   label: 'Rank1BaseIntervalTicks', min: 0,   max: 6000, step: 100, note: 'flat floor every unit pays' },
+  { k: 'mult',   label: 'Rank1IntervalMultiplier (%)', min: 0, max: 8000, step: 100, note: 'weight on the cost term' },
+  { k: 'ref',    label: 'CostReferenceBuildTicks', min: 10, max: 600,  step: 10,  note: 'compresses cost; sqrt(build x ref)' },
+  { k: 'cap',    label: 'Rank1MaxIntervalTicks',  min: 1000, max: 30000, step: 500, note: 'ceiling — this is what bounds the spread' },
+  { k: 'higher', label: 'HigherTierIntervalMultiplier (%)', min: 100, max: 600, step: 25, note: 'each tier up vs the last' }
+];
+
+let P = Object.assign({}, DEFAULTS);
+let sortKey = 'c', sortDir = 1;
+
+const isqrt = n => Math.floor(Math.sqrt(n));   // matches Exts.ISqrt floor rounding
+
+function oldInterval(t, tier) {
+  let v = Math.floor(Math.max(1, t) * OLD.mult / 100);
+  for (let i = 1; i < tier; i++) v = Math.floor(v * OLD.higher / 100);
+  return Math.max(1, v);
+}
+
+function newInterval(t, tier) {
+  let v = P.base + Math.floor(isqrt(Math.max(1, t) * Math.max(1, P.ref)) * P.mult / 100);
+  if (P.cap > 0) v = Math.min(v, P.cap);
+  for (let i = 1; i < tier; i++) v = Math.floor(v * P.higher / 100);
+  return Math.max(1, v);
+}
+
+function fmt(ticks) {
+  const s = Math.round(ticks / TPS);
+  if (s < 60) return s + 's';
+  const m = Math.floor(s / 60);
+  if (m < 100) return m + 'm' + String(s % 60).padStart(2, '0') + 's';
+  return m + 'm';
+}
+
+function buildKnobs() {
+  document.getElementById('knobs').innerHTML = KNOBS.map(kn => `
+    <div class="knob">
+      <label for="${kn.k}"><span>${kn.label}</span><b id="v_${kn.k}"></b></label>
+      <input type="range" id="${kn.k}" min="${kn.min}" max="${kn.max}" step="${kn.step}">
+      <div class="note">${kn.note}</div>
+    </div>`).join('');
+
+  KNOBS.forEach(kn => {
+    const el = document.getElementById(kn.k);
+    el.value = P[kn.k];
+    el.addEventListener('input', () => { P[kn.k] = +el.value; render(); post(); });
+  });
+}
+
+function render() {
+  KNOBS.forEach(kn => {
+    document.getElementById(kn.k).value = P[kn.k];
+    document.getElementById('v_' + kn.k).textContent = P[kn.k];
+  });
+
+  const rows = ROSTER.map(u => ({
+    ...u,
+    o1: oldInterval(u.t, 1), o2: oldInterval(u.t, 2), o3: oldInterval(u.t, 3),
+    n1: newInterval(u.t, 1), n2: newInterval(u.t, 2), n3: newInterval(u.t, 3)
+  }));
+  rows.forEach(r => { r.x = r.n1 / r.o1; });
+
+  const cheap = rows.reduce((a, b) => a.t < b.t ? a : b);
+  const dear = rows.reduce((a, b) => a.t > b.t ? a : b);
+  const spread = dear.n1 / cheap.n1;
+  const maxN1 = Math.max(...rows.map(r => r.n1));
+
+  const V = [
+    ['cheapest unit — first free rank', fmt(cheap.n1), cheap.n1 >= 2 * 60 * TPS && cheap.n1 <= 4 * 60 * TPS],
+    ['dearest unit — first free rank', fmt(dear.n1), dear.n1 <= 15 * 60 * TPS],
+    ['spread cheapest : dearest', spread.toFixed(2) + ' : 1', spread <= 4],
+    ['cheapest — rank 3', fmt(cheap.n3), cheap.n3 > 20 * 60 * TPS],
+    ['dearest — rank 3', fmt(dear.n3), true],
+    ['old spread, for reference', (dear.o1 / cheap.o1).toFixed(0) + ' : 1', false]
+  ];
+  document.getElementById('verdicts').innerHTML = V.map(([l, v, ok]) =>
+    `<span class="v ${ok ? 'ok' : 'bad'}">${l} <b>${v}</b></span>`).join('');
+
+  rows.sort((a, b) => {
+    const A = a[sortKey], B = b[sortKey];
+    return (typeof A === 'string' ? A.localeCompare(B) : A - B) * sortDir;
+  });
+
+  document.getElementById('rows').innerHTML = rows.map(r => `
+    <tr>
+      <td class="name">${r.n}</td>
+      <td class="q">${r.q}</td>
+      <td>${r.c}</td>
+      <td>${r.t}</td>
+      <td class="grp oldcol">${fmt(r.o1)}</td>
+      <td class="oldcol">${fmt(r.o2)}</td>
+      <td class="oldcol">${fmt(r.o3)}</td>
+      <td class="grp newcol">${fmt(r.n1)}</td>
+      <td class="newcol">${fmt(r.n2)}</td>
+      <td class="newcol">${fmt(r.n3)}</td>
+      <td class="grp">${r.x.toFixed(0)}&times;</td>
+      <td class="name"><span class="spark" style="width:${(r.n1 / maxN1 * 150).toFixed(0)}px"></span></td>
+    </tr>`).join('');
+
+  geometry();
+}
+
+document.querySelectorAll('th[data-k]').forEach(th => th.addEventListener('click', () => {
+  const k = th.dataset.k;
+  sortDir = (k === sortKey) ? -sortDir : 1;
+  sortKey = k;
+  render();
+}));
+
+document.getElementById('reset').addEventListener('click', () => {
+  P = Object.assign({}, DEFAULTS); render(); post();
+});
+
+function state() {
+  const cheap = ROSTER.reduce((a, b) => a.t < b.t ? a : b);
+  const dear = ROSTER.reduce((a, b) => a.t > b.t ? a : b);
+  return {
+    curve: P,
+    cheapest: { unit: cheap.n, cost: cheap.c, r1: newInterval(cheap.t, 1), r3: newInterval(cheap.t, 3) },
+    dearest: { unit: dear.n, cost: dear.c, r1: newInterval(dear.t, 1), r3: newInterval(dear.t, 3) },
+    spreadR1: +(newInterval(dear.t, 1) / newInterval(cheap.t, 1)).toFixed(3)
+  };
+}
+
+function post() {
+  window.parent.postMessage({ type: 'maestro:artifact_state', state: state() }, '*');
+}
+
+function geometry() {
+  window.parent.postMessage({
+    type: 'maestro:artifact_geometry', height: document.documentElement.scrollHeight }, '*');
+}
+
+document.getElementById('send').addEventListener('click', () => {
+  const s = state();
+  window.parent.postMessage({
+    type: 'maestro:artifact_submit',
+    state: s,
+    summary: `Base ${P.base}, Mult ${P.mult}%, Ref ${P.ref}, Cap ${P.cap}, Tier ${P.higher}% — `
+      + `cheapest r1 ${fmt(s.cheapest.r1)}, dearest r1 ${fmt(s.dearest.r1)}, spread ${s.spreadR1}:1`
+  }, '*');
+  document.getElementById('sent').textContent = 'sent';
+  setTimeout(() => document.getElementById('sent').textContent = '', 2500);
+});
+
+window.addEventListener('message', e => {
+  if (e.data && e.data.type === 'maestro:artifact_hydrate' && e.data.state && e.data.state.curve) {
+    P = Object.assign({}, DEFAULTS, e.data.state.curve);
+    render();
+  }
+});
+
+buildKnobs();
+render();
+post();
+window.addEventListener('load', geometry);
+</script>
+</body>
+</html>

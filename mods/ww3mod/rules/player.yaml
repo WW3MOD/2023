@@ -15,8 +15,10 @@ Player:
 	ProvidesMiniMap:
 	ProximityCaptor:
 		Types: Infantry, Vehicle, Plane, Ship
-	# Free veterancy accruing per unit type while it goes unbought. Defaults are
-	# rank-1 every 5 build times, each tier up 3x rarer, caps 3/2/1.
+	# Free veterancy accruing per unit type while it goes unbought. All defaults; set a field
+	# here to retune. At the shipped numbers and the default 60ms timestep, rank 1 runs from
+	# 2m59s for a 50-credit Conscript to 8m59s for a 6000-credit Iskander - a 3:1 spread, held
+	# there by Rank1MaxIntervalTicks. Each tier up is 3x rarer, so rank 3 is 27m to 81m. Caps 3/2/1.
 	RankAccumulation:
 	ClassicProductionQueue@Building:
 		Type: Building
