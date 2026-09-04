@@ -19451,3 +19451,19 @@ queue but for a *different* reason — there the array was unreachable, here the
 Either way `selfsameProductionsCount` cannot move anything, and it could not affect accrual regardless:
 `RankAccrual.BaseBuildTimeTicks` deliberately does not call `GetBuildTime` at all
 (`RankAccumulation.cs:30-35`).
+
+## 2026-09-04 — `make.ps1 all` can silently no-op after `git checkout --detach`, leaving the previous SHA's binaries
+
+**Symptom.** In the `verify-gate` worktree, detached at `894e8dc4`, built, gate run. Then `git checkout --detach d824b919` (the merge that brings `wt/quiet-grid` and `wt/powers-delivery` together) and `.\make.ps1 all` again. It printed **"Build succeeded, 0 Warning(s), 0 Error(s)"** in **1.53 s**, with **no per-project output lines at all** — and `engine/bin/OpenRA.Mods.Common.dll` still carried its mtime from the *previous* build, 1h45m earlier. The checkout had added `engine/OpenRA.Mods.Common/Widgets/ProductionIconMarks.cs` to the tree, and that file's mtime read **15:35** — older than the 16:24 DLL — despite git having just written it at 18:08.
+
+Touching the two changed sources and re-running rebuilt in 5.87 s with the project lines back and a current DLL mtime.
+
+**Why it matters.** A gate run on those binaries would have been a gate on the *old* commit while reporting the new one. Nothing in the output says so: "Build succeeded" is identical either way.
+
+**Leading hypothesis, NOT verified:** git's index stat-cache restored a previously-seen file with a preserved mtime rather than stamping it with the checkout time, so MSBuild's source-newer-than-output test failed and it skipped the project. Confirming it means checking `core.trustctime` / the index stat data across that specific checkout pair, which was not done. What IS established is the observation: source file older than output file, immediately after a checkout that added it.
+
+**Tells that a `make.ps1 all` did nothing:**
+- elapsed under ~2 s **and** no `-> ...dll` project lines in the output
+- `engine/bin/OpenRA.Mods.Common.dll` mtime older than the checkout you just did
+
+**Remedy before any gate or launch after switching SHAs in a shared/reused worktree:** `touch` the files the checkout changed (`git diff --name-only <old> <new> -- '*.cs'`), or check the DLL mtime, before trusting the build. Related and already known: `launch-game.sh` gates on `OpenRA.dll` present + `VERSION` matching, so a *missing* build fails loudly — this one is worse, because a *stale* build fails silently.
