@@ -4746,3 +4746,32 @@ map-rules test the way most weapon changes can — it has to be a change to the 
   every trade ratio ever computed is biased against whichever bot loses more vehicles. Diagnosable
   statically by reading both accumulators — no game run needed. Not mentioned in any existing doc.
   (found while working on: loss mining, WORKSPACE/analysis/0902-loss-mining.md §1.2)
+- [2026-09-04] [low] **A nuclear detonation computes every splashed victim's armour facing from the
+  map origin.** `NukeLaunch.Explode` hand-builds its `WarheadArgs` with four fields — `Weapon`,
+  `Source`, `SourceActor`, `WeaponTarget` — and calls the 2-arg `weapon.Impact(target, args)`
+  overload (`engine/OpenRA.Mods.Common/Projectiles/NukeLaunch.cs:143-152`). It never sets
+  `ImpactPosition`, and it does not go through `WeaponInfo.ImmediateImpactArgs`, the helper that
+  exists to set exactly that on projectile-less paths (`WeaponInfo.cs:297-314`, whose own comment
+  names this bug class). So `args.ImpactPosition` stays `WPos.Zero`, and
+  `SpreadDamageWarhead.DoImpact:117-122` derives `towardsTargetYaw` and `impactAngle` from the map
+  corner for every victim at non-zero falloff distance, feeding `ArmorDirectionPercent`
+  (`DamageWarhead.cs:142-215`) and therefore `effectiveThickness`. **Narrower than
+  `missiles.md` §10 instance 1**: the damage falloff is unaffected, because
+  `DamageWarhead.DoImpact:94` passes `target.CenterPosition` as a separate `pos` argument, and
+  `Atomic` carries no `TargetDamage` warhead so the negative-damage-heals mode cannot occur.
+  **Latent today** — every `Atomic` warhead has `Penetration: 5000` against a maximum in-game
+  thickness of 2000 (`MSLO`), so no facing can change the result. It goes live the moment a
+  `NukePower` weapon gets a `TargetDamage` warhead or a `Penetration` below the map's thicknesses,
+  which is precisely what a conventional missile power built on `NukePower` would do. Fix is one
+  line: replace the hand-built args with `ImmediateImpactArgs` and re-set `Source`.
+  (found while working on: missile-power delivery recon, WORKSPACE/recon/powers-missile-delivery.md §4.1)
+- [2026-09-04] [low] **`ISpeedModifier` is dead on the ballistic-missile flight path.**
+  `BallisticMissile.MovementSpeed` applies the collected `speedModifiers`
+  (`engine/OpenRA.Mods.Common/Traits/BallisticMissile.cs:230-233`, collected at `:212`), but
+  `BallisticMissileFly` never calls it — it reads `sbm.Info.Speed` raw at
+  `engine/OpenRA.Mods.Common/Activities/BallisticMissileFly.cs:52`, and `sbm.Info.Speed` /
+  `sbm.Info.TerminalSpeed` again at `:220` and `:223`. `MovementSpeed` survives only as input to
+  `EstimatedMoveDuration` (`:351-355`). Harmless today because nothing puts an `ISpeedModifier` on
+  `IskanderMissile` or `HIMARSMissile`, but it is a silent no-op waiting for anyone who tries to
+  differentiate two missile tiers with a speed-modifying condition rather than two `Speed:` values.
+  (found while working on: missile-power delivery recon, WORKSPACE/recon/powers-missile-delivery.md §4.2)
