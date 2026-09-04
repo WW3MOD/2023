@@ -19094,6 +19094,93 @@ multiplier a Conscript banked a rank every 25 ticks — **1.5 s** at the default
 filled all three tiers in 13.5 s. Dump the tracked roster with `WORKSPACE/mockups/roster_dump.py`
 (71 entries, faction clones included); it mirrors the trait's `Buildable` + `GainsExperience` filter.
 
+## 2026-09-04 — Four findings from the Powers / pre-loaded-transport recon (`wt/powers-recon`, `main @ d421e4ca`)
+
+Static reads only, no runs. Full write-up: [`recon/powers-and-preloaded-transports.md`](recon/powers-and-preloaded-transports.md).
+
+### A lobby dropdown survived an upstream merge that deleted the code reading it
+
+`SupportPowerInfo.LobbyChargeIntervalId` (`SupportPower.cs:25`) has **zero readers repo-wide** — the
+only three hits are its own declaration and two commented usages (`player.yaml:126,147`).
+`PowersLobbyOptions.AirstrikeCooldown` (`PowersLobbyOptions.cs:99`) is likewise assigned at `:110`
+and read by nothing. `git log -S "LobbyChargeIntervalId" -- .../SupportPowerManager.cs` returns
+exactly two commits: `6f2191be` added the parsing, **`71687440 "Upstream merge: fix OpenRA.Game
+compilation + resolve duplicate types"` removed it.** The `[Desc]`, the field and the whole
+five-value lobby dropdown outlived their implementation.
+
+**The general shape, which is the part worth keeping:** an upstream merge can delete a *consumer*
+while leaving the `Info` field, the `[Desc]` and the player-facing lobby entry standing. Nothing
+lints for that — a never-read `readonly` field is not a warning, and a lobby option that resolves to
+a value nobody uses renders normally. **When re-enabling any long-dormant feature, `grep` for a
+reader of each config field before trusting it**, not just for the field.
+
+Note the tick-rate error riding along: the removed parser used 25 tps and the surviving `[Desc]`
+still asserts it. The real rate is 16.667 (`mod.yaml:369-372`), so the shipped
+`ChargeInterval: 6000` is **6 minutes, not the 4** the dropdown default implies — the same 1.5×
+class CLAUDE.md already warns about.
+
+### A support power can be *bought* with no new engine code — the composition is already shipped
+
+Four existing mechanisms compose into a buy → stock → spend model:
+
+1. `Production.Produce` **succeeds for a producee with no `IOccupySpace`** — `Production.cs:123-127`
+   short-circuits the exit requirement, and `DoProduction` then skips every location init and calls
+   `CreateActor(producee.Name, td)` (`:96`) with the `OwnerInit` the queue always supplies
+   (`ProductionQueue.cs:728-732`).
+2. `SupportPowerManager.ActorAdded` (`:52-73`) registers any `SupportPower` on any owned actor.
+3. `AllowMultiple` keys each instance by ActorID (`MakeKey`, `:48-51`), so **N purchases become N
+   separate top-left icons** — a stock, not a boolean.
+4. `OneShot` sets `Disabled` (`:159`, `:255`) and `RefreshIcons` filters `!p.Disabled`
+   (`SupportPowersWidget.cs:135`), so a spent charge removes its own icon.
+
+So a bodiless `powerproxy.*` actor with `OneShot: true` + `AllowMultiple: true` + a `Valued: Cost:`
+is a purchasable one-use power, in YAML. **⚠️ The produce type must be added to `Production@Local`
+(`structures.yaml:361-363`), NOT `ProductionFromMapEdge` (`:364-366`)** — the latter's override
+resolves a spawn cell only for a producee carrying `MobileInfo` or `AircraftInfo`
+(`ProductionFromMapEdge.cs:85-86`), so a bodiless proxy leaves `location` null and returns `false`
+at `:158-159`. **The item then sits at 100% in the queue forever with no error anywhere** — a silent
+failure mode, and the one to warn anyone building this about.
+
+Related and separately useful: `SupportPowerInstance.IconOverlayTextOverride()`
+(`SupportPowerManager.cs:291-294`) is a `virtual` hook the widget already honours at
+`SupportPowersWidget.cs:229-233`, drawing the returned string **instead of** READY / ON HOLD / the
+countdown. Any "×3"-style charge readout is an override, not a widget change.
+
+### `Cargo.InitialUnits` works through the production path — but it is unlinted, and it throws
+
+`Cargo.InitialUnits` (`Cargo.cs:54`, consumed `:326-333`) and `CargoInit` (`:1290`, consumed
+`:305-320`) both spawn passengers inside the transport's own constructor, so **a produced transport
+arrives pre-loaded** — including through `ProductionFromMapEdge`, which ends in a plain
+`CreateActor` (`:181`) and only ever inspects the *transport's* `MobileInfo`/`AircraftInfo`. Unused
+anywhere in `mods/ww3mod/`; exercised upstream (`engine/mods/ra/maps/ant-03/rules.yaml:35,46`).
+
+**Three hazards, and none of them is caught by lint:**
+
+- `InitialUnits` carries **no `[ActorReference]` attribute** (`Cargo.cs:53-54`), unlike
+  `ProduceActorPowerInfo.Actors` (`ProduceActorPower.cs:19-22`) and
+  `SupportPowerCrateActionInfo.Proxy` (`:19-21`). A typo'd actor name is a runtime `CreateActor`
+  throw, not a lint error.
+- `GetWeight` uses `a.Info.TraitInfo<PassengerInfo>()` — **not `TraitInfoOrDefault`**
+  (`Cargo.cs:381`). An entry without a `Passenger` trait throws on the weight sum at `:333`.
+- The `InitialUnits` branch calls `cargo.Add(unit)` directly and consults **neither `HasSpace`, nor
+  `MaxWeight`, nor `Types`, nor `loadFilters`**. An over-capacity or wrong-`CargoType` load succeeds
+  silently.
+
+### `GetSellValue` has no passenger term, so evacuating a loaded transport deletes its cargo's value
+
+`GetSellValue` (`CustomSellValue.cs:28-54`) reads `CustomSellValueInfo.Value ?? ValuedInfo.Cost` and
+deducts missing ammo and missing supply. **There is no term for what is inside the `Cargo`.** The
+evacuation refund reads it directly (`RotateToEdge.cs:457`; also `Sell.cs:37`, `DeliversCash.cs:96`,
+`GivesBounty.cs:60`).
+
+Live today: evacuate a full Bradley and the squad's cost is simply gone. It becomes an **exploit**
+the moment any actor is priced to include its passengers — buy the priced-up transport, unload,
+evacuate the empty hull, bank the difference. Repeatable. **Anyone adding a pre-loaded transport
+preset must fix this first**, or the feature ships a money pump that looks exactly like a normal
+unload in playtesting. The fix is ~10 lines: sum `GetSellValue()` over the `Cargo` trait's
+passengers.
+
+
 ## 2026-09-04 — The infantry parallel queue is a round-robin THROTTLE, never a speed-up
 
 Infantry are the only class on `ClassicParallelProductionQueue` (`player.yaml:55`); the other five
