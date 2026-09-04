@@ -135,6 +135,12 @@
   </table>
   <div class="verdicts" id="verdicts"></div>
   <div class="foot">
+    <b>How interception actually works:</b> guns cannot do it &mdash; <code>Bullet</code> aims where the
+    target was when it fired, with no lead, so every cannon in the mod misses a fast missile by
+    10&ndash;12 cells. Only homing missiles lead. So the dial is <b>speed</b>: a MANPAD flies 450 and
+    cannot catch anything faster; the AA vehicles' missiles fly 600; the (disabled) SAM flies 800.
+    Make the cruise tier slow enough for 600 to close and the split the user asked for enforces itself.
+    <br><br>
     &ldquo;= tanks&rdquo; prices each strike against a main battle tank (T-90 2400 / Abrams 2500, mean 2450).
     For scale: rifleman&nbsp;100, Bradley&nbsp;1500, Tunguska&nbsp;1700, Stryker-SHORAD&nbsp;2500,
     Iskander &amp; HIMARS&nbsp;6000 <i>for two shots</i>, nuclear silo&nbsp;50000.
@@ -290,8 +296,8 @@ function renderRows() {
         '<div class="dimt" style="font-size:11px">'+p.sub+'</div>'+
         '<div class="dimt" style="font-size:11px;margin-top:2px">'+p.note+'</div></td>' +
       '<td>'+(p.intercept==='yes'
-        ? '<span class="ok">AA vehicles</span><div class="dimt" style="font-size:10px">not MANPADs</div>'
-        : '<span class="warn">nothing</span>')+'</td>' +
+        ? '<span class="ok">AA vehicles</span><div class="dimt" style="font-size:10px">Stinger/9M311 @600<br>MANPAD @450 cannot catch</div>'
+        : '<span class="warn">nothing</span><div class="dimt" style="font-size:10px">outruns every<br>interceptor in the mod</div>')+'</td>' +
       '<td><div class="knob"><label><span>credits</span><b id="pv-'+p.id+'">'+p.price+'</b></label>'+
         '<input type="range" min="500" max="20000" step="250" value="'+p.price+'" data-price="'+p.id+'"></div></td>' +
       '<td class="n" id="tk-'+p.id+'"></td>' +
