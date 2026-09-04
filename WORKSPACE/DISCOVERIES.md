@@ -3,6 +3,53 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-04 - A Lua test binding that answers two questions in one string fails its callers silently
+
+`Test.GetSupportPowerState(player, orderKey)` was written to return a state token **and** append the
+set of keys the power bin would draw:
+
+    "hidden (bin: KinzhalStrike)"
+
+Every caller then had to know the answer was decorated. **Three of the four did not** — including
+both call sites in the file whose own header documented the format, written in the same sitting by
+the same author:
+
+| Site | Comparison | Actual behaviour |
+|---|---|---|
+| `test-tacnuke-lobby-gated-off:92` | `state ~= "hidden"` | never matches → **run failed** |
+| `test-tacnuke-lobby-gated-off:60` | `~= "absent" and ~= "hidden"` | always true → gate not gating |
+| `test-tacnuke-delivers:123` | `~= "ready" and ~= "charging:0"` | always true → would have failed the same way |
+| `test-power-buy-loop:183` | `== "absent" or == "no-manager"` | never true → **a guard that cannot fire** |
+
+The failing run reported *`state 'hidden (bin: KinzhalStrike)', where 'hidden' was required`* — the
+shipped game behaving exactly as designed, and the test unable to say so.
+
+**The two failure modes are not equally visible, and the quiet one is worse.** A comparison that can
+never be TRUE reads, at a glance and in a passing run, as "that condition simply did not occur". The
+buy-loop control guard was inert from the moment it was written, and nothing would ever have said so:
+a mod with no working support powers would have walked straight past it into the real assertions.
+
+**The fix is to the API, not to careful callers.** Split into `GetSupportPowerState` (one bare token)
+and `GetSupportPowerBin` (the key list). That also made one caller honest: `test-power-buy-loop` had
+been passing an `orderKey` it did not care about purely to harvest the suffix, and now asks the
+question it actually has.
+
+**Why this class is specific to the script bindings.** These are consumed from Lua, so there is no
+compiler and no type to constrain the contract. A C# caller comparing an enum could not make this
+mistake; a Lua caller comparing a string cannot avoid making it, unless the vocabulary is small,
+bare, and pinned. `SupportPowerStateVocabularyTest` pins it from both ends — `TokensAreBare` (the one
+that would have caught this) and a scan of every scenario's comparisons against the producible set.
+Both were verified to go RED by reintroducing the exact defect before being committed.
+
+**The general rule worth carrying: a `Test.*` binding should return ONE thing.** If a scenario wants
+two facts, give it two bindings. The cost of a second binding is about fifteen lines; the cost of a
+decorated return is a burned launch slot and, worse, assertions that silently stop asserting.
+
+*(Second-order: `ActivateSupportPower` returns `not-ready:<n>` while `GetSupportPowerState` returns
+`charging:<n>` for the same situation. Two vocabularies for one concept, on two bindings a scenario
+uses together. Left alone here — renaming a shipped return is not this commit's business — but it is
+the next thing in this area likely to confuse someone.)*
+
 ## 2026-09-04 - `make.ps1 test` lints autotest scenarios BY NAME. CLAUDE.md says it does not, and that belief shipped a broken branch
 
 **VERIFIED, not inferred.** A full-capture `.\make.ps1 test` run prints a `Testing map:` line per

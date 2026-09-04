@@ -27,8 +27,14 @@
 -- `AllowMultiple: true`, so SupportPowerManager keys it `BoughtStrike_<ActorID>`
 -- (SupportPowerManager.cs:48-51) — the ActorID is not knowable in advance. That is not an
 -- inconvenience to work around, it is the §6 property that makes N purchases into N icons, so the
--- scenario reads the bin listing that Test.GetSupportPowerState appends and matches the key out of
--- it. A run that instead named a fixed key would be quietly testing AllowMultiple: false.
+-- scenario reads the key list from Test.GetSupportPowerBin and matches the key out of it. A run
+-- that instead named a fixed key would be quietly testing AllowMultiple: false.
+--
+-- THAT IS WHAT GetSupportPowerBin IS FOR, and it is why this scenario reads it directly rather than
+-- harvesting it off a state string. The state binding used to append the key list to every return,
+-- so this file called GetSupportPowerState with a key it did not care about purely to get at the
+-- suffix — and the same decoration silently broke exact-token comparisons in two sibling scenarios.
+-- The two questions are now two bindings: one power's state, or the set of drawn keys.
 --
 -- THE SHIPPED KINZHAL IS THE CONTROL. The player is Russia, so MissileStrikePower@Kinzhal is on the
 -- Player actor throughout. It must be in the bin before the purchase and still there after, which
@@ -51,6 +57,7 @@ local cashAfterQueue = -1
 local buildStarted = false
 local buildStatus = "never-called"
 local binBefore = "never-read"
+local controlBefore = "never-read"
 local binAfterProduce = "never-read"
 local binAfterFire = "never-read"
 local boughtKey = nil
@@ -78,11 +85,18 @@ local function n(v)
 	return tostring(v)
 end
 
--- Test.GetSupportPowerState appends " (bin: k1,k2,...)" — the exact set SupportPowersWidget would
--- draw (SupportPowersWidget.cs:136). Reading the bought key out of that listing is how an
--- AllowMultiple power, whose key carries a runtime ActorID, is found without guessing it.
+-- Test.GetSupportPowerBin returns the comma-separated keys the bin would draw — the exact set
+-- SupportPowersWidget builds its icon list from (SupportPowersWidget.cs:136), or the literal
+-- "empty". Matching the bought key out of that listing is how an AllowMultiple power, whose key
+-- carries a runtime ActorID, is found without guessing it.
 local function findBoughtKey(bin)
 	return string.match(bin, "(" .. BoughtPrefix .. "_%d+)")
+end
+
+-- The control's own state, kept separate from the bin. `charging:<n>` and `ready` both mean the
+-- icon is drawn; anything else means it is not.
+local function isDrawn(state)
+	return state == "ready" or string.sub(state, 1, 9) == "charging:"
 end
 
 local function pollTick()
@@ -96,7 +110,8 @@ local function pollTick()
 			return
 		end
 
-		binBefore = Test.GetSupportPowerState(Russia, ControlKey)
+		binBefore = Test.GetSupportPowerBin(Russia)
+		controlBefore = Test.GetSupportPowerState(Russia, ControlKey)
 		cashBefore = Russia.Cash + Russia.Resources
 
 		if Russia.Build({ ProxyType }) then
@@ -118,7 +133,7 @@ local function pollTick()
 			proxySeen = #proxies
 		end
 
-		local bin = Test.GetSupportPowerState(Russia, ControlKey)
+		local bin = Test.GetSupportPowerBin(Russia)
 		local key = findBoughtKey(bin)
 		if key ~= nil then
 			boughtKey = key
@@ -155,7 +170,7 @@ local function pollTick()
 end
 
 local function finish()
-	binAfterFire = Test.GetSupportPowerState(Russia, ControlKey)
+	binAfterFire = Test.GetSupportPowerBin(Russia)
 	local stillBanked = findBoughtKey(binAfterFire)
 
 	local home = Russia.HomeLocation
@@ -174,15 +189,23 @@ local function finish()
 		.. " | SPEND still-banked=" .. n(stillBanked)
 		.. " | victim " .. victimStartHealth .. "hp -> "
 		.. (Victim.IsDead and "DEAD" or (Victim.Health .. "hp"))
-		.. " | bins before=[" .. binBefore .. "] after-produce=[" .. binAfterProduce
+		.. " | control=" .. controlBefore
+		.. " bins before=[" .. binBefore .. "] after-produce=[" .. binAfterProduce
 		.. "] after-fire=[" .. binAfterFire .. "]"
 		.. " | observed=" .. tick .. "t"
 
 	-- 0. The control. If the shipped Kinzhal is not in the bin, nothing below can be read as a
 	-- statement about the purchase.
-	if binBefore == "absent" or binBefore == "no-manager" or binBefore == "never-read" then
-		Test.Fail("the shipped Kinzhal control was not in the power bin before the purchase ('"
-			.. binBefore .. "'), so this run says nothing about the buy loop. || " .. summary)
+	--
+	-- THIS GUARD USED TO BE UNFIREABLE. It compared the CONTROL'S STATE against 'absent' and
+	-- 'no-manager' while holding a string that also carried the bin listing appended to it, so no
+	-- comparison could ever match and a broken mod would have sailed past into the assertions below.
+	-- It now reads the control's state from its own binding, which returns a bare token.
+	if not isDrawn(controlBefore) then
+		Test.Fail("the shipped Kinzhal control was not drawn in the power bin before the purchase"
+			.. " (state '" .. controlBefore .. "', bin [" .. binBefore .. "]), so this run says"
+			.. " nothing about the buy loop — a mod in which no support power works at all would"
+			.. " also show no bought icon. || " .. summary)
 		return
 	end
 

@@ -13,6 +13,11 @@
 -- 'not-ready'. Its sibling test-tacnuke-lobby-gated-off asserts the same reading comes back
 -- 'hidden' when the option is left at its shipped default of OFF.
 --
+-- The binding returns ONE BARE TOKEN; Test.GetSupportPowerBin gives the key list separately. An
+-- earlier version appended " (bin: ...)" to the state, which made every exact comparison against it
+-- unsatisfiable — the assertion below was one of four sites carrying that bug and would have failed
+-- this scenario without the shipped behaviour being wrong at all.
+--
 -- WHY A LIVE ICON IS NOT ENOUGH ON ITS OWN: `RequiresCondition: !tacnuke-disabled` could be
 -- satisfied while the missile actor, its sequence or its Explodes payload are broken, and the run
 -- would still show a cameo. So the kill is asserted too, and the entry cell with it — a nuke that
@@ -45,7 +50,8 @@ local ObserveTicks = 400     -- whole-run budget.
 
 local tick = 0
 local Russia
-local binStateAtStart = "never-read"
+local stateAtStart = "never-read"
+local binAtStart = "never-read"
 local orderStatus = "never-called"
 local orderTick = nil
 local firstSeenTick = nil
@@ -53,6 +59,13 @@ local firstCell = nil
 local impactTick = nil
 local victimStartHealth = 0
 local finished = false
+
+-- "Would the bin draw this?" spelled once. Test.GetSupportPowerState returns a bare token; the two
+-- drawn states are `ready` and `charging:<n>`, the second carrying a value so it is matched by
+-- prefix. Every other token ('hidden', 'absent', 'no-manager') means no icon.
+local function isDrawn(state)
+	return state == "ready" or string.sub(state, 1, 9) == "charging:"
+end
 
 local function cellDist(ax, ay, bx, by)
 	local dx = ax - bx
@@ -75,7 +88,8 @@ local function pollTick()
 		-- Read the bin BEFORE firing, and keep the last reading: if the order never issues, the
 		-- verdict then says whether the icon was there at all, which separates "the gate is wrong"
 		-- from "the power is wired wrong".
-		binStateAtStart = Test.GetSupportPowerState(Russia, OrderKey)
+		stateAtStart = Test.GetSupportPowerState(Russia, OrderKey)
+		binAtStart = Test.GetSupportPowerBin(Russia)
 
 		orderStatus = Test.ActivateSupportPower(Russia, OrderKey, CPos.New(TargetX, TargetY))
 		if orderStatus == "issued" then
@@ -106,7 +120,7 @@ local function finish()
 	local flight = (orderTick ~= nil and impactTick ~= nil) and (impactTick - orderTick) or -1
 	local victimState = Victim.IsDead and "DEAD" or (Victim.Health .. "hp")
 
-	local summary = "lobby=ON(locked) bin=" .. binStateAtStart
+	local summary = "lobby=ON(locked) state=" .. stateAtStart .. " bin=[" .. binAtStart .. "]"
 		.. " | order=" .. orderStatus .. "@t" .. n(orderTick)
 		.. " | entry=" .. entryX .. "," .. entryY .. "@t" .. n(firstSeenTick)
 		.. " home=" .. home.X .. "," .. home.Y
@@ -120,9 +134,16 @@ local function finish()
 
 	-- 1. Did the lobby gate open? This is the assertion the scenario exists for; everything below
 	-- it is the delivery check that makes an open gate mean something.
-	if binStateAtStart ~= "ready" and binStateAtStart ~= "charging:0" then
+	-- Accepts BOTH drawn tokens. `ready` is expected here (rules.yaml sets ChargeInterval 1 and
+	-- StartFullyCharged), but `charging:<n>` is equally a live icon and is what the very first tick
+	-- can report: SupportPowerInstance.Ready is `Active && RemainingTicks == 0`, and Active is only
+	-- assigned inside Tick(), so a read before the first tick gives charging:0 rather than ready.
+	-- Matching the value-carrying token by prefix rather than spelling one instance of it is the
+	-- point — an earlier version compared against the literal "charging:0" and would have missed
+	-- charging:1.
+	if not isDrawn(stateAtStart) then
 		Test.Fail("the host enabled the tactical nuclear strike and the power bin still would not"
-			.. " draw it: state '" .. binStateAtStart .. "'. 'hidden' means the"
+			.. " draw it: state '" .. stateAtStart .. "'. 'hidden' means the"
 			.. " GrantConditionOnLobbyOption@tacnuke -> RequiresCondition chain did not open —"
 			.. " check the option id 'tactical-nuke' matches on both sides, and that"
 			.. " GrantWhenOptionDisabled is still true (the polarity is deliberate; see player.yaml)."

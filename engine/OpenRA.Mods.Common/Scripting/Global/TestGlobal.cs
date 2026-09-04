@@ -1610,10 +1610,69 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return "issued";
 		}
 
+		/// <summary>
+		/// <para>The complete vocabulary <see cref="GetSupportPowerState"/> can return. Public and
+		/// constant BECAUSE THE CALLERS ARE LUA and the compiler cannot check them: a scenario
+		/// comparing against a token this class cannot produce fails silently and forever.</para>
+		///
+		/// <para>THESE MUST STAY BARE. The first version of this binding suffixed every return with
+		/// " (bin: k1,k2)", which made `state == "hidden"` unsatisfiable in every scenario that
+		/// tried it -- three of the four callers got it wrong, including in the file whose own
+		/// header documented the format. The bin moved to <see cref="GetSupportPowerBin"/> and
+		/// SupportPowerStateTokensAreBare pins that it cannot come back.</para>
+		/// </summary>
+		public static class SupportPowerState
+		{
+			/// <summary>Registered, enabled, and its timer is at zero: the bin draws it and it can fire.</summary>
+			public const string Ready = "ready";
+
+			/// <summary>Registered but <see cref="SupportPowerInstance.Disabled"/>, so the bin does NOT
+			/// draw it. This is the reading a lobby-gated or prerequisite-blocked power gives, and the
+			/// one ActivateSupportPower cannot distinguish from a recharge.</summary>
+			public const string Hidden = "hidden";
+
+			/// <summary>No such key on this player's manager at all -- the trait is not on the actor.</summary>
+			public const string Absent = "absent";
+
+			/// <summary>No player, no manager, or test mode is off.</summary>
+			public const string NoManager = "no-manager";
+
+			/// <summary>Prefix of the one token that carries a value: `charging:&lt;ticks remaining&gt;`.
+			/// The bin DOES draw a charging power.</summary>
+			public const string ChargingPrefix = "charging:";
+
+			/// <summary>Every fixed token. `charging:` is excluded because it is a prefix, not a value.</summary>
+			public static readonly string[] Fixed = { Ready, Hidden, Absent, NoManager };
+
+			/// <summary>Is <paramref name="state"/> something this class could have returned? Used by
+			/// the fixture that checks the scenarios' comparisons against this vocabulary.</summary>
+			public static bool IsValid(string state)
+			{
+				if (state == null)
+					return false;
+
+				if (Array.IndexOf(Fixed, state) >= 0)
+					return true;
+
+				return state.StartsWith(ChargingPrefix, StringComparison.Ordinal)
+					&& state.Length > ChargingPrefix.Length
+					&& state[ChargingPrefix.Length..].All(char.IsDigit);
+			}
+
+			/// <summary>Do the tokens the bin actually draws include <paramref name="state"/>? The
+			/// predicate three of the four callers want, spelled once.</summary>
+			public static bool IsDrawn(string state)
+			{
+				return state == Ready || (state != null && state.StartsWith(ChargingPrefix, StringComparison.Ordinal));
+			}
+		}
+
 		[Desc("Report what the top-left support power bin would DRAW for `orderKey`, which is not " +
-			"the same question as whether the power can fire. Returns 'ready', 'charging:<ticks>', " +
-			"'hidden', 'absent' or 'no-manager', each suffixed with the full set of keys the bin " +
-			"would currently draw. " +
+			"the same question as whether the power can fire. Returns EXACTLY ONE BARE TOKEN, with " +
+			"no suffix or decoration of any kind: 'ready', 'charging:<ticks>', 'hidden', 'absent' " +
+			"or 'no-manager'. For the list of keys the bin would draw, call GetSupportPowerBin -- " +
+			"this deliberately does NOT append it, because an earlier version did and made " +
+			"`state == \"hidden\"` unsatisfiable in every scenario that tried it. " +
 			"THE DISTINCTION 'hidden' EXISTS FOR IS THE ONE A SCENARIO CANNOT OTHERWISE SEE: " +
 			"SupportPowerManager.ActorAdded registers EVERY SupportPower trait on the actor " +
 			"(SupportPowerManager.cs:58-74), disabled ones included, so a power switched off by " +
@@ -1624,24 +1683,47 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			"a lobby-gated power and a recharging one can be told apart. Test mode only.")]
 		public string GetSupportPowerState(Player player, string orderKey)
 		{
-			if (!TestMode.IsActive || player == null)
-				return "no-manager";
-
-			var manager = player.PlayerActor.TraitOrDefault<SupportPowerManager>();
+			var manager = SupportPowers(player);
 			if (manager == null)
-				return "no-manager";
-
-			// The same expression SupportPowersWidget.cs:136 builds its icon list from.
-			var drawn = manager.Powers.Values.Where(p => !p.Disabled).Select(p => p.Key).ToArray();
-			var bin = $" (bin: {(drawn.Length > 0 ? string.Join(",", drawn) : "empty")})";
+				return SupportPowerState.NoManager;
 
 			if (!manager.Powers.TryGetValue(orderKey, out var power))
-				return "absent" + bin;
+				return SupportPowerState.Absent;
 
 			if (power.Disabled)
-				return "hidden" + bin;
+				return SupportPowerState.Hidden;
 
-			return (power.Ready ? "ready" : $"charging:{power.RemainingTicks}") + bin;
+			return power.Ready
+				? SupportPowerState.Ready
+				: SupportPowerState.ChargingPrefix + power.RemainingTicks;
+		}
+
+		[Desc("The comma-separated keys the top-left support power bin would currently DRAW for " +
+			"`player`, in manager order -- the same set SupportPowersWidget builds its icon list " +
+			"from (SupportPowersWidget.cs:136). Returns 'empty' when the bin would draw nothing and " +
+			"'no-manager' when there is no player or no manager, so the result is always printable " +
+			"straight into a verdict string. " +
+			"SPLIT OUT FROM GetSupportPowerState DELIBERATELY: that binding used to append this, " +
+			"which forced every caller to know its answer was decorated and made an exact token " +
+			"comparison silently impossible. Use this when you want the SET (for instance to match " +
+			"an AllowMultiple power's `OrderName_<ActorID>` key, which cannot be known in advance); " +
+			"use GetSupportPowerState when you want one power's state. Test mode only.")]
+		public string GetSupportPowerBin(Player player)
+		{
+			var manager = SupportPowers(player);
+			if (manager == null)
+				return SupportPowerState.NoManager;
+
+			var drawn = manager.Powers.Values.Where(p => !p.Disabled).Select(p => p.Key).ToArray();
+			return drawn.Length > 0 ? string.Join(",", drawn) : "empty";
+		}
+
+		SupportPowerManager SupportPowers(Player player)
+		{
+			if (!TestMode.IsActive || player == null)
+				return null;
+
+			return player.PlayerActor.TraitOrDefault<SupportPowerManager>();
 		}
 
 		SightingThreatLayer Sighting()

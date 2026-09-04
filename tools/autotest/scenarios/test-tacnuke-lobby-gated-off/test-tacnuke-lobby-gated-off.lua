@@ -16,6 +16,10 @@
 --      a key in SupportPowerManager.Powers: ActorAdded registers every SupportPower trait on the
 --      actor, disabled ones included (SupportPowerManager.cs:58-74), so ActivateSupportPower cannot
 --      tell "the host switched this off" from "this is still charging".
+--      It returns ONE BARE TOKEN. The bin listing comes from Test.GetSupportPowerBin, separately.
+--      The first version of the binding appended " (bin: ...)" to every state, which made the
+--      comparison on line ~100 below unsatisfiable and failed this scenario at 0d0dcfbb while the
+--      SHIPPED BEHAVIOUR WAS ALREADY CORRECT. Do not merge the two readings again.
 --   2. THE KINZHAL IS THE POSITIVE CONTROL, read on the same player in the same tick. It is not
 --      lobby-gated, so it must be present. One power visible and the other not is a claim about the
 --      GATE; two powers invisible is a claim about the mod being broken, and the verdict says which.
@@ -42,23 +46,31 @@ local tick = 0
 local Russia
 local nukeState = "never-read"
 local controlState = "never-read"
+local bin = "never-read"
 local nukeOrderStatus = "never-called"
 local controlReadyTick = nil
 local finished = false
+
+-- "Would the bin draw this?" spelled once. Test.GetSupportPowerState returns a bare token, and the
+-- two drawn states are `ready` and `charging:<n>` — the second carries a value, so it is matched by
+-- prefix. Every other token ('hidden', 'absent', 'no-manager') means no icon.
+local function isDrawn(state)
+	return state == "ready" or string.sub(state, 1, 9) == "charging:"
+end
 
 local function pollTick()
 	tick = tick + 1
 
 	nukeState = Test.GetSupportPowerState(Russia, NukeKey)
 	controlState = Test.GetSupportPowerState(Russia, ControlKey)
+	bin = Test.GetSupportPowerBin(Russia)
 
 	-- The control coming up is the signal that the support power system has finished initialising,
 	-- so both readings are taken against a settled world rather than a cold one. `charging:<n>` is
 	-- the expected reading for the Kinzhal here: nothing in this scenario overrides its shipped
 	-- 3000-tick interval, and it must NOT be overridden — the control has to be observed exactly as
 	-- it ships. Charging is a live icon; hidden is not.
-	if controlReadyTick == nil and controlState ~= "absent" and controlState ~= "hidden"
-		and controlState ~= "no-manager" then
+	if controlReadyTick == nil and isDrawn(controlState) then
 		controlReadyTick = tick
 	end
 end
@@ -74,6 +86,7 @@ local function finish()
 		.. " order=" .. nukeOrderStatus
 		.. " | control '" .. ControlKey .. "' state=" .. controlState
 		.. " live@t" .. (controlReadyTick ~= nil and tostring(controlReadyTick) or "never")
+		.. " | bin=[" .. bin .. "]"
 		.. " | observed=" .. tick .. "t"
 
 	-- 1. THE CONTROL, FIRST. Without it a broken mod passes this scenario.
