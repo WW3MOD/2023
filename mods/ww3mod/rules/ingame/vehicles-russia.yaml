@@ -1153,6 +1153,73 @@ IskanderMissile:
 		Weapon: IskanderExplosion
 		RequiresCondition: airborne
 
+KinzhalMissile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 0
+	Tooltip:
+		Name: Kh-47M2 Kinzhal
+	RenderSprites:
+		Scale: 0.95
+	Health:
+		HP: 100
+	# UNINTERCEPTABLE, and this is the whole point of the Phase 1 tier. ^ShootableMissile ships both
+	# Targetable traits carrying `TargetTypes: ICBM` (defaults.yaml:1083-1088); `Hypersonic` is a type
+	# no weapon in the mod lists, so nothing can acquire this actor.
+	# PITFALL: do NOT express that as `-Targetable@Ground:` / `-Targetable@Airborne:`. WeaponInfo
+	# .IsValidAgainst reads victim.GetEnabledTargetTypes() and gates on it (WeaponInfo.cs:256-264),
+	# so an actor with NO target types is invalid for every weapon -- including splash warheads it
+	# happens to stand inside. Overriding the types keeps it damageable and merely unacquirable.
+	Targetable@Ground:
+		TargetTypes: Hypersonic
+		RequiresCondition: !airborne
+	Targetable@Airborne:
+		TargetTypes: Hypersonic
+		RequiresCondition: airborne
+	BallisticMissile:
+		# LaunchAngle is DELIBERATELY LOW, and lower than either shipped launcher (Iskander 110,
+		# HIMARS 80). BallisticMissileFly derives the arc apex as hDist * Tan(LaunchAngle) / (4*1024)
+		# (BallisticMissileFly.cs:88-90), i.e. it scales with the length of the shot -- so a steep
+		# angle would make this missile CLIMB after entering the map, by more on a big map than a
+		# small one. 30 units = 10.5 deg, tan*1024 = 190, so over a 50-cell run the bump is
+		# 51200 * 190 / 4096 = 2375 wdist = 2.3 cells. The steep look comes from the 8-cell spawn
+		# altitude in MissileStrikePower instead, which is distance-independent.
+		LaunchAngle: 30
+		# 2000 wdist/tick. cells/s = Speed / 1024 * 16.667 = Speed * 0.016276 = 32.6 cells/s, against
+		# the Iskander's 600 (9.8) and the fastest jet's 525 (8.5). 50 cells crossed in
+		# 51200 / 2000 = 25 ticks = 1.50 s at Timestep 60.
+		Speed: 2000
+		# Already at cruise on entry: with Acceleration 0, BallisticMissileFly.EstimateArcTicks takes
+		# the exact hDist / Speed branch, so the numbers above hold instead of being simulated.
+		Acceleration: 0
+		InitialSpeedPercent: 100
+		# Terminal dive still bites with Acceleration 0: the past-apex branch uses
+		# TerminalAcceleration when it is > 0 (BallisticMissileFly.cs:212-219), so speed climbs
+		# 2000 -> 2400 over 10 ticks past the halfway point. 2400 = 39.1 cells/s.
+		TerminalSpeed: 2400
+		TerminalAcceleration: 40
+		# No erector: this thing is dropped in already flying, so PreLaunchTicks must stay 0 or the
+		# missile would hang motionless in the air at the map edge.
+		LaunchRiseTicks: 0
+		PostErectionWaitTicks: 0
+		VisualPitchMultiplier: 47
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Type: CenterPosition
+		Offsets: -650, 0, 200
+	# Plain Explodes, ungated, and BOTH halves of that are deliberate. SpawnedExplodes is not usable
+	# here -- it calls self.Trait<BaseSpawnerSlave>() unconditionally (SpawnedExplodes.cs:63) and this
+	# missile has no master to be a slave of. And the `airborne` gate the two shipped missiles carry
+	# only works because they pair it with a `!airborne` SpawnedExplodes: BallisticMissileFly's last
+	# act is SetPosition(self, targetPos) then Kill (BallisticMissileFly.cs:207-209), and that
+	# position is at terrain level, which drops the actor below MinAirborneAltitude and revokes
+	# `airborne` before the kill lands. A lone `RequiresCondition: airborne` would therefore never
+	# fire on a successful strike. Ungated fires exactly once either way.
+	Explodes:
+		Weapon: IskanderExplosion
+
 # TTNK:
 # 	Inherits@Type: ^TrackedVehicle
 # 	Inherits@GainsExperience: ^GainsExperience

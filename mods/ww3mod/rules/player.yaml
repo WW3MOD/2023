@@ -108,6 +108,42 @@ Player:
 		NewOptionsTextNotification: New construction options.
 		CannotPlaceTextNotification: Cannot deploy here.
 	SupportPowerManager:
+	# PHASE 1 of the missile strike powers (WORKSPACE/proposals/260904-missile-powers.md).
+	# ChargeInterval is a placeholder so the power is reachable on its own; the buy/bank model that
+	# is meant to gate it is Phase 2 and is not wired yet.
+	MissileStrikePower@Kinzhal:
+		OrderName: KinzhalStrike
+		Prerequisites: player.russia
+		Icon: precicon
+		Name: Kh-47M2 Kinzhal
+		Description: Hypersonic missile strike called in from off-map reserves.\nEnters from the map edge nearest your Supply Route.\nCannot be intercepted.
+		# 3000 ticks x 0.06 s (world.yaml Timestep: 60) = 180 s = 3 min. NOT 120 s: the 25 tps
+		# figure asserted by several in-tree comments understates every duration by 1.5x.
+		ChargeInterval: 3000
+		Cursor: nuke
+		MissileActor: kinzhalmissile
+		# 8c0 = 8192 wdist = 8 cells above the terrain at the entry cell. This -- not LaunchAngle --
+		# is what makes the approach look steep, and unlike LaunchAngle it does not scale with the
+		# length of the shot. BallisticMissileFly interpolates baseZ from spawn Z to target Z
+		# (BallisticMissileFly.cs:238-240), so the missile descends those 8 cells across the run.
+		SpawnAltitude: 8c0
+		CameraRange: 8c0
+		# 25 ticks x 0.06 = 1.5 s of vision before impact, held for 100 x 0.06 = 6.0 s after it.
+		CameraSpawnAdvance: 25
+		CameraRemoveDelay: 100
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		DisplayTimerRelationships: Ally
+		BeaconPoster: precbcon
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		# Placeholder: there is no conventional-strike warning line in notifications.yaml, and
+		# AbombLaunchDetected would announce a nuke. Phase 2 audio should replace this.
+		IncomingSpeechNotification: EnemyUnitsApproaching
+		SupportPowerPaletteOrder: 1
 	# Airstrikes disabled for v1 — re-enable post-v1 by uncommenting this whole block
 	# AND the PowersLobbyOptions trait in world.yaml. The A10.Airstrike / FROG.Airstrike
 	# unit defs are still in aircraft-america.yaml / aircraft-russia.yaml (orphan, harmless

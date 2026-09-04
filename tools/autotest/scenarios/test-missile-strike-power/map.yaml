@@ -1,0 +1,121 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Kinzhal strike arrives from the edge and kills its target
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES — the one piece of genuinely new engine code in the missile-powers
+# feature: MissileStrikePower, which spawns a BallisticMissile ACTOR at a map edge cell and
+# flies it to the player's target. Nothing shipped does that today:
+#
+#   * AirstrikePower hard-requires AircraftInfo (AirstrikePower.cs:75).
+#   * SpawnActorPower spawns AT the target cell (LocationInit, SpawnActorPower.cs:86) and
+#     never sets BallisticMissile.Target.
+#   * NukePower CANNOT be bent into it: NukeLaunch builds a Z-ONLY offset and starts the
+#     descent directly above the target (NukeLaunch.cs:73-78), so its approach is always
+#     vertical, and no YAML field reaches that.
+#
+# THE FAILURE THE GEOMETRY ASSERTION EXISTS FOR. BallisticMissile.AddedToWorld immediately
+# queues BallisticMissileFly (BallisticMissile.cs:218), whose constructor reads
+# Target.CenterPosition unconditionally. Set Target AFTER the actor is in the world and you
+# get the InvalidOperationException documented at MissileSpawnerMaster.cs:85-87; set a CELL
+# target on the wrong field and the missile flies to WPos.Zero — the map's top-left corner —
+# with no error at all. Both of those are invisible to a "did the target die" assertion on a
+# map where the corner is near the target, so the entry point is measured explicitly.
+#
+# GEOMETRY, and every number here is load-bearing.
+#
+#   Russia HomeLocation 6,17 · Bounds Rectangle(left=1, top=1, w=64, h=32)
+#   Map.ChooseClosestEdgeCell (Map.cs:1821-1835):
+#     horizontalBound = (6-1=5) < 64/2=32  -> Bounds.Left   = 1
+#     verticalBound   = (17-1=16) < 32/2=16 is FALSE -> Bounds.Bottom = 1+32 = 33
+#     du = |1-6| = 5,  dv = |33-17| = 16,  du < dv  -> edge = (1, 17)
+#   So the missile is expected to enter at cell 1,17 — the WEST edge, on the target's row.
+#
+#   Victim at 48,17 is 47 cells east of that entry cell and 42 cells east of home. The three
+#   candidate wrong answers are all far outside the tolerances in the Lua:
+#     spawned on the target (SpawnActorPower shape)  -> entry->target = 0c   (needs >= 30c)
+#     spawned at WPos.Zero (Target handshake wrong)  -> entry row 0, entry->home = 17c
+#     spawned at the enemy's edge                    -> entry->home = 59c
+#
+#   Flight: 47 cells = 48128 wdist at Speed 2000 -> 48128/2000 = 24 ticks, i.e. 24 x 0.06 s
+#   = 1.44 s at Timestep 60. The terminal phase shortens it a little. The budget in the Lua
+#   is 90 ticks, deliberately loose: this scenario asserts "arrives fast enough to be a
+#   hypersonic rather than an aircraft", not a tuned number.
+#
+# WHY MapStartingLocations IS REMOVED IN rules.yaml. Russia is the playable client player,
+# so Player.HomeLocation would otherwise come from a spawn assigner (Player.cs:182) and the
+# whole edge derivation above would depend on which mpspawn it happened to pick. With the
+# trait gone, assignSpawnPoints is null and HomeLocation falls back to the pinned
+# PlayerReference value (Player.cs:182 `?? pr.HomeLocation`). Same reasoning, and the same
+# fix, as test-supply-far-front-reached.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	# Russia is the PLAYABLE player: the Kinzhal power carries Prerequisites: player.russia,
+	# and Test.ActivateSupportPower issues the order through the local client's order stream.
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 6,17
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 58,17
+
+Actors:
+	# Both Supply Routes exist only so that neither player is eliminated before the poller
+	# writes a verdict (AUTOTEST.md map.yaml rule 6). SUPPLYROUTE carries
+	# Targetable.TargetTypes: NoAutoTarget, so nothing acquires them.
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 6,17
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 58,17
+
+	# THE VICTIM. Abrams: 28,000 HP, Heavy armour, Thickness 700 (vehicles-america.yaml:464).
+	# IskanderExplosion — the warhead the Kinzhal reuses unchanged — puts ~62,800 on a direct
+	# hit, 2.24x its health, so a hit kills and a near-miss does not. That margin is what makes
+	# "dead" a clean read on "the missile arrived exactly where it was aimed".
+	#
+	# 48,17 is 10 cells from OpponentSR at 58,17, well outside IskanderExplosion's widest
+	# warhead (ShockwaveDamage MaxRadius 4c0), so the strike cannot eliminate USA by accident.
+	Victim: abrams
+		Owner: USA
+		Location: 48,17
+		Facing: 256
+
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+Rules: rules.yaml
