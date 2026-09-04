@@ -3,6 +3,48 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-04 — The sidebar's "free" gutter and right margin are frame art drawn OVER the palette; and FreeSansBold has no ↻ either (`wt/buymenu-redesign`, `main @ 2c8488ef`)
+
+Design pass over the buy menu. Full writeup: `WORKSPACE/buymenu-redesign-note.md`; interactive
+mockup: `WORKSPACE/mockups/buymenu-redesign.html`.
+
+**1. `Container@PALETTE_FOREGROUND` draws chrome ON TOP of the production icons, and it is opaque
+where people assume free space is.** It is declared *after* `ProductionPalette@PRODUCTION_PALETTE`
+(`mods/ww3mod/chrome/ingame-player.yaml:1177`, then `:1186-1195`), so its per-row clone of
+`background-iconrow` composites over the palette. Decoding that region — `uibits/sidebar.png` at
+`0, 116, 238, 47`, named at `mods/ww3mod/chrome.yaml:32` — gives **fully opaque columns at
+x 0–40 and x 229–237** (brushed metal plus bevels), 1 px opaque dividers at x 103 and x 166 that
+overdraw each icon's last pixel column, and transparency only inside the three cut-outs. **The
+"~6 px dead gutter at x 36–41" and the "~7 px right margin" are the sidebar frame, not unused
+surface.** Arithmetic over the icon grid alone will tell you they are empty; they are not.
+
+**2. Worse for design purposes: both strips are outside the columns.** A mark drawn in either
+belongs to a whole row of three different units and cannot name one of them. A *per-icon* status
+rail there is not buildable at any price — that is geometry, not cost. Anything per-icon must take
+a column, grow the row, or leave the grid.
+
+**3. Cheaper than expected: a frame re-cut is one edit.** `sidebar-nato` and `sidebar-brics` both
+point `background-iconrow` at the same region of the same file (`chrome.yaml:32` and `:90`).
+
+**4. `FreeSansBold.ttf` has no U+21BB (↻), and there is no fallback font.** This is the same trap
+that produced the lime autobuild stripe as a primitive (`ProductionPaletteWidget.cs:138-140`, for
+U+221E). `SymbolsFont = "Symbols"` (`:75`) is resolved with `TryGetValue` (`:213`) and
+`mods/ww3mod/mod.yaml` declares no such font, so `symbolFont` is **null** — a missing glyph has
+nowhere to fall back to. Verified present at TinyBold: `+` `×` `•` `↑` `♦`. Verified absent:
+`↻` `∞` `▲` `◆`. **Check the cmap before designing around any non-ASCII mark.**
+
+**5. Banked rank counts are NOT bounded by the 3/2/1 caps.** `RankAccumulation.StockOf` returns
+`Total(tier)` = `Stock + BonusStock` (`engine/OpenRA.Mods.Common/Traits/Player/RankAccumulation.cs:211`),
+and `CreditWhole` increments `BonusStock` with no cap check (`:245`) every time a veteran of that
+type comes home alive. `Caps = {3, 2, 1}` (`:303`) governs *accrual* only. Any readout showing a
+rank count must budget for two digits.
+
+**6. A player never sees the 23-vehicle count.** `Queue: Vehicle` appears 23 times across
+`rules/ingame/`, but split 8 + 8 by faction plus shared entries; the largest tab one player actually
+sees is **Infantry at 15** (`rules/ingame/infantry.yaml`) = 5 rows at `Columns: 3`. Relevant to any
+proposal that changes the column count: the sidebar shows about 5 rows
+(`Height: 250` / 47 px, `ingame-player.yaml:1154`).
+
 ## 2026-09-04 — Autobuild is a per-ITEM flag, not a mode; and the buy-menu rank strip lands on baked cameo text (`wt/buymenu-audit`, `main @ d421e4ca`)
 
 Read-only audit of the production sidebar. Full writeup: `WORKSPACE/recon/buymenu-audit.md`.
