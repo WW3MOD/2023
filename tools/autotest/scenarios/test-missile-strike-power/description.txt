@@ -1,0 +1,1 @@
+Auto: Russia fires the Kinzhal support power at a lone Abrams 47 cells away. Asserts the missile ENTERS AT THE MAP EDGE nearest Russia's own base (not at the target, not at the map corner), reaches the target inside a hypersonic tick budget, and kills it. This is the only coverage of MissileStrikePower, the one piece of new engine code the missile-powers feature rides on.

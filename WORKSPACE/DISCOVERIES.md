@@ -3,6 +3,105 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-04 - `Testing map:` sits at the TOP of lint output, so tailing it produces a false negative
+
+CLAUDE.md's rule for the targeted scenario lint is right and load-bearing: *"Confirm the lint really
+ran by requiring `Testing map:` in its output."* The trap is **where that line sits**.
+
+`utility.cmd --check-yaml <mapdir>` emits `Testing map: <title>` as one of the FIRST lines, then
+roughly 300 lines of `grants conditions that are not consumed` warnings. So the common habit of
+inspecting the tail -- `| Select-Object -Last 25`, or `| tail -25` -- shows only the warning block
+and **no `Testing map:` line**, which reads exactly like the "scenario was silently not linted"
+failure the rule exists to catch.
+
+**This fired for real.** On 2026-09-04 a manager applied the rule to a tailed output, concluded a
+freshly authored scenario was malformed, ran two control lints against a shipped map and an existing
+scenario to "confirm" it, and was wrong on all three readings. The scenario had linted correctly the
+whole time; the missing line was an artifact of the filter, not of the tool.
+
+**Check for it with a filter over the whole output, never a tail:**
+
+```powershell
+$o = .\utility.cmd --check-yaml "..\tools\autotest\scenarios\<name>" 2>&1 | Out-String
+($o -split "`n") | Where-Object { $_ -notmatch 'grants conditions that are not consumed' -and $_.Trim() -ne '' }
+```
+
+For a clean scenario that prints exactly one line: the `Testing map:` header. Anything else it prints
+is a real finding.
+
+**The general form, which is the part worth carrying:** when a rule says *"require string X to prove
+the tool ran"*, grep the WHOLE output for X. Sampling either end of it can only produce false
+negatives, and a false negative on a proof-of-execution check is indistinguishable from the failure
+being checked for.
+
+Related and still true: scenarios are invisible to `make nav-guard` and to bare `--check-yaml`
+(they classify as `MapClassification.Unknown`), so the targeted form above is the only thing that
+lints one at all.
+
+## 2026-09-04 — A `SupportPower` on the PLAYER actor does register; `SpawnedExplodes` needs a master; and `BallisticMissileFly`'s acceleration simulation had no reader (`wt/powers-delivery`, `main @ a1df97d2`)
+
+Building `MissileStrikePower`, Phase 1 of the missile strike powers. **All static: no game was
+launched and the autotest written for this work has not been run.** Every claim below is read from
+code at that SHA and cited; the two marked *derived* are reasoned from the code path rather than
+observed.
+
+**1. A `SupportPower` placed on the Player actor DOES get registered, and the ordering is the
+reason.** `SupportPowerManager`'s constructor subscribes to `World.ActorAdded`
+(`SupportPowerManager.cs:45-46`) while the Player actor's traits are still being constructed inside
+`new Actor(...)`; `Player.cs:218-219` then calls `PlayerActor.Initialize(true)`, whose last act is
+`World.Add(this)` (`Actor.cs:312-313`), which fires `ActorAdded` for the player actor itself. So the
+manager sees its own host. This is worth recording because `mods/ww3mod/rules/player.yaml` has
+carried commented-out `AirstrikePower@America` / `@Russia` blocks on the Player actor for months
+(`:120-158`) and **nothing in the tree demonstrates that shape working** — the one shipped power,
+`NukePower`, is on a building (`structures-defenses.yaml:1139`). It works; the doubt was unfounded.
+
+**2. `SpawnedExplodes` cannot be used by a missile that has no master.** It calls
+`self.Trait<BaseSpawnerSlave>().Master` unconditionally (`SpawnedExplodes.cs:63`), which throws for
+an actor carrying no `MissileSpawnerSlave`. A `^ShootableMissile` delivered by anything other than
+`MissileSpawnerMaster` must therefore use plain `Explodes`.
+
+**3. *(Derived)* — and it must be UNGATED, because `airborne` is already revoked by the time the
+kill lands.** `BallisticMissileFly`'s final act is `sbm.SetPosition(self, targetPos)` and then
+`Queue(new CallFunc(() => self.Kill(self)))` (`BallisticMissileFly.cs:207-209`). `targetPos` for a
+ground strike is a cell centre at terrain height, so `BallisticMissile.SetPosition` computes an
+altitude below `MinAirborneAltitude` (5) and calls `OnAirborneAltitudeLeft()`
+(`BallisticMissile.cs:275-281`) — the revoke happens *before* the queued kill runs, on an earlier
+tick. **So `IskanderMissile`'s and `HIMARSMissile`'s `Explodes` with `RequiresCondition: airborne`
+never fires on a successful strike**; the warhead that actually detonates on arrival is their
+`SpawnedExplodes` with `RequiresCondition: !airborne`. The `airborne` one is the shot-down-in-flight
+branch. Copying that pair onto a masterless missile silently produces a missile that lands and does
+nothing. The check that would confirm this from a run: fire the Kinzhal with the `Explodes` gated
+`airborne` and observe the target survive.
+
+**4. `BallisticMissileFly.totalArcTicks` was a dead field, and with it the whole acceleration
+simulation.** The field (`:27`) was assigned in both branches of the constructor (`:79`, `:84`) and
+**read nowhere** — `grep -n totalArcTicks` over the file returns exactly those three lines, and no
+other file mentions it. So the up-to-10,000-iteration velocity simulation at `:64-79` ran at every
+missile launch to produce a number nothing consumed. It is now extracted as
+`BallisticMissileFly.EstimateArcTicks(BallisticMissileInfo, int hDist)` and read by
+`MissileStrikePower` for its camera and beacon timings — behaviour of the activity itself is
+unchanged, and the field is left assigned.
+
+**Caveat on that estimate, which is the shipped arithmetic and deliberately not "fixed" here:**
+`EstimateArcTicks` ignores `TerminalSpeed` entirely when `Acceleration == 0`, because the terminal
+branch lives inside the `Acceleration > 0` simulation. The Kinzhal is exactly that configuration
+(`Acceleration: 0`, `TerminalSpeed: 2400`), so its flight is over-estimated by roughly one tick in
+25. That is inside the 25-tick `CameraSpawnAdvance` and not worth a divergence between the estimate
+and what the activity computes.
+
+**5. There is no Lua route to a support power at all.** `SupportPowerManager` is reachable from no
+`ScriptPropertyGroup` and no `ScriptGlobal`; `grep -rl SupportPower engine/OpenRA.Mods.Common/Scripting/`
+returns nothing. A support power's delivery therefore could not be exercised by any autotest before
+this branch. Added `Test.ActivateSupportPower(player, orderKey, cell)` to `TestGlobal`, issuing the
+same order `SelectGenericPowerTarget` emits on a left-click (`SupportPowerManager.cs:307`) and
+returning a status string (`issued` / `not-ready:<n>` / `unknown-power:<key> (have: ...)` /
+`no-manager`) so a scenario can print WHY a power did not fire.
+
+**6. Deleting `Targetable` makes an actor immune to every damage warhead, not just to targeting.**
+`WeaponInfo.IsValidAgainst(Actor, Actor)` reads `victim.GetEnabledTargetTypes()` and gates on
+`IsValidTarget(targetTypes)` (`WeaponInfo.cs:256-264`), and splash warheads run each candidate
+through it. An actor with no enabled target types is invalid for every weapon. To make a missile
+unacquirable, OVERRIDE `TargetTypes` to a value nothing lists rather than removing the trait.
 ## 2026-09-04 — `Sprite.Size` is the padded trim rect, not the ink; and the buy menu's two marks share one 10 px line (`wt/quiet-grid`, `main @ a1df97d2`)
 
 Building option A of `WORKSPACE/buymenu-redesign-note.md` — one chevron top-left, one split badge

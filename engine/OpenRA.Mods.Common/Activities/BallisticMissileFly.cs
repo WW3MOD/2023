@@ -51,44 +51,54 @@ namespace OpenRA.Mods.Common.Activities
 			hDist = (targetPos - spawnPos).HorizontalLength;
 			var speed = this.sbm.Info.Speed;
 
-			if (this.sbm.Info.Acceleration > 0)
-			{
-				// Simulate velocity profile to compute total flight ticks.
-				// Missile starts at InitialSpeedPercent of Speed and accelerates by Acceleration/tick.
-				var initSpeed = speed * this.sbm.Info.InitialSpeedPercent / 100f;
-				var accel = this.sbm.Info.Acceleration;
-				var termSpeed = this.sbm.Info.TerminalSpeed;
-				var termAccel = this.sbm.Info.TerminalAcceleration > 0
-					? this.sbm.Info.TerminalAcceleration : accel;
-
-				float simDist = 0f;
-				float simSpeed = initSpeed;
-				int simTicks = 0;
-				while (simDist < hDist && simTicks < 10000)
-				{
-					var simProgress = simDist / hDist;
-					if (simProgress >= 0.5f && termSpeed > 0)
-						simSpeed = Math.Min(simSpeed + termAccel, termSpeed);
-					else
-						simSpeed = Math.Min(simSpeed + accel, speed);
-
-					simDist += simSpeed;
-					simTicks++;
-				}
-
-				totalArcTicks = Math.Max(simTicks, 1);
-				currentSpeed = initSpeed;
-			}
-			else
-			{
-				totalArcTicks = Math.Max(hDist / speed, 1);
-				currentSpeed = speed;
-			}
+			totalArcTicks = EstimateArcTicks(this.sbm.Info, hDist);
+			currentSpeed = this.sbm.Info.Acceleration > 0
+				? speed * this.sbm.Info.InitialSpeedPercent / 100f
+				: speed;
 
 			// Peak height of the arc, derived from LaunchAngle and horizontal distance.
 			// For a parabolic arc: peak = range * tan(angle) / 4
 			var tan = this.sbm.Info.LaunchAngle.Tan();
 			arcPeakHeight = (int)((long)hDist * tan / (4 * 1024));
+		}
+
+		/// <summary>
+		/// Ticks the arc flight takes to cover <paramref name="hDist"/>, NOT counting the pre-launch
+		/// phase (<see cref="Traits.BallisticMissileInfo.PreLaunchTicks"/>). Extracted from the
+		/// constructor so that a caller needing the flight time BEFORE the activity exists (see
+		/// MissileStrikePower, for its camera and beacon timings) reads the activity's own
+		/// arithmetic instead of keeping a second copy of it in step by hand.
+		/// </summary>
+		public static int EstimateArcTicks(BallisticMissileInfo info, int hDist)
+		{
+			var speed = info.Speed;
+			if (info.Acceleration <= 0)
+				return Math.Max(hDist / speed, 1);
+
+			// Simulate velocity profile to compute total flight ticks.
+			// Missile starts at InitialSpeedPercent of Speed and accelerates by Acceleration/tick.
+			var initSpeed = speed * info.InitialSpeedPercent / 100f;
+			var accel = info.Acceleration;
+			var termSpeed = info.TerminalSpeed;
+			var termAccel = info.TerminalAcceleration > 0
+				? info.TerminalAcceleration : accel;
+
+			float simDist = 0f;
+			float simSpeed = initSpeed;
+			int simTicks = 0;
+			while (simDist < hDist && simTicks < 10000)
+			{
+				var simProgress = simDist / hDist;
+				if (simProgress >= 0.5f && termSpeed > 0)
+					simSpeed = Math.Min(simSpeed + termAccel, termSpeed);
+				else
+					simSpeed = Math.Min(simSpeed + accel, speed);
+
+				simDist += simSpeed;
+				simTicks++;
+			}
+
+			return Math.Max(simTicks, 1);
 		}
 
 		// Parabolic arc height: peaks at progress=0.5, zero at endpoints.

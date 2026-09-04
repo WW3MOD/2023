@@ -1580,6 +1580,36 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			}
 		}
 
+		[Desc("Fire `player`'s support power `orderKey` at `cell` through the real order path, exactly " +
+			"as clicking the palette icon and then the ground does. `orderKey` is the power's " +
+			"OrderName (SupportPowerManager keys its dictionary on it, SupportPowerManager.cs:48-51). " +
+			"Returns a status string rather than a bool so a scenario can print WHY nothing " +
+			"happened: 'issued', 'no-manager', 'unknown-power:<key> (have: ...)', or " +
+			"'not-ready:<n>' with the ticks still to charge. Exists because there is no other route " +
+			"to a support power from Lua at all -- SupportPowerManager is reachable from no script " +
+			"property group -- so a power's delivery cannot otherwise be exercised in a scenario. " +
+			"Test mode only.")]
+		public string ActivateSupportPower(Player player, string orderKey, CPos cell)
+		{
+			if (!TestMode.IsActive || player == null)
+				return "no-manager";
+
+			var manager = player.PlayerActor.TraitOrDefault<SupportPowerManager>();
+			if (manager == null)
+				return "no-manager";
+
+			if (!manager.Powers.TryGetValue(orderKey, out var power))
+				return $"unknown-power:{orderKey} (have: {string.Join(",", manager.Powers.Keys)})";
+
+			if (!power.Ready)
+				return $"not-ready:{power.RemainingTicks}";
+
+			// The order SelectGenericPowerTarget emits on a left-click (SupportPowerManager.cs:307):
+			// subject is the PLAYER actor, target is the cell, OrderString is the power key.
+			player.World.IssueOrder(new Order(orderKey, manager.Self, Target.FromCell(player.World, cell), false));
+			return "issued";
+		}
+
 		SightingThreatLayer Sighting()
 		{
 			return Context.World?.WorldActor.TraitOrDefault<SightingThreatLayer>();

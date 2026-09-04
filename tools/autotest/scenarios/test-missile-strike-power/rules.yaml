@@ -1,0 +1,43 @@
+# Kinzhal delivery autotest overrides.
+#
+# DELIBERATELY MINIMAL. The point of the run is what the SHIPPED MissileStrikePower and
+# KinzhalMissile do, so nothing about the flight, the warhead or the entry point is restated
+# here — a local copy of any of those numbers would go stale the moment player.yaml or
+# vehicles-russia.yaml moved, and the verdict would then measure this file instead of the mod.
+#
+# The two overrides that ARE here are both about reachability, not behaviour.
+
+Player:
+	# The power's ONLY departure from shipping config: it is charged at t=0 instead of after
+	# 3000 ticks (3 min). ChargeInterval on the shipped trait is a placeholder standing in for
+	# the Phase 2 buy/bank model; waiting it out would spend three minutes of a launch slot
+	# measuring a timer this scenario is not about. StartFullyCharged is the documented
+	# first-charge switch (SupportPowerManager.cs:178).
+	MissileStrikePower@Kinzhal:
+		ChargeInterval: 1
+		StartFullyCharged: true
+	# Faction elimination would end the match before the Lua poller writes a verdict.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored, so the poller's view of the missile and the victim is
+	# never a visibility artefact. The power's own CameraRange is irrelevant under this and is
+	# deliberately not exercised — it reveals shroud, and there is none.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# No cash -> no production. The only actors in the world are the four placed ones plus the
+	# missile the power delivers, so `GetActorsByType("kinzhalmissile")` cannot pick up a
+	# second missile from anywhere.
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather
+	# than a spawn assignment — see the geometry note in map.yaml.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-missile-strike-power.lua
