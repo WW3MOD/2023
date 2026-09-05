@@ -1,8 +1,8 @@
 -- ASSERTING AUTOTEST — does a strike clicked on a building's CORNER cell land on its CENTRE?
 --
 -- THE SHAPE OF THE RUN. Two identical Logistics Centers, two Kinzhal strikes, one difference: the
--- first is aimed at a corner footprint cell (30,10 of a building covering 30-32 x 10-12) and the
--- second at the other building's own centre cell (31,23 of 30-32 x 22-24). With
+-- first is aimed at a footprint cell (30,11 of a 2x2 building covering 30-31 x 10-11) and the
+-- second at a footprint cell of the other building (31,23 of 30-31 x 22-23). With
 -- SupportPowerInfo.SnapToActorCenter at its shipped default of true, both orders resolve to their
 -- building's CenterPosition and both buildings take the same damage.
 --
@@ -66,20 +66,29 @@
 --   * The cursor. It still draws a cell over the quadrant the mouse is on; see the note on
 --     SelectGenericPowerTarget.GetCursor.
 --
--- WHY 30,10 AND NOT ANOTHER CORNER, now that a run has been through here. In the shipped footprint
--- `=+= +++ =+=` all four corners are `=` (OccupiedPassable) — walkable cells inside the building,
--- which BuildingInfo.OccupiedTiles deliberately omits and which are therefore absent from the
--- ActorMap influence layer. The first resolver asked only that layer, found nothing at 30,10, and
--- left the order unsnapped: this scenario measured 24820 against a centred 60000 and named the bug
--- itself. The clicked cell is now load-bearing in two ways rather than one — worst proximity AND
--- passable — and SupportPowerAimPointTest pins the footprint so a change cannot quietly turn this
--- run green while it stops testing anything.
+-- WHY 30,11 AND NOT ANOTHER CELL, now that a run has been through here. The clicked cell has to be
+-- `=` (OccupiedPassable): a walkable cell INSIDE the building which BuildingInfo.OccupiedTiles
+-- deliberately omits, and which is therefore absent from the ActorMap influence layer. The first
+-- resolver asked only that layer, found nothing there, and left the order unsnapped: this scenario
+-- measured 24820 against a centred 60000 and named the bug itself.
+--
+-- UPDATED 2026-09-05. It used to be 30,10 — the top-left of a 3x3 `=+= +++ =+=`, where all four
+-- CORNERS were `=`. LOGISTICSCENTER is now 2x2 `++ =+` and has exactly ONE passable cell: the
+-- bottom-left, 30,11 for a building at 30,10, which is also the crane/dock cell. 30,10 is now `+`
+-- OccupiedPassableTransitOnly — still walkable, so it reads like the same thing, but
+-- OccupiedTiles DOES include `+`, so the building IS in ActorMap at that cell and the first index
+-- alone would find it. Left on 30,10 this run would have gone green while exercising none of the
+-- code the fix added, which is the exact failure SupportPowerAimPointTest exists to catch and which
+-- it now pins to this one named cell.
+--
+-- The proximity half of the old note is gone with the 3x3: a 2x2's four cells are all equidistant
+-- from its centre, so every cell click is the same 50% shot and there is no "worst" one to pick.
 
 local OrderKey = "KinzhalStrike"
 local MissileType = "kinzhalmissile"
 
 -- Shot 1: the top-left corner cell of CornerVictim (footprint 30-32 x 10-12).
-local CornerCellX, CornerCellY = 30, 10
+local CornerCellX, CornerCellY = 30, 11
 -- Shot 2: the centre cell of CenterVictim (footprint 30-32 x 22-24).
 local CenterCellX, CenterCellY = 31, 23
 
@@ -329,11 +338,11 @@ local function finish()
 	-- TargetDamageWarhead's CenterProximityPercent discounted it.
 	if corner.damage < MinCornerDamage then
 		Test.Fail("a Kinzhal clicked on the CORNER cell " .. CornerCellX .. "," .. CornerCellY
-			.. " of a 3x3 Logistics Center delivered only " .. corner.damage
+			.. " of a 2x2 Logistics Center delivered only " .. corner.damage
 			.. " damage (needs >= " .. MinCornerDamage .. "). The impact offset from the building's"
-			.. " centre is printed below: ~1448 means the order's target was never snapped, and the"
+			.. " centre is printed below: ~724 means the order's target was never snapped, and the"
 			.. " known cause is the clicked cell being invisible to whichever index"
-			.. " SupportPowerAimPoint.CandidatesAt asked. 30,10 is an `=` OccupiedPassable cell,"
+			.. " SupportPowerAimPoint.CandidatesAt asked. 30,11 is an `=` OccupiedPassable cell,"
 			.. " which BuildingInfo.OccupiedTiles omits and BuildingInfluence includes — so check"
 			.. " that BOTH indices are still being read, then SupportPowerInfo.SnapToActorCenter."
 			.. " || " .. summary)
@@ -352,7 +361,7 @@ local function finish()
 		return
 	end
 
-	Test.Pass("aim-point snap: a corner click and a centre click on identical 3x3 buildings"
+	Test.Pass("aim-point snap: two clicks on different cells of identical 2x2 buildings"
 		.. " delivered " .. corner.damage .. " and " .. centre.damage
 		.. " (gap " .. gap .. "). || " .. summary)
 end

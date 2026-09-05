@@ -1,8 +1,11 @@
 # Aim-point snap autotest overrides — the OFF half of the pair.
 #
-# THE ONE LINE THIS SCENARIO EXISTS FOR is `SnapToActorCenter: false` below. Everything else in this
-# file is byte-identical to test-power-aimpoint-center/rules.yaml, which is the point: the two runs
-# differ by one boolean and nothing else.
+# THE ONE LINE THIS SCENARIO EXISTS FOR is `SnapToActorCenter: false` below. It USED to be true that
+# everything else here was byte-identical to test-power-aimpoint-center/rules.yaml. Since 2026-09-05
+# it is not: this file also defines a 3x3 victim actor, because the shipped Logistics Center became
+# 2x2 and this scenario's premise needs a building whose CENTRE IS A CELL CENTRE. The full argument
+# is at the bottom of this file and in the scenario's Lua header; the two runs still differ by that
+# one boolean plus the victim's geometry, and nothing else.
 
 Player:
 	# The power's ONLY departure from shipping config: charged at t=0 instead of after 3000 ticks
@@ -41,3 +44,77 @@ World:
 	-CrateSpawner:
 	LuaScript:
 		Scripts: test-helpers.lua, test-power-aimpoint-unsnapped.lua
+
+# ============================================================================================
+# THE 3x3 VICTIM, and why a scenario-local actor rather than the shipped one.
+#
+# LOGISTICSCENTER became 2x2 on 2026-09-05. An EVEN-dimensioned building's centre is the corner
+# where its four cells MEET (BuildingInfo.CenterOffset, Building.cs:207), so:
+#   * every cell is |(512,512)| = 724 from the centre against a half-diagonal of |(1024,1024)| =
+#     1448, i.e. 100 * (1448 - 724) / 1448 = 50% for ANY cell click; and
+#   * NO cell centre coincides with the building centre, so a control shot cannot be hand-centred.
+# The 2026-09-05 run measured exactly that: both shots offset 724wd, both 34000 damage, gap 0, and
+# the control failed its own >= 40000 guard. That is this scenario's premise dissolving, not the
+# snap being wrong — with no discrimination available there is nothing left to measure.
+#
+# THE SIBLING IS UNAFFECTED AND KEEPS THE SHIPPED ACTOR. test-power-aimpoint-center runs with the
+# snap ON, which resolves every footprint cell to the actor's centre, so both its shots read full
+# strength whatever the dimensions (measured: 60000 and 60000, gap 0). It MUST keep the shipped 2x2
+# Centre, because its whole point is that the cell it clicks is the real building's one `=`
+# OccupiedPassable cell — the one absent from ActorMap's influence layer.
+#
+# NO SHIPPED BUILDING IS A DROP-IN. It needs an ODD dimension (for the hand-centred control) AND a
+# passable footprint cell (for the corner shot to be a real cell click). MISS is 3x3 but 35000 HP —
+# a 54000 Kinzhal would kill it and cap the measurement — and carries a 3x2 HitShape with a
+# LocalCenterOffset that moves its centre off the middle cell. SUPPLYROUTE has exactly the right
+# footprint but is the player's beachhead. Hence a local actor, which touches no shipped rules.
+#
+# NAMING: the dotted-suffix convention this repo already uses for scenario-local variants
+# (humvee.v1 in test-burn-compare, fact.husk, crew.driver.america). `Inherits: LOGISTICSCENTER` is
+# UPPERCASE because that is the shipped key's exact case and MiniYaml top-level keys are
+# case-sensitive — `Inherits: logisticscenter` would inherit from nothing.
+logisticscenter.aimpoint3x3:
+	Inherits: LOGISTICSCENTER
+	Tooltip:
+		Name: Logistics Center (3x3 aim-point victim)
+	# The pre-resize geometry, restored exactly. Every number here is the 2x2's times 3/2, which is
+	# also what Scale below undoes — fact.shp is 72x72 px = three 24 px cells, so 1.0 is its native
+	# size and 0.6667 is what the shipped 2x2 shrinks it to.
+	Selectable:
+		Bounds: 3072,3072
+	HitShape:
+		TargetableOffsets: 1273,939,0, -980,-640,0, -980,640,0
+		Type: Rectangle
+			VerticalTopOffset: 3072
+			TopLeft: -1536, -1536
+			BottomRight: 1536, 1536
+	# All four CORNERS are `=` OccupiedPassable here, which is what makes 30,10 a real cell click on
+	# a cell a full |(1024,1024)| = 1448 from the centre — the 33% shot the constants are derived
+	# for — and 31,11 / 31,23 genuine centre cells for the control.
+	Building:
+		Footprint: =+= +++ =+=
+		Dimensions: 3,3
+	RenderSprites:
+		Image: FACT
+		Scale: 1.0
+	# FOUR REMOVALS IN THREE GROUPS, each because the shipped value is arithmetic derived from the
+	# 2x2 and would be WRONG here rather than merely unused:
+	#
+	# ResupplyDock.Offset is -512,512,0, measured from a 2x2's corner-centre. On a 3x3 the centre is
+	# TopLeft+(1024,1024), so that offset resolves to TopLeft+(0,1) — a `+` transit-only cell no
+	# client can stop on, which would wedge any vehicle sent here to repair. Nothing in this scenario
+	# repairs, but a knowingly-broken dock on a test actor is the "green run measuring nothing" trap.
+	#
+	# Transforms.Offset is 1,1, the exact inverse of LCCV's -1,-1 for a 2x2; on a 3x3 it would put
+	# the truck a cell off. TransformsIntoMobile has Requires<TransformsInfo>, so the two must be
+	# removed TOGETHER or the actor fails to construct and the Windows YAML gate, which lints
+	# scenario rules by name, reports it. Removing them also strips the deploy/undeploy order surface
+	# from an actor that exists only to be shot at.
+	#
+	# SpawnActorOnDeath is fact.husk, which is 2x2 now. Both victims can die in this run (the
+	# snapped sibling measured 60000 damage against 60000 HP), and a 2x2 wreck under a 3x3 footprint
+	# would be a confusing thing to find in a screenshot.
+	-ResupplyDock:
+	-TransformsIntoMobile:
+	-Transforms:
+	-SpawnActorOnDeath:

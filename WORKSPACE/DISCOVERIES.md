@@ -19830,6 +19830,277 @@ Touching the two changed sources and re-running rebuilt in 5.87 s with the proje
 
 **Remedy before any gate or launch after switching SHAs in a shared/reused worktree:** `touch` the files the checkout changed (`git diff --name-only <old> <new> -- '*.cs'`), or check the DLL mtime, before trusting the build. Related and already known: `launch-game.sh` gates on `OpenRA.dll` present + `VERSION` matching, so a *missing* build fails loudly — this one is worse, because a *stale* build fails silently.
 
+## 2026-09-05 — An EVEN-dimensioned building cannot host a ground resupply client without a declared dock cell
+
+`BuildingInfo.CenterOffset` (`engine/OpenRA.Mods.Common/Traits/Buildings/Building.cs:207-211`) is
+`(CenterOfCell(Dimensions) - CenterOfCell(1,1)) / 2 + LocalCenterOffset`. For an ODD dimension that
+lands on a cell centre; for an EVEN one it lands on the point where the middle cells MEET — a cell
+CORNER, which no ground unit can ever occupy.
+
+`Activities/Resupply` used to send every non-`RepairableNear` client to exactly that point
+(`move.MoveOntoTarget(self, host, WVec.Zero, …)`, `Resupply.cs:274`) and then test arrival against it
+(`:186-197`). The tolerance is `WDist.Zero` for any host with no `RearmsUnits` trait to read a
+`CloseEnough` off — which is **every ground rearm host in this mod**, including LOGISTICSCENTER
+(`AmmoPool.cs:1085-1088` spells out that PITFALL). So at an even host that test is **unsatisfiable**:
+the unit walks to the depot, never arrives, and re-plans forever. The file's own comment at
+`Resupply.cs:186-191` predicted this ("No ground rearm host is even-sized today; if one is ever
+added, that is a separate defect and wants its own fix") — LOGISTICSCENTER going 2x2 is that day.
+
+**The fix is a declared dock, not a looser tolerance.** New trait `Traits/ResupplyDock.cs`: one
+`Offset` (WVec from the host's CenterPosition) plus an optional facing. `Resupply` consumes it in
+both places — the approach passes it to `MoveOntoTarget`, and arrival becomes **cell equality**
+(`self.Location == CellContaining(centre + Offset)`) rather than a distance. Cell equality is the
+right test because `MoveOnto` only ever guarantees a CELL: it paths to
+`CellContaining(Target.CenterPosition + offset)` and stops (`MoveOnto.cs:32,45`). `DockHost` makes
+the same test for the same reason (`DockHost.cs:137`). A pleasant side effect: cell equality holds
+for **any subcell**, so several infantry can dock at once without the `MapGrid.SubCellOffsets`
+correction the odd-host branch needs.
+
+Hosts that declare no dock are untouched and keep measuring from their own centre.
+
+## 2026-09-05 — Which footprint character lets a unit STOP, and which only lets it pass through
+
+`FootprintCellType` (`Building.cs:20-27`) — and the three list-builders below it are what actually
+decide behaviour, not the names:
+
+| char | name | in `Tiles()` (placement blocks) | in `OccupiedTiles()` (ActorMap) | in `PathableTiles()` | may a unit STOP there? |
+|---|---|---|---|---|---|
+| `_` | Empty | no | no | yes | yes |
+| `=` | OccupiedPassable | yes | **no** | yes | **yes** |
+| `+` | OccupiedPassableTransitOnly | yes | yes | no | **NO** |
+| `x` | Occupied | yes | yes | no | no (blocked) |
+| `X` | OccupiedUntargetable | yes | yes | no | no (blocked) |
+
+The stop/no-stop line is drawn by `Locomotor.cs:373`, which returns
+`!CellFlag.HasCellFlag(HasTransitOnlyActor)` — and only `+` cells set that flag
+(`Locomotor.cs:566-569`, from `Building.TransitOnlyCells()`). So **a dock cell must be `=`**; a
+client sent to a `+` cell arrives and is immediately moved off by the idle handler.
+
+Two consequences that are easy to miss:
+- `targetableCells` is built from `x` ONLY (`Building.cs:344`), so a footprint made entirely of `=`
+  and `+` — which LOGISTICSCENTER's is, before and after the 2x2 resize — has **no** targetable
+  cells. Such an actor must carry explicit `HitShape.TargetableOffsets`; turning on
+  `UseTargetableCellsOffsets` would leave it with no targetable position at all.
+- Making a previously-`+` dock cell `=` REMOVES the post-service bounce. Vehicles used to be pushed
+  off LOGISTICSCENTER's transit-only centre cell the moment `Resupply` ended; on an `=` dock they
+  now stay parked. `test-depot-vacate-phantom` is written against the old behaviour.
+
+## 2026-09-05 — Sequence `Tick` is milliseconds against a FIXED 40 ms/game-tick clock, not against the mod's Timestep
+
+`Animation.Tick()` calls `Tick(40)` unconditionally (`engine/OpenRA.Game/Graphics/Animation.cs:229-232`)
+and the default sequence tick is also 40 (`:123-125`). ww3mod's normal-speed `Timestep` is **60 ms**
+(`mods/ww3mod/mod.yaml:380-383`, the `default:` block — `:376-379` is `slow`, which is 67), and the two are unrelated: a sequence with `Tick: T` advances one
+frame per `T/40` GAME ticks regardless of game speed, and the wall-clock duration then scales with
+whatever `Timestep` the player picked.
+
+So for an N-frame sequence: **game ticks = N × Tick / 40**, and seconds at normal speed = that × 0.06.
+
+Worked, for LOGISTICSCENTER's deploy (`factmake`, 32 frames):
+- no `Tick:` line → default 40 → 32 game ticks → **1.92 s** (not 1.28 s, which is what assuming a
+  40 ms Timestep gives — the same 1.5× family of errors as the SupplyRoute duration comments)
+- `Tick: 60` → 48 game ticks → **2.88 s**
+- `Tick: 80` → 64 game ticks → **3.84 s**
+
+Both the deploy and the undeploy of a `Transforms` actor play this ONE sequence — forward on
+`WithMakeAnimation.Forward` and backwards from `Transform.Tick` (`Activities/Transform.cs:74`) — so
+one `Tick:` sets both durations and they cannot drift apart.
+
+**Timing it from Lua only works on the undeploy leg.** On deploy the building actor exists
+IMMEDIATELY and the animation runs afterwards under a `build-incomplete` condition, which no Lua
+binding can observe. On undeploy the animation runs BEFORE the actor changes, so
+ticks-from-order-to-new-actor IS the animation length.
+
+## 2026-09-05 — `TransformsIntoMobile.RequiresForceMove` gates the CURSOR, not the ORDER
+
+`RequiresForceMove` is read in exactly one place: `MoveOrderTargeter.CanTarget`
+(`engine/OpenRA.Mods.Common/Traits/Buildings/TransformsIntoMobile.cs`), which decides whether a
+cursor appears under the player's mouse. `IResolveOrder.ResolveOrder` never consults it — so **any**
+`"Move"` order that reaches the actor transforms it, however it was produced. Bot modules build
+`new Order("Move", actor, …)` by hand at 21 sites under `Traits/BotModules/` and never pass through
+a targeter.
+
+For LOGISTICSCENTER the transform is destructive (a 3000-credit building becomes a truck), so the
+trait gained an `OrderName` field (default `"Move"`, so nothing else changes) and the Centre uses
+`UndeployMove`.
+
+**CORRECTION, same day: necessary but NOT sufficient, because there is a THIRD targeter in the
+contest and it outranks both.** Adding `Transforms` to a building also publishes
+`DeployOrderTargeter("DeployTransform", 5)` (`Transforms.cs:124`), whose `CanTarget` is
+`self == target.Actor` with **no** force modifier (`Orders/DeployOrderTargeter.cs:41`). Priority 5
+beats `TransformsIntoMobile`'s 4 and `RallyPoint`'s 0, so `UnitOrderGenerator.OrderForUnit` takes it
+first and an ordinary right-click **on the building itself** fired the transform — a different
+gesture from the terrain click `RequiresForceMove` guards, and one nothing in the rules mentioned.
+`"DeployTransform"` is also hand-built by `McvManagerBotModule` (`:175`) and
+`LogisticsCenterBotModule` (`:803`, `:811`), so it walked straight past the `OrderName` gate too.
+Fixed by `TransformsInfo.AcceptsDeployOrder` (default true): off, it removes the targeter, the
+command-bar Deploy button (`IIssueDeployOrder.CanIssueDeployOrder`) and `ResolveOrder`'s acceptance
+of a hand-built order **together** — all three, or the gate leaks at whichever one is left.
+GENERAL LESSON: "which targeter wins this click" is a question about EVERY `IIssueOrder` on the
+actor, not about the one you just added. Enumerate them by priority before concluding a modifier
+gate holds. Grepping today's callers is not equivalent: `LogisticsCenterBotModule.McvActorTypes`
+is `{"lccv"}` (`:64`) and `McvManagerBotModule.McvTypes` is empty and unset anywhere in `mods/`, so
+no bot can name the building **today** — but that is a fact about today's modules, where the order
+string is a fact about the string.
+
+Two related traps in the same area:
+- `Test.IssueMove(actor, cell, force: true)` sends the order string **`"ForceMove"`**, which is
+  `Mobile`'s (`Mobile.cs:1021` vs `:1032`). The force-move MODIFIER on a building produces an
+  ordinary `"Move"` from the targeter. A scenario using `IssueMove(force: true)` to test a
+  force-move undeploy therefore tests nothing — the building ignores it.
+- On an actor carrying both `RallyPoint` and `TransformsIntoMobile`, the two compete by
+  `OrderPriority`: 0 vs 4. The transform targeter is asked FIRST and `RequiresForceMove` is the only
+  thing that makes it decline, after which the plain click falls through to `SetRallyPoint`.
+
+## 2026-09-05 — Repairing a vehicle at a Logistics Centre healed exactly ZERO, and wedged the vehicle there
+
+Found by a screenshot scenario, not by inspection: `test-lc-2x2-dock-and-undeploy` reported
+*"hp 14000 -> 14000, ammo 0 -> 40"* — a damaged, dry abrams parked at a Centre, fully rearmed, and
+not repaired by a single hit point in 598 ticks with the player holding $20000.
+
+**The whole of it is one line.** `Resupply.RepairTick` derives its step as
+
+    var hpToRepair = repairable != null && repairable.Info.HpPerStep > 0
+        ? repairable.Info.HpPerStep : repairsUnits.Info.HpPerStep;
+
+and in this engine BOTH defaults are **0** — `RepairsUnits.cs:22` and `Repairable.cs:32`, where
+upstream OpenRA has `RepairsUnitsInfo.HpPerStep = 10`. `grep -rn HpPerStep mods/ tools/` returns
+**nothing**. So `hpToRepair` is 0 at every repair in the game, `InflictDamage(new Damage(-0))` heals
+nothing, and the `Math.Max(1, ...)` on the line below applies to the *cost*, not the step, so the
+player is even charged 1 credit per no-op tick.
+
+**A `PercentageStep` exists on both info classes and is read by nobody.** `RepairsUnits.cs:24` and
+`Repairable.cs:35` declare it; `^Vehicle` sets `PercentageStep: 3`
+(`rules/ingame/vehicles.yaml:64`); the only code in the repo that reads a field of that name is
+`ChangesHealth`, which has its own unrelated one. This is CLAUDE.md's *"a change believed made,
+documented as made, and inert"* pattern with the YAML side written and the engine side never
+finished. It came in with `1f6ea0d4` ("2022 integration").
+
+**The second-order effect is worse than the missing heal.** `activeResupplyTypes` keeps its `Repair`
+flag until `health.DamageState == DamageState.Undamaged`, which a zero step can never reach, and the
+activity's only exit is `activeResupplyTypes == 0` (`Resupply.cs:339`). So a damaged vehicle sent to
+a Centre **rearms and is then stuck in `Resupply` indefinitely** — until a new order interrupts it.
+Bot units get freed by their next order; a human's unit sits at the depot.
+
+**Fixed 2026-09-05** by giving `RepairTick` a percentage fallback, gated on `hpToRepair <= 0` so any
+host that does set `HpPerStep` is byte-identical. Blast radius is exactly one thing, because
+`^Vehicle`'s `Repairable` is the only repair-side `PercentageStep` in the mod: **ground vehicles now
+repair at a Logistics Centre, 3% of MaxHP per 24-tick Interval.** Aircraft at a helipad or airfield
+still resolve 0 and are unchanged — that is the pre-existing state, not a decision, and it is
+worth revisiting separately.
+
+**Testing note that generalises.** The first version of the scenario asserted only that the tank
+*gained HP*. That is not enough to pin this: `Math.Max(1, ...)` in a future variant, or any trickle,
+satisfies "gained". The assertion that actually holds the fix down measures the SIZE of the first
+step against `MaxHealth`. When the bug is "a quantity resolved to zero", assert the quantity.
+
+## 2026-09-05 — A deployed building's actor exists before its make animation, so screenshot beats must read the condition
+
+`Transform` creates the new actor in a frame-end task and `WithMakeAnimation.Forward` then runs from
+`INotifyCreated.Created`, holding `build-incomplete` for the animation's length. So from Lua the
+building **appears within 1-2 ticks of the deploy order** and is not finished for another 48.
+
+A beat scheduled by tick arithmetic gets this wrong in both directions and says nothing about it:
+the first run of `test-lc-2x2-dock-and-undeploy` shot its labelled *"idle 2x2"* frame at tick 5,
+with the LCCV still visibly a truck, and its *"pre-deploy"* frame at tick 0, which is **solid
+black** — the world has not rendered yet at tick 0, so any beat wants tick >= 2.
+
+`Test.ConditionCount(actor, condition)` (added the same day, `TestGlobal.cs`) reads
+`Actor.GetConditionCount` — the same cache every `RequiresCondition`/`PauseOnCondition` expression
+is evaluated against, so it cannot disagree with what the traits see. Gate the beat on
+`ConditionCount(lc, "build-incomplete") == 0` and the label becomes true by construction. It also
+makes the make animation's duration measurable on the DEPLOY leg, which a previous note here said
+was impossible.
+
+Two related harness facts, both established the same day:
+- `Test.SetZoom(scale)` already exists (`TestGlobal.cs:174`) and takes a multiple of the viewport's
+  MINIMUM zoom, clamped. **The default is 1, which is fully zoomed out**: a 2x2 building is ~50 px
+  on a 2160-wide frame and no question about art scale, sprite alignment or animation motion can be
+  answered from it. `6` is what the close-up scenarios use. It returns what was actually applied —
+  record that, do not assume the request was honoured.
+- `GeneralProperties` is `[ExposedForDestroyedActors]` (`GeneralProperties.cs:23`), so `IsDead`,
+  `Location`, `CenterPosition` and `Type` stay readable on an actor a transform has DISPOSED.
+  `HealthProperties` is not, so `.Health` on a transformed actor throws — read it before the order.
+
+## 2026-09-05 — A burning vehicle cannot be saved at a depot: the bleed-out is 1.6x the repair
+
+Both rates, from the shipped rules, per game tick as a fraction of MaxHP:
+
+| | source | step | period | per tick |
+|---|---|---|---|---|
+| **Burn** | `ChangesHealth@CriticalDamage` on `^Vehicle` (`rules/ingame/vehicles.yaml:183`, via `^EffectsWhenDamagedVehicles`) | `PercentageStep: -1` = 1% of MaxHP | `Delay: 5` | **0.200%** |
+| **Repair** | `Repairable.PercentageStep: 3` (`vehicles.yaml:64`) through `Resupply.RepairTick` | 3% of MaxHP | `RepairsUnits.Interval` 24 | **0.125%** |
+
+`ChangesHealth` fires whenever `HP < StartIfBelow` (50) `% of MaxHP` and stops at or above it
+(`ChangesHealth.cs:68-71`). So below half health a docked vehicle nets **−0.075%/tick** and dies at
+the crane: from 30% that is 400 ticks, 24 s at the mod's 60 ms Timestep. It can never climb back
+over 50% either, because the burn out-paces the repair for the whole range in which the burn runs.
+`test-depot-vacate-phantom` had `DamagedPercent = 30` and went red with *"Tank died before it
+finished servicing"* — the tank was under the crane being repaired the whole time.
+
+**This was invisible until 2026-09-05 because repair healed ZERO** (see the `HpPerStep` entry
+above). The burn was tuned against a repair rate that did not exist, so the interaction has never
+been decided by anybody.
+
+**Not fixed here — it is a ruling, not a bug fix.** Three one-line candidates, each of which changes
+every vehicle in the game:
+- `Repairable.PercentageStep` 3 → 5 (0.208%/tick, just over the burn — a 30% tank recovers, slowly)
+- `RepairsUnits.Interval` 24 → 15 at `PercentageStep: 3` (0.200%/tick — exactly break-even, so no)
+- pause the burn while docked: `ChangesHealth` is a `ConditionalTrait`, and LOGISTICSCENTER already
+  grants `unit.docked` to allied vehicles within 2c0 (`ProximityExternalCondition@UNITDOCKED`), so
+  `RequiresCondition: !unit.docked` on `ChangesHealth@CriticalDamage` reads as "the crew fight the
+  fire while the depot works on them" and changes no rate at all. Probably the right shape.
+
+**Scenario trap this created.** `test-lc-2x2-dock-and-undeploy` damaged its tank to exactly
+`MaxHealth / 2` and passed — because the guard is `HP >= 50%`, and 28000/2 is exactly 50%. One odd
+`MaxHealth` and it would have crossed into the burn zone and started dying. Both scenarios now
+damage to 60-70%, well clear, with the arithmetic written down where they do it.
+
+## 2026-09-05 — A stayable dock cell needs an explicit vacate, because the accidental one is gone
+
+`test-depot-vacate-phantom`'s original header made a load-bearing argument: LOGISTICSCENTER has no
+`Reservable`, no queue and no reservation, so what kept its dock free was that the dock was a `+`
+transit-only cell and `Mobile.OnBecomingIdle` shoved the serviced unit off it. With a stayable dock
+the first client parks forever and the second waits forever — `MoveOnto.CalculatePathToTarget`
+returns `NoPath` and waits rather than stacking when its single target cell is occupied
+(`MoveOnto.cs:45-47`), and the arrival test has no near-enough fallback.
+
+The 2x2 resize took that away: a `ResupplyDock` names one specific cell and arrival is cell
+equality, so the dock **must** be `=` or nothing could ever arrive on it. The argument survived the
+change that invalidated its mechanism, which is the useful shape here — a comment that says WHY
+rather than WHAT is what let the replacement be written instead of the stall being shipped.
+
+Replacement: `Resupply.LeaveHost` (called from the two existing `MoveToTarget(self, host)` sites in
+`OnResupplyEnding`, so it inherits the proven "queue a child on the last tick" mechanism rather than
+adding a state machine). For a host with a `ResupplyDock` it queues an explicit move to the nearest
+free stayable cell from `ResupplyDock.VacateCandidates` — the ring adjacent to the footprint,
+**off the building**, not merely off the dock cell, because the other three cells are transit-only
+and stopping on one just re-earns the phantom shove a tick later. Ties break on a fixed CPos sort;
+no RNG. Hosts declaring no dock keep the stock `MoveToTarget(self, host)` exactly.
+
+Dry errands do not reach it: `BeginReturnHome` runs immediately after `OnResupplyEnding` and cancels
+whatever it queued, walking the unit back to where it came from — a better vacate, already correct.
+
+## 2026-09-05 — Why the crane cannot be lifted over a docked vehicle with a ZOffset
+
+The world render sorts on `r.Pos.Y + r.Pos.Z + r.ZOffset` (`WorldRenderer.cs:28-29`), larger drawn
+later. For LOGISTICSCENTER at TopLeft `(34,16)`:
+
+- building `CenterPosition.Y` = `CenterOfCell(34,16).Y + CenterOffset.Y` = 16896 + 512 = **17408**
+- a vehicle on the dock cell `(34,17)` = **17920**
+
+so the vehicle wins by **512** — half a cell, which is exactly what a 2x2's corner-centre costs.
+A `ZOffset` above 512 on the `crane` sequence would flip it.
+
+**But it lifts the WHOLE BUILDING, not the arm.** Sequences select FRAMES, never sub-rectangles, and
+`fact.shp` frames 1-25 are full 72x72 images of the entire building with the arm moving inside them
+(verified by decoding the SHP and diffing frames: 98.6% of the inter-frame motion falls in the left
+and lower thirds, centroid at 28.9,45.5 of the 72x72 box — inside what is now the dock cell — but
+the frames themselves carry the roof and arch too). So the one-liner also draws the roof over any
+vehicle in the dock cell's map ROW during service: cells `(31,17)` and `(34,17)` for a depot at
+`(32,16)`, one of which is where the previous customer just vacated to.
+
+Doing it properly needs a cropped crane-only SHP rendered as a second body/overlay with its own
+`ZOffset` — new art, not a rules change.
 ## 2026-09-05 — Detonation altitude: two engine facts that make an airburst behave nothing like you would guess
 
 Found while giving `MissileStrikePower` a `DetonationAltitude` so the tactical nuclear strike

@@ -9,11 +9,15 @@
 -- helper had just filtered out. The swap was a no-op at that call site and deploying onto
 -- a field stayed refused (Transforms.CanDeploy -> CanPlaceBuilding -> IsCellBuildable).
 --
--- LOGISTICSCENTER is 3x3 with Footprint "=+= +++ =+=" (all nine cells are in Tiles()) and
--- Transforms.Offset is -1,-1, so the tested block is the 3x3 CENTRED on the LCCV.
+-- UPDATED 2026-09-05: LOGISTICSCENTER is now 2x2 with Footprint "++ =+" (all four cells are still
+-- in Tiles(), so the placement test is unchanged in kind) and Transforms.Offset is still -1,-1 — so
+-- the tested block is the 2x2 whose BOTTOM-RIGHT cell is the LCCV's own, not a 3x3 centred on it.
+-- Every site below still tests what it says:
 --
---   A LccvField  at 22,16 — all nine footprint cells are field actors -> MUST deploy.
---   B LccvBlocked at 44,16 — a v19 Oil Pump at 44,15 -> MUST still refuse.
+--   A LccvField  at 22,16 — footprint 21,15..22,16, all four cells field actors -> MUST deploy.
+--   B LccvBlocked at 44,16 — footprint 43,15..44,16, and the v19 Oil Pump at 44,15 is INSIDE it
+--                            (it was a '+' cell of the old 3x3 and is a '+' cell of the 2x2)
+--                            -> MUST still refuse.
 --   C LccvBare   at 52,16 — nothing in the footprint -> MUST deploy.
 --
 -- C exists so that B cannot pass for the wrong reason. If the bare ground out at x=44..53
@@ -21,7 +25,9 @@
 -- work and the over-fix guard would be measuring nothing; C fails and says so instead.
 
 local WINDOW = 30                     -- harness seconds for turn + transform + make anim
-local RADIUS = WDist.FromCells(2)     -- the LC centres on the LCCV's own cell
+-- 2 cells is still comfortably enough: at 2x2 the LC's centre is the CORNER up-left of the LCCV's
+-- cell, i.e. 724 units away, not 0 as it was when the building centred on that cell.
+local RADIUS = WDist.FromCells(2)
 
 local SITES = {
 	{ name = "A(field)",   cell = CPos.New(22, 16), mustDeploy = true },
@@ -82,7 +88,7 @@ WorldLoaded = function()
 			end
 			return string.format(
 				"fail: A(field) did not deploy within %ds while C(bare) did — THE BUG. The " ..
-				"only difference between the two sites is field actors in A's 3x3 footprint, " ..
+				"only difference between the two sites is field actors in A's 2x2 footprint, " ..
 				"so IsCellBuildable is still counting ground cover as an occupant " ..
 				"(BuildingInfluence.AnyBuildingAt is the half that does it)", WINDOW - 2)
 		end

@@ -11,7 +11,7 @@
  * TWO HALVES, BOTH HERE, because neither works alone:
  *   BUY  — a demand-gated request through IBotRequestPriorityUnitProduction.
  *   SITE — descend the frontier-distance gradient from the Supply Route to a standoff BEHIND the
- *          believed line, land on a cell that is both standable for the LCCV and legal for the 3x3
+ *          believed line, land on a cell that is both standable for the LCCV and legal for the
  *          building, then deploy. Cutting the resupply round-trip is the entire point, so a Centre
  *          built next to the SR it was meant to relieve is a 3000-credit no-op.
  *
@@ -143,7 +143,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int DangerSafeUnits = 30;
 
 		[Desc("How far from the ideal cell to search for one that is both standable for the LCCV and",
-			"legal for the 3x3 building. Matches BotTerrain.EngineRelocationCells so this module's cell",
+			"legal for the building. Matches BotTerrain.EngineRelocationCells so this module's cell",
 			"and the engine's relocated cell are the same cell.")]
 		public readonly int SiteSearchCells = BotTerrain.EngineRelocationCells;
 
@@ -791,7 +791,7 @@ namespace OpenRA.Mods.Common.Traits
 				// search blessed, and because the world moved while it drove.
 				if (!placeable(mcv.Location))
 				{
-					// Arrived and the 3x3 will not fit — usually something parked in the footprint. Park
+					// Arrived and the footprint will not fit — usually something parked in it. Park
 					// this cell so the next scan sites elsewhere instead of re-testing the same
 					// obstruction, and order the deploy anyway for its one useful side effect: the
 					// unqueued path issues ClearBlockersOrders to move whatever is standing there, so a
@@ -832,7 +832,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>The cell this LCCV should deploy on, or null for "no forward site this scan — hold".
 		/// Descends the frontier-distance gradient from the Supply Route toward the nearest believed
 		/// front, stopping a standoff short of it, then lands on a cell that satisfies BOTH halves of
-		/// what a deploy needs: ground the truck can stand on, and a 3x3 the building may legally
+		/// what a deploy needs: ground the truck can stand on, and a footprint the building may legally
 		/// occupy.</summary>
 		CPos? ChooseSite(Actor mcv)
 		{

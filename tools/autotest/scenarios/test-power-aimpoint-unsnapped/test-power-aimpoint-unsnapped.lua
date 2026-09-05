@@ -1,5 +1,37 @@
 -- ASSERTING AUTOTEST — with the aim-point snap OFF, does a corner click really cost two thirds?
 --
+-- ============================================================================================
+-- WHY THIS SCENARIO KEEPS ITS OWN 3x3 VICTIM, and the shipped Centre is not it.
+--
+-- LOGISTICSCENTER became 2x2 on 2026-09-05. An even-dimensioned building's centre is the CORNER
+-- where its four cells meet (BuildingInfo.CenterOffset), which breaks this scenario twice over:
+--   * all four cells are |(512,512)| = 724 from the centre against a half-diagonal of 1448, so
+--     100 * (1448 - 724) / 1448 = 50% for ANY cell click — no corner-vs-centre spread left; and
+--   * no cell centre coincides with the building centre, so the CONTROL shot, whose whole job is
+--     "hand-centred aim delivers the warhead's stated damage", cannot be aimed at all.
+-- The 2026-09-05 run measured precisely that: corner offset 724wd / 34000 damage, centre offset
+-- 724wd / 34000 damage, gap 0, control failing its own >= 40000 guard. The premise dissolved.
+--
+-- So both victims are `logisticscenter.aimpoint3x3`, defined in this folder's rules.yaml: the
+-- shipped Centre with the pre-resize geometry put back (Footprint `=+= +++ =+=`, Dimensions 3,3,
+-- the +-1536 HitShape, Scale 1.0) and three 2x2-derived traits removed. That restores every
+-- constant below exactly — 30,10 is a `=` corner cell a full 1448 from the centre, 31,11 and 31,23
+-- are real centre cells — and touches no shipped rules. rules.yaml carries the full reasoning,
+-- including why no shipped building is a drop-in.
+--
+-- THE SIBLING DOES NOT NEED THIS AND MUST NOT HAVE IT. test-power-aimpoint-center runs with the
+-- snap ON, which resolves every footprint cell to the actor's centre, so both its shots read full
+-- strength whatever the dimensions (measured 60000 and 60000, gap 0). It keeps the SHIPPED 2x2
+-- Centre on purpose: the cell it clicks has to be the real building's one `=` OccupiedPassable
+-- cell, the one absent from ActorMap's influence layer, or it stops testing the aim-point fix.
+--
+-- WHAT THAT COSTS, stated so nobody has to rediscover it. This run no longer measures the SHIPPED
+-- Centre's geometry — it measures the resolver against a 3x3 that only exists here. That is the
+-- right trade for a scenario whose subject is the resolver rather than the building, but it does
+-- mean a future change to LOGISTICSCENTER's footprint will NOT be caught by this run. It is caught
+-- by SupportPowerAimPointTest, which pins the shipped 2x2 statically, and by the sibling.
+-- ============================================================================================
+--
 -- THIS SCENARIO ASSERTS A DEFECT, WHICH IS UNUSUAL, SO BE CLEAR WHY. The corner-hit discount was
 -- derived statically by a worker on 2026-09-04 (WORKSPACE/DISCOVERIES.md) and nobody had watched it
 -- happen in a running game. `SnapToActorCenter: false` in this scenario's rules.yaml restores the

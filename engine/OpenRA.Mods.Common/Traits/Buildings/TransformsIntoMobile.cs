@@ -48,6 +48,18 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Require the force-move modifier to display the move cursor.")]
 		public readonly bool RequiresForceMove = false;
 
+		[Desc("Order string this trait issues and resolves. Leave as \"Move\" for anything that should",
+			"behave like an ordinary mobile unit.",
+			"CHANGE IT when the transform is DESTRUCTIVE and the actor is a building. RequiresForceMove",
+			"gates the TARGETER only — it decides whether a cursor appears under the player's mouse — and",
+			"has no say over ResolveOrder, so any \"Move\" order that reaches this actor from anywhere",
+			"transforms it. Bot modules construct new Order(\"Move\", actor, ...) directly at 21 sites in",
+			"Traits/BotModules and never pass through a targeter, so a name they cannot type is the only",
+			"structural guarantee; grepping today's callers proves nothing about tomorrow's.",
+			"The order issued to the TRANSFORMED actor afterwards is always plain \"Move\" — that one is",
+			"resolved by the new actor's Mobile, not by this trait.")]
+		public readonly string OrderName = "Move";
+
 		public override object Create(ActorInitializer init) { return new TransformsIntoMobile(init, this); }
 
 		public LocomotorInfo LocomotorInfo { get; private set; }
@@ -98,7 +110,7 @@ namespace OpenRA.Mods.Common.Traits
 		Order IIssueOrder.IssueOrder(Actor self, IOrderTargeter order, in Target target, bool queued)
 		{
 			if (order is MoveOrderTargeter)
-				return new Order("Move", self, target, queued);
+				return new Order(Info.OrderName, self, target, queued);
 
 			return null;
 		}
@@ -108,7 +120,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (IsTraitDisabled)
 				return;
 
-			if (order.OrderString == "Move")
+			if (order.OrderString == Info.OrderName)
 			{
 				var cell = self.World.Map.Clamp(this.self.World.Map.CellContaining(order.Target.CenterPosition));
 				if (!Info.LocomotorInfo.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
@@ -148,22 +160,19 @@ namespace OpenRA.Mods.Common.Traits
 			if (IsTraitDisabled)
 				return null;
 
-			switch (order.OrderString)
+			if (order.OrderString == Info.OrderName)
 			{
-				case "Move":
-					if (!Info.LocomotorInfo.MoveIntoShroud && order.Target.Type != TargetType.Invalid)
-					{
-						var cell = self.World.Map.CellContaining(order.Target.CenterPosition);
-						if (!self.Owner.MapLayers.IsExplored(cell))
-							return null;
-					}
+				if (!Info.LocomotorInfo.MoveIntoShroud && order.Target.Type != TargetType.Invalid)
+				{
+					var cell = self.World.Map.CellContaining(order.Target.CenterPosition);
+					if (!self.Owner.MapLayers.IsExplored(cell))
+						return null;
+				}
 
-					return Info.Voice;
-				case "Stop":
-					return Info.Voice;
-				default:
-					return null;
+				return Info.Voice;
 			}
+
+			return order.OrderString == "Stop" ? Info.Voice : null;
 		}
 
 		class MoveOrderTargeter : IOrderTargeter
@@ -182,10 +191,10 @@ namespace OpenRA.Mods.Common.Traits
 			public MoveOrderTargeter(Actor self, TransformsIntoMobile mobile)
 			{
 				this.mobile = mobile;
-				rejectMove = !self.AcceptsOrder("Move");
+				rejectMove = !self.AcceptsOrder(mobile.Info.OrderName);
 			}
 
-			public string OrderID => "Move";
+			public string OrderID => mobile.Info.OrderName;
 			public int OrderPriority => 4;
 			public bool IsQueued { get; protected set; }
 

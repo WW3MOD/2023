@@ -63,6 +63,24 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Cursor to display when unable to (un)deploy the actor.")]
 		public readonly string DeployBlockedCursor = "deploy-blocked";
 
+		[Desc("Offer and accept the \"DeployTransform\" order at all.",
+			"Setting this false removes THREE things, and they have to move together or the gate leaks:",
+			"the DeployOrderTargeter this trait publishes, the command-bar Deploy button",
+			"(IIssueDeployOrder.CanIssueDeployOrder), and acceptance of a hand-built DeployTransform",
+			"order in ResolveOrder.",
+			"WHY THIS IS NOT MERELY A CURSOR FLAG. DeployOrderTargeter accepts on `self == target.Actor`",
+			"with NO force modifier (Orders/DeployOrderTargeter.cs:41) at OrderPriority 5, which outranks",
+			"TransformsIntoMobile's 4 and RallyPoint's 0 — so UnitOrderGenerator.OrderForUnit takes it",
+			"first and an ordinary right-click on the actor ITSELF fires the transform. On a unit that is",
+			"what you want; on a BUILDING whose transform is destructive it means a stray click",
+			"dismantles it. And \"DeployTransform\" is a string bot modules build by hand",
+			"(McvManagerBotModule.cs:175, LogisticsCenterBotModule.cs:803 and :811), so leaving",
+			"ResolveOrder open would undo the whole reason TransformsIntoMobile.OrderName exists.",
+			"Defaults true, so every existing user is byte-identical. The transform itself is untouched:",
+			"GetTransformActivity and TransformsIntoMobile still drive it, which is how an actor with",
+			"this switched off can still be transformed — just not by this order.")]
+		public readonly bool AcceptsDeployOrder = true;
+
 		[VoiceReference]
 		public readonly string Voice = "Action";
 
@@ -120,7 +138,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			get
 			{
-				if (!IsTraitDisabled)
+				if (!IsTraitDisabled && Info.AcceptsDeployOrder)
 					yield return new DeployOrderTargeter("DeployTransform", 5,
 						() => CanDeploy() ? Info.DeployCursor : Info.DeployBlockedCursor);
 			}
@@ -139,7 +157,10 @@ namespace OpenRA.Mods.Common.Traits
 			return new Order("DeployTransform", self, queued);
 		}
 
-		bool IIssueDeployOrder.CanIssueDeployOrder(Actor self, bool queued) { return !IsTraitPaused && !IsTraitDisabled; }
+		bool IIssueDeployOrder.CanIssueDeployOrder(Actor self, bool queued)
+		{
+			return Info.AcceptsDeployOrder && !IsTraitPaused && !IsTraitDisabled;
+		}
 
 		/// <summary>
 		/// The "cannot deploy here" sounds/speech/text, in one place because there are now two
@@ -178,7 +199,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void ResolveOrder(Actor self, Order order)
 		{
-			if (order.OrderString == "DeployTransform" && !IsTraitPaused && !IsTraitDisabled)
+			// AcceptsDeployOrder is checked HERE and not only on the targeter: an order does not have
+			// to come from a targeter. Bot modules construct new Order("DeployTransform", actor, ...)
+			// directly, and this is the only place that can refuse one.
+			if (Info.AcceptsDeployOrder && order.OrderString == "DeployTransform" && !IsTraitPaused && !IsTraitDisabled)
 				DeployTransform(order.Queued);
 		}
 	}

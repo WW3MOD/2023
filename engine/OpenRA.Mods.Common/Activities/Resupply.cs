@@ -27,6 +27,15 @@ namespace OpenRA.Mods.Common.Activities
 		readonly Repairable repairable;
 		readonly RepairableNear repairableNear;
 		readonly Rearmable rearmable;
+
+		/// <summary>
+		/// Where on the host to park, when the host names a spot. Null for every host that does not,
+		/// which is all of them except LOGISTICSCENTER — those keep the historical behaviour of being
+		/// approached and measured at their own centre. See <see cref="ResupplyDockInfo"/> for why an
+		/// even-dimensioned host cannot use that centre at all.
+		/// </summary>
+		readonly ResupplyDock dock;
+
 		readonly INotifyResupply[] notifyResupplies;
 		readonly INotifyDockHost[] notifyDockHosts;
 		readonly INotifyDockClient[] notifyDockClients;
@@ -86,6 +95,7 @@ namespace OpenRA.Mods.Common.Activities
 			repairable = self.TraitOrDefault<Repairable>();
 			repairableNear = self.TraitOrDefault<RepairableNear>();
 			rearmable = self.TraitOrDefault<Rearmable>();
+			dock = host.TraitOrDefault<ResupplyDock>();
 			notifyResupplies = host.TraitsImplementing<INotifyResupply>().ToArray();
 			notifyDockHosts = host.TraitsImplementing<INotifyDockHost>().ToArray();
 			notifyDockClients = self.TraitsImplementing<INotifyDockClient>().ToArray();
@@ -165,6 +175,22 @@ namespace OpenRA.Mods.Common.Activities
 					isCloseEnough = true;
 				else if (repairableNear != null)
 					isCloseEnough = host.IsInRange(self.CenterPosition, closeEnough);
+				else if (dock != null)
+				{
+					// A DECLARED dock is a CELL, so arrival is cell equality rather than a distance —
+					// the same test DockHost.QueueMoveActivity makes (DockHost.cs:137), and for the same
+					// reason: MoveOnto paths to CellContaining(target + offset) and stops there
+					// (MoveOnto.cs:32,45), so the cell is the only thing it actually guarantees. A
+					// distance test would be a second, weaker definition of the same arrival and the two
+					// would disagree the moment a dock offset stopped being exactly cell-centred.
+					//
+					// This also sidesteps the subcell problem the block below exists for: cell equality
+					// holds for whichever subcell an infantryman ends up in, so several can dock at once.
+					var dockPos = dock.DockPosition(host.Actor);
+					isCloseEnough = mobile != null
+						? self.Location == self.World.Map.CellContaining(dockPos)
+						: (dockPos - self.CenterPosition).HorizontalLengthSquared <= closeEnough.LengthSquared;
+				}
 				else
 				{
 					// PITFALL: measure a ground unit's arrival from its CELL, not from its body. A
@@ -187,9 +213,11 @@ namespace OpenRA.Mods.Common.Activities
 					// Deliberately NOT widened to the host's footprint. That would also paper over
 					// an EVEN-dimensioned host, whose CenterPosition is a cell CORNER
 					// (BuildingInfo.CenterOffset) that no unit can stand on — so a zero tolerance is
-					// unsatisfiable there for vehicles too. No ground rearm host is even-sized
-					// today; if one is ever added, that is a separate defect and wants its own fix
-					// rather than being hidden by a loose arrival test here.
+					// unsatisfiable there for vehicles too. RESOLVED 2026-09-05, and in the separate
+					// place this comment asked for rather than by loosening anything here: an even
+					// host declares ResupplyDock and takes the branch above, which names a real cell
+					// and tests for it. LOGISTICSCENTER (2x2) is the first and so far only one. This
+					// branch still serves every host that declares no dock, and is unchanged.
 					var selfPos = self.CenterPosition;
 					if (mobile != null)
 						selfPos -= self.World.Map.Grid.OffsetOfSubCell(mobile.ToSubCell);
@@ -265,13 +293,17 @@ namespace OpenRA.Mods.Common.Activities
 				if (ChildActivity != null)
 					return false;
 
-				var targetCell = self.World.Map.CellContaining(host.Actor.CenterPosition);
+				// The dock, when the host names one, so the transport request and the approach agree on
+				// where "there" is.
+				var targetCell = self.World.Map.CellContaining(
+					dock != null ? dock.DockPosition(host.Actor) : host.Actor.CenterPosition);
 
 				// HACK: Repairable needs the actor to move to host center.
 				// TODO: Get rid of this or at least replace it with something less hacky.
 				moveCooldownHelper.NotifyMoveQueued();
 				if (repairableNear == null)
-					QueueChild(move.MoveOntoTarget(self, host, WVec.Zero, null, moveInfo.GetTargetLineColor()));
+					QueueChild(move.MoveOntoTarget(self, host, dock?.Info.Offset ?? WVec.Zero, dock?.DockFacing,
+						moveInfo.GetTargetLineColor()));
 				else
 					QueueChild(move.MoveWithinRange(host, closeEnough, targetLineColor: moveInfo.GetTargetLineColor()));
 
@@ -478,10 +510,10 @@ namespace OpenRA.Mods.Common.Activities
 						foreach (var cell in rp.Cells)
 							QueueChild(new AttackMoveActivity(self, () => move.MoveTo(cell, 1, repairableNear != null ? null : host.Actor, true, moveInfo.GetTargetLineColor())));
 					else if (repairableNear == null)
-						QueueChild(move.MoveToTarget(self, host));
+						QueueChild(LeaveHost(self));
 				}
 				else if (repairableNear == null && self.CurrentActivity.NextActivity is not Move)
-					QueueChild(move.MoveToTarget(self, host));
+					QueueChild(LeaveHost(self));
 			}
 
 			foreach (var nd in notifyDockClients)
@@ -489,6 +521,71 @@ namespace OpenRA.Mods.Common.Activities
 
 			foreach (var nd in notifyDockHosts)
 				nd.Undocked(host.Actor, self);
+		}
+
+		/// <summary>
+		/// <para>The move that gets a serviced client off the host, queued as this activity's last act.
+		/// For a host that declares no <see cref="ResupplyDock"/> this is unchanged: the stock
+		/// MoveToTarget(self, host), which walks the unit TOWARD the depot and relies on the idle
+		/// handler to shove it off any cell it may not stand on.</para>
+		///
+		/// <para>A DOCKED host cannot rely on that, because its dock cell is stayable BY CONSTRUCTION —
+		/// nothing could arrive on it otherwise — so nothing would ever move the client off, and with no
+		/// queue and no reservation the next client waits on that cell forever. So for those hosts this
+		/// is an explicit vacate to the nearest free stayable cell OFF THE FOOTPRINT.</para>
+		///
+		/// <para>Only the player-ordered and idle-arrival cases reach this. A dry errand runs
+		/// <see cref="BeginReturnHome"/> immediately afterwards, which cancels whatever was queued here
+		/// and walks the unit back to where it came from — a better vacate than this one, and already
+		/// correct.</para>
+		/// </summary>
+		Activity LeaveHost(Actor self)
+		{
+			var cell = dock != null && mobile != null ? ChooseVacateCell(self) : null;
+			if (cell == null)
+				return move.MoveToTarget(self, host);
+
+			// nearEnough 0, deliberately: 1 would readmit the dock cell itself as an acceptable
+			// destination, which is the whole thing being vacated. A move that cannot reach the chosen
+			// cell simply ends, leaving the unit idle where it stands — no worse than before, and it
+			// cannot loop.
+			//
+			// AutomaticOrder.LineColor, NOT moveInfo.GetTargetLineColor(), and this is the legibility
+			// half of the contract rather than a detail. THE PLAYER DID NOT ORDER THIS MOVE. Painted in
+			// Mobile's ordinary green it renders as a command they never gave — which is the original
+			// "hidden extra order" report, and the thing test-depot-vacate-phantom exists to pin. The
+			// shove this replaced was legible only because it came from Mobile.OnBecomingIdle, which
+			// already paints automatic; taking over the job means taking over the paint too. Matches
+			// SeekSupplyProvider (:190, :259), which runs the truck/cache half of the same errand.
+			return move.MoveTo(cell.Value, 0, targetLineColor: AutomaticOrder.LineColor);
+		}
+
+		/// <summary>
+		/// Nearest candidate from <see cref="ResupplyDock.VacateCandidates"/> this unit can both enter
+		/// and stand on, or null if there is none. Ties break on the candidate order, which is a fixed
+		/// CPos sort — so two clients in the same position choose the same cell and a replay does too.
+		/// </summary>
+		CPos? ChooseVacateCell(Actor self)
+		{
+			var from = self.Location;
+			CPos? best = null;
+			var bestDistance = 0;
+
+			foreach (var cell in dock.VacateCandidates(host.Actor))
+			{
+				// CanEnterCell defaults to BlockedByActor.All, so "free" includes other units.
+				if (!mobile.CanEnterCell(cell) || !mobile.CanStayInCell(cell))
+					continue;
+
+				var distance = (cell - from).LengthSquared;
+				if (best == null || distance < bestDistance)
+				{
+					best = cell;
+					bestDistance = distance;
+				}
+			}
+
+			return best;
 		}
 
 		void RepairTick(Actor self)
@@ -517,6 +614,36 @@ namespace OpenRA.Mods.Common.Activities
 			if (remainingTicks == 0)
 			{
 				var hpToRepair = repairable != null && repairable.Info.HpPerStep > 0 ? repairable.Info.HpPerStep : repairsUnits.Info.HpPerStep;
+
+				// PERCENTAGE FALLBACK — the step this mod actually configures. Both HpPerStep fields
+				// default to 0 (RepairsUnits.cs:22, Repairable.cs:32) and NOTHING under mods/ sets
+				// either, so before 2026-09-05 hpToRepair was 0 at every repair in the game: the
+				// InflictDamage below healed nothing, health.DamageState never reached Undamaged, the
+				// Repair flag never cleared, and the whole Resupply activity could not reach its
+				// `activeResupplyTypes == 0` exit — so a damaged vehicle sent to a Logistics Centre
+				// rearmed, then sat there wedged until something else gave it an order.
+				//
+				// PercentageStep is declared on BOTH info classes (RepairsUnits.cs:24,
+				// Repairable.cs:35) and `^Vehicle` sets it to 3 (rules/ingame/vehicles.yaml:64) —
+				// it was simply never read by anything. (ChangesHealth has its own unrelated
+				// PercentageStep; that one always worked and is untouched.)
+				//
+				// Gated on hpToRepair <= 0 so any host that DOES set HpPerStep is byte-identical.
+				// Today that is none of them, and `^Vehicle`'s Repairable is the ONLY repair-side
+				// PercentageStep in the mod, so the behaviour change is exactly: ground vehicles now
+				// repair at a Logistics Centre, at 3% of MaxHP per Interval. Everything else — every
+				// aircraft at a helipad or airfield included — still resolves 0 and is unchanged.
+				if (hpToRepair <= 0)
+				{
+					var percentageStep = repairable != null && repairable.Info.PercentageStep > 0
+						? repairable.Info.PercentageStep
+						: repairsUnits.Info.PercentageStep;
+
+					// Max(1, ...) so a percentage small enough to floor to zero against a low-HP
+					// actor still makes progress rather than reinstating the wedge it just fixed.
+					if (percentageStep > 0)
+						hpToRepair = Math.Max(1, (int)(percentageStep * (long)health.MaxHP / 100));
+				}
 
 				// Cast to long to avoid overflow when multiplying by the health
 				var value = (long)unitCost * repairsUnits.Info.ValuePercentage;

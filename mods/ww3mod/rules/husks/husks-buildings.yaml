@@ -1,13 +1,21 @@
+# The LOGISTICSCENTER's wreck, and ONLY that: no FACT actor exists in this mod, and
+# `SpawnActorOnDeath: fact.husk` at rules/ingame/structures.yaml is the sole reference. It tracks the
+# building's 2x2 resize of 2026-09-05 — a 3x3 husk under a 2x2 building overhangs by a whole column
+# and row. Scale matches the building's for the same reason it does there: fact-dead.shp is 72x72 px.
+# LocalCenterOffset is UNCHANGED at -512 in Y. It is a world offset, not a sprite one, so the husk
+# still draws half a cell above where the building's centre was — exactly the relation it had at 3x3.
 FACT.Husk:
 	Inherits: ^BuildingHusk
 	Interactable:
-		Bounds: 3072,3072
+		Bounds: 2048,2048
 	Building:
-		Footprint: xxX xxx XxX
-		Dimensions: 3,3
+		Footprint: xx xx
+		Dimensions: 2,2
 		LocalCenterOffset: 0,-512,0
 	Tooltip:
 		Name: Construction Yard (Destroyed)
+	RenderSprites:
+		Scale: 0.6667
 
 POWR.Husk:
 	Inherits: ^BuildingHusk

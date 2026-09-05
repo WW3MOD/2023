@@ -762,6 +762,71 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return UnitOrderGenerator.CursorForOrders(results) ?? "";
 		}
 
+		[Desc("ClickOrder's TERRAIN twin: resolve one click on `cell` — ground, not an actor — through " +
+			"the whole IIssueOrder targeter chain in descending OrderPriority, and return the winning " +
+			"OrderString (nil if every targeter refuses). Set `issue` false to resolve without sending " +
+			"anything, which is how you ask what a click WOULD do to a building you do not want to " +
+			"actually undeploy. " +
+			"EXISTS BECAUSE ClickOrder and ClickCursor both build Target.FromActor, so neither can pose " +
+			"a question about clicking the GROUND — and force-move on terrain is exactly the gesture " +
+			"TransformsIntoMobile.RequiresForceMove gates. Naming the order instead (Test.IssueMove) " +
+			"skips the priority contest and would pass while the real click routed elsewhere: on a " +
+			"LOGISTICSCENTER a plain click is RallyPoint's SetRallyPoint (OrderPriority 0) and only " +
+			"Ctrl reaches TransformsIntoMobile (OrderPriority 4). Note Test.IssueMove(force: true) " +
+			"sends the string \"ForceMove\", which is Mobile's; the force-move MODIFIER on a building " +
+			"produces an ordinary \"Move\" from the targeter, and only this binding shows that. " +
+			"`modifiers` is as for ClickOrder. Test mode only.")]
+		public string ClickOrderAtCell(Actor self, CPos cell, string modifiers = "", bool issue = true)
+		{
+			if (!TestMode.IsActive || self == null)
+				return null;
+
+			var result = UnitOrderGenerator.OrderForUnit(
+				self, Target.FromCell(self.World, cell), cell, ParseClickModifiers(modifiers));
+			if (result == null)
+				return null;
+
+			var order = result.Trait.IssueOrder(self, result.Order, result.Target, modifiers.Contains("Shift"));
+			if (order == null)
+				return null;
+
+			if (issue)
+				self.World.IssueOrder(order);
+
+			return order.OrderString;
+		}
+
+		[Desc("The stack count of a named condition on `actor` right now — 0 when it is not granted, " +
+			"so `> 0` reads as \"has it\". Reads Actor.GetConditionCount, the same cache every " +
+			"RequiresCondition/PauseOnCondition expression is evaluated against, so it cannot disagree " +
+			"with what the traits see. " +
+			"EXISTS FOR SCREENSHOT AND TIMING BEATS THAT MUST NOT GUESS A TICK. `build-incomplete` is " +
+			"the case that forced it: a deployed building's actor exists IMMEDIATELY and the make " +
+			"animation runs afterwards under that condition, so \"the building is finished\" is not " +
+			"observable as an actor appearing, and a hard-coded tick count silently rots the moment a " +
+			"sequence Tick changes. Test mode only.")]
+		public int ConditionCount(Actor actor, string condition)
+		{
+			if (!TestMode.IsActive || actor == null || actor.IsDead || !actor.IsInWorld)
+				return 0;
+
+			return actor.GetConditionCount(condition);
+		}
+
+		[Desc("The cursor a player hovering `cell` with `actors` selected would see, resolved through " +
+			"the same path as ClickOrderAtCell so the two cannot disagree. Empty string when no order " +
+			"names one. Issues nothing. `modifiers` is as for ClickOrder. Test mode only.")]
+		public string ClickCursorAtCell(Actor[] actors, CPos cell, string modifiers = "")
+		{
+			if (!TestMode.IsActive || actors == null || actors.Length == 0)
+				return "";
+
+			var results = UnitOrderGenerator.OrdersForSelection(
+				actors, Target.FromCell(actors[0].World, cell), cell, ParseClickModifiers(modifiers));
+
+			return UnitOrderGenerator.CursorForOrders(results) ?? "";
+		}
+
 		// The three bindings below exist because the frozen-actor cursor was the one fog behaviour the
 		// suite could not reach. ClickCursor above builds Target.FromActor, so it always resolves
 		// CanTargetActor and never CanTargetFrozenActor — the arm that decides what a player may infer

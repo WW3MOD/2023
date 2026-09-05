@@ -20,11 +20,30 @@ supplyroute:
 fact:
 	Inherits: emp-overlay
 	idle: fact
+	# DEPLOY/UNDEPLOY DURATION LIVES HERE. Animation.Tick() advances by a FIXED 40 ms per game tick
+	# (Animation.cs:229-232) regardless of the mod's 60 ms Timestep, so a sequence Tick of T costs
+	# T/40 GAME ticks per frame: 32 frames at Tick 60 = 48 game ticks = 2.88 s at normal speed.
+	# The default (no Tick, = 40) was 32 ticks / 1.92 s. TO RETUNE: game ticks = 32 * Tick / 40.
+	# Undeploy inherits it for free — Transform plays this same sequence backwards (Transform.cs:74).
 	make: factmake
-		# Tick: 120
+		Tick: 60
 		Length: *
 	build: fact
 		Start: 1
+		Length: 25
+		Tick: 80
+	# THE CRANE, for WithResupplyAnimation on LOGISTICSCENTER. Same frames as `build` above — RA's
+	# construction-yard crane arm — under a name that says what it now means. Kept as an alias rather
+	# than pointed at `build` directly so the two can diverge without silently retiming the other.
+	# `damaged-crane` is not optional decoration: RenderSprites.NormalizeSequence (:309-319) prefixes
+	# "damaged-" whenever the actor is damaged and the prefixed sequence exists, and falls back to the
+	# bare name when it does not — so omitting it would show an undamaged crane on a burning depot.
+	crane: fact
+		Start: 1
+		Length: 25
+		Tick: 80
+	damaged-crane: fact
+		Start: 27
 		Length: 25
 		Tick: 80
 	damaged-idle: fact

@@ -394,20 +394,54 @@ LOGISTICSCENTER:
 	OwnerLostAction:
 		Action: ChangeOwner
 		Owner: Neutral
-	GrantConditionOnPrerequisite@GLOBALFACTUNDEPLOY:
-		Condition: mcv-undeploys
-		Prerequisites: global-mcv-undeploys
+	# REMOVED 2026-09-05 — GrantConditionOnPrerequisite@GLOBALFACTUNDEPLOY (Condition: mcv-undeploys,
+	# Prerequisites: global-mcv-undeploys). Dead at both ends: nothing in mods/ or engine/ ever provided
+	# global-mcv-undeploys, and nothing ever read mcv-undeploys. It was RA's construction-yard undeploy
+	# switch, carried over and never wired. Undeploy is now REAL (Transforms + TransformsIntoMobile
+	# below) and is not gated on a prerequisite, so leaving a dead knob with that name beside it would
+	# read as the switch that turns the new thing off.
 	Selectable:
-		Bounds: 3072,3072
+		Bounds: 2048,2048
+	# 2x2 SINCE 2026-09-05. Every number here is the 3x3 one times 2/3, which is also what
+	# RenderSprites.Scale below does to the art, so the shape still covers the same pixels.
+	# Rectangle ±1536 -> ±1024 and VerticalTopOffset 3072 -> 2048 (identical to ^2x2Shape; written out
+	# rather than inherited only because this block already spelled the shape inline).
+	# UseTargetableCellsOffsets is false by default (HitShape.cs:32) and stays false: the footprint is
+	# ALL-PASSABLE (see Building below), so ITargetableCells is EMPTY for this actor and switching the
+	# flag on would leave it with no targetable position at all.
 	HitShape:
-		TargetableOffsets: 1273,939,0, -980,-640,0, -980,640,0
+		TargetableOffsets: 849,626,0, -653,-427,0, -653,427,0
 		Type: Rectangle
-			VerticalTopOffset: 3072
-			TopLeft: -1536, -1536
-			BottomRight: 1536, 1536
+			VerticalTopOffset: 2048
+			TopLeft: -1024, -1024
+			BottomRight: 1024, 1024
+	# PITFALL: A 2x2 BUILDING'S CENTRE IS A CELL CORNER, not a cell. BuildingInfo.CenterOffset
+	# (Building.cs:207) averages the middle cells, so CenterPosition lands on the point where all four
+	# footprint cells meet and NO ground unit can ever stand on it. Everything measured from the centre
+	# is unaffected (the ranges below are all >= 2c0); what breaks is anything that sends a unit TO the
+	# centre and then waits for it to get there. That is Activities/Resupply, and ResupplyDock below is
+	# the answer — do not "fix" such a symptom by loosening an arrival tolerance.
+	#
+	# ONLY THE CRANE CELL IS STOPPABLE. The 3x3 was `=+= +++ =+=` — passable everywhere, with five
+	# transit-only cells and four stoppable corners — so this is NOT the Centre becoming solid; it has
+	# never blocked and still does not. `+` is OccupiedPassableTransitOnly, which units cross but may
+	# not stop on (Locomotor.cs:373), and `=` is OccupiedPassable, which they may. Exactly one cell is
+	# `=`: (0,1), the bottom-left, under the crane. So the depot cannot be used as a parking lot, the
+	# dock stays clear for the vehicle actually being served, and "stop under the crane" is enforced
+	# by the footprint rather than merely encouraged by the dock offset.
+	# THE DOCK CELL CANNOT BE `+`: a client sent there could never stop and would be bounced off the
+	# moment it arrived. Making the other three `x` would turn the Centre into a wall it has never been.
 	Building:
-		Footprint: =+= +++ =+=
-		Dimensions: 3,3
+		Footprint: ++ =+
+		Dimensions: 2,2
+	# THE CRANE IS THE DOCK. The art's crane sits at the bottom-left of the sprite, which after the 2x2
+	# resize is footprint cell (0,1). Offset is measured from CenterPosition: the corner is at
+	# TopLeft + (512,512), that cell's centre is at TopLeft + (0,1024), so the dock offset is
+	# (-512, +512). Resupply drives clients onto CellContaining(centre + Offset) and tests arrival by
+	# cell equality against the same point, so this single number places the vehicle under the crane
+	# AND makes arrival satisfiable at an even-dimensioned host. RECOMPUTE IT if Dimensions change.
+	ResupplyDock:
+		Offset: -512,512,0
 	Buildable:
 		Queue: Building
 		BuildPaletteOrder: 1000
@@ -560,6 +594,58 @@ LOGISTICSCENTER:
 	AbsorbsSupplyCache:
 		Range: 2c512
 		TransferRate: 50
+	# THE CRANE ANIMATION. `crane` aliases the fact.shp frames 1-25 that RA used for the construction
+	# yard's crane arm (sequences-structures.yaml), so the arm swings for as long as a vehicle is being
+	# repaired or rearmed and the body returns to `idle` when it stops. Driven by INotifyResupply, which
+	# Activities/Resupply raises on the HOST — so it fires for every path a vehicle takes to be served
+	# here (the player's Repair order, AmmoPool.AutoRearm's dock branch, LayMines) and does NOT fire for
+	# the infantry aura, which is not a Resupply and parks nobody at the crane.
+	# RequiresCondition matches HPAD's: without it the resupply animation and WithMakeAnimation would
+	# both be driving the same WithSpriteBody during a deploy or undeploy.
+	WithResupplyAnimation:
+		Sequence: crane
+		RequiresCondition: !build-incomplete
+	# UNDEPLOY, added 2026-09-05. Offset 1,1 is the exact inverse of LCCV's Transforms.Offset (-1,-1),
+	# so deploy-then-undeploy puts the truck back on the cell it started from: the LC's Location is its
+	# TOP-LEFT, the truck deployed from TopLeft + (1,1), and Transform spawns at self.Location + Offset
+	# (Transform.cs:121). That cell is the bottom-RIGHT of the footprint and deliberately NOT the dock
+	# cell (0,1) — a vehicle parked under the crane would otherwise be sitting where the truck respawns.
+	# Health carries as a percentage (Transform.cs:135-142) and remaining supply carries through
+	# SupplyProvider's ITransformActorInitModifier (SupplyProvider.cs:376), the same hop that carries it
+	# on the way in.
+	# AcceptsDeployOrder: false IS A SAFETY GATE, not tidiness, and it was missed in the first cut.
+	# Transforms publishes DeployOrderTargeter("DeployTransform", 5), whose CanTarget is
+	# `self == target.Actor` with NO force modifier (Orders/DeployOrderTargeter.cs:41). Priority 5
+	# outranks TransformsIntoMobile's 4 and RallyPoint's 0, so UnitOrderGenerator.OrderForUnit takes
+	# it FIRST: an ordinary right-click on the Centre itself — which used to set the rally point —
+	# would dismantle a 3000-credit building. The same string is also built by hand by
+	# McvManagerBotModule (:175) and LogisticsCenterBotModule (:803, :811), which would have gone
+	# straight past the UndeployMove gate below.
+	# Off, this removes the targeter, the command-bar Deploy button and hand-built order acceptance
+	# together, leaving Ctrl+click on GROUND as the one and only way to undeploy a Centre.
+	Transforms:
+		IntoActor: lccv
+		Offset: 1,1
+		Facing: 384
+		AcceptsDeployOrder: false
+		TransformSounds: placbldg.aud, build5.aud
+		PauseOnCondition: disabled || build-incomplete || being-captured || being-demolished
+	# Force-move (Ctrl+click) on GROUND is the undeploy gesture. A plain click on ground still sets
+	# the rally point: RallyPoint's targeter is OrderPriority 0 and this one is 4, so this one is
+	# asked first and RequiresForceMove makes it decline without Ctrl (UnitOrderGenerator.OrderForUnit).
+	# CORRECTED 2026-09-05: these two are NOT the only targeters in the contest. Transforms publishes
+	# a THIRD at priority 5 which outranks both and needs no modifier — see AcceptsDeployOrder above,
+	# which is what stops a plain right-click on the building itself from winning it.
+	# OrderName IS THE SAFETY GATE and is not cosmetic. RequiresForceMove gates the targeter only;
+	# ResolveOrder would act on ANY "Move" order reaching this actor, and bot modules build
+	# new Order("Move", actor, ...) by hand at 21 sites. None of them can name a building today —
+	# LogisticsCenterBotModule.McvActorTypes is {"lccv"} (:64) and McvManagerBotModule.McvTypes is
+	# empty and unset in mods/ — but that is a fact about today's callers. "UndeployMove" is a fact
+	# about the string, so no bot can undeploy a Centre by accident however the modules change.
+	TransformsIntoMobile:
+		RequiresForceMove: true
+		Locomotor: heavywheeled
+		OrderName: UndeployMove
 	RallyPoint:
 	ProximityExternalCondition@UNITDOCKED:
 		Condition: unit.docked
@@ -574,8 +660,14 @@ LOGISTICSCENTER:
 		Actor: fact.husk
 	GpsDot:
 		String: Repair
+	# 0.6667 = 2/3. fact.shp is 72x72 px = three 24 px cells wide (mod.yaml TileSize 24,24), so at 1.0
+	# a 2x2 building would overhang its footprint by a full cell and the crane's tile would not land on
+	# the dock cell. Scaled sprites are established practice here — LCCV ships Scale: 0.8. The
+	# alternative is Scale 1.0 with deliberate overhang; it keeps the art crisper but divorces the
+	# drawn crane from the cell vehicles actually park on.
 	RenderSprites:
 		Image: FACT
+		Scale: 0.6667
 
 HPAD:
 	Inherits: ^Building
