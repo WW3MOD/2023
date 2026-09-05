@@ -20233,3 +20233,22 @@ Context: `dd952225` made `RepairsUnits` heal for the first time (`Repairable.Per
 Put to the user with three options (pause the burn while `unit.docked`; raise repair above the burn; keep it). **User picked "Keep it — critical means doomed."** Both rates stay as they are. This is consistent with the standing vocabulary (a vehicle "goes critical" at <50 % = fire + unrecoverable): the depot repairs damage, it does not put out fires. Do not add `RequiresCondition: !unit.docked` to the burn, and do not raise `PercentageStep` to "fix" this — it is decided.
 
 Consequence to keep in mind, not a bug: a burning vehicle sent to a Centre holds the single dock cell until it dies (`RepairTick` clears the Repair flag only at `Undamaged`, `Resupply.cs:601-612`), which from 30 % HP is ~400 ticks. The next client waits on `MoveOnto`'s occupied-cell branch for that long, then docks. Bounded by the death, so no queue was built. Scenario headers that list the three candidates (`test-lc-2x2-dock-and-undeploy.lua`, `test-depot-vacate-phantom`) describe a question that is now closed.
+
+## 2026-09-05 — USER RULING: `@stable` is a periodically re-synced COPY of `@experimental`, not a separate design
+
+The user, verbatim: *"the stable bot is just a snapshot/copy of the experimental bot at various stages. All development should go on experimental. Before release we will rename them to something more appropriate."*
+
+This corrects a reading a manager acted on the same day, and the correction has teeth: a gap observed in `@stable` is usually **not a design decision to be re-litigated and not a bug to fix in `@stable`** — it is drift that the next re-sync closes. The right response to "@stable does not do X" is to check whether the twin has since been promoted, not to propose making `@stable` do X.
+
+**Worked example, same day.** A finding was carried for two days that *"`@stable` can capture a Logistics Centre but will never restock from it, because the dispatch lives in an experimental-only module."* It was put to the user as one of three open calls and they declined it. On checking: **it was already fixed and the finding was stale.** `LogisticsCenterBotModule@stable` exists at `mods/ww3mod/rules/ai/ai.yaml:3138` alongside `@experimental` at `:1344`, and `LogisticsCenterBotModule.cs` carries no bot-type comparison at all. It was one of six modules that gained a `@stable` twin in the parity promotion recorded in that file's own header comment.
+
+**But the user's model has two documented exceptions, and they are load-bearing.** `ai.yaml`'s header says so explicitly under *"NOT AT PARITY"*: two behaviours are `@experimental`-only where **the YAML gate is not the mechanism**, so no amount of re-syncing twins can carry them. Both are C# bot-type comparisons inside modules that are SHARED `enable-ai-any` singletons, where a YAML flag would hit both profiles at once:
+
+- idle-truck hunt — `SupplyFollowerBotModule.cs:704` feeds `SupplyTruckHuntMath.ShouldHunt` (`SupplyTruckHuntMath.cs:219`). Setting `IdleTruckHunt: true` on a `@stable`-reachable block is **INERT**.
+- garrison commit-on-order — `GarrisonBotModule.cs:228` feeds `PoiGoalGuard.ShouldCommitShared` (`PoiGoalGuard.cs:305`). `CommitGarrisonedUnits: true` is likewise **INERT** for `@stable`.
+
+Closing those needs an engine change — split the module, or widen the comparison — not a YAML edit. **Do not "fix" them by setting the flags; that changes nothing and reads in the diff as though it did.**
+
+So the accurate model is: *`@stable` is a re-synced copy, EXCEPT where a behaviour is selected by a C# bot-type comparison inside a shared singleton module.* Grep for the comparison before concluding a `@stable` gap is mere drift. As of this entry the known set is exactly those two files, plus `OpportunisticAdvanceMath.cs` and `SpawnFlowMath.cs`, which reference the same helpers and were not audited here.
+
+**Open, and the user raised it unprompted:** they want `@experimental` / `@stable` renamed before release — *"Maybe we should call them Staging and Main? Or something that is harder to misunderstand?"* Worth coupling to release blocker R4, which already needs the lobby AI picker given real names, a difficulty ladder and descriptions (`rules/ai/ai.yaml`, `grep -c 'Difficulty\|Description'` returns 0). One change, not two.
