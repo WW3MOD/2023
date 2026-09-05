@@ -4800,3 +4800,31 @@ map-rules test the way most weapon changes can — it has to be a change to the 
   gun never stops. **Latent today** — `CRAM` is `Buildable.Prerequisites: ~disabled` (`:636`), so no
   player can place one. It goes live the instant that prerequisite is flipped. Fix is one line.
   (found while working on: interception costing, WORKSPACE/recon/260905-intercepting-ballistic-munitions.md §7.1)
+- [2026-09-05] [med] **A fixed-wing aircraft ordered to land on a same-owner `afld` never lands —
+  it holds CruiseAltitude indefinitely.** MEASURED in autotest run `260905_171321`
+  (`test-heli-repairs-at-pad`, first version): an `A10` at 60 % HP, given
+  `Plane.ReturnToBase(PlanePad)` against a player-owned `afld` 16 cells away, was still at
+  `CenterPosition.Z == 2560` — exactly its `CruiseAltitude` (`aircraft-america.yaml:468`) — 1000
+  ticks later, at unchanged HP, with **zero** credits charged against it. Zero charge is the
+  informative half: `RepairTick` bills `Math.Max(1, ...)` per `Interval` even when the step heals
+  nothing (`Resupply.cs:656`), so a plane that had docked and wedged would have been billed ~41.
+  Nothing was, so no `Resupply` was ever constructed and it never reached the deck at all.
+  **RULES ARE NOT THE CAUSE, and this is worth not re-litigating**: the merged rules tree gives
+  `a10` `Repairable: {RepairActors: afld, PercentageStep: 3}` and `afld` a `RepairsUnits`, so
+  `Resupply`'s `cannotRepairAtHost` (`Resupply.cs:127-130`) would have been false had it docked;
+  `ReturnToBase` was called with an explicit destination and `alwaysLand: true`, which
+  short-circuits `ShouldLandAtBuilding` (`ReturnToBase.cs:73-76`); and the same call against the
+  same pad type worked for a helicopter in the same run. The difference is the airframe: `^Helicopter`
+  is `VTOL`/`CanSlide` and takes `Land.cs`'s VTOL branch, while `^Aircraft` takes the non-VTOL
+  approach branch (`Land.cs:254-300`), which builds a three-waypoint circuit from
+  `approachStart = targetPosition + WVec(0, landDistance, altitude).Rotate(facing)` with
+  `landDistance = CruiseAltitude * 1024 / MaximumPitch.Tan()` (~6 cells for the A10) plus two
+  turn-radius waypoints. **Not diagnosed further** — the two candidates I could not separate
+  without another run are (a) the circuit needing more room than the pad's position left it, the
+  pad having been 8 cells from the map's top edge, and (b) `CanLand(blockingCells, target.Actor)`
+  failing at `Land.cs:301-308` and looping on `FlyIdle(25)` forever, which is a silent infinite retry
+  with no log line. **Latent today**: `afld` is on zero shipped maps and carries
+  `Buildable.Prerequisites: ~disabled` (`structures.yaml:756`), so nothing can reach this in a real
+  game. It goes live the day a map places an airfield.
+  (found while working on: aircraft repair-at-pad, `wt/air-repair`; the leg was removed from
+  `test-heli-repairs-at-pad` so a green repair gate does not depend on this)

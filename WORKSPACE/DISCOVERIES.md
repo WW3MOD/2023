@@ -20282,6 +20282,70 @@ Put to the user with three options (pause the burn while `unit.docked`; raise re
 
 Consequence to keep in mind, not a bug: a burning vehicle sent to a Centre holds the single dock cell until it dies (`RepairTick` clears the Repair flag only at `Undamaged`, `Resupply.cs:601-612`), which from 30 % HP is ~400 ticks. The next client waits on `MoveOnto`'s occupied-cell branch for that long, then docks. Bounded by the death, so no queue was built. Scenario headers that list the three candidates (`test-lc-2x2-dock-and-undeploy.lua`, `test-depot-vacate-phantom`) describe a question that is now closed.
 
+
+## 2026-09-05 — Aircraft were the half of the repair fix that `0871d66a` did not reach: `PercentageStep` on `^Airborne`
+
+`0871d66a` (merged `dd952225`) taught `RepairTick` to fall back to `PercentageStep` when `HpPerStep`
+resolves 0, and its commit message says the behaviour change is "exactly: ground vehicles now repair
+at a Logistics Centre". That was accurate and it was also the whole story only because `^Vehicle`'s
+`Repairable` was the single repair-side `PercentageStep` in the mod. **Aircraft had none, and neither
+did their hosts** — `^Airborne` and `^Helicopter` declared `Repairable: RepairActors: afld / hpad`
+with no step, and `HPAD`/`AFLD` `RepairsUnits` (`mods/ww3mod/rules/ingame/structures.yaml:711`,
+`:786`) set neither `HpPerStep` nor `PercentageStep`. So the new fallback resolved 0 for every
+airframe and the aircraft half of the defect survived the fix that named it.
+
+**Both symptoms, not one.** The missing heal is the visible half; the wedge is the expensive one.
+`RepairTick` clears `ResupplyType.Repair` only at `DamageState.Undamaged`
+(`engine/OpenRA.Mods.Common/Activities/Resupply.cs:602`) and `Resupply`'s only exit is
+`activeResupplyTypes == 0` (`:339`), so a zero step means a damaged airframe that reaches a pad lands,
+heals nothing, and can never leave — while `Math.Max(1, ...)` at `:656` applies to the COST, so it is
+billed 1 credit per 24-tick `Interval` for the privilege, indefinitely. This is the same shape
+`0871d66a` measured on a vehicle ("hp 14000 -> 14000 ... in 598 ticks"); it was never measured on an
+airframe because no airframe can reach a pad on any shipped map (below).
+
+**Fixed at ONE site: `PercentageStep: 3` on `^Airborne`'s `Repairable`**
+(`mods/ww3mod/rules/ingame/aircraft.yaml:124-126`). `^Aircraft`, `^Helicopter` and `^Drone` all reach
+`Repairable` through `^Airborne`, and `^Helicopter`'s own `Repairable: RepairActors: hpad` **merges**
+with the inherited node rather than replacing it — it overrides the host list and inherits the step.
+The unit side was chosen over the pads because `RepairTick` prefers `repairable.Info.PercentageStep`
+over `repairsUnits.Info.PercentageStep` (`:644-646`), so a value there cannot be shadowed by a host,
+and because it mirrors `^Vehicle` (`vehicles.yaml:62-64`) instead of inventing a second idiom.
+Resulting bill for one helicopter (HELI, `Cost: 6000`, `HP: 800`): 24 HP and 36 credits per
+`Interval`, 14 steps from 60 % to full = **504 credits**; a full zero-to-max repair is ~1200, i.e.
+`ValuePercentage` 20 % of the unit's cost, as designed.
+
+**THE LIVE SURFACE IS ZERO, AND THAT IS WHY THIS WENT UNNOTICED.** `grep -rni 'hpad\|afld'
+mods/ww3mod/maps/` returns **nothing** — not "hpad on zero maps and afld on some", but *both* on
+**zero of the ten shipped maps** — and both carry `Buildable.Prerequisites: ~disabled`
+(`structures.yaml:688`, `:756`) with nothing in the repo providing `disabled` outside the EMP grant
+(`:218-220`). So no aircraft can dock anywhere today, and this fix changes nothing observable until a
+map places a pad. `logisticscenter` is named by no aircraft's `RepairActors`, and repointing them at
+it was tried and reverted (`68e8b885`).
+
+**`hpad` still cannot be placed at all: `hpad.shp` and `hpadmake.shp` do not exist**
+(`mods/ww3mod/lint-baseline.txt:353-354`) while `sequences-structures.yaml:667` declares `idle`/`make`
+against them. `afld` has complete art (`afldidle`/`afldmake`) and is already map-placed by
+`test-capture-rules`. That is why `test-heli-repairs-at-pad` hosts at an `afld` and widens **only**
+`HELI.Repairable.RepairActors` in its `rules.yaml` — never `PercentageStep`, so its helicopter leg
+still has to get the step by inheritance. *(Amended after run `260905_171321`: it used two `afld`s
+and a fixed-wing leg as well. The A10 never landed — a separate matter, filed at
+`WORKSPACE/bugs/discovered.md` — so that leg was removed and one pad is left.)*
+
+**Both bot profiles already route damaged helicopters to a repair host, and neither can find one.**
+`HelicopterStates.SendDamagedUnitsHome` (`engine/OpenRA.Mods.Common/Traits/BotModules/Squads/States/
+HelicopterStates.cs:96-111`) pulls a heli out at `AirframeReadiness.RepairRoutingBar(HasRepairHost(u),
+ReEngageHealthPercent, FleeHealthPercent)`, and `HelicopterSquadBotModule` has both an `@stable`
+(`ai.yaml:2500`) and an `@experimental` (`:2550`) twin. With no pad on any map `HasRepairHost` is
+always false, the bar is the flee bar, and `Aircraft.CanReturnToBase` refuses the order as a no-op —
+so `@stable` is byte-identical on every shipped and benchmark map. **The day a map places a pad, this
+fix changes `@stable`**, and the change is that its damaged helis will actually come back healed
+instead of parking on the deck forever.
+
+**Latent divergence worth knowing before that day**: `AirframeReadiness.HasRepairHost` accepts any
+`a.Owner.IsAlliedWith(self.Owner)` host (`AirframeReadiness.cs:66-69`), but `ReturnToBase.ChooseResupplier`
+requires `a.Owner == self.Owner` (`ReturnToBase.cs:47`). An ALLIED pad therefore raises the bot's
+routing bar to the recovery threshold and then supplies no destination — the heli is pulled out of the
+fight early and finds nowhere to go. Not touched here; there is no map on which it can fire.
 ## 2026-09-05 — USER RULING: `@stable` is a periodically re-synced COPY of `@experimental`, not a separate design
 
 The user, verbatim: *"the stable bot is just a snapshot/copy of the experimental bot at various stages. All development should go on experimental. Before release we will rename them to something more appropriate."*
@@ -20401,3 +20465,78 @@ The **tooltip** path is one YAML line short of working, which is worth knowing b
 ### 4. Incidental: two stale comments in `ai.yaml`
 
 `:26` and `:2740` both refer to unit builders "keyed `@america.normal` / `@russia.normal`". **Those keys do not exist** — the only `UnitBuilderBotModule@` keys are `russia.fixedwing`, `russia.heli`, `experimental.russia.heli`, `america.fixedwing`, `america.heli`, `experimental.america.heli`. `:2740` also calls it "the four unit builders" when the `enable-ai-stable` ones number two (both `fixedwing` blocks are `enable-ai-any`, shared by both profiles). Comment-only; no behaviour depends on it. Left unfixed to keep this branch to one concern.
+
+
+## 2026-09-05 — The aircraft repair fix is CONFIRMED by run `260905_171321`, which reported FAIL: reading a verdict that measured the wrong thing
+
+`test-heli-repairs-at-pad` came back **fail** — *"Plane never healed to full: 480/800 HP (60 %) 1000
+ticks after being sent to its pad, alt=2560, player billed -1496"* — and the fix it was testing was
+working the whole time. Three separate lessons, all cheap to reuse.
+
+### 1. `PassiveIncome` is ON by default and it silently poisons any before/after cash assertion
+
+`PlayerResourcesInfo` defaults to `PassiveIncome = 100` every `PassiveIncomeInterval = 50` ticks after
+`PassiveIncomeInitialDelay = 50` (`engine/OpenRA.Mods.Common/Traits/Player/PlayerResources.cs:63,66,69`),
+and the lobby option registers that same 100 as its own default (`:108-109`), so it is live in every
+autotest that does not turn it off. `mods/ww3mod/rules/player.yaml:400-403` shows the values
+**commented out**, which reads at a glance as "off" and is not — the engine constants supply them.
+
+The reported `-1496` decodes exactly: a 1000-tick window pays 20 × 100 = **2000**, and the one repair
+that completed cost **504**, so 2000 − 504 = 1496 *in the player's favour*. **That arithmetic is the
+proof the fix works**: 504 is precisely `modelledBill` for a HELI (`Cost: 6000`, `HP: 800`) healed
+480 → 800 at `PercentageStep: 3` — 24 HP and 36 credits per `Interval`, 14 steps. Nothing else in the
+scenario could have charged that number, and the A10 was charged nothing at all.
+
+**Any scenario asserting on `player.Cash` must set `PassiveIncome: 0` AND
+`PassiveIncomeDropdownLocked: True`** — the value that reaches `PassiveIncomeAmount` is read back from
+the lobby option (`:167-170`), so zeroing the field alone only moves the default.
+
+### 2. A tolerance band would have hidden this; an exact assertion plus income-off finds it
+
+The original leg 4 allowed ±15 %. Had income been smaller it would have passed while measuring
+income-minus-spend, and the scenario would have been permanently green and permanently meaningless.
+With income off, the bill is now asserted **exactly** — repair is then the only thing in the game that
+can move that purse.
+
+### 3. A verdict that names one actor and stays silent about the rest is not self-diagnosing
+
+The scenario failed on the first of its two patients and reported only that one, and it printed
+nothing at all, so `lua.log` came back **0 bytes**. Whether the helicopter — the leg that actually
+measures the fix — had worked could not be read from the artefacts; it had to be reconstructed from
+the cash arithmetic above. Both are now fixed: every failure string carries the full state of every
+actor plus the purse, and a trace line goes to `lua.log` every 100 ticks. **Note the trap in the
+other direction:** a 0-byte `lua.log` is documented in `DOCS/recipes/AUTOTEST.md` as the tell for a
+script that was never wired into `Scripts:` — here the script ran fine and simply never printed, so
+the tell is only diagnostic for scenarios that print at all.
+
+### The static proof that one site covers every airframe
+
+Worth keeping because it needs no run and no build. `tools/nav-guard/modload.py` resolves the full
+inheritance chain, so the merged `Repairable` can be read directly:
+
+```python
+import sys; sys.path.insert(0, 'tools/nav-guard')
+import modload, nav_guard
+rules = modload.load_mod(nav_guard.MOD_DIR)
+a = rules.actors['heli']
+print([(n.key, {c.key: c.value for c in n.nodes}) for n in a.nodes if n.key.split('@')[0] == 'Repairable'])
+```
+
+| actor | resolved `Repairable` |
+|---|---|
+| `a10`, `f16`, `mig`, `frog` | `{RepairActors: afld, PercentageStep: 3}` |
+| `heli`, `hind`, `tran`, `halo` | `{RepairActors: hpad, PercentageStep: 3}` |
+| `abrams` (for contrast) | `{RepairActors: logisticscenter, PercentageStep: 3}` |
+
+One `PercentageStep: 3` on `^Airborne` reaches all eight airframes; `^Helicopter`'s own
+`Repairable: RepairActors: hpad` **merges** rather than replaces, keeping its host override and
+inheriting the step; and no actor carries two values. `afld` and `hpad` still declare `RepairsUnits`
+with neither `HpPerStep` nor `PercentageStep`, so the unit side answers for every host.
+
+### The A10 leg was a real, separate finding
+
+It never landed — cruise altitude at the verdict, nothing charged, so no `Resupply` was ever
+constructed. Its rules are fine (table above); the difference is that `^Helicopter` takes `Land.cs`'s
+VTOL branch and `^Aircraft` takes the non-VTOL approach circuit. Filed at
+`WORKSPACE/bugs/discovered.md` [2026-09-05] rather than diagnosed here, and the leg was removed so a
+green repair gate does not depend on an open fixed-wing question.

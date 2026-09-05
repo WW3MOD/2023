@@ -1,0 +1,86 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a damaged helicopter at a pad heals to full, then leaves
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Geometry is byte-identical to test-heli-evac-unrearmable / test-heli-squad-forms /
+# test-capture-rules (same map.bin, md5 d3906e15c660488eaeccba13211e8da1): an empty
+# 64x32 TEMPERAT field. Nothing here depends on terrain.
+#
+# WHY THE HOST IS AN afld AND NOT AN hpad.
+# `hpad.shp` and `hpadmake.shp` DO NOT EXIST in this repo — they are recorded as missing
+# in mods/ww3mod/lint-baseline.txt:353-354, and sequences-structures.yaml:667 still
+# declares `idle`/`make` against them. Placing an hpad would be a render-time failure, not
+# a test. DOCS/reference/economy.md calls that same absence "the outstanding blocker to
+# actually placing one". `afld` has complete art and is already map-placed by
+# test-capture-rules, so it is the only pad this suite can stand up.
+#
+# The substitution costs the test NOTHING, because the field under test is
+# Repairable.PercentageStep and not the host list. rules.yaml widens only HELI's
+# RepairActors; PercentageStep is never named there and still has to arrive by inheritance
+# from ^Airborne through ^Helicopter's own `Repairable:` node. That merge is what the
+# Patient leg proves at runtime, and it is proved statically for all nine airframes in
+# WORKSPACE/DISCOVERIES.md (2026-09-05, resolved-rules table).
+#
+# NO FIXED-WING LEG, DELIBERATELY. The first version of this scenario also flew an A10 to
+# a second afld. That leg FAILED the 2026-09-05 run (260905_171321) while the helicopter
+# leg passed: the A10 was still at CruiseAltitude 2560 at the verdict with nothing charged
+# for it, so it never landed and never constructed a Resupply at all. Its RULES are fine —
+# the merged tree gives a10 the same step every other airframe gets — so that is a
+# fixed-wing APPROACH question in Land.cs's non-VTOL branch, unrelated to the repair rate
+# measured here. Filed at WORKSPACE/bugs/discovered.md [2026-09-05]. Do not re-add a plane
+# to "also cover" it: it would make a green repair gate hostage to an open question.
+#
+# TWO HELICOPTERS, both owned by the same HUMAN player (Playable, no Bot: line), each
+# damaged to 60% HP by the Lua. 60% is deliberate: above the 50% floor at which the
+# critical-damage burn starts, which the user ruled on 2026-09-05 stays unchanged.
+#
+#   Patient (10,16) HELI, ordered to Pad. Must reach MaxHealth, then leave the deck.
+#   Control (10,26) HELI, damaged identically, never ordered anywhere. Must stay at 60%
+#                   and on the ground. Without it, any passive heal would read as a pass.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	# One Playable slot, so the lint requires one spawn point. Placed well clear of the pad
+	# and both helicopters so it cannot influence any flight path.
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 3,16
+
+	Pad: afld
+		Location: 26,16
+		Owner: Me
+
+	Patient: heli
+		Location: 10,16
+		Owner: Me
+	Control: heli
+		Location: 10,26
+		Owner: Me
+
+Rules: rules.yaml
