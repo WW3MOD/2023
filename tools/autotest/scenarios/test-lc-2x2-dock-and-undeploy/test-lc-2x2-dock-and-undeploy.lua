@@ -29,8 +29,11 @@
 --                percentage step was still being ignored.
 --
 --   U (undeploy) Force-move (Ctrl) on ground undeploys the second Centre into an LCCV carrying its
---                supply and its health percentage, which then drives to the clicked cell. A PLAIN
---                click must NOT undeploy — it is still the rally-point gesture.
+--                supply and its health percentage, which then drives to the clicked cell. TWO plain
+--                clicks must NOT undeploy, and they are different gestures resolved by different
+--                targeters: one ON THE BUILDING (an Actor target, which only DeployOrderTargeter
+--                accepts) and one on GROUND (a Terrain target, which RallyPoint takes). The first
+--                is the hole an adversarial review found after the feature already passed a run.
 --
 -- NO SCREENSHOT BEAT GUESSES A TICK, and that is what Test.ConditionCount is for. A deployed
 -- building's actor exists IMMEDIATELY and the make animation runs AFTERWARDS under
@@ -88,6 +91,7 @@ local tankDockedTick = nil
 local firstHpJump = nil
 local serviceShotTaken = false
 local reverseShotTaken = false
+local selfClickOrder, selfClickCursor, selfClickTick = nil, nil, nil
 local plainClickOrder, forceClickOrder, forceCursor = nil, nil, nil
 local plainClickTick = nil
 
@@ -347,7 +351,46 @@ end
 -- ---------------------------------------------------------------- phase U: undeploy
 
 local function tickUndeploy()
-	-- Step 1: the PLAIN click, issued for real, and then a pause to let it act if it is going to.
+	-- Step 0: a plain right-click ON THE BUILDING ITSELF, which is a DIFFERENT gesture from a click
+	-- on ground and was the hole an adversarial review found. Transforms publishes
+	-- DeployOrderTargeter("DeployTransform", 5), whose CanTarget is `self == target.Actor` with NO
+	-- force modifier; priority 5 outranks TransformsIntoMobile's 4 and RallyPoint's 0, so
+	-- UnitOrderGenerator.OrderForUnit takes it FIRST and an ordinary click on the Centre dismantled
+	-- it. ClickOrder (not ClickOrderAtCell) is what reproduces it: this one builds Target.FromActor,
+	-- and DeployOrderTargeter refuses a Terrain target outright, so the terrain binding cannot see
+	-- this bug at all.
+	if selfClickOrder == nil then
+		selfClickCursor = Test.ClickCursor({ UndeployDepot }, UndeployDepot, "")
+		selfClickOrder = Test.ClickOrder(UndeployDepot, UndeployDepot, "") or "<refused>"
+
+		if selfClickOrder == "DeployTransform" or selfClickOrder == "UndeployMove" then
+			return string.format(
+				"fail: U(undeploy) — a plain right-click ON the Centre produced %q (cursor %q). " ..
+				"Transforms.AcceptsDeployOrder must be false on LOGISTICSCENTER: it is what removes " ..
+				"the priority-5 DeployOrderTargeter, the command-bar Deploy button and ResolveOrder's " ..
+				"acceptance of a hand-built DeployTransform, together. Without all three, clicking " ..
+				"your own depot destroys it and any bot module that builds that order string by hand " ..
+				"walks straight past the UndeployMove gate",
+				selfClickOrder, tostring(selfClickCursor))
+		end
+
+		selfClickTick = ticks
+		return false
+	end
+
+	-- Give that click a clear run at doing damage before anything else is issued.
+	if plainClickOrder == nil and ticks - selfClickTick < 15 then
+		return false
+	end
+
+	if plainClickOrder == nil and UndeployDepot.IsDead then
+		return string.format(
+			"fail: U(undeploy) — the Centre is gone 15 ticks after a plain right-click ON it, which " ..
+			"resolved to %q. Whatever that order was, clicking a building you own must not destroy it",
+			selfClickOrder)
+	end
+
+	-- Step 1: the PLAIN click on GROUND, issued for real, and then a pause to let it act too.
 	if plainClickOrder == nil then
 		-- Resolved through the real targeter chain, not by naming an order. Test.IssueMove would skip
 		-- the OrderPriority contest and pass while a player's actual click routed somewhere else —
@@ -516,11 +559,12 @@ WorldLoaded = function()
 		return string.format(
 			"LC 2x2 assertions unresolved within %ds — stalled in phase %q at tick %d (phase tick " ..
 			"%d, zoom %.1f). deployOrder=%s lcFound=%s makeTicks=%s tankCell=%s dockedAt=%s " ..
-			"firstHpJump=%s undeployOrder=%s lccv=%s",
+			"firstHpJump=%s selfClick=%s plainClick=%s undeployOrder=%s lccv=%s",
 			BUDGET, phase, ticks, phaseTicks, appliedZoom,
 			tostring(deployOrderTick), tostring(lcFoundTick), tostring(makeTicks),
 			Tank.IsDead and "<dead>" or (Tank.Location.X .. "," .. Tank.Location.Y),
-			tostring(tankDockedTick), tostring(firstHpJump), tostring(undeployTick),
+			tostring(tankDockedTick), tostring(firstHpJump), tostring(selfClickOrder),
+			tostring(plainClickOrder), tostring(undeployTick),
 			undeployedLccv ~= nil and "yes" or "no")
 	end)
 end

@@ -613,15 +613,29 @@ LOGISTICSCENTER:
 	# Health carries as a percentage (Transform.cs:135-142) and remaining supply carries through
 	# SupplyProvider's ITransformActorInitModifier (SupplyProvider.cs:376), the same hop that carries it
 	# on the way in.
+	# AcceptsDeployOrder: false IS A SAFETY GATE, not tidiness, and it was missed in the first cut.
+	# Transforms publishes DeployOrderTargeter("DeployTransform", 5), whose CanTarget is
+	# `self == target.Actor` with NO force modifier (Orders/DeployOrderTargeter.cs:41). Priority 5
+	# outranks TransformsIntoMobile's 4 and RallyPoint's 0, so UnitOrderGenerator.OrderForUnit takes
+	# it FIRST: an ordinary right-click on the Centre itself — which used to set the rally point —
+	# would dismantle a 3000-credit building. The same string is also built by hand by
+	# McvManagerBotModule (:175) and LogisticsCenterBotModule (:803, :811), which would have gone
+	# straight past the UndeployMove gate below.
+	# Off, this removes the targeter, the command-bar Deploy button and hand-built order acceptance
+	# together, leaving Ctrl+click on GROUND as the one and only way to undeploy a Centre.
 	Transforms:
 		IntoActor: lccv
 		Offset: 1,1
 		Facing: 384
+		AcceptsDeployOrder: false
 		TransformSounds: placbldg.aud, build5.aud
 		PauseOnCondition: disabled || build-incomplete || being-captured || being-demolished
-	# Force-move (Ctrl+click) on ground is the undeploy gesture. A PLAIN click still sets the rally
-	# point: RallyPoint's targeter is OrderPriority 0 and this one is 4, so this one is asked first and
-	# RequiresForceMove makes it decline without Ctrl (UnitOrderGenerator.OrderForUnit).
+	# Force-move (Ctrl+click) on GROUND is the undeploy gesture. A plain click on ground still sets
+	# the rally point: RallyPoint's targeter is OrderPriority 0 and this one is 4, so this one is
+	# asked first and RequiresForceMove makes it decline without Ctrl (UnitOrderGenerator.OrderForUnit).
+	# CORRECTED 2026-09-05: these two are NOT the only targeters in the contest. Transforms publishes
+	# a THIRD at priority 5 which outranks both and needs no modifier — see AcceptsDeployOrder above,
+	# which is what stops a plain right-click on the building itself from winning it.
 	# OrderName IS THE SAFETY GATE and is not cosmetic. RequiresForceMove gates the targeter only;
 	# ResolveOrder would act on ANY "Move" order reaching this actor, and bot modules build
 	# new Order("Move", actor, ...) by hand at 21 sites. None of them can name a building today —
