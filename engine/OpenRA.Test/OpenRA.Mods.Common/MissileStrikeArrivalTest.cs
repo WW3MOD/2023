@@ -210,6 +210,31 @@ namespace OpenRA.Test
 			return fields;
 		}
 
+		/// <summary>
+		/// THE THREE POWERS NO LONGER LIVE ON THE PLAYER ACTOR, and every read in this fixture used to
+		/// assume they did. They now hang off one bodiless proxy each -- `powerproxy.kinzhal`,
+		/// `powerproxy.gbu57`, `powerproxy.tacnuke` -- because a reservation you can own SEVERAL of has
+		/// to be several ACTORS: SupportPowerManager keys an AllowMultiple power `OrderName_ActorID`,
+		/// and the Player actor is exactly one actor forever.
+		///
+		/// Every invariant below is unchanged and still worth pinning; only the address moved. This
+		/// indirection is what stops the next move from silently emptying the dictionary these tests
+		/// read -- ReadTrait asserts the top-level exists, so a renamed proxy fails loudly here rather
+		/// than returning {} and letting a ContainsKey assertion pass vacuously.
+		/// </summary>
+		static readonly Dictionary<string, string> PowerCarriers = new Dictionary<string, string>
+		{
+			{ "MissileStrikePower@Kinzhal", "powerproxy.kinzhal" },
+			{ "MissileStrikePower@GBU57", "powerproxy.gbu57" },
+			{ "MissileStrikePower@TacNuke", "powerproxy.tacnuke" },
+		};
+
+		static Dictionary<string, string> ReadPower(string trait)
+		{
+			Assert.That(PowerCarriers.ContainsKey(trait), Is.True, $"no proxy is recorded for {trait}");
+			return ReadTrait("player.yaml", PowerCarriers[trait], trait);
+		}
+
 		static int ParseWDist(string v)
 		{
 			var i = v.IndexOf('c');
@@ -220,7 +245,7 @@ namespace OpenRA.Test
 		public void TheTwoAtomicDeliveriesBurstAtTheSameHeight()
 		{
 			var silo = ReadTrait(Path.Combine("ingame", "structures-defenses.yaml"), "MSLO", "NukePower");
-			var power = ReadTrait("player.yaml", "Player", "MissileStrikePower@TacNuke");
+			var power = ReadPower("MissileStrikePower@TacNuke");
 
 			Assert.That(silo.ContainsKey("DetonationAltitude"), Is.True);
 			Assert.That(power.ContainsKey("DetonationAltitude"), Is.True,
@@ -240,7 +265,7 @@ namespace OpenRA.Test
 		[Test]
 		public void TheAirburstStaysUnderEveryAtomicWarheadsAirThreshold()
 		{
-			var power = ReadTrait("player.yaml", "Player", "MissileStrikePower@TacNuke");
+			var power = ReadPower("MissileStrikePower@TacNuke");
 			var alt = ParseWDist(power["DetonationAltitude"]);
 
 			Assert.That(alt, Is.LessThan(AtomicAirThreshold),
@@ -267,7 +292,7 @@ namespace OpenRA.Test
 		[Test]
 		public void RaisingTheBurstDidNotEatTheDescent()
 		{
-			var power = ReadTrait("player.yaml", "Player", "MissileStrikePower@TacNuke");
+			var power = ReadPower("MissileStrikePower@TacNuke");
 			var spawn = ParseWDist(power["SpawnAltitude"]);
 			var burst = ParseWDist(power["DetonationAltitude"]);
 
@@ -281,7 +306,7 @@ namespace OpenRA.Test
 		[TestCase("MissileStrikePower@GBU57")]
 		public void TheConventionalStrikesMustNotAirburst(string trait)
 		{
-			var power = ReadTrait("player.yaml", "Player", trait);
+			var power = ReadPower(trait);
 
 			// This is not a taste ruling. Warhead.ValidTargets defaults to `Ground, Water` per
 			// warhead and AirThreshold to 128 -- an eighth of a cell. ^HugeExplosionEffects, which
@@ -299,9 +324,9 @@ namespace OpenRA.Test
 		[Test]
 		public void TheThreeStrikesArriveOnDistinctSchedules()
 		{
-			var kinzhal = ReadTrait("player.yaml", "Player", "MissileStrikePower@Kinzhal");
-			var gbu = ReadTrait("player.yaml", "Player", "MissileStrikePower@GBU57");
-			var nuke = ReadTrait("player.yaml", "Player", "MissileStrikePower@TacNuke");
+			var kinzhal = ReadPower("MissileStrikePower@Kinzhal");
+			var gbu = ReadPower("MissileStrikePower@GBU57");
+			var nuke = ReadPower("MissileStrikePower@TacNuke");
 
 			var k = int.Parse(kinzhal["MissileDelay"]);
 			var g = int.Parse(gbu["MissileDelay"]);
@@ -322,9 +347,9 @@ namespace OpenRA.Test
 		[Test]
 		public void OnlyTheNukeAnnouncesItsCountdownToOtherPlayers()
 		{
-			var kinzhal = ReadTrait("player.yaml", "Player", "MissileStrikePower@Kinzhal");
-			var gbu = ReadTrait("player.yaml", "Player", "MissileStrikePower@GBU57");
-			var nuke = ReadTrait("player.yaml", "Player", "MissileStrikePower@TacNuke");
+			var kinzhal = ReadPower("MissileStrikePower@Kinzhal");
+			var gbu = ReadPower("MissileStrikePower@GBU57");
+			var nuke = ReadPower("MissileStrikePower@TacNuke");
 
 			// SupportPowerTimerWidget.Candidates drops a power whose DisplayTimerRelationships is
 			// None before it ever asks who is watching, so None removes the line for everybody --

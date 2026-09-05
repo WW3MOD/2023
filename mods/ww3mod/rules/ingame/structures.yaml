@@ -360,7 +360,12 @@ SUPPLYROUTE:
 		Height: 2000
 		ProductionTypes: Aircraft, Helicopter
 	Production@Local:
-		Produces: Building, Defense
+		# `Powers` is what makes the Supply Route the place strikes are reserved FROM, which is the
+		# only place in this mod's fiction they could be: reinforcements and ordnance alike are
+		# allocated off-map and arrive through the beachhead. It also puts a bought power under the
+		# same PauseOnCondition as everything else here, so a contested Supply Route freezes a
+		# part-paid reservation exactly as it freezes a part-built tank.
+		Produces: Building, Defense, Powers
 		PauseOnCondition: disabled || build-incomplete
 	ProductionFromMapEdge:
 		Produces: Infantry, Soldier, Vehicle, Aircraft, Helicopter

@@ -1251,6 +1251,30 @@ Container@PLAYER_WIDGETS:
 									X: 6
 									Y: 6
 									ImageCollection: production-icons
+						ProductionTypeButton@POWERS:
+							Logic: AddFactionSuffixLogic
+							Y: 93
+							Width: 28
+							Height: 28
+							VisualHeight: 0
+							Background: sidebar-button
+							TooltipText: Powers
+							# NO alt/right/middle-click line, unlike the three tabs above. Those verbs
+							# (auto-build, pause-all, cancel-all) all exist on this tab too because
+							# ClassicProductionLogic wires them for every ProductionTypeButton, but
+							# advertising them here would point the player at the wrong place: a
+							# reservation is released by right-clicking its cameo in the POWER BIN,
+							# where the thing you are releasing is actually visible.
+							TooltipDesc: Reserve a strike from off-map reserves.\nHolding one costs upkeep every interval.\nRight-click its icon in the power bin to release it.
+							TooltipContainer: TOOLTIP_CONTAINER
+							TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
+							ProductionGroup: Powers
+							Key: ProductionTypePowers
+							Children:
+								Image@ICON:
+									X: 6
+									Y: 6
+									ImageCollection: powers-icons
 						# ProductionTypeButton@NAVAL:
 						# 	Logic: AddFactionSuffixLogic
 						# 	Y: 93

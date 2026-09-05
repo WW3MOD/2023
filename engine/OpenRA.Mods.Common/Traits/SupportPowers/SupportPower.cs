@@ -46,6 +46,23 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Allow this to be used only once.")]
 		public readonly bool OneShot = false;
 
+		[Desc("Dispose the actor carrying this power in the frame-end batch that follows activation.",
+			"For a BOUGHT power carried on a bodiless proxy this is mandatory rather than tidy: the",
+			"proxy is what registers the reservation's upkeep (InfersUpkeep unregisters only on",
+			"INotifyRemovedFromWorld), so a spent proxy that survives keeps billing the player forever.",
+			"OneShot alone does NOT do this -- it hides the icon and leaves the actor in the world.",
+			"Safe against a strike already in flight: everything MissileStrikePower.Activate defers",
+			"captures self.Owner, the target position and the missile actor, never the proxy.",
+			"Defaults false, so no shipped power changes behaviour.")]
+		public readonly bool DisposeSelfOnActivate = false;
+
+		[Desc("Can the player hand this reservation back for a refund by right-clicking its icon in",
+			"the support power bin? Refunds Valued.Cost off the actor carrying the power and disposes",
+			"it. Meaningless -- and refused at the order -- on a power carried by the Player actor",
+			"itself, which has no Valued and must not be disposed. Defaults false, so no shipped",
+			"power becomes releasable by accident.")]
+		public readonly bool Releasable = false;
+
 		[CursorReference]
 		[Desc("Cursor to display for using this support power.")]
 		public readonly string Cursor = "ability";

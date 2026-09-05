@@ -16,6 +16,15 @@ ProductionTypeAircraft: I
 	Types: Production
 	Contexts: Player
 
+# K, breaking the Y/U/I run, because K IS THE ONLY UNBOUND LETTER LEFT. The run's natural
+# continuation O is WaypointMode and P is Patrol (common|hotkeys/game.yaml), and a sweep of every
+# hotkey file this mod loads finds every other letter of the alphabet already taken. Not mnemonic;
+# unambiguous, which matters more for a key that opens a menu.
+ProductionTypePowers: K
+	Description: Powers Tab
+	Types: Production
+	Contexts: Player
+
 GroupScatter: G Shift
 	Description: Scatter queued waypoints among selected units
 	Types: World

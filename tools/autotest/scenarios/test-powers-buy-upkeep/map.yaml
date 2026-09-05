@@ -1,0 +1,95 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a bought strike is billed upkeep while banked and stops billing when fired
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES: three of the four claims the powers economy rests on, in the order a player
+# meets them.
+#
+#   1. PURCHASE BANKS A READY POWER. The three strikes moved off the Player actor onto bodiless
+#      proxies bought from the `Powers` queue, and their ChargeInterval was DELETED in favour of
+#      StartFullyCharged. So the reading that matters is not "an icon appeared" (test-power-buy-loop
+#      already proved that) but that the icon appears READY -- if it appears charging, the purchase
+#      is a second gate on top of the money and the whole design has failed on its own terms.
+#   2. HOLDING IT COSTS. InfersUpkeep at PermilleCost 5 on a 4000-credit proxy is 20 cash per
+#      economy interval. The scenario measures the player's NET PER PAYDAY before the purchase and
+#      again while banked; the difference between those two numbers is the upkeep, measured rather
+#      than asserted from the rules file.
+#   3. FIRING STOPS THE BILL. `DisposeSelfOnActivate` removes the proxy in the frame-end batch after
+#      launch, which is what unregisters its upkeep -- InfersUpkeep only ever unregisters on
+#      INotifyRemovedFromWorld. OneShot alone hides the ICON and leaves the ACTOR, so without the
+#      disposal a spent strike bills the player forever. That is a slow, invisible failure and it is
+#      the single most likely thing here to be quietly wrong, which is why the run ends by measuring
+#      the payday a THIRD time and requiring it back at baseline.
+#
+# THE ARRIVAL DELAY IS THE TRAP THIS SCENARIO IS BUDGETED AGAINST. MissileStrikePower holds the
+# missile OUT OF THE WORLD for MissileDelay ticks (150 on the Kinzhal) and Player.GetActorsByType
+# filters on IsInWorld, so a run that waits 90 ticks for a missile sees nothing and reports a
+# delivery failure that has nothing to do with delivery. ArrivalBudget below is pinned against
+# player.yaml by PowersEconomyTest.
+#
+# GEOMETRY. Russia home 6,17 -> edge cell 1,17. The victim at 44,17 is 43 cells from that entry.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 6,17
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 58,17
+
+Actors:
+	# OwnSR carries `Production@Local: Produces: Building, Defense, Powers`, so it is the factory the
+	# reservation is bought at. Without it the Powers queue ticks with Enabled false
+	# (ClassicProductionQueue.cs:51-71) and the item never starts -- which would look identical to a
+	# queue that refused the item.
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 6,17
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 58,17
+
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+	# The thing the bought strike is fired at, so rung 3 is measured on a real launch rather than on a
+	# cancelled one. abrams: 28,000 HP against IskanderExplosion's ~62,800 -- arrival means death.
+	Victim: abrams
+		Owner: USA
+		Location: 44,17
+		Facing: 256
+
+Rules: rules.yaml

@@ -72,8 +72,17 @@ namespace OpenRA.Test
 		{
 			// Spelled out rather than derived, so that RENAMING a token is a deliberate act that
 			// shows up here and points at the Lua that has to change with it.
+			// `dormant` joined the set with the powers economy. It is NOT cosmetic: a power whose
+			// instances are all paused -- what an unaffordable reservation looks like -- used to read
+			// `charging:0`, a true statement about its timer and a useless one about the power, and
+			// indistinguishable from a zero-interval power that is merely a tick from ready. The bin
+			// DRAWS a dormant power (wearing HoldText), which is why IsDrawn accepts it.
 			Assert.That(TestGlobal.SupportPowerState.Fixed,
-				Is.EquivalentTo(new[] { "ready", "hidden", "absent", "no-manager" }));
+				Is.EquivalentTo(new[] { "ready", "hidden", "absent", "no-manager", "dormant" }));
+
+			Assert.That(TestGlobal.SupportPowerState.IsDrawn(TestGlobal.SupportPowerState.Dormant), Is.True,
+				"an unaffordable reservation is still in the bin -- that is the whole point of " +
+				"dormancy over lapse. A scenario testing `is the icon still there` must see it.");
 		}
 
 		[Test]

@@ -217,10 +217,32 @@ namespace OpenRA.Test
 				"inverting this makes an unregistered lobby option enable the nuke rather than " +
 				"suppress it");
 
+			// THE SECOND HALF OF THE GATE MOVED, AND THIS IS WHY IT HAD TO. The nuke's power used to
+			// carry `RequiresCondition: !tacnuke-disabled` while it lived on the Player actor -- the
+			// same actor GrantConditionOnLobbyOption grants that condition on. It now lives on the
+			// bodiless proxy `powerproxy.tacnuke`, and CONDITIONS ARE PER-ACTOR: carried across
+			// unchanged, that line would read a variable nothing on the proxy ever grants, evaluate
+			// `!0` = true, and hand every player a nuke while still LOOKING like a gate. This asserts
+			// both halves of the replacement -- the per-PLAYER prerequisite bridge, and the absence of
+			// the inert line that would otherwise be mistaken for it.
 			var power = ReadBlock(Path.Combine(ModRulesDir(), "player.yaml"), "MissileStrikePower@TacNuke");
-			Assert.That(power.GetValueOrDefault("RequiresCondition"), Is.EqualTo("!tacnuke-disabled"),
-				"RequiresCondition (which makes the icon ABSENT via SupportPowersWidget.cs:136) " +
-				"rather than PauseOnCondition (which leaves a dead 'ON HOLD' cameo)");
+			Assert.That(power.ContainsKey("RequiresCondition"), Is.False,
+				"a RequiresCondition on a power carried by a PROXY is inert and reads as ENABLED. " +
+				"If the gate is wanted back on the trait, it has to be a condition something on the " +
+				"proxy itself grants.");
+
+			var bridge = ReadBlock(Path.Combine(ModRulesDir(), "player.yaml"), "ProvidesPrerequisite@tacnuke");
+			Assert.That(bridge.GetValueOrDefault("Prerequisite"), Is.EqualTo("tacnuke.enabled"));
+			Assert.That(bridge.GetValueOrDefault("RequiresCondition"), Is.EqualTo("!tacnuke-disabled"),
+				"the bridge inherits the polarity of the condition above it and must not invert it " +
+				"either: an unregistered lobby option must leave `tacnuke.enabled` UNPUBLISHED");
+
+			var buildable = ReadBlockUnder(Path.Combine(ModRulesDir(), "player.yaml"), "powerproxy.tacnuke", "Buildable");
+			Assert.That(buildable.GetValueOrDefault("Prerequisites"), Is.EqualTo("~tacnuke.enabled"),
+				"the `~` is load-bearing: it HIDES the cameo when the host disabled the nuke. Without " +
+				"it the buy menu carries a greyed cameo advertising a power nobody in the match can " +
+				"have -- and, worse, the absence of the prerequisite would be the only thing stopping " +
+				"the purchase, with no visible reason given.");
 		}
 
 		[Test]
@@ -387,6 +409,51 @@ namespace OpenRA.Test
 		}
 
 		/// <summary>Flat read of one indent-1 trait block from a rules file.</summary>
+		/// <summary>
+		/// <see cref="ReadBlock"/> scoped to one top-level actor. Needed because the three power
+		/// proxies each carry a `Buildable`, and an unscoped read would silently return the FIRST one
+		/// in the file -- passing or failing on the wrong actor with no indication which.
+		/// </summary>
+		static Dictionary<string, string> ReadBlockUnder(string path, string topLevel, string trait)
+		{
+			var fields = new Dictionary<string, string>();
+			var inTop = false;
+			var inBlock = false;
+			var seenTop = false;
+
+			foreach (var raw in File.ReadLines(path))
+			{
+				var line = raw.Split('#')[0].TrimEnd();
+				if (line.Trim().Length == 0)
+					continue;
+
+				var indent = line.TakeWhile(c => c == '	').Count();
+				var body = line.Trim();
+
+				if (indent == 0)
+				{
+					if (inTop)
+						break;
+
+					inTop = body == topLevel + ":";
+					seenTop |= inTop;
+					inBlock = false;
+				}
+				else if (indent == 1 && inTop)
+					inBlock = body == trait + ":";
+				else if (indent >= 2 && inBlock)
+				{
+					var parts = body.Split(new[] { ':' }, 2);
+					if (parts.Length == 2)
+						fields[parts[0].Trim()] = parts[1].Trim();
+				}
+			}
+
+			Assert.That(seenTop, Is.True, $"{topLevel} not found in {Path.GetFileName(path)}");
+			Assert.That(fields, Is.Not.Empty, $"{topLevel} has no `{trait}` block");
+			return fields;
+		}
+
 		static Dictionary<string, string> ReadBlock(string path, string trait)
 		{
 			var fields = new Dictionary<string, string>();

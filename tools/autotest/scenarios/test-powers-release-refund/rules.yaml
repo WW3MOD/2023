@@ -1,0 +1,37 @@
+# THE ONE OVERRIDE, and it is about the clock rather than the mechanism. The shipped Kinzhal proxy
+# carries `BuildDuration: 3000` -- the ChargeInterval the power used to have, 180 s at Timestep 60 --
+# because the purchase IS the wait in the shipped design. This scenario is measuring what happens
+# AFTER the purchase completes, so leaving it would spend the entire launch slot watching a progress
+# bar. 25 ticks is 1.5 s.
+#
+# NOTHING ELSE ABOUT THE PROXY IS TOUCHED. The price, the upkeep rate, the prerequisites and every
+# field on the power are the shipped ones -- if any of them were re-declared here the run would be
+# measuring this file rather than the mod.
+#
+# CASE MATTERS. Top-level keys merge case-SENSITIVELY, so `PowerProxy.Kinzhal:` here would define a
+# SECOND, unrelated actor rather than overriding the shipped one, and would fail as
+# "not constructible" rather than as "the override did nothing".
+powerproxy.kinzhal:
+	Buildable:
+		BuildDuration: 25
+
+Player:
+	# Enough for the 4000-credit purchase with a wide margin, so nothing here can stall on funds and be
+	# mistaken for a mechanism failure.
+	PlayerResources:
+		DefaultCash: 20000
+	# Elimination would end the match before the poller writes a verdict.
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-powers-release-refund.lua

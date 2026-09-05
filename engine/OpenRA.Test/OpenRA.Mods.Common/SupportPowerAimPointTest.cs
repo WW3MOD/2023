@@ -265,6 +265,12 @@ namespace OpenRA.Test
 				}
 			}
 
+			Assert.That(fields, Is.Not.Empty,
+				$"no `{trait}` found under `{topLevel}` in {relativeFile} -- the three missile powers " +
+				"moved off the Player actor onto one bodiless proxy each when they became purchasable, " +
+				"and a stale address here returns an EMPTY dictionary rather than failing, which would " +
+				"make the budget gate below pass while checking nothing at all");
+
 			return fields;
 		}
 
@@ -281,7 +287,7 @@ namespace OpenRA.Test
 		[TestCase("test-power-aimpoint-unsnapped")]
 		public void ScenarioArrivalBudgetsCoverTheShippedMissileDelay(string scenario)
 		{
-			var delay = int.Parse(ReadTrait("mods/ww3mod/rules/player.yaml", "Player", "MissileStrikePower@Kinzhal")["MissileDelay"]);
+			var delay = int.Parse(ReadTrait("mods/ww3mod/rules/player.yaml", "powerproxy.kinzhal", "MissileStrikePower@Kinzhal")["MissileDelay"]);
 			var budget = ReadLuaConstant(scenario, "ArrivalBudget");
 
 			// A margin rather than a bare `>`: the budget has to cover the delay AND leave room for

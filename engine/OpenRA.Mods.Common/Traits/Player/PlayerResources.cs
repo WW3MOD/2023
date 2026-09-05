@@ -189,6 +189,24 @@ namespace OpenRA.Mods.Common.Traits
 
 		public float Upkeep;
 
+		/// <summary>
+		/// How much of the last payday's upkeep bill the player could NOT pay, in cash. Zero on every
+		/// interval that settled in full.
+		///
+		/// WHY IT HAS TO BE COMPUTED HERE AND NOWHERE ELSE. <see cref="Upkeep"/> is a single pooled
+		/// float and the tick bills it as one number, so no individual upkeep line is ever charged and
+		/// nothing downstream can ask "which reservation went unpaid?". <see cref="ChangeCash"/>
+		/// already clamps a negative change at the player's whole purse — "Don't put the player into
+		/// negative funds" — and returns the CLAMPED figure, but the tick discarded that return, so
+		/// the one moment the engine knows a bill was short was thrown away one line after it was
+		/// computed. Capturing it is the entire shortfall signal.
+		///
+		/// It LATCHES for a whole PassiveIncomeInterval, which is deliberate rather than incidental:
+		/// consumers grant a condition off it, and a flag that flickered every tick would strobe the
+		/// "ON HOLD" overlay it drives. One payday, one reading.
+		/// </summary>
+		public int UpkeepShortfall { get; private set; }
+
 		public int Earned;
 		public int Spent;
 
@@ -198,6 +216,8 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (--PassiveIncomeTicks <= 0)
 			{
+				UpkeepShortfall = 0;
+
 				// PITFALL: `Playable` means "occupies a lobby slot", NOT "is a real participant" —
 				// CreateMapPlayers.cs:93 partitions on exactly that. A bot declared as a MAP player,
 				// which is how every tournament-* scenario declares its bots, is therefore not
@@ -206,7 +226,17 @@ namespace OpenRA.Mods.Common.Traits
 				// and Cash reads ~0 either way, so `Earned` is the diagnostic that separates them.
 				// Same shape as InfluenceStack.Participates, which tests IsBot before Playable.
 				if (self.Owner.Playable || (self.Owner.IsBot && !self.Owner.NonCombatant))
-					ChangeCash(PassiveIncomeAmount + (int)TotalBuildingIncome - (int)Upkeep);
+				{
+					// The requested change and the APPLIED one are not the same number when the bill is
+					// bigger than the purse: ChangeCash clamps at -(Cash + Resources) and hands the clamped
+					// figure back. `applied > requested` is therefore "the clamp fired", and the gap is the
+					// cash the player owed and did not pay. Both are ints, so this cannot drift with Upkeep's
+					// float accumulation -- the truncation happens once, on the line above the comparison.
+					var requested = PassiveIncomeAmount + (int)TotalBuildingIncome - (int)Upkeep;
+					var applied = ChangeCash(requested);
+					if (applied > requested)
+						UpkeepShortfall = applied - requested;
+				}
 
 				PassiveIncomeTicks = Info.PassiveIncomeInterval;
 			}

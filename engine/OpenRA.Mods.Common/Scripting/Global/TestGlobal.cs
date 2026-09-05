@@ -1699,6 +1699,13 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			/// <summary>No such key on this player's manager at all -- the trait is not on the actor.</summary>
 			public const string Absent = "absent";
 
+			/// <summary>Registered and NOT Disabled -- the bin draws it -- but every instance is paused,
+			/// so it cannot fire and the widget stamps HoldText ("ON HOLD") over the cameo. This is what
+			/// an unaffordable reservation looks like: dormant, not destroyed. Without this token the
+			/// state read `charging:0`, which is a true statement about the timer and a useless one
+			/// about the power.</summary>
+			public const string Dormant = "dormant";
+
 			/// <summary>No player, no manager, or test mode is off.</summary>
 			public const string NoManager = "no-manager";
 
@@ -1707,7 +1714,7 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			public const string ChargingPrefix = "charging:";
 
 			/// <summary>Every fixed token. `charging:` is excluded because it is a prefix, not a value.</summary>
-			public static readonly string[] Fixed = { Ready, Hidden, Absent, NoManager };
+			public static readonly string[] Fixed = { Ready, Hidden, Absent, NoManager, Dormant };
 
 			/// <summary>Is <paramref name="state"/> something this class could have returned? Used by
 			/// the fixture that checks the scenarios' comparisons against this vocabulary.</summary>
@@ -1728,7 +1735,8 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			/// predicate three of the four callers want, spelled once.</summary>
 			public static bool IsDrawn(string state)
 			{
-				return state == Ready || (state != null && state.StartsWith(ChargingPrefix, StringComparison.Ordinal));
+				return state == Ready || state == Dormant
+					|| (state != null && state.StartsWith(ChargingPrefix, StringComparison.Ordinal));
 			}
 		}
 
@@ -1758,9 +1766,98 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (power.Disabled)
 				return SupportPowerState.Hidden;
 
+			// Tested on the PAUSE predicate rather than on `!power.Active`, and the difference is a
+			// tick-0 hazard: Active is a field SupportPowerInstance.Tick assigns, so it reads false for
+			// every power on the frame the world starts, and a scenario polling early would see every
+			// power report dormant. "Every instance is paused" is the actual cause and is true from the
+			// moment the trait exists.
+			if (power.Instances.Count > 0 && power.Instances.All(i => i.IsTraitPaused))
+				return SupportPowerState.Dormant;
+
 			return power.Ready
 				? SupportPowerState.Ready
 				: SupportPowerState.ChargingPrefix + power.RemainingTicks;
+		}
+
+		[Desc("Hand `player`'s banked support power `orderKey` back to Central Command through the " +
+			"real order path, exactly as right-clicking its icon in the bin does. Refunds the full " +
+			"purchase price and disposes the proxy carrying it, which is what stops its upkeep. " +
+			"Returns a status string rather than a bool so a scenario can print WHY nothing " +
+			"happened: 'released', 'no-manager', 'unknown-power:<key> (have: ...)', or " +
+			"'not-releasable' when the power did not opt in with SupportPowerInfo.Releasable. " +
+			"NOTE the refund and the disposal are NOT both visible on the same tick: the cash lands " +
+			"synchronously inside order resolution, the actor goes in the frame-end batch, so upkeep " +
+			"drops one tick after cash rises. A scenario that reads both in one poll will see a " +
+			"half-applied release and should advance a tick. Test mode only.")]
+		public string ReleaseSupportPower(Player player, string orderKey)
+		{
+			if (!TestMode.IsActive || player == null)
+				return "no-manager";
+
+			var manager = player.PlayerActor.TraitOrDefault<SupportPowerManager>();
+			if (manager == null)
+				return "no-manager";
+
+			if (!manager.Powers.TryGetValue(orderKey, out var power))
+				return $"unknown-power:{orderKey} (have: {string.Join(",", manager.Powers.Keys)})";
+
+			if (power.Info == null || !power.Info.Releasable)
+				return "not-releasable";
+
+			player.World.IssueOrder(new Order(SupportPowerManager.ReleaseOrderString, manager.Self, false)
+			{
+				TargetString = orderKey
+			});
+
+			return "released";
+		}
+
+		[Desc("What `player` is billed in upkeep per economy interval, as the engine bills it -- " +
+			"`(int)PlayerResources.Upkeep`, the same truncation PlayerResources.Tick applies before " +
+			"subtracting it from income. Returns 0 when there is no player. THE TRUNCATION IS THE " +
+			"POINT: upkeep accumulates as a float (a 50-credit rifleman contributes 0.25), so a " +
+			"scenario comparing against a raw sum of per-unit costs will be off by the fractional " +
+			"part. Compare against this. Test mode only.")]
+		public int GetUpkeep(Player player)
+		{
+			if (!TestMode.IsActive || player == null)
+				return 0;
+
+			var pr = player.PlayerActor.TraitOrDefault<PlayerResources>();
+			return pr == null ? 0 : (int)pr.Upkeep;
+		}
+
+		[Desc("`player`'s upkeep register as `Name:cost` entries joined by commas, or 'empty'. The " +
+			"same list IngameCashCounterLogic groups into the cash tooltip's --- UPKEEP --- block, " +
+			"printed one entry per registration rather than grouped -- so three banked nukes are " +
+			"three entries here and one `x3` row there. Always printable straight into a verdict " +
+			"string. Test mode only.")]
+		public string GetUpkeepBreakdown(Player player)
+		{
+			if (!TestMode.IsActive || player == null)
+				return "empty";
+
+			var pr = player.PlayerActor.TraitOrDefault<PlayerResources>();
+			if (pr == null || pr.UpkeepEntries.Count == 0)
+				return "empty";
+
+			return string.Join(",", pr.UpkeepEntries.Select(e =>
+				e.Name + ":" + e.Cost.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)));
+		}
+
+		[Desc("How much of `player`'s last upkeep bill went unpaid, in cash -- " +
+			"PlayerResources.UpkeepShortfall. Zero on every interval that settled in full. LATCHES " +
+			"for a whole PassiveIncomeInterval (50 ticks by default), so a scenario can poll it at " +
+			"any tick between paydays and get the same answer. This is the signal dormancy is keyed " +
+			"off: a non-zero reading here and a 'dormant' GetSupportPowerState are the two halves of " +
+			"the same event. Test mode only.")]
+		public int GetUpkeepShortfall(Player player)
+		{
+			if (!TestMode.IsActive || player == null)
+				return 0;
+
+			var pr = player.PlayerActor.TraitOrDefault<PlayerResources>();
+			return pr == null ? 0 : pr.UpkeepShortfall;
 		}
 
 		[Desc("The comma-separated keys the top-left support power bin would currently DRAW for " +

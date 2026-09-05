@@ -1,0 +1,85 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: an unaffordable reservation goes dormant rather than being destroyed
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES: the answer to "what happens when the player cannot pay the upkeep on a strike
+# they are holding?", and specifically that the answer is REVERSIBLE.
+#
+# The obvious alternative -- lapse the reservation and refund it -- cannot be implemented honestly.
+# PlayerResources.Upkeep is a single pooled float billed as one number, so nothing in the engine
+# knows WHICH line went unpaid and the game would have to invent a victim. Worse, the refund itself
+# pushes cash back up, so the game could destroy a purchase the refund would have made affordable.
+#
+# So: dormant. PlayerResources captures the clamped return of ChangeCash as UpkeepShortfall,
+# GrantConditionOnUpkeepShortfall turns that into a condition on each proxy, and the power's
+# PauseOnCondition makes it unfireable while the cameo stays in the bin wearing the shipped "ON
+# HOLD" overlay.
+#
+# THE THREE READINGS THAT MAKE IT DORMANCY AND NOT SOMETHING ELSE:
+#   - the state token is `dormant`, not `hidden` (which would mean the bin dropped it) and not
+#     `absent` (which would mean the power is gone from the manager entirely);
+#   - the proxy ACTOR is still alive, so nothing was destroyed;
+#   - and it comes BACK. Solvency is restored mid-run and the power must read `ready` again without
+#     any further purchase.
+#
+# PassiveIncome is forced to 0 in rules.yaml, because the shipped 100 per interval comfortably covers
+# a 20-per-interval reservation and no shortfall would ever occur. With no income the reservation
+# eats the purse and then cannot be paid -- which is exactly the situation being tested.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 6,17
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 58,17
+
+Actors:
+	# OwnSR carries `Production@Local: Produces: Building, Defense, Powers`, so it is the factory the
+	# reservation is bought at. Without it the Powers queue ticks with Enabled false
+	# (ClassicProductionQueue.cs:51-71) and the item never starts -- which would look identical to a
+	# queue that refused the item.
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 6,17
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 58,17
+
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+Rules: rules.yaml

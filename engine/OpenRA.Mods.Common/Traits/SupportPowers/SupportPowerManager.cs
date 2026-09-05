@@ -99,11 +99,80 @@ namespace OpenRA.Mods.Common.Traits
 				power.Tick();
 		}
 
+		/// <summary>
+		/// The OrderString a right-click on a bin icon emits. Named for the FICTION rather than for the
+		/// queue: cancelling a reservation returns capability to Central Command, it does not abort a
+		/// build. The power's key rides in <see cref="Order.TargetString"/> because it is a string, not
+		/// an actor.
+		/// </summary>
+		public const string ReleaseOrderString = "ReleaseSupportPower";
+
 		public void ResolveOrder(Actor self, Order order)
 		{
+			if (order.OrderString == ReleaseOrderString)
+			{
+				Release(order.TargetString);
+				return;
+			}
+
 			// order.OrderString is the key of the support power
 			if (Powers.TryGetValue(order.OrderString, out var sp))
 				sp.Activate(order);
+		}
+
+		/// <summary>
+		/// Hand a banked reservation back: refund its full purchase price and dispose the actor
+		/// carrying it. Returns the refunded amount, or -1 if this key is not releasable.
+		///
+		/// FULL REFUND IS FORCED, NOT PREFERRED. ProductionQueue's own cancel path already returns
+		/// `TotalCost - RemainingCost` at 99% built -- effectively everything paid. A completed
+		/// purchase refunding any less would destroy money at the instant the bar filled, and the
+		/// optimal play would be to hold every purchase one tick short of done forever. Full refund is
+		/// the only value that makes the two sides of EndProduction agree. What the player does NOT get
+		/// back is the TIME the reservation sat billing upkeep, which is the whole self-limit.
+		///
+		/// EVERY GUARD HERE IS LOAD-BEARING. Releasable defaults false; a power carried by the PLAYER
+		/// actor must never reach the Dispose below; and a key whose instances have already gone (a
+		/// power fired this same tick) must not refund a second time.
+		/// </summary>
+		public int Release(string key)
+		{
+			if (key == null || !Powers.TryGetValue(key, out var sp))
+				return -1;
+
+			var info = sp.Info;
+			if (info == null || !info.Releasable)
+				return -1;
+
+			var instance = sp.Instances.FirstOrDefault();
+			if (instance == null)
+				return -1;
+
+			var carrier = instance.Self;
+
+			// The Player actor carries no Valued and disposing it would end the match. A Releasable
+			// power declared on the Player is a mod error, and this is where it stops.
+			if (carrier == Self || carrier.IsDead || !carrier.IsInWorld)
+				return -1;
+
+			var valued = carrier.Info.TraitInfoOrDefault<ValuedInfo>();
+			if (valued == null)
+				return -1;
+
+			Self.Owner.PlayerActor.Trait<PlayerResources>().GiveCash(valued.Cost);
+
+			// Actor.Dispose already defers the removal itself -- it sets WillDispose synchronously and
+			// queues the World.Remove that reaches ActorRemoved (and therefore this dictionary, and
+			// InfersUpkeep's unregister) to the frame-end batch. So there is nothing to wrap it in,
+			// and wrapping it would only delay WillDispose by a tick for anything that reads it.
+			//
+			// THE REFUND ABOVE IS SYNCHRONOUS AND THE DISPOSAL IS NOT, which is a real one-tick window
+			// in which cash has risen and upkeep has not yet fallen. That is fine for a player and a
+			// trap for a test: test-powers-release-refund advances on the proxy actually leaving the
+			// world rather than on a fixed settle, for exactly this reason.
+			carrier.Dispose();
+
+			return valued.Cost;
 		}
 
 		static readonly SupportPowerInstance[] NoInstances = Array.Empty<SupportPowerInstance>();
@@ -277,6 +346,19 @@ namespace OpenRA.Mods.Common.Traits
 				PrerequisitesAvailable(false);
 				oneShotFired = true;
 			}
+
+			// A BOUGHT power's proxy has done its whole job the moment the strike is away, and leaving
+			// it in the world is not a leak of memory but a leak of MONEY: InfersUpkeep unregisters
+			// only on INotifyRemovedFromWorld, so a spent proxy bills the player for a reservation
+			// that no longer exists, forever. Frame-end because Dispose reaches ActorRemoved, which
+			// mutates Manager.Powers -- the dictionary this call is being made from inside.
+			//
+			// Actor.Dispose defers the actual removal to the frame-end batch on its own, so the strike
+			// that was just launched is entirely unaffected: everything MissileStrikePower.Activate
+			// defers captures self.Owner, the target position and the missile actor, and nothing
+			// deferred dereferences the proxy.
+			if (Info.DisposeSelfOnActivate && power.Self != Manager.Self && !power.Self.IsDead)
+				power.Self.Dispose();
 		}
 
 		public virtual string IconOverlayTextOverride()

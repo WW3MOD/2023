@@ -334,6 +334,15 @@ WorldLoaded = function()
 		return
 	end
 
+	-- The strike is BOUGHT in the shipped mod: it lives on a bodiless proxy sold from the `Powers`
+	-- queue, so nothing carries this power until one is purchased. This scenario measures DELIVERY
+	-- and deliberately does not involve the economy, so it puts one proxy in the world directly.
+	-- Actor.Create needs only an Owner init -- no Location -- because the proxy occupies no space,
+	-- and World.Add fires INotifyAddedToWorld regardless of position, which is what registers the
+	-- power with SupportPowerManager. rules.yaml turns off AllowMultiple so OrderKey below is still
+	-- the bare OrderName.
+	Actor.Create("powerproxy.gbu57", true, { Owner = America })
+
 	if StructVictim == nil or TankVictim == nil then
 		Test.Fail("StructVictim or TankVictim missing from the map")
 		return

@@ -289,8 +289,30 @@ namespace OpenRA.Mods.Common.Widgets
 			var clicked = icons.Where(i => i.Key.Contains(mi.Location))
 				.Select(i => i.Value).FirstOrDefault();
 
-			if (clicked != null)
-				ClickIcon(clicked);
+			if (clicked == null)
+				return true;
+
+			// RIGHT-CLICK RELEASES A RESERVATION, and this button test is new: every button used to
+			// route to ClickIcon with no discrimination, so a right-click in the bin armed the target
+			// cursor exactly as a left-click did. The bin is where the player looks at what they are
+			// holding, which is why release lives here rather than back in the Powers tab where the
+			// PURCHASE lives -- you cancel a thing where you can see it.
+			//
+			// Only a Releasable power responds; the check is repeated server-side in
+			// SupportPowerManager.Release, which is the one that counts. This early return is what
+			// stops a right-click on an ordinary power from silently doing nothing at all: it falls
+			// through to ClickIcon and still arms the cursor, exactly as it always has.
+			if (mi.Button == MouseButton.Right && clicked.Power.Info != null && clicked.Power.Info.Releasable)
+			{
+				worldRenderer.World.IssueOrder(new Order(SupportPowerManager.ReleaseOrderString, spm.Self, false)
+				{
+					TargetString = clicked.Power.Key
+				});
+
+				return true;
+			}
+
+			ClickIcon(clicked);
 
 			return true;
 		}

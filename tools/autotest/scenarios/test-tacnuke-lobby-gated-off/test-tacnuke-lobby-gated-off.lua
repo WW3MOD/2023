@@ -35,6 +35,21 @@
 
 local NukeKey = "TacNukeStrike"
 local ControlKey = "KinzhalStrike"
+
+-- THE GATE MOVED, AND SO DID ITS OBSERVABLE. While the nuke lived on the Player actor the gate was
+-- `RequiresCondition: !tacnuke-disabled` on the power itself, and "is the icon in the bin" was a
+-- complete question. The three strikes are now BOUGHT -- each lives on a bodiless proxy sold from
+-- the `Powers` queue -- and a condition cannot gate that, because conditions are per-ACTOR and the
+-- lobby option grants its condition on the Player. The gate is now a per-PLAYER tech-tree
+-- prerequisite: ProvidesPrerequisite@tacnuke publishes `tacnuke.enabled` under the same condition,
+-- and the nuke proxy consumes it as `~tacnuke.enabled`.
+--
+-- So the question this scenario asks is no longer "is the icon drawn" -- NOTHING is drawn for either
+-- power until something is purchased, for both the gated and the ungated case alike, which would
+-- make the old reading pass for entirely the wrong reason. It is "CAN IT BE BOUGHT", and the
+-- observable is Build() refusing the item.
+local NukeProxy = "powerproxy.tacnuke"
+local ControlProxy = "powerproxy.kinzhal"
 local TargetX, TargetY = 40, 17
 
 -- Long enough that a slow TechTree pass cannot be mistaken for a closed gate. The Kinzhal control
@@ -50,6 +65,8 @@ local bin = "never-read"
 local nukeOrderStatus = "never-called"
 local timerLines = "never-read"
 local controlReadyTick = nil
+local nukeBuildable = nil
+local controlBuildable = nil
 local finished = false
 
 -- "Would the bin draw this?" spelled once. Test.GetSupportPowerState returns a bare token, and the
@@ -84,36 +101,47 @@ local function finish()
 	-- (SupportPowerManager.cs:196-201).
 	nukeOrderStatus = Test.ActivateSupportPower(Russia, NukeKey, CPos.New(TargetX, TargetY))
 
+	-- PROBED ONCE, HERE, AND NOT IN THE POLL. Build() does not merely answer a question: when it
+	-- succeeds it QUEUES the item, so calling it every tick would stack up reservations. Once, at
+	-- the end of the observation window, is the whole measurement. DefaultCash is 0 in this
+	-- scenario's rules, so the control's successful queue never actually pays for anything -- the
+	-- item stalls at 0% and the run ends.
+	controlBuildable = Russia.Build({ ControlProxy })
+	nukeBuildable = Russia.Build({ NukeProxy })
+
 	local summary = "lobby=DEFAULT(no override) | nuke '" .. NukeKey .. "' state=" .. nukeState
 		.. " order=" .. nukeOrderStatus
+		.. " buyable=" .. tostring(nukeBuildable)
 		.. " | control '" .. ControlKey .. "' state=" .. controlState
-		.. " live@t" .. (controlReadyTick ~= nil and tostring(controlReadyTick) or "never")
+		.. " buyable=" .. tostring(controlBuildable)
 		.. " | bin=[" .. bin .. "]"
 		.. " | timers=[" .. timerLines .. "]"
 		.. " | observed=" .. tick .. "t"
 
-	-- 1. THE CONTROL, FIRST. Without it a broken mod passes this scenario.
-	if controlReadyTick == nil then
-		Test.Fail("the Kinzhal control never appeared in the power bin either (state '"
-			.. controlState .. "'), so this run proves NOTHING about the nuke's lobby gate — a mod"
-			.. " in which no power works at all would report the nuke as absent too. Fix the control"
-			.. " before reading the assertion below. || " .. summary)
+	-- 1. THE CONTROL, FIRST. Without it a broken mod passes this scenario: a mod in which the Powers
+	-- queue is unreachable at all would refuse the nuke too, and report a closed gate that is really
+	-- a broken menu. The Kinzhal is the control because it is gated only on `player.russia`, which
+	-- this player satisfies, and on nothing else.
+	if not controlBuildable then
+		Test.Fail("the Kinzhal control is NOT BUYABLE either, so this run proves NOTHING about the"
+			.. " nuke's lobby gate -- a mod whose Powers queue is unreachable would refuse both. Check"
+			.. " SUPPLYROUTE's Production@Local still lists `Powers` and that the Kinzhal proxy's"
+			.. " `Prerequisites: player.russia` is still satisfied by this player. || " .. summary)
 		return
 	end
 
-	-- 2. THE ASSERTION. 'hidden' is the expected reading: the trait is registered but disabled, so
-	-- SupportPowersWidget does not draw it. 'absent' would also mean no icon, but it means the trait
-	-- is not on the Player actor at all, which is a different (and wrong) way to be off — the power
-	-- is meant to be one tickbox away, not deleted.
-	if nukeState ~= "hidden" then
-		Test.Fail("the tactical nuclear strike is not gated off at the shipped default: state '"
-			.. nukeState .. "', where 'hidden' was required. A 'ready' or 'charging' reading means"
-			.. " every unconfigured game now ships a nuke — check the option id 'tactical-nuke'"
-			.. " matches on both sides, that PowersLobbyOptions.TacticalNukeCheckboxEnabled is still"
-			.. " false, and above all that GrantConditionOnLobbyOption@tacnuke still reads"
-			.. " `GrantWhenOptionDisabled: true` (that polarity is what makes an UNREGISTERED option"
-			.. " fail safe; inverting it makes an absent option enable the power). 'absent' means the"
-			.. " trait is missing from the Player actor entirely, which is off for the wrong reason."
+	-- 2. THE ASSERTION. The nuke must be UNBUYABLE at the shipped default. The `~` on the proxy's
+	-- `Prerequisites: ~tacnuke.enabled` is what makes it absent from the menu rather than a greyed
+	-- cameo advertising a power the host switched off -- but both readings refuse the purchase, and
+	-- refusing the purchase is what this asserts.
+	if nukeBuildable then
+		Test.Fail("the tactical nuclear strike is BUYABLE at the shipped default, so every"
+			.. " unconfigured game now sells a nuke. Check the option id 'tactical-nuke' matches on"
+			.. " both sides, that PowersLobbyOptions.TacticalNukeCheckboxEnabled is still false, that"
+			.. " ProvidesPrerequisite@tacnuke still carries `RequiresCondition: !tacnuke-disabled`,"
+			.. " and above all that GrantConditionOnLobbyOption@tacnuke still reads"
+			.. " `GrantWhenOptionDisabled: true` -- that polarity is what makes an UNREGISTERED"
+			.. " option fail safe, and inverting it makes an absent option enable the power."
 			.. " || " .. summary)
 		return
 	end
@@ -139,9 +167,12 @@ local function finish()
 	-- exactly the quiet screen the user asked for. Its sibling test-tacnuke-delivers asserts the
 	-- other half: with the nuke switched ON it is the ONLY line, for both players.
 	--
-	-- The control above is what stops this being vacuous: the Kinzhal is live and charging in this
-	-- very run (that is check 1), so an empty timer list here is a deliberate suppression rather
-	-- than the absence of any working power.
+	-- WEAKER THAN IT WAS, AND SAID SO PLAINLY. This check used to lean on the Kinzhal being live and
+	-- charging in this very run, which made an empty timer list a deliberate SUPPRESSION rather than
+	-- an absence. Powers are bought now, so nothing is banked here and nothing could have drawn a
+	-- line whatever DisplayTimerRelationships said. What survives is a regression guard: if some
+	-- future power starts contributing a line without being banked, this catches it. The positive
+	-- half -- that a banked nuke IS the only line -- is test-tacnuke-delivers' job and is unaffected.
 	if timerLines ~= "empty" then
 		Test.Fail("the support power timer list is not empty at the shipped default: ["
 			.. timerLines .. "]. Every power that can appear in it must carry"
@@ -157,7 +188,10 @@ end
 local function step()
 	pollTick()
 
-	if not finished and (controlReadyTick ~= nil or tick >= ObserveTicks) then
+	-- Runs the full window rather than ending on the control appearing: nothing is drawn in the bin
+	-- until something is bought, so there is no early signal any more. 200 ticks is ample for the
+	-- TechTree pass that publishes (or withholds) `tacnuke.enabled`.
+	if not finished and tick >= ObserveTicks then
 		finished = true
 		finish()
 		return

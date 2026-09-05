@@ -1,0 +1,78 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: releasing a banked strike refunds it in full and stops its upkeep
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES: the user's cancel, which is NOT the production queue's cancel and is easy to
+# confuse with it. ProductionQueue refunds a purchase IN PROGRESS; the instant Produce succeeds,
+# EndProduction removes the item and the queue has no further record. Everything this scenario tests
+# happens after that line -- a reservation that is bought, banked, and sitting in the bin.
+#
+# THE REFUND MUST BE THE WHOLE PRICE, and that is arithmetic rather than generosity: cancelling at
+# 99% built already returns everything paid (ProductionQueue.cs:638), so a completed purchase
+# refunding any less would destroy money at the instant the bar filled and make holding every
+# purchase one tick short of done the optimal play forever. `spent == refunded` is the assertion.
+#
+# AND THE UPKEEP MUST STOP. A release that refunded the cash but left the proxy in the world would
+# look completely correct for as long as anyone watched the cash counter, and bill the player 20 per
+# interval forever. The run reads the upkeep register by name on both sides.
+#
+# NO MISSILE IS FIRED HERE, deliberately: a released reservation must never have been fireable
+# again, so there is nothing to time. That is also why this scenario needs no arrival budget.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 6,17
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 58,17
+
+Actors:
+	# OwnSR carries `Production@Local: Produces: Building, Defense, Powers`, so it is the factory the
+	# reservation is bought at. Without it the Powers queue ticks with Enabled false
+	# (ClassicProductionQueue.cs:51-71) and the item never starts -- which would look identical to a
+	# queue that refused the item.
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 6,17
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 58,17
+
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+Rules: rules.yaml

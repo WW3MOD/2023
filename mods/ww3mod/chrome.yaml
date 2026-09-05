@@ -154,6 +154,22 @@ commandbar-background:
 	Inherits: ^Sidebar
 	PanelRegion: 0, 0, 9, 9, 416, 26, 9, 9
 
+# A SEPARATE SHEET, and not for tidiness. ProductionTypeButton draws its glyph from the collection
+# named on the button's Image@ICON, and the shared glyphs.png that `production-icons` inherits is
+# FULL: every 17-px slot on all three tab rows (y=68/85/102) carries artwork out to x=221 and there
+# is no empty >=16-row band anywhere on the 256x256 sheet. Repacking it to make room would move
+# every existing region. ImageCollection is per-button, so a small dedicated sheet sidesteps the
+# problem entirely -- one 16x16 silhouette in the three states the logic asks for, at the same 17-px
+# pitch and in the same three colours the shipped tabs use (white / 128-grey / 255,192,0 amber).
+powers-icons:
+	Image: powers-glyphs.png
+	Image2x: powers-glyphs-2x.png
+	Image3x: powers-glyphs-3x.png
+	Regions:
+		powers: 0, 0, 16, 16
+		powers-disabled: 0, 17, 16, 16
+		powers-alert: 0, 34, 16, 16
+
 production-icons:
 	Inherits: ^Glyphs
 	Regions:

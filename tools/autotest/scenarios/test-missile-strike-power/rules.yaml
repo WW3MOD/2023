@@ -8,14 +8,6 @@
 # The two overrides that ARE here are both about reachability, not behaviour.
 
 Player:
-	# The power's ONLY departure from shipping config: it is charged at t=0 instead of after
-	# 3000 ticks (3 min). ChargeInterval on the shipped trait is a placeholder standing in for
-	# the Phase 2 buy/bank model; waiting it out would spend three minutes of a launch slot
-	# measuring a timer this scenario is not about. StartFullyCharged is the documented
-	# first-charge switch (SupportPowerManager.cs:178).
-	MissileStrikePower@Kinzhal:
-		ChargeInterval: 1
-		StartFullyCharged: true
 	# Faction elimination would end the match before the Lua poller writes a verdict.
 	-ConquestVictoryConditions:
 	# Fog off and the map pre-explored, so the poller's view of the missile and the victim is
@@ -41,3 +33,46 @@ World:
 	-CrateSpawner:
 	LuaScript:
 		Scripts: test-helpers.lua, test-missile-strike-power.lua
+
+# THE POWER MOVED OFF THE PLAYER ACTOR, AND THIS OVERRIDE MOVED WITH IT. The three strikes are now
+# bought: each lives on a bodiless proxy sold from the `Powers` queue, because a reservation you can
+# hold SEVERAL of has to be several ACTORS -- SupportPowerManager keys an AllowMultiple power
+# `<OrderName>_<ActorID>`, and the Player actor is one actor forever.
+#
+# LEAVING THE BLOCK UNDER `Player:` WOULD NOT HAVE FAILED QUIETLY. With the shipped trait gone from
+# that actor, a two-field override there CREATES a new MissileStrikePower with everything else at its
+# C# default -- and MissileActor is [FieldLoader.Require], so the ruleset fails to load and the merge
+# gate rejects the whole mod. That is the good version of this failure; it is recorded here because
+# the bad version (a stub power that half-works) is what it looks like for any field that is not
+# required.
+#
+# THIS SCENARIO IS ABOUT DELIVERY, NOT ABOUT THE ECONOMY, so it buys nothing: its WorldLoaded creates
+# one proxy with Actor.Create, which needs only an Owner init and no Location because the proxy
+# occupies no space. These four lines turn the banked purchase back into the always-available power
+# the scenario was written against, and change NOTHING about the flight, the warhead or the entry
+# point -- which is this file's whole principle.
+#
+#   AllowMultiple: False          keeps the key the BARE OrderName, so this scenario's OrderKey
+#                                 constant still resolves. Shipped True makes it carry an ActorID
+#                                 that cannot be known in advance.
+#   OneShot: False                lets the power survive being fired, which the two-shot scenarios
+#                                 need and which the shipped one-purchase-one-firing rule forbids.
+#   DisposeSelfOnActivate: False  keeps the proxy in the world afterwards, for the same reason.
+#   InfersUpkeep PermilleCost: 0  stops it billing. These scenarios deliberately run the player at
+#                                 or near zero cash, and an unpayable bill would make the power
+#                                 DORMANT and unfireable -- a failure with nothing to do with
+#                                 delivery, arriving 50 ticks in.
+powerproxy.kinzhal:
+	InfersUpkeep:
+		PermilleCost: 0
+	# The power's ONLY departure from shipping config: it is charged at t=0 instead of after
+	# 3000 ticks (3 min). ChargeInterval on the shipped trait is a placeholder standing in for
+	# the Phase 2 buy/bank model; waiting it out would spend three minutes of a launch slot
+	# measuring a timer this scenario is not about. StartFullyCharged is the documented
+	# first-charge switch (SupportPowerManager.cs:178).
+	MissileStrikePower@Kinzhal:
+		ChargeInterval: 1
+		StartFullyCharged: true
+		AllowMultiple: False
+		OneShot: False
+		DisposeSelfOnActivate: False

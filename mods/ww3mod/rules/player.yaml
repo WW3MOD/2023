@@ -102,142 +102,27 @@ Player:
 	# 	OnHoldAudio: OnHold
 	# 	CancelledAudio: Cancelled
 	# 	BuildTimeSpeedReduction: , 8, 7, 6, 5
+	# THE POWERS QUEUE. Buying a strike is a production order like any other, and that is not a
+	# metaphor: the item is a real bodiless actor produced at the Supply Route, which is what lets it
+	# carry a price, a build time, a cameo, an upkeep line and a support power all at once.
+	#
+	# WHY A NEW TYPE RATHER THAN REUSING `Defense`. rules/ai/ai.yaml names queues by type, and the bot
+	# modules' defaults are BuildingQueues {Building}, DefenseQueues {Defense} and UnitQueues
+	# {Vehicle, Infantry, Plane, Ship, Aircraft}. `Powers` appears in none of them and in no explicit
+	# list in ai.yaml either, so NO BOT CAN QUEUE A POWER -- which is the wanted answer, because a bot
+	# that bought strikes it never fires would pay upkeep on them forever and go quietly bankrupt in a
+	# way that reads as a balance bug. PowersQueueIsInvisibleToEveryBotModule in PowersEconomyTest.cs
+	# pins it, so adding "Powers" to a bot list becomes a red test rather than a slow drain.
+	ClassicProductionQueue@Powers:
+		Type: Powers
+		DisplayOrder: 5
+		BlockedTextNotification: Unable to reserve more.
 	PlaceBuilding:
 		NewOptionsNotification: NewOptions
 		CannotPlaceNotification: BuildingCannotPlaceAudio
 		NewOptionsTextNotification: New construction options.
 		CannotPlaceTextNotification: Cannot deploy here.
 	SupportPowerManager:
-	# PHASE 1 of the missile strike powers (WORKSPACE/proposals/260904-missile-powers.md).
-	# ChargeInterval is a placeholder so the power is reachable on its own; the buy/bank model that
-	# is meant to gate it is Phase 2 and is not wired yet.
-	MissileStrikePower@Kinzhal:
-		OrderName: KinzhalStrike
-		Prerequisites: player.russia
-		Icon: precicon
-		Name: Kh-47M2 Kinzhal
-		Description: Hypersonic missile strike called in from off-map reserves.\nEnters from the map edge nearest your Supply Route.\nCannot be intercepted.
-		# 3000 ticks x 0.06 s (world.yaml Timestep: 60) = 180 s = 3 min. NOT 120 s: the 25 tps
-		# figure asserted by several in-tree comments understates every duration by 1.5x.
-		ChargeInterval: 3000
-		Cursor: nuke
-		MissileActor: kinzhalmissile
-		# 150 ticks x 0.06 s = 9.0 s between the click and the missile appearing at the map edge, on top
-		# of ~20 ticks of flight. The SHORTEST of the three, and the reason is the power's own caption:
-		# "Hypersonic ... Cannot be intercepted". Tempo is the whole identity here -- SS5a's framing is
-		# "one Iskander missile, except you did not have to drive a 6000-credit launcher into range" --
-		# so this gets the smallest lead that still stops the strike landing on the click.
-		#
-		# WHAT THE VICTIM GETS FOR THOSE 9 SECONDS: the IncomingSpeechNotification below, and nothing
-		# else. SupportPower.PlayLaunchSounds fires it to every non-allied client AT ORDER TIME
-		# (SupportPower.cs:238-251), before the missile exists, while the beacon and the minimap ping
-		# are both gated on IsAlliedWith(RenderPlayer) (Beacon.cs:124, SupportPower.cs:228). So the
-		# delay is an audible warning with no location attached -- deliberate, and the reason a longer
-		# lead is not free: it is reaction time handed to the target.
-		MissileDelay: 150
-		# 8c0 = 8192 wdist = 8 cells above the terrain at the entry cell. This -- not LaunchAngle --
-		# is what makes the approach look steep, and unlike LaunchAngle it does not scale with the
-		# length of the shot. BallisticMissileFly interpolates baseZ from spawn Z to target Z
-		# (BallisticMissileFly.cs:238-240), so the missile descends those 8 cells across the run.
-		SpawnAltitude: 8c0
-		CameraRange: 8c0
-		# 25 ticks x 0.06 = 1.5 s of vision before impact, held for 100 x 0.06 = 6.0 s after it.
-		CameraSpawnAdvance: 25
-		CameraRemoveDelay: 100
-		BeaconRemoveAdvance: 5
-		DisplayBeacon: True
-		DisplayMiniMapPing: True
-		# None, DOWN FROM Ally, and the user asked for exactly this: "We dont need to see a countdown of
-		# ally players powers, it is just distracting. Maybe we can keep it for nukes, but not for other
-		# powers." SupportPowerTimerWidget drops a power from the top-of-screen list entirely when this
-		# is None (SupportPowerTimerWidget.cs:42), before the per-viewer relationship test.
-		#
-		# IT ALSO HIDES THE OWNER'S OWN LINE, and that is fine rather than a compromise: PlayerRelationship
-		# has no `Self` (TraitsInterfaces.cs:63-69) and Player.RelationshipWith(self) returns Ally
-		# (Player.cs:250-251), so `Ally` is precisely "me and my allies" and there is no narrower value to
-		# reach for. Nothing is lost by it -- SupportPowersWidget draws FormatTime(RemainingTicks) onto
-		# the cameo itself (SupportPowersWidget.cs:246) plus a sweeping clock overlay (:216-221), so the
-		# owner's own countdown is still on screen in mm:ss, in the place they look for it.
-		DisplayTimerRelationships: None
-		BeaconPoster: precbcon
-		ArrowSequence: arrow
-		ClockSequence: clock
-		CircleSequence: circles
-		SelectTargetSpeechNotification: SelectTarget
-		# Placeholder: there is no conventional-strike warning line in notifications.yaml, and
-		# AbombLaunchDetected would announce a nuke. Phase 2 audio should replace this.
-		IncomingSpeechNotification: EnemyUnitsApproaching
-		SupportPowerPaletteOrder: 1
-	# PHASE 2 of the missile strike powers: the remaining two of the three approved entries
-	# (WORKSPACE/proposals/260904-missile-powers.md §1). Both ride the SAME MissileStrikePower trait
-	# the Kinzhal above proved in game at 894e8dc4 -- there is exactly one delivery mechanism in this
-	# feature, and adding a second would be the mistake §1a warns about.
-	#
-	# THE PRICES ARE NOT WIRED, AND THAT IS INHERITED FROM THE KINZHAL, NOT NEW HERE. §9.3 approves
-	# 4000 for the fast-strike tier and 15000 for the nuke, but the buy/bank model that would charge
-	# them is the bodiless-proxy production loop in §2.4, which needs a sidebar tab -- and the tab
-	# button draws a 16x16 glyph from the `production-icons` collection (chrome.yaml:157-177), which
-	# has regions for building/defense/infantry/vehicle/aircraft/ship and NONE for powers. That is
-	# art. So these carry ChargeInterval placeholders exactly as the Kinzhal does, but the
-	# placeholders ENCODE THE APPROVED PRICE RATIO rather than being arbitrary, so the relative
-	# scarcity is already right and only the currency is missing:
-	#     Kinzhal   4000 -> 3000 ticks (180 s)   [above, shipped]
-	#     GBU-57    4000 -> 3000 ticks (180 s)   same tier, same price, same interval
-	#     tac nuke 15000 -> 11250 ticks (675 s)  15000/4000 = 3.75x, so 3000 x 3.75
-	# All at Timestep 60 = 16.667 tps. NOT 25 tps: that figure, asserted by several in-tree
-	# comments, understates every duration by 1.5x.
-	MissileStrikePower@GBU57:
-		OrderName: GBU57Strike
-		Prerequisites: player.america
-		# INTERIM ART, ruled by the manager rather than left blocked on a drawing. §4a wanted one new
-		# cameo for the US strike and flagged reusing `precicon` as an asymmetry -- Russia generic,
-		# America bespoke. That worry does not apply now the two powers are FACTION-LOCKED to
-		# opposite sides: `Prerequisites: player.america` here against `player.russia` on the Kinzhal
-		# means no player ever holds both, so no player can see the repeat. And PRECISION STRIKE is
-		# not a wrong caption for a GBU-57.
-		# DO NOT "improve" this to cmissicon or missicon however their names read: captions are baked
-		# into the cameo PIXELS at rows 42-46, and those two are a biohazard trefoil captioned
-		# CHEMICAL STRIKE and a building captioned TECH CENTER (§4a).
-		Icon: precicon
-		Name: GBU-57 Bunker Buster
-		Description: Massive Ordnance Penetrator dropped on the target area.\nDevastating against hardened structures, weak against armour.\nEnters from the map edge nearest your Supply Route.
-		ChargeInterval: 3000
-		Cursor: nuke
-		MissileActor: gbu57bomb
-		# 300 ticks x 0.06 s = 18.0 s, DOUBLE the Kinzhal's, on top of ~80 ticks of flight at Speed 500.
-		# The longest lead of the two conventional strikes, and it compounds with the slowest flight
-		# rather than compensating for it -- which is the point. A Massive Ordnance Penetrator is not a
-		# weapon of surprise: it is a scheduled demolition of a fixed hardened target, delivered by a
-		# bomber that has to fly there. Making it the slowest thing in the menu end-to-end is what keeps
-		# it from competing with the Kinzhal on tempo when the two cost the same (ChargeInterval 3000 on
-		# both) and separates them on role instead.
-		MissileDelay: 300
-		# 12 cells, HALF AGAIN the Kinzhal's 8, and the two numbers do different jobs. Both powers
-		# shape their approach with altitude rather than LaunchAngle, because LaunchAngle's apex
-		# scales with shot length (BallisticMissileFly.cs:88-90) and altitude does not. But the MOP
-		# flies at Speed 500 against the Kinzhal's 2000, so at the SAME altitude its descent would be
-		# four times shallower over the same ground. 12 cells buys back the near-vertical terminal
-		# plunge a bunker buster is supposed to have.
-		SpawnAltitude: 12c0
-		CameraRange: 8c0
-		CameraSpawnAdvance: 25
-		CameraRemoveDelay: 100
-		BeaconRemoveAdvance: 5
-		DisplayBeacon: True
-		DisplayMiniMapPing: True
-		# None, for the reason spelled out on the Kinzhal above: the user asked for non-nuke countdowns
-		# to stop appearing, and the owner's own clock survives on the cameo regardless.
-		DisplayTimerRelationships: None
-		BeaconPoster: precbcon
-		ArrowSequence: arrow
-		ClockSequence: clock
-		CircleSequence: circles
-		SelectTargetSpeechNotification: SelectTarget
-		# Same placeholder as the Kinzhal, and the same reason: notifications.yaml has no
-		# conventional-strike warning line, and AbombLaunchDetected would announce a nuke this is
-		# not. Replace both together when the audio lands.
-		IncomingSpeechNotification: EnemyUnitsApproaching
-		SupportPowerPaletteOrder: 2
 	# The lobby gate for the tactical nuclear strike. §9.4: it ships, defaulting OFF, because the
 	# doomsday design it belongs to (WORKSPACE/archive/plans/260324-nukes.md) is unresolved in the
 	# user's own words, while the user asked for the power itself by name.
@@ -252,89 +137,16 @@ Player:
 		Option: tactical-nuke
 		Condition: tacnuke-disabled
 		GrantWhenOptionDisabled: true
-	MissileStrikePower@TacNuke:
-		# RequiresCondition, NOT PauseOnCondition, and the difference is visible to the player.
-		# SupportPowersWidget filters the bin on `!p.Disabled` (SupportPowersWidget.cs:136), and
-		# IsTraitDisabled reaches Disabled through SupportPowerInstance.Tick
-		# (SupportPowerManager.cs:196-200), so this makes the icon ABSENT. PauseOnCondition would
-		# instead leave a clickable-but-inert cameo reading "ON HOLD" (SupportPowersWidget.cs:241-244),
-		# which is the wrong answer for a power the host chose not to enable. §2.5.
+	# THE LOBBY GATE, BRIDGED INTO THE TECH TREE. GrantConditionOnLobbyOption above grants a
+	# CONDITION, and conditions are per-actor -- the buy menu reads PREREQUISITES, which are
+	# per-player. ProvidesPrerequisiteInfo is a ConditionalTraitInfo and its TraitEnabled/TraitDisabled
+	# call techTree.ActorChanged (ProvidesPrerequisite.cs:94-104), so this is the shipped bridge
+	# between the two. Polarity is inherited from the condition above and must not be inverted here
+	# either: the nuke proxy consumes `~tacnuke.enabled`, so an absent lobby option leaves the
+	# prerequisite unpublished and the cameo absent.
+	ProvidesPrerequisite@tacnuke:
+		Prerequisite: tacnuke.enabled
 		RequiresCondition: !tacnuke-disabled
-		OrderName: TacNukeStrike
-		# NO Prerequisites, and that is deliberate: §1's table lists this entry's faction as "both".
-		# It is the only one of the three approved powers that is not faction-locked.
-		# `abomb` resolves to atomicon.shp (sequences-misc.yaml:16), the ONE power cameo in the mod
-		# whose baked caption -- NUCLEAR BOMB -- is correct for its picture (§4a).
-		Icon: abomb
-		Name: Tactical Nuclear Strike
-		Description: Low-yield nuclear warhead delivered from off-map reserves.\nDevastates a wide area and sets everything in it alight.\nEnters from the map edge nearest your Supply Route.
-		ChargeInterval: 11250
-		Cursor: nuke
-		MissileActor: tacnukemissile
-		# 14c256 = 14592, NOT the 8c0 the two conventional strikes use, and the number is derived rather
-		# than picked: 14592 - 6400 (DetonationAltitude below) = 8192, the same 8 cells of descent the
-		# Kinzhal has. BallisticMissileFly interpolates its baseZ linearly from spawn Z to TARGET Z
-		# (BallisticMissileFly.cs:252), so raising the detonation point without raising the spawn would
-		# have eaten the descent -- 8192 down to 1792 over the same ground, a near-level approach ending
-		# in mid-air. Keep the difference at 8192 if either number is ever retuned.
-		SpawnAltitude: 14c256
-		# THE AIRBURST. 6c256 = 6400, the same number mslo's NukePower has carried all along
-		# (structures-defenses.yaml, `DetonationAltitude: 6c256`) -- so the two deliveries of the SAME
-		# `Atomic` warhead finally agree. This is a correction toward the approved design, not a change
-		# away from it: proposal SS5a's balance anchor states Atomic's ~266,000 peak on an Abrams
-		# explicitly as "a 6.25-cell airburst", 6.25 cells being exactly this 6400. The ground burst
-		# this power shipped with on 2026-09-04 was the number that departed from the anchor.
-		#
-		# NOTHING ELSE HAS TO MOVE FOR THE ANIMATION. CreateEffectWarhead spawns its sprite at the
-		# impact position and only forces it to the deck when ForceDisplayAtGroundLevel is set
-		# (CreateEffectWarhead.cs:140-150), which Atomic's Warhead@Fireball does not, so the mushroom
-		# cloud rises with the burst on its own. (Fireball's `Offset: 0,-1900,0` is a separate,
-		# pre-existing thing and is NOT airburst compensation: screen y is TileSize.Height * (Y - Z)
-		# (WorldRenderer.cs:749), so -Y and +Z are the same displacement, and that offset -- 5700 after
-		# the 300% ScalePercent -- lifts the 300%-scaled sprite off its own anchor. It applied equally
-		# to the ground burst, which is why the ground burst looked low rather than looking wrong.)
-		#
-		# DO NOT RAISE THIS ABOVE 10c0. Every one of Atomic's ~30 damage, fire, EMP, suppression and
-		# smudge warheads carries `AirThreshold: 10c0`, and above a warhead's AirThreshold the engine
-		# stops evaluating terrain target types and substitutes `Air` (Warhead.cs:41-45,
-		# CreateEffectWarhead.cs:165-166). At 10241 this nuke would still fly, still be aimed, still be
-		# announced -- and do nothing to the ground, with no error and no lint. That whole AirThreshold
-		# column is not decoration; it is what makes an airburst legal for this warhead and it is why
-		# the other two powers must NOT copy this field (their effect warheads default to
-		# `ValidTargets: Ground, Water` and AirThreshold 128).
-		DetonationAltitude: 6c256
-		# 500 ticks x 0.06 s = 30.0 s, the ceiling the user named, and the longest of the three. A
-		# nuclear release is the one power in the mod where the wait IS the mechanic: this is the only
-		# power with `DisplayTimerRelationships: Ally, Neutral, Enemy` below, so every player is already
-		# watching its clock, and AbombLaunchDetected reaches the victim at ORDER time
-		# (SupportPower.cs:238-251), 30 s before the missile so much as enters the map. That window is
-		# what makes dispersing a possible answer to a nuke instead of a fantasy, which is the whole
-		# argument for a deterrent being survivable.
-		MissileDelay: 500
-		# 20c0, matching mslo's NukePower rather than the 8c0 the two conventional strikes use: the
-		# Atomic blast wave has MaxRadius 30c0, so a camera sized for a conventional strike would
-		# show the player a fraction of what they just did.
-		CameraRange: 20c0
-		CameraSpawnAdvance: 25
-		# 1000 ticks = 60 s, matching mslo. The Atomic warhead's own effects run to tick ~213 (the
-		# outermost suppression band), so a 100-tick camera would close mid-detonation.
-		CameraRemoveDelay: 1000
-		BeaconRemoveAdvance: 5
-		DisplayBeacon: True
-		DisplayMiniMapPing: True
-		# Ally, Neutral, Enemy -- matching mslo's NukePower. EVERYONE watches a nuke timer; that is
-		# what a deterrent is for, and it is the one power in the mod where hiding the clock from the
-		# victim would be worse design rather than better.
-		DisplayTimerRelationships: Ally, Neutral, Enemy
-		BeaconPoster: atomicon
-		ArrowSequence: arrow
-		ClockSequence: clock
-		CircleSequence: circles
-		SelectTargetSpeechNotification: SelectTarget
-		# The one power in this feature whose shipped notification line is CORRECT rather than a
-		# placeholder, so unlike the two conventional strikes this does not want replacing later.
-		IncomingSpeechNotification: AbombLaunchDetected
-		SupportPowerPaletteOrder: 3
 	# Airstrikes disabled for v1 — re-enable post-v1 by uncommenting this whole block
 	# AND the PowersLobbyOptions trait in world.yaml. The A10.Airstrike / FROG.Airstrike
 	# unit defs are still in aircraft-america.yaml / aircraft-russia.yaml (orphan, harmless
@@ -835,3 +647,395 @@ Player:
 	# 	UseDirectionalTarget: True
 	# 	DirectionArrowAnimation: paradirection
 	# 	SupportPowerPaletteOrder: 3
+
+# ================================================================================================
+# THE BOUGHT POWERS -- three bodiless proxy actors, one per approved strike.
+#
+# WHY THEY EXIST AT ALL, since the powers worked perfectly well on the Player actor: a reservation
+# has to be a THING you can own several of, pay upkeep on, and hand back. SupportPowerManager keys
+# an AllowMultiple power `<OrderName>_<ActorID>` (SupportPowerManager.cs:48-51), so N banked strikes
+# require N ACTORS. On the Player actor there is exactly one actor and therefore exactly one
+# instance, forever. Everything else here follows from that one constraint.
+#
+# BODILESS IS THE POINT, NOT A SHORTCUT. None of these carries an IOccupySpace trait of any kind, so
+# Production.Produce takes its bodiless branch (Production.cs:126-131) -- a branch that exists
+# precisely so a purchase can deliver something that is not a unit. The whole loop was proven in a
+# real game by tools/autotest/scenarios/test-power-buy-loop: bought, banked, fired, consumed.
+#
+# THE FOUR TRAITS THAT LOOK LIKE DECORATION AND ARE NOT:
+#
+#   RenderSprites  ProductionPaletteWidget.cs:683 calls item.TraitInfo<RenderSpritesInfo>()
+#                  UNGUARDED, so a buy-menu item without it throws when the tab draws. `Image: icon`
+#                  points at the sequence collection the power cameos already live in, so the buy
+#                  cameo and the bin cameo are the same picture resolved the same way.
+#   Interactable   Tooltip is `TooltipInfoBase : Requires<IMouseBoundsInfo>` (Tooltip.cs:16) and a
+#                  positionless actor has no Selectable and no IsometricSelectable to supply it.
+#                  Dropping Tooltip instead is NOT an alternative -- CheckTooltips errors on any
+#                  actor carrying Buildable without one. Interactable is inert with no position.
+#   AlwaysVisible  the proxy is never rendered; this keeps visibility resolution off the map.
+#   InfersUpkeep   the standing cost of holding the reservation. See the per-actor note below.
+#
+# BuyLoopProxyTest pins that trait chain against the exact check the merge gate runs.
+# ================================================================================================
+
+powerproxy.kinzhal:
+	Valued:
+		Cost: 4000
+	Tooltip:
+		Name: Kh-47M2 Kinzhal
+	RenderSprites:
+		Image: icon
+	AlwaysVisible:
+	Interactable:
+	# 20 cash / interval at PermilleCost 5 -- the same 0.5% rate every infantryman and vehicle in the
+	# mod already pays, so a reserved strike costs what a parked tank costs. Comfortably above the
+	# 1.0 floor below which IngameCashCounterLogic casts a group to 0 and drops its row entirely.
+	InfersUpkeep:
+		PermilleCost: 5
+	# Grants `upkeep-unpaid` on this actor for the whole interval following a payday the owner could
+	# not settle. The power below pauses on it. Per-actor by construction: every banked reservation
+	# gets its own token, so they all go dormant together and all wake together.
+	GrantConditionOnUpkeepShortfall:
+		Condition: upkeep-unpaid
+	Buildable:
+		Queue: Powers
+		BuildPaletteOrder: 1
+		Icon: precicon
+		Prerequisites: player.russia
+		# The purchase IS the wait: this is the ChargeInterval this power used to carry, to the tick.
+		BuildDuration: 3000
+		Description: Hypersonic missile strike held in off-map reserve.
+	MissileStrikePower@Kinzhal:
+		OrderName: KinzhalStrike
+		Prerequisites: player.russia
+		Icon: precicon
+		Name: Kh-47M2 Kinzhal
+		Description: Hypersonic missile strike called in from off-map reserves.\nEnters from the map edge nearest your Supply Route.\nCannot be intercepted.
+		Cursor: nuke
+		MissileActor: kinzhalmissile
+		# 150 ticks x 0.06 s = 9.0 s between the click and the missile appearing at the map edge, on top
+		# of ~20 ticks of flight. The SHORTEST of the three, and the reason is the power's own caption:
+		# "Hypersonic ... Cannot be intercepted". Tempo is the whole identity here -- SS5a's framing is
+		# "one Iskander missile, except you did not have to drive a 6000-credit launcher into range" --
+		# so this gets the smallest lead that still stops the strike landing on the click.
+		#
+		# WHAT THE VICTIM GETS FOR THOSE 9 SECONDS: the IncomingSpeechNotification below, and nothing
+		# else. SupportPower.PlayLaunchSounds fires it to every non-allied client AT ORDER TIME
+		# (SupportPower.cs:238-251), before the missile exists, while the beacon and the minimap ping
+		# are both gated on IsAlliedWith(RenderPlayer) (Beacon.cs:124, SupportPower.cs:228). So the
+		# delay is an audible warning with no location attached -- deliberate, and the reason a longer
+		# lead is not free: it is reaction time handed to the target.
+		MissileDelay: 150
+		# 8c0 = 8192 wdist = 8 cells above the terrain at the entry cell. This -- not LaunchAngle --
+		# is what makes the approach look steep, and unlike LaunchAngle it does not scale with the
+		# length of the shot. BallisticMissileFly interpolates baseZ from spawn Z to target Z
+		# (BallisticMissileFly.cs:238-240), so the missile descends those 8 cells across the run.
+		SpawnAltitude: 8c0
+		CameraRange: 8c0
+		# 25 ticks x 0.06 = 1.5 s of vision before impact, held for 100 x 0.06 = 6.0 s after it.
+		CameraSpawnAdvance: 25
+		CameraRemoveDelay: 100
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		# None, DOWN FROM Ally, and the user asked for exactly this: "We dont need to see a countdown of
+		# ally players powers, it is just distracting. Maybe we can keep it for nukes, but not for other
+		# powers." SupportPowerTimerWidget drops a power from the top-of-screen list entirely when this
+		# is None (SupportPowerTimerWidget.cs:42), before the per-viewer relationship test.
+		#
+		# IT ALSO HIDES THE OWNER'S OWN LINE, and that is fine rather than a compromise: PlayerRelationship
+		# has no `Self` (TraitsInterfaces.cs:63-69) and Player.RelationshipWith(self) returns Ally
+		# (Player.cs:250-251), so `Ally` is precisely "me and my allies" and there is no narrower value to
+		# reach for. Nothing is lost by it -- SupportPowersWidget draws FormatTime(RemainingTicks) onto
+		# the cameo itself (SupportPowersWidget.cs:246) plus a sweeping clock overlay (:216-221), so the
+		# owner's own countdown is still on screen in mm:ss, in the place they look for it.
+		DisplayTimerRelationships: None
+		BeaconPoster: precbcon
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		# Placeholder: there is no conventional-strike warning line in notifications.yaml, and
+		# AbombLaunchDetected would announce a nuke. Phase 2 audio should replace this.
+		IncomingSpeechNotification: EnemyUnitsApproaching
+		SupportPowerPaletteOrder: 1
+		# ---- BOUGHT, NOT CHARGED ---------------------------------------------------------------
+		# ChargeInterval is GONE rather than lowered, and StartFullyCharged is what replaces it. A
+		# power you pay for and then still have to wait to charge is gated twice for the same thing,
+		# which is the exact failure this economy exists to avoid. The wait is now the PURCHASE
+		# (Buildable.BuildDuration above) and it is the OLD ChargeInterval to the tick, so the relative
+		# scarcity the three powers were tuned against is unchanged -- only the currency is new.
+		StartFullyCharged: True
+		# One purchase, one firing. Without this a single buy is a permanent ability and every price in
+		# the menu is decoration.
+		OneShot: True
+		# Each purchase is its own proxy actor and therefore its own icon, keyed `<OrderName>_<ActorID>`
+		# (SupportPowerManager.cs:48-51). This is what makes three banked strikes three reservations,
+		# three upkeep lines and three cameos rather than one.
+		AllowMultiple: True
+		# MANDATORY, not tidiness. InfersUpkeep unregisters only on INotifyRemovedFromWorld, so a spent
+		# proxy left in the world bills the player for a reservation that no longer exists, forever.
+		# OneShot hides the ICON; it does not remove the ACTOR.
+		DisposeSelfOnActivate: True
+		# Right-click the cameo in the bin to hand the reservation back for a FULL refund. Full is
+		# forced rather than generous: ProductionQueue's own cancel path already returns everything paid
+		# one tick before the bar fills, so any lower figure would destroy money at the instant the
+		# purchase completed and make holding at 99% the optimal play forever.
+		Releasable: True
+		# DORMANT, NOT LAPSED. When the owner cannot pay the interval's upkeep bill,
+		# GrantConditionOnUpkeepShortfall (above) grants `upkeep-unpaid` and this pauses the power: the
+		# cameo stays in the bin wearing the shipped "ON HOLD" overlay, cannot fire, and comes back by
+		# itself the moment the player is solvent. Nothing is destroyed -- a pooled upkeep float gives
+		# no honest basis for choosing WHICH reservation to kill.
+		PauseOnCondition: upkeep-unpaid
+
+powerproxy.gbu57:
+	Valued:
+		Cost: 4000
+	Tooltip:
+		Name: GBU-57 Bunker Buster
+	RenderSprites:
+		Image: icon
+	AlwaysVisible:
+	Interactable:
+	# Same tier and same price as the Kinzhal, so the same 20 cash / interval. The two are separated
+	# by role and by arrival schedule, never by cost.
+	InfersUpkeep:
+		PermilleCost: 5
+	# Grants `upkeep-unpaid` on this actor for the whole interval following a payday the owner could
+	# not settle. The power below pauses on it. Per-actor by construction: every banked reservation
+	# gets its own token, so they all go dormant together and all wake together.
+	GrantConditionOnUpkeepShortfall:
+		Condition: upkeep-unpaid
+	Buildable:
+		Queue: Powers
+		BuildPaletteOrder: 2
+		Icon: precicon
+		Prerequisites: player.america
+		# The purchase IS the wait: this is the ChargeInterval this power used to carry, to the tick.
+		BuildDuration: 3000
+		Description: Massive Ordnance Penetrator held in off-map reserve.
+	MissileStrikePower@GBU57:
+		OrderName: GBU57Strike
+		Prerequisites: player.america
+		# INTERIM ART, ruled by the manager rather than left blocked on a drawing. §4a wanted one new
+		# cameo for the US strike and flagged reusing `precicon` as an asymmetry -- Russia generic,
+		# America bespoke. That worry does not apply now the two powers are FACTION-LOCKED to
+		# opposite sides: `Prerequisites: player.america` here against `player.russia` on the Kinzhal
+		# means no player ever holds both, so no player can see the repeat. And PRECISION STRIKE is
+		# not a wrong caption for a GBU-57.
+		# DO NOT "improve" this to cmissicon or missicon however their names read: captions are baked
+		# into the cameo PIXELS at rows 42-46, and those two are a biohazard trefoil captioned
+		# CHEMICAL STRIKE and a building captioned TECH CENTER (§4a).
+		Icon: precicon
+		Name: GBU-57 Bunker Buster
+		Description: Massive Ordnance Penetrator dropped on the target area.\nDevastating against hardened structures, weak against armour.\nEnters from the map edge nearest your Supply Route.
+		Cursor: nuke
+		MissileActor: gbu57bomb
+		# 300 ticks x 0.06 s = 18.0 s, DOUBLE the Kinzhal's, on top of ~80 ticks of flight at Speed 500.
+		# The longest lead of the two conventional strikes, and it compounds with the slowest flight
+		# rather than compensating for it -- which is the point. A Massive Ordnance Penetrator is not a
+		# weapon of surprise: it is a scheduled demolition of a fixed hardened target, delivered by a
+		# bomber that has to fly there. Making it the slowest thing in the menu end-to-end is what keeps
+		# it from competing with the Kinzhal on tempo when the two cost the same (ChargeInterval 3000 on
+		# both) and separates them on role instead.
+		MissileDelay: 300
+		# 12 cells, HALF AGAIN the Kinzhal's 8, and the two numbers do different jobs. Both powers
+		# shape their approach with altitude rather than LaunchAngle, because LaunchAngle's apex
+		# scales with shot length (BallisticMissileFly.cs:88-90) and altitude does not. But the MOP
+		# flies at Speed 500 against the Kinzhal's 2000, so at the SAME altitude its descent would be
+		# four times shallower over the same ground. 12 cells buys back the near-vertical terminal
+		# plunge a bunker buster is supposed to have.
+		SpawnAltitude: 12c0
+		CameraRange: 8c0
+		CameraSpawnAdvance: 25
+		CameraRemoveDelay: 100
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		# None, for the reason spelled out on the Kinzhal above: the user asked for non-nuke countdowns
+		# to stop appearing, and the owner's own clock survives on the cameo regardless.
+		DisplayTimerRelationships: None
+		BeaconPoster: precbcon
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		# Same placeholder as the Kinzhal, and the same reason: notifications.yaml has no
+		# conventional-strike warning line, and AbombLaunchDetected would announce a nuke this is
+		# not. Replace both together when the audio lands.
+		IncomingSpeechNotification: EnemyUnitsApproaching
+		SupportPowerPaletteOrder: 2
+		# ---- BOUGHT, NOT CHARGED ---------------------------------------------------------------
+		# ChargeInterval is GONE rather than lowered, and StartFullyCharged is what replaces it. A
+		# power you pay for and then still have to wait to charge is gated twice for the same thing,
+		# which is the exact failure this economy exists to avoid. The wait is now the PURCHASE
+		# (Buildable.BuildDuration above) and it is the OLD ChargeInterval to the tick, so the relative
+		# scarcity the three powers were tuned against is unchanged -- only the currency is new.
+		StartFullyCharged: True
+		# One purchase, one firing. Without this a single buy is a permanent ability and every price in
+		# the menu is decoration.
+		OneShot: True
+		# Each purchase is its own proxy actor and therefore its own icon, keyed `<OrderName>_<ActorID>`
+		# (SupportPowerManager.cs:48-51). This is what makes three banked strikes three reservations,
+		# three upkeep lines and three cameos rather than one.
+		AllowMultiple: True
+		# MANDATORY, not tidiness. InfersUpkeep unregisters only on INotifyRemovedFromWorld, so a spent
+		# proxy left in the world bills the player for a reservation that no longer exists, forever.
+		# OneShot hides the ICON; it does not remove the ACTOR.
+		DisposeSelfOnActivate: True
+		# Right-click the cameo in the bin to hand the reservation back for a FULL refund. Full is
+		# forced rather than generous: ProductionQueue's own cancel path already returns everything paid
+		# one tick before the bar fills, so any lower figure would destroy money at the instant the
+		# purchase completed and make holding at 99% the optimal play forever.
+		Releasable: True
+		# DORMANT, NOT LAPSED. When the owner cannot pay the interval's upkeep bill,
+		# GrantConditionOnUpkeepShortfall (above) grants `upkeep-unpaid` and this pauses the power: the
+		# cameo stays in the bin wearing the shipped "ON HOLD" overlay, cannot fire, and comes back by
+		# itself the moment the player is solvent. Nothing is destroyed -- a pooled upkeep float gives
+		# no honest basis for choosing WHICH reservation to kill.
+		PauseOnCondition: upkeep-unpaid
+
+powerproxy.tacnuke:
+	Valued:
+		Cost: 15000
+	Tooltip:
+		Name: Tactical Nuclear Strike
+	RenderSprites:
+		Image: icon
+	AlwaysVisible:
+	Interactable:
+	# 75 cash / interval -- 3.75x the conventional strikes, exactly as the price is. Against the 100 /
+	# interval baseline passive income that is three quarters of a bare economy, and it is meant to
+	# be: holding a doomsday option is a standing sacrifice, not a free hedge. The rate is the single
+	# most tunable number in this feature and it is one field.
+	InfersUpkeep:
+		PermilleCost: 5
+	# Grants `upkeep-unpaid` on this actor for the whole interval following a payday the owner could
+	# not settle. The power below pauses on it. Per-actor by construction: every banked reservation
+	# gets its own token, so they all go dormant together and all wake together.
+	GrantConditionOnUpkeepShortfall:
+		Condition: upkeep-unpaid
+	Buildable:
+		Queue: Powers
+		BuildPaletteOrder: 3
+		Icon: abomb
+		# The `~` HIDES the cameo when the host disabled the nuke, rather than greying one that
+		# advertises a power nobody can have. See the note in the power block below.
+		Prerequisites: ~tacnuke.enabled
+		# The purchase IS the wait: this is the ChargeInterval this power used to carry, to the tick.
+		BuildDuration: 11250
+		Description: Low-yield nuclear warhead held in off-map reserve.
+	MissileStrikePower@TacNuke:
+		# THE LOBBY GATE MOVED, AND IT HAD TO. This block used to open with
+		# `RequiresCondition: !tacnuke-disabled`, which was correct while the power lived on the Player
+		# actor -- that is where GrantConditionOnLobbyOption@tacnuke grants the condition. CONDITIONS
+		# ARE PER-ACTOR. Carried onto a proxy the same line reads a variable nothing on THIS actor ever
+		# grants, evaluates `!0` = true, and hands every player a nuke while still LOOKING like a gate.
+		# The replacement is a tech-tree prerequisite, which is per-PLAYER: ProvidesPrerequisite@tacnuke
+		# on the Player publishes `tacnuke.enabled` under the same condition, and this proxy's
+		# `Buildable: Prerequisites: ~tacnuke.enabled` above consumes it. The `~` is load-bearing -- it
+		# hides the cameo outright rather than greying one that advertises a power the host switched off.
+		OrderName: TacNukeStrike
+		# NO Prerequisites, and that is deliberate: §1's table lists this entry's faction as "both".
+		# It is the only one of the three approved powers that is not faction-locked.
+		# `abomb` resolves to atomicon.shp (sequences-misc.yaml:16), the ONE power cameo in the mod
+		# whose baked caption -- NUCLEAR BOMB -- is correct for its picture (§4a).
+		Icon: abomb
+		Name: Tactical Nuclear Strike
+		Description: Low-yield nuclear warhead delivered from off-map reserves.\nDevastates a wide area and sets everything in it alight.\nEnters from the map edge nearest your Supply Route.
+		Cursor: nuke
+		MissileActor: tacnukemissile
+		# 14c256 = 14592, NOT the 8c0 the two conventional strikes use, and the number is derived rather
+		# than picked: 14592 - 6400 (DetonationAltitude below) = 8192, the same 8 cells of descent the
+		# Kinzhal has. BallisticMissileFly interpolates its baseZ linearly from spawn Z to TARGET Z
+		# (BallisticMissileFly.cs:252), so raising the detonation point without raising the spawn would
+		# have eaten the descent -- 8192 down to 1792 over the same ground, a near-level approach ending
+		# in mid-air. Keep the difference at 8192 if either number is ever retuned.
+		SpawnAltitude: 14c256
+		# THE AIRBURST. 6c256 = 6400, the same number mslo's NukePower has carried all along
+		# (structures-defenses.yaml, `DetonationAltitude: 6c256`) -- so the two deliveries of the SAME
+		# `Atomic` warhead finally agree. This is a correction toward the approved design, not a change
+		# away from it: proposal SS5a's balance anchor states Atomic's ~266,000 peak on an Abrams
+		# explicitly as "a 6.25-cell airburst", 6.25 cells being exactly this 6400. The ground burst
+		# this power shipped with on 2026-09-04 was the number that departed from the anchor.
+		#
+		# NOTHING ELSE HAS TO MOVE FOR THE ANIMATION. CreateEffectWarhead spawns its sprite at the
+		# impact position and only forces it to the deck when ForceDisplayAtGroundLevel is set
+		# (CreateEffectWarhead.cs:140-150), which Atomic's Warhead@Fireball does not, so the mushroom
+		# cloud rises with the burst on its own. (Fireball's `Offset: 0,-1900,0` is a separate,
+		# pre-existing thing and is NOT airburst compensation: screen y is TileSize.Height * (Y - Z)
+		# (WorldRenderer.cs:749), so -Y and +Z are the same displacement, and that offset -- 5700 after
+		# the 300% ScalePercent -- lifts the 300%-scaled sprite off its own anchor. It applied equally
+		# to the ground burst, which is why the ground burst looked low rather than looking wrong.)
+		#
+		# DO NOT RAISE THIS ABOVE 10c0. Every one of Atomic's ~30 damage, fire, EMP, suppression and
+		# smudge warheads carries `AirThreshold: 10c0`, and above a warhead's AirThreshold the engine
+		# stops evaluating terrain target types and substitutes `Air` (Warhead.cs:41-45,
+		# CreateEffectWarhead.cs:165-166). At 10241 this nuke would still fly, still be aimed, still be
+		# announced -- and do nothing to the ground, with no error and no lint. That whole AirThreshold
+		# column is not decoration; it is what makes an airburst legal for this warhead and it is why
+		# the other two powers must NOT copy this field (their effect warheads default to
+		# `ValidTargets: Ground, Water` and AirThreshold 128).
+		DetonationAltitude: 6c256
+		# 500 ticks x 0.06 s = 30.0 s, the ceiling the user named, and the longest of the three. A
+		# nuclear release is the one power in the mod where the wait IS the mechanic: this is the only
+		# power with `DisplayTimerRelationships: Ally, Neutral, Enemy` below, so every player is already
+		# watching its clock, and AbombLaunchDetected reaches the victim at ORDER time
+		# (SupportPower.cs:238-251), 30 s before the missile so much as enters the map. That window is
+		# what makes dispersing a possible answer to a nuke instead of a fantasy, which is the whole
+		# argument for a deterrent being survivable.
+		MissileDelay: 500
+		# 20c0, matching mslo's NukePower rather than the 8c0 the two conventional strikes use: the
+		# Atomic blast wave has MaxRadius 30c0, so a camera sized for a conventional strike would
+		# show the player a fraction of what they just did.
+		CameraRange: 20c0
+		CameraSpawnAdvance: 25
+		# 1000 ticks = 60 s, matching mslo. The Atomic warhead's own effects run to tick ~213 (the
+		# outermost suppression band), so a 100-tick camera would close mid-detonation.
+		CameraRemoveDelay: 1000
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		# Ally, Neutral, Enemy -- matching mslo's NukePower. EVERYONE watches a nuke timer; that is
+		# what a deterrent is for, and it is the one power in the mod where hiding the clock from the
+		# victim would be worse design rather than better.
+		DisplayTimerRelationships: Ally, Neutral, Enemy
+		BeaconPoster: atomicon
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		# The one power in this feature whose shipped notification line is CORRECT rather than a
+		# placeholder, so unlike the two conventional strikes this does not want replacing later.
+		IncomingSpeechNotification: AbombLaunchDetected
+		SupportPowerPaletteOrder: 3
+		# ---- BOUGHT, NOT CHARGED ---------------------------------------------------------------
+		# ChargeInterval is GONE rather than lowered, and StartFullyCharged is what replaces it. A
+		# power you pay for and then still have to wait to charge is gated twice for the same thing,
+		# which is the exact failure this economy exists to avoid. The wait is now the PURCHASE
+		# (Buildable.BuildDuration above) and it is the OLD ChargeInterval to the tick, so the relative
+		# scarcity the three powers were tuned against is unchanged -- only the currency is new.
+		StartFullyCharged: True
+		# One purchase, one firing. Without this a single buy is a permanent ability and every price in
+		# the menu is decoration.
+		OneShot: True
+		# Each purchase is its own proxy actor and therefore its own icon, keyed `<OrderName>_<ActorID>`
+		# (SupportPowerManager.cs:48-51). This is what makes three banked strikes three reservations,
+		# three upkeep lines and three cameos rather than one.
+		AllowMultiple: True
+		# MANDATORY, not tidiness. InfersUpkeep unregisters only on INotifyRemovedFromWorld, so a spent
+		# proxy left in the world bills the player for a reservation that no longer exists, forever.
+		# OneShot hides the ICON; it does not remove the ACTOR.
+		DisposeSelfOnActivate: True
+		# Right-click the cameo in the bin to hand the reservation back for a FULL refund. Full is
+		# forced rather than generous: ProductionQueue's own cancel path already returns everything paid
+		# one tick before the bar fills, so any lower figure would destroy money at the instant the
+		# purchase completed and make holding at 99% the optimal play forever.
+		Releasable: True
+		# DORMANT, NOT LAPSED. When the owner cannot pay the interval's upkeep bill,
+		# GrantConditionOnUpkeepShortfall (above) grants `upkeep-unpaid` and this pauses the power: the
+		# cameo stays in the bin wearing the shipped "ON HOLD" overlay, cannot fire, and comes back by
+		# itself the moment the player is solvent. Nothing is destroyed -- a pooled upkeep float gives
+		# no honest basis for choosing WHICH reservation to kill.
+		PauseOnCondition: upkeep-unpaid
