@@ -510,10 +510,10 @@ namespace OpenRA.Mods.Common.Activities
 						foreach (var cell in rp.Cells)
 							QueueChild(new AttackMoveActivity(self, () => move.MoveTo(cell, 1, repairableNear != null ? null : host.Actor, true, moveInfo.GetTargetLineColor())));
 					else if (repairableNear == null)
-						QueueChild(move.MoveToTarget(self, host));
+						QueueChild(LeaveHost(self));
 				}
 				else if (repairableNear == null && self.CurrentActivity.NextActivity is not Move)
-					QueueChild(move.MoveToTarget(self, host));
+					QueueChild(LeaveHost(self));
 			}
 
 			foreach (var nd in notifyDockClients)
@@ -521,6 +521,63 @@ namespace OpenRA.Mods.Common.Activities
 
 			foreach (var nd in notifyDockHosts)
 				nd.Undocked(host.Actor, self);
+		}
+
+		/// <summary>
+		/// <para>The move that gets a serviced client off the host, queued as this activity's last act.
+		/// For a host that declares no <see cref="ResupplyDock"/> this is unchanged: the stock
+		/// MoveToTarget(self, host), which walks the unit TOWARD the depot and relies on the idle
+		/// handler to shove it off any cell it may not stand on.</para>
+		///
+		/// <para>A DOCKED host cannot rely on that, because its dock cell is stayable BY CONSTRUCTION —
+		/// nothing could arrive on it otherwise — so nothing would ever move the client off, and with no
+		/// queue and no reservation the next client waits on that cell forever. So for those hosts this
+		/// is an explicit vacate to the nearest free stayable cell OFF THE FOOTPRINT.</para>
+		///
+		/// <para>Only the player-ordered and idle-arrival cases reach this. A dry errand runs
+		/// <see cref="BeginReturnHome"/> immediately afterwards, which cancels whatever was queued here
+		/// and walks the unit back to where it came from — a better vacate than this one, and already
+		/// correct.</para>
+		/// </summary>
+		Activity LeaveHost(Actor self)
+		{
+			var cell = dock != null && mobile != null ? ChooseVacateCell(self) : null;
+			if (cell == null)
+				return move.MoveToTarget(self, host);
+
+			// nearEnough 0, deliberately: 1 would readmit the dock cell itself as an acceptable
+			// destination, which is the whole thing being vacated. A move that cannot reach the chosen
+			// cell simply ends, leaving the unit idle where it stands — no worse than before, and it
+			// cannot loop.
+			return move.MoveTo(cell.Value, 0, targetLineColor: moveInfo.GetTargetLineColor());
+		}
+
+		/// <summary>
+		/// Nearest candidate from <see cref="ResupplyDock.VacateCandidates"/> this unit can both enter
+		/// and stand on, or null if there is none. Ties break on the candidate order, which is a fixed
+		/// CPos sort — so two clients in the same position choose the same cell and a replay does too.
+		/// </summary>
+		CPos? ChooseVacateCell(Actor self)
+		{
+			var from = self.Location;
+			CPos? best = null;
+			var bestDistance = 0;
+
+			foreach (var cell in dock.VacateCandidates(host.Actor))
+			{
+				// CanEnterCell defaults to BlockedByActor.All, so "free" includes other units.
+				if (!mobile.CanEnterCell(cell) || !mobile.CanStayInCell(cell))
+					continue;
+
+				var distance = (cell - from).LengthSquared;
+				if (best == null || distance < bestDistance)
+				{
+					best = cell;
+					bestDistance = distance;
+				}
+			}
+
+			return best;
 		}
 
 		void RepairTick(Actor self)

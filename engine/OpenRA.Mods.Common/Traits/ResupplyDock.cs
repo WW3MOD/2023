@@ -9,6 +9,8 @@
  */
 #endregion
 
+using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -60,5 +62,45 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>Facing to adopt at the dock, or null to keep whatever the approach left.</summary>
 		public WAngle? DockFacing => Info.TurnToFace ? Info.Facing : null;
+
+		/// <summary>
+		/// <para>Where a serviced client should go to get OUT OF THE WAY: every cell adjacent to this
+		/// actor's footprint that is not itself part of it. Off the BUILDING, not merely off the dock
+		/// cell — the other footprint cells are transit-only on LOGISTICSCENTER and a unit parked on
+		/// one would be shoved again a tick later by the idle handler, which is the phantom order
+		/// test-depot-vacate-phantom exists to watch for.</para>
+		///
+		/// <para>THIS IS WHY A DOCK NEEDS A VACATE AT ALL. The dock cell has to be stayable or nothing
+		/// could ever arrive on it, and there is no queue and no reservation here — the Logistics
+		/// Centre carries no Reservable. So a client left standing on it blocks the next one FOREVER:
+		/// MoveOnto waits rather than stacking when its single target cell is occupied
+		/// (MoveOnto.cs:45-47) and the arrival test is cell equality with no near-enough fallback.
+		/// Before the 2026-09-05 resize the dock was the 3x3's transit-only centre and the idle
+		/// handler did this job by accident; making the cell stayable is what took that away.</para>
+		///
+		/// <para>Returned in a fixed CPos order, so a caller breaking distance ties on this sequence
+		/// is deterministic. No RNG anywhere on this path.</para>
+		/// </summary>
+		public IEnumerable<CPos> VacateCandidates(Actor self)
+		{
+			// Non-Building hosts have no footprint to leave; their own cell is the whole of it.
+			var building = self.TraitOrDefault<Building>();
+			var footprint = building != null
+				? new HashSet<CPos>(building.Info.Tiles(building.TopLeft))
+				: new HashSet<CPos> { self.Location };
+
+			var ring = new HashSet<CPos>();
+			foreach (var cell in footprint)
+			{
+				foreach (var direction in CVec.Directions)
+				{
+					var neighbour = cell + direction;
+					if (!footprint.Contains(neighbour))
+						ring.Add(neighbour);
+				}
+			}
+
+			return ring.OrderBy(c => c.X).ThenBy(c => c.Y);
+		}
 	}
 }
