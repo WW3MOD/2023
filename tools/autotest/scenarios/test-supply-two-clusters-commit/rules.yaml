@@ -1,0 +1,66 @@
+# Two-cluster supply-commitment autotest overrides.
+#
+# DELIBERATELY MINIMAL, and modelled on test-supply-far-front-reached's. NOTHING HERE TOUCHES
+# SupplyFollowerBotModule: every value the module reads — ScanInterval, MaxFollowDistance,
+# SectorSpread, RepathThresholdCells, IgnoreDangerForDelivery, the drop gates and (once it exists)
+# ClusterStickinessNeedMargin — comes from ai.yaml exactly as shipped, because the whole point is
+# what the SHIPPING config does when a truck is offered two clusters at once. The truck is put on
+# the follow path by its CARGO (Supply: 80 in map.yaml), not by a rules override; the reasoning is
+# in map.yaml's header block and belongs there rather than here.
+#
+# There is exactly ONE behavioural override below, AutoSeekSupplies, and it is explained where it
+# sits.
+
+Player:
+	# Faction elimination would end the match before the Lua poller writes a verdict — and here it
+	# would fire immediately, since Russia owns no actors at all.
+	-ConquestVictoryConditions:
+	# Fog OFF and the map pre-explored. Kept for parity with the three sibling supply scenarios so the
+	# family differs only in the things it is meant to differ in. Inert here in the belief sense —
+	# there is no enemy on the map to see — but leaving it identical means a difference in verdicts
+	# cannot be blamed on visibility.
+	MapLayers:
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+	# No cash -> no production, so the only actors are the pre-placed ones and neither platoon can be
+	# reinforced into (or out of) passing.
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# UnitDefaultsManager applies this machine's saved per-type stance defaults (AutoTarget.cs). A dev
+	# who once set riflemen to Ambush would otherwise change what this test measures, and here that
+	# would be invisible: a platoon that never moves looks exactly like a platoon correctly holding.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-supply-two-clusters-commit.lua
+
+# THE ONE BEHAVIOURAL OVERRIDE, AND IT IS THE OPPOSITE CHOICE FROM test-supply-far-front-reached'S.
+# That scenario deliberately leaves AutoSeekSupplies live, because its assertion is about the
+# PLATOON's position and a front that walks backwards into the supply line is the failure it guards.
+#
+# This scenario asserts about the TRUCK's PATH, and a platoon that walks out to meet it destroys the
+# measurement in both directions at once:
+#   * A truck oscillating about the midpoint comes within ~19 cells of a platoon at x=20, inside
+#     AutoSeekSupplies' SupplyHuntLeashCells: 20. The men would walk to the truck and be fed — so
+#     the broken code would score a delivery it never drove to, and the "did a delivery happen?"
+#     half of the bar would stop discriminating.
+#   * A platoon on the move drags its cluster centroid, which is the input the follow cell and the
+#     need ordering are derived from — so the two clusters would stop being the fixed, symmetric
+#     pair this scenario's whole argument rests on.
+# With the trait off, the men cannot move at all, and an ammo climb can only mean the truck itself
+# arrived and parked inside its own 5-cell aura. That is exactly the property the verdict needs.
+#
+# `Enabled: false` covers BOTH halves of the trait: the idle low-ammo seek (AutoSeekSupplies.cs:175)
+# and the ReturnWhenEmpty break-off (:230) are each gated on it.
+^Soldier:
+	AutoSeekSupplies:
+		Enabled: false
