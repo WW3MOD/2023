@@ -1023,6 +1023,20 @@ Player:
 		ReevaluateInterval: 100
 		MaxAmbushes: 2
 		UnitsPerAmbush: 2
+		# MINIMUM MANNING (item 64) — post a FULL lane or none. Equal to UnitsPerAmbush on purpose.
+		# THIS MODULE, NOT THE OFFENSIVE STAGER, is what sends the first tank forward alone. Measured at tick
+		# 100 of two independent runs on 2026-09-05: `[exp-ambush] lane anchor=supplyroute#7 post=28,12 units=1`
+		# (test-combined-arms-rendezvous, run 260905_180211 — that tank then died, which is what made the run
+		# inconclusive) and `post=29,17 units=1` (test-push-departs-together, run 260905_183118). In both, the
+		# claim lands at tick 100, BEFORE PoiOffensiveBotModule's free pool has ever seen the unit — so
+		# FreePoolMinAdvanceUnits cannot reach it, and the offensive reeval reads pool=0 for the first 300 ticks.
+		# The block header above says this module is small enough never to starve offense. That holds only when
+		# offense has units to spare; at the opening the lane takes the entire army. This makes it explicit.
+		# Fails toward offense and cannot churn — an under-manned lane is never RECRUITED into, so nothing is
+		# committed, granted or ordered and there is nothing to hand back. See AmbushLaneMath.LaneMayPost.
+		# Both profiles (2026-09-05 ruling: @stable is a re-synced copy), so @stable changes here too and the
+		# next benchmark baseline should be re-taken.
+		MinUnitsPerAmbush: 2
 		PostFractionPct: 40
 		MinLaneSeparationCells: 12
 		PostCellClampCells: 6
@@ -3012,6 +3026,8 @@ Player:
 		ReevaluateInterval: 100
 		MaxAmbushes: 2
 		UnitsPerAmbush: 2
+		# Minimum manning (item 64) — mirrors @experimental; see the annotated copy there.
+		MinUnitsPerAmbush: 2
 		PostFractionPct: 40
 		MinLaneSeparationCells: 12
 		PostCellClampCells: 6
