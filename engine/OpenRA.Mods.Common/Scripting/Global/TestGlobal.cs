@@ -827,7 +827,6 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return UnitOrderGenerator.CursorForOrders(results) ?? "";
 		}
 
-
 		// The three bindings below exist because the frozen-actor cursor was the one fog behaviour the
 		// suite could not reach. ClickCursor above builds Target.FromActor, so it always resolves
 		// CanTargetActor and never CanTargetFrozenActor — the arm that decides what a player may infer

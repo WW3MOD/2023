@@ -19889,7 +19889,7 @@ Two consequences that are easy to miss:
 
 `Animation.Tick()` calls `Tick(40)` unconditionally (`engine/OpenRA.Game/Graphics/Animation.cs:229-232`)
 and the default sequence tick is also 40 (`:123-125`). ww3mod's normal-speed `Timestep` is **60 ms**
-(`mods/ww3mod/mod.yaml:378-380`), and the two are unrelated: a sequence with `Tick: T` advances one
+(`mods/ww3mod/mod.yaml:380-383`, the `default:` block — `:376-379` is `slow`, which is 67), and the two are unrelated: a sequence with `Tick: T` advances one
 frame per `T/40` GAME ticks regardless of game speed, and the wall-clock duration then scales with
 whatever `Timestep` the player picked.
 
@@ -19921,7 +19921,23 @@ a targeter.
 
 For LOGISTICSCENTER the transform is destructive (a 3000-credit building becomes a truck), so the
 trait gained an `OrderName` field (default `"Move"`, so nothing else changes) and the Centre uses
-`UndeployMove`. Grepping today's callers is not equivalent: `LogisticsCenterBotModule.McvActorTypes`
+`UndeployMove`.
+
+**CORRECTION, same day: necessary but NOT sufficient, because there is a THIRD targeter in the
+contest and it outranks both.** Adding `Transforms` to a building also publishes
+`DeployOrderTargeter("DeployTransform", 5)` (`Transforms.cs:124`), whose `CanTarget` is
+`self == target.Actor` with **no** force modifier (`Orders/DeployOrderTargeter.cs:41`). Priority 5
+beats `TransformsIntoMobile`'s 4 and `RallyPoint`'s 0, so `UnitOrderGenerator.OrderForUnit` takes it
+first and an ordinary right-click **on the building itself** fired the transform — a different
+gesture from the terrain click `RequiresForceMove` guards, and one nothing in the rules mentioned.
+`"DeployTransform"` is also hand-built by `McvManagerBotModule` (`:175`) and
+`LogisticsCenterBotModule` (`:803`, `:811`), so it walked straight past the `OrderName` gate too.
+Fixed by `TransformsInfo.AcceptsDeployOrder` (default true): off, it removes the targeter, the
+command-bar Deploy button (`IIssueDeployOrder.CanIssueDeployOrder`) and `ResolveOrder`'s acceptance
+of a hand-built order **together** — all three, or the gate leaks at whichever one is left.
+GENERAL LESSON: "which targeter wins this click" is a question about EVERY `IIssueOrder` on the
+actor, not about the one you just added. Enumerate them by priority before concluding a modifier
+gate holds. Grepping today's callers is not equivalent: `LogisticsCenterBotModule.McvActorTypes`
 is `{"lccv"}` (`:64`) and `McvManagerBotModule.McvTypes` is empty and unset anywhere in `mods/`, so
 no bot can name the building **today** — but that is a fact about today's modules, where the order
 string is a fact about the string.

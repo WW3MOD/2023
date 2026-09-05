@@ -26,14 +26,19 @@ namespace OpenRA.Test
 	[TestFixture]
 	public class SupportPowerAimPointTest
 	{
-		// LOGISTICSCENTER as shipped (mods/ww3mod/rules/ingame/structures.yaml:400-410):
-		// HitShape Rectangle TopLeft -1536,-1536 / BottomRight 1536,1536, Building Dimensions 3,3.
-		const int HitShapeHalfExtent = 1536;
+		// LOGISTICSCENTER as shipped since the 2026-09-05 resize
+		// (mods/ww3mod/rules/ingame/structures.yaml): HitShape Rectangle TopLeft -1024,-1024 /
+		// BottomRight 1024,1024, Building Dimensions 2,2. It was 3x3 with a +-1536 rectangle until
+		// then, and the two fixtures below read 33 and 52 rather than a flat 50.
+		const int HitShapeHalfExtent = 1024;
 
-		// BuildingInfo.CenterOffset for a 3x3 is (CenterOfCell(3,3) - CenterOfCell(1,1)) / 2 =
-		// (1024, 1024) — a full cell diagonally (Building.cs:207-210). That is exactly the offset
-		// from a corner footprint cell's centre to the building's own centre.
-		const int CornerCellOffset = 1024;
+		// BuildingInfo.CenterOffset for a 2x2 is (CenterOfCell(2,2) - CenterOfCell(1,1)) / 2 =
+		// (512, 512) — HALF a cell diagonally (Building.cs:207-210). An even-dimensioned building's
+		// centre is the point where its four cells MEET, so all four are exactly this far from it
+		// and NO cell centre coincides with it. That last part is the thing that keeps biting: it is
+		// why Resupply needed ResupplyDock, and it is why an aim-point snap cannot be replaced by
+		// "tell the player to click the middle cell" here.
+		const int FootprintCellOffset = 512;
 
 		// IskanderExplosion Warhead@Target Damage, the Kinzhal's payload
 		// (mods/ww3mod/rules/weapons/weapons-explosions.yaml:522-524).
@@ -65,29 +70,43 @@ namespace OpenRA.Test
 				"origin CenterProximityPercent measures from — so it must read 100.");
 		}
 
-		[TestCase(TestName = "A hit on a corner footprint cell scales TargetDamage to a third")]
-		public void CornerCellHitIsAThird()
+		[TestCase(TestName = "A hit on a footprint cell scales TargetDamage to half")]
+		public void FootprintCellHitIsHalfDamage()
 		{
-			// half-diagonal = |(1536, 1536)| = 2172; offset = |(1024, 1024)| = 1448;
-			// 100 * (2172 - 1448) / 2172 = 33.
-			var proximity = ProximityPercentAt(new WVec(CornerCellOffset, CornerCellOffset, 0));
-			Assert.That(proximity, Is.EqualTo(33));
+			// half-diagonal = |(1024, 1024)| = 1448; offset = |(512, 512)| = 724;
+			// 100 * (1448 - 724) / 1448 = 50. It was 33 at 3x3, where the offset was a whole cell
+			// against a bigger rectangle — so the resize HALVED the penalty without removing it.
+			var proximity = ProximityPercentAt(new WVec(FootprintCellOffset, FootprintCellOffset, 0));
+			Assert.That(proximity, Is.EqualTo(50));
 
-			// This is the defect in one line: the SAME warhead, on the SAME building, delivers
-			// either a kill or well under half depending only on which of nine cells was clicked.
-			var cornerDamage = IskanderTargetDamage * proximity / 100;
+			// The defect in one line, and it survives the resize with less margin: the SAME warhead
+			// on the SAME building either kills or does not, depending only on whether the click
+			// landed on a cell or on the corner where the four cells meet.
+			var cellDamage = IskanderTargetDamage * proximity / 100;
 			Assert.That(IskanderTargetDamage, Is.GreaterThan(LogisticsCenterHp - 7000),
 				"A centred Kinzhal is meant to be within its supporting warheads' reach of a kill.");
-			Assert.That(cornerDamage, Is.LessThan(LogisticsCenterHp / 2),
-				"A corner-cell Kinzhal is not.");
+			Assert.That(cellDamage, Is.LessThan(LogisticsCenterHp / 2),
+				"A cell-clicked Kinzhal is not.");
 		}
 
-		[TestCase(TestName = "A hit on a mid-edge footprint cell is between the two")]
-		public void EdgeCellHitIsBetween()
+		[TestCase(TestName = "All four footprint cells are equidistant, so all four are the same shot")]
+		public void EveryFootprintCellIsTheSameDistanceFromCenter()
 		{
-			// Worth pinning because it disproves the tempting summary "clicking a building's own
-			// cell gives 33%". Only the four CORNER cells do; the four edge-midpoints give 52.
-			Assert.That(ProximityPercentAt(new WVec(CornerCellOffset, 0, 0)), Is.EqualTo(52));
+			// This replaces a 3x3-era fixture that pinned the CORNER cells at 33 and the mid-EDGE
+			// cells at 52, to disprove the tempting summary "clicking a building's own cell gives
+			// 33%". A 2x2 has no edge-midpoint cells at all — every cell is a corner — so the
+			// summary that was wrong then is exactly right now, and the useful statement flips to
+			// the symmetry itself: which of the four you click cannot matter.
+			foreach (var sx in new[] { -1, 1 })
+			{
+				foreach (var sy in new[] { -1, 1 })
+				{
+					Assert.That(
+						ProximityPercentAt(new WVec(sx * FootprintCellOffset, sy * FootprintCellOffset, 0)),
+						Is.EqualTo(50),
+						$"cell at ({sx}, {sy}) x {FootprintCellOffset}");
+				}
+			}
 		}
 
 		[TestCase(TestName = "The bigger footprint wins the cell")]
@@ -119,43 +138,63 @@ namespace OpenRA.Test
 		// ============================================================================================
 		// THE PREMISE THE SCENARIO RESTS ON, pinned after a run measured the resolver failing on it.
 		//
-		// test-power-aimpoint-center clicks 30,10 — the TOP-LEFT cell of a Logistics Center placed at
-		// 30,10. In the shipped footprint `=+= +++ =+=` that cell is `=`, FootprintCellType
-		// .OccupiedPassable: inside the building, walkable, and deliberately absent from
-		// BuildingInfo.OccupiedTiles (Building.cs:178-190) and therefore from the ActorMap influence
-		// layer that GetActorsAt reads. The first version of SupportPowerAimPoint asked only that
-		// index, found nothing at the clicked cell, and left the order unsnapped — measured at 24820
-		// damage against a centred shot's 60000.
+		// test-power-aimpoint-center clicks a cell of a Logistics Center and needs that cell to be
+		// inside the building, walkable, and ABSENT from the ActorMap influence layer that
+		// GetActorsAt reads. Exactly one FootprintCellType gives all three: `=` OccupiedPassable,
+		// which BuildingInfo.OccupiedTiles deliberately omits (Building.cs:178-190). The first
+		// version of SupportPowerAimPoint asked only that index, found nothing at the clicked cell,
+		// and left the order unsnapped — measured at 24820 damage against a centred shot's 60000.
+		// SupportPowerAimPoint.CandidatesAt's second index (BuildingInfluence) is what fixed it.
 		//
-		// TWO THINGS BREAK IF THIS FOOTPRINT CHANGES, so it is worth a test rather than a comment.
-		// If the corners became `x`, the scenario would still pass while no longer exercising the
-		// passable-cell path at all — a green run measuring nothing, which is the failure mode this
-		// whole item keeps producing. And the resolver's second index would stop being load-bearing
-		// without anyone noticing it had become dead code.
+		// `+` IS NOT A SUBSTITUTE, and this is the whole reason this test had to be rewritten rather
+		// than relaxed. OccupiedPassableTransitOnly is also walkable, so it reads like the same
+		// thing — but OccupiedTiles DOES include it (Building.cs:186-189), so a `+` cell IS in the
+		// ActorMap index and the first index alone would find the building there. A scenario
+		// clicking a `+` cell passes while exercising none of the code the fix added.
+		//
+		// SO THE ASSERTION IS ABOUT ONE NAMED CELL, not "some cell somewhere". Since the 2026-09-05
+		// resize LOGISTICSCENTER is 2x2 `++ =+`: three transit-only cells and exactly ONE `=`, the
+		// bottom-left, which is also the crane/dock cell ResupplyDock.Offset names. Both facts have
+		// to hold together — if the dock ever moves, the scenario's clicked cell moves with it.
 		// ============================================================================================
 
 		[Test]
-		public void TheLogisticsCenterCornerCellsArePassableAndSoAreNotOccupiedCells()
+		public void TheLogisticsCenterHasExactlyOnePassableCellAndItIsTheBottomLeft()
 		{
 			var footprint = ReadTrait("mods/ww3mod/rules/ingame/structures.yaml", "LOGISTICSCENTER", "Building")["Footprint"];
 			var rows = footprint.Split(' ');
 
-			Assert.That(rows.Length, Is.EqualTo(3), "the scenario's geometry assumes a 3x3 footprint");
-			Assert.That(rows.All(r => r.Length == 3), Is.True);
+			Assert.That(rows.Length, Is.EqualTo(2),
+				$"the scenario's geometry assumes a 2x2 footprint; LOGISTICSCENTER's is now `{footprint}`");
+			Assert.That(rows.All(r => r.Length == 2), Is.True,
+				$"LOGISTICSCENTER's footprint `{footprint}` is not 2 cells wide on every row");
 
-			// The four corners, which are the cells a player aiming at the edge of a building hits.
-			var corners = new[] { rows[0][0], rows[0][2], rows[2][0], rows[2][2] };
+			const char Passable = (char)FootprintCellType.OccupiedPassable;
+			const char TransitOnly = (char)FootprintCellType.OccupiedPassableTransitOnly;
 
-			Assert.That(corners.All(c => c == (char)FootprintCellType.OccupiedPassable), Is.True,
-				$"LOGISTICSCENTER's footprint is now `{footprint}`, whose corners are no longer " +
-				"OccupiedPassable. test-power-aimpoint-center clicks one of those corners precisely " +
-				"because a passable cell is absent from ActorMap's influence layer -- if they have " +
-				"become solid, the scenario no longer exercises SupportPowerAimPoint.CandidatesAt's " +
-				"second index and would pass without testing the bug it was written for.");
+			// Row 1, column 0 — the BOTTOM-LEFT cell, under the crane.
+			Assert.That(rows[1][0], Is.EqualTo(Passable),
+				$"LOGISTICSCENTER's footprint is now `{footprint}`, whose bottom-left cell is no " +
+				"longer OccupiedPassable. test-power-aimpoint-center clicks that cell precisely " +
+				"because a passable cell is absent from ActorMap's influence layer -- if it has " +
+				"changed class, the scenario no longer exercises SupportPowerAimPoint.CandidatesAt's " +
+				"second index and would pass without testing the bug it was written for. It is also " +
+				"the dock cell (ResupplyDock.Offset -512,512,0), so Resupply breaks with it.");
 
-			// And the centre cell must NOT be passable, or the scenario's control shot would be
-			// exercising the same hole as the shot it is supposed to be a control for.
-			Assert.That(rows[1][1], Is.Not.EqualTo((char)FootprintCellType.OccupiedPassable));
+			// And it must be the ONLY one. A second `=` would not break the scenario, but it would
+			// silently make the assertion above stop identifying a unique cell, so the scenario and
+			// this test could drift onto different ones without either going red.
+			Assert.That(footprint.Count(c => c == Passable), Is.EqualTo(1),
+				$"LOGISTICSCENTER's footprint `{footprint}` has more than one OccupiedPassable cell; " +
+				"the scenario's clicked cell is no longer uniquely identified by its class.");
+
+			// The other three must be transit-only, NOT plain-passable and NOT solid. Solid ('x')
+			// would make the building a wall it has never been; passable would break the uniqueness
+			// above. Transit-only is what keeps them in ActorMap, which is what makes the bottom-left
+			// cell the only hole in the first index.
+			Assert.That(rows[0][0], Is.EqualTo(TransitOnly));
+			Assert.That(rows[0][1], Is.EqualTo(TransitOnly));
+			Assert.That(rows[1][1], Is.EqualTo(TransitOnly));
 		}
 
 		// ============================================================================================
