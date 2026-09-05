@@ -43,7 +43,21 @@ Categories: Test
 # Spread slots around that anchor are bounded by
 # ForwardStagingMath.MaxSpreadRings(StagingFallbackCells=6, StagingSpreadStepCells=2)
 # = (6-1)/2 = 2 rings at 2-cell spacing, i.e. Chebyshev <= 4 from (14,16), i.e.
-# x in [10,18]. THAT is why the push spawns at x=4-5, BEHIND the Supply Route:
+# x in [10,18]. CONFIRMED LIVE by run 260905_183118:
+# `[exp-clog] player=USA-bot sr=8,16 pool=1 anchor=14,16 anchorsrc=fallback tick=419`.
+#
+# THE MUSTER RING IS WHY THERE ARE TWO MEASUREMENT LINES, not one. x=10 is INSIDE that
+# ring and x=20 is outside it, so:
+#   * the BEACHHEAD line x=10 is what a lone unit crosses when StageFreePool walks it to
+#     its muster slot - the thing FreePoolMinAdvanceUnits forbids, and therefore the right
+#     line for the solo-departure clause;
+#   * the ADVANCE line x=20 is beyond every reachable slot, so crossing it means a unit is
+#     going somewhere rather than mustering.
+# The first revision of this scenario measured both against x=10 and could not tell those
+# apart. Siting a single line at 20 instead would be the worse error: a staged lone unit
+# never reaches 20, so the solo clause would PASS with the gate switched off.
+#
+# THAT is why the push spawns at x=4-5, BEHIND the Supply Route:
 # every reachable staging slot is then strictly forward of the spawn line, so a
 # staging order ALWAYS carries a unit across the departure line at x=10. Spawn the
 # push on top of the SR instead and ForwardStagingMath.SpreadSlot can hand the lone
@@ -61,6 +75,11 @@ Categories: Test
 # RefreshWantedPassengers returns early on `seats <= 0`, so with no carrier of a
 # configured type on the map the standoff never arms and all six units reach the
 # free pool by the ordinary path.
+#
+# LaneAmbushBotModule IS REMOVED IN rules.yaml. It claimed the first unit at tick 100 in
+# run 260905_183118 and posted it alone, before the offensive free pool existed; with six
+# units its lane can take four. See that file's header. This scenario measures the
+# offensive push path only.
 #
 # NO ENEMY MOBILE UNITS, so nothing can die before the measurement instant. The
 # rendezvous run failed inconclusively for exactly that reason ("the bot's tank died

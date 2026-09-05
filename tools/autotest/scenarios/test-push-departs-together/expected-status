@@ -6,29 +6,39 @@ forever (AUTOTEST.md, "A scenario that is SUPPOSED to fail must say so").
 
 What is and is not implemented, as of the item-64 batch:
 
-  d3 SOLO DEPARTURE  - addressed. PoiOffensiveBotModuleInfo.FreePoolMinAdvanceUnits
-     stops StageFreePool ordering a lone free-pool unit forward when no axis exists.
-     Expect this clause to flip from 1 to 2 in the note.
+  d3 SOLO DEPARTURE (beachhead line x=10) - addressed. PoiOffensiveBotModuleInfo.
+     FreePoolMinAdvanceUnits stops StageFreePool ordering a lone free-pool unit forward
+     when no axis exists. Expect this clause to read 2 with the gate at 2 and 1 with it
+     at 0; the gate-0 arm is the control and it is REQUIRED to fail.
 
-  d1 DEPARTURE INTERVAL / d2 SPREAD AT THE MIDLINE - NOT addressed, and nothing in
-     the tree addresses them. Once two units exist an axis forms and every later
+  d1 ADVANCE INTERVAL / d2 SPREAD AT THE MIDLINE - NOT addressed, and nothing in the
+     tree addresses them. Once two units exist an axis forms and every later
      reinforcement is recruited into it and sent to the objective on the eval it
-     arrives. There is no gate anywhere that makes an axis wait at the muster for a
-     unit that DOES NOT EXIST YET: the damper's fill-completion hold
-     (RetreatDamperMath.FillIncomplete) compares Units.Count against AllocatedSize,
-     and the allocator sizes an axis from the pool that exists this eval and tops it
-     up in the same pass (PoiOffensiveBotModule.cs:1699 and the loop below it), so
-     the axis is never under-filled and the hold never arms. Reverting
-     ImmediateReinforcementCommit does not change that - it suppresses a hold that
-     was already unreachable on this input.
+     arrives. There is no gate anywhere that makes an axis wait at the muster for a unit
+     that DOES NOT EXIST YET: the damper's fill-completion hold
+     (RetreatDamperMath.FillIncomplete) compares Units.Count against AllocatedSize, and
+     the allocator sizes an axis from the pool that exists this eval and tops it up in
+     the same pass (PoiOffensiveBotModule.cs:1699 and the loop below it), so the axis is
+     never under-filled and the hold never arms. Reverting ImmediateReinforcementCommit
+     does not change that - it suppresses a hold that was already unreachable on this
+     input.
+
+     Run 260905_183118 added a second, independent reason d1/d2 stay red, and it is not
+     a departure-discipline problem at all: the axis was ordered to the objective at
+     t519 and then re-ordered REARWARD to the muster anchor at t619 and t719, because a
+     mission-committed axis is excluded from the axis set before BuildFreePool, so its
+     own units read as free pool and StageFreePool staged them back
+     (`hold ... commitScore=69888000` then `[exp-staging] idle=2 staged=2` on the same
+     eval). Until that beat is fixed the push spends most of its time walking on the
+     spot. Recorded in DISCOVERIES 2026-09-05.
 
 So this scenario is a measuring instrument first and a gate second. Its NOTE is the
-product: three numbers plus a per-unit "born@N left@M" roll, in result.json, every
-run.
+product: three numbers plus a per-unit "born@N left@M adv@K at=x,y" roll, in
+result.json, every run.
 
-DELETE THIS FILE when a departure-discipline gate for the axis path lands. Until
-then the declared outcome occurring prints OK(fail); the declared outcome ceasing to
-occur prints STALE and reds, which is the whole point of declaring it.
+DELETE THIS FILE when a departure-discipline gate for the axis path lands. Until then
+the declared outcome occurring prints OK(fail); the declared outcome ceasing to occur
+prints STALE and reds, which is the whole point of declaring it.
 
 A crash, a hang, or a run that never reaches a verdict still reds under this
 declaration - it only ever buys silence for the one outcome it names.
