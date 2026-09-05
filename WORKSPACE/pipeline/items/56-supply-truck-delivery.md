@@ -42,3 +42,86 @@ _**The two modes, so nobody re-derives them:** dangerous front → stop `DropSho
 _**Damping that ALREADY exists — do not re-propose any of it as the fix.** Errand classification + evac priority (`SupplyDropMath.ClassifyErrand`/`EvacAllowed`); the frozen in-flight destination (`:1612-1622`); `DropAnchorHysteresisCells` Chebyshev band (`:1646`); `EvacDwellScans` + `EvacReleaseHysteresisUnits` leg model; the follow-`Move` deadband `RepathThresholdCells` (`ai.yaml:876`); the `SupplyProvider` residue latch `ResidueConfirmScans: 5` (`SupplyProvider.cs:58,441`). **And a trap worth knowing: the Stage-1 order gate (`ModularBot.cs:127-145`) does NOT apply here** — every supply order is unmarked, hence `BotOrderDamping.Protected`, hence never suppressed (`ModularBot.cs:123`, with the reasoning at `:1170-1179`). **So "the order gate is eating the delivery order" is already ruled out.**_
 _**Scenarios that exist (do NOT run without a goahead — autotest runs are user-gated):** `test-supply-under-danger`, `test-supply-safe-front-keeps-cargo`, `test-supply-far-front-reached`, `test-dry-resupply-reaches-truck`, `test-infantry-seek-supplies`, `test-queued-attackmove-survives-resupply`. The first pair is green together (`9aa441a7`); `test-supply-far-front-reached` passes for the first time (`377085db`). **All of that is exactly the evidence the acceptance bar rejects.**_
 _**Cross-references, not duplicates:** item **40** (danger-scale rework) is the principled version of this — it fixes the danger UNIT so the gates stop firing unconditionally. **This item is the blunt version and outranks it**, because the user has authorised bypassing danger entirely for trucks rather than waiting for the scale to be right. Item **51** hardens `test-supply-safe-front-keeps-cargo`, which is instrument work under the same subsystem. The negative evidence gate is `084367b0`: evac level 1,706 against live median cells of 27,919 (USA) / 94,010 (Russia)._
+
+---
+
+## Recon 2026-09-05 — read-only, `main @ 95bdffb2` (`wt/item56-recon`)
+
+**No build, no launch, no test run, no YAML validator.** Everything below is from reading files and git history at that SHA. Every line and SHA cite was checked in this worktree; claims that could not be settled by reading are labelled **HYPOTHESIS** with the one thing that would confirm them.
+
+### 1. Verdict on the premise: OPEN, and narrower than the item states
+
+**Still a RUN, not a dispatch — the 2026-09-01 correction stands.** Two things have changed since that correction, and neither is recorded anywhere in `WORKSPACE/`:
+
+- **A behaviour-changing gate landed AFTER the correction and has never been measured.** `c60a468d` (2026-09-03) added `SelectionMinStarvingUnits`, set to `1` at `ai.yaml:1619` (C# default `0` = off, `SupplyFollowerBotModule.cs:459`), applied at `SupplyFollowerBotModule.cs:998-999`. It removes from selection every cluster holding nobody starving — 81.5% of kept clusters in the last baseline. It sits on the `enable-ai-any` instance, so it **moves `@stable` too**. The acceptance-bar match has never been run on a build containing it.
+- **The strict wording "never commits" is already refuted by measurement.** `c60a468d`'s own message records a HEAD tournament match at `c9626273`: **delivery success 15.0%**, `NoDemand` 54.1% of drop-declines, truck loss 27% experimental / 42% stable. Trucks DO complete deliveries; they complete few of them. Read the item as *"most trips end without a drop"*, not *"no trip ever ends in a drop"*.
+  > **HYPOTHESIS:** "delivery success" means `[supply] crate-placed` divided by `[supply] drop`. That definition is written down nowhere in the repo, and neither is the tournament config used — "VERIFY0903 baseline, match 1" appears in that commit and in a code comment at `SupplyFollowerBotModule.cs:991-996` and **nowhere in `WORKSPACE/`** (`grep -rn VERIFY0903 WORKSPACE` returns nothing). Confirm by re-deriving both numbers from a fresh log before comparing anything to 15.0%.
+
+**Which half is shipped and which is open:**
+
+| path | commitment machinery | verdict |
+|---|---|---|
+| **drop errand, once dispatched** | frozen destination (`ResolveDropAnchor`, `SupplyFollowerBotModule.cs:1755-1768`); dispatch gates cannot abort (`StepDrop:1450-1483`, `adf7aab8`); drop outranks evac (`:1154-1214`, `e0249693` / `63f2ec48`); anchor hysteresis (`:1789-1793`) | **SHIPPED, and dense.** Nothing on this path re-plans mid-run. |
+| **follow path — the truck that was never dispatched** | **none whatsoever** | **OPEN. This is the entire remaining mechanism.** |
+
+### 2. The mechanism as it stands
+
+**How a truck chooses.** Every `ScanInterval: 150` ticks (`ai.yaml:1486`) the module rebuilds its clusters from scratch and re-picks per truck at `SupplyFollowerBotModule.cs:1094-1097` — highest `AmmoNeed` first, nearest as the tie-break — or, with `SectorSpread: true` (shipped), from `SupplyLogisticsMath.AssignSectors` (`:1030-1038`), a greedy assignment recomputed from scratch each scan with no memory of the previous one.
+
+**When it re-decides.** Every scan, unconditionally. **There is no per-truck cluster memory anywhere in the module.** Grepping for stickiness returns only `DropAnchorHysteresisCells` (the drop anchor) and `EvacReleaseHysteresisUnits` (evac), plus `lastFollow` — which is a *cell* deadband, not a *target* one. `ShouldReissueFollow` (`:1375-1381`, delegating to `SupplyLogisticsMath.ShouldReissueFollow`) suppresses a re-issue only while the new follow cell is within `RepathThresholdCells: 3` of the old one. A cluster switch moves the follow cell much further than 3 cells, so it always re-issues — and the `Move` is non-queued, so it cancels the drive already in progress.
+
+**Why the ordering can invert with nothing else changing.** `AmmoNeed` is a live quantity that moves as men shoot and are fed. Two adjacent scans can rank two clusters differently on their own, with no danger term, no enemy and no event involved. That is a truck turning around every 150 ticks: the reported symptom, with no danger input anywhere in it.
+
+**What can still make it drop a delivery.** Only `LowLoad` (monotone — a truck only loses supply, so it cannot oscillate) and `NoAnchor` (cannot fire while dispatched, because the frozen anchor always has a value). `NoDemand` and `Covered` were explicitly demoted from abort conditions to dispatch gates by `adf7aab8` (2026-08-13); the comment at `:1450-1470` names "approach, Stop, approach" as the symptom that change removed. **Evac is entirely off:** `evac = DangerEvac && dangerField != null && !IgnoreDangerForDelivery` (`:913`), and the flag is `true` at `ai.yaml:1616`.
+
+**So the one surviving oscillator is target churn on the follow path** — reached by every truck not currently dispatched, which at the last measurement is roughly 85% of them.
+
+### 3. Smallest plausible fix
+
+**One new `Info` field: per-truck cluster stickiness, defaulting to OFF.** Hold the cluster a truck is already serving; at `:1094`, if the held cluster is still in this scan's list and still inside that truck's leash, keep it unless a challenger beats it on `AmmoNeed` by a configured margin. Release on: cluster gone, leash broken, truck emptied, or a drop dispatched (`dropTarget` already supersedes). Prune it in the same `activeTrucks` sweep that already prunes `lastFollow` (`:804-808`).
+
+Three reasons this is the right size. It mirrors `DropAnchorHysteresisCells`, the same idea already accepted one layer down. It needs no danger term, so item 40's rescale cannot rot it. And a C# default of `0` keeps `@stable` byte-identical until `ai.yaml` sets the key, satisfying `architecture.md` §"Adding a behavioural field to a trait shared by both bot profiles".
+
+**Do not propose any of these — they all already exist:** the errand freeze, the drop-anchor hysteresis, the follow-cell deadband, the evac dwell model, the `SupplyProvider` residue latch, and the Stage-1 order-gate exemption.
+
+**The autotest that would measure it.** No existing scenario can. `test-supply-under-danger`, `test-supply-far-front-reached` and `test-supply-safe-front-keeps-cargo` each contain **exactly one cluster**, and a single cluster makes re-pick oscillation structurally impossible. That is this item's founding lesson in its purest form: *a test bed that always reaches a state cannot reveal a broken transition into it.*
+
+> **`test-supply-two-clusters-commit`** — one bot truck; **two** starving platoons on opposite bearings roughly 20 cells apart, both inside the follow leash; no enemy on the map. Drain them so their `AmmoNeed` values sit close enough to cross during the trip.
+>
+> **What counts as the answer:** count direction reversals in the truck's x-travel between its first dispatch and the first `[supply] crate-placed`. **PASS** = at most one reversal, and a crate placed inside the tick budget. **FAIL** = two or more reversals, or no crate. Assert on movement, not on the module's internal target — the user's complaint is about what the truck visibly does.
+
+### 4. Existing scenarios to run FIRST, ranked, with expected verdicts
+
+1. **`test-supply-far-front-reached`** — expect **GREEN**. The closest thing to a commitment test that exists (platoon 41 cells out, beyond `MaxFollowDistance: 35`; its own description says *"a truck that never sets off is the FAIL this guards"*), and the cheapest check that `SelectionMinStarvingUnits: 1` did not starve the selector of clusters. **A red here would mean the 2026-09-03 gate broke dispatch, and would outrank everything else in this item.** This is the single `run-test.sh` the CLAUDE.md rule contemplates.
+2. **`test-supply-safe-front-keeps-cargo`** — expect **RED**, and **the red is correct behaviour, not a defect** (§5a). Worth one run only to confirm that mechanism from the log, after which the scenario should be re-specced or retired. **Do not read its red as evidence for this item.**
+3. **`test-supply-under-danger`** — expect **GREEN**, low information. Same single-cluster shape as #1, and with evac off it exercises very nearly the same path.
+4. **The acceptance bar itself** — one bot-vs-bot tournament match. `tournament-s1-eco-river-zeta` is the config the dossier names and the one where affordability is already established (experimental fields 5 trucks alive / 3 eligible, first at tick 8 440). **Read the precondition FIRST:** a `[composition] census` line (emitted at `UnitBuilderBotModule.cs:921`) showing `earned>0` and a non-zero `truk` term. Then `[supply] crate-placed` against `[supply] drop`, then the `drop-declined reason=` histogram against `NoDemand` 54.1%.
+
+Running 1–3 together is user-gated multi-test territory; #1 alone is not.
+
+### 5. Where the code contradicts this dossier and `PIPELINE.md`
+
+**(a) `test-supply-safe-front-keeps-cargo` is RED BY CONFIGURATION. Its red is not a selector defect, and the "the selector fails in BOTH directions" finding above is very probably an artefact.**
+
+The mode gate reads `if (drop && Info.DropRequiresDanger && !Info.IgnoreDangerForDelivery && !dispatched && cluster != null)` (`SupplyFollowerBotModule.cs:1526`). With the flag on, **`SafeFront` cannot fire**, the drop mode is unconditional, and the truck unloads a crate on any front. The scenario's clause 2 is "no `supplycache` ever existed"; its `rules.yaml:4` states outright *"Nothing here touches SupplyFollowerBotModule"*; and its map runs `Bot: experimental` (`map.yaml:119`), which holds `enable-ai-any` and therefore the flag. **The scenario asserts the exact behaviour the user asked to have removed, so at shipped config it can only pass by the truck failing to deliver.**
+
+The timeline settles it: `9aa441a7` (2026-08-10) — the pair green together, no crate; `b87aeb62` (2026-08-13) — `IgnoreDangerForDelivery: true` lands; 2026-08-14 — the red is observed and written up at `bugs/discovered.md:2559-2578` as *"the dangerous-front branch executing where no enemy exists"*, concluding *"there is no input under which the dangerous branch is the correct selection here."* **There is one: the flag.** The selector never ran.
+
+> **HYPOTHESIS**, one run to confirm: re-run it and read the `[supply] init` line (`:743-748`). `ignore-danger=True` proves site 4 was short-circuited, and the absence of any `reason=SafeFront` in the log confirms it. *What could not be settled by reading: whether both arms of the 2026-08-14 paired run were on a build containing `b87aeb62`. The dates make it very likely; the run records are not in the repo.*
+>
+> Consequence for `PIPELINE.md:301`: **"if the live match looks good while that stays red, trust the match" is right for the wrong reason.** The two do not disagree, and the scenario is not "unrefuted" — it is refuted here.
+
+**(b) `c60a468d`'s own correction is wrong, and the code comment now repeats it.** The commit says *"ai.yaml said `DropMinStarvingUnits` was 1. It has been 3 since `a86e2fb6`"*, and rewrote the comment block to read `3`. **The shipped value is 1.** `a86e2fb6` (2026-08-08) set 3; `63f2ec48` (2026-08-10) lowered it to 1 (`git blame -L1854,1854 mods/ww3mod/rules/ai/ai.yaml`); it is the only occurrence anywhere under `mods/`, and it sits inside `SupplyFollowerBotModule@supply:` (block `1483`–`1895`; the next trait header is `AdaptiveProductionBotModule@experimental.america:` at `1896`). Two consequences:
+
+- The measured claim at `SupplyFollowerBotModule.cs:994` — *"450 of 455 (98.9%) could not clear `DropMinStarvingUnits`"* — is computed against 3. Against the real bar of 1 the correct figure is the zero-starving count, **371/455 = 81.5%**. The diagnosis survives (81.5% is still the dominant term); the arithmetic and the 98.9% do not.
+- `SelectionMinStarvingUnits`' entire stated rationale — *"DELIBERATELY A LOWER BAR THAN `DropMinStarvingUnits`"* (`SupplyFollowerBotModule.cs:452-456`, repeated at `ai.yaml:1618-1622`) — **does not hold in shipped content: both are 1.** The design property is unmet. It fails in the safe direction (dispatch is stricter than intended, not looser), so nothing needs reverting — but nobody should reason from that `Desc` again.
+
+**(c) `DOCS/reference/supply-route.md` §"Forward delivery" describes a mode selector that shipped content disables, and never names the flag that disables it.** `:109-130` gives the two-mode table and states *"The floor is what protects the quiet-front branch … a map with no believed enemy serves in place regardless."* `grep IgnoreDangerForDelivery DOCS/reference/supply-route.md` returns **nothing**; same for `economy.md:301`. The curated docs describe the principled design; the mod ships the blunt override. Not fixed here — recon is read-only — but this is a curation item.
+
+**(d) Line-number drift, exactly as `PIPELINE.md:259` predicted.** `IgnoreDangerForDelivery: true` is at **`ai.yaml:1616`**, not `:1339` (nor `:1129`, nor `:1041`). Consumption sites re-derived at this SHA: `SupplyFollowerBotModule.cs:735, 913, 944, 1526` plus two later sites; `:735` and `:913` were read individually, the rest located by grep. **Record the KEY, not the line.**
+
+**(e) Minor, same class.** `SupplyFollowerBotModule.cs:2622` argues *"`DropMinSupply` is 250, so a truck eligible to be dispatched affords the costliest batch (65) almost four times over"*. `ai.yaml:1861` ships **100**. The conclusion survives (100 > 65); the number and the "four times" do not. The dossier's scenario list is otherwise accurate — `test-infantry-seek-supplies` does still exist.
+
+### 6. Nothing here needs a code change before the run
+
+The blunt fix is on, the commitment invariants are in place on the drop path, and the one unmeasured change (`SelectionMinStarvingUnits`) points the right way. **The next action is still the match.** Hold the follow-path stickiness fix in §3 until the match log says whether target churn is what the trucks are actually spending their time on — `[supply] truck … target=` changing cluster between consecutive scans on the same truck is the single readout that decides it.
