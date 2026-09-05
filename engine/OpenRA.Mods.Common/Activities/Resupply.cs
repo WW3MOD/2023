@@ -549,7 +549,15 @@ namespace OpenRA.Mods.Common.Activities
 			// destination, which is the whole thing being vacated. A move that cannot reach the chosen
 			// cell simply ends, leaving the unit idle where it stands — no worse than before, and it
 			// cannot loop.
-			return move.MoveTo(cell.Value, 0, targetLineColor: moveInfo.GetTargetLineColor());
+			//
+			// AutomaticOrder.LineColor, NOT moveInfo.GetTargetLineColor(), and this is the legibility
+			// half of the contract rather than a detail. THE PLAYER DID NOT ORDER THIS MOVE. Painted in
+			// Mobile's ordinary green it renders as a command they never gave — which is the original
+			// "hidden extra order" report, and the thing test-depot-vacate-phantom exists to pin. The
+			// shove this replaced was legible only because it came from Mobile.OnBecomingIdle, which
+			// already paints automatic; taking over the job means taking over the paint too. Matches
+			// SeekSupplyProvider (:190, :259), which runs the truck/cache half of the same errand.
+			return move.MoveTo(cell.Value, 0, targetLineColor: AutomaticOrder.LineColor);
 		}
 
 		/// <summary>

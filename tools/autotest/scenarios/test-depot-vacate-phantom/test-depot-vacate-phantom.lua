@@ -107,7 +107,11 @@ local function Where(a)
 end
 
 WorldLoaded = function()
-	TestHarness.FocusBetween(Tank, Depot)
+	-- THE DEPOT ALONE, not the midpoint of Tank and Depot. Every beat in this run is about the dock
+	-- cell, and there is no beat before servicing completes — so centring on the midpoint only pushed
+	-- the building to the right edge, half under the sidebar, which is what the 2026-09-05 rerun
+	-- captured. The tank drives into frame on its own.
+	TestHarness.FocusBetween(Depot, Depot)
 	TestHarness.Select(Tank)
 
 	-- Close enough to see a tank-sized thing move one cell. The default zoom is the viewport's
