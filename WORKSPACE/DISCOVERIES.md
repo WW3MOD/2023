@@ -3,6 +3,53 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-05 - The evacuation exit is owner-anchored on ONE shipped map and unit-anchored on nine, and that map is the natural experiment for item 78 (`wt/evac-edge-math`, base `main @ 95bdffb2`)
+
+`RotateToEdge.ChooseEdgeCell`'s ground branch reads
+`FindClosestSpawnAreaForOwner(self) ?? self.Location` (`RotateToEdge.cs:161-166`). The left-hand
+term is **owner-side**: it returns the `spawnarea` nearest the player's own
+`ProductionFromMapEdge` — the `SUPPLYROUTE`, placed at their `mpspawn` by `world.yaml:463+`
+(`RotateToEdge.cs:111-127`). `DOCS/reference/economy.md:118-126` records the anchor and that only
+`river-zeta-ww3` authors `spawnarea` actors.
+
+**What had not been connected: that makes river-zeta a shipped A/B against the other nine.**
+Measured over a stride-2 grid of every passable cell, for units within 20 cells of an opponent
+spawn, `tracked` locomotor:
+
+| | own back wall | median drive to exit |
+|---|---|---|
+| river-zeta (owner-anchored) | **100.0%** | 74.8 cells |
+| the other nine (unit-anchored) | **14.4%** | 9.0 cells |
+
+The nine-map counterfactual — resolving from `HomeLocation` instead — is a median **108.4** cell
+drive. So the shipped divergence between the two anchors is roughly **12x** in travel distance,
+and it is observable today without changing a line.
+
+**The reusable shape: a `?? fallback` whose two arms are not the same KIND of answer.** One arm is
+a property of the player, the other a property of the unit. Nothing type-checks that, nothing lints
+it, and the behaviour difference only shows up on maps that populate the left arm — one of ten
+here. When you see `A() ?? B` in a decision path, ask whether A and B answer the same question;
+if they do not, the map or config that flips which arm runs is silently a gameplay switch.
+
+### Two smaller things, both measured, both cheap to re-check
+
+**`Map` has two edge choosers and the evac branches call different ones.**
+`ChooseClosestMatchingEdgeCell` (`Map.cs:1874-1877`) is an exact filtered argmin over the perimeter
+list; `ChooseClosestEdgeCell` (`Map.cs:1821-1863`) is an unfiltered half-plane projection and can
+return a cell one *past* `Bounds.Right`/`Bottom`, which are exclusive. Ground evac uses the first,
+aircraft evac and five other callers use the second. They name a different **wall** for only 0.8%
+of cells, so the intuition "nearest wall by perpendicular distance" is sound — but the off-by-one
+is real and anything comparing the two must normalise it.
+
+**In `ChooseClosestMatchingEdgeCell` as the evac branch calls it, the sort origin and the
+reachability origin are different actors' positions.** The key is `searchOrigin`; the predicate
+paths from `self.Location` (`RotateToEdge.cs:177-180`). On the nine maps they coincide by accident
+of the fallback. On river-zeta they do not, and a model that assumes one origin gets river-zeta
+wrong.
+
+Tool that produces all of the above in ~7 s with no build and no launch:
+[`tools/evac-edge-math/`](../tools/evac-edge-math/README.md).
+
 ## 2026-09-05 - `IOccupySpace.OccupiedCells` is a PATHFINDING index, not a presence index: a building is absent from it on its own passable cells (`wt/powers-aimpoint`, `main @ 055ef267`)
 
 `ActorMap.GetActorsAt(cell)` reads the influence layer, which is keyed on
