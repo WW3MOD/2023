@@ -20299,3 +20299,45 @@ Closing those needs an engine change — split the module, or widen the comparis
 So the accurate model is: *`@stable` is a re-synced copy, EXCEPT where a behaviour is selected by a C# bot-type comparison inside a shared singleton module.* Grep for the comparison before concluding a `@stable` gap is mere drift. As of this entry the known set is exactly those two files, plus `OpportunisticAdvanceMath.cs` and `SpawnFlowMath.cs`, which reference the same helpers and were not audited here.
 
 **Open, and the user raised it unprompted:** they want `@experimental` / `@stable` renamed before release — *"Maybe we should call them Staging and Main? Or something that is harder to misunderstand?"* Worth coupling to release blocker R4, which already needs the lobby AI picker given real names, a difficulty ladder and descriptions (`rules/ai/ai.yaml`, `grep -c 'Difficulty\|Description'` returns 0). One change, not two.
+
+## 2026-09-05 — MEASURED: the whole live delta between the two shipped bots is THREE behaviours, and `Description:` cannot be written into `ai.yaml` at all
+
+Taken at `main @ eacc8f44` while scoping release blocker R4. Two separate findings; the second is the one that changes what R4 costs.
+
+### 1. The delta, measured field-by-field rather than assumed
+
+The 2026-09-05 user ruling above says `@stable` is a re-synced copy of `@experimental`. That is now **measured**, not just asserted. Every gated block in `rules/ai/ai.yaml` was paired and diffed (20 `enable-ai-experimental` blocks, 20 `enable-ai-stable`; `PoiGoalGuard@poi:140` is shared by both and is not a pair):
+
+- **17 of 19 pairs are config-identical** — byte-for-byte apart from the key name and the gate. That covers `CaptureCoordinator.tecn`, both `AdaptiveProduction` faction blocks, both `SquadManager` fixed-wing blocks, both `UnitBuilder` heli blocks, `PoiGarrison`, `LaneAmbush`, `LayeredDefence`, `HelicopterSquad`, `MountedTransport` (whose `@stable` twin is keyed `@poi`, a legacy name), `CounterBatteryRadar`, `DroneOperator`, `Minelayer`, `EngineerOperator`, `EngineerRouteOpen`.
+- **1 pair is identical in effect** — `LogisticsCenterBotModule`. The `@experimental` twin (`:1345`) carries 8 fields the `@stable` twin (`:3139`) omits, which reads in a diff like divergence. **It is not.** All 8 restate the C# default exactly: `RestockCenters=true`, `RequireDemand=true`, `CenterRestockThresholdPerMille=500`, `CaptureConsiderCells=40`, `ForwardCustomerCells=12`, `MaxDeliveryDistanceCells=40`, `MinDeliverySupply=250`, `ResidualTripCells=6`. **Do not "close" this gap — there is nothing to close.** Diffing the two blocks without also reading `LogisticsCenterBotModule.cs`'s defaults produces a false positive, and that is the exact shape of the stale finding the ruling was written to correct.
+- **1 pair genuinely differs** — `PoiOffensiveBotModule` (`:367` vs `:2826`), by 19 fields. Of those, only **one is live**: `FlankingEnabled: true` (`:934`) against a C# default of `false`. The 12 `Flank*` tuning fields are live only because of it. The other two feature flags are **OFF on `@experimental` too** — `CoordinatedAssaultEnabled: false`, `CloseInRatchetEnabled: false` (the latter switched off by `1452a82f`, *its arm did not win*) — so they and the 5 `Assault*` constants are inert on **both** profiles.
+
+Plus the two C# bot-type comparisons the ruling documents. **That set is now closed and exhaustive:** a sweep of every `.BotType` comparison in the engine finds exactly two behavioural ones — `GarrisonBotModule.cs:228` and `SupplyFollowerBotModule.cs:718`. `InfluenceStack.cs:48` admits **both** profiles (it is a participation test, not a discriminator); the rest are logging (`UnitLifecycleLogger`, `BotVsBotMatchWatcher`, `GameInformation`) or the YAML gate itself (`GrantConditionOnBotOwner`). **The ruling's open caveat is resolved: `OpportunisticAdvanceMath.cs` and `SpawnFlowMath.cs` carry NO comparison** — `SpawnFlowMath.cs:39` says in as many words that its gate needs no `BotType`.
+
+**So the complete live delta is three behaviours, all additions on `@experimental`, nothing the reverse way:**
+
+| # | Behaviour | Switch | Gate |
+|---|---|---|---|
+| 1 | **Flanking** — an attack axis splits into a main element on the direct bearing and a flank element that swings through a lateral waypoint, the main holding at standoff until the flank is level so both land together | `FlankingEnabled: true` `ai.yaml:934` | YAML; `@stable` omits it, C# default `false` |
+| 2 | **Idle-truck field resupply** — an idle supply truck drives to a soldier starving for ammo within a 20-cell leash instead of sitting still | `IdleTruckHunt: true` `ai.yaml:1685` | C# `&& isExperimentalBot`, `SupplyTruckHuntMath.cs:219` |
+| 3 | **Garrison commit-on-order** — garrisoned infantry are booked into the shared `PoiGoalGuard` ledger, so garrison and offence stop recruiting the same squads | `CommitGarrisonedUnits: true` `ai.yaml:1480` | C# `&& isExperimentalBot`, via `CommitOnOrderMath.ShouldCommitShared` |
+
+**Watch the vocabulary on #2.** `IdleTruckHunt` is named "hunt" and it is **not** an attack behaviour — the truck hunts for *its own starving infantry to resupply*, INFANTRY-ONLY by construction (the candidate must hold the truck's `replenish-soldiers` `RearmCondition`, which only soldiers carry). Player-facing copy calling this a raid or a truck hunt would be false. Both flags sit on shared `enable-ai-any` singletons (`GarrisonBotModule@defenses:1450`, `SupplyFollowerBotModule@supply:1483`), which is *why* they need the C# gate rather than a YAML one.
+
+**None of this establishes that `@experimental` plays better.** `ai.yaml:929-933` says the flanking constants are *conservative first guesses, NOT measured — no autotest or tournament has run against them*, and the close-in ratchet was armed and then switched back off for losing its arm. More tactics is not more difficulty, and copy implying otherwise is unsupported.
+
+### 2. `Description:` on a bot is not a YAML edit — the field does not exist
+
+`IBotInfo` (`engine/OpenRA.Game/Traits/TraitsInterfaces.cs:421-425`) exposes exactly `Type` and `Name`. `ModularBotInfo` (`ModularBot.cs:22-62`) has no `Description` and no `Difficulty`. `FieldLoader.UnknownFieldAction` (`FieldLoader.cs:61-62`) **throws** by default — `NotImplementedException: FieldLoader: Missing field 'Description' on 'ModularBotInfo'`. So writing a description into `ai.yaml` today does not merely fail to render, **it stops the mod loading.** Anyone estimating R4's description half as a YAML edit is estimating a change that cannot be made.
+
+Nor can the text be smuggled into `Name`: `Player.ResolvePlayerName` (`Player.cs:149-157`) uses `IBotInfo.Name` as the **in-game player name**, and `LobbyUtils.SetupEditableSlotWidget` truncates it to the slot button width.
+
+### 3. There is no render site, and the near-miss is instructive
+
+The picker is `LobbyUtils.ShowSlotDropDown` (`LobbyUtils.cs:59-98`) → `LABEL_DROPDOWN_TEMPLATE`. Its item template (`engine/mods/common/chrome/dropdowns.yaml:17-26`) is one `Label@LABEL` at `Height: 25`, and `SetupItem` sets only that label's text. There is nowhere to draw a second line.
+
+The **tooltip** path is one YAML line short of working, which is worth knowing because from the C# it looks as though it already does. `ScrollItemWidget : ButtonWidget`, so it inherits `TooltipContainer` / `TooltipTemplate` / `TooltipDesc`, and `ScrollItemWidget.Setup` **clones** the template (`ScrollItemWidget.cs:75`), so the copy ctor carries them (`ButtonWidget.cs:139-146`). `TOOLTIP_CONTAINER` exists in the lobby tree (`lobby.yaml:499`) and `Widget.GetOrNull` is recursive, so it would resolve. The stock `BUTTON_TOOLTIP` already has both a `Label@LABEL` and a `Label@DESC` (`tooltips.yaml:15-36`). **But `TooltipContainer` is `readonly` — YAML-only — and the dropdown template does not set it, so `ButtonWidget.MouseEntered` early-returns at `ButtonWidget.cs:232-233` and nothing draws.** The worked example is one widget away in the same file: `DropDownButton@HANDICAP_DROPDOWN` (`lobby-players.yaml:284-288`) sets `TooltipContainer: TOOLTIP_CONTAINER` plus `TooltipText:` and works. `DropDownButton@SLOT_OPTIONS` (`:262-271`) does not.
+
+### 4. Incidental: two stale comments in `ai.yaml`
+
+`:26` and `:2740` both refer to unit builders "keyed `@america.normal` / `@russia.normal`". **Those keys do not exist** — the only `UnitBuilderBotModule@` keys are `russia.fixedwing`, `russia.heli`, `experimental.russia.heli`, `america.fixedwing`, `america.heli`, `experimental.america.heli`. `:2740` also calls it "the four unit builders" when the `enable-ai-stable` ones number two (both `fixedwing` blocks are `enable-ai-any`, shared by both profiles). Comment-only; no behaviour depends on it. Left unfixed to keep this branch to one concern.
