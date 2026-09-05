@@ -3,9 +3,63 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-05 - Item 64 MEASURED, four arms: the free-pool gate is proven, the muster revert is inert and dropped, and the instrument's d1 clause passed for the wrong reason (`wt/item64 @ 6951b540`, base `main @ 62778af1`)
+
+Four runs of `test-push-departs-together` plus one of `test-combined-arms-rendezvous`, run by the manager. This
+entry is the measured record; the three earlier 2026-09-05 entries below are annotated where it confirms or
+retracts them.
+
+| arm | d3 solo (x=10) | d1 interval (x=20) | d2 spread (x=33) |
+|---|---|---|---|
+| **control**, `FreePoolMinAdvanceUnits: 0` | **1** ✗ *(tank-1 left ALONE at t211)* | 147 | 27 |
+| **HEAD** (gate 2 + ambush gate + C), run `260905_212326_p13005` | **2** ✓ *(both tanks left at t382)* | 0 | 18 ✗ |
+| **C dropped** (`ImmediateReinforcementCommit: true`) | **2** ✓ | 0 | 17 ✗ |
+
+**1. THE FREE-POOL GATE IS PROVEN, with a control that failed as required.** `FreePoolMinAdvanceUnits: 2` logged
+`hold-under-min` at t60 and t160, tank-1 stayed home, and both tanks crossed the beachhead line together at t382
+and the advance line together at t545. With the gate at 0 the same scenario put tank-1 across alone at t211. That
+is a real RED→GREEN with the arm that had to be red actually red — the discipline AUTOTEST.md §"A green run is not
+evidence" asks for, and the reason the green means anything.
+
+**2. `ImmediateReinforcementCommit` IS INERT ON THIS INPUT, MEASURED.** The C-dropped arm is identical to HEAD
+within noise (d3 2/2 both, d1 0 both, d2 17 vs 18). The 2026-09-05 code read below predicted exactly this: the
+fill-completion hold is conjunctive on `FillIncomplete(Units.Count, AllocatedSize)`, and the allocator sizes an
+axis from the pool that exists and tops it up in the same pass, so the hold cannot wait for a unit that has not
+been called in yet. **The revert commit was dropped and the user's pending question was withdrawn as
+measured-moot** — which is the useful outcome: a decision nobody now has to spend attention on.
+
+**3. d1 PASSED FOR THE WRONG REASON, AND THIS IS AN INSTRUMENT DEFECT, NOT A RESULT.** d1 read **0/300** at HEAD
+and the clause counts as satisfied. It is not: only the two tanks ever crossed the advance line, and all four
+riflemen read `adv@never`, parked at x≈15-18 on their staging slots. d1 is the spread between the first and last
+*advancing* unit, so **two units advancing together score a perfect 0 while two-thirds of the push never advances
+at all.** The clause is unfalsifiable exactly when the push is smallest, which is the case the item is about.
+
+The general shape, and it is worth carrying past this scenario: **an interval or spread statistic computed over
+"the units that did X" silently improves as fewer units do X.** Min/max over a filtered set rewards the set being
+empty. Any such clause needs a companion count gate — here, "every spawned, living unit must have advanced" — or
+it reports its best number on its worst run. The same trap would bite a formation-tightness metric, a
+convoy-spacing metric, or any "how far apart were they" assertion whose population is defined by having reached
+the thing being measured.
+
+**4. THE INFANTRY NEVER ADVANCED AT ALL**, which is more than "strung out": the axis carried only the two tanks,
+and the riflemen stayed on staging slots for the whole run. That is the axis↔staging beat (entry below) seen from
+the other end, and it is now the largest unexplained behaviour in this item.
+
+**5. THE AMBUSH GATE WORKS, AND IS NOT THE WHOLE STORY.** `test-combined-arms-rendezvous` at HEAD
+(`260905_212607_p13262`) logged `[exp-ambush] reeval player=USA-bot anchors=1 lanes=0 free=1 tick=100` — no
+one-unit lane, exactly as `MinUnitsPerAmbush: 2` intends, against the `units=1 tick=100` it logged at main. **And
+the abrams still died**, so something other than the ambush lane walks that tank into contact in that scenario.
+Undiagnosed, and it means the claim in the entry below needs narrowing: LaneAmbushBotModule is *a* proven
+lone-unit forward path and it is now gated, but it is not the sole cause of every lone tank.
+
 ## 2026-09-05 - The lone opening tank is LaneAmbushBotModule's, not the offensive stager's: it claims the first reinforcement at tick 100, before the offense free pool exists (`wt/item64`, `main @ 62778af1`)
 
-**MEASURED, in two independent runs, and it relocates the whole of item 64.** The module that sends the first
+> **NARROWED 2026-09-05 by the measured entry above.** The mechanism here is confirmed and the gate works
+> (`lanes=0` at tick 100 where main logged `units=1`), but *"relocates the whole of item 64"* is too
+> strong: with the one-unit lane gone, `test-combined-arms-rendezvous`'s abrams still died. This is one
+> proven lone-unit path, not the only one.
+
+**MEASURED, in two independent runs.** The module that sends the first
 tank forward on its own is `LaneAmbushBotModule`, which nobody had looked at:
 
 ```
@@ -39,6 +93,9 @@ somebody else owns them**, and the shared `PoiGoalGuard` ledger is the list of c
 before theorising about the stager.
 
 ## 2026-09-05 - A mission-committed axis reads as FREE POOL, so StageFreePool marches it back to the muster on the same eval it is being held forward (`wt/item64`, run 260905_183118)
+
+> **NOW THE OPEN REMAINDER OF ITEM 64.** Re-observed at HEAD: the axis carried only the two tanks and all
+> four riflemen sat on staging slots with `adv@never` for the whole run.
 
 Second finding from the same run, and it is the reason a push that *is* correctly ordered still does not arrive.
 `PartitionHeldAxes` pulls a mission-committed axis out of the live set **before** `BuildFreePool` runs, so that
@@ -79,6 +136,10 @@ clause about *going somewhere* belongs on the outer one. The muster ring's radiu
 finding that needs measuring first.
 
 ## 2026-09-05 - The fill-completion massing hold cannot wait for a unit that does not exist yet, so `ImmediateReinforcementCommit` suppresses a hold that a reinforcement dribble never arms (`wt/item64`, base `main @ 62778af1`)
+
+> **CONFIRMED BY MEASUREMENT 2026-09-05 (entry above).** The C-dropped arm is identical to HEAD within
+> noise. The revert commit was dropped and the user's question withdrawn as moot. This entry was a code
+> read when written; it is now a result.
 
 **This retracts the headline of the 2026-09-05 item-64 recon.** That recon named
 `ImmediateReinforcementCommit: true` (`ai.yaml:817` / `:2965`) "the direct cause" of the user's lone-tank
