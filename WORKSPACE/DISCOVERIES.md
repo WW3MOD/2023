@@ -3,6 +3,81 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-05 - The lone opening tank is LaneAmbushBotModule's, not the offensive stager's: it claims the first reinforcement at tick 100, before the offense free pool exists (`wt/item64`, `main @ 62778af1`)
+
+**MEASURED, in two independent runs, and it relocates the whole of item 64.** The module that sends the first
+tank forward on its own is `LaneAmbushBotModule`, which nobody had looked at:
+
+```
+test-combined-arms-rendezvous (main, run 260905_180211):
+  [exp-ambush] lane player=USA-bot anchor=supplyroute#7 post=28,12 units=1 tick=100
+test-push-departs-together (run 260905_183118):
+  [exp-ambush] lane player=USA-bot anchor=supplyroute#7 post=29,17 units=1 tick=100
+  [exp-offense] reeval player=USA-bot pool=0 free=0 targets=1 axes=0 k=0 tick=119
+  [exp-offense] reeval player=USA-bot pool=0 free=0 targets=1 axes=0 k=0 tick=219
+```
+
+**`pool=0` is the proof of ordering.** A posted unit is ledger-committed `ambush:<anchorId>`, so
+`PoiOffensiveBotModule.BuildFreePool` excludes it and the offensive stager never sees it at all — for the first
+300 ticks of the match its pool is empty while its only unit is walking 21 cells up the corridor. Any gate on
+`StageFreePool` (including `FreePoolMinAdvanceUnits`, added in this same branch) is **structurally unreachable**
+for that order. In the rendezvous run it is also the tank whose death produced *"the bot's tank died before the
+rendezvous could be judged"*.
+
+The mechanism is the same under-fill shape as the free-pool leak, in a second module: the lane fill takes
+`Take(need)` from whatever is free and `CommitAndOrder` runs on `Units.Count > 0`, so a lane with one unit
+available posts one unit. The module's own header argues it is safe because `MaxAmbushes × UnitsPerAmbush = 4`
+is *"small so offense keeps the rest"* — **true only when offense has units to spare.** At the opening the lane
+takes 100% of a one-unit army. Now gated by `MinUnitsPerAmbush` (default 0 = unchanged; 2 on both profiles) via
+the pure `AmbushLaneMath.LaneMayPost`.
+
+**The generalisable lesson: "which module issued the order" is not answerable from the module you suspect.**
+Item 64 had two recon passes and a shipped fix aimed at `StageFreePool`, and the answer was a ledger commit from
+a module whose name contains neither "offensive" nor "push". The cheap discriminator was already in the log and
+costs one grep — `[exp-offense] reeval ... pool=N`. **A `pool=0` on a player that demonstrably owns units means
+somebody else owns them**, and the shared `PoiGoalGuard` ledger is the list of candidates. Grep the pool count
+before theorising about the stager.
+
+## 2026-09-05 - A mission-committed axis reads as FREE POOL, so StageFreePool marches it back to the muster on the same eval it is being held forward (`wt/item64`, run 260905_183118)
+
+Second finding from the same run, and it is the reason a push that *is* correctly ordered still does not arrive.
+`PartitionHeldAxes` pulls a mission-committed axis out of the live set **before** `BuildFreePool` runs, so that
+axis's own units are not `claimedByAxis` and fall into the free pool. `StageFreePool` then stages them — rearward,
+to the muster anchor — on the very eval the commitment exists to stop them being re-decided:
+
+```
+[exp-offense] order player=USA-bot target=supplyroute@58,16 units=2 distToTarget=54 tick=519
+[exp-offense] hold  player=USA-bot target=supplyroute@58,16 units=2 commitScore=69888000 tick=619
+[exp-offense] reeval player=USA-bot pool=2 free=2 targets=0 axes=1 k=0 tick=619
+[exp-staging] player=USA-bot anchor=14,16 idle=2 staged=2 tick=619
+... same again at 719 ...
+[exp-offense] order player=USA-bot target=supplyroute@58,16 units=4 distToTarget=48 tick=819
+```
+
+**Six cells of progress in 300 ticks** while both mechanisms were working exactly as written. This is the concrete
+instance of the churn `PoiOffensiveBotModule.cs:2769` already flags as *"RECURRING — census §4.2: the axis<->staging
+beat"* and that `ai.yaml:791-795` records as the user's undiagnosed *"ordered back, then forward again"*. It is now
+diagnosed: the exclusion that protects a committed axis from re-decision is the same exclusion that hands it to the
+stager. Not fixed here — it is a third mechanism, past this batch's scope.
+
+## 2026-09-05 - A measurement line inside the muster ring cannot tell mustering from advancing, and moving it outside makes the opposite clause blind (`wt/item64`, run 260905_183118)
+
+Scenario-design, general, and it cost one run. `test-push-departs-together` measured departure at x=10 with the
+staging anchor at (14,16) and slots spanning x∈[10,18] — so a unit walking to its own muster slot counted as having
+departed, and "6/6 departed, 0/6 crossed the midline" described a push that had gone nowhere.
+
+The obvious repair is to move the line past the ring. **That is worse**, and the reason is the interesting part: a
+lone staged unit *never leaves the ring*, so a departure line at x=20 makes the solo-departure clause — the one the
+free-pool gate exists to flip — pass with the gate switched off. One line cannot serve both clauses because the two
+behaviours live on opposite sides of it.
+
+**The rule: when a scenario measures a bot that has an intermediate destination, site one line INSIDE it and one
+OUTSIDE, and say in the failure note which is which.** Any clause about *leaving* belongs on the inner line; any
+clause about *going somewhere* belongs on the outer one. The muster ring's radius is derivable without a run —
+`TryResolveFallbackCell(SR → bounds centre, StagingFallbackCells)` plus
+`MaxSpreadRings(StagingFallbackCells, StagingSpreadStepCells)` — so this is a design-time calculation, not a
+finding that needs measuring first.
+
 ## 2026-09-05 - The fill-completion massing hold cannot wait for a unit that does not exist yet, so `ImmediateReinforcementCommit` suppresses a hold that a reinforcement dribble never arms (`wt/item64`, base `main @ 62778af1`)
 
 **This retracts the headline of the 2026-09-05 item-64 recon.** That recon named
