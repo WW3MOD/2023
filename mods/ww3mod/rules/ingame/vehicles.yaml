@@ -728,6 +728,20 @@ LCCV:
 		Range: 5c0
 		RearmDelay: 6
 		RearmCondition: replenish-soldiers
+	# Offset -1,-1 is UNCHANGED across the 2026-09-05 2x2 resize, and that is a decision rather than an
+	# oversight. Transform spawns the building at self.Location + Offset as its TOP-LEFT, so the truck
+	# ends up on the bottom-RIGHT footprint cell either way: at 3x3 that was the centre cell, at 2x2 it
+	# is one of the four corners. Keeping it buys two things. The dock cell is the bottom-LEFT (0,1), so
+	# the truck is not standing where a vehicle will later park under the crane — which matters because
+	# LOGISTICSCENTER's inverse Transforms.Offset (1,1) respawns it right here on undeploy. And
+	# test-field-lccv-deploy's B case still tests what it says: it needs 44,15 inside the footprint of
+	# an LCCV at 44,16, which holds for the 2x2 spanning 43,15..44,16.
+	#
+	# PITFALL — the half-cell jump on deploy. A 2x2's centre is a cell CORNER, so the make animation is
+	# drawn half a cell up-left of where the truck sprite was. It is barely visible because frame 0 of
+	# factmake is nearly empty, and it is the LEAST bad option: a per-sequence pixel Offset on `make`
+	# alone would start it centred on the truck and then snap the FINISHED building half a cell as idle
+	# takes over, which is the same jump at the moment it is most visible.
 	Transforms:
 		IntoActor: logisticscenter
 		Offset: -1,-1
