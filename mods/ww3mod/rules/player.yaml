@@ -116,15 +116,20 @@ Player:
 		Prerequisites: player.russia
 		Icon: precicon
 		Name: Kh-47M2 Kinzhal
-		Description: Hypersonic missile strike called in from off-map reserves.\nEnters from the map edge nearest your Supply Route.\nCannot be intercepted.
+		Description: Hypersonic missile strike called in from off-map reserves.\nEnters from the map edge nearest your Supply Route.\nSAM sites can engage it, but rarely stop it.
 		# 3000 ticks x 0.06 s (world.yaml Timestep: 60) = 180 s = 3 min. NOT 120 s: the 25 tps
 		# figure asserted by several in-tree comments understates every duration by 1.5x.
 		ChargeInterval: 3000
 		Cursor: nuke
 		MissileActor: kinzhalmissile
 		# 150 ticks x 0.06 s = 9.0 s between the click and the missile appearing at the map edge, on top
-		# of ~20 ticks of flight. The SHORTEST of the three, and the reason is the power's own caption:
-		# "Hypersonic ... Cannot be intercepted". Tempo is the whole identity here -- SS5a's framing is
+		# of ~20 ticks of flight. The SHORTEST of the three, and the reason is the speed class rather
+		# than the old caption: this power stopped claiming "Cannot be intercepted" on 2026-09-05, when
+		# KinzhalMissile was retyped Hypersonic -> ICBM so a SAM can shoot at it and almost always miss
+		# (vehicles-russia.yaml, KinzhalMissile -- the arithmetic is in the comment there). Tempo is
+		# still the whole identity, and the short lead is still what protects it: a longer one hands the
+		# defender exactly the reaction ticks the interception arithmetic says he does not have.
+		# SS5a's framing is
 		# "one Iskander missile, except you did not have to drive a 6000-credit launcher into range" --
 		# so this gets the smallest lead that still stops the strike landing on the click.
 		#

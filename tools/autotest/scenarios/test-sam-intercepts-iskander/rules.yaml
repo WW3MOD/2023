@@ -1,0 +1,60 @@
+# SAM-intercepts-Iskander autotest overrides.
+#
+# DELIBERATELY MINIMAL. The point of the run is what the SHIPPED SAM, SurfaceToAirMissile and
+# IskanderMissile do. Nothing about the interceptor's speed, range, damage, AimingDelay or
+# AutoTarget bands is restated here — a local copy of any of those would go stale the moment
+# structures-defenses.yaml or weapons-missiles.yaml moved, and the verdict would then be
+# measuring this file instead of the mod. Two absences are load-bearing:
+#
+#   * NO `SAM:` BLOCK AT ALL, not even the Buildable prerequisite. The availability half of this
+#     test asserts that the SHIPPED prerequisite is satisfiable; restating it here would make that
+#     assertion tautological and it would keep passing after a revert.
+#   * NO AimingDelay OVERRIDE. 15 is the Armament.cs:101 default and the 23-28 tick chain derived
+#     in map.yaml depends on it. Pinning it here would hide a regression in exactly the knob the
+#     recon names as the first one to reach for.
+#
+# NOTE THE CASE. The launcher is defined `iskander:` in vehicles-russia.yaml:987, lowercase.
+# Top-level MiniYaml keys merge case-SENSITIVELY (the lowercasing in Ruleset.cs runs AFTER the
+# merge), so an `ISKANDER:` block here would not override the shipped actor — it would collide as
+# a second definition. Actor names only feel case-insensitive.
+
+Player:
+	# Faction elimination would end the match before the Lua poller writes a verdict.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored, so neither the SAM's acquisition nor the poller's view of
+	# the missile is a visibility artefact. ^ShootableMissile's Detectable is Vision 1 / Radar 1
+	# and it carries no RevealsShroud, so under fog a defender with neither would legitimately see
+	# nothing — correct behaviour, and not what this run is measuring.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# No cash -> no production. The only actors in the world are the placed ones plus the missile,
+	# so GetActorsByType("iskandermissile") cannot pick up a second launcher's missile.
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
+	# spawn assignment — see the note in map.yaml.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-sam-intercepts-iskander.lua
+
+# THE LAUNCHER. One override, and it is about readability rather than behaviour.
+#
+# Stock AmmoPool@1 is Ammo: 2 with BurstWait 250 between shots. Two missiles inside the observation
+# window sounds like two samples and is not: the second launches while the first interception is
+# still resolving, and the "last cell before it vanished" reading stops being attributable to a
+# single flight. One shot, one clean read.
+#
+# The shipped AutoTarget is deliberately NOT touched: iskander already ships InitialStance and
+# InitialStanceAI of HoldFire (vehicles-russia.yaml:1039-1046), so the launcher fires only on the
+# explicit Attack order the Lua issues, which is exactly what this run wants.
+iskander:
+	AmmoPool@1:
+		Ammo: 1

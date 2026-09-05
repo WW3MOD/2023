@@ -804,8 +804,29 @@ SAM:
 	Buildable:
 		Queue: Defense
 		BuildPaletteOrder: 8
-		Prerequisites: ~disabled
-		Description: Static anti-aircraft defense emplacement.
+		# ENABLED 2026-09-05, and this is the FIRST buildable entry in the Defense queue -- every
+		# other one in this file is still ~disabled. The Iskander's and HIMARS's in-flight munitions
+		# were already interceptable BY CONSTRUCTION: MissileSpawnerMaster spawns a real world actor
+		# inheriting ^ShootableMissile, which carries TargetTypes: ICBM at BOTH altitude bands
+		# (defaults.yaml:1084, :1087). Six weapons list ICBM and all five hosts were ~disabled, so
+		# this was an availability gate, not missing machinery. Costing, with the arithmetic:
+		# WORKSPACE/recon/260905-intercepting-ballistic-munitions.md.
+		#
+		# 'supplyroute' is the SR's own bare ProvidesPrerequisite@BuildingName (structures.yaml:372);
+		# ProvidesPrerequisite.cs:35 resolves a null Prerequisite to info.Name, and actor names are
+		# lowercased at ruleset load. It is NOT decorative: the Defense queue's only producer is
+		# Production@Local on the SUPPLYROUTE (structures.yaml:362-364), so losing the SR already
+		# stops defence production -- naming it here makes that dependency visible in the tech tree.
+		# ~techlevel.medium is house style and is always satisfied today: world.yaml:448 sets
+		# TechLevelDropdownVisible: false and MapOptions.cs:52 defaults TechLevel to 'unrestricted',
+		# which grants every tier. It sits one tier BELOW the ~techlevel.high launchers it answers.
+		#
+		# NOT extended to CRAM, AGUN or HSAM, deliberately. CRAM misses (single-iteration bullet lead,
+		# ~1.2-1.8 cells against a 0.42-cell hit radius) AND its Armament@1 lacks PauseOnCondition:
+		# !ammo, so it fires through an empty magazine -- see WORKSPACE/bugs/discovered.md. HSAM keeps
+		# its own ~disabled below; it inherits SAM but redeclares Buildable, so this does not leak.
+		Prerequisites: supplyroute, ~techlevel.medium
+		Description: Static anti-aircraft emplacement. The only structure that can shoot down incoming ballistic missiles.
 	Valued:
 		Cost: 2000
 	Tooltip:

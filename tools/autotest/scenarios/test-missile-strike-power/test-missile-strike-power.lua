@@ -24,10 +24,13 @@
 --   * The 3-minute ChargeInterval. rules.yaml sets StartFullyCharged; the shipped interval is
 --     a placeholder for the Phase 2 buy model and waiting it out would spend the slot on a
 --     timer.
---   * Interception. Nothing in the mod can intercept anything today (proposal §2.3), and the
---     Kinzhal's `Hypersonic` target types are listed by no weapon, so there is no positive
---     observation to make. A future scenario should put a live SAM on the flight path and
---     assert it never acquires; that is a different test.
+--   * Interception. STALE UNTIL 2026-09-05, WHEN BOTH ITS PREMISES STOPPED BEING TRUE: the
+--     SAM became buildable (structures-defenses.yaml) and KinzhalMissile was retyped
+--     `Hypersonic` -> `ICBM`, so a SAM CAN now acquire this missile. The successor scenario
+--     the old note asked for exists and asserts the opposite of what it predicted:
+--     test-sam-vs-kinzhal, where a SAM must visibly launch AND still fail to stop the
+--     strike. This scenario stays deliberately interception-free — there is no SAM on this
+--     map, so the flight it measures is uncontested and its tick budgets stay readable.
 --   * The beacon, the minimap ping and the reveal camera. All three are client-side render
 --     state with no observable the Lua API can read.
 --
