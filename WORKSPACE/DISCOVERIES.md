@@ -20171,3 +20171,11 @@ warhead's own `ScalePercent: 300` — lifts the 300%-scaled mushroom-cloud sprit
 it applied identically to the ground burst. Which is why the ground-burst nuke looked *low* rather
 than looking *broken*.
 
+
+## 2026-09-05 — USER RULING: a burning vehicle is doomed even under the crane; the burn is NOT paused or out-repaired at a Centre
+
+Context: `dd952225` made `RepairsUnits` heal for the first time (`Repairable.PercentageStep: 3` per `Interval` 24 = 0.125 % of MaxHP per tick, `mods/ww3mod/rules/ingame/vehicles.yaml:64`, `engine/OpenRA.Mods.Common/Traits/RepairsUnits.cs:27`). The critical-damage burn on `^EffectsWhenDamagedVehicles` (`vehicles.yaml:184-187`: `PercentageStep: -1`, `Delay: 5`, `StartIfBelow: 50`) is 0.200 %/tick — 1.6× the repair — so a vehicle under 50 % HP docked at a Logistics Centre nets −0.075 %/tick and dies on the dock cell, and no vehicle can be repaired back across the 50 % line.
+
+Put to the user with three options (pause the burn while `unit.docked`; raise repair above the burn; keep it). **User picked "Keep it — critical means doomed."** Both rates stay as they are. This is consistent with the standing vocabulary (a vehicle "goes critical" at <50 % = fire + unrecoverable): the depot repairs damage, it does not put out fires. Do not add `RequiresCondition: !unit.docked` to the burn, and do not raise `PercentageStep` to "fix" this — it is decided.
+
+Consequence to keep in mind, not a bug: a burning vehicle sent to a Centre holds the single dock cell until it dies (`RepairTick` clears the Repair flag only at `Undamaged`, `Resupply.cs:601-612`), which from 30 % HP is ~400 ticks. The next client waits on `MoveOnto`'s occupied-cell branch for that long, then docks. Bounded by the death, so no queue was built. Scenario headers that list the three candidates (`test-lc-2x2-dock-and-undeploy.lua`, `test-depot-vacate-phantom`) describe a question that is now closed.
