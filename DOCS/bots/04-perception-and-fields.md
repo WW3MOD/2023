@@ -281,8 +281,8 @@ time in this pass. **The `bmp2` and `AT` columns are this pass's own arithmetic*
 function and are *not* pinned by a test; they are here because the table's point is the ranking and those two
 rows sit between the pinned ones. Treat them as one worker's derivation.
 
-Base HP: infantry `200` (`infantry.yaml:33`), vehicles `10,000` (`vehicles.yaml:20`) before per-actor override.
-Structures run to `75,000` (`structures.yaml:252`).
+Base HP: infantry `200` (`infantry.yaml:33`), vehicles `10,000` (`vehicles.yaml:25`) before per-actor override.
+Structures run to `75,000` (`structures.yaml:295`).
 
 #### The ranking — the thing this section exists to state
 

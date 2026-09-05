@@ -279,7 +279,7 @@ Two warheads with different shapes, and BOTH are graduated:
   `:34`).
 - **Against aircraft, `TargetDamage` almost never applies at all.** Its `Spread`
   defaults to `WDist(1)` (`TargetDamageWarhead.cs:23`) and every helicopter uses
-  `HitShape: Type: Circle, Radius: 32` (`aircraft.yaml:65-67`). With any realistic
+  `HitShape: Type: Circle, Radius: 32` (`aircraft.yaml:89-91`). With any realistic
   scatter the impact lands outside that 1-wdist window, the big warhead is skipped
   at `:76`, and the weapon falls through to whatever `SpreadDamage` it also
   carries — at whatever `Penetration` that fallback happens to declare. **A

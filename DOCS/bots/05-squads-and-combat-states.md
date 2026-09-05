@@ -642,7 +642,7 @@ SR per player, fixed at spawn, and no production buildings to find.
 This one is on the **live** path and shapes real match behaviour.
 
 **Fact:** WW3MOD builds no rearm hosts. `HPAD` has `Prerequisites: ~disabled, ~techlevel.medium`
-(`mods/ww3mod/rules/ingame/structures.yaml:432`) and `AFLD` likewise (`:500`). Neither can be produced,
+(`mods/ww3mod/rules/ingame/structures.yaml:688`) and `AFLD` likewise (`:756`). Neither can be produced,
 despite `BaseBuilderBotModule@normal` listing both in `BuildingLimits`/`BuildingFractions`
 (`ai.yaml:1199-1204`) — that configuration is inert against the prerequisite.
 
