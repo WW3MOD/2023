@@ -3,6 +3,51 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-05 - Item 56's follow-path churn is REAL BUT LARGELY UNREACHABLE at shipped config, because selection now implies the drop's demand gate (`wt/item56`, base `main @ eacc8f44`)
+
+The item's 2026-09-05 recon concluded that the follow path is "the entire remaining mechanism",
+reached by "roughly 85% of trucks". **The mechanism is real and is now fixed, but that reachability
+figure is a pre-`c60a468d` number and does not describe HEAD.** Verified by reading the code, not
+commit messages:
+
+* `DropAnchorAtCluster: true` (`ai.yaml:1792`) makes the drop anchor a cell `DropShortCells: 5`
+  back along the cluster→truck line (`ClusterDropAnchor`, `SupplyFollowerBotModule.cs:1834`) — so
+  the anchor is derived from the cluster the truck **just picked**, not from the Supply Route.
+* `SelectionMinStarvingUnits: 1` (`ai.yaml:1661`, added `c60a468d` 2026-09-03) and
+  `DropMinStarvingUnits: 1` (`ai.yaml:1887`) are **the same number**, and `CountStarvingNear`
+  (`:2101`) counts over an 18-cell disc around that anchor — a disc that always contains the
+  cluster. So **any cluster selection admits, the drop's demand gate also admits.**
+* The errand is issued on that very scan, and `ResolveDropAnchor` (`:1906-1919`) then returns the
+  frozen destination for as long as it runs.
+
+**Consequence: a loaded truck that has a cluster essentially never touches the follow path.** The
+surviving live cases are the drop's other declines — `LowLoad`, `Covered` (guaranteed the moment a
+crate is on the ground near a cluster, which is exactly the multi-truck case the spread exists for)
+and `NoAnchor` — plus every profile without the drop mode (`DropAndLeave` off, or no `ControlField`:
+Normal / Rush / Turtle / legacy).
+
+**This is also why `NoDemand` was 54.1% of drop-declines in the `c9626273` baseline `c60a468d`
+quotes and should not be expected to stay there.** That match predates the selection gate. Anyone
+re-taking the item-56 acceptance bar should re-derive the decline histogram rather than compare
+against 54.1%.
+
+**The trap for the next author, and it cost this one an hour: it makes the obvious scenario
+green.** A two-cluster commitment scenario with a FULL 750-supply truck drops on scan 1 and commits,
+scoring zero reversals on the broken code — a test that cannot fail. `test-supply-two-clusters-commit`
+therefore ships its truck at `Supply: 80`, the only band that reaches the follow path with every
+`ai.yaml` value left as shipped: below `DropMinSupply: 100` so `DropVeto` returns `LowLoad`, above
+`SupplyProvider`'s `RestockThreshold: 50` so `IsLowOnSupply` does not drop it from the roster first.
+
+**Two stale claims corrected in passing, both about the same site.** The item dossier and
+`WORKSPACE/bugs/discovered.md` both describe `FindSafeFollowPosition` as the danger site "no config
+flag reaches". At HEAD `IgnoreDangerForDelivery` is the **first thing the method tests**
+(`SupplyFollowerBotModule.cs:2484`) and it returns the cluster centroid unread — the caution is
+spent. And `DOCS/reference/supply-route.md`'s two-mode table describes a mode selector that shipped
+content disables at `SupplyFollowerBotModule.cs:1662`; a one-line note now says so at the table.
+
+The fix itself is `ClusterStickinessNeedMargin` (`ai.yaml:1547`, engine default 0 = off), with
+`SupplyLogisticsMath.KeepHeldCluster` and an optional `held` seed on `AssignSectors`.
+
 ## 2026-09-05 - The evacuation exit is owner-anchored on ONE shipped map and unit-anchored on nine, and that map is the natural experiment for item 78 (`wt/evac-edge-math`, base `main @ 95bdffb2`)
 
 `RotateToEdge.ChooseEdgeCell`'s ground branch reads
