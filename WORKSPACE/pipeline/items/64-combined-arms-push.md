@@ -33,3 +33,79 @@ _**Two suspects checked and killed, recorded so nobody re-chases them:** (1) `Op
 _**The lone-tank half has its own mechanism, and it is an asymmetry that looks unintentional.** `StageFreePool` issues **one order per unit** (`:2356-2358`, `groupedActors: new[] { u }`) as an `AttackMove` — which engages on contact — to a forward cell, with **no minimum count and no composition check**. Attack axes DO have a `minAxisSize` retire gate (`:1509-1515`); staging has none. **One tank in the pool is one tank AttackMoving forward alone.** Fixing the rendezvous does not fix this; it is a separate, second change._
 _**Scope ruling 2026-08-15:** rendezvous-only first (publish the staging anchor, transport delivers there, fall back to today's lerp when absent) — it changes a **destination, not a coupling**, so there is no wait state to deadlock, and it is a precondition for any later armour-hold anyway. **An armour hold that waits for followers is DEFERRED, not rejected** — it wants a live measurement first, per the standing rule that one un-run behavioural change per branch is a measurement and two is a guess._
 _**User design constraints from 2026-08-11 bind this work:** transports must not enter enemy territory (**ROUTE and DROP SITE both danger-aware, not just the destination** — and note this makes it a consumer of the mis-scaled danger field, item 40, so any threshold set today gets tuned twice); a dedicated transport must stay continuously employed rather than parked; a transport with nothing to do should evacuate — **but wire stand-down and the purchase counter together in the same change or you reopen the item-33 buy/evac money pump (`ShouldBuyTransport`'s idle count, `:517`).**_
+
+---
+
+## Recon 2026-09-05 — `main @ 7a6d30a4` (worktree `wt/item64-recon`, read-only)
+
+**VERDICT: still open, but the premise has MOVED. All three lines of the 2026-09-01 remaining-work list are stale, and six commits since are absent from this dossier.** Nothing above this section was deleted; corrections are itemised in §4.
+
+### 1. What the code says at the stamped SHA
+
+**The direct cause of "the first tank attacks alone" is a USER DECISION, live on BOTH profiles.**
+`ImmediateReinforcementCommit: true` — `ai.yaml:817` (@experimental) and `:2965` (@stable); C# default `false` at `PoiOffensiveBotModule.cs:750`; consumed at `:4437` via `SpawnFlowMath.SuppressMassingHold` (`SpawnFlowMath.cs:74`). The user picked it 2026-08-05 (`WORKSPACE/AWAITING-USER.md:225`, verbatim: *"Advance immediately, singly — zero assembly anywhere; maximally responsive but arrives piecemeal into contact"*). It zeroes the fill-completion massing hold — **the only gate that would have held an under-filled axis at the muster** — and renders `MinAdvanceStrength: 1200` inert. `ai.yaml:807-816` states the consequence outright: *"a reinforcement leaves for the demand point the eval it is recruited and the axis arrives piecemeal into contact (the accepted cost of the pick — maximum responsiveness)."*
+
+**The user's complaint (2026-08-15 batch) post-dates by ten days the decision that causes it.** Revert path is one line. **That is the user's call, not a worker's.**
+
+**The very first tank never forms an axis at all.** `PoiOffenseMath.DesiredAxisCount` (`:4986-4994`) returns 0 when `totalUnits < max(1, minAxisSize)`; `minAxisSize` is `EarlyMinAxisSize: 2` for the first `EarlyGameDurationTicks: 4500` (`:1457`, `ai.yaml:2866-2869`). One tank ⇒ no axis ⇒ free pool ⇒ `StageFreePool` AttackMoves it **one order per unit** — `PoiOffensiveBotModule.cs:2769-2771`, `groupedActors: new[] { u }` — to its own spread slot. No minimum count, no composition check. Two corrections to how this dossier frames it:
+
+* The destination is the **staging anchor** (`StagingStandoffCells: 6`), a forward muster, **not the objective**. `OpportunisticAdvanceEnabled: false` (`ai.yaml:459`/`:2884`), so the advance path never runs. It is an `AttackMove`, so it engages on contact — which is what makes a muster look like an attack.
+* Infantry are **already sent to the same anchor**, and this is now double-sourced: `test-combined-arms-rendezvous.lua:6-13` records it as a control that **passed with the fix disabled** — *"Infantry are armed, so StageFreePool recruits them into the free pool and AttackMoves them to the SAME staging anchor it sends the tank to."* **"The tank goes where the infantry aren't" is refuted for the free-pool path.** The visible gap is timing and speed.
+
+**Target churn dissolves the axis mid-approach — measured, mirror-paired, and the largest finding since this dossier was last written.** `ai.yaml:880-889` (from `1452a82f`): **100% of axis retires are `reason=dropped`, in all four arm/bot cells — 300/300, 293/293, 342/342, 362/362 — against ~340 axes created.** Axes form, walk a median ~50 cells, and dissolve when the target leaves the sticky top-k (`ReleaseAxis(axes[i], "dropped")`, `:1626`). `SelectStickyTargets` exists (`:2209-2240`) and gates on `ReassignScoreThresholdPct: 30` (`ai.yaml:382`/`:2871`); the file names strengthening it **"THE REAL LEVER"** and says it is deliberately not implemented. A dissolved axis returns its units to the free pool, where `StageFreePool` re-orders them individually — which is the "ordered back, then forward again" the user reported and `ai.yaml:791-795` still flags as undiagnosed.
+
+**Ruled out as causes — checked so nobody re-chases them:**
+
+* *Squad launched at size 1* — no. `DesiredAxisCount` floors at `minAxisSize`; a size-1 axis cannot form.
+* *Rally point unreachable* — no. `StagingFallbackCells: 6` gives the no-gradient case a destination (`35912d64`); slots are terrain-tested (`bfef8449`, `fa403bef`).
+* *Reinforcements joining an already-launched squad* — yes, **and it is deliberate**: that is exactly what `ImmediateReinforcementCommit` names.
+* `FlankingEnabled: true` (`ai.yaml:934`, @experimental only) **does** carry a converge hold that lands both elements together (`:3595-3630`) — but `FlankMinForceSize: 6` means **it never reaches the opening push**. Its constants are self-declared unmeasured (`ai.yaml:929-933`).
+* `CoordinatedAssaultEnabled: false` (`ai.yaml:839`, `a5ccc8a7`) — a mass-before-commit + multi-axis sync hold, **never measured in a game**. Note its own stated limit: the mass test is RELATIVE, so *"an axis believing it faces nothing is sufficient at any size"* — under fog at match start a lone tank is still sufficient. **It would not fix the opening push.**
+* `CloseInRatchetEnabled: false` (`ai.yaml:898`) — `243fa997` *"…and enable it"*, then `1452a82f` *"Leave the close-in ratchet OFF: its arm did not win"*. Measured over 10 mirror-paired games: inside10 1.3% → 1.3%, t=-0.01; **and its premise was refuted** (the muster-ward holds barely fire — `[exp-posture]` 10/12 lines across 10 matches against ~2000 orders per bot). **Textbook "read the file, not the commit message."**
+
+**On `@stable`:** per the 2026-09-05 ruling (`DISCOVERIES.md:20394`) it is a re-synced copy. The measured live delta is exactly three behaviours (`DISCOVERIES.md:20476-20500`), and `PoiOffensiveBotModule`'s only live one is `FlankingEnabled`. **Do not frame anything here as gating off `@stable`.**
+
+### 2. Smallest fix, and the scenario that measures it
+
+The smallest fix is **not a new mechanism**. It is `ImmediateReinforcementCommit: false` on @experimental (`ai.yaml:817`), restoring the fill-completion massing hold (`RetreatDamperMath.ShouldHold`, already bounded by `MaxAdvanceHoldEvals`, so it cannot deadlock). **User authorization required — it reverts their own 2026-08-05 pick.**
+
+That covers axis units only. To keep departing as a group against the free-pool leak, add the minimum `StageFreePool` lacks: **do not order a free-pool unit forward of the rally toward the anchor unless the pool bound for that anchor is ≥ `minAxisSize`** — units below the floor hold at the rally. Mirrors the gate axes already have; adds no new wait state (the pool re-evaluates every `ReevaluateInterval: 100`, so a lone tank simply stands until a second unit arrives).
+
+**Scenario `test-push-departs-together`.** Bot at an SR, one offensive POI ~40 cells out on a known bearing, **no enemy on the approach** (measure departure discipline, not attrition). Spawn exactly 4 ground combat units staggered — tank ~t50, then ~t200 / ~t350 / ~t500 — reproducing the reinforcement dribble.
+
+**What counts as the answer — two numbers, read at one instant.** Midline = perpendicular bisector of SR→POI.
+
+* **Spread at first crossing.** At the tick the FIRST unit crosses the midline, Chebyshev extent of the bounding box over all 4 units. **PASS ≤ 8 cells.** Today the tank crosses with units 3–4 still ~20+ cells back at the SR ⇒ **RED**.
+* **Departure interval.** Ticks between first and last midline crossing. **PASS ≤ 300.** Today ~t200 vs ~t700+ ⇒ **RED**.
+
+**Why the midline and not "are the riflemen near the tank":** that predicate is already known to pass with the fix disabled (`test-combined-arms-rendezvous.lua:6-13`) because everyone converges on the same anchor eventually. The anchor is a common muster; the midline is crossed **once**, and the spread at that instant is precisely "did they leave together". The failure message **must** distinguish *departed staggered* from *nothing ever crossed* (axis dropped, or staging inert) — those demand opposite responses. Carry `[exp-offense]` axis-new/retire and `[exp-staging]` into the reason string.
+
+### 3. Existing scenarios to run first — ranked
+
+1. **`test-combined-arms-rendezvous`** — **expect FAIL.** Its `rules.yaml` sets no AI flags (verified by grep), so it runs on shipped `ai.yaml` with `RendezvousWithOffensiveStaging: false`; its header says the legacy lerp drops on the top-right bearing while the tank is bottom-right. **A PASS is the informative outcome** — it would mean `TransportStandoffEnabled` alone closed the gap and the rendezvous is not needed.
+2. **`wip-transport-delivers`** — **expect PASS, and do not trust it.** `97cb73c2` went green here for the first time and deliberately did NOT rename it to `test-*`: its *"moved ≥ 10 cells"* clause is satisfied by a ~3-cell carry plus a post-unload walk. Run only to confirm the ferry runs at all.
+3. **`test-sr-attackmove-rally-engages`** — **expect PASS.** Cheap control that the AttackMove-from-rally path is intact before drawing conclusions from #1.
+4. **`test-cohesion-*` (all five) — do NOT run for this item.** They measure formation **slot bidding** (cover-aware bids, extent cap, sticky-slot leash, density probes); two are explicitly diagnostics, not pass/fail. None would move on any change proposed here.
+
+*A fresh worktree must `make all` before its first `run-test.sh` (`AUTOTEST.md:86`) — build output is not shared between worktrees.*
+
+### 4. Dossier claims the code contradicts
+
+| # | Claim above | At `7a6d30a4` |
+|---|---|---|
+| a | *"Shipped play has still never run with this on"* (rendezvous) | **False.** `97cb73c2` (2026-08-15) ran a full-game A/B, seed 1017, runs `260815_201640` / `260815_202509`, one YAML bool differing, and **measured it HARMFUL** — drop moved to `7,17`, one cell from the SR at `6,16`; the carrier looped load-5 / drive-1-cell / unload / reload four times. Correct statement: **it has not run since the `e174d78b` (2026-08-19) two-sided-bound fix.** |
+| b | *"step 1 is now purely flip-the-flag-and-measure"* | Understated. Flipping it re-runs a configuration that **measured harmful**; the fix that should change that verdict is real but unproven. |
+| c | Remaining-work list | **Omits `TransportStandoffEnabled`** — live `true` on BOTH profiles (`ai.yaml:512`, `:2896`; C# default `false` at `PoiOffensiveBotModule.cs:116`), shipped in the same `97cb73c2`. **Measured: carrier seats 1/5 → 5/5, departure EARLIER (t365 vs t1015), all three post-fix departures `reason=Full` vs baseline 1/4/2.** This is the one shipped, measured, live combined-arms win, and it is the direct answer to *"a squad of soldiers can quickly reach the front"*. |
+| d | *"`minAxisSize` retire gate at `:1509-1515`"* | Under-min retire is `:1778` (`ReleaseAxis(axis, "under-min")`); the churn retire is `:1626` (`"dropped"`). |
+| e | `StageFreePool` per-unit order at `:2356-2358` | Now `:2769-2771`. |
+| f | `AWAITING-USER.md:225` — *"@experimental-only"*, cite `ai.yaml:770` | Both stale. On **both** profiles (`:817`, `:2965`) since the 2026-09-02 parity re-sync. |
+| g | Stub: *"infantry already walk to the same anchor from tick 3; the tank simply outruns them"* | **CONFIRMED**, and now double-sourced (`test-combined-arms-rendezvous.lua:6-13`). |
+
+**Commits missing from this dossier:** `97cb73c2` (2026-08-15), `a5ccc8a7`, `54346e30`, `3e8955a1` (2026-09-02), `243fa997`, `1452a82f` (2026-09-03).
+
+### 5. Hypotheses, with what confirms each
+
+* **H1 — the complaint is a consequence of the user's own pick, not a defect.** *Confirms:* one run with `ImmediateReinforcementCommit: false` on @experimental against baseline, reading `[exp-offense]` axis-new size and departure spread. If the piecemeal arrival disappears, this item is **a decision to re-put to the user**, not engineering. *Cost: one run.*
+* **H2 — target churn dominates, and no departure gate survives it.** *Confirms:* raise `ReassignScoreThresholdPct` (30 → ~60) or lengthen `AxisCommitmentTicks` (250), re-read the retire-reason census. If `dropped` falls below ~50%, stickiness is the lever `ai.yaml:888` says it is and the departure gate belongs **after** it. *The 100%-dropped measurement is in-tree and mirror-paired; whether the lever moves it is unknown.*
+* **H3 — the visible "lone tank" is the free-pool per-unit AttackMove, not the axis path.** *Near-confirmed already:* `97cb73c2`'s baseline shows `[exp-staging] staged=5 at tick 7`. *Open:* whether the tank the user sees is a free-pool unit or an axis unit at that moment. *Confirms:* `[exp-staging] staged=N` at low tick with `[exp-offense]` showing zero axes.
+* **H4 — the speed differential is now the whole remaining visible gap.** Follows from H3 plus the shared anchor. *Confirms:* arrival-tick delta at the staging anchor between tank and carried infantry under shipped config. **Needs no code change.**
