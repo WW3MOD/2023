@@ -131,7 +131,7 @@ For the curious:
 - **Captures trait** (capturers) — `engine/OpenRA.Mods.Common/Traits/Captures.cs`
 - **CaptureManager** (per-actor) — `engine/OpenRA.Mods.Common/Traits/CaptureManager.cs:120` (`CanTarget` decides whether a given capturer can take a given building, based on `CaptureTypes` overlap + `ValidRelationships` of capturer vs owner)
 - **CaptureActor activity** — `engine/OpenRA.Mods.Common/Activities/CaptureActor.cs` (the walk-in → flash → ownership change pipeline)
-- **Templates** — `^NeutralOrOccupiedCapturable` in `mods/ww3mod/rules/ingame/structures.yaml:149` (capturable side, one type pair for every building); `^CapturesOccupiedBuildings` (`infantry.yaml:840`, the soldier clear rule) and `^CapturesNeutralBuildings` (`:854`, the Technician) (capturer side)
+- **Templates** — `^NeutralOrOccupiedCapturable` in `mods/ww3mod/rules/ingame/structures.yaml:169` (capturable side, one type pair for every building); `^CapturesOccupiedBuildings` (`infantry.yaml:840`, the soldier clear rule) and `^CapturesNeutralBuildings` (`:854`, the Technician) (capturer side)
 - **Clearing flags** — `CaptureToNeutral` and `EnterBehaviour` on `CapturesInfo` (`Captures.cs`), honoured in `CaptureActor.DoCapture`. Both default to classic capture-and-be-consumed, so only `^CapturesOccupiedBuildings` opts in and the Technician is unaffected
 - **Income** — `engine/OpenRA.Mods.Common/Traits/CashTrickler.cs`; building amounts in `mods/ww3mod/rules/ingame/structures-neutral.yaml`
 
