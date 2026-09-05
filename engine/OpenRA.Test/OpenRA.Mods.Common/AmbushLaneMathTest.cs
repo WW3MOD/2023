@@ -146,5 +146,59 @@ namespace OpenRA.Test
 			Assert.That(AmbushLaneMath.LaneIsViable(0, -5), Is.True);
 			Assert.That(AmbushLaneMath.LaneIsViable(3, -5), Is.True);
 		}
+
+		// ==================================================================================
+		// LaneMayPost — MINIMUM MANNING (PIPELINE item 64).
+		//
+		// Measured twice, at tick 100 of two independent runs: this module claimed the very
+		// first reinforcement of the match and posted it ALONE, 40% of the way to the enemy
+		// beachhead, before PoiOffensiveBotModule's free pool had ever seen it. The lone unit
+		// the user reported is this module's.
+		// ==================================================================================
+
+		[Test]
+		public void MinManningOfZeroIsByteIdenticalToTheUngatedModule()
+		{
+			// The C# default, and what @stable read before this batch. Must never withhold —
+			// including at zero units, where the caller's own empty-lane retire is what applies.
+			for (var units = 0; units <= 8; units++)
+				Assert.That(AmbushLaneMath.LaneMayPost(units, 0), Is.True, $"min=0 must never withhold (units={units})");
+
+			Assert.That(AmbushLaneMath.LaneMayPost(1, -2), Is.True, "negative is OFF, not always-hold");
+		}
+
+		[Test]
+		public void AHalfMannedLanePostsNobody()
+		{
+			// The shipped setting: min 2, equal to UnitsPerAmbush — post a full lane or none.
+			Assert.Multiple(() =>
+			{
+				Assert.That(AmbushLaneMath.LaneMayPost(1, 2), Is.False,
+					"one unit available — this is the lone tank at tick 100 of runs 260905_180211 and _183118");
+				Assert.That(AmbushLaneMath.LaneMayPost(2, 2), Is.True, "at the minimum is enough; the gate is >=");
+				Assert.That(AmbushLaneMath.LaneMayPost(5, 2), Is.True);
+			});
+		}
+
+		[Test]
+		public void TheGateIsMonotonicSoAFillingLaneCannotOscillate()
+		{
+			// Same anti-churn property the offensive free-pool gate carries: the answer depends only
+			// on the count, so a lane that gains a unit can never re-enter the refusal. Combined with
+			// the caller refusing at the RECRUIT step (nothing committed, granted or ordered), an
+			// under-manned lane costs exactly zero orders per eval rather than a claim/release cycle.
+			for (var min = 0; min <= 5; min++)
+			{
+				var posted = false;
+				for (var units = 0; units <= 10; units++)
+				{
+					if (AmbushLaneMath.LaneMayPost(units, min))
+						posted = true;
+					else
+						Assert.That(posted, Is.False,
+							$"min={min}: lane grew to {units} and the gate CLOSED again — not monotonic");
+				}
+			}
+		}
 	}
 }

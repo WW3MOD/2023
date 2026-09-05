@@ -3,6 +3,205 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-05 - Item 64 MEASURED, four arms: the free-pool gate is proven, the muster revert is inert and dropped, and the instrument's d1 clause passed for the wrong reason (`wt/item64 @ 6951b540`, base `main @ 62778af1`)
+
+Four runs of `test-push-departs-together` plus one of `test-combined-arms-rendezvous`, run by the manager. This
+entry is the measured record; the three earlier 2026-09-05 entries below are annotated where it confirms or
+retracts them.
+
+| arm | d3 solo (x=10) | d1 interval (x=20) | d2 spread (x=33) |
+|---|---|---|---|
+| **control**, `FreePoolMinAdvanceUnits: 0` | **1** ✗ *(tank-1 left ALONE at t211)* | 147 | 27 |
+| **HEAD** (gate 2 + ambush gate + C), run `260905_212326_p13005` | **2** ✓ *(both tanks left at t382)* | 0 | 18 ✗ |
+| **C dropped** (`ImmediateReinforcementCommit: true`) | **2** ✓ | 0 | 17 ✗ |
+
+**1. THE FREE-POOL GATE IS PROVEN, with a control that failed as required.** `FreePoolMinAdvanceUnits: 2` logged
+`hold-under-min` at t60 and t160, tank-1 stayed home, and both tanks crossed the beachhead line together at t382
+and the advance line together at t545. With the gate at 0 the same scenario put tank-1 across alone at t211. That
+is a real RED→GREEN with the arm that had to be red actually red — the discipline AUTOTEST.md §"A green run is not
+evidence" asks for, and the reason the green means anything.
+
+**2. `ImmediateReinforcementCommit` IS INERT ON THIS INPUT, MEASURED.** The C-dropped arm is identical to HEAD
+within noise (d3 2/2 both, d1 0 both, d2 17 vs 18). The 2026-09-05 code read below predicted exactly this: the
+fill-completion hold is conjunctive on `FillIncomplete(Units.Count, AllocatedSize)`, and the allocator sizes an
+axis from the pool that exists and tops it up in the same pass, so the hold cannot wait for a unit that has not
+been called in yet. **The revert commit was dropped and the user's pending question was withdrawn as
+measured-moot** — which is the useful outcome: a decision nobody now has to spend attention on.
+
+**3. d1 PASSED FOR THE WRONG REASON, AND THIS IS AN INSTRUMENT DEFECT, NOT A RESULT.** d1 read **0/300** at HEAD
+and the clause counts as satisfied. It is not: only the two tanks ever crossed the advance line, and all four
+riflemen read `adv@never`, parked at x≈15-18 on their staging slots. d1 is the spread between the first and last
+*advancing* unit, so **two units advancing together score a perfect 0 while two-thirds of the push never advances
+at all.** The clause is unfalsifiable exactly when the push is smallest, which is the case the item is about.
+
+The general shape, and it is worth carrying past this scenario: **an interval or spread statistic computed over
+"the units that did X" silently improves as fewer units do X.** Min/max over a filtered set rewards the set being
+empty. Any such clause needs a companion count gate — here, "every spawned, living unit must have advanced" — or
+it reports its best number on its worst run. The same trap would bite a formation-tightness metric, a
+convoy-spacing metric, or any "how far apart were they" assertion whose population is defined by having reached
+the thing being measured.
+
+**4. THE INFANTRY NEVER ADVANCED AT ALL**, which is more than "strung out": the axis carried only the two tanks,
+and the riflemen stayed on staging slots for the whole run. That is the axis↔staging beat (entry below) seen from
+the other end, and it is now the largest unexplained behaviour in this item.
+
+**5. THE AMBUSH GATE WORKS, AND IS NOT THE WHOLE STORY.** `test-combined-arms-rendezvous` at HEAD
+(`260905_212607_p13262`) logged `[exp-ambush] reeval player=USA-bot anchors=1 lanes=0 free=1 tick=100` — no
+one-unit lane, exactly as `MinUnitsPerAmbush: 2` intends, against the `units=1 tick=100` it logged at main. **And
+the abrams still died**, so something other than the ambush lane walks that tank into contact in that scenario.
+Undiagnosed, and it means the claim in the entry below needs narrowing: LaneAmbushBotModule is *a* proven
+lone-unit forward path and it is now gated, but it is not the sole cause of every lone tank.
+
+## 2026-09-05 - The lone opening tank is LaneAmbushBotModule's, not the offensive stager's: it claims the first reinforcement at tick 100, before the offense free pool exists (`wt/item64`, `main @ 62778af1`)
+
+> **NARROWED 2026-09-05 by the measured entry above.** The mechanism here is confirmed and the gate works
+> (`lanes=0` at tick 100 where main logged `units=1`), but *"relocates the whole of item 64"* is too
+> strong: with the one-unit lane gone, `test-combined-arms-rendezvous`'s abrams still died. This is one
+> proven lone-unit path, not the only one.
+
+**MEASURED, in two independent runs.** The module that sends the first
+tank forward on its own is `LaneAmbushBotModule`, which nobody had looked at:
+
+```
+test-combined-arms-rendezvous (main, run 260905_180211):
+  [exp-ambush] lane player=USA-bot anchor=supplyroute#7 post=28,12 units=1 tick=100
+test-push-departs-together (run 260905_183118):
+  [exp-ambush] lane player=USA-bot anchor=supplyroute#7 post=29,17 units=1 tick=100
+  [exp-offense] reeval player=USA-bot pool=0 free=0 targets=1 axes=0 k=0 tick=119
+  [exp-offense] reeval player=USA-bot pool=0 free=0 targets=1 axes=0 k=0 tick=219
+```
+
+**`pool=0` is the proof of ordering.** A posted unit is ledger-committed `ambush:<anchorId>`, so
+`PoiOffensiveBotModule.BuildFreePool` excludes it and the offensive stager never sees it at all — for the first
+300 ticks of the match its pool is empty while its only unit is walking 21 cells up the corridor. Any gate on
+`StageFreePool` (including `FreePoolMinAdvanceUnits`, added in this same branch) is **structurally unreachable**
+for that order. In the rendezvous run it is also the tank whose death produced *"the bot's tank died before the
+rendezvous could be judged"*.
+
+The mechanism is the same under-fill shape as the free-pool leak, in a second module: the lane fill takes
+`Take(need)` from whatever is free and `CommitAndOrder` runs on `Units.Count > 0`, so a lane with one unit
+available posts one unit. The module's own header argues it is safe because `MaxAmbushes × UnitsPerAmbush = 4`
+is *"small so offense keeps the rest"* — **true only when offense has units to spare.** At the opening the lane
+takes 100% of a one-unit army. Now gated by `MinUnitsPerAmbush` (default 0 = unchanged; 2 on both profiles) via
+the pure `AmbushLaneMath.LaneMayPost`.
+
+**The generalisable lesson: "which module issued the order" is not answerable from the module you suspect.**
+Item 64 had two recon passes and a shipped fix aimed at `StageFreePool`, and the answer was a ledger commit from
+a module whose name contains neither "offensive" nor "push". The cheap discriminator was already in the log and
+costs one grep — `[exp-offense] reeval ... pool=N`. **A `pool=0` on a player that demonstrably owns units means
+somebody else owns them**, and the shared `PoiGoalGuard` ledger is the list of candidates. Grep the pool count
+before theorising about the stager.
+
+## 2026-09-05 - A mission-committed axis reads as FREE POOL, so StageFreePool marches it back to the muster on the same eval it is being held forward (`wt/item64`, run 260905_183118)
+
+> **NOW THE OPEN REMAINDER OF ITEM 64.** Re-observed at HEAD: the axis carried only the two tanks and all
+> four riflemen sat on staging slots with `adv@never` for the whole run.
+
+Second finding from the same run, and it is the reason a push that *is* correctly ordered still does not arrive.
+`PartitionHeldAxes` pulls a mission-committed axis out of the live set **before** `BuildFreePool` runs, so that
+axis's own units are not `claimedByAxis` and fall into the free pool. `StageFreePool` then stages them — rearward,
+to the muster anchor — on the very eval the commitment exists to stop them being re-decided:
+
+```
+[exp-offense] order player=USA-bot target=supplyroute@58,16 units=2 distToTarget=54 tick=519
+[exp-offense] hold  player=USA-bot target=supplyroute@58,16 units=2 commitScore=69888000 tick=619
+[exp-offense] reeval player=USA-bot pool=2 free=2 targets=0 axes=1 k=0 tick=619
+[exp-staging] player=USA-bot anchor=14,16 idle=2 staged=2 tick=619
+... same again at 719 ...
+[exp-offense] order player=USA-bot target=supplyroute@58,16 units=4 distToTarget=48 tick=819
+```
+
+**Six cells of progress in 300 ticks** while both mechanisms were working exactly as written. This is the concrete
+instance of the churn `PoiOffensiveBotModule.cs:2769` already flags as *"RECURRING — census §4.2: the axis<->staging
+beat"* and that `ai.yaml:791-795` records as the user's undiagnosed *"ordered back, then forward again"*. It is now
+diagnosed: the exclusion that protects a committed axis from re-decision is the same exclusion that hands it to the
+stager. Not fixed here — it is a third mechanism, past this batch's scope.
+
+## 2026-09-05 - A measurement line inside the muster ring cannot tell mustering from advancing, and moving it outside makes the opposite clause blind (`wt/item64`, run 260905_183118)
+
+Scenario-design, general, and it cost one run. `test-push-departs-together` measured departure at x=10 with the
+staging anchor at (14,16) and slots spanning x∈[10,18] — so a unit walking to its own muster slot counted as having
+departed, and "6/6 departed, 0/6 crossed the midline" described a push that had gone nowhere.
+
+The obvious repair is to move the line past the ring. **That is worse**, and the reason is the interesting part: a
+lone staged unit *never leaves the ring*, so a departure line at x=20 makes the solo-departure clause — the one the
+free-pool gate exists to flip — pass with the gate switched off. One line cannot serve both clauses because the two
+behaviours live on opposite sides of it.
+
+**The rule: when a scenario measures a bot that has an intermediate destination, site one line INSIDE it and one
+OUTSIDE, and say in the failure note which is which.** Any clause about *leaving* belongs on the inner line; any
+clause about *going somewhere* belongs on the outer one. The muster ring's radius is derivable without a run —
+`TryResolveFallbackCell(SR → bounds centre, StagingFallbackCells)` plus
+`MaxSpreadRings(StagingFallbackCells, StagingSpreadStepCells)` — so this is a design-time calculation, not a
+finding that needs measuring first.
+
+## 2026-09-05 - The fill-completion massing hold cannot wait for a unit that does not exist yet, so `ImmediateReinforcementCommit` suppresses a hold that a reinforcement dribble never arms (`wt/item64`, base `main @ 62778af1`)
+
+> **CONFIRMED BY MEASUREMENT 2026-09-05 (entry above).** The C-dropped arm is identical to HEAD within
+> noise. The revert commit was dropped and the user's question withdrawn as moot. This entry was a code
+> read when written; it is now a result.
+
+**This retracts the headline of the 2026-09-05 item-64 recon.** That recon named
+`ImmediateReinforcementCommit: true` (`ai.yaml:817` / `:2965`) "the direct cause" of the user's lone-tank
+complaint and framed the item as a decision to re-put to the user. The flag is real, live on both profiles, and
+does exactly what its `Desc` says — but **on the input the user is describing it suppresses a hold that would
+not have fired anyway.** Read, not measured; the scenario below exists to settle it.
+
+The chain, all at `main @ 62778af1`:
+
+* `DamperShouldHold` (`PoiOffensiveBotModule.cs:4437`) is
+  `!SpawnFlowMath.SuppressMassingHold(...) && RetreatDamperMath.ShouldHold(...)`.
+* `ShouldHold` (`RetreatDamperMath.cs:149-165`) reaches its massing arm only when
+  `FillIncomplete(currentUnits, allocatedUnits)` — and `FillIncomplete` (`:101-102`) is
+  `allocatedUnits > 0 && currentUnits < allocatedUnits`.
+* `AllocatedSize` is written every eval from `PoiOffenseMath.AllocateProportional` over the pool **that exists
+  this eval** (`PoiOffensiveBotModule.cs:1699`), and the very next loop sheds surplus and **tops the axis up to
+  that allocation in the same pass**. `FillIncomplete`'s own doc-comment says so outright: *"unit conservation in
+  AllocateProportional means an axis reaches its allocation as soon as the recruit pass runs, so the hold lasts
+  only while units are genuinely still walking up"*.
+
+So the hold waits for **allocated units still walking up**. A reinforcement that has not been called in yet was
+never allocated, so it cannot make an axis under-filled, so it cannot arm the hold. Reverting the flag restores a
+gate that is structurally blind to the staggered arrival it is being asked to fix.
+
+**Two consequences worth carrying.**
+
+1. **The pending user question about reverting the 2026-08-05 SR-flow-shape pick may be moot**, and asking a user
+   to re-decide something that does not move the behaviour spends their attention for nothing. Measure first.
+2. **"The comment describes the mechanism accurately" is not the same as "the mechanism is reachable on this
+   input."** Every document in the chain above is correct about what it says; the gap only appears when you ask
+   *what state actually reaches this predicate*. Same shape as the `CloseInRatchetEnabled` finding
+   (`1452a82f`) — a lever whose premise was refuted by looking at how often the state it keys on occurs.
+
+**What DOES reach the opening push**, and is fixed in the same branch: the free pool had no minimum.
+`PoiOffenseMath.DesiredAxisCount` (`:4986-4994`) returns 0 below `EarlyMinAxisSize: 2`, so the first
+reinforcement forms no axis, falls to the free pool, and `StageFreePool` AttackMoves it forward **one order per
+unit** (`:2769-2771`, `groupedActors: new[] { u }`) with no minimum count. Attack axes have an under-min retire
+gate (`:1778`); staging had none. Now gated by `FreePoolMinAdvanceUnits` (default 0 = unchanged; 2 on both
+profiles), via the pure `ForwardStagingMath.FreePoolMayAdvance`.
+
+Live evidence for the shape, from the manager's 2026-09-05 run of `test-combined-arms-rendezvous`
+(`260905_180211_p9220`): `[exp-standoff] player=USA-bot held=4 free=1 tick=22` — the four riflemen withheld by
+`TransportStandoffEnabled` for a carrier — immediately followed by
+`[exp-staging] player=USA-bot anchor=12,16 idle=1 staged=1 advance=none advanced=0/0 tick=22`. One tank, ordered
+forward, alone, at tick 22. That run then failed with *"the bot's tank died before the rendezvous could be
+judged"*: the symptom ate its own test.
+
+**A scenario measuring this must judge BEFORE contact**, which is why `test-push-departs-together` has no enemy
+mobile units at all and measures line crossings rather than proximity. Two scenario-design facts fell out of
+building it and generalise:
+
+* **`TransportStandoffEnabled` makes any carrier on the map a confound for any free-pool measurement.**
+  `MountedTransportBotModule.RefreshWantedPassengers` returns early on `seats <= 0`, so the standoff arms only
+  when an EMPTY carrier of a `CarrierTypes` type (`bradley`, `bmp2`, `m113`) exists. Place one "for realism" and
+  the infantry are withheld from the free pool and the scenario times the ferry instead.
+* **Where you spawn a unit decides whether a staging order can be observed at all.** The no-belief fallback anchor
+  is deterministic — `TryResolveFallbackCell(SR → bounds centre, StagingFallbackCells)` — and slots fan out to
+  `MaxSpreadRings(6, 2) = 2` rings at 2-cell spacing around it. Spawn the unit inside that disc and
+  `SpreadSlot` can hand it the cell it is already standing on: the unit does not move, and a
+  "did it leave alone?" predicate passes with the gate switched OFF. Spawn behind the SR instead and every
+  reachable slot is strictly forward of the spawn line.
+
 ## 2026-09-05 - Item 56's follow-path churn is REAL BUT LARGELY UNREACHABLE at shipped config, because selection now implies the drop's demand gate (`wt/item56`, base `main @ eacc8f44`)
 
 The item's 2026-09-05 recon concluded that the follow path is "the entire remaining mechanism",

@@ -1,4 +1,28 @@
-### 64. Coordinated combined-arms push — the first tank attacks alone **[PARTIALLY SHIPPED — merged but gated OFF]**
+### 64. Coordinated combined-arms push — the first tank attacks alone **[MEASURED: free-pool gate PROVEN, ambush gate KEPT (moves @stable), muster revert DROPPED as inert; ONE mechanism left open]**
+
+> 🔧 **STATUS 2026-09-05 — MEASURED, four arms (`wt/item64 @ 6951b540`, base `main @ 62778af1`, 7 commits).** One gate proven, one gate shipped-but-not-sufficient, one revert measured inert and DROPPED, one mechanism open. Numbers and mechanism detail: `WORKSPACE/DISCOVERIES.md` 2026-09-05 "Item 64 MEASURED, four arms".
+>
+> | arm | d3 solo (x=10) | d1 interval (x=20) | d2 spread (x=33) |
+> |---|---|---|---|
+> | control, `FreePoolMinAdvanceUnits: 0` | **1** ✗ *(tank-1 alone at t211)* | 147 | 27 |
+> | HEAD, run `260905_212326_p13005` | **2** ✓ *(both tanks at t382)* | 0 | 18 ✗ |
+> | C dropped | **2** ✓ | 0 | 17 ✗ |
+>
+> ✅ **`FreePoolMinAdvanceUnits: 2` (both profiles) IS PROVEN.** `hold-under-min` at t60 and t160, tank-1 held, both tanks crossed the beachhead line together at t382 and the advance line together at t545 — against a control arm that put tank-1 across **alone at t211**. A real RED→GREEN with the arm that had to be red actually red.
+>
+> ✅ **`ImmediateReinforcementCommit` IS INERT — MEASURED, and the revert is DROPPED.** The C-dropped arm is identical to HEAD within noise. The flag stays `true` on both profiles, and **the user's pending question was withdrawn as measured-moot.** The 2026-09-05 code read predicted this exactly: the fill-completion hold cannot wait for a unit that has not been called in yet.
+>
+> ⚠️ **`MinUnitsPerAmbush: 2` (both profiles) WORKS AND IS KEPT — AND IT MOVES `@stable`.** It is the mechanism behind the lone tank the user actually watched: at main the lane posted `units=1` at tick 100, ledger-committing the only unit in the match so the offensive pool read `pool=0` for 300 ticks; at HEAD the same tick logs `lanes=0 free=1`. **This changes `@stable` deliberately — withholding a half-manned lane hands those units back to offense at the opening on BOTH profiles, so the next benchmark baseline MUST be re-taken before any @stable comparison is trusted.** Its effect on win rate is unmeasured. **It is also not the whole story:** with the one-unit lane gone, `test-combined-arms-rendezvous` at HEAD (`260905_212607_p13262`) still ended *"the bot's tank died"* — something else walks that tank into contact there, undiagnosed.
+>
+> ⚠️ **THE INSTRUMENT'S d1 CLAUSE PASSED FOR THE WRONG REASON — fix it before trusting a future green.** d1 read 0/300 because **only the two tanks ever crossed the advance line**; all four riflemen read `adv@never`, parked at x≈15-18 on staging slots. d1 is the spread between the first and last *advancing* unit, so two units advancing together score a perfect 0 while two-thirds of the push never advances. The clause is unfalsifiable exactly when the push is smallest, i.e. in the case this item is about. **The fix is a companion count gate — every spawned, living unit must have advanced — not a threshold change.** d2 (18/8 ✗) is the clause still doing real work.
+>
+> 🚨 **THE OPEN REMAINDER OF ITEM 64 IS ONE MECHANISM: a mission-committed axis reads as free pool and is marched back to the muster.** `PartitionHeldAxes` pulls a committed axis out of the live set BEFORE `BuildFreePool`, so its own units are not `claimedByAxis`, fall into the free pool, and `StageFreePool` stages them rearward on the very eval the commitment exists to protect them — `order … units=2 distToTarget=54 t519` → `hold … commitScore=…` + `[exp-staging] idle=2 staged=2 t619` → same at 719 → `order … units=4 distToTarget=48 t819`. **Six cells in 300 ticks**, both mechanisms working as written. It is also why the riflemen never advanced at all. This is the diagnosis of the "ordered back, then forward again" `ai.yaml:791-795` still calls undiagnosed.
+>
+> **WHAT WOULD MEASURE IT, without a new scenario.** The observable is already in `debug.log` and costs one pass: **count evals where `[exp-offense] hold … commitScore=` and `[exp-staging] … staged=N>0` appear for the SAME player on the SAME tick**, and of those, how many staged cells lie rearward of the axis centroid. At HEAD that is 2 of the ~4 evals the axis existed for. A fix is then falsified or confirmed by the same count going to zero with `d2` improving — and the candidate fix is narrow: keep mission-held axes' units in `claimedByAxis` even while their axis is out of the live set, so the stager cannot see them. That is a behavioural change on a shared trait and needs its own measured run; **do not fold it into a batch with anything else.**
+>
+> **Also still open, unchanged:** axis churn — 100% of retires `reason=dropped`, `ai.yaml:880-889`.
+>
+> **Commits (7, `main..HEAD`):** `3b70a914` scenario · `16bab17d` d3 window · `81a5a763` **FreePoolMinAdvanceUnits** · `49b62147` docs · `9002dc50` **MinUnitsPerAmbush** · `d5b5f7b0` scenario re-site · `6951b540` docs. The `ImmediateReinforcementCommit: false` commit was rebased out.
 
 > ✅ **VERDICT 2026-08-19 (`main @ 5890b053`) — PARTIALLY SHIPPED. Real implementation landed; it is switched off and was never proven to improve play.**
 >

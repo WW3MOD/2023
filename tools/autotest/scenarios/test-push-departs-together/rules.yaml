@@ -1,0 +1,48 @@
+# Kept as close to test-combined-arms-rendezvous as possible - that is the shape
+# known to load a Lua-verdict scenario driving the @experimental bot from a
+# spectator slot.
+#
+# ONE deliberate difference: DefaultCash is 0, not 7500. At 7500 the bot buys its
+# own force and uses THAT, leaving the scenario's named actors idle beside the
+# measurement - AUTOTEST.md records a run where debug.log showed six transport
+# departures while the predicate reported everCarried=0, both readings correct about
+# different actors. Here it would be worse than a wrong number: purchased units
+# would enter the free pool on the bot's own schedule and destroy the staggered
+# arrival that IS the input under test. 0 makes the six Lua-created units the entire
+# force, which is the constraint test-tecn-ride already uses.
+#
+# NO AI FLAG OVERRIDES, so the offensive module runs on shipped ai.yaml. Exactly ONE
+# MODULE IS REMOVED, and run 260905_183118 is why.
+#
+# LaneAmbushBotModule claimed the FIRST unit of the match at tick 100 and posted it alone
+# to (29,17), 40% of the way to the enemy beachhead — before PoiOffensiveBotModule's free
+# pool had ever seen it. The offensive reeval read `pool=0 free=0` at ticks 119, 219 and
+# 319 because the unit was ledger-committed "ambush:<id>". The scenario was measuring lane
+# posting and calling it push departure. The same line is in the rendezvous run at main:
+# `[exp-ambush] lane anchor=supplyroute#7 post=28,12 units=1 tick=100` — and that is the
+# tank whose death made that run inconclusive.
+#
+# With six units and MaxAmbushes 2 x UnitsPerAmbush 2 the lane can take FOUR of them. No
+# threshold tuning fixes that; the two modules are simply competing for one tiny pool. So
+# this scenario measures the offensive push path alone, and the ambush module's own
+# under-fill defect is gated separately (LaneAmbushBotModuleInfo.MinUnitsPerAmbush) and
+# witnessed by test-combined-arms-rendezvous, where one `units=1` line at tick 100 is the
+# whole observable.
+#
+# Removing it here is NOT a claim that the interaction is uninteresting — it is a real part
+# of the opening push and is recorded in DISCOVERIES. It is a claim that one scenario should
+# measure one thing.
+
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+	# See the header. Precedent for the -Trait@suffix form: test-drone-lost-track/rules.yaml:17.
+	-LaneAmbushBotModule@experimental:
+
+World:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-push-departs-together.lua

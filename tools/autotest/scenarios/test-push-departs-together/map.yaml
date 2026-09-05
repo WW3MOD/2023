@@ -1,0 +1,149 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Push departs together
+
+Author: WW3MOD autotest
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# PIPELINE item 64 — "the first tank attacks alone".
+#
+# WHAT THIS MEASURES: departure discipline, at the moment of departure. NOT
+# proximity once everyone has arrived. That distinction is the whole reason this
+# scenario exists: test-combined-arms-rendezvous asserts "riflemen near the tank"
+# and is documented to PASS with its fix disabled, because StageFreePool walks the
+# infantry to the SAME staging anchor as the armour, so they end up together under
+# their own feet whatever the transport does. Arrival is not attributable;
+# departure is.
+#
+# GEOMETRY, and every number in it is load-bearing.
+#
+#   OwnSR      (8,16)   3x3, so it occupies x8-10 / y16-18. rallyCell = 8,16.
+#   OpponentSR (58,16)  due east, so the SR->POI bearing is +x and the midline
+#                       (perpendicular bisector) is the column x=33.
+#   Bounds centre = (33,17).
+#
+# The staging anchor is DETERMINISTIC here and that is deliberate. With no enemy
+# unit on the map there is no believed contact, so ResolveStagingAnchor finds no
+# gradient and StageFreePool takes the configured fallback:
+# ForwardStagingMath.TryResolveFallbackCell(8,16 -> 33,17, StagingFallbackCells=6)
+# = (14,16). The manager's 2026-09-05 run of test-combined-arms-rendezvous shows
+# exactly this path live: `[exp-clog] sr=6,16 anchor=12,16 anchorsrc=fallback`.
+#
+# Spread slots around that anchor are bounded by
+# ForwardStagingMath.MaxSpreadRings(StagingFallbackCells=6, StagingSpreadStepCells=2)
+# = (6-1)/2 = 2 rings at 2-cell spacing, i.e. Chebyshev <= 4 from (14,16), i.e.
+# x in [10,18]. CONFIRMED LIVE by run 260905_183118:
+# `[exp-clog] player=USA-bot sr=8,16 pool=1 anchor=14,16 anchorsrc=fallback tick=419`.
+#
+# THE MUSTER RING IS WHY THERE ARE TWO MEASUREMENT LINES, not one. x=10 is INSIDE that
+# ring and x=20 is outside it, so:
+#   * the BEACHHEAD line x=10 is what a lone unit crosses when StageFreePool walks it to
+#     its muster slot - the thing FreePoolMinAdvanceUnits forbids, and therefore the right
+#     line for the solo-departure clause;
+#   * the ADVANCE line x=20 is beyond every reachable slot, so crossing it means a unit is
+#     going somewhere rather than mustering.
+# The first revision of this scenario measured both against x=10 and could not tell those
+# apart. Siting a single line at 20 instead would be the worse error: a staged lone unit
+# never reaches 20, so the solo clause would PASS with the gate switched off.
+#
+# THAT is why the push spawns at x=4-5, BEHIND the Supply Route:
+# every reachable staging slot is then strictly forward of the spawn line, so a
+# staging order ALWAYS carries a unit across the departure line at x=10. Spawn the
+# push on top of the SR instead and ForwardStagingMath.SpreadSlot can hand the lone
+# tank a slot that lands on or beside its own spawn cell — the unit would not move,
+# the solo-departure clause would pass with the free-pool gate switched off, and the
+# run would be a false green of exactly the kind AUTOTEST.md section "A green run is
+# not evidence unless something could have made it RED" catalogues.
+#
+# NO CARRIER, AND THAT IS NOT AN OVERSIGHT. bradley / bmp2 / m113 are
+# MountedTransportBotModule.CarrierTypes. Place one and TransportStandoffEnabled
+# (live true on both profiles, ai.yaml:512 / :2896) withholds the infantry from the
+# free pool while the ferry loads them - measured in that same rendezvous run:
+# `[exp-standoff] player=USA-bot held=4 free=1 tick=22`. The scenario would then be
+# measuring ferry timing, not push departure. MountedTransportBotModule.
+# RefreshWantedPassengers returns early on `seats <= 0`, so with no carrier of a
+# configured type on the map the standoff never arms and all six units reach the
+# free pool by the ordinary path.
+#
+# LaneAmbushBotModule IS REMOVED IN rules.yaml. It claimed the first unit at tick 100 in
+# run 260905_183118 and posted it alone, before the offensive free pool existed; with six
+# units its lane can take four. See that file's header. This scenario measures the
+# offensive push path only.
+#
+# NO ENEMY MOBILE UNITS, so nothing can die before the measurement instant. The
+# rendezvous run failed inconclusively for exactly that reason ("the bot's tank died
+# before the rendezvous could be judged") - the lone tank attack-moved into contact
+# and was killed, which is the item-64 symptom eating its own test. Belief is not
+# needed here: the enemy Supply Route alone is enough for PoiMap to publish an
+# offensive target (`targets=1` at tick 22 in that run, before any contact), and the
+# staging anchor comes from the fallback, which reads no belief at all.
+#
+# Player layout follows test-combined-arms-rendezvous / tournament-arena-skirmish-2p:
+# non-playable map players with Bot: assigned directly, the local client in a
+# spectator slot. Exactly ONE Playable: True (the Observer).
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Bot: experimental
+		Color: FF4444
+		Enemies: USA-bot
+
+# One supplyroute per active faction (WW3MOD canon; also keeps a faction alive so no
+# Mission-Accomplished overlay ends the run before the Lua poller writes a verdict).
+# Russia-bot owns nothing else and rules.yaml pins DefaultCash to 0, so it cannot
+# build, cannot move and cannot kill anything - it exists to be a target bearing.
+#
+# The PUSH ITSELF IS NOT PLACED HERE. It is created from Lua on a staggered schedule
+# (see test-push-departs-together.lua), because the reinforcement DRIBBLE is the
+# input under test: units placed at t=0 all enter the free pool in the same eval and
+# the bot has nothing to depart piecemeal.
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 8,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 8,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+# LOAD-BEARING, and its absence is SILENT: without this line rules.yaml is never
+# read, LuaScript is never attached, no assertion runs and the scenario burns the
+# full watchdog with a 0-byte lua.log. The blank line above is significant (adjacent
+# MiniYaml top-level entries merge).
+Rules: rules.yaml

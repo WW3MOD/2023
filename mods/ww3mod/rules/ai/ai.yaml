@@ -723,6 +723,19 @@ Player:
 		# same 6-cell reasoning as ReserveFallbackCells above; on this path the pre-contact clog was heavier still,
 		# 8 of a 12-unit pool within 2 cells of the SR and 11 within 4, with 100% of arrivals retained.
 		StagingFallbackCells: 6
+		# FORWARD-STAGING MINIMUM (item 64, "the first tank attacks alone"). Set to EarlyMinAxisSize above, and the
+		# equality is the whole argument: DesiredAxisCount returns 0 below that floor, so a single reinforcement
+		# forms no axis, falls to the free pool, and StageFreePool AttackMoves it forward on its own — one order
+		# per unit, no minimum, no composition check. Axes have an under-min retire gate; staging had none. With
+		# the two floors agreed, a unit too few to OPEN an axis is also too few to MUSTER FORWARD alone.
+		# Withheld only while NO axis is live: once one exists the pool is not the whole army and a late arrival
+		# walking to the muster is joining a body, not starting one, so it is released — which is what keeps this
+		# aimed at the opening push rather than at every reinforcement all match.
+		# Not a wait state. Per-eval count test, re-asked every ReevaluateInterval (100 t), no counter, no latch,
+		# and it never recalls a unit already walking. See ForwardStagingMath.FreePoolMayAdvance.
+		# Both profiles carry it (2026-09-05 ruling: @stable is a re-synced copy of @experimental) — so this DOES
+		# change @stable, deliberately, and the next benchmark baseline should be re-taken.
+		FreePoolMinAdvanceUnits: 2
 		StagingHysteresisCells: 3
 		StagingMaxDescentSteps: 64
 		# PHASE 3 (frontline-influence) — RETREAT-OSCILLATION DAMPER. Builds on RetreatWhenLosing to stop small
@@ -1010,6 +1023,20 @@ Player:
 		ReevaluateInterval: 100
 		MaxAmbushes: 2
 		UnitsPerAmbush: 2
+		# MINIMUM MANNING (item 64) — post a FULL lane or none. Equal to UnitsPerAmbush on purpose.
+		# THIS MODULE, NOT THE OFFENSIVE STAGER, is what sends the first tank forward alone. Measured at tick
+		# 100 of two independent runs on 2026-09-05: `[exp-ambush] lane anchor=supplyroute#7 post=28,12 units=1`
+		# (test-combined-arms-rendezvous, run 260905_180211 — that tank then died, which is what made the run
+		# inconclusive) and `post=29,17 units=1` (test-push-departs-together, run 260905_183118). In both, the
+		# claim lands at tick 100, BEFORE PoiOffensiveBotModule's free pool has ever seen the unit — so
+		# FreePoolMinAdvanceUnits cannot reach it, and the offensive reeval reads pool=0 for the first 300 ticks.
+		# The block header above says this module is small enough never to starve offense. That holds only when
+		# offense has units to spare; at the opening the lane takes the entire army. This makes it explicit.
+		# Fails toward offense and cannot churn — an under-manned lane is never RECRUITED into, so nothing is
+		# committed, granted or ordered and there is nothing to hand back. See AmbushLaneMath.LaneMayPost.
+		# Both profiles (2026-09-05 ruling: @stable is a re-synced copy), so @stable changes here too and the
+		# next benchmark baseline should be re-taken.
+		MinUnitsPerAmbush: 2
 		PostFractionPct: 40
 		MinLaneSeparationCells: 12
 		PostCellClampCells: 6
@@ -2945,6 +2972,8 @@ Player:
 		StagingDangerSafeUnits: 10
 		StagingSpreadStepCells: 2
 		StagingFallbackCells: 6
+		# Forward-staging minimum (item 64) — mirrors @experimental; see the annotated copy there.
+		FreePoolMinAdvanceUnits: 2
 		StagingHysteresisCells: 3
 		StagingMaxDescentSteps: 64
 		RetreatDamperEnabled: true
@@ -2997,6 +3026,8 @@ Player:
 		ReevaluateInterval: 100
 		MaxAmbushes: 2
 		UnitsPerAmbush: 2
+		# Minimum manning (item 64) — mirrors @experimental; see the annotated copy there.
+		MinUnitsPerAmbush: 2
 		PostFractionPct: 40
 		MinLaneSeparationCells: 12
 		PostCellClampCells: 6

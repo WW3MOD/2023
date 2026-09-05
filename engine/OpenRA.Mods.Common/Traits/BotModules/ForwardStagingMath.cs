@@ -334,6 +334,42 @@ namespace OpenRA.Mods.Common.Traits
 			return Math.Max(0, (standoffMapCells - 1) / ringStep);
 		}
 
+		/// <summary>May the free pool be ordered FORWARD of the rally to the muster anchor this eval, given
+		/// <paramref name="poolCount"/> units in it? The minimum the free-pool stager never had: attack axes
+		/// carry an under-min retire gate, staging carried none, so ONE unit in the pool was one unit
+		/// AttackMoved forward on its own — PIPELINE item 64, "the first tank attacks alone".
+		///
+		/// <para>Three ways to say yes, and the order is the argument:</para>
+		/// <list type="bullet">
+		/// <item><paramref name="minAdvanceUnits"/> &lt;= 0 — the gate is OFF. This is the C# default and the
+		/// only reading that is byte-identical to the pre-gate module, so every profile that omits the field
+		/// behaves exactly as it did.</item>
+		/// <item><paramref name="axisExists"/> — an attack axis is live, so the pool is not the whole army and a
+		/// unit walking to the muster is joining a body that already exists rather than starting one. Withholding
+		/// it would strand a reinforcement at the Supply Route while its own side is committed forward, which is
+		/// the clog the stager was written to remove. This is what keeps the gate aimed at the opening push.</item>
+		/// <item><paramref name="poolCount"/> &gt;= <paramref name="minAdvanceUnits"/> — enough of them to go.</item>
+		/// </list>
+		///
+		/// <para>WHY THIS CANNOT DEADLOCK, and it is worth stating because a coupling that waits for a partner is
+		/// the named risk on this item (prior art: SectorPostureHold in bd3abacf, a hold that read as paralysis).
+		/// Nothing here WAITS on anything. It is a per-eval predicate over the pool as it stands, re-asked every
+		/// ReevaluateInterval, and it has no counter, no latch and no memory. A unit below the floor simply is not
+		/// issued a staging order this eval; it holds where it is and is offered again next eval. The moment a
+		/// second unit exists — or any axis forms — the answer flips to yes for both of them. There is no state in
+		/// which the module is waiting for something that must arrive.</para>
+		///
+		/// <para>WHAT IT DOES NOT DO: it never RECALLS a unit already walking. The caller's staged-cell memory is
+		/// untouched on the refusal path, so a pool that shrinks below the floor leaves its survivor on its
+		/// standing order rather than lurching rearward — the rearward/forward beat this module already documents
+		/// as a recurring symptom. This is a departure gate, not a leash.</para>
+		///
+		/// <para>Pure integer/boolean, zero RNG, no allocation. Order-independent: it reads a COUNT, not the
+		/// pool's iteration order, so it cannot introduce the enumeration-order dependence the influence-stack
+		/// invariants forbid.</para></summary>
+		public static bool FreePoolMayAdvance(int poolCount, int minAdvanceUnits, bool axisExists)
+			=> minAdvanceUnits <= 0 || axisExists || poolCount >= minAdvanceUnits;
+
 		/// <summary>Has the staging anchor moved far enough (Chebyshev &gt;= <paramref name="thresholdCells"/>) to
 		/// be re-ADOPTED? Hysteresis so a small field wobble doesn't re-lay the whole formation every eval. A
 		/// non-positive threshold always re-adopts (no hysteresis). Pure integer, zero RNG.</summary>

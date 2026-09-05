@@ -79,6 +79,26 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Units posted per ambush lane. Small — a lane ambush is a few pieces, not the main army.")]
 		public readonly int UnitsPerAmbush = 2;
 
+		[Desc("MINIMUM manning: a lane that cannot be filled to this many units posts NOBODY, and its recruits",
+			"stay in the free pool for offense. 0 (default) = OFF, byte-identical to the ungated module.",
+			"THE HOLE IT CLOSES (PIPELINE item 64, 'the first tank attacks alone'). The fill step takes",
+			"Take(need) from whatever is free and CommitAndOrder fires on Units.Count > 0, so a lane with ONE",
+			"unit available posts that one unit — alone, PostFractionPct of the way to the enemy beachhead.",
+			"MEASURED, twice, at tick 100 of two independent runs: [exp-ambush] lane anchor=supplyroute#7",
+			"post=28,12 units=1 (test-combined-arms-rendezvous, run 260905_180211 — and THAT is the tank whose",
+			"death made the run inconclusive) and post=29,17 units=1 (test-push-departs-together, run",
+			"260905_183118). In both, the very first reinforcement of the match was claimed here at tick 100,",
+			"BEFORE PoiOffensiveBotModule's free pool ever saw it — so the lone unit the user reported is this",
+			"module's, not the offensive stager's.",
+			"The module's own safety argument is that MaxAmbushes x UnitsPerAmbush is small enough never to",
+			"starve offense. That argument assumes offense has units to spare; with a one-unit army the lane",
+			"takes 100% of it. This gate is that assumption made explicit.",
+			"FAILS TOWARD OFFENSE, and cannot churn: an under-manned lane is never RECRUITED into (so nothing is",
+			"committed, granted or ordered, and there is nothing to release next eval), and a lane that drops",
+			"below the minimum through attrition is retired through the ordinary release path. Set equal to",
+			"UnitsPerAmbush for 'post a full lane or none'.")]
+		public readonly int MinUnitsPerAmbush = 0;
+
 		[Desc("Where along the friendly-SR -> enemy-SR line to post the ambush, as a percent of the way",
 			"from OUR beachhead toward the enemy's. Below 50 keeps the post on our side of the midline —",
 			"concealed in our own territory, on the corridor attackers commit down. Clamped [0,100].")]
@@ -358,6 +378,15 @@ namespace OpenRA.Mods.Common.Traits
 				if (need <= 0)
 					continue;
 
+				// MINIMUM MANNING (item 64), leg 1 of 2: refuse to RECRUIT into a lane that cannot reach the
+				// minimum with what is free right now. Refusing at the recruit step rather than at the order step
+				// is what makes this churn-free: nothing has been committed, granted or ordered yet, so there is
+				// nothing to hand back next eval — the unit simply never leaves the free pool, and offense (whose
+				// own FreePoolMinAdvanceUnits then decides) keeps it. Leg 2, below, covers a lane that had enough
+				// and lost it.
+				if (!AmbushLaneMath.LaneMayPost(lane.Units.Count + free.Count, Info.MinUnitsPerAmbush))
+					continue;
+
 				var postPos = world.Map.CenterOfCell(lane.PostCell);
 				var recruits = free
 					.OrderBy(u => (u.CenterPosition - postPos).LengthSquared)
@@ -370,6 +399,28 @@ namespace OpenRA.Mods.Common.Traits
 					free.Remove(u);
 					lane.Units.Add(u);
 					lane.HasOrdered = false; // set changed
+				}
+			}
+
+			// 6b. MINIMUM MANNING (item 64), leg 2 of 2: a lane that fell BELOW the minimum — attrition, or a
+			//     sprung unit released by PruneLanes — hands its remainder back and retires. Leg 1 above means a
+			//     lane never FORMS under-manned, so this fires only on a real loss, not every eval. Ordinary
+			//     release path (revoke the gate, reset stance, drop the ledger commit), so a unit that really was
+			//     posted is not left holding a condition nobody owns.
+			if (Info.MinUnitsPerAmbush > 0)
+			{
+				for (var i = lanes.Count - 1; i >= 0; i--)
+				{
+					var lane = lanes[i];
+					if (lane.Units.Count == 0 || AmbushLaneMath.LaneMayPost(lane.Units.Count, Info.MinUnitsPerAmbush))
+						continue;
+
+					// ActorID order so the release sequence is deterministic (influence-stack invariant).
+					foreach (var u in lane.Units.OrderBy(u => u.ActorID).ToList())
+						ReleaseUnit(bot, u, resetStance: true);
+
+					lane.Units.Clear();
+					lanes.RemoveAt(i);
 				}
 			}
 
@@ -632,6 +683,20 @@ namespace OpenRA.Mods.Common.Traits
 	// ============================================================
 	public static class AmbushLaneMath
 	{
+		/// <summary>May a lane holding (or able to reach) <paramref name="units"/> units be posted, given a
+		/// minimum manning of <paramref name="minUnits"/>? PIPELINE item 64.
+		///
+		/// <para>The module's fill step takes <c>Take(need)</c> from whatever is free and orders on
+		/// <c>Units.Count &gt; 0</c>, so a lane with one unit available posts one unit — alone, 40% of the way
+		/// to the enemy beachhead. At the opening that unit is the ENTIRE army, which is the case the module's
+		/// "MaxAmbushes x UnitsPerAmbush is small, so offense keeps the rest" budget silently assumes away.</para>
+		///
+		/// <para><paramref name="minUnits"/> &lt;= 0 ⇒ always true: the C# default, and the only reading that is
+		/// byte-identical to the ungated module. Pure integer comparison, zero RNG, order-independent (it reads a
+		/// COUNT, never an iteration order).</para></summary>
+		public static bool LaneMayPost(int units, int minUnits)
+			=> minUnits <= 0 || units >= minUnits;
+
 		/// <summary>The concealed post position on the corridor between our beachhead and an enemy anchor:
 		/// a point <paramref name="fractionPct"/> percent of the way from <paramref name="friendly"/> toward
 		/// <paramref name="enemy"/>. Below 50% keeps the post on OUR side of the midline — hidden in our own

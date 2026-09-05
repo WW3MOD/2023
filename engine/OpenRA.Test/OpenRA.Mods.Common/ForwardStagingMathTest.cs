@@ -620,5 +620,85 @@ namespace OpenRA.Test
 					"and the fan-out must stay bounded — the phantom's was 18 cells");
 			});
 		}
+
+		// ==================================================================================
+		// FreePoolMayAdvance — the forward-staging MINIMUM (PIPELINE item 64).
+		//
+		// The hole: attack axes carry an under-min retire gate and the free-pool stager carried
+		// none, so one unit in the pool was one unit AttackMoved forward alone — and because
+		// DesiredAxisCount returns 0 below EarlyMinAxisSize, the very FIRST reinforcement of a
+		// match is always that unit. These pin the three exits and the two properties that make
+		// the gate safe: OFF is byte-identical, and there is no state it can get stuck in.
+		// ==================================================================================
+
+		[Test]
+		public void FreePoolMinOfZeroIsByteIdenticalToTheUngatedModule()
+		{
+			// The C# default, and what every profile omitting the field reads. Must answer YES for
+			// every pool size including the empty one — a "no" here would be a behaviour change
+			// shipped to profiles that never opted in.
+			for (var pool = 0; pool <= 12; pool++)
+				Assert.That(ForwardStagingMath.FreePoolMayAdvance(pool, 0, axisExists: false), Is.True,
+					$"min=0 must never withhold (pool={pool})");
+
+			// Negative is the same OFF reading, not an accidental always-hold.
+			Assert.That(ForwardStagingMath.FreePoolMayAdvance(1, -3, axisExists: false), Is.True);
+		}
+
+		[Test]
+		public void TheLoneReinforcementIsWithheldAndTheSecondReleasesBoth()
+		{
+			// The shipped setting: min 2, matching EarlyMinAxisSize. This IS the item-64 symptom
+			// and its fix, in one pair of assertions.
+			Assert.Multiple(() =>
+			{
+				Assert.That(ForwardStagingMath.FreePoolMayAdvance(1, 2, axisExists: false), Is.False,
+					"one tank, no axis — this is the lone unit the user watched drive off");
+				Assert.That(ForwardStagingMath.FreePoolMayAdvance(2, 2, axisExists: false), Is.True,
+					"the second arrival releases the pool; at the floor is enough, the gate is >=");
+				Assert.That(ForwardStagingMath.FreePoolMayAdvance(9, 2, axisExists: false), Is.True);
+				Assert.That(ForwardStagingMath.FreePoolMayAdvance(0, 2, axisExists: false), Is.False,
+					"an empty pool has nothing to order anyway — the caller returns before this");
+			});
+		}
+
+		[Test]
+		public void ALiveAxisReleasesTheFreePoolWhateverItsSize()
+		{
+			// The scoping term. With an axis committed forward, the pool is not the whole army, so a
+			// single late arrival walking to the muster is JOINING a body rather than starting one.
+			// Withholding it would strand a reinforcement at the Supply Route while its own side is
+			// out in front — the clog the stager exists to remove. This is what confines the gate to
+			// the opening push instead of applying it to every reinforcement all match.
+			Assert.Multiple(() =>
+			{
+				Assert.That(ForwardStagingMath.FreePoolMayAdvance(1, 2, axisExists: true), Is.True);
+				Assert.That(ForwardStagingMath.FreePoolMayAdvance(1, 99, axisExists: true), Is.True,
+					"the axis term dominates the floor, however high the floor is set");
+			});
+		}
+
+		[Test]
+		public void TheGateIsMonotonicInPoolSizeSoItCannotOscillate()
+		{
+			// The anti-deadlock property, stated as arithmetic rather than as a comment. The answer
+			// depends ONLY on the pool as it stands this eval — no counter, no latch, no memory — so
+			// once it says yes at some size it says yes at every larger size. A pool that grows can
+			// never re-enter the hold, which is what makes "hold until a second unit arrives" a
+			// terminating condition rather than a wait that something must come along and end.
+			for (var min = 0; min <= 6; min++)
+			{
+				var released = false;
+				for (var pool = 0; pool <= 12; pool++)
+				{
+					var may = ForwardStagingMath.FreePoolMayAdvance(pool, min, axisExists: false);
+					if (may)
+						released = true;
+					else
+						Assert.That(released, Is.False,
+							$"min={min}: pool grew to {pool} and the gate CLOSED again — not monotonic");
+				}
+			}
+		}
 	}
 }
