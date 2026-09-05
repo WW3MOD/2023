@@ -19801,3 +19801,73 @@ Two related traps in the same area:
 - On an actor carrying both `RallyPoint` and `TransformsIntoMobile`, the two compete by
   `OrderPriority`: 0 vs 4. The transform targeter is asked FIRST and `RequiresForceMove` is the only
   thing that makes it decline, after which the plain click falls through to `SetRallyPoint`.
+
+## 2026-09-05 — Repairing a vehicle at a Logistics Centre healed exactly ZERO, and wedged the vehicle there
+
+Found by a screenshot scenario, not by inspection: `test-lc-2x2-dock-and-undeploy` reported
+*"hp 14000 -> 14000, ammo 0 -> 40"* — a damaged, dry abrams parked at a Centre, fully rearmed, and
+not repaired by a single hit point in 598 ticks with the player holding $20000.
+
+**The whole of it is one line.** `Resupply.RepairTick` derives its step as
+
+    var hpToRepair = repairable != null && repairable.Info.HpPerStep > 0
+        ? repairable.Info.HpPerStep : repairsUnits.Info.HpPerStep;
+
+and in this engine BOTH defaults are **0** — `RepairsUnits.cs:22` and `Repairable.cs:32`, where
+upstream OpenRA has `RepairsUnitsInfo.HpPerStep = 10`. `grep -rn HpPerStep mods/ tools/` returns
+**nothing**. So `hpToRepair` is 0 at every repair in the game, `InflictDamage(new Damage(-0))` heals
+nothing, and the `Math.Max(1, ...)` on the line below applies to the *cost*, not the step, so the
+player is even charged 1 credit per no-op tick.
+
+**A `PercentageStep` exists on both info classes and is read by nobody.** `RepairsUnits.cs:24` and
+`Repairable.cs:35` declare it; `^Vehicle` sets `PercentageStep: 3`
+(`rules/ingame/vehicles.yaml:64`); the only code in the repo that reads a field of that name is
+`ChangesHealth`, which has its own unrelated one. This is CLAUDE.md's *"a change believed made,
+documented as made, and inert"* pattern with the YAML side written and the engine side never
+finished. It came in with `1f6ea0d4` ("2022 integration").
+
+**The second-order effect is worse than the missing heal.** `activeResupplyTypes` keeps its `Repair`
+flag until `health.DamageState == DamageState.Undamaged`, which a zero step can never reach, and the
+activity's only exit is `activeResupplyTypes == 0` (`Resupply.cs:339`). So a damaged vehicle sent to
+a Centre **rearms and is then stuck in `Resupply` indefinitely** — until a new order interrupts it.
+Bot units get freed by their next order; a human's unit sits at the depot.
+
+**Fixed 2026-09-05** by giving `RepairTick` a percentage fallback, gated on `hpToRepair <= 0` so any
+host that does set `HpPerStep` is byte-identical. Blast radius is exactly one thing, because
+`^Vehicle`'s `Repairable` is the only repair-side `PercentageStep` in the mod: **ground vehicles now
+repair at a Logistics Centre, 3% of MaxHP per 24-tick Interval.** Aircraft at a helipad or airfield
+still resolve 0 and are unchanged — that is the pre-existing state, not a decision, and it is
+worth revisiting separately.
+
+**Testing note that generalises.** The first version of the scenario asserted only that the tank
+*gained HP*. That is not enough to pin this: `Math.Max(1, ...)` in a future variant, or any trickle,
+satisfies "gained". The assertion that actually holds the fix down measures the SIZE of the first
+step against `MaxHealth`. When the bug is "a quantity resolved to zero", assert the quantity.
+
+## 2026-09-05 — A deployed building's actor exists before its make animation, so screenshot beats must read the condition
+
+`Transform` creates the new actor in a frame-end task and `WithMakeAnimation.Forward` then runs from
+`INotifyCreated.Created`, holding `build-incomplete` for the animation's length. So from Lua the
+building **appears within 1-2 ticks of the deploy order** and is not finished for another 48.
+
+A beat scheduled by tick arithmetic gets this wrong in both directions and says nothing about it:
+the first run of `test-lc-2x2-dock-and-undeploy` shot its labelled *"idle 2x2"* frame at tick 5,
+with the LCCV still visibly a truck, and its *"pre-deploy"* frame at tick 0, which is **solid
+black** — the world has not rendered yet at tick 0, so any beat wants tick >= 2.
+
+`Test.ConditionCount(actor, condition)` (added the same day, `TestGlobal.cs`) reads
+`Actor.GetConditionCount` — the same cache every `RequiresCondition`/`PauseOnCondition` expression
+is evaluated against, so it cannot disagree with what the traits see. Gate the beat on
+`ConditionCount(lc, "build-incomplete") == 0` and the label becomes true by construction. It also
+makes the make animation's duration measurable on the DEPLOY leg, which a previous note here said
+was impossible.
+
+Two related harness facts, both established the same day:
+- `Test.SetZoom(scale)` already exists (`TestGlobal.cs:174`) and takes a multiple of the viewport's
+  MINIMUM zoom, clamped. **The default is 1, which is fully zoomed out**: a 2x2 building is ~50 px
+  on a 2160-wide frame and no question about art scale, sprite alignment or animation motion can be
+  answered from it. `6` is what the close-up scenarios use. It returns what was actually applied —
+  record that, do not assume the request was honoured.
+- `GeneralProperties` is `[ExposedForDestroyedActors]` (`GeneralProperties.cs:23`), so `IsDead`,
+  `Location`, `CenterPosition` and `Type` stay readable on an actor a transform has DISPOSED.
+  `HealthProperties` is not, so `.Health` on a transformed actor throws — read it before the order.

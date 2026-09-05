@@ -1,14 +1,17 @@
 -- AUTO TEST — the 2x2 Logistics Centre: geometry, the crane dock, and force-move undeploy.
 --
--- Three phases in one run, in this order, each with its own tick budget and its own diagnosis on
--- timeout. The camera moves with the phase so the screenshots are of the thing being asserted.
+-- Three phases in one run, each with its own tick budget and its own diagnosis on timeout. The
+-- camera moves with the phase and the zoom holds at close range, so every screenshot frames the ONE
+-- Centre that phase is about; there are three on the map and at default zoom all of them are ~50 px
+-- specks on a 2160-wide frame.
 --
 --   D (deploy)   An LCCV deploys. The Centre that appears must be TWO cells square: its Location is
 --                the LCCV's cell + (-1,-1) and its CenterPosition is that cell's centre + (512,512).
 --                Those two numbers together ARE Dimensions 2,2 — BuildingInfo.CenterOffset is
 --                (CenterOfCell(D) - CenterOfCell(1,1)) / 2, so a 3x3 would read +1024 and a 2x2
 --                reads +512. There is no Lua binding for a footprint, and this is exact rather than
---                a proxy for one.
+--                a proxy for one. The make animation is TIMED here, from the Centre appearing to
+--                `build-incomplete` dropping.
 --
 --   K (dock)     A dry, damaged abrams is sent to the pre-placed Centre and must end up ON THE DOCK
 --                CELL — the bottom-left of the footprint, under the crane — and be both repaired and
@@ -17,18 +20,24 @@
 --                2x2's own centre is a cell corner nothing can stand on, so without the dock the
 --                tank walks to the depot, never satisfies the test, and re-plans forever.
 --
+--                THE REPAIR HALF IS A SECOND, INDEPENDENT THING and it went red on the first run for
+--                its own reason: Resupply.RepairTick derived its step from HpPerStep alone, which is
+--                0 on both info classes and set nowhere under mods/, so every repair in the game
+--                healed exactly zero while `^Vehicle` carried a `PercentageStep: 3` that nothing
+--                read. Hence firstHpJump below — asserting merely that the tank GAINS HP is not
+--                enough, because RepairTick's Math.Max(1, ...) floor would satisfy that while the
+--                percentage step was still being ignored.
+--
 --   U (undeploy) Force-move (Ctrl) on ground undeploys the second Centre into an LCCV carrying its
 --                supply and its health percentage, which then drives to the clicked cell. A PLAIN
 --                click must NOT undeploy — it is still the rally-point gesture.
 --
--- WHY THE MAKE DURATION IS TIMED ON THE UNDEPLOY LEG AND NOT THE DEPLOY LEG. On deploy the building
--- actor exists IMMEDIATELY; what takes the make animation's length is `build-incomplete` being held
--- (WithMakeAnimation.Forward, called from INotifyCreated.Created), and no Lua binding can observe a
--- condition. On undeploy the animation runs BEFORE the actor changes — Transform.Tick calls
--- makeAnimation.Reverse and only transforms in its callback — so ticks-from-order-to-lccv IS the
--- animation's length. It is the same `make` sequence played backwards, so timing it there measures
--- the deploy duration too. At Tick 60 that is 32 frames * 60 / 40 = 48 game ticks; the floor below
--- is set at 44, comfortably above the 32 the removed default would give and below the real 48.
+-- NO SCREENSHOT BEAT GUESSES A TICK, and that is what Test.ConditionCount is for. A deployed
+-- building's actor exists IMMEDIATELY and the make animation runs AFTERWARDS under
+-- `build-incomplete` (WithMakeAnimation.Forward, from INotifyCreated.Created) — so "the Centre is
+-- finished" is not observable as an actor appearing. The first run shot its "idle 2x2" beat at tick
+-- 5, with the LCCV still visibly a truck in the frame. Reading the condition is what makes each beat
+-- mean its own label.
 
 local TPS = TestHarness.TicksPerSecond
 local BUDGET = 60                      -- harness seconds for all three phases
@@ -38,30 +47,47 @@ local LCCV_CELL     = CPos.New(16, 8)
 local DEPLOY_TL     = CPos.New(15, 7)  -- LCCV_CELL + Transforms.Offset (-1,-1)
 local DEPOT_TL      = CPos.New(34, 16)
 local DOCK_CELL     = CPos.New(34, 17) -- DEPOT_TL + (0,1): bottom-left, under the crane
-local UNDEPLOY_TL   = CPos.New(50, 24)
-local RESPAWN_CELL  = CPos.New(51, 25) -- UNDEPLOY_TL + Transforms.Offset (1,1)
+local RESPAWN_CELL  = CPos.New(51, 25) -- UndeployDepot top-left 50,24 + Transforms.Offset (1,1)
 local MOVE_TARGET   = CPos.New(58, 28)
 
 -- Half a cell. A 2x2 building's centre sits this far down-right of its top-left cell's centre.
 local HALF_CELL = 512
 
-local MAKE_TICKS_FLOOR = 44            -- see the header: real value 48, old default 32
+-- 32 factmake frames at sequence Tick 60, and Animation.Tick advances by a FIXED 40 ms per game
+-- tick regardless of the mod's 60 ms Timestep, so ticks = 32 * Tick / 40 = 48. The floor sits clear
+-- of the 32 the removed default would give and a little under the real 48, because both ends of the
+-- measurement come from a once-per-tick poll.
+local MAKE_TICKS_FLOOR = 44
 
-local DEPLOY_BUDGET   = 6 * TPS
+-- Test.SetZoom is a multiple of the viewport's MINIMUM zoom and clamps to the viewport's own limit,
+-- so ask high and record what came back rather than assuming. The first run was shot at 1 (fully
+-- out): the Centre was ~50 px wide and nothing about the art scale, the half-cell deploy jump or the
+-- crane's motion could be judged from it.
+local TARGET_ZOOM = 6
+
+local DEPLOY_BUDGET   = 8 * TPS
 local DOCK_BUDGET     = 30 * TPS
 local UNDEPLOY_BUDGET = 20 * TPS
 
 local phase = "deploy"
 local phaseTicks = 0
 local ticks = 0
+local appliedZoom = 0
+local usa = nil
 
 -- Filled in as the run progresses so the timeout notes can report what actually happened.
+local deployOrderTick = nil
 local deployedLc = nil
+local lcFoundTick = nil
+local makeTicks = nil
 local undeployTick = nil
 local undeployedLccv = nil
 local lcSupplyAtOrder, lcHealthPctAtOrder = nil, nil
 local tankHpOnArrival, tankAmmoOnArrival = nil, nil
 local tankDockedTick = nil
+local firstHpJump = nil
+local serviceShotTaken = false
+local reverseShotTaken = false
 local plainClickOrder, forceClickOrder, forceCursor = nil, nil, nil
 local plainClickTick = nil
 
@@ -85,9 +111,51 @@ local function ammoOf(a)
 	return a.AmmoCount("primary-ammo")
 end
 
+local function cashOf()
+	if usa == nil then return -1 end
+	return usa.Cash + usa.Resources
+end
+
+-- Frame ONE actor at close zoom. FocusBetween centres on the geometric midpoint of what it is given,
+-- so handing it the same actor twice is how you say "this one, alone" — which matters here because
+-- three Logistics Centres share the map and only one is ever the subject.
+local function frameOn(actor)
+	TestHarness.FocusBetween(actor, actor)
+end
+
 -- ---------------------------------------------------------------- phase D: deploy
 
 local function tickDeploy()
+	-- Step 1: the pre-deploy beat, and only THEN the order. The first run shot this at tick 0 and
+	-- got a wholly BLACK frame — the world had not rendered yet. A few ticks of air fixes that, and
+	-- issuing the deploy afterwards is what makes the label honest.
+	if deployOrderTick == nil then
+		if ticks < 3 then
+			return false
+		end
+
+		TestHarness.Screenshot("0-pre-deploy", string.format(
+			"expects: the LCCV alone on 16,8 at zoom %.1f, nothing built yet — the BEFORE shot for " ..
+			"the half-cell question, since a 2x2's centre is the corner up-left of the truck's cell",
+			appliedZoom))
+
+		-- The command bar's Deploy button, through IIssueDeployOrder, exactly as a player takes it.
+		Test.IssueDeploy(LccvDeploy)
+		deployOrderTick = ticks
+		return false
+	end
+
+	-- Step 2: mid-make. The LCCV's Facing already matches Transforms.Facing so no Turn is queued
+	-- ahead of the transform, and the actor is swapped within a tick or two of the order — so this
+	-- lands near the middle of the 48-tick animation.
+	if ticks == deployOrderTick + 26 then
+		TestHarness.Screenshot("1-mid-make",
+			"expects: the make animation PART-BUILT. JUDGE THE HALF-CELL JUMP HERE — the animation " ..
+			"draws at the building's centre, which is the corner up-left of where the truck sprite " ..
+			"was in 0-pre-deploy")
+	end
+
+	-- Step 3: find the Centre and check its geometry the moment it exists.
 	if deployedLc == nil then
 		deployedLc = findByType(DEPLOY_TL, 3, "logisticscenter")
 		if deployedLc == nil then
@@ -103,7 +171,9 @@ local function tickDeploy()
 			return false
 		end
 
-		-- Geometry, checked the moment it exists.
+		lcFoundTick = ticks
+		frameOn(deployedLc)
+
 		if not cellsEqual(deployedLc.Location, DEPLOY_TL) then
 			return string.format(
 				"fail: D(deploy) — the Centre's top-left is %d,%d, expected %d,%d. Transforms.Offset " ..
@@ -126,23 +196,50 @@ local function tickDeploy()
 				dx, dy, HALF_CELL, HALF_CELL, 2 * HALF_CELL, 2 * HALF_CELL)
 		end
 
-		TestHarness.Screenshot("2-idle-2x2",
-			"expects: the deployed Logistics Centre, two cells square, art filling its footprint " ..
-			"with no overhang; crane at the bottom-left, still")
-		phase = "dock"
-		phaseTicks = 0
-		TestHarness.FocusBetween(Depot, Tank)
-		TestHarness.Select(Tank)
-		-- Damage it here rather than at WorldLoaded so the repair is unambiguously part of THIS
-		-- errand, and send it. IssueResupplyAt names the host and mirrors AmmoPool.AutoRearm's
-		-- docking branch exactly, including the dock-tight WDist.Zero tolerance that is the whole
-		-- difficulty at an even-dimensioned building.
-		Tank.Health = math.floor(Tank.MaxHealth / 2)
-		tankHpOnArrival = nil
-		Test.IssueResupplyAt(Tank, Depot)
 		return false
 	end
 
+	-- Step 4: wait for the make animation to END, polled rather than guessed, and time it.
+	if Test.ConditionCount(deployedLc, "build-incomplete") > 0 then
+		if phaseTicks >= DEPLOY_BUDGET then
+			return string.format(
+				"fail: D(deploy) — the Centre has held `build-incomplete` for %d ticks since it " ..
+				"appeared. WithMakeAnimation revokes it in the animation's completion callback, so a " ..
+				"condition that never drops means the make animation never finished — check that the " ..
+				"`make` sequence's Length still resolves (Length: *) and that factmake has frames",
+				ticks - lcFoundTick)
+		end
+		return false
+	end
+
+	makeTicks = ticks - lcFoundTick
+	if makeTicks < MAKE_TICKS_FLOOR then
+		return string.format(
+			"fail: D(deploy) — the make animation held `build-incomplete` for only %d ticks; it is " ..
+			"configured for 48 (32 factmake frames at sequence Tick 60, and Animation.Tick advances " ..
+			"by a FIXED 40 ms per game tick regardless of the mod's 60 ms Timestep, so ticks = " ..
+			"32 * Tick / 40). Anything at or near 32 means the Tick line was removed from the `make` " ..
+			"sequence and the animation is back on the 40 ms default — undeploy is that fast too, " ..
+			"since both legs play this one sequence forwards and backwards",
+			makeTicks)
+	end
+
+	TestHarness.Screenshot("2-idle-2x2", string.format(
+		"expects: the FINISHED Logistics Centre (build-incomplete dropped %d ticks after it " ..
+		"appeared), two cells square, art filling its footprint with no overhang; crane at the " ..
+		"bottom-left and STILL — this is the reference frame for judging crane motion in beat 3",
+		makeTicks))
+
+	phase = "dock"
+	phaseTicks = 0
+	frameOn(Depot)
+	TestHarness.Select(Tank)
+	-- Damage it HERE rather than at WorldLoaded so the repair is unambiguously part of THIS errand,
+	-- and send it. IssueResupplyAt names the host and mirrors AmmoPool.AutoRearm's docking branch
+	-- exactly, including the dock-tight WDist.Zero tolerance that is the whole difficulty at an
+	-- even-dimensioned building.
+	Tank.Health = math.floor(Tank.MaxHealth / 2)
+	Test.IssueResupplyAt(Tank, Depot)
 	return false
 end
 
@@ -167,28 +264,51 @@ local function tickDock()
 		tankDockedTick = ticks
 		tankHpOnArrival = Tank.Health
 		tankAmmoOnArrival = ammoOf(Tank)
-		-- One second in, so the crane has been running and the repair/rearm is visibly under way
-		-- rather than caught on its first frame.
-		TestHarness.ScreenshotAfter(1, "3-docked-crane",
-			"expects: the abrams parked ON the bottom-left cell of the Centre, under the crane, and " ..
-			"the crane arm MID-MOTION (compare with 2-idle-2x2, where it is still). A tank sitting " ..
-			"one cell short, or beside the building, is the dock offset being wrong")
 	end
 
 	if tankDockedTick ~= nil then
-		local gainedHp = Tank.Health > tankHpOnArrival
-		local gainedAmmo = ammoOf(Tank) > tankAmmoOnArrival
-		if gainedHp and gainedAmmo then
+		local hpNow, ammoNow = Tank.Health, ammoOf(Tank)
+
+		-- Latch the FIRST repair step's SIZE. A 1-HP trickle and a real 3%-of-MaxHP step both read as
+		-- "gained HP", and the difference between them is exactly the bug this phase caught on its
+		-- first run — so measure the step, not the direction.
+		if firstHpJump == nil and hpNow > tankHpOnArrival then
+			firstHpJump = hpNow - tankHpOnArrival
+		end
+
+		-- The service beat, gated on service having actually STARTED rather than on arrival, and
+		-- delayed a few ticks so the crane is caught mid-swing rather than on its first frame.
+		if not serviceShotTaken and (firstHpJump ~= nil or ammoNow > tankAmmoOnArrival) then
+			serviceShotTaken = true
+			TestHarness.ScreenshotAfter(0.2, "3-docked-crane",
+				"expects: the abrams parked ON the bottom-left cell of the Centre, under the crane, " ..
+				"and the crane arm MID-MOTION — compare against 2-idle-2x2, where it is still. A tank " ..
+				"one cell short, or beside the building, is the dock offset being wrong")
+		end
+
+		if firstHpJump ~= nil and ammoNow > tankAmmoOnArrival then
+			local minStep = math.floor(Tank.MaxHealth / 50) -- 2%, against a configured 3%
+			if firstHpJump < minStep then
+				return string.format(
+					"fail: K(dock) — the tank IS being repaired at the dock, but in steps of %d HP " ..
+					"against a MaxHealth of %d. `^Vehicle` configures Repairable.PercentageStep: 3, " ..
+					"i.e. ~%d HP a step; a step of 1 is Resupply.RepairTick's Math.Max(1, ...) floor " ..
+					"and means the percentage fallback is not being reached — HpPerStep is 0 on both " ..
+					"info classes and set nowhere under mods/, so that path heals nothing, the Repair " ..
+					"flag never clears, and the vehicle is wedged at the depot",
+					firstHpJump, Tank.MaxHealth, math.floor(Tank.MaxHealth * 3 / 100))
+			end
+
 			phase = "undeploy"
 			phaseTicks = 0
-			TestHarness.FocusBetween(UndeployDepot, UndeployDepot)
+			frameOn(UndeployDepot)
 			TestHarness.Select(UndeployDepot)
 			return false
 		end
 	end
 
 	if phaseTicks >= DOCK_BUDGET then
-		if not onDock and tankDockedTick == nil then
+		if tankDockedTick == nil then
 			return string.format(
 				"fail: K(dock) — THE DEFECT THIS PHASE EXISTS FOR. The tank is at %d,%d after %d " ..
 				"ticks and never stood on the dock cell %d,%d. Resupply sends this errand to " ..
@@ -196,19 +316,20 @@ local function tickDock()
 				"equality against the same point, so either LOGISTICSCENTER has no ResupplyDock (in " ..
 				"which case it is being sent to a 2x2's centre, a cell CORNER no ground unit can " ..
 				"occupy, and will re-plan forever) or the offset does not name a footprint cell that " ..
-				"is passable and stoppable — '=' is, '+' and 'x' are not. Its activity chain: %s",
+				"is passable and stoppable. Its activity chain: %s",
 				Tank.Location.X, Tank.Location.Y, phaseTicks, DOCK_CELL.X, DOCK_CELL.Y,
 				Test.ActivityChain(Tank))
 		end
 
 		return string.format(
-			"fail: K(dock) — the tank DID reach the dock cell %d,%d (at tick %d) but was not served " ..
-			"there within %d ticks: hp %d -> %d, ammo %d -> %d, depot supply %d. Arrival is fine, so " ..
-			"this is the SERVICE half: RepairsUnits/SupplyProvider paused (build-incomplete or " ..
-			"disabled), the depot drained, or the player out of cash for the repair. Expect the crane " ..
-			"in screenshot 3-docked-crane to be STILL if this is what failed",
-			DOCK_CELL.X, DOCK_CELL.Y, tankDockedTick, DOCK_BUDGET,
-			tankHpOnArrival, Tank.Health, tankAmmoOnArrival, ammoOf(Tank), Test.GetSupply(Depot))
+			"fail: K(dock) — the tank reached the dock cell %d,%d at tick %d, so ARRIVAL IS FINE and " ..
+			"this is the SERVICE half. hp %d -> %d (first step %s), ammo %d -> %d, depot supply %d, " ..
+			"player cash %d. REARM BUT NO REPAIR is the shape the 2026-09-05 run had, and it means " ..
+			"RepairTick's step resolved to 0; REPAIR BUT NO REARM points at the depot's supply, " ..
+			"which is printed here so it cannot be guessed at",
+			DOCK_CELL.X, DOCK_CELL.Y, tankDockedTick,
+			tankHpOnArrival, Tank.Health, tostring(firstHpJump),
+			tankAmmoOnArrival, ammoOf(Tank), Test.GetSupply(Depot), cashOf())
 	end
 
 	return false
@@ -225,10 +346,10 @@ local function tickUndeploy()
 		plainClickOrder = Test.ClickOrderAtCell(UndeployDepot, MOVE_TARGET, "") or "<refused>"
 		if plainClickOrder == "UndeployMove" then
 			return "fail: U(undeploy) — a PLAIN click on ground with the Centre selected produced " ..
-				"\"UndeployMove\". RequiresForceMove is what should make TransformsIntoMobile decline " ..
+				"UndeployMove. RequiresForceMove is what should make TransformsIntoMobile decline " ..
 				"without Ctrl; without it every ordinary click on the map dismantles the building. " ..
-				"(The expected answer is \"SetRallyPoint\" — RallyPoint is OrderPriority 0 and picks " ..
-				"the click up once TransformsIntoMobile has declined it.)"
+				"The expected answer is SetRallyPoint — RallyPoint is OrderPriority 0 and picks the " ..
+				"click up once TransformsIntoMobile has declined it"
 		end
 		plainClickTick = ticks
 		return false
@@ -252,21 +373,29 @@ local function tickUndeploy()
 		forceClickOrder = Test.ClickOrderAtCell(UndeployDepot, MOVE_TARGET, "Ctrl")
 		if forceClickOrder ~= "UndeployMove" then
 			return string.format(
-				"fail: U(undeploy) — Ctrl+click on ground produced %q, expected \"UndeployMove\" " ..
-				"(cursor was %q). The order string is deliberately NOT \"Move\": bot modules build " ..
-				"new Order(\"Move\", actor, ...) by hand and TransformsIntoMobile.ResolveOrder does " ..
-				"not consult RequiresForceMove, so a shared name would let a bot undeploy a Centre. " ..
-				"If this says \"Move\", TransformsIntoMobile.OrderName was dropped from the rules",
+				"fail: U(undeploy) — Ctrl+click on ground produced %q, expected UndeployMove (cursor " ..
+				"was %q). The order string is deliberately NOT Move: bot modules build " ..
+				"new Order(Move, actor, ...) by hand and TransformsIntoMobile.ResolveOrder does not " ..
+				"consult RequiresForceMove, so a shared name would let a bot undeploy a Centre. If " ..
+				"this says Move, TransformsIntoMobile.OrderName was dropped from the rules",
 				tostring(forceClickOrder), tostring(forceCursor))
 		end
 
 		undeployTick = ticks
 		lcSupplyAtOrder = Test.GetSupply(UndeployDepot)
 		lcHealthPctAtOrder = healthPct(UndeployDepot)
-		TestHarness.ScreenshotAfter(1, "4-undeploy-mid-reverse",
-			"expects: the Centre PART-WAY through its make animation played backwards — a partly " ..
-			"dismantled building, not a finished one and not an empty cell")
 		return false
+	end
+
+	-- Step 2: the mid-reverse beat, gated on the animation actually RUNNING. Transform grants
+	-- `build-incomplete` for the duration of the reversed make and swaps the actor in its completion
+	-- callback, so that condition is the only honest "it is dismantling right now".
+	if not reverseShotTaken and not UndeployDepot.IsDead
+		and Test.ConditionCount(UndeployDepot, "build-incomplete") > 0 then
+		reverseShotTaken = true
+		TestHarness.ScreenshotAfter(0.4, "4-undeploy-mid-reverse",
+			"expects: the Centre PART-WAY through its make animation played BACKWARDS — a partly " ..
+			"dismantled building, not a finished one and not an empty cell")
 	end
 
 	if undeployedLccv == nil then
@@ -275,12 +404,13 @@ local function tickUndeploy()
 			if phaseTicks >= UNDEPLOY_BUDGET then
 				return string.format(
 					"fail: U(undeploy) — %d ticks after the accepted UndeployMove order there is still " ..
-					"no lccv near %d,%d, and the Centre is %s. Transform plays the make animation " ..
-					"backwards first and only then swaps the actor, so a Centre still standing means " ..
-					"the animation never finished (or Transforms is paused: disabled / " ..
-					"build-incomplete / being-captured / being-demolished)",
+					"no lccv near %d,%d, and the Centre is %s (its build-incomplete was seen: %s). " ..
+					"Transform plays the make animation backwards first and only then swaps the actor, " ..
+					"so a Centre still standing WITHOUT that condition ever appearing means the " ..
+					"animation never started — check whether Transforms is paused (disabled / " ..
+					"being-captured / being-demolished)",
 					phaseTicks, RESPAWN_CELL.X, RESPAWN_CELL.Y,
-					UndeployDepot.IsDead and "gone" or "still standing")
+					UndeployDepot.IsDead and "gone" or "still standing", tostring(reverseShotTaken))
 			end
 			return false
 		end
@@ -288,13 +418,11 @@ local function tickUndeploy()
 		local elapsed = ticks - undeployTick
 		if elapsed < MAKE_TICKS_FLOOR then
 			return string.format(
-				"fail: U(undeploy) — the undeploy took only %d ticks; the make animation is configured " ..
-				"for 48 (32 factmake frames at sequence Tick 60, and Animation.Tick advances by a " ..
-				"FIXED 40 ms per game tick regardless of the mod's 60 ms Timestep, so ticks = " ..
-				"32 * Tick / 40). Anything at or near 32 means the Tick line was removed from the " ..
-				"`make` sequence and the animation is back on the 40 ms default — deploy is that fast " ..
-				"too, since both legs play this one sequence",
-				elapsed)
+				"fail: U(undeploy) — the undeploy took only %d ticks against the 48 the `make` " ..
+				"sequence is configured for. The deploy leg measured %s ticks for the same sequence, " ..
+				"so if that one was right and this one is not, the REVERSE path is skipping the " ..
+				"animation (Transform.SkipMakeAnims) rather than the sequence being retimed",
+				elapsed, tostring(makeTicks))
 		end
 
 		if not cellsEqual(undeployedLccv.Location, RESPAWN_CELL) then
@@ -327,6 +455,7 @@ local function tickUndeploy()
 				lcHealthPctAtOrder, pct)
 		end
 
+		frameOn(undeployedLccv)
 		TestHarness.Screenshot("5-undeployed-lccv",
 			"expects: an LCCV standing on the cell the Centre's bottom-right used to be, driving off " ..
 			"toward 58,28 — and no building left behind")
@@ -357,23 +486,15 @@ end
 -- ---------------------------------------------------------------- driver
 
 WorldLoaded = function()
-	TestHarness.FocusBetween(LccvDeploy, LccvDeploy)
+	usa = Player.GetPlayer("USA")
+
+	-- Zoom FIRST, so every beat including the first is at the same reproducible scale. SetZoom clamps
+	-- to the viewport's own limit and returns what was actually applied, which is what 0-pre-deploy's
+	-- note quotes so the frame can be read back against a number.
+	appliedZoom = Test.SetZoom(TARGET_ZOOM)
+
+	frameOn(LccvDeploy)
 	TestHarness.Select(LccvDeploy)
-
-	TestHarness.Screenshot("0-pre-deploy",
-		"expects: the LCCV alone on 16,8, nothing built yet — the before shot for the half-cell " ..
-		"question, since a 2x2's centre is the CORNER up-left of the truck's cell")
-
-	-- The command bar's Deploy button, through IIssueDeployOrder, exactly as a player takes it.
-	Test.IssueDeploy(LccvDeploy)
-
-	-- Mid-make: roughly half of the configured 48 ticks.
-	Trigger.AfterDelay(24, function()
-		TestHarness.Screenshot("1-mid-make",
-			"expects: the make animation part-built. JUDGE THE HALF-CELL JUMP HERE — the animation " ..
-			"draws at the building's centre, which is the corner up-left of where the truck sprite " ..
-			"was in 0-pre-deploy")
-	end)
 
 	TestHarness.AssertWithin(BUDGET, function()
 		ticks = ticks + 1
@@ -385,11 +506,12 @@ WorldLoaded = function()
 	end, function()
 		return string.format(
 			"LC 2x2 assertions unresolved within %ds — stalled in phase %q at tick %d (phase tick " ..
-			"%d). deployedLc=%s tankCell=%s dockedAt=%s undeployOrderTick=%s lccv=%s",
-			BUDGET, phase, ticks, phaseTicks,
-			deployedLc ~= nil and "yes" or "no",
+			"%d, zoom %.1f). deployOrder=%s lcFound=%s makeTicks=%s tankCell=%s dockedAt=%s " ..
+			"firstHpJump=%s undeployOrder=%s lccv=%s",
+			BUDGET, phase, ticks, phaseTicks, appliedZoom,
+			tostring(deployOrderTick), tostring(lcFoundTick), tostring(makeTicks),
 			Tank.IsDead and "<dead>" or (Tank.Location.X .. "," .. Tank.Location.Y),
-			tostring(tankDockedTick), tostring(undeployTick),
+			tostring(tankDockedTick), tostring(firstHpJump), tostring(undeployTick),
 			undeployedLccv ~= nil and "yes" or "no")
 	end)
 end
