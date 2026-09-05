@@ -14,8 +14,8 @@
 --
 -- THE THREE NUMBERS, all read from the same event stream (per-unit line crossings).
 --
---   d3  SOLO DEPARTURE - how many of the push had crossed the departure line at the
---       instant the FIRST one did.        PASS >= 2.
+--   d3  SOLO DEPARTURE - how many of the push crossed the departure line within
+--       SoloWindowTicks of the FIRST one. PASS >= 2.
 --       This is the free-pool clause. PoiOffenseMath.DesiredAxisCount returns 0 below
 --       EarlyMinAxisSize (2), so a single unit forms no axis, falls to the free pool,
 --       and StageFreePool AttackMoves it forward ONE ORDER PER UNIT with no minimum
@@ -50,9 +50,18 @@
 local DepartLineX = 10          -- the SR's own forward edge: past this you have left home
 local MidlineX = 33             -- perpendicular bisector of OwnSR(8,16) -> OpponentSR(58,16)
 
-local PassSoloDeparture = 2     -- d3: units across the departure line at the first crossing
+local PassSoloDeparture = 2     -- d3: units across the departure line in the first departure's window
 local PassDepartInterval = 300  -- d1: ticks, first crossing to last
 local PassSpreadCells = 8       -- d2: Chebyshev extent at the first midline crossing
+
+-- d3 counts everyone who leaves WITH the first unit, and "with" has to be a window rather
+-- than an instant: two tanks released by one grouped order start from adjacent cells and
+-- will not cross a column on the same tick. 50 ticks is chosen against the module's own
+-- clock — ReevaluateInterval is 100, so units released on ONE eval land inside this window
+-- and units released on CONSECUTIVE evals cannot. Measuring at the exact tick instead would
+-- report d3=1 for a push that departed perfectly together, i.e. a false RED on the clause
+-- the free-pool gate is meant to flip.
+local SoloWindowTicks = 50
 
 -- The measurement window closes at the first midline crossing once everyone has
 -- spawned, or at HardCloseTick, whichever comes first. The AssertWithin deadline is
@@ -97,6 +106,7 @@ local DiedAt = {}
 local FirstDepartTick = nil
 local LastDepartTick = nil
 local SoloAtFirstDeparture = 0     -- d3
+local SoloLatched = false          -- d3's window has matured; stop recounting
 local FirstCrossTick = nil
 local SpreadAtFirstCross = nil     -- d2
 local Verdict = nil                -- set once, so the window closes exactly once
@@ -146,8 +156,8 @@ local function Report(tick)
 
 	return "tick=" .. tick ..
 		"; d3 solo-departure=" .. SoloAtFirstDeparture .. "/" .. PassSoloDeparture ..
-		" (units across x=" .. DepartLineX .. " on the tick the FIRST one crossed, tick " ..
-		tostring(FirstDepartTick) .. ")" ..
+		" (units across x=" .. DepartLineX .. " within " .. SoloWindowTicks ..
+		" ticks of the FIRST one, which crossed at tick " .. tostring(FirstDepartTick) .. ")" ..
 		"; d1 departure-interval=" .. interval .. "/" .. PassDepartInterval .. " ticks" ..
 		"; d2 spread-at-first-midline-crossing=" .. spread .. "/" .. PassSpreadCells ..
 		" cells (first crossing of x=" .. MidlineX .. " at tick " .. tostring(FirstCrossTick) .. ")" ..
@@ -243,15 +253,17 @@ WorldLoaded = function()
 			end
 		end
 
-		if FirstDepartTick ~= nil and tick == FirstDepartTick then
-			-- Same tick, so this counts every unit that crossed simultaneously. Units that
-			-- cross later do not retro-fill it: leaving 40 ticks after the tank is still
-			-- leaving separately.
+		-- d3. Recount every tick until the first departure's window matures, then freeze. Kept
+		-- as a running count rather than a single deferred read so the number is meaningful even
+		-- if the measurement window closes before the d3 window does.
+		if FirstDepartTick ~= nil and not SoloLatched then
 			local n = 0
 			for i = 1, #Push do
-				if DepartedAt[i] == FirstDepartTick then n = n + 1 end
+				local d = DepartedAt[i]
+				if d ~= nil and d <= FirstDepartTick + SoloWindowTicks then n = n + 1 end
 			end
 			SoloAtFirstDeparture = n
+			if tick >= FirstDepartTick + SoloWindowTicks then SoloLatched = true end
 		end
 
 		-- 3. The spread instant. Measured over units IN THE WORLD, which deliberately
