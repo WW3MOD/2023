@@ -48,6 +48,7 @@ local nukeState = "never-read"
 local controlState = "never-read"
 local bin = "never-read"
 local nukeOrderStatus = "never-called"
+local timerLines = "never-read"
 local controlReadyTick = nil
 local finished = false
 
@@ -64,6 +65,7 @@ local function pollTick()
 	nukeState = Test.GetSupportPowerState(Russia, NukeKey)
 	controlState = Test.GetSupportPowerState(Russia, ControlKey)
 	bin = Test.GetSupportPowerBin(Russia)
+	timerLines = Test.GetSupportPowerTimerLines(Russia)
 
 	-- The control coming up is the signal that the support power system has finished initialising,
 	-- so both readings are taken against a settled world rather than a cold one. `charging:<n>` is
@@ -87,6 +89,7 @@ local function finish()
 		.. " | control '" .. ControlKey .. "' state=" .. controlState
 		.. " live@t" .. (controlReadyTick ~= nil and tostring(controlReadyTick) or "never")
 		.. " | bin=[" .. bin .. "]"
+		.. " | timers=[" .. timerLines .. "]"
 		.. " | observed=" .. tick .. "t"
 
 	-- 1. THE CONTROL, FIRST. Without it a broken mod passes this scenario.
@@ -124,8 +127,31 @@ local function finish()
 		return
 	end
 
-	Test.Pass("tactical nuke is hidden at the shipped default while the Kinzhal control is live. || "
-		.. summary)
+	-- 4. THE TOP-OF-SCREEN TIMER LIST IS EMPTY IN THE SHIPPED DEFAULT CONFIGURATION, and this is
+	-- the scenario where that is a complete statement rather than a partial one. The user's report
+	-- was a screenshot of that list -- "FreadyFish's Kh-47M2 Kinzhal: 0:00" over two Experimental AI
+	-- lines -- with the note "We dont need to see a countdown of ally players powers, it is just
+	-- distracting. Maybe we can keep it for nukes, but not for other powers."
+	--
+	-- This run is the shipped default: the nuke is lobby-gated OFF, so it is not a candidate, and
+	-- the Kinzhal and GBU-57 now carry `DisplayTimerRelationships: None`, so they are dropped in
+	-- SupportPowerTimerWidget.Candidates before the per-viewer test. Nothing is left, which is
+	-- exactly the quiet screen the user asked for. Its sibling test-tacnuke-delivers asserts the
+	-- other half: with the nuke switched ON it is the ONLY line, for both players.
+	--
+	-- The control above is what stops this being vacuous: the Kinzhal is live and charging in this
+	-- very run (that is check 1), so an empty timer list here is a deliberate suppression rather
+	-- than the absence of any working power.
+	if timerLines ~= "empty" then
+		Test.Fail("the support power timer list is not empty at the shipped default: ["
+			.. timerLines .. "]. Every power that can appear in it must carry"
+			.. " `DisplayTimerRelationships: None` except the tactical nuke, which is gated off"
+			.. " here and so cannot contribute a line either. || " .. summary)
+		return
+	end
+
+	Test.Pass("tactical nuke is hidden at the shipped default, the Kinzhal control is live, and the"
+		.. " top-of-screen timer list is empty. || " .. summary)
 end
 
 local function step()

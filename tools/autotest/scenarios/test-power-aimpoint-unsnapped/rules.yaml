@@ -1,0 +1,43 @@
+# Aim-point snap autotest overrides — the OFF half of the pair.
+#
+# THE ONE LINE THIS SCENARIO EXISTS FOR is `SnapToActorCenter: false` below. Everything else in this
+# file is byte-identical to test-power-aimpoint-center/rules.yaml, which is the point: the two runs
+# differ by one boolean and nothing else.
+
+Player:
+	# The power's ONLY departure from shipping config: charged at t=0 instead of after 3000 ticks
+	# (180 s). Two shots are fired in one run, so the recharge matters as well as the first charge —
+	# after an activation SupportPowerInstance resets remainingSubTicks to TotalTicks * 100, which at
+	# ChargeInterval 1 is one tick.
+	MissileStrikePower@Kinzhal:
+		# THE SUBJECT OF THE SCENARIO. False restores the behaviour every support power had before
+		# SupportPowerAimPoint existed: the order's target stays the cell the player clicked, so a
+		# corner click puts IskanderExplosion's TargetDamage warhead 1448 units off the building's
+		# centre and CenterProximityPercent cuts it to 33%.
+		SnapToActorCenter: false
+		ChargeInterval: 1
+		StartFullyCharged: true
+	# Faction elimination would end the match before the Lua poller writes a verdict. Both Logistics
+	# Centers may well die in this run, and USA owns nothing else but its Supply Route.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored, so the poller's view of the missiles and the victims is never
+	# a visibility artefact.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# No cash -> no production, so GetActorsByType("kinzhalmissile") cannot pick up a missile from
+	# anywhere but the two shots this scenario fires.
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
+	# spawn assignment — see the geometry note in map.yaml.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-power-aimpoint-unsnapped.lua

@@ -5,6 +5,19 @@
 
 ---
 
+- [2026-09-05] [LOW - TOOLING, NOT GAMEPLAY] **`.\make.ps1 check` is already RED on `main @ bb294b2d`
+  with 7 analyzer errors, none of them new.** Measured by stashing an unrelated branch's changes and
+  re-running on a pristine tree: the same 7 errors appear with and without them, so the Windows
+  Debug `-warnaserror` gate has been failing on `main` for some time and any worker who runs it will
+  see red they did not cause. Six are `RCS1226` ("Add paragraph to documentation comment") at
+  `Widgets/Logic/Ingame/ProductionTooltipLayout.cs:17,36,74`, `Traits/Render/DecorationRowGeometry.cs:15`,
+  `Projectiles/Missile.cs:982` and `Traits/Player/RankAccumulation.cs:76`; the seventh is `SA1612`
+  ("The parameter documentation for 'pools' should be at position 3") at `Traits/AmmoPool.cs:1246`.
+  All seven are doc-comment shape, none is a behaviour defect, and all are one-line fixes - but per
+  `conventions.md` this is the ONLY lane that carries analyzers at all (Release strips them,
+  `engine/Directory.Build.props:51-56`), so while it is red it is protecting nothing new.
+  (found while working on: `wt/powers-aimpoint`, verifying my own change added no analyzer errors)
+
 - [2026-09-03] [DORMANT — NOT LIVE] **`t72` carries the generic APC armour distribution, so its roof
   is 5.3× a T-90's and top-attack weapons would be half-effective against it.**
   **DOWNGRADED FROM [MEDIUM] THE SAME DAY, BY THE MANAGER, AFTER TWO WORKERS CONTRADICTED EACH OTHER.**

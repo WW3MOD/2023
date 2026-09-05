@@ -39,6 +39,21 @@ namespace OpenRA.Mods.Common.Traits
 			"The launch sounds play immediately; this is the gap before anything is visible.")]
 		public readonly int MissileDelay = 0;
 
+		[Desc("Altitude above the aim point at which the missile detonates. Zero (the default) is a",
+			"ground burst, which is what every instance did before this field existed.",
+			"",
+			"PITFALL, and it is silent: every warhead carries an AirThreshold (Warhead.cs:41-45,",
+			"default 128) above which a terrain-affecting warhead stops seeing terrain target types",
+			"and is evaluated against `Air` instead. The `Atomic` warhead set answers this by",
+			"writing AirThreshold: 10c0 on every damage row and listing Air on its CreateEffect —",
+			"so a detonation at 6c256 is fine and one above 10c0 would silently do NOTHING to the",
+			"ground, with no error and no lint. Raising this past a weapon's own AirThreshold is",
+			"the failure mode to check for first if an airburst stops hurting anything.",
+			"",
+			"Note this only moves the DETONATION. The beacon, the minimap ping and the reveal",
+			"camera stay on the ground aim point below it, which is what the player pointed at.")]
+		public readonly WDist DetonationAltitude = WDist.Zero;
+
 		[Desc("Range of cells the camera should reveal around the target cell.")]
 		public readonly WDist CameraRange = WDist.Zero;
 
@@ -114,7 +129,16 @@ namespace OpenRA.Mods.Common.Traits
 			// adding it, the add happens below, and the assignment goes in between: exactly the
 			// handshake MissileSpawnerMaster.cs:112,116 performs.
 			var bm = missile.Trait<BallisticMissile>();
-			bm.Target = Target.FromPos(targetPosition);
+
+			// The missile flies to the DETONATION point, not to the aim point. BallisticMissileFly
+			// takes its whole trajectory from Target.CenterPosition (BallisticMissileFly.cs:45),
+			// terminates with SetPosition(self, targetPos) and only then queues the kill
+			// (BallisticMissileFly.cs:216-221) — so the actor really is sitting at this position
+			// when Explodes fires the payload at self.CenterPosition (Explodes.cs:133). Nothing
+			// downstream needs telling: CreateEffectWarhead spawns its sprite at the impact
+			// position unless ForceDisplayAtGroundLevel is set (CreateEffectWarhead.cs:140-150),
+			// so the explosion animation follows the burst height on its own.
+			bm.Target = Target.FromPos(targetPosition + new WVec(0, 0, info.DetonationAltitude.Length));
 
 			// At MissileDelay 0 this is byte-for-byte MissileSpawnerMaster's own add
 			// (BaseSpawnerMaster.cs:228-250). SpawnActorEffect is only reached when a delay is
@@ -143,9 +167,39 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (Info.DisplayBeacon)
 			{
-				// Driven off the missile's live position rather than a tick count, the way the
-				// airstrike beacon is (AirstrikePower.cs:168-170): the clock then stays honest if
-				// the flight takes longer than the estimate above.
+				// The clock is driven off the missile's LIVE POSITION once it is flying, the way the
+				// airstrike beacon is (AirstrikePower.cs:168-170), so it stays honest if the flight
+				// overruns the estimate above.
+				//
+				// It cannot be position-driven before that, and MissileDelay is what makes this
+				// matter: for those ticks the actor exists but is not in the world, sitting at its
+				// spawn position, so the position formula reads a constant 0 and the beacon shows a
+				// clock frozen at the top of its sweep for the whole wait — which reads to the
+				// player as "the order did not take". Ticks are the only clock available then, and
+				// they are exact during the wait for the same reason the flight is not: nothing can
+				// make SpawnActorEffect take longer than the count it was handed.
+				var orderTick = world.WorldTick;
+				var delayFraction = impactDelay > 0
+					? Math.Clamp(info.MissileDelay * 1f / impactDelay, 0f, 1f)
+					: 0f;
+
+				float FractionComplete()
+				{
+					if (missile.IsDead || missile.Disposed)
+						return 1f;
+
+					if (!missile.IsInWorld)
+						return impactDelay > 0
+							? Math.Clamp((world.WorldTick - orderTick) * 1f / impactDelay, 0f, 1f)
+							: 1f;
+
+					var flown = hDist <= 0
+						? 1f
+						: 1f - ((missile.CenterPosition - targetPosition).HorizontalLength * 1f / hDist);
+
+					return delayFraction + (Math.Clamp(flown, 0f, 1f) * (1f - delayFraction));
+				}
+
 				var beacon = new Beacon(
 					self.Owner,
 					targetPosition,
@@ -158,9 +212,7 @@ namespace OpenRA.Mods.Common.Traits
 					Info.ArrowSequence,
 					Info.CircleSequence,
 					Info.ClockSequence,
-					() => missile.IsDead || missile.Disposed || hDist <= 0
-						? 1f
-						: 1f - (missile.CenterPosition - targetPosition).HorizontalLength * 1f / hDist,
+					FractionComplete,
 					Info.BeaconDelay,
 					Math.Max(1, impactDelay - info.BeaconRemoveAdvance));
 

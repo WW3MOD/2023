@@ -3,6 +3,139 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-05 - `IOccupySpace.OccupiedCells` is a PATHFINDING index, not a presence index: a building is absent from it on its own passable cells (`wt/powers-aimpoint`, `main @ 055ef267`)
+
+`ActorMap.GetActorsAt(cell)` reads the influence layer, which is keyed on
+`IOccupySpace.OccupiedCells`. For a building that is `BuildingInfo.OccupiedTiles`, and
+**`OccupiedTiles` deliberately omits `FootprintCellType.OccupiedPassable` (`=`)** — it yields only
+`x`, `X` and `+` (`Building.cs:178-190`). The sibling method `Tiles` is the one that includes `=`
+(`Building.cs:156-169`), and it is what `Building` registers with **`BuildingInfluence`**
+(`Building.cs:370`).
+
+So there are two footprint indices with different coverage, named almost identically, and the
+question they answer is not the same one:
+
+| index | keyed on | includes `=` | question it answers |
+|---|---|---|---|
+| `ActorMap.GetActorsAt` | `OccupiedCells` | **no** | *can something stand here* |
+| `BuildingInfluence.GetBuildingsAt` | `Tiles` | **yes** | *is the building here* |
+
+`=` is `OccupiedPassable`: a cell inside the building that units may walk through. Its absence from
+the pathfinding index is correct and deliberate. Reading that index to answer "does this cell hold
+an actor" is what is wrong, and the two methods are similar enough in name that the mistake survives
+a careful reading — it survived one here, including a grep that landed on `Tiles`'s body and was
+attributed to `OccupiedTiles`.
+
+**MEASURED, and the shape of the failure is the point.** `SupportPowerAimPoint` resolved a support
+power's clicked cell through `GetActorsAt` alone. The Logistics Center's footprint is
+`=+= +++ =+=`, so **all four of its corners are `=`** — and the corners are exactly the cells a
+player clicks when aiming at the edge of a building. A Kinzhal clicked on one found no actor, did
+not snap, and landed 1448 units off centre for **24820 damage against a centred shot's 60000**, in a
+scenario that had the feature switched ON. The fix reads both indices;
+`SupportPowerAimPointTest.TheLogisticsCenterCornerCellsArePassableAndSoAreNotOccupiedCells` pins the
+footprint so the scenario cannot quietly stop exercising the passable-cell path.
+
+**The generalisation worth carrying:** before using an index to answer a question, check what it was
+BUILT for. `OccupiedCells` exists so the pathfinder knows where a unit may not go, and a building
+that lets units walk through its corner is telling the pathfinder something true. Any feature asking
+"what is at this cell" for a reason other than movement — targeting, aiming, selection, tooltips,
+capture ranges — wants `BuildingInfluence` or a hitshape test, and will look correct in review and
+on every solid-footprint building while being wrong on the passable cells of the ones that have them.
+
+**A second-order note on the same fix:** the ranking that picks between candidates on one cell also
+used `OccupiedCells().Length`, which reports the 3x3 Logistics Center as **5** cells rather than 9 —
+enough to rank it below a smaller building with a solid footprint. It now measures a building with
+`Info.Tiles`.
+
+## 2026-09-05 - A scenario budget and the shipped delay it depends on live in different languages in different trees, and nothing reads both (`wt/powers-aimpoint`, `main @ 055ef267`)
+
+Two branches were cut from the same commit. One added a per-power arrival delay
+(`MissileDelay: 150` on the Kinzhal, `player.yaml:137`); the other wrote a scenario whose settle
+window was 90 ticks. Both branches were internally consistent, both built clean, both passed NUnit,
+both passed `lua-gate` and `--check-yaml`. The merge was clean. The scenario then failed reporting
+`damage=0` on both shots.
+
+**Why every gate missed it.** `MissileStrikePower` creates the missile at order time and hands it to
+`SpawnActorEffect`, which holds it OUT OF THE WORLD for `MissileDelay` ticks;
+`Player.GetActorsByType` filters on `actor.IsInWorld` (`PlayerProperties.cs:100`). So the poller
+correctly saw nothing for 150 ticks, its 90-tick window closed first, and the run reported a number
+that looks like a delivery failure. **Nothing in the repo connected the two constants** — a tick
+count in a YAML comment block and a `local` in a Lua file, and no gate reads both.
+
+**The second failure was hidden underneath the first, and is the more general one.** The scenario
+also ALIASED: it ordered its second shot on a fixed timer while the first missile was still inbound,
+and the second shot's position tracker then sampled the FIRST shot's missile. The verdict showed it
+plainly — `centre: ... impact=31232,10752`, beside the wrong building — and it would have survived
+any amount of budget-widening, because a longer window makes overlap MORE likely, not less.
+
+**The fix that generalises: a scenario phase should advance on an OBSERVABLE, not on a tick count.**
+Both scenarios now step on "a missile appeared" / "the missile is gone" / "the dust settled", order a
+shot only into a world holding zero missiles, and ASSERT that emptiness rather than assuming it. The
+tick budgets survive only as the thing that fails the run *with a diagnosis* when an observable never
+arrives. A run that pads its numbers until it goes green cannot tell you which of the two faults it
+just hid.
+
+**And the missing gate is cheap.** `SupportPowerAimPointTest.ScenarioArrivalBudgetsCoverTheShipped-`
+`MissileDelay` reads `MissileDelay` out of `player.yaml` and `ArrivalBudget` out of the scenario's
+`.lua`, and fails if the budget does not clear the delay by 60 ticks. Milliseconds, no build, no
+launch, and verified to fire by setting the budget back to 90. A sibling checks `ObserveTicks`
+covers two sequential shots' own budgets. **Any scenario whose timing depends on a shipped constant
+can be pinned this way, and the ones that are not will keep failing on merge-day collisions that
+neither branch could have seen alone.**
+
+## 2026-09-05 - The corner-hit discount is REAL and is now pinned against the shipped shape code, but it reaches exactly ONE of the three missile powers - and "a big building's own cell gives 33%" is true only of its CORNERS (`wt/powers-aimpoint`, `main @ bb294b2d`)
+
+Three corrections and one confirmation of the 2026-09-04 `TargetDamage`/`CenterProximityPercent`
+entry, all from static work on `main @ bb294b2d`. None of this was measured in a running game; the
+scenarios that would do that are `test-power-aimpoint-center` and `test-power-aimpoint-unsnapped`,
+written but not run.
+
+**CONFIRMED, and no longer a hand derivation.** `SupportPowerAimPointTest` now drives the shipped
+`RectangleShape.CenterProximityPercent` with the Logistics Center's own numbers (`TopLeft -1536,-1536`
+/ `BottomRight 1536,1536`, `structures.yaml:400-410`) and the 3x3 `CenterOffset` of `(1024, 1024)`
+(`Building.cs:207-210`). It returns **33**, exactly as derived. The arithmetic in the previous entry
+is right.
+
+**CORRECTION 1 - only the CORNER cells give 33%.** The offset from a clicked cell to the building's
+centre is not one number per building, it is one per cell. For a 3x3:
+
+| clicked cell | offset | proximity | `Warhead@Target: 54000` arrives as |
+|---|---|---|---|
+| centre | 0 | 100% | 54000 |
+| mid-edge (4 of them) | 1024 | **52%** | ~28000 |
+| corner (4 of them) | 1448 | **33%** | ~17800 |
+
+Pinned as `EdgeCellHitIsBetween`. Reading the earlier entry as "aiming at a big building delivers a
+third" understates four of the nine cells by a factor of 1.6.
+
+**CORRECTION 2 - the defect reaches ONE of the three shipped missile powers, not all of them.**
+Only a `TargetDamage` warhead consults `CenterProximityPercent`, and only one of the three payloads
+has one:
+
+| power | payload | has `Warhead@Target: TargetDamage`? |
+|---|---|---|
+| Kinzhal | `IskanderExplosion` (`weapons-explosions.yaml:521`) | **yes** - affected |
+| GBU-57 | `MOPPenetration` (`weapons-superweapons.yaml:468`) | no, `SpreadDamage` throughout |
+| tactical nuke | `Atomic` (`weapons-superweapons.yaml:76`) | no, `SpreadDamage` throughout |
+
+`SpreadDamage` at `DamageCalculationType.HitShape` measures `DistanceFromEdge`, which is zero
+anywhere inside a building, so the other two deliver identically from any of the nine cells. A
+scenario that tried to demonstrate the aim-point fix on the GBU-57 would go green having measured
+nothing.
+
+**CORRECTION 3 - the workaround is already in the tree, undocumented as such.**
+`test-gbu57-asymmetry/map.yaml:118-129` places its Logistics Center at `35,16` specifically so its
+centre lands on the cell the Lua aims at, with a comment deriving `CenterOffset` from
+`Building.cs:207-210` independently. So the trap was found twice, a day apart, by two workers who
+did not know about each other - once as a scenario placement rule and once as a damage defect.
+
+**WHAT THE FIX DOES AND DOES NOT REACH.** `SupportPowerAimPoint` resolves the order's target to the
+occupying actor's `CenterPosition` inside `SupportPowerInstance.Activate`, so every support power
+order - human, bot or Lua - lands on the centre and the discount becomes unreachable **through a
+support power**. The same `IskanderExplosion` is fired by the Iskander launcher's own `Explodes`
+(`vehicles-russia.yaml:1112,1149,1153,1221`), which never builds a support power order, so the
+defect is untouched for direct fire and still wants its own item.
+
 ## 2026-09-04 - A Lua test binding that answers two questions in one string fails its callers silently
 
 `Test.GetSupportPowerState(player, orderKey)` was written to return a state token **and** append the
@@ -19952,4 +20085,73 @@ vehicle in the dock cell's map ROW during service: cells `(31,17)` and `(34,17)`
 
 Doing it properly needs a cropped crane-only SHP rendered as a second body/overlay with its own
 `ZOffset` — new art, not a rules change.
+## 2026-09-05 — Detonation altitude: two engine facts that make an airburst behave nothing like you would guess
+
+Found while giving `MissileStrikePower` a `DetonationAltitude` so the tactical nuclear strike
+airbursts the way `mslo`'s `NukePower` always has. Both facts are load-bearing for any future work
+that moves a detonation off the deck, and neither is stated in any `[Desc]`.
+
+### 1. Whether altitude costs a warhead damage depends on the victim's HITSHAPE TYPE
+
+`SpreadDamageWarhead` and `ShockwaveDamageWarhead` both take their falloff distance from
+`HitShape.DistanceFromEdge`, which dispatches to the shape implementation. The four disagree about
+whether the vertical leg exists at all:
+
+| Shape | Vertical leg counted? | Code |
+|---|---|---|
+| `Circle` | **YES** — `v.Length`, 3-D | `Circle.cs:46-48` |
+| `Polygon` | **YES** — `ISqrt(min2 + z*z)` | `Polygon.cs:87-103` |
+| `Rectangle` | **NO** — result vector is built with a hardcoded `0` for Z and returned as `HorizontalLength` | `Rectangle.cs:109-116` |
+| `Capsule` | **NO** — projects to `int2(v.X, v.Y)` immediately | `Capsule.cs:67-85` |
+
+In this mod vehicles and buildings are `Rectangle` and infantry are `Circle`
+(`infantry.yaml` `HitShape@Standing: Type Circle, Radius 30`). So **an airburst is completely free
+against vehicles and buildings and fully discounted against infantry** — which is exactly backwards
+from the physics an airburst is imitating, where the anti-personnel effect is the whole point.
+
+Measured on the shipped `Atomic` warhead at `DetonationAltitude: 6c256` (6400), against a victim
+standing directly under the burst:
+
+- vehicles/buildings: falloff distance **0**, identical to a ground burst — no change of any kind
+- infantry: falloff distance **6370** (6400 − the 30 radius), and then:
+  - `Warhead@ThermalVaporize` (`Spread 3c0`, `Falloff 100,100,100,50`) → **96%**, still 192,000 damage,
+    because that table is flat at 100 all the way out to 6144
+  - `Warhead@ThermalRadiation` (`Spread 1c0`, 15 steps) → **4%**, down from 100%. This one warhead is
+    the entire cost of bursting at 6c256.
+- fire, EMP, suppression and tree-fire: **no change at all.** `GrantExternalConditionWarhead` does
+  `FindActorsInCircle(target, Range)` with no falloff and no shape query
+  (`GrantExternalConditionWarhead.cs:60-61`), and that search is horizontal.
+
+Pinned in `engine/OpenRA.Test/OpenRA.Mods.Common/MissileStrikeArrivalTest.cs`. Adjacent prior art on
+a different disagreement between the same four shapes:
+[`WORKSPACE/audit/hitshape-percent-semantics.md`](audit/hitshape-percent-semantics.md).
+
+### 2. An airburst on the wrong weapon detonates silently and invisibly, with no error and no lint
+
+`Warhead.ValidTargets` defaults to `Ground, Water` **per warhead** — it is NOT inherited from the
+weapon's own `ValidTargets` — and `Warhead.AirThreshold` defaults to `128`, one eighth of a cell
+(`Warhead.cs:29-45`). Above that threshold `CreateEffectWarhead.IsValidAgainstTerrain` stops asking
+the terrain what it is and substitutes the `Air` target type (`CreateEffectWarhead.cs:165-166`); if
+the warhead does not list `Air`, `DoImpact` returns before spawning anything.
+
+`^HugeExplosionEffects` — inherited by `IskanderExplosion` (Kinzhal) and `MOPPenetration` (GBU-57) —
+writes `ValidTargets: Ground, Ship, Trees, Mine` on every `CreateEffect` row and never `Air`. So
+giving either of those powers a `DetonationAltitude` above 128 would delete the explosion sprite,
+the impact sound and the crater while the `SpreadDamage` rows (which test the VICTIM, not the
+terrain) went on working. A strike that damages things with no visible explosion.
+
+`Atomic` is the one warhead in the mod written for an airburst and it says so twice: an explicit
+`ValidTargets: Ground, Water, Air` on `Warhead@Fireball`, and `AirThreshold: 10c0` on all ~30 of its
+damage, fire, EMP, suppression and smudge rows. **10c0 = 10240 is therefore a hard ceiling on the
+nuke's burst height** — at 10241 it would still fly, still be aimed, still be announced, and do
+nothing to the ground.
+
+### 3. Not a compensation: `Warhead@Fireball`'s `Offset: 0,-1900,0`
+
+Easy to misread as airburst compensation, and it is not. Screen y is
+`TileSize.Height * (Y - Z) / TileScale` (`WorldRenderer.cs:749`), so a negative world-Y offset and a
+positive world-Z offset are the *same* vertical screen displacement. That offset — 5700 after the
+warhead's own `ScalePercent: 300` — lifts the 300%-scaled mushroom-cloud sprite off its anchor, and
+it applied identically to the ground burst. Which is why the ground-burst nuke looked *low* rather
+than looking *broken*.
 

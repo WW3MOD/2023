@@ -1,0 +1,133 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a strike clicked on a building's corner cell lands on its centre
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES: that SupportPowerInfo.SnapToActorCenter makes WHICH CELL of a multi-cell
+# building the player clicked stop mattering. Two identical Logistics Centers are struck by the same
+# power with the same warhead; the only difference between the two shots is that one is aimed at a
+# CORNER footprint cell and the other at the building's own CENTRE cell. With the snap on, both take
+# the same damage. Its sibling test-power-aimpoint-unsnapped is this scenario with one rules line
+# flipped, and it is where the two shots come apart.
+#
+# THE CONTROL IS INSIDE THE RUN. The centre-clicked building is not a separate baseline run: it is
+# the same build, the same tick, the same power, the same charge. So a difference between the two
+# numbers cannot be a build difference or a timing difference — the clicked cell is the only free
+# variable. The cross-scenario comparison against test-power-aimpoint-unsnapped is a bonus, not the
+# load-bearing evidence.
+#
+# WHY THE KINZHAL AND NOT THE OTHER TWO POWERS. Of the three shipped missile strikes, only the
+# Kinzhal's payload can tell the difference. IskanderExplosion carries a `Warhead@Target:
+# TargetDamage`, and TargetDamageWarhead scales every hit by HitShape.CenterProximityPercent — the
+# impact's distance from the victim's CENTRE over the shape's half-diagonal. The GBU-57's
+# MOPPenetration and the tactical nuke's Atomic are SpreadDamage throughout, which measures distance
+# from the hitshape EDGE and reads zero anywhere inside the building, so neither would move at all.
+# Aiming this at the GBU-57 would produce a green run that proved nothing.
+#
+# THE ARITHMETIC THE TWO SHOTS ARE SEPARATED BY, for a 3x3 Logistics Center (HitShape Rectangle
+# +/-1536, half-diagonal |(1536,1536)| = 2172; Building Dimensions 3,3, so CenterOffset is a full
+# cell diagonally, |(1024,1024)| = 1448):
+#     centre cell clicked -> offset 0    -> proximity 100% -> Warhead@Target delivers 54000
+#     corner cell clicked -> offset 1448 -> proximity  33% -> Warhead@Target delivers ~17800
+# Against 60,000 HP that is the difference between a kill and well under half. Pinned as a unit test
+# against the shipped RectangleShape in SupportPowerAimPointTest.
+#
+# GEOMETRY, same derivation as test-missile-strike-power:
+#   Russia HomeLocation 6,17 · Bounds Rectangle(left=1, top=1, w=64, h=32)
+#   Map.ChooseClosestEdgeCell (Map.cs:1821-1835):
+#     horizontalBound = (6-1=5) < 64/2=32 -> Bounds.Left = 1
+#     verticalBound   = (17-1=16) < 32/2=16 is FALSE -> Bounds.Bottom = 33
+#     du = |1-6| = 5, dv = |33-17| = 16, du < dv -> edge = (1, 17)
+#   Both aim points resolve to a building centre 31328 wdist from that entry cell. At KinzhalMissile
+#   Speed 2000 with Acceleration 0 that is a ~16-tick flight -- but the flight is the SMALL half of
+#   the wait. `MissileDelay: 150` (player.yaml:137, landed 2026-09-05) holds the missile OUT OF THE
+#   WORLD for 150 ticks first, so the whole sequence per shot is:
+#       order -> +150 spawn -> +16 impact -> +22 last shockwave band = 188 ticks, twice, in series.
+#   The Lua does NOT hard-code that total: it advances on observables and uses the numbers only as
+#   budgets for failing with a diagnosis. Fixing a 90-tick window against these delays is exactly
+#   what made the first run of this scenario read `damage=0` on both shots.
+#
+# WHY THE RANGE DIFFERENCE BETWEEN THE TWO SHOTS IS NOT A CONFOUND: IskanderExplosion's
+# Warhead@Target sets DamageAtMaxRange: 100, and TargetDamageWarhead only consults the range taper
+# when that value is NOT 100 (TargetDamageWarhead.cs, `if (DamageAtMaxRange != 100)`). The two
+# SpreadDamage warheads take no range term at all. So 29.8 cells and 30.6 cells deliver identically.
+#
+# WHY THE TWO BUILDINGS ARE 12 CELLS APART: the widest Kinzhal warhead is Warhead@Shockwave at
+# MaxRadius 4c0. 12 cells of centre separation less 1.5 cells of hitshape at each end leaves 9 cells
+# of clearance, so neither shot can touch the other's victim.
+#
+# WHY MapStartingLocations IS REMOVED IN rules.yaml: Russia is the playable client player, so
+# Player.HomeLocation would otherwise come from a spawn assigner (Player.cs:182) and the edge
+# derivation above would depend on which mpspawn it picked.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 6,17
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 58,17
+
+Actors:
+	# One Supply Route per side so neither faction is eliminated before the poller writes a verdict
+	# (AUTOTEST.md map.yaml rule 6). Both are far outside every Kinzhal warhead in any case.
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 6,17
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 58,17
+
+	# THE CORNER-CLICKED VICTIM. Location is the TOP-LEFT of the footprint, so this covers
+	# 30-32 x 10-12 and its centre cell is 31,11. The Lua clicks 30,10 — the top-left corner cell,
+	# the worst of the nine and the one the 33% arithmetic above is derived for.
+	CornerVictim: logisticscenter
+		Owner: USA
+		Location: 30,10
+
+	# THE CONTROL. Identical building, footprint 30-32 x 22-24, centre cell 31,23 — and the Lua
+	# clicks 31,23. This is the placement test-gbu57-asymmetry adopts by hand for exactly this
+	# reason ("Placing it at 36,17 and aiming at 36,17 would put the impact on the building's
+	# top-left CORNER"). The whole point of the change under test is that hand-placement stops being
+	# necessary; this actor is here to be the number the corner shot has to match.
+	CenterVictim: logisticscenter
+		Owner: USA
+		Location: 30,22
+
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+Rules: rules.yaml
