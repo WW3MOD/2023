@@ -10,8 +10,23 @@
 -- finding of the two — say so rather than tuning the thresholds until it passes.
 --
 -- IT IS OTHERWISE test-power-aimpoint-center, LINE FOR LINE. Same map, same two buildings, same two
--- clicked cells, same power, same settle window, same verdict fields in the same order. Only the
--- expectations at the bottom differ, because only one rules line differs.
+-- clicked cells, same power, same observable-driven phases, same verdict fields in the same order.
+-- Only the expectations at the bottom differ, because only one rules line differs.
+--
+-- REWRITTEN 2026-09-05 ALONGSIDE ITS SIBLING, and for the same reason: `MissileDelay: 150` landed on
+-- the Kinzhal in the same merge (player.yaml:137), the missile is held out of the world by
+-- SpawnActorEffect for those ticks, and Player.GetActorsByType filters on IsInWorld
+-- (PlayerProperties.cs:100) — so a fixed 90-tick settle window closed before anything existed and
+-- the sibling read `damage=0` twice. Both files now advance on OBSERVABLES (a missile appeared, the
+-- missile is gone, the dust settled) and order a shot only into a world holding zero missiles,
+-- which is asserted rather than assumed. This scenario was never run with the stale budget; it is
+-- rewritten because running it with one would have proved nothing.
+--
+-- THE DERIVATION, from the shipped values:
+--   MissileDelay 150 + PreLaunchTicks 0 (BallisticMissile.cs:85) + ~16 ticks of flight
+--   (hDist ~31000 at Speed 2000, Acceleration 0) = ~166 ticks order -> impact; + 22 ticks for
+--   Warhead@Shockwave's outermost band (StartDelay 2 + 4 cells at WaveSpeed 5 TICKS PER CELL)
+--   = ~188 order -> settled, twice, sequentially.
 --
 -- THE EXPECTED NUMBERS, for a 3x3 Logistics Center (HitShape Rectangle +/-1536, half-diagonal 2172;
 -- CenterOffset a full cell diagonally, |(1024,1024)| = 1448):
@@ -19,6 +34,15 @@
 --     corner click -> offset 1448 -> proximity  33% -> Warhead@Target ~17800 -> total ~24800
 -- Read the printed `offset=` field first: it is the direct measurement, and it should be ~0 for the
 -- centre shot and ~1448 for the corner shot. The damage is the consequence.
+--
+-- ITS SIBLING ALREADY PRODUCED THESE NUMBERS ONCE, BY ACCIDENT, AND THAT IS WORTH KNOWING BEFORE
+-- READING THIS RUN. On 2026-09-05 test-power-aimpoint-center returned offset=1448 / damage=24820 on
+-- the corner shot against offset=0 / damage=60000 on the centre shot — with the snap ON, because the
+-- resolver could not see a building through an `=` OccupiedPassable corner cell. So the corner-hit
+-- defect is ALREADY measured in a running game and this scenario is no longer the only route to it.
+-- What this run is now for is narrower and still worth a slot: proving the SnapToActorCenter switch
+-- actually switches, in the direction that turns the fix off. If it comes back matching its sibling's
+-- old numbers, the field works; if both shots land centred, the field is being ignored.
 
 local OrderKey = "KinzhalStrike"
 local MissileType = "kinzhalmissile"
@@ -28,8 +52,10 @@ local CornerCellX, CornerCellY = 30, 10
 -- Shot 2: the centre cell of CenterVictim (footprint 30-32 x 22-24).
 local CenterCellX, CenterCellY = 31, 23
 
-local SettleTicks = 90
-local ObserveTicks = 400
+local ArrivalBudget = 240
+local FlightBudget = 90
+local DamageSettleTicks = 45
+local ObserveTicks = 900
 
 -- The centre-clicked control must still deliver the warhead's stated damage: without this the run
 -- could go green because BOTH shots were feeble, which would mean something else entirely is wrong.
@@ -48,16 +74,20 @@ local shots = {
 	{
 		name = "corner",
 		cellX = CornerCellX, cellY = CornerCellY,
-		victim = nil,
+		victim = nil, phase = "pending",
 		status = "never-called", orderTick = nil,
-		lastMissilePos = nil, startHealth = 0, endHealth = nil, damage = -1,
+		missilesAtOrder = -1, firstSeenTick = nil, goneTick = nil,
+		lastMissilePos = nil, victimCentre = nil,
+		startHealth = 0, healthAtOrder = -1, endHealth = nil, damage = -1,
 	},
 	{
 		name = "centre",
 		cellX = CenterCellX, cellY = CenterCellY,
-		victim = nil,
+		victim = nil, phase = "pending",
 		status = "never-called", orderTick = nil,
-		lastMissilePos = nil, startHealth = 0, endHealth = nil, damage = -1,
+		missilesAtOrder = -1, firstSeenTick = nil, goneTick = nil,
+		lastMissilePos = nil, victimCentre = nil,
+		startHealth = 0, healthAtOrder = -1, endHealth = nil, damage = -1,
 	},
 }
 
@@ -79,6 +109,10 @@ local function healthOf(actor)
 	return actor.Health
 end
 
+local function liveMissiles()
+	return Russia.GetActorsByType(MissileType)
+end
+
 local function hDist(a, b)
 	if a == nil or b == nil then
 		return -1
@@ -97,17 +131,6 @@ local function posText(p)
 	return p.X .. "," .. p.Y
 end
 
-local function trackMissile(shot)
-	local missiles = Russia.GetActorsByType(MissileType)
-	for i = 1, #missiles do
-		local m = missiles[i]
-		if not m.IsDead then
-			local p = m.CenterPosition
-			shot.lastMissilePos = { X = p.X, Y = p.Y }
-		end
-	end
-end
-
 local function pollTick()
 	tick = tick + 1
 
@@ -116,42 +139,77 @@ local function pollTick()
 	end
 
 	local shot = shots[shotIndex]
+	local missiles = liveMissiles()
 
-	if shot.orderTick == nil then
+	if shot.phase == "pending" then
+		shot.missilesAtOrder = #missiles
+		if #missiles > 0 then
+			return
+		end
+
 		if shotIndex == 1 then
 			stateAtStart = Test.GetSupportPowerState(Russia, OrderKey)
 		end
 
-		shot.startHealth = healthOf(shot.victim)
+		shot.healthAtOrder = healthOf(shot.victim)
 		shot.status = Test.ActivateSupportPower(Russia, OrderKey, CPos.New(shot.cellX, shot.cellY))
 		if shot.status == "issued" then
 			shot.orderTick = tick
+			shot.phase = "waiting"
 		else
+			shot.phase = "done"
 			shotIndex = #shots + 1
 		end
 
 		return
 	end
 
-	trackMissile(shot)
+	if shot.phase == "waiting" then
+		if #missiles > 0 then
+			shot.firstSeenTick = tick
+			shot.phase = "flying"
+		elseif tick - shot.orderTick > ArrivalBudget then
+			shot.phase = "done"
+			shotIndex = shotIndex + 1
+		end
 
-	if tick - shot.orderTick >= SettleTicks then
+		return
+	end
+
+	if shot.phase == "flying" then
+		if #missiles > 0 then
+			local p = missiles[1].CenterPosition
+			shot.lastMissilePos = { X = p.X, Y = p.Y }
+
+			if tick - shot.firstSeenTick > FlightBudget then
+				shot.phase = "settling"
+				shot.goneTick = tick
+			end
+		else
+			shot.goneTick = tick
+			shot.phase = "settling"
+		end
+
+		return
+	end
+
+	if shot.phase == "settling" and tick - shot.goneTick >= DamageSettleTicks then
 		shot.endHealth = healthOf(shot.victim)
 		shot.damage = shot.startHealth - shot.endHealth
+		shot.phase = "done"
 		shotIndex = shotIndex + 1
 	end
 end
 
 local function shotText(shot)
-	local centre = shot.victim.IsDead and nil or shot.victim.CenterPosition
-	local offset = hDist(shot.lastMissilePos, centre)
-
 	return shot.name .. ": clicked " .. shot.cellX .. "," .. shot.cellY
 		.. " order=" .. shot.status .. "@t" .. n(shot.orderTick)
+		.. " missilesAtOrder=" .. shot.missilesAtOrder
+		.. " spawn@t" .. n(shot.firstSeenTick) .. " gone@t" .. n(shot.goneTick)
 		.. " impact=" .. posText(shot.lastMissilePos)
-		.. " victimCentre=" .. (centre ~= nil and posText(centre) or "DEAD-unreadable")
-		.. " offset=" .. offset .. "wd"
-		.. " hp " .. shot.startHealth .. "->" .. n(shot.endHealth)
+		.. " victimCentre=" .. posText(shot.victimCentre)
+		.. " offset=" .. hDist(shot.lastMissilePos, shot.victimCentre) .. "wd"
+		.. " hp " .. shot.startHealth .. "(atOrder " .. shot.healthAtOrder .. ")->" .. n(shot.endHealth)
 		.. " damage=" .. shot.damage
 end
 
@@ -169,17 +227,41 @@ local function finish()
 		.. " | observed=" .. tick .. "t"
 
 	for i = 1, #shots do
-		if shots[i].status ~= "issued" then
-			Test.Fail("the " .. shots[i].name .. " shot was refused: " .. shots[i].status
-				.. ". || " .. summary)
+		local s = shots[i]
+
+		if s.status ~= "issued" then
+			Test.Fail("the " .. s.name .. " shot was refused: " .. s.status .. ". || " .. summary)
 			return
 		end
 
-		if shots[i].damage < 0 then
-			Test.Fail("the " .. shots[i].name .. " shot never settled within " .. ObserveTicks
+		if s.missilesAtOrder ~= 0 then
+			Test.Fail("the " .. s.name .. " shot was ordered with " .. s.missilesAtOrder
+				.. " missile(s) already in the world, so its position tracker cannot be trusted to"
+				.. " be following its own missile. || " .. summary)
+			return
+		end
+
+		if s.firstSeenTick == nil then
+			Test.Fail("the " .. s.name .. " shot was accepted but no " .. MissileType
+				.. " ever entered the world within " .. ArrivalBudget .. " ticks of the order."
+				.. " MissileStrikePower holds the missile out of the world for MissileDelay ticks"
+				.. " (150 on the Kinzhal, player.yaml:137) and GetActorsByType filters on IsInWorld,"
+				.. " so if that value has grown past this budget, raise ArrivalBudget rather than"
+				.. " reading this as a delivery failure. || " .. summary)
+			return
+		end
+
+		if s.damage < 0 then
+			Test.Fail("the " .. s.name .. " shot never settled within " .. ObserveTicks
 				.. " ticks. || " .. summary)
 			return
 		end
+	end
+
+	if centre.healthAtOrder ~= centre.startHealth then
+		Test.Fail("the centre victim had already taken " .. (centre.startHealth - centre.healthAtOrder)
+			.. " damage before its own shot was ordered, so the first strike reached it. || " .. summary)
+		return
 	end
 
 	-- 1. The control first. A feeble centre shot means the warhead, the flight or the settle window
@@ -242,6 +324,14 @@ WorldLoaded = function()
 
 	shots[1].victim = CornerVictim
 	shots[2].victim = CenterVictim
+
+	-- Captured NOW, while both buildings are certainly alive. CenterPosition on a destroyed actor is
+	-- unreadable, and the centre-clicked control is expected to die.
+	for i = 1, #shots do
+		local p = shots[i].victim.CenterPosition
+		shots[i].victimCentre = { X = p.X, Y = p.Y }
+		shots[i].startHealth = shots[i].victim.Health
+	end
 
 	TestHarness.FocusBetween(CornerVictim, CenterVictim)
 	TestHarness.Select(OwnSR)

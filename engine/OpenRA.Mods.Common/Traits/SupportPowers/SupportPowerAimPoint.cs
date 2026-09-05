@@ -23,6 +23,8 @@
  */
 #endregion
 
+using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -76,18 +78,12 @@ namespace OpenRA.Mods.Common.Traits
 			var bestFootprint = 0;
 			var bestDistanceSq = 0L;
 
-			// GetActorsAt reads the ActorMap influence layer, which is keyed on IOccupySpace —
-			// so a building answers for EVERY cell of its footprint (Building.OccupiedTiles covers
-			// '=', 'x', 'X' and '+' alike, Building.cs:180-190), and an AIRBORNE aircraft answers
-			// for none, because Aircraft.OccupiedCells returns only its landing cells
-			// (Aircraft.cs:809-812). That second property is load-bearing: it is what stops a strike
-			// snapping onto a helicopter's centre 3000 units above the ground.
-			foreach (var a in world.ActorMap.GetActorsAt(cell))
+			foreach (var a in CandidatesAt(world, cell))
 			{
 				if (a.Disposed || !a.IsInWorld || a.OccupiesSpace == null)
 					continue;
 
-				var footprint = a.OccupiesSpace.OccupiedCells().Length;
+				var footprint = FootprintSize(a);
 				var distanceSq = (a.CenterPosition - pos).HorizontalLengthSquared;
 
 				if (best == null || IsBetterCandidate(footprint, distanceSq, a.ActorID,
@@ -104,6 +100,71 @@ namespace OpenRA.Mods.Common.Traits
 			// reads 100%; re-deriving a ground Z would put the impact outside a hitshape's vertical
 			// band on sloped ground for no gain, since the percentage ignores Z entirely.
 			return best?.CenterPosition;
+		}
+
+		/// <summary>
+		/// Every actor whose body covers <paramref name="cell"/>, from BOTH footprint indices.
+		/// </summary>
+		/// <remarks>
+		/// <para>TWO INDICES, BECAUSE ONE OF THEM ANSWERS A DIFFERENT QUESTION THAN IT LOOKS LIKE.
+		/// The ActorMap influence layer is keyed on <c>IOccupySpace.OccupiedCells</c>, and for a
+		/// building that is <c>BuildingInfo.OccupiedTiles</c> — which yields <c>'x'</c>,
+		/// <c>'X'</c> and <c>'+'</c> and deliberately NOT <c>'='</c> (<c>Building.cs:178-190</c>).
+		/// <c>'='</c> is <c>OccupiedPassable</c>: a cell inside the building that units may walk
+		/// through, so it is absent from the index on purpose. <c>OccupiedCells</c> answers "can
+		/// something stand here", which is a PATHFINDING question, not "is the building here".
+		/// </para>
+		///
+		/// <para>MEASURED, not reasoned: a Kinzhal clicked on the Logistics Center's top-left cell
+		/// resolved to no actor and landed 1448 units off centre for 24820 damage where a centred
+		/// shot did 60000. That building's footprint is <c>=+= +++ =+=</c>, so all four of its
+		/// corners are <c>'='</c> and all four were invisible to <c>GetActorsAt</c> — the exact
+		/// cells a player is most likely to click when aiming at the edge of a building.</para>
+		///
+		/// <para>BuildingInfluence is the index that does answer the presence question: Building
+		/// registers <c>Info.Tiles(Location)</c> with it (<c>Building.cs:370</c>), and
+		/// <c>Tiles</c> includes <c>'='</c> (<c>Building.cs:156-169</c>). Both indices are
+		/// footprint-based, so an AIRBORNE aircraft is still in neither — Aircraft.OccupiedCells
+		/// returns only its landing cells (<c>Aircraft.cs:809-812</c>) and it is not a Building.
+		/// That is load-bearing: it is what stops a strike snapping onto a helicopter's centre
+		/// 3000 units above the ground.</para>
+		///
+		/// <para>A building occupying the clicked cell by an <c>'x'</c> or <c>'+'</c> tile appears
+		/// in both, and is therefore ranked twice. That is harmless because
+		/// <see cref="IsBetterCandidate"/> is STRICT — an actor never beats itself — so a duplicate
+		/// cannot displace the leader or make the result depend on which index was read first.
+		/// </para>
+		/// </remarks>
+		static IEnumerable<Actor> CandidatesAt(World world, CPos cell)
+		{
+			foreach (var a in world.ActorMap.GetActorsAt(cell))
+				yield return a;
+
+			var buildings = world.WorldActor.TraitOrDefault<BuildingInfluence>();
+			if (buildings == null)
+				yield break;
+
+			foreach (var a in buildings.GetBuildingsAt(cell))
+				yield return a;
+		}
+
+		/// <summary>
+		/// Cells the actor's body covers, used only to rank two candidates on the same cell.
+		/// </summary>
+		/// <remarks>
+		/// A building is measured by <c>Info.Tiles</c> rather than by <c>OccupiedCells</c> for the
+		/// same reason <see cref="CandidatesAt"/> consults two indices: <c>OccupiedCells</c> drops
+		/// the passable cells, which would report the 3x3 Logistics Center as 5 cells rather than
+		/// 9 and could rank it below a genuinely smaller building whose footprint happens to be
+		/// solid.
+		/// </remarks>
+		static int FootprintSize(Actor a)
+		{
+			var building = a.TraitOrDefault<Building>();
+			if (building != null)
+				return building.Info.Tiles(a.Location).Count();
+
+			return a.OccupiesSpace.OccupiedCells().Length;
 		}
 
 		/// <summary>
