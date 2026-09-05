@@ -24,7 +24,7 @@ hypothesis-batch, SPEC §8.3). Bulky raw match data lives under
 
 ## The loop in one line
 
-> pick a hypothesis → implement it in the `ai-bench` worktree → run a benchmark
+> pick a hypothesis → implement it in a per-item worktree, merge, benchmark from `main` (SPEC §5.1) → run a benchmark
 > batch → score vs the Normal control → log a cycle card → merge-or-revert.
 
 ## Hard invariants (see SPEC §4, §11)

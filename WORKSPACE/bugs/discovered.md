@@ -4788,3 +4788,15 @@ map-rules test the way most weapon changes can — it has to be a change to the 
   `IskanderMissile` or `HIMARSMissile`, but it is a silent no-op waiting for anyone who tries to
   differentiate two missile tiers with a speed-modifying condition rather than two `Speed:` values.
   (found while working on: missile-power delivery recon, WORKSPACE/recon/powers-missile-delivery.md §4.2)
+- [2026-09-05] [low] **`CRAM` fires with an empty magazine — its armament has no `PauseOnCondition: !ammo`.**
+  `Armament@1` on `CRAM` (`mods/ww3mod/rules/ingame/structures-defenses.yaml:655-658`) omits the
+  line that its sibling `AGUN` carries (`:744`). `Armament.CanFire` never consults `AmmoPool`
+  (`engine/OpenRA.Mods.Common/Traits/Armament.cs:395-410`) — the ammo gate in this engine is the
+  `PauseOnCondition: !ammo` convention, via `IsTraitPaused`. `AmmoPool.TakeAmmo` does return `false`
+  when empty (`AmmoPool.cs:441-444`) but its only caller discards the return
+  (`INotifyAttack.Attacking`, `:997-1006`). So the CRAM's whole ammo economy — `AmmoPool` 24 rounds
+  (`:667-669`), 6 pips (`:677-681`), `ReloadAmmoPool` 24 per 42 ticks (`:682-685`), reload
+  decoration (`:686-691`) — is decorative: the pips drain to empty, the reload timer runs, and the
+  gun never stops. **Latent today** — `CRAM` is `Buildable.Prerequisites: ~disabled` (`:636`), so no
+  player can place one. It goes live the instant that prerequisite is flipped. Fix is one line.
+  (found while working on: interception costing, WORKSPACE/recon/260905-intercepting-ballistic-munitions.md §7.1)

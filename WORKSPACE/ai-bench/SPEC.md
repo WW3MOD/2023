@@ -86,8 +86,8 @@ inner loop; run it continuously while budget allows (§8).
    user directive on the dashboard, the current AI plan
    ([`../plans/260719_experimental_ai_poi_strategy.md`](../plans/260719_experimental_ai_poi_strategy.md)),
    or a weakness a prior cycle card flagged.
-3. **Implement in the worktree.** All work happens in
-   `C:\Users\fredr\worktrees\ww3mod\ai-bench` on its own branch, own build (§5).
+3. **Implement in a per-item worktree, benchmark from `main`.** There is no standing `ai-bench` worktree any more (see §5.1);
+   the ladder measures whichever checkout invokes `run-tournament.sh`, so results are taken from the main checkout after the merge.
    Respect the mutable-scope + anti-cheat rules (§4) — no exceptions.
 4. **Build.** In the worktree: `./make.ps1 all`. On Windows a build can fail on
    locked DLLs if the game is running — wait or move on, don't alarm the user.
