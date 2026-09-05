@@ -1,13 +1,18 @@
-A damaged airframe sent to a pad heals to full, leaves the deck, and is billed for it.
+A damaged helicopter sent to a pad heals to full, leaves the deck, and is billed for it.
 
-Three airframes at 60% HP, all owned by the human player. A10 "Plane" and HELI "Heli" are
-each ordered to their own player-owned afld; HELI "Control" is given no order at all.
+Two HELI at 60% HP, both owned by the human player. "Patient" is ordered to a player-owned
+afld; "Control" is given no order at all.
 
 PASS requires, at tick 1025:
-  * both patients at exactly MaxHealth (800/800),
-  * both patients airborne again (CenterPosition.Z above their own grounded Z) — the wedge check,
-  * Control unchanged at 480 HP and still on the ground,
-  * the player billed 1008 credits (+/-15%) for the two repairs.
+  * Patient at exactly MaxHealth (800/800),
+  * Patient airborne again — CenterPosition.Z above its own grounded Z — the wedge check,
+  * Control unchanged at 480 HP and at its start altitude,
+  * the player billed exactly 504 credits.
+
+The bill is asserted exactly rather than within a band because rules.yaml sets
+PassiveIncome: 0. The 2026-09-05 run (260905_171321) proved why that matters: it reported
+"billed -1496", the purse going UP, which is 20 x 100 passive income minus the 504 the
+repair really did cost. The repair was correct; the measurement was not.
 
 The defect this pins: Repairable.PercentageStep / RepairsUnits.PercentageStep were unset on
 every airframe and on both pads, so RepairTick's step resolved 0. An airframe at a pad
@@ -17,5 +22,8 @@ PercentageStep: 3 on ^Airborne's Repairable (mods/ww3mod/rules/ingame/aircraft.y
 
 The host is an afld rather than an hpad because hpad.shp and hpadmake.shp do not exist in
 this repo (mods/ww3mod/lint-baseline.txt:353-354); rules.yaml widens HELI's RepairActors to
-reach one. It never sets PercentageStep, so the Heli leg still proves that ^Helicopter's
-Repairable node MERGES with ^Airborne's rather than replacing it.
+reach one. It never sets PercentageStep, so this still proves that ^Helicopter's Repairable
+node MERGES with ^Airborne's rather than replacing it.
+
+No fixed-wing leg: see map.yaml, and WORKSPACE/bugs/discovered.md [2026-09-05] for the A10
+that never landed.
