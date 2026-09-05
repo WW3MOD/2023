@@ -135,6 +135,60 @@ order - human, bot or Lua - lands on the centre and the discount becomes unreach
 support power**. The same `IskanderExplosion` is fired by the Iskander launcher's own `Explodes`
 (`vehicles-russia.yaml:1112,1149,1153,1221`), which never builds a support power order, so the
 defect is untouched for direct fire and still wants its own item.
+## 2026-09-05 - WW3MOD already has a per-player upkeep system, and the production queue's refund stops at `EndProduction`
+
+Two findings from the powers-economy recon (`main @ bb294b2d`, full write-up
+`WORKSPACE/proposals/260905-powers-economy.md`). Both are the kind that get re-derived wrongly
+because the obvious guess is plausible.
+
+### 1. Upkeep is shipped. Do not design a new recurring drain.
+
+`PlayerResources` carries a complete upkeep system that is easy to miss because nothing in the docs
+mentions it:
+
+| Piece | Location |
+|---|---|
+| `public float Upkeep` (single pooled float) | `PlayerResources.cs:190` |
+| `UpkeepEntry { ActorType, Name, Cost }` + registry | `:125-130`, `:143`, `:146` |
+| `AddToUpkeep(cost, actorType, name)` / `RemoveFromUpkeep(entry)` | `:371-391` |
+| The unified economy tick, income and upkeep in ONE line | `:209` |
+| `NetChange => TotalIncome - (int)Upkeep` | `:151` |
+| Consumer trait `InfersUpkeep` (`FixedCost` + `PermilleCost` of `Valued.Cost`) | `InfersUpkeep.cs:35-42` |
+| Live at `PermilleCost: 5` on infantry and vehicles | `infantry.yaml:155`, `vehicles.yaml:144` |
+| Player-facing breakdown, grouped and counted, already rendered | `IngameCashCounterLogic.cs:73-98`, `:121` |
+
+**Interval:** `PassiveIncomeInterval: 50` ticks (`PlayerResources.cs:66`, not overridden in the mod)
+at the default 60 ms timestep = **3.00 s, 20 paydays/minute**. Aircraft and structures carry no
+`InfersUpkeep` at all.
+
+**Two traps in it:**
+
+- **There is no per-entry billing and therefore no "which power went unpaid" signal.** `Upkeep` is
+  one pooled float, and `ChangeCash` silently clamps at zero — `amount = Math.Max(-(Cash +
+  Resources), amount)`, *"Don't put the player into negative funds"* (`:221-222`). A shortfall is a
+  property of the PLAYER, not of any one asset. Any design that wants to lapse/destroy a specific
+  thing on non-payment has no basis on which to choose it. The signal *is* recoverable — `ChangeCash`
+  returns the clamped amount (`:215-227`) and the tick discards it at `:209` — but it must be added.
+- **The breakdown silently drops sub-1 entries.** `var total = (int)group.Sum(e => e.Cost); if
+  (total <= 0) continue;` (`IngameCashCounterLogic.cs:83-85`). A rifleman at 50 x 0.005 = 0.25/interval
+  is billed but never displayed. **Keep any new upkeep >= 1.0/interval or it charges invisibly.**
+
+### 2. `ProductionQueue`'s cancel-with-refund does not survive completion
+
+Every cancel path refunds `TotalCost - RemainingCost` — what was actually paid, since money drips per
+tick during the build (`ProductionQueue.cs:823-828`). Paths: `:189`, `:391`, `:628`, `:638`, `:672`.
+
+**But the refund only exists while the item is IN the queue.** The instant `Produce` succeeds,
+`EndProduction(item)` (`:713`) removes it and the queue holds no further record. So "the queue
+already gives you cancel-with-refund" is true only for a purchase *in progress*. Anything about
+refunding a FINISHED purchase is new code, on a different object.
+
+**The useful corollary:** this pins the refund fraction for anything bought through a queue. Cancel
+at 99% already returns ~100% of what was paid, so any completed-purchase refund below 100% creates a
+discontinuity at the moment the bar fills — the optimal play becomes holding every purchase at 99%
+forever. Full refund is the only value that makes the two sides of `EndProduction` agree.
+
+---
 
 ## 2026-09-04 - A Lua test binding that answers two questions in one string fails its callers silently
 
