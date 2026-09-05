@@ -157,3 +157,52 @@ So "nearest edge" ≈ "perpendicular distance to the Bounds rectangle" is a soun
 the ground branch. The two things that are *not* intuitive are (a) which chooser each branch calls,
 and (b) that the sort origin and the reachability origin are different (`searchOrigin` vs
 `self.Location`, `RotateToEdge.cs:165-180`).
+
+---
+
+## SHIPPED 2026-09-05 on a direct user ruling (`wt/evac-home-edge`, base `main @ 78a97b57`)
+
+**The user rejected the balance framing rather than picking a side of it:** *"I dont get it, can
+they evacuate on any side? All evacuation should only happen on our own side, the one where our
+units spawn. Possibly that they can evacuate at any allied SR as well, on their edge, if it is
+closer. But not 'Any wall' (What is a wall?)"* Built as a correctness fix accordingly — a unit
+returning to off-map reserves through the ENEMY's border was never a design anybody chose.
+
+**The change** is `RotateToEdge.ChooseEdgeCell`'s ground branch: `?? self.Location` becomes
+`?? FriendlyEvacuationOrigin(self)`, a new helper returning the nearest friendly `SUPPLYROUTE`
+(`ProductionFromMapEdge` filtered by `self.Owner.IsAlliedWith(a.Owner)`, ranked by distance to
+the unit), then `self.Owner.HomeLocation`, then `self.Location`. **The aircraft branch and
+`FindClosestSpawnAreaForOwner` are untouched**, so `AmmoPool`'s evacuate-vs-rearm decision does
+not move.
+
+**The allied-SR extension WAS built** — this dossier's costing question, answered: it is one
+`Where` clause, it needs no new config, and because `Player.RelationshipWith` returns `Ally` for
+`this == other` it degenerates to the player's own Supply Route in a free-for-all, so the ally
+clause cannot change a solo game. It did not complicate the core change.
+
+**Measured after, same tool, nine unit-anchored maps, `raid` population:** own wall
+14.4% → **99.5%**, opponent's wall 70.4% → **0.4%**, median drive 9.0 → **108.1** cells.
+`river-zeta-ww3` is unchanged in every population, as predicted — it is the control.
+
+### The consequence the user has NOT approved, and must hear
+
+They approved the rule, not this. At 12.0x exposure the likely real effect is that forward units
+**die before banking anything**: `INotifySold.Sold` fires only on reaching the edge
+(`RotateToEdge.cs:517`), so a unit killed en route banks zero, and surviving it banks less
+because the refund is scaled by current HP (`:511`). The `evacuating` condition provides **no
+defensive protection whatever** — `SelectionPriorityModifier` feeds only the player's own
+mouse/box-select (`SelectableExts.cs:29-36`), never targeting — so this dossier's "uninterceptable"
+was wrong in one direction and the auto-target framing is wrong in the other. Full arithmetic,
+the bot-census second-order effect, and the scenario census in `WORKSPACE/DISCOVERIES.md`
+2026-09-05.
+
+### Left undone, deliberately
+
+- **`Map.ChooseClosestEdgeCell`'s exclusive-`Bounds.Right` off-by-one is untouched** and filed
+  separately. It is in the blast radius only via the unit-anchored retry at `RotateToEdge.cs:362`,
+  which this change makes more likely to fire; it was not chased.
+- **The allied-SR path has no scenario.** `tools/autotest/scenarios/test-evac-exits-own-side/`
+  grades the core with an ENEMY Supply Route as the negative control for the relationship filter.
+  Discriminating own-SR from a nearer ALLIED SR needs a third player and a `PlayerReference`
+  alliance, an idiom no scenario in this tree uses; authoring one blind under the launch freeze
+  risked a false "the ally clause is broken" verdict. See that scenario's `description.txt`.

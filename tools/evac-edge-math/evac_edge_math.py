@@ -5,11 +5,19 @@ through its OWN player's map edge or an OPPONENT's, and how much shorter is the 
 No game, no simulation. Reads `mods/ww3mod/maps/*/map.yaml` + `map.bin` through
 nav-guard's decoder, replicates the engine's edge choice exactly, and counts.
 
-The engine path being modelled (RotateToEdge.cs:161-168, ground branch):
+The engine path being modelled (RotateToEdge.ChooseEdgeCell, ground branch). Item 78
+CHANGED the fallback, so the tool models BOTH regimes and prints them side by side:
 
-    var searchOrigin = FindClosestSpawnAreaForOwner(self) ?? self.Location;
+    before:  var searchOrigin = FindClosestSpawnAreaForOwner(self) ?? self.Location;
+    after:   var searchOrigin = FindClosestSpawnAreaForOwner(self) ?? FriendlyEvacuationOrigin(self);
+
     return Map.ChooseClosestMatchingEdgeCell(searchOrigin,
         c => mobileInfo.CanEnterCell(world, null, c) && CanReach(self, mobileInfo, c));
+
+`FriendlyEvacuationOrigin` is the nearest friendly SUPPLYROUTE, which world.yaml's
+StartingUnits places at the owner's mpspawn - so in a free-for-all it IS the spawn cell,
+which is what this models. The predicate is untouched by the change, so the SET of
+qualifying cells is identical in both regimes and only the ORDER over it moves.
 
 and (Map.cs:1874-1877):
 
@@ -36,10 +44,11 @@ Two attributions of "whose edge", because they disagree and only one is honest:
 
 And the magnitude, which decides whether the label matters at all:
 
-  drive    - cells the unit actually drives to the chosen cell.
-  fix      - cells it would drive under item 78's proposed one-token change
-             (`?? self.Location` -> `?? self.Owner.HomeLocation`), i.e. to
-             ChooseClosestMatchingEdgeCell(HomeLocation, ...).
+  drive    - median cells the unit drives to the chosen cell, in that regime.
+
+Every population prints twice, `before` then `after`. On river-zeta the two rows are
+IDENTICAL by construction: it authors spawnarea actors, so the non-null arm wins in both
+regimes and the change cannot reach it. That map is the control.
 """
 
 from __future__ import annotations
@@ -197,27 +206,36 @@ def perimeter_order(fx, origin):
         ((ox - c[0]) ** 2 + (oy - c[1]) ** 2, i, c) for i, c in enumerate(fx.edge))]
 
 
+def first_reachable(fx, order, my_label):
+    """ChooseClosestMatchingEdgeCell's FirstOrDefault, given a pre-sorted perimeter.
+
+    Returns None when no perimeter cell qualifies - FirstOrDefault's default(CPos) is
+    (0,0), which RotateToEdge would then try to drive to; treated here as "no answer".
+
+    Split out from chosen_edge_cell because the `after` regime sorts from a per-OWNER
+    origin (few) while testing reachability per CELL (many), so the sort is hoisted.
+    """
+    for cell in order:
+        if fx.label_at(cell) == my_label:
+            return cell
+    return None
+
+
 def chosen_edge_cell(fx, order_origin, reach_from=None):
     """ChooseClosestMatchingEdgeCell(order_origin, CanEnterCell && CanReach).
 
     The two origins are DIFFERENT and that is not a typo in this model - it is the
-    engine's shape. The sort key is `searchOrigin` (RotateToEdge.cs:165-167), but the
-    reachability predicate is `PathExistsForLocomotor(locomotor, cell, self.Location)`
-    (RotateToEdge.cs:177-180), i.e. from the UNIT. They coincide only when searchOrigin
-    fell back to `self.Location` - which is the nine maps with no spawnarea.
-
-    Returns None when no perimeter cell qualifies - FirstOrDefault's default(CPos) is
-    (0,0), which RotateToEdge would then try to drive to; treated here as "no answer".
+    engine's shape. The sort key is `searchOrigin`, but the reachability predicate is
+    `PathExistsForLocomotor(locomotor, cell, self.Location)` (RotateToEdge.cs:190-193),
+    i.e. from the UNIT. They coincide only in the `before` regime on a map with no
+    spawnarea, where searchOrigin fell back to `self.Location`.
     """
     if reach_from is None:
         reach_from = order_origin
     my_label = fx.label_at(reach_from)
     if my_label < 0:
         return None
-    for cell in perimeter_order(fx, order_origin):
-        if fx.label_at(cell) == my_label:
-            return cell
-    return None
+    return first_reachable(fx, perimeter_order(fx, order_origin), my_label)
 
 
 def nearest_spawn(fx, cell):
@@ -240,7 +258,6 @@ class Tally:
     flank_wall: int = 0
     voronoi_enemy: int = 0
     drive: list = field(default_factory=list)
-    fix_drive: list = field(default_factory=list)
 
     def pct(self, k):
         return 100.0 * getattr(self, k) / self.n if self.n else float("nan")
@@ -252,11 +269,15 @@ class Tally:
 
 POPS = ("all", "enemy-half", "raid")
 
+# The two states of RotateToEdge's ground fallback. `before` is `?? self.Location`
+# (unit-anchored); `after` is `?? FriendlyEvacuationOrigin(self)` (owner-anchored).
+REGIMES = ("before", "after")
+
 
 def analyse_map(fx, stride, raid_radius, examples_wanted=0):
     left, top, bw, bh = fx.bounds
     n = len(fx.spawns)
-    pops = {k: Tally() for k in POPS}
+    pops = {(k, r): Tally() for k in POPS for r in REGIMES}
     examples = []
     diverted = sampled = unreachable = 0
     # Does the filter's diversion change the ANSWER (which wall) or only the exact cell?
@@ -267,25 +288,34 @@ def analyse_map(fx, stride, raid_radius, examples_wanted=0):
     # the filter is the only source of surprise.
     perp_wall_mismatch = 0
 
-    # The counterfactual destination under item 78's proposed fix: one cell per owner,
-    # resolved from HomeLocation instead of the unit's position.
-    fix_target = [chosen_edge_cell(fx, s) for s in fx.spawns]
-
-    # On a map WITH spawnareas the shipped ground branch already resolves searchOrigin
-    # from an owner-side anchor, so the exit is per-owner and does not move with the
-    # unit. river-zeta is the one shipped map in that state - it is already living
-    # under item 78's proposal.
+    # On a map WITH spawnareas the ground branch resolved searchOrigin from an owner-side
+    # anchor ALREADY, in both regimes - item 78 changed only the null arm, which such a map
+    # never takes. river-zeta is the one shipped map in that state, and is the control.
     owner_anchored = bool(fx.owner_origin)
+
+    # The `after` sort origin, one per owner: the spawnarea nearest that owner's
+    # SUPPLYROUTE when the map authors any, else the SUPPLYROUTE itself, which
+    # world.yaml's StartingUnits places at the owner's mpspawn. Sorted once per owner
+    # rather than per cell - the origin does not move with the unit any more.
+    after_origin = fx.owner_origin if owner_anchored else fx.spawns
+    after_order = [perimeter_order(fx, o) for o in after_origin]
 
     for ly in range(0, bh, stride):
         for lx in range(0, bw, stride):
             if not fx.passable[ly * bw + lx]:
                 continue
             cell = (left + lx, top + ly)
-            # Sort origin per the engine; reachability always from the unit.
-            per_owner_e = [chosen_edge_cell(fx, fx.owner_origin[si], cell)
-                           for si in range(n)] if owner_anchored else None
-            e = per_owner_e[0] if owner_anchored else chosen_edge_cell(fx, cell)
+            my_label = fx.label_at(cell)
+            if my_label < 0:
+                continue
+            # Sort origin per the engine and per regime; reachability ALWAYS from the
+            # unit, in both. The predicate is untouched by item 78, so `after` can only
+            # reorder the same qualifying set - it can never make an evacuation that
+            # resolved before fail to resolve now.
+            after_e = [first_reachable(fx, after_order[si], my_label) for si in range(n)]
+            before_e = after_e if owner_anchored else \
+                [first_reachable(fx, perimeter_order(fx, cell), my_label)] * n
+            e = before_e[0]
             if e is None:
                 unreachable += 1
                 continue
@@ -302,38 +332,40 @@ def analyse_map(fx, stride, raid_radius, examples_wanted=0):
             d2 = [(cell[0] - s[0]) ** 2 + (cell[1] - s[1]) ** 2 for s in fx.spawns]
 
             for si in range(n):
-                if owner_anchored:
-                    e = per_owner_e[si]
-                    if e is None:
-                        continue
-                e_wall = wall_of(fx.bounds, e)
-                e_vor = nearest_spawn(fx, e)
-                d_chosen = dist(cell, e)
-                own = e_wall == fx.spawn_walls[si]
-                enemy = (not own) and e_wall in {fx.spawn_walls[j]
-                                                 for j in range(n) if j != si}
-                buckets = [pops["all"]]
                 nd2 = min(d2[j] for j in range(n) if j != si)
+                names = ["all"]
                 if nd2 < d2[si]:
-                    buckets.append(pops["enemy-half"])
+                    names.append("enemy-half")
                 if nd2 <= raid_radius * raid_radius:
-                    buckets.append(pops["raid"])
-                    if enemy and len(examples) < examples_wanted:
-                        examples.append(
-                            "      p=%s owner=spawn%d%s wall %s -> exit %s wall %s, "
-                            "drive %.0f (fix would drive %.0f)"
-                            % (cell, si, fx.spawns[si], fx.spawn_walls[si], e, e_wall,
-                               d_chosen,
-                               dist(cell, fix_target[si]) if fix_target[si] else -1))
-                for t in buckets:
-                    t.n += 1
-                    t.own_wall += own
-                    t.enemy_wall += enemy
-                    t.flank_wall += not (own or enemy)
-                    t.voronoi_enemy += e_vor != si
-                    t.drive.append(d_chosen)
-                    if fix_target[si] is not None:
-                        t.fix_drive.append(dist(cell, fix_target[si]))
+                    names.append("raid")
+
+                for regime, ex in (("before", before_e[si]), ("after", after_e[si])):
+                    if ex is None:
+                        continue
+                    e_wall = wall_of(fx.bounds, ex)
+                    own = e_wall == fx.spawn_walls[si]
+                    enemy = (not own) and e_wall in {fx.spawn_walls[j]
+                                                     for j in range(n) if j != si}
+                    for k in names:
+                        t = pops[(k, regime)]
+                        t.n += 1
+                        t.own_wall += own
+                        t.enemy_wall += enemy
+                        t.flank_wall += not (own or enemy)
+                        t.voronoi_enemy += nearest_spawn(fx, ex) != si
+                        t.drive.append(dist(cell, ex))
+
+                if "raid" in names and len(examples) < examples_wanted \
+                        and before_e[si] is not None and after_e[si] is not None \
+                        and wall_of(fx.bounds, before_e[si]) != fx.spawn_walls[si]:
+                    examples.append(
+                        "      p=%s owner=spawn%d%s wall %s | before %s wall %s "
+                        "drive %.0f | after %s wall %s drive %.0f"
+                        % (cell, si, fx.spawns[si], fx.spawn_walls[si],
+                           before_e[si], wall_of(fx.bounds, before_e[si]),
+                           dist(cell, before_e[si]),
+                           after_e[si], wall_of(fx.bounds, after_e[si]),
+                           dist(cell, after_e[si])))
 
     return (pops, examples, diverted, sampled, unreachable,
             wall_flip, perp_wall_mismatch)
@@ -341,17 +373,14 @@ def analyse_map(fx, stride, raid_radius, examples_wanted=0):
 
 # ---------------------------------------------------------------------------------- cli
 
-HEAD = ("%-22s%3s %6s | %7s %7s %7s | %7s | %6s %6s %6s"
-        % ("map", "sp", "pop", "own%", "enemy%", "flank%", "voron%",
-           "drive", "fix", "delta"))
+HEAD = ("%-20s%3s %10s %-7s| %7s %7s %7s | %7s | %6s"
+        % ("map", "sp", "pop", "regime", "own%", "enemy%", "flank%", "voron%", "drive"))
 
 
-def row(name, sp, popname, t):
-    return ("%-22s%3s %6s | %7.1f %7.1f %7.1f | %7.1f | %6.1f %6.1f %+6.1f"
-            % (name, sp, popname, t.pct("own_wall"), t.pct("enemy_wall"),
-               t.pct("flank_wall"), t.pct("voronoi_enemy"),
-               t.med("drive"), t.med("fix_drive"),
-               t.med("fix_drive") - t.med("drive")))
+def row(name, sp, popname, regime, t):
+    return ("%-20s%3s %10s %-7s| %7.1f %7.1f %7.1f | %7.1f | %6.1f"
+            % (name, sp, popname, regime, t.pct("own_wall"), t.pct("enemy_wall"),
+               t.pct("flank_wall"), t.pct("voronoi_enemy"), t.med("drive")))
 
 
 def main(argv=None):
@@ -381,12 +410,12 @@ def main(argv=None):
           % (args.locomotor, args.stride, args.squeeze, args.raid_radius))
     print("own/enemy/flank% = which of the four Bounds walls the chosen exit cell is on,")
     print("against the wall each spawn sits nearest. voron% = the near-tautological")
-    print("nearest-spawn attribution. drive/fix = median cells driven, now vs under the")
-    print("proposed HomeLocation fix.\n")
+    print("nearest-spawn attribution. drive = median cells driven to the exit.")
+    print("before = `?? self.Location`; after = `?? FriendlyEvacuationOrigin(self)`.\n")
     print(HEAD)
     print("-" * len(HEAD))
 
-    grand = {k: Tally() for k in POPS}
+    grand = {(k, r): Tally() for k in POPS for r in REGIMES}
     gd = gs = gu = gwf = gpm = 0
     geometry = []
 
@@ -402,18 +431,18 @@ def main(argv=None):
         gpm += pmis
         geometry.append((fx.name, fx.bounds, list(zip(fx.spawns, fx.spawn_walls)),
                          fx.has_spawnarea, diverted, sampled, unreach))
-        for k, t in pops.items():
-            g = grand[k]
+        for key, t in pops.items():
+            g = grand[key]
             g.n += t.n
             for a in ("own_wall", "enemy_wall", "flank_wall", "voronoi_enemy"):
                 setattr(g, a, getattr(g, a) + getattr(t, a))
             g.drive += t.drive
-            g.fix_drive += t.fix_drive
         first = True
         for k in wanted:
-            print(row(fx.name if first else "", len(fx.spawns) if first else "",
-                      k, pops[k]))
-            first = False
+            for r in REGIMES:
+                print(row(fx.name if first else "", len(fx.spawns) if first else "",
+                          k if r == REGIMES[0] else "", r, pops[(k, r)]))
+                first = False
         for e in examples:
             print(e)
         print()
@@ -421,10 +450,12 @@ def main(argv=None):
     print("-" * len(HEAD))
     first = True
     for k in wanted:
-        print(row("ALL MAPS" if first else "", "", k, grand[k]))
-        first = False
+        for r in REGIMES:
+            print(row("ALL MAPS" if first else "", "",
+                      k if r == REGIMES[0] else "", r, grand[(k, r)]))
+            first = False
     print("\nsample sizes (owner,cell pairs): " +
-          "  ".join("%s=%d" % (k, grand[k].n) for k in POPS))
+          "  ".join("%s=%d" % (k, grand[(k, "before")].n) for k in POPS))
     pc = lambda k: 100.0 * k / gs if gs else 0.0
     print("cells sampled=%d   no reachable perimeter cell at all=%d" % (gs, gu))
     print("  filter diverted the chosen CELL off the unfiltered argmin: %d (%.1f%%)"
@@ -440,12 +471,12 @@ def main(argv=None):
         print("  %-22s bounds=%-18s spawnarea=%-5s spawns=%s"
               % (name, str(b), sa, ", ".join("%s%s" % (s, w) for s, w in sw)))
     print("")
-    print("NOTE: a map with spawnarea=True already resolves the ground evac from an")
-    print("owner-side anchor (FindClosestSpawnAreaForOwner -> the spawnarea nearest that")
-    print("player's SUPPLYROUTE), i.e. it is ALREADY living under item 78's proposal.")
-    print("Its drive/fix columns are therefore near-identical by construction.")
-    print("The ALL MAPS row MIXES the two regimes and is not the number to quote. For the")
-    print("nine unit-anchored maps, re-run excluding the spawnarea map with --map filters.")
+    print("NOTE: a map with spawnarea=True resolved the ground evac from an owner-side")
+    print("anchor ALREADY (FindClosestSpawnAreaForOwner -> the spawnarea nearest that")
+    print("player's SUPPLYROUTE). Item 78 changed only the OTHER arm of the `??`, so on")
+    print("river-zeta the before and after rows are IDENTICAL by construction. It is the")
+    print("control, not a result. The ALL MAPS row MIXES it in with the nine and is not")
+    print("the number to quote; re-run with --map filters to exclude it.")
     return 0
 
 
