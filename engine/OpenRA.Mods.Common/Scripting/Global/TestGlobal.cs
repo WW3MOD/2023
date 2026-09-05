@@ -796,6 +796,23 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return order.OrderString;
 		}
 
+		[Desc("The stack count of a named condition on `actor` right now — 0 when it is not granted, " +
+			"so `> 0` reads as \"has it\". Reads Actor.GetConditionCount, the same cache every " +
+			"RequiresCondition/PauseOnCondition expression is evaluated against, so it cannot disagree " +
+			"with what the traits see. " +
+			"EXISTS FOR SCREENSHOT AND TIMING BEATS THAT MUST NOT GUESS A TICK. `build-incomplete` is " +
+			"the case that forced it: a deployed building's actor exists IMMEDIATELY and the make " +
+			"animation runs afterwards under that condition, so \"the building is finished\" is not " +
+			"observable as an actor appearing, and a hard-coded tick count silently rots the moment a " +
+			"sequence Tick changes. Test mode only.")]
+		public int ConditionCount(Actor actor, string condition)
+		{
+			if (!TestMode.IsActive || actor == null || actor.IsDead || !actor.IsInWorld)
+				return 0;
+
+			return actor.GetConditionCount(condition);
+		}
+
 		[Desc("The cursor a player hovering `cell` with `actors` selected would see, resolved through " +
 			"the same path as ClickOrderAtCell so the two cannot disagree. Empty string when no order " +
 			"names one. Issues nothing. `modifiers` is as for ClickOrder. Test mode only.")]
