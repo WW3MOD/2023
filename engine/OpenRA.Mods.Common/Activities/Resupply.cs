@@ -27,6 +27,15 @@ namespace OpenRA.Mods.Common.Activities
 		readonly Repairable repairable;
 		readonly RepairableNear repairableNear;
 		readonly Rearmable rearmable;
+
+		/// <summary>
+		/// Where on the host to park, when the host names a spot. Null for every host that does not,
+		/// which is all of them except LOGISTICSCENTER — those keep the historical behaviour of being
+		/// approached and measured at their own centre. See <see cref="ResupplyDockInfo"/> for why an
+		/// even-dimensioned host cannot use that centre at all.
+		/// </summary>
+		readonly ResupplyDock dock;
+
 		readonly INotifyResupply[] notifyResupplies;
 		readonly INotifyDockHost[] notifyDockHosts;
 		readonly INotifyDockClient[] notifyDockClients;
@@ -86,6 +95,7 @@ namespace OpenRA.Mods.Common.Activities
 			repairable = self.TraitOrDefault<Repairable>();
 			repairableNear = self.TraitOrDefault<RepairableNear>();
 			rearmable = self.TraitOrDefault<Rearmable>();
+			dock = host.TraitOrDefault<ResupplyDock>();
 			notifyResupplies = host.TraitsImplementing<INotifyResupply>().ToArray();
 			notifyDockHosts = host.TraitsImplementing<INotifyDockHost>().ToArray();
 			notifyDockClients = self.TraitsImplementing<INotifyDockClient>().ToArray();
@@ -165,6 +175,22 @@ namespace OpenRA.Mods.Common.Activities
 					isCloseEnough = true;
 				else if (repairableNear != null)
 					isCloseEnough = host.IsInRange(self.CenterPosition, closeEnough);
+				else if (dock != null)
+				{
+					// A DECLARED dock is a CELL, so arrival is cell equality rather than a distance —
+					// the same test DockHost.QueueMoveActivity makes (DockHost.cs:137), and for the same
+					// reason: MoveOnto paths to CellContaining(target + offset) and stops there
+					// (MoveOnto.cs:32,45), so the cell is the only thing it actually guarantees. A
+					// distance test would be a second, weaker definition of the same arrival and the two
+					// would disagree the moment a dock offset stopped being exactly cell-centred.
+					//
+					// This also sidesteps the subcell problem the block below exists for: cell equality
+					// holds for whichever subcell an infantryman ends up in, so several can dock at once.
+					var dockPos = dock.DockPosition(host.Actor);
+					isCloseEnough = mobile != null
+						? self.Location == self.World.Map.CellContaining(dockPos)
+						: (dockPos - self.CenterPosition).HorizontalLengthSquared <= closeEnough.LengthSquared;
+				}
 				else
 				{
 					// PITFALL: measure a ground unit's arrival from its CELL, not from its body. A
@@ -187,9 +213,11 @@ namespace OpenRA.Mods.Common.Activities
 					// Deliberately NOT widened to the host's footprint. That would also paper over
 					// an EVEN-dimensioned host, whose CenterPosition is a cell CORNER
 					// (BuildingInfo.CenterOffset) that no unit can stand on — so a zero tolerance is
-					// unsatisfiable there for vehicles too. No ground rearm host is even-sized
-					// today; if one is ever added, that is a separate defect and wants its own fix
-					// rather than being hidden by a loose arrival test here.
+					// unsatisfiable there for vehicles too. RESOLVED 2026-09-05, and in the separate
+					// place this comment asked for rather than by loosening anything here: an even
+					// host declares ResupplyDock and takes the branch above, which names a real cell
+					// and tests for it. LOGISTICSCENTER (2x2) is the first and so far only one. This
+					// branch still serves every host that declares no dock, and is unchanged.
 					var selfPos = self.CenterPosition;
 					if (mobile != null)
 						selfPos -= self.World.Map.Grid.OffsetOfSubCell(mobile.ToSubCell);
@@ -265,13 +293,17 @@ namespace OpenRA.Mods.Common.Activities
 				if (ChildActivity != null)
 					return false;
 
-				var targetCell = self.World.Map.CellContaining(host.Actor.CenterPosition);
+				// The dock, when the host names one, so the transport request and the approach agree on
+				// where "there" is.
+				var targetCell = self.World.Map.CellContaining(
+					dock != null ? dock.DockPosition(host.Actor) : host.Actor.CenterPosition);
 
 				// HACK: Repairable needs the actor to move to host center.
 				// TODO: Get rid of this or at least replace it with something less hacky.
 				moveCooldownHelper.NotifyMoveQueued();
 				if (repairableNear == null)
-					QueueChild(move.MoveOntoTarget(self, host, WVec.Zero, null, moveInfo.GetTargetLineColor()));
+					QueueChild(move.MoveOntoTarget(self, host, dock?.Info.Offset ?? WVec.Zero, dock?.DockFacing,
+						moveInfo.GetTargetLineColor()));
 				else
 					QueueChild(move.MoveWithinRange(host, closeEnough, targetLineColor: moveInfo.GetTargetLineColor()));
 
