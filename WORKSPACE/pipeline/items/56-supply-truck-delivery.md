@@ -134,3 +134,14 @@ The timeline settles it: `9aa441a7` (2026-08-10) — the pair green together, no
 ### 6. Nothing here needs a code change before the run
 
 The blunt fix is on, the commitment invariants are in place on the drop path, and the one unmeasured change (`SelectionMinStarvingUnits`) points the right way. **The next action is still the match.** Hold the follow-path stickiness fix in §3 until the match log says whether target churn is what the trucks are actually spending their time on — `[supply] truck … target=` changing cluster between consecutive scans on the same truck is the single readout that decides it.
+
+### Bar run 1 — 2026-09-05, `main @ 40577269` (+docs), `tools/autotest/tournament-results/260905_item56_bar_s1`
+
+One `tournament-s1-eco-river-zeta` match, `--seeds 1`, hidden, 7500 ticks (time limit), USA `@experimental` 88272 vs Russia `@stable` 81620. **Precondition met:** last census `earned=36734` / `33530`, `trucks-desired=6` both sides, ~10 `truk` in play. **`[supply] init`** shows `ignore-danger=True` on both bots (so `SafeFront` never fires — consistent with the scenario being red by configuration).
+
+- **Drops dispatched: 5** (`[supply] drop … new`). **`crate-placed`: 2** (both USA, 750 and 555 supply). The other 3 were dispatched in the last ~600 ticks and were still `drop-inflight` at the time limit — **zero errands abandoned.** Read as 2/5 = 40 % delivered-before-clock against the 15.0 % at `c9626273`, but N=5 in one match is not a number, it is a direction.
+- **Declines: 27** — `NoDemand` 17 (63 %), `Covered` 10. `NoDemand` is still the dominant reason a full truck does not drop, i.e. nobody starving within reach — a demand-side fact, not a commitment defect. `Covered` cases all show `cache-near ≥ 750`, i.e. a crate already down.
+- **Stickiness is live on the follow path:** `[supply] truck … held=<actorId>/margin=1000` for 63 truck-scans across 7 held clusters, `held=<none>` for 62 — trucks with no cluster in leash. No `release` storms (3 `release` lines total).
+- `@stable` (Russia) placed 0 crates in 5 minutes; its two drops were dispatched at ticks ≈6900–7300. Whether that is the map's spawn asymmetry or the profile is not answerable from one match.
+
+**Still owed for the acceptance bar as written:** the N-match reading, which the item-43 re-baseline (`WORKSPACE/ai-bench/RUNBOOK-260905.md`, batch 3 is this exact scenario ×10 mirrored) produces for free — read `crate-placed ÷ drop` and the decline histogram out of those logs rather than spending a separate batch.
