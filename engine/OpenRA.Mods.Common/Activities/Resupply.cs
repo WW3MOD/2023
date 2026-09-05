@@ -550,6 +550,36 @@ namespace OpenRA.Mods.Common.Activities
 			{
 				var hpToRepair = repairable != null && repairable.Info.HpPerStep > 0 ? repairable.Info.HpPerStep : repairsUnits.Info.HpPerStep;
 
+				// PERCENTAGE FALLBACK — the step this mod actually configures. Both HpPerStep fields
+				// default to 0 (RepairsUnits.cs:22, Repairable.cs:32) and NOTHING under mods/ sets
+				// either, so before 2026-09-05 hpToRepair was 0 at every repair in the game: the
+				// InflictDamage below healed nothing, health.DamageState never reached Undamaged, the
+				// Repair flag never cleared, and the whole Resupply activity could not reach its
+				// `activeResupplyTypes == 0` exit — so a damaged vehicle sent to a Logistics Centre
+				// rearmed, then sat there wedged until something else gave it an order.
+				//
+				// PercentageStep is declared on BOTH info classes (RepairsUnits.cs:24,
+				// Repairable.cs:35) and `^Vehicle` sets it to 3 (rules/ingame/vehicles.yaml:64) —
+				// it was simply never read by anything. (ChangesHealth has its own unrelated
+				// PercentageStep; that one always worked and is untouched.)
+				//
+				// Gated on hpToRepair <= 0 so any host that DOES set HpPerStep is byte-identical.
+				// Today that is none of them, and `^Vehicle`'s Repairable is the ONLY repair-side
+				// PercentageStep in the mod, so the behaviour change is exactly: ground vehicles now
+				// repair at a Logistics Centre, at 3% of MaxHP per Interval. Everything else — every
+				// aircraft at a helipad or airfield included — still resolves 0 and is unchanged.
+				if (hpToRepair <= 0)
+				{
+					var percentageStep = repairable != null && repairable.Info.PercentageStep > 0
+						? repairable.Info.PercentageStep
+						: repairsUnits.Info.PercentageStep;
+
+					// Max(1, ...) so a percentage small enough to floor to zero against a low-HP
+					// actor still makes progress rather than reinstating the wedge it just fixed.
+					if (percentageStep > 0)
+						hpToRepair = Math.Max(1, (int)(percentageStep * (long)health.MaxHP / 100));
+				}
+
 				// Cast to long to avoid overflow when multiplying by the health
 				var value = (long)unitCost * repairsUnits.Info.ValuePercentage;
 				var cost = value == 0 ? 0 : Math.Max(1, (int)(hpToRepair * value / (health.MaxHP * 100L)));
