@@ -3,6 +3,42 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-05 - A scenario budget and the shipped delay it depends on live in different languages in different trees, and nothing reads both (`wt/powers-aimpoint`, `main @ 055ef267`)
+
+Two branches were cut from the same commit. One added a per-power arrival delay
+(`MissileDelay: 150` on the Kinzhal, `player.yaml:137`); the other wrote a scenario whose settle
+window was 90 ticks. Both branches were internally consistent, both built clean, both passed NUnit,
+both passed `lua-gate` and `--check-yaml`. The merge was clean. The scenario then failed reporting
+`damage=0` on both shots.
+
+**Why every gate missed it.** `MissileStrikePower` creates the missile at order time and hands it to
+`SpawnActorEffect`, which holds it OUT OF THE WORLD for `MissileDelay` ticks;
+`Player.GetActorsByType` filters on `actor.IsInWorld` (`PlayerProperties.cs:100`). So the poller
+correctly saw nothing for 150 ticks, its 90-tick window closed first, and the run reported a number
+that looks like a delivery failure. **Nothing in the repo connected the two constants** — a tick
+count in a YAML comment block and a `local` in a Lua file, and no gate reads both.
+
+**The second failure was hidden underneath the first, and is the more general one.** The scenario
+also ALIASED: it ordered its second shot on a fixed timer while the first missile was still inbound,
+and the second shot's position tracker then sampled the FIRST shot's missile. The verdict showed it
+plainly — `centre: ... impact=31232,10752`, beside the wrong building — and it would have survived
+any amount of budget-widening, because a longer window makes overlap MORE likely, not less.
+
+**The fix that generalises: a scenario phase should advance on an OBSERVABLE, not on a tick count.**
+Both scenarios now step on "a missile appeared" / "the missile is gone" / "the dust settled", order a
+shot only into a world holding zero missiles, and ASSERT that emptiness rather than assuming it. The
+tick budgets survive only as the thing that fails the run *with a diagnosis* when an observable never
+arrives. A run that pads its numbers until it goes green cannot tell you which of the two faults it
+just hid.
+
+**And the missing gate is cheap.** `SupportPowerAimPointTest.ScenarioArrivalBudgetsCoverTheShipped-`
+`MissileDelay` reads `MissileDelay` out of `player.yaml` and `ArrivalBudget` out of the scenario's
+`.lua`, and fails if the budget does not clear the delay by 60 ticks. Milliseconds, no build, no
+launch, and verified to fire by setting the budget back to 90. A sibling checks `ObserveTicks`
+covers two sequential shots' own budgets. **Any scenario whose timing depends on a shipped constant
+can be pinned this way, and the ones that are not will keep failing on merge-day collisions that
+neither branch could have seen alone.**
+
 ## 2026-09-05 - The corner-hit discount is REAL and is now pinned against the shipped shape code, but it reaches exactly ONE of the three missile powers - and "a big building's own cell gives 33%" is true only of its CORNERS (`wt/powers-aimpoint`, `main @ bb294b2d`)
 
 Three corrections and one confirmation of the 2026-09-04 `TargetDamage`/`CenterProximityPercent`

@@ -51,8 +51,14 @@ Categories: Test
 #     horizontalBound = (6-1=5) < 64/2=32 -> Bounds.Left = 1
 #     verticalBound   = (17-1=16) < 32/2=16 is FALSE -> Bounds.Bottom = 33
 #     du = |1-6| = 5, dv = |33-17| = 16, du < dv -> edge = (1, 17)
-#   CornerVictim's clicked cell 30,10 is 29.8 cells from that entry; CenterVictim's 31,23 is 30.6.
-#   At KinzhalMissile Speed 2000 with Acceleration 0 both are ~16-tick flights.
+#   Both aim points resolve to a building centre 31328 wdist from that entry cell. At KinzhalMissile
+#   Speed 2000 with Acceleration 0 that is a ~16-tick flight -- but the flight is the SMALL half of
+#   the wait. `MissileDelay: 150` (player.yaml:137, landed 2026-09-05) holds the missile OUT OF THE
+#   WORLD for 150 ticks first, so the whole sequence per shot is:
+#       order -> +150 spawn -> +16 impact -> +22 last shockwave band = 188 ticks, twice, in series.
+#   The Lua does NOT hard-code that total: it advances on observables and uses the numbers only as
+#   budgets for failing with a diagnosis. Fixing a 90-tick window against these delays is exactly
+#   what made the first run of this scenario read `damage=0` on both shots.
 #
 # WHY THE RANGE DIFFERENCE BETWEEN THE TWO SHOTS IS NOT A CONFOUND: IskanderExplosion's
 # Warhead@Target sets DamageAtMaxRange: 100, and TargetDamageWarhead only consults the range taper
