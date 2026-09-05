@@ -33,13 +33,36 @@ namespace OpenRA.Mods.Common.Widgets
 		readonly Color bgDark, bgLight;
 		(string Text, Color Color)[] texts;
 
-		[ObjectCreator.UseCtor]
-		public SupportPowerTimerWidget(World world)
+		/// <summary>
+		/// The powers this widget is willing to draw a timer line for, before the per-viewer
+		/// relationship filter in <see cref="VisibleTo"/> is applied. Lazy: it is re-enumerated
+		/// every Tick so a power that is enabled or disabled mid-match is picked up.
+		/// </summary>
+		public static IEnumerable<SupportPowerInstance> Candidates(World world)
 		{
-			powers = world.ActorsWithTrait<SupportPowerManager>()
+			return world.ActorsWithTrait<SupportPowerManager>()
 				.Where(p => !p.Actor.IsDead && !p.Actor.Owner.NonCombatant)
 				.SelectMany(s => s.Trait.Powers.Values)
 				.Where(p => p.Instances.Count > 0 && p.Info.DisplayTimerRelationships != PlayerRelationship.None && !p.Disabled);
+		}
+
+		/// <summary>
+		/// Whether <paramref name="power"/> draws a timer line for <paramref name="viewer"/>.
+		/// Extracted so Test.GetSupportPowerTimerLines asks the widget's own question rather than
+		/// keeping a second copy of it in step by hand — a DisplayTimerRelationships change is
+		/// otherwise unobservable from a scenario, since the widget itself renders no state the
+		/// Lua API can read.
+		/// </summary>
+		public static bool VisibleTo(SupportPowerInstance power, Player viewer)
+		{
+			var owner = power.Instances[0].Self.Owner;
+			return viewer == null || power.Info.DisplayTimerRelationships.HasRelationship(owner.RelationshipWith(viewer));
+		}
+
+		[ObjectCreator.UseCtor]
+		public SupportPowerTimerWidget(World world)
+		{
+			powers = Candidates(world);
 
 			bgDark = ChromeMetrics.Get<Color>("TextContrastColorDark");
 			bgLight = ChromeMetrics.Get<Color>("TextContrastColorLight");
@@ -50,9 +73,8 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			var displayedPowers = powers.Where(p =>
 			{
-				var owner = p.Instances[0].Self.Owner;
-				var viewer = owner.World.RenderPlayer ?? owner.World.LocalPlayer;
-				return viewer == null || p.Info.DisplayTimerRelationships.HasRelationship(owner.RelationshipWith(viewer));
+				var world = p.Instances[0].Self.World;
+				return VisibleTo(p, world.RenderPlayer ?? world.LocalPlayer);
 			});
 
 			texts = displayedPowers.Select(p =>

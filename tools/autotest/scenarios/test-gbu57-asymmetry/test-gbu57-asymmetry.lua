@@ -46,8 +46,21 @@ local TankX, TankY = 48, 17
 -- Tolerances. Loose on purpose everywhere EXCEPT the two damage signs, which are the point.
 local MaxEntryToHome = 15     -- cells. Expected 5. Enemy edge would be 59, map corner 17.
 local MinEntryToTarget = 25   -- cells. Expected 35. Spawned-on-target would be 0.
-local StrikeBudget = 300      -- ticks allowed for one strike to land. Expected ~100.
-local ObserveTicks = 900      -- whole-run budget, both strikes.
+-- RAISED ON 2026-09-05 when MissileDelay 300 shipped on this power. One strike is now 300 ticks of
+-- wait plus ~72-96 of flight, so the old 300-tick budget would have advanced phase 1 before the
+-- structure died and ended phase 2 before the tank was hit -- the scenario would have failed
+-- without the shipped behaviour being wrong.
+local StrikeBudget = 550      -- ticks allowed for one strike to land. Expected ~400.
+local ObserveTicks = 1400     -- whole-run budget, both strikes.
+
+-- The shipped MissileDelay for this power (player.yaml): 300 ticks = 18.0 s at Timestep 60, DOUBLE
+-- the Kinzhal's, because a Massive Ordnance Penetrator is a scheduled demolition rather than a
+-- weapon of surprise. SpawnActorEffect counts down one per tick and adds on the tick the counter
+-- goes negative (SpawnActorEffect.cs:44-49), installed itself by a frame-end task, so the observed
+-- gap runs a couple of ticks over -- hence far more slack above than below.
+local ExpectedSpawnDelay = 300
+local MinSpawnDelay = ExpectedSpawnDelay - 5
+local MaxSpawnDelay = ExpectedSpawnDelay + 40
 
 -- The modelled figure for the tank is 9000 (MOPPenetration Warhead@Surface, Penetration 2500
 -- against Thickness 700, so undivided; falloff 100% at the aim point). The band is wide because
@@ -175,6 +188,8 @@ local function finish()
 	local entryY = firstCell ~= nil and firstCell.Y or -1
 	local toHome = firstCell ~= nil and cellDist(entryX, entryY, home.X, home.Y) or -1
 	local toTarget = firstCell ~= nil and cellDist(entryX, entryY, StructX, StructY) or -1
+	local spawnDelay = (structOrderTick ~= nil and firstSeenTick ~= nil)
+		and (firstSeenTick - structOrderTick) or -1
 
 	local structState = StructVictim.IsDead and "DEAD" or (n(structEndHp) .. "hp")
 	local structFloor = StructVictim.IsDead and structStartHp or (structStartHp - (structEndHp or structStartHp))
@@ -197,6 +212,7 @@ local function finish()
 		.. " || orders struct=" .. structOrderStatus .. "@t" .. n(structOrderTick)
 		.. " tank=" .. tankOrderStatus .. "@t" .. n(tankOrderTick)
 		.. " | entry=" .. entryX .. "," .. entryY .. "@t" .. n(firstSeenTick)
+		.. " spawn delay=" .. spawnDelay .. "t (shipped " .. ExpectedSpawnDelay .. ")"
 		.. " home=" .. home.X .. "," .. home.Y
 		.. " entry->home=" .. toHome .. "c entry->struct=" .. toTarget .. "c"
 		.. " | struct dead@t" .. n(structDeadTick) .. " tank hit@t" .. n(tankImpactTick)
@@ -280,8 +296,19 @@ local function finish()
 		return
 	end
 
-	Test.Pass("GBU-57 asymmetry holds: it ended the hardened structure and the tank walked away. || "
-		.. summary)
+	-- 6. THE SPAWN DELAY, measured on the FIRST strike because that is the one whose order tick and
+	-- first-sighting tick are both recorded. The user's words: "the strike needs to be delayed, so
+	-- that it doesnt enter the map exactly when we click". Near-zero means either MissileDelay was
+	-- dropped from player.yaml or MissileStrikePower stopped routing it through SpawnActorEffect.
+	if spawnDelay < MinSpawnDelay or spawnDelay > MaxSpawnDelay then
+		Test.Fail("the GBU-57 entered the map " .. spawnDelay .. " ticks after the order (band "
+			.. MinSpawnDelay .. ".." .. MaxSpawnDelay .. ", shipped MissileDelay "
+			.. ExpectedSpawnDelay .. " = 18.0 s at Timestep 60). || " .. summary)
+		return
+	end
+
+	Test.Pass("GBU-57 asymmetry holds: after a " .. spawnDelay .. "t wait it ended the hardened"
+		.. " structure and the tank walked away. || " .. summary)
 end
 
 local function step()

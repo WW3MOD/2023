@@ -1718,6 +1718,28 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return drawn.Length > 0 ? string.Join(",", drawn) : "empty";
 		}
 
+		[Desc("The comma-separated `Owner:PowerName` timer lines the SupportPowerTimerWidget would " +
+			"currently DRAW for a client whose view is `viewer`, in the widget's own order. Pass a " +
+			"nil viewer for the spectator case, which sees every candidate. Returns 'empty' when " +
+			"no line would be drawn, so the result is always printable straight into a verdict. " +
+			"This is the ONLY observable for DisplayTimerRelationships: the widget renders text " +
+			"into the chrome and no Lua-readable state, so a power quietly appearing in (or " +
+			"vanishing from) another player's timer list is otherwise invisible to a scenario. " +
+			"It calls SupportPowerTimerWidget.Candidates/VisibleTo, the same two the widget uses, " +
+			"rather than restating the predicate. Test mode only.")]
+		public string GetSupportPowerTimerLines(Player viewer)
+		{
+			if (!TestMode.IsActive || Context.World == null)
+				return "empty";
+
+			var lines = SupportPowerTimerWidget.Candidates(Context.World)
+				.Where(p => SupportPowerTimerWidget.VisibleTo(p, viewer))
+				.Select(p => p.Instances[0].Self.Owner.InternalName + ":" + p.Name)
+				.ToArray();
+
+			return lines.Length > 0 ? string.Join(",", lines) : "empty";
+		}
+
 		SupportPowerManager SupportPowers(Player player)
 		{
 			if (!TestMode.IsActive || player == null)

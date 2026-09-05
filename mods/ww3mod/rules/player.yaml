@@ -122,6 +122,19 @@ Player:
 		ChargeInterval: 3000
 		Cursor: nuke
 		MissileActor: kinzhalmissile
+		# 150 ticks x 0.06 s = 9.0 s between the click and the missile appearing at the map edge, on top
+		# of ~20 ticks of flight. The SHORTEST of the three, and the reason is the power's own caption:
+		# "Hypersonic ... Cannot be intercepted". Tempo is the whole identity here -- SS5a's framing is
+		# "one Iskander missile, except you did not have to drive a 6000-credit launcher into range" --
+		# so this gets the smallest lead that still stops the strike landing on the click.
+		#
+		# WHAT THE VICTIM GETS FOR THOSE 9 SECONDS: the IncomingSpeechNotification below, and nothing
+		# else. SupportPower.PlayLaunchSounds fires it to every non-allied client AT ORDER TIME
+		# (SupportPower.cs:238-251), before the missile exists, while the beacon and the minimap ping
+		# are both gated on IsAlliedWith(RenderPlayer) (Beacon.cs:124, SupportPower.cs:228). So the
+		# delay is an audible warning with no location attached -- deliberate, and the reason a longer
+		# lead is not free: it is reaction time handed to the target.
+		MissileDelay: 150
 		# 8c0 = 8192 wdist = 8 cells above the terrain at the entry cell. This -- not LaunchAngle --
 		# is what makes the approach look steep, and unlike LaunchAngle it does not scale with the
 		# length of the shot. BallisticMissileFly interpolates baseZ from spawn Z to target Z
@@ -134,7 +147,18 @@ Player:
 		BeaconRemoveAdvance: 5
 		DisplayBeacon: True
 		DisplayMiniMapPing: True
-		DisplayTimerRelationships: Ally
+		# None, DOWN FROM Ally, and the user asked for exactly this: "We dont need to see a countdown of
+		# ally players powers, it is just distracting. Maybe we can keep it for nukes, but not for other
+		# powers." SupportPowerTimerWidget drops a power from the top-of-screen list entirely when this
+		# is None (SupportPowerTimerWidget.cs:42), before the per-viewer relationship test.
+		#
+		# IT ALSO HIDES THE OWNER'S OWN LINE, and that is fine rather than a compromise: PlayerRelationship
+		# has no `Self` (TraitsInterfaces.cs:63-69) and Player.RelationshipWith(self) returns Ally
+		# (Player.cs:250-251), so `Ally` is precisely "me and my allies" and there is no narrower value to
+		# reach for. Nothing is lost by it -- SupportPowersWidget draws FormatTime(RemainingTicks) onto
+		# the cameo itself (SupportPowersWidget.cs:246) plus a sweeping clock overlay (:216-221), so the
+		# owner's own countdown is still on screen in mm:ss, in the place they look for it.
+		DisplayTimerRelationships: None
 		BeaconPoster: precbcon
 		ArrowSequence: arrow
 		ClockSequence: clock
@@ -180,6 +204,14 @@ Player:
 		ChargeInterval: 3000
 		Cursor: nuke
 		MissileActor: gbu57bomb
+		# 300 ticks x 0.06 s = 18.0 s, DOUBLE the Kinzhal's, on top of ~80 ticks of flight at Speed 500.
+		# The longest lead of the two conventional strikes, and it compounds with the slowest flight
+		# rather than compensating for it -- which is the point. A Massive Ordnance Penetrator is not a
+		# weapon of surprise: it is a scheduled demolition of a fixed hardened target, delivered by a
+		# bomber that has to fly there. Making it the slowest thing in the menu end-to-end is what keeps
+		# it from competing with the Kinzhal on tempo when the two cost the same (ChargeInterval 3000 on
+		# both) and separates them on role instead.
+		MissileDelay: 300
 		# 12 cells, HALF AGAIN the Kinzhal's 8, and the two numbers do different jobs. Both powers
 		# shape their approach with altitude rather than LaunchAngle, because LaunchAngle's apex
 		# scales with shot length (BallisticMissileFly.cs:88-90) and altitude does not. But the MOP
@@ -193,7 +225,9 @@ Player:
 		BeaconRemoveAdvance: 5
 		DisplayBeacon: True
 		DisplayMiniMapPing: True
-		DisplayTimerRelationships: Ally
+		# None, for the reason spelled out on the Kinzhal above: the user asked for non-nuke countdowns
+		# to stop appearing, and the owner's own clock survives on the cameo regardless.
+		DisplayTimerRelationships: None
 		BeaconPoster: precbcon
 		ArrowSequence: arrow
 		ClockSequence: clock
@@ -237,7 +271,46 @@ Player:
 		ChargeInterval: 11250
 		Cursor: nuke
 		MissileActor: tacnukemissile
-		SpawnAltitude: 8c0
+		# 14c256 = 14592, NOT the 8c0 the two conventional strikes use, and the number is derived rather
+		# than picked: 14592 - 6400 (DetonationAltitude below) = 8192, the same 8 cells of descent the
+		# Kinzhal has. BallisticMissileFly interpolates its baseZ linearly from spawn Z to TARGET Z
+		# (BallisticMissileFly.cs:252), so raising the detonation point without raising the spawn would
+		# have eaten the descent -- 8192 down to 1792 over the same ground, a near-level approach ending
+		# in mid-air. Keep the difference at 8192 if either number is ever retuned.
+		SpawnAltitude: 14c256
+		# THE AIRBURST. 6c256 = 6400, the same number mslo's NukePower has carried all along
+		# (structures-defenses.yaml, `DetonationAltitude: 6c256`) -- so the two deliveries of the SAME
+		# `Atomic` warhead finally agree. This is a correction toward the approved design, not a change
+		# away from it: proposal SS5a's balance anchor states Atomic's ~266,000 peak on an Abrams
+		# explicitly as "a 6.25-cell airburst", 6.25 cells being exactly this 6400. The ground burst
+		# this power shipped with on 2026-09-04 was the number that departed from the anchor.
+		#
+		# NOTHING ELSE HAS TO MOVE FOR THE ANIMATION. CreateEffectWarhead spawns its sprite at the
+		# impact position and only forces it to the deck when ForceDisplayAtGroundLevel is set
+		# (CreateEffectWarhead.cs:140-150), which Atomic's Warhead@Fireball does not, so the mushroom
+		# cloud rises with the burst on its own. (Fireball's `Offset: 0,-1900,0` is a separate,
+		# pre-existing thing and is NOT airburst compensation: screen y is TileSize.Height * (Y - Z)
+		# (WorldRenderer.cs:749), so -Y and +Z are the same displacement, and that offset -- 5700 after
+		# the 300% ScalePercent -- lifts the 300%-scaled sprite off its own anchor. It applied equally
+		# to the ground burst, which is why the ground burst looked low rather than looking wrong.)
+		#
+		# DO NOT RAISE THIS ABOVE 10c0. Every one of Atomic's ~30 damage, fire, EMP, suppression and
+		# smudge warheads carries `AirThreshold: 10c0`, and above a warhead's AirThreshold the engine
+		# stops evaluating terrain target types and substitutes `Air` (Warhead.cs:41-45,
+		# CreateEffectWarhead.cs:165-166). At 10241 this nuke would still fly, still be aimed, still be
+		# announced -- and do nothing to the ground, with no error and no lint. That whole AirThreshold
+		# column is not decoration; it is what makes an airburst legal for this warhead and it is why
+		# the other two powers must NOT copy this field (their effect warheads default to
+		# `ValidTargets: Ground, Water` and AirThreshold 128).
+		DetonationAltitude: 6c256
+		# 500 ticks x 0.06 s = 30.0 s, the ceiling the user named, and the longest of the three. A
+		# nuclear release is the one power in the mod where the wait IS the mechanic: this is the only
+		# power with `DisplayTimerRelationships: Ally, Neutral, Enemy` below, so every player is already
+		# watching its clock, and AbombLaunchDetected reaches the victim at ORDER time
+		# (SupportPower.cs:238-251), 30 s before the missile so much as enters the map. That window is
+		# what makes dispersing a possible answer to a nuke instead of a fantasy, which is the whole
+		# argument for a deterrent being survivable.
+		MissileDelay: 500
 		# 20c0, matching mslo's NukePower rather than the 8c0 the two conventional strikes use: the
 		# Atomic blast wave has MaxRadius 30c0, so a camera sized for a conventional strike would
 		# show the player a fraction of what they just did.

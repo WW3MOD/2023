@@ -44,8 +44,21 @@ local MissileType = "kinzhalmissile"
 -- wrong answers listed in the header miss every one of them by a wide margin.
 local MaxEntryToHome = 15    -- cells. Expected 5. Enemy edge would be 59, map corner 17.
 local MinEntryToTarget = 30  -- cells. Expected 47. Spawned-on-target would be 0.
-local MaxFlightTicks = 90    -- ticks from the order to the kill. Expected ~26.
-local ObserveTicks = 300     -- whole-run budget.
+-- NOW MEASURED FROM WORLD ENTRY, NOT FROM THE ORDER, and that is a sharpening rather than a
+-- loosening. MissileDelay 150 shipped on 2026-09-05, so order-to-kill is dominated by the wait and
+-- would no longer say anything about Speed. Entry-to-kill is the flight and nothing else, so this
+-- budget still means what its name says. Expected ~26 at Speed 2000 over 47 cells.
+local MaxFlightTicks = 90
+local ObserveTicks = 400     -- whole-run budget; raised from 300 to cover the 150-tick wait.
+
+-- The shipped MissileDelay for this power (player.yaml): 150 ticks = 9.0 s at Timestep 60, the
+-- SHORTEST of the three strikes because the Kinzhal's caption promises tempo. SpawnActorEffect
+-- counts down one per tick and adds on the tick the counter goes negative
+-- (SpawnActorEffect.cs:44-49), installed itself by a frame-end task, so the observed gap runs a
+-- couple of ticks over. Far more slack above than below for that reason.
+local ExpectedSpawnDelay = 150
+local MinSpawnDelay = ExpectedSpawnDelay - 5
+local MaxSpawnDelay = ExpectedSpawnDelay + 40
 
 local tick = 0
 local Russia
@@ -110,7 +123,9 @@ local function finish()
 	local entryY = firstCell ~= nil and firstCell.Y or -1
 	local toHome = firstCell ~= nil and cellDist(entryX, entryY, home.X, home.Y) or -1
 	local toTarget = firstCell ~= nil and cellDist(entryX, entryY, TargetX, TargetY) or -1
-	local flight = (orderTick ~= nil and impactTick ~= nil) and (impactTick - orderTick) or -1
+	local orderToImpact = (orderTick ~= nil and impactTick ~= nil) and (impactTick - orderTick) or -1
+	local spawnDelay = (orderTick ~= nil and firstSeenTick ~= nil) and (firstSeenTick - orderTick) or -1
+	local flight = (firstSeenTick ~= nil and impactTick ~= nil) and (impactTick - firstSeenTick) or -1
 	local victimState = Victim.IsDead and "DEAD" or (Victim.Health .. "hp")
 
 	local summary = "order=" .. orderStatus .. "@t" .. n(orderTick)
@@ -119,7 +134,9 @@ local function finish()
 		.. " home=" .. home.X .. "," .. home.Y
 		.. " target=" .. TargetX .. "," .. TargetY
 		.. " entry->home=" .. toHome .. "c entry->target=" .. toTarget .. "c"
+		.. " | spawn delay=" .. spawnDelay .. "t (shipped " .. ExpectedSpawnDelay .. ")"
 		.. " | impact@t" .. n(impactTick) .. " flight=" .. flight .. "t"
+		.. " order->impact=" .. orderToImpact .. "t"
 		.. " | victim " .. victimStartHealth .. "hp -> " .. victimState
 		.. " | observed=" .. tick .. "t"
 
@@ -174,12 +191,27 @@ local function finish()
 	-- 5. Was it hypersonic? 47 cells at Speed 2000 is 24 ticks; the budget is nearly 4x that,
 	-- so this only fires if the missile is flying at something like aircraft speed.
 	if flight > MaxFlightTicks then
-		Test.Fail("the strike took " .. flight .. " ticks to cross 47 cells (budget "
-			.. MaxFlightTicks .. ", expected ~26 at Speed 2000). || " .. summary)
+		Test.Fail("the strike took " .. flight .. " ticks to cross 47 cells FROM WORLD ENTRY (budget "
+			.. MaxFlightTicks .. ", expected ~26 at Speed 2000). Note this excludes MissileDelay,"
+			.. " which is reported separately -- so a long reading here really is a slow missile."
+			.. " || " .. summary)
 		return
 	end
 
-	Test.Pass("kinzhal delivered from the map edge and killed its target. || " .. summary)
+	-- 6. THE SPAWN DELAY. The user's words: "the strike needs to be delayed, so that it doesnt
+	-- enter the map exactly when we click". This is that gap, from the accepted order to the first
+	-- tick a kinzhalmissile existed in the world. Near-zero is the shipped-before behaviour --
+	-- either MissileDelay was dropped from player.yaml, or MissileStrikePower stopped routing a
+	-- non-zero delay through SpawnActorEffect and took the bare `w.Add(missile)` branch instead.
+	if spawnDelay < MinSpawnDelay or spawnDelay > MaxSpawnDelay then
+		Test.Fail("the Kinzhal entered the map " .. spawnDelay .. " ticks after the order (band "
+			.. MinSpawnDelay .. ".." .. MaxSpawnDelay .. ", shipped MissileDelay "
+			.. ExpectedSpawnDelay .. " = 9.0 s at Timestep 60). || " .. summary)
+		return
+	end
+
+	Test.Pass("kinzhal waited " .. spawnDelay .. "t, then delivered from the map edge in "
+		.. flight .. "t and killed its target. || " .. summary)
 end
 
 local function step()
