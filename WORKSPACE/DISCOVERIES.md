@@ -19871,3 +19871,85 @@ Two related harness facts, both established the same day:
 - `GeneralProperties` is `[ExposedForDestroyedActors]` (`GeneralProperties.cs:23`), so `IsDead`,
   `Location`, `CenterPosition` and `Type` stay readable on an actor a transform has DISPOSED.
   `HealthProperties` is not, so `.Health` on a transformed actor throws — read it before the order.
+
+## 2026-09-05 — A burning vehicle cannot be saved at a depot: the bleed-out is 1.6x the repair
+
+Both rates, from the shipped rules, per game tick as a fraction of MaxHP:
+
+| | source | step | period | per tick |
+|---|---|---|---|---|
+| **Burn** | `ChangesHealth@CriticalDamage` on `^Vehicle` (`rules/ingame/vehicles.yaml:183`, via `^EffectsWhenDamagedVehicles`) | `PercentageStep: -1` = 1% of MaxHP | `Delay: 5` | **0.200%** |
+| **Repair** | `Repairable.PercentageStep: 3` (`vehicles.yaml:64`) through `Resupply.RepairTick` | 3% of MaxHP | `RepairsUnits.Interval` 24 | **0.125%** |
+
+`ChangesHealth` fires whenever `HP < StartIfBelow` (50) `% of MaxHP` and stops at or above it
+(`ChangesHealth.cs:68-71`). So below half health a docked vehicle nets **−0.075%/tick** and dies at
+the crane: from 30% that is 400 ticks, 24 s at the mod's 60 ms Timestep. It can never climb back
+over 50% either, because the burn out-paces the repair for the whole range in which the burn runs.
+`test-depot-vacate-phantom` had `DamagedPercent = 30` and went red with *"Tank died before it
+finished servicing"* — the tank was under the crane being repaired the whole time.
+
+**This was invisible until 2026-09-05 because repair healed ZERO** (see the `HpPerStep` entry
+above). The burn was tuned against a repair rate that did not exist, so the interaction has never
+been decided by anybody.
+
+**Not fixed here — it is a ruling, not a bug fix.** Three one-line candidates, each of which changes
+every vehicle in the game:
+- `Repairable.PercentageStep` 3 → 5 (0.208%/tick, just over the burn — a 30% tank recovers, slowly)
+- `RepairsUnits.Interval` 24 → 15 at `PercentageStep: 3` (0.200%/tick — exactly break-even, so no)
+- pause the burn while docked: `ChangesHealth` is a `ConditionalTrait`, and LOGISTICSCENTER already
+  grants `unit.docked` to allied vehicles within 2c0 (`ProximityExternalCondition@UNITDOCKED`), so
+  `RequiresCondition: !unit.docked` on `ChangesHealth@CriticalDamage` reads as "the crew fight the
+  fire while the depot works on them" and changes no rate at all. Probably the right shape.
+
+**Scenario trap this created.** `test-lc-2x2-dock-and-undeploy` damaged its tank to exactly
+`MaxHealth / 2` and passed — because the guard is `HP >= 50%`, and 28000/2 is exactly 50%. One odd
+`MaxHealth` and it would have crossed into the burn zone and started dying. Both scenarios now
+damage to 60-70%, well clear, with the arithmetic written down where they do it.
+
+## 2026-09-05 — A stayable dock cell needs an explicit vacate, because the accidental one is gone
+
+`test-depot-vacate-phantom`'s original header made a load-bearing argument: LOGISTICSCENTER has no
+`Reservable`, no queue and no reservation, so what kept its dock free was that the dock was a `+`
+transit-only cell and `Mobile.OnBecomingIdle` shoved the serviced unit off it. With a stayable dock
+the first client parks forever and the second waits forever — `MoveOnto.CalculatePathToTarget`
+returns `NoPath` and waits rather than stacking when its single target cell is occupied
+(`MoveOnto.cs:45-47`), and the arrival test has no near-enough fallback.
+
+The 2x2 resize took that away: a `ResupplyDock` names one specific cell and arrival is cell
+equality, so the dock **must** be `=` or nothing could ever arrive on it. The argument survived the
+change that invalidated its mechanism, which is the useful shape here — a comment that says WHY
+rather than WHAT is what let the replacement be written instead of the stall being shipped.
+
+Replacement: `Resupply.LeaveHost` (called from the two existing `MoveToTarget(self, host)` sites in
+`OnResupplyEnding`, so it inherits the proven "queue a child on the last tick" mechanism rather than
+adding a state machine). For a host with a `ResupplyDock` it queues an explicit move to the nearest
+free stayable cell from `ResupplyDock.VacateCandidates` — the ring adjacent to the footprint,
+**off the building**, not merely off the dock cell, because the other three cells are transit-only
+and stopping on one just re-earns the phantom shove a tick later. Ties break on a fixed CPos sort;
+no RNG. Hosts declaring no dock keep the stock `MoveToTarget(self, host)` exactly.
+
+Dry errands do not reach it: `BeginReturnHome` runs immediately after `OnResupplyEnding` and cancels
+whatever it queued, walking the unit back to where it came from — a better vacate, already correct.
+
+## 2026-09-05 — Why the crane cannot be lifted over a docked vehicle with a ZOffset
+
+The world render sorts on `r.Pos.Y + r.Pos.Z + r.ZOffset` (`WorldRenderer.cs:28-29`), larger drawn
+later. For LOGISTICSCENTER at TopLeft `(34,16)`:
+
+- building `CenterPosition.Y` = `CenterOfCell(34,16).Y + CenterOffset.Y` = 16896 + 512 = **17408**
+- a vehicle on the dock cell `(34,17)` = **17920**
+
+so the vehicle wins by **512** — half a cell, which is exactly what a 2x2's corner-centre costs.
+A `ZOffset` above 512 on the `crane` sequence would flip it.
+
+**But it lifts the WHOLE BUILDING, not the arm.** Sequences select FRAMES, never sub-rectangles, and
+`fact.shp` frames 1-25 are full 72x72 images of the entire building with the arm moving inside them
+(verified by decoding the SHP and diffing frames: 98.6% of the inter-frame motion falls in the left
+and lower thirds, centroid at 28.9,45.5 of the 72x72 box — inside what is now the dock cell — but
+the frames themselves carry the roof and arch too). So the one-liner also draws the roof over any
+vehicle in the dock cell's map ROW during service: cells `(31,17)` and `(34,17)` for a depot at
+`(32,16)`, one of which is where the previous customer just vacated to.
+
+Doing it properly needs a cropped crane-only SHP rendered as a second body/overlay with its own
+`ZOffset` — new art, not a rules change.
+

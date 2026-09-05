@@ -39,12 +39,17 @@ Players:
 		Enemies: USA
 
 Actors:
-	# The depot is the whole point. LOGISTICSCENTER is Dimensions 3,3 with
-	# Footprint: =+= +++ =+= (structures.yaml:366), so placed at 32,16 it covers
-	# 32..34 x 16..18 and its CENTRE cell (33,17) is a '+' —
-	# FootprintCellType.OccupiedPassableTransitOnly. Resupply.cs:274 docks a
-	# Repairable unit on the host CENTRE via MoveOntoTarget, so the tank comes to
-	# rest on a cell Locomotor.CanStayInCell reports false for.
+	# The depot is the whole point. UPDATED 2026-09-05: LOGISTICSCENTER is now Dimensions 2,2
+	# with Footprint `++ =+`, so placed at 32,16 it covers 32..33 x 16..17 and exactly ONE of
+	# those cells is stayable — 32,17, the bottom-left, under the crane, named by
+	# ResupplyDock.Offset (-512,512,0). Resupply drives the client onto that cell and tests
+	# arrival by cell equality.
+	#
+	# It USED to be Dimensions 3,3 with `=+= +++ =+=` covering 32..34 x 16..18, docking on the
+	# CENTRE cell 33,17, which was a '+' — OccupiedPassableTransitOnly — so the tank came to rest
+	# somewhere Locomotor.CanStayInCell reports false for and the idle handler shoved it off. That
+	# accidental shove was load-bearing, and it is gone; Resupply.LeaveHost replaces it with an
+	# explicit vacate. The Lua header spells out the whole handover.
 	Depot: logisticscenter
 		Owner: USA
 		Location: 32,16
@@ -64,7 +69,9 @@ Actors:
 	# Without this actor, a change making the dock cell stayable would go green through the whole
 	# suite while shipping a hard stall — MoveOnto.CalculatePathToTarget waits rather than stacking
 	# when the dock is occupied (MoveOnto.cs:41-58), and the LC's isCloseEnough is WDist.Zero, so
-	# there is no near-enough fallback to rescue it.
+	# there is no near-enough fallback to rescue it. THAT CHANGE HAS NOW HAPPENED (the 2x2's dock
+	# cell IS stayable), which is exactly why this actor is now the most load-bearing thing here:
+	# it is the only check in the suite that the explicit vacate actually frees the cell.
 	# Offset one row south so the two do not contend for approach cells before the depot itself.
 	Tank2: abrams
 		Owner: USA

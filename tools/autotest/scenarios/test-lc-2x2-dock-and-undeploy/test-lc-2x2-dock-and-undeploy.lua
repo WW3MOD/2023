@@ -238,7 +238,16 @@ local function tickDeploy()
 	-- and send it. IssueResupplyAt names the host and mirrors AmmoPool.AutoRearm's docking branch
 	-- exactly, including the dock-tight WDist.Zero tolerance that is the whole difficulty at an
 	-- even-dimensioned building.
-	Tank.Health = math.floor(Tank.MaxHealth / 2)
+	-- 60%, and the exact number matters. `^Vehicle` carries ChangesHealth@CriticalDamage
+	-- (vehicles.yaml:183) — StartIfBelow 50, PercentageStep -1, Delay 5 — which burns 1% of MaxHP
+	-- every 5 ticks once HP drops BELOW half, i.e. 0.200%/tick against this depot's 0.125%/tick
+	-- (3% per 24-tick Interval). The burn is 1.6x the repair, so a vehicle under 50% dies at the
+	-- crane rather than being saved by it; test-depot-vacate-phantom went red exactly that way on
+	-- 2026-09-05. This scenario originally used MaxHealth/2, which is exactly 50% and passes only
+	-- because the guard is `HP >= 50%` — one odd MaxHealth away from silently entering the burn
+	-- zone. 60% is clear of it on purpose, and this scenario is NOT the place that question gets
+	-- settled.
+	Tank.Health = math.floor(Tank.MaxHealth * 3 / 5)
 	Test.IssueResupplyAt(Tank, Depot)
 	return false
 end
