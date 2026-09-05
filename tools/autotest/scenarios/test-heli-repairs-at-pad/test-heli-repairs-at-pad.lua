@@ -8,7 +8,11 @@
 --      ResupplyType.Repair only at DamageState.Undamaged (Resupply.cs:602), which is
 --      HP == MaxHP, so "nearly full" is not a pass — it is the same wedge with a
 --      smaller gap.
---   2. ALTITUDE. Each patient must be OFF the deck (CenterPosition.Z > 0). This is the
+--   2. ALTITUDE. Each patient must be OFF the deck — CenterPosition.Z strictly ABOVE the
+--      Z it was sitting at when we damaged it. Measured as a DELTA against its own start,
+--      never against a literal 0: all three airframes carry ^Airborne's
+--      `Aircraft: TakeOffOnCreation: False` so they begin grounded, and a relative test
+--      cannot be broken by a terrain baseline that is not zero. This is the
 --      wedge check and the reason the test exists. With a zero step the airframe
 --      reaches the pad, lands, heals nothing, and Resupply's only exit
 --      (activeResupplyTypes == 0, Resupply.cs:339) is unreachable, so it sits parked at
@@ -67,6 +71,7 @@ local DAMAGED  = { "Plane", "Heli", "Control" }
 
 local ACTOR = {}            -- name -> actor, filled in WorldLoaded
 local start = {}            -- name -> HP we damaged it to
+local startAlt = {}         -- name -> CenterPosition.Z while grounded at setup
 local cashAtStart = nil
 
 local function pct(a)
@@ -109,6 +114,7 @@ WorldLoaded = function()
 			local a = ACTOR[name]
 			a.Health = math.floor(a.MaxHealth * DAMAGED_PCT / 100)
 			start[name] = a.Health
+			startAlt[name] = a.CenterPosition.Z
 		end
 
 		-- Preconditions. If the damage did not take, the run proves nothing, so SKIP
@@ -166,12 +172,13 @@ WorldLoaded = function()
 				return
 			end
 
-			if alt(a) <= 0 then
+			if alt(a) <= startAlt[name] then
 				Test.Fail(string.format(
-					"%s healed to full (%d/%d) but is still ON the deck at alt=%d after %d ticks. Resupply's " ..
-					"only exit is activeResupplyTypes == 0, and a repaired airframe must take off via " ..
-					"OnResupplyEnding's wasRepaired branch — full HP with no take-off is a stuck activity.",
-					name, a.Health, a.MaxHealth, alt(a), elapsed))
+					"%s healed to full (%d/%d) but is still ON the deck: alt=%d, unchanged from the %d it was " ..
+					"grounded at, %d ticks later. Resupply's only exit is activeResupplyTypes == 0, and a " ..
+					"repaired airframe must take off via OnResupplyEnding's wasRepaired branch — full HP with " ..
+					"no take-off is a stuck activity.",
+					name, a.Health, a.MaxHealth, alt(a), startAlt[name], elapsed))
 				return
 			end
 		end
@@ -190,10 +197,10 @@ WorldLoaded = function()
 			return
 		end
 
-		if alt(Control) > 0 then
+		if alt(Control) ~= startAlt.Control then
 			Test.Fail(string.format(
-				"Control took off on its own (alt=%d). It was given no order, so the patients' altitudes are " ..
-				"not evidence that they left a pad.", alt(Control)))
+				"Control changed altitude on its own (%d -> %d). It was given no order, so the patients' " ..
+				"altitudes are not evidence that they left a pad.", startAlt.Control, alt(Control)))
 			return
 		end
 

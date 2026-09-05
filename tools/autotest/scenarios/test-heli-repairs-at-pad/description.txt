@@ -5,7 +5,7 @@ each ordered to their own player-owned afld; HELI "Control" is given no order at
 
 PASS requires, at tick 1025:
   * both patients at exactly MaxHealth (800/800),
-  * both patients airborne again (CenterPosition.Z > 0) — the wedge check,
+  * both patients airborne again (CenterPosition.Z above their own grounded Z) — the wedge check,
   * Control unchanged at 480 HP and still on the ground,
   * the player billed 1008 credits (+/-15%) for the two repairs.
 
