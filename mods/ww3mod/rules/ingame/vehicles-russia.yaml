@@ -1163,18 +1163,46 @@ KinzhalMissile:
 		Scale: 0.95
 	Health:
 		HP: 100
-	# UNINTERCEPTABLE, and this is the whole point of the Phase 1 tier. ^ShootableMissile ships both
-	# Targetable traits carrying `TargetTypes: ICBM` (defaults.yaml:1083-1088); `Hypersonic` is a type
-	# no weapon in the mod lists, so nothing can acquire this actor.
-	# PITFALL: do NOT express that as `-Targetable@Ground:` / `-Targetable@Airborne:`. WeaponInfo
-	# .IsValidAgainst reads victim.GetEnabledTargetTypes() and gates on it (WeaponInfo.cs:256-264),
-	# so an actor with NO target types is invalid for every weapon -- including splash warheads it
-	# happens to stand inside. Overriding the types keeps it damageable and merely unacquirable.
+	# SHOOTABLE-AT, ALMOST NEVER HIT -- changed from `Hypersonic` to `ICBM` on 2026-09-05. This is a
+	# deliberate revision of the Phase 1 "uninterceptable tier" framing, on the user's ruling that
+	# the Kinzhal "should be almost impossible to catch, but it could be possible to try to shoot
+	# at it, just that the interceptor mostly misses". `ICBM` is the value ^ShootableMissile ships
+	# (defaults.yaml:1084, :1087); `Hypersonic` was a type no weapon listed, so nothing could
+	# acquire this actor at all. The GBU-57 (Penetrator) and the tac nuke (Hypersonic) are NOT
+	# changed -- they are separate design decisions and the ruling covered only the Kinzhal.
+	#
+	# THE MISS RATE IS NOT TUNED IN, IT FALLS OUT OF THE SHIPPED NUMBERS. Verified against the
+	# files rather than taken on trust:
+	#   Window. SAM Range is 35c0 = 35840 wdist (weapons-missiles.yaml:415) and AutoTarget has no
+	#   ScanRadius override on ^AutoTargetAirICBM, so ScanRadius stays -1 and acquisition range IS
+	#   weapon range (AutoTarget.cs:1114 falls back to ab.GetMaximumRange()). Nothing acquires this
+	#   missile before it crosses the ring. At Speed 2000 that is 35840/2000 = 18 ticks when the SAM
+	#   sits ON the aim point, and at best 71680/2000 = 36 ticks when it transits the full diameter.
+	#   Chain. Acquire-aim-fire before the first interceptor leaves the rail is scan 3-8
+	#   (AutoTarget.cs:199, :202) + max(AimingDelay 15, traverse) + FireDelay 5
+	#   (structures-defenses.yaml, SAM Armament). AimingDelay is the default 15 (Armament.cs:101,
+	#   not overridden) and a full 180 deg traverse at TurnSpeed 40 is only 12.8 ticks, so the
+	#   AimingDelay always dominates: 23-28 ticks total.
+	#   Result. 23-28 against 18-36. On the aim point the SAM gets NO shot; off-axis it gets 8-13
+	#   ticks of fire, i.e. ONE interceptor (Burst: 2 with BurstDelays: 20 puts the second outside
+	#   the window). That one interceptor launches at MaximumLaunchSpeed 50 and accelerates at 35 to
+	#   a cap of 800, so in 13 ticks it covers ~3.3 cells while the Kinzhal covers ~25 -- 2.5x too
+	#   slow to overtake, lethal only on a head-on pass. RangeLimit 35c0 + ExplodeWhenEmpty then
+	#   self-destructs it. Full derivation: WORKSPACE/recon/260905-intercepting-ballistic-munitions.md.
+	# If playtesting says it never even TRIES, the cheapest knob is an explicit AimingDelay of 5-8 on
+	# the SAM's Armament -- that buys 7-10 ticks and converts the on-axis case from silence to a shot.
+	# Do not reach for the Kinzhal's Speed first; the speed IS the identity.
+	#
+	# PITFALL, UNCHANGED AND STILL LOAD-BEARING: do NOT express an un-targetable state as
+	# `-Targetable@Ground:` / `-Targetable@Airborne:`. WeaponInfo.IsValidAgainst reads
+	# victim.GetEnabledTargetTypes() and gates on it (WeaponInfo.cs:256-264), so an actor with NO
+	# target types is invalid for every weapon -- including splash warheads it happens to stand
+	# inside. Override the VALUE, never delete the traits.
 	Targetable@Ground:
-		TargetTypes: Hypersonic
+		TargetTypes: ICBM
 		RequiresCondition: !airborne
 	Targetable@Airborne:
-		TargetTypes: Hypersonic
+		TargetTypes: ICBM
 		RequiresCondition: airborne
 	BallisticMissile:
 		# LaunchAngle is DELIBERATELY LOW, and lower than either shipped launcher (Iskander 110,

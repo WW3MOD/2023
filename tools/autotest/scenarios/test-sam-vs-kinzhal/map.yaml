@@ -1,0 +1,164 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: SAM tries for the Kinzhal and the Kinzhal gets through
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES — recon Run 3, WORKSPACE/recon/260905-intercepting-ballistic-munitions.md §9.
+#
+# THE ACCEPTANCE TARGET IS A BAND, NOT A THRESHOLD, and it is the user's own wording: the Kinzhal
+# "should be almost impossible to catch, but it could be possible to try to shoot at it, just that
+# the interceptor mostly misses". So there are TWO ways to fail and they are opposites:
+#
+#   * The SAM never launches -> FAIL. Silence reads to a player as a defence that is broken rather
+#     than outmatched. It is the failure mode the recon predicts for the CRAM (§3.3) and the reason
+#     the CRAM was deliberately left `~disabled`.
+#   * The Kinzhal is destroyed -> FAIL. The strike is meant to land.
+#
+# On 2026-09-05 KinzhalMissile's Targetable@Ground/@Airborne went from `TargetTypes: Hypersonic` to
+# `ICBM` (vehicles-russia.yaml). `Hypersonic` was a type no weapon listed, so nothing could acquire
+# the actor at all. `ICBM` is what ^ShootableMissile ships and what every anti-air weapon already
+# lists. NOTE the PITFALL preserved at the trait: the fix overrides the VALUE and never deletes the
+# Targetable traits — an actor with NO target types is invalid for every weapon, splash included
+# (WeaponInfo.cs:256-264).
+#
+# ===================================================================================================
+# THIS SCENARIO IS DELIBERATELY SITED AT THE DEFENCE'S ABSOLUTE CEILING, AND THE CEILING IS LOW.
+# ===================================================================================================
+#
+# The budget the SAM is working against:
+#
+#   CHAIN (acquire -> aim -> fire), 20-28 ticks. AutoTarget rescans every 3-8 ticks
+#   (AutoTarget.cs:199, :202), so acquisition lands 0-8 ticks after the missile becomes engageable.
+#   Then AimingDelay 15 — the Armament.cs:101 default, NOT overridden on this actor — plus the
+#   SAM's own FireDelay 5. Turret traverse runs concurrently with the aiming delay and cannot
+#   dominate it: TurnSpeed 40 is 14.06 deg/tick, so even a 180-degree slew is 12.8 ticks < 15.
+#
+#   EXPOSURE, and this is the number that makes the scenario what it is. The SAM's ring is 35c0 and
+#   ^AutoTargetAirICBM sets no ScanRadius, so AutoTarget.cs:1114 falls back to ab.GetMaximumRange()
+#   and acquisition range IS weapon range — nothing sees the missile any earlier. MissileDelay buys
+#   nothing either: during those 150 ticks the actor is constructed but not IsInWorld
+#   (MissileStrikePower.cs:147-150), so no scan can return it.
+#
+# So the exposure ceiling is the WHOLE FLIGHT, and the geometry below buys exactly that: the SAM
+# sits ON the flight line at mid-map, so the missile is inside its ring from its first tick in the
+# world until impact. There is no siting on this map that yields more.
+#
+#   Entry (1,17) -> aim point (62,17) is 61 cells = 62464 wdist. Speed 2000 with TerminalSpeed 2400
+#   past the apex (TerminalAcceleration 40) gives roughly 15.6 ticks for the first half at 2000 and
+#   ~13.5 for the second averaging ~2300: CALL IT 29 TICKS, whole flight.
+#   SAM at 32,17: ring spans x from -3 to 67 along the flight line, so entry (31 cells out, inside
+#   35) to impact (30 cells out) is covered end to end. EXPOSURE = 29 TICKS.
+#
+#   29 TICKS OF EXPOSURE AGAINST A 20-28 TICK CHAIN. That is 1 to 9 ticks of live fire, and Burst 2
+#   with BurstDelays 20 (weapons-missiles.yaml:447-448) means the second interceptor of the pair is
+#   never in the window at all. ONE missile, launched late, is the best this defence can do.
+#
+# THAT MARGIN IS NARROW ON PURPOSE AND IS ITSELF THE RESULT. It also means a "never launched"
+# verdict here is a real finding rather than a siting artefact: if the SAM cannot get a shot away in
+# the most favourable geometry the map admits, it cannot anywhere. The recon's §3.3 estimate of
+# "~12 ticks of fire in the best siting" assumed a 36-tick ring transit, which requires the missile
+# to cross a full 70-cell diameter — a 64-cell playfield cannot supply it. On any real map the
+# Kinzhal's whole flight is the window, and it is shorter than the recon implied.
+#
+# Once it does launch, closure finishes the argument: the interceptor tops out at Speed 800 against
+# 2000 rising to 2400, so it cannot overtake and kills only on a head-on pass. Launched with 1-9
+# ticks remaining it covers roughly one to three cells (MaximumLaunchSpeed 50, Acceleration 35)
+# while the Kinzhal covers six to twenty.
+#
+# THE SAM IS THE ONLY CANDIDATE PLATFORM. The CRAM's chain is longer than its whole 22-tick chord,
+# so it would usually get no shot at all; the AGUN is kinematically the best gun in the mod against
+# a ballistic missile but connects by volume rather than aim (Inaccuracy 2c0 at Burst 10). Both stay
+# `~disabled`. Recon §5, §6.
+#
+# GEOMETRY NOTES THAT ARE LOAD-BEARING FOR READABILITY RATHER THAN FOR THE PHYSICS:
+#
+#   * ENTRY EDGE. MissileStrikePower spawns at Map.ChooseClosestEdgeCell(owner home). Russia home
+#     6,17 with Bounds Rectangle(1,1,64,32): horizontalBound |6-1|=5 < 32 -> u = Left = 1;
+#     verticalBound |17-1|=16 < 16 is FALSE -> v = Bottom = 33; du=5 < dv=16 -> edge cell (1,17).
+#     The same derivation test-missile-strike-power spells out at length.
+#   * USA'S SUPPLY ROUTE AND SPAWN ARE PUSHED TO 58,28, away from the shipped 58,17. The aim point
+#     is 62,17 and IskanderExplosion's widest warhead is ShockwaveDamage MaxRadius 4c0; at 58,17
+#     the SR would sit 4 cells from the impact and could be caught by it. 58,28 is 11.7 cells away.
+#     USA's HomeLocation is irrelevant to this scenario — only Russia's drives the entry edge — so
+#     moving it costs nothing.
+#   * THE SAM AT 32,17 IS 30 CELLS FROM THE IMPACT, so the strike landing can never destroy the
+#     interceptor and turn a correct result into an unreadable one. The Lua guards this anyway.
+#
+# WHY MapStartingLocations IS REMOVED IN rules.yaml: Russia is the playable client player and the
+# entry edge is derived from HomeLocation, which must come from the pinned PlayerReference rather
+# than a spawn assigner. Same reasoning as test-missile-strike-power.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	# Russia is the PLAYABLE player: the Kinzhal power carries Prerequisites: player.russia, and
+	# Test.ActivateSupportPower issues the order through the local client's order stream.
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 6,17
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 58,28
+
+Actors:
+	# Both Supply Routes exist so that neither player is eliminated before the poller writes a
+	# verdict (AUTOTEST.md map.yaml rule 6). SUPPLYROUTE carries Targetable.TargetTypes:
+	# NoAutoTarget, so nothing acquires them — which matters here, because a SAM distracted onto
+	# anything else would produce a false "never launched".
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 6,17
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 58,28
+
+	# THE INTERCEPTOR UNDER TEST, sited ON the flight line at mid-map — the maximum exposure this
+	# map admits. SAM is 2x1 (Footprint xx), so it occupies 32,17 and 33,17.
+	Defender: sam
+		Owner: USA
+		Location: 32,17
+		Facing: 0
+
+	# THE AIM POINT. An Abrams rather than an empty cell, so "the strike landed" has a positive
+	# observable: 28,000 HP against IskanderExplosion's ~62,800 on a direct hit, so arrival means
+	# death and there is no ambiguity about whether the missile got through.
+	Victim: abrams
+		Owner: USA
+		Location: 62,17
+		Facing: 256
+
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 58,28
+
+Rules: rules.yaml

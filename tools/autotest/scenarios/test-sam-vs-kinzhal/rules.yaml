@@ -1,0 +1,79 @@
+# SAM-vs-Kinzhal autotest overrides.
+#
+# DELIBERATELY MINIMAL ON EVERYTHING THAT IS UNDER TEST. The Kinzhal's Speed, TerminalSpeed,
+# SpawnAltitude and MissileDelay, and the SAM's Range, AimingDelay, Burst and interceptor
+# kinematics, are all SHIPPED VALUES and none of them is restated here. The acceptance band in
+# map.yaml is derived from them; pinning any of them locally would make this file the thing being
+# measured. In particular there is NO `KinzhalMissile:` block — the `TargetTypes: ICBM` that makes
+# this scenario possible at all must come from vehicles-russia.yaml or the run proves nothing.
+#
+# NOTE THE CASE. `SAM:` is uppercase in structures-defenses.yaml:784 and `abrams:` is lowercase in
+# vehicles-america.yaml:464. Top-level MiniYaml keys merge case-SENSITIVELY — the lowercasing in
+# Ruleset.cs runs AFTER the merge — so a mis-cased block here would not override the shipped actor,
+# it would collide as a second definition. Actor names only feel case-insensitive.
+
+Player:
+	# The power's ONLY departure from shipping config: charged at t=0 instead of after 3000 ticks
+	# (3 min). ChargeInterval on the shipped trait is a placeholder standing in for the Phase 2
+	# buy/bank model, and waiting it out would spend three minutes of a launch slot measuring a
+	# timer this scenario is not about. StartFullyCharged is the documented first-charge switch
+	# (SupportPowerManager.cs:178). Same override, same reasoning, as test-missile-strike-power.
+	MissileStrikePower@Kinzhal:
+		ChargeInterval: 1
+		StartFullyCharged: true
+	# Faction elimination would end the match before the Lua poller writes a verdict.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored. ^ShootableMissile's Detectable is Vision 1 / Radar 1 with
+	# no RevealsShroud, so under fog a defender with neither would legitimately never see the
+	# missile — correct behaviour, and it would make a "never launched" verdict unattributable
+	# between "too fast to engage" and "never detected". This run is about the former.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# No cash -> no production. The only actors in the world are the placed ones plus the missile,
+	# so GetActorsByType("kinzhalmissile") cannot pick up a second missile from anywhere.
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
+	# spawn assignment — the entry edge is derived from it. See the note in map.yaml.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-sam-vs-kinzhal.lua
+
+# THE ONLY INSTRUMENT IN THIS SCENARIO, and it is an instrument rather than a behaviour change.
+#
+# WHY IT IS NEEDED. "Did the SAM actually shoot at it" has no direct Lua observable in this engine.
+# Interceptors are projectiles, and IProjectile : IEffect (WeaponInfo.cs:71) — effects never appear
+# in GetActorsByType and AutoTarget itself never scans World.Effects. Nor does the activity chain
+# help: AttackTurreted derives from AttackFollow, which engages through RequestedTarget in Tick
+# (AttackFollow.cs:40, :118) and queues NO activity, so Test.ActivityChain on a defensive building
+# reads "(idle)" while it is firing and TestHarness.HoldsAttackActivity is useless here. Do not
+# reach for either of them.
+#
+# GrantConditionOnAttack hangs off INotifyAttack.Attacking, which fires when a barrel actually
+# fires — so this condition means "an interceptor left the rail", not "the turret slewed". The Lua
+# reads it with Test.ConditionCount (TestGlobal.cs:808 -> Actor.GetConditionCount, the same cache
+# every RequiresCondition is evaluated against).
+#
+# RevokeDelay is set far beyond the run length so the condition LATCHES: the launch is a
+# single-tick event and a poller sampling once per tick against the shipped 15-tick default could
+# still be made to miss it by any future change to tick ordering. This makes the observation
+# order-independent.
+#
+# EXPECTED LINT CONSEQUENCE, stated so nobody has to rediscover it: CheckConditions.cs:71 emits
+# `Actor type `sam` grants conditions that are not consumed: sam-fired.` That is emitWarning, NOT
+# emitError (:75 is the error branch, for the opposite case), and TREAT_WARNINGS_AS_ERRORS is set
+# nowhere in this repo, so it does not fail --check-yaml and must NOT be added to
+# lint-baseline.txt. A fake consumer to silence it would be worse than the warning.
+SAM:
+	GrantConditionOnAttack@TESTPROBE:
+		Condition: sam-fired
+		ArmamentNames: primary
+		RevokeDelay: 9000

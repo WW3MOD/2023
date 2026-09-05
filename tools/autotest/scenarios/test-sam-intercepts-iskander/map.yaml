@@ -1,0 +1,141 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: SAM shoots down an inbound Iskander missile
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES — recon Run 2, WORKSPACE/recon/260905-intercepting-ballistic-munitions.md §9.
+# On 2026-09-05 the SAM's Buildable.Prerequisites went from `~disabled` to
+# `supplyroute, ~techlevel.medium` (structures-defenses.yaml). That flip is the WHOLE feature:
+# the Iskander's in-flight munition was already interceptable by construction and nothing a
+# player could build was allowed to shoot at it. This scenario asserts the two halves separately,
+# because a pre-placed actor proves only the second one:
+#
+#   AVAILABILITY — a map-placed SAM bypasses Buildable entirely, so "the SAM shot it down" says
+#   NOTHING about whether a player can obtain one. Checked explicitly via Player.HasPrerequisites.
+#   MECHANISM — a live SAM acquires the missile ACTOR and kills it in flight.
+#
+# WHY THE MUNITION IS AN ACTOR AND NOT A PROJECTILE, which is why this test can exist at all.
+# The launcher's Armament fires IskanderTargeter, a zero-damage InstantHit dummy
+# (weapons-missiles.yaml:380). The payload is MissileSpawnerMaster spawning `IskanderMissile`
+# (vehicles-russia.yaml:1101), a real world actor inheriting ^ShootableMissile, which carries
+# `TargetTypes: ICBM` at BOTH altitude bands (defaults.yaml:1084, :1087). Projectiles are
+# IEffect (WeaponInfo.cs:71) and AutoTarget never scans World.Effects — an actual projectile
+# could not be shot down and there would be no seam to widen.
+#
+# GEOMETRY, and every number is load-bearing.
+#
+#   Launcher `iskander` at 8,17 (Russia). Victim `abrams` at 48,17 (USA) — 40 cells, inside
+#   IskanderTargeter's Range 50c0 and outside its MinRange 16c0 (weapons-missiles.yaml:382-383).
+#
+#   SAM at 48,10 (USA). TWO separate reasons for that cell, both required:
+#     * 7 cells OFF the flight line y=17. IskanderExplosion's widest warhead is ShockwaveDamage
+#       MaxRadius 4c0, so an interception anywhere along the corridor cannot splash the SAM, and
+#       the SAM's own destruction can never be confused with a successful intercept.
+#     * 7 cells from the victim, for the same reason in reverse — the intercept fireball cannot
+#       kill the Abrams and produce a false FAIL.
+#
+#   Engagement window. SurfaceToAirMissile Range is 35c0 (weapons-missiles.yaml:415) and
+#   ^AutoTargetAirICBM sets no ScanRadius, so AutoTarget.cs:1114 falls back to
+#   ab.GetMaximumRange() and acquisition range IS weapon range. Perpendicular distance from the
+#   SAM to the flight line is 7, so the missile crosses the ring boundary at
+#   x = 48 - sqrt(35^2 - 7^2) = 48 - 34.3 = 13.7 and stays inside it all the way to the victim:
+#   ~34 cells of exposure. Against the Iskander's terminal 600 wdist/tick that is ~89-98 ticks,
+#   against an acquire-aim-fire chain of 23-28 (scan 3-8 + AimingDelay 15 + FireDelay 5). The
+#   margin is ~4x, which is why this run is expected to be decisive rather than marginal.
+#
+#   Kinematics. The interceptor tops out at Speed 800 against the Iskander's 600, so it overtakes
+#   from any aspect; SurfaceToAirMissile's Warhead@Spread is Damage 2000 + RandomDamageAddition
+#   1000 against IskanderMissile's HP 100, so one contact is one kill. Nothing here is marginal
+#   and no retune was needed to make it work.
+#
+# THE 80-TICK PRE-LAUNCH IS NOT A BUG IN THE READING. IskanderMissile sets LaunchRiseTicks 60 and
+# PostErectionWaitTicks 20, so BallisticMissile.PreLaunchTicks is 80 (BallisticMissile.cs:85) and
+# the missile actor sits erect ON THE LAUNCHER, already in the world and already targetable, for
+# 4.8 s before the motor lights. The Lua therefore measures the missile's LAST cell rather than
+# its first, and the launcher at 8,17 is 40 cells from the SAM — outside its ring — so those 80
+# ticks cannot be mistaken for an engagement.
+#
+# WHY MapStartingLocations IS REMOVED IN rules.yaml: same reason as test-missile-strike-power —
+# HomeLocation must come from the pinned PlayerReference, not from a spawn assigner.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	# USA is the PLAYABLE player because the availability assertion is about the DEFENDER's tech
+	# tree: it is the SAM owner who has to be able to build one.
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 58,17
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 6,17
+
+Actors:
+	# Both Supply Routes exist for two reasons: neither player may be eliminated before the poller
+	# writes a verdict (AUTOTEST.md map.yaml rule 6), and USA's SR is what PROVIDES the
+	# `supplyroute` prerequisite the SAM now requires — its bare ProvidesPrerequisite@BuildingName
+	# (structures.yaml:372) resolves a null Prerequisite to the lowercased actor name
+	# (ProvidesPrerequisite.cs:52-53). Delete USA's SR and the availability assertion correctly
+	# fails. SUPPLYROUTE carries Targetable.TargetTypes: NoAutoTarget, so nothing acquires them.
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 6,17
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 58,17
+
+	# THE LAUNCHER. Stock in every respect; rules.yaml touches only its ammo and stance.
+	Launcher: iskander
+		Owner: Russia
+		Location: 8,17
+		Facing: 0
+
+	# THE INTERCEPTOR UNDER TEST.
+	Defender: sam
+		Owner: USA
+		Location: 48,10
+		Facing: 0
+
+	# THE AIM POINT. Abrams: 28,000 HP, Heavy armour. IskanderExplosion puts ~62,800 on a direct
+	# hit, so arrival means death and survival means the missile never arrived. That margin is what
+	# makes "alive" a clean read on "intercepted" rather than on "hit but tanked it".
+	Victim: abrams
+		Owner: USA
+		Location: 48,17
+		Facing: 256
+
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+Rules: rules.yaml
