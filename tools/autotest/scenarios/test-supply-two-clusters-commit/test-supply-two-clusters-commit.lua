@@ -238,8 +238,8 @@ WorldLoaded = function()
 				.. "the %s platoon at tick %d having reversed its x-travel at %s (spawn x=%d, range %d..%d). "
 				.. "Each reversal is one scan re-picking the other cluster on a %d-point NeedScore lead and "
 				.. "re-issuing a non-queued Move that cancelled the drive already in progress — the follow "
-				.. "path keeps no memory of the cluster a truck is serving (SupplyFollowerBotModule.cs:1094 "
-				.. "and :1030). need pulses %s. west ammo %s, east ammo %s.",
+				.. "path keeps no memory of the cluster a truck is serving (SupplyFollowerBotModule.cs:1172 "
+				.. "and :1103). need pulses %s. west ammo %s, east ammo %s.",
 				reversals, MAX_REVERSALS, served, t, travelTrace(), truckSpawn.X, minX, maxX,
 				PULSE_ROUNDS * 5 * 10, table.concat(pulseLog, " "), ammoTrace(west), ammoTrace(east)))
 		end)

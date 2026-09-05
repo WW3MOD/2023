@@ -20,9 +20,9 @@ Categories: Test
 #
 # Every ScanInterval (150 ticks) SupplyFollowerBotModule rebuilds its clusters from scratch and
 # re-picks each truck's target by live AmmoNeed, nearest as tie-break — via SupplyLogisticsMath
-# .AssignSectors with SectorSpread on (SupplyFollowerBotModule.cs:1030-1038), or the plain
-# need-descending pick without it (:1094-1097). There is NO per-truck memory of the cluster it is
-# already driving to: ShouldReissueFollow (:1375-1381) only suppresses a re-issue while the new
+# .AssignSectors with SectorSpread on (SupplyFollowerBotModule.cs:1103), or the plain
+# need-descending pick without it (:1172-1178). There is NO per-truck memory of the cluster it is
+# already driving to: ShouldReissueFollow (:1523-1529) only suppresses a re-issue while the new
 # follow cell is within RepathThresholdCells: 3 of the old one, and a cluster switch always moves it
 # much further than 3 cells. The Move is non-queued, so the re-issue CANCELS the drive in progress.
 #
@@ -40,28 +40,28 @@ Categories: Test
 #
 # At shipped config a truck that HAS a cluster almost never reaches the follow path at all, because
 # the drop path takes it first and then commits absolutely:
-#   * DropAnchorAtCluster: true (ai.yaml:1759) makes the drop anchor a cell DropShortCells: 5 back
-#     from the cluster the truck just picked (ClusterDropAnchor, SupplyFollowerBotModule.cs:1684).
-#   * SelectionMinStarvingUnits: 1 (ai.yaml:1631) and DropMinStarvingUnits: 1 (ai.yaml:1854) are the
+#   * DropAnchorAtCluster: true (ai.yaml:1792) makes the drop anchor a cell DropShortCells: 5 back
+#     from the cluster the truck just picked (ClusterDropAnchor, SupplyFollowerBotModule.cs:1834).
+#   * SelectionMinStarvingUnits: 1 (ai.yaml:1661) and DropMinStarvingUnits: 1 (ai.yaml:1887) are the
 #     SAME number, and the drop counts starving men within 18 cells of that anchor
-#     (CountStarvingNear, SupplyFollowerBotModule.cs:1951) — a disc that always contains the cluster.
+#     (CountStarvingNear, SupplyFollowerBotModule.cs:2101) — a disc that always contains the cluster.
 #     So any cluster that selection admits, the drop's demand gate also admits.
 #   * The errand is then issued on that very scan and its destination is FROZEN
-#     (ResolveDropAnchor, :1755-1768); a later scan re-picking a different cluster changes nothing.
+#     (ResolveDropAnchor, :1906-1919); a later scan re-picking a different cluster changes nothing.
 # A full truck on this map would therefore drive straight to whichever platoon won scan 1 and drop —
 # zero reversals — and the scenario would go GREEN on the broken code it is built to catch.
 #
 # 80 is chosen to sit in the ONE band that puts a truck on the follow path with EVERY ai.yaml value
 # left exactly as shipped:
-#   * BELOW DropMinSupply: 100 (ai.yaml:1861) => SupplyDropMath.DropVeto returns LowLoad
+#   * BELOW DropMinSupply: 100 (ai.yaml:1894) => SupplyDropMath.DropVeto returns LowLoad
 #     (SupplyDropMath.cs:221-222), StepDrop declines and returns false, and the caller falls through
 #     to the follow path — the path under test.
 #   * ABOVE SupplyProvider's RestockThreshold: 50 (vehicles.yaml:626) => IsLowOnSupply
-#     (SupplyFollowerBotModule.cs:2632-2638) is false, so the truck stays on the eligible roster
+#     (SupplyFollowerBotModule.cs:2794-2800) is false, so the truck stays on the eligible roster
 #     instead of being released to DropsSupplyCache's map-edge evacuation before it does anything.
 # This is not a contrived state: it is an ordinary mid-match truck that has already served a platoon
 # or two from its aura. Serving in place while keeping the cargo IS the doctrine's other delivery
-# mode, quoted in the module itself at :1490-1493.
+# mode, quoted in the module itself at :1638-1642.
 #
 # 80 also comfortably affords the delivery. ^E3's primary pool is SupplyValue 2 for a 20-round batch
 # (infantry.yaml:1259), so lifting two riflemen clear of the starving bar costs 4 supply and
@@ -86,15 +86,15 @@ Categories: Test
 #     platoon that fell outside it would silently turn this into a one-cluster map — i.e. into a test
 #     that cannot fail. If this map is ever stretched, that is the bound to recheck first.
 #   - The two platoons are 60 cells apart, six times FindUnitClusters' 10-cell grouping radius
-#     (SupplyFollowerBotModule.cs:2256), so they can never coalesce into one cluster.
+#     (SupplyFollowerBotModule.cs:2407), so they can never coalesce into one cluster.
 #   - The truck is EXACTLY equidistant (30/30), so AssignSectors' distance tie-break cannot decide
 #     anything: need order alone selects, which is the input the Lua drives.
 #
-# WHY THERE IS NO ENEMY. IgnoreDangerForDelivery: true (ai.yaml:1616) already makes evac, the
+# WHY THERE IS NO ENEMY. IgnoreDangerForDelivery: true (ai.yaml:1649) already makes evac, the
 # Stage-E detour, the drop-mode selector AND the ThreatMapManager read inert — that last one matters
 # and is worth stating, because both this item's dossier and DOCS/reference still describe
 # FindSafeFollowPosition as the danger site "no config flag reaches". At this SHA it is the FIRST
-# thing the method tests (SupplyFollowerBotModule.cs:2323), and with the flag on it returns the
+# thing the method tests (SupplyFollowerBotModule.cs:2484), and with the flag on it returns the
 # cluster centroid unread. Removing the enemy is therefore belt-and-braces rather than the load-
 # bearing choice it is on test-supply-far-front-reached; what it buys is that the follow cell is a
 # pure function of the cluster centroid under EITHER setting of that flag, so the only thing that can

@@ -1512,6 +1512,39 @@ Player:
 		# NOTE this module is a SHARED enable-ai-any instance with no @stable twin, so the follow
 		# deadband reaches @stable too; that is intended and declared, not silent drift. 0 disables it.
 		RepathThresholdCells: 3
+		# FOLLOW-PATH COMMITMENT (item 56, 2026-09-05). RepathThresholdCells above damps the follow
+		# CELL; this damps the follow TARGET, which is the half that was missing and the half the user has
+		# been reporting for months as "supply trucks are STILL going back and forth, not committing".
+		#
+		# THE MECHANISM, which has nothing to do with danger. The cluster list is rebuilt from scratch
+		# every ScanInterval and each truck's target is re-derived from live AmmoNeed with no memory of
+		# the previous answer — through AssignSectors under SectorSpread, or the plain need-descending
+		# pick without it. AmmoNeed moves as men shoot, so two clusters close together in need swap
+		# places between two consecutive scans with no enemy, no danger term and no event involved. The
+		# follow Move is NON-QUEUED, so the re-issue cancels the drive in progress and the truck turns
+		# around. RepathThresholdCells cannot see this: a cluster switch moves the follow cell far
+		# further than 3 cells, so the deadband always passes.
+		#
+		# 1000 = one wholly dry rifleman (NeedScore is AmmoNeed x 1000), and it is chosen as THE AMOUNT OF
+		# ORDINARY CONSUMPTION NOISE TO IGNORE, not as a commitment strength. A five-man squad burning one
+		# 20-round batch each moves its cluster by exactly 1000, which is the scale of what happens
+		# between two scans; anything that clears it is a cluster genuinely needier than the one being
+		# served, and those must still be able to take the truck — a platoon that has just been fed drops
+		# to near-zero need, and a margin large enough to hold the truck there would have replaced churn
+		# with a truck parked on a customer that no longer has any need at all.
+		#
+		# SCOPE — SHARED, DECLARED, NOT SILENT. SupplyFollowerBotModule@supply is a SINGLE enable-ai-any
+		# instance with no @stable twin, so this key moves @stable as well as @experimental. Intended per
+		# CLAUDE.md (@stable inherits improvements) and the next benchmark baseline must be re-taken
+		# knowingly. The C# default is 0 (off), so nothing moves for a profile that does not set this key.
+		#
+		# NOTE WHAT THIS DOES *NOT* REACH, so nobody reads a live match expecting it everywhere. A truck
+		# that has a cluster usually never touches the follow path at all: DropAnchorAtCluster derives
+		# the drop anchor from the cluster just picked, SelectionMinStarvingUnits and DropMinStarvingUnits
+		# are both 1 over overlapping discs, so any selectable cluster also clears the drop's demand gate
+		# — and the errand is issued that same scan with a frozen destination. This key governs the
+		# trucks the drop DECLINED (LowLoad, Covered, NoAnchor) and every profile without the drop mode.
+		ClusterStickinessNeedMargin: 1000
 		# Influence stack Stage E: a truck relocating along the front detours via safer depth instead
 		# of driving through the kill zone — the rear-lateral-re-enter path emerges from the danger
 		# cost. Shared enable-ai-any module, so the reroute is gated on InfluenceStack.Participates.
