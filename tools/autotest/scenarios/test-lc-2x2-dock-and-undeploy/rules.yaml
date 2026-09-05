@@ -1,0 +1,40 @@
+# Overrides for the 2x2 Logistics Centre dock/undeploy autotest.
+#
+# NOTHING HERE TOUCHES THE THING UNDER TEST. No Building, BuildingInfo, ResupplyDock, Transforms,
+# TransformsIntoMobile, RenderSprites or sequence override appears below — the whole point is what the
+# SHIPPING rules do, and a scenario-local footprint or dock offset would make every assertion vacuous.
+# The two abrams overrides below are about DISPATCH, so the run measures one errand it issued itself.
+
+Player:
+	-ConquestVictoryConditions:
+	# Repairs are charged (RepairsUnits), so a broke player would show as "the tank docked and was
+	# never repaired" — a failure that looks exactly like the dock defect this scenario hunts.
+	PlayerResources:
+		DefaultCash: 20000
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-lc-2x2-dock-and-undeploy.lua
+
+abrams:
+	# Dry on arrival, so any ammunition at all appearing on this tank is unambiguous and the rearm
+	# half of the crane's trigger is guaranteed to be live.
+	AmmoPool@1:
+		InitialAmmo: 0
+	# HOLD in BOTH arms so AmmoPool.AutoRearmIfDry raises NeedsResupply and stands still instead of
+	# picking a Centre for itself. The ONLY errand in the run is the one Test.IssueResupplyAt issues,
+	# at the host it names — otherwise a dry tank could set off for whichever of the three Centres
+	# ChooseAffordableResupplier liked and the arrival being measured would not be the one intended.
+	# Both fields are set because AutoTarget.cs picks between them on owner and USA is the human slot.
+	AutoTarget:
+		InitialResupplyBehavior: Hold
+		InitialResupplyBehaviorAI: Hold

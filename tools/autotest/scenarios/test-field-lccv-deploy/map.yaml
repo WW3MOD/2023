@@ -24,17 +24,19 @@ Categories: Test
 # placement on a field stayed refused. Transforms.CanDeploy -> World.CanPlaceBuilding ->
 # IsCellBuildable is the LCCV's deploy check, so the LCCV refuses with BuildingCannotPlaceAudio.
 #
-# LOGISTICSCENTER is Dimensions 3,3 with Footprint "=+= +++ =+=" -- every one of the nine
-# cells is in Tiles() -- and Transforms.Offset is -1,-1, so the tested footprint is the 3x3
-# block CENTRED on the LCCV. One field anywhere in that block is enough to refuse, which is
-# why the refusal also happens standing *next to* a field, not only on one.
+# UPDATED 2026-09-05 for the 2x2 resize. LOGISTICSCENTER is Dimensions 2,2 with Footprint
+# "++ =+" -- all four cells are in Tiles(), as all nine were before -- and Transforms.Offset
+# is still -1,-1, so the tested footprint is the 2x2 whose BOTTOM-RIGHT cell is the LCCV's
+# own. One field anywhere in that block is enough to refuse, which is why the refusal also
+# happens standing *next to* a field, not only on one.
 #
-# GEOMETRY (row 16 is the lane; each LCCV's tested footprint is the 3x3 centred on it)
+# GEOMETRY (row 16 is the lane; each LCCV's tested footprint is the 2x2 ending on its cell,
+# i.e. cells (x-1,15) (x,15) (x-1,16) (x,16) for an LCCV at x,16)
 #   x=4          Supply Route + spawn
 #   x=18..26     A 9x9 patch of v14 field actors, y=12..20
-#   x=22,y=16    A: LCCV dead centre of the field patch      -> MUST deploy (the bug)
-#   x=44,y=16    B: LCCV with a v19 Oil Pump at 44,15        -> MUST refuse (over-fix guard)
-#   x=52,y=16    C: LCCV on bare ground, nothing in footprint -> MUST deploy (control for B)
+#   x=22,y=16    A: LCCV inside the field patch (21,15..22,16 all fields) -> MUST deploy (the bug)
+#   x=44,y=16    B: LCCV with a v19 Oil Pump at 44,15, inside 43,15..44,16 -> MUST refuse (guard)
+#   x=52,y=16    C: LCCV on bare ground, nothing in footprint             -> MUST deploy (control)
 #
 # C is load-bearing. Without it a B that refused because of TERRAIN rather than because of
 # the Oil Pump would read as a pass, and the over-fix guard would be measuring nothing. C
@@ -68,7 +70,7 @@ Actors:
 		Owner: Neutral
 		Location: 4,16
 
-	# A -- the case under test. Centre of the field patch; all nine footprint cells are fields.
+	# A -- the case under test. Inside the field patch; all four footprint cells are fields.
 	# Facing 384 matches Transforms.Facing, so no turn is needed before the transform starts.
 	LccvField: lccv
 		Owner: Me
@@ -76,8 +78,8 @@ Actors:
 		Facing: 384
 
 	# B -- over-fix guard. A v19 Oil Pump (^BasicBuilding: Dimensions 1,1, Footprint x, and no
-	# Passable/GroundCover) sits at 44,15, a '+' cell of B's footprint. A real building must
-	# still refuse the deploy after the fix.
+	# Passable/GroundCover) sits at 44,15, which is a '+' cell of B's footprint at 2x2 just as
+	# it was at 3x3. A real building must still refuse the deploy after the fix.
 	LccvBlocked: lccv
 		Owner: Me
 		Location: 44,16

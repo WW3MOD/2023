@@ -1,0 +1,109 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: the 2x2 Logistics Centre docks vehicles at its crane and undeploys on force-move
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT CHANGED, 2026-09-05: LOGISTICSCENTER went from Dimensions 3,3 to 2,2, gained a ResupplyDock
+# offset naming its bottom-left (crane) cell, gained Transforms + TransformsIntoMobile so force-move
+# undeploys it back into an LCCV, and its make animation was slowed from the default Tick to 60.
+#
+# THE ONE FACT ALL THREE PHASES TURN ON: an even-dimensioned building's CenterPosition is a cell
+# CORNER (BuildingInfo.CenterOffset, Building.cs:207) — the point where all four footprint cells meet,
+# which no ground unit can stand on. Activities/Resupply used to send clients ONTO that point and then
+# test arrival against it with a zero tolerance, so at 2x2 the test would be unsatisfiable and a
+# vehicle sent to rearm would park beside the depot re-planning its approach forever. ResupplyDock is
+# the fix and phase K is what measures it; a run where the tank never reaches 34,17 is that failure.
+#
+# GEOMETRY — Location is always the building's TOP-LEFT cell.
+#   4,4        Player Supply Route and spawn.
+#   D  16,8    LccvDeploy. Transforms.Offset -1,-1, so it deploys a Centre with TopLeft 15,7 and
+#              footprint {15,7 16,7 15,8 16,8}. Its CENTRE is the corner between those four, i.e.
+#              CenterOfCell(15,7) + (512,512) — the assertion that pins Dimensions 2,2.
+#   K  34,16   Depot, pre-placed. Footprint {34,16 35,16 34,17 35,17}; DOCK CELL 34,17 (bottom-left,
+#              under the crane). Tank starts at 42,17 — same row as the dock cell, eight cells east,
+#              far enough that it must genuinely drive there.
+#   U  50,24   UndeployDepot, pre-placed. Transforms.Offset 1,1 (the inverse of LCCV's -1,-1), so
+#              undeploy respawns the truck at 51,25. It then drives to 58,28.
+#
+# THE THREE CENTRES ARE FAR APART ON PURPOSE. The infantry aura is 4c0 and AbsorbsSupplyCache 2c512;
+# at these separations no Centre can serve or be confused with another, and Test.IssueResupplyAt names
+# its host explicitly so the tank's errand cannot drift to the wrong one either.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 4,4
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+	# D — the deploy leg. Facing 384 matches Transforms.Facing so no turn is queued ahead of the
+	# transform and the tick count is the make animation and nothing else.
+	LccvDeploy: lccv
+		Owner: USA
+		Location: 16,8
+		Facing: 384
+
+	# K — the dock leg.
+	Depot: logisticscenter
+		Owner: USA
+		Location: 34,16
+
+	# An ABRAMS deliberately. It names `RearmActors: logisticscenter` while NOT declaring the
+	# replenish-vehicles ExternalCondition, so SupplyProvider's metered push arm cannot select it
+	# (that arm has had no shipped client since 2026-08-30 anyway). Everything it gains therefore came
+	# through Activities/Resupply — which is the path that carries both the dock offset and the
+	# INotifyResupply events the crane animation runs on. himars and iskander would confound this.
+	# Single rearmable pool, primary-ammo: Ammo 40, ReloadCount 5, SupplyValue 30.
+	Tank: abrams
+		Owner: USA
+		Location: 42,17
+
+	# U — the undeploy leg. A SECOND Centre so that undeploying it cannot disturb phase K's depot,
+	# and so both can be asserted on in one run.
+	UndeployDepot: logisticscenter
+		Owner: USA
+		Location: 50,24
+
+Rules: rules.yaml
