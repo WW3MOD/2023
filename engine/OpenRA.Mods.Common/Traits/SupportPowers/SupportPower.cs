@@ -54,6 +54,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Cursor when unable to activate on this position. ")]
 		public readonly string BlockedCursor = "generic-blocked";
 
+		[Desc("Aim at the CENTRE of an actor occupying the targeted cell instead of at the cell.",
+			"A multi-cell building's centre is a cell corner, so the resolved aim point is a WPos",
+			"that need not lie on any cell centre — this is the point of the setting, not a rounding",
+			"error. The point is frozen when the power activates: the strike does not follow a target",
+			"that walks away. Set false for a power whose effect belongs on the cell the player",
+			"clicked rather than on whatever is standing there (a paradrop, an actor spawn).")]
+		public readonly bool SnapToActorCenter = true;
+
 		[Desc("If set to true, the support power will be fully charged when it becomes available. " +
 			"Normal rules apply for subsequent charges.")]
 		public readonly bool StartFullyCharged = false;
