@@ -998,6 +998,21 @@ namespace OpenRA.Mods.Common.Traits
 			"pre-1c compare, byte-identical. Only read when MissionCommitmentEnabled. Pure MissionCommitmentMath.")]
 		public readonly int MissionScoreQuantizeBandPct = 0;
 
+		[Desc("MISSION COMMITMENT — REINFORCEMENT (PIPELINE item 64). Let a HELD (mission-committed) axis absorb",
+			"free-pool units. PartitionHeldAxes pulls a held axis out of the live set BEFORE the allocator runs, so",
+			"steps 7-8 never size it and never top it up: for the whole MissionCommitmentWindowTicks window it cannot",
+			"take a single reinforcement. The freeze was written to stop RE-DECISION, and refusing STRENGTH is a",
+			"side effect of it — with a second half that only bites the opening push: a held target is removed from",
+			"the candidate list, so when the held axis holds the ONLY offensive POI, DesiredAxisCount is handed",
+			"poiCount=0 and returns 0 and NO axis can form for anybody. Every reinforcement arriving inside the",
+			"window is then stranded in the free pool and walked to the muster by StageFreePool — the measured",
+			"'the riflemen never advanced at all' (DISCOVERIES 2026-09-05).",
+			"When on, a held axis is sized by the SAME pure AllocateProportional the live path uses and tops up from",
+			"the pool the live axes did not want; it is never re-targeted, never SHED from, and the units already en",
+			"route are never re-ordered (only the recruits are). Only read when MissionCommitmentEnabled is on.",
+			"OFF by default so the pre-change path is byte-identical; both shipped profiles opt in explicitly.")]
+		public readonly bool MissionReinforceEnabled = false;
+
 		[Desc("Phase 1c leg (a) — ALLOCATION-SIZING score quantization band, as a percent of the TOP axis score this",
 			"re-eval. The sibling of MissionScoreQuantizeBandPct (which bands the trigger-3 rival compare): the same",
 			"bucketed believed-field factors that defeat a raw rival compare also drive the score-PROPORTIONAL axis",
@@ -1290,6 +1305,7 @@ namespace OpenRA.Mods.Common.Traits
 		// release one the transport never actually collected. Empty unless TransportStandoffEnabled.
 		readonly Dictionary<Actor, int> standoffSince = new();
 		int lastStandoffLogTick = int.MinValue;
+		int lastLedgerCensusTick = int.MinValue;
 
 		// Item 31 opportunistic advance: the last ADOPTED advance anchor. This IS retained cross-eval state — the
 		// advance is not stateless. Its hysteresis is ONE-WAY (see AdoptAdvanceAnchor): a held anchor that no
@@ -1809,6 +1825,14 @@ namespace OpenRA.Mods.Common.Traits
 			if (heldAxes != null && heldAxes.Count > 0)
 				axes.AddRange(heldAxes);
 
+			// Mission commitment: REINFORCE the held axes from whatever the live allocation above did not want.
+			// Placed HERE, after the fold-back and before the two passes below, and the order is load-bearing in
+			// both directions: `axes` is the complete live set again (so the free pool a recruit leaves is the one
+			// those passes will re-scan), and a recruit is ledger-committed inside this call, so neither
+			// BombardStaticPositions nor StageFreePool can also claim it on the eval it joined — which is the whole
+			// point, since StageFreePool is what was walking it to the muster instead. No-op when the flag is off.
+			ReinforceHeldAxes(bot, heldAxes, free, minAxisSize, tick);
+
 			// Phase 1 fires doctrine: give idle artillery a STANDING bombardment mission on believed-static enemy
 			// positions BEFORE forward staging, so a piece that can shell a known defence line does so instead of
 			// mustering forward empty-handed. Commits each bombarding piece to the shared ledger, so the StageFreePool
@@ -2126,6 +2150,109 @@ namespace OpenRA.Mods.Common.Traits
 		// the candidate list so no duplicate axis forms. An axis is held unless MissionCommitmentMath fires an
 		// abort trigger. Returns null (and touches nothing) when the flag is off / no ledger / no axes — that
 		// path is byte-identical to the pre-change module. Deterministic: reverse index walk, zero RNG.
+		// MISSION COMMITMENT — REINFORCEMENT (item 64, MissionReinforceEnabled).
+		//
+		// THE DEFECT. PartitionHeldAxes pulls a mission-committed axis out of `axes` BEFORE steps 7-8 run, so the
+		// allocator never sizes it and the top-up loop never sees it: for the whole MissionCommitmentWindowTicks
+		// window (400 = 4 evals at ReevaluateInterval 100) a held axis cannot absorb one reinforcement. The freeze
+		// exists to stop RE-DECISION — "neither re-sized nor re-ordered this eval, its in-flight order stands" —
+		// and refusing STRENGTH is a side effect of the exclusion, not something the doctrine asks for.
+		//
+		// It has a second half that only bites the OPENING push, which is why this reads as "the infantry never
+		// joined". PartitionHeldAxes also strips held targets from `targets`, so with ONE offensive POI in the
+		// world the held axis takes it and DesiredAxisCount is handed poiCount=0 — it returns 0, no axis can form
+		// for anybody, and every reinforcement that arrives inside the window falls to the free pool and is walked
+		// to the muster by StageFreePool. Measured: run 260905_212326_p13005, all four riflemen `adv@never` on
+		// staging slots while the two-tank axis held (DISCOVERIES 2026-09-05).
+		//
+		// WHAT THIS DELIBERATELY DOES NOT DO — the list is the point, because every item is a property the freeze
+		// was actually protecting and all of them survive:
+		//   * it never re-targets a held axis. TargetId/TargetCell/Score/Action are not touched here.
+		//   * it never SHEDS from one. HeldAxisReinforceCount floors at zero, so a unit already en route can never
+		//     be taken off its mission mid-approach by this pass — the asymmetry is deliberate, not an oversight.
+		//   * it never re-orders the units already on the axis. The AttackMove is grouped over the RECRUITS ONLY,
+		//     so no in-flight order is overwritten and no formation is re-laid. That is exactly the property
+		//     PartitionHeldAxes exists to defend.
+		//   * it never runs a gate. CommitAndOrder — with the retreat check, the damper, the posture holds and the
+		//     assault-sync machinery — is still skipped for a held axis. The recruits are sent to the cell the axis
+		//     ITSELF last chose (OrderedCell), so this replays a decision rather than making one.
+		//
+		// Sized with the SAME pure allocator the live path uses, over the held axes' own scores, so a single held
+		// axis sweeps the leftover pool exactly as a single live axis would and two held axes split it
+		// score-proportionally instead of by iteration order. Deterministic throughout: axes by score then
+		// TargetId, recruits by distance-to-objective then ActorID, zero RNG, no client-local state.
+		//
+		// The order is issued BEFORE any mutation, so a refused QueueOrder leaves the axis and the pool exactly as
+		// they were and the same recruits are re-offered next eval — rather than stranding a unit that has joined
+		// an axis, been ledger-committed, and has no order to execute.
+		void ReinforceHeldAxes(IBot bot, List<Axis> heldAxes, List<Actor> free, int minAxisSize, int tick)
+		{
+			if (!Info.MissionReinforceEnabled || heldAxes == null || heldAxes.Count == 0 || free.Count == 0)
+				return;
+
+			var ordered = heldAxes.OrderByDescending(a => a.Score).ThenBy(a => a.TargetId).ToList();
+			var total = free.Count + ordered.Sum(a => a.Units.Count);
+			var sizes = PoiOffenseMath.AllocateProportional(
+				ordered.Select(a => a.Score).ToList(), total, minAxisSize);
+
+			for (var i = 0; i < ordered.Count; i++)
+			{
+				var axis = ordered[i];
+
+				// Same lever as step 8: don't feed a lost fight. A held axis is normally never Retreating (the
+				// N3 release in PartitionHeldAxes lets a losing axis through to the live path), so this is the
+				// belt to that braces — it costs one comparison and it means the two fill sites cannot disagree.
+				if (Info.NoReinforceLostFights && axis.Retreat == RetreatDecision.Retreating)
+					continue;
+
+				var need = PoiOffenseMath.HeldAxisReinforceCount(sizes[i], axis.Units.Count, free.Count);
+				if (need == 0)
+					continue;
+
+				// Phase 1 amphibious typing, mirrored from step 8 so a far-bank axis does not recruit land units
+				// that strand at the bank. Inert (candidates == free) when the reachability gate is off.
+				var candidates = axis.AmphibiousTyped && crossingMap != null
+					? free.Where(IsAmphibiousUnit).ToList()
+					: free;
+				if (candidates.Count == 0)
+					candidates = free;
+
+				var recruits = candidates
+					.OrderBy(u => (u.CenterPosition - axis.TargetPos).LengthSquared)
+					.ThenBy(u => u.ActorID)
+					.Take(need)
+					.ToList();
+
+				if (recruits.Count == 0)
+					continue;
+
+				// The axis's OWN standing order, not a fresh one: OrderedCell is the cell it was last ordered to,
+				// so a recruit walks to where the axis is already going. AttackMove to match the assault order it
+				// is joining, so it engages on contact like the rest of the axis rather than walking through one.
+				var joinCell = axis.HasOrdered ? axis.OrderedCell : axis.TargetCell;
+				if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, joinCell), false,
+						groupedActors: recruits.ToArray())))
+					continue;
+
+				var key = OffenseObjectiveKey(axis.TargetId);
+				foreach (var u in recruits)
+				{
+					free.Remove(u);
+					axis.Units.Add(u);
+					goalGuard?.Ledger.Commit(u, key, tick, Info.AxisCommitmentTicks);
+				}
+
+				// Set changed. Inert while the axis stays held (CommitAndOrder is skipped), and on the eval the
+				// hold lapses it forces OrderAssault to re-issue ONE grouped order over the whole enlarged axis —
+				// so the reinforced push re-forms as a single body instead of a core plus attached stragglers.
+				axis.HasOrdered = false;
+
+				Log.Write("debug",
+					$"[exp-offense] reinforce-held player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} " +
+					$"joined={recruits.Count} units={axis.Units.Count} share={sizes[i]} join={joinCell} tick={tick}");
+			}
+		}
+
 		List<Axis> PartitionHeldAxes(ref List<ScoredPoi> targets, int tick)
 		{
 			if (!Info.MissionCommitmentEnabled || goalGuard == null || axes.Count == 0)
@@ -2267,12 +2394,57 @@ namespace OpenRA.Mods.Common.Traits
 			PruneStandoffMemory();
 			var stoodOff = 0;
 
-			var pool = world.Actors
-				.Where(a => IsEligibleCombatUnit(a)
-					&& !claimedByAxis.Contains(a)
-					&& (goalGuard == null || !goalGuard.Ledger.IsCommitted(a, tick))
-					&& !StoodOffForTransport(a, tick, ref stoodOff))
-				.ToList();
+			// LEDGER-OWNER CENSUS (item 64) — diagnostics only; nothing reads it and no behaviour depends on it.
+			// "The infantry never joined the push" has two shapes that are INDISTINGUISHABLE from the free-pool
+			// count alone: this module never recruited them, or ANOTHER module holds them through the shared
+			// PoiGoalGuard ledger. Both print `free=2` with four riflemen standing at x~16, and they demand
+			// opposite responses. The objective key already names its owner by prefix (offense:/bombard:/
+			// garrison:/ambush:/defend-line:/capture:/transport:), so tallying the units this module WOULD have
+			// taken but for a live claim answers it in one line — including the case that matters most here, a
+			// mission-HELD axis, whose units are ledger-committed `offense:` and are therefore correctly absent
+			// from the pool rather than leaking into it.
+			//
+			// Costs no extra world scan: it rides the pass below, tallying only actors that already passed
+			// IsEligibleCombatUnit and were rejected BY THE LEDGER. Once per tick like the standoff line, because
+			// three call sites run inside one Reevaluate. SortedDictionary + ordinal compare so the line is
+			// byte-stable for a given world state (the pool order itself is unchanged — same predicates, same
+			// order, same world.Actors enumeration).
+			var census = lastLedgerCensusTick != tick && goalGuard != null
+				? new SortedDictionary<string, int>(StringComparer.Ordinal) : null;
+
+			var pool = new List<Actor>();
+			foreach (var a in world.Actors)
+			{
+				if (!IsEligibleCombatUnit(a) || claimedByAxis.Contains(a))
+					continue;
+
+				if (goalGuard != null && goalGuard.Ledger.IsCommitted(a, tick))
+				{
+					if (census != null)
+					{
+						var owner = goalGuard.Ledger.TryGetObjective(a, out var objective)
+							? LedgerOwner(objective) : "unknown";
+						census.TryGetValue(owner, out var n);
+						census[owner] = n + 1;
+					}
+
+					continue;
+				}
+
+				if (StoodOffForTransport(a, tick, ref stoodOff))
+					continue;
+
+				pool.Add(a);
+			}
+
+			if (census != null)
+			{
+				lastLedgerCensusTick = tick;
+				Log.Write("debug",
+					$"[exp-ledger] player={player.PlayerName} free={pool.Count} held={census.Values.Sum()}" +
+					$" by={(census.Count == 0 ? "none" : string.Join(",", census.Select(kv => kv.Key + ":" + kv.Value)))}" +
+					$" tick={tick}");
+			}
 
 			// Once per tick, not once per BuildFreePool call — three call sites run inside one Reevaluate and
 			// would otherwise print the same line three times.
@@ -4365,6 +4537,19 @@ namespace OpenRA.Mods.Common.Traits
 
 		static string OffenseObjectiveKey(uint targetId) => "offense:" + targetId;
 
+		// The owner half of a shared-ledger objective key ("garrison:1234" -> "garrison"). Every writer of the
+		// PoiGoalGuard ledger builds its key as "<owner>:<id>", so the prefix identifies the MODULE holding a
+		// unit. Used only by the [exp-ledger] census. A key without a colon is returned whole rather than
+		// discarded, so a future writer that forgets the convention still shows up under its own name.
+		static string LedgerOwner(string objective)
+		{
+			if (string.IsNullOrEmpty(objective))
+				return "unknown";
+
+			var colon = objective.IndexOf(':');
+			return colon > 0 ? objective.Substring(0, colon) : objective;
+		}
+
 		// ===== Combat-quality force-preservation (levers 1+2) =====
 
 		// The rally / safety anchor: our own Supply Route beachhead (the strongest friendly control). Null when
@@ -5032,6 +5217,23 @@ namespace OpenRA.Mods.Common.Traits
 			k = Math.Min(k, poiCount);
 			k = Math.Min(k, totalUnits / Math.Max(1, minAxisSize)); // fundability at min size
 			return Math.Max(1, k);
+		}
+
+		/// <summary>Mission-commitment REINFORCEMENT (item 64): how many free-pool units a HELD axis may absorb
+		/// this eval. <paramref name="allocatedShare"/> is the size the proportional allocator funds it at.
+		/// Floors at zero — a held axis is never SHED from, because the whole point of the freeze is that a unit
+		/// already en route keeps its mission — and is capped by what the pool actually holds. Pure integer,
+		/// zero RNG.</summary>
+		public static int HeldAxisReinforceCount(int allocatedShare, int currentUnits, int poolCount)
+		{
+			if (poolCount <= 0)
+				return 0;
+
+			var need = allocatedShare - currentUnits;
+			if (need <= 0)
+				return 0;
+
+			return need < poolCount ? need : poolCount;
 		}
 
 		/// <summary>Split totalUnits across axes whose scores are given (any order), each axis

@@ -565,5 +565,55 @@ namespace OpenRA.Test
 			var single = PoiOffenseMath.QuantizeSizingScores(new List<long> { 1000 }, SweepBand);
 			Assert.That(single, Is.EqualTo(new List<long> { 1000 }));
 		}
+
+		// ---------- HeldAxisReinforceCount (item 64) ----------
+		//
+		// The defect this pins: a mission-HELD axis is pulled out of the live set before the allocator runs, so it
+		// was never topped up for the whole commitment window and every reinforcement stranded in the free pool.
+		// The asymmetry below IS the fix's contract — a held axis may GROW but must never SHRINK, because the
+		// freeze exists precisely so a unit already en route keeps its mission.
+
+		[Test]
+		public void HeldAxisReinforce_TopsUpToTheAllocatedShare()
+		{
+			// Two tanks holding an objective, four riflemen in the pool, allocator funds the axis at 6.
+			Assert.That(PoiOffenseMath.HeldAxisReinforceCount(6, 2, 4), Is.EqualTo(4));
+		}
+
+		[Test]
+		public void HeldAxisReinforce_NeverShedsWhenOverAllocated()
+		{
+			// The allocator would size it DOWN. A live axis sheds here; a held one must not — its units are
+			// already walking at the objective and taking them off mid-approach is the churn the hold prevents.
+			Assert.That(PoiOffenseMath.HeldAxisReinforceCount(2, 6, 4), Is.EqualTo(0));
+			Assert.That(PoiOffenseMath.HeldAxisReinforceCount(-1, 1, 4), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void HeldAxisReinforce_CappedByThePoolThatActuallyExists()
+		{
+			// Funded at 8 with 2 on the axis wants 6, but only one unit is free.
+			Assert.That(PoiOffenseMath.HeldAxisReinforceCount(8, 2, 1), Is.EqualTo(1));
+		}
+
+		[Test]
+		public void HeldAxisReinforce_EmptyPoolAndExactFillAreBothZero()
+		{
+			Assert.That(PoiOffenseMath.HeldAxisReinforceCount(8, 2, 0), Is.EqualTo(0));
+			Assert.That(PoiOffenseMath.HeldAxisReinforceCount(8, 2, -3), Is.EqualTo(0));
+			Assert.That(PoiOffenseMath.HeldAxisReinforceCount(4, 4, 5), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void HeldAxisReinforce_SingleHeldAxisSweepsTheLeftoverPool()
+		{
+			// The shape the opening push actually hits: ONE held axis, one objective. Sized by the same
+			// AllocateProportional the live path uses, a single axis takes the whole army — so the count is
+			// exactly the free pool and the reinforced axis ends up holding every unit that exists.
+			const int OnAxis = 2;
+			const int Pool = 4;
+			var sizes = PoiOffenseMath.AllocateProportional(new long[] { 500 }, OnAxis + Pool, 2);
+			Assert.That(PoiOffenseMath.HeldAxisReinforceCount(sizes[0], OnAxis, Pool), Is.EqualTo(Pool));
+		}
 	}
 }
