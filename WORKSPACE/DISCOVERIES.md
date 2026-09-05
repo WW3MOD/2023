@@ -20233,3 +20233,66 @@ Context: `dd952225` made `RepairsUnits` heal for the first time (`Repairable.Per
 Put to the user with three options (pause the burn while `unit.docked`; raise repair above the burn; keep it). **User picked "Keep it — critical means doomed."** Both rates stay as they are. This is consistent with the standing vocabulary (a vehicle "goes critical" at <50 % = fire + unrecoverable): the depot repairs damage, it does not put out fires. Do not add `RequiresCondition: !unit.docked` to the burn, and do not raise `PercentageStep` to "fix" this — it is decided.
 
 Consequence to keep in mind, not a bug: a burning vehicle sent to a Centre holds the single dock cell until it dies (`RepairTick` clears the Repair flag only at `Undamaged`, `Resupply.cs:601-612`), which from 30 % HP is ~400 ticks. The next client waits on `MoveOnto`'s occupied-cell branch for that long, then docks. Bounded by the death, so no queue was built. Scenario headers that list the three candidates (`test-lc-2x2-dock-and-undeploy.lua`, `test-depot-vacate-phantom`) describe a question that is now closed.
+
+
+## 2026-09-05 — Aircraft were the half of the repair fix that `0871d66a` did not reach: `PercentageStep` on `^Airborne`
+
+`0871d66a` (merged `dd952225`) taught `RepairTick` to fall back to `PercentageStep` when `HpPerStep`
+resolves 0, and its commit message says the behaviour change is "exactly: ground vehicles now repair
+at a Logistics Centre". That was accurate and it was also the whole story only because `^Vehicle`'s
+`Repairable` was the single repair-side `PercentageStep` in the mod. **Aircraft had none, and neither
+did their hosts** — `^Airborne` and `^Helicopter` declared `Repairable: RepairActors: afld / hpad`
+with no step, and `HPAD`/`AFLD` `RepairsUnits` (`mods/ww3mod/rules/ingame/structures.yaml:711`,
+`:786`) set neither `HpPerStep` nor `PercentageStep`. So the new fallback resolved 0 for every
+airframe and the aircraft half of the defect survived the fix that named it.
+
+**Both symptoms, not one.** The missing heal is the visible half; the wedge is the expensive one.
+`RepairTick` clears `ResupplyType.Repair` only at `DamageState.Undamaged`
+(`engine/OpenRA.Mods.Common/Activities/Resupply.cs:602`) and `Resupply`'s only exit is
+`activeResupplyTypes == 0` (`:339`), so a zero step means a damaged airframe that reaches a pad lands,
+heals nothing, and can never leave — while `Math.Max(1, ...)` at `:656` applies to the COST, so it is
+billed 1 credit per 24-tick `Interval` for the privilege, indefinitely. This is the same shape
+`0871d66a` measured on a vehicle ("hp 14000 -> 14000 ... in 598 ticks"); it was never measured on an
+airframe because no airframe can reach a pad on any shipped map (below).
+
+**Fixed at ONE site: `PercentageStep: 3` on `^Airborne`'s `Repairable`**
+(`mods/ww3mod/rules/ingame/aircraft.yaml:124-126`). `^Aircraft`, `^Helicopter` and `^Drone` all reach
+`Repairable` through `^Airborne`, and `^Helicopter`'s own `Repairable: RepairActors: hpad` **merges**
+with the inherited node rather than replacing it — it overrides the host list and inherits the step.
+The unit side was chosen over the pads because `RepairTick` prefers `repairable.Info.PercentageStep`
+over `repairsUnits.Info.PercentageStep` (`:644-646`), so a value there cannot be shadowed by a host,
+and because it mirrors `^Vehicle` (`vehicles.yaml:62-64`) instead of inventing a second idiom.
+Resulting bill for one helicopter (HELI, `Cost: 6000`, `HP: 800`): 24 HP and 36 credits per
+`Interval`, 14 steps from 60 % to full = **504 credits**; a full zero-to-max repair is ~1200, i.e.
+`ValuePercentage` 20 % of the unit's cost, as designed.
+
+**THE LIVE SURFACE IS ZERO, AND THAT IS WHY THIS WENT UNNOTICED.** `grep -rni 'hpad\|afld'
+mods/ww3mod/maps/` returns **nothing** — not "hpad on zero maps and afld on some", but *both* on
+**zero of the ten shipped maps** — and both carry `Buildable.Prerequisites: ~disabled`
+(`structures.yaml:688`, `:756`) with nothing in the repo providing `disabled` outside the EMP grant
+(`:218-220`). So no aircraft can dock anywhere today, and this fix changes nothing observable until a
+map places a pad. `logisticscenter` is named by no aircraft's `RepairActors`, and repointing them at
+it was tried and reverted (`68e8b885`).
+
+**`hpad` still cannot be placed at all: `hpad.shp` and `hpadmake.shp` do not exist**
+(`mods/ww3mod/lint-baseline.txt:353-354`) while `sequences-structures.yaml:667` declares `idle`/`make`
+against them. `afld` has complete art (`afldidle`/`afldmake`) and is already map-placed by
+`test-capture-rules`. That is why `test-heli-repairs-at-pad` uses two `afld`s and widens **only**
+`HELI.Repairable.RepairActors` in its `rules.yaml` — never `PercentageStep`, so its helicopter leg
+still has to get the step by inheritance.
+
+**Both bot profiles already route damaged helicopters to a repair host, and neither can find one.**
+`HelicopterStates.SendDamagedUnitsHome` (`engine/OpenRA.Mods.Common/Traits/BotModules/Squads/States/
+HelicopterStates.cs:96-111`) pulls a heli out at `AirframeReadiness.RepairRoutingBar(HasRepairHost(u),
+ReEngageHealthPercent, FleeHealthPercent)`, and `HelicopterSquadBotModule` has both an `@stable`
+(`ai.yaml:2500`) and an `@experimental` (`:2550`) twin. With no pad on any map `HasRepairHost` is
+always false, the bar is the flee bar, and `Aircraft.CanReturnToBase` refuses the order as a no-op —
+so `@stable` is byte-identical on every shipped and benchmark map. **The day a map places a pad, this
+fix changes `@stable`**, and the change is that its damaged helis will actually come back healed
+instead of parking on the deck forever.
+
+**Latent divergence worth knowing before that day**: `AirframeReadiness.HasRepairHost` accepts any
+`a.Owner.IsAlliedWith(self.Owner)` host (`AirframeReadiness.cs:66-69`), but `ReturnToBase.ChooseResupplier`
+requires `a.Owner == self.Owner` (`ReturnToBase.cs:47`). An ALLIED pad therefore raises the bot's
+routing bar to the recovery threshold and then supplies no destination — the heli is pulled out of the
+fight early and finds nowhere to go. Not touched here; there is no map on which it can fire.

@@ -1,0 +1,42 @@
+# Airframe repair-at-pad autotest.
+#
+# Nothing here enables the behaviour under test. The rate lives on ^Airborne's
+# Repairable (mods/ww3mod/rules/ingame/aircraft.yaml) in the shipped rules, and this
+# file never names PercentageStep. Everything below is either determinism hygiene or
+# the art workaround explained in map.yaml.
+
+Player:
+	# Headroom. The modelled bill is 504 credits per airframe (see the .lua), 1008 for
+	# the two patients, so a repair that stops early or never starts is visible as a
+	# shortfall rather than as a bankruptcy. RepairTick's TakeCash failure path sets
+	# remainingTicks = 1 and retries forever (Resupply.cs:665-669), which would look
+	# exactly like the wedge this test is here to detect — so the player must never be
+	# short.
+	PlayerResources:
+		DefaultCash: 20000
+
+World:
+	-StartGameNotification:
+	# UnitDefaultsManager applies THIS MACHINE's saved per-type stance defaults to
+	# human-owned units in Created (AutoTarget.cs). All six actors here are human-owned,
+	# so without this the verdict would depend on the dev's saved settings.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-heli-repairs-at-pad.lua
+
+# ART WORKAROUND, NOT A BEHAVIOUR OVERRIDE. hpad.shp/hpadmake.shp do not exist
+# (lint-baseline.txt:353-354), so a helicopter's shipped repair host cannot be placed
+# on any map without a render-time failure. Widening the host list to include afld is
+# the smallest edit that lets a real HELI dock at a real, drawable pad.
+#
+# THIS NODE MERGES, it does not replace: ^Helicopter declares `Repairable:
+# RepairActors: hpad` and ^Airborne declares `RepairActors: afld` + `PercentageStep: 3`,
+# so HELI's resolved Repairable is {RepairActors: hpad+afld, PercentageStep: 3} with the
+# step arriving ONLY by inheritance. Do not add PercentageStep here — doing so would
+# make the Heli leg pass even if the inheritance were broken, which is half of what it
+# is measuring.
+HELI:
+	Repairable:
+		RepairActors: hpad, afld

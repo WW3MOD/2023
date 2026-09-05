@@ -1,0 +1,21 @@
+A damaged airframe sent to a pad heals to full, leaves the deck, and is billed for it.
+
+Three airframes at 60% HP, all owned by the human player. A10 "Plane" and HELI "Heli" are
+each ordered to their own player-owned afld; HELI "Control" is given no order at all.
+
+PASS requires, at tick 1025:
+  * both patients at exactly MaxHealth (800/800),
+  * both patients airborne again (CenterPosition.Z > 0) — the wedge check,
+  * Control unchanged at 480 HP and still on the ground,
+  * the player billed 1008 credits (+/-15%) for the two repairs.
+
+The defect this pins: Repairable.PercentageStep / RepairsUnits.PercentageStep were unset on
+every airframe and on both pads, so RepairTick's step resolved 0. An airframe at a pad
+healed nothing and — because ResupplyType.Repair clears only at DamageState.Undamaged and
+Resupply's only exit is activeResupplyTypes == 0 — could never leave. Fixed by
+PercentageStep: 3 on ^Airborne's Repairable (mods/ww3mod/rules/ingame/aircraft.yaml).
+
+The host is an afld rather than an hpad because hpad.shp and hpadmake.shp do not exist in
+this repo (mods/ww3mod/lint-baseline.txt:353-354); rules.yaml widens HELI's RepairActors to
+reach one. It never sets PercentageStep, so the Heli leg still proves that ^Helicopter's
+Repairable node MERGES with ^Airborne's rather than replacing it.

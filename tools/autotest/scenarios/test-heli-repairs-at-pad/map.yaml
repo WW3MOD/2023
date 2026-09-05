@@ -1,0 +1,93 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a damaged airframe at a pad heals to full, then leaves
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Geometry is byte-identical to test-heli-evac-unrearmable / test-heli-squad-forms /
+# test-capture-rules (same map.bin, md5 d3906e15c660488eaeccba13211e8da1): an empty
+# 64x32 TEMPERAT field. Nothing here depends on terrain.
+#
+# WHY THE HOST IS AN afld AND NOT AN hpad, even for the helicopter legs.
+# `hpad.shp` and `hpadmake.shp` DO NOT EXIST in this repo — they are recorded as
+# missing in mods/ww3mod/lint-baseline.txt:353-354, and sequences-structures.yaml:667
+# still declares `idle`/`make` against them. Placing an hpad would therefore be a
+# render-time failure, not a test. DOCS/reference/economy.md calls that same absence
+# "the outstanding blocker to actually placing one". `afld` has complete art
+# (afldidle/afldmake) and is already map-placed by test-capture-rules, so it is the
+# only pad this suite can actually stand up.
+#
+# The substitution costs the test NOTHING, because the field under test is
+# Repairable.PercentageStep and not Repairable.RepairActors. rules.yaml widens only
+# HELI's RepairActors to include afld; PercentageStep is never mentioned there and
+# still has to arrive by inheritance from ^Airborne, through ^Helicopter's own
+# `Repairable:` node. That merge is exactly what the Heli leg proves.
+#
+# THREE AIRFRAMES, all owned by the same HUMAN player (Playable, no Bot: line), each
+# started at 60% HP by the Lua. 60% is deliberate: above the 50% floor at which the
+# critical-damage burn starts, which the user ruled on 2026-09-05 stays unchanged.
+#
+#   Plane  (10,8)  A10, ordered to PlanePad. ZERO rules overrides — its Repairable
+#                  comes straight from ^Airborne via ^Aircraft. This is the leg that
+#                  proves the shipped rule, with nothing in rules.yaml helping it.
+#   Heli   (10,24) HELI, ordered to HeliPad. Proves ^Helicopter's Repairable node
+#                  MERGES with ^Airborne's rather than replacing it — the helicopter
+#                  never declares PercentageStep anywhere.
+#   Control(8,16)  HELI, damaged the same and never ordered anywhere. Must stay at
+#                  60% and on the ground. Without it, any passive heal would read as
+#                  a pass.
+#
+# Two pads rather than one: Reservable admits a single aircraft at a time
+# (Reservable.IsAvailableFor), so sharing one pad would serialise the two patients
+# and make the window a race instead of a measurement.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	# One Playable slot, so the lint requires one spawn point. Placed well clear of
+	# both pads and all three airframes so it cannot influence any flight path.
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 3,16
+
+	PlanePad: afld
+		Location: 26,8
+		Owner: Me
+	HeliPad: afld
+		Location: 26,24
+		Owner: Me
+
+	Plane: a10
+		Location: 10,8
+		Owner: Me
+	Heli: heli
+		Location: 10,24
+		Owner: Me
+	Control: heli
+		Location: 8,16
+		Owner: Me
+
+Rules: rules.yaml
