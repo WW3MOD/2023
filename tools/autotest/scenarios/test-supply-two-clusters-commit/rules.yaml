@@ -61,6 +61,7 @@ World:
 #
 # `Enabled: false` covers BOTH halves of the trait: the idle low-ammo seek (AutoSeekSupplies.cs:175)
 # and the ReturnWhenEmpty break-off (:230) are each gated on it.
+
 ^Soldier:
 	AutoSeekSupplies:
 		Enabled: false
