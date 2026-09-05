@@ -1,4 +1,14 @@
-### 64. Coordinated combined-arms push — the first tank attacks alone **[PARTIALLY SHIPPED — merged but gated OFF]**
+### 64. Coordinated combined-arms push — the first tank attacks alone **[FREE-POOL HALF SHIPPED + MEASURING INSTRUMENT LANDED; the axis half is open and unbuilt]**
+
+> 🔧 **STATUS 2026-09-05 (`wt/item64`, base `main @ 62778af1`) — three commits, and one recon headline retracted.**
+>
+> * **`test-push-departs-together`** (`tools/autotest/scenarios/`) measures DEPARTURE, not arrival: d3 solo-departure, d1 first-to-last departure interval, d2 spread at the midline crossing. No carrier and no enemy mobile units, so it judges before contact — the rendezvous scenario's 2026-09-05 run died to the very symptom it was measuring. Carries an `expected-status: fail`: **d1/d2 measure a capability nothing in the tree implements.** Not launched by the worker; the manager runs it.
+> * **`FreePoolMinAdvanceUnits`** (default 0 = unchanged; **2 on both profiles**) gives `StageFreePool` the under-min gate attack axes already had. Pure `ForwardStagingMath.FreePoolMayAdvance`, four NUnit cases, cannot deadlock and never recalls a walking unit. **This is the lone-tank half, and it is the half that is now closed.**
+> * **`ImmediateReinforcementCommit: false`** on both profiles — a separate, droppable commit, held for the user's answer to question `57xgchytSi0YXrYdjbVIp`.
+>
+> ⚠️ **THE RECON'S HEADLINE IS RETRACTED, by code read (not by a run).** `ImmediateReinforcementCommit` is NOT the direct cause of the staggered opening push, because the hold it suppresses is unreachable on a reinforcement dribble: arm (b) is conjunctive on `RetreatDamperMath.FillIncomplete(Units.Count, AllocatedSize)`, and the allocator sizes each axis from the pool that exists this eval and **tops it up in the same pass** (`PoiOffensiveBotModule.cs:1699` + the loop below). The hold waits for allocated units still WALKING UP; it cannot wait for a unit that has not been called in yet. **So the pending user question may be moot** — measure before spending their attention on it. Full chain: `WORKSPACE/DISCOVERIES.md` 2026-09-05.
+>
+> **WHAT IS STILL OPEN, and it is the larger half.** Once two units exist an axis forms, and every later reinforcement is recruited into it and sent to the objective on the eval it arrives. **No gate anywhere makes a push wait at the muster for a unit that does not exist yet.** That is what d1/d2 measure and what nothing yet delivers. Axis churn (100% of retires `reason=dropped`, `ai.yaml:880-889`) remains out of scope and unfixed.
 
 > ✅ **VERDICT 2026-08-19 (`main @ 5890b053`) — PARTIALLY SHIPPED. Real implementation landed; it is switched off and was never proven to improve play.**
 >

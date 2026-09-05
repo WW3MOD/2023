@@ -3,6 +3,69 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-05 - The fill-completion massing hold cannot wait for a unit that does not exist yet, so `ImmediateReinforcementCommit` suppresses a hold that a reinforcement dribble never arms (`wt/item64`, base `main @ 62778af1`)
+
+**This retracts the headline of the 2026-09-05 item-64 recon.** That recon named
+`ImmediateReinforcementCommit: true` (`ai.yaml:817` / `:2965`) "the direct cause" of the user's lone-tank
+complaint and framed the item as a decision to re-put to the user. The flag is real, live on both profiles, and
+does exactly what its `Desc` says — but **on the input the user is describing it suppresses a hold that would
+not have fired anyway.** Read, not measured; the scenario below exists to settle it.
+
+The chain, all at `main @ 62778af1`:
+
+* `DamperShouldHold` (`PoiOffensiveBotModule.cs:4437`) is
+  `!SpawnFlowMath.SuppressMassingHold(...) && RetreatDamperMath.ShouldHold(...)`.
+* `ShouldHold` (`RetreatDamperMath.cs:149-165`) reaches its massing arm only when
+  `FillIncomplete(currentUnits, allocatedUnits)` — and `FillIncomplete` (`:101-102`) is
+  `allocatedUnits > 0 && currentUnits < allocatedUnits`.
+* `AllocatedSize` is written every eval from `PoiOffenseMath.AllocateProportional` over the pool **that exists
+  this eval** (`PoiOffensiveBotModule.cs:1699`), and the very next loop sheds surplus and **tops the axis up to
+  that allocation in the same pass**. `FillIncomplete`'s own doc-comment says so outright: *"unit conservation in
+  AllocateProportional means an axis reaches its allocation as soon as the recruit pass runs, so the hold lasts
+  only while units are genuinely still walking up"*.
+
+So the hold waits for **allocated units still walking up**. A reinforcement that has not been called in yet was
+never allocated, so it cannot make an axis under-filled, so it cannot arm the hold. Reverting the flag restores a
+gate that is structurally blind to the staggered arrival it is being asked to fix.
+
+**Two consequences worth carrying.**
+
+1. **The pending user question about reverting the 2026-08-05 SR-flow-shape pick may be moot**, and asking a user
+   to re-decide something that does not move the behaviour spends their attention for nothing. Measure first.
+2. **"The comment describes the mechanism accurately" is not the same as "the mechanism is reachable on this
+   input."** Every document in the chain above is correct about what it says; the gap only appears when you ask
+   *what state actually reaches this predicate*. Same shape as the `CloseInRatchetEnabled` finding
+   (`1452a82f`) — a lever whose premise was refuted by looking at how often the state it keys on occurs.
+
+**What DOES reach the opening push**, and is fixed in the same branch: the free pool had no minimum.
+`PoiOffenseMath.DesiredAxisCount` (`:4986-4994`) returns 0 below `EarlyMinAxisSize: 2`, so the first
+reinforcement forms no axis, falls to the free pool, and `StageFreePool` AttackMoves it forward **one order per
+unit** (`:2769-2771`, `groupedActors: new[] { u }`) with no minimum count. Attack axes have an under-min retire
+gate (`:1778`); staging had none. Now gated by `FreePoolMinAdvanceUnits` (default 0 = unchanged; 2 on both
+profiles), via the pure `ForwardStagingMath.FreePoolMayAdvance`.
+
+Live evidence for the shape, from the manager's 2026-09-05 run of `test-combined-arms-rendezvous`
+(`260905_180211_p9220`): `[exp-standoff] player=USA-bot held=4 free=1 tick=22` — the four riflemen withheld by
+`TransportStandoffEnabled` for a carrier — immediately followed by
+`[exp-staging] player=USA-bot anchor=12,16 idle=1 staged=1 advance=none advanced=0/0 tick=22`. One tank, ordered
+forward, alone, at tick 22. That run then failed with *"the bot's tank died before the rendezvous could be
+judged"*: the symptom ate its own test.
+
+**A scenario measuring this must judge BEFORE contact**, which is why `test-push-departs-together` has no enemy
+mobile units at all and measures line crossings rather than proximity. Two scenario-design facts fell out of
+building it and generalise:
+
+* **`TransportStandoffEnabled` makes any carrier on the map a confound for any free-pool measurement.**
+  `MountedTransportBotModule.RefreshWantedPassengers` returns early on `seats <= 0`, so the standoff arms only
+  when an EMPTY carrier of a `CarrierTypes` type (`bradley`, `bmp2`, `m113`) exists. Place one "for realism" and
+  the infantry are withheld from the free pool and the scenario times the ferry instead.
+* **Where you spawn a unit decides whether a staging order can be observed at all.** The no-belief fallback anchor
+  is deterministic — `TryResolveFallbackCell(SR → bounds centre, StagingFallbackCells)` — and slots fan out to
+  `MaxSpreadRings(6, 2) = 2` rings at 2-cell spacing around it. Spawn the unit inside that disc and
+  `SpreadSlot` can hand it the cell it is already standing on: the unit does not move, and a
+  "did it leave alone?" predicate passes with the gate switched OFF. Spawn behind the SR instead and every
+  reachable slot is strictly forward of the spawn line.
+
 ## 2026-09-05 - Item 56's follow-path churn is REAL BUT LARGELY UNREACHABLE at shipped config, because selection now implies the drop's demand gate (`wt/item56`, base `main @ eacc8f44`)
 
 The item's 2026-09-05 recon concluded that the follow path is "the entire remaining mechanism",
