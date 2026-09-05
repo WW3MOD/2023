@@ -48,6 +48,73 @@ content disables at `SupplyFollowerBotModule.cs:1662`; a one-line note now says 
 The fix itself is `ClusterStickinessNeedMargin` (`ai.yaml:1547`, engine default 0 = off), with
 `SupplyLogisticsMath.KeepHeldCluster` and an optional `held` seed on `AssignSectors`.
 
+## 2026-09-05 - The `evacuating` condition buys a unit NOTHING defensively, so making evacuation drive 12x further is a real cost and not a free correctness fix (`wt/evac-home-edge`, base `main @ 78a97b57`)
+
+Written while shipping item 78, which repoints the ground evacuation exit from the wall nearest
+the UNIT to the border nearest the owner's own `SUPPLYROUTE`. Measured with
+[`tools/evac-edge-math/`](../tools/evac-edge-math/README.md), which now prints both regimes:
+across the nine shipped maps with no `spawnarea`, for a unit within 20 cells of an opponent
+spawn, the exit moves from **70.4% through an opponent's border** to **99.5% through the
+owner's own**, and the median drive from **9.0 to 108.1 cells**. No game was launched.
+
+**The framing everyone repeats — "the `evacuating` condition deprioritises it as an auto-target"
+— is wrong, and wrong in the dangerous direction.** The condition is granted at
+`RotateToEdge.cs:251` and has exactly two consumers in mod data: `SelectionPriorityModifier`
+and a `WithDecoration` orange pip (`vehicles.yaml:135-144`, `infantry.yaml:159-167`,
+`aircraft.yaml:172-181`). `SelectionPriorityModifier` feeds `ISelectionPriorityModifier`, whose
+only reader is `SelectableExts.SelectionPriority` (`SelectableExts.cs:29-36`) — **the player's
+own mouse and box-select**, a client-side UI concern that no weapon, `AutoTarget` or targeting
+path ever consults. An evacuating unit is a completely ordinary auto-target for the whole
+drive. So the exposure multiplier is not softened by anything: **12.0x in the raid population**,
+and that is a floor, because straight-line distance under-states a 108-cell path across
+contested ground far more than it under-states a 9-cell one.
+
+**And the refund is all-or-nothing on arrival, then scaled by surviving HP.** `INotifySold.Sold`
+fires only from `RotateToEdge.cs:517`, reached only by an actor that got there; a unit killed en
+route raises `Selling` and never `Sold`, banking zero. Survive, and `refund = sellValue *
+refundPercent * hp / (100 * maxHP)` (`:511`) — so every hit taken during the extra 87 seconds
+shrinks the payout monotonically. At the shipped 60 ms Timestep (`mod.yaml:381-383`, 16.67 tps),
+a tracked `Speed: 70` (`vehicles.yaml:171`) covers 1.14 cells/s: **7.9 s before, 94.9 s after.**
+Infantry at `Speed: 25` (`infantry.yaml:48`) is 0.41 cells/s: **22 s before, 266 s after.**
+
+**Second-order, and it moves BOTH bot profiles:** `UnitBuilderBotModule`'s
+`CensusExcludeCondition` defaults to `evacuating` (`:479`), so an evacuating unit is dropped
+from the composition census for the whole drive — now roughly twelve times as long. The bot
+will therefore treat more unit-seconds as "already gone" and pull replacement buys forward.
+Nothing was measured about the size of that; it is named so the next benchmark baseline is
+re-taken knowingly rather than being read as noise.
+
+### The `?? CPos.Zero` hazard, and the census that shows the guard is load-bearing
+
+`FriendlyEvacuationOrigin` falls back to `self.Owner.HomeLocation` and then to `self.Location`.
+The second fallback looks like belt-and-braces and is not: a player occupying no lobby slot gets
+`pr.HomeLocation`, which defaults to **`CPos.Zero`** (`PlayerReference.cs:41`, `Player.cs:201`),
+so anchoring there would send every such evacuation to the map's top-left corner — a coordinate
+default masquerading as "their own side". `Player.cs:181` only assigns a real home when an
+`IAssignSpawnPoints` trait exists, and the sole implementation is `MapStartingLocations`.
+
+Censused across the 301 scenario directories:
+
+| | count | what the change does to it |
+|---|---|---|
+| places a `supplyroute` | 260 | anchors on it — the intended new behaviour |
+| no `supplyroute`, `-MapStartingLocations:` in `rules.yaml` | 39 | `HomeLocation` is `CPos.Zero`, falls through to `self.Location` — **byte-identical to today** |
+| no `supplyroute`, keeps `MapStartingLocations` | 2 | both are helicopter-only (`test-heli-evac-unrearmable`, `test-heli-repairs-at-pad`); aircraft take the untouched branch |
+
+**Zero scenarios author `HomeLocation` on a `PlayerReference` without also placing a
+`supplyroute`**, and zero shipped maps author it at all. So the guard is what keeps 41 existing
+scenarios — including `test-evac-queued-line`, whose entire documented geometry rests on
+`?? self.Location` — bit-for-bit unchanged. `230` of the 301 remove `MapStartingLocations`;
+that idiom is far commoner than it looks and is why the corner case is live rather than
+theoretical.
+
+**The one place the owner-side rule deliberately does not hold** is `RotateToEdge.cs:344-362`:
+after a `MoveTo` ends with the unit still 4+ cells from any border, the retry re-picks with
+`ChooseClosestEdgeCell(self.Location)` — unit-anchored and unfiltered. Re-anchoring there would
+re-pick the cell that just failed and burn all three retries on it, so "bail out through
+whatever border you can reach" is the correct recovery. It is now commented as a decision rather
+than left to be read as an oversight, and the change makes it materially more likely to fire.
+
 ## 2026-09-05 - The evacuation exit is owner-anchored on ONE shipped map and unit-anchored on nine, and that map is the natural experiment for item 78 (`wt/evac-edge-math`, base `main @ 95bdffb2`)
 
 `RotateToEdge.ChooseEdgeCell`'s ground branch reads

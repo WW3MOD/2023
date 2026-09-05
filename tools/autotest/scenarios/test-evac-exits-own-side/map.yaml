@@ -1,0 +1,119 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: ground evacuation exits through the OWNER's own side, not the nearest wall
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+# GEOMETRY. THREE OUTCOMES ON THREE DIFFERENT WALLS, AND THAT SEPARATION IS THE WHOLE POINT.
+#
+# Bounds is 1,1,64,32, so the perimeter Map.AllEdgeCells enumerates is x==1, x==64, y==1 and
+# y==32. RotateToEdge's ground branch sorts that perimeter by SQUARED straight-line distance
+# from a search origin and takes the first cell that is enterable and reachable
+# (Map.ChooseClosestMatchingEdgeCell). Every cell of this map is clear ground in ONE region,
+# so the filter rejects nothing and the answer is pure arithmetic on the origin.
+#
+# Three candidate origins, three separated answers:
+#
+#   origin (6,16)  -- OwnSR, the USA Supply Route. Left (1,16) at 25, Top (6,1) at 225,
+#                     Bottom (6,32) at 256, Right (64,16) at 3364.  -> 1,16   WEST WALL
+#   origin (58,16) -- Runner itself.             Right (64,16) at 36, Top (58,1) at 225,
+#                     Bottom (58,32) at 256, Left (1,16) at 3249.   -> 64,16  EAST WALL
+#   origin (55,3)  -- EnemySR, the Russia Supply Route. Top (55,1) at 4,
+#                     Right (64,3) at 81.                           -> 55,1   NORTH WALL
+#
+# Each minimum is strictly unique -- no tie can be broken by AllEdgeCells' enumeration order,
+# and no floored-sqrt regression in the sort key can slide the winner along a wall, because
+# the walls themselves differ. So the exit cell alone names which origin the engine used:
+#
+#   1,16  -> the fix: the exit is resolved from the owner's own Supply Route.
+#   64,16 -> the pre-fix behaviour: `?? self.Location`, the wall nearest the UNIT. Runner is
+#            deep in the east, so this is the map border BEHIND the enemy.
+#   55,1  -> the ally filter is broken and the search picked the nearest Supply Route of ANY
+#            owner. This is the negative control and it is why EnemySR exists at all.
+#
+# WHY THE ENEMY SUPPLY ROUTE IS THE NEGATIVE CONTROL RATHER THAN AN ALLIED ONE.
+# FriendlyEvacuationOrigin ranks `ProductionFromMapEdge` actors by distance to the unit and
+# keeps only those whose owner satisfies `self.Owner.IsAlliedWith(a.Owner)`. EnemySR at 55,3
+# is 13.3 cells from Runner against OwnSR's 52, so it wins that ranking outright and only the
+# relationship test excludes it. A scenario using an ALLY instead would need a third player
+# and a PlayerReference alliance, an idiom no scenario in this tree uses today; the enemy form
+# needs only `Enemies:`, which every scenario here already uses. What this map therefore does
+# NOT discriminate is own-SR versus allied-SR when both are friendly -- see description.txt.
+#
+# NOTHING SHOOTS AND NOTHING ELSE MOVES. SUPPLYROUTE carries `Targetable: TargetTypes:
+# NoAutoTarget` (structures.yaml), and rules.yaml additionally puts the Abrams on HoldFire, so
+# Runner cannot be diverted into an attack on the enemy Supply Route it drives past. Runner is
+# the only mobile actor on the map.
+#
+# THE SUPPLY ROUTES BLOCK NOTHING AT ALL, WHICH IS STRONGER THAN "THEY DO NOT SEAL ANYTHING".
+# Footprint is `=+= +++ =+=` at Dimensions 3,3 (structures.yaml:285-286), and none of those
+# characters is `x`: the five `+` cells are OccupiedPassableTransitOnly -- a unit may drive
+# THROUGH them and merely may not STOP there (Locomotor.CanStayInCell, Locomotor.cs:373) --
+# and the four `=` corners are fully stoppable. See conventions.md
+# "Footprint characters decide where a unit may STOP" for the whole five-character table.
+# OwnSR covers 6..8 x 16..18 and EnemySR 55..57 x 3..5; neither touches the perimeter, so no
+# candidate exit cell is affected either way. Confirmed with
+# `nav_guard.py report --scenarios --map test-evac-exits-own-side`: 2048 passable cells in ONE
+# region for every ground locomotor -- the full 64x32 Bounds, identical to a bare map. So
+# ChooseClosestMatchingEdgeCell's `CanEnterCell && CanReach` filter rejects no perimeter cell,
+# and every derived exit above is decided by the sort alone.
+#
+# THE mpspawn ACTORS ARE INERT HERE. rules.yaml removes MapStartingLocations, so no lobby slot
+# is ever assigned a home location and Player.HomeLocation stays CPos.Zero for every player
+# (Player.cs:181,201). They exist only because the lint wants a spawn point per Playable slot.
+# That is deliberate and load-bearing in the OTHER direction: it proves the exit is coming from
+# the Supply Route and not from HomeLocation, because HomeLocation carries no information on
+# this map at all.
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 6,16
+	EnemySR: supplyroute
+		Owner: Russia
+		Location: 55,3
+	Runner: abrams
+		Owner: USA
+		Location: 58,16
+		Facing: 512
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,30
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 63,30
+
+Rules: rules.yaml

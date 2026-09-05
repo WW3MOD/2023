@@ -1,0 +1,34 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# Explored ON, fog ON, both locked. Nothing here reads the shroud -- the assertion
+		# walks the activity queue -- but the run produces no capture and no human reads a
+		# frame, so this is simply the skirmish default (player.yaml:183) left alone.
+		FogCheckboxEnabled: true
+		FogCheckboxLocked: true
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	# MUST STAY REMOVED. StartingUnits' every class names `BaseActor: supplyroute`
+	# (world.yaml), so leaving SpawnStartingUnits in would place a SECOND USA Supply Route at
+	# the assigned spawn point and FriendlyEvacuationOrigin would rank that one against OwnSR
+	# instead of the geometry this map derives. The three expected exit cells would all move.
+	-SpawnStartingUnits:
+	# MUST STAY REMOVED, for the reason map.yaml gives: with no IAssignSpawnPoints trait,
+	# Player.HomeLocation falls back to PlayerReference.HomeLocation, which no player here
+	# authors, so it is CPos.Zero for everyone. That deliberately drains HomeLocation of all
+	# information, leaving the Supply Route as the only thing the exit could be resolved from.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-evac-exits-own-side.lua
+
+# Runner must not be diverted into a firefight on its way west. SUPPLYROUTE already declares
+# `Targetable: TargetTypes: NoAutoTarget`, so the enemy Supply Route is not an auto-target
+# anyway; this is belt-and-braces against any other auto-target path and costs nothing.
+abrams:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
