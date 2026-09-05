@@ -591,6 +591,24 @@ namespace OpenRA.Mods.Common.Traits
 			"toward a cell derived by rounding. This keeps the dispersal and drops the meaninglessness.")]
 		public readonly int StagingFallbackCells = 0;
 
+		[Desc("Forward staging MINIMUM: don't order the free pool forward of the rally to the muster anchor unless",
+			"it holds at least this many units, OR an attack axis is already live for this player. 0 (default) =",
+			"OFF, byte-identical to the pre-gate module, which is what every profile omitting the field reads.",
+			"THE HOLE IT CLOSES (PIPELINE item 64, 'the first tank attacks alone'): an attack axis cannot form",
+			"below EarlyMinAxisSize — PoiOffenseMath.DesiredAxisCount returns 0 — so the very first reinforcement",
+			"falls to the free pool, and StageFreePool then AttackMoves it forward ONE ORDER PER UNIT with no",
+			"minimum count and no composition check. Axes have an under-min retire gate; staging had none. Set this",
+			"to EarlyMinAxisSize and the two floors agree, so a unit that is too few to open an axis is also too few",
+			"to muster forward alone.",
+			"IT IS AN ATTACK-MOVE THAT IS BEING WITHHELD, not a march: the staging order engages on contact, which",
+			"is what makes a lone unit's muster look to the player like a lone unit's attack.",
+			"CANNOT DEADLOCK and holds nothing open: a per-eval count test, re-asked every ReevaluateInterval, with",
+			"no counter and no latch — see ForwardStagingMath.FreePoolMayAdvance. A withheld unit is simply not",
+			"ordered this eval; the second unit to arrive releases both. It never RECALLS a unit already walking,",
+			"so the pool shrinking below the floor does not lurch anyone rearward.",
+			"Only read when ForwardStagingEnabled.")]
+		public readonly int FreePoolMinAdvanceUnits = 0;
+
 		[Desc("Forward staging: hysteresis (map cells, Chebyshev) — the muster anchor is only re-ADOPTED (and the",
 			"formation re-laid) when it advances at least this far from the last adopted anchor, so a small field",
 			"wobble doesn't spam staging orders. Only read when ForwardStagingEnabled.")]
@@ -2686,6 +2704,27 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (!effectiveAnchor.HasValue || idle.Count == 0)
 				return;
+
+			// FORWARD-STAGING MINIMUM (item 64). Everything above this line is diagnosis and destination
+			// resolution; the first order is issued below. A pool too small to open an axis is too small to walk
+			// to the muster on its own, so refuse HERE — after [exp-clog] has printed, so a refused eval is still
+			// visible in the census rather than vanishing.
+			//
+			// The refusal is an early return and writes NOTHING: stagedCells keeps whatever it held, so a unit
+			// already walking (pool was 2, one died) stays on its standing order instead of being marched back.
+			// Departure gate, not a leash.
+			//
+			// `axes.Count > 0` is well-defined at BOTH call sites and means the same thing at each: on the
+			// no-targets path RetireAllAxes has just emptied the list (nothing to join — hold), and on the full
+			// path the held axes have already been folded back in, so it is the complete live set.
+			if (!ForwardStagingMath.FreePoolMayAdvance(ordered.Count, Info.FreePoolMinAdvanceUnits, axes.Count > 0))
+			{
+				Log.Write("debug",
+					$"[exp-staging] player={player.PlayerName} hold-under-min pool={ordered.Count}" +
+					$" min={Info.FreePoolMinAdvanceUnits} axes={axes.Count}" +
+					$" anchor={effectiveAnchor.Value} tick={tick}");
+				return;
+			}
 
 			var anchor = effectiveAnchor.Value;
 

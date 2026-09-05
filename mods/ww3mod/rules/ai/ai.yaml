@@ -723,6 +723,19 @@ Player:
 		# same 6-cell reasoning as ReserveFallbackCells above; on this path the pre-contact clog was heavier still,
 		# 8 of a 12-unit pool within 2 cells of the SR and 11 within 4, with 100% of arrivals retained.
 		StagingFallbackCells: 6
+		# FORWARD-STAGING MINIMUM (item 64, "the first tank attacks alone"). Set to EarlyMinAxisSize above, and the
+		# equality is the whole argument: DesiredAxisCount returns 0 below that floor, so a single reinforcement
+		# forms no axis, falls to the free pool, and StageFreePool AttackMoves it forward on its own — one order
+		# per unit, no minimum, no composition check. Axes have an under-min retire gate; staging had none. With
+		# the two floors agreed, a unit too few to OPEN an axis is also too few to MUSTER FORWARD alone.
+		# Withheld only while NO axis is live: once one exists the pool is not the whole army and a late arrival
+		# walking to the muster is joining a body, not starting one, so it is released — which is what keeps this
+		# aimed at the opening push rather than at every reinforcement all match.
+		# Not a wait state. Per-eval count test, re-asked every ReevaluateInterval (100 t), no counter, no latch,
+		# and it never recalls a unit already walking. See ForwardStagingMath.FreePoolMayAdvance.
+		# Both profiles carry it (2026-09-05 ruling: @stable is a re-synced copy of @experimental) — so this DOES
+		# change @stable, deliberately, and the next benchmark baseline should be re-taken.
+		FreePoolMinAdvanceUnits: 2
 		StagingHysteresisCells: 3
 		StagingMaxDescentSteps: 64
 		# PHASE 3 (frontline-influence) — RETREAT-OSCILLATION DAMPER. Builds on RetreatWhenLosing to stop small
@@ -2945,6 +2958,8 @@ Player:
 		StagingDangerSafeUnits: 10
 		StagingSpreadStepCells: 2
 		StagingFallbackCells: 6
+		# Forward-staging minimum (item 64) — mirrors @experimental; see the annotated copy there.
+		FreePoolMinAdvanceUnits: 2
 		StagingHysteresisCells: 3
 		StagingMaxDescentSteps: 64
 		RetreatDamperEnabled: true
