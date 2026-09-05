@@ -338,9 +338,9 @@ local function finish()
 	-- TargetDamageWarhead's CenterProximityPercent discounted it.
 	if corner.damage < MinCornerDamage then
 		Test.Fail("a Kinzhal clicked on the CORNER cell " .. CornerCellX .. "," .. CornerCellY
-			.. " of a 3x3 Logistics Center delivered only " .. corner.damage
+			.. " of a 2x2 Logistics Center delivered only " .. corner.damage
 			.. " damage (needs >= " .. MinCornerDamage .. "). The impact offset from the building's"
-			.. " centre is printed below: ~1448 means the order's target was never snapped, and the"
+			.. " centre is printed below: ~724 means the order's target was never snapped, and the"
 			.. " known cause is the clicked cell being invisible to whichever index"
 			.. " SupportPowerAimPoint.CandidatesAt asked. 30,11 is an `=` OccupiedPassable cell,"
 			.. " which BuildingInfo.OccupiedTiles omits and BuildingInfluence includes — so check"
@@ -361,7 +361,7 @@ local function finish()
 		return
 	end
 
-	Test.Pass("aim-point snap: a corner click and a centre click on identical 3x3 buildings"
+	Test.Pass("aim-point snap: two clicks on different cells of identical 2x2 buildings"
 		.. " delivered " .. corner.damage .. " and " .. centre.damage
 		.. " (gap " .. gap .. "). || " .. summary)
 end

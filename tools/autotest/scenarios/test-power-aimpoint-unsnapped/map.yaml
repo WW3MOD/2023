@@ -115,7 +115,14 @@ Actors:
 	# THE CORNER-CLICKED VICTIM. Location is the TOP-LEFT of the footprint, so this covers
 	# 30-32 x 10-12 and its centre cell is 31,11. The Lua clicks 30,10 — the top-left corner cell,
 	# the worst of the nine. With the snap off this is the shot that under-delivers.
-	CornerVictim: logisticscenter
+	#
+	# `logisticscenter.aimpoint3x3` SINCE 2026-09-05, not the shipped `logisticscenter`. The Centre
+	# became 2x2 that day and an even-dimensioned building has no centre CELL at all, which this
+	# scenario's control shot requires — every cell of a 2x2 reads the same 50% and the run measured
+	# exactly that (both shots 724wd, both 34000, gap 0). The local actor in rules.yaml restores the
+	# pre-resize 3x3 geometry and nothing else, so every constant in the Lua still holds. Its sibling
+	# test-power-aimpoint-center deliberately keeps the SHIPPED 2x2 Centre; see rules.yaml for why.
+	CornerVictim: logisticscenter.aimpoint3x3
 		Owner: USA
 		Location: 30,10
 
@@ -124,7 +131,8 @@ Actors:
 	# placement test-gbu57-asymmetry adopts for exactly this reason ("Placing it at 36,17 and aiming
 	# at 36,17 would put the impact on the building's top-left CORNER"): with no snap, centring the
 	# aim by hand is the ONLY way to get the warhead's stated damage out of it.
-	CenterVictim: logisticscenter
+	# Same local 3x3 actor — "identical building" below is load-bearing and must stay true.
+	CenterVictim: logisticscenter.aimpoint3x3
 		Owner: USA
 		Location: 30,22
 
