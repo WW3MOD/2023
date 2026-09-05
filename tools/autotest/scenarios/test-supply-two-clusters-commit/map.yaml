@@ -1,0 +1,216 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: supply truck commits to one of two clusters
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 100,60
+
+Bounds: 1,1,98,58
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES — the FOLLOW path's total absence of cluster memory (item 56, recon 2026-09-05).
+#
+# Every ScanInterval (150 ticks) SupplyFollowerBotModule rebuilds its clusters from scratch and
+# re-picks each truck's target by live AmmoNeed, nearest as tie-break — via SupplyLogisticsMath
+# .AssignSectors with SectorSpread on (SupplyFollowerBotModule.cs:1103), or the plain
+# need-descending pick without it (:1172-1178). There is NO per-truck memory of the cluster it is
+# already driving to: ShouldReissueFollow (:1523-1529) only suppresses a re-issue while the new
+# follow cell is within RepathThresholdCells: 3 of the old one, and a cluster switch always moves it
+# much further than 3 cells. The Move is non-queued, so the re-issue CANCELS the drive in progress.
+#
+# AmmoNeed is a live quantity. Two clusters whose need is close can swap places between two
+# consecutive scans with no danger term, no enemy and no event involved — and the truck turns around.
+# That is the user's reported symptom with nothing exotic in it.
+#
+# EVERY EXISTING SUPPLY SCENARIO CONTAINS EXACTLY ONE CLUSTER (test-supply-under-danger,
+# test-supply-far-front-reached, test-supply-safe-front-keeps-cargo), and a single cluster makes
+# re-pick oscillation structurally impossible. This map exists to supply the second cluster.
+#
+# ==================================================================================================
+# THE TRUCK CARRIES 80 SUPPLY, NOT 750, AND THAT IS THE WHOLE ISOLATION. DO NOT "FIX" IT TO A FULL
+# LOAD — a full truck cannot reach the code path this scenario exists to measure.
+#
+# At shipped config a truck that HAS a cluster almost never reaches the follow path at all, because
+# the drop path takes it first and then commits absolutely:
+#   * DropAnchorAtCluster: true (ai.yaml:1792) makes the drop anchor a cell DropShortCells: 5 back
+#     from the cluster the truck just picked (ClusterDropAnchor, SupplyFollowerBotModule.cs:1834).
+#   * SelectionMinStarvingUnits: 1 (ai.yaml:1661) and DropMinStarvingUnits: 1 (ai.yaml:1887) are the
+#     SAME number, and the drop counts starving men within 18 cells of that anchor
+#     (CountStarvingNear, SupplyFollowerBotModule.cs:2101) — a disc that always contains the cluster.
+#     So any cluster that selection admits, the drop's demand gate also admits.
+#   * The errand is then issued on that very scan and its destination is FROZEN
+#     (ResolveDropAnchor, :1906-1919); a later scan re-picking a different cluster changes nothing.
+# A full truck on this map would therefore drive straight to whichever platoon won scan 1 and drop —
+# zero reversals — and the scenario would go GREEN on the broken code it is built to catch.
+#
+# 80 is chosen to sit in the ONE band that puts a truck on the follow path with EVERY ai.yaml value
+# left exactly as shipped:
+#   * BELOW DropMinSupply: 100 (ai.yaml:1894) => SupplyDropMath.DropVeto returns LowLoad
+#     (SupplyDropMath.cs:221-222), StepDrop declines and returns false, and the caller falls through
+#     to the follow path — the path under test.
+#   * ABOVE SupplyProvider's RestockThreshold: 50 (vehicles.yaml:626) => IsLowOnSupply
+#     (SupplyFollowerBotModule.cs:2794-2800) is false, so the truck stays on the eligible roster
+#     instead of being released to DropsSupplyCache's map-edge evacuation before it does anything.
+# This is not a contrived state: it is an ordinary mid-match truck that has already served a platoon
+# or two from its aura. Serving in place while keeping the cargo IS the doctrine's other delivery
+# mode, quoted in the module itself at :1638-1642.
+#
+# 80 also comfortably affords the delivery. ^E3's primary pool is SupplyValue 2 for a 20-round batch
+# (infantry.yaml:1259), so lifting two riflemen clear of the starving bar costs 4 supply and
+# refilling all five from empty costs 50.
+# ==================================================================================================
+#
+# GEOMETRY (row 30 is the lane; distances are map cells)
+#   x=20   WEST platoon:  5x e3, drained in Lua
+#   x=50   Truck (truk, 80 supply) — exactly equidistant from both platoons
+#   x=80   EAST platoon:  5x e3, drained in Lua
+#   x=50,y=50  USA-bot Supply Route (carries no supply aura; cannot rearm anyone)
+#   (no enemy actor anywhere on the map)
+#
+# 30 CELLS EACH WAY IS LOAD-BEARING, and it is the one number a future editor is most likely to
+# shrink. It has to exceed ONE SCAN'S TRAVEL or the test measures nothing: TRUK's Mobile Speed is 75
+# (vehicles.yaml:599), i.e. 75/1024 cells per tick, so a truck covers ~11 cells in the 150 ticks
+# between scans. At the ~10 cells the item's recon originally suggested, the truck would ARRIVE
+# before it could ever be re-picked, the oscillation could not happen, and the scenario would go
+# green on broken code. Against the other bounds:
+#   - UNDER MaxFollowDistance: 35 (ai.yaml:1487) BY FIVE CELLS, for BOTH platoons. Both clusters must
+#     be selectable at all times; the leash is emphatically not what is under test here, and a
+#     platoon that fell outside it would silently turn this into a one-cluster map — i.e. into a test
+#     that cannot fail. If this map is ever stretched, that is the bound to recheck first.
+#   - The two platoons are 60 cells apart, six times FindUnitClusters' 10-cell grouping radius
+#     (SupplyFollowerBotModule.cs:2407), so they can never coalesce into one cluster.
+#   - The truck is EXACTLY equidistant (30/30), so AssignSectors' distance tie-break cannot decide
+#     anything: need order alone selects, which is the input the Lua drives.
+#
+# WHY THERE IS NO ENEMY. IgnoreDangerForDelivery: true (ai.yaml:1649) already makes evac, the
+# Stage-E detour, the drop-mode selector AND the ThreatMapManager read inert — that last one matters
+# and is worth stating, because both this item's dossier and DOCS/reference still describe
+# FindSafeFollowPosition as the danger site "no config flag reaches". At this SHA it is the FIRST
+# thing the method tests (SupplyFollowerBotModule.cs:2484), and with the flag on it returns the
+# cluster centroid unread. Removing the enemy is therefore belt-and-braces rather than the load-
+# bearing choice it is on test-supply-far-front-reached; what it buys is that the follow cell is a
+# pure function of the cluster centroid under EITHER setting of that flag, so the only thing that can
+# move this truck is which cluster was picked. A red here points at one thing.
+#
+# NOTHING ELSE CAN FEED EITHER PLATOON. ^E3's Rearmable lists only `truk, logisticscenter`; there is
+# no logistics centre here, SUPPLYROUTE carries no SupplyProvider, and rules.yaml switches
+# AutoSeekSupplies off so the men cannot walk to the truck either. An ammo climb therefore means the
+# truck itself parked inside its own 5-cell aura and served that platoon — a real delivery.
+#
+# HOME LOCATIONS ARE PINNED, and pinned SYMMETRICALLY, which matters more here than on the sibling
+# scenarios. rules.yaml removes MapStartingLocations, so Player.HomeLocation falls back to
+# PlayerReference.HomeLocation, which defaults to 0,0 — and ControlField.ApplyAnchors stamps a
+# permanent enemy control anchor at every enemy HomeLocation whether or not that player owns an
+# actor. Both anchors are placed on the x=50 column (due south and due north of the truck) so they
+# sit at an identical distance from BOTH platoons: an anchor nearer one platoon than the other would
+# be an asymmetry in the frontier field, and this whole scenario is a symmetry argument.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 50,50
+	# Declared, and deliberately owns NOTHING — an enemy player has to exist for USA-bot to have a
+	# front at all, but this one never puts an actor on the map, so no contact is ever believed and no
+	# danger is ever stamped. ConquestVictoryConditions is removed in rules.yaml, so an actorless
+	# player cannot end the match.
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA-bot
+		HomeLocation: 50,4
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 50,50
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 50,50
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 50,4
+
+	# The truck under test. Clear route both ways along row 30, equidistant from the two platoons, and
+	# 20 cells clear of the Supply Route's footprint. Supply: 80 is the isolation — read the block
+	# above before changing it; a full 750 truck drops on scan 1 and this scenario measures nothing.
+	Truck: truk
+		Owner: USA-bot
+		Location: 50,30
+		Supply: 80
+
+	# WEST platoon, 30 cells out. Five riflemen in one column, well inside FindUnitClusters' 10-cell
+	# radius, so they read as a single cluster; five clears MinNearbyFriendlies: 4 (and
+	# SmallSquadMinNearbyFriendlies: 2) with room.
+	West1: e3
+		Owner: USA-bot
+		Location: 20,28
+		Facing: 256
+	West2: e3
+		Owner: USA-bot
+		Location: 20,29
+		Facing: 256
+	West3: e3
+		Owner: USA-bot
+		Location: 20,30
+		Facing: 256
+	West4: e3
+		Owner: USA-bot
+		Location: 20,31
+		Facing: 256
+	West5: e3
+		Owner: USA-bot
+		Location: 20,32
+		Facing: 256
+
+	# EAST platoon, 30 cells out. Mirror of the west platoon in every respect the module reads.
+	East1: e3
+		Owner: USA-bot
+		Location: 80,28
+		Facing: 768
+	East2: e3
+		Owner: USA-bot
+		Location: 80,29
+		Facing: 768
+	East3: e3
+		Owner: USA-bot
+		Location: 80,30
+		Facing: 768
+	East4: e3
+		Owner: USA-bot
+		Location: 80,31
+		Facing: 768
+	East5: e3
+		Owner: USA-bot
+		Location: 80,32
+		Facing: 768
+
+Rules: rules.yaml

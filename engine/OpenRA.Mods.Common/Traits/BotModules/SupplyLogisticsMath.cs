@@ -55,10 +55,15 @@
  * pulls back on the very scan that sees the fire, and the damper cannot turn a withdrawal into a last stand.
  * This mirrors RetreatDamperMath's guard for the infantry retreat FSM, which cures the same failure mode.
  *
+ *   (5) COMMITMENT ON THE FOLLOW PATH — KeepHeldCluster: the need-margin deadband that stops a truck being
+ *       re-pointed at the other cluster every scan, plus AssignSectors' `held` seed, which is the same rule
+ *       applied through the spread. Added 2026-09-05 for item 56; OFF at a margin of 0.
+ *
  * DETERMINISM (influence-stack invariant): ZERO random draws. AssignSectors iterates trucks in the given
  * (caller-sorted, stable) order and sectors in index order, choosing on strict merit (unserved over served,
  * then Need desc, distance asc, sector-index asc) so two clients over the same synced state pick the same
- * assignment. The geometry is integer WPos/WVec math with a long intermediate so the scale never overflows.
+ * assignment; the `held` seed adds one earlier pass over the same order and reads nothing the greedy writes.
+ * The geometry is integer WPos/WVec math with a long intermediate so the scale never overflows.
  *
  * v3-portable: engine-free static math (NUnit-pinned in SupplyLogisticsMathTest); only the tasking plumbing
  * that consumes it (SupplyFollowerBotModule.BotTick) is engine-specific.
@@ -94,16 +99,54 @@ namespace OpenRA.Mods.Common.Traits
 		/// claimed does a truck double up on the best in-range one. Eligibility = within
 		/// <paramref name="maxFollowLength"/> of the truck. Selection order: unserved before served (the dedup),
 		/// then Need desc, then distance asc, then sector index asc — fully deterministic, no random draws.
-		/// Returns assignment[t] = sector index or <see cref="NoSector"/>.</summary>
-		public static int[] AssignSectors(IReadOnlyList<WPos> truckPositions, IReadOnlyList<Sector> sectors, int maxFollowLength)
+		/// Returns assignment[t] = sector index or <see cref="NoSector"/>.
+		///
+		/// <para><paramref name="held"/> SEEDS THE ASSIGNMENT WITH SECTORS TRUCKS ARE ALREADY SERVING, and it
+		/// is the spread path's half of the per-truck cluster stickiness (see <see cref="KeepHeldCluster"/>).
+		/// A truck with <c>held[t] != NoSector</c> keeps that sector outright and does not enter the greedy
+		/// pass at all. Null / absent ⇒ the pure greedy this method shipped with, unchanged.
+		///
+		/// <para>APPLYING THE SEED CANNOT BE FOLDED INTO THE GREEDY LOOP, and the reason is the dedup. Every
+		/// held sector has to be marked served BEFORE any truck picks, or a truck earlier in the order would
+		/// claim a sector a later truck is already driving to and the distinct-cluster property — the entire
+		/// point of the spread — would hold only for trucks that happened to be re-picked first. So this is
+		/// two passes over the same caller-sorted order: stamp every seed, then run the greedy for the rest.
+		/// Determinism is unaffected; both passes are index-ordered and neither reads the other's order.
+		///
+		/// <para>THE CALLER IS RESPONSIBLE FOR THE SEED BEING LEGAL. This method does not re-test a held
+		/// sector's distance against <paramref name="maxFollowLength"/>, does not check the margin, and will
+		/// honour a duplicate seed by letting the later truck double up — a seed is an instruction, not a
+		/// candidate. Every one of those tests already exists engine-side, where the cluster identity and the
+		/// per-cluster leash live; re-deriving weaker copies of them here would make it ambiguous which one
+		/// was authoritative.</para></summary>
+		public static int[] AssignSectors(IReadOnlyList<WPos> truckPositions, IReadOnlyList<Sector> sectors, int maxFollowLength,
+			IReadOnlyList<int> held = null)
 		{
 			var count = truckPositions.Count;
 			var assignment = new int[count];
 			var served = new bool[sectors.Count];
 			var maxSq = (long)maxFollowLength * maxFollowLength;
 
+			// PASS 1 — stamp the held sectors, so the greedy below sees them as already served.
+			if (held != null)
+			{
+				for (var t = 0; t < count; t++)
+				{
+					var seed = t < held.Count ? held[t] : NoSector;
+					assignment[t] = seed;
+					if (seed >= 0 && seed < sectors.Count)
+						served[seed] = true;
+					else
+						assignment[t] = NoSector;
+				}
+			}
+
+			// PASS 2 — the greedy, for every truck that is not holding one.
 			for (var t = 0; t < count; t++)
 			{
+				if (held != null && assignment[t] != NoSector)
+					continue;
+
 				var pos = truckPositions[t];
 
 				var pick = NoSector;
@@ -303,6 +346,48 @@ namespace OpenRA.Mods.Common.Traits
 			var dx = cellX - prevX;
 			var dy = cellY - prevY;
 			return dx * dx + dy * dy >= thresholdCells * thresholdCells;
+		}
+
+		/// <summary>Should a truck KEEP serving the cluster it is already driving to, rather than take the
+		/// best cluster this scan offers? The held cluster survives unless a challenger beats it on need by
+		/// more than <paramref name="needMargin"/>.
+		///
+		/// <para>WHY THE FOLLOW PATH NEEDS THIS AT ALL. The cluster list is rebuilt from scratch every scan
+		/// and the per-truck pick is re-derived from live AmmoNeed with no memory of the previous answer —
+		/// via <see cref="AssignSectors"/> under SectorSpread, or the need-descending pick without it. Need is
+		/// a live quantity that moves as men shoot, so two clusters sitting close together in need can swap
+		/// places between two consecutive scans with no danger term, no enemy and no event involved. The
+		/// follow Move is NON-QUEUED, so the re-issue cancels the drive already in progress and the truck
+		/// turns around — every scan, indefinitely. That is a truck that never arrives, and it is the whole
+		/// of the user's "going back and forth, not committing" with nothing exotic in it.
+		///
+		/// <para>THE MARGIN IS THE POINT, NOT THE MEMORY. A bare "keep what you have" would be a LATCH: a
+		/// cluster that got fed, or a genuinely desperate front elsewhere, could never take the truck off its
+		/// held customer. The margin makes the hold a DEADBAND instead — ordinary consumption noise cannot
+		/// move the truck, a materially needier cluster still can. It is the same instrument, one layer up,
+		/// as DropAnchorHysteresisCells on the drop anchor, and it is expressed in the caller's own need
+		/// units so both sides of the comparison are the quantity the pick already ranks on.
+		///
+		/// <para>THE BOUNDARY IS INCLUSIVE ON THE CHALLENGER'S SIDE: a challenger exactly
+		/// <paramref name="needMargin"/> ahead WINS. Stated because the other spelling makes the margin
+		/// mean "strictly more than", and a config value chosen as "the amount of noise to ignore" then
+		/// ignores one point more than it says.
+		///
+		/// <para><paramref name="needMargin"/> &lt;= 0 ⇒ never keep, i.e. the undamped per-scan re-pick this
+		/// module shipped with, so the deadband can be turned back off to a known baseline. That is also the
+		/// engine default, which is what keeps a profile that does not set the key byte-identical.
+		///
+		/// <para>The CALLER owns both of the other release conditions — the held cluster no longer being in
+		/// this scan's list, and it having fallen outside that truck's follow leash — because both are
+		/// engine-side lookups. Deliberately NOT passed in as bools: a predicate that took them would look
+		/// like it enforced them, and the caller would still be the only thing that could.</para>
+		/// Pure integer, zero RNG.</summary>
+		public static bool KeepHeldCluster(int heldNeed, int bestChallengerNeed, int needMargin)
+		{
+			if (needMargin <= 0)
+				return false;
+
+			return bestChallengerNeed < heldNeed + needMargin;
 		}
 
 		/// <summary>A pull-back point <paramref name="retreatLength"/> toward <paramref name="towards"/> (the

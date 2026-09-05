@@ -84,6 +84,25 @@ namespace OpenRA.Mods.Common.Traits
 			"each scan, without this the waypoint recedes and the maneuver restarts before it completes.")]
 		public readonly int RepathThresholdCells = 3;
 
+		[Desc("FOLLOW-PATH COMMITMENT (item 56): how far ahead on NeedScore a rival cluster must be before a",
+			"truck abandons the cluster it is already driving to. In the same units the pick already ranks on",
+			"— NeedScore = AmmoNeed x 1000, so 1000 is one wholly dry rifleman.",
+			"WHAT IT FIXES. The cluster list is rebuilt from scratch every scan and the per-truck target is",
+			"re-derived from live AmmoNeed with no memory of the previous answer. Need moves as men shoot, so",
+			"two clusters close together in need swap places between consecutive scans with no danger term, no",
+			"enemy and no event involved — and the follow Move is NON-QUEUED, so the re-issue cancels the drive",
+			"in progress. RepathThresholdCells does not help: it is a deadband on the follow CELL, and a cluster",
+			"switch always moves that cell far further than 3 cells.",
+			"A DEADBAND, NOT A LATCH. The hold is released the moment the held cluster leaves the scan's list,",
+			"falls outside that truck's own follow leash, or is beaten by more than this margin — and a drop",
+			"dispatch supersedes it outright. Choose the value as the amount of ordinary consumption noise to",
+			"ignore between two scans, NOT as a commitment strength: too large and a genuinely desperate front",
+			"cannot take the truck off a platoon that has already been fed.",
+			"A challenger EXACTLY this far ahead wins (see SupplyLogisticsMath.KeepHeldCluster).",
+			"0 disables it — the undamped per-scan re-pick, and the default, so a profile that does not set",
+			"this key is byte-identical.")]
+		public readonly int ClusterStickinessNeedMargin = 0;
+
 		[Desc("Sector spread: when several trucks are free, greedily assign each to a DISTINCT unit cluster",
 			"(neediest first) instead of every truck piling onto the same blob; only double up when trucks",
 			"outnumber clusters. This is a shared enable-ai-ANY module, so it is additionally gated on",
@@ -585,6 +604,26 @@ namespace OpenRA.Mods.Common.Traits
 		// same way lastVia is, so a stale record can never suppress the re-issue that restarts it.
 		readonly Dictionary<Actor, CPos> lastFollow = new Dictionary<Actor, CPos>();
 
+		// FOLLOW-PATH COMMITMENT (item 56): the cluster each truck is currently serving, keyed by truck and
+		// held as the cluster's ANCHOR MEMBER — the lowest-ActorID unit in it. Absent = no hold, re-pick
+		// freely. This is the memory the follow path had none of; see ClusterStickinessNeedMargin's Desc.
+		//
+		// WHY A MEMBER ACTOR AND NOT A CELL. UnitCluster objects are rebuilt from scratch every scan, so
+		// there is no object identity to keep, and the obvious substitutes are both wrong. A CENTROID CELL
+		// drifts continuously as the platoon moves and would need a tolerance — a second tuning knob whose
+		// value decides, invisibly, when two adjacent platoons stop being distinguishable. An INDEX into the
+		// list is meaningless across a rebuild. A member actor is exact: the same platoon is the cluster that
+		// still contains that man, however far it has walked, however its membership has churned around him.
+		//
+		// The LOWEST ActorID rather than the seed FindUnitClusters happened to start from, because the seed
+		// is an artefact of enumeration order and the minimum is a property of the set. Losing the anchor —
+		// he dies, or ends up in a different cluster — releases the hold, which fails toward the old
+		// re-pick-freely behaviour rather than toward a truck pinned on a memory nothing can dislodge.
+		//
+		// Read only for the truck being processed and written only for it; the prune sweep enumerates keys to
+		// DELETE, which is order-independent. No ordering dependence, no RNG.
+		readonly Dictionary<Actor, Actor> heldCluster = new Dictionary<Actor, Actor>();
+
 		// Danger-evac damper state per truck: whether it is currently on the evac branch, and how many scans
 		// that decision is still committed for. Absent = following, no dwell. Read only for the truck being
 		// processed (never enumerated for a decision), so it adds no ordering dependence.
@@ -808,6 +847,23 @@ namespace OpenRA.Mods.Common.Traits
 					lastFollow.Remove(a);
 			}
 
+			// The follow-path cluster hold, pruned on BOTH ends. The key half matches lastFollow's — a truck
+			// off follow duty holds nothing. The VALUE half has no counterpart in the maps above and is the
+			// reason this is not a one-line copy of them: the value is another actor, so a dead anchor left
+			// here would keep a corpse reachable from a live trait for the rest of the match. StickyCluster
+			// would already release such a hold (no live cluster can contain a dead man), so dropping it here
+			// changes no decision — it is purely about not holding the reference.
+			if (heldCluster.Count > 0)
+			{
+				var staleHolds = heldCluster
+					.Where(kv => !activeTrucks.Contains(kv.Key) || kv.Value.IsDead || !kv.Value.IsInWorld)
+					.Select(kv => kv.Key)
+					.ToList();
+
+				foreach (var a in staleHolds)
+					heldCluster.Remove(a);
+			}
+
 			if (evacState.Count > 0)
 			{
 				var stale = evacState.Keys.Where(a => !activeTrucks.Contains(a)).ToList();
@@ -1026,7 +1082,25 @@ namespace OpenRA.Mods.Common.Traits
 				orderedTrucks = trucks.OrderBy(t => t.ActorID).ToList();
 				var truckPositions = orderedTrucks.Select(t => t.CenterPosition).ToList();
 				var sectors = clusters.Select(c => new SupplyLogisticsMath.Sector(c.Center, NeedScore(c.AmmoNeed))).ToList();
-				var assignment = SupplyLogisticsMath.AssignSectors(truckPositions, sectors, maxFollowLength);
+
+				// FOLLOW-PATH COMMITMENT, SPREAD HALF. A truck that is keeping its cluster is SEEDED into the
+				// assignment rather than overridden after it, and the difference is not cosmetic: the greedy's
+				// whole product is a DISTINCT-cluster set, so a held sector has to be marked served before any
+				// other truck picks. Overriding afterwards would hand the held cluster to two trucks whenever a
+				// re-picked one got there first — the spread quietly ceasing to spread, on exactly the busy
+				// multi-truck scans it exists for. Null when nothing is held, which restores the plain greedy.
+				int[] heldSectors = null;
+				if (Info.ClusterStickinessNeedMargin > 0)
+				{
+					heldSectors = new int[orderedTrucks.Count];
+					for (var i = 0; i < orderedTrucks.Count; i++)
+					{
+						var sticky = StickyCluster(orderedTrucks[i], clusters);
+						heldSectors[i] = sticky != null ? clusters.IndexOf(sticky) : SupplyLogisticsMath.NoSector;
+					}
+				}
+
+				var assignment = SupplyLogisticsMath.AssignSectors(truckPositions, sectors, maxFollowLength, heldSectors);
 
 				spreadTargets = new Dictionary<Actor, UnitCluster>();
 				for (var i = 0; i < orderedTrucks.Count; i++)
@@ -1091,11 +1165,16 @@ namespace OpenRA.Mods.Common.Traits
 					}
 					else
 					{
-						bestCluster = clusters
-							.Where(c => WithinFollowLeash(truck, c))
-							.OrderByDescending(c => c.AmmoNeed)
-							.ThenBy(c => (c.Center - truck.CenterPosition).LengthSquared)
-							.FirstOrDefault();
+						// FOLLOW-PATH COMMITMENT, NON-SPREAD HALF. Applied here rather than inside the query
+						// because a hold is not a ranking preference — it OVERRIDES the ranking, which is the
+						// only thing that can stop a live need ordering re-pointing the truck every scan. The
+						// spread path gets the same rule one block up, as a seed into AssignSectors.
+						bestCluster = StickyCluster(truck, clusters)
+							?? clusters
+								.Where(c => WithinFollowLeash(truck, c))
+								.OrderByDescending(c => c.AmmoNeed)
+								.ThenBy(c => (c.Center - truck.CenterPosition).LengthSquared)
+								.FirstOrDefault();
 					}
 				}
 
@@ -1132,6 +1211,11 @@ namespace OpenRA.Mods.Common.Traits
 						+ $"/leash={(nearest != null ? FollowLeashCellsFor(nearest) : Info.MaxFollowDistance)}c "
 						+ $"spread={spread} spread-assigned={spreadTargets != null && spreadTargets.ContainsKey(truck)} "
 						+ $"errand={errand} "
+						// The hold, so a log can distinguish "picked the same cluster again" from "kept it".
+						// Those are the same target line and completely different behaviour, and telling them
+						// apart from outside is otherwise impossible.
+						+ $"held={(heldCluster.TryGetValue(truck, out var heldAnchor) ? heldAnchor.ActorID.ToString() : "<none>")}"
+						+ $"/margin={Info.ClusterStickinessNeedMargin} "
 						+ $"danger-at-truck={GroundDangerAt(truck.Location)} hunt={hunt}");
 				}
 
@@ -1246,6 +1330,18 @@ namespace OpenRA.Mods.Common.Traits
 
 					continue;
 				}
+
+				// RECORD THE HOLD. Everything above this line either returned or `continue`d, so this is
+				// reached by exactly the trucks that are about to be given a follow order — which is what the
+				// hold is memory OF. A truck taken by the drop path, the evac branch or the hunt never gets
+				// here, and each of those clears any hold it had alongside lastFollow, so the two memories
+				// cannot drift into disagreeing about whether a follow errand exists.
+				//
+				// Written unconditionally rather than only on a change: it costs one dictionary store and it
+				// re-anchors the hold onto the CURRENT lowest-ActorID member, so a platoon whose anchor was
+				// killed re-identifies itself on the next scan instead of releasing on the one after.
+				if (Info.ClusterStickinessNeedMargin > 0)
+					heldCluster[truck] = bestCluster.Anchor;
 
 				// The follow cell. On the evac path it was already resolved (and danger-gated) above, so reuse
 				// it rather than recomputing — the gate must apply to the cell actually ordered.
@@ -1368,6 +1464,58 @@ namespace OpenRA.Mods.Common.Traits
 		bool WithinFollowLeash(Actor truck, UnitCluster cluster)
 		{
 			return (cluster.Center - truck.CenterPosition).Length < WDist.FromCells(FollowLeashCellsFor(cluster)).Length;
+		}
+
+		/// <summary>The cluster this truck is already serving and should KEEP this scan, or null to re-pick
+		/// freely. The engine half of the follow-path commitment; the comparison itself is
+		/// <see cref="SupplyLogisticsMath.KeepHeldCluster"/>.
+		///
+		/// <para>FOUR RELEASE CONDITIONS, and every one of them is responsive — which is what makes this a
+		/// deadband rather than the latch species this module has been bitten by repeatedly. The margin is
+		/// off; there is no hold recorded; the held platoon is no longer a cluster at all (fed, dead, or
+		/// scattered below the grouping floor); it has fallen outside THIS truck's own leash; or some other
+		/// cluster now out-needs it by the margin. A truck can therefore always be prised off a customer that
+		/// stopped being one, and the fifth release — a drop being dispatched — happens one branch earlier,
+		/// where StepDrop clears the record alongside lastFollow.
+		///
+		/// <para>The challenger is the best of the clusters this truck could actually be sent to, so it is
+		/// leash-filtered exactly as the ordinary pick is. Skipping that filter would let an unreachable
+		/// cluster break a hold and strand the truck with no target at all.</para></summary>
+		UnitCluster StickyCluster(Actor truck, List<UnitCluster> clusters)
+		{
+			if (Info.ClusterStickinessNeedMargin <= 0)
+				return null;
+
+			if (!heldCluster.TryGetValue(truck, out var anchor))
+				return null;
+
+			UnitCluster held = null;
+			foreach (var c in clusters)
+			{
+				if (c.Members != null && c.Members.Contains(anchor))
+				{
+					held = c;
+					break;
+				}
+			}
+
+			if (held == null || !WithinFollowLeash(truck, held))
+				return null;
+
+			var challenger = 0;
+			foreach (var c in clusters)
+			{
+				if (c == held || !WithinFollowLeash(truck, c))
+					continue;
+
+				var need = NeedScore(c.AmmoNeed);
+				if (need > challenger)
+					challenger = need;
+			}
+
+			return SupplyLogisticsMath.KeepHeldCluster(NeedScore(held.AmmoNeed), challenger, Info.ClusterStickinessNeedMargin)
+				? held
+				: null;
 		}
 
 		/// <summary>Is the follow Move worth re-issuing for this truck this scan? Thin engine-side wrapper that
@@ -1555,6 +1703,7 @@ namespace OpenRA.Mods.Common.Traits
 					// true — the Stop has not been drained from the order queue) and suppresses the very
 					// Move that is supposed to pick the truck back up, parking it until the next scan.
 					lastFollow.Remove(truck);
+					heldCluster.Remove(truck);
 					Log.Write("debug",
 						$"[supply] drop-revoked truck={truck.ActorID}@{truck.Location} was-sent-to={sentTo} "
 						+ $"anchor={(anchor.HasValue ? anchor.Value.ToString() : "<none>")} "
@@ -1632,6 +1781,7 @@ namespace OpenRA.Mods.Common.Traits
 			// surviving record would claim a drive that no longer exists.
 			lastVia.Remove(truck);
 			lastFollow.Remove(truck);
+			heldCluster.Remove(truck);
 			Adopt(truck);
 			return true;
 		}
@@ -2175,6 +2325,7 @@ namespace OpenRA.Mods.Common.Traits
 			bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, world.Map.CellContaining(stopPosition)), false));
 			lastVia.Remove(truck);
 			lastFollow.Remove(truck);
+			heldCluster.Remove(truck);
 
 			if (Diagnostic)
 				WriteDiagnostic(
@@ -2286,13 +2437,23 @@ namespace OpenRA.Mods.Common.Traits
 						starving++;
 				}
 
+				// The identity anchor: the lowest ActorID in the cluster. A plain scan rather than an OrderBy
+				// because it is the MINIMUM that is wanted, not a sorted list, and this runs per cluster per
+				// scan. Deterministic by construction — it does not depend on the order `nearby` came in.
+				var anchor = nearby[0];
+				for (var i = 1; i < nearby.Count; i++)
+					if (nearby[i].ActorID < anchor.ActorID)
+						anchor = nearby[i];
+
 				clusters.Add(new UnitCluster
 				{
 					Center = center,
 					CenterCell = world.Map.CellContaining(center),
 					UnitCount = nearby.Count,
 					AmmoNeed = ammoNeed,
-					StarvingUnits = starving
+					StarvingUnits = starving,
+					Members = nearby,
+					Anchor = anchor
 				});
 
 				foreach (var a in nearby)
@@ -2554,6 +2715,7 @@ namespace OpenRA.Mods.Common.Traits
 				bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, retreatCell), false));
 				lastVia.Remove(truck);
 				lastFollow.Remove(truck);
+				heldCluster.Remove(truck);
 			}
 
 			// ENTRY EDGE unconditional; subsequent held/legged scans are a level, so they are gated. Both
@@ -2724,6 +2886,17 @@ namespace OpenRA.Mods.Common.Traits
 			// defaulting to false = trusted) makes forgetting it restore the latch silently, which is exactly
 			// how the same defect got through twice. Set it where the gate is applied, nowhere else.
 			public bool Gated;
+
+			// The units this cluster was built from, and the lowest-ActorID one of them. Together these are
+			// the cluster's IDENTITY ACROSS SCANS, which nothing else here can supply: the objects themselves
+			// are rebuilt from scratch every scan and the centroid moves continuously. Consumed only by the
+			// follow-path stickiness (heldCluster / ClusterStickinessNeedMargin).
+			//
+			// Members ALIASES the list FindUnitClusters already built, rather than copying it — the cluster
+			// and the list have the same per-scan lifetime, so a copy would buy nothing and cost an
+			// allocation per cluster per scan. Nothing mutates it after construction.
+			public List<Actor> Members;
+			public Actor Anchor;
 		}
 	}
 }

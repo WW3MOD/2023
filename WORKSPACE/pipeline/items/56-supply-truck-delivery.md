@@ -47,6 +47,15 @@ _**Cross-references, not duplicates:** item **40** (danger-scale rework) is the 
 
 ## Recon 2026-09-05 — read-only, `main @ 95bdffb2` (`wt/item56-recon`)
 
+> **STATUS UPDATED 2026-09-05 (`wt/item56`, base `main @ eacc8f44`) — §3's fix is BUILT AND SWITCHED ON, and §2's reachability claim is WRONG. The item is still open on the same thing it has always been open on: THE MATCH.**
+>
+> **Built:** `ClusterStickinessNeedMargin` (engine default `0` = off; `ai.yaml:1547` sets `1000`), `SupplyLogisticsMath.KeepHeldCluster`, and an optional `held` seed on `AssignSectors` so the spread honours the same hold. Cluster identity across scans is the cluster's lowest-ActorID member, not a centroid cell. Build clean, `dotnet test` 2649/0. New scenario `test-supply-two-clusters-commit` — **not yet run; the manager runs it.**
+>
+> **§2's "roughly 85% of trucks are on the follow path" is a pre-`c60a468d` figure and does not describe HEAD.** `DropAnchorAtCluster` derives the drop anchor from the cluster just picked, and `SelectionMinStarvingUnits` and `DropMinStarvingUnits` are both `1` over overlapping discs — so **any cluster that selection admits also clears the drop's demand gate**, the errand is issued on that same scan, and `ResolveDropAnchor` freezes it. A loaded truck that has a cluster essentially never reaches the follow path. What the fix governs is the trucks the drop DECLINED (`LowLoad`, `Covered`, `NoAnchor`) and every profile without the drop mode. Full working in `DISCOVERIES.md` 2026-09-05. **Same caveat applies to §4's `NoDemand` 54.1%: that baseline predates the selection gate — re-derive it, do not compare to it.**
+>
+> **§5(c) is now a one-line note in the curated doc**, at `supply-route.md`'s two-mode table: shipped content disables the selector at `SupplyFollowerBotModule.cs:1662`. **§5's other spent caution:** `FindSafeFollowPosition` is no longer "the site no config flag reaches" — `IgnoreDangerForDelivery` is the first thing it tests (`:2484`).
+
+
 **No build, no launch, no test run, no YAML validator.** Everything below is from reading files and git history at that SHA. Every line and SHA cite was checked in this worktree; claims that could not be settled by reading are labelled **HYPOTHESIS** with the one thing that would confirm them.
 
 ### 1. Verdict on the premise: OPEN, and narrower than the item states

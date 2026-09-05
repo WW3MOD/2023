@@ -10,6 +10,8 @@
  *       result is independent of anything but the caller's stable truck order.
  *   (3) EVAC DECISION — pull back when the higher of the truck / cluster danger meets the threshold.
  *   (4) EVAC GEOMETRY — the retreat point sits the retreat distance toward the SR, clamped to not overshoot.
+ *   (5) FOLLOW-PATH COMMITMENT — a truck keeps the cluster it is serving unless a challenger beats it on
+ *       need by more than the margin, and the spread honours the same hold through AssignSectors' seed.
  * Pure math over synthetic positions; no world mounted.
  */
 #endregion
@@ -457,6 +459,132 @@ namespace OpenRA.Test
 						$"dispatched={dispatched} idle={idle}: a zero-drift follow re-issues exactly when the errand is NOT running");
 				}
 			}
+		}
+
+		// ============================================================================================
+		// (5) FOLLOW-PATH COMMITMENT — KeepHeldCluster + AssignSectors' held seed.
+		//
+		// What these pin is a DEADBAND, and the two halves of that word are tested separately on purpose:
+		// that ordinary noise cannot move the truck (the cases below the margin) AND that a real challenger
+		// still can (the cases at and above it). A regression that turned the hold into a latch would pass
+		// every "keeps" test and fail exactly one of these.
+		// ============================================================================================
+
+		const int Margin = 1000;
+
+		[Test]
+		public void Commitment_NoiseBelowTheMarginDoesNotMoveTheTruck()
+		{
+			// The defect this exists for: two clusters ranked within consumption noise of each other, whose
+			// order inverts between two scans with nothing else changing. Both directions, because the
+			// symptom is the truck oscillating, not the truck being wrong once.
+			Assert.That(SupplyLogisticsMath.KeepHeldCluster(4000, 4099, Margin), Is.True, "challenger 99 ahead");
+			Assert.That(SupplyLogisticsMath.KeepHeldCluster(4000, 4000, Margin), Is.True, "dead level");
+			Assert.That(SupplyLogisticsMath.KeepHeldCluster(4000, 3000, Margin), Is.True, "challenger behind");
+			Assert.That(SupplyLogisticsMath.KeepHeldCluster(4000, 0, Margin), Is.True, "no challenger at all");
+		}
+
+		[Test]
+		public void Commitment_TheMarginBoundaryIsInclusiveOnTheChallengerSide()
+		{
+			// EXACTLY margin ahead WINS. Stated in the Desc and pinned here because the other spelling makes
+			// a value chosen as "the noise to ignore" ignore one point more than it says.
+			Assert.That(SupplyLogisticsMath.KeepHeldCluster(4000, 4000 + Margin - 1, Margin), Is.True);
+			Assert.That(SupplyLogisticsMath.KeepHeldCluster(4000, 4000 + Margin, Margin), Is.False);
+			Assert.That(SupplyLogisticsMath.KeepHeldCluster(4000, 4000 + Margin + 1, Margin), Is.False);
+		}
+
+		[Test]
+		public void Commitment_AGenuinelyNeedierClusterStillTakesTheTruck()
+		{
+			// The anti-latch case, and the one a "make it stickier" tuning pass is most likely to break. A
+			// platoon that has been fed drops to near-zero need while another is starving; the truck MUST be
+			// able to leave, or the fix has replaced churn with a truck parked on a customer that has none.
+			Assert.That(SupplyLogisticsMath.KeepHeldCluster(200, 4500, Margin), Is.False);
+			Assert.That(SupplyLogisticsMath.KeepHeldCluster(0, 1000, Margin), Is.False);
+		}
+
+		[Test]
+		public void Commitment_ZeroMarginIsTheUndampedBaseline()
+		{
+			// The documented off-switch and the engine default: never keep, i.e. the per-scan re-pick this
+			// module shipped with, so a profile that does not set the key is byte-identical.
+			Assert.That(SupplyLogisticsMath.KeepHeldCluster(4000, 0, 0), Is.False);
+			Assert.That(SupplyLogisticsMath.KeepHeldCluster(4000, 0, -1), Is.False);
+		}
+
+		[Test]
+		public void Commitment_HeldSeedKeepsTheSectorAndTheGreedyStillSpreadsAroundIt()
+		{
+			// Truck 0 holds sector 1 even though sector 0 is needier and nearer — the hold overrides the
+			// ranking, which is the whole point. Truck 1 has no hold and must still get a DISTINCT sector,
+			// which is only possible because the seed was stamped before the greedy ran.
+			var trucks = new List<WPos> { Pos(0, 0), Pos(0, 0) };
+			var sectors = new List<SupplyLogisticsMath.Sector> { Sector(5, 0, 900), Sector(20, 0, 100) };
+
+			var assign = SupplyLogisticsMath.AssignSectors(trucks, sectors, MaxFollow, new[] { 1, SupplyLogisticsMath.NoSector });
+
+			Assert.That(assign[0], Is.EqualTo(1), "the held sector is kept over a needier, nearer one");
+			Assert.That(assign[1], Is.EqualTo(0), "the unheld truck takes the other sector, not the held one");
+		}
+
+		[Test]
+		public void Commitment_HeldSeedIsCountedAsServedForTheDedup()
+		{
+			// The reason the seed cannot be an override applied AFTER the greedy. Truck 1 holds sector 0;
+			// truck 0 is re-picked first and would take sector 0 on merit. If the seed were applied
+			// afterwards both trucks would end up on sector 0 and the spread would have quietly stopped
+			// spreading — on precisely the busy multi-truck scans it exists for.
+			var trucks = new List<WPos> { Pos(0, 0), Pos(0, 0) };
+			var sectors = new List<SupplyLogisticsMath.Sector> { Sector(5, 0, 900), Sector(6, 0, 800) };
+
+			var assign = SupplyLogisticsMath.AssignSectors(trucks, sectors, MaxFollow, new[] { SupplyLogisticsMath.NoSector, 0 });
+
+			Assert.That(assign[1], Is.EqualTo(0));
+			Assert.That(assign[0], Is.EqualTo(1), "the earlier truck was pushed off the sector a later truck holds");
+		}
+
+		[Test]
+		public void Commitment_NoHeldSeedIsTheUnchangedGreedy()
+		{
+			// Byte-identity guard for the OFF path: an all-NoSector seed, and a null seed, must both give
+			// exactly what the three-argument overload gives.
+			var trucks = new List<WPos> { Pos(0, 0), Pos(30, 0) };
+			var sectors = new List<SupplyLogisticsMath.Sector> { Sector(5, 0, 900), Sector(25, 0, 800) };
+
+			var plain = SupplyLogisticsMath.AssignSectors(trucks, sectors, MaxFollow);
+			var nulled = SupplyLogisticsMath.AssignSectors(trucks, sectors, MaxFollow, null);
+			var empty = SupplyLogisticsMath.AssignSectors(trucks, sectors, MaxFollow,
+				new[] { SupplyLogisticsMath.NoSector, SupplyLogisticsMath.NoSector });
+
+			Assert.That(nulled, Is.EqualTo(plain));
+			Assert.That(empty, Is.EqualTo(plain));
+		}
+
+		[Test]
+		public void Commitment_HeldSeedIsDeterministic()
+		{
+			// Same influence-stack invariant the plain assignment carries: identical synced inputs, identical
+			// answer, no random draws — now over the two-pass form as well.
+			var trucks = new List<WPos> { Pos(0, 0), Pos(10, 0), Pos(20, 0) };
+			var sectors = new List<SupplyLogisticsMath.Sector> { Sector(5, 0, 900), Sector(15, 0, 800), Sector(25, 0, 700) };
+			var held = new[] { 2, SupplyLogisticsMath.NoSector, 0 };
+
+			Assert.That(SupplyLogisticsMath.AssignSectors(trucks, sectors, MaxFollow, held),
+				Is.EqualTo(SupplyLogisticsMath.AssignSectors(trucks, sectors, MaxFollow, held)));
+		}
+
+		[Test]
+		public void Commitment_AnOutOfRangeSeedIndexIsIgnoredRatherThanThrowing()
+		{
+			// The caller owns seed legality (the Desc says so), but a seed that named a sector index the
+			// list no longer has must degrade to "no hold" rather than take the whole scan down with it.
+			var trucks = new List<WPos> { Pos(0, 0) };
+			var sectors = new List<SupplyLogisticsMath.Sector> { Sector(5, 0, 900) };
+
+			var assign = SupplyLogisticsMath.AssignSectors(trucks, sectors, MaxFollow, new[] { 7 });
+
+			Assert.That(assign[0], Is.EqualTo(0));
 		}
 	}
 }
