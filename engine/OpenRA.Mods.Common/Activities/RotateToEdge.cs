@@ -127,6 +127,47 @@ namespace OpenRA.Mods.Common.Activities
 			return closest;
 		}
 
+		/// <summary><para>The OWNER-SIDE point a ground evacuation is resolved from: the nearest friendly
+		/// <c>SUPPLYROUTE</c> — the player's own, or an ally's if that one is closer to the unit.</para>
+		///
+		/// <para>This exists because the ground branch's fallback used to be <c>self.Location</c>, which is a
+		/// property of the UNIT while the arm in front of it (<see cref="FindClosestSpawnAreaForOwner"/>) is a
+		/// property of the PLAYER. Nine of the ten shipped maps author no <c>spawnarea</c>, so nine of ten took
+		/// the unit-anchored arm and a unit standing in enemy territory left through the ENEMY's border —
+		/// measured at 70.4% of exits for a unit within 20 cells of an opponent spawn, on a median 9-cell drive
+		/// against 108 cells home (<c>tools/evac-edge-math/</c>). That was never a designed behaviour; it was
+		/// which side of a <c>??</c> the map happened to select. <c>river-zeta-ww3</c>, the one map WITH
+		/// <c>spawnarea</c> actors, already exits 100% through the owner's own wall — this makes the other nine
+		/// agree with it rather than the other way round.</para>
+		///
+		/// <para>Allies are included on a direct user ruling ("possibly that they can evacuate at any allied SR
+		/// as well, on their edge, if it is closer"). <c>IsAlliedWith</c> is reflexive
+		/// (<c>Player.RelationshipWith</c> returns Ally for <c>this == other</c>), so in a free-for-all this is
+		/// exactly the player's own Supply Route and the ally clause costs nothing. Ranking is by distance to
+		/// the UNIT, which is what "if it is closer" means.</para>
+		///
+		/// <para>Last-resort <c>self.Location</c>: an owner with no Supply Route AND no home. A map player that
+		/// occupies no lobby slot gets <c>PlayerReference.HomeLocation</c>, which defaults to
+		/// <c>CPos.Zero</c> (PlayerReference.cs:41, Player.cs:201) — anchoring there would send every such
+		/// evacuation to the map's top-left corner, which is not "their own side", it is a coordinate default.
+		/// Autotest scenarios routinely declare an opponent this way, so this arm is live, not theoretical.
+		/// Keeping today's answer there is deliberate: no owner-side information exists, so do not invent any.</para>
+		///
+		/// <para>NOT used by the aircraft branch, which is already owner-anchored via
+		/// <c>?? self.Owner.HomeLocation</c> and is correct as it stands.</para></summary>
+		static CPos FriendlyEvacuationOrigin(Actor self)
+		{
+			var nearestFriendlySR = self.World.ActorsHavingTrait<ProductionFromMapEdge>()
+				.Where(a => !a.IsDead && a.IsInWorld && self.Owner.IsAlliedWith(a.Owner))
+				.MinByOrDefault(a => (a.Location - self.Location).LengthSquared);
+
+			if (nearestFriendlySR != null)
+				return nearestFriendlySR.Location;
+
+			var home = self.Owner.HomeLocation;
+			return home != CPos.Zero ? home : self.Location;
+		}
+
 		/// <summary><para>Where this evacuation is headed. Pure: it reads world state but changes none of it, which
 		/// is what lets the CONSTRUCTOR call it — and that is the whole point.</para>
 		///
@@ -161,9 +202,11 @@ namespace OpenRA.Mods.Common.Activities
 
 			if (mobileInfo != null)
 			{
-				// Ground units retreat toward the SpawnArea edge
+				// Ground units retreat toward the SpawnArea edge — and when the map authors no SpawnArea, toward
+				// the friendly Supply Route itself. Both arms of this `??` are now the SAME KIND of answer: a
+				// property of the OWNER, not of the unit. See FriendlyEvacuationOrigin.
 				var spawnAreaHintGround = FindClosestSpawnAreaForOwner(self);
-				var searchOrigin = spawnAreaHintGround ?? self.Location;
+				var searchOrigin = spawnAreaHintGround ?? FriendlyEvacuationOrigin(self);
 				return self.World.Map.ChooseClosestMatchingEdgeCell(searchOrigin,
 					c => mobileInfo.CanEnterCell(self.World, null, c) && CanReach(self, mobileInfo, c));
 			}
@@ -306,6 +349,14 @@ namespace OpenRA.Mods.Common.Activities
 				return true;
 			}
 
+			// DELIBERATE, and it is the one place the owner-side rule does not hold: this retry is
+			// UNIT-anchored and unfiltered on purpose. It runs only after a MoveTo has already ENDED with the
+			// unit still four or more cells from any border — i.e. the drive home was physically blocked.
+			// Re-anchoring on the Supply Route here would re-pick the cell that just failed and burn all three
+			// retries reaching the same wall, so "bail out through whatever border you can actually reach" is
+			// the correct recovery. The owner-side choice becomes materially more likely to need it: the drive
+			// was a median 9 cells before this change and is roughly 108 after it, and a longer path across
+			// contested ground is a path with more chances to be blocked.
 			movingToEdge = false;
 			edgeCell = self.World.Map.ChooseClosestEdgeCell(self.Location);
 			return false;
