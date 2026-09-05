@@ -20300,3 +20300,63 @@ Closing those needs an engine change — split the module, or widen the comparis
 So the accurate model is: *`@stable` is a re-synced copy, EXCEPT where a behaviour is selected by a C# bot-type comparison inside a shared singleton module.* Grep for the comparison before concluding a `@stable` gap is mere drift. As of this entry the known set is exactly those two files, plus `OpportunisticAdvanceMath.cs` and `SpawnFlowMath.cs`, which reference the same helpers and were not audited here.
 
 **Open, and the user raised it unprompted:** they want `@experimental` / `@stable` renamed before release — *"Maybe we should call them Staging and Main? Or something that is harder to misunderstand?"* Worth coupling to release blocker R4, which already needs the lobby AI picker given real names, a difficulty ladder and descriptions (`rules/ai/ai.yaml`, `grep -c 'Difficulty\|Description'` returns 0). One change, not two.
+
+## 2026-09-05 — Bullets DO lead in this engine. Two in-tree sources say otherwise and both are wrong (`wt/counter-intercept`, `main @ 95bdffb2`)
+
+`Bullet` really does fly to a fixed point — `target = args.PassiveTarget`
+(`engine/OpenRA.Mods.Common/Projectiles/Bullet.cs:201`). That reading is correct and it is the wrong
+**file boundary**: the lead is applied one level up, in `Armament`, *before* `PassiveTarget` reaches
+the projectile.
+
+```csharp
+// engine/OpenRA.Mods.Common/Traits/Armament.cs:616-661, inside the ScheduleDelayedAction lambda
+if (Weapon.Projectile is BulletInfo bullet && Target.Value.Type != TargetType.Invalid)
+    …
+    var leadTarget = WVec.CalculateLeadTarget(self.CenterPosition, initialPosition, targetPosition,
+        Info.FireDelay, bullet.Speed.First().Length);
+    …
+    args.PassiveTarget = aimCenter + args.TargetingVector;
+```
+
+Reachability, checked rather than assumed: `Armament.Target` is set at the top of `FireBarrel`
+(`:501`) before the lambda is scheduled (`:579`); `AimInitialTargetPosition` is cleared on retarget
+(`:431`), appended in `FireBarrel` (`:518`) and popped FIFO in the lambda (`:631`, `:639-640`), so
+`initialPosition` is the target's position exactly `FireDelay` ticks earlier; and
+`ArmamentInfo.FireDelay` defaults to **3, not 0** (`:98`), whose own `[Desc]` says outright *"Cannot
+be 0 for Bullet Projectiles as it is used to calculate how much to lead target by checking position
+change (speed) between this many ticks."* `git log -L 616,662:…/Armament.cs` dates the helper call to
+`9e7e3902` (2023-06-20), and that diff is 1 insertion / 6 deletions — it *replaced* pre-existing
+inline lead code. Bullets have led for longer than that commit.
+
+**The two stale assertions, both post-dating it:**
+- `mods/ww3mod/rules/weapons/weapons-ballistics.yaml:711-712` — *"Bullets do not lead (Bullet.cs:200
+  aims at the target's position at fire time)"*, load-bearing for a tuning argument that wide
+  scatter is a buff against movers.
+- `WORKSPACE/recon/powers-interception.md` §4.2 — *"Guns do not lead. At all."*
+
+**What the lead is actually worth**, porting the engine's arithmetic exactly (both integer
+truncations; `distanceToTarget` is `HorizontalLength`, i.e. 2D, while `Bullet` then computes flight
+time over the 3D distance at `Bullet.cs:228`). Hit radius for a `^ShootableMissile` is 427 WDist =
+`CircleShape` default 426 (`HitShapes/Circle.cs:28`) + `TargetDamage` default `Spread` 1:
+
+| `20mm_CRAM` vs Iskander @600 | crossing | closing | if there were no lead |
+|---|---|---|---|
+| at 10 cells | 1200 | 3000 | 6000 |
+| at 22 cells (max range) | 1800 | 7800 | **13200 ≈ 11–13 cells** |
+
+So the widely-quoted "eleven cells" is the **no-lead** figure. The verdict it supported (a CRAM
+cannot reliably kill a ballistic missile) survives; the magnitude is ~1.2–1.8 cells crossing, not
+~11, and the cause is a **single-iteration** intercept solve rather than an absent one.
+
+Two consequences worth carrying:
+1. **The closing geometry is worse than the crossing geometry** — the one-shot solve over-leads badly
+   when the target is coming at you (7800 vs 1800 at 22c). A gun sited on the point being attacked is
+   in its own worst case.
+2. **Below one tick of bullet travel the lead is exactly zero**, because
+   `ticksToReachTarget = distanceToTarget / projectileSpeed` is integer division. For a `Speed: 8c0`
+   weapon that is every engagement inside 8 cells.
+
+Not settled empirically — I could not launch. The falsifying run is one salvo with `WW3_GUNTRACE=1`
+(`engine/OpenRA.Mods.Common/GunTrace.cs:23-24`): `Bullet.cs:402` logs `aimedAt=`, which is either
+displaced along the target's velocity (lead live) or equal to its fire-time position (lead dead).
+Full working: `WORKSPACE/recon/260905-intercepting-ballistic-munitions.md` §6.
