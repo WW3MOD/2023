@@ -299,6 +299,8 @@ Framing for this batch (why 63/64 are not one item, and what 65 has to do with e
 
 ---
 
+> **2026-09-05 (`main @ bb89f9fd`): the lone tank is found and gated; the item stays open on a third mechanism.** Recon (`62778af1`) + implementation (`bb89f9fd`): the first tank was being posted ALONE as a one-unit ambush lane by `LaneAmbushBotModule` at tick 100, before the offense stager had a pool — not the 08-05 "advance singly" pick, which was measured inert and stands. Shipped: `MinUnitsPerAmbush: 2` (lane posts a pair or none) and `FreePoolMinAdvanceUnits: 2` (no lone unit ordered forward), both profiles — **`@stable` moved, re-take the baseline.** `test-push-departs-together`: gate-0 control first tank alone at t211; HEAD both tanks leave together and advance together; the midline-spread clause still fails because infantry never joins — `PartitionHeldAxes` pulls a committed axis out of the live set before `BuildFreePool`, so `StageFreePool` marches it back to the muster (6 cells per 300 ticks). **That axis↔staging beat is what remains of item 64**; the scenario ships `expected-status: fail` until it is fixed. Dossier: `items/64-combined-arms-push.md` §Recon 2026-09-05 + §measured arms.
+
 ### 40. Danger-scale rework — stop the bot treating ordinary ground as lethal
 `[stage (a) DONE ddcc5d6c; stage (b) instrument landed; stage (c) OPEN and is now the whole item]`
 **Perceived:** the bot stops flinching at nothing. Supply trucks actually deliver instead of driving part-way and turning back; units stop refusing to advance across terrain that is not in fact dangerous.
