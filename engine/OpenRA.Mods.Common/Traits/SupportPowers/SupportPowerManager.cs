@@ -245,6 +245,16 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Ready)
 				return;
 
+			// Resolved HERE rather than in SelectGenericPowerTarget because this is the one seam
+			// every order source funnels through — the human order generator, a bot's QueueOrder
+			// (SupportPowerBotModule.cs:114-115, which builds Target.FromCell), and a Lua binding
+			// alike — and because it runs on the synced order-resolution path, so every client
+			// resolves the same aim point from the same world rather than trusting the position one
+			// client computed. The cost is that the order generator cannot draw the resolved point
+			// without duplicating this; see the comment on SelectGenericPowerTarget.GetCursor.
+			if (Info != null && Info.SnapToActorCenter)
+				order = SupportPowerAimPoint.SnapToActorCenter(Manager.Self.World, order);
+
 			var power = Instances.Where(i => !i.IsTraitPaused && !i.IsTraitDisabled)
 				.MinByOrDefault(a =>
 				{
@@ -317,6 +327,14 @@ namespace OpenRA.Mods.Common.Traits
 		protected override IEnumerable<IRenderable> Render(WorldRenderer wr, World world) { yield break; }
 		protected override IEnumerable<IRenderable> RenderAboveShroud(WorldRenderer wr, World world) { yield break; }
 		protected override IEnumerable<IRenderable> RenderAnnotations(WorldRenderer wr, World world) { yield break; }
+		// UNCHANGED, KNOWINGLY. With SupportPowerInfo.SnapToActorCenter on, a click over one
+		// quadrant of a 2x2 building strikes the building's centre, so the cell-shaped cursor the
+		// player sees is a small lie about where the blast lands. Drawing the truth needs the
+		// resolved aim point, which is computed on the synced path in SupportPowerInstance.Activate
+		// and is not available here without a second client-side copy of the same query — a copy
+		// that would read actors inside the player's own fog. Left as a deliberate debt: the honest
+		// fix is an aim-point marker rendered from a shared resolver, and it is a visual change that
+		// wants a screenshot pass rather than a blind edit.
 		protected override string GetCursor(World world, CPos cell, int2 worldPixel, MouseInput mi)
 		{
 			return world.Map.Contains(cell) ? info.Cursor : info.BlockedCursor;

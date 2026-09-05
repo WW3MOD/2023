@@ -3,6 +3,59 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-05 - The corner-hit discount is REAL and is now pinned against the shipped shape code, but it reaches exactly ONE of the three missile powers - and "a big building's own cell gives 33%" is true only of its CORNERS (`wt/powers-aimpoint`, `main @ bb294b2d`)
+
+Three corrections and one confirmation of the 2026-09-04 `TargetDamage`/`CenterProximityPercent`
+entry, all from static work on `main @ bb294b2d`. None of this was measured in a running game; the
+scenarios that would do that are `test-power-aimpoint-center` and `test-power-aimpoint-unsnapped`,
+written but not run.
+
+**CONFIRMED, and no longer a hand derivation.** `SupportPowerAimPointTest` now drives the shipped
+`RectangleShape.CenterProximityPercent` with the Logistics Center's own numbers (`TopLeft -1536,-1536`
+/ `BottomRight 1536,1536`, `structures.yaml:400-410`) and the 3x3 `CenterOffset` of `(1024, 1024)`
+(`Building.cs:207-210`). It returns **33**, exactly as derived. The arithmetic in the previous entry
+is right.
+
+**CORRECTION 1 - only the CORNER cells give 33%.** The offset from a clicked cell to the building's
+centre is not one number per building, it is one per cell. For a 3x3:
+
+| clicked cell | offset | proximity | `Warhead@Target: 54000` arrives as |
+|---|---|---|---|
+| centre | 0 | 100% | 54000 |
+| mid-edge (4 of them) | 1024 | **52%** | ~28000 |
+| corner (4 of them) | 1448 | **33%** | ~17800 |
+
+Pinned as `EdgeCellHitIsBetween`. Reading the earlier entry as "aiming at a big building delivers a
+third" understates four of the nine cells by a factor of 1.6.
+
+**CORRECTION 2 - the defect reaches ONE of the three shipped missile powers, not all of them.**
+Only a `TargetDamage` warhead consults `CenterProximityPercent`, and only one of the three payloads
+has one:
+
+| power | payload | has `Warhead@Target: TargetDamage`? |
+|---|---|---|
+| Kinzhal | `IskanderExplosion` (`weapons-explosions.yaml:521`) | **yes** - affected |
+| GBU-57 | `MOPPenetration` (`weapons-superweapons.yaml:468`) | no, `SpreadDamage` throughout |
+| tactical nuke | `Atomic` (`weapons-superweapons.yaml:76`) | no, `SpreadDamage` throughout |
+
+`SpreadDamage` at `DamageCalculationType.HitShape` measures `DistanceFromEdge`, which is zero
+anywhere inside a building, so the other two deliver identically from any of the nine cells. A
+scenario that tried to demonstrate the aim-point fix on the GBU-57 would go green having measured
+nothing.
+
+**CORRECTION 3 - the workaround is already in the tree, undocumented as such.**
+`test-gbu57-asymmetry/map.yaml:118-129` places its Logistics Center at `35,16` specifically so its
+centre lands on the cell the Lua aims at, with a comment deriving `CenterOffset` from
+`Building.cs:207-210` independently. So the trap was found twice, a day apart, by two workers who
+did not know about each other - once as a scenario placement rule and once as a damage defect.
+
+**WHAT THE FIX DOES AND DOES NOT REACH.** `SupportPowerAimPoint` resolves the order's target to the
+occupying actor's `CenterPosition` inside `SupportPowerInstance.Activate`, so every support power
+order - human, bot or Lua - lands on the centre and the discount becomes unreachable **through a
+support power**. The same `IskanderExplosion` is fired by the Iskander launcher's own `Explodes`
+(`vehicles-russia.yaml:1112,1149,1153,1221`), which never builds a support power order, so the
+defect is untouched for direct fire and still wants its own item.
+
 ## 2026-09-04 - A Lua test binding that answers two questions in one string fails its callers silently
 
 `Test.GetSupportPowerState(player, orderKey)` was written to return a state token **and** append the

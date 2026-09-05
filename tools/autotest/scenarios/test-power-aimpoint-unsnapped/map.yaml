@@ -1,0 +1,132 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: with the aim-point snap OFF, a corner click delivers a third of the damage
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES: the DEFECT, on the same build, with one rules line flipped. This is
+# test-power-aimpoint-center with `SnapToActorCenter: false` on the Kinzhal in rules.yaml — which is
+# exactly the shipped behaviour before that field existed. The two Logistics Centers now come apart:
+# the corner-clicked one takes about a third of what the centre-clicked one takes.
+#
+# WHY THE PAIR RATHER THAN ONE SCENARIO. The pre-change behaviour is not reachable from the post-
+# change binary by any in-run means — the snap resolves inside SupportPowerInstance.Activate, before
+# any script can see the order. Making it a per-power Info field is what turns "run the old build"
+# into "flip one line", so the A and the B are the same commit, the same warhead numbers and the
+# same map, differing in one boolean. WITHOUT that field this comparison would need two builds and
+# would prove much less.
+#
+# READ THE TWO VERDICT STRINGS SIDE BY SIDE. They print the same fields in the same order: the
+# resolved impact position of each missile, its offset from the building's centre, and the damage
+# each building took. In this run the corner shot's offset is ~1448 and its damage about a third; in
+# the sibling both offsets are ~0 and both damages equal.
+#
+# WHY THE KINZHAL AND NOT THE OTHER TWO POWERS. Of the three shipped missile strikes, only the
+# Kinzhal's payload can tell the difference. IskanderExplosion carries a `Warhead@Target:
+# TargetDamage`, and TargetDamageWarhead scales every hit by HitShape.CenterProximityPercent — the
+# impact's distance from the victim's CENTRE over the shape's half-diagonal. The GBU-57's
+# MOPPenetration and the tactical nuke's Atomic are SpreadDamage throughout, which measures distance
+# from the hitshape EDGE and reads zero anywhere inside the building, so neither would move at all.
+#
+# THE ARITHMETIC THIS RUN IS EXPECTED TO REPRODUCE, for a 3x3 Logistics Center (HitShape Rectangle
+# +/-1536, half-diagonal |(1536,1536)| = 2172; Building Dimensions 3,3, so CenterOffset is a full
+# cell diagonally, |(1024,1024)| = 1448):
+#     centre cell clicked -> offset 0    -> proximity 100% -> Warhead@Target delivers 54000
+#     corner cell clicked -> offset 1448 -> proximity  33% -> Warhead@Target delivers ~17800
+# Against 60,000 HP that is the difference between a kill and well under half. If this scenario
+# FAILS — if the two shots come out equal with the snap off — then the corner-hit defect recorded in
+# WORKSPACE/DISCOVERIES.md on 2026-09-04 is not real in a running game, and that is a more valuable
+# finding than the feature.
+#
+# GEOMETRY, same derivation as test-missile-strike-power:
+#   Russia HomeLocation 6,17 · Bounds Rectangle(left=1, top=1, w=64, h=32)
+#   Map.ChooseClosestEdgeCell (Map.cs:1821-1835):
+#     horizontalBound = (6-1=5) < 64/2=32 -> Bounds.Left = 1
+#     verticalBound   = (17-1=16) < 32/2=16 is FALSE -> Bounds.Bottom = 33
+#     du = |1-6| = 5, dv = |33-17| = 16, du < dv -> edge = (1, 17)
+#   CornerVictim's clicked cell 30,10 is 29.8 cells from that entry; CenterVictim's 31,23 is 30.6.
+#   At KinzhalMissile Speed 2000 with Acceleration 0 both are ~16-tick flights.
+#
+# WHY THE RANGE DIFFERENCE BETWEEN THE TWO SHOTS IS NOT A CONFOUND: IskanderExplosion's
+# Warhead@Target sets DamageAtMaxRange: 100, and TargetDamageWarhead only consults the range taper
+# when that value is NOT 100 (TargetDamageWarhead.cs, `if (DamageAtMaxRange != 100)`). The two
+# SpreadDamage warheads take no range term at all. So 29.8 cells and 30.6 cells deliver identically.
+#
+# WHY THE TWO BUILDINGS ARE 12 CELLS APART: the widest Kinzhal warhead is Warhead@Shockwave at
+# MaxRadius 4c0. 12 cells of centre separation less 1.5 cells of hitshape at each end leaves 9 cells
+# of clearance, so neither shot can touch the other's victim.
+#
+# WHY MapStartingLocations IS REMOVED IN rules.yaml: Russia is the playable client player, so
+# Player.HomeLocation would otherwise come from a spawn assigner (Player.cs:182) and the edge
+# derivation above would depend on which mpspawn it picked.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 6,17
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 58,17
+
+Actors:
+	# One Supply Route per side so neither faction is eliminated before the poller writes a verdict
+	# (AUTOTEST.md map.yaml rule 6). Both are far outside every Kinzhal warhead in any case.
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 6,17
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 58,17
+
+	# THE CORNER-CLICKED VICTIM. Location is the TOP-LEFT of the footprint, so this covers
+	# 30-32 x 10-12 and its centre cell is 31,11. The Lua clicks 30,10 — the top-left corner cell,
+	# the worst of the nine. With the snap off this is the shot that under-delivers.
+	CornerVictim: logisticscenter
+		Owner: USA
+		Location: 30,10
+
+	# THE CONTROL, and with the snap off it is the only shot that behaves. Identical building,
+	# footprint 30-32 x 22-24, centre cell 31,23 — and the Lua clicks 31,23. This is the hand
+	# placement test-gbu57-asymmetry adopts for exactly this reason ("Placing it at 36,17 and aiming
+	# at 36,17 would put the impact on the building's top-left CORNER"): with no snap, centring the
+	# aim by hand is the ONLY way to get the warhead's stated damage out of it.
+	CenterVictim: logisticscenter
+		Owner: USA
+		Location: 30,22
+
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+Rules: rules.yaml
