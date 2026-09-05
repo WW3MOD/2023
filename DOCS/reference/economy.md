@@ -145,7 +145,7 @@ Neither shipped evacuation scenario places one (`test-dry-evac-drops-queued-orde
 
 > *"Airplanes uses the airfield, helicopters use helipad, if those do not exist they must evacuate (They cannot be rearmed in that case). Airplanes are not in the game now, and probably wont be either so no need to look into that, but helipads should be possible to use to rearm helicopters, if a helipad exists (Cannot be built in this mod, can only be used if one exist on a map as a neutral/capturable structure)"*
 
-Three things follow, and each contradicts a fix someone will otherwise propose. (1) **Do not repoint aircraft at `logisticscenter`.** A previous change did exactly that and was reverted (`68e8b885`). (2) **The `~disabled` build prerequisite on `hpad`/`afld` is correct and stays** — these are map-placed structures, not buildable ones. (3) **Absence of a host is not a bug to be fixed; it has a defined behaviour** — the helicopter evacuates (`EvacuateWhenUnrearmable` → `RotateToEdge`, refunding `GetEvacuationRefund` exactly as the manual `Evacuate` order does). `hpad` already carries everything the air rearm route needs — `Reservable`, `RepairsUnits`, an `Exit`, and `CaptureManager`/`Capturable` inherited via `^BasicBuilding` → `^NeutralOrOccupiedCapturable` — so a map that places one Neutral gives helicopters a capturable rearm point with no rules change. Note `ReturnToBase.ChooseResupplier` filters on `a.Owner == self.Owner` (**not** alliance), so a pad must be *captured* before it serves you; and `hpad` currently has **no world sprite** (`hpad.shp`/`hpadmake.shp` are in `lint-baseline.txt` as missing), which is the outstanding blocker to actually placing one. Every airframe declares `Rearmable.RearmActors: hpad`/`afld` and `Repairable.RepairActors: hpad`/`afld` (`aircraft.yaml:79-80`, `:162-163`; `aircraft-america.yaml:219,376,498`; `aircraft-russia.yaml:224,392,530,625`), but **both hosts carry `Buildable.Prerequisites: ~disabled`** (`structures.yaml:432`, `:500`) and **nothing in the repo provides `disabled`**, so neither can be built; and neither is pre-placed on any of the ten shipped maps. `logisticscenter` — which does have `RepairsUnits` (`structures.yaml:377`) and `SupplyProvider` (`:387`), is pre-placed as a Neutral capturable on `polar-disorder`, `river-zeta` and `woodland-warfare`, and is already named by every infantry and ground-vehicle `RearmActors`/`RepairActors` list — is **not** named by any aircraft. So no aircraft can rearm or repair anywhere today. There is one latent exception that no code drives: `ReloadAmmoPool@1/@2` on the airframes is gated `unit.docked && !airborne` (e.g. `aircraft-america.yaml:175`, `:205`), and a *captured* LC grants `unit.docked` within 2c0 (`structures.yaml:400-404`), so an aircraft landed beside a captured LC would trickle-refill. Nothing — human UI or bot — ever sends one there.
+Three things follow, and each contradicts a fix someone will otherwise propose. (1) **Do not repoint aircraft at `logisticscenter`.** A previous change did exactly that and was reverted (`68e8b885`). (2) **The `~disabled` build prerequisite on `hpad`/`afld` is correct and stays** — these are map-placed structures, not buildable ones. (3) **Absence of a host is not a bug to be fixed; it has a defined behaviour** — the helicopter evacuates (`EvacuateWhenUnrearmable` → `RotateToEdge`, refunding `GetEvacuationRefund` exactly as the manual `Evacuate` order does). `hpad` already carries everything the air rearm route needs — `Reservable`, `RepairsUnits`, an `Exit`, and `CaptureManager`/`Capturable` inherited via `^BasicBuilding` → `^NeutralOrOccupiedCapturable` — so a map that places one Neutral gives helicopters a capturable rearm point with no rules change. Note `ReturnToBase.ChooseResupplier` filters on `a.Owner == self.Owner` (**not** alliance), so a pad must be *captured* before it serves you; and `hpad` currently has **no world sprite** (`hpad.shp`/`hpadmake.shp` are in `lint-baseline.txt` as missing), which is the outstanding blocker to actually placing one. Every airframe declares `Rearmable.RearmActors: hpad`/`afld` and `Repairable.RepairActors: hpad`/`afld` (`aircraft.yaml:124-125`, `:208-209`; `aircraft-america.yaml:219,376,498`; `aircraft-russia.yaml:224,392,530,625`), but **both hosts carry `Buildable.Prerequisites: ~disabled, ~techlevel.medium`** (`structures.yaml:688`, `:756`) and **nothing in the repo provides `disabled`**, so neither can be built; and neither is pre-placed on any of the ten shipped maps. `logisticscenter` — which does have `RepairsUnits` (`structures.yaml:484`) and `SupplyProvider` (`:503`), is pre-placed as a Neutral capturable on `polar-disorder`, `river-zeta` and `woodland-warfare`, and is already named by every infantry and ground-vehicle `RearmActors`/`RepairActors` list — is **not** named by any aircraft. So no aircraft can rearm or repair anywhere today. There is one latent exception that no code drives: `ReloadAmmoPool@1/@2` on the airframes is gated `unit.docked && !airborne` (e.g. `aircraft-america.yaml:175`, `:205`), and a *captured* LC grants `unit.docked` within 2c0 (`structures.yaml:650-654`), so an aircraft landed beside a captured LC would trickle-refill. Nothing — human UI or bot — ever sends one there.
 
 Consequences worth knowing before touching aircraft logic: `ReturnToBase` resolves no resupplier and degrades to `FlyIdle`-then-finish (`ReturnToBase.cs:127-128`), and any gate of the form "wait until healthy / wait until full" is **unsatisfiable, not merely pessimistic**. The bot readiness gates therefore ask whether a host actually exists rather than whether one is named (`AirframeReadiness`), and `Aircraft` refuses a `ReturnToBase` order when none does, so a no-op return cannot cancel a live attack.
 
@@ -273,7 +273,7 @@ So a lone $100 infantryman is worth a tube shell but not a Grad volley — the a
 
 ### Logistics Center (LC)
 
-`Valued.Cost` **3000**, and **fielded by deploying a `LCCV` that also costs 3000** (see Core principle 3). *(Corrected 2026-08-30: both numbers read 3500 / 1200 here, the pre-2026-08-22 values. User ruling — "the LC should cost 3000" — raised LCCV from 1200 and holds the two equal, since the same ruling treats the driving and deployed forms as one thing. `structures.yaml` `Valued: Cost: 3000`; `vehicles.yaml` LCCV `Valued: Cost: 3000`. **The `RefundPercent` invariant below still holds at the new numbers** — 34 ≤ 100 × 3000/3000 = 100 — so the property is intact and only its worked example was stale.)* Spawns with `SupplyProvider.TotalSupply: 2250` (`structures.yaml:475`). *(Corrected 2026-08-30: this read 3000, the pre-2026-08-22 value. The reduction to 2250 was a user ruling — "There is no difference between when it is driving or when it is deployed, it carries the supplies it carries" — matching LCCV's undeployed load. Sizing arguments that cite 3000 predate it.)*
+`Valued.Cost` **3000**, and **fielded by deploying a `LCCV` that also costs 3000** (see Core principle 3). *(Corrected 2026-08-30: both numbers read 3500 / 1200 here, the pre-2026-08-22 values. User ruling — "the LC should cost 3000" — raised LCCV from 1200 and holds the two equal, since the same ruling treats the driving and deployed forms as one thing. `structures.yaml` `Valued: Cost: 3000`; `vehicles.yaml` LCCV `Valued: Cost: 3000`. **The `RefundPercent` invariant below still holds at the new numbers** — 34 ≤ 100 × 3000/3000 = 100 — so the property is intact and only its worked example was stale.)* Spawns with `SupplyProvider.TotalSupply: 2250` (`structures.yaml:509`). *(Corrected 2026-08-30: this read 3000, the pre-2026-08-22 value. The reduction to 2250 was a user ruling — "There is no difference between when it is driving or when it is deployed, it carries the supplies it carries" — matching LCCV's undeployed load. Sizing arguments that cite 3000 predate it.)*
 
 > **It spawns FULL, and that is true of every `SupplyProvider` in the mod, not just this one.** *(Promoted 2026-09-01 from DISCOVERIES.)* `SupplyProvider` initialises `currentSupply = init.GetValue<SupplyInit, int>(info, info.TotalSupply)` (`SupplyProvider.cs:364`) — **the fallback when no `SupplyInit` is supplied is `TotalSupply`, not zero** — and `ITransformActorInitModifier` (`:376`) carries the value across a deploy, so an LCCV that becomes an LC does not reset it.
 >
@@ -286,6 +286,54 @@ The pool drains as:
 When the LC's pool hits zero it stops servicing rearm requests. The player deploys another LCCV, or relies on trucks that still have supply.
 
 **Salvage is capped at the LCCV's cost, and that cap is load-bearing.** `Sellable.RefundPercent: 34` on `logisticscenter` puts the sell refund at 1020 against the 3000 it costs to field one, and `SpawnActorsOnSell.ValuePercent: 0` stops the sale additionally emitting technicians. The money pump this closed was real at the *old* numbers: deploy-and-sell paid 3500 in cash plus up to five 250-credit technicians for a 1200 outlay, repeatable. *(Figures updated 2026-08-30 with the 3000/3000 costs above; at parity the constraint is slack — `RefundPercent ≤ 100` — rather than the tight 34-vs-34.3 it once was.)* `RefundPercent` rather than `CustomSellValue` deliberately: the LC is capturable (via `^BasicBuilding` → `^NeutralOrOccupiedCapturable`) and bots rank capture targets by `GetSellValue` (`CaptureManagerBotModule.cs:147`), so its strategic valuation must track its full Cost while only its scrap value moves. **If either Cost changes, recompute: `RefundPercent ≤ 100 × LCCV.Cost / logisticscenter.Cost`.**
+
+### Repairing a vehicle at a Logistics Centre heals 3% of MaxHP per Interval — and a burning one still dies
+
+*(Promoted 2026-09-05 from DISCOVERIES; rates re-derived from the shipped rules at `main @ 95bdffb2`.)*
+
+**Until 2026-09-05 repair healed exactly ZERO, and the wedge was worse than the missing heal.**
+`Resupply.RepairTick` derived its step from `HpPerStep`, and **both** defaults are 0 in this engine
+(`Traits/RepairsUnits.cs:22`, `Traits/Repairable.cs:32`, where upstream OpenRA has 10) with nothing under
+`mods/` setting either — so `InflictDamage(new Damage(-0))` healed nothing while the `Math.Max(1, …)` below
+still charged the player 1 credit per no-op tick. Because `activeResupplyTypes` keeps its `Repair` flag
+until `DamageState.Undamaged`, which a zero step can never reach, and the activity's only exit is
+`activeResupplyTypes == 0`, **a damaged vehicle sent to a Centre rearmed and then sat there indefinitely.**
+Full write-up as instance 13 of
+[`conventions.md` §"A change believed made, documented as made, and inert"](conventions.md#a-change-believed-made-documented-as-made-and-inert).
+
+**What ships now.** `RepairTick` takes a percentage fallback gated on `hpToRepair <= 0`
+(`Activities/Resupply.cs:636-648`), so any host that *does* set `HpPerStep` is byte-identical. `^Vehicle`'s
+`Repairable.PercentageStep: 3` (`rules/ingame/vehicles.yaml:64`) is the **only** repair-side `PercentageStep`
+in the mod, so the behaviour change is exactly: **ground vehicles repair at a Logistics Centre, 3% of MaxHP
+per 24-tick `RepairsUnits.Interval`** = 0.125%/tick. Every aircraft at a helipad or airfield still resolves
+0 and is unchanged — that is the pre-existing state, not a decision, and it is worth revisiting separately.
+
+**The burn out-paces the repair by 1.6x, and that is the ruling.** Both rates, per game tick as a fraction
+of MaxHP:
+
+| | source | step | period | per tick |
+|---|---|---|---|---|
+| **Burn** | `ChangesHealth@CriticalDamage` on `^Vehicle` (`vehicles.yaml:184-187`, via `^EffectsWhenDamagedVehicles`) | `PercentageStep: -1` = 1% of MaxHP | `Delay: 5` | **0.200%** |
+| **Repair** | `Repairable.PercentageStep: 3` (`vehicles.yaml:64`) through `Resupply.RepairTick` | 3% of MaxHP | `RepairsUnits.Interval` 24 | **0.125%** |
+
+`ChangesHealth` fires whenever HP is below `StartIfBelow` (50) % of MaxHP and stops at or above it
+(`Traits/ChangesHealth.cs:69-70`). So below half health a docked vehicle nets **−0.075%/tick** and dies at
+the crane — from 30% that is 400 ticks, 24 s at the default `Timestep` — and it can never climb back over
+50%, because the burn out-paces the repair for the whole range in which the burn runs.
+
+> **USER RULING 2026-09-05 — "Keep it: critical means doomed."** Put to the user with three one-line
+> candidates (pause the burn while `unit.docked`; raise `PercentageStep` above the burn; keep it), the user
+> chose to keep both rates as they are. **Do not add `RequiresCondition: !unit.docked` to the burn and do not
+> raise `PercentageStep` to "fix" this — it is decided.** It is consistent with the standing vocabulary: a
+> vehicle *goes critical* below 50% HP, and the depot repairs damage rather than putting out fires.
+>
+> **Consequence to keep in mind, not a bug:** a burning vehicle sent to a Centre holds the single dock cell
+> until it dies, and the next client waits on `MoveOnto`'s occupied-cell branch for that long, then docks.
+> Bounded by the death, so no queue was built.
+
+**Scenario trap this created.** A scenario damaging its tank to exactly `MaxHealth / 2` passes, because the
+guard is `HP >= 50%`; one odd `MaxHealth` and it crosses into the burn zone and starts dying. Damage to
+60–70% and write the arithmetic down where you do it.
 
 ### Supply Truck (TRUK)
 
@@ -353,6 +401,62 @@ evacRefund = handicapAdjust(sellValue) × HP/MaxHP           // RotateToEdge.cs:
 **The `HP/MaxHP` term is not optional and it is not decoration** — it is what stops a wrecked unit being worth a fresh one, and every code path applies it (`RotateToEdge.DoSell`, `Sell.cs`, and the `Sellable` tooltip). *(**Added 2026-08-17.** The formula in this file previously omitted it entirely, while three bot modules cited this file as the source for `GetSellValue × HP/MaxHP`. The code was right and the doc was incomplete; the doc is what changed.)*
 
 `handicapAdjust` mirrors `HandicapProductionMultiplier`, which inflates what a handicapped player *pays* by the identical factor — so the two must move together. All three evacuation paths (`DeliversCash` rotation, `AmmoPool`'s evacuate-when-dry, `DropsSupplyCache`'s empty-truck return) go through `CustomSellValueExts.GetEvacuationRefund`; **do not compute an evacuation refund any other way.**
+
+## Upkeep is a SHIPPED per-player system — do not design a new recurring drain
+
+*(Promoted 2026-09-05 from DISCOVERIES; all citations re-read at `main @ 95bdffb2`.)*
+
+`PlayerResources` carries a complete upkeep system that is easy to miss because nothing else in the docs
+mentions it:
+
+| Piece | Location |
+|---|---|
+| `public float Upkeep` (single pooled float) | `Traits/Player/PlayerResources.cs:190` |
+| `UpkeepEntry { ActorType, Name, Cost }` + registry | `:125-130`, `:143`, `:146` |
+| `AddToUpkeep(cost, actorType, name)` / `RemoveFromUpkeep(entry)` | `:371`, `:385` |
+| The unified economy tick — income and upkeep in ONE line | `:209` |
+| `NetChange => TotalIncome - (int)Upkeep` | `:151` |
+| Consumer trait `InfersUpkeep` (`FixedCost` + `PermilleCost` of `Valued.Cost`) | `Traits/InfersUpkeep.cs:22-23`, computed `:52-53` |
+| Live at `PermilleCost: 5` on infantry and vehicles | `rules/ingame/infantry.yaml:155-156`, `vehicles.yaml:144-145` |
+| Player-facing breakdown, grouped and counted, already rendered | `Widgets/Logic/Ingame/IngameCashCounterLogic.cs:73-98`, `:121` |
+
+**Interval:** `PassiveIncomeInterval: 50` ticks (`PlayerResources.cs:66`, not overridden in the mod) at the
+default 60 ms `Timestep` = **3.00 s, 20 paydays per minute**. Aircraft and structures carry no `InfersUpkeep`
+at all.
+
+**Two traps in it.**
+
+- **There is no per-entry billing and therefore no "which asset went unpaid" signal.** `Upkeep` is one
+  pooled float, and `ChangeCash` silently clamps at zero — `amount = Math.Max(-(Cash + Resources), amount)`,
+  *"Don't put the player into negative funds"* (`:221-222`). A shortfall is a property of the **player**, not
+  of any one asset, so a design that wants to lapse or destroy a specific thing on non-payment has no basis
+  on which to choose it. The signal *is* recoverable — `ChangeCash` returns the clamped amount (`:215-227`)
+  and the tick discards it at `:209` — but it must be added.
+- **The breakdown silently drops sub-1 entries.** `var total = (int)group.Sum(e => e.Cost); if (total <= 0)
+  continue;` (`IngameCashCounterLogic.cs:83-85`). A rifleman at 50 x 0.005 = 0.25 per interval is billed and
+  never displayed. **Keep any new upkeep >= 1.0 per interval or it charges invisibly.**
+
+### `GetSellValue` has no passenger term, so evacuating a loaded transport deletes its cargo's value
+
+*(Promoted 2026-09-04 from DISCOVERIES.)* `GetSellValue` (`Traits/CustomSellValue.cs:28-54`) reads
+`CustomSellValueInfo.Value ?? ValuedInfo.Cost` and deducts missing ammo and missing supply. **There is no
+term for what is inside the `Cargo`.** The evacuation refund reads it directly (`RotateToEdge.cs`; also
+`Sell.cs`, `DeliversCash.cs`, `GivesBounty.cs`). Live today: evacuate a full Bradley and the squad's cost is
+simply gone. It becomes an **exploit** the moment any actor is priced to include its passengers — buy the
+priced-up transport, unload, evacuate the empty hull, bank the difference, repeat. **Anyone adding a
+pre-loaded transport preset must fix this first** (see
+[`architecture.md` §Production queues](architecture.md#production-queues-autobuild-the-parallel-throttle-and-pre-loaded-transports)),
+or the feature ships a money pump that looks exactly like a normal unload in playtesting. The fix is ~10
+lines: sum `GetSellValue()` over the `Cargo` trait's passengers.
+
+### A production queue's cancel-refund does not survive completion
+
+See [`architecture.md` §Production queues](architecture.md#production-queues-autobuild-the-parallel-throttle-and-pre-loaded-transports)
+for the mechanism. The economic consequence is the part that belongs here: **cancelling at 99% already
+returns ~100% of what was paid**, because money drips per tick during the build and every cancel path
+refunds `TotalCost - RemainingCost`. So any *completed*-purchase refund priced below 100% creates a
+discontinuity at the moment the bar fills, and the optimal play becomes holding every purchase at 99%
+forever. Full refund is the only value that makes the two sides of `EndProduction` agree.
 
 ## Per-platform ammo budget targets
 

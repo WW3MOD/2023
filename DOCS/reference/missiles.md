@@ -543,6 +543,70 @@ root: the MiG-29 has `Armor: Type: Medium` with **no `Thickness`**
 (`aircraft-america.yaml:578-580`) — Thickness 0 skips the scaling block outright, so the MiG
 takes 10–20× more damage from every Pen-1 weapon than its counterpart.
 
+## 9b. Detonation altitude: two engine facts that make an airburst behave nothing like you would guess
+
+*(Promoted 2026-09-05 from DISCOVERIES; every citation re-read at `main @ 95bdffb2`, and the arithmetic is
+pinned by `engine/OpenRA.Test/OpenRA.Mods.Common/MissileStrikeArrivalTest.cs`. Neither fact is stated in any
+`[Desc]`.)*
+
+### 9b.1 Whether altitude costs a warhead damage depends on the VICTIM'S HITSHAPE TYPE
+
+`SpreadDamageWarhead` and `ShockwaveDamageWarhead` both take their falloff distance from
+`HitShape.DistanceFromEdge`, which dispatches to the shape implementation — and the four disagree about
+whether the vertical leg exists at all:
+
+| Shape | Vertical leg counted? | Code |
+|---|---|---|
+| `Circle` | **YES** — `v.Length`, 3-D | `HitShapes/Circle.cs:46-49` |
+| `Polygon` | **YES** — `ISqrt(min2 + z*z)` | `HitShapes/Polygon.cs:87-103` |
+| `Rectangle` | **NO** — the result vector is built with a hardcoded `0` for Z and returned as `HorizontalLength` | `HitShapes/Rectangle.cs:109-116` |
+| `Capsule` | **NO** — projects to `int2(v.X, v.Y)` immediately | `HitShapes/Capsule.cs:67-85` |
+
+In this mod vehicles and buildings are `Rectangle` and infantry are `Circle`
+(`rules/ingame/infantry.yaml:148-151`, `HitShape@Standing: Type Circle, Radius 30`). So **an airburst is
+completely free against vehicles and buildings and fully discounted against infantry** — exactly backwards
+from the physics an airburst is imitating, where the anti-personnel effect is the whole point.
+
+Measured on the shipped `Atomic` warhead at `DetonationAltitude: 6c256` (6400), against a victim standing
+directly under the burst:
+
+- **vehicles and buildings:** falloff distance **0**, identical to a ground burst — no change of any kind.
+- **infantry:** falloff distance **6370** (6400 − the 30 radius), and then
+  `Warhead@ThermalVaporize` (`Spread 3c0`, `Falloff 100,100,100,50`) still delivers **96%**, because that
+  table is flat at 100 all the way out to 6144; `Warhead@ThermalRadiation` (`Spread 1c0`, 15 steps) drops to
+  **4%**. That one warhead is the entire cost of bursting at 6c256.
+- **fire, EMP, suppression and tree-fire: no change at all.** `GrantExternalConditionWarhead` does
+  `FindActorsInCircle(target, Range)` with no falloff and no shape query
+  (`Warheads/GrantExternalConditionWarhead.cs:60-61`), and that search is horizontal.
+
+### 9b.2 An airburst on the wrong weapon detonates silently and invisibly, with no error and no lint
+
+`Warhead.ValidTargets` defaults to `Ground, Water` **per warhead** — it is not inherited from the weapon's
+own `ValidTargets` — and `Warhead.AirThreshold` defaults to `128`, one eighth of a cell
+(`Warheads/Warhead.cs:30`, `:45`). Above that threshold `CreateEffectWarhead.IsValidAgainstTerrain` stops
+asking the terrain what it is and substitutes the `Air` target type (`Warheads/CreateEffectWarhead.cs:166`);
+a warhead not listing `Air` returns from `DoImpact` before spawning anything.
+
+`^HugeExplosionEffects` (`rules/weapons/weapons-effects.yaml:596`) — inherited by `IskanderExplosion` (the
+Kinzhal) and `MOPPenetration` (the GBU-57) — writes `ValidTargets: Ground, Ship, Trees, Mine` on every
+`CreateEffect` row and never `Air`. **So giving either of those powers a `DetonationAltitude` above 128
+would delete the explosion sprite, the impact sound and the crater while the `SpreadDamage` rows — which
+test the VICTIM, not the terrain — went on working: a strike that damages things with no visible
+explosion.** `Atomic` is the one warhead in the mod written for an airburst, and it says so twice: an
+explicit `ValidTargets: Ground, Water, Air` on `Warhead@Fireball`
+(`rules/weapons/weapons-superweapons.yaml:65`) and `AirThreshold: 10c0` on all ~30 of its damage, fire, EMP,
+suppression and smudge rows. **10c0 = 10240 is therefore a hard ceiling on the nuke's burst height** — at
+10241 it would still fly, still be aimed, still be announced, and do nothing to the ground.
+
+### 9b.3 Not a compensation: `Warhead@Fireball`'s `Offset: 0,-1900,0`
+
+Easy to misread as airburst compensation, and it is not. Screen y is `TileSize.Height * (Y - Z) / TileScale`
+(`Graphics/WorldRenderer.cs:749`), so a negative world-Y offset and a positive world-Z offset are the *same*
+vertical screen displacement. That offset — 5700 after the warhead's own `ScalePercent: 300`
+(`weapons-superweapons.yaml:58-59`) — lifts the scaled mushroom-cloud sprite off its anchor, and it applied
+identically to the ground burst. Which is why the ground-burst nuke looked *low* rather than looking
+*broken*.
+
 ## 10. A warhead delivered by `Explodes` is a different weapon: three defaults change meaning
 
 A ballistic missile does not detonate as a projectile. `BallisticMissileFly` queues
@@ -553,6 +617,20 @@ comments *"Cannot use Target.FromActor"* because the actor is already dead). Tha
 warhead fields that behave normally everywhere else change meaning on it. All three bit the
 Iskander and HIMARS simultaneously, reported as *"the Iskander hit a tank directly and it didn't
 get destroyed"*.
+
+**0. The `airborne` condition is already REVOKED by the time the kill lands, so an `Explodes` gated on it
+never fires on a successful strike.** *(Promoted 2026-09-04 from DISCOVERIES; **derived** from the code path,
+not observed in a run.)* `BallisticMissileFly`'s final act is `sbm.SetPosition(self, targetPos)` and *then*
+the queued `self.Kill(self)`. For a ground strike `targetPos` is a cell centre at terrain height, so
+`BallisticMissile.SetPosition` computes an altitude below `MinAirborneAltitude` and calls
+`OnAirborneAltitudeLeft()` — **on an earlier tick than the queued kill.** So on `IskanderMissile` and
+`HIMARSMissile` the warhead that actually detonates on arrival is the `SpawnedExplodes` gated
+`RequiresCondition: !airborne`; the `airborne` one is the shot-down-in-flight branch. Copying that pair onto
+a masterless missile silently produces a missile that lands and does nothing — and `SpawnedExplodes` cannot
+be used without a master at all (`Traits/SpawnedExplodes.cs:61` calls `self.Trait<BaseSpawnerSlave>().Master`
+unconditionally), so the correct shape there is a single **ungated** plain `Explodes`. The check that would
+confirm this from a run: fire the Kinzhal with its `Explodes` gated `airborne` and observe the target
+survive.
 
 **1. `ImpactPosition` is not set for you.** It is assigned by seven projectile types (`Bullet`,
 `Missile`, `GravityBomb`, `LaserZap`, `Railgun`, `AreaBeam`, `InstantHit`) plus the

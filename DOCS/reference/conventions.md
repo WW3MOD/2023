@@ -53,6 +53,19 @@ Map placement: units on the LEFT facing right → `Facing: 768` (East); on the R
 
 **The general rule: a float round-trip through a non-power-of-two divisor is not an identity.** One tick rarely matters on its own, and it matters exactly where it is most likely to be spent — a deadline trimmed to its measured margin has already given the tick away.
 
+**Sequence `Tick` is milliseconds against a FIXED 40 ms clock, and is NOT scaled by `Timestep`.**
+*(Promoted 2026-09-05 from DISCOVERIES, re-read at `main @ 95bdffb2`.)* `Animation.Tick()` calls `Tick(40)`
+unconditionally (`engine/OpenRA.Game/Graphics/Animation.cs:229-231`) and the default sequence tick is also
+40 (`:123-125`, `// 25 fps == 40 ms`). The two clocks are unrelated: a sequence with `Tick: T` advances one
+frame per `T / 40` **game ticks** whatever the game speed, and the wall-clock duration then scales with the
+`Timestep` the player picked. So for an N-frame sequence, **game ticks = N x Tick / 40**, and seconds at the
+default speed = that x 0.06. Worked, for the 32-frame `factmake` deploy: no `Tick:` line gives 32 game ticks
+= **1.92 s** — not the 1.28 s that assuming a 40 ms `Timestep` produces, which is the same 1.5x family of
+error catalogued below. `Tick: 60` gives 48 ticks (2.88 s); `Tick: 80` gives 64 (3.84 s). A `Transforms`
+actor's deploy and undeploy play the **one** sequence — forwards from `WithMakeAnimation.Forward`, backwards
+from `Transform.Tick` (`Activities/Transform.cs:75`) — so a single `Tick:` sets both durations and they
+cannot drift apart.
+
 **This field's citations rot unusually fast — re-read the file rather than trusting any prose about it, including this section.** A 2026-08-30 search of `DISCOVERIES.md` found the same value cited at three different line numbers, plus `fastest` cited at the line of its `fastest:` key rather than its `Timestep:`. Same family as the scar in §"A change believed made, documented as made, and inert": `SupplyRouteContestation`'s duration comments were wrong by 1.5× from assuming 25 tps. **The generalisation worth carrying beyond this field: a units-bearing config value with no unit in its name is a trap, and it is worst when the wrong reading produces a plausible number** — 40 tps is not absurd, which is exactly why it survives review.
 
 ## YAML
@@ -99,6 +112,15 @@ Common conditions: `airborne`, `cruising`, `moving`, `empdisable`, `dronedisable
 **A consumed-but-ungranted condition is a `make test` ERROR (not a warning).** `ConditionalTraitInfo.RequiresCondition` is `[ConsumedConditionReference]` (`ConditionalTrait.cs:21`), so a trait gated on `foo || bar` marks BOTH names *consumed on that actor*. `CheckConditions` (`Lint/CheckConditions.cs:73-75`) calls `emitError` — which fails `make test` — for any condition an actor consumes but nothing grants. (The reverse, granted-but-unconsumed, is only a `emitWarning`, `:70-71`.) To make a name grantable-but-not-yet-fired (e.g. a seam for later Lua/warhead activation) without a live grant, declare an `ExternalCondition` whose `Condition` field is `[GrantedConditionReference]` (`Conditions/ExternalCondition.cs`) — it satisfies the lint at zero runtime cost and a later `GrantCondition("name")` resolves to it.
 
 **The Fluent lint is bidirectional, and the unused-key half is a WARNING that rots.** `CheckFluentReferences` checks referenced-but-undefined (an error) *and* defined-but-unreferenced (`CheckUnusedKey`, `Lint/CheckFluentReferences.cs:447-455`, `emitWarning`), reached for every key of every non-external file — and a file under `mods/ww3mod/` is not external. Unused keys therefore only fail the run under `TREAT_WARNINGS_AS_ERRORS=true` (`UtilityCommands/CheckYaml.cs:51`), and they arrive in a pile nobody reads to the end. That is how the entire server/lobby notification block in `mods/ww3mod/languages/en.ftl` — 38 keys from `timeout-in` (`:84`) through `chat-temp-disabled` (`:129`) — came to be **dead**: not one of those bare names appears as a string literal anywhere in `engine/OpenRA.Game/` or `engine/OpenRA.Mods.Common/`, because the `[FluentReference]` consts name the `notification-`-prefixed forms that live in `engine/mods/common/fluent/common.ftl` (30 of the 38 have such a twin; the other 8 were renamed *and* reworded upstream). Editing the ww3mod copies changes nothing any player sees. **Treat a large standing warning count as the defect it is** — this one had a real bug hiding in it.
+
+**`GrantConditionOnLobbyOption`'s polarity decides what an UNREGISTERED option does, so the two ways of writing "gate a feature on a checkbox" are NOT equivalent.** *(Promoted 2026-09-05 from DISCOVERIES, re-read at `main @ 95bdffb2`.)* The trait falls back to `OptionOrDefault(Option, !GrantWhenOptionDisabled)` (`Conditions/GrantConditionOnLobbyOption.cs:47-48`) when the lobby never registered the option at all — a stripped options trait, an old saved session, a map that removes it:
+
+| Form | Absent option resolves to |
+|---|---|
+| `Condition: X-disabled`, `GrantWhenOptionDisabled: true`, feature `RequiresCondition: !X-disabled` | **feature OFF** |
+| `Condition: X-allowed`, `GrantWhenOptionDisabled: false`, feature `RequiresCondition: X-allowed` | **feature ON** |
+
+Both read identically at a glance and behave identically in a normal lobby. **For anything that must fail safe — the tactical nuclear strike is the live case — only the first form is correct.**
 
 **Grants scoped to the actor:** `GrantConditionOnBotOwner` grants only on the actor it sits on, checking `self.Owner.IsBot && Bots.Contains(self.Owner.BotType)` (`Conditions/GrantConditionOnBotOwner.cs:46`). A **unit** trait's `RequiresCondition` sees only conditions granted on that *unit*, so gating a unit trait to bot-only needs a per-unit `GrantConditionOnBotOwner` on the unit template — a Player-actor grant (e.g. the `enable-ai-experimental` grants in `ai.yaml`) does nothing for a unit trait.
 
@@ -150,6 +172,65 @@ So a capability granted at weapon level and never restated at warhead level is *
 **Rule: before writing anything that depends on a weapon reaching an exotic target type, read the WARHEAD, not the weapon.** The weapon-level declaration is the one you find first and the one that cannot do the work. Same detector as [§Four shapes](README.md#four-shapes-of-confident-correctness-claim-with-nothing-behind-it) #3 — name the line you would delete to break the property.
 
 **Corollary for `^Tree`, whose name lies:** it is this mod's template for *"neutral decoration with forest cover and `Trees`-only targeting"*, not for trees. `BOXES01-09`, `ICE01-05` and `UTILPOL1/2` inherit it too, so a behavioural trait hung on `^Tree` also lands on crates and ice floes — which is how `b74f2aaa` briefly made them invulnerable. The template carries a comment saying so (`rules/ingame/decoration.yaml:143-145`); **check an abstract template's inheritor list before hanging anything on it.**
+
+### A warhead's `ValidTargets` is checked against `Air` once the impact clears `AirThreshold` — so an airburst on the wrong weapon detonates silently
+
+*(Promoted 2026-09-05 from DISCOVERIES, re-read at `main @ 95bdffb2` and pinned by
+`OpenRA.Test/OpenRA.Mods.Common/MissileStrikeArrivalTest.cs`.)*
+
+`Warhead.AirThreshold` defaults to `128` — one eighth of a cell (`Warheads/Warhead.cs:45`). Above it,
+`CreateEffectWarhead.IsValidAgainstTerrain` stops asking the terrain what it is and substitutes the `Air`
+target type (`Warheads/CreateEffectWarhead.cs:166`); a warhead that does not list `Air` then returns from
+`DoImpact` before spawning anything. Combined with the per-warhead `Ground, Water` default documented above,
+**raising a detonation off the deck deletes the explosion sprite, the impact sound and the crater** while the
+`SpreadDamage` rows — which test the *victim*, not the terrain — go on working. A strike that damages things
+with no visible explosion.
+
+`^HugeExplosionEffects` (`weapons/weapons-effects.yaml:596`), inherited by both `IskanderExplosion` and
+`MOPPenetration`, writes `ValidTargets: Ground, Ship, Trees, Mine` on every `CreateEffect` row and never
+`Air`. `Atomic` is the one warhead in the mod written for an airburst and says so twice: an explicit
+`ValidTargets: Ground, Water, Air` on `Warhead@Fireball` (`weapons/weapons-superweapons.yaml:65`) and
+`AirThreshold: 10c0` on all ~30 of its damage, fire, EMP, suppression and smudge rows — which makes
+**10240 a hard ceiling on the nuke's burst height**. Above it the missile would still fly, still be aimed,
+still be announced, and do nothing to the ground.
+
+**Deleting `Targetable` to make an actor unacquirable makes it immune to every damage warhead instead.**
+`WeaponInfo.IsValidAgainst(Actor, Actor)` reads `victim.GetEnabledTargetTypes()` and gates on
+`IsValidTarget` (`GameRules/WeaponInfo.cs`), and splash warheads run each candidate through it — an actor
+with no enabled target types is an invalid victim for every weapon in the game. **Override `TargetTypes`
+to a value nothing lists** rather than removing the trait.
+
+### `TargetDamage` scales by distance from the victim's CENTRE, so which cell of a building you clicked changes the damage
+
+*(Promoted 2026-09-05 from DISCOVERIES; the arithmetic is now driven against the shipped shape code by
+`OpenRA.Test/OpenRA.Mods.Common/SupportPowerAimPointTest.cs` rather than derived by hand.)*
+
+`TargetDamageWarhead` multiplies every hit by `HitShape.CenterProximityPercent` (`Warheads/TargetDamageWarhead.cs:93`),
+which normalises the offset from the victim's **centre** against its half-diagonal. A building's `Location`
+— the cell a map places it on and the cell a player clicks — is its **top-left footprint cell**, and
+`BuildingInfo.CenterOffset` puts the centre half the footprint away from it (`Buildings/Building.cs:207-211`).
+So aiming at a multi-cell building's own map cell delivers a **fraction** of the warhead's stated damage,
+and the fraction is per-cell rather than per-building: for a 3x3, the centre cell reads 100%, each of the
+four mid-edge cells 52%, each of the four corners 33%; for a 2x2, every footprint cell is the same
+`(512, 512)` from the centre and reads **50%**. Reading this as "a big building takes a third" understates
+four of a 3x3's nine cells by 1.6x.
+
+**`SpreadDamage` does not have this problem, and is the better primitive for anything aimed at structures.**
+At the default `DamageCalculationType.HitShape` it measures `DistanceFromEdge`, which is **zero anywhere
+inside** the shape. Widening `Spread` does not rescue a `TargetDamage` warhead either — `Spread` widens
+*admission* only, and the proximity percentage is computed independently, so a wider spread admits more
+victims at low percentages rather than restoring damage to the intended one.
+
+**Which shipped weapons this reaches.** Only a `TargetDamage` warhead consults the percentage. Of the three
+missile support powers, only the Kinzhal's `IskanderExplosion` carries one (`weapons/weapons-explosions.yaml:521`);
+the GBU-57's `MOPPenetration` and the nuke's `Atomic` are `SpreadDamage` throughout and deliver identically
+from any footprint cell — so a scenario built to demonstrate an aim-point fix on either of those would go
+green having measured nothing.
+
+**The support-power path is now closed; direct fire is not.** `SupportPowerAimPoint` resolves an order's
+target to the occupying actor's `CenterPosition` inside `SupportPowerInstance.Activate`, so every support
+power order — human, bot or Lua — lands on the centre. The same `IskanderExplosion` fired by the Iskander
+launcher's own `Explodes` (`vehicles-russia.yaml`) never builds a support-power order and is untouched.
 
 ### An armour class is a TARGET TYPE, so a weapon can reach a victim by a channel neither of them names
 
@@ -279,6 +360,63 @@ This is the cheap gate; it is not the thorough one. It proves the ruleset *resol
 
 `mod.yaml:319` sets `MapGrid: Type: Rectangular`. So cell neighbours are the plain `(x±1, y±1)` grid, a Manhattan/Chebyshev disc maps directly to spatial adjacency, and `CellLayer.Contains(CPos)` has no `X<Y` isometric rejection. This is what lets the density-neighbour idiom (`CohesionMoveModifier.CoverScore`, and the Phase-1 map layers) step cells with raw `CVec` offsets.
 
+### Footprint characters decide where a unit may STOP, and two near-identical indices disagree about where a building IS
+
+*(Promoted 2026-09-05 from DISCOVERIES; every citation re-read at `main @ 95bdffb2`.)*
+
+`FootprintCellType` (`engine/OpenRA.Mods.Common/Traits/Buildings/Building.cs:20-26`) has five characters, and the
+four list-builders below it — not the names — are what decide behaviour:
+
+| char | name | `Tiles()` (placement blocks, `BuildingInfluence`) | `OccupiedTiles()` (`ActorMap`) | `PathableTiles()` | may a unit STOP there? |
+|---|---|---|---|---|---|
+| `_` | Empty | no | no | yes | yes |
+| `=` | OccupiedPassable | yes | **no** | yes | **yes** |
+| `+` | OccupiedPassableTransitOnly | yes | yes | no | **NO** |
+| `x` | Occupied | yes | yes | no | no (blocked) |
+| `X` | OccupiedUntargetable | yes | yes | no | no (blocked) |
+
+`Tiles` is `:156-169`, `OccupiedTiles` `:180-190`, `PathableTiles` `:192-199`, `TransitOnlyTiles` `:201-204`.
+The stop/no-stop line is drawn by `Locomotor.CanStayInCell`, which returns
+`!CellFlag.HasCellFlag(HasTransitOnlyActor)` (`Traits/World/Locomotor.cs:373`), and only `+` cells set that
+flag (`:566-569`, fed from `Building.TransitOnlyCells()`). **A dock or parking cell must therefore be `=`**;
+a unit sent to a `+` cell arrives and is immediately shoved off by the idle handler.
+
+**The two indices answer different questions, and their names do not say which.** `Building` registers
+`Info.Tiles(Location)` with `BuildingInfluence` (`:370`) but `Info.OccupiedTiles(TopLeft)` as its
+`OccupiedCells` (`:342`), which is what the `ActorMap` influence layer is keyed on:
+
+| index | keyed on | includes `=` | question it answers |
+|---|---|---|---|
+| `ActorMap.GetActorsAt` | `OccupiedCells` | **no** | *can something stand here* |
+| `BuildingInfluence.GetBuildingsAt` | `Tiles` | **yes** | *is the building here* |
+
+`OccupiedCells` omitting `=` is correct and deliberate — the pathfinder is being told the truth about a cell
+units may walk through. **Reading it to answer "does this cell hold an actor" is what is wrong**, and the
+names are close enough that the mistake survives careful review and every solid-footprint building.
+Anything asking "what is at this cell" for a reason other than movement — targeting, aiming, selection,
+tooltips, capture ranges — wants `BuildingInfluence` or a hitshape test. The measured instance:
+`SupportPowerAimPoint` resolved a clicked cell through `GetActorsAt` alone, found no actor on a passable
+footprint cell, did not snap, and delivered a fraction of a centred shot's damage; it now reads both
+(`Traits/SupportPowers/SupportPowerAimPoint.cs:140-166`). The same fix's candidate ranking had to move
+from `OccupiedCells().Length` to `Info.Tiles` for the same reason — the former under-counts any building
+with passable cells.
+
+**Two consequences that are easy to miss.**
+
+- `targetableCells` is built from `x` **only** (`:345`), so a footprint made entirely of `=` and `+` has
+  **no** targetable cells. Such an actor needs explicit `HitShape.TargetableOffsets`, and turning on
+  `UseTargetableCellsOffsets` would leave it with no targetable position at all. `LOGISTICSCENTER` is
+  exactly this shape (`rules/ingame/structures.yaml:435-436`, `Footprint: ++ =+`) and carries the
+  offsets (`:413`).
+- Changing a cell from `+` to `=` **removes the post-service bounce.** A unit parked on a transit-only
+  cell is pushed off by `Mobile.OnBecomingIdle`; on an `=` cell it stays. Anything that relied on that
+  shove to free a dock needs an explicit vacate — see
+  [`architecture.md` §Resupply docking](architecture.md#resupply-docking-an-even-dimensioned-host-needs-a-declared-dock-cell).
+
+**Shipped examples, as of `main @ 95bdffb2`:** `SUPPLYROUTE` is 3x3 `=+= +++ =+=` (`structures.yaml:285-286`)
+— all four corners stoppable, five transit-only cells. `LOGISTICSCENTER` is 2x2 `++ =+` (`:435-436`) with
+exactly one stoppable cell, `(0,1)`, under the crane. Neither has ever blocked movement.
+
 ### Disabling a string field: bare colon, not `""`
 
 To clear a widget/chrome string field (`Background`, `Decorations`, `Separators`, `TooltipText`, …), use a **bare trailing colon**, never empty quotes. `FieldLoader.ParseString` returns the value verbatim (`FieldLoader.cs:161`), so `Separators: ""` parses as the literal two-character string `""`. That passes the `!string.IsNullOrEmpty` guards in the widgets, and the code then tries to load a chrome collection literally named `""` — e.g. `Sprite ""/separator was not found`. `Separators:` (bare colon) parses as null, `IsNullOrEmpty` fires, and the feature is skipped as intended.
@@ -297,6 +435,37 @@ A map's `rules.yaml` is loaded **only** when `map.yaml` names it under the top-l
 
 **Practical rule:** the per-map shortcut and `--dump-balance-json` are not substitutes for `make test` when you have added or renamed a trait field, or removed an inherited trait. They remain worth running — `--dump-balance-json` forces the full `ResolveInherits` pass in seconds and catches load-order and resolution failures neither of the others reaches, which makes it the cheap smoke test for an **inheritance** edit (a `-Trait:` removal that finds nothing throws *"There are no elements with key … to remove"*, `MiniYaml.cs:483`, so an exit-0 dump is positive evidence a removal bit). But a delta that touches AI YAML has not been linted until the pathless form has seen it; if you must skip it, cross-check the block's keys against the `Info` class's `public readonly` fields by hand.
 
+### `Tooltip` + `Buildable` + `Interactable` are a locked chain on any bodiless actor
+
+*(Promoted 2026-09-05 from DISCOVERIES, re-read at `main @ 95bdffb2`.)* A support-power buy proxy has no
+`IOccupySpace` — that is the point of it, and `Production.Produce` short-circuits the exit requirement for
+exactly that case (`Traits/Production.cs:126-131`). Three constraints then close on each other:
+
+1. `TooltipInfoBase : ConditionalTraitInfo, Requires<IMouseBoundsInfo>` (`Traits/Tooltip.cs:16`). A
+   positionless actor has no `Selectable`, no `IsometricSelectable` and no `Interactable`, so `Tooltip`
+   alone makes it **unconstructible**.
+2. Dropping `Tooltip` trades one red gate for another: `CheckTooltips` emits *"The following buildable
+   actor has no (enabled) Tooltip"* for any actor carrying `BuildableInfo` (`Lint/CheckTooltips.cs:38-44`),
+   and a buy-menu item must be `Buildable`.
+3. Which leaves a bare `Interactable:` as the only trait a bodiless actor can supply to close the chain:
+   `Buildable =(CheckTooltips)=> Tooltip =(Requires)=> IMouseBoundsInfo <= Interactable`.
+
+**The bare `Interactable:` is inert**, which is worth stating because it looks like decoration on an actor
+that can never be moused over: `Bounds` is null, `MouseoverBounds` falls through to `AutoBounds`, which
+reduces over an empty `IAutoMouseBounds` set to `default(Rectangle)`, and `ScreenMap.TickRender` drops an
+empty bounds rather than indexing it. `CheckInteractable` only rejects bounds that are *present and*
+non-positive (`Lint/CheckInteractable.cs:44-48`, `:57-67`), so it is clean.
+
+**The general shape:** a trait's `Requires<>` attribute is only half of what the lint gates enforce. The
+other half is the `ILintRulesPass` set, which can require the *presence* of a trait that itself requires
+something else. Checking one and not the other is how a fix passes locally and fails the gate a second time.
+
+**A constructibility failure is reproducible without the gate, in ~20 ms.** `ActorInfo` has a
+`(string name, params TraitInfo[])` constructor and `TraitsInConstructOrder()` is the exact method whose
+exception `CheckTraitPrerequisites.cs:42` reports, so an NUnit test can build a candidate actor's trait set
+by hand and get the gate's verdict with no mod load, no `World` and no launch slot
+(`OpenRA.Test/OpenRA.Mods.Common/BuyLoopProxyTest.cs`).
+
 ### The lint baseline matches on `<scope> | <message>`, so a NEW map can add unrecorded errors while a whole-run grep still looks clean
 
 *(Promoted 2026-09-01 from DISCOVERIES.)* `mods/ww3mod/lint-baseline.txt` is the floor `make test` fails against, and **the unit it compares is a signature, not a line and not a count.** `LintBaseline.Signature` is `$"{scope} | {firstLine}"` (`LintBaseline.cs:43-49`, under `UtilityCommands/`), where `firstLine` is the message truncated at the first newline — several lint errors carry a multi-line explanation under a one-line summary, and only the summary is keyed on.
@@ -312,16 +481,27 @@ Consequences worth knowing before you touch the file:
 
 **Never hand-add a line to the baseline to turn a red run green without saying why in the commit message.**
 
-### Scenarios are NOT maps to the tooling, so every map-shaped gate silently covers 10 files and skips 273
+### Scenarios are NOT maps to SOME tooling — but the Windows merge gate DOES lint every one of them
 
-**The generalisation first, because it has already caught two independent tools and will catch a third.** `mods/ww3mod/maps` is declared `System` (`mod.yaml:90`) while `tools/autotest/scenarios` is declared `Unknown` (`mod.yaml:107`). Any tool that enumerates "the maps" gets the 10 shipped maps and none of the 273 scenarios. **Before trusting any gate to cover a scenario change, find the line where it builds its file list and check which classification or directory it names.** A green run is otherwise byte-identical whether your scenario is perfect or unparseable.
+**CORRECTED 2026-09-05. This section previously said every map-shaped gate skips the scenarios. That is FALSE for `.\make.ps1 test`, and believing it shipped a broken branch to the merge gate.** A full-capture run prints one `Testing map:` line per linted map and the autotest scenarios are in it **by title**; the gate caught *Actor `powerproxy.strike` is not constructible* in a brand-new scenario's own `rules.yaml`, for an actor that scenario never places — the lint passes iterate `rules.Actors`, the whole merged ruleset, not the placed actors. **A scenario's rules override is linted as rules, whether or not anything uses them.**
 
-The two known instances:
+The linted-map totals reconcile exactly to "all of them" at three refs — 299 = 10 + 289, 300 = 10 + 290, 304 = 10 + 294 (shipped maps under `mods/ww3mod/maps/` plus directories under `tools/autotest/scenarios/`), with no residual. *(Counts as of those refs; there are **297** scenario directories at `main @ 95bdffb2`. An earlier reading of the same output claimed an 86 + 218 split and an unlinted subset; 86 does not match the 10 shipped-map directories at any ref, and the hazard does not exist — the split came from partitioning the log on a `TEST:` title prefix, which is not a shipped-vs-scenario boundary since scenarios are also titled `DEMO:`, `Arena:` and `Frontline:`.)* Settle it for yourself by counting rather than trusting either reading:
 
-- **`./utility.sh --check-yaml` with no argument** — and therefore `make test` — takes its list from `modData.MapCache.EnumerateMapDirPackagesAndNames()` (`CheckYaml.cs:98`), whose `classification` parameter **defaults to `MapClassification.System`** (`MapCache.cs:212`). The lint logic itself is fine: `TestMap` reports `map.InvalidCustomRules` (`CheckYaml.cs:141-146`), which `Map.PostInit` sets by catching whatever `Ruleset.Load` throws. It simply never opens the scenario files.
+```powershell
+$o = .\make.ps1 test 2>&1 | Out-String
+($o -split "`n" | Where-Object { $_ -match '^Testing map:' }).Count
+```
+
+**Work on the assumption that the gate reaches your scenario.** Of the two ways to be wrong this is much the safer: assuming coverage you do not have costs a surprise later, while assuming a lint error in a scenario cannot reach the merge gate is what put a red gate in front of a finished branch.
+
+**The generalisation still holds for the other gates, and is why this section exists.** `mods/ww3mod/maps` is declared `System` (`mod.yaml:90`) while `tools/autotest/scenarios` is declared `Unknown` (`mod.yaml:107`), so any tool that enumerates "the maps" by classification gets the 10 shipped maps and none of the scenarios. **Before trusting any gate to cover a scenario change, find the line where it builds its file list and check which classification or directory it names.** A green run is otherwise byte-identical whether your scenario is perfect or unparseable.
+
+The two confirmed instances — **neither of which is `.\make.ps1 test`**, and neither of which has been re-checked against the Windows path:
+
+- **`./utility.sh --check-yaml` with no argument** takes its list from `modData.MapCache.EnumerateMapDirPackagesAndNames()` (`CheckYaml.cs:98`), whose `classification` parameter **defaults to `MapClassification.System`** (`MapCache.cs:212`). The lint logic itself is fine: `TestMap` reports `map.InvalidCustomRules` (`CheckYaml.cs:141-146`), which `Map.PostInit` sets by catching whatever `Ruleset.Load` throws. It simply never opens the scenario files.
 - **`make nav-guard`** — its baseline is `mods/ww3mod/maps` only. See [`tools/nav-guard/README.md`](../../tools/nav-guard/README.md); that misread cost two workers on 2026-09-01.
 
-**`Unknown` is deliberate, so do not "fix" it upstream.** `mod.yaml:93-106` carries a fifteen-line comment: the classification is what keeps scenarios out of every UI tab (lobby, missions, main-menu chooser) while the engine still resolves them by folder name, because `Game.LoadMap` matches on Uid or package folder name and reads neither `Class` nor `Visibility`. Reclassifying them to widen a lint gate would put 273 test scenarios in the player's map lists.
+**`Unknown` is deliberate, so do not "fix" it upstream.** `mod.yaml:93-106` carries a fifteen-line comment: the classification is what keeps scenarios out of every UI tab (lobby, missions, main-menu chooser) while the engine still resolves them by folder name, because `Game.LoadMap` matches on Uid or package folder name and reads neither `Class` nor `Visibility`. Reclassifying them to widen a lint gate would put every test scenario in the player's map lists.
 
 **The targeted form does lint a scenario, and the path is relative to `engine/`:**
 
@@ -335,6 +515,15 @@ The two known instances:
 
 **What is loud and what is silent, verified rather than assumed.** A path that does not exist is **loud in every shape**: `Folder.OpenPackage` reaches `ZipFileLoader.TryParseReadWritePackage`, whose `File.OpenRead` is unguarded (`ZipFile.cs:226`), so a missing parent directory throws `DirectoryNotFoundException` and a missing name inside an existing directory throws `FileNotFoundException`. `CheckYaml.cs:127-131` catches both, prints `Failed with exception:` and exits 1. So a typo in the scenario name cannot masquerade as a pass. The silent `if (package == null) continue;` (`:106-107`) is reachable only when the path **exists as a file that is not a parseable package** — i.e. pointing at `…/<name>/map.yaml` instead of at the scenario directory. **Confirm you saw `Testing map: <title>` (`:136`)** — belt-and-braces against a typo, load-bearing against a path aimed one level too deep.
 
+**`Testing map:` sits at the TOP of the output, so checking for it with a `tail` produces a FALSE NEGATIVE.** *(Promoted 2026-09-05 from DISCOVERIES.)* The targeted lint emits its header first, then roughly 300 lines of `grants conditions that are not consumed` warnings. `| Select-Object -Last 25` or `| tail -25` therefore shows the warning block and **no `Testing map:` line** — which reads exactly like the "silently not linted" failure the check exists to catch. This fired for real on 2026-09-04: a manager applied the rule to a tailed output, concluded a freshly authored scenario was malformed, ran two control lints to "confirm" it, and was wrong on all three readings. Filter the **whole** output instead:
+
+```powershell
+$o = .\utility.cmd --check-yaml "..\tools\autotest\scenarios\<name>" 2>&1 | Out-String
+($o -split "`n") | Where-Object { $_ -notmatch 'grants conditions that are not consumed' -and $_.Trim() -ne '' }
+```
+
+For a clean scenario that prints exactly one line: the header. **The general form is the part worth carrying — when a rule says "require string X to prove the tool ran", grep the WHOLE output for X.** Sampling either end can only produce false negatives, and a false negative on a proof-of-execution check is indistinguishable from the failure being checked for.
+
 **And do not pipe the run.** The utility's exit code is the evidence; a `| grep` appended to it reports the pipeline's status instead, which is the standing "never pipe a verdict" rule reappearing inside the tool you are using to investigate a coverage gap.
 
 **The general form is broader than piping: the verdict-producing command must be LAST in its chain.** `tail` is only the famous instance. Anything appended after a verdict — `cat`, `grep`, `echo`, `tail` — substitutes its own exit code, and it can flip the result **in either direction**: a passing `run-test.sh` followed by a `cat` of a mistyped path reported as a failure, and the reverse is equally available. Either put the verdict command last, or run `set -o pipefail` first, or read `result.json` and ignore `$?` entirely.
@@ -345,7 +534,7 @@ The two known instances:
 
 **A fatal Lua error is an outcome no in-script arm can reach.** A scenario written with GREEN / defect-FAIL / VOID arms still has a fourth outcome underneath all three: the script dies before any arm evaluates, and the run reports a bare `AUTOTEST_VERDICT outcome=FAIL` with no verdict line. **No arm can cover this, because arms are code in the process that just died** — the countermeasure has to live one level up, statically in lua-gate or in the harness. **When triaging a FAIL, check the log for a fatal before believing the verdict is about the code under test.** Worst case observed: the one caller of the broken binding reached it *only* on its own failure path, so the landmine was armed to detonate precisely when the scenario most needed its diagnostic. **A latent defect reachable only from a failure branch is invisible to every green run, forever.**
 
-**The NUnit option, and why nobody has taken it.** An `engine/OpenRA.Test/` fixture that loads all 273 scenarios' rules would close the gap in CI, and it is possible but not cheap: **nothing in the test project constructs a `ModData`** (zero references), so the mod-filesystem bootstrap would have to be built from scratch. The one `Ruleset` a test does build is hand-assembled in memory from synthetic `ActorInfo`s with no YAML behind it (`ShadowCacheKeyTermsTest.cs:40-55`), so it is not a starting point. The cost is the bootstrap, not the ruleset.
+**The NUnit option, and why nobody has taken it.** An `engine/OpenRA.Test/` fixture that loads every scenario' rules would close the gap in CI, and it is possible but not cheap: **nothing in the test project constructs a `ModData`** (zero references), so the mod-filesystem bootstrap would have to be built from scratch. The one `Ruleset` a test does build is hand-assembled in memory from synthetic `ActorInfo`s with no YAML behind it (`ShadowCacheKeyTermsTest.cs:40-55`), so it is not a starting point. The cost is the bootstrap, not the ruleset.
 
 ## A change believed made, documented as made, and inert
 
@@ -357,9 +546,9 @@ The two known instances:
 
 This is the code-side twin of [`README.md` §"Four shapes of confident correctness claim with nothing behind it"](README.md), which covers the same failure in prose claims. Both reduce to the same corrective: **name the line you would delete to break the property, and check that deleting it would change anything.**
 
-### Five shapes, twelve instances
+### Six shapes, fourteen instances
 
-The list grew from six to ten on 2026-08-27, and a fifth shape was added on 2026-09-02 when instances 11 and 12 turned out to share a root the first four do not cover. A flat list stopped being navigable. The instances keep their original numbers — they are cited by number elsewhere in this file and in `WORKSPACE/DISCOVERIES.md` — but they sort into four shapes, and **the shape is the reusable part**:
+The list grew from six to ten on 2026-08-27; a fifth shape was added on 2026-09-02 when instances 11 and 12 turned out to share a root the first four do not cover, and a sixth on 2026-09-05 with instance 14. A flat list stopped being navigable. The instances keep their original numbers — they are cited by number elsewhere in this file and in `WORKSPACE/DISCOVERIES.md` — but they sort into four shapes, and **the shape is the reusable part**:
 
 | Shape | Instances | What to run |
 |---|---|---|
@@ -367,11 +556,12 @@ The list grew from six to ten on 2026-08-27, and a fifth shape was added on 2026
 | **A gate cannot bind what it names.** Disjoint sets, an exclusion that covers the whole grant, a narrowing that leaves another channel open, an interface that is never enumerated. | 3, 4, 5, 6 | Enumerate what can satisfy *both* sides — and, per instance 3, over *time* as well as over inputs. |
 | **An unset field's DEFAULT does the damage.** Nothing is written in YAML, so nothing looks wrong; the default is a live value that silently rewrites the result. | 7, 8 | For every field a warhead/trait reads, ask what it equals when nobody sets it — and whether that value is *reachable* on your delivery path. |
 | **The right trigger wired to the wrong action.** The condition is correct and fires on schedule; what it then does is not what the comment beside it says. | 9, 10 | Read the body of the thing the condition calls. Do not infer it from the call site's name. |
+| **The CONSUMER was deleted and the configuration surface survived.** The `Info` field, its `[Desc]` and the player-facing lobby entry all still parse and render; the code that read them is gone. | 14 | For any long-dormant feature, grep for a *reader* of each config field — not for the field. |
 | **The value is in the wrong UNIT.** The field is set, read, and arithmetically used — but denominated differently from the thing it is compared or summed against, so it is either enforced elsewhere or too small to matter. | 11, 12 | Write the unit and the realistic magnitude range beside every term it meets. Cells vs `WDist`, and "how big is this next to its neighbour" are the two questions. |
 
 The first two shapes were the whole list until 2026-08-27. Shapes three and four **cannot be found by reducing an expression** — there is no expression, only a name that does not describe its body. Shape five is the one that survives *all* the earlier detectors: the expression reduces fine, the field has readers, and the callee does what its name says — the arithmetic is simply being done in two currencies.
 
-### The instances (1–6 as of `main @ 12e0addd`; 7–10 as of `main @ eb2c4585`; 11–12 as of `main @ 94020582`)
+### The instances (1–6 as of `main @ 12e0addd`; 7–10 as of `main @ eb2c4585`; 11–12 as of `main @ 94020582`; 13–14 as of `main @ 95bdffb2`)
 
 1. **An effect mounted, tuned to imperceptibility.** `WithHealFlash` has been on `^ExistsInWorld` since `82938ec8` (2026-03-28), applied at `defaults.yaml:13`. Its C# defaults are `Alpha = 0.3f`, `Count = 2`, `Interval = 2` (`Traits/Render/WithHealFlash.cs:22-31`). `FlashTarget.Render` tints only when `tick % interval == 0` (`Effects/FlashTarget.cs:64`) and the effect dies at `++tick >= count * interval` (`:58`) — so `Count 2, Interval 2` is **two single-tick tints 120 ms apart**, not 240 ms of tint. The user reported "no effect when medics heal" about a feature that had shipped, working, for five months. `Interval: 1` is the only way to get a continuous glow; the mod now sets `Count: 6, Interval: 1` (`defaults.yaml:14-22`).
 2. **A scoring term that is integer-zero across its entire domain.** The medic's patient scorer carried `score += dist / 10240` under the comment *"slight distance tiebreaker (1 point per 10 cells)"* (added `e305be21`). That is integer division on a WDist length, and `^MEDI`'s `SearchRange` is `8c0` = 8192 (`infantry.yaml:2170`). **8192 / 10240 == 0 at every reachable distance**, so distance never affected patient choice at all and ties fell to enumeration order. Now `DistancePenaltyPerCell` in cell units, with the trap preserved as a `[Desc]` at `HealerAutoTarget.cs:52-54`.
@@ -389,6 +579,10 @@ The first two shapes were the whole list until 2026-08-27. Shapes three and four
 11. **A leash declared on the MASTER and enforced on the SLAVE, in different units.** `CarrierMasterInfo.MaxSlaveDistance` has **zero readers engine-wide** — as do `MaxSlaveDistanceCheckInterval` and `SpawnIsMissile` (declarations at `CarrierMaster.cs:22`, `:39`, `:43`; every other hit in the tree is a comment or a test). `^DR` set `MaxSlaveDistance: 20c0`, so the YAML asserted a 20-cell leash while the game enforced the slave-side `CarrierSlave.MaxDistance` (`CarrierSlave.cs:131`, `:138`) — **denominated in CELLS, not `WDist`**, so the two fields are not even the same kind of number. The dead line has been removed and all three engine fields now carry `[Desc("UNREAD - setting this does nothing…")]` naming the field that actually bites. **The general shape: in a master/slave trait pair, the half you are configuring is not necessarily the half that enforces** — grep the *other* class before tuning either.
 
 12. **A scoring term denominated in a different unit from the term it competes against — inert by construction, and invisible to every gate the project owns.** The drone's task score was `((long)revealedStaleSquares * 1000) + contactBonus - poiDistanceCells`, with `ContactBonus: 2000` in YAML. Because the term it competes against is multiplied by 1000, the whole bonus was worth **two revealed squares** — against a query whose own corner artefact is up to **228** squares (the sampled box is 29×29 = 841 and the inscribed disc is 613; both numbers are asserted in `DroneTaskingMathTest.cs:499-511`). A 0.9% nudge inside a 228-square noise floor cannot change an outcome, so a knob that looked like a major weighting had never once moved a decision. **Nothing in the project could see it:** it compiles, the field has a real reader on the correct line, lint has no opinion on units, and the NUnit tests assert *orderings* — which a negligible-but-nonzero term satisfies perfectly. Fixed at `46a226fa` by folding the contact evidence into the same currency (`DroneTaskingMath.cs:133` `var worth = revealedStaleSquares + intelSquares;`, scored at `:159`), with the reasoning kept as an in-code comment at `:120-132`; the `ContactBonus` parameter is gone. **The detector is dimensional, not logical: for every additive term in a score, write down its unit and its realistic magnitude range beside the terms it is summed with.** An ordering assertion is structurally unable to catch this — see [`README.md` §"Four shapes"](README.md) #4.
+
+13. **A step that resolved to zero at every repair in the game, whose second-order effect was worse than the missing heal.** `Resupply.RepairTick` derived its step as `repairable.Info.HpPerStep > 0 ? repairable.Info.HpPerStep : repairsUnits.Info.HpPerStep` — and **both defaults are 0** in this engine (`Traits/RepairsUnits.cs:22`, `Traits/Repairable.cs:32`, where upstream OpenRA has 10), with nothing under `mods/` setting either. So `InflictDamage(new Damage(-0))` healed nothing, and the `Math.Max(1, …)` on the line below applies to the *cost*, so the player was charged 1 credit per no-op tick. Meanwhile a `PercentageStep` was declared on **both** info classes (`:24`, `:35`), set to 3 on `^Vehicle` (`rules/ingame/vehicles.yaml:64`) — and read by nothing; the only code in the repo reading a field of that name was `ChangesHealth`'s own unrelated one. The YAML side of the change was written and the engine side never finished; it came in with `1f6ea0d4` ("2022 integration"). **The wedge is the part that made it expensive:** `activeResupplyTypes` keeps its `Repair` flag until `health.DamageState == DamageState.Undamaged`, which a zero step can never reach, and the activity's only exit is `activeResupplyTypes == 0` — so a damaged vehicle sent to a Logistics Centre rearmed and then sat there indefinitely until something else gave it an order. Fixed 2026-09-05 by a percentage fallback gated on `hpToRepair <= 0`, so any host that *does* set `HpPerStep` is byte-identical (`Activities/Resupply.cs:616-648`). **Detector note: a defect whose symptom is "nothing happened" hides inside a system whose normal state is also nothing happening** — repairs are rare enough that "the tank did not heal" reads as "it was not damaged enough".
+
+14. **An upstream merge deleted the consumer and left the whole configuration surface standing.** `SupportPowerInfo.LobbyChargeIntervalId` (`Traits/SupportPowers/SupportPower.cs:25`) has **zero readers repo-wide** — the only other hits are two commented usages in `player.yaml`. `PowersLobbyOptions.AirstrikeCooldown` is likewise assigned and read by nothing. `git log -S "LobbyChargeIntervalId" -- .../SupportPowerManager.cs` returns exactly two commits: `6f2191be` added the parsing, and **`71687440` ("Upstream merge: fix OpenRA.Game compilation + resolve duplicate types") removed it.** The `[Desc]`, the field and a five-value player-facing lobby dropdown all outlived their implementation, and **nothing lints for that** — a never-read `readonly` field is not a warning, and a lobby option resolving to a value nobody uses renders normally. Riding along: the removed parser used 25 tps and the surviving `[Desc]` still asserts it, so the shipped `ChargeInterval: 6000` is **6 minutes, not the 4** the dropdown default implies — the same 1.5× family as the section below. **When re-enabling any long-dormant feature, grep for a reader of each config field before trusting it.**
 
 ### The same failure in comments: an asserted duration the code does not produce
 
@@ -466,6 +660,35 @@ Four things decide whether this works, and three of them are traps:
 **What it does NOT answer.** It enumerates consumers of a *member*. It cannot answer "which classes implement interface `I` but not `J`" — for that, "implementors" is not even a well-posed count: at one commit `INotifyOwnerChanged` gave 58 files containing the string, 106 total mentions, and 52 declaration-shaped lines. Three defensible numbers for three different questions.
 
 **The rule: write an enumeration as a claim with its method attached, never as a bare number.** Not *"17 sites"* but *"17 sites; grep `\bfa\.Owner\b` over `engine/**/*.cs`; recall unverified"*. A bare number is indistinguishable from a measurement at the point of reuse, and it will be reused. **If a design decision depends on an enumeration being complete, buy the recall-complete instrument** — one attribute and one build is cheaper than the design being wrong.
+
+## `make.ps1 all` can silently NO-OP after a checkout, leaving the previous SHA's binaries
+
+*(Promoted 2026-09-05 from DISCOVERIES. The observation is established; the cause below is a hypothesis and
+is marked as one.)*
+
+**Observed 2026-09-04**, in a reused worktree: detached at one SHA, built, gate run; then
+`git checkout --detach <other SHA>` and `.\make.ps1 all` again. It printed **"Build succeeded, 0 Warning(s),
+0 Error(s)"** in **1.53 s** with **no per-project output lines at all**, and `engine/bin/OpenRA.Mods.Common.dll`
+still carried its mtime from the previous build 1h45m earlier. The checkout had *added* a `.cs` file whose
+mtime read older than the DLL, despite git having just written it. Touching the two changed sources and
+re-running rebuilt in 5.87 s with the project lines back.
+
+**Why it matters: a gate run on those binaries is a gate on the OLD commit while reporting the new one, and
+nothing in the output says so** — "Build succeeded" is identical either way. This is strictly worse than the
+missing-build case, which fails loudly (`launch-game.sh` gates on `OpenRA.dll` present and `VERSION` matching).
+
+**Tells that a `make.ps1 all` did nothing:**
+- elapsed under ~2 s **and** no `-> …dll` project lines in the output;
+- `engine/bin/OpenRA.Mods.Common.dll` mtime older than the checkout you just did.
+
+**Remedy before any gate or launch after switching SHAs in a shared or reused worktree:** `touch` the files
+the checkout changed (`git diff --name-only <old> <new> -- '*.cs'`), or check the DLL mtime, before trusting
+the build.
+
+**Leading hypothesis, NOT verified:** git's index stat-cache restored a previously-seen file with a preserved
+mtime rather than stamping it with the checkout time, so MSBuild's source-newer-than-output test failed and it
+skipped the project. Confirming that means inspecting `core.trustctime` and the index stat data across that
+specific checkout pair, which nobody has done.
 
 ## A build that fails and launches anyway indicts the WRONG code, every time
 

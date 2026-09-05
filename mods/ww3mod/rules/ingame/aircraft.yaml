@@ -100,8 +100,30 @@
 ^Airborne:
 	Inherits: ^NeutralAirborne
 	Inherits@UnitExperience: ^GainsExperience
+	# SINGLE SITE for the airframe repair rate, and the only one — ^Aircraft, ^Helicopter and
+	# ^Drone all reach Repairable through here, and ^Helicopter's own `Repairable: RepairActors:
+	# hpad` (below) MERGES with this node rather than replacing it, so it overrides the host list
+	# and inherits this step. Do NOT restate PercentageStep there: two values for one field is the
+	# shape that goes stale.
+	#
+	# WHY THE UNIT SIDE AND NOT THE PADS. Resupply.RepairTick prefers Repairable.PercentageStep
+	# over RepairsUnits.PercentageStep (Activities/Resupply.cs:644-646), so a value here is
+	# authoritative and cannot be shadowed by a host. It also mirrors ^Vehicle, which carries its
+	# rate next to its RepairActors (vehicles.yaml:62-64) — one idiom, not two. Putting it on
+	# HPAD/AFLD instead would need two entries, would silently miss any future pad, and would hand
+	# the rate to anything else that ever docks there.
+	#
+	# 3 = 3% of MaxHP per RepairsUnits.Interval (24 ticks), the vehicle rate. Before 2026-09-05 this
+	# was unset on every airframe and RepairsUnits sets neither field on HPAD or AFLD
+	# (structures.yaml:711, :786), so hpToRepair resolved 0: an aircraft at a pad healed nothing,
+	# never reached DamageState.Undamaged, and so never cleared ResupplyType.Repair — the exit
+	# condition is activeResupplyTypes == 0 (Resupply.cs:602, :339) — leaving it parked on the deck
+	# paying 1 credit an interval for nothing. Same defect the vehicles half fixed at 0871d66a
+	# (merged dd952225), which added the fallback but reached only ^Vehicle, the one actor family
+	# that already had a PercentageStep.
 	Repairable:
 		RepairActors: afld
+		PercentageStep: 3
 	Aircraft:
 		TakeOffOnCreation: False
 

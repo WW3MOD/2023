@@ -629,10 +629,16 @@ namespace OpenRA.Mods.Common.Activities
 				// PercentageStep; that one always worked and is untouched.)
 				//
 				// Gated on hpToRepair <= 0 so any host that DOES set HpPerStep is byte-identical.
-				// Today that is none of them, and `^Vehicle`'s Repairable is the ONLY repair-side
-				// PercentageStep in the mod, so the behaviour change is exactly: ground vehicles now
-				// repair at a Logistics Centre, at 3% of MaxHP per Interval. Everything else — every
-				// aircraft at a helipad or airfield included — still resolves 0 and is unchanged.
+				// Today that is none of them.
+				//
+				// UPDATED 2026-09-05. This block used to add that `^Vehicle`'s Repairable was the ONLY
+				// repair-side PercentageStep in the mod and that "every aircraft at a helipad or
+				// airfield still resolves 0 and is unchanged". That was true when it was written and
+				// is now false: `^Airborne` sets PercentageStep: 3 as well
+				// (mods/ww3mod/rules/ingame/aircraft.yaml, next to its RepairActors), so airframes at
+				// an HPAD or AFLD repair at the same 3% of MaxHP per Interval that vehicles get at a
+				// Logistics Centre. Those are the two repair-side PercentageStep sites; HPAD and AFLD
+				// still set neither field, so the unit side is what answers for every host.
 				if (hpToRepair <= 0)
 				{
 					var percentageStep = repairable != null && repairable.Info.PercentageStep > 0

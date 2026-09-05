@@ -96,6 +96,7 @@ Tool that produces all of the above in ~7 s with no build and no launch:
 [`tools/evac-edge-math/`](../tools/evac-edge-math/README.md).
 
 ## 2026-09-05 - `IOccupySpace.OccupiedCells` is a PATHFINDING index, not a presence index: a building is absent from it on its own passable cells (`wt/powers-aimpoint`, `main @ 055ef267`)
+## 2026-09-05 - `IOccupySpace.OccupiedCells` is a PATHFINDING index, not a presence index: a building is absent from it on its own passable cells (`wt/powers-aimpoint`, `main @ 055ef267`) **[promoted → `conventions.md` §"Footprint characters decide where a unit may STOP"]** — mechanism verified at `main @ 95bdffb2`; **the LOGISTICSCENTER illustration is STALE and was re-derived on promotion.** The 3x3 `=+= +++ =+=` footprint with four `=` corners is SUPPLYROUTE's (`structures.yaml:285-286`); LOGISTICSCENTER has been 2x2 `++ =+` with exactly ONE stoppable cell since `dd952225`, and `SupportPowerAimPointTest` now pins that shape. The `OccupiedCells`-vs-`Tiles` mechanism, the ranking fix and the generalisation all hold unchanged.
 
 `ActorMap.GetActorsAt(cell)` reads the influence layer, which is keyed on
 `IOccupySpace.OccupiedCells`. For a building that is `BuildingInfo.OccupiedTiles`, and
@@ -139,7 +140,7 @@ used `OccupiedCells().Length`, which reports the 3x3 Logistics Center as **5** c
 enough to rank it below a smaller building with a solid footprint. It now measures a building with
 `Info.Tiles`.
 
-## 2026-09-05 - A scenario budget and the shipped delay it depends on live in different languages in different trees, and nothing reads both (`wt/powers-aimpoint`, `main @ 055ef267`)
+## 2026-09-05 - A scenario budget and the shipped delay it depends on live in different languages in different trees, and nothing reads both (`wt/powers-aimpoint`, `main @ 055ef267`) **[promoted → `architecture.md` §"A scenario phase must advance on an OBSERVABLE, not on a tick count"]** — `PlayerProperties.cs:100` and `MissileDelay: 150` (`player.yaml:137`) both re-read at `main @ 95bdffb2`.
 
 Two branches were cut from the same commit. One added a per-power arrival delay
 (`MissileDelay: 150` on the Kinzhal, `player.yaml:137`); the other wrote a scenario whose settle
@@ -175,7 +176,7 @@ covers two sequential shots' own budgets. **Any scenario whose timing depends on
 can be pinned this way, and the ones that are not will keep failing on merge-day collisions that
 neither branch could have seen alone.**
 
-## 2026-09-05 - The corner-hit discount is REAL and is now pinned against the shipped shape code, but it reaches exactly ONE of the three missile powers - and "a big building's own cell gives 33%" is true only of its CORNERS (`wt/powers-aimpoint`, `main @ bb294b2d`)
+## 2026-09-05 - The corner-hit discount is REAL and is now pinned against the shipped shape code, but it reaches exactly ONE of the three missile powers - and "a big building's own cell gives 33%" is true only of its CORNERS (`wt/powers-aimpoint`, `main @ bb294b2d`) **[promoted → `conventions.md` §"`TargetDamage` scales by distance from the victim's CENTRE"]**, merged with the 2026-09-04 `TargetDamage` entry into one fact. **Two citations were stale and are corrected in the doc:** the LOGISTICSCENTER hitshape is no longer `±1536` at `structures.yaml:400-410` — it is `±1024` at `:412-417` and the actor is 2x2, so its footprint cells now read **50%**, not 33%/52%. The 100/52/33 table survives as the **3x3** case (which is what SUPPLYROUTE is). Corrections 2 and 3 and the "what the fix does not reach" paragraph are verified as written.
 
 Three corrections and one confirmation of the 2026-09-04 `TargetDamage`/`CenterProximityPercent`
 entry, all from static work on `main @ bb294b2d`. None of this was measured in a running game; the
@@ -227,7 +228,7 @@ order - human, bot or Lua - lands on the centre and the discount becomes unreach
 support power**. The same `IskanderExplosion` is fired by the Iskander launcher's own `Explodes`
 (`vehicles-russia.yaml:1112,1149,1153,1221`), which never builds a support power order, so the
 defect is untouched for direct fire and still wants its own item.
-## 2026-09-05 - WW3MOD already has a per-player upkeep system, and the production queue's refund stops at `EndProduction`
+## 2026-09-05 - WW3MOD already has a per-player upkeep system, and the production queue's refund stops at `EndProduction` **[promoted → `economy.md` §"Upkeep is a SHIPPED per-player system" + §"A production queue's cancel-refund does not survive completion"; queue mechanism to `architecture.md` §Production queues]** — every `PlayerResources` citation reproduced; **`InfersUpkeep.cs:35-42` was wrong** and is cited in the doc as `:22-23` (fields) and `:52-53` (the computation).
 
 Two findings from the powers-economy recon (`main @ bb294b2d`, full write-up
 `WORKSPACE/proposals/260905-powers-economy.md`). Both are the kind that get re-derived wrongly
@@ -282,7 +283,7 @@ forever. Full refund is the only value that makes the two sides of `EndProductio
 
 ---
 
-## 2026-09-04 - A Lua test binding that answers two questions in one string fails its callers silently
+## 2026-09-04 - A Lua test binding that answers two questions in one string fails its callers silently **[promoted → `architecture.md` §"A `Test.*` binding must return ONE thing"]**
 
 `Test.GetSupportPowerState(player, orderKey)` was written to return a state token **and** append the
 set of keys the power bin would draw:
@@ -329,7 +330,7 @@ decorated return is a burned launch slot and, worse, assertions that silently st
 uses together. Left alone here — renaming a shipped return is not this commit's business — but it is
 the next thing in this area likely to confuse someone.)*
 
-## 2026-09-04 - `make.ps1 test` lints autotest scenarios BY NAME. CLAUDE.md says it does not, and that belief shipped a broken branch
+## 2026-09-04 - `make.ps1 test` lints autotest scenarios BY NAME. CLAUDE.md says it does not, and that belief shipped a broken branch **[promoted → `conventions.md` §"Scenarios are NOT maps to SOME tooling — but the Windows merge gate DOES lint every one of them"]** — this is the doc-vs-code contradiction of the pass: that section previously asserted every map-shaped gate skips the scenarios, and its heading, its opening paragraph and its `make test` attribution were all rewritten. Scenario-directory count refreshed to **297** at `main @ 95bdffb2`.
 
 **VERIFIED, not inferred.** A full-capture `.\make.ps1 test` run prints a `Testing map:` line per
 linted map, and three of the four scenarios added by `wt/powers-two` are in it by title:
@@ -408,7 +409,7 @@ whose exception `CheckTraitPrerequisites.cs:42` reports. An NUnit test can build
 trait set by hand and get the gate's verdict with no mod load, no World and no launch slot.
 `BuyLoopProxyTest` does this in both directions and is how the fix here was checked red-then-green.
 
-## 2026-09-04 - `Tooltip` + `Buildable` + `Interactable` are a locked chain on any bodiless proxy
+## 2026-09-04 - `Tooltip` + `Buildable` + `Interactable` are a locked chain on any bodiless proxy **[promoted → `conventions.md` §"`Tooltip` + `Buildable` + `Interactable` are a locked chain on any bodiless actor"]** — `CheckTooltips.cs:28-35` corrected to `:38-44` and `CheckInteractable.cs:57-65` to `:44-48`/`:57-67`; `Tooltip.cs:16`, `Production.cs:126-131` and `CheckTraitPrerequisites.cs:42` all reproduce.
 
 Found fixing the above, and it invalidated the fix that was drafted first.
 
@@ -437,7 +438,7 @@ gate enforces. The other half is the `ILintRulesPass` set, which can require the
 trait that itself requires something else. Checking one and not the other is how a fix passes
 locally and fails the gate a second time.
 
-## 2026-09-04 - A `TargetDamage` warhead aimed at a big building's own map cell delivers ~33%
+## 2026-09-04 - A `TargetDamage` warhead aimed at a big building's own map cell delivers ~33% **[promoted → `conventions.md` §"`TargetDamage` scales by distance from the victim's CENTRE"]**, merged with the 2026-09-05 corrections entry. The mechanism and the `SpreadDamage`/`Spread` corollaries are verified; **the 33% figure is a 3x3-corner number and is written up as such**, since the worked example actor is now 2x2.
 
 Found while sizing the GBU-57's warhead, and it is **live today on the shipped Kinzhal**, not a
 property of the new work.
@@ -473,7 +474,7 @@ player clicked silently changes whether a support power kills it.
 weapon used by the Iskander launcher as well as the Kinzhal, and it wants its own item with a
 benchmark re-baseline. Recorded so whoever picks it up knows the size of it.
 
-## 2026-09-04 - A lobby-gated support power is still a key in `SupportPowerManager.Powers`
+## 2026-09-04 - A lobby-gated support power is still a key in `SupportPowerManager.Powers` **[promoted → `architecture.md` §Support powers]** — `SupportPowerManager.cs:53-74` and `SupportPowersWidget.cs:136` both reproduce.
 
 `SupportPowerManager.ActorAdded` registers **every** `SupportPower` trait on the actor, disabled
 ones included (`SupportPowerManager.cs:58-74`) — it iterates `TraitsImplementing<SupportPower>()`,
@@ -493,7 +494,7 @@ observe a timeout, which also passes on a mod where nothing works at all.
 absence becomes a positive reading. `test-tacnuke-lobby-gated-off` uses it, with the un-gated
 Kinzhal as a live control in the same tick.
 
-## 2026-09-04 - `GrantConditionOnLobbyOption`'s polarity decides what an UNREGISTERED option does
+## 2026-09-04 - `GrantConditionOnLobbyOption`'s polarity decides what an UNREGISTERED option does **[promoted → `conventions.md` §Conditions system]** — fallback is at `:47-48`, not `:47`.
 
 The trait falls back to `OptionOrDefault(Option, !GrantWhenOptionDisabled)`
 (`GrantConditionOnLobbyOption.cs:47`) when the lobby never registered the option at all — a stripped
@@ -511,7 +512,7 @@ fail safe — the tactical nuclear strike is the live case — only the first fo
 shipped `GrantConditionOnLobbyOption@airstrikes` block already uses it; that now has a stated reason
 rather than being a coincidence.
 
-## 2026-09-04 - `Testing map:` sits at the TOP of lint output, so tailing it produces a false negative
+## 2026-09-04 - `Testing map:` sits at the TOP of lint output, so tailing it produces a false negative **[promoted → `conventions.md` §"Scenarios are NOT maps to SOME tooling"]** for the tail-trap itself and the general "grep the WHOLE output" rule. **The closing paragraph is REJECTED and was not carried over:** "scenarios are invisible to … bare `--check-yaml` … so the targeted form above is the only thing that lints one at all" is contradicted by the `make.ps1 test` entry above, which is verified. `make nav-guard`'s blindness is unaffected and still stands.
 
 CLAUDE.md's rule for the targeted scenario lint is right and load-bearing: *"Confirm the lint really
 ran by requiring `Testing map:` in its output."* The trap is **where that line sits**.
@@ -546,7 +547,7 @@ Related and still true: scenarios are invisible to `make nav-guard` and to bare 
 (they classify as `MapClassification.Unknown`), so the targeted form above is the only thing that
 lints one at all.
 
-## 2026-09-04 — A `SupportPower` on the PLAYER actor does register; `SpawnedExplodes` needs a master; and `BallisticMissileFly`'s acceleration simulation had no reader (`wt/powers-delivery`, `main @ a1df97d2`)
+## 2026-09-04 — A `SupportPower` on the PLAYER actor does register; `SpawnedExplodes` needs a master; and `BallisticMissileFly`'s acceleration simulation had no reader (`wt/powers-delivery`, `main @ a1df97d2`) **[promoted, split → `architecture.md` §Support powers (findings 1, 2, 4, 5); `missiles.md` §10 (finding 3, carried over as **derived**); `conventions.md` §airburst (finding 6)]** — `SpawnedExplodes` is `:61`, not `:63`. Finding 4 re-verified in its post-fix state: `totalArcTicks` is still assigned (`:54`) and still read nowhere, and `EstimateArcTicks` (`:72`) is consumed by `MissileStrikePower.cs:157`.
 
 Building `MissileStrikePower`, Phase 1 of the missile strike powers. **All static: no game was
 launched and the autotest written for this work has not been run.** Every claim below is read from
@@ -610,7 +611,7 @@ returning a status string (`issued` / `not-ready:<n>` / `unknown-power:<key> (ha
 `IsValidTarget(targetTypes)` (`WeaponInfo.cs:256-264`), and splash warheads run each candidate
 through it. An actor with no enabled target types is invalid for every weapon. To make a missile
 unacquirable, OVERRIDE `TargetTypes` to a value nothing lists rather than removing the trait.
-## 2026-09-04 — `Sprite.Size` is the padded trim rect, not the ink; and the buy menu's two marks share one 10 px line (`wt/quiet-grid`, `main @ a1df97d2`)
+## 2026-09-04 — `Sprite.Size` is the padded trim rect, not the ink; and the buy menu's two marks share one 10 px line (`wt/quiet-grid`, `main @ a1df97d2`) **[promoted in part → `architecture.md` §Asset pipeline]** — finding 1 (`ShpTDLoader.cs:113-134` padding, and the `Sprite.Offset` counterpart) is the durable half and is promoted. Findings 2 and 3 are arithmetic about one mockup and one widget's current layout; they stay in `WORKSPACE`. Finding 4's glyph census is promoted with finding 4 of the sidebar entry below.
 
 Building option A of `WORKSPACE/buymenu-redesign-note.md` — one chevron top-left, one split badge
 top-right, the lime autobuild stripe deleted.
@@ -651,7 +652,7 @@ Handled by measuring both at draw time and dropping the **count**, never the che
 glyph 153 with 52 bytes. `↻` U+21BB, `∞` U+221E, `◆` U+25C6 and `▲` U+25B2 all map to glyph 0.
 `mods/ww3mod/mod.yaml` still declares no `Symbols` font, so `symbolFont` is null with no fallback.
 
-## 2026-09-04 — The sidebar's "free" gutter and right margin are frame art drawn OVER the palette; and FreeSansBold has no ↻ either (`wt/buymenu-redesign`, `main @ 2c8488ef`)
+## 2026-09-04 — The sidebar's "free" gutter and right margin are frame art drawn OVER the palette; and FreeSansBold has no ↻ either (`wt/buymenu-redesign`, `main @ 2c8488ef`) **[promoted in part → `architecture.md` §Widget / chrome authoring gotchas (findings 1–3, 4) and §Production queues (finding 5)]** — finding 6 is a dated UI census and stays in `WORKSPACE`. `RankAccumulation`: `StockOf` is `:375` and `Total` is `:212`, not `:211`.
 
 Design pass over the buy menu. Full writeup: `WORKSPACE/buymenu-redesign-note.md`; interactive
 mockup: `WORKSPACE/mockups/buymenu-redesign.html`.
@@ -693,7 +694,7 @@ sees is **Infantry at 15** (`rules/ingame/infantry.yaml`) = 5 rows at `Columns: 
 proposal that changes the column count: the sidebar shows about 5 rows
 (`Height: 250` / 47 px, `ingame-player.yaml:1154`).
 
-## 2026-09-04 — Autobuild is a per-ITEM flag, not a mode; and the buy-menu rank strip lands on baked cameo text (`wt/buymenu-audit`, `main @ d421e4ca`)
+## 2026-09-04 — Autobuild is a per-ITEM flag, not a mode; and the buy-menu rank strip lands on baked cameo text (`wt/buymenu-audit`, `main @ d421e4ca`) **[promoted → `architecture.md` §Production queues (findings 1–5) and §Widget gotchas (findings 6–7)]** — `ProductionIconOverlayManager` is declared at `player.yaml:460`, not `:233-236`; `EndProduction`'s re-add is `:647-648`. Finding 8 (undiscoverable modifiers) is a UX observation, not reference material.
 
 Read-only audit of the production sidebar. Full writeup: `WORKSPACE/recon/buymenu-audit.md`.
 
@@ -19832,7 +19833,7 @@ Two consequences that are easy to get wrong when reasoning about ownership bugs:
   former (`:280-281`) — so a Creeps-owned structure is untracked at spawn and, because the in-place
   path fires no `ActorAdded`, stays untracked after a player captures it.
 
-## 2026-09-04 — Rank accrual runs on wall clock; the roster's cost spread is 120:1, not 30:1
+## 2026-09-04 — Rank accrual runs on wall clock; the roster's cost spread is 120:1, not 30:1 **[promoted in part → `architecture.md` §Production queues]** — the MECHANISM (interval priced in build time, spent in wall clock; `BaseBuildTimeTicks` deliberately not calling `GetBuildTime`) is promoted. **The 120:1 spread is carried as a dated balance observation, not an invariant**, and the "old linear 500% multiplier" arithmetic is historical and was not carried over.
 
 `RankAccumulation.cs` derives its interval from a unit's **nominal** build time
 (`RankAccrual.BaseBuildTimeTicks`, `cost / 10 x BuildDurationModifier`), and advances it from
@@ -19847,7 +19848,7 @@ multiplier a Conscript banked a rank every 25 ticks — **1.5 s** at the default
 filled all three tiers in 13.5 s. Dump the tracked roster with `WORKSPACE/mockups/roster_dump.py`
 (71 entries, faction clones included); it mirrors the trait's `Buildable` + `GainsExperience` filter.
 
-## 2026-09-04 — Four findings from the Powers / pre-loaded-transport recon (`wt/powers-recon`, `main @ d421e4ca`)
+## 2026-09-04 — Four findings from the Powers / pre-loaded-transport recon (`wt/powers-recon`, `main @ d421e4ca`) **[promoted, split → `conventions.md` §"A change believed made…" as INSTANCE 14 (the deleted-consumer finding, which also earned the catalogue a sixth shape); `architecture.md` §Support powers (the buy-a-power composition and the `Production@Local` trap); `architecture.md` §Production queues (`Cargo.InitialUnits`); `economy.md` §`GetSellValue` has no passenger term]** — `LobbyChargeIntervalId` still has zero readers; its commented usages have moved to `player.yaml:353,374`.
 
 Static reads only, no runs. Full write-up: [`recon/powers-and-preloaded-transports.md`](recon/powers-and-preloaded-transports.md).
 
@@ -19934,7 +19935,7 @@ unload in playtesting. The fix is ~10 lines: sum `GetSellValue()` over the `Carg
 passengers.
 
 
-## 2026-09-04 — The infantry parallel queue is a round-robin THROTTLE, never a speed-up
+## 2026-09-04 — The infantry parallel queue is a round-robin THROTTLE, never a speed-up **[promoted → `architecture.md` §Production queues]** — **both `player.yaml` citations were stale**: the queue is declared at `:57` (not `:55`) and `ParallelPenaltyBuildTimeMultipliers` is at `:69` (not `:67`). The penalty accumulator is `:112-114`.
 
 Infantry are the only class on `ClassicParallelProductionQueue` (`player.yaml:55`); the other five
 queues are plain `ClassicProductionQueue`. It is widely assumed this lets infantry build faster than
@@ -19960,7 +19961,7 @@ Either way `selfsameProductionsCount` cannot move anything, and it could not aff
 `RankAccrual.BaseBuildTimeTicks` deliberately does not call `GetBuildTime` at all
 (`RankAccumulation.cs:30-35`).
 
-## 2026-09-04 — `make.ps1 all` can silently no-op after `git checkout --detach`, leaving the previous SHA's binaries
+## 2026-09-04 — `make.ps1 all` can silently no-op after `git checkout --detach`, leaving the previous SHA's binaries **[promoted → `conventions.md` §"`make.ps1 all` can silently NO-OP after a checkout"]** — the observation and the tells are promoted as stated; **the git stat-cache cause is carried over explicitly labelled an unverified hypothesis**, as the entry itself flags.
 
 **Symptom.** In the `verify-gate` worktree, detached at `894e8dc4`, built, gate run. Then `git checkout --detach d824b919` (the merge that brings `wt/quiet-grid` and `wt/powers-delivery` together) and `.\make.ps1 all` again. It printed **"Build succeeded, 0 Warning(s), 0 Error(s)"** in **1.53 s**, with **no per-project output lines at all** — and `engine/bin/OpenRA.Mods.Common.dll` still carried its mtime from the *previous* build, 1h45m earlier. The checkout had added `engine/OpenRA.Mods.Common/Widgets/ProductionIconMarks.cs` to the tree, and that file's mtime read **15:35** — older than the 16:24 DLL — despite git having just written it at 18:08.
 
@@ -19976,7 +19977,7 @@ Touching the two changed sources and re-running rebuilt in 5.87 s with the proje
 
 **Remedy before any gate or launch after switching SHAs in a shared/reused worktree:** `touch` the files the checkout changed (`git diff --name-only <old> <new> -- '*.cs'`), or check the DLL mtime, before trusting the build. Related and already known: `launch-game.sh` gates on `OpenRA.dll` present + `VERSION` matching, so a *missing* build fails loudly — this one is worse, because a *stale* build fails silently.
 
-## 2026-09-05 — An EVEN-dimensioned building cannot host a ground resupply client without a declared dock cell
+## 2026-09-05 — An EVEN-dimensioned building cannot host a ground resupply client without a declared dock cell **[promoted → `architecture.md` §"Resupply docking: an even-dimensioned host needs a declared dock cell"]** — `Building.cs:207-211`, `AmmoPool.cs:1085-1087`, `MoveOnto.cs:32`/`:41-48` and `DockHost.cs:137` all reproduce. `Resupply.cs:274` was the pre-fix line; the shipped approach is `:305` and the cell-equality arrival is `:191`.
 
 `BuildingInfo.CenterOffset` (`engine/OpenRA.Mods.Common/Traits/Buildings/Building.cs:207-211`) is
 `(CenterOfCell(Dimensions) - CenterOfCell(1,1)) / 2 + LocalCenterOffset`. For an ODD dimension that
@@ -20004,7 +20005,7 @@ correction the odd-host branch needs.
 
 Hosts that declare no dock are untouched and keep measuring from their own centre.
 
-## 2026-09-05 — Which footprint character lets a unit STOP, and which only lets it pass through
+## 2026-09-05 — Which footprint character lets a unit STOP, and which only lets it pass through **[promoted → `conventions.md` §"Footprint characters decide where a unit may STOP…"]**, merged with the `OccupiedCells` entry into one table. `targetableCells` is built at `Building.cs:345`, not `:344`; `Locomotor.cs:373` and `:566-569` reproduce exactly.
 
 `FootprintCellType` (`Building.cs:20-27`) — and the three list-builders below it are what actually
 decide behaviour, not the names:
@@ -20031,7 +20032,7 @@ Two consequences that are easy to miss:
   off LOGISTICSCENTER's transit-only centre cell the moment `Resupply` ended; on an `=` dock they
   now stay parked. `test-depot-vacate-phantom` is written against the old behaviour.
 
-## 2026-09-05 — Sequence `Tick` is milliseconds against a FIXED 40 ms/game-tick clock, not against the mod's Timestep
+## 2026-09-05 — Sequence `Tick` is milliseconds against a FIXED 40 ms/game-tick clock, not against the mod's Timestep **[promoted → `conventions.md` §`Timestep`]** — `Animation.cs` reproduces; `Transform.cs`'s reverse call is `:75`, not `:74`. **The claim that the deploy leg cannot be timed from Lua is superseded** by `Test.ConditionCount` (see the make-animation entry below), and the doc says so.
 
 `Animation.Tick()` calls `Tick(40)` unconditionally (`engine/OpenRA.Game/Graphics/Animation.cs:229-232`)
 and the default sequence tick is also 40 (`:123-125`). ww3mod's normal-speed `Timestep` is **60 ms**
@@ -20056,7 +20057,7 @@ IMMEDIATELY and the animation runs afterwards under a `build-incomplete` conditi
 binding can observe. On undeploy the animation runs BEFORE the actor changes, so
 ticks-from-order-to-new-actor IS the animation length.
 
-## 2026-09-05 — `TransformsIntoMobile.RequiresForceMove` gates the CURSOR, not the ORDER
+## 2026-09-05 — `TransformsIntoMobile.RequiresForceMove` gates the CURSOR, not the ORDER **[promoted → `architecture.md` §"Order targeter precedence…"]** — including the same-day correction and both related traps. `TransformsIntoMobile.cs:203`/`:198`/`:61`, `Transforms.cs:82`/`:141-142`/`:160-162`/`:205`, `DeployOrderTargeter.cs:41`, `RallyPoint.cs:227` and `Mobile.cs:1222` all reproduce.
 
 `RequiresForceMove` is read in exactly one place: `MoveOrderTargeter.CanTarget`
 (`engine/OpenRA.Mods.Common/Traits/Buildings/TransformsIntoMobile.cs`), which decides whether a
@@ -20097,7 +20098,7 @@ Two related traps in the same area:
   `OrderPriority`: 0 vs 4. The transform targeter is asked FIRST and `RequiresForceMove` is the only
   thing that makes it decline, after which the plain click falls through to `SetRallyPoint`.
 
-## 2026-09-05 — Repairing a vehicle at a Logistics Centre healed exactly ZERO, and wedged the vehicle there
+## 2026-09-05 — Repairing a vehicle at a Logistics Centre healed exactly ZERO, and wedged the vehicle there **[promoted → `economy.md` §"Repairing a vehicle at a Logistics Centre…" and `conventions.md` §"A change believed made…" as INSTANCE 13]** — verified against the shipped fix: `RepairsUnits.cs:22`/`:24`/`:27`, `Repairable.cs:32`/`:35`, `vehicles.yaml:64`, and `Resupply.cs:616-648`. `grep` confirms `^Vehicle`'s is still the only repair-side `PercentageStep` in the mod, so the blast-radius claim holds.
 
 Found by a screenshot scenario, not by inspection: `test-lc-2x2-dock-and-undeploy` reported
 *"hp 14000 -> 14000, ammo 0 -> 40"* — a damaged, dry abrams parked at a Centre, fully rearmed, and
@@ -20139,7 +20140,7 @@ worth revisiting separately.
 satisfies "gained". The assertion that actually holds the fix down measures the SIZE of the first
 step against `MaxHealth`. When the bug is "a quantity resolved to zero", assert the quantity.
 
-## 2026-09-05 — A deployed building's actor exists before its make animation, so screenshot beats must read the condition
+## 2026-09-05 — A deployed building's actor exists before its make animation, so screenshot beats must read the condition **[promoted → `architecture.md` §"A deployed building's actor exists BEFORE its make animation…"]** — `TestGlobal.cs:808-813` (`ConditionCount`), `:174` (`SetZoom`) and `GeneralProperties.cs:23` all reproduce.
 
 `Transform` creates the new actor in a frame-end task and `WithMakeAnimation.Forward` then runs from
 `INotifyCreated.Created`, holding `build-incomplete` for the animation's length. So from Lua the
@@ -20167,7 +20168,7 @@ Two related harness facts, both established the same day:
   `Location`, `CenterPosition` and `Type` stay readable on an actor a transform has DISPOSED.
   `HealthProperties` is not, so `.Health` on a transformed actor throws — read it before the order.
 
-## 2026-09-05 — A burning vehicle cannot be saved at a depot: the bleed-out is 1.6x the repair
+## 2026-09-05 — A burning vehicle cannot be saved at a depot: the bleed-out is 1.6x the repair **[promoted → `economy.md` §"Repairing a vehicle at a Logistics Centre…"]** — both rates re-derived from the rules: burn 0.200%/tick, repair 0.125%/tick, net −0.075%/tick, ~400 ticks from 30% HP. `ChangesHealth` is at `vehicles.yaml:184-187` (the entry said `:183`) and the guard is `ChangesHealth.cs:69-70`. **The three candidate fixes are NOT promoted** — they are closed by the user ruling below, which is what the doc records.
 
 Both rates, from the shipped rules, per game tick as a fraction of MaxHP:
 
@@ -20201,7 +20202,7 @@ every vehicle in the game:
 `MaxHealth` and it would have crossed into the burn zone and started dying. Both scenarios now
 damage to 60-70%, well clear, with the arithmetic written down where they do it.
 
-## 2026-09-05 — A stayable dock cell needs an explicit vacate, because the accidental one is gone
+## 2026-09-05 — A stayable dock cell needs an explicit vacate, because the accidental one is gone **[promoted → `architecture.md` §"Resupply docking…"]** — `Resupply.LeaveHost` is `:542`, called from `:513` and `:516`; `ResupplyDock.VacateCandidates` is `:84`.
 
 `test-depot-vacate-phantom`'s original header made a load-bearing argument: LOGISTICSCENTER has no
 `Reservable`, no queue and no reservation, so what kept its dock free was that the dock was a `+`
@@ -20226,7 +20227,7 @@ no RNG. Hosts declaring no dock keep the stock `MoveToTarget(self, host)` exactl
 Dry errands do not reach it: `BeginReturnHome` runs immediately after `OnResupplyEnding` and cancels
 whatever it queued, walking the unit back to where it came from — a better vacate, already correct.
 
-## 2026-09-05 — Why the crane cannot be lifted over a docked vehicle with a ZOffset
+## 2026-09-05 — Why the crane cannot be lifted over a docked vehicle with a ZOffset **[promoted → `architecture.md` §Asset pipeline]** — generalised to "sequences select FRAMES, never sub-rectangles". `WorldRenderer.cs:28-29` and `:749` reproduce. The per-cell arithmetic is written up as the 512-unit corner-centre margin rather than as one building's coordinates.
 
 The world render sorts on `r.Pos.Y + r.Pos.Z + r.ZOffset` (`WorldRenderer.cs:28-29`), larger drawn
 later. For LOGISTICSCENTER at TopLeft `(34,16)`:
@@ -20247,7 +20248,7 @@ vehicle in the dock cell's map ROW during service: cells `(31,17)` and `(34,17)`
 
 Doing it properly needs a cropped crane-only SHP rendered as a second body/overlay with its own
 `ZOffset` — new art, not a rules change.
-## 2026-09-05 — Detonation altitude: two engine facts that make an airburst behave nothing like you would guess
+## 2026-09-05 — Detonation altitude: two engine facts that make an airburst behave nothing like you would guess **[promoted → `missiles.md` §9b]** — the strongest-verified entry in the batch: all four hitshape citations are exact (`Circle.cs:46-49`, `Polygon.cs:87-103`, `Rectangle.cs:109-116`, `Capsule.cs:67-85`), as are `Warhead.cs:30`/`:45`, `CreateEffectWarhead.cs:166`, `GrantExternalConditionWarhead.cs:60-61`, `^HugeExplosionEffects` at `weapons-effects.yaml:596` and `Atomic`'s `AirThreshold: 10c0`. Section 3's screen-y derivation reproduces at `WorldRenderer.cs:749`.
 
 Found while giving `MissileStrikePower` a `DetonationAltitude` so the tactical nuclear strike
 airbursts the way `mslo`'s `NukePower` always has. Both facts are load-bearing for any future work
@@ -20318,7 +20319,7 @@ it applied identically to the ground burst. Which is why the ground-burst nuke l
 than looking *broken*.
 
 
-## 2026-09-05 — USER RULING: a burning vehicle is doomed even under the crane; the burn is NOT paused or out-repaired at a Centre
+## 2026-09-05 — USER RULING: a burning vehicle is doomed even under the crane; the burn is NOT paused or out-repaired at a Centre **[promoted → `economy.md` §"Repairing a vehicle at a Logistics Centre…"]** — recorded as a dated ruling with its verbatim gist ("Keep it — critical means doomed"), the two rates it settles, and the standing instruction not to add `RequiresCondition: !unit.docked` or raise `PercentageStep`. `Resupply.cs:601-612` is now `:602`.
 
 Context: `dd952225` made `RepairsUnits` heal for the first time (`Repairable.PercentageStep: 3` per `Interval` 24 = 0.125 % of MaxHP per tick, `mods/ww3mod/rules/ingame/vehicles.yaml:64`, `engine/OpenRA.Mods.Common/Traits/RepairsUnits.cs:27`). The critical-damage burn on `^EffectsWhenDamagedVehicles` (`vehicles.yaml:184-187`: `PercentageStep: -1`, `Delay: 5`, `StartIfBelow: 50`) is 0.200 %/tick — 1.6× the repair — so a vehicle under 50 % HP docked at a Logistics Centre nets −0.075 %/tick and dies on the dock cell, and no vehicle can be repaired back across the 50 % line.
 
@@ -20326,6 +20327,70 @@ Put to the user with three options (pause the burn while `unit.docked`; raise re
 
 Consequence to keep in mind, not a bug: a burning vehicle sent to a Centre holds the single dock cell until it dies (`RepairTick` clears the Repair flag only at `Undamaged`, `Resupply.cs:601-612`), which from 30 % HP is ~400 ticks. The next client waits on `MoveOnto`'s occupied-cell branch for that long, then docks. Bounded by the death, so no queue was built. Scenario headers that list the three candidates (`test-lc-2x2-dock-and-undeploy.lua`, `test-depot-vacate-phantom`) describe a question that is now closed.
 
+
+## 2026-09-05 — Aircraft were the half of the repair fix that `0871d66a` did not reach: `PercentageStep` on `^Airborne`
+
+`0871d66a` (merged `dd952225`) taught `RepairTick` to fall back to `PercentageStep` when `HpPerStep`
+resolves 0, and its commit message says the behaviour change is "exactly: ground vehicles now repair
+at a Logistics Centre". That was accurate and it was also the whole story only because `^Vehicle`'s
+`Repairable` was the single repair-side `PercentageStep` in the mod. **Aircraft had none, and neither
+did their hosts** — `^Airborne` and `^Helicopter` declared `Repairable: RepairActors: afld / hpad`
+with no step, and `HPAD`/`AFLD` `RepairsUnits` (`mods/ww3mod/rules/ingame/structures.yaml:711`,
+`:786`) set neither `HpPerStep` nor `PercentageStep`. So the new fallback resolved 0 for every
+airframe and the aircraft half of the defect survived the fix that named it.
+
+**Both symptoms, not one.** The missing heal is the visible half; the wedge is the expensive one.
+`RepairTick` clears `ResupplyType.Repair` only at `DamageState.Undamaged`
+(`engine/OpenRA.Mods.Common/Activities/Resupply.cs:602`) and `Resupply`'s only exit is
+`activeResupplyTypes == 0` (`:339`), so a zero step means a damaged airframe that reaches a pad lands,
+heals nothing, and can never leave — while `Math.Max(1, ...)` at `:656` applies to the COST, so it is
+billed 1 credit per 24-tick `Interval` for the privilege, indefinitely. This is the same shape
+`0871d66a` measured on a vehicle ("hp 14000 -> 14000 ... in 598 ticks"); it was never measured on an
+airframe because no airframe can reach a pad on any shipped map (below).
+
+**Fixed at ONE site: `PercentageStep: 3` on `^Airborne`'s `Repairable`**
+(`mods/ww3mod/rules/ingame/aircraft.yaml:124-126`). `^Aircraft`, `^Helicopter` and `^Drone` all reach
+`Repairable` through `^Airborne`, and `^Helicopter`'s own `Repairable: RepairActors: hpad` **merges**
+with the inherited node rather than replacing it — it overrides the host list and inherits the step.
+The unit side was chosen over the pads because `RepairTick` prefers `repairable.Info.PercentageStep`
+over `repairsUnits.Info.PercentageStep` (`:644-646`), so a value there cannot be shadowed by a host,
+and because it mirrors `^Vehicle` (`vehicles.yaml:62-64`) instead of inventing a second idiom.
+Resulting bill for one helicopter (HELI, `Cost: 6000`, `HP: 800`): 24 HP and 36 credits per
+`Interval`, 14 steps from 60 % to full = **504 credits**; a full zero-to-max repair is ~1200, i.e.
+`ValuePercentage` 20 % of the unit's cost, as designed.
+
+**THE LIVE SURFACE IS ZERO, AND THAT IS WHY THIS WENT UNNOTICED.** `grep -rni 'hpad\|afld'
+mods/ww3mod/maps/` returns **nothing** — not "hpad on zero maps and afld on some", but *both* on
+**zero of the ten shipped maps** — and both carry `Buildable.Prerequisites: ~disabled`
+(`structures.yaml:688`, `:756`) with nothing in the repo providing `disabled` outside the EMP grant
+(`:218-220`). So no aircraft can dock anywhere today, and this fix changes nothing observable until a
+map places a pad. `logisticscenter` is named by no aircraft's `RepairActors`, and repointing them at
+it was tried and reverted (`68e8b885`).
+
+**`hpad` still cannot be placed at all: `hpad.shp` and `hpadmake.shp` do not exist**
+(`mods/ww3mod/lint-baseline.txt:353-354`) while `sequences-structures.yaml:667` declares `idle`/`make`
+against them. `afld` has complete art (`afldidle`/`afldmake`) and is already map-placed by
+`test-capture-rules`. That is why `test-heli-repairs-at-pad` hosts at an `afld` and widens **only**
+`HELI.Repairable.RepairActors` in its `rules.yaml` — never `PercentageStep`, so its helicopter leg
+still has to get the step by inheritance. *(Amended after run `260905_171321`: it used two `afld`s
+and a fixed-wing leg as well. The A10 never landed — a separate matter, filed at
+`WORKSPACE/bugs/discovered.md` — so that leg was removed and one pad is left.)*
+
+**Both bot profiles already route damaged helicopters to a repair host, and neither can find one.**
+`HelicopterStates.SendDamagedUnitsHome` (`engine/OpenRA.Mods.Common/Traits/BotModules/Squads/States/
+HelicopterStates.cs:96-111`) pulls a heli out at `AirframeReadiness.RepairRoutingBar(HasRepairHost(u),
+ReEngageHealthPercent, FleeHealthPercent)`, and `HelicopterSquadBotModule` has both an `@stable`
+(`ai.yaml:2500`) and an `@experimental` (`:2550`) twin. With no pad on any map `HasRepairHost` is
+always false, the bar is the flee bar, and `Aircraft.CanReturnToBase` refuses the order as a no-op —
+so `@stable` is byte-identical on every shipped and benchmark map. **The day a map places a pad, this
+fix changes `@stable`**, and the change is that its damaged helis will actually come back healed
+instead of parking on the deck forever.
+
+**Latent divergence worth knowing before that day**: `AirframeReadiness.HasRepairHost` accepts any
+`a.Owner.IsAlliedWith(self.Owner)` host (`AirframeReadiness.cs:66-69`), but `ReturnToBase.ChooseResupplier`
+requires `a.Owner == self.Owner` (`ReturnToBase.cs:47`). An ALLIED pad therefore raises the bot's
+routing bar to the recovery threshold and then supplies no destination — the heli is pulled out of the
+fight early and finds nowhere to go. Not touched here; there is no map on which it can fire.
 ## 2026-09-05 — USER RULING: `@stable` is a periodically re-synced COPY of `@experimental`, not a separate design
 
 The user, verbatim: *"the stable bot is just a snapshot/copy of the experimental bot at various stages. All development should go on experimental. Before release we will rename them to something more appropriate."*
@@ -20344,3 +20409,179 @@ Closing those needs an engine change — split the module, or widen the comparis
 So the accurate model is: *`@stable` is a re-synced copy, EXCEPT where a behaviour is selected by a C# bot-type comparison inside a shared singleton module.* Grep for the comparison before concluding a `@stable` gap is mere drift. As of this entry the known set is exactly those two files, plus `OpportunisticAdvanceMath.cs` and `SpawnFlowMath.cs`, which reference the same helpers and were not audited here.
 
 **Open, and the user raised it unprompted:** they want `@experimental` / `@stable` renamed before release — *"Maybe we should call them Staging and Main? Or something that is harder to misunderstand?"* Worth coupling to release blocker R4, which already needs the lobby AI picker given real names, a difficulty ladder and descriptions (`rules/ai/ai.yaml`, `grep -c 'Difficulty\|Description'` returns 0). One change, not two.
+
+## 2026-09-05 — Bullets DO lead in this engine. Two in-tree sources say otherwise and both are wrong (`wt/counter-intercept`, `main @ 95bdffb2`)
+
+`Bullet` really does fly to a fixed point — `target = args.PassiveTarget`
+(`engine/OpenRA.Mods.Common/Projectiles/Bullet.cs:201`). That reading is correct and it is the wrong
+**file boundary**: the lead is applied one level up, in `Armament`, *before* `PassiveTarget` reaches
+the projectile.
+
+```csharp
+// engine/OpenRA.Mods.Common/Traits/Armament.cs:616-661, inside the ScheduleDelayedAction lambda
+if (Weapon.Projectile is BulletInfo bullet && Target.Value.Type != TargetType.Invalid)
+    …
+    var leadTarget = WVec.CalculateLeadTarget(self.CenterPosition, initialPosition, targetPosition,
+        Info.FireDelay, bullet.Speed.First().Length);
+    …
+    args.PassiveTarget = aimCenter + args.TargetingVector;
+```
+
+Reachability, checked rather than assumed: `Armament.Target` is set at the top of `FireBarrel`
+(`:501`) before the lambda is scheduled (`:579`); `AimInitialTargetPosition` is cleared on retarget
+(`:431`), appended in `FireBarrel` (`:518`) and popped FIFO in the lambda (`:631`, `:639-640`), so
+`initialPosition` is the target's position exactly `FireDelay` ticks earlier; and
+`ArmamentInfo.FireDelay` defaults to **3, not 0** (`:98`), whose own `[Desc]` says outright *"Cannot
+be 0 for Bullet Projectiles as it is used to calculate how much to lead target by checking position
+change (speed) between this many ticks."* `git log -L 616,662:…/Armament.cs` dates the helper call to
+`9e7e3902` (2023-06-20), and that diff is 1 insertion / 6 deletions — it *replaced* pre-existing
+inline lead code. Bullets have led for longer than that commit.
+
+**The two stale assertions, both post-dating it:**
+- `mods/ww3mod/rules/weapons/weapons-ballistics.yaml:711-712` — *"Bullets do not lead (Bullet.cs:200
+  aims at the target's position at fire time)"*, load-bearing for a tuning argument that wide
+  scatter is a buff against movers.
+- `WORKSPACE/recon/powers-interception.md` §4.2 — *"Guns do not lead. At all."*
+
+**What the lead is actually worth**, porting the engine's arithmetic exactly (both integer
+truncations; `distanceToTarget` is `HorizontalLength`, i.e. 2D, while `Bullet` then computes flight
+time over the 3D distance at `Bullet.cs:228`). Hit radius for a `^ShootableMissile` is 427 WDist =
+`CircleShape` default 426 (`HitShapes/Circle.cs:28`) + `TargetDamage` default `Spread` 1:
+
+| `20mm_CRAM` vs Iskander @600 | crossing | closing | if there were no lead |
+|---|---|---|---|
+| at 10 cells | 1200 | 3000 | 6000 |
+| at 22 cells (max range) | 1800 | 7800 | **13200 ≈ 11–13 cells** |
+
+So the widely-quoted "eleven cells" is the **no-lead** figure. The verdict it supported (a CRAM
+cannot reliably kill a ballistic missile) survives; the magnitude is ~1.2–1.8 cells crossing, not
+~11, and the cause is a **single-iteration** intercept solve rather than an absent one.
+
+Two consequences worth carrying:
+1. **The closing geometry is worse than the crossing geometry** — the one-shot solve over-leads badly
+   when the target is coming at you (7800 vs 1800 at 22c). A gun sited on the point being attacked is
+   in its own worst case.
+2. **Below one tick of bullet travel the lead is exactly zero**, because
+   `ticksToReachTarget = distanceToTarget / projectileSpeed` is integer division. For a `Speed: 8c0`
+   weapon that is every engagement inside 8 cells.
+
+Not settled empirically — I could not launch. The falsifying run is one salvo with `WW3_GUNTRACE=1`
+(`engine/OpenRA.Mods.Common/GunTrace.cs:23-24`): `Bullet.cs:402` logs `aimedAt=`, which is either
+displaced along the target's velocity (lead live) or equal to its fire-time position (lead dead).
+Full working: `WORKSPACE/recon/260905-intercepting-ballistic-munitions.md` §6.
+## 2026-09-05 — MEASURED: the whole live delta between the two shipped bots is THREE behaviours, and `Description:` cannot be written into `ai.yaml` at all
+
+Taken at `main @ eacc8f44` while scoping release blocker R4. Two separate findings; the second is the one that changes what R4 costs.
+
+### 1. The delta, measured field-by-field rather than assumed
+
+The 2026-09-05 user ruling above says `@stable` is a re-synced copy of `@experimental`. That is now **measured**, not just asserted. Every gated block in `rules/ai/ai.yaml` was paired and diffed (20 `enable-ai-experimental` blocks, 20 `enable-ai-stable`; `PoiGoalGuard@poi:140` is shared by both and is not a pair):
+
+- **17 of 19 pairs are config-identical** — byte-for-byte apart from the key name and the gate. That covers `CaptureCoordinator.tecn`, both `AdaptiveProduction` faction blocks, both `SquadManager` fixed-wing blocks, both `UnitBuilder` heli blocks, `PoiGarrison`, `LaneAmbush`, `LayeredDefence`, `HelicopterSquad`, `MountedTransport` (whose `@stable` twin is keyed `@poi`, a legacy name), `CounterBatteryRadar`, `DroneOperator`, `Minelayer`, `EngineerOperator`, `EngineerRouteOpen`.
+- **1 pair is identical in effect** — `LogisticsCenterBotModule`. The `@experimental` twin (`:1345`) carries 8 fields the `@stable` twin (`:3139`) omits, which reads in a diff like divergence. **It is not.** All 8 restate the C# default exactly: `RestockCenters=true`, `RequireDemand=true`, `CenterRestockThresholdPerMille=500`, `CaptureConsiderCells=40`, `ForwardCustomerCells=12`, `MaxDeliveryDistanceCells=40`, `MinDeliverySupply=250`, `ResidualTripCells=6`. **Do not "close" this gap — there is nothing to close.** Diffing the two blocks without also reading `LogisticsCenterBotModule.cs`'s defaults produces a false positive, and that is the exact shape of the stale finding the ruling was written to correct.
+- **1 pair genuinely differs** — `PoiOffensiveBotModule` (`:367` vs `:2826`), by 19 fields. Of those, only **one is live**: `FlankingEnabled: true` (`:934`) against a C# default of `false`. The 12 `Flank*` tuning fields are live only because of it. The other two feature flags are **OFF on `@experimental` too** — `CoordinatedAssaultEnabled: false`, `CloseInRatchetEnabled: false` (the latter switched off by `1452a82f`, *its arm did not win*) — so they and the 5 `Assault*` constants are inert on **both** profiles.
+
+Plus the two C# bot-type comparisons the ruling documents. **That set is now closed and exhaustive:** a sweep of every `.BotType` comparison in the engine finds exactly two behavioural ones — `GarrisonBotModule.cs:228` and `SupplyFollowerBotModule.cs:718`. `InfluenceStack.cs:48` admits **both** profiles (it is a participation test, not a discriminator); the rest are logging (`UnitLifecycleLogger`, `BotVsBotMatchWatcher`, `GameInformation`) or the YAML gate itself (`GrantConditionOnBotOwner`). **The ruling's open caveat is resolved: `OpportunisticAdvanceMath.cs` and `SpawnFlowMath.cs` carry NO comparison** — `SpawnFlowMath.cs:39` says in as many words that its gate needs no `BotType`.
+
+**So the complete live delta is three behaviours, all additions on `@experimental`, nothing the reverse way:**
+
+| # | Behaviour | Switch | Gate |
+|---|---|---|---|
+| 1 | **Flanking** — an attack axis splits into a main element on the direct bearing and a flank element that swings through a lateral waypoint, the main holding at standoff until the flank is level so both land together | `FlankingEnabled: true` `ai.yaml:934` | YAML; `@stable` omits it, C# default `false` |
+| 2 | **Idle-truck field resupply** — an idle supply truck drives to a soldier starving for ammo within a 20-cell leash instead of sitting still | `IdleTruckHunt: true` `ai.yaml:1685` | C# `&& isExperimentalBot`, `SupplyTruckHuntMath.cs:219` |
+| 3 | **Garrison commit-on-order** — garrisoned infantry are booked into the shared `PoiGoalGuard` ledger, so garrison and offence stop recruiting the same squads | `CommitGarrisonedUnits: true` `ai.yaml:1480` | C# `&& isExperimentalBot`, via `CommitOnOrderMath.ShouldCommitShared` |
+
+**Watch the vocabulary on #2.** `IdleTruckHunt` is named "hunt" and it is **not** an attack behaviour — the truck hunts for *its own starving infantry to resupply*, INFANTRY-ONLY by construction (the candidate must hold the truck's `replenish-soldiers` `RearmCondition`, which only soldiers carry). Player-facing copy calling this a raid or a truck hunt would be false. Both flags sit on shared `enable-ai-any` singletons (`GarrisonBotModule@defenses:1450`, `SupplyFollowerBotModule@supply:1483`), which is *why* they need the C# gate rather than a YAML one.
+
+**None of this establishes that `@experimental` plays better.** `ai.yaml:929-933` says the flanking constants are *conservative first guesses, NOT measured — no autotest or tournament has run against them*, and the close-in ratchet was armed and then switched back off for losing its arm. More tactics is not more difficulty, and copy implying otherwise is unsupported.
+
+### 2. `Description:` on a bot is not a YAML edit — the field does not exist
+
+`IBotInfo` (`engine/OpenRA.Game/Traits/TraitsInterfaces.cs:421-425`) exposes exactly `Type` and `Name`. `ModularBotInfo` (`ModularBot.cs:22-62`) has no `Description` and no `Difficulty`. `FieldLoader.UnknownFieldAction` (`FieldLoader.cs:61-62`) **throws** by default — `NotImplementedException: FieldLoader: Missing field 'Description' on 'ModularBotInfo'`. So writing a description into `ai.yaml` today does not merely fail to render, **it stops the mod loading.** Anyone estimating R4's description half as a YAML edit is estimating a change that cannot be made.
+
+Nor can the text be smuggled into `Name`: `Player.ResolvePlayerName` (`Player.cs:149-157`) uses `IBotInfo.Name` as the **in-game player name**, and `LobbyUtils.SetupEditableSlotWidget` truncates it to the slot button width.
+
+### 3. There is no render site, and the near-miss is instructive
+
+The picker is `LobbyUtils.ShowSlotDropDown` (`LobbyUtils.cs:59-98`) → `LABEL_DROPDOWN_TEMPLATE`. Its item template (`engine/mods/common/chrome/dropdowns.yaml:17-26`) is one `Label@LABEL` at `Height: 25`, and `SetupItem` sets only that label's text. There is nowhere to draw a second line.
+
+The **tooltip** path is one YAML line short of working, which is worth knowing because from the C# it looks as though it already does. `ScrollItemWidget : ButtonWidget`, so it inherits `TooltipContainer` / `TooltipTemplate` / `TooltipDesc`, and `ScrollItemWidget.Setup` **clones** the template (`ScrollItemWidget.cs:75`), so the copy ctor carries them (`ButtonWidget.cs:139-146`). `TOOLTIP_CONTAINER` exists in the lobby tree (`lobby.yaml:499`) and `Widget.GetOrNull` is recursive, so it would resolve. The stock `BUTTON_TOOLTIP` already has both a `Label@LABEL` and a `Label@DESC` (`tooltips.yaml:15-36`). **But `TooltipContainer` is `readonly` — YAML-only — and the dropdown template does not set it, so `ButtonWidget.MouseEntered` early-returns at `ButtonWidget.cs:232-233` and nothing draws.** The worked example is one widget away in the same file: `DropDownButton@HANDICAP_DROPDOWN` (`lobby-players.yaml:284-288`) sets `TooltipContainer: TOOLTIP_CONTAINER` plus `TooltipText:` and works. `DropDownButton@SLOT_OPTIONS` (`:262-271`) does not.
+
+### 4. Incidental: two stale comments in `ai.yaml`
+
+`:26` and `:2740` both refer to unit builders "keyed `@america.normal` / `@russia.normal`". **Those keys do not exist** — the only `UnitBuilderBotModule@` keys are `russia.fixedwing`, `russia.heli`, `experimental.russia.heli`, `america.fixedwing`, `america.heli`, `experimental.america.heli`. `:2740` also calls it "the four unit builders" when the `enable-ai-stable` ones number two (both `fixedwing` blocks are `enable-ai-any`, shared by both profiles). Comment-only; no behaviour depends on it. Left unfixed to keep this branch to one concern.
+
+
+## 2026-09-05 — The aircraft repair fix is CONFIRMED by run `260905_171321`, which reported FAIL: reading a verdict that measured the wrong thing
+
+`test-heli-repairs-at-pad` came back **fail** — *"Plane never healed to full: 480/800 HP (60 %) 1000
+ticks after being sent to its pad, alt=2560, player billed -1496"* — and the fix it was testing was
+working the whole time. Three separate lessons, all cheap to reuse.
+
+### 1. `PassiveIncome` is ON by default and it silently poisons any before/after cash assertion
+
+`PlayerResourcesInfo` defaults to `PassiveIncome = 100` every `PassiveIncomeInterval = 50` ticks after
+`PassiveIncomeInitialDelay = 50` (`engine/OpenRA.Mods.Common/Traits/Player/PlayerResources.cs:63,66,69`),
+and the lobby option registers that same 100 as its own default (`:108-109`), so it is live in every
+autotest that does not turn it off. `mods/ww3mod/rules/player.yaml:400-403` shows the values
+**commented out**, which reads at a glance as "off" and is not — the engine constants supply them.
+
+The reported `-1496` decodes exactly: a 1000-tick window pays 20 × 100 = **2000**, and the one repair
+that completed cost **504**, so 2000 − 504 = 1496 *in the player's favour*. **That arithmetic is the
+proof the fix works**: 504 is precisely `modelledBill` for a HELI (`Cost: 6000`, `HP: 800`) healed
+480 → 800 at `PercentageStep: 3` — 24 HP and 36 credits per `Interval`, 14 steps. Nothing else in the
+scenario could have charged that number, and the A10 was charged nothing at all.
+
+**Any scenario asserting on `player.Cash` must set `PassiveIncome: 0` AND
+`PassiveIncomeDropdownLocked: True`** — the value that reaches `PassiveIncomeAmount` is read back from
+the lobby option (`:167-170`), so zeroing the field alone only moves the default.
+
+### 2. A tolerance band would have hidden this; an exact assertion plus income-off finds it
+
+The original leg 4 allowed ±15 %. Had income been smaller it would have passed while measuring
+income-minus-spend, and the scenario would have been permanently green and permanently meaningless.
+With income off, the bill is now asserted **exactly** — repair is then the only thing in the game that
+can move that purse.
+
+### 3. A verdict that names one actor and stays silent about the rest is not self-diagnosing
+
+The scenario failed on the first of its two patients and reported only that one, and it printed
+nothing at all, so `lua.log` came back **0 bytes**. Whether the helicopter — the leg that actually
+measures the fix — had worked could not be read from the artefacts; it had to be reconstructed from
+the cash arithmetic above. Both are now fixed: every failure string carries the full state of every
+actor plus the purse, and a trace line goes to `lua.log` every 100 ticks. **Note the trap in the
+other direction:** a 0-byte `lua.log` is documented in `DOCS/recipes/AUTOTEST.md` as the tell for a
+script that was never wired into `Scripts:` — here the script ran fine and simply never printed, so
+the tell is only diagnostic for scenarios that print at all.
+
+### The static proof that one site covers every airframe
+
+Worth keeping because it needs no run and no build. `tools/nav-guard/modload.py` resolves the full
+inheritance chain, so the merged `Repairable` can be read directly:
+
+```python
+import sys; sys.path.insert(0, 'tools/nav-guard')
+import modload, nav_guard
+rules = modload.load_mod(nav_guard.MOD_DIR)
+a = rules.actors['heli']
+print([(n.key, {c.key: c.value for c in n.nodes}) for n in a.nodes if n.key.split('@')[0] == 'Repairable'])
+```
+
+| actor | resolved `Repairable` |
+|---|---|
+| `a10`, `f16`, `mig`, `frog` | `{RepairActors: afld, PercentageStep: 3}` |
+| `heli`, `hind`, `tran`, `halo` | `{RepairActors: hpad, PercentageStep: 3}` |
+| `abrams` (for contrast) | `{RepairActors: logisticscenter, PercentageStep: 3}` |
+
+One `PercentageStep: 3` on `^Airborne` reaches all eight airframes; `^Helicopter`'s own
+`Repairable: RepairActors: hpad` **merges** rather than replaces, keeping its host override and
+inheriting the step; and no actor carries two values. `afld` and `hpad` still declare `RepairsUnits`
+with neither `HpPerStep` nor `PercentageStep`, so the unit side answers for every host.
+
+### The A10 leg was a real, separate finding
+
+It never landed — cruise altitude at the verdict, nothing charged, so no `Resupply` was ever
+constructed. Its rules are fine (table above); the difference is that `^Helicopter` takes `Land.cs`'s
+VTOL branch and `^Aircraft` takes the non-VTOL approach circuit. Filed at
+`WORKSPACE/bugs/discovered.md` [2026-09-05] rather than diagnosed here, and the leg was removed so a
+green repair gate does not depend on an open fixed-wing question.
