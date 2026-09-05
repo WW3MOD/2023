@@ -19696,3 +19696,108 @@ Touching the two changed sources and re-running rebuilt in 5.87 s with the proje
 - `engine/bin/OpenRA.Mods.Common.dll` mtime older than the checkout you just did
 
 **Remedy before any gate or launch after switching SHAs in a shared/reused worktree:** `touch` the files the checkout changed (`git diff --name-only <old> <new> -- '*.cs'`), or check the DLL mtime, before trusting the build. Related and already known: `launch-game.sh` gates on `OpenRA.dll` present + `VERSION` matching, so a *missing* build fails loudly — this one is worse, because a *stale* build fails silently.
+
+## 2026-09-05 — An EVEN-dimensioned building cannot host a ground resupply client without a declared dock cell
+
+`BuildingInfo.CenterOffset` (`engine/OpenRA.Mods.Common/Traits/Buildings/Building.cs:207-211`) is
+`(CenterOfCell(Dimensions) - CenterOfCell(1,1)) / 2 + LocalCenterOffset`. For an ODD dimension that
+lands on a cell centre; for an EVEN one it lands on the point where the middle cells MEET — a cell
+CORNER, which no ground unit can ever occupy.
+
+`Activities/Resupply` used to send every non-`RepairableNear` client to exactly that point
+(`move.MoveOntoTarget(self, host, WVec.Zero, …)`, `Resupply.cs:274`) and then test arrival against it
+(`:186-197`). The tolerance is `WDist.Zero` for any host with no `RearmsUnits` trait to read a
+`CloseEnough` off — which is **every ground rearm host in this mod**, including LOGISTICSCENTER
+(`AmmoPool.cs:1085-1088` spells out that PITFALL). So at an even host that test is **unsatisfiable**:
+the unit walks to the depot, never arrives, and re-plans forever. The file's own comment at
+`Resupply.cs:186-191` predicted this ("No ground rearm host is even-sized today; if one is ever
+added, that is a separate defect and wants its own fix") — LOGISTICSCENTER going 2x2 is that day.
+
+**The fix is a declared dock, not a looser tolerance.** New trait `Traits/ResupplyDock.cs`: one
+`Offset` (WVec from the host's CenterPosition) plus an optional facing. `Resupply` consumes it in
+both places — the approach passes it to `MoveOntoTarget`, and arrival becomes **cell equality**
+(`self.Location == CellContaining(centre + Offset)`) rather than a distance. Cell equality is the
+right test because `MoveOnto` only ever guarantees a CELL: it paths to
+`CellContaining(Target.CenterPosition + offset)` and stops (`MoveOnto.cs:32,45`). `DockHost` makes
+the same test for the same reason (`DockHost.cs:137`). A pleasant side effect: cell equality holds
+for **any subcell**, so several infantry can dock at once without the `MapGrid.SubCellOffsets`
+correction the odd-host branch needs.
+
+Hosts that declare no dock are untouched and keep measuring from their own centre.
+
+## 2026-09-05 — Which footprint character lets a unit STOP, and which only lets it pass through
+
+`FootprintCellType` (`Building.cs:20-27`) — and the three list-builders below it are what actually
+decide behaviour, not the names:
+
+| char | name | in `Tiles()` (placement blocks) | in `OccupiedTiles()` (ActorMap) | in `PathableTiles()` | may a unit STOP there? |
+|---|---|---|---|---|---|
+| `_` | Empty | no | no | yes | yes |
+| `=` | OccupiedPassable | yes | **no** | yes | **yes** |
+| `+` | OccupiedPassableTransitOnly | yes | yes | no | **NO** |
+| `x` | Occupied | yes | yes | no | no (blocked) |
+| `X` | OccupiedUntargetable | yes | yes | no | no (blocked) |
+
+The stop/no-stop line is drawn by `Locomotor.cs:373`, which returns
+`!CellFlag.HasCellFlag(HasTransitOnlyActor)` — and only `+` cells set that flag
+(`Locomotor.cs:566-569`, from `Building.TransitOnlyCells()`). So **a dock cell must be `=`**; a
+client sent to a `+` cell arrives and is immediately moved off by the idle handler.
+
+Two consequences that are easy to miss:
+- `targetableCells` is built from `x` ONLY (`Building.cs:344`), so a footprint made entirely of `=`
+  and `+` — which LOGISTICSCENTER's is, before and after the 2x2 resize — has **no** targetable
+  cells. Such an actor must carry explicit `HitShape.TargetableOffsets`; turning on
+  `UseTargetableCellsOffsets` would leave it with no targetable position at all.
+- Making a previously-`+` dock cell `=` REMOVES the post-service bounce. Vehicles used to be pushed
+  off LOGISTICSCENTER's transit-only centre cell the moment `Resupply` ended; on an `=` dock they
+  now stay parked. `test-depot-vacate-phantom` is written against the old behaviour.
+
+## 2026-09-05 — Sequence `Tick` is milliseconds against a FIXED 40 ms/game-tick clock, not against the mod's Timestep
+
+`Animation.Tick()` calls `Tick(40)` unconditionally (`engine/OpenRA.Game/Graphics/Animation.cs:229-232`)
+and the default sequence tick is also 40 (`:123-125`). ww3mod's normal-speed `Timestep` is **60 ms**
+(`mods/ww3mod/mod.yaml:378-380`), and the two are unrelated: a sequence with `Tick: T` advances one
+frame per `T/40` GAME ticks regardless of game speed, and the wall-clock duration then scales with
+whatever `Timestep` the player picked.
+
+So for an N-frame sequence: **game ticks = N × Tick / 40**, and seconds at normal speed = that × 0.06.
+
+Worked, for LOGISTICSCENTER's deploy (`factmake`, 32 frames):
+- no `Tick:` line → default 40 → 32 game ticks → **1.92 s** (not 1.28 s, which is what assuming a
+  40 ms Timestep gives — the same 1.5× family of errors as the SupplyRoute duration comments)
+- `Tick: 60` → 48 game ticks → **2.88 s**
+- `Tick: 80` → 64 game ticks → **3.84 s**
+
+Both the deploy and the undeploy of a `Transforms` actor play this ONE sequence — forward on
+`WithMakeAnimation.Forward` and backwards from `Transform.Tick` (`Activities/Transform.cs:74`) — so
+one `Tick:` sets both durations and they cannot drift apart.
+
+**Timing it from Lua only works on the undeploy leg.** On deploy the building actor exists
+IMMEDIATELY and the animation runs afterwards under a `build-incomplete` condition, which no Lua
+binding can observe. On undeploy the animation runs BEFORE the actor changes, so
+ticks-from-order-to-new-actor IS the animation length.
+
+## 2026-09-05 — `TransformsIntoMobile.RequiresForceMove` gates the CURSOR, not the ORDER
+
+`RequiresForceMove` is read in exactly one place: `MoveOrderTargeter.CanTarget`
+(`engine/OpenRA.Mods.Common/Traits/Buildings/TransformsIntoMobile.cs`), which decides whether a
+cursor appears under the player's mouse. `IResolveOrder.ResolveOrder` never consults it — so **any**
+`"Move"` order that reaches the actor transforms it, however it was produced. Bot modules build
+`new Order("Move", actor, …)` by hand at 21 sites under `Traits/BotModules/` and never pass through
+a targeter.
+
+For LOGISTICSCENTER the transform is destructive (a 3000-credit building becomes a truck), so the
+trait gained an `OrderName` field (default `"Move"`, so nothing else changes) and the Centre uses
+`UndeployMove`. Grepping today's callers is not equivalent: `LogisticsCenterBotModule.McvActorTypes`
+is `{"lccv"}` (`:64`) and `McvManagerBotModule.McvTypes` is empty and unset anywhere in `mods/`, so
+no bot can name the building **today** — but that is a fact about today's modules, where the order
+string is a fact about the string.
+
+Two related traps in the same area:
+- `Test.IssueMove(actor, cell, force: true)` sends the order string **`"ForceMove"`**, which is
+  `Mobile`'s (`Mobile.cs:1021` vs `:1032`). The force-move MODIFIER on a building produces an
+  ordinary `"Move"` from the targeter. A scenario using `IssueMove(force: true)` to test a
+  force-move undeploy therefore tests nothing — the building ignores it.
+- On an actor carrying both `RallyPoint` and `TransformsIntoMobile`, the two compete by
+  `OrderPriority`: 0 vs 4. The transform targeter is asked FIRST and `RequiresForceMove` is the only
+  thing that makes it decline, after which the plain click falls through to `SetRallyPoint`.
