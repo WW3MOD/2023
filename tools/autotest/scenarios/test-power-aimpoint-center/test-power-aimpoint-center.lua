@@ -65,6 +65,15 @@
 --     path that never sees a support power order. That is filed separately.
 --   * The cursor. It still draws a cell over the quadrant the mouse is on; see the note on
 --     SelectGenericPowerTarget.GetCursor.
+--
+-- WHY 30,10 AND NOT ANOTHER CORNER, now that a run has been through here. In the shipped footprint
+-- `=+= +++ =+=` all four corners are `=` (OccupiedPassable) — walkable cells inside the building,
+-- which BuildingInfo.OccupiedTiles deliberately omits and which are therefore absent from the
+-- ActorMap influence layer. The first resolver asked only that layer, found nothing at 30,10, and
+-- left the order unsnapped: this scenario measured 24820 against a centred 60000 and named the bug
+-- itself. The clicked cell is now load-bearing in two ways rather than one — worst proximity AND
+-- passable — and SupportPowerAimPointTest pins the footprint so a change cannot quietly turn this
+-- run green while it stops testing anything.
 
 local OrderKey = "KinzhalStrike"
 local MissileType = "kinzhalmissile"
@@ -322,9 +331,12 @@ local function finish()
 		Test.Fail("a Kinzhal clicked on the CORNER cell " .. CornerCellX .. "," .. CornerCellY
 			.. " of a 3x3 Logistics Center delivered only " .. corner.damage
 			.. " damage (needs >= " .. MinCornerDamage .. "). The impact offset from the building's"
-			.. " centre is printed below: ~1448 means the order's target was never snapped —"
-			.. " check SupportPowerInfo.SnapToActorCenter and SupportPowerAimPoint.Resolve, and that"
-			.. " ActorMap.GetActorsAt still answers for every footprint cell. || " .. summary)
+			.. " centre is printed below: ~1448 means the order's target was never snapped, and the"
+			.. " known cause is the clicked cell being invisible to whichever index"
+			.. " SupportPowerAimPoint.CandidatesAt asked. 30,10 is an `=` OccupiedPassable cell,"
+			.. " which BuildingInfo.OccupiedTiles omits and BuildingInfluence includes — so check"
+			.. " that BOTH indices are still being read, then SupportPowerInfo.SnapToActorCenter."
+			.. " || " .. summary)
 		return
 	end
 

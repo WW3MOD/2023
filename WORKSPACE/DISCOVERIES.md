@@ -3,6 +3,50 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-05 - `IOccupySpace.OccupiedCells` is a PATHFINDING index, not a presence index: a building is absent from it on its own passable cells (`wt/powers-aimpoint`, `main @ 055ef267`)
+
+`ActorMap.GetActorsAt(cell)` reads the influence layer, which is keyed on
+`IOccupySpace.OccupiedCells`. For a building that is `BuildingInfo.OccupiedTiles`, and
+**`OccupiedTiles` deliberately omits `FootprintCellType.OccupiedPassable` (`=`)** — it yields only
+`x`, `X` and `+` (`Building.cs:178-190`). The sibling method `Tiles` is the one that includes `=`
+(`Building.cs:156-169`), and it is what `Building` registers with **`BuildingInfluence`**
+(`Building.cs:370`).
+
+So there are two footprint indices with different coverage, named almost identically, and the
+question they answer is not the same one:
+
+| index | keyed on | includes `=` | question it answers |
+|---|---|---|---|
+| `ActorMap.GetActorsAt` | `OccupiedCells` | **no** | *can something stand here* |
+| `BuildingInfluence.GetBuildingsAt` | `Tiles` | **yes** | *is the building here* |
+
+`=` is `OccupiedPassable`: a cell inside the building that units may walk through. Its absence from
+the pathfinding index is correct and deliberate. Reading that index to answer "does this cell hold
+an actor" is what is wrong, and the two methods are similar enough in name that the mistake survives
+a careful reading — it survived one here, including a grep that landed on `Tiles`'s body and was
+attributed to `OccupiedTiles`.
+
+**MEASURED, and the shape of the failure is the point.** `SupportPowerAimPoint` resolved a support
+power's clicked cell through `GetActorsAt` alone. The Logistics Center's footprint is
+`=+= +++ =+=`, so **all four of its corners are `=`** — and the corners are exactly the cells a
+player clicks when aiming at the edge of a building. A Kinzhal clicked on one found no actor, did
+not snap, and landed 1448 units off centre for **24820 damage against a centred shot's 60000**, in a
+scenario that had the feature switched ON. The fix reads both indices;
+`SupportPowerAimPointTest.TheLogisticsCenterCornerCellsArePassableAndSoAreNotOccupiedCells` pins the
+footprint so the scenario cannot quietly stop exercising the passable-cell path.
+
+**The generalisation worth carrying:** before using an index to answer a question, check what it was
+BUILT for. `OccupiedCells` exists so the pathfinder knows where a unit may not go, and a building
+that lets units walk through its corner is telling the pathfinder something true. Any feature asking
+"what is at this cell" for a reason other than movement — targeting, aiming, selection, tooltips,
+capture ranges — wants `BuildingInfluence` or a hitshape test, and will look correct in review and
+on every solid-footprint building while being wrong on the passable cells of the ones that have them.
+
+**A second-order note on the same fix:** the ranking that picks between candidates on one cell also
+used `OccupiedCells().Length`, which reports the 3x3 Logistics Center as **5** cells rather than 9 —
+enough to rank it below a smaller building with a solid footprint. It now measures a building with
+`Info.Tiles`.
+
 ## 2026-09-05 - A scenario budget and the shipped delay it depends on live in different languages in different trees, and nothing reads both (`wt/powers-aimpoint`, `main @ 055ef267`)
 
 Two branches were cut from the same commit. One added a per-power arrival delay

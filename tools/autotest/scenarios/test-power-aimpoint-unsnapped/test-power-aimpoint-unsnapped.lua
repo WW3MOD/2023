@@ -34,6 +34,15 @@
 --     corner click -> offset 1448 -> proximity  33% -> Warhead@Target ~17800 -> total ~24800
 -- Read the printed `offset=` field first: it is the direct measurement, and it should be ~0 for the
 -- centre shot and ~1448 for the corner shot. The damage is the consequence.
+--
+-- ITS SIBLING ALREADY PRODUCED THESE NUMBERS ONCE, BY ACCIDENT, AND THAT IS WORTH KNOWING BEFORE
+-- READING THIS RUN. On 2026-09-05 test-power-aimpoint-center returned offset=1448 / damage=24820 on
+-- the corner shot against offset=0 / damage=60000 on the centre shot — with the snap ON, because the
+-- resolver could not see a building through an `=` OccupiedPassable corner cell. So the corner-hit
+-- defect is ALREADY measured in a running game and this scenario is no longer the only route to it.
+-- What this run is now for is narrower and still worth a slot: proving the SnapToActorCenter switch
+-- actually switches, in the direction that turns the fix off. If it comes back matching its sibling's
+-- old numbers, the field works; if both shots land centred, the field is being ignored.
 
 local OrderKey = "KinzhalStrike"
 local MissileType = "kinzhalmissile"

@@ -117,6 +117,48 @@ namespace OpenRA.Test
 		}
 
 		// ============================================================================================
+		// THE PREMISE THE SCENARIO RESTS ON, pinned after a run measured the resolver failing on it.
+		//
+		// test-power-aimpoint-center clicks 30,10 — the TOP-LEFT cell of a Logistics Center placed at
+		// 30,10. In the shipped footprint `=+= +++ =+=` that cell is `=`, FootprintCellType
+		// .OccupiedPassable: inside the building, walkable, and deliberately absent from
+		// BuildingInfo.OccupiedTiles (Building.cs:178-190) and therefore from the ActorMap influence
+		// layer that GetActorsAt reads. The first version of SupportPowerAimPoint asked only that
+		// index, found nothing at the clicked cell, and left the order unsnapped — measured at 24820
+		// damage against a centred shot's 60000.
+		//
+		// TWO THINGS BREAK IF THIS FOOTPRINT CHANGES, so it is worth a test rather than a comment.
+		// If the corners became `x`, the scenario would still pass while no longer exercising the
+		// passable-cell path at all — a green run measuring nothing, which is the failure mode this
+		// whole item keeps producing. And the resolver's second index would stop being load-bearing
+		// without anyone noticing it had become dead code.
+		// ============================================================================================
+
+		[Test]
+		public void TheLogisticsCenterCornerCellsArePassableAndSoAreNotOccupiedCells()
+		{
+			var footprint = ReadTrait("mods/ww3mod/rules/ingame/structures.yaml", "LOGISTICSCENTER", "Building")["Footprint"];
+			var rows = footprint.Split(' ');
+
+			Assert.That(rows.Length, Is.EqualTo(3), "the scenario's geometry assumes a 3x3 footprint");
+			Assert.That(rows.All(r => r.Length == 3), Is.True);
+
+			// The four corners, which are the cells a player aiming at the edge of a building hits.
+			var corners = new[] { rows[0][0], rows[0][2], rows[2][0], rows[2][2] };
+
+			Assert.That(corners.All(c => c == (char)FootprintCellType.OccupiedPassable), Is.True,
+				$"LOGISTICSCENTER's footprint is now `{footprint}`, whose corners are no longer " +
+				"OccupiedPassable. test-power-aimpoint-center clicks one of those corners precisely " +
+				"because a passable cell is absent from ActorMap's influence layer -- if they have " +
+				"become solid, the scenario no longer exercises SupportPowerAimPoint.CandidatesAt's " +
+				"second index and would pass without testing the bug it was written for.");
+
+			// And the centre cell must NOT be passable, or the scenario's control shot would be
+			// exercising the same hole as the shot it is supposed to be a control for.
+			Assert.That(rows[1][1], Is.Not.EqualTo((char)FootprintCellType.OccupiedPassable));
+		}
+
+		// ============================================================================================
 		// THE GATE THAT WAS MISSING ON 2026-09-05, and it is the reason these two fixtures exist at
 		// all rather than the scenarios being left to speak for themselves.
 		//
