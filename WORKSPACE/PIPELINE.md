@@ -318,6 +318,8 @@ Declared fixed to the user at least three times. **A green scenario does NOT clo
 >
 > **So item 56 is a RUN, not a dispatch.** Its acceptance bar is unchanged and still binding. **Watch in the same match:** `test-supply-safe-front-keeps-cargo` is RED (the truck drops when it must not) and is unrefuted — if the live match looks good while that stays red, the two disagree and the scenario is the one to trust less, per this item's own founding lesson (*a test bed that always reaches a state cannot reveal a broken transition into it*).
 
+> **2026-09-05 (`main @ 40577269`): the follow-path half is now built and measured.** Recon (`e071a500`) found the drop errand already commits but the FOLLOW path re-picked its cluster every scan with no memory; `40577269` adds `ClusterStickinessNeedMargin` (ai.yaml 1000 on the shared instance — reaches `@stable`). `test-supply-two-clusters-commit` went RED at `21690781` (6 reversals, delivery t1475) and GREEN at HEAD (0 reversals). **Scope correction:** at shipped config a full truck drops on its first scan and never reaches the follow path, so the churn only ever bit partial loads. **The acceptance bar above is unchanged and still owed:** one bot-vs-bot match on `tournament-s1-eco-river-zeta`, precondition `[composition] census` shows `earned>0` and a non-zero `truk`, then `crate-placed ÷ drop` against the 15.0% recorded at `c9626273` and the `drop-declined reason=` histogram against `NoDemand` 54.1%. `test-supply-safe-front-keeps-cargo` is RED **by configuration** (`IgnoreDangerForDelivery` makes `SafeFront` unreachable), not unrefuted — retire or re-spec it (backlog).
+
 ---
 
 ### Close-out intake — items 42–54 and 62
