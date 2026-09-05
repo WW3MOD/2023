@@ -1,5 +1,35 @@
 -- ASSERTING AUTOTEST — with the aim-point snap OFF, does a corner click really cost two thirds?
 --
+-- ============================================================================================
+-- BROKEN BY THE 2026-09-05 LOGISTICSCENTER RESIZE, AND NOT FIXED HERE. Read this before running it.
+--
+-- Both victims are Logistics Centres, and the Centre is now 2x2 (`++ =+`) with a +-1024 HitShape.
+-- An even-dimensioned building's centre is the CORNER where its four cells meet, so:
+--   * every one of the four cells is exactly |(512,512)| = 724 from it, against a half-diagonal of
+--     |(1024,1024)| = 1448, giving 100 * (1448 - 724) / 1448 = 50% for ANY cell click; and
+--   * no cell centre coincides with the building centre, so the control shot CANNOT be
+--     hand-centred at all.
+-- With the snap off, both shots therefore land at 50% — roughly 27000 — and the discrimination
+-- this scenario exists to measure is gone. Expect it to fail its FIRST guard, the control:
+-- "the centre shot only did ~27000 (needs >= 40000)". That is the scenario's premise dissolving,
+-- not the snap being wrong, and tuning MinCenterDamage down would only make it measure nothing.
+--
+-- (At 3x3 the numbers were 33% for a corner cell, 52% for a mid-edge cell and 100% for the centre
+-- cell, which is where MinCenterDamage 40000 / MaxCornerDamage 35000 / MinDamageGap 20000 came
+-- from. Its sibling test-power-aimpoint-center is unaffected, because the snap resolves every
+-- footprint cell to the actor's centre and both its shots read the same number either way; only
+-- its CLICKED CELL had to move, onto the 2x2's single `=` cell.)
+--
+-- WHAT WOULD FIX IT, unimplemented because it is a design call on a scenario and unverifiable
+-- without a run: this scenario needs an ODD-dimensioned victim with a passable footprint cell, and
+-- no shipped building is one — MISS is 3x3 but 35000 HP (a 54000 Kinzhal would kill it and cap the
+-- measurement), carries a 3x2 HitShape and a LocalCenterOffset that moves its centre off the middle
+-- cell; SUPPLYROUTE has the right footprint but is the player's beachhead. The cheapest honest
+-- shape is a scenario-local victim in this folder's rules.yaml — inherit LOGISTICSCENTER and
+-- override `Building: Footprint: =+= +++ =+=, Dimensions: 3,3` plus the +-1536 HitShape, i.e. the
+-- pre-resize geometry — which restores every constant below exactly and touches no shipped rules.
+-- ============================================================================================
+--
 -- THIS SCENARIO ASSERTS A DEFECT, WHICH IS UNUSUAL, SO BE CLEAR WHY. The corner-hit discount was
 -- derived statically by a worker on 2026-09-04 (WORKSPACE/DISCOVERIES.md) and nobody had watched it
 -- happen in a running game. `SnapToActorCenter: false` in this scenario's rules.yaml restores the

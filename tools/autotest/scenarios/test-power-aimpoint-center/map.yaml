@@ -107,15 +107,22 @@ Actors:
 		Owner: USA
 		Location: 58,17
 
-	# THE CORNER-CLICKED VICTIM. Location is the TOP-LEFT of the footprint, so this covers
-	# 30-32 x 10-12 and its centre cell is 31,11. The Lua clicks 30,10 — the top-left corner cell,
-	# the worst of the nine and the one the 33% arithmetic above is derived for.
+	# THE CELL-CLICKED VICTIM. Location is the TOP-LEFT of the footprint. UPDATED 2026-09-05 for the
+	# 2x2 resize: this now covers 30-31 x 10-11 and has NO centre cell — an even-dimensioned
+	# building's centre is the corner where its four cells meet. The Lua clicks 30,11, the
+	# bottom-left, which is the footprint's ONLY `=` OccupiedPassable cell and therefore the only one
+	# absent from ActorMap's influence layer. All four cells are equidistant from the centre now, so
+	# the choice is entirely about that cell class and not about proximity.
 	CornerVictim: logisticscenter
 		Owner: USA
 		Location: 30,10
 
-	# THE CONTROL. Identical building, footprint 30-32 x 22-24, centre cell 31,23 — and the Lua
-	# clicks 31,23. This is the placement test-gbu57-asymmetry adopts by hand for exactly this
+	# THE CONTROL. Identical building, footprint 30-31 x 22-23 since the resize, and the Lua clicks
+	# 31,23 — its bottom-right cell. It is no longer a "centre cell" (a 2x2 has none), which does not
+	# matter HERE because the whole point of this run is that the snap resolves any footprint cell to
+	# the actor's centre: both shots should read the same full-strength number. It matters a great
+	# deal in test-power-aimpoint-unsnapped, whose control depends on hand-centring being possible —
+	# see that scenario's header. This is the placement test-gbu57-asymmetry adopts by hand for exactly this
 	# reason ("Placing it at 36,17 and aiming at 36,17 would put the impact on the building's
 	# top-left CORNER"). The whole point of the change under test is that hand-placement stops being
 	# necessary; this actor is here to be the number the corner shot has to match.
