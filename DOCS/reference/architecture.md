@@ -107,6 +107,83 @@ Scenario titles follow the format **`<Scenario>: <Map Name>`** — scenario name
 | `Media.DisplayMessage(text, prefix)` | Chat log messages |
 | `Media.PlaySpeechNotification(player, notif)` | EVA voice lines |
 
+### A scenario phase must advance on an OBSERVABLE, not on a tick count
+
+*(Promoted 2026-09-05 from DISCOVERIES, re-read at `main @ 95bdffb2`.)*
+
+Two branches cut from the same commit: one added a per-power arrival delay (`MissileDelay: 150`,
+`rules/player.yaml:137`), the other wrote a scenario whose settle window was 90 ticks. Both were internally
+consistent, both built clean, both passed NUnit, `lua-gate` and `--check-yaml`, and the merge was clean. The
+scenario then failed reporting `damage=0` on both shots. **`MissileStrikePower` creates the missile at order
+time and hands it to `SpawnActorEffect`, which holds it OUT OF THE WORLD for `MissileDelay` ticks
+(`Traits/SupportPowers/MissileStrikePower.cs:150`), and `Player.GetActorsByType` filters on `actor.IsInWorld`
+(`Scripting/Properties/PlayerProperties.cs:100`)** — so the poller correctly saw nothing, its window closed
+first, and the run reported a number that looks like a delivery failure. **Nothing in the repo connected the
+two constants**: a tick count in a Lua `local` and a field in YAML, and no gate reads both.
+
+**A second failure was hidden underneath the first, and is the more general one.** The scenario also
+*aliased*: it ordered its second shot on a fixed timer while the first missile was still inbound, and the
+second shot's position tracker sampled the FIRST shot's missile. That would have survived any amount of
+budget-widening, because a longer window makes overlap **more** likely, not less.
+
+**So: step on "a missile appeared" / "the missile is gone" / "the dust settled", order a shot only into a
+world holding zero missiles, and ASSERT that emptiness rather than assuming it.** Tick budgets survive only
+as the thing that fails the run *with a diagnosis* when an observable never arrives. A run that pads its
+numbers until it goes green cannot tell you which of two faults it just hid.
+
+**Where a budget must depend on a shipped constant, pin it in NUnit.**
+`SupportPowerAimPointTest.ScenarioArrivalBudgetsCoverTheShippedMissileDelay` reads `MissileDelay` out of
+`player.yaml` and the budget out of the scenario's `.lua`, and fails if the budget does not clear the delay
+by 60 ticks; a sibling checks the whole-run budget covers two sequential shots. Milliseconds, no build, no
+launch, and verified to fire by setting the budget back to 90.
+
+### A `Test.*` binding must return ONE thing
+
+*(Promoted 2026-09-04 from DISCOVERIES.)* `Test.GetSupportPowerState(player, orderKey)` was written to return
+a state token **and** append the set of keys the power bin would draw — `"hidden (bin: KinzhalStrike)"`.
+Every caller then had to know the answer was decorated, and **three of the four did not**, including both
+call sites in the file whose own header documented the format. Two of those comparisons could never be TRUE
+(the run failed with *"state 'hidden (bin: …)', where 'hidden' was required"* — the game behaving exactly as
+designed and the test unable to say so); the other two could never be FALSE, so a control guard was inert
+from the moment it was written and **nothing would ever have said so**. A comparison that can never be true
+reads, at a glance and in a passing run, as "that condition simply did not occur."
+
+**The fix is to the API, not to careful callers:** split into `GetSupportPowerState` (one bare token) and
+`GetSupportPowerBin` (the key list). **This class is specific to the script bindings** — they are consumed
+from Lua, so there is no compiler and no type to constrain the contract. A C# caller comparing an enum
+cannot make this mistake; a Lua caller comparing a string cannot avoid it unless the vocabulary is small,
+bare and pinned. `SupportPowerStateVocabularyTest` pins it from both ends. **The cost of a second binding is
+about fifteen lines; the cost of a decorated return is a burned launch slot and assertions that silently
+stop asserting.**
+
+### A deployed building's actor exists BEFORE its make animation, so a screenshot beat must read the condition
+
+*(Promoted 2026-09-05 from DISCOVERIES.)* `Transform` creates the new actor in a frame-end task and
+`WithMakeAnimation.Forward` then runs from `INotifyCreated.Created`, holding `build-incomplete` for the
+animation's length. So from Lua the building **appears within 1–2 ticks of the deploy order** and is not
+finished for another 48. A beat scheduled by tick arithmetic gets this wrong in both directions and says
+nothing about it: one run shot its labelled *"idle 2x2"* frame with the truck still visibly a truck, and its
+*"pre-deploy"* frame at tick 0, which is **solid black** — the world has not rendered yet at tick 0, so any
+beat wants tick >= 2.
+
+`Test.ConditionCount(actor, condition)` (`Scripting/Global/TestGlobal.cs:808-813`) reads
+`Actor.GetConditionCount` — the same cache every `RequiresCondition`/`PauseOnCondition` expression is
+evaluated against, so it cannot disagree with what the traits see. Gate the beat on
+`ConditionCount(lc, "build-incomplete") == 0` and the label becomes true by construction. It also makes the
+make animation's duration measurable on the **deploy** leg, which was previously reachable only on undeploy.
+(Sequence-duration arithmetic is in
+[`conventions.md` §Timestep](conventions.md#timestep-is-milliseconds-per-tick-and-the-number-that-looks-like-a-tick-rate-is-its-inverse).)
+
+Two related harness facts:
+
+- `Test.SetZoom(scale)` (`TestGlobal.cs:174`) takes a multiple of the viewport's **minimum** zoom, clamped.
+  **The default is 1, which is fully zoomed out**: a 2x2 building is ~50 px on a 2160-wide frame, and no
+  question about art scale, sprite alignment or animation motion can be answered from it. It returns what
+  was actually applied — record that, do not assume the request was honoured.
+- `BaseActorProperties` is `[ExposedForDestroyedActors]` (`Scripting/Properties/GeneralProperties.cs:23`), so
+  `IsDead`, `Location`, `CenterPosition` and `Type` stay readable on an actor a transform has DISPOSED.
+  `HealthProperties` is not, so `.Health` on a transformed actor throws — **read it before the order.**
+
 ## The LOS cache (shadow/density layers)
 
 **The cache lives outside the map package and is keyed on content. No map carries a `shadows.bin`, nothing writes one, and nothing reads one.** *(Changed 2026-08-30. This section previously described per-map `shadows.bin` files refreshed by hand; every instruction in it is now wrong. `WORKSPACE/recon-shadows-on-demand.md` records why.)*
@@ -143,6 +220,32 @@ That command is now purely an optimisation — it fills the cache so a later loa
 - **Single-frame full-canvas assets survive SHP→PNG→PngSheet**, so the "auto-sliced PNG loses the anchor" trap above does not reach a cameo: `--png` exports at `frame.FrameSize` and re-applies `frame.Offset` into the padded image, and the result reloads as one frame at `Offset = 0`, centred — the same place.
 
 **The load screen is a compositor, not a full-screen image.** `LoadScreen: LogoStripeLoadScreen` with `CustomBar: true` (`mod.yaml:260-265`) draws exactly three things (`LoadScreens/LogoStripeLoadScreen.cs`): a logo sprite cut from rect `(0,0,256,256)` of the sheet (`:51`), a stripe cut from `(258,0,253,256)` (`:52`), and text. **There is no code path in this class that renders a full-screen background** — the rest is black, so handing it a 1920×1080 painting cannot work without a new `SheetLoadScreen` subclass. `CustomBar: true` additionally replaces the stripe with a solid drawn bar (`:62-79`), leaving the right-hand 253×256 region of the PNG loaded and never drawn. **The extra pixels in the 2x/3x files buy sharpness only, never size:** `SheetLoadScreen` picks Image/Image2x/Image3x purely from `Game.Renderer.WindowScale` (`:47-77`) and `CreateSprite` multiplies the rect by `density` **and** scales the sprite by `1f/density` (`:85-89`) — the logo is always 256×256 *logical* px, centred, at every window size, and the 2x/3x files must place their regions at `density × rect` (stripe starts at x=516 for 2x, x=774 for 3x, not 2×256). Related: **there is no runtime window icon to author** — `SDL_SetWindowIcon` is called nowhere in `engine/`, and `<ApplicationIcon>$(LauncherIcon)</ApplicationIcon>` (`OpenRA.WindowsLauncher.csproj:4`) resolves empty because `LauncherIcon` is defined nowhere in the repo, so the exe icon comes solely from rcedit at packaging time.
+
+**A SHP sprite's drawn size is the PADDED TRIM RECT, not its ink.** *(Promoted 2026-09-04 from
+DISCOVERIES.)* `ShpTDLoader` trims each frame to its used rect and then pads that back out: a 1 px
+transparent border on each side that has room for one, plus an even-size fudge
+(`SpriteLoaders/ShpTDLoader.cs:113-134`). `iconchevrons.shp` frame 0 has 14x10 of ink at the frame's own
+(0,0), so `left`/`top` cannot be decremented, `right`/`bottom` each grow by 1, and the fudge rounds 15x11 up
+— **`Sprite.Size` reports 16x12 for 14x10 of ink.** Positioning a neighbouring label off `sprite.Size.X`
+therefore lands 2 px right of where the art looks like it ends; anything aligning *to the ink* needs a
+measured constant, not the sprite. The counterpart makes exact placement easy in the other direction:
+`SpriteRenderer.DrawSprite` adds `Sprite.Offset` to the location given, so passing `wanted - sprite.Offset`
+puts the trimmed block's **top-left** exactly at `wanted`, independent of how much padding the loader added.
+`DrawSpriteCentered` is the same trick for the frame's centre.
+
+**Sequences select FRAMES, never sub-rectangles — so a `ZOffset` cannot lift one moving part of a building.**
+*(Promoted 2026-09-05 from DISCOVERIES.)* The world render sorts on `r.Pos.Y + r.Pos.Z + r.ZOffset`
+(`Graphics/WorldRenderer.cs:28-29`), larger drawn later, so a vehicle standing south of a building's centre
+wins the sort and is drawn over it — for a 2x2 host that margin is exactly **512**, half a cell, which is
+what the corner-centre costs. Raising the sequence's `ZOffset` above that does flip the order, **but it
+lifts the WHOLE BUILDING, not the arm**: `fact.shp` frames 1–25 are full 72x72 images of the entire
+structure with the arm moving inside them (verified by decoding the SHP and diffing frames — 98.6% of the
+inter-frame motion falls in the left and lower thirds, but the frames still carry the roof and arch). So the
+one-liner also draws the roof over anything in the dock cell's map row during service. Doing it properly
+needs a cropped overlay SHP rendered as a second body with its own `ZOffset` — **new art, not a rules
+change.** Related: screen y is `TileSize.Height * (Y - Z) / TileScale` (`WorldRenderer.cs:749`), so a
+negative world-Y offset and a positive world-Z offset are the *same* vertical screen displacement — which is
+why a sprite `Offset: 0,-1900,0` reads as airburst compensation and is not.
 
 ## Audio pipeline: sound formats & adding a music track
 
@@ -365,6 +468,236 @@ The engine already stands a hovering/sliding attack aircraft off at weapon range
 - Ctrl+Click: Set per-unit default (unit remembers even after resets)
 - Ctrl+Alt+Click: Set per-type default — all future units of this type spawn with this. Persisted to disk via UnitDefaultsManager
 - Alt+Click: "Do Now" order — Fire/Engagement: set stance + cancel all orders. Resupply: immediate action (go resupply/stop/evacuate). Cohesion: set stance + reposition group
+
+## Resupply docking: an even-dimensioned host needs a declared dock cell
+
+*(Promoted 2026-09-05 from DISCOVERIES; every citation re-read at `main @ 95bdffb2`.)*
+
+`BuildingInfo.CenterOffset` is `(CenterOfCell(Dimensions) - CenterOfCell(1,1)) / 2 + LocalCenterOffset`
+(`Traits/Buildings/Building.cs:207-211`). For an **odd** dimension that lands on a cell centre; for an
+**even** one it lands on the point where the middle cells meet — a cell **corner**, which no ground unit
+can ever occupy.
+
+`Activities/Resupply` used to send every non-`RepairableNear` client to exactly that point and then test
+arrival against it. The tolerance is `WDist.Zero` for any host with no `RearmsUnits` trait to read a
+`CloseEnough` off — which is **every ground rearm host in this mod** (`Traits/AmmoPool.cs:1085-1087`
+spells this out as a PITFALL). At an even-sized host that test is **unsatisfiable**: the unit walks to the
+depot, never arrives, and re-plans forever. The file's own comment predicted it; `LOGISTICSCENTER` going
+2x2 on 2026-09-05 was that day.
+
+**The fix is a declared dock, not a looser tolerance.** `Traits/ResupplyDock.cs` carries one `Offset`
+(a `WVec` from the host's `CenterPosition`, `:36`) plus an optional facing (`:39`, applied only under
+`TurnToFace`). `Resupply` consumes it in both places: the approach passes it to `MoveOntoTarget`
+(`Activities/Resupply.cs:305`) and arrival becomes **cell equality** —
+`self.Location == CellContaining(centre + Offset)` (`:191`) — rather than a distance. Cell equality is the
+right test because `MoveOnto` only ever guarantees a **cell**: it paths to
+`CellContaining(Target.CenterPosition + offset)` and stops (`Activities/Move/MoveOnto.cs:32`), which is why
+`DockHost` makes the same comparison for the same reason (`Traits/DockHost.cs:137`). A side effect worth
+having: cell equality holds for **any subcell**, so several infantry can dock at once without the
+`MapGrid.SubCellOffsets` correction the odd-host branch needs. **Hosts that declare no dock are untouched**
+and keep measuring from their own centre.
+
+**A stayable dock needs an explicit vacate, because the accidental one is gone.** `LOGISTICSCENTER` has no
+`Reservable`, no queue and no reservation; what used to keep its dock free was that the dock was a `+`
+transit-only cell and `Mobile.OnBecomingIdle` shoved the serviced unit off it. A `ResupplyDock` names one
+specific cell and arrival is cell equality, so **the dock must be `=`** (see
+[`conventions.md` §Footprint characters](conventions.md#footprint-characters-decide-where-a-unit-may-stop-and-two-near-identical-indices-disagree-about-where-a-building-is))
+— and with the shove gone the first client would park forever while the second waited forever, since
+`MoveOnto.CalculatePathToTarget` returns `NoPath` and waits rather than stacking when its single target cell
+is occupied (`MoveOnto.cs:41-48`). The replacement is `Resupply.LeaveHost` (`:542`), called from the two
+existing `MoveToTarget(self, host)` sites in `OnResupplyEnding` (`:513`, `:516`) so it inherits the proven
+"queue a child on the last tick" mechanism. For a host with a `ResupplyDock` it queues an explicit move to
+the nearest free stayable cell from `ResupplyDock.VacateCandidates` (`:84`) — the ring adjacent to the
+footprint, **off the building**, because the remaining footprint cells are transit-only and stopping on one
+just re-earns the shove a tick later. Ties break on a fixed `CPos` sort; **no RNG**. Dry errands never reach
+it: `BeginReturnHome` runs immediately after `OnResupplyEnding` and cancels whatever it queued, walking the
+unit back where it came from — a better vacate, already correct.
+
+**Repair economics, the burn/repair race and the doomed-vehicle ruling live in
+[`economy.md`](economy.md#repairing-a-vehicle-at-a-logistics-centre-heals-3-of-maxhp-per-interval--and-a-burning-one-still-dies).**
+
+## Order targeter precedence: which targeter wins a click is a question about EVERY `IIssueOrder` on the actor
+
+*(Promoted 2026-09-05 from DISCOVERIES, re-read at `main @ 95bdffb2`.)*
+
+**`TransformsIntoMobile.RequiresForceMove` gates the CURSOR, not the ORDER.** It is read in exactly one
+place — `MoveOrderTargeter.CanTarget` (`Traits/Buildings/TransformsIntoMobile.cs:203`), which decides whether
+a cursor appears under the mouse. `IResolveOrder.ResolveOrder` (`:118-123`) never consults it, so **any**
+matching order that reaches the actor transforms it, however it was produced. Bot modules build
+`new Order("Move", actor, …)` by hand at 21 sites under `Traits/BotModules/` and never pass through a
+targeter. Where the transform is destructive — `LOGISTICSCENTER` becoming an `LCCV` — the safety gate is
+therefore the **order string**: `TransformsIntoMobileInfo.OrderName` (`:61`, default `"Move"` so nothing else
+changes), and the Centre uses `UndeployMove` (`rules/ingame/structures.yaml:648`).
+
+**Necessary but not sufficient, because a THIRD targeter outranks both.** Adding `Transforms` to a building
+also publishes `DeployOrderTargeter("DeployTransform", 5)` (`Traits/Transforms.cs:141-142`), whose
+`CanTarget` is `self == target.Actor` with **no** force modifier (`Orders/DeployOrderTargeter.cs:41`).
+Priority 5 beats `TransformsIntoMobile`'s 4 (`:198`) and `RallyPoint`'s 0
+(`Traits/Buildings/RallyPoint.cs:227`), so `UnitOrderGenerator.OrderForUnit` takes it first and an ordinary
+right-click **on the building itself** fires the transform — a different gesture from the terrain click
+`RequiresForceMove` guards. `"DeployTransform"` is also hand-built by `McvManagerBotModule` and
+`LogisticsCenterBotModule`, so it walks past the `OrderName` gate too. Closed by
+`TransformsInfo.AcceptsDeployOrder` (`Transforms.cs:82`, default true): switched off it removes the
+targeter (`:141`), the command-bar Deploy button (`IIssueDeployOrder.CanIssueDeployOrder`, `:160-162`) and
+`ResolveOrder`'s acceptance of a hand-built order (`:205`) **together** — all three, or the gate leaks at
+whichever one is left.
+
+**The general lesson: "which targeter wins this click" is a question about every `IIssueOrder` on the actor,
+not about the one you just added.** Enumerate them by priority before concluding a modifier gate holds.
+Grepping today's callers is not equivalent — a bot module's actor-type list is a fact about today's modules,
+where the order string is a fact about the string.
+
+**Two related traps in the same area.**
+
+- `Test.IssueMove(actor, cell, force: true)` sends the order string **`"ForceMove"`**, which is `Mobile`'s
+  (`Traits/Mobile.cs:1222`). The force-move *modifier* on a building produces an ordinary `"Move"` from the
+  targeter. A scenario using `IssueMove(force: true)` to test a force-move undeploy therefore tests nothing.
+- On an actor carrying both `RallyPoint` and `TransformsIntoMobile`, the two compete by `OrderPriority`
+  (0 vs 4). The transform targeter is asked **first**, and `RequiresForceMove` is the only thing that makes
+  it decline, after which the plain click falls through to `SetRallyPoint`.
+
+## Support powers
+
+*(Promoted 2026-09-04/05 from DISCOVERIES; all citations re-read at `main @ 95bdffb2`. The claim marked
+**derived** is reasoned from the code path rather than observed in a run.)*
+
+**A `SupportPower` on the PLAYER actor does register, and the ordering is the reason.**
+`SupportPowerManager`'s constructor subscribes to `World.ActorAdded` (`Traits/SupportPowers/SupportPowerManager.cs:44-45`)
+while the Player actor's traits are still being constructed; `Player.Initialize(true)`'s last act is
+`World.Add(this)`, which fires `ActorAdded` for the player actor itself. So the manager sees its own host.
+Worth stating because `mods/ww3mod/rules/player.yaml` carried commented-out `AirstrikePower` blocks on the
+Player actor for months and nothing in the tree demonstrated the shape working; the doubt was unfounded.
+
+**A lobby-gated power is still a KEY in `SupportPowerManager.Powers`.** `ActorAdded` registers **every**
+`SupportPower` trait on the actor, disabled ones included (`:53-74`) — it iterates
+`TraitsImplementing<SupportPower>()` and does not filter on `IsTraitDisabled`. So a power switched off by
+`RequiresCondition` is present in `Powers`, and anything probing it by key reports `not-ready`, which is
+**indistinguishable from a power that is merely still charging**. What actually differs is
+`SupportPowerInstance.Disabled`, and that is the predicate `SupportPowersWidget` filters its icon list on
+(`Widgets/SupportPowersWidget.cs:136`). *"Is the icon drawn?"* and *"can it fire right now?"* are therefore
+different questions with different answers. Consequence for tests: a scenario asserting a gated-off power is
+absent could only ever observe a timeout, which also passes on a mod where nothing works —
+`Test.GetSupportPowerState(player, orderKey)` exists so that absence becomes a positive reading.
+
+**A support power can be *bought* with no new engine code.** Four shipped mechanisms compose into a
+buy → stock → spend model: `Production.Produce` succeeds for a producee with no `IOccupySpace`
+(`Traits/Production.cs:126-131`); `ActorAdded` registers any `SupportPower` on any owned actor;
+`AllowMultiple` keys each instance by ActorID (`MakeKey`, `SupportPowerManager.cs:48-51`) so N purchases
+become N separate icons — a stock, not a boolean; and `OneShot` sets `Disabled`, which `RefreshIcons`
+filters out, so a spent charge removes its own icon. **The produce type must be added to `Production@Local`,
+NOT `ProductionFromMapEdge`** — the latter resolves a spawn cell only for a producee carrying `MobileInfo`
+or `AircraftInfo` (`Traits/ProductionFromMapEdge.cs:85-86`), so a bodiless proxy leaves `location` null and
+`Produce` returns false. **The item then sits at 100% in the queue forever with no error anywhere.** The
+trait chain such a proxy needs is in
+[`conventions.md` §`Tooltip` + `Buildable` + `Interactable`](conventions.md#tooltip--buildable--interactable-are-a-locked-chain-on-any-bodiless-actor).
+Related: `SupportPowerInstance.IconOverlayTextOverride()` is a `virtual` hook the widget already honours,
+drawing the returned string **instead of** READY / ON HOLD / the countdown — a charge readout is an
+override, not a widget change.
+
+**Missile delivery, three engine facts.**
+
+- **`SpawnedExplodes` cannot be used by a missile that has no master.** It calls
+  `self.Trait<BaseSpawnerSlave>().Master` unconditionally (`Traits/SpawnedExplodes.cs:61`), which throws for
+  an actor carrying no `MissileSpawnerSlave`. A `^ShootableMissile` delivered by anything other than
+  `MissileSpawnerMaster` must use plain `Explodes`.
+- ***(Derived)* and that `Explodes` must be UNGATED, because `airborne` is already revoked by the time the
+  kill lands.** `BallisticMissileFly`'s final act is `SetPosition(self, targetPos)` and then a queued
+  `self.Kill(self)`; for a ground strike `targetPos` is a cell centre at terrain height, so
+  `BallisticMissile.SetPosition` computes an altitude below `MinAirborneAltitude` and calls
+  `OnAirborneAltitudeLeft()` — the revoke happens on an **earlier tick** than the queued kill. So a pair
+  copied from `IskanderMissile`/`HIMARSMissile` (`Explodes` gated `airborne` plus `SpawnedExplodes` gated
+  `!airborne`) silently produces a missile that lands and does nothing; the `airborne` arm is the
+  shot-down-in-flight branch. See [`missiles.md` §10](missiles.md).
+- **`BallisticMissileFly`'s acceleration simulation had no reader.** `totalArcTicks` (`:27`) is assigned and
+  read nowhere, so the up-to-10,000-iteration velocity simulation ran at every launch to produce a number
+  nothing consumed. It is now extracted as `BallisticMissileFly.EstimateArcTicks(BallisticMissileInfo, int hDist)`
+  (`:72`) and read by `MissileStrikePower` for its camera and beacon timings
+  (`Traits/SupportPowers/MissileStrikePower.cs:157`); the activity's own behaviour is unchanged and the field
+  is still assigned and still unread. **Caveat kept deliberately:** `EstimateArcTicks` ignores `TerminalSpeed`
+  when `Acceleration == 0`, because the terminal branch lives inside the `Acceleration > 0` simulation — the
+  Kinzhal is exactly that configuration, so its flight is over-estimated by roughly one tick in 25.
+
+**There is no Lua route to a support power except through `TestGlobal`.** `SupportPowerManager` is reachable
+from no `ScriptPropertyGroup` and no `ScriptGlobal`, so a power's delivery could not be exercised by any
+autotest before `Test.ActivateSupportPower(player, orderKey, cell)` was added — it issues the same order
+`SelectGenericPowerTarget` emits on a left-click and returns a status string so a scenario can print **why**
+a power did not fire.
+
+## Production queues: autobuild, the parallel throttle, and pre-loaded transports
+
+*(Promoted 2026-09-04/05 from DISCOVERIES; citations re-read at `main @ 95bdffb2`.)*
+
+**There is no autobuild queue — `Infinite` is a per-ENTRY bool.** `ProductionItem.Infinite`
+(`Traits/Player/ProductionQueue.cs:772`) has one effect: in `EndProduction` (`:647-648`) a flagged entry, on
+completion, appends a fresh copy **at the queue tail**. So autobuild is the *lowest*-priority thing in a
+queue, never tops up to a target, never reads what you own, and "cycle size" is just how many entries were
+Alt+clicked. **Any doc or copy describing it as a mode, a target count, or a ratio against your army is
+wrong.** Two further edges:
+
+- **Two autobuild scopes share one flag, and the wider one silently overwrites the narrower.** Per-icon
+  Alt+click sets `Infinite` on those entries; per-tab Alt+click runs `ToggleRepeatProduction`, which does
+  `foreach (var item in Queue) item.Infinite = RepeatMode` over **every type in the tab** (`:536-543`), and
+  while `RepeatMode` is on `BeginProduction` flags every new item too (`:655-657`). Toggling the tab off
+  therefore strips per-icon autobuild you set deliberately.
+- **One right-click on a mixed stack refunds and deletes the manual copies too.** `CancelProductionInner`
+  (`:610-635`): if *any* entry of the clicked type carries `Infinite`, it strips the flag from all of them
+  and removes every queued entry of that type except the in-flight one — it never checks which were flagged.
+
+**`ClassicParallelProductionQueue.IsProducing` returns `Queue.Contains(item)` (`:143-146`) — true for
+everything.** Any widget state derived from `IsProducing` is structurally dead on the infantry tab, which is
+the only queue using that class (`rules/player.yaml:57`). **Check this override before deriving anything from
+`IsProducing`.**
+
+**That parallel queue is a round-robin THROTTLE, never a speed-up.** `TickInner` advances one item per tick
+and rotates that type to the back — identical in aggregate to the serial queue — and with 2+ distinct types
+queued the `penalty` accumulator (`:112-114`) makes it **skip every other tick**, so aggregate infantry
+throughput is *half* the serial rate, split round-robin. `ParallelPenaltyBuildTimeMultipliers: 100`
+(`rules/player.yaml:69`) is a single-element array, so the lookup is always index 0 and the penalty never
+scales with how many types are queued — but the every-other-tick skip still applies. *(Derived, not
+observed: the infantry countdown therefore under-reports by 2x with two or more types queued, since
+`RemainingTimeActual` reports `remaining x n`.)* The `BuildingCountBuildTimeMultipliers` on the same queue is
+**dead config**: `GetBuildTime`'s use of it is gated on `SpeedUp` (`:216`), which defaults to `false` and is
+set nowhere in `mods/`.
+
+**The cancel refund does not survive completion.** Every cancel path refunds `TotalCost - RemainingCost` —
+what was actually paid, since money drips per tick during the build (`:823-828`; paths at `:189`, `:391`,
+`:628`, `:638`, `:672`). **But the refund only exists while the item is IN the queue**: the instant `Produce`
+succeeds, `EndProduction(item)` (`:713`) removes it and the queue holds no further record. So "the queue
+already gives you cancel-with-refund" is true only for a purchase *in progress*; anything about refunding a
+**finished** purchase is new code on a different object. The useful corollary: cancelling at 99% already
+returns ~100% of what was paid, so **any completed-purchase refund below 100% creates a discontinuity at the
+moment the bar fills** — the optimal play becomes holding every purchase at 99% forever.
+
+**`Cargo.InitialUnits` works through the production path — and it is unlinted, and it throws.**
+`Cargo.InitialUnits` (`Traits/Cargo.cs:54`, consumed `:326-333`) and `CargoInit` both spawn passengers inside
+the transport's own constructor, so **a produced transport arrives pre-loaded**, including through
+`ProductionFromMapEdge`, which ends in a plain `CreateActor` and only ever inspects the *transport's*
+`MobileInfo`/`AircraftInfo`. Unused anywhere in `mods/ww3mod/`. Three hazards, none caught by lint:
+
+- `InitialUnits` carries **no `[ActorReference]` attribute** (`:53-54`), unlike `ProduceActorPowerInfo.Actors`
+  and `SupportPowerCrateActionInfo.Proxy`. A typo'd actor name is a runtime `CreateActor` throw, not a lint
+  error.
+- `GetWeight` uses `a.Info.TraitInfo<PassengerInfo>()` — **not `TraitInfoOrDefault`** (`:381`). An entry
+  without a `Passenger` trait throws on the weight sum.
+- The `InitialUnits` branch calls `cargo.Add(unit)` directly and consults **neither `HasSpace`, nor
+  `MaxWeight`, nor `Types`, nor `loadFilters`**. An over-capacity or wrong-`CargoType` load succeeds silently.
+
+**Anyone shipping a pre-loaded transport must first fix `GetSellValue`'s missing passenger term** — see
+[`economy.md`](economy.md#getsellvalue-has-no-passenger-term-so-evacuating-a-loaded-transport-deletes-its-cargos-value).
+
+**Rank accrual is priced in build time and SPENT in wall clock.** `RankAccrual.BaseBuildTimeTicks`
+(`Traits/Player/RankAccumulation.cs:69`) derives a unit's accrual interval from its **nominal** build time
+(`cost / 10 x BuildDurationModifier`) and the trait then advances it from `ITick`. The two only agree for a
+player producing that type flat out, which is the opposite of the behaviour the feature rewards; and because
+the interval is a function of cost, the roster's cost spread is the accrual spread. *(As of 2026-09-04 the
+cheapest accruing type is the 50-credit E1 Conscript against a 6000-credit top tier — a 120:1 spread. That
+ratio is a balance observation and dates; the mechanism does not.)* Note `BaseBuildTimeTicks` deliberately
+does **not** call `GetBuildTime` (`:62-70`), so neither queue's multipliers can move it.
+
+**Banked rank counts are NOT bounded by the 3/2/1 caps.** `RankAccumulation.StockOf` (`:375`) returns
+`Total(tier)` = `Stock + BonusStock` (`:212`), and `CreditWhole` increments `BonusStock` with no cap check
+(`:245`) every time a veteran of that type comes home alive. `Caps = {3, 2, 1}` (`:303`) governs *accrual*
+only. **Any readout showing a rank count must budget for two digits.**
 
 ## AI configuration
 
@@ -849,6 +1182,38 @@ Both are legacy fallbacks that the shipped configuration always outranks — wor
 
 Engine widget behaviors that fail **silently** — each cost real debugging time in the lobby work:
 
+- **The sidebar's "free" gutter and right margin are FRAME ART drawn OVER the production palette.**
+  *(Promoted 2026-09-04 from DISCOVERIES.)* `Container@PALETTE_FOREGROUND` is declared **after**
+  `ProductionPalette@PRODUCTION_PALETTE` (`mods/ww3mod/chrome/ingame-player.yaml`), so its per-row clone of
+  `background-iconrow` composites over the palette. Decoding that region — `uibits/sidebar.png` at
+  `0, 116, 238, 47`, named at `mods/ww3mod/chrome.yaml:32` — gives **fully opaque columns at x 0–40 and
+  x 229–237**, 1 px opaque dividers at x 103 and x 166 that overdraw each icon's last pixel column, and
+  transparency only inside the three cut-outs. Arithmetic over the icon grid alone says those strips are
+  empty; they are not. **Worse for design purposes, both strips are outside the columns** — a mark drawn in
+  either belongs to a whole row of three different units and cannot name one of them, so a *per-icon* status
+  rail there is not buildable at any price. That is geometry, not cost. Cheaper than expected, though: a
+  frame re-cut is one edit, because `sidebar-nato` and `sidebar-brics` both point `background-iconrow` at
+  the same region of the same file (`chrome.yaml:32`, `:90`).
+- **Every cameo BAKES ITS NAME into the art — a production icon is not a blank canvas.** *(Promoted
+  2026-09-04 from DISCOVERIES.)* 204 shipped icons are 64x48 and 40 are 60x48 against a 62x46 cell, and all
+  of them carry the unit's caption in art rows 41–46 (= cell rows 38–45), full width — which matches the
+  generator at `tools/cameo/convert.py:133-147` and was confirmed by decoding ten shipped files. An overlay
+  enumerating "corners nothing else claims" from the widget's own draw calls **misses the caption, because
+  the caption is pixels in the `.shp` rather than a draw call**. Decode before placing anything;
+  `WORKSPACE/mockups/buymenu_shp_dump.py` does it without launching.
+- **Check a font's cmap before designing around any non-ASCII mark — there is no fallback font.**
+  `SymbolsFont = "Symbols"` is resolved with `TryGetValue` and `mods/ww3mod/mod.yaml` declares no such font,
+  so `symbolFont` is **null** and a missing glyph has nowhere to fall back to. In
+  `engine/mods/common/FreeSansBold.ttf`, verified by parsing the font rather than by eye: `+` (glyph 14) and
+  `x` U+00D7 (glyph 153) have real outlines, and `↻` U+21BB, `∞` U+221E, `◆` U+25C6 and `▲` U+25B2 **all map
+  to glyph 0**. This is the same trap that produced the lime autobuild stripe as a hand-drawn primitive.
+- **`ProductionIconOverlayManager` is declared but inert, and cannot carry a tier or a count.**
+  `mods/ww3mod/rules/player.yaml:460` declares it, but `WithProductionIconOverlay` appears **nowhere** under
+  `mods/`, so `overlayActive` is never populated and `IsOverlayActive` is always false
+  (`Traits/Render/ProductionIconOverlayManager.cs:92-98`). Structurally it is one sprite fixed at
+  construction, a `bool` per actor, driven by player-global TechTree prerequisites, with a hardcoded
+  `Offset`. **The art it names is good though:** `mods/ww3mod/bits/misc/ui/iconchevrons.shp` is md5-identical
+  to stock RA's — 4 frames of gold rank insignia, ink 14x10 / 14x14 / 14x18 / 15x16.
 - **A null `targetLineColor` draws NO LINE AT ALL — it is not a fallback to a default colour.** `Move.TargetLineNodes` (`Activities/Move/Move.cs:453`) and `Attack.cs:362` both guard `if (targetLineColor != null)` before yielding, and the base `Activity.TargetLineNodes` (`engine/OpenRA.Game/Activities/Activity.cs:272-275`) is a bare `yield break`. So every call site that omitted the argument produced a unit that moves or opens fire with **zero** on-screen explanation. **If you are wondering why a unit moved and there was no line, the answer may be that there was never going to be one.**
   - **Two independent gates decide whether a line is visible, and they are easy to conflate.** Lines come from `IRenderAnnotationsWhenSelected`, which `WorldRenderer.cs:188-231` walks over `World.Selection.Actors` only (plus everything friendly while `ShowAllOrders` — spacebar — is held). *On top of that*, `DrawLineToTarget.ShouldRender` requires `Game.RunTime <= lifetime`, and `lifetime` is re-armed only by `LineTargetExts.ShowTargetLines` (called from order resolution) or by `INotifySelected.Selected` (`DrawLineToTarget.cs:63-75`). Consequence: **selecting a unit to find out where it is going buys exactly `Delay` ms of answer, then goes dark while the unit is still walking.** Most automatic sources never call `ShowTargetLines` at all — `AutoFollowAlly`, `Wanders` and `AutoCarryall` have zero references to it, though `AutoSeekSupplies` (`:203`, `:302`) and `AmmoPool` (`:604`, `:619`) do.
   - **"Automatic" is now a colour, and `AutomaticOrder.LineColor` is the whole vocabulary** (`engine/OpenRA.Mods.Common/AutomaticOrder.cs:43`, DodgerBlue `30,144,255`; predicate `IsAutomatic(Color)` at `:45-48`). One colour meaning "the GAME issued this", threaded through the existing `targetLineColor` parameter at **nine sites / sixteen usages** (`SeekSuppliesAndReturn`, `SeekSupplyProvider`, `AutoCrusher`, `AutoFollowAlly`, `Wanders`, `AttackBase:738`, `Mobile:946,956`, `ScaredyCat:164`, `StancePositioningExecutor:414`) rather than a provenance flag on `TargetLineNode`, which would have needed 29 call sites. `DrawLineToTarget.ShouldRender` (`:95`) exempts automatic nodes from the `Delay` timeout via `HasAutomaticNode` (`:103-116`) — load-bearing for one-cell corrections, where a line calibrated to confirm a player's own click would expire while the unit was still visibly moving. **The colour alone is not enough and nobody should "fix" it by adding a `ShowTargetLines()` call at the queueing site**: `lifetime` is never armed for a self-issued move, and `HasAutomaticNode` is what closes that.
