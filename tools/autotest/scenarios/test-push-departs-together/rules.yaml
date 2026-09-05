@@ -1,0 +1,29 @@
+# Kept as close to test-combined-arms-rendezvous as possible - that is the shape
+# known to load a Lua-verdict scenario driving the @experimental bot from a
+# spectator slot.
+#
+# ONE deliberate difference: DefaultCash is 0, not 7500. At 7500 the bot buys its
+# own force and uses THAT, leaving the scenario's named actors idle beside the
+# measurement - AUTOTEST.md records a run where debug.log showed six transport
+# departures while the predicate reported everCarried=0, both readings correct about
+# different actors. Here it would be worse than a wrong number: purchased units
+# would enter the free pool on the bot's own schedule and destroy the staggered
+# arrival that IS the input under test. 0 makes the six Lua-created units the entire
+# force, which is the constraint test-tecn-ride already uses.
+#
+# DELIBERATELY NO AI FLAG OVERRIDES. The scenario measures shipped ai.yaml. Pinning
+# PoiOffensiveBotModule fields here would make it a test of a configuration nobody
+# plays, and the numbers below are predicted from the shipped values
+# (ReevaluateInterval 100, EarlyMinAxisSize 2, StagingFallbackCells 6,
+# StagingSpreadStepCells 2, ImmediateReinforcementCommit true).
+
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-push-departs-together.lua

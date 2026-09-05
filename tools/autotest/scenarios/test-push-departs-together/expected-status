@@ -1,0 +1,34 @@
+fail
+
+BY MERIT, and the merit is that two of this scenario's three clauses measure a
+capability that does not exist yet. Declared here so it does not red every batch
+forever (AUTOTEST.md, "A scenario that is SUPPOSED to fail must say so").
+
+What is and is not implemented, as of the item-64 batch:
+
+  d3 SOLO DEPARTURE  - addressed. PoiOffensiveBotModuleInfo.FreePoolMinAdvanceUnits
+     stops StageFreePool ordering a lone free-pool unit forward when no axis exists.
+     Expect this clause to flip from 1 to 2 in the note.
+
+  d1 DEPARTURE INTERVAL / d2 SPREAD AT THE MIDLINE - NOT addressed, and nothing in
+     the tree addresses them. Once two units exist an axis forms and every later
+     reinforcement is recruited into it and sent to the objective on the eval it
+     arrives. There is no gate anywhere that makes an axis wait at the muster for a
+     unit that DOES NOT EXIST YET: the damper's fill-completion hold
+     (RetreatDamperMath.FillIncomplete) compares Units.Count against AllocatedSize,
+     and the allocator sizes an axis from the pool that exists this eval and tops it
+     up in the same pass (PoiOffensiveBotModule.cs:1699 and the loop below it), so
+     the axis is never under-filled and the hold never arms. Reverting
+     ImmediateReinforcementCommit does not change that - it suppresses a hold that
+     was already unreachable on this input.
+
+So this scenario is a measuring instrument first and a gate second. Its NOTE is the
+product: three numbers plus a per-unit "born@N left@M" roll, in result.json, every
+run.
+
+DELETE THIS FILE when a departure-discipline gate for the axis path lands. Until
+then the declared outcome occurring prints OK(fail); the declared outcome ceasing to
+occur prints STALE and reds, which is the whole point of declaring it.
+
+A crash, a hang, or a run that never reaches a verdict still reds under this
+declaration - it only ever buys silence for the one outcome it names.
