@@ -2463,6 +2463,10 @@ namespace OpenRA.Mods.Common.Traits
 			return clusters;
 		}
 
+		// The ±3 follow box in scan order, built once. Static because it depends on nothing but the
+		// radius, and the radius is a literal here.
+		static readonly CVec[] FollowBoxOffsets = SupplyLogisticsMath.FollowBoxScanOrder(3);
+
 		/// <summary>The cell a truck assigned to this cluster is actually sent to.
 		///
 		/// <para>SITE 7 OF THE DANGER BYPASS, AND THE ONE NO CONFIG FLAG REACHES. This reads
@@ -2496,29 +2500,32 @@ namespace OpenRA.Mods.Common.Traits
 			var bestCell = cluster.CenterCell;
 			var bestScore = float.MinValue;
 
-			for (var dx = -3; dx <= 3; dx++)
+			// NEAREST-FIRST, AND THE ORDER IS LOAD-BEARING — see SupplyLogisticsMath.FollowBoxScanOrder.
+			// The comparison below is strict, so the incumbent survives a tie; scanning in raster order
+			// therefore made the (-3, -3) CORNER the answer whenever the box scored flat, which on a quiet
+			// front it always does (GetThreat samples a radius of CellSize = 8 cells, wider than the box, so
+			// all 49 cells see the same actors and score identically). That sent the truck to a cell ~4.2
+			// cells off the centroid and short of its aura, and the starving men walked the rest.
+			foreach (var offset in FollowBoxOffsets)
 			{
-				for (var dy = -3; dy <= 3; dy++)
+				// Terrain-tested as well as bounds-tested. The score is -threat and threat is
+				// enemyValue - friendlyValue, so an EMPTY cell wins outright — and open water is the emptiest
+				// ground on the map. Unfiltered, the safest-looking follow cell in a ±3 box beside a coastal
+				// cluster is the sea, and the cell is also written to lastFollow as the deadband ShouldReissueFollow
+				// measures against, so the engine relocating the truck would leave the deadband anchored on a
+				// cell the truck never reaches.
+				var cell = cluster.CenterCell + offset;
+				if (!world.Map.Contains(cell) || !passable(cell))
+					continue;
+
+				var threat = threatMap.GetThreat(cell, player);
+				// Prefer cells with friendly advantage (negative threat) near the cluster
+				var score = -threat;
+
+				if (score > bestScore)
 				{
-					// Terrain-tested as well as bounds-tested. The score is -threat and threat is
-					// enemyValue - friendlyValue, so an EMPTY cell wins outright — and open water is the emptiest
-					// ground on the map. Unfiltered, the safest-looking follow cell in a ±3 box beside a coastal
-					// cluster is the sea, and the cell is also written to lastFollow as the deadband ShouldReissueFollow
-					// measures against, so the engine relocating the truck would leave the deadband anchored on a
-					// cell the truck never reaches.
-					var cell = new CPos(cluster.CenterCell.X + dx, cluster.CenterCell.Y + dy);
-					if (!world.Map.Contains(cell) || !passable(cell))
-						continue;
-
-					var threat = threatMap.GetThreat(cell, player);
-					// Prefer cells with friendly advantage (negative threat) near the cluster
-					var score = -threat;
-
-					if (score > bestScore)
-					{
-						bestScore = score;
-						bestCell = cell;
-					}
+					bestScore = score;
+					bestCell = cell;
 				}
 			}
 

@@ -21025,6 +21025,70 @@ uncontended match 9 is 6 m 17 s. **So a run can silently go from "one game at a 
    start against a `--result-dir` that already contains `match_*.json`. **Not
    implemented — this entry is a recording, not a change.**
 
+## 2026-09-06 — `FindSafeFollowPosition` sent every supply truck to the `(-3,-3)` CORNER of its follow box, because the threat sampler's radius is wider than the box it is sampled over (`wt/safe-front-close`, `main @ da7dd984`)
+
+**The observation, from `260906_090304_p9113_test-supply-safe-front-keeps-cargo/debug.log`.** Every
+`[supply] cluster … follow=` line in the whole run is the centroid plus exactly `(-3, -3)`, across nine
+scans and five different centroids: `44,16→41,13`, `43,16→40,13`, `40,16→37,13`, `45,17→42,14`,
+`45,18→42,15`, and (clamped at the map edge) `4,16→1,13`, `7,16→4,13`, `17,16→14,13`. The truck's furthest
+`x` was 37 — its scan-4 follow cell `37,13` exactly. It did not stop short of its target; **its target was
+short.**
+
+**Why that proves a TIE rather than a gradient.** `FindSafeFollowPosition`
+(`engine/OpenRA.Mods.Common/Traits/BotModules/SupplyFollowerBotModule.cs:2486`) argmaxes
+`-threatMap.GetThreat(cell)` over a ±3 box, and `threat = enemyValue - friendlyValue`
+(`ThreatMapManager.cs:197-227`). With friendlies at the centroid and no enemy anywhere, a real gradient
+would peak the score **at** the centroid — the argmax would return the centroid, never a corner. A corner
+can only win if every cell scores the same and the strict `>` keeps whichever was scanned first. The scan
+was raster (`dx` outer, `dy` inner), so "first" was `(-3, -3)`.
+
+**Why the tie is structural, not incidental.** `GetThreat` sums valued combatants inside
+`WDist.FromCells(info.CellSize)` of the sampled cell, and `CellSize: 8` (`mods/ww3mod/rules/world.yaml:297`)
+— **wider than the ±3 box it is being sampled over.** The furthest candidate-to-member distance in a radius-3
+box around a 5-cell column is 5.83 cells, well inside 8, so all 49 candidates enclose the identical actor
+set and return the identical float. **A sampler whose kernel is larger than the search window cannot
+discriminate inside that window**; the argmax degenerates to the scan order. This generalises: any
+box-search over `ThreatMapManager.GetThreat` with a half-width below 8 is a tie-break in disguise.
+
+**Fixed** by `SupplyLogisticsMath.FollowBoxScanOrder(radius)` — the box ordered nearest-first
+(ties by `dx` then `dy`), so a flat box resolves to the centroid. Danger avoidance is untouched: a strictly
+safer cell still wins.
+
+**INERT IN SHIPPED CONTENT.** `FindSafeFollowPosition` returns `cluster.CenterCell` unread when
+`IgnoreDangerForDelivery` is true, and `ai.yaml:1689` ships `true` on the only instance. Neither `@stable`
+nor `@experimental` moves; only maps that clear the flag (today: `test-supply-safe-front-keeps-cargo`) see it.
+
+## 2026-09-06 — The safe-front platoon drift is `AutoSeekSupplies`, NOT the truck's follow cell, and the truck-side fix above cannot move it (`wt/safe-front-close`, `main @ da7dd984`)
+
+**`[seek] leave tick=250 unit=10@44,14 owner=USA-bot provider=truk@26,16 dist=18c leash=20c`** — and the
+same line at ticks 251-254 for the other four. All five riflemen left the front **the moment the inbound
+truck crossed their 20-cell leash** (`AutoSeekSupplies.cs:197`, dispatch at `:202`). That is the whole of
+clause 4's failure: the men walked, the truck did not fail to.
+
+**The arithmetic, from measured positions.** Scan ticks correlate to ≈0 / 150 / 300 / 450 / 600 / 750
+against the tick-stamped lines around them; the truck reads x = 14 / 21 / 29 / 36 / 36 / 37, i.e.
+**0.0487 cells/tick**, and it is at x≈26 at tick 250 exactly as the `[seek]` line records. The platoon is
+fed between scan 4 (`starving=5`) and scan 5 (`starving=0`), so ≈tick 500, having covered 5-6 cells since
+tick 250 — **≈0.02 cells/tick** *(this one is derived from the drift and the feed window, not measured
+directly — the weakest number here)*. Closing at 0.069 cells/tick from an 18-cell gap, aura entry
+(`dx²+dy² ≤ 25`) lands at **tick ≈437, with the truck at x≈35** — *before* it reaches either the old
+follow cell (37) or the centroid (44). **The meeting point is therefore independent of the truck's target**,
+and moving the target from 37 to 44 changes the drift only through `dy`: the truck stops aiming at row 13
+and aims at row 16, which drops the worst man's `dy` from 5 to 2 and the predicted peak drift from 6 to
+**≈4**. Still far above clause 4's allowance of 1.
+
+**So the doctrine needs both halves and only one is built.** `supply-route.md`'s safe branch is "the truck
+closes and serves in place"; `AutoSeekSupplies` has no notion of a provider that is already inbound, so on a
+quiet front the front collapses into its own supply line exactly as the scenario's clause-4 comment predicts.
+**Not fixed here**: the trait sits on `^Soldier`, so it governs human-owned units and both bot profiles
+alike, and a gate on it is a behaviour change the manager should own rather than a defect worker's
+side-effect. The shape that looks right: do not dispatch `SeekSuppliesAndReturn` at a provider that is
+mobile and currently closing — self-limiting (the man re-asks every `ScanInterval: 40`, so a truck that
+parks or drives away is still fetched from, and nothing deadlocks). `SupplyProvider.OnSupplyErrand` does
+**not** answer this — it reads only `RestockSupply` / `PlaceSupplyCache` / `CollectSupplyCache` /
+`DeliverSupply`, and the follow path issues a plain `Move`.
+
+
 ## 2026-09-06 — `./utility.sh --check-yaml <map>` cannot run from Git Bash on this machine: `make` is absent (main @ 8802a781)
 
 `utility.sh:7` is `command -v make || { echo "The OpenRA mod SDK requires make."; exit 1; }` — it exits before touching dotnet. `which make` finds nothing in Git Bash here (no GnuWin32/chocolatey/msys make), so the single-map lint recipe in CLAUDE.md's routing table fails with exit 1 and a one-line stderr on this machine; `.\make.ps1 test` (PowerShell) is unaffected and is how the merge gate has been running. Working single-map form, verified on `test-supply-safe-front-keeps-cargo` (`Testing map:` printed, exit 0): from the repo root, `cd engine && MOD_SEARCH_PATHS="<repo>/mods,<engine>/mods" ENGINE_DIR=".." dotnet bin/OpenRA.Utility.dll ww3mod --check-yaml ../tools/autotest/scenarios/<name>` — i.e. `utility.sh:54` by hand (`:32` is where it builds MOD_SEARCH_PATHS; use Windows-style paths from `pwd -W`). Hypothesis, unverified: `run-test.sh` does not gate on make (it ran), so this only bites the lint recipe.

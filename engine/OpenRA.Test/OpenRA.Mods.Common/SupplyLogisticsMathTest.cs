@@ -12,6 +12,10 @@
  *   (4) EVAC GEOMETRY — the retreat point sits the retreat distance toward the SR, clamped to not overshoot.
  *   (5) FOLLOW-PATH COMMITMENT — a truck keeps the cluster it is serving unless a challenger beats it on
  *       need by more than the margin, and the spread honours the same hold through AssignSectors' seed.
+ *   (6) FOLLOW-BOX SCAN ORDER — the tie-break that decides where a truck actually parks. On a flat threat
+ *       field every cell in the box scores the same, so the scan order alone picks the follow cell; it must
+ *       resolve to the CENTROID (the truck closes to aura range) and not to a corner (the starving men walk
+ *       out to meet it). Asserted against the real geometry of test-supply-safe-front-keeps-cargo.
  * Pure math over synthetic positions; no world mounted.
  */
 #endregion
@@ -585,6 +589,154 @@ namespace OpenRA.Test
 			var assign = SupplyLogisticsMath.AssignSectors(trucks, sectors, MaxFollow, new[] { 7 });
 
 			Assert.That(assign[0], Is.EqualTo(0));
+		}
+
+		// ---- (6) FOLLOW-BOX SCAN ORDER ------------------------------------------------------------
+		//
+		// These pin the ONE property FindSafeFollowPosition's correctness rests on. That method argmaxes
+		// -threat over the box with a STRICT `>`, so the first cell scanned wins every tie — and on a quiet
+		// front the box is ENTIRELY tied, because ThreatMapManager.GetThreat samples a radius of
+		// CellSize = 8 cells (rules/world.yaml:297), wider than the ±3 box, so all 49 cells see the same
+		// actors. Whatever the scan order puts first IS the follow cell on a safe front.
+
+		// The production argmax, mirrored: strict `>` over the supplied order, seeded with the centroid.
+		// Kept here rather than reaching into the module because the module's copy needs a mounted world;
+		// the STRICTNESS is the part these tests depend on and it is asserted by construction.
+		static CPos PickFollowCell(CPos centre, IEnumerable<CVec> order, System.Func<CPos, float> threat)
+		{
+			var best = centre;
+			var bestScore = float.MinValue;
+			foreach (var offset in order)
+			{
+				var score = -threat(centre + offset);
+				if (score > bestScore)
+				{
+					bestScore = score;
+					best = centre + offset;
+				}
+			}
+
+			return best;
+		}
+
+		// The order this used to scan in: raster, dx outer, dy inner. Kept so the regression it caused can
+		// be asserted rather than described.
+		static IEnumerable<CVec> RasterOrder(int radius)
+		{
+			for (var dx = -radius; dx <= radius; dx++)
+				for (var dy = -radius; dy <= radius; dy++)
+					yield return new CVec(dx, dy);
+		}
+
+		// TRUK's aura is Range: 5c0 (rules/ingame/vehicles.yaml), tested as squared horizontal distance —
+		// SupplyProvider.InAuraRange — so this is dx*dx + dy*dy <= 25 in cells, NOT Chebyshev.
+		static bool InAura(CPos truck, CPos man)
+		{
+			var d = man - truck;
+			return (d.X * d.X) + (d.Y * d.Y) <= 25;
+		}
+
+		[Test]
+		public void FollowBoxScanOrderVisitsTheCentroidFirst()
+		{
+			var order = SupplyLogisticsMath.FollowBoxScanOrder(3);
+
+			Assert.That(order[0], Is.EqualTo(CVec.Zero),
+				"the centroid must be scanned first: under a strict argmax it is the cell a tied box resolves to");
+		}
+
+		[Test]
+		public void FollowBoxScanOrderIsNearestFirstAndCoversTheWholeBox()
+		{
+			var order = SupplyLogisticsMath.FollowBoxScanOrder(3);
+
+			Assert.That(order.Length, Is.EqualTo(49), "a radius-3 box is 7x7");
+			Assert.That(new HashSet<CVec>(order).Count, Is.EqualTo(49), "no offset may repeat");
+			foreach (var o in order)
+				Assert.That(System.Math.Max(System.Math.Abs(o.X), System.Math.Abs(o.Y)), Is.LessThanOrEqualTo(3));
+
+			var prev = -1;
+			foreach (var o in order)
+			{
+				var d2 = (o.X * o.X) + (o.Y * o.Y);
+				Assert.That(d2, Is.GreaterThanOrEqualTo(prev), "squared distance must never decrease along the scan");
+				prev = d2;
+			}
+		}
+
+		[Test]
+		public void FollowBoxScanOrderIsDeterministic()
+		{
+			var a = SupplyLogisticsMath.FollowBoxScanOrder(3);
+			var b = SupplyLogisticsMath.FollowBoxScanOrder(3);
+
+			Assert.That(a, Is.EqualTo(b), "zero RNG: the order is a pure function of the radius");
+		}
+
+		[Test]
+		public void FlatThreatFieldSendsTheTruckToTheCentroidNotACorner()
+		{
+			var centre = new CPos(44, 16);
+
+			var picked = PickFollowCell(centre, SupplyLogisticsMath.FollowBoxScanOrder(3), _ => 0f);
+			Assert.That(picked, Is.EqualTo(centre), "a wholly tied box must resolve to the centroid");
+
+			// What it did before, and why the run failed: the raster scan's first cell is the corner.
+			var old = PickFollowCell(centre, RasterOrder(3), _ => 0f);
+			Assert.That(old, Is.EqualTo(new CPos(41, 13)), "raster order pinned the follow cell to the -3,-3 corner");
+		}
+
+		[Test]
+		public void CentroidFollowCellPutsTheWholePlatoonInAuraAndTheCornerDoesNot()
+		{
+			// test-supply-safe-front-keeps-cargo's geometry: a column of five riflemen at x=44, y=14..18,
+			// centroid (44,16), no enemy anywhere so the threat field is flat.
+			var centre = new CPos(44, 16);
+			var platoon = new List<CPos>();
+			for (var y = 14; y <= 18; y++)
+				platoon.Add(new CPos(44, y));
+
+			var picked = PickFollowCell(centre, SupplyLogisticsMath.FollowBoxScanOrder(3), _ => 0f);
+			foreach (var man in platoon)
+				Assert.That(InAura(picked, man), Is.True, $"man at {man} must be inside the truck aura at {picked}");
+
+			var old = PickFollowCell(centre, RasterOrder(3), _ => 0f);
+			Assert.That(platoon.TrueForAll(m => InAura(old, m)), Is.False,
+				"the corner follow cell left at least one man outside the aura — this is the defect the order fixes");
+		}
+
+		[Test]
+		public void AStrictlySaferDistantCellStillWinsOverTheCentroid()
+		{
+			// The box exists to avoid danger and must keep doing so: nearest-first only decides TIES.
+			var centre = new CPos(44, 16);
+			var safe = new CPos(47, 19);
+
+			var picked = PickFollowCell(centre, SupplyLogisticsMath.FollowBoxScanOrder(3),
+				c => c == safe ? -100f : 0f);
+
+			Assert.That(picked, Is.EqualTo(safe), "a cell with a strictly better score must still be taken");
+		}
+
+		[Test]
+		public void AmongEquallySafeCellsTheNearestWins()
+		{
+			// Two cells tie on the best score; the nearer one must be chosen.
+			var centre = new CPos(44, 16);
+			var near = new CPos(45, 16);
+			var far = new CPos(41, 13);
+
+			var picked = PickFollowCell(centre, SupplyLogisticsMath.FollowBoxScanOrder(3),
+				c => (c == near || c == far) ? -10f : 0f);
+
+			Assert.That(picked, Is.EqualTo(near), "ties break toward the cluster, so the truck closes rather than hangs back");
+		}
+
+		[Test]
+		public void ANegativeRadiusScansNothing()
+		{
+			Assert.That(SupplyLogisticsMath.FollowBoxScanOrder(-1).Length, Is.EqualTo(0));
+			Assert.That(SupplyLogisticsMath.FollowBoxScanOrder(0), Is.EqualTo(new[] { CVec.Zero }));
 		}
 	}
 }
