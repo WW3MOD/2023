@@ -260,41 +260,57 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		// PERF: this runs PER SPRITE PER FRAME (SpriteRenderable.cs:116) and, on the terrain path, four times
+		// per dirtied cell. The PerfSample that used to wrap the whole body unconditionally costs two
+		// Stopwatch.GetTimestamp() calls and a string-keyed Cache lookup - benchmarked at 53.5 ns sampled
+		// against 3.6 ns unsampled, so 14.8x the work it was measuring, spent whether or not anything was
+		// reading the number. The branch below costs 1.1 ns. That was free before WW3MOD enabled this trait, because WorldRenderer.
+		// TerrainLighting was null and TintAt was never called at all; enabling it mod-wide turned it into a
+		// permanent global tax. PerfHistory.Sampling is true only while the perf graph, the perf text overlay
+		// or benchmark mode is live, so the `terrain_lighting` trace still reports exactly when someone is
+		// reading it, and costs ~1 ns otherwise.
 		float3 ITerrainLighting.TintAt(WPos pos)
 		{
+			if (!PerfHistory.Sampling)
+				return Tint(pos);
+
 			using (new PerfSample("terrain_lighting"))
+				return Tint(pos);
+		}
+
+		/// <summary>The body of TintAt, split out so the sampled and unsampled paths share one copy of it.</summary>
+		float3 Tint(WPos pos)
+		{
+			var uv = map.CellContaining(pos).ToMPos(map);
+			var tint = globalTint;
+			if (!map.Height.Contains(uv))
+				return tint;
+
+			var intensity = info.Intensity + info.HeightStep * map.Height[uv];
+			if (lightSources.Count == 0)
+				return intensity * tint;
+
+			var additive = float3.Zero;
+			foreach (var source in partitionedLightSources.At(new int2(pos.X, pos.Y)))
 			{
-				var uv = map.CellContaining(pos).ToMPos(map);
-				var tint = globalTint;
-				if (!map.Height.Contains(uv))
-					return tint;
+				var range = source.Range.Length;
+				var distance = (source.Pos - pos).Length;
+				if (distance > range)
+					continue;
 
-				var intensity = info.Intensity + info.HeightStep * map.Height[uv];
-				if (lightSources.Count == 0)
-					return intensity * tint;
-
-				var additive = float3.Zero;
-				foreach (var source in partitionedLightSources.At(new int2(pos.X, pos.Y)))
+				var falloff = ApplyFalloff(source.Falloff, (range - distance) * 1f / range);
+				if (source.Blend == LightBlend.Additive)
+					additive += falloff * source.Intensity * source.Tint;
+				else
 				{
-					var range = source.Range.Length;
-					var distance = (source.Pos - pos).Length;
-					if (distance > range)
-						continue;
-
-					var falloff = ApplyFalloff(source.Falloff, (range - distance) * 1f / range);
-					if (source.Blend == LightBlend.Additive)
-						additive += falloff * source.Intensity * source.Tint;
-					else
-					{
-						intensity += falloff * source.Intensity;
-						tint += falloff * source.Tint;
-					}
+					intensity += falloff * source.Intensity;
+					tint += falloff * source.Tint;
 				}
-
-				// With no Additive sources this is exactly the historical `intensity * tint`: adding a zero float3
-				// is exact in IEEE754, so the vanilla TerrainLightSource path is unchanged to the bit.
-				return intensity * tint + additive;
 			}
+
+			// With no Additive sources this is exactly the historical `intensity * tint`: adding a zero float3
+			// is exact in IEEE754, so the vanilla TerrainLightSource path is unchanged to the bit.
+			return intensity * tint + additive;
 		}
 	}
 }

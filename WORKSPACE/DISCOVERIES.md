@@ -3,6 +3,50 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-06 - Map YAML has at least FOUR silent-failure modes, they are documented in four different places, and no gate catches any of them - name the class, not the instances (`wt/light-events`, base `main @ 9d197f66`)
+
+**This entry deliberately does NOT restate the mechanisms. Every one of them is already curated, and duplicating them here would put a second copy of a checkable claim somewhere nobody maintains.** What is not written down anywhere is that they are the *same kind of failure*, and that is what keeps costing time: a worker who has read one has no reason to suspect the other three, because each lives in a different section of a different document.
+
+The class: **a map or scenario YAML file that is wrong in one of these ways still loads, still renders, still spawns every actor, and reports nothing - to the player, to the log, or to `--check-yaml`.** The only symptom is that the thing you wrote does not happen.
+
+| Silent mode | Already documented at |
+|---|---|
+| `map.yaml` omits `Rules:` / `Weapons:` / `Sequences:`, so the whole file is ignored | [`conventions.md`](../DOCS/reference/conventions.md) §"Maps must declare `Rules: rules.yaml`" - with the `Map.cs:176` / `Map.cs:364` citation |
+| A rules override mis-cases a top-level key (`e3:` against a defining `E3:`), contributing a new actor instead of overriding | [`CLAUDE.md`](../CLAUDE.md) hard rules, and [`conventions.md`](../DOCS/reference/conventions.md) §"The override isn't taking effect" cause 2. **Silent only for `^Template` keys**; the other two shapes throw, and loudly |
+| A blank line missing between top-level entries, silently merging them | Same section, cause 1 |
+| `Inherits@` / `-Key:` ordering inside an actor, where a later parent quietly overwrites the field you set | Same section, cause 3 |
+
+**What IS new here, and the reason the class is worth naming:**
+
+- **The four are spread across four sections of two files.** Three are causes 1-3 of one `conventions.md` section titled around the phrase *"the override isn't taking effect"* - which is a symptom a worker only searches for **after** they already suspect something is wrong. The `Rules:` one is 100 lines away under a different heading and does not share that symptom at all: nothing is overriding because nothing was loaded. A worker whose demo is simply "too bright" has no reason to type either phrase.
+- **`--check-yaml` cannot catch any of them, and this is structural rather than an oversight.** Each is a *well-formed* document that means something different from what the author intended. The lint validates what the file says; every one of these failures is the file saying something legal.
+- **`--dump-balance-json` catches the last three and NOT the first.** It resolves the default ruleset and will surface a mis-cased key or a bad inherit, but it never reads a map's `rules.yaml` at all, so a missing `Rules:` line is invisible to the one detector `conventions.md` recommends for this family. The two halves of the section have different detectors and the section does not say so.
+- **Near-miss on this branch, and the reason I noticed:** `demo-light-events` needs `Weapons: weapons.yaml` as a *separate* top-level declaration from `Rules: rules.yaml`. Declaring only `Rules:` would have loaded all seven light envelopes and silently dropped the one weapon that carries the warhead emitter - a demo that is 6/7 correct, with the missing seventh looking like a bug in the warhead rather than a missing line in `map.yaml`.
+
+**Generalisable and worth carrying past MiniYaml: when a file format has more than two ways to be silently wrong, the useful artefact is a CHECKLIST OF THE CLASS, not four good explanations filed under four symptoms.** Before believing a map-scoped YAML edit took effect, confirm in this order: the file is named in `map.yaml`; the top-level key matches the defining file's casing byte for byte; blank lines separate top-level entries; and the `Inherits@` above your override is not putting it back. All four are cheaper to check than one launch.
+
+## 2026-09-06 - `make.ps1 check` is RED on `main` with 20 pre-existing errors in seven files, so a worker who runs it and sees red should grep before believing it is theirs (`wt/light-events`, base `main @ 9d197f66`)
+
+**Run `.\make.ps1 check` on a clean `main` and it fails.** It is a Debug `-warnaserror` build of `engine/OpenRA.sln`, and the analyzers that are stripped from every Release build (`engine/Directory.Build.props:51-56`) fire there. At `9d197f66` it reports **20 errors**, none of which any recent branch touched. All are in `OpenRA.Mods.Common`:
+
+| File | Errors attributed |
+|---|---|
+| `Traits/BotModules/SupplyLogisticsMath.cs` | 5x `SA1028` (trailing whitespace), 4x `CS1570` (malformed doc XML) |
+| `Traits/BotModules/SupplyFollowerBotModule.cs` | 2x `CS1570` |
+| `Widgets/Logic/Ingame/ProductionTooltipLayout.cs` | 3x `RCS1226` (add paragraph to doc comment) |
+| `Traits/AmmoPool.cs` | 1x `SA1612` (param doc out of order) |
+| `Projectiles/Missile.cs` | 1x `RCS1226` |
+| `Traits/Render/DecorationRowGeometry.cs` | 1x `RCS1226` |
+| `Traits/Player/RankAccumulation.cs` | 1x `RCS1226` |
+
+**State the method with the number, because the two do not quite reconcile.** `20` is MSBuild's own summary line. The per-file split is a regex over the same log attributing each `file(line,col): error ID` back to its file, and it accounts for **18** across seven files - two lines did not survive the console's line-wrapping and are unattributed. So: seven files is a floor, not a census, and the two missing lines could be in an eighth. Re-derive with `.\make.ps1 check 2>&1 | Out-String -Width 500` (the wide `Out-String` is what makes the log greppable at all) if you need the exact set.
+
+**Why this is worth an entry rather than a fix.** The failure mode is not the errors, it is the ten minutes every worker spends establishing that they are not theirs. `check` is not in `CLAUDE.md`'s Build & Run block, so most workers never run it and never find out; the ones who do run it are exactly the ones who just changed engine C# and have every reason to assume a red gate is their fault. **The one-command answer: `git diff --name-only main` and grep the gate's log for your own filenames.** If none match, it predates you.
+
+**The trap inside the trap, and the reason `RCS1226` in particular keeps being reintroduced:** a multi-paragraph `/// <summary>` is the natural way to explain a non-obvious class, it reads correctly in every editor, and it is invisible in `make.ps1 all` (Release, no analyzers) and in `dotnet test`. You only learn about it from `check`. The mechanical fix is to demote the prose to plain `//` comments above the declaration and leave a one-line `<summary>` - three of this branch's own files needed exactly that.
+
+**Do not "fix" this by adding to a baseline.** There is no analyzer baseline in this repo (`mods/ww3mod/lint-baseline.txt` is the YAML lint's, and is unrelated). Either fix those files in their own change, or leave them and know why the gate is red.
+
 ## 2026-09-06 - `TerrainLighting.AddLightSource` crashed the game outright above a 56-cell radius, and the ceiling is invisible from every line of its own call site (`wt/light-events`, base `main @ 9d197f66`)
 
 **`TerrainLighting.AddLightSource` used to raise its terrain-refresh notifications with `map.FindTilesInCircle(source.Cell, (source.Range.Length + 1023) / 1024)`. `FindTilesInAnnulus` THROWS above `MapGrid.MaximumTileSearchRange` rather than clamping** (`engine/OpenRA.Game/Map/Map.cs:1994`, ceiling 56 at `engine/OpenRA.Game/Map/MapGrid.cs:113`), so any light source with a radius over 56 cells took the game down at the instant it was created. Nothing at the call site said so: `FindTilesInCircle` reads like a search helper, the argument is a plain cell count, and there is no clamp, no guard and no `Desc` anywhere on the trait mentioning a maximum range. This is at least the **fourth** caller of that family to hit the same wall in this repo, and every previous one was found by crashing rather than by reading: `Radar.Range: 56c0` via `AffectsMapLayer.ProjectedCells` (2026-08-21, [`bugs/discovered.md:3632`](bugs/discovered.md) - note 56c0 resolves to 57, so the effective ceiling is 55c0), an autotest radar scenario (`10a03ea0`), and the high-yield strike camera's `CameraRange 68c0` (`9d197f66`, fixed hours before this entry). **Treat any WDist that reaches a `FindTiles*` call as capped at 55c0 until you have read the callee.**
@@ -15,6 +59,17 @@
 - **The radius has to be widened by 724 (the half-diagonal of a 1024 cell) before the distance test.** `UpdateTint` samples the lighting at the cell's four CORNERS, half a tile out in each direction, so a cell whose centre is outside the light can still have a lit corner. Testing centres alone leaves a ragged unlit fringe one cell wide.
 
 **Unrelated to the ceiling but found in the same file and load-bearing for anyone adding a light: `TintAt`'s light accumulation is multiplicative in a way that surprises.** The historical loop does `intensity += falloff * source.Intensity; tint += falloff * source.Tint;` and returns `intensity * tint`, so two white lights of intensity 1 overlapping at full falloff produce **9x**, not 3x, and a single light of intensity 4 with a white tint produces 25x. That model also scales the light by the ambient, so a lamp is dim at night - the opposite of what a lamp does. It is now selectable per source (`LightBlend.Legacy` keeps it exactly, and is still the default of `AddLightSource`, so the vanilla `TerrainLightSource` trait is bit-for-bit unchanged; `LightBlend.Additive` adds `falloff * intensity * tint` to the result and leaves the ambient alone). **Do not read the intensity number on a light source as "how bright"; read the blend mode first.**
+
+**Measured while enabling the trait, and the most reusable number in this entry: a `PerfSample` costs ~50 ns, which on a per-sprite path is FOURTEEN TIMES the work it is measuring.** `TintAt` was wrapped in `using (new PerfSample("terrain_lighting"))` unconditionally. That is two `Stopwatch.GetTimestamp()` calls plus the string-keyed `Cache` lookup in `PerfHistory.Increment` (`PerfHistory.cs`). Benchmarked at `net6.0`/Release, best of 7 rounds x 20M iterations, against a faithful stand-in for `TintAt`'s no-light-source body (the real `CellLayer<byte>.Contains`, the real indexer, the real `float3` arithmetic - everything but `CellContaining`, which needs a `Map`):
+
+| | ns/call | ms/s at 120k calls/s |
+|---|---|---|
+| body only | 3.62 | 0.43 |
+| body + `PerfSample` | 53.47 | 6.42 |
+| body + a static-bool gate, gate off | 4.73 | 0.57 |
+| body + the same gate, gate on | 52.88 | 6.35 |
+
+So the instrumentation was **14.8x** the cost of the thing instrumented, and gating it on a `bool` recovers 48.7 ns/call - 5.9 ms/s at 2000 sprites and 60 fps, 14.6 ms/s at 5000, or roughly 0.1-0.24 ms of a 16.7 ms frame. **The generalisable part is not the fix, it is the ratio: a `PerfSample` is only free on a path that runs once per tick or once per frame, and OpenRA's other thirteen call sites all do.** The moment one lands on a per-entity path it dominates its own measurement, and it will not show up in `make.ps1 all`, in `dotnet test`, or in any gate. `PerfHistory.Sampling` (set once per frame in `Game.RenderTick` from `PerfGraph || PerfText || benchmark != null`) now exists for hot-path callers to branch on. **Note the third consumer in that disjunction:** gating on the two on-screen overlays alone would have silently emptied the `terrain_lighting.csv` that `--benchmark` writes, because `Benchmark.Tick` (`Support/Benchmark.cs:29`) walks every `PerfHistory.Items` entry with no reference to whether anything is displayed. An instrumentation gate has to enumerate every reader, and the off-screen one is the easy one to miss.
 
 **And a cheap trap next door: `SpatiallyPartitioned.Add` throws `ArgumentException` on a zero-width bounding rectangle** (`engine/OpenRA.Game/Primitives/SpatiallyPartitioned.cs:35`), and `TerrainLighting.Bounds` builds that rectangle as `2 * range`. A light of radius zero is therefore a crash from inside the renderer with no YAML in the stack trace. Both the keyframe validator and the runtime interpolation clamp for it now.
 
