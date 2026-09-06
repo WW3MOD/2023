@@ -77,7 +77,7 @@ local function step()
 		firedA = true
 		if LauncherA and not LauncherA.IsDead and LauncherA.IsInWorld
 			and TargetA and not TargetA.IsDead and TargetA.IsInWorld then
-			LauncherA.Attack(TargetA, false, false)
+			LauncherA.Attack(TargetA, true, false)
 		end
 	end
 
@@ -85,7 +85,7 @@ local function step()
 		firedB = true
 		if LauncherB and not LauncherB.IsDead and LauncherB.IsInWorld
 			and TargetB and not TargetB.IsDead and TargetB.IsInWorld then
-			LauncherB.Attack(TargetB, false, false)
+			LauncherB.Attack(TargetB, true, false)
 		end
 
 		return

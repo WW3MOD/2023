@@ -112,3 +112,5 @@ Actors:
 		Owner: USA
 		Location: 47,66
 		Facing: 768
+
+Rules: rules.yaml
