@@ -394,6 +394,19 @@ Player:
 		# then force-releases at 400t even if no abort trigger fired — set ABOVE AxisCommitmentTicks (250) so it's
 		# an outer backstop, not per-ledger churn. Engine default is 0 (inert); @stable omits it => byte-identical.
 		MissionCommitmentWindowTicks: 400
+		# PIPELINE item 64 — a held axis may be REINFORCED. The hold above freezes an axis out of the live set
+		# BEFORE the allocator runs, so for the whole 400t window it was also frozen out of being TOPPED UP, and
+		# with one offensive POI in the world the held target is stripped from the candidate list so no axis could
+		# form for anybody either: every reinforcement arriving inside the window sat in the free pool and was
+		# walked to the muster by StageFreePool. That is the measured "the riflemen never advanced at all"
+		# (run 260905_212326_p13005; DISCOVERIES 2026-09-05). The freeze is preserved where it was doing work —
+		# a held axis is still never re-targeted, never SHED from, and the units already en route are never
+		# re-ordered; only the recruits are ordered, to the cell the axis itself last chose.
+		# Engine default OFF, so the pre-change path is byte-identical. SET ON BOTH TWINS (see the @stable block):
+		# this is a defect fix, not a doctrine A/B, and per the 2026-09-05 user ruling @stable is a re-synced copy
+		# rather than a design to withhold fixes from. @stable behaviour DOES change here — re-take the benchmark
+		# baseline before trusting any comparison against a pre-this-commit run.
+		MissionReinforceEnabled: true
 		MissionDangerSpikePct: 50
 		MissionDangerSpikeFloorUnits: 30
 		MissionBetterOppMarginPct: 50
@@ -2899,6 +2912,11 @@ Player:
 		RepathThresholdCells: 3
 		MissionCommitmentEnabled: true
 		MissionCommitmentWindowTicks: 400
+		# Item 64 held-axis reinforcement — the twin of the @experimental block above, and DELIBERATELY on here.
+		# It is a defect fix (a held axis could not absorb a reinforcement for 400 ticks), not a doctrine knob, and
+		# withholding it would leave the control bot with the same stranded reserve. This MOVES @stable: re-take
+		# the benchmark baseline before comparing against any run older than this commit.
+		MissionReinforceEnabled: true
 		MissionDangerSpikePct: 50
 		MissionDangerSpikeFloorUnits: 30
 		MissionBetterOppMarginPct: 50

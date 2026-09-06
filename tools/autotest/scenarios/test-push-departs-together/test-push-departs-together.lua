@@ -32,9 +32,18 @@
 --       (PoiOffensiveBotModule.cs:2769-2771, groupedActors: new[] { u }).
 --
 --   d1  ADVANCE INTERVAL, at the ADVANCE LINE x=20 - ticks between the first and last
---       crossing of it.                   PASS <= 300.
+--       crossing of it.                   PASS <= 300, AND every living spawned unit
+--                                         must have advanced at all.
 --       Beyond every reachable staging slot, so crossing it means the unit is going
 --       somewhere, not mustering.
+--
+--       THE COUNT GATE IS NOT DECORATION AND THE FIRST TWO REVISIONS SHIPPED WITHOUT IT.
+--       Run 260905_212326_p13005 read d1 = 0/300 and the clause counted as satisfied. It
+--       was not: only the two tanks ever crossed x=20, all four riflemen read adv@never,
+--       and an interval over "the units that advanced" scores a PERFECT 0 when two-thirds
+--       of the push never advances. Min/max over a filtered set rewards the set being
+--       empty, so the clause was unfalsifiable exactly when the push was smallest - the
+--       case this item is about. The repair is a companion COUNT, not a tighter threshold.
 --
 --   d2  SPREAD AT FIRST MIDLINE CROSSING - Chebyshev bounding-box extent over every
 --       push unit in the world at the tick the first one crosses x=33.
@@ -75,8 +84,13 @@ local PassSpreadCells = 8       -- d2: Chebyshev extent at the first midline cro
 -- the free-pool gate is meant to flip.
 local SoloWindowTicks = 50
 
--- The measurement window closes at the first midline crossing once everyone has
--- spawned, or at HardCloseTick, whichever comes first. The AssertWithin deadline is
+-- The measurement window closes once everyone has spawned AND the first midline crossing
+-- has been seen AND every living unit has advanced, or at HardCloseTick, whichever comes
+-- first. THE ADVANCE TERM IS PART OF THE CLOSE FOR THE SAME REASON THE COUNT GATE EXISTS:
+-- closing at the first crossing reads d1 at the instant the FASTEST unit arrives, which is
+-- necessarily before the slowest one has advanced, so the interval would be measured over a
+-- population the close condition itself truncated. An abrams is Speed 90 and a rifleman is
+-- Speed 25 (3.6x), so that truncation is not a corner case here - it is the normal run. The AssertWithin deadline is
 -- strictly larger, so reaching IT means the predicate never got as far as its own
 -- close condition - a scenario bug, reported as such rather than as a defect.
 -- Sized from run 260905_183118, not from feel. There the axis was ordered to the objective
@@ -222,8 +236,26 @@ local function Decide(tick)
 
 	if FirstAdvanceTick == nil then
 		why[#why + 1] = "no unit ever crossed the ADVANCE line - the push mustered but never advanced"
-	elseif LastAdvanceTick ~= nil and (LastAdvanceTick - FirstAdvanceTick) > PassAdvanceInterval then
-		why[#why + 1] = "d1 advances too far apart"
+	else
+		-- The companion COUNT gate. Every unit that was spawned and is still alive must have
+		-- advanced; a unit that died is excused (it cannot advance and its loss is not this
+		-- clause's subject). Checked BEFORE the interval, because an interval computed over a
+		-- short population is the number that must not be trusted, not a second opinion on it.
+		local owed = 0
+		for i = 1, #Push do
+			if SpawnedAt[i] ~= nil and DiedAt[i] == nil and AdvancedAt[i] == nil then
+				owed = owed + 1
+			end
+		end
+
+		if owed > 0 then
+			why[#why + 1] = "d1 " .. owed .. " LIVING UNIT(S) NEVER ADVANCED - the interval " ..
+				"beside this is computed only over the units that did, so read it as a lower bound"
+		end
+
+		if LastAdvanceTick ~= nil and (LastAdvanceTick - FirstAdvanceTick) > PassAdvanceInterval then
+			why[#why + 1] = "d1 advances too far apart"
+		end
 	end
 
 	if SpreadAtFirstCross ~= nil and SpreadAtFirstCross > PassSpreadCells then
@@ -343,11 +375,15 @@ WorldLoaded = function()
 		--    the hard cap. Deciding early keeps a RED run short; the hard cap is what
 		--    turns "nothing happened" into a diagnosis instead of a bare timeout.
 		local allSpawned = true
+		local allAdvanced = true
 		for i = 1, #Push do
 			if SpawnedAt[i] == nil then allSpawned = false end
+			if SpawnedAt[i] ~= nil and DiedAt[i] == nil and AdvancedAt[i] == nil then
+				allAdvanced = false
+			end
 		end
 
-		if (allSpawned and FirstCrossTick ~= nil) or tick >= HardCloseTick then
+		if (allSpawned and allAdvanced and FirstCrossTick ~= nil) or tick >= HardCloseTick then
 			print("[push-departs] WINDOW CLOSED " .. Report(tick))
 			Verdict = Decide(tick)
 			return Verdict

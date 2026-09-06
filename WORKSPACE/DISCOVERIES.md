@@ -3,6 +3,78 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-05 - RETRACTION: a mission-held axis's units are NOT in the free pool. The real defect is that a held axis cannot be TOPPED UP, and with one POI no axis can form for anybody (`wt/item64-axis`, base `main @ 9cb423d4`)
+
+**This retracts the "marched back to the muster" mechanism** asserted in the 2026-09-05 entry below, in
+`WORKSPACE/pipeline/items/64-combined-arms-push.md`, and in `test-push-departs-together`'s `expected-status`.
+All three said a mission-committed axis is pulled out of the live set before `BuildFreePool`, so its own units
+read as free pool and `StageFreePool` stages them rearward. **The code forbids it, and has since the mechanism
+shipped.** `PoiOffensiveBotModule.PartitionHeldAxes` - the `"HELD: keep the mission"` branch - calls
+`goalGuard.Ledger.Commit(u, OffenseObjectiveKey(axis.TargetId), tick, Info.AxisCommitmentTicks)` for **every
+unit of every held axis**, on the same eval, before `BuildFreePool` is reached; `BuildFreePool` excludes every
+actor for which `goalGuard.Ledger.IsCommitted(a, tick)` is true. `AxisCommitmentTicks` is 250 on both profiles,
+so the claim cannot lapse inside one eval. A held axis's units are unreachable to the stager.
+
+**The lesson is about the shape of the evidence, not this module.** The reading was built from three log lines
+that co-occurred - `hold ... units=2`, `reeval ... free=2`, `[exp-staging] idle=2 staged=2` - and two equal
+counts on one tick were taken as identity. They are not: nothing in `[exp-staging]` says WHICH units it staged,
+and `free=2` names a size, not a membership. **A count is not an identity.** Co-occurrence plus a matching
+cardinality is the cheapest false positive in log mining, and it survived into three documents because each one
+cited the next.
+
+**What IS wrong, and it strands exactly the units the retracted reading was about.** The same exclusion has a
+second half nobody wrote down: `PartitionHeldAxes` removes the axis from `axes` **before steps 7-8**, so the
+proportional allocator never sizes it and the top-up loop never sees it. For the whole
+`MissionCommitmentWindowTicks` window (400 = 4 evals at `ReevaluateInterval` 100) **a held axis cannot absorb
+one reinforcement.** `DamperShouldHold`'s own comment already stated the consequence and read it as benign -
+*"the units the frozen axis is therefore not handed stay in the free pool ... where StageFreePool walks them
+forward - they do not strand"* - which is true of the units and false of the push.
+
+**And on the opening push it is worse than a delay, because of a term that only bites at poiCount=1.**
+`PartitionHeldAxes` also strips held targets from `targets`. With ONE offensive POI in the world the held axis
+holds it, `targets` empties, and `PoiOffenseMath.DesiredAxisCount` is handed `poiCount = 0` - it returns 0 on
+its first line. So no axis can form for anybody, every reinforcement falls to the free pool, and `StageFreePool`
+walks it to the muster and leaves it there. That is the measured *"all four riflemen `adv@never` at x~15-18"*
+of run `260905_212326_p13005`, and it is why the symptom looks like a march-back: the reserve genuinely is at
+the muster and genuinely is not advancing - the module simply never ordered it anywhere else.
+
+**Fixed** by `MissionReinforceEnabled` (engine default false; `true` on BOTH profiles): a held axis is sized by
+the same pure `AllocateProportional` the live path uses and tops up from the pool the live axes did not want.
+The freeze is preserved where it was doing work - the axis is never re-targeted, never SHED from
+(`PoiOffenseMath.HeldAxisReinforceCount` floors at zero, NUnit-pinned), and the units already en route are never
+re-ordered; the `AttackMove` is grouped over the RECRUITS ONLY and aims at `axis.OrderedCell`, the cell the axis
+itself last chose. **This moves `@stable` deliberately - re-take the benchmark baseline.**
+
+**The instrument that stops this class of error recurring, and it cost ~25 lines:** `[exp-ledger]` in
+`BuildFreePool` tallies the units this module WOULD have taken but for a live claim, **by the owner prefix of
+their ledger key** (`offense:` / `bombard:` / `garrison:` / `ambush:` / `defend-line:` / `capture:` /
+`transport:` - every writer builds `"<owner>:<id>"`). One line per eval turns *"the offense never recruited
+them"* and *"another module is holding them"* into different readings, which the free-pool count alone can
+never do. Generalise it: **when a pool is filtered by a shared claim, log the CLAIMANT, not the survivor count.**
+
+## 2026-09-05 - `test-push-departs-together`'s d2 is a SPEED clause, not a departure clause, and no ordering fix can ever turn it green (`wt/item64-axis`, base `main @ 9cb423d4`)
+
+d2 - Chebyshev extent over the push at the tick the first unit crosses the midline, PASS <= 8 - has been read
+throughout item 64 as *"the clause still doing real work"* on departure discipline. It is not measuring
+departure at all. An abrams is `Speed: 90` (`ingame/vehicles-america.yaml:521`); a rifleman is `Speed: 25`,
+inherited unmodified down `E3.america -> ^E3 -> ^CamoSoldier -> ^Soldier -> ^Infantry`
+(`ingame/infantry.yaml:47-48` - no `Speed` or `SpeedMultiplier` override on that chain). Both start at x~4 and
+are ordered to the same objective, and **nothing paces them**: a grouped `AttackMove` runs through
+`CohesionMoveModifier`, which assigns each unit its own destination SLOT and then lets each travel at its own
+speed. So at the instant the tank has covered the 29 cells to x=33 the rifleman has covered `29 * 25/90 ~ 8`,
+and the bounding box is **~21 cells** wide. Measured 18 before this batch.
+
+**That is arithmetic, not tuning.** d2 <= 8 over a 29-cell run is unreachable while the fast element does not
+wait, whatever the departure logic does. The only mechanism that can move it is a **lead-hold** - the armour
+holding at a bound until the infantry close up - which the 2026-08-15 scope ruling DEFERRED and which the
+2026-09-01 re-verification found exists nowhere in the bot modules (*"no speed-matching, lead-hold or follower
+gate ... the only hits are prose comments"*).
+
+**The general form, worth carrying past this scenario:** a spread/extent statistic read at the moment the
+FASTEST member arrives is a measurement of the speed ratio, not of coordination, and it degrades linearly with
+distance. Any "how far apart were they" clause needs to say which of the two it intends, and if it intends
+coordination it has to be read at a moment neither element chooses alone.
+
 ## 2026-09-05 - Item 64 MEASURED, four arms: the free-pool gate is proven, the muster revert is inert and dropped, and the instrument's d1 clause passed for the wrong reason (`wt/item64 @ 6951b540`, base `main @ 62778af1`)
 
 Four runs of `test-push-departs-together` plus one of `test-combined-arms-rendezvous`, run by the manager. This
@@ -92,8 +164,17 @@ costs one grep — `[exp-offense] reeval ... pool=N`. **A `pool=0` on a player t
 somebody else owns them**, and the shared `PoiGoalGuard` ledger is the list of candidates. Grep the pool count
 before theorising about the stager.
 
-## 2026-09-05 - A mission-committed axis reads as FREE POOL, so StageFreePool marches it back to the muster on the same eval it is being held forward (`wt/item64`, run 260905_183118)
+## 2026-09-05 - A mission-committed axis reads as FREE POOL, so StageFreePool marches it back to the muster on the same eval it is being held forward (`wt/item64`, run 260905_183118) **[RETRACTED - see the retraction entry at the top of this file]**
 
+> **THE MECHANISM BELOW IS WRONG AND THE CODE FORBIDS IT.** `PartitionHeldAxes` ledger-commits every
+> held-axis unit BEFORE `BuildFreePool`, which excludes every ledger-committed actor, so a held axis's
+> units cannot be in the free pool. The reading came from three log lines that co-occurred with matching
+> counts; a count is not an identity. **The real defect is in the same exclusion**: a held axis is
+> invisible to the allocator so it is never TOPPED UP, and its target is stripped from the candidate
+> list so at poiCount=1 no axis can form for anybody at all. Full account, and the fix, in the
+> retraction entry. The OBSERVED behaviour below (six cells in 300 ticks, riflemen `adv@never`) is real
+> and is explained there; only the causal claim is withdrawn.
+>
 > **NOW THE OPEN REMAINDER OF ITEM 64.** Re-observed at HEAD: the axis carried only the two tanks and all
 > four riflemen sat on staging slots with `adv@never` for the whole run.
 
