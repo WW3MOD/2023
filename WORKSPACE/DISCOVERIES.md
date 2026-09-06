@@ -40,6 +40,34 @@ EOF
 **RCS1226 ("Add paragraph to documentation comment") and CS1570 are the same defect at two stages, which is why the count looks bigger than the problem.** RCS1226 fires on a multi-paragraph summary using NO `<para>` at all; CS1570 fires once someone has started adding them and stopped halfway. 7 of the 24 were the first, 8 were the second. Fix both by wrapping every blank-line-separated paragraph, first one included.
 
 **Checked and found benign, recorded so the next reader does not re-investigate: IDE0220 in `SupportPowerStateVocabularyTest`.** Its message says the implicit `object`-to-`Match` conversion "may fail at runtime", which reads like a live bug. It cannot fail there — the sequence is a `MatchCollection` and every element genuinely is a `Match`. The cause is that `MatchCollection` implements BOTH the non-generic `IEnumerable` and `IEnumerable<Match>`, and `foreach`'s pattern-based lookup binds the type's own `GetEnumerator()`, which is the non-generic one. `.AsEnumerable()` selects the generic interface, costs nothing at runtime, and is the whole fix. Worth knowing generally: **`foreach (Match m in Regex.Matches(...))` always trips this**, and the same holds for any BCL collection predating generics.
+## 2026-09-06 - There is a spare, fully-tinted 16x16 glyph sitting unused in the production-icons band, and a missing region there is a CRASH rather than a blank button (`wt/powers-buy`, base `main @ 6e5721ae`)
+
+**`mods/ww3mod/uibits/glyphs.png` carries a radiation trefoil at `85, 68` that nothing references, drawn to the same weight and in the same three tints as every production tab icon.** It was found while looking for art for a new sidebar tab and it removed the art blocker entirely — a note in `rules/player.yaml:180` had recorded the opposite ("the `production-icons` collection ... has regions for building/defense/infantry/vehicle/aircraft/ship and NONE for powers. That is art."), which was true of `chrome.yaml` and false of the sheet behind it.
+
+**The band is a 17px-pitch grid with three rows, and the map is worth writing down because `chrome.yaml` only names the slots someone has used:**
+
+| x | 0 | 17 | 34 | 51 | 68 | **85** | 102 | 119 | 136 | 153 | 170 | 187 | 204 |
+|---|---|----|----|----|----|--------|-----|-----|-----|-----|-----|-----|-----|
+| | building | defense | infantry | vehicle | aircraft | **FREE — trefoil** | options | sell | repair | beacon | power | ship | stats |
+
+Rows are `y=68` white/normal, `y=85` grey/disabled, `y=102` gold/alert. **Verified by sampling pixels, not by eye**: each x=85 cell holds 114 non-transparent px coloured `ffffff` / `808080` / `ffc000`, matching the aircraft cell's palette exactly. Anything wanting a new tab or order button should check for a free column here before asking for a drawing.
+
+**And the reason a missing region is not a soft failure: `ImageWidget.Draw` (`engine/OpenRA.Mods.Common/Widgets/ImageWidget.cs:80`) dereferences `GetSprite()` with no null check, and `ChromeProvider.GetImage` returns null for an unknown region.** So a tab whose glyph is absent throws on the first frame the sidebar draws. This matters more than it looks, because **you cannot see the requirement in the chrome YAML**: a `ProductionTypeButton`'s `Image@ICON` deliberately carries no `ImageName`, and `ClassicProductionLogic` (`.../Logic/Ingame/ClassicProductionLogic.cs:82-95`) synthesises all three names from `ProductionGroup.ToLowerInvariant()` plus `-disabled` / `-alert` — overwriting anything written in the YAML. Adding a tab means adding **three** regions, and no lint asks for them.
+
+## 2026-09-06 - The player actor IS in the world, despite `World.CreateActor(false, ...)` reading like it is not (`wt/powers-buy`, base `main @ 6e5721ae`)
+
+**`Player.cs:218-219` builds `PlayerActor` with `new Actor(...)` and then calls `PlayerActor.Initialize(true)`, and that `true` is `addToWorld` — the last thing `Actor.Initialize` does is `World.Add(this)` (`engine/OpenRA.Game/Actor.cs:257`).** So the player actor fires `World.ActorAdded`, appears in `World.ActorsWithTrait<T>()`, and satisfies `a.Actor.IsInWorld`.
+
+**This is worth an entry because the natural reading of the surrounding code says the opposite**, and getting it backwards changes design decisions rather than just costing a grep. Two things that look like they cannot work, work because of it:
+
+- **`SupportPowerManager` only ever learns about powers through `World.ActorAdded` (`SupportPowerManager.cs:44`).** WW3MOD puts all four support powers on the *player* actor rather than on buildings the way stock RA does. That is only reachable at all because of the line above.
+- **`TechTree.GatherOwnedPrerequisites` filters on `a.Actor.IsInWorld` (`TechTree.cs:79-82`)**, so a `ProvidesPrerequisite` placed on the player actor — with a `RequiresCondition` hanging off a lobby option, say — really does grant. That is a usable bridge from a lobby condition to a `Buildable.Prerequisites` gate, and it is not obvious that it exists.
+
+## 2026-09-06 - The support-power cameo captions, all eight, read off the pixels (`wt/powers-buy`, base `main @ 6e5721ae`)
+
+`rules/player.yaml` warns twice that captions are baked into cameo pixels and names two traps. Here is the whole set that was checked, so the next author picking an icon does not re-render them: **`atomicon` = mushroom cloud, "NUCLEAR BOMB"** · **`precicon` = explosion, "PRECISION STR."** · **`paranukeicon` = falling bomb, "PARANUKE"** · **`artystrikicon` = guns firing, "ARTY. BARRAGE"** · **`a10icon` = jet, "ATTACK AIRCRAFT"** · **`cmissicon` = biohazard trefoil, "CHEMICAL STRIKE"** · **`missicon` = building, "TECH CENTER"** · **`v2rlicon` = launcher, "V2 LAUNCHER"**.
+
+**The operational consequence: there is exactly ONE correct nuclear cameo (`atomicon`), so the tactical and strategic nuclear strikes are forced to share it.** `paranukeicon` is the near miss that will tempt someone — it is a nuke and it is unused — and its baked caption says PARANUKE, which is a Red Alert paradrop, not a strategic strike. A second nuclear cameo is a real art request and cannot be satisfied from the existing set.
 
 ## 2026-09-06 - Three of the four "missing" Lua presentation features already existed and were unfindable; the brief for them was wrong in both directions (`wt/lua-presentation`, base `main @ 1aea05dd`)
 
