@@ -142,6 +142,7 @@ Rules:
 	ww3mod|rules/ingame/vehicles.yaml
 	ww3mod|rules/ingame/vehicles-america.yaml
 	ww3mod|rules/ingame/vehicles-russia.yaml
+	ww3mod|rules/doomsday.yaml
 
 Sequences:
 	ww3mod|sequences/sequences.yaml

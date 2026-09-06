@@ -48,6 +48,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Prevent the time limit option from being changed in the lobby.")]
 		public readonly bool TimeLimitLocked = false;
 
+		[Desc("ABSOLUTE time limit in TICKS, overriding the lobby dropdown entirely when non-zero.",
+			"",
+			"Exists because the dropdown's finest grain is one minute, which is far longer than a",
+			"demo or a test wants to sit through. Zero — the default — means the field is not in play",
+			"at all and the lobby option is read exactly as before, so no shipped configuration",
+			"changes. Intended for scenario rules.yaml overrides, not for the mod's own world.yaml.")]
+		public readonly int TimeLimitTicks = 0;
+
 		[Desc("Whether to display the options dropdown in the lobby.")]
 		public readonly bool TimeLimitDropdownVisible = true;
 
@@ -108,6 +116,13 @@ namespace OpenRA.Mods.Common.Traits
 			this.info = info;
 			Notification = info.Notification;
 			ticksPerSecond = 1000 / self.World.Timestep;
+
+			if (info.TimeLimitTicks > 0)
+			{
+				// Already in ticks; the minute conversion below must not be applied to it.
+				TimeLimit = info.TimeLimitTicks;
+				return;
+			}
 
 			var tl = self.World.LobbyInfo.GlobalSettings.OptionOrDefault("timelimit", info.TimeLimitDefault.ToString());
 			if (!int.TryParse(tl, out TimeLimit))

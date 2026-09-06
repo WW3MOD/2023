@@ -567,6 +567,9 @@ World:
 		TimeLimitLabel: Doomsday Clock
 		TimeLimitDescription: Nuclear apocalypse when the clock runs out
 		TimeLimitDisplayOrder: 61
+		# The expiry notification is DoomsdayStrike's to give: "Time limit has expired." undersells
+		# what is about to happen and lands one line above "DEAD HAND ACTIVATED. Incoming."
+		SkipTimerExpiredNotification: true
 		TimeLimitWarnings:
 			40: FourtyMinutesRemaining
 			30: ThirtyMinutesRemaining
@@ -579,6 +582,39 @@ World:
 			1: WarningOneMinuteRemaining
 	ColorPickerManager:
 		PreviewActor: e3.colorpicker
+	# DOOMSDAY. The lobby has said "Doomsday Clock / Nuclear apocalypse when the clock runs out" since
+	# long before anything implemented it; this is what makes that true. It REPLACES the plain
+	# time-limited game rather than sitting beside it — there is no separate "time limit" concept left
+	# in the UI to coexist with, and a mode selected by two dropdowns that must agree is a worse lobby
+	# than one. The checkbox exists so a host can get the old score-comparison ending back, and defaults
+	# ON so that the shipped label is not lying by default.
+	#
+	# TIMED AUTOTESTS AND TOURNAMENTS ARE UNAFFECTED: RunInTestMode defaults false, so a TestMode
+	# session with a time limit still ends the way it always did. The demo scenario opts in explicitly.
+	DoomsdayStrike:
+		OutlierMissile: deadhandtacticalmissile
+		CityMissile: deadhandstrategicmissile
+		# 20c0 is a CONSERVATIVE reading of `Atomic`, whose delivery body documents it as killing
+		# infantry to ~23 cells and igniting structures to ~28 (vehicles.yaml, TacNukeMissile). The
+		# whole coverage guarantee rests on this one number, so it is set below the observed figure
+		# rather than at it. If the superweapon yield pass moves `Atomic`, this is the field to revisit
+		# — and DoomsdayCoverageTest will keep passing either way, because it tests the geometry against
+		# whatever this says, not against the warhead.
+		LethalRadius: 20c0
+		JitterRadius: 4c0
+		MinSeparation: 12c0
+		CityLinkDistance: 8c0
+		CityMinBuildings: 4
+		WarheadsPerCity: 2
+		SpawnAltitude: 38c0
+		ApproachDistance: 5c0
+		WithinWaveTicks: 2
+		OutlierToCityPauseTicks: 40
+		CityToFillPauseTicks: 25
+		AnnihilationDelayTicks: 90
+		ResolutionDelayTicks: 30
+		LeadInTicks: 30
+
 	# LIVE as of the Phase 2 missile powers, for TWO options now: the tactical nuclear strike gate and
 	# the high-yield strategic one added on 2026-09-06.
 	#   * player.yaml's GrantConditionOnLobbyOption@tacnuke reads `tactical-nuke` from here, and the

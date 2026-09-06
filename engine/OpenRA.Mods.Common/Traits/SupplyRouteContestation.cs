@@ -507,6 +507,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (!OwnerStillPlaying(self.Owner.WinState, self.Owner.NonCombatant, self.Owner.Playable))
 				return;
 
+			// DOOMSDAY: contestation is frozen while the Dead Hand salvo is in the air, for the same reason
+			// ConquestVictoryConditions.Tick is. This is the OTHER path that can eliminate a player, and
+			// leaving it live would let a defeat land mid-annihilation — from a bar filled by units that
+			// are being vaporised — and pre-empt the frozen-score verdict.
+			if (DoomsdayStrike.VictoryChecksSuspended(self.World))
+				return;
+
 			if (++scanTick >= info.ScanInterval)
 			{
 				scanTick = 0;

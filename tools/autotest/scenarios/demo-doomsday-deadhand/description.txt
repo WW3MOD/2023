@@ -1,0 +1,37 @@
+DEMO: Doomsday / Dead Hand -- the clock runs out and the map is annihilated by an ICBM salvo.
+
+Watch for, in order: four small warheads on the oil derricks, a distinct pause, then four large ones
+on the two cities, then everything still standing is destroyed. All impacts are near-vertical.
+
+TICK SCHEDULE at Timestep 60 (16.67 ticks/s). Ticks are exact; seconds are ticks/16.67.
+
+    tick    time   what
+       0    0.0s   Start. Three USA units are already in contact with a lone Russian BMP at 29,18,
+                   so USA banks kill experience during the countdown and leads on score at the
+                   freeze -- while Russia's untouched pair in the north-east is the side with more
+                   units left alive. Score and survival deliberately disagree.
+     250   15.0s   CLOCK EXPIRES. Statistics freeze on this exact tick; "DEAD HAND ACTIVATED".
+                   Nothing has been launched yet, so the frozen score is the pre-salvo score.
+     275   16.5s   First outlier missile appears, 38 cells up and 5 cells from its aim point.
+                   The four launch on ticks 275/277/279/281.
+     319   19.1s   WAVE 1 -- derrick impacts, on ticks 319/321/323/325. Tight: 2 ticks apart.
+     325   19.5s   Last outlier impact. THE PAUSE begins.
+     365   21.9s   WAVE 2 -- city impacts, on ticks 365/367/369/371. Two per city, spread along
+                   each city's long axis. Missiles for these launched on ticks 321-327, i.e. during
+                   the pause -- they are visibly in the air while the screen is quiet.
+     371   22.3s   Last city impact.
+     431   25.9s   ANNIHILATION. Anything still alive is destroyed outright; "Total strategic
+                   annihilation." This is the backstop, not the spectacle.
+     451   27.1s   Resolution point. See the caveat below.
+
+FILL WARHEADS: on this layout the eight targeted impacts already cover all 64x32 cells at the
+20-cell lethal radius, so the fill pass emits NOTHING and there is no third wave. That is the
+intended common case. A draw that pushes aim points apart can add one or two fill impacts, which
+would land from tick 396 (25 ticks after the last city impact). Seeing a small third group is
+correct behaviour, not a fault.
+
+CAVEAT -- THE VERDICT IS NOT SHOWN HERE. A demo runs under TestMode, where ConquestVictoryConditions
+deliberately never assigns an objective (ConquestVictoryConditions.cs, the TestMode guard in Tick),
+so the win/loss resolution at tick 451 is a no-op and no "USA is victorious" line appears. The salvo,
+the freeze, the ordering and the annihilation are all exercised; the frozen-score verdict is the one
+stage this demo cannot show, and it needs a normal skirmish launch to see.

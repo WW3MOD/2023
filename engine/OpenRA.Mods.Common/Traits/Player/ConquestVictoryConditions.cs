@@ -63,6 +63,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (TestMode.IsActive)
 				return;
 
+			// DOOMSDAY: while the Dead Hand salvo is in the air, stand down. Warheads take players' last
+			// units away in whatever order the geometry produces, and this method would hand the match to
+			// whoever happened to survive a few ticks longer. The verdict is applied once, at the end, from
+			// the score frozen on the expiry tick — DoomsdayStrike.Resolve.
+			if (DoomsdayStrike.VictoryChecksSuspended(self.World))
+				return;
+
 			if (objectiveID < 0)
 				objectiveID = mo.Add(self.Owner, info.Objective, "Primary", inhibitAnnouncement: true);
 
@@ -85,6 +92,14 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyTimeLimit.NotifyTimerExpired(Actor self)
 		{
 			if (objectiveID < 0)
+				return;
+
+			// DOOMSDAY defers this. The trait sits on the WORLD actor and TimeLimitManager notifies world
+			// traits before player traits (TimeLimitManager.cs:150-157), so by the time this runs the flag
+			// is already set and the salvo is scheduled. DoomsdayStrike.Resolve clears it and re-raises
+			// this same notification when the dust settles, which is how the shipped comparison below ends
+			// up being the thing that picks the winner — over frozen numbers, and exactly once.
+			if (DoomsdayStrike.VictoryChecksSuspended(self.World))
 				return;
 
 			var myTeam = self.World.LobbyInfo.ClientWithIndex(self.Owner.ClientIndex).Team;
