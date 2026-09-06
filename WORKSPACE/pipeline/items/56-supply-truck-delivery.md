@@ -145,3 +145,37 @@ One `tournament-s1-eco-river-zeta` match, `--seeds 1`, hidden, 7500 ticks (time 
 - `@stable` (Russia) placed 0 crates in 5 minutes; its two drops were dispatched at ticks ≈6900–7300. Whether that is the map's spawn asymmetry or the profile is not answerable from one match.
 
 **Still owed for the acceptance bar as written:** the N-match reading, which the item-43 re-baseline (`WORKSPACE/ai-bench/RUNBOOK-260905.md`, batch 3 is this exact scenario ×10 mirrored) produces for free — read `crate-placed ÷ drop` and the decline histogram out of those logs rather than spending a separate batch.
+
+### Bar run 2 — the ×10 reading, 2026-09-06 (stamped `9cb423d4`, code `bb89f9fd`), `tools/autotest/tournament-results/260905_rebaseline_s1_exp`
+
+**The N-match reading is taken.** Read out of batch 3 of the item-43 re-baseline exactly as the paragraph above anticipated — ten `tournament-s1-eco-river-zeta` matches, `--mirror`, seeds 1017…10017, 7,500 ticks each, no extra batch spent. Card: [`../../benchmarks/260905-rebaseline.md`](../../benchmarks/260905-rebaseline.md).
+
+**Headline: 32 crates placed against 78 drops dispatched = 41.0 % delivered, against 15.0 % at `c9626273`.** `NoDemand` remains the dominant decline at **55.2 %**, essentially unmoved from the 54.1 % quoted for `c9626273`.
+
+| m | `[supply] drop ` | `crate-placed` | delivered | `NoDemand` | `Covered` | `NoAnchor` |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 13 | 7 | 53.8 % | 8 | 10 | 1 |
+| 2 | 9 | 5 | 55.6 % | 9 | 3 | 0 |
+| 3 | 5 | 1 | 20.0 % | 6 | 12 | 5 |
+| 4 | 3 | 0 | 0.0 % | 9 | 5 | 0 |
+| 5 | 7 | 0 | 0.0 % | 15 | 4 | 0 |
+| 6 | 8 | 3 | 37.5 % | 12 | 8 | 0 |
+| 7 | 13 | 5 | 38.5 % | 5 | 10 | 0 |
+| 8 | 6 | 6 | 100.0 % | 7 | 11 | 0 |
+| 9 | 5 | 3 | 60.0 % | 15 | 5 | 0 |
+| 10 | 9 | 2 | 22.2 % | 14 | 7 | 0 |
+| **all** | **78** | **32** | **41.0 %** | **100 (55.2 %)** | **75 (41.4 %)** | **6 (3.3 %)** |
+
+Decline histogram, batch total, **181 declines**: `NoDemand` 100 (55.2 %), `Covered` 75 (41.4 %), `NoAnchor` 6 (3.3 %). **`LowLoad` never fires — zero occurrences in ten matches.**
+
+**Denominator note, because it decides how the 41 % is read.** All 78 `[supply] drop ` lines end in `new` — every one is a fresh dispatch, none is a re-log — so the ratio is *crates ÷ dispatches*, matching the hypothesised definition of "delivery success" at §4. That definition is still a **HYPOTHESIS**: it is written down nowhere in the repo, and neither is the tournament config behind the 15.0 %, so **41.0 % vs 15.0 % is a comparison of two numbers computed the same way by assumption, not by verification.** The `NoDemand` comparison is weaker still — §2's own caution says the 54.1 % baseline predates the selection gate and should be re-derived rather than compared to. Treat 55.2 % as *this instrument's* figure and the near-equality with 54.1 % as a coincidence unless someone re-derives the old one.
+
+**Full per-dispatch accounting — this is what actually answers the commitment question.** The 78 dispatches resolve exactly: **32 placed a crate + 18 re-dispatched without one + 28 still open at the clock = 78.**
+
+- **28 of the 78 (36 %) were simply still in flight when the 7,500-tick clock stopped.** Excluding them, delivery is **32 / 50 = 64 %**. Matches 4 and 5 score 0 % solely because 3 of 3 and 6 of 7 of their dispatches were unresolved at the limit; match 8 is 6/6.
+- **18 dispatches (23 %) ended with the same truck being dispatched again before placing a crate.** That is the residual abandonment, and it is the number to attack next — down from "never commits", but not zero.
+- **`crate-refused reason=never-arrived` fires 29 times across 15 distinct trucks**, and it is the only refusal reason in the batch. The errand commits and holds its frozen anchor; the truck then **fails to reach the ordered cell within the 2-cell tolerance**. This is a *pathing/arrival* failure, not a commitment failure — a different defect from the one this item was opened for, and it is plausibly what most of the 18 re-dispatches are. **HYPOTHESIS, not measured:** the re-dispatches and the `never-arrived` refusals are the same trucks. Confirming it needs a truck-id join across the two line types, which this reading did not do.
+
+**Bot attribution (by `notes.players[].bot_type`, not by slot — the batch is mirrored):** of the 32 crates, **`@stable` placed 21 and `@experimental` placed 11.** Bar run 1's observation that `@stable` placed 0 crates in its single match **does not survive N=10** — `@stable` is the better deliverer here, by roughly 2:1. Both profiles share `SupplyFollowerBotModule@supply` (`enable-ai-any`), so this is not a profile-gated difference in the module; what causes it is unexplained.
+
+**Verdict against the acceptance bar.** The bar's precondition (`earned>0`, non-zero `truk`) is met — this is the same scenario and the same live-economy build as bar run 1, and all ten matches ran the full clock with trucks in play. On the numeric half the item has moved a long way: **41 % delivered (64 % of dispatches that had time to finish), zero `LowLoad` aborts, and every unresolved errand still holding its anchor at the clock rather than abandoned.** The bar as written also demands a movement reading — *at most one x-travel direction reversal between first dispatch and first `crate-placed`* — and **that is NOT discharged here**: these logs carry no per-tick truck positions, so the reversal count cannot be computed from them. **What remains open on item 56 is the reversal assertion and the 18-dispatch abandonment residue, not the delivery rate.**

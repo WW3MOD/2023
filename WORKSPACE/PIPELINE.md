@@ -343,6 +343,7 @@ Promoted to a **hard release blocker** by the 2026-08-16 audience ruling. Four c
 `[OPEN, user-gated: multi-test grant. Framing REVISED 2026-08-14 — this is not a stale baseline]`
 **Perceived:** nothing directly. But until it is taken, every "did the bot get better?" number is untrustworthy.
 **Every benchmark number ever taken from the `tournament-*` suite is VOID, not stale** — both bots in every one of those matches had no economy at all. It cannot be discharged by re-running the old ladder and diffing, because there is no valid prior number to diff against. Gated behind item 40. → [`items/43-benchmark-rebaseline.md`](pipeline/items/43-benchmark-rebaseline.md)
+**TAKEN 2026-09-05/06 — the first VALID corpus exists** (40 matches, stamped `9cb423d4` / code `bb89f9fd`, 0 crashes; Exp 3/10 S1, 2/10 S2). Card [`benchmarks/260905-rebaseline.md`](benchmarks/260905-rebaseline.md), standing in [`ai-bench/LADDER.md`](ai-bench/LADDER.md). Re-take debt discharged; the forward-disclosure half of the item stays open.
 
 ### 44. AA and autotarget arithmetic
 `[(a) DONE 16eca8e8 — confirmed live. (b) STILL OPEN; premise re-verified 2026-08-19]`

@@ -20851,3 +20851,70 @@ constructed. Its rules are fine (table above); the difference is that `^Helicopt
 VTOL branch and `^Aircraft` takes the non-VTOL approach circuit. Filed at
 `WORKSPACE/bugs/discovered.md` [2026-09-05] rather than diagnosed here, and the leg was removed so a
 green repair gate does not depend on an open fixed-wing question.
+
+## 2026-09-06 — NEVER reuse a tournament result dir while a killed runner's match may still be alive: the settings backup is per-DIR, and the dir ends up looking complete (`wt/bench-record`, `main @ 9cb423d4`)
+
+Found while recording the item-43 re-baseline. Batch 1 of that ladder
+(`tools/autotest/tournament-results/260905_rebaseline_s1_cal`) died at match 5 with
+
+```
+mv: cannot stat '.../260905_rebaseline_s1_cal/.settings.yaml.bak': No such file or directory
+BATCH1-EXIT 1
+```
+
+**The mechanism, read at `tools/autotest/run-tournament.sh`.** `:276` sets
+`SETTINGS_BACKUP="${RESULT_DIR}/.settings.yaml.bak"` and `:277` does
+`cp "${SETTINGS_FILE}" "${SETTINGS_BACKUP}"`; after the match, `:347` guards
+`if [ -n "${SETTINGS_BACKUP}" ] && [ -f "${SETTINGS_BACKUP}" ]; then` and `:348` does
+`mv "${SETTINGS_BACKUP}" "${SETTINGS_FILE}"`. **The backup path is derived from
+`RESULT_DIR` and from nothing else** — no pid, no match index, no scenario. Two runners
+pointed at the same `--result-dir` therefore share one backup file, and the `[ -f ]`
+check at `:347` is a TOCTOU window: the other runner's `mv` can consume the file between
+the test and our `mv`. `set -e` (`:44`) turns that failed `mv` into an immediate batch
+exit — so the *second* victim of the race is the batch that dies, and it dies mid-match
+having already written a verdict.
+
+**Why this is worth an entry rather than a shrug: the wrecked dir does not look
+wrecked.** The abandoned runner had written matches 1–5; the orphan kept going in the
+same dir and wrote 6–10 *and* ran `aggregate-tournament.sh`. The end state is a dir with
+ten `match_*.json`, a `summary.csv`, a `summary.json` and a `batch.meta.json` stamping a
+clean `git_sha` and `git_dirty: false` — i.e. **it passes every completeness check the
+RUNBOOK §6 readout performs** (`verdicts=10`, `git_dirty=false`). Nothing in the
+artefacts says two processes wrote them, because both runners use the same match indices.
+The only physical tell we could find was **`match_3_debug.log` at 0 bytes** (1,153,677
+bytes in the clean rerun): `run-tournament.sh` copies the *shared*
+`%APPDATA%/OpenRA/Logs/debug.log` per match, and the other game had just truncated it.
+
+**The consequence is attribution, not arithmetic.** The clean rerun
+`260905_rebaseline_s1_cal_b` reproduced the contaminated dir **byte-for-byte**:
+identical `summary.csv`, all ten `match_*.json` equal field-for-field once `timestamp`
+is dropped, nine of ten `match_*_debug.log` byte-identical (the tenth is the 0-byte one).
+The engine is deterministic per seed, so the contamination cost nothing in outcomes — but
+you cannot know that from inside the dir, and a dir you cannot attribute is not evidence.
+
+**Second-order damage nobody would look for.** The dying runner's script moves straight
+on to the next batch, so **batch 2 started 21:49:42 while the orphan ran until
+21:59:33** — its first two matches shared the CPU with a second game. Verdicts survived
+(deterministic sim, 600 s cap never approached, full 18,000 ticks), and wall-clock alone
+does not isolate it: the contended match 1 is the batch's longest at 6 m 33 s, but the
+uncontended match 9 is 6 m 17 s. **So a run can silently go from "one game at a time" to
+"two" without any artefact recording it.**
+
+**Rules to take away.**
+
+1. **Never point a new run at an existing result dir**, and never reuse a dir after a
+   runner was killed, until you have confirmed no game process from it is alive. A dir
+   that already contains `match_*.json` is a used dir.
+2. **`verdicts=10` + `git_dirty=false` does not mean one runner produced the batch.**
+   Before trusting a dir, check that the `match_*.json` mtimes form a single
+   monotonically-spaced series with no second interleaved cadence, and that no
+   `match_*_debug.log` is 0 bytes.
+3. **A 0-byte `match_N_debug.log` in a tournament dir means a second process owned the
+   shared `debug.log` at that moment.** (Distinct from the 0-byte `lua.log` tell in
+   `DOCS/recipes/AUTOTEST.md`, which is about a script that was never wired in.)
+4. **When a batch dies mid-ladder, stop the whole ladder, not just that batch** — the
+   next batch inherits a live competitor for the machine's single game slot.
+5. The fix, if anyone wants one: make `SETTINGS_BACKUP` unique per process
+   (`${RESULT_DIR}/.settings.yaml.$$.bak`) so the two runners cannot alias, and refuse to
+   start against a `--result-dir` that already contains `match_*.json`. **Not
+   implemented — this entry is a recording, not a change.**
