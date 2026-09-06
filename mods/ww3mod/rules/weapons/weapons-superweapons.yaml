@@ -28,81 +28,170 @@
 Atomic:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
 
+	# =================================================================================================
+	# THE TACTICAL NUCLEAR STRIKE -- ~20 kt, and REBUILT 2026-09-06 so that every radius and every
+	# delay below is computed from that yield rather than picked. The label was the deliberate half
+	# and the sizes were the accident; the sizes moved.
+	#
+	# THE TWO SCALES, and they are deliberately different. Weapon RANGES in this mod follow a
+	# fourth-root compression (cells ~= 18 * km^0.23) so that a 30 km howitzer and a 50 m pistol can
+	# share a screen. BLAST AND EXPLOSION EXTENTS DO NOT: they use a near-linear 160 m per cell,
+	# anchored on the Abrams gun (TankRound.Abrams Range 25c0 ~ 4 km). Corroboration rather than
+	# fitting: WaveSpeed 7 ticks/cell works out to ~380 m/s at that scale, i.e. the speed of sound,
+	# which is exactly what a decayed shock front travels at. A weapon range is a balance
+	# abstraction; a blast radius is a spectacle whose relative size IS the content, and running
+	# nuclear yields through the range law flattens 20 kt and 50 Mt into the same 22-45 cell band.
+	#
+	# THE BLAST LAW. Hopkinson-Cranz cube-root scaling on the standard optimum-airburst table
+	# (Glasstone: at 1 kt, 5 psi at 0.62 km and 1 psi at 1.60 km) fits a single power law, and at
+	# 160 m/cell it lands on a number worth remembering:
+	#
+	#     R_cells = 10 * Y[kt]^(1/3) * P[psi]^-0.589
+	#
+	# It reproduces the whole published table -- 20 kt at 1 psi comes out at 4.34 km against
+	# Nukemap's 4.33 -- and it is where every radius on this weapon comes from:
+	#
+	#     200 psi  1.2c      50 psi  2.7c      20 psi  4.6c
+	#      10 psi  7.0c       5 psi 10.5c     2.7 psi 15.1c      1 psi 27.1c
+	#
+	# MaxRadius is therefore 15c0, the ~2.7 psi contour -- the outer edge of serious structural
+	# damage. It was 30c0, which at this scale is 4.8 km and is a ~200 kt weapon, not a tactical one.
+	#
+	# ON THE "1 psi" LABEL: 15c0 is NOT the 1 psi contour, which is 27.1c. The brief that asked for
+	# this called it 1 psi; the arithmetic says 2.74 psi. The FIGURE is right and stays -- and the
+	# reason to trust it is that its strategic sibling, sized independently at 102c0 for a 6 Mt
+	# weapon, comes out at 2.67 psi. Two numbers chosen apart for feel land 1.6% from the same
+	# iso-pressure contour, and 102/15 = 6.80 against 300^(1/3) = 6.69. They were always a
+	# cube-root-consistent pair; only the pressure they were labelled with was wrong.
+	#
+	# THE FIREBALL, and the exponents. Airburst breakaway data (20 kt: 111 m / 0.8 s; 175 kt: 265 m /
+	# 2.0 s; 800 kt: 486 m / 4.0 s) fits R = 33.53 * Y^0.40 metres to 0.26% and t = 0.2104 * Y^0.44
+	# seconds to 3.8%. 0.44 is the known thermal-pulse exponent, which is why the fit is trustworthy
+	# outside its three points -- and it independently reproduces the "a 50 Mt fireball burns for
+	# about 25 seconds" figure the user quoted (it gives 24.6 s). For 20 kt: 111 m = 0.695 cells,
+	# 0.79 s = 13 ticks at Timestep 60 (16.67 ticks/s -- NOT 25).
+	#
+	# THERMAL vs BLAST, the real asymmetry. Thermal radius grows as Y^0.41 and blast as Y^0.33, so
+	# the two cross: below ~437 kt a weapon BREAKS things further than it BURNS them, above it the
+	# order inverts. This weapon is on the blast side of that line -- 15.1c of blast against 11.9c of
+	# thermal -- and AtomicHighYield is on the other, 101c against 124c. That difference in character
+	# is not styling; it falls straight out of using the two right exponents instead of one.
+	# =================================================================================================
+
 	# ===== PHASE 0: THE FLASH (Tick 0) =====
-	# Blinding white flash — arrives at speed of light
+	# Blinding white flash -- arrives at speed of light
 	Warhead@Flash: FlashPaletteEffect
 		Duration: 30
 		FlashType: Nuke
 
-	# Screen shake. RETUNED 2026-09-06 against the rebuilt model in ScreenShaker.cs, and the numbers
-	# below are NOT the old ones scaled down -- `Intensity` changed meaning. It is now PEAK SCREEN
-	# DISPLACEMENT IN PIXELS at the epicentre, where it used to be the numerator of an inverse-square
-	# falloff. The old `Intensity: 80` would be eighty pixels of camera throw.
+	# Screen shake. `Intensity` is PEAK SCREEN DISPLACEMENT IN PIXELS at the epicentre (it stopped
+	# being the numerator of an inverse-square falloff on 2026-09-06); `Multiplier` now defaults to
+	# 1,1 and applies per effect, which is what made this fire at all.
 	#
-	# AND THE OLD BLOCK PRODUCED NO SHAKE AT ALL, most of the time. ShakeScreenWarhead.Multiplier used
-	# to default to 0,0, and the old ScreenShaker summed the multipliers of every live effect and
-	# applied the total to all of them -- so four warheads that all omitted Multiplier contributed a
-	# total of zero and could not be rescued by their own Intensity. Every upstream mod sets
-	# `Multiplier: 1,1` (ra/weapons/superweapons.yaml:136, and cnc, ts and d2k all do the same);
-	# ww3mod never did. The shake therefore appeared ONLY when some ShakeOnDeath building happened to
-	# be dying in the same window and supplied a multiplier for it, at which point Intensity 80
-	# slammed into the old 10 px clamp. Intermittent, and violent when it did fire, is a large part
-	# of what "annoying" was. The field now defaults to 1,1 and applies per effect, so this fires
-	# every time.
+	# RETIMED 2026-09-06 for the 20 kt yield. The stage structure is unchanged -- four arrivals, not
+	# a hand-drawn decay staircase -- but the blast wave now finishes at tick 89 instead of tick 213,
+	# so a 278-tick shake would have outlived its own detonation by eleven seconds.
 	#
-	# THE FOUR STAGES ARE NOW FOUR ARRIVALS, not a hand-drawn decay staircase. The envelope does the
-	# decaying now (DecayHalfLife), so staging is free to mean what it means on a real seismogram:
-	# a fast low-amplitude precursor, the main shock, a long low surface-wave coda, and finally the
-	# air blast -- which is a separate wave travelling ~8.7x slower and is given its own propagation
-	# speed so it tracks the visible shockwave at every range instead of only at ground zero.
+	# FREQUENCY IS THE LEVER THAT SEPARATES THIS FROM ITS STRATEGIC SIBLING, not amplitude. Peak
+	# ground displacement from an airburst scales roughly as Y^(1/3), which over 300x of yield is
+	# 6.7x -- 13 px here would be 87 px there, against a 22 px ceiling. Amplitude SATURATES, so it
+	# cannot carry the difference. Corner frequency can: physically it falls as Y^-(1/3), but the
+	# model's MinFrequency floor (0.02 c/t = 0.33 Hz) and the fact that below ~0.4 Hz a screen shake
+	# stops reading as a shake at all compress that to Y^-(1/6) over this range. Main shock here is
+	# 1.30 Hz; AtomicHighYield's is 0.50 Hz, a ratio of 2.59 against 300^(1/6) = 2.59.
 	#
-	# Total coverage at the epicentre: 0 -> 278 ticks (16.7 s), against the old 210. Further out it
-	# runs longer still, because stage 4 is chasing the wavefront.
+	# Total coverage at the epicentre: 0 -> 142 ticks (8.5 s), against a blast wave that ends at 89.
 	Warhead@Shake1: ShakeScreen
-		# P-wave precursor: the ground twitches before it moves. Small, sharp, over quickly.
-		# FrequencyScale 175 pushes this onto the Nyquist ceiling (0.179 c/t, 2.98 Hz), which is
-		# simply the fastest oscillation 16.67 ticks/s can render. Raising it further does nothing.
-		Duration: 25
+		# P-wave precursor: the ground twitches before it moves. FrequencyScale 175 pushes this onto
+		# the Nyquist ceiling (2.98 Hz), which is the fastest 16.67 ticks/s can render.
+		Duration: 20
 		Intensity: 4
 		AttackTicks: 1
-		DecayHalfLife: 7
+		DecayHalfLife: 6
 		FrequencyScale: 175
 	Warhead@Shake2: ShakeScreen
-		# Main shock. The one the player feels; 13 px against a 22 px ceiling.
-		Duration: 90
+		# Main shock, 1.30 Hz. 13 px against a 22 px ceiling. Delay 3 is the P-to-S separation.
+		Duration: 60
 		Intensity: 13
 		AttackTicks: 3
-		DecayHalfLife: 18
-		Delay: 4
+		DecayHalfLife: 14
+		Delay: 3
 	Warhead@Shake3: ShakeScreen
-		# Surface-wave coda: swells in over 25 ticks rather than starting hard, then rolls away for
-		# fifteen seconds. FrequencyScale 55 puts it at 1.05 Hz against the main shock 1.30 Hz, so
-		# it reads as the ground still moving rather than as the bang repeating.
-		#
-		# 55 AND NOT SOMETHING NEARER 100, and the reason is worth knowing before touching it: a
-		# coda has a LOWER Intensity than its main shock, and the model raises frequency as
-		# Intensity falls (smaller source, higher corner frequency). So a coda stage has to spend
-		# FrequencyScale just to break even with the shock it follows. This was first written as 70
-		# and measured at 1.34 Hz -- fractionally ABOVE the 1.30 Hz shock, i.e. doing the opposite
-		# of what the comment claimed.
-		Duration: 260
+		# Surface-wave coda, 1.05 Hz, swelling in over 20 ticks and rolling away for eight seconds.
+		# FrequencyScale 55 AND NOT SOMETHING NEARER 100: a coda carries a LOWER Intensity than its
+		# main shock and the model raises frequency as Intensity falls (smaller source, higher corner
+		# frequency), so a coda has to spend FrequencyScale just to break even with the shock it
+		# follows. Written first as 70, this measured 1.34 Hz -- above the 1.30 Hz shock.
+		Duration: 130
 		Intensity: 6
-		AttackTicks: 25
-		DecayHalfLife: 85
+		AttackTicks: 20
+		DecayHalfLife: 45
 		FrequencyScale: 55
-		Delay: 18
+		Delay: 12
 	Warhead@Shake4: ShakeScreen
-		# The air blast, arriving with the shockwave. 7.8 ticks/cell is the speed of sound at the
-		# provisional 160 m/cell scale -- the same physics BlastWave rounds to WaveSpeed 7. There is
-		# no Delay: the propagation speed IS the delay, so it is correct at every distance.
-		Duration: 70
+		# The air blast, arriving with the shockwave. 5.9 ticks/cell is this weapon's MEAN wavefront
+		# speed over its 15 cells (89 ticks / 15 cells) rather than the terminal 7, because the front
+		# now leaves the fireball at Mach 5.5 -- see Warhead@BlastWave. No Delay: the propagation
+		# speed IS the delay, so it is right at every distance.
+		Duration: 45
 		Intensity: 5
 		AttackTicks: 2
-		DecayHalfLife: 20
+		DecayHalfLife: 16
 		FrequencyScale: 130
-		PropagationTicksPerCell: 7.8
+		PropagationTicksPerCell: 5.9
 
-	# Fireball visual — mushroom cloud sprite at 300% scale
+	# ===== THE FIREBALL =====
+	# NEW 2026-09-06, and the largest single gap this weapon had: it did not have one. What it had
+	# was nuke_large.shp, a 310x310 sprite over 107 frames, drawn at ScalePercent 300 = 39 cells
+	# across. A 20 kt fireball at 160 m/cell is 1.4 cells ACROSS. That sprite is a MUSHROOM CLOUD --
+	# for which 39 cells is about right -- and the fireball proper was simply never drawn.
+	#
+	# It is drawn here as light rather than as a sprite, using the LightEvent system that landed the
+	# same day. Three things had to sit on one time axis and the keyframe envelope is the only model
+	# that can carry all three at once:
+	#
+	# 1. THE DOUBLE FLASH. Two maxima with a dip between them: the fireball's own surface, then the
+	#    shock front turning opaque in front of it, then a second and much larger maximum once the
+	#    front goes transparent again. The interval between them is how yield is MEASURED from a
+	#    bhangmeter trace: t_min = 0.0025*sqrt(Y) s and t_max = 0.032*sqrt(Y) s (Glasstone). At 20 kt
+	#    that is 0.011 s and 0.143 s -- 0.19 and 2.4 TICKS. So at this yield the entire double flash
+	#    lives inside the first three ticks and the dip is sub-tick: the keyframes below are a
+	#    three-sample reconstruction at the Nyquist limit of a 60 ms timestep, which is the finest
+	#    this can be rendered. AtomicHighYield resolves it properly (dip at tick 3, second maximum
+	#    at tick 41) and that difference is itself readable in-game.
+	# 2. THE RADIUS. Not the fireball's own 0.695 cells -- that is a third of a sprite and invisible.
+	#    This is the ILLUMINATION reach, and it is set to the thermal radius (11.9c). That is not a
+	#    fudge: illumination reach scales as the fireball's own radius for a fixed surface
+	#    temperature, thermal reach goes as Y^0.41 and fireball radius as Y^0.40, so ONE radius array
+	#    carries both and the bright core drawn by the InverseSquare falloff tracks the true fireball
+	#    radius to within 6% across 300x of yield. Within the envelope the radius follows the
+	#    Taylor-Sedov growth law R ~ t^0.4 up to the second maximum and then holds, because a
+	#    fireball reaches its maximum size at about the time of peak emission and thereafter rises
+	#    and cools rather than growing.
+	# 3. THE COOLING. White -> yellow -> orange -> dull red, on the same keyframes. The dip is not
+	#    merely dimmer, it is REDDER (FFC878): what you are looking at during it is an opaque shock
+	#    front at a few thousand K, not the fireball interior behind it.
+	#
+	# PEAK INTENSITY IS 7.0 ON BOTH WEAPONS AND THAT IS DELIBERATE. Fireball surface brightness at
+	# the second maximum is set by temperature (~7000 K) and is very nearly independent of yield.
+	# What yield buys is AREA and DURATION -- 12 cells for 13 ticks here against 124 cells for 161
+	# ticks -- so making the strategic weapon *brighter* would have been the one wrong way to scale
+	# it.
+	Warhead@FireballLight: LightEvent
+		ValidTargets: Ground, Water, Air
+		AirThreshold: 10c0
+		ForceGroundLevel: true
+		Light:
+			Times: 0, 1, 2, 4, 7, 13
+			Intensities: 2.2, 0.8, 7.0, 3.6, 1.2, 0
+			Radii: 6c512, 8c512, 11c256, 12c0, 12c0, 9c0
+			Tints: E6F0FF, FFC878, FFFFFF, FFE9A0, FF9C3C, B4280A
+			Interpolations: Linear, Quadratic, InverseCubic, InverseCubic, InverseCubic
+			Falloff: InverseSquare
+			TerrainRefreshInterval: 2
+
+	# The mushroom cloud. NOT the fireball -- see Warhead@FireballLight above. Left at 300%, which is
+	# 39 cells and is a defensible early cap for a 20 kt burst.
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 300
@@ -120,17 +209,22 @@ Atomic:
 		RenderAboveFog: true
 		ValidTargets: Ground, Water, Air
 
-	# ===== PHASE 1: THERMAL RADIATION — Constant Fireball Shine =====
-	# The fireball forms in milliseconds and immediately reaches peak brightness.
-	# For ~2 seconds (50 ticks), it shines at peak thermal intensity — a constant,
-	# repeating pulse of thermal radiation cooking everything in line of sight.
-	# Inverse falloff: close units melt visibly over the 2 seconds; far units barely singed.
-	# After the thermal shine fades, the shockwave arrives to finish survivors.
+	# ===== PHASE 1: THERMAL RADIATION =====
+	# Every Spread below is now the thermal reach divided by the number of falloff steps that reach
+	# it, so the tables end exactly where the thermal radius does (11.9c) instead of wherever the
+	# arithmetic happened to land.
 
-	# Instant vaporization at ground zero (0-3 cells) — nothing survives this close
-	# Uses ElectricityDeath to trigger electric disintegration animation on infantry
+	# The ~50 psi contour (2.7c). NOT the fireball: at DetonationAltitude 6c256 the fireball's 111 m
+	# never comes near the ground, so nothing is vaporised by contact. What kills here is 50+ psi and
+	# the thermal flux, and 2c768 is where the blast law puts 50 psi at 20 kt.
+	#
+	# The flat 100,100,100 band matters for a reason that is easy to miss: a Circle hitshape measures
+	# the burst in three dimensions (MissileStrikeArrivalTest.cs), so an infantryman at horizontal
+	# distance ZERO is treated as 6400 away -- the burst altitude. At Spread 2c768 that lands at 86%
+	# of full damage, which is still 172,000 against anything on foot. Vehicles and buildings use
+	# Rectangle hitshapes and pay nothing.
 	Warhead@ThermalVaporize: SpreadDamage
-		Spread: 3c0
+		Spread: 2c768
 		Damage: 200000
 		Penetration: 5000
 		Falloff: 100, 100, 100, 50
@@ -140,9 +234,14 @@ Atomic:
 		DamageTypes: ElectricityDeath
 		AirThreshold: 10c0
 
-	# Instant tree incineration at ground zero (0-3 cells) — trees vaporized, husked immediately
+	# The ~200 psi contour (1.2c). INERT AGAINST EVERY SHIPPED TREE, as are the three TreeFire
+	# warheads below: every T##/TC0# actor inherits ^TreeIndestructible, which is DamageMultiplier
+	# Modifier 0 (decoration.yaml:135-137), and Health.InflictDamage applies modifiers unless called
+	# with ignoreModifiers, so 200000 becomes 0 and so does the burn tick. Kept anyway and kept
+	# correctly sized, because decoration.yaml:147 says restoring Modifier 100 restores tree fire
+	# with no edit here.
 	Warhead@TreeVaporize: SpreadDamage
-		Spread: 1c0
+		Spread: 1c205
 		Damage: 200000
 		Penetration: 5000
 		Falloff: 100, 100, 100, 100
@@ -151,9 +250,9 @@ Atomic:
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
 
-	# Repeating thermal heat radiation pulse
+	# Repeating thermal pulse. 20 steps to the thermal reach: 11.9c * 1024 / 19 = 647.
 	Warhead@HeatRadiation2: SpreadDamage
-		Spread: 512
+		Spread: 647
 		Damage: 100
 		Falloff: 10000, 8000, 4000, 2500, 300, 100, 80, 50, 40, 25, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
 		Duration: 5
@@ -162,17 +261,21 @@ Atomic:
 		DamageTypes: FireDeath
 		AirThreshold: 10c0
 
-	# Sustained thermal radiation — damage pulses every 3 ticks for 50 ticks (~17 pulses)
-	# Inverse-square-ish falloff: 100% at center, drops steeply with distance
-	# At 3 cells: ~20% per pulse — infantry cooked to death in seconds
-	# At 6 cells: ~5% per pulse — infantry visibly melting, vehicles scorched
-	# At 10 cells: ~1% per pulse — light burns, suppressed
-	# At 15+ cells: negligible — only the shockwave matters here
-	# Trees excluded — tree damage is handled entirely by fire condition duration
+	# Sustained thermal radiation. Spread 1c93: the falloff table's last non-zero step is index 10
+	# and it reaches zero at index 11, so 11.9c * 1024 / 11 = 1117 puts the zero crossing exactly on
+	# the thermal radius.
+	#
+	# RadiationDuration 24 is DERIVED, not the old 50. The thermal pulse is ~80% delivered by
+	# t = 10 * t_max = 0.32*sqrt(Y) seconds (Glasstone), which at 20 kt is 1.43 s = 24 ticks. Note
+	# this is the EMISSION time and is longer than the fireball's own 13-tick breakaway life above;
+	# the two are different quantities and only the second one governs the light. DamageInterval
+	# drops 3 -> 2 to keep the pulse count near where it was: 12 pulses against the old 17, so the
+	# tactical nuke's thermal total falls about 30%. That is an intended consequence of the yield
+	# correction rather than a balance pass -- a 20 kt weapon does not cook a field for three seconds.
 	Warhead@ThermalRadiation: ThermalRadiation
-		RadiationDuration: 50
-		DamageInterval: 3
-		Spread: 1c0
+		RadiationDuration: 24
+		DamageInterval: 2
+		Spread: 1c93
 		Damage: 3000
 		Penetration: 300
 		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
@@ -187,19 +290,17 @@ Atomic:
 			Heavy: 30
 			Concrete: 20
 
-	# ===== FIRE: Staggered thermal ignition (structures & infantry) =====
-	# 10 warheads with staggered delays simulate the thermal radiation
-	# igniting flammable materials at different distances.
-	# Close units catch fire immediately (within the fireball shine);
-	# far units only start burning as the thermal pulse reaches them.
-	# Overlapping ranges mean close units accumulate fire stacks faster:
+	# ===== FIRE: staggered thermal ignition (structures & infantry) =====
+	# Ten bands, and ten is not decorative: the `onfire` ExternalCondition carries TotalCap: 10
+	# (infantry.yaml:969-970), so an eleventh would be granted and instantly discarded.
 	#
-	# At 5 cells:  gets Fire1(t1) → Fire10(t50) = 10 stacks over 2.0s
-	# At 15 cells: gets Fire3(t11) → Fire10(t50) = 8 stacks from 0.4s to 2.0s
-	# At 20 cells: gets Fire6(t26) → Fire10(t50) = 5 stacks from 1.0s to 2.0s
-	# At 25 cells: gets Fire9(t44), Fire10(t50) = 2 stacks, barely burning
+	# RANGES run 3c0 -> 12c0 in one-cell steps, ending on the thermal radius. They used to run
+	# 10c0 -> 28c0, i.e. structures were set alight 4.5 km from a 20 kt burst.
+	# DELAYS are spread 1 -> 13 over the fireball's own 13-tick life, because ignition at range is
+	# not instantaneous: it happens when accumulated fluence crosses threshold, and the far bands
+	# cross it late in the pulse or not at all.
 	Warhead@Fire1: GrantExternalCondition
-		Range: 10c0
+		Range: 3c0
 		Amount: 1
 		Duration: 750
 		Condition: onfire
@@ -208,132 +309,125 @@ Atomic:
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 	Warhead@Fire2: GrantExternalCondition
-		Range: 12c0
+		Range: 4c0
 		Amount: 1
 		Duration: 700
+		Condition: onfire
+		Delay: 2
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@Fire3: GrantExternalCondition
+		Range: 5c0
+		Amount: 1
+		Duration: 650
+		Condition: onfire
+		Delay: 4
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@Fire4: GrantExternalCondition
+		Range: 6c0
+		Amount: 1
+		Duration: 600
+		Condition: onfire
+		Delay: 5
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 10c0
+	Warhead@Fire5: GrantExternalCondition
+		Range: 7c0
+		Amount: 1
+		Duration: 550
 		Condition: onfire
 		Delay: 6
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
-	Warhead@Fire3: GrantExternalCondition
-		Range: 14c0
-		Amount: 1
-		Duration: 650
-		Condition: onfire
-		Delay: 11
-		ValidTargets: Structure, Infantry
-		ValidRelationships: Ally, Neutral, Enemy
-		AirThreshold: 10c0
-	Warhead@Fire4: GrantExternalCondition
-		Range: 16c0
-		Amount: 1
-		Duration: 600
-		Condition: onfire
-		Delay: 16
-		ValidTargets: Structure, Infantry
-		ValidRelationships: Ally, Neutral, Enemy
-		AirThreshold: 10c0
-	Warhead@Fire5: GrantExternalCondition
-		Range: 18c0
-		Amount: 1
-		Duration: 550
-		Condition: onfire
-		Delay: 21
-		ValidTargets: Structure, Infantry
-		ValidRelationships: Ally, Neutral, Enemy
-		AirThreshold: 10c0
 	Warhead@Fire6: GrantExternalCondition
-		Range: 20c0
+		Range: 8c0
 		Amount: 1
 		Duration: 500
 		Condition: onfire
-		Delay: 26
+		Delay: 8
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 	Warhead@Fire7: GrantExternalCondition
-		Range: 22c0
+		Range: 9c0
 		Amount: 1
 		Duration: 450
 		Condition: onfire
-		Delay: 32
+		Delay: 9
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 	Warhead@Fire8: GrantExternalCondition
-		Range: 24c0
+		Range: 10c0
 		Amount: 1
 		Duration: 400
 		Condition: onfire
-		Delay: 38
+		Delay: 10
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 	Warhead@Fire9: GrantExternalCondition
-		Range: 26c0
+		Range: 11c0
 		Amount: 1
 		Duration: 350
 		Condition: onfire
-		Delay: 44
+		Delay: 12
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 	Warhead@Fire10: GrantExternalCondition
-		Range: 28c0
+		Range: 12c0
 		Amount: 1
 		Duration: 300
 		Condition: onfire
-		Delay: 50
+		Delay: 13
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 
-	# ===== TREE FIRE: Graduated burn by distance =====
-	# Trees are handled separately from structures/infantry because we want
-	# precise control over which trees die (husk) vs survive.
-	# Tree HP: 2500, burn rate: -10 HP/tick (100 dmg per 10 ticks). Needs 250 ticks to kill.
-	#
-	# 0-3 cells: already vaporized by TreeVaporize (instant husk)
-	# 3-6 cells: burns long enough to kill (400 ticks > 250 needed) — slow visible death → husk
-	# 6-10 cells: burns but survives (180 ticks × 10 = 1800 dmg, tree at ~700 HP, Heavy state)
-	# 10-18 cells: brief singe (80 ticks × 10 = 800 dmg, tree at ~1700 HP, Light state)
-	# 18+ cells: untouched
-	#
-	# TotalCap: 1 on trees means only the FIRST fire warhead to hit determines duration.
-	# Lower delay = fires first = controls the tree's fate at that range.
+	# ===== TREE FIRE =====
+	# INERT against every shipped tree -- see Warhead@TreeVaporize. Bands are a quarter, a half and
+	# all of the thermal radius; TotalCap: 1 on trees means the FIRST warhead to land fixes a tree's
+	# fate, so the delays order them.
 	Warhead@TreeFire_Kill: GrantExternalCondition
-		Range: 6c0
+		Range: 3c0
 		Amount: 1
 		Duration: 400
 		Condition: onfire
-		Delay: 2
+		Delay: 1
 		ValidTargets: Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 	Warhead@TreeFire_Burn: GrantExternalCondition
-		Range: 10c0
+		Range: 6c0
 		Amount: 1
 		Duration: 180
 		Condition: onfire
-		Delay: 10
+		Delay: 4
 		ValidTargets: Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 	Warhead@TreeFire_Singe: GrantExternalCondition
-		Range: 18c0
+		Range: 12c0
 		Amount: 1
 		Duration: 80
 		Condition: onfire
-		Delay: 25
+		Delay: 13
 		ValidTargets: Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 
-	# ===== PHASE 2: EMP (Tick 0) — Simultaneous with Flash =====
-	# Tactical nuke EMP disables vehicles and electronics
+	# ===== PHASE 2: EMP (Tick 0) =====
+	# The ~5 psi contour, 10.5c. Source-region EMP from a low airburst is co-extensive with the
+	# region where blast coupling alone wrecks unhardened wiring, and 5 psi is where that starts.
+	# 15c0 before, which was the old 30c0 blast's half-radius rather than a physical quantity.
 	Warhead@EMP: GrantExternalCondition
-		Range: 15c0
+		Range: 10c512
 		Duration: 375
 		Condition: empdisable
 		Delay: 0
@@ -342,19 +436,43 @@ Atomic:
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 
-	# ===== PHASE 3: BLAST WAVE (Tick 3 → ~178) — Speed of Sound =====
-	# Expanding shockwave at ~7 ticks/cell (340 m/s at 100m/cell)
-	# Single warhead replaces 53 manual SpreadDamage warheads!
-	# Trees excluded — tree destruction is controlled by fire duration, not overpressure
+	# ===== PHASE 3: BLAST WAVE (tick 0 -> 89) =====
+	# THE WAVE NO LONGER STARTS AT THE CENTRE, and that is the single most visible change here.
+	# Inside the fireball there is nothing to propagate: everything is already gone at t=0. The shock
+	# is ATTACHED to the fireball surface while that surface expands supersonically and only detaches
+	# at breakaway, so the travelling front is born at the breakaway radius -- 0c711, the 111 m of
+	# the 20 kt fireball -- and everything inside it is damaged on the first tick at the innermost
+	# falloff step.
+	#
+	# It is then born FAST. The blast law puts 504 psi at 0.695 cells, and the Rankine-Hugoniot
+	# relation M = sqrt(1 + (6/7) * dP / 14.7) turns that into Mach 5.51, hence InitialSpeedPercent
+	# 551. The excess above Mach 1 decays 39% per tick (SpeedDecayPercent 61), which is set so the
+	# front reaches Mach 2 at 2.68 cells -- exactly where the same law puts 51 psi. It then settles
+	# onto WaveSpeed 7, because a shock in air decays to the speed of sound whatever set it off.
+	#
+	# Wavefront arrivals, integrated in the same integer arithmetic the engine runs:
+	#   2c t2   4c t12   6c t26   8c t40   10c t54   13c t75   15c t89
+	# The old point-source sonic model reached 15c at t106 and 30c at t213. The wave is not so much
+	# slower or faster as now SHAPED: nearly instant across the inner three cells, then settling
+	# into the long sonic crawl.
+	#
+	# THE FALLOFF TABLE IS TRUNCATED, NOT RESHAPED. Entries 0-12 are the approved curve unchanged, so
+	# damage at every distance inside 13 cells is bit-identical to what shipped; only the last three
+	# are re-tapered (45,30,15,5 rather than 45,35,25) so the weapon fades out at 15c instead of
+	# ending on a cliff. Extent is derived; the balance curve is not mine to move.
+	# Spread 1c0 x 16 entries = 15c0 reach, which equals MaxRadius exactly, so neither is silently
+	# the binding constraint.
 	Warhead@BlastWave: ShockwaveDamage
-		StartDelay: 3
+		StartDelay: 0
 		WaveSpeed: 7
-		MaxRadius: 30c0
+		StartRadius: 0c711
+		InitialSpeedPercent: 551
+		SpeedDecayPercent: 61
+		MaxRadius: 15c0
 		Damage: 100000
 		Penetration: 5000
 		Spread: 1c0
-		# 30 entries = 30 cells. Inner cells devastating, progressively less, last 5 cells minimal
-		Falloff: 500, 450, 400, 350, 300, 250, 200, 160, 130, 100, 80, 60, 45, 35, 25, 18, 12, 8, 5, 3, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0
+		Falloff: 500, 450, 400, 350, 300, 250, 200, 160, 130, 100, 80, 60, 45, 30, 15, 5
 		Versus:
 			Light: 80
 			Medium: 60
@@ -366,115 +484,122 @@ Atomic:
 		DamageTypes: ExplosionDeath
 		AirThreshold: 10c0
 
-	# ===== PHASE 4: BLAST SUPPRESSION (Staggered with blast wave) =====
-	# Suppression arrives with the blast wave at each range band
-	# 5 cells (~tick 38): maximum suppression
+	# ===== PHASE 4: BLAST SUPPRESSION =====
+	# Every Delay below is the tick the integrated wavefront above actually reaches that range rather
+	# than an estimate: 5c t19, 8c t40, 11c t61, 14c t82. The outermost band sits past MaxRadius on
+	# purpose -- the wind outlives the overpressure -- and its delay extrapolates at the terminal
+	# 7 ticks/cell.
 	Warhead@SuppressionClose: GrantExternalCondition
-		Range: 8c0
+		Range: 5c0
 		Amount: 10
 		Duration: 200
 		Condition: suppression-1
-		Delay: 38
+		Delay: 19
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
-	# 10 cells (~tick 77)
 	Warhead@SuppressionMedium: GrantExternalCondition
-		Range: 15c0
+		Range: 8c0
 		Amount: 7
 		Duration: 150
 		Condition: suppression-1
-		Delay: 77
+		Delay: 40
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
-	# 20 cells (~tick 150)
 	Warhead@SuppressionFar: GrantExternalCondition
-		Range: 25c0
+		Range: 11c0
 		Amount: 4
 		Duration: 100
 		Condition: suppression-1
-		Delay: 150
+		Delay: 61
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
-	# 25 cells (~tick 187): moderate suppression, strong winds
 	Warhead@SuppressionWind: GrantExternalCondition
-		Range: 28c0
+		Range: 14c0
 		Amount: 3
 		Duration: 75
 		Condition: suppression-1
-		Delay: 187
+		Delay: 82
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
-	# 30 cells (~tick 213): light suppression, soldiers take cover from wind
 	Warhead@SuppressionOuter: GrantExternalCondition
-		Range: 32c0
+		Range: 17c0
 		Amount: 1
 		Duration: 40
 		Condition: suppression-1
-		Delay: 213
+		Delay: 103
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
 
 	# ===== PHASE 5: TERRAIN SCARRING =====
+	# Size is a RADIUS IN CELLS. Crater = the 50 psi contour (2.7c), Scorch1 = 10 psi (7.0c),
+	# Scorch2 = the thermal radius (11.9c). Delays are the tick the wavefront reaches each.
+	#
+	# CEILING: LeaveSmudgeWarhead goes through FindTilesInAnnulus, which THROWS above
+	# MapGrid.MaximumTileSearchRange (56 cells) rather than clamping. Nothing here is close, but
+	# AtomicHighYield's Scorch2 is capped by it -- see the note there.
 	Warhead@Crater: LeaveSmudge
 		Size: 3
 		SmudgeType: Crater
-		Delay: 5
+		Delay: 6
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 10c0
 	Warhead@Scorch1: LeaveSmudge
-		Size: 5
+		Size: 7
 		SmudgeType: Scorch
-		Delay: 10
+		Delay: 33
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 10c0
 	Warhead@Scorch2: LeaveSmudge
-		Size: 7
+		Size: 12
 		Chance: 60
 		SmudgeType: Scorch
-		Delay: 20
+		Delay: 68
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 10c0
 
 # =====================================================================================================
-# AtomicHighYield -- the STRATEGIC sibling of `Atomic`. Not a retune of it: `Atomic` is untouched and
-# still ships exactly as it was, because the tactical nuclear strike is a balanced, approved power and
-# this is not. This warhead exists for the doomsday / DEFCON end-of-game event the user has described
-# but not yet designed -- but the power that fires it (player.yaml, MissileStrikePower@HighYieldNuke)
-# ships lobby-gated and ON, which is the user's explicit temporary choice so that both nuclear powers
-# are reachable for testing. They have taken the release default as theirs to settle.
+# AtomicHighYield -- the STRATEGIC sibling of `Atomic`. Not a retune of it: the two are separate
+# weapons and the tactical one is a balanced, approved power while this is not. This warhead exists
+# for the doomsday / DEFCON end-of-game event the user has described but not yet designed -- but the
+# power that fires it (player.yaml, MissileStrikePower@HighYieldNuke) ships lobby-gated and ON, which
+# is the user's explicit temporary choice so that both nuclear powers are reachable for testing.
 #
-# THE YIELD STORY, and it is the source of nearly every number below. `Atomic` is a ~20 kt tactical
-# device. This is a ~800 kt strategic warhead: a yield ratio of 40. Blast radii scale as the CUBE ROOT
-# of yield (the Hopkinson-Cranz scaling law every weapons-effects table is built on), so 40^(1/3) is
-# 3.42, and every radius here is `Atomic`'s multiplied by 3.4 and rounded to something legible. That
-# single factor is why the numbers look arbitrary in isolation and are not:
+# THE YIELD IS ~6 Mt, AND IT WAS RELABELLED ON 2026-09-06 RATHER THAN RESIZED. This weapon shipped
+# described as 800 kt with radii built by multiplying `Atomic`'s by 40^(1/3) = 3.4. Both halves of
+# that were wrong, and in opposite directions: `Atomic` was not 20 kt at its old sizes, and 102 cells
+# is not 800 kt at the mod's 160 m/cell blast scale. 102c0 is 16.3 km, and the blast law
 #
-#   Atomic                       x3.4     AtomicHighYield
-#   ThermalVaporize   Spread  3c0    ->   10c0        (vaporises to ~30 cells, was ~8.4)
-#   ThermalRadiation  Spread  1c0    ->    3c512      (thermal reach ~49 cells, was ~14)
-#   Fire ring         10c0..28c0     ->   34c0..95c0  (structures alight to ~95 cells, was ~28)
-#   EMP               15c0           ->   51c0
-#   BlastWave     MaxRadius  30c0    ->  102c0
-#   Suppression       8..32c0        ->   27..109c0
+#     R_cells = 10 * Y[kt]^(1/3) * P[psi]^-0.589        (see the long note on `Atomic`)
 #
-# 102 cells of blast is the whole point. The largest shipped map is x-lake-ww3 at 130x130, whose centre
-# is ~92 cells from its corners; twin-rivers-ww3 (128x128) is ~89. So a detonation at map centre puts
-# EVERY cell of EVERY shipped map inside the wavefront. That is the brief -- but see the falloff table
-# below: inside it is not the same as flattened, and the gradient is what makes this read as a weapon
-# rather than a delete key.
+# puts 16.3 km at 2.67 psi for a 6 Mt weapon. The SIZE was the deliberate half here -- the user asked
+# for a weapon that ends the map and 102 cells does that -- so the LABEL moved to meet it. Its
+# tactical sibling, sized independently at 15c0, comes out at 2.74 psi: the same iso-pressure contour
+# to 1.6%, which is the check that says the pair is right rather than merely consistent with itself.
 #
-# THE TIMELINE IS PART OF THE SCALE. `Atomic`'s effects are all complete by tick ~213 (12.8 s at
-# Timestep 60, which is 16.67 ticks/s -- NOT the 25 asserted by several in-tree comments). This one
-# runs to tick ~724, about 43 s. Nothing was slowed down to achieve that: WaveSpeed stays at 7
-# ticks/cell, because a shock front in air decays to the speed of sound whatever set it off. The wave
-# simply has 3.4x further to go. A strategic detonation taking most of a minute to finish arriving at
-# the map edge IS the physics, and it is the largest single reason this reads as bigger rather than
-# merely as more damage.
+# (For completeness, because the brief that asked for this called 102c0 the 1 psi contour: it is not.
+# 1 psi at 6 Mt is 182 cells, half again the largest map. And 16.3 km AT 1 psi would be a 1.06 Mt
+# weapon, not 6 Mt. The 6 Mt label and the 2.7 psi tag agree; 1 psi agrees with neither.)
+#
+# WHERE THE RADII COME FROM, all from the same law and the same yield:
+#
+#     200 psi   8.0c     50 psi  18.1c     20 psi  31.1c
+#      10 psi  46.8c      5 psi  70.4c    2.7 psi 101.2c      1 psi 181.7c
+#     fireball (breakaway)  6.80c / 161 ticks       thermal (3rd-degree burn)  123.7c
+#
+# 102 cells of blast is still the whole point. The largest shipped map is x-lake-ww3 at 130x130,
+# whose centre is ~92 cells from its corners; twin-rivers-ww3 (128x128) is ~89. A detonation at map
+# centre puts EVERY cell of EVERY shipped map inside the wavefront.
+#
+# AND THE THERMAL RADIUS IS BIGGER THAN THE BLAST RADIUS, which is the genuine difference in
+# character between this weapon and the tactical one. Thermal grows as Y^0.41 and blast as Y^0.33, so
+# they cross at ~437 kt: `Atomic` breaks things further than it burns them (15.1c against 11.9c) and
+# this one burns further than it breaks them (124c against 101c). That is not a styling choice, it
+# falls straight out of using the two right exponents instead of scaling everything by one factor.
 # =====================================================================================================
 AtomicHighYield:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
@@ -499,78 +624,117 @@ AtomicHighYield:
 		FlashType: Nuke
 		Delay: 44
 
-	# Screen shake, RETUNED 2026-09-06 alongside `Atomic`. Read the long note on that weapon first:
-	# `Intensity` now means PEAK SCREEN DISPLACEMENT IN PIXELS, and the old block here produced no
-	# shake at all unless a building happened to be dying at the same moment.
+	# Screen shake, RETIMED 2026-09-06 alongside `Atomic` for the corrected yields. Read the long note
+	# on that weapon first: `Intensity` means PEAK SCREEN DISPLACEMENT IN PIXELS.
 	#
-	# Same five-arrival structure as the tactical nuke, scaled up in the two ways that actually
-	# distinguish a strategic weapon:
-	#   AMPLITUDE  18 px against the tactical nuke 13, into a 22 px ceiling.
-	#   FREQUENCY  1.11 Hz against 1.30 Hz on the main shock, and the two coda stages run at 0.78
-	#              and 0.70 Hz -- a roll you feel rather than a rattle you see, and about a quarter
-	#              the frequency of a shell impact. This is the lever that makes it a different
-	#              KIND of event rather than a louder one; the model derives most of it from
-	#              Intensity automatically (bigger source, lower corner frequency) and the
-	#              FrequencyScale values on the coda stages push it the rest of the way.
+	# AMPLITUDE CANNOT CARRY THE DIFFERENCE BETWEEN THESE TWO WEAPONS AND FREQUENCY CAN. Peak ground
+	# displacement from an airburst scales roughly as Y^(1/3); over the 300x between 20 kt and 6 Mt
+	# that is 6.7x, so the tactical nuke's 13 px would want 87 px here against a 22 px ceiling.
+	# Amplitude saturates. So this weapon takes 20 px -- near the ceiling, only 1.5x the tactical --
+	# and spends the yield on FREQUENCY and DURATION instead:
 	#
-	# ON THAT LAST POINT -- the coda scales look aggressively low and are not. A coda carries a
-	# LOWER Intensity than its main shock, and the model reads low Intensity as a small source and
-	# raises the frequency accordingly, so a coda stage must spend FrequencyScale just to break
-	# even with the shock it follows. Measured before and after: at the first-written 60 and 45,
-	# stages 3 and 4 came out at 0.94 and 1.05 Hz, the latter HIGHER than the 0.94 before it and
-	# both essentially level with the main shock they were supposed to be settling underneath.
+	#   main shock   0.50 Hz  against the tactical nuke's 1.30 Hz, a ratio of 2.59
+	#   coda         0.41 Hz  and 0.40 Hz on the two long stages, the slowest motion in the mod
+	#   coverage     0 -> 680 ticks (41 s) against 142
 	#
-	# Every Hz figure in this file is the CENTRE of the per-event detune band; FrequencyJitterPercent
-	# is 6, so a live detonation lands within about +/-6% of it and no two land on the same value.
+	# 2.59 is 300^(1/6). The PHYSICAL exponent is Y^-(1/3), i.e. 6.7x, which would put this at
+	# 0.19 Hz -- one cycle per five seconds, below the model's own MinFrequency floor (0.02 c/t =
+	# 0.33 Hz) and well below the point where a screen shake stops reading as a shake at all. The
+	# square root of the physical exponent is the compression that ceiling forces, and it is the one
+	# place in this file where a lever is deliberately not the physical value.
 	#
-	# Total coverage at the epicentre: 0 -> 750 ticks (45 s), which is the AtomicHighYield timeline
-	# (the blast wave reaches its full 102-cell radius at ~724). The ground does not stop moving
-	# until the wavefront has left the map.
+	# ON THE LOW FrequencyScale VALUES: they look aggressive and are not. A coda carries a LOWER
+	# Intensity than its main shock, and the model reads low Intensity as a small source and raises
+	# the frequency accordingly, so a coda stage must spend FrequencyScale just to break even with
+	# the shock it follows. Every Hz figure here is the CENTRE of the per-event detune band;
+	# FrequencyJitterPercent is 6, so no two detonations land on the same value.
 	Warhead@Shake1: ShakeScreen
 		# P-wave precursor.
-		Duration: 35
+		Duration: 30
 		Intensity: 5
 		AttackTicks: 1
-		DecayHalfLife: 10
+		DecayHalfLife: 9
 		FrequencyScale: 155
 	Warhead@Shake2: ShakeScreen
-		# Main shock.
-		Duration: 130
-		Intensity: 18
+		# Main shock. 20 px at 0.50 Hz.
+		Duration: 110
+		Intensity: 20
 		AttackTicks: 4
-		DecayHalfLife: 28
-		Delay: 6
+		DecayHalfLife: 26
+		FrequencyScale: 48
+		Delay: 5
 	Warhead@Shake3: ShakeScreen
-		# Surface-wave train: 25 s, swelling in over 40 ticks. 0.78 Hz.
-		Duration: 420
+		# Surface-wave train: 23 s, swelling in over 40 ticks. 0.41 Hz.
+		Duration: 380
 		Intensity: 9
 		AttackTicks: 40
-		DecayHalfLife: 150
-		FrequencyScale: 50
-		Delay: 28
+		DecayHalfLife: 140
+		FrequencyScale: 26
+		Delay: 25
 	Warhead@Shake4: ShakeScreen
-		# Long coda. Barely visible on its own -- about three pixels at 0.70 Hz, the lowest and
-		# slowest motion in the mod -- and that is the point: the map should not feel settled again
-		# until the strike is genuinely over.
-		Duration: 500
+		# Long coda. Four pixels at 0.40 Hz -- barely visible on its own, and that is the point: the
+		# map should not feel settled again until the strike is genuinely over. Ends at tick 680,
+		# against a blast wave that stops at 597.
+		Duration: 450
 		Intensity: 4
 		AttackTicks: 60
-		DecayHalfLife: 190
-		FrequencyScale: 30
-		Delay: 250
+		DecayHalfLife: 170
+		FrequencyScale: 17
+		Delay: 230
 	Warhead@Shake5: ShakeScreen
-		# The air blast, chasing the wavefront at 7.8 ticks/cell. On this weapon that matters far
-		# more than it does on the tactical nuke: at the 102-cell edge of the blast it lands ~795
-		# ticks (48 s) after the flash, so a player watching from across the map gets the ground
-		# wave almost immediately and the shockwave rattle most of a minute later.
+		# The air blast, chasing the wavefront. 5.8 ticks/cell is this weapon's MEAN front speed over
+		# its 102 cells (594 ticks / 102 cells), not the terminal 7, because the front leaves the
+		# fireball at Mach 4. At the 102-cell edge it lands ~597 ticks (36 s) after the flash, so a
+		# player watching from across the map gets the ground wave almost at once and the shockwave
+		# rattle most of a minute later.
 		Duration: 120
 		Intensity: 7
 		AttackTicks: 3
 		DecayHalfLife: 32
-		FrequencyScale: 120
-		PropagationTicksPerCell: 7.8
+		FrequencyScale: 60
+		PropagationTicksPerCell: 5.8
 
-	# Fireball visual. ScalePercent 700 against `Atomic`'s 300.
+	# ===== THE FIREBALL =====
+	# NEW 2026-09-06. See the long note on `Atomic`'s Warhead@FireballLight for the model; what
+	# follows is only what is different at 6 Mt, and the differences are the whole point of having
+	# two of these.
+	#
+	# THE DOUBLE FLASH IS FULLY RESOLVED HERE. t_min = 0.0025*sqrt(Y) = 0.194 s = 3.2 ticks and
+	# t_max = 0.032*sqrt(Y) = 2.48 s = 41 ticks (Glasstone). At 20 kt both land inside the first
+	# three ticks and the tactical nuke's envelope is a three-sample reconstruction at the Nyquist
+	# limit; here there is a bright first pulse at tick 0, a distinct dip at tick 3, and a second and
+	# much larger maximum thirty-eight ticks later. The interval between the two maxima is literally
+	# how yield is measured from a bhangmeter trace, and at these two yields it is 2 ticks against 41.
+	#
+	# THE DURATION IS THE OTHER HALF. 161 ticks is 9.7 s of continuous incandescence from
+	# t = 0.2104 * Y^0.44 seconds, and the tail past the second maximum is most of it. The user's
+	# note that the duration is "surprisingly long" is the correct instinct: this is not a flash, it
+	# is a sustained second sun, and the same law gives 24.6 s for a 50 Mt weapon.
+	#
+	# PEAK INTENSITY IS 7.0, THE SAME AS THE TACTICAL NUKE. Fireball surface brightness at the second
+	# maximum is set by temperature (~7000 K) and is very nearly yield-independent; what yield buys
+	# is area and duration. 124 cells for 161 ticks against 12 cells for 13.
+	#
+	# RADII follow the Taylor-Sedov growth law R ~ t^0.4, normalised so the light reaches the thermal
+	# radius (123.7c) at the second maximum, and then hold -- a fireball reaches maximum size at
+	# about peak emission and thereafter rises and cools. TerrainRefreshInterval is 6 rather than the
+	# tactical nuke's 2: at this radius every terrain refresh sweeps the whole map, so it is throttled
+	# to about 26 refreshes across the event instead of 161.
+	Warhead@FireballLight: LightEvent
+		ValidTargets: Ground, Water, Air
+		AirThreshold: 24c0
+		ForceGroundLevel: true
+		Light:
+			Times: 0, 1, 3, 8, 20, 41, 75, 115, 161
+			Intensities: 3.8, 2.0, 0.9, 2.6, 5.4, 7.0, 4.6, 1.9, 0
+			Radii: 21c256, 28c0, 43c256, 64c256, 92c512, 124c0, 124c0, 118c0, 96c0
+			Tints: E6F0FF, FFD9A0, FF9040, FFE2B4, FFF8EC, FFFFFF, FFD070, FF8228, A01E08
+			Interpolations: Linear, Linear, Quadratic, Quadratic, Quadratic, InverseCubic, InverseCubic, InverseCubic
+			Falloff: InverseSquare
+			TerrainRefreshInterval: 6
+
+	# The mushroom cloud, NOT the fireball -- see Warhead@FireballLight above. ScalePercent 700 draws
+	# ~90 cells, which is 14 km and a fair early cap for a megaton-class burst.
 	#
 	# THE OFFSET IS UNCHANGED AT -1900 AND THAT IS DELIBERATE, because CreateEffectWarhead applies it
 	# as `pos + Offset * ScalePercent / 100` (CreateEffectWarhead.cs:150) -- the offset scales with the
@@ -599,18 +763,16 @@ AtomicHighYield:
 		ValidTargets: Ground, Water, Air
 
 	# ===== PHASE 1: THERMAL RADIATION =====
-	# A 20 kt fireball shines for about two seconds. An 800 kt one shines for ten, because thermal
-	# pulse duration also scales as the cube root of yield. RadiationDuration below is 200 ticks
-	# (12.0 s at Timestep 60) against `Atomic`'s 50, and the fire ring's delays are stretched to match:
-	# far-field ignition really does happen seconds after the flash.
+	# Every Spread below is the thermal radius (123.7c) divided by the number of falloff steps that
+	# reach it, so each table ends exactly where the thermal radius does.
 
-	# Instant vaporization at ground zero (0-30 cells). Falloff is flat 100 out to 20480, which is what
-	# keeps this band lethal to infantry DIRECTLY UNDER THE AIRBURST -- a Circle hitshape measures the
-	# burst in three dimensions (MissileStrikeArrivalTest.cs, CircleHitShapesPayTheFullVerticalLeg), so
-	# an infantryman at horizontal distance zero is treated as 15330 away. That is inside the flat band
-	# with 5150 to spare. Vehicles and buildings use Rectangle hitshapes and pay nothing at all.
+	# The ~50 psi contour, 18.1c. Falloff is flat 100 out to 2 x Spread = 37068, which is what keeps
+	# this band lethal to infantry DIRECTLY UNDER THE AIRBURST -- a Circle hitshape measures the burst
+	# in three dimensions (MissileStrikeArrivalTest.cs, CircleHitShapesPayTheFullVerticalLeg), so an
+	# infantryman at horizontal distance zero is treated as 15360 away. Vehicles and buildings use
+	# Rectangle hitshapes and pay nothing at all.
 	Warhead@ThermalVaporize: SpreadDamage
-		Spread: 10c0
+		Spread: 18c102
 		Damage: 800000
 		Penetration: 20000
 		Falloff: 100, 100, 100, 50
@@ -620,24 +782,20 @@ AtomicHighYield:
 		DamageTypes: ElectricityDeath
 		AirThreshold: 24c0
 
-	# Instant tree incineration at ground zero (0-10.5 cells).
+	# The ~200 psi contour, 8.0c.
 	#
 	# THIS WARHEAD, AND THE THREE TREE-FIRE ONES BELOW, DO NOTHING TO ANY TREE THE MOD SHIPS, and the
-	# same is true of `Atomic`'s equivalents -- whose comments still describe husks and a graduated
-	# burn that no longer happen. Every T##/TC0# actor carries `Inherits@Indestructible:
+	# same is true of `Atomic`'s equivalents. Every T##/TC0# actor carries `Inherits@Indestructible:
 	# ^TreeIndestructible`, which is `DamageMultiplier: Modifier: 0` (decoration.yaml:135-137).
 	# Health.InflictDamage applies damage modifiers unless called with ignoreModifiers
 	# (Health.cs:176-186), so 800000 becomes 0 -- and so does the fire tick, which decoration.yaml:147
-	# says out loud: "On an opted-in tree it is inert (the burn tick ChangesHealth@BurnDamage subtracts
-	# 0, so the tree never leaves DamageState.Undamaged and the burn overlays never reach their
-	# MinimumDamageState)". Only Health.Kill() bypasses it (Health.cs:245), which no warhead reaches.
+	# says out loud. Only Health.Kill() bypasses it (Health.cs:245), which no warhead reaches.
 	#
 	# THEY ARE KEPT ANYWAY, deliberately, for the reason that same comment gives: "Restoring
 	# Modifier: 100 restores fire behaviour on trees too, with no edit here." If tree destructibility
-	# is ever turned back on, this warhead set is already shaped for it and matches its sibling. What
-	# is NOT kept is a comment claiming trees burn today. See WORKSPACE/DISCOVERIES.md 2026-09-06.
+	# is ever turned back on, this warhead set is already shaped for it and matches its sibling.
 	Warhead@TreeVaporize: SpreadDamage
-		Spread: 3c512
+		Spread: 8c0
 		Damage: 800000
 		Penetration: 20000
 		Falloff: 100, 100, 100, 100
@@ -646,9 +804,9 @@ AtomicHighYield:
 		DamageTypes: FireDeath
 		AirThreshold: 24c0
 
-	# Repeating thermal heat radiation pulse, 3.5x the reach and 3x the duration of `Atomic`'s
+	# Repeating thermal pulse. 20 steps to the thermal radius: 123.7c * 1024 / 19 = 6683.
 	Warhead@HeatRadiation2: SpreadDamage
-		Spread: 1c768
+		Spread: 6c539
 		Damage: 400
 		Falloff: 10000, 8000, 4000, 2500, 300, 100, 80, 50, 40, 25, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
 		Duration: 15
@@ -657,16 +815,21 @@ AtomicHighYield:
 		DamageTypes: FireDeath
 		AirThreshold: 24c0
 
-	# Sustained thermal radiation -- 50 pulses over 200 ticks (12 s), against `Atomic`'s 17 over 50.
-	# Spread 3c512 puts the 15-step falloff table's last entry at 50176, so thermal reaches ~49 cells.
-	# At  10 cells: ~35% per pulse -- infantry gone in under a second, vehicles cooking
-	# At  25 cells: ~8% per pulse  -- infantry dead, light vehicles burning out
-	# At  40 cells: ~1% per pulse  -- still 50 pulses of it; infantry do not survive standing in it
-	# At  50+ cells: nothing; from here out the fire ring and the shockwave do the work
+	# Sustained thermal radiation. Spread 11c279: the falloff table's last non-zero step is index 10
+	# and it crosses zero at index 11, so 123.7c * 1024 / 11 = 11543 puts that crossing exactly on the
+	# thermal radius -- so this weapon really does burn out to 124 cells, 22 cells further than its
+	# own blast wave reaches.
+	#
+	# RadiationDuration 413 is DERIVED: the thermal pulse is ~80% delivered by t = 10 * t_max =
+	# 0.32*sqrt(Y) seconds (Glasstone), 24.8 s at 6 Mt. That is the EMISSION time and is far longer
+	# than the fireball's own 161-tick incandescent life; the two are different quantities and only
+	# the second governs the light above. DamageInterval rises 4 -> 8 so the PULSE COUNT is held at
+	# 51 against the old 50 -- the total thermal damage is deliberately unchanged, it is simply
+	# delivered over 25 s instead of 12.
 	Warhead@ThermalRadiation: ThermalRadiation
-		RadiationDuration: 200
-		DamageInterval: 4
-		Spread: 3c512
+		RadiationDuration: 413
+		DamageInterval: 8
+		Spread: 11c279
 		Damage: 9000
 		Penetration: 1200
 		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
@@ -681,16 +844,19 @@ AtomicHighYield:
 			Heavy: 30
 			Concrete: 20
 
-	# ===== FIRE: Staggered thermal ignition (structures & infantry) =====
-	# Ten warheads, exactly as `Atomic` has -- and TEN IS NOT A ROUND NUMBER PICKED FOR SYMMETRY: the
-	# `onfire` ExternalCondition on infantry.yaml:969-970 carries TotalCap: 10, so an eleventh warhead
-	# would be granted and immediately discarded. Ranges are the 3.4x scaling (34c0..95c0); durations
-	# are doubled on top of it, because a firestorm started by a megaton weapon burns for far longer
-	# than one started by a tactical; delays are stretched 4x, tracking the 200-tick thermal pulse
-	# above -- a structure 90 cells out is not ignited by the flash, it is ignited several seconds
-	# later once enough thermal energy has arrived.
+	# ===== FIRE: staggered thermal ignition (structures & infantry) =====
+	# Ten bands, and TEN IS NOT A ROUND NUMBER PICKED FOR SYMMETRY: the `onfire` ExternalCondition on
+	# infantry.yaml:969-970 carries TotalCap: 10, so an eleventh warhead would be granted and
+	# immediately discarded.
+	#
+	# RANGES run from a quarter of the thermal radius to all of it, 31c0 -> 124c0.
+	# DELAYS are spread 1 -> 161 over the fireball's own incandescent life, which is what makes the
+	# far-field ignition visibly late: a structure 120 cells out is not lit by the flash, it is lit
+	# nine seconds later once enough fluence has arrived. On the tactical nuke the same rule gives a
+	# 13-tick spread, so the same mechanism reads as instantaneous there and as a slow outward sweep
+	# here.
 	Warhead@Fire1: GrantExternalCondition
-		Range: 34c0
+		Range: 31c0
 		Amount: 1
 		Duration: 1500
 		Condition: onfire
@@ -703,100 +869,90 @@ AtomicHighYield:
 		Amount: 1
 		Duration: 1400
 		Condition: onfire
-		Delay: 20
+		Delay: 19
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
 	Warhead@Fire3: GrantExternalCondition
-		Range: 48c0
+		Range: 52c0
 		Amount: 1
 		Duration: 1300
 		Condition: onfire
-		Delay: 40
+		Delay: 37
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
 	Warhead@Fire4: GrantExternalCondition
-		Range: 54c0
+		Range: 62c0
 		Amount: 1
 		Duration: 1200
 		Condition: onfire
-		Delay: 60
+		Delay: 54
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
 	Warhead@Fire5: GrantExternalCondition
-		Range: 61c0
+		Range: 72c0
 		Amount: 1
 		Duration: 1100
 		Condition: onfire
-		Delay: 80
+		Delay: 72
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
 	Warhead@Fire6: GrantExternalCondition
-		Range: 68c0
+		Range: 83c0
 		Amount: 1
 		Duration: 1000
 		Condition: onfire
-		Delay: 100
+		Delay: 90
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
 	Warhead@Fire7: GrantExternalCondition
-		Range: 75c0
+		Range: 93c0
 		Amount: 1
 		Duration: 900
 		Condition: onfire
-		Delay: 125
+		Delay: 108
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
 	Warhead@Fire8: GrantExternalCondition
-		Range: 82c0
+		Range: 103c0
 		Amount: 1
 		Duration: 800
 		Condition: onfire
-		Delay: 150
+		Delay: 126
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
 	Warhead@Fire9: GrantExternalCondition
-		Range: 88c0
+		Range: 114c0
 		Amount: 1
 		Duration: 700
 		Condition: onfire
-		Delay: 175
+		Delay: 143
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
 	Warhead@Fire10: GrantExternalCondition
-		Range: 95c0
+		Range: 124c0
 		Amount: 1
 		Duration: 600
 		Condition: onfire
-		Delay: 200
+		Delay: 161
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
 
-	# ===== TREE FIRE: Graduated burn by distance =====
+	# ===== TREE FIRE =====
 	# INERT AGAINST EVERY SHIPPED TREE -- see the note on Warhead@TreeVaporize above for the proof and
-	# for why these are kept regardless. The bands below describe what this would do if
-	# ^TreeIndestructible's Modifier went back to 100; they are NOT a description of current
-	# behaviour, which is that trees are untouched at every range.
-	#
-	# Same three-band mechanism as `Atomic`: trees carry TotalCap: 1 on `onfire`, so the FIRST warhead
-	# to land would fix a tree's fate and the delays order the bands. Tree HP 2500, burn -10 HP/tick,
-	# so 250 ticks of fire would kill.
-	#
-	# 0-10.5 cells:  would already be husked by TreeVaporize
-	# 10.5-34 cells: 900 ticks of fire, far past the 250 needed -- slow visible death, then husk
-	# 34-55 cells:   200 ticks = 2000 damage, tree left at ~500 HP, Heavy state, still standing
-	# 55-80 cells:   90 ticks = 900 damage, tree at ~1600 HP, Light state, singed
-	# 80+ cells:     untouched. On a 128x128 map that is only the extreme corners.
+	# for why these are kept regardless. Bands are a quarter, a half and all of the thermal radius;
+	# trees carry TotalCap: 1 on `onfire`, so the FIRST warhead to land would fix a tree's fate and
+	# the delays order the bands.
 	Warhead@TreeFire_Kill: GrantExternalCondition
-		Range: 34c0
+		Range: 31c0
 		Amount: 1
 		Duration: 900
 		Condition: onfire
@@ -805,30 +961,31 @@ AtomicHighYield:
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
 	Warhead@TreeFire_Burn: GrantExternalCondition
-		Range: 55c0
+		Range: 62c0
 		Amount: 1
 		Duration: 200
 		Condition: onfire
-		Delay: 40
+		Delay: 72
 		ValidTargets: Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
 	Warhead@TreeFire_Singe: GrantExternalCondition
-		Range: 80c0
+		Range: 124c0
 		Amount: 1
 		Duration: 90
 		Condition: onfire
-		Delay: 100
+		Delay: 161
 		ValidTargets: Trees
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
 
 	# ===== PHASE 2: EMP (Tick 0) =====
-	# 51c0 and 1200 ticks (72 s) against `Atomic`'s 15c0 / 375. A strategic burst does not merely
-	# disable electronics over a wider area; it destroys rather than upsets them, and 72 s is the
-	# longest outage in the mod for that reason.
+	# The ~5 psi contour, 70.4c, on the same rule as `Atomic`'s 10c512: source-region EMP from a low
+	# airburst is co-extensive with the region where blast coupling alone wrecks unhardened wiring.
+	# 51c0 before, which was the old x3.4 factor rather than a physical quantity. 1200 ticks (72 s)
+	# is the longest outage in the mod, and is a gameplay figure rather than a derived one.
 	Warhead@EMP: GrantExternalCondition
-		Range: 51c0
+		Range: 70c0
 		Duration: 1200
 		Condition: empdisable
 		Delay: 0
@@ -837,26 +994,38 @@ AtomicHighYield:
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
 
-	# ===== PHASE 3: BLAST WAVE (Tick 5 -> ~719) =====
-	# WaveSpeed 7 is UNCHANGED from `Atomic`, and that is the physically honest choice rather than an
-	# oversight: a shock front in air decays to the speed of sound, and sound does not care what set it
-	# off. This wave is not faster, it is LONGER -- 102 cells at 7 ticks/cell is 714 ticks, 43 s, and
-	# watching it still arriving at the map edge three quarters of a minute after the flash is most of
-	# what makes this read as strategic.
+	# ===== PHASE 3: BLAST WAVE (tick 3 -> 597) =====
+	# THE WAVE STARTS AT THE FIREBALL SURFACE, NOT AT THE CENTRE. Inside the fireball there is nothing
+	# to propagate: everything is already gone at t=0. The shock stays attached to that surface while
+	# it expands supersonically and detaches at breakaway, so the travelling front is born at 6c820 --
+	# the 1088 m of the 6 Mt fireball -- and everything inside is damaged on the first tick at the
+	# innermost falloff step. At the tactical nuke's yield that start radius is 0.7 cells and is a
+	# detail; here it is nearly seven cells and is plainly visible.
 	#
-	# THE FALLOFF TABLE IS THE BALANCE. 35 entries at Spread 3c0 covers 0..102 cells in 3-cell steps,
-	# and ShockwaveDamageWarhead interpolates linearly between them (GetDamageFalloff), so a coarse
-	# table is a smooth curve rather than a staircase. Damage reach is min(MaxRadius, (Falloff.Length-1)
-	# * Spread) -- 34 * 3072 = 104448 = 102c0 exactly, so MaxRadius and the table agree and NEITHER is
-	# silently the binding constraint. If you lengthen one, lengthen the other.
+	# StartDelay 3 is the breakaway time itself, t_min = 0.0025*sqrt(Y) = 0.19 s. `Atomic` gets 0 from
+	# the same formula because its breakaway is a fifth of a tick.
 	#
-	# The CURVE SHAPE is not `Atomic`'s stretched. `Atomic` falls as roughly R^-1.9 (450 at 1 cell to 1
-	# at 24); this falls as R^-1.28 (560 at 3 cells to 6 at 102). The fatter tail is real physics rather
-	# than generosity: peak overpressure tends toward the acoustic R^-1 limit as the shock weakens, and
-	# a larger weapon spends far more of its radius in that weak-shock regime -- its positive-phase
-	# duration, and so its impulse, also scales as the cube root of yield. A pure geometric stretch of
-	# the tactical curve would have put zero damage on the outer 15 cells, which is exactly the flat,
-	# uninteresting edge this is trying to avoid.
+	# IT IS BORN SLOWER THAN THE TACTICAL NUKE'S FRONT, WHICH IS NOT AN ERROR. The blast law puts
+	# 265 psi at 6.80 cells, and Rankine-Hugoniot M = sqrt(1 + (6/7) * dP / 14.7) makes that Mach
+	# 4.05 -- against Mach 5.51 for the 20 kt weapon, because a larger fireball breaks away at a LOWER
+	# overpressure. The excess above Mach 1 then decays 4% per tick (SpeedDecayPercent 96) rather than
+	# 39%, set so the front reaches Mach 2 at 17.9 cells, exactly where the law puts 51 psi. The ratio
+	# of the two decay times, 28 ticks against 4, is the cube-root-of-yield scaling of every other
+	# length and time here.
+	#
+	# Wavefront arrivals, integrated in the same integer arithmetic the engine runs (including the
+	# 3-tick StartDelay):
+	#   15c t21   26c t68   41c t169   56c t274   71c t380   87c t492   102c t597
+	# The old point-source sonic model took until t716. Watching the front still arriving at the map
+	# edge half a minute after the flash is most of what makes this read as strategic.
+	#
+	# THE FALLOFF TABLE IS UNCHANGED. 35 entries at Spread 3c0 covers 0..102 cells in 3-cell steps and
+	# ShockwaveDamageWarhead interpolates linearly between them, so a coarse table is a smooth curve.
+	# Damage reach is min(MaxRadius, (Falloff.Length-1) * Spread) -- 34 * 3072 = 104448 = 102c0
+	# exactly, so MaxRadius and the table agree and NEITHER is silently the binding constraint. The
+	# curve falls as roughly R^-1.28 against the tactical nuke's R^-1.9, and the fatter tail is real
+	# physics rather than generosity: peak overpressure tends toward the acoustic R^-1 limit as the
+	# shock weakens, and a larger weapon spends far more of its radius in that weak-shock regime.
 	#
 	# What the ends mean, against Damage 400000:
 	#   0 cells   (600): 2,400,000 raw. An Abrams takes 960,000 against 24,000 HP. Nothing is left.
@@ -867,19 +1036,25 @@ AtomicHighYield:
 	#   102 cells   (6):    24,000 raw -> 9,600 on an Abrams (40%), 7,200 on Concrete. Survivors --
 	#                       burning, crippled survivors, which is what the extreme edge should look like.
 	Warhead@BlastWave: ShockwaveDamage
-		StartDelay: 5
+		StartDelay: 3
 		WaveSpeed: 7
+		StartRadius: 6c820
+		InitialSpeedPercent: 405
+		SpeedDecayPercent: 96
 		MaxRadius: 102c0
 		Damage: 400000
 		Penetration: 20000
 		Spread: 3c0
 		Falloff: 600, 560, 520, 480, 440, 400, 360, 320, 285, 250, 220, 195, 170, 150, 130, 112, 96, 82, 70, 60, 51, 44, 38, 33, 28, 24, 21, 18, 15, 13, 11, 9, 8, 7, 6
 		# The default 1536 ring is a cell and a half wide. On a 102-cell circle that is a hairline;
-		# 5c512 keeps the band the same fraction of its own radius that the tactical's is of 30c0.
+		# 5c512 keeps the band the same fraction of its own radius that the tactical's is of 15c0.
 		# 128 segments for the same reason -- a 64-gon at this radius has 10-cell straight edges.
 		ShockwaveThickness: 5c512
 		ShockwaveSegments: 128
-		ShockwaveFadeInTicks: 60
+		# 60 ticks of fade-in used to stand in for the ring emerging from a fireball. It now emerges
+		# from a real one -- the front is born at 6c820 -- so the fade is cut to the 20 ticks it takes
+		# the front to clear its own mushroom cloud sprite.
+		ShockwaveFadeInTicks: 20
 		Versus:
 			Light: 80
 			Medium: 60
@@ -891,88 +1066,88 @@ AtomicHighYield:
 		DamageTypes: ExplosionDeath
 		AirThreshold: 24c0
 
-	# ===== PHASE 4: BLAST SUPPRESSION (staggered with the blast wave) =====
-	# Ranges and delays are both `Atomic`'s x3.4, which is self-consistent: the wave speed did not
-	# change, so scaling the radius by 3.4 scales the arrival time by 3.4 as well.
-	# ~20 cells (tick 129)
+	# ===== PHASE 4: BLAST SUPPRESSION =====
+	# Every Delay is the tick the integrated wavefront above actually reaches that range: 34c t120,
+	# 56c t274, 76c t415, 92c t527. The outermost band sits past MaxRadius on purpose -- the wind
+	# outlives the overpressure -- and extrapolates at the terminal 7 ticks/cell.
 	Warhead@SuppressionClose: GrantExternalCondition
-		Range: 27c0
+		Range: 34c0
 		Amount: 10
 		Duration: 400
 		Condition: suppression-1
-		Delay: 129
+		Delay: 120
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
-	# ~35 cells (tick 262)
 	Warhead@SuppressionMedium: GrantExternalCondition
-		Range: 51c0
+		Range: 56c0
 		Amount: 8
 		Duration: 350
 		Condition: suppression-1
-		Delay: 262
+		Delay: 274
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
-	# ~70 cells (tick 510)
 	Warhead@SuppressionFar: GrantExternalCondition
-		Range: 85c0
+		Range: 76c0
 		Amount: 5
 		Duration: 300
 		Condition: suppression-1
-		Delay: 510
+		Delay: 415
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
-	# ~88 cells (tick 636)
 	Warhead@SuppressionWind: GrantExternalCondition
-		Range: 95c0
+		Range: 92c0
 		Amount: 3
 		Duration: 250
 		Condition: suppression-1
-		Delay: 636
+		Delay: 527
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
-	# ~102 cells (tick 724) -- the last thing this warhead does. Range runs past MaxRadius on purpose,
-	# exactly as `Atomic`'s 32c0 outruns its 30c0: the wind outlives the overpressure.
 	Warhead@SuppressionOuter: GrantExternalCondition
-		Range: 109c0
+		Range: 115c0
 		Amount: 1
 		Duration: 150
 		Condition: suppression-1
-		Delay: 724
+		Delay: 690
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
 
 	# ===== PHASE 5: TERRAIN SCARRING =====
-	# Size is a RADIUS IN CELLS (LeaveSmudgeWarhead.cs uses FindTilesInAnnulus(cell, min, Size[0])), so
-	# Size 30 is ~2800 smudge cells -- about a sixth of a 128x128 map blackened in one shot. It is a
-	# single frame-end pass, not a per-tick cost.
+	# Size is a RADIUS IN CELLS (LeaveSmudgeWarhead.cs uses FindTilesInAnnulus(cell, min, Size[0])).
+	# Crater = the 50 psi contour (18.1c), Scorch1 = 20 psi (31.1c), Scorch2 = 10 psi (46.8c), and
+	# each Delay is the tick the wavefront reaches that radius.
+	#
+	# SCORCH2 IS CAPPED BY A HARD ENGINE CEILING, NOT BY TASTE. The thermal radius is 123.7c and the
+	# ground really is burned that far, but FindTilesInAnnulus THROWS above MapGrid.MaximumTileSearchRange
+	# (56 cells, MapGrid.cs:113) rather than clamping (Map.cs:1994) -- the same ceiling that killed the
+	# game through CameraRange on 2026-09-06. Any Size above 56 here is a crash at the tick the smudge
+	# lands, with no lint to catch it. 47 is the largest physically-meaningful contour that fits.
 	#
 	# Chance is deliberately left at its default 100 where `Atomic` uses 60 on its outer scorch. Chance
 	# gates the WHOLE warhead, not each cell (LeaveSmudgeWarhead.cs:41-43), so 60 would be a coin flip
 	# on whether the map is visibly scarred at all. A strategic burst does not sometimes leave a mark.
 	Warhead@Crater: LeaveSmudge
-		Size: 10
+		Size: 18
 		SmudgeType: Crater
-		Delay: 8
+		Delay: 34
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
 	Warhead@Scorch1: LeaveSmudge
-		Size: 17
+		Size: 31
 		SmudgeType: Scorch
-		Delay: 30
+		Delay: 102
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
 	Warhead@Scorch2: LeaveSmudge
-		Size: 30
+		Size: 47
 		SmudgeType: Scorch
-		Delay: 90
+		Delay: 211
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-
 
 EmpBomb:
 	BurstWait: 10

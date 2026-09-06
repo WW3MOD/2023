@@ -27,8 +27,34 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("Delay in ticks before the shockwave starts expanding.")]
 		public readonly int StartDelay = 0;
 
-		[Desc("Ticks per cell of wave travel. Higher = slower wave. 7 ≈ speed of sound at 100m/cell.")]
+		[Desc("Ticks per cell of wave travel once the front has decayed to the speed of sound.",
+			"Higher = slower wave. 7 is ~380 m/s at this mod's 160 m/cell blast scale, i.e. sound.")]
 		public readonly int WaveSpeed = 7;
+
+		[Desc("Radius the wavefront ALREADY OCCUPIES on the tick it is created, instead of starting at",
+			"a point. A nuclear detonation has no travelling wave inside its own fireball: the shock is",
+			"attached to the fireball surface while that surface is still expanding supersonically, and",
+			"only detaches (`breakaway`) once it falls toward Mach 1. Everything inside is already gone",
+			"before there is a wave to speak of, so the front is born at the breakaway radius.",
+			"Actors inside it are damaged on the first tick, at the innermost Falloff step.",
+			"The default 0 is a point source, i.e. exactly the pre-2026-09-06 behaviour.")]
+		public readonly WDist StartRadius = WDist.Zero;
+
+		[Desc("Wave speed at StartRadius, as a percentage of the speed WaveSpeed implies — i.e. the",
+			"Mach number at breakaway times 100. 551 is a 20 kt airburst, 405 a 6 Mt one (they differ",
+			"because breakaway happens at a LOWER overpressure for a larger weapon). The default 100",
+			"is sonic from the first tick, which is the historical behaviour and makes",
+			"SpeedDecayPercent irrelevant.")]
+		public readonly int InitialSpeedPercent = 100;
+
+		[Desc("Fraction of the CURRENT excess speed above Mach 1 that survives each tick, as a",
+			"percentage. The front decays toward WaveSpeed and never below it, because a shock in air",
+			"decays to the speed of sound whatever set it off. Pick it from where the weapon's own",
+			"overpressure law puts Mach 2: 61 for a 20 kt burst (~4 ticks), 96 for 6 Mt (~28 ticks),",
+			"the ratio being the cube-root-of-yield scaling of every other length and time here.",
+			"Integer, and applied by integer division, so the wavefront position is exactly",
+			"reproducible — this is a damage-bearing quantity and must not go through a float.")]
+		public readonly int SpeedDecayPercent = 100;
 
 		[Desc("Maximum radius the shockwave expands to.")]
 		public readonly WDist MaxRadius = WDist.FromCells(25);
@@ -133,6 +159,22 @@ namespace OpenRA.Mods.Common.Warheads
 		{
 			if (ShockwaveSegments < 3)
 				throw new YamlException("ShockwaveSegments must be at least 3.");
+
+			if (StartRadius.Length < 0)
+				throw new YamlException("StartRadius cannot be negative.");
+
+			// A front born outside its own MaxRadius finishes on the tick it starts and delivers one
+			// silent full-radius hit, which looks exactly like the warhead not being wired up at all.
+			if (StartRadius >= MaxRadius)
+				throw new YamlException("StartRadius must be less than MaxRadius; the wave would end before it moved.");
+
+			// Below 100 the front would start SLOWER than sound and then accelerate as the excess
+			// decays toward zero, which is backwards and is the easy typo here.
+			if (InitialSpeedPercent < 100)
+				throw new YamlException("InitialSpeedPercent cannot be below 100; a shock front never starts subsonic.");
+
+			if (SpeedDecayPercent < 0 || SpeedDecayPercent > 100)
+				throw new YamlException("SpeedDecayPercent must be between 0 and 100; it is the fraction of the excess speed kept per tick.");
 
 			// Zero would make Pow return 1 at every radius, which collapses the fade to a flat
 			// ShockwaveEndAlphaPercent and hides the mistake as "the ring just never fades".

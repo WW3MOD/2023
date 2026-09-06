@@ -380,12 +380,21 @@ namespace OpenRA.Test
 		{
 			var m = Model();
 
-			// The shipped call sites, as retuned in this commit. Kept in step with
-			// weapons-superweapons.yaml and structures.yaml by hand: this table is a viewing aid,
-			// not a binding, so a drift here misleads a reader but breaks nothing.
-			static ShakeParams Air(ShakeParams p)
+			// The shipped call sites. Kept in step with weapons-superweapons.yaml and
+			// structures.yaml by hand: this table is a viewing aid, not a binding, so a drift here
+			// misleads a reader but breaks nothing.
+			//
+			// The two nuclear profiles were retimed on 2026-09-06 when both weapons were rebuilt
+			// around their stated yields. The tactical nuke's blast wave now ends at tick 89 rather
+			// than 213, so its shake is shorter; the strategic one now separates from it in
+			// FREQUENCY (0.50 Hz against 1.30) rather than only in amplitude, because peak
+			// displacement saturates against the model's 22 px ceiling long before 300x of yield
+			// has been spent. Both air-blast stages also carry each weapon's own MEAN front speed
+			// now -- the wave leaves the fireball supersonic, so 7.8 t/cell was only its terminal
+			// value.
+			static ShakeParams Air(ShakeParams p, float ticksPerCell)
 			{
-				p.PropagationTicksPerCell = 7.8f;
+				p.PropagationTicksPerCell = ticksPerCell;
 				return p;
 			}
 
@@ -397,16 +406,17 @@ namespace OpenRA.Test
 
 			var profiles = new[]
 			{
-				("Atomic S1 precursor", Params(25, 4, halfLife: 7, attack: 1, freqScale: 175), 0, 5),
-				("Atomic S2 main shock", Params(90, 13, halfLife: 18, attack: 3), 0, 10),
-				("Atomic S3 coda", Params(260, 6, halfLife: 85, attack: 25, freqScale: 55), 0, 20),
-				("Atomic S4 air blast", Air(Params(70, 5, halfLife: 20, freqScale: 130)), 0, 10),
-				("Atomic S2 @20 cells", Params(90, 13, halfLife: 18, attack: 3), 20 * Cell, 10),
-				("Atomic S4 air @20c", Air(Params(70, 5, halfLife: 20, freqScale: 130)), 20 * Cell, 10),
-				("HighYield S2 main", Params(130, 18, halfLife: 28, attack: 4), 0, 10),
-				("HighYield S3 train", Params(420, 9, halfLife: 150, attack: 40, freqScale: 50), 0, 40),
-				("HighYield S4 coda", Params(500, 4, halfLife: 190, attack: 60, freqScale: 30), 0, 50),
-				("HighYield S2 @60c", Params(130, 18, halfLife: 28, attack: 4), 60 * Cell, 10),
+				("Atomic S1 precursor", Params(20, 4, halfLife: 6, attack: 1, freqScale: 175), 0, 5),
+				("Atomic S2 main shock", Params(60, 13, halfLife: 14, attack: 3), 0, 10),
+				("Atomic S3 coda", Params(130, 6, halfLife: 45, attack: 20, freqScale: 55), 0, 20),
+				("Atomic S4 air blast", Air(Params(45, 5, halfLife: 16, freqScale: 130), 5.9f), 0, 10),
+				("Atomic S2 @10 cells", Params(60, 13, halfLife: 14, attack: 3), 10 * Cell, 10),
+				("Atomic S4 air @10c", Air(Params(45, 5, halfLife: 16, freqScale: 130), 5.9f), 10 * Cell, 10),
+				("HighYield S2 main", Params(110, 20, halfLife: 26, attack: 4, freqScale: 48), 0, 10),
+				("HighYield S3 train", Params(380, 9, halfLife: 140, attack: 40, freqScale: 26), 0, 40),
+				("HighYield S4 coda", Params(450, 4, halfLife: 170, attack: 60, freqScale: 17), 0, 50),
+				("HighYield S5 air blast", Air(Params(120, 7, halfLife: 32, freqScale: 60), 5.8f), 0, 10),
+				("HighYield S2 @60c", Params(110, 20, halfLife: 26, attack: 4, freqScale: 48), 60 * Cell, 10),
 				("Building collapse", Horizon(Params(40, 3, halfLife: 9), 18), 0, 5),
 				("Building @12 cells", Horizon(Params(40, 3, halfLife: 9), 18), 12 * Cell, 5),
 			};

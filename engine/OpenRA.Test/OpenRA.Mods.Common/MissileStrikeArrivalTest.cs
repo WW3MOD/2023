@@ -92,13 +92,15 @@ namespace OpenRA.Test
 
 		// --- (2) what that costs the Atomic warhead -------------------------------------------
 
-		// weapons-superweapons.yaml, Warhead@ThermalVaporize: Spread 3c0, Falloff 100,100,100,50.
+		// weapons-superweapons.yaml, Warhead@ThermalVaporize: Spread 2c768, Falloff 100,100,100,50.
+		// 2816 is the ~50 psi contour at 20 kt; it was 3072 before the 2026-09-06 yield rebuild.
 		static readonly int[] VaporizeFalloff = { 100, 100, 100, 50 };
-		static WDist[] VaporizeRanges => Exts.MakeArray(VaporizeFalloff.Length, i => new WDist(i * 3072));
+		static WDist[] VaporizeRanges => Exts.MakeArray(VaporizeFalloff.Length, i => new WDist(i * 2816));
 
-		// weapons-superweapons.yaml, Warhead@ThermalRadiation: Spread 1c0, 15 falloff steps.
+		// weapons-superweapons.yaml, Warhead@ThermalRadiation: Spread 1c93, 15 falloff steps.
+		// 1117 is the thermal radius (11.9c) divided by the 11 steps that reach it; it was 1024.
 		static readonly int[] ThermalFalloff = { 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0 };
-		static WDist[] ThermalRanges => Exts.MakeArray(ThermalFalloff.Length, i => new WDist(i * 1024));
+		static WDist[] ThermalRanges => Exts.MakeArray(ThermalFalloff.Length, i => new WDist(i * 1117));
 
 		static int InfantryBurstDistance()
 		{
@@ -112,10 +114,12 @@ namespace OpenRA.Test
 			var d = InfantryBurstDistance();
 			var pct = SpreadDamageWarhead.DamageFalloff(d, VaporizeFalloff, VaporizeRanges);
 
-			// The Falloff table is FLAT at 100 out to its third step (6144), which is only 226 short
-			// of the burst distance -- so the innermost band barely notices the altitude. This is
-			// why the airburst does not turn the nuke into a firework.
-			Assert.That(pct, Is.GreaterThan(90),
+			// The Falloff table is FLAT at 100 out to its third step (5632), and the burst distance
+			// is 6370 -- so the innermost band is 738 into its own 50% ramp and keeps ~86%. It used
+			// to keep >90%, when Spread was 3072 and the flat band ran to 6144; shrinking the weapon
+			// to its actual 20 kt moved that. Still nowhere near enough to turn the nuke into a
+			// firework, which is the claim this test exists to hold.
+			Assert.That(pct, Is.GreaterThan(80),
 				$"ThermalVaporize retains {pct}% at the airburst distance {d}");
 			Assert.That(200000 * pct / 100, Is.GreaterThan(1000),
 				"200000 at >90% still vaporises any infantry in the mod");

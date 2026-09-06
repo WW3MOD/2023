@@ -1,0 +1,87 @@
+# Nuclear-yield DEMO overrides. Nothing here is asserted; see map.yaml for the layout and
+# demo-nuke-yield.lua for the schedule.
+#
+# THE ONLY THING THIS FILE INVENTS is the delivery. Both warheads are fired whole and unmodified
+# from a marker vehicle's Explodes, so that the detonation lands on a tick this demo chooses rather
+# than on one a ballistic flight happens to produce. Everything about what the weapons DO lives in
+# mods/ww3mod/rules/weapons/weapons-superweapons.yaml and nothing here overrides any of it.
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# DIMMED, and this is the one knob that matters for what you actually see.
+	#
+	# The fireball light is a LightEvent with Blend: Additive peaking at intensity 7.0. Additive means
+	# it is ADDED to the final colour rather than scaling the ambient (TerrainLighting.Tint), so at
+	# the mod's shipped Intensity 1.0 the peak lands at roughly (8,8,8) and saturates to flat white --
+	# correct behaviour for a nuclear flash, but it means the white -> yellow -> orange -> dull red
+	# cooling ramp is invisible until the intensity has fallen below about 1, i.e. only in the tail.
+	# 0.55 keeps the terrain and the two scorch discs readable while showing the whole ramp.
+	#
+	# This is the ONLY change made to lighting. It affects nothing about the weapons themselves.
+	TerrainLighting:
+		Intensity: 0.55
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, demo-nuke-yield.lua
+
+Player:
+	# 489 actors die here, most of them inside the strategic weapon's 102-cell blast wave. Without
+	# this the match ends on elimination while the wavefront is still travelling -- it does not reach
+	# full radius until tick 797.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored. The subject is the whole 128x128 playfield at once.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# No cash, so nothing can be produced and the only things that happen on this map are the two
+	# detonations.
+	PlayerResources:
+		DefaultCash: 0
+
+# Nothing fights. Every target on this map is Neutral or Russia-owned and none of them ever fires;
+# turning scanning off keeps the frame static so the only things that change are light and blast.
+^Combatant:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+
+# ===== THE TWO PROBES =====
+# NOTE THE CASE on both actor names. MiniYaml merges top-level keys CASE-SENSITIVELY, and the
+# lowercasing of actor names happens after the merge -- so `Bradley:` here would define a second,
+# unrelated actor and override nothing at all, silently. vehicles-america.yaml:298 spells it
+# `bradley` and vehicles-america.yaml spells the other `humvee`; those spellings are copied.
+#
+# EACH Explodes IS GATED ON A CONDITION THE LUA GRANTS TO ONE ACTOR, and that gate is load-bearing
+# rather than tidy. There are eight other bradleys and twelve other humvees standing in the target
+# field, and the strategic weapon kills every one of them. Ungated, this file would turn a single
+# 6 Mt detonation into twenty-one of them. The condition is granted to the named probe ten ticks
+# before it is killed -- conditions are applied in Actor.Tick's update pass, so granting and killing
+# on the same tick would race the trait's enable.
+#
+# Added as new Explodes@ keys rather than overriding the inherited ones: every ENABLED Explodes fires
+# on the same death (Explodes.cs:103), so each probe's own vehicle cookoff still happens underneath
+# the warhead. Weapon and EmptyWeapon are set to the same thing so the payload fires whether or not
+# the engine considers the vehicle empty.
+bradley:
+	ExternalCondition@NukeProbe:
+		Condition: nuke-probe-tactical
+	Explodes@TacticalNuke:
+		Weapon: Atomic
+		EmptyWeapon: Atomic
+		Chance: 100
+		RequiresCondition: nuke-probe-tactical
+
+humvee:
+	ExternalCondition@NukeProbe:
+		Condition: nuke-probe-strategic
+	Explodes@StrategicNuke:
+		Weapon: AtomicHighYield
+		EmptyWeapon: AtomicHighYield
+		Chance: 100
+		RequiresCondition: nuke-probe-strategic
