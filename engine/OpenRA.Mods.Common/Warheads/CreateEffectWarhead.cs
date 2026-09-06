@@ -54,6 +54,14 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("Should the effect be visible through fog of war.")]
 		public readonly bool VisibleThroughFog = false;
 
+		[Desc("WW3MOD: Draw the effect at full brightness over fogged ground, instead of letting the",
+			"fog overlay darken it. Fog is composited over the world after sprites are drawn, so an",
+			"effect large enough to span a fog boundary otherwise shows a hard seam where the",
+			"overlay starts. This moves the draw past the fog layers only -- never-explored ground",
+			"still covers the effect, and no terrain is revealed either way.",
+			"VisibleThroughFog controls whether the effect is drawn at all; this controls how.")]
+		public readonly bool RenderAboveFog = false;
+
 		[Desc("The maximum inaccuracy of the effect spawn position relative to actual impact position.")]
 		public readonly WDist Inaccuracy = WDist.Zero;
 
@@ -147,7 +155,7 @@ namespace OpenRA.Mods.Common.Warheads
 				if (UsePlayerPalette)
 					palette += firedBy.Owner.InternalName;
 
-				world.AddFrameEndTask(w => w.Add(new SpriteEffect(pos + Offset * ScalePercent / 100, w, Image, explosion, palette, visibleThroughFog: VisibleThroughFog, scale: (float)ScalePercent / 100, zOffset: ZOffset)));
+				world.AddFrameEndTask(w => w.Add(new SpriteEffect(pos + Offset * ScalePercent / 100, w, Image, explosion, palette, visibleThroughFog: VisibleThroughFog, scale: (float)ScalePercent / 100, zOffset: ZOffset, renderAboveFog: RenderAboveFog)));
 			}
 
 			var impactSound = ImpactSounds.RandomOrDefault(world.LocalRandom);

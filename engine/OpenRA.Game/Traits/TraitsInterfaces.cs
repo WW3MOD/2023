@@ -475,7 +475,24 @@ namespace OpenRA.Traits
 	public interface IRenderAboveWorld { void RenderAboveWorld(Actor self, WorldRenderer wr); }
 	public interface IRenderShroud
 	{
+		/// <summary>
+		/// Draws the whole shroud stack: the translucent fog layers and then the opaque
+		/// unexplored layer over them.
+		/// </summary>
 		void RenderShroud(WorldRenderer wr);
+
+		/// <summary>
+		/// WW3MOD: draws ONLY the translucent fog layers (visibility 1..VisionLayers-2), leaving the
+		/// opaque unexplored layer undrawn. Paired with <see cref="RenderUnexplored"/> so that
+		/// <see cref="Effects.IEffectAboveFog"/> renderables can be slotted between the two.
+		/// </summary>
+		void RenderFog(WorldRenderer wr);
+
+		/// <summary>
+		/// WW3MOD: draws ONLY the opaque unexplored layer (index 0). Must follow
+		/// <see cref="RenderFog"/>; the pair together is exactly <see cref="RenderShroud"/>.
+		/// </summary>
+		void RenderUnexplored(WorldRenderer wr);
 
 		/// <summary>
 		/// Multiplier applied to each fog layer's alpha; 1 is the engine baseline. Exposed so the
