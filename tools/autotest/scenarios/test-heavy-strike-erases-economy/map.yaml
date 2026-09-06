@@ -1,0 +1,124 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a heavy strike erases an income structure; a tank shell cannot scratch one
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES — the two halves of the killable-economy feature, which fail in opposite
+# directions and are therefore both asserted in one run rather than split:
+#
+#   1. HEAVY ORDNANCE DESTROYS, AND THE DESTRUCTION IS PERMANENT. A tactical nuclear strike lands on
+#      NukedDerrick, which must die AND must leave no oilb.husk behind. The husk is the whole point:
+#      ^TechBuildingHusk carries InfiltrateForTransform, so a wreck that survives is an income
+#      structure one engineer walks back into existence. That is the defect the user reported --
+#      "the destruction of money structures are not fully destroyed, they leave the repairable wreck
+#      behind that can be repaired by engineer."
+#
+#   2. ORDINARY WEAPONS DO NOTHING. A t90 force-fires its main gun into ShelledDerrick's footprint
+#      for 250 ticks and the derrick must finish at full health. Before this feature that was true
+#      of EVERY weapon in the game including the nuke; the risk now is the opposite one, that
+#      opening the door for heavy ordnance opened it for everything.
+#
+#   3. AND CONVENTIONAL DEATH IS STILL RECOVERABLE. KilledDerrick is killed from Lua with NO damage
+#      types, standing in for the engineer-C4 path that ExcludedDeathTypes deliberately does not
+#      catch. Its husk MUST appear. Without this arm, "no husk after the nuke" would also pass if
+#      someone deleted SpawnActorOnDeath outright -- which would break repair as a mechanic, the one
+#      thing the amendment said not to do.
+#
+# GEOMETRY IS INHERITED WHOLESALE from test-tacnuke-delivers so the edge derivation does not have to
+# be redone; only the victims differ. Russia HomeLocation 6,17, Bounds Rectangle(1,1,64,32) ->
+# Map.ChooseClosestEdgeCell gives entry cell (1,17), 39 cells from the aim point at 40,17, 44 flight
+# ticks at Speed 900. See that scenario's header for the full working.
+#
+# THE MAP FILE is the flat blank 66x34 shared by test-capture-rules (identical map.bin hash), which
+# already places three `oilb` at y=16 and proves the terrain takes a 2x2 tech building anywhere.
+#
+# VICTIM PLACEMENT IS CONSTRAINED BY THE BLAST, not chosen freely. Atomic's Warhead@BlastWave has
+# MaxRadius 30c0, so anything within 30 cells of 40,17 is inside the general detonation; what keeps
+# the two control derricks intact is the TARGET-TYPE TABLE, exactly as it keeps the Supply Routes
+# intact in test-tacnuke-delivers. The new Warhead@TechStructure is the only warhead on the weapon
+# that can reach a tech building at all, and its falloff runs out at 12 cells:
+#   NukedDerrick   40,16 -> 0 cells from the aim point. Inside 12. DIES.
+#   KilledDerrick  20,29 -> 23 cells. Outside 12, inside the 30c blast. Survives the nuke, and is
+#                           killed from script instead so its husk arm is not a blast artefact.
+#   ShelledDerrick  8,29 -> 34 cells. Outside everything.
+# Do NOT re-space these on the assumption that distance is what protects them: for the two controls
+# it is distance from ONE warhead, and for the Supply Routes it is not distance at all.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 6,17
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 58,17
+
+Actors:
+	# One Supply Route per side so neither player is eliminated before the poller writes a verdict
+	# (AUTOTEST.md map.yaml rule 6). Both survive the 30-cell blast for the target-type reason above.
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 6,17
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 58,17
+
+	# THE AIM POINT. USA-owned rather than Neutral so this is the real case -- a player striking an
+	# enemy's economy -- and so the income consequence reported in the verdict is a real player's.
+	# oilb: 50000 HP, CashTrickler 50. Atomic's Warhead@TechStructure is 200000 at Penetration 5000,
+	# so arrival means death with no ambiguous middle.
+	NukedDerrick: oilb
+		Owner: USA
+		Location: 40,16
+
+	# THE HUSK CONTROL. Killed from Lua with no damage types, so ExcludedDeathTypes does not match
+	# and SpawnActorOnDeath must fire exactly as it always did.
+	KilledDerrick: oilb
+		Owner: USA
+		Location: 20,29
+
+	# THE LIGHT-WEAPON CONTROL, and its shooter three cells away.
+	ShelledDerrick: oilb
+		Owner: USA
+		Location: 8,29
+	Shooter: t90
+		Owner: Russia
+		Location: 8,26
+		Facing: 512
+
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+Rules: rules.yaml

@@ -159,8 +159,39 @@
 
 ^TechBuilding:
 	Inherits: ^BasicBuilding
+	# THIS TRAIT IS THE ENTIRE PROTECTION MODEL FOR THE NEUTRAL TECH BUILDINGS, and it is worth being
+	# explicit because it is easy to misread as toughness. It OVERRIDES the `Targetable` inherited
+	# from ^BasicBuilding (`Ground, C4, DetonateAttack, Structure`) and DROPS `Ground` and
+	# `Structure`. WeaponInfo.IsValidAgainst and Warhead.IsValidAgainst both require an overlap
+	# between the firer's ValidTargets and the victim's enabled target types (WeaponInfo.cs:223,
+	# Warhead.cs:57), so a type nothing lists is a type nothing can hit -- splash included.
+	#
+	# So these buildings were never invulnerable in the ^TreeIndestructible sense (DamageMultiplier
+	# Modifier: 0, decoration.yaml:135). They are UNTARGETABLE. Their HP (25000-55000) and their
+	# `Armor: Concrete` are real numbers that were simply never consulted, because targeting fails
+	# before any damage is computed. Do not "fix" a weapon that cannot hurt one by raising its
+	# damage; check its ValidTargets.
+	#
+	# `TechStructure` (added 2026-09-06) is the opt-in that makes the heavy/light split a DECLARED
+	# CLASS rather than a coincidence of damage tables. The whole roster of weapons that list it is
+	# rules/weapons/weapons-heavy-ordnance.yaml -- one file, deliberately, so a weapon author can
+	# read the line in one place instead of reverse-engineering it from Versus tables.
+	#
+	# THE THREE TYPES THAT WERE ALREADY HERE ALL STAY, and each does a job:
+	#   NoAutoTarget   -- AutoTargetPriorityInfo.InvalidTargets defaults to exactly this
+	#                     (AutoTargetPriority.cs:27), so no unit and no bot ever ACQUIRES one of
+	#                     these on its own. Adding TechStructure does not change that: a heavy
+	#                     weapon can be aimed at one, never drawn to one.
+	#   C4             -- the engineer demolition path (PlaceC4, weapons-other.yaml:589). This was
+	#                     the ONLY way to kill a tech building before this change and it still works.
+	#   DetonateAttack -- vestigial; no weapon in the mod lists it.
+	#
+	# DELIBERATELY NOT `Structure`: that type is what the Atomic/AtomicHighYield Warhead@Fire1-10
+	# blocks target to grant `onfire`, and ^BuildingAffectedByFire's ChangesHealth@BurnDamage carries
+	# NO DamageTypes at all. A burn tick killing a derrick would therefore be an un-attributable
+	# death that spawns a restorable husk, quietly defeating the permanence rule below.
 	Targetable:
-		TargetTypes: NoAutoTarget, C4, DetonateAttack
+		TargetTypes: NoAutoTarget, C4, DetonateAttack, TechStructure
 	Huntable:
 	Health:
 		HP: 60000

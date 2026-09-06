@@ -249,6 +249,10 @@ Weapons:
 	ww3mod|rules/weapons/weapons-missiles.yaml
 	ww3mod|rules/weapons/weapons-other.yaml
 	ww3mod|rules/weapons/weapons-superweapons.yaml
+	# LAST, and that is load-bearing. This file ADDS a Warhead@TechStructure node to weapons
+	# defined above it (Atomic, AtomicHighYield, MOPPenetration, IskanderExplosion) rather than
+	# redefining any existing field, so it must merge on top of them. See its own header.
+	ww3mod|rules/weapons/weapons-heavy-ordnance.yaml
 
 Voices:
     ww3mod|rules/sound/voices.yaml
