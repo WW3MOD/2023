@@ -66,27 +66,6 @@ namespace OpenRA.Mods.Common.Traits
 			"Normal rules apply for subsequent charges.")]
 		public readonly bool StartFullyCharged = false;
 
-		[Desc("BUY this power from a production queue instead of charging it on a timer.",
-			"",
-			"With this set, ChargeInterval is IGNORED (SupportPowerInstance forces TotalTicks to 0)",
-			"and readiness comes from a bank of purchased shots instead: the cameo is ABSENT from the",
-			"support bin until a purchase completes, appears fully charged the moment it does, and",
-			"disappears again when the last banked shot is fired. One purchase is one shot; buying",
-			"again while a shot is banked stacks, and the cameo then reads 'x2' rather than 'READY'.",
-			"",
-			"The buying end is SupportPowerProductionQueue plus a bodiless proxy actor carrying",
-			"ProvidesSupportPowerCharge that names this power's OrderName. Setting this true WITHOUT",
-			"a proxy actor makes the power permanently unreachable -- there is no timer left to fall",
-			"back to -- and nothing lints for it.",
-			"",
-			"DEFAULT FALSE, and every timer-charged power in every mod keeps its exact current",
-			"behaviour: SupportPowerChargeBank degenerates to a no-op when this is not set.",
-			"",
-			"NOTE for a power with a CUSTOM SupportPowerInstance subclass: if that subclass overrides",
-			"IconOverlayTextOverride it replaces the stacked-charge 'x2' readout, because the override",
-			"wins. Nothing else in the purchase model is affected.")]
-		public readonly bool RequiresPurchase = false;
-
 		public readonly string[] Prerequisites = Array.Empty<string>();
 
 		public readonly string DetectedSound = null;

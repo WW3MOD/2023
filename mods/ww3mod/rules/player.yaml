@@ -91,20 +91,6 @@ Player:
 		# OnHoldAudio: OnHold
 		# CancelledAudio: Cancelled
 		BuildTimeSpeedReduction: 100, 75, 50, 25, 20, 15, 10, 8, 7, 6, 5
-	# The POWERS tab. Sits below Aircraft in the sidebar (chrome/ingame-player.yaml,
-	# ProductionTypeButton@POWERS at Y: 93); DisplayOrder here only affects the Spectator UI.
-	#
-	# Its items are the bodiless proxy actors in rules/powers.yaml, not units. Completing one banks
-	# a shot on the matching power instead of spawning anything -- see SupportPowerProductionQueue.
-	#
-	# NO BuildTimeSpeedReduction, unlike every queue above: that array scales build time by how many
-	# production buildings you own, and a player has exactly one Supply Route. Listing it would be
-	# decorative, and decorative numbers get believed.
-	SupportPowerProductionQueue@Powers:
-		Type: Powers
-		DisplayOrder: 5
-		BlockedAudio: NoBuild
-		BlockedTextNotification: Unable to build more.
 	# ClassicProductionQueue@Fakestructure:
 	# 	Type: Fakestructure
 	# 	Factions: america, russia
@@ -131,15 +117,9 @@ Player:
 		Icon: precicon
 		Name: Kh-47M2 Kinzhal
 		Description: Hypersonic missile strike called in from off-map reserves.\nEnters from the map edge nearest your Supply Route.\nSAM sites can engage it, but rarely stop it.
-		# BOUGHT, NOT CHARGED (2026-09-06, at the user's request: "I want the powers to have their
-		# own tab in the build menu ... where we actually have to buy them, before they pop up in
-		# the side (and at that point they are already fully loaded)"). This is the buy/bank model
-		# the Phase-2 note below was waiting on, and it is now wired.
-		#
-		# ChargeInterval IS GONE, not set to a large number: SupportPowerInstance forces TotalTicks
-		# to 0 when RequiresPurchase is set, so any value left here would be inert. The price that
-		# replaced it lives on power.kinzhal in rules/powers.yaml.
-		RequiresPurchase: True
+		# 3000 ticks x 0.06 s (world.yaml Timestep: 60) = 180 s = 3 min. NOT 120 s: the 25 tps
+		# figure asserted by several in-tree comments understates every duration by 1.5x.
+		ChargeInterval: 3000
 		Cursor: nuke
 		MissileActor: kinzhalmissile
 		# 150 ticks x 0.06 s = 9.0 s between the click and the missile appearing at the map edge, on top
@@ -226,10 +206,7 @@ Player:
 		Icon: precicon
 		Name: GBU-57 Bunker Buster
 		Description: Massive Ordnance Penetrator dropped on the target area.\nDevastating against hardened structures, weak against armour.\nEnters from the map edge nearest your Supply Route.
-		# BOUGHT, NOT CHARGED. See the note on the Kinzhal above; the price is on power.gbu57 in
-		# rules/powers.yaml, and it is the same 5000, for the same reason this ChargeInterval used
-		# to match the Kinzhal's 3000.
-		RequiresPurchase: True
+		ChargeInterval: 3000
 		Cursor: nuke
 		MissileActor: gbu57bomb
 		# 300 ticks x 0.06 s = 18.0 s, DOUBLE the Kinzhal's, on top of ~80 ticks of flight at Speed 500.
@@ -296,12 +273,7 @@ Player:
 		Icon: abomb
 		Name: Tactical Nuclear Strike
 		Description: Low-yield nuclear warhead delivered from off-map reserves.\nDevastates a wide area and sets everything in it alight.\nEnters from the map edge nearest your Supply Route.
-		# BOUGHT, NOT CHARGED. Price 15000 on power.tacnuke in rules/powers.yaml -- the same figure
-		# the Phase-2 note below quotes from the proposal, now actually charged. The lobby gate
-		# above is UNAFFECTED and still comes first: RequiresCondition making the trait disabled
-		# also makes SupportPowerInstance.Permitted false, and the buy tab filters on exactly that,
-		# so a host who leaves this unticked gets no shop entry rather than an unaffordable one.
-		RequiresPurchase: True
+		ChargeInterval: 11250
 		Cursor: nuke
 		MissileActor: tacnukemissile
 		# 14c256 = 14592, NOT the 8c0 the two conventional strikes use, and the number is derived rather
@@ -412,12 +384,11 @@ Player:
 		Icon: abomb
 		Name: Strategic Nuclear Strike
 		Description: High-yield strategic warhead delivered from off-map reserves.\nA single detonation devastates the entire battlefield.\nEnters from the map edge nearest your Supply Route.
-		# BOUGHT, NOT CHARGED, and this is the wholesale replacement the placeholder that stood here
-		# predicted: "the doomsday mechanic this weapon is being built for will almost certainly not
-		# charge it on a timer at all". Price 25000 on power.highyieldnuke in rules/powers.yaml --
-		# a new number, since the proposal's 15000 was written when there was one nuke. Same lobby
-		# note as @TacNuke: unticking the host option removes the shop entry, not just the cameo.
-		RequiresPurchase: True
+		# A PLACEHOLDER, and a longer one than @TacNuke's 11250 on purpose: 22500 ticks is 22.5 min at
+		# Timestep 60, so within a normal match this fires at most once. The doomsday mechanic this
+		# weapon is being built for will almost certainly not charge it on a timer at all, and this
+		# number is expected to be replaced wholesale rather than tuned.
+		ChargeInterval: 22500
 		Cursor: nuke
 		MissileActor: highyieldnukemissile
 		# 31c0 = 31744. DERIVED, not picked: 31744 - 15360 (DetonationAltitude below) = 16384, sixteen
