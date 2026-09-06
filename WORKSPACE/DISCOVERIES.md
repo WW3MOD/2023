@@ -37,7 +37,7 @@ And **`PruneLanes` has no losing-lane retire**: it releases the dead, the reclai
 (`:450-490`), so a posted pair holds its cell through contact with nothing to pull it back. Zero
 `[exp-ambush] retire` lines in any of the three runs.
 
-## 2026-09-06 - Two in-tree documents give incompatible causes for the same 2026-08-15 `everCarried=0` reading, and the engine code supports neither cleanly (`wt/item64-rem`, base `main @ b6207b9b`)
+## 2026-09-06 - Two in-tree documents give incompatible causes for the same 2026-08-15 `everCarried=0` reading, and the engine code supports neither cleanly **[SETTLED SAME DAY - `IsDead` is FALSE for a passenger; see the resolution paragraph at the end of this entry]**
 
 `DOCS/recipes/AUTOTEST.md:331` states, as measured, that **`IsDead` is true for a passenger inside a `Cargo`**,
 that the idiom `not r.IsDead and not r.IsInWorld` is therefore unsatisfiable for exactly the units it is meant
@@ -62,6 +62,22 @@ account and needs neither settled to produce a valid run. Its new positional rol
 `oow/dead=true|false` for each out-of-world rifleman, so **the next run of that scenario settles the `IsDead`
 question as a side effect, at zero cost.** Until then, treat both documents' causal claims as open; the
 OBSERVATION (`everCarried` stuck at 0 while carriage demonstrably happened) is not in dispute.
+
+**RESOLVED 2026-09-06, by the roll this entry proposed.** Run `260906_091912_p10120_test-combined-arms-rendezvous`
+(`main @ fc89296a`) printed `oow/dead=false` for all four riflemen on every roll while they were demonstrably aboard
+the carrier. **`IsDead` is FALSE for a boarded passenger**, exactly as `Actor.cs:76` + `World.cs:404-412` predict, so
+`AUTOTEST.md:331`'s mechanism claim is wrong and is corrected in tree. The likely real cause of the 2026-08-15
+reading is sitting in the paragraph immediately ABOVE it in the same file: the eagerly-evaluated failure message,
+which reports `everCarried=0 peakPax=0` while the live trace in the same run reads `everCarried=3 peakPax=2` - the
+same three numbers the `IsDead` paragraph quotes. **One observation, read twice, attributed to two causes, in two
+adjacent paragraphs of one document.** The binding-order claim in `test-transport-delivers.lua:38-42` is also not
+supported (map actors are registered before the chunk executes), but it was labelled "suspected" and cost nobody
+anything.
+
+**The transferable part is still the method, and it got cheaper than expected.** The scenario was made correct under
+BOTH accounts rather than under the winner, so it produced a valid run *and* the evidence that settled the dispute,
+in the same run, at no extra cost. When two documents disagree about a mechanism, the cheapest move is usually to
+make the disagreement irrelevant and print the raw flag.
 
 ## 2026-09-06 - A scenario's timeout diagnostic can be frozen at tick 0 and read as a confident accusation, and the eagerly-evaluated-string trap is documented one directory away (`wt/item64-rem`, base `main @ b6207b9b`)
 
