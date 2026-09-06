@@ -32,9 +32,11 @@
 -- SO: something is lit from t=1 to t=850, which is 51 seconds. The most informative single frame is
 -- around t=280, when the double flash is at its second peak.
 --
--- THE CAMERA CANNOT BE ZOOMED FROM LUA (CameraGlobal exposes Position and nothing else). This centres
--- on 32,16, the middle of the row of five sites. On a 64-wide map the default zoom shows roughly half
--- the row; zoom out one step to get all five on screen at once.
+-- THE DEMO ZOOMS ITSELF. This centres on 32,16, the middle of the row of five sites, and halves the
+-- zoom: on a 64-wide map the default level shows roughly half the row, so 0.5 puts all five on
+-- screen at once. Camera.Zoom is a multiple of the default level and is clamped to
+-- Camera.MinZoom..Camera.MaxZoom, so this is a no-op rather than an error on a display whose floor
+-- happens to be higher than 0.5.
 
 local WarheadTick = 160
 
@@ -51,6 +53,7 @@ end
 WorldLoaded = function()
 	-- Cell centre in world coordinates is cell * 1024 + 512.
 	Camera.Position = WPos.New(32 * 1024 + 512, 16 * 1024 + 512, 0)
+	Camera.Zoom = 0.5
 
 	-- Map actor names are bound as globals by the time WorldLoaded runs, so these are the actors placed
 	-- in map.yaml. Named one per line rather than looked up from a table of strings: this Lua runtime is

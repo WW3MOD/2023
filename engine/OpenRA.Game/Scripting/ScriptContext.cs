@@ -144,6 +144,12 @@ namespace OpenRA.Scripting
 		readonly MemoryConstrainedLuaRuntime runtime;
 		readonly LuaFunction tick;
 
+		// Callbacks registered through Trigger.OnTick. A LIST, deliberately: they are invoked in
+		// registration order, which is script-load order and therefore identical on every client.
+		// A hash-ordered container here would make the invocation order an implementation detail
+		// and any simulation side effect a script performs from a tick callback a desync.
+		readonly List<LuaFunction> tickCallbacks = new List<LuaFunction>();
+
 		readonly Type[] knownActorCommands;
 		public readonly Cache<ActorInfo, Type[]> ActorCommands;
 		public readonly Type[] PlayerCommands;
@@ -324,15 +330,59 @@ namespace OpenRA.Scripting
 			}
 		}
 
+		/// <summary>
+		/// Register a function to be called once per world tick, as func(). Unlike the single global
+		/// <c>Tick</c> function, several callbacks can coexist; they run in registration order after
+		/// the global <c>Tick</c>. The context takes ownership of <paramref name="func"/> and disposes
+		/// it with the runtime.
+		/// </summary>
+		public void RegisterTickCallback(LuaFunction func)
+		{
+			tickCallbacks.Add((LuaFunction)func.CopyReference());
+		}
+
+		/// <summary>Drop every callback registered through <see cref="RegisterTickCallback"/>.</summary>
+		public void ClearTickCallbacks()
+		{
+			foreach (var f in tickCallbacks)
+				f.Dispose();
+
+			tickCallbacks.Clear();
+		}
+
 		public void Tick()
 		{
-			if (FatalErrorOccurred || disposed || tick == null)
+			if (FatalErrorOccurred || disposed)
 				return;
 
 			try
 			{
 				using (new PerfSample("tick_lua"))
-					tick.Call().Dispose();
+				{
+					tick?.Call().Dispose();
+
+					// Indexed against a count snapshotted BEFORE the loop, not foreach and not a
+					// live Count. A callback is allowed to register another one — that is the
+					// self-rescheduling idiom scenarios already write with AfterDelay — and both
+					// alternatives are wrong: mutating the list under an enumerator throws, and
+					// re-reading Count each iteration runs anything appended during this tick in
+					// the same tick, so a callback that re-registers itself would spin forever
+					// inside one World.Tick. Snapshotting bounds the per-tick work and makes a
+					// registration take effect on the next tick, which is what "once per tick"
+					// has to mean.
+					// The live Count is checked TOO, against the snapshot shrinking out from under
+					// the loop: a callback may call Trigger.ClearTickCallbacks, which empties the
+					// list and disposes every reference in it. Without the second bound that is an
+					// index past the end, and a use-after-dispose before it.
+					var count = tickCallbacks.Count;
+					for (var i = 0; i < count && i < tickCallbacks.Count; i++)
+					{
+						if (FatalErrorOccurred || disposed)
+							return;
+
+						tickCallbacks[i].Call().Dispose();
+					}
+				}
 			}
 			catch (LuaException e)
 			{
@@ -346,6 +396,13 @@ namespace OpenRA.Scripting
 				return;
 
 			disposed = true;
+
+			// Before the runtime, which owns the underlying Lua state these references point into.
+			foreach (var f in tickCallbacks)
+				f.Dispose();
+
+			tickCallbacks.Clear();
+
 			runtime?.Dispose();
 		}
 

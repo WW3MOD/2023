@@ -274,6 +274,27 @@ The error is in the lenient direction, which is why nothing has broken and nobod
 | `Test.Screenshot(label, note?)` | Capture a PNG tagged `label`. Path is emitted into the verdict JSON's `screenshots[]` array; agent reads + evaluates. See [`SCREENSHOT.md`](SCREENSHOT.md). |
 | `Test.IssueEnterTransport(passenger, transport, queued?)` | Issue a real EnterTransport order through Passenger.ResolveOrder. Use this rather than `unit.EnterTransport(t)` when the test needs the resulting RideTransport activity to be visible to target-line scans (e.g. spread / Shift-G logic). |
 | `Test.GroupScatter({actors})` | Run the Group Scatter (Shift-G) spread on the given actors. Mimics the hotkey path without needing a key press / live selection. |
+| `Test.SetZoom(scale)` | Set zoom as a multiple of the default level, for reproducible screenshots. Identical to `Camera.Zoom` below, which is ungated — prefer that unless the call site reads better as staging. |
+
+### Presentation: `Camera.*`, `Trigger.OnTick` (engine globals, NOT test-mode gated)
+
+These work in demos and real missions too. The demo-facing version of this table, with
+worked guidance on framing a shot, is in [`DEMO.md`](DEMO.md#frame-the-shot-yourself--the-viewer-should-not-have-to).
+
+| Function | Effect |
+|---|---|
+| `Camera.Position` | Read/write the centre of the view as a `WPos`. |
+| `Camera.Zoom` | Read/write zoom as a **multiple of the default level** (`1` = default, `<1` further out, `>1` closer in). Clamped to `Camera.MinZoom`..`Camera.MaxZoom`; an out-of-range write is applied as far as it goes, not an error. Deliberately not the engine's raw `Viewport.Zoom`, which is resolution-dependent and so frames differently on the author's machine and the viewer's. |
+| `Camera.MinZoom` / `Camera.MaxZoom` | The achievable range, same units. Read them rather than assuming — they depend on the display and the viewport-distance setting. |
+| `Trigger.OnTick(func)` | Call `func()` once per world tick. Several may be registered; they run in registration order after the global `Tick` function. **Prefer this to a self-rescheduling `Trigger.AfterDelay(1, ...)` loop**, which allocates a `DelayedAction` and a frame-end task every tick to do the same thing. |
+| `Trigger.ClearTickCallbacks()` | Drop every `OnTick` callback. |
+
+**Camera state is CLIENT-LOCAL.** Writing it cannot affect the simulation — nothing
+sync-hashed reads the viewport, which `ViewportIsNotSimulationStateTest` asserts by IL scan.
+*Reading* it and branching simulation behaviour on the result would desync a multiplayer
+match, exactly as branching on `Camera.Position` already would. `Trigger.OnTick` is the
+opposite: it runs inside the simulation on the same `World.Tick` as the global `Tick`
+function, so simulation work from a tick callback is fine.
 
 ### Useful actor methods (existing OpenRA Lua API + WW3MOD additions)
 

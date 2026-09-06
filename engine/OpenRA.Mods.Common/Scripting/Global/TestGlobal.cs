@@ -176,10 +176,11 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (!TestMode.IsActive)
 				return 0;
 
+			// Same units and same clamping as Camera.Zoom, which is the ungated form of this and the
+			// one a demo or a mission script should reach for. Kept because scenarios call it, and
+			// because Test.* reads as "staging, not gameplay" at a call site.
 			var viewport = Context.WorldRenderer.Viewport;
-
-			// Zoom has no public setter — AdjustZoom applies an exponential delta and does the clamping.
-			viewport.AdjustZoom((float)Math.Log(viewport.MinZoom * scale / viewport.Zoom));
+			viewport.SetZoom((float)(viewport.MinZoom * scale));
 			return viewport.Zoom / viewport.MinZoom;
 		}
 

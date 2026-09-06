@@ -36,10 +36,11 @@
 -- 35-50 cells out: the inner rings are already gone, the middle band is burning, and the outer
 -- rings are still intact and untouched, so all three states are on screen at once.
 --
--- THE CAMERA CANNOT BE ZOOMED FROM LUA. CameraGlobal exposes Position and nothing else
--- (CameraGlobal.cs), so this centres on ground zero and leaves zoom to whoever is watching. On a
--- 128x128 map the default zoom shows perhaps a third of the playfield; zoom out to see the whole
--- blast. That is a limitation of the scripting API, not of the staging.
+-- THE DEMO ZOOMS ITSELF. Camera.Zoom is a multiple of the default level, so Camera.MinZoom is as
+-- far out as this display goes -- deliberately read rather than hardcoded, because the floor is
+-- derived from the viewer's resolution and viewport-distance setting. At the default level a
+-- 128x128 map shows perhaps a third of the playfield, which is not enough for a blast that reaches
+-- 102 cells; the viewer used to be told to zoom out by hand.
 --
 -- The power stays available afterwards (rules.yaml sets ChargeInterval 400 = 24 s), so the viewer
 -- can fire it again anywhere they like.
@@ -76,6 +77,7 @@ WorldLoaded = function()
 
 	-- Cell centre in world coordinates is cell * 1024 + 512.
 	Camera.Position = WPos.New(GroundZero.X * 1024 + 512, GroundZero.Y * 1024 + 512, 0)
+	Camera.Zoom = Camera.MinZoom
 
 	-- Pre-selected so the support-power bin is on screen without the viewer clicking first.
 	TestHarness.Select(OwnSR)

@@ -86,10 +86,26 @@ namespace OpenRA.Graphics
 		public float MinZoom { get; private set; } = 1f;
 		public float MaxZoom { get; private set; } = 4f;
 
+		/// <summary>
+		/// The lowest zoom the viewport will actually accept, which is NOT <see cref="MinZoom"/>.
+		/// WW3MOD leaves <c>unlockMinZoom</c> on for everyone (field initialiser above, and nothing
+		/// in the tree ever clears it), so the real floor in normal play is MinZoom * 0.25 — the
+		/// same place the mouse wheel already stops. <see cref="UpdateViewportZooms"/> sizes the
+		/// renderer's maximum viewport to exactly this, so it is also the point past which a
+		/// zoom-out would ask for a sheet larger than the one allocated for it.
+		/// </summary>
+		public float EffectiveMinZoom => unlockMinZoom ? unlockedMinZoom : MinZoom;
+
+		/// <summary>Set zoom directly, clamped to the same range <see cref="AdjustZoom"/> uses.</summary>
+		public void SetZoom(float value)
+		{
+			Zoom = value.Clamp(EffectiveMinZoom, MaxZoom);
+		}
+
 		public void AdjustZoom(float dz)
 		{
 			// Exponential ensures that equal positive and negative steps have the same effect
-			Zoom = (zoom * (float)Math.Exp(dz)).Clamp(unlockMinZoom ? unlockedMinZoom : MinZoom, MaxZoom);
+			SetZoom(zoom * (float)Math.Exp(dz));
 		}
 
 		public void AdjustZoom(float dz, int2 center)
@@ -231,7 +247,7 @@ namespace OpenRA.Graphics
 			else
 				Zoom = Zoom.Clamp(MinZoom, MaxZoom);
 
-			var minZoom = unlockMinZoom ? unlockedMinZoom : MinZoom;
+			var minZoom = EffectiveMinZoom;
 			var maxSize = 1f / minZoom * new float2(Game.Renderer.NativeResolution);
 			Game.Renderer.SetMaximumViewportSize(new Size((int)maxSize.X, (int)maxSize.Y));
 
