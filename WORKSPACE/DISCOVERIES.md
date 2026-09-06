@@ -21340,3 +21340,74 @@ parks or drives away is still fetched from, and nothing deadlocks). `SupplyProvi
 ## 2026-09-06 — `./utility.sh --check-yaml <map>` cannot run from Git Bash on this machine: `make` is absent (main @ 8802a781)
 
 `utility.sh:7` is `command -v make || { echo "The OpenRA mod SDK requires make."; exit 1; }` — it exits before touching dotnet. `which make` finds nothing in Git Bash here (no GnuWin32/chocolatey/msys make), so the single-map lint recipe in CLAUDE.md's routing table fails with exit 1 and a one-line stderr on this machine; `.\make.ps1 test` (PowerShell) is unaffected and is how the merge gate has been running. Working single-map form, verified on `test-supply-safe-front-keeps-cargo` (`Testing map:` printed, exit 0): from the repo root, `cd engine && MOD_SEARCH_PATHS="<repo>/mods,<engine>/mods" ENGINE_DIR=".." dotnet bin/OpenRA.Utility.dll ww3mod --check-yaml ../tools/autotest/scenarios/<name>` — i.e. `utility.sh:54` by hand (`:32` is where it builds MOD_SEARCH_PATHS; use Windows-style paths from `pwd -W`). Hypothesis, unverified: `run-test.sh` does not gate on make (it ran), so this only bites the lint recipe.
+
+
+## 2026-09-06 — "Fast projectiles look like 16 fps" is a POSITION rate, not a frame rate, and the fix has a hard ceiling at the smoke trail (main @ 6e5721ae)
+
+**Rendering was never the bottleneck.** `Settings.cs` ships `CapFramerate = false` and
+`CapFramerateToGameFps = false`, and `Game.Loop` (`Game.cs:1030-1075`) renders on its own cadence while
+forcing at least one frame per logic tick. The screen already updates far more often than the world.
+What updates 16.67 times a second is the POSITION: `mods/ww3mod/mod.yaml:382` sets `Timestep: 60`.
+
+**The step, in pixels.** `mod.yaml:329` is `TileSize: 24,24`, so one cell (1024 WDist) is 24 px at 100%
+zoom and 1 WDist is 0.0234 px. Per visible step, at 100% zoom:
+
+| actor / projectile | WDist/tick | px/step | covered by `SubTickMotionSmoothing`? |
+|---|---|---|---|
+| `KinzhalMissile` cruise / terminal | 2000 / 2400 | 46.9 / 56.3 | yes |
+| `TacNukeMissile` | 900 | 21.1 | yes |
+| `IskanderMissile` | 600 | 14.1 | yes |
+| `HighYieldNukeMissile` | 550 | 12.9 | yes |
+| `HIMARSMissile`, `GBU57Bomb` | 500 | 11.7 | yes |
+| `^TankRound` `Bullet` (`weapons-ballistics.yaml:845`) | 1200 | 28.1 | **no** |
+| `^30mm` tracer `Bullet` (`weapons-ballistics.yaml:587`) | 900 | 21.1 | **no** |
+| guided `Missile` (`weapons-missiles.yaml:360`) | 850 | 19.9 | **no** |
+
+The split is actor-vs-effect, not fast-vs-slow. All six missiles are ACTORS (`BallisticMissile`, all
+inheriting `^ShootableMissile` at `mods/ww3mod/rules/defaults.yaml:1074`), so they render through
+`Actor.Render` → `IRenderModifier.ModifyRender` (`Actor.cs:365-371`) and an `OffsetBy` on every
+renderable moves body, shadow and attachments as one. `Bullet` and `Missile` are `IProjectile`
+implementations that return renderables from `IEffect.Render` and never touch that path — **the second
+fastest thing on the screen, a tank round at 28 px/step, is not covered.**
+
+**Why the projectiles were not simply done too.** `Bullet` (`Projectiles/Bullet.cs:152`) and `Missile`
+(`Projectiles/Missile.cs:211`) are both `IProjectile, ISync`. `IEffect.Render` is not an `IRender*`
+interface, so it does not qualify for the render-entry-point exemption that
+`ViewportIsNotSimulationStateTest` and the new `SubTickClockIsNotSimulationStateTest` both grant. A
+projectile reading the sub-tick clock therefore fails the guard as a genuine offender, and widening the
+exemption to `IEffect` would silently re-open it for every other effect too.
+
+**Every `ConditionalTrait<T>` is `ISync`** (`Traits/Conditions/ConditionalTrait.cs:41`, for its
+`IsTraitDisabled` flag). "No `ISync` type reads this wall-clock value" is therefore **not a reachable
+bar** for any trait that wants a `RequiresCondition` — the guard has to exempt render entry points and
+then pin the exempted set to a list, which is what the new fixture does.
+
+**A paused world still renders.** `World.Tick` skips the whole simulation when `Paused`
+(`World.cs:500`), but `Game.Loop` keeps calling `LogicTick` and keeps advancing `nextLogic`, so any
+wall-clock sub-tick fraction keeps sweeping 0 → 1 → 0 with nothing moving. Anything that extrapolates
+from a per-tick velocity must stop at the pause or the sprite visibly oscillates at the tick rate. The
+gate is now `World.SimulationIsAdvancing` (`World.cs:534`), written as the same expression `Tick` branches on so the two
+cannot drift.
+
+**THE CEILING: the smoke trail cannot be smoothed, and the gap to it now breathes.** `LeavesTrailsCA`
+is `ITick` and spawns a STATIC `SpriteEffect` at a fixed world position (`LeavesTrailsCA.cs:156,160`) —
+once dropped, a puff never moves, so there is nothing to predict. Worse, `SpawnAtLastPosition` defaults
+**true** (`:75`) and `KinzhalMissile` does not override it (`vehicles-russia.yaml:1250-1254`), so the
+puff spawns at `cachedPosition` — the position ONE TICK AGO — not at the current one. With
+`MovingInterval: 1` and `Offsets: -650, 0, 200`:
+
+- **before:** body drawn at pos(N), newest puff at pos(N-1) − 650 along facing. Gap **2650 WDist =
+  62 px, constant**, i.e. 1.33 puff-spacings (spacing is one step, 2000).
+- **after:** body drawn at pos(N) + f·2000. Gap sweeps **2650 → 4650 WDist (62 → 109 px)** every tick,
+  i.e. 1.33 → 2.33 spacings. In the terminal dive at 2400 it is 3050 → 5450 (71 → 128 px).
+
+The oscillation amplitude is exactly one puff spacing, at 16.67 Hz. This is not a defect of the
+prediction — the puff is smoke left at a position the missile has genuinely already left — but it is a
+NEW time-varying quantity where a constant one used to be, and **it is the one thing that could make
+the change look worse rather than better.** Not verified in a window.
+
+**The one-line mitigation, deliberately NOT applied:** `SpawnAtLastPosition: false` on the Kinzhal's
+`LeavesTrailsCA` moves the puff to pos(N), dropping the range to 650 → 2650 (15 → 62 px) and making the
+newest puff coincide with the drawn nozzle at f = 0, which is what emission physically looks like. It
+shifts the entire trail forward by one step independently of this feature, so it is a visual change
+that needs looking at on its own.

@@ -1062,6 +1062,15 @@ namespace OpenRA
 						var maxRenderInterval = Math.Max(1000 / MinReplayFps, renderInterval);
 						forcedNextRender = now + maxRenderInterval;
 
+						// How far through the current logic tick this frame is, for view-only consumers
+						// that want to draw a fast mover between its simulated positions instead of at
+						// them. Set here rather than inside RenderTick because this is the only scope
+						// that can see both `now` and the interval the loop is actually pacing to —
+						// logicInterval is the world's timestep, the OrderManager's suggested one or
+						// Ui.Timestep depending on what is being ticked. WALL CLOCK, NOT SYNCED: see
+						// SubTickClock's header.
+						SubTickClock.Update(now, nextLogic, logicInterval);
+
 						RenderTick();
 						renderBeforeNextTick = false;
 					}

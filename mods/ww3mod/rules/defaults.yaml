@@ -1080,6 +1080,16 @@
 		LaunchAngle: 128
 		Speed: 110
 		AirborneCondition: airborne
+	# PURELY VISUAL, and the only reason it lives on the template rather than on one missile: every
+	# actor that inherits ^ShootableMissile is a BallisticMissile flying at 500-2400 WDist/tick, and
+	# at Timestep 60 (16.67 ticks/s) that is 12-56 px of jump per visible step at 100% zoom. The
+	# sprite is drawn ahead of its last simulated position along its last tick's velocity, scaled by
+	# how far through the current tick the frame is, so the missile glides instead of stepping. The
+	# simulation is untouched -- collision, detonation and the smoke trail all still use the real
+	# CenterPosition. MaxStep is left at its 6144 default, three times the fastest shipped missile
+	# (KinzhalMissile, 2000 cruising and 2400 in the terminal dive); a faster missile added later
+	# needs that raised here or it silently stops being smoothed.
+	SubTickMotionSmoothing:
 	Targetable@Ground:
 		TargetTypes: ICBM
 		RequiresCondition: !airborne

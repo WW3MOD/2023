@@ -1,0 +1,113 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: fast missiles glide between ticks instead of stepping between them
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 128,128
+
+Bounds: 1,1,126,126
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS IS FOR: looking at. It is a DEMO, so nothing here is asserted -- no AssertWithin, no
+# Test.Pass, no result.json. Four pairs of Kinzhal strikes cross the screen and the viewer decides
+# whether the smoothed one still looks like it is running at 16 fps.
+#
+# THE REPORT. "Fast flying missiles make it obvious they are following the ticks, so it looks very
+# low fps." The screen was never the problem: rendering is uncapped by default (Settings.cs,
+# CapFramerate false) and Game.Loop forces at least one frame per logic tick, so the display is
+# already updating far more often than the world. What updates 16.67 times a second is the
+# POSITION -- Timestep 60 -- and KinzhalMissile covers 2000 WDist per step, just under two cells,
+# about 47 px at 100% zoom. Every frame in between drew it in exactly the same place.
+#
+# THE COMPARISON. Each pass fires TWO missiles at once on parallel tracks about 7 cells apart:
+#
+#   SMOOTHED  kinzhalmissile, shipped, carrying SubTickMotionSmoothing through ^ShootableMissile.
+#             Drawn ahead of its last simulated position along its last tick's velocity, scaled by
+#             how far through the current tick the frame is.
+#   RAW       kinzhalmissileraw, defined in rules.yaml as kinzhalmissile with that one trait
+#             removed and nothing else changed. This is what shipped before.
+#
+# THE TRACKS SWAP SIDES between passes -- smoothed upper-right on passes 1 and 3, lower-left on 2
+# and 4 -- so a difference cannot be attributed to where on the screen it happened to be.
+#
+# DO NOT JUDGE THIS FROM A PAUSED FRAME. The smoothing is switched off while the world is paused, on
+# purpose: a paused world still renders and the sub-tick clock keeps sweeping, so extrapolating
+# through a pause would make the missile slide forward and snap back at the tick rate forever. Pause
+# and both missiles sit on their true positions, identically. The whole subject of this demo is
+# motion, and it only exists while the world is running.
+#
+# WHAT TO LOOK AT BESIDES THE BODY. The smoke trail is NOT smoothed and cannot be -- LeavesTrailsCA
+# drops a static puff at the missile's real CenterPosition once a tick, so the trail is a quantised
+# string of sprites either way. What changes is the head of it: the missile now travels smoothly
+# along a trail it used to teleport down. Watch the gap between the tail of the missile and the
+# newest puff. It grows through each tick and resets when the next puff appears, because the puff is
+# smoke left at a position the missile has genuinely already left. Arithmetic in rules.yaml.
+#
+# GEOMETRY. Both missiles enter at cell 110,127 -- MissileStrikePower spawns at
+# Map.ChooseClosestEdgeCell(owner.HomeLocation) (MissileStrikePower.cs:102) and Russia's HomeLocation
+# is pinned to 110,110 below, which with Bounds 1,1,126,126 resolves to the SOUTH edge at x=110
+# (du 17 vs dv 17, and the tie goes to the vertical bound at Map.cs:1835). They fly north-west to
+# two aim points 100 cells away and 14 cells apart, so the tracks are parallel to within 4 degrees
+# and 7 cells apart where the camera sits. 100 cells at 2000 WDist/tick is 51 ticks, 3.1 s.
+#
+#   TRACK A (upper right)  aim 44,51
+#   TRACK B (lower left)   aim 34,61
+#
+# The aim points are bare cells, not actors: a support power targets a cell, so nothing has to be
+# placed on the terrain there and no ground is required to be clear.
+#
+# CAMERA. Fixed at 75,92, the halfway point of both tracks, and it never moves -- the motion of the
+# missiles is deliberately the only thing changing on screen. The demo zooms itself in at
+# WorldLoaded; a Kinzhal is small and the step this is about is 47 px at the default level.
+#
+# TERRAIN. map.bin and map.png are twin-rivers-ww3's, copied unchanged from the sibling
+# demo-highyield-nuke; only this actor list is new. The Supply Route cells are that scenario's, and
+# are the only ground placement here.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 110,110
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 18,18
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 110,110
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 18,18
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 110,110
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 18,18
+
+Rules: rules.yaml

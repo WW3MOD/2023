@@ -497,7 +497,7 @@ namespace OpenRA
 
 			// Allow users to pause the shellmap via the settings menu
 			// Some traits initialize important state during the first tick, so we must allow it to tick at least once
-			if (!Paused && (Type != WorldType.Shellmap || !gameSettings.PauseShellmap || WorldTick == 0))
+			if (SimulationIsAdvancing)
 			{
 				WorldTick++;
 
@@ -520,6 +520,19 @@ namespace OpenRA
 			while (frameEndActions.Count != 0)
 				frameEndActions.Dequeue()(this);
 		}
+
+		/// <summary>
+		/// True when the next <see cref="Tick"/> will actually advance the simulation. This IS the
+		/// condition Tick gates on — kept as a property rather than duplicated so the two cannot
+		/// drift apart.
+		///
+		/// View-only code needs it because a paused world keeps RENDERING: Game.Loop still calls
+		/// LogicTick, so SubTickClock.Fraction keeps sweeping 0 -> 1 -> 0 while no position changes.
+		/// Anything that extrapolates from a per-tick velocity must stop extrapolating here, or a
+		/// paused missile visibly oscillates back and forth at the tick rate.
+		/// </summary>
+		public bool SimulationIsAdvancing =>
+			!Paused && (Type != WorldType.Shellmap || !gameSettings.PauseShellmap || WorldTick == 0);
 
 		// For things that want to update their render state once per tick, ignoring pause state
 		public void TickRender(WorldRenderer wr)
