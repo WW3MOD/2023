@@ -1,0 +1,114 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: ballistic missile nose tracks its own smoke trail
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 128,128
+
+Bounds: 1,1,126,126
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS IS FOR: looking at. It is a DEMO, so nothing here is asserted -- no AssertWithin, no
+# Test.Pass, no result.json. Two Iskander launchers fire in turn and the viewer checks whether each
+# missile's nose lies along the smoke trail behind it.
+#
+# THE COMPARISON THE VIEWER IS MAKING is nose against trail, because the trail is ground truth: it
+# is a string of sprites dropped at the missile's own CenterPosition, so it marks exactly where the
+# missile has been. If the nose is pitched further from horizontal than the trail, the missile is
+# flying "belly first" -- which is the report this scenario exists to show the fix for.
+#
+# WHY TWO SHOTS AND WHY THESE TWO BEARINGS. The error being fixed was never a single constant; it
+# ran the opposite way at different headings, because the missile artwork is drawn from a camera
+# 34.5 degrees above the ground plane while the map grid is square (mod.yaml, TileSize 24,24 with
+# Type: Rectangular). Near due east/west that artwork COMPRESSES a facing change to 0.566 of its
+# nominal angle; near due north/south it EXPANDS it by 1.767. So:
+#
+#   SHOT A, fired north-west (facing 128), is the diagonal where the old model over-tilted -- it
+#   pitched the nose about 18 degrees further up than the trail on the way up.
+#   SHOT B, fired due west (facing 256), is where the old model UNDER-tilted by about 5 degrees.
+#
+# Checking only one of them would confirm half the change and hide the other half.
+#
+# TERRAIN. map.bin and map.png are twin-rivers-ww3's, copied unchanged from the sibling
+# demo-highyield-nuke; only this actor list is new. Both launcher cells and both target cells were
+# picked by decoding map.bin and requiring Clear or Road across a 5x5 footprint, so nothing here is
+# placed on the rivers, rock or cliffs that terrain carries. What lies BETWEEN a launcher and its
+# target was deliberately not constrained -- a ballistic missile flies over it.
+#
+# GEOMETRY. Both shots are 34 cells, comfortably inside IskanderTargeter's Range 50c0 and outside
+# its MinRange 16c0, so neither launcher has to drive anywhere first. Both launchers start already
+# facing their target so no turn delays the schedule. LaunchAngle 110 is 38.7 degrees, and a
+# parabola's peak is range * tan(angle) / 4, so each arc tops out about 6.8 cells above the ground
+# -- roughly 163 screen pixels of climb, which is what makes the pitch legible at all.
+#
+#   SHOT A  launcher 79,80 -> target 55,56   (dx -24, dy -24; 33.9 cells; facing 128, north-west)
+#   SHOT B  launcher 81,66 -> target 47,66   (dx -34, dy   0; 34.0 cells; facing 256, due west)
+#
+# The two arcs cross near the middle of the map, which is deliberate: one camera position at 66,67
+# frames both, so the demo never moves the camera out from under whoever is watching.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 110,110
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 18,18
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 110,110
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 18,18
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 110,110
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 18,18
+
+	# SHOT A -- the diagonal. Facing 128 is north-west; WAngle counts counter-clockwise from north.
+	LauncherA: iskander
+		Owner: Russia
+		Location: 79,80
+		Facing: 128
+	TargetA: abrams
+		Owner: USA
+		Location: 55,56
+		Facing: 768
+
+	# SHOT B -- due west. Facing 256 is due west.
+	LauncherB: iskander
+		Owner: Russia
+		Location: 81,66
+		Facing: 256
+	TargetB: abrams
+		Owner: USA
+		Location: 47,66
+		Facing: 768

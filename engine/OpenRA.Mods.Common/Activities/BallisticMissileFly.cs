@@ -24,6 +24,7 @@ namespace OpenRA.Mods.Common.Activities
 		readonly WAngle horizontalFacing;
 		readonly int launchRiseTicks;
 		readonly float visualPitchMul;
+		readonly int spriteFacingSquash;
 		readonly int totalArcTicks;
 
 		// Updated at Phase 2 entry to capture the actual erected position so the
@@ -47,6 +48,7 @@ namespace OpenRA.Mods.Common.Activities
 
 			launchRiseTicks = this.sbm.Info.LaunchRiseTicks;
 			visualPitchMul = this.sbm.Info.VisualPitchMultiplier / 100f;
+			spriteFacingSquash = this.sbm.Info.SpriteFacingSquash;
 
 			hDist = (targetPos - spawnPos).HorizontalLength;
 			var speed = this.sbm.Info.Speed;
@@ -107,44 +109,145 @@ namespace OpenRA.Mods.Common.Activities
 			return (int)(4f * arcPeakHeight * progress * (1f - progress));
 		}
 
-		// Compute pitch factor from the parabolic arc derivative at a given progress.
-		// The derivative of GetArcHeight = 4 * peak * (1 - 2*progress), so
-		// slope = dh/dx = 4 * arcPeakHeight * (1 - 2*progress) / hDist.
-		// We convert that slope to a pitch factor scaled by visualPitchMul.
-		float GetPitchFactor(float progress)
+		// Slope (dz per unit of horizontal distance) of the flight path at a given progress.
+		// TWO terms, and the second one was missing from the old model:
+		//  * the parabolic arc's analytical derivative -- d/dprogress of GetArcHeight is
+		//    4 * arcPeakHeight * (1 - 2*progress), divided by hDist to get dz/dx;
+		//  * the constant ramp from the launch altitude down to the target, which Tick() applies to
+		//    every position it sets, through baseZ.
+		// For a launcher firing off its own TEL that ramp is ~0 and the arc is the whole story. But
+		// MissileStrikePower spawns its missile at SpawnAltitude off the map edge -- 8c0 to 31c0 in
+		// mods/ww3mod/rules/player.yaml -- and the missile descends that entire altitude on the way
+		// in. On the high-yield nuke, 31 cells of drop across a ~60-cell shot is a slope of -0.52
+		// against an arc peak of under 3 cells: the path descends from the first tick to the last,
+		// and the old arc-only model pitched the nose UP through the first half of it.
+		float GetSlope(float progress)
 		{
 			if (hDist < 1)
 				return 0f;
 
-			// Analytical derivative: slope of arc relative to horizontal
-			var slope = 4f * arcPeakHeight * (1f - 2f * progress) / hDist;
+			var slope = (4f * arcPeakHeight * (1f - 2f * progress) + (targetPos.Z - spawnPos.Z)) / hDist;
 
-			// Scale by user multiplier and clamp to avoid extreme angles
-			// Tilt scaled to 75% of the analytical-derivative jump (was over-tilting)
-			var maxPitch = 0.775f * visualPitchMul;
-			return Math.Clamp(slope * visualPitchMul * 0.8125f, -maxPitch, maxPitch);
+			// Overflow guard, NOT tuning: a degenerate near-zero hDist under a large altitude drop
+			// would otherwise scale past int range inside ScreenAlignedFacing. +-16 is 86.4 degrees;
+			// nothing the mod ships comes within a factor of ten of it.
+			return Math.Clamp(slope, -16f, 16f);
 		}
 
-		// Compute facing with optional pitch tilt for isometric visual.
 		WAngle GetFacing(float progress)
 		{
-			if (visualPitchMul <= 0f)
-				return horizontalFacing;
-
-			return ApplyIsometricPitch(GetPitchFactor(progress));
+			return ScreenAlignedFacing(horizontalFacing, GetSlope(progress), visualPitchMul, spriteFacingSquash);
 		}
 
-		// Apply pitch as a facing offset using isometric projection.
-		WAngle ApplyIsometricPitch(float pitchFactor)
+		// WHY THIS IS A PROJECTION AND NOT A FUDGE FACTOR.
+		//
+		// This replaced two hand-picked constants -- a 0.8125 scale and a 0.775 clamp -- sitting on
+		// top of a 2048 * u * (1-u) facing weight. All three were compensating for the same two
+		// errors at once, and a third hand-picked constant would not have fixed either of them.
+		//
+		// There are TWO projections in play, and they are not the same one.
+		//
+		// 1. POSITION -- what the smoke trail draws. WorldRenderer.ScreenPosition is
+		//        screen = (X, Y - Z) * TileSize / TileScale
+		//    and mods/ww3mod/mod.yaml sets TileSize 24,24 with Type: Rectangular, so screen x and
+		//    screen y take the SAME scale and the ground plane maps to the screen 1:1. Altitude and
+		//    depth share the screen y axis, which is the whole reason a climbing missile appears to
+		//    travel in a different direction from its ground heading. Trail sprites are placed at
+		//    CenterPosition, so the line the player compares the nose against is exactly this.
+		//
+		//    Hence screen velocity is proportional to (vx, vy - vz), and the facing that projects
+		//    1:1 onto it is just WVec(vx, vy - vz, 0).Yaw. Exact. The horizontal speed is a common
+		//    factor of both components and cancels, so only the SLOPE survives -- and no clamp is
+		//    needed, because a Yaw cannot run away the way a raw slope can.
+		//
+		// 2. THE ARTWORK -- what the nose draws. The facing set every ballistic missile in the mod
+		//    aliases (iskander-missile.shp, 32 facings, sequences.yaml) is NOT a 1:1 ground rotation;
+		//    it was drawn from a camera above the horizon. Measured as the principal axis of the
+		//    opaque pixels of all 32 frames, frame F is drawn at the screen angle of F's ground
+		//    vector with its y component multiplied by 0.566 -- a least-squares fit over the whole
+		//    set with 0.47 degrees RMS residual, i.e. a camera 34.5 degrees above the ground plane.
+		//    SpriteFacingSquash carries that number; 1000 means "true 1:1 art" and costs nothing.
+		//
+		//    What matters is not the constant but its derivative. Near due north/south one unit of
+		//    facing swings the drawn nose by 1/0.566 = 1.77x what the facing says; near due east/west
+		//    by 0.566x. That 3.1x span is larger than any error in the geometry, which is why the old
+		//    model read as over-tilted on some headings and under-tilted on others.
+		//
+		// So the tilt is MEASURED in projection 1 and APPLIED in projection 2:
+		//
+		//     tilt   = WVec(vx, vy - vz, 0).Yaw - horizontalFacing        (what the trail shows)
+		//     facing = unsquash( squash(horizontalFacing) rotated by tilt )
+		//
+		// where squash multiplies the y component by SpriteFacingSquash and unsquash divides by it.
+		//
+		// Level flight is left exactly alone: at slope 0 the tilt is 0, squash and unsquash cancel,
+		// and the result is horizontalFacing to the bit. That invariant is load-bearing -- every
+		// other actor in the mod uses its plain ground facing, so a missile that did not would look
+		// rotated against the launcher that fired it.
+		//
+		// What this deliberately does NOT do is put the nose on the trail in LEVEL flight. It cannot:
+		// the art's 0.566 squash already draws a level missile on a diagonal up to 16 degrees off its
+		// ground track, and that is true of every unit in the mod rather than of missiles. Correcting
+		// it here would rotate all six missiles in level flight and single them out from everything
+		// else on screen. Only the tilt is corrected, because only the tilt was wrong.
+
+		/// <summary>
+		/// The facing to ask the sprite for so its nose is drawn along the missile's apparent
+		/// direction of travel. Public and static for the same reason <see cref="EstimateArcTicks"/>
+		/// is: it is pure arithmetic, and a test that pins it should exercise this code rather than
+		/// keep a second copy of it in step by hand.
+		/// </summary>
+		/// <param name="horizontalFacing">Ground heading from launch point to target.</param>
+		/// <param name="slope">dz per unit of horizontal distance along the flight path.</param>
+		/// <param name="visualPitchMul">
+		/// <see cref="Traits.BallisticMissileInfo.VisualPitchMultiplier"/> over 100. 1 puts the nose
+		/// exactly on the trail; less leans it back toward the flat ground heading.
+		/// </param>
+		/// <param name="spriteFacingSquash">
+		/// <see cref="Traits.BallisticMissileInfo.SpriteFacingSquash"/>.
+		/// </param>
+		public static WAngle ScreenAlignedFacing(WAngle horizontalFacing, float slope, float visualPitchMul, int spriteFacingSquash)
 		{
-			var u = (horizontalFacing.Angle % 512) / 512f;
-			var scale = 2048 * u * (1 - u);
+			if (visualPitchMul <= 0f || spriteFacingSquash <= 0)
+				return horizontalFacing;
 
-			var effective = (int)(horizontalFacing.Angle < 512
-				? horizontalFacing.Angle - scale * pitchFactor
-				: horizontalFacing.Angle + scale * pitchFactor);
+			// Horizontal velocity at an arbitrary fixed magnitude. The real speed is a common factor
+			// of both components of every vector below and cancels out of the angles taken from them,
+			// so it never has to be known here. Large enough that the integer divisions below stay
+			// well under half a WAngle unit of error.
+			const int Scale = 1 << 20;
+			var h = new WVec(0, -Scale, 0).Rotate(WRot.FromYaw(horizontalFacing));
+			var rise = (int)(slope * Scale);
 
-			return new WAngle(effective);
+			// (1) The tilt the trail actually shows, taken in the position projection: screen velocity
+			// is (vx, vy - vz), so the yaw that projects 1:1 onto it is that vector's own Yaw.
+			//
+			// Differenced against h.Yaw rather than against horizontalFacing, and every other angle
+			// below is likewise a difference against another angle off the same vector, with the final
+			// answer applied as an offset to horizontalFacing rather than rebuilt from scratch. Rotate
+			// and Yaw both go through 1024-step integer tables, so h.Yaw is not always horizontalFacing
+			// to the unit; differencing cancels that bias, which is what makes level flight exact
+			// rather than merely close.
+			var tilt = (new WVec(h.X, h.Y - rise, 0).Yaw - h.Yaw).Angle;
+			if (tilt > 512)
+				tilt -= 1024;
+
+			tilt = (int)(tilt * visualPitchMul);
+			if (tilt == 0)
+				return horizontalFacing;
+
+			// (2) Apply it in the artwork's angle space and convert back to a facing. At
+			// SpriteFacingSquash 1000 both scalings are the identity and this is a plain rotation.
+			var squashed = new WVec(h.X, (int)((long)h.Y * spriteFacingSquash / 1000), 0);
+			var drawn = squashed.Rotate(WRot.FromYaw(new WAngle(tilt)));
+
+			// Both yaws are read back through the SAME squash-and-unsquash round trip, and the answer
+			// is the difference between them applied to horizontalFacing. Symmetric by construction:
+			// whatever the conversion rounds away it rounds away from both sides.
+			var baseYaw = new WVec(squashed.X, (int)((long)squashed.Y * 1000 / spriteFacingSquash), 0).Yaw;
+			var tiltedYaw = new WVec(drawn.X, (int)((long)drawn.Y * 1000 / spriteFacingSquash), 0).Yaw;
+
+			return horizontalFacing + (tiltedYaw - baseYaw);
 		}
 
 		public override bool Tick(Actor self)
@@ -165,8 +268,13 @@ namespace OpenRA.Mods.Common.Activities
 				{
 					// Cubic ease-in for a smooth, accelerating tilt.
 					var erectT = riseT * riseT * riseT;
-					var targetPitch = GetPitchFactor(0f);
-					sbm.Facing = ApplyIsometricPitch(targetPitch * erectT);
+
+					// The erected pose is the arc's own initial tangent, so the rail attitude flows
+					// straight into the first tick of flight instead of snapping. Taken from LaunchAngle
+					// rather than from GetSlope(0) so that a launcher which ever did spawn at altitude
+					// would still erect to the angle its rail is at, not to its net glide.
+					var launchSlope = sbm.Info.LaunchAngle.Tan() / 1024f;
+					sbm.Facing = ScreenAlignedFacing(horizontalFacing, launchSlope * erectT, visualPitchMul, spriteFacingSquash);
 
 					// Direct visual offset: at full erection sprite is at spawnPos + LaunchRiseErectVisualOffset
 					// (rotated so X=forward aligns with horizontalFacing). Linear in erectT so the offset

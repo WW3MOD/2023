@@ -66,7 +66,8 @@ BallisticMissile:
 	PostErectionWaitTicks: 20
 	IgnitionCondition: ignited
 	IgnitionSound: vv3latta.aud, vv3lattb.aud
-	VisualPitchMultiplier: 47
+	VisualPitchMultiplier: 100
+	SpriteFacingSquash: 566
 	TerminalSpeed: 600
 	TerminalAcceleration: 10
 ";
@@ -79,7 +80,8 @@ BallisticMissile:
 	Speed: 500
 	Acceleration: 4
 	InitialSpeedPercent: 3
-	VisualPitchMultiplier: 42
+	VisualPitchMultiplier: 100
+	SpriteFacingSquash: 566
 	TerminalSpeed: 550
 	TerminalAcceleration: 7
 ";

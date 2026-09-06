@@ -1224,7 +1224,15 @@ HIMARSMissile:
 		Speed: 500 #BM - Maximum horizontal cruise speed in WDist/tick. Caps how fast the rocket can fly during the climb/cruise portion of the arc.
 		Acceleration: 4 #BM - Speed gained per tick (WDist/tick²) while accelerating up to Speed. Higher than Iskander — HIMARS rockets accelerate quickly off the rails. 0 disables acceleration.
 		InitialSpeedPercent: 3 #BM - Starting speed as a percentage of Speed when Acceleration > 0. 40% means rockets start moving fast (no slow lift-off animation — they fire straight from the tube).
-		VisualPitchMultiplier: 42 #BM - How much the rocket sprite tilts during flight to fake a 3D pitch (percentage). 0 = no tilt, higher = more tilt. Above ~30 the sprite can look weird at certain facings since it's a 2D fake.
+		# 100 = nose drawn along the missile's apparent travel -- along its own smoke trail. Was 42
+		# under the old arc-slope-times-fudge-factor units, which landed anywhere between 68% and
+		# 270% of the true tilt depending only on which way the missile was pointing. Derivation:
+		# BallisticMissileFly.ScreenAlignedFacing.
+		VisualPitchMultiplier: 100
+		# iskander-missile.shp, which every missile in the mod aliases, is drawn from a camera 34.5
+		# degrees up rather than straight down: 0.566 vertical squash, measured as the principal axis
+		# of all 32 frames. Without it the drawn tilt lands 0.57x-1.77x off, by heading alone.
+		SpriteFacingSquash: 566
 		TerminalSpeed: 550 #BM - Maximum speed in WDist/tick during the dive phase (past the arc apex). Set higher than Speed for a "speeds up on the way down" effect. 0 = no terminal phase.
 		TerminalAcceleration: 7 #BM - Acceleration per tick during the terminal dive (WDist/tick²). Only used when TerminalSpeed > 0. If 0, falls back to the regular Acceleration value.
 	LeavesTrailsCA:
@@ -1294,7 +1302,15 @@ GBU57Bomb:
 		# the bomb motionless in the air at the map edge.
 		LaunchRiseTicks: 0
 		PostErectionWaitTicks: 0
-		VisualPitchMultiplier: 55
+		# 100 = nose drawn along the missile's apparent travel -- along its own smoke trail. Was 55
+		# under the old arc-slope-times-fudge-factor units, which landed anywhere between 68% and
+		# 270% of the true tilt depending only on which way the missile was pointing. Derivation:
+		# BallisticMissileFly.ScreenAlignedFacing.
+		VisualPitchMultiplier: 100
+		# iskander-missile.shp, which every missile in the mod aliases, is drawn from a camera 34.5
+		# degrees up rather than straight down: 0.566 vertical squash, measured as the principal axis
+		# of all 32 frames. Without it the drawn tilt lands 0.57x-1.77x off, by heading alone.
+		SpriteFacingSquash: 566
 	# NO LeavesTrailsCA, unlike the Kinzhal, and this is a deliberate visual difference rather than
 	# an omission: the MOP is an unpowered gravity penetrator with no motor to smoke. ^ShootableMissile
 	# ships no trail either, so this is simply not added.

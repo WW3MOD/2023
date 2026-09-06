@@ -44,10 +44,33 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Height gained during the vertical launch rise phase.")]
 		public readonly WDist LaunchRiseHeight = WDist.Zero;
 
-		[Desc("How much the arc's vertical movement influences the sprite facing, as a percentage.",
-			"0 = pure horizontal facing (recommended for top-down). 100 = full pitch effect.",
-			"High values can make sprites look wrong since they only have horizontal facings.")]
+		[Desc("How much of the missile's apparent climb/dive is put into the sprite facing, as a",
+			"percentage. 0 = pure horizontal facing (no tilt at all).",
+			"100 = the nose is drawn exactly along the missile's apparent direction of travel, which",
+			"is the line its smoke trail leaves behind it. Values between lean the nose back toward",
+			"the flat ground heading; above 100 exaggerates past reality.",
+			"UNITS CHANGED on 2026-09-06 and the shipped values were retuned with them. This used to",
+			"scale a raw arc slope through a 0.8125 fudge factor and a 2048*u*(1-u) facing weight, so",
+			"the old 42-55 range meant nothing physical: it landed between 68% and 270% of the true",
+			"tilt depending only on which way the missile happened to be pointing. See",
+			"BallisticMissileFly.ScreenAlignedFacing for the derivation that replaced it.")]
 		public readonly int VisualPitchMultiplier = 0;
+
+		[Desc("Vertical foreshortening of this actor's facing artwork, per mille.",
+			"1000 = the sprite set is a true 1:1 ground rotation, so facing F is drawn at exactly the",
+			"screen angle F projects to, and this field costs nothing.",
+			"Lower = the art was drawn from a camera above the horizon, so the drawn angle is",
+			"compressed toward the screen x axis. That is not a cosmetic detail: it means one unit of",
+			"facing swings the drawn nose by MORE than a unit near due north/south and LESS near due",
+			"east/west, and a pitch model that ignores it is wrong by that ratio however exact its",
+			"geometry is.",
+			"Only read when " + nameof(VisualPitchMultiplier) + " > 0.",
+			"566 for the shipped iskander-missile.shp facing set, which every ballistic missile in the",
+			"mod aliases: measured as the principal axis of the opaque pixels of all 32 frames, a",
+			"least-squares fit of 0.566 with 0.47 degrees RMS residual, i.e. a camera 34.5 degrees",
+			"above the ground plane. Default is 1000 so that no actor changes behaviour by adopting",
+			"this trait — the shipped missiles set 566 explicitly.")]
+		public readonly int SpriteFacingSquash = 1000;
 
 		[Desc("If true, during the launch rise phase the missile tilts from horizontal to vertical,",
 			"simulating a missile erector raising the missile before launch.",
