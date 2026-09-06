@@ -361,6 +361,43 @@ Worked example, 2026-08-14 (the `PlayerResources` economy gate, `DISCOVERIES.md`
 
 Cheapest sources of such a control, in order: a per-tick telemetry line that already logs a quantity the change touches (`[composition] census` logs `earned`/`spent`); any incidental numeric in a failure note; or a one-line temporary trace. **If every observable in the sweep is byte-identical across the two arms, you have not shown the change is safe — you have shown it did not run.**
 
+## The mirror: a RED is not evidence either, unless the branch under test is REACHABLE at shipped config
+
+*(2026-09-06, from DISCOVERIES.)* `test-supply-safe-front-keeps-cargo` asserts the supply doctrine's quiet
+branch — truck closes, serves in place, keeps its cargo. That branch is selected by
+`if (drop && Info.DropRequiresDanger && !Info.IgnoreDangerForDelivery && …)`
+(`SupplyFollowerBotModule.cs:1662`), and shipped content sets `DropRequiresDanger: true` **and**
+`IgnoreDangerForDelivery: true` (`ai/ai.yaml:1895`, `:1689`), which short-circuits the conjunct. So the mode
+the scenario asserts was unreachable, its "no crate ever" clause failed any run in which the truck delivered,
+and it could only have gone green by the truck failing entirely. It was red from 2026-08-13 to 2026-09-06 and
+was written up **twice** as a selector defect. **A test asserting a mode that configuration has switched off
+is neither passing nor failing about its subject — it is unwired, and no amount of re-running distinguishes
+that from a real defect.** The check is cheap: grep the assertion's own gate for a **bypass flag**, not just
+for the mechanism. Three weeks of diagnosis here went into a mechanism that was fine.
+
+**Then re-derive what a false PASS looks like, because fixing reachability INVERTS the failure mode.** With
+the gate reachable, all four Lua clauses can hold without the mode gate ever being consulted: any drop decline
+(`NoDemand`, `Covered`, `LowLoad`, `NoAnchor`) also leaves `drop = false`, after which the truck takes the
+follow path, drives to the platoon and serves from its aura — no crate, cargo kept, ammo up, platoon held.
+Green, and evidence of nothing. Lua cannot observe the module's `reason`; only `debug.log` can, so the
+acceptance criterion becomes a log line (`[supply] drop-declined … reason=SafeFront`) plus proof the override
+merged at all (`[supply] init … ignore-danger=False`). **Whenever you make an unreachable branch reachable,
+the clauses written against the old failure mode do not cover the new one.**
+
+**A bypass flag over N sites cannot be cleared "just for the one you want", and the per-site audit is not
+uniform.** `IgnoreDangerForDelivery` gates seven sites. On an enemy-free map six are inert or off-path — but
+the *arguments differ in strength*, and that is the part worth recording: two are **structurally** equivalent
+to the branch they replace, one is **provably** inert (its helper returns null when the straight path's max
+danger is under threshold), one is **off-path** (fallback anchor only), and the evac site is inert only **by
+threshold** (`EvacDangerUnits: 50` against a field of 0) — a weaker argument, and the first to re-check if a
+run surprises. **Record which kind of argument each site rests on; they are not interchangeable.**
+
+**And before deleting or retiring any scenario, grep `engine/OpenRA.Test/` for its name.**
+`SupplyDriftClauseTest` parses a constant out of this scenario's `.lua`
+(`ReadScenarioConstant`, `:55`) specifically so the assertion cannot agree with itself — and when the file is
+missing it calls **`Assert.Ignore`, not `Assert.Fail`** (`:67`). Retiring the directory would have converted
+a passing NUnit test into a skipped one, with the suite still reading green.
+
 ## The setup you wrote is not always the setup that ran — check the subject, not the config
 
 Same family as the above, and it landed again on 2026-08-14. A tournament config's `Matchup:` block
@@ -413,6 +450,37 @@ resolved more than zero stance assignments before asserting no violations): **wh
 a query, assert the query RETURNED something before acting on its result. An empty lookup must never
 be allowed to mean "nothing to do".** Mechanism and full write-up in `WORKSPACE/DISCOVERIES.md`,
 2026-08-15.
+
+### A result dir that two runners wrote does not look wrong — and `debug.log` is the only physical tell
+
+*(2026-09-06, from DISCOVERIES; mechanism read at `tools/autotest/run-tournament.sh`.)* `run-tournament.sh`
+derives its settings backup from the result dir **and from nothing else** — `SETTINGS_BACKUP="${RESULT_DIR}/.settings.yaml.bak"`
+(`:276`, written `:277`, restored under an `[ -f ]` guard at `:347-348`). No pid, no match index, no scenario.
+Two runners pointed at the same `--result-dir` therefore share one backup file, and the `[ -f ]` check is a
+TOCTOU window: the other runner's `mv` can consume the file between the test and ours, whereupon `set -e`
+(`:44`) kills the batch mid-ladder — so the *second* victim of the race is the one that dies, having already
+written a verdict.
+
+**The wreckage passes every completeness check.** The abandoned runner had written matches 1–5; the orphan
+kept going in the same dir and wrote 6–10 *and* ran the aggregator. End state: ten `match_*.json`, a
+`summary.csv`, a `summary.json`, and a `batch.meta.json` stamping a clean `git_sha` and `git_dirty: false`.
+Nothing in the artefacts records that two processes wrote them, because both runners use the same match
+indices. **The only physical tell we found was a 0-byte `match_3_debug.log`** (1.15 MB in the clean rerun):
+the runner copies the *shared* `%APPDATA%/OpenRA/Logs/debug.log` per match, and the other game had just
+truncated it. (Distinct from the 0-byte `lua.log` tell above, which means a script that was never wired in.)
+
+**The cost is attribution, not arithmetic** — a clean rerun reproduced the contaminated dir byte-for-byte,
+because the sim is deterministic per seed. But you cannot know that from inside the dir, and **a dir you
+cannot attribute is not evidence.** Rules:
+
+1. **Never point a new run at an existing result dir**, and never reuse one after a runner was killed until
+   you have confirmed no game process from it is alive. A dir containing `match_*.json` is a used dir.
+2. **`verdicts=10` + `git_dirty=false` does not mean one runner produced the batch.** Check the `match_*.json`
+   mtimes form a single monotonically-spaced series with no second interleaved cadence, and that no
+   `match_*_debug.log` is 0 bytes.
+3. **When a batch dies mid-ladder, stop the whole ladder, not just that batch** — the next batch inherits a
+   live competitor for the machine's single game slot. Observed: batch 2 started while the orphan still ran,
+   and its first two matches shared the CPU with a second game, with nothing in any artefact recording it.
 
 ### Clear `debug.log` before the run, or you may be reading the previous run's world
 
