@@ -340,6 +340,112 @@ Player:
 		# placeholder, so unlike the two conventional strikes this does not want replacing later.
 		IncomingSpeechNotification: AbombLaunchDetected
 		SupportPowerPaletteOrder: 3
+	# The lobby gate for the HIGH-YIELD STRATEGIC nuclear strike. It ships defaulting ON -- the ONLY
+	# power in the mod that does -- and that is the user's explicit, temporary choice rather than a
+	# slip. Their words, 2026-09-06: "You can add the high yield nuke as a new power, even though we
+	# might disable it later, but for testing we keep it (even after this session, I will deal with it
+	# later before release ... so there will be two nuke powers)." Two nuclear powers side by side,
+	# this one reachable without the host ticking anything, and the release default is the user's own
+	# call to settle later. DO NOT "FIX" IT TO MATCH @tacnuke ABOVE.
+	#
+	# THE POLARITY BELOW IS NEVERTHELESS IDENTICAL TO @tacnuke'S, and that is not a contradiction --
+	# it is the whole reason the default above can be ON without anything failing open. The registered
+	# default and the unregistered fallback are SEPARATE VALUES and only one of them lives here.
+	# GrantConditionOnLobbyOption computes
+	#     optionEnabled = OptionOrDefault(Option, !GrantWhenOptionDisabled)
+	#     shouldGrant   = GrantWhenOptionDisabled ? !optionEnabled : optionEnabled
+	# (GrantConditionOnLobbyOption.cs:45-49). The fallback term is `!GrantWhenOptionDisabled` -- it is
+	# NOT PowersLobbyOptions' HighYieldNukeCheckboxEnabled, which is consulted only when the trait is
+	# present to register the option at all. So written THIS way round:
+	#     option registered and on (the shipped default) -> no condition -> the power is available
+	#     option registered and off (host unticked it)   -> `highyieldnuke-disabled` -> hidden
+	#     option NOT REGISTERED AT ALL                   -> falls back to false -> hidden
+	# The third row is the one that matters: PowersLobbyOptions stripped from world.yaml, an old saved
+	# session, a map that removes the trait. Written the other way round (Condition:
+	# highyieldnuke-allowed, GrantWhenOptionDisabled: false) that same absence would fall back to TRUE
+	# and hand a map-ending weapon to a build that never registered the option. Turning the checkbox
+	# default off before release is a one-word change in PowersLobbyOptions.cs and needs NO edit here.
+	GrantConditionOnLobbyOption@highyieldnuke:
+		Option: high-yield-nuke
+		Condition: highyieldnuke-disabled
+		GrantWhenOptionDisabled: true
+	MissileStrikePower@HighYieldNuke:
+		# RequiresCondition, NOT PauseOnCondition, for the reason spelled out on @TacNuke above:
+		# SupportPowersWidget filters the bin on `!p.Disabled` (SupportPowersWidget.cs:136), so this
+		# makes the icon ABSENT rather than leaving a clickable-but-inert "ON HOLD" cameo.
+		RequiresCondition: !highyieldnuke-disabled
+		OrderName: HighYieldNukeStrike
+		# NO Prerequisites, matching @TacNuke: the nuclear entries are "both factions" in the
+		# proposal's table and this is the same weapon class one step up in yield.
+		Icon: abomb
+		Name: Strategic Nuclear Strike
+		Description: High-yield strategic warhead delivered from off-map reserves.\nA single detonation devastates the entire battlefield.\nEnters from the map edge nearest your Supply Route.
+		# A PLACEHOLDER, and a longer one than @TacNuke's 11250 on purpose: 22500 ticks is 22.5 min at
+		# Timestep 60, so within a normal match this fires at most once. The doomsday mechanic this
+		# weapon is being built for will almost certainly not charge it on a timer at all, and this
+		# number is expected to be replaced wholesale rather than tuned.
+		ChargeInterval: 22500
+		Cursor: nuke
+		MissileActor: highyieldnukemissile
+		# 31c0 = 31744. DERIVED, not picked: 31744 - 15360 (DetonationAltitude below) = 16384, sixteen
+		# cells of descent -- twice the eight the Kinzhal and the tac nuke hold. BallisticMissileFly
+		# interpolates baseZ linearly from spawn Z to TARGET Z (BallisticMissileFly.cs:252), so the
+		# visible dive IS this difference; raising the burst without raising the spawn eats it and
+		# leaves a near-level approach ending in mid-air. Sixteen rather than eight because this
+		# missile flies at Speed 550 against the tac nuke's 900 and would otherwise look like it was
+		# gliding. KEEP THE DIFFERENCE AT 16384 IF EITHER NUMBER IS RETUNED.
+		SpawnAltitude: 31c0
+		# THE AIRBURST, and it is set by the SPRITE rather than by ballistics. Screen y is
+		# TileSize.Height * (Y - Z) (WorldRenderer.cs:749), so the fireball's total lift above the aim
+		# point is DetonationAltitude + (-Offset.Y * ScalePercent/100). AtomicHighYield's Warhead@Fireball
+		# keeps `Offset: 0,-1900,0` at ScalePercent 700, which is 13300. The tac nuke's proportion is
+		# 6400 + (1900*3) = 12100 at scale 3; holding that same ratio at scale 7 wants 28233, and
+		# 15360 + 13300 = 28660, within 1.5%. So a 700%-scale mushroom cloud sits on the ground exactly
+		# the way the shipped 300% one does. Move ScalePercent and this must move with it.
+		#
+		# 15c0 is also honest physics for the yield: optimum burst height scales as the cube root of
+		# yield like everything else here, and 1.5 km is in the right band for a ~800 kt weapon.
+		#
+		# DO NOT RAISE THIS ABOVE 24c0. Every one of AtomicHighYield's 27 damage, fire, EMP, suppression
+		# and smudge warheads carries `AirThreshold: 24c0`, and above a warhead's AirThreshold the engine
+		# stops evaluating terrain target types and substitutes `Air` (Warhead.cs:41-45,
+		# CreateEffectWarhead.cs:165-166). At 24577 this missile would still fly, still be aimed, still
+		# be announced -- and do NOTHING to the ground, with no error and no lint. The 9 cells of
+		# headroom between 15c0 and 24c0 exist so that retuning the look cannot silently cross it; if
+		# you need more than 24c0, raise the AirThreshold column FIRST and in one edit.
+		DetonationAltitude: 15c0
+		# 500 ticks = 30.0 s, the same wait as the tactical nuke and the same ceiling the user named
+		# for the strike powers. Not lengthened for the bigger weapon: `DisplayTimerRelationships`
+		# below is already Ally/Neutral/Enemy and AbombLaunchDetected reaches the victim at ORDER time
+		# (SupportPower.cs:238-251), so the warning is public either way, and thirty seconds is already
+		# long enough that dispersing is a real answer.
+		MissileDelay: 500
+		# 68c0. Scaled from @TacNuke's 20c0 the same way everything else here is scaled -- that camera
+		# is 0.67x its weapon's 30c0 blast wave, and 0.67 x 102 is 68. Undersizing this is the quiet
+		# failure mode for a weapon this large: the player would watch a 20-cell circle of a 102-cell
+		# detonation and conclude the warhead did not work.
+		CameraRange: 68c0
+		# 85, which is @TacNuke's 25 x 3.4. The camera has further to reveal and the wave takes longer
+		# to get going, so it opens proportionally earlier.
+		CameraSpawnAdvance: 85
+		# 1800 ticks = 108 s. AtomicHighYield's own effects run to tick ~724 (the outermost suppression
+		# band, 43 s) and its innermost fire condition lasts 1500 ticks (90 s), so a camera sized like
+		# @TacNuke's 1000 would close while the map was still burning.
+		CameraRemoveDelay: 1800
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		# Ally, Neutral, Enemy, matching @TacNuke and mslo. If any launch in the mod should be public
+		# it is this one.
+		DisplayTimerRelationships: Ally, Neutral, Enemy
+		BeaconPoster: atomicon
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		# Correct rather than a placeholder, same as @TacNuke: this really is a nuclear launch.
+		IncomingSpeechNotification: AbombLaunchDetected
+		SupportPowerPaletteOrder: 4
 	# Airstrikes disabled for v1 — re-enable post-v1 by uncommenting this whole block
 	# AND the PowersLobbyOptions trait in world.yaml. The A10.Airstrike / FROG.Airstrike
 	# unit defs are still in aircraft-america.yaml / aircraft-russia.yaml (orphan, harmless

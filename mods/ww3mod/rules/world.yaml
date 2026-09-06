@@ -562,9 +562,15 @@ World:
 			1: WarningOneMinuteRemaining
 	ColorPickerManager:
 		PreviewActor: e3.colorpicker
-	# LIVE as of the Phase 2 missile powers, for ONE option: the tactical nuclear strike gate.
-	# player.yaml's GrantConditionOnLobbyOption@tacnuke reads `tactical-nuke` from here, and the
-	# power's RequiresCondition makes its icon absent when the host leaves it off (the default).
+	# LIVE as of the Phase 2 missile powers, for TWO options now: the tactical nuclear strike gate and
+	# the high-yield strategic one added on 2026-09-06.
+	#   * player.yaml's GrantConditionOnLobbyOption@tacnuke reads `tactical-nuke` from here, and the
+	#     power's RequiresCondition makes its icon absent when the host leaves it off (the default).
+	#   * @highyieldnuke reads `high-yield-nuke` the same way, but that one DEFAULTS ON -- the user's
+	#     explicit temporary choice so both nuclear powers are reachable for testing without ticking
+	#     anything, with the release default left to them. Neither default is overridden here; the C#
+	#     values in PowersLobbyOptions.cs are the shipped behaviour and the only thing set below is
+	#     where the two checkboxes sort.
 	#
 	# The trait's OTHER two options belong to the airstrikes, which stay disabled for v1 -- so they
 	# are HIDDEN rather than deleted. Hiding is the right lever: the fields keep documenting what
@@ -580,6 +586,9 @@ World:
 		AirstrikeCooldownVisible: False
 		AirstrikeCooldownDisplayOrder: 82
 		TacticalNukeCheckboxDisplayOrder: 83
+		# 84 so the two nuclear gates sit together; the C# default of 103 would sort it far away
+		# from its sibling, past every option this block hides.
+		HighYieldNukeCheckboxDisplayOrder: 84
 	OrderEffects:
 		TerrainFlashImage: moveflsh
 		TerrainFlashSequence: idle

@@ -1076,3 +1076,86 @@ TacNukeMissile:
 	# the SetPosition above revokes `airborne` before the queued kill lands.
 	Explodes:
 		Weapon: Atomic
+
+# The delivery body for the HIGH-YIELD STRATEGIC nuclear strike (player.yaml,
+# MissileStrikePower@HighYieldNuke). Sits next to TacNukeMissile above and is deliberately a
+# SEPARATE ACTOR rather than a variant of it: the tactical nuke is a shipped, balanced power and
+# nothing here may change how it behaves.
+#
+# The power it belongs to is lobby-gated and, unlike the tactical nuke's, DEFAULTS ON -- the user's
+# explicit temporary choice so both nuclear powers are reachable for testing, with the release
+# default theirs to settle. So unlike tacnukemissile, this actor is reachable in a default game: one
+# is created every time the power fires. If the gate is ever shut it costs nothing again --
+# `RequiresCondition: !highyieldnuke-disabled` disables the power's trait and nothing creates one.
+HighYieldNukeMissile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 0
+	Tooltip:
+		Name: Strategic Nuclear Missile
+	# 1.6 against the tac nuke's 1.05, on top of the sequence's own Scale 1.4 (sequences.yaml)
+	# against its 0.85 -- 2.24 effective versus 0.89, so this reads as roughly two and a half times
+	# the body in flight. Neither missile has bespoke art; both are the Iskander sprite, and scale is
+	# the only thing that distinguishes them.
+	RenderSprites:
+		Scale: 1.6
+	Health:
+		HP: 200
+	# Unacquirable, same mechanism and same PITFALL as tacnukemissile: overriding the inherited
+	# `ICBM` types rather than removing the Targetable traits, because WeaponInfo.IsValidAgainst
+	# gates on GetEnabledTargetTypes (WeaponInfo.cs:256-264) and an actor with no target types is
+	# invalid for every weapon, splash included. `Hypersonic` is reused rather than inventing a
+	# fifth unlisted type -- no weapon in the mod lists it, which is the whole property being bought.
+	Targetable@Ground:
+		TargetTypes: Hypersonic
+		RequiresCondition: !airborne
+	Targetable@Airborne:
+		TargetTypes: Hypersonic
+		RequiresCondition: airborne
+	BallisticMissile:
+		# 30, for the distance-independence reason documented on kinzhalmissile and tacnukemissile:
+		# arc apex scales with shot length (BallisticMissileFly.cs:88-90), so a steep LaunchAngle
+		# would make the missile climb after entering the map by more on a big map than a small one.
+		# That matters more here than anywhere: this weapon is aimed at map centres on 128-cell maps.
+		LaunchAngle: 30
+		# 550 wdist/tick = 8.9 cells/s, against the tac nuke's 900 and the Kinzhal's 2000. The
+		# slowest delivery in the mod, and deliberately so: this is a heavy multi-stage device, not a
+		# hypersonic dart, and the approach is meant to be watched. A 60-cell shot is 61440/550 = 112
+		# ticks = 6.7 s at Timestep 60, against 39 ticks for the same shot from a tac nuke.
+		Speed: 550
+		Acceleration: 0
+		InitialSpeedPercent: 100
+		# TerminalSpeed and TerminalAcceleration are DELIBERATELY ABSENT, which is the one place this
+		# departs from tacnukemissile rather than merely rescaling it. Those two give the tac nuke a
+		# post-apex boost from 900 to 1100 -- but MissileStrikePower derives its camera and beacon
+		# timings from BallisticMissileFly.EstimateArcTicks, which at Acceleration 0 returns a flat
+		# hDist/Speed and does NOT model the boost (BallisticMissileFly.cs:71-73 vs 213-221). The tac
+		# nuke therefore arrives slightly ahead of its own estimate, which is harmless at its 30-cell
+		# blast and 25-tick camera advance. Here the camera is the only way the player sees a 102-cell
+		# detonation at all, so flight time is kept exactly predictable instead.
+		LaunchRiseTicks: 0
+		PostErectionWaitTicks: 0
+		VisualPitchMultiplier: 47
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Type: CenterPosition
+		# Further back and higher than the tac nuke's -650,0,200, in proportion to the larger body.
+		Offsets: -1100, 0, 340
+	# The one line that makes this a different weapon rather than a bigger sprite. AtomicHighYield is
+	# `Atomic` scaled by the cube root of a 40x yield ratio -- see the header on that block in
+	# weapons-superweapons.yaml for where every number came from.
+	#
+	# UNLIKE tacnukemissile THIS IS AN AIRBURST AND MUST STAY ONE. It is fired only by
+	# MissileStrikePower@HighYieldNuke, which carries DetonationAltitude: 15c0; the fireball sprite is
+	# scaled 700% and its lift off the ground is DetonationAltitude + Offset*scale, so dropping the
+	# burst to ground level would leave a 700%-scale mushroom cloud sitting with its middle in the
+	# dirt. Every AtomicHighYield warhead carries AirThreshold: 24c0 to make that burst legal, which
+	# is 8.6 cells of headroom over the 15c0 it actually uses.
+	#
+	# Plain, ungated Explodes for the reasons kinzhalmissile documents: SpawnedExplodes needs a
+	# BaseSpawnerSlave master this actor does not have, and an `airborne` gate never fires because
+	# BallisticMissileFly's terminal SetPosition revokes `airborne` before the queued kill lands.
+	Explodes:
+		Weapon: AtomicHighYield

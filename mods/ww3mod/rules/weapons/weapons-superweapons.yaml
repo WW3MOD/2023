@@ -384,6 +384,486 @@ Atomic:
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 10c0
 
+# =====================================================================================================
+# AtomicHighYield -- the STRATEGIC sibling of `Atomic`. Not a retune of it: `Atomic` is untouched and
+# still ships exactly as it was, because the tactical nuclear strike is a balanced, approved power and
+# this is not. This warhead exists for the doomsday / DEFCON end-of-game event the user has described
+# but not yet designed -- but the power that fires it (player.yaml, MissileStrikePower@HighYieldNuke)
+# ships lobby-gated and ON, which is the user's explicit temporary choice so that both nuclear powers
+# are reachable for testing. They have taken the release default as theirs to settle.
+#
+# THE YIELD STORY, and it is the source of nearly every number below. `Atomic` is a ~20 kt tactical
+# device. This is a ~800 kt strategic warhead: a yield ratio of 40. Blast radii scale as the CUBE ROOT
+# of yield (the Hopkinson-Cranz scaling law every weapons-effects table is built on), so 40^(1/3) is
+# 3.42, and every radius here is `Atomic`'s multiplied by 3.4 and rounded to something legible. That
+# single factor is why the numbers look arbitrary in isolation and are not:
+#
+#   Atomic                       x3.4     AtomicHighYield
+#   ThermalVaporize   Spread  3c0    ->   10c0        (vaporises to ~30 cells, was ~8.4)
+#   ThermalRadiation  Spread  1c0    ->    3c512      (thermal reach ~49 cells, was ~14)
+#   Fire ring         10c0..28c0     ->   34c0..95c0  (structures alight to ~95 cells, was ~28)
+#   EMP               15c0           ->   51c0
+#   BlastWave     MaxRadius  30c0    ->  102c0
+#   Suppression       8..32c0        ->   27..109c0
+#
+# 102 cells of blast is the whole point. The largest shipped map is x-lake-ww3 at 130x130, whose centre
+# is ~92 cells from its corners; twin-rivers-ww3 (128x128) is ~89. So a detonation at map centre puts
+# EVERY cell of EVERY shipped map inside the wavefront. That is the brief -- but see the falloff table
+# below: inside it is not the same as flattened, and the gradient is what makes this read as a weapon
+# rather than a delete key.
+#
+# THE TIMELINE IS PART OF THE SCALE. `Atomic`'s effects are all complete by tick ~213 (12.8 s at
+# Timestep 60, which is 16.67 ticks/s -- NOT the 25 asserted by several in-tree comments). This one
+# runs to tick ~724, about 43 s. Nothing was slowed down to achieve that: WaveSpeed stays at 7
+# ticks/cell, because a shock front in air decays to the speed of sound whatever set it off. The wave
+# simply has 3.4x further to go. A strategic detonation taking most of a minute to finish arriving at
+# the map edge IS the physics, and it is the largest single reason this reads as bigger rather than
+# merely as more damage.
+# =====================================================================================================
+AtomicHighYield:
+	ValidTargets: Ground, Trees, Water, Underwater, Air
+
+	# ===== PHASE 0: THE FLASH (Tick 0) =====
+	# THREE warheads rather than `Atomic`'s one, and the reason is a hard engine ceiling rather than
+	# taste. FlashPaletteEffect computes `frac = remainingFrames / Info.Length` and lerps the palette
+	# toward white by it (FlashPaletteEffect.cs:68-79); palettes.yaml:160-162 pins the Nuke effect's
+	# Length at 30. A Duration above 30 therefore starts at frac > 1, which is an EXTRAPOLATION past
+	# white through an unclamped lerp -- not a longer flash, a corrupted palette. Stacking three
+	# overlapping 30-tick calls holds frac <= 1 throughout and still blinds the screen for ~70 ticks
+	# (4.2 s), which is what a megaton-class fireball earns.
+	Warhead@Flash1: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+	Warhead@Flash2: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+		Delay: 22
+	Warhead@Flash3: FlashPaletteEffect
+		Duration: 25
+		FlashType: Nuke
+		Delay: 44
+
+	# Screen shake, same progressive decay as `Atomic` but stretched to cover the whole blast wave:
+	# 0 -> ~760 ticks rather than 0 -> 210. The ground does not stop moving until the wavefront has
+	# left the map.
+	Warhead@Shake1: ShakeScreen
+		Duration: 60
+		Intensity: 120
+	Warhead@Shake2: ShakeScreen
+		Duration: 130
+		Intensity: 65
+		Delay: 60
+	Warhead@Shake3: ShakeScreen
+		Duration: 200
+		Intensity: 30
+		Delay: 190
+	Warhead@Shake4: ShakeScreen
+		Duration: 220
+		Intensity: 12
+		Delay: 390
+	Warhead@Shake5: ShakeScreen
+		Duration: 150
+		Intensity: 5
+		Delay: 610
+
+	# Fireball visual. ScalePercent 700 against `Atomic`'s 300.
+	#
+	# THE OFFSET IS UNCHANGED AT -1900 AND THAT IS DELIBERATE, because CreateEffectWarhead applies it
+	# as `pos + Offset * ScalePercent / 100` (CreateEffectWarhead.cs:150) -- the offset scales with the
+	# sprite, so -1900 lifts a 700%-scaled sprite off its own anchor by exactly the proportion it lifts
+	# a 300% one. Screen y is TileSize.Height * (Y - Z) (WorldRenderer.cs:749), so -Y and +Z are the
+	# same displacement; the total lift above the aim point is DetonationAltitude + 1900 * scale. For
+	# the tac nuke that is 6400 + 5700 = 12100 at scale 3. Holding the same ratio at scale 7 wants
+	# 28233, and 15360 + 13300 = 28660 -- within 1.5%. That is where the 15c0 burst height in
+	# player.yaml comes from, and the two numbers must move together or the cloud detaches from the
+	# ground.
+	Warhead@Fireball: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 700
+		Offset: 0,-1900,0
+		Palette: effect_ts
+		ZOffset: 4096
+		ImpactSounds: kaboom1.aud
+		ImpactActors: false
+		VisibleThroughFog: true
+		ValidTargets: Ground, Water, Air
+
+	# ===== PHASE 1: THERMAL RADIATION =====
+	# A 20 kt fireball shines for about two seconds. An 800 kt one shines for ten, because thermal
+	# pulse duration also scales as the cube root of yield. RadiationDuration below is 200 ticks
+	# (12.0 s at Timestep 60) against `Atomic`'s 50, and the fire ring's delays are stretched to match:
+	# far-field ignition really does happen seconds after the flash.
+
+	# Instant vaporization at ground zero (0-30 cells). Falloff is flat 100 out to 20480, which is what
+	# keeps this band lethal to infantry DIRECTLY UNDER THE AIRBURST -- a Circle hitshape measures the
+	# burst in three dimensions (MissileStrikeArrivalTest.cs, CircleHitShapesPayTheFullVerticalLeg), so
+	# an infantryman at horizontal distance zero is treated as 15330 away. That is inside the flat band
+	# with 5150 to spare. Vehicles and buildings use Rectangle hitshapes and pay nothing at all.
+	Warhead@ThermalVaporize: SpreadDamage
+		Spread: 10c0
+		Damage: 800000
+		Penetration: 20000
+		Falloff: 100, 100, 100, 50
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: ElectricityDeath
+		AirThreshold: 24c0
+
+	# Instant tree incineration at ground zero (0-10.5 cells).
+	#
+	# THIS WARHEAD, AND THE THREE TREE-FIRE ONES BELOW, DO NOTHING TO ANY TREE THE MOD SHIPS, and the
+	# same is true of `Atomic`'s equivalents -- whose comments still describe husks and a graduated
+	# burn that no longer happen. Every T##/TC0# actor carries `Inherits@Indestructible:
+	# ^TreeIndestructible`, which is `DamageMultiplier: Modifier: 0` (decoration.yaml:135-137).
+	# Health.InflictDamage applies damage modifiers unless called with ignoreModifiers
+	# (Health.cs:176-186), so 800000 becomes 0 -- and so does the fire tick, which decoration.yaml:147
+	# says out loud: "On an opted-in tree it is inert (the burn tick ChangesHealth@BurnDamage subtracts
+	# 0, so the tree never leaves DamageState.Undamaged and the burn overlays never reach their
+	# MinimumDamageState)". Only Health.Kill() bypasses it (Health.cs:245), which no warhead reaches.
+	#
+	# THEY ARE KEPT ANYWAY, deliberately, for the reason that same comment gives: "Restoring
+	# Modifier: 100 restores fire behaviour on trees too, with no edit here." If tree destructibility
+	# is ever turned back on, this warhead set is already shaped for it and matches its sibling. What
+	# is NOT kept is a comment claiming trees burn today. See WORKSPACE/DISCOVERIES.md 2026-09-06.
+	Warhead@TreeVaporize: SpreadDamage
+		Spread: 3c512
+		Damage: 800000
+		Penetration: 20000
+		Falloff: 100, 100, 100, 100
+		Delay: 1
+		ValidTargets: Trees
+		DamageTypes: FireDeath
+		AirThreshold: 24c0
+
+	# Repeating thermal heat radiation pulse, 3.5x the reach and 3x the duration of `Atomic`'s
+	Warhead@HeatRadiation2: SpreadDamage
+		Spread: 1c768
+		Damage: 400
+		Falloff: 10000, 8000, 4000, 2500, 300, 100, 80, 50, 40, 25, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+		Duration: 15
+		Modulus: 2
+		ValidTargets: Ground, Trees, Water, Underwater, Air
+		DamageTypes: FireDeath
+		AirThreshold: 24c0
+
+	# Sustained thermal radiation -- 50 pulses over 200 ticks (12 s), against `Atomic`'s 17 over 50.
+	# Spread 3c512 puts the 15-step falloff table's last entry at 50176, so thermal reaches ~49 cells.
+	# At  10 cells: ~35% per pulse -- infantry gone in under a second, vehicles cooking
+	# At  25 cells: ~8% per pulse  -- infantry dead, light vehicles burning out
+	# At  40 cells: ~1% per pulse  -- still 50 pulses of it; infantry do not survive standing in it
+	# At  50+ cells: nothing; from here out the fire ring and the shockwave do the work
+	Warhead@ThermalRadiation: ThermalRadiation
+		RadiationDuration: 200
+		DamageInterval: 4
+		Spread: 3c512
+		Damage: 9000
+		Penetration: 1200
+		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: FireDeath
+		AirThreshold: 24c0
+		Versus:
+			Light: 120
+			Medium: 60
+			Heavy: 30
+			Concrete: 20
+
+	# ===== FIRE: Staggered thermal ignition (structures & infantry) =====
+	# Ten warheads, exactly as `Atomic` has -- and TEN IS NOT A ROUND NUMBER PICKED FOR SYMMETRY: the
+	# `onfire` ExternalCondition on infantry.yaml:969-970 carries TotalCap: 10, so an eleventh warhead
+	# would be granted and immediately discarded. Ranges are the 3.4x scaling (34c0..95c0); durations
+	# are doubled on top of it, because a firestorm started by a megaton weapon burns for far longer
+	# than one started by a tactical; delays are stretched 4x, tracking the 200-tick thermal pulse
+	# above -- a structure 90 cells out is not ignited by the flash, it is ignited several seconds
+	# later once enough thermal energy has arrived.
+	Warhead@Fire1: GrantExternalCondition
+		Range: 34c0
+		Amount: 1
+		Duration: 1500
+		Condition: onfire
+		Delay: 1
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire2: GrantExternalCondition
+		Range: 41c0
+		Amount: 1
+		Duration: 1400
+		Condition: onfire
+		Delay: 20
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire3: GrantExternalCondition
+		Range: 48c0
+		Amount: 1
+		Duration: 1300
+		Condition: onfire
+		Delay: 40
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire4: GrantExternalCondition
+		Range: 54c0
+		Amount: 1
+		Duration: 1200
+		Condition: onfire
+		Delay: 60
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire5: GrantExternalCondition
+		Range: 61c0
+		Amount: 1
+		Duration: 1100
+		Condition: onfire
+		Delay: 80
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire6: GrantExternalCondition
+		Range: 68c0
+		Amount: 1
+		Duration: 1000
+		Condition: onfire
+		Delay: 100
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire7: GrantExternalCondition
+		Range: 75c0
+		Amount: 1
+		Duration: 900
+		Condition: onfire
+		Delay: 125
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire8: GrantExternalCondition
+		Range: 82c0
+		Amount: 1
+		Duration: 800
+		Condition: onfire
+		Delay: 150
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire9: GrantExternalCondition
+		Range: 88c0
+		Amount: 1
+		Duration: 700
+		Condition: onfire
+		Delay: 175
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire10: GrantExternalCondition
+		Range: 95c0
+		Amount: 1
+		Duration: 600
+		Condition: onfire
+		Delay: 200
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+
+	# ===== TREE FIRE: Graduated burn by distance =====
+	# INERT AGAINST EVERY SHIPPED TREE -- see the note on Warhead@TreeVaporize above for the proof and
+	# for why these are kept regardless. The bands below describe what this would do if
+	# ^TreeIndestructible's Modifier went back to 100; they are NOT a description of current
+	# behaviour, which is that trees are untouched at every range.
+	#
+	# Same three-band mechanism as `Atomic`: trees carry TotalCap: 1 on `onfire`, so the FIRST warhead
+	# to land would fix a tree's fate and the delays order the bands. Tree HP 2500, burn -10 HP/tick,
+	# so 250 ticks of fire would kill.
+	#
+	# 0-10.5 cells:  would already be husked by TreeVaporize
+	# 10.5-34 cells: 900 ticks of fire, far past the 250 needed -- slow visible death, then husk
+	# 34-55 cells:   200 ticks = 2000 damage, tree left at ~500 HP, Heavy state, still standing
+	# 55-80 cells:   90 ticks = 900 damage, tree at ~1600 HP, Light state, singed
+	# 80+ cells:     untouched. On a 128x128 map that is only the extreme corners.
+	Warhead@TreeFire_Kill: GrantExternalCondition
+		Range: 34c0
+		Amount: 1
+		Duration: 900
+		Condition: onfire
+		Delay: 3
+		ValidTargets: Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@TreeFire_Burn: GrantExternalCondition
+		Range: 55c0
+		Amount: 1
+		Duration: 200
+		Condition: onfire
+		Delay: 40
+		ValidTargets: Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@TreeFire_Singe: GrantExternalCondition
+		Range: 80c0
+		Amount: 1
+		Duration: 90
+		Condition: onfire
+		Delay: 100
+		ValidTargets: Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+
+	# ===== PHASE 2: EMP (Tick 0) =====
+	# 51c0 and 1200 ticks (72 s) against `Atomic`'s 15c0 / 375. A strategic burst does not merely
+	# disable electronics over a wider area; it destroys rather than upsets them, and 72 s is the
+	# longest outage in the mod for that reason.
+	Warhead@EMP: GrantExternalCondition
+		Range: 51c0
+		Duration: 1200
+		Condition: empdisable
+		Delay: 0
+		ValidTargets: Ground, Water
+		InvalidTargets: Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+
+	# ===== PHASE 3: BLAST WAVE (Tick 5 -> ~719) =====
+	# WaveSpeed 7 is UNCHANGED from `Atomic`, and that is the physically honest choice rather than an
+	# oversight: a shock front in air decays to the speed of sound, and sound does not care what set it
+	# off. This wave is not faster, it is LONGER -- 102 cells at 7 ticks/cell is 714 ticks, 43 s, and
+	# watching it still arriving at the map edge three quarters of a minute after the flash is most of
+	# what makes this read as strategic.
+	#
+	# THE FALLOFF TABLE IS THE BALANCE. 35 entries at Spread 3c0 covers 0..102 cells in 3-cell steps,
+	# and ShockwaveDamageWarhead interpolates linearly between them (GetDamageFalloff), so a coarse
+	# table is a smooth curve rather than a staircase. Damage reach is min(MaxRadius, (Falloff.Length-1)
+	# * Spread) -- 34 * 3072 = 104448 = 102c0 exactly, so MaxRadius and the table agree and NEITHER is
+	# silently the binding constraint. If you lengthen one, lengthen the other.
+	#
+	# The CURVE SHAPE is not `Atomic`'s stretched. `Atomic` falls as roughly R^-1.9 (450 at 1 cell to 1
+	# at 24); this falls as R^-1.28 (560 at 3 cells to 6 at 102). The fatter tail is real physics rather
+	# than generosity: peak overpressure tends toward the acoustic R^-1 limit as the shock weakens, and
+	# a larger weapon spends far more of its radius in that weak-shock regime -- its positive-phase
+	# duration, and so its impulse, also scales as the cube root of yield. A pure geometric stretch of
+	# the tactical curve would have put zero damage on the outer 15 cells, which is exactly the flat,
+	# uninteresting edge this is trying to avoid.
+	#
+	# What the ends mean, against Damage 400000:
+	#   0 cells   (600): 2,400,000 raw. An Abrams takes 960,000 against 24,000 HP. Nothing is left.
+	#   30 cells  (220):   880,000 raw. Still an order of magnitude over anything's health.
+	#   60 cells   (51):   204,000 raw -> 81,600 on Heavy armour. Tanks are scrap.
+	#   89 cells   (13):    52,000 raw -> 20,800 on an Abrams: 87% of its health. Infantry gone.
+	#                       89 cells is centre-to-corner on twin-rivers-ww3, the second largest map.
+	#   102 cells   (6):    24,000 raw -> 9,600 on an Abrams (40%), 7,200 on Concrete. Survivors --
+	#                       burning, crippled survivors, which is what the extreme edge should look like.
+	Warhead@BlastWave: ShockwaveDamage
+		StartDelay: 5
+		WaveSpeed: 7
+		MaxRadius: 102c0
+		Damage: 400000
+		Penetration: 20000
+		Spread: 3c0
+		Falloff: 600, 560, 520, 480, 440, 400, 360, 320, 285, 250, 220, 195, 170, 150, 130, 112, 96, 82, 70, 60, 51, 44, 38, 33, 28, 24, 21, 18, 15, 13, 11, 9, 8, 7, 6
+		# The default 1536 ring is a cell and a half wide. On a 102-cell circle that is a hairline;
+		# 5c512 keeps the band the same fraction of its own radius that the tactical's is of 30c0.
+		# 128 segments for the same reason -- a 64-gon at this radius has 10-cell straight edges.
+		ShockwaveThickness: 5c512
+		ShockwaveSegments: 128
+		ShockwaveFadeInTicks: 60
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 30
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+		AirThreshold: 24c0
+
+	# ===== PHASE 4: BLAST SUPPRESSION (staggered with the blast wave) =====
+	# Ranges and delays are both `Atomic`'s x3.4, which is self-consistent: the wave speed did not
+	# change, so scaling the radius by 3.4 scales the arrival time by 3.4 as well.
+	# ~20 cells (tick 129)
+	Warhead@SuppressionClose: GrantExternalCondition
+		Range: 27c0
+		Amount: 10
+		Duration: 400
+		Condition: suppression-1
+		Delay: 129
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	# ~35 cells (tick 262)
+	Warhead@SuppressionMedium: GrantExternalCondition
+		Range: 51c0
+		Amount: 8
+		Duration: 350
+		Condition: suppression-1
+		Delay: 262
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	# ~70 cells (tick 510)
+	Warhead@SuppressionFar: GrantExternalCondition
+		Range: 85c0
+		Amount: 5
+		Duration: 300
+		Condition: suppression-1
+		Delay: 510
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	# ~88 cells (tick 636)
+	Warhead@SuppressionWind: GrantExternalCondition
+		Range: 95c0
+		Amount: 3
+		Duration: 250
+		Condition: suppression-1
+		Delay: 636
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	# ~102 cells (tick 724) -- the last thing this warhead does. Range runs past MaxRadius on purpose,
+	# exactly as `Atomic`'s 32c0 outruns its 30c0: the wind outlives the overpressure.
+	Warhead@SuppressionOuter: GrantExternalCondition
+		Range: 109c0
+		Amount: 1
+		Duration: 150
+		Condition: suppression-1
+		Delay: 724
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+
+	# ===== PHASE 5: TERRAIN SCARRING =====
+	# Size is a RADIUS IN CELLS (LeaveSmudgeWarhead.cs uses FindTilesInAnnulus(cell, min, Size[0])), so
+	# Size 30 is ~2800 smudge cells -- about a sixth of a 128x128 map blackened in one shot. It is a
+	# single frame-end pass, not a per-tick cost.
+	#
+	# Chance is deliberately left at its default 100 where `Atomic` uses 60 on its outer scorch. Chance
+	# gates the WHOLE warhead, not each cell (LeaveSmudgeWarhead.cs:41-43), so 60 would be a coin flip
+	# on whether the map is visibly scarred at all. A strategic burst does not sometimes leave a mark.
+	Warhead@Crater: LeaveSmudge
+		Size: 10
+		SmudgeType: Crater
+		Delay: 8
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch1: LeaveSmudge
+		Size: 17
+		SmudgeType: Scorch
+		Delay: 30
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch2: LeaveSmudge
+		Size: 30
+		SmudgeType: Scorch
+		Delay: 90
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+
+
 EmpBomb:
 	BurstWait: 10
 	Range: 0c512

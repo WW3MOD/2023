@@ -1,0 +1,50 @@
+# High-yield strategic nuke DEMO overrides. Nothing here is asserted; see map.yaml for the layout
+# and demo-highyield-nuke.lua for the schedule.
+
+World:
+	# NO PowersLobbyOptions OVERRIDE, and its absence is deliberate rather than an omission.
+	# MissileStrikePower@HighYieldNuke ships with its lobby checkbox defaulting ON (the user's
+	# temporary choice; see player.yaml), so this demo fires the power in exactly its shipped
+	# configuration -- which is a better demo than one that force-enables what it is showing. Its
+	# sibling test-tacnuke-delivers DOES need such an override, because the tactical nuke defaults
+	# off. If the release default is ever flipped to off, this scenario needs
+	# `PowersLobbyOptions: HighYieldNukeCheckboxEnabled: true` adding back here, and the symptom
+	# will be an empty support-power bin and a strike that never launches.
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
+	# spawn assignment -- the edge derivation in map.yaml depends on it.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, demo-highyield-nuke.lua
+
+Player:
+	MissileStrikePower@HighYieldNuke:
+		# STAGING OVERRIDES, all three, and none of them is what ships:
+		#
+		# ChargeInterval 400 against the shipped 22500 (22.5 min). The shipped number is a placeholder
+		# for a weapon expected to be triggered by a doomsday event rather than charged on a timer;
+		# waiting it out would spend twenty-two minutes of a launch slot measuring nothing. 400 ticks
+		# is 24 s, so after the scripted shot the viewer can fire it again wherever they like without
+		# being able to stack four of them by accident.
+		ChargeInterval: 400
+		StartFullyCharged: true
+		# MissileDelay 100 (6.0 s) against the shipped 500 (30.0 s). The thirty-second public
+		# countdown is a real mechanic and is deliberately NOT what this demo is about -- the subject
+		# is the warhead, and half a minute of watching a beacon before it arrives is half a minute of
+		# nothing to look at. If you want to see the shipped wait, delete this line.
+		MissileDelay: 100
+	# 481 actors die here. Without this the match ends on elimination while the blast wave is still
+	# travelling -- it takes 714 ticks to reach full radius.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored. This demo is about seeing the whole map at once, and the
+	# power's own 68c0 reveal camera is irrelevant under it (it reveals shroud, and there is none).
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# No cash, so nothing can be produced and the only thing that happens on this map is the strike.
+	PlayerResources:
+		DefaultCash: 0
