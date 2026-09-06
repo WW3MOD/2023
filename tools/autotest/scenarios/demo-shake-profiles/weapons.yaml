@@ -1,0 +1,120 @@
+# Shake-only weapons for the demo. Each does NOTHING but move the camera: no SpreadDamage, no
+# CreateEffect, no LeaveSmudge. That is deliberate and it is what makes the demo readable -- killing
+# one probe cannot damage, ignite or destroy another, so every stage is the profile under test and
+# nothing else.
+#
+# Profiles 4, 5 and 6 are VERBATIM COPIES of the shipped `Atomic` and `AtomicHighYield` shake stacks
+# in mods/ww3mod/rules/weapons/weapons-superweapons.yaml, so the demo shows the shipped thing rather
+# than an approximation of it. Inheriting the real weapons is not an option -- they would also
+# vaporise the map -- so these are copies, and a copy drifts. If those stacks are retuned and these
+# are not, the demo becomes a lie about what the game does. Keep them in step.
+#
+# Every Hz figure below is the CENTRE of the per-event detune band; FrequencyJitterPercent is 6, so
+# a live detonation lands within about +/-6% of it.
+
+# --- Profile 1: a shell landing nearby. Small, sharp, gone in a second and a half. ---------------
+# NO FrequencyScale, and its absence is the point: Intensity 2 alone already puts the fundamental at
+# 0.199 c/t, past the 0.179 c/t Nyquist ceiling, so it saturates there (2.98 Hz) and any
+# FrequencyScale above 100 would be inert. This is as fast as any shake in the mod can be, and
+# 16.67 ticks/s is what decides that rather than any setting.
+DemoShakeShell:
+	Warhead@Shake: ShakeScreen
+		Duration: 25
+		Intensity: 2
+		AttackTicks: 1
+		DecayHalfLife: 6
+
+# --- Profile 2: a building collapsing. The shipped ShakeOnDeath values from ^BasicBuilding. ------
+# 2.71 Hz.
+DemoShakeCollapse:
+	Warhead@Shake: ShakeScreen
+		Duration: 40
+		Intensity: 3
+		DecayHalfLife: 9
+		AttenuationDistance: 18c0
+
+# --- Profile 3: a heavy impact, 1.66 Hz. The middle of the range, and the clearest single
+# --- illustration of the envelope: it hits hard in three ticks and then rolls off for five seconds
+# --- instead of running flat and stopping dead the way every shake in the mod used to.
+DemoShakeHeavy:
+	Warhead@Shake: ShakeScreen
+		Duration: 90
+		Intensity: 8
+		AttackTicks: 3
+		DecayHalfLife: 22
+
+# --- Profiles 4 and 5: the TACTICAL NUKE stack, copied from `Atomic`. ----------------------------
+DemoShakeTacNuke:
+	# P-wave precursor, at the 2.98 Hz ceiling.
+	Warhead@Shake1: ShakeScreen
+		Duration: 25
+		Intensity: 4
+		AttackTicks: 1
+		DecayHalfLife: 7
+		FrequencyScale: 175
+	# Main shock, 1.30 Hz, 12.0 px peak.
+	Warhead@Shake2: ShakeScreen
+		Duration: 90
+		Intensity: 13
+		AttackTicks: 3
+		DecayHalfLife: 18
+		Delay: 4
+	# Surface-wave coda, 1.05 Hz, swelling in over 25 ticks then rolling away for 15 s.
+	Warhead@Shake3: ShakeScreen
+		Duration: 260
+		Intensity: 6
+		AttackTicks: 25
+		DecayHalfLife: 85
+		FrequencyScale: 55
+		Delay: 18
+	# The air blast, 2.73 Hz, propagating at 7.8 ticks/cell instead of the global 0.9. No Delay:
+	# the propagation speed IS the delay, which is why probe 5 at 70 cells gets this 546 ticks
+	# (33 s) after its ground wave while probe 4 at 8 cells gets it almost immediately.
+	Warhead@Shake4: ShakeScreen
+		Duration: 70
+		Intensity: 5
+		AttackTicks: 2
+		DecayHalfLife: 20
+		FrequencyScale: 130
+		PropagationTicksPerCell: 7.8
+
+# --- Profile 6: the HIGH-YIELD stack, copied from `AtomicHighYield`. -----------------------------
+DemoShakeHighYield:
+	# P-wave precursor.
+	Warhead@Shake1: ShakeScreen
+		Duration: 35
+		Intensity: 5
+		AttackTicks: 1
+		DecayHalfLife: 10
+		FrequencyScale: 155
+	# Main shock, 1.11 Hz, 16.7 px peak — lower AND bigger than the tactical nuke's 1.30 Hz / 12.0 px.
+	Warhead@Shake2: ShakeScreen
+		Duration: 130
+		Intensity: 18
+		AttackTicks: 4
+		DecayHalfLife: 28
+		Delay: 6
+	# Surface-wave train, 0.78 Hz, 25 s.
+	Warhead@Shake3: ShakeScreen
+		Duration: 420
+		Intensity: 9
+		AttackTicks: 40
+		DecayHalfLife: 150
+		FrequencyScale: 50
+		Delay: 28
+	# Long coda, 0.70 Hz — the lowest and slowest motion in the mod.
+	Warhead@Shake4: ShakeScreen
+		Duration: 500
+		Intensity: 4
+		AttackTicks: 60
+		DecayHalfLife: 190
+		FrequencyScale: 30
+		Delay: 250
+	# The air blast.
+	Warhead@Shake5: ShakeScreen
+		Duration: 120
+		Intensity: 7
+		AttackTicks: 3
+		DecayHalfLife: 32
+		FrequencyScale: 120
+		PropagationTicksPerCell: 7.8

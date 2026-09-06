@@ -1,0 +1,86 @@
+# Screen-shake profile DEMO overrides. Nothing here is asserted; see map.yaml for the layout and
+# the schedule, and demo-shake-profiles.lua for the running order.
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
+	# spawn assignment. Nothing here depends on it, but the probes are placed by absolute cell and a
+	# spawn assigner moving the SRs around would only add noise.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, demo-shake-profiles.lua
+
+Player:
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored, so probe 5 at 70 cells is visible and its explosion can be
+	# seen going off at the same moment the ground wave has NOT yet arrived. That gap is the point
+	# of the stage and it is invisible under shroud.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	PlayerResources:
+		DefaultCash: 0
+
+# ---------------------------------------------------------------------------------------------
+# THE PROBES.
+#
+# Each is an ordinary infantryman with its death explosion swapped for a shake-only weapon from
+# weapons.yaml. Infantry rather than buildings because a building needs its 2x2 footprint to fit,
+# and twin-rivers has rivers and cliffs running through it; one subcell always fits, and no gate a
+# worker can run locally would have reported a footprint that did not.
+#
+# Two fields matter on every probe:
+#   Explodes            replaced, so no blast, no damage, no smudge. Killing one probe therefore
+#                       cannot damage, ignite or kill another, and every stage is the profile under
+#                       test and nothing else.
+#   EmptyWeapon         set to the SAME weapon, and it is not redundant. Explodes.ChooseWeaponForExplosion
+#                       (Explodes.cs:136-149) returns Weapon only if the actor has no armaments at
+#                       all, or if at least one armament is not reloading; otherwise it falls through
+#                       to EmptyWeapon, which defaults to null and means NO EXPLOSION. Infantry have
+#                       armaments, so leaving it unset makes the whole demo conditional on the
+#                       reload state of a rifle nobody is firing. Setting both makes it certain.
+#
+# NONE OF THESE SIX TYPES ALREADY CARRIES AN Explodes, which is why a bare override is safe here:
+# trait fields MERGE rather than replace, so overriding Weapon on a type that already had one would
+# silently inherit its siblings. E6 is the one infantry type in the mod that does have one
+# (infantry.yaml:2139, FlamethrowerExplosion with `Chance: 50` and a `RequiresCondition:
+# ammo-primary` gate) and it was the first pick for probe 5 -- it would have fired half the time.
+# AT is used instead. Check for an existing Explodes before adding a seventh probe.
+#
+# Infantry carry no ShakeOnDeath (that lives on ^BasicBuilding), so unlike a building probe there is
+# no collapse shake to remove and no constant contaminating every stage.
+# ---------------------------------------------------------------------------------------------
+
+E1:
+	Explodes:
+		Weapon: DemoShakeShell
+		EmptyWeapon: DemoShakeShell
+
+E2:
+	Explodes:
+		Weapon: DemoShakeCollapse
+		EmptyWeapon: DemoShakeCollapse
+
+E3:
+	Explodes:
+		Weapon: DemoShakeHeavy
+		EmptyWeapon: DemoShakeHeavy
+
+E4:
+	Explodes:
+		Weapon: DemoShakeTacNuke
+		EmptyWeapon: DemoShakeTacNuke
+
+AT:
+	Explodes:
+		Weapon: DemoShakeTacNuke
+		EmptyWeapon: DemoShakeTacNuke
+
+SN:
+	Explodes:
+		Weapon: DemoShakeHighYield
+		EmptyWeapon: DemoShakeHighYield

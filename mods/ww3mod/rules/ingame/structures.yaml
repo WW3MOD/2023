@@ -53,6 +53,26 @@
 		EmptyWeapon: BuildingExplode
 	CaptureNotification:
 	ShakeOnDeath:
+		# RETUNED 2026-09-06. Was bare, i.e. the engine defaults of Duration 10 / Intensity 1 under
+		# the OLD meaning, which resolved to a flat ~4 px 4.2 Hz buzz for 0.6 s that then stopped
+		# dead. Now: 3 px peak, decaying away over 2.4 s at 2.71 Hz (+/-6% per event).
+		#
+		# NO FrequencyScale, deliberately. It was written here as 145 and then removed once measured:
+		# an Intensity of 3 already puts the fundamental at 0.163 c/t against a Nyquist ceiling of
+		# 0.179, so the scale bought 0.27 Hz before saturating and the line read as a lever while
+		# being very nearly inert. Small events sit at the frequency ceiling whatever you ask for --
+		# 16.67 ticks/s is the constraint, not the config.
+		#
+		# AttenuationDistance is the load-bearing one here and it is deliberately far tighter than
+		# the 45-cell global. EVERY building death on the map raises one of these, and the reworked
+		# falloff is gentle by design (surface-wave spreading, not inverse square) -- so without a
+		# short horizon a busy battle two thirds of a map away would sum into a constant low rumble
+		# under the camera. 18 cells keeps a collapse something you feel because it happened NEAR
+		# YOU. If a big battle ever does start humming, this number is the first thing to shorten.
+		Duration: 40
+		Intensity: 3
+		DecayHalfLife: 9
+		AttenuationDistance: 18c0
 	ProximityCaptor:
 		Types: Building
 	Guardable:
