@@ -39,7 +39,7 @@ World:
 		ScanRadius: 30
 		InitialStance: FireAtWill
 		InitialStanceAI: FireAtWill
-		InitialEngagementStance: AttackAnything
-		InitialEngagementStanceAI: AttackAnything
+		InitialEngagementStance: Hunt
+		InitialEngagementStanceAI: Hunt
 		MinimumScanTimeInterval: 8
 		MaximumScanTimeInterval: 16

@@ -757,3 +757,13 @@ tnkd.destroyed:
 	idle: tnkd
 		Facings: 32
 		UseClassicFacings: True
+
+deadhandtacticalmissile:
+	idle: iskander-missile
+		Facings: 32
+		ZOffset: 1023
+
+deadhandstrategicmissile:
+	idle: iskander-missile
+		Facings: 32
+		ZOffset: 1023
