@@ -70,6 +70,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 
 namespace OpenRA.Mods.Common.Traits
@@ -346,6 +347,59 @@ namespace OpenRA.Mods.Common.Traits
 			var dx = cellX - prevX;
 			var dy = cellY - prevY;
 			return dx * dx + dy * dy >= thresholdCells * thresholdCells;
+		}
+
+		/// <summary>Scan order for the square follow box of half-width <paramref name="radius"/> around a
+		/// cluster centroid: every offset in the box, ordered NEAREST-FIRST by squared distance from the
+		/// centroid, with exact ties broken by dx then dy so the sequence is fixed and identical on every
+		/// machine. Zero RNG.
+		///
+		/// <para>THE ORDER IS THE FIX, NOT AN OPTIMISATION. Its consumer
+		/// (SupplyFollowerBotModule.FindSafeFollowPosition) argmaxes -threat over the box with a STRICT
+		/// comparison, so the incumbent survives a tie — which means the scan order alone decides where a
+		/// truck is sent whenever two cells score the same. Scanning in raster order made that incumbent the
+		/// (-radius, -radius) CORNER, so on a flat field the follow cell was deterministically the corner
+		/// rather than the centroid — up to ~4.2 cells off it at radius 3.</para>
+		///
+		/// <para>A FLAT FIELD IS THE NORMAL CASE ON A QUIET FRONT, AND IT IS FLAT BY CONSTRUCTION RATHER THAN
+		/// BY LUCK. ThreatMapManager.GetThreat (ThreatMapManager.cs:197-227) sums valued combatants within
+		/// WDist.FromCells(CellSize) of the sampled cell, and CellSize is 8 (rules/world.yaml:297) — wider
+		/// than this whole box. Every cell in a radius-3 box therefore samples the SAME actor set as every
+		/// other, so the 49 scores are not merely close, they are equal, and the argmax degenerates to
+		/// "whichever cell was looked at first". Measured on test-supply-safe-front-keeps-cargo (run
+		/// 260906_090304): every follow cell in the run was exactly centroid + (-3, -3), over nine scans and
+		/// five different centroids.</para>
+		///
+		/// <para>Nearest-first turns that tie into "stand on the centroid", which is the cell the doctrine
+		/// wants (supply-route.md: the truck closes to aura range and serves in place). A cell further out
+		/// still wins whenever it is STRICTLY safer, so the danger avoidance the box exists for is unchanged
+		/// — only the tie is.</para></summary>
+		public static CVec[] FollowBoxScanOrder(int radius)
+		{
+			if (radius < 0)
+				return Array.Empty<CVec>();
+		
+			var offsets = new List<CVec>((2 * radius + 1) * (2 * radius + 1));
+			for (var dx = -radius; dx <= radius; dx++)
+				for (var dy = -radius; dy <= radius; dy++)
+					offsets.Add(new CVec(dx, dy));
+		
+			// (dist2, dx, dy) is a TOTAL order on a set with no duplicates, so the result does not depend on
+			// the sort being stable and is byte-identical run to run.
+			offsets.Sort((a, b) =>
+			{
+				var da = (a.X * a.X) + (a.Y * a.Y);
+				var db = (b.X * b.X) + (b.Y * b.Y);
+				if (da != db)
+					return da.CompareTo(db);
+		
+				if (a.X != b.X)
+					return a.X.CompareTo(b.X);
+		
+				return a.Y.CompareTo(b.Y);
+			});
+		
+			return offsets.ToArray();
 		}
 
 		/// <summary>Should a truck KEEP serving the cluster it is already driving to, rather than take the
