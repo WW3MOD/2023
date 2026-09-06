@@ -14,6 +14,25 @@ If anything here disagrees with code, the doc is right and the code needs to cha
 
 **Consequence for scenario authors, and it has burned tests: `DefaultCash: 0` does NOT freeze a force.** Several scenarios carry a comment claiming "no cash anywhere, so nothing is produced — the only actors are the pre-placed ones", and it is false: a bot observed at `cash=0` on tick 40 had 1437 by tick 750 and had bought two units in between. **Any scenario relying on "the placed force is the whole force" for attribution is relying on something untrue — count named actors instead**, since named actors keep their identity while the population around them grows.
 
+### `PassiveIncome` is ON by default, and it silently poisons any before/after cash assertion
+
+*(Promoted 2026-09-06 from DISCOVERIES, re-read at `main @ 9cb423d4`.)* The stream above is an engine-class
+default (`Traits/Player/PlayerResources.cs:63`, `:66`, `:69`), so it is live in **every autotest that does not
+turn it off**. `mods/ww3mod/rules/player.yaml:400-403` shows those values **commented out**, which reads at a
+glance as "off" and is not — the engine constants supply them.
+
+**Zeroing the field alone is not enough.** The value that reaches `PassiveIncomeAmount` is read back from the
+lobby option (`:167-170`), and the lobby option registers `PassiveIncome.ToString()` as its own default
+(`:108-109`). A scenario asserting on `player.Cash` must set **`PassiveIncome: 0` AND
+`PassiveIncomeDropdownLocked: True`**.
+
+**And assert the bill exactly rather than within a band.** A tolerance wide enough to absorb the income is
+wide enough to absorb the thing under test: a repair-cost assertion with a ±15% band once passed while
+actually measuring income-minus-spend, permanently green and permanently meaningless. With income off, repair
+is the only thing in the game that can move that purse, so an exact number is available — and it is what
+turned a run *reported as FAIL* into the proof the fix worked, once the reported `-1496` decoded as
+20 × 100 income minus a 504-credit repair.
+
 ## Core principles
 
 1. **Every unit, every magazine, every supply box has a cost.** Cash spent buys ammo + body together. Selling or evacuating refunds what's left.
@@ -302,11 +321,17 @@ Full write-up as instance 13 of
 [`conventions.md` §"A change believed made, documented as made, and inert"](conventions.md#a-change-believed-made-documented-as-made-and-inert).
 
 **What ships now.** `RepairTick` takes a percentage fallback gated on `hpToRepair <= 0`
-(`Activities/Resupply.cs:636-648`), so any host that *does* set `HpPerStep` is byte-identical. `^Vehicle`'s
-`Repairable.PercentageStep: 3` (`rules/ingame/vehicles.yaml:64`) is the **only** repair-side `PercentageStep`
-in the mod, so the behaviour change is exactly: **ground vehicles repair at a Logistics Centre, 3% of MaxHP
-per 24-tick `RepairsUnits.Interval`** = 0.125%/tick. Every aircraft at a helipad or airfield still resolves
-0 and is unchanged — that is the pre-existing state, not a decision, and it is worth revisiting separately.
+(`Activities/Resupply.cs:642-648`), so any host that *does* set `HpPerStep` is byte-identical. There are now
+exactly **two** repair-side `PercentageStep` declarations in the mod, both `3`, both on the unit rather than
+the host: `^Vehicle`'s (`rules/ingame/vehicles.yaml:64`) and `^Airborne`'s
+(`rules/ingame/aircraft.yaml:124-126`). Ground vehicles and aircraft therefore both repair at 3% of MaxHP per
+24-tick `RepairsUnits.Interval` = 0.125%/tick.
+
+> **CORRECTED 2026-09-06.** This section previously said `^Vehicle`'s was *the only* repair-side
+> `PercentageStep` and that "every aircraft at a helipad or airfield still resolves 0 and is unchanged". The
+> aircraft half was fixed after that was written and the doc was not updated; the code decides. See
+> §"Aircraft were the other half of the repair fix" below for what that half cost and why it is currently
+> unobservable.
 
 **The burn out-paces the repair by 1.6x, and that is the ruling.** Both rates, per game tick as a fraction
 of MaxHP:
@@ -334,6 +359,51 @@ the crane — from 30% that is 400 ticks, 24 s at the default `Timestep` — and
 **Scenario trap this created.** A scenario damaging its tank to exactly `MaxHealth / 2` passes, because the
 guard is `HP >= 50%`; one odd `MaxHealth` and it crosses into the burn zone and starts dying. Damage to
 60–70% and write the arithmetic down where you do it.
+
+### Aircraft were the other half of the repair fix, and its live surface is currently ZERO
+
+*(Promoted 2026-09-06 from DISCOVERIES, re-read at `main @ 9cb423d4`.)*
+
+The commit that taught `RepairTick` the percentage fallback reported its behaviour change as "exactly: ground
+vehicles now repair at a Logistics Centre". That was accurate **only because `^Vehicle` was the one actor
+family that already carried a `PercentageStep`.** `^Airborne` and `^Helicopter` declared
+`Repairable: RepairActors: afld / hpad` with no step, and `HPAD`/`AFLD` `RepairsUnits`
+(`rules/ingame/structures.yaml:711`, `:786`) set neither `HpPerStep` nor `PercentageStep` — so the new
+fallback resolved 0 for every airframe and the aircraft half of the defect survived the fix that named it,
+with **both** symptoms: no heal, and the same permanent wedge (`Resupply.cs:602` clears `ResupplyType.Repair`
+only at `DamageState.Undamaged`, and the activity's only exit is `activeResupplyTypes == 0` at `:339`), while
+`Math.Max(1, …)` at `:656` still bills 1 credit per `Interval` indefinitely.
+
+**Fixed at ONE site: `PercentageStep: 3` on `^Airborne`'s `Repairable` (`rules/ingame/aircraft.yaml:124-126`).**
+`^Aircraft`, `^Helicopter` and `^Drone` all reach `Repairable` through `^Airborne`, and `^Helicopter`'s own
+`Repairable: RepairActors: hpad` (`:208-209`) **merges** with the inherited node rather than replacing it — it
+overrides the host list and inherits the step, so no actor carries two values. The unit side was chosen over
+the pads because `RepairTick` prefers `repairable.Info.PercentageStep` over `repairsUnits.Info.PercentageStep`
+(`Resupply.cs:644-646`), so a value there cannot be shadowed by a host, and because it mirrors `^Vehicle`
+rather than inventing a second idiom.
+
+**Nothing observable changes today, and that is why this went unnoticed for so long.** `hpad` and `afld` both
+carry `Buildable.Prerequisites: ~disabled` (`structures.yaml:688`, `:756`), and nothing in the repo provides
+`disabled` as a player prerequisite — the only grant of that name is the EMP actor condition at `:218-220`.
+No shipped map places either. **`hpad` cannot be placed at all even by a scenario**: `hpad.shp` and
+`hpadmake.shp` do not exist (`mods/ww3mod/lint-baseline.txt:353-354`) while `sequences-structures.yaml`
+declares `idle`/`make` against them; `afld` has complete art and is map-placeable. So a scenario exercising
+aircraft repair must host at an `afld`.
+
+**Two consequences to know before a map ever places a pad.**
+
+- **The day one does, this changes `@stable`.** `HelicopterStates.SendDamagedUnitsHome`
+  (`Traits/BotModules/Squads/States/HelicopterStates.cs:96-111`) pulls a heli out at
+  `AirframeReadiness.RepairRoutingBar(HasRepairHost(u), …)`, and `HelicopterSquadBotModule` has both an
+  `@stable` and an `@experimental` twin. With no pad anywhere, `HasRepairHost` is always false, the bar is the
+  flee bar, and `Aircraft.CanReturnToBase` refuses the order — so both profiles are byte-identical now, and
+  the change when a pad appears is that damaged helis will come back **healed** instead of parking on the deck.
+- **A latent divergence in the routing pair.** `AirframeReadiness.HasRepairHost`
+  (`Traits/BotModules/AirframeReadiness.cs:59`) accepts any host the owner is *allied* with, while
+  `ReturnToBase.ChooseResupplier` requires `a.Owner == self.Owner` (`Activities/Air/ReturnToBase.cs:47`). An
+  **allied** pad therefore raises the bot's routing bar to the recovery threshold and then supplies no
+  destination — the heli is pulled out of the fight early and finds nowhere to go. Untouched; there is no map
+  on which it can fire.
 
 ### Supply Truck (TRUK)
 
@@ -435,6 +505,26 @@ at all.
 - **The breakdown silently drops sub-1 entries.** `var total = (int)group.Sum(e => e.Cost); if (total <= 0)
   continue;` (`IngameCashCounterLogic.cs:83-85`). A rifleman at 50 x 0.005 = 0.25 per interval is billed and
   never displayed. **Keep any new upkeep >= 1.0 per interval or it charges invisibly.**
+
+### The evacuation refund is all-or-nothing on ARRIVAL, then scaled by surviving HP
+
+*(Promoted 2026-09-06 from DISCOVERIES, re-read at `main @ 9cb423d4`.)* Two separate gates, and both bite
+harder the longer the drive is:
+
+- **Arrival is binary.** `INotifySold.Sold` fires only from `Activities/RotateToEdge.cs:517`, reached only by
+  an actor that got to its edge cell. A unit killed en route raises `Selling` and never `Sold`, banking
+  **zero**.
+- **Survival is graded.** `refund = sellValue * refundPercent * hp / (100 * maxHP)` (`:511`), so every hit
+  taken en route shrinks the payout monotonically. The tick is emitted unconditionally, including "+$0" — a
+  wreck whose HP-scaled refund rounds to zero still tells its owner that evacuating bought nothing.
+
+**So evacuation distance is priced twice**, and neither term is softened by anything: an evacuating unit is
+an ordinary auto-target for the whole drive (see [`conventions.md` §Conditions system](conventions.md#conditions-system)
+on what the `evacuating` condition does and does not buy). At the shipped 60 ms `Timestep` (16.67 tps) a
+tracked `Speed: 70` covers ~1.14 cells/s and infantry at `Speed: 25` ~0.41 cells/s, so a change that moves
+the median drive from ~9 cells to ~108 turns a 7.9 s exposure into ~95 s for a tank and 22 s into ~266 s for
+a rifleman. **Any design that lengthens an evacuation is buying that exposure at full price** — treat it as a
+balance decision, not a free correctness fix.
 
 ### `GetSellValue` has no passenger term, so evacuating a loaded transport deletes its cargo's value
 
