@@ -49,6 +49,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (IsTraitDisabled || self.Owner.WinState == WinState.Lost || !self.World.Map.Contains(self.Location))
 				return;
 
+			// Nobody parachutes out of a vaporised aircraft.
+			if (DeathRemains.AreSuppressed(self))
+				return;
+
 			if (self.World.SharedRandom.Next(100) >= Info.SuccessRate)
 				return;
 

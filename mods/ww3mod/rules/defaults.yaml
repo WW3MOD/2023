@@ -1,6 +1,12 @@
 
 ^ExistsInWorld:
 	AppearsOnMiniMap:
+	# INERT until a VaporizeWarhead calls into it - nothing in the shipped ruleset does yet. Present here
+	# rather than per-actor because it has to reach anything a fireball can sit on: this template is what
+	# ^Infantry, ^Vehicle, ^Aircraft, ^Naval, ^Building and ^Defense all inherit, so one line covers them all.
+	# Idle cost is one interface call and one bool test per actor per frame inside Actor.Render, with no
+	# allocation. See engine/OpenRA.Mods.Common/Traits/Vaporizable.cs.
+	Vaporizable:
 	CombatDebugOverlay:
 	GivesExperience:
 		PlayerExperienceModifier: 1

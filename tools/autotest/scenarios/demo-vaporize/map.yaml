@@ -1,0 +1,304 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: vaporisation inside the fireball, husks outside it
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS IS FOR: looking at. It is a DEMO, so nothing here is asserted - no AssertWithin, no
+# Test.Pass, no result.json.
+#
+# THE SUBJECT IS THE BOUNDARY, not the effect. Two identical target fields, each a bullseye of five
+# concentric rings at 2, 4, 6, 8 and 10 cells from ground zero. One weapon detonates at each centre
+# and does two things at once: it VAPORISES everything inside a small radius, and it kills everything
+# out to 12 cells the ordinary way. So each site shows both outcomes side by side, separated by a
+# crisp circle - inside it units cease to exist, outside it they leave the husks they always have.
+# That contrast is the whole point; a demo that vaporised everything would prove nothing, because a
+# dead unit and a vanished one look identical once the smoke clears.
+#
+# THE TWO SITES ARE THE TWO SHIPPING MODES, and they exist because fireball size decides which one is
+# honest. Radius scales as roughly Y^0.40, so at 20 kt the fireball is about 0.7 cells across the
+# radius and at 6 Mt about 6.8 - a twentyfold difference in area.
+#
+#   LEFT  (17,18)  radius 2c0, WhiteoutFraction 1.0, Duration 10.
+#                  The SMALL-yield answer. The sprite superheats and is simply gone; there is no
+#                  dissolve, because inside a sub-cell fireball nobody could see one. This is the
+#                  "hide the removal behind the flash" approach, and the palette flash fired by the
+#                  same weapon is what it hides behind.
+#
+#   RIGHT (48,18)  radius 6c0, WhiteoutFraction 0.35, Duration 30.
+#                  The LARGE-yield answer. Thirteen cells of fireball is a lot of screen, so the
+#                  removal is worth watching: each unit heats, turns into a white silhouette, and
+#                  the silhouette fades over about a second and a half.
+#
+# Both sites use the SAME warhead type with different numbers. Nothing here is nuclear - the weapon
+# lives in this scenario's own weapons.yaml and the shipped nuclear warheads are untouched.
+#
+# The terrain is demo-light-events', copied unchanged; essentially every playable cell is passable, so
+# actor placement is unconstrained.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Hidden SRs so neither side is eliminated by attrition (see AUTOTEST.md).
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 2,2
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 63,2
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 2,2
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 63,2
+
+	# --- A: SMALL YIELD analogue - 2c0 vaporize radius, WhiteoutFraction 1.0 (hidden behind the flash). Ground zero 17,18; rings at 2/4/6/8/10 cells.
+	AProbe: bradley
+		Owner: Neutral
+		Location: 17,18
+	AR2_0: e1
+		Owner: Neutral
+		Location: 19,18
+	AR2_1: bradley
+		Owner: Neutral
+		Location: 17,20
+	AR2_2: e2
+		Owner: Neutral
+		Location: 15,18
+	AR2_3: abrams
+		Owner: Neutral
+		Location: 17,16
+	AR4_0: e1
+		Owner: Neutral
+		Location: 21,20
+	AR4_1: bradley
+		Owner: Neutral
+		Location: 17,22
+	AR4_2: e2
+		Owner: Neutral
+		Location: 14,20
+	AR4_3: abrams
+		Owner: Neutral
+		Location: 13,16
+	AR4_4: e1
+		Owner: Neutral
+		Location: 17,14
+	AR4_5: bradley
+		Owner: Neutral
+		Location: 20,16
+	AR6_0: e2
+		Owner: Neutral
+		Location: 23,18
+	AR6_1: abrams
+		Owner: Neutral
+		Location: 21,22
+	AR6_2: e1
+		Owner: Neutral
+		Location: 17,24
+	AR6_3: bradley
+		Owner: Neutral
+		Location: 13,22
+	AR6_4: e2
+		Owner: Neutral
+		Location: 11,18
+	AR6_5: abrams
+		Owner: Neutral
+		Location: 13,14
+	AR6_6: e1
+		Owner: Neutral
+		Location: 17,12
+	AR6_7: bradley
+		Owner: Neutral
+		Location: 21,14
+	AR8_0: e2
+		Owner: Neutral
+		Location: 24,21
+	AR8_1: abrams
+		Owner: Neutral
+		Location: 20,25
+	AR8_2: e1
+		Owner: Neutral
+		Location: 14,25
+	AR8_3: bradley
+		Owner: Neutral
+		Location: 10,21
+	AR8_4: e2
+		Owner: Neutral
+		Location: 10,15
+	AR8_5: abrams
+		Owner: Neutral
+		Location: 14,11
+	AR8_6: e1
+		Owner: Neutral
+		Location: 20,11
+	AR8_7: bradley
+		Owner: Neutral
+		Location: 24,15
+	AR10_0: e2
+		Owner: Neutral
+		Location: 27,18
+	AR10_1: abrams
+		Owner: Neutral
+		Location: 24,25
+	AR10_2: e1
+		Owner: Neutral
+		Location: 17,28
+	AR10_3: bradley
+		Owner: Neutral
+		Location: 10,25
+	AR10_4: e2
+		Owner: Neutral
+		Location: 7,18
+	AR10_5: abrams
+		Owner: Neutral
+		Location: 10,11
+	AR10_6: e1
+		Owner: Neutral
+		Location: 17,8
+	AR10_7: bradley
+		Owner: Neutral
+		Location: 24,11
+
+	# --- B: LARGE YIELD analogue - 6c0 vaporize radius, WhiteoutFraction 0.35 (visible dissolve). Ground zero 48,18; rings at 2/4/6/8/10 cells.
+	BProbe: bradley
+		Owner: Neutral
+		Location: 48,18
+	BR2_0: e1
+		Owner: Neutral
+		Location: 50,18
+	BR2_1: bradley
+		Owner: Neutral
+		Location: 48,20
+	BR2_2: e2
+		Owner: Neutral
+		Location: 46,18
+	BR2_3: abrams
+		Owner: Neutral
+		Location: 48,16
+	BR4_0: e1
+		Owner: Neutral
+		Location: 52,20
+	BR4_1: bradley
+		Owner: Neutral
+		Location: 48,22
+	BR4_2: e2
+		Owner: Neutral
+		Location: 45,20
+	BR4_3: abrams
+		Owner: Neutral
+		Location: 44,16
+	BR4_4: e1
+		Owner: Neutral
+		Location: 48,14
+	BR4_5: bradley
+		Owner: Neutral
+		Location: 51,16
+	BR6_0: e2
+		Owner: Neutral
+		Location: 54,18
+	BR6_1: abrams
+		Owner: Neutral
+		Location: 52,22
+	BR6_2: e1
+		Owner: Neutral
+		Location: 48,24
+	BR6_3: bradley
+		Owner: Neutral
+		Location: 44,22
+	BR6_4: e2
+		Owner: Neutral
+		Location: 42,18
+	BR6_5: abrams
+		Owner: Neutral
+		Location: 44,14
+	BR6_6: e1
+		Owner: Neutral
+		Location: 48,12
+	BR6_7: bradley
+		Owner: Neutral
+		Location: 52,14
+	BR8_0: e2
+		Owner: Neutral
+		Location: 55,21
+	BR8_1: abrams
+		Owner: Neutral
+		Location: 51,25
+	BR8_2: e1
+		Owner: Neutral
+		Location: 45,25
+	BR8_3: bradley
+		Owner: Neutral
+		Location: 41,21
+	BR8_4: e2
+		Owner: Neutral
+		Location: 41,15
+	BR8_5: abrams
+		Owner: Neutral
+		Location: 45,11
+	BR8_6: e1
+		Owner: Neutral
+		Location: 51,11
+	BR8_7: bradley
+		Owner: Neutral
+		Location: 55,15
+	BR10_0: e2
+		Owner: Neutral
+		Location: 58,18
+	BR10_1: abrams
+		Owner: Neutral
+		Location: 55,25
+	BR10_2: e1
+		Owner: Neutral
+		Location: 48,28
+	BR10_3: bradley
+		Owner: Neutral
+		Location: 41,25
+	BR10_4: e2
+		Owner: Neutral
+		Location: 38,18
+	BR10_5: abrams
+		Owner: Neutral
+		Location: 41,11
+	BR10_6: e1
+		Owner: Neutral
+		Location: 48,8
+	BR10_7: bradley
+		Owner: Neutral
+		Location: 55,11
+
+Rules: rules.yaml
+
+Weapons: weapons.yaml

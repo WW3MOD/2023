@@ -76,6 +76,11 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (crushed || IsTraitDisabled)
 				return;
 
+			// A vaporised actor leaves no corpse. The death animation is a separate effect that OUTLIVES the
+			// actor, so without this it would still be lying there after the unit itself had gone.
+			if (DeathRemains.AreSuppressed(self))
+				return;
+
 			var palette = Info.DeathSequencePalette;
 			if (Info.DeathPaletteIsPlayerPalette)
 				palette += self.Owner.InternalName;
