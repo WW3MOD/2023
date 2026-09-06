@@ -32,6 +32,31 @@ namespace OpenRA.Mods.Common.Scripting
 			return events;
 		}
 
+		// WW3MOD addition. There has never been a Trigger.OnTick in this engine (`git log -S OnTick`
+		// over the scripting directories returns no commit that ever added or removed the symbol),
+		// but scenario authors kept reaching for it: two scenarios called it and aborted at load, and
+		// six more carry a comment saying it does not exist next to a hand-rolled
+		// `AfterDelay(1, reschedule)` loop. That loop allocates a DelayedAction and a frame-end task
+		// every tick to do what the script context already does for free.
+		//
+		// Runs INSIDE the simulation, on the same World.Tick that drives the global `Tick` function,
+		// in registration order on every client. So it is exactly as sync-safe as the global `Tick`:
+		// safe to perform simulation work from, and no more sensitive to ordering than any other
+		// script code. See ScriptContext.RegisterTickCallback for why the store is a List.
+		[Desc("Call a function once per world tick, as func(). Several callbacks may be registered; " +
+			"they run in registration order, after the global Tick function if the script defines one. " +
+			"Prefer this to a self-rescheduling Trigger.AfterDelay(1, ...) loop.")]
+		public void OnTick([ScriptEmmyTypeOverride("fun()")] LuaFunction func)
+		{
+			Context.RegisterTickCallback(func);
+		}
+
+		[Desc("Remove every callback previously registered with Trigger.OnTick.")]
+		public void ClearTickCallbacks()
+		{
+			Context.ClearTickCallbacks();
+		}
+
 		[Desc("Call a function after a specified delay. The callback function will be called as func().")]
 		public void AfterDelay(int delay, [ScriptEmmyTypeOverride("fun()")] LuaFunction func)
 		{

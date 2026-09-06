@@ -52,10 +52,11 @@
 --
 -- Shot B is ordered 67 ticks after shot A lands, so the two never share the screen.
 --
--- THE CAMERA CANNOT BE ZOOMED FROM LUA. CameraGlobal exposes Position and nothing else
--- (CameraGlobal.cs), so this centres the view and leaves zoom to whoever is watching. Each arc
--- spans 34 cells horizontally and about 7 vertically; at default zoom on a 128x128 map that is
--- close to the edge of the viewport, so zoom out one step before the first shot.
+-- THE DEMO ZOOMS ITSELF, before the first shot rather than during it. Each arc spans 34 cells
+-- horizontally and about 7 vertically, which at the default level sits close to the edge of the
+-- viewport on a 128x128 map, so this halves the zoom. Camera.Zoom is a multiple of the default
+-- level; it is clamped to Camera.MinZoom..Camera.MaxZoom, so an unreachable value is applied as
+-- far as it goes rather than raising.
 
 local ShotATick = 30
 local ShotBTick = 320
@@ -97,6 +98,7 @@ end
 WorldLoaded = function()
 	-- Cell centre in world coordinates is cell * 1024 + 512.
 	Camera.Position = WPos.New(CameraCell.X * 1024 + 512, CameraCell.Y * 1024 + 512, 0)
+	Camera.Zoom = 0.5
 
 	-- Pre-selected so the launcher's range circle is on screen without the viewer clicking first.
 	TestHarness.Select(LauncherA)

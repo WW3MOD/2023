@@ -58,11 +58,45 @@ tools/autotest/scenarios/demo-<name>/
 WorldLoaded = function()
     TestHarness.FocusBetween(Abrams, Tank2, Tank3)   -- center camera on the group
     TestHarness.Select(Abrams)                        -- pre-select for convenience
+    Camera.Zoom = 0.5                                 -- frame it; do not ask the viewer to zoom
 
     -- That's it. No AssertWithin. No Test.Pass.
     -- The user looks around; closes the window when done; presses End to restart.
 end
 ```
+
+### Frame the shot yourself — the viewer should not have to
+
+A demo that opens at the wrong zoom on the wrong part of the map is a demo of something
+smaller than what you built. Until 2026-09-06 there was no way to say otherwise from a
+script, and three demos shipped with a line in their `description.txt` telling the viewer to
+zoom out by hand — which on a 128x128 map means a 102-cell blast wave was showing about a
+third of itself to anyone who did not read the instruction. **Stage the presentation in
+`WorldLoaded` like any other part of the demo.**
+
+| Call | Effect |
+|---|---|
+| `Camera.Position = WPos.New(x * 1024 + 512, y * 1024 + 512, 0)` | Centre the view on a cell. |
+| `Camera.Zoom = 0.5` | Zoom, as a **multiple of the default level**: `1` is default, below 1 is further out, above 1 is closer in. Clamped, so an unreachable value is applied as far as it goes rather than raising. |
+| `Camera.MinZoom` / `Camera.MaxZoom` | The clamp, in the same units. `Camera.Zoom = Camera.MinZoom` is "as far out as this display goes". |
+| `Media.DisplayMessage(text, prefix)` | A chat-log line. Best for narrating a sequence — `demo-shake-profiles` announces each of its six profiles this way, and the shake is close to unreadable without it. |
+| `UserInterface.SetMissionText(text, color?)` | One persistent line across the top of the screen. Best for a caption that should stay put. |
+| `Media.FloatingText(text, pos, duration?, color?)` | A label at a world position, for pointing at a specific thing. |
+| `Trigger.OnTick(func)` | Run `func()` every tick. Prefer this to a self-rescheduling `Trigger.AfterDelay(1, ...)` loop. |
+| `Test.Screenshot(label, note?)` | Capture a PNG. **Works in a demo** — `run-demo.sh` delegates to `run-test.sh`, which passes `Test.Mode=true`. See [`SCREENSHOT.md`](SCREENSHOT.md) for the one-frame-late trap. |
+
+**`Camera.Zoom` is a multiple of the default, not the engine's raw `Viewport.Zoom`, and that
+is not cosmetic.** The raw value is derived from the viewer's resolution and
+viewport-distance setting, so the same raw number frames a different amount of map on a
+1080p and a 1440p display — and this project is routinely watched on a different machine
+from the one that authored the demo. A multiple of the default frames the same amount
+everywhere.
+
+**A demo that captures its own decisive frame is worth more than one that does not.** Nobody
+can see a demo without launching it and watching in real time, and launch slots are scarce;
+a `Test.Screenshot` at the beat that matters turns "did the fireball sit on the ground?"
+into a file that can be looked at next week. This does not make it a test — there is still
+no `Test.Pass`, no verdict, and no assertion.
 
 If the demo needs scripted enemy behavior to show off a feature (e.g., enemy attack-moves so the user can watch the response), stage it here — but keep it loose; this isn't a test.
 

@@ -12,7 +12,7 @@ Two real aborts, two hours apart, motivated this:
 
 | | what happened | caught? |
 |---|---|---|
-| `Trigger.OnTick(...)` | No such binding. Three of the four grep hits for the symbol were comments in other scenarios saying it does not exist. | **yes**, as an error |
+| `Trigger.OnTick(...)` | No such binding. Three of the four grep hits for the symbol were comments in other scenarios saying it does not exist. *(Historical: `Trigger.OnTick` was **added** on 2026-09-06 — authors kept reaching for it, so the binding was the cheaper fix than the eighth comment explaining its absence. The gate re-derives its surface from the C# on every run, so it now resolves the symbol with no change here. The abort was real when it happened.)* | **yes**, as an error |
 | `Actor 'player' does not define a property 'Location'` | `test-drone-lost-track` walked `usa.GetActors()`, which includes the **player actor**. `Location` needs `Requires<IOccupySpaceInfo>`, and reading a property an actor does not define *throws* — so the `a.Location ~= nil` guard written to prevent exactly this could never fire. Fixed in `1d3c9db0`. | **yes**, as a warning, by one narrow heuristic — see below |
 
 The second one is worth reading carefully, because it is **not** the failure it looks like.

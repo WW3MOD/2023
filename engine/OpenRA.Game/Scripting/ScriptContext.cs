@@ -144,6 +144,12 @@ namespace OpenRA.Scripting
 		readonly MemoryConstrainedLuaRuntime runtime;
 		readonly LuaFunction tick;
 
+		// Callbacks registered through Trigger.OnTick. A LIST, deliberately: they are invoked in
+		// registration order, which is script-load order and therefore identical on every client.
+		// A hash-ordered container here would make the invocation order an implementation detail
+		// and any simulation side effect a script performs from a tick callback a desync.
+		readonly List<LuaFunction> tickCallbacks = new List<LuaFunction>();
+
 		readonly Type[] knownActorCommands;
 		public readonly Cache<ActorInfo, Type[]> ActorCommands;
 		public readonly Type[] PlayerCommands;
@@ -324,15 +330,49 @@ namespace OpenRA.Scripting
 			}
 		}
 
+		/// <summary>
+		/// Register a function to be called once per world tick, as func(). Unlike the single global
+		/// <c>Tick</c> function, several callbacks can coexist; they run in registration order after
+		/// the global <c>Tick</c>. The context takes ownership of <paramref name="func"/> and disposes
+		/// it with the runtime.
+		/// </summary>
+		public void RegisterTickCallback(LuaFunction func)
+		{
+			tickCallbacks.Add((LuaFunction)func.CopyReference());
+		}
+
+		/// <summary>Drop every callback registered through <see cref="RegisterTickCallback"/>.</summary>
+		public void ClearTickCallbacks()
+		{
+			foreach (var f in tickCallbacks)
+				f.Dispose();
+
+			tickCallbacks.Clear();
+		}
+
 		public void Tick()
 		{
-			if (FatalErrorOccurred || disposed || tick == null)
+			if (FatalErrorOccurred || disposed)
 				return;
 
 			try
 			{
 				using (new PerfSample("tick_lua"))
-					tick.Call().Dispose();
+				{
+					tick?.Call().Dispose();
+
+					// Indexed, not foreach: a callback is allowed to register another one (the
+					// self-rescheduling idiom scenarios already use with AfterDelay), and mutating
+					// the list under an enumerator would throw. Anything appended during this tick
+					// is picked up on the next one, which keeps the per-tick work bounded.
+					for (var i = 0; i < tickCallbacks.Count; i++)
+					{
+						if (FatalErrorOccurred || disposed)
+							return;
+
+						tickCallbacks[i].Call().Dispose();
+					}
+				}
 			}
 			catch (LuaException e)
 			{
@@ -346,6 +386,13 @@ namespace OpenRA.Scripting
 				return;
 
 			disposed = true;
+
+			// Before the runtime, which owns the underlying Lua state these references point into.
+			foreach (var f in tickCallbacks)
+				f.Dispose();
+
+			tickCallbacks.Clear();
+
 			runtime?.Dispose();
 		}
 
