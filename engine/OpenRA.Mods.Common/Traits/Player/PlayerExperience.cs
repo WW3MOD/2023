@@ -27,8 +27,29 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync]
 		public int Experience { get; private set; }
 
+		/// <summary>
+		/// True once the score has been sealed. Set by DOOMSDAY mode on the tick the clock expires, so
+		/// that the winner is decided on the score as it stood BEFORE the warheads landed and nothing the
+		/// annihilation does can move it.
+		///
+		/// NOT [Sync]-ed, and that is deliberate rather than an oversight: it is set from
+		/// DoomsdayStrike.NotifyTimerExpired, which runs inside the synchronised tick on every client at
+		/// the same WorldTick, so the flag is already identical everywhere. Experience itself stays synced
+		/// and is the value a desync would actually surface.
+		/// </summary>
+		public bool Frozen { get; private set; }
+
+		public void Freeze() { Frozen = true; }
+
 		public void GiveExperience(int num)
 		{
+			// THE choke point. Every score-affecting event in the engine arrives here — kills through
+			// GivesExperience, captures, donations, infiltration, repair rewards, Lua — so one guard on
+			// this line is what stops all of them at once. In particular it is why the kills caused by the
+			// Dead Hand salvo itself credit nobody.
+			if (Frozen)
+				return;
+
 			Experience += num;
 		}
 	}

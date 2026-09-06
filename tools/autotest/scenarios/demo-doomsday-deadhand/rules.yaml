@@ -1,0 +1,45 @@
+Player:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+
+	# 250 ticks = 15.0 s at the mod's 60 ms timestep. The lobby dropdown's finest grain is one whole
+	# minute, which is four times longer than this entire demo, so the scenario uses the absolute
+	# tick override instead. Zero (the default) leaves the dropdown behaving exactly as it always has.
+	TimeLimitManager:
+		TimeLimitTicks: 250
+		SkipTimeRemainingNotifications: true
+
+	# Demo timings are COMPRESSED against the shipped values in mods/ww3mod/rules/world.yaml, so the
+	# whole sequence fits in one sitting. The two that are NOT compressed are the ones that carry the
+	# user's intent — OutlierToCityPauseTicks (the pause that makes the city wave read as a separate
+	# event) and WithinWaveTicks (the tightness of a wave) — because compressing those would demo a
+	# rhythm nobody is going to ship.
+	DoomsdayStrike:
+		# Required: a demo runs under TestMode, where the salvo is off by default so that the existing
+		# timed tournament and autotest configurations keep ending the way they always did.
+		RunInTestMode: true
+		LeadInTicks: 25
+		OutlierToCityPauseTicks: 40
+		WithinWaveTicks: 2
+		CityToFillPauseTicks: 25
+		AnnihilationDelayTicks: 60
+		ResolutionDelayTicks: 20
+
+^Combatant:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+		InitialEngagementStance: AttackAnything
+		InitialEngagementStanceAI: AttackAnything
+		MinimumScanTimeInterval: 8
+		MaximumScanTimeInterval: 16

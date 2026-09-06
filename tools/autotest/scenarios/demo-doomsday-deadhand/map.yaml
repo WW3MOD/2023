@@ -1,0 +1,136 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: Doomsday / Dead Hand
+
+Author: WW3MOD demo harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# ---- CITY WEST. Six civilian buildings inside the 8-cell link distance of each other, so the
+	# clusterer sees one city and the city wave puts TWO large warheads on it, split along its long
+	# axis. Placed off-centre so the split is visibly along the east-west run rather than symmetric
+	# about the map.
+	CityW1: v01
+		Owner: Neutral
+		Location: 10,9
+	CityW2: v02
+		Owner: Neutral
+		Location: 14,9
+	CityW3: v03
+		Owner: Neutral
+		Location: 12,12
+	CityW4: v04
+		Owner: Neutral
+		Location: 17,11
+	CityW5: rushouse
+		Owner: Neutral
+		Location: 9,13
+	CityW6: v05
+		Owner: Neutral
+		Location: 16,14
+
+	# ---- CITY EAST.
+	CityE1: v01
+		Owner: Neutral
+		Location: 46,20
+	CityE2: v02
+		Owner: Neutral
+		Location: 50,20
+	CityE3: v03
+		Owner: Neutral
+		Location: 48,24
+	CityE4: v04
+		Owner: Neutral
+		Location: 53,22
+	CityE5: rushouse
+		Owner: Neutral
+		Location: 45,24
+	CityE6: v05
+		Owner: Neutral
+		Location: 52,25
+
+	# ---- OIL DERRICKS. The outliers, and the opening wave's targets. Deliberately spread further
+	# apart than MinSeparation (12 cells) so none of them is culled and all four fire -- the west pair
+	# is 12 cells apart exactly, which is the boundary case worth watching.
+	Derrick1: oilb
+		Owner: Neutral
+		Location: 5,27
+	Derrick2: oilb
+		Owner: Neutral
+		Location: 30,4
+	Derrick3: oilb
+		Owner: Neutral
+		Location: 58,6
+	Derrick4: oilb
+		Owner: Neutral
+		Location: 33,31
+
+	# ---- FORCES. Two purposes. They are something visibly alive for the annihilation to take, and
+	# they generate a REAL SCORE DIFFERENCE before the clock expires, which is what the frozen-score
+	# verdict is supposed to be decided on.
+	#
+	# USA gets three units against one Russian BMP, in contact from the first tick, so USA banks kill
+	# experience inside the 250-tick window and leads at the freeze. Russia's remaining pair sits out of
+	# range in the north-east and survives to the salvo -- so at the moment the warheads land, the player
+	# who is AHEAD ON SCORE is not the player with the most units left alive. That is the discrimination
+	# the mode exists to make, and a demo where both were the same player would not show it.
+	UsaA: abrams
+		Owner: USA
+		Location: 26,17
+	UsaB: abrams
+		Owner: USA
+		Location: 25,19
+	UsaC: bradley
+		Owner: USA
+		Location: 27,19
+	RusPicket: bmp2
+		Owner: Russia
+		Location: 29,18
+	RusA: t90
+		Owner: Russia
+		Location: 55,12
+	RusB: t90
+		Owner: Russia
+		Location: 57,14
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 26,18
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 56,13
+
+Rules: rules.yaml

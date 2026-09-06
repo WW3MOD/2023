@@ -1,0 +1,134 @@
+# DOOMSDAY / "Dead Hand" — the delivery bodies for the end-of-clock salvo.
+#
+# NEW FILE ON PURPOSE. These could have gone next to tacnukemissile in vehicles.yaml, which is where
+# every other missile body lives, and they deliberately do not: weapons-superweapons.yaml and
+# vehicles.yaml are both under active rewrite for the superweapon yield pass, and a mode has no
+# business colliding with a warhead retune. Nothing in this file defines a weapon. Both actors
+# REFERENCE the mod's shipped nuclear warheads BY NAME and inherit whatever they become.
+#
+# Registered in mod.yaml after vehicles-russia.yaml, i.e. after ^ShootableMissile (defaults.yaml) and
+# after the actors these sit alongside conceptually.
+#
+# WHY TWO ACTORS RATHER THAN ONE WITH A PARAMETER: the salvo's two waves are different weapons, and
+# the difference is the whole shape of the sequence the user asked for. Wave 1 is many small warheads
+# on outliers; wave 2 is a few large ones on the cities, landing after a pause. They differ in
+# warhead, in sprite scale and in nothing else — the flight model below is deliberately identical, so
+# both waves come in on the same re-entry trajectory.
+
+# ============================================================================================
+# THE FLIGHT MODEL, and why it is not the one the shipped strike missiles use.
+#
+# Every other missile in the mod flies LaunchAngle 30 (raw WAngle units, i.e. 10.5 degrees — not
+# degrees, see FieldLoader.ParseWAngle) from the map edge. That is deliberately shallow, because
+# BallisticMissileFly derives the arc apex from `hDist * tan(LaunchAngle) / 4`
+# (BallisticMissileFly.cs:62-63), so a steep launch angle makes a missile climb further on a big map
+# than on a small one. Raising LaunchAngle to get a steep re-entry would inherit that
+# distance-dependence and would not even produce a steep TERMINAL angle — a parabola is symmetric, so
+# a 60-degree launch is a 60-degree arrival only if it is fired from ground level at the same height.
+#
+# These are ICBM re-entry vehicles, so the steepness is built into the geometry instead:
+# DoomsdayStrike spawns them at SpawnAltitude 38c0 directly over a point ApproachDistance 5c0 from
+# the aim point. That is a slope of 38/5 = 7.6, an 82.5-degree descent, and it is the SAME on every
+# map because neither number depends on the shot. LaunchAngle 0 then removes the arc term entirely
+# (tan(0) = 0, so arcPeakHeight is 0) and leaves a dead-straight line from spawn to impact.
+#
+# THE SPEED IS SET BY WANTING TO SEE IT. BallisticMissileFly advances on HORIZONTAL progress
+# (`horizontalProgress += currentSpeed / hDist`), so the flight lasts hDist/Speed ticks — and hDist
+# here is only 5120. At the tac nuke's Speed 900 that is six ticks, a third of a second, invisible.
+# Speed 114 gives 5120/114 = 44 ticks (2.6s at the 60ms timestep) of visible descent, during which
+# the missile falls 38912/44 = 884 WDist per tick — 14.4 cells/s STRAIGHT DOWN. Slow across the
+# screen, fast down it, which is what a re-entry looks like.
+#
+# Acceleration 0 keeps EstimateArcTicks on its flat hDist/Speed branch (BallisticMissileFly.cs:71-73),
+# which is what DoomsdayStrike.FlightTicks reads to work out when to launch each warhead so it ARRIVES
+# on its scheduled tick. TerminalSpeed is deliberately absent for the same reason it is absent on
+# highyieldnukemissile: EstimateArcTicks does not model the post-apex boost, so a missile with one
+# would arrive early and drift out of its wave.
+# ============================================================================================
+
+# WAVE 1 — the small warheads, on outliers. Derricks, isolated structures, Supply Routes.
+DeadHandTacticalMissile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 0
+	Tooltip:
+		Name: Dead Hand RV
+	RenderSprites:
+		Scale: 1.05
+	Health:
+		HP: 100
+	# Unacquirable, same mechanism and same PITFALL as tacnukemissile: the inherited `ICBM` target
+	# types are OVERRIDDEN rather than the Targetable traits removed, because WeaponInfo.IsValidAgainst
+	# gates on GetEnabledTargetTypes (WeaponInfo.cs:256-264) and an actor with NO target types is
+	# invalid for every weapon, splash included — it would fall through its own salvo untouched.
+	# `Hypersonic` is reused from the existing missile bodies rather than inventing a new unlisted
+	# type; no weapon in the mod lists it, which is the property being bought.
+	Targetable@Ground:
+		TargetTypes: Hypersonic
+		RequiresCondition: !airborne
+	Targetable@Airborne:
+		TargetTypes: Hypersonic
+		RequiresCondition: airborne
+	BallisticMissile:
+		LaunchAngle: 0
+		Speed: 114
+		Acceleration: 0
+		InitialSpeedPercent: 100
+		LaunchRiseTicks: 0
+		PostErectionWaitTicks: 0
+		VisualPitchMultiplier: 100
+		SpriteFacingSquash: 566
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Type: CenterPosition
+		Offsets: -650, 0, 200
+	# `Atomic` BY NAME and UNCHANGED — the mod's shipped tactical-scale nuclear warhead, the one mslo's
+	# NukePower and tacnukemissile already fire. Whatever the superweapon yield pass makes of it is
+	# what falls here. DoomsdayStrikeInfo.LethalRadius is the mode's own conservative statement about
+	# this warhead's kill radius and is the one number to revisit if that pass changes it.
+	Explodes:
+		Weapon: Atomic
+
+# WAVE 2 — the large warheads, on the cities. Also used for the fill warheads, which are over-
+# provisioned as a result: the coverage guarantee is stated against the SMALLER warhead above, so a
+# fill impact covers strictly more than the geometry requires of it.
+DeadHandStrategicMissile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 0
+	Tooltip:
+		Name: Dead Hand MIRV
+	# 1.6, matching highyieldnukemissile, so the city wave visibly reads as the heavier weapon against
+	# wave 1's 1.05. Neither has bespoke art; both are the Iskander sprite and scale is the only thing
+	# that separates them.
+	RenderSprites:
+		Scale: 1.6
+	Health:
+		HP: 200
+	Targetable@Ground:
+		TargetTypes: Hypersonic
+		RequiresCondition: !airborne
+	Targetable@Airborne:
+		TargetTypes: Hypersonic
+		RequiresCondition: airborne
+	BallisticMissile:
+		LaunchAngle: 0
+		Speed: 114
+		Acceleration: 0
+		InitialSpeedPercent: 100
+		LaunchRiseTicks: 0
+		PostErectionWaitTicks: 0
+		VisualPitchMultiplier: 100
+		SpriteFacingSquash: 566
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Type: CenterPosition
+		Offsets: -650, 0, 200
+	# `AtomicHighYield` BY NAME and UNCHANGED — the mod's strategic warhead, fired by
+	# highyieldnukemissile. Same rule as above: this file does not define or tune a warhead.
+	Explodes:
+		Weapon: AtomicHighYield

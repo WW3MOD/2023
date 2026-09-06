@@ -33,6 +33,20 @@ namespace OpenRA.Mods.Common.Traits
 
 		public int OrderCount;
 
+		/// <summary>
+		/// True once statistics have been sealed. Set by DOOMSDAY mode on the tick the clock expires; from
+		/// then on this trait's own sampling and every UpdatesPlayerStatistics lifecycle callback stop
+		/// accumulating, so the numbers the end-of-match screen shows are the numbers as they stood before
+		/// the first warhead landed.
+		///
+		/// This freezes the ACCUMULATION, not the display. Snapshotting what the observer widgets happen
+		/// to be showing would leave the underlying counters running and any later reader — the tournament
+		/// scorers, the composition telemetry, TradeEfficiencyMath — reading post-apocalypse totals.
+		/// </summary>
+		public bool Frozen { get; private set; }
+
+		public void Freeze() { Frozen = true; }
+
 		public int Experience => experience != null ? experience.Experience : 0;
 
 		// Low resolution (every 30 seconds) record of earnings, covering the entire game
@@ -84,6 +98,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
+			// Stop the income and army-value sampling dead. Leaving it running would keep extending the
+			// graphs with post-annihilation zeroes, which is a change to the recorded statistics however
+			// uninteresting the added samples are.
+			if (Frozen)
+				return;
+
 			ticks++;
 
 			var timestep = self.World.Timestep;
@@ -316,6 +336,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyKilled.Killed(Actor self, AttackInfo e)
 		{
+			// DOOMSDAY: both sides of the ledger are checked, not just the victim's. The victim check
+			// alone would be enough while the freeze is global — Doomsday freezes every player on the same
+			// tick — but it would silently stop being enough the moment anything froze one player and not
+			// another, and the failure would be an attacker quietly accruing kill credit against a frozen
+			// opponent. Checking both makes the guard say what it means.
+			if (Frozen(playerStats) || (e.Attacker != null && Frozen(e.Attacker.Owner.PlayerActor.TraitOrDefault<PlayerStatistics>())))
+				return;
+
 			if (self.Owner.WinState != WinState.Undefined)
 				return;
 
@@ -371,8 +399,15 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		static bool Frozen(PlayerStatistics stats) { return stats != null && stats.Frozen; }
+
 		void INotifyCreated.Created(Actor self)
 		{
+			// Frozen players do not gain assets either. Husks and other actors spawned by the salvo's own
+			// deaths arrive through this path, and crediting them would move AssetsValue after the seal.
+			if (Frozen(playerStats))
+				return;
+
 			includedInArmyValue = info.AddToArmyValue;
 			if (includedInArmyValue)
 			{
@@ -402,6 +437,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
 		{
+			if (Frozen(playerStats))
+				return;
+
 			// Observer-only: move this unit's alive contribution from old to new owner.
 			var wasAlive = countedAlive;
 			RemoveFromAlive();
@@ -433,6 +471,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyActorDisposing.Disposing(Actor self)
 		{
+			if (Frozen(playerStats))
+				return;
+
 			if (includedInArmyValue)
 			{
 				playerStats.ArmyValue -= cost;
