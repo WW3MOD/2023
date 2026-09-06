@@ -34,23 +34,73 @@ Atomic:
 		Duration: 30
 		FlashType: Nuke
 
-	# Screen shake: progressive decay — massive initial impact, then fading rumble
-	# Total coverage: 0→210 ticks (matches blast wave duration)
+	# Screen shake. RETUNED 2026-09-06 against the rebuilt model in ScreenShaker.cs, and the numbers
+	# below are NOT the old ones scaled down -- `Intensity` changed meaning. It is now PEAK SCREEN
+	# DISPLACEMENT IN PIXELS at the epicentre, where it used to be the numerator of an inverse-square
+	# falloff. The old `Intensity: 80` would be eighty pixels of camera throw.
+	#
+	# AND THE OLD BLOCK PRODUCED NO SHAKE AT ALL, most of the time. ShakeScreenWarhead.Multiplier used
+	# to default to 0,0, and the old ScreenShaker summed the multipliers of every live effect and
+	# applied the total to all of them -- so four warheads that all omitted Multiplier contributed a
+	# total of zero and could not be rescued by their own Intensity. Every upstream mod sets
+	# `Multiplier: 1,1` (ra/weapons/superweapons.yaml:136, and cnc, ts and d2k all do the same);
+	# ww3mod never did. The shake therefore appeared ONLY when some ShakeOnDeath building happened to
+	# be dying in the same window and supplied a multiplier for it, at which point Intensity 80
+	# slammed into the old 10 px clamp. Intermittent, and violent when it did fire, is a large part
+	# of what "annoying" was. The field now defaults to 1,1 and applies per effect, so this fires
+	# every time.
+	#
+	# THE FOUR STAGES ARE NOW FOUR ARRIVALS, not a hand-drawn decay staircase. The envelope does the
+	# decaying now (DecayHalfLife), so staging is free to mean what it means on a real seismogram:
+	# a fast low-amplitude precursor, the main shock, a long low surface-wave coda, and finally the
+	# air blast -- which is a separate wave travelling ~8.7x slower and is given its own propagation
+	# speed so it tracks the visible shockwave at every range instead of only at ground zero.
+	#
+	# Total coverage at the epicentre: 0 -> 278 ticks (16.7 s), against the old 210. Further out it
+	# runs longer still, because stage 4 is chasing the wavefront.
 	Warhead@Shake1: ShakeScreen
+		# P-wave precursor: the ground twitches before it moves. Small, sharp, over quickly.
+		# FrequencyScale 175 pushes this onto the Nyquist ceiling (0.179 c/t, 2.98 Hz), which is
+		# simply the fastest oscillation 16.67 ticks/s can render. Raising it further does nothing.
 		Duration: 25
-		Intensity: 80
+		Intensity: 4
+		AttackTicks: 1
+		DecayHalfLife: 7
+		FrequencyScale: 175
 	Warhead@Shake2: ShakeScreen
-		Duration: 50
-		Intensity: 40
-		Delay: 25
+		# Main shock. The one the player feels; 13 px against a 22 px ceiling.
+		Duration: 90
+		Intensity: 13
+		AttackTicks: 3
+		DecayHalfLife: 18
+		Delay: 4
 	Warhead@Shake3: ShakeScreen
-		Duration: 75
-		Intensity: 15
-		Delay: 75
+		# Surface-wave coda: swells in over 25 ticks rather than starting hard, then rolls away for
+		# fifteen seconds. FrequencyScale 55 puts it at 1.05 Hz against the main shock 1.30 Hz, so
+		# it reads as the ground still moving rather than as the bang repeating.
+		#
+		# 55 AND NOT SOMETHING NEARER 100, and the reason is worth knowing before touching it: a
+		# coda has a LOWER Intensity than its main shock, and the model raises frequency as
+		# Intensity falls (smaller source, higher corner frequency). So a coda stage has to spend
+		# FrequencyScale just to break even with the shock it follows. This was first written as 70
+		# and measured at 1.34 Hz -- fractionally ABOVE the 1.30 Hz shock, i.e. doing the opposite
+		# of what the comment claimed.
+		Duration: 260
+		Intensity: 6
+		AttackTicks: 25
+		DecayHalfLife: 85
+		FrequencyScale: 55
+		Delay: 18
 	Warhead@Shake4: ShakeScreen
-		Duration: 60
+		# The air blast, arriving with the shockwave. 7.8 ticks/cell is the speed of sound at the
+		# provisional 160 m/cell scale -- the same physics BlastWave rounds to WaveSpeed 7. There is
+		# no Delay: the propagation speed IS the delay, so it is correct at every distance.
+		Duration: 70
 		Intensity: 5
-		Delay: 150
+		AttackTicks: 2
+		DecayHalfLife: 20
+		FrequencyScale: 130
+		PropagationTicksPerCell: 7.8
 
 	# Fireball visual — mushroom cloud sprite at 300% scale
 	Warhead@Fireball: CreateEffect
@@ -443,28 +493,76 @@ AtomicHighYield:
 		FlashType: Nuke
 		Delay: 44
 
-	# Screen shake, same progressive decay as `Atomic` but stretched to cover the whole blast wave:
-	# 0 -> ~760 ticks rather than 0 -> 210. The ground does not stop moving until the wavefront has
-	# left the map.
+	# Screen shake, RETUNED 2026-09-06 alongside `Atomic`. Read the long note on that weapon first:
+	# `Intensity` now means PEAK SCREEN DISPLACEMENT IN PIXELS, and the old block here produced no
+	# shake at all unless a building happened to be dying at the same moment.
+	#
+	# Same five-arrival structure as the tactical nuke, scaled up in the two ways that actually
+	# distinguish a strategic weapon:
+	#   AMPLITUDE  18 px against the tactical nuke 13, into a 22 px ceiling.
+	#   FREQUENCY  1.11 Hz against 1.30 Hz on the main shock, and the two coda stages run at 0.78
+	#              and 0.70 Hz -- a roll you feel rather than a rattle you see, and about a quarter
+	#              the frequency of a shell impact. This is the lever that makes it a different
+	#              KIND of event rather than a louder one; the model derives most of it from
+	#              Intensity automatically (bigger source, lower corner frequency) and the
+	#              FrequencyScale values on the coda stages push it the rest of the way.
+	#
+	# ON THAT LAST POINT -- the coda scales look aggressively low and are not. A coda carries a
+	# LOWER Intensity than its main shock, and the model reads low Intensity as a small source and
+	# raises the frequency accordingly, so a coda stage must spend FrequencyScale just to break
+	# even with the shock it follows. Measured before and after: at the first-written 60 and 45,
+	# stages 3 and 4 came out at 0.94 and 1.05 Hz, the latter HIGHER than the 0.94 before it and
+	# both essentially level with the main shock they were supposed to be settling underneath.
+	#
+	# Every Hz figure in this file is the CENTRE of the per-event detune band; FrequencyJitterPercent
+	# is 6, so a live detonation lands within about +/-6% of it and no two land on the same value.
+	#
+	# Total coverage at the epicentre: 0 -> 750 ticks (45 s), which is the AtomicHighYield timeline
+	# (the blast wave reaches its full 102-cell radius at ~724). The ground does not stop moving
+	# until the wavefront has left the map.
 	Warhead@Shake1: ShakeScreen
-		Duration: 60
-		Intensity: 120
-	Warhead@Shake2: ShakeScreen
-		Duration: 130
-		Intensity: 65
-		Delay: 60
-	Warhead@Shake3: ShakeScreen
-		Duration: 200
-		Intensity: 30
-		Delay: 190
-	Warhead@Shake4: ShakeScreen
-		Duration: 220
-		Intensity: 12
-		Delay: 390
-	Warhead@Shake5: ShakeScreen
-		Duration: 150
+		# P-wave precursor.
+		Duration: 35
 		Intensity: 5
-		Delay: 610
+		AttackTicks: 1
+		DecayHalfLife: 10
+		FrequencyScale: 155
+	Warhead@Shake2: ShakeScreen
+		# Main shock.
+		Duration: 130
+		Intensity: 18
+		AttackTicks: 4
+		DecayHalfLife: 28
+		Delay: 6
+	Warhead@Shake3: ShakeScreen
+		# Surface-wave train: 25 s, swelling in over 40 ticks. 0.78 Hz.
+		Duration: 420
+		Intensity: 9
+		AttackTicks: 40
+		DecayHalfLife: 150
+		FrequencyScale: 50
+		Delay: 28
+	Warhead@Shake4: ShakeScreen
+		# Long coda. Barely visible on its own -- about three pixels at 0.70 Hz, the lowest and
+		# slowest motion in the mod -- and that is the point: the map should not feel settled again
+		# until the strike is genuinely over.
+		Duration: 500
+		Intensity: 4
+		AttackTicks: 60
+		DecayHalfLife: 190
+		FrequencyScale: 30
+		Delay: 250
+	Warhead@Shake5: ShakeScreen
+		# The air blast, chasing the wavefront at 7.8 ticks/cell. On this weapon that matters far
+		# more than it does on the tactical nuke: at the 102-cell edge of the blast it lands ~795
+		# ticks (48 s) after the flash, so a player watching from across the map gets the ground
+		# wave almost immediately and the shockwave rattle most of a minute later.
+		Duration: 120
+		Intensity: 7
+		AttackTicks: 3
+		DecayHalfLife: 32
+		FrequencyScale: 120
+		PropagationTicksPerCell: 7.8
 
 	# Fireball visual. ScalePercent 700 against `Atomic`'s 300.
 	#

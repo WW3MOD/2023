@@ -1,0 +1,157 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: screen-shake profiles, near and far
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 128,128
+
+Bounds: 1,1,126,126
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS IS FOR: feeling. It is a DEMO, so nothing here is asserted -- no AssertWithin, no
+# Test.Pass, no result.json. Six shake profiles fire in sequence at a FIXED camera, each announced
+# on screen before it lands, so they can be told apart and compared. Watch the camera, not the map.
+#
+# WHY IT EXISTS AT ALL. Screen shake is invisible in a still screenshot, so the usual way of
+# reviewing a change here does not work. The numeric companion to this scenario is the NUnit fixture
+# ScreenShakeModelTest.TabulateShippedProfiles, which prints an amplitude-over-time trace of these
+# same profiles from the shipping code; run that to read the shape, run this to feel it.
+#
+# THE TERRAIN IS twin-rivers-ww3, copied unchanged from demo-highyield-nuke -- only the actor list
+# and the schedule below are new. 128x128 is not for the terrain; it is so probe 5 can sit 70 cells
+# from the camera, which is the whole point of that stage.
+#
+# THE CAMERA NEVER MOVES, and that is load-bearing rather than laziness. Distance falloff and
+# propagation delay are both measured from the viewport centre, so a camera that panned between
+# stages would change the very quantity the demo exists to show. Camera.Position is pinned to cell
+# 64,100 in the Lua and nothing re-centres it.
+#
+# THE SIX PROBES. Each is a single rifleman-class infantryman whose Explodes weapon has been
+# swapped in rules.yaml for one of the shake-only weapons in weapons.yaml -- no damage, no blast,
+# no smudge, so killing one cannot disturb another and the only thing that happens on screen is the
+# camera moving. Distances are from the camera at 64,100:
+#
+#   P1  e1  64,100   0 cells   shell impact                       2.0 px,  25 t
+#   P2  e2  65,100   1 cell    building collapse                  2.8 px,  40 t  (shipped ShakeOnDeath)
+#   P3  e3  64,101   1 cell    heavy impact                       8.0 px,  90 t
+#   P4  e4  65,101   1.4 cells TACTICAL NUKE, all 4 stages       12.0 px, 278 t
+#   P5  at  63,60   40 cells   TACTICAL NUKE, the same 4 stages   1.9 px  -- delayed and faint
+#   P6  sn  66,100   2 cells   HIGH-YIELD NUKE, all 5 stages     16.7 px, 750 t
+#
+# EVERY NEAR PROBE IS INSIDE ReferenceDistance (4 cells), where the falloff curve is flat at exactly
+# 1.0. That is deliberate: the five near stages therefore deliver their stated peak amplitude
+# exactly, and distance cannot confound a comparison between two profiles.
+#
+# THE CELLS ARE NOT CHOSEN BY EYE. Every one is a cell that demo-highyield-nuke already places an
+# actor on, on this same map.bin, so all of them are known-passable. twin-rivers has rivers and
+# cliffs through it and a probe on one would simply fail to place.
+#
+# P4 AND P5 ARE THE SAME WEAPON AND THAT IS THE COMPARISON THE DEMO IS BUILT AROUND. Fired at the
+# camera it is a hard, immediate 12 px hit. Fired 40 cells away the ground wave takes 36 ticks
+# (2.2 s) just to arrive and lands at 1.9 px, a sixth of the amplitude -- and then the air-blast
+# stage, which propagates at 7.8 ticks/cell instead of 0.9, turns up 312 ticks (18.7 s) after the
+# detonation, long after the ground has gone quiet again.
+#
+# STAGE 5 IS DELIBERATELY FAINT and should not be read as a bug. Under 2 px of camera movement is
+# about what a nuclear detonation 6.4 km away has any business doing, and the point of the stage is
+# the two ARRIVALS and the size of the drop, not the size of the shake. Under the old model both
+# arrivals would have been simultaneous -- and in fact under the old model neither would have shaken
+# the screen at all (see the note on `Atomic` in weapons-superweapons.yaml).
+#
+# THE SCHEDULE, in raw ticks from WorldLoaded. Timestep is 60 ms, so 16.67 ticks per second -- NOT
+# the 25 that TestHarness.TicksPerSecond carries, which is a harness convention for AssertWithin
+# budgets and is not the tick rate. Every delay in the Lua is therefore written in raw ticks.
+#
+#     t=50     P1 shell           ends t=75
+#     t=150    P2 collapse        ends t=190
+#     t=270    P3 heavy impact    ends t=360
+#     t=420    P4 tac nuke near   ends t=698
+#     t=760    P5 tac nuke FAR    ground arrives t=796, air blast t=1072, ends t=1142
+#     t=1450   P6 high-yield      ends t=2200
+#
+# So the whole run is about 2200 ticks, 132 s. Each stage is announced by name on screen a moment
+# before it fires.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 64,118
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 10,10
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 64,118
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 10,10
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 64,118
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 10,10
+
+	# The six shake probes. Actor TYPE selects the profile, because rules.yaml gives each of these
+	# infantry types its own shake-only Explodes weapon. P4 and P5 are different types carrying the
+	# SAME weapon, which is what makes them a controlled near/far comparison.
+	Probe1: e1
+		Owner: Neutral
+		Location: 64,100
+	Probe2: e2
+		Owner: Neutral
+		Location: 65,100
+	Probe3: e3
+		Owner: Neutral
+		Location: 64,101
+	Probe4: e4
+		Owner: Neutral
+		Location: 65,101
+	Probe5: at
+		Owner: Neutral
+		Location: 63,60
+	Probe6: sn
+		Owner: Neutral
+		Location: 66,100
+
+	# Two tanks south of the camera, purely so there is something on screen with hard straight edges
+	# to judge the motion against -- a shaking camera over open grass is much harder to read. Both
+	# cells are ones demo-highyield-nuke already places actors on.
+	Ref1: abrams
+		Owner: USA
+		Location: 64,102
+		Facing: 256
+	Ref2: abrams
+		Owner: USA
+		Location: 65,102
+		Facing: 256
+
+Rules: rules.yaml
+
+Weapons: weapons.yaml

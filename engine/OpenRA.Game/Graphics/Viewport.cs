@@ -328,6 +328,22 @@ namespace OpenRA.Graphics
 			allCellsDirty = true;
 		}
 
+		/// <summary>
+		/// Offsets the viewport centre by an EXACT integer amount, with no zoom conversion and no
+		/// truncation. Scroll() rounds `1/Zoom * delta` toward zero, which is fine for input-driven
+		/// scrolling but loses a fraction of a pixel every call — over a shake that applies a delta
+		/// every tick, those losses accumulate into a camera that never returns to where it started.
+		/// ScreenShaker drives an absolute offset through this instead, so its displacement is
+		/// exactly reversible. Deliberately ignores map borders: the caller is responsible for
+		/// putting back whatever it applied.
+		/// </summary>
+		public void ScrollPx(int2 delta)
+		{
+			CenterLocation += delta;
+			cellsDirty = true;
+			allCellsDirty = true;
+		}
+
 		public void Scroll(float2 delta, bool ignoreBorders)
 		{
 			// Convert scroll delta from world-px to viewport-px
