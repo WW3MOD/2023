@@ -979,10 +979,10 @@ namespace OpenRA.Mods.Common.Projectiles
 		}
 
 		/// <summary>
-		/// True when the operator behind a manually-guided missile can no longer steer it, because
-		/// the launcher is dead or is burning with its crew climbing out.
+		/// <para>True when the operator behind a manually-guided missile can no longer steer it, because
+		/// the launcher is dead or is burning with its crew climbing out.</para>
 		///
-		/// VOCABULARY, and it is the easy thing to get wrong here: the threshold is
+		/// <para>VOCABULARY, and it is the easy thing to get wrong here: the threshold is
 		/// <see cref="DamageState.Heavy"/>-or-worse, i.e. the `heavy-damage-attained` token
 		/// (defaults.yaml:256-258, ValidDamageStates: Heavy, Critical) — HP below 50%. It is NOT
 		/// the `critical-damage` token, which is a separate marker at 25%. 50% is the line the
@@ -990,17 +990,17 @@ namespace OpenRA.Mods.Common.Projectiles
 		/// (EjectionDamageState defaults to Heavy, VehicleCrew.cs:55,245), the fire ramp ignites
 		/// there (^EffectsWhenDamagedVehicles GrantStackingConditionOnHealthFraction StartFraction
 		/// 50), and the WGM armament is already paused there — so on the Bradley and BMP this
-		/// only ever reaches missiles that were ALREADY in flight when the launcher crossed it.
+		/// only ever reaches missiles that were ALREADY in flight when the launcher crossed it.</para>
 		///
-		/// Dead is subsumed rather than tested separately: Actor.GetDamageState returns Dead when
+		/// <para>Dead is subsumed rather than tested separately: Actor.GetDamageState returns Dead when
 		/// the actor is Disposed or at HP &lt;= 0 (Actor.cs:595-601), which covers every case
 		/// Actor.IsDead reports (Actor.cs:76). An actor with no Health trait reads Undamaged and
-		/// keeps guidance, matching IsDead == false for the same actor.
+		/// keeps guidance, matching IsDead == false for the same actor.</para>
 		///
-		/// Pure function of its two arguments so it is testable without a World. Determinism: both
+		/// <para>Pure function of its two arguments so it is testable without a World. Determinism: both
 		/// inputs are already synced — ManualGuidance is weapon YAML, and the damage state is
 		/// derived from Health.HP ([Sync], Health.cs:88) by integer comparison alone
-		/// (Health.cs:95-116). No float, no RNG, no new synced field.
+		/// (Health.cs:95-116). No float, no RNG, no new synced field.</para>
 		/// </summary>
 		public static bool GuidanceLost(bool manualGuidance, DamageState launcherDamageState)
 		{

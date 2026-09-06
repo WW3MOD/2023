@@ -95,24 +95,24 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		/// <summary>Greedy DISTINCT-sector assignment. Trucks — in the given, caller-sorted order — each claim
+		/// <summary><para>Greedy DISTINCT-sector assignment. Trucks — in the given, caller-sorted order — each claim
 		/// the neediest ELIGIBLE sector no earlier truck has claimed; only when every in-range sector is already
 		/// claimed does a truck double up on the best in-range one. Eligibility = within
 		/// <paramref name="maxFollowLength"/> of the truck. Selection order: unserved before served (the dedup),
 		/// then Need desc, then distance asc, then sector index asc — fully deterministic, no random draws.
-		/// Returns assignment[t] = sector index or <see cref="NoSector"/>.
+		/// Returns assignment[t] = sector index or <see cref="NoSector"/>.</para>
 		///
 		/// <para><paramref name="held"/> SEEDS THE ASSIGNMENT WITH SECTORS TRUCKS ARE ALREADY SERVING, and it
 		/// is the spread path's half of the per-truck cluster stickiness (see <see cref="KeepHeldCluster"/>).
 		/// A truck with <c>held[t] != NoSector</c> keeps that sector outright and does not enter the greedy
-		/// pass at all. Null / absent ⇒ the pure greedy this method shipped with, unchanged.
+		/// pass at all. Null / absent ⇒ the pure greedy this method shipped with, unchanged.</para>
 		///
 		/// <para>APPLYING THE SEED CANNOT BE FOLDED INTO THE GREEDY LOOP, and the reason is the dedup. Every
 		/// held sector has to be marked served BEFORE any truck picks, or a truck earlier in the order would
 		/// claim a sector a later truck is already driving to and the distinct-cluster property — the entire
 		/// point of the spread — would hold only for trucks that happened to be re-picked first. So this is
 		/// two passes over the same caller-sorted order: stamp every seed, then run the greedy for the rest.
-		/// Determinism is unaffected; both passes are index-ordered and neither reads the other's order.
+		/// Determinism is unaffected; both passes are index-ordered and neither reads the other's order.</para>
 		///
 		/// <para>THE CALLER IS RESPONSIBLE FOR THE SEED BEING LEGAL. This method does not re-test a held
 		/// sector's distance against <paramref name="maxFollowLength"/>, does not check the margin, and will
@@ -378,12 +378,12 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (radius < 0)
 				return Array.Empty<CVec>();
-		
+
 			var offsets = new List<CVec>((2 * radius + 1) * (2 * radius + 1));
 			for (var dx = -radius; dx <= radius; dx++)
 				for (var dy = -radius; dy <= radius; dy++)
 					offsets.Add(new CVec(dx, dy));
-		
+
 			// (dist2, dx, dy) is a TOTAL order on a set with no duplicates, so the result does not depend on
 			// the sort being stable and is byte-identical run to run.
 			offsets.Sort((a, b) =>
@@ -392,19 +392,19 @@ namespace OpenRA.Mods.Common.Traits
 				var db = (b.X * b.X) + (b.Y * b.Y);
 				if (da != db)
 					return da.CompareTo(db);
-		
+
 				if (a.X != b.X)
 					return a.X.CompareTo(b.X);
-		
+
 				return a.Y.CompareTo(b.Y);
 			});
-		
+
 			return offsets.ToArray();
 		}
 
-		/// <summary>Should a truck KEEP serving the cluster it is already driving to, rather than take the
+		/// <summary><para>Should a truck KEEP serving the cluster it is already driving to, rather than take the
 		/// best cluster this scan offers? The held cluster survives unless a challenger beats it on need by
-		/// more than <paramref name="needMargin"/>.
+		/// more than <paramref name="needMargin"/>.</para>
 		///
 		/// <para>WHY THE FOLLOW PATH NEEDS THIS AT ALL. The cluster list is rebuilt from scratch every scan
 		/// and the per-truck pick is re-derived from live AmmoNeed with no memory of the previous answer —
@@ -413,29 +413,29 @@ namespace OpenRA.Mods.Common.Traits
 		/// places between two consecutive scans with no danger term, no enemy and no event involved. The
 		/// follow Move is NON-QUEUED, so the re-issue cancels the drive already in progress and the truck
 		/// turns around — every scan, indefinitely. That is a truck that never arrives, and it is the whole
-		/// of the user's "going back and forth, not committing" with nothing exotic in it.
+		/// of the user's "going back and forth, not committing" with nothing exotic in it.</para>
 		///
 		/// <para>THE MARGIN IS THE POINT, NOT THE MEMORY. A bare "keep what you have" would be a LATCH: a
 		/// cluster that got fed, or a genuinely desperate front elsewhere, could never take the truck off its
 		/// held customer. The margin makes the hold a DEADBAND instead — ordinary consumption noise cannot
 		/// move the truck, a materially needier cluster still can. It is the same instrument, one layer up,
 		/// as DropAnchorHysteresisCells on the drop anchor, and it is expressed in the caller's own need
-		/// units so both sides of the comparison are the quantity the pick already ranks on.
+		/// units so both sides of the comparison are the quantity the pick already ranks on.</para>
 		///
 		/// <para>THE BOUNDARY IS INCLUSIVE ON THE CHALLENGER'S SIDE: a challenger exactly
 		/// <paramref name="needMargin"/> ahead WINS. Stated because the other spelling makes the margin
 		/// mean "strictly more than", and a config value chosen as "the amount of noise to ignore" then
-		/// ignores one point more than it says.
+		/// ignores one point more than it says.</para>
 		///
 		/// <para><paramref name="needMargin"/> &lt;= 0 ⇒ never keep, i.e. the undamped per-scan re-pick this
 		/// module shipped with, so the deadband can be turned back off to a known baseline. That is also the
-		/// engine default, which is what keeps a profile that does not set the key byte-identical.
+		/// engine default, which is what keeps a profile that does not set the key byte-identical.</para>
 		///
 		/// <para>The CALLER owns both of the other release conditions — the held cluster no longer being in
 		/// this scan's list, and it having fallen outside that truck's follow leash — because both are
 		/// engine-side lookups. Deliberately NOT passed in as bools: a predicate that took them would look
 		/// like it enforced them, and the caller would still be the only thing that could.</para>
-		/// Pure integer, zero RNG.</summary>
+		/// <para>Pure integer, zero RNG.</para></summary>
 		public static bool KeepHeldCluster(int heldNeed, int bestChallengerNeed, int needMargin)
 		{
 			if (needMargin <= 0)

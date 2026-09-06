@@ -94,7 +94,7 @@ namespace OpenRA.Test
 		{
 			// Backs the surviving prose. If every soldier ends up at the same Vision, "hard to
 			// detect" stops distinguishing the sniper and the sentence should go too.
-			int Vision(string node)
+			static int Vision(string node)
 			{
 				var d = Node(node, "infantry.yaml").Value.Nodes.FirstOrDefault(n => n.Key == "Detectable");
 				var v = d?.Value.Nodes.FirstOrDefault(n => n.Key == "Vision")?.Value.Value.Trim();

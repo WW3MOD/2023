@@ -14,35 +14,35 @@ using System;
 namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	/// <summary>
-	/// Width and offset arithmetic for the production tooltip panel. Pure — it touches no widget and
+	/// <para>Width and offset arithmetic for the production tooltip panel. Pure — it touches no widget and
 	/// no font, so every rule below is asserted in ProductionTooltipLayoutTest rather than eyeballed
-	/// on screen.
+	/// on screen.</para>
 	///
-	/// WHAT THIS REPLACED. The panel used to be a LEFT COLUMN of fixed width with a RIGHT COLUMN
+	/// <para>WHAT THIS REPLACED. The panel used to be a LEFT COLUMN of fixed width with a RIGHT COLUMN
 	/// beside it holding the cost, and the right column's width was added to the panel's. Two things
 	/// followed. First, the cost gutter inset everything below it: the description and the stat rows
 	/// wrapped at the left column's width and stopped short of the panel edge, leaving a band of dead
 	/// space down the right of every tooltip. Second, the panel paid for that gutter over its whole
 	/// height while only the top ~26px of it was ever drawn in — and after the build-time clock was
-	/// removed the gutter held a single cost icon.
+	/// removed the gutter held a single cost icon.</para>
 	///
-	/// The cost now shares the name's row, flush right, and the content spans the full panel. That is
+	/// <para>The cost now shares the name's row, flush right, and the content spans the full panel. That is
 	/// where most of the width saving comes from: the gutter is deleted outright rather than squeezed,
-	/// so the text itself only gives up <see cref="ContentWidth"/> against the old 350.
+	/// so the text itself only gives up <see cref="ContentWidth"/> against the old 350.</para>
 	/// </summary>
 	public static class ProductionTooltipLayout
 	{
 		/// <summary>
-		/// Width available to the description, the stat rows and the name — i.e. the panel less its
+		/// <para>Width available to the description, the stat rows and the name — i.e. the panel less its
 		/// two side margins. This is the wrap width, so it is also the knob for "the tooltip is too
-		/// wide" / "the text is too cramped"; nothing else needs to change with it.
+		/// wide" / "the text is too cramped"; nothing else needs to change with it.</para>
 		///
-		/// 280 against the previous 350. Combined with dropping the cost gutter this takes the whole
+		/// <para>280 against the previous 350. Combined with dropping the cost gutter this takes the whole
 		/// panel from about 421px to 294px, a shade over the 30% reduction that was asked for:
 		///   was: 350 content + ~31 cost text + 16 cost icon + 3 icon gap + 21 (three 7px margins)
 		///   now: 280 content + 14 (two 7px margins)
 		/// The ~31 is a four-digit cost measured in the 14px Bold font, so the "before" figure moves a
-		/// few pixels with the widest cost on screen; the "after" figure does not move at all.
+		/// few pixels with the widest cost on screen; the "after" figure does not move at all.</para>
 		/// </summary>
 		public const int ContentWidth = 280;
 
@@ -71,12 +71,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		}
 
 		/// <summary>
-		/// Overall panel width: the widest thing it must hold, plus a margin each side.
+		/// <para>Overall panel width: the widest thing it must hold, plus a margin each side.</para>
 		///
-		/// Takes a max rather than clamping to a constant. The code this replaced wrote
+		/// <para>Takes a max rather than clamping to a constant. The code this replaced wrote
 		/// <c>Math.Clamp(measured, 350, 350)</c> — equal bounds, so the measurement was computed and
 		/// then discarded, and any content wider than the panel silently overflowed it instead of
-		/// widening it. Long names and long prerequisite lists now push the panel out instead.
+		/// widening it. Long names and long prerequisite lists now push the panel out instead.</para>
 		/// </summary>
 		public static int PanelWidth(int margin, params int[] contentWidths)
 		{

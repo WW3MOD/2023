@@ -96,7 +96,7 @@ namespace OpenRA.Graphics
 		/// </summary>
 		public float EffectiveMinZoom => unlockMinZoom ? unlockedMinZoom : MinZoom;
 
-		/// <summary>Set zoom directly, clamped to the same range <see cref="AdjustZoom"/> uses.</summary>
+		/// <summary>Set zoom directly, clamped to the same range <see cref="AdjustZoom(float)"/> uses.</summary>
 		public void SetZoom(float value)
 		{
 			Zoom = value.Clamp(EffectiveMinZoom, MaxZoom);

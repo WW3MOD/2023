@@ -1466,9 +1466,9 @@ namespace OpenRA.Mods.Common.Traits
 			return (cluster.Center - truck.CenterPosition).Length < WDist.FromCells(FollowLeashCellsFor(cluster)).Length;
 		}
 
-		/// <summary>The cluster this truck is already serving and should KEEP this scan, or null to re-pick
+		/// <summary><para>The cluster this truck is already serving and should KEEP this scan, or null to re-pick
 		/// freely. The engine half of the follow-path commitment; the comparison itself is
-		/// <see cref="SupplyLogisticsMath.KeepHeldCluster"/>.
+		/// <see cref="SupplyLogisticsMath.KeepHeldCluster"/>.</para>
 		///
 		/// <para>FOUR RELEASE CONDITIONS, and every one of them is responsive — which is what makes this a
 		/// deadband rather than the latch species this module has been bitten by repeatedly. The margin is
@@ -1476,7 +1476,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// scattered below the grouping floor); it has fallen outside THIS truck's own leash; or some other
 		/// cluster now out-needs it by the margin. A truck can therefore always be prised off a customer that
 		/// stopped being one, and the fifth release — a drop being dispatched — happens one branch earlier,
-		/// where StepDrop clears the record alongside lastFollow.
+		/// where StepDrop clears the record alongside lastFollow.</para>
 		///
 		/// <para>The challenger is the best of the clusters this truck could actually be sent to, so it is
 		/// leash-filtered exactly as the ordinary pick is. Skipping that filter would let an unreachable
