@@ -380,6 +380,5 @@ Newest at top. This is the durable record; the sections above are the digest.
 2026-07-19 | (pending) | HARNESS | Harness is Windows-native as of 4dec6a74 (cygpath arg conversion, PowerShell CIM process-kill, %APPDATA%\OpenRA settings resolution, CRLF hardening). SPEC §3 updated; 5 portability items flagged for confirmation in the §3.3 bootstrap smoke run.
 2026-07-19 | (pending) | HARNESS | Amendment: hidden-window substrate RESOLVED. OPENRA_WINDOW_HIDDEN=1 landed+verified (d716eade/fda8370c) -> Mode B active from bootstrap (unlimited unsupervised runs); Mode A now fallback-only. Replaced the impossible same-seed identity gate (per-seed replay is broken: bots use unseeded LocalRandom) with the structural sim/render-decoupling guarantee; seeds are run labels, N-run stats unaffected. Updated SPEC §3 + LADDER seeds wording.
 2026-07-19 | 06afb643 | NOTE | System bootstrapped: SPEC/LADDER/REVIEW/README authored under WORKSPACE/ai-bench/. Loop not yet started.
-```
-
 2026-09-06 | 748aaa82 | LADDER | 260905 @stable re-baseline recorded (code bb89f9fd; first VALID corpus): S1 cal 5-5, S2 cal 5-5; @experimental 3/10 S1, 2/10 S2. s1_cal VOID (orphan runner), superseded by s1_cal_b; s2_cal matches 1-2 overlapped the orphan (deterministic, verdicts kept). Baseline PRE-DATES b6207b9b (@stable moved: MissionReinforceEnabled) - re-take before any bot comparison. Card: WORKSPACE/benchmarks/260905-rebaseline.md.
+```
