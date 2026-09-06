@@ -1,0 +1,121 @@
+# Heat-haze DEMO overrides. Nothing here is asserted; see map.yaml for the layout and
+# demo-heat-haze.lua for the schedule.
+#
+# THE POINT OF THIS FILE is the three Heat: blocks below and in weapons.yaml. They are three
+# envelopes written in one vocabulary (HeatEventDefinition), reached through two different emitters:
+#
+#   - TimedHeatSource, an ACTOR trait, twice over on E3. Each is gated on its own external condition
+#     so the Lua can start it at a known tick on one specific soldier.
+#   - HeatEventWarhead, a WEAPON warhead, once, on DemoStrategicHeat in weapons.yaml. It is reached
+#     by killing a bradley whose Explodes@HeatDemo fires that weapon at its own position.
+#
+# Both take the same Heat: sub-node, and that sub-node is LightEventDefinition's vocabulary with
+# distortion strength in place of intensity -- same Times, same Radii, same Interpolations, walking
+# the same curve code. That is the whole design claim: one envelope grammar, several consumers.
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# NO TerrainLighting OVERRIDE, unlike the light-event demos, and its absence is deliberate.
+	# Refraction is geometric rather than radiometric: it displaces what is already on screen, so it
+	# reads at full daylight and needs contrast rather than darkness. The 487-actor starburst is the
+	# contrast.
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, demo-heat-haze.lua
+
+Player:
+	# Nothing dies on this map, so this is belt and braces rather than a requirement -- but the demo
+	# runs for 1440 ticks and an elimination check has no business ending it.
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	PlayerResources:
+		DefaultCash: 0
+
+# Nothing fights. Every actor on this map is Neutral or Russia-owned and none of them ever fires;
+# turning scanning off keeps the frame static so the ONLY thing that moves is the refraction. That
+# matters more here than in most demos: a shimmer is a small motion, and a field of units turning
+# their turrets would swamp it.
+^Combatant:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+
+# NOTE THE CASE. `E3:` is how infantry.yaml spells it, and MiniYaml merges top-level keys
+# CASE-SENSITIVELY -- `e3:` here would define a second, unrelated actor and override nothing, with no
+# error. The lowercasing of actor names happens after the merge. Same for `bradley` below, which
+# vehicles-america.yaml really does spell in lower case.
+#
+# There are 54 other E3s standing in the target field, so both traits are gated on a condition the
+# Lua grants to one named soldier. Ungated, every soldier on the map would shimmer.
+E3:
+	ExternalCondition@HeatTac:
+		Condition: hh-tactical
+	ExternalCondition@HeatWreck:
+		Condition: hh-wreck
+
+	# ~20 kt, and this is the case that justifies the whole feature. The tactical nuke's FIREBALL is
+	# 0.695 cells in radius -- 1.4 cells across, about 33 screen pixels, smaller than the infantryman
+	# standing next to it and far smaller than the 39-cell mushroom-cloud sprite that gets drawn for
+	# it. There is no way to show a 20 kt weapon's heat with a sprite at this map scale. The HAZE is
+	# four times that radius, 2.78 cells, and it is a distortion rather than a drawn object, so it
+	# reads at any size down to a couple of pixels.
+	#
+	# Same construction as the 6 Mt envelope in weapons.yaml, at 1/300th of the yield:
+	#   radius   starts at the fireball's breakaway radius (0c711) and grows to 4x it
+	#   duration 72 ticks = 3 x the thermal pulse (0.32*sqrt(Y) s), so 4.3 s
+	#   peak     9.0 px at tick 10 -- the SAME peak as the 6 Mt weapon, because deflection depends on
+	#            the temperature excess and not on the size of the hot region
+	TimedHeatSource@Tactical:
+		RequiresCondition: hh-tactical
+		FollowActor: false
+		Heat:
+			Times: 0, 4, 10, 30, 72
+			Strengths: 0, 5.0, 9.0, 4.5, 0
+			Radii: 0c711, 1c256, 1c896, 2c400, 2c800
+			Interpolations: Quadratic, Quadratic, InverseCubic, InverseCubic
+			ShimmerScale: 1c0
+			RiseSpeed: 1c0
+			AnisotropyPercent: 80
+
+	# THE THIRD SCALE, and the reason this is a generic feature rather than a nuclear one. A burning
+	# wreck is 1.25 cells of weak, fast, fine-grained shimmer that never ends -- Loop: true, so the
+	# envelope repeats for as long as the condition holds and something else owns its lifetime.
+	# Nothing about it is nuclear and nothing about the system had to be extended to say it: it is
+	# the same five fields with smaller numbers.
+	#
+	# ShimmerScale 256 against the nukes' 1c0: a car fire's convective cells are metres across, not
+	# hundreds of metres. RiseSpeed is correspondingly higher relative to that scale, so the pattern
+	# turns over about four times faster.
+	TimedHeatSource@Wreck:
+		RequiresCondition: hh-wreck
+		FollowActor: false
+		Heat:
+			Times: 0, 20, 45, 70
+			Strengths: 1.8, 2.8, 2.0, 1.8
+			Radii: 1c256
+			Interpolations: Smoothstep
+			ShimmerScale: 256
+			RiseSpeed: 640
+			AnisotropyPercent: 90
+			Loop: true
+
+# The weapon-side emitter. Added as a new Explodes@ key rather than overriding the inherited one:
+# every ENABLED Explodes fires on the same death (Explodes.cs:103), so the bradley's own cookoff
+# still happens and the heat event rides alongside it. Gated on a condition for the same reason as
+# the E3 traits -- there are eight other bradleys in the target field.
+bradley:
+	ExternalCondition@HeatProbe:
+		Condition: hh-strategic
+	Explodes@HeatDemo:
+		Weapon: DemoStrategicHeat
+		EmptyWeapon: DemoStrategicHeat
+		Chance: 100
+		RequiresCondition: hh-strategic

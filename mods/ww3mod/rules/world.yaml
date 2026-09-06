@@ -295,6 +295,20 @@ World:
 	# actor). World-only rather than in ^BaseWorld because it is ITick and the editor world does not tick.
 	# Idle cost is one early-out per tick; nothing in the mod emits an event yet.
 	LightEventManager:
+	# Runs local heat-haze events -- a screen-space refraction shimmer over hot air (HeatEventWarhead
+	# from any weapon, TimedHeatSource from any actor). Same keyframe-envelope vocabulary as
+	# LightEventManager above, with distortion strength in place of intensity.
+	#
+	# THIS IS THE MOD'S FIRST IRenderPostProcessPass, so it is worth being exact about what it costs
+	# when nothing is burning: WorldRenderer.ApplyPostProcessing (WorldRenderer.cs:393-402) tests
+	# `pass.Type != type || !pass.Enabled` and CONTINUES -- before Game.Renderer.Flush(), before
+	# WorldBufferSnapshot() and before any draw call. Enabled is `Tracker.ActiveDraws.Count > 0`, a
+	# list length. So an idle map pays one enum compare and one list-length read, three times a frame,
+	# and no fullscreen work whatsoever. HeatEnvelopeTest pins that the list really is empty when
+	# nothing is hot -- including mid-event, while an envelope passes through zero strength.
+	#
+	# World-only rather than in ^BaseWorld because it is ITick and the editor world does not tick.
+	HeatHazeRenderer:
 	HealerClaimLayer:
 	UnitDefaultsManager:
 	# Right-click a capturable structure with NOTHING selected and the nearest free technician is
