@@ -106,6 +106,20 @@ Scenario titles follow the format **`<Scenario>: <Map Name>`** — scenario name
 | `UserInterface.SetMissionText(text)` | HUD briefing text |
 | `Media.DisplayMessage(text, prefix)` | Chat log messages |
 | `Media.PlaySpeechNotification(player, notif)` | EVA voice lines |
+| `Media.FloatingText(text, pos, duration, color)` | Text anchored in the world |
+| `Camera.Zoom` / `Test.SetZoom(scale)` | Camera zoom — see below |
+| `Trigger.OnTick(func)` / `Trigger.ClearOnTick()` | Per-tick callback (`Scripting/Global/TriggerGlobal.cs:49`, `:54`) |
+| `Test.Screenshot(label, note?)` | Scenario screenshots (`Scripting/Global/TestGlobal.cs:97`) |
+
+**Read the binding surface from the C#, never from the scenarios — and never by grep.** *(Promoted 2026-09-06 from DISCOVERIES.)* Of four presentation gaps reported as missing on 2026-09-06, **three already shipped**: `Test.SetZoom` (`TestGlobal.cs:174`, callable from every demo, because `run-demo.sh` delegates to `run-test.sh` with `Test.Mode=true`), `Test.Screenshot`, and three separate caption mechanisms (`UserInterface.SetMissionText`, `Media.DisplayMessage`, `Media.FloatingText` — one of which a demo on the branch was already using). Only `Trigger.OnTick` was genuinely absent. **A binding that exists but is documented nowhere an author will look is indistinguishable in practice from one that does not exist, and is worse, because the workaround gets written into the artefact and then copied**: three demos carried the comment *"THE CAMERA CANNOT BE ZOOMED FROM LUA. CameraGlobal exposes Position and nothing else"*, propagated verbatim between them, whose second half was true while the first was not — and it shipped to the viewer in three `description.txt` files telling them to zoom by hand. `Test.SetZoom`'s only mention outside its own `[Desc]` was a footnote on an unrelated page.
+
+**Two cheap moves that settle this class of question, both of which were skipped:**
+
+- **`python tools/lua-gate/lua_gate.py check`** re-derives the binding surface from the C# on every run, so it gives the true answer in seconds with no build, no launch and no judgement call. It is the authority for *what exists* and for *what a scenario calls that does not* — it reported exactly two real callers of the missing `Trigger.OnTick` where a grep had reported eight (the other six contained the string only inside a comment saying it did not exist, beside the hand-rolled `AfterDelay(1, reschedule)` loop they used instead). **Run the gate before counting Lua API breakage by grep.** What it cannot tell you is whether a binding's return value marshals back into Lua — see [`conventions.md`](conventions.md#scenarios-are-not-maps-to-some-tooling--but-the-windows-merge-gate-does-lint-every-one-of-them).
+- **`git log -S` settles direction.** `git log -S "OnTick" -- engine/OpenRA.Mods.Common/Scripting engine/OpenRA.Game/Scripting` returned **no commits at all**, so the string had never been added or removed: not a removal, but eight authors independently reaching for an API that felt like it should exist — which is what made *adding* it the right fix rather than rewriting call sites.
+
+**The rule worth carrying past Lua: when a scenario comment asserts an engine limitation, treat it as a dated claim about the engine, not as a fact about it.** The comment is written once, at the moment of frustration, and then survives every change to the thing it describes — and the more confidently it is phrased, the less likely the next author is to re-check it. The scenario-authoring view of the same surface is [`AUTOTEST.md` §Lua API](../recipes/AUTOTEST.md).
+
 
 ### A scenario phase must advance on an OBSERVABLE, not on a tick count
 
@@ -813,6 +827,39 @@ Under the reinforcement model a purchase spawns at the map edge and *walks in*, 
 
 **An affordability-filtered argmax degenerates into a cheapest-type pump.** `ForceCompositionMath.SelectDeficit` has no positive-deficit requirement — when every eligible type is at or above target it returns the least-over one, so a buy always happens. Eligibility, however, is affordability-filtered (`IsCompositionCandidateEligible`, `:983`, tests `CompositionNeedMath.Affordable` at `:1010`), and a bot spends to zero routinely — so in the low-cash band the only eligible member of a queue is its **cheapest** type and the argmax buys that type every cycle, unboundedly far over target. (America's Vehicle queue: humvee 450 against a 40‰ target, with everything else 700+.) The fix is `ForceCompositionMath.ApplyCeilingEligibility` (`:253`), which strikes slots **strictly** over target from the eligible set under `CompositionEnforceTargetCeiling` (`UnitBuilderBotModule.cs:744-745`) so the cycle DECLINES and banks the cash (`ShouldDeclineCycle`, `:757`) rather than falling through to the uniform `ChooseRandomUnitToBuild` lottery. *Strictly*-over matters: census and targets are both apportioned to 1000, so an over-target slot implies an under-target one survives the filter — but at-or-over would strike everything if every slot sat exactly on target and freeze purchasing outright. The general shape: a "no-opinion ⇒ fall back to the legacy picker" branch fires on *being broke*, not only on *having nothing composed to buy* — check which of those two your fallback is really answering.
 
+### The cost ledger is NOT zero-sum, and ~40% of WW3MOD deaths fall on the wrong side of the guard
+
+*(Promoted 2026-09-06 from DISCOVERIES; mechanism re-read at `main @ 6e5721ae`, corpus figures dated.)*
+`UpdatesPlayerStatistics.Killed` adds `DeathsCost` at `PlayerStatistics.cs:335`, **above** the
+`if (e.Attacker == null || e.Attacker == self) return;` gate at `:341`, and `KillsCost` at `:362`, **below**
+it. So a death a unit delivers to itself is charged as a loss and credited to nobody. That is defensible in
+stock OpenRA, where self-kills are rare. **It is not defensible here, because WW3MOD's entire doom model
+routes the final blow through `self`:** `ChangesHealth.Tick` applies its drain as `self.InflictDamage(self, …)`
+(`ChangesHealth.cs:86`) and every combat family carries one below 50% HP (see
+[`conventions.md` §Engine behaviors](conventions.md#engine-behaviors-that-surprise-debugging-gotchas) for the
+per-chassis table), while `AutoTarget` **deliberately stops shooting** anything wearing `critical-damage` — so
+the shooter that did the work hands the kill to the drain by design. Measured over the 40-match 2026-09-05
+re-baseline corpus: **40.3% of deaths (3,068 of 7,616) have no attacker, and they carry 49.5% of all value
+lost.**
+
+**The trap that makes this survive review is that the same handler keeps a second pair of counters that DOES
+balance.** `UnitsKilled` (`:355`) and `UnitsDead` (`:357`) both sit *below* the gate, so an uncredited death is
+invisible to both and the two columns agree exactly — verified equal, summed over both players, in all 40
+matches. A reader who sanity-checks `units_killed` against `units_dead`, finds them zero-sum and infers the
+cost columns must be too, is reading a check that cannot fail. **Generalisable: when auditing a ledger, check
+whether the control total you are trusting is computed on the same side of the guard as the quantity you
+doubt. If it is, it is not independent evidence — it is the same claim twice.**
+
+**Consequence for anyone reading `kills_cost - deaths_cost` as army-versus-army combat: a quarter of it is
+logistics attrition.** `truk` is `^WheeledVehicle` and inherits `^Vehicle`'s doom drain, so an unarmed $1,000
+supply truck pushed below half HP is abandoned by the shooter and bleeds out — **21.2% and 25.6% of all value
+lost** on the two S2 combat-rung arms, on both sides. And the ledger is blind in the other direction too: a
+truck that simply runs empty is *disposed*, not killed, so its $1,000 leaves the economy without touching
+`deaths_cost` at all. **Refuted while establishing this:** the re-baseline card's "supply starvation attrition"
+hypothesis for the negative sum has no mechanism — no supply or ammo trait in the engine inflicts damage or
+calls `Kill`, and the mod defines no health drain gated on empty ammo. Running dry makes a unit useless, never
+dead.
+
 ### `UpdatesPlayerStatistics.AddToArmyValue` is a win-rule input, not telemetry
 
 The flag **defaults to false** (`Traits/Player/PlayerStatistics.cs:258`), and the per-type alive tally is incremented only inside `if (includedInArmyValue)` (`:342-347`, mirrored on every decrement) — so a type without it reads **count 0 in the observer army bar no matter how many are alive** (`ObserverArmyIconsWidget.cs:95` renders `Units.Values`). A "the bot builds zero riflemen" report is therefore ambiguous between an empty army and an unflagged template. The flag is not cosmetic: it feeds `PlayerStatistics.ArmyValue` → `WeightedComponentScoring.Compute` (`Tournament/Scorers/WeightedComponentMatchScorer.cs:84-91`) → `snapshot.Total`, which `TimeOrSrCaptureWinRule` sorts on to pick the **time-expiry winner** (`:88`) and the SR-capture runner-up (`:59`), and it also drives `assets_value` / `unit_type_stats` in the match record and the observer ASSETS label. Nothing in the *simulation* branches on it (both victory-condition traits sort on `Experience` — `ConquestVictoryConditions.cs:93`, `StrategicVictoryConditions.cs:136`), so it is not a determinism or byte-identity concern — but **flagging a template invalidates any in-flight ladder baseline**, and pre/post match scores and telemetry columns must not be compared across such a change. All line-infantry templates plus `^TECN` now carry it (`infantry.yaml:1179/1298/1364/1436/2207`); the shared `^Soldier` base deliberately does not (`:175`), nor do the rank/husk `OverrideActor` variants.
@@ -922,6 +969,35 @@ Every `bot.QueueOrder(...)` call across the ~25 BotModules lands in the single i
 - **The ledger only arbitrates between modules that BOTH WRITE it — "I read the ledger" is not a claim.** A flag that gates ledger *resolution* silently gates participation: `MountedTransportBotModule` resolves `goalGuard` only under `CommitPassengers` (`:313`), which the `@poi`/stable twin does not set (`ai.yaml:949`), so on `@stable` that module neither reads nor writes and the ledger cannot mediate between it and the heli lift — both draw passengers from the same reserve bubble and each would yank the other's boarder. Read-only participation is asymmetric and secures nothing. The two-way conflict is resolved instead by **direct reservation seams** that do not depend on either flag: `MountedTransportBotModule.IsPassengerReserved` (`:182`, also consulted by `LayeredDefenceBotModule:393`) is now consulted by `HelicopterSquadBotModule:1603`, and the symmetric `HelicopterSquadBotModule.IsPassengerReserved` (`:1635`) by `MountedTransportBotModule.TryAssignNewTasks` (`:567`). Two related traps in the same area: `StateBase.ExcludeTacticallyCommitted` (`Squads/States/StateBase.cs:155-171`) honours only `tacpos:` keys, so ground squads would not respect a `transport:` claim — harmless today only because every `SquadManagerBotModule` in `ai.yaml` sets `IgnoreGroundUnits: true`; and a ledger-committed unit is invisible to `BuildFreePool`, so a module carrying units forward across evals must explicitly RELEASE any it does not re-task or they strand committed forever.
 - **Three-tier timer ordering: `ReevaluateInterval` (100) < `AxisCommitmentTicks` (250) < `MissionCommitmentWindowTicks`.** The abort/reassign triggers are tested only at re-eval ticks (`PoiOffensiveBotModule` early-returns until a countdown hits 0, then re-evals every `ReevaluateInterval` `:57/:636-640`). Each re-eval a held axis re-asserts its ledger claim with a fresh `AxisCommitmentTicks` TTL (`:87`, `Ledger.Commit(..., AxisCommitmentTicks)` `:1245/:1518`). **If `ReevaluateInterval >= AxisCommitmentTicks` the claim lapses in the gap between two re-evals** and the unit is released mid-mission before any trigger can fire — the commitment window collapses to zero. `MissionCommitmentMath.ShouldReassign` (`PoiGoalGuard.cs:243`, NOT `ShouldRelease`) force-releases a held axis once `commitWindowTicks > 0 && currentTick − commitTick >= commitWindowTicks` (`:253-254`) — a bounded outer backstop that must sit ABOVE the ledger TTL so triggers get several samples first. The engine-class default `MissionCommitmentWindowTicks = 0` is **inert** (pure-trigger hold; `@experimental` sets 400 for ~3 held re-evals then a mandatory re-plan); all three fields live only on `PoiOffensiveBotModule@experimental`, so `@stable` (which omits them) is byte-identical.
 
+### Two modules drawing on one free pool: a per-consumer FLOOR is not a share
+
+*(Promoted 2026-09-06 from DISCOVERIES; re-read at `main @ 6e5721ae`.)* `LaneAmbushBotModule` is what sends
+the opening lone tank forward, not the offensive stager — it claims the first reinforcement at tick 100,
+before the offense free pool has ever seen the unit (see §"The bot free pool self-heals"). The obvious repair,
+a minimum-manning floor, was applied and **fixed the count without touching the exposure**:
+`MinUnitsPerAmbush` (`LaneAmbushBotModule.cs:100`, C# default 0) made the lane post a *pair* on the identical
+post cell — `PostFractionPct: 40` puts it 22 cells from home on the SR-to-enemy-SR line, far beyond the
+offensive stager's own `StagingStandoffCells: 6` muster — and the tank died in all three runs either way.
+
+**The two modules share one pool and each has a floor, so below a certain army size they starve each other.**
+`LaneAmbushBotModule.BuildFreePool` (`:595`) excludes only ledger-committed actors, and `LaneMayPost` is
+tested against `lane.Units.Count + free.Count`, i.e. the **whole** free pool. Measured on
+`test-combined-arms-rendezvous`: three units eligible at tick 200, the lane took two, and
+`PoiOffensiveBotModule` was left with one — below its own `FreePoolMinAdvanceUnits: 2`, so the offensive
+stager logged `hold-under-min pool=1 min=2` on the same evals. One module's minimum-manning floor pushed the
+other below its minimum-advance floor. **Adding a floor to a module that draws from a shared pool, without
+also giving it a share, is a change that is correct in the large-army case and inverts in the small-army case
+— which is the opening of every match, the regime the behaviour is complained about in. Check the pool size
+against the sum of the floors before believing a floor fixed anything.** The module's own config comment
+(`ai/ai.yaml:1046-1047`) predicted exactly this and should have been read as a live warning rather than a
+note: *"That holds only when offense has units to spare; at the opening the lane takes the entire army."*
+
+Two smaller properties of the lane, both measured and both easy to mistake for policy: **recruits are chosen
+by proximity to the post alone** (`:391-392`, an `OrderBy` on distance with no role or scarcity preference),
+so *which* units go is an accident of spawn geometry; and **`PruneLanes` has no losing-lane retire** (`:450`)
+— it releases the dead, the reclaimed and the already-sprung only, so a posted pair holds its cell through
+contact with nothing to pull it back.
+
 ### Widened ambush (Stages 1–4) — hide-and-spring + the bot lane consumer
 
 The stock Ambush fire stance (above, "Fire discipline") is pre-aim-and-hold-fire-until-spotted. WW3MOD widens it into a stationary literal-ambush state machine plus a bot that actually posts ambushers on the enemy's reinforcement lane. The whole feature hangs off one **default-off gate condition, `enable-ambush-tactics`**. **NOTE (`b8d2e601`, 2026-08-02): the posting bot is no longer `@experimental`-only** — `LaneAmbushBotModule@stable` (`ai.yaml`, `RequiresCondition: enable-ai-stable`) runs at full parity, so the earlier claim that every non-`@experimental` profile is byte-identical to stock is **false**. The gate is granted **per-unit**, so the rest of the roster is still on the stock path; it is the posted ambushers, on both profiles, that are not.
@@ -939,6 +1015,32 @@ The stock Ambush fire stance (above, "Fire discipline") is pre-aim-and-hold-fire
   - **OBS-2 — every posted unit is committed to the shared `PoiGoalGuard` ledger (`"ambush:<anchorId>"`, `:416`)** so the offense FSM treats it as taken and its ~75-tick re-issue never stomps the posting. The module polls `AutoTarget.AmbushSprung` each re-eval and **releases** a fired unit (revoke gate + `SetUnitStance FireAtWill`, which runs `ResetAmbushState` and clears the latch, + drop the ledger commit) so offense reclaims a fresh, un-latched unit (`PruneLanes :398-404`, `ReleaseUnit :469-488`).
   - **The lane is fog-legal.** The friendly anchor is `PoiMap.OwnSupplyRoute(player)` (public seam over `FindOwnSupplyRoute`, `PoiMap.cs:516-520`); enemy anchors are `PoiMap.GetOffensiveTargets(player, suppressOmniscientThreat: true)` (`:297`) filtered to `Pressure` (enemy SR) then `Attack`. SR positions are public map facts (`PoiMap.Discover` scans `world.Actors` for the SR type regardless of fog, `:203-227`) and `suppressOmniscientThreat: true` keeps the module off the omniscient `InfluenceMap` threat grid (mirrors the offense module — see [influence-stack.md §Stage F](influence-stack.md)). The post sits at `PostFractionPct`% (default 40 ⇒ our side of the midline) along the line, integer `WPos` interpolation in the pure `AmbushLaneMath` helper (`:589-613`, NUnit-pinned).
   - **PROFILE REACH — this module HAS a `@stable` twin, and the Stage-2/3 machinery is LIVE on both profiles.** *(Corrected 2026-08-12; the previous text here read "Byte-identity is by ABSENCE — there is NO `@stable` twin … `@stable` never instantiates it, never commits to a ledger, never grants the gate." That was true when written and became false at `b8d2e601`, 2026-08-02, which added the twin as part of an authorised `@stable`→`@experimental` parity promotion. **Do not treat the Stage-2 halt-before-contact path or the Stage-3 state machine as dead code — acting on the old wording would delete a shipping feature.**)* `LaneAmbushBotModule@stable` (`ai.yaml:1994`, `RequiresCondition: enable-ai-stable`) runs at full `@experimental` parity, so `@stable` does instantiate the module, commit to the `PoiGoalGuard` ledger, grant the gate and issue orders. **Still true:** humans / Normal / Rush / Turtle never instantiate it, and `enable-ambush-tactics` is granted **only** by this module and only to its own posted units (`:418`/`:439`), so `GetConditionCount` stays 0 on any unit no ambush module posted. It draws zero RNG (fixed initial countdown in `TraitEnabled :157-163`, not a `LocalRandom` draw; every actor iteration `OrderBy(ActorID)`). `TraitDisabled` hands every posted unit back (`RetireAll` + a belt-and-suspenders grant sweep, `:184-198`) so a disabled module leaves zero granted tokens / ledger commits behind.
+
+### A sampler whose kernel is WIDER than the box it is searched over cannot discriminate inside it
+
+*(Promoted 2026-09-06 from DISCOVERIES; re-read at `main @ 6e5721ae`.)* Every supply truck was driving to the
+`(-3,-3)` **corner** of its follow box rather than to the platoon centroid — nine scans, five different
+centroids, the offset identical every time. That is the signature of a **tie**, not of a gradient: with
+friendlies at the centroid and no enemy anywhere, a real gradient would peak the argmax *at* the centroid, so
+a corner can only win if every candidate scores the same and a strict `>` keeps whichever was scanned first
+(raster order, `dx` outer).
+
+**The tie is structural.** `ThreatMapManager.GetThreat` sums valued combatants within
+`WDist.FromCells(CellSize)` of the sampled cell and returns `enemyValue - friendlyValue`
+(`ThreatMapManager.cs:197-227`), and `CellSize: 8` (`world.yaml:314`) is **wider than the ±3 box it is being
+sampled over** — the furthest candidate-to-member distance in a radius-3 box around a 5-cell column is 5.83
+cells, so all 49 candidates enclose the identical actor set and return the identical float. **Generalise it:
+any box search over a kernel-summing field with a half-width below the kernel radius is a tie-break in
+disguise, and the answer it returns is its scan order.** Fixed by ordering the box nearest-first
+(`SupplyLogisticsMath.FollowBoxScanOrder`, `:377`, documented at `:358`), so a flat box resolves to the
+centroid while a strictly safer cell still wins. **Inert in shipped content** *(as of 2026-09-06)*:
+`FindSafeFollowPosition` is not reached at all while `IgnoreDangerForDelivery: true` (`ai/ai.yaml:1689`), so
+neither profile moves; only a map that clears the flag sees it.
+
+**Watch the sign when reading this function.** It argmaxes `-GetThreat`, i.e. `friendlyValue - enemyValue`,
+so on an enemy-free map it maximises *friendly density* and pulls the follow cell **into** the platoon. The
+site's own comment ("an EMPTY cell wins outright") describes the contested case and reads as the opposite in
+the absence of enemies.
 
 ### `BotOrderGate` can only damp orders it CLASSIFIES — everything else is structurally ungateable
 

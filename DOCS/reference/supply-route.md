@@ -113,7 +113,26 @@ The match-ending win/loss runs on **`SupplyRouteContestation`, not stock `Conque
 | **dangerous** | drives in, stops `DropShortCells` short of the platoon, unloads its **whole** load as a SUPPLYCACHE, egresses | emptied — the drop is all-or-nothing (`DropsSupplyCache` calls `SetSupply(0)`) |
 | **quiet** | closes to aura range and serves in place | **retained** for the next customer |
 
-**SHIPPED CONTENT DISABLES THE SELECTOR: the quiet row cannot fire today, and the table below it describes a mode choice that is not being made.** The gate is `if (drop && DropRequiresDanger && !IgnoreDangerForDelivery && !dispatched && cluster != null)` (`SupplyFollowerBotModule.cs:1662`), and `IgnoreDangerForDelivery: true` is set on the shipped `SupplyFollowerBotModule@supply` (`ai.yaml:1676`) — user-authorised 2026-08-13, verbatim *"even if we need to completely disable their danger awareness"*. So at shipped config the drop mode is unconditional and a truck with a droppable load unloads a crate on any front, quiet or not. Everything from "What picks the mode" onward is the principled design and is what item 40 would make live again; read it as such, not as a description of what a match does.
+**SHIPPED CONTENT DISABLES THE SELECTOR: the quiet row cannot fire today, and the table below it describes a mode choice that is not being made.** The gate is `if (drop && DropRequiresDanger && !IgnoreDangerForDelivery && !dispatched && cluster != null)` (`SupplyFollowerBotModule.cs:1662`), and `IgnoreDangerForDelivery: true` is set on the shipped `SupplyFollowerBotModule@supply` (`ai/ai.yaml:1689` — *corrected 2026-09-06, was `:1676`*) — user-authorised 2026-08-13, verbatim *"even if we need to completely disable their danger awareness"*. So at shipped config the drop mode is unconditional and a truck with a droppable load unloads a crate on any front, quiet or not. Everything from "What picks the mode" onward is the principled design and is what item 40 would make live again; read it as such, not as a description of what a match does.
+
+**AND THE QUIET ROW NEEDS A SECOND HALF THAT DOES NOT EXIST: the platoon walks to the truck.** *(Promoted
+2026-09-06 from DISCOVERIES; measured on `test-supply-safe-front-keeps-cargo`, run `260906_090304`.)* The
+doctrine's quiet branch is "the truck closes and serves in place", and only the truck side is built.
+`AutoSeekSupplies` has **no notion of a provider that is already inbound**: the moment a closing truck crosses
+a starving soldier's `SupplyHuntLeashCells` (20c) leash it dispatches him to fetch
+(`AutoSeekSupplies.cs:197`, dispatch `:202`). Measured: all five riflemen left the front within four ticks of
+each other, at tick 250, with the truck 18 cells out and closing. **The front collapses into its own supply
+line on a quiet map, and no truck-side change can move it** — the meeting point is set by the two closing
+speeds (0.069 cells/tick combined here, aura entry at tick ≈437) and is reached *before* the truck arrives at
+any target cell, so retargeting the truck alters only the `dy` of the walk, not whether it happens.
+
+**Not fixed, and deliberately not a worker's side-effect:** the trait sits on `^Soldier`, so it governs
+human-owned units and both bot profiles alike. The shape that looks right is to decline
+`SeekSuppliesAndReturn` at a provider that is mobile and currently closing — self-limiting, because the man
+re-asks every `ScanInterval: 40`, so a truck that parks or drives away is still fetched from and nothing
+deadlocks. Note `SupplyProvider.OnSupplyErrand` does **not** already answer this: it reads only
+`RestockSupply` / `PlaceSupplyCache` / `CollectSupplyCache` / `DeliverSupply`, and the follow path issues a
+plain `Move`.
 
 The anchor is relative to the **platoon that needs the supply**, not to the beachhead: `ClusterDropAnchor` places the crate `DropShortCells` back along the cluster→truck line. The older descent from the Supply Route survives only as a fallback for a truck with **no cluster selected** (`ResolveDropAnchor`).
 
