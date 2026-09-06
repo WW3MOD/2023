@@ -16,6 +16,40 @@ ProductionTypeAircraft: I
 	Types: Production
 	Contexts: Player
 
+# O continues the Y/U/I run on the top row and is unbound in the Player context.
+ProductionTypePowers: O
+	Description: Support Powers Tab
+	Types: Production
+	Contexts: Player
+
+# Support-power bin slots 07-10. common|hotkeys/supportpowers.yaml defines 01-06 and stops there;
+# the nuclear arsenal took the mod to ten powers, of which a player can hold nine at once, so the
+# bin's HotkeyCount was raised to 10 in chrome/ingame-player.yaml and these four have to exist or
+# CheckChromeHotkeys fails the gate.
+#
+# UNBOUND BY DEFAULT, exactly like 01-06 above them -- every SupportPowerNN in the common file
+# carries a Description and no key, so the slots are bindable rather than bound. Giving these four
+# defaults while the first six have none would be the odd choice, not the other way round.
+SupportPower07:
+	Description: Slot 07
+	Types: SupportPower
+	Contexts: Player
+
+SupportPower08:
+	Description: Slot 08
+	Types: SupportPower
+	Contexts: Player
+
+SupportPower09:
+	Description: Slot 09
+	Types: SupportPower
+	Contexts: Player
+
+SupportPower10:
+	Description: Slot 10
+	Types: SupportPower
+	Contexts: Player
+
 GroupScatter: G Shift
 	Description: Scatter queued waypoints among selected units
 	Types: World

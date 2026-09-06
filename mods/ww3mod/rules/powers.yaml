@@ -1,0 +1,344 @@
+# PURCHASE ORDERS for the support powers.
+#
+# Each actor below is a BODILESS PROXY: it is never created, never enters the world and has no
+# body, health or exit. SupportPowerProductionQueue intercepts completion before
+# Production.Produce is ever reached (SupportPowerProductionQueue.cs, BuildUnit) and banks a shot
+# on the SupportPower named by ProvidesSupportPowerCharge.Power instead. The actor exists purely so
+# the ordinary production machinery -- sidebar cameo, cost drain, build clock, hold, cancel with
+# partial refund, hotkey -- can be reused without a second implementation of any of it.
+#
+# ADDING A POWER: set `RequiresPurchase: True` on the SupportPower, then add a proxy here naming
+# its OrderName and inheriting the template below. NOTHING IN THE ENGINE LINTS THAT LINK, so
+# engine/OpenRA.Test/PowerPurchaseWiringTest.cs does: it fails if a proxy names a power that does
+# not exist, if a purchasable power has no proxy (which makes it unreachable forever, since setting
+# RequiresPurchase removes the timer), or if a proxy is missing a trait the palette dereferences.
+#
+# ---- THE PRICES ----
+# Income is PassiveIncome 100 per 50 ticks at Timestep 60 = 2000/min before building income
+# (DOCS/reference/economy.md), against DefaultCash 20000. So a 5000 power is two and a half minutes
+# of a whole allocation, which is the "hard to get to pay off" the user asked for: it has to kill
+# two top-end vehicles (T-90 2400, Abrams 2500) just to break even, and catch a group of four or
+# more to be a good trade.
+#
+# THE LADDER IS MONOTONE IN BLAST RADIUS, not in the ChargeIntervals these powers used to carry,
+# and where the two disagree this file follows the blast. The reason is the user's own bar: "hard
+# to get to pay off unless enemy is grouped but still very possible to make a good trade" is a
+# statement about what a strike DESTROYS, so the price has to track that and not how rare the
+# weapon used to be. The one place it visibly reorders the old ladder is noted on
+# power.highyieldnuke.
+#
+#   power.kinzhal          conventional     5000    user's anchor, 2026-09-06
+#   power.gbu57            conventional     5000    tier symmetry, faction-locked opposite
+#   power.b61low            4.5c blast      6000    a nuke that is not a map-ender
+#   power.b61max           24.6c blast     13000    same bomb dialled up: 167x energy, 5.5x radius
+#   power.tacnuke        ~30.0c blast      15000    the proposal's approved nuke price, unchanged
+#   power.w76             31.0c blast      16000    tac-nuke radius, but the hardest to see coming
+#   power.sarmat        6 x 60.7c          30000    six RVs over a 21-cell footprint: area, not radius
+#   power.b83             71.0c blast      32000    largest single warhead in the US stockpile
+#   power.highyieldnuke  102.0c blast      40000    reaches every cell of every shipped map
+#   power.tsarbomba      246.1c blast      60000    2.4x the high-yield, and it burns for 25 s
+#
+# ---- BUILD DURATIONS ----
+# Ticks at Timestep 60 (0.06 s), NOT the 25 tps several in-tree comments still assert. The duration
+# is the loading, and money drains across it: the strike is ready the instant the bar completes.
+# Explicit rather than left at BuildDuration -1, which would derive cost/10 and couple the wait to
+# the price -- a 60000 warhead would take six minutes purely as an arithmetic side effect.
+#
+# ---- ORDERED BY PRICE, not by SupportPowerPaletteOrder ----
+# BuildPaletteOrder below runs cheapest-first, which is the useful order for a shop and is NOT the
+# order the support bin uses (that is SupportPowerPaletteOrder, roughly chronological by when each
+# power was added). The two lists therefore read differently on purpose.
+
+# The three traits every proxy needs and none of which is about the power itself. THIS TEMPLATE
+# EXISTS BECAUSE FORGETTING ONE OF THEM COST 2,555 LINT ERRORS ON 2026-09-06, and the failure is
+# invisible to a build, to NUnit and to a read of the file:
+#
+#   AlwaysVisible   supplies IDefaultVisibilityInfo. Without any trait implementing it,
+#                   CheckDefaultVisibility emits "Actor type `X` does not define a default
+#                   visibility type" -- once per actor PER MAP, which is where the four-digit count
+#                   comes from. Nothing about a proxy is ever drawn in the world; the lint does not
+#                   care, it wants the declaration.
+#
+#   Interactable    supplies IMouseBoundsInfo, which `Tooltip` REQUIRES
+#                   (TooltipInfoBase : ConditionalTraitInfo, Requires<IMouseBoundsInfo>,
+#                   Tooltip.cs:16). A bodiless actor has no Selectable and no IsometricSelectable,
+#                   so this is the only trait that can supply it, and without it
+#                   ActorInfo.TraitsInConstructOrder() THROWS -- reported as "Actor `X` is not
+#                   constructible". Its default Bounds are null, which CheckInteractable treats as
+#                   valid, so it costs nothing.
+#
+#                   DELETING Tooltip IS NOT THE ALTERNATIVE FIX. CheckTooltips errors on any actor
+#                   carrying BuildableInfo with no enabled Tooltip (CheckTooltips.cs:28-35), and a
+#                   buy-menu item must be Buildable. The three traits are a closed chain:
+#                       Buildable =(CheckTooltips)=> Tooltip =(Requires)=> IMouseBoundsInfo
+#                                                                          <= Interactable
+#
+#   RenderSprites   ProductionPaletteWidget.RefreshIcons calls item.TraitInfo<RenderSpritesInfo>()
+#                   unguarded (ProductionPaletteWidget.cs:713), so a buy-menu item without it
+#                   crashes the moment the tab is opened. `Image: icon` points Buildable.Icon at the
+#                   SAME `icon:` sequence collection SupportPowerInfo.Icon uses (its IconImage
+#                   defaults to "icon"), so the buy-tab cameo and the support-bin cameo are the same
+#                   sprite reference and adding a power needs no new sequence entry.
+#
+# All of this is pinned by PowerPurchaseWiringTest, which builds the real trait set by reflection
+# and calls the very method whose exception the merge gate reports.
+^PurchasableSupportPower:
+	AlwaysVisible:
+	Interactable:
+	RenderSprites:
+		Image: icon
+
+# ---- CONVENTIONAL TIER: 5000 ----
+# Both entries the same price on purpose. They are faction-locked to opposite sides, so no player
+# ever holds both and the price is not a comparison anyone can make in-game -- it is the symmetry
+# between the two factions' one conventional strike, and breaking it would advantage a faction
+# rather than differentiate a weapon. The two are separated on ROLE instead (tempo vs hardened
+# targets), which is why their load times differ and their prices do not.
+
+power.kinzhal:
+	Inherits: ^PurchasableSupportPower
+	Valued:
+		# 5000. Two T-90s (2400) is break-even; four vehicles caught together is a clear win, one
+		# is a clear loss. The user's conventional anchor, up from the proposal's 4000.
+		Cost: 5000
+	Tooltip:
+		Name: Kh-47M2 Kinzhal
+	Buildable:
+		Queue: Powers
+		BuildPaletteOrder: 10
+		# PRECISION STR. is the baked caption on this cameo and it is correct here. DO NOT swap to
+		# cmissicon or missicon however their names read -- those are a biohazard trefoil captioned
+		# CHEMICAL STRIKE and a building captioned TECH CENTER.
+		Icon: precicon
+		# 500 ticks x 0.06 s = 30 s. The shortest load in the menu, matching the power's identity:
+		# tempo is the whole of what the Kinzhal sells.
+		BuildDuration: 500
+		Description: Hypersonic missile strike, held in off-map reserve until you call it.\nArrives fully loaded and fires once.
+	ProvidesSupportPowerCharge:
+		Power: KinzhalStrike
+
+power.gbu57:
+	Inherits: ^PurchasableSupportPower
+	Valued:
+		# 5000, deliberately identical to the Kinzhal. See the tier note above.
+		Cost: 5000
+	Tooltip:
+		Name: GBU-57 Bunker Buster
+	Buildable:
+		Queue: Powers
+		# Shares the Kinzhal's slot rather than following it: the two are faction-exclusive, so no
+		# player ever sees both and there is no ordering between them to express.
+		BuildPaletteOrder: 10
+		Icon: precicon
+		# 900 ticks = 54 s, nearly double the Kinzhal's at the same price, and that gap IS the
+		# differentiation the two powers get in exchange for costing the same. A Massive Ordnance
+		# Penetrator is a scheduled demolition of a fixed hardened target, not a weapon of surprise;
+		# it already carries the longest in-flight lead (MissileDelay 300 against 150) and the
+		# slowest missile, so making it slow to load too keeps it from competing on tempo at all.
+		BuildDuration: 900
+		Description: Massive Ordnance Penetrator, held in off-map reserve until you call it.\nArrives fully loaded and fires once.
+	ProvidesSupportPowerCharge:
+		Power: GBU57Strike
+
+# ---- NUCLEAR TIER ----
+# CAMEOS ARE REUSED AND TWO OF THEM ARE WRONG, and this is reported rather than fixed because it is
+# art. Every Icon below is the one its power already carries in the support bin, so the buy tab
+# introduces no new mismatch -- but it does put them adjacent in one menu with prices, which makes
+# the existing ones much easier to notice. Captions were read off the pixels:
+#   abomb      -> "NUCLEAR BOMB"    correct. The ONLY correct nuclear cameo in the mod, which is why
+#                                   the tactical strike and the Tsar Bomba share it.
+#   paranuke   -> "PARANUKE"        a Red Alert paradrop-nuke, used for both B61-12 dial settings.
+#   cmissicon  -> "CHEMICAL STRIKE" over a biohazard trefoil, used for the W76-1. WRONG, inherited
+#                                   from the arsenal branch, not introduced here.
+#   v2bdgricon -> a V2 launcher, used for the Sarmat. Defensible for an ICBM.
+#   abombfake  -> a mushroom cloud, used for the B83-1.
+# A distinct cameo for the strategic strike and a correct one for the W76 are real art requests.
+
+power.b61low:
+	Inherits: ^PurchasableSupportPower
+	Valued:
+		# 6000, barely above a conventional strike, and that closeness IS the entry. A 4.5-cell
+		# blast covers about what a heavy artillery concentration does, so a 0.3 kt dial setting has
+		# to be priced as a slightly better conventional strike rather than as a nuclear weapon --
+		# otherwise nobody ever discovers the mod has a nuke that does not end the game.
+		Cost: 6000
+	Tooltip:
+		Name: B61-12 (0.3 kt)
+	Buildable:
+		Queue: Powers
+		BuildPaletteOrder: 20
+		Icon: paranuke
+		# 500 ticks = 30 s, the same as the Kinzhal. It is a tactical weapon and it should feel like
+		# one at the point of purchase as well as at the point of impact.
+		BuildDuration: 500
+		Description: Variable-yield tactical bomb at its LOWEST dial setting.\nSub-kiloton: destroys a position, not a battlefield.\nArrives fully loaded and fires once.
+	ProvidesSupportPowerCharge:
+		Power: B61LowStrike
+
+power.b61max:
+	Inherits: ^PurchasableSupportPower
+	Valued:
+		# 13000 against the 0.3 kt setting's 6000: 167 times the energy and 5.5 times the radius for
+		# just over double the price. The sub-linear step is deliberate and is the same shape as the
+		# rest of the ladder -- blast area grows far faster than price, which is what makes the big
+		# entries worth saving for and the small ones worth buying often.
+		Cost: 13000
+	Tooltip:
+		Name: B61-12 (50 kt)
+	Buildable:
+		Queue: Powers
+		BuildPaletteOrder: 30
+		Icon: paranuke
+		# 1000 ticks = 60 s.
+		BuildDuration: 1000
+		Description: Variable-yield tactical bomb at its HIGHEST dial setting.\nSame weapon as the 0.3 kt option: 167x the energy, 5.5x the radius.\nArrives fully loaded and fires once.
+	ProvidesSupportPowerCharge:
+		Power: B61MaxStrike
+
+power.tacnuke:
+	Inherits: ^PurchasableSupportPower
+	Valued:
+		# 15000, the proposal's approved nuke price kept verbatim. Six Abrams to break even, so it
+		# only trades well against an army that cannot disperse -- one committed to an assault, or
+		# dug in around a position. That is a real constraint rather than a nominal one, because the
+		# victim gets AbombLaunchDetected at ORDER time (SupportPower.cs:238-251), a full 30 s
+		# before the warhead enters the map. You are paying 15000 for a strike you have announced.
+		Cost: 15000
+	Tooltip:
+		Name: Tactical Nuclear Strike
+	Buildable:
+		Queue: Powers
+		BuildPaletteOrder: 40
+		Icon: abomb
+		# 1500 ticks = 90 s.
+		BuildDuration: 1500
+		Description: Low-yield nuclear warhead, held in off-map reserve until you call it.\nArrives fully loaded and fires once.
+	ProvidesSupportPowerCharge:
+		Power: TacNukeStrike
+
+power.w76:
+	Inherits: ^PurchasableSupportPower
+	Valued:
+		# 16000 for a 31-cell blast against the tactical nuke's 15000 for 30 cells -- almost the same
+		# weapon by radius, and the 1000 credits buy the thing that is not in the radius. The W76
+		# rides an SLBM re-entry vehicle at Speed 1400, the fastest delivery in the arsenal, so it is
+		# the hardest of the ten to disperse away from. The premium is for the tempo, not the hole.
+		Cost: 16000
+	Tooltip:
+		Name: W76-1 Trident Warhead
+	Buildable:
+		Queue: Powers
+		BuildPaletteOrder: 50
+		Icon: cmissicon
+		# 1300 ticks = 78 s, SHORTER than the tactical nuke's 90 s despite costing more, for the same
+		# reason the price is higher: this entry sells speed.
+		BuildDuration: 1300
+		Description: Submarine-launched re-entry vehicle, held in off-map reserve until you call it.\nThe fastest delivery in the arsenal and the hardest to see coming.\nArrives fully loaded and fires once.
+	ProvidesSupportPowerCharge:
+		Power: W76Strike
+
+power.sarmat:
+	Inherits: ^PurchasableSupportPower
+	Valued:
+		# 30000, and this entry is priced on AREA rather than on radius, which is why it sits just
+		# below the B83 despite each of its six warheads being smaller (60.7c against 71.0c). Six
+		# detonations scattered over a 21-cell footprint cover far more ground than one circle does,
+		# but they overlap heavily inside that footprint, so the two end up close together rather
+		# than far apart. Against a dispersed army this is the better buy; against one point target
+		# the B83 is.
+		Cost: 30000
+	Tooltip:
+		Name: RS-28 Sarmat (MIRV)
+	Buildable:
+		Queue: Powers
+		BuildPaletteOrder: 60
+		Icon: v2bdgricon
+		# 2500 ticks = 150 s.
+		BuildDuration: 2500
+		Description: Heavy ICBM carrying independently-targeted re-entry vehicles.\nSix 750 kt warheads scattered across the target area, not one detonation.\nArrives fully loaded and fires once.
+	ProvidesSupportPowerCharge:
+		Power: SarmatStrike
+
+power.b83:
+	Inherits: ^PurchasableSupportPower
+	Valued:
+		# 32000 for a 71-cell blast. Above the Sarmat by a hair because a single 71-cell circle is
+		# the more reliable purchase -- no scatter, everything inside it dies -- and below the
+		# high-yield strike by a wide margin because 71 cells still leaves most of a large map alone.
+		Cost: 32000
+	Tooltip:
+		Name: B83-1 (1.2 Mt)
+	Buildable:
+		Queue: Powers
+		BuildPaletteOrder: 70
+		Icon: abombfake
+		# 2600 ticks = 156 s.
+		BuildDuration: 2600
+		Description: The largest weapon in the current US stockpile.\nA free-fall bomb: slow, and visible for its whole approach.\nArrives fully loaded and fires once.
+	ProvidesSupportPowerCharge:
+		Power: B83Strike
+
+power.highyieldnuke:
+	Inherits: ^PurchasableSupportPower
+	Valued:
+		# 40000, RAISED FROM THE 25000 THIS BRANCH FIRST SHIPPED, and the reason is the arsenal
+		# rather than a change of mind. When this power was priced there were four powers and this
+		# was the biggest; there are now ten, and two of the six that arrived on 2026-09-06 sit
+		# between the tactical nuke and this one. At 25000 a 102-cell blast would have cost less
+		# than the B83's 71-cell one, which is the ladder contradicting itself in the one place a
+		# player would actually notice. 40000 puts it back above everything it outranges.
+		#
+		# THIS IS THE RUNG THAT REORDERS THE OLD SCARCITY LADDER. The arsenal's ChargeIntervals put
+		# the B83 (27000) and the Sarmat (22500) as rarer than or equal to this power (22500);
+		# pricing on blast puts this power above both. Following the blast is deliberate -- see the
+		# note at the top of this file -- but it is the one place the two orderings visibly disagree,
+		# so it is the first thing to revisit if the tiering feels wrong in play.
+		#
+		# What has not changed is what the number is FOR. AtomicHighYield's blast wave has MaxRadius
+		# 102 cells against ~92 cells centre-to-corner on the largest shipped map, so one detonation
+		# reaches every cell of every map in the mod: it deletes the buyer's army along with the
+		# target's. There is no "grouped enemy" condition to satisfy and no way to trade badly on
+		# impact, so the price IS the entire balance -- twenty minutes of a whole allocation, twice
+		# DefaultCash, and only reachable by someone far enough ahead on banked cash to survive the
+		# reset better than the opponent does.
+		Cost: 40000
+	Tooltip:
+		Name: Strategic Nuclear Strike
+	Buildable:
+		Queue: Powers
+		BuildPaletteOrder: 80
+		Icon: abomb
+		# 3000 ticks = 180 s. Three minutes with 40000 draining out of the account is itself a
+		# window in which the opponent can win -- deliberate, and the only counterplay that exists
+		# against a weapon whose own impact cannot be dodged.
+		BuildDuration: 3000
+		Description: High-yield strategic warhead, held in off-map reserve until you call it.\nDevastates the entire battlefield, including your own forces.\nArrives fully loaded and fires once.
+	ProvidesSupportPowerCharge:
+		Power: HighYieldNukeStrike
+
+power.tsarbomba:
+	Inherits: ^PurchasableSupportPower
+	Valued:
+		# 60000 -- thirty minutes of a whole allocation, three times DefaultCash, and very close to
+		# everything a player earns in a full match. That is the point rather than a side effect:
+		# the arsenal gave this a 45-minute ChargeInterval, meaning "at most once, probably never",
+		# and the price is what carries that intent across to a model with no timers in it. A player
+		# who buys this has spent the match not building an army.
+		#
+		# 246 cells of blast against the high-yield's 102, and a fireball that burns for 417 ticks
+		# (25 s) -- its thermal radius exceeds its blast radius, the only entry in the mod where that
+		# is true. There is nothing left to trade against; you are buying the end of the match.
+		Cost: 60000
+	Tooltip:
+		Name: Tsar Bomba (50 Mt)
+	Buildable:
+		Queue: Powers
+		BuildPaletteOrder: 90
+		Icon: abomb
+		# 4500 ticks = 270 s = 4.5 minutes, the longest load in the menu by half again. At 60000
+		# draining across it that is a very long time to be defenceless, which is the whole of the
+		# counterplay against a weapon nobody can disperse from.
+		BuildDuration: 4500
+		Description: RDS-220. The largest device ever detonated.\nA 2.5 km fireball burning for twenty-five seconds.\nArrives fully loaded and fires once.
+	ProvidesSupportPowerCharge:
+		Power: TsarBombaStrike
