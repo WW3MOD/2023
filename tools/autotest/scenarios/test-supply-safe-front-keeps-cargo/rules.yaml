@@ -1,8 +1,10 @@
 # Safe-front supply autotest overrides.
 #
-# TWO overrides, each argued where it sits: ONE behavioural key on the bot
-# (IgnoreDangerForDelivery, under Player) that makes the mode under test reachable at all, and ONE
-# instrumentation key on TRUK (at the bottom) that makes clause 3 readable. Everything else the
+# THREE overrides, each argued where it sits: TWO behavioural keys under Player —
+# IgnoreDangerForDelivery, which makes the mode under test reachable at all, and
+# ForwardStagingEnabled, which stops a DIFFERENT bot module from repositioning the platoon the
+# instant the resupply succeeds — and ONE instrumentation key on TRUK (at the bottom) that makes
+# clause 3 readable. Everything else the
 # module reads — ScanInterval, MaxFollowDistance, the follow leash, the drop demand gates, the
 # danger thresholds — comes from ai.yaml exactly as shipped, because a test that retunes the thing
 # it is testing proves only that some other tuning works.
@@ -108,6 +110,45 @@ Player:
 	# scenario asserts can be reached at all).
 	SupplyFollowerBotModule@supply:
 		IgnoreDangerForDelivery: false
+
+	# FORWARD STAGING OFF — WITHOUT THIS, CLAUSE 4 IS UNREACHABLE BY CONSTRUCTION AND A RED RUN SAYS
+	# NOTHING ABOUT SUPPLY. Measured on run 260906_092137_p10284 (main @ 10b4a88c), which failed clause 4
+	# alone at peak drift 6 with the truck correctly closed to x=40:
+	#
+	#   tick  15 — [exp-ammo] withhold module=offense unit=e3#10..14 reason=starving
+	#              All five are held OUT of PoiOffensiveBotModule's free pool BECAUSE they are starving.
+	#   tick 815 — [exp-ammo] release module=offense unit=e3#10..14 cell=44,14..18
+	#              Fed, therefore no longer starving, therefore released — each at his SPAWN cell.
+	#   tick 815 — [exp-staging] anchor=43,17 idle=5 staged=5   (the SAME tick)
+	#              StageFreePool (PoiOffensiveBotModule.cs:2787) AttackMoves each man to
+	#              ForwardStagingMath.SpreadSlot around anchor 43,17, one order per unit.
+	#
+	# So SUCCEEDING AT THE THING UNDER TEST IS WHAT TRIGGERS THE MOVE THAT FAILS THE CLAUSE. It is not a
+	# near miss: with StagingStandoffCells: 6 / StagingSpreadStepCells: 2 (ai.yaml:732, :734) the widest
+	# ring is Chebyshev 4 from the anchor — the observed finals were x = 47/43/39 — and even slot 0, the
+	# bare anchor 43,17, is Chebyshev 3 from the man spawned at 44,14. NO assignment staging can make
+	# satisfies HOLD_DRIFT = 1. The clause is correct and is deliberately left alone; the map was wrong to
+	# leave a second mover running.
+	#
+	# THE KEY, VERIFIED RATHER THAN GUESSED. The field is ForwardStagingEnabled, declared
+	# PoiOffensiveBotModule.cs:563 with an engine default of FALSE, and switched on for this profile at
+	# ai.yaml:731 inside `PoiOffensiveBotModule@experimental:` (block opens ai.yaml:366). map.yaml:119
+	# pins `Bot: experimental`, so that keyed instance is the one that runs here; @stable's copy
+	# (ai.yaml:2988) sits behind RequiresCondition: enable-ai-stable and is never enabled on this map, so
+	# overriding it too would be dead weight that misdescribes the scenario. The trait key must match
+	# ai.yaml's CASE-SENSITIVELY — a bare `PoiOffensiveBotModule:` or a mis-cased suffix DEFINES A SECOND
+	# INSTANCE instead of overriding this one, and that failure is SILENT. The run-side guard is that
+	# `[exp-staging]` must be ABSENT from debug.log.
+	#
+	# THIS IS NOT RETUNING THE THING UNDER TEST. Every SupplyFollowerBotModule key except the mode gate
+	# above still comes from ai.yaml as shipped. What is switched off is the OFFENSE layer's muster, a
+	# different module that has no part in the doctrine this scenario asserts and only ever competed with
+	# it for the same five men. StageFreePool returns at its first line when the flag is false
+	# (PoiOffensiveBotModule.cs:2789), and nothing else in that module walks an idle unit: rallyCell is
+	# read only on the axis-retreat path and inside the staging fallback itself, so turning staging off
+	# does NOT reroute the platoon to the Supply Route instead.
+	PoiOffensiveBotModule@experimental:
+		ForwardStagingEnabled: false
 
 World:
 	-StartGameNotification:
