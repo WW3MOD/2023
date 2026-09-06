@@ -118,6 +118,39 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Display order for the high-yield strategic nuclear strike option.")]
 		public readonly int HighYieldNukeCheckboxDisplayOrder = 103;
 
+		[Desc("Label for the extended nuclear arsenal checkbox.")]
+		public readonly string NuclearArsenalCheckboxLabel = "Nuclear Arsenal";
+
+		[Desc("Tooltip for the extended nuclear arsenal checkbox.")]
+		public readonly string NuclearArsenalCheckboxDescription =
+			"Allow the full nuclear arsenal: B61-12 (both dial settings), W76-1, RS-28 Sarmat, B83-1 and Tsar Bomba";
+
+		[Desc("Default extended nuclear arsenal setting. ON, deliberately, and the user's own ruling:",
+			"\"I want all of them added as nukes, gated behind the lobby option like the old nuke was, but",
+			"reachable from in game.\" It follows HighYieldNukeCheckboxEnabled rather than the tactical",
+			"nuke's false, and like that one it is expected to be revisited before release.",
+			"",
+			"ONE CHECKBOX FOR SIX POWERS, which is the reason this is not six fields. The powers differ by",
+			"yield across five orders of magnitude but they are one feature, and a lobby row per warhead",
+			"would be six rows describing a single decision.",
+			"",
+			"This does NOT make the arsenal fail open. The registered default (this field) and the",
+			"unregistered fallback are separate values: GrantConditionOnLobbyOption reads",
+			"OptionOrDefault(Option, !GrantWhenOptionDisabled) (GrantConditionOnLobbyOption.cs:45-49), and",
+			"that fallback is `!GrantWhenOptionDisabled` from nuclear-arsenal.yaml, never this field. The",
+			"gate there keeps the GrantWhenOptionDisabled: true form, so a build where this trait is",
+			"stripped still resolves the option to FALSE and hides all six. Registered: on. Absent: off.")]
+		public readonly bool NuclearArsenalCheckboxEnabled = true;
+
+		[Desc("Lock the extended nuclear arsenal option.")]
+		public readonly bool NuclearArsenalCheckboxLocked = false;
+
+		[Desc("Show the extended nuclear arsenal option.")]
+		public readonly bool NuclearArsenalCheckboxVisible = true;
+
+		[Desc("Display order for the extended nuclear arsenal option.")]
+		public readonly int NuclearArsenalCheckboxDisplayOrder = 104;
+
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
 			yield return new LobbyBooleanOption(
@@ -175,6 +208,20 @@ namespace OpenRA.Mods.Common.Traits
 				HighYieldNukeCheckboxLocked,
 				"Powers");
 
+			// One gate for the whole extended arsenal (rules/ingame/nuclear-arsenal.yaml): B61-12 at both
+			// its lowest and highest dial settings, W76-1, RS-28 Sarmat, B83-1 and Tsar Bomba. Same
+			// GrantWhenOptionDisabled polarity as the two nukes above, so an unregistered option still
+			// resolves to false and hides all six.
+			yield return new LobbyBooleanOption(
+				"nuclear-arsenal",
+				NuclearArsenalCheckboxLabel,
+				NuclearArsenalCheckboxDescription,
+				NuclearArsenalCheckboxVisible,
+				NuclearArsenalCheckboxDisplayOrder,
+				NuclearArsenalCheckboxEnabled,
+				NuclearArsenalCheckboxLocked,
+				"Powers");
+
 			yield return new LobbyOption(
 				"airstrike-cooldown",
 				AirstrikeCooldownLabel,
@@ -198,6 +245,7 @@ namespace OpenRA.Mods.Common.Traits
 		public string AirstrikeCooldown { get; private set; }
 		public bool TacticalNukeEnabled { get; private set; }
 		public bool HighYieldNukeEnabled { get; private set; }
+		public bool NuclearArsenalEnabled { get; private set; }
 
 		public PowersLobbyOptions(PowersLobbyOptionsInfo info)
 		{
@@ -214,6 +262,8 @@ namespace OpenRA.Mods.Common.Traits
 				.OptionOrDefault("tactical-nuke", info.TacticalNukeCheckboxEnabled);
 			HighYieldNukeEnabled = self.World.LobbyInfo.GlobalSettings
 				.OptionOrDefault("high-yield-nuke", info.HighYieldNukeCheckboxEnabled);
+			NuclearArsenalEnabled = self.World.LobbyInfo.GlobalSettings
+				.OptionOrDefault("nuclear-arsenal", info.NuclearArsenalCheckboxEnabled);
 		}
 	}
 }

@@ -142,6 +142,7 @@ Rules:
 	ww3mod|rules/ingame/vehicles.yaml
 	ww3mod|rules/ingame/vehicles-america.yaml
 	ww3mod|rules/ingame/vehicles-russia.yaml
+	ww3mod|rules/ingame/nuclear-arsenal.yaml
 
 Sequences:
 	ww3mod|sequences/sequences.yaml
@@ -248,6 +249,7 @@ Weapons:
 	ww3mod|rules/weapons/weapons-missiles.yaml
 	ww3mod|rules/weapons/weapons-other.yaml
 	ww3mod|rules/weapons/weapons-superweapons.yaml
+	ww3mod|rules/weapons/weapons-nuclear-arsenal.yaml
 
 Voices:
     ww3mod|rules/sound/voices.yaml

@@ -405,6 +405,48 @@ highyieldnukemissile:
 		ZOffset: 1023
 		Scale: 1.4
 
+# The nuclear-arsenal delivery bodies (rules/ingame/nuclear-arsenal.yaml). Same Iskander art as every
+# other missile-power body -- the mod has no bespoke sprite for any of them and CheckSequences requires
+# the image to resolve. Scale is the only thing separating them in flight, and it is multiplied by each
+# actor's own RenderSprites.Scale on top: the two B61 dial settings share a body and so share a scale,
+# and tsarbombamissile is the largest thing in the mod at 1.8 x 2.4 = 4.32 effective against
+# tacnukemissile's 0.89.
+b61lowmissile:
+	idle: iskander-missile
+		Facings: 32
+		ZOffset: 1023
+		Scale: 0.7
+
+b61maxmissile:
+	idle: iskander-missile
+		Facings: 32
+		ZOffset: 1023
+		Scale: 0.7
+
+w76missile:
+	idle: iskander-missile
+		Facings: 32
+		ZOffset: 1023
+		Scale: 0.85
+
+sarmatmissile:
+	idle: iskander-missile
+		Facings: 32
+		ZOffset: 1023
+		Scale: 1.3
+
+b83missile:
+	idle: iskander-missile
+		Facings: 32
+		ZOffset: 1023
+		Scale: 1.4
+
+tsarbombamissile:
+	idle: iskander-missile
+		Facings: 32
+		ZOffset: 1023
+		Scale: 1.8
+
 shootableshipmissile:
 	idle: iskander-missile
 		Facings: 32
