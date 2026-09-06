@@ -1,0 +1,84 @@
+# Nuclear-arsenal DEMO overrides. Nothing here is asserted; see map.yaml for the layout and
+# demo-nuke-arsenal.lua for the firing schedule.
+
+World:
+	# NO PowersLobbyOptions OVERRIDE, and its absence is deliberate. The `nuclear-arsenal` checkbox
+	# ships defaulting ON (PowersLobbyOptions.cs), so this demo fires the six powers in exactly their
+	# shipped configuration rather than force-enabling what it is showing. If that default is ever
+	# flipped to off before release, this scenario needs
+	# `PowersLobbyOptions: NuclearArsenalCheckboxEnabled: true` adding back here, and the symptom
+	# will be a support-power bin missing six icons and a Lua script that orders nothing.
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
+	# spawn assignment -- the edge derivation in map.yaml depends on it.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, demo-nuke-arsenal.lua
+
+Player:
+	# ALL SIX ARE CHARGED AT t=0 AND RE-CHARGE INSTANTLY. The shipped ChargeIntervals run from 4500
+	# to 45000 ticks (4.5 to 45 minutes); waiting them out would spend most of an hour of a launch
+	# slot measuring numbers this demo is not about.
+	#
+	# MissileDelay 60 (3.6 s) against shipped values of 200 to 600 (12 to 36 s). The public countdown
+	# is a real mechanic and is deliberately NOT what this demo is about -- six shipped waits back to
+	# back would add two and a half minutes of watching beacons. Delete these three lines from any
+	# entry to see its real approach.
+	MissileStrikePower@B61Low:
+		ChargeInterval: 1
+		StartFullyCharged: true
+		MissileDelay: 60
+	MissileStrikePower@B61Max:
+		ChargeInterval: 1
+		StartFullyCharged: true
+		MissileDelay: 60
+	MissileStrikePower@W76:
+		ChargeInterval: 1
+		StartFullyCharged: true
+		MissileDelay: 60
+	MissileStrikePower@Sarmat:
+		ChargeInterval: 1
+		StartFullyCharged: true
+		MissileDelay: 60
+	MissileStrikePower@B83:
+		ChargeInterval: 1
+		StartFullyCharged: true
+		MissileDelay: 60
+	MissileStrikePower@TsarBomba:
+		ChargeInterval: 1
+		StartFullyCharged: true
+		MissileDelay: 60
+	# 665 actors die here. Without this the match ends on elimination somewhere around shot 3, while
+	# three more weapons are still waiting to be fired.
+	-ConquestVictoryConditions:
+	# THE REAL ANSWER TO THE CAMERA CEILING, and the reason it lives here rather than in a power.
+	# CameraRange cannot exceed 55c0: it reaches MapGrid.MaximumTileSearchRange (MapGrid.cs:113,
+	# default 56) through RevealShroudEffect -> MapLayers.ProjectedCellsInRange ->
+	# Map.FindTilesInAnnulus, which THROWS rather than clamping (Map.cs:1993-1995). Tsar Bomba's
+	# blast reaches 246 cells, so its own camera can never show more than 22% of it.
+	#
+	# Pre-exploring the map and turning fog off makes the strike camera irrelevant -- there is no
+	# shroud left for it to reveal -- and the viewer sees the whole detonation. ANY SHOWPIECE
+	# SCENARIO FOR A MULTI-MEGATON WEAPON WANTS THIS BLOCK. In a real match the ceiling stands.
+	#
+	# The other option, which is NOT taken here and is not a weapon-level decision, is to raise the
+	# ceiling globally by adding one line to mod.yaml's MapGrid block:
+	#     MapGrid:
+	#         TileSize: 24,24
+	#         Type: Rectangular
+	#         MaximumTileSearchRange: 128
+	# That is read by FieldLoader and MapGrid precomputes TilesByDistance up to it
+	# (MapGrid.cs:201-215), so the cost is one-off memory: the table holds every CVec inside the
+	# radius, which is ~pi*R^2 entries -- 9,857 at the default 56 and 51,471 at 128, so about 400 KB
+	# of int pairs. It is shared by every tile search in the mod, which is why it is flagged here for
+	# a human rather than changed by a worker adding a weapon.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# No cash, so nothing can be produced and the only thing that happens on this map is the arsenal.
+	PlayerResources:
+		DefaultCash: 0

@@ -144,6 +144,7 @@ Rules:
 	ww3mod|rules/ingame/vehicles-america.yaml
 	ww3mod|rules/ingame/vehicles-russia.yaml
 	ww3mod|rules/doomsday.yaml
+	ww3mod|rules/ingame/nuclear-arsenal.yaml
 
 Sequences:
 	ww3mod|sequences/sequences.yaml
@@ -250,9 +251,11 @@ Weapons:
 	ww3mod|rules/weapons/weapons-missiles.yaml
 	ww3mod|rules/weapons/weapons-other.yaml
 	ww3mod|rules/weapons/weapons-superweapons.yaml
+	ww3mod|rules/weapons/weapons-nuclear-arsenal.yaml
 	# LAST, and that is load-bearing. This file ADDS a Warhead@TechStructure node to weapons
 	# defined above it (Atomic, AtomicHighYield, MOPPenetration, IskanderExplosion) rather than
-	# redefining any existing field, so it must merge on top of them. See its own header.
+	# redefining any existing field, so it must merge on top of them -- INCLUDING the six weapons
+	# in weapons-nuclear-arsenal.yaml immediately above, which is why that line precedes this one.
 	ww3mod|rules/weapons/weapons-heavy-ordnance.yaml
 
 Voices:

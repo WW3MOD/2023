@@ -1,0 +1,2226 @@
+# =====================================================================================================
+# WW3MOD NUCLEAR ARSENAL -- eight warheads named after weapons that exist, spanning five orders of
+# magnitude of yield, every number in this file derived from four scaling laws rather than tuned.
+#
+# WHY THIS IS A SEPARATE FILE AND NOT MORE OF weapons-superweapons.yaml: that file holds `Atomic` and
+# `AtomicHighYield`, the two shipped nukes, and it is under active rework. Splitting the arsenal off
+# means the two can be retuned without touching this and this can grow without touching them.
+# Registered in mod.yaml's Weapons: list immediately after weapons-superweapons.yaml.
+#
+# ==== THE LAWS ====
+# Everything below is one of these four evaluated at a yield. Nothing is hand-picked, so a number
+# that looks odd is a consequence of a law rather than a decision, and the way to change it is to
+# change the law.
+#
+#   BLAST RADIUS scales as the CUBE ROOT of yield. This is the whole reason an arsenal spanning
+#   0.3 kt to 50 Mt fits on one map at all: 167,000x the energy is only 55x the radius.
+#       blast_cells = 1.069 * kt^(1/3) km / 0.160 km per cell        (1 psi, outer edge of anything)
+#
+#   BLAST EXTENTS USE ~160 m PER CELL. This is deliberately NOT the mod's weapon-range scale, which
+#   is a fourth-root compression (cells ~= 18 * km^0.23). Two scales on purpose: a weapon range is a
+#   balance abstraction and a blast radius is a spectacle. NOTHING HERE MAY BE USED TO SET A RANGE.
+#
+#   FIREBALL radius scales as Y^0.40 and its DURATION as Y^0.44 -- both checked against real
+#   calculator output at 20, 175 and 800 kt and self-consistent to within a percent.
+#       fireball_m     = 111 * (kt/20)^0.40          fireball_s = 0.8 * (kt/20)^0.44
+#   The duration is the single most under-appreciated number in this file. It is what makes these
+#   weapons feel different from each other in a way a radius cannot: the B61-12 at its lowest dial
+#   setting flashes for 2 TICKS, and Tsar Bomba burns for 417 -- twenty-five seconds of standing
+#   fireball. Everything downstream is timed off it: the flash stack, the thermal pulse, and the
+#   staggered ignition delays of the fire ring.
+#
+#   THERMAL RADIUS GROWS FASTER THAN BLAST -- Y^0.41 against Y^0.33 -- so the two cross over. Below
+#   the crossover a weapon breaks more than it burns; above it, it burns more than it breaks.
+#       thermal_cells = 2.0 * (kt/20)^0.41 km / 0.160 km per cell    (third-degree burns)
+#   Setting the two equal gives the crossover at 2.4 Mt, which lands between B83-1 (1.2 Mt, blast
+#   still ahead) and Tsar Bomba (50 Mt, fire 309 cells against blast 246). That inversion is a real
+#   change of character across the arsenal and it falls out of the exponents rather than being
+#   written in by hand.
+#
+# ==== WHAT IS DELIBERATELY CONSTANT ====
+# `Damage: 400000` and the 35-point falloff SHAPE are identical on every weapon here, and that is
+# not laziness. Cube-root scaling is exactly the statement that peak overpressure at a given
+# FRACTION of the blast radius does not depend on yield -- so the yield belongs entirely in the
+# radii and the timings, and putting any of it into the damage number as well would be counting it
+# twice. The falloff curve is R^-1.28 in the far field, sampled by fraction of max radius.
+#
+# ==== WHAT THIS FILE DOES NOT DO ====
+# It draws its fireballs as SPRITES (CreateEffect + nuke_large), not as light events. The engine has
+# LightEventWarhead and world.yaml carries LightEventManager, but nothing in the mod emits a light
+# event yet and the keyframe vocabulary is unproven here -- so establishing it is one job, done once,
+# and not something to guess at across eight weapons in parallel. When the house pattern for a
+# nuclear light lands, every Warhead@Fireball* block below should be revisited against it. Past
+# ScalePercent 1600 the sprite cannot represent the fireball anyway and the extra magnification is
+# spent on a ring of sprites instead; above about a megaton that is a stopgap and is marked as one.
+#
+# ==== TRAPS, ALL OF WHICH ARE LIVE IN THIS FILE ====
+#   * AirThreshold. Above a warhead's AirThreshold the engine substitutes `Air` for the terrain
+#     target types (Warhead.cs:41-45, CreateEffectWarhead.cs:165-166) and the warhead does NOTHING to
+#     the ground -- no error, no lint failure, no visible symptom except that nothing dies. Every
+#     damage, fire, EMP, suppression and smudge warhead below carries one, set to 1.6x its own
+#     weapon's burst height and never below 24c0. The power that fires each weapon must keep its
+#     DetonationAltitude under that number.
+#   * ShockwaveDamage reach is min(MaxRadius, (Falloff.Length-1) * Spread) and the two are NOT
+#     validated against each other at load, so whichever is smaller silently wins. Every blast wave
+#     below has them made equal to the wdist.
+#   * FlashPaletteEffect Duration above 30 is not a longer flash, it is a corrupted palette:
+#     palettes.yaml pins the Nuke effect's Length at 30 and the lerp is unclamped past it. Long
+#     flashes are stacks of overlapping 30-tick calls.
+#   * The `onfire` ExternalCondition on infantry carries TotalCap: 10, so ten fire warheads is the
+#     ceiling and an eleventh would be granted and discarded.
+#   * Trees are damage-immune mod-wide (^TreeIndestructible, DamageMultiplier: Modifier: 0), so no
+#     weapon here touches them and none of them pretends to.
+# =====================================================================================================
+
+# ---- B61-12 (0.3 kt) -- 0.3 kt --------------------------------------------------------
+# the lowest dial setting on the B61-12, and the smallest yield in the current US stockpile.
+#
+#   blast (1 psi)         4.5 cells   = 1.069 * 0.3^(1/3) km at 160 m/cell
+#   thermal (3rd deg)     2.2 cells   = 2.0 * (0.3/20)^0.41 km
+#   fireball             0.13 cells   = 111 * (0.3/20)^0.40 m, and it burns 4 ticks (0.2 s)
+#   burst height          1.0 cells   = 230 * 0.3^(1/3) m
+#   blast wave runs to tick 31 (2 s) at 7 ticks/cell
+NukeB61Mod12Y003:
+	ValidTargets: Ground, Trees, Water, Underwater, Air
+	Warhead@Flash1: FlashPaletteEffect
+		Duration: 8
+		FlashType: Nuke
+	Warhead@Shake1: ShakeScreen
+		Duration: 15
+		Intensity: 35
+	Warhead@Shake2: ShakeScreen
+		Duration: 15
+		Intensity: 19
+		Delay: 2
+	Warhead@Shake3: ShakeScreen
+		Duration: 15
+		Intensity: 9
+		Delay: 8
+	Warhead@Fireball: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 56
+		Offset: 0,-1900,0
+		Palette: effect_ts
+		ZOffset: 4096
+		ImpactSounds: kaboom1.aud
+		ImpactActors: false
+		VisibleThroughFog: true
+		ValidTargets: Ground, Water, Air
+	Warhead@Vaporize: SpreadDamage
+		Spread: 0c256
+		Damage: 800000
+		Penetration: 20000
+		Falloff: 100, 100, 100, 50
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: ElectricityDeath
+		AirThreshold: 24c0
+	Warhead@ThermalRadiation: ThermalRadiation
+		RadiationDuration: 4
+		DamageInterval: 1
+		Spread: 0c256
+		Damage: 9000
+		Penetration: 1200
+		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: FireDeath
+		AirThreshold: 24c0
+		Versus:
+			Light: 120
+			Medium: 60
+			Heavy: 30
+			Concrete: 20
+	Warhead@Fire1: GrantExternalCondition
+		Range: 0c512
+		Amount: 1
+		Duration: 369
+		Condition: onfire
+		Delay: 1
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire2: GrantExternalCondition
+		Range: 0c512
+		Amount: 1
+		Duration: 363
+		Condition: onfire
+		Delay: 1
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire3: GrantExternalCondition
+		Range: 0c686
+		Amount: 1
+		Duration: 357
+		Condition: onfire
+		Delay: 2
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire4: GrantExternalCondition
+		Range: 0c915
+		Amount: 1
+		Duration: 351
+		Condition: onfire
+		Delay: 2
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire5: GrantExternalCondition
+		Range: 1c120
+		Amount: 1
+		Duration: 345
+		Condition: onfire
+		Delay: 3
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire6: GrantExternalCondition
+		Range: 1c349
+		Amount: 1
+		Duration: 339
+		Condition: onfire
+		Delay: 3
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire7: GrantExternalCondition
+		Range: 1c577
+		Amount: 1
+		Duration: 333
+		Condition: onfire
+		Delay: 3
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire8: GrantExternalCondition
+		Range: 1c806
+		Amount: 1
+		Duration: 327
+		Condition: onfire
+		Delay: 4
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire9: GrantExternalCondition
+		Range: 2c11
+		Amount: 1
+		Duration: 321
+		Condition: onfire
+		Delay: 4
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire10: GrantExternalCondition
+		Range: 2c240
+		Amount: 1
+		Duration: 315
+		Condition: onfire
+		Delay: 5
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@EMP: GrantExternalCondition
+		Range: 3c684
+		Duration: 331
+		Condition: empdisable
+		Delay: 0
+		ValidTargets: Ground, Water
+		InvalidTargets: Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@BlastWave: ShockwaveDamage
+		StartDelay: 3
+		WaveSpeed: 7
+		MaxRadius: 4c512
+		Damage: 400000
+		Penetration: 20000
+		Spread: 0c128
+		Falloff: 600, 562, 524, 487, 449, 411, 373, 336, 301, 268, 237, 210, 187, 164, 146, 127, 110, 95, 82, 71, 61, 52, 46, 40, 35, 30, 26, 22, 20, 17, 14, 12, 11, 9, 8, 7, 6
+		ShockwaveThickness: 1c512
+		ShockwaveSegments: 64
+		ShockwaveFadeInTicks: 15
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 30
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+		AirThreshold: 24c0
+	Warhead@Suppression1: GrantExternalCondition
+		Range: 1c213
+		Amount: 10
+		Duration: 355
+		Condition: suppression-1
+		Delay: 5
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression2: GrantExternalCondition
+		Range: 2c242
+		Amount: 8
+		Duration: 310
+		Condition: suppression-1
+		Delay: 11
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression3: GrantExternalCondition
+		Range: 3c729
+		Amount: 5
+		Duration: 225
+		Condition: suppression-1
+		Delay: 21
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression4: GrantExternalCondition
+		Range: 4c163
+		Amount: 3
+		Duration: 180
+		Condition: suppression-1
+		Delay: 27
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression5: GrantExternalCondition
+		Range: 4c805
+		Amount: 1
+		Duration: 150
+		Condition: suppression-1
+		Delay: 31
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Crater: LeaveSmudge
+		Size: 1
+		SmudgeType: Crater
+		Delay: 2
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch1: LeaveSmudge
+		Size: 1
+		SmudgeType: Scorch
+		Delay: 2
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch2: LeaveSmudge
+		Size: 1
+		SmudgeType: Scorch
+		Delay: 3
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+
+# ---- B61-12 (1.5 kt) -- 1.5 kt --------------------------------------------------------
+# second B61-12 dial setting; defined for the dial, no power fires it.
+#
+#   blast (1 psi)         7.6 cells   = 1.069 * 1.5^(1/3) km at 160 m/cell
+#   thermal (3rd deg)     4.3 cells   = 2.0 * (1.5/20)^0.41 km
+#   fireball             0.25 cells   = 111 * (1.5/20)^0.40 m, and it burns 4 ticks (0.2 s)
+#   burst height          1.6 cells   = 230 * 1.5^(1/3) m
+#   blast wave runs to tick 53 (3 s) at 7 ticks/cell
+NukeB61Mod12Y015:
+	ValidTargets: Ground, Trees, Water, Underwater, Air
+	Warhead@Flash1: FlashPaletteEffect
+		Duration: 8
+		FlashType: Nuke
+	Warhead@Shake1: ShakeScreen
+		Duration: 15
+		Intensity: 44
+	Warhead@Shake2: ShakeScreen
+		Duration: 15
+		Intensity: 24
+		Delay: 4
+	Warhead@Shake3: ShakeScreen
+		Duration: 15
+		Intensity: 11
+		Delay: 14
+	Warhead@Shake4: ShakeScreen
+		Duration: 15
+		Intensity: 4
+		Delay: 29
+	Warhead@Fireball: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 106
+		Offset: 0,-1900,0
+		Palette: effect_ts
+		ZOffset: 4096
+		ImpactSounds: kaboom1.aud
+		ImpactActors: false
+		VisibleThroughFog: true
+		ValidTargets: Ground, Water, Air
+	Warhead@Vaporize: SpreadDamage
+		Spread: 0c256
+		Damage: 800000
+		Penetration: 20000
+		Falloff: 100, 100, 100, 50
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: ElectricityDeath
+		AirThreshold: 24c0
+	Warhead@ThermalRadiation: ThermalRadiation
+		RadiationDuration: 4
+		DamageInterval: 1
+		Spread: 0c316
+		Damage: 9000
+		Penetration: 1200
+		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: FireDeath
+		AirThreshold: 24c0
+		Versus:
+			Light: 120
+			Medium: 60
+			Heavy: 30
+			Concrete: 20
+	Warhead@Fire1: GrantExternalCondition
+		Range: 0c512
+		Amount: 1
+		Duration: 369
+		Condition: onfire
+		Delay: 1
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire2: GrantExternalCondition
+		Range: 0c885
+		Amount: 1
+		Duration: 363
+		Condition: onfire
+		Delay: 1
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire3: GrantExternalCondition
+		Range: 1c304
+		Amount: 1
+		Duration: 357
+		Condition: onfire
+		Delay: 2
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire4: GrantExternalCondition
+		Range: 1c746
+		Amount: 1
+		Duration: 351
+		Condition: onfire
+		Delay: 2
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire5: GrantExternalCondition
+		Range: 2c165
+		Amount: 1
+		Duration: 345
+		Condition: onfire
+		Delay: 3
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire6: GrantExternalCondition
+		Range: 2c607
+		Amount: 1
+		Duration: 339
+		Condition: onfire
+		Delay: 3
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire7: GrantExternalCondition
+		Range: 3c26
+		Amount: 1
+		Duration: 333
+		Condition: onfire
+		Delay: 3
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire8: GrantExternalCondition
+		Range: 3c469
+		Amount: 1
+		Duration: 327
+		Condition: onfire
+		Delay: 4
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire9: GrantExternalCondition
+		Range: 3c911
+		Amount: 1
+		Duration: 321
+		Condition: onfire
+		Delay: 4
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire10: GrantExternalCondition
+		Range: 4c330
+		Amount: 1
+		Duration: 315
+		Condition: onfire
+		Delay: 5
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@EMP: GrantExternalCondition
+		Range: 6c278
+		Duration: 353
+		Condition: empdisable
+		Delay: 0
+		ValidTargets: Ground, Water
+		InvalidTargets: Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@BlastWave: ShockwaveDamage
+		StartDelay: 3
+		WaveSpeed: 7
+		MaxRadius: 7c768
+		Damage: 400000
+		Penetration: 20000
+		Spread: 0c256
+		Falloff: 600, 556, 512, 468, 425, 381, 337, 296, 258, 224, 196, 169, 147, 125, 106, 90, 75, 64, 53, 45, 38, 33, 27, 23, 20, 17, 14, 12, 10, 8, 7, 6
+		ShockwaveThickness: 1c512
+		ShockwaveSegments: 64
+		ShockwaveFadeInTicks: 15
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 30
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+		AirThreshold: 24c0
+	Warhead@Suppression1: GrantExternalCondition
+		Range: 2c67
+		Amount: 10
+		Duration: 355
+		Condition: suppression-1
+		Delay: 9
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression2: GrantExternalCondition
+		Range: 3c844
+		Amount: 8
+		Duration: 310
+		Condition: suppression-1
+		Delay: 19
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression3: GrantExternalCondition
+		Range: 6c356
+		Amount: 5
+		Duration: 225
+		Condition: suppression-1
+		Delay: 37
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression4: GrantExternalCondition
+		Range: 7c115
+		Amount: 3
+		Duration: 180
+		Condition: suppression-1
+		Delay: 46
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression5: GrantExternalCondition
+		Range: 8c188
+		Amount: 1
+		Duration: 150
+		Condition: suppression-1
+		Delay: 53
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Crater: LeaveSmudge
+		Size: 1
+		SmudgeType: Crater
+		Delay: 2
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch1: LeaveSmudge
+		Size: 1
+		SmudgeType: Scorch
+		Delay: 2
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch2: LeaveSmudge
+		Size: 2
+		SmudgeType: Scorch
+		Delay: 6
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+
+# ---- B61-12 (10 kt) -- 10 kt ----------------------------------------------------------
+# third B61-12 dial setting; defined for the dial, no power fires it.
+#
+#   blast (1 psi)        14.4 cells   = 1.069 * 10^(1/3) km at 160 m/cell
+#   thermal (3rd deg)     9.4 cells   = 2.0 * (10/20)^0.41 km
+#   fireball             0.53 cells   = 111 * (10/20)^0.40 m, and it burns 10 ticks (0.6 s)
+#   burst height          3.1 cells   = 230 * 10^(1/3) m
+#   blast wave runs to tick 100 (6 s) at 7 ticks/cell
+NukeB61Mod12Y10:
+	ValidTargets: Ground, Trees, Water, Underwater, Air
+	Warhead@Flash1: FlashPaletteEffect
+		Duration: 10
+		FlashType: Nuke
+	Warhead@Shake1: ShakeScreen
+		Duration: 15
+		Intensity: 59
+	Warhead@Shake2: ShakeScreen
+		Duration: 20
+		Intensity: 32
+		Delay: 9
+	Warhead@Shake3: ShakeScreen
+		Duration: 30
+		Intensity: 15
+		Delay: 28
+	Warhead@Shake4: ShakeScreen
+		Duration: 28
+		Intensity: 5
+		Delay: 55
+	Warhead@Fireball: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 227
+		Offset: 0,-1900,0
+		Palette: effect_ts
+		ZOffset: 4096
+		ImpactSounds: kaboom1.aud
+		ImpactActors: false
+		VisibleThroughFog: true
+		ValidTargets: Ground, Water, Air
+	Warhead@Vaporize: SpreadDamage
+		Spread: 0c538
+		Damage: 800000
+		Penetration: 20000
+		Falloff: 100, 100, 100, 50
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: ElectricityDeath
+		AirThreshold: 24c0
+	Warhead@ThermalRadiation: ThermalRadiation
+		RadiationDuration: 10
+		DamageInterval: 1
+		Spread: 0c688
+		Damage: 9000
+		Penetration: 1200
+		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: FireDeath
+		AirThreshold: 24c0
+		Versus:
+			Light: 120
+			Medium: 60
+			Heavy: 30
+			Concrete: 20
+	Warhead@Fire1: GrantExternalCondition
+		Range: 0c963
+		Amount: 1
+		Duration: 472
+		Condition: onfire
+		Delay: 2
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire2: GrantExternalCondition
+		Range: 1c903
+		Amount: 1
+		Duration: 457
+		Condition: onfire
+		Delay: 3
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire3: GrantExternalCondition
+		Range: 2c842
+		Amount: 1
+		Duration: 442
+		Condition: onfire
+		Delay: 4
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire4: GrantExternalCondition
+		Range: 3c781
+		Amount: 1
+		Duration: 427
+		Condition: onfire
+		Delay: 5
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire5: GrantExternalCondition
+		Range: 4c721
+		Amount: 1
+		Duration: 412
+		Condition: onfire
+		Delay: 6
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire6: GrantExternalCondition
+		Range: 5c660
+		Amount: 1
+		Duration: 397
+		Condition: onfire
+		Delay: 7
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire7: GrantExternalCondition
+		Range: 6c600
+		Amount: 1
+		Duration: 382
+		Condition: onfire
+		Delay: 8
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire8: GrantExternalCondition
+		Range: 7c539
+		Amount: 1
+		Duration: 367
+		Condition: onfire
+		Delay: 9
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire9: GrantExternalCondition
+		Range: 8c478
+		Amount: 1
+		Duration: 352
+		Condition: onfire
+		Delay: 10
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire10: GrantExternalCondition
+		Range: 9c418
+		Amount: 1
+		Duration: 337
+		Condition: onfire
+		Delay: 11
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@EMP: GrantExternalCondition
+		Range: 11c823
+		Duration: 400
+		Condition: empdisable
+		Delay: 0
+		ValidTargets: Ground, Water
+		InvalidTargets: Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@BlastWave: ShockwaveDamage
+		StartDelay: 3
+		WaveSpeed: 7
+		MaxRadius: 14c384
+		Damage: 400000
+		Penetration: 20000
+		Spread: 0c640
+		Falloff: 600, 541, 482, 423, 363, 306, 255, 211, 174, 144, 116, 92, 73, 58, 46, 37, 30, 24, 19, 15, 12, 9, 7, 6
+		ShockwaveThickness: 1c512
+		ShockwaveSegments: 64
+		ShockwaveFadeInTicks: 15
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 30
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+		AirThreshold: 24c0
+	Warhead@Suppression1: GrantExternalCondition
+		Range: 3c908
+		Amount: 10
+		Duration: 355
+		Condition: suppression-1
+		Delay: 18
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression2: GrantExternalCondition
+		Range: 7c202
+		Amount: 8
+		Duration: 310
+		Condition: suppression-1
+		Delay: 36
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression3: GrantExternalCondition
+		Range: 11c970
+		Amount: 5
+		Duration: 225
+		Condition: suppression-1
+		Delay: 70
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression4: GrantExternalCondition
+		Range: 13c396
+		Amount: 3
+		Duration: 180
+		Condition: suppression-1
+		Delay: 88
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression5: GrantExternalCondition
+		Range: 15c412
+		Amount: 1
+		Duration: 150
+		Condition: suppression-1
+		Delay: 100
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Crater: LeaveSmudge
+		Size: 1
+		SmudgeType: Crater
+		Delay: 2
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch1: LeaveSmudge
+		Size: 2
+		SmudgeType: Scorch
+		Delay: 5
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch2: LeaveSmudge
+		Size: 4
+		SmudgeType: Scorch
+		Delay: 12
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+
+# ---- B61-12 (50 kt) -- 50 kt ----------------------------------------------------------
+# top B61-12 dial setting -- the same bomb as Y003, 167x the energy, 5.5x the radius.
+#
+#   blast (1 psi)        24.6 cells   = 1.069 * 50^(1/3) km at 160 m/cell
+#   thermal (3rd deg)    18.2 cells   = 2.0 * (50/20)^0.41 km
+#   fireball             1.00 cells   = 111 * (50/20)^0.40 m, and it burns 20 ticks (1.2 s)
+#   burst height          5.3 cells   = 230 * 50^(1/3) m
+#   blast wave runs to tick 172 (10 s) at 7 ticks/cell
+NukeB61Mod12Y50:
+	ValidTargets: Ground, Trees, Water, Underwater, Air
+	Warhead@Flash1: FlashPaletteEffect
+		Duration: 20
+		FlashType: Nuke
+	Warhead@Shake1: ShakeScreen
+		Duration: 15
+		Intensity: 76
+	Warhead@Shake2: ShakeScreen
+		Duration: 34
+		Intensity: 41
+		Delay: 15
+	Warhead@Shake3: ShakeScreen
+		Duration: 51
+		Intensity: 19
+		Delay: 48
+	Warhead@Shake4: ShakeScreen
+		Duration: 48
+		Intensity: 7
+		Delay: 94
+	Warhead@Fireball: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 432
+		Offset: 0,-1900,0
+		Palette: effect_ts
+		ZOffset: 4096
+		ImpactSounds: kaboom1.aud
+		ImpactActors: false
+		VisibleThroughFog: true
+		ValidTargets: Ground, Water, Air
+	Warhead@Vaporize: SpreadDamage
+		Spread: 1c1
+		Damage: 800000
+		Penetration: 20000
+		Falloff: 100, 100, 100, 50
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: ElectricityDeath
+		AirThreshold: 24c0
+	Warhead@ThermalRadiation: ThermalRadiation
+		RadiationDuration: 20
+		DamageInterval: 1
+		Spread: 1c307
+		Damage: 9000
+		Penetration: 1200
+		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: FireDeath
+		AirThreshold: 24c0
+		Versus:
+			Light: 120
+			Medium: 60
+			Heavy: 30
+			Concrete: 20
+	Warhead@Fire1: GrantExternalCondition
+		Range: 1c840
+		Amount: 1
+		Duration: 645
+		Condition: onfire
+		Delay: 3
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire2: GrantExternalCondition
+		Range: 3c655
+		Amount: 1
+		Duration: 615
+		Condition: onfire
+		Delay: 5
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire3: GrantExternalCondition
+		Range: 5c471
+		Amount: 1
+		Duration: 585
+		Condition: onfire
+		Delay: 7
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire4: GrantExternalCondition
+		Range: 7c287
+		Amount: 1
+		Duration: 555
+		Condition: onfire
+		Delay: 9
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire5: GrantExternalCondition
+		Range: 9c102
+		Amount: 1
+		Duration: 525
+		Condition: onfire
+		Delay: 11
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire6: GrantExternalCondition
+		Range: 10c942
+		Amount: 1
+		Duration: 495
+		Condition: onfire
+		Delay: 13
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire7: GrantExternalCondition
+		Range: 12c758
+		Amount: 1
+		Duration: 465
+		Condition: onfire
+		Delay: 15
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire8: GrantExternalCondition
+		Range: 14c573
+		Amount: 1
+		Duration: 435
+		Condition: onfire
+		Delay: 17
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire9: GrantExternalCondition
+		Range: 16c389
+		Amount: 1
+		Duration: 405
+		Condition: onfire
+		Delay: 19
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire10: GrantExternalCondition
+		Range: 18c205
+		Amount: 1
+		Duration: 375
+		Condition: onfire
+		Delay: 21
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@EMP: GrantExternalCondition
+		Range: 20c188
+		Duration: 472
+		Condition: empdisable
+		Delay: 0
+		ValidTargets: Ground, Water
+		InvalidTargets: Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@BlastWave: ShockwaveDamage
+		StartDelay: 6
+		WaveSpeed: 7
+		MaxRadius: 24c512
+		Damage: 400000
+		Penetration: 20000
+		Spread: 0c896
+		Falloff: 600, 551, 503, 454, 406, 357, 310, 268, 229, 197, 167, 143, 120, 99, 82, 68, 56, 46, 39, 33, 27, 22, 19, 15, 13, 10, 8, 7, 6
+		ShockwaveThickness: 1c512
+		ShockwaveSegments: 64
+		ShockwaveFadeInTicks: 15
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 30
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+		AirThreshold: 24c0
+	Warhead@Suppression1: GrantExternalCondition
+		Range: 6c661
+		Amount: 10
+		Duration: 355
+		Condition: suppression-1
+		Delay: 30
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression2: GrantExternalCondition
+		Range: 12c314
+		Amount: 8
+		Duration: 310
+		Condition: suppression-1
+		Delay: 61
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression3: GrantExternalCondition
+		Range: 20c440
+		Amount: 5
+		Duration: 225
+		Condition: suppression-1
+		Delay: 120
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression4: GrantExternalCondition
+		Range: 22c912
+		Amount: 3
+		Duration: 180
+		Condition: suppression-1
+		Delay: 151
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression5: GrantExternalCondition
+		Range: 26c345
+		Amount: 1
+		Duration: 150
+		Condition: suppression-1
+		Delay: 172
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Crater: LeaveSmudge
+		Size: 2
+		SmudgeType: Crater
+		Delay: 3
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch1: LeaveSmudge
+		Size: 4
+		SmudgeType: Scorch
+		Delay: 8
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch2: LeaveSmudge
+		Size: 7
+		SmudgeType: Scorch
+		Delay: 20
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+
+# ---- W76-1 -- 100 kt ------------------------------------------------------------------
+# the Trident workhorse; ~1500 of them are the bulk of the deployed US sea-based force.
+#
+#   blast (1 psi)        31.0 cells   = 1.069 * 100^(1/3) km at 160 m/cell
+#   thermal (3rd deg)    24.2 cells   = 2.0 * (100/20)^0.41 km
+#   fireball             1.32 cells   = 111 * (100/20)^0.40 m, and it burns 27 ticks (1.6 s)
+#   burst height          6.7 cells   = 230 * 100^(1/3) m
+#   blast wave runs to tick 217 (13 s) at 7 ticks/cell
+NukeW76:
+	ValidTargets: Ground, Trees, Water, Underwater, Air
+	Warhead@Flash1: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+	Warhead@Flash2: FlashPaletteEffect
+		Duration: 8
+		FlashType: Nuke
+		Delay: 22
+	Warhead@Shake1: ShakeScreen
+		Duration: 19
+		Intensity: 84
+	Warhead@Shake2: ShakeScreen
+		Duration: 43
+		Intensity: 46
+		Delay: 19
+	Warhead@Shake3: ShakeScreen
+		Duration: 65
+		Intensity: 21
+		Delay: 60
+	Warhead@Shake4: ShakeScreen
+		Duration: 60
+		Intensity: 8
+		Delay: 119
+	Warhead@Fireball: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 571
+		Offset: 0,-1900,0
+		Palette: effect_ts
+		ZOffset: 4096
+		ImpactSounds: kaboom1.aud
+		ImpactActors: false
+		VisibleThroughFog: true
+		ValidTargets: Ground, Water, Air
+	Warhead@Vaporize: SpreadDamage
+		Spread: 1c328
+		Damage: 800000
+		Penetration: 20000
+		Falloff: 100, 100, 100, 50
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: ElectricityDeath
+		AirThreshold: 24c0
+	Warhead@ThermalRadiation: ThermalRadiation
+		RadiationDuration: 27
+		DamageInterval: 1
+		Spread: 1c745
+		Damage: 9000
+		Penetration: 1200
+		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: FireDeath
+		AirThreshold: 24c0
+		Versus:
+			Light: 120
+			Medium: 60
+			Heavy: 30
+			Concrete: 20
+	Warhead@Fire1: GrantExternalCondition
+		Range: 2c428
+		Amount: 1
+		Duration: 765
+		Condition: onfire
+		Delay: 3
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire2: GrantExternalCondition
+		Range: 4c856
+		Amount: 1
+		Duration: 725
+		Condition: onfire
+		Delay: 6
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire3: GrantExternalCondition
+		Range: 7c261
+		Amount: 1
+		Duration: 684
+		Condition: onfire
+		Delay: 9
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire4: GrantExternalCondition
+		Range: 9c689
+		Amount: 1
+		Duration: 644
+		Condition: onfire
+		Delay: 11
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire5: GrantExternalCondition
+		Range: 12c93
+		Amount: 1
+		Duration: 603
+		Condition: onfire
+		Delay: 14
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire6: GrantExternalCondition
+		Range: 14c521
+		Amount: 1
+		Duration: 563
+		Condition: onfire
+		Delay: 17
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire7: GrantExternalCondition
+		Range: 16c949
+		Amount: 1
+		Duration: 522
+		Condition: onfire
+		Delay: 19
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire8: GrantExternalCondition
+		Range: 19c354
+		Amount: 1
+		Duration: 482
+		Condition: onfire
+		Delay: 22
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire9: GrantExternalCondition
+		Range: 21c782
+		Amount: 1
+		Duration: 441
+		Condition: onfire
+		Delay: 25
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire10: GrantExternalCondition
+		Range: 24c186
+		Amount: 1
+		Duration: 401
+		Condition: onfire
+		Delay: 28
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@EMP: GrantExternalCondition
+		Range: 25c440
+		Duration: 517
+		Condition: empdisable
+		Delay: 0
+		ValidTargets: Ground, Water
+		InvalidTargets: Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@BlastWave: ShockwaveDamage
+		StartDelay: 8
+		WaveSpeed: 7
+		MaxRadius: 31c0
+		Damage: 400000
+		Penetration: 20000
+		Spread: 1c0
+		Falloff: 600, 556, 512, 468, 425, 381, 337, 296, 258, 224, 196, 169, 147, 125, 106, 90, 75, 64, 53, 45, 38, 33, 27, 23, 20, 17, 14, 12, 10, 8, 7, 6
+		ShockwaveThickness: 1c723
+		ShockwaveSegments: 64
+		ShockwaveFadeInTicks: 19
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 30
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+		AirThreshold: 24c0
+	Warhead@Suppression1: GrantExternalCondition
+		Range: 8c382
+		Amount: 10
+		Duration: 355
+		Condition: suppression-1
+		Delay: 39
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression2: GrantExternalCondition
+		Range: 15c518
+		Amount: 8
+		Duration: 310
+		Condition: suppression-1
+		Delay: 78
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression3: GrantExternalCondition
+		Range: 25c757
+		Amount: 5
+		Duration: 225
+		Condition: suppression-1
+		Delay: 151
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression4: GrantExternalCondition
+		Range: 28c861
+		Amount: 3
+		Duration: 180
+		Condition: suppression-1
+		Delay: 190
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression5: GrantExternalCondition
+		Range: 33c187
+		Amount: 1
+		Duration: 150
+		Condition: suppression-1
+		Delay: 217
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Crater: LeaveSmudge
+		Size: 3
+		SmudgeType: Crater
+		Delay: 4
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch1: LeaveSmudge
+		Size: 5
+		SmudgeType: Scorch
+		Delay: 10
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch2: LeaveSmudge
+		Size: 9
+		SmudgeType: Scorch
+		Delay: 26
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+
+# ---- RS-28 Sarmat RV -- 750 kt --------------------------------------------------------
+# ONE re-entry vehicle of the Sarmat's ten -- fired by NukeSarmatMIRV, never on its own.
+#
+#   blast (1 psi)        60.7 cells   = 1.069 * 750^(1/3) km at 160 m/cell
+#   thermal (3rd deg)    55.2 cells   = 2.0 * (750/20)^0.41 km
+#   fireball             2.96 cells   = 111 * (750/20)^0.40 m, and it burns 66 ticks (4.0 s)
+#   burst height         13.1 cells   = 230 * 750^(1/3) m
+#   blast wave runs to tick 424 (25 s) at 7 ticks/cell
+NukeSarmatRV:
+	ValidTargets: Ground, Trees, Water, Underwater, Air
+	# Fired ONLY by NukeSarmatMIRV's FireCluster warheads, which require the fired weapon to
+	# carry a Projectile (FireClusterWarhead.cs:98). InstantHit resolves at the target cell on
+	# the same tick, so the ten RVs land together rather than flying visible arcs.
+	Projectile: InstantHit
+	Range: 60c0
+	Warhead@Flash1: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+	Warhead@Flash2: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+		Delay: 22
+	Warhead@Flash3: FlashPaletteEffect
+		Duration: 22
+		FlashType: Nuke
+		Delay: 44
+	Warhead@Shake1: ShakeScreen
+		Duration: 38
+		Intensity: 114
+	Warhead@Shake2: ShakeScreen
+		Duration: 84
+		Intensity: 62
+		Delay: 38
+	Warhead@Shake3: ShakeScreen
+		Duration: 127
+		Intensity: 29
+		Delay: 118
+	Warhead@Shake4: ShakeScreen
+		Duration: 118
+		Intensity: 11
+		Delay: 233
+	Warhead@Shake5: ShakeScreen
+		Duration: 76
+		Intensity: 4
+		Delay: 347
+	Warhead@Fireball: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 1277
+		Offset: 0,-1900,0
+		Palette: effect_ts
+		ZOffset: 4096
+		ImpactSounds: kaboom1.aud
+		ImpactActors: false
+		VisibleThroughFog: true
+		ValidTargets: Ground, Water, Air
+	Warhead@Vaporize: SpreadDamage
+		Spread: 2c980
+		Damage: 800000
+		Penetration: 20000
+		Falloff: 100, 100, 100, 50
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: ElectricityDeath
+		AirThreshold: 24c0
+	Warhead@ThermalRadiation: ThermalRadiation
+		RadiationDuration: 66
+		DamageInterval: 1
+		Spread: 3c968
+		Damage: 9000
+		Penetration: 1200
+		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: FireDeath
+		AirThreshold: 24c0
+		Versus:
+			Light: 120
+			Medium: 60
+			Heavy: 30
+			Concrete: 20
+	Warhead@Fire1: GrantExternalCondition
+		Range: 5c537
+		Amount: 1
+		Duration: 1438
+		Condition: onfire
+		Delay: 7
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire2: GrantExternalCondition
+		Range: 11c49
+		Amount: 1
+		Duration: 1339
+		Condition: onfire
+		Delay: 14
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire3: GrantExternalCondition
+		Range: 16c586
+		Amount: 1
+		Duration: 1240
+		Condition: onfire
+		Delay: 20
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire4: GrantExternalCondition
+		Range: 22c99
+		Amount: 1
+		Duration: 1141
+		Condition: onfire
+		Delay: 27
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire5: GrantExternalCondition
+		Range: 27c635
+		Amount: 1
+		Duration: 1042
+		Condition: onfire
+		Delay: 34
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire6: GrantExternalCondition
+		Range: 33c148
+		Amount: 1
+		Duration: 943
+		Condition: onfire
+		Delay: 40
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire7: GrantExternalCondition
+		Range: 38c685
+		Amount: 1
+		Duration: 844
+		Condition: onfire
+		Delay: 47
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire8: GrantExternalCondition
+		Range: 44c198
+		Amount: 1
+		Duration: 745
+		Condition: onfire
+		Delay: 53
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire9: GrantExternalCondition
+		Range: 49c734
+		Amount: 1
+		Duration: 646
+		Condition: onfire
+		Delay: 60
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire10: GrantExternalCondition
+		Range: 55c247
+		Amount: 1
+		Duration: 547
+		Condition: onfire
+		Delay: 67
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@EMP: GrantExternalCondition
+		Range: 49c795
+		Duration: 724
+		Condition: empdisable
+		Delay: 0
+		ValidTargets: Ground, Water
+		InvalidTargets: Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@BlastWave: ShockwaveDamage
+		StartDelay: 19
+		WaveSpeed: 7
+		MaxRadius: 60c768
+		Damage: 400000
+		Penetration: 20000
+		Spread: 2c256
+		Falloff: 600, 550, 499, 449, 399, 348, 301, 256, 218, 187, 158, 133, 110, 91, 74, 61, 50, 42, 35, 28, 23, 20, 16, 13, 11, 9, 7, 6
+		ShockwaveThickness: 3c347
+		ShockwaveSegments: 128
+		ShockwaveFadeInTicks: 38
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 30
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+		AirThreshold: 24c0
+	Warhead@Suppression1: GrantExternalCondition
+		Range: 16c399
+		Amount: 10
+		Duration: 355
+		Condition: suppression-1
+		Delay: 76
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression2: GrantExternalCondition
+		Range: 30c360
+		Amount: 8
+		Duration: 310
+		Condition: suppression-1
+		Delay: 152
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression3: GrantExternalCondition
+		Range: 50c393
+		Amount: 5
+		Duration: 225
+		Condition: suppression-1
+		Delay: 296
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression4: GrantExternalCondition
+		Range: 56c465
+		Amount: 3
+		Duration: 180
+		Condition: suppression-1
+		Delay: 373
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression5: GrantExternalCondition
+		Range: 64c975
+		Amount: 1
+		Duration: 150
+		Condition: suppression-1
+		Delay: 424
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Crater: LeaveSmudge
+		Size: 6
+		SmudgeType: Crater
+		Delay: 8
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch1: LeaveSmudge
+		Size: 10
+		SmudgeType: Scorch
+		Delay: 21
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch2: LeaveSmudge
+		Size: 18
+		SmudgeType: Scorch
+		Delay: 50
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+
+# ---- B83-1 -- 1200 kt -----------------------------------------------------------------
+# the largest weapon in the current US stockpile, and the first here whose fire outruns its blast.
+#
+#   blast (1 psi)        71.0 cells   = 1.069 * 1200^(1/3) km at 160 m/cell
+#   thermal (3rd deg)    67.0 cells   = 2.0 * (1200/20)^0.41 km
+#   fireball             3.57 cells   = 111 * (1200/20)^0.40 m, and it burns 81 ticks (4.9 s)
+#   burst height         15.3 cells   = 230 * 1200^(1/3) m
+#   blast wave runs to tick 496 (30 s) at 7 ticks/cell
+NukeB83:
+	ValidTargets: Ground, Trees, Water, Underwater, Air
+	Warhead@Flash1: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+	Warhead@Flash2: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+		Delay: 22
+	Warhead@Flash3: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+		Delay: 44
+	Warhead@Flash4: FlashPaletteEffect
+		Duration: 15
+		FlashType: Nuke
+		Delay: 66
+	Warhead@Shake1: ShakeScreen
+		Duration: 44
+		Intensity: 122
+	Warhead@Shake2: ShakeScreen
+		Duration: 99
+		Intensity: 67
+		Delay: 44
+	Warhead@Shake3: ShakeScreen
+		Duration: 148
+		Intensity: 31
+		Delay: 138
+	Warhead@Shake4: ShakeScreen
+		Duration: 138
+		Intensity: 12
+		Delay: 272
+	Warhead@Shake5: ShakeScreen
+		Duration: 89
+		Intensity: 4
+		Delay: 406
+	Warhead@Fireball: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 1542
+		Offset: 0,-1900,0
+		Palette: effect_ts
+		ZOffset: 4096
+		ImpactSounds: kaboom1.aud
+		ImpactActors: false
+		VisibleThroughFog: true
+		ValidTargets: Ground, Water, Air
+	Warhead@Vaporize: SpreadDamage
+		Spread: 3c582
+		Damage: 800000
+		Penetration: 20000
+		Falloff: 100, 100, 100, 50
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: ElectricityDeath
+		AirThreshold: 25c0
+	Warhead@ThermalRadiation: ThermalRadiation
+		RadiationDuration: 81
+		DamageInterval: 2
+		Spread: 4c803
+		Damage: 9000
+		Penetration: 1200
+		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: FireDeath
+		AirThreshold: 25c0
+		Versus:
+			Light: 120
+			Medium: 60
+			Heavy: 30
+			Concrete: 20
+	Warhead@Fire1: GrantExternalCondition
+		Range: 6c715
+		Amount: 1
+		Duration: 1680
+		Condition: onfire
+		Delay: 9
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 25c0
+	Warhead@Fire2: GrantExternalCondition
+		Range: 13c406
+		Amount: 1
+		Duration: 1560
+		Condition: onfire
+		Delay: 17
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 25c0
+	Warhead@Fire3: GrantExternalCondition
+		Range: 20c97
+		Amount: 1
+		Duration: 1440
+		Condition: onfire
+		Delay: 25
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 25c0
+	Warhead@Fire4: GrantExternalCondition
+		Range: 26c811
+		Amount: 1
+		Duration: 1320
+		Condition: onfire
+		Delay: 33
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 25c0
+	Warhead@Fire5: GrantExternalCondition
+		Range: 33c502
+		Amount: 1
+		Duration: 1200
+		Condition: onfire
+		Delay: 41
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 25c0
+	Warhead@Fire6: GrantExternalCondition
+		Range: 40c193
+		Amount: 1
+		Duration: 1080
+		Condition: onfire
+		Delay: 49
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 25c0
+	Warhead@Fire7: GrantExternalCondition
+		Range: 46c908
+		Amount: 1
+		Duration: 960
+		Condition: onfire
+		Delay: 57
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 25c0
+	Warhead@Fire8: GrantExternalCondition
+		Range: 53c599
+		Amount: 1
+		Duration: 840
+		Condition: onfire
+		Delay: 65
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 25c0
+	Warhead@Fire9: GrantExternalCondition
+		Range: 60c290
+		Amount: 1
+		Duration: 720
+		Condition: onfire
+		Delay: 73
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 25c0
+	Warhead@Fire10: GrantExternalCondition
+		Range: 66c1005
+		Amount: 1
+		Duration: 600
+		Condition: onfire
+		Delay: 82
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 25c0
+	Warhead@EMP: GrantExternalCondition
+		Range: 58c224
+		Duration: 796
+		Condition: empdisable
+		Delay: 0
+		ValidTargets: Ground, Water
+		InvalidTargets: Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 25c0
+	Warhead@BlastWave: ShockwaveDamage
+		StartDelay: 24
+		WaveSpeed: 7
+		MaxRadius: 70c896
+		Damage: 400000
+		Penetration: 20000
+		Spread: 2c640
+		Falloff: 600, 550, 499, 449, 399, 348, 301, 256, 218, 187, 158, 133, 110, 91, 74, 61, 50, 42, 35, 28, 23, 20, 16, 13, 11, 9, 7, 6
+		ShockwaveThickness: 3c927
+		ShockwaveSegments: 128
+		ShockwaveFadeInTicks: 44
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 30
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+		AirThreshold: 25c0
+	Warhead@Suppression1: GrantExternalCondition
+		Range: 19c174
+		Amount: 10
+		Duration: 355
+		Condition: suppression-1
+		Delay: 89
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 25c0
+	Warhead@Suppression2: GrantExternalCondition
+		Range: 35c511
+		Amount: 8
+		Duration: 310
+		Condition: suppression-1
+		Delay: 178
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 25c0
+	Warhead@Suppression3: GrantExternalCondition
+		Range: 58c951
+		Amount: 5
+		Duration: 225
+		Condition: suppression-1
+		Delay: 347
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 25c0
+	Warhead@Suppression4: GrantExternalCondition
+		Range: 66c30
+		Amount: 3
+		Duration: 180
+		Condition: suppression-1
+		Delay: 436
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 25c0
+	Warhead@Suppression5: GrantExternalCondition
+		Range: 75c992
+		Amount: 1
+		Duration: 150
+		Condition: suppression-1
+		Delay: 496
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 25c0
+	Warhead@Crater: LeaveSmudge
+		Size: 7
+		SmudgeType: Crater
+		Delay: 9
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 25c0
+	Warhead@Scorch1: LeaveSmudge
+		Size: 12
+		SmudgeType: Scorch
+		Delay: 24
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 25c0
+	Warhead@Scorch2: LeaveSmudge
+		Size: 21
+		SmudgeType: Scorch
+		Delay: 59
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 25c0
+
+# ---- Tsar Bomba -- 50000 kt -----------------------------------------------------------
+# RDS-220, 30 October 1961: the largest device ever detonated, at 50 Mt.
+#
+#   blast (1 psi)       246.1 cells   = 1.069 * 50000^(1/3) km at 160 m/cell
+#   thermal (3rd deg)   309.1 cells   = 2.0 * (50000/20)^0.41 km
+#   fireball            15.86 cells   = 111 * (50000/20)^0.40 m, and it burns 417 ticks (25.0 s)
+#   burst height         25.0 cells   = 230 * 50000^(1/3) m
+#   blast wave runs to tick 1722 (103 s) at 7 ticks/cell
+#   THERMAL OUTRUNS BLAST HERE (309 > 246 cells): above ~2.4 Mt this weapon sets fire to more
+#   of the map than it flattens, which is the character change the arsenal is built to show.
+NukeTsarBomba:
+	ValidTargets: Ground, Trees, Water, Underwater, Air
+	Warhead@Flash1: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+	Warhead@Flash2: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+		Delay: 22
+	Warhead@Flash3: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+		Delay: 44
+	Warhead@Flash4: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+		Delay: 66
+	Warhead@Flash5: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+		Delay: 88
+	Warhead@Shake1: ShakeScreen
+		Duration: 154
+		Intensity: 150
+	Warhead@Shake2: ShakeScreen
+		Duration: 344
+		Intensity: 82
+		Delay: 154
+	Warhead@Shake3: ShakeScreen
+		Duration: 516
+		Intensity: 39
+		Delay: 482
+	Warhead@Shake4: ShakeScreen
+		Duration: 482
+		Intensity: 15
+		Delay: 947
+	Warhead@Shake5: ShakeScreen
+		Duration: 309
+		Intensity: 6
+		Delay: 1412
+	Warhead@Fireball1: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 1600
+		Offset: 0,-1900,0
+		Palette: effect_ts
+		ZOffset: 4096
+		ImpactSounds: kaboom1.aud
+		ImpactActors: false
+		VisibleThroughFog: true
+		ValidTargets: Ground, Water, Air
+	Warhead@Fireball2: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 1600
+		Offset: 558,-1900,0
+		Palette: effect_ts
+		ZOffset: 4096
+		ImpactActors: false
+		VisibleThroughFog: true
+		ValidTargets: Ground, Water, Air
+		Delay: 5
+	Warhead@Fireball3: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 1600
+		Offset: 0,-1621,0
+		Palette: effect_ts
+		ZOffset: 4096
+		ImpactActors: false
+		VisibleThroughFog: true
+		ValidTargets: Ground, Water, Air
+		Delay: 8
+	Warhead@Fireball4: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 1600
+		Offset: -558,-1900,0
+		Palette: effect_ts
+		ZOffset: 4096
+		ImpactActors: false
+		VisibleThroughFog: true
+		ValidTargets: Ground, Water, Air
+		Delay: 11
+	Warhead@Fireball5: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 1600
+		Offset: 0,-2179,0
+		Palette: effect_ts
+		ZOffset: 4096
+		ImpactActors: false
+		VisibleThroughFog: true
+		ValidTargets: Ground, Water, Air
+		Delay: 14
+	Warhead@Vaporize: SpreadDamage
+		Spread: 15c883
+		Damage: 800000
+		Penetration: 20000
+		Falloff: 100, 100, 100, 50
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: ElectricityDeath
+		AirThreshold: 40c0
+	Warhead@ThermalRadiation: ThermalRadiation
+		RadiationDuration: 417
+		DamageInterval: 10
+		Spread: 22c79
+		Damage: 9000
+		Penetration: 1200
+		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: FireDeath
+		AirThreshold: 40c0
+		Versus:
+			Light: 120
+			Medium: 60
+			Heavy: 30
+			Concrete: 20
+	Warhead@Fire1: GrantExternalCondition
+		Range: 30c929
+		Amount: 1
+		Duration: 1680
+		Condition: onfire
+		Delay: 42
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 40c0
+	Warhead@Fire2: GrantExternalCondition
+		Range: 61c835
+		Amount: 1
+		Duration: 1560
+		Condition: onfire
+		Delay: 84
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 40c0
+	Warhead@Fire3: GrantExternalCondition
+		Range: 92c740
+		Amount: 1
+		Duration: 1440
+		Condition: onfire
+		Delay: 126
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 40c0
+	Warhead@Fire4: GrantExternalCondition
+		Range: 123c646
+		Amount: 1
+		Duration: 1320
+		Condition: onfire
+		Delay: 167
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 40c0
+	Warhead@Fire5: GrantExternalCondition
+		Range: 154c551
+		Amount: 1
+		Duration: 1200
+		Condition: onfire
+		Delay: 209
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 40c0
+	Warhead@Fire6: GrantExternalCondition
+		Range: 185c456
+		Amount: 1
+		Duration: 1080
+		Condition: onfire
+		Delay: 251
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 40c0
+	Warhead@Fire7: GrantExternalCondition
+		Range: 216c362
+		Amount: 1
+		Duration: 960
+		Condition: onfire
+		Delay: 292
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 40c0
+	Warhead@Fire8: GrantExternalCondition
+		Range: 247c267
+		Amount: 1
+		Duration: 840
+		Condition: onfire
+		Delay: 334
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 40c0
+	Warhead@Fire9: GrantExternalCondition
+		Range: 278c173
+		Amount: 1
+		Duration: 720
+		Condition: onfire
+		Delay: 376
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 40c0
+	Warhead@Fire10: GrantExternalCondition
+		Range: 309c78
+		Amount: 1
+		Duration: 600
+		Condition: onfire
+		Delay: 418
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 40c0
+	Warhead@EMP: GrantExternalCondition
+		Range: 201c854
+		Duration: 2022
+		Condition: empdisable
+		Delay: 0
+		ValidTargets: Ground, Water
+		InvalidTargets: Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 40c0
+	Warhead@BlastWave: ShockwaveDamage
+		StartDelay: 125
+		WaveSpeed: 7
+		MaxRadius: 246c0
+		Damage: 400000
+		Penetration: 20000
+		Spread: 10c256
+		Falloff: 600, 543, 487, 430, 373, 317, 268, 222, 187, 155, 127, 103, 82, 66, 52, 42, 35, 28, 22, 18, 14, 12, 9, 7, 6
+		ShockwaveThickness: 13c551
+		ShockwaveSegments: 128
+		ShockwaveFadeInTicks: 154
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 30
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+		AirThreshold: 40c0
+	Warhead@Suppression1: GrantExternalCondition
+		Range: 66c469
+		Amount: 10
+		Duration: 355
+		Condition: suppression-1
+		Delay: 309
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 40c0
+	Warhead@Suppression2: GrantExternalCondition
+		Range: 123c71
+		Amount: 8
+		Duration: 310
+		Condition: suppression-1
+		Delay: 619
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 40c0
+	Warhead@Suppression3: GrantExternalCondition
+		Range: 204c303
+		Amount: 5
+		Duration: 225
+		Condition: suppression-1
+		Delay: 1205
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 40c0
+	Warhead@Suppression4: GrantExternalCondition
+		Range: 228c931
+		Amount: 3
+		Duration: 180
+		Condition: suppression-1
+		Delay: 1515
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 40c0
+	Warhead@Suppression5: GrantExternalCondition
+		Range: 263c378
+		Amount: 1
+		Duration: 150
+		Condition: suppression-1
+		Delay: 1722
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 40c0
+	Warhead@Crater: LeaveSmudge
+		Size: 12
+		SmudgeType: Crater
+		Delay: 34
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 40c0
+	Warhead@Scorch1: LeaveSmudge
+		Size: 20
+		SmudgeType: Scorch
+		Delay: 86
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 40c0
+	Warhead@Scorch2: LeaveSmudge
+		Size: 34
+		SmudgeType: Scorch
+		Delay: 206
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 40c0
+
+# ---- RS-28 Sarmat -- 10 x 750 kt MIRV -----------------------------------------------
+# THE ONE ENTRY IN THE ARSENAL THAT IS NOT A BIGGER NUMBER. Every other weapon here differs from its
+# neighbours by radius and duration; this one differs by SHAPE. A Sarmat does not deliver one large
+# detonation, it delivers a bus of independently-targeted re-entry vehicles across a footprint, and
+# open-source figures put each at 750 kt to 1.2 Mt. So the single RV (NukeSarmatRV above) is
+# deliberately sized right next to the shipped AtomicHighYield -- that IS the comparison the weapon
+# is making. This is ten of the strategic nuke you already have, arriving at once.
+#
+# HOW IT IS BUILT, and the failure mode it is built around. FireClusterWarhead fires a weapon at each
+# cell of a footprint (FireClusterWarhead.cs:48-58); `X` cells always fire, `x` cells are drawn at
+# random until RandomClusterCount is reached. The centre is an `X`, so THE AIM POINT ALWAYS TAKES A
+# WARHEAD even if the random draw does something unexpected, and the flash and shake below are on
+# this carrier rather than delegated -- so a total cluster failure still produces a visible, audible
+# detonation at the aim point instead of a silent dud.
+#
+# FOOTPRINT: 21x21 cells (3.4 km at 160 m/cell), centre plus a ring at 6.5-8.5 cells. Five random
+# ring cells plus the guaranteed centre is SIX re-entry vehicles, not the ten the missile can carry,
+# and that is a performance decision rather than a fidelity one: each RV starts its own
+# ShockwaveEffect sweeping 60 cells for 425 ticks, and six of those overlapping is already by a wide
+# margin the heaviest single event in the mod. RandomClusterCount is the one number to raise to 9 if
+# it turns out to run fine -- everything else about the weapon is already sized for ten.
+NukeSarmatMIRV:
+	ValidTargets: Ground, Trees, Water, Underwater, Air
+	# Flash and shake live on the CARRIER, so the strike is never silent. Sized for the whole salvo
+	# rather than for one RV: six 750 kt bursts inside 3.4 km is a longer, harder event than one.
+	Warhead@Flash1: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+	Warhead@Flash2: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+		Delay: 22
+	Warhead@Flash3: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+		Delay: 44
+	Warhead@Shake1: ShakeScreen
+		Duration: 70
+		Intensity: 130
+	Warhead@Shake2: ShakeScreen
+		Duration: 150
+		Intensity: 70
+		Delay: 60
+	Warhead@Shake3: ShakeScreen
+		Duration: 220
+		Intensity: 32
+		Delay: 200
+	Warhead@Shake4: ShakeScreen
+		Duration: 200
+		Intensity: 12
+		Delay: 420
+	# THE BUS. One guaranteed RV on the aim point, five more scattered around the ring. Staged in two
+	# warheads a few ticks apart so the salvo lands as a ripple rather than a single frame -- real
+	# RVs from one bus do not arrive simultaneously.
+	Warhead@Bus1: FireCluster
+		Weapon: NukeSarmatRV
+		RandomClusterCount: 3
+		Dimensions: 21,21
+		Footprint: _____________________ _____________________ ________xxxxx________ ______xxxxxxxxx______ ____xxxx_____xxxx____ ____xx_________xx____ ___xx___________xx___ ___xx___________xx___ __xx_____________xx__ __xx_____________xx__ __xx______X______xx__ __xx_____________xx__ __xx_____________xx__ ___xx___________xx___ ___xx___________xx___ ____xx_________xx____ ____xxxx_____xxxx____ ______xxxxxxxxx______ ________xxxxx________ _____________________ _____________________
+	Warhead@Bus2: FireCluster
+		Weapon: NukeSarmatRV
+		RandomClusterCount: 2
+		Dimensions: 21,21
+		Footprint: _____________________ _____________________ ________xxxxx________ ______xxxxxxxxx______ ____xxxx_____xxxx____ ____xx_________xx____ ___xx___________xx___ ___xx___________xx___ __xx_____________xx__ __xx_____________xx__ __xx______X______xx__ __xx_____________xx__ __xx_____________xx__ ___xx___________xx___ ___xx___________xx___ ____xx_________xx____ ____xxxx_____xxxx____ ______xxxxxxxxx______ ________xxxxx________ _____________________ _____________________
+		Delay: 9

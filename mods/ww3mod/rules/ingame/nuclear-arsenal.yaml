@@ -1,0 +1,512 @@
+# =====================================================================================================
+# NUCLEAR ARSENAL -- delivery bodies and support powers for weapons-nuclear-arsenal.yaml.
+#
+# WHY THIS FILE EXISTS AT ALL, rather than the missiles going in vehicles.yaml and the powers in
+# player.yaml where their four shipped siblings live: MiniYaml merges a top-level key across every
+# file in mod.yaml's Rules: list, and `Player:` is ALREADY defined in five files (player.yaml,
+# ai.yaml, ai-america.yaml, ai-russia.yaml, campaign-rules.yaml). So a self-contained file adds six
+# powers and six actors while touching neither of the two files the rest of the team is working in.
+# Nothing here overrides anything; every key is new.
+#
+# ==== THE ARSENAL, AND WHAT MAKES EACH ONE DIFFERENT ====
+# Radii and durations all come from the scaling laws documented at the top of
+# weapons-nuclear-arsenal.yaml. What is listed here is the CHARACTER -- the reason each entry is
+# worth a palette slot rather than being a radius number away from its neighbour.
+#
+#   B61-12 (0.3 kt)   4.5c blast    A nuke that does not end the game. Its fireball lasts 4 TICKS.
+#                                   Sub-kiloton, the smallest yield in the US stockpile, and smaller
+#                                   than anything previously in this mod by a factor of 60.
+#   B61-12 (50 kt)   24.6c blast    THE SAME BOMB, dialled up. Same missile body, same cameo, same
+#                                   name -- 167x the energy and 5.5x the radius. The pair is the
+#                                   clearest statement of cube-root scaling the arsenal can make.
+#   W76-1           31.0c blast     The Trident workhorse, ~1500 deployed. Fast: an SLBM RV at
+#                                   Speed 1400, so it is the hardest of the six to see coming.
+#   RS-28 Sarmat    60.7c x SIX     NOT A BIGGER NUMBER -- a different SHAPE. Six 750 kt re-entry
+#                                   vehicles across a 21-cell footprint instead of one detonation.
+#   B83-1           71.0c blast     Largest in the current US stockpile. A gravity bomb, so it is
+#                                   SLOW (Speed 700) where the two RVs above are fast.
+#   Tsar Bomba     246.1c blast     50 Mt. Fireball burns 417 ticks -- twenty-five seconds. Its
+#                                   thermal radius (309c) EXCEEDS its blast radius, the only entry
+#                                   where that is true. Parachute-retarded in reality, so Speed 400:
+#                                   the slowest thing in the mod, and you watch it come the whole way.
+#
+# ==== ONE GATE FOR ALL SIX ====
+# A single `nuclear-arsenal` lobby checkbox rather than six. Six checkboxes would mean six C# field
+# sets, six lobby rows and six conditions to describe an arsenal that is one feature. See the
+# polarity note on the gate below -- it is the same fail-safe shape the two shipped nukes use.
+# =====================================================================================================
+
+Player:
+	# THE SHARED GATE. Same GrantWhenOptionDisabled polarity as @tacnuke and @highyieldnuke in
+	# player.yaml, and for the same reason, which is worth restating because it is the one thing here
+	# that is not obvious by eye. GrantConditionOnLobbyOption computes
+	#     optionEnabled = OptionOrDefault(Option, !GrantWhenOptionDisabled)
+	#     shouldGrant   = GrantWhenOptionDisabled ? !optionEnabled : optionEnabled
+	# (GrantConditionOnLobbyOption.cs:45-49). THE FALLBACK TERM IS `!GrantWhenOptionDisabled`, not the
+	# checkbox default in PowersLobbyOptions.cs -- that field is only consulted when the trait is
+	# present to register the option at all. So the registered default and the unregistered fallback
+	# are separate values, and written THIS way round:
+	#     option registered and on (the shipped default) -> the whole arsenal is available
+	#     option registered and off (host unticked it)   -> `nuke-arsenal-disabled` -> all six hidden
+	#     option NOT REGISTERED AT ALL                   -> falls back to false -> all six hidden
+	# The third row is what the polarity buys: PowersLobbyOptions stripped from world.yaml, an old
+	# saved session, a map that removes the trait. Inverted (Condition: nuke-arsenal-allowed,
+	# GrantWhenOptionDisabled: false) that same absence would hand a build that never registered the
+	# option a 50 Mt weapon. DO NOT INVERT.
+	#
+	# The checkbox DEFAULTS ON, following @highyieldnuke rather than @tacnuke, because the user's
+	# ruling on exactly this question was "gated behind the lobby option like the old nuke was, but
+	# reachable from in game". Turning the arsenal off before release is one word in
+	# PowersLobbyOptions.cs and needs no edit here.
+	GrantConditionOnLobbyOption@nukearsenal:
+		Option: nuclear-arsenal
+		Condition: nuke-arsenal-disabled
+		GrantWhenOptionDisabled: true
+
+	# ---- B61-12, lowest dial setting: 0.3 kt --------------------------------------------------
+	# The one entry in the mod that is a nuclear weapon and NOT a map-ender. 4.5 cells of blast is
+	# about what a heavy artillery concentration covers, which is the point of a 300-ton dial setting.
+	MissileStrikePower@B61Low:
+		RequiresCondition: !nuke-arsenal-disabled
+		OrderName: B61LowStrike
+		Icon: paranuke
+		Name: B61-12 (0.3 kt)
+		Description: Variable-yield tactical bomb at its LOWEST dial setting.\nSub-kiloton: destroys a position, not a battlefield.\nEnters from the map edge nearest your Supply Route.
+		ChargeInterval: 4500
+		Cursor: nuke
+		MissileActor: b61lowmissile
+		# 9c0 - 1c0 = 8c0 of descent, the same eight cells the Kinzhal and the tactical nuke hold.
+		SpawnAltitude: 9c0
+		# 1c0 = 154 m, the derived optimum burst height for 0.3 kt. Every NukeB61Mod12Y003 warhead
+		# carries AirThreshold: 24c0, so there are 23 cells of headroom above this.
+		DetonationAltitude: 1c0
+		MissileDelay: 200
+		# 3c0 = 0.67 x the 4.5-cell blast, the same camera-to-blast ratio the tactical nuke uses.
+		CameraRange: 3c0
+		CameraSpawnAdvance: 25
+		CameraRemoveDelay: 250
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		DisplayTimerRelationships: Ally, Neutral, Enemy
+		BeaconPoster: paranuke
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		IncomingSpeechNotification: AbombLaunchDetected
+		SupportPowerPaletteOrder: 5
+
+	# ---- B61-12, top dial setting: 50 kt ------------------------------------------------------
+	# Deliberately the SAME cameo, the same name stem and the same missile speed as the entry above.
+	# The only differences a player can see are the yield in the name and the size of the hole, which
+	# is exactly what dial-a-yield is.
+	MissileStrikePower@B61Max:
+		RequiresCondition: !nuke-arsenal-disabled
+		OrderName: B61MaxStrike
+		Icon: paranuke
+		Name: B61-12 (50 kt)
+		Description: Variable-yield tactical bomb at its HIGHEST dial setting.\nSame weapon as the 0.3 kt option: 167x the energy, 5.5x the radius.\nEnters from the map edge nearest your Supply Route.
+		ChargeInterval: 9000
+		Cursor: nuke
+		MissileActor: b61maxmissile
+		SpawnAltitude: 13c256
+		# 5c256 = 847 m. AirThreshold on every NukeB61Mod12Y50 warhead is 24c0.
+		DetonationAltitude: 5c256
+		MissileDelay: 250
+		CameraRange: 16c0
+		CameraSpawnAdvance: 30
+		CameraRemoveDelay: 450
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		DisplayTimerRelationships: Ally, Neutral, Enemy
+		BeaconPoster: paranuke
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		IncomingSpeechNotification: AbombLaunchDetected
+		SupportPowerPaletteOrder: 6
+
+	# ---- W76-1: 100 kt ------------------------------------------------------------------------
+	MissileStrikePower@W76:
+		RequiresCondition: !nuke-arsenal-disabled
+		OrderName: W76Strike
+		Icon: cmissicon
+		Name: W76-1 Trident Warhead
+		Description: Submarine-launched 100 kt warhead, the most numerous in the US inventory.\nRe-entry velocity gives almost no warning after it appears.\nEnters from the map edge nearest your Supply Route.
+		ChargeInterval: 12000
+		Cursor: nuke
+		MissileActor: w76missile
+		SpawnAltitude: 16c768
+		# 6c768 = 1068 m. AirThreshold 24c0.
+		DetonationAltitude: 6c768
+		MissileDelay: 350
+		CameraRange: 21c0
+		CameraSpawnAdvance: 35
+		CameraRemoveDelay: 560
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		DisplayTimerRelationships: Ally, Neutral, Enemy
+		BeaconPoster: atomicon
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		IncomingSpeechNotification: AbombLaunchDetected
+		SupportPowerPaletteOrder: 7
+
+	# ---- RS-28 Sarmat: 6 x 750 kt MIRV --------------------------------------------------------
+	# The camera is sized for the FOOTPRINT rather than for one RV: 51 cells covers the 60-cell blast
+	# of a centre burst plus the ~10-cell scatter of the ring. Still four cells under the engine
+	# ceiling documented on the Tsar Bomba entry below.
+	MissileStrikePower@Sarmat:
+		RequiresCondition: !nuke-arsenal-disabled
+		OrderName: SarmatStrike
+		Icon: v2bdgricon
+		Name: RS-28 Sarmat (MIRV)
+		Description: Heavy ICBM carrying independently-targeted re-entry vehicles.\nSix 750 kt warheads scattered across the target area, not one detonation.\nEnters from the map edge nearest your Supply Route.
+		ChargeInterval: 22500
+		Cursor: nuke
+		MissileActor: sarmatmissile
+		SpawnAltitude: 27c0
+		# 13c0 = 2090 m. Every NukeSarmatRV and NukeSarmatMIRV warhead carries AirThreshold: 24c0.
+		DetonationAltitude: 13c0
+		MissileDelay: 500
+		CameraRange: 51c0
+		CameraSpawnAdvance: 60
+		CameraRemoveDelay: 1100
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		DisplayTimerRelationships: Ally, Neutral, Enemy
+		BeaconPoster: atomicon
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		IncomingSpeechNotification: AbombLaunchDetected
+		SupportPowerPaletteOrder: 8
+
+	# ---- B83-1: 1.2 Mt ------------------------------------------------------------------------
+	MissileStrikePower@B83:
+		RequiresCondition: !nuke-arsenal-disabled
+		OrderName: B83Strike
+		Icon: abombfake
+		Name: B83-1 (1.2 Mt)
+		Description: The largest weapon in the current US stockpile.\nA free-fall bomb: slow, and visible for its whole approach.\nEnters from the map edge nearest your Supply Route.
+		ChargeInterval: 27000
+		Cursor: nuke
+		MissileActor: b83missile
+		SpawnAltitude: 31c256
+		# 15c256 = 2445 m, against AirThreshold 25c0 on every NukeB83 warhead. TEN CELLS OF HEADROOM,
+		# the tightest margin in the arsenal -- if this burst height is ever raised, raise the
+		# AirThreshold column in weapons-nuclear-arsenal.yaml first and in the same edit.
+		DetonationAltitude: 15c256
+		MissileDelay: 500
+		CameraRange: 47c0
+		CameraSpawnAdvance: 70
+		CameraRemoveDelay: 1250
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		DisplayTimerRelationships: Ally, Neutral, Enemy
+		BeaconPoster: atomicon
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		IncomingSpeechNotification: AbombLaunchDetected
+		SupportPowerPaletteOrder: 9
+
+	# ---- Tsar Bomba: 50 Mt --------------------------------------------------------------------
+	MissileStrikePower@TsarBomba:
+		RequiresCondition: !nuke-arsenal-disabled
+		OrderName: TsarBombaStrike
+		Icon: abomb
+		Name: Tsar Bomba (50 Mt)
+		Description: RDS-220. The largest device ever detonated.\nA 2.5 km fireball burning for twenty-five seconds; it sets fire to more of the map than it flattens.\nEnters from the map edge nearest your Supply Route.
+		ChargeInterval: 45000
+		Cursor: nuke
+		MissileActor: tsarbombamissile
+		# 49c0 - 25c0 = 24c0 of descent, three times the eight cells the tactical nuke holds. At
+		# Speed 400 -- the slowest delivery in the mod, and a nod to the real weapon's retarding
+		# parachute -- a shallower approach would look like it was hovering.
+		SpawnAltitude: 49c0
+		# 25c0 = 4000 m, which is the REAL burst height of the 30 October 1961 test rather than the
+		# formula's answer (the derived optimum is 8.5 km and is capped here). Every NukeTsarBomba
+		# warhead carries AirThreshold: 40c0, so there are 15 cells of headroom.
+		DetonationAltitude: 25c0
+		# 600 ticks = 36 s, the longest wait of any power in the mod. The whole point of this weapon
+		# is that everyone watches the clock; DisplayTimerRelationships below is Ally/Neutral/Enemy
+		# and AbombLaunchDetected reaches the victim at ORDER time (SupportPower.cs:238-251).
+		MissileDelay: 600
+		# 55c0 AND THIS IS THE ENGINE CEILING, NOT A CHOICE -- and for this weapon it is a REAL loss
+		# rather than a formality. CameraRange reaches MapGrid.MaximumTileSearchRange (MapGrid.cs:113,
+		# 56) through RevealShroudEffect.ProjectedCells -> MapLayers.ProjectedCellsInRange ->
+		# Map.FindTilesInAnnulus, which THROWS rather than clamping (Map.cs:1993-1995). The projection
+		# rounds up, r = (len + 1535) / 1024, so 55c0 gives r = 56 and passes while 56c0 gives 57 and
+		# is a HARD CRASH at the tick the camera spawns -- which is CameraSpawnAdvance ticks BEFORE
+		# the detonation, so the game dies before the player sees anything. 55c0 is the exact maximum.
+		#
+		# This weapon's blast reaches 246 cells. The camera therefore shows 22% of its radius, and
+		# NO VALUE OF CameraRange CAN FIX THAT. The two real answers are (a) pre-explore the map and
+		# turn fog off, which is what the demo scenario does and what any showpiece should do, or
+		# (b) raise MaximumTileSearchRange in mod.yaml's MapGrid block -- see the note in the demo's
+		# rules.yaml for the exact edit and its cost. Neither is a decision to make inside a weapon.
+		CameraRange: 55c0
+		CameraSpawnAdvance: 100
+		# 2400 ticks = 144 s. The blast wave alone runs 1722 ticks (103 s) and the fires burn past it.
+		CameraRemoveDelay: 2400
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		DisplayTimerRelationships: Ally, Neutral, Enemy
+		BeaconPoster: atomicon
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		IncomingSpeechNotification: AbombLaunchDetected
+		SupportPowerPaletteOrder: 10
+
+# =====================================================================================================
+# THE DELIVERY BODIES
+#
+# All six follow tacnukemissile and highyieldnukemissile (vehicles.yaml) exactly, and differ from each
+# other in three things only: Speed, RenderSprites.Scale, and the weapon on Explodes.
+#
+# UNACQUIRABLE, same mechanism and same PITFALL as their two siblings: the inherited `ICBM` target
+# types are OVERRIDDEN rather than the Targetable traits removed, because WeaponInfo.IsValidAgainst
+# gates on GetEnabledTargetTypes (WeaponInfo.cs:256-264) and an actor with NO target types is invalid
+# for every weapon including splash. `Hypersonic` is reused rather than inventing new unlisted types --
+# no weapon in the mod lists it, which is the whole property being bought.
+#
+# LaunchAngle 30 on every one, for the distance-independence reason documented on kinzhalmissile: the
+# arc apex scales with shot length (BallisticMissileFly.cs:88-90), so a steeper angle would make a
+# missile climb more on a big map than a small one.
+#
+# NONE OF THEM SETS TerminalSpeed OR TerminalAcceleration, which is deliberate and matches
+# highyieldnukemissile rather than tacnukemissile. Those two give a post-apex boost that
+# BallisticMissileFly.EstimateArcTicks does not model at Acceleration 0 (cs:71-73 against :213-221),
+# so a missile carrying them arrives AHEAD of the estimate its own camera and beacon timings were
+# derived from. With them absent, flight time is exactly hDist / Speed.
+# =====================================================================================================
+
+B61LowMissile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 0
+	Tooltip:
+		Name: B61-12 (0.3 kt)
+	RenderSprites:
+		Scale: 0.85
+	Health:
+		HP: 60
+	Targetable@Ground:
+		TargetTypes: Hypersonic
+		RequiresCondition: !airborne
+	Targetable@Airborne:
+		TargetTypes: Hypersonic
+		RequiresCondition: airborne
+	BallisticMissile:
+		LaunchAngle: 30
+		Speed: 900
+		Acceleration: 0
+		InitialSpeedPercent: 100
+		LaunchRiseTicks: 0
+		PostErectionWaitTicks: 0
+		VisualPitchMultiplier: 47
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Type: CenterPosition
+		Offsets: -520, 0, 160
+	Explodes:
+		Weapon: NukeB61Mod12Y003
+
+B61MaxMissile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 0
+	Tooltip:
+		Name: B61-12 (50 kt)
+	# Same 1.0 scale as the low-yield body above is NOT an oversight: it is the same physical bomb at
+	# a different dial setting, and a dial does not change a casing.
+	RenderSprites:
+		Scale: 0.85
+	Health:
+		HP: 60
+	Targetable@Ground:
+		TargetTypes: Hypersonic
+		RequiresCondition: !airborne
+	Targetable@Airborne:
+		TargetTypes: Hypersonic
+		RequiresCondition: airborne
+	BallisticMissile:
+		LaunchAngle: 30
+		Speed: 900
+		Acceleration: 0
+		InitialSpeedPercent: 100
+		LaunchRiseTicks: 0
+		PostErectionWaitTicks: 0
+		VisualPitchMultiplier: 47
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Type: CenterPosition
+		Offsets: -520, 0, 160
+	Explodes:
+		Weapon: NukeB61Mod12Y50
+
+W76Missile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 0
+	Tooltip:
+		Name: W76-1 Re-entry Vehicle
+	RenderSprites:
+		Scale: 1.05
+	Health:
+		HP: 100
+	Targetable@Ground:
+		TargetTypes: Hypersonic
+		RequiresCondition: !airborne
+	Targetable@Airborne:
+		TargetTypes: Hypersonic
+		RequiresCondition: airborne
+	BallisticMissile:
+		LaunchAngle: 30
+		# 1400 wdist/tick = 22.8 cells/s, faster than the tactical nuke's 900 and second only to the
+		# Kinzhal's 2000. An SLBM re-entry vehicle is the fastest thing in this arsenal for the same
+		# reason the real one is: it is falling from the top of a ballistic arc.
+		Speed: 1400
+		Acceleration: 0
+		InitialSpeedPercent: 100
+		LaunchRiseTicks: 0
+		PostErectionWaitTicks: 0
+		VisualPitchMultiplier: 47
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Type: CenterPosition
+		Offsets: -650, 0, 200
+	Explodes:
+		Weapon: NukeW76
+
+SarmatMissile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 0
+	Tooltip:
+		Name: RS-28 Sarmat
+	RenderSprites:
+		Scale: 1.5
+	Health:
+		HP: 200
+	Targetable@Ground:
+		TargetTypes: Hypersonic
+		RequiresCondition: !airborne
+	Targetable@Airborne:
+		TargetTypes: Hypersonic
+		RequiresCondition: airborne
+	BallisticMissile:
+		LaunchAngle: 30
+		# The fastest of the six. A 208-tonne heavy ICBM's bus arrives at the top of its arc doing
+		# rather more than a Trident RV.
+		Speed: 1600
+		Acceleration: 0
+		InitialSpeedPercent: 100
+		LaunchRiseTicks: 0
+		PostErectionWaitTicks: 0
+		VisualPitchMultiplier: 47
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Type: CenterPosition
+		Offsets: -1000, 0, 300
+	# The CARRIER weapon, not a warhead: NukeSarmatMIRV's FireCluster warheads scatter six
+	# NukeSarmatRV bursts across a 21-cell footprint from here.
+	Explodes:
+		Weapon: NukeSarmatMIRV
+
+B83Missile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 0
+	Tooltip:
+		Name: B83-1
+	RenderSprites:
+		Scale: 1.6
+	Health:
+		HP: 200
+	Targetable@Ground:
+		TargetTypes: Hypersonic
+		RequiresCondition: !airborne
+	Targetable@Airborne:
+		TargetTypes: Hypersonic
+		RequiresCondition: airborne
+	BallisticMissile:
+		LaunchAngle: 30
+		# 700, SLOWER than the tactical nuke's 900 and half the W76's 1400. The B83 is a free-fall
+		# gravity bomb, not a re-entry vehicle, and the arsenal reads better for having the second
+		# largest weapon in it be one of the slowest.
+		Speed: 700
+		Acceleration: 0
+		InitialSpeedPercent: 100
+		LaunchRiseTicks: 0
+		PostErectionWaitTicks: 0
+		VisualPitchMultiplier: 47
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Type: CenterPosition
+		Offsets: -1100, 0, 340
+	Explodes:
+		Weapon: NukeB83
+
+TsarBombaMissile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 0
+	Tooltip:
+		Name: RDS-220 Tsar Bomba
+	# 2.4, by a distance the largest body in the mod. The real device was 8 m long, 2.1 m across and
+	# 27 tonnes -- it did not fit inside its bomber and hung below the fuselage.
+	RenderSprites:
+		Scale: 2.4
+	Health:
+		HP: 400
+	Targetable@Ground:
+		TargetTypes: Hypersonic
+		RequiresCondition: !airborne
+	Targetable@Airborne:
+		TargetTypes: Hypersonic
+		RequiresCondition: airborne
+	BallisticMissile:
+		LaunchAngle: 30
+		# 400 wdist/tick = 6.5 cells/s, THE SLOWEST DELIVERY IN THE MOD, at a quarter of the Kinzhal's
+		# speed. This is characterisation rather than balance: the real RDS-220 fell on an 800 kg
+		# parachute, deliberately retarded so the Tu-95 that dropped it could get 45 km away before it
+		# went off. You watch this one come the whole way, which is the correct feeling for it.
+		Speed: 400
+		Acceleration: 0
+		InitialSpeedPercent: 100
+		LaunchRiseTicks: 0
+		PostErectionWaitTicks: 0
+		VisualPitchMultiplier: 47
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Type: CenterPosition
+		Offsets: -1400, 0, 420
+	Explodes:
+		Weapon: NukeTsarBomba

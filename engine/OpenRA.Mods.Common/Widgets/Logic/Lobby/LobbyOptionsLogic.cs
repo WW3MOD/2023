@@ -177,6 +177,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{ "powers-enabled", SectionGameRules },
 			{ "tactical-nuke", SectionGameRules },
 			{ "high-yield-nuke", SectionGameRules },
+			{ "nuclear-arsenal", SectionGameRules },
 		};
 
 		static string GetCategory(LobbyOption option)
