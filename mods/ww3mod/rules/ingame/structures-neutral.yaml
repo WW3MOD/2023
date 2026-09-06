@@ -1,3 +1,35 @@
+# THE NEUTRAL TECH BUILDINGS -- the mod's capturable income (OILB $50, FCOM $100, BIO $150 via
+# CashTrickler) plus two that pay nothing (MISS = radar, HOSP = hospital).
+#
+# TWO SEPARATE RULES GOVERN WHETHER ONE CAN BE TAKEN OFF THE MAP, and they were BOTH broken in
+# different ways before 2026-09-06. Read both before changing either.
+#
+# 1. WHAT CAN DAMAGE ONE -- the `Targetable` block on ^TechBuilding (structures.yaml). These are
+#    untargetable by ordinary weapons, not merely tough; the full mechanism is documented there.
+#    Only weapons declaring `TechStructure` (rules/weapons/weapons-heavy-ordnance.yaml) and the
+#    engineer's C4 can touch one.
+#
+# 2. WHETHER DEATH IS PERMANENT -- the `SpawnActorOnDeath` blocks below, and this is the half the
+#    user actually reported: "the destruction of money structures are not fully destroyed, they
+#    leave the repairable wreck behind that can be repaired by engineer."
+#
+#    That was literally true and it is a full restore, not a repair. Death spawns a Neutral
+#    <ACTOR>.Husk (husks-neutral.yaml), which inherits ^TechBuildingHusk (husks.yaml:118) and so
+#    carries `InfiltrateForTransform: Types: TechHusk, ForceHealthPercentage: 10` against ^E6's
+#    `Infiltrates@RestoreTechHusk` (infantry.yaml:2062). One engineer walks into the rubble and the
+#    income structure is BACK, at 10% HP, which `EngineerRepairable` on the live actor then tops up.
+#    And the husk cannot be denied: ^CivBuildingHusk carries NO Health trait, so the wreck is
+#    permanent scenery that cannot be shot away while it waits for a rescuer.
+#
+#    `ExcludedDeathTypes: HeavyOrdnanceDeath` is the rule that fixes it. A ballistic missile, a
+#    strike power or a nuke carries that damage type; SpawnActorOnDeath suppresses the husk on any
+#    death that does, so there is nothing left to infiltrate. Anything else that kills one -- today
+#    that means engineer demolition only -- still leaves the restorable wreck exactly as before.
+#
+#    REPAIR IS NOT TOUCHED. `EngineerRepairable` on the living structures below is untouched, and so
+#    is the husk-restore path for every non-heavy death. What changed is only that ONE class of
+#    destruction is now unrecoverable.
+
 OILB:
 	Inherits: ^TechBuilding
 	Inherits@Shape: ^2x2Shape
@@ -30,6 +62,7 @@ OILB:
 	SpawnActorOnDeath:
 		Actor: OILB.Husk
 		OwnerType: InternalName
+		ExcludedDeathTypes: HeavyOrdnanceDeath
 
 FCOM:
 	Inherits: ^TechBuilding
@@ -64,6 +97,7 @@ FCOM:
 	SpawnActorOnDeath:
 		Actor: FCOM.Husk
 		OwnerType: InternalName
+		ExcludedDeathTypes: HeavyOrdnanceDeath
 	RenderSprites:
 		Image: acom
 
@@ -97,6 +131,7 @@ BIO:
 	SpawnActorOnDeath:
 		Actor: BIO.Husk
 		OwnerType: InternalName
+		ExcludedDeathTypes: HeavyOrdnanceDeath
 
 MISS:
 	Inherits: ^TechBuilding
@@ -141,6 +176,7 @@ MISS:
 	SpawnActorOnDeath:
 		Actor: MISS.Husk
 		OwnerType: InternalName
+		ExcludedDeathTypes: HeavyOrdnanceDeath
 
 HOSP:
 	Inherits: ^TechBuilding
@@ -169,3 +205,4 @@ HOSP:
 	SpawnActorOnDeath:
 		Actor: HOSP.Husk
 		OwnerType: InternalName
+		ExcludedDeathTypes: HeavyOrdnanceDeath

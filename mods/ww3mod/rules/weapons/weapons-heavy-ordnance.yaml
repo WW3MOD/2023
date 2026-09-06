@@ -1,0 +1,178 @@
+# ============================================================================================
+# HEAVY ORDNANCE -- the complete roster of weapons that can destroy a neutral tech building,
+# and the only file that grants either of the two properties that make that possible.
+#
+# READ THIS FIRST IF YOU ARE ADDING A WEAPON. The heavy/light split is a DECLARED CLASS, not a
+# damage table you have to reverse-engineer. A weapon is heavy if and only if it appears below.
+# There is no threshold to clear and no number to beat: a 10-damage popgun listed here would
+# chip a derrick, and a 165000-damage bunker buster not listed here would do literally nothing
+# to one. If your new weapon should end economy structures, add a Warhead@TechStructure block
+# here. If it should not, do nothing -- default-deny is the whole design.
+#
+# ---------------------------------------------------------------------------------------------
+# THE TWO PROPERTIES
+#
+# 1. `ValidTargets: TechStructure` -- permission to do damage at all. ^TechBuilding
+#    (rules/ingame/structures.yaml) drops `Ground` and `Structure` from its Targetable and carries
+#    `TechStructure` instead, and Warhead.IsValidAgainst requires an overlap (Warhead.cs:57). A
+#    warhead without this line cannot touch one, splash included.
+#
+# 2. `DamageTypes: ..., HeavyOrdnanceDeath` -- permission to make the loss PERMANENT. Every
+#    structure's SpawnActorOnDeath carries `ExcludedDeathTypes: HeavyOrdnanceDeath`
+#    (structures-neutral.yaml), so a death caused by anything below leaves no husk, and therefore
+#    nothing for an engineer to infiltrate and restore. A death caused by anything else -- today
+#    that is engineer C4 demolition and nothing else -- still leaves the restorable wreck.
+#
+# THE TWO GO TOGETHER AND SEPARATING THEM IS THE BUG TO AVOID. A warhead with (1) and not (2)
+# would grind a derrick down and hand it back for the price of one engineer, which is the exact
+# defect this feature exists to fix. Every block below carries both.
+#
+# ---------------------------------------------------------------------------------------------
+# WHY THIS IS A SEPARATE FILE RATHER THAN LINES IN THE FIVE WEAPON FILES
+#
+# Two reasons, and the second outlives the first.
+#   a) `Atomic`, `AtomicHighYield` and `MOPPenetration` live in weapons-superweapons.yaml, which
+#      was being rewritten concurrently when this landed. Every block below ADDS a warhead node to
+#      an existing weapon and OVERRIDES NO EXISTING FIELD, so the merge (Ruleset.cs:129, over the
+#      Weapons list in mod.yaml -- this file is listed LAST) cannot silently revert anyone's edit.
+#      Do not "tidy" these into the weapon's own file by rewriting its existing warheads.
+#   b) The roster is the point. "Which weapons flatten the economy" is a balance question someone
+#      will ask again, and the answer is one `grep -c Warhead@TechStructure` away instead of a
+#      sweep of six files' Versus tables.
+#
+# ---------------------------------------------------------------------------------------------
+# WHAT IS DELIBERATELY *NOT* HERE, because ruling things out is half of a class definition:
+#
+#   HIMARSExplosion  -- the closest call, and the answer is no. It is the tactical MLRS twin of
+#                       IskanderExplosion (weapons-explosions.yaml) and shares its shape, but a
+#                       HIMARS is a rearmable battlefield rocket system that fires repeatedly.
+#                       Listing it would make the economy raidable by ordinary manoeuvre, which is
+#                       the failure mode the whole class exists to prevent. The strategic launchers
+#                       are different in kind: `himars` and `iskander` both carry ONE load and no
+#                       Rearmable at all (economy.md), so an Iskander strike is a spent 6000-credit
+#                       unit, not a sortie.
+#   EmpBomb          -- disables, does not destroy. Its damage warheads exist to knock out power,
+#                       not to demolish, and a structure that comes back when the EMP expires is
+#                       not "destroyed" in the sense the user asked for.
+#   Everything else  -- tank rounds, ATGMs, artillery, small arms, satchel charges, the volatile
+#                       cargo explosions. All unchanged, all still unable to scratch a derrick.
+#
+#   ENGINEER C4 IS NOT LISTED AND STILL WORKS. `PlaceC4` (weapons-other.yaml:589) reaches these
+#   buildings through the `C4` target type, which ^TechBuilding has always carried -- it was the
+#   ONLY way to kill one before this feature. It is intentionally left as the recoverable path:
+#   demolition leaves the husk, so the defender can restore it. Heavy ordnance does not.
+# ============================================================================================
+
+
+# --- THE BALLISTIC MISSILE TIER -------------------------------------------------------------
+# One IskanderExplosion ends any one tech building outright: 60000 clears the toughest of them
+# (BIO and HOSP at 55000) with margin, so there is no structure in this class that survives a
+# ballistic missile and no arithmetic for a player to do. That is the user's request stated
+# directly -- "destroyable by powerful weapons, like iskanders".
+#
+# THIS WARHEAD IS FIRED BY THREE THINGS, all of which are meant to have it:
+#   - the `iskander` launcher's missile (IskanderMissile, vehicles-russia.yaml) -- the aimed shot;
+#   - the Kh-47M2 Kinzhal strike power (KinzhalMissile reuses this weapon unchanged);
+#   - `Explodes@Loaded` on the iskander launcher itself, so a LOADED launcher destroyed next to a
+#     derrick takes it with it. That is a real consequence and it is left in deliberately: a
+#     6000-credit vehicle full of ballistic missiles cooking off should level what it is parked
+#     beside. It cannot be farmed -- the launcher has to die, and the owner paid for it.
+#
+# Spread/Falloff are deliberately TIGHT, for the reason MOPPenetration's Warhead@Penetrate gives
+# about not chaining through a base: full damage to a structure within a cell of the impact,
+# nothing at all past two. Aiming at one derrick must not clear a cluster of them.
+#
+# A FOURTH WEAPON INHERITS THIS BLOCK: `IskanderExplosionAirborne: Inherits: IskanderExplosion`
+# (weapons-explosions.yaml:620) picks it up for free, which is correct -- an airburst Iskander
+# should do what a ground one does. It is inert today regardless: nothing in the mod fires that
+# weapon. Noted because KillableEconomyTest enumerates the reachable set and will name it.
+IskanderExplosion:
+	Warhead@TechStructure: SpreadDamage
+		ValidTargets: TechStructure
+		Damage: 60000
+		# The tech buildings set no Armor.Thickness, so ApplyPenetration is skipped entirely today
+		# (DamageWarhead.cs:238 gates on `thickness != 0`). This matches the 2500 the weapon's other
+		# warheads already carry, so the number stays right if anyone ever gives them a thickness --
+		# which is exactly the omission that silently divided this weapon's damage by 280 before
+		# 260827. Do not leave it unset.
+		Penetration: 2500
+		Spread: 1c0
+		Falloff: 100, 100, 0
+		DamageTypes: ExplosionDeath, HeavyOrdnanceDeath
+
+# Lets an Iskander be aimed AT a tech building by clicking it, rather than only by force-firing
+# the ground underneath. Purely a targeting-cursor affordance; the damage is done by the warhead
+# above when the missile detonates, whichever way the shot was ordered.
+IskanderTargeter:
+	ValidTargets: Ground, Water, TechStructure
+
+# HIMARSTargeter inherits IskanderTargeter, so WITHOUT THIS LINE the affordance above would leak
+# to the HIMARS -- which has no Warhead@TechStructure and would therefore let a player order a
+# strike that visibly lands and does nothing. Restating the base ValidTargets blocks the leak.
+# If HIMARSExplosion is ever promoted into this file, delete this block in the same change.
+HIMARSTargeter:
+	ValidTargets: Ground, Water
+
+
+# --- THE BUNKER BUSTER ----------------------------------------------------------------------
+# Geometry copied EXACTLY from this weapon's own Warhead@Penetrate -- same Damage, same
+# Penetration, same Spread 512 with Falloff [100, 0] -- so a GBU-57 treats an oil derrick
+# identically to a Logistics Center or an mslo. That is the honest read of the power's own
+# description ("Devastating against hardened structures"), and it means there is one number to
+# maintain rather than two that can drift apart.
+#
+# The reason Warhead@Penetrate cannot simply be given `TechStructure` itself: it is
+# `ValidTargets: Structure`, and these buildings deliberately do not carry `Structure` (see the
+# fire-tick argument on ^TechBuilding). A separate node is the smaller, safer change.
+MOPPenetration:
+	Warhead@TechStructure: SpreadDamage
+		ValidTargets: TechStructure
+		Damage: 165000
+		Penetration: 5000
+		Spread: 512
+		Falloff: 100, 0
+		DamageTypes: ExplosionDeath, HeavyOrdnanceDeath
+
+
+# --- THE NUCLEAR TIER -----------------------------------------------------------------------
+# Fired by MissileStrikePower@TacNuke (TacNukeMissile) and by mslo's NukePower, both via
+# `Weapon: Atomic`. Sized against this weapon's own Warhead@ThermalVaporize, which vaporises to
+# roughly 8.4 cells: Spread 2c0 across seven falloff steps puts the bands at 0/2/4/6/8/10/12
+# cells, lethal (200000, four times the toughest structure's HP) out to 8 and gone by 12.
+#
+# So the rule a player can hold in their head is "a tac nuke removes every economy structure
+# inside the fireball", which is where the rest of the weapon's lethality already sits.
+#
+# NO AirThreshold, unlike every other warhead on this weapon. That field is only read by the
+# WPos overload of IsValidAgainst -- smudges, resources, effects (LeaveSmudgeWarhead.cs:47 and
+# friends). SpreadDamageWarhead.DoImpact uses the ACTOR overload, which never consults it.
+Atomic:
+	Warhead@TechStructure: SpreadDamage
+		ValidTargets: TechStructure
+		Damage: 200000
+		Penetration: 5000
+		Spread: 2c0
+		Falloff: 100, 100, 100, 100, 100, 25, 0
+		DamageTypes: ExplosionDeath, HeavyOrdnanceDeath
+
+# The strategic device, fired by MissileStrikePower@HighYieldNuke. Scaled off `Atomic` above the
+# same way the rest of this weapon is: 8c0 against 2c0 is 4x the linear reach, in the same
+# neighbourhood as the cube-root-of-40x-yield factor (3.42) the weapon's own header derives.
+# Bands land at 0/8/16/24/32/40 cells, lethal to 32.
+#
+# THE 15-CELL AIRBURST IS ALREADY PAID FOR IN THAT BUDGET, and this is the one place where
+# getting it wrong would make the block silently inert. HighYieldNukeMissile detonates at
+# DetonationAltitude 15c0, and SpreadDamageWarhead measures HitShape.DistanceFromEdge in THREE
+# dimensions -- so a structure directly beneath ground zero is already 15 cells away before any
+# horizontal distance is counted. Lethal to 32 cells of slant range is therefore lethal to about
+# sqrt(32^2 - 15^2) = 28 cells on the ground, which is where this weapon's own
+# Warhead@ThermalVaporize (Spread 10c0) reaches. Shrinking Spread here without redoing that
+# subtraction is how you get a nuke that spares the derrick underneath it.
+AtomicHighYield:
+	Warhead@TechStructure: SpreadDamage
+		ValidTargets: TechStructure
+		Damage: 800000
+		Penetration: 20000
+		Spread: 8c0
+		Falloff: 100, 100, 100, 100, 25, 0
+		DamageTypes: ExplosionDeath, HeavyOrdnanceDeath

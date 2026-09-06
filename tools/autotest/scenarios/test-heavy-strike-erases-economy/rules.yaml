@@ -1,0 +1,49 @@
+# Killable-economy autotest overrides. Shape copied from test-tacnuke-delivers, which is the
+# scenario that proved this delivery path; only the notes that differ are restated.
+
+World:
+	# The tactical nuke ships lobby-gated and OFF, so without this the power's trait is disabled by
+	# `RequiresCondition: !tacnuke-disabled` and there is nothing to fire. Enabled AND locked, so no
+	# lobby default or saved session can move it out from under the run.
+	PowersLobbyOptions:
+		TacticalNukeCheckboxEnabled: true
+		TacticalNukeCheckboxLocked: true
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
+	# spawn assignment -- the edge derivation in map.yaml depends on it.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-heavy-strike-erases-economy.lua
+
+Player:
+	# Charged at t=0 instead of after the shipped 11250-tick placeholder, which encodes a price this
+	# scenario is not about and would spend eleven minutes of a launch slot.
+	MissileStrikePower@TacNuke:
+		ChargeInterval: 1
+		StartFullyCharged: true
+	# The blast reaches most of the map; without this the match could end on elimination before the
+	# poller writes a verdict.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored, so nothing the poller reads is a visibility artefact. This
+	# matters more here than in the sibling scenario: the husk assertions walk Map.ActorsInWorld,
+	# and a frozen-under-fog replacement would be a different actor to count.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	PlayerResources:
+		# DefaultCash 0 does NOT freeze a force on its own (economy.md), so the income stream is shut
+		# off explicitly as well -- BOTH lines, because the value that reaches PassiveIncomeAmount is
+		# read back from the lobby option and the option registers PassiveIncome.ToString() as its
+		# own default. Without the lock, zeroing the field alone leaves the engine constant live.
+		#
+		# THIS IS WHAT MAKES THE REPORTED CASH NUMBERS MEAN SOMETHING. The verdict prints USA's purse
+		# before and after the strike; with passive income running, that delta would be
+		# income-minus-derricks and would move whether or not a derrick died. With it off, the
+		# CashTricklers on the three derricks are the only thing in the game that can move that purse.
+		DefaultCash: 0
+		PassiveIncome: 0
+		PassiveIncomeDropdownLocked: True

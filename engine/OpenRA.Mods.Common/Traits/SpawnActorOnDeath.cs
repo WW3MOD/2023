@@ -47,6 +47,17 @@ namespace OpenRA.Mods.Common.Traits
 			"Leave empty to spawn an actor ignoring the DeathTypes.")]
 		public readonly string DeathType = null;
 
+		[Desc("DeathTypes that SUPPRESS the spawn entirely: if the killing blow carries any of these,",
+			"no actor is spawned and the victim simply leaves the map. The inverse of 'DeathType',",
+			"which is an allow-list; this is a deny-list, and it wins when both are set.",
+			"",
+			"WW3MOD uses this for the 'a heavy strike is permanent' rule: the neutral tech buildings",
+			"(structures-neutral.yaml) leave a restorable husk when demolished conventionally, but",
+			"leave NOTHING when killed by ordnance carrying 'HeavyOrdnanceDeath' -- see",
+			"rules/weapons/weapons-heavy-ordnance.yaml for the roster that grants that damage type.",
+			"Empty by default, so every existing husk-spawner is unaffected.")]
+		public readonly BitSet<DamageType> ExcludedDeathTypes = default;
+
 		[Desc("Skips the spawned actor's make animations if true.")]
 		public readonly bool SkipMakeAnimations = true;
 
@@ -98,6 +109,12 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			if (Info.DeathType != null && !e.Damage.DamageTypes.Contains(Info.DeathType))
+				return;
+
+			// Deny-list, checked after the allow-list so an excluded death type suppresses the spawn
+			// even when DeathType would otherwise have admitted it. attackingPlayer stays null, which
+			// is exactly what RemovedFromWorld below reads as "do not spawn".
+			if (!Info.ExcludedDeathTypes.IsEmpty && Info.ExcludedDeathTypes.Overlaps(e.Damage.DamageTypes))
 				return;
 
 			attackingPlayer = e.Attacker?.Owner;
