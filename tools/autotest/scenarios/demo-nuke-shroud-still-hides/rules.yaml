@@ -1,0 +1,47 @@
+# Nuclear fireball is still hidden by never-explored shroud.
+#
+# Overrides for the demo-nuke-shroud-still-hides DEMO. Nothing here is asserted; see map.yaml for the arrangement
+# and demo-nuke-shroud-still-hides.lua for the schedule.
+
+World:
+	# NO PowersLobbyOptions OVERRIDE, deliberately: MissileStrikePower@HighYieldNuke ships with its
+	# lobby checkbox defaulting ON, so this fires the power in its shipped configuration. If that
+	# default is ever flipped off, add `PowersLobbyOptions: HighYieldNukeCheckboxEnabled: true` here;
+	# the symptom will be an empty support-power bin and a strike that never launches.
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
+	# spawn assignment -- the missile's entry edge is derived from it.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, demo-nuke-shroud-still-hides.lua
+
+Player:
+	MissileStrikePower@HighYieldNuke:
+		# Staging overrides, none of them shipped values. 400 ticks = 24 s so the viewer can fire it
+		# again wherever they like; 100 ticks = 6.0 s of missile flight instead of the shipped 30 s
+		# public countdown, which is a real mechanic and is not what this demo is about.
+		ChargeInterval: 400
+		StartFullyCharged: true
+		MissileDelay: 100
+		# THE LOAD-BEARING OVERRIDE OF THIS ENTIRE SCENARIO, and the first thing to check if the demo
+		# shows no fog at all. The shipped power reveals 55 cells of shroud around the aim point
+		# CameraSpawnAdvance ticks BEFORE the detonation (MissileStrikePower.cs:159-165). At ground
+		# zero that reveal covers every cell this demo is arranged around, so the fog and shroud
+		# boundaries would be erased seconds before the fireball arrived and the frame would show a
+		# uniformly lit map with nothing to compare. Zero is handled as "no camera at all" rather
+		# than as a degenerate radius -- the effect is only constructed if CameraRange != WDist.Zero.
+		CameraRange: 0c0
+	# 481 actors die here. Without this the match ends on elimination while the blast wave travels.
+	-ConquestVictoryConditions:
+	MapLayers:
+		# NOT pre-explored, FOG ON -- the one line that differs from demo-nuke-fog-seam's rules, and
+		# the reason this map carries visible, fogged AND never-explored ground at the same time.
+		ExploredMapCheckboxEnabled: false
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: true
+		FogCheckboxLocked: true
+	# No cash, so nothing can be produced and the only thing that happens on this map is the strike.
+	PlayerResources:
+		DefaultCash: 0

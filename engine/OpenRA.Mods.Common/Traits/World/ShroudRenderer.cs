@@ -389,12 +389,36 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IRenderShroud.RenderShroud(WorldRenderer wr)
 		{
+			((IRenderShroud)this).RenderFog(wr);
+			((IRenderShroud)this).RenderUnexplored(wr);
+		}
+
+		// WW3MOD: the stack is drawn in two halves so that IEffectAboveFog renderables can be
+		// slotted between them (WorldRenderer.Draw). Layers are walked from the faintest fog band
+		// downwards, and index 0 -- the fully opaque unexplored layer, ShroudColors[4] = ARGB(255,0,0,0)
+		// -- is deliberately left to RenderUnexplored. Splitting the loop at 1 rather than 0 is the
+		// whole mechanism: fog darkens what is under it, unexplored ground erases it, and an effect
+		// that wants to ignore the first must still obey the second.
+		//
+		// PITFALL: these two must be called as a pair and in this order, or the unexplored layer is
+		// either lost or drawn under the fog it is supposed to sit on top of.
+		void IRenderShroud.RenderFog(WorldRenderer wr)
+		{
 			UpdateShroud(allProjectedCells);
 
-			for (var i = MapLayers.VisionLayers - 2; i >= 0; i--)
+			for (var i = MapLayers.VisionLayers - 2; i >= 1; i--)
 			{
 				layers[i].TerrainSpriteLayer.Draw(wr.Viewport);
 			}
+		}
+
+		void IRenderShroud.RenderUnexplored(WorldRenderer wr)
+		{
+			// UpdateShroud is idempotent within a frame (it early-outs on !anyCellDirty and clears
+			// the flag), so RenderFog having just run leaves nothing for this call to redo.
+			UpdateShroud(allProjectedCells);
+
+			layers[0].TerrainSpriteLayer.Draw(wr.Viewport);
 		}
 
 		void UpdateShroudCell(PPos puv)

@@ -54,6 +54,9 @@ namespace OpenRA.Graphics
 
 		readonly List<IFinalizedRenderable> preparedRenderables = new();
 		readonly List<IFinalizedRenderable> preparedOverlayRenderables = new();
+
+		// WW3MOD: renderables that draw between the fog layers and the opaque unexplored layer.
+		readonly List<IFinalizedRenderable> preparedAboveFogRenderables = new();
 		readonly List<IFinalizedRenderable> preparedAnnotationRenderables = new();
 
 		readonly List<IRenderable> renderablesBuffer = new();
@@ -246,6 +249,21 @@ namespace OpenRA.Graphics
 		}
 
 		// PERF: Avoid LINQ.
+		// WW3MOD: collected separately from the overlay bucket because these draw EARLIER --
+		// after the fog layers but still under the opaque unexplored layer.
+		void GenerateAboveFogRenderables()
+		{
+			foreach (var e in World.Effects)
+			{
+				if (e is not IEffectAboveFog ea)
+					continue;
+
+				foreach (var renderable in ea.RenderAboveFog(this))
+					preparedAboveFogRenderables.Add(renderable.PrepareRender(this));
+			}
+		}
+
+		// PERF: Avoid LINQ.
 		void GenerateAnnotationRenderables()
 		{
 			World.ApplyToActorsWithTrait<IRenderAnnotations>((actor, trait) =>
@@ -316,6 +334,7 @@ namespace OpenRA.Graphics
 			onScreenActors.UnionWith(World.ScreenMap.RenderableActorsInBox(Viewport.TopLeft, Viewport.BottomRight));
 
 			GenerateRenderables();
+			GenerateAboveFogRenderables();
 			GenerateOverlayRenderables();
 			GenerateAnnotationRenderables();
 
@@ -367,7 +386,25 @@ namespace OpenRA.Graphics
 
 			ApplyPostProcessing(PostProcessPassType.AfterWorld);
 
-			World.ApplyToActorsWithTrait<IRenderShroud>((actor, trait) => trait.RenderShroud(this));
+			// WW3MOD: the shroud stack is drawn in two halves with the above-fog renderables between
+			// them. Fog is COMPOSITED, not tinted -- SpriteRenderable.Render carries no fog term, so the
+			// darkening an effect picks up is these quads landing on top of it. Drawing past the fog
+			// half restores full brightness; staying under the unexplored half means never-explored
+			// ground still blacks the effect out, so nothing is revealed that was not already visible.
+			// The terrain itself is fogged before any of this, and is not redrawn -- this changes only
+			// what covers the effect sprite, never what the player can see of the world beneath it.
+			World.ApplyToActorsWithTrait<IRenderShroud>((actor, trait) => trait.RenderFog(this));
+
+			if (preparedAboveFogRenderables.Count > 0)
+			{
+				Game.Renderer.Flush();
+				for (var i = 0; i < preparedAboveFogRenderables.Count; i++)
+					preparedAboveFogRenderables[i].Render(this);
+
+				Game.Renderer.Flush();
+			}
+
+			World.ApplyToActorsWithTrait<IRenderShroud>((actor, trait) => trait.RenderUnexplored(this));
 
 			// WW3MOD: Extend fog overlay into the beyond-map area so actor sprites
 			// that extend past the map boundary get the same fog as border cells.
@@ -735,6 +772,7 @@ namespace OpenRA.Graphics
 			Game.Renderer.Flush();
 
 			preparedRenderables.Clear();
+			preparedAboveFogRenderables.Clear();
 			preparedOverlayRenderables.Clear();
 			preparedAnnotationRenderables.Clear();
 		}

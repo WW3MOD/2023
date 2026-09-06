@@ -112,6 +112,12 @@ Atomic:
 		ImpactSounds: kaboom1.aud
 		ImpactActors: false
 		VisibleThroughFog: true
+		# VisibleThroughFog only stops the effect being CULLED -- it is a single point test on the
+		# effect's centre. The sprite is still drawn before the fog overlay, so a fireball this wide
+		# gets darkened cell-by-cell wherever it spans fogged ground, and the boundary reads as a
+		# seam through the middle of the cloud. RenderAboveFog moves the draw past the fog layers.
+		# It stays UNDER the opaque unexplored layer, so nothing is revealed that was not already.
+		RenderAboveFog: true
 		ValidTargets: Ground, Water, Air
 
 	# ===== PHASE 1: THERMAL RADIATION — Constant Fireball Shine =====
@@ -584,6 +590,12 @@ AtomicHighYield:
 		ImpactSounds: kaboom1.aud
 		ImpactActors: false
 		VisibleThroughFog: true
+		# VisibleThroughFog only stops the effect being CULLED -- it is a single point test on the
+		# effect's centre. The sprite is still drawn before the fog overlay, so a fireball this wide
+		# gets darkened cell-by-cell wherever it spans fogged ground, and the boundary reads as a
+		# seam through the middle of the cloud. RenderAboveFog moves the draw past the fog layers.
+		# It stays UNDER the opaque unexplored layer, so nothing is revealed that was not already.
+		RenderAboveFog: true
 		ValidTargets: Ground, Water, Air
 
 	# ===== PHASE 1: THERMAL RADIATION =====
