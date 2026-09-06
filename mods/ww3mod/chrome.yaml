@@ -172,6 +172,23 @@ production-icons:
 		aircraft: 68, 68, 16, 16
 		aircraft-disabled: 68, 85, 16, 16
 		aircraft-alert: 68, 102, 16, 16
+		# The POWERS tab, and NO NEW ART WAS NEEDED. The production-icons band is a 17px-pitch grid
+		# on glyphs.png with rows at y=68 (white/normal), y=85 (grey/disabled) and y=102
+		# (gold/alert). x=85 is the ONLY free column in it -- 0 building, 17 defense, 34 infantry,
+		# 51 vehicle, 68 aircraft, [85 FREE], 102 options, 119 sell, 136 repair, 153 beacon,
+		# 170 power, 187 ship, 204 stats -- and it already contains a RADIATION TREFOIL in all
+		# three tints, drawn to the same weight as its neighbours and referenced by nothing.
+		# Verified by sampling the pixels, not by eye: 114 non-transparent px per cell, coloured
+		# ffffff / 808080 / ffc000 respectively, matching the aircraft cell's palette exactly.
+		#
+		# All three names are REQUIRED, not optional. ClassicProductionLogic derives them from the
+		# tab's ProductionGroup lowercased and appends -disabled / -alert itself
+		# (ClassicProductionLogic.cs:82-95), and ImageWidget.Draw dereferences the sprite without a
+		# null check (ImageWidget.cs:80) -- so a missing region is a crash on the first frame the
+		# sidebar draws, not a blank button.
+		powers: 85, 68, 16, 16
+		powers-disabled: 85, 85, 16, 16
+		powers-alert: 85, 102, 16, 16
 		# ship: 187, 68, 16, 16
 		ship-disabled: 187, 85, 16, 16
 		ship-alert: 187, 102, 16, 16
