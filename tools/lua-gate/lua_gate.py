@@ -393,43 +393,386 @@ def line_of(text, pos):
 
 
 # --------------------------------------------------------------------------------------
+# MiniYaml structure — enough of it to answer "does the engine ever read this?"
+# --------------------------------------------------------------------------------------
+
+def miniyaml_split(line):
+    """Reproduce MiniYaml.FromLines' level/key/value split for one line.
+
+    Indentation is copied from the engine verbatim (MiniYaml.cs:239-263): a tab is one
+    level, four spaces are one level, and a leftover run of 1-3 spaces is discarded
+    without contributing anything. Guessing `leading_whitespace // 4` would NOT reproduce
+    it -- a tab does not reset the space counter, so `\t  \t` is two levels and the two
+    spaces vanish. Getting this wrong in either direction turns a structural check into a
+    liar, so it is transcribed rather than approximated.
+    """
+    key_start, level, spaces, n = 0, 0, 0, len(line)
+    while key_start < n:
+        c = line[key_start]
+        if c == " ":
+            spaces += 1
+            if spaces >= 4:
+                spaces = 0
+                level += 1
+            key_start += 1
+        elif c == "\t":
+            level += 1
+            key_start += 1
+        else:
+            break
+
+    key_length = n - key_start
+    value_start, value_length, comment_start = -1, 0, -1
+    for i in range(n):
+        if value_start < 0 and line[i] == ":":
+            value_start = i + 1
+            key_length = i - key_start
+            value_length = n - i - 1
+        if comment_start < 0 and line[i] == "#" and (i == 0 or line[i - 1] != "\\"):
+            comment_start = i + 1
+            if i <= key_start + key_length:
+                key_length = i - key_start
+            else:
+                value_length = i - value_start
+            break
+
+    key = line[key_start:key_start + key_length].strip() if key_length > 0 else ""
+    value = ""
+    if value_start >= 0 and value_length > 0:
+        value = line[value_start:value_start + value_length].strip()
+    return level, key, value
+
+
+def miniyaml_nodes(path):
+    """(level, key, value, lineno) for every line the engine would keep."""
+    out = []
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            for lineno, raw in enumerate(fh, 1):
+                level, key, value = miniyaml_split(raw.rstrip("\n").rstrip("\r"))
+                if key:
+                    out.append((level, key, value, lineno))
+    except OSError:
+        pass
+    return out
+
+
+def node_ancestry(nodes, index):
+    """Keys of the enclosing nodes of nodes[index], outermost first."""
+    level = nodes[index][0]
+    out = []
+    for j in range(index - 1, -1, -1):
+        if nodes[j][0] < level:
+            out.append(nodes[j][1])
+            level = nodes[j][0]
+            if level == 0:
+                break
+    out.reverse()
+    return out
+
+
+# Map.YamlFields (Map.cs:164-184) -- every field whose value names external files. Each is
+# declared `required: false`, and THAT is the whole failure mode: MapField.Deserialize
+# (Map.cs:99-108) looks the key up in map.yaml and, when it is absent and optional, plainly
+# `return`s. No warning, no log line, no lint finding. A rules.yaml sitting next to a
+# map.yaml that never says `Rules: rules.yaml` is read by nobody, and the scenario starts,
+# renders, and does nothing.
+#
+# The value is a comma-separated file list resolved through the map package and then the
+# mod filesystem (MiniYaml.cs:625-639 via Map.cs:583-584, Map.Open at :2018-2025).
+OPTIONAL_MAP_FILE_FIELDS = (
+    "Rules", "Weapons", "Voices", "Notifications", "Music",
+    "Sequences", "ModelSequences", "FluentMessages",
+)
+
+# Files in a scenario directory that the ENGINE never opens: they are read by the autotest
+# shell scripts, not by Map. Excluded from the "present but undeclared" check.
+NON_MAP_YAML = re.compile(r"^(map\.yaml|tournament.*\.yaml)$")
+
+
+def map_declared_files(scen_dir):
+    """{filename: (field, lineno)} for every file map.yaml actually asks Map to load."""
+    out = OrderedDict()
+    for level, key, value, lineno in miniyaml_nodes(os.path.join(scen_dir, "map.yaml")):
+        if level != 0 or key not in OPTIONAL_MAP_FILE_FIELDS or not value:
+            continue
+        for name in (x.strip() for x in value.split(",")):
+            if name:
+                out.setdefault(name, (key, lineno))
+    return out
+
+
+def loaded_yaml_files(scen_dir):
+    """Scenario-local yaml the engine really reads, map.yaml first."""
+    files = [os.path.join(scen_dir, "map.yaml")]
+    for name in map_declared_files(scen_dir):
+        p = os.path.join(scen_dir, name)
+        if os.path.exists(p):
+            files.append(p)
+    return files
+
+
+def mod_toplevel_keys():
+    """Top-level keys of every rules file in the manifest -- what a map override merges against.
+
+    MiniYaml.Merge keys its tree with ordinal, case-sensitive equality (MiniYaml.cs:410,
+    :550), so `t03:` against a defining `T03:` contributes a SEPARATE actor rather than
+    overriding one. See DOCS/reference/conventions.md, "The override isn't taking effect".
+    """
+    manifest = os.path.join(REPO, "mods", "ww3mod", "mod.yaml")
+    keys = set()
+    inside = False
+    for level, key, value, _ in miniyaml_nodes(manifest):
+        if level == 0:
+            inside = key == "Rules"
+            continue
+        if not inside or level != 1:
+            continue
+        rel = key.split("|", 1)[-1]
+        path = os.path.join(REPO, "mods", "ww3mod", rel)
+        for lv, k, _v, _ln in miniyaml_nodes(path):
+            if lv == 0:
+                keys.add(k)
+    return keys
+
+
+# --------------------------------------------------------------------------------------
 # Scenario discovery
 # --------------------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------------------
+# Silent-inertness checks — a scenario that LOADS CLEAN and does nothing
+# --------------------------------------------------------------------------------------
+#
+# Every finding below describes a scenario the engine accepts without complaint, that lint
+# passes, that `--check-yaml` passes, and that then sits on screen doing nothing. That is a
+# different failure class from "malformed", which the existing gates already cover, and it
+# is strictly worse: a malformed scenario stops the run, an inert one produces a green map
+# and an empty Lua log that reads like a slow start.
+
 def scenario_scripts(scen_dir):
-    """`Scripts:` from rules.yaml — the exact set of Lua the engine loads for this map."""
+    """The Lua the engine really loads, plus findings for every way that can be nothing.
+
+    Returns (names, findings). `names` is empty whenever the engine would load nothing,
+    INCLUDING the case where a `Scripts:` line plainly exists in rules.yaml but map.yaml
+    never declared `Rules: rules.yaml` — which is precisely the trap this function used to
+    fall into itself, by reading rules.yaml unconditionally and so reporting a green gate
+    for a scenario whose script the engine had never heard of.
+    """
+    findings = []
     names = []
-    for fn in ("rules.yaml", "map.yaml"):
-        path = os.path.join(scen_dir, fn)
-        if not os.path.exists(path):
+    removed_at = None
+
+    for path in loaded_yaml_files(scen_dir):
+        rel = os.path.relpath(path, REPO)
+        nodes = miniyaml_nodes(path)
+        for i, (level, key, value, lineno) in enumerate(nodes):
+            if key.startswith("-LuaScript") and node_ancestry(nodes, i) == ["World"]:
+                removed_at = (rel, lineno, key)
+                continue
+            if key != "Scripts":
+                continue
+
+            ancestry = node_ancestry(nodes, i)
+            ok = (len(ancestry) == 2 and ancestry[0] == "World"
+                  and ancestry[1].split("@")[0] == "LuaScript")
+            if not ok:
+                where = " > ".join(ancestry + ["Scripts"]) if ancestry else "the top level"
+                findings.append(Finding(
+                    "error", rel, lineno, "Scripts",
+                    "this `Scripts:` is at " + where + ", not World > LuaScript > Scripts. "
+                    "LuaScriptInfo is [TraitLocation(SystemActors.World)] "
+                    "(Scripting/LuaScript.cs:21-26), so nothing here is read and the scripts "
+                    "it names never load."))
+                continue
+            names.extend(x.strip() for x in value.split(",") if x.strip())
+
+    if names and removed_at:
+        rel, lineno, key = removed_at
+        findings.append(Finding(
+            "error", rel, lineno, key,
+            "removes the LuaScript trait from World while a `Scripts:` line still names "
+            "scripts. Whichever resolves last, one of the two is a lie — and if the removal "
+            "wins, nothing in this scenario runs."))
+
+    return names, findings
+
+
+def check_map_wiring(scen_dir, rel_dir, findings):
+    """Optional map files that exist and are never read, or are declared and absent.
+
+    Both come from the same handful of lines. `MapField.Deserialize` (Map.cs:99-108) looks
+    the key up in map.yaml and, when it is absent and the field is optional, plainly
+    `return`s — no warning, no log line. And `Map.PostInit` (Map.cs:583-592) SWALLOWS the
+    exception when a declared file cannot be opened, logging to debug.log and falling back
+    to `Ruleset.LoadDefaultsForTileSet`. Neither path reaches the player, the runner, or
+    lint. `CheckLuaScript` cannot see it either: it reads the World actor's `LuaScriptInfo`
+    and returns early when there is none (Lint/CheckLuaScript.cs:21-23), which is exactly
+    the state an unloaded rules.yaml produces.
+    """
+    declared = map_declared_files(scen_dir)
+    present = {f for f in os.listdir(scen_dir)
+               if f.endswith(".yaml") and not NON_MAP_YAML.match(f)}
+    map_rel = os.path.join(rel_dir, "map.yaml")
+
+    for name in sorted(present - set(declared)):
+        field = "Weapons" if "weapon" in name else "Rules"
+        findings.append(Finding(
+            "error", map_rel, 0, name,
+            "`" + name + "` sits in the scenario directory and map.yaml never declares it. "
+            "Map only reads a file it is told about, so everything in there — rules, "
+            "weapons, and any LuaScript > Scripts line — is inert. Add `" + field + ": "
+            + name + "` to map.yaml, or delete the file."))
+
+    for name, (field, lineno) in declared.items():
+        if not os.path.exists(os.path.join(scen_dir, name)):
+            findings.append(Finding(
+                "error", map_rel, lineno, name,
+                "`" + field + ": " + name + "` names a file that is not in the scenario "
+                "directory. Map.PostInit catches the open failure, logs it to debug.log only "
+                "and falls back to the stock ruleset — so the map still starts, with none of "
+                "its overrides."))
+
+
+def check_key_casing(scen_dir, findings):
+    """Top-level override keys that differ from the mod's spelling only by case.
+
+    `MiniYaml.Merge` compares keys ordinally (MiniYaml.cs:410, :550), so `t03:` against a
+    defining `T03:` overrides nothing — it contributes a second, unrelated top-level key.
+    The silent variant is the one worth gating: an abstract `^Template` is dropped by
+    `filterNode` before the duplicate-key check (Ruleset.cs:185) and simply sits unused.
+    See DOCS/reference/conventions.md, "The override isn't taking effect".
+    """
+    defined = mod_toplevel_keys()
+    if not defined:
+        return
+    lower = {}
+    for k in defined:
+        lower.setdefault(k.lower(), set()).add(k)
+
+    for path in loaded_yaml_files(scen_dir):
+        if os.path.basename(path) == "map.yaml":
             continue
+        rel = os.path.relpath(path, REPO)
+        for level, key, _value, lineno in miniyaml_nodes(path):
+            if level != 0 or key in defined:
+                continue
+            alts = lower.get(key.lower())
+            if alts:
+                findings.append(Finding(
+                    "error", rel, lineno, key,
+                    "differs only in case from " + " / ".join(sorted(alts)) + ", which is how "
+                    "the mod spells it. MiniYaml.Merge is ordinal (MiniYaml.cs:410), so this "
+                    "overrides nothing — it defines a separate top-level key that nothing "
+                    "refers to."))
+
+
+def verdict_seeds():
+    """`Test.*` bindings that end the run, re-derived from TestGlobal.cs.
+
+    Every one of them funnels through `ExitWhenCapturesFlushed`, which writes result.json
+    and exits — so the marker is the call, not a hand-kept list of three names. Today that
+    is Pass, Fail and Skip; a fourth verdict added in C# is picked up here for free, and a
+    renamed one stops being treated as terminal instead of silently still counting.
+    """
+    path = os.path.join(ENGINE, "OpenRA.Mods.Common", "Scripting", "Global", "TestGlobal.cs")
+    try:
         with open(path, "r", encoding="utf-8", errors="replace") as fh:
-            for line in fh:
-                m = re.match(r"^\s*Scripts:\s*(.+?)\s*$", line)
-                if m:
-                    names.extend(x.strip() for x in m.group(1).split(",") if x.strip())
-    return names
+            text = strip_cs(fh.read())
+    except OSError:
+        return {"Test.Pass", "Test.Fail", "Test.Skip"}
+
+    starts = [(m.start(), m.group(1)) for m in
+              re.finditer(r"\bpublic\s+[\w<>\[\],\s]+?\s(\w+)\s*\(", text)]
+    out = set()
+    for i, (pos, name) in enumerate(starts):
+        end = starts[i + 1][0] if i + 1 < len(starts) else len(text)
+        if "ExitWhenCapturesFlushed" in text[pos:end]:
+            out.add("Test." + name)
+    return out or {"Test.Pass", "Test.Fail", "Test.Skip"}
+
+
+def lua_file_functions(text):
+    """{name: body} for file-scope `function Name(...)` / `function Tbl.Name(...)`.
+
+    Bodies are delimited by the next file-scope `function` line rather than by a matching
+    `end`, which is how every helper in mods/ww3mod/scripts is actually written. A
+    terminating call nested inside a local closure is therefore attributed to the enclosing
+    file-scope function — the direction that errs toward silence rather than false alarms.
+    """
+    out = OrderedDict()
+    starts = [(m.start(), m.group(1)) for m in
+              re.finditer(r"^function\s+([A-Za-z_][\w.:]*)\s*\(", text, re.M)]
+    for i, (pos, name) in enumerate(starts):
+        end = starts[i + 1][0] if i + 1 < len(starts) else len(text)
+        out[name.replace(":", ".")] = text[pos:end]
+    return out
+
+
+def verdict_names(script_texts, seeds=None):
+    """Every symbol whose use can transitively reach a terminal Test.* verdict."""
+    bodies = OrderedDict()
+    for text in script_texts:
+        bodies.update(lua_file_functions(text))
+
+    terminating = set(seeds if seeds is not None else verdict_seeds())
+    for _ in range(8):  # depth cap; helper call chains run one or two deep in practice
+        grew = False
+        for name, body in bodies.items():
+            if name in terminating:
+                continue
+            if any(t.split(".")[-1] in body for t in terminating):
+                terminating.add(name)
+                grew = True
+        if not grew:
+            break
+    return terminating
+
+
+def check_verdict_reachable(name, scen_dir, luas, declared, own_text, findings, seeds=None):
+    """A `test-` scenario whose Lua names no way to finish.
+
+    A demo is allowed to run forever — that is what a demo is. A test is not: with no
+    Test.Pass and no Test.Fail the harness never gets a result.json, and the run ends as a
+    watchdog TIMEOUT-FAIL minutes later, which reads like a slow scenario rather than an
+    unfinished one.
+    """
+    if not name.startswith("test-"):
+        return
+    texts = [own_text]
+    for s in declared:
+        path = resolve_script(s, scen_dir)
+        if path and os.path.basename(path) not in luas:
+            with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                texts.append(strip_lua(fh.read()))
+
+    for sym in verdict_names(texts, seeds):
+        probe = sym.split(".")[-1]
+        if re.search(r"\b" + re.escape(probe) + r"\b", own_text):
+            return
+
+    findings.append(Finding(
+        "warn", os.path.relpath(os.path.join(scen_dir, name + ".lua"), REPO), 0, name,
+        "a `test-` scenario whose script names nothing that reaches a terminal Test verdict, "
+        "directly or through a helper it loads. It cannot produce a result.json, so the run ends "
+        "as a watchdog timeout. Either it asserts nothing and should be a `demo-`, or its "
+        "assertion was lost."))
 
 
 def map_actor_names(scen_dir):
-    """Instance names under `Actors:` in map.yaml — MapGlobal.cs:34-36 makes each a global."""
-    path = os.path.join(scen_dir, "map.yaml")
+    """Instance names under `Actors:` in map.yaml — MapGlobal.cs:34-36 makes each a global.
+
+    Read through the MiniYaml level parser rather than a `^\\t` regex. Every scenario in the
+    tree happens to indent map.yaml with tabs today, but four spaces is equally valid to the
+    engine, and a regex that only knows about tabs would return an EMPTY actor set for such a
+    file — silently turning off every actor-global check in this gate for that scenario. A
+    false green in the guard is the failure this whole tool exists to prevent.
+    """
+    nodes = miniyaml_nodes(os.path.join(scen_dir, "map.yaml"))
     names = set()
-    if not os.path.exists(path):
-        return names
-    with open(path, "r", encoding="utf-8", errors="replace") as fh:
-        inside = False
-        for line in fh:
-            if re.match(r"^Actors:", line):
-                inside = True
-                continue
-            if inside:
-                if line.strip() and not line[0].isspace():
-                    inside = False
-                    continue
-                m = re.match(r"^\t([A-Za-z_]\w*)\s*:", line)
-                if m:
-                    names.add(m.group(1))
+    for i, (level, key, _value, _lineno) in enumerate(nodes):
+        if level == 1 and node_ancestry(nodes, i) == ["Actors"] and re.match(r"^[A-Za-z_]\w*$", key):
+            names.add(key)
     return names
 
 
@@ -596,6 +939,12 @@ def check_file(lua_path, api, extra_globals, actor_globals, findings):
 
 
 def collect_scenarios(filters):
+    """Every scenario directory, with the .lua files it carries (possibly none).
+
+    A directory with no Lua is still checked for wiring: a tournament scenario with an
+    undeclared rules.yaml is as inert as a scripted one, and skipping it here is how the
+    whole class stayed invisible.
+    """
     out = []
     if not os.path.isdir(SCENARIOS):
         return out
@@ -605,9 +954,7 @@ def collect_scenarios(filters):
             continue
         if filters and not any(f in name for f in filters):
             continue
-        luas = sorted(f for f in os.listdir(d) if f.endswith(".lua"))
-        if luas:
-            out.append((name, d, luas))
+        out.append((name, d, sorted(f for f in os.listdir(d) if f.endswith(".lua"))))
     return out
 
 
@@ -618,9 +965,17 @@ def run_check(args):
     files = 0
 
     helper_cache = {}
+    seeds = verdict_seeds()
 
     for name, d, luas in scenarios:
-        declared = scenario_scripts(d)
+        rel_dir = os.path.relpath(d, REPO)
+
+        # --- wiring, before anything else: it decides which files the rest may believe.
+        check_map_wiring(d, rel_dir, findings)
+        check_key_casing(d, findings)
+        declared, wiring = scenario_scripts(d)
+        findings.extend(wiring)
+
         actors = map_actor_names(d)
 
         # Globals contributed by the helper scripts this map actually loads.
@@ -631,7 +986,7 @@ def run_check(args):
             path = resolve_script(s, d)
             if not path:
                 findings.append(Finding(
-                    "warn", os.path.relpath(os.path.join(d, "rules.yaml"), REPO), 0, s,
+                    "warn", os.path.join(rel_dir, "rules.yaml"), 0, s,
                     "rules.yaml declares this script but it was not found in the map "
                     "directory or mods/ww3mod/scripts."))
                 continue
@@ -643,10 +998,10 @@ def run_check(args):
         if not declared:
             for lua in luas:
                 findings.append(Finding(
-                    "warn", os.path.relpath(os.path.join(d, lua), REPO), 0, lua,
-                    "this scenario declares no `Scripts:` anywhere in rules.yaml or map.yaml, "
-                    "so the engine never loads this file — its WorldLoaded never runs and "
-                    "nothing in it is checked here."))
+                    "error", os.path.join(rel_dir, lua), 0, lua,
+                    "no `Scripts:` line the engine can reach names this file, so it never "
+                    "loads: its WorldLoaded never runs, nothing in it is checked here, and "
+                    "the scenario starts and does nothing."))
             continue
 
         for lua in luas:
@@ -654,12 +1009,18 @@ def run_check(args):
             # directory is dead weight the engine never sees.
             if lua not in declared:
                 findings.append(Finding(
-                    "warn", os.path.relpath(os.path.join(d, lua), REPO), 0, lua,
+                    "warn", os.path.join(rel_dir, lua), 0, lua,
                     "not listed in this scenario's `Scripts:`; the engine never loads it, "
                     "so it is unchecked and probably dead."))
                 continue
             files += 1
             check_file(os.path.join(d, lua), api, extra, actors, findings)
+
+        own = os.path.join(d, name + ".lua")
+        if os.path.basename(own) in declared and os.path.exists(own):
+            with open(own, "r", encoding="utf-8", errors="replace") as fh:
+                check_verdict_reachable(
+                    name, d, luas, declared, strip_lua(fh.read()), findings, seeds)
 
     seen, deduped = set(), []
     for f in findings:
@@ -685,12 +1046,12 @@ def run_check(args):
           f"{len(api['globals'])} engine tables, {len(api['actor'])} actor properties, "
           f"{len(api['player'])} player properties from {api['sources']} C# file(s).")
     if errors:
-        print(f"lua-gate: FAIL — {len(errors)} undefined reference(s), {len(warns)} warning(s).")
+        print(f"lua-gate: FAIL — {len(errors)} error(s), {len(warns)} warning(s).")
         return 2
     if warns:
         print(f"lua-gate: WARN — {len(warns)} warning(s).")
         return 2 if args.strict else 1
-    print("lua-gate: OK — every reference resolves to a registered binding.")
+    print("lua-gate: OK — every reference resolves, and every scenario is wired to run.")
     return 0
 
 
@@ -818,7 +1179,14 @@ SELFTEST_CASES = [
     ("Trigger table exists", lambda a: "Trigger" in a["globals"]),
     ("Trigger.AfterDelay is registered", lambda a: "AfterDelay" in a["globals"]["Trigger"]["members"]),
     ("Trigger.OnKilled is registered", lambda a: "OnKilled" in a["globals"]["Trigger"]["members"]),
-    ("Trigger.OnTick is NOT registered", lambda a: "OnTick" not in a["globals"]["Trigger"]["members"]),
+    # OnTick was ADDED on 2026-09-06 (0b9c7482). This case pinned its absence and so had been
+    # failing — and with it `make lua-gate` and `make test` — from that merge onward.
+    ("Trigger.OnTick is registered (added 2026-09-06, 0b9c7482)",
+     lambda a: "OnTick" in a["globals"]["Trigger"]["members"]),
+    # A public STATIC helper on TriggerGlobal, so not a binding. Pins the WrappableMembers
+    # instance-only rule that OnTick's absence used to pin.
+    ("Trigger.GetScriptTriggers is NOT registered",
+     lambda a: "GetScriptTriggers" not in a["globals"]["Trigger"]["members"]),
     ("Player.GetPlayer is registered", lambda a: "GetPlayer" in a["globals"]["Player"]["members"]),
     ("Player.GetPlayer returns Player", lambda a: a["globals"]["Player"]["members"]["GetPlayer"]["type"] == "Player"),
     ("Actor.Create is registered", lambda a: "Create" in a["globals"]["Actor"]["members"]),
@@ -845,6 +1213,7 @@ LUA_SELFTEST = """
 WorldLoaded = function()
 \tlocal p = Player.GetPlayer("USA")
 \tlocal a = Actor.Create("halo", true, { Owner = p })
+\tTrigger.OnEveryTick(function() end)
 \tTrigger.OnTick(function() end)
 \tTrigger.AfterDelay(5, function() end)
 \tprint(p.Location)
@@ -856,6 +1225,157 @@ WorldLoaded = function()
 \tend
 end
 """
+
+
+# --------------------------------------------------------------------------------------
+# Acceptance test for the inertness checks
+# --------------------------------------------------------------------------------------
+#
+# These checks find nothing on a clean tree, which is the whole problem with them: a guard
+# nobody has seen fire is indistinguishable from a guard that cannot. So each failure mode
+# is built here as a synthetic scenario and the check is required to report it, and a
+# correctly-wired scenario built the same way is required to produce silence.
+
+WIRING_MAP = """MapFormat: 12
+RequiresMod: ww3mod
+Title: TEST
+Author: WW3MOD
+Tileset: TEMPERAT
+MapSize: 32,32
+Bounds: 1,1,30,30
+Visibility: MissionSelector
+Categories: Test
+Players:
+Actors:
+"""
+
+WIRING_RULES = """World:
+\tLuaScript:
+\t\tScripts: zz.lua
+"""
+
+WIRING_LUA = "WorldLoaded = function() Test.Pass(\"ok\") end\n"
+
+
+def _mk(root, name, files):
+    d = os.path.join(root, name)
+    os.makedirs(d, exist_ok=True)
+    for fn, body in files.items():
+        with open(os.path.join(d, fn), "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(body)
+    return d
+
+
+def _wiring_findings(d, name):
+    """Every inertness check, run over one synthetic scenario directory."""
+    findings = []
+    check_map_wiring(d, name, findings)
+    check_key_casing(d, findings)
+    declared, wiring = scenario_scripts(d)
+    findings.extend(wiring)
+    luas = sorted(f for f in os.listdir(d) if f.endswith(".lua"))
+    if not declared:
+        for lua in luas:
+            findings.append(Finding("error", os.path.join(name, lua), 0, lua, "never loaded"))
+    return declared, findings
+
+
+def run_wiring_acceptance():
+    """Build each failure mode, require it to fire, require the clean one to stay quiet."""
+    import tempfile
+    results = []
+
+    with tempfile.TemporaryDirectory() as root:
+        # -- the control: correctly wired, must produce nothing at all.
+        d = _mk(root, "zz-ok", {
+            "map.yaml": WIRING_MAP + "Rules: rules.yaml\n",
+            "rules.yaml": WIRING_RULES, "zz.lua": WIRING_LUA})
+        declared, f = _wiring_findings(d, "zz-ok")
+        results.append(("a correctly wired scenario produces no finding",
+                        declared == ["zz.lua"] and not f))
+
+        # -- mode 1: rules.yaml on disk, never declared. THE bug of 2026-09-06.
+        d = _mk(root, "zz-undeclared", {
+            "map.yaml": WIRING_MAP, "rules.yaml": WIRING_RULES, "zz.lua": WIRING_LUA})
+        declared, f = _wiring_findings(d, "zz-undeclared")
+        results.append(("an undeclared rules.yaml is reported",
+                        any(x.symbol == "rules.yaml" and x.severity == "error" for x in f)))
+        results.append(("...and its Scripts: line is NOT counted as loaded", declared == []))
+
+        # -- mode 1b: declared and absent. Map.PostInit swallows the open failure.
+        d = _mk(root, "zz-ghost", {
+            "map.yaml": WIRING_MAP + "Rules: rules.yaml\n", "zz.lua": WIRING_LUA})
+        _declared, f = _wiring_findings(d, "zz-ghost")
+        results.append(("a declared-but-absent rules.yaml is reported",
+                        any(x.symbol == "rules.yaml" and "not in the scenario directory" in x.message
+                            for x in f)))
+
+        # -- mode 2: Scripts: parented somewhere the engine never reads it.
+        d = _mk(root, "zz-misparented", {
+            "map.yaml": WIRING_MAP + "Rules: rules.yaml\n",
+            "rules.yaml": "Player:\n\tLuaScript:\n\t\tScripts: zz.lua\n",
+            "zz.lua": WIRING_LUA})
+        declared, f = _wiring_findings(d, "zz-misparented")
+        results.append(("a Scripts: under Player instead of World is reported",
+                        any(x.symbol == "Scripts" and x.severity == "error" for x in f)
+                        and declared == []))
+
+        # -- mode 2b: the trait removed out from under a live Scripts: line.
+        d = _mk(root, "zz-removed", {
+            "map.yaml": WIRING_MAP + "Rules: rules.yaml\n",
+            "rules.yaml": "World:\n\t-LuaScript:\n\tLuaScript:\n\t\tScripts: zz.lua\n",
+            "zz.lua": WIRING_LUA})
+        _declared, f = _wiring_findings(d, "zz-removed")
+        results.append(("a -LuaScript: alongside a live Scripts: is reported",
+                        any(x.symbol.startswith("-LuaScript") for x in f)))
+
+        # -- mode 3: a top-level key that differs from the mod's only by case.
+        defined = mod_toplevel_keys()
+        cased = next((k for k in sorted(defined) if k.lower() != k and not k.startswith("^")), None)
+        if cased:
+            d = _mk(root, "zz-case", {
+                "map.yaml": WIRING_MAP + "Rules: rules.yaml\n",
+                "rules.yaml": WIRING_RULES + "\n" + cased.lower() + ":\n\tHealth:\n\t\tHP: 1\n",
+                "zz.lua": WIRING_LUA})
+            _declared, f = _wiring_findings(d, "zz-case")
+            results.append((f"a mis-cased top-level key ({cased.lower()} vs {cased}) is reported",
+                            any(x.symbol == cased.lower() for x in f)))
+            # ...and the correctly-cased spelling of the same key must stay silent.
+            d = _mk(root, "zz-case-ok", {
+                "map.yaml": WIRING_MAP + "Rules: rules.yaml\n",
+                "rules.yaml": WIRING_RULES + "\n" + cased + ":\n\tHealth:\n\t\tHP: 1\n",
+                "zz.lua": WIRING_LUA})
+            _declared, f = _wiring_findings(d, "zz-case-ok")
+            results.append((f"...and the correctly-cased {cased} does not fire", not f))
+        else:
+            results.append(("a mis-cased top-level key is reported  (SKIPPED: no mixed-case "
+                            "key in the manifest)", False))
+
+        # -- mode 4: a test- scenario that can never reach a verdict.
+        seeds = verdict_seeds()
+        d = _mk(root, "test-zz-silent", {
+            "map.yaml": WIRING_MAP + "Rules: rules.yaml\n",
+            "rules.yaml": "World:\n\tLuaScript:\n\t\tScripts: test-zz-silent.lua\n",
+            "test-zz-silent.lua": "WorldLoaded = function() end\n"})
+        f = []
+        check_verdict_reachable("test-zz-silent", d, ["test-zz-silent.lua"],
+                                ["test-zz-silent.lua"], "WorldLoaded = function() end", f, seeds)
+        results.append(("a test- scenario with no reachable verdict is reported", len(f) == 1))
+
+        f = []
+        check_verdict_reachable("test-zz-loud", d, ["x.lua"], ["x.lua"],
+                                "WorldLoaded = function() Test.Skip('x') end", f, seeds)
+        results.append(("...and one reaching Test.Skip does not fire", not f))
+
+    return results
+
+
+# MiniYaml's indent arithmetic is transcribed rather than approximated, so pin it: these are
+# the cases where `leading_whitespace // 4` and the engine disagree.
+MINIYAML_INDENT_CASES = (
+    ("\tKey: v", 1), ("        Key: v", 2), ("  Key: v", 0),
+    ("\t  \tKey: v", 2), ("      Key: v", 1), ("Key: v", 0),
+)
 
 
 def run_selftest(args):
@@ -880,7 +1400,7 @@ def run_selftest(args):
             fh.write(LUA_SELFTEST)
         check_file(path, api, {}, set(), findings)
     got = {f.symbol for f in findings}
-    for want, sev in (("Trigger.OnTick", "error"), ("p.Location", "error"), ("Bogus", "warn"),
+    for want, sev in (("Trigger.OnEveryTick", "error"), ("p.Location", "error"), ("Bogus", "warn"),
                       ("w.Location", "warn")):
         ok = any(f.symbol == want and f.severity == sev for f in findings)
         print(f"  {'ok  ' if ok else 'FAIL'}  scanner reports {want} as {sev}")
@@ -888,10 +1408,19 @@ def run_selftest(args):
             failed += 1
     # w.IsDead / w.Type are ungated (BaseActorProperties) — safe on the player actor,
     # so the GetActors check must NOT fire on them.
-    for unwanted in ("Trigger.AfterDelay", "a.Location", "string.format", "Actor.Create",
-                     "Player.GetPlayer", "w.IsDead", "w.Type"):
+    for unwanted in ("Trigger.AfterDelay", "Trigger.OnTick", "a.Location", "string.format",
+                     "Actor.Create", "Player.GetPlayer", "w.IsDead", "w.Type"):
         ok = unwanted not in got
         print(f"  {'ok  ' if ok else 'FAIL'}  scanner stays quiet about {unwanted}")
+        if not ok:
+            failed += 1
+
+    # The MiniYaml indent transcription, then every inertness check on synthetic scenarios.
+    extra = [(f"miniyaml indent: {line!r} is level {want}",
+              miniyaml_split(line)[0] == want) for line, want in MINIYAML_INDENT_CASES]
+    extra += run_wiring_acceptance()
+    for desc, ok in extra:
+        print(f"  {'ok  ' if ok else 'FAIL'}  {desc}")
         if not ok:
             failed += 1
 
@@ -899,7 +1428,7 @@ def run_selftest(args):
     if failed:
         print(f"lua-gate selftest: FAIL — {failed} case(s).")
         return 2
-    print(f"lua-gate selftest: OK — {len(SELFTEST_CASES) + 11} case(s).")
+    print(f"lua-gate selftest: OK — {len(SELFTEST_CASES) + 11 + len(extra)} case(s).")
     return 0
 
 

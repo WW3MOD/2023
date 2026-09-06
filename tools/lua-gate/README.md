@@ -32,6 +32,7 @@ saved list, or the same walk through a helper — it slips past. See
 
 ```bash
 make lua-gate                                     # selftest + check; no build, no launch
+.\make.ps1 lua-gate                               # the same, on Windows (also `make.ps1 l`)
 ./tools/lua-gate/lua_gate.py check                # the gate on its own
 ./tools/lua-gate/lua_gate.py check --scenario test-medic   # filter (substring, repeatable)
 ./tools/lua-gate/lua_gate.py check --strict       # warnings fail too
@@ -43,14 +44,18 @@ make lua-gate                                     # selftest + check; no build, 
 Standard-library Python only. No build, no engine, no game launch.
 
 - **exit 2 (fail)** — a reference that cannot resolve: an unknown member on a known engine
-  table, or a member that does not exist on the CLR type the value provably has.
+  table, or a member that does not exist on the CLR type the value provably has. **Also any
+  wiring fault that makes a scenario inert** — see the second failure class below. Those are
+  errors rather than warnings because there is exactly one correct outcome: a scenario the
+  engine loads and never runs is never what anyone wanted.
 - **exit 1 (warn)** — a base name that resolves to nothing; a trait-gated property read off
-  a `GetActors()` element; or a scenario-wiring problem (a `.lua` the map never loads).
-  Real findings, but the remedy is sometimes "delete the file" and the `GetActors` rule is
-  a heuristic, so they do not hard-fail a shared target.
-- **exit 0** — every reference the gate can see resolves.
+  a `GetActors()` element; an orphan `.lua` no `Scripts:` names; or a `test-` scenario that
+  can reach no verdict. Real findings, but the remedy is sometimes "delete the file" or
+  "rename it `demo-`", so they do not hard-fail a shared target.
+- **exit 0** — every reference the gate can see resolves, and every scenario is wired to run.
 
-`make lua-gate` fails only on exit 2, so a warning prints without breaking `make test`.
+`make lua-gate` and `make.ps1 lua-gate` fail only on exit 2, so a warning prints without
+breaking `make test`.
 
 ## Where the API surface comes from
 
@@ -174,14 +179,139 @@ Line 96 is the line that aborted the run, and the suggested remedy is the one th
 actually used. The check discriminates between the two revisions rather than firing on
 both.
 
-The clean tree passes: 213 scripts across 214 scenarios, zero errors.
+The clean tree passes: 273 scripts across 307 scenarios, zero errors (at `wt/scenario-audit`,
+base `main @ 6e5721ae`). Scenario count is now every directory, not only those carrying Lua —
+a script-free tournament scenario can be inert in exactly the same ways.
 
-## The one finding on the clean tree
+## The second failure class: a scenario that is SILENTLY INERT
 
-`demo-experimental-capture-coordinator` declares no `Scripts:` in either `rules.yaml` or
-`map.yaml`, so the engine never loads
+*(Added 2026-09-06, `wt/scenario-audit`.)*
+
+Everything above is about Lua that names something the engine does not have. This section is
+about a scenario the engine accepts completely — lint clean, `--check-yaml` clean, map draws
+— **whose own content was never read.** Three of these were diagnosed by hand in one day,
+twice after a launch slot had already been spent, and none of the existing gates can see
+them, because there is nothing malformed to report.
+
+The root is that every external-file field on a map is optional. `MapField.Deserialize`
+(`Map.cs:99-108`) looks the key up in `map.yaml` and, when it is absent and the field is
+`required: false`, plainly `return`s. No warning, no log line. A `rules.yaml` sitting next to
+a `map.yaml` that never says `Rules: rules.yaml` is read by nobody, including the
+`LuaScript` trait inside it that would have run the scenario.
+
+**The engine's own Lua lint cannot see this, and the reason generalises.** `CheckLuaScript`
+(`Lint/CheckLuaScript.cs:21-23`) reads the World actor's `LuaScriptInfo` and returns early
+when there is none. An unloaded `rules.yaml` produces exactly that state, so the one lint
+that exists for scripting returns clean *precisely because* the scripting was never wired.
+
+| # | What is wrong | Severity | Engine reference |
+|---|---|---|---|
+| 1 | a `.yaml` in the scenario directory that `map.yaml` never declares | error | `Map.cs:102-107` returns silently |
+| 2 | a declared file that is not in the directory | error | `Map.cs:583-592` swallows the open failure into `debug.log` and falls back to stock rules |
+| 3 | `Scripts:` parented anywhere but `World > LuaScript` | error | `LuaScriptInfo` is `[TraitLocation(SystemActors.World)]`, `Scripting/LuaScript.cs:21-26` |
+| 4 | `-LuaScript:` on `World` alongside a live `Scripts:` | error | a removal resolving last leaves no trait and no error |
+| 5 | no reachable `Scripts:` names a `.lua` that exists | error | the file's `WorldLoaded` never runs |
+| 6 | a top-level rules key differing from the mod's only by case | error | `MiniYaml.Merge` is ordinal, `MiniYaml.cs:410`, `:550` |
+| 7 | a `test-` scenario reaching no terminal `Test` verdict | warn | no `result.json`; the run dies as a watchdog TIMEOUT-FAIL |
+
+Reachability is the load-bearing word in 3, 5 and 6. A `Scripts:` line inside a `rules.yaml`
+the map never declares does **not** count as declaring anything — which is the bug this gate
+itself used to have. `scenario_scripts` read `rules.yaml` unconditionally, so on failure
+mode 1 it reported a green run for a scenario whose script the engine had never heard of.
+**A static checker of an optional-file system has to model the optionality, not just the
+files**, or it reports the configuration the author intended rather than the one that runs.
+
+Check 7 is a warning rather than an error because three of its four current findings are
+deliberate: `test-burn-arena`, `test-burn-compare` and `test-minelayer-mode-survives-modifiers`
+each say in their own header comment that they are manual, hold the window open and assert
+nothing. They are demos wearing a `test-` prefix. The check cannot tell that from an
+assertion that was lost, so it reports and lets a person decide.
+
+### Verdict names are re-derived, not listed
+
+`Test.Pass`, `Test.Fail`, `Test.Skip` and `Test.ForceDesyncAndCapture` all end the run, and
+all four funnel through `ExitWhenCapturesFlushed` in `TestGlobal.cs`. The gate looks for that
+call rather than keeping a list of names, so a fifth verdict added in C# is picked up for
+free and a renamed one stops counting instead of silently still counting. Missing
+`ForceDesyncAndCapture` from a hand-written list was in fact the first false positive this
+check produced.
+
+### MiniYaml's indent arithmetic is transcribed, not approximated
+
+`miniyaml_split` copies `MiniYaml.cs:239-263` line for line, because the rule is not
+`leading_whitespace // 4`. A tab is one level and does **not** reset the space counter, and a
+leftover run of 1-3 spaces is discarded contributing nothing:
+
+| input | level |
+|---|---|
+| `"\tKey:"` | 1 |
+| `"        Key:"` (8 spaces) | 2 |
+| `"      Key:"` (6 spaces) | 1 |
+| `"  Key:"` (2 spaces) | 0 |
+| `"\t  \tKey:"` | 2 |
+
+One scenario (`test-decisive-win-attribution`) already indents its `rules.yaml` with spaces,
+so this is live, not hypothetical. The same transcription replaced a `^\t` regex in
+`map_actor_names`, which would have returned an **empty** actor set for a space-indented
+`map.yaml` — turning off every actor-global check for that scenario while still printing OK.
+
+### Acceptance test
+
+These checks find nothing on the clean tree, which is exactly why they need one: a guard
+nobody has watched fire is indistinguishable from a guard that cannot. Each mechanism is
+built as a synthetic scenario in a temp directory inside `selftest`, the check is required to
+report it, and a correctly-wired twin is required to stay silent.
+
+```
+$ ./tools/lua-gate/lua_gate.py selftest
+  …
+  ok    a correctly wired scenario produces no finding
+  ok    an undeclared rules.yaml is reported
+  ok    ...and its Scripts: line is NOT counted as loaded
+  ok    a declared-but-absent rules.yaml is reported
+  ok    a Scripts: under Player instead of World is reported
+  ok    a -LuaScript: alongside a live Scripts: is reported
+  ok    a mis-cased top-level key (1tnk.husk vs 1TNK.Husk) is reported
+  ok    ...and the correctly-cased 1TNK.Husk does not fire
+  ok    a test- scenario with no reachable verdict is reported
+  ok    ...and one reaching Test.Skip does not fire
+
+lua-gate selftest: OK — 49 case(s).
+```
+
+### What this section does NOT check
+
+The list at the top of this README still applies in full. In addition:
+
+1. **Whether a scenario that IS wired does anything useful.** Reaching `WorldLoaded` is not
+   the same as asserting something true. A test whose `AssertWithin` predicate can never
+   become true passes this and times out exactly like an unwired one.
+2. **Inline rules in `map.yaml`.** `Rules:` may carry nodes as well as a filename
+   (`MiniYaml.cs:633-635`), and a scenario doing that is not flagged for having no
+   `rules.yaml` — correctly, but it also means the `Scripts:` reachability walk reads only
+   the files, not any inline `LuaScript` block. No scenario in the tree does this today.
+3. **`scenarios.yaml` overlays.** `Map.ApplyScenario` (`Map.cs:663-745`) merges a named
+   scenario's actors, players and rules on top of the map's own, with a second identical
+   swallowing `catch`. Nothing under `tools/autotest/scenarios/` uses it, so it is not
+   modelled here; if it starts being used, this gate goes blind to a whole second layer.
+4. **Case collisions below the top level.** Only top-level keys are compared. A mis-cased
+   *trait* name fails loudly through `ObjectCreator`, so it is not in this class.
+5. **The mod's own maps**, same as before: `mods/ww3mod/maps/` is not covered.
+
+## Findings on the clean tree
+
+**`demo-experimental-capture-coordinator` — FIXED 2026-09-06.** It declared no `Scripts:` in
+either `rules.yaml` or `map.yaml`, so the engine never loaded
 `demo-experimental-capture-coordinator.lua`. Its whole body is one
-`TestHarness.FocusBetween(...)` call that frames the camera, and it has never run — the
-demo has been showing an unframed camera. Reported rather than excepted; the fix is a
-`LuaScript: Scripts:` line in its `rules.yaml`, which is a change to a demo's behaviour and
-not this tool's to make.
+`TestHarness.FocusBetween(...)` call that frames the camera across the four neutral
+capturables, so the demo had been opening on an unframed camera while its own header
+promised "Camera starts in the middle for full view". Cause: its `rules.yaml` began as a copy
+of a *tournament* rules.yaml, which has no scripting section, and the `LuaScript` trait was
+never added back. The four actor names the script uses (`NeutralBio`, `NeutralFcom`,
+`NeutralOilb1`, `NeutralOilb2`) were confirmed present in `map.yaml` before wiring it up —
+without that check, enabling the script would have framed nothing and looked identical.
+
+**Four `test-` scenarios reach no verdict** (check 7 above). Three say so in their own
+comments and are demos wearing a `test-` prefix; `test-artillery-turret` calls only
+`FocusBetween` and `Select` and appears to have lost its assertion. All four are left for a
+person: renaming a scenario or inventing an assertion is a judgement about what it was for.

@@ -16,3 +16,10 @@ World:
 	-StartGameNotification:
 	MusicPlaylist:
 		DisableWorldSounds: false
+	# This file began as a copy of a tournament rules.yaml, which has no scripting, so the
+	# trait that runs the demo's own .lua was never here. Without it LuaScript is absent from
+	# World, demo-experimental-capture-coordinator.lua never loads, and the camera opens
+	# wherever the engine leaves it — not framed across the four neutral capturables the
+	# demo exists to show. Nothing else in the demo changes; there is no verdict to flip.
+	LuaScript:
+		Scripts: test-helpers.lua, demo-experimental-capture-coordinator.lua

@@ -137,9 +137,48 @@ function NavGuard-Command
 	}
 }
 
+# Static scenario guard. Mirrors the Makefile's `lua-gate` target, which `make test` has
+# depended on since it was written -- but make.ps1 never did, so on Windows (where merges
+# actually happen here) the gate had never run at all. Buildless, ~2s, no game launch.
+function LuaGate-Command
+{
+	$python = (Get-Command 'python' -ErrorAction SilentlyContinue)
+	if ($python -eq $null)
+	{
+		$python = (Get-Command 'python3' -ErrorAction SilentlyContinue)
+	}
+
+	if ($python -eq $null)
+	{
+		Write-Host "lua-gate needs python on PATH; skipping." -ForegroundColor Yellow
+		return
+	}
+
+	Write-Host "Checking scenario Lua and wiring (lua-gate)..." -ForegroundColor Cyan
+	& $python.Source "tools/lua-gate/lua_gate.py" selftest
+	if ($lastexitcode -ne 0)
+	{
+		exit $lastexitcode
+	}
+
+	# Exit 1 is the warning band -- real findings whose remedy needs a decision, so they
+	# print without breaking the target. Only exit 2 (an unresolved binding, or a scenario
+	# the engine would load and never run) is fatal. Same split as the Makefile.
+	& $python.Source "tools/lua-gate/lua_gate.py" check
+	if ($lastexitcode -gt 1)
+	{
+		exit $lastexitcode
+	}
+
+	# Clear the warning band's exit 1 so it cannot be mistaken for a failure by whatever ran
+	# make.ps1, or by the --check-yaml step Test-Command runs straight after this.
+	$global:LASTEXITCODE = 0
+}
+
 function Test-Command
 {
 	NavGuard-Command
+	LuaGate-Command
 
 	if ((CheckForUtility) -eq 1)
 	{
@@ -369,6 +408,7 @@ if ($args.Length -eq 0)
 	Write-Host "                                                    the engine directories."
 	Write-Host "  test (t)           - Tests the mod's MiniYAML for errors, and map connectivity."
 	Write-Host "  nav-guard (n)      - Checks no map lost reachable ground. No build required."
+	Write-Host "  lua-gate (l)       - Checks scenario Lua resolves and scenarios are wired to run. No build required."
 	Write-Host "  check (e)          - Checks .cs files for StyleCop violations."
 	Write-Host "  check-scripts(s)   - Checks .lua files for syntax errors."
 	Write-Host ""
@@ -520,6 +560,8 @@ switch ($execute)
 	"t" { Test-Command }
 	"nav-guard" { NavGuard-Command }
 	"n" { NavGuard-Command }
+	"lua-gate" { LuaGate-Command }
+	"l" { LuaGate-Command }
 	"check" { Check-Command }
 	"e" { Check-Command }
 	"check-scripts" { Check-Scripts-Command }
