@@ -51,7 +51,61 @@ vs control) lives in [`REVIEW.md`](REVIEW.md) §Ladder Status.
 
 ---
 
-> # ✅ CURRENT STANDING — POST-26/28 RE-BASELINE — 2026-07-29 (`main` @ `e5b7bbcc`, N=10/rung)
+> # ✅ CURRENT STANDING — LIVE-ECONOMY RE-BASELINE — 2026-09-05/06 (stamped `9cb423d4`, code `bb89f9fd`, N=10/rung)
+>
+> **THIS IS THE FIRST VALID CORPUS IN THIS FILE. EVERY NUMBER BELOW THIS BLOCK IS VOID,
+> NOT MERELY SUPERSEDED — INCLUDING THE 2026-07-29 "CURRENT STANDING" THAT FOLLOWS.**
+> `PlayerResources.Tick` gated income *and* upkeep on `Playable`, which map-player bots
+> are not, so **every `tournament-*` match ever run before the 2026-08-14 economy fix
+> was played by two bots that could not earn or spend anything past their opening 7,500
+> allocation.** The scorer was never wrong; the game it scored was not a game. These are
+> the first ladder numbers taken on a **live economy**. Do not diff them against
+> anything above or below — there is no prior number to diff against. Full card:
+> [`../benchmarks/260905-rebaseline.md`](../benchmarks/260905-rebaseline.md); history and
+> mechanism: [`../pipeline/items/43-benchmark-rebaseline.md`](../pipeline/items/43-benchmark-rebaseline.md).
+>
+> **SHA:** `batch.meta.json git_sha` = `9cb423d457f8b6036073a7e1281030fbae955c62`,
+> `git_dirty: false` in all four batches. `9cb423d4` is **docs-only** on top of
+> `bb89f9fd` (`git diff --stat bb89f9fd 9cb423d4` = `WORKSPACE/PIPELINE.md | 2 ++`), so
+> the **code measured is `bb89f9fd`**. Run pre-dates `wt/item64-axis`. 40 measured
+> matches, verdict version 8, **0 no-verdicts, 0 crashes, 0 draws**; all 40 ran the full
+> clock to `time_limit`.
+>
+> | Rung | Calibration (Stable-v-Stable) | Baseline (Exp-v-Stable, mirrored) | Verdict |
+> |---|---|---|---|
+> | **S1 eco** | win **5–5**; capture med USA 26,623 / RUS 26,856 (USA leads 4/10 — side-fair); swing Δ med **+650**, noise band ±$8,500 | win **3–7**; capture med Exp 26,689 / Sta 27,482, **Exp leads 3/10**; swing Δ med +600 (mean −2,850) | Exp **BELOW** Stable (win-rate 0.30) |
+> | **S2 combat** | win **5–5**; capture med USA 87,152 / RUS 91,861 (**RUS leads 8/10 — real spawn bias, mirror-cancelled**); swing Δ med +4,375, noise band **±$46,300**; engaged 10/10 | win **2–8**; capture med Exp 83,833 / Sta 94,024, **Exp leads 2/10**; swing Δ med **+7,300** (inside noise) | Exp **BELOW** Stable (win-rate 0.20) — **on capture, not on combat** |
+>
+> **Core finding:** on the first valid instrument the Experimental bot is **below Stable
+> on both rungs**, and the mechanism is the **capture economy, not the fight**. Exp
+> trails Stable's gross capture income in 7/10 (S1) and 8/10 (S2) games; its combat
+> swing is a wash on both rungs, sitting inside the calibration noise band. On S2 the
+> two games Exp won are **exactly** the two in which it led capture. The lever that
+> matters is territory income, not trade efficiency. *(This is directionally the same
+> verdict the void 2026-07-29 block reached — coincidence, not corroboration; that block
+> measured a dead economy.)*
+>
+> **Instrument notes for whoever reads this next.** S1 is side-fair (5–5, capture 4/10)
+> — no correction needed. **S2 is not**: identical bots see the Russia spawn out-earn the
+> USA spawn on capture in 8/10 games, so **an unmirrored S2 comparison is invalid**.
+> S2's swing noise band between two copies of the same bot is **±$46,300** — treat any
+> S2 swing edge under ~$40k at N=10 as noise. `kills_cost − deaths_cost` is **not
+> zero-sum** on this instrument (both bots net-negative in 38/40 matches), so it reads
+> only as a *difference between the two bots in one match*, never as an absolute.
+>
+> **Batch 1 (`260905_rebaseline_s1_cal`) is VOID and is not the S1 calibration above** —
+> it aborted at match 5 when an orphaned earlier launcher sharing its result dir consumed
+> the per-dir `.settings.yaml.bak` (`run-tournament.sh:276`, `:347-348`). The S1
+> calibration of record is the clean rerun **`260905_rebaseline_s1_cal_b`**, which
+> reproduced the void dir byte-for-byte — the engine is deterministic per seed on this
+> build, so the contamination cost attribution, not outcomes.
+
+---
+
+> # ⛔ VOID — POST-26/28 RE-BASELINE — 2026-07-29 (`main` @ `e5b7bbcc`, N=10/rung)
+>
+> **VOIDED 2026-09-06: measured on a dead economy (see the live-economy block above).
+> Kept as record only. It was the "CURRENT STANDING" until that date.**
 >
 > **This block supersedes the `1eb644de` / `a88ef596` / `60b93501` rows below for
 > comparison.** The instrument CHANGED: items 26 (`fc9fe396`, forest density-damage +
