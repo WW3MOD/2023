@@ -1251,6 +1251,34 @@ Container@PLAYER_WIDGETS:
 									X: 6
 									Y: 6
 									ImageCollection: production-icons
+						# BELOW AIRCRAFT, at the 31px pitch the three tabs above use. Y: 93 is the
+						# slot the commented-out NAVAL button was holding; naval is not coming back
+						# for v1 (its queue items are all gated behind the ~disabled prerequisite)
+						# and its block is left in place below, now at a position it would have to
+						# be moved from if it ever returns.
+						#
+						# ImageName is deliberately absent, like every tab above: ClassicProductionLogic
+						# overwrites GetImageName from ProductionGroup.ToLowerInvariant() regardless
+						# of what is written here, so "powers" is what resolves and the regions for
+						# it are defined in chrome.yaml.
+						ProductionTypeButton@POWERS:
+							Logic: AddFactionSuffixLogic
+							Y: 93
+							Width: 28
+							Height: 28
+							VisualHeight: 0
+							Background: sidebar-button
+							TooltipText: Support Powers
+							TooltipDesc: Buy a strike. It arrives fully loaded in the\npanel top-left and fires once.\n\nRight-click: Pause/Resume all queued\nMiddle-click: Cancel all queued
+							TooltipContainer: TOOLTIP_CONTAINER
+							TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
+							ProductionGroup: Powers
+							Key: ProductionTypePowers
+							Children:
+								Image@ICON:
+									X: 6
+									Y: 6
+									ImageCollection: production-icons
 						# ProductionTypeButton@NAVAL:
 						# 	Logic: AddFactionSuffixLogic
 						# 	Y: 93

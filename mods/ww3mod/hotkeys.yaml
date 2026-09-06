@@ -16,6 +16,12 @@ ProductionTypeAircraft: I
 	Types: Production
 	Contexts: Player
 
+# O continues the Y/U/I run on the top row and is unbound in the Player context.
+ProductionTypePowers: O
+	Description: Support Powers Tab
+	Types: Production
+	Contexts: Player
+
 GroupScatter: G Shift
 	Description: Scatter queued waypoints among selected units
 	Types: World

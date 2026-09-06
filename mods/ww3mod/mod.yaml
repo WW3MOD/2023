@@ -112,6 +112,7 @@ Rules:
 	ww3mod|rules/ai/ai-america.yaml
 	ww3mod|rules/ai/ai-russia.yaml
 	ww3mod|rules/player.yaml
+	ww3mod|rules/powers.yaml
 	ww3mod|rules/palettes.yaml
 	ww3mod|rules/world.yaml
 	ww3mod|rules/defaults.yaml

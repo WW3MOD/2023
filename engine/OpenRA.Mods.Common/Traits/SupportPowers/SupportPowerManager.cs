@@ -150,16 +150,39 @@ namespace OpenRA.Mods.Common.Traits
 		protected int remainingSubTicks;
 		public int RemainingTicks => remainingSubTicks / 100;
 		public bool Active { get; private set; }
-		public bool Disabled =>
-			Manager.Self.Owner.WinState == WinState.Lost ||
-			(!prereqsAvailable && !Manager.DevMode.AllTech) ||
-			!instancesEnabled ||
-			oneShotFired;
+
+		/// <summary>
+		/// "May this player have this power at all?" -- the host's lobby tick, the faction
+		/// prerequisite, still being alive. SEPARATE from whether a shot is banked, and that
+		/// separation is the whole of the purchase model: the build menu keys off THIS, so a power
+		/// is buyable precisely while it is permitted, whether or not one is already loaded.
+		/// </summary>
+		public bool Permitted =>
+			Manager.Self.Owner.WinState != WinState.Lost &&
+			(prereqsAvailable || Manager.DevMode.AllTech) &&
+			instancesEnabled &&
+			!oneShotFired;
+
+		/// <summary>
+		/// "Should the cameo be ABSENT from the support bin?" -- SupportPowersWidget filters on this
+		/// (SupportPowersWidget.cs:136). For a timer power this is exactly !Permitted, byte for byte
+		/// what it was before the purchase model existed, because an unpurchasable power's bank
+		/// reports HidesIcon false. For a purchased power it additionally hides an empty magazine.
+		/// </summary>
+		public bool Disabled => !bank.IconVisible(Permitted);
+
+		/// <summary>Can this power be BOUGHT right now? False for every timer-charged power.</summary>
+		public bool Purchasable => bank.CanPurchase(Permitted);
+
+		/// <summary>Shots paid for and not yet fired. Always 0 for a timer-charged power.</summary>
+		public int Charges => bank.Charges;
 
 		public SupportPowerInfo Info { get { return Instances.Select(i => i.Info).FirstOrDefault(); } }
 		public readonly string Name;
 		public readonly string Description;
 		public bool Ready => Active && RemainingTicks == 0;
+
+		readonly SupportPowerChargeBank bank;
 
 		bool instancesEnabled;
 		bool prereqsAvailable = true;
@@ -172,11 +195,38 @@ namespace OpenRA.Mods.Common.Traits
 			remainingSubTicks = TotalTicks * 100;
 		}
 
+		/// <summary>
+		/// A purchase completed: bank a shot. Called from SupportPowerProductionQueue.BuildUnit, on
+		/// the synced production path, so every client banks it on the same tick.
+		/// </summary>
+		public void GrantCharge(int count = 1)
+		{
+			bank.Grant(count);
+
+			// Belt and braces. TotalTicks is already 0 for any power that can reach here, so this
+			// assignment is a no-op today; it is written down so that a future power which is both
+			// purchased AND carries a live ChargeInterval still arrives ready rather than starting
+			// a countdown the player has just paid to skip.
+			remainingSubTicks = 0;
+		}
+
 		public SupportPowerInstance(string key, SupportPowerInfo info, SupportPowerManager manager)
 		{
 			Key = key;
-			TotalTicks = info.ChargeInterval;
-			remainingSubTicks = info.StartFullyCharged ? 0 : TotalTicks * 100;
+			bank = new SupportPowerChargeBank(info.RequiresPurchase);
+
+			// A purchased power has NO timer at all -- not a long one, none. TotalTicks 0 makes
+			// remainingSubTicks permanently 0 through every path that touches it (Tick clamps to
+			// [0, 0], PrerequisitesAvailable and Activate both assign TotalTicks * 100), so
+			// `Ready => Active && RemainingTicks == 0` reduces to `Active`, and Active reduces to
+			// Permitted-and-stocked. That is "arrives already fully loaded", expressed as an
+			// invariant rather than as a value that has to be reset in the right places.
+			//
+			// The one consumer that would divide by it already guards zero: SupportPowersWidget
+			// pins the cameo clock to its last frame when TotalTicks == 0 (SupportPowersWidget.cs:214),
+			// which draws a full circle -- the correct picture for a shot sitting in the magazine.
+			TotalTicks = info.RequiresPurchase ? 0 : info.ChargeInterval;
+			remainingSubTicks = info.StartFullyCharged || info.RequiresPurchase ? 0 : TotalTicks * 100;
 			Name = info.Name == null ? string.Empty : FluentProvider.GetMessage(info.Name);
 			Description = info.Description == null ? string.Empty : FluentProvider.GetMessage(info.Description);
 
@@ -269,6 +319,13 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Note: order.Subject is the *player* actor
 			power.Activate(power.Self, order, Manager);
+
+			// One purchase, one shot. Consume BEFORE the timer reset below so a stacked bank leaves
+			// the cameo up: at charges 2 -> 1 the power stays permitted and stocked, Disabled stays
+			// false, and the icon simply stops reading "x2". At 1 -> 0 the bank empties and the
+			// cameo leaves the bin until the next purchase lands. No-op for a timer power.
+			bank.Consume();
+
 			remainingSubTicks = TotalTicks * 100;
 			notifiedCharging = notifiedReady = false;
 
@@ -281,7 +338,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		public virtual string IconOverlayTextOverride()
 		{
-			return null;
+			// "x3" for a stacked magazine, null at 0 or 1 shot so the widget falls through to its
+			// own READY / ON HOLD / countdown logic exactly as before.
+			return bank.OverlayText;
 		}
 
 		public virtual string TooltipTimeTextOverride()

@@ -380,7 +380,15 @@ SUPPLYROUTE:
 		Height: 2000
 		ProductionTypes: Aircraft, Helicopter
 	Production@Local:
-		Produces: Building, Defense
+		# Powers is listed here so ClassicProductionQueue.Tick finds a producer and enables the
+		# queue -- NOT because anything is ever produced on it. SupportPowerProductionQueue
+		# overrides BuildUnit and never reaches Production.Produce, so no exit is consulted and
+		# nothing spawns. Listing it HERE rather than on ProductionFromMapEdge is deliberate:
+		# this trait already carries PauseOnCondition: disabled || build-incomplete, so an EMP'd
+		# Supply Route stops selling powers, and SupplyRouteContestation's
+		# IProductionSpeedModifier is read per-producing-actor, so contesting the beachhead slows
+		# a warhead purchase exactly as it slows a tank.
+		Produces: Building, Defense, Powers
 		PauseOnCondition: disabled || build-incomplete
 	ProductionFromMapEdge:
 		Produces: Infantry, Soldier, Vehicle, Aircraft, Helicopter
