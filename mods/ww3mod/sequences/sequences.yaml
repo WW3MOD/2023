@@ -394,6 +394,17 @@ tacnukemissile:
 		ZOffset: 1023
 		Scale: 0.85
 
+# The high-yield strategic warhead's body. Same Iskander art again for the same reason -- the mod
+# has no bespoke sprite and CheckSequences requires the image to resolve -- but 1.4 here against
+# tacnukemissile's 0.85, and RenderSprites.Scale 1.6 against its 1.05 on top (vehicles.yaml), for
+# 2.24 effective versus 0.89. Scale is the ONLY thing that says "this one is much larger" in
+# flight, so it is doing real work rather than decorating.
+highyieldnukemissile:
+	idle: iskander-missile
+		Facings: 32
+		ZOffset: 1023
+		Scale: 1.4
+
 shootableshipmissile:
 	idle: iskander-missile
 		Facings: 32

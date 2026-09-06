@@ -75,6 +75,29 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Display order for the tactical nuclear strike option.")]
 		public readonly int TacticalNukeCheckboxDisplayOrder = 102;
 
+		[Desc("Label for the high-yield strategic nuclear strike checkbox.")]
+		public readonly string HighYieldNukeCheckboxLabel = "Strategic Nuclear Strike";
+
+		[Desc("Tooltip for the high-yield strategic nuclear strike checkbox.")]
+		public readonly string HighYieldNukeCheckboxDescription =
+			"Allow the high-yield strategic nuclear strike. One detonation devastates the entire map";
+
+		[Desc("Default high-yield strategic nuclear strike setting. OFF by design, and for a stronger",
+			"reason than the tactical nuke's: the AtomicHighYield warhead's blast wave has MaxRadius",
+			"102 cells and the largest shipped map is ~92 cells centre-to-corner, so one detonation at",
+			"map centre reaches every cell of every map in the mod. This power exists to be the payload",
+			"of a future doomsday / DEFCON end-of-game event, not to be picked in a lobby.")]
+		public readonly bool HighYieldNukeCheckboxEnabled = false;
+
+		[Desc("Lock the high-yield strategic nuclear strike option.")]
+		public readonly bool HighYieldNukeCheckboxLocked = false;
+
+		[Desc("Show the high-yield strategic nuclear strike option.")]
+		public readonly bool HighYieldNukeCheckboxVisible = true;
+
+		[Desc("Display order for the high-yield strategic nuclear strike option.")]
+		public readonly int HighYieldNukeCheckboxDisplayOrder = 103;
+
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
 			yield return new LobbyBooleanOption(
@@ -114,6 +137,22 @@ namespace OpenRA.Mods.Common.Traits
 				TacticalNukeCheckboxLocked,
 				"Powers");
 
+			// The gate the HIGH-YIELD strategic nuclear strike hangs off. Same GrantWhenOptionDisabled
+			// polarity as the tactical nuke above and for the same reason -- an unregistered option must
+			// read FALSE and still grant the disabling condition. The consequence of getting it backwards
+			// is worse here than anywhere else in the mod: the tactical nuke handed to a player who did
+			// not ask for it is a balance problem, this one is a 102-cell blast that reaches every cell
+			// of every shipped map from its centre.
+			yield return new LobbyBooleanOption(
+				"high-yield-nuke",
+				HighYieldNukeCheckboxLabel,
+				HighYieldNukeCheckboxDescription,
+				HighYieldNukeCheckboxVisible,
+				HighYieldNukeCheckboxDisplayOrder,
+				HighYieldNukeCheckboxEnabled,
+				HighYieldNukeCheckboxLocked,
+				"Powers");
+
 			yield return new LobbyOption(
 				"airstrike-cooldown",
 				AirstrikeCooldownLabel,
@@ -136,6 +175,7 @@ namespace OpenRA.Mods.Common.Traits
 		public bool AirstrikesEnabled { get; private set; }
 		public string AirstrikeCooldown { get; private set; }
 		public bool TacticalNukeEnabled { get; private set; }
+		public bool HighYieldNukeEnabled { get; private set; }
 
 		public PowersLobbyOptions(PowersLobbyOptionsInfo info)
 		{
@@ -150,6 +190,8 @@ namespace OpenRA.Mods.Common.Traits
 				.OptionOrDefault("airstrike-cooldown", info.AirstrikeCooldownDefault);
 			TacticalNukeEnabled = self.World.LobbyInfo.GlobalSettings
 				.OptionOrDefault("tactical-nuke", info.TacticalNukeCheckboxEnabled);
+			HighYieldNukeEnabled = self.World.LobbyInfo.GlobalSettings
+				.OptionOrDefault("high-yield-nuke", info.HighYieldNukeCheckboxEnabled);
 		}
 	}
 }
