@@ -21024,3 +21024,7 @@ uncontended match 9 is 6 m 17 s. **So a run can silently go from "one game at a 
    (`${RESULT_DIR}/.settings.yaml.$$.bak`) so the two runners cannot alias, and refuse to
    start against a `--result-dir` that already contains `match_*.json`. **Not
    implemented — this entry is a recording, not a change.**
+
+## 2026-09-06 — `./utility.sh --check-yaml <map>` cannot run from Git Bash on this machine: `make` is absent (main @ 8802a781)
+
+`utility.sh:7` is `command -v make || { echo "The OpenRA mod SDK requires make."; exit 1; }` — it exits before touching dotnet. `which make` finds nothing in Git Bash here (no GnuWin32/chocolatey/msys make), so the single-map lint recipe in CLAUDE.md's routing table fails with exit 1 and a one-line stderr on this machine; `.\make.ps1 test` (PowerShell) is unaffected and is how the merge gate has been running. Working single-map form, verified on `test-supply-safe-front-keeps-cargo` (`Testing map:` printed, exit 0): from the repo root, `cd engine && MOD_SEARCH_PATHS="<repo>/mods,<engine>/mods" ENGINE_DIR=".." dotnet bin/OpenRA.Utility.dll ww3mod --check-yaml ../tools/autotest/scenarios/<name>` — i.e. `utility.sh:54` by hand (`:32` is where it builds MOD_SEARCH_PATHS; use Windows-style paths from `pwd -W`). Hypothesis, unverified: `run-test.sh` does not gate on make (it ran), so this only bites the lint recipe.
