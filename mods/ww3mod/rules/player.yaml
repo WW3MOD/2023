@@ -420,11 +420,24 @@ Player:
 		# (SupportPower.cs:238-251), so the warning is public either way, and thirty seconds is already
 		# long enough that dispersing is a real answer.
 		MissileDelay: 500
-		# 68c0. Scaled from @TacNuke's 20c0 the same way everything else here is scaled -- that camera
-		# is 0.67x its weapon's 30c0 blast wave, and 0.67 x 102 is 68. Undersizing this is the quiet
-		# failure mode for a weapon this large: the player would watch a 20-cell circle of a 102-cell
-		# detonation and conclude the warhead did not work.
-		CameraRange: 68c0
+		# 55c0, AND THIS IS A HARD ENGINE CEILING, NOT A TUNING CHOICE. CameraRange reaches
+		# MapGrid.MaximumTileSearchRange (MapGrid.cs:113, default 56) through
+		# RevealShroudEffect.ProjectedCells -> MapLayers.ProjectedCellsInRange ->
+		# Map.FindTilesInAnnulus, which THROWS ArgumentOutOfRangeException for any maxRange above it
+		# (Map.cs:1994). It is not clamped and there is no lint for it, so an oversized CameraRange is
+		# a HARD CRASH at the tick the strike camera spawns -- CameraSpawnAdvance ticks BEFORE the
+		# detonation, so the game dies before the player ever sees the weapon fire.
+		#
+		# Observed 2026-09-06: this shipped at 68c0 (scaled from @TacNuke's 20c0, which is 0.67x its
+		# 30c0 blast wave, so 0.67 x 102 = 68) and killed the game 15 s into the demo with
+		# `The requested range (69) cannot exceed the value of MaximumTileSearchRange (56)`.
+		#
+		# 55 cells of radius is 110 cells across, which still covers essentially the whole of the
+		# largest shipped map (130x130), so the practical cost of the ceiling is close to zero here.
+		# Raising MaximumTileSearchRange in mod.yaml's MapGrid section is possible -- it is a
+		# FieldLoader field, and the grid precomputes TilesByDistance up to it -- but that is a global
+		# shared by every tile search in the mod and is not a decision to make inside a weapon.
+		CameraRange: 55c0
 		# 85, which is @TacNuke's 25 x 3.4. The camera has further to reveal and the wave takes longer
 		# to get going, so it opens proportionally earlier.
 		CameraSpawnAdvance: 85
