@@ -340,20 +340,31 @@ Player:
 		# placeholder, so unlike the two conventional strikes this does not want replacing later.
 		IncomingSpeechNotification: AbombLaunchDetected
 		SupportPowerPaletteOrder: 3
-	# The lobby gate for the HIGH-YIELD STRATEGIC nuclear strike. It ships defaulting OFF and, unlike
-	# the tactical nuke's gate, that is not a "the design is unresolved" holding position: this weapon
-	# ends a match from one click. Its MaxRadius is 102 cells and centre-to-corner on the largest
-	# shipped map is ~92, so a single detonation at map centre reaches every cell of every map in the
-	# mod. It is here to be the payload of the doomsday / DEFCON end-of-game event, reachable so it
-	# can be tested and later triggered, and not a normal playable pick.
+	# The lobby gate for the HIGH-YIELD STRATEGIC nuclear strike. It ships defaulting ON -- the ONLY
+	# power in the mod that does -- and that is the user's explicit, temporary choice rather than a
+	# slip. Their words, 2026-09-06: "You can add the high yield nuke as a new power, even though we
+	# might disable it later, but for testing we keep it (even after this session, I will deal with it
+	# later before release ... so there will be two nuke powers)." Two nuclear powers side by side,
+	# this one reachable without the host ticking anything, and the release default is the user's own
+	# call to settle later. DO NOT "FIX" IT TO MATCH @tacnuke ABOVE.
 	#
-	# THE POLARITY IS THE SAFETY PROPERTY, and it matters more on this power than on any other in the
-	# mod. GrantConditionOnLobbyOption falls back to OptionOrDefault(Option, !GrantWhenOptionDisabled)
-	# when the option is not registered at all (GrantConditionOnLobbyOption.cs:47) -- so written THIS
-	# way round, an absent option reads false, `highyieldnuke-disabled` is granted anyway, and the
-	# power stays hidden. Written the other way round (Condition: highyieldnuke-allowed,
-	# GrantWhenOptionDisabled: false) the identical absence would default to TRUE and hand every
-	# player a map-ending weapon. Do not invert this. See the identical note on @tacnuke above.
+	# THE POLARITY BELOW IS NEVERTHELESS IDENTICAL TO @tacnuke'S, and that is not a contradiction --
+	# it is the whole reason the default above can be ON without anything failing open. The registered
+	# default and the unregistered fallback are SEPARATE VALUES and only one of them lives here.
+	# GrantConditionOnLobbyOption computes
+	#     optionEnabled = OptionOrDefault(Option, !GrantWhenOptionDisabled)
+	#     shouldGrant   = GrantWhenOptionDisabled ? !optionEnabled : optionEnabled
+	# (GrantConditionOnLobbyOption.cs:45-49). The fallback term is `!GrantWhenOptionDisabled` -- it is
+	# NOT PowersLobbyOptions' HighYieldNukeCheckboxEnabled, which is consulted only when the trait is
+	# present to register the option at all. So written THIS way round:
+	#     option registered and on (the shipped default) -> no condition -> the power is available
+	#     option registered and off (host unticked it)   -> `highyieldnuke-disabled` -> hidden
+	#     option NOT REGISTERED AT ALL                   -> falls back to false -> hidden
+	# The third row is the one that matters: PowersLobbyOptions stripped from world.yaml, an old saved
+	# session, a map that removes the trait. Written the other way round (Condition:
+	# highyieldnuke-allowed, GrantWhenOptionDisabled: false) that same absence would fall back to TRUE
+	# and hand a map-ending weapon to a build that never registered the option. Turning the checkbox
+	# default off before release is a one-word change in PowersLobbyOptions.cs and needs NO edit here.
 	GrantConditionOnLobbyOption@highyieldnuke:
 		Option: high-yield-nuke
 		Condition: highyieldnuke-disabled

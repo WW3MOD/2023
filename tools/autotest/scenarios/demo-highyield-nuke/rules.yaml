@@ -2,14 +2,14 @@
 # and demo-highyield-nuke.lua for the schedule.
 
 World:
-	# THE OVERRIDE THIS DEMO IS BUILT AROUND. MissileStrikePower@HighYieldNuke ships lobby-gated and
-	# OFF (player.yaml), so without this its trait is disabled by
-	# `RequiresCondition: !highyieldnuke-disabled` and there is nothing to fire. Enabled AND locked,
-	# the same shape test-tacnuke-delivers uses for its own gate: locking it means no lobby default,
-	# host setting or saved session can move it out from under the run.
-	PowersLobbyOptions:
-		HighYieldNukeCheckboxEnabled: true
-		HighYieldNukeCheckboxLocked: true
+	# NO PowersLobbyOptions OVERRIDE, and its absence is deliberate rather than an omission.
+	# MissileStrikePower@HighYieldNuke ships with its lobby checkbox defaulting ON (the user's
+	# temporary choice; see player.yaml), so this demo fires the power in exactly its shipped
+	# configuration -- which is a better demo than one that force-enables what it is showing. Its
+	# sibling test-tacnuke-delivers DOES need such an override, because the tactical nuke defaults
+	# off. If the release default is ever flipped to off, this scenario needs
+	# `PowersLobbyOptions: HighYieldNukeCheckboxEnabled: true` adding back here, and the symptom
+	# will be an empty support-power bin and a strike that never launches.
 	-StartGameNotification:
 	-SpawnStartingUnits:
 	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a

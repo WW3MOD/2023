@@ -60,7 +60,9 @@ local function step()
 		-- support-power order from script, and its return value is deliberately not checked here.
 		-- If the strike does not arrive, the thing to look at is the power bin -- a missing cameo
 		-- means the GrantConditionOnLobbyOption@highyieldnuke -> RequiresCondition chain did not
-		-- open, which would mean the rules.yaml override above is not being applied.
+		-- open. Nothing in rules.yaml forces that gate: the power's lobby checkbox ships defaulting
+		-- ON, so this fires it in its shipped configuration. A missing cameo therefore means the
+		-- shipped default moved, not that a scenario override failed.
 		Test.ActivateSupportPower(USA, "HighYieldNukeStrike",
 			CPos.New(GroundZero.X, GroundZero.Y))
 		return

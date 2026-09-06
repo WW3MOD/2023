@@ -388,8 +388,9 @@ Atomic:
 # AtomicHighYield -- the STRATEGIC sibling of `Atomic`. Not a retune of it: `Atomic` is untouched and
 # still ships exactly as it was, because the tactical nuclear strike is a balanced, approved power and
 # this is not. This warhead exists for the doomsday / DEFCON end-of-game event the user has described
-# but not yet designed, and the power that fires it (player.yaml, MissileStrikePower@HighYieldNuke)
-# ships lobby-gated and OFF for that reason.
+# but not yet designed -- but the power that fires it (player.yaml, MissileStrikePower@HighYieldNuke)
+# ships lobby-gated and ON, which is the user's explicit temporary choice so that both nuclear powers
+# are reachable for testing. They have taken the release default as theirs to settle.
 #
 # THE YIELD STORY, and it is the source of nearly every number below. `Atomic` is a ~20 kt tactical
 # device. This is a ~800 kt strategic warhead: a yield ratio of 40. Blast radii scale as the CUBE ROOT

@@ -234,6 +234,72 @@ namespace OpenRA.Test
 				"the tactical nuclear strike ships lobby-gated and OFF (proposal §9.4)");
 		}
 
+		[Test]
+		public void TheHighYieldNukeCheckboxDefaultsOn()
+		{
+			// THE OPPOSITE DEFAULT TO ITS SIBLING ABOVE, ON PURPOSE, AND TEMPORARILY. The user asked
+			// for it by name on 2026-09-06: "You can add the high yield nuke as a new power, even
+			// though we might disable it later, but for testing we keep it (even after this session,
+			// I will deal with it later before release ... so there will be two nuke powers)."
+			//
+			// This test exists because that is a decision, not a derivation — there is no design
+			// document it can be re-derived from, so without a pin it is exactly the kind of value
+			// that gets quietly "corrected" to match the tactical nuke next door. If this goes red,
+			// the question to ask is whether the USER changed their mind, and the answer is not in
+			// the code.
+			var info = new OpenRA.Mods.Common.Traits.PowersLobbyOptionsInfo();
+			Assert.That(info.HighYieldNukeCheckboxEnabled, Is.True,
+				"the high-yield strategic nuclear strike ships lobby-gated and ON at the user's " +
+				"explicit request, so both nuclear powers are reachable for testing without the " +
+				"host ticking anything. The release default is theirs to settle.");
+
+			// The C# default is only the SHIPPED default if world.yaml leaves it alone. It overrides
+			// TacticalNukeCheckboxDisplayOrder and HighYieldNukeCheckboxDisplayOrder there, so the
+			// file demonstrably can reach these fields — checking the C# value without this would be
+			// checking a number the mod is free to ignore.
+			var world = File.ReadAllLines(Path.Combine(ModRulesDir(), "world.yaml"))
+				.Select(l => l.Split('#')[0].Trim())
+				.Where(l => l.StartsWith("HighYieldNukeCheckboxEnabled", StringComparison.Ordinal))
+				.ToArray();
+
+			Assert.That(world, Is.Empty,
+				"world.yaml must not override HighYieldNukeCheckboxEnabled, or the assertion above " +
+				$"is checking a value nothing reads. Found: [{string.Join(", ", world)}]");
+		}
+
+		[Test]
+		public void TheHighYieldNukeStillFailsSafeToOffWhenTheOptionIsAbsent()
+		{
+			// The companion to the test above, and the reason the ON default is not a safety
+			// regression. THE REGISTERED DEFAULT AND THE UNREGISTERED FALLBACK ARE SEPARATE VALUES:
+			//     optionEnabled = OptionOrDefault(Option, !GrantWhenOptionDisabled)
+			//     shouldGrant   = GrantWhenOptionDisabled ? !optionEnabled : optionEnabled
+			// (GrantConditionOnLobbyOption.cs:45-49). The fallback term is `!GrantWhenOptionDisabled`
+			// — it is NOT PowersLobbyOptionsInfo.HighYieldNukeCheckboxEnabled, which is consulted
+			// only when the trait is present to register the option at all. So this gate can be, and
+			// is, ON when registered and OFF when the option does not exist: a stripped
+			// PowersLobbyOptions, an old saved session, a map that removes the trait.
+			//
+			// Which makes this the test that catches the plausible-looking wrong fix. Someone who
+			// believes an ON default requires the inverted form (Condition: highyieldnuke-allowed,
+			// GrantWhenOptionDisabled: false) would keep the lobby behaviour identical and silently
+			// flip the absent case to handing out a 102-cell blast.
+			var gate = ReadBlock(Path.Combine(ModRulesDir(), "player.yaml"), "GrantConditionOnLobbyOption@highyieldnuke");
+
+			Assert.That(gate.GetValueOrDefault("Option"), Is.EqualTo("high-yield-nuke"));
+			Assert.That(gate.GetValueOrDefault("Condition"), Is.EqualTo("highyieldnuke-disabled"),
+				"the condition must be the DISABLING one; see the fallback reasoning above");
+			Assert.That(gate.GetValueOrDefault("GrantWhenOptionDisabled"), Is.EqualTo("true"),
+				"inverting this does NOT change the lobby default (that lives in " +
+				"PowersLobbyOptions.cs) — all it does is make an unregistered option enable the " +
+				"map-ending weapon rather than suppress it");
+
+			var power = ReadBlock(Path.Combine(ModRulesDir(), "player.yaml"), "MissileStrikePower@HighYieldNuke");
+			Assert.That(power.GetValueOrDefault("RequiresCondition"), Is.EqualTo("!highyieldnuke-disabled"),
+				"RequiresCondition (which makes the icon ABSENT via SupportPowersWidget.cs:136) " +
+				"rather than PauseOnCondition (which leaves a dead 'ON HOLD' cameo)");
+		}
+
 		// --- reading the mod ---------------------------------------------------------------------
 
 		sealed class Victim

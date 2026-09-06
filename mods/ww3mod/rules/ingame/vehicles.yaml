@@ -1082,11 +1082,11 @@ TacNukeMissile:
 # SEPARATE ACTOR rather than a variant of it: the tactical nuke is a shipped, balanced power and
 # nothing here may change how it behaves.
 #
-# The power it belongs to is LOBBY-GATED AND DEFAULTS OFF, and unlike the tactical nuke that is not
-# a "pending design" caveat -- this weapon flattens the entire map from one detonation and is the
-# intended payload for a future doomsday / DEFCON end-of-game event, not a pick. This actor existing
-# costs nothing while the gate is shut: `RequiresCondition: !highyieldnuke-disabled` disables the
-# power's trait, so nothing ever creates one.
+# The power it belongs to is lobby-gated and, unlike the tactical nuke's, DEFAULTS ON -- the user's
+# explicit temporary choice so both nuclear powers are reachable for testing, with the release
+# default theirs to settle. So unlike tacnukemissile, this actor is reachable in a default game: one
+# is created every time the power fires. If the gate is ever shut it costs nothing again --
+# `RequiresCondition: !highyieldnuke-disabled` disables the power's trait and nothing creates one.
 HighYieldNukeMissile:
 	Inherits: ^ShootableMissile
 	Valued:
