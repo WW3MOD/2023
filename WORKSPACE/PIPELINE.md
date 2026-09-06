@@ -514,6 +514,35 @@ Closes the largest gap between what this game says it is and what it does: `supp
 
 ---
 
+## 2026-09-06 BURN-WINDOW FINDINGS — recorded for a later decision **[items 84–88]**
+
+> **Source:** the 2026-09-06 window (manager F51): item 64 closed as a diagnosis, item 56's safe-front doctrine measured, the @stable re-baseline recorded, the rank and deaths audits written. The user's instruction on wrapping up, verbatim: *"Do NOT build now, but make a note of it … I dont want your findings to be lost I just dont want to start it right now."* Filed at `main @ e8e57ada`. **Nothing in this block is in flight.** Position in the queue is not a ranking.
+>
+> User readings already attached: **84 is approved in principle** (option chosen, timing deferred); **85 is "not a standalone feature, maybe part of a larger change, not before v1.0"**. 86 and 87 need a ruling before code. 88 is hygiene.
+>
+> Also standing, not an item: **the 260905 @stable baseline pre-dates b6207b9b** (`MissionReinforceEnabled` moved `@stable`); re-take it before the next bot comparison (item 43's record says so).
+
+### 84. Idle low-ammo infantry hold when the supply truck is already closing (AutoSeekSupplies gate)
+`[USER-APPROVED IN PRINCIPLE 2026-09-06 — NOT NOW]`
+**Perceived:** a squad holding a line stops running 18 cells out to meet a truck that is already driving to it. Measured three times on the re-specced safe-front scenario: with the truck-side fix in and staging off, `[seek] leave` ×5 is the only thing left breaking "serve in place". New `AutoSeekSupplies` Info field (default false), enabled on `^Soldier` — **human squads and both bots move together**; the user chose that over bots-only. → [`items/84-seek-gate-hold-when-truck-closing.md`](pipeline/items/84-seek-gate-hold-when-truck-closing.md)
+
+### 85. Lead-hold — tanks pace infantry on a committed axis (item 64's last mechanism)
+`[RECORDED — user: not standalone, maybe inside a larger change, not before v1.0]`
+**Perceived:** the push arrives together. Today d1 ≈ 699 ticks (gate 300), d2 = 15 cells (gate 8) on `test-push-departs-together`. Design V1/V2/V3 written; moves both profiles. → [`items/85-lead-hold-tanks-pace-infantry.md`](pipeline/items/85-lead-hold-tanks-pace-infantry.md)
+
+### 86. The ambush lane takes 2 of 3 units at the opening and leaves offense below its own floor
+`[DOCTRINE RULING NEEDED — traits live on both profiles at match opening]`
+**Perceived:** the only tank walks 22 cells forward as half an ambush pair and dies; the army never leaves the SR. Confirmed by run 260906_091912. Smallest ruling: the lane may not take units while offense is below `FreePoolMinAdvanceUnits`. → [`items/86-ambush-lane-opening-share.md`](pipeline/items/86-ambush-lane-opening-share.md)
+
+### 87. The scorer charges the doom-drain finishing blow as a death and credits it to nobody
+`[DECISION ITEM — fix the scorer or read the swing metric with the bias]`
+**Perceived:** 40% of all deaths in the baseline corpus have no attacker; win rates stand, the S2 swing metric is biased ≈$4,490/match against `@experimental`. → [`items/87-scorer-credit-doom-drain-kill.md`](pipeline/items/87-scorer-credit-doom-drain-kill.md)
+
+### 88. In-tree yaml line citations in engine/, mods/, tools/ comments have drifted (≥112 sites)
+`[LOW VALUE — batch with area work]` → [`items/88-in-tree-yaml-citation-drift.md`](pipeline/items/88-in-tree-yaml-citation-drift.md)
+
+---
+
 ## AMBUSH, CONCEALMENT & COVER — 2026-08-20 research programme **[USER-GATED: NOTHING IN THIS BLOCK MAY BE IMPLEMENTED]**
 
 > **Two hard gates, both the user's, both load-bearing. Neither is a manager call.**
