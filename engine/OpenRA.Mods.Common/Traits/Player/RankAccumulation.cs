@@ -73,19 +73,19 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Ticks between two rank-1 grants for a unit whose base build time is
-		/// <paramref name="buildTimeTicks"/>.
+		/// <para>Ticks between two rank-1 grants for a unit whose base build time is
+		/// <paramref name="buildTimeTicks"/>.</para>
 		///
-		/// Deliberately NOT linear in build time. Accrual runs on the wall clock, but a linear
+		/// <para>Deliberately NOT linear in build time. Accrual runs on the wall clock, but a linear
 		/// interval prices it in production time, and the two only agree for a player producing flat
 		/// out. Measured in seconds - which is what a player actually experiences - linear scaling
 		/// spread the shipped roster 120:1, from a 50-credit Conscript to a 6000-credit Iskander, so
-		/// the cheapest unit filled its whole bank before the dearest had earned anything.
+		/// the cheapest unit filled its whole bank before the dearest had earned anything.</para>
 		///
-		/// The cost term is therefore the geometric mean of this unit's build time and a fixed
+		/// <para>The cost term is therefore the geometric mean of this unit's build time and a fixed
 		/// reference, sqrt(build * reference). Square-rooting turns that 120:1 input range into
 		/// roughly 11:1, the flat base term compresses what is left, and MaxRank1Ticks caps it
-		/// outright - so cost still orders the roster, but within a bounded ratio.
+		/// outright - so cost still orders the roster, but within a bounded ratio.</para>
 		/// </summary>
 		public static int Rank1IntervalTicks(int buildTimeTicks, RankCurve curve)
 		{

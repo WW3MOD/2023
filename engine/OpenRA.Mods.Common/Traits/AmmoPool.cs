@@ -1243,6 +1243,10 @@ namespace OpenRA.Mods.Common.Traits
 		/// one. Fixing it means making <see cref="ChooseAffordableResupplier"/> leash-aware; out of scope
 		/// here and recorded in WORKSPACE/DISCOVERIES.md.</para>
 		/// </summary>
+		/// <param name="self">The actor asking, i.e. the dry unit deciding whether to wait. Origin of the
+		/// leash sweep, and the actor whose <c>RearmActors</c> defines the candidate host set.</param>
+		/// <param name="leashCells">Radius of the sweep around <paramref name="self"/>, in cells, measured
+		/// with the chessboard metric noted above.</param>
 		/// <param name="pools">The pool set the CALLER dispatched on — every pool, matching
 		/// <see cref="AutoRearmIfDry"/>. Passing the narrower <c>Rearmable</c> subset here would make this
 		/// test stricter than the dispatch test it has to agree with.</param>

@@ -3,6 +3,44 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-06 - `make.ps1 check` was red on `main` and had been for at least ten days; it is green again, so a red run now means YOU (`wt/check-green`, base `main @ 6e5721ae`)
+
+**If you run `.\make.ps1 check` and it is red, the errors are yours.** At `6e5721ae` the gate failed with 24 errors that nobody had introduced in the branch they were working in, so the honest response to a red run was to prove it was not you and move on — which at least one worker did, correctly, on 2026-09-06. That is the failure mode worth naming: **a gate everyone has learned to ignore has already stopped being a gate**, and the cost is paid by every future worker, not by whoever broke it. Fixed at `wt/check-green`; `check`, `make.ps1 all` and the 2713-test NUnit suite are all green.
+
+**THE GATE HAS TWO BUILD STAGES AND STOPS AT THE FIRST FAILURE, so an error count from a red run is a FLOOR, not a total.** `Check-Command` (`make.ps1:161-184`) builds the solution, `exit`s on failure, and only then builds `engine/OpenRA.Test/OpenRA.Test.csproj` separately — the test project is excluded from both `.sln` files upstream and reaches no gate unless named. The first run reported 22 errors; fixing those revealed **2 more in the test project that had never been compiled under the gate's configuration at all**. Expect the same shape next time: clear stage 1 before believing any count.
+
+**Why these accumulate silently: `check` compiles in DEBUG with `-warnaserror`, `EnforceCodeStyleInBuild=true` and `GenerateDocumentationFile=true`. `make all` does NONE of that.** Every one of the 24 was invisible to the ordinary build and to `dotnet test`, so a worker can finish a task with a clean build, clean tests and a clean conscience while adding to this pile. The oldest offending line here dates to `8367ca3a` (2026-08-27) and the rest landed between 2026-09-03 and 2026-09-06 — **13 of the 24 in a single day's work on 2026-09-05** (`e540d85c` / `10b4a88c`, item 56), and two more on 2026-09-06, the day this was found. The rate is the point: a lone stale error is a nuisance, but a gate that goes from clean to 24 in ten days is one that nobody is running before merge.
+
+**The one that was not cosmetic: an unbalanced `<para>` in a doc comment DELETES that member's entire documentation from the generated XML.** Roslyn does not emit the malformed content and does not emit a partial version — it writes `<!-- Badly formed XML comment ignored for member "M:..." -->` in its place (verified directly against a two-member scratch project under net6.0, one balanced and one not). Three members were in that state: `SupplyLogisticsMath.AssignSectors`, `SupplyLogisticsMath.KeepHeldCluster` and `SupplyFollowerBotModule.StickyCluster`. All three are `@experimental` supply-logistics code whose doc comments are where the anti-latch and responsive-terms invariants are recorded — the file states in prose that those invariants must not silently regress, and the mechanism recording them had been silently switched off. **Nothing showed this except the gate**: the source still reads correctly, so the loss is visible only in IntelliSense and the generated XML, neither of which anyone checks.
+
+**The shape of the mistake, and it is one an author cannot see: opening `<para>` on the second paragraph of a summary while leaving the first bare.** Every instance had the same signature — a bare lead paragraph, then two to five `<para>` opens with only the LAST one closed. The author writes the closing tag where the comment ends, sees a comment that looks like every other comment in the tree, and moves on. House style (139 files) wraps EVERY paragraph including the first, which is also what makes the imbalance obvious on sight. **Detector, no build required, ~1 second over the tree** — it groups consecutive `///` lines into blocks and compares open against close counts:
+
+```bash
+python3 - <<'EOF'
+import os
+for root, dirs, files in os.walk('engine'):
+    dirs[:] = [d for d in dirs if d not in ('obj', 'bin')]
+    for fn in (f for f in files if f.endswith('.cs')):
+        p = os.path.join(root, fn)
+        opened = closed = 0
+        start = None
+        for i, l in enumerate(open(p, encoding='utf-8').read().splitlines(), 1):
+            if l.strip().startswith('///'):
+                if start is None:
+                    start, opened, closed = i, 0, 0
+                opened += l.count('<para>')
+                closed += l.count('</para>')
+            elif start is not None:
+                if opened != closed:
+                    print(f'{p}:{start} open={opened} close={closed}')
+                start = None
+EOF
+```
+
+**RCS1226 ("Add paragraph to documentation comment") and CS1570 are the same defect at two stages, which is why the count looks bigger than the problem.** RCS1226 fires on a multi-paragraph summary using NO `<para>` at all; CS1570 fires once someone has started adding them and stopped halfway. 7 of the 24 were the first, 8 were the second. Fix both by wrapping every blank-line-separated paragraph, first one included.
+
+**Checked and found benign, recorded so the next reader does not re-investigate: IDE0220 in `SupportPowerStateVocabularyTest`.** Its message says the implicit `object`-to-`Match` conversion "may fail at runtime", which reads like a live bug. It cannot fail there — the sequence is a `MatchCollection` and every element genuinely is a `Match`. The cause is that `MatchCollection` implements BOTH the non-generic `IEnumerable` and `IEnumerable<Match>`, and `foreach`'s pattern-based lookup binds the type's own `GetEnumerator()`, which is the non-generic one. `.AsEnumerable()` selects the generic interface, costs nothing at runtime, and is the whole fix. Worth knowing generally: **`foreach (Match m in Regex.Matches(...))` always trips this**, and the same holds for any BCL collection predating generics.
+
 ## 2026-09-06 - Three of the four "missing" Lua presentation features already existed and were unfindable; the brief for them was wrong in both directions (`wt/lua-presentation`, base `main @ 1aea05dd`)
 
 **A binding that exists but is documented nowhere an author will look is indistinguishable, in practice, from one that does not exist — and it is worse, because the workaround gets written into the artefact and then copied.** Four presentation gaps were reported. Checked against the tree:

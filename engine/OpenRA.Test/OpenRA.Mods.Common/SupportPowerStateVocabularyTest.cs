@@ -130,7 +130,9 @@ namespace OpenRA.Test
 					continue;
 
 				foreach (var v in stateVars)
-					foreach (Match m in Regex.Matches(text, $@"\b{Regex.Escape(v)}\s*[=~]=\s*""([^""]*)"""))
+					// AsEnumerable binds the generic IEnumerable<Match> MatchCollection also implements;
+					// without it foreach picks the non-generic enumerator and downcasts object per element.
+					foreach (var m in Regex.Matches(text, $@"\b{Regex.Escape(v)}\s*[=~]=\s*""([^""]*)""").AsEnumerable())
 					{
 						var literal = m.Groups[1].Value;
 

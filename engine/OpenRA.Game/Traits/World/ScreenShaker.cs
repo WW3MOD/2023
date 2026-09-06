@@ -202,14 +202,14 @@ namespace OpenRA.Traits
 		public ShakeParams Params;
 
 		/// <summary>
-		/// Deterministic per-effect, per-component phase source.
+		/// <para>Deterministic per-effect, per-component phase source.</para>
 		///
-		/// PITFALL: do NOT reach for World.SharedRandom here. Screen shake is client-local view
+		/// <para>PITFALL: do NOT reach for World.SharedRandom here. Screen shake is client-local view
 		/// state, but the shared RNG is not -- drawing from it advances a stream every client must
 		/// agree on, so seeding a purely cosmetic waveform from it would desync the match. This is a
 		/// pure function of the effect's own position and spawn tick: no state is read, none is
 		/// written, and two clients that somehow disagreed about the answer would still only
-		/// disagree about where their own camera is.
+		/// disagree about where their own camera is.</para>
 		/// </summary>
 		public uint Hash(int component, int axis)
 		{

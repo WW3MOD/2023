@@ -12,33 +12,33 @@
 namespace OpenRA.Mods.Common.Traits.Render
 {
 	/// <summary>
-	/// Stacking arithmetic for the decoration cluster above a unit, and the derivation of the
-	/// <c>Margin</c> values the mod's YAML authors there.
+	/// <para>Stacking arithmetic for the decoration cluster above a unit, and the derivation of the
+	/// <c>Margin</c> values the mod's YAML authors there.</para>
 	///
-	/// WHY THIS EXISTS. Every number in that cluster used to be an unexplained literal in
+	/// <para>WHY THIS EXISTS. Every number in that cluster used to be an unexplained literal in
 	/// defaults.yaml, and the visibility diamond shipped 8px off-centre because one of them was
 	/// wrong in a way nobody could read off the file. The values are still authored in YAML — a
 	/// decoration's Margin has to be, the engine loads it from there — but they are DERIVED here,
-	/// so the file can cite a name instead of asserting a number.
+	/// so the file can cite a name instead of asserting a number.</para>
 	///
-	/// THE COORDINATE MODEL, which is the part that is easy to get wrong:
+	/// <para>THE COORDINATE MODEL, which is the part that is easy to get wrong:</para>
 	///
-	/// 1. For <c>Position: Top</c> the origin is (bounds horizontal centre, bounds top), and the
+	/// <para>1. For <c>Position: Top</c> the origin is (bounds horizontal centre, bounds top), and the
 	///    margin applied to it is <c>(-Margin.X, +Margin.Y)</c> — see
 	///    <see cref="SelectionDecorations.GetDecorationMargin"/>. THE X IS NEGATED. A margin of
 	///    <c>-8,0</c> therefore draws 8px to the RIGHT of centre, which is not what any reader
 	///    expects and is exactly the bug this file was written to stop recurring. Y is NOT negated,
-	///    and screen Y grows downward, so a negative Margin.Y moves a decoration UP.
+	///    and screen Y grows downward, so a negative Margin.Y moves a decoration UP.</para>
 	///
-	/// 2. Both decoration renderers centre their content on that origin —
-	///    <c>screenPos - size / 2</c> in WithDecoration (sprites) and WithTextDecoration (glyphs).
+	/// <para>2. Both decoration renderers centre their content on that origin —
+	///    <c>screenPos - size / 2</c> in WithDecoration (sprites) and WithTextDecoration (glyphs).</para>
 	///
-	/// 3. For a GLYPH that centring is on the em box, not on the ink, and the two are not the same
+	/// <para>3. For a GLYPH that centring is on the em box, not on the ink, and the two are not the same
 	///    box. SpriteFont.Measure returns a height of exactly <c>rows * size</c> regardless of which
 	///    character it measured, and SpriteFont.DrawText puts the baseline a further <c>size</c>
 	///    below the draw position. Net: the baseline lands <c>size / 2</c> BELOW the nominal origin,
 	///    so a glyph that sits on its baseline — every diamond, digit and capital — hangs below the
-	///    point it is nominally centred on. <see cref="GlyphInkBottomOffset"/> is that overhang.
+	///    point it is nominally centred on. <see cref="GlyphInkBottomOffset"/> is that overhang.</para>
 	/// </summary>
 	public static class DecorationRowGeometry
 	{
