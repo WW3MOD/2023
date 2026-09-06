@@ -145,3 +145,29 @@ One `tournament-s1-eco-river-zeta` match, `--seeds 1`, hidden, 7500 ticks (time 
 - `@stable` (Russia) placed 0 crates in 5 minutes; its two drops were dispatched at ticks ≈6900–7300. Whether that is the map's spawn asymmetry or the profile is not answerable from one match.
 
 **Still owed for the acceptance bar as written:** the N-match reading, which the item-43 re-baseline (`WORKSPACE/ai-bench/RUNBOOK-260905.md`, batch 3 is this exact scenario ×10 mirrored) produces for free — read `crate-placed ÷ drop` and the decline histogram out of those logs rather than spending a separate batch.
+
+---
+
+## Recon §5(a) discharged — 2026-09-06, `wt/safe-front` off `main @ 9cb423d4`
+
+**`test-supply-safe-front-keeps-cargo` was RE-SPECCED, not retired** (the "retire or re-spec it (backlog)" line at `PIPELINE.md`). It now carries a scenario-local `IgnoreDangerForDelivery: false` on `SupplyFollowerBotModule@supply`, so the mode it asserts is reachable on that map and nowhere else. **No engine code and no shipped `ai.yaml` were touched.**
+
+**Why re-spec rather than retire, and rather than invert to the shipped contract.** The shipped contract — the drop mode firing unconditionally — is *already* asserted by `test-supply-under-danger` (`REQUIRE_CRATE = true`). With the bypass on, both maps take the same unconditional-drop path, so inverting this scenario would have asserted the sibling's assertion twice and left the **serve-in-place branch under test nowhere**. That branch is the documented half of the doctrine (`supply-route.md` §"Forward delivery") and is exactly what item **40**'s danger-scale rework exists to restore, so it is the half worth keeping instrumented. Retiring also had a cost recon did not price: `engine/OpenRA.Test/.../SupplyDriftClauseTest.cs` **parses `local HOLD_DRIFT` out of this scenario's `.lua`**, and `ReadScenarioConstant` degrades to `Assert.Ignore` when the file is missing — deleting the directory would have silently un-executed a green test rather than failing it. Both constants the fixture reads (`HOLD_DRIFT = 1` here, `MAX_DRIFT = 6` in the sibling) are unchanged.
+
+**The mode gate, re-cited at this SHA — recon's `:1526` has drifted to `:1662`.** Record the KEY, not the line:
+
+```csharp
+if (drop && Info.DropRequiresDanger && !Info.IgnoreDangerForDelivery && !dispatched && cluster != null)
+```
+
+`ai.yaml:1882` sets `DropRequiresDanger: true`; `ai.yaml:1676` sets `IgnoreDangerForDelivery: true` and short-circuits it. Recon §5(a) is confirmed exactly as written, by reading.
+
+**NEW, and it is the part that matters for reading the run: THE FALSE PASS.** Recon framed the red as the problem. With the gate reachable the risk inverts, and the four Lua clauses cannot see it. Any drop decline — `NoDemand`, `Covered`, `LowLoad`, `NoAnchor` — also leaves `drop = false`, after which the truck takes the follow path, drives to the platoon and serves from its aura: no crate, cargo kept, ammo up, platoon held. **All four clauses green, mode selector never consulted.** So `Test.Pass` alone does not discharge anything here; `reason=SafeFront` in `debug.log` does.
+
+**`ai.yaml:1914` ships `DropMinStarvingUnits: 1`, confirming recon §5(b) a second time** — and the map's own comment claimed `3`, so the stale value has now been quoted in three places (two code comments plus that map). Corrected in `map.yaml`; the two code comments are engine files and were left alone.
+
+**Two things this makes stale elsewhere, both left as pointers rather than rewrites:**
+- `WORKSPACE/audits/260901-autotest-suite-audit.md` §D.1 proposes committing an `expected-status: fail` declaration for this scenario. **Do not commit it.** It was conditional on a run confirming the red, and the red has now been explained rather than confirmed. No `expected-status` file is added: the scenario is expected to PASS.
+- `bugs/discovered.md` (2026-08-14) concludes *"there is no input under which the dangerous branch is the correct selection here"*. The input was the flag; recon already said so, and the scenario now removes it locally.
+
+**HYPOTHESIS — the one thing reading cannot settle.** Clearing the flag re-arms all seven bypass sites, not one. Six are inert or off-path on an enemy-free map and each is argued line-by-line in the scenario's `rules.yaml`; the seventh, `FindSafeFollowPosition` (`:2484`), genuinely runs. It argmaxes `friendlyValue - enemyValue` over a ±3 box, so with no enemy it maximises friendly density and walks the follow cell **toward** the platoon rather than away — the helpful direction for clauses 1 and 4, but the cell is no longer the centroid. **If the scenario fails clause 4 with the truck short of aura range, that is the site.**

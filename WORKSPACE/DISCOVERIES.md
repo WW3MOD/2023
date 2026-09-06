@@ -3,6 +3,30 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-06 - A scenario can be RED BY CONFIGURATION, and the fix inverts its failure mode: the danger-gated supply test now risks a FALSE PASS the clauses cannot see (`wt/safe-front`, base `main @ 9cb423d4`)
+
+Read-only analysis plus a scenario re-spec; **no run** (worker was gate-barred from launching). Discharges item 56 recon §5(a).
+
+**1. The shape, which is worth naming because it is not "a flaky test" and not "a bug".** `test-supply-safe-front-keeps-cargo` asserts the supply doctrine's SAFE branch — truck closes to aura range, serves in place, keeps its cargo. That branch is selected at `SupplyFollowerBotModule.cs:1662`:
+
+```csharp
+if (drop && Info.DropRequiresDanger && !Info.IgnoreDangerForDelivery && !dispatched && cluster != null)
+```
+
+`ai.yaml:1882` sets `DropRequiresDanger: true`, and then `ai.yaml:1676` sets `IgnoreDangerForDelivery: true`, which short-circuits the conjunct. **So `reason = "SafeFront"` is unreachable in shipped content, and the scenario's clause 2 (no crate ever) fails any run in which the truck delivers.** It could only have gone green by the truck failing entirely. It was red from `b87aeb62` (2026-08-13) to 2026-09-06 and was written up twice as a selector defect. **A test asserting a mode that configuration has switched off is neither passing nor failing about its subject — it is unwired, and no amount of re-running distinguishes that from a real defect.**
+
+**2. The generalisable check, and it is cheap.** Before trusting a red, ask whether the branch under test is REACHABLE at shipped config — grep the assertion's own gate for a bypass flag, not just for the mechanism. Three weeks of diagnosis here went into the mechanism (which was fine) because nobody read the gate's other conjuncts.
+
+**3. THE PART THAT GENERALISES FURTHEST: fixing reachability inverted the failure mode, and the assertion could not see it.** With the gate reachable, all four Lua clauses can hold **without the mode gate ever being consulted**. Any drop decline — `NoDemand`, `Covered`, `LowLoad`, `NoAnchor` — also leaves `drop = false`, after which the truck takes the follow path, drives to the platoon and serves from its aura: no crate, cargo kept, ammo up, platoon held. Green, and evidence of nothing. **Lua cannot observe the module's `reason`; only `debug.log` can.** So the acceptance criterion for this scenario is no longer its verdict — it is `[supply] drop-declined … reason=SafeFront` (`:1730`), with `[supply] init … ignore-danger=False` (`:783-786`) proving the override merged at all. **Whenever you make an unreachable branch reachable, re-derive what a false PASS would look like; the clauses that were written against the old failure mode do not cover the new one.**
+
+**4. A bypass flag over N sites cannot be cleared "just for the one you want", and the audit is per-map.** `IgnoreDangerForDelivery` gates seven sites. On an enemy-free map with believed ground danger 0 everywhere, six are inert or off-path — and the arguments differ in strength, which is the useful part: `SelectServableClusters` (`:1039`) and its need filter (`:1030`) are **structurally** equivalent to the bypass branch they replace; the Stage-E reroute (`:1352`) is **provably** inert because `GroundDangerNav.DetourWaypoint` returns null when the straight path's max danger ≤ threshold (`GroundDangerNav.cs:98-100`) and the `else` at `:1419-1433` then issues the identical damped direct Move; the SR-descent guard (`:2000`) is **off-path** (fallback anchor only). But evac (`:969`) is inert only **by threshold** (`EvacDangerUnits: 50` against a field of 0) — a weaker argument, and the first to check if a run surprises. **Record which kind of argument each site rests on; they are not interchangeable.**
+
+**5. `FindSafeFollowPosition` walks TOWARD the platoon on an enemy-free map, not away — the sign is easy to get backwards.** It is the one site that genuinely runs once the flag is cleared (called at `:1040` on the evac path, or `:1348` otherwise). It argmaxes `score = -GetThreat`, and `GetThreat = enemyValue - friendlyValue` (`ThreatMapManager.cs:197-227`), so `score = friendlyValue - enemyValue`; with no enemy that is **friendly density maximised**, pulling the follow cell into the platoon. The site's own comment ("an EMPTY cell wins outright") describes the contested case and reads as the opposite in the absence of enemies. **HYPOTHESIS, only a run settles it:** benign or better here, because the direction helps clauses 1 and 4 — but the follow cell is no longer exactly the centroid.
+
+**6. Deleting a scenario can silently un-execute a green NUnit test.** `engine/OpenRA.Test/OpenRA.Mods.Common/SupplyDriftClauseTest.cs` parses `local HOLD_DRIFT` **out of this scenario's `.lua`** (`ReadScenarioConstant`), specifically so the assertion cannot agree with itself. When the file is missing it calls `Assert.Ignore`, not `Assert.Fail` — so retiring the directory would have turned a passing test into a skipped one and the suite would still have read green. **Before deleting any scenario, grep `engine/OpenRA.Test/` for its name.** This was the deciding cost against retirement here.
+
+**7. `DropMinStarvingUnits` ships at 1, and the stale `3` has now been found in a third place.** Recon §5(b) recorded two code comments quoting 3 (`a86e2fb6` set it; `63f2ec48` lowered it). The scenario's `map.yaml` quoted it too, and is corrected. `ai.yaml:1914` is the value.
+
 ## 2026-09-05 - Item 64 MEASURED, four arms: the free-pool gate is proven, the muster revert is inert and dropped, and the instrument's d1 clause passed for the wrong reason (`wt/item64 @ 6951b540`, base `main @ 62778af1`)
 
 Four runs of `test-push-departs-together` plus one of `test-combined-arms-rendezvous`, run by the manager. This

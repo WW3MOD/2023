@@ -280,6 +280,8 @@ possibly wrong. The declaration is still right — it stops a known red from red
 and `expected_status_grade` will flip it to `STALE`/RED the moment it starts passing — but the
 file must say so, or it will read as an endorsement.
 
+> ⛔ **WITHDRAWN 2026-09-06 — DO NOT COMMIT THIS FILE.** The proposal below was explicitly conditional on one run confirming the red *by merit*. The red was instead **explained**: `ai.yaml`'s `IgnoreDangerForDelivery: true` short-circuits the mode gate at `SupplyFollowerBotModule.cs:1662`, so `reason=SafeFront` could never fire and the scenario could only have passed by the truck not delivering at all. It has been re-specced (a scenario-local `IgnoreDangerForDelivery: false`) and is now **expected to PASS**, so a `fail` declaration here would grade the fixed scenario RED. Working: `pipeline/items/56-supply-truck-delivery.md` §"Recon §5(a) discharged". The audit's own §D.2 candidates are unaffected.
+
 Proposed `tools/autotest/scenarios/test-supply-safe-front-keeps-cargo/expected-status`:
 
 ```

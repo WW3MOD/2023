@@ -1,9 +1,15 @@
 # Safe-front supply autotest overrides.
 #
-# DELIBERATELY MINIMAL, and identical to test-supply-under-danger's except for the one
-# instrumentation block at the bottom. Nothing here touches SupplyFollowerBotModule, the
-# danger field, or any threshold that gates them — the point of the test is what the
-# SHIPPING config does, so tuning any of it would make the verdict meaningless.
+# TWO overrides, each argued where it sits: ONE behavioural key on the bot
+# (IgnoreDangerForDelivery, under Player) that makes the mode under test reachable at all, and ONE
+# instrumentation key on TRUK (at the bottom) that makes clause 3 readable. Everything else the
+# module reads — ScanInterval, MaxFollowDistance, the follow leash, the drop demand gates, the
+# danger thresholds — comes from ai.yaml exactly as shipped, because a test that retunes the thing
+# it is testing proves only that some other tuning works.
+#
+# THIS HEADER USED TO SAY "Nothing here touches SupplyFollowerBotModule". That was true, and it was
+# why the scenario could not pass: the mode it asserts is switched off in shipped content. The
+# block under Player is the correction, and the reasoning is there rather than here.
 
 Player:
 	# Faction elimination would end the match before the Lua poller writes a verdict — and
@@ -23,6 +29,86 @@ Player:
 	PlayerResources:
 		DefaultCash: 0
 
+	# THE MODE UNDER TEST IS SWITCHED OFF IN SHIPPED CONTENT, AND THIS BLOCK IS WHAT REACHES IT.
+	# Added 2026-09-06. Without it this scenario cannot pass for its own reason, and the red it
+	# produced was read as a selector defect for three weeks (bugs/discovered.md 2026-08-14,
+	# PIPELINE items 51 and 56) when it was a configuration fact.
+	#
+	# THE GATE. The safe branch is selected at SupplyFollowerBotModule.cs:1662:
+	#
+	#     if (drop && Info.DropRequiresDanger && !Info.IgnoreDangerForDelivery && !dispatched && cluster != null)
+	#
+	# ai.yaml sets DropRequiresDanger: true (:1882) — the principled configuration — and then
+	# IgnoreDangerForDelivery: true (:1676), which short-circuits the whole conjunct. So on shipped
+	# content `reason = "SafeFront"` is UNREACHABLE, the drop mode is unconditional, and the truck
+	# unloads its whole 750 as a crate on any front including this one. That is the SHIPPED CONTRACT
+	# and it is deliberate: the user pre-authorised bypassing danger awareness for trucks entirely,
+	# and the bypass is documented in place at SupplyFollowerBotModule.cs:1646-1659. Clause 2 of this
+	# scenario fails a run in which any crate appears, so at shipped config the scenario could only
+	# ever have gone green by the truck failing to deliver at all.
+	#
+	# WHY THIS SCENARIO IS NOT SIMPLY RE-SPECCED TO ASSERT THE SHIPPED CONTRACT INSTEAD. That
+	# contract is already under test: test-supply-under-danger sets REQUIRE_CRATE = true and asserts
+	# a crate is placed. With the bypass on, both maps take the same unconditional-drop path, so a
+	# re-specced safe-front scenario would assert a second time what the sibling already asserts,
+	# and the serve-in-place branch — the documented half of the doctrine
+	# (DOCS/reference/supply-route.md §"Forward delivery"), and the branch item 40's danger-scale
+	# rework exists to restore — would be under test nowhere at all. Keeping the assertion and
+	# reaching the mode keeps a real, distinct behaviour measured; inverting it would not.
+	#
+	# WHY ONE KEY AND NOT SEVEN. IgnoreDangerForDelivery is a bypass switch over seven sites (its
+	# own Desc, :131-145), so clearing it here re-arms all seven, not just the one under test. On
+	# THIS map that is acceptable rather than a hidden side effect, because no enemy actor exists
+	# anywhere and believed ground danger is 0 in every cell — and at 0 the other six are inert or
+	# off-path. Each was read at 9cb423d4:
+	#
+	#   1  SelectServableClusters (:1039)  — keeps clusters with Danger < releaseLevel; releaseLevel
+	#                                        is level(EvacDangerUnits 50) - level(20) > 0 and this
+	#                                        cluster's Danger is 0, so it survives. The bypass branch
+	#                                        it replaces (:1025-1031) applies the same need filter.
+	#   2  the need filter (:1030)         — reapplied identically by SelectServableClusters. Inert.
+	#   3  evac (:969)                     — becomes live (DangerEvac: true is shipped). Fires at
+	#                                        EvacDangerUnits: 50 against a field reading 0. Inert BY
+	#                                        THRESHOLD rather than structurally — the weakest of the
+	#                                        six arguments, and the one to check first if a run
+	#                                        surprises you.
+	#   4  DangerSelectsDrop (:1662)       — THE POINT. Cluster danger 0 < DropDangerFloorUnits 25;
+	#                                        the floor limb is evaluated first and can only declare
+	#                                        SAFE, so drop = false and reason = SafeFront.
+	#   5  SR-descent guard (:2000)        — becomes a real threshold instead of -1, but it guards
+	#                                        the FALLBACK anchor only (no cluster selected). A
+	#                                        cluster exists here. Off-path.
+	#   6  Stage-E reroute (:1352)         — routeViaDanger becomes true, but DetourWaypoint returns
+	#                                        null whenever the straight path's max danger is <= the
+	#                                        safe threshold (GroundDangerNav.cs:98-100), which at 0
+	#                                        it always is; the else at :1419-1433 then issues the
+	#                                        same single damped direct Move as the flag-off branch.
+	#                                        Provably inert.
+	#   7  FindSafeFollowPosition (:2484)  — GENUINELY LIVE, and the one thing here that reading
+	#                                        cannot settle. It scores a +/-3 box by -GetThreat, i.e.
+	#                                        friendlyValue - enemyValue (ThreatMapManager.cs:197-227);
+	#                                        with no enemy that is friendlyValue argmaxed, so it
+	#                                        walks the follow cell TOWARD the friendliest-dense cell
+	#                                        — into the platoon, never away from it. The direction
+	#                                        helps clauses 1 and 4 rather than hurting them, but the
+	#                                        cell is no longer exactly the centroid. If this scenario
+	#                                        ever fails clause 4 with the truck short of aura range,
+	#                                        look here first.
+	#
+	# WHAT A READER MUST NOT CONCLUDE FROM A GREEN RUN. Clauses 1-4 can all hold without the safe
+	# branch ever firing: any drop decline (NoDemand, Covered, LowLoad, NoAnchor) also leaves
+	# drop = false, and the truck then takes the follow path, drives to the platoon and serves from
+	# its aura with no crate and its cargo intact. A pass is evidence about the mode selector ONLY
+	# if debug.log carries `[supply] drop-declined ... reason=SafeFront` (:1730). Green with
+	# `reason=NoDemand` is a false pass, and means the demand gates rather than the mode gate
+	# produced it.
+	#
+	# Precedent for a scenario-local bot-module field override with a named reason:
+	# test-experimental-lccv-logistics/rules.yaml (RequireDemand: false, so the siting descent that
+	# scenario asserts can be reached at all).
+	SupplyFollowerBotModule@supply:
+		IgnoreDangerForDelivery: false
+
 World:
 	-StartGameNotification:
 	-SpawnStartingUnits:
@@ -38,7 +124,7 @@ World:
 	LuaScript:
 		Scripts: test-helpers.lua, test-supply-safe-front-keeps-cargo.lua
 
-# INSTRUMENTATION — the only behavioural line in this file, and it is provably inert above
+# INSTRUMENTATION — the only other behavioural line in this file, and it is provably inert above
 # zero supply.
 #
 # WHY IT IS NEEDED. Clause 3 asserts the truck still HOLDS supply at verdict time, and there
