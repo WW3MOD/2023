@@ -1,0 +1,72 @@
+# Sub-tick motion smoothing DEMO overrides. Nothing here is asserted; see map.yaml for the layout
+# and demo-subtick-smoothing.lua for the schedule.
+#
+# NOTHING HERE TOUCHES SubTickMotionSmoothing ON THE SHIPPED MISSILE. The smoothed half of every
+# pass is kinzhalmissile in exactly its shipped configuration, so what the viewer judges is what the
+# game does. The only new actor is the RAW control below, and its whole definition is "the shipped
+# missile minus that one trait".
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
+	# spawn assignment. The entry cell of both missiles is derived from HomeLocation
+	# (MissileStrikePower.cs:102), so the geometry in map.yaml depends on it.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, demo-subtick-smoothing.lua
+
+# THE CONTROL. Identical to the shipped Kinzhal in every respect except that it is not smoothed:
+# same Speed 2000, same TerminalSpeed 2400, same trail, same warhead. Removing the trait rather than
+# setting Strength: 0 is deliberate -- it takes the whole code path out, so nothing about the raw
+# missile depends on the feature behaving itself.
+KinzhalMissileRaw:
+	Inherits: KinzhalMissile
+	-SubTickMotionSmoothing:
+	Tooltip:
+		Name: Kh-47M2 Kinzhal (unsmoothed control)
+
+Player:
+	MissileStrikePower@Kinzhal:
+		# STAGING OVERRIDES. ChargeInterval 60 (3.6 s) against the shipped 3000 (3 min), so the demo
+		# can fire four passes instead of one; StartFullyCharged so the first pass does not wait out
+		# a charge; MissileDelay 15 (0.9 s) against the shipped 150 (9.0 s), because nine seconds of
+		# watching an empty sky between the order and the missile is nine seconds of nothing to look
+		# at. None of the three changes the missile or how it is drawn.
+		ChargeInterval: 60
+		StartFullyCharged: true
+		MissileDelay: 15
+	# The raw control's delivery, a copy of the shipped power pointed at the unsmoothed actor. A
+	# second @suffix on the same trait gets NO fields from its sibling -- every value it needs is
+	# spelled out. Kept deliberately minimal: no beacon, no minimap ping, no speech and no reveal
+	# camera, because two of each firing simultaneously is clutter over the thing being looked at.
+	# The shipped power keeps all of them, so one of each still appears per pass.
+	MissileStrikePower@KinzhalRaw:
+		OrderName: KinzhalRawStrike
+		Prerequisites: player.russia
+		Icon: precicon
+		Name: Kh-47M2 Kinzhal (unsmoothed control)
+		Description: Demo control. Identical to the Kinzhal strike except that the missile is not sub-tick smoothed.
+		ChargeInterval: 60
+		StartFullyCharged: true
+		Cursor: nuke
+		MissileActor: kinzhalmissileraw
+		MissileDelay: 15
+		SpawnAltitude: 8c0
+		DisplayBeacon: False
+		DisplayMiniMapPing: False
+		SupportPowerPaletteOrder: 2
+	# Nothing on this map can be eliminated -- there is nothing on it but two Supply Routes -- but the
+	# strikes land near neither and a stray victory check would still end the demo early.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored. A missile crossing unexplored ground would be invisible for
+	# most of its run, and the run is the entire subject.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# No cash, so nothing can be produced and the only things that happen on this map are the strikes.
+	PlayerResources:
+		DefaultCash: 0
