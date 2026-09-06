@@ -1,0 +1,51 @@
+# The WEAPON-side heat emitter, for the strategic burst. The tactical one and the burning wreck use
+# the ACTOR-side emitter (TimedHeatSource, in rules.yaml) instead, so this demo exercises both paths
+# into the same system exactly as demo-light-events does for lights.
+#
+# There is nothing demo-specific about the WARHEAD: HeatEvent can be hung off any weapon in the mod
+# exactly like this. What IS demo-specific is that this weapon carries a Warhead@Heat and NOTHING
+# else -- no damage, no fire, no blast, no flash. Refraction is only visible against contrast, so a
+# heat-haze demo must not destroy the buildings whose straight edges are what make it readable.
+
+DemoStrategicHeat:
+	ValidTargets: Ground, Water, Trees, Infantry, Air
+
+	# ~6 Mt. Every number below is scaled from the fireball figures derived on wt/nuke-yield
+	# (breakaway radius 33.53 * Y^0.40 metres, duration 0.2104 * Y^0.44 seconds, at 160 m/cell and
+	# 16.67 ticks/s) -- SCALED, not copied, because hot air is not a fireball:
+	#
+	# RADIUS starts at the fireball's own breakaway radius, 6.80 cells = 6c820, and grows to FOUR
+	# TIMES it. The fireball stops growing at breakaway and starts rising; the air it leaves behind
+	# keeps spreading as the rising column entrains ambient air, and the ground-level heated patch
+	# ends up a few fireball radii across. 27 cells is still far inside this weapon's own 124-cell
+	# thermal radius, which is correct: the ground was heated out to 124 cells but only the middle of
+	# that is hot enough to bend light visibly.
+	#
+	# DURATION 1240 ticks (74 s) is three times the thermal-pulse length (10 * t_max = 0.32*sqrt(Y)
+	# seconds, 24.8 s here), because the ground and the air keep radiating after energy delivery
+	# stops. That is a Y^0.50 law against the fireball's own Y^0.44, so the haze outlasts the flash
+	# by 5.5x at 20 kt and by 7.7x at 6 Mt -- a bigger fire stays hot disproportionately longer,
+	# which is what a smaller surface-to-volume ratio means.
+	#
+	# STRENGTH PEAKS AT 9 px, THE SAME AS THE TACTICAL WEAPON, and that is the interesting one.
+	# Deflection through a hot layer goes as the temperature GRADIENT times the PATH LENGTH. A larger
+	# hot region has a proportionally shallower gradient over a proportionally longer path, so the
+	# two cancel and the peak deflection depends on the temperature EXCESS rather than on the size of
+	# the region. Yield buys area and duration; it does not buy a stronger wobble. (Exactly the same
+	# intensive-vs-extensive split as the fireball's peak brightness, which is set by ~7000 K surface
+	# temperature and is also yield-independent.)
+	#
+	# THE PEAK IS LATE, at tick 124 against the fireball's second maximum at tick 41. Air has heat
+	# capacity: it takes time to warm, so the shimmer lags the flash instead of tracking it. 124 is
+	# the tactical weapon's 10-tick lag scaled by the fireball duration ratio, Y^0.44.
+	Warhead@Heat: HeatEvent
+		ValidTargets: Ground, Water, Trees, Infantry, Air
+		ForceGroundLevel: true
+		Heat:
+			Times: 0, 50, 124, 400, 1240
+			Strengths: 0, 5.0, 9.0, 4.5, 0
+			Radii: 6c820, 12c0, 18c0, 24c0, 27c0
+			Interpolations: Quadratic, Quadratic, InverseCubic, InverseCubic
+			ShimmerScale: 1c0
+			RiseSpeed: 1c0
+			AnisotropyPercent: 80

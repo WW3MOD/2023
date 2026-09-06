@@ -21514,3 +21514,20 @@ the change look worse rather than better.** Not verified in a window.
 newest puff coincide with the drawn nozzle at f = 0, which is what emission physically looks like. It
 shifts the entire trail forward by one step independently of this feature, so it is a visual change
 that needs looking at on its own.
+## 2026-09-06 — The engine already had a screen-space distortion pass; heat haze needed new NUMBERS, not a new rendering concept (`wt/heat-haze`, base `main @ 6e5721ae`)
+
+The request was a wavy refraction effect over hot air. The instinct is a new postprocess shader. The engine has shipped the primitive since forever, in `postprocess_textured_vortex.frag`, and it is one line:
+
+    fragColor = texelFetch(WorldTexture, ivec2(gl_FragCoord.xy + delta), 0) * vec4(frac, frac, frac, 1);
+
+Re-sample the already-rendered frame at an offset instead of straight through. That IS refraction. Everything else the chrono vortex does — baking `hole####.lut` into a sheet, 48 animation frames, a fixed 64x64 quad — is *its* look, not the mechanism, and none of it is needed to make hot air shimmer.
+
+**The three pieces that were already there and are worth knowing about, because none of them is discoverable from the shader alone:**
+
+1. **`IRenderPostProcessPass.Enabled` genuinely SKIPS the pass.** `WorldRenderer.ApplyPostProcessing` (`WorldRenderer.cs:393-402`) tests `pass.Type != type || !pass.Enabled` and `continue`s **before** `Game.Renderer.Flush()`, before `WorldBufferSnapshot()` and before any draw call. So "costs nothing when idle" is not something you have to engineer — it is already the contract, and the whole job is making `Enabled` cheap and honest.
+2. **A postprocess pass does NOT have to be fullscreen, and that is how a world position reaches screen space.** `postprocess_textured.vert` positions a QUAD: `gl_Position = vec4((aVertexPosition + Pos - Scroll) * p1 + p2, 0, 1)` where `Pos` is `WorldRenderer.Screen3DPxPosition(worldPos)` and `Scroll` is `Viewport.TopLeft`. Only fragments under the quad run. A 3-cell effect costs 3 cells of fill.
+3. **Vertex units in that path are WORLD PIXELS, and `gl_FragCoord` is in FRAMEBUFFER pixels.** They differ by `Renderer.WorldDownscaleFactor` (`Renderer.cs:256-264` renders the world into `viewportSize / downscale`). Anything that positions a quad in one space and displaces in the other has to convert. The vortex does not — harmless at downscale 1, which is why it has never been noticed.
+
+**The generalisable lesson is about how to search.** "Heat haze" appears nowhere in this engine and neither does "distortion", "refraction" or "shimmer" — grepping the feature's own vocabulary returns nothing and would have justified writing it from scratch. What found it was grepping for the MECHANISM (`texelFetch`, `WorldTexture`, `PostProcess`) instead of for the effect. A rendering primitive is almost always named after its first consumer, so the thing you want is filed under something else's name; `LightInterpolation` in this same branch is a curve library named after lights, and `ChronoVortexRenderer` is a localized screen-space distortion named after a chrono vortex.
+
+**One trap if you write another pass.** `Shader.SetVec` resolves the name through `uniformCache[name]`, a dictionary built from the program's ACTIVE uniforms (`Shader.cs:119`, `:198`). A uniform the GLSL compiler eliminates because nothing reads it is not a warning — it is a `KeyNotFoundException` at the first draw. Deleting a term from a shader means deleting its `SetVec` in the same edit.
