@@ -1,0 +1,307 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: local light events - seven envelopes, two emitters, one dark map
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS IS FOR: looking at. It is a DEMO, so nothing here is asserted - no AssertWithin, no
+# Test.Pass, no result.json.
+#
+# The subject is the GENERIC local-light system, not any one light. Seven different envelopes fire in
+# sequence at seven spaced-out positions, all written in one vocabulary (LightEventDefinition) and
+# reached through two different emitters - an actor trait six times, a weapon warhead once. See
+# rules.yaml for the envelopes and demo-light-events.lua for the schedule.
+#
+# THE MAP IS DARK ON PURPOSE. rules.yaml sets the world's TerrainLighting to Intensity 0.28 with a cool
+# tint, which puts the ambient at about (0.24, 0.25, 0.32). At the mod's shipped Intensity 1 every
+# sprite is already at full brightness and a light event would be invisible, so a demo run at daylight
+# would prove nothing. That override is the only thing this scenario changes about the ambient.
+#
+# THE LAYOUT is a row of five sites along y=16 at x = 8, 20, 32, 44 and 56, plus two off-row: a looping
+# flicker at 32,5 and the wide ceiling probe at 32,26. Every site on the row carries the same props -
+# two guard towers, two Abrams, four infantry and two trees - so the only variable between one site and
+# the next is the envelope lighting it. Structures and vehicles are tall and catch a light differently
+# from the flat ground under them, which is the point: TerrainLighting has TWO consumers and they take
+# completely different code paths (SpriteRenderable per sprite per frame; TerrainSpriteLayer via dirty
+# vertex rows), and both have to look right.
+#
+# Everything is Neutral and HoldFire. Nothing on this map moves or shoots; the only thing that changes
+# between frames is light.
+#
+# The terrain is demo-heli-weapons', copied unchanged - 2036 of 2048 playable cells are passable for
+# every locomotor, so actor placement is unconstrained.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Hidden SRs so neither side is eliminated by attrition (see AUTOTEST.md). Both sit in the
+	# bottom corners, far from every light site, and neither is ever lit.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 3,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 62,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,30
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 62,30
+
+	# --- L1: SLOW PULSE (trait, t=60), centred on 8,16
+	L1Emit: e3
+		Owner: Neutral
+		Location: 8,16
+	L1Bld1: gtwr
+		Owner: Neutral
+		Location: 5,14
+	L1Bld2: gtwr
+		Owner: Neutral
+		Location: 11,14
+	L1Veh1: abrams
+		Owner: Neutral
+		Location: 5,18
+		Facing: 768
+	L1Veh2: abrams
+		Owner: Neutral
+		Location: 11,18
+		Facing: 256
+	L1Inf1: e1
+		Owner: Neutral
+		Location: 7,19
+	L1Inf2: e1
+		Owner: Neutral
+		Location: 9,19
+	L1Inf3: e2
+		Owner: Neutral
+		Location: 7,13
+	L1Inf4: e2
+		Owner: Neutral
+		Location: 9,13
+	L1Tree1: t05
+		Owner: Neutral
+		Location: 3,16
+	L1Tree2: tc02
+		Owner: Neutral
+		Location: 13,16
+
+	# --- L2: SHARP FLASH (warhead, t=160) - the emitter is a bradley the Lua kills, centred on 20,16
+	WarheadProbe: bradley
+		Owner: Neutral
+		Location: 20,16
+	L2Bld1: gtwr
+		Owner: Neutral
+		Location: 17,14
+	L2Bld2: gtwr
+		Owner: Neutral
+		Location: 23,14
+	L2Veh1: abrams
+		Owner: Neutral
+		Location: 17,18
+		Facing: 768
+	L2Veh2: abrams
+		Owner: Neutral
+		Location: 23,18
+		Facing: 256
+	L2Inf1: e1
+		Owner: Neutral
+		Location: 19,19
+	L2Inf2: e1
+		Owner: Neutral
+		Location: 21,19
+	L2Inf3: e2
+		Owner: Neutral
+		Location: 19,13
+	L2Inf4: e2
+		Owner: Neutral
+		Location: 21,13
+	L2Tree1: t05
+		Owner: Neutral
+		Location: 15,16
+	L2Tree2: tc02
+		Owner: Neutral
+		Location: 25,16
+
+	# --- L3: DOUBLE FLASH (trait, t=260), centred on 32,16
+	L3Emit: e3
+		Owner: Neutral
+		Location: 32,16
+	L3Bld1: gtwr
+		Owner: Neutral
+		Location: 29,14
+	L3Bld2: gtwr
+		Owner: Neutral
+		Location: 35,14
+	L3Veh1: abrams
+		Owner: Neutral
+		Location: 29,18
+		Facing: 768
+	L3Veh2: abrams
+		Owner: Neutral
+		Location: 35,18
+		Facing: 256
+	L3Inf1: e1
+		Owner: Neutral
+		Location: 31,19
+	L3Inf2: e1
+		Owner: Neutral
+		Location: 33,19
+	L3Inf3: e2
+		Owner: Neutral
+		Location: 31,13
+	L3Inf4: e2
+		Owner: Neutral
+		Location: 33,13
+	L3Tree1: t05
+		Owner: Neutral
+		Location: 27,16
+	L3Tree2: tc02
+		Owner: Neutral
+		Location: 37,16
+
+	# --- L4: LONG SLOW FADE (trait, t=480), centred on 44,16
+	L4Emit: e3
+		Owner: Neutral
+		Location: 44,16
+	L4Bld1: gtwr
+		Owner: Neutral
+		Location: 41,14
+	L4Bld2: gtwr
+		Owner: Neutral
+		Location: 47,14
+	L4Veh1: abrams
+		Owner: Neutral
+		Location: 41,18
+		Facing: 768
+	L4Veh2: abrams
+		Owner: Neutral
+		Location: 47,18
+		Facing: 256
+	L4Inf1: e1
+		Owner: Neutral
+		Location: 43,19
+	L4Inf2: e1
+		Owner: Neutral
+		Location: 45,19
+	L4Inf3: e2
+		Owner: Neutral
+		Location: 43,13
+	L4Inf4: e2
+		Owner: Neutral
+		Location: 45,13
+	L4Tree1: t05
+		Owner: Neutral
+		Location: 39,16
+	L4Tree2: tc02
+		Owner: Neutral
+		Location: 49,16
+
+	# --- L5: COLOURED, hard-edged (trait, t=560), centred on 56,16
+	L5Emit: e3
+		Owner: Neutral
+		Location: 56,16
+	L5Bld1: gtwr
+		Owner: Neutral
+		Location: 53,14
+	L5Bld2: gtwr
+		Owner: Neutral
+		Location: 59,14
+	L5Veh1: abrams
+		Owner: Neutral
+		Location: 53,18
+		Facing: 768
+	L5Veh2: abrams
+		Owner: Neutral
+		Location: 59,18
+		Facing: 256
+	L5Inf1: e1
+		Owner: Neutral
+		Location: 55,19
+	L5Inf2: e1
+		Owner: Neutral
+		Location: 57,19
+	L5Inf3: e2
+		Owner: Neutral
+		Location: 55,13
+	L5Inf4: e2
+		Owner: Neutral
+		Location: 57,13
+	L5Tree1: t05
+		Owner: Neutral
+		Location: 51,16
+	L5Tree2: tc02
+		Owner: Neutral
+		Location: 61,16
+
+	# --- L6: LOOPING FLICKER (trait, t=1), centred on 32,5. Runs for the whole demo.
+	L6Emit: e3
+		Owner: Neutral
+		Location: 32,5
+	L6Bld1: gtwr
+		Owner: Neutral
+		Location: 29,4
+	L6Bld2: gtwr
+		Owner: Neutral
+		Location: 35,4
+	L6Inf1: e1
+		Owner: Neutral
+		Location: 31,7
+	L6Inf2: e1
+		Owner: Neutral
+		Location: 33,7
+	L6Tree1: t05
+		Owner: Neutral
+		Location: 30,6
+
+	# --- L7: THE 56-CELL CEILING PROBE (trait, t=700), centred on 32,26. Its 60c0 radius covers
+	# --- the entire playfield, so it needs no props of its own; the whole map is its subject.
+	L7Emit: e3
+		Owner: Neutral
+		Location: 32,26
+	L7Bld1: pbox
+		Owner: Neutral
+		Location: 30,27
+	L7Bld2: pbox
+		Owner: Neutral
+		Location: 34,27
+	L7Veh1: abrams
+		Owner: Neutral
+		Location: 32,28
+		Facing: 0
+
+Rules: rules.yaml
+
+Weapons: weapons.yaml

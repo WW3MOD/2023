@@ -11,6 +11,19 @@
 		DefeatMusic: map
 	TerrainGeometryOverlay:
 	DebugVisualizations:
+	# LOCAL LIGHTING. Every value here is the trait's own default and is written out on purpose: with
+	# Intensity 1 and neutral tints, TintAt returns exactly (1,1,1) and enabling this trait is a visual
+	# no-op. SpriteRenderable multiplies its tint by that identity; TerrainSpriteLayer writes
+	# `alpha * (1,1,1)` into the vertex colour, which is the same value Util.FastCreateQuad writes when
+	# the trait is absent. A map that wants night sets Intensity below 1 here; light events add on top.
+	# What enabling it DOES cost is a TintAt call per sprite per frame (SpriteRenderable.cs:116) plus a
+	# four-sample terrain refresh per dirtied cell — see WORKSPACE/DISCOVERIES.md 2026-09-06.
+	TerrainLighting:
+		Intensity: 1
+		HeightStep: 0
+		RedTint: 1
+		GreenTint: 1
+		BlueTint: 1
 	Locomotor@TerrainSpeedsTemplate:
 		Name: template
 		Passes: field
@@ -278,6 +291,10 @@ World:
 	# No-op unless Test.Mode=true + Test.SpeedMultiplier>1 + no tournament config.
 	TestModeSpeedMultiplier:
 	ScenarioLobbyDropdown:
+	# Runs time-varying local light events (LightEventWarhead from any weapon, TimedLightSource from any
+	# actor). World-only rather than in ^BaseWorld because it is ITick and the editor world does not tick.
+	# Idle cost is one early-out per tick; nothing in the mod emits an event yet.
+	LightEventManager:
 	HealerClaimLayer:
 	UnitDefaultsManager:
 	# Right-click a capturable structure with NOTHING selected and the nearest free technician is

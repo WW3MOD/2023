@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Generic;
+using OpenRA.Mods.Common.Lighting;
 using OpenRA.Primitives;
 using OpenRA.Support;
 using OpenRA.Traits;
@@ -18,10 +19,15 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[TraitLocation(SystemActors.World | SystemActors.EditorWorld)]
-	[Desc("Add to the world actor to apply a global lighting tint and allow actors using the TerrainLightSource to add localised lighting.")]
+	[Desc("Add to the world actor to apply a global lighting tint and allow actors using the TerrainLightSource",
+		"or LightEventManager to add localised lighting.")]
 	public class TerrainLightingInfo : TraitInfo, ILobbyCustomRulesIgnore
 	{
+		[Desc("Ambient intensity. 1 with neutral tints is an exact no-op: TintAt returns (1,1,1), which is",
+			"the identity for both consumers (SpriteRenderable multiplies by it; TerrainSpriteLayer writes",
+			"alpha * (1,1,1), the same vertex colour Util.FastCreateQuad writes without this trait).")]
 		public readonly float Intensity = 1;
+
 		public readonly float HeightStep = 0;
 		public readonly float RedTint = 1;
 		public readonly float GreenTint = 1;
@@ -35,21 +41,35 @@ namespace OpenRA.Mods.Common.Traits
 
 	public sealed class TerrainLighting : ITerrainLighting
 	{
+		// Windowed inverse square: w(u) = (1/(1+k u^2) - 1/(1+k)) * (1+k)/k, with u the normalised distance
+		// from the centre. w(0) == 1 and w(1) == 0 exactly, so the light still ends cleanly at its radius
+		// instead of needing a separate cutoff. k sets how hard the core is; 24 puts the half-brightness
+		// point at about 20% of the radius, which reads as a point source rather than a disc.
+		const float InverseSquareK = 24f;
+		const float InverseSquareEdge = 1f / (1f + InverseSquareK);
+		const float InverseSquareScale = 1f / (1f - InverseSquareEdge);
+
 		sealed class LightSource
 		{
-			public readonly WPos Pos;
-			public readonly CPos Cell;
-			public readonly WDist Range;
-			public readonly float Intensity;
-			public readonly float3 Tint;
+			public readonly LightFalloff Falloff;
+			public readonly LightBlend Blend;
 
-			public LightSource(WPos pos, CPos cell, WDist range, float intensity, in float3 tint)
+			// Mutable so a time-varying event can be updated in place. Rebuilding the source instead would
+			// mean Remove + Add, and both of those raise CellChanged over the whole radius - see the cost
+			// note on NotifyCells for why doing that every tick is not an option.
+			public WPos Pos;
+			public WDist Range;
+			public float Intensity;
+			public float3 Tint;
+
+			public LightSource(WPos pos, WDist range, float intensity, in float3 tint, LightFalloff falloff, LightBlend blend)
 			{
 				Pos = pos;
-				Cell = cell;
 				Range = range;
 				Intensity = intensity;
 				Tint = tint;
+				Falloff = falloff;
+				Blend = blend;
 			}
 		}
 
@@ -84,29 +104,160 @@ namespace OpenRA.Mods.Common.Traits
 
 		public int AddLightSource(WPos pos, WDist range, float intensity, in float3 tint)
 		{
-			var token = nextLightSourceToken++;
-			var source = new LightSource(pos, map.CellContaining(pos), range, intensity, tint);
-			var bounds = Bounds(source);
-			lightSources.Add(token, source);
-			partitionedLightSources.Add(source, bounds);
+			return AddLightSource(pos, range, intensity, tint, LightFalloff.Linear, LightBlend.Legacy, true);
+		}
 
-			if (CellChanged != null)
-				foreach (var c in map.FindTilesInCircle(source.Cell, (source.Range.Length + 1023) / 1024))
-					CellChanged(c.ToMPos(map));
+		public int AddLightSource(WPos pos, WDist range, float intensity, in float3 tint,
+			LightFalloff falloff, LightBlend blend, bool notifyTerrain)
+		{
+			// PITFALL: SpatiallyPartitioned.Add throws on a zero-width Rectangle, so a zero range is fatal here.
+			if (range.Length <= 0)
+				throw new ArgumentOutOfRangeException(nameof(range), "A light source needs a range greater than zero.");
+
+			var token = nextLightSourceToken++;
+			var source = new LightSource(pos, range, intensity, tint, falloff, blend);
+			lightSources.Add(token, source);
+			partitionedLightSources.Add(source, Bounds(source));
+
+			if (notifyTerrain)
+				NotifyCells(pos, range);
 
 			return token;
 		}
 
 		public void RemoveLightSource(int token)
 		{
+			RemoveLightSource(token, true);
+		}
+
+		public void RemoveLightSource(int token, bool notifyTerrain)
+		{
 			if (!lightSources.TryGetValue(token, out var source))
 				return;
 
 			lightSources.Remove(token);
 			partitionedLightSources.Remove(source);
-			if (CellChanged != null)
-				foreach (var c in map.FindTilesInCircle(source.Cell, (source.Range.Length + 1023) / 1024))
-					CellChanged(c.ToMPos(map));
+
+			if (notifyTerrain)
+				NotifyCells(source.Pos, source.Range);
+		}
+
+		/// <summary>
+		/// Rewrites a live source's intensity, colour and radius WITHOUT touching the terrain. Sprites pick the
+		/// new values up on the next frame for free, because SpriteRenderable.Render calls TintAt per sprite per
+		/// frame. Call <see cref="RefreshTerrain"/> separately, and less often, to push the change to the ground.
+		/// </summary>
+		public void UpdateLightSource(int token, WDist range, float intensity, in float3 tint)
+		{
+			if (!lightSources.TryGetValue(token, out var source))
+				return;
+
+			source.Intensity = intensity;
+			source.Tint = tint;
+
+			if (source.Range != range && range.Length > 0)
+			{
+				source.Range = range;
+				partitionedLightSources.Update(source, Bounds(source));
+			}
+		}
+
+		/// <summary>Moves a live source, for a light carried by something that moves.</summary>
+		public void MoveLightSource(int token, WPos pos)
+		{
+			if (!lightSources.TryGetValue(token, out var source) || source.Pos == pos)
+				return;
+
+			source.Pos = pos;
+			partitionedLightSources.Update(source, Bounds(source));
+		}
+
+		/// <summary>Current radius of a live source, or WDist.Zero if the token is not live.</summary>
+		public WDist RangeOf(int token)
+		{
+			return lightSources.TryGetValue(token, out var source) ? source.Range : WDist.Zero;
+		}
+
+		/// <summary>
+		/// Marks the terrain under a live source dirty. <paramref name="previousRange"/> lets a caller that has
+		/// shrunk the light also clean up the ring it no longer covers; pass WDist.Zero if the radius has not
+		/// gone down. This is the expensive half of the system - see NotifyCells.
+		/// </summary>
+		public void RefreshTerrain(int token, WDist previousRange)
+		{
+			if (!lightSources.TryGetValue(token, out var source))
+				return;
+
+			NotifyCells(source.Pos, previousRange.Length > source.Range.Length ? previousRange : source.Range);
+		}
+
+		// PITFALL: this used to be map.FindTilesInCircle(cell, ceil(range / 1024)), and that was a CRASH.
+		// FindTilesInAnnulus THROWS above MapGrid.MaximumTileSearchRange (56 cells, MapGrid.cs:113) rather than
+		// clamping (Map.cs:1994), so any light with a radius over 56 cells took the game down at the moment it was
+		// created. A nuclear fireball wants a radius several times that. The rectangular sweep below has no such
+		// ceiling, is a strict superset of the cells the old call returned, and is cheaper - it does not walk the
+		// precomputed TilesByDistance offset lists or allocate their enumerators, and it needs no distance ordering.
+		//
+		// COST: O(cells in the bounding box). For a 100-cell radius that is a 200x200 sweep, of which up to the whole
+		// map passes the bounds check, and every passing cell costs the subscriber four TintAt calls plus a vertex
+		// row marked dirty for re-upload. Do NOT call this every tick for a large light; throttle it, which is what
+		// LightEventDefinition.TerrainRefreshInterval exists for.
+
+		/// <summary>Raises CellChanged for every map cell the light can reach.</summary>
+		public void NotifyCells(WPos pos, WDist range)
+		{
+			if (CellChanged == null)
+				return;
+
+			// TerrainSpriteLayer samples a cell's lighting at its four CORNERS, half a tile out from the centre in
+			// each direction. Widening the search by the half-diagonal of a cell (724 = 1024 / sqrt 2) guarantees
+			// we notify every cell with a lit corner, not just every cell with a lit centre.
+			var search = range.Length + 724;
+			var searchSq = (long)search * search;
+
+			var topLeft = map.CellContaining(pos - new WVec(search, search, 0));
+			var bottomRight = map.CellContaining(pos + new WVec(search, search, 0));
+
+			for (var y = topLeft.Y; y <= bottomRight.Y; y++)
+			{
+				for (var x = topLeft.X; x <= bottomRight.X; x++)
+				{
+					var cell = new CPos(x, y);
+					var uv = cell.ToMPos(map);
+
+					// The vertex buffer only has geometry for cells inside MapSize, and TerrainSpriteLayer.UpdateTint
+					// indexes it without a bounds check of its own.
+					if (!map.Tiles.Contains(uv))
+						continue;
+
+					// Ground cells are lit by horizontal distance; the light's altitude is irrelevant to which of
+					// them it reaches, and including Z here would shrink the footprint of an airburst to nothing.
+					var delta = map.CenterOfCell(cell) - pos;
+					if ((long)delta.X * delta.X + (long)delta.Y * delta.Y > searchSq)
+						continue;
+
+					CellChanged(uv);
+				}
+			}
+		}
+
+		/// <summary>Maps a normalised falloff in [0,1] (1 at the centre, 0 at the edge) through the requested curve.</summary>
+		public static float ApplyFalloff(LightFalloff falloff, float f)
+		{
+			switch (falloff)
+			{
+				case LightFalloff.Quadratic:
+					return f * f;
+				case LightFalloff.InverseQuadratic:
+					return f * (2f - f);
+				case LightFalloff.Smoothstep:
+					return f * f * (3f - 2f * f);
+				case LightFalloff.InverseSquare:
+					var u = 1f - f;
+					return (1f / (1f + InverseSquareK * u * u) - InverseSquareEdge) * InverseSquareScale;
+				default:
+					return f;
+			}
 		}
 
 		float3 ITerrainLighting.TintAt(WPos pos)
@@ -119,22 +270,30 @@ namespace OpenRA.Mods.Common.Traits
 					return tint;
 
 				var intensity = info.Intensity + info.HeightStep * map.Height[uv];
-				if (lightSources.Count > 0)
-				{
-					foreach (var source in partitionedLightSources.At(new int2(pos.X, pos.Y)))
-					{
-						var range = source.Range.Length;
-						var distance = (source.Pos - pos).Length;
-						if (distance > range)
-							continue;
+				if (lightSources.Count == 0)
+					return intensity * tint;
 
-						var falloff = (range - distance) * 1f / range;
+				var additive = float3.Zero;
+				foreach (var source in partitionedLightSources.At(new int2(pos.X, pos.Y)))
+				{
+					var range = source.Range.Length;
+					var distance = (source.Pos - pos).Length;
+					if (distance > range)
+						continue;
+
+					var falloff = ApplyFalloff(source.Falloff, (range - distance) * 1f / range);
+					if (source.Blend == LightBlend.Additive)
+						additive += falloff * source.Intensity * source.Tint;
+					else
+					{
 						intensity += falloff * source.Intensity;
 						tint += falloff * source.Tint;
 					}
 				}
 
-				return intensity * tint;
+				// With no Additive sources this is exactly the historical `intensity * tint`: adding a zero float3
+				// is exact in IEEE754, so the vanilla TerrainLightSource path is unchanged to the bit.
+				return intensity * tint + additive;
 			}
 		}
 	}

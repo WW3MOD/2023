@@ -1,0 +1,23 @@
+# The weapon-side light emitter. Fired by bradley's Explodes@LightDemo (rules.yaml) at the moment the
+# Lua kills it, so the flash lands on a known tick instead of whenever a shot happens to connect.
+#
+# There is nothing demo-specific about the WARHEAD - LightEvent can be hung off any weapon in the mod
+# exactly like this, which is how the nuke will reach it. What is demo-specific is the delivery: a
+# purpose-built weapon with no damage, so the only thing this detonation does is light.
+
+DemoLightFlash:
+	ValidTargets: Ground, Water, Trees, Infantry
+	# 2. SHARP FLASH. One tick from nothing to 6.5, two ticks held, then a 22-tick InverseCubic collapse
+	# that is almost gone by tick 8 and trails the rest of the way out. Total 25 ticks - 1.5 s at the
+	# mod's 60ms timestep. Set next to the slow pulse at 8,16 for contrast: same tool, opposite envelope.
+	Warhead@Light: LightEvent
+		ValidTargets: Ground, Water, Trees, Infantry
+		ForceGroundLevel: true
+		Light:
+			Times: 0, 1, 3, 25
+			Intensities: 0, 6.5, 5.0, 0
+			Radii: 4c0, 7c0, 8c0, 11c0
+			Tints: FFFFFF, FFFFFF, FFF2D8, FFB870
+			Interpolations: Linear, Linear, InverseCubic
+			Falloff: InverseSquare
+			TerrainRefreshInterval: 2
