@@ -44,16 +44,22 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Height gained during the vertical launch rise phase.")]
 		public readonly WDist LaunchRiseHeight = WDist.Zero;
 
-		[Desc("How much of the missile's apparent climb/dive is put into the sprite facing, as a",
-			"percentage. 0 = pure horizontal facing (no tilt at all).",
-			"100 = the nose is drawn exactly along the missile's apparent direction of travel, which",
-			"is the line its smoke trail leaves behind it. Values between lean the nose back toward",
-			"the flat ground heading; above 100 exaggerates past reality.",
-			"UNITS CHANGED on 2026-09-06 and the shipped values were retuned with them. This used to",
-			"scale a raw arc slope through a 0.8125 fudge factor and a 2048*u*(1-u) facing weight, so",
-			"the old 42-55 range meant nothing physical: it landed between 68% and 270% of the true",
-			"tilt depending only on which way the missile happened to be pointing. See",
-			"BallisticMissileFly.ScreenAlignedFacing for the derivation that replaced it.")]
+		[Desc("How much of the screen-space correction is applied to the sprite facing, as a",
+			"percentage.",
+			"100 = the nose is DRAWN along the missile's apparent direction of travel, which is the",
+			"line its own smoke trail leaves behind it. 0 = the raw ground heading, drawn the way any",
+			"ground actor is drawn. Values between blend the two; above 100 overshoots.",
+			"NOT ONLY A PITCH CORRECTION, despite the name. Because the artwork is foreshortened (see",
+			nameof(SpriteFacingSquash) + "), a LEVEL missile on a diagonal heading is already drawn 15.5 degrees",
+			"off its own ground track, so at 100 the facing differs from the ground heading even at",
+			"zero slope -- 84 against 128 on a 45-degree heading. That is intended: a missile is judged",
+			"against its trail, not against the terrain it is passing over. The four cardinals are",
+			"unchanged in level flight, which is why spot-checking one of them proves nothing.",
+			"UNITS CHANGED TWICE and the shipped values moved with them. Before 2026-09-06 this scaled",
+			"a raw arc slope through a 0.8125 fudge factor and a 2048*u*(1-u) facing weight, so the old",
+			"42-55 range meant nothing physical. It then briefly meant \"percentage of the TILT, applied",
+			"on top of the ground heading\", which left the diagonal 15.5 degrees out because the",
+			"foreshortening is not a tilt. See BallisticMissileFly.ScreenAlignedFacing.")]
 		public readonly int VisualPitchMultiplier = 0;
 
 		[Desc("Vertical foreshortening of this actor's facing artwork, per mille.",

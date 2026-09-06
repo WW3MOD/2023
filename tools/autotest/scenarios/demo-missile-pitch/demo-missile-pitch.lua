@@ -4,10 +4,15 @@
 --
 -- WHAT TO LOOK AT. The smoke trail is ground truth -- LeavesTrailsCA drops its puffs at the
 -- missile's own CenterPosition, so the trail marks exactly where the missile has been. Put the nose
--- and the trail on the same line in your eye. If the nose sits further from horizontal than the
--- trail does, the missile is flying belly first, which is the defect this scenario shows the fix
--- for. At the apex, where the arc is momentarily flat, the nose must sit exactly along the ground
--- heading -- that one is the easiest frame to judge and the model guarantees it exactly.
+-- and the trail on the same line in your eye; they must agree at EVERY point of the flight,
+-- including the apex.
+--
+-- THE APEX IS THE FRAME TO JUDGE, and note what the correct answer there now is. The arc is flat, so
+-- the nose must lie along the GROUND TRACK AS THE SCREEN DRAWS IT -- which on shot A's diagonal is
+-- 15.5 degrees away from the missile's ground heading, because the artwork is foreshortened. The
+-- earlier model put the nose on the ground heading instead and was wrong by exactly that, at every
+-- point of the flight rather than only while climbing. Do not read "the nose is not parallel to the
+-- launcher's facing" as a defect on a diagonal; read the trail.
 --
 -- LAYOUT, so this file can be read without map.yaml: launcher A is at cell 79,80 and fires
 -- north-west at an Abrams on 55,56; launcher B is at 81,66 and fires due west at an Abrams on

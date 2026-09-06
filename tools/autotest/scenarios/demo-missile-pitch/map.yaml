@@ -25,17 +25,25 @@ Categories: Test
 # missile has been. If the nose is pitched further from horizontal than the trail, the missile is
 # flying "belly first" -- which is the report this scenario exists to show the fix for.
 #
-# WHY TWO SHOTS AND WHY THESE TWO BEARINGS. The error being fixed was never a single constant; it
-# ran the opposite way at different headings, because the missile artwork is drawn from a camera
-# 34.5 degrees above the ground plane while the map grid is square (mod.yaml, TileSize 24,24 with
-# Type: Rectangular). Near due east/west that artwork COMPRESSES a facing change to 0.566 of its
-# nominal angle; near due north/south it EXPANDS it by 1.767. So:
+# WHY TWO SHOTS AND WHY THESE TWO BEARINGS. The missile artwork is drawn from a camera 34.5
+# degrees above the ground plane while the map grid is square (mod.yaml, TileSize 24,24 with
+# Type: Rectangular), so the angle a facing is DRAWN at is not the angle you asked for. The two
+# bearings here are the two ends of that:
 #
-#   SHOT A, fired north-west (facing 128), is the diagonal where the old model over-tilted -- it
-#   pitched the nose about 18 degrees further up than the trail on the way up.
-#   SHOT B, fired due west (facing 256), is where the old model UNDER-tilted by about 5 degrees.
+#   SHOT B, due west (facing 256), is a cardinal. The artwork's y-squash has nothing to scale
+#   because h.Y is zero, so the drawn angle equals the facing exactly and always has. THIS SHOT
+#   LOOKED CORRECT UNDER THE MODEL THAT SHIPPED ON 2026-09-06 AND STILL DOES -- it is unchanged.
+#   It is here as a control, and as a standing reminder that checking a cardinal proves nothing.
 #
-# Checking only one of them would confirm half the change and hide the other half.
+#   SHOT A, north-west (facing 128), is where the squash bites hardest. The ground vector (-1,-1)
+#   sits at 225 degrees and the art draws it at (-1,-0.566), which is 209.5 -- so a LEVEL missile
+#   on this heading is drawn 15.5 degrees off its own ground track. The 2026-09-06 model corrected
+#   the pitch but not that, leaving a CONSTANT 15.5-degree error present at every point of the
+#   flight including the apex. That is what the user saw as "tilts strangely for much of the
+#   flight path", and it is what shot A is here to show fixed.
+#
+# The error was never slope-dependent, so do not expect it only on the climb: compare nose against
+# trail at the apex too, where the arc is flat and the old model was at its most obviously wrong.
 #
 # TERRAIN. map.bin and map.png are twin-rivers-ww3's, copied unchanged from the sibling
 # demo-highyield-nuke; only this actor list is new. Both launcher cells and both target cells were
