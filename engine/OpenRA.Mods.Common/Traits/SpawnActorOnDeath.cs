@@ -105,6 +105,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (!enabled || IsTraitDisabled || !self.IsInWorld)
 				return;
 
+			// A vaporised actor leaves no husk. Note the spawn itself happens in RemovedFromWorld below and is
+			// gated on attackingPlayer having been set here, so returning early is a complete suppression.
+			if (DeathRemains.AreSuppressed(self))
+				return;
+
 			if (self.World.SharedRandom.Next(100) > Info.Probability)
 				return;
 
@@ -124,6 +129,13 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyRemovedFromWorld.RemovedFromWorld(Actor self)
 		{
 			if (attackingPlayer == null)
+				return;
+
+			// Re-checked here as well as in Killed, and the second check is the one that matters. The spawn is
+			// deferred to frame end, so an actor can be marked for vaporisation AFTER it was killed and still
+			// before its husk appears - which is what happens whenever a weapon lists a damage warhead ahead of
+			// its vaporize warhead. Without this, husk suppression would silently depend on warhead order.
+			if (DeathRemains.AreSuppressed(self))
 				return;
 
 			if (!changedFromNeutral)

@@ -45,6 +45,10 @@ namespace OpenRA.Mods.CA.Traits
 			if (IsTraitDisabled || !self.IsInWorld)
 				return;
 
+			// See Explodes: a vaporised actor leaves nothing to detonate.
+			if (DeathRemains.AreSuppressed(self))
+				return;
+
 			if (self.World.SharedRandom.Next(100) > Info.Chance)
 				return;
 

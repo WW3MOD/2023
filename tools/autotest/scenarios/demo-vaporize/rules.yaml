@@ -1,0 +1,66 @@
+# Vaporisation DEMO overrides. Nothing here is asserted; see demo-vaporize.lua for the schedule and
+# map.yaml for the layout.
+#
+# NOTHING NUCLEAR IS TOUCHED. The two demo weapons live in this scenario's weapons.yaml.
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, demo-vaporize.lua
+
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	PlayerResources:
+		DefaultCash: 0
+
+# Nothing fights. Every target on this map is Neutral, and turning scanning off keeps the field static
+# so the only thing that happens is the two detonations.
+^Combatant:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+
+# The detonation is delivered by killing the bradley at each ground zero and letting its Explodes fire
+# the demo weapon at its own position. Added as a NEW Explodes@ key rather than overriding the
+# inherited one: every enabled Explodes fires on the same death (Explodes.cs:104), so the bradley's own
+# cook-off would normally still happen alongside.
+#
+# THE PROBE IS INSIDE ITS OWN BLAST, and what happens to it is worth stating precisely because it is the
+# order-dependence in miniature. By the time the weapon fires, the probe is ALREADY DEAD - the weapon is
+# fired from its own Killed - so Vaporizable.Begin marks a corpse. That is late for some things and not
+# for others:
+#   - NO HUSK. SpawnActorOnDeath defers the spawn to RemovedFromWorld at frame end, and the suppression
+#     is re-checked there, so the mark still lands in time. The probe vanishes.
+#   - NO FADE. The actor disposes this frame; there is nothing left to render a dissolve on.
+#   - COOK-OFFS ARE A COIN TOSS. Any Explodes declared before Explodes@DemoSmall in trait order has
+#     already fired. Do not read the probe's own cell as evidence about cook-off suppression - read one
+#     of the ring units, which are marked while still alive.
+# Everything else on the map is marked BEFORE it dies and shows the full effect.
+#
+# `bradley` is lowercase because vehicles-america.yaml spells it that way; MiniYaml merges top-level
+# keys case-sensitively, so `BRADLEY:` here would define a second, unrelated actor and override nothing.
+bradley:
+	Explodes@DemoSmall:
+		RequiresCondition: demo-small
+		Weapon: DemoVaporizeSmall
+		EmptyWeapon: DemoVaporizeSmall
+		Chance: 100
+	Explodes@DemoLarge:
+		RequiresCondition: demo-large
+		Weapon: DemoVaporizeLarge
+		EmptyWeapon: DemoVaporizeLarge
+		Chance: 100
+	ExternalCondition@DemoSmall:
+		Condition: demo-small
+	ExternalCondition@DemoLarge:
+		Condition: demo-large

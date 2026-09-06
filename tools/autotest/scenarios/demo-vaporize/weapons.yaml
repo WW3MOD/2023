@@ -1,0 +1,79 @@
+# Demo-only weapons. NOTHING NUCLEAR IS TOUCHED - `Atomic` and `AtomicHighYield` live in
+# mods/ww3mod/rules/weapons/weapons-superweapons.yaml and this branch does not edit that file. These two
+# exist so the mechanism can be seen without waiting on the weapon that will eventually adopt it.
+#
+# Each weapon fires FOUR warheads on the same impact:
+#   Warhead@Vaporize  - the new one. Removes actors inside a small radius with no remains.
+#   Warhead@Kill      - ordinary SpreadDamage out to 12 cells, so everything OUTSIDE the vaporize
+#                       radius dies the normal way and leaves its husk. This is the control.
+#   Warhead@Flash     - the white screen flash the small-yield mode hides behind.
+#   Warhead@Boom      - a visible explosion so the eye knows where to look.
+#
+# ORDER DOES NOT MATTER between Vaporize and Kill, and that is deliberate rather than lucky.
+# Vaporizable reports SuppressDeathRemains from the instant Begin runs, so if SpreadDamage kills a unit
+# on the same tick the vaporize started, the death still leaves nothing behind.
+
+# LEFT SITE - the small-yield answer. WhiteoutFraction 1.0 means no dissolve is ever drawn: the sprite
+# superheats for ten ticks and the actor is gone. At 20 kt the fireball is about 1.4 cells ACROSS, so
+# there is no room for anything more elaborate to be seen, and this is the user's own
+# "hide the removal behind the flash" fallback - which is the right answer at this size, not a
+# compromise. The flash below runs 30 ticks, so the removal completes at tick 10 with the screen still
+# at two-thirds white.
+DemoVaporizeSmall:
+	ValidTargets: Ground, Water, Infantry
+	Warhead@Vaporize: Vaporize
+		ValidTargets: Ground, Water, Infantry
+		Radius: 2c0
+		FadeDelay: 0
+		Duration: 10
+		Brightness: 8
+		WhiteoutFraction: 1.0
+		DamageTypes: ExplosionDeath
+	# Range overrides Spread (SpreadDamageWarhead.cs:31), so Spread is deliberately absent.
+	Warhead@Kill: SpreadDamage
+		Damage: 90000
+		Falloff: 100, 100, 100, 60
+		Range: 0, 4c0, 8c0, 12c0
+		ValidTargets: Ground, Water, Infantry
+		DamageTypes: ExplosionDeath
+	Warhead@Flash: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+	Warhead@Boom: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 120
+		Palette: effect_ts
+		ImpactActors: false
+		VisibleThroughFog: true
+		ValidTargets: Ground, Water
+
+# RIGHT SITE - the large-yield answer. Thirteen cells of fireball is enough screen that the removal is
+# worth watching, so WhiteoutFraction 0.35 spends the first third heating and the rest dissolving.
+# Duration 30 is 1.8 s at the mod's 60ms timestep.
+DemoVaporizeLarge:
+	ValidTargets: Ground, Water, Infantry
+	Warhead@Vaporize: Vaporize
+		ValidTargets: Ground, Water, Infantry
+		Radius: 6c0
+		FadeDelay: 0
+		Duration: 30
+		Brightness: 7
+		WhiteoutFraction: 0.35
+		DamageTypes: ExplosionDeath
+	# Range overrides Spread (SpreadDamageWarhead.cs:31), so Spread is deliberately absent.
+	Warhead@Kill: SpreadDamage
+		Damage: 90000
+		Falloff: 100, 100, 100, 60
+		Range: 0, 4c0, 8c0, 12c0
+		ValidTargets: Ground, Water, Infantry
+		DamageTypes: ExplosionDeath
+	Warhead@Flash: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+	Warhead@Boom: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 260
+		Palette: effect_ts
+		ImpactActors: false
+		VisibleThroughFog: true
+		ValidTargets: Ground, Water

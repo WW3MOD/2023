@@ -158,6 +158,41 @@ namespace OpenRA.Mods.Common.Traits
 	public interface INotifyDamage { void Damaged(Actor self, AttackInfo e); }
 	[RequireExplicitImplementation]
 	public interface INotifyKilled { void Killed(Actor self, AttackInfo e); }
+
+	// Asked of the VICTIM, by the traits on the victim that would otherwise leave something behind. It is a
+	// question about this death, not about the weapon: a unit inside a nuclear fireball is vaporised whatever
+	// finally kills it, including the blast wave arriving in the same tick from a different warhead.
+	//
+	// It deliberately suppresses only DEBRIS - husks, cook-off explosions, corpse animations, ejected pilots.
+	// Everything that ACCOUNTS for the death (PlayerStatistics, GivesExperience, GivesBounty, the lifecycle
+	// logger, ActorLostNotification) is untouched and still runs, which is the whole reason a vaporised actor
+	// is killed rather than simply Dispose()d. Disposing would suppress every one of these by construction and
+	// would also silently drop the kill from both players' ledgers.
+	//
+	// Consulted at five sites, all of them INotifyKilled on the victim (grep `SuppressesDeathRemains` for the
+	// list). The set was chosen by counting what the mod actually declares, not what the engine offers:
+	// SpawnActorOnDeath 112, Explodes 73, EjectOnDeath 19, WithDeathAnimation 11, SpawnedExplodes 2. Traits that
+	// produce sound or camera shake are deliberately NOT suppressed - a nuclear detonation should still be loud.
+	[RequireExplicitImplementation]
+	public interface ISuppressDeathRemains
+	{
+		/// <summary>True while this actor's death should leave nothing behind at all.</summary>
+		bool SuppressDeathRemains { get; }
+	}
+
+	public static class DeathRemains
+	{
+		/// <summary>Call at the top of any INotifyKilled that would leave something behind.</summary>
+		public static bool AreSuppressed(Actor self)
+		{
+			// PERF: only ever reached on a death, and the trait list is a cached array.
+			foreach (var t in self.TraitsImplementing<ISuppressDeathRemains>())
+				if (t.SuppressDeathRemains)
+					return true;
+
+			return false;
+		}
+	}
 	[RequireExplicitImplementation]
 	public interface INotifyAppliedDamage { void AppliedDamage(Actor self, Actor damaged, AttackInfo e); }
 

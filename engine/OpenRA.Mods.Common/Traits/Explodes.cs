@@ -106,6 +106,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (IsTraitDisabled || !self.IsInWorld)
 				return;
 
+			// A vaporised tank does not cook off - there is nothing left to burn, and the cook-off weapon would
+			// also deal real damage to whatever survived nearby.
+			if (DeathRemains.AreSuppressed(self))
+				return;
+
 			if (self.World.SharedRandom.Next(100) > Info.Chance)
 				return;
 
