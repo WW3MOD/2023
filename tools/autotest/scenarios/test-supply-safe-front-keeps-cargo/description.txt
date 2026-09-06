@@ -1,1 +1,5 @@
 On a front with no believed enemy contact, the truck must drive up and resupply the starving platoon from its aura — leaving no crate on the ground and keeping the rest of its load for the next errand.
+
+This is the doctrine's SAFE branch, and shipped ai.yaml switches it off: IgnoreDangerForDelivery: true makes the drop mode unconditional, so reason=SafeFront is unreachable and the truck crates its whole load on any front. This map therefore sets IgnoreDangerForDelivery: false in its own rules.yaml — otherwise the scenario could only go green by the truck failing to deliver at all, which is what made it red from 2026-08-13 to 2026-09-06. The sibling test-supply-under-danger asserts the drop branch and runs on shipped config untouched.
+
+A pass is evidence about the mode selector ONLY if debug.log carries `[supply] drop-declined ... reason=SafeFront`. Green with reason=NoDemand/Covered/LowLoad/NoAnchor is a false pass: those also leave drop=false, and the truck then serves from its aura on the follow path without the mode gate ever being consulted.

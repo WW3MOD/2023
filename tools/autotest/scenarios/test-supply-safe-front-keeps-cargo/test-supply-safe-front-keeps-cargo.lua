@@ -7,6 +7,26 @@
 --   "If there is no danger the truck can go up to them and resupply them directly and not
 --    unload, if more resupplying is needed elsewhere."
 --
+-- THE MODE THIS ASSERTS IS OFF IN SHIPPED CONTENT, AND THIS MAP TURNS IT BACK ON. Read rules.yaml
+-- before reading any verdict from this file. ai.yaml sets IgnoreDangerForDelivery: true, which
+-- short-circuits the mode gate at SupplyFollowerBotModule.cs:1662 and makes the drop mode
+-- unconditional — so `reason = "SafeFront"` cannot fire and the truck crates its whole 750 on any
+-- front, this one included. From 2026-08-13 (b87aeb62, when that flag landed) to 2026-09-06 this
+-- scenario was therefore RED BY CONFIGURATION: clause 2 fails any run in which a crate appears, so
+-- the only way it could have gone green was the truck not delivering at all. The red was read as a
+-- selector defect for three weeks (bugs/discovered.md 2026-08-14, PIPELINE items 51 and 56). It was
+-- not one. rules.yaml now sets IgnoreDangerForDelivery: false for this map only, with the
+-- seven-site argument for why that is safe here written out in place.
+--
+-- SO THE FALSE PASS IS THE THING TO WATCH, not the false fail. All four clauses below can hold
+-- WITHOUT the safe branch ever being consulted: any drop decline (NoDemand, Covered, LowLoad,
+-- NoAnchor) also leaves drop = false, and the truck then takes the follow path, drives to the
+-- platoon and serves from its aura with no crate and its cargo intact — clauses 1, 2, 3 and 4 all
+-- satisfied by a run that proves nothing about mode selection. The clauses cannot tell these apart,
+-- because Lua cannot see the module's reason; the LOG can. A green run is evidence about the mode
+-- selector only if debug.log carries `[supply] drop-declined ... reason=SafeFront` (:1730), and the
+-- `[supply] init` line reads `ignore-danger=False` (proving the override merged at all).
+--
 -- Four clauses, ALL of which must hold, evaluated together when the window closes:
 --
 --   (1) AMMO CAME UP. At least 2 of the 5 riflemen climb clear of the starving threshold.
@@ -95,9 +115,12 @@ local HOLD_DRIFT = 1
 -- This is unreachable in a PASSING run — clause 2 has already failed any run where a crate appeared —
 -- and it is here so that when clause 2 fails, the verdict stays ABOUT THE CRATE instead of also
 -- reporting a bogus front collapse for men who legitimately walked to one. That is not hypothetical:
--- this scenario is currently red for exactly that reason (a crate dropped on a quiet front, PIPELINE
--- item 51 / item 56), and a new clause that piles a second wrong diagnosis on top of a real signal
--- would make the instrument worse rather than better.
+-- this scenario spent 2026-08-13 to 2026-09-06 red for exactly that reason (a crate dropped on a
+-- quiet front, PIPELINE items 51 and 56 — by configuration, see the header), and a new clause that
+-- piles a second wrong diagnosis on top of a real signal would make the instrument worse rather
+-- than better. With the mode gate now reachable a crate should no longer appear at all, so this
+-- allowance is expected to stay unused; it is kept because clause 2 can still fail if the selector
+-- itself is wrong, and that verdict must stay about the crate.
 --
 -- Latched on crateEver, not on a live count: SUPPLYCACHE self-removes when drained
 -- (RemoveBelowSupply: 1, misc.yaml:437), so a crate that was walked to and then consumed must still

@@ -2,7 +2,7 @@ MapFormat: 12
 
 RequiresMod: ww3mod
 
-Title: TEST: on a safe front the truck serves and keeps its cargo
+Title: TEST: on a safe front the truck serves and keeps its cargo (SafeFront mode, reached via this map's own IgnoreDangerForDelivery override)
 
 Author: WW3MOD
 
@@ -153,8 +153,12 @@ Actors:
 
 	# The starving platoon. Five riflemen inside one 10-cell cluster radius, so they read as a
 	# single cluster on every bot profile (MinNearbyFriendlies 4, or 2 under SmallSquadCoverage).
-	# Five also clears DropMinStarvingUnits: 3 — which is the point: every gate that would
-	# permit a crate drop is satisfied, so if the code drops one, it drops one here.
+	# Five also clears DropMinStarvingUnits, which ships at 1 (ai.yaml:1914 — this comment said 3
+	# until 2026-09-06; a86e2fb6 set 3 and 63f2ec48 lowered it to 1, and 3 is still quoted in two
+	# code comments). Five clears either value, and that is the point: every DEMAND gate that would
+	# permit a crate drop is satisfied, so the only thing left that can refuse the drop is the mode
+	# selector — which is exactly what this scenario measures. If the code drops a crate, it drops
+	# one here.
 	Rifle1: e3
 		Owner: USA-bot
 		Location: 44,14
