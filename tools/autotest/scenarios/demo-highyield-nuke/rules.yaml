@@ -36,7 +36,8 @@ Player:
 		# nothing to look at. If you want to see the shipped wait, delete this line.
 		MissileDelay: 100
 	# 481 actors die here. Without this the match ends on elimination while the blast wave is still
-	# travelling -- it takes 714 ticks to reach full radius.
+	# travelling -- it takes 597 ticks to reach full radius (714 before the 2026-09-06 yield rebuild
+	# gave the front a supersonic start at the fireball surface).
 	-ConquestVictoryConditions:
 	# Fog off and the map pre-explored. This demo is about seeing the whole map at once, and the
 	# power's own 68c0 reveal camera is irrelevant under it (it reveals shroud, and there is none).

@@ -29,11 +29,14 @@ Categories: Test
 # WHY THE VICTIM IS A t90 AND NOT A BUILDING. This scenario is about DELIVERY, not about warhead
 # shape — the Atomic warhead is reused unchanged from mslo's NukePower and was not written by this
 # work. A tank is the cleanest possible read on "the warhead went off where it was aimed": Atomic's
-# ThermalVaporize alone is 200,000 at Spread 3c0 against a t90's 24,000 HP, so arrival means death
-# and non-arrival means a live tank, with no ambiguous middle.
+# ThermalVaporize alone is 200,000 at Spread 2c768 against a t90's 24,000 HP, so arrival means death
+# and non-arrival means a live tank, with no ambiguous middle. (Spread was 3c0 until the 2026-09-06
+# yield rebuild shrank every Atomic radius to what 20 kt actually produces. The victim sits AT the
+# aim point, so nothing asserted here depends on that number.)
 #
-# THE BLAST IS ENORMOUS AND THE MAP IS SMALL, so placement is constrained rather than free:
-# Warhead@BlastWave has MaxRadius 30c0. On a 64x32 playfield essentially everything is inside it.
+# THE BLAST IS STILL LARGE AND THE MAP IS SMALL, so placement is constrained rather than free:
+# Warhead@BlastWave has MaxRadius 15c0 and its outermost suppression band reaches 17c0. On a 64x32
+# playfield essentially everything is inside it.
 # That is fine for what is asserted — `-ConquestVictoryConditions` in rules.yaml stops an
 # elimination from ending the match early, and SUPPLYROUTE carries
 # `Targetable.TargetTypes: NoAutoTarget`, which no Atomic warhead lists, so both Supply Routes are

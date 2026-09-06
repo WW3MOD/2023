@@ -316,13 +316,17 @@ Player:
 		# what makes dispersing a possible answer to a nuke instead of a fantasy, which is the whole
 		# argument for a deterrent being survivable.
 		MissileDelay: 500
-		# 20c0, matching mslo's NukePower rather than the 8c0 the two conventional strikes use: the
-		# Atomic blast wave has MaxRadius 30c0, so a camera sized for a conventional strike would
-		# show the player a fraction of what they just did.
+		# 20c0, matching mslo's NukePower rather than the 8c0 the two conventional strikes use.
+		# Atomic's blast wave has MaxRadius 15c0 since the 2026-09-06 yield rebuild (it was 30c0),
+		# but the camera is deliberately NOT cut to match: the weapon's fireball light reaches 12
+		# cells, its fire ring 12 and its outermost suppression band 17, so 20c0 is what covers
+		# everything the strike actually does rather than just where it breaks things.
 		CameraRange: 20c0
 		CameraSpawnAdvance: 25
-		# 1000 ticks = 60 s, matching mslo. The Atomic warhead's own effects run to tick ~213 (the
-		# outermost suppression band), so a 100-tick camera would close mid-detonation.
+		# 1000 ticks = 60 s, matching mslo. The Atomic warhead's own effects run to tick ~123 (the
+		# outermost suppression band; it was ~213 before the yield rebuild shortened the blast wave
+		# from 30 cells to 15), and its innermost fire condition lasts 750 ticks. A 100-tick camera
+		# would close mid-detonation.
 		CameraRemoveDelay: 1000
 		BeaconRemoveAdvance: 5
 		DisplayBeacon: True
@@ -403,8 +407,12 @@ Player:
 		# 15360 + 13300 = 28660, within 1.5%. So a 700%-scale mushroom cloud sits on the ground exactly
 		# the way the shipped 300% one does. Move ScalePercent and this must move with it.
 		#
-		# 15c0 is also honest physics for the yield: optimum burst height scales as the cube root of
-		# yield like everything else here, and 1.5 km is in the right band for a ~800 kt weapon.
+		# 15c0 is also honest physics for the yield, though not for the yield this comment used to
+		# name. The weapon was relabelled from ~800 kt to ~6 Mt on 2026-09-06 (102c0 of blast at the
+		# mod's 160 m/cell scale is 16.3 km, which is the ~2.7 psi contour of a 6 Mt weapon, not an
+		# 800 kt one). 15c0 is 2.4 km, a SCALED burst height of 2400 / 6000^(1/3) = 132 m per
+		# kt^(1/3), which is in the band that optimises the ~7 psi contour -- a legitimate airburst
+		# height for a weapon this size.
 		#
 		# DO NOT RAISE THIS ABOVE 24c0. Every one of AtomicHighYield's 27 damage, fire, EMP, suppression
 		# and smudge warheads carries `AirThreshold: 24c0`, and above a warhead's AirThreshold the engine
@@ -428,8 +436,8 @@ Player:
 		# a HARD CRASH at the tick the strike camera spawns -- CameraSpawnAdvance ticks BEFORE the
 		# detonation, so the game dies before the player ever sees the weapon fire.
 		#
-		# Observed 2026-09-06: this shipped at 68c0 (scaled from @TacNuke's 20c0, which is 0.67x its
-		# 30c0 blast wave, so 0.67 x 102 = 68) and killed the game 15 s into the demo with
+		# Observed 2026-09-06: this shipped at 68c0 (scaled from @TacNuke's then-20c0, which was 0.67x
+		# its then-30c0 blast wave, so 0.67 x 102 = 68) and killed the game 15 s into the demo with
 		# `The requested range (69) cannot exceed the value of MaximumTileSearchRange (56)`.
 		#
 		# 55 cells of radius is 110 cells across, which still covers essentially the whole of the
@@ -441,9 +449,12 @@ Player:
 		# 85, which is @TacNuke's 25 x 3.4. The camera has further to reveal and the wave takes longer
 		# to get going, so it opens proportionally earlier.
 		CameraSpawnAdvance: 85
-		# 1800 ticks = 108 s. AtomicHighYield's own effects run to tick ~724 (the outermost suppression
-		# band, 43 s) and its innermost fire condition lasts 1500 ticks (90 s), so a camera sized like
-		# @TacNuke's 1000 would close while the map was still burning.
+		# 1800 ticks = 108 s. AtomicHighYield's own effects run to tick ~890 (the outermost suppression
+		# band, 53 s) and its innermost fire condition lasts 1500 ticks (90 s), so a camera sized like
+		# @TacNuke's 1000 would close while the map was still burning. The 890 figure moved from ~724
+		# on 2026-09-06: the blast wave now leaves the fireball supersonic and reaches its full 102
+		# cells sooner (597 ticks against 714), but the suppression bands were re-derived from the
+		# integrated wavefront and the outermost one sits past MaxRadius, so the tail is longer.
 		CameraRemoveDelay: 1800
 		BeaconRemoveAdvance: 5
 		DisplayBeacon: True

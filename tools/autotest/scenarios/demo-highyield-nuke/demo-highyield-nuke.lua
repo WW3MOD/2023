@@ -22,19 +22,30 @@
 --     t=243   DETONATION. 118 ticks of flight over 63 cells at Speed 550, and that number is exact
 --             rather than estimated: this missile has Acceleration 0 and no TerminalAcceleration,
 --             so BallisticMissileFly does not accelerate it. Burst is 15c0 above the aim point.
---     t=244   flash (3 stacked palette warheads, white through ~t=313), fireball at 700% scale.
---     t=248   blast wave begins expanding at 7 ticks per cell.
---     t=273   thermal radiation pulse ends (200 ticks of it, 50 damage pulses).
---     t=443   fire ignition finishes staging outward to 95 cells.
---     t=962   blast wave reaches its full 102-cell radius. Everything on the map has now been hit.
---     t=967   last suppression band lands.
+--     t=243   THE FIREBALL LIGHTS. First maximum of the double flash, 21 cells of white.
+--     t=244   flash (3 stacked palette warheads, white through ~t=313), mushroom cloud at 700%.
+--     t=246   the DIP -- the shock front has gone opaque, so the light dims to 0.9 and turns orange
+--             while its radius keeps growing. Blast wave is born here too, at the fireball surface
+--             (6.8 cells) travelling at Mach 4.05, not at a point travelling at Mach 1.
+--     t=284   *** SECOND MAXIMUM. Intensity 7.0 across 124 cells: the whole map is white. ***
+--     t=404   fireball out on a dull red, 161 ticks after it lit. Fire ignition also finishes
+--             staging outward here, to 124 cells -- past the blast wave's own 102.
+--     t=657   thermal radiation pulse ends (413 ticks of it, 51 damage pulses).
+--     t=840   blast wave reaches its full 102-cell radius. Everything on the map has now been hit.
+--     t=933   last suppression band lands.
 --     t=1743  innermost fires burn out (1500 ticks).
 --     t=2043  the strike camera is removed (CameraRemoveDelay 1800).
 --
--- SO: the interesting window is t=243 to t=962 -- 14.6 s to 57.7 s after the map loads. Screenshot
--- anywhere in it. The single most legible frame is around t=500 to t=600, when the wavefront is
--- 35-50 cells out: the inner rings are already gone, the middle band is burning, and the outer
--- rings are still intact and untouched, so all three states are on screen at once.
+-- (Every figure from t=243 onward was re-derived on 2026-09-06, when this warhead was relabelled
+-- from ~800 kt to ~6 Mt and every radius and delay in it recomputed from that yield. The blast wave
+-- is faster than it was -- 597 ticks to full radius against 714 -- because it now leaves the
+-- fireball supersonic instead of crawling from a point at the speed of sound.)
+--
+-- SO: the interesting window is t=243 to t=840 -- 14.6 s to 50.4 s after the map loads. Screenshot
+-- anywhere in it. The single best frame is t=284, the fireball's second maximum. After that the
+-- most legible is around t=380 to t=450, when the wavefront is 35-48 cells out: the inner rings are
+-- already gone, the middle band is burning, and the outer rings are still intact and untouched, so
+-- all three states are on screen at once.
 --
 -- THE CAMERA CANNOT BE ZOOMED FROM LUA. CameraGlobal exposes Position and nothing else
 -- (CameraGlobal.cs), so this centres on ground zero and leaves zoom to whoever is watching. On a

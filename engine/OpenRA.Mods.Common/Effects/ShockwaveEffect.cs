@@ -32,8 +32,21 @@ namespace OpenRA.Mods.Common.Effects
 		int ticks;
 		bool finished;
 
-		// WDist units expanded per tick = 1 cell (1024) / WaveSpeed
+		// WDist units expanded per tick = 1 cell (1024) / WaveSpeed, once the front is sonic.
 		readonly int expansionPerTick;
+
+		// Current wavefront radius, in WDist units. INTEGRATED rather than computed as
+		// ticks * expansionPerTick, because the front no longer necessarily starts at the centre and no
+		// longer necessarily travels at a constant speed. Every operand below is an int and every
+		// division is integer division: this position decides who takes blast damage on which tick, so
+		// it is simulation state and a float here would be a desync waiting for a different CPU.
+		// With StartRadius 0 and InitialSpeedPercent 100 the accumulation reproduces the old closed
+		// form exactly, tick for tick.
+		int radius;
+
+		// Speed above sonic, in permille of the sonic speed, decaying by SpeedDecayPercent each tick.
+		// Zero for every weapon that does not opt in, which is what makes the default path identical.
+		int excessPermille;
 
 		public ShockwaveEffect(World world, ShockwaveDamageWarhead warhead, WPos center, Actor firedBy, WarheadArgs args)
 		{
@@ -44,6 +57,8 @@ namespace OpenRA.Mods.Common.Effects
 			this.args = args;
 			this.delay = warhead.StartDelay;
 			this.expansionPerTick = 1024 / warhead.WaveSpeed;
+			this.radius = warhead.StartRadius.Length;
+			this.excessPermille = (warhead.InitialSpeedPercent - 100) * 10;
 		}
 
 		public void Tick(World world)
@@ -54,9 +69,10 @@ namespace OpenRA.Mods.Common.Effects
 			if (delay-- > 0)
 				return;
 
-			var previousRadius = new WDist(ticks * expansionPerTick);
 			ticks++;
-			var currentRadius = new WDist(ticks * expansionPerTick);
+			radius += expansionPerTick * (1000 + excessPermille) / 1000;
+			excessPermille = excessPermille * warhead.SpeedDecayPercent / 100;
+			var currentRadius = new WDist(radius);
 
 			if (currentRadius > warhead.MaxRadius)
 			{
@@ -105,7 +121,7 @@ namespace OpenRA.Mods.Common.Effects
 			if (finished || delay > 0 || warhead.ShockwaveColor.A == 0)
 				yield break;
 
-			var currentRadius = new WDist(ticks * expansionPerTick);
+			var currentRadius = new WDist(radius);
 			if (currentRadius.Length <= 0)
 				yield break;
 
