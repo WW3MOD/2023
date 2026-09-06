@@ -361,11 +361,21 @@ namespace OpenRA.Scripting
 				{
 					tick?.Call().Dispose();
 
-					// Indexed, not foreach: a callback is allowed to register another one (the
-					// self-rescheduling idiom scenarios already use with AfterDelay), and mutating
-					// the list under an enumerator would throw. Anything appended during this tick
-					// is picked up on the next one, which keeps the per-tick work bounded.
-					for (var i = 0; i < tickCallbacks.Count; i++)
+					// Indexed against a count snapshotted BEFORE the loop, not foreach and not a
+					// live Count. A callback is allowed to register another one — that is the
+					// self-rescheduling idiom scenarios already write with AfterDelay — and both
+					// alternatives are wrong: mutating the list under an enumerator throws, and
+					// re-reading Count each iteration runs anything appended during this tick in
+					// the same tick, so a callback that re-registers itself would spin forever
+					// inside one World.Tick. Snapshotting bounds the per-tick work and makes a
+					// registration take effect on the next tick, which is what "once per tick"
+					// has to mean.
+					// The live Count is checked TOO, against the snapshot shrinking out from under
+					// the loop: a callback may call Trigger.ClearTickCallbacks, which empties the
+					// list and disposes every reference in it. Without the second bound that is an
+					// index past the end, and a use-after-dispose before it.
+					var count = tickCallbacks.Count;
+					for (var i = 0; i < count && i < tickCallbacks.Count; i++)
 					{
 						if (FatalErrorOccurred || disposed)
 							return;
