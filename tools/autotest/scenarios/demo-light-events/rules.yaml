@@ -1,0 +1,176 @@
+# Local light-event DEMO overrides. Nothing here is asserted; see demo-light-events.lua for the
+# schedule and map.yaml for the layout.
+#
+# THE POINT OF THIS FILE is the seven Light: blocks below. They are seven different envelopes written
+# in one vocabulary (LightEventDefinition), reached through two different emitters:
+#
+#   - TimedLightSource, an ACTOR trait, six times over on E3. Each one is gated on its own external
+#     condition so the Lua can start it at a known tick on one specific soldier.
+#   - LightEventWarhead, a WEAPON warhead, once, on DemoLightFlash in weapons.yaml. It is reached by
+#     killing a bradley whose Explodes@LightDemo fires that weapon at its own position.
+#
+# Both take the same Light: sub-node. That is the whole design claim: one vocabulary, many consumers.
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# NIGHT. Without this the demo proves nothing: a light event at full daylight is invisible, because
+	# TintAt already returns (1,1,1) and every sprite is already at full brightness. Intensity 0.28 with
+	# a cool tint puts the ambient at (0.238, 0.252, 0.322) and leaves the terrain just readable, so an
+	# additive light of intensity 1 roughly quintuples what it touches.
+	#
+	# This is the ONLY knob the demo turns on TerrainLighting. mods/ww3mod/rules/world.yaml ships it at
+	# Intensity 1 with neutral tints, which is an exact visual no-op.
+	TerrainLighting:
+		Intensity: 0.28
+		RedTint: 0.85
+		GreenTint: 0.90
+		BlueTint: 1.15
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, demo-light-events.lua
+
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	PlayerResources:
+		DefaultCash: 0
+
+# Nothing fights. Every prop on this map is Neutral, but the two Supply Routes are not, and turning
+# scanning off keeps the frame completely static so the only thing moving is light.
+^Combatant:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+
+# NOTE THE CASE. `E3:` is how infantry.yaml:1340 spells it, and MiniYaml merges top-level keys
+# case-sensitively - `e3:` here would define a second, unrelated actor and override nothing. Actor
+# names only *look* case-insensitive because the lowercasing happens after the merge.
+E3:
+	ExternalCondition@LD1:
+		Condition: ld-slowpulse
+	ExternalCondition@LD2:
+		Condition: ld-doubleflash
+	ExternalCondition@LD3:
+		Condition: ld-longfade
+	ExternalCondition@LD4:
+		Condition: ld-coloured
+	ExternalCondition@LD5:
+		Condition: ld-wide
+	ExternalCondition@LD6:
+		Condition: ld-lamp
+
+	# 1. SLOW PULSE, at 8,16 from t=60. A lamp swelling and settling: 40 ticks up, 60 held, 90 down,
+	# eased at both ends so there is no corner anywhere in it. Smoothstep falloff gives a disc with no
+	# visible edge - compare against #5, which is deliberately hard-edged.
+	TimedLightSource@SlowPulse:
+		RequiresCondition: ld-slowpulse
+		FollowActor: false
+		Light:
+			Times: 0, 40, 100, 190
+			Intensities: 0, 1.3, 1.3, 0
+			Radii: 7c0
+			Tints: FFE9C4
+			Interpolations: Smoothstep, Linear, Smoothstep
+			Falloff: Smoothstep
+
+	# 3. DOUBLE FLASH, at 32,16 from t=260. THE ONE THAT MATTERS, because it is the shape the nuke task
+	# needs and the reason this is a keyframe list rather than a rise/hold/decay triple. Peak 9.0 at
+	# t=2, collapse to 0.9 at t=14, a second larger-and-longer peak of 7.5 at t=20, then 180 ticks of
+	# cooling from white through yellow and orange to a dull red while the lit area triples. A
+	# rise/hold/decay model cannot say this at all.
+	#
+	# TerrainRefreshInterval 2 rather than the default 5: the first flash is over in 5 ticks, and at the
+	# default cadence the ground would miss it entirely while the sprites caught it.
+	TimedLightSource@DoubleFlash:
+		RequiresCondition: ld-doubleflash
+		FollowActor: false
+		Light:
+			Times: 0, 2, 5, 14, 20, 34, 70, 200
+			Intensities: 0, 9.0, 5.0, 0.9, 7.5, 3.2, 1.1, 0
+			Radii: 2c0, 5c0, 7c0, 9c0, 12c0, 16c0, 19c0, 22c0
+			Tints: FFFFFF, FFFFFF, FFF6D0, FFE39A, FFFFFF, FFC060, E06020, 802808
+			Interpolations: Quadratic, InverseQuadratic, InverseQuadratic, Quadratic, InverseCubic, InverseCubic, InverseCubic
+			Falloff: InverseSquare
+			TerrainRefreshInterval: 2
+
+	# 4. LONG SLOW FADE, at 44,16 from t=480. A burning wreck: 12 ticks to catch, then 350 ticks dying
+	# away on an InverseCubic tail, which spends most of its length very dim. The radius SHRINKS from
+	# 9c0 back to 6c0 as the fire collapses - the radius track runs in either direction.
+	TimedLightSource@LongFade:
+		RequiresCondition: ld-longfade
+		FollowActor: false
+		Light:
+			Times: 0, 12, 350
+			Intensities: 0, 2.2, 0
+			Radii: 5c0, 9c0, 6c0
+			Tints: FF9838, F06818, 802000
+			Interpolations: InverseQuadratic, InverseCubic
+			Falloff: Quadratic
+
+	# 5. COLOURED, at 56,16 from t=560. Cyan, and deliberately Falloff: Linear - the engine's historical
+	# shape. Put it next to #1 and #3 and the flat disc with a hard rim is obvious, which is why Linear
+	# is no longer the default for a light EVENT (it is still the default of the underlying trait, so
+	# nothing that might later use the vanilla TerrainLightSource changes).
+	TimedLightSource@Coloured:
+		RequiresCondition: ld-coloured
+		FollowActor: false
+		Light:
+			Times: 0, 30, 120, 180
+			Intensities: 0, 1.8, 1.8, 0
+			Radii: 8c0
+			Tints: 40FFD0
+			Interpolations: Quadratic, Linear, Quadratic
+			Falloff: Linear
+
+	# 6. LOOPING FLICKER, at 32,5 from t=1. Loop: true, so the 26-tick cycle repeats for as long as the
+	# condition is held and the event never tears itself down. This is the lamp / flare / burning-wreck
+	# mode, where lifetime is owned by the actor rather than by the envelope.
+	TimedLightSource@Lamp:
+		RequiresCondition: ld-lamp
+		FollowActor: false
+		Light:
+			Times: 0, 7, 11, 18, 26
+			Intensities: 0.5, 1.15, 0.45, 1.0, 0.5
+			Radii: 4c0
+			Tints: FFD9A0
+			Interpolations: InverseQuadratic, Quadratic, InverseQuadratic, Quadratic
+			Falloff: InverseSquare
+			Loop: true
+			TerrainRefreshInterval: 3
+
+	# 7. THE 56-CELL CEILING PROBE, at 32,26 from t=700. Radius 60c0, four cells PAST
+	# MapGrid.MaximumTileSearchRange. Before this branch that was a hard crash, not a graphical glitch:
+	# TerrainLighting.AddLightSource called Map.FindTilesInCircle, and FindTilesInAnnulus throws above 56
+	# rather than clamping (Map.cs:1994). If this scenario reaches t=700 and washes the whole map pale
+	# blue instead of dropping to a crash dialog, the fix holds.
+	#
+	# TerrainRefreshInterval 6 because the footprint is the entire map; see the cost note in the report.
+	TimedLightSource@Wide:
+		RequiresCondition: ld-wide
+		FollowActor: false
+		Light:
+			Times: 0, 30, 90, 150
+			Intensities: 0, 0.40, 0.40, 0
+			Radii: 60c0
+			Tints: A0C8FF
+			Interpolations: Smoothstep, Linear, Smoothstep
+			Falloff: Linear
+			TerrainRefreshInterval: 6
+
+# 2. SHARP FLASH, at 20,16 at t=160 - the WARHEAD emitter, and the only one here that is not an actor
+# trait. Added as a new Explodes@ key rather than overriding the inherited one: every enabled Explodes
+# fires on the same death (Explodes.cs:103), so the bradley's own cookoff still happens and the light
+# rides alongside it. `bradley` is lowercase because vehicles-america.yaml:298 spells it that way.
+bradley:
+	Explodes@LightDemo:
+		Weapon: DemoLightFlash
+		EmptyWeapon: DemoLightFlash
+		Chance: 100

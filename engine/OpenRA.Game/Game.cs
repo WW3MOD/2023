@@ -871,6 +871,13 @@ namespace OpenRA
 
 		static void RenderTick()
 		{
+			// Refreshed here, once per frame, rather than read per sample: this is the only place that can see
+			// all three consumers of the perf numbers at once (the two overlays and benchmark mode), and a
+			// frame of latency after toggling an overlay is invisible. Hot-path samplers branch on it - see the
+			// note on PerfHistory.Sampling. Note it is false during map load, before the first RenderTick, so
+			// the initial full-map terrain lighting pass is never sampled even in benchmark mode.
+			PerfHistory.Sampling = Settings.Debug.PerfGraph || Settings.Debug.PerfText || benchmark != null;
+
 			using (new PerfSample("render"))
 			{
 				++RenderFrame;
