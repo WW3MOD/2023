@@ -221,11 +221,20 @@ Treat this card as the zero and the earlier numbers as absent.
 ## Watch — what this corpus does not establish
 
 - **`kills_cost − deaths_cost` is not zero-sum here.** Both players are net-negative in
-  38 of 40 matches, so total deaths cost exceeds total kills cost — units are being
-  lost to something that is not the other bot. **HYPOTHESIS (unverified):** supply
-  starvation attrition and/or non-combat losses. Consequence for readers: the S2 metric
-  is only meaningful as a *difference between the two bots in one match*; its absolute
-  level is not a combat scoreboard.
+  **35 of 40** matches (75 of 80 player rows; the "38 of 40" first written here was a
+  miscount — exceptions are `s1_cal_b` m3/m9 and `s1_exp` m4/m7/m9). **RESOLVED
+  2026-09-06** by [`../audits/260906-baseline-deaths-audit.md`](../audits/260906-baseline-deaths-audit.md)
+  (main @ f01e00d2): the doom model delivers the killing blow as *self-inflicted*
+  damage (`ChangesHealth.cs:86`, and `AutoTarget.cs:244` stops shooting a
+  `critical-damage` unit), and `UpdatesPlayerStatistics` charges `DeathsCost` above the
+  `Attacker == null || Attacker == self` gate (`PlayerStatistics.cs:335` vs `:341`) but
+  credits `KillsCost` below it — so 3,068 of 7,616 deaths (40.3 %, 49.5 % of value)
+  are charged to the victim and credited to nobody. The earlier supply-starvation
+  hypothesis is refuted (no supply trait damages or kills). **Reading consequences:**
+  win rates stand (uncredited share ≈ 41.6 % vs 43.0 % of each bot's own deaths on
+  S2), but the S2 *swing* metric is biased ≈ $4,490/match against `@experimental` —
+  the same magnitude and direction as the +7,300 median it reported. Absolute levels
+  remain not a combat scoreboard.
 - **Whether `make.ps1 all` was run at `9cb423d4` before the batches is not recorded.**
   The runner log opens with `START … main=9cb423d4` and no build line. RUNBOOK §2 makes
   the build mandatory precisely because `launch-game.sh` does not build. **HYPOTHESIS:
