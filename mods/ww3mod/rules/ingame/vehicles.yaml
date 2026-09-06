@@ -1051,7 +1051,15 @@ TacNukeMissile:
 		TerminalAcceleration: 40
 		LaunchRiseTicks: 0
 		PostErectionWaitTicks: 0
-		VisualPitchMultiplier: 47
+		# 100 = nose drawn along the missile's apparent travel -- along its own smoke trail. Was 47
+		# under the old arc-slope-times-fudge-factor units, which landed anywhere between 68% and
+		# 270% of the true tilt depending only on which way the missile was pointing. Derivation:
+		# BallisticMissileFly.ScreenAlignedFacing.
+		VisualPitchMultiplier: 100
+		# iskander-missile.shp, which every missile in the mod aliases, is drawn from a camera 34.5
+		# degrees up rather than straight down: 0.566 vertical squash, measured as the principal axis
+		# of all 32 frames. Without it the drawn tilt lands 0.57x-1.77x off, by heading alone.
+		SpriteFacingSquash: 566
 	LeavesTrailsCA:
 		Image: smokey2
 		Palette: effect_ts
@@ -1135,7 +1143,15 @@ HighYieldNukeMissile:
 		# detonation at all, so flight time is kept exactly predictable instead.
 		LaunchRiseTicks: 0
 		PostErectionWaitTicks: 0
-		VisualPitchMultiplier: 47
+		# 100 = nose drawn along the missile's apparent travel -- along its own smoke trail. Was 47
+		# under the old arc-slope-times-fudge-factor units, which landed anywhere between 68% and
+		# 270% of the true tilt depending only on which way the missile was pointing. Derivation:
+		# BallisticMissileFly.ScreenAlignedFacing.
+		VisualPitchMultiplier: 100
+		# iskander-missile.shp, which every missile in the mod aliases, is drawn from a camera 34.5
+		# degrees up rather than straight down: 0.566 vertical squash, measured as the principal axis
+		# of all 32 frames. Without it the drawn tilt lands 0.57x-1.77x off, by heading alone.
+		SpriteFacingSquash: 566
 	LeavesTrailsCA:
 		Image: smokey2
 		Palette: effect_ts

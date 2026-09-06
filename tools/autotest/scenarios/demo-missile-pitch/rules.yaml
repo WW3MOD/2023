@@ -1,0 +1,34 @@
+# Ballistic-missile pitch DEMO overrides. Nothing here is asserted; see map.yaml for the layout and
+# demo-missile-pitch.lua for the schedule.
+#
+# NOTHING IN HERE TOUCHES BallisticMissile. That is the point: the pitch model, VisualPitchMultiplier
+# and SpriteFacingSquash are all read in their shipped configuration, so what the viewer sees is what
+# the game does. Overrides below are staging only -- they stop the match ending, stop the fog hiding
+# the arc, and stop anything else happening on the map.
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
+	# spawn assignment. Nothing here depends on the edge derivation, but the two Supply Routes are
+	# placed by hand in map.yaml and a spawn assignment would fight them for the cell.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, demo-missile-pitch.lua
+
+Player:
+	# Both Abrams die. Without this the match ends on elimination the moment shot A lands, taking the
+	# window down before shot B is ordered 67 ticks later.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored. A missile crossing unexplored ground would be invisible for
+	# most of its arc, and the arc is the entire subject.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# No cash, so nothing can be produced and the only things that happen on this map are the two
+	# shots.
+	PlayerResources:
+		DefaultCash: 0
