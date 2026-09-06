@@ -3,6 +3,82 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-06 - A minimum-manning gate makes the lone tank a lone PAIR: `MinUnitsPerAmbush` fixed the count and not the exposure, and the ambush lane still takes the army's only tank 22 cells forward (`wt/item64-rem`, base `main @ b6207b9b`, run 260906_002507)
+
+**The 2026-09-05 entry below named `LaneAmbushBotModule` as the source of the lone opening tank and that stands.
+What did not follow, and was assumed, is that requiring two units fixes it.** At `main @ b6207b9b` on
+`test-combined-arms-rendezvous` the lane logs `[exp-ambush] lane anchor=supplyroute#7 post=28,12 units=2` from
+tick 200 to the end of the run, and the ledger reads `by=ambush:2` at ticks 226/426/626. The post cell is
+identical to the pre-gate run's - `PostFractionPct: 40` puts it 22 cells from home on the SR-to-enemy-SR line,
+well beyond the offensive stager's own `StagingStandoffCells: 6` muster at `12,16` - and the tank died in all
+three runs at both trees. **The gate changed the size of the detachment, not the fact that the bot's entire
+mobile force at tick 200 is standing on a static picket four-tenths of the way to the enemy.**
+
+**The module's own config comment predicted this and should have been read as a live warning rather than a
+note.** `ai.yaml:1046-1047`: *"The block header above says this module is small enough never to starve offense.
+That holds only when offense has units to spare; at the opening the lane takes the entire army."* Measured:
+three units were eligible at tick 200, the lane took two, and `PoiOffensiveBotModule` was left with one -
+**below its own `FreePoolMinAdvanceUnits: 2`**, so the offensive stager logged `hold-under-min pool=1 min=2` on
+the same evals. One module's minimum-manning floor pushed the other module below its minimum-advance floor.
+There is no reserve: `LaneAmbushBotModule.BuildFreePool` (`:595`) excludes only ledger-committed actors, and
+`AmbushLaneMath.LaneMayPost` is tested against `lane.Units.Count + free.Count`, i.e. **the whole** free pool.
+
+**Generalisable, and the reason this is worth an entry rather than a dossier line: a per-consumer floor is not
+a share.** Two modules drawing from one pool, each with a floor and neither with a ceiling, will starve each
+other whenever the pool is smaller than the sum of the floors - which is exactly the opening of every match,
+the regime the behaviour is complained about in. Adding a floor to a module that draws from a shared pool
+without also giving it a share is a change that is correct in the large-army case and inverts in the small-army
+case. Check the pool size against the sum of the floors before believing a floor fixed anything.
+
+**Also measured: `recruits` are chosen by proximity to the post alone** (`LaneAmbushBotModule.cs:389-393`),
+with no role or scarcity preference - so *which* units go is an accident of spawn geometry. The abrams was
+taken because it spawned at `8,16`, east of the SR at `6,16`, while every purchased unit spawns at `3,16`-`5,16`.
+And **`PruneLanes` has no losing-lane retire**: it releases the dead, the reclaimed and the already-sprung only
+(`:450-490`), so a posted pair holds its cell through contact with nothing to pull it back. Zero
+`[exp-ambush] retire` lines in any of the three runs.
+
+## 2026-09-06 - Two in-tree documents give incompatible causes for the same 2026-08-15 `everCarried=0` reading, and the engine code supports neither cleanly (`wt/item64-rem`, base `main @ b6207b9b`)
+
+`DOCS/recipes/AUTOTEST.md:331` states, as measured, that **`IsDead` is true for a passenger inside a `Cargo`**,
+that the idiom `not r.IsDead and not r.IsInWorld` is therefore unsatisfiable for exactly the units it is meant
+to catch, and that `test-combined-arms-rendezvous` carries the unfixed idiom.
+`tools/autotest/scenarios/wip-transport-delivers/test-transport-delivers.lua:38-42` attributes **the same
+observation on the same date** to something else entirely: a file-scope `{ BotRifle1, ... }` that was a table of
+nils because map-actor globals were not yet bound, so `#Squad == 0` and every loop silently did nothing.
+
+**The code supports neither as written.** `Actor.IsDead` is `Disposed || (health != null && health.IsDead)`
+(`Actor.cs:76`), and boarding calls `w.Remove(self)` (`RideTransport.cs:85`), which sets `IsInWorld = false` and
+drops the actor from the id dictionary without disposing it or touching health (`World.cs:404-412`) - so a
+passenger should read `IsDead == false`. And the binding-order claim fails too: `MapGlobal`'s constructor
+registers every map actor as a global while the global tables are built (`MapGlobal.cs:35-36`), which is
+`ScriptContext.cs:210-226`, **before** `runtime.DoBuffer` executes any scenario chunk at `:232-234` - so a
+file-scope actor table should be populated.
+
+**What was done about it, and it is the transferable part: do not adjudicate a dispute you can make
+irrelevant.** `test-combined-arms-rendezvous.lua` now applies BOTH prescribed repairs - the latch drops its
+`not r.IsDead` term (safe because a separate clause requires the unit to be back **in** world, which a genuinely
+dead one never is) and the actor table is captured in `WorldLoaded` - so the scenario is correct under either
+account and needs neither settled to produce a valid run. Its new positional roll prints
+`oow/dead=true|false` for each out-of-world rifleman, so **the next run of that scenario settles the `IsDead`
+question as a side effect, at zero cost.** Until then, treat both documents' causal claims as open; the
+OBSERVATION (`everCarried` stuck at 0 while carriage demonstrably happened) is not in dispute.
+
+## 2026-09-06 - A scenario's timeout diagnostic can be frozen at tick 0 and read as a confident accusation, and the eagerly-evaluated-string trap is documented one directory away (`wt/item64-rem`, base `main @ b6207b9b`)
+
+`TestHarness.AssertWithin`'s third argument is evaluated **eagerly, at registration** - it is only re-evaluated
+if it is a function (`mods/ww3mod/scripts/test-helpers.lua:102`). `test-combined-arms-rendezvous.lua` passed a
+concatenated string, so its timeout message reported `tank advanced 0/8`, `riflemen ever carried = 0` and
+`closest a carried rifleman got to the tank = 9999` on **every** timeout regardless of what happened, including
+the sentence *"0 here means the FERRY NEVER RAN and this run measured nothing about the rendezvous"* - which
+would have been printed verbatim after a run where the ferry worked perfectly.
+
+**The failure mode is worse than a missing diagnostic: it is a diagnostic that cannot be false, and it points at
+a specific innocent module.** A reader acting on it would go and investigate `MountedTransportBotModule`. The
+trap is written up two directories away in the sibling scenario this one is paired with
+(`test-push-departs-together.lua:58-61`), and 16 scenarios already use the function form - so the fix was
+in-tree the whole time and the idiom simply did not spread. **When auditing a scenario, check whether its
+failure string was built inside or outside the predicate before believing a word of it.**
+
 ## 2026-09-05 - RETRACTION: a mission-held axis's units are NOT in the free pool. The real defect is that a held axis cannot be TOPPED UP, and with one POI no axis can form for anybody (`wt/item64-axis`, base `main @ 9cb423d4`)
 
 **This retracts the "marched back to the muster" mechanism** asserted in the 2026-09-05 entry below, in
