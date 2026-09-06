@@ -72,7 +72,13 @@ Player:
 		Icon: paranuke
 		Name: B61-12 (0.3 kt)
 		Description: Variable-yield tactical bomb at its LOWEST dial setting.\nSub-kiloton: destroys a position, not a battlefield.\nEnters from the map edge nearest your Supply Route.
-		ChargeInterval: 4500
+		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
+		# build tab rather than charged on a timer, and this arrived the same day as the arsenal.
+		# ChargeInterval IS GONE rather than set high: SupportPowerInstance forces TotalTicks to 0
+		# when RequiresPurchase is set, so any value left here would be inert -- and an inert
+		# number that reads like a live one is worse than no number. The scarcity this file's
+		# interval ladder expressed is now carried by the price on power.b61low in rules/powers.yaml.
+		RequiresPurchase: True
 		Cursor: nuke
 		MissileActor: b61lowmissile
 		# 9c0 - 1c0 = 8c0 of descent, the same eight cells the Kinzhal and the tactical nuke hold.
@@ -107,7 +113,13 @@ Player:
 		Icon: paranuke
 		Name: B61-12 (50 kt)
 		Description: Variable-yield tactical bomb at its HIGHEST dial setting.\nSame weapon as the 0.3 kt option: 167x the energy, 5.5x the radius.\nEnters from the map edge nearest your Supply Route.
-		ChargeInterval: 9000
+		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
+		# build tab rather than charged on a timer, and this arrived the same day as the arsenal.
+		# ChargeInterval IS GONE rather than set high: SupportPowerInstance forces TotalTicks to 0
+		# when RequiresPurchase is set, so any value left here would be inert -- and an inert
+		# number that reads like a live one is worse than no number. The scarcity this file's
+		# interval ladder expressed is now carried by the price on power.b61max in rules/powers.yaml.
+		RequiresPurchase: True
 		Cursor: nuke
 		MissileActor: b61maxmissile
 		SpawnAltitude: 13c256
@@ -136,7 +148,13 @@ Player:
 		Icon: cmissicon
 		Name: W76-1 Trident Warhead
 		Description: Submarine-launched 100 kt warhead, the most numerous in the US inventory.\nRe-entry velocity gives almost no warning after it appears.\nEnters from the map edge nearest your Supply Route.
-		ChargeInterval: 12000
+		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
+		# build tab rather than charged on a timer, and this arrived the same day as the arsenal.
+		# ChargeInterval IS GONE rather than set high: SupportPowerInstance forces TotalTicks to 0
+		# when RequiresPurchase is set, so any value left here would be inert -- and an inert
+		# number that reads like a live one is worse than no number. The scarcity this file's
+		# interval ladder expressed is now carried by the price on power.w76 in rules/powers.yaml.
+		RequiresPurchase: True
 		Cursor: nuke
 		MissileActor: w76missile
 		SpawnAltitude: 16c768
@@ -168,7 +186,13 @@ Player:
 		Icon: v2bdgricon
 		Name: RS-28 Sarmat (MIRV)
 		Description: Heavy ICBM carrying independently-targeted re-entry vehicles.\nSix 750 kt warheads scattered across the target area, not one detonation.\nEnters from the map edge nearest your Supply Route.
-		ChargeInterval: 22500
+		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
+		# build tab rather than charged on a timer, and this arrived the same day as the arsenal.
+		# ChargeInterval IS GONE rather than set high: SupportPowerInstance forces TotalTicks to 0
+		# when RequiresPurchase is set, so any value left here would be inert -- and an inert
+		# number that reads like a live one is worse than no number. The scarcity this file's
+		# interval ladder expressed is now carried by the price on power.sarmat in rules/powers.yaml.
+		RequiresPurchase: True
 		Cursor: nuke
 		MissileActor: sarmatmissile
 		SpawnAltitude: 27c0
@@ -197,7 +221,13 @@ Player:
 		Icon: abombfake
 		Name: B83-1 (1.2 Mt)
 		Description: The largest weapon in the current US stockpile.\nA free-fall bomb: slow, and visible for its whole approach.\nEnters from the map edge nearest your Supply Route.
-		ChargeInterval: 27000
+		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
+		# build tab rather than charged on a timer, and this arrived the same day as the arsenal.
+		# ChargeInterval IS GONE rather than set high: SupportPowerInstance forces TotalTicks to 0
+		# when RequiresPurchase is set, so any value left here would be inert -- and an inert
+		# number that reads like a live one is worse than no number. The scarcity this file's
+		# interval ladder expressed is now carried by the price on power.b83 in rules/powers.yaml.
+		RequiresPurchase: True
 		Cursor: nuke
 		MissileActor: b83missile
 		SpawnAltitude: 31c256
@@ -228,7 +258,13 @@ Player:
 		Icon: abomb
 		Name: Tsar Bomba (50 Mt)
 		Description: RDS-220. The largest device ever detonated.\nA 2.5 km fireball burning for twenty-five seconds; it sets fire to more of the map than it flattens.\nEnters from the map edge nearest your Supply Route.
-		ChargeInterval: 45000
+		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
+		# build tab rather than charged on a timer, and this arrived the same day as the arsenal.
+		# ChargeInterval IS GONE rather than set high: SupportPowerInstance forces TotalTicks to 0
+		# when RequiresPurchase is set, so any value left here would be inert -- and an inert
+		# number that reads like a live one is worse than no number. The scarcity this file's
+		# interval ladder expressed is now carried by the price on power.tsarbomba in rules/powers.yaml.
+		RequiresPurchase: True
 		Cursor: nuke
 		MissileActor: tsarbombamissile
 		# 49c0 - 25c0 = 24c0 of descent, three times the eight cells the tactical nuke holds. At

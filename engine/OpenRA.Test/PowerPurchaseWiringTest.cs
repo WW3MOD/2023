@@ -1,33 +1,51 @@
 #region Copyright & License Information
 /*
- * WW3MOD power-purchase wiring tests — the links between rules/powers.yaml, rules/player.yaml and
- * the sidebar chrome that NOTHING ELSE CHECKS.
+ * WW3MOD power-purchase wiring tests — the links between rules/powers.yaml, the two files that
+ * define support powers, and the sidebar chrome, NONE of which the engine validates at load.
  *
- * A purchasable power is spread across four files that never mention each other by type:
+ * A purchasable power is spread across files that never mention each other by type:
  *
- *     rules/player.yaml   MissileStrikePower@X with `RequiresPurchase: True` and an `OrderName`
- *     rules/powers.yaml   a proxy actor with `ProvidesSupportPowerCharge: Power: <that OrderName>`
- *     chrome.yaml         three production-icons regions for the tab glyph
- *     chrome/ingame-player.yaml   the ProductionTypeButton that selects the queue
+ *     rules/player.yaml            MissileStrikePower@X, `RequiresPurchase: True`, an `OrderName`
+ *     rules/ingame/nuclear-arsenal.yaml   six more of the same
+ *     rules/powers.yaml            a proxy actor naming that OrderName
+ *     chrome.yaml + chrome/ingame-player.yaml   the tab glyph and the button that selects the queue
  *
- * Every one of those links is a bare string compared at runtime, and NONE of them is validated by
- * --check-yaml, by nav-guard, or by the engine at load. The failure modes are all silent-ish and
- * all expensive:
+ * Every link is a bare string compared at runtime. The failure modes are all quiet:
  *
- *   - a power with RequiresPurchase and no proxy is UNREACHABLE FOREVER. There is no timer left to
- *     fall back to, so it simply never appears, and the YAML looks entirely correct.
- *   - a proxy naming a power that does not exist takes the player's money for the whole build,
- *     then refuses to complete and refunds. Visible in play, invisible at load.
- *   - a proxy pointing at a power WITHOUT RequiresPurchase completes, calls GrantCharge, and the
- *     charge is discarded by the bank because the power is still on its timer. The player pays and
- *     gets nothing, with no error anywhere.
- *   - a missing production-icons region CRASHES on the first sidebar frame (ImageWidget.Draw
- *     dereferences a null sprite), and the three region names are synthesised in C# from the tab's
- *     ProductionGroup, so they are not visible anywhere in the chrome YAML.
+ *   - a power with RequiresPurchase and no proxy is UNREACHABLE FOREVER. Setting the flag removes
+ *     the timer, so it does not become slow, it never arrives.
+ *   - a proxy naming a nonexistent power takes the money for the whole build and then refunds.
+ *   - a proxy pointing at a power WITHOUT RequiresPurchase completes and the charge is discarded.
+ *   - a proxy missing a trait the palette or the lint gate needs is invisible to the compiler and
+ *     to every other test — see below, this one has already happened.
  *
- * SCOPE, HONESTLY. This is a wiring check read off the YAML text. It does NOT prove the queue
- * banks a charge, that the bank empties on fire, or that the tab renders — the first two are
- * SupportPowerChargeBankTest, and the third needs the game on screen.
+ * ---------------------------------------------------------------------------------------------
+ * WHY THE CONSTRUCTIBILITY HALF EXISTS. On 2026-09-06 this branch shipped four proxies carrying
+ * Valued + Tooltip + RenderSprites + Buildable and nothing else. The build was clean and 2,728
+ * NUnit tests passed. The merge gate then produced 2,555 lint errors — one pair of faults per
+ * proxy, repeated across all 326 maps:
+ *
+ *     Actor `power.kinzhal` is not constructible; failure: ... Missing: OpenRA.Traits.IMouseBoundsInfo
+ *     Actor type `power.kinzhal` does not define a default visibility type.
+ *
+ * because `Tooltip` is `TooltipInfoBase : ConditionalTraitInfo, Requires<IMouseBoundsInfo>`
+ * (Tooltip.cs:16) and a bodiless actor can only satisfy that from `Interactable`, and because
+ * CheckDefaultVisibility wants some IDefaultVisibilityInfo, which only `AlwaysVisible` supplies here.
+ *
+ * NOTHING THE WORKER WAS ALLOWED TO RUN WOULD HAVE CAUGHT IT: only --check-yaml constructs actors,
+ * and the standing rules forbid running it. So this fixture builds the proxies' REAL trait sets by
+ * reflection from the YAML — inheritance resolved — and calls ActorInfo.TraitsInConstructOrder(),
+ * which is the very method whose exception CheckTraitPrerequisites.cs:42 reports. A green run here
+ * means that specific gate agrees, with no mod load, no World and no launch slot.
+ *
+ * This deliberately overlaps BuyLoopProxyTest, which pins the same trait chain for the autotest
+ * scenario's `powerproxy.strike`. That one models a hand-written list; this one reads the shipped
+ * file. Both are worth having: the hand-written list explains the chain, the file walk catches the
+ * eleventh proxy somebody adds without reading either.
+ *
+ * SCOPE, HONESTLY. Trait sets and string links only. It does NOT prove the queue banks a charge
+ * (SupportPowerChargeBankTest), that the tab renders, or that any OTHER lint rule is satisfied —
+ * only the two that actually failed.
  */
 #endregion
 
@@ -36,6 +54,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using OpenRA.Traits;
 
 namespace OpenRA.Test
 {
@@ -61,11 +80,16 @@ namespace OpenRA.Test
 			return node.Value.Nodes.FirstOrDefault(n => n.Key == key)?.Value.Value?.Trim();
 		}
 
+		static List<MiniYamlNode> PowersFile()
+		{
+			return MiniYaml.FromFile(FindMod("rules", "powers.yaml"));
+		}
+
 		/// <summary>Proxy actor name -> the power OrderName it claims to charge.</summary>
 		static Dictionary<string, string> Proxies()
 		{
 			var found = new Dictionary<string, string>();
-			foreach (var actor in MiniYaml.FromFile(FindMod("rules", "powers.yaml")))
+			foreach (var actor in PowersFile())
 			{
 				var charge = actor.Value.Nodes.FirstOrDefault(n => n.Key == "ProvidesSupportPowerCharge");
 				if (charge != null)
@@ -75,40 +99,149 @@ namespace OpenRA.Test
 			return found;
 		}
 
-		/// <summary>Every support power on the Player actor -> whether it opted into being bought.</summary>
+		/// <summary>
+		/// Every support power in the mod -> whether it opted into being bought. BOTH files, because
+		/// the arsenal put six of the ten somewhere other than player.yaml, and a walk that misses a
+		/// file reports those six as "no such power" or misses their missing proxies entirely.
+		/// </summary>
 		static Dictionary<string, bool> Powers()
 		{
-			var player = MiniYaml.FromFile(FindMod("rules", "player.yaml"))
-				.FirstOrDefault(n => n.Key == "Player")
-				?? throw new AssertionException("player.yaml defines no `Player` actor");
-
 			var found = new Dictionary<string, bool>();
-			foreach (var trait in player.Value.Nodes)
+
+			foreach (var file in new[] { FindMod("rules", "player.yaml"), FindMod("rules", "ingame", "nuclear-arsenal.yaml") })
 			{
-				// Every support power trait in this mod ends in "Power", optionally with an @suffix.
-				var name = trait.Key.Split('@')[0];
-				if (!name.EndsWith("Power", StringComparison.Ordinal))
+				var player = MiniYaml.FromFile(file).FirstOrDefault(n => n.Key == "Player");
+				if (player == null)
 					continue;
 
-				var order = Field(trait, "OrderName");
-				if (order == null)
-					continue;
+				foreach (var trait in player.Value.Nodes)
+				{
+					// Every support power trait in this mod ends in "Power", optionally with an @suffix.
+					if (!trait.Key.Split('@')[0].EndsWith("Power", StringComparison.Ordinal))
+						continue;
 
-				found[order] = string.Equals(Field(trait, "RequiresPurchase"), "True", StringComparison.OrdinalIgnoreCase);
+					var order = Field(trait, "OrderName");
+					if (order == null)
+						continue;
+
+					found[order] = string.Equals(Field(trait, "RequiresPurchase"), "True", StringComparison.OrdinalIgnoreCase);
+				}
 			}
 
 			return found;
 		}
 
+		/// <summary>
+		/// The trait keys an actor really ends up with, following `Inherits:` within powers.yaml.
+		/// Without this the walk sees only what is written under each proxy and misses exactly the
+		/// three traits the template carries — which are the three that broke the gate.
+		/// </summary>
+		static string[] ResolvedTraits(string actorName, int depth = 0)
+		{
+			if (depth > 8)
+				throw new AssertionException($"`Inherits:` cycle reaching {actorName} in powers.yaml");
+
+			var node = PowersFile().FirstOrDefault(n => n.Key == actorName)
+				?? throw new AssertionException($"powers.yaml defines no `{actorName}`");
+
+			var traits = new List<string>();
+			foreach (var child in node.Value.Nodes)
+			{
+				if (child.Key.Split('@')[0] == "Inherits")
+					traits.AddRange(ResolvedTraits(child.Value.Value.Trim(), depth + 1));
+				else
+					traits.Add(child.Key.Split('@')[0]);
+			}
+
+			return traits.Distinct().ToArray();
+		}
+
+		static TraitInfo Instantiate(string traitName)
+		{
+			var type = typeof(TraitInfo).Assembly.GetTypes()
+				.Concat(typeof(OpenRA.Mods.Common.Traits.BuildableInfo).Assembly.GetTypes())
+				.FirstOrDefault(t => t.Name == traitName + "Info" && typeof(TraitInfo).IsAssignableFrom(t) && !t.IsAbstract)
+				?? throw new AssertionException($"no TraitInfo type named `{traitName}Info` — is the trait misspelled in powers.yaml?");
+
+			return (TraitInfo)Activator.CreateInstance(type);
+		}
+
+		static ActorInfo Build(string actorName, params string[] without)
+		{
+			var traits = ResolvedTraits(actorName).Where(t => !without.Contains(t)).Select(Instantiate).ToArray();
+			return new ActorInfo(actorName, traits);
+		}
+
 		[Test]
 		public void TheFixtureFindsSomethingToCheck()
 		{
-			// Guards every other test here against passing vacuously. Both walks key off naming
-			// conventions ("...Power" traits, a ProvidesSupportPowerCharge node) that a rename would
-			// quietly break, turning the assertions below into loops over an empty set.
+			// Guards everything below against passing vacuously. Both walks key off naming
+			// conventions that a rename would quietly break, turning the assertions into loops over
+			// an empty set.
 			Assert.That(Proxies(), Is.Not.Empty, "found no purchase proxies in rules/powers.yaml");
-			Assert.That(Powers().Values.Where(p => p), Is.Not.Empty, "found no purchasable powers in rules/player.yaml");
+			Assert.That(Powers().Values.Where(p => p), Is.Not.Empty, "found no purchasable powers");
+
+			// And the arsenal specifically, since it lives in the second file and an earlier version
+			// of this fixture read only the first.
+			Assert.That(Powers().Keys, Contains.Item("TsarBombaStrike"),
+				"the nuclear-arsenal.yaml walk found nothing; the six arsenal powers are unchecked");
 		}
+
+		// ---------- the fault that failed the gate ----------
+
+		[Test]
+		public void EveryProxyIsConstructible()
+		{
+			foreach (var proxy in Proxies().Keys)
+				Assert.DoesNotThrow(() => Build(proxy).TraitsInConstructOrder(),
+					$"`{proxy}` no longer resolves its traits, which is exactly how this branch failed " +
+					"the merge gate on 2026-09-06 with 2,555 errors. Read the exception: it names the " +
+					"unsatisfied interface.");
+		}
+
+		[Test]
+		public void EveryProxyDeclaresADefaultVisibilityType()
+		{
+			// CheckDefaultVisibility.cs:43. Counts IDefaultVisibilityInfo traits and wants exactly
+			// one — zero and two are both errors, so this asserts the count rather than presence.
+			foreach (var proxy in Proxies().Keys)
+			{
+				var count = Build(proxy).TraitInfos<IDefaultVisibilityInfo>().Count;
+				Assert.That(count, Is.EqualTo(1),
+					$"`{proxy}` declares {count} default visibility types; the gate wants exactly one " +
+					"(AlwaysVisible, on the ^PurchasableSupportPower template).");
+			}
+		}
+
+		[Test]
+		public void RemovingInteractableIsWhatBreaksConstruction()
+		{
+			// THE NEGATIVE HALF. Without it, someone tidying an "unused" Interactable off a
+			// positionless proxy — it has no body, so it looks like decoration — gets a green
+			// fixture and a red gate. This states in the place they would look that it is
+			// load-bearing, and why.
+			var proxy = Proxies().Keys.First();
+			var ex = Assert.Throws<YamlException>(() => Build(proxy, "Interactable").TraitsInConstructOrder());
+
+			Assert.That(ex.Message, Does.Contain("IMouseBoundsInfo"),
+				"the failure must still be the mouse-bounds one this fixture documents; if it has " +
+				"become a different unsatisfied dependency, re-derive the template's trait set");
+			Assert.That(ex.Message, Does.Contain("TooltipInfo"),
+				"Tooltip is the trait carrying the requirement — but removing IT instead is not the " +
+				"fix, because CheckTooltips errors on any Buildable actor with no enabled Tooltip");
+		}
+
+		[Test]
+		public void RemovingAlwaysVisibleIsWhatBreaksVisibility()
+		{
+			var proxy = Proxies().Keys.First();
+
+			Assert.That(Build(proxy, "AlwaysVisible").TraitInfos<IDefaultVisibilityInfo>(), Is.Empty,
+				"AlwaysVisible is the only trait on the proxy supplying IDefaultVisibilityInfo; if " +
+				"something else now does, this fixture's account of the 2026-09-06 failure is stale");
+		}
+
+		// ---------- the cross-file string links ----------
 
 		[Test]
 		public void EveryProxyNamesAPowerThatExistsAndIsPurchasable()
@@ -121,7 +254,7 @@ namespace OpenRA.Test
 					$"{proxy} has ProvidesSupportPowerCharge with no Power");
 
 				Assert.That(powers.ContainsKey(order), Is.True,
-					$"{proxy} sells `{order}`, which is not the OrderName of any power on the Player actor. " +
+					$"{proxy} sells `{order}`, which is not the OrderName of any power in the mod. " +
 					"At runtime this takes the money for the whole build and then refunds it.");
 
 				Assert.That(powers[order], Is.True,
@@ -133,16 +266,30 @@ namespace OpenRA.Test
 		[Test]
 		public void EveryPurchasablePowerHasSomewhereToBeBought()
 		{
-			// The unreachable-forever direction, and the one a reviewer will not catch by reading
-			// either file alone: adding RequiresPurchase removes the timer, so a power without a
-			// proxy is not "slow to arrive", it never arrives.
 			var sold = Proxies().Values.ToHashSet();
 
-			foreach (var (order, purchasable) in Powers().Where(p => p.Value))
+			foreach (var (order, _) in Powers().Where(p => p.Value))
 				Assert.That(sold.Contains(order), Is.True,
 					$"`{order}` sets RequiresPurchase but no proxy in rules/powers.yaml sells it, " +
 					"so it can never be charged and will never appear in the support bin.");
 		}
+
+		[Test]
+		public void NoPowerIsLeftOnATimerWhileTheRestAreBought()
+		{
+			// The user's ruling was "that should be the case for all powers", and a half-converted
+			// arsenal is the worst of both: the biggest weapons in the mod would be the only free
+			// ones. Player-actor powers only — the mslo NukePower is a structure power on an
+			// unbuildable building and is out of scope.
+			var onTimers = Powers().Where(p => !p.Value).Select(p => p.Key).ToArray();
+
+			Assert.That(onTimers, Is.Empty,
+				"these powers still charge on a timer while the rest are bought: " +
+				string.Join(", ", onTimers) + ". Either give them a proxy in rules/powers.yaml or " +
+				"say in the report why they are exempt.");
+		}
+
+		// ---------- what the palette and the chrome dereference ----------
 
 		[Test]
 		public void EveryProxyCarriesWhatTheProductionPaletteDereferences()
@@ -150,20 +297,15 @@ namespace OpenRA.Test
 			// ProductionPaletteWidget.RefreshIcons calls item.TraitInfo<RenderSpritesInfo>() and
 			// item.TraitInfo<BuildableInfo>() with no null check (ProductionPaletteWidget.cs:713-715),
 			// so either one missing is a crash the moment the tab is opened rather than a missing icon.
-			foreach (var actor in MiniYaml.FromFile(FindMod("rules", "powers.yaml")))
+			foreach (var proxy in Proxies().Keys)
 			{
-				if (actor.Value.Nodes.All(n => n.Key != "ProvidesSupportPowerCharge"))
-					continue;
+				var traits = ResolvedTraits(proxy);
+				foreach (var required in new[] { "RenderSprites", "Buildable", "Valued", "Tooltip" })
+					Assert.That(traits, Contains.Item(required), $"{proxy} has no {required}");
 
-				var keys = actor.Value.Nodes.Select(n => n.Key).ToHashSet();
-				Assert.That(keys, Contains.Item("RenderSprites"), $"{actor.Key} has no RenderSprites");
-				Assert.That(keys, Contains.Item("Buildable"), $"{actor.Key} has no Buildable");
-				Assert.That(keys, Contains.Item("Valued"), $"{actor.Key} has no Valued, so it would be free");
-				Assert.That(keys, Contains.Item("Tooltip"), $"{actor.Key} has no Tooltip, so it would be nameless");
-
-				var buildable = actor.Value.Nodes.First(n => n.Key == "Buildable");
+				var buildable = PowersFile().First(n => n.Key == proxy).Value.Nodes.First(n => n.Key == "Buildable");
 				Assert.That(Field(buildable, "Queue"), Is.EqualTo("Powers"),
-					$"{actor.Key} is not on the Powers queue, so nothing would display it");
+					$"{proxy} is not on the Powers queue, so nothing would display it");
 			}
 		}
 
@@ -209,6 +351,51 @@ namespace OpenRA.Test
 					Assert.That(regions, Contains.Item(stem + suffix),
 						$"the {group} tab will ask production-icons for `{stem + suffix}` and crash without it");
 			}
+		}
+
+		[Test]
+		public void TheSupportBinBindsAHotkeyForEveryPowerAPlayerCanHold()
+		{
+			// SupportPowersWidget draws one cameo per non-Disabled power, stacked, with no scrolling
+			// and no wrapping, and binds hotkeys only for the first HotkeyCount of them. With the
+			// arsenal merged a player can hold nine at once — all ten less the faction-locked
+			// conventional strike they do not get — so a count of 6 left three reachable by mouse only.
+			var bin = MiniYaml.FromFile(FindMod("chrome", "ingame-player.yaml"));
+
+			MiniYamlNode Find(IEnumerable<MiniYamlNode> nodes)
+			{
+				foreach (var n in nodes)
+				{
+					if (n.Key != null && n.Key.StartsWith("SupportPowers@", StringComparison.Ordinal))
+						return n;
+
+					var inner = Find(n.Value.Nodes);
+					if (inner != null)
+						return inner;
+				}
+
+				return null;
+			}
+
+			var widget = Find(bin) ?? throw new AssertionException("no SupportPowers widget in ingame-player.yaml");
+			var count = int.Parse(Field(widget, "HotkeyCount") ?? "0", System.Globalization.CultureInfo.InvariantCulture);
+
+			// One player can never hold BOTH conventional strikes: they are faction-locked to
+			// opposite sides. Everything else is available to either faction.
+			var factionLocked = new[] { "KinzhalStrike", "GBU57Strike" };
+			var holdable = Powers().Count - factionLocked.Length + 1;
+
+			Assert.That(count, Is.GreaterThanOrEqualTo(holdable),
+				$"a player can hold {holdable} powers at once but the bin binds only {count} hotkeys, " +
+				"so the last few are mouse-only");
+
+			// And every slot the count promises must be a defined hotkey, or CheckChromeHotkeys
+			// fails the gate (CheckChromeHotkeys.cs:97). 01-06 come from common; the rest are ours.
+			var defined = MiniYaml.FromFile(FindMod("hotkeys.yaml")).Select(n => n.Key).ToHashSet();
+			for (var i = 7; i <= count; i++)
+				Assert.That(defined, Contains.Item("SupportPower" + i.ToString("D2", System.Globalization.CultureInfo.InvariantCulture)),
+					"common|hotkeys/supportpowers.yaml stops at SupportPower06, so every slot above " +
+					"that must be defined in ww3mod|hotkeys.yaml");
 		}
 	}
 }

@@ -25,7 +25,17 @@ Container@PLAYER_WIDGETS:
 					ReadyText: READY
 					HoldText: ON HOLD
 					HotkeyPrefix: SupportPower
-					HotkeyCount: 6
+					# TEN, up from 6 on 2026-09-06, because the nuclear arsenal took the mod from four
+					# support powers to ten and a player can hold nine at once (all ten less the
+					# faction-locked conventional strike they do not get). At 6 the last three cameos
+					# were reachable by mouse only.
+					#
+					# THE COUNT IS NOT FREE: SupportPowersWidget.LinterHotkeyNames turns it into the
+					# names SupportPower01..SupportPower10 and CheckChromeHotkeys errors on any that
+					# is not defined (CheckChromeHotkeys.cs:97). common|hotkeys/supportpowers.yaml
+					# stops at 06, so 07-10 are defined in ww3mod|hotkeys.yaml. Raising this again
+					# means adding definitions in the same edit.
+					HotkeyCount: 10
 				Container@PALETTE_FOREGROUND:
 					Children:
 						Image@ICON_TEMPLATE:

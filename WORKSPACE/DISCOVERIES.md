@@ -3,6 +3,23 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-06 - A bodiless proxy needs TWO unrelated declarations, and the curated section names only one - `AlwaysVisible` is the missing half (`wt/powers-buy2`, base `main @ d7ea8e69`)
+
+**`conventions.md` §"`Tooltip` + `Buildable` + `Interactable` are a locked chain on any bodiless actor" is correct and complete about the chain it describes, and a proxy that satisfies it in full still fails the gate.** `wt/powers-buy` shipped four buy proxies and drew **2,555 lint errors** across 326 maps from **two** faults per actor, not one:
+
+| Fault | Rule | What supplies it |
+|---|---|---|
+| ``Actor `X` is not constructible`` | `CheckTraitPrerequisites.cs:42` | `Interactable:` — the documented chain |
+| ``Actor type `X` does not define a default visibility type`` | `CheckDefaultVisibility.cs:43` | **`AlwaysVisible:`** — not mentioned anywhere in §530 |
+
+`CheckDefaultVisibility` counts `IDefaultVisibilityInfo` traits and wants **exactly one** — zero and two are both errors. On an actor that is never created, never drawn and never in the world, nothing suggests a *visibility* trait is needed; the lint does not care whether it can be seen, only that the declaration exists. **This is the more dangerous of the two precisely because it is the quiet one**: fixing only what §530 names removes the loud `not constructible` line and leaves the other error on every actor on every map. This entry is a promotion candidate for that section rather than a new one — the two faults are one checklist.
+
+**The generalisable rule, and it is the same shape §530 already states one level up: a trait's `Requires<>` is only half of what the gates enforce, and the `ILintRulesPass` set is not a single rule either.** Satisfying the one lint pass a document names tells you nothing about the other thirty-eight in `engine/OpenRA.Mods.Common/Lint/`. For a new actor shape, the cheap move is to read the pass list once and ask which ones take `foreach (var actorInfo in rules.Actors)` with no filter — `CheckDefaultVisibility`, `CheckTraitPrerequisites`, `CheckTooltips` (Buildable only), `CheckInteractable` and `CheckConflictingMouseBounds` all do, and between them they are the whole tax on a bodiless buildable actor.
+
+**Both faults are reproducible in ~30 ms with no gate, no mod load and no launch**, extending the `ActorInfo(string, params TraitInfo[])` technique §530 already documents: `TraitsInConstructOrder()` answers the first and `TraitInfos<IDefaultVisibilityInfo>().Count` answers the second. `OpenRA.Test/PowerPurchaseWiringTest.cs` now does both, and builds the trait set **by reflection from the shipped YAML with `Inherits:` resolved** rather than from a hand-mirrored list — which is the difference that matters, because the hand-mirrored list in `BuyLoopProxyTest` was green throughout the failure it describes. Verified by reverting the template to the shape that shipped: both assertions go red with the gate's own wording.
+
+**Process note worth more than the fact.** This was not unknowable. §530 was promoted on 2026-09-05, the day before the branch was written, and `CLAUDE.md`'s routing table sends anyone "editing YAML or engine C#" to that file. It was not read. **A clean build and 2,728 green NUnit tests say nothing whatever about actor construction** — only `--check-yaml` constructs actors, and workers are correctly forbidden from running it, so for this class of change the routing table is not a suggestion, it is the only check available before the gate.
+
 ## 2026-09-06 - `make.ps1 check` was red on `main` and had been for at least ten days; it is green again, so a red run now means YOU (`wt/check-green`, base `main @ 6e5721ae`)
 
 **If you run `.\make.ps1 check` and it is red, the errors are yours.** At `6e5721ae` the gate failed with 24 errors that nobody had introduced in the branch they were working in, so the honest response to a red run was to prove it was not you and move on — which at least one worker did, correctly, on 2026-09-06. That is the failure mode worth naming: **a gate everyone has learned to ignore has already stopped being a gate**, and the cost is paid by every future worker, not by whoever broke it. Fixed at `wt/check-green`; `check`, `make.ps1 all` and the 2713-test NUnit suite are all green.
