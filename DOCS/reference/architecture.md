@@ -137,6 +137,41 @@ numbers until it goes green cannot tell you which of two faults it just hid.
 by 60 ticks; a sibling checks the whole-run budget covers two sequential shots. Milliseconds, no build, no
 launch, and verified to fire by setting the budget back to 90.
 
+### Siting a measurement in a bot scenario: two lines, and never a spread over a filtered set
+
+*(Promoted 2026-09-06 from DISCOVERIES; the mechanism citations re-read at `main @ 9cb423d4`.)* Two
+scenario-design rules from item 64, both of which produced a green run describing a push that had gone nowhere.
+
+**1. A bot with an intermediate destination needs TWO measurement lines, one inside its muster ring and one
+outside.** `test-push-departs-together` measured departure at `x=10` with the staging anchor at `(14,16)` and
+slots spanning `x∈[10,18]`, so a unit walking to its own muster slot counted as having *departed* — "6/6
+departed, 0/6 crossed the midline". The obvious repair, moving the line past the ring, is **worse**: a lone
+staged unit never leaves the ring at all, so a departure line at `x=20` makes the solo-departure clause — the
+one the free-pool gate exists to flip — pass with the gate switched **off**. One line cannot serve both
+clauses, because the two behaviours live on opposite sides of it. Any clause about *leaving* belongs on the
+inner line; any clause about *going somewhere* belongs on the outer one, and the failure note must say which is
+which.
+
+The ring's radius is a **design-time calculation, not something to measure first**:
+`ForwardStagingMath.TryResolveFallbackCell` (`:225`) descends from the SR toward the bounds centre by
+`StagingFallbackCells` (`PoiOffensiveBotModule.cs:592`, C# default **0** — the fallback is skipped entirely at
+`:2660` unless a profile sets it; both profiles set `6`, `ai.yaml:725`, `:2974`), and
+`ForwardStagingMath.MaxSpreadRings(standoffMapCells, ringStep)` (`:329`) against `StagingSpreadStepCells`
+(`:581`, shipped `2`) gives the ring count.
+
+**2. An interval or spread statistic computed over "the units that did X" silently improves as FEWER units do
+X.** The same run scored a perfect `0` on its "spread between first and last advancing unit" clause while
+two-thirds of the push never advanced: only the two tanks ever crossed the advance line, all four riflemen read
+`adv@never` parked on their staging slots, and a min/max over a filtered set is at its best when the set is
+nearly empty. **The clause was unfalsifiable exactly on the smallest push — the case the item was about.**
+
+Any such statistic needs a companion **count** gate ("every spawned, living unit must have advanced") or it
+reports its best number on its worst run. This is not specific to advance-spread: a formation-tightness metric,
+a convoy-spacing metric, and any "how far apart were they" assertion whose population is *defined by having
+reached the thing being measured* all have it. It is the measurement-side twin of
+§"A scenario phase must advance on an OBSERVABLE" above — there the budget hid the fault, here the population
+does.
+
 ### A `Test.*` binding must return ONE thing
 
 *(Promoted 2026-09-04 from DISCOVERIES.)* `Test.GetSupportPowerState(player, orderKey)` was written to return
@@ -858,7 +893,7 @@ Every `bot.QueueOrder(...)` call across the ~25 BotModules lands in the single i
 
 ### The bot free pool self-heals — only free-pool-EXCLUDED units can leak
 
-`PoiOffensiveBotModule.BuildFreePool` (`:1855-1865`) scans **all** `world.Actors` (`:1860`) filtered by `IsEligibleCombatUnit` (`:2229`, requires `AttackBaseInfo` `:2233`, excludes aircraft), minus axis-claimed and ledger-committed units. Garrison/LaneAmbush/LayeredDefence use the same global scan. `SquadManagerBotModule` also scans globally but is **not** a consumer of this pool — it discards every ground unit at `:329-336` without claiming it (see §AI configuration), so it neither competes for nor replenishes the ground free pool. **Consequence:** an idle armed combat unit left anywhere on the map — even deep in contested territory after a drop — is re-collected regardless of location, so it is *self-healing*, not a leak. Only classes **excluded** from that pool can strand orderless at a hostile spot: when `UseUnitRoles` is on, `IsEligibleCombatUnit` (`:2271-2272`) admits only `MainBattle`/`IndirectFire` AND `!IsTroopCarrier`, so it excludes `ShortRangeAD`, `Recon`, `TransportLift`, `CaptureSpecialist`, `Logistics`, `AttackAir` (`UnitRole` enum, `Traits/World/UnitRoleResolver.cs:37`; `IsTroopCarrier` = has `Cargo` with `MaxWeight > 0`, `:239`). "Orderless-at-a-hostile-location" is therefore a bug **class** confined to dedicated non-combat units (a transport heli idling at its drop, a post-capture technician) — each needs an explicit return order; combat units do not.
+`PoiOffensiveBotModule.BuildFreePool` (`:2262-2287`) scans **all** `world.Actors` (`:2270`) filtered by `IsEligibleCombatUnit` (`:2827`, requires `AttackBaseInfo` `:2831`, excludes aircraft) *(these four re-checked 2026-09-06 at `main @ 9cb423d4`; the `UseUnitRoles` / `IsTroopCarrier` refs later in this paragraph date from an earlier revision and were not)*, minus axis-claimed and ledger-committed units. Garrison/LaneAmbush/LayeredDefence use the same global scan. `SquadManagerBotModule` also scans globally but is **not** a consumer of this pool — it discards every ground unit at `:329-336` without claiming it (see §AI configuration), so it neither competes for nor replenishes the ground free pool. **Consequence:** an idle armed combat unit left anywhere on the map — even deep in contested territory after a drop — is re-collected regardless of location, so it is *self-healing*, not a leak. Only classes **excluded** from that pool can strand orderless at a hostile spot: when `UseUnitRoles` is on, `IsEligibleCombatUnit` (`:2271-2272`) admits only `MainBattle`/`IndirectFire` AND `!IsTroopCarrier`, so it excludes `ShortRangeAD`, `Recon`, `TransportLift`, `CaptureSpecialist`, `Logistics`, `AttackAir` (`UnitRole` enum, `Traits/World/UnitRoleResolver.cs:37`; `IsTroopCarrier` = has `Cargo` with `MaxWeight > 0`, `:239`). "Orderless-at-a-hostile-location" is therefore a bug **class** confined to dedicated non-combat units (a transport heli idling at its drop, a post-capture technician) — each needs an explicit return order; combat units do not.
 
 **A class can be excluded "because another module owns it" when no module's config actually lists it.** Mobile SHORAD is the live case: `AdaptiveProductionBotModule.AntiAirRoles` is exactly `{ShortRangeAD}` so the bot **buys** it, but every ground movement module (`PoiOffensiveBotModule`, `PoiGarrisonBotModule`, `LayeredDefenceBotModule.IsLineEligibleByRole`) filters the pool to `MainBattle`/`IndirectFire`; `strykershorad` additionally trips the `!IsTroopCarrier` term (`Cargo: MaxWeight: 9`); and it is **not** in `MountedTransportBotModule`'s `CarrierTypes`. Bought, never moved, parked at the Supply Route for the match. There is a default-off `FoldShortRangeAdIntoLine` lever (`PoiOffensiveBotModule.cs:2269`, off even in `@experimental` — it trades air cover over the rear for air cover over the push, a doctrine A/B rather than a bug fix). Whenever a filter comment says another module owns an excluded class, check that module's YAML actually names it.
 
@@ -867,6 +902,17 @@ Every `bot.QueueOrder(...)` call across the ~25 BotModules lands in the single i
 **The `RetreatCapturerWhenDone` `[Desc]` states the right conclusion for the wrong reason, and the wrong reason makes the exclusion look accidental.** `CaptureCoordinatorBotModule.cs:309-310` reads "A CaptureSpecialist has no `AttackBase`, so it is EXCLUDED from every combat free pool". It does have one: `^TECN` inherits `^ArmedCivilian`, which carries `AttackFrontal` and an `Armament: Weapon: Pistol` (`ingame/infantry.yaml:370-378`, `:2177`). So a technician **passes** `IsEligibleCombatUnit`'s trait test and is excluded one line later, by ROLE, under `UseUnitRoles`. Right verdict, wrong mechanism — and it matters, because a trait-absence exclusion reads as incidental and reversible while a role-filter exclusion is neither. *(Flagged 2026-08-19, code comment not edited — this doc is the correction of record.)*
 
 **For an availability conjunct, prefer a predicate that is true from tick 0 over one that becomes true when the data arrives.** `DangerFieldLayer` creates a player's `PlayerField` lazily inside `RecomputePlayer` (`DangerFieldLayer.cs:473-474`), first reached after the deterministic stagger and then only on that player's round-robin slot — while bot modules scan from tick 1 (`scanCountdown` is a default `int` = 0). A gate written as "has the field been built yet?" therefore **fails OPEN for the entire opening window**, which is exactly when opening-play bugs live. Gate on `InfluenceStack.Participates(player)` — knowable at tick 0 — and let the *reading* return 0, which for a participant with no field yet is the honest answer ("nothing believed here"). This is the general shape: a conjunct whose truth tracks data arrival silently disables itself over the warm-up.
+
+**"Which module issued the order" is not answerable from the module you suspect — and the discriminator is already in the log.** *(Promoted 2026-09-06 from DISCOVERIES, re-read at `main @ 9cb423d4`.)* Item 64 spent two recon passes and a shipped fix aimed at `StageFreePool` before the lone opening tank turned out to be `LaneAmbushBotModule`'s: it posts a lane at tick 100, ledger-committing the unit under an `ambush:` key, so `BuildFreePool` excludes it and the offensive stager **never sees it at all**. Any gate on `StageFreePool` is structurally unreachable for that order. The cheap discriminator costs one grep: `[exp-offense] reeval … pool=N` (`PoiOffensiveBotModule.cs:1826`). **A `pool=0` on a player that demonstrably owns units means somebody else owns them**, and the ledger's disjoint objective prefixes (above) are the list of candidates. Grep the pool count before theorising about the stager.
+
+**Two opening-push under-fill leaks, same shape, two modules — both now gated, both default-off in C#.** Each takes whatever units are free and acts on `count > 0` with no floor:
+
+| leak | why it fires at the opening | gate | shipped value |
+|---|---|---|---|
+| `StageFreePool` AttackMoves the reserve forward **one order per unit** (`:2810`, `groupedActors: new[] { u }`) | `PoiOffenseMath.DesiredAxisCount` (`:5025`) returns 0 below `EarlyMinAxisSize` (`:83`, 2), so the first reinforcement forms no axis and falls to the free pool. Attack axes have an under-min retire gate; staging had none | `FreePoolMinAdvanceUnits` (`:610`) via pure `ForwardStagingMath.FreePoolMayAdvance` (`:370`), read at `:2720` | `0` in C#, `2` on both profiles (`ai.yaml:738`, `:2976`) |
+| `LaneAmbushBotModule` fills a lane with `Take(need)` from whatever is free and posts on `Units.Count > 0` | its header argues `MaxAmbushes × UnitsPerAmbush = 4` is "small so offense keeps the rest" — true only when offense **has** units to spare. At the opening the lane takes 100% of a one-unit army | `MinUnitsPerAmbush` (`LaneAmbushBotModule.cs:100`) via pure `AmbushLaneMath.LaneMayPost` (`:697`), read at `:387` | `0` in C#, `2` on both profiles (`ai.yaml:1039`, `:3030`) |
+
+**A related lever that reads as though it governs the opening and does not: `ImmediateReinforcementCommit` (`:768`).** `DamperShouldHold` (`:4475`) is `!SpawnFlowMath.SuppressMassingHold(…) && RetreatDamperMath.ShouldHold(…)`, and `ShouldHold` reaches its massing arm only when `FillIncomplete(currentUnits, allocatedUnits)` — `allocatedUnits > 0 && currentUnits < allocatedUnits` (`RetreatDamperMath.cs:101`, tested at `:163`). But `AllocatedSize` is written every eval by `AllocateProportional` over the pool that exists **that eval** (`PoiOffensiveBotModule.cs:1699`), and the very next loop tops the axis up to that allocation in the same pass. **So the hold waits for allocated units still walking up; a reinforcement not yet called in was never allocated, cannot make an axis under-filled, and cannot arm the hold.** Reverting the flag restores a gate that is structurally blind to the staggered arrival it would be asked to fix — and a measured A/B of HEAD against the flag dropped came back identical within noise. The general form is catalogued in [`conventions.md` §"A change believed made, documented as made, and inert"](conventions.md#a-change-believed-made-documented-as-made-and-inert): **"the comment describes the mechanism accurately" is not "the mechanism is reachable on this input"** — every document in that chain is correct about what it says, and the gap only appears when you ask *what state actually reaches this predicate*.
 
 ### The PoiGoalGuard commitment ledger — commit-on-order + three-tier timers
 

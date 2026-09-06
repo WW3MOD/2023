@@ -113,7 +113,7 @@ The match-ending win/loss runs on **`SupplyRouteContestation`, not stock `Conque
 | **dangerous** | drives in, stops `DropShortCells` short of the platoon, unloads its **whole** load as a SUPPLYCACHE, egresses | emptied — the drop is all-or-nothing (`DropsSupplyCache` calls `SetSupply(0)`) |
 | **quiet** | closes to aura range and serves in place | **retained** for the next customer |
 
-**SHIPPED CONTENT DISABLES THE SELECTOR: the quiet row cannot fire today, and the table below it describes a mode choice that is not being made.** The gate is `if (drop && DropRequiresDanger && !IgnoreDangerForDelivery && !dispatched && cluster != null)` (`SupplyFollowerBotModule.cs:1662`), and `IgnoreDangerForDelivery: true` is set on the shipped `SupplyFollowerBotModule@supply` (`ai.yaml:1649`) — user-authorised 2026-08-13, verbatim *"even if we need to completely disable their danger awareness"*. So at shipped config the drop mode is unconditional and a truck with a droppable load unloads a crate on any front, quiet or not. Everything from "What picks the mode" onward is the principled design and is what item 40 would make live again; read it as such, not as a description of what a match does.
+**SHIPPED CONTENT DISABLES THE SELECTOR: the quiet row cannot fire today, and the table below it describes a mode choice that is not being made.** The gate is `if (drop && DropRequiresDanger && !IgnoreDangerForDelivery && !dispatched && cluster != null)` (`SupplyFollowerBotModule.cs:1662`), and `IgnoreDangerForDelivery: true` is set on the shipped `SupplyFollowerBotModule@supply` (`ai.yaml:1676`) — user-authorised 2026-08-13, verbatim *"even if we need to completely disable their danger awareness"*. So at shipped config the drop mode is unconditional and a truck with a droppable load unloads a crate on any front, quiet or not. Everything from "What picks the mode" onward is the principled design and is what item 40 would make live again; read it as such, not as a description of what a match does.
 
 The anchor is relative to the **platoon that needs the supply**, not to the beachhead: `ClusterDropAnchor` places the crate `DropShortCells` back along the cluster→truck line. The older descent from the Supply Route survives only as a fallback for a truck with **no cluster selected** (`ResolveDropAnchor`).
 
@@ -140,6 +140,48 @@ The anchor is relative to the **platoon that needs the supply**, not to the beac
 Live values: `DropRequiresDanger`, `DropDangerFloorUnits`, `DropDangerMedianPercent`, `DropDangerAbsoluteUnits` (in `ai.yaml`, `SupplyFollowerBotModule@supply`; C# defaults on `SupplyFollowerBotModuleInfo`).
 
 **The floor is what protects the quiet-front branch, not the absolute limb** — it is evaluated first and may only ever declare *safe*, so a map with no believed enemy serves in place regardless of where the absolute limb sits. Any retuning of the absolute limb is therefore a decision about *contested* fronts only.
+
+### At shipped config, a loaded truck that has a cluster essentially never touches the FOLLOW path
+
+*(Promoted 2026-09-06 from DISCOVERIES, re-read at `main @ 9cb423d4`.)* An older recon called the follow path
+"the entire remaining mechanism", reached by "roughly 85% of trucks". **That figure predates `c60a468d` and
+does not describe HEAD** — three shipped settings now conspire so that selection *implies* the drop's demand
+gate:
+
+- `DropAnchorAtCluster: true` (`ai.yaml:1819`) makes the drop anchor a cell `DropShortCells` back along the
+  cluster→truck line (`ClusterDropAnchor`, `SupplyFollowerBotModule.cs:1834`) — derived from the cluster the
+  truck **just picked**, not from the Supply Route.
+- `SelectionMinStarvingUnits: 1` (`ai.yaml:1688`, added `c60a468d`) and `DropMinStarvingUnits: 1` (`:1914`) are
+  **the same number**, and `CountStarvingNear` (`:2101`) counts over an 18-cell disc around that anchor — a
+  disc that always contains the cluster. **So any cluster selection admits, the drop's demand gate also
+  admits.**
+- The errand is issued on that same scan, and `ResolveDropAnchor` (`:1882`) then returns the frozen destination
+  for as long as it runs.
+
+The surviving live cases are the drop's *other* declines — `LowLoad`, `Covered` (guaranteed the moment a crate
+is on the ground near a cluster, which is exactly the multi-truck case the sector spread exists for) and
+`NoAnchor` — plus every profile without the drop mode (`DropAndLeave` off, or no `ControlField`: Normal / Rush
+/ Turtle / legacy). `ClusterStickinessNeedMargin` (`ai.yaml:1574`, C# default 0 = off) governs precisely that
+remainder, and its own comment at `:1568-1573` says so.
+
+**Do not compare against the 54.1% `NoDemand` share** quoted in the `c9626273` baseline: that match predates
+the selection gate. Re-derive the decline histogram.
+
+**The trap this creates for the next author — it makes the obvious scenario green.** A two-cluster commitment
+scenario with a FULL 750-supply truck drops on scan 1 and commits, scoring zero reversals **on the broken
+code**: a test that cannot fail. `test-supply-two-clusters-commit` therefore ships its truck at `Supply: 80`,
+the only band that reaches the follow path with every `ai.yaml` value left as shipped — below `DropMinSupply:
+100` (`:1921`) so `DropVeto` returns `LowLoad`, and above `SupplyProvider`'s `RestockThreshold: 50` so
+`IsLowOnSupply` does not drop it from the roster first.
+
+> **Two stale in-tree comments, not corrected in place (this doc is the correction of record).**
+> `ai.yaml:1657` and `:1679` both describe `DropMinStarvingUnits` as **3**; the shipped value has been **1**
+> since the "3 -> 1 starving men" change recorded at `:1911-1913`, so `:1679`'s "Lower than
+> `DropMinStarvingUnits` (3) on purpose" now describes two *equal* numbers — which is the whole mechanism
+> above. Separately, the item-56 dossier and `WORKSPACE/bugs/discovered.md` describe
+> `FindSafeFollowPosition` as a danger site "no config flag reaches"; at HEAD `IgnoreDangerForDelivery` is
+> checked before it (`SupplyFollowerBotModule.cs:1000`) and the trait's own `[Desc]` lists it as site 7 of the
+> bypass, *"returns the cluster centroid; ThreatMapManager is never read"* (`:141`).
 
 ### Commitment — and it starts at INTENT, not at dispatch
 

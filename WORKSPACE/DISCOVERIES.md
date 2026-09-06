@@ -3,7 +3,7 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
-## 2026-09-05 - Item 64 MEASURED, four arms: the free-pool gate is proven, the muster revert is inert and dropped, and the instrument's d1 clause passed for the wrong reason (`wt/item64 @ 6951b540`, base `main @ 62778af1`)
+## 2026-09-05 - Item 64 MEASURED, four arms: the free-pool gate is proven, the muster revert is inert and dropped, and the instrument's d1 clause passed for the wrong reason (`wt/item64 @ 6951b540`, base `main @ 62778af1`) **[promoted in part -> `architecture.md` §"Siting a measurement in a bot scenario" (finding 3, the filtered-population statistic) and §"The bot free pool self-heals" (finding 2, the inert `ImmediateReinforcementCommit`)]** — findings 1, 4 and 5 are the measured record of four runs of one scenario and stay here; they are a run log, not reference material. Finding 3's rule is the durable half and is promoted with the muster-line entry below. Finding 2's mechanism re-verified at `main @ 9cb423d4`: `DamperShouldHold` is now `:4475` (not `:4437`), `SpawnFlowMath.SuppressMassingHold` `:74`, `RetreatDamperMath.ShouldHold` `:149` reaching `FillIncomplete` `:101` at `:163`, and `AllocateProportional` `:1699`.
 
 Four runs of `test-push-departs-together` plus one of `test-combined-arms-rendezvous`, run by the manager. This
 entry is the measured record; the three earlier 2026-09-05 entries below are annotated where it confirms or
@@ -52,7 +52,7 @@ the abrams still died**, so something other than the ambush lane walks that tank
 Undiagnosed, and it means the claim in the entry below needs narrowing: LaneAmbushBotModule is *a* proven
 lone-unit forward path and it is now gated, but it is not the sole cause of every lone tank.
 
-## 2026-09-05 - The lone opening tank is LaneAmbushBotModule's, not the offensive stager's: it claims the first reinforcement at tick 100, before the offense free pool exists (`wt/item64`, `main @ 62778af1`)
+## 2026-09-05 - The lone opening tank is LaneAmbushBotModule's, not the offensive stager's: it claims the first reinforcement at tick 100, before the offense free pool exists (`wt/item64`, `main @ 62778af1`) **[promoted -> `architecture.md` §"The bot free pool self-heals"]** — the ledger-ownership mechanism, the `pool=N` discriminator and both under-fill gates verified at `main @ 9cb423d4`. Line refs refreshed: `MinUnitsPerAmbush` `LaneAmbushBotModule.cs:100` (C# default 0) read at `:387` via `AmbushLaneMath.LaneMayPost` `:697`; `FreePoolMinAdvanceUnits` `PoiOffensiveBotModule.cs:610` read at `:2720` via `ForwardStagingMath.FreePoolMayAdvance` `:370`; the one-order-per-unit AttackMove is `:2810`; `DesiredAxisCount` is `:5025`; the reeval log line is `:1826`. Shipped values confirmed on **both** profiles (`ai.yaml:738`/`:2976`, `:1039`/`:3030`). **The narrowing in finding 5 of the entry above is carried into the doc** — the lane is *a* proven lone-unit path, not the sole cause.
 
 > **NARROWED 2026-09-05 by the measured entry above.** The mechanism here is confirmed and the gate works
 > (`lanes=0` at tick 100 where main logged `units=1`), but *"relocates the whole of item 64"* is too
@@ -92,7 +92,7 @@ costs one grep — `[exp-offense] reeval ... pool=N`. **A `pool=0` on a player t
 somebody else owns them**, and the shared `PoiGoalGuard` ledger is the list of candidates. Grep the pool count
 before theorising about the stager.
 
-## 2026-09-05 - A mission-committed axis reads as FREE POOL, so StageFreePool marches it back to the muster on the same eval it is being held forward (`wt/item64`, run 260905_183118)
+## 2026-09-05 - A mission-committed axis reads as FREE POOL, so StageFreePool marches it back to the muster on the same eval it is being held forward (`wt/item64`, run 260905_183118) **[rejected: the stated mechanism is contradicted by the code at `main @ 9cb423d4`]** — `PartitionHeldAxes` does **not** leave a held axis's units unclaimed. It calls `goalGuard.Ledger.Commit(u, key, tick, Info.AxisCommitmentTicks)` for every unit of every held axis (`PoiOffensiveBotModule.cs:2189`) *before* `BuildFreePool` runs (`:1623` then `:1627`), and `BuildFreePool` excludes any ledger-committed actor (`:2273`). The comment at `:1620` states this as the intent, and `git log -S` puts that commit call in `1fec5070` — the mission-commitment feature itself — so the guard was present when this entry was written, not added since. The only way the described path opens is a null `goalGuard`, and `PartitionHeldAxes` early-returns on exactly that (`:2131`). **The observed behaviour (the axis<->staging beat, infantry parked on staging slots) is real and remains open** — it is recorded in-code at `:3375-3390` and in the item-64 dossier; what is rejected is this diagnosis of it. Do not promote a mechanism whose guard sits one line below the site it names.
 
 > **NOW THE OPEN REMAINDER OF ITEM 64.** Re-observed at HEAD: the axis carried only the two tanks and all
 > four riflemen sat on staging slots with `adv@never` for the whole run.
@@ -117,7 +117,7 @@ beat"* and that `ai.yaml:791-795` records as the user's undiagnosed *"ordered ba
 diagnosed: the exclusion that protects a committed axis from re-decision is the same exclusion that hands it to the
 stager. Not fixed here — it is a third mechanism, past this batch's scope.
 
-## 2026-09-05 - A measurement line inside the muster ring cannot tell mustering from advancing, and moving it outside makes the opposite clause blind (`wt/item64`, run 260905_183118)
+## 2026-09-05 - A measurement line inside the muster ring cannot tell mustering from advancing, and moving it outside makes the opposite clause blind (`wt/item64`, run 260905_183118) **[promoted -> `architecture.md` §"Siting a measurement in a bot scenario: two lines, and never a spread over a filtered set"]** — merged with finding 3 of the item-64 measured entry above, since both are measurement-siting rules from the same run. The derivability claim is verified and **narrowed in the doc**: `StagingFallbackCells` is C# default **0** and the fallback is skipped entirely unless a profile sets it (`PoiOffensiveBotModule.cs:592`, `:2660`); both profiles set 6 (`ai.yaml:725`, `:2974`). `TryResolveFallbackCell` is `ForwardStagingMath.cs:225`, `MaxSpreadRings` `:329`, `StagingSpreadStepCells` `:581`.
 
 Scenario-design, general, and it cost one run. `test-push-departs-together` measured departure at x=10 with the
 staging anchor at (14,16) and slots spanning x∈[10,18] — so a unit walking to its own muster slot counted as having
@@ -135,7 +135,7 @@ clause about *going somewhere* belongs on the outer one. The muster ring's radiu
 `MaxSpreadRings(StagingFallbackCells, StagingSpreadStepCells)` — so this is a design-time calculation, not a
 finding that needs measuring first.
 
-## 2026-09-05 - The fill-completion massing hold cannot wait for a unit that does not exist yet, so `ImmediateReinforcementCommit` suppresses a hold that a reinforcement dribble never arms (`wt/item64`, base `main @ 62778af1`)
+## 2026-09-05 - The fill-completion massing hold cannot wait for a unit that does not exist yet, so `ImmediateReinforcementCommit` suppresses a hold that a reinforcement dribble never arms (`wt/item64`, base `main @ 62778af1`) **[promoted -> `architecture.md` §"The bot free pool self-heals"]** — the conjunction is reproduced exactly and every citation refreshed (see the item-64 measured entry above for the new line numbers). Promoted as a paragraph of that section rather than under its own heading, because the general shape it illustrates already has a home: `conventions.md` §"A change believed made, documented as made, and inert", which the promoted text now cross-links.
 
 > **CONFIRMED BY MEASUREMENT 2026-09-05 (entry above).** The C-dropped arm is identical to HEAD within
 > noise. The revert commit was dropped and the user's question withdrawn as moot. This entry was a code
@@ -202,7 +202,7 @@ building it and generalise:
   "did it leave alone?" predicate passes with the gate switched OFF. Spawn behind the SR instead and every
   reachable slot is strictly forward of the spawn line.
 
-## 2026-09-05 - Item 56's follow-path churn is REAL BUT LARGELY UNREACHABLE at shipped config, because selection now implies the drop's demand gate (`wt/item56`, base `main @ eacc8f44`)
+## 2026-09-05 - Item 56's follow-path churn is REAL BUT LARGELY UNREACHABLE at shipped config, because selection now implies the drop's demand gate (`wt/item56`, base `main @ eacc8f44`) **[promoted -> `supply-route.md` §"At shipped config, a loaded truck that has a cluster essentially never touches the FOLLOW path"]** — mechanism verified at `main @ 9cb423d4`; **every `ai.yaml` citation had drifted and is corrected in the doc**: `DropAnchorAtCluster` `:1819` (was `:1792`), `SelectionMinStarvingUnits` `:1688` (was `:1661`), `DropMinStarvingUnits` `:1914` (was `:1887`), `ClusterStickinessNeedMargin` `:1574` (was `:1547`), and `ResolveDropAnchor` is `SupplyFollowerBotModule.cs:1882`. Both starving floors confirmed at **1**, which is the whole mechanism. The `supply-route.md` mode-selector note the entry says it added **is present** (`:115`); its own `ai.yaml:1649` citation was stale and is now `:1676`. **New in the doc:** `ai.yaml:1657` and `:1679` still describe `DropMinStarvingUnits` as 3 — stale, and `:1679`'s "lower than" claim now describes two equal numbers.
 
 The item's 2026-09-05 recon concluded that the follow path is "the entire remaining mechanism",
 reached by "roughly 85% of trucks". **The mechanism is real and is now fixed, but that reachability
@@ -247,7 +247,7 @@ content disables at `SupplyFollowerBotModule.cs:1662`; a one-line note now says 
 The fix itself is `ClusterStickinessNeedMargin` (`ai.yaml:1547`, engine default 0 = off), with
 `SupplyLogisticsMath.KeepHeldCluster` and an optional `held` seed on `AssignSectors`.
 
-## 2026-09-05 - The `evacuating` condition buys a unit NOTHING defensively, so making evacuation drive 12x further is a real cost and not a free correctness fix (`wt/evac-home-edge`, base `main @ 78a97b57`)
+## 2026-09-05 - The `evacuating` condition buys a unit NOTHING defensively, so making evacuation drive 12x further is a real cost and not a free correctness fix (`wt/evac-home-edge`, base `main @ 78a97b57`) **[promoted, split -> `conventions.md` §Conditions system (the condition) and `economy.md` §"The evacuation refund is all-or-nothing on ARRIVAL" (the refund + exposure arithmetic)]** — the headline holds and is **strengthened**: the entry enumerated "exactly two consumers in mod data", which under-counts. Re-grepped for every reader at `main @ 9cb423d4`, `evacuating` has **five kinds of consumer**, and the two the entry missed are also non-defensive self-suppression guards — `AutoSeekSupplies.EvacuatingCondition` (`:108`, read `:272`) and `DropsSupplyCache.EvacuatingCondition` (`:106`, read `:508`). `ISelectionPriorityModifier`'s sole reader is confirmed `SelectableExts.cs:35` (the entry's `:29-36` is the enclosing method). YAML sites are `vehicles.yaml:135`, `infantry.yaml:159`, `aircraft.yaml:172`, and `aircraft.yaml` declares the pip twice (`:175`, `:229`). The `?? CPos.Zero` sub-section is promoted with the entry below, where the `??` shape lives.
 
 Written while shipping item 78, which repoints the ground evacuation exit from the wall nearest
 the UNIT to the border nearest the owner's own `SUPPLYROUTE`. Measured with
@@ -314,7 +314,7 @@ re-pick the cell that just failed and burn all three retries on it, so "bail out
 whatever border you can reach" is the correct recovery. It is now commented as a decision rather
 than left to be read as an oversight, and the change makes it materially more likely to fire.
 
-## 2026-09-05 - The evacuation exit is owner-anchored on ONE shipped map and unit-anchored on nine, and that map is the natural experiment for item 78 (`wt/evac-edge-math`, base `main @ 95bdffb2`)
+## 2026-09-05 - The evacuation exit is owner-anchored on ONE shipped map and unit-anchored on nine, and that map is the natural experiment for item 78 (`wt/evac-edge-math`, base `main @ 95bdffb2`) **[promoted in part -> `conventions.md` §"`A() ?? B` in a decision path — check that both arms answer the same QUESTION"]** — **the map split is SUPERSEDED by item 78 and is promoted as history, not as current behaviour.** At `main @ 9cb423d4` the ground branch reads `FindClosestSpawnAreaForOwner(self) ?? FriendlyEvacuationOrigin(self)` (`RotateToEdge.cs:208-209`), not `?? self.Location` — both arms are owner-side now, so the 12x river-zeta-vs-nine divergence can no longer arise, and the measured percentages are dated in the doc. What is promoted is the **shape** (a `??` whose arms answer different questions is a silent gameplay switch), the deliberate unit-anchored exception at `:352-360`, the `?? CPos.Zero` guard from the entry above, and the two-edge-choosers fact (`Map.cs:1874` filtered argmin vs `:1816` unfiltered half-plane projection that can return a cell past the exclusive bounds). `river-zeta-ww3` re-confirmed as the only map authoring `spawnarea`, and `economy.md`'s account of the anchor's own `ownSR?.Location ?? self.Location` fallback (`RotateToEdge.cs:113`) is still accurate.
 
 `RotateToEdge.ChooseEdgeCell`'s ground branch reads
 `FindClosestSpawnAreaForOwner(self) ?? self.Location` (`RotateToEdge.cs:161-166`). The left-hand

@@ -134,6 +134,20 @@ The worked case. `9e46f141` deleted LOGISTICSCENTER's `ProximityExternalConditio
 - **A corroborating signal that generalises:** the omission was already **priced**. The same merge added a costing comment budgeting five batches for a pool that was not listed to reach the metered path. **A cost annotation on an unreachable path is evidence the unreachability is accidental**, and it is far cheaper to notice than the behaviour is.
 - **`Rearmable.AmmoPools` order is inert** — the field is a `HashSet` (`Rearmable.cs:23-26`) and `RearmableAmmoPools` is built in the actor's *trait declaration* order, not the list's (`:44`). Do not read meaning into it.
 
+**`evacuating` buys a unit NOTHING defensively — the "it is deprioritised as a target" framing is wrong, and wrong in the dangerous direction.** *(Promoted 2026-09-06 from DISCOVERIES, consumers re-enumerated at `main @ 9cb423d4`.)* The condition is granted at `Activities/RotateToEdge.cs:251`. Enumerated by grepping for every reader rather than by walking outward from the grant site, it has **five kinds of consumer and not one of them touches targeting**:
+
+| where | what it does |
+|---|---|
+| `SelectionPriorityModifier@Evacuating` (`vehicles.yaml:135`, `infantry.yaml:159`, `aircraft.yaml:172`) | `Modifier: -20` into `ISelectionPriorityModifier` |
+| `WithDecoration@Evacuating` (the same three files; `aircraft.yaml` declares it twice, once per airframe template) | draws the orange pip |
+| `UnitBuilderBotModule.CensusExcludeCondition` (`:479`) | drops the unit from the bot's composition census |
+| `AutoSeekSupplies.EvacuatingCondition` (`:108`, read at `:272`) | "already leaving — don't send it to a depot" |
+| `DropsSupplyCache.EvacuatingCondition` (`:106`, read at `:508`) | exempts an evacuating truck from the dry break-off |
+
+`ISelectionPriorityModifier`'s **only** reader engine-wide is `SelectableExts.SelectionPriority` (`engine/OpenRA.Game/SelectableExts.cs:35`) — the local player's own mouse and box-select. No weapon, no `AutoTarget`, no targeting path consults it. **An evacuating unit is a completely ordinary auto-target for its whole drive**, so any design that lengthens an evacuation is buying exposure at full price with nothing softening it. The two logistics readers are *self*-suppression ("don't interrupt a departure"), not protection.
+
+**Second-order, and it moves BOTH bot profiles:** `CensusExcludeCondition` defaults to `evacuating`, so an evacuating unit reads as "already gone" to `UnitBuilderBotModule` for the whole drive. Lengthen evacuations and the bot pulls replacement buys forward by that much — unmeasured, and named here so the next benchmark baseline is re-taken knowingly rather than read as noise.
+
 ### Faction-specific files
 
 Each unit type has a base template file and two faction files:
@@ -301,6 +315,47 @@ Worked on shipped data against `abrams` (`Thickness: 700`, `Distribution: 100,40
 Two rules follow. **(1)** Any surface showing penetration must also show attack direction, or it is actively misleading rather than merely incomplete. **(2)** `Armor.Thickness` alone never answers "will this hurt it" — the direction term is not a modifier you can round away; it is 10× on the weapon class designed to exploit it.
 
 `TopAttack: true` is set at exactly five sites: `weapons-missiles.yaml:6` (`ATGM`) and `weapons-ballistics.yaml:880, 974, 1007, 1097` (artillery rounds). It is **not** on `RPG`, `TankRound.*`, `WGM.*`, `Hellfire.*` or `Stinger.quad` — so `ATGM` is the only infantry weapon in the mod that behaves this way.
+
+### Bullets DO lead a moving target — the lead lives in `Armament`, not in `Bullet`
+
+*(Promoted 2026-09-06 from DISCOVERIES, re-read at `main @ 9cb423d4`.)*
+
+`Bullet` really does fly to a fixed point — `target = args.PassiveTarget` (`Projectiles/Bullet.cs:200`). That
+reading is correct and it is the wrong **file boundary**: the lead is applied one level up, in `Armament`,
+*before* `PassiveTarget` ever reaches the projectile. `Traits/Armament.cs:619` enters a lead branch for any
+`BulletInfo` projectile at a valid target, and `:636` calls
+`WVec.CalculateLeadTarget(self.CenterPosition, initialPosition, targetPosition, Info.FireDelay, bullet.Speed.First().Length)`;
+the result is added to the target's current position and only then assigned to `args.PassiveTarget`.
+
+It is on by default, not opt-in. `ArmamentInfo.FireDelay` defaults to **3, not 0** (`Armament.cs:98`), and its
+own `[Desc]` says why: *"Cannot be 0 for Bullet Projectiles as it is used to calculate how much to lead target
+by checking position change (speed) between this many ticks."* `initialPosition` is the target's position
+exactly `FireDelay` ticks earlier — pushed in `FireBarrel`, popped FIFO inside the delayed-action lambda — so
+the helper is differencing two real samples, not guessing.
+
+**Two in-tree sources assert the opposite and both are wrong.** They post-date the lead code, which is why
+this keeps being re-derived from the projectile file:
+
+- `rules/weapons/weapons-ballistics.yaml:711-712` — *"Bullets do not lead (Bullet.cs:200 aims at the target's
+  position at fire time)"*. It is load-bearing there for a tuning argument that wide scatter is a **buff**
+  against movers; that argument does not survive, because the aim point is already displaced along the
+  target's velocity. **Not corrected in place — this doc is the correction of record.**
+- `WORKSPACE/recon/powers-interception.md` §4.2 — *"Guns do not lead. At all."*
+
+**What is actually wrong with the lead is that it is a SINGLE iteration, not that it is missing**, and the
+failure is counter-intuitive in two ways:
+
+- The one-shot solve **over-leads against a closing target far worse than against a crossing one**, so a gun
+  sited on the point being attacked is in its own worst case — the opposite of the intuition that a target
+  driving at you is the easy shot.
+- **Below one tick of bullet travel the lead is exactly zero**, because `ticksToReachTarget =
+  distanceToTarget / projectileSpeed` is integer division. For a `Speed: 8c0` weapon that is every engagement
+  inside 8 cells.
+
+Any figure quoted for "how far a gun misses a mover" should say which of the two regimes it is in; a
+no-lead derivation over-states the miss by roughly an order of magnitude at long range. Settle it empirically
+rather than by reading: `WW3_GUNTRACE=1` (`GunTrace.cs:23-24`) makes `Bullet.cs:402` log `aimedAt=`, which is
+either displaced along the target's velocity (lead live) or equal to its fire-time position (lead dead).
 
 ### Weapons live under `Weapons:`, and a warhead override REPLACES rather than merges
 
@@ -661,6 +716,44 @@ Four things decide whether this works, and three of them are traps:
 
 **The rule: write an enumeration as a claim with its method attached, never as a bare number.** Not *"17 sites"* but *"17 sites; grep `\bfa\.Owner\b` over `engine/**/*.cs`; recall unverified"*. A bare number is indistinguishable from a measurement at the point of reuse, and it will be reused. **If a design decision depends on an enumeration being complete, buy the recall-complete instrument** — one attribute and one build is cheaper than the design being wrong.
 
+### `A() ?? B` in a decision path — check that both arms answer the same QUESTION
+
+*(Promoted 2026-09-06 from DISCOVERIES.)* Nothing type-checks that the two arms of a `??` are the same *kind*
+of answer, nothing lints it, and the difference only surfaces on the maps or configs that populate the left
+arm. **When you see `A() ?? B` on a decision path, ask whether A and B answer the same question; if they do
+not, whatever flips which arm runs is silently a gameplay switch.**
+
+The worked case. Ground evacuation used to resolve its search origin as
+`FindClosestSpawnAreaForOwner(self) ?? self.Location` — left arm a property of the **owner** (the `spawnarea`
+nearest that player's Supply Route, `Activities/RotateToEdge.cs:101-128`), right arm a property of the
+**unit**. Only `river-zeta-ww3` authors `spawnarea` actors, so one shipped map ran the owner-anchored arm and
+nine ran the unit-anchored one. Measured with [`tools/evac-edge-math/`](../../tools/evac-edge-math/README.md)
+over a stride-2 grid of passable cells, for `tracked` units within 20 cells of an opponent spawn *(2026-09-05,
+`main @ 95bdffb2`)*: river-zeta exited through the owner's own back wall on **100.0%** of cells at a median
+74.8-cell drive; the other nine did so on **14.4%** at a median 9.0 cells.
+
+**That split is now historical** — item 78 closed it. The fallback is `FriendlyEvacuationOrigin(self)`
+(`RotateToEdge.cs:209`, defined `:158-169`): nearest friendly `ProductionFromMapEdge` → `Owner.HomeLocation`
+→ `self.Location`, so both arms are owner-side and the site says so in a comment. Carry the **shape**, not
+the map split. Note the third fallback is load-bearing rather than belt-and-braces: a player occupying no
+lobby slot has `HomeLocation == CPos.Zero` (`PlayerReference.cs:41`), and anchoring there would send every
+such evacuation to the map's top-left corner — a coordinate default masquerading as "their own side".
+
+**One deliberate exception, commented as a decision at `RotateToEdge.cs:352-360`:** the blocked-path retry
+re-picks with `ChooseClosestEdgeCell(self.Location)`, unit-anchored and unfiltered. It runs only after a
+`MoveTo` has already ENDED with the unit four or more cells from any border, so re-anchoring on the Supply
+Route would re-pick the wall that just failed and burn all three retries on it.
+
+**Related and easy to conflate: `Map` has TWO edge choosers and they are not interchangeable.**
+`ChooseClosestMatchingEdgeCell` (`Map.cs:1874`) is an exact filtered argmin over the perimeter list;
+`ChooseClosestEdgeCell` (`Map.cs:1816`) is an unfiltered half-plane projection and can return a cell one
+*past* `Bounds.Right`/`Bottom`, which are exclusive. Ground evac uses the first (`RotateToEdge.cs:210`),
+aircraft evac (`:200`) and the retry above use the second. They name a different **wall** for well under 1%
+of cells, so "nearest wall by perpendicular distance" is a sound intuition — but the off-by-one is real and
+anything comparing the two must normalise it. In the ground call the sort origin and the reachability
+predicate also read **different actors' positions**: the key is `searchOrigin`, the predicate paths from
+`self.Location` (`:210-211`).
+
 ## `make.ps1 all` can silently NO-OP after a checkout, leaving the previous SHA's binaries
 
 *(Promoted 2026-09-05 from DISCOVERIES. The observation is established; the cause below is a hypothesis and
@@ -753,7 +846,7 @@ Two `utility.cmd` traps that are fixed but worth carrying, because both are **fa
 - **Pausing `Mobile` is the engine's "halt this order and resume it later" primitive — it does NOT end the activity.** `Move.Tick` returns `false` while `mobile.IsTraitPaused` (`Move/Move.cs:167`), so granting a `Mobile.PauseOnCondition` condition stops a unit *mid-order* and revoking it resumes the same activity with no re-issue and no path re-plan. `MobileInfo` is a `PausableConditionalTraitInfo` (`Mobile.cs:26`), so this is available on any actor. Cancelling and re-queuing is the obvious alternative and is strictly worse — the interrupted order is exactly the thing that has to survive. Note `IsCanceling` is tested *before* the pause check (`:160`), so a paused unit can still be cancelled; a break-off does not have to un-pause first.
   - **The MiniYaml half, and it generalises past this trait: a condition EXPRESSION is a single field, so restating it on a child REPLACES the inherited one rather than adding to it.** The trait merges per-field; the boolean expression inside the field does not merge at all. `^Vehicle` carries `PauseOnCondition: !(!empdisable && !being-captured)` (`vehicles.yaml:43`), so a bare `PauseOnCondition: my-condition` on a derived actor would silently let an EMP'd or mid-capture unit drive away. The inherited terms must be restated — which TRUK does (`:611`, with the reason recorded in-file at `:607-610`). Applies to every single-field expression, not just this one.
 - **THREE weapon fields are globally inert, and all three are set in shipped YAML — so a tuning pass on any of them measures nothing.** `Bullet.InaccuracyPerProjectile` is unreachable: its branch requires `lastPosIsSet` (`Bullet.cs:213`), which is declared `readonly bool lastPosIsSet = false` (`:170`) and **never assigned** anywhere — an engine-wide grep returns exactly those two hits — so the `else` at `:218-221` always runs and every round in a burst scatters independently instead of walking. Six weapons set it (`weapons-ballistics.yaml:634, 693, 729, 745, 888`, `weapons-other.yaml:88`). `Armament.MovementInaccuracy` never applies to aircraft, because the lookup is `delayedTarget.Actor?.TraitOrDefault<Mobile>()` (`Armament.cs:518`) and no airframe carries `Mobile` — the aircraft files declare `Aircraft` instead (zero `Mobile:` across all three `aircraft*.yaml`). And **`DamageAtMaxRange` does nothing on a `SpreadDamage` warhead**: `RangeDamageMultiplier` is defined on `DamageWarhead` (`Warheads/DamageWarhead.cs:135`) but has exactly one caller engine-wide, `TargetDamageWarhead.cs:99`; `SpreadDamageWarhead` never calls it, so its damage is flat with range. Four SpreadDamage warheads set it (`weapons-ballistics.yaml:333, 420, 565, 823`). **On an `Explodes`-delivered payload the field is worse than inert even for `TargetDamage`** — it divides by a `Weapon.Range` of zero; see [`missiles.md` §10](missiles.md). **Before tuning any weapon field, confirm the branch that reads it is reachable for the projectile/warhead class you care about** — and see [§A change believed made, documented as made, and inert](#a-change-believed-made-documented-as-made-and-inert) for how to compute that cheaply.
-- **Bullets do not lead their target and do not collide en route, so gun accuracy against a fast mover is bounded by target motion rather than by `Inaccuracy`.** `target = args.PassiveTarget` (`Bullet.cs:200`) is the target's position *at fire time*; nothing solves for intercept, and `args.TargetingVector` is the `FirstBurst`/`FollowingBurstTargetOffset` walk pattern, not a lead. The per-tick `AnyValidTargetsInRadius` check is gated on `remainingBounces < info.BounceCount` (`Bullet.cs:350`), and `BounceCount` defaults to 0 (`:96`) with `remainingBounces = info.BounceCount` (`:252`) — so at default the predicate is `0 < 0`, false from the first tick, and a non-bouncing bullet only ever detonates at the end of its flight path. A Littlebird at its 265 u/tick cruise crosses ~5 cells during a 30mm round's 20-tick flight to `18c0`, against a `Circle Radius 32` hitshape. **Tuning scatter only helps against targets that are hovering or slow.**
+- **Bullets do not collide en route, so a non-bouncing round only ever detonates at the end of its flight path.** ~~Bullets do not lead their target~~ — **CORRECTED 2026-09-06: they do**, and the lead is applied in `Armament`, not `Bullet`; see §"Bullets DO lead a moving target" above for the mechanism and for what is actually wrong with it. `target = args.PassiveTarget` (`Bullet.cs:200`) is a fixed point, but it is the *already-led* point, and `args.TargetingVector` is the `FirstBurst`/`FollowingBurstTargetOffset` walk pattern, not a lead. The per-tick `AnyValidTargetsInRadius` check is gated on `remainingBounces < info.BounceCount` (`Bullet.cs:350`), and `BounceCount` defaults to 0 (`:96`) with `remainingBounces = info.BounceCount` (`:252`) — so at default the predicate is `0 < 0`, false from the first tick, and a non-bouncing bullet only ever detonates at the end of its flight path. A Littlebird at its 265 u/tick cruise crosses ~5 cells during a 30mm round's 20-tick flight to `18c0`, against a `Circle Radius 32` hitshape — **but that displacement is what the lead solves for, so it is the size of the problem, not the size of the miss.** The residual miss is the single-iteration solve's error, which is largest against a *closing* target and exactly zero inside one tick of flight.
 - **`traitreport.log` counts trait interface QUERIES, not implementors — never read it as a census.** The tell is on its own first line: `IAirborneVisibility: 723287`, and no mod has 723k traits. A line reading `INotifyPlayerDisconnected: 5` means five *lookups* (one world actor + four players, from `World.cs:258` and `Player.cs:240`), not five implementing traits. **To find out whether a hook is wired up, grep the interface name** — the report cannot answer it. *(The 2026-08-16 audit that established this used `INotifyPlayerDisconnected` as its zero-implementor example; that example has since expired — `ConcedeOnDisconnect` implements it as of 2026-08-17 — which is itself the reason to grep rather than to trust either the report or this sentence.)*
 - **A predicate about an ACTOR and a predicate about the CELL UNDER IT are not interchangeable — substituting the cheaper one silently deletes every channel of knowledge that is not line-of-sight.** `MapLayers` keeps radar in its own binary counter, `radarCount` (`MapLayers.cs:120`, written `:385`/`:423`, read only via `RadarCover` `:534-537`), which contributes **nothing** to `ResolvedVisibility` — vision writes graded strengths, radar writes a separate yes/no, and the resolution loop (`:239-264`) reads `explored` and `visibilityCount` only. `Detectable.IsVisibleInner` ORs the two (`:152-153`), so a radar contact draws on screen. But anything asking a **cell** question — `MapLayers.IsVisible` (`:579`), `IsDetectable` (`:629`), `World.FogObscures(pos)` — consults `ResolvedVisibility` alone and answers "fogged" for every radar contact that has ever existed. `UnitOrderGenerator.TargetForInput` required `!FogObscures(CenterPosition)` *in addition to* `CanBeViewedByPlayer`, so a helicopter the player could plainly see was dropped from the mouse-target list and the right-click fell through to `Target.FromCell` — a Move order, no attack cursor.
   - **Two channels have now been lost this way** — `FrozenUnderFog` buildings (`22a1ec34`, 2026-05-04) and radar contacts — and both surfaced as user-visible bugs rather than by anyone reading the code. Both came from `8db9da9e` (2026-04-16), which added the cell check as defence-in-depth against a through-fog targeting bug whose root cause it says outright it never found (*"the exact edge case is elusive"*). **An unreproduced guard that overrides an authoritative predicate will keep doing this.** The rule is now hoisted out of four drifted copies into one predicate, `MouseTargetVisibility.IsRevealed` (`:49-52`, `actorIsVisible && (isFrozenUnderFog || positionIsUnfogged || isRadarDetected)`) — note the guard was **consolidated, not deleted**. If a third channel turns up, that is the signal to go find `8db9da9e`'s original bug and delete the guard rather than add a fourth exemption.
