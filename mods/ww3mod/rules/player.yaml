@@ -217,6 +217,21 @@ Player:
 		Prerequisites: powers.event
 	MissileStrikePower@TsarBomba:
 		Prerequisites: powers.event
+	# Russia's four buy rungs, added by the manager at merge. Neither worker could write these:
+	# the powers live in nuclear-arsenal.yaml (the weapons worker's file) while the tier names live
+	# here (the roster worker's file), and only the OrderNames were contracted between them -- so
+	# the roster worker deliberately left EveryPurchasablePowerDeclaresATier red rather than guess
+	# a trait key and risk an incomplete MissileStrikePower, which is a mod-load failure and not a
+	# lint warning. These four keys were read off nuclear-arsenal.yaml:373/413/452/492 after the
+	# merge, not predicted.
+	MissileStrikePower@Ru9M729:
+		Prerequisites: powers.russia
+	MissileStrikePower@RuIskander:
+		Prerequisites: powers.russia
+	MissileStrikePower@RuKinzhalN:
+		Prerequisites: powers.russia
+	MissileStrikePower@RuKalibr:
+		Prerequisites: powers.russia
 
 	# PHASE 1 of the missile strike powers (WORKSPACE/proposals/260904-missile-powers.md).
 	# ChargeInterval is a placeholder so the power is reachable on its own; the buy/bank model that
