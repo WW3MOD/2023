@@ -13,7 +13,7 @@ contemporary World War 3 scenario. Unlike most OpenRA mods that only customize Y
 project rewrites significant portions of the engine itself -- 264 C# files modified across 234
 commits with ~6,300 insertions and ~3,300 deletions from the base OpenRA release-20230225.
 
-The mod features two primary factions (NATO/America vs BRICS/Russia), realistic modern military
+The mod features two playable factions (America and Russia), realistic modern military
 equipment, and deep gameplay mechanics including ammo management, supply routes, experience
 systems, and a cover/protection system.
 
