@@ -47,11 +47,23 @@ namespace OpenRA.Mods.Common.Warheads
 			"SpeedDecayPercent irrelevant.")]
 		public readonly int InitialSpeedPercent = 100;
 
-		[Desc("Fraction of the CURRENT excess speed above Mach 1 that survives each tick, as a",
-			"percentage. The front decays toward WaveSpeed and never below it, because a shock in air",
-			"decays to the speed of sound whatever set it off. Pick it from where the weapon's own",
-			"overpressure law puts Mach 2: 61 for a 20 kt burst (~4 ticks), 96 for 6 Mt (~28 ticks),",
-			"the ratio being the cube-root-of-yield scaling of every other length and time here.",
+		[Desc("Radius at which the front has finished decaying and is travelling at exactly WaveSpeed.",
+			"THIS IS THE FIELD THAT SHAPES THE WAVE, and the one to set. A nuclear shock has two",
+			"phases, not one: a supersonic sweep from the fireball surface out to roughly TWICE the",
+			"fireball radius, then the long sonic remainder. Set this to 2 * StartRadius and the",
+			"excess speed above Mach 1 falls LINEARLY IN RADIUS from InitialSpeedPercent at",
+			"StartRadius to zero here — linear in radius rather than in time, so the transition",
+			"happens at a PLACE you can point at on the map instead of at a tick you have to derive.",
+			"Zero (the default) leaves the front on the older SpeedDecayPercent geometric-in-time",
+			"decay, which is retained only so the default path stays bit-identical.")]
+		public readonly WDist TransitionRadius = WDist.Zero;
+
+		[Desc("SUPERSEDED by TransitionRadius, and ignored whenever that is set. Fraction of the",
+			"CURRENT excess speed above Mach 1 that survives each tick, as a percentage. Decaying in",
+			"TIME rather than in radius is why this needed a hand-derived constant per weapon and",
+			"still landed the transition at 3.6x the fireball radius on one weapon and 5x on another",
+			"instead of at the 2x both were supposed to share. Kept so the 100 default — no decay",
+			"because there is no excess to decay — remains exactly the pre-2026-09-06 behaviour.",
 			"Integer, and applied by integer division, so the wavefront position is exactly",
 			"reproducible — this is a damage-bearing quantity and must not go through a float.")]
 		public readonly int SpeedDecayPercent = 100;
@@ -155,6 +167,32 @@ namespace OpenRA.Mods.Common.Warheads
 			return endAlphaFrac + (1f - endAlphaFrac) * falloff;
 		}
 
+		/// <summary>
+		/// Excess speed above Mach 1, in permille of the sonic speed, for a front that has reached
+		/// <paramref name="currentRadius"/>. Falls linearly from its birth value at StartRadius to zero at
+		/// TransitionRadius, which is the whole two-phase model: supersonic sweep, then sonic remainder.
+		///
+		/// WHY LINEAR IN RADIUS. The mod's blast law is R proportional to P^-0.589, so overpressure —
+		/// and through Rankine-Hugoniot the excess Mach number with it — falls as roughly R^-1.7. Across
+		/// the one octave from StartRadius to twice it, the straight line between the endpoints is the
+		/// CHORD of that curve: the two agree to within a percent at the midpoint (0.500 against 0.494)
+		/// and are never more than about 0.12 apart anywhere in between. What the chord buys over the
+		/// power law is that it lands on zero at a finite radius instead of trailing a permanent
+		/// supersonic tail out to the map edge, so "where does it stop being fast" has an answer.
+		///
+		/// Integer throughout, long only to keep the product from overflowing on an absurd YAML. This
+		/// decides which tick an actor takes blast damage on, so it is simulation state: no floats.
+		/// </summary>
+		public int ExcessPermilleAt(int currentRadius)
+		{
+			var span = TransitionRadius.Length - StartRadius.Length;
+			var remaining = TransitionRadius.Length - currentRadius;
+			if (remaining <= 0)
+				return 0;
+
+			return (int)((long)(InitialSpeedPercent - 100) * 10 * remaining / span);
+		}
+
 		void IRulesetLoaded<WeaponInfo>.RulesetLoaded(Ruleset rules, WeaponInfo info)
 		{
 			if (ShockwaveSegments < 3)
@@ -175,6 +213,24 @@ namespace OpenRA.Mods.Common.Warheads
 
 			if (SpeedDecayPercent < 0 || SpeedDecayPercent > 100)
 				throw new YamlException("SpeedDecayPercent must be between 0 and 100; it is the fraction of the excess speed kept per tick.");
+
+			if (TransitionRadius.Length < 0)
+				throw new YamlException("TransitionRadius cannot be negative.");
+
+			if (TransitionRadius.Length > 0)
+			{
+				// The two decay laws would silently fight, and the loser would be whichever the reader
+				// did not expect. Refuse the ambiguity rather than document which one wins.
+				if (SpeedDecayPercent != 100)
+					throw new YamlException("TransitionRadius and SpeedDecayPercent are two different decay laws; set one. TransitionRadius is the one that anchors the transition to a radius.");
+
+				// Equal would divide by zero; below would make the front decelerate before it exists.
+				if (TransitionRadius <= StartRadius)
+					throw new YamlException("TransitionRadius must be greater than StartRadius; the front has to have somewhere to decay across.");
+
+				if (TransitionRadius > MaxRadius)
+					throw new YamlException("TransitionRadius cannot exceed MaxRadius; the wave would end while still supersonic.");
+			}
 
 			// Zero would make Pow return 1 at every radius, which collapses the fade to a flat
 			// ShockwaveEndAlphaPercent and hides the mistake as "the ring just never fades".

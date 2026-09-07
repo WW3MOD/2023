@@ -62,30 +62,52 @@ namespace OpenRA.Test
 		/// from this, so if the engine's loop is ever rewritten in floating point the numbers here
 		/// stop matching and someone finds out.
 		/// </summary>
-		static List<int> Wavefront(int startRadius, int maxRadius, int waveSpeed, int initialSpeedPercent, int decayPercent)
+		static List<int> Wavefront(int startRadius, int maxRadius, int waveSpeed, int initialSpeedPercent, int decayPercent, int transitionRadius = 0)
 		{
 			var step = 1024 / waveSpeed;
 			var radius = startRadius;
 			var excess = (initialSpeedPercent - 100) * 10;
 			var history = new List<int> { radius };
-			while (radius <= maxRadius && history.Count < 5000)
+			while (radius <= maxRadius && history.Count < 12000)
 			{
 				radius += step * (1000 + excess) / 1000;
-				excess = excess * decayPercent / 100;
+				excess = transitionRadius > 0
+					? ExcessPermilleAt(radius, startRadius, transitionRadius, initialSpeedPercent)
+					: excess * decayPercent / 100;
 				history.Add(radius);
 			}
 
 			return history;
 		}
 
-		/// <summary>Tick at which the front first reaches <paramref name="cells"/>, plus the start delay.</summary>
-		static int ArrivalTick(List<int> history, double cells, int startDelay)
+		/// <summary>
+		/// ShockwaveDamageWarhead.ExcessPermilleAt, reproduced. Deliberately a COPY rather than a call
+		/// into the warhead: this file exists to check the shipped YAML against arithmetic written out
+		/// longhand, and a test that asks the implementation what the implementation does would pass
+		/// through any rewrite of it. The two are pinned to each other by
+		/// TheTestsCopyOfTheDecayLawIsTheEnginesCopy below.
+		/// </summary>
+		static int ExcessPermilleAt(int radius, int startRadius, int transitionRadius, int initialSpeedPercent)
+		{
+			var remaining = transitionRadius - radius;
+			return remaining <= 0 ? 0 : (initialSpeedPercent - 100) * 10 * remaining / (transitionRadius - startRadius);
+		}
+
+		/// <summary>
+		/// Tick at which the front first reaches <paramref name="cells"/>, plus the start delay. Past the
+		/// end of the wave's own travel it EXTRAPOLATES at the terminal sonic speed rather than failing:
+		/// every nuclear weapon in the mod puts its outermost suppression band beyond MaxRadius on
+		/// purpose, because the wind outlives the overpressure, and that band still needs a delay that
+		/// means something. Whether a band is allowed to be out there is checked separately below.
+		/// </summary>
+		static int ArrivalTick(List<int> history, double cells, int startDelay, int waveSpeed)
 		{
 			for (var t = 0; t < history.Count; t++)
 				if (history[t] >= cells * 1024)
 					return t + startDelay;
 
-			return -1;
+			var overshoot = cells * 1024 - history[history.Count - 1];
+			return history.Count - 1 + startDelay + (int)Math.Round(overshoot * waveSpeed / 1024.0);
 		}
 
 		// ---- reading the shipped YAML ----
@@ -103,13 +125,41 @@ namespace OpenRA.Test
 			throw new FileNotFoundException($"could not locate mods/ww3mod/rules/{string.Join("/", parts)}");
 		}
 
+		static readonly string[] WeaponFiles = { "weapons-superweapons.yaml", "weapons-nuclear-arsenal.yaml" };
+
 		static MiniYaml Weapon(string name)
 		{
-			var node = MiniYaml.FromFile(FindRules("weapons", "weapons-superweapons.yaml"))
+			var node = WeaponFiles
+				.SelectMany(f => MiniYaml.FromFile(FindRules("weapons", f)))
 				.FirstOrDefault(n => n.Key == name);
-			Assert.That(node, Is.Not.Null, $"{name} is not defined in weapons-superweapons.yaml — this test is scanning nothing");
+			Assert.That(node, Is.Not.Null, $"{name} is not defined in any of {string.Join(", ", WeaponFiles)} — this test is scanning nothing");
 			return node.Value;
 		}
+
+		/// <summary>
+		/// Every nuclear weapon in the mod and its stated yield, superweapons and arsenal together.
+		///
+		/// THIS LIST IS THE POINT OF THE 2026-09-07 REVISION. The tests below used to iterate a
+		/// hard-coded pair, "Atomic" and "AtomicHighYield", so the eight arsenal weapons added a day
+		/// later were checked by NOTHING — they shipped with no StartRadius, no InitialSpeedPercent
+		/// and no transition at all, i.e. a point-source wave travelling at a flat sound speed, which
+		/// is the exact defect the superweapon pair had just been fixed for. A green suite said so
+		/// too, because the pair it looked at were still right. Anything added to either file has to
+		/// be added here.
+		/// </summary>
+		static readonly (string Weapon, double Kt)[] AllNukes =
+		{
+			("Atomic", TacticalKt),
+			("AtomicHighYield", StrategicKt),
+			("NukeB61Mod12Y003", 0.3),
+			("NukeB61Mod12Y015", 1.5),
+			("NukeB61Mod12Y10", 10.0),
+			("NukeB61Mod12Y50", 50.0),
+			("NukeW76", 100.0),
+			("NukeSarmatRV", 750.0),
+			("NukeB83", 1200.0),
+			("NukeTsarBomba", 50000.0),
+		};
 
 		static MiniYaml Warhead(string weapon, string warhead)
 		{
@@ -213,31 +263,144 @@ namespace OpenRA.Test
 		[Test]
 		public void EachShockwaveIsBornAtItsOwnFireballSurfaceAtItsOwnMachNumber()
 		{
-			foreach (var (weapon, kt, expectedMach) in new[]
-			{
-				("Atomic", TacticalKt, 5.51),
-				("AtomicHighYield", StrategicKt, 4.05),
-			})
+			foreach (var (weapon, kt) in AllNukes)
 			{
 				var w = Warhead(weapon, "Warhead@BlastWave");
 				var startRadius = Cells(Dist(w, "StartRadius", weapon));
 				var initialSpeed = Int(w, "InitialSpeedPercent", weapon);
 
-				Assert.That(startRadius, Is.EqualTo(FireballCells(kt)).Within(0.02),
+				// RELATIVE tolerance, and the reason is worth knowing: the two weapon files write the
+				// SAME fireball law with differently-rounded constants — weapons-superweapons.yaml and
+				// this file use 33.5311 * Y^0.40 metres, weapons-nuclear-arsenal.yaml's header uses
+				// 111 * (Y/20)^0.40, and 33.5311 * 20^0.40 is 111.14, not 111. That is a 0.13%
+				// disagreement, invisible at 0.3 kt and 0.02 cells at 50 Mt — which is to say it sits
+				// exactly on an 0.02-cell absolute tolerance and tips Tsar Bomba over it. A percentage
+				// is the honest tolerance for a percentage-sized discrepancy, and it is STRICTER than
+				// the absolute one everywhere below about 4 Mt. Reconciling the two constants would
+				// move fireball durations, sprite scales and thermal radii across eight weapons, so it
+				// is recorded rather than done here.
+				Assert.That(startRadius, Is.EqualTo(FireballCells(kt)).Within(0.5).Percent,
 					$"{weapon}'s wave starts at {startRadius}c but its fireball breaks away at {FireballCells(kt):F3}c");
 
 				// The overpressure the blast law puts at the breakaway radius, through Rankine-Hugoniot.
 				var mach = Mach(BlastPsi(kt, startRadius));
-				Assert.That(mach, Is.EqualTo(expectedMach).Within(0.05));
 				Assert.That(initialSpeed, Is.EqualTo((int)Math.Round(mach * 100)).Within(2),
 					$"{weapon}'s InitialSpeedPercent {initialSpeed} is not the Mach {mach:F2} its own breakaway overpressure implies");
+
+				// A point source is the defect this whole file exists to catch. Spell it out, because
+				// "StartRadius is absent" and "StartRadius is 0" reach the engine as the same thing.
+				Assert.That(startRadius, Is.GreaterThan(0),
+					$"{weapon}'s shockwave starts at a point; inside a fireball there is no wave to propagate");
 			}
 
-			// The LARGER weapon's front is born SLOWER, which looks like a mistake and is not: a bigger
-			// fireball breaks away at a lower overpressure. If this ever inverts, someone has "fixed" it.
-			Assert.That(Int(Warhead("AtomicHighYield", "Warhead@BlastWave"), "InitialSpeedPercent", "strategic"),
-				Is.LessThan(Int(Warhead("Atomic", "Warhead@BlastWave"), "InitialSpeedPercent", "tactical")),
-				"the 6 Mt front is now born faster than the 20 kt one; breakaway Mach falls with yield, it does not rise");
+			// Breakaway Mach FALLS with yield, because a larger fireball breaks away at a lower
+			// overpressure. Across the whole arsenal, not just the pair: if this ever becomes monotonic
+			// the other way, someone has "fixed" the thing that makes a big weapon feel heavy.
+			var byYield = AllNukes
+				.OrderBy(n => n.Kt)
+				.Select(n => Int(Warhead(n.Weapon, "Warhead@BlastWave"), "InitialSpeedPercent", n.Weapon))
+				.ToArray();
+			for (var i = 1; i < byYield.Length; i++)
+				Assert.That(byYield[i], Is.LessThanOrEqualTo(byYield[i - 1]),
+					$"breakaway Mach rises with yield somewhere in {string.Join(", ", byYield)}; it falls");
+
+		}
+
+		/// <summary>
+		/// THE SUPERSONIC PHASE ENDS AT TWICE THE FIREBALL RADIUS, on every weapon. That multiple is the
+		/// whole model: the shock is attached to the fireball while the fireball is supersonic, detaches
+		/// at breakaway, and is decayed to sound speed by about twice that radius.
+		///
+		/// The predecessor of this test could not have been written, because the transition was not a
+		/// number in the YAML — it was implied by a per-weapon SpeedDecayPercent that decayed in TIME,
+		/// and you had to integrate to find out where it landed. It landed at 5.0x the fireball radius
+		/// on Atomic and 3.6x on AtomicHighYield: same intent, two different answers, neither of them 2.
+		/// </summary>
+		[Test]
+		public void TheSupersonicPhaseEndsAtTwiceTheFireballRadiusAndTheFrontIsSonicAfterIt()
+		{
+			foreach (var (weapon, kt) in AllNukes)
+			{
+				var w = Warhead(weapon, "Warhead@BlastWave");
+				var startRadius = Dist(w, "StartRadius", weapon);
+				var transition = Dist(w, "TransitionRadius", weapon);
+
+				Assert.That(Cells(transition), Is.EqualTo(2 * Cells(startRadius)).Within(0.01),
+					$"{weapon} transitions at {Cells(transition):F2}c, which is {Cells(transition) / Cells(startRadius):F2}x its fireball radius, not 2x");
+
+				// The old law is gone from this weapon, not merely outvoted by the new one. Setting both
+				// throws at load, so a leftover here is a mod that does not start.
+				Assert.That(w.Nodes.Any(n => n.Key == "SpeedDecayPercent"), Is.False,
+					$"{weapon} still carries SpeedDecayPercent alongside TransitionRadius; the two are different decay laws and the engine refuses the pair");
+
+				var waveSpeed = Int(w, "WaveSpeed", weapon);
+				var history = Wavefront(startRadius, Dist(w, "MaxRadius", weapon), waveSpeed,
+					Int(w, "InitialSpeedPercent", weapon), 100, transition);
+
+				// The two-phase shape, stated as invariants rather than as a table of arrival ticks that
+				// drifts the moment anything upstream is retuned: born supersonic, never subsonic,
+				// decelerating monotonically, and exactly sonic from the transition onward.
+				//
+				// NOTE WHAT IS NOT ASSERTED: that every step INSIDE the transition is strictly
+				// supersonic. In the last sliver before it the excess is a permille figure divided by
+				// the span, and integer division floors it to zero a few wdist short of the boundary —
+				// so the final pre-transition step is already exactly sonic. That is the arithmetic
+				// working, not failing, and an assertion that forbade it would be pinning a rounding
+				// artefact.
+				var sonicStep = 1024 / waveSpeed;
+				Assert.That(history[1] - history[0], Is.GreaterThan(sonicStep),
+					$"{weapon}'s front is born sonic; it should leave the fireball at Mach {Int(w, "InitialSpeedPercent", weapon) / 100.0:F2}");
+
+				for (var t = 1; t < history.Count; t++)
+				{
+					var step = history[t] - history[t - 1];
+					Assert.That(step, Is.GreaterThanOrEqualTo(sonicStep),
+						$"{weapon} is travelling below sound speed at {Cells(history[t - 1]):F1}c; a shock in air decays TO sound, not through it");
+
+					if (t > 1)
+						Assert.That(step, Is.LessThanOrEqualTo(history[t - 1] - history[t - 2]),
+							$"{weapon} accelerates at {Cells(history[t - 1]):F1}c; the front only ever decelerates");
+
+					if (history[t - 1] >= transition)
+						Assert.That(step, Is.EqualTo(sonicStep),
+							$"{weapon} is still travelling at {1024.0 / step:F2} cells/tick at {Cells(history[t - 1]):F1}c, past its {Cells(transition):F1}c transition");
+				}
+
+				// And the fast phase is genuinely fast — it beats sound over its own length. Below about
+				// 50 kt it is shorter than one tick, which is why this is the assertion and not a
+				// minimum duration: the phase is real at every yield, visible only at the large ones.
+				var fastTicks = history.FindIndex(r => r >= transition);
+				var sonicTicks = (transition - startRadius) / sonicStep;
+				Assert.That(fastTicks, Is.LessThan(Math.Max(2, sonicTicks)),
+					$"{weapon}'s supersonic phase takes {fastTicks} ticks to cross what sound crosses in {sonicTicks}");
+			}
+		}
+
+		/// <summary>
+		/// The copy of the decay law above and the engine's own are the same function. Checked over the
+		/// shipped weapons' actual parameters plus the edges, because the copy exists precisely so that
+		/// a rewrite of the engine's version cannot quietly take the tests with it.
+		/// </summary>
+		[Test]
+		public void TheTestsCopyOfTheDecayLawIsTheEnginesCopy()
+		{
+			foreach (var (weapon, _) in AllNukes)
+			{
+				var w = Warhead(weapon, "Warhead@BlastWave");
+				var start = Dist(w, "StartRadius", weapon);
+				var transition = Dist(w, "TransitionRadius", weapon);
+				var initial = Int(w, "InitialSpeedPercent", weapon);
+
+				var engine = new ShockwaveDamageWarhead();
+				var f = typeof(ShockwaveDamageWarhead);
+				f.GetField("StartRadius").SetValue(engine, new WDist(start));
+				f.GetField("TransitionRadius").SetValue(engine, new WDist(transition));
+				f.GetField("InitialSpeedPercent").SetValue(engine, initial);
+
+				foreach (var r in new[] { start, start + 1, (start + transition) / 2, transition - 1, transition, transition + 1, transition * 4 })
+					Assert.That(engine.ExcessPermilleAt(r), Is.EqualTo(ExcessPermilleAt(r, start, transition, initial)),
+						$"{weapon}: the engine and this file disagree about the front's excess speed at {Cells(r):F2}c");
+			}
 		}
 
 		/// <summary>
@@ -247,34 +410,46 @@ namespace OpenRA.Test
 		[Test]
 		public void SuppressionDelaysAreTheTicksTheWavefrontActuallyArrives()
 		{
-			foreach (var weapon in new[] { "Atomic", "AtomicHighYield" })
+			foreach (var (weapon, _) in AllNukes)
 			{
 				var blast = Warhead(weapon, "Warhead@BlastWave");
+				var waveSpeed = Int(blast, "WaveSpeed", weapon);
 				var history = Wavefront(
 					Dist(blast, "StartRadius", weapon),
 					Dist(blast, "MaxRadius", weapon),
-					Int(blast, "WaveSpeed", weapon),
+					waveSpeed,
 					Int(blast, "InitialSpeedPercent", weapon),
-					Int(blast, "SpeedDecayPercent", weapon));
+					100,
+					Dist(blast, "TransitionRadius", weapon));
 				var startDelay = Int(blast, "StartDelay", weapon);
 				var maxRadius = Cells(Dist(blast, "MaxRadius", weapon));
 
-				foreach (var band in new[]
-				{
-					"Warhead@SuppressionClose", "Warhead@SuppressionMedium",
-					"Warhead@SuppressionFar", "Warhead@SuppressionWind",
-				})
-				{
-					var b = Warhead(weapon, band);
-					var range = Cells(Dist(b, "Range", $"{weapon} {band}"));
-					var delay = Int(b, "Delay", $"{weapon} {band}");
-					var arrival = ArrivalTick(history, range, startDelay);
+				// The two files name their suppression bands differently. Take whichever the weapon has.
+				var bands = Weapon(weapon).Nodes
+					.Where(n => n.Key.StartsWith("Warhead@Suppression", StringComparison.Ordinal))
+					.ToArray();
+				Assert.That(bands, Is.Not.Empty, $"{weapon} has no suppression bands — this loop is scanning nothing");
 
-					Assert.That(range, Is.LessThanOrEqualTo(maxRadius),
-						$"{weapon} {band} sits outside MaxRadius, so the wave never arrives and its Delay is fiction");
+				var beyond = 0;
+				foreach (var node in bands)
+				{
+					var band = node.Key;
+					var range = Cells(Dist(node.Value, "Range", $"{weapon} {band}"));
+					var delay = Int(node.Value, "Delay", $"{weapon} {band}");
+					var arrival = ArrivalTick(history, range, startDelay, waveSpeed);
+
+					if (range > maxRadius)
+						beyond++;
+
 					Assert.That(delay, Is.EqualTo(arrival).Within(2),
 						$"{weapon} {band} is at {range}c and fires at tick {delay}, but the wavefront gets there at {arrival}");
 				}
+
+				// One band past MaxRadius is the wind outliving the overpressure and is intended. Two
+				// would mean the blast wave has quietly been shortened underneath a stack of delays
+				// that are now extrapolated fiction rather than arrivals.
+				Assert.That(beyond, Is.LessThanOrEqualTo(1),
+					$"{weapon} has {beyond} suppression bands outside its {maxRadius}c MaxRadius; only the outermost wind band may sit out there");
 			}
 		}
 
@@ -289,10 +464,11 @@ namespace OpenRA.Test
 			Assert.That(w.StartRadius, Is.EqualTo(WDist.Zero));
 			Assert.That(w.InitialSpeedPercent, Is.EqualTo(100));
 			Assert.That(w.SpeedDecayPercent, Is.EqualTo(100));
+			Assert.That(w.TransitionRadius, Is.EqualTo(WDist.Zero));
 
 			foreach (var waveSpeed in new[] { 2, 3, 5, 7, 10, 25 })
 			{
-				var history = Wavefront(0, 200 * 1024, waveSpeed, 100, 100);
+				var history = Wavefront(0, 200 * 1024, waveSpeed, 100, 100, 0);
 				var step = 1024 / waveSpeed;
 				for (var t = 0; t < history.Count; t++)
 					Assert.That(history[t], Is.EqualTo(t * step),

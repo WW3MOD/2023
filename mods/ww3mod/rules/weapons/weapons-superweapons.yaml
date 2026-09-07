@@ -129,7 +129,7 @@ Atomic:
 		FrequencyScale: 55
 		Delay: 12
 	Warhead@Shake4: ShakeScreen
-		# The air blast, arriving with the shockwave. 5.9 ticks/cell is this weapon's MEAN wavefront
+		# The air blast, arriving with the shockwave. 6.4 ticks/cell is this weapon's MEAN wavefront
 		# speed over its 15 cells (89 ticks / 15 cells) rather than the terminal 7, because the front
 		# now leaves the fireball at Mach 5.5 -- see Warhead@BlastWave. No Delay: the propagation
 		# speed IS the delay, so it is right at every distance.
@@ -138,7 +138,7 @@ Atomic:
 		AttackTicks: 2
 		DecayHalfLife: 16
 		FrequencyScale: 130
-		PropagationTicksPerCell: 5.9
+		PropagationTicksPerCell: 6.4
 
 	# ===== THE FIREBALL =====
 	# NEW 2026-09-06, and the largest single gap this weapon had: it did not have one. What it had
@@ -446,15 +446,22 @@ Atomic:
 	#
 	# It is then born FAST. The blast law puts 504 psi at 0.695 cells, and the Rankine-Hugoniot
 	# relation M = sqrt(1 + (6/7) * dP / 14.7) turns that into Mach 5.51, hence InitialSpeedPercent
-	# 551. The excess above Mach 1 decays 39% per tick (SpeedDecayPercent 61), which is set so the
-	# front reaches Mach 2 at 2.68 cells -- exactly where the same law puts 51 psi. It then settles
-	# onto WaveSpeed 7, because a shock in air decays to the speed of sound whatever set it off.
+	# 551. THE EXCESS ABOVE MACH 1 NOW DECAYS IN RADIUS RATHER THAN IN TIME: linearly from Mach 5.51
+	# at StartRadius to exactly sonic at TransitionRadius 1c398, which is twice the fireball radius.
+	# It then holds WaveSpeed 7, because a shock in air decays to the speed of sound whatever set it
+	# off. The old SpeedDecayPercent 61 decayed in TIME instead, which put this front's return to
+	# sonic at about 5x the fireball radius and AtomicHighYield's at 3.6x -- two different multiples
+	# of a quantity that is supposed to set the same transition for both.
+	#
+	# AT 20 KT THE FAST PHASE IS ONE TICK AND YOU WILL NOT SEE IT. The whole supersonic sweep is
+	# 0.69 cells long, which at Mach 5.5 is less than a single 60 ms step. That is not a bug and not
+	# worth tuning away: the phase is real and arithmetically present, and at this yield it is
+	# simply smaller than the simulation's time resolution. AtomicHighYield is where it is visible.
 	#
 	# Wavefront arrivals, integrated in the same integer arithmetic the engine runs:
-	#   2c t2   4c t12   6c t26   8c t40   10c t54   13c t75   15c t89
-	# The old point-source sonic model reached 15c at t106 and 30c at t213. The wave is not so much
-	# slower or faster as now SHAPED: nearly instant across the inner three cells, then settling
-	# into the long sonic crawl.
+	#   2c t5   4c t19   6c t33   8c t47   10c t61   13c t82   15c t96
+	# The old point-source sonic model reached 15c at t106. The wave is not so much slower or faster
+	# as now SHAPED: a jump clear of the fireball, then the long sonic crawl.
 	#
 	# THE FALLOFF TABLE IS TRUNCATED, NOT RESHAPED. Entries 0-12 are the approved curve unchanged, so
 	# damage at every distance inside 13 cells is bit-identical to what shipped; only the last three
@@ -467,7 +474,7 @@ Atomic:
 		WaveSpeed: 7
 		StartRadius: 0c711
 		InitialSpeedPercent: 551
-		SpeedDecayPercent: 61
+		TransitionRadius: 1c398
 		MaxRadius: 15c0
 		Damage: 100000
 		Penetration: 5000
@@ -486,7 +493,7 @@ Atomic:
 
 	# ===== PHASE 4: BLAST SUPPRESSION =====
 	# Every Delay below is the tick the integrated wavefront above actually reaches that range rather
-	# than an estimate: 5c t19, 8c t40, 11c t61, 14c t82. The outermost band sits past MaxRadius on
+	# than an estimate: 5c t26, 8c t47, 11c t68, 14c t89. The outermost band sits past MaxRadius on
 	# purpose -- the wind outlives the overpressure -- and its delay extrapolates at the terminal
 	# 7 ticks/cell.
 	Warhead@SuppressionClose: GrantExternalCondition
@@ -494,7 +501,7 @@ Atomic:
 		Amount: 10
 		Duration: 200
 		Condition: suppression-1
-		Delay: 19
+		Delay: 26
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
@@ -503,7 +510,7 @@ Atomic:
 		Amount: 7
 		Duration: 150
 		Condition: suppression-1
-		Delay: 40
+		Delay: 47
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
@@ -512,7 +519,7 @@ Atomic:
 		Amount: 4
 		Duration: 100
 		Condition: suppression-1
-		Delay: 61
+		Delay: 68
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
@@ -521,7 +528,7 @@ Atomic:
 		Amount: 3
 		Duration: 75
 		Condition: suppression-1
-		Delay: 82
+		Delay: 89
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
@@ -530,7 +537,7 @@ Atomic:
 		Amount: 1
 		Duration: 40
 		Condition: suppression-1
-		Delay: 103
+		Delay: 110
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
@@ -682,17 +689,28 @@ AtomicHighYield:
 		FrequencyScale: 17
 		Delay: 230
 	Warhead@Shake5: ShakeScreen
-		# The air blast, chasing the wavefront. 5.8 ticks/cell is this weapon's MEAN front speed over
-		# its 102 cells (594 ticks / 102 cells), not the terminal 7, because the front leaves the
-		# fireball at Mach 4. At the 102-cell edge it lands ~597 ticks (36 s) after the flash, so a
-		# player watching from across the map gets the ground wave almost at once and the shockwave
-		# rattle most of a minute later.
+		# The air blast, chasing the wavefront. 6.3 ticks/cell is this weapon's MEAN front speed over
+		# its 102 cells (645 ticks / 102 cells), not the terminal 7, because the front leaves the
+		# fireball at Mach 4.
+		#
+		# WHAT THIS COMMENT USED TO CLAIM IS FALSE, AND THE CEILING BEHIND IT IS STILL HERE. It said
+		# the rattle lands ~597 ticks (36 s) out at the 102-cell edge. It does not: ScreenShakerInfo
+		# carries MaxPropagationDelay 300 (ScreenShaker.cs:145, applied at :274), which clamps
+		# arrival at 300 ticks = 18 s. At 6.3 ticks/cell that clamp bites at 47.6 cells, so every
+		# camera beyond that -- less than half this weapon's blast radius -- gets the shake at a flat
+		# 18 s while the wavefront is still 5 s out at 71c and 20 s out at the edge. The stage tracks
+		# the front over the inner half and lies about the rest.
+		#
+		# NOT FIXED HERE, deliberately. The same constant also sets ExpiryTime (ScreenShaker.cs:456),
+		# so raising it far enough to cover Tsar Bomba's 1682-tick front would keep EVERY shake event
+		# in the mod alive that much longer. The fix is a per-event cap alongside the per-event
+		# PropagationTicksPerCell that ShakeParams already carries, and it wants its own branch.
 		Duration: 120
 		Intensity: 7
 		AttackTicks: 3
 		DecayHalfLife: 32
 		FrequencyScale: 60
-		PropagationTicksPerCell: 5.8
+		PropagationTicksPerCell: 6.3
 
 	# ===== THE FIREBALL =====
 	# NEW 2026-09-06. See the long note on `Atomic`'s Warhead@FireballLight for the model; what
@@ -1008,16 +1026,23 @@ AtomicHighYield:
 	# IT IS BORN SLOWER THAN THE TACTICAL NUKE'S FRONT, WHICH IS NOT AN ERROR. The blast law puts
 	# 265 psi at 6.80 cells, and Rankine-Hugoniot M = sqrt(1 + (6/7) * dP / 14.7) makes that Mach
 	# 4.05 -- against Mach 5.51 for the 20 kt weapon, because a larger fireball breaks away at a LOWER
-	# overpressure. The excess above Mach 1 then decays 4% per tick (SpeedDecayPercent 96) rather than
-	# 39%, set so the front reaches Mach 2 at 17.9 cells, exactly where the law puts 51 psi. The ratio
-	# of the two decay times, 28 ticks against 4, is the cube-root-of-yield scaling of every other
-	# length and time here.
+	# overpressure.
+	#
+	# THIS IS THE WEAPON WHERE THE SUPERSONIC PHASE IS ACTUALLY VISIBLE, and it is the one to watch
+	# to judge whether this works. The excess above Mach 1 falls LINEARLY IN RADIUS from Mach 4.05
+	# at 6c820 to exactly sonic at TransitionRadius 13c616 -- twice the fireball radius, which is
+	# where the transition is anchored on every nuclear weapon in the mod. That sweep covers 6.8
+	# cells in 22 ticks (1.3 s) against the 48 ticks the same distance takes at sound speed, so the
+	# ring visibly LEAPS clear of its own fireball and then settles. CAPTURE TICK 25 TO SEE IT
+	# MID-SWEEP; by tick 35 it is at 15c and already sonic.
 	#
 	# Wavefront arrivals, integrated in the same integer arithmetic the engine runs (including the
 	# 3-tick StartDelay):
-	#   15c t21   26c t68   41c t169   56c t274   71c t380   87c t492   102c t597
-	# The old point-source sonic model took until t716. Watching the front still arriving at the map
-	# edge half a minute after the flash is most of what makes this read as strategic.
+	#   15c t35   26c t112   41c t217   56c t322   71c t427   87c t539   102c t645
+	# The old point-source sonic model took until t716, and the SpeedDecayPercent model it replaced
+	# took until t597 -- that one was FASTER than this over the long haul, because decaying in time
+	# left the front supersonic all the way out to 24 cells. Anchoring the decay to a radius trades
+	# that smeared-out excess for a sharp early sweep and an honest sonic remainder.
 	#
 	# THE FALLOFF TABLE IS UNCHANGED. 35 entries at Spread 3c0 covers 0..102 cells in 3-cell steps and
 	# ShockwaveDamageWarhead interpolates linearly between them, so a coarse table is a smooth curve.
@@ -1040,7 +1065,7 @@ AtomicHighYield:
 		WaveSpeed: 7
 		StartRadius: 6c820
 		InitialSpeedPercent: 405
-		SpeedDecayPercent: 96
+		TransitionRadius: 13c616
 		MaxRadius: 102c0
 		Damage: 400000
 		Penetration: 20000
@@ -1052,9 +1077,12 @@ AtomicHighYield:
 		ShockwaveThickness: 5c512
 		ShockwaveSegments: 128
 		# 60 ticks of fade-in used to stand in for the ring emerging from a fireball. It now emerges
-		# from a real one -- the front is born at 6c820 -- so the fade is cut to the 20 ticks it takes
-		# the front to clear its own mushroom cloud sprite.
-		ShockwaveFadeInTicks: 20
+		# from a real one -- the front is born at 6c820 -- so the fade is set to the length of the
+		# supersonic phase itself, and the ring reaches full alpha at the exact radius the front goes
+		# sonic. THIS IS LOAD-BEARING. At the old 20 the ring was still dark through most of the
+		# sweep; a fade-in longer than the fast phase is why that phase was invisible on every
+		# weapon in the mod even where the physics underneath it was already correct.
+		ShockwaveFadeInTicks: 22
 		Versus:
 			Light: 80
 			Medium: 60
@@ -1075,7 +1103,7 @@ AtomicHighYield:
 		Amount: 10
 		Duration: 400
 		Condition: suppression-1
-		Delay: 120
+		Delay: 168
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1084,7 +1112,7 @@ AtomicHighYield:
 		Amount: 8
 		Duration: 350
 		Condition: suppression-1
-		Delay: 274
+		Delay: 322
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1093,7 +1121,7 @@ AtomicHighYield:
 		Amount: 5
 		Duration: 300
 		Condition: suppression-1
-		Delay: 415
+		Delay: 462
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1102,7 +1130,7 @@ AtomicHighYield:
 		Amount: 3
 		Duration: 250
 		Condition: suppression-1
-		Delay: 527
+		Delay: 575
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1111,7 +1139,7 @@ AtomicHighYield:
 		Amount: 1
 		Duration: 150
 		Condition: suppression-1
-		Delay: 690
+		Delay: 735
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
