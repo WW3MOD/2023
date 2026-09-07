@@ -38,8 +38,13 @@ namespace OpenRA.Traits
 	// collapsing next to you, 14-20 = a nuclear detonation on top of you).
 	//
 	// The maths lives in ScreenShakeModel, deliberately separated from the trait so it can be
-	// sampled without a World or a WorldRenderer -- see ScreenShakerTest, which tabulates the
+	// sampled without a World or a WorldRenderer -- see ScreenShakeModelTest, which tabulates the
 	// shipped profiles from this exact code rather than from a reimplementation of it.
+	//
+	// NOT EVERYTHING IS IN THE MODEL, and assuming it is has already cost a review. The trait keeps
+	// two pieces of state the model cannot see: ShakeEffect.ExpiryTime, built in AddEffect, and the
+	// sub-pixel residual the quantiser carries between ticks. ScreenShakeModelTest cannot reach
+	// either; ScreenShakerTest drives a real ScreenShaker for them.
 	[TraitLocation(SystemActors.World)]
 	public class ScreenShakerInfo : TraitInfo
 	{
@@ -140,8 +145,15 @@ namespace OpenRA.Traits
 			"shockwave follows seconds later, instead of everything happening on the same tick.")]
 		public readonly float PropagationTicksPerCell = 0.9f;
 
-		[Desc("Ceiling on the propagation delay, ticks. Also decides how long past its Duration an",
-			"effect is kept alive waiting for far-away cameras.")]
+		[Desc("DEFAULT ceiling on the propagation delay, ticks, for events that do not set their own.",
+			"It also decides how long past its Duration an effect is kept alive waiting for far-away",
+			"cameras, and THOSE TWO ROLES ARE WHY THIS IS NOT THE LEVER TO RAISE. An event whose",
+			"wavefront is slower than 300 ticks wide -- AtomicHighYield's air blast needs 645, and a",
+			"50 Mt front runs 1682 -- saturates here and lands at a flat 18 s however far away the",
+			"camera is. Raising this global number to cover the worst case would keep EVERY shake",
+			"event in the mod alive for the same extra span, so the ceiling is a per-event property:",
+			"set ShakeParams.MaxPropagationDelay on the one stage that needs it and everything else",
+			"keeps this.")]
 		public readonly int MaxPropagationDelay = 300;
 
 		public override object Create(ActorInitializer init) { return new ScreenShaker(this); }
@@ -174,6 +186,17 @@ namespace OpenRA.Traits
 		/// <summary>Ticks per cell for THIS event. 0 inherits ScreenShakerInfo.PropagationTicksPerCell.</summary>
 		public float PropagationTicksPerCell;
 
+		/// <summary>
+		/// <para>Ceiling on THIS event's arrival delay, ticks. 0 inherits
+		/// ScreenShakerInfo.MaxPropagationDelay.</para>
+		///
+		/// <para>Pair it with <see cref="PropagationTicksPerCell"/>: a stage that tracks a slow front
+		/// needs a ceiling wide enough to cover the front's whole travel, and the global default is
+		/// sized for the 0.9 t/cell ground wave. It is also what the effect's ExpiryTime is built
+		/// from, so raising it here lengthens only this event's lifetime.</para>
+		/// </summary>
+		public int MaxPropagationDelay;
+
 		/// <summary>Attenuation e-folding distance for THIS event. 0 inherits the global one.</summary>
 		public WDist AttenuationDistance;
 
@@ -189,6 +212,7 @@ namespace OpenRA.Traits
 				ReleaseTicks = 0,
 				FrequencyScale = 100,
 				PropagationTicksPerCell = 0f,
+				MaxPropagationDelay = 0,
 				AttenuationDistance = WDist.Zero
 			};
 		}
@@ -266,12 +290,27 @@ namespace OpenRA.Traits
 			components = Math.Min(info.FrequencyRatios.Length, info.FrequencyWeights.Length);
 		}
 
+		/// <summary>
+		/// <para>Ceiling on this event's arrival delay, ticks: its own if it set one, else the global
+		/// default.</para>
+		///
+		/// <para>The one number two callers must agree on. <see cref="ArrivalDelay"/> stops the wave
+		/// arriving later than this, and ScreenShaker.AddEffect keeps the effect alive exactly this
+		/// long past its Duration; if the second were smaller than the first, an effect would be
+		/// culled before its own wave reached the furthest camera still entitled to it.</para>
+		/// </summary>
+		public int MaxDelay(in ShakeParams p)
+		{
+			return p.MaxPropagationDelay > 0 ? p.MaxPropagationDelay : Info.MaxPropagationDelay;
+		}
+
 		/// <summary>Ticks before this event's wave, <paramref name="distance"/> away, reaches the camera.</summary>
 		public int ArrivalDelay(in ShakeParams p, int distance)
 		{
 			var speed = p.PropagationTicksPerCell > 0f ? p.PropagationTicksPerCell : Info.PropagationTicksPerCell;
 			var delay = (int)(speed * distance / 1024f);
-			return delay > Info.MaxPropagationDelay ? Info.MaxPropagationDelay : delay;
+			var cap = MaxDelay(p);
+			return delay > cap ? cap : delay;
 		}
 
 		/// <summary>Amplitude envelope in [0,1] at <paramref name="t"/> ticks after arrival.</summary>
@@ -408,11 +447,36 @@ namespace OpenRA.Traits
 		// effect dies the target is zero and the camera lands back on the exact pixel it started on.
 		int2 appliedOffset;
 
+		// The fraction of a world-pixel the last quantisation had to throw away, carried into the
+		// next one.
+		//
+		// PITFALL: Viewport.CenterLocation is an INTEGER in world-px, and the renderer multiplies it
+		// by Zoom to reach the screen -- so one step of the only quantity we can move is Zoom SCREEN
+		// pixels, and at MaxZoom (4, Viewport.cs) the camera physically cannot move less than four
+		// of them. Rounding each tick independently and discarding the remainder therefore does two
+		// separate kinds of damage at high zoom:
+		//   * a 3 px waveform becomes round(0.75 * sin) -- a three-state square wave that sits at
+		//     +-4 screen px or at nothing, which is a staircase where the model computed a sine;
+		//   * anything whose peak is under half a world-px (2 px on screen at zoom 4 -- an ordinary
+		//     shell, or the tail of any event once its envelope has decayed) rounds to zero on EVERY
+		//     tick and vanishes outright.
+		// Carrying the remainder makes the quantiser a first-order error-feedback loop: the applied
+		// value is still a whole world-px, but the accumulated difference between what was asked for
+		// and what was applied never exceeds half a pixel, so the camera's running mean traces the
+		// float waveform instead of a staircase of it. Amplitude and frequency survive at any zoom.
+		//
+		// It carries no state across events: GetTargetOffset clears it the moment the last effect
+		// dies, which is what keeps "the camera lands back on the exact pixel it started on" exact.
+		float2 residual;
+
 		public ScreenShaker(ScreenShakerInfo info)
 		{
 			this.info = info;
 			model = new ScreenShakeModel(info);
 		}
+
+		/// <summary>Effects still alive this tick. A view for the fixture; the structs are copies.</summary>
+		public IReadOnlyList<ShakeEffect> Effects => shakeEffects;
 
 		void IWorldLoaded.WorldLoaded(World w, WorldRenderer wr) { worldRenderer = wr; }
 
@@ -453,17 +517,40 @@ namespace OpenRA.Traits
 			shakeEffects.Add(new ShakeEffect
 			{
 				SpawnTime = ticks,
-				ExpiryTime = ticks + p.Duration + info.MaxPropagationDelay,
+				ExpiryTime = ticks + p.Duration + model.MaxDelay(p),
 				Position = position,
 				Params = p
 			});
+		}
+
+		/// <summary>
+		/// Converts a displacement in SCREEN pixels into the whole-world-pixel offset that
+		/// Viewport.CenterLocation can actually hold, carrying the discarded fraction into the next
+		/// call. See the note on <see cref="residual"/> for why the fraction cannot be dropped.
+		/// Public because it is stateful and the fixture drives the shipping instance of it.
+		/// </summary>
+		public int2 Quantize(float2 screenPx, float zoom)
+		{
+			if (zoom <= 0f)
+				zoom = 1f;
+
+			var wantedX = (screenPx.X / zoom) + residual.X;
+			var wantedY = (screenPx.Y / zoom) + residual.Y;
+
+			var applied = new int2((int)Math.Round(wantedX), (int)Math.Round(wantedY));
+			residual = new float2(wantedX - applied.X, wantedY - applied.Y);
+
+			return applied;
 		}
 
 		/// <summary>Absolute offset, in Viewport.CenterLocation units, wanted this tick.</summary>
 		int2 GetTargetOffset()
 		{
 			if (shakeEffects.Count == 0)
+			{
+				residual = float2.Zero;
 				return int2.Zero;
+			}
 
 			// Measure distance from where the camera WOULD be if we were not shaking it. Reading the
 			// live centre instead feeds our own displacement back into the falloff every tick.
@@ -478,13 +565,7 @@ namespace OpenRA.Traits
 			// `sum` is in screen pixels. Viewport.CenterLocation is in world-px, which the renderer
 			// multiplies by Zoom to reach the screen -- so divide it out, and the shake keeps the
 			// same apparent size however far the player is zoomed in.
-			var zoom = worldRenderer.Viewport.Zoom;
-			if (zoom <= 0f)
-				zoom = 1f;
-
-			return new int2(
-				(int)Math.Round(sum.X / zoom),
-				(int)Math.Round(sum.Y / zoom));
+			return Quantize(sum, worldRenderer.Viewport.Zoom);
 		}
 	}
 }

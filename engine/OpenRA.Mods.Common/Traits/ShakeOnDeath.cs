@@ -46,6 +46,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Ticks this event's wave takes to travel one cell. 0 inherits the global value.")]
 		public readonly float PropagationTicksPerCell = 0f;
 
+		[Desc("Ceiling on this event's arrival delay in ticks. 0 inherits the global value. Only",
+			"worth setting alongside a slow PropagationTicksPerCell -- see ShakeScreenWarhead.")]
+		public readonly int MaxPropagationDelay = 0;
+
 		[Desc("Distance over which this event's amplitude falls by 1/e. 0 inherits the global value.",
 			"Worth setting tight here: every building death on the map raises one of these, and the",
 			"global horizon is generous enough that a busy battle would otherwise sum a lot of very",
@@ -80,6 +84,7 @@ namespace OpenRA.Mods.Common.Traits
 					ReleaseTicks = info.ReleaseTicks,
 					FrequencyScale = info.FrequencyScale,
 					PropagationTicksPerCell = info.PropagationTicksPerCell,
+					MaxPropagationDelay = info.MaxPropagationDelay,
 					AttenuationDistance = info.AttenuationDistance
 				});
 		}

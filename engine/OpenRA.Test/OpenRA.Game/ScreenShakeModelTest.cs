@@ -11,6 +11,8 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using OpenRA.Traits;
@@ -238,6 +240,161 @@ namespace OpenRA.Test
 
 			// And at ground zero there is nothing to separate — everything is simultaneous.
 			Assert.That(m.ArrivalDelay(airBlast, 0), Is.EqualTo(0));
+		}
+
+		[TestCase(TestName = "A slow stage can raise its own arrival ceiling and then tracks its front to the edge.")]
+		public void PerEffectPropagationCapCarriesTheWaveToTheEdge()
+		{
+			var m = Model();
+			var info = new ScreenShakerInfo();
+
+			// AtomicHighYield Warhead@Shake5 as shipped: the air blast, 6.3 ticks/cell across a
+			// 102-cell blast radius, so its front is 643 ticks wide.
+			var air = Params(120, 7, halfLife: 32, freqScale: 60);
+			air.PropagationTicksPerCell = 6.3f;
+
+			// Where the GLOBAL ceiling saturates this stage. Stated as arithmetic rather than as a
+			// remembered number, because the mean front speed has already been retuned once and the
+			// 38.5 cells an earlier note quoted was measured at the 7.8 t/cell this no longer uses.
+			var globalBiteCells = info.MaxPropagationDelay / 6.3f;
+			Assert.That(globalBiteCells, Is.LessThan(60f),
+				$"The global ceiling only reaches {globalBiteCells:F1} cells at this speed, which is " +
+				"why the stage needs its own — if this stopped being true the case is moot.");
+
+			var capped = air;
+			capped.MaxPropagationDelay = 645;
+
+			foreach (var cells in new[] { 60, 80, 102 })
+			{
+				var withGlobal = m.ArrivalDelay(air, cells * Cell);
+				var withOwn = m.ArrivalDelay(capped, cells * Cell);
+
+				Assert.That(withGlobal, Is.EqualTo(info.MaxPropagationDelay),
+					$"Control: at {cells} cells the un-capped stage is expected to be saturated.");
+
+				// The whole defect in one assertion: with only the global ceiling every camera past
+				// 47 cells is told the rattle arrives at the same instant, however far out it is.
+				Assert.That(withOwn, Is.GreaterThan(withGlobal),
+					$"At {cells} cells the shake still arrives at the global {info.MaxPropagationDelay}-tick " +
+					"ceiling, so the far half of this weapon's blast radius gets it at a flat 18 s " +
+					"while the visible wavefront is still seconds away.");
+
+				Assert.That(withOwn, Is.EqualTo((int)(cells * 6.3f)).Within(2),
+					$"At {cells} cells the stage should land with its own front.");
+			}
+
+			// It is still bounded — at the event's own number rather than at nothing.
+			Assert.That(m.ArrivalDelay(capped, 100000 * Cell), Is.EqualTo(645));
+
+			// And an event that sets nothing is untouched, which is what keeps this a per-event
+			// lever rather than a global retune of every shake in the mod.
+			Assert.That(m.MaxDelay(Params(60, 8)), Is.EqualTo(info.MaxPropagationDelay));
+			Assert.That(m.ArrivalDelay(Params(60, 8), 100000 * Cell), Is.EqualTo(info.MaxPropagationDelay));
+		}
+
+		/// <summary>Locates a file under mods/ww3mod by walking up from the test binary.</summary>
+		static string FindMod(params string[] relative)
+		{
+			var dir = new DirectoryInfo(AppContext.BaseDirectory);
+			for (var i = 0; i < 10 && dir != null; i++, dir = dir.Parent)
+			{
+				var candidate = Path.Combine(new[] { dir.FullName, "mods", "ww3mod" }.Concat(relative).ToArray());
+				if (File.Exists(candidate))
+					return candidate;
+			}
+
+			throw new FileNotFoundException("could not locate mods/ww3mod/" + string.Join("/", relative));
+		}
+
+		static string Field(MiniYamlNode node, string key)
+		{
+			return node.Value.Nodes.FirstOrDefault(n => n.Key == key)?.Value.Value?.Trim();
+		}
+
+		/// <summary>
+		/// Every weapons file the mod actually loads, read out of mod.yaml rather than listed here.
+		/// A fixture that names its own inputs stays green while the thing it claims to cover grows
+		/// past it, so the population is taken from the same manifest the game reads.
+		/// </summary>
+		static IEnumerable<string> WeaponFiles()
+		{
+			var manifest = MiniYaml.FromFile(FindMod("mod.yaml"));
+			var weapons = manifest.FirstOrDefault(n => n.Key == "Weapons");
+			Assert.That(weapons, Is.Not.Null, "mod.yaml has no Weapons: section — this walk is reading nothing.");
+
+			foreach (var entry in weapons.Value.Nodes)
+			{
+				var path = entry.Key.Split('|').Last().Split('/');
+				yield return FindMod(path);
+			}
+		}
+
+		[TestCase(TestName = "Every shake stage can deliver its wave to the edge of its own weapon's blast.")]
+		public void EveryShakeStageCanReachTheEdgeOfItsOwnBlast()
+		{
+			var info = new ScreenShakerInfo();
+
+			var weaponsWithBlast = 0;
+			var stagesChecked = 0;
+			var slowStages = 0;
+			var offenders = new List<string>();
+
+			foreach (var file in WeaponFiles())
+			{
+				foreach (var weapon in MiniYaml.FromFile(file))
+				{
+					// The distance the thing being modelled actually travels, taken from the same
+					// weapon's own shockwave rather than from a number written down twice.
+					var reach = 0;
+					foreach (var wh in weapon.Value.Nodes.Where(n =>
+						n.Key.StartsWith("Warhead", StringComparison.Ordinal) && n.Value.Value == "ShockwaveDamage"))
+						if (WDist.TryParse(Field(wh, "MaxRadius"), out var r))
+							reach = Math.Max(reach, r.Length);
+
+					if (reach <= 0)
+						continue;
+
+					weaponsWithBlast++;
+
+					foreach (var wh in weapon.Value.Nodes.Where(n =>
+						n.Key.StartsWith("Warhead", StringComparison.Ordinal) && n.Value.Value == "ShakeScreen"))
+					{
+						stagesChecked++;
+
+						var speed = float.TryParse(Field(wh, "PropagationTicksPerCell"),
+							System.Globalization.NumberStyles.Float,
+							System.Globalization.CultureInfo.InvariantCulture, out var s) && s > 0f
+							? s
+							: info.PropagationTicksPerCell;
+
+						var cap = int.TryParse(Field(wh, "MaxPropagationDelay"), out var c) && c > 0
+							? c
+							: info.MaxPropagationDelay;
+
+						if (speed > info.PropagationTicksPerCell)
+							slowStages++;
+
+						var needed = speed * reach / 1024f;
+						if (cap < needed)
+							offenders.Add($"{weapon.Key} {wh.Key}: front is {needed:F0} ticks wide " +
+								$"({speed} t/cell over {reach / 1024f:F0} cells) but the arrival ceiling is " +
+								$"{cap}, so every camera past {cap / speed:F1} cells gets this stage at the " +
+								$"same flat {cap} ticks. Set MaxPropagationDelay to at least {Math.Ceiling(needed)}.");
+					}
+				}
+			}
+
+			// The walk has to be shown to be walking something. All three of these have been the
+			// silent-pass mode of a fixture in this tree before.
+			Assert.That(weaponsWithBlast, Is.GreaterThan(5),
+				$"Only {weaponsWithBlast} weapons with a ShockwaveDamage warhead were found.");
+			Assert.That(stagesChecked, Is.GreaterThan(20),
+				$"Only {stagesChecked} ShakeScreen stages were found — the parse is wrong, not the mod clean.");
+			Assert.That(slowStages, Is.GreaterThan(0),
+				"No stage overrides PropagationTicksPerCell, so nothing here is near the ceiling and " +
+				"this test is only asserting that the fast ground wave is fast.");
+
+			Assert.That(offenders, Is.Empty, string.Join("\n", offenders));
 		}
 
 		[TestCase(TestName = "A per-effect AttenuationDistance gives a small event a shorter horizon.")]

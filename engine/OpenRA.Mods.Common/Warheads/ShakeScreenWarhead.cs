@@ -63,6 +63,15 @@ namespace OpenRA.Mods.Common.Warheads
 			"will then track the visible wavefront at every distance instead of only at ground zero.")]
 		public readonly float PropagationTicksPerCell = 0f;
 
+		[Desc("Ceiling on this event's arrival delay in ticks, overriding the global one. 0 inherits",
+			"it. Set it WITH PropagationTicksPerCell or not at all: the global ceiling is sized for",
+			"the fast ground wave, so a stage slowed down to chase an air blast saturates against it",
+			"and every camera past that range gets the rattle at the same flat time however far away",
+			"it is. The right value is the front's own travel time to the edge of its blast radius.",
+			"It is raised per event rather than globally because it also fixes how long the effect is",
+			"kept alive, and one slow superweapon stage should not lengthen every shake in the mod.")]
+		public readonly int MaxPropagationDelay = 0;
+
 		[Desc("Distance over which this event's amplitude falls by 1/e, overriding the global value.",
 			"0 inherits it. Use it to give a small, frequent event a short horizon so a battle full",
 			"of them does not sum into a permanent background rumble across the whole map.")]
@@ -81,6 +90,7 @@ namespace OpenRA.Mods.Common.Warheads
 					ReleaseTicks = ReleaseTicks,
 					FrequencyScale = FrequencyScale,
 					PropagationTicksPerCell = PropagationTicksPerCell,
+					MaxPropagationDelay = MaxPropagationDelay,
 					AttenuationDistance = AttenuationDistance
 				});
 		}
