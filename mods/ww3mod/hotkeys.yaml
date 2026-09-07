@@ -22,10 +22,22 @@ ProductionTypePowers: O
 	Types: Production
 	Contexts: Player
 
-# Support-power bin slots 07-10. common|hotkeys/supportpowers.yaml defines 01-06 and stops there;
-# the nuclear arsenal took the mod to ten powers, of which a player can hold nine at once, so the
-# bin's HotkeyCount was raised to 10 in chrome/ingame-player.yaml and these four have to exist or
-# CheckChromeHotkeys fails the gate.
+# Support-power bin slots 07-15. common|hotkeys/supportpowers.yaml defines 01-06 and stops there;
+# the bin's HotkeyCount is 15 in chrome/ingame-player.yaml and EVERY slot it promises has to exist
+# here or CheckChromeHotkeys fails the gate (CheckChromeHotkeys.cs:97).
+#
+# IF YOU ARE RESOLVING A CONFLICT IN THIS BLOCK, TAKE THE LONGER SIDE. A concurrent branch
+# (wt/ru-nukes) added 11-13 for a fourteen-power roster; this is the same three definitions plus
+# 14 and 15, in the same place and the same shape, so taking this side drops nothing of theirs.
+# Taking the shorter side silently leaves HotkeyCount promising two slots that do not exist.
+#
+# WHY 15 AND NOT 5. A normal match draws one faction's five-rung buy ladder and nothing else. The
+# count is sized to the SANDBOX lobby option, which hands a single player all three tiers at once --
+# 5 america + 5 russia + 5 event -- because that is the mode these slots exist to make usable. The
+# full reasoning, including why the earlier 13 was right for its own tree, is written out where the
+# number lives, in chrome/ingame-player.yaml.
+#
+# UNBOUND BY DEFAULT, like every slot above 01.
 #
 # UNBOUND BY DEFAULT, exactly like 01-06 above them -- every SupportPowerNN in the common file
 # carries a Description and no key, so the slots are bindable rather than bound. Giving these four
@@ -47,6 +59,31 @@ SupportPower09:
 
 SupportPower10:
 	Description: Slot 10
+	Types: SupportPower
+	Contexts: Player
+
+SupportPower11:
+	Description: Slot 11
+	Types: SupportPower
+	Contexts: Player
+
+SupportPower12:
+	Description: Slot 12
+	Types: SupportPower
+	Contexts: Player
+
+SupportPower13:
+	Description: Slot 13
+	Types: SupportPower
+	Contexts: Player
+
+SupportPower14:
+	Description: Slot 14
+	Types: SupportPower
+	Contexts: Player
+
+SupportPower15:
+	Description: Slot 15
 	Types: SupportPower
 	Contexts: Player
 

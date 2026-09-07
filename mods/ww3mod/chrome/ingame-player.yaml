@@ -25,17 +25,43 @@ Container@PLAYER_WIDGETS:
 					ReadyText: READY
 					HoldText: ON HOLD
 					HotkeyPrefix: SupportPower
-					# TEN, up from 6 on 2026-09-06, because the nuclear arsenal took the mod from four
-					# support powers to ten and a player can hold nine at once (all ten less the
-					# faction-locked conventional strike they do not get). At 6 the last three cameos
-					# were reachable by mouse only.
+					# FIFTEEN. RAISED FROM 10 ON 2026-09-07, AND THIS NUMBER SUPERSEDES A 13 WRITTEN
+					# THE SAME DAY ON A CONCURRENT BRANCH -- if you are resolving a conflict here,
+					# 15 is the answer and the 13 is not wrong so much as earlier. Both reasonings
+					# are kept below because each is correct about its own tree.
+					#
+					# THE 13 (wt/ru-nukes, four Russian warheads): fourteen powers existed, only the
+					# two conventional strikes were faction-locked, and every nuclear power was open
+					# to both sides -- so a russia player could hold all fourteen less the
+					# america-locked GBU-57. Thirteen. That is exactly right for a roster where the
+					# nuclear entries are ungated.
+					#
+					# THE 15 (wt/powers-roster, three-tier faction gating): every power now names a
+					# tier, so the count is no longer "the roster minus what your faction misses".
+					# A NORMAL MATCH DRAWS AT MOST FIVE -- one faction's buy ladder -- so on that
+					# reading 6 would do. The binding case is the SANDBOX lobby option, which hands
+					# one player all three tiers at once and makes the bin draw the entire roster:
+					# 5 america + 5 russia + 5 event = 15. Sandbox is the mode the user tests in, so
+					# sizing to the normal match would leave exactly the person using the feature
+					# reaching for a mouse.
+					#
+					# 10 was itself up from 6 on 2026-09-06 for the same reason two steps earlier,
+					# when the arsenal took the mod from four powers to ten.
+					#
+					# IT IS SAFE TO RAISE THIS AND IT ALWAYS WILL BE. The binding is POSITIONAL, not
+					# per-power: SupportPowersWidget assigns hotkeys[IconCount] by DRAW INDEX
+					# (SupportPowersWidget.cs:161) over the non-Disabled powers, in
+					# SupportPowerPaletteOrder. Slot N is "whatever is Nth on screen right now" -- it
+					# already differs between an america player and a russia player, and it always
+					# has. Raising the count only ever ADDS slots at the end; it cannot rebind an
+					# existing slot to a different weapon, because no slot was ever bound to a weapon.
 					#
 					# THE COUNT IS NOT FREE: SupportPowersWidget.LinterHotkeyNames turns it into the
-					# names SupportPower01..SupportPower10 and CheckChromeHotkeys errors on any that
+					# names SupportPower01..SupportPower15 and CheckChromeHotkeys errors on any that
 					# is not defined (CheckChromeHotkeys.cs:97). common|hotkeys/supportpowers.yaml
-					# stops at 06, so 07-10 are defined in ww3mod|hotkeys.yaml. Raising this again
+					# stops at 06, so 07-15 are defined in ww3mod|hotkeys.yaml. Raising this again
 					# means adding definitions in the same edit.
-					HotkeyCount: 10
+					HotkeyCount: 15
 				Container@PALETTE_FOREGROUND:
 					Children:
 						Image@ICON_TEMPLATE:

@@ -16,7 +16,8 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[TraitLocation(SystemActors.World)]
-	[Desc("Adds lobby options for configuring support powers (airstrikes, the tactical nuclear strike, etc.).")]
+	[Desc("Adds lobby options for configuring support powers (airstrikes, the nuclear arsenal, and",
+		"the sandbox switch that suspends the buy tab's faction locks).")]
 	public class PowersLobbyOptionsInfo : TraitInfo, ILobbyOptions
 	{
 		[Desc("Label for the airstrike checkbox.")]
@@ -151,6 +152,46 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Display order for the extended nuclear arsenal option.")]
 		public readonly int NuclearArsenalCheckboxDisplayOrder = 104;
 
+		[Desc("Label for the sandbox checkbox.")]
+		public readonly string PowersSandboxCheckboxLabel = "Sandbox: All Support Powers";
+
+		[Desc("Tooltip for the sandbox checkbox.")]
+		public readonly string PowersSandboxCheckboxDescription =
+			"Testing mode: make every support power purchasable by both factions, including the " +
+			"event-only warheads. Ignores faction locks";
+
+		[Desc("Default sandbox setting. OFF, and unlike the two nuclear defaults above this one is",
+			"not expected to be revisited before release -- it is a permanent test mode, not a",
+			"staging decision. THE USER'S REASON FOR IT, 2026-09-07: they had all ten powers buyable",
+			"by everyone specifically so they could test them, and the faction gate this option",
+			"escapes would otherwise have taken that away.",
+			"",
+			"WHAT TICKING IT DOES: rules/player.yaml carries three ProvidesPrerequisite traits with",
+			"no Factions filter, gated on `!powers-sandbox-disabled`, which hand every player",
+			"powers.america, powers.russia AND powers.event at once. All fifteen entries then appear",
+			"in the buy tab for both sides.",
+			"",
+			"AND AS EVERYWHERE ELSE IN THIS FILE, THE REGISTERED DEFAULT AND THE UNREGISTERED",
+			"FALLBACK ARE SEPARATE VALUES. GrantConditionOnLobbyOption reads",
+			"OptionOrDefault(Option, !GrantWhenOptionDisabled) (GrantConditionOnLobbyOption.cs:45-49);",
+			"the fallback is `!GrantWhenOptionDisabled` from player.yaml, never this field, which is",
+			"only consulted when this trait is present to register the option at all. player.yaml",
+			"uses the same GrantWhenOptionDisabled: true form as the nuke gates, so a build with this",
+			"trait stripped, an old saved session, or a map that removes it all resolve the option to",
+			"FALSE and grant `powers-sandbox-disabled` -- i.e. they fall back to a NORMAL,",
+			"faction-locked match. That is the safe direction here: the failure mode of getting it",
+			"backwards would be handing both factions the Tsar Bomba in a game nobody asked it of.")]
+		public readonly bool PowersSandboxCheckboxEnabled = false;
+
+		[Desc("Lock the sandbox option.")]
+		public readonly bool PowersSandboxCheckboxLocked = false;
+
+		[Desc("Show the sandbox option.")]
+		public readonly bool PowersSandboxCheckboxVisible = true;
+
+		[Desc("Display order for the sandbox option.")]
+		public readonly int PowersSandboxCheckboxDisplayOrder = 105;
+
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
 			yield return new LobbyBooleanOption(
@@ -222,6 +263,22 @@ namespace OpenRA.Mods.Common.Traits
 				NuclearArsenalCheckboxLocked,
 				"Powers");
 
+			// THE SANDBOX GATE. Same "Powers" group and the same GrantWhenOptionDisabled polarity on
+			// the player.yaml side as the three above, and default FALSE like the tactical nuke rather
+			// than true like the arsenal -- a match nobody configured must be a normal, faction-locked
+			// match. Registered LAST of the checkboxes (display order 105) because it is not a
+			// content switch like the other three: it does not decide which weapons exist, it
+			// suspends the faction rules governing who may buy them.
+			yield return new LobbyBooleanOption(
+				"powers-sandbox",
+				PowersSandboxCheckboxLabel,
+				PowersSandboxCheckboxDescription,
+				PowersSandboxCheckboxVisible,
+				PowersSandboxCheckboxDisplayOrder,
+				PowersSandboxCheckboxEnabled,
+				PowersSandboxCheckboxLocked,
+				"Powers");
+
 			yield return new LobbyOption(
 				"airstrike-cooldown",
 				AirstrikeCooldownLabel,
@@ -246,6 +303,7 @@ namespace OpenRA.Mods.Common.Traits
 		public bool TacticalNukeEnabled { get; private set; }
 		public bool HighYieldNukeEnabled { get; private set; }
 		public bool NuclearArsenalEnabled { get; private set; }
+		public bool PowersSandboxEnabled { get; private set; }
 
 		public PowersLobbyOptions(PowersLobbyOptionsInfo info)
 		{
@@ -264,6 +322,8 @@ namespace OpenRA.Mods.Common.Traits
 				.OptionOrDefault("high-yield-nuke", info.HighYieldNukeCheckboxEnabled);
 			NuclearArsenalEnabled = self.World.LobbyInfo.GlobalSettings
 				.OptionOrDefault("nuclear-arsenal", info.NuclearArsenalCheckboxEnabled);
+			PowersSandboxEnabled = self.World.LobbyInfo.GlobalSettings
+				.OptionOrDefault("powers-sandbox", info.PowersSandboxCheckboxEnabled);
 		}
 	}
 }
