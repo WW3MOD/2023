@@ -50,6 +50,25 @@ SupportPower10:
 	Types: SupportPower
 	Contexts: Player
 
+# Slots 11-13, added 2026-09-07 with the four Russian warheads. A russia player can hold thirteen
+# powers at once -- all fourteen in the mod less the america-locked GBU-57 -- so the bin's
+# HotkeyCount went to 13 and these three have to exist or CheckChromeHotkeys fails the gate.
+# Unbound by default, like every slot above 01.
+SupportPower11:
+	Description: Slot 11
+	Types: SupportPower
+	Contexts: Player
+
+SupportPower12:
+	Description: Slot 12
+	Types: SupportPower
+	Contexts: Player
+
+SupportPower13:
+	Description: Slot 13
+	Types: SupportPower
+	Contexts: Player
+
 GroupScatter: G Shift
 	Description: Scatter queued waypoints among selected units
 	Types: World

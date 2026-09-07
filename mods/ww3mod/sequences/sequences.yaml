@@ -447,6 +447,41 @@ tsarbombamissile:
 		ZOffset: 1023
 		Scale: 1.8
 
+# The four Russian nuclear delivery bodies (rules/ingame/nuclear-arsenal.yaml, added 2026-09-07).
+# Same iskander-missile art as every other missile-power body in the mod, for the same two reasons:
+# there is no bespoke sprite for any of them, and CheckSequences requires the image to resolve. For
+# rukinzhalnmissile the reuse is exact rather than approximate -- the Kh-47M2 is Iskander-derived
+# and kinzhalmissile above already draws the conventional version with this art at this same 0.8.
+#
+# Scale here is multiplied by each actor's own RenderSprites.Scale. Effective sizes:
+#   ru9m729missile     0.65 x 0.80 = 0.52   smallest body in the mod; a GLCM
+#   ruiskandermissile  0.80 x 0.95 = 0.76   identical to kinzhalmissile, because it is that missile
+#   rukinzhalnmissile  0.80 x 0.95 = 0.76   likewise, and deliberately the same as the line above
+#   rukalibrmissile    0.70 x 0.90 = 0.63   long and thin against the W76 RV's 0.89 at equal yield
+ru9m729missile:
+	idle: iskander-missile
+		Facings: 32
+		ZOffset: 1023
+		Scale: 0.65
+
+ruiskandermissile:
+	idle: iskander-missile
+		Facings: 32
+		ZOffset: 1023
+		Scale: 0.8
+
+rukinzhalnmissile:
+	idle: iskander-missile
+		Facings: 32
+		ZOffset: 1023
+		Scale: 0.8
+
+rukalibrmissile:
+	idle: iskander-missile
+		Facings: 32
+		ZOffset: 1023
+		Scale: 0.7
+
 shootableshipmissile:
 	idle: iskander-missile
 		Facings: 32

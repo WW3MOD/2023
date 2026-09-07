@@ -2625,3 +2625,1267 @@ NukeSarmatMIRV:
 		Dimensions: 21,21
 		Footprint: _____________________ _____________________ ________xxxxx________ ______xxxxxxxxx______ ____xxxx_____xxxx____ ____xx_________xx____ ___xx___________xx___ ___xx___________xx___ __xx_____________xx__ __xx_____________xx__ __xx______X______xx__ __xx_____________xx__ __xx_____________xx__ ___xx___________xx___ ___xx___________xx___ ____xx_________xx____ ____xxxx_____xxxx____ ______xxxxxxxxx______ ________xxxxx________ _____________________ _____________________
 		Delay: 9
+
+# =====================================================================================================
+# THE RUSSIAN HALF OF THE ARSENAL -- four purchasable warheads, added 2026-09-07.
+#
+# WHY THESE EXIST. Every small nuclear weapon above this line is American: the four B61-12 dial
+# settings, the W76-1 and the B83-1. Russia owned only the two showpieces (RS-28 Sarmat and Tsar
+# Bomba), which are the top and the very top of the ladder, so there was no Russian weapon a player
+# could actually afford in the ordinary course of a match. A matched buy tier was impossible.
+# These four give the two factions the same rungs.
+#
+# THREE OF THE FOUR ARE PHYSICALLY IDENTICAL TO AN EXISTING US WEAPON, ON PURPOSE.
+#   NukeRuIskander   10 kt   every warhead copied verbatim from NukeB61Mod12Y10
+#   NukeRuKinzhalN   50 kt   every warhead copied verbatim from NukeB61Mod12Y50
+#   NukeRuKalibr    100 kt   every warhead copied verbatim from NukeW76
+# This is not laziness and it is not a shortcut past the derivation. Every number in this file is a
+# function of YIELD alone -- that is what the four laws in the header mean -- so two weapons of the
+# same yield that disagreed about their blast radius would be stating that one of them is wrong.
+# The yields were matched deliberately so that the two ladders are comparable; the difference
+# between an American and a Russian weapon of the same yield is DELIVERY, and delivery lives in
+# rules/ingame/nuclear-arsenal.yaml (missile speed, launch delay, burst altitude, warning time) --
+# not here. Nothing about a fireball knows who built the casing.
+#
+# THE ONE THAT IS DERIVED IS THE 1 KT. It has no US twin at its yield, so NukeRu9M729 below is
+# computed from the laws rather than copied. The derivation was written as code and validated by
+# regenerating NukeB61Mod12Y015 and NukeB61Mod12Y10 from it and diffing against what those ship:
+# StartRadius, TransitionRadius, InitialSpeedPercent, MaxRadius, Spread, ShockwaveThickness,
+# Vaporize spread, thermal spread, EMP range and duration, CreateEffect ScalePercent, all ten fire
+# ring ranges, all four shake intensities and all five suppression arrival delays reproduced
+# EXACTLY on both. Only the far-field falloff table differs, by at most one point out of 600, and
+# only because it is resampled from a different weapon's table onto a different number of steps.
+#
+# ALL FOUR ARE REGISTERED IN NuclearYieldTest.AllNukes. That list is the file's own instruction --
+# "Anything added to either file has to be added here" -- and it is what subjects these weapons to
+# the single-peaked-flash invariant, the Mach-falls-with-yield ordering, the twice-the-fireball
+# transition and the suppression-arrival check. An arsenal weapon that is not in that list is
+# checked by nothing, which is exactly how the first eight shipped broken.
+# =====================================================================================================
+
+# ---- 9M729 (SSC-8 Screwdriver) -- 1 kt ------------------------------------------------
+# RUSSIAN. The bottom of the Russian purchasable ladder, and the only weapon in this file whose
+# yield has no US twin -- every number below is derived from the four laws in the header rather
+# than copied from a neighbour. It sits between NukeB61Mod12Y003 (0.3 kt) and NukeB61Mod12Y015
+# (1.5 kt), and the derivation was validated by regenerating both of those from the same code and
+# diffing against what they ship: every field reproduced exactly.
+#
+#   blast (1 psi)         6.7 cells   = 1.069 * 1^(1/3) km at 160 m/cell
+#   thermal (3rd deg)     3.7 cells   = 2.0 * (1/20)^0.41 km
+#   fireball             0.21 cells   = 111 * (1/20)^0.40 m, and it burns 4 ticks (0.21 s)
+#   burst height          1.4 cells   = 230 * 1^(1/3) m, rounded to the quarter cell (1c512)
+#   blast wave           supersonic 0.21 -> 0.42 cells in 1 tick, then sonic at 7 ticks/cell;
+#                        reaches its full 6.75c at tick 46 (2.8 s)
+#
+# WARHEAD@VAPORIZE SPREAD DOES NOT EQUAL STARTRADIUS HERE, AND THAT IS CORRECT. The fireball is
+# 0c214 and the vaporize spread is 0c256, because 0c256 is a FLOOR that both smaller weapons in
+# this file also sit on: Y003 writes 0c256 against a 0c132 fireball, Y015 writes 0c256 against
+# 0c252. Below a quarter cell a SpreadDamage warhead does not reliably cover the cell it is
+# centred on. The two numbers agree on the six weapons at and above 10 kt and cannot below about
+# 1.5 kt; this is the third weapon in the file to sit on the floor.
+NukeRu9M729:
+	ValidTargets: Ground, Trees, Water, Underwater, Air
+	Warhead@Flash1: FlashPaletteEffect
+		Duration: 8
+		FlashType: Nuke
+	Warhead@Shake1: ShakeScreen
+		Duration: 15
+		Intensity: 42
+	Warhead@Shake2: ShakeScreen
+		Duration: 15
+		Intensity: 23
+		Delay: 3
+	Warhead@Shake3: ShakeScreen
+		Duration: 15
+		Intensity: 11
+		Delay: 12
+	Warhead@Shake4: ShakeScreen
+		Duration: 15
+		Intensity: 4
+		Delay: 25
+	# ===== THE FIREBALL, AS LIGHT =====
+	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
+	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
+	#
+	#   yield                 1 kt
+	#   illumination reach    3.7 cells  = the THERMAL radius, 2.0 * (kt/20)^0.41 km at 160 m/cell.
+	#                         NOT the fireball's own 33 m -- that is 0.21 cells and invisible. Illumination
+	#                         reach scales as the fireball radius (Y^0.40) for a fixed surface
+	#                         temperature and thermal reach as Y^0.41, so one array carries both.
+	#   duration              4 ticks (0.21 s) = 0.8 * (kt/20)^0.44 s at 60 ms per tick.
+	#   fireball growth       Taylor-Sedov R ~ t^0.4, reaching full reach at t_max = 0.53 ticks
+	#                         (0.032*sqrt(Y) s, Glasstone), then holding, then shrinking as it rises.
+	#                         t_max is SUB-TICK at this yield, so keyframe 0 samples the growth curve
+	#                         at its own midpoint -- (0.5/0.53)^0.4 = 0.97 of full reach -- and keyframe 1
+	#                         is already at full. Same convention as Y003, Y015 and Y10, whose keyframe
+	#                         0 fractions (0.90, 0.90, 0.61) this formula reproduces exactly.
+	#
+	# THE INTENSITY ENVELOPE IS MONOTONE AND THAT IS A DELIBERATE DEPARTURE FROM THE PHYSICS.
+	# A real fireball double-flashes -- bright pulse, opaque-shock dip, larger second maximum -- and
+	# the first version of this system rendered that. At a 60 ms timestep it reads as a STROBE, which
+	# is what the user reported, so every envelope in the mod is now peak-at-tick-0 and monotone:
+	#     I(t) = 7.0 * (1 - t/4)^2
+	# Peak at tick 0 also gets the ground lit correctly on the FIRST frame -- LightEventManager.Emit
+	# calls AddLightSource with the tick-0 sample and that notifies the terrain immediately, so there
+	# is no TerrainRefreshInterval lag on the brightest instant. See the note on `Atomic`.
+	#
+	# PEAK INTENSITY IS 7.0 ON EVERY NUCLEAR WEAPON IN THE MOD. Fireball surface brightness at peak
+	# emission is set by temperature (~7000 K) and is very nearly yield-independent; what yield buys
+	# is AREA and DURATION, which is exactly what the two arrays above carry.
+	Warhead@FireballLight: LightEvent
+		ValidTargets: Ground, Water, Air
+		AirThreshold: 24c0
+		ForceGroundLevel: true
+		Light:
+			Times: 0, 1, 2, 3, 4
+			Intensities: 7.0, 3.9, 1.8, 0.4, 0.0
+			Radii: 3c580, 3c676, 3c553, 3c196, 2c857
+			Tints: E6F0FF, FFEBB4, FFC864, F1812C, B4280A
+			Interpolations: Linear
+			Falloff: InverseSquare
+			TerrainRefreshInterval: 2
+			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
+			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
+			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
+			# same seam as Atomic's: LightEventManager.RenderAboveFog walks its own `live` list and checks
+			# Definition.GlowAboveFog per event, so it is the flag below and nothing weapon-specific.
+			GlowAboveFog: true
+
+	Warhead@Fireball: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 90
+		Offset: 0,-1900,0
+		Palette: effect_ts
+		ZOffset: 4096
+		ImpactSounds: kaboom1.aud
+		ImpactActors: false
+		VisibleThroughFog: true
+		RenderAboveFog: true
+		ValidTargets: Ground, Water, Air
+	Warhead@Vaporize: SpreadDamage
+		Spread: 0c256
+		Damage: 800000
+		Penetration: 20000
+		Falloff: 100, 100, 100, 50
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: ElectricityDeath
+		AirThreshold: 24c0
+	Warhead@ThermalRadiation: ThermalRadiation
+		RadiationDuration: 4
+		DamageInterval: 1
+		Spread: 0c268
+		Damage: 9000
+		Penetration: 1200
+		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: FireDeath
+		AirThreshold: 24c0
+		Versus:
+			Light: 120
+			Medium: 60
+			Heavy: 30
+			Concrete: 20
+	Warhead@Fire1: GrantExternalCondition
+		Range: 0c512
+		Amount: 1
+		Duration: 369
+		Condition: onfire
+		Delay: 1
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire2: GrantExternalCondition
+		Range: 0c750
+		Amount: 1
+		Duration: 363
+		Condition: onfire
+		Delay: 1
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire3: GrantExternalCondition
+		Range: 1c100
+		Amount: 1
+		Duration: 357
+		Condition: onfire
+		Delay: 2
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire4: GrantExternalCondition
+		Range: 1c475
+		Amount: 1
+		Duration: 351
+		Condition: onfire
+		Delay: 2
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire5: GrantExternalCondition
+		Range: 1c850
+		Amount: 1
+		Duration: 345
+		Condition: onfire
+		Delay: 3
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire6: GrantExternalCondition
+		Range: 2c201
+		Amount: 1
+		Duration: 339
+		Condition: onfire
+		Delay: 3
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire7: GrantExternalCondition
+		Range: 2c576
+		Amount: 1
+		Duration: 333
+		Condition: onfire
+		Delay: 3
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire8: GrantExternalCondition
+		Range: 2c950
+		Amount: 1
+		Duration: 327
+		Condition: onfire
+		Delay: 4
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire9: GrantExternalCondition
+		Range: 3c301
+		Amount: 1
+		Duration: 321
+		Condition: onfire
+		Delay: 4
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire10: GrantExternalCondition
+		Range: 3c676
+		Amount: 1
+		Duration: 315
+		Condition: onfire
+		Delay: 5
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@EMP: GrantExternalCondition
+		Range: 5c490
+		Duration: 346
+		Condition: empdisable
+		Delay: 0
+		ValidTargets: Ground, Water
+		InvalidTargets: Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@BlastWave: ShockwaveDamage
+		StartDelay: 3
+		WaveSpeed: 7
+		StartRadius: 0c214
+		InitialSpeedPercent: 651
+		TransitionRadius: 0c428
+		MaxRadius: 6c768
+		Damage: 400000
+		Penetration: 20000
+		Spread: 0c256
+		Falloff: 600, 549, 499, 449, 398, 348, 301, 258, 219, 187, 158, 133, 110, 91, 75, 61, 50, 42, 35, 29, 23, 20, 16, 13, 11, 9, 7, 6
+		ShockwaveThickness: 1c512
+		ShockwaveSegments: 64
+		ShockwaveFadeInTicks: 4
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 30
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+		AirThreshold: 24c0
+	Warhead@Suppression1: GrantExternalCondition
+		Range: 1c818
+		Amount: 10
+		Duration: 355
+		Condition: suppression-1
+		Delay: 9
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression2: GrantExternalCondition
+		Range: 3c338
+		Amount: 8
+		Duration: 310
+		Condition: suppression-1
+		Delay: 20
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression3: GrantExternalCondition
+		Range: 5c542
+		Amount: 5
+		Duration: 225
+		Condition: suppression-1
+		Delay: 35
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression4: GrantExternalCondition
+		Range: 6c199
+		Amount: 3
+		Duration: 180
+		Condition: suppression-1
+		Delay: 40
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression5: GrantExternalCondition
+		Range: 7c130
+		Amount: 1
+		Duration: 150
+		Condition: suppression-1
+		Delay: 46
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Crater: LeaveSmudge
+		Size: 1
+		SmudgeType: Crater
+		Delay: 2
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch1: LeaveSmudge
+		Size: 1
+		SmudgeType: Scorch
+		Delay: 2
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch2: LeaveSmudge
+		Size: 2
+		SmudgeType: Scorch
+		Delay: 5
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+
+# ---- 9M723 Iskander-M -- 10 kt --------------------------------------------------------
+# RUSSIAN. Nuclear-armed variant of the shipped conventional Iskander SRBM; quasi-ballistic, and
+# the missile body in flight is the same iskander-missile art the launcher already uses.
+#
+# PHYSICALLY IDENTICAL TO NukeB61Mod12Y10 AND DELIBERATELY SO -- same yield, therefore same
+# fireball, same blast wave, same thermal reach, same everything below. Compared field by field
+# against that weapon at the time of writing; if the two ever diverge, one of them has been edited
+# without the other and the divergence is the bug. What separates the two in play is delivery:
+# Speed 1200 against the B61's 900, and a shorter launch delay, both in nuclear-arsenal.yaml.
+#
+#   blast (1 psi)        14.4 cells   = 1.069 * 10^(1/3) km at 160 m/cell
+#   thermal (3rd deg)     9.4 cells   = 2.0 * (10/20)^0.41 km
+#   fireball             0.53 cells   = 111 * (10/20)^0.40 m, and it burns 10 ticks (0.6 s)
+#   burst height          3.1 cells   = 230 * 10^(1/3) m, rounded to the quarter cell (3c0)
+#   blast wave           supersonic 0.53 -> 1.05 cells in 1 tick, then sonic at 7 ticks/cell;
+#                        reaches its full 14.4c at tick 96 (6 s)
+NukeRuIskander:
+	ValidTargets: Ground, Trees, Water, Underwater, Air
+	Warhead@Flash1: FlashPaletteEffect
+		Duration: 10
+		FlashType: Nuke
+	Warhead@Shake1: ShakeScreen
+		Duration: 15
+		Intensity: 59
+	Warhead@Shake2: ShakeScreen
+		Duration: 20
+		Intensity: 32
+		Delay: 9
+	Warhead@Shake3: ShakeScreen
+		Duration: 30
+		Intensity: 15
+		Delay: 28
+	Warhead@Shake4: ShakeScreen
+		Duration: 28
+		Intensity: 5
+		Delay: 55
+	# ===== THE FIREBALL, AS LIGHT =====
+	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
+	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
+	#
+	#   yield                 10 kt
+	#   illumination reach    9.4 cells  = the THERMAL radius, 2.0 * (kt/20)^0.41 km at 160 m/cell.
+	#                         NOT the fireball's own 84 m -- that is 0.53 cells and invisible. Illumination
+	#                         reach scales as the fireball radius (Y^0.40) for a fixed surface
+	#                         temperature and thermal reach as Y^0.41, so one array carries both.
+	#   duration              10 ticks (0.60 s) = 0.8 * (kt/20)^0.44 s at 60 ms per tick.
+	#   fireball growth       Taylor-Sedov R ~ t^0.4, reaching full reach at t_max = 1.69 ticks
+	#                         (0.032*sqrt(Y) s, Glasstone), then holding, then shrinking as it rises.
+	#
+	# THE INTENSITY ENVELOPE IS MONOTONE AND THAT IS A DELIBERATE DEPARTURE FROM THE PHYSICS.
+	# A real fireball double-flashes -- bright pulse, opaque-shock dip, larger second maximum -- and
+	# the first version of this system rendered that. At a 60 ms timestep it reads as a STROBE, which
+	# is what the user reported, so every envelope in the mod is now peak-at-tick-0 and monotone:
+	#     I(t) = 7.0 * (1 - t/10)^2
+	# Peak at tick 0 also gets the ground lit correctly on the FIRST frame -- LightEventManager.Emit
+	# calls AddLightSource with the tick-0 sample and that notifies the terrain immediately, so there
+	# is no TerrainRefreshInterval lag on the brightest instant. See the note on `Atomic`.
+	#
+	# PEAK INTENSITY IS 7.0 ON EVERY NUCLEAR WEAPON IN THE MOD. Fireball surface brightness at peak
+	# emission is set by temperature (~7000 K) and is very nearly yield-independent; what yield buys
+	# is AREA and DURATION, which is exactly what the two arrays above carry.
+	Warhead@FireballLight: LightEvent
+		ValidTargets: Ground, Water, Air
+		AirThreshold: 24c0
+		ForceGroundLevel: true
+		Light:
+			Times: 0, 1, 2, 3, 4, 6, 8, 10
+			Intensities: 7.0, 5.7, 4.5, 3.4, 2.5, 1.1, 0.3, 0.0
+			Radii: 5c803, 7c648, 9c418, 9c418, 9c418, 8c764, 8c19, 7c298
+			Tints: E6F0FF, FFFCF6, FFF0C8, FFE5A0, FFD87F, FFB04E, E66D20, B4280A
+			Interpolations: Linear
+			Falloff: InverseSquare
+			TerrainRefreshInterval: 2
+			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
+			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
+			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
+			# same seam as Atomic's: LightEventManager.RenderAboveFog walks its own `live` list and checks
+			# Definition.GlowAboveFog per event, so it is the flag below and nothing weapon-specific.
+			GlowAboveFog: true
+
+	Warhead@Fireball: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 227
+		Offset: 0,-1900,0
+		Palette: effect_ts
+		ZOffset: 4096
+		ImpactSounds: kaboom1.aud
+		ImpactActors: false
+		VisibleThroughFog: true
+		RenderAboveFog: true
+		ValidTargets: Ground, Water, Air
+	Warhead@Vaporize: SpreadDamage
+		Spread: 0c538
+		Damage: 800000
+		Penetration: 20000
+		Falloff: 100, 100, 100, 50
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: ElectricityDeath
+		AirThreshold: 24c0
+	Warhead@ThermalRadiation: ThermalRadiation
+		RadiationDuration: 10
+		DamageInterval: 1
+		Spread: 0c688
+		Damage: 9000
+		Penetration: 1200
+		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: FireDeath
+		AirThreshold: 24c0
+		Versus:
+			Light: 120
+			Medium: 60
+			Heavy: 30
+			Concrete: 20
+	Warhead@Fire1: GrantExternalCondition
+		Range: 0c963
+		Amount: 1
+		Duration: 472
+		Condition: onfire
+		Delay: 2
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire2: GrantExternalCondition
+		Range: 1c903
+		Amount: 1
+		Duration: 457
+		Condition: onfire
+		Delay: 3
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire3: GrantExternalCondition
+		Range: 2c842
+		Amount: 1
+		Duration: 442
+		Condition: onfire
+		Delay: 4
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire4: GrantExternalCondition
+		Range: 3c781
+		Amount: 1
+		Duration: 427
+		Condition: onfire
+		Delay: 5
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire5: GrantExternalCondition
+		Range: 4c721
+		Amount: 1
+		Duration: 412
+		Condition: onfire
+		Delay: 6
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire6: GrantExternalCondition
+		Range: 5c660
+		Amount: 1
+		Duration: 397
+		Condition: onfire
+		Delay: 7
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire7: GrantExternalCondition
+		Range: 6c600
+		Amount: 1
+		Duration: 382
+		Condition: onfire
+		Delay: 8
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire8: GrantExternalCondition
+		Range: 7c539
+		Amount: 1
+		Duration: 367
+		Condition: onfire
+		Delay: 9
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire9: GrantExternalCondition
+		Range: 8c478
+		Amount: 1
+		Duration: 352
+		Condition: onfire
+		Delay: 10
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire10: GrantExternalCondition
+		Range: 9c418
+		Amount: 1
+		Duration: 337
+		Condition: onfire
+		Delay: 11
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@EMP: GrantExternalCondition
+		Range: 11c823
+		Duration: 400
+		Condition: empdisable
+		Delay: 0
+		ValidTargets: Ground, Water
+		InvalidTargets: Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@BlastWave: ShockwaveDamage
+		StartDelay: 3
+		WaveSpeed: 7
+		StartRadius: 0c538
+		InitialSpeedPercent: 573
+		TransitionRadius: 1c52
+		MaxRadius: 14c384
+		Damage: 400000
+		Penetration: 20000
+		Spread: 0c640
+		Falloff: 600, 541, 482, 423, 363, 306, 255, 211, 174, 144, 116, 92, 73, 58, 46, 37, 30, 24, 19, 15, 12, 9, 7, 6
+		ShockwaveThickness: 1c512
+		ShockwaveSegments: 64
+		ShockwaveFadeInTicks: 4
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 30
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+		AirThreshold: 24c0
+	Warhead@Suppression1: GrantExternalCondition
+		Range: 3c908
+		Amount: 10
+		Duration: 355
+		Condition: suppression-1
+		Delay: 22
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression2: GrantExternalCondition
+		Range: 7c202
+		Amount: 8
+		Duration: 310
+		Condition: suppression-1
+		Delay: 46
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression3: GrantExternalCondition
+		Range: 11c970
+		Amount: 5
+		Duration: 225
+		Condition: suppression-1
+		Delay: 79
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression4: GrantExternalCondition
+		Range: 13c396
+		Amount: 3
+		Duration: 180
+		Condition: suppression-1
+		Delay: 89
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression5: GrantExternalCondition
+		Range: 15c412
+		Amount: 1
+		Duration: 150
+		Condition: suppression-1
+		Delay: 103
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Crater: LeaveSmudge
+		Size: 1
+		SmudgeType: Crater
+		Delay: 2
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch1: LeaveSmudge
+		Size: 2
+		SmudgeType: Scorch
+		Delay: 5
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch2: LeaveSmudge
+		Size: 4
+		SmudgeType: Scorch
+		Delay: 12
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+
+# ---- Kh-47M2 Kinzhal-N -- 50 kt -------------------------------------------------------
+# RUSSIAN. Nuclear warhead on the air-launched Kinzhal, which the mod already ships as a
+# conventional strike (KinzhalMissile, vehicles-russia.yaml). The Kh-47M2 is Iskander-derived, so
+# it shares that missile's body art, and it is the FASTEST delivery in this file -- Speed 2000,
+# matching the conventional Kinzhal exactly, because the airframe is the same airframe.
+#
+# PHYSICALLY IDENTICAL TO NukeB61Mod12Y50 AND DELIBERATELY SO. Same yield, same blast. The
+# difference is that this one arrives roughly twice as fast and with the shortest warning of any
+# weapon in the arsenal, which is the whole identity of the platform.
+#
+#   blast (1 psi)        24.6 cells   = 1.069 * 50^(1/3) km at 160 m/cell
+#   thermal (3rd deg)    18.2 cells   = 2.0 * (50/20)^0.41 km
+#   fireball             1.00 cells   = 111 * (50/20)^0.40 m, and it burns 20 ticks (1.2 s)
+#   burst height          5.3 cells   = 230 * 50^(1/3) m, rounded to the quarter cell (5c256)
+#   blast wave           supersonic 1.00 -> 2.00 cells in 2 ticks, then sonic at 7 ticks/cell;
+#                        reaches its full 24.5c at tick 166 (10 s)
+NukeRuKinzhalN:
+	ValidTargets: Ground, Trees, Water, Underwater, Air
+	Warhead@Flash1: FlashPaletteEffect
+		Duration: 20
+		FlashType: Nuke
+	Warhead@Shake1: ShakeScreen
+		Duration: 15
+		Intensity: 76
+	Warhead@Shake2: ShakeScreen
+		Duration: 34
+		Intensity: 41
+		Delay: 15
+	Warhead@Shake3: ShakeScreen
+		Duration: 51
+		Intensity: 19
+		Delay: 48
+	Warhead@Shake4: ShakeScreen
+		Duration: 48
+		Intensity: 7
+		Delay: 94
+	# ===== THE FIREBALL, AS LIGHT =====
+	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
+	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
+	#
+	#   yield                 50 kt
+	#   illumination reach    18.2 cells  = the THERMAL radius, 2.0 * (kt/20)^0.41 km at 160 m/cell.
+	#                         NOT the fireball's own 160 m -- that is 1.00 cells and invisible. Illumination
+	#                         reach scales as the fireball radius (Y^0.40) for a fixed surface
+	#                         temperature and thermal reach as Y^0.41, so one array carries both.
+	#   duration              20 ticks (1.20 s) = 0.8 * (kt/20)^0.44 s at 60 ms per tick.
+	#   fireball growth       Taylor-Sedov R ~ t^0.4, reaching full reach at t_max = 3.77 ticks
+	#                         (0.032*sqrt(Y) s, Glasstone), then holding, then shrinking as it rises.
+	#
+	# THE INTENSITY ENVELOPE IS MONOTONE AND THAT IS A DELIBERATE DEPARTURE FROM THE PHYSICS.
+	# A real fireball double-flashes -- bright pulse, opaque-shock dip, larger second maximum -- and
+	# the first version of this system rendered that. At a 60 ms timestep it reads as a STROBE, which
+	# is what the user reported, so every envelope in the mod is now peak-at-tick-0 and monotone:
+	#     I(t) = 7.0 * (1 - t/20)^2
+	# Peak at tick 0 also gets the ground lit correctly on the FIRST frame -- LightEventManager.Emit
+	# calls AddLightSource with the tick-0 sample and that notifies the terrain immediately, so there
+	# is no TerrainRefreshInterval lag on the brightest instant. See the note on `Atomic`.
+	#
+	# PEAK INTENSITY IS 7.0 ON EVERY NUCLEAR WEAPON IN THE MOD. Fireball surface brightness at peak
+	# emission is set by temperature (~7000 K) and is very nearly yield-independent; what yield buys
+	# is AREA and DURATION, which is exactly what the two arrays above carry.
+	Warhead@FireballLight: LightEvent
+		ValidTargets: Ground, Water, Air
+		AirThreshold: 24c0
+		ForceGroundLevel: true
+		Light:
+			Times: 0, 1, 2, 4, 6, 9, 13, 17, 20
+			Intensities: 7.0, 6.3, 5.7, 4.5, 3.4, 2.1, 0.9, 0.2, 0.0
+			Radii: 8c113, 10c719, 14c125, 18c205, 18c205, 18c72, 16c643, 15c191, 14c107
+			Tints: E6F0FF, F6F9FF, FFFCF6, FFF0C8, FFE5A0, FFD071, FFA343, DC5A14, B4280A
+			Interpolations: Linear
+			Falloff: InverseSquare
+			TerrainRefreshInterval: 2
+			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
+			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
+			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
+			# same seam as Atomic's: LightEventManager.RenderAboveFog walks its own `live` list and checks
+			# Definition.GlowAboveFog per event, so it is the flag below and nothing weapon-specific.
+			GlowAboveFog: true
+
+	Warhead@Fireball: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 432
+		Offset: 0,-1900,0
+		Palette: effect_ts
+		ZOffset: 4096
+		ImpactSounds: kaboom1.aud
+		ImpactActors: false
+		VisibleThroughFog: true
+		RenderAboveFog: true
+		ValidTargets: Ground, Water, Air
+	Warhead@Vaporize: SpreadDamage
+		Spread: 1c1
+		Damage: 800000
+		Penetration: 20000
+		Falloff: 100, 100, 100, 50
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: ElectricityDeath
+		AirThreshold: 24c0
+	Warhead@ThermalRadiation: ThermalRadiation
+		RadiationDuration: 20
+		DamageInterval: 1
+		Spread: 1c307
+		Damage: 9000
+		Penetration: 1200
+		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: FireDeath
+		AirThreshold: 24c0
+		Versus:
+			Light: 120
+			Medium: 60
+			Heavy: 30
+			Concrete: 20
+	Warhead@Fire1: GrantExternalCondition
+		Range: 1c840
+		Amount: 1
+		Duration: 645
+		Condition: onfire
+		Delay: 3
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire2: GrantExternalCondition
+		Range: 3c655
+		Amount: 1
+		Duration: 615
+		Condition: onfire
+		Delay: 5
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire3: GrantExternalCondition
+		Range: 5c471
+		Amount: 1
+		Duration: 585
+		Condition: onfire
+		Delay: 7
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire4: GrantExternalCondition
+		Range: 7c287
+		Amount: 1
+		Duration: 555
+		Condition: onfire
+		Delay: 9
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire5: GrantExternalCondition
+		Range: 9c102
+		Amount: 1
+		Duration: 525
+		Condition: onfire
+		Delay: 11
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire6: GrantExternalCondition
+		Range: 10c942
+		Amount: 1
+		Duration: 495
+		Condition: onfire
+		Delay: 13
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire7: GrantExternalCondition
+		Range: 12c758
+		Amount: 1
+		Duration: 465
+		Condition: onfire
+		Delay: 15
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire8: GrantExternalCondition
+		Range: 14c573
+		Amount: 1
+		Duration: 435
+		Condition: onfire
+		Delay: 17
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire9: GrantExternalCondition
+		Range: 16c389
+		Amount: 1
+		Duration: 405
+		Condition: onfire
+		Delay: 19
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire10: GrantExternalCondition
+		Range: 18c205
+		Amount: 1
+		Duration: 375
+		Condition: onfire
+		Delay: 21
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@EMP: GrantExternalCondition
+		Range: 20c188
+		Duration: 472
+		Condition: empdisable
+		Delay: 0
+		ValidTargets: Ground, Water
+		InvalidTargets: Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@BlastWave: ShockwaveDamage
+		StartDelay: 6
+		WaveSpeed: 7
+		StartRadius: 1c1
+		InitialSpeedPercent: 525
+		TransitionRadius: 2c2
+		MaxRadius: 24c512
+		Damage: 400000
+		Penetration: 20000
+		Spread: 0c896
+		Falloff: 600, 551, 503, 454, 406, 357, 310, 268, 229, 197, 167, 143, 120, 99, 82, 68, 56, 46, 39, 33, 27, 22, 19, 15, 13, 10, 8, 7, 6
+		ShockwaveThickness: 1c512
+		ShockwaveSegments: 64
+		ShockwaveFadeInTicks: 4
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 30
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+		AirThreshold: 24c0
+	Warhead@Suppression1: GrantExternalCondition
+		Range: 6c661
+		Amount: 10
+		Duration: 355
+		Condition: suppression-1
+		Delay: 41
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression2: GrantExternalCondition
+		Range: 12c314
+		Amount: 8
+		Duration: 310
+		Condition: suppression-1
+		Delay: 80
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression3: GrantExternalCondition
+		Range: 20c440
+		Amount: 5
+		Duration: 225
+		Condition: suppression-1
+		Delay: 137
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression4: GrantExternalCondition
+		Range: 22c912
+		Amount: 3
+		Duration: 180
+		Condition: suppression-1
+		Delay: 155
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression5: GrantExternalCondition
+		Range: 26c345
+		Amount: 1
+		Duration: 150
+		Condition: suppression-1
+		Delay: 178
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Crater: LeaveSmudge
+		Size: 2
+		SmudgeType: Crater
+		Delay: 3
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch1: LeaveSmudge
+		Size: 4
+		SmudgeType: Scorch
+		Delay: 8
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch2: LeaveSmudge
+		Size: 7
+		SmudgeType: Scorch
+		Delay: 20
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+
+# ---- 3M14 Kalibr -- 100 kt ------------------------------------------------------------
+# RUSSIAN. Sea-launched subsonic cruise missile, and the slowest MISSILE in the arsenal at Speed
+# 450 -- only TsarBombaMissile is slower, at 400, and that is a gravity bomb under a parachute
+# rather than a missile at all. It is the deliberate opposite of the W76-1 it matches on yield:
+# that one is an SLBM re-entry vehicle falling out of the top of a ballistic arc at Speed 1400,
+# this one flies in low and takes its time. Same hole in the ground, three times the warning.
+#
+# PHYSICALLY IDENTICAL TO NukeW76 AND DELIBERATELY SO -- same yield, same blast.
+#
+#   blast (1 psi)        31.0 cells   = 1.069 * 100^(1/3) km at 160 m/cell
+#   thermal (3rd deg)    24.2 cells   = 2.0 * (100/20)^0.41 km
+#   fireball             1.32 cells   = 111 * (100/20)^0.40 m, and it burns 27 ticks (1.6 s)
+#   burst height          6.7 cells   = 230 * 100^(1/3) m, rounded to the quarter cell (6c768)
+#   blast wave           supersonic 1.32 -> 2.64 cells in 3 ticks, then sonic at 7 ticks/cell;
+#                        reaches its full 31.0c at tick 210 (13 s)
+NukeRuKalibr:
+	ValidTargets: Ground, Trees, Water, Underwater, Air
+	Warhead@Flash1: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+	Warhead@Shake1: ShakeScreen
+		Duration: 19
+		Intensity: 84
+	Warhead@Shake2: ShakeScreen
+		Duration: 43
+		Intensity: 46
+		Delay: 19
+	Warhead@Shake3: ShakeScreen
+		Duration: 65
+		Intensity: 21
+		Delay: 60
+	Warhead@Shake4: ShakeScreen
+		Duration: 60
+		Intensity: 8
+		Delay: 119
+	# ===== THE FIREBALL, AS LIGHT =====
+	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
+	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
+	#
+	#   yield                 100 kt
+	#   illumination reach    24.2 cells  = the THERMAL radius, 2.0 * (kt/20)^0.41 km at 160 m/cell.
+	#                         NOT the fireball's own 211 m -- that is 1.32 cells and invisible. Illumination
+	#                         reach scales as the fireball radius (Y^0.40) for a fixed surface
+	#                         temperature and thermal reach as Y^0.41, so one array carries both.
+	#   duration              27 ticks (1.62 s) = 0.8 * (kt/20)^0.44 s at 60 ms per tick.
+	#   fireball growth       Taylor-Sedov R ~ t^0.4, reaching full reach at t_max = 5.33 ticks
+	#                         (0.032*sqrt(Y) s, Glasstone), then holding, then shrinking as it rises.
+	#
+	# THE INTENSITY ENVELOPE IS MONOTONE AND THAT IS A DELIBERATE DEPARTURE FROM THE PHYSICS.
+	# A real fireball double-flashes -- bright pulse, opaque-shock dip, larger second maximum -- and
+	# the first version of this system rendered that. At a 60 ms timestep it reads as a STROBE, which
+	# is what the user reported, so every envelope in the mod is now peak-at-tick-0 and monotone:
+	#     I(t) = 7.0 * (1 - t/27)^2
+	# Peak at tick 0 also gets the ground lit correctly on the FIRST frame -- LightEventManager.Emit
+	# calls AddLightSource with the tick-0 sample and that notifies the terrain immediately, so there
+	# is no TerrainRefreshInterval lag on the brightest instant. See the note on `Atomic`.
+	#
+	# PEAK INTENSITY IS 7.0 ON EVERY NUCLEAR WEAPON IN THE MOD. Fireball surface brightness at peak
+	# emission is set by temperature (~7000 K) and is very nearly yield-independent; what yield buys
+	# is AREA and DURATION, which is exactly what the two arrays above carry.
+	Warhead@FireballLight: LightEvent
+		ValidTargets: Ground, Water, Air
+		AirThreshold: 24c0
+		ForceGroundLevel: true
+		Light:
+			Times: 0, 1, 3, 5, 8, 12, 18, 23, 27
+			Intensities: 7.0, 6.5, 5.5, 4.6, 3.5, 2.2, 0.8, 0.2, 0.0
+			Radii: 9c391, 12c388, 19c215, 23c579, 24c186, 24c125, 21c993, 20c180, 18c759
+			Tints: E6F0FF, F2F7FF, FFFBF1, FFF2CF, FFE6A1, FFD173, FF9F3F, DC5914, B4280A
+			Interpolations: Linear
+			Falloff: InverseSquare
+			TerrainRefreshInterval: 2
+			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
+			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
+			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
+			# same seam as Atomic's: LightEventManager.RenderAboveFog walks its own `live` list and checks
+			# Definition.GlowAboveFog per event, so it is the flag below and nothing weapon-specific.
+			GlowAboveFog: true
+
+	Warhead@Fireball: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 571
+		Offset: 0,-1900,0
+		Palette: effect_ts
+		ZOffset: 4096
+		ImpactSounds: kaboom1.aud
+		ImpactActors: false
+		VisibleThroughFog: true
+		RenderAboveFog: true
+		ValidTargets: Ground, Water, Air
+	Warhead@Vaporize: SpreadDamage
+		Spread: 1c328
+		Damage: 800000
+		Penetration: 20000
+		Falloff: 100, 100, 100, 50
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: ElectricityDeath
+		AirThreshold: 24c0
+	Warhead@ThermalRadiation: ThermalRadiation
+		RadiationDuration: 27
+		DamageInterval: 1
+		Spread: 1c745
+		Damage: 9000
+		Penetration: 1200
+		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: FireDeath
+		AirThreshold: 24c0
+		Versus:
+			Light: 120
+			Medium: 60
+			Heavy: 30
+			Concrete: 20
+	Warhead@Fire1: GrantExternalCondition
+		Range: 2c428
+		Amount: 1
+		Duration: 765
+		Condition: onfire
+		Delay: 3
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire2: GrantExternalCondition
+		Range: 4c856
+		Amount: 1
+		Duration: 725
+		Condition: onfire
+		Delay: 6
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire3: GrantExternalCondition
+		Range: 7c261
+		Amount: 1
+		Duration: 684
+		Condition: onfire
+		Delay: 9
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire4: GrantExternalCondition
+		Range: 9c689
+		Amount: 1
+		Duration: 644
+		Condition: onfire
+		Delay: 11
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire5: GrantExternalCondition
+		Range: 12c93
+		Amount: 1
+		Duration: 603
+		Condition: onfire
+		Delay: 14
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire6: GrantExternalCondition
+		Range: 14c521
+		Amount: 1
+		Duration: 563
+		Condition: onfire
+		Delay: 17
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire7: GrantExternalCondition
+		Range: 16c949
+		Amount: 1
+		Duration: 522
+		Condition: onfire
+		Delay: 19
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire8: GrantExternalCondition
+		Range: 19c354
+		Amount: 1
+		Duration: 482
+		Condition: onfire
+		Delay: 22
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire9: GrantExternalCondition
+		Range: 21c782
+		Amount: 1
+		Duration: 441
+		Condition: onfire
+		Delay: 25
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire10: GrantExternalCondition
+		Range: 24c186
+		Amount: 1
+		Duration: 401
+		Condition: onfire
+		Delay: 28
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@EMP: GrantExternalCondition
+		Range: 25c440
+		Duration: 517
+		Condition: empdisable
+		Delay: 0
+		ValidTargets: Ground, Water
+		InvalidTargets: Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@BlastWave: ShockwaveDamage
+		StartDelay: 8
+		WaveSpeed: 7
+		StartRadius: 1c328
+		InitialSpeedPercent: 505
+		TransitionRadius: 2c656
+		MaxRadius: 31c0
+		Damage: 400000
+		Penetration: 20000
+		Spread: 1c0
+		Falloff: 600, 556, 512, 468, 425, 381, 337, 296, 258, 224, 196, 169, 147, 125, 106, 90, 75, 64, 53, 45, 38, 33, 27, 23, 20, 17, 14, 12, 10, 8, 7, 6
+		ShockwaveThickness: 1c723
+		ShockwaveSegments: 64
+		ShockwaveFadeInTicks: 4
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 30
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+		AirThreshold: 24c0
+	Warhead@Suppression1: GrantExternalCondition
+		Range: 8c382
+		Amount: 10
+		Duration: 355
+		Condition: suppression-1
+		Delay: 51
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression2: GrantExternalCondition
+		Range: 15c518
+		Amount: 8
+		Duration: 310
+		Condition: suppression-1
+		Delay: 102
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression3: GrantExternalCondition
+		Range: 25c757
+		Amount: 5
+		Duration: 225
+		Condition: suppression-1
+		Delay: 173
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression4: GrantExternalCondition
+		Range: 28c861
+		Amount: 3
+		Duration: 180
+		Condition: suppression-1
+		Delay: 195
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression5: GrantExternalCondition
+		Range: 33c187
+		Amount: 1
+		Duration: 150
+		Condition: suppression-1
+		Delay: 225
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Crater: LeaveSmudge
+		Size: 3
+		SmudgeType: Crater
+		Delay: 4
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch1: LeaveSmudge
+		Size: 5
+		SmudgeType: Scorch
+		Delay: 10
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scorch2: LeaveSmudge
+		Size: 9
+		SmudgeType: Scorch
+		Delay: 26
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0

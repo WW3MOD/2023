@@ -163,6 +163,17 @@ namespace OpenRA.Test
 			("NukeSarmatRV", 750.0),
 			("NukeB83", 1200.0),
 			("NukeTsarBomba", 50000.0),
+
+			// The Russian half, added 2026-09-07. Three of these four are physically identical to a US
+			// weapon at the same yield (Iskander/B61Y10, Kinzhal-N/B61Y50, Kalibr/W76) and are listed
+			// separately anyway: "it is a copy" is a claim about how the YAML was WRITTEN, and this list
+			// exists to check what the YAML SAYS. A later edit to one of the six that missed its twin is
+			// exactly the divergence worth catching, and the monotone-Mach ordering below only sees a
+			// weapon that is named here.
+			("NukeRu9M729", 1.0),
+			("NukeRuIskander", 10.0),
+			("NukeRuKinzhalN", 50.0),
+			("NukeRuKalibr", 100.0),
 		};
 
 		static MiniYaml Warhead(string weapon, string warhead)

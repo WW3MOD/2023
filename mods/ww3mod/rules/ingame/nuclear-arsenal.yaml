@@ -339,6 +339,192 @@ Player:
 		IncomingSpeechNotification: AbombLaunchDetected
 		SupportPowerPaletteOrder: 10
 
+
+	# =============================================================================================
+	# THE RUSSIAN FOUR (2026-09-07). Same lobby gate as the six above, plus `Prerequisites:
+	# player.russia` -- the same faction lock MissileStrikePower@Kinzhal carries in player.yaml, and
+	# the opposite side of the one on @GBU57. The six American entries above are NOT retro-fitted
+	# with `player.america` here; that is faction gating for the existing ladder and it belongs to
+	# rules/player.yaml, which is being rebuilt in parallel and is not this file.
+	#
+	# WHAT ACTUALLY DIFFERS FROM THE AMERICAN WEAPON AT THE SAME YIELD. The warheads are identical
+	# by design (see the long note in weapons-nuclear-arsenal.yaml); everything that makes these
+	# feel Russian is in this file and in the four bodies at the bottom of it:
+	#
+	#   weapon        Speed   MissileDelay   character
+	#   9M729           500            220   ground-launched cruise; slow, low, ordinary
+	#   Iskander       1200            180   TEL-launched SRBM; the quickest reaction in the file
+	#   Kinzhal-N      2000            120   air-launched off an aircraft already flying; least warning
+	#   Kalibr          450            400   sea-launched cruise; the most warning of the four
+	#
+	# THE SHAPE OF THAT LADDER IS THE OPPOSITE OF THE AMERICAN ONE, and that is the point rather
+	# than a coincidence. The US ladder is slow at the bottom and fast at the top: the B61 dial
+	# settings are gravity bombs at Speed 900 and the W76 is an SLBM re-entry vehicle at 1400. The
+	# Russian ladder is fast in the middle and slow at both ends, because a missile on a ready TEL
+	# and a missile already under an airborne MiG-31 both beat a bomber sortie, while a subsonic
+	# cruise missile crossing the sea does not. Two factions with the same four yields still make
+	# different decisions about when to fire.
+	# =============================================================================================
+
+	# ---- 9M729 (SSC-8 Screwdriver): 1 kt -------------------------------------------------------
+	# The bottom of the Russian ladder and the counterpart to @B61Low. A kiloton is four times the
+	# lowest B61 dial setting, so this is a bigger hole than that weapon makes, but it is still the
+	# small end: 6.7 cells of blast is a position, not a battlefield.
+	MissileStrikePower@Ru9M729:
+		RequiresCondition: !nuke-arsenal-disabled
+		Prerequisites: player.russia
+		OrderName: Ru9M729Strike
+		Icon: paranuke
+		Name: 9M729 (1 kt)
+		Description: Ground-launched nuclear cruise missile.\nThe smallest warhead Russia can call in: destroys a position, not a battlefield.\nComes in low and slow from off-map over your own back line.
+		RequiresPurchase: True
+		Cursor: nuke
+		MissileActor: ru9m729missile
+		# 9c512 - 1c512 = 8c0 of descent, the same eight cells @B61Low and the Kinzhal hold.
+		SpawnAltitude: 9c512
+		# 1c512 = 240 m. The derived optimum burst height for 1 kt is 230 * 1^(1/3) = 230 m = 1.44
+		# cells, rounded to the quarter cell as every entry in this file is. Every NukeRu9M729
+		# warhead carries AirThreshold: 24c0, so there are 22 cells of headroom above this.
+		DetonationAltitude: 1c512
+		# 220 ticks = 13.2 s. Slower off the rail than the Iskander below despite being the smaller
+		# weapon: a cruise missile flies a long low route rather than an arc.
+		MissileDelay: 220
+		# 4c0 = 0.60 x the 6.7-cell blast, the same camera-to-blast ratio the rest of the file uses.
+		CameraRange: 4c0
+		CameraSpawnAdvance: 25
+		# 280 ticks = 16.8 s. The blast wave finishes at tick 46; the fires burn for 369.
+		CameraRemoveDelay: 280
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		DisplayTimerRelationships: Ally, Neutral, Enemy
+		BeaconPoster: paranuke
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		IncomingSpeechNotification: AbombLaunchDetected
+		SupportPowerPaletteOrder: 11
+
+	# ---- 9M723 Iskander-M: 10 kt ---------------------------------------------------------------
+	# Nuclear variant of the SRBM the mod already ships as a conventional launcher. Same 10 kt as
+	# NukeB61Mod12Y10, which is defined in the arsenal file and fired by nothing -- so this power is
+	# the first thing in the mod that ever puts a 10 kt weapon on the map.
+	MissileStrikePower@RuIskander:
+		RequiresCondition: !nuke-arsenal-disabled
+		Prerequisites: player.russia
+		OrderName: RuIskanderStrike
+		Icon: v2bdgricon
+		Name: 9M723 Iskander-M (10 kt)
+		Description: Nuclear-armed quasi-ballistic missile off a mobile launcher.\nThe fastest reaction in the Russian arsenal: least time between order and impact for its size.\nComes in from off-map over your own back line.
+		RequiresPurchase: True
+		Cursor: nuke
+		MissileActor: ruiskandermissile
+		# 11c0 - 3c0 = 8c0 of descent.
+		SpawnAltitude: 11c0
+		# 3c0 = 480 m. Derived optimum is 230 * 10^(1/3) = 495 m = 3.10 cells, to the quarter cell.
+		# Every NukeRuIskander warhead carries AirThreshold: 24c0, so 21 cells of headroom.
+		DetonationAltitude: 3c0
+		# 180 ticks = 10.8 s, the SHORTEST of any weapon in this file except the Kinzhal-N, and
+		# shorter than @B61Low's 200 despite four times the yield. A missile sitting fuelled on a
+		# TEL launches faster than a bomb gets loaded onto an aircraft; that is the whole trade.
+		MissileDelay: 180
+		# 10c0 = 0.69 x the 14.4-cell blast.
+		CameraRange: 10c0
+		CameraSpawnAdvance: 28
+		# 380 ticks = 22.8 s. Blast wave finishes at tick 96, fires burn 472.
+		CameraRemoveDelay: 380
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		DisplayTimerRelationships: Ally, Neutral, Enemy
+		BeaconPoster: paranuke
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		IncomingSpeechNotification: AbombLaunchDetected
+		SupportPowerPaletteOrder: 12
+
+	# ---- Kh-47M2 Kinzhal-N: 50 kt --------------------------------------------------------------
+	# Nuclear warhead on the airframe the mod already flies as a conventional strike. Identical
+	# blast to @B61Max, and the least warning of anything in the arsenal.
+	MissileStrikePower@RuKinzhalN:
+		RequiresCondition: !nuke-arsenal-disabled
+		Prerequisites: player.russia
+		OrderName: RuKinzhalNStrike
+		Icon: cmissicon
+		Name: Kh-47M2 Kinzhal-N (50 kt)
+		Description: Nuclear warhead on the air-launched Kinzhal.\nReleased from an aircraft already in the air: the shortest warning of any nuclear weapon.\nComes in from off-map over your own back line.
+		RequiresPurchase: True
+		Cursor: nuke
+		MissileActor: rukinzhalnmissile
+		# 13c256 - 5c256 = 8c0 of descent, the same as @B61Max at the same yield.
+		SpawnAltitude: 13c256
+		# 5c256 = 840 m, the same burst height @B61Max uses because it is the same 50 kt: derived
+		# optimum 230 * 50^(1/3) = 847 m = 5.30 cells, to the quarter cell. AirThreshold is 24c0.
+		DetonationAltitude: 5c256
+		# 120 ticks = 7.2 s, the shortest MissileDelay in the mod. The launch aircraft is already
+		# airborne and inside its release basket when the order is given -- there is no sortie to
+		# fly and no rail to erect. This is the one number that most defines the weapon, and it is
+		# HALF @B61Max's 250 at the same yield.
+		MissileDelay: 120
+		# 16c0 = 0.65 x the 24.6-cell blast, the same value @B61Max carries at the same yield.
+		CameraRange: 16c0
+		CameraSpawnAdvance: 30
+		CameraRemoveDelay: 450
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		DisplayTimerRelationships: Ally, Neutral, Enemy
+		BeaconPoster: atomicon
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		IncomingSpeechNotification: AbombLaunchDetected
+		SupportPowerPaletteOrder: 13
+
+	# ---- 3M14 Kalibr: 100 kt -------------------------------------------------------------------
+	# Top of the Russian purchasable tier and the deliberate opposite of @W76 at the same yield.
+	# That one is a re-entry vehicle falling out of a ballistic arc; this one is a subsonic cruise
+	# missile crossing the sea. Same hole, far more warning.
+	MissileStrikePower@RuKalibr:
+		RequiresCondition: !nuke-arsenal-disabled
+		Prerequisites: player.russia
+		OrderName: RuKalibrStrike
+		Icon: atomicon
+		Name: 3M14 Kalibr (100 kt)
+		Description: Sea-launched nuclear cruise missile.\nThe largest warhead Russia can buy short of the showpieces, and the slowest thing carrying one.\nComes in low from off-map over your own back line.
+		RequiresPurchase: True
+		Cursor: nuke
+		MissileActor: rukalibrmissile
+		# 16c768 - 6c768 = 10c0 of descent, the same ten cells @W76 holds at the same yield: a
+		# 100 kt burst sits high enough that eight would look like a flat run-in.
+		SpawnAltitude: 16c768
+		# 6c768 = 1080 m, the same burst height @W76 uses because it is the same 100 kt: derived
+		# optimum 230 * 100^(1/3) = 1068 m = 6.67 cells, to the quarter cell. AirThreshold is 24c0.
+		DetonationAltitude: 6c768
+		# 400 ticks = 24 s, LONGER than @W76's 350 at the same yield and the longest of the Russian
+		# four. A Kalibr is launched from a ship or a submarine that has to be in position first,
+		# and it then flies subsonically. Speed 450 on the body below is the other half of this.
+		MissileDelay: 400
+		# 21c0 = 0.68 x the 31.0-cell blast, the same value @W76 carries at the same yield.
+		CameraRange: 21c0
+		CameraSpawnAdvance: 35
+		CameraRemoveDelay: 560
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		DisplayTimerRelationships: Ally, Neutral, Enemy
+		BeaconPoster: atomicon
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		IncomingSpeechNotification: AbombLaunchDetected
+		SupportPowerPaletteOrder: 14
+
 # =====================================================================================================
 # THE DELIVERY BODIES
 #
@@ -614,3 +800,186 @@ TsarBombaMissile:
 		Offsets: -1400, 0, 420
 	Explodes:
 		Weapon: NukeTsarBomba
+
+# =====================================================================================================
+# THE FOUR RUSSIAN DELIVERY BODIES (2026-09-07)
+#
+# Same three-differences rule as the six above -- Speed, RenderSprites.Scale, and the weapon on
+# Explodes -- and the same unacquirable `Hypersonic` retype, the same LaunchAngle 30, and the same
+# absence of TerminalSpeed/TerminalAcceleration so that flight time stays exactly hDist / Speed.
+#
+# ALL FOUR REUSE `iskander-missile`, which is what every other missile-power body in the mod already
+# does (kinzhalmissile, tacnukemissile, highyieldnukemissile, gbu57bomb, and all six above). The mod
+# has no bespoke sprite for any of them and CheckSequences requires the image to resolve. For two of
+# these four that reuse is not even a compromise: the Kh-47M2 Kinzhal is an Iskander derivative and
+# the conventional KinzhalMissile already draws itself with this exact art at this exact scale, so
+# RuKinzhalNMissile below is visually the same missile as the weapon it is the nuclear variant of.
+#
+# The sequences are in sequences/sequences.yaml alongside the other ten. Every one of them was
+# checked to resolve to art that exists (bits/units/vehicle/iskander-missile.shp) before being
+# written -- adding an actor with no sequence, or a sequence naming art that is not there, is the
+# defect class that broke the merge gate twice in the week to 2026-09-07 and it passes both a clean
+# build and a green NUnit run.
+# =====================================================================================================
+
+Ru9M729Missile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 0
+	Tooltip:
+		Name: 9M729 (1 kt)
+	# 0.8 here x 0.65 in the sequence = 0.52 effective, the smallest body in the file. A GLCM is a
+	# far smaller object than a bomb casing or a re-entry vehicle and it should read that way.
+	RenderSprites:
+		Scale: 0.8
+	Health:
+		HP: 60
+	Targetable@Ground:
+		TargetTypes: Hypersonic
+		RequiresCondition: !airborne
+	Targetable@Airborne:
+		TargetTypes: Hypersonic
+		RequiresCondition: airborne
+	BallisticMissile:
+		LaunchAngle: 30
+		# 500 wdist/tick = 8.1 cells/s, the slowest missile in the arsenal apart from the Kalibr and
+		# the Tsar Bomba, and the same figure the GBU-57 flies at. A subsonic cruise missile.
+		Speed: 500
+		Acceleration: 0
+		InitialSpeedPercent: 100
+		LaunchRiseTicks: 0
+		PostErectionWaitTicks: 0
+		VisualPitchMultiplier: 47
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Type: CenterPosition
+		Offsets: -480, 0, 150
+	Explodes:
+		Weapon: NukeRu9M729
+
+RuIskanderMissile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 0
+	Tooltip:
+		Name: 9M723 Iskander-M (10 kt)
+	# 0.95 x 0.8 = 0.76 effective, identical to kinzhalmissile -- which is correct, because the art
+	# IS the Iskander and this is the Iskander.
+	RenderSprites:
+		Scale: 0.95
+	Health:
+		HP: 80
+	Targetable@Ground:
+		TargetTypes: Hypersonic
+		RequiresCondition: !airborne
+	Targetable@Airborne:
+		TargetTypes: Hypersonic
+		RequiresCondition: airborne
+	BallisticMissile:
+		LaunchAngle: 30
+		# 1200 wdist/tick = 19.5 cells/s, between the B61 bodies' 900 and the W76 RV's 1400. A
+		# quasi-ballistic SRBM is faster than a gravity bomb and slower than something falling from
+		# the top of an intercontinental arc.
+		Speed: 1200
+		Acceleration: 0
+		InitialSpeedPercent: 100
+		LaunchRiseTicks: 0
+		PostErectionWaitTicks: 0
+		VisualPitchMultiplier: 47
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Type: CenterPosition
+		Offsets: -560, 0, 170
+	Explodes:
+		Weapon: NukeRuIskander
+
+RuKinzhalNMissile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 0
+	Tooltip:
+		Name: Kh-47M2 Kinzhal-N (50 kt)
+	# 0.95 x 0.8 = 0.76 effective, EXACTLY the conventional KinzhalMissile's figures
+	# (vehicles-russia.yaml). Same airframe, same body, same size on screen; the only thing that
+	# differs between the two in flight is what happens when it lands.
+	RenderSprites:
+		Scale: 0.95
+	Health:
+		HP: 100
+	Targetable@Ground:
+		TargetTypes: Hypersonic
+		RequiresCondition: !airborne
+	Targetable@Airborne:
+		TargetTypes: Hypersonic
+		RequiresCondition: airborne
+	BallisticMissile:
+		LaunchAngle: 30
+		# 2000 wdist/tick = 32.6 cells/s, the fastest thing in the mod and the SAME number the
+		# conventional KinzhalMissile carries. Deliberately copied rather than re-derived: it is one
+		# airframe and two payloads, so a different speed here would be saying otherwise.
+		#
+		# NOTE THE TARGET TYPES ARE `Hypersonic` AND NOT `ICBM`, which is where this body and the
+		# conventional Kinzhal DO differ. The conventional one was retyped to ICBM on 2026-09-05 on
+		# the user's ruling that it "should be almost impossible to catch, but it could be possible
+		# to try to shoot at it". That ruling was about the conventional strike; every nuclear body
+		# in this file is unacquirable by design and this one follows its file, not its airframe.
+		# If the user wants nuclear weapons shootable-at too, that is one word on ten actors and a
+		# decision for them rather than a consistency tidy-up to make here.
+		Speed: 2000
+		Acceleration: 0
+		InitialSpeedPercent: 100
+		LaunchRiseTicks: 0
+		PostErectionWaitTicks: 0
+		VisualPitchMultiplier: 47
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Type: CenterPosition
+		Offsets: -560, 0, 170
+	Explodes:
+		Weapon: NukeRuKinzhalN
+
+RuKalibrMissile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 0
+	Tooltip:
+		Name: 3M14 Kalibr (100 kt)
+	# 0.9 x 0.7 = 0.63 effective. A cruise missile is long and thin rather than bulky; it carries
+	# the same 100 kt as the W76 re-entry vehicle (1.05 x 0.85 = 0.89) in a much smaller body.
+	RenderSprites:
+		Scale: 0.9
+	Health:
+		HP: 60
+	Targetable@Ground:
+		TargetTypes: Hypersonic
+		RequiresCondition: !airborne
+	Targetable@Airborne:
+		TargetTypes: Hypersonic
+		RequiresCondition: airborne
+	BallisticMissile:
+		LaunchAngle: 30
+		# 450 wdist/tick = 7.3 cells/s. Slower than every other missile in the arsenal; the only
+		# body in the mod slower than this is TsarBombaMissile at 400, which is not a missile at all
+		# but a gravity bomb under a retarding parachute. Against the W76 re-entry vehicle at the
+		# same 100 kt this is a THIRD of the speed, which together with MissileDelay 400 against
+		# that weapon's 350 is the whole difference between the two.
+		Speed: 450
+		Acceleration: 0
+		InitialSpeedPercent: 100
+		LaunchRiseTicks: 0
+		PostErectionWaitTicks: 0
+		VisualPitchMultiplier: 47
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Type: CenterPosition
+		Offsets: -600, 0, 190
+	Explodes:
+		Weapon: NukeRuKalibr
