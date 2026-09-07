@@ -59,14 +59,36 @@
 # radii and the timings, and putting any of it into the damage number as well would be counting it
 # twice. The falloff curve is R^-1.28 in the far field, sampled by fraction of max radius.
 #
-# ==== WHAT THIS FILE DOES NOT DO ====
-# It draws its fireballs as SPRITES (CreateEffect + nuke_large), not as light events. The engine has
-# LightEventWarhead and world.yaml carries LightEventManager, but nothing in the mod emits a light
-# event yet and the keyframe vocabulary is unproven here -- so establishing it is one job, done once,
-# and not something to guess at across eight weapons in parallel. When the house pattern for a
-# nuclear light lands, every Warhead@Fireball* block below should be revisited against it. Past
-# ScalePercent 1600 the sprite cannot represent the fireball anyway and the extra magnification is
-# spent on a ring of sprites instead; above about a megaton that is a stopgap and is marked as one.
+# ==== THE FIREBALL IS NOW DRAWN TWICE, AND THE TWO HALVES ARE DIFFERENT THINGS ====
+# RESOLVED 2026-09-07. This section used to say the file draws its fireballs only as SPRITES and that
+# every Warhead@Fireball* block should be revisited when the house pattern for a nuclear light landed.
+# It has landed (`Atomic` and `AtomicHighYield` in weapons-superweapons.yaml) and every weapon here
+# now carries a Warhead@FireballLight built from it. The two draws are not redundant:
+#   * Warhead@Fireball* (CreateEffect + nuke_large) is the MUSHROOM CLOUD. Tens of cells across,
+#     seconds to minutes long. Past ScalePercent 1600 the sprite cannot be magnified further and the
+#     extra size is spent on a ring of sprites instead; above about a megaton that is a stopgap and is
+#     marked as one where it is used.
+#   * Warhead@FireballLight (LightEvent) is the FIREBALL and the flash it throws on the world. It is
+#     light rather than a sprite because the thing being drawn is illumination, not an object.
+#
+# ==== THE FIFTH LAW: THE FLASH ENVELOPE ====
+# Added with the lights, and it governs every nuclear weapon in the mod including the two in
+# weapons-superweapons.yaml. Peak at tick 0, monotone decay to nothing at the fireball duration:
+#       I(t) = 7.0 * (1 - t/D)^2        D = the fireball duration in ticks, from the Y^0.44 law above
+# PEAK 7.0 IS YIELD-INDEPENDENT AND THAT IS THE POINT. Fireball surface brightness is set by
+# temperature (~7000 K), so what yield buys is AREA and DURATION -- 2.2 cells for 2 ticks at the
+# lowest B61 dial against 309 cells for 417 ticks for Tsar Bomba -- and making the big ones BRIGHTER
+# would have been the one wrong way to scale them.
+#
+# THE ENVELOPE IS MONOTONE ON PURPOSE AND IT COSTS REAL PHYSICS. A fireball genuinely double-flashes:
+# a bright first pulse, a dip while the shock front in front of it is opaque, then a second and much
+# larger maximum (t_min = 0.0025*sqrt(Y) s, t_max = 0.032*sqrt(Y) s, Glasstone). The first version of
+# the light system rendered exactly that, and at a 60 ms timestep a bright-dim-bright sequence is a
+# STROBE rather than a bhangmeter trace -- the user reported it as one. Every envelope here is
+# therefore single-peaked. DO NOT REINTRODUCE A DIP. The same rule killed the staged
+# FlashPaletteEffect stacks that used to sit on the five largest weapons in this file; see the note
+# on `AtomicHighYield`'s Warhead@Flash for why stacking that effect is a square wave and not a
+# plateau.
 #
 # ==== TRAPS, ALL OF WHICH ARE LIVE IN THIS FILE ====
 #   * AirThreshold. Above a warhead's AirThreshold the engine substitutes `Air` for the terrain
@@ -102,7 +124,7 @@
 #
 #   blast (1 psi)         4.5 cells   = 1.069 * 0.3^(1/3) km at 160 m/cell
 #   thermal (3rd deg)     2.2 cells   = 2.0 * (0.3/20)^0.41 km
-#   fireball             0.13 cells   = 111 * (0.3/20)^0.40 m, and it burns 4 ticks (0.2 s)
+#   fireball             0.13 cells   = 111 * (0.3/20)^0.40 m, and it burns 2 ticks (0.13 s)
 #   burst height          1.0 cells   = 230 * 0.3^(1/3) m
 #   blast wave           supersonic 0.13 -> 0.26 cells in 1 tick, then sonic at 7 ticks/cell;
 #                        reaches its full 4.5c at tick 28 (2 s)
@@ -122,6 +144,50 @@ NukeB61Mod12Y003:
 		Duration: 15
 		Intensity: 9
 		Delay: 8
+	# ===== THE FIREBALL, AS LIGHT =====
+	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
+	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
+	#
+	#   yield                 0.3 kt
+	#   illumination reach    2.2 cells  = the THERMAL radius, 2.0 * (kt/20)^0.41 km at 160 m/cell.
+	#                         NOT the fireball's own 21 m -- that is 0.13 cells and invisible. Illumination
+	#                         reach scales as the fireball radius (Y^0.40) for a fixed surface
+	#                         temperature and thermal reach as Y^0.41, so one array carries both.
+	#   duration              2 ticks (0.12 s) = 0.8 * (kt/20)^0.44 s at 60 ms per tick.
+	#   fireball growth       Taylor-Sedov R ~ t^0.4, reaching full reach at t_max = 0.29 ticks
+	#                         (0.032*sqrt(Y) s, Glasstone), then holding, then shrinking as it rises.
+	#
+	# THE INTENSITY ENVELOPE IS MONOTONE AND THAT IS A DELIBERATE DEPARTURE FROM THE PHYSICS.
+	# A real fireball double-flashes -- bright pulse, opaque-shock dip, larger second maximum -- and
+	# the first version of this system rendered that. At a 60 ms timestep it reads as a STROBE, which
+	# is what the user reported, so every envelope in the mod is now peak-at-tick-0 and monotone:
+	#     I(t) = 7.0 * (1 - t/2)^2
+	# Peak at tick 0 also gets the ground lit correctly on the FIRST frame -- LightEventManager.Emit
+	# calls AddLightSource with the tick-0 sample and that notifies the terrain immediately, so there
+	# is no TerrainRefreshInterval lag on the brightest instant. See the note on `Atomic`.
+	#
+	# PEAK INTENSITY IS 7.0 ON EVERY NUCLEAR WEAPON IN THE MOD. Fireball surface brightness at peak
+	# emission is set by temperature (~7000 K) and is very nearly yield-independent; what yield buys
+	# is AREA and DURATION, which is exactly what the two arrays above carry.
+	Warhead@FireballLight: LightEvent
+		ValidTargets: Ground, Water, Air
+		AirThreshold: 24c0
+		ForceGroundLevel: true
+		Light:
+			Times: 0, 1, 2
+			Intensities: 7.0, 1.8, 0.0
+			Radii: 2c240, 2c156, 1c749
+			Tints: E6F0FF, FFC864, B4280A
+			Interpolations: Linear
+			Falloff: InverseSquare
+			TerrainRefreshInterval: 2
+			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
+			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
+			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
+			# same seam as Atomic's: LightEventManager.RenderAboveFog walks its own `live` list and checks
+			# Definition.GlowAboveFog per event, so it is the flag below and nothing weapon-specific.
+			GlowAboveFog: true
+
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 56
@@ -352,7 +418,7 @@ NukeB61Mod12Y003:
 #
 #   blast (1 psi)         7.6 cells   = 1.069 * 1.5^(1/3) km at 160 m/cell
 #   thermal (3rd deg)     4.3 cells   = 2.0 * (1.5/20)^0.41 km
-#   fireball             0.25 cells   = 111 * (1.5/20)^0.40 m, and it burns 4 ticks (0.2 s)
+#   fireball             0.25 cells   = 111 * (1.5/20)^0.40 m, and it burns 4 ticks (0.26 s)
 #   burst height          1.6 cells   = 230 * 1.5^(1/3) m
 #   blast wave           supersonic 0.25 -> 0.49 cells in 1 tick, then sonic at 7 ticks/cell;
 #                        reaches its full 7.8c at tick 51 (3 s)
@@ -376,6 +442,50 @@ NukeB61Mod12Y015:
 		Duration: 15
 		Intensity: 4
 		Delay: 29
+	# ===== THE FIREBALL, AS LIGHT =====
+	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
+	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
+	#
+	#   yield                 1.5 kt
+	#   illumination reach    4.3 cells  = the THERMAL radius, 2.0 * (kt/20)^0.41 km at 160 m/cell.
+	#                         NOT the fireball's own 39 m -- that is 0.25 cells and invisible. Illumination
+	#                         reach scales as the fireball radius (Y^0.40) for a fixed surface
+	#                         temperature and thermal reach as Y^0.41, so one array carries both.
+	#   duration              4 ticks (0.24 s) = 0.8 * (kt/20)^0.44 s at 60 ms per tick.
+	#   fireball growth       Taylor-Sedov R ~ t^0.4, reaching full reach at t_max = 0.65 ticks
+	#                         (0.032*sqrt(Y) s, Glasstone), then holding, then shrinking as it rises.
+	#
+	# THE INTENSITY ENVELOPE IS MONOTONE AND THAT IS A DELIBERATE DEPARTURE FROM THE PHYSICS.
+	# A real fireball double-flashes -- bright pulse, opaque-shock dip, larger second maximum -- and
+	# the first version of this system rendered that. At a 60 ms timestep it reads as a STROBE, which
+	# is what the user reported, so every envelope in the mod is now peak-at-tick-0 and monotone:
+	#     I(t) = 7.0 * (1 - t/4)^2
+	# Peak at tick 0 also gets the ground lit correctly on the FIRST frame -- LightEventManager.Emit
+	# calls AddLightSource with the tick-0 sample and that notifies the terrain immediately, so there
+	# is no TerrainRefreshInterval lag on the brightest instant. See the note on `Atomic`.
+	#
+	# PEAK INTENSITY IS 7.0 ON EVERY NUCLEAR WEAPON IN THE MOD. Fireball surface brightness at peak
+	# emission is set by temperature (~7000 K) and is very nearly yield-independent; what yield buys
+	# is AREA and DURATION, which is exactly what the two arrays above carry.
+	Warhead@FireballLight: LightEvent
+		ValidTargets: Ground, Water, Air
+		AirThreshold: 24c0
+		ForceGroundLevel: true
+		Light:
+			Times: 0, 1, 2, 3, 4
+			Intensities: 7.0, 3.9, 1.8, 0.4, 0.0
+			Radii: 3c905, 4c330, 4c184, 3c783, 3c358
+			Tints: E6F0FF, FFEBB4, FFC864, F1812C, B4280A
+			Interpolations: Linear
+			Falloff: InverseSquare
+			TerrainRefreshInterval: 2
+			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
+			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
+			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
+			# same seam as Atomic's: LightEventManager.RenderAboveFog walks its own `live` list and checks
+			# Definition.GlowAboveFog per event, so it is the flag below and nothing weapon-specific.
+			GlowAboveFog: true
+
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 106
@@ -630,6 +740,50 @@ NukeB61Mod12Y10:
 		Duration: 28
 		Intensity: 5
 		Delay: 55
+	# ===== THE FIREBALL, AS LIGHT =====
+	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
+	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
+	#
+	#   yield                 10 kt
+	#   illumination reach    9.4 cells  = the THERMAL radius, 2.0 * (kt/20)^0.41 km at 160 m/cell.
+	#                         NOT the fireball's own 84 m -- that is 0.53 cells and invisible. Illumination
+	#                         reach scales as the fireball radius (Y^0.40) for a fixed surface
+	#                         temperature and thermal reach as Y^0.41, so one array carries both.
+	#   duration              10 ticks (0.60 s) = 0.8 * (kt/20)^0.44 s at 60 ms per tick.
+	#   fireball growth       Taylor-Sedov R ~ t^0.4, reaching full reach at t_max = 1.69 ticks
+	#                         (0.032*sqrt(Y) s, Glasstone), then holding, then shrinking as it rises.
+	#
+	# THE INTENSITY ENVELOPE IS MONOTONE AND THAT IS A DELIBERATE DEPARTURE FROM THE PHYSICS.
+	# A real fireball double-flashes -- bright pulse, opaque-shock dip, larger second maximum -- and
+	# the first version of this system rendered that. At a 60 ms timestep it reads as a STROBE, which
+	# is what the user reported, so every envelope in the mod is now peak-at-tick-0 and monotone:
+	#     I(t) = 7.0 * (1 - t/10)^2
+	# Peak at tick 0 also gets the ground lit correctly on the FIRST frame -- LightEventManager.Emit
+	# calls AddLightSource with the tick-0 sample and that notifies the terrain immediately, so there
+	# is no TerrainRefreshInterval lag on the brightest instant. See the note on `Atomic`.
+	#
+	# PEAK INTENSITY IS 7.0 ON EVERY NUCLEAR WEAPON IN THE MOD. Fireball surface brightness at peak
+	# emission is set by temperature (~7000 K) and is very nearly yield-independent; what yield buys
+	# is AREA and DURATION, which is exactly what the two arrays above carry.
+	Warhead@FireballLight: LightEvent
+		ValidTargets: Ground, Water, Air
+		AirThreshold: 24c0
+		ForceGroundLevel: true
+		Light:
+			Times: 0, 1, 2, 3, 4, 6, 8, 10
+			Intensities: 7.0, 5.7, 4.5, 3.4, 2.5, 1.1, 0.3, 0.0
+			Radii: 5c803, 7c648, 9c418, 9c418, 9c418, 8c764, 8c19, 7c298
+			Tints: E6F0FF, FFFCF6, FFF0C8, FFE5A0, FFD87F, FFB04E, E66D20, B4280A
+			Interpolations: Linear
+			Falloff: InverseSquare
+			TerrainRefreshInterval: 2
+			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
+			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
+			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
+			# same seam as Atomic's: LightEventManager.RenderAboveFog walks its own `live` list and checks
+			# Definition.GlowAboveFog per event, so it is the flag below and nothing weapon-specific.
+			GlowAboveFog: true
+
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 227
@@ -884,6 +1038,50 @@ NukeB61Mod12Y50:
 		Duration: 48
 		Intensity: 7
 		Delay: 94
+	# ===== THE FIREBALL, AS LIGHT =====
+	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
+	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
+	#
+	#   yield                 50 kt
+	#   illumination reach    18.2 cells  = the THERMAL radius, 2.0 * (kt/20)^0.41 km at 160 m/cell.
+	#                         NOT the fireball's own 160 m -- that is 1.00 cells and invisible. Illumination
+	#                         reach scales as the fireball radius (Y^0.40) for a fixed surface
+	#                         temperature and thermal reach as Y^0.41, so one array carries both.
+	#   duration              20 ticks (1.20 s) = 0.8 * (kt/20)^0.44 s at 60 ms per tick.
+	#   fireball growth       Taylor-Sedov R ~ t^0.4, reaching full reach at t_max = 3.77 ticks
+	#                         (0.032*sqrt(Y) s, Glasstone), then holding, then shrinking as it rises.
+	#
+	# THE INTENSITY ENVELOPE IS MONOTONE AND THAT IS A DELIBERATE DEPARTURE FROM THE PHYSICS.
+	# A real fireball double-flashes -- bright pulse, opaque-shock dip, larger second maximum -- and
+	# the first version of this system rendered that. At a 60 ms timestep it reads as a STROBE, which
+	# is what the user reported, so every envelope in the mod is now peak-at-tick-0 and monotone:
+	#     I(t) = 7.0 * (1 - t/20)^2
+	# Peak at tick 0 also gets the ground lit correctly on the FIRST frame -- LightEventManager.Emit
+	# calls AddLightSource with the tick-0 sample and that notifies the terrain immediately, so there
+	# is no TerrainRefreshInterval lag on the brightest instant. See the note on `Atomic`.
+	#
+	# PEAK INTENSITY IS 7.0 ON EVERY NUCLEAR WEAPON IN THE MOD. Fireball surface brightness at peak
+	# emission is set by temperature (~7000 K) and is very nearly yield-independent; what yield buys
+	# is AREA and DURATION, which is exactly what the two arrays above carry.
+	Warhead@FireballLight: LightEvent
+		ValidTargets: Ground, Water, Air
+		AirThreshold: 24c0
+		ForceGroundLevel: true
+		Light:
+			Times: 0, 1, 2, 4, 6, 9, 13, 17, 20
+			Intensities: 7.0, 6.3, 5.7, 4.5, 3.4, 2.1, 0.9, 0.2, 0.0
+			Radii: 8c113, 10c719, 14c125, 18c205, 18c205, 18c72, 16c643, 15c191, 14c107
+			Tints: E6F0FF, F6F9FF, FFFCF6, FFF0C8, FFE5A0, FFD071, FFA343, DC5A14, B4280A
+			Interpolations: Linear
+			Falloff: InverseSquare
+			TerrainRefreshInterval: 2
+			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
+			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
+			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
+			# same seam as Atomic's: LightEventManager.RenderAboveFog walks its own `live` list and checks
+			# Definition.GlowAboveFog per event, so it is the flag below and nothing weapon-specific.
+			GlowAboveFog: true
+
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 432
@@ -1123,10 +1321,6 @@ NukeW76:
 	Warhead@Flash1: FlashPaletteEffect
 		Duration: 30
 		FlashType: Nuke
-	Warhead@Flash2: FlashPaletteEffect
-		Duration: 8
-		FlashType: Nuke
-		Delay: 22
 	Warhead@Shake1: ShakeScreen
 		Duration: 19
 		Intensity: 84
@@ -1142,6 +1336,50 @@ NukeW76:
 		Duration: 60
 		Intensity: 8
 		Delay: 119
+	# ===== THE FIREBALL, AS LIGHT =====
+	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
+	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
+	#
+	#   yield                 100 kt
+	#   illumination reach    24.2 cells  = the THERMAL radius, 2.0 * (kt/20)^0.41 km at 160 m/cell.
+	#                         NOT the fireball's own 211 m -- that is 1.32 cells and invisible. Illumination
+	#                         reach scales as the fireball radius (Y^0.40) for a fixed surface
+	#                         temperature and thermal reach as Y^0.41, so one array carries both.
+	#   duration              27 ticks (1.62 s) = 0.8 * (kt/20)^0.44 s at 60 ms per tick.
+	#   fireball growth       Taylor-Sedov R ~ t^0.4, reaching full reach at t_max = 5.33 ticks
+	#                         (0.032*sqrt(Y) s, Glasstone), then holding, then shrinking as it rises.
+	#
+	# THE INTENSITY ENVELOPE IS MONOTONE AND THAT IS A DELIBERATE DEPARTURE FROM THE PHYSICS.
+	# A real fireball double-flashes -- bright pulse, opaque-shock dip, larger second maximum -- and
+	# the first version of this system rendered that. At a 60 ms timestep it reads as a STROBE, which
+	# is what the user reported, so every envelope in the mod is now peak-at-tick-0 and monotone:
+	#     I(t) = 7.0 * (1 - t/27)^2
+	# Peak at tick 0 also gets the ground lit correctly on the FIRST frame -- LightEventManager.Emit
+	# calls AddLightSource with the tick-0 sample and that notifies the terrain immediately, so there
+	# is no TerrainRefreshInterval lag on the brightest instant. See the note on `Atomic`.
+	#
+	# PEAK INTENSITY IS 7.0 ON EVERY NUCLEAR WEAPON IN THE MOD. Fireball surface brightness at peak
+	# emission is set by temperature (~7000 K) and is very nearly yield-independent; what yield buys
+	# is AREA and DURATION, which is exactly what the two arrays above carry.
+	Warhead@FireballLight: LightEvent
+		ValidTargets: Ground, Water, Air
+		AirThreshold: 24c0
+		ForceGroundLevel: true
+		Light:
+			Times: 0, 1, 3, 5, 8, 12, 18, 23, 27
+			Intensities: 7.0, 6.5, 5.5, 4.6, 3.5, 2.2, 0.8, 0.2, 0.0
+			Radii: 9c391, 12c388, 19c215, 23c579, 24c186, 24c125, 21c993, 20c180, 18c759
+			Tints: E6F0FF, F2F7FF, FFFBF1, FFF2CF, FFE6A1, FFD173, FF9F3F, DC5914, B4280A
+			Interpolations: Linear
+			Falloff: InverseSquare
+			TerrainRefreshInterval: 2
+			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
+			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
+			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
+			# same seam as Atomic's: LightEventManager.RenderAboveFog walks its own `live` list and checks
+			# Definition.GlowAboveFog per event, so it is the flag below and nothing weapon-specific.
+			GlowAboveFog: true
+
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 571
@@ -1386,14 +1624,6 @@ NukeSarmatRV:
 	Warhead@Flash1: FlashPaletteEffect
 		Duration: 30
 		FlashType: Nuke
-	Warhead@Flash2: FlashPaletteEffect
-		Duration: 30
-		FlashType: Nuke
-		Delay: 22
-	Warhead@Flash3: FlashPaletteEffect
-		Duration: 22
-		FlashType: Nuke
-		Delay: 44
 	Warhead@Shake1: ShakeScreen
 		Duration: 38
 		Intensity: 114
@@ -1413,6 +1643,52 @@ NukeSarmatRV:
 		Duration: 76
 		Intensity: 4
 		Delay: 347
+	# ===== THE FIREBALL, AS LIGHT =====
+	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
+	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
+	#
+	#   yield                 750 kt
+	#   illumination reach    55.2 cells  = the THERMAL radius, 2.0 * (kt/20)^0.41 km at 160 m/cell.
+	#                         NOT the fireball's own 473 m -- that is 2.96 cells and invisible. Illumination
+	#                         reach scales as the fireball radius (Y^0.40) for a fixed surface
+	#                         temperature and thermal reach as Y^0.41, so one array carries both.
+	#   duration              66 ticks (3.96 s) = 0.8 * (kt/20)^0.44 s at 60 ms per tick.
+	#   fireball growth       Taylor-Sedov R ~ t^0.4, reaching full reach at t_max = 14.61 ticks
+	#                         (0.032*sqrt(Y) s, Glasstone), then holding, then shrinking as it rises.
+	#
+	# THE INTENSITY ENVELOPE IS MONOTONE AND THAT IS A DELIBERATE DEPARTURE FROM THE PHYSICS.
+	# A real fireball double-flashes -- bright pulse, opaque-shock dip, larger second maximum -- and
+	# the first version of this system rendered that. At a 60 ms timestep it reads as a STROBE, which
+	# is what the user reported, so every envelope in the mod is now peak-at-tick-0 and monotone:
+	#     I(t) = 7.0 * (1 - t/66)^2
+	# Peak at tick 0 also gets the ground lit correctly on the FIRST frame -- LightEventManager.Emit
+	# calls AddLightSource with the tick-0 sample and that notifies the terrain immediately, so there
+	# is no TerrainRefreshInterval lag on the brightest instant. See the note on `Atomic`.
+	#
+	# PEAK INTENSITY IS 7.0 ON EVERY NUCLEAR WEAPON IN THE MOD. Fireball surface brightness at peak
+	# emission is set by temperature (~7000 K) and is very nearly yield-independent; what yield buys
+	# is AREA and DURATION, which is exactly what the two arrays above carry.
+	Warhead@FireballLight: LightEvent
+		ValidTargets: Ground, Water, Air
+		AirThreshold: 24c0
+		ForceGroundLevel: true
+		Light:
+			Times: 0, 1, 3, 7, 12, 20, 30, 43, 56, 66
+			Intensities: 7.0, 6.8, 6.4, 5.6, 4.7, 3.4, 2.1, 0.9, 0.2, 0.0
+			Radii: 14c331, 18c921, 29c337, 41c165, 51c67, 55c247, 55c247, 50c776, 46c273, 42c831
+			Tints: E6F0FF, EBF3FF, F4F9FF, FFFCF3, FFF2D0, FFE59F, FFCF70, FFA342, DC5B14, B4280A
+			Interpolations: Linear
+			Falloff: InverseSquare
+			# 3 rather than the tactical nuke's 2: at 55 cells a terrain refresh sweeps a large
+			# fraction of the map, so it is throttled to ~22 refreshes across the event instead of 66.
+			TerrainRefreshInterval: 3
+			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
+			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
+			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
+			# same seam as Atomic's: LightEventManager.RenderAboveFog walks its own `live` list and checks
+			# Definition.GlowAboveFog per event, so it is the flag below and nothing weapon-specific.
+			GlowAboveFog: true
+
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 1277
@@ -1652,18 +1928,6 @@ NukeB83:
 	Warhead@Flash1: FlashPaletteEffect
 		Duration: 30
 		FlashType: Nuke
-	Warhead@Flash2: FlashPaletteEffect
-		Duration: 30
-		FlashType: Nuke
-		Delay: 22
-	Warhead@Flash3: FlashPaletteEffect
-		Duration: 30
-		FlashType: Nuke
-		Delay: 44
-	Warhead@Flash4: FlashPaletteEffect
-		Duration: 15
-		FlashType: Nuke
-		Delay: 66
 	Warhead@Shake1: ShakeScreen
 		Duration: 44
 		Intensity: 122
@@ -1683,6 +1947,52 @@ NukeB83:
 		Duration: 89
 		Intensity: 4
 		Delay: 406
+	# ===== THE FIREBALL, AS LIGHT =====
+	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
+	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
+	#
+	#   yield                 1200 kt
+	#   illumination reach    67.0 cells  = the THERMAL radius, 2.0 * (kt/20)^0.41 km at 160 m/cell.
+	#                         NOT the fireball's own 571 m -- that is 3.57 cells and invisible. Illumination
+	#                         reach scales as the fireball radius (Y^0.40) for a fixed surface
+	#                         temperature and thermal reach as Y^0.41, so one array carries both.
+	#   duration              81 ticks (4.86 s) = 0.8 * (kt/20)^0.44 s at 60 ms per tick.
+	#   fireball growth       Taylor-Sedov R ~ t^0.4, reaching full reach at t_max = 18.48 ticks
+	#                         (0.032*sqrt(Y) s, Glasstone), then holding, then shrinking as it rises.
+	#
+	# THE INTENSITY ENVELOPE IS MONOTONE AND THAT IS A DELIBERATE DEPARTURE FROM THE PHYSICS.
+	# A real fireball double-flashes -- bright pulse, opaque-shock dip, larger second maximum -- and
+	# the first version of this system rendered that. At a 60 ms timestep it reads as a STROBE, which
+	# is what the user reported, so every envelope in the mod is now peak-at-tick-0 and monotone:
+	#     I(t) = 7.0 * (1 - t/81)^2
+	# Peak at tick 0 also gets the ground lit correctly on the FIRST frame -- LightEventManager.Emit
+	# calls AddLightSource with the tick-0 sample and that notifies the terrain immediately, so there
+	# is no TerrainRefreshInterval lag on the brightest instant. See the note on `Atomic`.
+	#
+	# PEAK INTENSITY IS 7.0 ON EVERY NUCLEAR WEAPON IN THE MOD. Fireball surface brightness at peak
+	# emission is set by temperature (~7000 K) and is very nearly yield-independent; what yield buys
+	# is AREA and DURATION, which is exactly what the two arrays above carry.
+	Warhead@FireballLight: LightEvent
+		ValidTargets: Ground, Water, Air
+		AirThreshold: 25c0
+		ForceGroundLevel: true
+		Light:
+			Times: 0, 2, 4, 8, 15, 24, 36, 53, 69, 81
+			Intensities: 7.0, 6.7, 6.3, 5.7, 4.6, 3.5, 2.2, 0.8, 0.2, 0.0
+			Radii: 15c828, 27c538, 36c327, 47c946, 61c639, 66c1005, 66c1005, 61c565, 56c43, 51c932
+			Tints: E6F0FF, EEF5FF, F5F9FF, FFFDF6, FFF2CF, FFE6A1, FFD173, FFA242, DC5914, B4280A
+			Interpolations: Linear
+			Falloff: InverseSquare
+			# 3 rather than the tactical nuke's 2: at 67 cells a terrain refresh sweeps a large
+			# fraction of the map, so it is throttled to ~27 refreshes across the event instead of 81.
+			TerrainRefreshInterval: 3
+			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
+			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
+			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
+			# same seam as Atomic's: LightEventManager.RenderAboveFog walks its own `live` list and checks
+			# Definition.GlowAboveFog per event, so it is the flag below and nothing weapon-specific.
+			GlowAboveFog: true
+
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 1542
@@ -1924,22 +2234,6 @@ NukeTsarBomba:
 	Warhead@Flash1: FlashPaletteEffect
 		Duration: 30
 		FlashType: Nuke
-	Warhead@Flash2: FlashPaletteEffect
-		Duration: 30
-		FlashType: Nuke
-		Delay: 22
-	Warhead@Flash3: FlashPaletteEffect
-		Duration: 30
-		FlashType: Nuke
-		Delay: 44
-	Warhead@Flash4: FlashPaletteEffect
-		Duration: 30
-		FlashType: Nuke
-		Delay: 66
-	Warhead@Flash5: FlashPaletteEffect
-		Duration: 30
-		FlashType: Nuke
-		Delay: 88
 	Warhead@Shake1: ShakeScreen
 		Duration: 154
 		Intensity: 150
@@ -1959,6 +2253,52 @@ NukeTsarBomba:
 		Duration: 309
 		Intensity: 6
 		Delay: 1412
+	# ===== THE FIREBALL, AS LIGHT =====
+	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
+	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
+	#
+	#   yield                 50000 kt
+	#   illumination reach    309.1 cells  = the THERMAL radius, 2.0 * (kt/20)^0.41 km at 160 m/cell.
+	#                         NOT the fireball's own 2538 m -- that is 15.86 cells and invisible. Illumination
+	#                         reach scales as the fireball radius (Y^0.40) for a fixed surface
+	#                         temperature and thermal reach as Y^0.41, so one array carries both.
+	#   duration              417 ticks (25.02 s) = 0.8 * (kt/20)^0.44 s at 60 ms per tick.
+	#   fireball growth       Taylor-Sedov R ~ t^0.4, reaching full reach at t_max = 119.26 ticks
+	#                         (0.032*sqrt(Y) s, Glasstone), then holding, then shrinking as it rises.
+	#
+	# THE INTENSITY ENVELOPE IS MONOTONE AND THAT IS A DELIBERATE DEPARTURE FROM THE PHYSICS.
+	# A real fireball double-flashes -- bright pulse, opaque-shock dip, larger second maximum -- and
+	# the first version of this system rendered that. At a 60 ms timestep it reads as a STROBE, which
+	# is what the user reported, so every envelope in the mod is now peak-at-tick-0 and monotone:
+	#     I(t) = 7.0 * (1 - t/417)^2
+	# Peak at tick 0 also gets the ground lit correctly on the FIRST frame -- LightEventManager.Emit
+	# calls AddLightSource with the tick-0 sample and that notifies the terrain immediately, so there
+	# is no TerrainRefreshInterval lag on the brightest instant. See the note on `Atomic`.
+	#
+	# PEAK INTENSITY IS 7.0 ON EVERY NUCLEAR WEAPON IN THE MOD. Fireball surface brightness at peak
+	# emission is set by temperature (~7000 K) and is very nearly yield-independent; what yield buys
+	# is AREA and DURATION, which is exactly what the two arrays above carry.
+	Warhead@FireballLight: LightEvent
+		ValidTargets: Ground, Water, Air
+		AirThreshold: 40c0
+		ForceGroundLevel: true
+		Light:
+			Times: 0, 8, 21, 42, 75, 125, 188, 271, 354, 417
+			Intensities: 7.0, 6.7, 6.3, 5.7, 4.7, 3.4, 2.1, 0.9, 0.2, 0.0
+			Radii: 34c613, 104c905, 154c305, 203c611, 256c760, 309c78, 309c78, 288c255, 260c568, 239c547
+			Tints: E6F0FF, ECF4FF, F6F9FF, FFFCF6, FFF3D1, FFE5A0, FFD071, FFA343, DC5A14, B4280A
+			Interpolations: Linear
+			Falloff: InverseSquare
+			# 16 rather than the tactical nuke's 2: at 309 cells a terrain refresh sweeps a large
+			# fraction of the map, so it is throttled to ~26 refreshes across the event instead of 417.
+			TerrainRefreshInterval: 16
+			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
+			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
+			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
+			# same seam as Atomic's: LightEventManager.RenderAboveFog walks its own `live` list and checks
+			# Definition.GlowAboveFog per event, so it is the flag below and nothing weapon-specific.
+			GlowAboveFog: true
+
 	Warhead@Fireball1: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 1600
@@ -2256,14 +2596,6 @@ NukeSarmatMIRV:
 	Warhead@Flash1: FlashPaletteEffect
 		Duration: 30
 		FlashType: Nuke
-	Warhead@Flash2: FlashPaletteEffect
-		Duration: 30
-		FlashType: Nuke
-		Delay: 22
-	Warhead@Flash3: FlashPaletteEffect
-		Duration: 30
-		FlashType: Nuke
-		Delay: 44
 	Warhead@Shake1: ShakeScreen
 		Duration: 70
 		Intensity: 130
