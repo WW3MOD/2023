@@ -274,7 +274,7 @@ Two things the name hides, both stated outright in the trait's own `[Desc]` (`Ga
 | **Provenance** | **WW3MOD** (2026-03-21, only 2 commits — it has barely been touched since it was written). |
 | **Profiles** | **Shared, both**, faction-split (`enable-ai-any && player.nato` / `player.brics`, `ai.yaml:740`, `:748`). |
 | **Cadence** | `ScanInterval: 200` = 12.0 s (`ai.yaml:743`). **No stagger** — the countdown starts at 0 and fires on the first bot tick. |
-| **Claims** | `ScoutTypes: humvee` (NATO) / `btr` (BRICS), owned + `Mobile` + name match + `IsIdle` + not blackboard-claimed (`ScoutBotModule.cs:139-146`). `MaxScouts: 2`. Both types are in the POI stack's `ExcludeUnitTypes`, so the overlap is deconflicted by design. |
+| **Claims** | `ScoutTypes: humvee` (NATO) / `btr` (Russia), owned + `Mobile` + name match + `IsIdle` + not blackboard-claimed (`ScoutBotModule.cs:139-146`). `MaxScouts: 2`. Both types are in the POI stack's `ExcludeUnitTypes`, so the overlap is deconflicted by design. |
 | **Emits** | `Move` per idle scout (`:128`). |
 | **Side effects** | `threatMap.MarkExplored(...)` (`:112`, `:131`); `blackboard.PostIntel(...)` (`:287-290`). |
 

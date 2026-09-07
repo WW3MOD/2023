@@ -87,7 +87,7 @@ Each of these was verified in the tree. Nothing aspirational.
 - **Indestructible Supply Routes, contested on foot.** The win condition is territorial control
   of a fixed point — a visible control bar, reinforcement slowdown, and a warning when yours is
   being contested.
-- **Two factions:** America (NATO) and Russia (BRICS), each with their own vehicles and
+- **Two factions:** America (NATO) and Russia, each with their own vehicles and
   helicopters.
 - **Roughly 22 vehicles**, from Humvees and BTRs up through Abrams and T-90s to Paladin, Grad,
   TOS, HIMARS and Iskander; **six rotary airframes** including Apache, Mi-28, Black Hawk, Hind
