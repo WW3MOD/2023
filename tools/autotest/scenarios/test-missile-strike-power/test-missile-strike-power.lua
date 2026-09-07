@@ -63,7 +63,12 @@ local OrderKey = "KinzhalStrike"
 -- The Kinzhal's tier is `powers.russia` and this player IS Russia, so no sandbox lobby option is
 -- needed here -- only the cash and the shortened proxy load time, both in rules.yaml.
 local BuyProxy = "power.kinzhal"
-local TargetX, TargetY = 48, 17
+-- 48,6 and NOT 48,17. The victim was moved off home's row (map.yaml:142) precisely so the
+-- bearing assertion has teeth -- on row 17 every wrong bearing gives the same eastward answer.
+-- The aim point did not move with it, so the missile flew to 48,17 and the Abrams sat alive
+-- 11 cells away at 48,6: "entered correctly, target still alive", which reads like an engine
+-- fault and is not one. Caught by a run, not by lint or by 2893 green tests.
+local TargetX, TargetY = 48, 6
 local MissileType = "kinzhalmissile"
 
 -- Tolerances. All three are loose on purpose: this asserts a CLASS of behaviour (came in from
