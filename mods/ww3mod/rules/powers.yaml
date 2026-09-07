@@ -246,6 +246,16 @@ power.sarmat:
 		# but they overlap heavily inside that footprint, so the two end up close together rather
 		# than far apart. Against a dispersed army this is the better buy; against one point target
 		# the B83 is.
+		#
+		# THIS PRICE IS NOW UNDER-SET AND IS KNOWINGLY LEFT ALONE (2026-09-07). The paragraph above
+		# rests on "they overlap heavily inside that footprint", and that premise is gone: the six
+		# RVs are placed by the player anywhere on the map, so the salvo covers whatever six areas
+		# they choose instead of one 21-cell circle. Same money, strictly more weapon.
+		#
+		# Not repriced HERE because a price is a balance change and belongs to a combat-sim pass
+		# (DOCS/recipes/BALANCE.md), not to the branch that changed the aiming -- and because the
+		# right number depends on how the strike actually plays, which nobody has seen yet. Flagged
+		# so the next balance pass does not have to rediscover it.
 		Cost: 30000
 	Tooltip:
 		Name: RS-28 Sarmat (MIRV)
@@ -255,7 +265,7 @@ power.sarmat:
 		Icon: v2bdgricon
 		# 2500 ticks = 150 s.
 		BuildDuration: 2500
-		Description: Heavy ICBM carrying independently-targeted re-entry vehicles.\nSix 750 kt warheads scattered across the target area, not one detonation.\nArrives fully loaded and fires once.
+		Description: Heavy ICBM carrying independently-targeted re-entry vehicles.\nSix 750 kt warheads, and you pick where each one lands.\nArrives fully loaded and fires once.
 	ProvidesSupportPowerCharge:
 		Power: SarmatStrike
 
