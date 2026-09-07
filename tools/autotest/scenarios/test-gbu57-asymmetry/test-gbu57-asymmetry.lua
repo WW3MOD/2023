@@ -31,9 +31,24 @@
 --   * The beacon, the minimap ping and the reveal camera — client-side render state with no
 --     observable the Lua API can read.
 --
--- EXPECTED GEOMETRY, derived in map.yaml: America home 6,17 -> edge cell 1,17; Logistics Center
--- centred on 36,17 (35 cells from entry); Abrams at 48,17 (47 cells). Speed 500 -> 72 and 96
--- flight ticks.
+-- EXPECTED GEOMETRY, REWRITTEN 2026-09-07. This scenario used to assert the bomb entered within
+-- 15 cells of America's own base, at `ChooseClosestEdgeCell(home)` = cell 1,17. Engine b69681d2
+-- deleted that rule, so the assertion now FAILS ON CORRECT BEHAVIOUR. The shipped rule is
+-- `entry = aimPoint - unit(home -> centroid) * standoff`, standoff = mapDiagonal + ApproachMargin
+-- = sqrt(66^2 + 34^2) + 16 = 90.2 cells:
+--   America home 6,17; Logistics Center centred on 36,17, axis 30c, entry cell -54,17
+--   (60.2c behind home); Abrams at 48,17, axis 42c, entry cell -42,17 (48.2c behind home).
+-- The contract is asserted through TestHarness.ApproachFault, whose reasoning lives once in
+-- test-helpers.lua. Home and both aim points are on row 17, so on THIS map only the DISTANCE
+-- reading has teeth -- the bearing cannot tell the shipped rule from any other eastward one.
+-- test-missile-strike-power carries the sharp bearing test on a target off its player's row.
+--
+-- FLIGHT, and this is the change a reader will notice most. Both strikes now cross the whole
+-- 90.2-cell standoff rather than their own on-map gap, so both take ~185 ticks (92408 wdist /
+-- Speed 500) where they took 72 and 96 -- and crucially they now take the SAME time as each
+-- other, which is the deliberate balance change in b69681d2: flight time no longer leaks how
+-- close to your own base the enemy aimed. StrikeBudget 550 already covers 300 + 185 and is left
+-- alone.
 
 local OrderKey = "GBU57Strike"
 
@@ -59,8 +74,13 @@ local StructX, StructY = 36, 17
 local TankX, TankY = 48, 17
 
 -- Tolerances. Loose on purpose everywhere EXCEPT the two damage signs, which are the point.
-local MaxEntryToHome = 15     -- cells. Expected 5. Enemy edge would be 59, map corner 17.
-local MinEntryToTarget = 25   -- cells. Expected 35. Spawned-on-target would be 0.
+-- THE APPROACH TOLERANCES ARE NOT AN ALLOWANCE ON A DISTANCE -- that is what the two constants
+-- they replaced were. They bound the error on a DERIVED position; see TestHarness.ApproachFault.
+-- MapSize is passed because the standoff is the map DIAGONAL plus ApproachMargin, and it is
+-- MapSize from map.yaml (66,34), not Bounds.
+local MapCellsX, MapCellsY = 66, 34
+local MaxApproachLateral = 4  -- cells off the home->target axis. Exact answer 0.
+local MaxApproachLag = 8      -- cells of flight before the poller saw it. Speed 500 = 0.5c/tick.
 -- RAISED ON 2026-09-05 when MissileDelay 300 shipped on this power. One strike is now 300 ticks of
 -- wait plus ~72-96 of flight, so the old 300-tick budget would have advanced phase 1 before the
 -- structure died and ended phase 2 before the tank was hit -- the scenario would have failed
@@ -213,6 +233,18 @@ local function finish()
 	local entryY = firstCell ~= nil and firstCell.Y or -1
 	local toHome = firstCell ~= nil and cellDist(entryX, entryY, home.X, home.Y) or -1
 	local toTarget = firstCell ~= nil and cellDist(entryX, entryY, StructX, StructY) or -1
+
+	-- THE APPROACH CONTRACT. toHome and toTarget stay in the summary as raw diagnostics, but
+	-- neither is asserted any more: toHome reads ~60 on a correct strike against the 15 it used to
+	-- demand. The measurement is taken against the STRUCTURE, which is the aim point of the first
+	-- strike and therefore the one firstCell belongs to.
+	local approach = nil
+	local approachLine = "approach=no entry"
+	if firstCell ~= nil then
+		approach = TestHarness.MeasureApproach(entryX, entryY, home.X, home.Y,
+			StructX, StructY, MapCellsX, MapCellsY)
+		approachLine = TestHarness.ApproachSummary(approach)
+	end
 	local spawnDelay = (structOrderTick ~= nil and firstSeenTick ~= nil)
 		and (firstSeenTick - structOrderTick) or -1
 
@@ -241,6 +273,7 @@ local function finish()
 		.. " spawn delay=" .. spawnDelay .. "t (shipped " .. ExpectedSpawnDelay .. ")"
 		.. " home=" .. home.X .. "," .. home.Y
 		.. " entry->home=" .. toHome .. "c entry->struct=" .. toTarget .. "c"
+		.. " | " .. approachLine
 		.. " | struct dead@t" .. n(structDeadTick) .. " tank hit@t" .. n(tankImpactTick)
 		.. " | bombs seen=" .. seenMissiles .. " observed=" .. tick .. "t"
 
@@ -270,15 +303,14 @@ local function finish()
 	-- 3. Did it come in from the edge nearest ITS OWN base? Checked before the damage, because a
 	-- bomb spawned on top of the target does the same damage while delivering none of the
 	-- behaviour the feature exists for.
-	if toTarget < MinEntryToTarget then
-		Test.Fail("the bomb did not fly in from anywhere: it first appeared " .. toTarget
-			.. " cells from the structure (needs >= " .. MinEntryToTarget .. "). || " .. summary)
-		return
-	end
-
-	if toHome > MaxEntryToHome then
-		Test.Fail("the bomb entered " .. toHome .. " cells from America's own base (allowance "
-			.. MaxEntryToHome .. "). ChooseClosestEdgeCell(home) is cell 1,17 for this map. || " .. summary)
+	-- Did it fly the shipped approach -- on the bearing America's OWN position gives, in over
+	-- America's own shoulder, from off-map? A bomb spawned on top of the structure would kill it
+	-- just as dead; that case reads `along` POSITIVE and is caught by the wrong-side branch, so
+	-- the old `toTarget >= 25` guard is subsumed rather than dropped.
+	local approachFault = TestHarness.ApproachFault(approach, MaxApproachLateral, MaxApproachLag)
+	if approachFault ~= nil then
+		Test.Fail("the GBU-57 did not fly the shipped approach. " .. approachFault
+			.. ". || " .. summary)
 		return
 	end
 
@@ -333,8 +365,9 @@ local function finish()
 		return
 	end
 
-	Test.Pass("GBU-57 asymmetry holds: after a " .. spawnDelay .. "t wait it ended the hardened"
-		.. " structure and the tank walked away. || " .. summary)
+	Test.Pass("GBU-57 asymmetry holds: after a " .. spawnDelay .. "t wait it flew in off-map on"
+		.. " America's own bearing, ended the hardened structure, and the tank walked away."
+		.. " || " .. summary)
 end
 
 local function step()

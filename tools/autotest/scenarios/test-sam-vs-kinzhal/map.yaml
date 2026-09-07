@@ -85,10 +85,16 @@ Categories: Test
 #
 # GEOMETRY NOTES THAT ARE LOAD-BEARING FOR READABILITY RATHER THAN FOR THE PHYSICS:
 #
-#   * ENTRY EDGE. MissileStrikePower spawns at Map.ChooseClosestEdgeCell(owner home). Russia home
-#     6,17 with Bounds Rectangle(1,1,64,32): horizontalBound |6-1|=5 < 32 -> u = Left = 1;
-#     verticalBound |17-1|=16 < 16 is FALSE -> v = Bottom = 33; du=5 < dv=16 -> edge cell (1,17).
-#     The same derivation test-missile-strike-power spells out at length.
+#   * ENTRY POINT. CORRECTED 2026-09-07 (engine b69681d2). MissileStrikePower no longer spawns at
+#     Map.ChooseClosestEdgeCell(owner home) -- that on-map edge cell (1,17) for Russia's home 6,17
+#     is gone. It now spawns at `aimPoint - unit(home -> centroid) * standoff`, standoff = map
+#     diagonal + ApproachMargin = sqrt(66^2 + 34^2) + 16 = 90.2 cells, which for the 62,17 aim
+#     point is cell -28,17: off-map west, 34 cells behind Russia's own base, on the same row.
+#     THE INTERCEPTION WINDOW IS NOT SHORTENED BY THIS -- the interceptable leg is the ON-MAP one,
+#     and it is now longer, because the track enters at the boundary crossing of the home-to-aim
+#     ray rather than at the edge cell nearest home. The whole flight is much longer (the missile
+#     covers the standoff, not the on-map gap), so any tick budget here has slack it did not have.
+#     test-missile-strike-power spells the rule out at length.
 #   * USA'S SUPPLY ROUTE AND SPAWN ARE PUSHED TO 58,28, away from the shipped 58,17. The aim point
 #     is 62,17 and IskanderExplosion's widest warhead is ShockwaveDamage MaxRadius 4c0; at 58,17
 #     the SR would sit 4 cells from the impact and could be caught by it. 58,28 is 11.7 cells away.

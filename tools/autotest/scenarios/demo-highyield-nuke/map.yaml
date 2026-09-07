@@ -51,15 +51,25 @@ Categories: Test
 # structures and the infantry. See WORKSPACE/DISCOVERIES.md 2026-09-06.
 #
 # GEOMETRY OF THE STRIKE, derived the same way test-tacnuke-delivers derives its own:
-#   USA HomeLocation 64,118 - Bounds Rectangle(left=1, top=1, w=126, h=126)
-#   Map.ChooseClosestEdgeCell (Map.cs:1821-1835):
-#     horizontalBound = (64-1=63) < 126/2=63 is FALSE -> Bounds.Right = 127
-#     verticalBound   = (118-1=117) < 63 is FALSE      -> Bounds.Bottom = 127
-#     du = |127-64| = 63, dv = |127-118| = 9, dv < du  -> edge = (64, 127)
-#   Aim point 64,64 is 63 cells from that entry cell, straight up the map's vertical centreline.
-#   Flight: 63 cells = 64512 wdist at Speed 550 -> 118 ticks (7.1 s at Timestep 60). Acceleration
-#   is 0 and TerminalAcceleration is unset on this missile, so that number is exact rather than an
-#   estimate -- see the comment on HighYieldNukeMissile in vehicles.yaml.
+#   CORRECTED 2026-09-07 -- engine b69681d2 REPLACED THIS RULE and every tick below it moves.
+#   Map.ChooseClosestEdgeCell is gone; the spawn is now
+#     entry    = aimPoint - unit(home -> salvoCentroid) * standoff
+#     standoff = mapDiagonal + ApproachMargin = 185363 + 16384 = 201747 wdist = 197.0 cells
+#   USA home 64,118 -> aim 64,64 is due NORTH, so the entry is cell 64,261: off-map SOUTH, 143
+#   cells beyond USA's own base rather than 9 cells short of it on the map's south edge. The
+#   bearing is unchanged (still straight up the centreline) because home and aim share x=64; what
+#   changed is that the missile is born far off-map and the flight is ~3.1x longer.
+#   THE OLD DERIVATION, recorded once so nobody rebuilds it:
+#     du = |127-64| = 63, dv = |127-118| = 9, dv < du -> edge = (64, 127), 63 cells from the aim
+#     point = 64512 wdist at Speed 550 -> 118 ticks.
+#   NOW: 201747 wdist at Speed 550 -> 367 ticks (22.0 s at Timestep 60). Acceleration is 0 and
+#   TerminalAcceleration is unset on this missile, so that number is exact rather than an estimate
+#   -- see the comment on HighYieldNukeMissile in vehicles.yaml.
+#
+#   THE TIMELINE BELOW HAS NOT BEEN RE-MEASURED. Detonation moves from t=243 to t=492 and every
+#   entry after it shifts by the same +249 ticks; the fireball, blast and burn-out durations are
+#   unchanged, only their start. Nothing here is asserted, so this is a stale caption rather than
+#   a failing run -- but re-run the demo before trusting a screenshot tick.
 #
 # WHY MapStartingLocations IS REMOVED IN rules.yaml: USA is the playable client player, so
 # Player.HomeLocation would otherwise come from a spawn assigner (Player.cs:182) and the edge

@@ -363,3 +363,159 @@ function TestHarness.EnsurePower(player, proxyType, powerKey, tick)
 
 	return false, "refused"
 end
+
+-- ============================================================================
+-- THE MISSILE-STRIKE APPROACH CONTRACT
+-- ============================================================================
+--
+-- WHAT REPLACED WHAT, on 2026-09-07 (engine commit b69681d2). MissileStrikePower used to spawn
+-- every warhead at `map.ChooseClosestEdgeCell(HomeLocation)` -- ONE on-map cell on the owner's own
+-- border -- and then face each warhead at its OWN aim point. Four scenarios asserted that shape
+-- the only way it could be read from Lua: `entryToHome <= 15` cells. That number is now
+-- meaningless, and worse than meaningless: the spawn is deliberately far off-map, so the old
+-- assertion FAILS ON CORRECT BEHAVIOUR.
+--
+-- THE SHIPPED RULE IS A VECTOR EQUATION, and it is the whole contract:
+--
+--     entry = aimPoint - unit(home -> salvoCentroid) * standoff
+--     standoff = mapDiagonal + ApproachMargin      (16 cells; MissileStrikePower.ApproachMargin)
+--
+-- so for a ONE-WARHEAD strike, where the centroid IS the aim point, the entry sits exactly on the
+-- ray from the player's own position through the target, `standoff` cells back from the target --
+-- which is `standoff - |home -> target|` cells BEHIND the player, and never less than
+-- ApproachMargin behind, because the map diagonal is by construction the largest separation of any
+-- two in-map points. That last inequality is a proof, not a tuned number, and it is what makes the
+-- band below map-independent.
+--
+-- WHY THIS IS NOT THE OLD TEST WITH A BIGGER ALLOWANCE. `entryToHome <= 60` would have gone green
+-- on a missile arriving from ANY compass direction at the right radius -- including the "always
+-- from the east" rule the user rejected by name. The three readings below pin a DIRECTION, a SIDE
+-- and a DISTANCE, and the shipped geometry is the only thing that satisfies all three:
+--
+--   lateral  -- how far off the home->target axis the warhead entered. Zero in exact arithmetic.
+--              This is the BEARING, and it is the reading that fails for a faction constant, a
+--              fixed compass bearing, a per-map bearing, or a bearing taken per-warhead from a
+--              shared spawn point -- which is precisely the fan b69681d2 removed. NOTE THE
+--              LIMITATION, because it is not obvious: on a map where the aim point is due east of
+--              home, EVERY eastward rule scores zero here. A scenario that wants this reading to
+--              have teeth must put its target off the launching player's row; see
+--              test-missile-strike-power, which was moved off it for exactly this reason.
+--   along    -- the signed projection onto that axis. NEGATIVE means the warhead came in over the
+--              player's own shoulder, which is the property the old map-edge rule protected and
+--              the one the user's ruling preserved: the player picks WHERE, never WHICH WAY. A
+--              positive reading is a sign flip in the WAngle rotation (WAngle is counterclockwise)
+--              and means the strike arrived from beyond the target, out of enemy territory.
+--   drift    -- along, minus its derived expectation. This is what catches a REGRESSION TO THE OLD
+--              RULE: an on-map edge cell is a few cells behind home, the shipped spawn is
+--              `standoff - |home->target|` behind it, and on a 66x34 map those are 5 and 56. It
+--              also catches a wrong standoff, a wrong ApproachMargin, and a wiring bug that hands
+--              MissileStrikeApproach.For the wrong player's home or the wrong map size -- none of
+--              which the World-free NUnit suite can see, because it is handed those values.
+--
+-- The Lua arithmetic here is float and the engine's is integer, which is fine in both directions:
+-- this MEASURES a shipped position, it does not compute one, and nothing it returns is fed back
+-- into world state. Determinism is the engine's problem and is pinned in MissileStrikeApproachTest.
+
+-- MissileStrikePowerInfo.ApproachMargin, in cells. Not overridden by any shipped power or scenario.
+TestHarness.ApproachMarginCells = 16
+
+-- The standoff the engine will walk back, in cells, for a map of this CELL SIZE -- MapSize from
+-- map.yaml, NOT Bounds: MissileStrikePower.ApproachFor passes map.MapSize straight through.
+function TestHarness.ApproachStandoffCells(mapCellsX, mapCellsY)
+	return math.sqrt(mapCellsX * mapCellsX + mapCellsY * mapCellsY) + TestHarness.ApproachMarginCells
+end
+
+-- Measure one warhead's entry against the approach it should have flown. Returns nil when the aim
+-- point is the player's own cell, where there is no axis to project onto.
+function TestHarness.MeasureApproach(entryX, entryY, homeX, homeY, targetX, targetY, mapCellsX, mapCellsY)
+	local dx, dy = targetX - homeX, targetY - homeY
+	local axis = math.sqrt(dx * dx + dy * dy)
+	if axis == 0 then
+		return nil
+	end
+
+	local ex, ey = entryX - homeX, entryY - homeY
+	local standoff = TestHarness.ApproachStandoffCells(mapCellsX, mapCellsY)
+	local along = (ex * dx + ey * dy) / axis
+	local expectedAlong = axis - standoff
+
+	return {
+		axis = axis,
+		standoff = standoff,
+		along = along,
+		expectedAlong = expectedAlong,
+		drift = along - expectedAlong,
+		-- The 2D cross product over the axis length: perpendicular distance, unsigned.
+		lateral = math.abs(ex * dy - ey * dx) / axis,
+	}
+end
+
+-- One line of the three readings, for the verdict summary. Always printed, pass or fail.
+function TestHarness.ApproachSummary(m)
+	if m == nil then
+		return "approach=degenerate(target is home)"
+	end
+
+	return string.format(
+		"approach lateral=%.1fc along=%.1fc (expected %.1fc, drift %+.1fc) axis=%.1fc standoff=%.1fc",
+		m.lateral, m.along, m.expectedAlong, m.drift, m.axis, m.standoff)
+end
+
+-- The verdict. Returns nil when the warhead flew the shipped approach, or a diagnosis string.
+--
+-- maxLateral -- cells off the axis. Exact answer is 0; a cell coordinate is the FLOOR of a world
+--               position, which costs up to ~1.5 cells on the diagonal.
+-- maxLag     -- cells of travel allowed between the spawn and the first tick the poller saw the
+--               actor. A per-tick poll normally sees it within one or two ticks; the fastest
+--               shipped missile (Kinzhal, Speed 2000) covers 1.95 cells per tick, so 8 cells is
+--               about four ticks of slack. It is one-sided on purpose: the missile can only move
+--               TOWARD the target, so drift below the expectation is bounded by cell flooring.
+function TestHarness.ApproachFault(m, maxLateral, maxLag)
+	maxLateral = maxLateral or 4
+	maxLag = maxLag or 8
+
+	if m == nil then
+		return "the aim point is the launching player's own cell, so there is no approach axis to"
+			.. " measure. This is a scenario fault, not a shipped one"
+	end
+
+	if m.lateral > maxLateral then
+		return string.format("THE BEARING IS WRONG: the warhead entered %.1f cells off the axis"
+			.. " running from the launching player's own position through the aim point (allowance"
+			.. " %g). MissileStrikeApproach.Bearing takes that azimuth from HomeLocation toward the"
+			.. " salvo centroid, so a reading here means the approach stopped being"
+			.. " player-situated -- a faction constant, a fixed compass bearing, a per-map bearing,"
+			.. " or a bearing taken per-warhead from a shared spawn point, which is the fan"
+			.. " b69681d2 removed", m.lateral, maxLateral)
+	end
+
+	if m.along >= 0 then
+		return string.format("THE STRIKE CAME IN FROM THE WRONG SIDE: the warhead entered %.1f"
+			.. " cells PAST the launching player, on the far side from its own base, so it arrived"
+			.. " out of enemy territory rather than over the player's own shoulder. Expected %.1f."
+			.. " A positive reading is a sign flip in the walk-back: SpawnPosition SUBTRACTS the"
+			.. " rotated WVec(0, -standoff, 0), and WAngle is COUNTERCLOCKWISE",
+			m.along, m.expectedAlong)
+	end
+
+	if m.drift > maxLag then
+		return string.format("THE WARHEAD WAS BORN TOO CLOSE IN: it entered %.1f cells behind the"
+			.. " launching player, where the shipped standoff puts it %.1f behind (drift %+.1f,"
+			.. " allowance %g). THE LIKELY CAUSE IS A REGRESSION TO ChooseClosestEdgeCell(home),"
+			.. " which lands an on-map edge cell a handful of cells from home instead of a"
+			.. " map-diagonal plus ApproachMargin off-map -- read the entry cell in the summary: if"
+			.. " it is inside the map bounds at all, the off-map spawn is gone. A smaller"
+			.. " ApproachMargin, or a standoff taken from Bounds rather than MapSize, reads the"
+			.. " same way and more mildly", -m.along, -m.expectedAlong, m.drift, maxLag)
+	end
+
+	if m.drift < -2 then
+		return string.format("THE WARHEAD WAS BORN TOO FAR OUT: %.1f cells behind the launching"
+			.. " player against an expected %.1f (drift %+.1f). The standoff is bounded at"
+			.. " MissileStrikeApproach.MaxStandoff = 1024 cells precisely because CPos packs each"
+			.. " axis into 12 signed bits and WRAPS outside -2048..2047, so an over-long walk-back"
+			.. " decodes as a cell on the far side of the world", -m.along, -m.expectedAlong, m.drift)
+	end
+
+	return nil
+end

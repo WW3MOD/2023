@@ -19,7 +19,8 @@
 --   1. BUY   — the item enters the Defense queue and cash is deducted.
 --   2. BANK  — production completes, a proxy reaches the world, and the bin gains an icon. This is
 --              §8 item 4's literal question.
---   3. FIRE  — the banked power delivers a missile from the map edge and kills its target.
+--   3. FIRE  — the banked power delivers a missile in off-map, on the player's own bearing,
+--              and kills its target.
 --   4. SPEND — OneShot removes the icon afterwards, so the purchase is consumed rather than becoming
 --              a permanent ability. Without this rung "buy" and "unlock" are indistinguishable.
 --
@@ -47,7 +48,20 @@ local MissileType = "kinzhalmissile"
 local TargetX, TargetY = 44, 17
 
 local BuyDeadline = 400      -- ticks to complete a 25-tick build. Enormously loose on purpose.
-local FireDeadline = 200     -- ticks from the order to the kill. Expected ~26 at Speed 2000.
+-- ticks from the order to the kill. Expected ~46 at Speed 2000: MissileDelay is 0 on the bought
+-- power, and since engine b69681d2 the missile crosses the whole 90.2-cell standoff (map diagonal
+-- 74.2 + ApproachMargin 16) rather than the 38-cell on-map gap, so this went from ~26 to ~46. The
+-- 200 budget already covered that and is left alone.
+local FireDeadline = 200
+
+-- THE APPROACH CONTRACT, replacing `toHome <= 15` -- which asserted the deleted
+-- ChooseClosestEdgeCell(home) rule and now FAILS ON CORRECT BEHAVIOUR. Russia home 6,17, target
+-- 44,17, axis 38c, entry cell -46,17, which is 52.2c behind home on the home->target ray. Home and
+-- target share row 17, so only the DISTANCE reading has teeth here; test-missile-strike-power
+-- carries the sharp bearing test. Reasoning for all three readings: TestHarness.ApproachFault.
+local MapCellsX, MapCellsY = 66, 34
+local MaxApproachLateral = 4
+local MaxApproachLag = 8
 local ObserveTicks = 800
 
 local tick = 0
@@ -178,6 +192,15 @@ local function finish()
 	local entryY = firstCell ~= nil and firstCell.Y or -1
 	local toHome = firstCell ~= nil and cellDist(entryX, entryY, home.X, home.Y) or -1
 	local toTarget = firstCell ~= nil and cellDist(entryX, entryY, TargetX, TargetY) or -1
+
+	-- toHome and toTarget stay as raw diagnostics in the summary; neither is asserted any more.
+	local approach = nil
+	local approachLine = "approach=no entry"
+	if firstCell ~= nil then
+		approach = TestHarness.MeasureApproach(entryX, entryY, home.X, home.Y,
+			TargetX, TargetY, MapCellsX, MapCellsY)
+		approachLine = TestHarness.ApproachSummary(approach)
+	end
 	local spent = (cashBefore >= 0 and cashAfterQueue >= 0) and (cashBefore - cashAfterQueue) or -1
 
 	local summary = "BUY " .. buildStatus .. " cash " .. cashBefore .. "->" .. n(cashAfterQueue)
@@ -185,7 +208,8 @@ local function finish()
 		.. " | BANK proxies=" .. proxySeen .. " key=" .. n(boughtKey) .. "@t" .. n(boughtKeyTick)
 		.. " | FIRE order=" .. orderStatus .. "@t" .. n(orderTick)
 		.. " entry=" .. entryX .. "," .. entryY .. " entry->home=" .. toHome
-		.. "c entry->target=" .. toTarget .. "c impact@t" .. n(impactTick)
+		.. "c entry->target=" .. toTarget .. "c | " .. approachLine
+		.. " | impact@t" .. n(impactTick)
 		.. " | SPEND still-banked=" .. n(stillBanked)
 		.. " | victim " .. victimStartHealth .. "hp -> "
 		.. (Victim.IsDead and "DEAD" or (Victim.Health .. "hp"))
@@ -252,11 +276,13 @@ local function finish()
 		return
 	end
 
-	if toTarget < 25 or toHome > 15 then
-		Test.Fail("the bought power delivered its missile from the wrong place: entry " .. toHome
-			.. " cells from home (allowance 15) and " .. toTarget .. " from the target (needs >= 25)."
-			.. " A power carried on a proxy must behave exactly like one carried on the Player actor."
-			.. " || " .. summary)
+	local approachFault = TestHarness.ApproachFault(approach, MaxApproachLateral, MaxApproachLag)
+	if approachFault ~= nil then
+		Test.Fail("the bought power delivered its missile from the wrong place. " .. approachFault
+			.. ". A power carried on a proxy must fly exactly the approach one carried on the Player"
+			.. " actor flies -- MissileStrikePower.ApproachFor reads self.Owner.HomeLocation, and a"
+			.. " proxy is owned by the same player, so any difference here is the proxy path"
+			.. " diverging. || " .. summary)
 		return
 	end
 
@@ -275,7 +301,8 @@ local function finish()
 	end
 
 	Test.Pass("buy -> bank -> fire -> spend: a bodiless proxy produced, its power reached the bin,"
-		.. " delivered from the map edge, and was consumed. §8 item 4 answers YES. || " .. summary)
+		.. " delivered in off-map on the player's own bearing, and was consumed. §8 item 4 answers"
+		.. " YES. || " .. summary)
 end
 
 local function step()

@@ -45,14 +45,21 @@ Categories: Test
 # Against 60,000 HP that is the difference between a kill and well under half. Pinned as a unit test
 # against the shipped RectangleShape in SupportPowerAimPointTest.
 #
-# GEOMETRY, same derivation as test-missile-strike-power:
-#   Russia HomeLocation 6,17 · Bounds Rectangle(left=1, top=1, w=64, h=32)
-#   Map.ChooseClosestEdgeCell (Map.cs:1821-1835):
-#     horizontalBound = (6-1=5) < 64/2=32 -> Bounds.Left = 1
-#     verticalBound   = (17-1=16) < 32/2=16 is FALSE -> Bounds.Bottom = 33
-#     du = |1-6| = 5, dv = |33-17| = 16, du < dv -> edge = (1, 17)
-#   Both aim points resolve to a building centre 31328 wdist from that entry cell. At KinzhalMissile
-#   Speed 2000 with Acceleration 0 that is a ~16-tick flight -- but the flight is the SMALL half of
+# GEOMETRY. REWRITTEN 2026-09-07: engine b69681d2 replaced the spawn rule, and the
+# ChooseClosestEdgeCell derivation that stood here is DEAD. Recorded in one line so nobody rebuilds
+# it: Map.ChooseClosestEdgeCell(home 6,17) resolved to the west edge cell 1,17.
+#
+#   THE SHIPPED RULE (MissileStrikeApproach.cs):
+#     entry    = aimPoint - unit(home -> salvoCentroid) * standoff
+#     standoff = mapDiagonal + ApproachMargin = sqrt(66^2 + 34^2) + 16 = 90.2 cells
+#   The bearing runs from the launching player's OWN position toward what they aimed at, so the
+#   player chooses WHERE the warhead lands and never WHICH WAY it arrives -- the property the old
+#   map-edge rule protected, kept by other means. The spawn is deliberately well off-map.
+#
+#   CORRECTED 2026-09-07 ALONG WITH THE RULE: both aim points resolve to a building centre, and the
+#   missile is now born 92408 wdist (90.2 cells) back up the home->aimpoint ray rather than 31328
+#   from an on-map edge cell. At KinzhalMissile Speed 2000 with Acceleration 0 that is a ~46-tick
+#   flight, not ~16 -- but the flight is still the SMALL half of
 #   the wait. `MissileDelay: 150` (player.yaml:137, landed 2026-09-05) holds the missile OUT OF THE
 #   WORLD for 150 ticks first, so the whole sequence per shot is:
 #       order -> +150 spawn -> +16 impact -> +22 last shockwave band = 188 ticks, twice, in series.

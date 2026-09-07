@@ -58,14 +58,25 @@ Categories: Test
 # one run. 12 cells is far outside MOPPenetration's widest warhead (Warhead@Surface, Spread 1c0
 # with a falloff that is zero past 4 cells), so neither strike can contaminate the other's reading.
 #
-# GEOMETRY. Same derivation as test-missile-strike-power, with America in the west slot:
-#   America HomeLocation 6,17 · Bounds Rectangle(left=1, top=1, w=64, h=32)
-#   Map.ChooseClosestEdgeCell (Map.cs:1821-1835):
-#     horizontalBound = (6-1=5) < 64/2=32   -> Bounds.Left = 1
-#     verticalBound   = (17-1=16) < 32/2=16 is FALSE -> Bounds.Bottom = 33
-#     du = |1-6| = 5, dv = |33-17| = 16, du < dv -> edge = (1, 17)
-#   Both aim points (36,17 and 48,17) are >= 35 cells east of that entry cell, so the entry check
-#   below still discriminates a spawned-on-target bug from a real off-map flight.
+# GEOMETRY. REWRITTEN 2026-09-07: engine b69681d2 replaced the spawn rule, and the
+# ChooseClosestEdgeCell derivation that stood here is DEAD. Recorded in one line so nobody rebuilds
+# it: Map.ChooseClosestEdgeCell(America home 6,17) resolved to the west edge cell 1,17.
+#
+#   THE SHIPPED RULE (MissileStrikeApproach.cs):
+#     entry    = aimPoint - unit(home -> salvoCentroid) * standoff
+#     standoff = mapDiagonal + ApproachMargin = sqrt(66^2 + 34^2) + 16 = 90.2 cells
+#   The bearing runs from the launching player's OWN position toward what they aimed at, so the
+#   player chooses WHERE the warhead lands and never WHICH WAY it arrives -- the property the old
+#   map-edge rule protected, kept by other means. The spawn is deliberately well off-map.
+#
+#   America HomeLocation 6,17. Aim point 36,17: axis 30c, entry cell -54,17, 60.2c behind home.
+#   Aim point 48,17: axis 42c, entry cell -42,17, 48.2c behind home. Both are far off-map, so a
+#   spawned-on-target bug still reads as an approach arriving from the WRONG SIDE.
+#   Flight: both now cross the whole 90.2-cell standoff -> ~185 ticks each at Speed 500, against
+#   72 and 96 before -- and they now take the SAME time as each other, which is the point of the
+#   change: flight time no longer leaks how close to your own base the enemy aimed.
+#
+#   HOME AND BOTH AIM POINTS ARE ON ROW 17, so only the DISTANCE reading has teeth here.
 #
 #   Flight: 35 cells = 35840 wdist at Speed 500 -> 72 ticks (4.3 s at Timestep 60), against the
 #   Kinzhal's 24 for a comparable shot. The MOP is DELIBERATELY the slow one; the Lua budget is
