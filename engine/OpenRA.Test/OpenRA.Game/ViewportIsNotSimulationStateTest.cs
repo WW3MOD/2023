@@ -163,5 +163,70 @@ namespace OpenRA.Test
 				"function of position and spawn tick:" +
 				Environment.NewLine + string.Join(Environment.NewLine, offenders));
 		}
+
+		[Test]
+		public void NoSynchronisedTypeReadsTheScreenShaker()
+		{
+			// The third side of the same claim, and the one that was unguarded until 2026-09-07.
+			// ScreenShakerTouchesNothingButTheViewport stops the shaker reaching INTO the simulation;
+			// this stops the simulation reading OUT of it.
+			//
+			// It matters more than it did: the shaker now carries per-client state that a synced type
+			// could sample — the sub-pixel quantisation residual, which depends on the local player's
+			// zoom, and the live effects list, which depends on which effects this client has spawned.
+			// Both are client-local by construction, so a sync-hashed trait reading either would
+			// desync the moment two players were zoomed differently.
+			var shakerTypes = new[] { typeof(ScreenShaker), typeof(ScreenShakeModel), typeof(ShakeEffect) };
+			var members = shakerTypes
+				.SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic |
+					BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
+				.ToDictionary(m => m.MetadataToken, m => m);
+
+			Assert.That(members.Count, Is.GreaterThan(10),
+				"Found almost no ScreenShaker members — this test no longer scans what it claims to.");
+
+			// AddEffect is how the simulation is MEANT to talk to the shaker: it hands over a
+			// position and some parameters, returns nothing, and reads nothing back. A synced trait
+			// calling it observes no client-local state, so it is not a hazard. Everything else is.
+			var writeOnly = new[] { "AddEffect" };
+
+			var syncTypes = new[] { typeof(Viewport).Assembly, typeof(OpenRA.Mods.Common.Traits.ShakeOnDeath).Assembly }
+				.SelectMany(a => a.GetTypes())
+				.Where(t => typeof(ISync).IsAssignableFrom(t) && !t.IsInterface)
+				.ToArray();
+
+			Assert.That(syncTypes.Length, Is.GreaterThan(50),
+				$"Only {syncTypes.Length} ISync types found — the reflection above is wrong, not the code clean.");
+
+			var resolvedCalls = 0;
+			var offenders = new List<string>();
+
+			foreach (var type in syncTypes)
+			{
+				foreach (var method in type
+					.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance |
+						BindingFlags.Static | BindingFlags.DeclaredOnly)
+					.OfType<MethodBase>())
+				{
+					var scan = IlScan.Scan(method);
+					resolvedCalls += scan.ResolvedCalls;
+
+					foreach (var callee in scan.Callees)
+						if (members.ContainsKey(callee.MetadataToken) &&
+							shakerTypes.Contains(callee.DeclaringType) &&
+							!writeOnly.Contains(callee.Name))
+							offenders.Add($"{type.FullName}.{method.Name} -> {callee.DeclaringType.Name}.{callee.Name}");
+				}
+			}
+
+			Assert.That(resolvedCalls, Is.GreaterThan(500),
+				$"IL scan resolved only {resolvedCalls} call targets — the scanner is broken, not the code clean.");
+
+			Assert.That(offenders, Is.Empty,
+				"These synchronised types read screen-shake state. It is per-client presentation — the " +
+				"quantisation residual follows the local zoom and the effects list follows the local " +
+				"camera — so anything sync-hashed that depends on it desyncs the match:" +
+				Environment.NewLine + string.Join(Environment.NewLine, offenders));
+		}
 	}
 }

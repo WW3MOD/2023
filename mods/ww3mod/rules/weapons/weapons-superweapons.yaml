@@ -701,24 +701,29 @@ AtomicHighYield:
 		# its 102 cells (645 ticks / 102 cells), not the terminal 7, because the front leaves the
 		# fireball at Mach 4.
 		#
-		# WHAT THIS COMMENT USED TO CLAIM IS FALSE, AND THE CEILING BEHIND IT IS STILL HERE. It said
-		# the rattle lands ~597 ticks (36 s) out at the 102-cell edge. It does not: ScreenShakerInfo
-		# carries MaxPropagationDelay 300 (ScreenShaker.cs:145, applied at :274), which clamps
-		# arrival at 300 ticks = 18 s. At 6.3 ticks/cell that clamp bites at 47.6 cells, so every
-		# camera beyond that -- less than half this weapon's blast radius -- gets the shake at a flat
-		# 18 s while the wavefront is still 5 s out at 71c and 20 s out at the edge. The stage tracks
-		# the front over the inner half and lies about the rest.
+		# MaxPropagationDelay IS LOAD-BEARING HERE AND MUST NOT BE DROPPED. Without it the stage
+		# inherits ScreenShakerInfo.MaxPropagationDelay, which is 300 ticks; at 6.3 ticks/cell that
+		# clamp bit at 47.6 cells, so every camera past LESS THAN HALF this weapon's blast radius got
+		# the rattle at a flat 18 s while the wavefront was still 5 s out at 71c and 20 s out at the
+		# edge -- the stage tracked the front over the inner half and lied about the rest.
 		#
-		# NOT FIXED HERE, deliberately. The same constant also sets ExpiryTime (ScreenShaker.cs:456),
-		# so raising it far enough to cover Tsar Bomba's 1682-tick front would keep EVERY shake event
-		# in the mod alive that much longer. The fix is a per-event cap alongside the per-event
-		# PropagationTicksPerCell that ShakeParams already carries, and it wants its own branch.
+		# 645 is this weapon's own front travel time to its 102-cell MaxRadius (6.3 * 102 = 643), so
+		# the clamp now bites just past the blast radius rather than inside it. It is set PER EVENT
+		# rather than on ScreenShakerInfo because the same ceiling also fixes how long an effect is
+		# kept alive: raising the global one to cover this stage -- or a 50 Mt front, which runs 1682
+		# ticks -- would keep EVERY shake event in the mod alive for that extra span. Only this stage
+		# pays, and it pays 645 instead of 300 ticks of lifetime.
+		#
+		# ScreenShakeModelTest.EveryShakeStageCanReachTheEdgeOfItsOwnBlast reads this file and derives
+		# the requirement from MaxRadius, so a new stage with a slow front is covered without anyone
+		# remembering this note.
 		Duration: 120
 		Intensity: 7
 		AttackTicks: 3
 		DecayHalfLife: 32
 		FrequencyScale: 60
 		PropagationTicksPerCell: 6.3
+		MaxPropagationDelay: 645
 
 	# ===== THE FIREBALL =====
 	# NEW 2026-09-06. See the long note on `Atomic`'s Warhead@FireballLight for the model; what
