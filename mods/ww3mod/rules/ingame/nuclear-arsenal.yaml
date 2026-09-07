@@ -372,7 +372,6 @@ Player:
 	# small end: 6.7 cells of blast is a position, not a battlefield.
 	MissileStrikePower@Ru9M729:
 		RequiresCondition: !nuke-arsenal-disabled
-		Prerequisites: player.russia
 		OrderName: Ru9M729Strike
 		Icon: paranuke
 		Name: 9M729 (1 kt)
@@ -412,7 +411,6 @@ Player:
 	# the first thing in the mod that ever puts a 10 kt weapon on the map.
 	MissileStrikePower@RuIskander:
 		RequiresCondition: !nuke-arsenal-disabled
-		Prerequisites: player.russia
 		OrderName: RuIskanderStrike
 		Icon: v2bdgricon
 		Name: 9M723 Iskander-M (10 kt)
@@ -451,7 +449,6 @@ Player:
 	# blast to @B61Max, and the least warning of anything in the arsenal.
 	MissileStrikePower@RuKinzhalN:
 		RequiresCondition: !nuke-arsenal-disabled
-		Prerequisites: player.russia
 		OrderName: RuKinzhalNStrike
 		Icon: cmissicon
 		Name: Kh-47M2 Kinzhal-N (50 kt)
@@ -491,7 +488,6 @@ Player:
 	# missile crossing the sea. Same hole, far more warning.
 	MissileStrikePower@RuKalibr:
 		RequiresCondition: !nuke-arsenal-disabled
-		Prerequisites: player.russia
 		OrderName: RuKalibrStrike
 		Icon: atomicon
 		Name: 3M14 Kalibr (100 kt)
