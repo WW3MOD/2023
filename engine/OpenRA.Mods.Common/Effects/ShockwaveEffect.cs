@@ -44,9 +44,18 @@ namespace OpenRA.Mods.Common.Effects
 		// form exactly, tick for tick.
 		int radius;
 
-		// Speed above sonic, in permille of the sonic speed, decaying by SpeedDecayPercent each tick.
-		// Zero for every weapon that does not opt in, which is what makes the default path identical.
+		// Speed above sonic, in permille of the sonic speed. Zero for every weapon that does not opt
+		// in, which is what makes the default path identical.
+		//
+		// It decays one of two ways. With TransitionRadius set it is a pure function of the CURRENT
+		// RADIUS -- recomputed from scratch each tick rather than accumulated -- so the front is
+		// sonic at exactly that radius no matter what happened on the way there, and no rounding
+		// error can accumulate into the transition drifting. Otherwise it decays geometrically in
+		// time by SpeedDecayPercent, which is the older law and is kept only for the default path.
 		int excessPermille;
+
+		// Set once, so Tick does not re-read three Info fields to decide which law it is under.
+		readonly bool radiusAnchoredDecay;
 
 		public ShockwaveEffect(World world, ShockwaveDamageWarhead warhead, WPos center, Actor firedBy, WarheadArgs args)
 		{
@@ -59,6 +68,7 @@ namespace OpenRA.Mods.Common.Effects
 			this.expansionPerTick = 1024 / warhead.WaveSpeed;
 			this.radius = warhead.StartRadius.Length;
 			this.excessPermille = (warhead.InitialSpeedPercent - 100) * 10;
+			this.radiusAnchoredDecay = warhead.TransitionRadius.Length > 0;
 		}
 
 		public void Tick(World world)
@@ -71,7 +81,9 @@ namespace OpenRA.Mods.Common.Effects
 
 			ticks++;
 			radius += expansionPerTick * (1000 + excessPermille) / 1000;
-			excessPermille = excessPermille * warhead.SpeedDecayPercent / 100;
+			excessPermille = radiusAnchoredDecay
+				? warhead.ExcessPermilleAt(radius)
+				: excessPermille * warhead.SpeedDecayPercent / 100;
 			var currentRadius = new WDist(radius);
 
 			if (currentRadius > warhead.MaxRadius)

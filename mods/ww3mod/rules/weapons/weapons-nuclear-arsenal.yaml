@@ -20,6 +20,21 @@
 #   is a fourth-root compression (cells ~= 18 * km^0.23). Two scales on purpose: a weapon range is a
 #   balance abstraction and a blast radius is a spectacle. NOTHING HERE MAY BE USED TO SET A RANGE.
 #
+#   THE SHOCKWAVE HAS TWO PHASES AND THE TRANSITION IS AT TWICE THE FIREBALL RADIUS. A nuclear
+#   shock is attached to the fireball surface while that surface is still expanding supersonically;
+#   there is no travelling wave inside it, because everything in there is already gone. It detaches
+#   at breakaway and only then decays toward sound speed. So every blast wave below is born at its
+#   own fireball radius (StartRadius, the same number as its Warhead@Vaporize Spread), at the Mach
+#   number its own breakaway overpressure implies through Rankine-Hugoniot
+#       M = sqrt(1 + (6/7) * dP / 14.7)      dP from the blast law at StartRadius
+#   and its excess above Mach 1 falls linearly in RADIUS to zero at TransitionRadius = 2 *
+#   StartRadius. Past that it is sonic for the long remainder. Breakaway Mach FALLS with yield --
+#   6.97 for the 0.3 kt dial, 3.63 for Tsar Bomba -- because a bigger fireball breaks away at a
+#   lower overpressure. That looks backwards and is not.
+#   THE FAST PHASE IS SUB-TICK BELOW ABOUT 50 KT. At 0.3 kt it is 0.13 cells long and completes in
+#   one 60 ms step; the four B61 dial settings therefore look unchanged and are not wrong. Tsar
+#   Bomba's is 15.9 cells and 55 ticks, and is the one to watch.
+#
 #   FIREBALL radius scales as Y^0.40 and its DURATION as Y^0.44 -- both checked against real
 #   calculator output at 20, 175 and 800 kt and self-consistent to within a percent.
 #       fireball_m     = 111 * (kt/20)^0.40          fireball_s = 0.8 * (kt/20)^0.44
@@ -79,7 +94,8 @@
 #   thermal (3rd deg)     2.2 cells   = 2.0 * (0.3/20)^0.41 km
 #   fireball             0.13 cells   = 111 * (0.3/20)^0.40 m, and it burns 4 ticks (0.2 s)
 #   burst height          1.0 cells   = 230 * 0.3^(1/3) m
-#   blast wave runs to tick 31 (2 s) at 7 ticks/cell
+#   blast wave           supersonic 0.13 -> 0.26 cells in 1 tick, then sonic at 7 ticks/cell;
+#                        reaches its full 4.5c at tick 28 (2 s)
 NukeB61Mod12Y003:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
 	Warhead@Flash1: FlashPaletteEffect
@@ -235,6 +251,9 @@ NukeB61Mod12Y003:
 	Warhead@BlastWave: ShockwaveDamage
 		StartDelay: 3
 		WaveSpeed: 7
+		StartRadius: 0c132
+		InitialSpeedPercent: 697
+		TransitionRadius: 0c264
 		MaxRadius: 4c512
 		Damage: 400000
 		Penetration: 20000
@@ -242,7 +261,7 @@ NukeB61Mod12Y003:
 		Falloff: 600, 562, 524, 487, 449, 411, 373, 336, 301, 268, 237, 210, 187, 164, 146, 127, 110, 95, 82, 71, 61, 52, 46, 40, 35, 30, 26, 22, 20, 17, 14, 12, 11, 9, 8, 7, 6
 		ShockwaveThickness: 1c512
 		ShockwaveSegments: 64
-		ShockwaveFadeInTicks: 15
+		ShockwaveFadeInTicks: 4
 		Versus:
 			Light: 80
 			Medium: 60
@@ -267,7 +286,7 @@ NukeB61Mod12Y003:
 		Amount: 8
 		Duration: 310
 		Condition: suppression-1
-		Delay: 11
+		Delay: 12
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -276,7 +295,7 @@ NukeB61Mod12Y003:
 		Amount: 5
 		Duration: 225
 		Condition: suppression-1
-		Delay: 21
+		Delay: 23
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -285,7 +304,7 @@ NukeB61Mod12Y003:
 		Amount: 3
 		Duration: 180
 		Condition: suppression-1
-		Delay: 27
+		Delay: 26
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -294,7 +313,7 @@ NukeB61Mod12Y003:
 		Amount: 1
 		Duration: 150
 		Condition: suppression-1
-		Delay: 31
+		Delay: 30
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -324,7 +343,8 @@ NukeB61Mod12Y003:
 #   thermal (3rd deg)     4.3 cells   = 2.0 * (1.5/20)^0.41 km
 #   fireball             0.25 cells   = 111 * (1.5/20)^0.40 m, and it burns 4 ticks (0.2 s)
 #   burst height          1.6 cells   = 230 * 1.5^(1/3) m
-#   blast wave runs to tick 53 (3 s) at 7 ticks/cell
+#   blast wave           supersonic 0.25 -> 0.49 cells in 1 tick, then sonic at 7 ticks/cell;
+#                        reaches its full 7.8c at tick 51 (3 s)
 NukeB61Mod12Y015:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
 	Warhead@Flash1: FlashPaletteEffect
@@ -484,6 +504,9 @@ NukeB61Mod12Y015:
 	Warhead@BlastWave: ShockwaveDamage
 		StartDelay: 3
 		WaveSpeed: 7
+		StartRadius: 0c252
+		InitialSpeedPercent: 636
+		TransitionRadius: 0c504
 		MaxRadius: 7c768
 		Damage: 400000
 		Penetration: 20000
@@ -491,7 +514,7 @@ NukeB61Mod12Y015:
 		Falloff: 600, 556, 512, 468, 425, 381, 337, 296, 258, 224, 196, 169, 147, 125, 106, 90, 75, 64, 53, 45, 38, 33, 27, 23, 20, 17, 14, 12, 10, 8, 7, 6
 		ShockwaveThickness: 1c512
 		ShockwaveSegments: 64
-		ShockwaveFadeInTicks: 15
+		ShockwaveFadeInTicks: 4
 		Versus:
 			Light: 80
 			Medium: 60
@@ -507,7 +530,7 @@ NukeB61Mod12Y015:
 		Amount: 10
 		Duration: 355
 		Condition: suppression-1
-		Delay: 9
+		Delay: 11
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -516,7 +539,7 @@ NukeB61Mod12Y015:
 		Amount: 8
 		Duration: 310
 		Condition: suppression-1
-		Delay: 19
+		Delay: 23
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -525,7 +548,7 @@ NukeB61Mod12Y015:
 		Amount: 5
 		Duration: 225
 		Condition: suppression-1
-		Delay: 37
+		Delay: 41
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -573,7 +596,8 @@ NukeB61Mod12Y015:
 #   thermal (3rd deg)     9.4 cells   = 2.0 * (10/20)^0.41 km
 #   fireball             0.53 cells   = 111 * (10/20)^0.40 m, and it burns 10 ticks (0.6 s)
 #   burst height          3.1 cells   = 230 * 10^(1/3) m
-#   blast wave runs to tick 100 (6 s) at 7 ticks/cell
+#   blast wave           supersonic 0.53 -> 1.05 cells in 1 tick, then sonic at 7 ticks/cell;
+#                        reaches its full 14.4c at tick 96 (6 s)
 NukeB61Mod12Y10:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
 	Warhead@Flash1: FlashPaletteEffect
@@ -733,6 +757,9 @@ NukeB61Mod12Y10:
 	Warhead@BlastWave: ShockwaveDamage
 		StartDelay: 3
 		WaveSpeed: 7
+		StartRadius: 0c538
+		InitialSpeedPercent: 573
+		TransitionRadius: 1c52
 		MaxRadius: 14c384
 		Damage: 400000
 		Penetration: 20000
@@ -740,7 +767,7 @@ NukeB61Mod12Y10:
 		Falloff: 600, 541, 482, 423, 363, 306, 255, 211, 174, 144, 116, 92, 73, 58, 46, 37, 30, 24, 19, 15, 12, 9, 7, 6
 		ShockwaveThickness: 1c512
 		ShockwaveSegments: 64
-		ShockwaveFadeInTicks: 15
+		ShockwaveFadeInTicks: 4
 		Versus:
 			Light: 80
 			Medium: 60
@@ -756,7 +783,7 @@ NukeB61Mod12Y10:
 		Amount: 10
 		Duration: 355
 		Condition: suppression-1
-		Delay: 18
+		Delay: 22
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -765,7 +792,7 @@ NukeB61Mod12Y10:
 		Amount: 8
 		Duration: 310
 		Condition: suppression-1
-		Delay: 36
+		Delay: 46
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -774,7 +801,7 @@ NukeB61Mod12Y10:
 		Amount: 5
 		Duration: 225
 		Condition: suppression-1
-		Delay: 70
+		Delay: 79
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -783,7 +810,7 @@ NukeB61Mod12Y10:
 		Amount: 3
 		Duration: 180
 		Condition: suppression-1
-		Delay: 88
+		Delay: 89
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -792,7 +819,7 @@ NukeB61Mod12Y10:
 		Amount: 1
 		Duration: 150
 		Condition: suppression-1
-		Delay: 100
+		Delay: 103
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -822,7 +849,8 @@ NukeB61Mod12Y10:
 #   thermal (3rd deg)    18.2 cells   = 2.0 * (50/20)^0.41 km
 #   fireball             1.00 cells   = 111 * (50/20)^0.40 m, and it burns 20 ticks (1.2 s)
 #   burst height          5.3 cells   = 230 * 50^(1/3) m
-#   blast wave runs to tick 172 (10 s) at 7 ticks/cell
+#   blast wave           supersonic 1.00 -> 2.00 cells in 2 ticks, then sonic at 7 ticks/cell;
+#                        reaches its full 24.5c at tick 166 (10 s)
 NukeB61Mod12Y50:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
 	Warhead@Flash1: FlashPaletteEffect
@@ -982,6 +1010,9 @@ NukeB61Mod12Y50:
 	Warhead@BlastWave: ShockwaveDamage
 		StartDelay: 6
 		WaveSpeed: 7
+		StartRadius: 1c1
+		InitialSpeedPercent: 525
+		TransitionRadius: 2c2
 		MaxRadius: 24c512
 		Damage: 400000
 		Penetration: 20000
@@ -989,7 +1020,7 @@ NukeB61Mod12Y50:
 		Falloff: 600, 551, 503, 454, 406, 357, 310, 268, 229, 197, 167, 143, 120, 99, 82, 68, 56, 46, 39, 33, 27, 22, 19, 15, 13, 10, 8, 7, 6
 		ShockwaveThickness: 1c512
 		ShockwaveSegments: 64
-		ShockwaveFadeInTicks: 15
+		ShockwaveFadeInTicks: 4
 		Versus:
 			Light: 80
 			Medium: 60
@@ -1005,7 +1036,7 @@ NukeB61Mod12Y50:
 		Amount: 10
 		Duration: 355
 		Condition: suppression-1
-		Delay: 30
+		Delay: 41
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1014,7 +1045,7 @@ NukeB61Mod12Y50:
 		Amount: 8
 		Duration: 310
 		Condition: suppression-1
-		Delay: 61
+		Delay: 80
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1023,7 +1054,7 @@ NukeB61Mod12Y50:
 		Amount: 5
 		Duration: 225
 		Condition: suppression-1
-		Delay: 120
+		Delay: 137
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1032,7 +1063,7 @@ NukeB61Mod12Y50:
 		Amount: 3
 		Duration: 180
 		Condition: suppression-1
-		Delay: 151
+		Delay: 155
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1041,7 +1072,7 @@ NukeB61Mod12Y50:
 		Amount: 1
 		Duration: 150
 		Condition: suppression-1
-		Delay: 172
+		Delay: 178
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1071,7 +1102,8 @@ NukeB61Mod12Y50:
 #   thermal (3rd deg)    24.2 cells   = 2.0 * (100/20)^0.41 km
 #   fireball             1.32 cells   = 111 * (100/20)^0.40 m, and it burns 27 ticks (1.6 s)
 #   burst height          6.7 cells   = 230 * 100^(1/3) m
-#   blast wave runs to tick 217 (13 s) at 7 ticks/cell
+#   blast wave           supersonic 1.32 -> 2.64 cells in 3 ticks, then sonic at 7 ticks/cell;
+#                        reaches its full 31.0c at tick 210 (13 s)
 NukeW76:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
 	Warhead@Flash1: FlashPaletteEffect
@@ -1235,6 +1267,9 @@ NukeW76:
 	Warhead@BlastWave: ShockwaveDamage
 		StartDelay: 8
 		WaveSpeed: 7
+		StartRadius: 1c328
+		InitialSpeedPercent: 505
+		TransitionRadius: 2c656
 		MaxRadius: 31c0
 		Damage: 400000
 		Penetration: 20000
@@ -1242,7 +1277,7 @@ NukeW76:
 		Falloff: 600, 556, 512, 468, 425, 381, 337, 296, 258, 224, 196, 169, 147, 125, 106, 90, 75, 64, 53, 45, 38, 33, 27, 23, 20, 17, 14, 12, 10, 8, 7, 6
 		ShockwaveThickness: 1c723
 		ShockwaveSegments: 64
-		ShockwaveFadeInTicks: 19
+		ShockwaveFadeInTicks: 4
 		Versus:
 			Light: 80
 			Medium: 60
@@ -1258,7 +1293,7 @@ NukeW76:
 		Amount: 10
 		Duration: 355
 		Condition: suppression-1
-		Delay: 39
+		Delay: 51
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1267,7 +1302,7 @@ NukeW76:
 		Amount: 8
 		Duration: 310
 		Condition: suppression-1
-		Delay: 78
+		Delay: 102
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1276,7 +1311,7 @@ NukeW76:
 		Amount: 5
 		Duration: 225
 		Condition: suppression-1
-		Delay: 151
+		Delay: 173
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1285,7 +1320,7 @@ NukeW76:
 		Amount: 3
 		Duration: 180
 		Condition: suppression-1
-		Delay: 190
+		Delay: 195
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1294,7 +1329,7 @@ NukeW76:
 		Amount: 1
 		Duration: 150
 		Condition: suppression-1
-		Delay: 217
+		Delay: 225
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1324,7 +1359,8 @@ NukeW76:
 #   thermal (3rd deg)    55.2 cells   = 2.0 * (750/20)^0.41 km
 #   fireball             2.96 cells   = 111 * (750/20)^0.40 m, and it burns 66 ticks (4.0 s)
 #   burst height         13.1 cells   = 230 * 750^(1/3) m
-#   blast wave runs to tick 424 (25 s) at 7 ticks/cell
+#   blast wave           supersonic 2.96 -> 5.91 cells in 9 ticks, then sonic at 7 ticks/cell;
+#                        reaches its full 60.8c at tick 412 (25 s)
 NukeSarmatRV:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
 	# Fired ONLY by NukeSarmatMIRV's FireCluster warheads, which require the fired weapon to
@@ -1501,6 +1537,9 @@ NukeSarmatRV:
 	Warhead@BlastWave: ShockwaveDamage
 		StartDelay: 19
 		WaveSpeed: 7
+		StartRadius: 2c980
+		InitialSpeedPercent: 453
+		TransitionRadius: 5c936
 		MaxRadius: 60c768
 		Damage: 400000
 		Penetration: 20000
@@ -1508,7 +1547,7 @@ NukeSarmatRV:
 		Falloff: 600, 550, 499, 449, 399, 348, 301, 256, 218, 187, 158, 133, 110, 91, 74, 61, 50, 42, 35, 28, 23, 20, 16, 13, 11, 9, 7, 6
 		ShockwaveThickness: 3c347
 		ShockwaveSegments: 128
-		ShockwaveFadeInTicks: 38
+		ShockwaveFadeInTicks: 9
 		Versus:
 			Light: 80
 			Medium: 60
@@ -1524,7 +1563,7 @@ NukeSarmatRV:
 		Amount: 10
 		Duration: 355
 		Condition: suppression-1
-		Delay: 76
+		Delay: 101
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1533,7 +1572,7 @@ NukeSarmatRV:
 		Amount: 8
 		Duration: 310
 		Condition: suppression-1
-		Delay: 152
+		Delay: 199
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1542,7 +1581,7 @@ NukeSarmatRV:
 		Amount: 5
 		Duration: 225
 		Condition: suppression-1
-		Delay: 296
+		Delay: 340
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1551,7 +1590,7 @@ NukeSarmatRV:
 		Amount: 3
 		Duration: 180
 		Condition: suppression-1
-		Delay: 373
+		Delay: 382
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1560,7 +1599,7 @@ NukeSarmatRV:
 		Amount: 1
 		Duration: 150
 		Condition: suppression-1
-		Delay: 424
+		Delay: 441
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
@@ -1590,7 +1629,8 @@ NukeSarmatRV:
 #   thermal (3rd deg)    67.0 cells   = 2.0 * (1200/20)^0.41 km
 #   fireball             3.57 cells   = 111 * (1200/20)^0.40 m, and it burns 81 ticks (4.9 s)
 #   burst height         15.3 cells   = 230 * 1200^(1/3) m
-#   blast wave runs to tick 496 (30 s) at 7 ticks/cell
+#   blast wave           supersonic 3.57 -> 7.14 cells in 11 ticks, then sonic at 7 ticks/cell;
+#                        reaches its full 70.9c at tick 482 (29 s)
 NukeB83:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
 	Warhead@Flash1: FlashPaletteEffect
@@ -1766,6 +1806,9 @@ NukeB83:
 	Warhead@BlastWave: ShockwaveDamage
 		StartDelay: 24
 		WaveSpeed: 7
+		StartRadius: 3c582
+		InitialSpeedPercent: 442
+		TransitionRadius: 7c140
 		MaxRadius: 70c896
 		Damage: 400000
 		Penetration: 20000
@@ -1773,7 +1816,7 @@ NukeB83:
 		Falloff: 600, 550, 499, 449, 399, 348, 301, 256, 218, 187, 158, 133, 110, 91, 74, 61, 50, 42, 35, 28, 23, 20, 16, 13, 11, 9, 7, 6
 		ShockwaveThickness: 3c927
 		ShockwaveSegments: 128
-		ShockwaveFadeInTicks: 44
+		ShockwaveFadeInTicks: 11
 		Versus:
 			Light: 80
 			Medium: 60
@@ -1789,7 +1832,7 @@ NukeB83:
 		Amount: 10
 		Duration: 355
 		Condition: suppression-1
-		Delay: 89
+		Delay: 119
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 25c0
@@ -1798,7 +1841,7 @@ NukeB83:
 		Amount: 8
 		Duration: 310
 		Condition: suppression-1
-		Delay: 178
+		Delay: 234
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 25c0
@@ -1807,7 +1850,7 @@ NukeB83:
 		Amount: 5
 		Duration: 225
 		Condition: suppression-1
-		Delay: 347
+		Delay: 398
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 25c0
@@ -1816,7 +1859,7 @@ NukeB83:
 		Amount: 3
 		Duration: 180
 		Condition: suppression-1
-		Delay: 436
+		Delay: 448
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 25c0
@@ -1825,7 +1868,7 @@ NukeB83:
 		Amount: 1
 		Duration: 150
 		Condition: suppression-1
-		Delay: 496
+		Delay: 517
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 25c0
@@ -1855,7 +1898,8 @@ NukeB83:
 #   thermal (3rd deg)   309.1 cells   = 2.0 * (50000/20)^0.41 km
 #   fireball            15.86 cells   = 111 * (50000/20)^0.40 m, and it burns 417 ticks (25.0 s)
 #   burst height         25.0 cells   = 230 * 50000^(1/3) m
-#   blast wave runs to tick 1722 (103 s) at 7 ticks/cell
+#   blast wave           supersonic 15.86 -> 31.72 cells in 55 ticks, then sonic at 7 ticks/cell;
+#                        reaches its full 246.0c at tick 1682 (101 s)
 #   THERMAL OUTRUNS BLAST HERE (309 > 246 cells): above ~2.4 Mt this weapon sets fire to more
 #   of the map than it flattens, which is the character change the arsenal is built to show.
 NukeTsarBomba:
@@ -2077,6 +2121,9 @@ NukeTsarBomba:
 	Warhead@BlastWave: ShockwaveDamage
 		StartDelay: 125
 		WaveSpeed: 7
+		StartRadius: 15c883
+		InitialSpeedPercent: 363
+		TransitionRadius: 31c742
 		MaxRadius: 246c0
 		Damage: 400000
 		Penetration: 20000
@@ -2084,7 +2131,7 @@ NukeTsarBomba:
 		Falloff: 600, 543, 487, 430, 373, 317, 268, 222, 187, 155, 127, 103, 82, 66, 52, 42, 35, 28, 22, 18, 14, 12, 9, 7, 6
 		ShockwaveThickness: 13c551
 		ShockwaveSegments: 128
-		ShockwaveFadeInTicks: 154
+		ShockwaveFadeInTicks: 55
 		Versus:
 			Light: 80
 			Medium: 60
@@ -2100,7 +2147,7 @@ NukeTsarBomba:
 		Amount: 10
 		Duration: 355
 		Condition: suppression-1
-		Delay: 309
+		Delay: 423
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 40c0
@@ -2109,7 +2156,7 @@ NukeTsarBomba:
 		Amount: 8
 		Duration: 310
 		Condition: suppression-1
-		Delay: 619
+		Delay: 820
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 40c0
@@ -2118,7 +2165,7 @@ NukeTsarBomba:
 		Amount: 5
 		Duration: 225
 		Condition: suppression-1
-		Delay: 1205
+		Delay: 1390
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 40c0
@@ -2127,7 +2174,7 @@ NukeTsarBomba:
 		Amount: 3
 		Duration: 180
 		Condition: suppression-1
-		Delay: 1515
+		Delay: 1563
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 40c0
@@ -2136,7 +2183,7 @@ NukeTsarBomba:
 		Amount: 1
 		Duration: 150
 		Condition: suppression-1
-		Delay: 1722
+		Delay: 1803
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 40c0
