@@ -83,9 +83,11 @@ Actors:
 		Owner: Neutral
 		Location: 52,25
 
-	# ---- OIL DERRICKS. The outliers, and the opening wave's targets. Deliberately spread further
-	# apart than MinSeparation (12 cells) so none of them is culled and all four fire -- the west pair
-	# is 12 cells apart exactly, which is the boundary case worth watching.
+	# ---- OIL DERRICKS. The outliers, and the opening wave's targets, and after the 2026-09-07 retune
+	# they are very nearly the whole of it: clusters too small to be a city no longer draw a warhead of
+	# their own, so the salvo here is four derricks plus one warhead per city. Deliberately spread
+	# further apart than MinSeparation (10 cells, down from 12) so none of them is culled and all four
+	# fire; the west pair at 12 cells apart used to be the exact boundary case and now clears it.
 	Derrick1: oilb
 		Owner: Neutral
 		Location: 5,27

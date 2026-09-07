@@ -3,6 +3,29 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-07 - Crop fields and trees carry a `Building` trait, so `HasTraitInfo<BuildingInfo>()` selects 98% of a populated map; and the per-detonation cost of a nuke is driven by GrantExternalCondition RANGE, not by yield (`wt/deadhand-retune`, base `main @ c92aa5a8`)
+
+**`HasTraitInfo<BuildingInfo>()` IS NOT "IS THIS A BUILDING".** `^CivField` (`rules/ingame/civilian.yaml:150`) and `^Tree` (`rules/ingame/decoration.yaml:139`) both declare `Building: Footprint: x, Dimensions: 1,1` — fields need it for placement, trees for their footprint. On river-zeta that test matches **4459 of 4544 actors**: 1713 `v17`, 864 `v16` and 610 `rice` crop tiles plus ~1100 trees, against **53** actual structures. `DoomsdayStrike.BuildSalvo` asserted the opposite in a code comment — *"crop tiles inheriting ^CivField ... have no Building trait at all"* — and clustered on it, so the Dead Hand mode's idea of a "city" was the centroid of half a map of rice paddy. The comment was written confidently and was never checked against the yaml.
+
+**The test that means what you want is TARGET TYPES.** `^CivField` deliberately declares no `Targetable` at all (there is a PITFALL comment in `civilian.yaml` explaining that giving a field target types makes it soak shots), and `^Tree` declares `Trees`. `^BasicBuilding` and `^CivBuilding` both declare `Structure`. So `TraitInfos<ITargetableInfo>().Any(t => t.GetTargetTypes().Contains("Structure"))` separates structures from scenery exactly, and it is the *targeteer's* definition rather than the placement system's.
+
+**WITH ONE TRAP: `^TechBuilding` DROPS `Structure`.** It carries `TechStructure` instead (`structures.yaml`), so oil derricks — the highest-value point targets on the map — fail a `Structure` test. Any enumeration using this needs an explicit bypass for them.
+
+**SEPARATELY, AND THE MORE REUSABLE HALF: a nuclear weapon's runtime cost is dominated by its `GrantExternalCondition` RADII, not by its damage or its yield.** `GrantExternalConditionWarhead.DoImpact` runs `FindActorsInCircle` and then a `TraitsImplementing<ExternalCondition>()` LINQ probe **per actor**, and the mod's nukes carry **19 such warheads each**. Measured on river-zeta as actor-touches per detonation (every grant circle, plus the `ShockwaveDamage` per-tick sweep integrated over its whole life):
+
+| Weapon | Yield | Grant attempts | Shockwave ticks | Max radius | **Total touches** |
+|---|---|---|---|---|---|
+| `NukeB61Mod12Y10` | 10 kt | 1,001 | 101 | 14c | **10,897** |
+| `Atomic` | 20 kt | 1,552 | 89 | 15c | **12,586** |
+| `NukeW76` | 100 kt | 6,653 | 218 | 31c | **103,672** |
+| `NukeSarmatRV` | 750 kt | 35,384 | 427 | 61c | **849,986** |
+| `AtomicHighYield` | 6 Mt | 74,401 | 594 | 102c | **2,173,907** |
+| `NukeTsarBomba` | 50 Mt | 69,399 | 1726 | 246c | **6,786,649** |
+
+**173x between the mod's two shipped nukes, for 300x the yield.** The superlinearity is geometric and unavoidable: `AtomicHighYield`'s outermost fire and suppression rings reach 124c and 115c, larger than river-zeta's 125-cell diagonal, so **ten of its nineteen grant warheads enumerate every actor on the map** — and `ShockwaveEffect.Tick` calls `FindActorsOnCircle` (which is `FindActorsInCircle` over the whole disc, not an annulus — `WorldExtensions.cs:274`) once per tick for 594 ticks. **Nineteen concurrent 6 Mt shockwaves is ~86,000 actor visits per tick sustained for half a minute**, which is what "it almost crashed the game" was.
+
+**The generalisable rule: on a densely-populated map, cost scales with (number of grant warheads) x (actors inside each radius) x (concurrent detonations), and only the last of those three is obvious.** Before adding a large-radius weapon to anything that fires in bulk, multiply it out — the arithmetic is a 20-line script over the map's `Actors:` block and the weapon's `Range:` fields, needs no build and no launch, and would have caught this before it shipped. `LightEventManager` is the one part of the stack that is already bounded (`MaximumConcurrentEvents = 32`); nothing bounds shockwaves or condition grants.
+
 ## 2026-09-06 - A bodiless proxy needs TWO unrelated declarations, and the curated section names only one - `AlwaysVisible` is the missing half (`wt/powers-buy2`, base `main @ d7ea8e69`)
 
 **`conventions.md` §"`Tooltip` + `Buildable` + `Interactable` are a locked chain on any bodiless actor" is correct and complete about the chain it describes, and a proxy that satisfies it in full still fails the gate.** `wt/powers-buy` shipped four buy proxies and drew **2,555 lint errors** across 326 maps from **two** faults per actor, not one:

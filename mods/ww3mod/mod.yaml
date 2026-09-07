@@ -254,8 +254,15 @@ Weapons:
 	ww3mod|rules/weapons/weapons-nuclear-arsenal.yaml
 	# LAST, and that is load-bearing. This file ADDS a Warhead@TechStructure node to weapons
 	# defined above it (Atomic, AtomicHighYield, MOPPenetration, IskanderExplosion) rather than
-	# redefining any existing field, so it must merge on top of them -- INCLUDING the six weapons
-	# in weapons-nuclear-arsenal.yaml immediately above, which is why that line precedes this one.
+	# redefining any existing field, so it must merge on top of them. The arsenal file is placed
+	# above it so that it COULD merge onto those weapons too.
+	#
+	# IT DOES NOT CURRENTLY DO SO, AND READING THIS LINE AS THOUGH IT DID COSTS REAL WORK. Not one
+	# weapon in weapons-nuclear-arsenal.yaml carries a Warhead@TechStructure block, so not one of
+	# them can damage an oil derrick or any other ^TechBuilding -- ordering is permission to merge,
+	# not evidence that a merge exists. Checked 2026-09-07, after a Dead Hand retune nearly shipped
+	# an outlier wave that would have detonated on each derrick and left it standing. If you want an
+	# arsenal warhead to end economy structures, add the block; see that file's own header.
 	ww3mod|rules/weapons/weapons-heavy-ordnance.yaml
 
 Voices:

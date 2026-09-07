@@ -46,7 +46,7 @@
 # would arrive early and drift out of its wave.
 # ============================================================================================
 
-# WAVE 1 — the small warheads, on outliers. Derricks, isolated structures, Supply Routes.
+# WAVE 1 — the TACTICAL warheads, on the point targets: oil derricks and Supply Routes.
 DeadHandTacticalMissile:
 	Inherits: ^ShootableMissile
 	Valued:
@@ -84,16 +84,33 @@ DeadHandTacticalMissile:
 		MovingInterval: 1
 		Type: CenterPosition
 		Offsets: -650, 0, 200
-	# `Atomic` BY NAME and UNCHANGED — the mod's shipped tactical-scale nuclear warhead, the one mslo's
-	# NukePower and tacnukemissile already fire. Whatever the superweapon yield pass makes of it is
-	# what falls here. DoomsdayStrikeInfo.LethalRadius is the mode's own conservative statement about
-	# this warhead's kill radius and is the one number to revisit if that pass changes it.
+	# `Atomic` BY NAME and UNCHANGED — the mod's ~20 kt tactical nuclear warhead, the one mslo's
+	# NukePower and tacnukemissile already fire. THIS IS THE WEAPON THAT WAS ALREADY HERE, and the
+	# 2026-09-07 retune deliberately left it alone: it is already the tactical half of "tactical nukes
+	# and strategic nuke", and it was never the performance problem — see the table below.
+	#
+	# NukeB61Mod12Y10 (the B61-12 on its 10 kt dial) WAS TRIED HERE AND REVERTED, because it cannot
+	# kill an oil derrick. ^TechBuilding drops `Ground` and `Structure` from its Targetable and carries
+	# `TechStructure` instead (structures.yaml), and Warhead.IsValidAgainst needs an overlap — so only a
+	# weapon carrying a Warhead@TechStructure block in weapons-heavy-ordnance.yaml can touch one. No
+	# weapon in weapons-nuclear-arsenal.yaml carries that block. A B61 would have landed on each derrick
+	# in the opening wave and done LITERALLY NOTHING to it, leaving the annihilation sweep to clean up
+	# what the wave was aimed at. `Atomic` is on that roster; that is why it stays.
+	#
+	# COST, measured on river-zeta (4544 map actors), as total actor-touches per detonation — the sum of
+	# every GrantExternalCondition circle plus the per-tick ShockwaveDamage sweep over its whole life:
+	#     Atomic              12,586        AtomicHighYield  2,173,907
+	#     NukeW76            103,672        NukeTsarBomba    6,786,649
+	# The 173x between the old city warhead and this one is where the near-crash lived, and it is why
+	# the change below is the load-bearing half of this retune. DO NOT raise either weapon without
+	# re-running that arithmetic; the numbers scale with map actor count, and river-zeta is dense.
 	Explodes:
 		Weapon: Atomic
 
-# WAVE 2 — the large warheads, on the cities. Also used for the fill warheads, which are over-
-# provisioned as a result: the coverage guarantee is stated against the SMALLER warhead above, so a
-# fill impact covers strictly more than the geometry requires of it.
+# WAVE 2 — the STRATEGIC warheads, on the cities. One each, and there are no fill warheads any more:
+# this actor is now fired exactly WarheadsPerCity times per city cluster and never otherwise. Under the
+# old fill pass it was also the fill warhead, which on river-zeta meant 17 extra six-megaton
+# detonations — the single largest contributor to the near-crash.
 DeadHandStrategicMissile:
 	Inherits: ^ShootableMissile
 	Valued:
@@ -102,7 +119,8 @@ DeadHandStrategicMissile:
 		Name: Dead Hand MIRV
 	# 1.6, matching highyieldnukemissile, so the city wave visibly reads as the heavier weapon against
 	# wave 1's 1.05. Neither has bespoke art; both are the Iskander sprite and scale is the only thing
-	# that separates them.
+	# that separates them. UNCHANGED by the yield retune on purpose: the sprite scale is the wave
+	# contrast the viewer reads on the way DOWN, before either warhead has gone off.
 	RenderSprites:
 		Scale: 1.6
 	Health:
@@ -128,7 +146,21 @@ DeadHandStrategicMissile:
 		MovingInterval: 1
 		Type: CenterPosition
 		Offsets: -650, 0, 200
-	# `AtomicHighYield` BY NAME and UNCHANGED — the mod's strategic warhead, fired by
-	# highyieldnukemissile. Same rule as above: this file does not define or tune a warhead.
+	# `NukeW76` BY NAME and UNCHANGED — the W76-1, 100 kt, from the nuclear arsenal. This was
+	# `AtomicHighYield`, 6 Mt, and this one line is most of the performance fix.
+	#
+	# IT DOES NOT NEED THE TechStructure BLOCK the outlier warhead needs, and that is not an oversight.
+	# Oil derricks are point targets and get their own warhead in wave 1; the city wave is aimed at
+	# civilian buildings, which carry an ordinary `Structure` target type. Anything a W76 cannot hurt is
+	# swept by Annihilate seconds later.
+	#
+	# STRATEGIC BUT NOT ONE OF THE VERY LARGE ONES, which is the distinction the user drew. The W76-1
+	# is the actual workhorse warhead of the US strategic deterrent — it is strategic by definition,
+	# not by size — while B83-1 (1.2 Mt), Tsar Bomba (50 Mt) and the Sarmat MIRV are the ones being
+	# deliberately left on the shelf. AtomicHighYield's 6 Mt sat with them.
+	#
+	# AND IT STILL READS AS THE HEAVY WEAPON. Its blast wave reaches 31 cells against wave 1's 14 —
+	# a 2.2x radius, on a 96x80 map, which is the wave contrast the sequence depends on. The old
+	# pairing was 15 vs 102 cells, i.e. one warhead that covered the entire map from anywhere on it.
 	Explodes:
-		Weapon: AtomicHighYield
+		Weapon: NukeW76
