@@ -18,18 +18,26 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	[Desc("Support power that flies a BallisticMissile actor in from the map edge nearest the owner's",
-		"base and detonates it on the target cell. Unlike " + nameof(NukePower) + ", whose NukeLaunch",
-		"projectile builds a Z-only spawn-to-target offset and therefore always descends vertically",
-		"onto the target (NukeLaunch.cs:73-78), this arrives laterally.")]
+	[Desc("Support power that flies a BallisticMissile actor in from off-map and detonates it on the",
+		"target cell. Unlike " + nameof(NukePower) + ", whose NukeLaunch projectile builds a Z-only",
+		"spawn-to-target offset and therefore always descends vertically onto the target",
+		"(NukeLaunch.cs:73-78), this arrives laterally.",
+		"",
+		"ONE APPROACH VECTOR PER SALVO. Every warhead of a multi-aim-point strike is born on the same",
+		"azimuth and flies a parallel track, so the salvo arrives as one launch rather than fanning",
+		"out of a single point. See " + nameof(MissileStrikeApproach) + " for the geometry and for why",
+		"the bearing is taken from the salvo CENTROID exactly once.")]
 	public class MissileStrikePowerInfo : SupportPowerInfo
 	{
 		[ActorReference(typeof(BallisticMissileInfo))]
 		[FieldLoader.Require]
-		[Desc("Actor to spawn at the map edge. Must carry the " + nameof(BallisticMissile) + " trait.")]
+		[Desc("Actor to spawn off-map on the approach vector. Must carry the " + nameof(BallisticMissile) + " trait.")]
 		public readonly string MissileActor = null;
 
-		[Desc("Height above the terrain at which the missile enters the map.")]
+		[Desc("Height above the terrain at which the missile is spawned. Note this is the altitude at",
+			"the OFF-MAP spawn, not at the map boundary: the missile descends linearly from here to",
+			"the aim point across the whole standoff, so it crosses the boundary already part-way",
+			"down. SpawnAltitude minus " + nameof(DetonationAltitude) + " is still the total descent.")]
 		public readonly WDist SpawnAltitude = new(6144);
 
 		[Desc("Offset applied to the spawn position, before the altitude. X is along the flight",
@@ -77,6 +85,20 @@ namespace OpenRA.Mods.Common.Traits
 			"Zero (the default) stacks every warhead on the one point. That is the correct default",
 			"for a power with AimPoints 1, where this field is never read at all.")]
 		public readonly WDist AimPointFallbackSpread = WDist.Zero;
+
+		[Desc("Extra horizontal distance BEYOND the map's own diagonal at which the salvo is spawned.",
+			"",
+			"The standoff itself is NOT this number: it is the map diagonal plus this. The diagonal is",
+			"the largest distance between any two points inside the map, so walking that far back up",
+			"the approach from ANY aim point lands outside the map by at least this margin, on every",
+			"map size, with no per-map tuning. That is what stops a strategic weapon being seen to pop",
+			"into existence next to the launching player's Supply Route.",
+			"",
+			"IT IS ALSO THE FLIGHT LENGTH, and therefore the warning time: the standoff is the whole",
+			"horizontal distance flown, identical for every aim point, so a strike on your own doorstep",
+			"now takes exactly as long to arrive as one on the far corner. Raising this lengthens every",
+			"strike in the mod and flattens every approach; it is not a cosmetic knob.")]
+		public readonly WDist ApproachMargin = new(16 * 1024);
 
 		[Desc("Altitude above the aim point at which the missile detonates. Zero (the default) is a",
 			"ground burst, which is what every instance did before this field existed.",
@@ -144,9 +166,17 @@ namespace OpenRA.Mods.Common.Traits
 			PlayLaunchSounds();
 
 			var aimPoints = ResolveAimPoints(self.World, order);
+
+			// ONCE for the salvo, and this is the whole fix. Taking the bearing per warhead -- which
+			// is what spawning each at the owner's nearest map-edge cell and facing it at its own aim
+			// point amounted to -- fans a MIRV outward from one point. One azimuth off the CENTROID
+			// gives parallel tracks, lateral spacing equal to the spacing the player clicked, and one
+			// flight time for the whole salvo.
+			var approach = ApproachFor(self, aimPoints);
+
 			for (var i = 0; i < aimPoints.Length; i++)
 			{
-				Activate(self, aimPoints[i], i * info.AimPointInterval);
+				Activate(self, aimPoints[i], i * info.AimPointInterval, approach);
 
 				// SupportPower.Activate already pinged aim point 0. Ping the rest so an enemy
 				// watching the minimap is warned about the whole salvo and not just a sixth of it.
@@ -229,12 +259,44 @@ namespace OpenRA.Mods.Common.Traits
 			return SupportPowerAimPoint.Resolve(world, target) ?? target.CenterPosition;
 		}
 
+		/// <summary>
+		/// The one approach vector this salvo flies. Read once per ORDER, never per warhead.
+		/// </summary>
+		/// <remarks>
+		/// Everything it reads is shared world state -- the owner's HomeLocation, the map size, and
+		/// the aim points that came off the wire -- so every client computes the same azimuth on the
+		/// same tick. See <see cref="MissileStrikeApproach"/> for the determinism and bounding
+		/// argument.
+		/// </remarks>
+		public MissileStrikeApproach ApproachFor(Actor self, WPos[] aimPoints)
+		{
+			var map = self.World.Map;
+
+			return MissileStrikeApproach.For(
+				map.CenterOfCell(self.Owner.HomeLocation),
+				map.CenterOfCell(new CPos(map.MapSize.X / 2, map.MapSize.Y / 2)),
+				map.MapSize.X,
+				map.MapSize.Y,
+				info.ApproachMargin.Length,
+				aimPoints);
+		}
+
 		public Actor Activate(Actor self, WPos targetPosition)
 		{
 			return Activate(self, targetPosition, 0);
 		}
 
+		/// <summary>
+		/// A ONE-WARHEAD strike, for a caller outside the order path that has no salvo to average.
+		/// The centroid of a single aim point is that aim point, so this is the same geometry with
+		/// the salvo size set to one.
+		/// </summary>
 		public Actor Activate(Actor self, WPos targetPosition, int extraDelay)
+		{
+			return Activate(self, targetPosition, extraDelay, ApproachFor(self, new[] { targetPosition }));
+		}
+
+		public Actor Activate(Actor self, WPos targetPosition, int extraDelay, MissileStrikeApproach approach)
 		{
 			// Every use of MissileDelay below goes through this local so that one warhead of a
 			// salvo is late by exactly its index, and every OTHER power — extraDelay 0 — computes
@@ -242,18 +304,20 @@ namespace OpenRA.Mods.Common.Traits
 			var missileDelay = info.MissileDelay + extraDelay;
 
 			var world = self.World;
-			var map = world.Map;
 
-			// Same rule as the airstrike: the strike comes in over the player's own back line,
-			// not from a bearing the player picks (AirstrikePower.cs:79, established by a20c8a82).
-			var spawnCell = map.ChooseClosestEdgeCell(self.Owner.HomeLocation);
-			var spawnPos = map.CenterOfCell(spawnCell);
-
-			// Face from the edge toward the target, then apply the offset in that frame so that
-			// SpawnOffset.X reads as "further back along the approach".
-			var facing = (targetPosition - spawnPos).HorizontalLengthSquared != 0
-				? (targetPosition - spawnPos).Yaw
-				: WAngle.Zero;
+			// Same rule as the airstrike -- the strike comes in over the player's own back line, not
+			// from a bearing the player picks (AirstrikePower.cs:79, established by a20c8a82) -- but
+			// NOT the same construction, and the difference is why this no longer calls
+			// ChooseClosestEdgeCell. That call spawned every warhead of a salvo at ONE cell and let
+			// each face its own aim point, which fanned a six-warhead MIRV outward from a single
+			// point on the owner's edge. Reentry vehicles from one launch arrive parallel.
+			//
+			// The bearing is now the salvo's, taken once from its centroid, and the spawn is that
+			// bearing walked back past the map boundary -- so the warheads are parallel, the player
+			// still cannot pick the direction, and a strategic weapon is no longer seen being born
+			// next to the Supply Route it is supposedly launched from a continent away.
+			var facing = approach.Facing;
+			var spawnPos = approach.SpawnPosition(targetPosition);
 
 			var offset = info.SpawnOffset;
 			if (offset != WVec.Zero)
@@ -298,6 +362,13 @@ namespace OpenRA.Mods.Common.Traits
 			// Ticks from the order to the detonation. BallisticMissileFly.EstimateArcTicks is the
 			// activity's own arithmetic, so this is the flight the missile will actually fly rather
 			// than a second number that has to be kept in step by hand.
+			//
+			// hDist IS NOW THE STANDOFF, and therefore the same for every aim point and every warhead
+			// in the salvo (SpawnOffset aside, and nothing ships one). It used to be the distance from
+			// the owner's nearest map-edge cell to wherever they clicked, which made the warning time
+			// SHORTEST for a strike next to your own base -- exactly backwards. It is still read off
+			// the real spawn rather than from approach.Standoff so that the beacon stays honest if a
+			// SpawnOffset ever moves the birth point.
 			var hDist = (targetPosition - spawnPos).HorizontalLength;
 			var impactDelay = missileDelay + bm.Info.PreLaunchTicks
 				+ BallisticMissileFly.EstimateArcTicks(bm.Info, hDist);

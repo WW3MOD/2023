@@ -130,7 +130,7 @@ Player:
 		Prerequisites: player.russia
 		Icon: precicon
 		Name: Kh-47M2 Kinzhal
-		Description: Hypersonic missile strike called in from off-map reserves.\nEnters from the map edge nearest your Supply Route.\nSAM sites can engage it, but rarely stop it.
+		Description: Hypersonic missile strike called in from off-map reserves.\nArrives over your own back line on a fixed heading.\nSAM sites can engage it, but rarely stop it.
 		# BOUGHT, NOT CHARGED (2026-09-06, at the user's request: "I want the powers to have their
 		# own tab in the build menu ... where we actually have to buy them, before they pop up in
 		# the side (and at that point they are already fully loaded)"). This is the buy/bank model
@@ -225,7 +225,7 @@ Player:
 		# CHEMICAL STRIKE and a building captioned TECH CENTER (§4a).
 		Icon: precicon
 		Name: GBU-57 Bunker Buster
-		Description: Massive Ordnance Penetrator dropped on the target area.\nDevastating against hardened structures, weak against armour.\nEnters from the map edge nearest your Supply Route.
+		Description: Massive Ordnance Penetrator dropped on the target area.\nDevastating against hardened structures, weak against armour.\nComes in from off-map over your own back line.
 		# BOUGHT, NOT CHARGED. See the note on the Kinzhal above; the price is on power.gbu57 in
 		# rules/powers.yaml, and it is the same 5000, for the same reason this ChargeInterval used
 		# to match the Kinzhal's 3000.
@@ -295,7 +295,7 @@ Player:
 		# whose baked caption -- NUCLEAR BOMB -- is correct for its picture (§4a).
 		Icon: abomb
 		Name: Tactical Nuclear Strike
-		Description: Low-yield nuclear warhead delivered from off-map reserves.\nDevastates a wide area and sets everything in it alight.\nEnters from the map edge nearest your Supply Route.
+		Description: Low-yield nuclear warhead delivered from off-map reserves.\nDevastates a wide area and sets everything in it alight.\nArrives over your own back line on a fixed heading.
 		# BOUGHT, NOT CHARGED. Price 15000 on power.tacnuke in rules/powers.yaml -- the same figure
 		# the Phase-2 note below quotes from the proposal, now actually charged. The lobby gate
 		# above is UNAFFECTED and still comes first: RequiresCondition making the trait disabled
@@ -411,7 +411,7 @@ Player:
 		# proposal's table and this is the same weapon class one step up in yield.
 		Icon: abomb
 		Name: Strategic Nuclear Strike
-		Description: High-yield strategic warhead delivered from off-map reserves.\nA single detonation devastates the entire battlefield.\nEnters from the map edge nearest your Supply Route.
+		Description: High-yield strategic warhead delivered from off-map reserves.\nA single detonation devastates the entire battlefield.\nArrives over your own back line on a fixed heading.
 		# BOUGHT, NOT CHARGED, and this is the wholesale replacement the placeholder that stood here
 		# predicted: "the doomsday mechanic this weapon is being built for will almost certainly not
 		# charge it on a timer at all". Price 25000 on power.highyieldnuke in rules/powers.yaml --

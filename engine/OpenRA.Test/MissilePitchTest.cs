@@ -248,9 +248,16 @@ namespace OpenRA.Test
 			// 2026-09-06 ScreenAlignedFacing built its vector at a magnitude that crossed that line at
 			// |slope| > 1.0 and the nose snapped to due east.
 			//
-			// A slope past 1 is not hypothetical: MissileStrikePower spawns at SpawnAltitude off the
-			// map edge, so a support-power missile aimed near your OWN edge gets a short hDist under a
-			// 31c0 drop — 31744 over 10 cells is -3.1.
+			// A slope past 1 is not hypothetical: DoomsdayStrike spawns each warhead 38c0 up and only
+			// 5c0 back from its aim point, which is a constant slope of 7.6 on every map by
+			// construction (DoomsdayStrike.cs:580-590).
+			//
+			// It USED to be reachable through MissileStrikePower too — an edge-cell spawn aimed near
+			// your own edge gave a 10-cell hDist under a 31c0 drop, which is -3.1. As of 2026-09-07
+			// that power flies a constant standoff of the map diagonal plus a margin, so its steepest
+			// shipped slope is -0.54 (Tsar Bomba's 49c0 over the 90-cell standoff of the smallest
+			// shipped map) and it no longer exercises this guard on its own. The guard stays
+			// because the doomsday case does, and because the failure it prevents is silent.
 			foreach (var facing in AllArtFacings())
 			{
 				foreach (var slope in new[] { 1.5f, -1.5f, 3.1f, -3.1f, 6f, -6f, 8f, -8f })
