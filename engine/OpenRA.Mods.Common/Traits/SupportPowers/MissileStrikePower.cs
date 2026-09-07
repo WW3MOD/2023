@@ -12,6 +12,7 @@
 using System;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Effects;
+using OpenRA.Mods.Common.Orders;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -38,6 +39,44 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Delay (in ticks) after the order until the missile is added to the world.",
 			"The launch sounds play immediately; this is the gap before anything is visible.")]
 		public readonly int MissileDelay = 0;
+
+		[Desc("How many independently-aimed warheads this strike delivers. ONE (the default) is the",
+			"behaviour every instance had before this field existed: one click, one missile, and",
+			"the order generator is the shared " + nameof(SelectGenericPowerTarget) + ".",
+			"",
+			"Above one the power becomes MULTI-TARGET. Activating it enters a placement mode",
+			"(" + nameof(SelectMultiPowerTarget) + ") that takes this many clicks; the order is",
+			"issued on the LAST click and not before, and one missile is spawned per aim point.",
+			"Right-click or Escape during placement abandons it without firing or consuming a shot.",
+			"",
+			"THE WARHEAD IS PER-MISSILE, so a multi-point power's missile actor must carry the",
+			"single-warhead payload rather than a cluster: N missiles each firing an N-way cluster",
+			"is N-squared detonations. RS-28 Sarmat is the shipped example — its SarmatMissile fires",
+			"NukeSarmatRV (one 750 kt RV), not the NukeSarmatMIRV bus it used when the whole salvo",
+			"rode a single missile.")]
+		public readonly int AimPoints = 1;
+
+		[Desc("Extra ticks added to " + nameof(MissileDelay) + " for each aim point after the first,",
+			"so a salvo leaves the map edge as a stream rather than as one stack of sprites.",
+			"Deterministic: the offset is index * this value, with no randomness anywhere.",
+			"Ignored when " + nameof(AimPoints) + " is 1.")]
+		public readonly int AimPointInterval = 0;
+
+		[Desc("Radius of the ring drawn around each placed aim point during placement. PURELY",
+			"COSMETIC — it is read by the order generator and by nothing on the simulation path.",
+			"Set it to the warhead's lethal radius so the player can see two aim points overlapping",
+			"before committing; zero (the default) draws no ring.")]
+		public readonly WDist AimPointRadius = WDist.Zero;
+
+		[Desc("Ring radius used to spread the aim points of a SINGLE-TARGET order for a power whose",
+			nameof(AimPoints) + " is above one — i.e. an order from a bot or a Lua binding, which",
+			"picks one location and knows nothing about placement mode. The first warhead lands on",
+			"that location and the rest are laid on a ring of this radius at even angles, so a bot's",
+			"MIRV is still a MIRV instead of a single warhead.",
+			"",
+			"Zero (the default) stacks every warhead on the one point. That is the correct default",
+			"for a power with AimPoints 1, where this field is never read at all.")]
+		public readonly WDist AimPointFallbackSpread = WDist.Zero;
 
 		[Desc("Altitude above the aim point at which the missile detonates. Zero (the default) is a",
 			"ground burst, which is what every instance did before this field existed.",
@@ -85,16 +124,123 @@ namespace OpenRA.Mods.Common.Traits
 			this.info = info;
 		}
 
+		public override void SelectTarget(Actor self, string order, SupportPowerManager manager)
+		{
+			if (info.AimPoints <= 1)
+			{
+				base.SelectTarget(self, order, manager);
+				return;
+			}
+
+			self.World.OrderGenerator = new SelectMultiPowerTarget(order, manager, info, info.AimPoints, info.AimPointRadius);
+		}
+
 		public override void Activate(Actor self, Order order, SupportPowerManager manager)
 		{
 			base.Activate(self, order, manager);
+
+			// ONCE for the salvo, not once per warhead. Six overlapping copies of the same launch
+			// notification is a bug the player hears rather than a bigger event.
 			PlayLaunchSounds();
 
-			Activate(self, order.Target.CenterPosition);
+			var aimPoints = ResolveAimPoints(self.World, order);
+			for (var i = 0; i < aimPoints.Length; i++)
+			{
+				Activate(self, aimPoints[i], i * info.AimPointInterval);
+
+				// SupportPower.Activate already pinged aim point 0. Ping the rest so an enemy
+				// watching the minimap is warned about the whole salvo and not just a sixth of it.
+				if (i > 0 && Info.DisplayMiniMapPing && manager.MiniMapPings?.Value != null)
+				{
+					var pos = aimPoints[i];
+					manager.MiniMapPings.Value.Add(
+						() => order.Player.IsAlliedWith(self.World.RenderPlayer),
+						pos,
+						order.Player.Color,
+						Info.MiniMapPingDuration);
+				}
+			}
+		}
+
+		/// <summary>
+		/// The world positions this strike's warheads are flown to, in launch order.
+		/// </summary>
+		/// <remarks>
+		/// <para>RUNS ON THE SYNCED ORDER-RESOLUTION PATH — SupportPowerManager.ResolveOrder to
+		/// SupportPowerInstance.Activate to here — and reads nothing that is not either in the order
+		/// or in the shared world. That is the whole desync argument: the order carries integer
+		/// cells encoded and decoded culture-invariantly
+		/// (<see cref="MultiAimPointOrder"/>), the snap consults the ActorMap and
+		/// BuildingInfluence indices which every client agrees on, and the fallback ring is integer
+		/// WAngle rotation with no randomness and no floating point. The order generator that
+		/// COLLECTED the points is client-local by construction and contributes nothing here beyond
+		/// the cell list it put on the wire.</para>
+		///
+		/// <para>BOUNDED against a malformed or hostile order: the decoded list is clamped to the
+		/// map and truncated to <see cref="MissileStrikePowerInfo.AimPoints"/>, so no order can
+		/// spawn more missiles than the power is rated for or aim one off the map.</para>
+		/// </remarks>
+		WPos[] ResolveAimPoints(World world, Order order)
+		{
+			var count = Math.Max(1, info.AimPoints);
+			var placed = MultiAimPointOrder.Deserialize(order.TargetString);
+
+			if (placed != null && placed.Length > 0)
+			{
+				var used = Math.Min(placed.Length, count);
+				var points = new WPos[used];
+				for (var i = 0; i < used; i++)
+					points[i] = ResolveCell(world, world.Map.Clamp(placed[i]));
+
+				return points;
+			}
+
+			// SINGLE-TARGET ORDER for a multi-warhead power: a bot, a Lua binding, or a replay from
+			// before this feature existed. order.Target has already been snapped to an actor centre
+			// by SupportPowerInstance.Activate, so it is used as-is for the first warhead.
+			var center = order.Target.CenterPosition;
+			var offsets = MultiAimPointOrder.FallbackRingOffsets(count, info.AimPointFallbackSpread);
+			var fallback = new WPos[offsets.Length];
+
+			// Index 0 is a zero offset by construction, so the sender's own point is used verbatim
+			// rather than round-tripped through a cell — it has already been snapped to an actor
+			// centre by SupportPowerInstance.Activate, and a WPos that is deliberately NOT on a cell
+			// centre is exactly what that snap produces (SupportPowerAimPoint).
+			fallback[0] = center;
+			for (var i = 1; i < offsets.Length; i++)
+			{
+				var cell = world.Map.Clamp(world.Map.CellContaining(center + offsets[i]));
+				fallback[i] = world.Map.CenterOfCell(cell);
+			}
+
+			return fallback;
+		}
+
+		/// <summary>
+		/// A placed cell resolved to the point the warhead is flown to, honouring
+		/// <see cref="SupportPowerInfo.SnapToActorCenter"/> exactly as the single-target path does.
+		/// </summary>
+		WPos ResolveCell(World world, CPos cell)
+		{
+			var target = Target.FromCell(world, cell);
+			if (!Info.SnapToActorCenter)
+				return target.CenterPosition;
+
+			return SupportPowerAimPoint.Resolve(world, target) ?? target.CenterPosition;
 		}
 
 		public Actor Activate(Actor self, WPos targetPosition)
 		{
+			return Activate(self, targetPosition, 0);
+		}
+
+		public Actor Activate(Actor self, WPos targetPosition, int extraDelay)
+		{
+			// Every use of MissileDelay below goes through this local so that one warhead of a
+			// salvo is late by exactly its index, and every OTHER power — extraDelay 0 — computes
+			// the identical numbers it did before this parameter existed.
+			var missileDelay = info.MissileDelay + extraDelay;
+
 			var world = self.World;
 			var map = world.Map;
 
@@ -144,16 +290,16 @@ namespace OpenRA.Mods.Common.Traits
 			// (BaseSpawnerMaster.cs:228-250). SpawnActorEffect is only reached when a delay is
 			// asked for; it holds the already-created actor and adds it N ticks later, which is the
 			// only deferred-add form in the codebase that preserves the Target-before-Add ordering.
-			if (info.MissileDelay <= 0)
+			if (missileDelay <= 0)
 				world.AddFrameEndTask(w => w.Add(missile));
 			else
-				world.AddFrameEndTask(w => w.Add(new SpawnActorEffect(missile, info.MissileDelay)));
+				world.AddFrameEndTask(w => w.Add(new SpawnActorEffect(missile, missileDelay)));
 
 			// Ticks from the order to the detonation. BallisticMissileFly.EstimateArcTicks is the
 			// activity's own arithmetic, so this is the flight the missile will actually fly rather
 			// than a second number that has to be kept in step by hand.
 			var hDist = (targetPosition - spawnPos).HorizontalLength;
-			var impactDelay = info.MissileDelay + bm.Info.PreLaunchTicks
+			var impactDelay = missileDelay + bm.Info.PreLaunchTicks
 				+ BallisticMissileFly.EstimateArcTicks(bm.Info, hDist);
 
 			if (info.CameraRange != WDist.Zero)
@@ -180,7 +326,7 @@ namespace OpenRA.Mods.Common.Traits
 				// make SpawnActorEffect take longer than the count it was handed.
 				var orderTick = world.WorldTick;
 				var delayFraction = impactDelay > 0
-					? Math.Clamp(info.MissileDelay * 1f / impactDelay, 0f, 1f)
+					? Math.Clamp(missileDelay * 1f / impactDelay, 0f, 1f)
 					: 0f;
 
 				float FractionComplete()
