@@ -489,7 +489,13 @@ Player:
 	MissileStrikePower@RuKalibr:
 		RequiresCondition: !nuke-arsenal-disabled
 		OrderName: RuKalibrStrike
-		Icon: atomicon
+		# `abomb`, NOT `atomicon`. Both name the same art, and that is the trap: `Icon:` resolves on
+		# the `icon` image (sequences-misc.yaml:16), where the sequence is called `abomb` and maps to
+		# atomicon.shp at :17. The bare name `atomicon` is a sequence on the BEACON image at :59, so
+		# `BeaconPoster: atomicon` two lines below is correct while `Icon: atomicon` is not -- it
+		# resolves against a different image and finds nothing. Build stays clean and 2888 tests stay
+		# green; only --check-yaml catches it, which it did.
+		Icon: abomb
 		Name: 3M14 Kalibr (100 kt)
 		Description: Sea-launched nuclear cruise missile.\nThe largest warhead Russia can buy short of the showpieces, and the slowest thing carrying one.\nComes in low from off-map over your own back line.
 		RequiresPurchase: True
