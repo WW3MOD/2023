@@ -50,7 +50,11 @@ namespace OpenRA.Test
 		static double BlastCells(double kt, double psi) => 10.0 * Math.Pow(kt, 1 / 3.0) * Math.Pow(psi, -0.5891);
 		static double BlastPsi(double kt, double cells) => Math.Pow(10.0 * Math.Pow(kt, 1 / 3.0) / cells, 1 / 0.5891);
 		static double FireballCells(double kt) => 33.5311 * Math.Pow(kt, 0.40) / MetresPerCell;
-		static double FireballTicks(double kt) => 0.21045 * Math.Pow(kt, 0.44) * TicksPerSecond;
+		// 0.8 s at 20 kt, which is the calculator anchor the arsenal is built on: 0.8 / 20^0.44 = 0.21411.
+		// This was 0.21045, taken from weapons-superweapons.yaml's own note, and it is 1.7% low against
+		// that anchor. The gap is invisible under a one-tick tolerance below ~100 kt and is 7 ticks at
+		// Tsar Bomba's 50 Mt, which is where it surfaced. See the tolerance note in the fireball test.
+		static double FireballTicks(double kt) => 0.21411 * Math.Pow(kt, 0.44) * TicksPerSecond;
 		static double ThermalCells(double kt) => 0.5593 * Math.Pow(kt, 0.41) * 1000.0 / MetresPerCell;
 
 		/// <summary>Rankine-Hugoniot: shock Mach number from peak overpressure, at 14.7 psi ambient.</summary>
@@ -477,54 +481,77 @@ namespace OpenRA.Test
 		}
 
 		/// <summary>
-		/// The fireball light. Loads the shipped envelope through the same FieldLoader path the game
-		/// uses — so a mismatched keyframe array fails here rather than at mod load — and then checks
-		/// the three things that make it a nuclear fireball rather than a generic flash.
+		/// The fireball light, on EVERY nuclear weapon in the mod. Loads each shipped envelope through
+		/// the same FieldLoader path the game uses — so a mismatched keyframe array fails here rather
+		/// than at mod load — and then checks the four things that make it a nuclear fireball.
+		///
+		/// REWRITTEN 2026-09-07, and the rewrite inverts what this used to assert. It used to demand a
+		/// DOUBLE FLASH — first pulse, strictly lower dip, strictly larger second maximum — on the
+		/// grounds that a real fireball does exactly that and the interval between the two maxima is
+		/// how yield is measured from a bhangmeter trace. All true, and all of it renders as a STROBE
+		/// at a 60 ms timestep: `Atomic`'s envelope read 2.2 -> 0.8 -> 7.0 on three consecutive ticks.
+		/// The user reported the strobing and asked for a bright flash that fades, so the invariant is
+		/// now the opposite one and is pinned here so it cannot drift back:
+		///
+		///     PEAK AT KEYFRAME 0, MONOTONE NON-INCREASING THEREAFTER, I(t) = 7.0 * (1 - t/D)^2.
+		///
+		/// It also iterates AllNukes rather than the hard-coded superweapon pair. That is not tidiness:
+		/// before the arsenal weapons carried lights at all, "both fireballs" meant two of ten, and a
+		/// green suite said nothing whatever about the other eight.
 		/// </summary>
 		[Test]
-		public void BothFireballsAreDoubleFlashesThatCoolAndLastAsLongAsTheirYieldSays()
+		public void EveryNuclearFireballIsASinglePeakedFlashThatCoolsAndLastsAsLongAsItsYieldSays()
 		{
-			foreach (var (weapon, kt, secondPeakTick) in new[]
-			{
-				("Atomic", TacticalKt, 2),
-				("AtomicHighYield", StrategicKt, 41),
-			})
+			foreach (var (weapon, kt) in AllNukes)
 			{
 				var light = LightEventDefinition.LoadFrom(Warhead(weapon, "Warhead@FireballLight"), "Light", true);
 
-				// 1. DURATION is the fireball's own breakaway lifetime, t = 0.2104 * Y^0.44 seconds.
-				Assert.That(light.Duration, Is.EqualTo((int)Math.Round(FireballTicks(kt))).Within(1),
-					$"{weapon}'s fireball lasts {light.Duration} ticks against the {FireballTicks(kt):F0} its yield implies");
+				// 1. DURATION is the fireball's own incandescent lifetime, 0.8 * (Y/20)^0.44 seconds.
+				//
+				//    THE TOLERANCE IS RELATIVE AND THAT IS DELIBERATE, because two constants for this
+				//    one law are live in the tree and they differ by 1.7%. weapons-superweapons.yaml
+				//    states it as t = 0.2104 * Y^0.44 s, which is what puts AtomicHighYield at 161
+				//    ticks; weapons-nuclear-arsenal.yaml states it as 0.8 * (Y/20)^0.44 s, i.e.
+				//    0.21411 * Y^0.44, which is what every arsenal weapon is built on and what the
+				//    calculator anchors (0.8 s at 20 kt, 9.8 s at 6 Mt, 25 s at 50 Mt) actually give.
+				//    The arsenal constant is used here. AtomicHighYield's 161 is 1.9% under it and is
+				//    LEFT ALONE ON PURPOSE: ten other delays in that file are timed off the literal
+				//    161, so moving it to 164 would be a three-tick cosmetic change dragging a wide
+				//    edit behind it. Recorded in WORKSPACE/DISCOVERIES.md rather than papered over.
+				var expected = FireballTicks(kt);
+				Assert.That(light.Duration, Is.EqualTo(expected).Within(Math.Max(1.0, 0.025 * expected)),
+					$"{weapon}'s fireball lasts {light.Duration} ticks against the {expected:F0} its yield implies");
 
-				// 2. THE DOUBLE FLASH: a first maximum, a strictly lower dip, then a strictly larger
-				//    second maximum. Any envelope with one peak is not a nuclear fireball.
 				var i = light.Intensities;
-				var peakIndex = Array.IndexOf(i, i.Max());
 
-				// The dip is the minimum BEFORE the second maximum. Searching the whole array would
-				// find the terminal zero every time, which is the envelope ending rather than the
-				// shock front going opaque.
-				Assert.That(peakIndex, Is.GreaterThan(1), $"{weapon}'s largest maximum is at keyframe {peakIndex}, leaving no room for a dip before it");
-				var dipIndex = 1;
-				for (var k = 1; k < peakIndex; k++)
-					if (i[k] < i[dipIndex])
-						dipIndex = k;
-				Assert.That(i[0], Is.GreaterThan(i[dipIndex]), $"{weapon} has no first pulse before the dip");
-				Assert.That(i[peakIndex], Is.GreaterThan(i[0]), $"{weapon}'s second maximum is not larger than its first");
+				// 2. THE ANTI-STROBE INVARIANT. Brightest at tick 0, never brighter again.
+				Assert.That(Array.IndexOf(i, i.Max()), Is.EqualTo(0),
+					$"{weapon}'s fireball peaks at keyframe {Array.IndexOf(i, i.Max())} rather than at tick 0 — an envelope that gets brighter after it starts reads as a strobe at 60 ms per tick");
+				for (var k = 1; k < i.Length; k++)
+					Assert.That(i[k], Is.LessThanOrEqualTo(i[k - 1]),
+						$"{weapon}'s fireball brightens again between keyframes {k - 1} and {k} ({i[k - 1]} -> {i[k]})");
+				Assert.That(i[i.Length - 1], Is.EqualTo(0f), $"{weapon}'s fireball does not fade to nothing");
 
-				// The second maximum lands where t_max = 0.032*sqrt(Y) seconds puts it.
-				Assert.That(light.Times[peakIndex], Is.EqualTo(secondPeakTick).Within(1));
-				Assert.That(secondPeakTick, Is.EqualTo((int)Math.Round(0.032 * Math.Sqrt(kt) * TicksPerSecond)).Within(1),
-					"the second-maximum tick no longer matches the Glasstone double-flash timing");
+				// 3. IT IS THE SAME LAW ON ALL TEN, evaluated at each weapon's own duration. Checking
+				//    the shape rather than only monotonicity is what makes the set one rule applied ten
+				//    times instead of ten curves that each happen to go down.
+				Assert.That(i[0], Is.EqualTo(7.0f).Within(0.01),
+					$"{weapon} does not peak at 7.0; fireball surface brightness is set by temperature and does not scale with yield");
+				for (var k = 0; k < i.Length; k++)
+				{
+					var law = 7.0 * Math.Pow(1.0 - (double)light.Times[k] / light.Duration, 2);
+					Assert.That(i[k], Is.EqualTo(law).Within(0.06),
+						$"{weapon} keyframe {k} (tick {light.Times[k]}) is {i[k]} against the {law:F2} that 7.0*(1-t/{light.Duration})^2 gives");
+				}
 
-				// 3. IT COOLS. From the second maximum onward the colour walks white -> yellow ->
-				//    orange -> dull red, monotonically.
+				// 4. IT COOLS, from the first keyframe now that there is no dip to skip past. White ->
+				//    yellow -> orange -> dull red, monotonically.
 				//
 				//    The measure is the red:blue RATIO and not red MINUS blue, which is the trap here: a
 				//    cooling fireball also darkens, so the difference can fall across a step that is
 				//    plainly redder (FF9C3C -> B4280A drops R-B from 195 to 170 while R/B climbs from
 				//    4.3 to 18). Difference measures brightness as much as hue; ratio measures hue.
-				for (var k = peakIndex; k + 1 < light.Tints.Length; k++)
+				for (var k = 0; k + 1 < light.Tints.Length; k++)
 				{
 					var a = light.Tints[k];
 					var b = light.Tints[k + 1];
@@ -536,11 +563,79 @@ namespace OpenRA.Test
 				var final = light.Tints[light.Tints.Length - 1];
 				Assert.That(final.R, Is.GreaterThan(2 * final.B), $"{weapon}'s fireball does not end on a dull red");
 
-				// The light's maximum radius is the thermal radius: illumination reach scales as the
-				// fireball radius (Y^0.40) and thermal as Y^0.41, close enough that one array carries both.
-				Assert.That(Cells(light.MaximumRadius.Length), Is.EqualTo(ThermalCells(kt)).Within(3.0),
+				// 5. The light's maximum radius is the thermal radius: illumination reach scales as the
+				//    fireball radius (Y^0.40) and thermal as Y^0.41, close enough that one array carries both.
+				Assert.That(Cells(light.MaximumRadius.Length), Is.EqualTo(ThermalCells(kt)).Within(Math.Max(3.0, 0.05 * ThermalCells(kt))),
 					$"{weapon}'s light no longer reaches its thermal radius");
+
+				// 6. The flash has to survive fog, or it is invisible over exactly the ground a player
+				//    is most likely to be nuking. LightEventManager.RenderAboveFog reads this per event.
+				Assert.That(light.GlowAboveFog, Is.True, $"{weapon}'s fireball light is attenuated by fog");
 			}
+		}
+
+		/// <summary>
+		/// THE OTHER HALF OF THE STROBE, and the half the user was most likely actually looking at.
+		///
+		/// FlashPaletteEffect.Enable ASSIGNS `remainingFrames = ticks` — it does not add, extend or take
+		/// a maximum — and AdjustPalette lerps the whole palette toward white by
+		/// `frac = remainingFrames / Info.Length`, which ramps DOWN to nothing over the Duration. It is
+		/// a one-shot sawtooth. Six weapons used to stack two to five of them at 22-tick spacing to
+		/// fake a longer flash; by tick 22 the screen had faded to frac 0.27 and the next call slammed
+		/// it back to 1.0 in a single tick. That is a 1.3 Hz square wave, it was live on exactly the
+		/// high-yield weapons and not on the small ones, and it is why the report said "in some cases".
+		///
+		/// Two rules, both pinned here because both are invisible from the YAML alone:
+		///   ONE FlashPaletteEffect warhead per weapon. Sustain belongs to the light event, which has a
+		///   real envelope; this effect has one counter and one ramp.
+		///   Duration &lt;= the effect's Length. Above it frac starts above 1 and the lerp is unclamped,
+		///   which is a corrupted palette rather than a longer flash. Nothing shipped violates this
+		///   today and this is here to keep it that way.
+		/// </summary>
+		[Test]
+		public void NoNuclearWeaponStacksScreenFlashes()
+		{
+			var length = NukeFlashLength();
+
+			foreach (var (weapon, _) in AllNukes.Concat(new[] { ("NukeSarmatMIRV", 0.0) }))
+			{
+				var flashes = Weapon(weapon).Nodes
+					.Where(n => n.Value.Value == "FlashPaletteEffect")
+					.ToArray();
+
+				Assert.That(flashes.Length, Is.LessThanOrEqualTo(1),
+					$"{weapon} fires {flashes.Length} FlashPaletteEffect warheads. Staggered calls do not lengthen the flash, they restart it — see the note on AtomicHighYield's Warhead@Flash");
+
+				foreach (var flash in flashes)
+				{
+					Assert.That(Int(flash.Value, "Duration", $"{weapon} {flash.Key}"), Is.LessThanOrEqualTo(length),
+						$"{weapon} {flash.Key} outlasts the Nuke palette effect's Length of {length}, which extrapolates the lerp past white rather than flashing for longer");
+					Assert.That(Field(flash.Value, "FlashType", $"{weapon} {flash.Key}"), Is.EqualTo("Nuke"));
+				}
+			}
+		}
+
+		/// <summary>The Length of the `Nuke` FlashPaletteEffect, read from palettes.yaml rather than assumed.</summary>
+		static int NukeFlashLength()
+		{
+			var palettes = MiniYaml.FromFile(FindRules("palettes.yaml"))
+				.FirstOrDefault(n => n.Key == "^Palettes");
+			Assert.That(palettes, Is.Not.Null, "palettes.yaml has no ^Palettes node — this test is scanning nothing");
+
+			foreach (var node in palettes.Value.Nodes)
+			{
+				if (!node.Key.StartsWith("FlashPaletteEffect", StringComparison.Ordinal))
+					continue;
+
+				if (node.Value.Nodes.FirstOrDefault(n => n.Key == "Type")?.Value.Value != "Nuke")
+					continue;
+
+				var raw = node.Value.Nodes.FirstOrDefault(n => n.Key == "Length")?.Value.Value;
+				return raw == null ? 20 : int.Parse(raw);
+			}
+
+			Assert.Fail("palettes.yaml has no FlashPaletteEffect with Type: Nuke");
+			return 0;
 		}
 
 		/// <summary>

@@ -78,8 +78,24 @@ namespace OpenRA.Mods.Common.Traits
 
 		// A list rather than a dictionary because Tick walks it by index: a warhead detonating during the same
 		// world tick can call Emit, and appending to a list mid-walk is safe where mutating a Dictionary is not.
-		// Removal only ever happens in the deferred pass at the end of Tick. Bounded by MaximumConcurrentEvents,
-		// so the linear handle lookup is over at most a few dozen entries.
+		// Bounded by MaximumConcurrentEvents, so the linear handle lookup is over at most a few dozen entries.
+		//
+		// CORRECTED 2026-09-07. This used to claim "removal only ever happens in the deferred pass at the end of
+		// Tick", and that is false as written: Cancel removes immediately, and the eviction path inside Emit calls
+		// Cancel. What is actually true is the property the walk needs, which is narrower and worth stating
+		// exactly, because a removal landing mid-walk WOULD skip the element after it and freeze that light for a
+		// frame:
+		//
+		//   NOTHING REMOVES FROM `live` WHILE THE INDEX WALK IN Tick IS RUNNING. The walk itself only ever appends
+		//   to `ended`; the Cancel calls are made after it returns. The two external entry points that do remove -
+		//   Cancel (TimedLightSource) and Emit (LightEventWarhead, via eviction) - are reached from other actors'
+		//   ticks, and traits tick sequentially, so neither can be re-entered from inside this one. Nothing the
+		//   walk calls out to can get back here either: UpdateLightSource and RefreshTerrain reach TerrainLighting
+		//   and, through CellChanged, TerrainSpriteLayer, none of which emits or cancels a light.
+		//
+		// So the walk is safe TODAY by construction rather than by the deferred pass alone. If a future caller
+		// ever emits or cancels from something the renderer or TerrainLighting invokes, this walk must become
+		// removal-safe (iterate backwards, or null out and compact) before that lands.
 		readonly List<LiveEvent> live = new();
 		readonly List<int> ended = new();
 		int nextHandle = 1;
