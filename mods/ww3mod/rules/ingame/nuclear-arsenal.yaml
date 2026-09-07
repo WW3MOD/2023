@@ -177,15 +177,27 @@ Player:
 		SupportPowerPaletteOrder: 7
 
 	# ---- RS-28 Sarmat: 6 x 750 kt MIRV --------------------------------------------------------
-	# The camera is sized for the FOOTPRINT rather than for one RV: 51 cells covers the 60-cell blast
-	# of a centre burst plus the ~10-cell scatter of the ring. Still four cells under the engine
-	# ceiling documented on the Tsar Bomba entry below.
+	# PLAYER-AIMED SINCE 2026-09-07, and this is the entry that changed shape. It used to be one
+	# click: one missile carrying NukeSarmatMIRV, whose FireCluster warheads scattered six RVs at
+	# random inside a 21-cell footprint. The user fired it and reported "the MIRV lands all nukes
+	# really close together" -- correctly, because a 10-cell scatter is nothing against an RV whose
+	# blast wave runs to 60 cells, so all six craters sat inside one another.
+	#
+	# NOW: activating it enters placement mode and takes SIX clicks, one per re-entry vehicle, and
+	# the order is issued on the sixth. One missile is spawned per aim point and each carries ONE
+	# RV -- see the Explodes change on SarmatMissile below, which is the other half of this and is
+	# not optional. Six missiles each firing the six-way bus would be thirty-six detonations.
+	#
+	# The camera is now sized for ONE RV rather than for the whole footprint, because there are six
+	# of them and they can be anywhere. 51c0 was right when a single reveal had to cover the entire
+	# salvo; six 51-cell reveals is six times the shroud work of the old one for no gain, since each
+	# aim point only needs to show its own impact.
 	MissileStrikePower@Sarmat:
 		RequiresCondition: !nuke-arsenal-disabled
 		OrderName: SarmatStrike
 		Icon: v2bdgricon
 		Name: RS-28 Sarmat (MIRV)
-		Description: Heavy ICBM carrying independently-targeted re-entry vehicles.\nSix 750 kt warheads scattered across the target area, not one detonation.\nEnters from the map edge nearest your Supply Route.
+		Description: Heavy ICBM carrying independently-targeted re-entry vehicles.\nClick SIX aim points; one 750 kt warhead goes to each.\nRight-click or Escape while placing cancels without firing.
 		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
 		# build tab rather than charged on a timer, and this arrived the same day as the arsenal.
 		# ChargeInterval IS GONE rather than set high: SupportPowerInstance forces TotalTicks to 0
@@ -199,7 +211,24 @@ Player:
 		# 13c0 = 2090 m. Every NukeSarmatRV and NukeSarmatMIRV warhead carries AirThreshold: 24c0.
 		DetonationAltitude: 13c0
 		MissileDelay: 500
-		CameraRange: 51c0
+		# SIX independently-aimed warheads, the number the bus was always described as carrying here.
+		AimPoints: 6
+		# 12 ticks between RVs, so 60 ticks across the salvo. The six tracks leave the map edge as a
+		# stream rather than as one stack of overlapping sprites, and land as a ripple. Deterministic
+		# (index * 12), which is what lets it sit on the synced activation path.
+		AimPointInterval: 12
+		# OVERLAY ONLY -- read by the placement order generator, by nothing in the simulation.
+		# 30 cells is the "a second RV here is wasted" radius, NOT the weapon's reach: NukeSarmatRV's
+		# blast wave runs to 60c768 and its fire warheads to 55 cells, so the ring is deliberately
+		# HALF the outer extent. It is the number that answers the placement question -- put two aim
+		# points closer than this and the second one is buying nothing.
+		AimPointRadius: 30c0
+		# Only read for a SINGLE-target order, i.e. one from a bot or a Lua binding, which knows
+		# nothing about placement mode. First RV on the bot's chosen point, five more on a 24-cell
+		# ring around it. Deliberately WIDER than the 6.5-8.5 cell ring the old FireCluster footprint
+		# used, which is the spacing that produced the user's complaint in the first place.
+		AimPointFallbackSpread: 24c0
+		CameraRange: 30c0
 		CameraSpawnAdvance: 60
 		CameraRemoveDelay: 1100
 		BeaconRemoveAdvance: 5
@@ -467,10 +496,22 @@ SarmatMissile:
 		MovingInterval: 1
 		Type: CenterPosition
 		Offsets: -1000, 0, 300
-	# The CARRIER weapon, not a warhead: NukeSarmatMIRV's FireCluster warheads scatter six
-	# NukeSarmatRV bursts across a 21-cell footprint from here.
+	# ONE re-entry vehicle, not the bus. CHANGED 2026-09-07 with MissileStrikePower@Sarmat's
+	# AimPoints: 6 -- six of these actors now fly, one per aim point the player clicked, so the
+	# multiplicity that used to live in the weapon's FireCluster footprint lives in the number of
+	# missiles instead. Leaving NukeSarmatMIRV here would give six buses = thirty-six detonations.
+	#
+	# This is LIGHTER than what it replaces, which is worth stating because "six missiles" sounds
+	# heavier: the old strike detonated the carrier's own flash and shake ON TOP of six RVs' worth,
+	# and this drops the carrier layer entirely. Three flashes and five shakes per RV either way,
+	# now spread across a 60-tick launch stagger plus differing flight distances instead of landing
+	# inside one 9-tick window.
+	#
+	# NukeSarmatMIRV is left defined in weapons-nuclear-arsenal.yaml but is NO LONGER FIRED by
+	# anything. It is the single-missile form of this weapon and is kept as the reference for what
+	# the salvo used to be; do not assume editing it changes the Sarmat.
 	Explodes:
-		Weapon: NukeSarmatMIRV
+		Weapon: NukeSarmatRV
 
 B83Missile:
 	Inherits: ^ShootableMissile
