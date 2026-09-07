@@ -1247,6 +1247,31 @@ KinzhalMissile:
 		# degrees up rather than straight down: 0.566 vertical squash, measured as the principal axis
 		# of all 32 frames. Without it the drawn tilt lands 0.57x-1.77x off, by heading alone.
 		SpriteFacingSquash: 566
+	# LEADING-EDGE PLASMA. Opt-in, and deliberately HERE rather than on ^ShootableMissile: the trait
+	# ships default-off (both sample counts 0) and is added to exactly two actors, so the other twelve
+	# missiles render byte-identically to before. The Kinzhal is the leading-edge exemplar because it
+	# is the mod's only genuinely hypersonic airframe -- 2000 wdist/tick cruising, 2400 in the terminal
+	# dive, against the next fastest at 1600 -- and a Mach 10 body ionises the air at its stagnation
+	# point rather than trailing a wake it has outrun.
+	#
+	# The copies are drawn along the LAST TICK'S VELOCITY, not along Facing, so nothing here can be
+	# caught out by WAngle running counterclockwise, and the sheath sits on the missile's real
+	# on-screen path whatever the arc is doing.
+	#
+	# 5 x 96 = 480 wdist of bloom ahead of the nose, about 11 px at 100% zoom against a sprite roughly
+	# 24 px long -- half a body length, concentrated at the tip because the alpha falls linearly from
+	# the A0 in LeadingColor down to a fifth of it. The trailing set is deliberately SHORT (4 x 192 =
+	# 768 wdist): this is the hypersonic look, not the beyond-hypersonic one. For that, see
+	# SarmatMissile in nuclear-arsenal.yaml, which is the same trait configured the other way round.
+	WithHypersonicPlasma:
+		LeadingSamples: 5
+		LeadingSpacing: 96
+		# RRGGBBAA, alpha LAST (Color.TryParse, Color.cs:158-177) -- not the ARGB order the C# default
+		# in the Info class is written in. Pale blue-white: ionised air, not fire.
+		LeadingColor: C8EBFFA0
+		TrailingSamples: 4
+		TrailingSpacing: 192
+		TrailingColor: FF964640
 	LeavesTrailsCA:
 		Image: smokey2
 		Palette: effect_ts

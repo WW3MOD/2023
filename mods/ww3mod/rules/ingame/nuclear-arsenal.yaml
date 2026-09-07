@@ -490,6 +490,31 @@ SarmatMissile:
 		LaunchRiseTicks: 0
 		PostErectionWaitTicks: 0
 		VisualPitchMultiplier: 47
+	# THE GLOWING-STREAK CONFIGURATION -- the same WithHypersonicPlasma trait the Kinzhal carries
+	# (vehicles-russia.yaml), configured the other way round. The Kinzhal is the leading-edge case:
+	# a short bloom at the nose and almost no wake. This is the beyond-hypersonic case the user
+	# described a future Oreshnik as arriving in, "just as a glowing streak", and the Sarmat gets it
+	# because it is already the right object: the comment below this block says these actors are ONE
+	# RE-ENTRY VEHICLE EACH, not the bus, and an RV comes down through the atmosphere fast enough
+	# that the wake is the only part of it a ground observer resolves.
+	#
+	# Three things together make it read as a streak rather than as a missile with a bright trail:
+	#   10 x 320 = 3200 wdist of wake, a little over three cells, ~75 px at 100% zoom;
+	#   a tight 3 x 128 incandescent nose ahead of it;
+	#   BodyColor at alpha BE, which is the one that matters -- it replaces the airframe's own pixels
+	#   with flat near-white, so the sprite stops reading as an airframe at all. Without it you get a
+	#   recognisable missile wearing a long tail; with it you get the streak.
+	# Six of these fly per strike (MissileStrikePower@Sarmat in this file, :195, AimPoints: 6 at :215),
+	# so this is also the densest test of the effect anything in the mod can produce.
+	WithHypersonicPlasma:
+		LeadingSamples: 3
+		LeadingSpacing: 128
+		# RRGGBBAA, alpha LAST (Color.cs:158-177).
+		LeadingColor: E6F5FFC8
+		TrailingSamples: 10
+		TrailingSpacing: 320
+		TrailingColor: FFC88C8C
+		BodyColor: FFF0E1BE
 	LeavesTrailsCA:
 		Image: smokey2
 		Palette: effect_ts
