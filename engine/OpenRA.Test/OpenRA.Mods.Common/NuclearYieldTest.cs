@@ -491,51 +491,200 @@ namespace OpenRA.Test
 			}
 		}
 
+		// ---- the fireball ANIMATION, derived from the assets rather than assumed ----
+		//
+		// THIS IS THE COUPLING THE 2026-09-07 REWORK EXISTS TO CREATE, so it is computed here rather
+		// than written down. The light's duration is now the fireball ANIMATION's duration, and the
+		// animation's duration is not a number anyone chose: it falls out of the SHP's frame count
+		// walked along the sequence's Tick/ChangeTick ladder. Hard-coding it would let the two drift
+		// apart silently, and the drift IS the bug being fixed -- every arsenal weapon shipped with a
+		// flash that ended after 1-7% of the cloud it was supposed to be lighting.
+		//
+		// Reading the SHP header from a YAML test is deliberate and is the cheapest honest option: 8
+		// bytes, no decode. The alternative is to trust a comment.
+
+		const int AnimationMillisecondsPerTick = 40;   // Animation.Tick() spends 40 whatever the timestep is
+		const double FireballPeak = 7.0;
+		const double FireballShoulderFraction = 0.70;
+
+		/// <summary>Locates a file under mods/ww3mod, walking up from the test binary.</summary>
+		static string FindMod(params string[] parts)
+		{
+			var dir = new DirectoryInfo(AppContext.BaseDirectory);
+			for (var i = 0; i < 10 && dir != null; i++, dir = dir.Parent)
+			{
+				var candidate = Path.Combine(new[] { dir.FullName, "mods", "ww3mod" }.Concat(parts).ToArray());
+				if (File.Exists(candidate))
+					return candidate;
+			}
+
+			throw new FileNotFoundException($"could not locate mods/ww3mod/{string.Join("/", parts)}");
+		}
+
+		/// <summary>Frame count from a TS-format SHP header: u16 zero, u16 width, u16 height, u16 count.</summary>
+		static int ShpFrameCount(string path)
+		{
+			using (var stream = File.OpenRead(path))
+			{
+				var header = new byte[8];
+				Assert.That(stream.Read(header, 0, 8), Is.EqualTo(8), $"{path} is too short to be a SHP");
+				Assert.That(BitConverter.ToUInt16(header, 0), Is.EqualTo(0),
+					$"{path} is not a TS-format SHP: its leading u16 is not zero, so the frame count is not at offset 6");
+				return BitConverter.ToUInt16(header, 6);
+			}
+		}
+
+		/// <summary>The explosion sequence a weapon's own Warhead@Fireball draws its cloud with.</summary>
+		static string FireballSequence(string weapon)
+		{
+			foreach (var node in Weapon(weapon).Nodes)
+			{
+				if (node.Value.Value != "CreateEffect")
+					continue;
+
+				var explosions = node.Value.Nodes.FirstOrDefault(n => n.Key == "Explosions")?.Value.Value;
+				if (explosions != null && explosions.Contains("nuke", StringComparison.Ordinal))
+					return explosions.Trim();
+			}
+
+			Assert.Fail($"{weapon} has no CreateEffect warhead drawing a nuke explosion, so its light has no animation to match");
+			return null;
+		}
+
+		/// <summary>
+		/// Length of one play-through of an explosion sequence, in GAME ticks.
+		///
+		/// Animation.CurrentSequenceTickOrDefault walks ChangeTick as (frame, ms) pairs and takes the
+		/// LAST pair whose frame is strictly below the current one, falling back to the sequence's
+		/// Tick; Animation.Tick() then spends a flat 40 ms of that budget per game tick regardless of
+		/// the mod's 60 ms timestep. So the length is the summed per-frame budget over 40 -- NOT the
+		/// frame count, and NOT affected by ScalePercent, which is why fourteen weapons sharing one
+		/// sequence all get the same duration at radically different sizes.
+		/// </summary>
+		static double AnimationTicks(string sequence)
+		{
+			var explosions = MiniYaml.FromFile(FindMod("sequences", "sequences-ingame.yaml"))
+				.FirstOrDefault(n => n.Key == "explosion");
+			Assert.That(explosions, Is.Not.Null, "sequences-ingame.yaml has no `explosion:` node — this test is scanning nothing");
+
+			var node = explosions.Value.Nodes.FirstOrDefault(n => n.Key == sequence);
+			Assert.That(node, Is.Not.Null, $"sequences-ingame.yaml has no explosion sequence `{sequence}`");
+
+			var tick = 40;
+			var rawTick = node.Value.Nodes.FirstOrDefault(n => n.Key == "Tick")?.Value.Value;
+			if (rawTick != null)
+				tick = int.Parse(rawTick);
+
+			int[] change = null;
+			var rawChange = node.Value.Nodes.FirstOrDefault(n => n.Key == "ChangeTick")?.Value.Value;
+			if (rawChange != null)
+				change = rawChange.Split(',').Select(s => int.Parse(s.Trim())).ToArray();
+
+			var frames = ShpFrameCount(FindMod("bits", "weapons", "explosions", node.Value.Value + ".shp"));
+
+			var total = 0;
+			for (var f = 0; f < frames; f++)
+			{
+				var chosen = 0;
+				if (change != null)
+				{
+					for (var i = 0; i + 1 < change.Length; i += 2)
+					{
+						if (f > change[i])
+							chosen = change[i + 1];
+						else
+							break;
+					}
+				}
+
+				total += chosen != 0 ? chosen : tick;
+			}
+
+			return total / (double)AnimationMillisecondsPerTick;
+		}
+
+		/// <summary>
+		/// The tick at which an envelope's white spike ends -- the first keyframe sitting on the
+		/// shoulder value. Found in the YAML rather than recomputed from the yield on purpose: the
+		/// tests below then pin the SHAPE without also pinning the rounding rule that picked W, so
+		/// retuning W is a one-line change to the generator and not a test edit.
+		/// </summary>
+		static int ShoulderTick(LightEventDefinition light, string weapon)
+		{
+			var shoulder = FireballPeak * FireballShoulderFraction;
+			for (var k = 1; k < light.Intensities.Length; k++)
+				if (Math.Abs(light.Intensities[k] - shoulder) < 0.02)
+					return light.Times[k];
+
+			Assert.Fail($"{weapon}'s envelope has no keyframe at the shoulder value {shoulder}, so it is not the two-stage law");
+			return 0;
+		}
+
 		/// <summary>
 		/// The fireball light, on EVERY nuclear weapon in the mod. Loads each shipped envelope through
 		/// the same FieldLoader path the game uses — so a mismatched keyframe array fails here rather
-		/// than at mod load — and then checks the four things that make it a nuclear fireball.
+		/// than at mod load — and then checks the things that make it a nuclear fireball.
 		///
-		/// REWRITTEN 2026-09-07, and the rewrite inverts what this used to assert. It used to demand a
-		/// DOUBLE FLASH — first pulse, strictly lower dip, strictly larger second maximum — on the
-		/// grounds that a real fireball does exactly that and the interval between the two maxima is
-		/// how yield is measured from a bhangmeter trace. All true, and all of it renders as a STROBE
-		/// at a 60 ms timestep: `Atomic`'s envelope read 2.2 -> 0.8 -> 7.0 on three consecutive ticks.
-		/// The user reported the strobing and asked for a bright flash that fades, so the invariant is
-		/// now the opposite one and is pinned here so it cannot drift back:
+		/// REWRITTEN TWICE ON 2026-09-07, and both rewrites are load-bearing.
 		///
-		///     PEAK AT KEYFRAME 0, MONOTONE NON-INCREASING THEREAFTER, I(t) = 7.0 * (1 - t/D)^2.
+		/// The FIRST replaced a DOUBLE FLASH — first pulse, strictly lower dip, strictly larger second
+		/// maximum — with a single-peaked monotone decay. A real fireball does double-flash and the
+		/// interval between the maxima is how yield is measured from a bhangmeter trace; all of it
+		/// renders as a STROBE at a 60 ms timestep, and `Atomic`'s envelope read 2.2 -> 0.8 -> 7.0 on
+		/// three consecutive ticks. THAT INVARIANT IS UNCHANGED AND IS STILL PINNED HERE:
 		///
-		/// It also iterates AllNukes rather than the hard-coded superweapon pair. That is not tidiness:
+		///     PEAK AT KEYFRAME 0, MONOTONE NON-INCREASING THEREAFTER. DO NOT MODEL THE DOUBLE FLASH.
+		///
+		/// The SECOND is this one, after the user played the result. It changes two things:
+		///
+		///     DURATION IS THE FIREBALL ANIMATION'S, NOT THE YIELD'S. The old rule took the physical
+		///     incandescent lifetime, 0.8*(Y/20)^0.44 s. That is 2 ticks at 0.3 kt against a mushroom
+		///     sprite that runs 199, so the flash was over inside 1% of its own cloud and the small
+		///     weapons did not read as nuclear at all. The rule is now
+		///         D = max(fireball animation length, physical fireball lifetime)
+		///     with the animation length DERIVED here from the sequences file and the SHP header. The
+		///     physical term only ever binds on Tsar Bomba today. This is the assertion that keeps the
+		///     light and the cloud from drifting apart again, which is the whole point of the rework.
+		///
+		///     THE ENVELOPE IS TWO STAGES. A short blinding white spike falling to a shoulder at 70%
+		///     of peak, then a long quadratic fade to nothing:
+		///         0 <= t <= W:  I = 4.9 + 2.1 * (1 - t/W)^2
+		///         W <= t <= D:  I = 4.9 * (1 - (t-W)/(D-W))^2
+		///     Both stages fall, so the anti-strobe invariant survives intact; they differ in RATE.
+		///     Colour is decoupled from intensity and keyed on t/D, so the light is still bright while
+		///     it is already going orange — which is what "goes towards red at the later stages" means
+		///     and what a single curve driving both axes cannot express.
+		///
+		/// It iterates AllNukes rather than the hard-coded superweapon pair. That is not tidiness:
 		/// before the arsenal weapons carried lights at all, "both fireballs" meant two of ten, and a
 		/// green suite said nothing whatever about the other eight.
 		/// </summary>
 		[Test]
-		public void EveryNuclearFireballIsASinglePeakedFlashThatCoolsAndLastsAsLongAsItsYieldSays()
+		public void EveryNuclearFireballIsATwoStageFlashThatCoolsAndLastsAsLongAsItsFireballAnimation()
 		{
 			foreach (var (weapon, kt) in AllNukes)
 			{
 				var light = LightEventDefinition.LoadFrom(Warhead(weapon, "Warhead@FireballLight"), "Light", true);
+				var animation = AnimationTicks(FireballSequence(weapon));
+				var physical = FireballTicks(kt);
 
-				// 1. DURATION is the fireball's own incandescent lifetime, 0.8 * (Y/20)^0.44 seconds.
-				//
-				//    THE TOLERANCE IS RELATIVE AND THAT IS DELIBERATE, because two constants for this
-				//    one law are live in the tree and they differ by 1.7%. weapons-superweapons.yaml
-				//    states it as t = 0.2104 * Y^0.44 s, which is what puts AtomicHighYield at 161
-				//    ticks; weapons-nuclear-arsenal.yaml states it as 0.8 * (Y/20)^0.44 s, i.e.
-				//    0.21411 * Y^0.44, which is what every arsenal weapon is built on and what the
-				//    calculator anchors (0.8 s at 20 kt, 9.8 s at 6 Mt, 25 s at 50 Mt) actually give.
-				//    The arsenal constant is used here. AtomicHighYield's 161 is 1.9% under it and is
-				//    LEFT ALONE ON PURPOSE: ten other delays in that file are timed off the literal
-				//    161, so moving it to 164 would be a three-tick cosmetic change dragging a wide
-				//    edit behind it. Recorded in WORKSPACE/DISCOVERIES.md rather than papered over.
-				var expected = FireballTicks(kt);
+				// 1. THE LIGHT COVERS THE CLOUD. Stated first and on its own because it is the user's
+				//    actual complaint, and a failure here should say so rather than quoting arithmetic.
+				Assert.That(light.Duration, Is.GreaterThanOrEqualTo((int)Math.Floor(animation)),
+					$"{weapon}'s light lasts {light.Duration} ticks but its fireball animation runs {animation:F0}. " +
+					$"The cloud would burn in the dark for the last {animation - light.Duration:F0} ticks, which is the defect this envelope was rewritten to fix.");
+
+				// 2. AND IT IS EXACTLY THE RULE, so a weapon cannot quietly acquire a longer light than
+				//    the rule gives. The tolerance is relative for the same reason as ever: two
+				//    constants for the 0.8*(Y/20)^0.44 law are live in the tree and differ by 1.7%.
+				var expected = Math.Max(animation, physical);
 				Assert.That(light.Duration, Is.EqualTo(expected).Within(Math.Max(1.0, 0.025 * expected)),
-					$"{weapon}'s fireball lasts {light.Duration} ticks against the {expected:F0} its yield implies");
+					$"{weapon}'s light is {light.Duration} ticks against the {expected:F0} that max(animation {animation:F0}, physical {physical:F0}) gives. " +
+					"If the sequence ladder moved, regenerate with tools/nuke-light/gen_fireball_light.py --write.");
 
 				var i = light.Intensities;
 
-				// 2. THE ANTI-STROBE INVARIANT. Brightest at tick 0, never brighter again.
+				// 3. THE ANTI-STROBE INVARIANT. Brightest at tick 0, never brighter again.
 				Assert.That(Array.IndexOf(i, i.Max()), Is.EqualTo(0),
 					$"{weapon}'s fireball peaks at keyframe {Array.IndexOf(i, i.Max())} rather than at tick 0 — an envelope that gets brighter after it starts reads as a strobe at 60 ms per tick");
 				for (var k = 1; k < i.Length; k++)
@@ -543,20 +692,41 @@ namespace OpenRA.Test
 						$"{weapon}'s fireball brightens again between keyframes {k - 1} and {k} ({i[k - 1]} -> {i[k]})");
 				Assert.That(i[i.Length - 1], Is.EqualTo(0f), $"{weapon}'s fireball does not fade to nothing");
 
-				// 3. IT IS THE SAME LAW ON ALL TEN, evaluated at each weapon's own duration. Checking
-				//    the shape rather than only monotonicity is what makes the set one rule applied ten
-				//    times instead of ten curves that each happen to go down.
-				Assert.That(i[0], Is.EqualTo(7.0f).Within(0.01),
-					$"{weapon} does not peak at 7.0; fireball surface brightness is set by temperature and does not scale with yield");
+				// 4. IT IS THE SAME TWO-STAGE LAW ON ALL FOURTEEN, at each weapon's own W and D.
+				//    Checking the shape rather than only monotonicity is what makes the set one rule
+				//    applied fourteen times instead of fourteen curves that each happen to go down.
+				Assert.That(i[0], Is.EqualTo((float)FireballPeak).Within(0.01),
+					$"{weapon} does not peak at {FireballPeak}; fireball surface brightness is set by temperature and does not scale with yield");
+
+				var shoulder = FireballPeak * FireballShoulderFraction;
+				var w = ShoulderTick(light, weapon);
+
+				// THE SPIKE MUST STAY SHORT. This is the "much shorter initial super-intense light"
+				// half of the request, and without it the two-stage law degenerates into a plateau.
+				Assert.That(w, Is.InRange(3, 14), $"{weapon}'s white phase is {w} ticks, outside the 3-14 the rule allows");
+				Assert.That(w, Is.LessThanOrEqualTo((int)(0.12 * light.Duration)),
+					$"{weapon} spends {w} of its {light.Duration} ticks at near-peak brightness; the white spike must be a small fraction of the envelope, not most of it");
+
 				for (var k = 0; k < i.Length; k++)
 				{
-					var law = 7.0 * Math.Pow(1.0 - (double)light.Times[k] / light.Duration, 2);
+					var t = light.Times[k];
+					double law;
+					if (t <= w)
+					{
+						var f = 1.0 - t / (double)w;
+						law = shoulder + (FireballPeak - shoulder) * f * f;
+					}
+					else
+					{
+						var u = (t - w) / (double)(light.Duration - w);
+						law = shoulder * (1 - u) * (1 - u);
+					}
+
 					Assert.That(i[k], Is.EqualTo(law).Within(0.06),
-						$"{weapon} keyframe {k} (tick {light.Times[k]}) is {i[k]} against the {law:F2} that 7.0*(1-t/{light.Duration})^2 gives");
+						$"{weapon} keyframe {k} (tick {t}) is {i[k]} against the {law:F2} the two-stage law gives at W={w}, D={light.Duration}");
 				}
 
-				// 4. IT COOLS, from the first keyframe now that there is no dip to skip past. White ->
-				//    yellow -> orange -> dull red, monotonically.
+				// 5. IT COOLS. White -> yellow -> orange -> dull red, monotonically.
 				//
 				//    The measure is the red:blue RATIO and not red MINUS blue, which is the trap here: a
 				//    cooling fireball also darkens, so the difference can fall across a step that is
@@ -574,12 +744,34 @@ namespace OpenRA.Test
 				var final = light.Tints[light.Tints.Length - 1];
 				Assert.That(final.R, Is.GreaterThan(2 * final.B), $"{weapon}'s fireball does not end on a dull red");
 
-				// 5. The light's maximum radius is the thermal radius: illumination reach scales as the
+				// 6. THE SPIKE IS WHITE AND THE TAIL IS NOT. Both halves are new with the two-stage
+				//    envelope and both are the user's words: "while the fireball is active it produces
+				//    that white strong light, and then it goes towards red at the later stages". The
+				//    monotone-ratio check above allows an envelope that is orange from tick 0, or one
+				//    that is still white at the end; neither is what was asked for.
+				for (var k = 0; k < light.Tints.Length && k < light.Times.Length && light.Times[k] <= w; k++)
+				{
+					var c = light.Tints[k];
+					var lo = Math.Min(c.R, Math.Min(c.G, c.B));
+					var hi = Math.Max(c.R, Math.Max(c.G, c.B));
+					Assert.That(lo / (double)hi, Is.GreaterThanOrEqualTo(0.88),
+						$"{weapon}'s keyframe {k} is inside the white phase (tick {light.Times[k]} <= {w}) but is {c} — the spike has to read as white");
+				}
+
+				var reddenedInTime = false;
+				for (var k = 0; k < light.Tints.Length && k < light.Times.Length; k++)
+					if (light.Times[k] <= 0.7 * light.Duration && light.Tints[k].R > 2 * light.Tints[k].B)
+						reddenedInTime = true;
+
+				Assert.That(reddenedInTime, Is.True,
+					$"{weapon} is still not red by 70% of its {light.Duration}-tick envelope; the ramp reaches red too late to read as cooling");
+
+				// 7. The light's maximum radius is the thermal radius: illumination reach scales as the
 				//    fireball radius (Y^0.40) and thermal as Y^0.41, close enough that one array carries both.
 				Assert.That(Cells(light.MaximumRadius.Length), Is.EqualTo(ThermalCells(kt)).Within(Math.Max(3.0, 0.05 * ThermalCells(kt))),
 					$"{weapon}'s light no longer reaches its thermal radius");
 
-				// 6. The flash has to survive fog, or it is invisible over exactly the ground a player
+				// 8. The flash has to survive fog, or it is invisible over exactly the ground a player
 				//    is most likely to be nuking. LightEventManager.RenderAboveFog reads this per event.
 				Assert.That(light.GlowAboveFog, Is.True, $"{weapon}'s fireball light is attenuated by fog");
 			}
@@ -650,12 +842,28 @@ namespace OpenRA.Test
 		}
 
 		/// <summary>
-		/// Yield buys AREA and DURATION, not brightness. A fireball's surface is ~7000 K at the second
-		/// maximum whatever set it off, so the peak intensities must match; making the strategic weapon
-		/// brighter instead of bigger is the one obvious wrong way to scale this.
+		/// What yield buys, now that it no longer buys the light's LENGTH.
+		///
+		/// REWRITTEN 2026-09-07. This test used to assert that the two lifetimes stood in the ratio
+		/// (6000/20)^0.44 — the physical fireball law — and that assertion is gone because the premise
+		/// is gone: duration comes from the fireball animation now, and both weapons draw the same
+		/// sequence, so both durations are the same number and the ratio is 1. Asserting a ratio of 1
+		/// would pin an accident of today's sequences file, so what is pinned instead is the RULE that
+		/// produced it: each weapon's light is as long as its own animation. That assertion keeps
+		/// working unchanged on the day the ten weapons get ten sequences, which is the intent.
+		///
+		/// What yield still buys, and what is checked here:
+		///   AREA      — 124 cells against 12, still on the thermal Y^0.41 law.
+		///   THE WHITE PHASE — 9 ticks against 4. The one thing yield still buys in TIME.
+		/// What it deliberately does not buy:
+		///   BRIGHTNESS — a fireball's surface is ~7000 K whatever set it off, so the peaks must
+		///   match. Making the strategic weapon brighter instead of bigger is the one obvious wrong
+		///   way to scale this, and it would not even work: TerrainLighting.Tint sums
+		///   `falloff * intensity * tint` with no clamp anywhere in the path, so 7.0 is already
+		///   saturated at the centre of the light and raising it only widens the blown-out core.
 		/// </summary>
 		[Test]
-		public void YieldScalesTheFireballsSizeAndLifetimeButNotItsBrightness()
+		public void YieldScalesTheFireballsAreaAndItsWhitePhaseButNotItsBrightnessOrItsLength()
 		{
 			var tactical = LightEventDefinition.LoadFrom(Warhead("Atomic", "Warhead@FireballLight"), "Light", true);
 			var strategic = LightEventDefinition.LoadFrom(Warhead("AtomicHighYield", "Warhead@FireballLight"), "Light", true);
@@ -664,9 +872,16 @@ namespace OpenRA.Test
 				"the two fireballs no longer peak at the same brightness; surface temperature does not scale with yield");
 
 			var radiusRatio = (double)strategic.MaximumRadius.Length / tactical.MaximumRadius.Length;
-			var lifetimeRatio = (double)strategic.Duration / tactical.Duration;
 			Assert.That(radiusRatio, Is.EqualTo(Math.Pow(StrategicKt / TacticalKt, 0.41)).Within(1.0));
-			Assert.That(lifetimeRatio, Is.EqualTo(Math.Pow(StrategicKt / TacticalKt, 0.44)).Within(1.5));
+
+			// Each light is as long as its OWN animation. Written per weapon rather than as a ratio so
+			// it still means something when the two stop sharing a sequence.
+			foreach (var (weapon, light) in new[] { ("Atomic", tactical), ("AtomicHighYield", strategic) })
+				Assert.That(light.Duration, Is.GreaterThanOrEqualTo((int)Math.Floor(AnimationTicks(FireballSequence(weapon)))),
+					$"{weapon}'s light no longer covers its own fireball animation");
+
+			Assert.That(ShoulderTick(strategic, "AtomicHighYield"), Is.GreaterThan(ShoulderTick(tactical, "Atomic")),
+				"the strategic weapon's white phase is no longer longer than the tactical one's; the white phase is the only thing yield still buys in time");
 		}
 
 		/// <summary>
