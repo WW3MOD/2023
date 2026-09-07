@@ -1,6 +1,6 @@
 # WW3MOD - Agent Instructions
 
-WW3MOD is a **total conversion** of OpenRA Red Alert (`release-20230225`, engine in-repo, ~264 C# files modified) into a modern World War 3 RTS. NATO/America vs BRICS/Russia. Solution `WW3MOD.sln`; engine compiles to `engine/bin/`; mod content in `mods/ww3mod/`.
+WW3MOD is a **total conversion** of OpenRA Red Alert (`release-20230225`, engine in-repo, ~264 C# files modified) into a modern World War 3 RTS. **Two playable factions and only two: America and Russia** — `world.yaml:257-275` ships exactly two `Faction@` blocks and `RandomFactionMembers: america, russia`. Any "BRICS" you meet is either a stale synonym for Russia or a live code identifier (`player.brics`, `sidebar-brics`, `FactionSuffix-russia: brics`) that must NOT be renamed; `player.yaml:645`'s `Factions: brics, russia, china, belarus` lists faction strings no `Faction@` block defines. **China is not in the game**, and reading it into one from that line cost a design recommendation on 2026-09-07. Solution `WW3MOD.sln`; engine compiles to `engine/bin/`; mod content in `mods/ww3mod/`.
 
 ## Hard rules
 
