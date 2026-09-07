@@ -5,7 +5,9 @@
  *
  * A purchasable power is spread across files that never mention each other by type:
  *
- *     rules/player.yaml            MissileStrikePower@X, `RequiresPurchase: True`, an `OrderName`
+ *     rules/player.yaml            MissileStrikePower@X, `RequiresPurchase: True`, an `OrderName`,
+ *                                  and the `Prerequisites` TIER for every power in the mod --
+ *                                  including the six defined in the file below
  *     rules/ingame/nuclear-arsenal.yaml   six more of the same
  *     rules/powers.yaml            a proxy actor naming that OrderName
  *     chrome.yaml + chrome/ingame-player.yaml   the tab glyph and the button that selects the queue
@@ -75,6 +77,19 @@ namespace OpenRA.Test
 			throw new FileNotFoundException("could not locate mods/ww3mod/" + string.Join("/", relative));
 		}
 
+		static string FindEngine(params string[] relative)
+		{
+			var dir = new DirectoryInfo(AppContext.BaseDirectory);
+			for (var i = 0; i < 10 && dir != null; i++, dir = dir.Parent)
+			{
+				var candidate = Path.Combine(new[] { dir.FullName, "engine" }.Concat(relative).ToArray());
+				if (File.Exists(candidate))
+					return candidate;
+			}
+
+			throw new FileNotFoundException("could not locate engine/" + string.Join("/", relative));
+		}
+
 		static string Field(MiniYamlNode node, string key)
 		{
 			return node.Value.Nodes.FirstOrDefault(n => n.Key == key)?.Value.Value?.Trim();
@@ -107,6 +122,51 @@ namespace OpenRA.Test
 		static Dictionary<string, bool> Powers()
 		{
 			var found = new Dictionary<string, bool>();
+			foreach (var (order, purchasable, _) in PowerRows())
+				found[order] = purchasable;
+
+			return found;
+		}
+
+		/// <summary>The three tier prerequisites, exactly as rules/player.yaml provides them.</summary>
+		static readonly string[] Tiers = { "powers.america", "powers.russia", "powers.event" };
+
+		/// <summary>
+		/// The four Russian warheads authored on a CONCURRENT BRANCH (weapons-nuclear-arsenal.yaml
+		/// and rules/ingame/nuclear-arsenal.yaml), whose OrderNames rules/powers.yaml already sells
+		/// proxies for. Until that branch merges the powers do not exist, and a proxy naming a
+		/// missing power is INERT rather than broken -- SupportPowerProductionQueue resolves through
+		/// Manager.Powers and filters out anything that misses (SupportPowerProductionQueue.cs:80-103),
+		/// so the entry simply never appears. No crash, no lint error, no lost money.
+		///
+		/// THIS LIST IS A COUNTDOWN, NOT AN EXEMPTION. It only permits ABSENCE. The moment one of
+		/// these powers exists it is held to every rule the other eleven are, including the tier
+		/// prerequisite -- which is the specific thing the two branches agreed but could not write
+		/// down in one file, because a tier goes on the power trait and only the OrderName was fixed
+		/// between them. Delete a name from here as it lands.
+		/// </summary>
+		static readonly string[] PendingSiblingPowers =
+		{
+			"Ru9M729Strike", "RuIskanderStrike", "RuKinzhalNStrike", "RuKalibrStrike",
+		};
+
+		/// <summary>
+		/// Every support power in the mod: its OrderName, whether it opted into being bought, and
+		/// the `Prerequisites` string it carries. BOTH files, because the arsenal put six of the
+		/// eleven somewhere other than player.yaml, and a walk that misses a file reports those six
+		/// as "no such power" or misses their missing proxies entirely.
+		/// </summary>
+		static IEnumerable<(string Order, bool Purchasable, string Prerequisites)> PowerRows()
+		{
+			// A trait's fields can be SPLIT ACROSS BOTH FILES and merging them is not optional here.
+			// rules/player.yaml deliberately carries the tier for the six powers DEFINED in
+			// nuclear-arsenal.yaml (see "TIERS FOR THE SIX POWERS" there), so a per-file walk sees
+			// six powers with an OrderName and no Prerequisites, plus six with a Prerequisites and
+			// no OrderName, and concludes the arsenal is ungated. MiniYaml merges the Player node
+			// across files at load; this reproduces that for the two fields we care about.
+			var purchasable = new Dictionary<string, bool>();
+			var prereqs = new Dictionary<string, string>();
+			var orderOfTrait = new Dictionary<string, string>();
 
 			foreach (var file in new[] { FindMod("rules", "player.yaml"), FindMod("rules", "ingame", "nuclear-arsenal.yaml") })
 			{
@@ -121,14 +181,29 @@ namespace OpenRA.Test
 						continue;
 
 					var order = Field(trait, "OrderName");
-					if (order == null)
-						continue;
+					if (order != null)
+					{
+						orderOfTrait[trait.Key] = order;
+						purchasable[order] = string.Equals(Field(trait, "RequiresPurchase"), "True", StringComparison.OrdinalIgnoreCase);
+					}
 
-					found[order] = string.Equals(Field(trait, "RequiresPurchase"), "True", StringComparison.OrdinalIgnoreCase);
+					var prereq = Field(trait, "Prerequisites");
+					if (prereq != null && orderOfTrait.TryGetValue(trait.Key, out var known))
+						prereqs[known] = prereq;
+					else if (prereq != null)
+						prereqs["\0trait:" + trait.Key] = prereq;
 				}
 			}
 
-			return found;
+			// Second pass for tiers written against a trait whose OrderName lives in the file read
+			// LATER. Order-independence matters: mod.yaml lists player.yaml before nuclear-arsenal.yaml
+			// today, and a reordering there must not silently turn this fixture green.
+			foreach (var (traitKey, order) in orderOfTrait)
+				if (!prereqs.ContainsKey(order) && prereqs.TryGetValue("\0trait:" + traitKey, out var late))
+					prereqs[order] = late;
+
+			foreach (var (order, buy) in purchasable)
+				yield return (order, buy, prereqs.TryGetValue(order, out var p) ? p : null);
 		}
 
 		/// <summary>
@@ -253,9 +328,13 @@ namespace OpenRA.Test
 				Assert.That(order, Is.Not.Null.And.Not.Empty,
 					$"{proxy} has ProvidesSupportPowerCharge with no Power");
 
+				if (!powers.ContainsKey(order) && PendingSiblingPowers.Contains(order))
+					continue;
+
 				Assert.That(powers.ContainsKey(order), Is.True,
 					$"{proxy} sells `{order}`, which is not the OrderName of any power in the mod. " +
-					"At runtime this takes the money for the whole build and then refunds it.");
+					"At runtime the queue filters the entry out and it never appears in the tab. " +
+					"If this power is arriving on another branch, add it to PendingSiblingPowers.");
 
 				Assert.That(powers[order], Is.True,
 					$"{proxy} sells `{order}`, but that power does not set RequiresPurchase. " +
@@ -287,6 +366,114 @@ namespace OpenRA.Test
 				"these powers still charge on a timer while the rest are bought: " +
 				string.Join(", ", onTimers) + ". Either give them a proxy in rules/powers.yaml or " +
 				"say in the report why they are exempt.");
+		}
+
+		// ---------- the faction gate ----------
+
+		[Test]
+		public void EveryPurchasablePowerDeclaresATier()
+		{
+			// THE FAULT THIS BRANCH EXISTED TO FIX, pinned so it cannot come back. Before 2026-09-07
+			// rules/powers.yaml contained ZERO Prerequisites lines and its own header asserted the
+			// opposite -- "faction-locked to opposite sides, so no player ever holds both" -- with the
+			// case for pricing the two conventional strikes identically resting on it. Eight of the
+			// ten powers were in fact buyable by anybody.
+			//
+			// The gate is `Prerequisites` on the power, NOT on the proxy's Buildable, and the
+			// difference is visible: SupportPowerProductionQueue filters AllItems() as well as
+			// BuildableItems() on instance.Purchasable, which makes an out-of-tier power ABSENT.
+			// A Buildable.Prerequisites gate would only DIM it (ProductionPaletteWidget.cs:707,:780),
+			// so a NATO player would see Russia's five greyed out instead of not at all.
+			var ungated = PowerRows()
+				.Where(r => r.Purchasable)
+				.Where(r => r.Prerequisites == null || !Tiers.Any(t => r.Prerequisites.Contains(t, StringComparison.Ordinal)))
+				.Select(r => r.Order)
+				.ToArray();
+
+			Assert.That(ungated, Is.Empty,
+				"these purchasable powers name no tier prerequisite, so EVERY player can buy them " +
+				"regardless of faction: " + string.Join(", ", ungated) + ". Add one of " +
+				string.Join(" / ", Tiers) + " to the power in rules/player.yaml (the six arsenal " +
+				"powers are tiered there too, in the block headed \"TIERS FOR THE SIX POWERS\").");
+		}
+
+		[Test]
+		public void TheTierPrerequisitesAreActuallyProvided()
+		{
+			// The other half: a tier nothing provides is a power nobody can ever buy, and it fails
+			// EXACTLY like a correctly-locked power looks -- silently absent from the tab. A typo in
+			// `powers.america` is invisible to the test above, which only checks the string is one of
+			// the three known ones; this checks the three are real.
+			var player = MiniYaml.FromFile(FindMod("rules", "player.yaml")).First(n => n.Key == "Player");
+			var provided = player.Value.Nodes
+				.Where(n => n.Key.Split('@')[0] == "ProvidesPrerequisite")
+				.Select(n => Field(n, "Prerequisite"))
+				.Where(v => v != null)
+				.ToHashSet();
+
+			foreach (var tier in Tiers)
+				Assert.That(provided, Contains.Item(tier),
+					$"no ProvidesPrerequisite in player.yaml grants `{tier}`, so every power gated on " +
+					"it is unbuyable by everyone -- which looks identical in game to being correctly " +
+					"faction-locked.");
+		}
+
+		[Test]
+		public void TheSandboxOptionUnlocksAllThreeTiers()
+		{
+			// The user's test mode, and it must survive: they had all ten powers buyable specifically
+			// so they could test them, and the faction gate would otherwise have taken that away.
+			// Sandbox works by providing all three tiers with NO Factions filter, so this asserts
+			// three unfiltered providers gated on the sandbox condition -- one per tier. A provider
+			// that grew a `Factions:` line would silently make sandbox faction-locked again.
+			var player = MiniYaml.FromFile(FindMod("rules", "player.yaml")).First(n => n.Key == "Player");
+
+			var sandbox = player.Value.Nodes
+				.Where(n => n.Key.Split('@')[0] == "ProvidesPrerequisite")
+				.Where(n => Field(n, "RequiresCondition") == "!powers-sandbox-disabled")
+				.ToArray();
+
+			foreach (var tier in Tiers)
+			{
+				var provider = sandbox.FirstOrDefault(n => Field(n, "Prerequisite") == tier);
+				Assert.That(provider, Is.Not.Null,
+					$"the sandbox lobby option does not grant `{tier}`, so ticking it still leaves " +
+					"that tier faction-locked (or, for powers.event, unreachable entirely).");
+
+				Assert.That(provider.Value.Nodes.Any(n => n.Key == "Factions"), Is.False,
+					$"the sandbox provider for `{tier}` carries a Factions filter, which defeats the " +
+					"whole point of the option -- it exists to IGNORE faction.");
+			}
+
+			// And the polarity. Written the other way round -- grant a `powers-sandbox` condition
+			// when the option is ENABLED -- an unregistered option falls back to true and hands both
+			// factions the Tsar Bomba. Same trap as @tacnuke and @highyieldnuke.
+			var gate = player.Value.Nodes
+				.Where(n => n.Key.Split('@')[0] == "GrantConditionOnLobbyOption")
+				.FirstOrDefault(n => Field(n, "Option") == "powers-sandbox");
+
+			Assert.That(gate, Is.Not.Null, "nothing in player.yaml reads the `powers-sandbox` lobby option");
+			Assert.That(Field(gate, "Condition"), Is.EqualTo("powers-sandbox-disabled"),
+				"the sandbox gate must grant a DISABLING condition, not an enabling one");
+			Assert.That(Field(gate, "GrantWhenOptionDisabled"), Is.EqualTo("true"),
+				"GrantWhenOptionDisabled must be true, or an unregistered option defaults to " +
+				"SANDBOX ON and every match becomes one");
+		}
+
+		[Test]
+		public void TheSandboxOptionIsRegisteredAndDefaultsOff()
+		{
+			// The C# half of the pair above. GrantConditionOnLobbyOption's fallback is
+			// !GrantWhenOptionDisabled and NOT this default (they are separate values), so this is not
+			// a safety property -- it is the plain statement that a host who configures nothing gets a
+			// normal, faction-locked match.
+			var src = File.ReadAllText(FindEngine("OpenRA.Mods.Common", "Traits", "World", "PowersLobbyOptions.cs"));
+
+			Assert.That(src, Does.Contain("\"powers-sandbox\""),
+				"PowersLobbyOptions does not register a `powers-sandbox` option, so the checkbox " +
+				"never appears in the lobby and player.yaml's gate falls back to off forever");
+			Assert.That(src, Does.Contain("PowersSandboxCheckboxEnabled = false"),
+				"the sandbox checkbox must ship defaulting OFF");
 		}
 
 		// ---------- what the palette and the chrome dereference ----------
@@ -380,14 +567,34 @@ namespace OpenRA.Test
 			var widget = Find(bin) ?? throw new AssertionException("no SupportPowers widget in ingame-player.yaml");
 			var count = int.Parse(Field(widget, "HotkeyCount") ?? "0", System.Globalization.CultureInfo.InvariantCulture);
 
-			// One player can never hold BOTH conventional strikes: they are faction-locked to
-			// opposite sides. Everything else is available to either faction.
-			var factionLocked = new[] { "KinzhalStrike", "GBU57Strike" };
-			var holdable = Powers().Count - factionLocked.Length + 1;
+			// HOW MANY CAN ONE PLAYER ACTUALLY HOLD? This used to be "everything less the one
+			// conventional strike you do not get", because only two powers were faction-locked. Every
+			// power now names a tier, so the answer is a max over the tiers a single player can hold
+			// at once -- and the worst case is SANDBOX, where one player holds all three at once and
+			// the bin has to draw every power in the mod.
+			//
+			// SANDBOX IS THE BINDING CASE AND IT IS NOT AN EDGE CASE. It is the mode the user tests
+			// in, so it is the mode most likely to have more cameos on screen than the bin can bind.
+			// Sizing to a normal match instead would leave exactly the person using the feature
+			// reaching for a mouse.
+			var rows = PowerRows().Where(r => r.Purchasable).ToArray();
+			var perTier = Tiers.ToDictionary(
+				t => t,
+				t => rows.Count(r => r.Prerequisites != null && r.Prerequisites.Contains(t, StringComparison.Ordinal)));
+
+			// Normal match: your faction's tier only. Sandbox: all three.
+			var normalMatch = Math.Max(perTier["powers.america"], perTier["powers.russia"]);
+			var holdable = perTier.Values.Sum();
+
+            Assert.That(holdable, Is.GreaterThanOrEqualTo(normalMatch),
+				"tier arithmetic is wrong; sandbox cannot hold fewer powers than a normal match");
 
 			Assert.That(count, Is.GreaterThanOrEqualTo(holdable),
-				$"a player can hold {holdable} powers at once but the bin binds only {count} hotkeys, " +
-				"so the last few are mouse-only");
+				$"a player can hold {holdable} powers at once with the sandbox lobby option on " +
+				$"({normalMatch} in a normal match) but the bin binds only {count} hotkeys, so the " +
+				"last few are mouse-only. HotkeyCount is POSITIONAL -- SupportPowersWidget binds " +
+				"hotkeys[IconCount] by draw index (SupportPowersWidget.cs:161), not by power -- so " +
+				"raising it is safe and never rebinds an existing slot to a different weapon.");
 
 			// And every slot the count promises must be a defined hotkey, or CheckChromeHotkeys
 			// fails the gate (CheckChromeHotkeys.cs:97). 01-06 come from common; the rest are ours.

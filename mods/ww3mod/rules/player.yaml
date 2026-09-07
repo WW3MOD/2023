@@ -122,12 +122,112 @@ Player:
 		NewOptionsTextNotification: New construction options.
 		CannotPlaceTextNotification: Cannot deploy here.
 	SupportPowerManager:
+	# =========================================================================================
+	# THE THREE TIERS -- the faction gate on the support-power buy tab, and the sandbox override.
+	# =========================================================================================
+	#
+	# WHAT WAS ALREADY HERE, because building a second mechanism beside it would have been the real
+	# mistake: the gate is `SupportPowerInfo.Prerequisites`, and it ALREADY reaches the buy tab.
+	# SupportPowerProductionQueue filters BOTH AllItems() and BuildableItems() on
+	# `instance.Purchasable` (SupportPowerProductionQueue.cs:99-113), and Purchasable is
+	# bank.CanPurchase(Permitted) where Permitted folds in the faction prerequisite
+	# (SupportPowerManager.cs:160-175). Filtering AllItems too is what makes a gated power ABSENT
+	# from the shop rather than greyed out -- ProductionPaletteWidget draws one cameo per AllItems
+	# entry and only DIMS the ones missing from BuildableItems.
+	#
+	# So the Kinzhal and the GBU-57 were genuinely faction-locked before this branch. What was NOT
+	# gated was every nuclear power: eight of the ten carried no Prerequisites at all and any player
+	# could buy any of them. This block closes that, and adds the tier that was missing.
+	#
+	#   powers.america   provided by faction `america`         -- America's five-rung buy ladder
+	#   powers.russia    provided by faction `russia`          -- Russia's five-rung buy ladder
+	#   powers.event     provided by NO faction, ever          -- Dead Hand / scripted / demo only
+	#
+	# EVERY THREE ARE ALSO PROVIDED BY THE SANDBOX LOBBY OPTION, which is the whole point of the
+	# indirection. A prerequisite can be provided by more than one ProvidesPrerequisite trait and
+	# TechTree takes the union, so "faction OR sandbox" is expressible where a bare `player.russia`
+	# -- provided by faction alone -- is not. That is why the two conventional strikes moved off
+	# `player.russia` / `player.america`: those two names are consumed by the AI layer
+	# (rules/ai/ai-russia.yaml, ai-america.yaml) and must keep meaning "is this player Russia", so
+	# the powers needed names of their own rather than a widened meaning for a shared one.
+	#
+	# WHY `Factions:` LISTS EXACTLY ONE NAME EACH. world.yaml ships exactly two Faction@ blocks,
+	# `america` and `russia` (plus Random, whose RandomFactionMembers is those same two). Anything
+	# else is unreachable -- see the note on ProvidesPrerequisite@NATO further down this file.
+	ProvidesPrerequisite@PowersAmerica:
+		Factions: america
+		Prerequisite: powers.america
+	ProvidesPrerequisite@PowersRussia:
+		Factions: russia
+		Prerequisite: powers.russia
+
+	# ---- THE SANDBOX OVERRIDE ----
+	# Three traits with NO `Factions:` filter, each enabled only while the sandbox option is on.
+	# Together they hand every player all three tiers, so all fifteen powers are purchasable
+	# regardless of faction. This is the user's test mode and it is meant to stay.
+	#
+	# THE POLARITY IS THE SAFETY PROPERTY AND IT IS INVERTED FROM WHAT READS NATURALLY. Do not
+	# rewrite these as `RequiresCondition: powers-sandbox`. GrantConditionOnLobbyOption computes
+	#     optionEnabled = OptionOrDefault(Option, !GrantWhenOptionDisabled)
+	#     shouldGrant   = GrantWhenOptionDisabled ? !optionEnabled : optionEnabled
+	# (GrantConditionOnLobbyOption.cs:45-49), so the fallback when the option is NOT REGISTERED AT
+	# ALL is `!GrantWhenOptionDisabled`. Written this way round:
+	#     option registered and off (the shipped default) -> `powers-sandbox-disabled` -> normal match
+	#     option registered and on  (host ticked it)      -> no condition -> everything purchasable
+	#     option NOT REGISTERED AT ALL                    -> falls back to false -> normal match
+	# The third row is the one that matters. Written the other way round -- grant a `powers-sandbox`
+	# condition when the option is ENABLED -- the identical absence would default to TRUE and every
+	# match on a build with PowersLobbyOptions stripped, or an old saved session, would silently
+	# hand both factions the Tsar Bomba. Same trap as @tacnuke and @highyieldnuke above.
+	GrantConditionOnLobbyOption@powerssandbox:
+		Option: powers-sandbox
+		Condition: powers-sandbox-disabled
+		GrantWhenOptionDisabled: true
+	ProvidesPrerequisite@SandboxAmerica:
+		Prerequisite: powers.america
+		RequiresCondition: !powers-sandbox-disabled
+	ProvidesPrerequisite@SandboxRussia:
+		Prerequisite: powers.russia
+		RequiresCondition: !powers-sandbox-disabled
+	ProvidesPrerequisite@SandboxEvent:
+		Prerequisite: powers.event
+		RequiresCondition: !powers-sandbox-disabled
+
+	# ---- TIERS FOR THE SIX POWERS DEFINED IN rules/ingame/nuclear-arsenal.yaml ----
+	# DELIBERATELY HERE AND NOT THERE, and it is worth knowing why before "tidying" it back.
+	# MiniYaml merges the `Player:` node across every file in mod.yaml's Rules list, so adding a
+	# field to a trait defined in another file is ordinary and order-independent (the key does not
+	# exist there, so there is nothing to win a last-write against). Keeping all fifteen tier
+	# assignments in ONE list is worth the split: a tier table scattered over two files is a table
+	# nobody can read, and the failure mode this whole branch exists to fix was exactly a gate
+	# everyone believed was somewhere else.
+	#
+	# EveryPurchasablePowerDeclaresATier in OpenRA.Test/PowerPurchaseWiringTest.cs reads BOTH files
+	# and fails if any power reaches the shop without one of the three names above, so this list
+	# cannot silently fall behind the arsenal.
+	MissileStrikePower@B61Low:
+		Prerequisites: powers.america
+	MissileStrikePower@B61Max:
+		Prerequisites: powers.america
+	MissileStrikePower@W76:
+		Prerequisites: powers.america
+	MissileStrikePower@Sarmat:
+		Prerequisites: powers.event
+	MissileStrikePower@B83:
+		Prerequisites: powers.event
+	MissileStrikePower@TsarBomba:
+		Prerequisites: powers.event
+
 	# PHASE 1 of the missile strike powers (WORKSPACE/proposals/260904-missile-powers.md).
 	# ChargeInterval is a placeholder so the power is reachable on its own; the buy/bank model that
 	# is meant to gate it is Phase 2 and is not wired yet.
 	MissileStrikePower@Kinzhal:
 		OrderName: KinzhalStrike
-		Prerequisites: player.russia
+		# RUSSIA'S CONVENTIONAL RUNG. `powers.russia`, not `player.russia`, and the swap is what
+		# makes the sandbox toggle possible at all -- see THE THREE TIERS below. `player.russia` is
+		# provided by faction ALONE, so nothing could ever unlock this for an America player; the
+		# powers.* prerequisites are provided by faction OR by the sandbox lobby option.
+		Prerequisites: powers.russia
 		Icon: precicon
 		Name: Kh-47M2 Kinzhal
 		Description: Hypersonic missile strike called in from off-map reserves.\nArrives over your own back line on a fixed heading.\nSAM sites can engage it, but rarely stop it.
@@ -213,13 +313,18 @@ Player:
 	# comments, understates every duration by 1.5x.
 	MissileStrikePower@GBU57:
 		OrderName: GBU57Strike
-		Prerequisites: player.america
+		# AMERICA'S CONVENTIONAL RUNG. See the note on @Kinzhal for why this is `powers.america`
+		# rather than `player.america`.
+		Prerequisites: powers.america
 		# INTERIM ART, ruled by the manager rather than left blocked on a drawing. §4a wanted one new
 		# cameo for the US strike and flagged reusing `precicon` as an asymmetry -- Russia generic,
-		# America bespoke. That worry does not apply now the two powers are FACTION-LOCKED to
-		# opposite sides: `Prerequisites: player.america` here against `player.russia` on the Kinzhal
-		# means no player ever holds both, so no player can see the repeat. And PRECISION STRIKE is
-		# not a wrong caption for a GBU-57.
+		# America bespoke. In a NORMAL match that worry still does not apply: the two are locked to
+		# opposite sides, so no player holds both and no player can see the repeat.
+		#
+		# IN SANDBOX THEY ARE BOTH VISIBLE AT ONCE, which is new as of this branch and is the one
+		# place the repeat is now seeable. That is accepted rather than fixed: sandbox is a test
+		# mode, not a match, and two identical cameos one row apart is a cosmetic cost paid only by
+		# the person who ticked the box. And PRECISION STRIKE is not a wrong caption for a GBU-57.
 		# DO NOT "improve" this to cmissicon or missicon however their names read: captions are baked
 		# into the cameo PIXELS at rows 42-46, and those two are a biohazard trefoil captioned
 		# CHEMICAL STRIKE and a building captioned TECH CENTER (§4a).
@@ -276,6 +381,60 @@ Player:
 	# `tacnuke-disabled` is granted anyway, and the power stays hidden. Written the other way round
 	# (Condition: tacnuke-allowed, GrantWhenOptionDisabled: false) the identical absence would
 	# default to TRUE and hand every player a nuke. Do not invert this.
+	# ---- B61-12, MIDDLE DIAL SETTING: 10 kt ---------------------------------------------------
+	# THE RUNG THAT WAS MISSING. `NukeB61Mod12Y10` has been in weapons-nuclear-arsenal.yaml since the
+	# arsenal landed (:723) and was fired by NOTHING -- a complete warhead with no way to reach it.
+	# This power is the only new thing needed to expose it; no new weapon was written.
+	#
+	# DEFINED HERE RATHER THAN IN nuclear-arsenal.yaml, alongside its five siblings, PURELY because
+	# of a concurrent-work split: that file was owned by another branch adding Russia's four
+	# warheads at the same time. It is a B61 dial setting and belongs with the other two; move it
+	# there when both have landed. It carries the arsenal's own lobby gate
+	# (`RequiresCondition: !nuke-arsenal-disabled`) so it switches off with the rest of the arsenal
+	# rather than surviving a host who turned the arsenal off -- conditions are per-actor and the
+	# granting GrantConditionOnLobbyOption@arsenal is on this same Player actor.
+	MissileStrikePower@B61Mid:
+		RequiresCondition: !nuke-arsenal-disabled
+		Prerequisites: powers.america
+		OrderName: B61MidStrike
+		Icon: paranuke
+		Name: B61-12 (10 kt)
+		Description: Variable-yield tactical bomb at its MIDDLE dial setting.\nThirty-three times the 0.3 kt energy, three times the radius.\nComes in from off-map over your own back line.
+		# BOUGHT, NOT CHARGED, like every other power in the mod. No ChargeInterval: SupportPowerInstance
+		# forces TotalTicks to 0 when RequiresPurchase is set, so a value here would be inert, and an
+		# inert number that reads like a live one is worse than no number. The price is on
+		# power.b61mid in rules/powers.yaml.
+		RequiresPurchase: True
+		Cursor: nuke
+		MissileActor: b61midmissile
+		# 8c0 of descent, the SAME eight cells both other dial settings hold (9c0-1c0 and 13c256-5c256).
+		# The descent is a constant across the B61 entries; only the burst height moves with yield.
+		SpawnAltitude: 11c128
+		# 3c128 = 481 m. Cube-root-of-yield interpolation between the 0.3 kt setting's 1c0 and the
+		# 50 kt setting's 5c256: from the low anchor 3.22c, from the high anchor 3.07c, so 3.125c.
+		# Every NukeB61Mod12Y10 warhead carries AirThreshold: 24c0, leaving ~21 cells of headroom.
+		DetonationAltitude: 3c128
+		MissileDelay: 220
+		# 9c512 = 0.66 x the 14.375-cell blast, the same camera-to-blast ratio the other two use
+		# (3c0/4.5c = 0.67, 16c0/24.5c = 0.65).
+		CameraRange: 9c512
+		CameraSpawnAdvance: 28
+		CameraRemoveDelay: 350
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		DisplayTimerRelationships: Ally, Neutral, Enemy
+		BeaconPoster: paranuke
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		IncomingSpeechNotification: AbombLaunchDetected
+		# 15, NOT 11. The bin's order runs 1-10 today and the branch adding Russia's four warheads
+		# will most naturally take 11-14; leaving that block free costs nothing here. A tie in this
+		# field is cosmetic only -- it is a sort key for the support bin, not an index.
+		SupportPowerPaletteOrder: 15
+
 	GrantConditionOnLobbyOption@tacnuke:
 		Option: tactical-nuke
 		Condition: tacnuke-disabled
@@ -289,8 +448,16 @@ Player:
 		# which is the wrong answer for a power the host chose not to enable. §2.5.
 		RequiresCondition: !tacnuke-disabled
 		OrderName: TacNukeStrike
-		# NO Prerequisites, and that is deliberate: §1's table lists this entry's faction as "both".
-		# It is the only one of the three approved powers that is not faction-locked.
+		# EVENT TIER. Was "no Prerequisites, and that is deliberate: §1's table lists this entry's
+		# faction as both" -- true when there were three powers and the buy tab did not exist. It is
+		# now off the shop floor entirely: `powers.event` is provided ONLY by the sandbox lobby
+		# option, never by a faction, so in a normal match no player can buy this at any price.
+		#
+		# NOTHING ABOUT DEAD HAND CHANGES. doomsday.yaml fires the WEAPON `Atomic` by name
+		# (doomsday.yaml:108), not this power, and a weapon has no prerequisites -- the same is true
+		# of test-heavy-strike-erases-economy, which also names the weapon. This gate is only ever
+		# consulted by the buy tab and the support bin.
+		Prerequisites: powers.event
 		# `abomb` resolves to atomicon.shp (sequences-misc.yaml:16), the ONE power cameo in the mod
 		# whose baked caption -- NUCLEAR BOMB -- is correct for its picture (§4a).
 		Icon: abomb
@@ -407,8 +574,10 @@ Player:
 		# makes the icon ABSENT rather than leaving a clickable-but-inert "ON HOLD" cameo.
 		RequiresCondition: !highyieldnuke-disabled
 		OrderName: HighYieldNukeStrike
-		# NO Prerequisites, matching @TacNuke: the nuclear entries are "both factions" in the
-		# proposal's table and this is the same weapon class one step up in yield.
+		# EVENT TIER, matching @TacNuke -- see the note there. A 102-cell blast reaches every cell of
+		# every shipped map from its centre, which is precisely why it is not something a player buys
+		# in a normal match.
+		Prerequisites: powers.event
 		Icon: abomb
 		Name: Strategic Nuclear Strike
 		Description: High-yield strategic warhead delivered from off-map reserves.\nA single detonation devastates the entire battlefield.\nArrives over your own back line on a fixed heading.
@@ -629,8 +798,32 @@ Player:
 		AdviceInterval: 25000
 		TextNotification: Silos needed.
 	PlayerExperience:
+	# THESE `Factions:` LISTS NAME EXACTLY THE FACTIONS THAT EXIST. They used to carry five more --
+	# `nato`, `europe`, `ukraine` on the NATO side and `brics`, `china`, `belarus` on the other --
+	# and every one of those was unreachable. Removed 2026-09-07 after checking, not after guessing,
+	# because the strings were actively misleading: a reader (and, on the day this was removed, an
+	# agent) took `china` for evidence that WW3MOD is a multi-faction game and recommended content
+	# for a faction that does not exist.
+	#
+	# WHAT WAS CHECKED, since "it looks inert" is not the same claim as "it is inert":
+	#   1. rules/world.yaml:257-275 is the ONLY place any Faction@ block is defined -- no map, no
+	#      scenario and no other rules file declares one, so no map can introduce a faction name.
+	#   2. It ships exactly three: `Random`, `america`, `russia`. The Ukraine block is commented out.
+	#      Random is not a playable identity; its RandomFactionMembers is `america, russia`.
+	#   3. Across all 10 shipped maps and all 294 autotest scenarios, every `Faction:` assignment is
+	#      one of america (749), russia (266) or Random (34). There are no others.
+	#   4. ProvidesPrerequisite.Update() is the only reader of this field, and it evaluates
+	#      Info.Factions.Contains(faction) against Player.Faction.InternalName
+	#      (ProvidesPrerequisite.cs:82-84) -- which by 1-3 can only ever be `america` or `russia`.
+	# Removing a set member that can never equal the tested value cannot change Contains(), so this
+	# is a provable no-op rather than a judged-safe one.
+	#
+	# THE PREREQUISITE AND CONDITION NAMES ARE UNTOUCHED AND MUST STAY. `player.nato` and
+	# `player.brics` are consumed heavily by the AI layer (rules/ai/ai.yaml, ai-america.yaml,
+	# ai-russia.yaml) and elsewhere they are bound to asset filenames; they are live identifiers
+	# that happen to read like faction names. Only the dead FACTION strings went.
 	ProvidesPrerequisite@NATO:
-		Factions: nato, america, europe, ukraine
+		Factions: america
 		Prerequisite: player.nato
 	GrantConditionOnPrerequisite@NATO:
 		Condition: player.nato
@@ -642,7 +835,7 @@ Player:
 		Condition: player.nato
 		Prerequisites: player.america
 	ProvidesPrerequisite@BRICS:
-		Factions: brics, russia, china, belarus
+		Factions: russia
 		Prerequisite: player.brics
 	GrantConditionOnPrerequisite@BRICS:
 		Condition: player.brics
@@ -654,10 +847,10 @@ Player:
 		Condition: player.brics
 		Prerequisites: player.russia
 	ProvidesPrerequisite@natooramerica:
-		Factions: nato, america
+		Factions: america
 		Prerequisite: nato.or.america
 	ProvidesPrerequisite@bricsorrussia:
-		Factions: brics, russia
+		Factions: russia
 		Prerequisite: brics.or.russia
 	ProvidesPrerequisite@IsPlaying:
 		Prerequisite: player.online
