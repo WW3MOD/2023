@@ -1,7 +1,13 @@
 Player:
+	# FOG IS ON HERE, and it is on so that the reveal is visible. DoomsdayStrike sets
+	# MapLayers.Disabled on every player when the clock expires, which is a no-op in a session that
+	# had no fog to begin with — this scenario used to set FogCheckboxEnabled false and would have
+	# demonstrated nothing. The map stays EXPLORED, so terrain is visible throughout and what pops in
+	# at the trigger is the far side's units and structures, which is the change worth seeing without
+	# blacking out the first 250 ticks of the demo.
 	MapLayers:
 		ExploredMapCheckboxEnabled: true
-		FogCheckboxEnabled: false
+		FogCheckboxEnabled: true
 
 World:
 	-SpawnStartingUnits:
@@ -30,7 +36,6 @@ World:
 		LeadInTicks: 25
 		OutlierToCityPauseTicks: 40
 		WithinWaveTicks: 2
-		CityToFillPauseTicks: 25
 		AnnihilationDelayTicks: 60
 		ResolutionDelayTicks: 20
 

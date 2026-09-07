@@ -608,23 +608,29 @@ World:
 	DoomsdayStrike:
 		OutlierMissile: deadhandtacticalmissile
 		CityMissile: deadhandstrategicmissile
-		# 20c0 is a CONSERVATIVE reading of `Atomic`, whose delivery body documents it as killing
-		# infantry to ~23 cells and igniting structures to ~28 (vehicles.yaml, TacNukeMissile). The
-		# whole coverage guarantee rests on this one number, so it is set below the observed figure
-		# rather than at it. If the superweapon yield pass moves `Atomic`, this is the field to revisit
-		# — and DoomsdayCoverageTest will keep passing either way, because it tests the geometry against
-		# whatever this says, not against the warhead.
-		LethalRadius: 20c0
+		# 14c0, just inside `Atomic`'s ShockwaveDamage MaxRadius of 15c0 — the ~2.7 psi contour, the
+		# outer edge of serious structural damage (weapons-superweapons.yaml). It used to be 20c0, read
+		# off the delivery body's claim of igniting structures to ~28 cells, and it was set high
+		# because the whole total-coverage guarantee rested on it. IT NO LONGER DOES: the fill pass
+		# that consumed this number is gone (2026-09-07 retune), so all this now governs is the jitter
+		# bound and how far a city's warheads may spread from its centroid. Stating it against the
+		# blast contour rather than the ignition one is the honest reading now that nothing downstream
+		# is generating warheads from it.
+		LethalRadius: 14c0
 		JitterRadius: 4c0
-		MinSeparation: 12c0
+		# 10c0, DOWN FROM 12c0, and it is not a taste change: it must be <= LethalRadius - JitterRadius
+		# (14 - 4 = 10) or the separation filter can drop a derrick and leave it outside every blast.
+		# The old 12 was safe only because the lethal radius was 20 and the fill pass covered the rest.
+		MinSeparation: 10c0
 		CityLinkDistance: 8c0
 		CityMinBuildings: 4
-		WarheadsPerCity: 2
+		# ONE per city, not two. river-zeta clusters into exactly two cities once crop fields and trees
+		# stop being counted as buildings, so one warhead each IS the user's "two city destroyers".
+		WarheadsPerCity: 1
 		SpawnAltitude: 38c0
 		ApproachDistance: 5c0
 		WithinWaveTicks: 2
 		OutlierToCityPauseTicks: 40
-		CityToFillPauseTicks: 25
 		AnnihilationDelayTicks: 90
 		ResolutionDelayTicks: 30
 		LeadInTicks: 30

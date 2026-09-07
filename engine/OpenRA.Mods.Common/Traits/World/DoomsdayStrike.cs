@@ -27,11 +27,16 @@ namespace OpenRA.Mods.Common.Traits
 		"",
 		"THE SEQUENCE, in order, and each stage is separately tunable:",
 		"  1. The clock hits zero. Statistics freeze on that exact tick, before anything is launched.",
-		"  2. A tight wave of SMALL warheads on the outliers: derricks, isolated structures, Supply Routes.",
+		"  2. A tight wave of TACTICAL warheads on the point targets: oil derricks and Supply Routes.",
 		"  3. A deliberate pause, long enough to read as 'it is over'.",
-		"  4. A wave of LARGE warheads on the population centres, two per city.",
-		"  5. Fill warheads, only where the targeted salvo left the coverage guarantee open.",
-		"  6. Everything still alive is destroyed, and the winner is resolved from the FROZEN score.",
+		"  4. A wave of STRATEGIC warheads on the population centres.",
+		"  5. Everything still alive is destroyed, and the winner is resolved from the FROZEN score.",
+		"",
+		"RETUNED 2026-09-07 after the user played it: the salvo used to add coverage FILL warheads until",
+		"every cell of the map was inside some lethal radius, and it fired the 6 Mt " + nameof(DoomsdayStrikeInfo.CityMissile) + " for",
+		"each of them. On river-zeta that was 17 six-megaton detonations on top of the 2 aimed at cities,",
+		"and it nearly took the game down. The fill pass is gone and the yields came down with it; see",
+		"the class remarks for what that costs.",
 		"",
 		"Attach to the World actor. Requires " + nameof(TimeLimitManager) + ", which supplies the trigger.")]
 	public class DoomsdayStrikeInfo : TraitInfo, ILobbyOptions, Requires<TimeLimitManagerInfo>
@@ -70,13 +75,18 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Missile actor for the city wave, and for the fill warheads.")]
 		public readonly string CityMissile = null;
 
-		[Desc("CONSERVATIVE lethal radius of the SMALLEST warhead in the salvo. The entire coverage",
-			"guarantee is stated against this one number, so it must be at or below the radius within",
-			"which the outlier warhead reliably kills — not its maximum effect radius, and not the",
-			"city warhead's, which is larger and therefore covered by being over-provisioned.",
+		[Desc("CONSERVATIVE lethal radius of the SMALLEST warhead in the salvo — the outlier one.",
 			"",
-			"Raising this thins the salvo and is the field to check first if something survives.")]
-		public readonly WDist LethalRadius = new(20 * 1024);
+			"THIS IS NO LONGER A COVERAGE GUARANTEE. It used to be: the fill pass laid warheads on a",
+			"lattice derived from this number until every cell of the map was inside somebody's radius.",
+			"That pass is gone (see the class remarks), so this now does exactly two things — it bounds",
+			"the jitter, and it caps how far a city's warheads may be spread from its centroid.",
+			"",
+			"14c0 sits just inside the shipped outlier warhead's blast-wave reach — `Atomic`, whose",
+			"ShockwaveDamage MaxRadius is 15c0. It was 20c0, read off a claim about ignition range",
+			"rather than blast; the blast contour is the honest number now that nothing downstream",
+			"generates warheads from it.")]
+		public readonly WDist LethalRadius = new(14 * 1024);
 
 		[Desc("Maximum distance an aim point is displaced by the synced RNG. STRICTLY SMALLER than",
 			nameof(LethalRadius) + ": placement is done against (LethalRadius - JitterRadius), so no draw",
@@ -84,8 +94,19 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WDist JitterRadius = new(4 * 1024);
 
 		[Desc("Minimum distance between two impacts. 'Never detonating too many too close' — this is",
-			"what thins a dense line of derricks down to a spread-out salvo.")]
-		public readonly WDist MinSeparation = new(12 * 1024);
+			"what thins a dense line of derricks down to a spread-out salvo.",
+			"",
+			"MUST NOT EXCEED (" + nameof(DoomsdayStrikeInfo.LethalRadius) + " - " + nameof(DoomsdayStrikeInfo.JitterRadius) + "), and that is a NEW",
+			"constraint as of the 2026-09-07 retune. The separation filter drops a candidate when a",
+			"kept impact is closer than this, so a dropped asset is only still inside somebody's lethal",
+			"radius if this distance fits inside the effective one. It used to hold by luck — 12 against",
+			"an effective 16 — and dropping the lethal radius to 14 broke it: at 12 against an effective",
+			"10, two of river-zeta's eighteen point targets came out uncovered. It did not matter before",
+			"because the fill pass swept up anything the targeting missed; with the fill pass gone this",
+			"is the only thing keeping a derrick from being dropped and then not shot.",
+			"",
+			"DoomsdayCoverageTest.MinSeparationFitsInsideTheEffectiveRadius pins it.")]
+		public readonly WDist MinSeparation = new(10 * 1024);
 
 		[Desc("Two buildings within this distance of each other belong to the same city. Applied",
 			"transitively, so a ribbon development links into one city rather than several.")]
@@ -95,8 +116,13 @@ namespace OpenRA.Mods.Common.Traits
 			"large warheads. Anything smaller is an OUTLIER and gets one small warhead in the opening wave.")]
 		public readonly int CityMinBuildings = 4;
 
-		[Desc("Large warheads aimed at each city, spread about its centre along its long axis.")]
-		public readonly int WarheadsPerCity = 2;
+		[Desc("Large warheads aimed at each city, spread about its centre along its long axis.",
+			"",
+			"ONE, not two. The user's ceiling for river-zeta is \"one nuke per Derrick, plus the two city",
+			"destroyers\" — and river-zeta clusters into exactly two cities, so one warhead each IS the",
+			"two city destroyers. At two per city the same map produced four. The spread machinery in",
+			nameof(DoomsdayMath.CityAimPoints) + " is retained and still tested; at a count of 1 it returns the centroid.")]
+		public readonly int WarheadsPerCity = 1;
 
 		[Desc("Actor types that are always outlier targets in their own right, regardless of what they",
 			"cluster with — the high-value point targets. Oil derricks are the case the design names.")]
@@ -105,6 +131,26 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Actor types excluded from target enumeration even though they are buildings. Walls and",
 			"tank traps are structures to the engine and scenery to a targeteer.")]
 		public readonly HashSet<string> ExcludeTypes = new() { "barb", "sbag", "fenc", "brik", "cycl", "tanktrap", "tanktrap2" };
+
+		[Desc("Target type that marks an actor as a REAL STRUCTURE for the purposes of this mode. An actor",
+			"is enumerated only if some " + nameof(Targetable) + " on it declares this, or its type is listed in",
+			nameof(DoomsdayStrikeInfo.HighValueTypes) + ".",
+			"",
+			"THIS TEST REPLACED A TRAIT TEST THAT WAS WRONG, and the correction is the single biggest",
+			"reason the salvo shrank. The enumeration used to be `HasTraitInfo<BuildingInfo>()`, on the",
+			"stated grounds that river-zeta's 1713 v17 and 864 v16 crop tiles \"inherit ^CivField and have",
+			"no Building trait at all\". They do have one — ^CivField carries `Building: Footprint: x,",
+			"Dimensions: 1,1` (civilian.yaml), and so does ^Tree. The premise was false, so 4459 of",
+			"river-zeta's 4544 actors were being clustered as buildings: the fields tile the map, single",
+			"linkage joined them into two blobs of ~2200 members each, and the mode's idea of a \"city\"",
+			"was the centroid of half a map of rice paddy.",
+			"",
+			"Target types are the right test because they are what a targeteer can see. ^CivField",
+			"deliberately declares NO " + nameof(Targetable) + " at all (there is a PITFALL comment in civilian.yaml",
+			"saying why), and ^Tree declares `Trees` — so both fall out, while ^BasicBuilding and",
+			"^CivBuilding both declare Structure and stay in. SUPPLYROUTE declares only NoAutoTarget and",
+			"is carried by the " + nameof(DoomsdayStrikeInfo.HighValueTypes) + " bypass instead.")]
+		public readonly string StructureTargetType = "Structure";
 
 		[Desc("Height above the aim point at which a warhead enters the map.")]
 		public readonly WDist SpawnAltitude = new(38 * 1024);
@@ -127,9 +173,6 @@ namespace OpenRA.Mods.Common.Traits
 			"is over, short enough that the whole salvo stays inside a few seconds. 40 ticks is 2.4s at",
 			"the mod's 60ms timestep.")]
 		public readonly int OutlierToCityPauseTicks = 40;
-
-		[Desc("Ticks between the last city impact and the first fill impact.")]
-		public readonly int CityToFillPauseTicks = 25;
 
 		[Desc("Ticks after the LAST impact before anything still alive is destroyed outright. This is",
 			"the backstop that makes 'nothing survives' unconditional rather than contingent on warhead",
@@ -158,19 +201,21 @@ namespace OpenRA.Mods.Common.Traits
 	/// THE MODE. See <see cref="DoomsdayStrikeInfo"/> for the sequence; the interesting parts of the
 	/// implementation are the three guarantees it has to keep.
 	///
-	/// COVERAGE is a construction, not a sample. The aim points come from real assets, and then
-	/// <see cref="DoomsdayMath.UncoveredCells"/> is run over the whole playable rectangle and every cell
-	/// it reports gets a fill warhead. The layout is built against (LethalRadius - JitterRadius) and the
-	/// jitter is drawn inside a disc of exactly JitterRadius, so no draw can uncover a cell the layout
-	/// had covered. DoomsdayCoverageTest asserts this over every shipped map size.
+	/// COVERAGE IS NO LONGER TOTAL, AND THAT IS THE POINT OF THE 2026-09-07 RETUNE. The mode used to
+	/// run <see cref="DoomsdayMath.UncoveredCells"/> over the whole playable rectangle and drop a fill
+	/// warhead on every gap, so that every cell was provably inside some warhead's lethal radius. It
+	/// worked, and it is gone, because the user played it and asked for far fewer warheads: on
+	/// river-zeta the fill pass alone was 17 of the 19 six-megaton detonations. What the salvo now
+	/// covers is what it AIMS at — the high-value point targets and the city clusters. Ground between
+	/// them is uncovered on purpose, and a structure that is neither a derrick nor part of a city is
+	/// not shot at.
 	///
-	/// ...AND THERE IS STILL A BACKSTOP. The cover above is a statement about GEOMETRY — it proves every
-	/// cell is inside some warhead's stated lethal radius. It is not a statement about DAMAGE, because
-	/// the warheads' yields live in weapons-superweapons.yaml and are tuned independently of this trait.
-	/// A unit that survives inside the radius (extreme armour, a garrison, a bugged Versus row) would
-	/// break the user's absolute requirement, so <see cref="Annihilate"/> destroys whatever is left after
-	/// the last impact. Both mechanisms are deliberate: the salvo is what the requirement means, the
-	/// sweep is what makes it true.
+	/// SO "NOTHING SURVIVES" IS NOW THE BACKSTOP'S PROPERTY ALONE, not the salvo's. It used to be both:
+	/// a proven geometric cover AND a sweep, deliberately belt-and-braces. Only the sweep is left.
+	/// <see cref="Annihilate"/> still destroys everything standing after the last impact, so the mode's
+	/// guarantee is unchanged from a player's point of view — what changed is that the warheads are now
+	/// spectacle aimed at targets, and the guarantee is carried entirely by the sweep behind them. If
+	/// that sweep is ever removed, the guarantee goes with it; there is no longer a second mechanism.
 	///
 	/// DETERMINISM. Every random draw goes through World.SharedRandom. Nothing in the pipeline iterates
 	/// a Dictionary or a HashSet — the asset list is sorted by ActorID before it is used for anything,
@@ -259,6 +304,10 @@ namespace OpenRA.Mods.Common.Traits
 
 			BuildSalvo();
 
+			// THE MAP COMES OUT OF THE FOG, and it is deliberately the last thing done on the trigger
+			// tick — after the salvo has been built, so the aim points are provably not downstream of it.
+			RevealMap();
+
 			TextNotificationsManager.AddSystemLine("DEAD HAND ACTIVATED. Incoming.");
 		}
 
@@ -294,18 +343,25 @@ namespace OpenRA.Mods.Common.Traits
 
 			// ---- 1. Enumerate. Sorted by ActorID, which is assigned in world-creation order and is
 			// therefore identical on every client. Everything downstream inherits this ordering.
-			// Buildings, not scenery. The distinction is a TRAIT test rather than a name list, and it
-			// matters more than it looks: river-zeta carries 1713 `v17` and 864 `v16` actors, which are
-			// crop tiles inheriting ^CivField and have no Building trait at all, against a few dozen real
-			// structures on ^CivBuilding which do. Clustering on names would have targeted the fields.
+			//
+			// STRUCTURES, NOT SCENERY — and the test for that is target types, not BuildingInfo. See
+			// DoomsdayStrikeInfo.StructureTargetType for why the trait test that used to be here was
+			// wrong and what it cost. In short: crop fields and trees both carry a Building trait, so
+			// HasTraitInfo<BuildingInfo>() matched 4459 of river-zeta's 4544 actors.
+			//
+			// THIS READS WORLD STATE ONLY. Nothing here consults any player's MapLayers, explored set or
+			// visibility, which is what makes the fog reveal in NotifyTimerExpired safe: it cannot move
+			// an aim point. The reveal is also sequenced after this runs, so the salvo is provably
+			// computed from pre-reveal state as well as independent of it.
 			//
 			// Info.Name is lowercased defensively before every comparison, for the same reason
 			// UpdatesPlayerStatistics does it (PlayerStatistics.cs): the Rules.Actors dictionary is
 			// case-sensitive with lowercased keys, and a yaml-supplied type list that happens to be
 			// capitalised would otherwise silently match nothing.
 			var buildings = world.Actors
-				.Where(a => a.IsInWorld && !a.Disposed && a.Info.HasTraitInfo<BuildingInfo>()
-					&& !info.ExcludeTypes.Contains(a.Info.Name.ToLowerInvariant()))
+				.Where(a => a.IsInWorld && !a.Disposed
+					&& !info.ExcludeTypes.Contains(a.Info.Name.ToLowerInvariant())
+					&& (info.HighValueTypes.Contains(a.Info.Name.ToLowerInvariant()) || IsStructure(a.Info)))
 				.OrderBy(a => a.ActorID)
 				.ToList();
 
@@ -345,14 +401,11 @@ namespace OpenRA.Mods.Common.Traits
 				candidateTiers.Add(DoomsdayTier.Outlier);
 			}
 
-			foreach (var cluster in clusters)
-			{
-				if (cluster.Count >= info.CityMinBuildings)
-					continue;
-
-				candidates.Add(DoomsdayMath.Centroid(cityCandidates, cluster));
-				candidateTiers.Add(DoomsdayTier.Outlier);
-			}
+			// CLUSTERS BELOW CityMinBuildings GET NOTHING, and this is the second half of the count cut.
+			// A lone farmhouse used to draw its own warhead as an "outlier"; on river-zeta that was nine
+			// more impacts for nine pairs of huts. The user's rule is one warhead per derrick plus the
+			// city destroyers, so the outlier wave is now exactly the high-value point targets above.
+			// Those buildings still die — Annihilate sweeps them — they are just not aimed at.
 
 			// ---- 3. Jitter, inside a disc strictly smaller than the coverage margin.
 			//
@@ -384,21 +437,18 @@ namespace OpenRA.Mods.Common.Traits
 				aimTiers.Add(candidateTiers[i]);
 			}
 
-			// ---- 5. Top up for total coverage. Whatever the targeted salvo left open gets a fill
-			// warhead, and those arrive last so the targeted strikes are what the viewer reads.
-			var spacing = DoomsdayMath.GridSpacing(lethalCells, jitterCells);
-			var uncovered = DoomsdayMath.UncoveredCells(bounds, aimCells, effectiveCells);
-			foreach (var p in DoomsdayMath.FillPoints(bounds, uncovered, spacing))
-			{
-				// Fill points are NOT jittered. They are the coverage mechanism and they are already at
-				// worst-case distance from the corner of their own strip; spending the margin twice is
-				// exactly the mistake the effective-radius split exists to prevent.
-				aimCells.Add(p);
-				aimTiers.Add(DoomsdayTier.Fill);
-			}
+			// ---- 5. NO FILL PASS. This is where DoomsdayMath.UncoveredCells / GridSpacing / FillPoints
+			// used to run, topping the salvo up until the whole playable rectangle was inside somebody's
+			// lethal radius. It is deliberately not called. On river-zeta it emitted 17 aim points, every
+			// one of them fired with the CityMissile, and it was the dominant cost in the salvo by a very
+			// wide margin — see the class remarks and the retune note on DoomsdayStrikeInfo.
+			//
+			// The math is kept rather than deleted: it is pure, it is covered by DoomsdayCoverageTest,
+			// and that test now uses UncoveredCells to STATE how much ground the salvo leaves alone
+			// instead of asserting that it leaves none. Restoring the behaviour is re-adding this block.
 
-			// ---- 6. Schedule.
-			var timings = new DoomsdayMath.ScheduleTimings(info.WithinWaveTicks, info.OutlierToCityPauseTicks, info.CityToFillPauseTicks);
+			// ---- 6. Schedule. The fill pause is 0 because no impact is ever tagged Fill.
+			var timings = new DoomsdayMath.ScheduleTimings(info.WithinWaveTicks, info.OutlierToCityPauseTicks, 0);
 			var impacts = DoomsdayMath.BuildSchedule(aimCells, aimTiers, timings);
 
 			var outlierFlight = FlightTicks(info.OutlierMissile);
@@ -431,6 +481,56 @@ namespace OpenRA.Mods.Common.Traits
 
 			annihilationTick = lastImpactTick + info.AnnihilationDelayTicks;
 			resolutionTick = annihilationTick + info.ResolutionDelayTicks;
+		}
+
+		/// <summary>
+		/// Whether an actor type is a REAL STRUCTURE rather than scenery, tested by target type.
+		///
+		/// Info-level rather than instance-level on purpose. A <see cref="Targetable"/> may be gated by
+		/// RequiresCondition, and this question is "could this thing ever be a structure", not "is it
+		/// one on this tick" — reading the Info answers the first, which is the one target enumeration
+		/// wants. See <see cref="DoomsdayStrikeInfo.StructureTargetType"/> for why this is a target-type
+		/// test and not the BuildingInfo test that used to be here.
+		/// </summary>
+		bool IsStructure(ActorInfo actorInfo)
+		{
+			foreach (var t in actorInfo.TraitInfos<ITargetableInfo>())
+				if (t.GetTargetTypes().Contains(info.StructureTargetType))
+					return true;
+
+			return false;
+		}
+
+		/// <summary>
+		/// Lift the shroud and the fog for every player, so the salvo is watched over the whole map.
+		///
+		/// WHY THIS IS NOT THE INTELLIGENCE LEAK IT LOOKS LIKE. Revealing the map normally hands a player
+		/// free information, which is exactly why the nuclear-flash-over-fog work brightens the effect
+		/// without lifting the shroud. That objection does not apply here and it is worth being explicit
+		/// about why, because a future reader will otherwise see a map reveal in gameplay code and assume
+		/// it is a bug: by the time this runs the statistics are frozen (see <see cref="FreezeStatistics"/>),
+		/// the winner is already determined by the frozen score, the ordinary victory checks are suspended,
+		/// and <see cref="Annihilate"/> is going to kill every actor on the map in a few seconds. There is
+		/// no information advantage left to leak because there is no game left to play.
+		///
+		/// VISIBILITY ONLY, NOT TARGETING. MapLayers.Disabled short-circuits IsExplored and forces
+		/// FogEnabled false (MapLayers.cs), so it changes what is DRAWN and what queries about visibility
+		/// answer — it moves no actor and retargets nothing. The salvo itself cannot be affected in any
+		/// case: BuildSalvo enumerates world.Actors directly and never asks a player what it can see, and
+		/// it has already run by the time this is called.
+		///
+		/// DETERMINISM. Disabled is [Sync] simulation state, and this runs from INotifyTimeLimit on a tick
+		/// every client agrees on, for every player in the same fixed world.Players order — so all clients
+		/// make the same change on the same tick. Setting it on every player rather than only the local one
+		/// is what keeps that true; a local-only reveal would desync the [Sync] hash.
+		/// </summary>
+		void RevealMap()
+		{
+			// Player.MapLayers is a readonly field resolved with Trait<MapLayers>() at construction
+			// (Player.cs:221), so it is never null here; the same direct access GpsWatcher and
+			// RevealMapCrateAction use.
+			foreach (var p in world.Players)
+				p.MapLayers.Disabled = true;
 		}
 
 		/// <summary>
