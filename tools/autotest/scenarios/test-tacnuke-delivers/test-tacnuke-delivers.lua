@@ -55,9 +55,30 @@
 --     the one power keeping `DisplayTimerRelationships: Ally, Neutral, Enemy` -- while the Kinzhal
 --     and the GBU-57, now at None, must be gone from it entirely.
 --
--- EXPECTED GEOMETRY, derived in map.yaml: Russia home 6,17 -> edge cell 1,17; victim at 40,17;
--- 39 cells apart; 44 flight ticks at Speed 900 (39936 wdist / 900), 2.7 s at Timestep 60. The
--- flight is unchanged by the airburst: EstimateArcTicks is driven by HORIZONTAL distance
+-- EXPECTED GEOMETRY, REWRITTEN ON 2026-09-07. This scenario used to assert that the warhead
+-- entered within 15 cells of Russia's own base, at `ChooseClosestEdgeCell(home)` = cell 1,17. That
+-- rule is gone (engine b69681d2) and the assertion FAILED ON CORRECT BEHAVIOUR: a live run
+-- reported entry -49,17, fully 55 cells from home, with the tank dead and both Supply Routes
+-- intact. The spawn is now deliberately far off-map.
+--
+-- The shipped rule is `entry = aimPoint - unit(home -> centroid) * standoff`, and for this map:
+--   standoff = mapDiagonal + ApproachMargin = sqrt(66^2 + 34^2) + 16 = 90.2 cells
+--   axis     = |home 6,17 -> victim 40,17| = 34 cells
+--   entry    = 40 - 90.2 = cell -50,17, which is 56.2 cells BEHIND home ON the home->target ray
+-- The observed -49,17 is that spawn plus one tick of flight, and 55 against an expected 56.2 is
+-- the whole discrepancy. The contract is asserted through TestHarness.ApproachFault; the reasoning
+-- for all three of its readings lives in one place, in test-helpers.lua.
+--
+-- NOTE that home, victim and entry are all on row 17, so on THIS map the bearing reading cannot
+-- distinguish the shipped rule from any other eastward one -- what fails the old edge-cell rule
+-- here is the DISTANCE reading, by 51 cells. test-missile-strike-power carries the sharp version
+-- of the bearing test; its victim was moved off Russia's row for exactly that reason.
+--
+-- FLIGHT. The missile now covers the whole standoff rather than the on-map gap, so the flight is
+-- ~100 ticks (92408 wdist / Speed 900) where it used to be ~44, and it is the SAME length wherever
+-- the player aims -- the deliberate balance change in b69681d2, which stopped a strike beside your
+-- own base from giving the enemy the least warning. The live run measured 96. The flight is still
+-- unchanged by the airburst: EstimateArcTicks is driven by HORIZONTAL distance
 -- (BallisticMissileFly.cs:51), which raising the target Z does not move.
 
 local OrderKey = "TacNukeStrike"
@@ -79,13 +100,21 @@ local MissileType = "tacnukemissile"
 -- `powers.event` tier, and a 5-tick BuildDuration on the proxy.
 local BuyProxy = "power.tacnuke"
 
--- Tolerances, all loose: this asserts a CLASS of behaviour (the host turned it on, it came in from
--- my own edge, it went off where it was aimed), not tuned numbers.
-local MaxEntryToHome = 15    -- cells. Expected 5. Enemy edge would be 51, map corner 17.
-local MinEntryToTarget = 25  -- cells. Expected 39. Spawned-on-target would be 0.
+-- Tolerances, all loose: this asserts a CLASS of behaviour (the host turned it on, it came in over
+-- my own shoulder, it went off where it was aimed), not tuned numbers.
+--
+-- THE APPROACH TOLERANCES ARE NOT AN ALLOWANCE ON A DISTANCE. They bound the error on a DERIVED
+-- position -- see TestHarness.ApproachFault -- so widening them does not weaken the direction or
+-- the side, only the precision of the standoff. The map size is passed because the standoff is
+-- the map DIAGONAL plus ApproachMargin, and it is MapSize from map.yaml (66,34), not Bounds.
+local MapCellsX, MapCellsY = 66, 34
+local MaxApproachLateral = 4  -- cells off the home->target axis. Exact answer 0; observed 0.0.
+local MaxApproachLag = 8      -- cells of flight before the poller first saw it. Observed ~1.2.
 -- MEASURED FROM WORLD ENTRY, NOT FROM THE ORDER, and that is a sharpening rather than a loosening.
 -- MissileDelay 500 shipped on 2026-09-05, so order-to-kill is now dominated by the wait and would
--- say nothing about Speed. Entry-to-kill is the flight and nothing else. Expected ~46 at Speed 900
+-- say nothing about Speed. Entry-to-kill is the flight and nothing else. Expected ~100 at Speed
+-- 900 -- the missile now covers the whole 90.2-cell standoff, not the 39-cell on-map gap, and the
+-- live run of 2026-09-07 measured 96. The 150 budget already covered that and is left alone.
 -- over 39 cells; the delay is asserted separately below.
 local MaxFlightTicks = 150
 local ObserveTicks = 900     -- whole-run budget; raised from 400 to cover the 500-tick wait.
@@ -215,6 +244,17 @@ local function finish()
 	local entryY = firstCell ~= nil and firstCell.Y or -1
 	local toHome = firstCell ~= nil and cellDist(entryX, entryY, home.X, home.Y) or -1
 	local toTarget = firstCell ~= nil and cellDist(entryX, entryY, TargetX, TargetY) or -1
+
+	-- THE APPROACH CONTRACT. toHome and toTarget stay in the summary as raw diagnostics -- they are
+	-- what a reader eyeballs against the entry cell -- but neither is asserted any more. toHome in
+	-- particular was the assertion this scenario got wrong: it read 55 on a correct strike.
+	local approach = nil
+	local approachLine = "approach=no entry"
+	if firstCell ~= nil then
+		approach = TestHarness.MeasureApproach(entryX, entryY, home.X, home.Y,
+			TargetX, TargetY, MapCellsX, MapCellsY)
+		approachLine = TestHarness.ApproachSummary(approach)
+	end
 	local orderToImpact = (orderTick ~= nil and impactTick ~= nil) and (impactTick - orderTick) or -1
 	local flight = (firstSeenTick ~= nil and impactTick ~= nil) and (impactTick - firstSeenTick) or -1
 	local spawnDelay = (orderTick ~= nil and firstSeenTick ~= nil) and (firstSeenTick - orderTick) or -1
@@ -228,6 +268,7 @@ local function finish()
 		.. " home=" .. home.X .. "," .. home.Y
 		.. " target=" .. TargetX .. "," .. TargetY
 		.. " entry->home=" .. toHome .. "c entry->target=" .. toTarget .. "c"
+		.. " | " .. approachLine
 		.. " | spawn delay=" .. spawnDelay .. "t (shipped " .. ExpectedSpawnDelay .. ")"
 		.. " | impact@t" .. n(impactTick) .. " flight=" .. flight .. "t"
 		.. " order->impact=" .. orderToImpact .. "t"
@@ -286,18 +327,16 @@ local function finish()
 		return
 	end
 
-	-- 3. Did it fly in from the edge nearest ITS OWN base? Checked before the kill: a warhead this
-	-- large kills its target just as dead from a spawn placed on top of it, so damage alone cannot
-	-- tell an off-map strike from the SpawnActorPower shape.
-	if toTarget < MinEntryToTarget then
-		Test.Fail("the missile did not fly in from anywhere: it first appeared " .. toTarget
-			.. " cells from the target (needs >= " .. MinEntryToTarget .. "). || " .. summary)
-		return
-	end
-
-	if toHome > MaxEntryToHome then
-		Test.Fail("the missile entered " .. toHome .. " cells from Russia's own base (allowance "
-			.. MaxEntryToHome .. "). ChooseClosestEdgeCell(home) is cell 1,17 for this map. || " .. summary)
+	-- 3. Did it fly the shipped approach -- in over Russia's OWN shoulder, from off-map, on the
+	-- bearing Russia's own position gives? Checked before the kill: a warhead this large kills its
+	-- target just as dead from a spawn placed on top of it, so damage alone cannot tell an off-map
+	-- strike from the SpawnActorPower shape. A spawn-on-target reads as `along` positive here and
+	-- is caught by the wrong-side branch, so the old `toTarget >= 25` guard is subsumed rather
+	-- than dropped.
+	local approachFault = TestHarness.ApproachFault(approach, MaxApproachLateral, MaxApproachLag)
+	if approachFault ~= nil then
+		Test.Fail("the tactical nuke did not fly the shipped approach. " .. approachFault
+			.. ". || " .. summary)
 		return
 	end
 
@@ -313,8 +352,9 @@ local function finish()
 	end
 
 	if flight > MaxFlightTicks then
-		Test.Fail("the strike took " .. flight .. " ticks to cross 39 cells FROM WORLD ENTRY (budget "
-			.. MaxFlightTicks .. ", expected ~46 at Speed 900). This excludes MissileDelay, which is"
+		Test.Fail("the strike took " .. flight .. " ticks to cross the 90.2-cell standoff FROM WORLD"
+			.. " ENTRY (budget " .. MaxFlightTicks .. ", expected ~100 at Speed 900, measured 96)."
+			.. " This excludes MissileDelay, which is"
 			.. " reported separately, so a long reading here really is a slow missile. || " .. summary)
 		return
 	end
@@ -411,7 +451,7 @@ local function finish()
 		return
 	end
 
-	Test.Pass("tactical nuke: lobby gate open, delivered from the map edge after a "
+	Test.Pass("tactical nuke: lobby gate open, flown in off-map over Russia's own shoulder after a "
 		.. spawnDelay .. "t wait, burst " .. burstAltitude .. " above the deck, target vaporised,"
 		.. " Supply Routes intact, only the nuke on the public timer. || " .. summary)
 end

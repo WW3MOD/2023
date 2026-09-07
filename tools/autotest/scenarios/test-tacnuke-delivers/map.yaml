@@ -2,7 +2,7 @@ MapFormat: 12
 
 RequiresMod: ww3mod
 
-Title: TEST: tactical nuke arrives from the edge and levels the aim point
+Title: TEST: tactical nuke arrives on the player's own bearing and levels the aim point
 
 Author: WW3MOD
 
@@ -43,14 +43,27 @@ Categories: Test
 # untouched however close the detonation lands. Do NOT "fix" a future version of this by moving the
 # Supply Routes further away: the reason they survive is the target-type table, not the distance.
 #
-# GEOMETRY, same derivation as test-missile-strike-power:
-#   Russia HomeLocation 6,17 · Bounds Rectangle(left=1, top=1, w=64, h=32)
-#   Map.ChooseClosestEdgeCell (Map.cs:1821-1835):
-#     horizontalBound = (6-1=5) < 64/2=32 -> Bounds.Left = 1
-#     verticalBound   = (17-1=16) < 32/2=16 is FALSE -> Bounds.Bottom = 33
-#     du = |1-6| = 5, dv = |33-17| = 16, du < dv -> edge = (1, 17)
-#   Victim at 40,17 is 39 cells from that entry cell.
-#   Flight: 39 cells = 39936 wdist at Speed 900 -> 44 ticks (2.7 s at Timestep 60).
+# GEOMETRY. REWRITTEN 2026-09-07: engine b69681d2 replaced the spawn rule, and the
+# ChooseClosestEdgeCell derivation that stood here is DEAD. Recorded in one line so nobody rebuilds
+# it: Map.ChooseClosestEdgeCell(home 6,17) resolved to the west edge cell 1,17.
+#
+#   THE SHIPPED RULE (MissileStrikeApproach.cs):
+#     entry    = aimPoint - unit(home -> salvoCentroid) * standoff
+#     standoff = mapDiagonal + ApproachMargin = sqrt(66^2 + 34^2) + 16 = 90.2 cells
+#   The bearing runs from the launching player's OWN position toward what they aimed at, so the
+#   player chooses WHERE the warhead lands and never WHICH WAY it arrives -- the property the old
+#   map-edge rule protected, kept by other means. The spawn is deliberately well off-map.
+#
+#   Russia HomeLocation 6,17; victim at 40,17, axis 34 cells; entry cell -50,17, which is 56.2
+#   cells BEHIND home on the home->victim ray. A live run on 2026-09-07 reported -49,17 -- that
+#   spawn plus one tick of flight.
+#   Flight: the whole 90.2-cell standoff = 92408 wdist at Speed 900 -> ~100 ticks, measured 96,
+#   against 44 before. It is now the SAME length wherever the player aims, which is the deliberate
+#   balance change in b69681d2.
+#
+#   HOME, VICTIM AND ENTRY ARE ALL ON ROW 17, so on this map the bearing reading cannot separate
+#   the shipped rule from any other eastward one; what fails the old edge-cell rule here is the
+#   DISTANCE, by 51 cells. test-missile-strike-power carries the sharp bearing test.
 #
 # WHY RUSSIA FIRES rather than America: nothing about the power requires it — MissileStrikePower
 # @TacNuke carries NO Prerequisites, because §1's table lists this entry's faction as "both", and

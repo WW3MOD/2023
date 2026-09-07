@@ -50,8 +50,13 @@ Categories: Test
 # this mod either — every actor on it is gated behind `~disabled` — which is exactly why it is free
 # to borrow.
 #
-# GEOMETRY. Russia home 6,17 -> edge cell 1,17 by the derivation in test-missile-strike-power's
-# map.yaml. The victim at 44,17 is 43 cells from that entry.
+# GEOMETRY. REWRITTEN 2026-09-07: engine b69681d2 replaced the spawn rule, so the old
+# `home 6,17 -> edge cell 1,17` derivation is dead. The shipped rule is
+# `entry = aimPoint - unit(home -> centroid) * standoff`, standoff = map diagonal + ApproachMargin
+# = sqrt(66^2 + 34^2) + 16 = 90.2 cells. Russia home 6,17, victim 44,17, axis 38c -> entry cell
+# -46,17, which is 52.2 cells BEHIND home on the home->victim ray and well off-map. Flight is now
+# the whole standoff, ~46 ticks at Speed 2000 against ~26 before. Home and victim share row 17, so
+# only the distance reading has teeth here; test-missile-strike-power carries the bearing test.
 
 Players:
 	PlayerReference@Neutral:

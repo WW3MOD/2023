@@ -50,14 +50,25 @@ Categories: Test
 # trees are still standing" as a weapon underperforming; read the structures and the infantry.
 #
 # GEOMETRY OF THE STRIKES, all six identical because they all come from the same Supply Route:
-#   USA HomeLocation 64,118 - Bounds Rectangle(left=1, top=1, w=126, h=126)
-#   Map.ChooseClosestEdgeCell (Map.cs:1821-1835):
-#     horizontalBound = (64-1=63) < 126/2=63 is FALSE -> Bounds.Right = 127
-#     verticalBound   = (118-1=117) < 63 is FALSE      -> Bounds.Bottom = 127
-#     du = |127-64| = 63, dv = |127-118| = 9, dv < du  -> edge = (64, 127)
-#   Aim point 64,64 is 63 cells (64512 wdist) up the map's vertical centreline from that entry cell.
-#   Flight time is exactly 64512 / Speed, because no arsenal missile sets TerminalAcceleration:
-#     B61 bodies (900) 71t | W76 (1400) 46t | Sarmat (1600) 40t | B83 (700) 92t | Tsar (400) 161t
+#   CORRECTED 2026-09-07 -- engine b69681d2 REPLACED THIS RULE and every tick below it moves.
+#   Map.ChooseClosestEdgeCell is gone; the spawn is now
+#     entry    = aimPoint - unit(home -> salvoCentroid) * standoff
+#     standoff = mapDiagonal + ApproachMargin = 185363 + 16384 = 201747 wdist = 197.0 cells
+#   USA home 64,118 -> aim 64,64 is due NORTH, so the entry is cell 64,261: off-map SOUTH, 143
+#   cells beyond USA's own base rather than 9 cells short of it on the map's south edge. The
+#   bearing is unchanged (still straight up the centreline) because home and aim share x=64; what
+#   changed is that the missile is born far off-map and the flight is ~3.1x longer.
+#   THE OLD DERIVATION, recorded once so nobody rebuilds it:
+#     du = |127-64| = 63, dv = |127-118| = 9, dv < du -> edge = (64, 127), 63 cells = 64512 wdist,
+#     giving B61 (900) 71t | W76 (1400) 46t | Sarmat (1600) 40t | B83 (700) 92t | Tsar (400) 161t.
+#   NOW flight time is exactly 201747 / Speed, because no arsenal missile sets TerminalAcceleration:
+#     B61 bodies (900) 224t | W76 (1400) 144t | Sarmat (1600) 126t | B83 (700) 288t | Tsar (400) 504t
+#   Every tick in the timeline below shifts accordingly and has NOT been re-measured. Nothing here
+#   is asserted, so this is a stale caption rather than a failing run.
+#
+#   THE SARMAT IS THE ONE TO WATCH AFTER THIS CHANGE: it is the only shipped power with AimPoints
+#   above one (6), and b69681d2 is what stopped its six warheads fanning outward from a single
+#   point. They now fly one shared bearing, parallel, spaced exactly as the player clicked.
 #
 # WHY MapStartingLocations IS REMOVED IN rules.yaml: USA is the playable client player, so
 # Player.HomeLocation would otherwise come from a spawn assigner (Player.cs:182) and the edge

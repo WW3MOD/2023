@@ -51,12 +51,19 @@ Categories: Test
 # newest puff. It grows through each tick and resets when the next puff appears, because the puff is
 # smoke left at a position the missile has genuinely already left. Arithmetic in rules.yaml.
 #
-# GEOMETRY. Both missiles enter at cell 110,127 -- MissileStrikePower spawns at
-# Map.ChooseClosestEdgeCell(owner.HomeLocation) (MissileStrikePower.cs:102) and Russia's HomeLocation
-# is pinned to 110,110 below, which with Bounds 1,1,126,126 resolves to the SOUTH edge at x=110
-# (du 17 vs dv 17, and the tie goes to the vertical bound at Map.cs:1835). They fly north-west to
-# two aim points 100 cells away and 14 cells apart, so the tracks are parallel to within 4 degrees
-# and 7 cells apart where the camera sits. 100 cells at 2000 WDist/tick is 51 ticks, 3.1 s.
+# GEOMETRY. CORRECTED 2026-09-07 (engine b69681d2). Both missiles USED TO enter at the single cell
+# 110,127, because MissileStrikePower spawned at Map.ChooseClosestEdgeCell(owner.HomeLocation) --
+# Russia's HomeLocation is pinned to 110,110 below, which with Bounds 1,1,126,126 resolved to the
+# SOUTH edge at x=110 (du 17 vs dv 17, the tie going to the vertical bound at Map.cs:1835). Being
+# born at ONE cell and aimed at two is exactly the fan that commit removed.
+#
+# NOW each missile is born at `its own aim point - unit(home -> centroid of the two) * standoff`,
+# standoff = mapDiagonal + ApproachMargin = 185363 + 16384 = 201747 wdist = 197.0 cells. So the two
+# entries are 14 cells apart rather than coincident, and the tracks are EXACTLY parallel rather
+# than "within 4 degrees" -- the lateral spacing is now the aim-point spacing the player clicked,
+# 14 cells, held the whole way in rather than converging to 7 at the camera. That is a better
+# demo of subtick smoothing, not a worse one: two genuinely parallel tracks make a difference in
+# interpolation easier to see than two converging ones. 100 cells at 2000 WDist/tick is 51 ticks, 3.1 s.
 #
 #   TRACK A (upper right)  aim 44,51
 #   TRACK B (lower left)   aim 34,61

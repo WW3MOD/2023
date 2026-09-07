@@ -37,10 +37,12 @@ Categories: Test
 #      someone deleted SpawnActorOnDeath outright -- which would break repair as a mechanic, the one
 #      thing the amendment said not to do.
 #
-# GEOMETRY IS INHERITED WHOLESALE from test-tacnuke-delivers so the edge derivation does not have to
-# be redone; only the victims differ. Russia HomeLocation 6,17, Bounds Rectangle(1,1,64,32) ->
-# Map.ChooseClosestEdgeCell gives entry cell (1,17), 39 cells from the aim point at 40,17, 44 flight
-# ticks at Speed 900. See that scenario's header for the full working.
+# GEOMETRY IS INHERITED WHOLESALE from test-tacnuke-delivers so the derivation does not have to be
+# redone; only the victims differ. CORRECTED 2026-09-07 (engine b69681d2): the entry is NOT
+# Map.ChooseClosestEdgeCell's (1,17) any more. Russia HomeLocation 6,17, aim point 40,17 ->
+# entry cell (-50,17), which is 56.2 cells behind home on the home->aim ray and well off-map;
+# flight is the whole 90.2-cell standoff, ~100 ticks at Speed 900 against 44 before. See that
+# scenario's header for the full working.
 #
 # THE MAP FILE is the flat blank 66x34 shared by test-capture-rules (identical map.bin hash), which
 # already places three `oilb` at y=16 and proves the terrain takes a 2x2 tech building anywhere.

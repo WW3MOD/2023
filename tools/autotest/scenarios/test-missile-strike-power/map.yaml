@@ -2,7 +2,7 @@ MapFormat: 12
 
 RequiresMod: ww3mod
 
-Title: TEST: Kinzhal strike arrives from the edge and kills its target
+Title: TEST: Kinzhal strike arrives on the player's own bearing and kills its target
 
 Author: WW3MOD
 
@@ -17,8 +17,9 @@ Visibility: MissionSelector
 Categories: Test
 
 # WHAT THIS MEASURES — the one piece of genuinely new engine code in the missile-powers
-# feature: MissileStrikePower, which spawns a BallisticMissile ACTOR at a map edge cell and
-# flies it to the player's target. Nothing shipped does that today:
+# feature: MissileStrikePower, which spawns a BallisticMissile ACTOR off-map, on the bearing
+# the launching player's own position gives, and flies it to the player's target. Nothing
+# shipped does that today:
 #
 #   * AirstrikePower hard-requires AircraftInfo (AirstrikePower.cs:75).
 #   * SpawnActorPower spawns AT the target cell (LocationInit, SpawnActorPower.cs:86) and
@@ -35,29 +36,56 @@ Categories: Test
 # with no error at all. Both of those are invisible to a "did the target die" assertion on a
 # map where the corner is near the target, so the entry point is measured explicitly.
 #
-# GEOMETRY, and every number here is load-bearing.
+# GEOMETRY, and every number here is load-bearing. REWRITTEN 2026-09-07, when engine b69681d2
+# replaced the spawn rule outright. The OLD derivation, recorded in one line so that nobody
+# reconstructs it and believes it: Map.ChooseClosestEdgeCell(home 6,17) resolved to the west edge
+# cell 1,17, and the Lua asserted the entry was within 15 cells of home. THAT RULE IS GONE, and
+# the assertion built on it failed on correct behaviour.
 #
-#   Russia HomeLocation 6,17 · Bounds Rectangle(left=1, top=1, w=64, h=32)
-#   Map.ChooseClosestEdgeCell (Map.cs:1821-1835):
-#     horizontalBound = (6-1=5) < 64/2=32  -> Bounds.Left   = 1
-#     verticalBound   = (17-1=16) < 32/2=16 is FALSE -> Bounds.Bottom = 1+32 = 33
-#     du = |1-6| = 5,  dv = |33-17| = 16,  du < dv  -> edge = (1, 17)
-#   So the missile is expected to enter at cell 1,17 — the WEST edge, on the target's row.
+#   THE SHIPPED RULE (MissileStrikeApproach.cs):
+#     entry    = aimPoint - unit(home -> salvoCentroid) * standoff
+#     standoff = mapDiagonal + ApproachMargin
+#              = ISqrt((1024*66)^2 + (1024*34)^2) + 16384 = 76024 + 16384 = 92408 wdist
+#              = 90.2 cells
+#   The bearing runs from the launching player's OWN position toward what they aimed at, so the
+#   player chooses WHERE the warhead lands and never WHICH WAY it arrives — the property the old
+#   map-edge rule protected, preserved by other means. The standoff is the map DIAGONAL, the
+#   largest separation of any two in-map points, so the spawn clears the boundary by at least
+#   ApproachMargin from every aim point on every map size. That is a proof, not a tuned number.
 #
-#   Victim at 48,17 is 47 cells east of that entry cell and 42 cells east of home. The three
-#   candidate wrong answers are all far outside the tolerances in the Lua:
-#     spawned on the target (SpawnActorPower shape)  -> entry->target = 0c   (needs >= 30c)
-#     spawned at WPos.Zero (Target handshake wrong)  -> entry row 0, entry->home = 17c
-#     spawned at the enemy's edge                    -> entry->home = 59c
+#   THE VICTIM IS AT 48,6 AND DELIBERATELY NOT ON HOME'S ROW. It sat at 48,17 until 2026-09-07,
+#   level with Russia's home at 6,17 — a layout on which the shipped rule, a fixed "always from
+#   the east" bearing, a faction constant and a per-map bearing ALL produce the same eastward
+#   approach. On that row the bearing is unfalsifiable and only the standoff distance can be
+#   read. Off it, they separate:
+#     axis  = |home 6,17 -> victim 48,6| = sqrt(42^2 + 11^2) = 43.4 cells
+#     entry = 48,6 - (0.9674, -0.2534) * 90.2  ->  cell -39,29
+#           = 46.8 cells BEHIND home along that ray, and 0.2 cells off it
+#   Every candidate wrong answer now misses, and each misses a DIFFERENT one of the three
+#   readings the Lua takes (see TestHarness.ApproachFault in mods/ww3mod/scripts/test-helpers.lua):
+#     spawned on the target (SpawnActorPower shape)   -> along +43.4c    : wrong SIDE
+#     spawned at WPos.Zero (Target handshake wrong)   -> lateral 18.0c   : wrong BEARING
+#     ChooseClosestEdgeCell(home) = 1,17, the OLD rule-> along -4.8c
+#                                                        against -46.8c : wrong DISTANCE
+#     "always from the east", the rule the user
+#       rejected by name                              -> lateral 23.1c   : wrong BEARING
 #
-#   Flight: 47 cells = 48128 wdist at Speed 2000 -> 48128/2000 = 24 ticks, i.e. 24 x 0.06 s
-#   = 1.44 s at Timestep 60. The terminal phase shortens it a little. The budget in the Lua
-#   is 90 ticks, deliberately loose: this scenario asserts "arrives fast enough to be a
-#   hypersonic rather than an aircraft", not a tuned number.
+#   48,6 is 14.9 cells from OpponentSR at 58,17 — further than the 10 cells the old position
+#   gave, and still well outside IskanderExplosion's widest warhead (ShockwaveDamage MaxRadius
+#   4c0), so the strike cannot eliminate USA by accident.
+#
+#   Flight: the missile now covers the whole 90.2-cell standoff rather than the on-map gap, so
+#   92408/2000 = 46 ticks at Speed 2000 where it used to be 24. It is also the SAME 46 ticks
+#   wherever the player aims — the deliberate balance change in b69681d2, which stopped a strike
+#   beside your own base from giving the enemy the least warning. The budget in the Lua is 90
+#   ticks, deliberately loose: this scenario asserts "arrives fast enough to be a hypersonic
+#   rather than an aircraft", not a tuned number.
 #
 # WHY MapStartingLocations IS REMOVED IN rules.yaml. Russia is the playable client player,
 # so Player.HomeLocation would otherwise come from a spawn assigner (Player.cs:182) and the
-# whole edge derivation above would depend on which mpspawn it happened to pick. With the
+# whole approach derivation above would depend on which mpspawn it happened to pick. The
+# bearing is now taken FROM HomeLocation rather than merely resolved near it, so this matters
+# more than it did, not less. With the
 # trait gone, assignSpawnPoints is null and HomeLocation falls back to the pinned
 # PlayerReference value (Player.cs:182 `?? pr.HomeLocation`). Same reasoning, and the same
 # fix, as test-supply-far-front-reached.
@@ -104,11 +132,14 @@ Actors:
 	# hit, 2.24x its health, so a hit kills and a near-miss does not. That margin is what makes
 	# "dead" a clean read on "the missile arrived exactly where it was aimed".
 	#
-	# 48,17 is 10 cells from OpponentSR at 58,17, well outside IskanderExplosion's widest
+	# 48,6 is 14.9 cells from OpponentSR at 58,17, well outside IskanderExplosion's widest
 	# warhead (ShockwaveDamage MaxRadius 4c0), so the strike cannot eliminate USA by accident.
+	#
+	# MOVED OFF ROW 17 ON 2026-09-07, and the move is the assertion: see the GEOMETRY block. On
+	# Russia's own row every candidate bearing rule gives the same answer.
 	Victim: abrams
 		Owner: USA
-		Location: 48,17
+		Location: 48,6
 		Facing: 256
 
 	SpawnRussia: mpspawn
