@@ -75,9 +75,17 @@ local function step()
 
 		-- Test.ActivateSupportPower is staging, not an assertion, and its return value is
 		-- deliberately not checked: this is a demo and there is no verdict to fail. If a pass does
-		-- not arrive, the thing to look at is the support-power bin. Both powers carry
-		-- `Prerequisites: player.russia` and neither is behind a lobby checkbox, so an empty bin
-		-- means the player is not Russia rather than that an override here failed.
+		-- not arrive, the thing to look at is the support-power bin.
+		--
+		-- BOTH ARMS ARE TIMER POWERS HERE AND NEITHER IS BOUGHT, which is unusual and is the point:
+		-- the control (KinzhalRawStrike) is defined by this scenario and has no proxy to buy, so
+		-- rules.yaml sets `RequiresPurchase: False` on the shipped Kinzhal to match it. The long
+		-- note there explains why this demo is the only place in the mod that does that. Without it
+		-- the smoothed arm fires nothing at all while the control fires all four passes.
+		--
+		-- The smoothed power's tier is `powers.russia` and the control's is `player.russia`;
+		-- neither is behind a lobby checkbox, so an empty bin means the player is not Russia rather
+		-- than that an override here failed.
 		Test.ActivateSupportPower(Russia, SmoothOrder, CPos.New(pass.smooth.X, pass.smooth.Y))
 		Test.ActivateSupportPower(Russia, RawOrder, CPos.New(pass.raw.X, pass.raw.Y))
 

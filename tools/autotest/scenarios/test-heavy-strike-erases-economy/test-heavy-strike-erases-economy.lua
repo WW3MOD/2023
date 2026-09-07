@@ -60,6 +60,19 @@ local OrderKey = "TacNukeStrike"
 local TargetX, TargetY = 40, 17
 local HuskType = "oilb.husk"
 
+-- THE SHOT IS BOUGHT, NOT CHARGED, and until 2026-09-07 this scenario could not fire it at all.
+-- MissileStrikePower@TacNuke carries `RequiresPurchase: True`, which replaces the charge timer with
+-- a magazine: at zero banked shots the power is Disabled, therefore not Ready, and
+-- Test.ActivateSupportPower returns 'not-ready:0'. The `ChargeInterval: 1` + `StartFullyCharged`
+-- this scenario's rules.yaml used to set were read and discarded by SupportPowerInstance's
+-- constructor (SupportPowerManager.cs:228-229). GrantCharge has exactly one caller in the engine --
+-- SupportPowerProductionQueue.BuildUnit -- so buying is the only way to load a shot. See the header
+-- of TestHarness.EnsurePower in mods/ww3mod/scripts/test-helpers.lua.
+--
+-- The purchase runs from the first ticks of the shelling phase and is long complete by the time
+-- ARM A orders the strike, so it costs this run nothing and moves no phase boundary.
+local BuyProxy = "power.tacnuke"
+
 -- Ticks the t90 shells ShelledDerrick before arm B is judged and the run moves on. 250 ticks is
 -- 15 s at Timestep 60 — many full reload cycles for a tank main gun, so "no damage" here is a
 -- statement about the target type and not about a slow first shot.
@@ -87,6 +100,8 @@ local nukeDeathTick = nil
 local husksAtEnd = -1
 local huskCellsAtEnd = ""
 local stateAtOrder = "never-read"
+local buyStatus = "never-called"
+local buyTick = nil
 local finished = false
 
 local function n(v)
@@ -130,7 +145,8 @@ local function summary()
 	return "shelled=" .. shelledStartHealth .. "hp -> " .. n(shelledHealthAfterShelling) .. "hp"
 		.. " (t90 " .. (shooterAlive and "alive" or "DEAD") .. " after " .. ShellTicks .. "t of fire)"
 		.. " | scripted kill@t" .. n(killTick) .. " husks after=" .. husksAfterScriptKill
-		.. " | nuke order=" .. orderStatus .. "@t" .. n(orderTick) .. " state=" .. stateAtOrder
+		.. " | magazine=" .. buyStatus .. "@t" .. n(buyTick)
+		.. " nuke order=" .. orderStatus .. "@t" .. n(orderTick) .. " state=" .. stateAtOrder
 		.. " nuked " .. nukedStartHealth .. "hp -> "
 		.. (NukedDerrick.IsDead and ("DEAD@t" .. n(nukeDeathTick)) or (NukedDerrick.Health .. "hp"))
 		.. " | husks at end=" .. husksAtEnd .. " at [" .. huskCellsAtEnd .. "]"
@@ -182,8 +198,12 @@ local function finish()
 	-- ARM A, first half: did the strike arrive at all?
 	if orderStatus ~= "issued" then
 		Test.Fail("the tactical nuke order was refused: " .. orderStatus .. " (bin state at order: "
-			.. stateAtOrder .. "). The lobby gate is forced open in rules.yaml, so 'hidden' here"
-			.. " means the GrantConditionOnLobbyOption@tacnuke chain has changed. || " .. s)
+			.. stateAtOrder .. "). READ THE MAGAZINE FIELD FIRST: if it is not 'ready' the shot was"
+			.. " never bought and the fault is in the shop -- 'refused' means the Powers queue"
+			.. " rejected the order (check PowersSandboxCheckboxEnabled, which provides this"
+			.. " power's powers.event tier, and Russia's DefaultCash against the 15000 price)."
+			.. " If the magazine IS ready, the lobby gate is forced open in rules.yaml, so 'hidden'"
+			.. " here means the GrantConditionOnLobbyOption@tacnuke chain has changed. || " .. s)
 		return
 	end
 
@@ -228,6 +248,17 @@ end
 
 local function step()
 	tick = tick + 1
+
+	-- Fill the magazine, from the first ticks of the run and regardless of phase. Stateless and
+	-- idempotent, so it is simply called until it reports ready; at BuildDuration 5 that is around
+	-- t=12, hundreds of ticks before ARM A orders the strike.
+	if buyTick == nil then
+		local ready, status = TestHarness.EnsurePower(Russia, BuyProxy, OrderKey, tick)
+		buyStatus = status
+		if ready then
+			buyTick = tick
+		end
+	end
 
 	if phase == "shelling" then
 		if not Shooter.IsDead and tick % ReorderEvery == 1 then

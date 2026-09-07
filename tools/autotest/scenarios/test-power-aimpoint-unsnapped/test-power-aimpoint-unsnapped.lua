@@ -77,6 +77,22 @@
 -- old numbers, the field works; if both shots land centred, the field is being ignored.
 
 local OrderKey = "KinzhalStrike"
+-- BOTH SHOTS ARE BOUGHT, NOT CHARGED, and until 2026-09-07 this scenario could not fire either of
+-- them. MissileStrikePower@Kinzhal carries `RequiresPurchase: True`, which replaces the charge
+-- timer with a magazine: at zero banked shots SupportPowerInstance.Disabled is true, Active is
+-- false, Ready is false, and Test.ActivateSupportPower returns 'not-ready:0'. The
+-- `ChargeInterval: 1` + `StartFullyCharged` this scenario's rules.yaml used to set were READ AND
+-- DISCARDED by the instance constructor (SupportPowerManager.cs:228-229). GrantCharge has exactly
+-- one caller in the engine -- SupportPowerProductionQueue.BuildUnit -- so buying is the only route.
+-- The whole chain is in the header of TestHarness.EnsurePower (mods/ww3mod/scripts/test-helpers.lua).
+--
+-- ONE PURCHASE IS ONE SHOT, so this scenario buys TWICE -- Activate calls bank.Consume, and the
+-- second order would be refused on an empty magazine. EnsurePower is stateless and simply re-buys
+-- when the bank empties, which is also the honest shape: the second shot costs a real 5000 credits
+-- exactly as it does for a player. rules.yaml carries 20000 for the pair and cuts the proxy's load
+-- to 5 ticks. The Kinzhal's tier is `powers.russia` and this player IS Russia, so no sandbox
+-- lobby option is involved.
+local BuyProxy = "power.kinzhal"
 local MissileType = "kinzhalmissile"
 
 -- Shot 1: the top-left corner cell of CornerVictim (footprint 30-32 x 10-12).
@@ -100,6 +116,7 @@ local MinDamageGap = 20000
 local tick = 0
 local Russia
 local stateAtStart = "never-read"
+local lastBuyStatus = "never-called"
 local finished = false
 
 local shots = {
@@ -166,6 +183,13 @@ end
 local function pollTick()
 	tick = tick + 1
 
+	-- Keep a shot in the magazine, including between the two orders. Stateless and idempotent, so
+	-- it is simply called every tick; `powerReady` gates the order below, and `buyStatus` carries
+	-- the reason into the verdict when it never comes -- 'refused' and 'not-ready:0' look identical
+	-- from the order's side and are completely different faults.
+	local powerReady, buyStatus = TestHarness.EnsurePower(Russia, BuyProxy, OrderKey, tick)
+	lastBuyStatus = buyStatus
+
 	if shotIndex > #shots then
 		return
 	end
@@ -176,6 +200,12 @@ local function pollTick()
 	if shot.phase == "pending" then
 		shot.missilesAtOrder = #missiles
 		if #missiles > 0 then
+			return
+		end
+
+		if not powerReady then
+			-- The magazine is still filling. Do NOT fall through to the order: a refusal below ends
+			-- the whole run on the spot, and "the shot has not been bought yet" is not a refusal.
 			return
 		end
 
@@ -250,7 +280,7 @@ local function finish()
 	local centre = shots[2]
 	local gap = centre.damage - corner.damage
 
-	local summary = "snap=OFF state=" .. stateAtStart
+	local summary = "snap=OFF magazine=" .. lastBuyStatus .. " state=" .. stateAtStart
 		.. " | " .. shotText(corner)
 		.. " | " .. shotText(centre)
 		.. " | gap=" .. gap

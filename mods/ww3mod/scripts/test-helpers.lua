@@ -255,3 +255,111 @@ function TestHarness.ScreenshotAfter(seconds, label, note)
 		Test.Screenshot(label, note or "")
 	end)
 end
+
+-- ============================================================================================
+-- BUYING A SUPPORT POWER — the ONLY way a scenario can put a shot in the magazine.
+-- ============================================================================================
+--
+-- READ THIS BEFORE WRITING `ChargeInterval` IN A SCENARIO'S rules.yaml. Every support power that
+-- ships in WW3MOD carries `RequiresPurchase: True`, and under that flag SupportPowerInstance's
+-- constructor forces `TotalTicks = 0` and `remainingSubTicks = 0` unconditionally
+-- (SupportPowerManager.cs:228-229). So a scenario override of ChargeInterval or StartFullyCharged
+-- IS INERT — it is read, it is discarded, and nothing says so. What actually gates the power is
+-- the BANK:
+--
+--     Ready    => Active && RemainingTicks == 0          (SupportPowerManager.cs:183)
+--     Active   =  !Disabled && any unpaused instance     (SupportPowerManager.cs:250)
+--     Disabled => !bank.IconVisible(Permitted)           (SupportPowerManager.cs:172)
+--     IconVisible(p) => p && !(Enabled && Charges == 0)  (SupportPowerChargeBank.cs)
+--
+-- At zero charges that chain collapses to Ready == false, so Test.ActivateSupportPower returns
+-- 'not-ready:0' forever and GetSupportPowerState reads 'hidden'. `GrantCharge` is called from
+-- exactly ONE place in the engine — SupportPowerProductionQueue.BuildUnit — so there is no way to
+-- bank a shot except to buy one. That is what this helper does.
+--
+-- WHAT A SCENARIO NEEDS FOR THIS TO WORK, all four, and missing any one of them is silent:
+--   1. cash. `PlayerResources: DefaultCash:` >= the proxy's Valued Cost, on the buying player.
+--   2. a producer. An actor the player owns whose Production trait lists `Powers` — in this mod
+--      that is the Supply Route, and every scenario that fires a power already places one.
+--   3. the TIER prerequisite. `powers.america` / `powers.russia` come from the player's faction;
+--      `powers.event` comes from NO faction and only from the sandbox lobby option, so a scenario
+--      firing an event-tier warhead must set `PowersLobbyOptions: PowersSandboxCheckboxEnabled`
+--      and `PowersSandboxCheckboxLocked` to true in its rules.yaml.
+--   4. a SHORT `BuildDuration` override on the proxy. The shipped loads run 500 to 4500 ticks
+--      (30 s to 4.5 min) and a scenario that waited them out would spend a launch slot watching a
+--      progress bar.
+--
+-- ONE PURCHASE IS ONE SHOT. SupportPowerInstance.Activate calls bank.Consume(), so a scenario that
+-- fires the same power twice must buy it twice. Calling EnsurePower again after a shot does
+-- exactly that with no extra bookkeeping, because the state reverts to 'hidden'.
+
+-- Ticks to let pass before touching ANY production property. LOAD-BEARING, AND THE FAILURE IT
+-- PREVENTS IS PERMANENT RATHER THAN TRANSIENT: ClassicProductionQueueProperties snapshots the
+-- player's queues ONCE, in its constructor, filtered on `q.Enabled`
+-- (ProductionProperties.cs:225-227), and that constructor runs on the FIRST access to Build or
+-- IsProducing. ProductionQueue.Enabled is not set until the queue's first Tick finds a producer
+-- (ClassicProductionQueue.cs:51-72), so a first touch on tick 1 captures an EMPTY map and the
+-- Powers queue is missing for the rest of the run — at which point IsProducing returns true for an
+-- unknown queue (ProductionProperties.cs:301) and this helper would report 'loading' forever.
+-- 5 is the value test-power-buy-loop has proven; do not lower it, and do not reach for a
+-- production property from WorldLoaded.
+TestHarness.ProductionWarmupTicks = 5
+
+-- Make sure `powerKey` has a shot in the magazine, buying `proxyType` through the real Powers
+-- queue if it does not. CALL IT EVERY TICK until it returns true; it is stateless and idempotent.
+--
+-- Returns `ready, status`:
+--   true,  'ready'        the power can be fired NOW. Test.ActivateSupportPower will return 'issued'.
+--   false, 'warmup'       too early to touch production; see ProductionWarmupTicks above.
+--   false, 'buying'       a purchase was just queued.
+--   false, 'loading'      the Powers queue is busy (this purchase, or another one, is building).
+--   false, 'refused'      the queue would not take the order. The proxy is not in BuildableItems:
+--                         the tier prerequisite is unmet (event tier without the sandbox option),
+--                         the power's lobby checkbox is off, or there is no producer.
+--   false, 'absent'       no such power on the player at all — a wrong OrderName, or the trait is
+--                         not on the Player actor. Buying can never fix this.
+--   false, 'no-manager'   no SupportPowerManager, or test mode is off.
+--   false, 'charging:<n>' the power is on a TIMER, not a bank, and is coming on its own. Nothing
+--                         to buy; wait.
+--
+-- The status token is deliberately printable straight into a verdict or an on-screen message. A
+-- scenario that goes quiet is a scenario nobody can debug from a log, and every one of the six
+-- failures above is otherwise indistinguishable from "the shot has not landed yet".
+function TestHarness.EnsurePower(player, proxyType, powerKey, tick)
+	if player == nil then
+		return false, "no-player"
+	end
+
+	-- Bare token, no decoration: GetSupportPowerState returns exactly one of the vocabulary in
+	-- TestGlobal.SupportPowerState. Compared exactly on purpose.
+	local state = Test.GetSupportPowerState(player, powerKey)
+	if state == "ready" then
+		return true, "ready"
+	end
+
+	-- 'hidden' is the ONLY state a purchase can move. Everything else is either a wiring fault
+	-- (absent, no-manager) or a power that is not bank-gated at all (charging:<n>), and issuing a
+	-- build order against any of them would take money and change nothing.
+	if state ~= "hidden" then
+		return false, state
+	end
+
+	if tick == nil or tick < TestHarness.ProductionWarmupTicks then
+		return false, "warmup"
+	end
+
+	-- IsProducing asks whether the queue that builds `proxyType` has ANYTHING queued, not whether
+	-- this particular item is in it (ProductionProperties.cs:295-303). That is the reading we want:
+	-- a ClassicProductionQueue builds Queue[0] and only Queue[0] (ProductionQueue.cs:338-345), so
+	-- one busy Powers queue means every other purchase must wait its turn regardless of what is in
+	-- it. It is also what makes several EnsurePower calls in one scenario serialise by themselves.
+	if player.IsProducing(proxyType) then
+		return false, "loading"
+	end
+
+	if player.Build({ proxyType }) then
+		return false, "buying"
+	end
+
+	return false, "refused"
+end

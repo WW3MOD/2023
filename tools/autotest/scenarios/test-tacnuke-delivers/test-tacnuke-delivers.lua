@@ -64,6 +64,21 @@ local OrderKey = "TacNukeStrike"
 local TargetX, TargetY = 40, 17
 local MissileType = "tacnukemissile"
 
+-- THE SHOT IS BOUGHT, NOT CHARGED, and until 2026-09-07 this scenario could not fire at all.
+-- MissileStrikePower@TacNuke carries `RequiresPurchase: True`, which replaces the charge timer with
+-- a magazine: at zero banked shots SupportPowerInstance.Disabled is true, Active is false, Ready is
+-- false, and Test.ActivateSupportPower returns 'not-ready:0' for the whole budget. The
+-- `ChargeInterval: 1` + `StartFullyCharged` this scenario's rules.yaml used to set were read and
+-- discarded by the instance constructor (SupportPowerManager.cs:228-229). GrantCharge has exactly
+-- one caller in the engine -- SupportPowerProductionQueue.BuildUnit -- so buying is the only route.
+--
+-- BUYING IS ALSO THE RIGHT SHAPE FOR THIS TEST rather than a concession to it. Everything below
+-- asserts that a nuke a HOST ENABLED behaves correctly; under the shipped rules a player reaches
+-- that nuke by paying for it, so a run that skipped the shop would be asserting about a state
+-- nobody can occupy. rules.yaml supplies the cash, the sandbox lobby option for the power's
+-- `powers.event` tier, and a 5-tick BuildDuration on the proxy.
+local BuyProxy = "power.tacnuke"
+
 -- Tolerances, all loose: this asserts a CLASS of behaviour (the host turned it on, it came in from
 -- my own edge, it went off where it was aimed), not tuned numbers.
 local MaxEntryToHome = 15    -- cells. Expected 5. Enemy edge would be 51, map corner 17.
@@ -107,6 +122,8 @@ local burstZ = nil        -- CenterPosition.Z on the LAST tick the missile was s
 local minAltitude = nil   -- lowest height above groundZ ever sampled, as a cross-check on burstZ.
 local timerLinesOwn = "never-read"
 local timerLinesEnemy = "never-read"
+local buyStatus = "never-called"
+local buyTick = nil
 local finished = false
 
 -- "Would the bin draw this?" spelled once. Test.GetSupportPowerState returns a bare token; the two
@@ -132,6 +149,19 @@ end
 
 local function pollTick()
 	tick = tick + 1
+
+	-- Fill the magazine. Stateless and idempotent, so it is simply called every tick until it
+	-- reports ready; the order attempt below already retries on its own schedule and picks the shot
+	-- up the moment it lands (about t=12 at BuildDuration 5). The status token is carried into the
+	-- verdict because 'refused' and 'not-ready:0' are the same silence from the order's point of
+	-- view and completely different faults.
+	if buyTick == nil then
+		local ready, status = TestHarness.EnsurePower(Russia, BuyProxy, OrderKey, tick)
+		buyStatus = status
+		if ready then
+			buyTick = tick
+		end
+	end
 
 	if orderTick == nil then
 		-- Read the bin BEFORE firing, and keep the last reading: if the order never issues, the
@@ -191,7 +221,8 @@ local function finish()
 	local burstAltitude = burstZ ~= nil and (burstZ - groundZ) or -1
 	local victimState = Victim.IsDead and "DEAD" or (Victim.Health .. "hp")
 
-	local summary = "lobby=ON(locked) state=" .. stateAtStart .. " bin=[" .. binAtStart .. "]"
+	local summary = "lobby=ON(locked)+sandbox magazine=" .. buyStatus .. "@t" .. n(buyTick)
+		.. " state=" .. stateAtStart .. " bin=[" .. binAtStart .. "]"
 		.. " | order=" .. orderStatus .. "@t" .. n(orderTick)
 		.. " | entry=" .. entryX .. "," .. entryY .. "@t" .. n(firstSeenTick)
 		.. " home=" .. home.X .. "," .. home.Y
@@ -209,27 +240,40 @@ local function finish()
 		.. " opp=" .. (OpponentSR.IsDead and "DEAD" or (OpponentSR.Health .. "hp"))
 		.. " | observed=" .. tick .. "t"
 
-	-- 1. Did the lobby gate open? This is the assertion the scenario exists for; everything below
-	-- it is the delivery check that makes an open gate mean something.
-	-- Accepts BOTH drawn tokens. `ready` is expected here (rules.yaml sets ChargeInterval 1 and
-	-- StartFullyCharged), but `charging:<n>` is equally a live icon and is what the very first tick
-	-- can report: SupportPowerInstance.Ready is `Active && RemainingTicks == 0`, and Active is only
-	-- assigned inside Tick(), so a read before the first tick gives charging:0 rather than ready.
-	-- Matching the value-carrying token by prefix rather than spelling one instance of it is the
-	-- point — an earlier version compared against the literal "charging:0" and would have missed
-	-- charging:1.
+	-- 1. Did the lobby gate open AND did the purchase land? This is the assertion the scenario
+	-- exists for; everything below it is the delivery check that makes an open gate mean something.
+	--
+	-- `stateAtStart` is the LAST reading taken before the order issued, so under the purchase model
+	-- it is 'ready' — the shot is in the magazine. `charging:<n>` is still accepted because it is
+	-- equally a live icon and would be the reading if this power were ever put back on a timer;
+	-- matching that value-carrying token by prefix rather than spelling one instance of it is the
+	-- point, since an earlier version compared against the literal "charging:0" and would have
+	-- missed charging:1.
+	--
+	-- 'hidden' NOW HAS TWO CAUSES AND THE MAGAZINE READING IN THE SUMMARY SAYS WHICH. An unbought
+	-- power is hidden exactly as a lobby-gated one is: SupportPowerInstance.Disabled is
+	-- `!bank.IconVisible(Permitted)`, and an empty bank fails it just as an unmet condition does.
 	if not isDrawn(stateAtStart) then
-		Test.Fail("the host enabled the tactical nuclear strike and the power bin still would not"
-			.. " draw it: state '" .. stateAtStart .. "'. 'hidden' means the"
-			.. " GrantConditionOnLobbyOption@tacnuke -> RequiresCondition chain did not open —"
-			.. " check the option id 'tactical-nuke' matches on both sides, and that"
-			.. " GrantWhenOptionDisabled is still true (the polarity is deliberate; see player.yaml)."
-			.. " 'absent' means the trait is not on the Player actor at all. || " .. summary)
+		Test.Fail("the tactical nuclear strike was not in the power bin when the order went out:"
+			.. " state '" .. stateAtStart .. "'. READ THE MAGAZINE FIELD IN THE SUMMARY FIRST."
+			.. " If it is not 'ready', the shot was never bought and the fault is in the shop --"
+			.. " 'refused' means the Powers queue rejected the order (check"
+			.. " PowersSandboxCheckboxEnabled, which provides this power's powers.event tier, and"
+			.. " DefaultCash against the 15000 price), 'loading' means the purchase never"
+			.. " completed. If the magazine IS ready and the state is still 'hidden', the lobby"
+			.. " gate closed: check that the option id 'tactical-nuke' matches on both sides and"
+			.. " that GrantWhenOptionDisabled is still true (the polarity is deliberate; see"
+			.. " player.yaml). 'absent' means the trait is not on the Player actor at all."
+			.. " || " .. summary)
 		return
 	end
 
 	if orderStatus ~= "issued" then
-		Test.Fail("the icon was live but the order was refused: " .. orderStatus .. ". || " .. summary)
+		Test.Fail("the icon was live but the order was refused: " .. orderStatus .. ". If the"
+			.. " magazine reading above is not 'ready' the shot was never bought, and the buy is"
+			.. " what to fix: 'refused' means the Powers queue would not take the order (check"
+			.. " PowersSandboxCheckboxEnabled and DefaultCash in rules.yaml), 'absent' means the"
+			.. " OrderName is wrong. || " .. summary)
 		return
 	end
 

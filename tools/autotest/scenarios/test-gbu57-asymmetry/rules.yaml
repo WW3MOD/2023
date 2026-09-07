@@ -8,13 +8,12 @@
 # The overrides that ARE here are about reachability and about not measuring a timer.
 
 Player:
-	# The power's ONLY departure from shipping config, and it is the same one the Kinzhal scenario
-	# makes: charged at t=0 and re-armed in a tick, instead of the shipped 3000-tick (180 s)
-	# placeholder. Two things need it -- waiting out one interval would spend three minutes of a
-	# launch slot, and the scenario fires TWICE in one run.
-	MissileStrikePower@GBU57:
-		ChargeInterval: 1
-		StartFullyCharged: true
+	# `MissileStrikePower@GBU57: ChargeInterval: 1 / StartFullyCharged: true` USED TO SIT HERE AND
+	# DID NOTHING. SupportPowerInstance's constructor forces TotalTicks and remainingSubTicks to 0
+	# whenever RequiresPurchase is set (SupportPowerManager.cs:228-229), so both were read and
+	# discarded, the power stayed at zero charges -- Disabled, therefore not Ready -- and both
+	# Test.ActivateSupportPower calls returned 'not-ready:0'. THE SCENARIO FIRES TWICE, so it now
+	# BUYS twice: one purchase is one shot. See power.gbu57 at the bottom of this file.
 	# Faction elimination would end the match before the Lua poller writes a verdict.
 	-ConquestVictoryConditions:
 	# Fog off and the map pre-explored, so neither victim's health readings nor the missile's
@@ -24,10 +23,14 @@ Player:
 		ExploredMapCheckboxLocked: true
 		FogCheckboxEnabled: false
 		FogCheckboxLocked: true
-	# No cash -> no production. The only actors in the world are the six placed ones plus the two
-	# bombs the power delivers, so GetActorsByType("gbu57bomb") cannot pick up a third from anywhere.
+	# 20000 -- 5000 apiece for the two strikes, with slack. This USED to read `DefaultCash: 0`, and
+	# that is exactly what killed the run: with the power BOUGHT rather than charged, no cash means
+	# no bomb, forever and silently. The property the old note claimed -- that
+	# GetActorsByType("gbu57bomb") cannot pick up a third bomb from anywhere -- still holds and is
+	# stronger: two purchases buy exactly two shots, nothing else on this map spends money, and
+	# there is no bot.
 	PlayerResources:
-		DefaultCash: 0
+		DefaultCash: 20000
 
 World:
 	-StartGameNotification:
@@ -38,3 +41,16 @@ World:
 	-CrateSpawner:
 	LuaScript:
 		Scripts: test-helpers.lua, test-gbu57-asymmetry.lua
+
+# THE PURCHASE, TWICE. Every shipped support power carries `RequiresPurchase: True`, so a shot must
+# be BOUGHT before it can be fired, and ONE PURCHASE IS ONE SHOT -- SupportPowerInstance.Activate
+# calls bank.Consume, so this scenario's two strikes are two purchases. The whole chain is in the
+# header of TestHarness.EnsurePower, mods/ww3mod/scripts/test-helpers.lua.
+#
+# 5 ticks instead of the shipped 900 (54 s). That 900 is the GBU-57's deliberate differentiation
+# from the Kinzhal at the same price -- a scheduled demolition, slow to load -- and it is a PRICE,
+# which is not what this scenario measures. Both StrikeBudget windows are counted from each strike's
+# own order tick, so the ~12 ticks before the first and ~7 before the second cost nothing.
+power.gbu57:
+	Buildable:
+		BuildDuration: 5

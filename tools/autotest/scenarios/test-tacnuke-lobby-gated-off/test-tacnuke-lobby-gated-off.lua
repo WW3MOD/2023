@@ -35,11 +35,31 @@
 
 local NukeKey = "TacNukeStrike"
 local ControlKey = "KinzhalStrike"
+local ControlProxy = "power.kinzhal"
 local TargetX, TargetY = 40, 17
 
--- Long enough that a slow TechTree pass cannot be mistaken for a closed gate. The Kinzhal control
--- needs its `Prerequisites: player.russia` satisfied, and that runs on its own schedule — so the
--- run watches until the CONTROL comes up, then reads both, rather than sampling one early tick.
+-- THE CONTROL IS NOW BOUGHT, NOT CHARGED, AND THAT IS A SHARPENING RATHER THAN A CONCESSION.
+-- Every support power carries `RequiresPurchase: True` since 2026-09-06, which replaces the charge
+-- timer with a magazine (SupportPowerManager.cs:216-229): at zero banked shots the Kinzhal is
+-- Disabled and reads 'hidden' — indistinguishable from the gated-off nuke, which would have made
+-- check 1 unpassable and this whole scenario dead. Buying one makes the control STRONGER than the
+-- charging icon it replaced: it now proves the power system, the Powers queue, the Supply Route
+-- producer and the `powers.russia` faction tier all work in this very run, so a hidden nuke is a
+-- statement about the nuke.
+--
+-- READ THIS BEFORE TRUSTING CHECK 2 AS A STATEMENT ABOUT THE LOBBY GATE SPECIFICALLY. The tactical
+-- nuke is now EVENT TIER as well as lobby-gated (`Prerequisites: powers.event`, provided by no
+-- faction and only by the sandbox option), so 'hidden' here is OVER-DETERMINED: either gate alone
+-- produces it, and a broken lobby polarity would still leave the nuke hidden behind the tier. This
+-- run therefore still proves what its title claims -- an unconfigured game hands nobody a nuclear
+-- weapon -- but it no longer isolates WHICH gate did it. Isolating the lobby gate needs sandbox ON,
+-- which would stop this being a reading of the shipped default; that is a different scenario, and
+-- it does not exist yet.
+--
+-- Long enough that a slow TechTree pass cannot be mistaken for a closed gate, and now also long
+-- enough for the control's purchase: `Prerequisites: powers.russia` runs on its own schedule and
+-- the 5-tick buy (rules.yaml) lands around t=12, so the run watches until the CONTROL comes up and
+-- then reads both, rather than sampling one early tick.
 local ObserveTicks = 200
 
 local tick = 0
@@ -50,6 +70,7 @@ local bin = "never-read"
 local nukeOrderStatus = "never-called"
 local timerLines = "never-read"
 local controlReadyTick = nil
+local controlBuyStatus = "never-called"
 local finished = false
 
 -- "Would the bin draw this?" spelled once. Test.GetSupportPowerState returns a bare token, and the
@@ -62,16 +83,25 @@ end
 local function pollTick()
 	tick = tick + 1
 
+	-- Buy the CONTROL, and only the control. Stateless and idempotent, so it is simply called every
+	-- tick until the shot is banked. Nothing here touches the nuke: power.tacnuke is never named,
+	-- so the run cannot accidentally open the shop on the thing it is asserting is shut.
+	if controlReadyTick == nil then
+		local _, status = TestHarness.EnsurePower(Russia, ControlProxy, ControlKey, tick)
+		controlBuyStatus = status
+	end
+
 	nukeState = Test.GetSupportPowerState(Russia, NukeKey)
 	controlState = Test.GetSupportPowerState(Russia, ControlKey)
 	bin = Test.GetSupportPowerBin(Russia)
 	timerLines = Test.GetSupportPowerTimerLines(Russia)
 
 	-- The control coming up is the signal that the support power system has finished initialising,
-	-- so both readings are taken against a settled world rather than a cold one. `charging:<n>` is
-	-- the expected reading for the Kinzhal here: nothing in this scenario overrides its shipped
-	-- 3000-tick interval, and it must NOT be overridden — the control has to be observed exactly as
-	-- it ships. Charging is a live icon; hidden is not.
+	-- so both readings are taken against a settled world rather than a cold one. `ready` is the
+	-- expected reading for the Kinzhal here: a purchased power has no timer at all (TotalTicks is
+	-- forced to 0 under RequiresPurchase), so it arrives loaded the tick the queue banks it.
+	-- `charging:<n>` is still accepted because it is equally a live icon and would be the reading
+	-- if this power were ever put back on a timer. Either is a drawn cameo; hidden is not.
 	if controlReadyTick == nil and isDrawn(controlState) then
 		controlReadyTick = tick
 	end
@@ -86,7 +116,7 @@ local function finish()
 
 	local summary = "lobby=DEFAULT(no override) | nuke '" .. NukeKey .. "' state=" .. nukeState
 		.. " order=" .. nukeOrderStatus
-		.. " | control '" .. ControlKey .. "' state=" .. controlState
+		.. " | control '" .. ControlKey .. "' buy=" .. controlBuyStatus .. " state=" .. controlState
 		.. " live@t" .. (controlReadyTick ~= nil and tostring(controlReadyTick) or "never")
 		.. " | bin=[" .. bin .. "]"
 		.. " | timers=[" .. timerLines .. "]"
@@ -95,9 +125,13 @@ local function finish()
 	-- 1. THE CONTROL, FIRST. Without it a broken mod passes this scenario.
 	if controlReadyTick == nil then
 		Test.Fail("the Kinzhal control never appeared in the power bin either (state '"
-			.. controlState .. "'), so this run proves NOTHING about the nuke's lobby gate — a mod"
-			.. " in which no power works at all would report the nuke as absent too. Fix the control"
-			.. " before reading the assertion below. || " .. summary)
+			.. controlState .. "', buy '" .. controlBuyStatus .. "'), so this run proves NOTHING"
+			.. " about the nuke's lobby gate — a mod in which no power works at all would report the"
+			.. " nuke as absent too. THE BUY TOKEN SAYS WHERE TO LOOK: 'refused' means the Powers"
+			.. " queue would not take the order (check DefaultCash against the Kinzhal's 5000 price,"
+			.. " and that the Supply Route still produces `Powers`), 'loading' means the purchase"
+			.. " never completed, 'absent' means the OrderName is wrong. Fix the control before"
+			.. " reading the assertion below. || " .. summary)
 		return
 	end
 

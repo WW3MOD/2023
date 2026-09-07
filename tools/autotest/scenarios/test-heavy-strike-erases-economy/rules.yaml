@@ -5,9 +5,17 @@ World:
 	# The tactical nuke ships lobby-gated and OFF, so without this the power's trait is disabled by
 	# `RequiresCondition: !tacnuke-disabled` and there is nothing to fire. Enabled AND locked, so no
 	# lobby default or saved session can move it out from under the run.
+	#
+	# THE SANDBOX SWITCH IS THE SECOND HALF OF THE SAME GATE, added 2026-09-07. The tactical nuke is
+	# now EVENT TIER (`Prerequisites: powers.event`, player.yaml) and powers.event is provided by no
+	# faction -- only by the unfiltered ProvidesPrerequisite traits gated on
+	# `!powers-sandbox-disabled`. With the checkbox on and sandbox off the power is still not
+	# Permitted, so it is absent from the buy tab and the purchase is refused.
 	PowersLobbyOptions:
 		TacticalNukeCheckboxEnabled: true
 		TacticalNukeCheckboxLocked: true
+		PowersSandboxCheckboxEnabled: true
+		PowersSandboxCheckboxLocked: true
 	-StartGameNotification:
 	-SpawnStartingUnits:
 	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
@@ -18,11 +26,11 @@ World:
 		Scripts: test-helpers.lua, test-heavy-strike-erases-economy.lua
 
 Player:
-	# Charged at t=0 instead of after the shipped 11250-tick placeholder, which encodes a price this
-	# scenario is not about and would spend eleven minutes of a launch slot.
-	MissileStrikePower@TacNuke:
-		ChargeInterval: 1
-		StartFullyCharged: true
+	# `MissileStrikePower@TacNuke: ChargeInterval: 1 / StartFullyCharged: true` USED TO SIT HERE AND
+	# DID NOTHING: SupportPowerInstance's constructor forces TotalTicks and remainingSubTicks to 0
+	# whenever RequiresPurchase is set (SupportPowerManager.cs:228-229), so the power stayed at zero
+	# charges and the order was refused with 'not-ready:0' every time. The shot is BOUGHT instead --
+	# see power.tacnuke at the bottom of this file.
 	# The blast reaches most of the map; without this the match could end on elimination before the
 	# poller writes a verdict.
 	-ConquestVictoryConditions:
@@ -44,6 +52,19 @@ Player:
 		# before and after the strike; with passive income running, that delta would be
 		# income-minus-derricks and would move whether or not a derrick died. With it off, the
 		# CashTricklers on the three derricks are the only thing in the game that can move that purse.
-		DefaultCash: 0
+		#
+		# DEFAULTCASH IS 20000 RATHER THAN 0 SINCE 2026-09-07, and it does NOT weaken the reading
+		# above. The nuke is bought now (15000, power.tacnuke), so a zero purse means no strike at
+		# all. Starting cash is a CONSTANT OFFSET on both of the numbers the verdict subtracts, so
+		# the delta is untouched; PassiveIncome is still zeroed and still locked, and the purse this
+		# scenario measures belongs to USA while the money that buys the nuke is spent by Russia.
+		DefaultCash: 20000
 		PassiveIncome: 0
 		PassiveIncomeDropdownLocked: True
+
+# THE PURCHASE. 5 ticks instead of the shipped 1500 (90 s). The strike is ordered at the end of the
+# husk-settle phase, hundreds of ticks in, so the magazine is long since loaded by then and the
+# 1400-tick budget is unaffected.
+power.tacnuke:
+	Buildable:
+		BuildDuration: 5

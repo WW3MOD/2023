@@ -44,40 +44,94 @@
 -- of the playfield, and Tsar Bomba's blast is nearly twice the whole map, so the last shot cannot
 -- be framed at any zoom. That is the weapon, not the staging.
 --
--- The powers stay charged (rules.yaml sets ChargeInterval 1), so after the script finishes the
--- viewer can fire any of the six again, anywhere, as often as they like.
+-- THE SIX WARHEADS ARE BOUGHT, NOT CHARGED, and before 2026-09-07 that is why this demo fired
+-- NOTHING. Every shipped support power carries `RequiresPurchase: True`, which replaces the timer
+-- with a magazine: at zero banked shots the power is Disabled, therefore not Ready, and
+-- Test.ActivateSupportPower returns 'not-ready:0'. The `ChargeInterval: 1` + `StartFullyCharged`
+-- pairs this file's rules.yaml used to set on all six were read and discarded by
+-- SupportPowerInstance's constructor (SupportPowerManager.cs:228-229) -- staging that looked
+-- deliberate and did nothing. The chain is written out in the header of TestHarness.EnsurePower
+-- (mods/ww3mod/scripts/test-helpers.lua).
+--
+-- SO THE SCRIPT NOW BUYS EACH WARHEAD FIVE TICKS AFTER THE PREVIOUS ONE IS FIRED, through the real
+-- Powers queue at the Supply Route, exactly as a player does. rules.yaml supplies the 250000
+-- credits, ticks the sandbox lobby option that provides the three EVENT-tier warheads' prerequisite
+-- (no faction provides `powers.event`), and cuts each proxy's BuildDuration to 5 ticks.
+--
+-- THE ORDER SCHEDULE ABOVE DID NOT MOVE BY ONE TICK, and that is the point of buying ahead rather
+-- than up front: a purchase completes about seven ticks after it is queued, so every magazine is
+-- loaded with between 18 and 678 ticks to spare. Every impact, wave-end and capture tick in the
+-- table above still holds. The Powers queue builds Queue[0] and only Queue[0]
+-- (ProductionQueue.cs:338-345), which is why the buys are staggered instead of issued together.
+--
+-- AFTERWARDS EACH MAGAZINE IS EMPTY -- one purchase is one shot, and the cameo leaves the bin when
+-- it is spent. 75000 credits are left over, so the viewer can re-buy the smaller warheads from the
+-- Powers tab and fire them again wherever they like.
 
 local GroundZero = { X = 64, Y = 64 }
 
--- order tick, OrderName, label for the in-game chat line
+-- order tick, OrderName, buy proxy, tick to start buying, label for the in-game chat line.
+--
+-- THE BUY TICK IS ALWAYS `previous shot + 5`, never earlier: the queue has to be empty for the
+-- next order to be accepted, and the previous purchase has left it by then. The first is 5 rather
+-- than 1 because a production property must not be touched before the queue's first Tick has found
+-- a producer -- see TestHarness.ProductionWarmupTicks, where getting that wrong fails permanently
+-- rather than transiently.
 local SHOTS = {
-	{ 30, "B61LowStrike", "1/6  B61-12 at 0.3 kt  -- 4.5 cell blast" },
-	{ 220, "B61MaxStrike", "2/6  B61-12 at 50 kt   -- 24.6 cells: same bomb, dial turned up" },
-	{ 560, "W76Strike", "3/6  W76-1 at 100 kt   -- 31.0 cells" },
-	{ 920, "SarmatStrike", "4/6  RS-28 Sarmat      -- SIX 750 kt warheads across 21 cells" },
-	{ 1480, "B83Strike", "5/6  B83-1 at 1.2 Mt   -- 71.0 cells, largest in the US stockpile" },
-	{ 2170, "TsarBombaStrike", "6/6  TSAR BOMBA 50 Mt  -- 246 cells, 25-second fireball" },
+	{ 30, "B61LowStrike", "power.b61low", 5, "1/6  B61-12 at 0.3 kt  -- 4.5 cell blast" },
+	{ 220, "B61MaxStrike", "power.b61max", 35, "2/6  B61-12 at 50 kt   -- 24.6 cells: same bomb, dial turned up" },
+	{ 560, "W76Strike", "power.w76", 225, "3/6  W76-1 at 100 kt   -- 31.0 cells" },
+	{ 920, "SarmatStrike", "power.sarmat", 565, "4/6  RS-28 Sarmat      -- SIX 750 kt warheads across 21 cells" },
+	{ 1480, "B83Strike", "power.b83", 925, "5/6  B83-1 at 1.2 Mt   -- 71.0 cells, largest in the US stockpile" },
+	{ 2170, "TsarBombaStrike", "power.tsarbomba", 1485, "6/6  TSAR BOMBA 50 Mt  -- 246 cells, 25-second fireball" },
 }
+
+-- How long a shot keeps retrying after its scheduled tick before the demo gives up on it and moves
+-- to the next. Without this a single unbuyable warhead would stall the whole arsenal behind it.
+local ShotPatience = 200
 
 local tick = 0
 local USA
 local next_shot = 1
+local next_buy = 1
+local buy_status = "not-started"
 
 local function step()
 	tick = tick + 1
 
+	-- BUY AHEAD, one warhead at a time. EnsurePower is stateless and idempotent: it reads the
+	-- power's own state, queues a purchase when the magazine is empty, and reports 'loading' while
+	-- one is in flight. Nothing is printed here -- the shot line below carries the diagnosis if a
+	-- warhead does not arrive, and this demo's output is a frame.
+	local buying = SHOTS[next_buy]
+	if buying ~= nil and tick >= buying[4] then
+		local ready, status = TestHarness.EnsurePower(USA, buying[3], buying[2], tick)
+		buy_status = status
+		if ready then
+			next_buy = next_buy + 1
+			buy_status = "banked"
+		end
+	end
+
 	local shot = SHOTS[next_shot]
 	if shot ~= nil and tick >= shot[1] then
-		next_shot = next_shot + 1
 		-- Test.ActivateSupportPower is staging, not an assertion: it is the only way to issue a
-		-- support-power order from script. Its result is announced rather than checked, so a power
-		-- that is missing from the bin says so on screen instead of failing silently -- which is
-		-- what a wrong lobby default or a broken RequiresCondition chain would look like.
+		-- support-power order from script. Its result IS read, because with the powers bought
+		-- rather than charged there are two separate ways for nothing to happen -- an empty
+		-- magazine and a closed gate -- and the retry below needs to know which.
 		local status = Test.ActivateSupportPower(USA, shot[2], CPos.New(GroundZero.X, GroundZero.Y))
 		if status == "issued" then
-			Media.DisplayMessage(shot[3], "ARSENAL")
-		else
-			Media.DisplayMessage(shot[3] .. "  [NOT FIRED: " .. status .. "]", "ARSENAL")
+			next_shot = next_shot + 1
+			Media.DisplayMessage(shot[5], "ARSENAL")
+		elseif tick >= shot[1] + ShotPatience then
+			-- Give up on this warhead so the rest of the arsenal still runs on schedule. The buy
+			-- status is printed alongside because it is what says WHY: 'refused' means the buy tab
+			-- would not take the order (check PowersSandboxCheckboxEnabled and DefaultCash in
+			-- rules.yaml), 'absent' means the OrderName is wrong, 'loading' means 200 ticks was not
+			-- enough for a 5-tick build and something is pausing the Supply Route.
+			next_shot = next_shot + 1
+			Media.DisplayMessage(shot[5] .. "  [NOT FIRED: " .. status
+				.. ", magazine " .. buy_status .. "]", "ARSENAL")
 		end
 	end
 

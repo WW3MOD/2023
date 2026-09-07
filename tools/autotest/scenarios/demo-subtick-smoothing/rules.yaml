@@ -29,11 +29,39 @@ KinzhalMissileRaw:
 
 Player:
 	MissileStrikePower@Kinzhal:
-		# STAGING OVERRIDES. ChargeInterval 60 (3.6 s) against the shipped 3000 (3 min), so the demo
-		# can fire four passes instead of one; StartFullyCharged so the first pass does not wait out
-		# a charge; MissileDelay 15 (0.9 s) against the shipped 150 (9.0 s), because nine seconds of
-		# watching an empty sky between the order and the missile is nine seconds of nothing to look
-		# at. None of the three changes the missile or how it is drawn.
+		# ===================================================================================
+		# THE ONE SCENARIO IN THE MOD THAT TURNS THE PURCHASE MODEL OFF. READ WHY BEFORE COPYING.
+		# ===================================================================================
+		# `RequiresPurchase: False` makes SupportPowerChargeBank.Enabled false, at which point
+		# HidesIcon is permanently false and `Disabled` reduces to `!Permitted` -- byte for byte
+		# the behaviour this power had before the buy model existed -- and the two lines below it
+		# become live again, because TotalTicks stops being forced to 0
+		# (SupportPowerManager.cs:216-229).
+		#
+		# EVERY OTHER SCENARIO THAT FIRES A POWER BUYS ONE INSTEAD, and that is the rule: buying is
+		# how a player reaches a power, so a run that skips the shop is a run about a state nobody
+		# can occupy. DO NOT REACH FOR THIS LINE BECAUSE A PURCHASE IS FIDDLY TO SET UP.
+		#
+		# THIS SCENARIO IS THE EXCEPTION BECAUSE IT IS A CONTROLLED COMPARISON AND ITS TWO ARMS MUST
+		# BE CONFIGURED IDENTICALLY. The control arm, MissileStrikePower@KinzhalRaw below, is
+		# DEFINED BY THIS SCENARIO: it carries no RequiresPurchase, so it is a timer power, it has
+		# no proxy actor anywhere in the mod, and it cannot be bought at any price. Leaving the
+		# shipped Kinzhal on the bank would mean the raw arm fires all four passes and the smoothed
+		# arm fires none -- which is not a degraded comparison, it is no comparison at all, and it
+		# is exactly what this demo has shown since the powers became purchasable.
+		#
+		# WHAT IT COSTS, STATED PLAINLY: a frame from this demo does NOT prove that a player can
+		# obtain a Kinzhal. It proves how a Kinzhal missile is DRAWN, which is the whole subject and
+		# is downstream of everything this flag touches -- the actor, its speed, its path and its
+		# interpolation are identical either way. test-missile-strike-power and test-power-buy-loop
+		# are where reachability is asserted.
+		RequiresPurchase: False
+		# STAGING OVERRIDES, live again because of the line above. ChargeInterval 60 (3.6 s) against
+		# the shipped 3000 (3 min), so the demo can fire four passes instead of one;
+		# StartFullyCharged so the first pass does not wait out a charge; MissileDelay 15 (0.9 s)
+		# against the shipped 150 (9.0 s), because nine seconds of watching an empty sky between the
+		# order and the missile is nine seconds of nothing to look at. None of the three changes the
+		# missile or how it is drawn.
 		ChargeInterval: 60
 		StartFullyCharged: true
 		MissileDelay: 15
