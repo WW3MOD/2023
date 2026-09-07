@@ -146,7 +146,7 @@ Player:
 		RequiresCondition: !nuke-arsenal-disabled
 		OrderName: W76Strike
 		Icon: cmissicon
-		Name: W76-1 Trident Warhead
+		Name: W76-1 Trident Warhead (100 kt)
 		Description: Submarine-launched 100 kt warhead, the most numerous in the US inventory.\nRe-entry velocity gives almost no warning after it appears.\nEnters from the map edge nearest your Supply Route.
 		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
 		# build tab rather than charged on a timer, and this arrived the same day as the arsenal.
@@ -196,7 +196,7 @@ Player:
 		RequiresCondition: !nuke-arsenal-disabled
 		OrderName: SarmatStrike
 		Icon: v2bdgricon
-		Name: RS-28 Sarmat (MIRV)
+		Name: RS-28 Sarmat MIRV (6 x 750 kt)
 		Description: Heavy ICBM carrying independently-targeted re-entry vehicles.\nClick SIX aim points; one 750 kt warhead goes to each.\nRight-click or Escape while placing cancels without firing.
 		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
 		# build tab rather than charged on a timer, and this arrived the same day as the arsenal.

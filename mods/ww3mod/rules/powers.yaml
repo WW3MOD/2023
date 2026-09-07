@@ -31,12 +31,52 @@
 #   power.gbu57            conventional     5000    tier symmetry, faction-locked opposite
 #   power.b61low            4.5c blast      6000    a nuke that is not a map-ender
 #   power.b61max           24.6c blast     13000    same bomb dialled up: 167x energy, 5.5x radius
-#   power.tacnuke        ~30.0c blast      15000    the proposal's approved nuke price, unchanged
-#   power.w76             31.0c blast      16000    tac-nuke radius, but the hardest to see coming
+#   power.tacnuke         15.0c blast      15000    the proposal's approved nuke price, unchanged
+#   power.w76             31.0c blast      16000    twice the tac nuke's radius AND the hardest to see
 #   power.sarmat        6 x 60.7c          30000    six RVs over a 21-cell footprint: area, not radius
 #   power.b83             71.0c blast      32000    largest single warhead in the US stockpile
 #   power.highyieldnuke  102.0c blast      40000    reaches every cell of every shipped map
 #   power.tsarbomba      246.1c blast      60000    2.4x the high-yield, and it burns for 25 s
+#
+# THE LADDER IS NOT ACTUALLY MONOTONE AT power.tacnuke, AND THAT IS NEW INFORMATION RATHER THAN A
+# CHANGE OF POLICY (2026-09-07). This table read `~30.0c` for the tactical nuke until an audit of
+# the labels checked it against the weapon: `Atomic`'s BlastWave MaxRadius is 15c0 and its widest
+# warhead of any kind is SuppressionOuter at 17c0, so nothing about it reaches 30 cells. The 30
+# was correct before commit db0f983c (wt/nuke-yield) resized `Atomic` from 30c0 to 15c0 for the
+# 20 kt figure -- "It was 30c0, which at this scale is 4.8 km and is a ~200 kt weapon, not a
+# tactical one" (weapons-superweapons.yaml, the long note on `Atomic`) -- and this table was not
+# updated with it. At 15.0c the tactical nuke is SMALLER than power.b61max's 24.5c while costing
+# 2000 more, which is the ladder contradicting itself.
+#
+# NOT REPRICED HERE. That is a balance change and belongs to a combat-sim pass
+# (DOCS/recipes/BALANCE.md), not to the branch that audited the label strings. Recorded so the
+# next pass does not have to rediscover it.
+#
+# ---- HOW A NUCLEAR POWER IS NAMED ----
+# Every nuclear entry's `Tooltip: Name:` is
+#
+#     <real-world designation> (<yield>)
+#
+# and the yield is ALWAYS the last thing in the Name, in parentheses, on every one of them. It is
+# not optional and it does not live in the Description instead: the buy tab sorts ten warheads
+# spanning five orders of magnitude, and the yield is the only field that tells a player which of
+# them they are looking at. `kt` below 1000, `Mt` at and above. A MIRV states the product it
+# actually delivers -- `(6 x 750 kt)`, count first -- because one number cannot describe six
+# separate detonations. Anything that is not a yield (a payload descriptor like MIRV) goes in the
+# DESIGNATION, outside the parentheses; the bracket is the yield slot and holds nothing else.
+#
+# The Description may elaborate on the yield but is never the only place it appears. The same
+# strings are duplicated on the SupportPower itself (rules/ingame/nuclear-arsenal.yaml for the six
+# arsenal entries, rules/player.yaml for the two generic ones) -- the buy tab reads the ones here
+# and the support bin reads those, so a change to either must be made to both or the same weapon
+# is called two different things in two panels of the same game.
+#
+# TWO ENTRIES DELIBERATELY DO NOT FOLLOW THIS. power.tacnuke and power.highyieldnuke carry no
+# real-world designation at all ("Tactical Nuclear Strike", "Strategic Nuclear Strike"), so there
+# is nothing to hang a yield on in the form above. They fire `Atomic` (20 kt, verified) and
+# `AtomicHighYield` (6 Mt, verified); whether they get identities, get retired, or keep the
+# generic name with a bare yield appended is an open user decision as of 2026-09-07 and is NOT a
+# gap to be closed by inventing a designation for them.
 #
 # ---- BUILD DURATIONS ----
 # Ticks at Timestep 60 (0.06 s), NOT the 25 tps several in-tree comments still assert. The duration
@@ -219,13 +259,19 @@ power.tacnuke:
 power.w76:
 	Inherits: ^PurchasableSupportPower
 	Valued:
-		# 16000 for a 31-cell blast against the tactical nuke's 15000 for 30 cells -- almost the same
-		# weapon by radius, and the 1000 credits buy the thing that is not in the radius. The W76
-		# rides an SLBM re-entry vehicle at Speed 1400, the fastest delivery in the arsenal, so it is
-		# the hardest of the ten to disperse away from. The premium is for the tempo, not the hole.
+		# 16000 for a 31-cell blast against the tactical nuke's 15000. The W76 rides an SLBM re-entry
+		# vehicle at Speed 1400, the fastest delivery in the arsenal, so it is the hardest of the ten
+		# to disperse away from, and 1000 credits for that tempo is what this rung was priced on.
+		#
+		# THE OTHER HALF OF THAT ARGUMENT WAS FALSE AND IS GONE (2026-09-07). This read "the tactical
+		# nuke's 15000 for 30 cells -- almost the same weapon by radius", i.e. the premium bought ONLY
+		# the tempo. `Atomic` is 15c0, not 30c (see the ladder note at the top of this file), so the
+		# W76 has twice its radius and about eight times its area as well. 1000 credits now buys the
+		# hole AND the tempo, which makes this rung cheap rather than finely judged. Left alone for
+		# the same reason as the ladder: repricing is a combat-sim pass, not a labelling branch.
 		Cost: 16000
 	Tooltip:
-		Name: W76-1 Trident Warhead
+		Name: W76-1 Trident Warhead (100 kt)
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 50
@@ -258,7 +304,7 @@ power.sarmat:
 		# so the next balance pass does not have to rediscover it.
 		Cost: 30000
 	Tooltip:
-		Name: RS-28 Sarmat (MIRV)
+		Name: RS-28 Sarmat MIRV (6 x 750 kt)
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 60
