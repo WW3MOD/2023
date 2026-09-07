@@ -120,11 +120,15 @@ namespace OpenRA.Mods.Common.Activities
 		//  * the constant ramp from the launch altitude down to the target, which Tick() applies to
 		//    every position it sets, through baseZ.
 		// For a launcher firing off its own TEL that ramp is ~0 and the arc is the whole story. But
-		// MissileStrikePower spawns its missile at SpawnAltitude off the map edge -- 8c0 to 31c0 in
-		// mods/ww3mod/rules/player.yaml -- and the missile descends that entire altitude on the way
-		// in. On the high-yield nuke, 31 cells of drop across a ~60-cell shot is a slope of -0.52
-		// against an arc peak of under 3 cells: the path descends from the first tick to the last,
-		// and the old arc-only model pitched the nose UP through the first half of it.
+		// MissileStrikePower spawns its missile at SpawnAltitude OFF-MAP -- 8c0 to 49c0 across the
+		// shipped powers -- and the missile descends that entire altitude on the way in, so the ramp
+		// term is never negligible for a support-power strike. It IS shallower than it used to be:
+		// since 2026-09-07 the shot length is the map diagonal plus a margin (~200 cells on the
+		// largest shipped map) rather than the 40-120 cells an edge-cell spawn produced, so the
+		// high-yield nuke's 31 cells of drop is a slope of -0.16 on x-lake and -0.34 on the smallest
+		// shipped map, where it used to be -0.52 for a mid-length shot and steeper for a short one.
+		// The sign is what matters here and it is unchanged: the path descends from the first tick to
+		// the last, and the old arc-only model pitched the nose UP through the first half of it.
 		float GetSlope(float progress)
 		{
 			if (hDist < 1)

@@ -71,7 +71,7 @@ Player:
 		OrderName: B61LowStrike
 		Icon: paranuke
 		Name: B61-12 (0.3 kt)
-		Description: Variable-yield tactical bomb at its LOWEST dial setting.\nSub-kiloton: destroys a position, not a battlefield.\nEnters from the map edge nearest your Supply Route.
+		Description: Variable-yield tactical bomb at its LOWEST dial setting.\nSub-kiloton: destroys a position, not a battlefield.\nComes in from off-map over your own back line.
 		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
 		# build tab rather than charged on a timer, and this arrived the same day as the arsenal.
 		# ChargeInterval IS GONE rather than set high: SupportPowerInstance forces TotalTicks to 0
@@ -112,7 +112,7 @@ Player:
 		OrderName: B61MaxStrike
 		Icon: paranuke
 		Name: B61-12 (50 kt)
-		Description: Variable-yield tactical bomb at its HIGHEST dial setting.\nSame weapon as the 0.3 kt option: 167x the energy, 5.5x the radius.\nEnters from the map edge nearest your Supply Route.
+		Description: Variable-yield tactical bomb at its HIGHEST dial setting.\nSame weapon as the 0.3 kt option: 167x the energy, 5.5x the radius.\nComes in from off-map over your own back line.
 		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
 		# build tab rather than charged on a timer, and this arrived the same day as the arsenal.
 		# ChargeInterval IS GONE rather than set high: SupportPowerInstance forces TotalTicks to 0
@@ -147,7 +147,7 @@ Player:
 		OrderName: W76Strike
 		Icon: cmissicon
 		Name: W76-1 Trident Warhead
-		Description: Submarine-launched 100 kt warhead, the most numerous in the US inventory.\nRe-entry velocity gives almost no warning after it appears.\nEnters from the map edge nearest your Supply Route.
+		Description: Submarine-launched 100 kt warhead, the most numerous in the US inventory.\nRe-entry velocity gives almost no warning after it appears.\nComes in from off-map over your own back line.
 		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
 		# build tab rather than charged on a timer, and this arrived the same day as the arsenal.
 		# ChargeInterval IS GONE rather than set high: SupportPowerInstance forces TotalTicks to 0
@@ -213,9 +213,11 @@ Player:
 		MissileDelay: 500
 		# SIX independently-aimed warheads, the number the bus was always described as carrying here.
 		AimPoints: 6
-		# 12 ticks between RVs, so 60 ticks across the salvo. The six tracks leave the map edge as a
-		# stream rather than as one stack of overlapping sprites, and land as a ripple. Deterministic
-		# (index * 12), which is what lets it sit on the synced activation path.
+		# 12 ticks between RVs, so 60 ticks across the salvo. The six tracks are PARALLEL as of
+		# 2026-09-07 -- one azimuth for the whole salvo, taken from its centroid -- so this stagger is
+		# now what separates them along the approach rather than what stops them overlapping: they
+		# cross the map boundary in echelon and land as a ripple. Deterministic (index * 12), which is
+		# what lets it sit on the synced activation path.
 		AimPointInterval: 12
 		# OVERLAY ONLY -- read by the placement order generator, by nothing in the simulation.
 		# 30 cells is the "a second RV here is wasted" radius, NOT the weapon's reach: NukeSarmatRV's
@@ -249,7 +251,7 @@ Player:
 		OrderName: B83Strike
 		Icon: abombfake
 		Name: B83-1 (1.2 Mt)
-		Description: The largest weapon in the current US stockpile.\nA free-fall bomb: slow, and visible for its whole approach.\nEnters from the map edge nearest your Supply Route.
+		Description: The largest weapon in the current US stockpile.\nA free-fall bomb: slow, and visible for its whole approach.\nComes in from off-map over your own back line.
 		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
 		# build tab rather than charged on a timer, and this arrived the same day as the arsenal.
 		# ChargeInterval IS GONE rather than set high: SupportPowerInstance forces TotalTicks to 0
@@ -286,7 +288,7 @@ Player:
 		OrderName: TsarBombaStrike
 		Icon: abomb
 		Name: Tsar Bomba (50 Mt)
-		Description: RDS-220. The largest device ever detonated.\nA 2.5 km fireball burning for twenty-five seconds; it sets fire to more of the map than it flattens.\nEnters from the map edge nearest your Supply Route.
+		Description: RDS-220. The largest device ever detonated.\nA 2.5 km fireball burning for twenty-five seconds; it sets fire to more of the map than it flattens.\nComes in from off-map over your own back line.
 		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
 		# build tab rather than charged on a timer, and this arrived the same day as the arsenal.
 		# ChargeInterval IS GONE rather than set high: SupportPowerInstance forces TotalTicks to 0
