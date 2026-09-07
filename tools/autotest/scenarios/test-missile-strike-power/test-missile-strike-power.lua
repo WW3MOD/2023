@@ -39,6 +39,19 @@
 -- Speed 2000 (48128 wdist / 2000 = 24 ticks, 1.44 s at Timestep 60).
 
 local OrderKey = "KinzhalStrike"
+-- THE SHOT IS BOUGHT, NOT CHARGED, and until 2026-09-07 this scenario could not fire at all.
+-- MissileStrikePower@Kinzhal carries `RequiresPurchase: True`, which replaces the charge timer with
+-- a magazine: at zero banked shots SupportPowerInstance.Disabled is true, Active is false, Ready is
+-- false, and Test.ActivateSupportPower returns 'not-ready:0' for the whole budget. The
+-- `ChargeInterval: 1` + `StartFullyCharged` this scenario's rules.yaml used to set were READ AND
+-- DISCARDED by the instance constructor (SupportPowerManager.cs:228-229) -- staging that looked
+-- deliberate and did nothing. GrantCharge has exactly one caller in the engine,
+-- SupportPowerProductionQueue.BuildUnit, so buying is the only route. The whole chain is in the
+-- header of TestHarness.EnsurePower (mods/ww3mod/scripts/test-helpers.lua).
+--
+-- The Kinzhal's tier is `powers.russia` and this player IS Russia, so no sandbox lobby option is
+-- needed here -- only the cash and the shortened proxy load time, both in rules.yaml.
+local BuyProxy = "power.kinzhal"
 local TargetX, TargetY = 48, 17
 local MissileType = "kinzhalmissile"
 
@@ -67,6 +80,8 @@ local tick = 0
 local Russia
 local orderStatus = "never-called"
 local orderTick = nil
+local buyStatus = "never-called"
+local buyTick = nil
 local firstSeenTick = nil
 local firstCell = nil
 local lastCell = nil
@@ -91,9 +106,22 @@ end
 local function pollTick()
 	tick = tick + 1
 
-	-- Retry until the power reports ready rather than assuming it is armed on tick 1:
+	-- Fill the magazine. Stateless and idempotent, so it is simply called every tick until the shot
+	-- is banked (about t=12 at the 5-tick BuildDuration this scenario's rules.yaml sets). The order
+	-- retry below picks it up on the tick it lands. The status token is carried into the verdict
+	-- because 'refused' and 'not-ready:0' look identical from the order's side and are completely
+	-- different faults.
+	if buyTick == nil then
+		local ready, status = TestHarness.EnsurePower(Russia, BuyProxy, OrderKey, tick)
+		buyStatus = status
+		if ready then
+			buyTick = tick
+		end
+	end
+
+	-- Retry until the power reports ready rather than assuming it is armed the moment it is paid for:
 	-- SupportPowerInstance.Active is only set inside Tick(), and the TechTree pass that
-	-- satisfies `Prerequisites: player.russia` runs on its own schedule. The last status
+	-- satisfies `Prerequisites: powers.russia` runs on its own schedule. The last status
 	-- string is kept and printed either way, so "never fired" always says WHY.
 	if orderTick == nil then
 		orderStatus = Test.ActivateSupportPower(Russia, OrderKey, CPos.New(TargetX, TargetY))
@@ -131,7 +159,8 @@ local function finish()
 	local flight = (firstSeenTick ~= nil and impactTick ~= nil) and (impactTick - firstSeenTick) or -1
 	local victimState = Victim.IsDead and "DEAD" or (Victim.Health .. "hp")
 
-	local summary = "order=" .. orderStatus .. "@t" .. n(orderTick)
+	local summary = "magazine=" .. buyStatus .. "@t" .. n(buyTick)
+		.. " | order=" .. orderStatus .. "@t" .. n(orderTick)
 		.. " | entry=" .. entryX .. "," .. entryY .. "@t" .. n(firstSeenTick)
 		.. " last=" .. (lastCell ~= nil and (lastCell.X .. "," .. lastCell.Y) or "none")
 		.. " home=" .. home.X .. "," .. home.Y

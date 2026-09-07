@@ -9,9 +9,19 @@ World:
 	#
 	# Its sibling test-tacnuke-lobby-gated-off deliberately omits this block, which is the whole
 	# content of that scenario.
+	#
+	# THE SANDBOX SWITCH IS THE SECOND HALF OF THE SAME GATE AND WAS ADDED 2026-09-07. The lobby
+	# checkbox above is necessary and is no longer sufficient: the tactical nuke is now EVENT TIER
+	# (`Prerequisites: powers.event`, player.yaml), and powers.event is provided by NO faction --
+	# only by the three unfiltered ProvidesPrerequisite traits gated on `!powers-sandbox-disabled`.
+	# With the checkbox on and sandbox off, the power is still not Permitted, so it is absent from
+	# the buy tab, the purchase below is refused and the run fails at the very first assertion.
+	# Locked for the same reason the checkbox is: no lobby default or saved session may move it.
 	PowersLobbyOptions:
 		TacticalNukeCheckboxEnabled: true
 		TacticalNukeCheckboxLocked: true
+		PowersSandboxCheckboxEnabled: true
+		PowersSandboxCheckboxLocked: true
 	-StartGameNotification:
 	-SpawnStartingUnits:
 	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
@@ -22,12 +32,14 @@ World:
 		Scripts: test-helpers.lua, test-tacnuke-delivers.lua
 
 Player:
-	# Charged at t=0 instead of after the shipped 11250-tick (675 s) placeholder. That placeholder
-	# encodes the approved 15000-credit price against the 4000-credit fast strikes; waiting it out
-	# would spend eleven minutes of a launch slot measuring a number this scenario is not about.
-	MissileStrikePower@TacNuke:
-		ChargeInterval: 1
-		StartFullyCharged: true
+	# `MissileStrikePower@TacNuke: ChargeInterval: 1 / StartFullyCharged: true` USED TO SIT HERE AND
+	# DID NOTHING. SupportPowerInstance's constructor forces TotalTicks and remainingSubTicks to 0
+	# whenever RequiresPurchase is set (SupportPowerManager.cs:228-229), so both were read and
+	# discarded, the power stayed at zero charges -- Disabled, therefore not Ready -- and
+	# Test.ActivateSupportPower returned 'not-ready:0' for the whole 900-tick budget. This scenario
+	# has been unable to fire since the power became purchasable. DO NOT PUT THEM BACK: the shot is
+	# BOUGHT now, through the same Powers queue a player uses. See power.tacnuke at the bottom of
+	# this file, and the header of TestHarness.EnsurePower for the whole chain.
 	# The 30-cell blast will kill everything USA owns except its Supply Route; without this the
 	# match would end on elimination before the poller writes a verdict.
 	-ConquestVictoryConditions:
@@ -39,7 +51,19 @@ Player:
 		ExploredMapCheckboxLocked: true
 		FogCheckboxEnabled: false
 		FogCheckboxLocked: true
-	# No cash -> no production, so GetActorsByType("tacnukemissile") cannot pick up a second missile
-	# from anywhere.
+	# 20000 against the nuke's 15000 price -- enough for exactly one, which is what this scenario
+	# fires. This USED to read `DefaultCash: 0` with the note "no cash -> no production, so
+	# GetActorsByType('tacnukemissile') cannot pick up a second missile from anywhere". The
+	# second-missile property still holds and is now stronger, not weaker: one purchase buys ONE
+	# shot (SupportPowerInstance.Activate calls bank.Consume), and 20000 credits cannot buy a
+	# second. Nothing else on this map spends money -- no bot, no starting units.
 	PlayerResources:
-		DefaultCash: 0
+		DefaultCash: 20000
+
+# THE PURCHASE. 5 ticks instead of the shipped 1500 (90 s): the load time is a price and this
+# scenario measures the missile, not the shop. Every tolerance in the Lua is anchored to the tick
+# the ORDER issues, not to t=0, so shifting the order later by the purchase costs nothing -- and
+# the 900-tick budget has room for both.
+power.tacnuke:
+	Buildable:
+		BuildDuration: 5

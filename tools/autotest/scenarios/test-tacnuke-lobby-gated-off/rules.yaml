@@ -8,6 +8,16 @@
 #     never fired here, and forcing it charged would say nothing about whether it is visible.
 #   * NO MissileStrikePower@Kinzhal block either — the Kinzhal is the positive control, and it must
 #     be observed exactly as it ships.
+#   * NO PowersSandboxCheckboxEnabled. Sandbox is a lobby option and this scenario measures a game
+#     nobody configured. It is also not needed: the control is the Kinzhal, whose tier is
+#     `powers.russia`, and the player IS Russia.
+#
+# WHAT DID HAVE TO CHANGE, 2026-09-07, AND WHY IT IS NOT ONE OF THE ABOVE. Every support power is
+# now BOUGHT rather than charged (`RequiresPurchase: True`), so the Kinzhal control no longer
+# arrives in the bin on a timer -- at zero banked shots it is Disabled exactly as a gated power is,
+# and check 1 below could never pass again. The scenario therefore buys one, which needs cash. That
+# is a change to the MONEY, not to any powers setting: DefaultCash was already overridden here and
+# was never a shipped default, so nothing this scenario measures moves.
 #
 # Adding any of those turns a real assertion into a tautology. If a future edit needs one of them,
 # it needs a different scenario.
@@ -21,8 +31,11 @@ Player:
 		ExploredMapCheckboxLocked: true
 		FogCheckboxEnabled: false
 		FogCheckboxLocked: true
+	# 10000 against the Kinzhal's 5000 price. Was 0; see the note at the top of this file. Nothing
+	# else on this map spends money -- no bot, no starting units -- so the only thing this can
+	# become is the one control shot.
 	PlayerResources:
-		DefaultCash: 0
+		DefaultCash: 10000
 
 World:
 	-StartGameNotification:
@@ -31,3 +44,11 @@ World:
 	-CrateSpawner:
 	LuaScript:
 		Scripts: test-helpers.lua, test-tacnuke-lobby-gated-off.lua
+
+# THE CONTROL'S PURCHASE. 5 ticks instead of the shipped 500 (30 s), so the control comes up inside
+# the scenario's 200-tick observation budget. This is the Kinzhal proxy and ONLY the Kinzhal proxy:
+# power.tacnuke is deliberately left alone, because a scenario that made the nuke cheap or quick to
+# load would be describing a shop this run is not allowed to open.
+power.kinzhal:
+	Buildable:
+		BuildDuration: 5

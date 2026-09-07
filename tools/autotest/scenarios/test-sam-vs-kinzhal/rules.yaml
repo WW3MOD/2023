@@ -13,14 +13,8 @@
 # it would collide as a second definition. Actor names only feel case-insensitive.
 
 Player:
-	# The power's ONLY departure from shipping config: charged at t=0 instead of after 3000 ticks
-	# (3 min). ChargeInterval on the shipped trait is a placeholder standing in for the Phase 2
-	# buy/bank model, and waiting it out would spend three minutes of a launch slot measuring a
-	# timer this scenario is not about. StartFullyCharged is the documented first-charge switch
-	# (SupportPowerManager.cs:178). Same override, same reasoning, as test-missile-strike-power.
-	MissileStrikePower@Kinzhal:
-		ChargeInterval: 1
-		StartFullyCharged: true
+	# `MissileStrikePower@Kinzhal: ChargeInterval: 1 / StartFullyCharged: true` USED TO SIT HERE AND
+	# DID NOTHING -- see the note on power.kinzhal at the bottom of this file. The shot is bought.
 	# Faction elimination would end the match before the Lua poller writes a verdict.
 	-ConquestVictoryConditions:
 	# Fog off and the map pre-explored. ^ShootableMissile's Detectable is Vision 1 / Radar 1 with
@@ -34,8 +28,14 @@ Player:
 		FogCheckboxLocked: true
 	# No cash -> no production. The only actors in the world are the placed ones plus the missile,
 	# so GetActorsByType("kinzhalmissile") cannot pick up a second missile from anywhere.
+	# 10000 against the Kinzhal's 5000 price -- enough for the shots this scenario fires and no
+	# more. This USED to read `DefaultCash: 0`, and that is exactly what killed the run: with the
+	# power BOUGHT rather than charged, no cash means no shot, forever and silently. The property
+	# the old note claimed -- that no stray missile can come from anywhere else -- still holds and
+	# is now stronger: one purchase buys ONE shot (SupportPowerInstance.Activate calls
+	# bank.Consume), nothing else on this map spends money, and there is no bot.
 	PlayerResources:
-		DefaultCash: 0
+		DefaultCash: 10000
 
 World:
 	-StartGameNotification:
@@ -77,3 +77,15 @@ SAM:
 		Condition: sam-fired
 		ArmamentNames: primary
 		RevokeDelay: 9000
+
+# THE PURCHASE. Every shipped support power carries `RequiresPurchase: True`, so a shot has to be
+# BOUGHT before it can be fired; ChargeInterval and StartFullyCharged are read and discarded under
+# that flag (SupportPowerManager.cs:228-229). The whole chain is in the header of
+# TestHarness.EnsurePower, mods/ww3mod/scripts/test-helpers.lua.
+#
+# 5 ticks instead of the shipped 500 (30 s): the load time is a PRICE and this scenario measures
+# the missile, not the shop. Every tolerance in the Lua is anchored to the tick the ORDER issues
+# rather than to t=0, so the ~12 ticks the purchase costs are free.
+power.kinzhal:
+	Buildable:
+		BuildDuration: 5

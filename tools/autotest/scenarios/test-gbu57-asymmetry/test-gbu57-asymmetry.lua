@@ -36,6 +36,21 @@
 -- flight ticks.
 
 local OrderKey = "GBU57Strike"
+
+-- BOTH STRIKES ARE BOUGHT, NOT CHARGED, and until 2026-09-07 this scenario could not fire either.
+-- MissileStrikePower@GBU57 carries `RequiresPurchase: True`, which replaces the charge timer with a
+-- magazine: at zero banked shots SupportPowerInstance.Disabled is true, Active is false, Ready is
+-- false, and Test.ActivateSupportPower returns 'not-ready:0' for the whole budget. The
+-- `ChargeInterval: 1` + `StartFullyCharged` this scenario's rules.yaml used to set were READ AND
+-- DISCARDED by the instance constructor (SupportPowerManager.cs:228-229). GrantCharge has exactly
+-- one caller in the engine -- SupportPowerProductionQueue.BuildUnit -- so buying is the only route.
+-- The whole chain is in the header of TestHarness.EnsurePower (mods/ww3mod/scripts/test-helpers.lua).
+--
+-- ONE PURCHASE IS ONE SHOT, so the magazine is refilled between the two phases; EnsurePower is
+-- stateless and does that by itself when the bank empties. The GBU-57's tier is `powers.america`
+-- and this player IS America, so no sandbox lobby option is involved -- only cash and the
+-- shortened proxy load time, both in rules.yaml.
+local BuyProxy = "power.gbu57"
 local MissileType = "gbu57bomb"
 -- 36,17 is the CENTRE of the Logistics Center, whose map Location is 35,16 -- a building's
 -- Location is its top-left cell, not its centre (see map.yaml). Aim at the centre so the geometry
@@ -90,6 +105,7 @@ local tankImpactTick = nil
 local firstCell = nil
 local firstSeenTick = nil
 local seenMissiles = 0
+local buyStatus = "never-called"
 local finished = false
 
 local function cellDist(ax, ay, bx, by)
@@ -125,10 +141,19 @@ local function pollTick()
 	tick = tick + 1
 	trackMissile()
 
+	-- Keep a bomb in the magazine, across both phases. Stateless and idempotent, so it is simply
+	-- called every tick and re-buys when the bank empties after the first strike. Both order sites
+	-- below already retry until 'issued', so they pick the shot up on the tick it lands; the status
+	-- token is carried into the verdict because 'refused' and 'not-ready:0' look identical from the
+	-- order's side and are completely different faults.
+	local _, status = TestHarness.EnsurePower(America, BuyProxy, OrderKey, tick)
+	buyStatus = status
+
 	if phase == 1 then
-		-- Retry until the power reports ready rather than assuming it is armed on tick 1:
-		-- SupportPowerInstance.Active is only set inside Tick(), and the TechTree pass that
-		-- satisfies `Prerequisites: player.america` runs on its own schedule.
+		-- Retry until the power reports ready rather than assuming it is armed the moment it is
+		-- paid for: SupportPowerInstance.Active is only set inside Tick(), the TechTree pass that
+		-- satisfies `Prerequisites: powers.america` runs on its own schedule, and the purchase
+		-- above takes about twelve ticks to bank.
 		if structOrderTick == nil then
 			structOrderStatus = Test.ActivateSupportPower(America, OrderKey, CPos.New(StructX, StructY))
 			if structOrderStatus == "issued" then
@@ -204,7 +229,8 @@ local function finish()
 		ratio = string.format("%.1f", structFloor / tankDamage)
 	end
 
-	local summary = "STRUCTURE logisticscenter " .. structStartHp .. "hp -> " .. structState
+	local summary = "magazine=" .. buyStatus
+		.. " | STRUCTURE logisticscenter " .. structStartHp .. "hp -> " .. structState
 		.. " (took >=" .. structFloor .. ")"
 		.. " | UNIT abrams " .. tankStartHp .. "hp -> " .. tankState
 		.. " (took " .. tankDamage .. ")"

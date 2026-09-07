@@ -8,18 +8,17 @@
 # one boolean plus the victim's geometry, and nothing else.
 
 Player:
-	# The power's ONLY departure from shipping config: charged at t=0 instead of after 3000 ticks
-	# (180 s). Two shots are fired in one run, so the recharge matters as well as the first charge —
-	# after an activation SupportPowerInstance resets remainingSubTicks to TotalTicks * 100, which at
-	# ChargeInterval 1 is one tick.
+	# TWO SHOTS ARE FIRED IN ONE RUN, so the RE-load matters as much as the first: one purchase is
+	# one shot (SupportPowerInstance.Activate calls bank.Consume), and the script buys again between
+	# them. See power.kinzhal at the bottom of this file.
 	MissileStrikePower@Kinzhal:
 		# THE SUBJECT OF THE SCENARIO. False restores the behaviour every support power had before
 		# SupportPowerAimPoint existed: the order's target stays the cell the player clicked, so a
 		# corner click puts IskanderExplosion's TargetDamage warhead 1448 units off the building's
 		# centre and CenterProximityPercent cuts it to 33%.
 		SnapToActorCenter: false
-		ChargeInterval: 1
-		StartFullyCharged: true
+		# `ChargeInterval: 1` and `StartFullyCharged: true` USED TO SIT HERE AND DID NOTHING -- see
+		# the note on power.kinzhal at the bottom of this file. Both shots are bought.
 	# Faction elimination would end the match before the Lua poller writes a verdict. Both Logistics
 	# Centers may well die in this run, and USA owns nothing else but its Supply Route.
 	-ConquestVictoryConditions:
@@ -32,8 +31,13 @@ Player:
 		FogCheckboxLocked: true
 	# No cash -> no production, so GetActorsByType("kinzhalmissile") cannot pick up a missile from
 	# anywhere but the two shots this scenario fires.
+	# 20000 -- 5000 apiece for the two shots this scenario fires, with slack. This USED to read
+	# `DefaultCash: 0`, and that is exactly what killed the run: with the power BOUGHT rather than
+	# charged, no cash means no shot, forever and silently. The property the old note claimed --
+	# that `GetActorsByType("kinzhalmissile")` cannot pick up a missile from anywhere but these two
+	# shots -- still holds: nothing else on this map spends money and there is no bot.
 	PlayerResources:
-		DefaultCash: 0
+		DefaultCash: 20000
 
 World:
 	-StartGameNotification:
@@ -118,3 +122,17 @@ logisticscenter.aimpoint3x3:
 	-TransformsIntoMobile:
 	-Transforms:
 	-SpawnActorOnDeath:
+
+# THE PURCHASE, TWICE. Every shipped support power carries `RequiresPurchase: True`, so a shot has
+# to be BOUGHT before it can be fired, and ONE PURCHASE IS ONE SHOT -- SupportPowerInstance.Activate
+# calls bank.Consume, so this scenario's two orders are two purchases. ChargeInterval and
+# StartFullyCharged are read and discarded under that flag (SupportPowerManager.cs:228-229); the
+# whole chain is in the header of TestHarness.EnsurePower, mods/ww3mod/scripts/test-helpers.lua.
+#
+# 5 ticks instead of the shipped 500 (30 s): the load time is a PRICE and this scenario measures
+# where a warhead lands, not the shop. Every tolerance in the Lua is anchored to the tick its own
+# order issues rather than to t=0, so the ~12 ticks before the first shot and the ~7 before the
+# second are free.
+power.kinzhal:
+	Buildable:
+		BuildDuration: 5

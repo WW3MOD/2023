@@ -2,12 +2,21 @@
 # demo-nuke-arsenal.lua for the firing schedule.
 
 World:
-	# NO PowersLobbyOptions OVERRIDE, and its absence is deliberate. The `nuclear-arsenal` checkbox
-	# ships defaulting ON (PowersLobbyOptions.cs), so this demo fires the six powers in exactly their
-	# shipped configuration rather than force-enabling what it is showing. If that default is ever
-	# flipped to off before release, this scenario needs
-	# `PowersLobbyOptions: NuclearArsenalCheckboxEnabled: true` adding back here, and the symptom
-	# will be a support-power bin missing six icons and a Lua script that orders nothing.
+	# THE SANDBOX SWITCH, AND IT IS WHAT MAKES THIS DEMO FIRE AT ALL SINCE 2026-09-07.
+	# Three of the six warheads below are EVENT TIER -- Sarmat, B83 and Tsar Bomba all carry
+	# `Prerequisites: powers.event` (player.yaml) -- and powers.event is provided by NO faction,
+	# only by the three unfiltered ProvidesPrerequisite traits gated on `!powers-sandbox-disabled`.
+	# The other three are `powers.america`, which USA does provide. Without this block the demo
+	# would fire half its arsenal and silently skip the interesting half.
+	#
+	# THE `nuclear-arsenal` CHECKBOX IS STILL NOT OVERRIDDEN, which is the property the note here
+	# used to protect. It ships defaulting ON (PowersLobbyOptions.cs), so all six powers are still
+	# exercised in their shipped configuration; only the FACTION lock is suspended. If that default
+	# is ever flipped to off before release, add `NuclearArsenalCheckboxEnabled: true` to the block
+	# below, and the symptom will be a support-power bin missing six icons.
+	PowersLobbyOptions:
+		PowersSandboxCheckboxEnabled: true
+		PowersSandboxCheckboxLocked: true
 	-StartGameNotification:
 	-SpawnStartingUnits:
 	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
@@ -18,37 +27,30 @@ World:
 		Scripts: test-helpers.lua, demo-nuke-arsenal.lua
 
 Player:
-	# ALL SIX ARE CHARGED AT t=0 AND RE-CHARGE INSTANTLY. The shipped ChargeIntervals run from 4500
-	# to 45000 ticks (4.5 to 45 minutes); waiting them out would spend most of an hour of a launch
-	# slot measuring numbers this demo is not about.
+	# ALL SIX ARE BOUGHT, NOT CHARGED, and the six-line block that used to sit here
+	# (`ChargeInterval: 1` + `StartFullyCharged: true` on each) DID NOTHING AT ALL.
+	# SupportPowerInstance's constructor forces TotalTicks and remainingSubTicks to 0 whenever
+	# RequiresPurchase is set (SupportPowerManager.cs:228-229), so both values were read and
+	# discarded on every one of the six, all six stayed at zero charges -- Disabled, therefore not
+	# Ready -- and all six Test.ActivateSupportPower calls returned 'not-ready:0'. This demo has
+	# fired nothing since the powers became purchasable. DO NOT PUT THOSE LINES BACK; the shots are
+	# bought instead, see the six proxy overrides at the bottom of this file.
 	#
-	# MissileDelay 60 (3.6 s) against shipped values of 200 to 600 (12 to 36 s). The public countdown
-	# is a real mechanic and is deliberately NOT what this demo is about -- six shipped waits back to
-	# back would add two and a half minutes of watching beacons. Delete these three lines from any
-	# entry to see its real approach.
+	# MissileDelay 60 (3.6 s) against shipped values of 200 to 600 (12 to 36 s) IS still live and is
+	# still an override. The public countdown is a real mechanic and is deliberately NOT what this
+	# demo is about -- six shipped waits back to back would add two and a half minutes of watching
+	# beacons. Delete the line from any entry to see its real approach.
 	MissileStrikePower@B61Low:
-		ChargeInterval: 1
-		StartFullyCharged: true
 		MissileDelay: 60
 	MissileStrikePower@B61Max:
-		ChargeInterval: 1
-		StartFullyCharged: true
 		MissileDelay: 60
 	MissileStrikePower@W76:
-		ChargeInterval: 1
-		StartFullyCharged: true
 		MissileDelay: 60
 	MissileStrikePower@Sarmat:
-		ChargeInterval: 1
-		StartFullyCharged: true
 		MissileDelay: 60
 	MissileStrikePower@B83:
-		ChargeInterval: 1
-		StartFullyCharged: true
 		MissileDelay: 60
 	MissileStrikePower@TsarBomba:
-		ChargeInterval: 1
-		StartFullyCharged: true
 		MissileDelay: 60
 	# 665 actors die here. Without this the match ends on elimination somewhere around shot 3, while
 	# three more weapons are still waiting to be fired.
@@ -79,6 +81,51 @@ Player:
 		ExploredMapCheckboxLocked: true
 		FogCheckboxEnabled: false
 		FogCheckboxLocked: true
-	# No cash, so nothing can be produced and the only thing that happens on this map is the arsenal.
+	# 250000 against an arsenal that costs 175000 to buy outright (6000 + 15000 + 32000 + 30000 +
+	# 32000 + 60000), leaving 75000 for the viewer to re-buy whichever warhead they want to see
+	# again. This USED to read `DefaultCash: 0` with the note "no cash, so nothing can be produced",
+	# which was true and is precisely what killed the demo: with the powers BOUGHT rather than
+	# charged, no cash means no shots, silently. Nothing else on this map can spend it -- no bot, no
+	# starting units (-SpawnStartingUnits), and nothing issues a build order but the demo script.
 	PlayerResources:
-		DefaultCash: 0
+		DefaultCash: 250000
+
+# =============================================================================================
+# THE PURCHASES -- six proxies, six load times cut to 5 ticks each.
+# =============================================================================================
+# Every shipped support power carries `RequiresPurchase: True`, so a shot must be BOUGHT before it
+# can be fired. The full chain is in the header of TestHarness.EnsurePower
+# (mods/ww3mod/scripts/test-helpers.lua); the short version is that ChargeInterval is read and
+# discarded under that flag and the magazine is the only gate.
+#
+# THE SHIPPED LOADS ARE 500 TO 4500 TICKS -- the Tsar Bomba alone is 4.5 minutes, longer than this
+# whole demo. Those numbers are a PRICE, and the price is not what anyone is here to look at.
+#
+# 5 TICKS IS CHOSEN SO THAT NOT ONE TICK OF THE ORDER SCHEDULE MOVED. The script buys warhead N
+# five ticks after shot N-1 goes out, and a purchase completes about `BuildDuration + 2` ticks
+# later, so every magazine is loaded with between 18 and 678 ticks to spare before its own order.
+# The capture ticks documented in demo-nuke-arsenal.lua (t=360, t=1100, t=2450, t=3000) are
+# therefore exactly as they were. If you retune this, re-check that margin first.
+power.b61low:
+	Buildable:
+		BuildDuration: 5
+
+power.b61max:
+	Buildable:
+		BuildDuration: 5
+
+power.w76:
+	Buildable:
+		BuildDuration: 5
+
+power.sarmat:
+	Buildable:
+		BuildDuration: 5
+
+power.b83:
+	Buildable:
+		BuildDuration: 5
+
+power.tsarbomba:
+	Buildable:
+		BuildDuration: 5
