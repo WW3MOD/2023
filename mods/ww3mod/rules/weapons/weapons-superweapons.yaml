@@ -189,6 +189,14 @@ Atomic:
 			Interpolations: Linear, Quadratic, InverseCubic, InverseCubic, InverseCubic
 			Falloff: InverseSquare
 			TerrainRefreshInterval: 2
+			# The light is a TINT, applied by TerrainLighting inside the ordinary sprite and terrain draw
+			# -- all of which happens BEFORE ShroudRenderer paints its fog quads over the finished world.
+			# So under fog the flash was never hidden, it was ATTENUATED: at the shipped FogDarkness a
+			# fully fogged cell transmits about an eighth of what is under it, and never-explored ground
+			# transmits none. GlowAboveFog draws the missing fraction back, in the slot between the fog
+			# layers and the opaque unexplored layer, so the flash reaches full brightness over everything
+			# the player has explored and still stops dead at ground nobody has scouted.
+			GlowAboveFog: true
 
 	# The mushroom cloud. NOT the fireball -- see Warhead@FireballLight above. Left at 300%, which is
 	# 39 cells and is a defensible early cap for a 20 kt burst.
@@ -750,6 +758,14 @@ AtomicHighYield:
 			Interpolations: Linear, Linear, Quadratic, Quadratic, Quadratic, InverseCubic, InverseCubic, InverseCubic
 			Falloff: InverseSquare
 			TerrainRefreshInterval: 6
+			# The light is a TINT, applied by TerrainLighting inside the ordinary sprite and terrain draw
+			# -- all of which happens BEFORE ShroudRenderer paints its fog quads over the finished world.
+			# So under fog the flash was never hidden, it was ATTENUATED: at the shipped FogDarkness a
+			# fully fogged cell transmits about an eighth of what is under it, and never-explored ground
+			# transmits none. GlowAboveFog draws the missing fraction back, in the slot between the fog
+			# layers and the opaque unexplored layer, so the flash reaches full brightness over everything
+			# the player has explored and still stops dead at ground nobody has scouted.
+			GlowAboveFog: true
 
 	# The mushroom cloud, NOT the fireball -- see Warhead@FireballLight above. ScalePercent 700 draws
 	# ~90 cells, which is 14 km and a fair early cap for a megaton-class burst.

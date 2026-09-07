@@ -261,6 +261,19 @@ namespace OpenRA.Graphics
 				foreach (var renderable in ea.RenderAboveFog(this))
 					preparedAboveFogRenderables.Add(renderable.PrepareRender(this));
 			}
+
+			// WW3MOD: world traits use the same slot. The light events that a nuclear fireball emits
+			// are owned by a trait, not by an IEffect, and their glow has to land here for the same
+			// reason the fireball sprite does -- everything the light brightens is drawn before the
+			// fog quads, so the fog eats the brightening unless something redraws it afterwards.
+			World.ApplyToActorsWithTrait<IRenderAboveFog>((actor, trait) =>
+			{
+				if (!actor.IsInWorld || actor.Disposed)
+					return;
+
+				foreach (var renderable in trait.RenderAboveFog(actor, this))
+					preparedAboveFogRenderables.Add(renderable.PrepareRender(this));
+			});
 		}
 
 		// PERF: Avoid LINQ.

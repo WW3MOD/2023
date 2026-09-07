@@ -157,6 +157,15 @@ namespace OpenRA.Mods.Common.Lighting
 			"cell, since the last terrain refresh. Suppresses uploads across a plateau or a flat tail.")]
 		public readonly float TerrainRefreshThreshold = 0.04f;
 
+		[Desc("Also draw this light as an additive glow AFTER the fog layers, so it keeps its full",
+			"brightness over explored-but-unobserved ground instead of being attenuated by the fog",
+			"drawn over it. Off by default: a light this is set on is visible wherever the player has",
+			"explored, which is right for a nuclear flash and wrong for a burning wreck or a lamp,",
+			"whose position would otherwise be readable through the fog.",
+			"Never-explored ground is unaffected either way -- the glow stays under the opaque",
+			"unexplored layer, so nothing is shown on ground nobody has scouted.")]
+		public readonly bool GlowAboveFog = false;
+
 		float3[] tints;
 
 		/// <summary>Tick at which the envelope ends. For a looping event, the length of one cycle.</summary>
