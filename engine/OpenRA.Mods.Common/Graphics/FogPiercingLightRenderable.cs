@@ -1,0 +1,191 @@
+﻿#region Copyright & License Information
+/*
+ * Copyright (c) The OpenRA Developers and Contributors
+ * This file is part of OpenRA, which is free software. It is made
+ * available to you under the terms of the GNU General Public License
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
+ */
+#endregion
+
+using System;
+using OpenRA.Graphics;
+using OpenRA.Mods.Common.Lighting;
+using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
+using OpenRA.Traits;
+
+namespace OpenRA.Mods.Common.Graphics
+{
+	/// <summary>
+	/// WW3MOD: puts back the part of a light that the fog took away.
+	/// <para>A light reaches the screen through <see cref="TerrainLighting"/>, which is a TINT applied
+	/// inside the ordinary sprite and terrain-vertex draw. All of that happens before ShroudRenderer
+	/// paints its fog quads over the finished world, so a light under fog is not hidden -- it is
+	/// ATTENUATED, by exactly the factor the fog stack transmits. At the shipped FogDarkness that
+	/// factor is about an eighth over fully-fogged ground, and zero over never-explored ground, which
+	/// is why a nuclear flash used to stop dead at the edge of vision.</para>
+	/// <para>Drawn from the above-fog slot (after the fog layers, before the opaque unexplored layer),
+	/// this adds back contribution * (1 - transmission) per cell, so a fully-fogged cell ends up as
+	/// bright as it would have been with no fog over it, and a fully-visible cell is left alone
+	/// because nothing was taken from it. Never-explored cells are skipped entirely.</para>
+	/// <para>NO VISION IS LEAKED, and the reason is not that this draw is careful -- it is that there
+	/// is nothing here to leak. The colour of every quad below is a function of the light (position,
+	/// radius, intensity, tint) and of the render player's OWN fog level, and of nothing else: no
+	/// actor, no ownership and no terrain is consulted. An actor the render player may not see
+	/// contributes no renderables at all -- Detectable.ModifyRender and FrozenUnderFog.ModifyRender
+	/// both return SpriteRenderable.None -- so it is absent from the framebuffer rather than painted
+	/// over, and adding light on top of where it is not cannot bring it back.</para>
+	/// </summary>
+	public class FogPiercingLightRenderable : IRenderable, IFinalizedRenderable
+	{
+		/// <summary>Below this the quad is invisible at 8 bits per channel and not worth submitting.</summary>
+		const float MinimumChannel = 0.5f / 255f;
+
+		readonly WPos center;
+		readonly WDist range;
+		readonly float intensity;
+		readonly float3 tint;
+		readonly LightFalloff falloff;
+		readonly float fogDarkness;
+		readonly int zOffset;
+
+		public FogPiercingLightRenderable(WPos center, WDist range, float intensity, in float3 tint,
+			LightFalloff falloff, float fogDarkness, int zOffset = 0)
+		{
+			this.center = center;
+			this.range = range;
+			this.intensity = intensity;
+			this.tint = tint;
+			this.falloff = falloff;
+			this.fogDarkness = fogDarkness;
+			this.zOffset = zOffset;
+		}
+
+		public WPos Pos => center;
+		public int ZOffset => zOffset;
+		public bool IsDecoration => true;
+
+		public IRenderable WithZOffset(int newOffset)
+		{
+			return new FogPiercingLightRenderable(center, range, intensity, tint, falloff, fogDarkness, newOffset);
+		}
+
+		public IRenderable OffsetBy(in WVec vec)
+		{
+			return new FogPiercingLightRenderable(center + vec, range, intensity, tint, falloff, fogDarkness, zOffset);
+		}
+
+		public IRenderable AsDecoration() { return this; }
+
+		public IFinalizedRenderable PrepareRender(WorldRenderer wr) { return this; }
+
+		public void Render(WorldRenderer wr)
+		{
+			var world = wr.World;
+			var renderPlayer = world.RenderPlayer;
+
+			// No render player, or fog switched off, means nothing was subtracted -- so there is
+			// nothing to add back, and drawing here would double the light instead of restoring it.
+			var mapLayers = renderPlayer?.MapLayers;
+			if (mapLayers == null || !mapLayers.FogEnabled)
+				return;
+
+			var rangeLength = range.Length;
+			if (rangeLength <= 0 || intensity == 0f)
+				return;
+
+			var map = world.Map;
+			var cr = Game.Renderer.WorldRgbaColorRenderer;
+
+			// Bound the sweep by the viewport as well as by the light. A 124-cell strategic fireball
+			// covers ~61k cells, almost none of them on screen; the visible region is a couple of
+			// thousand at most, and is exactly the region the fog itself is drawn over.
+			var visible = wr.Viewport.VisibleCellsInsideBounds;
+			var reach = rangeLength + 1024;
+			var lightTL = map.CellContaining(center - new WVec(reach, reach, 0)).ToMPos(map);
+			var lightBR = map.CellContaining(center + new WVec(reach, reach, 0)).ToMPos(map);
+
+			var minU = Math.Max(visible.TopLeft.U, lightTL.U);
+			var maxU = Math.Min(visible.BottomRight.U, lightBR.U);
+			var minV = Math.Max(visible.TopLeft.V, lightTL.V);
+			var maxV = Math.Min(visible.BottomRight.V, lightBR.V);
+
+			// One entry per visibility level, so the composite curve is walked ten times per light
+			// rather than once per cell.
+			var restore = new float[MapLayers.VisionLayers];
+			for (var v = 0; v < MapLayers.VisionLayers; v++)
+				restore[v] = v == 0 ? 0f : 1f - ShroudRenderer.CompositeTransmission(v, fogDarkness);
+
+			for (var v = minV; v <= maxV; v++)
+			{
+				for (var u = minU; u <= maxU; u++)
+				{
+					var uv = new MPos(u, v);
+					if (!map.Height.Contains(uv))
+						continue;
+
+					// Unexplored (0) is skipped by the zero in `restore`: that layer is opaque black
+					// and erases rather than darkens, and a fireball floating on never-scouted black
+					// is what the alternative looks like. Full visibility restores 1 - 1 = 0, because
+					// TerrainLighting already put the whole light on screen there.
+					var lost = restore[mapLayers.GetVisibility((PPos)uv)];
+					if (lost <= 0f)
+						continue;
+
+					var cellCenter = map.CenterOfCell(uv.ToCPos(map));
+					var contribution = lost * ContributionAt(cellCenter);
+					if (contribution.X < MinimumChannel && contribution.Y < MinimumChannel && contribution.Z < MinimumChannel)
+						continue;
+
+					var color = ToColor(contribution);
+					var tl = wr.Screen3DPxPosition(cellCenter + new WVec(-512, -512, 0));
+					var tr = wr.Screen3DPxPosition(cellCenter + new WVec(512, -512, 0));
+					var br = wr.Screen3DPxPosition(cellCenter + new WVec(512, 512, 0));
+					var bl = wr.Screen3DPxPosition(cellCenter + new WVec(-512, 512, 0));
+
+					cr.FillRect(tl, tr, br, bl, color, BlendMode.Additive);
+				}
+			}
+		}
+
+		/// <summary>
+		/// The light's own contribution at a position, in the same units and by the same arithmetic as
+		/// the Additive branch of TerrainLighting's Tint: the distance is the full 3D one and the
+		/// falloff curve is the shared one, so the glow drawn here is the same shape as the tint it is
+		/// compensating for rather than an approximation of it.
+		/// </summary>
+		float3 ContributionAt(WPos pos)
+		{
+			var distance = (center - pos).Length;
+			if (distance > range.Length)
+				return float3.Zero;
+
+			var f = TerrainLighting.ApplyFalloff(falloff, (range.Length - distance) * 1f / range.Length);
+			return f * intensity * tint;
+		}
+
+		/// <summary>
+		/// Packs a contribution into a premultiplied additive colour. Alpha is 255 and carries no
+		/// transparency: BlendMode.Additive is GL_ONE / GL_ONE and RgbaColorRenderer premultiplies,
+		/// so alpha 255 is what makes the RGB reach the framebuffer at face value.
+		/// </summary>
+		static Color ToColor(in float3 c)
+		{
+			return Color.FromArgb(255, Channel(c.X), Channel(c.Y), Channel(c.Z));
+		}
+
+		static int Channel(float v)
+		{
+			if (v <= 0f)
+				return 0;
+
+			var b = (int)(v * 255f + 0.5f);
+			return b > 255 ? 255 : b;
+		}
+
+		public void RenderDebugGeometry(WorldRenderer wr) { }
+		public Rectangle ScreenBounds(WorldRenderer wr) { return Rectangle.Empty; }
+	}
+}

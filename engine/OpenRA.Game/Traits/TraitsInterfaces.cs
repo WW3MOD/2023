@@ -473,6 +473,20 @@ namespace OpenRA.Traits
 	public interface INotifyIdle { void TickIdle(Actor self); }
 
 	public interface IRenderAboveWorld { void RenderAboveWorld(Actor self, WorldRenderer wr); }
+
+	/// <summary>
+	/// WW3MOD: a TRAIT that contributes renderables to the same slot as
+	/// <see cref="Effects.IEffectAboveFog"/> -- after the translucent fog layers, before the opaque
+	/// unexplored layer. The effect interface covers things that live in <c>World.Effects</c>; this
+	/// covers world traits, which is where the light events live.
+	/// <para>Drawing here is a render-ORDER change only. It cannot reveal anything: an actor the
+	/// render player may not see contributes no renderables at all (<c>Detectable</c> and
+	/// <c>FrozenUnderFog</c> both return <c>SpriteRenderable.None</c> from <c>ModifyRender</c>), so
+	/// there is nothing of it in the framebuffer for a later draw to uncover.</para>
+	/// </summary>
+	[RequireExplicitImplementation]
+	public interface IRenderAboveFog { IEnumerable<IRenderable> RenderAboveFog(Actor self, WorldRenderer wr); }
+
 	public interface IRenderShroud
 	{
 		/// <summary>

@@ -70,6 +70,16 @@
 #     ceiling and an eleventh would be granted and discarded.
 #   * Trees are damage-immune mod-wide (^TreeIndestructible, DamageMultiplier: Modifier: 0), so no
 #     weapon here touches them and none of them pretends to.
+#   * VisibleThroughFog IS NOT ENOUGH ON ITS OWN, and every fireball below carries RenderAboveFog
+#     with it. VisibleThroughFog only stops the effect being CULLED. Without RenderAboveFog the
+#     sprite goes in the ordinary world bucket, which WorldRenderer sorts by Pos.Y + Pos.Z + ZOffset
+#     -- so ZOffset 4096 buys four cells of lead and nothing more, and every tree, field and building
+#     more than about five cells SOUTH of the aim point sorts after a cloud that is up to 208 cells
+#     wide and is drawn straight over it. That is what the user photographed. RenderAboveFog moves
+#     the draw into the bucket between the fog layers and the opaque unexplored layer, which is past
+#     every actor as well as past the fog. These blocks were written from the pre-RenderAboveFog copy
+#     of Atomic's fireball: wt/nuke-fog and wt/nuke-arsenal were merged 45 seconds apart, and the
+#     flag landed on Atomic and AtomicHighYield only.
 # =====================================================================================================
 
 # ---- B61-12 (0.3 kt) -- 0.3 kt --------------------------------------------------------
@@ -105,6 +115,7 @@ NukeB61Mod12Y003:
 		ImpactSounds: kaboom1.aud
 		ImpactActors: false
 		VisibleThroughFog: true
+		RenderAboveFog: true
 		ValidTargets: Ground, Water, Air
 	Warhead@Vaporize: SpreadDamage
 		Spread: 0c256
@@ -354,6 +365,7 @@ NukeB61Mod12Y015:
 		ImpactSounds: kaboom1.aud
 		ImpactActors: false
 		VisibleThroughFog: true
+		RenderAboveFog: true
 		ValidTargets: Ground, Water, Air
 	Warhead@Vaporize: SpreadDamage
 		Spread: 0c256
@@ -603,6 +615,7 @@ NukeB61Mod12Y10:
 		ImpactSounds: kaboom1.aud
 		ImpactActors: false
 		VisibleThroughFog: true
+		RenderAboveFog: true
 		ValidTargets: Ground, Water, Air
 	Warhead@Vaporize: SpreadDamage
 		Spread: 0c538
@@ -852,6 +865,7 @@ NukeB61Mod12Y50:
 		ImpactSounds: kaboom1.aud
 		ImpactActors: false
 		VisibleThroughFog: true
+		RenderAboveFog: true
 		ValidTargets: Ground, Water, Air
 	Warhead@Vaporize: SpreadDamage
 		Spread: 1c1
@@ -1105,6 +1119,7 @@ NukeW76:
 		ImpactSounds: kaboom1.aud
 		ImpactActors: false
 		VisibleThroughFog: true
+		RenderAboveFog: true
 		ValidTargets: Ground, Water, Air
 	Warhead@Vaporize: SpreadDamage
 		Spread: 1c328
@@ -1371,6 +1386,7 @@ NukeSarmatRV:
 		ImpactSounds: kaboom1.aud
 		ImpactActors: false
 		VisibleThroughFog: true
+		RenderAboveFog: true
 		ValidTargets: Ground, Water, Air
 	Warhead@Vaporize: SpreadDamage
 		Spread: 2c980
@@ -1636,6 +1652,7 @@ NukeB83:
 		ImpactSounds: kaboom1.aud
 		ImpactActors: false
 		VisibleThroughFog: true
+		RenderAboveFog: true
 		ValidTargets: Ground, Water, Air
 	Warhead@Vaporize: SpreadDamage
 		Spread: 3c582
@@ -1907,6 +1924,7 @@ NukeTsarBomba:
 		ImpactSounds: kaboom1.aud
 		ImpactActors: false
 		VisibleThroughFog: true
+		RenderAboveFog: true
 		ValidTargets: Ground, Water, Air
 	Warhead@Fireball2: CreateEffect
 		Explosions: nuke_large
@@ -1916,6 +1934,7 @@ NukeTsarBomba:
 		ZOffset: 4096
 		ImpactActors: false
 		VisibleThroughFog: true
+		RenderAboveFog: true
 		ValidTargets: Ground, Water, Air
 		Delay: 5
 	Warhead@Fireball3: CreateEffect
@@ -1926,6 +1945,7 @@ NukeTsarBomba:
 		ZOffset: 4096
 		ImpactActors: false
 		VisibleThroughFog: true
+		RenderAboveFog: true
 		ValidTargets: Ground, Water, Air
 		Delay: 8
 	Warhead@Fireball4: CreateEffect
@@ -1936,6 +1956,7 @@ NukeTsarBomba:
 		ZOffset: 4096
 		ImpactActors: false
 		VisibleThroughFog: true
+		RenderAboveFog: true
 		ValidTargets: Ground, Water, Air
 		Delay: 11
 	Warhead@Fireball5: CreateEffect
@@ -1946,6 +1967,7 @@ NukeTsarBomba:
 		ZOffset: 4096
 		ImpactActors: false
 		VisibleThroughFog: true
+		RenderAboveFog: true
 		ValidTargets: Ground, Water, Air
 		Delay: 14
 	Warhead@Vaporize: SpreadDamage

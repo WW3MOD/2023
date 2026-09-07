@@ -11,7 +11,10 @@
 
 using System;
 using System.Collections.Generic;
+using OpenRA.Graphics;
+using OpenRA.Mods.Common.Graphics;
 using OpenRA.Mods.Common.Lighting;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -50,7 +53,7 @@ namespace OpenRA.Mods.Common.Traits
 	// the game only through WorldRenderer.TerrainLighting). No field here is or should be [Sync].
 
 	/// <summary>Owns the live light events and advances their envelopes.</summary>
-	public sealed class LightEventManager : ITick
+	public sealed class LightEventManager : ITick, IRenderAboveFog
 	{
 		sealed class LiveEvent
 		{
@@ -62,6 +65,12 @@ namespace OpenRA.Mods.Common.Traits
 			public WDist RefreshedRadius;
 			public float RefreshedIntensity;
 			public int TicksSinceRefresh;
+
+			// Last envelope sample, kept so the render path reads the same numbers the tick wrote
+			// instead of re-evaluating the envelope at a different age mid-frame.
+			public WDist Radius;
+			public float Intensity;
+			public float3 Tint;
 		}
 
 		readonly LightEventManagerInfo info;
@@ -74,6 +83,11 @@ namespace OpenRA.Mods.Common.Traits
 		readonly List<LiveEvent> live = new();
 		readonly List<int> ended = new();
 		int nextHandle = 1;
+
+		// Resolved lazily: ShroudRenderer is created after this trait on the same actor, and the
+		// editor world has no shroud renderer at all.
+		IRenderShroud shroudRenderer;
+		bool shroudRendererResolved;
 
 		public LightEventManager(Actor self, LightEventManagerInfo info)
 		{
@@ -128,6 +142,9 @@ namespace OpenRA.Mods.Common.Traits
 				RefreshedRadius = sample.Radius,
 				RefreshedIntensity = sample.Intensity,
 				TicksSinceRefresh = 0,
+				Radius = ClampRadius(sample.Radius),
+				Intensity = sample.Intensity,
+				Tint = sample.Tint,
 			});
 
 			return handle;
@@ -188,6 +205,10 @@ namespace OpenRA.Mods.Common.Traits
 				var radius = ClampRadius(sample.Radius);
 				lighting.UpdateLightSource(e.Token, radius, sample.Intensity, sample.Tint);
 
+				e.Radius = radius;
+				e.Intensity = sample.Intensity;
+				e.Tint = sample.Tint;
+
 				if (!e.Definition.LightTerrain)
 					continue;
 
@@ -215,6 +236,44 @@ namespace OpenRA.Mods.Common.Traits
 				Cancel(handle);
 
 			ended.Clear();
+		}
+
+		/// <summary>
+		/// Draws the fog-piercing half of every light that asked for one. See
+		/// <see cref="Graphics.FogPiercingLightRenderable"/> for why a second draw is needed at all:
+		/// TerrainLighting tints the world BEFORE the fog quads land on it, so under fog a light is
+		/// attenuated rather than hidden, and the only place to put the missing brightness back is
+		/// after those quads.
+		///
+		/// This is a READ of the live events and of the render player's own fog. It writes no
+		/// simulation state, and it is not [Sync]-relevant: the value it produces never re-enters the
+		/// tick, exactly as the sync note at the top of this file requires of everything here.
+		/// </summary>
+		IEnumerable<IRenderable> IRenderAboveFog.RenderAboveFog(Actor self, WorldRenderer wr)
+		{
+			if (live.Count == 0)
+				yield break;
+
+			if (!shroudRendererResolved)
+			{
+				shroudRenderer = self.TraitOrDefault<IRenderShroud>();
+				shroudRendererResolved = true;
+			}
+
+			// No shroud renderer means no fog was drawn, so nothing was taken away.
+			if (shroudRenderer == null)
+				yield break;
+
+			var fogDarkness = shroudRenderer.FogDarkness;
+			for (var i = 0; i < live.Count; i++)
+			{
+				var e = live[i];
+				if (!e.Definition.GlowAboveFog || e.Intensity == 0f)
+					continue;
+
+				yield return new FogPiercingLightRenderable(e.Pos, e.Radius, e.Intensity, e.Tint,
+					e.Definition.Falloff, fogDarkness);
+			}
 		}
 	}
 }

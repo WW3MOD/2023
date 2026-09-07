@@ -298,6 +298,36 @@ namespace OpenRA.Mods.Common.Traits
 			return alpha;
 		}
 
+		/// <summary>
+		/// Alpha of the solid fog tile's own palette colour. shroud.shp frame 0 is entirely palette
+		/// index 12, and MapLayersPalettes repeats its colours every 8 entries, so index 12 resolves
+		/// to FogColors[4] = ARGB(160,0,0,0). combined.frag does "c *= vTint", so this multiplies the
+		/// vertex alpha <see cref="LayerAlpha"/> returns before anything reaches the framebuffer.
+		/// </summary>
+		public const float FogPaletteAlpha = 160f / 255f;
+
+		/// <summary>
+		/// WW3MOD: fraction of the lit world still showing through a cell at <paramref name="visibility"/>.
+		/// A cell at visibility v draws every layer from v to VisionLayers-2, blending GL_ONE /
+		/// GL_ONE_MINUS_SRC_ALPHA over black, so each layer scales what is under it by
+		/// (1 - FogPaletteAlpha * LayerAlpha) and the layers multiply.
+		/// <para>Returns 0 for unexplored (visibility 0) -- that layer is SHROUD, opaque black, and
+		/// erases rather than darkens -- and 1 for full visibility, where no layer is drawn at all.</para>
+		/// <para>This is the one authority for the composite curve. FogPiercingLightRenderable divides
+		/// by it to work out how much of a light the fog ate; do not hand-copy it a third time.</para>
+		/// </summary>
+		public static float CompositeTransmission(int visibility, float fogDarkness)
+		{
+			if (visibility <= 0)
+				return 0f;
+
+			var transmission = 1f;
+			for (var layer = visibility; layer <= MapLayers.VisionLayers - 2; layer++)
+				transmission *= 1f - FogPaletteAlpha * LayerAlpha(layer, fogDarkness);
+
+			return transmission;
+		}
+
 		float Alpha(int index)
 		{
 			return LayerAlpha(index, info.FogDarkness);
