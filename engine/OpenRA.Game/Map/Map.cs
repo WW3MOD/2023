@@ -1192,7 +1192,7 @@ namespace OpenRA
 		/// Recompute all shadow values originating from a single "from" cell.
 		/// Iterates all cells in annulus 2-32 and traces density along the line to each.
 		/// </summary>
-		void RecomputeShadowFrom(MPos fromUV)
+		public void RecomputeShadowFrom(MPos fromUV) // MEASUREMENT-HARNESS: was private (wt/shadow-relight, throwaway)
 		{
 			foreach (var tilePos in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
 			{
