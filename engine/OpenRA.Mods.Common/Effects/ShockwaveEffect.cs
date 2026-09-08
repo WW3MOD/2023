@@ -28,6 +28,10 @@ namespace OpenRA.Mods.Common.Effects
 		readonly WarheadArgs args;
 		readonly HashSet<uint> hitActors = new HashSet<uint>();
 
+		// World.NextActorID as it stood on the tick this wave was created. Everything at or above it
+		// was built after the bomb went off and is not this bomb's business. See AreaEffectVictims.
+		readonly uint firstActorIDAfterDetonation;
+
 		int delay;
 		int ticks;
 		bool finished;
@@ -69,6 +73,7 @@ namespace OpenRA.Mods.Common.Effects
 			this.radius = warhead.StartRadius.Length;
 			this.excessPermille = (warhead.InitialSpeedPercent - 100) * 10;
 			this.radiusAnchoredDecay = warhead.TransitionRadius.Length > 0;
+			this.firstActorIDAfterDetonation = world.NextActorID;
 		}
 
 		public void Tick(World world)
@@ -102,6 +107,15 @@ namespace OpenRA.Mods.Common.Effects
 			// that haven't been hit yet (i.e., the wavefront just passed them)
 			foreach (var victim in world.FindActorsOnCircle(center, currentRadius))
 			{
+				// PITFALL: this is a DISC sweep, not an annulus, and it runs for the wave's whole
+				// life -- hundreds of ticks after the fireball has finished drawing. Without this
+				// guard an actor created mid-wave has by definition never been added to hitActors,
+				// so it reads as "the front has not reached it yet" and takes a full hit on the
+				// first tick it is inside currentRadius. Reinforcements walking in from a Supply
+				// Route are the worst case, because they arrive on fixed cells and head inward.
+				if (!AreaEffectVictims.ExistedAtDetonation(victim.ActorID, firstActorIDAfterDetonation))
+					continue;
+
 				if (hitActors.Contains(victim.ActorID))
 					continue;
 
@@ -116,7 +130,11 @@ namespace OpenRA.Mods.Common.Effects
 				if (horizontalDist > currentRadius.Length)
 					continue;
 
-				// Mark as hit (even if inside previous radius — they were missed, damage them now)
+				// Mark as hit. Sweeping the disc rather than the annulus is deliberate and is kept:
+				// a pre-detonation actor can only get inside the disc by crossing the front, so
+				// catching it late is catching it correctly, and a strict annulus would let a unit
+				// that happened to sit one WDist outside the front and then moved inward faster than
+				// the annulus is wide slip through the wave entirely.
 				hitActors.Add(victim.ActorID);
 
 				warhead.ApplyBlastDamage(victim, firedBy, center, args);

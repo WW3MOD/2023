@@ -35,6 +35,9 @@ namespace OpenRA.Mods.Common.Effects
 		int intervalCounter;
 		bool finished;
 
+		// World.NextActorID as it stood on the tick this field was created. See AreaEffectVictims.
+		readonly uint firstActorIDAfterDetonation;
+
 		public ThermalRadiationEffect(World world, ThermalRadiationWarhead warhead, WPos center, Actor firedBy, WarheadArgs args)
 		{
 			this.world = world;
@@ -44,6 +47,7 @@ namespace OpenRA.Mods.Common.Effects
 			this.args = args;
 			this.ticksRemaining = warhead.RadiationDuration;
 			this.intervalCounter = 0;
+			this.firstActorIDAfterDetonation = world.NextActorID;
 		}
 
 		public void Tick(World world)
@@ -68,6 +72,14 @@ namespace OpenRA.Mods.Common.Effects
 			// Pulse damage to all actors within thermal range
 			foreach (var victim in world.FindActorsOnCircle(center, warhead.MaxRange))
 			{
+				// PITFALL: unlike the shockwave this effect keeps no hit set at all -- re-cooking
+				// the same victims every DamageInterval is the mechanic. That makes the arrival of a
+				// NEW actor indistinguishable from another pulse on an old one, so without this
+				// guard a unit walking into a burnt-out crater takes the full remaining pulse train
+				// (up to 417 ticks of it on Tsar Bomba) with nothing on screen to explain it.
+				if (!AreaEffectVictims.ExistedAtDetonation(victim.ActorID, firstActorIDAfterDetonation))
+					continue;
+
 				if (victim.IsDead || !victim.IsInWorld)
 					continue;
 
