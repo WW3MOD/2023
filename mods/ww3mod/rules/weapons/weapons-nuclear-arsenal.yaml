@@ -64,10 +64,13 @@
 # every Warhead@Fireball* block should be revisited when the house pattern for a nuclear light landed.
 # It has landed (`Atomic` and `AtomicHighYield` in weapons-superweapons.yaml) and every weapon here
 # now carries a Warhead@FireballLight built from it. The two draws are not redundant:
-#   * Warhead@Fireball* (CreateEffect + nuke_large) is the MUSHROOM CLOUD. Tens of cells across,
-#     seconds to minutes long. Past ScalePercent 1600 the sprite cannot be magnified further and the
-#     extra size is spent on a ring of sprites instead; above about a megaton that is a stopgap and is
-#     marked as one where it is used.
+#   * Warhead@Fireball (CreateEffect + nuke_large) is the MUSHROOM CLOUD. Tens of cells across,
+#     seconds to minutes long. EXACTLY ONE PER WEAPON -- see the seventh law below. This used to say
+#     that past ScalePercent 1600 the sprite cannot be magnified further and the extra size is spent
+#     on a ring of sprites instead. THAT WAS NEVER TRUE and it is corrected in place rather than
+#     softened: `scale` is a plain float multiplied into the quad (SpriteRenderable.cs:106) and
+#     handed to DrawSprite as `scale * s.Size` (SpriteRenderer.cs:135), CreateEffectWarhead passes
+#     `(float)ScalePercent / 100` (CreateEffectWarhead.cs:169), and NOTHING in that path clamps it.
 #   * Warhead@FireballLight (LightEvent) is the FIREBALL and the flash it throws on the world. It is
 #     light rather than a sprite because the thing being drawn is illumination, not an object.
 #
@@ -148,6 +151,36 @@
 # caught it: --check-yaml only checks that a field EXISTS, NuclearYieldTest asserts no shake, and
 # ScreenShaker soft-clamps the sum at MaxAmplitude 22 (ScreenShaker.cs:53, :412-421) -- so a 7x error
 # and a 1.6x error render as the same 22 px. The 0.3 kt dial shook harder than the 6 Mt reference.
+#
+# ==== THE SEVENTH LAW: THE MUSHROOM CLOUD'S SIZE ====
+# Added 2026-09-08, after the user asked for one law across the whole arsenal: "Larger yield means
+# larger cloud, more light etc. And it should follow one law." Every Warhead@Fireball below is
+#       ScalePercent = round(300 * (kt/20)^0.214)
+# and the on-screen width is ScalePercent * 310 / (100 * 24) cells, because nuke_large is a 310 px
+# sprite and a cell is 24 px -- so `Atomic`'s 300 is 39 cells, and 50 Mt's 1600 is 207.
+#
+# NEITHER NUMBER IN THAT LAW IS FREE. The exponent is ln(1600/300) / ln(2500) exactly: it is the
+# value that carries the 20 kt ANCHOR -- 300, "39 cells and a defensible early cap for a 20 kt
+# burst", weapons-superweapons.yaml:248 -- to the 50 Mt TOP the design already chose. Fix those two
+# and the curve between them is arithmetic. Both endpoints are unchanged from what shipped.
+#
+# WHY 0.214 AND NOT THE FIREBALL'S 0.40. It used to be 0.40, borrowed from the fireball-radius law
+# above, and 0.40 is simply too steep to span this arsenal: 0.3 kt to 50 Mt is 166,667x of yield,
+# which at Y^0.40 is 123x of sprite. Anchored at 300 that puts 50 Mt at ScalePercent 6561 -- 848
+# cells, more than SIX TIMES the width of the largest shipped map (x-lake-ww3, 130x130). So the two
+# biggest weapons had both been pulled off the law by hand to keep them on the map, and one of the
+# two pulls INVERTED THE LADDER: 1.2 Mt drew 1542 and 6 Mt drew 700. That inversion is what the user
+# was looking at when they said the others "seem to be modeled differently".
+#
+# The cloud is not the fireball and never had to share its exponent. A real mushroom cap stops
+# growing spherically once it reaches the tropopause and spreads sideways instead, so a visual
+# exponent well below the fireball's is the physically expected shape as well as the one that fits
+# on a map -- offered as the reason the number is not absurd, NOT as its derivation. The derivation
+# is the two anchors, above.
+#
+# ONE SPRITE PER WEAPON, ENFORCED. NuclearYieldTest.EveryNuclearCloudIsOneSpriteOnTheYieldLaw checks
+# both halves: the ScalePercent against the law, and that no weapon draws its cloud more than once.
+# Tsar Bomba drew five, and the note on its Warhead@Fireball says what that cost.
 #
 # ==== TRAPS, ALL OF WHICH ARE LIVE IN THIS FILE ====
 #   * AirThreshold. Above a warhead's AirThreshold the engine substitutes `Air` for the terrain
@@ -306,7 +339,7 @@ NukeB61Mod12Y003:
 
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
-		ScalePercent: 56
+		ScalePercent: 122
 		# DURATION scales with yield, exactly as ScalePercent above scales size: 100% is the
 		# sequence's own 199 ticks (11.95 s) and 20 kt is the anchor, so `Atomic` is unchanged.
 		# The law is t = 11.95 s * (Y/20)^0.12 -- 60% at the 0.3 kt B61 dial, 256% at Tsar Bomba,
@@ -658,7 +691,7 @@ NukeB61Mod12Y015:
 
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
-		ScalePercent: 106
+		ScalePercent: 172
 		DurationScalePercent: 73
 		Offset: 0,-1900,0
 		Palette: effect_ts
@@ -1010,7 +1043,7 @@ NukeB61Mod12Y10:
 
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
-		ScalePercent: 227
+		ScalePercent: 259
 		DurationScalePercent: 92
 		Offset: 0,-1900,0
 		Palette: effect_ts
@@ -1368,7 +1401,7 @@ NukeB61Mod12Y50:
 
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
-		ScalePercent: 432
+		ScalePercent: 365
 		DurationScalePercent: 112
 		Offset: 0,-1900,0
 		Palette: effect_ts
@@ -1724,7 +1757,7 @@ NukeW76:
 
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
-		ScalePercent: 571
+		ScalePercent: 423
 		DurationScalePercent: 121
 		Offset: 0,-1900,0
 		Palette: effect_ts
@@ -2098,7 +2131,7 @@ NukeSarmatRV:
 
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
-		ScalePercent: 1277
+		ScalePercent: 651
 		DurationScalePercent: 154
 		Offset: 0,-1900,0
 		Palette: effect_ts
@@ -2467,7 +2500,7 @@ NukeB83:
 
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
-		ScalePercent: 1542
+		ScalePercent: 720
 		DurationScalePercent: 163
 		Offset: 0,-1900,0
 		Palette: effect_ts
@@ -2834,7 +2867,21 @@ NukeTsarBomba:
 			# Definition.GlowAboveFog per event, so it is the flag below and nothing weapon-specific.
 			GlowAboveFog: true
 
-	Warhead@Fireball1: CreateEffect
+	# ONE SPRITE, NOT FIVE. This was five copies of nuke_large at ScalePercent 1600, offset by
+	# +-558 and staggered 5/8/11/14 ticks, on the stated grounds that "past ScalePercent 1600 the
+	# sprite cannot be magnified further and the extra size is spent on a ring of sprites instead".
+	# THERE IS NO SUCH CEILING. `scale` is a plain float multiplied into the quad at
+	# SpriteRenderable.cs:106 and handed to SpriteRenderer.DrawSprite as `scale * s.Size`
+	# (SpriteRenderer.cs:135, :143, :157); CreateEffectWarhead passes `(float)ScalePercent / 100`
+	# (CreateEffectWarhead.cs:169) and nothing anywhere clamps it. 1600 is where the numbers landed,
+	# not a wall.
+	#
+	# AND THE RING NEVER BOUGHT SIZE ANYWAY. CreateEffectWarhead applies the offset as
+	# `pos + Offset * ScalePercent / 100` (:168), so +-558 became +-8928 -- 8.7 cells on a sprite 207
+	# cells wide, under 5% of its radius. What the four extra copies did buy was BRIGHTNESS: the
+	# nuke_large sequence is BlendMode: Additive (sequences-ingame.yaml:237), so five near-coincident
+	# copies composited about five times the intended luminance over almost the whole cloud.
+	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 1600
 		DurationScalePercent: 256
@@ -2846,54 +2893,6 @@ NukeTsarBomba:
 		VisibleThroughFog: true
 		RenderAboveFog: true
 		ValidTargets: Ground, Water, Air
-	Warhead@Fireball2: CreateEffect
-		Explosions: nuke_large
-		ScalePercent: 1600
-		DurationScalePercent: 256
-		Offset: 558,-1900,0
-		Palette: effect_ts
-		ZOffset: 4096
-		ImpactActors: false
-		VisibleThroughFog: true
-		RenderAboveFog: true
-		ValidTargets: Ground, Water, Air
-		Delay: 5
-	Warhead@Fireball3: CreateEffect
-		Explosions: nuke_large
-		ScalePercent: 1600
-		DurationScalePercent: 256
-		Offset: 0,-1621,0
-		Palette: effect_ts
-		ZOffset: 4096
-		ImpactActors: false
-		VisibleThroughFog: true
-		RenderAboveFog: true
-		ValidTargets: Ground, Water, Air
-		Delay: 8
-	Warhead@Fireball4: CreateEffect
-		Explosions: nuke_large
-		ScalePercent: 1600
-		DurationScalePercent: 256
-		Offset: -558,-1900,0
-		Palette: effect_ts
-		ZOffset: 4096
-		ImpactActors: false
-		VisibleThroughFog: true
-		RenderAboveFog: true
-		ValidTargets: Ground, Water, Air
-		Delay: 11
-	Warhead@Fireball5: CreateEffect
-		Explosions: nuke_large
-		ScalePercent: 1600
-		DurationScalePercent: 256
-		Offset: 0,-2179,0
-		Palette: effect_ts
-		ZOffset: 4096
-		ImpactActors: false
-		VisibleThroughFog: true
-		RenderAboveFog: true
-		ValidTargets: Ground, Water, Air
-		Delay: 14
 	Warhead@Vaporize: SpreadDamage
 		Spread: 15c883
 		Damage: 800000
@@ -3388,7 +3387,7 @@ NukeRu9M729:
 
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
-		ScalePercent: 90
+		ScalePercent: 158
 		DurationScalePercent: 70
 		Offset: 0,-1900,0
 		Palette: effect_ts
@@ -3747,7 +3746,7 @@ NukeRuIskander:
 
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
-		ScalePercent: 227
+		ScalePercent: 259
 		DurationScalePercent: 92
 		Offset: 0,-1900,0
 		Palette: effect_ts
@@ -4112,7 +4111,7 @@ NukeRuKinzhalN:
 
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
-		ScalePercent: 432
+		ScalePercent: 365
 		DurationScalePercent: 112
 		Offset: 0,-1900,0
 		Palette: effect_ts
@@ -4474,7 +4473,7 @@ NukeRuKalibr:
 
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
-		ScalePercent: 571
+		ScalePercent: 423
 		DurationScalePercent: 121
 		Offset: 0,-1900,0
 		Palette: effect_ts

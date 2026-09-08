@@ -861,21 +861,37 @@ AtomicHighYield:
 			# the player has explored and still stops dead at ground nobody has scouted.
 			GlowAboveFog: true
 
-	# The mushroom cloud, NOT the fireball -- see Warhead@FireballLight above. ScalePercent 700 draws
-	# ~90 cells, which is 14 km and a fair early cap for a megaton-class burst.
+	# The mushroom cloud, NOT the fireball -- see Warhead@FireballLight above. ScalePercent 1017 draws
+	# ~131 cells.
+	#
+	# THIS WAS 700 AND THE USER RELEASED IT, 2026-09-08: "If the Strategic nuke changes that is fine,
+	# as long as they are consistent with the yield." 700 was a hand-set cap -- "~90 cells, which is
+	# 14 km and a fair early cap for a megaton-class burst" -- and it was the ONE monotone break in
+	# the whole arsenal, a 6 Mt weapon drawing a smaller cloud than the 1.2 Mt B83's 1542. 1017 is
+	# `round(300 * (kt/20)^0.214)` at 6 Mt, the same law every other nuclear weapon in the mod now
+	# follows; the derivation is in weapons-nuclear-arsenal.yaml's header under THE SEVENTH LAW.
 	#
 	# THE OFFSET IS UNCHANGED AT -1900 AND THAT IS DELIBERATE, because CreateEffectWarhead applies it
 	# as `pos + Offset * ScalePercent / 100` (CreateEffectWarhead.cs:150) -- the offset scales with the
-	# sprite, so -1900 lifts a 700%-scaled sprite off its own anchor by exactly the proportion it lifts
-	# a 300% one. Screen y is TileSize.Height * (Y - Z) (WorldRenderer.cs:749), so -Y and +Z are the
-	# same displacement; the total lift above the aim point is DetonationAltitude + 1900 * scale. For
-	# the tac nuke that is 6400 + 5700 = 12100 at scale 3. Holding the same ratio at scale 7 wants
-	# 28233, and 15360 + 13300 = 28660 -- within 1.5%. That is where the 15c0 burst height in
-	# player.yaml comes from, and the two numbers must move together or the cloud detaches from the
-	# ground.
+	# sprite, so -1900 lifts a 1017%-scaled sprite off its own anchor by exactly the proportion it
+	# lifts a 300% one. Screen y is TileSize.Height * (Y - Z) (WorldRenderer.cs:749), so -Y and +Z are
+	# the same displacement; the total lift above the aim point is DetonationAltitude + 1900 * scale.
+	#
+	# THE BURST HEIGHT DID NOT HAVE TO MOVE WITH IT, and this paragraph used to say it must. The claim
+	# was that 15c0 holds the tac nuke's lift-to-sprite proportion at scale 7 (6400 + 5700 = 12100 at
+	# scale 3; 15360 + 13300 = 28660 against a proportional 28233, within 1.5%) and that the two
+	# numbers move together "or the cloud detaches from the ground". The proportion is real and is now
+	# 0.52 sprite-half-heights against the tac nuke's 0.61 -- but DETACHMENT is the test that matters,
+	# and it is `lift - halfHeight > 0`. At scale 10.17 that is 34683 - 67254, i.e. the cloud base sits
+	# 31.8 cells BELOW the aim point. It was 17.2 cells below at scale 700. The cloud is more firmly
+	# planted, not less. Measured across all fourteen weapons the ratio spans 1.49x after this change
+	# against 1.41x before, so it was never held constant anyway -- it was held constant for this ONE
+	# pair, which is a smaller claim than the paragraph made. DetonationAltitude is deliberately not
+	# touched here: it feeds AirThreshold (24c0 on every warhead in this weapon) and SpawnAltitude's
+	# 16384 of descent, and none of that is the cloud's business.
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
-		ScalePercent: 700
+		ScalePercent: 1017
 		DurationScalePercent: 198
 		Offset: 0,-1900,0
 		Palette: effect_ts
