@@ -185,6 +185,56 @@ YIELDS = {
     'NukeRu9M729': 1.0, 'NukeRuIskander': 10.0, 'NukeRuKinzhalN': 50.0, 'NukeRuKalibr': 100.0,
 }
 
+# ---------------------------------------------------------------- the light's REACH
+#
+# THE LIGHT IS SIZED AGAINST ITS OWN CLOUD, NOT AGAINST ITS YIELD. Changed 2026-09-08, and this
+# replaces a thermal-radius law -- 12.5 * (kt/20)^0.41, which the shipped envelopes sat within 0.4%
+# of. The reason is the user, after playing the ladder:
+#
+#   "the Light for the 6Mt warhead is really nice. I would like that same light for all nukes, just
+#    that the size and length/duration of the flash is smaller/shorter for the smaller weapons, but
+#    around the nuke it should still have that same intense glow. Currently the small nukes gives
+#    almost no light at all it looks like to my eyes."
+#
+# Peak intensity was ALREADY flat at 7.0 on all fourteen, so "almost no light" was not a brightness
+# problem and could not be fixed by raising anything. It was a RATIO problem. The light radius grew
+# as Y^0.41 while the mushroom cloud that covers it grows as Y^0.214, so the ratio between them swung
+# 10.7x across the ladder, and every weapon at or below 100 kt had a light radius SMALLER than its
+# own cloud: 0.28x at 0.3 kt, 0.62x at 20 kt, 0.89x at 100 kt. The whole lit area sat under the
+# sprite. The glow was at full brightness and there was nowhere to see it. The two weapons the user
+# singled out as good are the two with the largest ratios -- 1.89x and 2.99x.
+#
+# So the light now reaches a FIXED MULTIPLE of the weapon's own cloud radius, and the multiple is
+# AtomicHighYield's, read from the shipped file rather than typed here. That weapon is the one the
+# user named, so it comes out of this generator byte-identical -- asserted below, not assumed.
+#
+# WHAT THIS COSTS, and it should be said plainly: the physical grounding. Y^0.41 is the third-degree
+# burn radius; the new law is "however big the sprite is". Physics already lost this same argument
+# for the cloud itself on 2026-09-08 -- its own fireball exponent is 0.40 and it ships at 0.214,
+# because 0.40 gave an 848-cell sprite on a 130-cell map -- so the precedent is real and it is the
+# same ladder. It is still a look-first decision and the user has been told so.
+#
+# WHY A CONSTANT RATIO IS THE RIGHT SHAPE rather than merely a convenient one: TerrainLighting's
+# InverseSquare falloff is w(f) = (1/(1 + 24*(1-f)^2) - 1/25) * 25/24 with f = 1 - r/R
+# (TerrainLighting.cs:48-50, :255-257). Hold R/cloudRadius constant and every weapon has the SAME
+# fraction of peak brightness at its own cloud's edge -- 9.3% of 7.0 -- which is exactly the "same
+# intense glow around the nuke" that was asked for, at every yield, for free.
+#
+# NOT TOUCHED, deliberately: peak intensity (flat 7.0, the user asked for identical core brightness
+# in as many words), duration (already monotone 119 -> 510 ticks and the user is happy with it), and
+# the falloff constant K (AtomicHighYield's look IS K=24 at ratio 1.888, so reproducing that ratio
+# everywhere is what reproduces that look everywhere).
+#
+# NOTHING BUT THE RENDERER READS THIS. LightEventDefinition.Radii reaches only
+# TerrainLighting.AddLightSource and FogPiercingLightRenderable (LightEventManager.cs:148, :290) --
+# no damage, no vision, no shroud reveal, and no clamp but a 1-unit floor (:202-205). The thermal
+# and vaporize warheads carry their own Spread and are untouched by anything here.
+LIGHT_ANCHOR = 'AtomicHighYield'
+
+# nuke_large is a 310 px sprite and a cell is 24 px, so ScalePercent 100 spans 310/24 cells across.
+# Halved because a light Radii is a RADIUS and a sprite's ScalePercent is a WIDTH.
+CLOUD_CELLS_PER_PERCENT = 310.0 / (100.0 * 24.0) / 2.0
+
 
 def parse_wdist(s):
     m = re.match(r'^(-?\d+)c(\d+)$', s.strip())
@@ -222,10 +272,12 @@ def read_weapons(root):
                         return s.split(':', 1)[1].strip()
                 raise SystemExit(name + " has no " + key)
 
-            # The sequence AND its duration scale come from the same Warhead@Fireball* block: a
-            # weapon may carry several (Tsar Bomba has five, offset into one cloud) and reading
-            # DurationScalePercent from anywhere else in the weapon would pair the wrong two numbers.
-            sequence, scale = None, 100
+            # The sequence, its duration scale AND its size all come from the same Warhead@Fireball
+            # block: reading any of them from elsewhere in the weapon would pair the wrong numbers.
+            # Since 2026-09-08 every nuclear weapon draws exactly ONE cloud, enforced by
+            # NuclearYieldTest.EveryNuclearCloudIsOneSpriteOnTheYieldLaw -- Tsar Bomba used to draw
+            # five, which is why the loop below used to stop at the first DurationScalePercent.
+            sequence, scale, cloud = None, 100, None
             in_fireball = False
             for line in block:
                 if re.match(r'^\t\S', line):     # a new warhead header ends the one we are inside
@@ -236,12 +288,16 @@ def read_weapons(root):
                     in_fireball = True
                 elif in_fireball and text.startswith('DurationScalePercent:'):
                     scale = int(text.split(':', 1)[1])
-                    break
+                elif in_fireball and text.startswith('ScalePercent:'):
+                    cloud = int(text.split(':', 1)[1])
             if sequence is None:
                 raise SystemExit(name + " has no nuke Explosions: to take its animation from")
+            if cloud is None:
+                raise SystemExit(name + " has no ScalePercent on its Warhead@Fireball to size the light against")
 
             out[name] = dict(
                 file=filename, kt=YIELDS[name], sequence=sequence, scale=scale,
+                cloud_cells=cloud * CLOUD_CELLS_PER_PERCENT,
                 times=[int(x) for x in field('Times').split(',')],
                 intensities=[float(x) for x in field('Intensities').split(',')],
                 radii=[parse_wdist(x) for x in field('Radii').split(',')],
@@ -264,6 +320,20 @@ def refresh_interval(name, rmax, current):
 
 
 def build(root, weapons):
+    # The anchor is READ, not typed: the multiple every other weapon adopts is whatever
+    # AtomicHighYield already ships. That keeps the weapon the user pointed at byte-identical through
+    # this generator by construction, and it means retuning the reference retunes the ladder with it
+    # rather than silently disagreeing with it.
+    anchor = weapons[LIGHT_ANCHOR]
+    light_to_cloud = max(anchor['radii']) / anchor['cloud_cells']
+
+    # The anchor must be a FIXED POINT of this generator, not merely intended to be one. If reading
+    # the ratio off it and feeding it back does not reproduce its own radius, the two halves disagree
+    # and every other weapon is being sized against a number the reference does not actually have.
+    check = light_to_cloud * anchor['cloud_cells']
+    if abs(check - max(anchor['radii'])) > 1e-9:
+        raise SystemExit("%s is not a fixed point: %.6f in, %.6f out" % (LIGHT_ANCHOR, max(anchor['radii']), check))
+
     out = {}
     for name, cur in weapons.items():
         kt = cur['kt']
@@ -274,13 +344,15 @@ def build(root, weapons):
         duration = int(round(max(d_anim, d_phys)))
         white = white_ticks(kt)
 
-        # Radius GROWTH is carried over from the shipped curve rather than reinvented: it is the
-        # Taylor-Sedov rise to the thermal radius, and it was never what the user complained about.
-        # Only the hold and the decay are restretched onto the longer timeline.
-        rmax = max(cur['radii'])
-        r0 = cur['radii'][0]
-        t_grow = cur['times'][cur['radii'].index(rmax)]
-        end_fraction = cur['radii'][-1] / rmax
+        # The SHAPE of the radius curve is carried over from the shipped envelope -- the Taylor-Sedov
+        # rise, the hold, the shrink as it rises -- and only its SCALE is recomputed. `stretch` is the
+        # one number that changes: every keyframe radius is multiplied by it, so the curve keeps its
+        # proportions and simply reaches further. See THE LIGHT'S REACH above for where it comes from.
+        stretch = light_to_cloud * cur['cloud_cells'] / max(cur['radii'])
+        rmax = max(cur['radii']) * stretch
+        r0 = cur['radii'][0] * stretch
+        t_grow = cur['times'][cur['radii'].index(max(cur['radii']))]
+        end_fraction = cur['radii'][-1] / max(cur['radii'])
         t_hold = max(t_grow, int(round(0.46 * duration)))
 
         def radius(t, rmax=rmax, r0=r0, t_grow=t_grow, t_hold=t_hold,
