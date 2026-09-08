@@ -347,6 +347,66 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void TheCaptionIsAnchoredToTheBottomOfTheSlotByTheMarginAlone()
+		{
+			// The line box's bottom edge is exactly `slotHeight - bottomMargin`, whatever the font,
+			// and SpriteFont.DrawText puts the baseline on that row (it adds `size` to the position
+			// it is given, and lineHeight IS size). So the last row of an all-caps caption's ink is
+			// `slotHeight - bottomMargin - 1`, and the margin is the ONLY thing that moves it.
+			//
+			// That is what makes matching the baked lettering a measurement rather than a taste
+			// call: the baked ink ends on slot row 45 of 46, so the margin has to be 0. It shipped
+			// at 2, floating the text two rows clear of every baked caption beside it.
+			for (var margin = 0; margin <= 4; margin++)
+			{
+				var caption = Cache(bottomMargin: margin).Get("50 KT");
+				Assert.That(caption.Offset.Y + LineHeight, Is.EqualTo(46 - margin),
+					$"line box bottom at bottomMargin {margin}");
+			}
+		}
+
+		[Test]
+		public void ABadgeIsAnchoredToTheSameBottomEdgeAsTheCaption()
+		{
+			// Whatever the margin does to the text it must do to the badge, or the two stop being
+			// one bottom-edge unit the moment the anchor is retuned.
+			for (var margin = 0; margin <= 4; margin++)
+			{
+				var caption = Cache(bottomMargin: margin).Get("50 KT", Badge);
+				Assert.That(caption.BadgeOffset.Value.Y + 13, Is.EqualTo(caption.Offset.Y + LineHeight));
+			}
+		}
+
+		[Test]
+		public void BandReachesTheSlotBottomWhenThePaddingIsAtLeastTheBottomMargin()
+		{
+			// THE RULE THE SHIPPED CONFIGURATION GOT WRONG. The band exists to REPLACE the caption
+			// baked into the art, so it has to cover every row that lettering occupies - and the art
+			// runs to the bottom of the slot and past it. The band's bottom is
+			// `slotHeight - bottomMargin + padding` clamped into the slot, so it reaches the last row
+			// only when the padding is at least the margin. Asserted as the relationship rather than
+			// against a literal 2, so that lowering either number is what fails.
+			for (var margin = 0; margin <= 4; margin++)
+			{
+				var band = Cache(bottomMargin: margin, backgroundPadding: margin).Get("50 KT").Background;
+				Assert.That(band.Bottom, Is.EqualTo(46), $"padding == bottomMargin == {margin}");
+			}
+		}
+
+		[Test]
+		public void BandStopsShortOfTheSlotBottomWhenThePaddingIsLessThanTheBottomMargin()
+		{
+			// The failure this pins is not hypothetical: the caption feature shipped with the engine
+			// default padding of 1 against a bottom margin of 2, leaving band rows 36-44 against
+			// baked ink whose last row is slot row 45, so a dotted line of the old lettering survived
+			// under every runtime caption. Kept as a test so the shape of that bug is on the record
+			// and the test above cannot be "fixed" by clamping the band unconditionally.
+			var band = Cache(bottomMargin: 2, backgroundPadding: 1).Get("50 KT").Background;
+			Assert.That(band.Bottom, Is.EqualTo(45));
+			Assert.That(band.Bottom, Is.LessThan(46));
+		}
+
+		[Test]
 		public void BackgroundBandIsClampedIntoTheSlot()
 		{
 			// A padding generous enough to reach past either edge must not, or the band would paint

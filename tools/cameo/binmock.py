@@ -27,7 +27,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 ICONS = os.path.join(ROOT, "mods/ww3mod/bits/misc/icons")
 
 SLOT_W, SLOT_H = 62, 46
-SIDE_MARGIN, BOTTOM_MARGIN, BAND_PAD, BADGE_GAP = 1, 2, 1, 1
+
+# Hand copy of the two palettes in chrome/ingame-player.yaml. Two rules ride on these numbers,
+# both enforced against the real chrome by CameoCaptionBandTest and by nothing at all here:
+#
+#   BOTTOM_MARGIN is 0 because the caption is BOTTOM-ANCHORED. The generated text's last ink row
+#   is SLOT_H - BOTTOM_MARGIN - 1, and it has to equal the row the baked lettering ends on, which
+#   is slot row 45 on every shipped cameo. At 2 -- what this shipped with -- the runtime text
+#   floated two rows above every baked caption beside it.
+#
+#   BAND_PAD must stay >= BOTTOM_MARGIN or the band stops short of the baked caption it is
+#   covering. That is free at margin 0 and stops being free if anyone raises the margin.
+SIDE_MARGIN, BOTTOM_MARGIN, BAND_PAD, BADGE_GAP = 1, 0, 2, 1
 SPRITE_OFFSET = (-1, -1)  # IconSpriteOffset in chrome/ingame-player.yaml
 BAND = (0, 0, 0, 255)
 
@@ -141,9 +152,16 @@ def slot(cameo, caption, badge, font, line_h=7):
         top = bottom - line_h
         d.rectangle([0, max(0, top - BAND_PAD), SLOT_W - 1, min(SLOT_H, top + line_h + BAND_PAD) - 1], fill=BAND)
         x = (SLOT_W - reserved - int(tw)) // 2
-        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-            d.text((x + dx, top + dy - 1), text, font=font, fill=(0, 0, 0, 255))
-        d.text((x, top - 1), text, font=font, fill=(255, 255, 255, 255))
+        # `top` is the line box, not the baseline. SpriteFont.DrawText adds `size` to reach the
+        # baseline (SpriteFont.cs:99), so a cap sits on rows top+2..top+6 at size 7 -- and Pillow's
+        # default "la" anchor puts the same glyph on the same rows for the same y. So `top` is passed
+        # through unchanged. It used to be `top - 1` here, which drew this mockup's captions one row
+        # above where the engine draws them.
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                if dx or dy:
+                    d.text((x + dx, top + dy), text, font=font, fill=(0, 0, 0, 255))
+        d.text((x, top), text, font=font, fill=(255, 255, 255, 255))
     if badge:
         img.alpha_composite(badge, (SLOT_W - SIDE_MARGIN - badge.size[0], bottom - badge.size[1]))
     return img
@@ -194,8 +212,29 @@ def main():
         d.text((cx, cy + SLOT_H + 1), name, font=label, fill=(220, 220, 225, 255))
 
     sheet.save(os.path.join(ROOT, "tools/cameo/work/bin-1x.png"))
-    sheet.resize((w * 3, h * 3), Image.NEAREST).save(os.path.join(ROOT, "tools/cameo/work/bin-3x.png"))
+    big = sheet.resize((w * 3, h * 3), Image.NEAREST)
+    big.save(os.path.join(ROOT, "tools/cameo/work/bin-3x.png"))
     print("wrote tools/cameo/work/bin-1x.png and bin-3x.png")
+
+    # A single titled sheet, 3x over actual size, for staging under WORKSPACE/mockups/ where
+    # someone can look at it without knowing this script exists. work/ is gitignored.
+    out = sys.argv[1] if len(sys.argv) > 1 else None
+    if out:
+        title = ImageFont.truetype(os.path.join(ROOT, "engine/mods/common/FreeSansBold.ttf"), 13)
+        note = ImageFont.truetype(os.path.join(ROOT, "engine/mods/common/FreeSans.ttf"), 10)
+        top = 26
+        combined = Image.new("RGBA", (max(big.width, w) + 24, top + big.height + 26 + h + 14), (32, 34, 39, 255))
+        cd = ImageDraw.Draw(combined)
+        cd.text((12, 6), "Support power bin with the nuclear badge - every cameo, 3x",
+                font=title, fill=(245, 245, 250, 255))
+        combined.alpha_composite(big, (12, top))
+        cd.text((12, top + big.height + 8),
+                "Actual size. * = cameo art that is wrong for its weapon and predates this branch "
+                "(W76-1 is a biohazard trefoil, B83-1 has a FAKE banner).",
+                font=note, fill=(160, 162, 172, 255))
+        combined.alpha_composite(sheet, (12, top + big.height + 24))
+        combined.save(out)
+        print("wrote", out, combined.size)
 
 
 if __name__ == "__main__":
