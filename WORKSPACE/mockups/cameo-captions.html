@@ -1,0 +1,62 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Runtime cameo captions</title>
+<style>
+ body{background:#141414;color:#d8d8d8;font:14px/1.6 system-ui,sans-serif;margin:0;padding:32px 40px;max-width:1000px}
+ h1{font-size:20px;margin:0 0 4px} h2{font-size:15px;margin:34px 0 6px;color:#fff;border-bottom:1px solid #333;padding-bottom:5px}
+ p{margin:6px 0 12px;color:#a8a8a8;max-width:74ch}
+ img{image-rendering:pixelated;display:block;margin:8px 0}
+ .lab{font:11px ui-monospace,monospace;color:#6f6f6f;text-transform:uppercase;letter-spacing:.08em;margin-top:14px}
+ table{border-collapse:collapse;font:12px ui-monospace,monospace;margin:10px 0}
+ td,th{padding:2px 14px 2px 0;text-align:left} th{color:#777;font-weight:400;border-bottom:1px solid #333}
+ .n{text-align:right} .ok{color:#7ec97e} .bad{color:#e2726e} .c{color:#ccc}
+ .note{border-left:2px solid #4a4a4a;padding-left:14px;color:#9a9a9a}
+ b{color:#fff;font-weight:600} code{color:#c8c8c8}
+</style>
+<h1>Runtime cameo captions</h1>
+<p>The caption is data, not pixels. Every image below is composed at the exact size the sidebar
+draws it &mdash; a 62&times;46 slot, real cameo art decoded from <code>bits/misc/icons</code>, caption in
+FreeSansBold at 7px with a 1px black contrast. Each block shows true size first, then the same
+thing at 4&times; nearest-neighbour so the lettering can be inspected.</p>
+
+<h2>The problem it solves</h2>
+<p>Six support powers draw the <b>same</b> <code>paranuke</code> sprite. The caption is baked into
+the art, so all six read &ldquo;PARANUKE&rdquo; and nothing in the bin tells them apart:</p>
+<div class=lab>shipped, true size</div><img src="assets/cap-bare-1x.png">
+<div class=lab>shipped, 4&times;</div><img src="assets/cap-bare-4x.png">
+
+<h2>With a runtime caption</h2>
+<p>The three American B61-12 yields, same sprite, saying three different things. The wording lives
+in <code>powers.yaml</code> and changing it is a text edit, not a re-render.</p>
+<div class=lab>true size</div><img src="assets/cap-b61-1x.png">
+<div class=lab>4&times;</div><img src="assets/cap-b61-4x.png">
+<div class=lab>russian set, 4&times;</div><img src="assets/cap-ru-4x.png">
+<div class=lab>other icons, plus one left uncaptioned, 4&times;</div><img src="assets/cap-mix-4x.png">
+
+<h2>Why there is a black band</h2>
+<p class=note>This is the one thing worth a decision. The shipped art already has
+&ldquo;PARANUKE&rdquo; baked into exactly the pixels the runtime caption wants, so drawing over it
+without covering it first gives two overlapping words. <code>CaptionBackgroundColor</code> is off by
+default and set to solid black in the sidebar; below is what it looks like unset:</p>
+<div class=lab>no band &mdash; runtime caption over the baked one, 4&times;</div><img src="assets/cap-noband-4x.png">
+<div class=lab>band, 4&times;</div><img src="assets/cap-b61-4x.png">
+<p>On art rendered with <code>convert.py --no-baked-captions</code> there is nothing underneath, and
+the band can be turned off so the caption sits straight on the picture.</p>
+
+<h2>How much text fits</h2>
+<p>A slot is 60px wide inside its margins. <b>TinyBold, the font the sidebar's other overlay
+text uses, is too big</b> &mdash; five of the sixteen shipped infantry captions overflow it. At 7px all
+sixteen fit, though &ldquo;FLAMETHROWER&rdquo; lands on exactly 60px with nothing to spare.</p>
+<table><tr><th>caption</th><th class=n>7px</th><th class=n>TinyBold&nbsp;(10px)</th></tr><tr><td class=c>FLAMETHROWER</td><td class="n ok">60</td><td class="n bad">85</td></tr><tr><td class=c>SPEC FORCES</td><td class="n ok">51</td><td class="n bad">73</td></tr><tr><td class=c>TEAM LEADER</td><td class="n ok">51</td><td class="n bad">72</td></tr><tr><td class=c>STINGER AA</td><td class="n ok">43</td><td class="n bad">62</td></tr><tr><td class=c>TECHNICIAN</td><td class="n ok">43</td><td class="n bad">61</td></tr><tr><td class=c>CONSCRIPT</td><td class="n ok">41</td><td class="n ok">59</td></tr><tr><td class=c>GRENADIER</td><td class="n ok">42</td><td class="n ok">60</td></tr><tr><td class=c>JAVELIN AT</td><td class="n ok">41</td><td class="n ok">59</td></tr><tr><td class=c>DRONE OP</td><td class="n ok">37</td><td class="n ok">54</td></tr><tr><td class=c>ENGINEER</td><td class="n ok">37</td><td class="n ok">53</td></tr><tr><td class=c>RIFLEMAN</td><td class="n ok">36</td><td class="n ok">51</td></tr><tr><td class=c>SNIPER</td><td class="n ok">27</td><td class="n ok">38</td></tr><tr><td class=c>MORTAR</td><td class="n ok">30</td><td class="n ok">43</td></tr><tr><td class=c>MEDIC</td><td class="n ok">23</td><td class="n ok">32</td></tr><tr><td class=c>LMG</td><td class="n ok">15</td><td class="n ok">22</td></tr><tr><td class=c>SPY</td><td class="n ok">15</td><td class="n ok">21</td></tr></table>
+<div class=lab>FLAMETHROWER at 7px &mdash; fits, 4&times;</div><img src="assets/cap-flame-7-4x.png">
+<div class=lab>FLAMETHROWER at TinyBold &mdash; shortened to fit, 4&times;</div><img src="assets/cap-flame-10-4x.png">
+<p>Anything wider is shortened from the right rather than allowed to bleed into the neighbouring
+cameo, which sits one pixel away.</p>
+
+<h2>What this render cannot tell you</h2>
+<p class=note>The glyphs are Pillow's rasterisation of the same TTF at the same pixel size, not
+FreeType's; hinting at 7px may differ by a pixel here and there. The backdrop uses the chernobyl
+map's <code>temperat.pal</code> because the real one lives inside <code>temperat.mix</code> &mdash;
+that affects only the photograph, never the caption, which the widget draws in straight RGBA and
+never routes through a palette. Both are reasons to confirm on screen, not reasons to distrust the
+sizing: the widths above come from the same advance-sum the engine uses.</p>

@@ -1,4 +1,4 @@
-#region Copyright & License Information
+﻿#region Copyright & License Information
 /*
  * Copyright 2007-2022 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
@@ -74,6 +74,30 @@ namespace OpenRA.Mods.Common.Widgets
 		public readonly string OverlayFont = "TinyBold";
 		public readonly string SymbolsFont = "Symbols";
 
+		[Desc("Font for the persistent bottom-of-cameo caption. Only ever used by an actor that sets",
+			"BuildableInfo.CameoCaption, so leaving this at the overlay font costs nothing.")]
+		public readonly string CaptionFont = "TinyBold";
+
+		[Desc("Pixels between the bottom of the caption and the bottom of the icon slot.")]
+		public readonly int CaptionBottomMargin = 2;
+
+		[Desc("Pixels reserved at each side. A caption wider than what is left is shortened, not clipped.")]
+		public readonly int CaptionSideMargin = 1;
+
+		public readonly Color CaptionColor = Color.White;
+		public readonly Color CaptionContrastColor = Color.Black;
+
+		[Desc("Solid band drawn behind the caption. Default fully transparent, which draws nothing.",
+			"",
+			"Set this when captioning a cameo that ALREADY has a caption baked into its art - which",
+			"is every cameo the mod currently ships. The baked lettering occupies the same pixels the",
+			"runtime caption wants, so without a band the two words overlap and neither is readable.",
+			"With one, the runtime caption REPLACES the baked one and the wording becomes editable.")]
+		public readonly Color CaptionBackgroundColor = Color.Transparent;
+
+		[Desc("Pixels the caption background extends above and below the text's line box.")]
+		public readonly int CaptionBackgroundPadding = 1;
+
 		public readonly bool DrawTime = true;
 
 		public readonly string ReadyText = "";
@@ -123,7 +147,8 @@ namespace OpenRA.Mods.Common.Widgets
 
 		readonly WorldRenderer worldRenderer;
 
-		SpriteFont overlayFont, symbolFont;
+		SpriteFont overlayFont, symbolFont, captionFont;
+		CameoCaptionCache captions;
 		float2 iconOffset, holdOffset, readyOffset, timeOffset;
 		float countRightAnchor;
 		float countTopY;
@@ -240,6 +265,9 @@ namespace OpenRA.Mods.Common.Widgets
 
 			overlayFont = Game.Renderer.Fonts[OverlayFont];
 			Game.Renderer.Fonts.TryGetValue(SymbolsFont, out symbolFont);
+			captionFont = Game.Renderer.Fonts[CaptionFont];
+			captions = new CameoCaptionCache(captionFont.Measure, ResolveCaption,
+				IconSize.X, IconSize.Y, CaptionSideMargin, CaptionBottomMargin, CaptionBackgroundPadding);
 
 			iconOffset = 0.5f * IconSize.ToFloat2() + IconSpriteOffset;
 
@@ -786,6 +814,25 @@ namespace OpenRA.Mods.Common.Widgets
 			// Overlays
 			foreach (var icon in icons.Values)
 			{
+				// Persistent caption along the bottom edge. Drawn before the transient centre text so
+				// a countdown always wins the pixels if a tall caption font ever reaches that far up.
+				var caption = captions.Get(icon.Actor.TraitInfoOrDefault<BuildableInfo>()?.CameoCaption);
+				if (caption != null)
+				{
+					if (CaptionBackgroundColor.A != 0)
+						WidgetUtils.FillRectWithColor(
+							new Rectangle(
+								(int)icon.Pos.X + caption.Background.X,
+								(int)icon.Pos.Y + caption.Background.Y,
+								caption.Background.Width,
+								caption.Background.Height),
+							CaptionBackgroundColor);
+
+					captionFont.DrawTextWithContrast(caption.Text,
+						icon.Pos + new float2(caption.Offset.X, caption.Offset.Y),
+						CaptionColor, CaptionContrastColor, 1);
+				}
+
 				var total = icon.Queued.Count;
 				var showRank = true;
 
@@ -867,6 +914,16 @@ namespace OpenRA.Mods.Common.Widgets
 		/// tier-3 sprite, the tallest at 18 rows, only clears the caption by starting from the top.
 		/// Its ink runs to cell row 18 against a caption starting at row 38.</para>
 		/// </summary>
+		/// <summary>
+		/// A caption may be a Fluent key or a literal. TryGetMessage rather than GetMessage because
+		/// GetMessage delegates to the map bundle when one is loaded, and a caption is authored in
+		/// mod rules where a plain "50 KT" must survive verbatim.
+		/// </summary>
+		static string ResolveCaption(string raw)
+		{
+			return FluentProvider.TryGetMessage(raw, out var message) ? message : raw;
+		}
+
 		void DrawHeldRank(ProductionIcon icon, float badgeLeft)
 		{
 			if (rankAccumulation == null || rankPalette == null)

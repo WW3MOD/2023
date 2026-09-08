@@ -232,6 +232,7 @@ power.b61low:
 		Queue: Powers
 		BuildPaletteOrder: 20
 		Icon: paranuke
+		CameoCaption: 0.3 KT
 		# 500 ticks = 30 s, the same as the Kinzhal. It is a tactical weapon and it should feel like
 		# one at the point of purchase as well as at the point of impact.
 		BuildDuration: 500
@@ -253,6 +254,7 @@ power.b61mid:
 		Queue: Powers
 		BuildPaletteOrder: 30
 		Icon: paranuke
+		CameoCaption: 10 KT
 		# 750 ticks = 45 s, midway between the 0.3 kt setting's 500 and the 50 kt setting's 1000.
 		BuildDuration: 750
 		Description: Variable-yield tactical bomb at its MIDDLE dial setting.\nThirty-three times the 0.3 kt energy, three times the radius.\nArrives fully loaded and fires once.
@@ -275,6 +277,7 @@ power.b61max:
 		Queue: Powers
 		BuildPaletteOrder: 40
 		Icon: paranuke
+		CameoCaption: 50 KT
 		# 1000 ticks = 60 s.
 		BuildDuration: 1000
 		Description: Variable-yield tactical bomb at its HIGHEST dial setting.\nSame weapon as the 0.3 kt option: 167x the energy, 5.5x the radius.\nArrives fully loaded and fires once.
@@ -307,6 +310,7 @@ power.w76:
 		# the buy tab introduces no new mismatch -- but it puts it next to four correct ones with
 		# prices, which makes it much easier to notice. A correct W76 cameo is a real art request.
 		Icon: cmissicon
+		CameoCaption: 100 KT
 		# 1300 ticks = 78 s. Only 18 s more than the 50 kt setting below it for more than double the
 		# price, and that shortfall is deliberate: this entry sells SPEED, and a load time in
 		# proportion to its cost would be charging a tempo weapon for the tempo it provides.
@@ -371,6 +375,7 @@ power.ru9m729:
 		Queue: Powers
 		BuildPaletteOrder: 21
 		Icon: paranuke
+		CameoCaption: 1 KT
 		BuildDuration: 500
 		Description: Ground-launched cruise missile with a sub-tactical warhead.\nSingle kiloton: destroys a position, not a battlefield.\nArrives fully loaded and fires once.
 	ProvidesSupportPowerCharge:
@@ -386,6 +391,7 @@ power.ruiskander:
 		Queue: Powers
 		BuildPaletteOrder: 31
 		Icon: paranuke
+		CameoCaption: 10 KT
 		BuildDuration: 750
 		Description: Short-range ballistic missile, held in off-map reserve until you call it.\nTen kilotons: enough for a dug-in company.\nArrives fully loaded and fires once.
 	ProvidesSupportPowerCharge:
@@ -401,6 +407,7 @@ power.rukinzhaln:
 		Queue: Powers
 		BuildPaletteOrder: 41
 		Icon: paranuke
+		CameoCaption: 50 KT
 		BuildDuration: 1000
 		Description: Hypersonic missile carrying a nuclear warhead.\nFifty kilotons on the fastest airframe in the inventory.\nArrives fully loaded and fires once.
 	ProvidesSupportPowerCharge:
@@ -416,6 +423,7 @@ power.rukalibr:
 		Queue: Powers
 		BuildPaletteOrder: 51
 		Icon: cmissicon
+		CameoCaption: 100 KT
 		BuildDuration: 1300
 		Description: Land-attack cruise missile with a strategic warhead.\nOne hundred kilotons, and it flies low the whole way.\nArrives fully loaded and fires once.
 	ProvidesSupportPowerCharge:
@@ -456,6 +464,7 @@ power.tacnuke:
 		# `abomb` resolves to atomicon.shp -- NUCLEAR BOMB, the ONE nuclear cameo in the mod whose
 		# baked caption is correct for its picture, which is why three entries share it.
 		Icon: abomb
+		CameoCaption: 20 KT
 		# 1500 ticks = 90 s.
 		BuildDuration: 1500
 		Description: Low-yield nuclear warhead, held in off-map reserve until you call it.\nArrives fully loaded and fires once.
@@ -481,6 +490,7 @@ power.sarmat:
 		BuildPaletteOrder: 70
 		# A V2 launcher. Defensible for an ICBM.
 		Icon: v2bdgricon
+		CameoCaption: 6x750 KT
 		# 2500 ticks = 150 s.
 		BuildDuration: 2500
 		Description: Heavy ICBM carrying independently-targeted re-entry vehicles.\nSix 750 kt warheads, and you pick where each one lands.\nArrives fully loaded and fires once.
@@ -501,6 +511,7 @@ power.b83:
 		BuildPaletteOrder: 80
 		# A mushroom cloud.
 		Icon: abombfake
+		CameoCaption: 1.2 MT
 		# 2600 ticks = 156 s.
 		BuildDuration: 2600
 		Description: The largest weapon in the current US stockpile.\nA free-fall bomb: slow, and visible for its whole approach.\nArrives fully loaded and fires once.
@@ -522,6 +533,7 @@ power.highyieldnuke:
 		Queue: Powers
 		BuildPaletteOrder: 90
 		Icon: abomb
+		CameoCaption: 6 MT
 		# 3000 ticks = 180 s.
 		BuildDuration: 3000
 		Description: High-yield strategic warhead, held in off-map reserve until you call it.\nDevastates the entire battlefield, including your own forces.\nArrives fully loaded and fires once.
@@ -542,6 +554,7 @@ power.tsarbomba:
 		Queue: Powers
 		BuildPaletteOrder: 100
 		Icon: abomb
+		CameoCaption: 50 MT
 		# 4500 ticks = 270 s = 4.5 minutes, the longest load in the menu by half again.
 		BuildDuration: 4500
 		Description: RDS-220. The largest device ever detonated.\nA 2.5 km fireball burning for twenty-five seconds.\nArrives fully loaded and fires once.
