@@ -559,6 +559,18 @@ namespace OpenRA
 			return nextAID++;
 		}
 
+		/// <summary>The ActorID the next actor created will be given.</summary>
+		// Strictly monotonic and never reused: NextAID above is the only writer and only ever
+		// post-increments. So a caller that snapshots this value has an exact, zero-bookkeeping
+		// partition of the actor population into "existed then" (ActorID < snapshot) and "created
+		// since" (ActorID >= snapshot), for as long as it holds the snapshot.
+		//
+		// This is simulation state, not a diagnostic. It is safe to branch on because ActorID is
+		// itself part of SyncHash below, so a client whose allocation order diverged has already
+		// desynced on the hash before anything here could read a different value. Deliberately
+		// get-only -- allocation stays inside NextAID.
+		public uint NextActorID => nextAID;
+
 		public int SyncHash()
 		{
 			// using (new PerfSample("synchash"))
