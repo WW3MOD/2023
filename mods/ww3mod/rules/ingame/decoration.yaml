@@ -132,6 +132,23 @@
 # DEFERRED, DO NOT BUILD: recomputing forest shadow when trees die (owner: "it gets complicated and
 # it is not the right time now to invest time into"). Treating living and burnt identically is what
 # makes that unnecessary for now.
+#
+# 2026-09-08 -- AND THIS IS ALSO WHY TREES ARE NOT VAPORISABLE. The nuclear arsenal now carries a real
+# VaporizeWarhead, which removes actors outright and IGNORES target types, so making trees vaporisable
+# is two lines: `Vaporizable:` on ^Tree (it does not reach ^ExistsInWorld, so it has none today) and
+# dropping InvalidTargets: Trees from the nukes' damage warheads. Do not, and the reason is (1) above
+# rather than a preference: the crater would keep concealing units and blocking line of fire on ground
+# where visibly nothing stands. A burnt tree that still gives cover is odd; an EMPTY CRATER that still
+# gives cover is a bug report, and it is the kind a player finds in the first game.
+#
+# Reviving the recompute is not the cheap way out -- the number is in WORKSPACE/DISCOVERIES.md
+# 2026-09-08. UpdateShadowForCells expands every modified cell by a RADIUS-32 annulus, so a Tsar Bomba
+# crater (fireball 15c883, a ~790-cell disc) touches ~7200 from-cells on a 8036-cell map: ~90% of the
+# whole map-load bake, serially, in one tick. Even a 20 kt Atomic reaches ~43%. Once-per-detonation
+# does not rescue it, because the annulus dominates, not the crater. Mutating DensityLayer alone IS
+# cheap and is worse than nothing: FiringLOS/AttackBase/AutoTarget read the baked ShadowLayer while
+# DensityModifiesDamage/CohesionMoveModifier/Detectable read DensityLayer, so the crater would stop
+# giving damage cover while still blocking shots through it.
 ^TreeIndestructible:
 	DamageMultiplier@Indestructible:
 		Modifier: 0

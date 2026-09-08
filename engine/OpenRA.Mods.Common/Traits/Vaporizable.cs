@@ -110,6 +110,27 @@ namespace OpenRA.Mods.Common.Traits
 			return active ? 0 : 100;
 		}
 
+		/// <summary>
+		/// The ONE predicate for "can this actor be vaporised at all", shared by the trait and by
+		/// VaporizeWarhead.IsValidAgainst so the two can never disagree. Deliberately the same test
+		/// DamageWarhead uses to decide an actor can be damaged (DamageWarhead.cs:57-61) and the same
+		/// one DoomsdayStrike.Annihilate uses to decide an actor can be killed
+		/// (DoomsdayStrike.cs:618-623) - vaporising is a kill, so it inherits that filter rather than
+		/// inventing a second one.
+		///
+		/// WHY IT HAS TO EXIST. Tick below finishes with Actor.Kill, and Actor.Kill RETURNS SILENTLY
+		/// when the actor has no health trait (Actor.cs:634-640). Nothing else clears `active`, so a
+		/// healthless actor that started this effect would fade to alpha 0 and then stay alive,
+		/// functional and completely invisible for the rest of the match, paying an IRenderModifier
+		/// pass every frame. Nothing logs and nothing fails. On a dense map that class is enormous -
+		/// crop fields alone are 3187 of river-zeta's 4544 actors - and it includes `waypoint` and
+		/// `spawnarea`, which scenario Lua looks up by name and would keep finding.
+		/// </summary>
+		public static bool CanVaporize(ActorInfo info)
+		{
+			return info.HasTraitInfo<IHealthInfo>();
+		}
+
 		/// <summary>Starts the effect. Ignored if the actor is already vaporising, so overlapping warheads do not restart it.</summary>
 		public void Begin(Actor self, in VaporizeParams p, Actor firedBy, in BitSet<DamageType> types)
 		{
@@ -122,6 +143,19 @@ namespace OpenRA.Mods.Common.Traits
 			// animation, ejected pilot - fire during Killed and cannot be recovered this way; for those the
 			// vaporize warhead genuinely must be declared first.
 			if (active || IsTraitDisabled || self.Disposed || !self.IsInWorld)
+				return;
+
+			// THE GUARD IS HERE, AT THE START, AND NOT AT THE END OF TICK. Refusing to begin is what
+			// makes the zombie state unreachable rather than merely unreached: the invariant becomes
+			// "active implies this actor will die", and it holds for every caller, present and future,
+			// including one that bypasses VaporizeWarhead entirely.
+			//
+			// PITFALL - the obvious alternative is WRONG. Clearing `active` in Tick after a Kill that
+			// did nothing would look equivalent and would silently restore husks: SpawnActorOnDeath
+			// re-reads ISuppressDeathRemains at RemovedFromWorld and says so at the site ("the second
+			// check is the one that matters", SpawnActorOnDeath.cs:134-138), and RemovedFromWorld runs
+			// at frame end, after Tick. `active` must stay true from Begin until the actor is gone.
+			if (!CanVaporize(self.Info))
 				return;
 
 			active = true;

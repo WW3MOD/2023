@@ -270,6 +270,42 @@ Atomic:
 		RenderAboveFog: true
 		ValidTargets: Ground, Water, Air
 
+	# ===== PHASE 0: VAPORISATION =====
+	# THE ONLY WARHEAD IN THIS WEAPON THAT IGNORES TARGET TYPES. Everything with a health trait whose
+	# centre falls inside Radius is removed outright -- no husk, no cook-off, no corpse, no ejected
+	# pilot -- including the neutral tech buildings (OILB, HOSP, FCOM, MISS, BIO) that most of the mod
+	# cannot hurt, because their protection is a target type nothing lists (NoAutoTarget) rather than
+	# toughness. The two actors that must NOT go this way opt out at the victim, not here: SUPPLYROUTE
+	# and ^ShootableMissile both carry `-Vaporizable:` with the reason at the line. Vaporizing an SR
+	# would be immediate defeat, not a lockout. ValidTargets/InvalidTargets are INERT on this warhead.
+	#
+	# RADIUS IS THE FIREBALL RADIUS, 0c711. That is the same number as Warhead@BlastWave's
+	# StartRadius below, which is the fireball radius by construction (the shockwave is born at the
+	# fireball surface). NOT the blast radius and NOT Warhead@ThermalVaporize's Spread: outside the
+	# fireball things are wrecked, burned and thrown, and those must keep leaving husks.
+	#
+	# THE DISC IS HORIZONTAL AND SITS DIRECTLY UNDER THE BURST, which is the one thing to read twice
+	# here. This weapon is an AIRBURST at 6c256, and the note on Warhead@ThermalVaporize below is
+	# right that the fireball never touches the ground -- so nothing is vaporised by CONTACT. This
+	# warhead is not modelling contact. FindActorsInCircle ignores altitude deliberately
+	# (VaporizeWarhead.cs), because a 0.7-cell-fireball bursting 6c256 up would otherwise contain
+	# nothing at all, and "vaporize what it hits directly" is what was asked for. ForceGroundLevel is
+	# set for legibility only; the horizontal-only test means it cannot change which actors are caught.
+	#
+	# Delay 0 while every damage warhead carries Delay 1, so the mark always lands first and the
+	# dissolve is always seen. Husk suppression does not depend on that; the VISUAL does.
+	Warhead@VaporizeRemoval: Vaporize
+		Radius: 0c711
+		FadeDelay: 0
+		Duration: 10
+		Brightness: 8
+		# WhiteoutFraction 1.0 means no dissolve is ever drawn. At 1.4 cells ACROSS there is no room to
+		# see one, so the removal completes at tick 10 with the screen still white from Warhead@Flash
+		# above (Duration 30) -- hidden behind the flash, which is the right answer at this size.
+		WhiteoutFraction: 1.0
+		ForceGroundLevel: true
+		DamageTypes: ElectricityDeath
+
 	# ===== PHASE 1: THERMAL RADIATION =====
 	# Every Spread below is now the thermal reach divided by the number of falloff steps that reach
 	# it, so the tables end exactly where the thermal radius does (11.9c) instead of wherever the
@@ -906,6 +942,41 @@ AtomicHighYield:
 		# It stays UNDER the opaque unexplored layer, so nothing is revealed that was not already.
 		RenderAboveFog: true
 		ValidTargets: Ground, Water, Air
+
+	# ===== PHASE 0: VAPORISATION =====
+	# THE ONLY WARHEAD IN THIS WEAPON THAT IGNORES TARGET TYPES. Everything with a health trait whose
+	# centre falls inside Radius is removed outright -- no husk, no cook-off, no corpse, no ejected
+	# pilot -- including the neutral tech buildings (OILB, HOSP, FCOM, MISS, BIO) that most of the mod
+	# cannot hurt, because their protection is a target type nothing lists (NoAutoTarget) rather than
+	# toughness. The two actors that must NOT go this way opt out at the victim, not here: SUPPLYROUTE
+	# and ^ShootableMissile both carry `-Vaporizable:` with the reason at the line. Vaporizing an SR
+	# would be immediate defeat, not a lockout. ValidTargets/InvalidTargets are INERT on this warhead.
+	#
+	# RADIUS IS THE FIREBALL RADIUS, 6c820. That is the same number as Warhead@BlastWave's
+	# StartRadius below, which is the fireball radius by construction (the shockwave is born at the
+	# fireball surface). NOT the blast radius and NOT Warhead@ThermalVaporize's Spread: outside the
+	# fireball things are wrecked, burned and thrown, and those must keep leaving husks.
+	#
+	# THE DISC IS HORIZONTAL AND SITS DIRECTLY UNDER THE BURST, which is the one thing to read twice
+	# here. This weapon is an AIRBURST at 15c0, and the note on Warhead@ThermalVaporize below is
+	# right that the fireball never touches the ground -- so nothing is vaporised by CONTACT. This
+	# warhead is not modelling contact. FindActorsInCircle ignores altitude deliberately
+	# (VaporizeWarhead.cs), because a 6.8-cell-fireball bursting 15c0 up would otherwise contain
+	# nothing at all, and "vaporize what it hits directly" is what was asked for. ForceGroundLevel is
+	# set for legibility only; the horizontal-only test means it cannot change which actors are caught.
+	#
+	# Delay 0 while every damage warhead carries Delay 1, so the mark always lands first and the
+	# dissolve is always seen. Husk suppression does not depend on that; the VISUAL does.
+	Warhead@VaporizeRemoval: Vaporize
+		Radius: 6c820
+		FadeDelay: 0
+		Duration: 30
+		Brightness: 7
+		# Nearly fourteen cells across is enough screen that the removal is worth watching: a third
+		# heating, the rest dissolving. Duration 30 is 1.8 s at the mod's 60 ms timestep.
+		WhiteoutFraction: 0.35
+		ForceGroundLevel: true
+		DamageTypes: ElectricityDeath
 
 	# ===== PHASE 1: THERMAL RADIATION =====
 	# Every Spread below is the thermal radius (123.7c) divided by the number of falloff steps that
