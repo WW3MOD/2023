@@ -57,7 +57,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int AirstrikeCooldownDisplayOrder = 101;
 
 		[Desc("Label for the tactical nuclear strike checkbox.")]
-		public readonly string TacticalNukeCheckboxLabel = "Tactical Nuclear Strike";
+		public readonly string TacticalNukeCheckboxLabel = "Tactical Nuclear Strike (20 kt)";
 
 		[Desc("Tooltip for the tactical nuclear strike checkbox.")]
 		public readonly string TacticalNukeCheckboxDescription = "Allow the tactical nuclear strike support power";
@@ -77,7 +77,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int TacticalNukeCheckboxDisplayOrder = 102;
 
 		[Desc("Label for the high-yield strategic nuclear strike checkbox.")]
-		public readonly string HighYieldNukeCheckboxLabel = "Strategic Nuclear Strike";
+		public readonly string HighYieldNukeCheckboxLabel = "Strategic Nuclear Strike (6 Mt)";
 
 		[Desc("Tooltip for the high-yield strategic nuclear strike checkbox.")]
 		public readonly string HighYieldNukeCheckboxDescription =

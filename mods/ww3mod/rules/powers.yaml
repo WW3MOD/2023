@@ -40,10 +40,10 @@
 # than deleted so the tier stays orderable and so a future decision to sell one has a number to
 # start from.
 #
-#   15000    Tactical Nuclear Strike        15.0c   fired by doomsday.yaml as the weapon `Atomic`
+#   15000    Tactical Nuclear Strike (20 kt) 15.0c   fired by doomsday.yaml as the weapon `Atomic`
 #   30000    RS-28 Sarmat MIRV           6 x 60.8c
 #   32000    B83-1 (1.2 Mt)                 70.9c
-#   40000    Strategic Nuclear Strike      102.0c   reaches every cell of every shipped map
+#   40000    Strategic Nuclear Strike (6 Mt) 102.0c   reaches every cell of every shipped map
 #   60000    Tsar Bomba (50 Mt)            246.1c   kept "just for fun"; may never be fired
 #
 # SANDBOX -- one lobby checkbox ("Sandbox: All Support Powers", default OFF) that provides all
@@ -101,13 +101,25 @@
 # and the support bin reads those, so a change to either must be made to both or the same weapon
 # is called two different things in two panels of the same game.
 #
-# TWO ENTRIES DELIBERATELY DO NOT FOLLOW THIS. power.tacnuke and power.highyieldnuke carry no
-# real-world designation at all ("Tactical Nuclear Strike", "Strategic Nuclear Strike"), so there
-# is nothing to hang a yield on in the form above. They fire `Atomic` (20 kt, verified) and
-# `AtomicHighYield` (6 Mt, verified); whether they get identities, get retired, or keep the
-# generic name with a bare yield appended is an open user decision as of 2026-09-07 and is NOT a
-# gap to be closed by inventing a designation for them. Both are now EVENT tier, so the
-# pressure to name them has dropped: a normal match never shows either string in the shop.
+# TWO ENTRIES CARRY NO REAL-WORLD DESIGNATION, AND NOW FOLLOW THE RULE ANYWAY. power.tacnuke and
+# power.highyieldnuke are named for what they do rather than for a bomb that exists, so there is no
+# designation to put outside the bracket -- but the bracket itself still applies. RESOLVED
+# 2026-09-08: the user asked for the yields directly, which settles the open question this paragraph
+# used to record (identities / retirement / a bare yield appended -- the third of the three).
+#
+#     Tactical Nuclear Strike (20 kt)     fires `Atomic`
+#     Strategic Nuclear Strike (6 Mt)     fires `AtomicHighYield`
+#
+# BOTH YIELDS ARE VERIFIED AT FOUR INDEPENDENT SITES rather than taken from this comment:
+# weapons-superweapons.yaml:32 and its AtomicHighYield banner, NuclearYieldTest.AllNukes,
+# gen_fireball_light.YIELDS, and the radii the three of them agree on.
+#
+# THE STRING NOW LIVES IN SIX PLACES, not the two the rest of this header describes. The buy tab
+# reads the Tooltip here, the support bin reads SupportPower Name in rules/player.yaml:479 and :597,
+# and the LOBBY reads a third pair -- PowersLobbyOptions.TacticalNukeCheckboxLabel and
+# HighYieldNukeCheckboxLabel, C# defaults with no YAML override anywhere in the mod. A rename that
+# misses the lobby pair calls the same weapon two things in two panels exactly as described above,
+# and nothing lints the link.
 #
 # ---- BUILD DURATIONS ----
 # Ticks at Timestep 60 (0.06 s), NOT the 25 tps several in-tree comments still assert. The duration
@@ -437,7 +449,7 @@ power.tacnuke:
 		# decision to sell this has a number to start from.
 		Cost: 15000
 	Tooltip:
-		Name: Tactical Nuclear Strike
+		Name: Tactical Nuclear Strike (20 kt)
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 60
@@ -505,7 +517,7 @@ power.highyieldnuke:
 		# also the clearest argument for this being EVENT tier rather than something a player buys.
 		Cost: 40000
 	Tooltip:
-		Name: Strategic Nuclear Strike
+		Name: Strategic Nuclear Strike (6 Mt)
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 90

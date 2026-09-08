@@ -127,6 +127,28 @@
 # on `AtomicHighYield`'s Warhead@Flash for why stacking that effect is a square wave and not a
 # plateau.
 #
+# ==== THE SIXTH LAW: THE SCREEN SHAKE, AND WHY IT IS GENERATED ====
+# Added 2026-09-08. Every Warhead@Shake block below is written by tools/nuke-shake/gen_shake.py --
+# DO NOT HAND-EDIT ONE. Unlike the five laws above, this band has no physical law in this tree: the
+# two reference stacks on `Atomic` and `AtomicHighYield` were hand-tuned, so the generator fits one
+# exponent per field to those two points and nothing else.
+#     v(Y) = v20 * (Y/20)^k        k = ln(v6000/v20) / ln(300)
+# Both references come back out to the tick, which `--verify` checks against the shipped YAML rather
+# than assuming; the twelve weapons here interpolate between two stacks the user has approved.
+#
+# THE FITTED INTENSITY EXPONENTS ARE 0.04 TO 0.08, so 50 Mt asks for 23 px of camera throw against
+# 0.3 kt's 9. That is the same rule as the flash envelope above -- yield buys LENGTH (the roll runs
+# 59 ticks at 0.3 kt and 566 at 50 Mt) and REACH, not amplitude.
+#
+# WHY IT NEEDED GENERATING AT ALL, because the failure will recur otherwise: f945a645 rebuilt the
+# shaker and CHANGED THE MEANING of `Intensity` to peak screen displacement in PIXELS
+# (ShakeScreenWarhead.cs:23-29). Its message says it retuned every call site and it did -- every one
+# that was on main at the time. This file was created the same day on a branch and merged after it,
+# so it kept the pre-rework numbers, and f917d721 copied them into the four Russian warheads. Nothing
+# caught it: --check-yaml only checks that a field EXISTS, NuclearYieldTest asserts no shake, and
+# ScreenShaker soft-clamps the sum at MaxAmplitude 22 (ScreenShaker.cs:53, :412-421) -- so a 7x error
+# and a 1.6x error render as the same 22 px. The 0.3 kt dial shook harder than the 6 Mt reference.
+#
 # ==== TRAPS, ALL OF WHICH ARE LIVE IN THIS FILE ====
 #   * AirThreshold. Above a warhead's AirThreshold the engine substitutes `Air` for the terrain
 #     target types (Warhead.cs:41-45, CreateEffectWarhead.cs:165-166) and the warhead does NOTHING to
@@ -167,20 +189,53 @@
 #                        reaches its full 4.5c at tick 28 (2 s)
 NukeB61Mod12Y003:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
+	# The screen flash is FULL STRENGTH ON EVERY YIELD, and Duration is not only its length:
+	# FlashPaletteEffect lerps from `Duration / Length` toward the palette (FlashPaletteEffect.cs:68)
+	# and palettes.yaml pins the Nuke effect's Length at 30, so a Duration of 8 was a flash that
+	# PEAKED AT 27% WHITE, not a shorter one. That is the same failure the fireball light was
+	# rewritten for on 2026-09-07 -- the small weapons not reading as nuclear -- surviving in a
+	# second band. 30 is what both references use, and it is the ceiling NoNuclearWeaponStacks-
+	# ScreenFlashes enforces. Yield buys AREA and LENGTH elsewhere; a full-screen palette flash
+	# has no area, so there is nothing here for it to buy.
 	Warhead@Flash1: FlashPaletteEffect
-		Duration: 8
+		Duration: 30
 		FlashType: Nuke
+	# ===== THE SCREEN SHAKE =====
+	# GENERATED -- tools/nuke-shake/gen_shake.py --write. Do not hand-edit; the laws, and
+	# the reason this band needed regenerating at all, are in that script.
+	# 0.3 kt on the 4-stage model shared with `Atomic` and `AtomicHighYield`.
+	# CRACK -- the prompt arrival. Short, sharp, highest frequency of the stack.
 	Warhead@Shake1: ShakeScreen
 		Duration: 15
-		Intensity: 35
+		Intensity: 3
+		AttackTicks: 1
+		DecayHalfLife: 4
+		FrequencyScale: 191
+	# GROUND SHOCK -- the main event and the peak amplitude.
 	Warhead@Shake2: ShakeScreen
-		Duration: 15
-		Intensity: 19
-		Delay: 2
-	Warhead@Shake3: ShakeScreen
-		Duration: 15
+		Duration: 38
 		Intensity: 9
-		Delay: 8
+		AttackTicks: 2
+		DecayHalfLife: 9
+		FrequencyScale: 172
+		Delay: 2
+	# ROLL -- the long low-frequency coda.
+	Warhead@Shake3: ShakeScreen
+		Duration: 59
+		Intensity: 4
+		AttackTicks: 12
+		DecayHalfLife: 20
+		FrequencyScale: 95
+		Delay: 7
+	# AIR BLAST -- travels at its own ticks/cell rather than the global ground-wave speed, so it
+	# arrives with the VISIBLE shockwave at every distance instead of only at ground zero.
+	Warhead@Shake4: ShakeScreen
+		Duration: 22
+		Intensity: 4
+		AttackTicks: 1
+		DecayHalfLife: 10
+		FrequencyScale: 230
+		PropagationTicksPerCell: 6.5
 	# ===== THE FIREBALL, AS LIGHT =====
 	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
 	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
@@ -486,24 +541,53 @@ NukeB61Mod12Y003:
 #                        reaches its full 7.8c at tick 51 (3 s)
 NukeB61Mod12Y015:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
+	# The screen flash is FULL STRENGTH ON EVERY YIELD, and Duration is not only its length:
+	# FlashPaletteEffect lerps from `Duration / Length` toward the palette (FlashPaletteEffect.cs:68)
+	# and palettes.yaml pins the Nuke effect's Length at 30, so a Duration of 8 was a flash that
+	# PEAKED AT 27% WHITE, not a shorter one. That is the same failure the fireball light was
+	# rewritten for on 2026-09-07 -- the small weapons not reading as nuclear -- surviving in a
+	# second band. 30 is what both references use, and it is the ceiling NoNuclearWeaponStacks-
+	# ScreenFlashes enforces. Yield buys AREA and LENGTH elsewhere; a full-screen palette flash
+	# has no area, so there is nothing here for it to buy.
 	Warhead@Flash1: FlashPaletteEffect
-		Duration: 8
+		Duration: 30
 		FlashType: Nuke
+	# ===== THE SCREEN SHAKE =====
+	# GENERATED -- tools/nuke-shake/gen_shake.py --write. Do not hand-edit; the laws, and
+	# the reason this band needed regenerating at all, are in that script.
+	# 1.5 kt on the 4-stage model shared with `Atomic` and `AtomicHighYield`.
+	# CRACK -- the prompt arrival. Short, sharp, highest frequency of the stack.
 	Warhead@Shake1: ShakeScreen
-		Duration: 15
-		Intensity: 44
-	Warhead@Shake2: ShakeScreen
-		Duration: 15
-		Intensity: 24
-		Delay: 4
-	Warhead@Shake3: ShakeScreen
-		Duration: 15
-		Intensity: 11
-		Delay: 14
-	Warhead@Shake4: ShakeScreen
-		Duration: 15
+		Duration: 17
 		Intensity: 4
-		Delay: 29
+		AttackTicks: 1
+		DecayHalfLife: 5
+		FrequencyScale: 185
+	# GROUND SHOCK -- the main event and the peak amplitude.
+	Warhead@Shake2: ShakeScreen
+		Duration: 46
+		Intensity: 11
+		AttackTicks: 3
+		DecayHalfLife: 11
+		FrequencyScale: 140
+		Delay: 2
+	# ROLL -- the long low-frequency coda.
+	Warhead@Shake3: ShakeScreen
+		Duration: 80
+		Intensity: 5
+		AttackTicks: 15
+		DecayHalfLife: 27
+		FrequencyScale: 77
+		Delay: 9
+	# AIR BLAST -- travels at its own ticks/cell rather than the global ground-wave speed, so it
+	# arrives with the VISIBLE shockwave at every distance instead of only at ground zero.
+	Warhead@Shake4: ShakeScreen
+		Duration: 29
+		Intensity: 4
+		AttackTicks: 2
+		DecayHalfLife: 12
+		FrequencyScale: 185
+		PropagationTicksPerCell: 6.4
 	# ===== THE FIREBALL, AS LIGHT =====
 	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
 	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
@@ -809,24 +893,53 @@ NukeB61Mod12Y015:
 #                        reaches its full 14.4c at tick 96 (6 s)
 NukeB61Mod12Y10:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
+	# The screen flash is FULL STRENGTH ON EVERY YIELD, and Duration is not only its length:
+	# FlashPaletteEffect lerps from `Duration / Length` toward the palette (FlashPaletteEffect.cs:68)
+	# and palettes.yaml pins the Nuke effect's Length at 30, so a Duration of 8 was a flash that
+	# PEAKED AT 27% WHITE, not a shorter one. That is the same failure the fireball light was
+	# rewritten for on 2026-09-07 -- the small weapons not reading as nuclear -- surviving in a
+	# second band. 30 is what both references use, and it is the ceiling NoNuclearWeaponStacks-
+	# ScreenFlashes enforces. Yield buys AREA and LENGTH elsewhere; a full-screen palette flash
+	# has no area, so there is nothing here for it to buy.
 	Warhead@Flash1: FlashPaletteEffect
-		Duration: 10
-		FlashType: Nuke
-	Warhead@Shake1: ShakeScreen
-		Duration: 15
-		Intensity: 59
-	Warhead@Shake2: ShakeScreen
-		Duration: 20
-		Intensity: 32
-		Delay: 9
-	Warhead@Shake3: ShakeScreen
 		Duration: 30
-		Intensity: 15
-		Delay: 28
+		FlashType: Nuke
+	# ===== THE SCREEN SHAKE =====
+	# GENERATED -- tools/nuke-shake/gen_shake.py --write. Do not hand-edit; the laws, and
+	# the reason this band needed regenerating at all, are in that script.
+	# 10 kt on the 4-stage model shared with `Atomic` and `AtomicHighYield`.
+	# CRACK -- the prompt arrival. Short, sharp, highest frequency of the stack.
+	Warhead@Shake1: ShakeScreen
+		Duration: 19
+		Intensity: 4
+		AttackTicks: 1
+		DecayHalfLife: 6
+		FrequencyScale: 178
+	# GROUND SHOCK -- the main event and the peak amplitude.
+	Warhead@Shake2: ShakeScreen
+		Duration: 56
+		Intensity: 12
+		AttackTicks: 3
+		DecayHalfLife: 13
+		FrequencyScale: 109
+		Delay: 3
+	# ROLL -- the long low-frequency coda.
+	Warhead@Shake3: ShakeScreen
+		Duration: 114
+		Intensity: 6
+		AttackTicks: 18
+		DecayHalfLife: 39
+		FrequencyScale: 60
+		Delay: 11
+	# AIR BLAST -- travels at its own ticks/cell rather than the global ground-wave speed, so it
+	# arrives with the VISIBLE shockwave at every distance instead of only at ground zero.
 	Warhead@Shake4: ShakeScreen
-		Duration: 28
+		Duration: 40
 		Intensity: 5
-		Delay: 55
+		AttackTicks: 2
+		DecayHalfLife: 15
+		FrequencyScale: 143
+		PropagationTicksPerCell: 6.4
 	# ===== THE FIREBALL, AS LIGHT =====
 	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
 	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
@@ -1138,24 +1251,53 @@ NukeB61Mod12Y10:
 #                        reaches its full 24.5c at tick 166 (10 s)
 NukeB61Mod12Y50:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
+	# The screen flash is FULL STRENGTH ON EVERY YIELD, and Duration is not only its length:
+	# FlashPaletteEffect lerps from `Duration / Length` toward the palette (FlashPaletteEffect.cs:68)
+	# and palettes.yaml pins the Nuke effect's Length at 30, so a Duration of 8 was a flash that
+	# PEAKED AT 27% WHITE, not a shorter one. That is the same failure the fireball light was
+	# rewritten for on 2026-09-07 -- the small weapons not reading as nuclear -- surviving in a
+	# second band. 30 is what both references use, and it is the ceiling NoNuclearWeaponStacks-
+	# ScreenFlashes enforces. Yield buys AREA and LENGTH elsewhere; a full-screen palette flash
+	# has no area, so there is nothing here for it to buy.
 	Warhead@Flash1: FlashPaletteEffect
-		Duration: 20
+		Duration: 30
 		FlashType: Nuke
+	# ===== THE SCREEN SHAKE =====
+	# GENERATED -- tools/nuke-shake/gen_shake.py --write. Do not hand-edit; the laws, and
+	# the reason this band needed regenerating at all, are in that script.
+	# 50 kt on the 4-stage model shared with `Atomic` and `AtomicHighYield`.
+	# CRACK -- the prompt arrival. Short, sharp, highest frequency of the stack.
 	Warhead@Shake1: ShakeScreen
-		Duration: 15
-		Intensity: 76
+		Duration: 21
+		Intensity: 4
+		AttackTicks: 1
+		DecayHalfLife: 6
+		FrequencyScale: 172
+	# GROUND SHOCK -- the main event and the peak amplitude.
 	Warhead@Shake2: ShakeScreen
-		Duration: 34
-		Intensity: 41
-		Delay: 15
+		Duration: 66
+		Intensity: 14
+		AttackTicks: 3
+		DecayHalfLife: 15
+		FrequencyScale: 89
+		Delay: 3
+	# ROLL -- the long low-frequency coda.
 	Warhead@Shake3: ShakeScreen
-		Duration: 51
-		Intensity: 19
-		Delay: 48
+		Duration: 154
+		Intensity: 6
+		AttackTicks: 22
+		DecayHalfLife: 54
+		FrequencyScale: 49
+		Delay: 14
+	# AIR BLAST -- travels at its own ticks/cell rather than the global ground-wave speed, so it
+	# arrives with the VISIBLE shockwave at every distance instead of only at ground zero.
 	Warhead@Shake4: ShakeScreen
-		Duration: 48
-		Intensity: 7
-		Delay: 94
+		Duration: 53
+		Intensity: 5
+		AttackTicks: 2
+		DecayHalfLife: 18
+		FrequencyScale: 115
+		PropagationTicksPerCell: 6.4
 	# ===== THE FIREBALL, AS LIGHT =====
 	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
 	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
@@ -1476,21 +1618,42 @@ NukeW76:
 	Warhead@Flash1: FlashPaletteEffect
 		Duration: 30
 		FlashType: Nuke
+	# ===== THE SCREEN SHAKE =====
+	# GENERATED -- tools/nuke-shake/gen_shake.py --write. Do not hand-edit; the laws, and
+	# the reason this band needed regenerating at all, are in that script.
+	# 100 kt on the 4-stage model shared with `Atomic` and `AtomicHighYield`.
+	# CRACK -- the prompt arrival. Short, sharp, highest frequency of the stack.
 	Warhead@Shake1: ShakeScreen
-		Duration: 19
-		Intensity: 84
+		Duration: 22
+		Intensity: 4
+		AttackTicks: 1
+		DecayHalfLife: 7
+		FrequencyScale: 169
+	# GROUND SHOCK -- the main event and the peak amplitude.
 	Warhead@Shake2: ShakeScreen
-		Duration: 43
-		Intensity: 46
-		Delay: 19
+		Duration: 71
+		Intensity: 15
+		AttackTicks: 3
+		DecayHalfLife: 17
+		FrequencyScale: 81
+		Delay: 3
+	# ROLL -- the long low-frequency coda.
 	Warhead@Shake3: ShakeScreen
-		Duration: 65
-		Intensity: 21
-		Delay: 60
+		Duration: 176
+		Intensity: 7
+		AttackTicks: 24
+		DecayHalfLife: 62
+		FrequencyScale: 45
+		Delay: 15
+	# AIR BLAST -- travels at its own ticks/cell rather than the global ground-wave speed, so it
+	# arrives with the VISIBLE shockwave at every distance instead of only at ground zero.
 	Warhead@Shake4: ShakeScreen
-		Duration: 60
-		Intensity: 8
-		Delay: 119
+		Duration: 59
+		Intensity: 5
+		AttackTicks: 2
+		DecayHalfLife: 19
+		FrequencyScale: 105
+		PropagationTicksPerCell: 6.4
 	# ===== THE FIREBALL, AS LIGHT =====
 	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
 	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
@@ -1816,25 +1979,51 @@ NukeSarmatRV:
 	Warhead@Flash1: FlashPaletteEffect
 		Duration: 30
 		FlashType: Nuke
+	# ===== THE SCREEN SHAKE =====
+	# GENERATED -- tools/nuke-shake/gen_shake.py --write. Do not hand-edit; the laws, and
+	# the reason this band needed regenerating at all, are in that script.
+	# 750 kt on the 5-stage model shared with `Atomic` and `AtomicHighYield`.
+	# CRACK -- the prompt arrival. Short, sharp, highest frequency of the stack.
 	Warhead@Shake1: ShakeScreen
-		Duration: 38
-		Intensity: 114
+		Duration: 26
+		Intensity: 5
+		AttackTicks: 1
+		DecayHalfLife: 8
+		FrequencyScale: 162
+	# GROUND SHOCK -- the main event and the peak amplitude.
 	Warhead@Shake2: ShakeScreen
-		Duration: 84
-		Intensity: 62
-		Delay: 38
+		Duration: 88
+		Intensity: 17
+		AttackTicks: 4
+		DecayHalfLife: 21
+		FrequencyScale: 63
+		Delay: 4
+	# ROLL -- the long low-frequency coda.
 	Warhead@Shake3: ShakeScreen
-		Duration: 127
-		Intensity: 29
-		Delay: 118
+		Duration: 257
+		Intensity: 8
+		AttackTicks: 31
+		DecayHalfLife: 93
+		FrequencyScale: 34
+		Delay: 19
+	# LATE ROLL -- the second, longer coda. Only weapons at or above 750 kt carry one.
 	Warhead@Shake4: ShakeScreen
-		Duration: 118
-		Intensity: 11
-		Delay: 233
+		Duration: 304
+		Intensity: 3
+		AttackTicks: 47
+		DecayHalfLife: 112
+		FrequencyScale: 22
+		Delay: 176
+	# AIR BLAST -- travels at its own ticks/cell rather than the global ground-wave speed, so it
+	# arrives with the VISIBLE shockwave at every distance instead of only at ground zero.
 	Warhead@Shake5: ShakeScreen
-		Duration: 76
-		Intensity: 4
-		Delay: 347
+		Duration: 84
+		Intensity: 6
+		AttackTicks: 3
+		DecayHalfLife: 25
+		FrequencyScale: 80
+		PropagationTicksPerCell: 6.3
+		MaxPropagationDelay: 383
 	# ===== THE FIREBALL, AS LIGHT =====
 	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
 	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
@@ -2159,25 +2348,51 @@ NukeB83:
 	Warhead@Flash1: FlashPaletteEffect
 		Duration: 30
 		FlashType: Nuke
+	# ===== THE SCREEN SHAKE =====
+	# GENERATED -- tools/nuke-shake/gen_shake.py --write. Do not hand-edit; the laws, and
+	# the reason this band needed regenerating at all, are in that script.
+	# 1200 kt on the 5-stage model shared with `Atomic` and `AtomicHighYield`.
+	# CRACK -- the prompt arrival. Short, sharp, highest frequency of the stack.
 	Warhead@Shake1: ShakeScreen
-		Duration: 44
-		Intensity: 122
+		Duration: 27
+		Intensity: 5
+		AttackTicks: 1
+		DecayHalfLife: 8
+		FrequencyScale: 160
+	# GROUND SHOCK -- the main event and the peak amplitude.
 	Warhead@Shake2: ShakeScreen
-		Duration: 99
-		Intensity: 67
-		Delay: 44
+		Duration: 93
+		Intensity: 18
+		AttackTicks: 4
+		DecayHalfLife: 22
+		FrequencyScale: 59
+		Delay: 4
+	# ROLL -- the long low-frequency coda.
 	Warhead@Shake3: ShakeScreen
-		Duration: 148
-		Intensity: 31
-		Delay: 138
+		Duration: 281
+		Intensity: 8
+		AttackTicks: 33
+		DecayHalfLife: 102
+		FrequencyScale: 32
+		Delay: 20
+	# LATE ROLL -- the second, longer coda. Only weapons at or above 750 kt carry one.
 	Warhead@Shake4: ShakeScreen
-		Duration: 138
-		Intensity: 12
-		Delay: 272
-	Warhead@Shake5: ShakeScreen
-		Duration: 89
+		Duration: 332
 		Intensity: 4
-		Delay: 406
+		AttackTicks: 49
+		DecayHalfLife: 123
+		FrequencyScale: 21
+		Delay: 187
+	# AIR BLAST -- travels at its own ticks/cell rather than the global ground-wave speed, so it
+	# arrives with the VISIBLE shockwave at every distance instead of only at ground zero.
+	Warhead@Shake5: ShakeScreen
+		Duration: 91
+		Intensity: 6
+		AttackTicks: 3
+		DecayHalfLife: 26
+		FrequencyScale: 75
+		PropagationTicksPerCell: 6.3
+		MaxPropagationDelay: 447
 	# ===== THE FIREBALL, AS LIGHT =====
 	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
 	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
@@ -2504,25 +2719,51 @@ NukeTsarBomba:
 	Warhead@Flash1: FlashPaletteEffect
 		Duration: 30
 		FlashType: Nuke
+	# ===== THE SCREEN SHAKE =====
+	# GENERATED -- tools/nuke-shake/gen_shake.py --write. Do not hand-edit; the laws, and
+	# the reason this band needed regenerating at all, are in that script.
+	# 50000 kt on the 5-stage model shared with `Atomic` and `AtomicHighYield`.
+	# CRACK -- the prompt arrival. Short, sharp, highest frequency of the stack.
 	Warhead@Shake1: ShakeScreen
-		Duration: 154
-		Intensity: 150
+		Duration: 35
+		Intensity: 5
+		AttackTicks: 1
+		DecayHalfLife: 10
+		FrequencyScale: 148
+	# GROUND SHOCK -- the main event and the peak amplitude.
 	Warhead@Shake2: ShakeScreen
-		Duration: 344
-		Intensity: 82
-		Delay: 154
+		Duration: 138
+		Intensity: 23
+		AttackTicks: 4
+		DecayHalfLife: 33
+		FrequencyScale: 37
+		Delay: 6
+	# ROLL -- the long low-frequency coda.
 	Warhead@Shake3: ShakeScreen
-		Duration: 516
-		Intensity: 39
-		Delay: 482
+		Duration: 566
+		Intensity: 10
+		AttackTicks: 52
+		DecayHalfLife: 213
+		FrequencyScale: 20
+		Delay: 33
+	# LATE ROLL -- the second, longer coda. Only weapons at or above 750 kt carry one.
 	Warhead@Shake4: ShakeScreen
-		Duration: 482
-		Intensity: 15
-		Delay: 947
+		Duration: 670
+		Intensity: 5
+		AttackTicks: 78
+		DecayHalfLife: 259
+		FrequencyScale: 13
+		Delay: 302
+	# AIR BLAST -- travels at its own ticks/cell rather than the global ground-wave speed, so it
+	# arrives with the VISIBLE shockwave at every distance instead of only at ground zero.
 	Warhead@Shake5: ShakeScreen
-		Duration: 309
-		Intensity: 6
-		Delay: 1412
+		Duration: 173
+		Intensity: 8
+		AttackTicks: 3
+		DecayHalfLife: 41
+		FrequencyScale: 45
+		PropagationTicksPerCell: 6.3
+		MaxPropagationDelay: 1550
 	# ===== THE FIREBALL, AS LIGHT =====
 	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
 	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
@@ -2907,21 +3148,51 @@ NukeSarmatMIRV:
 	Warhead@Flash1: FlashPaletteEffect
 		Duration: 30
 		FlashType: Nuke
+	# ===== THE SCREEN SHAKE =====
+	# GENERATED -- tools/nuke-shake/gen_shake.py --write. Do not hand-edit; the laws, and
+	# the reason this band needed regenerating at all, are in that script.
+	# 3750 kt on the 5-stage model shared with `Atomic` and `AtomicHighYield`.
+	# CRACK -- the prompt arrival. Short, sharp, highest frequency of the stack.
 	Warhead@Shake1: ShakeScreen
-		Duration: 70
-		Intensity: 130
+		Duration: 29
+		Intensity: 5
+		AttackTicks: 1
+		DecayHalfLife: 9
+		FrequencyScale: 157
+	# GROUND SHOCK -- the main event and the peak amplitude.
 	Warhead@Shake2: ShakeScreen
-		Duration: 150
-		Intensity: 70
-		Delay: 60
+		Duration: 105
+		Intensity: 19
+		AttackTicks: 4
+		DecayHalfLife: 25
+		FrequencyScale: 51
+		Delay: 5
+	# ROLL -- the long low-frequency coda.
 	Warhead@Shake3: ShakeScreen
-		Duration: 220
-		Intensity: 32
-		Delay: 200
+		Duration: 348
+		Intensity: 9
+		AttackTicks: 38
+		DecayHalfLife: 128
+		FrequencyScale: 28
+		Delay: 24
+	# LATE ROLL -- the second, longer coda. Only weapons at or above 750 kt carry one.
 	Warhead@Shake4: ShakeScreen
-		Duration: 200
-		Intensity: 12
-		Delay: 420
+		Duration: 412
+		Intensity: 4
+		AttackTicks: 57
+		DecayHalfLife: 155
+		FrequencyScale: 18
+		Delay: 217
+	# AIR BLAST -- travels at its own ticks/cell rather than the global ground-wave speed, so it
+	# arrives with the VISIBLE shockwave at every distance instead of only at ground zero.
+	Warhead@Shake5: ShakeScreen
+		Duration: 111
+		Intensity: 7
+		AttackTicks: 3
+		DecayHalfLife: 30
+		FrequencyScale: 64
+		PropagationTicksPerCell: 6.3
+		MaxPropagationDelay: 383
 	# THE BUS. One guaranteed RV on the aim point, five more scattered around the ring. Staged in two
 	# warheads a few ticks apart so the salvo lands as a ripple rather than a single frame -- real
 	# RVs from one bus do not arrive simultaneously.
@@ -2996,24 +3267,53 @@ NukeSarmatMIRV:
 # 1.5 kt; this is the third weapon in the file to sit on the floor.
 NukeRu9M729:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
+	# The screen flash is FULL STRENGTH ON EVERY YIELD, and Duration is not only its length:
+	# FlashPaletteEffect lerps from `Duration / Length` toward the palette (FlashPaletteEffect.cs:68)
+	# and palettes.yaml pins the Nuke effect's Length at 30, so a Duration of 8 was a flash that
+	# PEAKED AT 27% WHITE, not a shorter one. That is the same failure the fireball light was
+	# rewritten for on 2026-09-07 -- the small weapons not reading as nuclear -- surviving in a
+	# second band. 30 is what both references use, and it is the ceiling NoNuclearWeaponStacks-
+	# ScreenFlashes enforces. Yield buys AREA and LENGTH elsewhere; a full-screen palette flash
+	# has no area, so there is nothing here for it to buy.
 	Warhead@Flash1: FlashPaletteEffect
-		Duration: 8
+		Duration: 30
 		FlashType: Nuke
+	# ===== THE SCREEN SHAKE =====
+	# GENERATED -- tools/nuke-shake/gen_shake.py --write. Do not hand-edit; the laws, and
+	# the reason this band needed regenerating at all, are in that script.
+	# 1 kt on the 4-stage model shared with `Atomic` and `AtomicHighYield`.
+	# CRACK -- the prompt arrival. Short, sharp, highest frequency of the stack.
 	Warhead@Shake1: ShakeScreen
-		Duration: 15
-		Intensity: 42
-	Warhead@Shake2: ShakeScreen
-		Duration: 15
-		Intensity: 23
-		Delay: 3
-	Warhead@Shake3: ShakeScreen
-		Duration: 15
-		Intensity: 11
-		Delay: 12
-	Warhead@Shake4: ShakeScreen
-		Duration: 15
+		Duration: 16
 		Intensity: 4
-		Delay: 25
+		AttackTicks: 1
+		DecayHalfLife: 5
+		FrequencyScale: 187
+	# GROUND SHOCK -- the main event and the peak amplitude.
+	Warhead@Shake2: ShakeScreen
+		Duration: 44
+		Intensity: 10
+		AttackTicks: 3
+		DecayHalfLife: 10
+		FrequencyScale: 147
+		Delay: 2
+	# ROLL -- the long low-frequency coda.
+	Warhead@Shake3: ShakeScreen
+		Duration: 74
+		Intensity: 5
+		AttackTicks: 14
+		DecayHalfLife: 25
+		FrequencyScale: 82
+		Delay: 8
+	# AIR BLAST -- travels at its own ticks/cell rather than the global ground-wave speed, so it
+	# arrives with the VISIBLE shockwave at every distance instead of only at ground zero.
+	Warhead@Shake4: ShakeScreen
+		Duration: 27
+		Intensity: 4
+		AttackTicks: 2
+		DecayHalfLife: 11
+		FrequencyScale: 195
+		PropagationTicksPerCell: 6.5
 	# ===== THE FIREBALL, AS LIGHT =====
 	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
 	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
@@ -3330,24 +3630,53 @@ NukeRu9M729:
 #                        reaches its full 14.4c at tick 96 (6 s)
 NukeRuIskander:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
+	# The screen flash is FULL STRENGTH ON EVERY YIELD, and Duration is not only its length:
+	# FlashPaletteEffect lerps from `Duration / Length` toward the palette (FlashPaletteEffect.cs:68)
+	# and palettes.yaml pins the Nuke effect's Length at 30, so a Duration of 8 was a flash that
+	# PEAKED AT 27% WHITE, not a shorter one. That is the same failure the fireball light was
+	# rewritten for on 2026-09-07 -- the small weapons not reading as nuclear -- surviving in a
+	# second band. 30 is what both references use, and it is the ceiling NoNuclearWeaponStacks-
+	# ScreenFlashes enforces. Yield buys AREA and LENGTH elsewhere; a full-screen palette flash
+	# has no area, so there is nothing here for it to buy.
 	Warhead@Flash1: FlashPaletteEffect
-		Duration: 10
-		FlashType: Nuke
-	Warhead@Shake1: ShakeScreen
-		Duration: 15
-		Intensity: 59
-	Warhead@Shake2: ShakeScreen
-		Duration: 20
-		Intensity: 32
-		Delay: 9
-	Warhead@Shake3: ShakeScreen
 		Duration: 30
-		Intensity: 15
-		Delay: 28
+		FlashType: Nuke
+	# ===== THE SCREEN SHAKE =====
+	# GENERATED -- tools/nuke-shake/gen_shake.py --write. Do not hand-edit; the laws, and
+	# the reason this band needed regenerating at all, are in that script.
+	# 10 kt on the 4-stage model shared with `Atomic` and `AtomicHighYield`.
+	# CRACK -- the prompt arrival. Short, sharp, highest frequency of the stack.
+	Warhead@Shake1: ShakeScreen
+		Duration: 19
+		Intensity: 4
+		AttackTicks: 1
+		DecayHalfLife: 6
+		FrequencyScale: 178
+	# GROUND SHOCK -- the main event and the peak amplitude.
+	Warhead@Shake2: ShakeScreen
+		Duration: 56
+		Intensity: 12
+		AttackTicks: 3
+		DecayHalfLife: 13
+		FrequencyScale: 109
+		Delay: 3
+	# ROLL -- the long low-frequency coda.
+	Warhead@Shake3: ShakeScreen
+		Duration: 114
+		Intensity: 6
+		AttackTicks: 18
+		DecayHalfLife: 39
+		FrequencyScale: 60
+		Delay: 11
+	# AIR BLAST -- travels at its own ticks/cell rather than the global ground-wave speed, so it
+	# arrives with the VISIBLE shockwave at every distance instead of only at ground zero.
 	Warhead@Shake4: ShakeScreen
-		Duration: 28
+		Duration: 40
 		Intensity: 5
-		Delay: 55
+		AttackTicks: 2
+		DecayHalfLife: 15
+		FrequencyScale: 143
+		PropagationTicksPerCell: 6.4
 	# ===== THE FIREBALL, AS LIGHT =====
 	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
 	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
@@ -3666,24 +3995,53 @@ NukeRuIskander:
 #                        reaches its full 24.5c at tick 166 (10 s)
 NukeRuKinzhalN:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
+	# The screen flash is FULL STRENGTH ON EVERY YIELD, and Duration is not only its length:
+	# FlashPaletteEffect lerps from `Duration / Length` toward the palette (FlashPaletteEffect.cs:68)
+	# and palettes.yaml pins the Nuke effect's Length at 30, so a Duration of 8 was a flash that
+	# PEAKED AT 27% WHITE, not a shorter one. That is the same failure the fireball light was
+	# rewritten for on 2026-09-07 -- the small weapons not reading as nuclear -- surviving in a
+	# second band. 30 is what both references use, and it is the ceiling NoNuclearWeaponStacks-
+	# ScreenFlashes enforces. Yield buys AREA and LENGTH elsewhere; a full-screen palette flash
+	# has no area, so there is nothing here for it to buy.
 	Warhead@Flash1: FlashPaletteEffect
-		Duration: 20
+		Duration: 30
 		FlashType: Nuke
+	# ===== THE SCREEN SHAKE =====
+	# GENERATED -- tools/nuke-shake/gen_shake.py --write. Do not hand-edit; the laws, and
+	# the reason this band needed regenerating at all, are in that script.
+	# 50 kt on the 4-stage model shared with `Atomic` and `AtomicHighYield`.
+	# CRACK -- the prompt arrival. Short, sharp, highest frequency of the stack.
 	Warhead@Shake1: ShakeScreen
-		Duration: 15
-		Intensity: 76
+		Duration: 21
+		Intensity: 4
+		AttackTicks: 1
+		DecayHalfLife: 6
+		FrequencyScale: 172
+	# GROUND SHOCK -- the main event and the peak amplitude.
 	Warhead@Shake2: ShakeScreen
-		Duration: 34
-		Intensity: 41
-		Delay: 15
+		Duration: 66
+		Intensity: 14
+		AttackTicks: 3
+		DecayHalfLife: 15
+		FrequencyScale: 89
+		Delay: 3
+	# ROLL -- the long low-frequency coda.
 	Warhead@Shake3: ShakeScreen
-		Duration: 51
-		Intensity: 19
-		Delay: 48
+		Duration: 154
+		Intensity: 6
+		AttackTicks: 22
+		DecayHalfLife: 54
+		FrequencyScale: 49
+		Delay: 14
+	# AIR BLAST -- travels at its own ticks/cell rather than the global ground-wave speed, so it
+	# arrives with the VISIBLE shockwave at every distance instead of only at ground zero.
 	Warhead@Shake4: ShakeScreen
-		Duration: 48
-		Intensity: 7
-		Delay: 94
+		Duration: 53
+		Intensity: 5
+		AttackTicks: 2
+		DecayHalfLife: 18
+		FrequencyScale: 115
+		PropagationTicksPerCell: 6.4
 	# ===== THE FIREBALL, AS LIGHT =====
 	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
 	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
@@ -4010,21 +4368,42 @@ NukeRuKalibr:
 	Warhead@Flash1: FlashPaletteEffect
 		Duration: 30
 		FlashType: Nuke
+	# ===== THE SCREEN SHAKE =====
+	# GENERATED -- tools/nuke-shake/gen_shake.py --write. Do not hand-edit; the laws, and
+	# the reason this band needed regenerating at all, are in that script.
+	# 100 kt on the 4-stage model shared with `Atomic` and `AtomicHighYield`.
+	# CRACK -- the prompt arrival. Short, sharp, highest frequency of the stack.
 	Warhead@Shake1: ShakeScreen
-		Duration: 19
-		Intensity: 84
+		Duration: 22
+		Intensity: 4
+		AttackTicks: 1
+		DecayHalfLife: 7
+		FrequencyScale: 169
+	# GROUND SHOCK -- the main event and the peak amplitude.
 	Warhead@Shake2: ShakeScreen
-		Duration: 43
-		Intensity: 46
-		Delay: 19
+		Duration: 71
+		Intensity: 15
+		AttackTicks: 3
+		DecayHalfLife: 17
+		FrequencyScale: 81
+		Delay: 3
+	# ROLL -- the long low-frequency coda.
 	Warhead@Shake3: ShakeScreen
-		Duration: 65
-		Intensity: 21
-		Delay: 60
+		Duration: 176
+		Intensity: 7
+		AttackTicks: 24
+		DecayHalfLife: 62
+		FrequencyScale: 45
+		Delay: 15
+	# AIR BLAST -- travels at its own ticks/cell rather than the global ground-wave speed, so it
+	# arrives with the VISIBLE shockwave at every distance instead of only at ground zero.
 	Warhead@Shake4: ShakeScreen
-		Duration: 60
-		Intensity: 8
-		Delay: 119
+		Duration: 59
+		Intensity: 5
+		AttackTicks: 2
+		DecayHalfLife: 19
+		FrequencyScale: 105
+		PropagationTicksPerCell: 6.4
 	# ===== THE FIREBALL, AS LIGHT =====
 	# The house pattern established on `Atomic` in weapons-superweapons.yaml, evaluated at this
 	# weapon's own yield. Read the long note there for the model; only the numbers differ here.
