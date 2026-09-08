@@ -34,22 +34,39 @@ namespace OpenRA.Mods.Common.Effects
 		readonly int zOffset;
 		bool initialized;
 
+		// WW3MOD: how long the sprite takes to play, as a percentage of the sequence's natural length.
+		// 100 is unchanged; 256 plays the same frames over 2.56x as many ticks. See Tick.
+		readonly int durationScalePercent;
+
+		// Milliseconds x percent banked from the last frame advance, so the fractional part of the
+		// per-tick spend is carried rather than rounded away. See Tick.
+		int animMsAccumulator;
+
+		// What Animation.Tick() spends per call, independent of the mod's Timestep. Mirrored here
+		// because the scaled path has to divide it; see Animation.cs and conventions.md
+		// "Sequence Tick is milliseconds against a FIXED 40 ms clock".
+		const int AnimationMillisecondsPerTick = 40;
+
 		// Facing is last on these overloads partially for backwards compatibility with previous main ctor revision
 		// and partially because most effects don't need it. The latter is also the reason for placement of 'delay'.
 		public SpriteEffect(WPos pos, World world, string image, string sequence, string palette,
-			bool visibleThroughFog = false, int delay = 0, float scale = 1f, int zOffset = 0, bool renderAboveFog = false)
-			: this(() => pos, () => WAngle.Zero, world, image, sequence, palette, visibleThroughFog, delay, scale, zOffset, renderAboveFog) { }
+			bool visibleThroughFog = false, int delay = 0, float scale = 1f, int zOffset = 0, bool renderAboveFog = false,
+			int durationScalePercent = 100)
+			: this(() => pos, () => WAngle.Zero, world, image, sequence, palette, visibleThroughFog, delay, scale, zOffset, renderAboveFog, durationScalePercent) { }
 
 		public SpriteEffect(Actor actor, World world, string image, string sequence, string palette,
-			bool visibleThroughFog = false, int delay = 0, float scale = 1f, int zOffset = 0, bool renderAboveFog = false)
-			: this(() => actor.CenterPosition, () => WAngle.Zero, world, image, sequence, palette, visibleThroughFog, delay, scale, zOffset, renderAboveFog) { }
+			bool visibleThroughFog = false, int delay = 0, float scale = 1f, int zOffset = 0, bool renderAboveFog = false,
+			int durationScalePercent = 100)
+			: this(() => actor.CenterPosition, () => WAngle.Zero, world, image, sequence, palette, visibleThroughFog, delay, scale, zOffset, renderAboveFog, durationScalePercent) { }
 
 		public SpriteEffect(WPos pos, WAngle facing, World world, string image, string sequence, string palette,
-			bool visibleThroughFog = false, int delay = 0, float scale = 1f, int zOffset = 0, bool renderAboveFog = false)
-			: this(() => pos, () => facing, world, image, sequence, palette, visibleThroughFog, delay, scale, zOffset, renderAboveFog) { }
+			bool visibleThroughFog = false, int delay = 0, float scale = 1f, int zOffset = 0, bool renderAboveFog = false,
+			int durationScalePercent = 100)
+			: this(() => pos, () => facing, world, image, sequence, palette, visibleThroughFog, delay, scale, zOffset, renderAboveFog, durationScalePercent) { }
 
 		public SpriteEffect(Func<WPos> posFunc, Func<WAngle> facingFunc, World world, string image, string sequence, string palette,
-			bool visibleThroughFog = false, int delay = 0, float scale = 1f, int zOffset = 0, bool renderAboveFog = false)
+			bool visibleThroughFog = false, int delay = 0, float scale = 1f, int zOffset = 0, bool renderAboveFog = false,
+			int durationScalePercent = 100)
 		{
 			this.world = world;
 			this.posFunc = posFunc;
@@ -60,6 +77,10 @@ namespace OpenRA.Mods.Common.Effects
 			this.delay = delay;
 			this.scale = scale;
 			this.zOffset = zOffset;
+
+			// Zero would divide by zero below and a negative would run the animation backwards through
+			// the accumulator; neither is a meaning anyone wants from a percentage.
+			this.durationScalePercent = Math.Max(1, durationScalePercent);
 			pos = posFunc();
 			anim = new Animation(world, image, facingFunc);
 		}
@@ -76,7 +97,22 @@ namespace OpenRA.Mods.Common.Effects
 			}
 			else
 			{
-				anim.Tick();
+				// WW3MOD: DurationScalePercent stretches the sprite in TIME the way ScalePercent
+				// stretches it in space. Animation.Tick(t) spends t milliseconds of the sequence's own
+				// Tick/ChangeTick budget, so spending FEWER milliseconds per game tick makes the same
+				// frames take proportionally LONGER to play -- hence the reciprocal rather than a
+				// multiply. The spend is banked in a milliseconds x percent accumulator instead of
+				// being divided per tick, so the fractional part is carried and the total elapsed
+				// budget after N ticks is exactly floor(N * 4000 / percent) rather than N * round(...).
+				//
+				// At 100 this reduces to anim.Tick(40) on every tick with the accumulator always
+				// landing back on zero -- the same call the parameterless anim.Tick() makes, whose
+				// paused check is vacuous here because SpriteEffect never supplies a paused func.
+				animMsAccumulator += AnimationMillisecondsPerTick * 100;
+				var step = animMsAccumulator / durationScalePercent;
+				animMsAccumulator -= step * durationScalePercent;
+				anim.Tick(step);
+
 				pos = posFunc();
 			}
 		}

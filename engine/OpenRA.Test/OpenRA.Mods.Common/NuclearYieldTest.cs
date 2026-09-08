@@ -534,8 +534,11 @@ namespace OpenRA.Test
 			}
 		}
 
-		/// <summary>The explosion sequence a weapon's own Warhead@Fireball draws its cloud with.</summary>
-		static string FireballSequence(string weapon)
+		// The explosion sequence a weapon's own Warhead@Fireball draws its cloud with, and the
+		// DurationScalePercent that warhead plays it at. Both come from the SAME node on purpose: a
+		// weapon may carry several fireball warheads (Tsar Bomba has five, offset into one cloud) and
+		// pairing a sequence with another warhead's scale would silently derive the wrong length.
+		static (string Sequence, int DurationScalePercent) FireballSequence(string weapon)
 		{
 			foreach (var node in Weapon(weapon).Nodes)
 			{
@@ -543,12 +546,16 @@ namespace OpenRA.Test
 					continue;
 
 				var explosions = node.Value.Nodes.FirstOrDefault(n => n.Key == "Explosions")?.Value.Value;
-				if (explosions != null && explosions.Contains("nuke", StringComparison.Ordinal))
-					return explosions.Trim();
+				if (explosions == null || !explosions.Contains("nuke", StringComparison.Ordinal))
+					continue;
+
+				// Absent means 100, which is what CreateEffectWarhead.DurationScalePercent defaults to.
+				var raw = node.Value.Nodes.FirstOrDefault(n => n.Key == "DurationScalePercent")?.Value.Value;
+				return (explosions.Trim(), raw == null ? 100 : int.Parse(raw));
 			}
 
 			Assert.Fail($"{weapon} has no CreateEffect warhead drawing a nuke explosion, so its light has no animation to match");
-			return null;
+			return (null, 100);
 		}
 
 		/// <summary>
@@ -556,12 +563,12 @@ namespace OpenRA.Test
 		///
 		/// Animation.CurrentSequenceTickOrDefault walks ChangeTick as (frame, ms) pairs and takes the
 		/// LAST pair whose frame is strictly below the current one, falling back to the sequence's
-		/// Tick; Animation.Tick() then spends a flat 40 ms of that budget per game tick regardless of
-		/// the mod's 60 ms timestep. So the length is the summed per-frame budget over 40 -- NOT the
-		/// frame count, and NOT affected by ScalePercent, which is why fourteen weapons sharing one
-		/// sequence all get the same duration at radically different sizes.
+		/// Tick; SpriteEffect.Tick then spends 40 * 100 / DurationScalePercent ms of that budget per
+		/// game tick, banking the remainder, regardless of the mod's 60 ms timestep. So the length is
+		/// the summed per-frame budget over 40, TIMES that percentage -- NOT the frame count, and NOT
+		/// affected by ScalePercent, which scales the sprite in space and not in time.
 		/// </summary>
-		static double AnimationTicks(string sequence)
+		static double AnimationTicks(string sequence, int durationScalePercent)
 		{
 			var explosions = MiniYaml.FromFile(FindMod("sequences", "sequences-ingame.yaml"))
 				.FirstOrDefault(n => n.Key == "explosion");
@@ -600,7 +607,7 @@ namespace OpenRA.Test
 				total += chosen != 0 ? chosen : tick;
 			}
 
-			return total / (double)AnimationMillisecondsPerTick;
+			return total * durationScalePercent / (100.0 * AnimationMillisecondsPerTick);
 		}
 
 		/// <summary>
@@ -642,9 +649,11 @@ namespace OpenRA.Test
 		///     sprite that runs 199, so the flash was over inside 1% of its own cloud and the small
 		///     weapons did not read as nuclear at all. The rule is now
 		///         D = max(fireball animation length, physical fireball lifetime)
-		///     with the animation length DERIVED here from the sequences file and the SHP header. The
-		///     physical term only ever binds on Tsar Bomba today. This is the assertion that keeps the
-		///     light and the cloud from drifting apart again, which is the whole point of the rework.
+		///     with the animation length DERIVED here from the sequences file and the SHP header. This
+		///     is the assertion that keeps the light and the cloud from drifting apart again, which is
+		///     the whole point of the rework. The physical term bound only on Tsar Bomba then, and on
+		///     nothing at all since 2026-09-08, when the animation itself started scaling with yield
+		///     and overtook it — see AnimationTicks and DurationScalePercent.
 		///
 		///     THE ENVELOPE IS TWO STAGES. A short blinding white spike falling to a shoulder at 70%
 		///     of peak, then a long quadratic fade to nothing:
@@ -665,7 +674,8 @@ namespace OpenRA.Test
 			foreach (var (weapon, kt) in AllNukes)
 			{
 				var light = LightEventDefinition.LoadFrom(Warhead(weapon, "Warhead@FireballLight"), "Light", true);
-				var animation = AnimationTicks(FireballSequence(weapon));
+				var fireball = FireballSequence(weapon);
+				var animation = AnimationTicks(fireball.Sequence, fireball.DurationScalePercent);
 				var physical = FireballTicks(kt);
 
 				// 1. THE LIGHT COVERS THE CLOUD. Stated first and on its own because it is the user's
@@ -841,29 +851,32 @@ namespace OpenRA.Test
 			return 0;
 		}
 
-		/// <summary>
-		/// What yield buys, now that it no longer buys the light's LENGTH.
-		///
-		/// REWRITTEN 2026-09-07. This test used to assert that the two lifetimes stood in the ratio
-		/// (6000/20)^0.44 — the physical fireball law — and that assertion is gone because the premise
-		/// is gone: duration comes from the fireball animation now, and both weapons draw the same
-		/// sequence, so both durations are the same number and the ratio is 1. Asserting a ratio of 1
-		/// would pin an accident of today's sequences file, so what is pinned instead is the RULE that
-		/// produced it: each weapon's light is as long as its own animation. That assertion keeps
-		/// working unchanged on the day the ten weapons get ten sequences, which is the intent.
-		///
-		/// What yield still buys, and what is checked here:
-		///   AREA      — 124 cells against 12, still on the thermal Y^0.41 law.
-		///   THE WHITE PHASE — 9 ticks against 4. The one thing yield still buys in TIME.
-		/// What it deliberately does not buy:
-		///   BRIGHTNESS — a fireball's surface is ~7000 K whatever set it off, so the peaks must
-		///   match. Making the strategic weapon brighter instead of bigger is the one obvious wrong
-		///   way to scale this, and it would not even work: TerrainLighting.Tint sums
-		///   `falloff * intensity * tint` with no clamp anywhere in the path, so 7.0 is already
-		///   saturated at the centre of the light and raising it only widens the blown-out core.
-		/// </summary>
+		/// <summary>What yield buys the fireball, and the one axis it deliberately does not.</summary>
+		// REWRITTEN 2026-09-07, then again 2026-09-08.
+		//
+		// The FIRST rewrite deleted an assertion that the two lifetimes stood in the ratio
+		// (6000/20)^0.44 — the physical fireball law. Duration had become the fireball ANIMATION's,
+		// both weapons drew the same sequence at the same speed, so both durations were the same
+		// number and the ratio was 1. What went in instead was the RULE rather than the ratio: each
+		// weapon's light is as long as its OWN animation.
+		//
+		// The SECOND is this one, and it is why this test is no longer called "...ButNotItsLength".
+		// The animation itself now scales, at t = 11.95 s * (Y/20)^0.12, so length is back on the list
+		// of things yield buys — 394 ticks against 199 for these two. The per-weapon assertion below
+		// did not need editing to pick that up, which is the whole reason it was written that way.
+		//
+		// What yield buys, and what is checked here:
+		//   AREA — 124 cells against 12, still on the thermal Y^0.41 law.
+		//   LENGTH — 394 ticks against 199, on the animation's law and not the physical one.
+		//   THE WHITE PHASE — 9 ticks against 4.
+		// What it deliberately does not buy:
+		//   BRIGHTNESS — a fireball's surface is ~7000 K whatever set it off, so the peaks must
+		//   match. Making the strategic weapon brighter instead of bigger is the one obvious wrong
+		//   way to scale this, and it would not even work: TerrainLighting.Tint sums
+		//   `falloff * intensity * tint` with no clamp anywhere in the path, so 7.0 is already
+		//   saturated at the centre of the light and raising it only widens the blown-out core.
 		[Test]
-		public void YieldScalesTheFireballsAreaAndItsWhitePhaseButNotItsBrightnessOrItsLength()
+		public void YieldScalesTheFireballsAreaLengthAndWhitePhaseButNotItsBrightness()
 		{
 			var tactical = LightEventDefinition.LoadFrom(Warhead("Atomic", "Warhead@FireballLight"), "Light", true);
 			var strategic = LightEventDefinition.LoadFrom(Warhead("AtomicHighYield", "Warhead@FireballLight"), "Light", true);
@@ -877,8 +890,17 @@ namespace OpenRA.Test
 			// Each light is as long as its OWN animation. Written per weapon rather than as a ratio so
 			// it still means something when the two stop sharing a sequence.
 			foreach (var (weapon, light) in new[] { ("Atomic", tactical), ("AtomicHighYield", strategic) })
-				Assert.That(light.Duration, Is.GreaterThanOrEqualTo((int)Math.Floor(AnimationTicks(FireballSequence(weapon)))),
+			{
+				var fireball = FireballSequence(weapon);
+				Assert.That(light.Duration, Is.GreaterThanOrEqualTo((int)Math.Floor(AnimationTicks(fireball.Sequence, fireball.DurationScalePercent))),
 					$"{weapon}'s light no longer covers its own fireball animation");
+			}
+
+			// And the strategic weapon's cloud really does hang around longer, which is the 2026-09-08
+			// request. Asserted as an inequality rather than at the exponent: 0.12 is a taste number
+			// and retuning it must not be a test edit, but reversing the ORDER would be the defect.
+			Assert.That(strategic.Duration, Is.GreaterThan(tactical.Duration),
+				"the 6 Mt fireball no longer outlasts the 20 kt one; yield is supposed to buy a slower cloud as well as a bigger one");
 
 			Assert.That(ShoulderTick(strategic, "AtomicHighYield"), Is.GreaterThan(ShoulderTick(tactical, "Atomic")),
 				"the strategic weapon's white phase is no longer longer than the tactical one's; the white phase is the only thing yield still buys in time");

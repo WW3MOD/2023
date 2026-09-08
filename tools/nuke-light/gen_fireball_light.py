@@ -17,11 +17,12 @@ has drifted away from it.
     python3 tools/nuke-light/gen_fireball_light.py --check    # non-zero exit if the YAML has drifted
     python3 tools/nuke-light/gen_fireball_light.py --write    # rewrite the Light: blocks in place
 
-DO NOT hard-code the animation length. At the time of writing every weapon shares one sequence
-(`nuke_large`), so every animation is the same length -- but that is a fact about today's YAML and it
-is expected to change: the intent is for yield to buy a slower, longer cloud. When it does, this
-script needs no edit, because each weapon's animation is looked up through its own
-`Warhead@Fireball` `Explosions:` name. Ten sequences work exactly as one does.
+DO NOT hard-code the animation length. Every weapon still shares one sequence (`nuke_large`), but
+since 2026-09-08 each plays it at its own speed: the CreateEffect warhead's `DurationScalePercent`
+stretches the sprite in time the way `ScalePercent` stretches it in space, following
+`t = 11.95 s * (Y/20)^0.12` -- 60% at the 0.3 kt B61 dial, 100% at the 20 kt anchor, 256% at Tsar
+Bomba. So the animation length is the ladder walk TIMES that percentage, looked up per weapon through
+its own `Warhead@Fireball` block. Ten sequences would work exactly as one does.
 """
 
 import argparse
@@ -221,16 +222,26 @@ def read_weapons(root):
                         return s.split(':', 1)[1].strip()
                 raise SystemExit(name + " has no " + key)
 
-            sequence = None
+            # The sequence AND its duration scale come from the same Warhead@Fireball* block: a
+            # weapon may carry several (Tsar Bomba has five, offset into one cloud) and reading
+            # DurationScalePercent from anywhere else in the weapon would pair the wrong two numbers.
+            sequence, scale = None, 100
+            in_fireball = False
             for line in block:
-                if line.strip().startswith('Explosions:') and 'nuke' in line:
-                    sequence = line.split(':', 1)[1].strip()
+                if re.match(r'^\t\S', line):     # a new warhead header ends the one we are inside
+                    in_fireball = False
+                text = line.strip()
+                if text.startswith('Explosions:') and 'nuke' in text and sequence is None:
+                    sequence = text.split(':', 1)[1].strip()
+                    in_fireball = True
+                elif in_fireball and text.startswith('DurationScalePercent:'):
+                    scale = int(text.split(':', 1)[1])
                     break
             if sequence is None:
                 raise SystemExit(name + " has no nuke Explosions: to take its animation from")
 
             out[name] = dict(
-                file=filename, kt=YIELDS[name], sequence=sequence,
+                file=filename, kt=YIELDS[name], sequence=sequence, scale=scale,
                 times=[int(x) for x in field('Times').split(',')],
                 intensities=[float(x) for x in field('Intensities').split(',')],
                 radii=[parse_wdist(x) for x in field('Radii').split(',')],
@@ -256,7 +267,9 @@ def build(root, weapons):
     out = {}
     for name, cur in weapons.items():
         kt = cur['kt']
-        d_anim = animation_ticks(root, cur['sequence'])
+        # SpriteEffect banks a milliseconds x percent remainder rather than rounding per tick, so the
+        # played length is the natural length times the percentage, to within one tick.
+        d_anim = animation_ticks(root, cur['sequence']) * cur['scale'] / 100.0
         d_phys = physical_fireball_ticks(kt)
         duration = int(round(max(d_anim, d_phys)))
         white = white_ticks(kt)
@@ -331,13 +344,13 @@ def main():
     root = repo_root()
     built = build(root, read_weapons(root))
 
-    print("%-18s %9s %8s %8s %6s %5s  %s"
-          % ("weapon", "kt", "anim", "phys", "D", "W", "duration source"))
+    print("%-18s %9s %6s %8s %8s %6s %5s  %s"
+          % ("weapon", "kt", "dur%", "anim", "phys", "D", "W", "duration source"))
     for name in sorted(built, key=lambda n: built[n]['kt']):
         e = built[name]
         src = "animation" if e['d_anim'] >= e['d_phys'] else "physics (outlives the animation)"
-        print("%-18s %9g %8.1f %8.1f %6d %5d  %s"
-              % (name, e['kt'], e['d_anim'], e['d_phys'], e['duration'], e['white'], src))
+        print("%-18s %9g %6d %8.1f %8.1f %6d %5d  %s"
+              % (name, e['kt'], e['scale'], e['d_anim'], e['d_phys'], e['duration'], e['white'], src))
 
     if args.write:
         rewrite(root, built)
