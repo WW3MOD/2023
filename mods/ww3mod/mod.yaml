@@ -70,6 +70,7 @@ FileSystem: DefaultFileSystem
 		ww3mod|bits/misc/palettes
 		ww3mod|bits/misc/resources
 		ww3mod|bits/misc/tiles
+		ww3mod|bits/misc/scars
 		ww3mod|bits/misc/ui
 
 		ww3mod|bits/sounds

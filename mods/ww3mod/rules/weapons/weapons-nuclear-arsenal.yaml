@@ -462,22 +462,16 @@ NukeB61Mod12Y003:
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
-	Warhead@Crater: LeaveSmudge
-		Size: 1
-		SmudgeType: Crater
+	Warhead@Scar1Core: LeaveSmudge
+		Size: 0
+		SmudgeType: ScarCore
 		Delay: 2
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch1: LeaveSmudge
-		Size: 1
-		SmudgeType: Scorch
+	Warhead@Scar3Char: LeaveSmudge
+		Size: 1, 1
+		SmudgeType: ScarChar
 		Delay: 2
-		InvalidTargets: Vehicle, Structure, Wall
-		AirThreshold: 24c0
-	Warhead@Scorch2: LeaveSmudge
-		Size: 1
-		SmudgeType: Scorch
-		Delay: 3
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
 
@@ -785,21 +779,21 @@ NukeB61Mod12Y015:
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
-	Warhead@Crater: LeaveSmudge
-		Size: 1
-		SmudgeType: Crater
+	Warhead@Scar1Core: LeaveSmudge
+		Size: 0
+		SmudgeType: ScarCore
 		Delay: 2
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch1: LeaveSmudge
-		Size: 1
-		SmudgeType: Scorch
+	Warhead@Scar2Crater: LeaveSmudge
+		Size: 1, 1
+		SmudgeType: ScarCrater
 		Delay: 2
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch2: LeaveSmudge
-		Size: 2
-		SmudgeType: Scorch
+	Warhead@Scar4Burn: LeaveSmudge
+		Size: 2, 2
+		SmudgeType: ScarBurn
 		Delay: 6
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
@@ -1108,21 +1102,27 @@ NukeB61Mod12Y10:
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
-	Warhead@Crater: LeaveSmudge
+	Warhead@Scar1Core: LeaveSmudge
 		Size: 1
-		SmudgeType: Crater
+		SmudgeType: ScarCore
 		Delay: 2
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch1: LeaveSmudge
-		Size: 2
-		SmudgeType: Scorch
+	Warhead@Scar3Char: LeaveSmudge
+		Size: 2, 2
+		SmudgeType: ScarChar
 		Delay: 5
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch2: LeaveSmudge
-		Size: 4
-		SmudgeType: Scorch
+	Warhead@Scar4Burn: LeaveSmudge
+		Size: 3, 3
+		SmudgeType: ScarBurn
+		Delay: 8
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scar5Rim: LeaveSmudge
+		Size: 4, 4
+		SmudgeType: ScarRim
 		Delay: 12
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
@@ -1431,21 +1431,33 @@ NukeB61Mod12Y50:
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
-	Warhead@Crater: LeaveSmudge
-		Size: 2
-		SmudgeType: Crater
+	Warhead@Scar1Core: LeaveSmudge
+		Size: 1
+		SmudgeType: ScarCore
+		Delay: 0
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scar2Crater: LeaveSmudge
+		Size: 2, 2
+		SmudgeType: ScarCrater
 		Delay: 3
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch1: LeaveSmudge
-		Size: 4
-		SmudgeType: Scorch
+	Warhead@Scar3Char: LeaveSmudge
+		Size: 4, 3
+		SmudgeType: ScarChar
 		Delay: 8
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch2: LeaveSmudge
-		Size: 7
-		SmudgeType: Scorch
+	Warhead@Scar4Burn: LeaveSmudge
+		Size: 6, 5
+		SmudgeType: ScarBurn
+		Delay: 16
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scar5Rim: LeaveSmudge
+		Size: 7, 7
+		SmudgeType: ScarRim
 		Delay: 20
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
@@ -1754,21 +1766,33 @@ NukeW76:
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
-	Warhead@Crater: LeaveSmudge
-		Size: 3
-		SmudgeType: Crater
+	Warhead@Scar1Core: LeaveSmudge
+		Size: 1
+		SmudgeType: ScarCore
+		Delay: 0
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scar2Crater: LeaveSmudge
+		Size: 3, 2
+		SmudgeType: ScarCrater
 		Delay: 4
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch1: LeaveSmudge
-		Size: 5
-		SmudgeType: Scorch
+	Warhead@Scar3Char: LeaveSmudge
+		Size: 5, 4
+		SmudgeType: ScarChar
 		Delay: 10
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch2: LeaveSmudge
-		Size: 9
-		SmudgeType: Scorch
+	Warhead@Scar4Burn: LeaveSmudge
+		Size: 7, 6
+		SmudgeType: ScarBurn
+		Delay: 18
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scar5Rim: LeaveSmudge
+		Size: 9, 8
+		SmudgeType: ScarRim
 		Delay: 26
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
@@ -2090,21 +2114,33 @@ NukeSarmatRV:
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
-	Warhead@Crater: LeaveSmudge
-		Size: 6
-		SmudgeType: Crater
+	Warhead@Scar1Core: LeaveSmudge
+		Size: 3
+		SmudgeType: ScarCore
+		Delay: 0
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scar2Crater: LeaveSmudge
+		Size: 6, 4
+		SmudgeType: ScarCrater
 		Delay: 8
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch1: LeaveSmudge
-		Size: 10
-		SmudgeType: Scorch
+	Warhead@Scar3Char: LeaveSmudge
+		Size: 10, 7
+		SmudgeType: ScarChar
 		Delay: 21
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch2: LeaveSmudge
-		Size: 18
-		SmudgeType: Scorch
+	Warhead@Scar4Burn: LeaveSmudge
+		Size: 14, 11
+		SmudgeType: ScarBurn
+		Delay: 36
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scar5Rim: LeaveSmudge
+		Size: 18, 15
+		SmudgeType: ScarRim
 		Delay: 50
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
@@ -2421,21 +2457,33 @@ NukeB83:
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 25c0
-	Warhead@Crater: LeaveSmudge
-		Size: 7
-		SmudgeType: Crater
+	Warhead@Scar1Core: LeaveSmudge
+		Size: 3
+		SmudgeType: ScarCore
+		Delay: 0
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 25c0
+	Warhead@Scar2Crater: LeaveSmudge
+		Size: 7, 4
+		SmudgeType: ScarCrater
 		Delay: 9
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 25c0
-	Warhead@Scorch1: LeaveSmudge
-		Size: 12
-		SmudgeType: Scorch
+	Warhead@Scar3Char: LeaveSmudge
+		Size: 12, 8
+		SmudgeType: ScarChar
 		Delay: 24
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 25c0
-	Warhead@Scorch2: LeaveSmudge
-		Size: 21
-		SmudgeType: Scorch
+	Warhead@Scar4Burn: LeaveSmudge
+		Size: 17, 13
+		SmudgeType: ScarBurn
+		Delay: 43
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 25c0
+	Warhead@Scar5Rim: LeaveSmudge
+		Size: 21, 18
+		SmudgeType: ScarRim
 		Delay: 59
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 25c0
@@ -2800,21 +2848,33 @@ NukeTsarBomba:
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 40c0
-	Warhead@Crater: LeaveSmudge
-		Size: 12
-		SmudgeType: Crater
+	Warhead@Scar1Core: LeaveSmudge
+		Size: 5
+		SmudgeType: ScarCore
+		Delay: 0
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 40c0
+	Warhead@Scar2Crater: LeaveSmudge
+		Size: 12, 6
+		SmudgeType: ScarCrater
 		Delay: 34
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 40c0
-	Warhead@Scorch1: LeaveSmudge
-		Size: 20
-		SmudgeType: Scorch
+	Warhead@Scar3Char: LeaveSmudge
+		Size: 20, 13
+		SmudgeType: ScarChar
 		Delay: 86
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 40c0
-	Warhead@Scorch2: LeaveSmudge
-		Size: 34
-		SmudgeType: Scorch
+	Warhead@Scar4Burn: LeaveSmudge
+		Size: 27, 21
+		SmudgeType: ScarBurn
+		Delay: 146
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 40c0
+	Warhead@Scar5Rim: LeaveSmudge
+		Size: 34, 28
+		SmudgeType: ScarRim
 		Delay: 206
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 40c0
@@ -3233,21 +3293,21 @@ NukeRu9M729:
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
-	Warhead@Crater: LeaveSmudge
-		Size: 1
-		SmudgeType: Crater
+	Warhead@Scar1Core: LeaveSmudge
+		Size: 0
+		SmudgeType: ScarCore
 		Delay: 2
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch1: LeaveSmudge
-		Size: 1
-		SmudgeType: Scorch
+	Warhead@Scar2Crater: LeaveSmudge
+		Size: 1, 1
+		SmudgeType: ScarCrater
 		Delay: 2
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch2: LeaveSmudge
-		Size: 2
-		SmudgeType: Scorch
+	Warhead@Scar4Burn: LeaveSmudge
+		Size: 2, 2
+		SmudgeType: ScarBurn
 		Delay: 5
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
@@ -3563,21 +3623,27 @@ NukeRuIskander:
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
-	Warhead@Crater: LeaveSmudge
+	Warhead@Scar1Core: LeaveSmudge
 		Size: 1
-		SmudgeType: Crater
+		SmudgeType: ScarCore
 		Delay: 2
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch1: LeaveSmudge
-		Size: 2
-		SmudgeType: Scorch
+	Warhead@Scar3Char: LeaveSmudge
+		Size: 2, 2
+		SmudgeType: ScarChar
 		Delay: 5
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch2: LeaveSmudge
-		Size: 4
-		SmudgeType: Scorch
+	Warhead@Scar4Burn: LeaveSmudge
+		Size: 3, 3
+		SmudgeType: ScarBurn
+		Delay: 8
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scar5Rim: LeaveSmudge
+		Size: 4, 4
+		SmudgeType: ScarRim
 		Delay: 12
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
@@ -3893,21 +3959,33 @@ NukeRuKinzhalN:
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
-	Warhead@Crater: LeaveSmudge
-		Size: 2
-		SmudgeType: Crater
+	Warhead@Scar1Core: LeaveSmudge
+		Size: 1
+		SmudgeType: ScarCore
+		Delay: 0
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scar2Crater: LeaveSmudge
+		Size: 2, 2
+		SmudgeType: ScarCrater
 		Delay: 3
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch1: LeaveSmudge
-		Size: 4
-		SmudgeType: Scorch
+	Warhead@Scar3Char: LeaveSmudge
+		Size: 4, 3
+		SmudgeType: ScarChar
 		Delay: 8
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch2: LeaveSmudge
-		Size: 7
-		SmudgeType: Scorch
+	Warhead@Scar4Burn: LeaveSmudge
+		Size: 6, 5
+		SmudgeType: ScarBurn
+		Delay: 16
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scar5Rim: LeaveSmudge
+		Size: 7, 7
+		SmudgeType: ScarRim
 		Delay: 20
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
@@ -4222,21 +4300,33 @@ NukeRuKalibr:
 		ValidTargets: Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
-	Warhead@Crater: LeaveSmudge
-		Size: 3
-		SmudgeType: Crater
+	Warhead@Scar1Core: LeaveSmudge
+		Size: 1
+		SmudgeType: ScarCore
+		Delay: 0
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scar2Crater: LeaveSmudge
+		Size: 3, 2
+		SmudgeType: ScarCrater
 		Delay: 4
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch1: LeaveSmudge
-		Size: 5
-		SmudgeType: Scorch
+	Warhead@Scar3Char: LeaveSmudge
+		Size: 5, 4
+		SmudgeType: ScarChar
 		Delay: 10
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch2: LeaveSmudge
-		Size: 9
-		SmudgeType: Scorch
+	Warhead@Scar4Burn: LeaveSmudge
+		Size: 7, 6
+		SmudgeType: ScarBurn
+		Delay: 18
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scar5Rim: LeaveSmudge
+		Size: 9, 8
+		SmudgeType: ScarRim
 		Delay: 26
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0

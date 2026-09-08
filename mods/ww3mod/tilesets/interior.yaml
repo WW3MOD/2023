@@ -8,7 +8,7 @@ Terrain:
 	TerrainType@Clear:
 		Type: Clear
 		TargetTypes: Ground
-		AcceptsSmudgeType: Crater, Scorch
+		AcceptsSmudgeType: Crater, Scorch, ScarCore, ScarCrater, ScarChar, ScarBurn, ScarRim
 		Color: 000000
 	TerrainType@ClearNoSmudges:
 		Type: ClearNoSmudges

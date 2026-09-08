@@ -9,29 +9,29 @@ Terrain:
 	TerrainType@Road:
 		Type: Road
 		TargetTypes: Ground
-		AcceptsSmudgeType: Crater, Scorch
+		AcceptsSmudgeType: Crater, Scorch, ScarCore, ScarCrater, ScarChar, ScarBurn, ScarRim
 		Color: 587474
 	TerrainType@Bridge:
 		Type: Bridge
 		TargetTypes: Ground, Bridge
-		AcceptsSmudgeType: Crater, Scorch
+		AcceptsSmudgeType: Crater, Scorch, ScarCore, ScarCrater, ScarChar, ScarBurn, ScarRim
 		Color: 606060
 
 	TerrainType@Clear:
 		Type: Clear
 		TargetTypes: Ground
-		AcceptsSmudgeType: Crater, Scorch
+		AcceptsSmudgeType: Crater, Scorch, ScarCore, ScarCrater, ScarChar, ScarBurn, ScarRim
 		Color: C4C4C4
 		RestrictPlayerColor: true
 	TerrainType@Rough:
 		Type: Rough
 		TargetTypes: Ground
-		AcceptsSmudgeType: Crater, Scorch
+		AcceptsSmudgeType: Crater, Scorch, ScarCore, ScarCrater, ScarChar, ScarBurn, ScarRim
 		Color: 44443C
 	TerrainType@Debris:
 		Type: Debris
 		TargetTypes: Ground
-		AcceptsSmudgeType: Crater, Scorch
+		AcceptsSmudgeType: Crater, Scorch, ScarCore, ScarCrater, ScarChar, ScarBurn, ScarRim
 		Color: 44443C
 	TerrainType@Rock:
 		Type: Rock
@@ -66,7 +66,7 @@ Terrain:
 	TerrainType@Wall:
 		Type: Wall
 		TargetTypes: Ground
-		AcceptsSmudgeType: Crater, Scorch
+		AcceptsSmudgeType: Crater, Scorch, ScarCore, ScarCrater, ScarChar, ScarBurn, ScarRim
 		Color: D0C0A0
 	# TerrainType@Gems:
 	# 	Type: Gems

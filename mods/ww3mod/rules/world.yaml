@@ -468,6 +468,43 @@ World:
 		SmokeChance: 25
 		SmokeImage: smoke_m
 		SmokeSequences: idle
+
+	# ---- blast-scar bands, outermost first ----------------------------------
+	# SMUDGE LAYER ORDER IS Z ORDER -- "Order of the layers defines the Z sorting"
+	# (SmudgeLayer.cs:30). These five are listed LIGHTEST FIRST so the darkest
+	# draws last and wins. Within one blast the bands are annuli and never
+	# overlap, but two blasts overlapping is routine, and in the other order a
+	# later weapon's faint outer rim would paint over an earlier weapon's blasted
+	# centre -- damage would appear to heal.
+	#
+	# SmokeChance is rolled PER CELL (SmudgeLayer.cs:158), not per warhead, so it
+	# is only set on the two innermost bands. AtomicHighYield's rim band alone is
+	# ~2600 cells; Scorch's 50 there would be over a thousand SpriteEffects from
+	# one shot.
+	SmudgeLayer@SCARRIM:
+		Type: ScarRim
+		Sequence: scarband-rim
+		SmokeChance: 0
+	SmudgeLayer@SCARBURN:
+		Type: ScarBurn
+		Sequence: scarband-burn
+		SmokeChance: 0
+	SmudgeLayer@SCARCHAR:
+		Type: ScarChar
+		Sequence: scarband-char
+		SmokeChance: 0
+	SmudgeLayer@SCARCRATER:
+		Type: ScarCrater
+		Sequence: scarband-crater
+		SmokeChance: 20
+		SmokeImage: smoke_m
+		SmokeSequences: idle
+	SmudgeLayer@SCARCORE:
+		Type: ScarCore
+		Sequence: scarband-core
+		SmokeChance: 40
+		SmokeImage: smoke_m
+		SmokeSequences: idle
 	WarheadDebugOverlay:
 	SpawnMapActors:
 	MapBuildRadius:
