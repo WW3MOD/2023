@@ -305,4 +305,7 @@ if __name__ == "__main__":
     if "--decide" in sys.argv:
         decide(os.path.join(REPO, "WORKSPACE/mockups/_burnt-trees-candidates.png"))
     else:
-        deliverable(os.path.join(REPO, "WORKSPACE/mockups/burnt-trees.png"), "husk")
+        # "husk+char" is what ^TreeIndestructible actually ships: the frame swap AND the
+        # WithColoredOverlay wash. Rendering plain "husk" here would show a mockup the YAML does
+        # not produce -- correct on TEMPERAT and materially wrong on SNOW.
+        deliverable(os.path.join(REPO, "WORKSPACE/mockups/burnt-trees.png"), "husk+char")
