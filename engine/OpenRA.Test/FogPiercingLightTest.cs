@@ -14,8 +14,12 @@
  */
 #endregion
 
+using System;
 using NUnit.Framework;
+using OpenRA.Mods.Common.Graphics;
+using OpenRA.Mods.Common.Lighting;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Test
@@ -122,6 +126,105 @@ namespace OpenRA.Test
 			}
 
 			Assert.That(ShroudRenderer.FogPaletteAlpha, Is.EqualTo(FogPaletteAlpha));
+		}
+
+		// ---------------------------------------------------------------------------------------------
+		// The SHAPE of the glow, as opposed to its brightness. Everything above pins how much light the
+		// fog ate; everything below pins that putting it back does not draw a grid of tiles while doing
+		// so. The user reported exactly that after playing: the falloff resolved into flat squares on the
+		// terrain grid, worst in the mid-brightness ring away from the blown-out core.
+		// ---------------------------------------------------------------------------------------------
+
+		// mods/ww3mod/rules/weapons/weapons-superweapons.yaml, the FireballLight warhead at its tick-0
+		// keyframe -- the brightest instant, and the one the user's screenshot was taken at.
+		static readonly WDist ShippedRadius = new WDist(12288);
+		const float ShippedPeakIntensity = 7f;
+		static readonly float3 ShippedPeakTint = new float3(0xE6 / 255f, 0xF0 / 255f, 0xFF / 255f);
+		const LightFalloff ShippedFalloff = LightFalloff.InverseSquare;
+
+		/// <summary>Centre of cell (x, 0) on a rectangular grid, the way Map.CenterOfCell computes it.</summary>
+		static WPos CellCentre(int x)
+		{
+			return new WPos(1024 * x + 512, 512, 0);
+		}
+
+		static float3 Contribution(in WPos pos)
+		{
+			return FogPiercingLightRenderable.ContributionAt(
+				CellCentre(0), ShippedRadius, ShippedPeakIntensity, ShippedPeakTint, ShippedFalloff, pos);
+		}
+
+		[Test]
+		public void AdjacentCellsAgreeOnTheCornerTheyShare()
+		{
+			// THE PROPERTY THAT MAKES THE GRID GO AWAY. The glow is still one quad per cell -- it has to be,
+			// because the fog factor it multiplies by is per-cell data -- but the light inside a quad is now
+			// sampled at the four corners and interpolated, so what a viewer sees along a cell boundary is
+			// the value both quads computed there. That only holds if the two cells derive the shared corner
+			// to the SAME position from their own centres, which is what this asserts: exactly, not within a
+			// tolerance, because a half-unit disagreement is a seam.
+			for (var x = 0; x < 14; x++)
+			{
+				var rightOfThisCell = Contribution(CellCentre(x) + new WVec(512, -512, 0));
+				var leftOfNextCell = Contribution(CellCentre(x + 1) + new WVec(-512, -512, 0));
+				Assert.That(leftOfNextCell, Is.EqualTo(rightOfThisCell), $"cell {x} / {x + 1} top corner");
+			}
+		}
+
+		[Test]
+		public void FlatCentreSamplingWouldStepByTensOfEightBitLevels()
+		{
+			// THE DEFECT, as a number, so nobody has to re-derive it from a screenshot. Filling each cell
+			// flat from its centre made the visible step between two neighbours the whole centre-to-centre
+			// difference. Against an 8-bit quantum of 1 level, that is 60-odd levels halfway out and never
+			// fewer than about 10 anywhere the glow is drawn at all -- which is why it read as a hard grid
+			// rather than as dithering, and why 8-bit rounding in ToColor was never a plausible cause.
+			var worst = 0f;
+			for (var x = 0; x < 11; x++)
+			{
+				var here = Contribution(CellCentre(x)).X;
+				var next = Contribution(CellCentre(x + 1)).X;
+				var levels = (here - next) * 255f;
+				Assert.That(levels, Is.GreaterThan(8f), $"step from cell {x} to {x + 1}");
+				worst = Math.Max(worst, levels);
+			}
+
+			Assert.That(worst, Is.GreaterThan(200f));
+		}
+
+		[Test]
+		public void TheGlowReachesZeroAtItsOwnRadius()
+		{
+			// The outer edge is the other place a hard edge can hide. The windowed inverse-square curve is 0
+			// exactly at the radius, so the last lit corner fades to nothing instead of the glow stopping on
+			// a lit cell -- and beyond the radius there is nothing to draw at all.
+			var edge = Contribution(CellCentre(0) + new WVec(ShippedRadius.Length, 0, 0));
+			Assert.That(edge.X, Is.EqualTo(0f).Within(1e-6f));
+			Assert.That(edge.Y, Is.EqualTo(0f).Within(1e-6f));
+			Assert.That(edge.Z, Is.EqualTo(0f).Within(1e-6f));
+
+			var beyond = Contribution(CellCentre(0) + new WVec(ShippedRadius.Length + 1, 0, 0));
+			Assert.That(beyond, Is.EqualTo(float3.Zero));
+		}
+
+		[Test]
+		public void TheFogMaskStillAnnihilatesEveryCornerOfAnUnexploredCell()
+		{
+			// Interpolating the LIGHT does not interpolate the MASK, and this is the assertion that says so.
+			// Each of the four corners is multiplied by its own cell's `lost`, which is 0 under never-explored
+			// shroud -- so an unexplored cell contributes nothing at any corner however bright its neighbour
+			// is. Smoothing the mask instead would bleed a neighbour's value into that corner and light ground
+			// nobody has scouted, which is the one thing this renderable may never do.
+			var lost = Restored(0, ShippedFogDarkness);
+			foreach (var offset in new[]
+			{
+				new WVec(-512, -512, 0), new WVec(512, -512, 0), new WVec(512, 512, 0), new WVec(-512, 512, 0)
+			})
+			{
+				var corner = Contribution(CellCentre(0) + offset);
+				Assert.That(corner.X, Is.GreaterThan(0f), "the light itself must be non-zero here");
+				Assert.That(lost * corner, Is.EqualTo(float3.Zero), $"corner {offset}");
+			}
 		}
 	}
 }
