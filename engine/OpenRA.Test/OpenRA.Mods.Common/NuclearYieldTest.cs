@@ -1114,6 +1114,90 @@ namespace OpenRA.Test
 			}
 		}
 
+		/// <summary>
+		/// A nuke leaves the trees inside its THERMAL radius permanently burnt (2026-09-08), and the
+		/// radius is not a new number: it is this weapon's own Warhead@Fire10 Range, which is the
+		/// outermost ring of the thermal pulse that already sets structures and infantry alight.
+		///
+		/// Two properties, and the second is the one the feature exists for.
+		///
+		/// EQUALITY WITH Fire10. The fire chain is generated, and a regeneration that moved Fire10
+		/// without moving TreeBurn would desynchronise the trees from the pulse that burns them with
+		/// nothing to notice. They are one number written twice, so they are asserted equal rather
+		/// than each checked against the yield law separately.
+		///
+		/// CONTAINMENT OF THE GROUND SCAR. The bug report was a screenshot of bright green trees
+		/// standing on black scorched ground. What makes that state UNREACHABLE is not the frame swap
+		/// — it is this radius COVERING the outermost LeaveSmudge band on the same weapon, at every
+		/// rung of the ladder. It holds with room to spare almost everywhere (+1.23 cells at 0.3 kt,
+		/// +275 at Tsar Bomba) because thermal reach scales as Y^0.41 while the scar art is sized for
+		/// legibility. `Atomic` is the one weapon where the two are EXACTLY equal, which is still
+		/// sufficient — see the note at the assertion for why the boundary is exact and not merely
+		/// close. A future yield cannot quietly invert this; a hand-edited scar band could, and that
+		/// is what this catches.
+		/// </summary>
+		[Test]
+		public void TheForestBurnsToTheThermalRadius()
+		{
+			foreach (var (weapon, kt) in AllNukes)
+			{
+				var burn = Warhead(weapon, "Warhead@TreeBurn");
+				var fire = Warhead(weapon, "Warhead@Fire10");
+
+				Assert.That(Dist(burn, "Range", weapon + " TreeBurn"),
+					Is.EqualTo(Dist(fire, "Range", weapon + " Fire10")),
+					$"{weapon} ({kt} kt) burns its forest to a different radius than its own thermal " +
+					"pulse reaches. These are the same physical number — third-degree burns at " +
+					"2.0 * (kt/20)^0.41 km — written once for structures and infantry and once for " +
+					"trees. Regenerating the fire chain must move both.");
+
+				Assert.That(Field(burn, "Duration", weapon + " TreeBurn"), Is.EqualTo("0"),
+					$"{weapon}'s TreeBurn no longer grants a PERMANENT condition. Duration 0 is what " +
+					"ExternalCondition reads as no expiry; any other value makes the forest quietly " +
+					"turn green again some minutes after the strike.");
+
+				Assert.That(Field(burn, "ValidTargets", weapon + " TreeBurn"), Is.EqualTo("Trees"),
+					$"{weapon}'s TreeBurn no longer targets Trees exclusively. Trees are the ONLY class " +
+					"this may touch: every other actor in range is already handled by a damage warhead, " +
+					"and `scorched` on anything else names a sequence that actor does not have.");
+
+				var scar = OutermostScarCells(weapon);
+				var burnCells = Cells(Dist(burn, "Range", weapon));
+				// >= AND NOT >, AND THE BOUNDARY IS EXACT RATHER THAN GENEROUS. Both sides measure the
+				// same thing — centre-to-centre distance in cells — and both admit their boundary:
+				// FindTilesInAnnulus buckets a cell by ceil(hypot(dx, dy)) (MapGrid.cs:201-210), so the
+				// widest scarred cell sits at hypot <= N exactly, and FindActorsInCircle admits
+				// HorizontalLengthSquared <= r^2 (WorldUtils.cs:83-84). Equality therefore covers every
+				// scarred cell with nothing left over, and `Atomic` ships exactly equal (12.00 vs 12).
+				// It is the only weapon that is tight: the next smallest margin is +1.23 cells and Tsar
+				// Bomba runs +275. An earlier draft of this test asserted > and failed on Atomic alone,
+				// which was the test being wrong about the geometry rather than the YAML being wrong.
+				Assert.That(burnCells, Is.GreaterThanOrEqualTo(scar),
+					$"{weapon} ({kt} kt) scorches the ground out to {scar} cells but only burns trees to " +
+					$"{burnCells:0.00}. The ring between them is the exact defect this feature was built " +
+					"to remove: living green trees standing on black ground.");
+			}
+		}
+
+		/// <summary>Outer radius in cells of the widest LeaveSmudge band on a weapon. `Size: a, b` is
+		/// the annulus b..a and a bare `Size: a` is the filled disc 0..a (LeaveSmudgeWarhead.cs:53-54),
+		/// so the first value is the outer edge either way.</summary>
+		static int OutermostScarCells(string weapon)
+		{
+			var bands = Weapon(weapon).Nodes
+				.Where(n => n.Value.Value == "LeaveSmudge")
+				.Select(n => n.Value.Nodes.FirstOrDefault(c => c.Key == "Size")?.Value.Value)
+				.Where(v => v != null)
+				.Select(v => int.Parse(v.Split(',')[0].Trim()))
+				.ToArray();
+
+			Assert.That(bands, Is.Not.Empty,
+				$"{weapon} has no LeaveSmudge warhead with a Size, so the containment check above is " +
+				"comparing against nothing. Every nuke in this list scars the ground.");
+
+			return bands.Max();
+		}
+
 		const string LightAnchor = "AtomicHighYield";
 
 		/// <summary>A weapon's mushroom-cloud RADIUS in cells: nuke_large is 310 px wide and a cell is 24.</summary>

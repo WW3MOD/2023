@@ -4844,3 +4844,19 @@ map-rules test the way most weapon changes can — it has to be a change to the 
   game. It goes live the day a map places an airfield.
   (found while working on: aircraft repair-at-pad, `wt/air-repair`; the leg was removed from
   `test-heli-repairs-at-pad` so a green repair gate does not depend on this)
+
+- **2026-09-08 — a nuclear scar never blackens the ground a tree stands on.**
+  `LeaveSmudgeWarhead.DoImpact` skips any cell whose blocking actor is not a valid target for the
+  warhead (`LeaveSmudgeWarhead.cs:67-68`). Trees are `Targetable: TargetTypes: Trees`
+  (`decoration.yaml:185-186`) and all 51 `LeaveSmudge` warheads in `weapons-nuclear-arsenal.yaml`
+  take the default `ValidTargets: Ground, Water`, which does not overlap `Trees` — so **every tree
+  cell in a blast is skipped**, and a wood inside a crater keeps unscorched terrain under each
+  trunk. At forest density this is the dominant artefact of the scar rather than an edge case:
+  the disc becomes a patchwork of pale islands. Visible in `WORKSPACE/mockups/burnt-trees.png` as
+  the light patches under the burnt trunks. **Not a regression and not caused by `wt/burnt-trees`** —
+  it predates it and is unchanged by it; burning the trees made it easier to see, because a black
+  skeleton over a pale patch reads more sharply than a green tree did. Fix is plausibly one line
+  (add `Trees` to the scar warheads' `ValidTargets`), but it is 51 warheads and it interacts with
+  the `InvalidTargets: Vehicle, Structure, Wall` exclusions already on them, which are deliberate
+  (`WORKSPACE/reports/scar-blending-260908.md` §"the building shadow"). Not attempted.
+  (found while working on: burnt trees, `wt/burnt-trees`)

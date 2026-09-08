@@ -152,6 +152,83 @@
 ^TreeIndestructible:
 	DamageMultiplier@Indestructible:
 		Modifier: 0
+	# ---- NUCLEAR SCORCH, 2026-09-08 -------------------------------------------------------------
+	# A nuke leaves the trees inside its THERMAL radius permanently burnt. The tree is not killed,
+	# not replaced, not damaged and not removed: it is the same actor, on the same cell, with the
+	# same Building footprint, the same Passable class, the same BlocksProjectiles and the same
+	# ^TreeCover entry in the map-load ShadowLayer bake. Cover, line of fire and pathing are
+	# BYTE-IDENTICAL before and after. THIS DOES NOT TOUCH THE 2026-09-02 INDESTRUCTIBILITY RULING
+	# and must not be made to: DamageMultiplier@Indestructible above is untouched, nothing here adds
+	# Vaporizable, and a burnt tree still cannot be killed by anything a player can fire.
+	#
+	# WHY THE ACTOR HAS TO CHANGE AT ALL, rather than the ground. SmudgeLayer is an IRenderOverlay
+	# (SmudgeLayer.cs:87, :232-235) drawn from World.Draw before any actor renderable, so a scorch
+	# mark CANNOT be drawn on top of a tree at any Z. The only surface that can show the blast on a
+	# tree is the tree's own sprite. (WORKSPACE/reports/scar-blending-260908.md.)
+	#
+	# TWO TRAITS, AND BOTH ARE NEEDED. Neither alone is right on both shipped tilesets.
+	#   1. The FRAME SWAP is what makes the tree a leafless skeleton, which no tint can do -- the
+	#      burnt frame carries 35-78% of the living frame's opaque pixels. `burnt` is frame 1 of the
+	#      tree's own shp, the same frame the dormant T##.Husk actors reach, so it is authored art
+	#      and it exists for all 22 species (sequences/sequences-decorations.yaml).
+	#   2. The COLOUR WASH is what makes it CHARRED, and it exists for SNOW. Measured off the
+	#      shipped art (body pixels only, palette indices 3/4 excluded as shadow per
+	#      palettes.yaml:40-49), scar bands run rim-brightest to core-darkest:
+	#        TEMPERAT  ScarRim 44-47  ScarBurn 38-43  ScarChar 31-35  ScarCore 25-27
+	#        SNOW      ScarRim 137-145  ScarBurn 129-139  ScarChar 116-126  ScarCore 88-98
+	#      On TEMPERAT the burnt frame is 1.6-29.5 (mean 13.4) against a darkest band of 25, so it
+	#      already reads as char and the wash is very nearly a no-op on it. On SNOW the frame swap
+	#      buys almost nothing tonally: living mean 104.6 -> burnt 97.0, a 7% drop, and BRIGHTER
+	#      than the living tree on 9 of 20 species. That leaves the burnt tree at 93-113 sitting in
+	#      the SAME TONAL BAND as the crater floor beneath it (ScarCore 88-98) -- it does not
+	#      separate from the ground, which is the user's original complaint reproduced rather than
+	#      fixed, on three of the ten shipped maps including both nuke-themed ones. The wash is a
+	#      contraction toward a fixed char colour (WithColoredOverlay.cs:50-56 is ReplaceColor at a
+	#      fixed alpha), so it moves TEMPERAT 13.4 -> 16.8 and SNOW 97.0 -> 50.3 from one symmetric
+	#      operation. The temperate sign never flips: 16.8 stays clearly under the darkest band at
+	#      25, with 8 luminance points of margin. Do not "simplify" this to the frame swap alone
+	#      without re-measuring snow.
+	#
+	#      CORRECTED 2026-09-08. This block previously quoted scar bands of 6-21 (TEMPERAT) and
+	#      20-76 (SNOW) and concluded the burnt frame was BRIGHTER THAN EVERY SNOW BAND. Those four
+	#      numbers per tileset did not reproduce under independent re-measurement using the same
+	#      palettes and exclusion rule, and their rim/core ordering was inverted against the shipped
+	#      art. The tree-side numbers DID reproduce to within 1.5 luminance, which is what makes the
+	#      band table specifically suspect. Note the correction makes the case for the wash STRONGER
+	#      on temperate, not weaker: against the old bands a washed tree at 17 would have sat inside
+	#      the band range, and against the real ones it stays well clear.
+	#
+	# PERMANENT BY CONSTRUCTION: the granting warheads pass Duration 0, which ExternalCondition
+	# treats as no expiry. There is no un-burn and no tick cost -- both traits are ConditionalTraits
+	# that flip once and are then inert.
+	ExternalCondition@Scorched:
+		Condition: scorched
+		# TotalCap 1 because the grant is IDEMPOTENT and unbounded re-granting is a slow leak.
+		# ExternalCondition declares no cap by default, so CanGrantCondition always returns true
+		# (ExternalCondition.cs:88-104) and Duration 0 files a NEW permanent token on every hit
+		# (:167-170). A tree inside two thermal radii, or hit by a second nuke later, accumulates
+		# tokens forever -- keyed by the SOURCE ACTOR, so a destroyed launcher is held live by the
+		# dictionary and cannot be collected. It is not a correctness bug (the condition is boolean
+		# to all three consumers and GrantedValue is never read) and not a desync (per-actor state,
+		# deterministic count) -- roughly a megabyte on a 1200-tree map after 20 detonations. With
+		# the cap, re-grants are refused before Actor.GrantCondition is reached. There is no
+		# downside: a tree cannot be more burnt than burnt.
+		TotalCap: 1
+	# The living body yields to the burnt one. RequiresCondition merges onto the WithSpriteBody that
+	# ^Tree declares; ordering is load-bearing and every T##/TC0# inherits ^Tree FIRST and
+	# ^TreeIndestructible second, so this lands on the trait that already exists.
+	WithSpriteBody:
+		RequiresCondition: !scorched
+	WithSpriteBody@Scorched:
+		Sequence: burnt
+		Name: scorched
+		RequiresCondition: scorched
+	WithColoredOverlay@Scorched:
+		RequiresCondition: scorched
+		# RRGGBBAA (Color.cs:158-177). A dark warm char at 60% -- see (2) above for why the tint is
+		# not pure black: black crushes the already-black TEMPERAT frame to below its own scar
+		# without helping SNOW any more than this does.
+		Color: 18120C99
 
 ^Tree:
 	Inherits@1: ^SpriteActor
