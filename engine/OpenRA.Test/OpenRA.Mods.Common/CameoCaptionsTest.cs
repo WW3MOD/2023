@@ -347,6 +347,35 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void BandReachesTheSlotBottomWhenThePaddingIsAtLeastTheBottomMargin()
+		{
+			// THE RULE THE SHIPPED CONFIGURATION GOT WRONG. The band exists to REPLACE the caption
+			// baked into the art, so it has to cover every row that lettering occupies - and the art
+			// runs to the bottom of the slot and past it. The band's bottom is
+			// `slotHeight - bottomMargin + padding` clamped into the slot, so it reaches the last row
+			// only when the padding is at least the margin. Asserted as the relationship rather than
+			// against a literal 2, so that lowering either number is what fails.
+			for (var margin = 0; margin <= 4; margin++)
+			{
+				var band = Cache(bottomMargin: margin, backgroundPadding: margin).Get("50 KT").Background;
+				Assert.That(band.Bottom, Is.EqualTo(46), $"padding == bottomMargin == {margin}");
+			}
+		}
+
+		[Test]
+		public void BandStopsShortOfTheSlotBottomWhenThePaddingIsLessThanTheBottomMargin()
+		{
+			// The failure this pins is not hypothetical: the caption feature shipped with the engine
+			// default padding of 1 against a bottom margin of 2, leaving band rows 36-44 against
+			// baked ink whose last row is slot row 45, so a dotted line of the old lettering survived
+			// under every runtime caption. Kept as a test so the shape of that bug is on the record
+			// and the test above cannot be "fixed" by clamping the band unconditionally.
+			var band = Cache(bottomMargin: 2, backgroundPadding: 1).Get("50 KT").Background;
+			Assert.That(band.Bottom, Is.EqualTo(45));
+			Assert.That(band.Bottom, Is.LessThan(46));
+		}
+
+		[Test]
 		public void BackgroundBandIsClampedIntoTheSlot()
 		{
 			// A padding generous enough to reach past either edge must not, or the band would paint

@@ -27,7 +27,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 ICONS = os.path.join(ROOT, "mods/ww3mod/bits/misc/icons")
 
 SLOT_W, SLOT_H = 62, 46
-SIDE_MARGIN, BOTTOM_MARGIN, BAND_PAD, BADGE_GAP = 1, 2, 1, 1
+
+# Hand copy of the two palettes in chrome/ingame-player.yaml. BAND_PAD must stay >= BOTTOM_MARGIN
+# or the band stops short of the baked caption underneath it -- which is exactly the defect this
+# script found on 2026-09-08, when both were at the engine default of 1 against a margin of 2.
+# CameoCaptionBandTest enforces that relationship on the real chrome; nothing enforces it here.
+SIDE_MARGIN, BOTTOM_MARGIN, BAND_PAD, BADGE_GAP = 1, 2, 2, 1
 SPRITE_OFFSET = (-1, -1)  # IconSpriteOffset in chrome/ingame-player.yaml
 BAND = (0, 0, 0, 255)
 
