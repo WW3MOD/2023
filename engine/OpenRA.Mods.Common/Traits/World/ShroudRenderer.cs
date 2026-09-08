@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -192,7 +192,27 @@ namespace OpenRA.Mods.Common.Traits
 		// and the identity inside Bounds, so mid-map shroud drawing is untouched.
 		PPos ClampToPlayable(PPos puv)
 		{
-			var b = map.Bounds;
+			return ClampToPlayable(map, puv);
+		}
+
+		/// <summary>
+		/// The static body of <see cref="ClampToPlayable(PPos)"/>. Exposed because the fog quad a ring
+		/// cell receives is chosen by THIS rule, so anything that has to undo that quad -- today
+		/// <see cref="Graphics.FogPiercingLightRenderable"/> -- has to ask the same question rather
+		/// than hand-copy the answer. Render-side only, exactly as the note above requires: this is
+		/// which fog SPRITE gets drawn, never what a unit can see.
+		/// </summary>
+		public static PPos ClampToPlayable(Map map, PPos puv)
+		{
+			return ClampToPlayable(map.Bounds, puv);
+		}
+
+		/// <summary>
+		/// The clamp itself, taking the playable rectangle rather than a Map so the rule can be
+		/// asserted without standing up a world. See FogPiercingLightTest.
+		/// </summary>
+		public static PPos ClampToPlayable(Rectangle b, PPos puv)
+		{
 			var u = puv.U < b.Left ? b.Left : (puv.U > b.Right - 1 ? b.Right - 1 : puv.U);
 			var v = puv.V < b.Top ? b.Top : (puv.V > b.Bottom - 1 ? b.Bottom - 1 : puv.V);
 

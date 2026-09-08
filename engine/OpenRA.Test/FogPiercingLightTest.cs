@@ -226,5 +226,74 @@ namespace OpenRA.Test
 				Assert.That(lost * corner, Is.EqualTo(float3.Zero), $"corner {offset}");
 			}
 		}
+
+		// mods/ww3mod/maps: every shipped map is MapSize = Bounds + 2 with Bounds origin (1,1),
+		// i.e. a one-cell unplayable ring. x-lake is 130,130 against Bounds 1,1,128,128.
+		static readonly Rectangle ShippedRing = new Rectangle(1, 1, 128, 128);
+
+		[Test]
+		public void TheRingBorrowsTheMaskOfThePlayableCellItAbuts()
+		{
+			// The band the user reported, as a number. A ring cell is drawn by TerrainRenderer, tinted by
+			// TerrainLighting and fogged by ShroudRenderer -- all three run past Bounds -- but GetVisibility
+			// answers for the SIMULATION and returns 0 out there, so the restoration used to skip it and the
+			// ring came out at bare transmission while the cell one step inside came out whole. At the shipped
+			// FogDarkness under full fog that is a factor of seven across one tile boundary.
+			var ringAbove = new PPos(40, ShippedRing.Top - 1);
+			var clamped = ShroudRenderer.ClampToPlayable(ShippedRing, ringAbove);
+
+			Assert.That(clamped, Is.EqualTo(new PPos(40, ShippedRing.Top)),
+				"a ring cell must resolve to the playable cell it abuts, not to itself");
+
+			// Whatever that playable cell restores, the ring now restores the same -- so there is no step.
+			Assert.That(Restored(1, ShippedFogDarkness), Is.GreaterThan(0.8f));
+			Assert.That(ShroudRenderer.CompositeTransmission(1, ShippedFogDarkness), Is.LessThan(0.15f));
+		}
+
+		[Test]
+		public void TheRingStaysBlackWhenThePlayableCellItAbutsIsUnexplored()
+		{
+			// The no-leak guarantee at the new boundary, and the reason widening the sweep is safe. The ring
+			// borrows its mask from ONE specific playable cell. If that cell has never been scouted the clamp
+			// hands back its 0, restore[0] is 0, and the ring contributes nothing -- which is also exactly the
+			// opaque quad the shroud drew there. Widening the sweep cannot light unscouted ground because the
+			// mask it widens into is still the mask of a cell inside Bounds.
+			var clamped = ShroudRenderer.ClampToPlayable(ShippedRing, new PPos(40, ShippedRing.Top - 1));
+			Assert.That(Restored(0, ShippedFogDarkness), Is.EqualTo(0f));
+			Assert.That(clamped.V, Is.EqualTo(ShippedRing.Top), "the borrowed cell is inside Bounds");
+		}
+
+		[Test]
+		public void TheClampIsTheIdentityEverywhereInsideBounds()
+		{
+			// Mid-map drawing must be untouched: this is what says the widened sweep changes the ring and
+			// nothing else. Every corner and centre of the playable area maps to itself.
+			foreach (var puv in new[]
+			{
+				new PPos(ShippedRing.Left, ShippedRing.Top),
+				new PPos(ShippedRing.Right - 1, ShippedRing.Bottom - 1),
+				new PPos(ShippedRing.Left, ShippedRing.Bottom - 1),
+				new PPos(ShippedRing.Right - 1, ShippedRing.Top),
+				new PPos(64, 64)
+			})
+				Assert.That(ShroudRenderer.ClampToPlayable(ShippedRing, puv), Is.EqualTo(puv), $"{puv}");
+		}
+
+		[Test]
+		public void TheClampNeverLeavesThePlayableArea()
+		{
+			// The array-safety half. GetVisibility indexes ResolvedVisibility, so a PPos handed to it from the
+			// widened sweep has to land inside Bounds however far outside the caller started -- including the
+			// diagonal corners, where both axes clamp at once.
+			foreach (var puv in new[]
+			{
+				new PPos(-50, -50), new PPos(500, 500), new PPos(-1, 64), new PPos(64, 999), new PPos(129, 0)
+			})
+			{
+				var c = ShroudRenderer.ClampToPlayable(ShippedRing, puv);
+				Assert.That(c.U, Is.InRange(ShippedRing.Left, ShippedRing.Right - 1), $"U of {puv}");
+				Assert.That(c.V, Is.InRange(ShippedRing.Top, ShippedRing.Bottom - 1), $"V of {puv}");
+			}
+		}
 	}
 }

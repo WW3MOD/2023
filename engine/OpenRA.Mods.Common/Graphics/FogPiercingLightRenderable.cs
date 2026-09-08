@@ -47,6 +47,16 @@ namespace OpenRA.Mods.Common.Graphics
 	/// contributes no renderables at all -- Detectable.ModifyRender and FrozenUnderFog.ModifyRender
 	/// both return SpriteRenderable.None -- so it is absent from the framebuffer rather than painted
 	/// over, and adding light on top of where it is not cannot bring it back.</para>
+	/// <para>The sweep runs over the whole CELL GRID, not the playable Bounds, because that is the
+	/// region the fog it undoes is drawn over: terrain and both shroud layers all pass
+	/// restrictToBounds false. The one-cell unplayable ring between Bounds and MapSize therefore
+	/// carries real terrain, a real light tint and a real fog quad, and the quad it carries is the one
+	/// <see cref="ShroudRenderer.ClampToPlayable(Map, PPos)"/> chose for it -- so the mask is read
+	/// through that same clamp. Reading GetVisibility raw out there returns 0 (every visibility source
+	/// is gated on Bounds) and would leave the ring at bare transmission: a one-cell band roughly seven
+	/// times darker than the cell beside it, which is what the user reported. The clamp cannot widen
+	/// the guarantee above, because it can only ever return a cell INSIDE Bounds: an unexplored
+	/// neighbour still hands back 0.</para>
 	/// </summary>
 	public class FogPiercingLightRenderable : IRenderable, IFinalizedRenderable
 	{
@@ -112,7 +122,15 @@ namespace OpenRA.Mods.Common.Graphics
 			// Bound the sweep by the viewport as well as by the light. A 124-cell strategic fireball
 			// covers ~61k cells, almost none of them on screen; the visible region is a couple of
 			// thousand at most, and is exactly the region the fog itself is drawn over.
-			var visible = wr.Viewport.VisibleCellsInsideBounds;
+			//
+			// AllVisibleCells, not VisibleCellsInsideBounds: the region the fog is drawn over is the
+			// whole cell grid, not the playable Bounds. TerrainRenderer (TerrainRenderer.cs:88) and
+			// both ShroudRenderer layers (ShroudRenderer.cs:164,170) all pass restrictToBounds false,
+			// so terrain, shroud and fog are every one of them drawn across the one-cell unplayable
+			// ring that sits between Bounds and MapSize. Clipping the restoration to Bounds while the
+			// fog it compensates ran a cell wider is what drew a one-cell band down the map edge.
+			// The grid itself still bounds the sweep, via the map.Height.Contains guard below.
+			var visible = wr.Viewport.AllVisibleCells;
 			var reach = rangeLength + 1024;
 			var lightTL = map.CellContaining(center - new WVec(reach, reach, 0)).ToMPos(map);
 			var lightBR = map.CellContaining(center + new WVec(reach, reach, 0)).ToMPos(map);
@@ -140,7 +158,21 @@ namespace OpenRA.Mods.Common.Graphics
 					// and erases rather than darkens, and a fireball floating on never-scouted black
 					// is what the alternative looks like. Full visibility restores 1 - 1 = 0, because
 					// TerrainLighting already put the whole light on screen there.
-					var lost = restore[mapLayers.GetVisibility((PPos)uv)];
+					//
+					// The visibility is read through ShroudRenderer's own ClampToPlayable, and it has
+					// to be: GetVisibility answers for the SIMULATION, where every source is gated on
+					// Map.Contains (= Bounds), so it returns 0 for every ring cell and widening the
+					// sweep alone would restore exactly nothing out there. The fog quad actually
+					// PAINTED on a ring cell is the one its nearest playable cell earned
+					// (ShroudRenderer.cs:193-206), so that is the quad this has to undo. Asking the
+					// same question of the same authority is what makes the two agree.
+					//
+					// The no-leak guarantee survives this unchanged, and gets no weaker: a ring cell
+					// borrows its mask from ONE specific playable cell, and if that cell is
+					// unexplored the clamp returns its 0 and the ring stays black -- which is also
+					// exactly what the shroud drew there. Light never lands on a ring cell whose
+					// governing playable cell has not been scouted.
+					var lost = restore[mapLayers.GetVisibility(ShroudRenderer.ClampToPlayable(map, (PPos)uv))];
 					if (lost <= 0f)
 						continue;
 
