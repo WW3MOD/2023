@@ -785,10 +785,19 @@ namespace OpenRA.Test
 				Assert.That(reddenedInTime, Is.True,
 					$"{weapon} is still not red by 70% of its {light.Duration}-tick envelope; the ramp reaches red too late to read as cooling");
 
-				// 7. The light's maximum radius is the thermal radius: illumination reach scales as the
-				//    fireball radius (Y^0.40) and thermal as Y^0.41, close enough that one array carries both.
-				Assert.That(Cells(light.MaximumRadius.Length), Is.EqualTo(ThermalCells(kt)).Within(Math.Max(3.0, 0.05 * ThermalCells(kt))),
-					$"{weapon}'s light no longer reaches its thermal radius");
+				// 7. The light's maximum radius REACHES PAST ITS OWN CLOUD. This used to assert the
+				//    thermal radius, ThermalCells(kt) — Y^0.41, the third-degree-burn law — and that
+				//    was abandoned on 2026-09-08 because it is the exact thing the user reported as
+				//    broken: against a cloud growing as Y^0.214 it put the entire lit area UNDER the
+				//    sprite on every weapon at or below 100 kt. The full statement of what replaced it
+				//    lives on EveryNuclearLightReachesTheSameMultipleOfItsOwnCloud, which pins the
+				//    ratio; this weaker per-weapon form is kept here so that the one property the user
+				//    actually cares about — that there is lit ground you can SEE outside the fireball —
+				//    fails inside the envelope test too, where someone editing envelopes is looking.
+				Assert.That(Cells(light.MaximumRadius.Length), Is.GreaterThan(CloudRadiusCells(weapon)),
+					$"{weapon}'s light reaches {Cells(light.MaximumRadius.Length):0.0} cells but its own cloud " +
+					$"is {CloudRadiusCells(weapon):0.0} cells across the radius, so every lit cell is under the " +
+					"sprite and the glow cannot be seen at any brightness.");
 
 				// 8. The flash has to survive fog, or it is invisible over exactly the ground a player
 				//    is most likely to be nuking. LightEventManager.RenderAboveFog reads this per event.
@@ -893,8 +902,15 @@ namespace OpenRA.Test
 			Assert.That(strategic.Intensities.Max(), Is.EqualTo(tactical.Intensities.Max()).Within(0.01),
 				"the two fireballs no longer peak at the same brightness; surface temperature does not scale with yield");
 
+			// THIS USED TO ASSERT THE THERMAL LAW, Math.Pow(StrategicKt / TacticalKt, 0.41), and that
+			// law was deliberately abandoned on 2026-09-08 — see EveryNuclearLightReachesTheSameMultiple-
+			// OfItsOwnCloud below for what replaced it and what it cost. Kept here as a RATIO between the
+			// two references so this test still says something about yield: a bigger weapon still throws
+			// a bigger light, it is now sized against its own cloud rather than against its burn radius.
 			var radiusRatio = (double)strategic.MaximumRadius.Length / tactical.MaximumRadius.Length;
-			Assert.That(radiusRatio, Is.EqualTo(Math.Pow(StrategicKt / TacticalKt, 0.41)).Within(1.0));
+			var cloudRatio = CloudScalePercent("AtomicHighYield") / (double)CloudScalePercent("Atomic");
+			Assert.That(radiusRatio, Is.EqualTo(cloudRatio).Within(0.01),
+				"the two reference lights no longer stand in the same ratio as the two clouds they sit on");
 
 			// Each light is as long as its OWN animation. Written per weapon rather than as a ratio so
 			// it still means something when the two stop sharing a sequence.
@@ -1043,6 +1059,68 @@ namespace OpenRA.Test
 				Assert.That(ladder[i], Is.GreaterThanOrEqualTo(ladder[i - 1]),
 					"the cloud ladder is not monotone in yield: " + string.Join(", ", ladder));
 		}
+
+		/// <summary>Every nuclear light reaches the same multiple of its own cloud's radius.</summary>
+		// ADDED 2026-09-08, and it REPLACES a physical law rather than supplementing one. The light
+		// radius used to follow the third-degree-burn thermal law, 12.5 * (kt/20)^0.41, which the
+		// shipped envelopes sat within 0.4% of. It does not any more, and the reason is the user:
+		//
+		//   "the Light for the 6Mt warhead is really nice. I would like that same light for all nukes,
+		//    just that the size and length/duration of the flash is smaller/shorter for the smaller
+		//    weapons, but around the nuke it should still have that same intense glow. Currently the
+		//    small nukes gives almost no light at all it looks like to my eyes."
+		//
+		// Peak intensity was ALREADY flat at 7.0 on all fourteen, so "almost no light" was never a
+		// brightness problem and nothing could have been raised to fix it. The light grew as Y^0.41
+		// while the mushroom cloud covering it grows as Y^0.214, so the ratio between them swung 10.7x
+		// across the ladder and EVERY weapon at or below 100 kt had a light radius smaller than its own
+		// cloud — 0.28x at 0.3 kt, 0.62x at 20 kt, 0.89x at 100 kt. The entire lit area sat under the
+		// sprite. Full brightness, nowhere to see it.
+		//
+		// WHAT IT COST: the physical grounding. Y^0.41 is a burn radius; this is "however big the
+		// sprite is". Physics lost the same argument for the cloud itself the same day — its own
+		// fireball exponent is 0.40 and it ships at 0.214, because 0.40 gave an 848-cell sprite on a
+		// 130-cell map — so the precedent is real and it is the same ladder. It is still a look-first
+		// decision, and it is recorded as one rather than dressed up.
+		//
+		// WHY A CONSTANT RATIO AND NOT MERELY A BIGGER NUMBER: TerrainLighting's InverseSquare falloff
+		// is w(f) = (1/(1 + 24*(1-f)^2) - 1/25) * 25/24 with f = 1 - r/R (TerrainLighting.cs:48-50,
+		// :255-257). Holding R/cloudRadius constant puts the SAME fraction of peak brightness at every
+		// weapon's own cloud edge — 9.3% of 7.0 — which is the "same intense glow around the nuke" that
+		// was asked for, at every yield, as arithmetic rather than as tuning.
+		[Test]
+		public void EveryNuclearLightReachesTheSameMultipleOfItsOwnCloud()
+		{
+			// The anchor is the weapon the user named, and it is READ rather than typed so that
+			// retuning the reference retunes the ladder instead of silently disagreeing with it.
+			var anchor = LightEventDefinition.LoadFrom(Warhead(LightAnchor, "Warhead@FireballLight"), "Light", true);
+			var want = Cells(anchor.MaximumRadius.Length) / CloudRadiusCells(LightAnchor);
+
+			foreach (var (weapon, kt) in AllNukes)
+			{
+				var light = LightEventDefinition.LoadFrom(Warhead(weapon, "Warhead@FireballLight"), "Light", true);
+				var got = Cells(light.MaximumRadius.Length) / CloudRadiusCells(weapon);
+
+				Assert.That(got, Is.EqualTo(want).Within(0.02),
+					$"{weapon} ({kt} kt) lights {got:0.00}x its own cloud radius; {LightAnchor} lights " +
+					$"{want:0.00}x. Below 1.0 the whole lit area is under the sprite and the glow is " +
+					"invisible however bright it is — which is what the user reported. Regenerate with " +
+					"tools/nuke-light/gen_fireball_light.py --write.");
+
+				// The user asked for identical core brightness in as many words. Yield buys reach and
+				// length; a fireball surface is ~7000 K whatever set it off.
+				Assert.That(light.Intensities.Max(), Is.EqualTo(FireballPeak).Within(0.01),
+					$"{weapon} no longer peaks at {FireballPeak}; core brightness is not a yield axis.");
+			}
+		}
+
+		const string LightAnchor = "AtomicHighYield";
+
+		/// <summary>A weapon's mushroom-cloud RADIUS in cells: nuke_large is 310 px wide and a cell is 24.</summary>
+		static double CloudRadiusCells(string weapon) => CloudScalePercent(weapon) * 310.0 / (100.0 * 24.0) / 2.0;
+
+		static int CloudScalePercent(string weapon) =>
+			Int(Warhead(weapon, CloudWarhead(weapon)), "ScalePercent", weapon);
 
 		/// <summary>The key of the single CreateEffect cloud warhead — `Warhead@Fireball` on every weapon.</summary>
 		static string CloudWarhead(string weapon) => Weapon(weapon).Nodes

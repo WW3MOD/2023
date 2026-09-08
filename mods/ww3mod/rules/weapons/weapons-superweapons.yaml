@@ -225,7 +225,7 @@ Atomic:
 		Light:
 			Times: 0, 1, 2, 3, 4, 16, 34, 56, 80, 92, 107, 136, 167, 199
 			Intensities: 7, 6.08, 5.42, 5.03, 4.9, 4.32, 3.51, 2.64, 1.82, 1.48, 1.09, 0.51, 0.13, 0
-			Radii: 6c512, 9c675, 10c684, 11c412, 12c0, 12c0, 12c0, 12c0, 12c0, 12c0, 11c593, 10c785, 9c919, 9c0
+			Radii: 19c833, 29c453, 32c531, 34c774, 36c592, 36c592, 36c592, 36c592, 36c592, 36c592, 35c303, 32c837, 30c172, 27c444
 			Tints: E6F0FF, EAF3FF, EEF5FF, F3F8FF, F7FAFF, FFFAEE, FFF2D1, FFE7B2, FFD88F, FFCF7B, FFC164, FC9E3E, E66E1D, B4280A
 			# Linear, and not one of the eased curves: the keyframe VALUES already trace the
 			# two-stage law, so a curved segment on top of them would apply the shape twice. The
@@ -234,7 +234,7 @@ Atomic:
 			# the analytic curve is under 0.06 intensity anywhere in the envelope.
 			Interpolations: Linear
 			Falloff: InverseSquare
-			TerrainRefreshInterval: 2
+			TerrainRefreshInterval: 3
 			# The light is a TINT, applied by TerrainLighting inside the ordinary sprite and terrain draw
 			# -- all of which happens BEFORE ShroudRenderer paints its fog quads over the finished world.
 			# So under fog the flash was never hidden, it was ATTENUATED: at the shipped FogDarkness a

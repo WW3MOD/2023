@@ -325,7 +325,7 @@ NukeB61Mod12Y003:
 		Light:
 			Times: 0, 1, 2, 3, 10, 21, 34, 49, 55, 65, 82, 100, 119
 			Intensities: 7, 5.83, 5.13, 4.9, 4.33, 3.5, 2.63, 1.78, 1.49, 1.06, 0.5, 0.13, 0
-			Radii: 2c240, 2c240, 2c240, 2c240, 2c240, 2c240, 2c240, 2c240, 2c240, 2c160, 2c23, 1c902, 1c749
+			Radii: 14c896, 14c896, 14c896, 14c896, 14c896, 14c896, 14c896, 14c896, 14c896, 14c360, 13c474, 12c534, 11c540
 			Tints: E6F0FF, EDF4FF, F4F8FF, FBFDFF, FFFAED, FFF1D0, FFE6B1, FFD78B, FFCF7B, FFBF61, FB9D3C, E66D1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
@@ -677,11 +677,11 @@ NukeB61Mod12Y015:
 		Light:
 			Times: 0, 1, 2, 3, 12, 25, 41, 59, 67, 78, 99, 122, 145
 			Intensities: 7, 5.83, 5.13, 4.9, 4.3, 3.5, 2.63, 1.8, 1.48, 1.09, 0.51, 0.13, 0
-			Radii: 3c905, 4c330, 4c330, 4c330, 4c330, 4c330, 4c330, 4c330, 4c330, 4c190, 3c945, 3c652, 3c358
+			Radii: 18c864, 20c995, 20c995, 20c995, 20c995, 20c995, 20c995, 20c995, 20c995, 20c313, 19c36, 17c659, 16c258
 			Tints: E6F0FF, ECF3FF, F1F7FF, F7FAFF, FFFAEE, FFF1D1, FFE7B2, FFD78D, FFCF7B, FFC164, FC9E3E, E66D1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
-			TerrainRefreshInterval: 2
+			TerrainRefreshInterval: 3
 			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
 			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
 			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
@@ -1029,11 +1029,11 @@ NukeB61Mod12Y10:
 		Light:
 			Times: 0, 1, 2, 3, 4, 15, 32, 52, 74, 84, 99, 125, 153, 183
 			Intensities: 7, 6.08, 5.42, 5.03, 4.9, 4.32, 3.49, 2.62, 1.82, 1.5, 1.08, 0.51, 0.14, 0
-			Radii: 5c803, 8c543, 9c418, 9c418, 9c418, 9c418, 9c418, 9c418, 9c418, 9c418, 9c90, 8c544, 7c955, 7c298
+			Radii: 19c425, 28c649, 31c593, 31c593, 31c593, 31c593, 31c593, 31c593, 31c593, 31c593, 30c514, 28c651, 26c641, 24c484
 			Tints: E6F0FF, EBF3FF, EFF5FF, F4F8FF, F8FBFF, FFFAEE, FFF1D0, FFE7B2, FFD88E, FFCF7C, FFC063, FC9E3E, E76F1E, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
-			TerrainRefreshInterval: 2
+			TerrainRefreshInterval: 3
 			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
 			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
 			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
@@ -1387,11 +1387,11 @@ NukeB61Mod12Y50:
 		Light:
 			Times: 0, 1, 2, 3, 4, 5, 18, 39, 63, 91, 103, 121, 153, 187, 223
 			Intensities: 7, 6.24, 5.66, 5.24, 4.98, 4.9, 4.33, 3.49, 2.64, 1.8, 1.48, 1.07, 0.51, 0.13, 0
-			Radii: 8c113, 13c927, 15c775, 17c106, 18c205, 18c205, 18c205, 18c205, 18c205, 18c205, 18c205, 17c600, 16c506, 15c341, 14c107
+			Radii: 19c852, 34c2, 38c542, 41c841, 44c516, 44c516, 44c516, 44c516, 44c516, 44c516, 44c516, 43c1, 40c338, 37c504, 34c500
 			Tints: E6F0FF, EAF2FF, EDF4FF, F1F7FF, F5F9FF, F9FBFF, FFFAEE, FFF1D0, FFE7B2, FFD78D, FFCF7B, FFC062, FB9D3D, E66E1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
-			TerrainRefreshInterval: 3
+			TerrainRefreshInterval: 5
 			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
 			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
 			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
@@ -1743,11 +1743,11 @@ NukeW76:
 		Light:
 			Times: 0, 1, 2, 3, 4, 5, 8, 19, 41, 68, 98, 111, 130, 165, 202, 241
 			Intensities: 7, 6.24, 5.66, 5.24, 4.98, 4.9, 4.78, 4.34, 3.52, 2.63, 1.8, 1.49, 1.08, 0.51, 0.13, 0
-			Radii: 9c391, 15c844, 17c903, 19c388, 20c612, 21c661, 24c186, 24c186, 24c186, 24c186, 24c186, 24c186, 23c396, 21c944, 20c382, 18c759
+			Radii: 20c10, 33c767, 38c143, 41c340, 43c954, 46c169, 51c589, 51c589, 51c589, 51c589, 51c589, 51c589, 49c900, 46c773, 43c464, 39c995
 			Tints: E6F0FF, E9F2FF, EDF4FF, F0F6FF, F4F8FF, F7FAFF, FFFFFE, FFFAEF, FFF2D2, FFE7B2, FFD78D, FFCF7B, FFC063, FC9E3D, E66E1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
-			TerrainRefreshInterval: 3
+			TerrainRefreshInterval: 5
 			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
 			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
 			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
@@ -2113,7 +2113,7 @@ NukeSarmatRV:
 		Light:
 			Times: 0, 2, 4, 5, 7, 20, 25, 53, 87, 125, 141, 166, 210, 258, 307
 			Intensities: 7, 5.97, 5.29, 5.07, 4.9, 4.48, 4.33, 3.51, 2.64, 1.8, 1.5, 1.08, 0.51, 0.13, 0
-			Radii: 14c331, 30c628, 35c837, 37c844, 41c215, 55c247, 55c247, 55c247, 55c247, 55c247, 55c247, 53c378, 50c76, 46c492, 42c831
+			Radii: 20c595, 43c1011, 51c477, 54c357, 59c219, 79c384, 79c384, 79c384, 79c384, 79c384, 79c384, 76c701, 71c974, 66c805, 61c527
 			Tints: E6F0FF, EBF3FF, F1F7FF, F4F8FF, F9FBFF, FFFBF3, FFFAEE, FFF1D1, FFE7B2, FFD78D, FFCF7C, FFC063, FC9E3E, E66D1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
@@ -2482,7 +2482,7 @@ NukeB83:
 		Light:
 			Times: 0, 2, 4, 5, 7, 24, 26, 56, 92, 132, 150, 176, 223, 273, 325
 			Intensities: 7, 5.97, 5.29, 5.07, 4.9, 4.39, 4.33, 3.51, 2.63, 1.8, 1.48, 1.08, 0.5, 0.13, 0
-			Radii: 15c828, 34c766, 40c819, 43c136, 47c71, 66c1005, 66c1005, 66c1005, 66c1005, 66c1005, 66c1005, 64c760, 60c711, 56c398, 51c932
+			Radii: 20c736, 45c554, 53c484, 56c543, 61c706, 87c807, 87c807, 87c807, 87c807, 87c807, 87c807, 84c873, 79c561, 73c926, 68c36
 			Tints: E6F0FF, EBF3FF, F0F6FF, F3F8FF, F8FBFF, FFFBF1, FFFAEF, FFF1D1, FFE7B2, FFD78D, FFCF7B, FFC063, FB9D3D, E66D1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
@@ -2853,7 +2853,7 @@ NukeTsarBomba:
 		Light:
 			Times: 0, 3, 6, 10, 13, 43, 89, 125, 145, 208, 235, 277, 350, 428, 510
 			Intensities: 7, 6.14, 5.51, 5.01, 4.9, 4.33, 3.52, 2.94, 2.64, 1.81, 1.5, 1.08, 0.51, 0.13, 0
-			Radii: 34c613, 96c350, 116c71, 134c552, 145c612, 213c730, 274c210, 309c78, 309c78, 309c78, 309c78, 298c466, 279c1019, 260c277, 239c547
+			Radii: 21c858, 60c829, 73c267, 84c941, 91c920, 134c913, 173c75, 195c86, 195c86, 195c86, 195c86, 188c389, 176c745, 164c284, 151c194
 			Tints: E6F0FF, EBF3FF, F0F6FF, F6FAFF, FBFDFF, FFFAED, FFF1D0, FFEABC, FFE7B2, FFD78D, FFCF7B, FFC062, FB9D3D, E66E1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
@@ -3373,11 +3373,11 @@ NukeRu9M729:
 		Light:
 			Times: 0, 1, 2, 3, 11, 24, 39, 56, 64, 75, 95, 117, 139
 			Intensities: 7, 5.83, 5.13, 4.9, 4.34, 3.5, 2.65, 1.83, 1.49, 1.09, 0.51, 0.13, 0
-			Radii: 3c580, 3c676, 3c676, 3c676, 3c676, 3c676, 3c676, 3c676, 3c676, 3c552, 3c328, 3c80, 2c857
+			Radii: 18c790, 19c271, 19c271, 19c271, 19c271, 19c271, 19c271, 19c271, 19c271, 18c644, 17c485, 16c207, 14c954
 			Tints: E6F0FF, ECF4FF, F2F7FF, F8FBFF, FFFAEF, FFF1D1, FFE7B3, FFD88E, FFCF7B, FFC063, FC9E3E, E66D1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
-			TerrainRefreshInterval: 2
+			TerrainRefreshInterval: 3
 			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
 			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
 			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
@@ -3732,11 +3732,11 @@ NukeRuIskander:
 		Light:
 			Times: 0, 1, 2, 3, 4, 15, 32, 52, 74, 84, 99, 125, 153, 183
 			Intensities: 7, 6.08, 5.42, 5.03, 4.9, 4.32, 3.49, 2.62, 1.82, 1.5, 1.08, 0.51, 0.14, 0
-			Radii: 5c803, 8c543, 9c418, 9c418, 9c418, 9c418, 9c418, 9c418, 9c418, 9c418, 9c90, 8c544, 7c955, 7c298
+			Radii: 19c425, 28c649, 31c593, 31c593, 31c593, 31c593, 31c593, 31c593, 31c593, 31c593, 30c514, 28c651, 26c641, 24c484
 			Tints: E6F0FF, EBF3FF, EFF5FF, F4F8FF, F8FBFF, FFFAEE, FFF1D0, FFE7B2, FFD88E, FFCF7C, FFC063, FC9E3E, E76F1E, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
-			TerrainRefreshInterval: 2
+			TerrainRefreshInterval: 3
 			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
 			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
 			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
@@ -4097,11 +4097,11 @@ NukeRuKinzhalN:
 		Light:
 			Times: 0, 1, 2, 3, 4, 5, 18, 39, 63, 91, 103, 121, 153, 187, 223
 			Intensities: 7, 6.24, 5.66, 5.24, 4.98, 4.9, 4.33, 3.49, 2.64, 1.8, 1.48, 1.07, 0.51, 0.13, 0
-			Radii: 8c113, 13c927, 15c775, 17c106, 18c205, 18c205, 18c205, 18c205, 18c205, 18c205, 18c205, 17c600, 16c506, 15c341, 14c107
+			Radii: 19c852, 34c2, 38c542, 41c841, 44c516, 44c516, 44c516, 44c516, 44c516, 44c516, 44c516, 43c1, 40c338, 37c504, 34c500
 			Tints: E6F0FF, EAF2FF, EDF4FF, F1F7FF, F5F9FF, F9FBFF, FFFAEE, FFF1D0, FFE7B2, FFD78D, FFCF7B, FFC062, FB9D3D, E66E1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
-			TerrainRefreshInterval: 3
+			TerrainRefreshInterval: 5
 			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
 			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
 			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
@@ -4459,11 +4459,11 @@ NukeRuKalibr:
 		Light:
 			Times: 0, 1, 2, 3, 4, 5, 8, 19, 41, 68, 98, 111, 130, 165, 202, 241
 			Intensities: 7, 6.24, 5.66, 5.24, 4.98, 4.9, 4.78, 4.34, 3.52, 2.63, 1.8, 1.49, 1.08, 0.51, 0.13, 0
-			Radii: 9c391, 15c844, 17c903, 19c388, 20c612, 21c661, 24c186, 24c186, 24c186, 24c186, 24c186, 24c186, 23c396, 21c944, 20c382, 18c759
+			Radii: 20c10, 33c767, 38c143, 41c340, 43c954, 46c169, 51c589, 51c589, 51c589, 51c589, 51c589, 51c589, 49c900, 46c773, 43c464, 39c995
 			Tints: E6F0FF, E9F2FF, EDF4FF, F0F6FF, F4F8FF, F7FAFF, FFFFFE, FFFAEF, FFF2D2, FFE7B2, FFD78D, FFCF7B, FFC063, FC9E3D, E66E1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
-			TerrainRefreshInterval: 3
+			TerrainRefreshInterval: 5
 			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
 			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
 			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
