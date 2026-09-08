@@ -14,9 +14,11 @@
  * of the tilt animation".
  *
  * These tests take no World. They exercise the pure arithmetic through the real FieldLoader, using
- * the shipped YAML copied verbatim (the house convention — see FactionDescriptionSplitTest).
- * The paired guard against the mod DATA drifting back is the CheckMissileLaunchReport lint rule,
- * which reads the actual rules tree and is what `make test` runs.
+ * the shipped YAML copied verbatim. What makes copying safe HERE is the paired CheckMissileLaunchReport
+ * lint rule, which reads the actual rules tree and is what `make test` runs: the copy below can go
+ * stale, and that rule is what notices. A verbatim copy with no such paired gate is not a convention
+ * but a trap — FactionDescriptionSplitTest used to be cited here as the exemplar and no longer is,
+ * because it had no gate and now reads world.yaml directly instead.
  */
 #endregion
 

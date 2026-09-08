@@ -18,6 +18,8 @@
  */
 #endregion
 
+using System;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Widgets.Logic;
@@ -27,25 +29,53 @@ namespace OpenRA.Test
 	[TestFixture]
 	public class FactionDescriptionSplitTest
 	{
-		// Copied verbatim from mods/ww3mod/rules/world.yaml (Faction@0), including the escape.
-		const string FactionYaml =
-			"Faction@0:\n" +
-			"\tName: America\n" +
-			"\tInternalName: america\n" +
-			"\tDescription: America\\nNATO's lead power. Precision airpower, networked armour and air " +
-			"cavalry: fewer units, costlier, striking first and at range.\n";
+		// The two playable factions. Faction@randomside is deliberately excluded: its description
+		// title ("Random Side") differs from its Name ("Any Side"), so it does not carry the
+		// authoring convention asserted below.
+		static readonly string[] PlayableFactions = { "america", "russia" };
 
-		static string DescriptionFromYaml()
+		/// <summary>
+		/// Reads the SHIPPED mods/ww3mod/rules/world.yaml, located by walking up from the test binary
+		/// the way ScreenShakeModelTest.FindMod does.
+		/// </summary>
+		// This fixture used to hold a hardcoded literal commented "copied verbatim from world.yaml".
+		// Nothing enforced that claim, so editing the shipped copy left this fixture green against a
+		// stale quotation — a backlog item and a manager brief both cited the coupling as a gate that
+		// did not exist. Reading the file is what makes an edit to the copy actually reach the
+		// assertions below.
+		static MiniYamlNode Faction(string internalName)
 		{
-			return MiniYaml.FromString(FactionYaml, "")
-				.Single(n => n.Key == "Faction@0").Value.Nodes
-				.Single(n => n.Key == "Description").Value.Value;
+			var dir = new DirectoryInfo(AppContext.BaseDirectory);
+			for (var i = 0; i < 10 && dir != null; i++, dir = dir.Parent)
+			{
+				var candidate = Path.Combine(dir.FullName, "mods", "ww3mod", "rules", "world.yaml");
+				if (!File.Exists(candidate))
+					continue;
+
+				// The Faction@ blocks hang off ^BaseWorld, not off World.
+				var faction = MiniYaml.FromFile(candidate)
+					.Single(n => n.Key == "^BaseWorld").Value.Nodes
+					.SingleOrDefault(n => n.Key.StartsWith("Faction@", StringComparison.Ordinal)
+						&& n.Value.Nodes.Any(c => c.Key == "InternalName" && c.Value.Value == internalName));
+
+				Assert.That(faction, Is.Not.Null,
+					$"world.yaml no longer defines a Faction with InternalName: {internalName}");
+
+				return faction;
+			}
+
+			throw new FileNotFoundException("could not locate mods/ww3mod/rules/world.yaml");
 		}
 
-		[Test]
-		public void MiniYamlLeavesTheDescriptionSeparatorEscaped()
+		static string Field(MiniYamlNode faction, string key)
 		{
-			var description = DescriptionFromYaml();
+			return faction.Value.Nodes.Single(n => n.Key == key).Value.Value;
+		}
+
+		[TestCaseSource(nameof(PlayableFactions))]
+		public void MiniYamlLeavesTheDescriptionSeparatorEscaped(string internalName)
+		{
+			var description = Field(Faction(internalName), "Description");
 
 			// If this ever fails, MiniYaml learned to unescape and the fix below is redundant.
 			Assert.That(description, Does.Contain("\\n"),
@@ -54,35 +84,47 @@ namespace OpenRA.Test
 				"a real newline here would mean the split already worked and there was never a bug");
 		}
 
-		[Test]
-		public void TheFluentLayerHandsBackANonKeyStringUnchanged()
+		[TestCaseSource(nameof(PlayableFactions))]
+		public void TheFluentLayerHandsBackANonKeyStringUnchanged(string internalName)
 		{
 			// Descriptions are prose, not Fluent keys, so GetMessage falls through and returns the
 			// input verbatim. This is the other half of the falsifier: Fluent does not unescape either.
 			var bundle = new FluentBundle("en", "", _ => { });
-			var description = DescriptionFromYaml();
+			var description = Field(Faction(internalName), "Description");
 
 			Assert.That(bundle.GetMessage(description), Is.EqualTo(description),
 				"an unescape hiding in the Fluent layer would invalidate this whole diagnosis");
 		}
 
-		[Test]
-		public void SplitDescriptionSeparatesTheTitleFromTheBody()
+		[TestCaseSource(nameof(PlayableFactions))]
+		public void SplitDescriptionSeparatesTheTitleFromTheBody(string internalName)
 		{
-			var (title, body) = LobbyUtils.SplitDescription(DescriptionFromYaml());
+			var faction = Faction(internalName);
+			var description = Field(faction, "Description");
+			var (title, body) = LobbyUtils.SplitDescription(description);
 
-			Assert.That(title, Is.EqualTo("America"),
+			// Asserted against world.yaml's own Name field rather than against a literal, so renaming a
+			// faction without updating the description head turns this red instead of passing on a copy
+			// of the old name. The prose itself is NOT asserted — pinning it here is what went stale.
+			Assert.That(title, Is.EqualTo(Field(faction, "Name")),
 				"the tooltip title must be just the faction name, not the entire description string");
 			Assert.That(body, Is.Not.Null.And.Not.Empty,
 				"the tooltip body must carry the description text — an empty body is the reported bug");
-			Assert.That(body, Does.StartWith("NATO's lead power."));
+			Assert.That(body.Length, Is.GreaterThan(20),
+				"the body must be the description prose, not a stray fragment left by a bad split");
+			Assert.That(title, Does.Not.Contain("\\n"), "no escape may survive into displayed text");
 			Assert.That(body, Does.Not.Contain("\\n"), "no escape may survive into displayed text");
+
+			// And nothing is dropped in the middle: the two parts rejoin to the whole description.
+			Assert.That(title + "\n" + body, Is.EqualTo(description.Replace("\\n", "\n")));
 		}
 
 		[Test]
 		public void SplitDescriptionStillSplitsARealNewline()
 		{
 			// Fluent-sourced translations arrive with real newlines. Unescaping must not break them.
+			// This string is a SYNTHETIC stand-in, not a quotation of world.yaml — the shipped copy
+			// carries the escape, and the whole point of this case is the real-newline path.
 			var (title, body) = LobbyUtils.SplitDescription("Russia\nNATO's principal adversary.");
 
 			Assert.That(title, Is.EqualTo("Russia"));
