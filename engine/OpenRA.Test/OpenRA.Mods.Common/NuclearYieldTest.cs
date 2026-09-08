@@ -46,6 +46,15 @@ namespace OpenRA.Test
 		const double TacticalKt = 20.0;
 		const double StrategicKt = 6000.0;
 
+		// The two ANCHORS of the mushroom-cloud size law, and the only two numbers in it that were
+		// chosen rather than derived. `Atomic`'s 300 is 39 cells, documented at
+		// weapons-superweapons.yaml:248 as the defensible size for a 20 kt burst; Tsar Bomba's 1600
+		// is 207 cells, already 1.6x the width of the largest shipped map. Fixing both fixes the
+		// exponent at ln(1600/300)/ln(2500) = 0.214. See EveryNuclearCloudIsOneSpriteOnTheYieldLaw.
+		const double TsarBombaKt = 50000.0;
+		const int TacticalScalePercent = 300;
+		const int TsarBombaScalePercent = 1600;
+
 		// R_cells = 10 * Y^(1/3) * P^-0.589, at 160 m/cell.
 		static double BlastCells(double kt, double psi) => 10.0 * Math.Pow(kt, 1 / 3.0) * Math.Pow(psi, -0.5891);
 		static double BlastPsi(double kt, double cells) => Math.Pow(10.0 * Math.Pow(kt, 1 / 3.0) / cells, 1 / 0.5891);
@@ -971,5 +980,73 @@ namespace OpenRA.Test
 						"overlap double-paints one, and neither throws.");
 			}
 		}
+
+		/// <summary>The mushroom cloud is one sprite per weapon, sized by one law across the whole arsenal.</summary>
+		// ADDED 2026-09-08, after the user asked for exactly this: "We just need to make them all
+		// consistent with their yield. Larger yield means larger cloud, more light etc. And it should
+		// follow one law."
+		//
+		// It did not. Sorted by yield, ScalePercent ran 56, 90, 106, 227, 300, 432, 571, 1277, 1542,
+		// 700, 1600 — one monotone break, and it was AtomicHighYield, because 700 was a hand-set cap
+		// on a curve (Y^0.40) too steep to reach 50 Mt without drawing a cloud six times wider than
+		// the largest shipped map. Two weapons had been pulled off the law by hand to stay on the map
+		// and one of the pulls inverted the ladder.
+		//
+		// The law now runs through the two endpoints the design had already chosen — `Atomic`'s 300
+		// at 20 kt and Tsar Bomba's 1600 at 50 Mt — which fixes the exponent at ln(1600/300)/ln(2500)
+		// and leaves nothing to pick. Asserting it here rather than generating the YAML is deliberate:
+		// a generator has to be re-run by whoever edits the file next, and the last time a nuclear
+		// band drifted it was because a branch never re-ran anything.
+		//
+		// THE SECOND HALF OF THIS TEST IS THE ONE THAT WOULD HAVE CAUGHT MORE. Tsar Bomba drew its
+		// cloud FIVE times — five copies of nuke_large offset by ±558, which CreateEffectWarhead
+		// scales to ±8928, i.e. 8.7 cells on a 207-cell sprite. That bought under 5% of extra radius
+		// and, because the sequence is BlendMode: Additive, about five times the intended luminance.
+		// A ScalePercent that matches the law says nothing about how many times the sprite is drawn.
+		[Test]
+		public void EveryNuclearCloudIsOneSpriteOnTheYieldLaw()
+		{
+			// Exactly the two anchors, so the exponent is derived here rather than copied from the YAML.
+			var k = Math.Log(TsarBombaScalePercent / (double)TacticalScalePercent) / Math.Log(TsarBombaKt / TacticalKt);
+
+			foreach (var (weapon, kt) in AllNukes)
+			{
+				var clouds = Weapon(weapon).Nodes
+					.Where(n => n.Key.StartsWith("Warhead@Fireball", StringComparison.Ordinal)
+						&& n.Value.Value == "CreateEffect")
+					.ToArray();
+
+				Assert.That(clouds.Length, Is.EqualTo(1),
+					$"{weapon} draws its mushroom cloud {clouds.Length} times. nuke_large is additive " +
+					"(sequences-ingame.yaml), so overlapping copies multiply the luminance rather than " +
+					"widening the cloud — size belongs in ScalePercent, which has no ceiling.");
+
+				var want = (int)Math.Round(TacticalScalePercent * Math.Pow(kt / TacticalKt, k));
+				var got = Int(clouds[0].Value, "ScalePercent", $"{weapon} {clouds[0].Key}");
+
+				// Integer rounding of a power law, so exact — if this ever needs a tolerance, the law
+				// changed and the header in weapons-nuclear-arsenal.yaml must change with it.
+				Assert.That(got, Is.EqualTo(want),
+					$"{weapon} ({kt} kt) draws ScalePercent {got}; the arsenal's cloud law " +
+					$"round({TacticalScalePercent} * (kt/{TacticalKt})^{k:0.000}) gives {want}. " +
+					"See THE SEVENTH LAW in weapons-nuclear-arsenal.yaml's header.");
+			}
+
+			// Non-vacuous: the ladder the law produces must actually be ordered by yield, which is the
+			// property the user asked for and the one the old numbers broke.
+			var ladder = AllNukes
+				.OrderBy(n => n.Kt)
+				.Select(n => Int(Warhead(n.Weapon, CloudWarhead(n.Weapon)), "ScalePercent", n.Weapon))
+				.ToArray();
+
+			for (var i = 1; i < ladder.Length; i++)
+				Assert.That(ladder[i], Is.GreaterThanOrEqualTo(ladder[i - 1]),
+					"the cloud ladder is not monotone in yield: " + string.Join(", ", ladder));
+		}
+
+		/// <summary>The key of the single CreateEffect cloud warhead — `Warhead@Fireball` on every weapon.</summary>
+		static string CloudWarhead(string weapon) => Weapon(weapon).Nodes
+			.First(n => n.Key.StartsWith("Warhead@Fireball", StringComparison.Ordinal) && n.Value.Value == "CreateEffect")
+			.Key;
 	}
 }

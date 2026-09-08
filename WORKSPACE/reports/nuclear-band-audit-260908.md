@@ -85,7 +85,14 @@ This is the same failure the fireball light was rewritten for on 2026-09-07 (the
 records it: "The user reported it as the small nukes not feeling like nukes"), surviving in a second
 band that the rewrite did not cover.
 
-### 3. Mushroom cloud size — the two references disagree with each other. NOT CHANGED; needs a call
+### 3. Mushroom cloud size — RESOLVED 2026-09-08, see nuclear-cloud-law-260908.md
+
+**This section is superseded.** It recommended capping the arsenal at `AtomicHighYield`'s 700, which
+was wrong: it would have dragged three weapons DOWN onto the outlier. The user chose to refit one
+law through the whole ladder instead, and released `AtomicHighYield` to move. See
+[`nuclear-cloud-law-260908.md`](nuclear-cloud-law-260908.md). The analysis below is kept because its measurements stand.
+
+### 3a. (superseded) Mushroom cloud size — the two references disagree with each other
 
 `Warhead@Fireball ScalePercent` at 300 draws 39 cells (`weapons-superweapons.yaml:145`), so
 cells ≈ ScalePercent × 0.13. The arsenal follows `300 × (kt/20)^0.40` — the fireball-radius law —

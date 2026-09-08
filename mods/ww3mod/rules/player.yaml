@@ -615,10 +615,23 @@ Player:
 		# THE AIRBURST, and it is set by the SPRITE rather than by ballistics. Screen y is
 		# TileSize.Height * (Y - Z) (WorldRenderer.cs:749), so the fireball's total lift above the aim
 		# point is DetonationAltitude + (-Offset.Y * ScalePercent/100). AtomicHighYield's Warhead@Fireball
-		# keeps `Offset: 0,-1900,0` at ScalePercent 700, which is 13300. The tac nuke's proportion is
-		# 6400 + (1900*3) = 12100 at scale 3; holding that same ratio at scale 7 wants 28233, and
-		# 15360 + 13300 = 28660, within 1.5%. So a 700%-scale mushroom cloud sits on the ground exactly
-		# the way the shipped 300% one does. Move ScalePercent and this must move with it.
+		# keeps `Offset: 0,-1900,0`.
+		#
+		# SCALEPERCENT MOVED 700 -> 1017 ON 2026-09-08 AND THIS DID NOT MOVE WITH IT, which is the
+		# opposite of what this comment used to instruct. The old rule held the tac nuke's lift-to-
+		# sprite proportion (6400 + 1900*3 = 12100 at scale 3; 15360 + 13300 = 28660 against a
+		# proportional 28233 at scale 7, within 1.5%). What that proportion actually protects is the
+		# cloud not DETACHING from the ground, and the test for that is `lift - spriteHalfHeight > 0`.
+		# At scale 10.17 the lift is 15360 + 19323 = 34683 against a half-height of 67254, so the base
+		# sits 31.8 cells below the aim point -- further under the ground than the 17.2 it sat at scale
+		# 700, not closer to floating. Across all fourteen nuclear weapons the ratio spans 1.49x after
+		# the change against 1.41x before; it was only ever constant for this one pair.
+		#
+		# AND THIS NUMBER IS LOAD-BEARING ELSEWHERE, which is the real reason not to chase the sprite
+		# with it: SpawnAltitude above is pinned to it by exactly 16384, and every AtomicHighYield
+		# warhead carries AirThreshold: 24c0, above which the engine substitutes `Air` for the terrain
+		# target types and the warhead silently does nothing (Warhead.cs:41-45). 15c0 leaves 9 cells of
+		# headroom; the proportional 21c2 would leave under 3.
 		#
 		# 15c0 is also honest physics for the yield, though not for the yield this comment used to
 		# name. The weapon was relabelled from ~800 kt to ~6 Mt on 2026-09-06 (102c0 of blast at the
