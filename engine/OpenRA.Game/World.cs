@@ -565,10 +565,22 @@ namespace OpenRA
 		// partition of the actor population into "existed then" (ActorID < snapshot) and "created
 		// since" (ActorID >= snapshot), for as long as it holds the snapshot.
 		//
-		// This is simulation state, not a diagnostic. It is safe to branch on because ActorID is
-		// itself part of SyncHash below, so a client whose allocation order diverged has already
-		// desynced on the hash before anything here could read a different value. Deliberately
-		// get-only -- allocation stays inside NextAID.
+		// THIS IS SIMULATION STATE AND IT IS SAFE TO BRANCH ON, because the counter is a pure
+		// function of the simulation: `nextAID` is private to a sealed, non-partial World, so the
+		// compiler confines every access to this file and there are exactly two -- the declaration
+		// and the post-increment above. NextAID is internal with no InternalsVisibleTo anywhere in
+		// the tree, so its callers are confined to OpenRA.Game, and there is exactly one:
+		// Actor.cs:187, in the constructor. Actors themselves are constructed at exactly two sites
+		// (World.CreateActor and Player's PlayerActor), both on the simulation path -- there is no
+		// client-local actor-creation path to skew the count on one machine. Reading this is
+		// therefore no less deterministic than reading WorldTick.
+		//
+		// DO NOT reach for SyncHash as the justification: it hashes the IDs of actors CURRENTLY IN
+		// `actors`, so an actor created and disposed inside the same frame-end drain never appears
+		// in any hash and still bumps the counter. Two clients could agree on every hash and
+		// disagree here; the argument above does not have that hole.
+		//
+		// Deliberately get-only -- allocation stays inside NextAID.
 		public uint NextActorID => nextAID;
 
 		public int SyncHash()

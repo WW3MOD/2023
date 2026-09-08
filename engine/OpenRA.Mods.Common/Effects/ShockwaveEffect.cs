@@ -28,9 +28,9 @@ namespace OpenRA.Mods.Common.Effects
 		readonly WarheadArgs args;
 		readonly HashSet<uint> hitActors = new HashSet<uint>();
 
-		// World.NextActorID as it stood on the tick this wave was created. Everything at or above it
-		// was built after the bomb went off and is not this bomb's business. See AreaEffectVictims.
-		readonly uint firstActorIDAfterDetonation;
+		// The actor population as it stood on the tick this wave was created. Anything built after the
+		// bomb went off is not this bomb's business. See AreaEffectVictims.
+		readonly DetonationStamp stamp;
 
 		int delay;
 		int ticks;
@@ -73,7 +73,7 @@ namespace OpenRA.Mods.Common.Effects
 			this.radius = warhead.StartRadius.Length;
 			this.excessPermille = (warhead.InitialSpeedPercent - 100) * 10;
 			this.radiusAnchoredDecay = warhead.TransitionRadius.Length > 0;
-			this.firstActorIDAfterDetonation = world.NextActorID;
+			this.stamp = DetonationStamp.Now(world);
 		}
 
 		public void Tick(World world)
@@ -105,17 +105,15 @@ namespace OpenRA.Mods.Common.Effects
 
 			// Find all actors within the current radius and damage those
 			// that haven't been hit yet (i.e., the wavefront just passed them)
-			foreach (var victim in world.FindActorsOnCircle(center, currentRadius))
+			//
+			// PITFALL: this is a DISC sweep, not an annulus, and it runs for the wave's whole life --
+			// hundreds of ticks after the fireball has finished drawing on the larger weapons. So the
+			// sweep MUST be the stamped one: an actor created mid-wave has by definition never been
+			// added to hitActors, so an unfiltered sweep reads it as "the front has not reached it
+			// yet" and hands it a full hit. Reinforcements walking in from a Supply Route are the
+			// worst case, because they arrive on fixed cells and head inward.
+			foreach (var victim in AreaEffectVictims.PreDetonationOnCircle(world, center, currentRadius, stamp))
 			{
-				// PITFALL: this is a DISC sweep, not an annulus, and it runs for the wave's whole
-				// life -- hundreds of ticks after the fireball has finished drawing. Without this
-				// guard an actor created mid-wave has by definition never been added to hitActors,
-				// so it reads as "the front has not reached it yet" and takes a full hit on the
-				// first tick it is inside currentRadius. Reinforcements walking in from a Supply
-				// Route are the worst case, because they arrive on fixed cells and head inward.
-				if (!AreaEffectVictims.ExistedAtDetonation(victim.ActorID, firstActorIDAfterDetonation))
-					continue;
-
 				if (hitActors.Contains(victim.ActorID))
 					continue;
 
