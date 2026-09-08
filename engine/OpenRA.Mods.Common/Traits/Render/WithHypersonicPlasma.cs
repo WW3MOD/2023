@@ -42,6 +42,33 @@
  * The trailing wake is drawn BEHIND and is never clamped: a wake at the impact point is a wake the
  * missile has already flown through.
  *
+ * THE CLAMP RESERVES A WHOLE TICK OF TRAVEL, and the first version of it did not -- which made it
+ * do nothing at all on the tick that mattered most. The copies are offset from renderables the
+ * smoothing trait has ALREADY moved, so the tip sits at pos + offset + n * spacing while both
+ * bounds were being measured from pos. On the tick before arrival the two therefore ADD: with 900
+ * left against a 2400 step the body pins to the endpoint from fraction 0.375 onward, the sheath
+ * still had room for all five samples, and the whole 480 wdist of bloom hung past the crater for
+ * ~62% of that interval -- about two frames at 60 fps, the same order as the artefact this was
+ * fixing.
+ *
+ * THE FIX NEEDS NO CLOCK, and the earlier claim that it did was wrong. This trait already knows one
+ * tick of travel: it is the length of its own velocity, and SubTickMotionSmoothing is documented and
+ * tested never to predict further ahead than that
+ * (SubTickMotionSmoothingTest.OffsetIsNeverLongerThanOneTickOfTravel). Reserving it turns the bound
+ * from shared into exact -- offset + n * spacing <= velocity + (left - velocity) = left, at every
+ * fraction -- for one subtraction, and reads nothing wall-clock.
+ *
+ * IT IS EXACT FOR SubTickMotionSmoothing.Strength <= 100, WHICH IS THE ONLY VALUE ANY ACTOR SHIPS
+ * (the trait is added bare on ^ShootableMissile and takes the 100 default). A Strength above 100
+ * predicts further than one tick of travel, which breaks the sibling own documented bound before it
+ * breaks this one -- if you ever set it, revisit both.
+ *
+ * IT IS CONSERVATIVE THE REST OF THE TIME, on purpose. A missile with no smoothing trait, or with a
+ * disabled one, reserves the tick anyway, so on a Kinzhal -- 2400 wdist/tick against 480 of sheath
+ * -- the bloom is gone for roughly the last two ticks rather than shrinking into the nose over the
+ * last fraction of one. That is the visible cost of the invariant and it is accepted: the ask was
+ * that nothing is drawn past the impact point.
+ *
  * PURELY VISUAL. Nothing here is read by the simulation and nothing here is synchronised.
  */
 #endregion
@@ -88,7 +115,13 @@ namespace OpenRA.Mods.Common.Traits.Render
 		/// Null is unbounded, so an actor that does not publish an endpoint draws the full sheath
 		/// exactly as it did before this clamp existed.
 		/// </param>
-		public static int LeadingSamplesWithin(int samples, WDist spacing, WDist? remaining)
+		/// <param name="tickTravel">
+		/// One tick of the travel of the actor, i.e. the length of the velocity the copies are placed
+		/// along. RESERVED rather than ignored: the body may already have been drawn up to this far
+		/// ahead by SubTickMotionSmoothing, and that offset and these copies are measured from the
+		/// same point, so they add. See the file header.
+		/// </param>
+		public static int LeadingSamplesWithin(int samples, WDist spacing, WDist? remaining, WDist tickTravel)
 		{
 			// Spacing 0 produces no offset at all in Step, so there is nothing to place; saying zero
 			// here keeps the two functions agreeing rather than reporting samples nobody can see.
@@ -98,13 +131,16 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (remaining == null)
 				return samples;
 
-			var left = remaining.Value.Length;
+			// The reserve is subtracted HERE and not by the caller, so there is no way to ask this
+			// question without paying it -- the same reason the Offset of the sibling trait takes its
+			// limit rather than trusting one caller to apply it.
+			var left = remaining.Value.Length - Math.Max(tickTravel.Length, 0);
 			if (left <= 0)
 				return 0;
 
 			// Integer division IS the clamp: sample i sits at i * spacing, so the largest i that fits
-			// within the distance left is left / spacing. The last surviving copy therefore lands at
-			// or before the endpoint, never beyond it.
+			// within the budget is budget / spacing. The last surviving copy therefore lands at or
+			// before the endpoint even with a full tick of prediction in front of it.
 			return Math.Min(samples, left / spacing.Length);
 		}
 
@@ -133,9 +169,12 @@ namespace OpenRA.Mods.Common.Traits.Render
 		"adding it to a template without also setting a count changes no pixel.",
 		"THE LEADING SHEATH NEVER REACHES PAST THE END OF THE JOURNEY. If the actor carries a trait",
 		"answering IMotionEndpoint — BallisticMissile does — leading copies that would not fit in the",
-		"distance still to travel are not drawn, so the bloom shortens into the nose over the last",
-		"fraction of a tick and is gone at contact. The trailing wake is behind the body and is never",
-		"clamped. An actor with no such trait draws the full sheath, as before.",
+		"distance still to travel are not drawn. A WHOLE TICK OF TRAVEL IS RESERVED on top of that,",
+		"because SubTickMotionSmoothing may already have drawn the body that far ahead and the two",
+		"offsets add — so on something as fast as a Kinzhal (2400 wdist/tick against 480 of sheath)",
+		"the bloom is gone for roughly the last two ticks rather than shrinking into the nose. That is",
+		"the cost of the invariant. The trailing wake is behind the body and is never clamped, and an",
+		"actor with no endpoint trait draws the full sheath, as before.",
 		"COST: each sample redraws every non-decoration sprite the actor produced, once. Six leading",
 		"plus eight trailing on a one-sprite missile is fifteen draws where there was one. That is",
 		"nothing on the handful of missiles in the air at once, and would not be on a unit type.",
@@ -209,6 +248,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		// tick, so the render path is arithmetic and a lookup-free read.
 		IMotionEndpoint endpoint;
 		WDist? remaining;
+		WDist tickTravel;
 
 		public WithHypersonicPlasma(WithHypersonicPlasmaInfo info)
 			: base(info)
@@ -239,6 +279,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 				hasLastPosition = false;
 				velocity = WVec.Zero;
 				remaining = null;
+				tickTravel = WDist.Zero;
 				return;
 			}
 
@@ -249,6 +290,8 @@ namespace OpenRA.Mods.Common.Traits.Render
 			// hence no velocity, hence no plasma — a missile draws clean on the frame it spawns.
 			var step = hasLastPosition ? pos - lastPosition : WVec.Zero;
 			velocity = step.LengthSquared > maxStepSquared ? WVec.Zero : step;
+
+			tickTravel = new WDist(velocity.Length);
 
 			var end = endpoint?.MotionEndpoint;
 			remaining = end.HasValue ? new WDist((end.Value - pos).Length) : (WDist?)null;
@@ -270,7 +313,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			// no unclamped sample count reachable from the draw path -- the same shape the sibling
 			// trait's Offset uses, and for the same reason.
 			var leadingSamples = WithHypersonicPlasmaMath.LeadingSamplesWithin(
-				Info.LeadingSamples, Info.LeadingSpacing, remaining);
+				Info.LeadingSamples, Info.LeadingSpacing, remaining, tickTravel);
 
 			var leading = leadingSamples > 0
 				? WithHypersonicPlasmaMath.Step(velocity, Info.LeadingSpacing) : WVec.Zero;
