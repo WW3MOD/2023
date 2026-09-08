@@ -13,6 +13,19 @@ import sys
 from collections import OrderedDict
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+
+def repo_rel(path):
+    """REPO-relative display path, or the absolute path when that is impossible.
+
+    Windows' os.path.relpath raises ValueError across drive letters, and the selftest
+    feeds check_file a file in the system temp dir -- which on a GitHub Windows runner
+    sits on C: while the checkout sits on D:. That crashed the whole gate (CI run
+    34246803802) for a value used only to label findings, so fall back rather than die.
+    """
+    try:
+        return os.path.relpath(path, REPO)
+    except ValueError:
+        return path
 ENGINE = os.path.join(REPO, "engine")
 SCENARIOS = os.path.join(REPO, "tools", "autotest", "scenarios")
 MOD_SCRIPTS = os.path.join(REPO, "mods", "ww3mod", "scripts")
@@ -195,7 +208,7 @@ def scan_cs():
             if not fn.endswith(".cs"):
                 continue
             path = os.path.join(root, fn)
-            rel = os.path.relpath(path, REPO)
+            rel = repo_rel(path)
             with open(path, "r", encoding="utf-8", errors="replace") as fh:
                 raw = fh.read()
             if "ScriptGlobal" not in raw and "ScriptActorProperties" not in raw \
@@ -564,7 +577,7 @@ def scenario_scripts(scen_dir):
     removed_at = None
 
     for path in loaded_yaml_files(scen_dir):
-        rel = os.path.relpath(path, REPO)
+        rel = repo_rel(path)
         nodes = miniyaml_nodes(path)
         for i, (level, key, value, lineno) in enumerate(nodes):
             if key.startswith("-LuaScript") and node_ancestry(nodes, i) == ["World"]:
@@ -653,7 +666,7 @@ def check_key_casing(scen_dir, findings):
     for path in loaded_yaml_files(scen_dir):
         if os.path.basename(path) == "map.yaml":
             continue
-        rel = os.path.relpath(path, REPO)
+        rel = repo_rel(path)
         for level, key, _value, lineno in miniyaml_nodes(path):
             if level != 0 or key in defined:
                 continue
@@ -752,7 +765,7 @@ def check_verdict_reachable(name, scen_dir, luas, declared, own_text, findings, 
             return
 
     findings.append(Finding(
-        "warn", os.path.relpath(os.path.join(scen_dir, name + ".lua"), REPO), 0, name,
+        "warn", repo_rel(os.path.join(scen_dir, name + ".lua")), 0, name,
         "a `test-` scenario whose script names nothing that reaches a terminal Test verdict, "
         "directly or through a helper it loads. It cannot produce a result.json, so the run ends "
         "as a watchdog timeout. Either it asserts nothing and should be a `demo-`, or its "
@@ -809,7 +822,7 @@ def check_file(lua_path, api, extra_globals, actor_globals, findings):
     with open(lua_path, "r", encoding="utf-8", errors="replace") as fh:
         raw = fh.read()
     text = strip_lua(raw)
-    rel = os.path.relpath(lua_path, REPO)
+    rel = repo_rel(lua_path)
 
     bound = lua_bindings(text)
     own_globals = lua_globals_defined(text)
@@ -968,7 +981,7 @@ def run_check(args):
     seeds = verdict_seeds()
 
     for name, d, luas in scenarios:
-        rel_dir = os.path.relpath(d, REPO)
+        rel_dir = repo_rel(d)
 
         # --- wiring, before anything else: it decides which files the rest may believe.
         check_map_wiring(d, rel_dir, findings)
