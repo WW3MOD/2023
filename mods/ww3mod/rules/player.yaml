@@ -243,7 +243,10 @@ Player:
 		# provided by faction ALONE, so nothing could ever unlock this for an America player; the
 		# powers.* prerequisites are provided by faction OR by the sandbox lobby option.
 		Prerequisites: powers.russia
-		Icon: precicon
+		# Its own art since 2026-09-08. It shared `precicon` with the GBU-57 Bunker Buster until
+		# then -- two different weapons drawing one picture, in the one palette where the player is
+		# choosing between them. The GBU-57 keeps `precicon`; PRECISION STR. was never wrong for it.
+		Icon: kinzhalicon
 		Name: Kh-47M2 Kinzhal
 		Description: Hypersonic missile strike called in from off-map reserves.\nArrives over your own back line on a fixed heading.\nSAM sites can engage it, but rarely stop it.
 		# BOUGHT, NOT CHARGED (2026-09-06, at the user's request: "I want the powers to have their
@@ -414,6 +417,7 @@ Player:
 		OrderName: B61MidStrike
 		Icon: paranuke
 		CameoCaption: 10 KT
+		CameoBadge: nuclear
 		Name: B61-12 (10 kt)
 		Description: Variable-yield tactical bomb at its MIDDLE dial setting.\nThirty-three times the 0.3 kt energy, three times the radius.\nComes in from off-map over your own back line.
 		# BOUGHT, NOT CHARGED, like every other power in the mod. No ChargeInterval: SupportPowerInstance
@@ -474,10 +478,13 @@ Player:
 		# of test-heavy-strike-erases-economy, which also names the weapon. This gate is only ever
 		# consulted by the buy tab and the support bin.
 		Prerequisites: powers.event
-		# `abomb` resolves to atomicon.shp (sequences-misc.yaml:16), the ONE power cameo in the mod
-		# whose baked caption -- NUCLEAR BOMB -- is correct for its picture (§4a).
-		Icon: abomb
+		# MOVED OFF `abomb` ON 2026-09-08. atomicon is the base game's nuclear cameo and is now
+		# reserved for the Tsar Bomba alone, at the user's request, so that the one weapon that ends
+		# a game on its own is the one weapon wearing the icon everybody already reads as THE nuke.
+		# What tells this apart from the other paranuke entries is its caption and its badge.
+		Icon: paranuke
 		CameoCaption: 20 KT
+		CameoBadge: nuclear
 		Name: Tactical Nuclear Strike (20 kt)
 		Description: Low-yield nuclear warhead delivered from off-map reserves.\nDevastates a wide area and sets everything in it alight.\nArrives over your own back line on a fixed heading.
 		# BOUGHT, NOT CHARGED. Price 15000 on power.tacnuke in rules/powers.yaml -- the same figure
@@ -595,8 +602,14 @@ Player:
 		# every shipped map from its centre, which is precisely why it is not something a player buys
 		# in a normal match.
 		Prerequisites: powers.event
-		Icon: abomb
+		# MOVED OFF `abomb` ON 2026-09-08; see @TacNuke above for why. 6 Mt is the second largest
+		# yield in the mod and losing the base game's cameo to a weapon 8x its size is the point of
+		# the reservation, not a casualty of it. v2bdgricon rather than cmissicon: the latter is a
+		# biohazard trefoil captioned CHEMICAL STRIKE, which is the wrong hazard on a warhead and
+		# doubly wrong now that a yellow RADIATION trefoil is stamped in the same cameo's corner.
+		Icon: v2bdgricon
 		CameoCaption: 6 MT
+		CameoBadge: nuclear
 		Name: Strategic Nuclear Strike (6 Mt)
 		Description: High-yield strategic warhead delivered from off-map reserves.\nA single detonation devastates the entire battlefield.\nArrives over your own back line on a fixed heading.
 		# BOUGHT, NOT CHARGED, and this is the wholesale replacement the placeholder that stood here

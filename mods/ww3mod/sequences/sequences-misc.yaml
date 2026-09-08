@@ -42,6 +42,28 @@ icon:
 	paranuke: paranukeicon
 	nitroicon: nitroicon
 	infoicon: infoicon
+	# The conventional Kh-47M2 Kinzhal, which used to share `precicon` with the GBU-57 Bunker
+	# Buster -- two different weapons drawing one icon. Photo-derived 64x48 RGBA PNG under a
+	# .shp name; rebuild with tools/cameo/build.sh.
+	kinzhalicon: kinzhalicon
+
+# Runtime overlays stamped onto a cameo the widget knows nothing about, drawn by
+# ProductionPaletteWidget and SupportPowersWidget from BuildableInfo.CameoBadge /
+# SupportPowerInfo.CameoBadge. Deliberately a SEPARATE image from `icon` above: those are 64x48
+# cameos and these are 13x13 stamps, and mixing them would make `Icon: nuclear` resolve to
+# something that would draw and be wrong rather than fail.
+#
+# `nukebadge.shp` is a 13x13 RGBA PNG under a .shp name, the same deliberate trick the photo
+# cameos use -- PngSheetLoader dispatches on magic bytes, not extension (PngSheetLoader.cs:49).
+# Do not "fix" the extension; see tools/cameo/README.md.
+#
+# 13 PX IS NOT ARBITRARY. A trefoil is a hub and three blades separated by three gaps, and the
+# published ISO 361 ratios put that gap below one pixel at any size a cameo can carry, so the
+# symbol fuses into a lumpy dot. With the gap widened to a quarter of the disc radius the four
+# pieces of ink stay separate down to 11 px and read reliably at 12; 13 ships one pixel of margin
+# above that. Regenerate with `python tools/cameo/badge.py --size 13 --install`.
+cameobadges:
+	nuclear: nukebadge
 
 clock:
 	idle:

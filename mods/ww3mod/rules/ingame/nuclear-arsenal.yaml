@@ -70,6 +70,8 @@ Player:
 		RequiresCondition: !nuke-arsenal-disabled
 		OrderName: B61LowStrike
 		Icon: paranuke
+		CameoCaption: 0.3 KT
+		CameoBadge: nuclear
 		Name: B61-12 (0.3 kt)
 		Description: Variable-yield tactical bomb at its LOWEST dial setting.\nSub-kiloton: destroys a position, not a battlefield.\nComes in from off-map over your own back line.
 		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
@@ -111,6 +113,8 @@ Player:
 		RequiresCondition: !nuke-arsenal-disabled
 		OrderName: B61MaxStrike
 		Icon: paranuke
+		CameoCaption: 50 KT
+		CameoBadge: nuclear
 		Name: B61-12 (50 kt)
 		Description: Variable-yield tactical bomb at its HIGHEST dial setting.\nSame weapon as the 0.3 kt option: 167x the energy, 5.5x the radius.\nComes in from off-map over your own back line.
 		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
@@ -146,6 +150,8 @@ Player:
 		RequiresCondition: !nuke-arsenal-disabled
 		OrderName: W76Strike
 		Icon: cmissicon
+		CameoCaption: 100 KT
+		CameoBadge: nuclear
 		Name: W76-1 Trident Warhead (100 kt)
 		Description: Submarine-launched 100 kt warhead, the most numerous in the US inventory.\nRe-entry velocity gives almost no warning after it appears.\nComes in from off-map over your own back line.
 		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
@@ -196,6 +202,8 @@ Player:
 		RequiresCondition: !nuke-arsenal-disabled
 		OrderName: SarmatStrike
 		Icon: v2bdgricon
+		CameoCaption: 6x750 KT
+		CameoBadge: nuclear
 		Name: RS-28 Sarmat MIRV (6 x 750 kt)
 		Description: Heavy ICBM carrying independently-targeted re-entry vehicles.\nClick SIX aim points; one 750 kt warhead goes to each.\nRight-click or Escape while placing cancels without firing.
 		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
@@ -250,6 +258,8 @@ Player:
 		RequiresCondition: !nuke-arsenal-disabled
 		OrderName: B83Strike
 		Icon: abombfake
+		CameoCaption: 1.2 MT
+		CameoBadge: nuclear
 		Name: B83-1 (1.2 Mt)
 		Description: The largest weapon in the current US stockpile.\nA free-fall bomb: slow, and visible for its whole approach.\nComes in from off-map over your own back line.
 		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
@@ -287,6 +297,8 @@ Player:
 		RequiresCondition: !nuke-arsenal-disabled
 		OrderName: TsarBombaStrike
 		Icon: abomb
+		CameoCaption: 50 MT
+		CameoBadge: nuclear
 		Name: Tsar Bomba (50 Mt)
 		Description: RDS-220. The largest device ever detonated.\nA 2.5 km fireball burning for twenty-five seconds; it sets fire to more of the map than it flattens.\nComes in from off-map over your own back line.
 		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
@@ -374,6 +386,8 @@ Player:
 		RequiresCondition: !nuke-arsenal-disabled
 		OrderName: Ru9M729Strike
 		Icon: paranuke
+		CameoCaption: 1 KT
+		CameoBadge: nuclear
 		Name: 9M729 (1 kt)
 		Description: Ground-launched nuclear cruise missile.\nThe smallest warhead Russia can call in: destroys a position, not a battlefield.\nComes in low and slow from off-map over your own back line.
 		RequiresPurchase: True
@@ -413,6 +427,8 @@ Player:
 		RequiresCondition: !nuke-arsenal-disabled
 		OrderName: RuIskanderStrike
 		Icon: v2bdgricon
+		CameoCaption: 10 KT
+		CameoBadge: nuclear
 		Name: 9M723 Iskander-M (10 kt)
 		Description: Nuclear-armed quasi-ballistic missile off a mobile launcher.\nThe fastest reaction in the Russian arsenal: least time between order and impact for its size.\nComes in from off-map over your own back line.
 		RequiresPurchase: True
@@ -450,7 +466,12 @@ Player:
 	MissileStrikePower@RuKinzhalN:
 		RequiresCondition: !nuke-arsenal-disabled
 		OrderName: RuKinzhalNStrike
-		Icon: cmissicon
+		# paranuke since 2026-09-08, resolving a buy-tab-vs-power-bin disagreement in favour of the
+		# buy tab: cmissicon is a biohazard trefoil captioned CHEMICAL STRIKE and this is a 50 kt
+		# nuclear warhead. What separates it from the other paranuke entries is its caption.
+		Icon: paranuke
+		CameoCaption: 50 KT
+		CameoBadge: nuclear
 		Name: Kh-47M2 Kinzhal-N (50 kt)
 		Description: Nuclear warhead on the air-launched Kinzhal.\nReleased from an aircraft already in the air: the shortest warning of any nuclear weapon.\nComes in from off-map over your own back line.
 		RequiresPurchase: True
@@ -489,13 +510,26 @@ Player:
 	MissileStrikePower@RuKalibr:
 		RequiresCondition: !nuke-arsenal-disabled
 		OrderName: RuKalibrStrike
-		# `abomb`, NOT `atomicon`. Both name the same art, and that is the trap: `Icon:` resolves on
-		# the `icon` image (sequences-misc.yaml:16), where the sequence is called `abomb` and maps to
-		# atomicon.shp at :17. The bare name `atomicon` is a sequence on the BEACON image at :59, so
-		# `BeaconPoster: atomicon` two lines below is correct while `Icon: atomicon` is not -- it
-		# resolves against a different image and finds nothing. Build stays clean and 2888 tests stay
-		# green; only --check-yaml catches it, which it did.
-		Icon: abomb
+		# MOVED OFF `abomb` ON 2026-09-08: atomicon is reserved for the Tsar Bomba now, so that the
+		# base game's nuclear cameo belongs to the one weapon that ends a game by itself.
+		#
+		# `paranuke`, and NOT the two candidates that look more obvious. `abombfake` is atomfakeicon
+		# -- a mushroom cloud with a yellow FAKE banner painted across it, correct for the decoy it
+		# was drawn for and absurd on Russia's top purchasable warhead. `cmissicon`, which the buy
+		# tab used to carry for this power, is a biohazard trefoil captioned CHEMICAL STRIKE: the
+		# wrong hazard, and doubly wrong now that a yellow RADIATION trefoil is stamped in the same
+		# cameo's corner. What separates this from the other paranuke entries is its caption.
+		#
+		# THE NAMING TRAP THIS LINE USED TO DOCUMENT IS UNCHANGED AND STILL APPLIES to the new
+		# value. `paranuke`, NOT `paranukeicon`: `Icon:` resolves on the `icon` image
+		# (sequences-misc.yaml:16), where the sequence is called `paranuke` and maps to
+		# paranukeicon.shp. A bare art name is a sequence on the BEACON image instead, so
+		# `BeaconPoster: atomicon` below is correct while `Icon: atomicon` would not be -- it
+		# resolves against a different image and finds nothing. Build stays clean and the unit tests
+		# stay green; only --check-yaml catches it, which it once did.
+		Icon: paranuke
+		CameoCaption: 100 KT
+		CameoBadge: nuclear
 		Name: 3M14 Kalibr (100 kt)
 		Description: Sea-launched nuclear cruise missile.\nThe largest warhead Russia can buy short of the showpieces, and the slowest thing carrying one.\nComes in low from off-map over your own back line.
 		RequiresPurchase: True

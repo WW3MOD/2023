@@ -71,6 +71,21 @@ namespace OpenRA.Mods.Common.Traits
 		[FluentReference(optional: true)]
 		public readonly string CameoCaption = null;
 
+		[Desc("Sequence of a small badge sprite stamped over the bottom-right of this actor's cameo",
+			"at runtime, on top of whatever art the cameo already uses. Unset (the default) draws",
+			"nothing. Resolved against the production palette's BadgeAnimation image.",
+			"",
+			"The point of drawing it rather than baking it is that a badge means the same thing on",
+			"every cameo that carries it, including cameos that do not exist yet: new art inherits",
+			"the marking for free instead of needing a re-render. Its width is reserved out of the",
+			"caption's before the caption is fitted, so the two never overlap.")]
+		// Not a [SequenceReference]: the bare attribute resolves against the ACTOR's own image, and
+		// this sequence lives on the widget's BadgeAnimation instead - a chrome image no actor owns.
+		// There is nothing for the linter to check it against, and pointing it at the actor would
+		// make every correct value an error. A wrong name fails loudly the first time a badged cameo
+		// is drawn, which is the good failure; the silent one would be art, and the art is one file.
+		public readonly string CameoBadge = null;
+
 		public static string GetInitialFaction(ActorInfo ai, string defaultFaction)
 		{
 			return ai.TraitInfoOrDefault<BuildableInfo>()?.ForceFaction ?? defaultFaction;

@@ -233,6 +233,7 @@ power.b61low:
 		BuildPaletteOrder: 20
 		Icon: paranuke
 		CameoCaption: 0.3 KT
+		CameoBadge: nuclear
 		# 500 ticks = 30 s, the same as the Kinzhal. It is a tactical weapon and it should feel like
 		# one at the point of purchase as well as at the point of impact.
 		BuildDuration: 500
@@ -255,6 +256,7 @@ power.b61mid:
 		BuildPaletteOrder: 30
 		Icon: paranuke
 		CameoCaption: 10 KT
+		CameoBadge: nuclear
 		# 750 ticks = 45 s, midway between the 0.3 kt setting's 500 and the 50 kt setting's 1000.
 		BuildDuration: 750
 		Description: Variable-yield tactical bomb at its MIDDLE dial setting.\nThirty-three times the 0.3 kt energy, three times the radius.\nArrives fully loaded and fires once.
@@ -278,6 +280,7 @@ power.b61max:
 		BuildPaletteOrder: 40
 		Icon: paranuke
 		CameoCaption: 50 KT
+		CameoBadge: nuclear
 		# 1000 ticks = 60 s.
 		BuildDuration: 1000
 		Description: Variable-yield tactical bomb at its HIGHEST dial setting.\nSame weapon as the 0.3 kt option: 167x the energy, 5.5x the radius.\nArrives fully loaded and fires once.
@@ -311,6 +314,7 @@ power.w76:
 		# prices, which makes it much easier to notice. A correct W76 cameo is a real art request.
 		Icon: cmissicon
 		CameoCaption: 100 KT
+		CameoBadge: nuclear
 		# 1300 ticks = 78 s. Only 18 s more than the 50 kt setting below it for more than double the
 		# price, and that shortfall is deliberate: this entry sells SPEED, and a load time in
 		# proportion to its cost would be charging a tempo weapon for the tempo it provides.
@@ -353,7 +357,9 @@ power.kinzhal:
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 11
-		Icon: precicon
+		# Its own art since 2026-09-08. It shared `precicon` with the GBU-57 until then, which was
+		# the one place in the roster where two different weapons drew the same picture.
+		Icon: kinzhalicon
 		# 500 ticks x 0.06 s = 30 s. The shortest load in the menu, matching the power's identity:
 		# tempo is the whole of what the Kinzhal sells.
 		BuildDuration: 500
@@ -376,6 +382,7 @@ power.ru9m729:
 		BuildPaletteOrder: 21
 		Icon: paranuke
 		CameoCaption: 1 KT
+		CameoBadge: nuclear
 		BuildDuration: 500
 		Description: Ground-launched cruise missile with a sub-tactical warhead.\nSingle kiloton: destroys a position, not a battlefield.\nArrives fully loaded and fires once.
 	ProvidesSupportPowerCharge:
@@ -390,8 +397,13 @@ power.ruiskander:
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 31
-		Icon: paranuke
+		# v2bdgricon, NOT the paranuke this used to carry. The buy tab and the power bin disagreed
+		# about this weapon's icon until 2026-09-08 -- the proxy drew paranuke and the power drew
+		# v2bdgricon, so it changed picture the moment it was paid for. The power's value won, and
+		# it is the better one anyway: it leaves Russia's five buyable entries five distinct icons.
+		Icon: v2bdgricon
 		CameoCaption: 10 KT
+		CameoBadge: nuclear
 		BuildDuration: 750
 		Description: Short-range ballistic missile, held in off-map reserve until you call it.\nTen kilotons: enough for a dug-in company.\nArrives fully loaded and fires once.
 	ProvidesSupportPowerCharge:
@@ -406,8 +418,13 @@ power.rukinzhaln:
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 41
+		# paranuke. The buy tab and the power bin disagreed about this weapon until 2026-09-08 --
+		# the proxy drew paranuke, the power drew cmissicon -- so it changed picture the moment it
+		# was paid for. Resolved to the PROXY's value, unlike power.ruiskander above, because
+		# cmissicon is a biohazard trefoil captioned CHEMICAL STRIKE and this is a nuclear warhead.
 		Icon: paranuke
 		CameoCaption: 50 KT
+		CameoBadge: nuclear
 		BuildDuration: 1000
 		Description: Hypersonic missile carrying a nuclear warhead.\nFifty kilotons on the fastest airframe in the inventory.\nArrives fully loaded and fires once.
 	ProvidesSupportPowerCharge:
@@ -422,8 +439,14 @@ power.rukalibr:
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 51
-		Icon: cmissicon
+		# paranuke. Third of the three divergences fixed on 2026-09-08, and the only one where
+		# NEITHER side's value survived: the proxy drew cmissicon (a biohazard trefoil) and the
+		# power drew `abomb` (now the Tsar Bomba's alone). The remaining candidate, abombfake, is a
+		# mushroom cloud with a yellow FAKE banner painted across it -- fine for the decoy it was
+		# drawn for, absurd on Russia's top purchasable warhead.
+		Icon: paranuke
 		CameoCaption: 100 KT
+		CameoBadge: nuclear
 		BuildDuration: 1300
 		Description: Land-attack cruise missile with a strategic warhead.\nOne hundred kilotons, and it flies low the whole way.\nArrives fully loaded and fires once.
 	ProvidesSupportPowerCharge:
@@ -461,10 +484,15 @@ power.tacnuke:
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 60
-		# `abomb` resolves to atomicon.shp -- NUCLEAR BOMB, the ONE nuclear cameo in the mod whose
-		# baked caption is correct for its picture, which is why three entries share it.
-		Icon: abomb
+		# MOVED OFF `abomb` ON 2026-09-08, at the user's request that the base game's nuclear
+		# cameo be reserved for the largest weapon: it is now the Tsar Bomba's alone. The argument
+		# this comment used to make -- that atomicon is the one nuclear cameo whose baked caption
+		# (NUCLEAR BOMB) is correct for its picture, so three entries may as well share it -- is
+		# still true and no longer decides anything, because the runtime caption band covers that
+		# baked lettering on every one of them and the badge is what now says "nuclear".
+		Icon: paranuke
 		CameoCaption: 20 KT
+		CameoBadge: nuclear
 		# 1500 ticks = 90 s.
 		BuildDuration: 1500
 		Description: Low-yield nuclear warhead, held in off-map reserve until you call it.\nArrives fully loaded and fires once.
@@ -491,6 +519,7 @@ power.sarmat:
 		# A V2 launcher. Defensible for an ICBM.
 		Icon: v2bdgricon
 		CameoCaption: 6x750 KT
+		CameoBadge: nuclear
 		# 2500 ticks = 150 s.
 		BuildDuration: 2500
 		Description: Heavy ICBM carrying independently-targeted re-entry vehicles.\nSix 750 kt warheads, and you pick where each one lands.\nArrives fully loaded and fires once.
@@ -512,6 +541,7 @@ power.b83:
 		# A mushroom cloud.
 		Icon: abombfake
 		CameoCaption: 1.2 MT
+		CameoBadge: nuclear
 		# 2600 ticks = 156 s.
 		BuildDuration: 2600
 		Description: The largest weapon in the current US stockpile.\nA free-fall bomb: slow, and visible for its whole approach.\nArrives fully loaded and fires once.
@@ -532,8 +562,13 @@ power.highyieldnuke:
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 90
-		Icon: abomb
+		# MOVED OFF `abomb` ON 2026-09-08; see power.tsarbomba for the reservation this makes room
+		# for. 6 Mt giving up the icon to 50 Mt is the reservation working, not a casualty of it.
+		# v2bdgricon rather than cmissicon: the latter is a biohazard trefoil captioned CHEMICAL
+		# STRIKE, and nothing nuclear should be moved onto it while a neutral option exists.
+		Icon: v2bdgricon
 		CameoCaption: 6 MT
+		CameoBadge: nuclear
 		# 3000 ticks = 180 s.
 		BuildDuration: 3000
 		Description: High-yield strategic warhead, held in off-map reserve until you call it.\nDevastates the entire battlefield, including your own forces.\nArrives fully loaded and fires once.
@@ -553,8 +588,14 @@ power.tsarbomba:
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 100
+		# THE RESERVED CAMEO. `abomb` is atomicon.shp, Red Alert's own nuclear icon, and after
+		# 2026-09-08 this is the only power in the mod that draws it -- the tactical strike, the
+		# strategic strike and the Kalibr were all moved off. The reservation is the whole point:
+		# fifteen powers wearing the same trefoil badge say "these are nuclear", and exactly one
+		# wearing the icon a Red Alert player already knows says "this one ends the game".
 		Icon: abomb
 		CameoCaption: 50 MT
+		CameoBadge: nuclear
 		# 4500 ticks = 270 s = 4.5 minutes, the longest load in the menu by half again.
 		BuildDuration: 4500
 		Description: RDS-220. The largest device ever detonated.\nA 2.5 km fireball burning for twenty-five seconds.\nArrives fully loaded and fires once.

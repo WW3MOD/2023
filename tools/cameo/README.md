@@ -166,6 +166,10 @@ Two things to know before choosing it:
   captions overflow it — "FLAMETHROWER" measures 85px. At 7px all sixteen fit, "FLAMETHROWER"
   landing on exactly 60. A caption wider than 60px is **shortened from the right**, not clipped,
   because the neighbouring cameo is one pixel away. `--no-baked-captions` warns when yours will be.
+  **60px is the un-badged figure.** A cameo that also sets `CameoBadge` gives the badge its width
+  plus a 1px gap first and centres the caption in what is left — 46px for the shipped 13px badge —
+  so a caption that just fits without a badge can be shortened once one is added. Every yield
+  caption the arsenal ships is 31px or under, so none of them is.
 - **It has to cover the old caption.** Every shipped cameo already has lettering baked into exactly
   those pixels — `paranukeicon` reads "PARANUKE" — so a runtime caption drawn on top of one gives
   two overlapping words. `CaptionBackgroundColor` draws a band first; the sidebar sets it to solid
@@ -206,6 +210,41 @@ strong. Resist it:
 Renaming these to `.png` would break every sequence that references them.
 Converting them to real indexed SHP would throw away the truecolour for no
 benefit. Background: `WORKSPACE/DISCOVERIES.md`, 2026-08-11.
+
+## The nuclear badge, and seeing it without launching
+
+`badge.py` renders the standardised radiation trefoil that the sidebar stamps over any
+cameo whose power sets `CameoBadge: nuclear`. It is the shipped art's generator, not a
+one-off:
+
+```bash
+python3 tools/cameo/badge.py --size 13 --install   # -> mods/ww3mod/bits/misc/ui/nukebadge.shp
+python3 tools/cameo/badge.py --sheet out.png       # legibility contact sheet, 8..16 px
+```
+
+**The published ISO 361 ratios cannot be rendered at cameo scale.** ISO puts the three
+blades between 1.5r and 5r of a hub of radius r, which makes the hub/blade gap 0.09 of the
+disc radius — under one pixel even on a 20 px badge, so the hub fuses to the blades and the
+symbol becomes a lumpy dot at *every* size a 64×48 cameo can carry. `badge.py` widens that
+gap to about a quarter of the disc radius. With that, the four pieces of ink stay separate
+down to **11 px**, read reliably at **12**, and 13 px ships with a pixel of margin.
+
+It is a **filled yellow disc with a dark ring**, not a bare symbol, and that is the answer
+to composing with art nobody has seen yet: a flat-coloured trefoil vanishes into whatever
+cameo region happens to share its brightness, and these cameos are cropped photographs.
+The disc carries its own backing, so the badge is legible on the Tsar Bomba's white
+fireball and on a pale sky alike. It costs 13×13 px of cameo, bottom-right.
+
+`binmock.py` draws the whole support-power bin offline — real cameos decoded from their
+SHPs, real 7 px FreeSansBold, and a hand port of `CameoCaptionCache`'s layout arithmetic:
+
+```bash
+python3 tools/cameo/binmock.py    # -> work/bin-1x.png (true size) and work/bin-3x.png
+```
+
+Use it to check a badge or a caption against the actual art before asking for a launch
+slot. It is a mockup and not a screenshot: its roster and its arithmetic are hand copies
+of `rules/powers.yaml` and `CameoCaptions.cs`, and nothing keeps them in step.
 
 ## Dependencies
 
