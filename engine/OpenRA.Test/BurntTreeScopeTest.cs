@@ -225,16 +225,22 @@ namespace OpenRA.Test
 				"LIVING frame while flagged as burnt, which is indistinguishable from the condition never " +
 				"having been granted.");
 
-			// The wash. It is not decoration: on SNOW the burnt frame is luminance ~97 against scar
-			// bands at 20-76, i.e. brighter than the scorched ground it stands on.
+			// The wash. It is not decoration: on SNOW the frame swap buys almost nothing tonally
+			// (living mean 104.6 -> burnt 97.0, and BRIGHTER than living on 9 of 20 species), which
+			// leaves the burnt tree at 93-113 sitting in the same tonal band as the crater floor it
+			// stands on (ScarCore 88-98). Only the wash separates them.
 			var overlay = m.Value.Nodes.FirstOrDefault(n =>
 				n.Key.StartsWith("WithColoredOverlay", StringComparison.Ordinal));
 			Assert.That(overlay, Is.Not.Null,
 				$"{Marker} lost its WithColoredOverlay. The frame swap alone is correct on TEMPERAT and " +
-				"WRONG on SNOW, where the burnt frame is a flat ~97 luminance while the snow scar bands " +
-				"are 20-76 — a pale tree on dark scorched ground, which is the complaint this feature was " +
-				"built to fix, reproduced on three of the ten shipped maps. Re-measure snow before " +
-				"removing this.");
+				"WRONG on SNOW: there the burnt frame is 93-113 luminance and the crater floor it stands " +
+				"on is 88-98, so the tree does not separate from the ground at all — the complaint this " +
+				"feature was built to fix, reproduced on three of the ten shipped maps including both " +
+				"nuke-themed ones. The wash moves SNOW 97.0 -> 50.3. Re-measure snow before removing " +
+				"this. (An earlier version of this message claimed the burnt frame was BRIGHTER than " +
+				"every snow scar band, on band values 20-76. Those numbers did not reproduce and the " +
+				"band ordering in them was inverted; measured bands are ScarRim 137-145 down to " +
+				"ScarCore 88-98. The conclusion survived the correction; the argument for it changed.)");
 			Assert.That(Value(overlay, "RequiresCondition"), Is.EqualTo(Condition));
 
 			// And the ruling this must not reverse.

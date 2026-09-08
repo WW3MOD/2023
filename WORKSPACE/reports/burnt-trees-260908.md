@@ -32,24 +32,41 @@ declares them `ShadowIndex`, and `Palette.cs:98-99` maps them to alpha-140 black
 
 | | living tree | burnt frame | scar bands (ScarRim→Core) |
 |---|---|---|---|
-| **TEMPERAT** | lum 40–68 | **2–32** (mean −71%) | 6 / 13 / 16 / 21 |
-| **SNOW** | lum 73–130 | **a flat 93–98** | 20 / 42 / 58 / 76 |
+| **TEMPERAT** | lum 40–68 | **1.6–29.5** (mean 13.4) | 44–47 / 38–43 / 31–35 / 25–27 |
+| **SNOW** | lum 73–130, mean 104.6 | **92.9–113.4** (mean 97.0) | 137–145 / 129–139 / 116–126 / 88–98 |
 
-On snow the burnt frame is **brighter than every scar band it can stand on**, and on 7 of
-20 species it is brighter than the *living* tree. That is the user's original complaint —
-a pale tree on dark scorched ground — reproduced rather than fixed, on three of the ten
-shipped maps, two of which are the nuke-themed ones (`nuclear-winter-ww3`,
-`polar-disorder-ww3`, `siberian-pass-ww3`). Snow has no darker frame to reach for either:
-frames 0–9 of every snow tree stay at 93–98.
+> **CORRECTED 2026-09-08, after independent re-measurement.** This table first read
+> `6 / 13 / 16 / 21` and `20 / 42 / 58 / 76` for the scar bands, and the paragraph below it
+> concluded that on snow the burnt frame is *"brighter than every scar band it can stand on"*.
+> **That conclusion was false.** The band figures did not reproduce under a second measurement
+> using the same palettes and the same shadow-exclusion rule, and their **rim/core ordering was
+> inverted** — the shipped art has the crater core darkest and the rim brightest, which is also
+> the physically sensible direction. The *tree* figures in this table reproduced to within 1.5
+> luminance, which is what makes the band row specifically suspect rather than the method.
+> The conclusion below survives the correction; the argument for it is different.
+
+On snow the frame swap **buys almost nothing tonally**: living mean 104.6 → burnt 97.0, a 7%
+drop, and the burnt frame is *brighter* than the living tree on **9 of 20** species. So the
+burnt tree at 93–113 sits in the **same tonal band as the crater floor beneath it** (ScarCore
+88–98) — only 4 of 20 species clear even the darkest band. It does not separate from the
+ground. That is the user's original complaint — a pale tree on dark scorched ground —
+reproduced rather than fixed, on three of the ten shipped maps, two of which are the
+nuke-themed ones (`nuclear-winter-ww3`, `polar-disorder-ww3`, `siberian-pass-ww3`). Snow has
+no darker frame to reach for either: frames 0–9 of every snow tree stay in the nineties.
+
+The correction cuts in the branch's favour on temperate too. Against the *old* band figures
+(6–21) a washed tree at 17 would have landed **inside** the band range; against the measured
+ones it moves 13.4 → 16.8 and stays clear of the darkest band at 25 with 8 luminance points of
+margin. The symmetric contraction never flips the sign.
 
 So both traits ship, and each does a job the other cannot:
 
-- **The frame swap** makes the tree a **leafless skeleton** — 34–78% of the living frame's
+- **The frame swap** makes the tree a **leafless skeleton** — 35–78% of the living frame's
   opaque pixels. No tint can do that, and it is the strongest single cue.
 - **The colour wash** makes it **charred**. `WithColoredOverlay` is `ReplaceColor` at a
   fixed alpha (`WithColoredOverlay.cs:50-56`), i.e. a contraction toward the tint, so one
   symmetric operation corrects only the tileset that needs it: tint `(24,18,12)` at 60%
-  moves TEMPERAT **15 → 17** and SNOW **97 → 51**.
+  moves TEMPERAT **13.4 → 16.8** and SNOW **97.0 → 50.3**.
 
 Pure black was rejected by looking at `WORKSPACE/mockups/_burnt-trees-candidates.png`: it
 crushes the already-black temperate frame below its own scar while helping snow no more
