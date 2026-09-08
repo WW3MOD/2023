@@ -1080,6 +1080,21 @@
 ^ShootableMissile:
 	Inherits@ExistsInWorld: ^ExistsInWorld
 	Inherits@SpriteActor: ^SpriteActor
+	# ONE LINE, NINETEEN ACTORS: no in-flight missile body may be vaporised, and this is why.
+	#
+	# VaporizeWarhead ignores target types on purpose, so the Hypersonic / ICBM protection every
+	# missile below relies on does not apply to it. Three facts then combine badly:
+	#   - Warhead.AffectsParent only spares victim == firedBy (Warhead.cs:66-67). A SIBLING warhead
+	#     in the same salvo is not the parent, so it is fair game.
+	#   - VaporizeWarhead's radius test is HORIZONTAL-ONLY and ignores altitude entirely, deliberately
+	#     (VaporizeWarhead.cs, and the comment there says so). A missile 38 cells up passing over an
+	#     impact point is inside the circle.
+	#   - The largest shipped fireball is NukeTsarBomba's 15c883, a ~16-cell disc.
+	# So a MIRV or a Dead Hand salvo -- two waves, WithinWaveTicks 2 -- would vaporize its own later
+	# warheads as they descend through an earlier fireball's footprint. That reads to a player as a
+	# nuke that randomly did nothing, and it breaks DoomsdayStrike's scheduled-arrival arithmetic,
+	# which computes launch times from EstimateArcTicks assuming every RV arrives.
+	-Vaporizable:
 	Armor:
 		Type: Light
 	BallisticMissile:

@@ -274,6 +274,26 @@ SUPPLYROUTE:
 	Inherits@ExistsInWorld: ^ExistsInWorld
 	Inherits@SpriteActor: ^SpriteActor
 	Inherits@Selection: ^SelectableBuilding
+	# DO NOT DELETE THIS LINE. Removing it makes one nuke an instant win.
+	#
+	# The SR is NOT invulnerable and never has been. It has Health: HP: 75000 below, and what keeps it
+	# alive is Targetable: TargetTypes: NoAutoTarget -- a target type no weapon in the mod lists, so
+	# Warhead.IsValidAgainst rejects every warhead before damage is computed. (The Armor: Indestructable
+	# line below is inert and protects nothing -- see the note there.) Same idiom as ^TechBuilding at
+	# :162-173, and the same misread is available here.
+	#
+	# VaporizeWarhead DELIBERATELY DOES NOT CONSULT TARGET TYPES (VaporizeWarhead.cs, IsValidAgainst),
+	# so the moment a nuke carries one, the SR's only protection is gone and it dies to the cheapest
+	# warhead in the arsenal. It also already carried Vaporizable via ^ExistsInWorld above, so this is
+	# not hypothetical -- it is one line of weapon YAML away.
+	#
+	# WHAT THAT WOULD COST, and it is not a balance nicety: MustBeDestroyed RequiredForShortGame below
+	# means a player with no SUPPLYROUTE has no required units (PlayerExtensions.cs:22-23) and their
+	# objective is marked failed on the spot (ConquestVictoryConditions.cs:76-77). So vaporizing an
+	# enemy beachhead is not a production lockout, it is IMMEDIATE DEFEAT -- replacing the designed,
+	# relievable, reversible 30-90 s contestation siege (SupplyRouteContestation below) with an
+	# instant purchase.
+	-Vaporizable:
 	ExternalCondition@Disabled:
 		Condition: disabled
 	ExternalCondition@BuildIncomplete:
@@ -365,6 +385,12 @@ SUPPLYROUTE:
 		SlowdownThreshold: 50
 		ContestationNotification: BaseAttack
 		ContestationTextNotification: Supply Route contested!
+	# INERT, AND KEPT ONLY BECAUSE DELETING IT WOULD LOOK LIKE A NERF. An armor type does nothing
+	# unless a warhead's Versus: table names it, and `Indestructable` appears in ZERO Versus tables
+	# anywhere in mods/ww3mod/rules/weapons/ -- DamageWarhead.DamageVersus (DamageWarhead.cs:105-109)
+	# only applies a modifier for a type that is a key in the dict, so this resolves to an unmodified
+	# 100%. It reads as a guarantee and provides none. What actually protects the SR is the
+	# Targetable line above and the -Vaporizable: line at the top of this actor.
 	Armor:
 		Type: Indestructable
 	RallyPoint:

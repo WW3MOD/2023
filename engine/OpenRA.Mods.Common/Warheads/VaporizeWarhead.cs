@@ -20,9 +20,16 @@ namespace OpenRA.Mods.Common.Warheads
 	// Vaporisation is what happens inside a fireball; outside it things are wrecked, burned and thrown, and
 	// those should keep leaving husks exactly as they do now. Sizing it to the fireball is the caller's job -
 	// there is no default Radius for that reason.
+	// TARGET TYPES ARE DELIBERATELY NOT CONSULTED - see IsValidAgainst below. That is the whole point of
+	// the warhead: what is inside a fireball is gone whether or not a weapon designer remembered to list
+	// its target type, and the things this is FOR - a neutral tech building, an unlisted decoration - are
+	// exactly the things a ValidTargets list misses. ValidTargets and InvalidTargets are therefore INERT
+	// on this warhead type. The opt-out is `-Vaporizable:` on the actor, per-actor and authoritative.
 	[Desc("Removes actors near the impact point entirely: they flash white, dissolve, and die leaving no husk,",
 		"no cook-off, no corpse and no ejected pilot. Requires the Vaporizable trait on the victim.",
-		"Radius-bounded on purpose - give it the weapon's FIREBALL radius, not its blast radius.")]
+		"Radius-bounded on purpose - give it the weapon's FIREBALL radius, not its blast radius.",
+		"IGNORES ValidTargets and InvalidTargets: anything with a health trait inside the radius is",
+		"removed. To spare an actor, take the Vaporizable trait off it with `-Vaporizable:`.")]
 	public class VaporizeWarhead : Warhead
 	{
 		[FieldLoader.Require]
@@ -57,6 +64,38 @@ namespace OpenRA.Mods.Common.Warheads
 			"The radius test is horizontal-only, so this changes nothing about which actors are caught - it is",
 			"here for clarity when reading a weapon that airbursts.")]
 		public readonly bool ForceGroundLevel = false;
+
+		/// <summary>
+		/// Everything with health inside the radius, of a valid relationship, that is not the firer.
+		/// One sentence, on purpose.
+		///
+		/// This REPLACES the base implementation rather than extending it, because the base's third
+		/// clause - the ValidTargets/InvalidTargets overlap test (Warhead.cs:73-75) - is the one thing
+		/// that must not apply. WW3MOD protects several actors by giving them a target type no weapon
+		/// lists rather than by making them tough (`NoAutoTarget` on ^TechBuilding and SUPPLYROUTE,
+		/// `Hypersonic` on every in-flight missile), and a fireball is not a targeting decision.
+		/// The AffectsParent and relationship clauses are kept verbatim from the base.
+		///
+		/// The health predicate is Vaporizable.CanVaporize, shared with the trait so the warhead and
+		/// the victim cannot disagree; the shape is DamageWarhead.cs:57-64 and the semantics are
+		/// DoomsdayStrike.Annihilate's, which already filters the whole map on exactly this test.
+		/// </summary>
+		public override bool IsValidAgainst(Actor victim, Actor firedBy)
+		{
+			// Cannot be killed without a health trait - and starting the fade on one that cannot die is
+			// the silent failure Vaporizable.CanVaporize documents.
+			if (!Vaporizable.CanVaporize(victim.Info))
+				return false;
+
+			if (!AffectsParent && victim == firedBy)
+				return false;
+
+			var relationship = firedBy.Owner.RelationshipWith(victim.Owner);
+			if (!ValidRelationships.HasRelationship(relationship))
+				return false;
+
+			return true;
+		}
 
 		public override void DoImpact(in Target target, WarheadArgs args)
 		{
