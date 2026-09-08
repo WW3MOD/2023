@@ -103,7 +103,12 @@ MapFolders:
 	# feeds UnlockedRenderPlayer into the sync hash (World.cs:566).
 	# Note: ^EngineDir resolves to the engine/ subdir (BinDir + ".."),
 	# so we need one more "../" to reach the WW3MOD repo root.
-	^EngineDir|../tools/autotest/scenarios: Unknown
+	# The `~` is REQUIRED and is not decoration: tools/ is a development-checkout
+	# directory and is NOT packaged (mod.config only copies mods/ra and
+	# mods/modcontent). Without it MapCache.LoadMaps rethrows the missing-package
+	# exception (Map/MapCache.cs:105-121) and the game dies before the main menu on
+	# every real installation -- which is exactly what v0.1.0 shipped.
+	~^EngineDir|../tools/autotest/scenarios: Unknown
 
 Rules:
 	ww3mod|rules/misc.yaml
