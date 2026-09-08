@@ -1,0 +1,133 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a strike BEHIND the player's own Supply Route still arrives from behind it
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES, and it is the HALF OF THE APPROACH CONTRACT ITS SIBLING CANNOT SEE.
+# test-missile-strike-power asserts that a strike arrives along the line from the launching
+# player's own position through the aim point, and it aims at 48,6 -- out in front, deep in
+# enemy ground. Every aim point it can reach is INWARD of Russia's Supply Route, and inward is
+# exactly the half of the map on which the old bearing rule was correct.
+#
+# THE BUG THIS PINS, reported by the user on 2026-09-08: "When I target a strike close to my own
+# SR the missile comes in from the other side, instead of from behind my own SR as it otherwise
+# does." The old rule read the azimuth straight off home -> salvo centroid, and
+# MissileStrikeApproach.SpawnPosition walks BACKWARD up that azimuth by a standoff longer than
+# the map. So the birth point always landed on the opposite side of home from the aim point --
+# which is "behind my own SR" only while the aim point is inward of it. Put the aim point on the
+# OUTWARD side, between the SR and the map edge behind it, and home -> centroid points off the
+# map; the backward walk then put the missile on the far side of the world.
+#
+# GEOMETRY, every number derived from the shipped MissileStrikeApproach rather than by hand:
+#
+#   standoff = mapDiagonal + ApproachMargin
+#            = ISqrt((1024*66)^2 + (1024*34)^2) + 16384 = 76024 + 16384 = 92408 wdist = 90.2 cells
+#   Russia home  8,17      map centre 33,17      corridor = due EAST, outward = due WEST
+#   aim          2,17      6 cells due WEST of Russia's own SR -- directly astern of it
+#
+#   OLD RULE (pre-2026-09-08):  bearing = (aim - home).Yaw = due WEST
+#                               spawn   = 2,17 walked 90.2 cells EAST  ->  cell 92,17
+#     That is 28 cells past the map's own east edge, BEYOND the American Supply Route at 58,17.
+#     The warhead crossed the entire board east to west, over every enemy unit on it, to hit a
+#     target six cells from its own launcher. That is the reported bug, exactly.
+#
+#   SHIPPED RULE:               bearing = the corridor, due EAST, leaned by 0 (see below)
+#                               spawn   = 2,17 walked 90.2 cells WEST  ->  cell -88,17
+#     96.2 cells behind Russia's own SR, on the SR's own row, off the west edge.
+#
+#   WHY THE LEAN IS ZERO HERE and not 60 degrees. The aim bearing is 180 degrees off the
+#   corridor, and MissileStrikeApproach tapers the lean linearly back to zero as the aim bearing
+#   swings to directly astern rather than holding it at MaxCorridorDeviation. Holding it would
+#   have brought the warhead in over Russia's shoulder at 56.6 degrees -- behind the SR by the
+#   letter of the invariant and side-on to a player watching. The taper is what makes the answer
+#   the one a player would draw by hand.
+#
+#   FLIGHT: 92408 / 2000 = 46 ticks at KinzhalMissile's Speed 2000, the same as every other aim
+#   point on this map. The standoff is the whole horizontal distance flown and does not depend on
+#   where the player clicked, which is the property b69681d2 introduced deliberately.
+#
+# THE VICTIM IS AN AMERICAN ABRAMS AT 2,17 -- an enemy that has pushed PAST the Russian Supply
+# Route and is sitting between it and the map edge. That is the situation the user described, and
+# it is the only way to make the aim point outward of home without aiming at empty ground.
+#   * 6 cells from OwnSR at 8,17, outside IskanderExplosion's widest warhead (ShockwaveDamage
+#     MaxRadius 4c0), so Russia cannot destroy its own Supply Route with this shot.
+#   * 56 cells from OpponentSR at 58,17, so USA cannot be eliminated by it either.
+#   * Abrams: 28,000 HP, Heavy armour. IskanderExplosion puts ~62,800 on a direct hit, so a hit
+#     kills and a near miss does not -- "dead" is a clean read on "arrived where it was aimed".
+#
+# WHY MapStartingLocations IS REMOVED IN rules.yaml. Russia is the playable client player, so
+# Player.HomeLocation would otherwise come from a spawn assigner (Player.cs:182) and the corridor
+# -- which is taken FROM HomeLocation -- would depend on which mpspawn was picked. With the trait
+# gone, assignSpawnPoints is null and HomeLocation falls back to the pinned PlayerReference value
+# (Player.cs:182 `?? pr.HomeLocation`). Same reasoning and same fix as its sibling.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	# Russia is the PLAYABLE player: the Kinzhal power carries Prerequisites: player.russia, and
+	# Test.ActivateSupportPower issues the order through the local client's order stream.
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 8,17
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 58,17
+
+Actors:
+	# Both Supply Routes exist only so that neither player is eliminated before the poller writes a
+	# verdict (AUTOTEST.md map.yaml rule 6). SUPPLYROUTE carries Targetable.TargetTypes:
+	# NoAutoTarget, so nothing acquires them.
+	#
+	# OwnSR IS AT 8,17 AND NOT 6,17, unlike its sibling. The aim point has to sit outward of it and
+	# still be inside Bounds (1,1,64,32), and it has to clear the warhead's 4c0 shockwave: at 6,17
+	# the only outward cells left are 1..5, and 2,17 would then be four cells away rather than six.
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 8,17
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 58,17
+
+	# THE VICTIM, deliberately BEHIND Russia's own Supply Route rather than in front of it. This
+	# single placement is the whole scenario: at 20,17 -- the mirror of it, inward -- the old rule
+	# and the shipped rule give the SAME spawn cell, and the run would prove nothing.
+	Victim: abrams
+		Owner: USA
+		Location: 2,17
+		Facing: 768
+
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 8,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+Rules: rules.yaml
