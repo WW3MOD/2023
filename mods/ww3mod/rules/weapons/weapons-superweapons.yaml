@@ -603,23 +603,35 @@ Atomic:
 	# CEILING: LeaveSmudgeWarhead goes through FindTilesInAnnulus, which THROWS above
 	# MapGrid.MaximumTileSearchRange (56 cells) rather than clamping. Nothing here is close, but
 	# AtomicHighYield's Scorch2 is capped by it -- see the note there.
-	Warhead@Crater: LeaveSmudge
-		Size: 3
-		SmudgeType: Crater
-		Delay: 6
+	Warhead@Scar1Core: LeaveSmudge
+		Size: 2
+		SmudgeType: ScarCore
+		Delay: 0
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 10c0
-	Warhead@Scorch1: LeaveSmudge
-		Size: 7
-		SmudgeType: Scorch
+	Warhead@Scar2Crater: LeaveSmudge
+		Size: 4, 3
+		SmudgeType: ScarCrater
+		Delay: 13
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 10c0
+	Warhead@Scar3Char: LeaveSmudge
+		Size: 7, 5
+		SmudgeType: ScarChar
 		Delay: 33
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 10c0
-	Warhead@Scorch2: LeaveSmudge
-		Size: 12
-		Chance: 60
-		SmudgeType: Scorch
+	Warhead@Scar4Burn: LeaveSmudge
+		Size: 10, 8
+		SmudgeType: ScarBurn
+		Delay: 54
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 10c0
+	Warhead@Scar5Rim: LeaveSmudge
+		Size: 12, 11
+		SmudgeType: ScarRim
 		Delay: 68
+		Chance: 60
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 10c0
 
@@ -1249,21 +1261,33 @@ AtomicHighYield:
 	# Chance is deliberately left at its default 100 where `Atomic` uses 60 on its outer scorch. Chance
 	# gates the WHOLE warhead, not each cell (LeaveSmudgeWarhead.cs:41-43), so 60 would be a coin flip
 	# on whether the map is visibly scarred at all. A strategic burst does not sometimes leave a mark.
-	Warhead@Crater: LeaveSmudge
-		Size: 18
-		SmudgeType: Crater
-		Delay: 34
+	Warhead@Scar1Core: LeaveSmudge
+		Size: 7
+		SmudgeType: ScarCore
+		Delay: 0
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch1: LeaveSmudge
-		Size: 31
-		SmudgeType: Scorch
-		Delay: 102
+	Warhead@Scar2Crater: LeaveSmudge
+		Size: 16, 8
+		SmudgeType: ScarCrater
+		Delay: 24
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
-	Warhead@Scorch2: LeaveSmudge
-		Size: 47
-		SmudgeType: Scorch
+	Warhead@Scar3Char: LeaveSmudge
+		Size: 27, 17
+		SmudgeType: ScarChar
+		Delay: 81
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scar4Burn: LeaveSmudge
+		Size: 38, 28
+		SmudgeType: ScarBurn
+		Delay: 150
+		InvalidTargets: Vehicle, Structure, Wall
+		AirThreshold: 24c0
+	Warhead@Scar5Rim: LeaveSmudge
+		Size: 47, 39
+		SmudgeType: ScarRim
 		Delay: 211
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
