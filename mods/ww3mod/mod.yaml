@@ -1,10 +1,8 @@
 Metadata:
 	Title: WW3MOD
 	Version: release-20230225
-	# TODO(release): still points at openra.net — replace with the WW3MOD homepage once the user picks one.
-	Website: https://www.openra.net
-	# TODO(release): still the stock Red Alert icon on openra.net — replace with a WW3MOD-hosted 32x32.
-	WebIcon32: https://www.openra.net/images/icons/ra_32x32.png
+	Website: https://github.com/WW3MOD/2023
+	WebIcon32: https://raw.githubusercontent.com/WW3MOD/2023/main/packaging/artwork/icon_32x32.png
 	WindowTitle: WW3MOD
 	FirstTimeShellmap: River Zeta WW3
 
