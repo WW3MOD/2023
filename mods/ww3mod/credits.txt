@@ -1,6 +1,6 @@
 WW3MOD
 A total conversion into a modern World War 3 real-time
-strategy game: NATO and America against BRICS and Russia.
+strategy game: NATO and America against Russia.
 
 
 DEVELOPMENT

@@ -264,7 +264,7 @@ Hellfire:
 		RangeLimit: 27c0
 		ContrailLength: 10
 		Image: dragon
-		# Matches Ataka, its direct BRICS counterpart — same solid-rocket propulsion class,
+		# Matches Ataka, its direct Russian counterpart — same solid-rocket propulsion class,
 		# so the same smoke trail. The asymmetry had no design reason behind it.
 		TrailImage: smokey
 		TrailScalePercent: 75

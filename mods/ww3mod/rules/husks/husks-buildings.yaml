@@ -191,7 +191,7 @@ STEK.Husk:
 		Dimensions: 3,2
 		LocalCenterOffset: 0,-512,0
 	Tooltip:
-		Name: BRICS Tech Center (Destroyed)
+		Name: Russian Tech Center (Destroyed)
 
 ATEKNEW.Husk:
 	Inherits: ^BuildingHusk

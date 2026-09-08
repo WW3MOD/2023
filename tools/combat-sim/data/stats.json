@@ -2,7 +2,7 @@
   "_meta": {
     "mod": "ww3mod",
     "version": "release-20230225",
-    "generated_at": "2026-08-22T01:37:18.5814830Z",
+    "generated_at": "2026-09-08T01:02:18.4292174Z",
     "note": "Generated from live YAML by --dump-balance-json. Do not edit by hand; re-run the dump after rules changes."
   },
   "actors": {
@@ -57,6 +57,202 @@
       "name": "Supply Cache",
       "cost": null,
       "hp": 5000,
+      "armor": {
+        "type": "Light",
+        "thickness": 0,
+        "distribution": []
+      },
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": null,
+      "disabled": false,
+      "armaments": []
+    },
+    "power.gbu57": {
+      "name": "GBU-57 Bunker Buster",
+      "cost": 5000,
+      "hp": null,
+      "armor": null,
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": [],
+      "disabled": false,
+      "armaments": []
+    },
+    "power.b61low": {
+      "name": "B61-12 (0.3 kt)",
+      "cost": 6000,
+      "hp": null,
+      "armor": null,
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": [],
+      "disabled": false,
+      "armaments": []
+    },
+    "power.b61mid": {
+      "name": "B61-12 (10 kt)",
+      "cost": 10000,
+      "hp": null,
+      "armor": null,
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": [],
+      "disabled": false,
+      "armaments": []
+    },
+    "power.b61max": {
+      "name": "B61-12 (50 kt)",
+      "cost": 15000,
+      "hp": null,
+      "armor": null,
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": [],
+      "disabled": false,
+      "armaments": []
+    },
+    "power.w76": {
+      "name": "W76-1 Trident Warhead (100 kt)",
+      "cost": 32000,
+      "hp": null,
+      "armor": null,
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": [],
+      "disabled": false,
+      "armaments": []
+    },
+    "power.kinzhal": {
+      "name": "Kh-47M2 Kinzhal",
+      "cost": 5000,
+      "hp": null,
+      "armor": null,
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": [],
+      "disabled": false,
+      "armaments": []
+    },
+    "power.ru9m729": {
+      "name": "9M729 (1 kt)",
+      "cost": 6000,
+      "hp": null,
+      "armor": null,
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": [],
+      "disabled": false,
+      "armaments": []
+    },
+    "power.ruiskander": {
+      "name": "9M723 Iskander-M (10 kt)",
+      "cost": 10000,
+      "hp": null,
+      "armor": null,
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": [],
+      "disabled": false,
+      "armaments": []
+    },
+    "power.rukinzhaln": {
+      "name": "Kh-47M2 Kinzhal-N (50 kt)",
+      "cost": 15000,
+      "hp": null,
+      "armor": null,
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": [],
+      "disabled": false,
+      "armaments": []
+    },
+    "power.rukalibr": {
+      "name": "3M14 Kalibr (100 kt)",
+      "cost": 32000,
+      "hp": null,
+      "armor": null,
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": [],
+      "disabled": false,
+      "armaments": []
+    },
+    "power.tacnuke": {
+      "name": "Tactical Nuclear Strike",
+      "cost": 15000,
+      "hp": null,
+      "armor": null,
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": [],
+      "disabled": false,
+      "armaments": []
+    },
+    "power.sarmat": {
+      "name": "RS-28 Sarmat MIRV (6 x 750 kt)",
+      "cost": 30000,
+      "hp": null,
+      "armor": null,
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": [],
+      "disabled": false,
+      "armaments": []
+    },
+    "power.b83": {
+      "name": "B83-1 (1.2 Mt)",
+      "cost": 32000,
+      "hp": null,
+      "armor": null,
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": [],
+      "disabled": false,
+      "armaments": []
+    },
+    "power.highyieldnuke": {
+      "name": "Strategic Nuclear Strike",
+      "cost": 40000,
+      "hp": null,
+      "armor": null,
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": [],
+      "disabled": false,
+      "armaments": []
+    },
+    "power.tsarbomba": {
+      "name": "Tsar Bomba (50 Mt)",
+      "cost": 60000,
+      "hp": null,
+      "armor": null,
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": [],
+      "disabled": false,
+      "armaments": []
+    },
+    "b61midmissile": {
+      "name": "B61-12 (10 kt)",
+      "cost": 0,
+      "hp": 60,
       "armor": {
         "type": "Light",
         "thickness": 0,
@@ -2227,7 +2423,7 @@
       "armaments": []
     },
     "stek.husk": {
-      "name": "BRICS Tech Center (Destroyed)",
+      "name": "Russian Tech Center (Destroyed)",
       "cost": null,
       "hp": 200,
       "armor": {
@@ -4381,7 +4577,7 @@
     },
     "medi": {
       "name": "Medic",
-      "cost": 100,
+      "cost": 250,
       "hp": 200,
       "armor": {
         "type": "Kevlar",
@@ -5141,7 +5337,7 @@
     },
     "medi.america": {
       "name": "Medic",
-      "cost": 100,
+      "cost": 250,
       "hp": 200,
       "armor": {
         "type": "Kevlar",
@@ -5673,7 +5869,7 @@
     },
     "medi.russia": {
       "name": "Medic",
-      "cost": 100,
+      "cost": 250,
       "hp": 200,
       "armor": {
         "type": "Kevlar",
@@ -5908,7 +6104,7 @@
     },
     "logisticscenter": {
       "name": "Logistics Center",
-      "cost": 3500,
+      "cost": 3000,
       "hp": 60000,
       "armor": {
         "type": "Concrete",
@@ -6221,9 +6417,10 @@
       "mover": null,
       "cargo_max_weight": null,
       "prerequisites": [
-        "~disabled"
+        "supplyroute",
+        "~techlevel.medium"
       ],
-      "disabled": true,
+      "disabled": false,
       "armaments": [
         {
           "name": "primary",
@@ -6731,7 +6928,7 @@
     },
     "lccv": {
       "name": "Logistics Center MCV",
-      "cost": 1200,
+      "cost": 3000,
       "hp": 10000,
       "armor": {
         "type": "Light",
@@ -6750,6 +6947,38 @@
       "prerequisites": [
         "~techlevel.low"
       ],
+      "disabled": false,
+      "armaments": []
+    },
+    "tacnukemissile": {
+      "name": "Tactical Nuclear Missile",
+      "cost": 0,
+      "hp": 100,
+      "armor": {
+        "type": "Light",
+        "thickness": 0,
+        "distribution": []
+      },
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": null,
+      "disabled": false,
+      "armaments": []
+    },
+    "highyieldnukemissile": {
+      "name": "Strategic Nuclear Missile",
+      "cost": 0,
+      "hp": 200,
+      "armor": {
+        "type": "Light",
+        "thickness": 0,
+        "distribution": []
+      },
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": null,
       "disabled": false,
       "armaments": []
     },
@@ -7062,6 +7291,22 @@
       "disabled": false,
       "armaments": []
     },
+    "gbu57bomb": {
+      "name": "GBU-57 MOP",
+      "cost": 0,
+      "hp": 100,
+      "armor": {
+        "type": "Light",
+        "thickness": 0,
+        "distribution": []
+      },
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": null,
+      "disabled": false,
+      "armaments": []
+    },
     "btr": {
       "name": "BTR-80",
       "cost": 600,
@@ -7359,6 +7604,214 @@
       "name": "Iskander missile",
       "cost": 50,
       "hp": 100,
+      "armor": {
+        "type": "Light",
+        "thickness": 0,
+        "distribution": []
+      },
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": null,
+      "disabled": false,
+      "armaments": []
+    },
+    "kinzhalmissile": {
+      "name": "Kh-47M2 Kinzhal",
+      "cost": 0,
+      "hp": 100,
+      "armor": {
+        "type": "Light",
+        "thickness": 0,
+        "distribution": []
+      },
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": null,
+      "disabled": false,
+      "armaments": []
+    },
+    "deadhandtacticalmissile": {
+      "name": "Dead Hand RV",
+      "cost": 0,
+      "hp": 100,
+      "armor": {
+        "type": "Light",
+        "thickness": 0,
+        "distribution": []
+      },
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": null,
+      "disabled": false,
+      "armaments": []
+    },
+    "deadhandstrategicmissile": {
+      "name": "Dead Hand MIRV",
+      "cost": 0,
+      "hp": 200,
+      "armor": {
+        "type": "Light",
+        "thickness": 0,
+        "distribution": []
+      },
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": null,
+      "disabled": false,
+      "armaments": []
+    },
+    "b61lowmissile": {
+      "name": "B61-12 (0.3 kt)",
+      "cost": 0,
+      "hp": 60,
+      "armor": {
+        "type": "Light",
+        "thickness": 0,
+        "distribution": []
+      },
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": null,
+      "disabled": false,
+      "armaments": []
+    },
+    "b61maxmissile": {
+      "name": "B61-12 (50 kt)",
+      "cost": 0,
+      "hp": 60,
+      "armor": {
+        "type": "Light",
+        "thickness": 0,
+        "distribution": []
+      },
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": null,
+      "disabled": false,
+      "armaments": []
+    },
+    "w76missile": {
+      "name": "W76-1 Re-entry Vehicle",
+      "cost": 0,
+      "hp": 100,
+      "armor": {
+        "type": "Light",
+        "thickness": 0,
+        "distribution": []
+      },
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": null,
+      "disabled": false,
+      "armaments": []
+    },
+    "sarmatmissile": {
+      "name": "RS-28 Sarmat",
+      "cost": 0,
+      "hp": 200,
+      "armor": {
+        "type": "Light",
+        "thickness": 0,
+        "distribution": []
+      },
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": null,
+      "disabled": false,
+      "armaments": []
+    },
+    "b83missile": {
+      "name": "B83-1",
+      "cost": 0,
+      "hp": 200,
+      "armor": {
+        "type": "Light",
+        "thickness": 0,
+        "distribution": []
+      },
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": null,
+      "disabled": false,
+      "armaments": []
+    },
+    "tsarbombamissile": {
+      "name": "RDS-220 Tsar Bomba",
+      "cost": 0,
+      "hp": 400,
+      "armor": {
+        "type": "Light",
+        "thickness": 0,
+        "distribution": []
+      },
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": null,
+      "disabled": false,
+      "armaments": []
+    },
+    "ru9m729missile": {
+      "name": "9M729 (1 kt)",
+      "cost": 0,
+      "hp": 60,
+      "armor": {
+        "type": "Light",
+        "thickness": 0,
+        "distribution": []
+      },
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": null,
+      "disabled": false,
+      "armaments": []
+    },
+    "ruiskandermissile": {
+      "name": "9M723 Iskander-M (10 kt)",
+      "cost": 0,
+      "hp": 80,
+      "armor": {
+        "type": "Light",
+        "thickness": 0,
+        "distribution": []
+      },
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": null,
+      "disabled": false,
+      "armaments": []
+    },
+    "rukinzhalnmissile": {
+      "name": "Kh-47M2 Kinzhal-N (50 kt)",
+      "cost": 0,
+      "hp": 100,
+      "armor": {
+        "type": "Light",
+        "thickness": 0,
+        "distribution": []
+      },
+      "speed": null,
+      "mover": null,
+      "cargo_max_weight": null,
+      "prerequisites": null,
+      "disabled": false,
+      "armaments": []
+    },
+    "rukalibrmissile": {
+      "name": "3M14 Kalibr (100 kt)",
+      "cost": 0,
+      "hp": 60,
       "armor": {
         "type": "Light",
         "thickness": 0,
@@ -9913,7 +10366,7 @@
         {
           "type": "TargetDamageWarhead",
           "damage": 54000,
-          "penetration": 1,
+          "penetration": 2500,
           "damage_at_max_range": 100,
           "damage_percent": 0,
           "random_damage_addition": 0,
@@ -9975,6 +10428,26 @@
             "Trees"
           ],
           "invalid_targets": []
+        },
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 60000,
+          "penetration": 2500,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 1024,
+          "falloff": [
+            100,
+            100,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "TechStructure"
+          ],
+          "invalid_targets": []
         }
       ]
     },
@@ -10030,8 +10503,8 @@
         {
           "type": "TargetDamageWarhead",
           "damage": 36000,
-          "penetration": 1,
-          "damage_at_max_range": 80,
+          "penetration": 2500,
+          "damage_at_max_range": 100,
           "damage_percent": 0,
           "random_damage_addition": 0,
           "random_damage_subtraction": 0,
@@ -10147,7 +10620,7 @@
         {
           "type": "TargetDamageWarhead",
           "damage": 54000,
-          "penetration": 1,
+          "penetration": 2500,
           "damage_at_max_range": 100,
           "damage_percent": 0,
           "random_damage_addition": 0,
@@ -10207,6 +10680,26 @@
             "Ground",
             "Water",
             "Trees"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 60000,
+          "penetration": 2500,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 1024,
+          "falloff": [
+            100,
+            100,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "TechStructure"
           ],
           "invalid_targets": []
         }
@@ -10856,10 +11349,11 @@
       "miss_chance_per_density": 0,
       "valid_targets": [
         "Infantry",
-        "Helicopter",
         "Unarmored"
       ],
-      "invalid_targets": [],
+      "invalid_targets": [
+        "Vehicle"
+      ],
       "projectile_kind": "Bullet",
       "projectile_speed": 1024,
       "inaccuracy": 512,
@@ -10878,10 +11372,11 @@
           "versus": {},
           "valid_targets": [
             "Infantry",
-            "Helicopter",
             "Unarmored"
           ],
-          "invalid_targets": []
+          "invalid_targets": [
+            "Vehicle"
+          ]
         }
       ]
     },
@@ -11036,10 +11531,9 @@
       "valid_targets": [
         "Infantry",
         "Vehicle",
-        "Helicopter"
+        "AirLight"
       ],
       "invalid_targets": [
-        "Light",
         "Heavy",
         "Medium"
       ],
@@ -11062,10 +11556,9 @@
           "valid_targets": [
             "Infantry",
             "Vehicle",
-            "Helicopter"
+            "AirLight"
           ],
           "invalid_targets": [
-            "Light",
             "Heavy",
             "Medium"
           ]
@@ -11090,10 +11583,9 @@
       "valid_targets": [
         "Infantry",
         "Vehicle",
-        "Helicopter"
+        "AirLight"
       ],
       "invalid_targets": [
-        "Light",
         "Heavy",
         "Medium"
       ],
@@ -11116,10 +11608,9 @@
           "valid_targets": [
             "Infantry",
             "Vehicle",
-            "Helicopter"
+            "AirLight"
           ],
           "invalid_targets": [
-            "Light",
             "Heavy",
             "Medium"
           ]
@@ -11144,10 +11635,9 @@
       "valid_targets": [
         "Infantry",
         "Vehicle",
-        "Helicopter"
+        "AirLight"
       ],
       "invalid_targets": [
-        "Light",
         "Heavy",
         "Medium"
       ],
@@ -11170,10 +11660,9 @@
           "valid_targets": [
             "Infantry",
             "Vehicle",
-            "Helicopter"
+            "AirLight"
           ],
           "invalid_targets": [
-            "Light",
             "Heavy",
             "Medium"
           ]
@@ -11198,10 +11687,9 @@
       "valid_targets": [
         "Infantry",
         "Vehicle",
-        "Helicopter"
+        "AirLight"
       ],
       "invalid_targets": [
-        "Light",
         "Heavy",
         "Medium"
       ],
@@ -11224,10 +11712,9 @@
           "valid_targets": [
             "Infantry",
             "Vehicle",
-            "Helicopter"
+            "AirLight"
           ],
           "invalid_targets": [
-            "Light",
             "Heavy",
             "Medium"
           ]
@@ -11252,10 +11739,9 @@
       "valid_targets": [
         "Infantry",
         "Vehicle",
-        "Helicopter"
+        "AirLight"
       ],
       "invalid_targets": [
-        "Light",
         "Heavy",
         "Medium"
       ],
@@ -11278,10 +11764,9 @@
           "valid_targets": [
             "Infantry",
             "Vehicle",
-            "Helicopter"
+            "AirLight"
           ],
           "invalid_targets": [
-            "Light",
             "Heavy",
             "Medium"
           ]
@@ -11305,10 +11790,14 @@
       "miss_chance_per_density": 0,
       "valid_targets": [
         "Infantry",
-        "Helicopter",
+        "Vehicle",
+        "AirLight",
         "Unarmored"
       ],
-      "invalid_targets": [],
+      "invalid_targets": [
+        "Heavy",
+        "Medium"
+      ],
       "projectile_kind": "Bullet",
       "projectile_speed": 1024,
       "inaccuracy": 256,
@@ -11327,10 +11816,14 @@
           "versus": {},
           "valid_targets": [
             "Infantry",
-            "Helicopter",
+            "Vehicle",
+            "AirLight",
             "Unarmored"
           ],
-          "invalid_targets": []
+          "invalid_targets": [
+            "Heavy",
+            "Medium"
+          ]
         }
       ]
     },
@@ -11351,10 +11844,14 @@
       "miss_chance_per_density": 0,
       "valid_targets": [
         "Infantry",
-        "Helicopter",
+        "Vehicle",
+        "AirLight",
         "Unarmored"
       ],
-      "invalid_targets": [],
+      "invalid_targets": [
+        "Heavy",
+        "Medium"
+      ],
       "projectile_kind": "Bullet",
       "projectile_speed": 1024,
       "inaccuracy": 256,
@@ -11373,10 +11870,14 @@
           "versus": {},
           "valid_targets": [
             "Infantry",
-            "Helicopter",
+            "Vehicle",
+            "AirLight",
             "Unarmored"
           ],
-          "invalid_targets": []
+          "invalid_targets": [
+            "Heavy",
+            "Medium"
+          ]
         }
       ]
     },
@@ -11397,10 +11898,14 @@
       "miss_chance_per_density": 0,
       "valid_targets": [
         "Infantry",
-        "Helicopter",
+        "Vehicle",
+        "AirLight",
         "Unarmored"
       ],
-      "invalid_targets": [],
+      "invalid_targets": [
+        "Heavy",
+        "Medium"
+      ],
       "projectile_kind": "Bullet",
       "projectile_speed": 1280,
       "inaccuracy": 96,
@@ -11419,10 +11924,14 @@
           "versus": {},
           "valid_targets": [
             "Infantry",
-            "Helicopter",
+            "Vehicle",
+            "AirLight",
             "Unarmored"
           ],
-          "invalid_targets": []
+          "invalid_targets": [
+            "Heavy",
+            "Medium"
+          ]
         }
       ]
     },
@@ -11443,10 +11952,14 @@
       "miss_chance_per_density": 0,
       "valid_targets": [
         "Infantry",
-        "Helicopter",
+        "Vehicle",
+        "AirLight",
         "Unarmored"
       ],
-      "invalid_targets": [],
+      "invalid_targets": [
+        "Heavy",
+        "Medium"
+      ],
       "projectile_kind": "Bullet",
       "projectile_speed": 1024,
       "inaccuracy": 256,
@@ -11465,10 +11978,14 @@
           "versus": {},
           "valid_targets": [
             "Infantry",
-            "Helicopter",
+            "Vehicle",
+            "AirLight",
             "Unarmored"
           ],
-          "invalid_targets": []
+          "invalid_targets": [
+            "Heavy",
+            "Medium"
+          ]
         }
       ]
     },
@@ -11491,7 +12008,10 @@
         "Infantry",
         "Unarmored"
       ],
-      "invalid_targets": [],
+      "invalid_targets": [
+        "Heavy",
+        "Medium"
+      ],
       "projectile_kind": "Bullet",
       "projectile_speed": 1024,
       "inaccuracy": 320,
@@ -11512,7 +12032,10 @@
             "Infantry",
             "Unarmored"
           ],
-          "invalid_targets": []
+          "invalid_targets": [
+            "Heavy",
+            "Medium"
+          ]
         },
         {
           "type": "SpreadDamageWarhead",
@@ -11557,7 +12080,10 @@
       "valid_targets": [
         "Helicopter"
       ],
-      "invalid_targets": [],
+      "invalid_targets": [
+        "Heavy",
+        "Medium"
+      ],
       "projectile_kind": "Bullet",
       "projectile_speed": 1024,
       "inaccuracy": 512,
@@ -14332,6 +14858,26 @@
           "invalid_targets": [
             "Air"
           ]
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 0,
+          "penetration": 1,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Trees"
+          ],
+          "invalid_targets": [
+            "Air"
+          ]
         }
       ]
     },
@@ -15251,7 +15797,8 @@
       "miss_chance_per_density": 0,
       "valid_targets": [
         "Ground",
-        "Water"
+        "Water",
+        "TechStructure"
       ],
       "invalid_targets": [],
       "projectile_kind": "InstantHit",
@@ -15639,7 +16186,7 @@
       "burst_delays": [
         5
       ],
-      "burst_wait": 40,
+      "burst_wait": 58,
       "magazine": 1,
       "reload_delay": 0,
       "top_attack": false,
@@ -16165,7 +16712,7 @@
           "damage": 0,
           "penetration": 1,
           "damage_at_max_range": 100,
-          "damage_percent": -5,
+          "damage_percent": -10,
           "random_damage_addition": 0,
           "random_damage_subtraction": 0,
           "spread": 43,
@@ -17596,7 +18143,7 @@
           "damage_percent": 0,
           "random_damage_addition": 0,
           "random_damage_subtraction": 0,
-          "spread": 3072,
+          "spread": 2816,
           "falloff": [
             100,
             100,
@@ -17622,7 +18169,7 @@
           "damage_percent": 0,
           "random_damage_addition": 0,
           "random_damage_subtraction": 0,
-          "spread": 1024,
+          "spread": 1229,
           "falloff": [
             100,
             100,
@@ -17643,7 +18190,7 @@
           "damage_percent": 0,
           "random_damage_addition": 0,
           "random_damage_subtraction": 0,
-          "spread": 512,
+          "spread": 647,
           "falloff": [
             10000,
             8000,
@@ -17727,6 +18274,223 @@
           "invalid_targets": [
             "Trees"
           ]
+        },
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 200000,
+          "penetration": 5000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 2048,
+          "falloff": [
+            100,
+            100,
+            100,
+            100,
+            100,
+            25,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "TechStructure"
+          ],
+          "invalid_targets": []
+        }
+      ]
+    },
+    "atomichighyield": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Air",
+        "Trees",
+        "Underwater"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 800000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 18534,
+          "falloff": [
+            100,
+            100,
+            100,
+            50
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 800000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 8192,
+          "falloff": [
+            100,
+            100,
+            100,
+            100
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Trees"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 400,
+          "penetration": 1,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 6683,
+          "falloff": [
+            10000,
+            8000,
+            4000,
+            2500,
+            300,
+            100,
+            80,
+            50,
+            40,
+            25,
+            10,
+            9,
+            8,
+            7,
+            6,
+            5,
+            4,
+            3,
+            2,
+            1
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Trees",
+            "Underwater"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "ThermalRadiationWarhead",
+          "damage": 9000,
+          "penetration": 1200,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 120,
+            "Medium": 60,
+            "Heavy": 30,
+            "Concrete": 20
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 400000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 30
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 800000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 8192,
+          "falloff": [
+            100,
+            100,
+            100,
+            100,
+            25,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "TechStructure"
+          ],
+          "invalid_targets": []
         }
       ]
     },
@@ -17777,6 +18541,1445 @@
             "Water"
           ],
           "invalid_targets": []
+        }
+      ]
+    },
+    "moppenetration": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Structure",
+        "Trees"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 200,
+          "penetration": 1,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 768,
+          "falloff": [
+            100,
+            37,
+            14,
+            5,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Infantry",
+            "Unarmored"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 165000,
+          "penetration": 5000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 512,
+          "falloff": [
+            100,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Structure"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 9000,
+          "penetration": 2500,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 1024,
+          "falloff": [
+            100,
+            45,
+            15,
+            5,
+            1
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Trees"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 165000,
+          "penetration": 5000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 512,
+          "falloff": [
+            100,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "TechStructure"
+          ],
+          "invalid_targets": []
+        }
+      ]
+    },
+    "nukeb61mod12y003": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Air",
+        "Trees",
+        "Underwater"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 800000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 256,
+          "falloff": [
+            100,
+            100,
+            100,
+            50
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ThermalRadiationWarhead",
+          "damage": 9000,
+          "penetration": 1200,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 120,
+            "Medium": 60,
+            "Heavy": 30,
+            "Concrete": 20
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 400000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 30
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        }
+      ]
+    },
+    "nukeb61mod12y015": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Air",
+        "Trees",
+        "Underwater"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 800000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 256,
+          "falloff": [
+            100,
+            100,
+            100,
+            50
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ThermalRadiationWarhead",
+          "damage": 9000,
+          "penetration": 1200,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 120,
+            "Medium": 60,
+            "Heavy": 30,
+            "Concrete": 20
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 400000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 30
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        }
+      ]
+    },
+    "nukeb61mod12y10": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Air",
+        "Trees",
+        "Underwater"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 800000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 538,
+          "falloff": [
+            100,
+            100,
+            100,
+            50
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ThermalRadiationWarhead",
+          "damage": 9000,
+          "penetration": 1200,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 120,
+            "Medium": 60,
+            "Heavy": 30,
+            "Concrete": 20
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 400000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 30
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        }
+      ]
+    },
+    "nukeb61mod12y50": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Air",
+        "Trees",
+        "Underwater"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 800000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 1025,
+          "falloff": [
+            100,
+            100,
+            100,
+            50
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ThermalRadiationWarhead",
+          "damage": 9000,
+          "penetration": 1200,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 120,
+            "Medium": 60,
+            "Heavy": 30,
+            "Concrete": 20
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 400000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 30
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        }
+      ]
+    },
+    "nukew76": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Air",
+        "Trees",
+        "Underwater"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 800000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 1352,
+          "falloff": [
+            100,
+            100,
+            100,
+            50
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ThermalRadiationWarhead",
+          "damage": 9000,
+          "penetration": 1200,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 120,
+            "Medium": 60,
+            "Heavy": 30,
+            "Concrete": 20
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 400000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 30
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        }
+      ]
+    },
+    "nukesarmatrv": {
+      "range": 61440,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Air",
+        "Trees",
+        "Underwater"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": "InstantHit",
+      "projectile_speed": null,
+      "inaccuracy": 0,
+      "inaccuracy_type": "Maximum",
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 800000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 3028,
+          "falloff": [
+            100,
+            100,
+            100,
+            50
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ThermalRadiationWarhead",
+          "damage": 9000,
+          "penetration": 1200,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 120,
+            "Medium": 60,
+            "Heavy": 30,
+            "Concrete": 20
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 400000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 30
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        }
+      ]
+    },
+    "nukeb83": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Air",
+        "Trees",
+        "Underwater"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 800000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 3654,
+          "falloff": [
+            100,
+            100,
+            100,
+            50
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ThermalRadiationWarhead",
+          "damage": 9000,
+          "penetration": 1200,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 120,
+            "Medium": 60,
+            "Heavy": 30,
+            "Concrete": 20
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 400000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 30
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        }
+      ]
+    },
+    "nuketsarbomba": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Air",
+        "Trees",
+        "Underwater"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 800000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 16243,
+          "falloff": [
+            100,
+            100,
+            100,
+            50
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ThermalRadiationWarhead",
+          "damage": 9000,
+          "penetration": 1200,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 120,
+            "Medium": 60,
+            "Heavy": 30,
+            "Concrete": 20
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 400000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 30
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        }
+      ]
+    },
+    "nukesarmatmirv": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Air",
+        "Trees",
+        "Underwater"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": []
+    },
+    "nukeru9m729": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Air",
+        "Trees",
+        "Underwater"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 800000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 256,
+          "falloff": [
+            100,
+            100,
+            100,
+            50
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ThermalRadiationWarhead",
+          "damage": 9000,
+          "penetration": 1200,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 120,
+            "Medium": 60,
+            "Heavy": 30,
+            "Concrete": 20
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 400000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 30
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        }
+      ]
+    },
+    "nukeruiskander": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Air",
+        "Trees",
+        "Underwater"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 800000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 538,
+          "falloff": [
+            100,
+            100,
+            100,
+            50
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ThermalRadiationWarhead",
+          "damage": 9000,
+          "penetration": 1200,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 120,
+            "Medium": 60,
+            "Heavy": 30,
+            "Concrete": 20
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 400000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 30
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        }
+      ]
+    },
+    "nukerukinzhaln": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Air",
+        "Trees",
+        "Underwater"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 800000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 1025,
+          "falloff": [
+            100,
+            100,
+            100,
+            50
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ThermalRadiationWarhead",
+          "damage": 9000,
+          "penetration": 1200,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 120,
+            "Medium": 60,
+            "Heavy": 30,
+            "Concrete": 20
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 400000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 30
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        }
+      ]
+    },
+    "nukerukalibr": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Air",
+        "Trees",
+        "Underwater"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 800000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 1352,
+          "falloff": [
+            100,
+            100,
+            100,
+            50
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ThermalRadiationWarhead",
+          "damage": 9000,
+          "penetration": 1200,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 120,
+            "Medium": 60,
+            "Heavy": 30,
+            "Concrete": 20
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 400000,
+          "penetration": 20000,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 30
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air",
+            "Underwater"
+          ],
+          "invalid_targets": [
+            "Trees"
+          ]
         }
       ]
     }
