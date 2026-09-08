@@ -12,6 +12,7 @@
 using System;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Widgets;
+using OpenRA.Primitives;
 
 namespace OpenRA.Test
 {
@@ -34,10 +35,14 @@ namespace OpenRA.Test
 			return s;
 		}
 
-		static CameoCaptionCache Cache(int slotWidth = 62, int slotHeight = 46, int sideMargin = 1, int bottomMargin = 2, int backgroundPadding = 1, Func<string, string> resolve = null)
+		static CameoCaptionCache Cache(int slotWidth = 62, int slotHeight = 46, int sideMargin = 1, int bottomMargin = 2, int backgroundPadding = 1, Func<string, string> resolve = null, int badgeGap = 1)
 		{
-			return new CameoCaptionCache(Measure, resolve ?? Identity, slotWidth, slotHeight, sideMargin, bottomMargin, backgroundPadding);
+			return new CameoCaptionCache(Measure, resolve ?? Identity, slotWidth, slotHeight, sideMargin, bottomMargin, backgroundPadding, badgeGap);
 		}
+
+		// The shipped nuclear badge. Square, and taller than the 7px caption line it sits beside -
+		// which is the whole reason the two are laid out together rather than each placing itself.
+		static readonly int2 Badge = new(13, 13);
 
 		[Test]
 		public void UnsetCaptionDrawsNothing()
@@ -173,6 +178,172 @@ namespace OpenRA.Test
 			var band = Cache(backgroundPadding: 1).Get("50 KT").Background;
 			Assert.That(band.Top, Is.EqualTo(46 - 2 - LineHeight - 1));
 			Assert.That(band.Bottom, Is.EqualTo(46 - 2 + 1));
+		}
+
+		[Test]
+		public void NoBadgeIsTheDefaultAndChangesNothing()
+		{
+			// Every actor and every power in every other mod is in this state, so it has to produce
+			// exactly the geometry the version of this class that had no badge in it produced.
+			var caption = Cache().Get("50 KT");
+			Assert.That(caption.BadgeOffset, Is.Null);
+			Assert.That(caption.Offset.X, Is.EqualTo((62 - 25) / 2));
+			Assert.That(caption.Offset.Y, Is.EqualTo(46 - 2 - LineHeight));
+			Assert.That(caption.Background, Is.EqualTo(Rectangle.FromLTRB(0, 46 - 2 - LineHeight - 1, 62, 46 - 2 + 1)));
+		}
+
+		[Test]
+		public void AZeroSizedBadgeIsTheSameAsNoBadge()
+		{
+			// The OFF state arrives as a zero size rather than as a flag, because a zero size is what
+			// the widget has in hand when the power names no badge sequence.
+			var withZero = Cache().Get("50 KT", int2.Zero);
+			var without = Cache().Get("50 KT");
+			Assert.That(withZero.BadgeOffset, Is.Null);
+			Assert.That(withZero.Offset, Is.EqualTo(without.Offset));
+		}
+
+		[Test]
+		public void ABadgeAloneIsDrawnWithNoCaptionAndNoBand()
+		{
+			// A power can be nuclear without stating a yield, so the badge cannot depend on there
+			// being a caption to hang off. No text also means no band: the band exists to cover
+			// lettering baked into the art, and nothing is being written over it here.
+			var caption = Cache().Get(null, Badge);
+			Assert.That(caption, Is.Not.Null);
+			Assert.That(caption.Text, Is.Null);
+			Assert.That(caption.BadgeOffset, Is.Not.Null);
+			Assert.That(caption.Background, Is.EqualTo(Rectangle.Empty));
+		}
+
+		[Test]
+		public void NeitherACaptionNorABadgeStillDrawsNothing()
+		{
+			Assert.That(Cache().Get(null, int2.Zero), Is.Null);
+			Assert.That(Cache().Get("", int2.Zero), Is.Null);
+		}
+
+		[Test]
+		public void BadgeSitsInTheBottomRightInsideTheSideMargin()
+		{
+			var caption = Cache().Get("50 KT", Badge);
+			Assert.That(caption.BadgeOffset.Value.X, Is.EqualTo(62 - 1 - 13));
+			Assert.That(caption.BadgeOffset.Value.Y, Is.EqualTo(46 - 2 - 13));
+		}
+
+		[Test]
+		public void BadgeAndCaptionShareTheSameBottomEdge()
+		{
+			// Bottom-aligned, not centred against each other: the badge is the taller of the two and
+			// simply stands further up.
+			var caption = Cache().Get("50 KT", Badge);
+			Assert.That(caption.BadgeOffset.Value.Y + 13, Is.EqualTo(caption.Offset.Y + LineHeight));
+		}
+
+		[Test]
+		public void ATallBadgeStandsAboveTheBandRatherThanGrowingIt()
+		{
+			// Growing the band to badge height would black out 15 rows of a 46-row slot. The badge is
+			// an opaque disc with its own dark ring, so it does not need the band underneath it.
+			var caption = Cache().Get("50 KT", Badge);
+			Assert.That(caption.BadgeOffset.Value.Y, Is.LessThan(caption.Background.Top));
+			Assert.That(caption.Background, Is.EqualTo(Rectangle.FromLTRB(0, 46 - 2 - LineHeight - 1, 62, 46 - 2 + 1)));
+		}
+
+		[Test]
+		public void BandStaysFullWidthBesideABadge()
+		{
+			// Its job is covering the caption baked into the art, and that runs edge to edge whether
+			// or not a badge is standing on top of its right-hand end.
+			var band = Cache().Get("50 KT", Badge).Background;
+			Assert.That(band.Left, Is.EqualTo(0));
+			Assert.That(band.Right, Is.EqualTo(62));
+		}
+
+		[Test]
+		public void CaptionCentresInWhatIsLeftOnceTheBadgeHasTakenItsBlock()
+		{
+			// 62 wide less a 13px badge and a 1px gap leaves 48, so 25px of text centres at 11 - not
+			// at the 18 it would get if it were still centred across the whole slot and half of it
+			// were sitting under the badge.
+			var caption = Cache().Get("50 KT", Badge);
+			Assert.That(caption.Offset.X, Is.EqualTo((62 - 14 - 25) / 2));
+		}
+
+		[Test]
+		public void CaptionNeverReachesUnderTheBadge()
+		{
+			// The property that actually matters, asserted directly rather than inferred from the
+			// arithmetic, over every caption the arsenal ships.
+			var shipped = new[] { "0.3 KT", "1 KT", "10 KT", "20 KT", "50 KT", "100 KT", "6x750 KT", "1.2 MT", "6 MT", "50 MT" };
+			foreach (var text in shipped)
+			{
+				var caption = Cache().Get(text, Badge);
+				Assert.That(caption.Offset.X + Measure(caption.Text).X,
+					Is.LessThanOrEqualTo(caption.BadgeOffset.Value.X), text + " runs under the badge");
+			}
+		}
+
+		[Test]
+		public void AnOverlongCaptionIsShortenedSoonerBesideABadge()
+		{
+			// 60px of room becomes 46 once the badge has taken 14, so the cut lands at 9 glyphs
+			// rather than 12. The badge wins the pixels and the caption gives way, because a shorter
+			// yield still reads as a yield while half a trefoil reads as nothing.
+			var caption = Cache().Get("FLAMETHROWER", Badge);
+			Assert.That(caption.Text, Is.EqualTo("FLAMETHRO"));
+			Assert.That(Measure(caption.Text).X, Is.LessThanOrEqualTo(62 - 2 - 14));
+		}
+
+		[Test]
+		public void ACaptionThatCannotFitBesideABadgeStillLeavesTheBadge()
+		{
+			// The badge is the part that must survive: it is the difference between a nuclear weapon
+			// and a conventional one, where the caption is only its size.
+			var caption = Cache(slotWidth: 17).Get("ABC", Badge);
+			Assert.That(caption, Is.Not.Null);
+			Assert.That(caption.Text, Is.Null);
+			Assert.That(caption.BadgeOffset, Is.Not.Null);
+		}
+
+		[Test]
+		public void ABadgeTooBigForTheSlotIsClampedIntoIt()
+		{
+			var caption = Cache(slotWidth: 8, slotHeight: 8).Get(null, Badge);
+			Assert.That(caption.BadgeOffset.Value.X, Is.EqualTo(0));
+			Assert.That(caption.BadgeOffset.Value.Y, Is.EqualTo(0));
+		}
+
+		[Test]
+		public void TheGapBetweenBadgeAndCaptionIsConfigurable()
+		{
+			var caption = Cache(badgeGap: 5).Get("50 KT", Badge);
+			Assert.That(caption.Offset.X, Is.EqualTo((62 - 18 - 25) / 2));
+		}
+
+		[Test]
+		public void TheSameWordingBesideDifferentBadgesDoesNotShareACacheEntry()
+		{
+			// Layout depends on the badge as well as on the text, so the badge has to be part of the
+			// key. Keyed on the caption alone, whichever power drew first would fix the position of
+			// every other power that says the same thing.
+			var cache = Cache();
+			var bare = cache.Get("50 KT");
+			var badged = cache.Get("50 KT", Badge);
+			Assert.That(badged.Offset.X, Is.Not.EqualTo(bare.Offset.X));
+			Assert.That(bare.BadgeOffset, Is.Null);
+			Assert.That(badged.BadgeOffset, Is.Not.Null);
+		}
+
+		[Test]
+		public void ABadgedLayoutIsResolvedExactlyOncePerDistinctPair()
+		{
+			var calls = 0;
+			var cache = Cache(resolve: s => { calls++; return s; });
+			for (var i = 0; i < 10; i++)
+				cache.Get("50 KT", Badge);
+
+			Assert.That(calls, Is.EqualTo(1));
 		}
 
 		[Test]

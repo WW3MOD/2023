@@ -54,6 +54,20 @@ namespace OpenRA.Mods.Common.Widgets
 		[Desc("Pixels the caption background extends above and below the text's line box.")]
 		public readonly int CaptionBackgroundPadding = 1;
 
+		[Desc("Image the per-power CameoBadge sequence is resolved against. Only ever touched by a",
+			"power that sets SupportPowerInfo.CameoBadge, so a mod that declares no such image and",
+			"badges no power never asks for it.")]
+		public readonly string BadgeAnimation = "cameobadges";
+
+		// No [PaletteReference]: inside a widget that name resolves to the PaletteReference CLASS,
+		// not the attribute, so it will not compile. ClockPalette and RankPalette are bare for the
+		// same reason.
+		public readonly string BadgePalette = "chrome";
+
+		[Desc("Pixels kept clear between the badge and the caption's region. The badge's own width is",
+			"reserved on top of this, so the caption is fitted and centred in what remains.")]
+		public readonly int BadgeGap = 1;
+
 		public readonly int2 IconSize = new(64, 48);
 		public readonly int IconMargin = 10;
 		public readonly int2 IconSpriteOffset = int2.Zero;
@@ -91,6 +105,11 @@ namespace OpenRA.Mods.Common.Widgets
 		public override Rectangle EventBounds => eventBounds;
 		SpriteFont overlayFont, captionFont;
 		CameoCaptionCache captions;
+
+		// Resolved on first use rather than in Initialize, so a mod that badges nothing never asks
+		// for the BadgeAnimation image and never has to declare it.
+		readonly Dictionary<string, Sprite> badgeSprites = new();
+		PaletteReference badgePalette;
 		float2 iconOffset, holdOffset, readyOffset, timeOffset;
 
 		[CustomLintableHotkeyNames]
@@ -136,7 +155,7 @@ namespace OpenRA.Mods.Common.Widgets
 			overlayFont = Game.Renderer.Fonts[OverlayFont];
 			captionFont = Game.Renderer.Fonts[CaptionFont];
 			captions = new CameoCaptionCache(captionFont.Measure, ResolveCaption,
-				IconSize.X, IconSize.Y, CaptionSideMargin, CaptionBottomMargin, CaptionBackgroundPadding);
+				IconSize.X, IconSize.Y, CaptionSideMargin, CaptionBottomMargin, CaptionBackgroundPadding, BadgeGap);
 
 			iconOffset = 0.5f * IconSize.ToFloat2() + IconSpriteOffset;
 
@@ -166,6 +185,24 @@ namespace OpenRA.Mods.Common.Widgets
 		static string ResolveCaption(string raw)
 		{
 			return FluentProvider.TryGetMessage(raw, out var message) ? message : raw;
+		}
+
+		/// <summary>
+		/// The badge sprite for a sequence name, resolved once. A PNG sheet frame is untrimmed, so
+		/// its Size is the authored size and its Offset is zero - but the offset is subtracted back
+		/// out at draw time anyway, because a badge authored as a real SHP would be trimmed to its
+		/// ink and re-centred (ShpTDLoader.cs:113-134) and would otherwise sit a pixel or two off.
+		/// </summary>
+		Sprite Badge(string sequence)
+		{
+			if (badgeSprites.TryGetValue(sequence, out var sprite))
+				return sprite;
+
+			var animation = new Animation(worldRenderer.World, BadgeAnimation);
+			animation.Play(sequence);
+			sprite = animation.Image;
+			badgeSprites[sequence] = sprite;
+			return sprite;
 		}
 
 		public void RefreshIcons()
@@ -264,23 +301,41 @@ namespace OpenRA.Mods.Common.Widgets
 			// Overlay
 			foreach (var p in icons.Values)
 			{
-				// Persistent caption along the bottom edge, independent of the transient centre text
-				// below it. This is the slot that lets three powers sharing one sprite name themselves.
-				var caption = captions.Get(p.Power.Info.CameoCaption);
+				// Persistent caption and badge along the bottom edge, independent of the transient
+				// centre text below it. This is the slot that lets powers sharing one sprite name
+				// themselves, and that marks the nuclear ones as nuclear whatever art they use.
+				var badgeSequence = p.Power.Info.CameoBadge;
+				var badgeSprite = string.IsNullOrEmpty(badgeSequence) ? null : Badge(badgeSequence);
+				var badgeSize = badgeSprite == null
+					? int2.Zero
+					: new int2((int)badgeSprite.Size.X, (int)badgeSprite.Size.Y);
+
+				var caption = captions.Get(p.Power.Info.CameoCaption, badgeSize);
 				if (caption != null)
 				{
-					if (CaptionBackgroundColor.A != 0)
-						WidgetUtils.FillRectWithColor(
-							new Rectangle(
-								(int)p.Pos.X + caption.Background.X,
-								(int)p.Pos.Y + caption.Background.Y,
-								caption.Background.Width,
-								caption.Background.Height),
-							CaptionBackgroundColor);
+					if (caption.Text != null)
+					{
+						if (CaptionBackgroundColor.A != 0)
+							WidgetUtils.FillRectWithColor(
+								new Rectangle(
+									(int)p.Pos.X + caption.Background.X,
+									(int)p.Pos.Y + caption.Background.Y,
+									caption.Background.Width,
+									caption.Background.Height),
+								CaptionBackgroundColor);
 
-					captionFont.DrawTextWithContrast(caption.Text,
-						p.Pos + new float2(caption.Offset.X, caption.Offset.Y),
-						CaptionColor, CaptionContrastColor, 1);
+						captionFont.DrawTextWithContrast(caption.Text,
+							p.Pos + new float2(caption.Offset.X, caption.Offset.Y),
+							CaptionColor, CaptionContrastColor, 1);
+					}
+
+					// After the band, because the badge stands above it and must not be painted over.
+					if (caption.BadgeOffset.HasValue)
+					{
+						badgePalette ??= worldRenderer.Palette(BadgePalette);
+						Game.Renderer.SpriteRenderer.DrawSprite(badgeSprite, badgePalette,
+							p.Pos + new float2(caption.BadgeOffset.Value.X, caption.BadgeOffset.Value.Y) - badgeSprite.Offset);
+					}
 				}
 
 				var customText = p.Power.IconOverlayTextOverride();

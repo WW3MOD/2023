@@ -98,6 +98,20 @@ namespace OpenRA.Mods.Common.Widgets
 		[Desc("Pixels the caption background extends above and below the text's line box.")]
 		public readonly int CaptionBackgroundPadding = 1;
 
+		[Desc("Image the per-actor CameoBadge sequence is resolved against. Only ever touched by an",
+			"actor that sets BuildableInfo.CameoBadge, so a mod that declares no such image and",
+			"badges nothing never asks for it.")]
+		public readonly string BadgeAnimation = "cameobadges";
+
+		// No [PaletteReference]: inside a widget that name resolves to the PaletteReference CLASS,
+		// not the attribute, so it will not compile. ClockPalette and RankPalette are bare for the
+		// same reason.
+		public readonly string BadgePalette = "chrome";
+
+		[Desc("Pixels kept clear between the badge and the caption's region. The badge's own width is",
+			"reserved on top of this, so the caption is fitted and centred in what remains.")]
+		public readonly int BadgeGap = 1;
+
 		public readonly bool DrawTime = true;
 
 		public readonly string ReadyText = "";
@@ -149,6 +163,11 @@ namespace OpenRA.Mods.Common.Widgets
 
 		SpriteFont overlayFont, symbolFont, captionFont;
 		CameoCaptionCache captions;
+
+		// Resolved on first use rather than in Initialize, so a mod that badges nothing never asks
+		// for the BadgeAnimation image and never has to declare it.
+		readonly Dictionary<string, Sprite> badgeSprites = new();
+		PaletteReference badgePalette;
 		float2 iconOffset, holdOffset, readyOffset, timeOffset;
 		float countRightAnchor;
 		float countTopY;
@@ -267,7 +286,7 @@ namespace OpenRA.Mods.Common.Widgets
 			Game.Renderer.Fonts.TryGetValue(SymbolsFont, out symbolFont);
 			captionFont = Game.Renderer.Fonts[CaptionFont];
 			captions = new CameoCaptionCache(captionFont.Measure, ResolveCaption,
-				IconSize.X, IconSize.Y, CaptionSideMargin, CaptionBottomMargin, CaptionBackgroundPadding);
+				IconSize.X, IconSize.Y, CaptionSideMargin, CaptionBottomMargin, CaptionBackgroundPadding, BadgeGap);
 
 			iconOffset = 0.5f * IconSize.ToFloat2() + IconSpriteOffset;
 
@@ -814,23 +833,45 @@ namespace OpenRA.Mods.Common.Widgets
 			// Overlays
 			foreach (var icon in icons.Values)
 			{
-				// Persistent caption along the bottom edge. Drawn before the transient centre text so
-				// a countdown always wins the pixels if a tall caption font ever reaches that far up.
-				var caption = captions.Get(icon.Actor.TraitInfoOrDefault<BuildableInfo>()?.CameoCaption);
+				// Persistent caption and badge along the bottom edge. Drawn before the transient
+				// centre text so a countdown always wins the pixels if a tall caption font ever
+				// reaches that far up.
+				var buildable = icon.Actor.TraitInfoOrDefault<BuildableInfo>();
+				var badgeSequence = buildable?.CameoBadge;
+				var badgeSprite = string.IsNullOrEmpty(badgeSequence) ? null : Badge(badgeSequence);
+				var badgeSize = badgeSprite == null
+					? int2.Zero
+					: new int2((int)badgeSprite.Size.X, (int)badgeSprite.Size.Y);
+
+				var caption = captions.Get(buildable?.CameoCaption, badgeSize);
 				if (caption != null)
 				{
-					if (CaptionBackgroundColor.A != 0)
-						WidgetUtils.FillRectWithColor(
-							new Rectangle(
-								(int)icon.Pos.X + caption.Background.X,
-								(int)icon.Pos.Y + caption.Background.Y,
-								caption.Background.Width,
-								caption.Background.Height),
-							CaptionBackgroundColor);
+					if (caption.Text != null)
+					{
+						if (CaptionBackgroundColor.A != 0)
+							WidgetUtils.FillRectWithColor(
+								new Rectangle(
+									(int)icon.Pos.X + caption.Background.X,
+									(int)icon.Pos.Y + caption.Background.Y,
+									caption.Background.Width,
+									caption.Background.Height),
+								CaptionBackgroundColor);
 
-					captionFont.DrawTextWithContrast(caption.Text,
-						icon.Pos + new float2(caption.Offset.X, caption.Offset.Y),
-						CaptionColor, CaptionContrastColor, 1);
+						captionFont.DrawTextWithContrast(caption.Text,
+							icon.Pos + new float2(caption.Offset.X, caption.Offset.Y),
+							CaptionColor, CaptionContrastColor, 1);
+					}
+
+					// After the band, because the badge stands above it and must not be painted over.
+					// ProductionIconOverlay is the engine's existing per-actor stamp and is deliberately
+					// not used: it is inert in this mod, it has no counterpart in the support power bin,
+					// and a badge has to mean the same thing in both palettes.
+					if (caption.BadgeOffset.HasValue)
+					{
+						badgePalette ??= worldRenderer.Palette(BadgePalette);
+						Game.Renderer.SpriteRenderer.DrawSprite(badgeSprite, badgePalette,
+							icon.Pos + new float2(caption.BadgeOffset.Value.X, caption.BadgeOffset.Value.Y) - badgeSprite.Offset);
+					}
 				}
 
 				var total = icon.Queued.Count;
@@ -922,6 +963,24 @@ namespace OpenRA.Mods.Common.Widgets
 		static string ResolveCaption(string raw)
 		{
 			return FluentProvider.TryGetMessage(raw, out var message) ? message : raw;
+		}
+
+		/// <summary>
+		/// The badge sprite for a sequence name, resolved once. The sprite's own Offset is subtracted
+		/// back out at draw time so the position given is the top-left of its INK, matching how the
+		/// rank chevron is placed - a real SHP frame is trimmed to its used rect and carries a
+		/// re-centring offset, while a PNG sheet frame carries none.
+		/// </summary>
+		Sprite Badge(string sequence)
+		{
+			if (badgeSprites.TryGetValue(sequence, out var sprite))
+				return sprite;
+
+			var animation = new Animation(worldRenderer.World, BadgeAnimation);
+			animation.Play(sequence);
+			sprite = animation.Image;
+			badgeSprites[sequence] = sprite;
+			return sprite;
 		}
 
 		void DrawHeldRank(ProductionIcon icon, float badgeLeft)

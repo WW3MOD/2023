@@ -56,6 +56,18 @@ namespace OpenRA.Mods.Common.Traits
 		[FluentReference(optional: true)]
 		public readonly string CameoCaption = null;
 
+		[Desc("Sequence of a small badge sprite stamped over the bottom-right of this power's cameo",
+			"at runtime, on top of whatever art the cameo already uses. Unset (the default) draws",
+			"nothing. Resolved against the support power palette's BadgeAnimation image.",
+			"",
+			"This is what makes a marking mean something across an arsenal: `nuclear` on every",
+			"warhead and on nothing else says at a glance which powers end a base and which do not,",
+			"and it says it on cameos that do not exist yet as well as the ones that do. Its width is",
+			"reserved out of the caption's before the caption is fitted, so the two never overlap.")]
+		// Not a [SequenceReference]: the bare attribute resolves against the actor's own image, and
+		// this sequence lives on the widget's BadgeAnimation instead - a chrome image no actor owns.
+		public readonly string CameoBadge = null;
+
 		[Desc("Allow multiple instances of the same support power.")]
 		public readonly bool AllowMultiple = false;
 

@@ -16,7 +16,8 @@ using OpenRA.Primitives;
 namespace OpenRA.Mods.Common.Widgets
 {
 	/// <summary>
-	/// A caption drawn along the bottom of a cameo at runtime, so the wording is data and not pixels.
+	/// The bottom edge of a cameo, laid out at runtime: a caption, a badge, or both, so that the
+	/// wording and the marking are data and not pixels.
 	/// <para>The shipped cameos bake their caption into the art, which means a wording change is a
 	/// re-render and a shared sprite cannot say two different things. Several ww3mod support powers
 	/// do share one sprite - three B61-12 yields all draw <c>paranuke</c> - so the baked caption
@@ -26,10 +27,22 @@ namespace OpenRA.Mods.Common.Widgets
 	/// <see cref="CameoCaptionCache"/> shortens until it fits and returns null when even one glyph
 	/// will not. No ellipsis: a "..." costs three glyphs of the little width there is, and the
 	/// intended fix for a caption that does not fit is a shorter caption.</para>
+	/// <para>THE CAPTION AND THE BADGE ARE ONE UNIT, not two overlays that happen to share a corner.
+	/// Both want the bottom edge - the caption because that is where every baked caption already is,
+	/// the badge because the other three corners are spoken for in the production palette (rank
+	/// chevron top-left, queue count top-right) - and 62 pixels is not enough for two things that
+	/// each place themselves. So the badge is reserved out of the width FIRST and the caption is
+	/// centred in what is left, which makes a collision impossible rather than unlikely. It costs
+	/// the caption 14 of its 60 pixels; measured against the captions the mod ships, the widest
+	/// ("6x750 KT") is 31px at the 7px caption font, so nothing is shortened by this.</para>
 	/// </summary>
 	public sealed class CameoCaption
 	{
-		/// <summary>The text as it will actually be drawn - resolved, trimmed and fitted.</summary>
+		/// <summary>
+		/// The text as it will actually be drawn - resolved, trimmed and fitted - or null when this
+		/// cameo carries only a badge. Null here means the band and the text are both skipped; it is
+		/// not the same as the whole unit being absent, which is a null <see cref="CameoCaption"/>.
+		/// </summary>
 		public readonly string Text;
 
 		/// <summary>Offset from the icon slot's top-left corner to the text's top-left corner.</summary>
@@ -45,21 +58,33 @@ namespace OpenRA.Mods.Common.Widgets
 		/// </summary>
 		public readonly Rectangle Background;
 
-		public CameoCaption(string text, int2 offset, Rectangle background)
+		/// <summary>
+		/// Offset from the icon slot's top-left corner to the badge sprite's top-left ink, or null
+		/// when there is no badge. The badge is bottom-aligned with the caption but is free to be
+		/// TALLER than it and to stand above the band: it is an opaque disc with its own dark ring,
+		/// so unlike the text it does not need the band underneath it to be readable. That is what
+		/// keeps the band at caption height instead of growing it to badge height, which on a 46-row
+		/// slot would have turned a third of the cameo black.
+		/// </summary>
+		public readonly int2? BadgeOffset;
+
+		public CameoCaption(string text, int2 offset, Rectangle background, int2? badgeOffset)
 		{
 			Text = text;
 			Offset = offset;
 			Background = background;
+			BadgeOffset = badgeOffset;
 		}
 	}
 
 	/// <summary>
-	/// Resolves, fits and positions cameo captions once each, then hands back the same instance for
-	/// every subsequent frame. Both cameo palettes - the production one and the support power one -
-	/// own one of these, because the two widgets configure their slots independently.
+	/// Resolves, fits and positions cameo captions and badges once each, then hands back the same
+	/// instance for every subsequent frame. Both cameo palettes - the production one and the support
+	/// power one - own one of these, because the two widgets configure their slots independently.
 	/// <para>Measuring and Fluent lookup arrive as delegates rather than as a SpriteFont and a static
 	/// provider, which is what lets the fitting rules be asserted in CameoCaptionsTest with no
-	/// renderer and no mod loaded.</para>
+	/// renderer and no mod loaded. The badge arrives as a SIZE rather than as a sprite for the same
+	/// reason: layout here is arithmetic on two integers and needs no graphics device to be tested.</para>
 	/// </summary>
 	public sealed class CameoCaptionCache
 	{
@@ -70,12 +95,16 @@ namespace OpenRA.Mods.Common.Widgets
 		readonly int sideMargin;
 		readonly int bottomMargin;
 		readonly int backgroundPadding;
+		readonly int badgeGap;
 
 		// Null is a real cached answer - "this caption cannot be drawn at all" - and is stored so the
-		// fitting loop does not re-run every frame for a caption that will never fit.
-		readonly Dictionary<string, CameoCaption> cache = new();
+		// fitting loop does not re-run every frame for a caption that will never fit. Keyed on the
+		// badge size as well as the raw text because the badge is reserved out of the caption's
+		// width, so the same wording lays out differently beside a badge than without one.
+		readonly Dictionary<(string Raw, int2 BadgeSize), CameoCaption> cache = new();
 
-		public CameoCaptionCache(Func<string, int2> measure, Func<string, string> resolve, int slotWidth, int slotHeight, int sideMargin, int bottomMargin, int backgroundPadding)
+		public CameoCaptionCache(Func<string, int2> measure, Func<string, string> resolve, int slotWidth, int slotHeight,
+			int sideMargin, int bottomMargin, int backgroundPadding, int badgeGap = 1)
 		{
 			this.measure = measure;
 			this.resolve = resolve;
@@ -84,46 +113,75 @@ namespace OpenRA.Mods.Common.Widgets
 			this.sideMargin = sideMargin;
 			this.bottomMargin = bottomMargin;
 			this.backgroundPadding = backgroundPadding;
+			this.badgeGap = badgeGap;
 		}
 
 		/// <summary>
-		/// The caption to draw for a raw YAML value, or null to draw nothing. Null and empty are the
-		/// OFF state and are the default for every actor and every power, so an unconfigured cameo
-		/// looks exactly as it did before this existed.
+		/// The bottom-edge unit to draw for a raw YAML caption and an already-resolved badge size, or
+		/// null to draw nothing. An empty caption and a zero badge size are both the OFF state and are
+		/// the default for every actor and every power, so an unconfigured cameo looks exactly as it
+		/// did before this existed.
 		/// </summary>
-		public CameoCaption Get(string raw)
+		public CameoCaption Get(string raw, int2 badgeSize = default)
 		{
-			if (string.IsNullOrEmpty(raw))
+			var hasBadge = badgeSize.X > 0 && badgeSize.Y > 0;
+			if (string.IsNullOrEmpty(raw) && !hasBadge)
 				return null;
 
-			if (cache.TryGetValue(raw, out var cached))
+			var key = (raw ?? "", hasBadge ? badgeSize : int2.Zero);
+			if (cache.TryGetValue(key, out var cached))
 				return cached;
 
-			cached = Build(raw);
-			cache[raw] = cached;
+			cached = Build(raw, key.Item2);
+			cache[key] = cached;
 			return cached;
 		}
 
-		CameoCaption Build(string raw)
+		CameoCaption Build(string raw, int2 badgeSize)
 		{
-			// Fitted inside the side margins, but centred across the WHOLE slot. Centring inside the
-			// margins instead would be a no-op for a symmetric margin and silently wrong the moment
-			// one is not, which is exactly the sort of thing nobody looks at again.
-			var text = Fit(resolve(raw), measure, slotWidth - 2 * sideMargin);
-			if (text == null)
+			var hasBadge = badgeSize.X > 0 && badgeSize.Y > 0;
+
+			// The badge is reserved out of the width before the caption is fitted, so the two cannot
+			// overlap however long the wording gets. A badge with no caption reserves nothing, because
+			// there is no text for it to be pushed away from.
+			var reserved = hasBadge ? badgeSize.X + badgeGap : 0;
+
+			// Fitted inside the side margins and the badge's reservation, but centred across what is
+			// LEFT of the slot once the badge has taken its block. Centring across the whole slot
+			// instead would drift the text right, under the badge, by half the badge's width.
+			var text = string.IsNullOrEmpty(raw)
+				? null
+				: Fit(resolve(raw), measure, slotWidth - 2 * sideMargin - reserved);
+
+			if (text == null && !hasBadge)
 				return null;
 
+			// Both sit on the same bottom edge. The badge may be the taller of the two and simply
+			// stands further up; neither is centred against the other's height.
+			var bottom = slotHeight - bottomMargin;
+
+			int2? badgeOffset = null;
+			if (hasBadge)
+				badgeOffset = new int2(
+					Math.Max(0, slotWidth - sideMargin - badgeSize.X),
+					Math.Max(0, bottom - badgeSize.Y));
+
+			if (text == null)
+				return new CameoCaption(null, int2.Zero, Rectangle.Empty, badgeOffset);
+
 			var size = measure(text);
-			var top = slotHeight - bottomMargin - size.Y;
+			var top = bottom - size.Y;
 
 			// The band is clamped into the slot so a generous padding cannot reach up over the art
-			// or down past the cameo's bottom bevel.
+			// or down past the cameo's bottom bevel. It stays FULL WIDTH even with a badge present:
+			// its job is covering the baked caption underneath, and that runs edge to edge.
 			var bandTop = Math.Max(0, top - backgroundPadding);
 			var bandBottom = Math.Min(slotHeight, top + size.Y + backgroundPadding);
 
 			return new CameoCaption(text,
-				new int2((slotWidth - size.X) / 2, top),
-				Rectangle.FromLTRB(0, bandTop, slotWidth, bandBottom));
+				new int2((slotWidth - reserved - size.X) / 2, top),
+				Rectangle.FromLTRB(0, bandTop, slotWidth, bandBottom),
+				badgeOffset);
 		}
 
 		/// <summary>
