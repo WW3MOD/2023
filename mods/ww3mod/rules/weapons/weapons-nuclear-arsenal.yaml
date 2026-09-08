@@ -86,8 +86,11 @@
 #
 # WHAT IT IS NOW. Duration is taken from the FIREBALL ANIMATION rather than from the yield:
 #       D = max(fireball animation length, physical fireball lifetime)
-# The second term only ever binds on Tsar Bomba, whose 417-tick physical fireball outlives today's
-# animation; every other weapon takes the animation. And the intensity is TWO STAGES rather than one
+# The second term used to bind on Tsar Bomba, whose 417-tick physical fireball outlived a flat
+# 199-tick animation; since the animation itself started scaling with yield on 2026-09-08 it reaches
+# 510 ticks there and the physical term now binds on NOTHING -- every weapon takes the animation.
+# That is not a reason to delete the max(): it is what stops a future ladder change from handing a
+# 50 Mt burst a flash shorter than its own physics. And the intensity is TWO STAGES rather than one
 # curve, so "blinding" and "long" stop fighting each other:
 #       stage 1, white spike   0 <= t <= W:  I = 4.9 + 2.1 * (1 - t/W)^2      W = 3..14 ticks
 #       stage 2, red fade      W <= t <= D:  I = 4.9 * (1 - (t-W)/(D-W))^2
@@ -106,10 +109,11 @@
 #
 # THE ANIMATION LENGTH IS NOT A CONSTANT AND MUST NOT BE TREATED AS ONE. It is the SHP frame count
 # walked along the `Tick`/`ChangeTick` ladder of the sequence each weapon names in its own
-# Warhead@Fireball `Explosions:` field -- today every nuclear weapon names `nuke_large`, so every
-# animation is 199 ticks, but that is a fact about today's sequences file and it is expected to
-# change. IF A LADDER, A SPRITE OR AN `Explosions:` NAME MOVES, EVERY ENVELOPE BELOW MUST BE
-# REGENERATED:  python3 tools/nuke-light/gen_fireball_light.py --write
+# Warhead@Fireball `Explosions:` field, TIMES that warhead's own `DurationScalePercent`. Every
+# nuclear weapon still names `nuke_large` and its 199 ticks, but since 2026-09-08 each one plays it
+# at its own speed -- 119 ticks at the 0.3 kt B61 dial, 199 at `Atomic`'s 20 kt anchor, 510 at Tsar
+# Bomba. IF A LADDER, A SPRITE, AN `Explosions:` NAME OR A `DurationScalePercent` MOVES, EVERY
+# ENVELOPE BELOW MUST BE REGENERATED:  python3 tools/nuke-light/gen_fireball_light.py --write
 # NuclearYieldTest re-derives the animation length from the same two sources and fails if the shipped
 # YAML has drifted away from it, so this is enforced rather than merely requested.
 #
@@ -231,10 +235,10 @@ NukeB61Mod12Y003:
 		AirThreshold: 24c0
 		ForceGroundLevel: true
 		Light:
-			Times: 0, 1, 2, 3, 15, 33, 55, 80, 92, 107, 136, 167, 199
-			Intensities: 7, 5.83, 5.13, 4.9, 4.32, 3.51, 2.64, 1.81, 1.46, 1.08, 0.51, 0.13, 0
-			Radii: 2c240, 2c240, 2c240, 2c240, 2c240, 2c240, 2c240, 2c240, 2c240, 2c168, 2c28, 1c903, 1c749
-			Tints: E6F0FF, EAF3FF, EEF5FF, F3F8FF, FFFAF0, FFF2D3, FFE7B4, FFD88F, FFCF7B, FFC164, FC9E3E, E66E1D, B4280A
+			Times: 0, 1, 2, 3, 10, 21, 34, 49, 55, 65, 82, 100, 119
+			Intensities: 7, 5.83, 5.13, 4.9, 4.33, 3.5, 2.63, 1.78, 1.49, 1.06, 0.5, 0.13, 0
+			Radii: 2c240, 2c240, 2c240, 2c240, 2c240, 2c240, 2c240, 2c240, 2c240, 2c160, 2c23, 1c902, 1c749
+			Tints: E6F0FF, EDF4FF, F4F8FF, FBFDFF, FFFAED, FFF1D0, FFE6B1, FFD78B, FFCF7B, FFBF61, FB9D3C, E66D1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
 			TerrainRefreshInterval: 2
@@ -248,6 +252,13 @@ NukeB61Mod12Y003:
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 56
+		# DURATION scales with yield, exactly as ScalePercent above scales size: 100% is the
+		# sequence's own 199 ticks (11.95 s) and 20 kt is the anchor, so `Atomic` is unchanged.
+		# The law is t = 11.95 s * (Y/20)^0.12 -- 60% at the 0.3 kt B61 dial, 256% at Tsar Bomba,
+		# a 4.3x spread against 198x for the physical fireball lifetime. The exponent is TASTE, not
+		# physics: a 30 s ceiling was picked first and 0.12 solved back from it. Regenerate every
+		# Warhead@FireballLight after changing it -- tools/nuke-light/gen_fireball_light.py --write.
+		DurationScalePercent: 60
 		Offset: 0,-1900,0
 		Palette: effect_ts
 		ZOffset: 4096
@@ -553,10 +564,10 @@ NukeB61Mod12Y015:
 		AirThreshold: 24c0
 		ForceGroundLevel: true
 		Light:
-			Times: 0, 1, 2, 3, 15, 33, 55, 80, 92, 107, 136, 167, 199
-			Intensities: 7, 5.83, 5.13, 4.9, 4.32, 3.51, 2.64, 1.81, 1.46, 1.08, 0.51, 0.13, 0
-			Radii: 3c905, 4c330, 4c330, 4c330, 4c330, 4c330, 4c330, 4c330, 4c330, 4c190, 3c944, 3c656, 3c358
-			Tints: E6F0FF, EAF3FF, EEF5FF, F3F8FF, FFFAF0, FFF2D3, FFE7B4, FFD88F, FFCF7B, FFC164, FC9E3E, E66E1D, B4280A
+			Times: 0, 1, 2, 3, 12, 25, 41, 59, 67, 78, 99, 122, 145
+			Intensities: 7, 5.83, 5.13, 4.9, 4.3, 3.5, 2.63, 1.8, 1.48, 1.09, 0.51, 0.13, 0
+			Radii: 3c905, 4c330, 4c330, 4c330, 4c330, 4c330, 4c330, 4c330, 4c330, 4c190, 3c945, 3c652, 3c358
+			Tints: E6F0FF, ECF3FF, F1F7FF, F7FAFF, FFFAEE, FFF1D1, FFE7B2, FFD78D, FFCF7B, FFC164, FC9E3E, E66D1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
 			TerrainRefreshInterval: 2
@@ -570,6 +581,7 @@ NukeB61Mod12Y015:
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 106
+		DurationScalePercent: 73
 		Offset: 0,-1900,0
 		Palette: effect_ts
 		ZOffset: 4096
@@ -875,10 +887,10 @@ NukeB61Mod12Y10:
 		AirThreshold: 24c0
 		ForceGroundLevel: true
 		Light:
-			Times: 0, 1, 2, 3, 4, 16, 34, 56, 80, 92, 107, 136, 167, 199
-			Intensities: 7, 6.08, 5.42, 5.03, 4.9, 4.32, 3.51, 2.64, 1.82, 1.48, 1.09, 0.51, 0.13, 0
-			Radii: 5c803, 8c543, 9c418, 9c418, 9c418, 9c418, 9c418, 9c418, 9c418, 9c418, 9c114, 8c550, 7c946, 7c298
-			Tints: E6F0FF, EAF3FF, EEF5FF, F3F8FF, F7FAFF, FFFAEE, FFF2D1, FFE7B2, FFD88F, FFCF7B, FFC164, FC9E3E, E66E1D, B4280A
+			Times: 0, 1, 2, 3, 4, 15, 32, 52, 74, 84, 99, 125, 153, 183
+			Intensities: 7, 6.08, 5.42, 5.03, 4.9, 4.32, 3.49, 2.62, 1.82, 1.5, 1.08, 0.51, 0.14, 0
+			Radii: 5c803, 8c543, 9c418, 9c418, 9c418, 9c418, 9c418, 9c418, 9c418, 9c418, 9c90, 8c544, 7c955, 7c298
+			Tints: E6F0FF, EBF3FF, EFF5FF, F4F8FF, F8FBFF, FFFAEE, FFF1D0, FFE7B2, FFD88E, FFCF7C, FFC063, FC9E3E, E76F1E, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
 			TerrainRefreshInterval: 2
@@ -892,6 +904,7 @@ NukeB61Mod12Y10:
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 227
+		DurationScalePercent: 92
 		Offset: 0,-1900,0
 		Palette: effect_ts
 		ZOffset: 4096
@@ -1197,10 +1210,10 @@ NukeB61Mod12Y50:
 		AirThreshold: 24c0
 		ForceGroundLevel: true
 		Light:
-			Times: 0, 1, 2, 3, 4, 5, 17, 35, 57, 81, 92, 108, 137, 167, 199
-			Intensities: 7, 6.24, 5.66, 5.24, 4.98, 4.9, 4.31, 3.5, 2.63, 1.81, 1.49, 1.08, 0.5, 0.13, 0
-			Radii: 8c113, 13c927, 15c775, 17c106, 18c205, 18c205, 18c205, 18c205, 18c205, 18c205, 18c205, 17c602, 16c489, 15c337, 14c107
-			Tints: E6F0FF, EAF3FF, EEF5FF, F3F8FF, F7FAFF, FBFDFF, FFF9ED, FFF1D0, FFE6B1, FFD78D, FFCF7B, FFC062, FB9D3D, E66E1D, B4280A
+			Times: 0, 1, 2, 3, 4, 5, 18, 39, 63, 91, 103, 121, 153, 187, 223
+			Intensities: 7, 6.24, 5.66, 5.24, 4.98, 4.9, 4.33, 3.49, 2.64, 1.8, 1.48, 1.07, 0.51, 0.13, 0
+			Radii: 8c113, 13c927, 15c775, 17c106, 18c205, 18c205, 18c205, 18c205, 18c205, 18c205, 18c205, 17c600, 16c506, 15c341, 14c107
+			Tints: E6F0FF, EAF2FF, EDF4FF, F1F7FF, F5F9FF, F9FBFF, FFFAEE, FFF1D0, FFE7B2, FFD78D, FFCF7B, FFC062, FB9D3D, E66E1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
 			TerrainRefreshInterval: 3
@@ -1214,6 +1227,7 @@ NukeB61Mod12Y50:
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 432
+		DurationScalePercent: 112
 		Offset: 0,-1900,0
 		Palette: effect_ts
 		ZOffset: 4096
@@ -1519,10 +1533,10 @@ NukeW76:
 		AirThreshold: 24c0
 		ForceGroundLevel: true
 		Light:
-			Times: 0, 1, 2, 3, 4, 5, 8, 17, 35, 57, 81, 92, 108, 137, 167, 199
-			Intensities: 7, 6.24, 5.66, 5.24, 4.98, 4.9, 4.75, 4.31, 3.5, 2.63, 1.81, 1.49, 1.08, 0.5, 0.13, 0
-			Radii: 9c391, 15c844, 17c903, 19c388, 20c612, 21c661, 24c186, 24c186, 24c186, 24c186, 24c186, 24c186, 23c377, 21c915, 20c377, 18c759
-			Tints: E6F0FF, EAF3FF, EEF5FF, F3F8FF, F7FAFF, FBFDFF, FFFEFC, FFF9ED, FFF1D0, FFE6B1, FFD78D, FFCF7B, FFC062, FB9D3D, E66E1D, B4280A
+			Times: 0, 1, 2, 3, 4, 5, 8, 19, 41, 68, 98, 111, 130, 165, 202, 241
+			Intensities: 7, 6.24, 5.66, 5.24, 4.98, 4.9, 4.78, 4.34, 3.52, 2.63, 1.8, 1.49, 1.08, 0.51, 0.13, 0
+			Radii: 9c391, 15c844, 17c903, 19c388, 20c612, 21c661, 24c186, 24c186, 24c186, 24c186, 24c186, 24c186, 23c396, 21c944, 20c382, 18c759
+			Tints: E6F0FF, E9F2FF, EDF4FF, F0F6FF, F4F8FF, F7FAFF, FFFFFE, FFFAEF, FFF2D2, FFE7B2, FFD78D, FFCF7B, FFC063, FC9E3D, E66E1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
 			TerrainRefreshInterval: 3
@@ -1536,6 +1550,7 @@ NukeW76:
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 571
+		DurationScalePercent: 121
 		Offset: 0,-1900,0
 		Palette: effect_ts
 		ZOffset: 4096
@@ -1850,10 +1865,10 @@ NukeSarmatRV:
 		AirThreshold: 24c0
 		ForceGroundLevel: true
 		Light:
-			Times: 0, 2, 4, 5, 7, 19, 20, 37, 58, 82, 92, 109, 137, 167, 199
-			Intensities: 7, 5.97, 5.29, 5.07, 4.9, 4.31, 4.26, 3.49, 2.64, 1.82, 1.52, 1.08, 0.51, 0.14, 0
-			Radii: 14c331, 30c628, 35c837, 37c844, 41c215, 54c420, 55c247, 55c247, 55c247, 55c247, 55c247, 53c273, 50c14, 46c542, 42c831
-			Tints: E6F0FF, EEF5FF, F7FAFF, FBFDFF, FFFEFD, FFF8E9, FFF8E8, FFF0CD, FFE6B0, FFD68B, FFCF7B, FFBE61, FB9D3D, E66E1D, B4280A
+			Times: 0, 2, 4, 5, 7, 20, 25, 53, 87, 125, 141, 166, 210, 258, 307
+			Intensities: 7, 5.97, 5.29, 5.07, 4.9, 4.48, 4.33, 3.51, 2.64, 1.8, 1.5, 1.08, 0.51, 0.13, 0
+			Radii: 14c331, 30c628, 35c837, 37c844, 41c215, 55c247, 55c247, 55c247, 55c247, 55c247, 55c247, 53c378, 50c76, 46c492, 42c831
+			Tints: E6F0FF, EBF3FF, F1F7FF, F4F8FF, F9FBFF, FFFBF3, FFFAEE, FFF1D1, FFE7B2, FFD78D, FFCF7C, FFC063, FC9E3E, E66D1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
 			# 5 rather than the tactical nuke's 2: at 55 cells a terrain refresh sweeps a large
@@ -1871,6 +1886,7 @@ NukeSarmatRV:
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 1277
+		DurationScalePercent: 154
 		Offset: 0,-1900,0
 		Palette: effect_ts
 		ZOffset: 4096
@@ -2180,10 +2196,10 @@ NukeB83:
 		AirThreshold: 25c0
 		ForceGroundLevel: true
 		Light:
-			Times: 0, 2, 4, 5, 7, 19, 24, 37, 58, 82, 92, 109, 137, 167, 199
-			Intensities: 7, 5.97, 5.29, 5.07, 4.9, 4.31, 4.07, 3.49, 2.64, 1.82, 1.52, 1.08, 0.51, 0.14, 0
-			Radii: 15c828, 34c766, 40c819, 43c136, 47c71, 62c426, 66c1005, 66c1005, 66c1005, 66c1005, 66c1005, 64c601, 60c658, 56c427, 51c932
-			Tints: E6F0FF, EEF5FF, F7FAFF, FBFDFF, FFFEFD, FFF8E9, FFF6E1, FFF0CD, FFE6B0, FFD68B, FFCF7B, FFBE61, FB9D3D, E66E1D, B4280A
+			Times: 0, 2, 4, 5, 7, 24, 26, 56, 92, 132, 150, 176, 223, 273, 325
+			Intensities: 7, 5.97, 5.29, 5.07, 4.9, 4.39, 4.33, 3.51, 2.63, 1.8, 1.48, 1.08, 0.5, 0.13, 0
+			Radii: 15c828, 34c766, 40c819, 43c136, 47c71, 66c1005, 66c1005, 66c1005, 66c1005, 66c1005, 66c1005, 64c760, 60c711, 56c398, 51c932
+			Tints: E6F0FF, EBF3FF, F0F6FF, F3F8FF, F8FBFF, FFFBF1, FFFAEF, FFF1D1, FFE7B2, FFD78D, FFCF7B, FFC063, FB9D3D, E66D1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
 			# 5 rather than the tactical nuke's 2: at 67 cells a terrain refresh sweeps a large
@@ -2201,6 +2217,7 @@ NukeB83:
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 1542
+		DurationScalePercent: 163
 		Offset: 0,-1900,0
 		Palette: effect_ts
 		ZOffset: 4096
@@ -2512,10 +2529,10 @@ NukeTsarBomba:
 		AirThreshold: 40c0
 		ForceGroundLevel: true
 		Light:
-			Times: 0, 3, 6, 10, 13, 37, 75, 120, 125, 171, 192, 227, 287, 350, 417
-			Intensities: 7, 6.14, 5.51, 5.01, 4.9, 4.34, 3.51, 2.65, 2.56, 1.82, 1.52, 1.08, 0.51, 0.13, 0
-			Radii: 34c613, 96c350, 116c71, 134c552, 145c612, 203c269, 258c359, 304c646, 309c78, 309c78, 309c78, 298c265, 279c731, 260c248, 239c547
-			Tints: E6F0FF, ECF4FF, F2F7FF, FAFCFF, FFFFFF, FFF9EC, FFF1CE, FFE6B1, FFE5AD, FFD78C, FFCF7B, FFBF62, FB9D3D, E66E1D, B4280A
+			Times: 0, 3, 6, 10, 13, 43, 89, 125, 145, 208, 235, 277, 350, 428, 510
+			Intensities: 7, 6.14, 5.51, 5.01, 4.9, 4.33, 3.52, 2.94, 2.64, 1.81, 1.5, 1.08, 0.51, 0.13, 0
+			Radii: 34c613, 96c350, 116c71, 134c552, 145c612, 213c730, 274c210, 309c78, 309c78, 309c78, 309c78, 298c466, 279c1019, 260c277, 239c547
+			Tints: E6F0FF, EBF3FF, F0F6FF, F6FAFF, FBFDFF, FFFAED, FFF1D0, FFEABC, FFE7B2, FFD78D, FFCF7B, FFC062, FB9D3D, E66E1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
 			# 16 rather than the tactical nuke's 2: at 309 cells a terrain refresh sweeps a large
@@ -2531,6 +2548,7 @@ NukeTsarBomba:
 	Warhead@Fireball1: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 1600
+		DurationScalePercent: 256
 		Offset: 0,-1900,0
 		Palette: effect_ts
 		ZOffset: 4096
@@ -2542,6 +2560,7 @@ NukeTsarBomba:
 	Warhead@Fireball2: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 1600
+		DurationScalePercent: 256
 		Offset: 558,-1900,0
 		Palette: effect_ts
 		ZOffset: 4096
@@ -2553,6 +2572,7 @@ NukeTsarBomba:
 	Warhead@Fireball3: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 1600
+		DurationScalePercent: 256
 		Offset: 0,-1621,0
 		Palette: effect_ts
 		ZOffset: 4096
@@ -2564,6 +2584,7 @@ NukeTsarBomba:
 	Warhead@Fireball4: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 1600
+		DurationScalePercent: 256
 		Offset: -558,-1900,0
 		Palette: effect_ts
 		ZOffset: 4096
@@ -2575,6 +2596,7 @@ NukeTsarBomba:
 	Warhead@Fireball5: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 1600
+		DurationScalePercent: 256
 		Offset: 0,-2179,0
 		Palette: effect_ts
 		ZOffset: 4096
@@ -2990,10 +3012,10 @@ NukeRu9M729:
 		AirThreshold: 24c0
 		ForceGroundLevel: true
 		Light:
-			Times: 0, 1, 2, 3, 15, 33, 55, 80, 92, 107, 136, 167, 199
-			Intensities: 7, 5.83, 5.13, 4.9, 4.32, 3.51, 2.64, 1.81, 1.46, 1.08, 0.51, 0.13, 0
-			Radii: 3c580, 3c676, 3c676, 3c676, 3c676, 3c676, 3c676, 3c676, 3c676, 3c558, 3c329, 3c85, 2c857
-			Tints: E6F0FF, EAF3FF, EEF5FF, F3F8FF, FFFAF0, FFF2D3, FFE7B4, FFD88F, FFCF7B, FFC164, FC9E3E, E66E1D, B4280A
+			Times: 0, 1, 2, 3, 11, 24, 39, 56, 64, 75, 95, 117, 139
+			Intensities: 7, 5.83, 5.13, 4.9, 4.34, 3.5, 2.65, 1.83, 1.49, 1.09, 0.51, 0.13, 0
+			Radii: 3c580, 3c676, 3c676, 3c676, 3c676, 3c676, 3c676, 3c676, 3c676, 3c552, 3c328, 3c80, 2c857
+			Tints: E6F0FF, ECF4FF, F2F7FF, F8FBFF, FFFAEF, FFF1D1, FFE7B3, FFD88E, FFCF7B, FFC063, FC9E3E, E66D1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
 			TerrainRefreshInterval: 2
@@ -3007,6 +3029,7 @@ NukeRu9M729:
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 90
+		DurationScalePercent: 70
 		Offset: 0,-1900,0
 		Palette: effect_ts
 		ZOffset: 4096
@@ -3319,10 +3342,10 @@ NukeRuIskander:
 		AirThreshold: 24c0
 		ForceGroundLevel: true
 		Light:
-			Times: 0, 1, 2, 3, 4, 16, 34, 56, 80, 92, 107, 136, 167, 199
-			Intensities: 7, 6.08, 5.42, 5.03, 4.9, 4.32, 3.51, 2.64, 1.82, 1.48, 1.09, 0.51, 0.13, 0
-			Radii: 5c803, 8c543, 9c418, 9c418, 9c418, 9c418, 9c418, 9c418, 9c418, 9c418, 9c114, 8c550, 7c946, 7c298
-			Tints: E6F0FF, EAF3FF, EEF5FF, F3F8FF, F7FAFF, FFFAEE, FFF2D1, FFE7B2, FFD88F, FFCF7B, FFC164, FC9E3E, E66E1D, B4280A
+			Times: 0, 1, 2, 3, 4, 15, 32, 52, 74, 84, 99, 125, 153, 183
+			Intensities: 7, 6.08, 5.42, 5.03, 4.9, 4.32, 3.49, 2.62, 1.82, 1.5, 1.08, 0.51, 0.14, 0
+			Radii: 5c803, 8c543, 9c418, 9c418, 9c418, 9c418, 9c418, 9c418, 9c418, 9c418, 9c90, 8c544, 7c955, 7c298
+			Tints: E6F0FF, EBF3FF, EFF5FF, F4F8FF, F8FBFF, FFFAEE, FFF1D0, FFE7B2, FFD88E, FFCF7C, FFC063, FC9E3E, E76F1E, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
 			TerrainRefreshInterval: 2
@@ -3336,6 +3359,7 @@ NukeRuIskander:
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 227
+		DurationScalePercent: 92
 		Offset: 0,-1900,0
 		Palette: effect_ts
 		ZOffset: 4096
@@ -3648,10 +3672,10 @@ NukeRuKinzhalN:
 		AirThreshold: 24c0
 		ForceGroundLevel: true
 		Light:
-			Times: 0, 1, 2, 3, 4, 5, 17, 35, 57, 81, 92, 108, 137, 167, 199
-			Intensities: 7, 6.24, 5.66, 5.24, 4.98, 4.9, 4.31, 3.5, 2.63, 1.81, 1.49, 1.08, 0.5, 0.13, 0
-			Radii: 8c113, 13c927, 15c775, 17c106, 18c205, 18c205, 18c205, 18c205, 18c205, 18c205, 18c205, 17c602, 16c489, 15c337, 14c107
-			Tints: E6F0FF, EAF3FF, EEF5FF, F3F8FF, F7FAFF, FBFDFF, FFF9ED, FFF1D0, FFE6B1, FFD78D, FFCF7B, FFC062, FB9D3D, E66E1D, B4280A
+			Times: 0, 1, 2, 3, 4, 5, 18, 39, 63, 91, 103, 121, 153, 187, 223
+			Intensities: 7, 6.24, 5.66, 5.24, 4.98, 4.9, 4.33, 3.49, 2.64, 1.8, 1.48, 1.07, 0.51, 0.13, 0
+			Radii: 8c113, 13c927, 15c775, 17c106, 18c205, 18c205, 18c205, 18c205, 18c205, 18c205, 18c205, 17c600, 16c506, 15c341, 14c107
+			Tints: E6F0FF, EAF2FF, EDF4FF, F1F7FF, F5F9FF, F9FBFF, FFFAEE, FFF1D0, FFE7B2, FFD78D, FFCF7B, FFC062, FB9D3D, E66E1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
 			TerrainRefreshInterval: 3
@@ -3665,6 +3689,7 @@ NukeRuKinzhalN:
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 432
+		DurationScalePercent: 112
 		Offset: 0,-1900,0
 		Palette: effect_ts
 		ZOffset: 4096
@@ -3976,10 +4001,10 @@ NukeRuKalibr:
 		AirThreshold: 24c0
 		ForceGroundLevel: true
 		Light:
-			Times: 0, 1, 2, 3, 4, 5, 8, 17, 35, 57, 81, 92, 108, 137, 167, 199
-			Intensities: 7, 6.24, 5.66, 5.24, 4.98, 4.9, 4.75, 4.31, 3.5, 2.63, 1.81, 1.49, 1.08, 0.5, 0.13, 0
-			Radii: 9c391, 15c844, 17c903, 19c388, 20c612, 21c661, 24c186, 24c186, 24c186, 24c186, 24c186, 24c186, 23c377, 21c915, 20c377, 18c759
-			Tints: E6F0FF, EAF3FF, EEF5FF, F3F8FF, F7FAFF, FBFDFF, FFFEFC, FFF9ED, FFF1D0, FFE6B1, FFD78D, FFCF7B, FFC062, FB9D3D, E66E1D, B4280A
+			Times: 0, 1, 2, 3, 4, 5, 8, 19, 41, 68, 98, 111, 130, 165, 202, 241
+			Intensities: 7, 6.24, 5.66, 5.24, 4.98, 4.9, 4.78, 4.34, 3.52, 2.63, 1.8, 1.49, 1.08, 0.51, 0.13, 0
+			Radii: 9c391, 15c844, 17c903, 19c388, 20c612, 21c661, 24c186, 24c186, 24c186, 24c186, 24c186, 24c186, 23c396, 21c944, 20c382, 18c759
+			Tints: E6F0FF, E9F2FF, EDF4FF, F0F6FF, F4F8FF, F7FAFF, FFFFFE, FFFAEF, FFF2D2, FFE7B2, FFD78D, FFCF7B, FFC063, FC9E3D, E66E1D, B4280A
 			Interpolations: Linear
 			Falloff: InverseSquare
 			TerrainRefreshInterval: 3
@@ -3993,6 +4018,7 @@ NukeRuKalibr:
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 571
+		DurationScalePercent: 121
 		Offset: 0,-1900,0
 		Palette: effect_ts
 		ZOffset: 4096

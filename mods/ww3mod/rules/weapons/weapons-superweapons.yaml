@@ -249,6 +249,13 @@ Atomic:
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 300
+		# DURATION scales with yield, exactly as ScalePercent above scales size: 100% is the
+		# sequence's own 199 ticks (11.95 s) and 20 kt is the anchor, so `Atomic` is unchanged.
+		# The law is t = 11.95 s * (Y/20)^0.12 -- 60% at the 0.3 kt B61 dial, 256% at Tsar Bomba,
+		# a 4.3x spread against 198x for the physical fireball lifetime. The exponent is TASTE, not
+		# physics: a 30 s ceiling was picked first and 0.12 solved back from it. Regenerate every
+		# Warhead@FireballLight after changing it -- tools/nuke-light/gen_fireball_light.py --write.
+		DurationScalePercent: 100
 		Offset: 0,-1900,0
 		Palette: effect_ts
 		ZOffset: 4096
@@ -822,10 +829,10 @@ AtomicHighYield:
 		AirThreshold: 24c0
 		ForceGroundLevel: true
 		Light:
-			Times: 0, 2, 4, 7, 9, 20, 38, 41, 60, 84, 92, 110, 138, 168, 199
-			Intensities: 7, 6.17, 5.55, 5, 4.9, 4.35, 3.52, 3.39, 2.62, 1.8, 1.55, 1.08, 0.51, 0.13, 0
-			Radii: 21c256, 51c969, 61c772, 71c937, 77c279, 98c363, 120c946, 124c0, 124c0, 124c0, 124c0, 119c297, 111c986, 104c115, 96c0
-			Tints: E6F0FF, EEF5FF, F7FAFF, FFFEFD, FFFDFA, FFF8E8, FFF0CB, FFEEC6, FFE5AD, FFD588, FFCF7B, FFBD60, FB9B3B, E56C1C, B4280A
+			Times: 0, 2, 4, 7, 9, 32, 41, 68, 111, 160, 181, 213, 270, 330, 394
+			Intensities: 7, 6.17, 5.55, 5, 4.9, 4.33, 4.12, 3.51, 2.65, 1.81, 1.5, 1.08, 0.51, 0.14, 0
+			Radii: 21c256, 51c969, 61c772, 71c937, 77c279, 114c310, 124c0, 124c0, 124c0, 124c0, 124c0, 119c812, 112c308, 104c423, 96c0
+			Tints: E6F0FF, EAF3FF, EEF5FF, F5F9FF, F9FBFF, FFFAEE, FFF8E7, FFF1D1, FFE7B2, FFD78D, FFCF7C, FFC063, FB9E3D, E76E1D, B4280A
 			# The RADIUS GROWTH is untouched: the fireball still grows on Taylor-Sedov to the
 			# thermal radius at t_max = 41, which is right and was never what flickered. What the
 			# longer duration bought is a longer hold at 124c and a longer shrink after it. Linear
@@ -857,6 +864,7 @@ AtomicHighYield:
 	Warhead@Fireball: CreateEffect
 		Explosions: nuke_large
 		ScalePercent: 700
+		DurationScalePercent: 198
 		Offset: 0,-1900,0
 		Palette: effect_ts
 		ZOffset: 4096

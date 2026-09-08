@@ -23,8 +23,14 @@ so anything that moves an animation moves fourteen light envelopes with it:
 * the SHP a sequence draws, or its frame count
 * a weapon's `Warhead@Fireball` `Explosions:` name -- that is how each weapon finds *its* animation,
   and it is why ten weapons on ten sequences will work here exactly as fourteen on one does today
+* a weapon's `Warhead@Fireball` `DurationScalePercent` -- since 2026-09-08 every weapon plays the
+  same `nuke_large` at its own speed, `t = 11.95 s * (Y/20)^0.12`, so the animation length is the
+  ladder walk TIMES that percentage. 60% at the 0.3 kt B61 dial, 100% at the 20 kt anchor, 256% at
+  Tsar Bomba. The script reads it from the same warhead block it reads `Explosions:` from, which
+  matters on Tsar Bomba: it carries five fireball warheads offset into one cloud.
 
-`ScalePercent` is NOT one of them: it scales the sprite in space, not in time.
+`ScalePercent` is NOT one of them: it scales the sprite in space, not in time. That is the whole
+reason `DurationScalePercent` exists as a separate field rather than being folded into it.
 
 `NuclearYieldTest.EveryNuclearFireballIsATwoStageFlashThatCoolsAndLastsAsLongAsItsFireballAnimation`
 re-derives the animation length from the sequences file and the SHP header independently of this

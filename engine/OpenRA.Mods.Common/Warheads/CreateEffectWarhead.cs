@@ -32,6 +32,16 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("Determines the size of the explosion image.")]
 		public readonly int ScalePercent = 100;
 
+		[Desc("WW3MOD: Determines how long the explosion image takes to play, as a percentage of the",
+			"sequence's own length. 100 is unchanged; 256 spreads the same frames over 2.56x as many",
+			"ticks. This is ScalePercent's counterpart in time -- a bigger blast should also be a",
+			"slower one -- and it lets one sequence serve weapons that need different durations",
+			"without duplicating its Tick/ChangeTick ladder per weapon.",
+			"It does NOT resample the sequence: the frames are held for longer rather than",
+			"interpolated, so a stretched animation is choppier in exact proportion to the stretch,",
+			"and a sequence that already decelerates gets choppiest where it was already slowest.")]
+		public readonly int DurationScalePercent = 100;
+
 		[PaletteReference(nameof(UsePlayerPalette))]
 		[Desc("Palette to use for explosion effect.")]
 		public readonly string Palette = "effect";
@@ -155,7 +165,9 @@ namespace OpenRA.Mods.Common.Warheads
 				if (UsePlayerPalette)
 					palette += firedBy.Owner.InternalName;
 
-				world.AddFrameEndTask(w => w.Add(new SpriteEffect(pos + Offset * ScalePercent / 100, w, Image, explosion, palette, visibleThroughFog: VisibleThroughFog, scale: (float)ScalePercent / 100, zOffset: ZOffset, renderAboveFog: RenderAboveFog)));
+				world.AddFrameEndTask(w => w.Add(new SpriteEffect(pos + Offset * ScalePercent / 100, w, Image, explosion, palette,
+					visibleThroughFog: VisibleThroughFog, scale: (float)ScalePercent / 100, zOffset: ZOffset,
+					renderAboveFog: RenderAboveFog, durationScalePercent: DurationScalePercent)));
 			}
 
 			var impactSound = ImpactSounds.RandomOrDefault(world.LocalRandom);
