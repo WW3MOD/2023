@@ -28,10 +28,25 @@
  * (WithShadow.cs:63), and the !IsDecoration filter below is the same one WithColoredOverlay uses.
  * Without it a hypersonic missile would drag a glowing plasma sheath across the ground.
  *
+ * THE LEADING EDGE IS BOUNDED BY THE DISTANCE LEFT TO TRAVEL (2026-09-08), for the same reason and
+ * from the same source as SubTickMotionSmoothing's clamp -- IMotionEndpoint. Two DIFFERENT ways
+ * this trait could draw past an impact point, and only one of them was this file's:
+ *
+ *	 INHERITED. The copies hang off renderables the smoothing trait has already moved, so while that
+ *		trait extrapolated through the target, every copy went with it. Fixed there, not here.
+ *	 ITS OWN. LeadingSamples x LeadingSpacing of sheath is drawn ahead of the nose unconditionally
+ *		-- 480 wdist on the Kinzhal, 384 on the Sarmat -- so on the ticks a missile is sitting on its
+ *		target waiting for the Kill to land, the bloom was still poking about 11 px past the crater
+ *		point. Fixed here, by dropping the samples that would not fit in the distance left.
+ *
+ * The trailing wake is drawn BEHIND and is never clamped: a wake at the impact point is a wake the
+ * missile has already flown through.
+ *
  * PURELY VISUAL. Nothing here is read by the simulation and nothing here is synchronised.
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using OpenRA.Graphics;
 using OpenRA.Primitives;
@@ -61,6 +76,38 @@ namespace OpenRA.Mods.Common.Traits.Render
 				(int)((long)velocity.Z * spacing.Length / length));
 		}
 
+		/// <summary>
+		/// How many of <paramref name="samples"/> leading copies fit between the actor and the point
+		/// it stops at. The sheath shortens as the nose closes on the target and is gone at contact,
+		/// rather than being drawn through it.
+		/// </summary>
+		/// <param name="samples">Copies the YAML asked for, before any clamping.</param>
+		/// <param name="spacing">Distance between consecutive copies, along the velocity.</param>
+		/// <param name="remaining">
+		/// Distance still to travel, or null when nothing knows -- see <see cref="IMotionEndpoint"/>.
+		/// Null is unbounded, so an actor that does not publish an endpoint draws the full sheath
+		/// exactly as it did before this clamp existed.
+		/// </param>
+		public static int LeadingSamplesWithin(int samples, WDist spacing, WDist? remaining)
+		{
+			// Spacing 0 produces no offset at all in Step, so there is nothing to place; saying zero
+			// here keeps the two functions agreeing rather than reporting samples nobody can see.
+			if (samples <= 0 || spacing.Length <= 0)
+				return 0;
+
+			if (remaining == null)
+				return samples;
+
+			var left = remaining.Value.Length;
+			if (left <= 0)
+				return 0;
+
+			// Integer division IS the clamp: sample i sits at i * spacing, so the largest i that fits
+			// within the distance left is left / spacing. The last surviving copy therefore lands at
+			// or before the endpoint, never beyond it.
+			return Math.Min(samples, left / spacing.Length);
+		}
+
 		// Sample 1 renders at exactly the alpha the author wrote in the colour, and the last one at
 		// baseAlpha/samples. Stating the first end that way is deliberate: it makes the YAML number
 		// mean something a reader can check against a frame, rather than being scaled by a count
@@ -84,6 +131,11 @@ namespace OpenRA.Mods.Common.Traits.Render
 		"still happen at the real CenterPosition — and nothing here is synchronised.",
 		"DEFAULT OFF. With both sample counts at their default 0 this trait draws nothing at all, so",
 		"adding it to a template without also setting a count changes no pixel.",
+		"THE LEADING SHEATH NEVER REACHES PAST THE END OF THE JOURNEY. If the actor carries a trait",
+		"answering IMotionEndpoint — BallisticMissile does — leading copies that would not fit in the",
+		"distance still to travel are not drawn, so the bloom shortens into the nose over the last",
+		"fraction of a tick and is gone at contact. The trailing wake is behind the body and is never",
+		"clamped. An actor with no such trait draws the full sheath, as before.",
 		"COST: each sample redraws every non-decoration sprite the actor produced, once. Six leading",
 		"plus eight trailing on a one-sprite missile is fifteen draws where there was one. That is",
 		"nothing on the handful of missiles in the air at once, and would not be on a unit type.",
@@ -153,6 +205,11 @@ namespace OpenRA.Mods.Common.Traits.Render
 		bool hasLastPosition;
 		WVec velocity;
 
+		// Same pair, same reasoning, as SubTickMotionSmoothing: looked up once, recomputed once a
+		// tick, so the render path is arithmetic and a lookup-free read.
+		IMotionEndpoint endpoint;
+		WDist? remaining;
+
 		public WithHypersonicPlasma(WithHypersonicPlasmaInfo info)
 			: base(info)
 		{
@@ -166,12 +223,22 @@ namespace OpenRA.Mods.Common.Traits.Render
 			bodyAlpha = info.BodyColor.A / 255f;
 		}
 
+		protected override void Created(Actor self)
+		{
+			base.Created(self);
+
+			// TraitOrDefault: an actor is allowed not to know where it stops, and that case is a null
+			// remaining distance, which LeadingSamplesWithin reads as unbounded.
+			endpoint = self.TraitOrDefault<IMotionEndpoint>();
+		}
+
 		void ITick.Tick(Actor self)
 		{
 			if (IsTraitDisabled)
 			{
 				hasLastPosition = false;
 				velocity = WVec.Zero;
+				remaining = null;
 				return;
 			}
 
@@ -182,6 +249,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 			// hence no velocity, hence no plasma — a missile draws clean on the frame it spawns.
 			var step = hasLastPosition ? pos - lastPosition : WVec.Zero;
 			velocity = step.LengthSquared > maxStepSquared ? WVec.Zero : step;
+
+			var end = endpoint?.MotionEndpoint;
+			remaining = end.HasValue ? new WDist((end.Value - pos).Length) : (WDist?)null;
 
 			lastPosition = pos;
 			hasLastPosition = true;
@@ -196,7 +266,13 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (IsTraitDisabled || velocity == WVec.Zero || !self.World.SimulationIsAdvancing)
 				return r;
 
-			var leading = Info.LeadingSamples > 0
+			// The count is decided HERE, once, and is the only count the loop below can see. There is
+			// no unclamped sample count reachable from the draw path -- the same shape the sibling
+			// trait's Offset uses, and for the same reason.
+			var leadingSamples = WithHypersonicPlasmaMath.LeadingSamplesWithin(
+				Info.LeadingSamples, Info.LeadingSpacing, remaining);
+
+			var leading = leadingSamples > 0
 				? WithHypersonicPlasmaMath.Step(velocity, Info.LeadingSpacing) : WVec.Zero;
 			var trailing = Info.TrailingSamples > 0
 				? WithHypersonicPlasmaMath.Step(velocity, Info.TrailingSpacing) : WVec.Zero;
@@ -204,10 +280,10 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (leading == WVec.Zero && trailing == WVec.Zero && bodyAlpha <= 0f)
 				return r;
 
-			return ModifiedRender(r, leading, trailing);
+			return ModifiedRender(r, leading, leadingSamples, trailing);
 		}
 
-		IEnumerable<IRenderable> ModifiedRender(IEnumerable<IRenderable> r, WVec leading, WVec trailing)
+		IEnumerable<IRenderable> ModifiedRender(IEnumerable<IRenderable> r, WVec leading, int leadingSamples, WVec trailing)
 		{
 			foreach (var a in r)
 			{
@@ -223,7 +299,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 					yield return Tinted(ma, bodyTint, bodyAlpha);
 
 				if (leading != WVec.Zero)
-					for (var i = 1; i <= Info.LeadingSamples; i++)
+					for (var i = 1; i <= leadingSamples; i++)
 						yield return Tinted(ma, leadingTint,
 							WithHypersonicPlasmaMath.Alpha(leadingAlpha, i, Info.LeadingSamples))
 							.OffsetBy(leading * i);

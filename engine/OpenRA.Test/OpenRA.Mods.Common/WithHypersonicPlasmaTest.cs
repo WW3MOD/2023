@@ -8,7 +8,8 @@
  *		the whole of that guarantee, so they are asserted here rather than left to a reading of the
  *		Info class.
  *	 2. A sample lands where the YAML says and fades the way the YAML says, independently of how
- *		fast the missile happens to be going. That is the rest of this fixture.
+ *		fast the missile happens to be going, and -- since 2026-09-08 -- never past the point the
+ *		missile stops at. That is the rest of this fixture.
  *	 3. Whether it LOOKS like plasma, which needs a window. See the capture request in the branch
  *		report; no autotest scenario is shipped for it.
  */
@@ -151,6 +152,90 @@ namespace OpenRA.Test
 			Assert.That(WithHypersonicPlasmaMath.Alpha(0.9f, 0, 4), Is.Zero);
 			Assert.That(WithHypersonicPlasmaMath.Alpha(0.9f, 5, 4), Is.Zero);
 			Assert.That(WithHypersonicPlasmaMath.Alpha(0.9f, 1, 0), Is.Zero);
+		}
+
+		// ============================================================================================
+		// THE IMPACT CLAMP (2026-09-08). The sibling of SubTickMotionSmoothing's, from the same source
+		// (IMotionEndpoint) and for the same reason: nothing this feature draws may sit past the point
+		// the missile detonates at.
+		// ============================================================================================
+
+		[Test]
+		public void TheSheathIsGoneAtContact()
+		{
+			// A missile placed ON its target still renders for the tick the activity spends finishing
+			// before the Kill lands. With no clamp the whole bloom was drawn past the crater point --
+			// 480 wdist on the Kinzhal, about 11 px at 100% zoom.
+			Assert.That(WithHypersonicPlasmaMath.LeadingSamplesWithin(5, new WDist(96), WDist.Zero), Is.Zero,
+				"a missile with nothing left to travel must draw no leading sheath at all.");
+
+			// The Sarmat's configuration, which is shorter and denser, and must behave the same way.
+			Assert.That(WithHypersonicPlasmaMath.LeadingSamplesWithin(3, new WDist(128), WDist.Zero), Is.Zero);
+		}
+
+		[Test]
+		public void NoLeadingSampleIsPlacedPastTheImpactPoint()
+		{
+			// The exhaustive form of the invariant: whatever is left to travel, the LAST surviving
+			// sample lands at or before the endpoint. Sample i sits at i * spacing along the velocity.
+			foreach (var spacing in new[] { 96, 128, 384, 1000 })
+			{
+				for (var left = 0; left <= 3000; left += 7)
+				{
+					var samples = WithHypersonicPlasmaMath.LeadingSamplesWithin(10, new WDist(spacing), new WDist(left));
+
+					Assert.That(samples * spacing, Is.LessThanOrEqualTo(left),
+						$"spacing {spacing} with {left} left kept {samples} samples, the last of which " +
+						"is drawn past the point the missile stops at.");
+					Assert.That(samples, Is.InRange(0, 10));
+				}
+			}
+		}
+
+		[Test]
+		public void TheSheathShortensRatherThanVanishing()
+		{
+			// The clamp must not read as an on/off switch: the bloom shrinks into the nose as the
+			// missile closes, so what the viewer sees over the last fraction of a tick is a sheath
+			// being crushed rather than one blinking out.
+			Assert.That(WithHypersonicPlasmaMath.LeadingSamplesWithin(5, new WDist(96), new WDist(480)), Is.EqualTo(5));
+			Assert.That(WithHypersonicPlasmaMath.LeadingSamplesWithin(5, new WDist(96), new WDist(300)), Is.EqualTo(3));
+			Assert.That(WithHypersonicPlasmaMath.LeadingSamplesWithin(5, new WDist(96), new WDist(96)), Is.EqualTo(1));
+			Assert.That(WithHypersonicPlasmaMath.LeadingSamplesWithin(5, new WDist(96), new WDist(95)), Is.Zero);
+		}
+
+		[Test]
+		public void ThereIsNoClampWithoutAnEndpoint()
+		{
+			// An actor that does not publish where it stops draws the full sheath, exactly as it did
+			// before this clamp existed. Null is unbounded, NOT zero -- reading it as zero would switch
+			// the whole feature off on anything but a ballistic missile.
+			Assert.That(WithHypersonicPlasmaMath.LeadingSamplesWithin(5, new WDist(96), null), Is.EqualTo(5));
+			Assert.That(WithHypersonicPlasmaMath.LeadingSamplesWithin(3, new WDist(128), null), Is.EqualTo(3));
+		}
+
+		[Test]
+		public void ADegenerateConfigurationKeepsTheTwoHalvesAgreeing()
+		{
+			// Step returns WVec.Zero at spacing 0, so there is nowhere to put a sample; reporting a
+			// count above zero here would be a count of copies nobody can see, and the division below
+			// it would be by zero.
+			Assert.That(WithHypersonicPlasmaMath.LeadingSamplesWithin(5, WDist.Zero, new WDist(5000)), Is.Zero);
+			Assert.That(WithHypersonicPlasmaMath.LeadingSamplesWithin(5, WDist.Zero, null), Is.Zero);
+			Assert.That(WithHypersonicPlasmaMath.LeadingSamplesWithin(0, new WDist(96), null), Is.Zero);
+			Assert.That(WithHypersonicPlasmaMath.LeadingSamplesWithin(5, new WDist(96), new WDist(-500)), Is.Zero);
+		}
+
+		[Test]
+		public void TheTrailingWakeIsNeverClamped()
+		{
+			// Stated as a test because it is a deliberate asymmetry rather than an oversight: the wake
+			// is drawn BEHIND the body, so at the impact point it lies along ground the missile has
+			// already crossed. Step is the only arithmetic the trailing half uses, and it takes no
+			// remaining distance at all -- if that ever changes, this fails to compile rather than
+			// quietly shortening the streak.
+			var trailing = WithHypersonicPlasmaMath.Step(SarmatStep, new WDist(320));
+			Assert.That(trailing.Length, Is.EqualTo(320).Within(2));
 		}
 	}
 }

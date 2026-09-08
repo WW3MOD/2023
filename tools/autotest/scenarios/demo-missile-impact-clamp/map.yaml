@@ -1,0 +1,127 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: a smoothed missile stops on its target instead of flying through it
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 128,128
+
+Bounds: 1,1,126,126
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS IS FOR: looking at. It is a DEMO, so nothing here is asserted -- no AssertWithin, no
+# Test.Pass, no result.json. Six pairs of Kinzhals arrive side by side and the viewer decides whether
+# the smoothed one stops where the unsmoothed one does.
+#
+# THE REPORT. "I just noticed that the missile smoothening we have added recently, that draws more
+# frames for fast missiles, it makes the missile look like it flies through the target a bit before
+# the explosion registers."
+#
+# WHAT WAS HAPPENING, and it is one inter-tick interval rather than a gradual drift.
+# BallisticMissileFly reaches horizontalProgress 1 and SetPositions the missile ONTO the target
+# (BallisticMissileFly.cs:270), and only on its NEXT tick does it finish and run the queued Kill
+# (:206-210). Through the frames between those two ticks the smoothing trait still held the arrival
+# step -- up to 2400 wdist on a Kinzhal in its terminal dive -- and it has no way to know the
+# simulation is not going to move the missile again. So the sprite swept a full step, about 56 px at
+# 100% zoom, PAST the impact point over ~60 ms and then the explosion went off behind it.
+#
+# SINCE 2026-09-08 the prediction is clamped to the distance the missile still has to travel
+# (IMotionEndpoint, answered by BallisticMissile with the impact point of the flight it is running).
+# At the arrival tick that distance is zero, so the offset is zero.
+#
+# THE COMPARISON. Each pass fires TWO Kinzhals at once at aim points about 5 cells apart, on
+# parallel tracks, arriving within a tick of each other:
+#
+#   SMOOTHED  kinzhalmissile, shipped, carrying SubTickMotionSmoothing AND WithHypersonicPlasma
+#             through ^ShootableMissile and its own rules.
+#   RAW       kinzhalmissileraw, defined in rules.yaml as kinzhalmissile with the smoothing trait
+#             removed and nothing else changed. It is drawn only at simulated positions, so it
+#             CANNOT overshoot -- it is the reference for where a missile should be when it goes off.
+#
+# WHAT TO LOOK AT, and it is the last quarter-second only. Both missiles decelerate into nothing:
+# they arrive, sit still for one tick, and explode. The smoothed one must come to a DEAD STOP on its
+# aim point, exactly as the raw one does. If it instead glides a further two cells past the aim
+# point and the blast then appears behind it, that is the bug and this build does not have the fix.
+#
+# THE TRACKS SWAP SIDES between passes -- smoothed on the left aim point on odd passes, the right on
+# even ones -- so a difference cannot be attributed to where on the screen it happened to be.
+#
+# DO NOT JUDGE THIS FROM A PAUSED FRAME. Smoothing is switched off while the world is paused, on
+# purpose, so paused both missiles sit on their true positions and look identical. That is correct
+# behaviour and is not the fix working.
+#
+# SECOND THING TO LOOK AT, same clamp, different trait. The shipped Kinzhal also carries
+# WithHypersonicPlasma: five tinted copies of the sprite drawn AHEAD of the nose, 96 wdist apart, so
+# 480 wdist of pale blue-white bloom. That bloom was also unclamped, and sat about 11 px past the
+# crater point for the tick the missile spent waiting to die. It is now dropped sample by sample as
+# the nose closes, so it shortens into the body over the last fraction of a tick and is gone at
+# contact. The orange wake BEHIND the missile is deliberately not clamped and should be unchanged.
+#
+# GEOMETRY. Both aim points are BARE CELLS. A support power targets a cell, so nothing is placed on
+# the terrain at either of them and no ground has to be clear -- which is also why this demo makes no
+# claim about what it hits.
+#
+#   AIM LEFT   44,51
+#   AIM RIGHT  47,47
+#
+# Five cells apart, roughly perpendicular to the inbound heading, so neither missile is in front of
+# the other and both fit in one zoomed-in frame. Each is 88-89 cells from Russia's HomeLocation of
+# 110,110, so the two flights are the same length to within a tick.
+#
+# MissileStrikePower spawns each missile at `its own aim point - unit(home -> centroid) * standoff`,
+# standoff = mapDiagonal + ApproachMargin = 185363 + 16384 = 201747 wdist = 197.0 cells, so the
+# tracks are exactly parallel and hold their 5-cell spacing the whole way in.
+#
+# CAMERA. Fixed on the midpoint of the two aim points and never moves, zoomed in hard: the subject
+# is one 60 ms interval at the very end of the flight, and it needs the pixels. The approach is not
+# the subject here -- demo-subtick-smoothing is the demo for that.
+#
+# TERRAIN. map.bin and map.png are twin-rivers-ww3's, copied unchanged from demo-subtick-smoothing;
+# only this actor list, the rules and the script are new. The Supply Route cells are that scenario's.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 110,110
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 18,18
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 110,110
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 18,18
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 110,110
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 18,18
+
+Rules: rules.yaml

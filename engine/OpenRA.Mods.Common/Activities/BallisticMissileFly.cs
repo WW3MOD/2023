@@ -50,6 +50,13 @@ namespace OpenRA.Mods.Common.Activities
 			visualPitchMul = this.sbm.Info.VisualPitchMultiplier / 100f;
 			spriteFacingSquash = this.sbm.Info.SpriteFacingSquash;
 
+			// Publish the impact point the instant this activity owns the flight, so a render trait
+			// asking "how far has it still got to go" gets the answer from the tick the missile
+			// first moves. Frozen here and never updated: Phase 2 re-derives spawnPos and hDist from
+			// where the missile actually got to, but targetPos is readonly and is what every
+			// position below is interpolated towards.
+			this.sbm.SetMotionEndpoint(targetPos);
+
 			hDist = (targetPos - spawnPos).HorizontalLength;
 			var speed = this.sbm.Info.Speed;
 

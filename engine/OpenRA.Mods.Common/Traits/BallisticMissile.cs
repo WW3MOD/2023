@@ -1,4 +1,4 @@
-﻿#region Copyright & License Information
+#region Copyright & License Information
 /*
  * Copyright 2015- OpenRA.Mods.AS Developers (see AUTHORS)
  * This file is a part of a third-party plugin for OpenRA, which is
@@ -157,7 +157,7 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	public class BallisticMissile : ISync, IFacing, IMove, IPositionable,
-		INotifyCreated, INotifyAddedToWorld, INotifyRemovedFromWorld, IOccupySpace
+		INotifyCreated, INotifyAddedToWorld, INotifyRemovedFromWorld, IOccupySpace, IMotionEndpoint
 	{
 		public static Activity VisualMove(Actor _1, WPos _2, WPos _3)
 		{
@@ -169,6 +169,20 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly BallisticMissileInfo Info;
 		readonly Actor self;
 		public Target Target;
+
+		/// <summary>
+		/// Where this missile detonates: the impact point of the flight it is currently running.
+		/// Read by the view-only smoothing and plasma traits so neither draws the missile past the
+		/// thing it is about to hit — see <see cref="IMotionEndpoint"/>.
+		/// NOT taken from <see cref="Target"/>, which is a live Target and follows an actor that
+		/// moves. <see cref="Activities.BallisticMissileFly"/> freezes the destination in its
+		/// constructor and flies to that frozen point whatever the target does afterwards, so the
+		/// activity is the only honest source for "where this stops" and is the only writer.
+		/// </summary>
+		public WPos? MotionEndpoint { get; private set; }
+
+		/// <summary>Called by <see cref="Activities.BallisticMissileFly"/> as it takes the flight on.</summary>
+		public void SetMotionEndpoint(WPos pos) { MotionEndpoint = pos; }
 
 		IEnumerable<int> speedModifiers;
 
