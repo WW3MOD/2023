@@ -15,11 +15,19 @@
 -- The whole artefact lasted one inter-tick interval, ~60 ms, which is why there are six passes and
 -- why the camera is zoomed in: at 60 fps that is four frames, and you want more than one look.
 --
--- SECOND THING TO LOOK AT. The shipped Kinzhal draws 480 wdist of pale blue-white plasma bloom AHEAD
--- of its nose (WithHypersonicPlasma, five samples 96 apart). That bloom is now dropped sample by
--- sample as the nose closes on the aim point, so it shortens into the body over the last fraction of
--- a tick and is gone at contact instead of poking ~11 px past the crater. The orange wake BEHIND the
--- missile is not clamped and should look exactly as it did.
+-- SECOND THING TO LOOK AT, and it is what the LAST TWO FRAMES before each blast look like. The
+-- shipped Kinzhal draws 480 wdist of pale blue-white plasma bloom AHEAD of its nose
+-- (WithHypersonicPlasma, five samples 96 apart). Those copies hang off a body the smoothing trait
+-- has already moved, and both offsets are measured from the same simulated position, so they ADD --
+-- which is why clamping the sheath against the raw remaining distance did nothing on the tick that
+-- mattered. The clamp now reserves a whole tick of travel first, and on a missile this fast (2400
+-- wdist/tick against 480 of sheath) that is all-or-nothing.
+--
+-- SO, ON THE FRAME BEFORE THE BLAST: the missile is a BARE AIRFRAME with its orange wake and NO
+-- blue-white bloom at the nose. That is true for roughly the last two ticks, ~120 ms, the last six
+-- or seven frames at 60 fps. It is the fixed behaviour, not a missing effect -- what must never
+-- appear on those frames is any part of the bloom in FRONT of the aim point. The orange wake is
+-- deliberately not clamped and should look exactly as it did.
 --
 -- DO NOT PAUSE TO COMPARE. Smoothing is deliberately inert while the world is paused, so paused both
 -- missiles sit on identical true positions. That is correct behaviour, not the fix working.

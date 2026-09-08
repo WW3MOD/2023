@@ -268,7 +268,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 			base.Created(self);
 
 			// TraitOrDefault: an actor is allowed not to know where it stops, and that case is a null
-			// remaining distance, which LeadingSamplesWithin reads as unbounded.
+			// remaining distance, which LeadingSamplesWithin reads as unbounded. It degrades for ZERO
+			// implementors only — a second one throws (TraitDictionary.cs:174-175), which is the
+			// wanted behaviour and not a fallback. Same reasoning as the sibling trait.
 			endpoint = self.TraitOrDefault<IMotionEndpoint>();
 		}
 

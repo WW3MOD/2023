@@ -167,6 +167,12 @@ namespace OpenRA.Mods.Common.Traits.Render
 			// TraitOrDefault, not Trait: this trait is generic and an actor is allowed to have no
 			// idea where it is going. That case is `remaining == null`, which the math reads as
 			// unbounded.
+			//
+			// IT IS "AT MOST ONE, OR THROW", NOT A GRACEFUL FALLBACK. TraitOrDefault degrades only
+			// for ZERO implementors; a second one raises InvalidOperationException
+			// (TraitDictionary.cs:174-175). That is the behaviour wanted here — two traits claiming
+			// to know where an actor stops is a mod-configuration error and should be heard about,
+			// not silently resolved in favour of whichever was declared first.
 			endpoint = self.TraitOrDefault<IMotionEndpoint>();
 		}
 

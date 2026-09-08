@@ -57,12 +57,26 @@ Categories: Test
 # purpose, so paused both missiles sit on their true positions and look identical. That is correct
 # behaviour and is not the fix working.
 #
-# SECOND THING TO LOOK AT, same clamp, different trait. The shipped Kinzhal also carries
-# WithHypersonicPlasma: five tinted copies of the sprite drawn AHEAD of the nose, 96 wdist apart, so
-# 480 wdist of pale blue-white bloom. That bloom was also unclamped, and sat about 11 px past the
-# crater point for the tick the missile spent waiting to die. It is now dropped sample by sample as
-# the nose closes, so it shortens into the body over the last fraction of a tick and is gone at
-# contact. The orange wake BEHIND the missile is deliberately not clamped and should be unchanged.
+# SECOND THING TO LOOK AT, same clamp, different trait, and it changes what the LAST TWO FRAMES
+# before each blast look like. The shipped Kinzhal also carries WithHypersonicPlasma: five tinted
+# copies of the sprite drawn AHEAD of the nose, 96 wdist apart, so 480 wdist of pale blue-white
+# bloom. Those copies hang off a body the smoothing trait has already moved, and both offsets are
+# measured from the same simulated position, so THEY ADD -- which is why clamping the sheath against
+# the raw remaining distance did nothing on the tick that mattered. With 900 left against a 2400
+# step the body pins to the impact point from 37% of the way through the tick, all five samples
+# still fitted inside the 900, and the whole bloom hung past the crater for the rest of it.
+#
+# The clamp therefore reserves a WHOLE TICK OF TRAVEL before spending anything on samples. On a
+# Kinzhal that is 2400 wdist against 480 of sheath, so the budget goes from "room for all five" to
+# nothing in one step, and WHAT THE VIEWER SEES IS THIS: for roughly the last two ticks -- about
+# 120 ms, the last six or seven frames at 60 fps -- the missile arrives as a BARE AIRFRAME carrying
+# only its orange wake, with no blue-white bloom at the nose at all. Then it explodes.
+#
+# THAT IS THE FIXED BEHAVIOUR, not a missing effect. The bloom is meant to be absent on those
+# frames; what must never appear on them is any part of it in FRONT of the aim point. It does not
+# shrink gracefully into the nose on a missile this fast -- that is the accepted cost of the
+# invariant, and a slower missile whose sheath is a larger fraction of its step does show the
+# shortening. The orange wake BEHIND the missile is deliberately not clamped and is unchanged.
 #
 # GEOMETRY. Both aim points are BARE CELLS. A support power targets a cell, so nothing is placed on
 # the terrain at either of them and no ground has to be clear -- which is also why this demo makes no
