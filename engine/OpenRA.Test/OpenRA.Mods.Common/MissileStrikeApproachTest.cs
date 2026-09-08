@@ -314,8 +314,22 @@ namespace OpenRA.Test
 			// launcher does. The bug this pins was invisible to every existing test in this file
 			// because all of them aim INWARD of the home, which is the half of the map where reading
 			// the bearing off home-to-centroid happens to agree with the corridor.
+			// TWO READINGS PER AIM POINT, and they are not the same statement.
+			//
+			//   POSITION -- the birth point is further out along the launcher's own outward axis
+			//   than the launcher is. This is the literal form of "behind my SR", and on its own it
+			//   is weak: a spawn 89 degrees round the side satisfies it while a player would say the
+			//   strike came in from the flank.
+			//
+			//   DIRECTION -- where the salvo comes FROM, which is the reverse of its heading and is
+			//   what decides which edge of the screen it appears at. Bounded to
+			//   MaxCorridorDeviation off the outward axis exactly, by construction, so this is the
+			//   reading with teeth. It is checked second because the position reading names the bug
+			//   more directly when both fail.
 			var checkedPairs = 0;
-			var clampEngaged = 0;
+			var leanEngaged = 0;
+			var oldRuleViolations = 0;
+			var worstDeviation = 0;
 
 			foreach (var (cellsX, cellsY) in ShippedMapSizes())
 			{
@@ -327,6 +341,8 @@ namespace OpenRA.Test
 					Assert.That(outward.HorizontalLengthSquared, Is.Not.Zero,
 						"HomeSweep must not place a launcher on the map centre; the corridor is " +
 						"undefined there and the invariant below cannot be stated");
+
+					var outwardYaw = outward.Yaw;
 
 					foreach (var aim in AimPointSweepIncludingOnAndBehindHome(cellsX, cellsY, home))
 					{
@@ -341,20 +357,56 @@ namespace OpenRA.Test
 							"the map-interior side of its own launcher, so it flies in across the " +
 							"board -- the 'comes in from the other side' bug");
 
+						// Where it comes FROM: the reverse of the heading every warhead flies.
+						var arrivesFrom = approach.Facing + new WAngle(512);
+						var deviation = WAngle.AngleDiff(arrivesFrom, outwardYaw).Angle;
+						worstDeviation = Math.Max(worstDeviation, deviation);
+
+						Assert.That(deviation, Is.LessThanOrEqualTo(MissileStrikeApproach.MaxCorridorDeviation.Angle),
+							$"a {cellsX}x{cellsY} map, home {home}, aim {aim}: the salvo arrived from " +
+							$"{deviation * 360 / 1024} degrees off the launcher's own back line, past " +
+							"the limit that makes it read as coming in over that back line at all");
+
 						if (MissileStrikeApproach.Bearing(home, aim, mapCenter) != (aim - home).Yaw)
-							clampEngaged++;
+							leanEngaged++;
+
+						// THE SAME SWEEP, RUN AGAINST THE PRE-2026-09-08 ARITHMETIC. Without this the
+						// two assertions above could be pinning a property the old rule already had,
+						// and the sweep would be proving nothing about the fix. It is counted rather
+						// than asserted per-point because most aim points are in front of the
+						// launcher, where the old rule was correct.
+						if ((aim - home).HorizontalLengthSquared != 0)
+						{
+							var oldFacing = (aim - home).Yaw;
+							var oldAlong = new WVec(0, -approach.Standoff, 0).Rotate(WRot.FromYaw(oldFacing));
+							var oldFromHome = new WPos(aim.X - oldAlong.X, aim.Y - oldAlong.Y, 0) - home;
+							if (((long)oldFromHome.X * outward.X) + ((long)oldFromHome.Y * outward.Y) <= 0)
+								oldRuleViolations++;
+						}
 
 						checkedPairs++;
 					}
 				}
 			}
 
-			// The sweep has to actually exercise the clamp, or it is asserting an invariant that the
-			// unclamped arithmetic would satisfy anyway and is proving nothing about the fix.
-			Assert.That(clampEngaged, Is.GreaterThan(0),
+			// The sweep has to actually exercise the lean, or it is asserting an invariant that the
+			// raw aim bearing would satisfy anyway.
+			Assert.That(leanEngaged, Is.GreaterThan(0),
 				"no aim point in the sweep ever left the corridor, so this test would pass against " +
 				"the bug it exists to pin");
+
+			// And the old rule has to actually FAIL it, in quantity. This is the number that makes
+			// the sweep a regression test rather than a description.
+			Assert.That(oldRuleViolations, Is.GreaterThan(100),
+				$"the pre-fix bearing violated the invariant at only {oldRuleViolations} of " +
+				$"{checkedPairs} swept aim points; the sweep has stopped covering the defect family");
+
 			Assert.That(checkedPairs, Is.GreaterThan(1000));
+
+			// Recorded so a change to MaxCorridorDeviation shows up here as a number rather than as
+			// a silent widening: this is the worst angle any shipped map size can produce.
+			Assert.That(worstDeviation, Is.GreaterThan(0),
+				"the sweep never produced a leaned approach at all, which cannot be right");
 		}
 
 		[Test]
@@ -984,6 +1036,102 @@ namespace OpenRA.Test
 				Assert.That(raised, Is.GreaterThan(MissileStrikeApproach.MinStandoff),
 					$"a {cellsX}x{cellsY} map at 4x the margin hit the floor");
 			}
+		}
+
+		[Test]
+		public void TheInterceptionExposureChangeIsMeasuredAtNamedAimPoints()
+		{
+			// WHAT THIS COSTS THE DEFENDER, pinned as numbers rather than described. The on-map leg
+			// is the only part of the flight an enemy SAM can engage -- everything outside the
+			// boundary is beyond any launcher on the board -- so it IS the interception window, and
+			// changing the bearing changes it. That makes it a balance change, and a balance change
+			// quoted from a deleted scratch harness is a balance change nobody can re-check.
+			//
+			// Measured on 130x130 (x-lake, the largest shipped map) at the shipped margin, against
+			// the pre-2026-09-08 bearing. Two homes: a corner-ish Supply Route and a mid-edge one.
+			const int C = 130;
+			var mapCenter = Cell(C / 2, C / 2);
+			var standoff = MissileStrikeApproach.StandoffFor(C, C, Margin);
+
+			// label, home, aim, old leg, new leg -- all legs in tenths of a cell, as measured.
+			var cases = new[]
+			{
+				("far corner",             14, 112, 128,   1, 1797, 1797),
+				("far side",               14, 112, 120,  60, 1341, 1341),
+				("map centre",             14, 112,  65,  65,  885,  885),
+				("mid-board",              14, 112,  60,  90,  670,  670),
+				("near own SR, inward 8",  14, 112,  22, 104,  319,  319),
+				("on own SR + 2 outward",  14, 112,  12, 114, 1617,  167),
+				("outward 8 behind SR",    14, 112,   6, 120, 1702,   87),
+				("own edge, far along",    14, 112,  14,   4, 1255, 1255),
+				("far corner",              1,  65, 128,   1, 1438, 1438),
+				("far side",                1,  65, 120,  60, 1206, 1206),
+				("map centre",              1,  65,  65,  65,  655,  655),
+				("mid-board",               1,  65,  60,  90,  658,  658),
+				("near own SR, inward 8",   1,  65,   9,  65,   95,   95),
+				("on own SR + 2 outward",   1,  65,   0,  65, 1295,    5),
+				("own edge, far along",     1,  65,   1, 125, 1255,   21),
+			};
+
+			var inverted = 0;
+
+			foreach (var (label, hx, hy, ax, ay, expectedOld, expectedNew) in cases)
+			{
+				var home = Cell(hx, hy);
+				var aim = Cell(ax, ay);
+				var outward = home - mapCenter;
+
+				var oldFacing = (aim - home).Yaw;
+				var oldAlong = new WVec(0, -standoff, 0).Rotate(WRot.FromYaw(oldFacing));
+				var oldSpawn = new WPos(aim.X - oldAlong.X, aim.Y - oldAlong.Y, 0);
+				var oldOff = oldSpawn - home;
+				var oldBehind = ((long)oldOff.X * outward.X) + ((long)oldOff.Y * outward.Y) > 0;
+				var oldLeg = OnMapLeg(oldSpawn, aim, C, C) * 10 / 1024;
+
+				var approach = MissileStrikeApproach.For(home, mapCenter, C, C, Margin, new[] { aim });
+				var newSpawn = approach.SpawnPosition(aim);
+				var newOff = newSpawn - home;
+				var newBehind = ((long)newOff.X * outward.X) + ((long)newOff.Y * outward.Y) > 0;
+				var newLeg = OnMapLeg(newSpawn, aim, C, C) * 10 / 1024;
+
+				var where = $"home {hx},{hy} aim {ax},{ay} ({label})";
+
+				Assert.That(oldLeg, Is.EqualTo(expectedOld).Within(2),
+					$"{where}: the PRE-FIX leg is no longer what this table recorded, so the deltas " +
+					"below are being measured against something else");
+				Assert.That(newLeg, Is.EqualTo(expectedNew).Within(2), $"{where}: shipped leg moved");
+
+				Assert.That(newBehind, Is.True, $"{where}: the shipped bearing is not behind the launcher");
+
+				if (!oldBehind)
+				{
+					// The inverted family. The leg collapses because the warhead no longer crosses
+					// the whole board to reach a target next to its own launcher -- so a strike on
+					// one's own doorstep becomes MUCH harder for the enemy to intercept. That is a
+					// real balance consequence and it is deliberate: the inward near-SR cases in
+					// this table already had short legs (31.9c and 9.5c), so this makes the outward
+					// case consistent with them rather than introducing a new property.
+					Assert.That(newLeg, Is.LessThan(oldLeg / 5),
+						$"{where}: an inverted aim point must lose most of its on-map leg");
+					inverted++;
+				}
+				else
+				{
+					// AND THE ORDINARY CASES MUST NOT MOVE AT ALL. This is the half that makes the
+					// change safe to ship: every aim point the old rule already handled correctly
+					// flies the identical geometry, so no existing engagement changes.
+					Assert.That(newLeg, Is.EqualTo(oldLeg).Within(2),
+						$"{where}: an in-corridor aim point changed its interception window");
+				}
+
+				// Wherever it comes from, it comes from within the corridor limit.
+				Assert.That(WAngle.AngleDiff(approach.Facing + new WAngle(512), outward.Yaw).Angle,
+					Is.LessThanOrEqualTo(MissileStrikeApproach.MaxCorridorDeviation.Angle), where);
+			}
+
+			Assert.That(inverted, Is.EqualTo(4),
+				"the table must contain exactly the four inverted aim points it was built around; " +
+				"more or fewer means the defect family moved and the numbers need re-measuring");
 		}
 
 		// --- (6) keep the fixture honest -------------------------------------------------------
