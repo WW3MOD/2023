@@ -437,6 +437,15 @@ namespace OpenRA.Mods.Common.Traits
 
 		float IRenderShroud.FogDarkness => info.FogDarkness;
 
+		/// <summary>
+		/// The composite curve, handed out so nothing has to rebuild it. <see cref="CompositeTransmission"/>
+		/// is the one authority; this is the only way to reach it from OpenRA.Game.
+		/// </summary>
+		float IRenderShroud.FogTransmission(int visibility)
+		{
+			return CompositeTransmission(visibility, info.FogDarkness);
+		}
+
 		void IRenderShroud.RenderShroud(WorldRenderer wr)
 		{
 			((IRenderShroud)this).RenderFog(wr);

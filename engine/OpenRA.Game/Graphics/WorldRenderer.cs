@@ -515,34 +515,31 @@ namespace OpenRA.Graphics
 			var vpTL = Viewport.TopLeft;
 			var vpBR = Viewport.BottomRight;
 
-			// Precompute combined fog alpha for each visibility level (0-10).
-			// For visibility V, fog layers V through 9 are drawn by ShroudRenderer.
-			// Combined alpha = 1 - product of (1 - layerAlpha) for each layer.
+			// The fog this overlay has to match is the fog ShroudRenderer draws over the map, so it
+			// is ASKED FOR rather than rebuilt. This block used to be a hand-kept second copy of the
+			// per-layer curve, and the copy was wrong: it omitted the fog palette's own alpha
+			// (ShroudRenderer.FogPaletteAlpha, 160/255), so every layer bit harder than the real
+			// one. At the shipped FogDarkness a sprite beyond the grid was drawn at 0.230x the
+			// brightness the same sprite had on the map at visibility 1 — a 4.35x error, and
+			// worst exactly where it shows most, over fully-fogged ground. The user reported it as
+			// explosions being "very faint outside the border".
 			//
-			// PITFALL: this per-layer curve is a second copy of ShroudRenderer.LayerAlpha, which
-			// lives in Mods.Common and so cannot be called from here. FogDarkness is read off the
-			// renderer to keep the two scaling together; the curve itself must be kept in step by
-			// hand. The copies are NOT equivalent today — this one omits the fog palette's own
-			// alpha, so the strip outside the grid is drawn darker than the fog over the map at
-			// the same visibility. That predates FogDarkness and is left alone here.
-			var fogDarkness = shroudRenderer?.FogDarkness ?? 1f;
-			var fogAlphas = new float[MapLayers.VisionLayers];
-			fogAlphas[0] = 1f;
-			fogAlphas[10] = 0f;
-			for (var v = 1; v < 10; v++)
-			{
-				var transparency = 1f;
-				for (var layer = v; layer <= 9; layer++)
-				{
-					var a = 1f;
-					if (layer > 1)
-						a -= (layer - 1) / 12f;
-					a = Math.Min(a * fogDarkness / 3f, 1f);
-					transparency *= 1f - a;
-				}
+			// THIS IS ABOUT THE SPRITE AND ONLY THE SPRITE. The ground out here is opaque black by
+			// design: DrawBeyondMapFog fills it before actors are drawn, and nothing may put light
+			// on it. What this overlay does is decide how much of an ACTOR drawn on top of that
+			// black survives, and the correct answer is "as much as would have survived one cell
+			// further in", which is what the shroud's own curve says.
+			//
+			// No shroud renderer means no fog is drawn over the map at all, so there is none to
+			// match out here either and the overlay is skipped entirely.
+			if (shroudRenderer == null)
+				return;
 
-				fogAlphas[v] = 1f - transparency;
-			}
+			// Visibility 0 transmits 0 (opaque) and full visibility transmits 1 (no overlay at all),
+			// so both ends fall out of the curve and neither needs special-casing.
+			var fogAlphas = new float[MapLayers.VisionLayers];
+			for (var v = 0; v < MapLayers.VisionLayers; v++)
+				fogAlphas[v] = 1f - shroudRenderer.FogTransmission(v);
 
 			// Playable boundary in screen coordinates. The per-cell subdivision below is keyed
 			// to this, because the visibility samples come from playable cells.
@@ -554,8 +551,16 @@ namespace OpenRA.Graphics
 			// Cell-grid boundary, identical to DrawBeyondMapFog's. These two are the pre- and
 			// post-actor halves of one overlay and must cover the same region: everything
 			// outside the grid. The one-cell cordon ring lies INSIDE the grid and is the
-			// shroud's business — GetVisibility resolves ring cells to 0 under fog, FogDisabled
-			// and shroud-Disabled alike, so the shroud already paints it opaque.
+			// shroud's business.
+			//
+			// CORRECTED 2026-09-08. This used to add that "GetVisibility resolves ring cells to 0
+			// under fog... so the shroud already paints it opaque". That has been false since
+			// b4f0db94 (2026-08-22): ShroudRenderer.ClampToPlayable (ShroudRenderer.cs:193) hands a
+			// ring cell the visibility of the playable cell it abuts, so the ring shows whatever its
+			// neighbour shows and is NOT painted opaque. GetVisibility does still return 0 out there
+			// — the claim was true of the SIMULATION and wrong about the RENDERER, and only the
+			// renderer decides what is drawn. The conclusion is unaffected: the ring is inside the
+			// grid, so it is not this overlay's business either way.
 			var gridTL = ScreenPxPosition(new WPos(0, 0, 0));
 			var gridBR = ScreenPxPosition(new WPos(map.MapSize.X * TileScale, map.MapSize.Y * TileScale, 0));
 

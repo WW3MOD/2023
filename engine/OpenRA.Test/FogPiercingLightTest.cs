@@ -295,5 +295,77 @@ namespace OpenRA.Test
 				Assert.That(c.V, Is.InRange(ShippedRing.Top, ShippedRing.Bottom - 1), $"V of {puv}");
 			}
 		}
+
+		/// <summary>
+		/// The curve WorldRenderer.DrawBeyondMapActorFog used to rebuild by hand, reproduced exactly as
+		/// it stood before 2026-09-08 so the size of the error it caused can be asserted rather than
+		/// described. It is ShroudRenderer.LayerAlpha's product WITHOUT the fog palette's own alpha.
+		/// </summary>
+		static float LegacyBeyondGridAlpha(int visibility, float fogDarkness)
+		{
+			if (visibility <= 0)
+				return 1f;
+			if (visibility >= MapLayers.VisionLayers - 1)
+				return 0f;
+
+			var transparency = 1f;
+			for (var layer = visibility; layer <= MapLayers.VisionLayers - 2; layer++)
+				transparency *= 1f - ShroudRenderer.LayerAlpha(layer, fogDarkness);
+
+			return 1f - transparency;
+		}
+
+		/// <summary>What the overlay beyond the cell grid must cost, to match the fog over the map.</summary>
+		static float BeyondGridAlpha(int visibility, float fogDarkness)
+		{
+			return 1f - ShroudRenderer.CompositeTransmission(visibility, fogDarkness);
+		}
+
+		[Test]
+		public void TheOverlayBeyondTheGridCostsExactlyWhatTheFogOverTheMapCosts()
+		{
+			// A sprite's pixels that spill past the cell grid are dimmed by DrawBeyondMapActorFog; the
+			// pixels one cell further in are dimmed by ShroudRenderer's fog quads. They are the same
+			// sprite, so the two must agree at every visibility or the sprite has a step through it.
+			for (var v = 0; v < MapLayers.VisionLayers; v++)
+				Assert.That(BeyondGridAlpha(v, ShippedFogDarkness),
+					Is.EqualTo(1f - ShroudRenderer.CompositeTransmission(v, ShippedFogDarkness)),
+					$"visibility {v}");
+		}
+
+		[Test]
+		public void TheHandRolledCurveWasWrongByMoreThanFourfoldOverFullyFoggedGround()
+		{
+			// The regression this replaced, as a number. Omitting FogPaletteAlpha made every layer bite
+			// harder, so the overlay was too opaque everywhere between the two fixed ends -- worst in
+			// relative terms at visibility 1, which is ordinary fully-fogged ground and exactly where a
+			// nuclear cloud spilling past the map edge is seen.
+			var legacyTransmitted = 1f - LegacyBeyondGridAlpha(1, ShippedFogDarkness);
+			var correctTransmitted = 1f - BeyondGridAlpha(1, ShippedFogDarkness);
+
+			Assert.That(legacyTransmitted, Is.LessThan(correctTransmitted),
+				"the old curve must be the DARKER of the two");
+			Assert.That(correctTransmitted / legacyTransmitted, Is.GreaterThan(4f),
+				"a sprite beyond the grid was more than four times too dark at visibility 1");
+
+			// And it was wrong in the same direction at every level that draws an overlay at all.
+			for (var v = 1; v < MapLayers.VisionLayers - 1; v++)
+				Assert.That(LegacyBeyondGridAlpha(v, ShippedFogDarkness),
+					Is.GreaterThan(BeyondGridAlpha(v, ShippedFogDarkness)), $"visibility {v}");
+		}
+
+		[Test]
+		public void TheOverlayStillAnnihilatesUnexploredAndVanishesAtFullVisibility()
+		{
+			// The two ends are what keep this change cosmetic rather than a vision change. Beyond the
+			// grid under never-explored shroud the overlay is fully opaque, so nothing shows; at full
+			// visibility it is absent entirely, so a sprite in the player's own sight is untouched by
+			// this change. Every unit that carries vision lights its own border cell to full, which is
+			// why the correction cannot brighten a unit the player is already watching.
+			Assert.That(BeyondGridAlpha(0, ShippedFogDarkness), Is.EqualTo(1f));
+			Assert.That(BeyondGridAlpha(MapLayers.VisionLayers - 1, ShippedFogDarkness), Is.EqualTo(0f));
+			Assert.That(LegacyBeyondGridAlpha(0, ShippedFogDarkness), Is.EqualTo(1f));
+			Assert.That(LegacyBeyondGridAlpha(MapLayers.VisionLayers - 1, ShippedFogDarkness), Is.EqualTo(0f));
+		}
 	}
 }

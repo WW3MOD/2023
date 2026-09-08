@@ -509,9 +509,21 @@ namespace OpenRA.Traits
 		void RenderUnexplored(WorldRenderer wr);
 
 		/// <summary>
-		/// Multiplier applied to each fog layer's alpha; 1 is the engine baseline. Exposed so the
-		/// beyond-map fog strip in <see cref="Graphics.WorldRenderer"/>, which cannot see the
-		/// renderer's TraitInfo from OpenRA.Game, scales in step with the fog drawn over the map.
+		/// WW3MOD: the fraction of what is behind the fog that still reaches the screen at
+		/// <paramref name="visibility"/> -- 0 under never-explored shroud, 1 at full visibility.
+		/// <para>Exposed because <see cref="Graphics.WorldRenderer"/> draws a fog overlay for the
+		/// region beyond the cell grid and has to match the fog the shroud draws over the map, but
+		/// cannot see ShroudRenderer's composite curve from OpenRA.Game. It used to rebuild that
+		/// curve by hand from <see cref="FogDarkness"/> and got it wrong: the copy omitted the fog
+		/// palette's own alpha, so a sprite beyond the grid was drawn at 0.230x the brightness the
+		/// same sprite had on the map at visibility 1. Ask the renderer rather than re-deriving.</para>
+		/// </summary>
+		float FogTransmission(int visibility);
+
+		/// <summary>
+		/// Multiplier applied to each fog layer's alpha; 1 is the engine baseline. Exposed for
+		/// LightEventManager, which hands it to FogPiercingLightRenderable. NOT the way to
+		/// reconstruct the composite fog curve -- use <see cref="FogTransmission"/> for that.
 		/// </summary>
 		float FogDarkness { get; }
 	}
