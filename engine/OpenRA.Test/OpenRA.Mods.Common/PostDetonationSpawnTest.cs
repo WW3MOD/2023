@@ -5,26 +5,37 @@
  * THE BUG, in the user's words (2026-09-08): "after the bomb explodes, and after the mushroom cloud
  * animation is gone, and all my units are dead, if I build new units they come in and die instantly."
  *
- * Two effects outlive their own animation by a long way and keep sweeping a disc for victims every
- * tick. ShockwaveEffect excluded only actors already in its `hitActors` set, and an actor that did
- * not exist when the wave was born has by construction never been in that set — so it read as
- * "the front has not reached it yet" and took one full ApplyBlastDamage. ThermalRadiationEffect had
- * no exclusion set at all. On AtomicHighYield that is ~645 ticks of invisible blast wave and 413 of
- * invisible thermal field. Reinforcements from a Supply Route are the worst case: fixed arrival
- * cells, then a walk inward down the falloff.
+ * Two effects outlive their own animation once the yield is large enough, and keep sweeping a disc
+ * for victims every tick. ShockwaveEffect excluded only actors already in its `hitActors` set, and an
+ * actor that did not exist when the wave was born has by construction never been in that set — so it
+ * read as "the front has not reached it yet" and took one full ApplyBlastDamage.
+ * ThermalRadiationEffect had no exclusion set at all. Reinforcements from a Supply Route are the
+ * worst case: fixed arrival cells, then a walk inward down the falloff.
  *
- * The fix is a filter, not a tuning change. No damage number moves; a correctly-hit actor takes
- * exactly what it took before.
+ * WHAT THIS FIXTURE PINS, AND WHAT IT DELIBERATELY DOES NOT HAVE TO. An adversarial review of the
+ * first version of this fix named two one-token mutations that shipped the bug with every test in
+ * this file green: inverting the call-site guard, and transposing the two `uint` arguments of a
+ * static predicate. Both were then designed out rather than tested for, so this fixture is smaller
+ * than the hazard it covers:
  *
- * WHAT THIS FIXTURE CAN AND CANNOT REACH. Both effects need a live World, so there is no way to
- * drive Tick() from NUnit. It is therefore split in two, and the second half is the load-bearing one:
+ *   - Transposition is a compile error. DetonationStamp is its own readonly struct and the
+ *     comparison is an instance method taking ONE argument. Pinned structurally below, because the
+ *     property is "no two same-typed parameters exist to transpose", which a reader cannot check by
+ *     eye once the API grows.
+ *   - Call-site inversion has nowhere to live. Both Tick methods enumerate an already-filtered
+ *     sequence and contain no branch on the stamp at all.
+ *   - The unfiltered sweep is unreachable from a Tick, which is the assertion that actually matters:
+ *     IlScan proving a filter is CALLED is weak (it is a linear byte walk over call tokens and says
+ *     nothing about whether the result is used), but IlScan proving FindActorsOnCircle is ABSENT is
+ *     strong, because reintroducing the bug requires calling it.
  *
- *   1. The RULE, driven through the shipped predicate, over a faithful model of the ID allocator.
- *      The model is three lines of World.NextAID and is asserted to match its post-increment
- *      semantics, so the sequence below is the real one.
- *   2. The WIRING, by IL scan: both Tick methods must actually call that predicate. This is the
- *      assertion that fails if the guard is deleted from either effect, which is the regression
- *      that would otherwise reintroduce the exact bug above with every other test still green.
+ * That leaves exactly one comparison in the whole feature — DetonationStamp.Predates(uint) — and it
+ * is pinned exhaustively at its boundary.
+ *
+ * The remaining boundary is unchanged and worth restating: both effects need a live World, so no
+ * test here drives Tick(). The rule is exercised through the shipped predicate over a model of the
+ * ID allocator that is itself asserted against World.NextAID's post-increment semantics; the wiring
+ * is exercised by IL scan, once per effect.
  */
 #endregion
 
@@ -32,6 +43,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
+using OpenRA.Mods.Common;
 using OpenRA.Mods.Common.Effects;
 
 namespace OpenRA.Test
@@ -55,15 +67,19 @@ namespace OpenRA.Test
 
 		// AtomicHighYield, weapons-superweapons.yaml: Warhead@BlastWave MaxRadius 102c0,
 		// StartRadius 6c820, WaveSpeed 7 — the file's own comment puts front travel at ~645 ticks.
+		// Its mushroom cloud is nuke_large at DurationScalePercent 198, i.e. 199 * 1.98 = ~394 ticks,
+		// so ~251 ticks of that wave are invisible. The gap is a LARGE-YIELD property and not a
+		// universal one: `Atomic`'s wave is ~100 ticks against a 199-tick cloud and never outlives it.
 		const int BlastWaveTicks = 645;
 
 		// Warhead@ThermalRadiation on the same weapon: RadiationDuration 413, DamageInterval 8.
 		const int ThermalTicks = 413;
 		const int ThermalDamageInterval = 8;
 
-		// mod.yaml's default Timestep is 60 ms, so the blast wave stays lethal for ~39 s and the
-		// thermal field for ~25 s with nothing on screen. Quoted, not asserted, so the tick counts
-		// above are readable as durations.
+		static DetonationStamp Stamp(uint firstActorIDAfter)
+		{
+			return new DetonationStamp(firstActorIDAfter);
+		}
 
 		[Test]
 		public void TheAllocatorModelMatchesWorldNextAID()
@@ -81,22 +97,27 @@ namespace OpenRA.Test
 			Assert.That(alloc.NextActorID, Is.EqualTo(1000u));
 		}
 
-		/// <summary>The snapshot is the ID the NEXT actor gets, so the boundary value is post-detonation.</summary>
+		/// <summary>The stamp is the ID the NEXT actor gets, so the boundary value is post-detonation.</summary>
 		[Test]
-		public void TheSnapshotPartitionsTheActorPopulationExactlyAtItsOwnValue()
+		public void TheStampPartitionsTheActorPopulationExactlyAtItsOwnValue()
 		{
-			const uint Snapshot = 4096;
+			var stamp = Stamp(4096);
 
-			Assert.That(AreaEffectVictims.ExistedAtDetonation(Snapshot - 1, Snapshot), Is.True,
+			Assert.That(stamp.Predates(4095), Is.True,
 				"the last actor created before the bomb went off must still be a valid victim");
-			Assert.That(AreaEffectVictims.ExistedAtDetonation(Snapshot, Snapshot), Is.False,
+			Assert.That(stamp.Predates(4096), Is.False,
 				"the first actor created after the bomb went off must not be — an off-by-one here is the whole bug");
-			Assert.That(AreaEffectVictims.ExistedAtDetonation(Snapshot + 1, Snapshot), Is.False);
-			Assert.That(AreaEffectVictims.ExistedAtDetonation(0, Snapshot), Is.True);
-			Assert.That(AreaEffectVictims.ExistedAtDetonation(uint.MaxValue, Snapshot), Is.False);
+			Assert.That(stamp.Predates(4097), Is.False);
+			Assert.That(stamp.Predates(0), Is.True);
+			Assert.That(stamp.Predates(uint.MaxValue), Is.False);
 
 			// A wave born on the very first tick of a match has nothing to hurt at all.
-			Assert.That(AreaEffectVictims.ExistedAtDetonation(0, 0), Is.False);
+			Assert.That(Stamp(0).Predates(0), Is.False);
+
+			// The whole neighbourhood of the boundary, so an off-by-one cannot hide in a gap between
+			// the hand-picked values above.
+			for (var id = 4000u; id < 4200u; id++)
+				Assert.That(stamp.Predates(id), Is.EqualTo(id < 4096u), $"id {id}");
 		}
 
 		/// <summary>The reported symptom: units built while the invisible wave is still expanding take nothing.</summary>
@@ -110,12 +131,12 @@ namespace OpenRA.Test
 			for (var i = 0; i < 12; i++)
 				doomed.Add(alloc.Allocate());
 
-			// Detonation. ShockwaveEffect's constructor snapshots World.NextActorID here.
-			var snapshot = alloc.NextActorID;
+			// Detonation. ShockwaveEffect's constructor takes DetonationStamp.Now(world) here.
+			var stamp = Stamp(alloc.NextActorID);
 
 			// The Supply Route keeps delivering while the wave is still out there and invisible.
 			// Deliberately spread across the whole 645 ticks, including well past the cloud sprite.
-			var reinforcementTicks = new[] { 1, 50, 199, 200, 321, 400, 500, 644 };
+			var reinforcementTicks = new[] { 1, 50, 199, 200, 321, 394, 400, 500, 644 };
 			var reinforcements = new Dictionary<int, uint>();
 
 			for (var tick = 1; tick <= BlastWaveTicks; tick++)
@@ -126,7 +147,7 @@ namespace OpenRA.Test
 				// Worst case on purpose: assume every actor alive is inside the current disc, which
 				// is where the old code handed each of them one full ApplyBlastDamage.
 				foreach (var kv in reinforcements)
-					Assert.That(AreaEffectVictims.ExistedAtDetonation(kv.Value, snapshot), Is.False,
+					Assert.That(stamp.Predates(kv.Value), Is.False,
 						$"tick {tick}: a unit built at tick {kv.Key} is still a valid victim of a bomb " +
 						"that detonated before it existed");
 			}
@@ -136,7 +157,7 @@ namespace OpenRA.Test
 
 			// And the fix must not have quietly made the weapon harmless to what it is aimed at.
 			foreach (var id in doomed)
-				Assert.That(AreaEffectVictims.ExistedAtDetonation(id, snapshot), Is.True,
+				Assert.That(stamp.Predates(id), Is.True,
 					"an actor that was on the map at detonation must still take the hit");
 		}
 
@@ -146,7 +167,7 @@ namespace OpenRA.Test
 		{
 			var alloc = new ActorIdAllocator();
 			var caughtInTheOpen = alloc.Allocate();
-			var snapshot = alloc.NextActorID;
+			var stamp = Stamp(alloc.NextActorID);
 
 			var arrivals = new List<uint>();
 			var pulses = 0;
@@ -161,18 +182,67 @@ namespace OpenRA.Test
 
 				pulses++;
 				foreach (var id in arrivals)
-					Assert.That(AreaEffectVictims.ExistedAtDetonation(id, snapshot), Is.False,
+					Assert.That(stamp.Predates(id), Is.False,
 						$"tick {tick}: a unit that walked into a burnt-out crater is taking a thermal pulse");
 			}
 
 			Assert.That(arrivals, Is.Not.Empty, "the walk-in case never fired — the test is asserting nothing");
 			Assert.That(pulses, Is.GreaterThan(1),
 				"the point of this effect is repeated pulses; one pulse is not the case that was broken");
-			Assert.That(AreaEffectVictims.ExistedAtDetonation(caughtInTheOpen, snapshot), Is.True,
+			Assert.That(stamp.Predates(caughtInTheOpen), Is.True,
 				"the unit that was standing there when it went off must still burn");
 		}
 
-		// ---- The wiring ----
+		// ---- The shapes that make the two named mutations unwritable ----
+
+		/// <summary>No method in the feature takes two same-typed parameters, so no call can be transposed.</summary>
+		[Test]
+		public void NoMethodInTheFeatureHasTwoParametersThatCouldBeSwapped()
+		{
+			foreach (var type in new[] { typeof(DetonationStamp), typeof(AreaEffectVictims) })
+			{
+				foreach (var m in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
+				{
+					var types = m.GetParameters().Select(p => p.ParameterType).ToArray();
+					Assert.That(types, Is.Unique,
+						$"{type.Name}.{m.Name} has two parameters of the same type. Transposing them would " +
+						"compile, and on this code path that silently reintroduces the post-detonation bug.");
+				}
+			}
+		}
+
+		/// <summary>The stamp must stay a readonly value type — that is what makes the compare an instance call.</summary>
+		[Test]
+		public void TheStampIsAReadonlyStruct()
+		{
+			var t = typeof(DetonationStamp);
+			Assert.That(t.IsValueType, Is.True, "DetonationStamp became a class; a null stamp now damages nothing at all");
+
+			foreach (var f in t.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+				Assert.That(f.IsInitOnly, Is.True, $"DetonationStamp.{f.Name} is mutable, so a stamp can be moved after the fact");
+
+			var predates = t.GetMethod(nameof(DetonationStamp.Predates), new[] { typeof(uint) });
+			Assert.That(predates, Is.Not.Null, "the single comparison in the feature is gone");
+			Assert.That(predates.IsStatic, Is.False,
+				"Predates became static, so the stamp is an argument again and can be passed in the wrong position");
+		}
+
+		/// <summary>The Actor overload must carry no comparison of its own — it delegates to the pinned one.</summary>
+		[Test]
+		public void TheActorOverloadDelegatesToTheOneComparison()
+		{
+			var byId = typeof(DetonationStamp).GetMethod(nameof(DetonationStamp.Predates), new[] { typeof(uint) });
+			var byActor = typeof(DetonationStamp).GetMethod(nameof(DetonationStamp.Predates), new[] { typeof(Actor) });
+			Assert.That(byActor, Is.Not.Null, "the method group handed to Where is gone");
+
+			var scan = IlScan.Scan(byActor);
+			Assert.That(scan.ResolvedCalls, Is.GreaterThan(0), "the scan resolved nothing, so a clean result means nothing");
+			Assert.That(scan.Callees, Has.Some.Matches<MethodBase>(m => m == byId),
+				"Predates(Actor) no longer delegates to Predates(uint) — it has grown a comparison of its own, " +
+				"which is a second place for the boundary to be written backwards");
+		}
+
+		// ---- The wiring, one test per effect ----
 
 		static MethodInfo TickOf<T>()
 		{
@@ -181,25 +251,38 @@ namespace OpenRA.Test
 			return tick;
 		}
 
-		static void AssertTickConsultsTheFilter<T>()
+		static void AssertTickCannotReachTheUnfilteredSweep<T>()
 		{
-			var guard = typeof(AreaEffectVictims).GetMethod(nameof(AreaEffectVictims.ExistedAtDetonation));
-			var scan = IlScan.Scan(TickOf<T>());
+			var filtered = typeof(AreaEffectVictims).GetMethod(nameof(AreaEffectVictims.PreDetonationOnCircle));
+			var unfiltered = typeof(WorldExtensions).GetMethod(nameof(WorldExtensions.FindActorsOnCircle));
+			Assert.That(filtered, Is.Not.Null);
+			Assert.That(unfiltered, Is.Not.Null);
 
+			var scan = IlScan.Scan(TickOf<T>());
 			Assert.That(scan.ResolvedCalls, Is.GreaterThan(0),
 				$"the scan of {typeof(T).Name}.Tick resolved no calls at all, so a clean result means nothing");
-			Assert.That(scan.Callees, Has.Some.Matches<MethodBase>(m => m == guard),
-				$"{typeof(T).Name}.Tick does not consult AreaEffectVictims.ExistedAtDetonation. It sweeps for " +
-				"victims long after its animation is over, so without that call it damages units that did not " +
-				"exist when the weapon detonated.");
+
+			Assert.That(scan.Callees, Has.Some.Matches<MethodBase>(m => m == filtered),
+				$"{typeof(T).Name}.Tick does not sweep through AreaEffectVictims.PreDetonationOnCircle.");
+
+			// The load-bearing half. A call to the filter can be present and its result discarded;
+			// a call to the RAW sweep cannot be present and harmless, because that sweep is the bug.
+			Assert.That(scan.Callees, Has.None.Matches<MethodBase>(m => m == unfiltered),
+				$"{typeof(T).Name}.Tick calls WorldExtensions.FindActorsOnCircle directly. This effect keeps " +
+				"sweeping for hundreds of ticks after its animation is over, so an unfiltered sweep damages " +
+				"units that did not exist when the weapon detonated. Sweep through PreDetonationOnCircle.");
 		}
 
-		/// <summary>Both persistent effects must actually call the filter — this is the assertion the fix is.</summary>
 		[Test]
-		public void BothPersistentEffectsConsultTheFilterInTheirTick()
+		public void ShockwaveEffectTickCannotReachTheUnfilteredSweep()
 		{
-			AssertTickConsultsTheFilter<ShockwaveEffect>();
-			AssertTickConsultsTheFilter<ThermalRadiationEffect>();
+			AssertTickCannotReachTheUnfilteredSweep<ShockwaveEffect>();
+		}
+
+		[Test]
+		public void ThermalRadiationEffectTickCannotReachTheUnfilteredSweep()
+		{
+			AssertTickCannotReachTheUnfilteredSweep<ThermalRadiationEffect>();
 		}
 
 		/// <summary>The scheme rests on ActorID being immutable and on World offering a peek, not a second allocator.</summary>
@@ -212,10 +295,10 @@ namespace OpenRA.Test
 				"ActorID is no longer readonly, so 'created before the bomb' is no longer a fact about an actor");
 
 			var peek = typeof(World).GetProperty("NextActorID");
-			Assert.That(peek, Is.Not.Null, "World.NextActorID is gone; the effects have nothing to snapshot");
+			Assert.That(peek, Is.Not.Null, "World.NextActorID is gone; the effects have nothing to stamp");
 			Assert.That(peek.SetMethod, Is.Null, "NextActorID must be get-only — allocation belongs to NextAID");
 			Assert.That(peek.PropertyType, Is.EqualTo(actorId.FieldType),
-				"the snapshot and the IDs it is compared against must be the same type, or the compare narrows");
+				"the stamp and the IDs it is compared against must be the same type, or the compare narrows");
 		}
 	}
 }

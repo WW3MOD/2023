@@ -35,8 +35,8 @@ namespace OpenRA.Mods.Common.Effects
 		int intervalCounter;
 		bool finished;
 
-		// World.NextActorID as it stood on the tick this field was created. See AreaEffectVictims.
-		readonly uint firstActorIDAfterDetonation;
+		// The actor population as it stood on the tick this field was created. See AreaEffectVictims.
+		readonly DetonationStamp stamp;
 
 		public ThermalRadiationEffect(World world, ThermalRadiationWarhead warhead, WPos center, Actor firedBy, WarheadArgs args)
 		{
@@ -47,7 +47,7 @@ namespace OpenRA.Mods.Common.Effects
 			this.args = args;
 			this.ticksRemaining = warhead.RadiationDuration;
 			this.intervalCounter = 0;
-			this.firstActorIDAfterDetonation = world.NextActorID;
+			this.stamp = DetonationStamp.Now(world);
 		}
 
 		public void Tick(World world)
@@ -69,17 +69,14 @@ namespace OpenRA.Mods.Common.Effects
 
 			intervalCounter = 0;
 
-			// Pulse damage to all actors within thermal range
-			foreach (var victim in world.FindActorsOnCircle(center, warhead.MaxRange))
+			// Pulse damage to all actors within thermal range.
+			//
+			// PITFALL: unlike the shockwave this effect keeps no hit set at all -- re-cooking the same
+			// victims every DamageInterval is the mechanic. That makes the arrival of a NEW actor
+			// indistinguishable from another pulse on an old one, so the sweep MUST be the stamped
+			// one or a unit walking into a burnt-out crater takes the whole remaining pulse train.
+			foreach (var victim in AreaEffectVictims.PreDetonationOnCircle(world, center, warhead.MaxRange, stamp))
 			{
-				// PITFALL: unlike the shockwave this effect keeps no hit set at all -- re-cooking
-				// the same victims every DamageInterval is the mechanic. That makes the arrival of a
-				// NEW actor indistinguishable from another pulse on an old one, so without this
-				// guard a unit walking into a burnt-out crater takes the full remaining pulse train
-				// (up to 417 ticks of it on Tsar Bomba) with nothing on screen to explain it.
-				if (!AreaEffectVictims.ExistedAtDetonation(victim.ActorID, firstActorIDAfterDetonation))
-					continue;
-
 				if (victim.IsDead || !victim.IsInWorld)
 					continue;
 
