@@ -157,8 +157,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Tooltip for the sandbox checkbox.")]
 		public readonly string PowersSandboxCheckboxDescription =
-			"Testing mode: make every support power purchasable by both factions, including the " +
-			"event-only warheads. Ignores faction locks";
+			"Testing mode: every support power purchasable by both factions, including the " +
+			"event-only warheads, and no waiting. Ignores faction locks; strikes load instantly " +
+			"and launch the moment you order them. They still fly in from off-map";
 
 		[Desc("Default sandbox setting. OFF, and unlike the two nuclear defaults above this one is",
 			"not expected to be revisited before release -- it is a permanent test mode, not a",
@@ -191,6 +192,88 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Display order for the sandbox option.")]
 		public readonly int PowersSandboxCheckboxDisplayOrder = 105;
+
+		// ==== WHAT SANDBOX REMOVES, AND WHAT IT DELIBERATELY DOES NOT ====
+		// The three fields below are the sub-behaviours the ONE checkbox above turns on. They exist
+		// as fields rather than as inline constants for two reasons: a scenario can dial one back in
+		// its rules.yaml without losing the rest of sandbox (test-tacnuke-delivers does exactly
+		// that), and reverting any one of them is a single value rather than a code edit.
+		//
+		// EVERY CONSUMER GUARDS ON SandboxSettingsOrNull RETURNING NON-NULL, so all three are
+		// unreachable with the checkbox off. Nothing here can move a normal match.
+		//
+		// USER REQUEST, 2026-09-08: "We have a 'Sandbox' option in the lobby, when active make it so
+		// that all powers/strikes arrive from outside the map immediately without any extra wait."
+		// The last five words are the whole brief, and "from outside the map" is the constraint on
+		// it -- the off-map approach is the thing being looked at, so removing the WAIT must not
+		// remove the APPROACH. That is why the first two default true and the third does not.
+
+		[Desc("Sandbox: complete a support-power purchase in one tick instead of over its",
+			"Buildable.BuildDuration, and ignore the Supply Route contestation throttle on the",
+			"Powers queue. Money is still taken in full -- this removes the WAIT, not the price.",
+			"Read by " + nameof(SupportPowerProductionQueue) + " and by nothing else, so no unit",
+			"queue is affected. Purely gating: no visual consequence at all.")]
+		public readonly bool SandboxRemovesPurchaseDelay = true;
+
+		[Desc("Sandbox: drop " + nameof(MissileStrikePower) + "'s MissileDelay, the ticks between",
+			"the order and the missile being ADDED TO THE WORLD. During that window the missile does",
+			"not exist and SpawnActorEffect renders nothing (SpawnActorEffect.cs:60), so this is dead",
+			"air ahead of the approach rather than any part of it -- 30.0 s on the tactical nuke,",
+			"36.0 s on the Tsar Bomba. THE FLIGHT ITSELF IS UNTOUCHED: the missile still appears at",
+			"the full standoff and still flies the whole way in.",
+			"",
+			"MissileDelayPerAimPoint (AimPointInterval) is NOT dropped. That one staggers the",
+			"warheads of a salvo against EACH OTHER so an RS-28's six RVs cross the edge as a stream",
+			"rather than as one stack of sprites, which is a shape and not a wait.")]
+		public readonly bool SandboxRemovesLaunchDelay = true;
+
+		[Desc("Sandbox: percentage of the normal off-map standoff a strike is born at, and so the",
+			"percentage of its normal flight time. 100 = UNCHANGED, and is the shipped value.",
+			"",
+			"DEFAULTED TO THE IDENTITY ON PURPOSE, and it is the one lever here that is not the",
+			"user's stated request. Flight time is the off-map approach -- the thing being evaluated",
+			"-- so shortening it is a look-and-feel decision rather than a testing convenience, and",
+			"it is theirs to make. On the largest shipped map (x-lake, 130x130) the standoff is 199.8",
+			"cells and the flight is 511 ticks (30.7 s) for a Tsar Bomba, 127 ticks (7.6 s) for an",
+			"RS-28 RV; at 50 those halve. Values are clamped to " + nameof(MissileStrikeApproach) +
+			".MinStandoff, so even 1 leaves a cell of approach rather than teleporting the warhead",
+			"onto its aim point.")]
+		public readonly int SandboxStandoffPercent = 100;
+
+		/// <summary>
+		/// The sandbox settings when the option is ON, and NULL when it is off -- which is what makes
+		/// "sandbox changes nothing when it is off" one visible guard at each consumer rather than a
+		/// property a reader has to reconstruct from three call sites.
+		/// </summary>
+		/// <remarks>
+		/// <para>THE AUTHORITY ORDER, which is not obvious and is asked about every time: the host's
+		/// lobby tick (stored in <c>LobbyInfo.GlobalSettings</c>) beats the registered default, and
+		/// the registered default is <see cref="PowersSandboxCheckboxEnabled"/> AS OVERRIDDEN FROM
+		/// YAML -- it is an ordinary TraitInfo field, so a map's rules.yaml can set it and seven
+		/// autotest scenarios do. <c>PowersSandboxCheckboxLocked: true</c> removes the host from that
+		/// ordering entirely, which is why those scenarios set both.</para>
+		///
+		/// <para>The C# value is consulted at RUNTIME only as OptionOrDefault's fallback, i.e. when
+		/// the option is not in GlobalSettings at all: the trait stripped from world.yaml, an old
+		/// saved session, a map that removes it. A missing trait therefore yields null here and a
+		/// NORMAL match, the same fail-safe direction the GrantWhenOptionDisabled polarity buys on
+		/// the YAML side.</para>
+		///
+		/// <para>SAFE ON THE SYNCED ORDER PATH, which matters because
+		/// <see cref="MissileStrikePower"/> calls this while resolving an order.
+		/// <c>LobbyInfo.GlobalSettings</c> is shared session state agreed before the first tick, not
+		/// anything client-local, and every read below it is integer -- so identical inputs still
+		/// produce byte-identical positions on every client. This is the same thing
+		/// GrantConditionOnLobbyOption already does for conditions that gate simulation.</para>
+		/// </remarks>
+		public static PowersLobbyOptionsInfo SandboxSettingsOrNull(World world)
+		{
+			var info = world.WorldActor.Info.TraitInfoOrDefault<PowersLobbyOptionsInfo>();
+			var enabled = world.LobbyInfo.GlobalSettings
+				.OptionOrDefault("powers-sandbox", info?.PowersSandboxCheckboxEnabled ?? false);
+
+			return enabled ? info : null;
+		}
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{

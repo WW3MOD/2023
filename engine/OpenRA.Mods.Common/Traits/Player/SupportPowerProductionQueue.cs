@@ -41,7 +41,11 @@ namespace OpenRA.Mods.Common.Traits
 		"",
 		"Like any ClassicProductionQueue it is INERT unless the player owns an actor whose Production",
 		"trait lists this queue's Type -- in WW3MOD that is the Supply Route. Losing the beachhead",
-		"stops power purchases the same way it stops reinforcements.")]
+		"stops power purchases the same way it stops reinforcements.",
+		"",
+		"THE ONE PLACE IT DIVERGES from an ordinary queue is under the `powers-sandbox` lobby",
+		"option, where a purchase completes in a single tick and the Supply Route contestation",
+		"throttle is ignored. See " + nameof(PowersLobbyOptionsInfo) + ".SandboxRemovesPurchaseDelay.")]
 	public class SupportPowerProductionQueueInfo : ClassicProductionQueueInfo, Requires<SupportPowerManagerInfo>
 	{
 		public override object Create(ActorInitializer init) { return new SupportPowerProductionQueue(init, this); }
@@ -110,6 +114,66 @@ namespace OpenRA.Mods.Common.Traits
 		public override IEnumerable<ActorInfo> BuildableItems()
 		{
 			return base.BuildableItems().Where(Purchasable);
+		}
+
+		// ==== THE SANDBOX NO-WAIT PATH ====
+		// Resolved lazily and cached for the same reason Manager is: GetBuildTime is called by
+		// ProductionPaletteWidget for every drawn cameo's tooltip on every frame it draws
+		// (ProductionQueue.cs:797), so this must not do a trait lookup per icon per frame. Cached
+		// for the life of the queue rather than per-owner, because a lobby option cannot change
+		// mid-match -- unlike Manager, which is re-keyed because ProductionQueue survives an owner
+		// change.
+		bool sandboxResolved;
+		bool sandboxSkipsBuildTime;
+
+		bool SandboxSkipsBuildTime
+		{
+			get
+			{
+				if (!sandboxResolved)
+				{
+					var sandbox = PowersLobbyOptionsInfo.SandboxSettingsOrNull(self.World);
+					sandboxSkipsBuildTime = sandbox != null && sandbox.SandboxRemovesPurchaseDelay;
+					sandboxResolved = true;
+				}
+
+				return sandboxSkipsBuildTime;
+			}
+		}
+
+		// Zero rather than one: ProductionItem starts at RemainingTime = 1 and only overwrites it
+		// when GetBuildTime returns something POSITIVE (ProductionQueue.cs:782, :797-799), so 0
+		// leaves the item at its initial single tick and it completes on the next queue tick. The
+		// money is still taken in full on that tick -- ProductionItem's cost arithmetic keys off
+		// RemainingTime == 1, which is exactly the last-instalment case (ProductionQueue.cs:823).
+		//
+		// NOT the developer-mode FastBuild path, which caps at 25 ticks rather than removing the
+		// wait, and which is a cheat rather than a lobby setting.
+		public override int GetBuildTime(ActorInfo unit, BuildableInfo bi)
+		{
+			if (SandboxSkipsBuildTime)
+				return 0;
+
+			return base.GetBuildTime(unit, bi);
+		}
+
+		// Zeroing the build time is not on its own enough to make a power re-fireable "with no delay
+		// whatsoever": SupplyRouteContestation returns 0 from IProductionSpeedModifier once its
+		// control bar is empty, and at 0 TickInner does not tick the queue AT ALL
+		// (ProductionQueue.cs:355-356) -- a one-tick item never gets its one tick. So a tester whose
+		// Supply Route happened to be contested would sit in front of a frozen shop with nothing on
+		// screen to say why.
+		//
+		// THIS IS THE MOST DROPPABLE LIMB OF THE FEATURE. It affects only the Powers queue and only
+		// under the checkbox; the contestation trait itself is untouched, so the mechanic still
+		// slows reinforcements and still fires its own warnings exactly as before. Removing it is
+		// deleting this method.
+		protected override int GetProductionSpeedModifier()
+		{
+			if (SandboxSkipsBuildTime)
+				return 100;
+
+			return base.GetProductionSpeedModifier();
 		}
 
 		// The seam. ProductionQueue calls this from the frame-end task a finished ProductionItem
