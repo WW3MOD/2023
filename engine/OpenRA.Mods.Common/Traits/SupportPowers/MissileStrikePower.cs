@@ -272,13 +272,46 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var map = self.World.Map;
 
-			return MissileStrikeApproach.For(
+			var approach = MissileStrikeApproach.For(
 				map.CenterOfCell(self.Owner.HomeLocation),
 				map.CenterOfCell(new CPos(map.MapSize.X / 2, map.MapSize.Y / 2)),
 				map.MapSize.X,
 				map.MapSize.Y,
 				info.ApproachMargin.Length,
 				aimPoints);
+
+			// THE FLIGHT-TIME LEVER, AND IT IS INERT AS SHIPPED. SandboxStandoffPercent defaults to
+			// 100 and the guard below returns the unmodified approach at that value, so this is a
+			// dead branch until someone deliberately sets it -- identity BY CONSTRUCTION rather than
+			// by the arithmetic happening to be a no-op. It is separate from
+			// SandboxRemovesLaunchDelay because the two are different things: that removes a wait in
+			// which nothing is drawn, this shortens the off-map approach itself, which is the visual.
+			//
+			// Flight time is standoff / BallisticMissile.Speed, so the percentage lands on it
+			// directly. Integer throughout: standoff <= MaxStandoff (1,048,576) so the multiply
+			// cannot overflow int, and the struct's own constructor re-clamps to MinStandoff, which
+			// is what keeps a small percentage from teleporting the warhead onto its aim point.
+			var percent = SandboxStandoffPercent(self.World);
+			if (percent == 100)
+				return approach;
+
+			return new MissileStrikeApproach(approach.Facing, approach.Standoff * percent / 100);
+		}
+
+		// Resolved lazily and cached: ApproachFor runs on the synced order path, and a lobby option
+		// cannot change mid-match. Returns 100 -- the identity -- whenever sandbox is off, which is
+		// what makes the rescale above unreachable in a normal game.
+		int cachedSandboxStandoffPercent = -1;
+
+		int SandboxStandoffPercent(World world)
+		{
+			if (cachedSandboxStandoffPercent < 0)
+			{
+				var sandbox = PowersLobbyOptionsInfo.SandboxSettingsOrNull(world);
+				cachedSandboxStandoffPercent = sandbox != null ? sandbox.SandboxStandoffPercent : 100;
+			}
+
+			return cachedSandboxStandoffPercent;
 		}
 
 		public Actor Activate(Actor self, WPos targetPosition)
@@ -301,7 +334,24 @@ namespace OpenRA.Mods.Common.Traits
 			// Every use of MissileDelay below goes through this local so that one warhead of a
 			// salvo is late by exactly its index, and every OTHER power — extraDelay 0 — computes
 			// the identical numbers it did before this parameter existed.
-			var missileDelay = info.MissileDelay + extraDelay;
+			//
+			// SANDBOX DROPS THE INFO TERM AND KEEPS extraDelay, and the split is the whole point.
+			// info.MissileDelay is dead air: SpawnActorEffect holds the actor OUT of the world for
+			// that long and renders nothing while it does (SpawnActorEffect.cs:44-49, :60), so those
+			// 30-36 s are spent looking at an empty map with a beacon on it. extraDelay is
+			// AimPointInterval * index, which staggers a salvo's warheads against each other so an
+			// RS-28's six RVs arrive as a stream -- that is the shape of the thing being looked at,
+			// not a wait, and dropping it would stack six sprites on one tick.
+			//
+			// Every downstream number re-derives from `missileDelay` (impactDelay, and from it the
+			// camera spawn, the beacon clock and its removal), so they stay in step by construction
+			// rather than needing a second edit each.
+			var sandbox = PowersLobbyOptionsInfo.SandboxSettingsOrNull(self.World);
+			var baseMissileDelay = sandbox != null && sandbox.SandboxRemovesLaunchDelay
+				? 0
+				: info.MissileDelay;
+
+			var missileDelay = baseMissileDelay + extraDelay;
 
 			var world = self.World;
 

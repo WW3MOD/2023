@@ -357,7 +357,10 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		protected int GetProductionSpeedModifier()
+		// VIRTUAL for SupportPowerProductionQueue, which returns a flat 100 under the sandbox lobby
+		// option so a contested Supply Route cannot freeze the test-mode power shop. Nothing else
+		// overrides it and the body below is unchanged, so every other queue behaves exactly as before.
+		protected virtual int GetProductionSpeedModifier()
 		{
 			var min = 100;
 			foreach (var x in self.World.ActorsWithTrait<Production>())

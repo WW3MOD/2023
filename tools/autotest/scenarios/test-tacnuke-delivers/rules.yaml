@@ -22,6 +22,15 @@ World:
 		TacticalNukeCheckboxLocked: true
 		PowersSandboxCheckboxEnabled: true
 		PowersSandboxCheckboxLocked: true
+		# AND THE ONE PIECE OF SANDBOX THIS SCENARIO MUST OPT OUT OF, 2026-09-08. Sandbox now
+		# zeroes MissileStrikePower's MissileDelay as well as the purchase wait, which is the
+		# point of the option -- but assertion 6 below is precisely that the shipped MissileDelay
+		# of 500 IS applied, and it is the only guard in the tree against that value being
+		# dropped or routed around SpawnActorEffect. With the flag left at its default the run
+		# would measure ~0 and fail on correct behaviour, and turning the assertion off instead
+		# would retire the guard. So the scenario keeps the launch delay and keeps sandbox's
+		# other half, which is the half it actually needs (powers.event, above).
+		SandboxRemovesLaunchDelay: false
 	-StartGameNotification:
 	-SpawnStartingUnits:
 	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
