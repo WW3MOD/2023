@@ -1,4 +1,4 @@
-#region Copyright & License Information
+﻿#region Copyright & License Information
 /*
  * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
@@ -39,6 +39,22 @@ namespace OpenRA.Mods.Common.Traits
 
 		[FluentReference(optional: true)]
 		public readonly string Description = null;
+
+		[Desc("Short all-caps label drawn along the bottom of this power's cameo at runtime, so the",
+			"wording is data rather than baked pixels. Unset (the default) draws nothing at all.",
+			"",
+			"Its reason to exist is the shared sprite: several ww3mod nuclear powers draw the SAME",
+			"icon (three B61-12 yields are all `paranuke`), so a baked caption physically cannot tell",
+			"them apart and the bin shows identical cameos. A caption can, because it is per-power.",
+			"",
+			"This is NOT `Name` and should not repeat it - `Name` is a full designation with a yield",
+			"in brackets and is many times too wide for a 62px slot. Write the discriminator only.",
+			"A caption too wide to fit is shortened from the right rather than allowed to bleed into",
+			"the neighbouring cameo.",
+			"",
+			"Accepts a Fluent key or, when no bundle defines it, the literal string.")]
+		[FluentReference(optional: true)]
+		public readonly string CameoCaption = null;
 
 		[Desc("Allow multiple instances of the same support power.")]
 		public readonly bool AllowMultiple = false;

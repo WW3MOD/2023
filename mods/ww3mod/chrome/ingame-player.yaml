@@ -20,6 +20,8 @@ Container@PLAYER_WIDGETS:
 			Children:
 				SupportPowers@SUPPORT_PALETTE:
 					IconSize: 62, 46
+					CaptionFont: Caption
+					CaptionBackgroundColor: 000000FF
 					IconSpriteOffset: -1, -1
 					TooltipContainer: TOOLTIP_CONTAINER
 					ReadyText: READY
@@ -1214,6 +1216,8 @@ Container@PLAYER_WIDGETS:
 					ReadyText: READY
 					HoldText: ON HOLD
 					IconSize: 62, 46
+					CaptionFont: Caption
+					CaptionBackgroundColor: 000000FF
 					IconMargin: 1, 1
 					IconSpriteOffset: -1, -1
 					HotkeyPrefix: Production

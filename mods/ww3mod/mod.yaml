@@ -313,6 +313,10 @@ Fonts:
 		Font: common|FreeSansBold.ttf
 		Size: 10
 		Ascender: 8
+	Caption:
+		Font: common|FreeSansBold.ttf
+		Size: 7
+		Ascender: 6
 	Small:
 		Font: common|FreeSans.ttf
 		Size: 12

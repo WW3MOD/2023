@@ -413,6 +413,7 @@ Player:
 		Prerequisites: powers.america
 		OrderName: B61MidStrike
 		Icon: paranuke
+		CameoCaption: 10 KT
 		Name: B61-12 (10 kt)
 		Description: Variable-yield tactical bomb at its MIDDLE dial setting.\nThirty-three times the 0.3 kt energy, three times the radius.\nComes in from off-map over your own back line.
 		# BOUGHT, NOT CHARGED, like every other power in the mod. No ChargeInterval: SupportPowerInstance
@@ -476,6 +477,7 @@ Player:
 		# `abomb` resolves to atomicon.shp (sequences-misc.yaml:16), the ONE power cameo in the mod
 		# whose baked caption -- NUCLEAR BOMB -- is correct for its picture (§4a).
 		Icon: abomb
+		CameoCaption: 20 KT
 		Name: Tactical Nuclear Strike (20 kt)
 		Description: Low-yield nuclear warhead delivered from off-map reserves.\nDevastates a wide area and sets everything in it alight.\nArrives over your own back line on a fixed heading.
 		# BOUGHT, NOT CHARGED. Price 15000 on power.tacnuke in rules/powers.yaml -- the same figure
@@ -594,6 +596,7 @@ Player:
 		# in a normal match.
 		Prerequisites: powers.event
 		Icon: abomb
+		CameoCaption: 6 MT
 		Name: Strategic Nuclear Strike (6 Mt)
 		Description: High-yield strategic warhead delivered from off-map reserves.\nA single detonation devastates the entire battlefield.\nArrives over your own back line on a fixed heading.
 		# BOUGHT, NOT CHARGED, and this is the wholesale replacement the placeholder that stood here

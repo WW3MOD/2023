@@ -167,6 +167,51 @@ def draw_caption(img, text):
 	return None
 
 
+# The runtime caption font, as wired in mods/ww3mod/mod.yaml -> Fonts: Caption.
+# Kept here only to warn about a caption that will not fit; nothing is drawn with it.
+RUNTIME_FONT = os.path.join("engine", "mods", "common", "FreeSansBold.ttf")
+RUNTIME_FONT_SIZE = 7
+
+# IconSize: 62, 46 in chrome/ingame-player.yaml, less CaptionSideMargin: 1 a side.
+RUNTIME_MAX_WIDTH = 60
+
+
+def runtime_caption_width(text):
+	"""Width in pixels of `text` in the runtime caption font, or None if the font
+	cannot be found. The widget shortens anything wider than RUNTIME_MAX_WIDTH from
+	the right rather than letting it bleed into the neighbouring cameo, so a caption
+	that measures over is a caption that will be silently truncated on screen."""
+	for root in (".", "..", os.path.join(os.path.dirname(__file__), "..", "..")):
+		candidate = os.path.join(root, RUNTIME_FONT)
+		if os.path.isfile(candidate):
+			try:
+				from PIL import ImageFont
+				font = ImageFont.truetype(candidate, RUNTIME_FONT_SIZE)
+				box = font.getbbox(text)
+				return box[2] - box[0]
+			except Exception:
+				return None
+	return None
+
+
+def emit_runtime_captions(deferred):
+	"""Print the YAML for --no-baked-captions. The caption belongs on the ACTOR, not on
+	the icon file, so this cannot be pasted blind -- the target names below are icon
+	names and the reader has to find the actor whose Buildable: Icon: names each one."""
+	print("")
+	print("[cameo] --no-baked-captions: nothing was drawn into the pixels. Add the caption")
+	print("[cameo] to the ACTOR that uses each icon instead -- BuildableInfo.CameoCaption for")
+	print("[cameo] a production cameo, SupportPowerInfo.CameoCaption for a support power one:")
+	print("")
+	for target, caption in deferred:
+		width = runtime_caption_width(caption)
+		if width is not None and width > RUNTIME_MAX_WIDTH:
+			print(f"		# WARNING: {width}px wide, slot allows {RUNTIME_MAX_WIDTH}px -- will be shortened on screen")
+		print(f"		# icon: {target}")
+		print(f"		CameoCaption: {caption}")
+	print("")
+
+
 def load_captions(path):
 	captions = {}
 	if not path or not os.path.isfile(path):
@@ -206,6 +251,11 @@ def main():
 	ap.add_argument("--fit", choices=["fill", "contain"], default="fill",
 					help="fill = centre crop-to-fill (default); contain = letterbox onto transparent")
 	ap.add_argument("--no-bevel", action="store_true", help="skip the house 1px bevel")
+	ap.add_argument("--no-baked-captions", action="store_true",
+					help="do NOT bake captions into the pixels; emit the YAML to paste instead. "
+						 "Use with BuildableInfo/SupportPowerInfo CameoCaption, which draws the "
+						 "caption at runtime so the wording stays editable. Baking is still the "
+						 "default because it is what every shipped cameo does.")
 	ap.add_argument("--captions", default=None,
 					help="TSV of '<key><TAB>CAPTION' (default <source>/captions.txt if present)")
 	ap.add_argument("--install", action="store_true",
@@ -229,6 +279,7 @@ def main():
 		sys.exit("[cameo] ERROR: --size too small to carry a bevel")
 
 	captions = load_captions(args.captions or os.path.join(args.source, "captions.txt"))
+	deferred = []
 
 	sources = sorted(
 		f for f in os.listdir(args.source)
@@ -256,7 +307,11 @@ def main():
 			continue
 
 		caption = captions.get(stem) or captions.get(target)
-		if caption:
+		if caption and args.no_baked_captions:
+			# Requested but deliberately not drawn: the caption is handed back as YAML for the
+			# runtime path instead. Keep it in `caption` so the per-file summary still reports it.
+			deferred.append((target, caption))
+		elif caption:
 			problem = draw_caption(img, caption)
 			if problem:
 				warnings.append(f"{target}: {problem} -- caption omitted")
@@ -269,7 +324,12 @@ def main():
 		written.append((target, key, dest, caption))
 
 	for t, key, _, cap in written:
-		note = f'  caption "{cap}"' if cap else "  (no caption)"
+		if cap and args.no_baked_captions:
+			note = f'  caption "{cap}" -> YAML (not baked)'
+		elif cap:
+			note = f'  caption "{cap}"'
+		else:
+			note = "  (no caption)"
 		flag = "  [NEEDS YAML EDIT - see README]" if key in NEEDS_YAML_EDIT else ""
 		print(f"[cameo] wrote {t}.png  {w}x{h} RGBA{note}{flag}")
 	for s in skipped:
@@ -281,6 +341,9 @@ def main():
 		sys.exit("[cameo] ERROR: nothing was written.")
 
 	print(f"[cameo] {len(written)} cameo(s) staged in {out_dir}")
+
+	if deferred:
+		emit_runtime_captions(deferred)
 
 	if args.install:
 		if not os.path.isdir(icons_dir):

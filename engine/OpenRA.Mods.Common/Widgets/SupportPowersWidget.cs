@@ -1,4 +1,4 @@
-#region Copyright & License Information
+﻿#region Copyright & License Information
 /*
  * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
@@ -29,6 +29,30 @@ namespace OpenRA.Mods.Common.Widgets
 		public string HoldText = "";
 
 		public readonly string OverlayFont = "TinyBold";
+
+		[Desc("Font for the persistent bottom-of-cameo caption. Only ever used by a power that sets",
+			"SupportPowerInfo.CameoCaption, so leaving this at the overlay font costs nothing.")]
+		public readonly string CaptionFont = "TinyBold";
+
+		[Desc("Pixels between the bottom of the caption and the bottom of the icon slot.")]
+		public readonly int CaptionBottomMargin = 2;
+
+		[Desc("Pixels reserved at each side. A caption wider than what is left is shortened, not clipped.")]
+		public readonly int CaptionSideMargin = 1;
+
+		public readonly Color CaptionColor = Color.White;
+		public readonly Color CaptionContrastColor = Color.Black;
+
+		[Desc("Solid band drawn behind the caption. Default fully transparent, which draws nothing.",
+			"",
+			"Set this when captioning a cameo that ALREADY has a caption baked into its art - which",
+			"is every cameo the mod currently ships. The baked lettering occupies the same pixels the",
+			"runtime caption wants, so without a band the two words overlap and neither is readable.",
+			"With one, the runtime caption REPLACES the baked one and the wording becomes editable.")]
+		public readonly Color CaptionBackgroundColor = Color.Transparent;
+
+		[Desc("Pixels the caption background extends above and below the text's line box.")]
+		public readonly int CaptionBackgroundPadding = 1;
 
 		public readonly int2 IconSize = new(64, 48);
 		public readonly int IconMargin = 10;
@@ -65,7 +89,8 @@ namespace OpenRA.Mods.Common.Widgets
 
 		Rectangle eventBounds;
 		public override Rectangle EventBounds => eventBounds;
-		SpriteFont overlayFont;
+		SpriteFont overlayFont, captionFont;
+		CameoCaptionCache captions;
 		float2 iconOffset, holdOffset, readyOffset, timeOffset;
 
 		[CustomLintableHotkeyNames]
@@ -109,6 +134,9 @@ namespace OpenRA.Mods.Common.Widgets
 				i => modData.Hotkeys[HotkeyPrefix + (i + 1).ToStringInvariant("D2")]);
 
 			overlayFont = Game.Renderer.Fonts[OverlayFont];
+			captionFont = Game.Renderer.Fonts[CaptionFont];
+			captions = new CameoCaptionCache(captionFont.Measure, ResolveCaption,
+				IconSize.X, IconSize.Y, CaptionSideMargin, CaptionBottomMargin, CaptionBackgroundPadding);
 
 			iconOffset = 0.5f * IconSize.ToFloat2() + IconSpriteOffset;
 
@@ -128,6 +156,16 @@ namespace OpenRA.Mods.Common.Widgets
 			public PaletteReference Palette;
 			public PaletteReference IconClockPalette;
 			public HotkeyReference Hotkey;
+		}
+
+		/// <summary>
+		/// A caption may be a Fluent key or a literal. TryGetMessage rather than GetMessage because
+		/// GetMessage delegates to the map bundle when one is loaded, and a caption is authored in
+		/// mod rules where a plain "50 KT" must survive verbatim.
+		/// </summary>
+		static string ResolveCaption(string raw)
+		{
+			return FluentProvider.TryGetMessage(raw, out var message) ? message : raw;
 		}
 
 		public void RefreshIcons()
@@ -226,6 +264,25 @@ namespace OpenRA.Mods.Common.Widgets
 			// Overlay
 			foreach (var p in icons.Values)
 			{
+				// Persistent caption along the bottom edge, independent of the transient centre text
+				// below it. This is the slot that lets three powers sharing one sprite name themselves.
+				var caption = captions.Get(p.Power.Info.CameoCaption);
+				if (caption != null)
+				{
+					if (CaptionBackgroundColor.A != 0)
+						WidgetUtils.FillRectWithColor(
+							new Rectangle(
+								(int)p.Pos.X + caption.Background.X,
+								(int)p.Pos.Y + caption.Background.Y,
+								caption.Background.Width,
+								caption.Background.Height),
+							CaptionBackgroundColor);
+
+					captionFont.DrawTextWithContrast(caption.Text,
+						p.Pos + new float2(caption.Offset.X, caption.Offset.Y),
+						CaptionColor, CaptionContrastColor, 1);
+				}
+
 				var customText = p.Power.IconOverlayTextOverride();
 				if (customText != null)
 				{

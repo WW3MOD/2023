@@ -36,8 +36,11 @@ Do not type the mod id. Both launchers inject it, so `ww3mod --check-missing-spr
 passes it twice and the utility reports no such command.
 
 Note the pre-existing baseline noise: `b2bomb.shp`, `pip-cloak.shp` and
-`pip-cover.shp` are reported missing on a clean tree. Three lines is a pass;
-anything more is yours.
+`pip-cover.shp` are reported missing on a clean tree, **once per tileset** — so
+four tilesets means twelve lines, not three. INTERIOR additionally reports
+`mslo.int` and `bib3.int`, which are tileset-specific and equally pre-existing.
+Fourteen lines across four tileset blocks is a pass; a name not on that list is
+yours.
 
 ## Naming your source files
 
@@ -142,6 +145,33 @@ don't supply a `captions.txt` entry. Max caption length is 12 characters at
 64px wide, which is exactly what the longest shipped caption
 ("FLAMETHROWER") needs.
 
+### Or don't bake it at all
+
+`--no-baked-captions` draws nothing into the pixels and prints the YAML to paste instead. The
+caption is then drawn by the sidebar at runtime from `BuildableInfo.CameoCaption` (production
+palette) or `SupportPowerInfo.CameoCaption` (support power bin), so changing the wording is a
+text edit rather than a re-render, and two actors sharing one sprite can say different things.
+Baking stays the default because it is what all 15 shipped cameos do.
+
+```bash
+./tools/cameo/build.sh ~/art/russian-infantry --no-baked-captions
+```
+
+Two things to know before choosing it:
+
+- **The runtime font is not the baked one.** It is `Fonts: Caption` in `mods/ww3mod/mod.yaml` —
+  FreeSansBold at 7px, which is a real typeface rather than the 4×5 approximation `convert.py`
+  draws with. 7px is not a taste call: the slot is `IconSize: 62, 46` less a 1px side margin, so
+  **60px**, and at TinyBold (the sidebar's other overlay font, 10px) five of the sixteen shipped
+  captions overflow it — "FLAMETHROWER" measures 85px. At 7px all sixteen fit, "FLAMETHROWER"
+  landing on exactly 60. A caption wider than 60px is **shortened from the right**, not clipped,
+  because the neighbouring cameo is one pixel away. `--no-baked-captions` warns when yours will be.
+- **It has to cover the old caption.** Every shipped cameo already has lettering baked into exactly
+  those pixels — `paranukeicon` reads "PARANUKE" — so a runtime caption drawn on top of one gives
+  two overlapping words. `CaptionBackgroundColor` draws a band first; the sidebar sets it to solid
+  black. On art staged with `--no-baked-captions` there is nothing underneath and the band can be
+  turned off. Side-by-side render: `WORKSPACE/mockups/cameo-captions.html`.
+
 ## Size
 
 **64×48 RGBA.** Existing cameos are a mix of 60×48 and 64×48; 64×48 is the
@@ -201,6 +231,7 @@ with most Python installs and is present on this machine (12.3.0).
 | `--faction NAME` | infix for bare unit keys, default `russia` |
 | `--captions FILE` | caption table, default `<SOURCEDIR>/captions.txt` |
 | `--no-bevel` | skip the house bevel (source art already has its own border) |
+| `--no-baked-captions` | don't draw captions into the pixels; print the YAML for the runtime path |
 | `--out DIR` | staging dir, default `tools/cameo/work/staging` |
 
 Neither fit mode ever stretches non-uniformly.

@@ -1,4 +1,4 @@
-#region Copyright & License Information
+﻿#region Copyright & License Information
 /*
  * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
@@ -58,6 +58,18 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Text shown in the production tooltip.")]
 		[FluentReference(optional: true)]
 		public readonly string Description;
+
+		[Desc("Short all-caps label drawn along the bottom of this actor's cameo at runtime, so the",
+			"wording is data rather than baked pixels. Unset (the default) draws nothing at all, which",
+			"is what every shipped cameo wants - their captions are already in the art.",
+			"",
+			"This is NOT the tooltip name and should not repeat it: the room is one line of the caption",
+			"font across the icon slot, and a ww3mod slot is 62px wide. A caption too wide to fit is",
+			"shortened from the right rather than allowed to bleed into the neighbouring cameo.",
+			"",
+			"Accepts a Fluent key or, when no bundle defines it, the literal string.")]
+		[FluentReference(optional: true)]
+		public readonly string CameoCaption = null;
 
 		public static string GetInitialFaction(ActorInfo ai, string defaultFaction)
 		{
