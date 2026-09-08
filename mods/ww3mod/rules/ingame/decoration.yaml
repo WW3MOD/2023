@@ -152,6 +152,55 @@
 ^TreeIndestructible:
 	DamageMultiplier@Indestructible:
 		Modifier: 0
+	# ---- NUCLEAR SCORCH, 2026-09-08 -------------------------------------------------------------
+	# A nuke leaves the trees inside its THERMAL radius permanently burnt. The tree is not killed,
+	# not replaced, not damaged and not removed: it is the same actor, on the same cell, with the
+	# same Building footprint, the same Passable class, the same BlocksProjectiles and the same
+	# ^TreeCover entry in the map-load ShadowLayer bake. Cover, line of fire and pathing are
+	# BYTE-IDENTICAL before and after. THIS DOES NOT TOUCH THE 2026-09-02 INDESTRUCTIBILITY RULING
+	# and must not be made to: DamageMultiplier@Indestructible above is untouched, nothing here adds
+	# Vaporizable, and a burnt tree still cannot be killed by anything a player can fire.
+	#
+	# WHY THE ACTOR HAS TO CHANGE AT ALL, rather than the ground. SmudgeLayer is an IRenderOverlay
+	# (SmudgeLayer.cs:87, :232-235) drawn from World.Draw before any actor renderable, so a scorch
+	# mark CANNOT be drawn on top of a tree at any Z. The only surface that can show the blast on a
+	# tree is the tree's own sprite. (WORKSPACE/reports/scar-blending-260908.md.)
+	#
+	# TWO TRAITS, AND BOTH ARE NEEDED. Neither alone is right on both shipped tilesets.
+	#   1. The FRAME SWAP is what makes the tree a leafless skeleton, which no tint can do -- the
+	#      burnt frame carries 34-78% of the living frame's opaque pixels. `burnt` is frame 1 of the
+	#      tree's own shp, the same frame the dormant T##.Husk actors reach, so it is authored art
+	#      and it exists for all 22 species (sequences/sequences-decorations.yaml).
+	#   2. The COLOUR WASH is what makes it CHARRED, and it exists for SNOW. Measured off the
+	#      shipped art: on TEMPERAT the burnt frame is luminance 15-32 against scar bands at 6-21,
+	#      so it already reads as char and the wash is very nearly a no-op on it. On SNOW the burnt
+	#      frame is a flat ~97 while the snow scar bands are 20-76 -- BRIGHTER THAN THE SCORCHED
+	#      GROUND IT STANDS ON, which is the user's original complaint reproduced rather than fixed,
+	#      on three of the ten shipped maps including both nuke-themed ones. The wash is a
+	#      contraction toward a fixed char colour (WithColoredOverlay.cs:50-56 is ReplaceColor at a
+	#      fixed alpha), so it moves TEMPERAT 15 -> 17 and SNOW 97 -> 51 from one symmetric
+	#      operation. Do not "simplify" this to the frame swap alone without re-measuring snow.
+	#
+	# PERMANENT BY CONSTRUCTION: the granting warheads pass Duration 0, which ExternalCondition
+	# treats as no expiry. There is no un-burn and no tick cost -- both traits are ConditionalTraits
+	# that flip once and are then inert.
+	ExternalCondition@Scorched:
+		Condition: scorched
+	# The living body yields to the burnt one. RequiresCondition merges onto the WithSpriteBody that
+	# ^Tree declares; ordering is load-bearing and every T##/TC0# inherits ^Tree FIRST and
+	# ^TreeIndestructible second, so this lands on the trait that already exists.
+	WithSpriteBody:
+		RequiresCondition: !scorched
+	WithSpriteBody@Scorched:
+		Sequence: burnt
+		Name: scorched
+		RequiresCondition: scorched
+	WithColoredOverlay@Scorched:
+		RequiresCondition: scorched
+		# RRGGBBAA (Color.cs:158-177). A dark warm char at 60% -- see (2) above for why the tint is
+		# not pure black: black crushes the already-black TEMPERAT frame to below its own scar
+		# without helping SNOW any more than this does.
+		Color: 18120C99
 
 ^Tree:
 	Inherits@1: ^SpriteActor

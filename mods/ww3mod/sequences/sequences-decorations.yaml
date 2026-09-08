@@ -1,3 +1,17 @@
+# `burnt:` ON EVERY T##/TC0# NODE IS THE NUCLEAR SCORCH, ADDED 2026-09-08. It is frame 1 of the
+# tree's OWN shp -- the exact frame the matching `t##.husk` node already reaches through its
+# `idle: Start: 1`, which is why there is no new art here and why it exists for all 22 species.
+# ^TreeIndestructible swaps a LIVING tree onto it with a second WithSpriteBody gated on the
+# `scorched` condition (rules/ingame/decoration.yaml), so the tree is never killed, never replaced
+# and never becomes damageable -- the 2026-09-02 indestructibility ruling is untouched. Do not
+# delete these thinking the .husk nodes cover them: a husk node is a different IMAGE, reachable
+# only by an actor named `T##.Husk`, and RenderSprites resolves a living T01's image as `t01`.
+#
+# The frame is charred on TEMPERAT (body luminance falls 37-98%, mean -71%) and merely BARE on
+# SNOW (a flat ~97, brighter than every snow scar band). That gap is why the trait pairs this
+# with a WithColoredOverlay wash rather than shipping the frame swap alone; the numbers are in
+# WORKSPACE/reports/burnt-trees-260908.md.
+
 tc04:
 	Defaults:
 		UseTilesetExtension: true
@@ -5,6 +19,8 @@ tc04:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 tc04.husk:
 	Defaults: tc04
@@ -26,6 +42,8 @@ tc05:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 tc05.husk:
 	Defaults: tc05
@@ -47,6 +65,8 @@ tc03:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 tc03.husk:
 	Defaults: tc03
@@ -68,6 +88,8 @@ tc02:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 tc02.husk:
 	Defaults: tc02
@@ -88,6 +110,8 @@ tc01:
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 tc01.husk:
 	Defaults: tc01
@@ -108,6 +132,8 @@ t17:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 t17.husk:
 	Defaults: t17
@@ -129,6 +155,8 @@ t16:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 t16.husk:
 	Defaults: t16
@@ -150,6 +178,8 @@ t15:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 t15.husk:
 	Defaults: t15
@@ -171,6 +201,8 @@ t14:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 t14.husk:
 	Defaults: t14
@@ -192,6 +224,8 @@ t13:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 t13.husk:
 	Defaults: t13
@@ -213,6 +247,8 @@ t12:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 t12.husk:
 	Defaults: t12
@@ -234,6 +270,8 @@ t11:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 t11.husk:
 	Defaults: t11
@@ -255,6 +293,8 @@ t10:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 t10.husk:
 	Defaults: t10
@@ -275,6 +315,8 @@ t08:
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 t08.husk:
 	Defaults: t08
@@ -295,6 +337,8 @@ t07:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 t07.husk:
 	Defaults: t07
@@ -316,6 +360,8 @@ t06:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 t06.husk:
 	Defaults: t06
@@ -337,6 +383,8 @@ t05:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 t05.husk:
 	Defaults: t05
@@ -358,6 +406,8 @@ t03:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 t03.husk:
 	Defaults: t03
@@ -379,6 +429,8 @@ t02:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 t02.husk:
 	Defaults: t02
@@ -400,6 +452,8 @@ t01:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
 	idle:
+	burnt:
+		Start: 1
 
 t01.husk:
 	Defaults: t01
@@ -795,6 +849,8 @@ t04:
 	Defaults:
 		AddExtension: false
 	idle: t04.des
+	burnt: t04.des
+		Start: 1
 
 t04.husk:
 	Defaults: t04.des
@@ -810,6 +866,8 @@ t09:
 	Defaults:
 		AddExtension: false
 	idle: t09.des
+	burnt: t09.des
+		Start: 1
 
 t09.husk:
 	Defaults: t09

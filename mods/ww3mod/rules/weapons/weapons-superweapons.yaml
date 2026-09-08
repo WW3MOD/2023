@@ -486,6 +486,49 @@ Atomic:
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 10c0
+	# ===== THE FOREST BURNS =====
+	# Grants `scorched` permanently (Duration 0) to every tree inside the thermal radius. Trees are
+	# the one class the nuclear arsenal deliberately leaves alone -- InvalidTargets: Trees on every
+	# damage warhead, no Vaporizable, DamageMultiplier 0 -- and this does not change any of that.
+	# `scorched` swaps the tree's sprite to its burnt frame and washes it dark
+	# (^TreeIndestructible, rules/ingame/decoration.yaml). Nothing is damaged, killed or removed, so
+	# cover, line of fire, pathing and the map-load ShadowLayer bake are untouched, and the cost
+	# that ruled out VAPORISING trees (a Tsar Bomba crater touching ~90% of the bake in one tick,
+	# WORKSPACE/reports/vaporize-scope-260908.md) does not arise: this is one FindActorsInCircle and
+	# a condition token per tree.
+	#
+	# THE RANGE IS THE THERMAL RADIUS -- 2.0 * (kt/20)^0.41 km at 160 m/cell, third-degree burns --
+	# AND IT IS THE SAME NUMBER AS THIS WEAPON'S Warhead@Fire10 Range, deliberately and on every
+	# weapon. Three reasons, in order:
+	#   1. Charring is a THERMAL effect. Fire10 is the outermost ring of the thermal pulse that
+	#      already sets structures and infantry alight; a tree inside it burning is that same pulse
+	#      reaching a third target class, not a new radius invented for it.
+	#   2. It STRICTLY CONTAINS THE GROUND SCAR at every yield in the arsenal -- thermal 2.2 cells
+	#      against an outer scar of 1 at 0.3 kt, 309.1 against 34 at Tsar Bomba, and every rung
+	#      between. That containment IS the fix: it is what makes a green tree standing on black
+	#      scorched ground unreachable, which is the report this was built from.
+	#   3. It is NOT the 1 psi blast radius, which is the other obvious candidate and is wrong at
+	#      the top of the ladder: Tsar Bomba's blast is 246.1 cells and its thermal reach is 309.1,
+	#      so binding to blast would leave a ring of untouched green forest inside the third-degree
+	#      burn radius of the largest weapon in the game. On the other twelve weapons thermal is the
+	#      SMALLER of the two, so this is the conservative choice everywhere it can be.
+	# NuclearYieldTest.TheForestBurnsToTheThermalRadius pins both the Fire10 equality and the scar
+	# containment, so a regenerated fire chain cannot silently desynchronise this.
+	#
+	# Delay 2 is the scar warheads' delay, not Fire10's. Ground and trees change in the SAME tick,
+	# so there is never a frame -- not even one -- showing a green tree on black ground.
+	Warhead@TreeBurn: GrantExternalCondition
+		Range: 12c0
+		Duration: 0
+		Condition: scorched
+		Delay: 2
+		ValidTargets: Trees
+		# NO AirThreshold, and its absence is deliberate rather than an omission. Every neighbouring
+		# warhead sets one because it checks terrain target types at the impact POSITION; this one
+		# reaches actors only, through Warhead.IsValidAgainst(Actor, Actor) (Warhead.cs:64-78), which
+		# never consults it. Copying the weapon's burst altitude in here would read as load-bearing and
+		# be inert. ValidRelationships is left at its default of Ally|Neutral|Enemy (Warhead.cs:36) --
+		# trees are Neutral-owned, and your own nuke burning your own forest is correct.
 
 	# ===== TREE FIRE =====
 	# INERT against every shipped tree -- see Warhead@TreeVaporize. Bands are a quarter, a half and
@@ -1161,6 +1204,21 @@ AtomicHighYield:
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
+	# The thermal pulse reaching the trees: `scorched` is permanent and purely cosmetic, and the
+	# Range is this weapon's own Warhead@Fire10, which is its thermal radius. Read the long note on
+	# `Atomic` in weapons-superweapons.yaml for why that radius and not the blast radius.
+	Warhead@TreeBurn: GrantExternalCondition
+		Range: 124c0
+		Duration: 0
+		Condition: scorched
+		Delay: 2
+		ValidTargets: Trees
+		# NO AirThreshold, and its absence is deliberate rather than an omission. Every neighbouring
+		# warhead sets one because it checks terrain target types at the impact POSITION; this one
+		# reaches actors only, through Warhead.IsValidAgainst(Actor, Actor) (Warhead.cs:64-78), which
+		# never consults it. Copying the weapon's burst altitude in here would read as load-bearing and
+		# be inert. ValidRelationships is left at its default of Ally|Neutral|Enemy (Warhead.cs:36) --
+		# trees are Neutral-owned, and your own nuke burning your own forest is correct.
 
 	# ===== TREE FIRE =====
 	# INERT AGAINST EVERY SHIPPED TREE -- see the note on Warhead@TreeVaporize above for the proof and
