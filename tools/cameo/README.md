@@ -135,9 +135,19 @@ All 216 border pixels are identical across the conforming cameos, and 14 of the
 15 US infantry icons conform. **`e3americaicon.shp` is the lone outlier** — no
 bevel, rounded fully-transparent corners. Do not use e3 as your reference.
 
-**Cameos also carry a baked-in all-caps caption**, white with a 1px dark drop
-shadow, centred, ~5px cap height, sitting just above the bottom bevel. Every
-one of the 15 has one. The script reproduces the *placement and treatment*
+**Cameos also carry a baked-in all-caps caption**, pure white `#FFFFFF` with a
+1px dark **outline**, centred, 5px cap height, its last ink row sitting on the
+last row of the icon slot. Every one of the 15 has one.
+
+> **This used to say "drop shadow" and that was wrong.** Measured off `precicon`
+> ("PRECISION STR."): dark pixels sit on **all eight sides** of the letters —
+> 30–71% coverage per direction, lowest above and highest below-left — which is
+> an outline, not an offset shadow. It matters because the runtime path draws
+> `DrawTextWithContrast`, an outline, and a reader who trusts the old wording
+> would switch it to `DrawTextWithShadow` and make the match *worse*. Corrected
+> 2026-09-08 after the pixels were counted; do not re-derive it a third time.
+
+The script reproduces the *placement and treatment*
 faithfully but renders with a small built-in 4×5 bitmap font — it
 **approximates** the hand-authored lettering rather than reproducing it. If you
 want an exact match, bake the caption into the source image yourself and just
@@ -175,6 +185,75 @@ Two things to know before choosing it:
   two overlapping words. `CaptionBackgroundColor` draws a band first; the sidebar sets it to solid
   black. On art staged with `--no-baked-captions` there is nothing underneath and the band can be
   turned off. Side-by-side render: `WORKSPACE/mockups/cameo-captions.html`.
+
+## Generated captions vs baked ones — how close they actually are
+
+Measured 2026-09-08, `precicon` against the same words rendered by the widget.
+Side-by-side at 6× with the rows ruled: `WORKSPACE/mockups/caption-vs-baked.png`.
+
+| | Baked | Generated | |
+|---|---|---|---|
+| Cap height | 5 rows | 5 rows | exact |
+| Advance width, "PRECISION STR." | 56px | 57px | 1px over 14 characters |
+| Letter colour | `#FFFFFF`, 115/115 px | `CaptionColor`, white | exact |
+| Treatment | 1px outline, all 8 sides | `DrawTextWithContrast(…, 1)` | already an outline |
+| Last ink row | slot row 45 of 46 | `IconSize.Y - CaptionBottomMargin - 1` | equal at margin **0** |
+
+So tracking, colour, weight and treatment need nothing. **The one real gap is
+antialiasing**, and it is the trap in this file:
+
+> The baked lettering is **1-bit**: every one of its 115 pixels is pure white.
+> FreeSansBold at 7px has **no fully opaque pixel at all** — max coverage 246,
+> median 124 — so generated text is a grey stipple where baked text is solid.
+>
+> **Over the solid black band you cannot see this.** Turn the band off and you
+> will, immediately, and the text will look weaker for no reason you can find in
+> the geometry. That is not a bug you have introduced; it is this, and the only
+> real fixes are a 1-bit bitmap font or disabling FreeType antialiasing engine-wide.
+> Neither is worth it while the band is on.
+
+**`CaptionBottomMargin` must be 0**, and that is derived rather than chosen: the
+generated text's last ink row is `IconSize.Y - margin - 1` (the cache puts the
+line box at `slotHeight - margin - lineHeight`, `SpriteFont.DrawText` adds `size`
+to reach the baseline, and `lineHeight` *is* `size`, so the font cancels), and it
+has to equal the row the baked ink ends on. `CameoCaptionBandTest` asserts it.
+
+### Rollout order is decided by one fact
+
+**`CaptionBackgroundColor` is a WIDGET field, not a per-actor one.** There is no
+state where old lettered art keeps its band while new clean art goes without —
+it is all-or-nothing across a whole palette. So:
+
+- the band stays solid black until the **last** lettered cameo in that palette is
+  replaced with untexted art;
+- only then does turning it transparent become available, and that is the day the
+  antialiasing above stops being invisible.
+
+**`convert.py` cannot remove baked lettering, and no flag will.** It draws
+captions; it has no inpainting, and credibly repainting a 64×48 photograph under
+five rows of text is not a scripting job. Untexted art has to come from the
+source images. Do not go looking for a `--strip-captions`.
+
+### How much art still has lettering — and why "clean" is the weaker verdict
+
+`tools/cameo/rollout_survey.py` counts it: **115 buildable actors have a cameo**
+across **87 art files**, and of the 76 it can decode, **74 (101 actors) carry
+baked lettering**. Ten more are ShpTD, which its decoder cannot read at all, so
+their verdict is unknown rather than clean. `samicon` is in no repo file — it is
+base-game content loaded from the RA install, **not a missing sprite**.
+
+Two things about that tool are worth knowing before you trust a number from it:
+
+- **Its first answer was wrong, by a threshold.** Detecting lettering by
+  brightness cleared seven cameos that plainly have captions, because `precicon`
+  letters in pure white and `T90` letters in dim grey — a threshold tuned to one
+  misses the other. It compares 1px-pitch local contrast now, which catches text
+  at any brightness.
+- **The verdicts are asymmetric, and not in the direction you would guess.**
+  "Has lettering" is reliable. **"Clean" is not** — art whose picture is as busy
+  as its lettering scores low and reads as clean anyway (`t72icon`: trees behind
+  a tank, which visibly has a caption). So the lettered figure is a **floor**,
+  and any cameo it calls clean is worth one look before you believe it.
 
 ## Size
 
@@ -281,4 +360,7 @@ Neither fit mode ever stretches non-uniformly.
 |---|---|
 | `build.sh` | dependency check, then `convert.py`, then optional `--check` |
 | `convert.py` | fit → caption → bevel → write; also does `--install` |
-| `work/` | staging scratch (git-ignored; safe to delete) |
+| `badge.py` | renders the nuclear trefoil badge; `--install` writes the shipped art |
+| `binmock.py` | draws the whole support power bin offline, cameos and captions and badges |
+| `rollout_survey.py` | counts cameos, baked lettering and caption candidates across the roster |
+| `work/` | staging scratch (git-ignored; safe to delete) — where the renders land |
