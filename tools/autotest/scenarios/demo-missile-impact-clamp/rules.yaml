@@ -1,0 +1,92 @@
+# Missile impact-clamp DEMO overrides. Nothing here is asserted; see map.yaml for the layout and
+# demo-missile-impact-clamp.lua for the schedule.
+#
+# NOTHING HERE TOUCHES SubTickMotionSmoothing OR WithHypersonicPlasma ON THE SHIPPED MISSILE. The
+# smoothed half of every pass is kinzhalmissile in exactly its shipped configuration, so what the
+# viewer judges is what the game does. The only new actor is the RAW control below, and its whole
+# definition is "the shipped missile minus the smoothing trait".
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
+	# spawn assignment. The entry cell of both missiles is derived from HomeLocation
+	# (MissileStrikePower.cs:102), so the geometry in map.yaml depends on it.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, demo-missile-impact-clamp.lua
+
+# THE CONTROL, and here it is the reference rather than the other half of a comparison: a missile
+# that is never drawn ahead of its simulated position CANNOT overshoot its impact point, so wherever
+# it is sitting when it explodes is where the smoothed one has to be sitting too.
+#
+# It keeps WithHypersonicPlasma. That is deliberate -- removing the smoothing alone isolates the one
+# variable, and it means the plasma sheath's own clamp is visible on both missiles rather than only
+# on one.
+KinzhalMissileRaw:
+	Inherits: KinzhalMissile
+	-SubTickMotionSmoothing:
+	Tooltip:
+		Name: Kh-47M2 Kinzhal (unsmoothed reference)
+
+Player:
+	MissileStrikePower@Kinzhal:
+		# ===================================================================================
+		# THE SECOND SCENARIO IN THE MOD THAT TURNS THE PURCHASE MODEL OFF, AND FOR THE SAME REASON
+		# AS THE FIRST. READ demo-subtick-smoothing/rules.yaml BEFORE COPYING EITHER.
+		# ===================================================================================
+		# This is a controlled comparison and its two arms must be configured identically. The
+		# reference arm, MissileStrikePower@KinzhalRaw below, is DEFINED BY THIS SCENARIO: it carries
+		# no RequiresPurchase, so it is a timer power, it has no proxy actor anywhere in the mod, and
+		# it cannot be bought at any price. Leaving the shipped Kinzhal on the purchase bank would
+		# mean the reference arm fires every pass and the smoothed arm fires none, which is not a
+		# degraded comparison but no comparison at all.
+		#
+		# WHAT IT COSTS, STATED PLAINLY: a frame from this demo does NOT prove that a player can
+		# obtain a Kinzhal. It proves where a Kinzhal is DRAWN at the instant it detonates, which is
+		# downstream of everything this flag touches. test-missile-strike-power and
+		# test-power-buy-loop are where reachability is asserted.
+		RequiresPurchase: False
+		# STAGING OVERRIDES, live again because of the line above. ChargeInterval 60 (3.6 s) against
+		# the shipped 3000 (3 min) so the demo can fire six passes; StartFullyCharged so the first
+		# pass does not wait out a charge; MissileDelay 15 (0.9 s) against the shipped 150 (9.0 s),
+		# because nine seconds of empty sky between the order and the missile is nine seconds of
+		# nothing to look at. None of the three changes the missile or how it is drawn.
+		ChargeInterval: 60
+		StartFullyCharged: true
+		MissileDelay: 15
+		# The reveal camera would otherwise pan and fight the fixed view this demo depends on.
+		DisplayBeacon: False
+		DisplayMiniMapPing: False
+	# The reference arm's delivery, a copy of the shipped power pointed at the unsmoothed actor. A
+	# second @suffix on the same trait gets NO fields from its sibling -- every value it needs is
+	# spelled out.
+	MissileStrikePower@KinzhalRaw:
+		OrderName: KinzhalRawStrike
+		Prerequisites: player.russia
+		Icon: precicon
+		Name: Kh-47M2 Kinzhal (unsmoothed reference)
+		Description: Demo reference. Identical to the Kinzhal strike except that the missile is not sub-tick smoothed.
+		ChargeInterval: 60
+		StartFullyCharged: true
+		Cursor: nuke
+		MissileActor: kinzhalmissileraw
+		MissileDelay: 15
+		SpawnAltitude: 8c0
+		DisplayBeacon: False
+		DisplayMiniMapPing: False
+		SupportPowerPaletteOrder: 2
+	# Nothing on this map can be eliminated -- there is nothing on it but two Supply Routes -- but the
+	# strikes land near neither and a stray victory check would still end the demo early.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored. The impact point has to be visible before the missile gets
+	# there or there is nothing to compare it against.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# No cash, so nothing can be produced and the only things that happen on this map are the strikes.
+	PlayerResources:
+		DefaultCash: 0

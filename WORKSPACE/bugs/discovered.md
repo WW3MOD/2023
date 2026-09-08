@@ -5,6 +5,22 @@
 
 ---
 
+- [2026-09-08] [LOW - LATENT, NOT REACHABLE TODAY] **`BallisticMissile.SetMotionEndpoint` is called
+  from an activity CONSTRUCTOR, so building a `BallisticMissileFly` repoints trait state whether or
+  not the activity is ever queued.** `BallisticMissileFly.cs:58` publishes the frozen `targetPos` to
+  the trait as its constructor runs. The one call site that matters queues it immediately
+  (`BallisticMissile.cs:261`, from `INotifyAddedToWorld`), but **five `IMove` members each return a
+  freshly constructed one** (`BallisticMissile.cs:333,339,345,362,374`) - `MoveTo`, `MoveToTarget`
+  and friends - and a caller that constructs one to inspect, discard or queue conditionally would
+  leave the trait publishing an endpoint for a flight that never happens. The consumer is view-only
+  (`SubTickMotionSmoothing` and `WithHypersonicPlasma` clamp their draw offsets against it), so the
+  worst case is a missile drawn wrong, not a desync. **Not live: every `^ShootableMissile` actor is
+  `RejectsOrders` and nothing in the tree calls `IMove` on one**, which is why this is logged rather
+  than fixed. The fix is to publish from the activity's first `Tick` instead of its constructor, at
+  which point the activity is demonstrably the one running. General shape worth remembering: a
+  constructor that writes to shared state conflates "I built this object" with "I committed to it".
+  (found while working on: `wt/subtick-impact`, adversarial review of the sub-tick impact clamp)
+
 - [2026-09-05] [LOW - TOOLING, NOT GAMEPLAY] **`.\make.ps1 check` is already RED on `main @ bb294b2d`
   with 7 analyzer errors, none of them new.** Measured by stashing an unrelated branch's changes and
   re-running on a pristine tree: the same 7 errors appear with and without them, so the Windows
