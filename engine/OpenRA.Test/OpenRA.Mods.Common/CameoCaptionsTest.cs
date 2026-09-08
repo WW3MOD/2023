@@ -347,6 +347,37 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void TheCaptionIsAnchoredToTheBottomOfTheSlotByTheMarginAlone()
+		{
+			// The line box's bottom edge is exactly `slotHeight - bottomMargin`, whatever the font,
+			// and SpriteFont.DrawText puts the baseline on that row (it adds `size` to the position
+			// it is given, and lineHeight IS size). So the last row of an all-caps caption's ink is
+			// `slotHeight - bottomMargin - 1`, and the margin is the ONLY thing that moves it.
+			//
+			// That is what makes matching the baked lettering a measurement rather than a taste
+			// call: the baked ink ends on slot row 45 of 46, so the margin has to be 0. It shipped
+			// at 2, floating the text two rows clear of every baked caption beside it.
+			for (var margin = 0; margin <= 4; margin++)
+			{
+				var caption = Cache(bottomMargin: margin).Get("50 KT");
+				Assert.That(caption.Offset.Y + LineHeight, Is.EqualTo(46 - margin),
+					$"line box bottom at bottomMargin {margin}");
+			}
+		}
+
+		[Test]
+		public void ABadgeIsAnchoredToTheSameBottomEdgeAsTheCaption()
+		{
+			// Whatever the margin does to the text it must do to the badge, or the two stop being
+			// one bottom-edge unit the moment the anchor is retuned.
+			for (var margin = 0; margin <= 4; margin++)
+			{
+				var caption = Cache(bottomMargin: margin).Get("50 KT", Badge);
+				Assert.That(caption.BadgeOffset.Value.Y + 13, Is.EqualTo(caption.Offset.Y + LineHeight));
+			}
+		}
+
+		[Test]
 		public void BandReachesTheSlotBottomWhenThePaddingIsAtLeastTheBottomMargin()
 		{
 			// THE RULE THE SHIPPED CONFIGURATION GOT WRONG. The band exists to REPLACE the caption

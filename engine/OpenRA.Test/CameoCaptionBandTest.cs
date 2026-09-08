@@ -46,6 +46,19 @@ namespace OpenRA.Test
 	[TestFixture]
 	public class CameoCaptionBandTest
 	{
+		/// <summary>
+		/// The last row of a cameo's BAKED caption, in icon-slot coordinates. Measured, not chosen:
+		/// every shipped cameo puts its lettering on sprite rows 42-46 of a 64x48 sheet, pure white
+		/// with a 1px dark surround and a cap height of 5, and IconSpriteOffset -1,-1 makes sprite
+		/// row 46 slot row 45. Confirmed on all seven the power roster uses - precicon, paranukeicon,
+		/// atomicon, atomfakeicon, cmissicon, v2bdgricon - plus the photo cameo built by tools/cameo,
+		/// whose bevel lands on the same row.
+		/// <para>This is a fact about the ART, so it can go stale in a way no test can see: new art
+		/// that puts its lettering elsewhere would make this number wrong rather than make a test
+		/// fail. Re-measure with tools/cameo/binmock.py if the house style ever moves.</para>
+		/// </summary>
+		const int BakedInkLastSlotRow = 45;
+
 		static string FindMod(params string[] relative)
 		{
 			var dir = new DirectoryInfo(AppContext.BaseDirectory);
@@ -113,6 +126,23 @@ namespace OpenRA.Test
 
 				var margin = int.Parse(marginText, CultureInfo.InvariantCulture);
 				var padding = int.Parse(paddingText, CultureInfo.InvariantCulture);
+
+				// THE ANCHOR. The generated caption's last ink row is `IconSize.Y - margin - 1`:
+				// CameoCaptionCache puts the line box at `slotHeight - margin - lineHeight`,
+				// SpriteFont.DrawText adds `size` to reach the baseline (SpriteFont.cs:99), and
+				// lineHeight IS size, so the font cancels out and this holds for any caption font.
+				// It has to equal the row the BAKED lettering ends on, which is measured, not
+				// chosen -- see BakedInkLastSlotRow.
+				var slotHeight = int.Parse(
+					(Field(w, "IconSize") ?? throw new AssertionException($"{w.Key} sets no IconSize"))
+					.Split(',')[1].Trim(), CultureInfo.InvariantCulture);
+
+				Assert.That(slotHeight - margin - 1, Is.EqualTo(BakedInkLastSlotRow),
+					$"{w.Key}: a generated caption's last ink row is {slotHeight - margin - 1} but every " +
+					$"baked caption ends on slot row {BakedInkLastSlotRow}, so the runtime text floats " +
+					$"{BakedInkLastSlotRow - (slotHeight - margin - 1)} row(s) clear of where the art it " +
+					"replaces puts it. The captions are meant to be indistinguishable from the baked " +
+					$"ones: set CaptionBottomMargin to {slotHeight - 1 - BakedInkLastSlotRow}.");
 
 				Assert.That(padding, Is.GreaterThanOrEqualTo(margin),
 					$"{w.Key}: CaptionBackgroundPadding {padding} is less than CaptionBottomMargin " +
