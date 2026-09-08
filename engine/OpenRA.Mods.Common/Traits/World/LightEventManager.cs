@@ -255,15 +255,15 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Draws the fog-piercing half of every light that asked for one. See
+		/// <para>Draws the fog-piercing half of every light that asked for one. See
 		/// <see cref="Graphics.FogPiercingLightRenderable"/> for why a second draw is needed at all:
 		/// TerrainLighting tints the world BEFORE the fog quads land on it, so under fog a light is
 		/// attenuated rather than hidden, and the only place to put the missing brightness back is
-		/// after those quads.
+		/// after those quads.</para>
 		///
-		/// This is a READ of the live events and of the render player's own fog. It writes no
+		/// <para>This is a READ of the live events and of the render player's own fog. It writes no
 		/// simulation state, and it is not [Sync]-relevant: the value it produces never re-enters the
-		/// tick, exactly as the sync note at the top of this file requires of everything here.
+		/// tick, exactly as the sync note at the top of this file requires of everything here.</para>
 		/// </summary>
 		IEnumerable<IRenderable> IRenderAboveFog.RenderAboveFog(Actor self, WorldRenderer wr)
 		{

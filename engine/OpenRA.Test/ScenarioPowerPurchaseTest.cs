@@ -238,7 +238,7 @@ namespace OpenRA.Test
 		static string[] FiredPowers(Scenario s, Dictionary<string, Power> mod)
 		{
 			var keys = new HashSet<string>();
-			foreach (Match m in ActivateLiteral.Matches(s.LuaText))
+			foreach (var m in ActivateLiteral.Matches(s.LuaText).Cast<Match>())
 				keys.Add(m.Groups[1].Value);
 
 			foreach (Match m in ActivateVariable.Matches(s.LuaText).Cast<Match>().Concat(EnsureVariable.Matches(s.LuaText).Cast<Match>()))
@@ -490,7 +490,7 @@ namespace OpenRA.Test
 			var offenders = new List<string>();
 
 			foreach (var s in Scenarios())
-				foreach (Match m in ProxyLiteral.Matches(s.LuaText))
+				foreach (var m in ProxyLiteral.Matches(s.LuaText).Cast<Match>())
 					if (!known.Contains(m.Groups[1].Value))
 						offenders.Add(s.Name + ": names proxy `" + m.Groups[1].Value + "`, which rules/powers.yaml does not sell");
 

@@ -522,14 +522,14 @@ namespace OpenRA
 		}
 
 		/// <summary>
-		/// True when the next <see cref="Tick"/> will actually advance the simulation. This IS the
+		/// <para>True when the next <see cref="Tick"/> will actually advance the simulation. This IS the
 		/// condition Tick gates on — kept as a property rather than duplicated so the two cannot
-		/// drift apart.
+		/// drift apart.</para>
 		///
-		/// View-only code needs it because a paused world keeps RENDERING: Game.Loop still calls
+		/// <para>View-only code needs it because a paused world keeps RENDERING: Game.Loop still calls
 		/// LogicTick, so SubTickClock.Fraction keeps sweeping 0 -> 1 -> 0 while no position changes.
 		/// Anything that extrapolates from a per-tick velocity must stop extrapolating here, or a
-		/// paused missile visibly oscillates back and forth at the tick rate.
+		/// paused missile visibly oscillates back and forth at the tick rate.</para>
 		/// </summary>
 		public bool SimulationIsAdvancing =>
 			!Paused && (Type != WorldType.Shellmap || !gameSettings.PauseShellmap || WorldTick == 0);

@@ -7,26 +7,26 @@
 namespace OpenRA.Mods.Common.Traits
 {
 	/// <summary>
-	/// The magazine behind a PURCHASED support power: how many shots the player has paid for and
+	/// <para>The magazine behind a PURCHASED support power: how many shots the player has paid for and
 	/// not yet fired. Split out of <see cref="SupportPowerInstance"/> because every question this
 	/// feature turns on is answerable from three booleans and an int, and answering them here means
 	/// they can be pinned by a unit test rather than only by launching the game
-	/// (OpenRA.Test/SupportPowerChargeBankTest.cs).
+	/// (OpenRA.Test/SupportPowerChargeBankTest.cs).</para>
 	///
-	/// THE WHOLE MODEL IS <see cref="Enabled"/> == false BY DEFAULT. A timer-charged power builds a
+	/// <para>THE WHOLE MODEL IS <see cref="Enabled"/> == false BY DEFAULT. A timer-charged power builds a
 	/// bank with Enabled false, and every method below then degenerates to the identity: HidesIcon is
 	/// always false, Consume always returns false and changes nothing, OverlayText is always null.
 	/// That is deliberate and is the no-drift guarantee — a power that has not opted in cannot be
-	/// altered by anything in this file, and the test file asserts exactly that rather than trusting it.
+	/// altered by anything in this file, and the test file asserts exactly that rather than trusting it.</para>
 	///
-	/// TWO SEPARATE QUESTIONS, AND CONFLATING THEM IS THE BUG THIS CLASS EXISTS TO PREVENT:
+	/// <para>TWO SEPARATE QUESTIONS, AND CONFLATING THEM IS THE BUG THIS CLASS EXISTS TO PREVENT:
 	///   "may this player have this power at all?"  -> `permitted`, passed IN from the instance
 	///                                                 (lobby gate, faction prerequisite, WinState)
 	///   "has this player paid for a shot?"         -> <see cref="Charges"/>, owned here
 	/// The sidebar icon needs BOTH (<see cref="IconVisible"/>); the build menu needs ONLY the first
 	/// (<see cref="CanPurchase"/>), because the entire point of the buy tab is to be usable while the
 	/// bank is empty. Ask the wrong one and you get either a power that can never be bought or a
-	/// host-disabled power sitting in the shop.
+	/// host-disabled power sitting in the shop.</para>
 	/// </summary>
 	public sealed class SupportPowerChargeBank
 	{

@@ -168,20 +168,20 @@ namespace OpenRA.Mods.Common.Warheads
 		}
 
 		/// <summary>
-		/// Excess speed above Mach 1, in permille of the sonic speed, for a front that has reached
+		/// <para>Excess speed above Mach 1, in permille of the sonic speed, for a front that has reached
 		/// <paramref name="currentRadius"/>. Falls linearly from its birth value at StartRadius to zero at
-		/// TransitionRadius, which is the whole two-phase model: supersonic sweep, then sonic remainder.
+		/// TransitionRadius, which is the whole two-phase model: supersonic sweep, then sonic remainder.</para>
 		///
-		/// WHY LINEAR IN RADIUS. The mod's blast law is R proportional to P^-0.589, so overpressure —
+		/// <para>WHY LINEAR IN RADIUS. The mod's blast law is R proportional to P^-0.589, so overpressure —
 		/// and through Rankine-Hugoniot the excess Mach number with it — falls as roughly R^-1.7. Across
 		/// the one octave from StartRadius to twice it, the straight line between the endpoints is the
 		/// CHORD of that curve: the two agree to within a percent at the midpoint (0.500 against 0.494)
 		/// and are never more than about 0.12 apart anywhere in between. What the chord buys over the
 		/// power law is that it lands on zero at a finite radius instead of trailing a permanent
-		/// supersonic tail out to the map edge, so "where does it stop being fast" has an answer.
+		/// supersonic tail out to the map edge, so "where does it stop being fast" has an answer.</para>
 		///
-		/// Integer throughout, long only to keep the product from overflowing on an absurd YAML. This
-		/// decides which tick an actor takes blast damage on, so it is simulation state: no floats.
+		/// <para>Integer throughout, long only to keep the product from overflowing on an absurd YAML. This
+		/// decides which tick an actor takes blast damage on, so it is simulation state: no floats.</para>
 		/// </summary>
 		public int ExcessPermilleAt(int currentRadius)
 		{

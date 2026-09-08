@@ -37,7 +37,7 @@ namespace OpenRA.Mods.Common.Traits
 	///
 	/// <para>DETERMINISM. Every step is integer: a long-accumulated centroid with one integer
 	/// division, <see cref="WVec.Yaw"/> (an ArcTan table lookup), integer ISqrt for the map
-	/// diagonal, and <see cref="WVec.Rotate"/>'s Int32Matrix4x4. No float, no RNG, no reads of
+	/// diagonal, and <see cref="WVec.Rotate(in WRot)"/>'s Int32Matrix4x4. No float, no RNG, no reads of
 	/// anything client-local. This runs on the synced order-resolution path and identical inputs
 	/// produce byte-identical positions on every client.</para>
 	///
@@ -256,15 +256,15 @@ namespace OpenRA.Mods.Common.Traits
 		/// shared approach.
 		/// </summary>
 		/// <remarks>
-		/// <c>WVec(0, -d, 0)</c> rotated by a yaw is d units ALONG that yaw -- the construction
+		/// <para><c>WVec(0, -d, 0)</c> rotated by a yaw is d units ALONG that yaw -- the construction
 		/// <see cref="WVec.FromSpeedAndAngle"/> and <c>BallisticMissile.GetVector</c> both use to
 		/// turn a facing into a velocity. SUBTRACTING it therefore walks backward up the approach.
 		/// Writing it this way rather than with Cos/Sin is what keeps the counterclockwise WAngle
-		/// convention from being got wrong by hand a third time.
+		/// convention from being got wrong by hand a third time.</para>
 		///
-		/// Z is zero because that is what <c>Map.CenterOfCell</c> returns on the Rectangular grid
+		/// <para>Z is zero because that is what <c>Map.CenterOfCell</c> returns on the Rectangular grid
 		/// this mod uses, which is exactly what the old map-edge spawn fed in; the caller adds
-		/// SpawnAltitude on top, unchanged.
+		/// SpawnAltitude on top, unchanged.</para>
 		/// </remarks>
 		public WPos SpawnPosition(WPos aimPoint)
 		{

@@ -34,14 +34,14 @@ namespace OpenRA.Mods.Common.Traits
 		public int OrderCount;
 
 		/// <summary>
-		/// True once statistics have been sealed. Set by DOOMSDAY mode on the tick the clock expires; from
+		/// <para>True once statistics have been sealed. Set by DOOMSDAY mode on the tick the clock expires; from
 		/// then on this trait's own sampling and every UpdatesPlayerStatistics lifecycle callback stop
 		/// accumulating, so the numbers the end-of-match screen shows are the numbers as they stood before
-		/// the first warhead landed.
+		/// the first warhead landed.</para>
 		///
-		/// This freezes the ACCUMULATION, not the display. Snapshotting what the observer widgets happen
+		/// <para>This freezes the ACCUMULATION, not the display. Snapshotting what the observer widgets happen
 		/// to be showing would leave the underlying counters running and any later reader — the tournament
-		/// scorers, the composition telemetry, TradeEfficiencyMath — reading post-apocalypse totals.
+		/// scorers, the composition telemetry, TradeEfficiencyMath — reading post-apocalypse totals.</para>
 		/// </summary>
 		public bool Frozen { get; private set; }
 

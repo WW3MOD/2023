@@ -16,14 +16,14 @@ using OpenRA.Primitives;
 namespace OpenRA.Mods.Common.Traits
 {
 	/// <summary>
-	/// Which stage of the Dead Hand salvo an impact belongs to. The ORDER OF THE VALUES IS THE ORDER OF
+	/// <para>Which stage of the Dead Hand salvo an impact belongs to. The ORDER OF THE VALUES IS THE ORDER OF
 	/// THE SEQUENCE and <see cref="DoomsdayMath.BuildSchedule"/> reads it as such, so do not reorder them
-	/// to group related things together.
+	/// to group related things together.</para>
 	///
-	/// Small warheads on the outliers open, because they are the build rather than the climax; the cities
+	/// <para>Small warheads on the outliers open, because they are the build rather than the climax; the cities
 	/// go up after a deliberate pause long enough that the viewer has decided it was over. Fill comes last
 	/// and is not part of the show — it is the mechanism that makes "nothing survives" true, and it is
-	/// separated so it cannot dilute the climax.
+	/// separated so it cannot dilute the climax.</para>
 	/// </summary>
 	public enum DoomsdayTier
 	{
@@ -53,16 +53,16 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	/// <summary>
-	/// The placement and timing arithmetic behind the Dead Hand salvo, extracted from
+	/// <para>The placement and timing arithmetic behind the Dead Hand salvo, extracted from
 	/// <see cref="DoomsdayStrike"/> so it can be tested without a World. Everything here is PURE: same
 	/// inputs, same outputs, no RNG, no trait lookups, and — the one that actually desyncs games — no
 	/// iteration over a hash-ordered container. The trait supplies the randomness, and supplies it as an
 	/// already-drawn offset per aim point (see <see cref="DiscJitter"/>), so the layout stays reproducible
-	/// under test.
+	/// under test.</para>
 	///
-	/// ALL DISTANCES HERE ARE IN CELLS, never WDist. The trait converts once, at the boundary. Cell units
+	/// <para>ALL DISTANCES HERE ARE IN CELLS, never WDist. The trait converts once, at the boundary. Cell units
 	/// are what the coverage guarantee is stated in and what the tests assert over; mixing the two is the
-	/// quiet way to get a factor-of-1024 error into a radius comparison that still compiles.
+	/// quiet way to get a factor-of-1024 error into a radius comparison that still compiles.</para>
 	/// </summary>
 	public static class DoomsdayMath
 	{
@@ -79,14 +79,14 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Lattice spacing, in cells, such that a cell at the WORST position inside a spacing-sized square
+		/// <para>Lattice spacing, in cells, such that a cell at the WORST position inside a spacing-sized square
 		/// centred on a lattice point is still within <paramref name="lethalRadiusCells"/> of it after the
-		/// RNG has pushed the lattice point <paramref name="jitterCells"/> away.
+		/// RNG has pushed the lattice point <paramref name="jitterCells"/> away.</para>
 		///
-		/// The worst case is the square's corner, at half-diagonal s*sqrt(2)/2 = s/sqrt(2). Requiring
+		/// <para>The worst case is the square's corner, at half-diagonal s*sqrt(2)/2 = s/sqrt(2). Requiring
 		///     s/sqrt(2) + jitter &lt;= radius
 		/// gives s &lt;= sqrt(2) * (radius - jitter), which is what this returns. The floor only ever makes
-		/// the cover tighter than the bound demands, so the inequality survives the integer arithmetic.
+		/// the cover tighter than the bound demands, so the inequality survives the integer arithmetic.</para>
 		/// </summary>
 		public static int GridSpacing(int lethalRadiusCells, int jitterCells)
 		{
@@ -138,15 +138,15 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Single-linkage clustering of asset cells into "cities": two assets join the same cluster when
+		/// <para>Single-linkage clustering of asset cells into "cities": two assets join the same cluster when
 		/// they are within <paramref name="linkDistanceCells"/> of each other, transitively. A city is a
-		/// cluster, not an actor, which is the whole reason this exists.
+		/// cluster, not an actor, which is the whole reason this exists.</para>
 		///
-		/// DETERMINISM. The input list order fixes the output completely. Seeds are taken in ascending
+		/// <para>DETERMINISM. The input list order fixes the output completely. Seeds are taken in ascending
 		/// index order, each cluster grows by a FIFO walk that appends in ascending index order, and the
 		/// members are sorted before the cluster is emitted. No dictionary, no set, no LINQ grouping. The
 		/// caller must hand in a list that is itself deterministically ordered — DoomsdayStrike sorts by
-		/// ActorID, which is assigned in world-creation order and is identical on every client.
+		/// ActorID, which is assigned in world-creation order and is identical on every client.</para>
 		/// </summary>
 		public static List<List<int>> ClusterAssets(IReadOnlyList<CPos> assets, int linkDistanceCells)
 		{
@@ -231,18 +231,18 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Aim points for one city: <paramref name="count"/> of them, placed symmetrically about the
+		/// <para>Aim points for one city: <paramref name="count"/> of them, placed symmetrically about the
 		/// cluster centroid along its long axis and separated by up to
 		/// <paramref name="minSeparationCells"/>, so two warheads on one city read as two rather than as
-		/// one smeared one.
+		/// one smeared one.</para>
 		///
-		/// THE SPREAD IS CAPPED BY COVERAGE, not merely requested. Pushing the pair apart moves each point
+		/// <para>THE SPREAD IS CAPPED BY COVERAGE, not merely requested. Pushing the pair apart moves each point
 		/// away from the far side of the city, so the half-spread is clamped to
 		/// (effectiveRadius - clusterReach): a member sits at most `reach` from the centroid and the split
 		/// costs it at most `half` more to reach the NEARER point, so reach + half &lt;= effectiveRadius
 		/// keeps every member inside somebody's lethal radius. A city too tight to hold the requested
 		/// separation collapses its points toward the centroid and the caller's min-separation filter drops
-		/// the duplicate. Coverage beats spectacle every time this is close.
+		/// the duplicate. Coverage beats spectacle every time this is close.</para>
 		/// </summary>
 		public static List<CPos> CityAimPoints(
 			IReadOnlyList<CPos> assets, IReadOnlyList<int> members, int count, int minSeparationCells, int effectiveRadiusCells)
@@ -291,15 +291,15 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Greedy minimum-separation filter: walk the candidates in order, keep one only when it is at
+		/// <para>Greedy minimum-separation filter: walk the candidates in order, keep one only when it is at
 		/// least <paramref name="minSeparationCells"/> from everything already kept. The caller's order is
 		/// the priority order, so high-value aim points survive and the crowded low-value ones are what
-		/// gets dropped.
+		/// gets dropped.</para>
 		///
-		/// A DROPPED CANDIDATE IS NOT AN UNCOVERED ASSET — it was dropped precisely because a kept point
+		/// <para>A DROPPED CANDIDATE IS NOT AN UNCOVERED ASSET — it was dropped precisely because a kept point
 		/// sits near it. But "near" here is min-separation, not lethal radius, and those are different
 		/// numbers, so that intuition is not a proof. The caller still runs <see cref="UncoveredCells"/>
-		/// afterwards, which is what turns it into a checked fact.
+		/// afterwards, which is what turns it into a checked fact.</para>
 		/// </summary>
 		public static List<int> MinSeparationFilter(IReadOnlyList<CPos> candidates, int minSeparationCells)
 		{
@@ -385,15 +385,15 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Fill aim points closing whatever the asset-driven salvo left open: one per distinct lattice
+		/// <para>Fill aim points closing whatever the asset-driven salvo left open: one per distinct lattice
 		/// strip containing at least one uncovered cell, so the count scales with the size of the hole
-		/// rather than with the size of the map.
+		/// rather than with the size of the map.</para>
 		///
-		/// GUARANTEE. For any cell c, either c was already inside the effective radius of an asset aim
+		/// <para>GUARANTEE. For any cell c, either c was already inside the effective radius of an asset aim
 		/// point, or c is uncovered — in which case LatticePointFor(c) is in this list, and each strip is
 		/// at most `spacing` wide so c is within spacing/sqrt(2) &lt;= effectiveRadius of it. Every cell is
 		/// therefore covered by construction, which <see cref="UncoveredCells"/> then re-checks
-		/// empirically in the test rather than taking this paragraph's word for it.
+		/// empirically in the test rather than taking this paragraph's word for it.</para>
 		/// </summary>
 		public static List<CPos> FillPoints(Rectangle bounds, IReadOnlyList<CPos> uncovered, int spacing)
 		{
@@ -419,13 +419,13 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Draw a displacement inside a DISC of radius <paramref name="boundCells"/> from two integers the
-		/// caller pulled off the synced RNG.
+		/// <para>Draw a displacement inside a DISC of radius <paramref name="boundCells"/> from two integers the
+		/// caller pulled off the synced RNG.</para>
 		///
-		/// Sampling radius and angle separately, rather than two independent axis offsets, is what makes
+		/// <para>Sampling radius and angle separately, rather than two independent axis offsets, is what makes
 		/// the magnitude bound exact instead of approximate: a square sample reaches bound*sqrt(2) at its
 		/// corners and would quietly overrun the coverage margin on the diagonal — the one direction
-		/// nobody spot-checks.
+		/// nobody spot-checks.</para>
 		/// </summary>
 		/// <param name="angleSample">Any integer; reduced modulo a full turn.</param>
 		/// <param name="radiusSample">Any non-negative integer; reduced modulo (boundCells + 1).</param>
@@ -474,12 +474,12 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Turn tier-tagged aim points into scheduled impacts: arrival offsets, relative to the first
-		/// impact, that group each tier into a tight wave and separate the tiers by the pauses above.
+		/// <para>Turn tier-tagged aim points into scheduled impacts: arrival offsets, relative to the first
+		/// impact, that group each tier into a tight wave and separate the tiers by the pauses above.</para>
 		///
-		/// The input order within a tier is preserved, so the caller's priority order is also the arrival
+		/// <para>The input order within a tier is preserved, so the caller's priority order is also the arrival
 		/// order. Tiers are emitted in <see cref="DoomsdayTier"/> declaration order — outliers, then
-		/// cities, then fill.
+		/// cities, then fill.</para>
 		/// </summary>
 		public static List<DoomsdayImpact> BuildSchedule(
 			IReadOnlyList<CPos> cells, IReadOnlyList<DoomsdayTier> tiers, ScheduleTimings timings)

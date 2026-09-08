@@ -28,14 +28,14 @@ namespace OpenRA.Mods.Common.Traits
 		public int Experience { get; private set; }
 
 		/// <summary>
-		/// True once the score has been sealed. Set by DOOMSDAY mode on the tick the clock expires, so
+		/// <para>True once the score has been sealed. Set by DOOMSDAY mode on the tick the clock expires, so
 		/// that the winner is decided on the score as it stood BEFORE the warheads landed and nothing the
-		/// annihilation does can move it.
+		/// annihilation does can move it.</para>
 		///
-		/// NOT [Sync]-ed, and that is deliberate rather than an oversight: it is set from
+		/// <para>NOT [Sync]-ed, and that is deliberate rather than an oversight: it is set from
 		/// DoomsdayStrike.NotifyTimerExpired, which runs inside the synchronised tick on every client at
 		/// the same WorldTick, so the flag is already identical everywhere. Experience itself stays synced
-		/// and is the value a desync would actually surface.
+		/// and is the value a desync would actually surface.</para>
 		/// </summary>
 		public bool Frozen { get; private set; }
 

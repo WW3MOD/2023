@@ -83,6 +83,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 {
 	// Separated from the actor so the two things a YAML author has to predict — where a copy lands
 	// and how bright it is — can be pinned without a world. See WithHypersonicPlasmaTest.
+
 	/// <summary>Placement and fade arithmetic for <see cref="WithHypersonicPlasma"/>.</summary>
 	public static class WithHypersonicPlasmaMath
 	{
@@ -90,6 +91,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		// times a WDist read straight out of YAML, and conventions.md is explicit that bounding the
 		// multiplied-through worst case is the caller's job. A 6144 component (the MaxStep ceiling)
 		// against a four-digit spacing is comfortable in int and nowhere near it in long.
+
 		/// <summary>Displacement from one plasma sample to the next, along <paramref name="velocity"/>.</summary>
 		public static WVec Step(WVec velocity, WDist spacing)
 		{
@@ -148,6 +150,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		// baseAlpha/samples. Stating the first end that way is deliberate: it makes the YAML number
 		// mean something a reader can check against a frame, rather than being scaled by a count
 		// they also chose.
+
 		/// <summary>Alpha for the <paramref name="sample"/>-th of <paramref name="samples"/> copies.</summary>
 		public static float Alpha(float baseAlpha, int sample, int samples)
 		{
