@@ -194,8 +194,29 @@ def main():
         d.text((cx, cy + SLOT_H + 1), name, font=label, fill=(220, 220, 225, 255))
 
     sheet.save(os.path.join(ROOT, "tools/cameo/work/bin-1x.png"))
-    sheet.resize((w * 3, h * 3), Image.NEAREST).save(os.path.join(ROOT, "tools/cameo/work/bin-3x.png"))
+    big = sheet.resize((w * 3, h * 3), Image.NEAREST)
+    big.save(os.path.join(ROOT, "tools/cameo/work/bin-3x.png"))
     print("wrote tools/cameo/work/bin-1x.png and bin-3x.png")
+
+    # A single titled sheet, 3x over actual size, for staging under WORKSPACE/mockups/ where
+    # someone can look at it without knowing this script exists. work/ is gitignored.
+    out = sys.argv[1] if len(sys.argv) > 1 else None
+    if out:
+        title = ImageFont.truetype(os.path.join(ROOT, "engine/mods/common/FreeSansBold.ttf"), 13)
+        note = ImageFont.truetype(os.path.join(ROOT, "engine/mods/common/FreeSans.ttf"), 10)
+        top = 26
+        combined = Image.new("RGBA", (max(big.width, w) + 24, top + big.height + 26 + h + 14), (32, 34, 39, 255))
+        cd = ImageDraw.Draw(combined)
+        cd.text((12, 6), "Support power bin with the nuclear badge - every cameo, 3x",
+                font=title, fill=(245, 245, 250, 255))
+        combined.alpha_composite(big, (12, top))
+        cd.text((12, top + big.height + 8),
+                "Actual size. * = cameo art that is wrong for its weapon and predates this branch "
+                "(W76-1 is a biohazard trefoil, B83-1 has a FAKE banner).",
+                font=note, fill=(160, 162, 172, 255))
+        combined.alpha_composite(sheet, (12, top + big.height + 24))
+        combined.save(out)
+        print("wrote", out, combined.size)
 
 
 if __name__ == "__main__":
