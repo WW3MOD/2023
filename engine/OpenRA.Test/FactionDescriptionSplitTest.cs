@@ -83,10 +83,10 @@ namespace OpenRA.Test
 		public void SplitDescriptionStillSplitsARealNewline()
 		{
 			// Fluent-sourced translations arrive with real newlines. Unescaping must not break them.
-			var (title, body) = LobbyUtils.SplitDescription("Russia\nThe BRICS bloc's spearhead.");
+			var (title, body) = LobbyUtils.SplitDescription("Russia\nNATO's principal adversary.");
 
 			Assert.That(title, Is.EqualTo("Russia"));
-			Assert.That(body, Is.EqualTo("The BRICS bloc's spearhead."));
+			Assert.That(body, Is.EqualTo("NATO's principal adversary."));
 		}
 
 		[Test]

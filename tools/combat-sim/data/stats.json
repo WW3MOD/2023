@@ -2,7 +2,7 @@
   "_meta": {
     "mod": "ww3mod",
     "version": "release-20230225",
-    "generated_at": "2026-09-08T01:01:54.9562254Z",
+    "generated_at": "2026-09-08T01:02:18.4292174Z",
     "note": "Generated from live YAML by --dump-balance-json. Do not edit by hand; re-run the dump after rules changes."
   },
   "actors": {
@@ -2423,7 +2423,7 @@
       "armaments": []
     },
     "stek.husk": {
-      "name": "BRICS Tech Center (Destroyed)",
+      "name": "Russian Tech Center (Destroyed)",
       "cost": null,
       "hp": 200,
       "armor": {
