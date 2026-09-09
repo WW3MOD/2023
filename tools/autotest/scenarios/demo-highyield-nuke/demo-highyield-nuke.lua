@@ -137,18 +137,49 @@ WorldLoaded = function()
 	USA = Player.GetPlayer("USA")
 
 	-- Cell centre in world coordinates is cell * 1024 + 512.
-	Camera.Position = WPos.New(GroundZero.X * 1024 + 512, GroundZero.Y * 1024 + 512, 0)
-	Camera.Zoom = Camera.MinZoom
-
-	-- CLOSE PASS for the scar-coverage frame, added 2026-09-09. MinZoom shows the whole 128x128 map,
-	-- which is right for reading a 102-cell blast and useless for judging its EDGE -- the first
-	-- capture of this demo came back too distant to tell a scorched tree cell from an unscorched
-	-- one, which is the entire question the scar work turns on. So the last frame moves in.
 	--
-	-- Cell 48,52 rather than ground zero: a tree cluster with the river below it, so forest and
-	-- shoreline are in one frame. Ground zero is bare and would answer neither.
+	-- OPENS CLOSE, on the same cell and zoom as the 04 frame, then pulls out to the whole playfield
+	-- at t=210 -- still 33 ticks before detonation. The first version of this demo opened wide and
+	-- took its before-frame there, which made 01 and 04 a different zoom apart: a control framed
+	-- differently from the frame it is read against cannot answer a per-cell question, and the
+	-- capture came back unreadable for exactly that reason.
+	Camera.Position = WPos.New(48 * 1024 + 512, 52 * 1024 + 512, 0)
+	Camera.Zoom = math.min(3, Camera.MaxZoom)
+
+	Trigger.AfterDelay(210, function()
+		Camera.Position = WPos.New(GroundZero.X * 1024 + 512, GroundZero.Y * 1024 + 512, 0)
+		Camera.Zoom = Camera.MinZoom
+	end)
+
+	-- CLOSE PASSES for the two scar frames. MinZoom shows the whole 128x128 map, which is right for
+	-- reading a 102-cell blast and useless for judging its EDGE -- the first capture came back too
+	-- distant to tell a scorched tree cell from an unscorched one, which is the entire question the
+	-- scar work turns on. So the demo moves in twice.
+	--
+	-- Cell 48,52 is a tree cluster 20 cells from ground zero -- forest, well inside the burn.
 	Trigger.AfterDelay(880, function()
 		Camera.Position = WPos.New(48 * 1024 + 512, 52 * 1024 + 512, 0)
+		Camera.Zoom = math.min(3, Camera.MaxZoom)
+	end)
+
+	-- Cell 72,51 is the WATERLINE frame, and it has to be its own position rather than a corner of
+	-- the forest one: at zoom 3 the viewport is roughly 24 cells across and 48,52 cannot contain any
+	-- water at all, which is why the first attempt at reading the shore fade showed no shore.
+	--
+	-- 72,51 is a BEACH FORD -- cells 71-74 x 50-52 are the only Beach on this map within reach of
+	-- the burst, 14 cells from ground zero, with Water immediately north (y 47-49) and south
+	-- (y 53-57). The terrain type is the whole point: `Beach` is what the scar work taught to accept
+	-- the five Scar* smudges (`tilesets/temperat.yaml`), so this ford is the only place on this map
+	-- where the shore fade can be seen at all.
+	--
+	-- An earlier version of this frame pointed at 78,64, the river bank due east of ground zero.
+	-- That was a wasted capture and the reason is worth keeping: those banks are `Rock` and `Cliffs`,
+	-- which accept NO smudge type whatsoever -- not Crater, not Scorch, not the Scar types, and not
+	-- from any weapon in the mod, which has always been true and is not something the scar work
+	-- changed. The frame came back showing a bright unscarred band running the length of the river
+	-- and reading exactly like the failure this demo is meant to detect, while testing nothing.
+	Trigger.AfterDelay(940, function()
+		Camera.Position = WPos.New(72 * 1024 + 512, 51 * 1024 + 512, 0)
 		Camera.Zoom = math.min(3, Camera.MaxZoom)
 	end)
 
@@ -162,24 +193,40 @@ WorldLoaded = function()
 	--
 	-- Offsets come from the timing table at the head of this file, NOT from taste. t=243 is the
 	-- detonation, so 200 is the last clean before-frame; 284 is the fireball's stated second maximum;
-	-- 420 sits in the window this file already calls the most legible, with the inner rings gone, the
-	-- middle band burning and the outer rings still intact; 900 is after the last suppression band
-	-- (t=933 is close but the fires still run to 1743) and is the first frame where the scorched
-	-- forest can be read on its own rather than through flame.
+	-- 900 is after the last suppression band (t=933 is close but the fires still run to 1743) and is
+	-- the first frame where the scorched forest can be read on its own rather than through flame.
+	--
+	-- t=860 for the wide boundary frame is a CORRECTION, 2026-09-09. That frame used to sit at 420,
+	-- inside the window the timing table above calls the most legible. The capture taken there came
+	-- back with a ~40-cell pure-white core and the ENTIRE remaining playfield washed pale grey, so
+	-- the burnt/unburnt boundary it exists to show was not visible at all -- against the table's own
+	-- claim that the flash is white only through ~t=313. That contradiction is unexplained and is
+	-- worth chasing separately; moving the frame to 860 sidesteps it rather than resolving it. 860
+	-- is past the fireball going out (404) and past the blast wave reaching full radius (840).
 	TestHarness.ScreenshotAfter(200 / TestHarness.TicksPerSecond, "01-forest-before",
-		"BEFORE. Living forest around ground zero -- full canopies, no char. This is the control " ..
-		"frame the three after it are read against.")
+		"BEFORE. Living forest at cell 48,52, framed at the SAME camera and zoom as 04 -- full " ..
+		"canopies, unscorched ground. Read 04 against this frame and nothing else; the wide frames " ..
+		"are at a different zoom and cannot answer a per-cell question.")
 	TestHarness.ScreenshotAfter(284 / TestHarness.TicksPerSecond, "02-fireball-max",
-		"expects: the fireball at its second maximum. Not a burnt-tree frame -- it is here so the " ..
-		"scale of the thing doing the burning is on the record beside its effect.")
-	TestHarness.ScreenshotAfter(420 / TestHarness.TicksPerSecond, "03-three-states",
-		"expects: three states at once -- inner rings gone, middle band burning, outer rings still " ..
-		"intact and green. The boundary between burnt and unburnt forest is the thing to look at.")
+		"expects: the fireball at its second maximum, whole playfield. Not a burnt-tree frame -- it " ..
+		"is here so the scale of the thing doing the burning is on the record beside its effect.")
+	TestHarness.ScreenshotAfter(860 / TestHarness.TicksPerSecond, "03-scar-boundary",
+		"expects: the whole scar at once -- scorched interior, living forest outside it, and the " ..
+		"boundary between them. WIDE, and the flash is long gone by here.")
 	TestHarness.ScreenshotAfter(900 / TestHarness.TicksPerSecond, "04-scorched-forest",
 		"THE BURNT-TREE FRAME. expects: trees inside the thermal radius still STANDING but leafless " ..
 		"and charred, on scorched ground, with living forest further out. FAIL if the trees are " ..
 		"gone (they must never be removed -- cover and line of fire depend on it), or if they are " ..
 		"paler than the ground they stand on, which is the complaint this work was built to fix.")
+	TestHarness.ScreenshotAfter(960 / TestHarness.TicksPerSecond, "05-scar-waterline",
+		"THE SHORELINE FRAME. Camera on the beach ford at 72,51 -- Beach cells 71-74 x 50-52 with " ..
+		"water immediately above and below. expects: the scar darkens the SAND and THINS over the " ..
+		"last two cells into the water. FAIL if a bright unscorched sand band sits between the " ..
+		"black scar and the shoreline, or if a full-strength black cell butts straight onto water. " ..
+		"The Rock and Cliffs either side of the ford staying bright is NOT a failure -- those two " ..
+		"types accept no smudge from any weapon in the mod and never have. Check here too that " ..
+		"buildings, vehicles and walls still sit on clean unscorched ground; if those holes have " ..
+		"vanished the InvalidTargets line was damaged.")
 
 	Trigger.AfterDelay(1, step)
 end
