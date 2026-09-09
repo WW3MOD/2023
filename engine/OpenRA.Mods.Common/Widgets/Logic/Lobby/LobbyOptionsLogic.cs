@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
+using OpenRA.Mods.Common.Traits;
 using OpenRA.Network;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -178,6 +179,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{ "tactical-nuke", SectionGameRules },
 			{ "high-yield-nuke", SectionGameRules },
 			{ "nuclear-arsenal", SectionGameRules },
+
+			// DEFCON Escalation. Minimal placement only: these three are match rules, so Game Rules is
+			// where they belong, and without an entry here an option falls into the implicit "Other"
+			// bucket at the bottom. The full panel regrouping is a separate change.
+			{ DefconEscalationInfo.ModeOptionId, SectionGameRules },
+			{ DefconEscalationInfo.StartOptionId, SectionGameRules },
+			{ DefconEscalationInfo.PaceOptionId, SectionGameRules },
 		};
 
 		static string GetCategory(LobbyOption option)
