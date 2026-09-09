@@ -175,10 +175,45 @@ function LuaGate-Command
 	$global:LASTEXITCODE = 0
 }
 
+# Static smudge-coverage guard. AcceptsSmudgeType is an opt-in allowlist that defaults to
+# EMPTY, so a terrain type which never names a smudge type rejects it silently -- no error,
+# no warning, nothing in any log. That cost two rounds on 2026-09-09 (beaches, then Rock and
+# Cliffs) and both were found by looking at a screenshot. Buildless, ~1s, no game launch.
+function SmudgeGate-Command
+{
+	$python = (Get-Command 'python' -ErrorAction SilentlyContinue)
+	if ($python -eq $null)
+	{
+		$python = (Get-Command 'python3' -ErrorAction SilentlyContinue)
+	}
+
+	if ($python -eq $null)
+	{
+		Write-Host "smudge-gate needs python on PATH; skipping." -ForegroundColor Yellow
+		return
+	}
+
+	Write-Host "Checking smudge coverage (smudge-gate)..." -ForegroundColor Cyan
+	& $python.Source "tools/smudge-gate/smudge_gate.py" selftest
+	if ($lastexitcode -ne 0)
+	{
+		exit $lastexitcode
+	}
+
+	# No warning band here, unlike lua-gate: every finding is either a hole nobody meant to
+	# leave or a decision that belongs in DELIBERATELY_UNSCARRED. Exit 2 is fatal.
+	& $python.Source "tools/smudge-gate/smudge_gate.py" check
+	if ($lastexitcode -ne 0)
+	{
+		exit $lastexitcode
+	}
+}
+
 function Test-Command
 {
 	NavGuard-Command
 	LuaGate-Command
+	SmudgeGate-Command
 
 	if ((CheckForUtility) -eq 1)
 	{
