@@ -307,6 +307,43 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void TheWorstTickIsTheNumberThisFixtureSaysItIsAndSettingLaunchAngleToZeroDidNotRaiseIt()
+		{
+			// ASKED AND ANSWERED STATICALLY, 2026-09-09. When six demo frames came back with no
+			// plasma in any of them, the first hypothesis was that moving OreshnikRV from
+			// LaunchAngle 160 to 0 had pushed the 3D step back over a MaxStep ceiling -- a fair
+			// suspicion, because MaxStep is measured against the 3D step and a launch angle is
+			// exactly the sort of thing that moves it.
+			//
+			// IT DID NOT, AND IT MOVED IT THE OTHER WAY. The pair was chosen so the geometric slope
+			// reproduces the arc's old terminal slope: 24576 / 16384 = 1.500 against
+			// tan(160 raw) = 1.4966. So the worst tick went from 3600 * sqrt(1 + 1.4966^2) = 6491
+			// to 3600 * sqrt(1 + 1.5^2) = 6490 -- one wdist LOWER, against ceilings of 12288.
+			//
+			// The number is pinned rather than merely bounded because "it clears the ceiling" is
+			// what the two assertions below already say, and it is not what a reader chasing a
+			// missing effect wants to know. They want the value.
+			var worst = OreshnikWorstStep();
+
+			Assert.That(worst, Is.EqualTo(6490).Within(2),
+				"the Oreshnik's worst 3D tick has moved. That is not automatically wrong, but it " +
+				"invalidates every margin in this fixture and it is the first thing to re-check " +
+				"if the plasma or the smoothing ever disappears.");
+
+			// 6490 of 12288 is 52.8% of the ceiling, i.e. 47% headroom. Asserted at 60% so the
+			// margin has room to breathe without this becoming a tripwire on every tuning pass,
+			// but tight enough that halving the ceiling or doubling the slope would trip it.
+			var p = Oreshnik();
+			Assert.That(worst, Is.LessThan(p.PlasmaMaxStep * 0.6),
+				"the worst tick has eaten into the WithHypersonicPlasma headroom, which has been " +
+				"about 47% since the ceiling was set. Over the ceiling the trait draws NOTHING and " +
+				"says nothing, so this is the assertion that stands between a geometry change and " +
+				"a silently invisible weapon.");
+			Assert.That(worst, Is.LessThan(p.SmoothingMaxStep * 0.6),
+				"the worst tick has eaten into the SubTickMotionSmoothing headroom.");
+		}
+
+		[Test]
 		public void TheDefaultCeilingWouldNotHaveBeenEnough()
 		{
 			// The reason the two overrides above exist, asserted rather than left to a comment: if
