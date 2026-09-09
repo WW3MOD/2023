@@ -147,6 +147,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		Widget mapBrowseRoot;
 		bool showChangeMap;
 
+		// The left column's single scroll viewport: map preview + scenario picker +
+		// OPTIONS header + option grid, sharing one scrollbar. Null if the chrome
+		// predates the unified scroll (COMMON_OPTIONS_PANEL absent).
+		ScrollPanelWidget optionsPanel;
+
 		// Chat/Music tab state. showMusic is a field so the chat notification
 		// handler can count messages that arrive while the chat log is hidden.
 		bool showMusic;
@@ -255,6 +260,34 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (name != null)
 				name.GetText = () => (orderManager.LobbyInfo.GlobalSettings.ServerName ?? "").ToUpperInvariant();
 
+			UpdateCurrentMap();
+
+			// WW3MOD: pass option-related args through so the Players panel can embed a
+			// "Common Options" sub-panel that runs LobbyOptionsLogic alongside the player list.
+			// Set up configurationDisabled lazily — the actual delegate is constructed a few
+			// lines down. We pass a stable wrapper that resolves to it once initialised.
+			Func<bool> configurationDisabledRef = null;
+			var playerBin = Ui.LoadWidget("LOBBY_PLAYER_BIN", lobby.Get("TOP_PANELS_ROOT"), new WidgetArgs()
+			{
+				{ "orderManager", orderManager },
+				{ "getMap", (Func<MapPreview>)(() => map) },
+				{ "configurationDisabled", (Func<bool>)(() => configurationDisabledRef != null && configurationDisabledRef()) }
+			});
+			// Single-panel lobby: left column (map/music + players + chat) and right
+			// column (all options + active changes + preset) are always visible.
+			playerBin.IsVisible = () => panel != PanelType.Servers;
+
+			// Unified left-column scroll: MAP_PREVIEW_ROOT is no longer a lobby-root
+			// sibling — it is declared inside RIGHT_COLUMN_MATCH's
+			// ScrollPanel@COMMON_OPTIONS_PANEL (lobby-players.yaml) so the preview,
+			// the scenario picker and the option grid share one scrollbar. That
+			// container therefore does not exist until LOBBY_PLAYER_BIN is loaded,
+			// which is why this block runs AFTER the LoadWidget above rather than
+			// before it. lobby.Get() walks the tree recursively (Widget.cs
+			// GetOrNull), so the lookup itself is unchanged; only the ordering is
+			// load-bearing. UpdateCurrentMap() still runs before the player bin, so
+			// LobbyOptionsLogic's ctor sees a resolved map exactly as it did before.
+			optionsPanel = playerBin.GetOrNull<ScrollPanelWidget>("COMMON_OPTIONS_PANEL");
 			var mapContainer = Ui.LoadWidget("MAP_PREVIEW", lobby.Get("MAP_PREVIEW_ROOT"), new WidgetArgs
 			{
 				{ "orderManager", orderManager },
@@ -278,23 +311,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			});
 
 			mapContainer.IsVisible = () => panel != PanelType.Servers;
-
-			UpdateCurrentMap();
-
-			// WW3MOD: pass option-related args through so the Players panel can embed a
-			// "Common Options" sub-panel that runs LobbyOptionsLogic alongside the player list.
-			// Set up configurationDisabled lazily — the actual delegate is constructed a few
-			// lines down. We pass a stable wrapper that resolves to it once initialised.
-			Func<bool> configurationDisabledRef = null;
-			var playerBin = Ui.LoadWidget("LOBBY_PLAYER_BIN", lobby.Get("TOP_PANELS_ROOT"), new WidgetArgs()
-			{
-				{ "orderManager", orderManager },
-				{ "getMap", (Func<MapPreview>)(() => map) },
-				{ "configurationDisabled", (Func<bool>)(() => configurationDisabledRef != null && configurationDisabledRef()) }
-			});
-			// Single-panel lobby: left column (map/music + players + chat) and right
-			// column (all options + active changes + preset) are always visible.
-			playerBin.IsVisible = () => panel != PanelType.Servers;
 
 			players = playerBin.Get<ScrollPanelWidget>("LOBBY_PLAYERS");
 			editablePlayerTemplate = players.Get("TEMPLATE_EDITABLE_PLAYER");
@@ -1092,6 +1108,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			});
 
 			showChangeMap = true;
+
+			// MAP_BROWSE_ROOT does not scroll — it is a fixed lobby-root overlay
+			// pinned over the preview's slot at scroll offset 0. Snap the column
+			// back to the top so the browser lands on the preview it replaces
+			// instead of floating over scrolled-up options.
+			optionsPanel?.ScrollToTop();
 		}
 
 		// Closes the Change Map tab from any path (OK/Cancel in the chooser, the Map

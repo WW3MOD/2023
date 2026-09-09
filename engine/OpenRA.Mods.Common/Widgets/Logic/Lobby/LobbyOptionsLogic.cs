@@ -303,7 +303,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					toggle.OnClick = () =>
 					{
 						collapsedSections[captured] = !(collapsedSections.TryGetValue(captured, out var was) && was);
-						RebuildOptions();
+						RebuildOptions(false);
 					};
 				}
 			}
@@ -311,7 +311,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			optionsContainer.AddChild(header);
 		}
 
-		void RebuildOptions()
+		// resetScroll: snap back to the top of the panel. Right when the OPTION SET
+		// changed under the user (new map, first build). Wrong when the user
+		// themselves collapsed a section — since the lobby left column became one
+		// scroll, this panel also holds the map preview, so a reset there yanks
+		// them up past the whole preview because they clicked a header.
+		void RebuildOptions(bool resetScroll = true)
 		{
 			if (mapPreview == null || mapPreview.WorldActorInfo == null)
 				return;
@@ -349,7 +354,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			panel.ContentHeight = yMargin + optionsContainer.Bounds.Height;
 			optionsContainer.Bounds.Y = yMargin;
-			panel.ScrollToTop();
+			if (resetScroll)
+				panel.ScrollToTop();
+			else
+				panel.ClampScroll();
 		}
 
 		void RenderCommonSections(LobbyOption[] options)

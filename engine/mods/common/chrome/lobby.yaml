@@ -257,23 +257,28 @@ Background@SERVER_LOBBY:
 			Y: 116
 			Width: PARENT_WIDTH - 48
 			Height: PARENT_HEIGHT - 196
-		# Map preview, scenario picker, and Change Map button live at lobby-root
-		# level (LobbyLogic loads MapPreviewLogic into MAP_PREVIEW_ROOT before
-		# LOBBY_PLAYER_BIN exists). They sit at the top of the LEFT column, bigger
-		# than the old 2x2 TL cell. The players list below them uses the same
-		# left-column width (PARENT_WIDTH - 64) / 2.
-		Container@MAP_PREVIEW_ROOT:
-			X: 24
-			Y: 116
-			Width: (PARENT_WIDTH - 64) / 2
-			Height: (PARENT_HEIGHT - 196) * 3 / 5 - 40
-		# === Phase 12 — inline map browser host. Same bounds as MAP_PREVIEW_ROOT;
-		# LobbyLogic toggles visibility based on the Map / Change Map tab. Lazy-loads
-		# MAPCHOOSER_INLINE into this container on first switch to the Change Map tab.
+		# === Unified left-column scroll (2026-09) — MAP_PREVIEW_ROOT and
+		# SCENARIO_DROPDOWNBUTTON used to live here, as fixed lobby-root siblings
+		# pinned above the settings quadrant. They are now declared INSIDE
+		# ScrollPanel@COMMON_OPTIONS_PANEL (lobby-players.yaml) so the map, the
+		# scenario picker and the options list share one scrollbar: scrolling down
+		# moves the preview off the top and hands its rows to the options.
+		# LobbyLogic still finds MAP_PREVIEW_ROOT via the recursive lobby.Get(),
+		# but only AFTER LOBBY_PLAYER_BIN has been loaded — which is why the
+		# MAP_PREVIEW LoadWidget call now sits below the playerBin one.
+		#
+		# === Phase 12 — inline map browser host. Occupies exactly the map-preview
+		# slot at the top of the scroll panel's content (scroll offset 0), but is a
+		# FIXED lobby-root overlay: it does not scroll. LobbyLogic scrolls the
+		# column back to the top when the Change Map tab opens, so the two line up.
+		# Width matches the in-panel preview exactly: the panel is (column - 4) and
+		# the preview clears the 24px scrollbar track plus 4px, so both are
+		# (column - 32) = (PW - 64) / 2 - 32. Lazy-loads MAPCHOOSER_INLINE into
+		# this container on first switch to the Change Map tab.
 		Container@MAP_BROWSE_ROOT:
 			X: 24
 			Y: 116
-			Width: (PARENT_WIDTH - 64) / 2
+			Width: (PARENT_WIDTH - 64) / 2 - 32
 			Height: (PARENT_HEIGHT - 196) * 3 / 5 - 40
 			Visible: False
 		# === WW3MOD — MUSIC_PANEL_ROOT overlays LOBBYCHAT. Bounds must match
@@ -285,20 +290,6 @@ Background@SERVER_LOBBY:
 			Width: PARENT_WIDTH / 2 - 32
 			Height: PARENT_HEIGHT - (PARENT_HEIGHT - 196) * 3 / 5 - 236
 			Visible: False
-		# Scenario picker is rare (most maps run the default skirmish) so it
-		# takes the narrower slot. Phase 12 — CHANGEMAP_BUTTON dropped from the
-		# bottom row (replaced by the [Change Map] tab above the panel); scenario
-		# dropdown spans the bottom strip inset 16px per side from the map
-		# column (column X 24, width (PW-64)/2) so it reads as panel content
-		# rather than full-bleed chrome. Sits flush under the map preview
-		# (top = preview bottom = 116 + (PH-196)*3/5 - 40); its bottom
-		# edge at (PH-196)*3/5 + 108 lines up with the TR players panel bottom.
-		DropDownButton@SCENARIO_DROPDOWNBUTTON:
-			X: 40
-			Y: 116 + (PARENT_HEIGHT - 196) * 3 / 5 - 40
-			Width: (PARENT_WIDTH - 64) / 2 - 32
-			Height: 32
-			Font: Bold
 		# Phase 12 — CHANGEMAP_BUTTON parked off-screen. Replaced by the
 		# [Change Map] tab above the map panel. Kept in the YAML so any
 		# external lookup (gh issues / mod refs) still resolves and the C#
