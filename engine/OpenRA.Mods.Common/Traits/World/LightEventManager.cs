@@ -53,7 +53,7 @@ namespace OpenRA.Mods.Common.Traits
 	// the game only through WorldRenderer.TerrainLighting). No field here is or should be [Sync].
 
 	/// <summary>Owns the live light events and advances their envelopes.</summary>
-	public sealed class LightEventManager : ITick, IRenderAboveFog
+	public sealed class LightEventManager : ITick, IRenderAboveFog, IRenderAboveShroud
 	{
 		sealed class LiveEvent
 		{
@@ -270,14 +270,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (live.Count == 0)
 				yield break;
 
-			if (!shroudRendererResolved)
-			{
-				shroudRenderer = self.TraitOrDefault<IRenderShroud>();
-				shroudRendererResolved = true;
-			}
-
 			// No shroud renderer means no fog was drawn, so nothing was taken away.
-			if (shroudRenderer == null)
+			if (ResolvedShroudRenderer(self) == null)
 				yield break;
 
 			var fogDarkness = shroudRenderer.FogDarkness;
@@ -289,6 +283,71 @@ namespace OpenRA.Mods.Common.Traits
 
 				yield return new FogPiercingLightRenderable(e.Pos, e.Radius, e.Intensity, e.Tint,
 					e.Definition.Falloff, fogDarkness);
+			}
+		}
+
+		/// <summary>
+		/// Resolved lazily and cached: ShroudRenderer is created after this trait on the same actor, so it
+		/// cannot be taken in the constructor. Null when the world has none at all, which means no fog and no
+		/// shroud were drawn for anybody.
+		/// </summary>
+		IRenderShroud ResolvedShroudRenderer(Actor self)
+		{
+			if (!shroudRendererResolved)
+			{
+				shroudRenderer = self.TraitOrDefault<IRenderShroud>();
+				shroudRendererResolved = true;
+			}
+
+			return shroudRenderer;
+		}
+
+		// The world actor is not spatially partitioned and must be asked every frame; returning true here would
+		// make WorldRenderer.GenerateOverlayRenderables skip it whenever the world actor is not in onScreenActors.
+		bool IRenderAboveShroud.SpatiallyPartitionable => false;
+
+		/// <summary>
+		/// <para>Draws each light's ground illumination in the region OUTSIDE the cell grid, which
+		/// <see cref="TerrainLighting"/> cannot reach because there are no terrain vertices out there and
+		/// <see cref="Graphics.FogPiercingLightRenderable"/> deliberately skips for the same reason. Without
+		/// this a nuclear flash lights the map and stops at a hard rectangle while its own fire and dust go on
+		/// burning outside it -- which is what the user reported.</para>
+		///
+		/// <para>The above-SHROUD slot rather than the above-FOG one, because
+		/// WorldRenderer.DrawBeyondMapActorFog lays its per-border-cell fog strips over this region after the
+		/// above-fog renderables have drawn. Landing after those strips is what lets the quad write the final
+		/// pixel value directly and so match the on-grid light exactly; landing before them would reintroduce
+		/// the same rectangle a fog transmission fainter. See
+		/// <see cref="Graphics.BeyondMapLightRenderable"/>.</para>
+		///
+		/// <para>Gated on LightTerrain, which is the flag that says "this light paints the ground": a light
+		/// that does not light the map's ground has no business lighting the ground off the edge of it either.
+		/// Today every LightEvent in the mod is a nuclear Warhead@FireballLight and every one of them sets it,
+		/// so this selects exactly the fireballs -- but the predicate is the general one, so a future ground
+		/// light gets the same edge behaviour without anyone having to remember this file.</para>
+		///
+		/// <para>A READ, like RenderAboveFog above: it writes no simulation state and is not [Sync]-relevant,
+		/// exactly as the sync note at the top of this file requires.</para>
+		/// </summary>
+		IEnumerable<IRenderable> IRenderAboveShroud.RenderAboveShroud(Actor self, WorldRenderer wr)
+		{
+			if (live.Count == 0)
+				yield break;
+
+			// Null when the world has no shroud renderer. Unlike the fog-piercing pass there is still something
+			// to draw in that case -- the beyond-grid black is painted by DrawBeyondMapFog whether or not a
+			// shroud exists -- so this only decides the fog curve, and a FogDarkness of 0 is the honest answer
+			// for "no fog was drawn": every explored level then transmits 1 and only shroud itself masks.
+			var fogDarkness = ResolvedShroudRenderer(self)?.FogDarkness ?? 0f;
+
+			for (var i = 0; i < live.Count; i++)
+			{
+				var e = live[i];
+				if (!e.Definition.LightTerrain || e.Intensity == 0f)
+					continue;
+
+				yield return new BeyondMapLightRenderable(e.Pos, e.Radius, e.Intensity, e.Tint,
+					e.Definition.Falloff, fogDarkness, e.Definition.GlowAboveFog);
 			}
 		}
 	}
