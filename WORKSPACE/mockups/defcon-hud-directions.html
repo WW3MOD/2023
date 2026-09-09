@@ -1,0 +1,211 @@
+<!DOCTYPE html><meta charset="utf-8"><title>DEFCON in-game readout — three directions</title>
+<style>
+:root{--bg:#0d0e0c;--ink:#d8d6cc;--dim:#8d8b80;--lbl:#6b6a61;
+ --d3:#8aa84a;--d2:#c8823a;--d1:#c0402a;--edge:#2a2c26}
+*{box-sizing:border-box}
+body{margin:0;padding:28px 30px 60px;background:#0a0b09;color:var(--ink);
+ font:13px/1.5 "Segoe UI",Roboto,system-ui,sans-serif}
+h1{font:600 19px/1.3 inherit;margin:0 0 6px}
+h2{font:600 13px/1.3 inherit;margin:34px 0 3px;color:#b9b7ac;letter-spacing:.3px}
+h2 span{font-weight:400;color:var(--lbl);letter-spacing:0}
+.intro{color:var(--dim);max-width:96ch;margin:0 0 6px}
+.note{color:var(--dim);max-width:96ch;margin:8px 0 0;font-size:12.5px}
+b{color:#cfcdc2;font-weight:600}
+.stage{background:
+   linear-gradient(rgba(8,10,7,.55),rgba(8,10,7,.75)),
+   repeating-linear-gradient(115deg,#1e2a18 0 7px,#1b2616 7px 14px);
+ border:1px solid #23251f;border-radius:3px;padding:22px;margin-top:10px;position:relative}
+.stage.night{background:linear-gradient(rgba(6,7,6,.8),rgba(6,7,6,.9)),
+   repeating-linear-gradient(115deg,#1a2416 0 7px,#172013 7px 14px)}
+.cap{font:11px ui-monospace,Consolas,monospace;color:var(--lbl);letter-spacing:.8px;
+ text-transform:uppercase;margin:0 0 9px}
+
+/* A : the strip */
+.strip{width:352px;background:rgba(10,12,9,.9);border:1px solid var(--edge);
+ border-left:3px solid var(--d3);border-radius:2px;padding:8px 11px 9px}
+.strip.at2{border-left-color:var(--d2)}
+.srow{display:flex;align-items:baseline;gap:8px}
+.slvl{font:700 15px/1 ui-monospace,Consolas,monospace;letter-spacing:1px;color:var(--d3)}
+.at2 .slvl{color:var(--d2)}
+.sname{font-size:11.5px;color:var(--dim);letter-spacing:.4px;text-transform:uppercase}
+.sclk{margin-left:auto;font:11px ui-monospace,Consolas,monospace;color:var(--lbl)}
+.rungs{display:flex;gap:3px;margin:7px 0 6px}
+.rg{height:3px;flex:1;background:#24261f;border-radius:1px;position:relative;overflow:hidden}
+.rg.on{background:var(--d3)}
+.at2 .rg.on{background:var(--d2)}
+.rg.fill{background:#24261f}
+.rg.fill::after{content:"";position:absolute;top:0;bottom:0;left:0;right:38%;background:var(--d3)}
+.rg.spent{background:#3c3f33}
+.srule{font-size:12px;color:#b4b2a7;line-height:1.35}
+.srule em{font-style:normal;color:#e2e0d5}
+.trigger{display:inline-flex;align-items:center;gap:5px;margin-top:6px;
+ font:10.5px ui-monospace,Consolas,monospace;letter-spacing:.6px;color:var(--d2);
+ border:1px solid #4a3a20;background:#221a0e;border-radius:2px;padding:2px 6px}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--d2);
+ box-shadow:0 0 5px var(--d2);animation:p 1.6s infinite}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* B : the board */
+.board{width:186px;background:rgba(10,12,9,.92);border:1px solid var(--edge);
+ border-radius:2px;overflow:hidden}
+.plate{padding:7px 10px;border-bottom:1px solid #1e201a;display:flex;align-items:center;gap:9px;
+ opacity:.32}
+.plate:last-child{border-bottom:none}
+.plate.cur{opacity:1;background:linear-gradient(90deg,rgba(138,168,74,.16),transparent)}
+.plate.cur.c2{background:linear-gradient(90deg,rgba(200,130,58,.18),transparent)}
+.pn{font:700 13px/1 ui-monospace,Consolas,monospace;width:16px;text-align:center}
+.c3 .pn{color:var(--d3)}.c2 .pn{color:var(--d2)}.c1 .pn{color:var(--d1)}
+.pt{font-size:11px;color:var(--dim);letter-spacing:.3px;text-transform:uppercase}
+.plate.cur .pt{color:#ddd9cd}
+.pbar{height:2px;background:#24261f}
+.pbar i{display:block;height:2px;width:38%;background:var(--d3)}
+.bfoot{padding:6px 10px;font-size:11.5px;color:#a9a79c;border-top:1px solid #1e201a;line-height:1.35}
+
+/* C : ambient */
+.amb{position:relative;height:150px;border:1px solid #23251f;border-radius:3px;overflow:hidden;
+ background:linear-gradient(rgba(8,10,7,.55),rgba(8,10,7,.75)),
+  repeating-linear-gradient(115deg,#1e2a18 0 7px,#1b2616 7px 14px)}
+.amb::before{content:"";position:absolute;top:0;right:0;bottom:0;left:0;pointer-events:none;
+ box-shadow:inset 0 0 0 2px rgba(200,130,58,.55), inset 0 0 34px rgba(200,130,58,.20)}
+.ambtag{position:absolute;top:9px;left:50%;transform:translateX(-50%);
+ font:10.5px ui-monospace,Consolas,monospace;letter-spacing:2px;color:var(--d2);
+ background:rgba(8,9,7,.75);border:1px solid #3d3020;padding:2px 9px;border-radius:2px}
+
+/* transition banner */
+.ban{position:relative;height:186px;display:flex;align-items:center;justify-content:center;
+ border:1px solid #23251f;border-radius:3px;overflow:hidden;
+ background:linear-gradient(rgba(8,10,7,.5),rgba(8,10,7,.72)),
+  repeating-linear-gradient(115deg,#1e2a18 0 7px,#1b2616 7px 14px)}
+.banin{text-align:center;padding:16px 40px;background:rgba(9,10,8,.82);
+ border-top:1px solid rgba(192,64,42,.5);border-bottom:1px solid rgba(192,64,42,.5);
+ box-shadow:0 0 44px rgba(192,64,42,.16);width:100%}
+.b1{font:700 30px/1 ui-monospace,Consolas,monospace;letter-spacing:7px;color:var(--d1);
+ text-shadow:0 0 18px rgba(192,64,42,.45)}
+.b2{margin-top:7px;font-size:12.5px;color:#cbc9be;letter-spacing:.4px}
+.b3{margin-top:3px;font:11px ui-monospace,Consolas,monospace;color:var(--lbl)}
+
+/* nuclear rung */
+.nuke{width:352px;background:rgba(10,12,9,.9);border:1px solid var(--edge);
+ border-left:3px solid #2d6a86;border-radius:2px;padding:8px 11px 9px}
+.nrow{display:flex;align-items:baseline;gap:8px;margin-bottom:7px}
+.nlab{font:10.5px ui-monospace,Consolas,monospace;letter-spacing:1.2px;color:#6f8fa3;
+ text-transform:uppercase}
+.nnow{margin-left:auto;font:700 12px/1 ui-monospace,Consolas,monospace;color:#8fb6cc}
+.steps{display:flex;gap:2px}
+.st{flex:1;height:16px;background:#1b1d18;border:1px solid #232520;border-radius:1px;
+ display:flex;align-items:center;justify-content:center;
+ font:9px ui-monospace,Consolas,monospace;color:#4e5048}
+.st.rel{background:#1e2a30;border-color:#2d4b59;color:#8fb6cc}
+.st.cur{background:#24424f;border-color:#4e8ba6;color:#d6ecf7;box-shadow:0 0 8px rgba(78,139,166,.4)}
+.st.cap{background:#2a1a16;border-color:#5a2f26;color:#a86a5c}
+.nfoot{margin-top:6px;font-size:11.5px;color:#a9a79c;line-height:1.35}
+
+.grid{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+.col{flex:1;min-width:330px}
+table{border-collapse:collapse;width:100%;font-size:12.5px;margin-top:8px}
+td,th{border-bottom:1px solid #22241e;padding:6px 8px;text-align:left;vertical-align:top}
+th{color:var(--lbl);font-size:10px;letter-spacing:1px;text-transform:uppercase;font-weight:400}
+.warn{border-left:2px solid #6a5a2a;background:#16150f;padding:9px 12px;margin-top:14px;
+ color:#b9b09a;font-size:12.5px;max-width:96ch}
+</style>
+<h1>What the player sees, and how they learn the rules without being told them</h1>
+<p class="intro">Three directions for the in-game readout, drawn at true size against a stand-in
+battlefield. The one thing every direction has to do is teach the difference between the two
+transitions: <b>DEFCON&nbsp;3&rarr;2 is a clock</b> and <b>2&rarr;1 is an event</b>. Drawn the same way,
+the player will sit waiting for a bar that never fills.</p>
+
+<h2>Direction A — the strip<span>&nbsp;· compact, docked, always present</span></h2>
+<div class="grid">
+<div class="col"><div class="stage"><p class="cap">at DEFCON 3 — the clock is running</p>
+<div class="strip">
+  <div class="srow"><span class="slvl">DEFCON 3</span><span class="sname">Positioning</span>
+    <span class="sclk">2:41 to DEFCON 2</span></div>
+  <div class="rungs"><span class="rg fill"></span><span class="rg"></span><span class="rg"></span></div>
+  <div class="srule">The border is <em>closed</em>. Neither side may cross it.</div>
+</div></div></div>
+<div class="col"><div class="stage night"><p class="cap">at DEFCON 2 — no clock, a trigger instead</p>
+<div class="strip at2">
+  <div class="srow"><span class="slvl">DEFCON 2</span><span class="sname">Weapons free</span>
+    <span class="sclk">&mdash;</span></div>
+  <div class="rungs"><span class="rg spent"></span><span class="rg on"></span><span class="rg"></span></div>
+  <div class="srule">Your units <em>will not fire on their own</em>. Every shot is one you order.</div>
+  <div class="trigger"><span class="dot"></span>FIRST KILL ENDS THIS PHASE</div>
+</div></div></div>
+</div>
+<p class="note"><b>Why the clock field goes to an em dash at DEFCON 2</b> instead of disappearing: the
+player has just spent minutes watching a countdown in that exact spot, so the emptied slot is what tells
+them this rung does not work like the last one. The pulsing trigger line then says what does end it.</p>
+
+<h2>Direction B — the board<span>&nbsp;· all three rungs visible at once</span></h2>
+<div class="grid">
+<div class="col"><div class="stage"><p class="cap">the whole ladder, current rung lit</p>
+<div class="board">
+  <div class="plate cur c3"><span class="pn">3</span><span class="pt">Positioning</span></div>
+  <div class="pbar"><i></i></div>
+  <div class="plate c2"><span class="pn">2</span><span class="pt">Weapons free</span></div>
+  <div class="plate c1"><span class="pn">1</span><span class="pt">Open war</span></div>
+  <div class="bfoot">The border is closed. Neither side may cross.</div>
+</div></div></div>
+<div class="col"><div class="stage night"><p class="cap">one rung down</p>
+<div class="board">
+  <div class="plate c3"><span class="pn">3</span><span class="pt">Positioning</span></div>
+  <div class="plate cur c2"><span class="pn">2</span><span class="pt">Weapons free</span></div>
+  <div class="plate c1"><span class="pn">1</span><span class="pt">Open war</span></div>
+  <div class="bfoot">Nothing fires by itself. The first kill starts the war.</div>
+</div></div></div>
+</div>
+<p class="note">Shows where you are <i>going</i>, not only where you are — a first-time player can read
+the whole shape of the match in one glance. Costs more screen, and repeats information that stays
+constant for most of a match.</p>
+
+<h2>Direction C — ambient<span>&nbsp;· the screen itself carries the level</span></h2>
+<div class="stage" style="padding:0;border:none">
+<div class="amb"><span class="ambtag">DEFCON 2</span></div></div>
+<p class="note">A thin edge-glow in the level's colour and nothing else persistent. Least disruptive by
+a distance, and it reads at any zoom — but it can carry the level and <i>not</i> the rule, so it only
+works if the transitions do all the teaching. Probably a companion to A rather than a rival to it.</p>
+
+<h2>The transition — the moment that actually teaches the system</h2>
+<div class="ban"><div class="banin">
+  <div class="b1">DEFCON 1</div>
+  <div class="b2">A life has been taken. Autonomous fire is released.</div>
+  <div class="b3">held 4 s &middot; then the readout returns</div>
+</div></div>
+<p class="note">Whatever direction wins, this is where the player finds out what happened and why.
+Naming the <i>cause</i> in the second line — a life taken, the clock run out — is what turns a state
+change into a rule the player can infer without ever being told it.</p>
+
+<h2>The nuclear rung — a second, separate readout</h2>
+<div class="stage"><p class="cap">shared between both players; appears only when nuclear release is on</p>
+<div class="nuke">
+  <div class="nrow"><span class="nlab">Nuclear release</span><span class="nnow">20 kt</span></div>
+  <div class="steps">
+    <span class="st rel">HOLD</span><span class="st rel">1kt</span><span class="st cur">20kt</span>
+    <span class="st">100kt</span><span class="st cap">200kt+</span>
+  </div>
+  <div class="nfoot">Both sides are released to the same yield. Each use raises it.</div>
+</div></div>
+<p class="note">Deliberately a different shape and colour from the DEFCON strip, because it is a
+different ladder that moves for different reasons. The red final step is the host's ceiling, drawn as a
+wall the ladder climbs toward — so its meaning is visible long before it is reached.</p>
+
+<h2>Wording — the part that has to survive a player who never reads a manual</h2>
+<table>
+<tr><th style="width:14%">Level</th><th style="width:22%">Name</th><th>Line the player reads</th></tr>
+<tr><td><b style="color:#8aa84a">DEFCON 3</b></td><td>Positioning</td>
+  <td>The border is <b>closed</b>. Neither side may cross it.</td></tr>
+<tr><td><b style="color:#c8823a">DEFCON 2</b></td><td>Weapons free</td>
+  <td>Your units <b>will not fire on their own</b>. Every shot is one you order.</td></tr>
+<tr><td><b style="color:#c0402a">DEFCON 1</b></td><td>Open war</td>
+  <td>Everything is released. Units engage on sight.</td></tr>
+</table>
+<p class="note"><b>These three lines do more work than the graphics do.</b> Each states a rule as what the
+player can and cannot do right now, never as the mechanic behind it — no stances, no autonomous
+targeting, no counters, no terrain. If the wording is wrong the readout fails however good it looks.</p>
+
+<div class="warn"><b>Drawn without a reference frame.</b> The lobby mockup you approved was drawn over a
+real screenshot of the shipped lobby, which is most of why it read as real. This one is against a
+stand-in background, so the sizes are honest but the placement is not yet — where it docks, what it
+overlaps and how it survives at low resolution all need a live frame before implementation. That capture
+is worth doing before any of this is built.</div>
+</body>
