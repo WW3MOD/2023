@@ -152,12 +152,42 @@ local function rebuildGrid()
 
 	targets = {}
 
-	-- Anything else the USA still owns on the impact ground -- husks from the previous pass, most
-	-- of it -- goes with them. The Supply Route at 18,18 is ninety cells away and is left alone.
+	-- Anything else the USA still owns on the impact ground -- husks and bailed-out crew from the
+	-- previous pass, mostly -- goes with them. The Supply Route at 18,18 is ninety cells away and is
+	-- left alone.
+	--
+	-- SystemActorTypes IS NOT DEFENSIVE PADDING -- IT IS THE LINE THIS DEMO CRASHED ON.
+	-- <player>.GetActors() DOES NOT MEAN "this player's units". Every Player builds a PlayerActor
+	-- and calls Initialize(true), and that `true` is addToWorld: Actor.cs:313 runs World.Add(this),
+	-- so the player actor is a genuine entry in world.Actors, owned by its own Player, not dead and
+	-- IsInWorld. PlayerProperties.GetActors() filters on exactly those three things
+	-- (PlayerProperties.cs:79), so USA.GetActors() HANDS BACK USA'S OWN PLAYER ACTOR alongside the
+	-- tanks -- type "player", which is why the deny-list below is keyed on Type and why the old
+	-- `a.Type ~= "supplyroute"` was not enough.
+	--
+	-- Destroying it is fatal and not locally: Destroy() queues RemoveSelf, which Disposes the
+	-- actor, which drops every trait USA owns out of the TraitDictionary. Nothing complains at the
+	-- time. The next engine read of USA.PlayerActor throws "Attempted to get trait from destroyed
+	-- object (player 2 (not in world))" and the process is gone. Here that read was
+	-- EnemyWatcher.cs:105, which reaches for the OWNER of each newly-seen enemy actor 30 ticks
+	-- later -- the sixteen T-90s this very function creates are that owner's actors, so the loop
+	-- kills the player and then manufactures the evidence that trips over the corpse. It is not
+	-- EnemyWatcher's fault and guarding it would fix nothing: Health.cs:226 dereferences
+	-- attacker.Owner.PlayerActor unguarded on the first damage event and would have been next.
+	-- (An unexplained crash carrying this exact message came through Health.cs on 2026-08-14 --
+	-- WORKSPACE/audit/logs-260816-snapshot/Logs/exception-2026-08-14T143631Z.log, the Javelin
+	-- reversal sweep. That rig calls neither GetActors nor Destroy, so it is NOT this bug; it is
+	-- only evidence that a destroyed player actor surfaces wherever the engine next looks.)
+	--
+	-- "world" is listed too. It cannot appear here (the world actor belongs to the world-owning
+	-- player, Neutral on this map, never USA), but it is the other actor World.Add holds that no
+	-- script ever means, and this loop is exactly the shape somebody copies against Neutral.
+	local SystemActorTypes = { player = true, world = true }
+
 	local leftovers = USA.GetActors()
 	for i = 1, #leftovers do
 		local a = leftovers[i]
-		if a.IsInWorld and a.Type ~= "supplyroute" then
+		if a.IsInWorld and a.Type ~= "supplyroute" and not SystemActorTypes[a.Type] then
 			a.Destroy()
 		end
 	end
