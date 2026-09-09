@@ -810,8 +810,9 @@ Player:
 		Description: High-yield strategic warhead delivered from off-map reserves.\nA single detonation devastates the entire battlefield.\nArrives over your own back line on a fixed heading.
 		# BOUGHT, NOT CHARGED, and this is the wholesale replacement the placeholder that stood here
 		# predicted: "the doomsday mechanic this weapon is being built for will almost certainly not
-		# charge it on a timer at all". Price 25000 on power.highyieldnuke in rules/powers.yaml --
-		# a new number, since the proposal's 15000 was written when there was one nuke. Same lobby
+		# charge it on a timer at all". Price 40000 on power.highyieldnuke (powers.yaml:621) -- this
+		# comment said 25000 until 2026-09-09, which was the price when it was written and has since
+		# moved twice; the header table at powers.yaml:61 is the one that stayed right. Same lobby
 		# note as @TacNuke: unticking the host option removes the shop entry, not just the cameo.
 		RequiresPurchase: True
 		Cursor: nuke

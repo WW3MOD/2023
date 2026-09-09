@@ -30,10 +30,21 @@
 #                                   where that is true. Parachute-retarded in reality, so Speed 400:
 #                                   the slowest thing in the mod, and you watch it come the whole way.
 #
-# ==== ONE GATE FOR ALL SIX ====
-# A single `nuclear-arsenal` lobby checkbox rather than six. Six checkboxes would mean six C# field
-# sets, six lobby rows and six conditions to describe an arsenal that is one feature. See the
-# polarity note on the gate below -- it is the same fail-safe shape the two shipped nukes use.
+# ==== ONE GATE FOR THIRTEEN POWERS, TWO OF WHICH ARE NOT NUCLEAR ====
+# A single `nuclear-arsenal` lobby checkbox rather than one per power. Thirteen checkboxes would
+# mean thirteen C# field sets, thirteen lobby rows and thirteen conditions to describe an arsenal
+# that is one feature. See the polarity note on the gate below -- the same fail-safe shape the two
+# shipped nukes use.
+#
+# COUNT CORRECTED 2026-09-09: this said SIX, and it was six when written. `!nuke-arsenal-disabled`
+# now gates THIRTEEN powers -- ten in this file, plus @B61Mid (player.yaml:612), @Kinzhal
+# (player.yaml:322) and @GBU57 (player.yaml:608).
+#
+# THE LAST TWO ARE THE ONES TO KNOW ABOUT: the Kinzhal and the GBU-57 are CONVENTIONAL weapons
+# riding the checkbox labelled "Nuclear Arsenal". Unticking it today removes two non-nuclear powers
+# along with the nukes. Whether that is intended has not been established -- but anything that
+# replaces this checkbox must decide about them deliberately rather than inherit the coupling by
+# reusing the condition name.
 # =====================================================================================================
 
 Player:
@@ -47,8 +58,8 @@ Player:
 	# present to register the option at all. So the registered default and the unregistered fallback
 	# are separate values, and written THIS way round:
 	#     option registered and on (the shipped default) -> the whole arsenal is available
-	#     option registered and off (host unticked it)   -> `nuke-arsenal-disabled` -> all six hidden
-	#     option NOT REGISTERED AT ALL                   -> falls back to false -> all six hidden
+	#     option registered and off (host unticked it)   -> `nuke-arsenal-disabled` -> all 13 hidden
+	#     option NOT REGISTERED AT ALL                   -> falls back to false -> all 13 hidden
 	# The third row is what the polarity buys: PowersLobbyOptions stripped from world.yaml, an old
 	# saved session, a map that removes the trait. Inverted (Condition: nuke-arsenal-allowed,
 	# GrantWhenOptionDisabled: false) that same absence would hand a build that never registered the

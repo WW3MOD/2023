@@ -345,22 +345,21 @@ power.w76:
 # BuildPaletteOrder 11/21/31/41/51 -- one above America's, so each price rung is an adjacent pair.
 # =============================================================================================
 #
-# FOUR OF THESE FIVE POWERS ARE AUTHORED ON A CONCURRENT BRANCH and do not exist in this tree. The
-# OrderNames below (`Ru9M729Strike`, `RuIskanderStrike`, `RuKinzhalNStrike`, `RuKalibrStrike`) are
-# the agreed seam between the two halves and are referenced here, not defined here.
+# THAT BRANCH HAS LANDED -- corrected 2026-09-09. This block used to say four of these five powers
+# were authored elsewhere and did not exist in this tree, that the proxies were inert until it
+# merged, and that `Prerequisites: powers.russia` still needed adding. All three are now false:
+# @Ru9M729, @RuIskander, @RuKinzhalN and @RuKalibr are defined at ingame/nuclear-arsenal.yaml:385,
+# :430, :473 and :518, and carry their tier at player.yaml:227-234.
 #
-# UNTIL THAT BRANCH MERGES THESE FOUR PROXIES ARE INERT, NOT BROKEN. SupportPowerProductionQueue
-# resolves a proxy through Manager.Powers[charge.Power] and filters out anything that misses
-# (SupportPowerProductionQueue.cs:80-103), so a proxy naming a power that does not exist yet simply
-# never appears in the tab. There is no crash, no lint error and no wasted money -- which is also
-# exactly why this needs a test rather than a reviewer: PowerPurchaseWiringTest names these four as
-# pending and will start REQUIRING them once they land.
+# The reasoning the note recorded is still worth keeping, because it is what made the seam safe to
+# leave open: SupportPowerProductionQueue resolves a proxy through Manager.Powers[charge.Power] and
+# filters out anything that misses (SupportPowerProductionQueue.cs:80-103), so a proxy naming a
+# power that does not exist yet never appears in the tab -- no crash, no lint error, no wasted
+# money, and therefore nothing a reviewer would catch. PowerPurchaseWiringTest is what closed it,
+# and EveryPurchasablePowerDeclaresATier still fails loudly if a power reaches the shop ungated.
 #
-# THE FOUR RUSSIAN POWERS ALSO NEED `Prerequisites: powers.russia` ADDING when they arrive. That
-# could not be written here: prerequisites go on the power trait, whose YAML key this branch does
-# not know (only the OrderName was agreed), and inventing a key would create a second, incomplete
-# MissileStrikePower and fail the mod load on a missing MissileActor. EveryPurchasablePowerDeclares-
-# ATier fails loudly if they arrive ungated.
+# THE LESSON, since it cost a reader on 2026-09-09: a comment describing work in flight has no
+# expiry and nothing fails when the work lands. This one outlived its own branch by weeks.
 
 power.kinzhal:
 	Inherits: ^PurchasableSupportPower
