@@ -371,17 +371,65 @@ Player:
 		# (Explodes: OreshnikRVExplosion). Pointing this at a cluster-firing actor instead would be
 		# thirty-six detonations, which is the trap AimPoints' own [Desc] documents.
 		AimPoints: 6
-		# 4 ticks between RVs = 24 ticks (1.4 s) across the salvo, against the Sarmat's 12/60. TIGHTER
+		# 2 ticks between RVs = 10 ticks (0.6 s) across the salvo, against the Sarmat's 12/60. TIGHTER
 		# ON PURPOSE: six 750 kt RVs are meant to land as a ripple, six conventional penetrators as a
 		# single event. The tracks are parallel (one azimuth per salvo, taken from the centroid), so
 		# this stagger separates them ALONG the approach and cannot make them fan out. Deterministic
-		# (index * 4), which is what lets it sit on the synced activation path.
-		AimPointInterval: 4
+		# (index * 2), which is what lets it sit on the synced activation path.
+		#
+		# WAS 4, AND IT HAD TO COME DOWN WITH ApproachDistance. THE STAGGER MUST NOT EXCEED THE VISIBLE
+		# FLIGHT. Each RV is now drawn for the 5 ticks of its descent instead of the 67 ticks of a
+		# full-standoff crossing, so a 4-tick stagger left at most two warheads in the air at once and
+		# turned the salvo into a sequence of separate impacts -- the opposite of the "single event"
+		# this weapon is meant to read as. At 2 ticks against a 5-tick descent, three are falling at
+		# any moment. The impact FOOTPRINT is unchanged; only how tightly the six arrivals bunch is.
+		AimPointInterval: 2
 		# OVERLAY ONLY -- drawn by the placement order generator, read by nothing in the simulation.
 		# 2c512 is the "a second RV here is wasted" radius: the shockwave reaches 2c0 and the lethal
 		# core is 512, so two aim points closer than this overlap for no gain. Deliberately NOT the
 		# weapon's outer extent -- it is the number that answers the placement question.
 		AimPointRadius: 2c512
+		# ---- MAXIMUM SPREAD: the salvo is a cluster, not six separate weapons ----------------
+		# THE USER'S RULING, verbatim: "I think the salvo should have a max spread, so they must all be
+		# placed within a certain radius, maybe 10 cells."
+		#
+		# WHY IT WAS ASKED FOR. Six independently-aimed warheads with no geometric bound are six
+		# unrelated strikes sharing one cooldown. This weapon's warhead is on the roster permitted to
+		# permanently destroy neutral tech buildings, so one 18000-credit activation could have removed
+		# six economy structures anywhere on the map -- six times the reach of anything else on that
+		# roster, and the only multi-aim-point entry on it. Bounding the GEOMETRY rather than the target
+		# list keeps the weapon on the roster and is also the physically right answer: one missile bus
+		# dispensing re-entry vehicles cannot scatter them across a continent.
+		#
+		# 10c0 IS A RADIUS FROM THE FIRST AIM POINT, so the worst-case footprint is 20 cells across --
+		# the literal reading of "all placed within a certain radius, maybe 10 cells". Checked against
+		# the weapon rather than taken on faith:
+		#   USABLE. AimPointRadius above is 2c512, the radius inside which a second RV buys nothing.
+		#   Six points on a hexagon inscribed in this circle sit 10 cells apart -- four times that
+		#   figure -- so the bound never forces a player to waste a warhead. Even 5c0 would fit; 10c0
+		#   leaves real tactical choice.
+		#   READS AS ONE EVENT. CameraRange is 8c0 per RV, so six reveals inside a 20-cell disc overlap
+		#   heavily, and AimPointInterval 4 lands the whole salvo inside 1.4 s. Twenty cells arriving in
+		#   under two seconds is a cluster; it is not six things happening.
+		#   SCALED TO THE MAPS. Shipped maps run 66x34 to 130x130 (mods/ww3mod/maps). A 20-cell
+		#   footprint is a fifth of the widest and cannot span any of them.
+		#   DISTINCT FROM THE SARMAT, which is deliberately left UNBOUNDED (no MaxAimPointSpread in
+		#   nuclear-arsenal.yaml, so the field defaults to zero and nothing about it changes). Its
+		#   AimPointRadius alone is 30c0: a strategic MIRV is meant to span a map, a conventional
+		#   penetrator salvo is not. The two weapons now differ in reach as well as in yield.
+		#
+		# ANCHORED ON THE FIRST CLICK -- see MaxAimPointSpread's own [Desc] for why that beats a running
+		# centroid or a bounding circle. Briefly: it is the only anchor that can be drawn before the next
+		# click, and the only one that never revokes a cell the player was already allowed to use.
+		MaxAimPointSpread: 10c0
+		# THE REFUSAL, and it is deliberately not silent. A click outside the footprint would otherwise
+		# do nothing and say nothing, which players read as a broken game rather than as a rule. Same
+		# pair PlaceBuilding uses at :121-123 of this file, and the same sound: nodeply1 already means
+		# "you cannot put it there" in this mod, so this costs no new asset and teaches nothing new.
+		# The blocked cursor and the drawn footprint circle come first; this is the layer for a player
+		# who clicked anyway.
+		AimPointRejectedSpeechNotification: BuildingCannotPlaceAudio
+		AimPointRejectedTextNotification: Aim point too far from the first: the salvo must land within 10 cells.
 		# Only read for a SINGLE-target order -- a bot, a Lua binding, or an old replay, none of which
 		# knows about placement mode. First RV on the chosen point, five more on a ring of this radius.
 		# 5c0 rather than the Sarmat's 24c0 because this is a precision weapon: a bot firing it should
@@ -394,11 +442,40 @@ Player:
 		# warhead's AirThreshold stops seeing terrain target types and does nothing to the ground) is
 		# simply not reachable here. A conventional penetrator is meant to hit the thing it is aimed at.
 		DetonationAltitude: 0
-		# 24c0 = 24 cells above the terrain at the OFF-MAP spawn, interpolated linearly down across the
-		# whole standoff. This is the "high trajectory" half of the ask; the STEEP half is LaunchAngle
-		# 160 on OreshnikRV, which is what sets the terminal slope and is independent of shot length.
-		# See the derivation on OreshnikRV in rules/ingame/vehicles-russia.yaml.
+		# 24c0 = 24 cells above the terrain at the spawn. UNCHANGED IN VALUE, but no longer measured at
+		# an off-map birth point: with ApproachDistance below it is 24 cells of altitude over 16 cells
+		# of ground, and that ratio IS the descent now. See ApproachDistance for why the pair is chosen
+		# to reproduce the old terminal slope exactly rather than to be steeper.
 		SpawnAltitude: 24c0
+		# ---- THE VISIBLE FLIGHT IS THE REENTRY AND NOTHING ELSE --------------------------------
+		# THE USER, having watched it: "just like the other weapons we dont need to see the launch, we
+		# only see the incoming warheads as they are already in their decent phase."
+		#
+		# WHAT THEY SAW AND WHY. Without this the warhead is born at the full standoff -- the map
+		# diagonal plus ApproachMargin, 197 cells on a 128x128 map -- and flies all of it. Screen
+		# position is (X, Y - Z), so altitude drags the sprite DOWN the frame as it descends while the
+		# ground track carries it across: the result is a long shallow diagonal over open ground, with
+		# early warheads landing while later ones are still crossing. It reads as missiles flying in,
+		# not as warheads falling out of the sky. LaunchAngle 160 made it worse rather than better --
+		# the arc apex is hDist * tan / 4, so over 197 cells it peaked about 75 cells up.
+		#
+		# 16c0 puts the birth point 16 cells from the aim point at 24c0 of altitude: a slope of 1.5,
+		# which is 56.3 degrees. THAT NUMBER IS NOT A NEW CHOICE -- it is the slope the RV already had
+		# at impact (LaunchAngle 160 is 56.25 degrees), so the terminal profile the user said "reads
+		# well" is reproduced rather than replaced. The 3D step per tick stays 3600 x 1.803 = 6490
+		# against the 6491 that OreshnikRV's own SubTickMotionSmoothing and WithHypersonicPlasma
+		# ceilings were sized for, so the plasma budget is untouched and OreshnikPlasmaBudgetTest still
+		# describes the shipped case. What changes is that the slope is now constant for the WHOLE
+		# drawn flight instead of only at the end.
+		#
+		# BALANCE IS UNTOUCHED. MissileStrikePower adds the ticks the shorter flight no longer spends
+		# in the air back onto MissileDelay, so order-to-impact is identical on every map. This buys
+		# the viewer nothing and costs the target nothing; it only moves where the warhead is drawn.
+		#
+		# THE APPROACH BEARING IS UNCHANGED. Only the distance shrinks -- the direction still comes
+		# from MissileStrikeApproach, so a strike still arrives over the firing player's own back line
+		# wherever it is aimed, which is the invariant the 2026-09-08 sweep pins.
+		ApproachDistance: 16c0
 		# 120 ticks x 0.06 s = 7.2 s between the click and the RVs appearing off-map. SHORTER than the
 		# Kinzhal's 150, and the reason is the same one that sets the Kinzhal's: the delay is reaction
 		# time handed to the target. SupportPower.PlayLaunchSounds fires IncomingSpeechNotification to

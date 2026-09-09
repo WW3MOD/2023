@@ -22,12 +22,23 @@
  * ^ShootableMissile default of 6144 was not enough for it despite 3600 being well below 6144.
  *
  * WHERE THE SLOPE COMES FROM, and it is worth stating because it is what makes this checkable at
- * all without a World. The arc is parabolic with peak = hDist * tan(LaunchAngle) / 4 and height
- * 4 * peak * p * (1 - p), so d(height)/d(horizontal) is tan(LaunchAngle) * (1 - 2p): +tan at
- * launch, -tan at impact, INDEPENDENT OF hDist. SpawnAltitude adds a further constant
- * SpawnAltitude / standoff, because baseZ is interpolated linearly from spawn to target
- * (BallisticMissileFly.cs:402). The worst case is therefore the SHORTEST standoff in the mod, which
- * is the smallest map -- arena-tank-duel at 66x34.
+ * all without a World. Two terms, and as of 2026-09-09 the Oreshnik uses only the second.
+ *
+ * THE ARC. Parabolic with peak = hDist * tan(LaunchAngle) / 4 and height 4 * peak * p * (1 - p), so
+ * d(height)/d(horizontal) is tan(LaunchAngle) * (1 - 2p): +tan at launch, -tan at impact,
+ * INDEPENDENT OF hDist. OreshnikRV now sets LaunchAngle 0, so this term is zero for it.
+ *
+ * THE BASE. SpawnAltitude interpolated linearly from spawn to target (BallisticMissileFly.cs:402),
+ * a constant SpawnAltitude divided by the horizontal distance actually flown.
+ *
+ * WHAT THAT DISTANCE IS, AND THIS IS THE PART THAT CHANGED. It used to be the full standoff -- the
+ * map diagonal plus ApproachMargin -- which made the worst case the SHORTEST standoff in the mod
+ * and therefore the smallest shipped map, arena-tank-duel at 66x34. MissileStrikePower@Oreshnik now
+ * sets ApproachDistance, which replaces the standoff for the spawn position, so the horizontal
+ * distance flown is that fixed number on every map. The worst case is no longer map-dependent at
+ * all: the slope is SpawnAltitude / ApproachDistance = 24576 / 16384 = 1.50 everywhere, which is
+ * deliberately the same 1.50 the old arc produced at impact. The smallest-map constants below are
+ * kept because they still describe any missile that does NOT set ApproachDistance.
  *
  * SCOPE. Arithmetic over the shipped YAML: no World, no mod load, no launch slot. It proves the
  * ceilings clear the speed and that the Oreshnik really is the fastest thing in the mod. It does
@@ -54,6 +65,15 @@ namespace OpenRA.Test
 
 		/// <summary><see cref="OpenRA.Mods.Common.Traits.MissileStrikePowerInfo"/>'s ApproachMargin default.</summary>
 		const int ApproachMargin = 16 * 1024;
+
+		/// <summary>
+		/// MissileStrikePower@Oreshnik's SpawnAltitude and ApproachDistance. Pinned against the
+		/// shipped YAML by <see cref="ThePowerGeometryThisTestAssumesIsWhatThePowerShips"/>, so
+		/// changing either in rules without updating this fails loudly rather than silently
+		/// invalidating every margin below.
+		/// </summary>
+		const int OreshnikSpawnAltitude = 24 * 1024;
+		const int OreshnikApproachDistance = 16 * 1024;
 
 		static string FindMod(params string[] relative)
 		{
@@ -191,22 +211,30 @@ namespace OpenRA.Test
 		}
 
 		/// <summary>
-		/// Worst-case distance the actor moves in one tick, over every shipped map.
+		/// Worst-case distance the actor moves in one tick.
 		/// </summary>
 		/// <remarks>
 		/// Horizontal component is the top speed; vertical is that times the steepest slope the
-		/// flight reaches, which is the arc's own tan(LaunchAngle) plus the constant baseZ slope
-		/// SpawnAltitude/standoff. Computed in double here purely because this is a test asserting a
-		/// margin -- nothing on the simulation path does floating-point with these numbers.
+		/// flight reaches, which is the arc's own tan(LaunchAngle) plus the baseZ slope
+		/// SpawnAltitude divided by the horizontal distance actually flown. Computed in double here
+		/// purely because this is a test asserting a margin -- nothing on the simulation path does
+		/// floating-point with these numbers.
 		/// </remarks>
-		static double WorstStep(MissileProfile p, int spawnAltitude)
+		/// <param name="horizontalFlown">
+		/// The power's ApproachDistance when it sets one, else the standoff -- and when it is the
+		/// standoff, the SHORTEST in the mod, because a shorter standoff makes the baseZ term
+		/// steeper.
+		/// </param>
+		static double WorstStep(MissileProfile p, int spawnAltitude, double horizontalFlown)
 		{
-			var diagonal = Math.Sqrt(
-				Math.Pow(1024.0 * SmallestMapCellsX, 2) + Math.Pow(1024.0 * SmallestMapCellsY, 2));
-			var standoff = diagonal + ApproachMargin;
-
-			var slope = (TanScaled(p.LaunchAngle) / 1024.0) + (spawnAltitude / standoff);
+			var slope = (TanScaled(p.LaunchAngle) / 1024.0) + (spawnAltitude / horizontalFlown);
 			return p.TopHorizontalSpeed * Math.Sqrt(1 + (slope * slope));
+		}
+
+		/// <summary>The Oreshnik's worst tick, which is now the same number on every map.</summary>
+		static double OreshnikWorstStep()
+		{
+			return WorstStep(Oreshnik(), OreshnikSpawnAltitude, OreshnikApproachDistance);
 		}
 
 		[Test]
@@ -251,11 +279,11 @@ namespace OpenRA.Test
 		{
 			var p = Oreshnik();
 
-			// SpawnAltitude lives on the POWER, not the actor. Read from the constant here rather
-			// than parsed, and pinned by TheSpawnAltitudeThisTestAssumesIsWhatThePowerShips below, so
-			// that changing one without the other fails loudly instead of invalidating this margin.
-			const int SpawnAltitude = 24 * 1024;
-			var worst = WorstStep(p, SpawnAltitude);
+			// SpawnAltitude and ApproachDistance both live on the POWER, not the actor. Read from
+			// the constants here rather than parsed, and pinned by
+			// ThePowerGeometryThisTestAssumesIsWhatThePowerShips below, so that changing one without
+			// the other fails loudly instead of invalidating this margin.
+			var worst = OreshnikWorstStep();
 
 			Assert.That(p.SmoothingMaxStep, Is.GreaterThan(0),
 				"OreshnikRV does not override SubTickMotionSmoothing.MaxStep, so it inherits the " +
@@ -284,16 +312,19 @@ namespace OpenRA.Test
 			// The reason the two overrides above exist, asserted rather than left to a comment: if
 			// this ever stops being true the overrides are dead weight and should go, and if the
 			// margin above ever gets tuned down toward 6144 this is what says why it cannot.
-			var worst = WorstStep(Oreshnik(), 24 * 1024);
+			var worst = OreshnikWorstStep();
 
 			Assert.That(worst, Is.GreaterThan(6144),
 				"the Oreshnik no longer exceeds the shipped 6144 default, so the MaxStep overrides " +
-				"on OreshnikRV are no longer load-bearing. Either the speed or the launch angle has " +
-				"been reduced; check that the weapon is still meant to be the fastest in the mod.");
+				"on OreshnikRV are no longer load-bearing. Either the speed has been reduced or the " +
+				"descent has been flattened -- since 2026-09-09 the slope is SpawnAltitude over " +
+				"ApproachDistance rather than tan(LaunchAngle), so widening ApproachDistance is the " +
+				"new way to trip this. Check that the weapon is still meant to be the fastest in " +
+				"the mod and still meant to arrive steeply.");
 		}
 
 		[Test]
-		public void TheSpawnAltitudeThisTestAssumesIsWhatThePowerShips()
+		public void ThePowerGeometryThisTestAssumesIsWhatThePowerShips()
 		{
 			var player = MiniYaml.FromFile(FindMod("rules", "player.yaml"));
 
@@ -317,10 +348,22 @@ namespace OpenRA.Test
 
 			var altitude = power.Value.Nodes.FirstOrDefault(n => n.Key == "SpawnAltitude")?.Value.Value?.Trim();
 			Assert.That(altitude, Is.Not.Null, "MissileStrikePower@Oreshnik has no SpawnAltitude");
-			Assert.That(ParseWDist(altitude), Is.EqualTo(24 * 1024),
-				"SpawnAltitude has moved. It feeds the baseZ slope, which feeds the worst-case tick " +
-				"BothMaxStepCeilingsClearTheWorstTickTheOreshnikCanFly is sized against -- update the " +
-				"constant there in the same edit.");
+			Assert.That(ParseWDist(altitude), Is.EqualTo(OreshnikSpawnAltitude),
+				"SpawnAltitude has moved. It is the RISE of the descent slope, which feeds the " +
+				"worst-case tick BothMaxStepCeilingsClearTheWorstTickTheOreshnikCanFly is sized " +
+				"against -- update the constant there in the same edit.");
+
+			// THE RUN of the same slope, and the reason this fixture is no longer map-dependent.
+			var approach = power.Value.Nodes.FirstOrDefault(n => n.Key == "ApproachDistance")?.Value.Value?.Trim();
+			Assert.That(approach, Is.Not.Null,
+				"MissileStrikePower@Oreshnik has no ApproachDistance. Without it the RV is born at " +
+				"the full standoff again and its slope becomes the map-dependent expression this " +
+				"fixture carried before 2026-09-09 -- and, with LaunchAngle now 0 on OreshnikRV, " +
+				"that slope is a shallow 0.25 and the descent the weapon is specified around is gone.");
+			Assert.That(ParseWDist(approach), Is.EqualTo(OreshnikApproachDistance),
+				"ApproachDistance has moved. It is the RUN of the descent slope: widening it " +
+				"flattens the arrival and narrowing it steepens the worst tick toward the MaxStep " +
+				"ceilings -- update the constant here in the same edit and re-check both margins.");
 
 			// The missile named by the power has to be the one this whole fixture measures, or every
 			// number above is about an actor that never flies.
@@ -342,7 +385,7 @@ namespace OpenRA.Test
 			// range where the sheath would shorten gracefully. That is true at any speed; going
 			// faster does not cost more TICKS of bloom, it makes the one lost tick span more ground.
 			var p = Oreshnik();
-			var step = new WDist((int)WorstStep(p, 24 * 1024));
+			var step = new WDist((int)OreshnikWorstStep());
 			var spacing = new WDist(160);
 			const int Samples = 8;
 

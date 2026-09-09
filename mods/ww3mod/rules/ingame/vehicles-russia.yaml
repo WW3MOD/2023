@@ -1426,7 +1426,7 @@ KinzhalMissile:
 #
 #                        horizontal    launch angle   terminal slope   3D step/tick   cells/s (3D)
 #   KinzhalMissile          2400        30 (10.5 deg)      0.19            2441           39.8
-#   OreshnikRV              3600       160 (56.2 deg)      1.50            6491          105.7
+#   OreshnikRV              3600        0 (geometry)       1.50            6490          105.7
 #                                                                       ---------
 #                                                                        2.66x faster
 #
@@ -1436,17 +1436,27 @@ KinzhalMissile:
 # close. At Timestep 60 -- 16.667 ticks/s, NOT 25 -- 3600 wdist/tick is 58.6 cells/s of ground track
 # and 105.7 cells/s along the flight path.
 #
-# LaunchAngle IS THE STEEPNESS LEVER, not SpawnAltitude, and the difference matters. The arc is
-# parabolic with peak = hDist * tan(LaunchAngle) / 4, so d(height)/d(horizontal) at the impact end is
-# exactly -tan(LaunchAngle) NO MATTER HOW LONG THE SHOT IS. 160 raw WAngle units is 56.25 deg and a
-# terminal slope of 1.50, against the Kinzhal's 0.19. SpawnAltitude by contrast interpolates linearly
-# across the whole standoff (BallisticMissileFly.cs:402), so it sets a constant shallow slope and
-# cannot make a descent steep on its own. Both are used here; only the first one is the shape.
+# THE STEEPNESS LEVER IS THE GEOMETRY, AND IT USED TO BE LaunchAngle. CHANGED 2026-09-09; the old
+# text is kept below because the arithmetic in it is still true and still the reason the swap works.
 #
-# WHAT THAT LOOKS LIKE. On shellmap-open-field (92x62) the standoff is mapDiagonal + ApproachMargin
-# = 113600 + 16384 = 129984 wdist, so the arc peaks 47.5 cells above the ground track -- the RV is
-# genuinely coming down out of the sky rather than flying in sideways, and it drops into frame from
-# the top of the viewport rather than entering from the edge.
+# WAS: the arc is parabolic with peak = hDist * tan(LaunchAngle) / 4, so d(height)/d(horizontal) at
+# the impact end is exactly -tan(LaunchAngle) NO MATTER HOW LONG THE SHOT IS. 160 raw WAngle units is
+# 56.25 deg and a terminal slope of 1.50, against the Kinzhal's 0.19.
+#
+# WHY THAT STOPPED BEING RIGHT. It gave the correct slope only AT THE IMPACT END. Over the full
+# standoff the RV spent the rest of its flight much shallower and much higher -- on a 128x128 map the
+# apex was about 75 cells -- and since screen position is (X, Y - Z), that altitude dragged the
+# sprite across the frame on a long shallow diagonal well before the RV was near its target. The
+# user's verdict on watching it: "we only see the incoming warheads as they are already in their
+# decent phase". A terminal slope is not a trajectory.
+#
+# NOW: MissileStrikePower@Oreshnik sets ApproachDistance 16c0, so the RV is born 16 cells from its
+# aim point at SpawnAltitude 24c0 and the slope is 24576/16384 = 1.50 -- THE SAME 1.50, now held for
+# the whole drawn flight instead of only at the end. LaunchAngle is 0 so the arc term vanishes
+# entirely and the descent is dead straight. This is DoomsdayStrike.Launch's construction, and its
+# argument applies here too: an arc scales its apex with shot length and therefore differs between a
+# small map and a large one, while SpawnAltitude over ApproachDistance is a constant slope on every
+# map with no per-map tuning at all.
 #
 # ------------------------------------------------------------------------------------------------
 # MaxStep 12c0 ON BOTH RENDER TRAITS. THIS IS NOT COSMETIC TUNING -- WITHOUT IT THE EFFECT IS OFF.
@@ -1457,17 +1467,22 @@ KinzhalMissile:
 # shipped default is 6144, chosen as "three times the fastest shipped missile" when that was the
 # Kinzhal's 2400.
 #
-# THE TERMINAL STEP HERE IS 6491. That is 347 wdist OVER the default, so at the default this actor
+# THE TERMINAL STEP HERE IS 6490. That is 346 wdist OVER the default, so at the default this actor
 # would fly its entire dive with no plasma, no smoothing and no error message anywhere -- the exact
 # silent failure defaults.yaml warns about on ^ShootableMissile, arriving for the first time. It is
 # raised HERE rather than on the template so that the other fourteen missiles keep the ceiling they
 # were sized for. Pinned by OreshnikPlasmaBudgetTest.
 #
-# 12288 IS THE WORST CASE PLUS 68%, NOT THE TERMINAL STEP PLUS A MARGIN. The steepest tick is not the
-# last one: SpawnAltitude adds a baseZ slope of SpawnAltitude/standoff on top of the arc, which is
-# largest on the SHORTEST standoff in the mod (arena-tank-duel, 66x34, standoff 92408). There the
-# total slope reaches 1.50 + 24576/92408 = 1.77 and the step reaches 7307. 12288 clears that and
-# leaves room for a map smaller than any that ships.
+# 12288 NOW CLEARS THE WORST CASE BY 89%, AND THE WORST CASE GOT SIMPLER. It used to be map-dependent:
+# SpawnAltitude added a baseZ slope of SpawnAltitude/standoff on top of the arc, largest on the
+# SHORTEST standoff in the mod (arena-tank-duel, 66x34, standoff 92408), where the total slope
+# reached 1.50 + 24576/92408 = 1.77 and the step 7307.
+#
+# With ApproachDistance the standoff no longer enters into it. The slope is 24576/16384 = 1.50 on
+# every map and at every point of the flight, so the step is 3600 x sqrt(1 + 1.50^2) = 6490 full
+# stop -- BELOW the 6491 this ceiling was originally sized against, and 12288 is now a very large
+# margin rather than a calculated one. It is left at 12288 rather than trimmed: nothing is gained by
+# tightening it, and the headroom is what absorbs the next change to this actor's geometry.
 OreshnikRV:
 	Inherits: ^ShootableMissile
 	Valued:
@@ -1498,9 +1513,21 @@ OreshnikRV:
 		TargetTypes: ICBM
 		RequiresCondition: airborne
 	BallisticMissile:
-		# 56.25 deg. See the steepness note above -- this, and only this, is what makes the descent
-		# steep independently of how long the shot is.
-		LaunchAngle: 160
+		# ZERO, AND THE ARC TERM VANISHES WITH IT. Was 160 (56.25 deg), which was the only thing
+		# making the descent steep while the RV still flew the whole map diagonal.
+		#
+		# It is not needed any more and it was actively harmful. MissileStrikePower@Oreshnik now sets
+		# ApproachDistance 16c0, so the RV is born 16 cells out at 24c0 of altitude and the SLOPE IS
+		# THE GEOMETRY: 24 over 16 is 1.5, or 56.3 degrees, which is the same terminal angle 160 used
+		# to produce. Leaving 160 on top of that would have added an arc apex of hDist * tan / 4 =
+		# 6 cells to a 16-cell shot -- a re-entry vehicle visibly lofting before it fell.
+		#
+		# This is the construction DoomsdayStrike.Launch documents and for the reason it gives: a
+		# LaunchAngle arc scales its apex with shot length, so the same setting draws a different
+		# trajectory on a small map than on a large one, while SpawnAltitude over ApproachDistance is
+		# a constant slope everywhere. With the arc gone the descent is dead straight at 56.3 degrees
+		# for its whole drawn length instead of only at the end.
+		LaunchAngle: 0
 		Speed: 3000
 		Acceleration: 0
 		InitialSpeedPercent: 100

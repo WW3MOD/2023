@@ -86,6 +86,45 @@ namespace OpenRA.Mods.Common.Traits
 			"for a power with AimPoints 1, where this field is never read at all.")]
 		public readonly WDist AimPointFallbackSpread = WDist.Zero;
 
+		[Desc("MAXIMUM SPREAD of a multi-aim-point salvo: every aim point after the first must lie",
+			"within this distance of the FIRST one. Zero (the default) is unbounded, which is what",
+			"every instance did before this field existed.",
+			"",
+			"WHY IT EXISTS. Six independently-aimed warheads with no geometric bound are six",
+			"unrelated strikes that happen to share a cooldown -- one activation reaching six",
+			"corners of the map. One missile bus dispensing re-entry vehicles cannot do that, and",
+			"neither should this: the bound is what makes a salvo read as a CLUSTER arriving rather",
+			"than as six separate weapons.",
+			"",
+			"THE ANCHOR IS THE FIRST CLICK, not a running centroid and not a bounding circle. It is",
+			"the only anchor that can be DRAWN before the next click is made -- the placement",
+			"overlay puts one circle at aim point 1 and never moves it -- and it is the only one",
+			"that cannot REVOKE a cell: under a running centroid a cell that was legal a moment ago",
+			"becomes illegal when the centroid drifts, which is the same silent refusal this feature",
+			"exists to remove. The cost is that the anchor cannot be re-centred once placed;",
+			"right-click abandons the placement and costs nothing, which is the way out.",
+			"",
+			"ENFORCED TWICE ON PURPOSE. The order generator refuses the click (blocked cursor, then",
+			"a notification if the player clicks anyway) and " + nameof(MissileStrikePower) + " CLAMPS",
+			"the decoded order. The generator is client-local, so the clamp is what actually bounds",
+			"the weapon; the generator is what makes the bound visible. Both ask",
+			"MultiAimPointOrder.IsWithinSpread, so they cannot disagree.",
+			"",
+			"Also caps " + nameof(AimPointFallbackSpread) + ", so a bot or Lua order obeys the same",
+			"bound a player does.")]
+		public readonly WDist MaxAimPointSpread = WDist.Zero;
+
+		[NotificationReference("Speech")]
+		[Desc("Speech notification played when the player clicks an aim point outside",
+			nameof(MaxAimPointSpread) + ". Null (the default) plays nothing.",
+			"Follows PlaceBuildingOrderGenerator's refusal idiom: audio plus a transient text line,",
+			"on top of the blocked cursor the player already sees while hovering.")]
+		public readonly string AimPointRejectedSpeechNotification = null;
+
+		[FluentReference(optional: true)]
+		[Desc("Transient chat line shown alongside " + nameof(AimPointRejectedSpeechNotification) + ".")]
+		public readonly string AimPointRejectedTextNotification = null;
+
 		[Desc("Extra horizontal distance BEYOND the map's own diagonal at which the salvo is spawned.",
 			"",
 			"The standoff itself is NOT this number: it is the map diagonal plus this. The diagonal is",
@@ -99,6 +138,37 @@ namespace OpenRA.Mods.Common.Traits
 			"now takes exactly as long to arrive as one on the far corner. Raising this lengthens every",
 			"strike in the mod and flattens every approach; it is not a cosmetic knob.")]
 		public readonly WDist ApproachMargin = new(16 * 1024);
+
+		[Desc("Horizontal distance from the aim point at which the warhead is BORN, replacing the",
+			"full standoff for the SPAWN POSITION ONLY. Zero (the default) spawns at the full",
+			"standoff, which is what every instance did before this field existed.",
+			"",
+			"WHAT IT IS FOR, in the user's words: \"we dont need to see the launch, we only see the",
+			"incoming warheads as they are already in their decent phase\". At the full standoff a",
+			"warhead is in the air for the whole map diagonal, and because screen position is",
+			"(X, Y - Z) its altitude drags it across the frame on a long shallow diagonal well",
+			"before it is anywhere near its target. Setting this drops it in high and CLOSE instead,",
+			"so the only part of the flight that is ever drawn is the reentry.",
+			"",
+			"STEEPNESS COMES FROM THE GEOMETRY, NOT FROM LaunchAngle -- the same construction",
+			"DoomsdayStrike.Launch documents. " + nameof(SpawnAltitude) + " over this distance is a",
+			"constant slope on every map, where a LaunchAngle arc scales its apex with shot length",
+			"and therefore differs between a small map and a large one. A missile actor used this",
+			"way wants LaunchAngle 0, which makes the arc term vanish and leaves a dead-straight",
+			"descent at that slope.",
+			"",
+			"THE DIRECTION IS UNCHANGED AND THAT IS NOT NEGOTIABLE. Only the DISTANCE shrinks: the",
+			"bearing still comes from " + nameof(MissileStrikeApproach) + ", so a salvo still",
+			"arrives over the firing player's own back line however it is aimed. The player sees",
+			"much less of the journey and none of the direction changes.",
+			"",
+			"FLIGHT TIME IS PRESERVED, so this is a purely visual setting. The ticks saved by the",
+			"shorter flight are added to " + nameof(MissileDelay) + ", which means the interval from",
+			"the order to the impact -- the warning time handed to the target, and the number the",
+			"weapon is balanced on -- is identical to what it was with no ApproachDistance set. That",
+			"matters on every map, because the full standoff is the map diagonal and therefore",
+			"already varies with map size.")]
+		public readonly WDist ApproachDistance = WDist.Zero;
 
 		[Desc("Altitude above the aim point at which the missile detonates. Zero (the default) is a",
 			"ground burst, which is what every instance did before this field existed.",
@@ -154,7 +224,8 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
-			self.World.OrderGenerator = new SelectMultiPowerTarget(order, manager, info, info.AimPoints, info.AimPointRadius);
+			self.World.OrderGenerator = new SelectMultiPowerTarget(order, manager, info, info.AimPoints, info.AimPointRadius,
+				info.MaxAimPointSpread, info.AimPointRejectedSpeechNotification, info.AimPointRejectedTextNotification);
 		}
 
 		public override void Activate(Actor self, Order order, SupportPowerManager manager)
@@ -219,8 +290,30 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				var used = Math.Min(placed.Length, count);
 				var points = new WPos[used];
+
+				// THE AUTHORITATIVE SPREAD BOUND. The order generator refuses an out-of-range click,
+				// but it is client-local -- this is the only place a hostile or ancient order is
+				// actually bounded. Clamping happens in CELL space, against the cell centre of aim
+				// point 0, which is byte-for-byte the comparison the generator made when it allowed
+				// the click: a legitimate order is therefore a no-op here, not a near-no-op.
+				//
+				// It is done BEFORE ResolveCell so the SnapToActorCenter offset -- which can pull a
+				// resolved point off its cell centre by half a building -- is applied to the clamped
+				// cell rather than being clamped itself. Snapping to the centre of the thing you
+				// aimed at must not be undone by the bound.
+				var anchor = world.Map.CenterOfCell(world.Map.Clamp(placed[0]));
 				for (var i = 0; i < used; i++)
-					points[i] = ResolveCell(world, world.Map.Clamp(placed[i]));
+				{
+					var cell = world.Map.Clamp(placed[i]);
+					if (i > 0 && info.MaxAimPointSpread.Length > 0)
+					{
+						var bounded = MultiAimPointOrder.ClampToSpread(
+							anchor, world.Map.CenterOfCell(cell), info.MaxAimPointSpread);
+						cell = world.Map.Clamp(world.Map.CellContaining(bounded));
+					}
+
+					points[i] = ResolveCell(world, cell);
+				}
 
 				return points;
 			}
@@ -229,7 +322,14 @@ namespace OpenRA.Mods.Common.Traits
 			// before this feature existed. order.Target has already been snapped to an actor centre
 			// by SupportPowerInstance.Activate, so it is used as-is for the first warhead.
 			var center = order.Target.CenterPosition;
-			var offsets = MultiAimPointOrder.FallbackRingOffsets(count, info.AimPointFallbackSpread);
+			// The bot/Lua ring obeys the same bound the player does. Inert wherever the fallback
+			// ring already fits inside the footprint (the shipped Oreshnik: 5c0 ring, 10c0 bound)
+			// and wherever no bound is set at all (the shipped Sarmat).
+			var fallbackSpread = info.MaxAimPointSpread.Length > 0
+				? new WDist(Math.Min(info.AimPointFallbackSpread.Length, info.MaxAimPointSpread.Length))
+				: info.AimPointFallbackSpread;
+
+			var offsets = MultiAimPointOrder.FallbackRingOffsets(count, fallbackSpread);
 			var fallback = new WPos[offsets.Length];
 
 			// Index 0 is a zero offset by construction, so the sender's own point is used verbatim
@@ -355,6 +455,37 @@ namespace OpenRA.Mods.Common.Traits
 
 			var world = self.World;
 
+			// THE VISIBLE APPROACH. Same bearing, shorter walk-back -- built by handing
+			// approach.Facing straight to the struct's own constructor, so there is no second copy
+			// of the direction to keep in step and no way for this to change it. The struct
+			// re-clamps to MinStandoff, which is what stops a small ApproachDistance teleporting the
+			// warhead onto its aim point.
+			//
+			// MissileStrikeApproach.For and the map-wide sweep that pins "every salvo is born behind
+			// its own launcher" are untouched: they describe the geometry this reads its bearing
+			// FROM, and the bearing is what that invariant is about.
+			var visualApproach = info.ApproachDistance.Length > 0
+				? new MissileStrikeApproach(approach.Facing, info.ApproachDistance.Length)
+				: approach;
+
+			// FLIGHT TIME IS CONSERVED, and this is the line that does it. Whatever the shortened
+			// flight no longer spends in the air is spent waiting instead, so the order-to-impact
+			// interval -- the warning the target gets, and the number the weapon is balanced on --
+			// is bit-identical to what it was before ApproachDistance was set. Computed rather than
+			// written into YAML because the full standoff is the map diagonal: the compensation is a
+			// different number on every map, and a constant here would silently rebalance the
+			// weapon per map size.
+			//
+			// Both terms go through BallisticMissileFly's own arithmetic, the same call the
+			// impactDelay below makes, so they cannot drift apart.
+			if (info.ApproachDistance.Length > 0)
+			{
+				var bm0 = world.Map.Rules.Actors[info.MissileActor].TraitInfo<BallisticMissileInfo>();
+				missileDelay += Math.Max(0,
+					BallisticMissileFly.EstimateArcTicks(bm0, approach.Standoff)
+					- BallisticMissileFly.EstimateArcTicks(bm0, visualApproach.Standoff));
+			}
+
 			// Same rule as the airstrike -- the strike comes in over the player's own back line, not
 			// from a bearing the player picks (AirstrikePower.cs:79, established by a20c8a82) -- but
 			// NOT the same construction, and the difference is why this no longer calls
@@ -366,8 +497,8 @@ namespace OpenRA.Mods.Common.Traits
 			// bearing walked back past the map boundary -- so the warheads are parallel, the player
 			// still cannot pick the direction, and a strategic weapon is no longer seen being born
 			// next to the Supply Route it is supposedly launched from a continent away.
-			var facing = approach.Facing;
-			var spawnPos = approach.SpawnPosition(targetPosition);
+			var facing = visualApproach.Facing;
+			var spawnPos = visualApproach.SpawnPosition(targetPosition);
 
 			var offset = info.SpawnOffset;
 			if (offset != WVec.Zero)

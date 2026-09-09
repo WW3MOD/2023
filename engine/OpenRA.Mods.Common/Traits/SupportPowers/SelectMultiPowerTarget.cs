@@ -51,6 +51,9 @@ namespace OpenRA.Mods.Common.Traits
 		readonly SupportPowerInfo info;
 		readonly int aimPoints;
 		readonly WDist aimPointRadius;
+		readonly WDist maxSpread;
+		readonly string rejectedSpeechNotification;
+		readonly string rejectedTextNotification;
 		readonly List<CPos> placed = new();
 
 		// CLIENT-LOCAL AND DELIBERATELY SO. The hovered cell exists to position the remaining-count
@@ -63,7 +66,8 @@ namespace OpenRA.Mods.Common.Traits
 		public string OrderKey { get; }
 
 		public SelectMultiPowerTarget(string order, SupportPowerManager manager, SupportPowerInfo info,
-			int aimPoints, WDist aimPointRadius)
+			int aimPoints, WDist aimPointRadius, WDist maxSpread = default,
+			string rejectedSpeechNotification = null, string rejectedTextNotification = null)
 		{
 			// Same opening move as SelectGenericPowerTarget: with left-click orders the current
 			// selection would otherwise eat the placement clicks.
@@ -74,10 +78,41 @@ namespace OpenRA.Mods.Common.Traits
 			this.info = info;
 			this.aimPoints = aimPoints;
 			this.aimPointRadius = aimPointRadius;
+			this.maxSpread = maxSpread;
+			this.rejectedSpeechNotification = rejectedSpeechNotification;
+			this.rejectedTextNotification = rejectedTextNotification;
 			OrderKey = order;
 		}
 
 		public int Remaining => aimPoints - placed.Count;
+
+		/// <summary>
+		/// The centre of the permitted footprint: the FIRST aim point placed. Null before any point
+		/// exists, which is the state in which every cell on the map is legal.
+		/// </summary>
+		/// <remarks>
+		/// FIRST CLICK, not a running centroid. It is the only anchor that can be drawn before the
+		/// next click and the only one that never revokes a cell the player was already allowed to
+		/// use; see MissileStrikePowerInfo.MaxAimPointSpread for the full argument.
+		/// </remarks>
+		WPos? Anchor(World world) =>
+			placed.Count > 0 ? world.Map.CenterOfCell(placed[0]) : null;
+
+		/// <summary>
+		/// Whether a cell may be placed: inside the map, and inside the footprint once the anchor
+		/// exists. Asks <see cref="MultiAimPointOrder.IsWithinSpread"/>, which is the same predicate
+		/// <see cref="MissileStrikePower"/> clamps against, so the cursor cannot promise a placement
+		/// the simulation would move.
+		/// </summary>
+		bool CanPlace(World world, CPos cell)
+		{
+			if (!world.Map.Contains(cell))
+				return false;
+
+			var anchor = Anchor(world);
+			return anchor == null
+				|| MultiAimPointOrder.IsWithinSpread(anchor.Value, world.Map.CenterOfCell(cell), maxSpread);
+		}
 
 		protected override IEnumerable<Order> OrderInner(World world, CPos cell, int2 worldPixel, MouseInput mi)
 		{
@@ -92,6 +127,26 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (mi.Button != MouseButton.Left || !world.Map.Contains(cell))
 				yield break;
+
+			// TOLD, NOT IGNORED. A click that does nothing and says nothing reads as the game being
+			// broken rather than as a rule being enforced, so an out-of-footprint click gets the
+			// same treatment PlaceBuildingOrderGenerator gives a building that will not fit
+			// (PlaceBuildingOrderGenerator.cs:184-185): speech plus a transient line. The player has
+			// already seen the blocked cursor and the footprint circle by this point -- this is the
+			// third and loudest layer, not the only one.
+			//
+			// The placement is NOT cancelled and no point is consumed: the player simply clicks
+			// again somewhere legal. Cancelling would punish a misclick by throwing away five
+			// correct aim points.
+			if (!CanPlace(world, cell))
+			{
+				var owner = manager.Self.Owner;
+				Game.Sound.PlayNotification(world.Map.Rules, owner, "Speech", rejectedSpeechNotification,
+					owner.Faction.InternalName);
+				TextNotificationsManager.AddTransientLine(owner, rejectedTextNotification);
+
+				yield break;
+			}
 
 			// NO MINIMUM SEPARATION, and no rejection of a repeated cell. The user asked for
 			// control — "we need to be able to target various points with it ourselves" — and a
@@ -140,6 +195,18 @@ namespace OpenRA.Mods.Common.Traits
 			var ringColor = Color.FromArgb(90, color);
 			var font = Font;
 
+			// THE FOOTPRINT, drawn first so everything else sits on top of it. This is the rule made
+			// visible: every remaining aim point must land inside this circle. It is fixed at the
+			// first click and never moves, which is the property that makes it readable -- a circle
+			// that drifted between clicks would be worse than no circle at all.
+			//
+			// White rather than the player colour, and dashed-thin rather than heavy, so it reads as
+			// a boundary rather than as another aim point's lethal ring.
+			var footprint = Anchor(world);
+			if (footprint != null && maxSpread.Length > 0)
+				yield return new CircleAnnotationRenderable(footprint.Value, maxSpread, 1,
+					Color.FromArgb(140, Color.White));
+
 			for (var i = 0; i < placed.Count; i++)
 			{
 				var pos = map.CenterOfCell(placed[i]);
@@ -160,7 +227,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// THE COUNT THE USER ASKED FOR. Pinned to the pointer rather than to a screen corner so
 			// it is read without looking away from where the next warhead is going.
-			if (font != null && hovering && Remaining > 0 && map.Contains(hoveredCell))
+			if (font != null && hovering && Remaining > 0 && CanPlace(world, hoveredCell))
 			{
 				var text = Remaining > 1
 					? Remaining.ToStringInvariant() + " MORE"
@@ -175,7 +242,10 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			hoveredCell = cell;
 			hovering = true;
-			return world.Map.Contains(cell) ? info.Cursor : info.BlockedCursor;
+
+			// The bound BEFORE the click, not after it. CanPlace is the same predicate OrderInner
+			// refuses on, so the cursor is a promise the click keeps.
+			return CanPlace(world, cell) ? info.Cursor : info.BlockedCursor;
 		}
 
 		/// <summary>
