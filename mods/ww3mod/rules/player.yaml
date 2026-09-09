@@ -371,12 +371,19 @@ Player:
 		# (Explodes: OreshnikRVExplosion). Pointing this at a cluster-firing actor instead would be
 		# thirty-six detonations, which is the trap AimPoints' own [Desc] documents.
 		AimPoints: 6
-		# 4 ticks between RVs = 24 ticks (1.4 s) across the salvo, against the Sarmat's 12/60. TIGHTER
+		# 2 ticks between RVs = 10 ticks (0.6 s) across the salvo, against the Sarmat's 12/60. TIGHTER
 		# ON PURPOSE: six 750 kt RVs are meant to land as a ripple, six conventional penetrators as a
 		# single event. The tracks are parallel (one azimuth per salvo, taken from the centroid), so
 		# this stagger separates them ALONG the approach and cannot make them fan out. Deterministic
-		# (index * 4), which is what lets it sit on the synced activation path.
-		AimPointInterval: 4
+		# (index * 2), which is what lets it sit on the synced activation path.
+		#
+		# WAS 4, AND IT HAD TO COME DOWN WITH ApproachDistance. THE STAGGER MUST NOT EXCEED THE VISIBLE
+		# FLIGHT. Each RV is now drawn for the 5 ticks of its descent instead of the 67 ticks of a
+		# full-standoff crossing, so a 4-tick stagger left at most two warheads in the air at once and
+		# turned the salvo into a sequence of separate impacts -- the opposite of the "single event"
+		# this weapon is meant to read as. At 2 ticks against a 5-tick descent, three are falling at
+		# any moment. The impact FOOTPRINT is unchanged; only how tightly the six arrivals bunch is.
+		AimPointInterval: 2
 		# OVERLAY ONLY -- drawn by the placement order generator, read by nothing in the simulation.
 		# 2c512 is the "a second RV here is wasted" radius: the shockwave reaches 2c0 and the lethal
 		# core is 512, so two aim points closer than this overlap for no gain. Deliberately NOT the
@@ -435,11 +442,40 @@ Player:
 		# warhead's AirThreshold stops seeing terrain target types and does nothing to the ground) is
 		# simply not reachable here. A conventional penetrator is meant to hit the thing it is aimed at.
 		DetonationAltitude: 0
-		# 24c0 = 24 cells above the terrain at the OFF-MAP spawn, interpolated linearly down across the
-		# whole standoff. This is the "high trajectory" half of the ask; the STEEP half is LaunchAngle
-		# 160 on OreshnikRV, which is what sets the terminal slope and is independent of shot length.
-		# See the derivation on OreshnikRV in rules/ingame/vehicles-russia.yaml.
+		# 24c0 = 24 cells above the terrain at the spawn. UNCHANGED IN VALUE, but no longer measured at
+		# an off-map birth point: with ApproachDistance below it is 24 cells of altitude over 16 cells
+		# of ground, and that ratio IS the descent now. See ApproachDistance for why the pair is chosen
+		# to reproduce the old terminal slope exactly rather than to be steeper.
 		SpawnAltitude: 24c0
+		# ---- THE VISIBLE FLIGHT IS THE REENTRY AND NOTHING ELSE --------------------------------
+		# THE USER, having watched it: "just like the other weapons we dont need to see the launch, we
+		# only see the incoming warheads as they are already in their decent phase."
+		#
+		# WHAT THEY SAW AND WHY. Without this the warhead is born at the full standoff -- the map
+		# diagonal plus ApproachMargin, 197 cells on a 128x128 map -- and flies all of it. Screen
+		# position is (X, Y - Z), so altitude drags the sprite DOWN the frame as it descends while the
+		# ground track carries it across: the result is a long shallow diagonal over open ground, with
+		# early warheads landing while later ones are still crossing. It reads as missiles flying in,
+		# not as warheads falling out of the sky. LaunchAngle 160 made it worse rather than better --
+		# the arc apex is hDist * tan / 4, so over 197 cells it peaked about 75 cells up.
+		#
+		# 16c0 puts the birth point 16 cells from the aim point at 24c0 of altitude: a slope of 1.5,
+		# which is 56.3 degrees. THAT NUMBER IS NOT A NEW CHOICE -- it is the slope the RV already had
+		# at impact (LaunchAngle 160 is 56.25 degrees), so the terminal profile the user said "reads
+		# well" is reproduced rather than replaced. The 3D step per tick stays 3600 x 1.803 = 6490
+		# against the 6491 that OreshnikRV's own SubTickMotionSmoothing and WithHypersonicPlasma
+		# ceilings were sized for, so the plasma budget is untouched and OreshnikPlasmaBudgetTest still
+		# describes the shipped case. What changes is that the slope is now constant for the WHOLE
+		# drawn flight instead of only at the end.
+		#
+		# BALANCE IS UNTOUCHED. MissileStrikePower adds the ticks the shorter flight no longer spends
+		# in the air back onto MissileDelay, so order-to-impact is identical on every map. This buys
+		# the viewer nothing and costs the target nothing; it only moves where the warhead is drawn.
+		#
+		# THE APPROACH BEARING IS UNCHANGED. Only the distance shrinks -- the direction still comes
+		# from MissileStrikeApproach, so a strike still arrives over the firing player's own back line
+		# wherever it is aimed, which is the invariant the 2026-09-08 sweep pins.
+		ApproachDistance: 16c0
 		# 120 ticks x 0.06 s = 7.2 s between the click and the RVs appearing off-map. SHORTER than the
 		# Kinzhal's 150, and the reason is the same one that sets the Kinzhal's: the delay is reaction
 		# time handed to the target. SupportPower.PlayLaunchSounds fires IncomingSpeechNotification to

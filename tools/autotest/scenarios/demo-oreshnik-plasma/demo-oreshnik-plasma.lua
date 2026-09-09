@@ -54,19 +54,37 @@
 -- test-helpers.lua, and is not the tick rate). Every delay below is therefore RAW TICKS through
 -- Trigger.AfterDelay.
 --
+-- REWRITTEN 2026-09-09, AND THE NUMBERS IT USED TO CARRY WERE WRONG. It claimed a first Oreshnik
+-- impact at +62, a last at +82 and a Kinzhal at +94. The real figures under the shipped arithmetic
+-- were +82, +102 and +115: EstimateArcTicks divides the standoff by Speed, and the old block used
+-- neither the 3000 the estimate actually reads nor the 2000 the Kinzhal carries. That is why the
+-- first two captures of run 260909_102330_p4788 fired at +55 and +72 and both photographed an
+-- untouched grid -- they were placed 27 and 10 ticks BEFORE anything had landed.
+--
 -- rules.yaml overrides MissileDelay to 15 for both powers, and the standoff on this map is
--- mapDiagonal + ApproachMargin = 185363 + 16384 = 201747 wdist = 197.0 cells. So each pass runs:
+-- mapDiagonal + ApproachMargin = 185363 + 16384 = 201747 wdist = 197.0 cells.
+--
+-- THE ORESHNIK NO LONGER FLIES THAT STANDOFF. MissileStrikePower@Oreshnik sets ApproachDistance
+-- 16c0, so each RV is born 16 cells from its aim point and flies 16384/3000 = 5 ticks. The 62 ticks
+-- it no longer spends in the air are added back onto MissileDelay by the trait, so the IMPACT TICKS
+-- BELOW ARE UNCHANGED BY THAT FEATURE -- only the moment each warhead appears is. The Kinzhal is
+-- untouched and still flies the full 197 cells at 2000 wdist/tick.
+--
+-- So each pass runs:
 --
 --     +0     zoom set, grid rebuilt, order(s) issued. Nothing is on screen yet.
---     +15    missiles enter, far off screen and high -- the camera is on the impact zone.
---     +62    FIRST ORESHNIK IMPACT (BallisticMissileFly's own arithmetic over a 197-cell standoff
---            at 3000 rising to 3600).
---     +82    LAST ORESHNIK IMPACT. Six craters over 20 ticks, 1.2 s end to end.
---     +94    KINZHAL IMPACT, on the even passes -- 32 ticks (1.9 s) after the first RV and 12
---            ticks after the last. The whole salvo is down before it arrives.
+--     +15    the Kinzhal enters, far off screen and low -- the camera is on the impact zone.
+--     +77    FIRST RV APPEARS, 16 cells from its aim point and 24 cells up. There is no earlier
+--            Oreshnik sprite anywhere: the launch and the cruise are not drawn at all.
+--     +82    FIRST ORESHNIK IMPACT.
+--     +92    LAST ORESHNIK IMPACT. Six craters over 10 ticks, 0.6 s end to end (AimPointInterval 2
+--            x 5 gaps). RVs appear at +77, 79, 81, 83, 85, 87 and land at +82, 84, 86, 88, 90, 92,
+--            so three are falling at any moment.
+--     +115   KINZHAL IMPACT, on the even passes -- 33 ticks (2.0 s) after the first RV and 23 after
+--            the last. The whole salvo is down well before it arrives.
 --
 -- Passes are 140 ticks apart -- clear of the 90-tick ChargeInterval rules.yaml overrides in and of
--- the Kinzhal's 94-tick flight plus its 15-tick launch delay -- so nothing overlaps the next pass.
+-- the Kinzhal's 100-tick flight plus its 15-tick launch delay -- so nothing overlaps the next pass.
 --
 --     PASS 1  order  30   Oreshnik alone          zoom 2
 --     PASS 2  order 170   Oreshnik + Kinzhal      zoom 1
@@ -78,15 +96,17 @@
 -- ================================================================================================
 -- WHY THE ZOOM ALTERNATES, AND THE NUMBER IT IS TRADING OFF
 -- ================================================================================================
--- A near-vertical arrival at 6491 wdist/tick is on screen very briefly, and that is arithmetic
+-- A near-vertical arrival at 6490 wdist/tick is on screen very briefly, and that is arithmetic
 -- rather than a shortcoming of the demo. An RV becomes visible when its ALTITUDE lifts it into the
--- top of the viewport: at a terminal slope of 1.50 against a NW heading whose ground track carries
--- it 0.71 cells nearer per cell flown, the net rise above the impact point is 0.79 cells per cell
--- of approach. On a 1280x720 viewport that gives, per RV:
+-- top of the viewport: at a slope of 1.50 against a NW heading whose ground track carries it 0.71
+-- cells nearer per cell flown, the net rise above the impact point is 0.79 cells per cell of
+-- approach. ApproachDistance 16c0 puts the whole flight inside 16 cells of approach, so the RV is
+-- born 12.6 cells above its aim point on screen and these numbers are now bounded by the FLIGHT
+-- rather than by the viewport. On a 1280x720 viewport, per RV:
 --
---     zoom 1    15.0 cells of half-height   enters 19.0 cells out   5.4 ticks   ~19 frames @60fps
---     zoom 2     7.5                         enters  9.5            2.7 ticks   ~10 frames
---     zoom 3     5.0                         enters  6.3            1.8 ticks   ~6 frames
+--     zoom 1    15.0 cells of half-height   in frame from birth   all 5 ticks   ~18 frames @60fps
+--     zoom 2     7.5                        enters  9.5 cells out      3 ticks   ~11 frames
+--     zoom 3     5.0                        enters  6.3                2 ticks    ~7 frames
 --
 -- ONE of those ticks always has no nose bloom (the impact clamp; see above), so zoom 3 would show
 -- the sheath for three frames and is not worth having. The two zooms below answer the two different
@@ -99,9 +119,13 @@
 --   the zoom for "is it steep" and "which one lands first", both of which are questions about
 --   geometry and need the frame rather than the pixels.
 --
--- The SALVO is on screen much longer than any single RV, because AimPointInterval staggers them by
--- 4 ticks each: from the first RV entering frame to the last one impacting is about 25 ticks, 1.5 s
--- of continuous streaks. That is the thing to watch on the odd passes.
+-- The SALVO is on screen longer than any single RV, because AimPointInterval staggers them by 2
+-- ticks each: from the first RV appearing (+77) to the last one impacting (+92) is 15 ticks, 0.9 s
+-- of continuous streaks with three in the air at once. That is the thing to watch on the odd
+-- passes -- and it is now the WHOLE of what the Oreshnik draws. Before ApproachDistance the RVs
+-- were also drawn for the preceding 60-odd ticks, crossing the frame on a shallow diagonal from far
+-- out while their altitude carried them down through it. That was the launch and the cruise, and
+-- the user asked for neither.
 --
 -- After pass 6 nothing further is scheduled, but both powers keep recharging on their 90-tick
 -- interval, so the viewer can fire either of them anywhere from the support-power bin. The Oreshnik
@@ -239,31 +263,38 @@ local function step()
 		-- nothing.
 		--
 		-- The offsets come from the flight arithmetic at the head of this file, NOT from taste:
-		-- first RV impact is +62, last is +82, Kinzhal impact is +94.
+		-- RVs appear +77..+87, impacts +82..+92, Kinzhal impact +115. RETIMED 2026-09-09 -- the
+		-- figures these were derived from were wrong, and frames 01 and 02 fired before anything
+		-- had happened. Each RV is drawn for 5 ticks, so these are tight by construction: a frame
+		-- placed two ticks early shows an empty sky, not a slightly worse picture.
 		if not pass.kinzhal and next_pass == 2 then
 			-- Pass 1, zoom 2, Oreshnik alone. The streak claim.
-			TestHarness.ScreenshotAfter(55 / TestHarness.TicksPerSecond, "01-streak-mid-descent",
-				"expects: six white streaks falling from the TOP of the frame with a blue-white " ..
-				"bloom at each nose. Nothing has landed yet (+55, first impact is +62). If there " ..
-				"is no plasma at all, MaxStep regressed.")
-			TestHarness.ScreenshotAfter(72 / TestHarness.TicksPerSecond, "02-mid-salvo",
-				"expects: some RVs down, others still falling -- the salvo is staggered. The ones " ..
-				"still in the air keep their nose bloom; the bloom must never appear IN FRONT of " ..
-				"a crater.")
-			TestHarness.ScreenshotAfter(92 / TestHarness.TicksPerSecond, "03-footprint",
+			TestHarness.ScreenshotAfter(81 / TestHarness.TicksPerSecond, "01-streak-mid-descent",
+				"expects: two or three white streaks falling STEEPLY toward the grid with a " ..
+				"blue-white bloom at each nose, all of them close above the impact zone. Nothing " ..
+				"has landed yet (+81, first impact is +82). A streak entering from a frame EDGE " ..
+				"on a shallow diagonal means ApproachDistance is not being applied. No plasma at " ..
+				"all means MaxStep regressed.")
+			TestHarness.ScreenshotAfter(87 / TestHarness.TicksPerSecond, "02-mid-salvo",
+				"expects: three craters down (+82, +84, +86) and three RVs still falling -- the " ..
+				"salvo is staggered. The ones still in the air keep their nose bloom; the bloom " ..
+				"must never appear IN FRONT of a crater.")
+			TestHarness.ScreenshotAfter(100 / TestHarness.TicksPerSecond, "03-footprint",
 				"expects: in the 4x4 T-90 grid at three-cell spacing, each RV killed what it " ..
 				"landed on or beside while tanks three cells away stand. Not a flattened grid " ..
 				"(spread too wide) and not an intact one (point damage too low).")
 		elseif pass.kinzhal and next_pass == 3 then
 			-- Pass 2, zoom 1, both weapons on the same tick. The speed claim.
-			TestHarness.ScreenshotAfter(58 / TestHarness.TicksPerSecond, "04-both-in-flight",
-				"expects: the Kinzhal crossing the frame nearly FLAT while the Oreshnik RVs fall " ..
-				"through it steeply. The two trajectories are the comparison.")
-			TestHarness.ScreenshotAfter(86 / TestHarness.TicksPerSecond, "05-oreshnik-down-kinzhal-flying",
+			TestHarness.ScreenshotAfter(81 / TestHarness.TicksPerSecond, "04-both-in-flight",
+				"expects: the Kinzhal crossing the frame nearly FLAT, having flown in from the " ..
+				"edge, while the Oreshnik RVs drop steeply onto the grid from close above it. " ..
+				"The two trajectories are the comparison, and the Oreshnik should now begin its " ..
+				"visible flight near the target rather than at the frame edge.")
+			TestHarness.ScreenshotAfter(100 / TestHarness.TicksPerSecond, "05-oreshnik-down-kinzhal-flying",
 				"THE SPEED CLAIM, and the one frame that proves it: all six RVs are on the ground " ..
-				"(+82) and the Kinzhal is STILL IN THE AIR (+94). If the Kinzhal has already " ..
+				"(+92) and the Kinzhal is STILL IN THE AIR (+115). If the Kinzhal has already " ..
 				"landed, or they are interleaved, the claim is wrong.")
-			TestHarness.ScreenshotAfter(100 / TestHarness.TicksPerSecond, "06-after-kinzhal",
+			TestHarness.ScreenshotAfter(122 / TestHarness.TicksPerSecond, "06-after-kinzhal",
 				"expects: both impacts done. The Kinzhal's crater is visibly WIDER and softer " ..
 				"than the six Oreshnik points, which is the conventional-precision profile.")
 		end
