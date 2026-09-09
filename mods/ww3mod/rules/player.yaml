@@ -1433,3 +1433,28 @@ Player:
 	# 	UseDirectionalTarget: True
 	# 	DirectionArrowAnimation: paradirection
 	# 	SupportPowerPaletteOrder: 3
+
+	# DEFCON ESCALATION -- the player-actor half of the spine. The World actor half is
+	# DefconEscalation in world.yaml, which owns the level; these two are how it is seen and moved.
+	#
+	# INERT BY DEFAULT AND THAT IS THE POINT: the game mode dropdown defaults to Skirmish, in which
+	# DefconEscalation holds no level at all, so GrantConditionOnDefconLevel grants nothing and
+	# DefconCasualtyObserver has nothing to report to. Nothing here changes a match until the host
+	# picks DEFCON Escalation.
+	#
+	# DefconCasualtyObserver sits HERE, on the Player actor, and not on the World, because
+	# INotifyKilled is the only hook that names the killer and Health delivers it to the victim's own
+	# traits and to `self.Owner.PlayerActor` only (Health.cs:126,233-236). A World trait would never
+	# be called. One instance per player, one delivery per death.
+	DefconCasualtyObserver:
+	# Grants exactly one of these at a time and REVOKES it when the level moves -- unlike
+	# GrantConditionOnLobbyOption, which grants once in Created and can never take it back.
+	# Nothing consumes these three yet; that is the next piece of the feature, and until it lands
+	# `--check-yaml` will report them as a granted-but-unconsumed WARNING on the Player actor
+	# (CheckConditions.cs:70-71 -- emitWarning, not emitError, so it cannot fail the gate).
+	# Key a consumer on any one of them, or on `defcon-1 || defcon-2` for "2 or below".
+	GrantConditionOnDefconLevel:
+		Conditions:
+			3: defcon-3
+			2: defcon-2
+			1: defcon-1

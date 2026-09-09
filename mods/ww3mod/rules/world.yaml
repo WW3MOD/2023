@@ -708,6 +708,33 @@ World:
 		# 84 so the two nuclear gates sit together; the C# default of 103 would sort it far away
 		# from its sibling, past every option this block hides.
 		HighYieldNukeCheckboxDisplayOrder: 84
+
+	# DEFCON ESCALATION -- the match-wide alert level, and the three dropdowns that configure it.
+	# The player-actor half (DefconCasualtyObserver, GrantConditionOnDefconLevel) is in player.yaml.
+	#
+	# SPINE ONLY. This trait owns the level and gates nothing; the conditions it drives have no
+	# consumers yet. MarkAsPlaceholder therefore defaults TRUE in C#, which renders all three
+	# dropdowns dimmed with the lobby's placeholder tooltip -- honest, because picking DEFCON
+	# Escalation today changes nothing a player can see. Set MarkAsPlaceholder: False here on the
+	# change that lands the first consumer.
+	#
+	# THE DEFAULT GAME MODE IS Skirmish AND MUST STAY THAT WAY UNTIL THE FEATURE IS COMPLETE.
+	# Skirmish is a strict no-op: no level, no conditions, no clock. It is what lets this land in
+	# pieces without anything changing for someone testing from main. The default lives in
+	# DefconEscalationInfo.ModeDefault and DefconEscalationTest.SkirmishIsAStrictNoOp guards it.
+	#
+	# Only the 3 -> 2 transition is on a clock, and Escalation Pace scales only that. 2 -> 1 fires
+	# the moment enemy action destroys anything, at any pace. The three pace durations are UNTUNED
+	# PLACEHOLDERS in C# (9000 / 5000 / 2500 ticks = 9:00 / 5:00 / 2:30 at the default 60 ms
+	# timestep -- 16.67 ticks per second, NOT 25) and are deliberately not overridden here, so the
+	# first person to tune them changes one place.
+	#
+	# 85/86/87 keeps the three together and sorts them after the nuclear gates at 83/84, which is
+	# the section LobbyOptionsLogic puts them in.
+	DefconEscalation:
+		ModeDisplayOrder: 85
+		StartAtDisplayOrder: 86
+		PaceDisplayOrder: 87
 	OrderEffects:
 		TerrainFlashImage: moveflsh
 		TerrainFlashSequence: idle
