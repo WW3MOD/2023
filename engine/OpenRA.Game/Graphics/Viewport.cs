@@ -326,6 +326,17 @@ namespace OpenRA.Graphics
 		public int2 WorldToViewPx(int2 world) { return (Zoom / graphicSettings.UIScale * (world - TopLeft).ToFloat2()).ToInt2(); }
 		public int2 WorldToViewPx(in float3 world) { return (Zoom / graphicSettings.UIScale * (world - TopLeft).XY).ToInt2(); }
 
+		// Sub-pixel counterpart of WorldToViewPx. That overload truncates to whole pixels (float2.ToInt2 is
+		// (int)X, (int)Y), which is right for placing a sprite or a selection box and wrong for a tessellated
+		// curve: every vertex snaps independently, so each one lands up to a pixel off the curve in each axis,
+		// short segments lose a large fraction of their length, and short enough ones collapse onto a single
+		// pixel — at which point RgbaColorRenderer.DrawLine divides by a zero length and emits NaN vertices
+		// that draw nothing at all. The snap pattern is also a function of TopLeft and Zoom rather than of the
+		// world, so it re-rolls as the viewport scrolls or the subject moves. Curves want this instead.
+		public static float2 ProjectToViewPx(in float3 world, int2 topLeft, float scale) { return scale * (world - topLeft).XY; }
+		public float ViewPxScale => Zoom / graphicSettings.UIScale;
+		public float2 WorldToViewPxF(in float3 world) { return ProjectToViewPx(world, TopLeft, ViewPxScale); }
+
 		public void Center(IEnumerable<Actor> actors)
 		{
 			var actorsCollection = actors as IReadOnlyCollection<Actor>;
