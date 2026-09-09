@@ -204,10 +204,12 @@ power.gbu57:
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 10
-		# PRECISION STR. is the baked caption on this cameo and it is not wrong for a GBU-57. DO NOT
-		# swap to cmissicon or missicon however their names read -- those are a biohazard trefoil
-		# captioned CHEMICAL STRIKE and a building captioned TECH CENTER.
+		# precicon is a PHOTOGRAPH of the GBU-57 since 2026-09-09 (it was a cartoon with PRECISION
+		# STR. baked into its pixels). The new art is untexted, which is why the caption below has to
+		# be stated: nothing draws it otherwise. Wording kept identical to the lettering it replaces.
+		# DO NOT swap to missicon however its name reads -- that is a building captioned TECH CENTER.
 		Icon: precicon
+		CameoCaption: PRECISION STR.
 		# 900 ticks = 54 s, nearly double the Kinzhal's at the same price, and that gap IS the
 		# differentiation the two powers get in exchange for costing the same. A Massive Ordnance
 		# Penetrator is a scheduled demolition of a fixed hardened target, not a weapon of surprise;
@@ -308,10 +310,10 @@ power.w76:
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 50
-		# WRONG CAMEO, REPORTED NOT FIXED, because it is art. cmissicon is a biohazard trefoil
-		# captioned CHEMICAL STRIKE. It is the cameo this power already carries in the support bin, so
-		# the buy tab introduces no new mismatch -- but it puts it next to four correct ones with
-		# prices, which makes it much easier to notice. A correct W76 cameo is a real art request.
+		# FIXED 2026-09-09. cmissicon USED to be Red Alert's chemical-strike icon -- a biohazard trefoil
+		# with CHEMICAL STRIKE baked into the pixels, telling the player that a submarine-launched
+		# warhead was a chemical weapon. The art file now holds a night Trident II launch. The key name
+		# is legacy and describes nothing; this power and @W76 are the only things that draw it.
 		Icon: cmissicon
 		CameoCaption: 100 KT
 		CameoBadge: nuclear
@@ -380,7 +382,11 @@ power.ru9m729:
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 21
-		Icon: paranuke
+		# OWN CAMEO SINCE 2026-09-09. Was paranuke, which is now a photograph of an American B61-12 --
+		# a US Air Force bomb on a Russian rung. A ground-launched cruise missile leaving an Iskander
+		# TEL is the closest freely-licensed image of this weapon's class; see the manifest for why no
+		# picture of the 9M729 itself could be used.
+		Icon: ru9m729
 		CameoCaption: 1 KT
 		CameoBadge: nuclear
 		BuildDuration: 500
@@ -397,11 +403,11 @@ power.ruiskander:
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 31
-		# v2bdgricon, NOT the paranuke this used to carry. The buy tab and the power bin disagreed
-		# about this weapon's icon until 2026-09-08 -- the proxy drew paranuke and the power drew
-		# v2bdgricon, so it changed picture the moment it was paid for. The power's value won, and
-		# it is the better one anyway: it leaves Russia's five buyable entries five distinct icons.
-		Icon: v2bdgricon
+		# OWN CAMEO SINCE 2026-09-09: an erected Iskander-M against sky. It shared v2bdgricon with the
+		# Sarmat and the strategic strike until then. The buy tab and the power bin also disagreed
+		# about this weapon until 2026-09-08 -- proxy paranuke, power v2bdgricon -- so it changed
+		# picture the moment it was paid for; both now name this key and cannot drift apart again.
+		Icon: ruiskander
 		CameoCaption: 10 KT
 		CameoBadge: nuclear
 		BuildDuration: 750
@@ -418,11 +424,11 @@ power.rukinzhaln:
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 41
-		# paranuke. The buy tab and the power bin disagreed about this weapon until 2026-09-08 --
-		# the proxy drew paranuke, the power drew cmissicon -- so it changed picture the moment it
-		# was paid for. Resolved to the PROXY's value, unlike power.ruiskander above, because
-		# cmissicon is a biohazard trefoil captioned CHEMICAL STRIKE and this is a nuclear warhead.
-		Icon: paranuke
+		# OWN CAMEO SINCE 2026-09-09: a MiG-31 carrying the Kinzhal, deliberately a DIFFERENT photograph
+		# from the conventional @Kinzhal's kinzhalicon -- same airframe, different sky, and this one
+		# wears the badge and a yield. They are the same missile with different warheads, so a shared
+		# SUBJECT is honest; a shared FILE was not, because it made two powers one picture.
+		Icon: rukinzhaln
 		CameoCaption: 50 KT
 		CameoBadge: nuclear
 		BuildDuration: 1000
@@ -439,12 +445,11 @@ power.rukalibr:
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 51
-		# paranuke. Third of the three divergences fixed on 2026-09-08, and the only one where
-		# NEITHER side's value survived: the proxy drew cmissicon (a biohazard trefoil) and the
-		# power drew `abomb` (now the Tsar Bomba's alone). The remaining candidate, abombfake, is a
-		# mushroom cloud with a yellow FAKE banner painted across it -- fine for the decoy it was
-		# drawn for, absurd on Russia's top purchasable warhead.
-		Icon: paranuke
+		# OWN CAMEO SINCE 2026-09-09: the 3M-14 itself, which is the exact designation in this power's
+		# name. Before that it was the third of three buy-tab-vs-power-bin divergences fixed on
+		# 2026-09-08, and the only one where neither side's value survived -- the proxy drew cmissicon
+		# (then a biohazard trefoil) and the power drew `abomb`, now the Tsar Bomba's alone.
+		Icon: rukalibr
 		CameoCaption: 100 KT
 		CameoBadge: nuclear
 		BuildDuration: 1300
@@ -484,13 +489,11 @@ power.tacnuke:
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 60
-		# MOVED OFF `abomb` ON 2026-09-08, at the user's request that the base game's nuclear
-		# cameo be reserved for the largest weapon: it is now the Tsar Bomba's alone. The argument
-		# this comment used to make -- that atomicon is the one nuclear cameo whose baked caption
-		# (NUCLEAR BOMB) is correct for its picture, so three entries may as well share it -- is
-		# still true and no longer decides anything, because the runtime caption band covers that
-		# baked lettering on every one of them and the badge is what now says "nuclear".
-		Icon: paranuke
+		# OWN CAMEO SINCE 2026-09-09: the Trinity shot, ~21 kt against this power's 20, so it is the
+		# right SIZE of detonation as well as the right kind. It went `abomb` -> `paranuke` -> here.
+		# `abomb` was reserved for the Tsar Bomba on 2026-09-08; `paranuke` then became a photograph
+		# of an American bomb, which no unattributed event-tier strike should wear.
+		Icon: tacnuke
 		CameoCaption: 20 KT
 		CameoBadge: nuclear
 		# 1500 ticks = 90 s.
@@ -516,7 +519,9 @@ power.sarmat:
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 70
-		# A V2 launcher. Defensible for an ICBM.
+		# A Sarmat silo launch since 2026-09-09 -- this power's own weapon, and the only power left
+		# drawing v2bdgricon now that the Iskander and the strategic strike have their own. The key
+		# name is Red Alert legacy (it was a V2 launcher) and describes nothing about the art.
 		Icon: v2bdgricon
 		CameoCaption: 6x750 KT
 		CameoBadge: nuclear
@@ -538,7 +543,9 @@ power.b83:
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 80
-		# A mushroom cloud.
+		# A B83 under an airframe since 2026-09-09. abombfake USED to be a mushroom cloud with a yellow
+		# FAKE banner painted across it -- correct for the decoy structure it was drawn for, absurd on
+		# the largest weapon in the US stockpile. The key name is legacy; nothing else draws it.
 		Icon: abombfake
 		CameoCaption: 1.2 MT
 		CameoBadge: nuclear
@@ -562,11 +569,11 @@ power.highyieldnuke:
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 90
-		# MOVED OFF `abomb` ON 2026-09-08; see power.tsarbomba for the reservation this makes room
-		# for. 6 Mt giving up the icon to 50 Mt is the reservation working, not a casualty of it.
-		# v2bdgricon rather than cmissicon: the latter is a biohazard trefoil captioned CHEMICAL
-		# STRIKE, and nothing nuclear should be moved onto it while a neutral option exists.
-		Icon: v2bdgricon
+		# OWN CAMEO SINCE 2026-09-09: Castle Romeo, an 11 Mt shot, for a 6 Mt strike -- the right class
+		# of detonation. Went `abomb` -> `v2bdgricon` -> here; see power.tsarbomba for the reservation
+		# the first move made room for, and power.sarmat for who kept v2bdgricon. 6 Mt giving up the
+		# base game's icon to 50 Mt is that reservation working, not a casualty of it.
+		Icon: highyieldnuke
 		CameoCaption: 6 MT
 		CameoBadge: nuclear
 		# 3000 ticks = 180 s.

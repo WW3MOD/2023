@@ -334,19 +334,19 @@ Player:
 		# AMERICA'S CONVENTIONAL RUNG. See the note on @Kinzhal for why this is `powers.america`
 		# rather than `player.america`.
 		Prerequisites: powers.america
-		# INTERIM ART, ruled by the manager rather than left blocked on a drawing. §4a wanted one new
-		# cameo for the US strike and flagged reusing `precicon` as an asymmetry -- Russia generic,
-		# America bespoke. In a NORMAL match that worry still does not apply: the two are locked to
-		# opposite sides, so no player holds both and no player can see the repeat.
+		# NO LONGER INTERIM. §4a flagged reusing `precicon` as an asymmetry -- Russia generic, America
+		# bespoke -- and it was shared with the conventional Kinzhal, which got kinzhalicon on
+		# 2026-09-08. precicon became a photograph of the GBU-57 itself on 2026-09-09, so the sharing
+		# and the asymmetry are both gone and this power is the only thing in the bin that draws it.
 		#
-		# IN SANDBOX THEY ARE BOTH VISIBLE AT ONCE, which is new as of this branch and is the one
-		# place the repeat is now seeable. That is accepted rather than fixed: sandbox is a test
-		# mode, not a match, and two identical cameos one row apart is a cosmetic cost paid only by
-		# the person who ticked the box. And PRECISION STRIKE is not a wrong caption for a GBU-57.
-		# DO NOT "improve" this to cmissicon or missicon however their names read: captions are baked
-		# into the cameo PIXELS at rows 42-46, and those two are a biohazard trefoil captioned
-		# CHEMICAL STRIKE and a building captioned TECH CENTER (§4a).
+		# THE CAPTION IS NOW STATED, NOT DRAWN. The old cartoon had PRECISION STR. baked into pixel
+		# rows 42-46; the photograph has nothing there, so CameoCaption below is what puts the words
+		# back. Keep it in step with power.gbu57's copy in rules/powers.yaml -- the buy tab and the
+		# bin each read their own, and three weapons drifted apart exactly this way before 2026-09-08.
+		# DO NOT "improve" the icon to missicon however its name reads: that is a building captioned
+		# TECH CENTER.
 		Icon: precicon
+		CameoCaption: PRECISION STR.
 		Name: GBU-57 Bunker Buster
 		Description: Massive Ordnance Penetrator dropped on the target area.\nDevastating against hardened structures, weak against armour.\nComes in from off-map over your own back line.
 		# BOUGHT, NOT CHARGED. See the note on the Kinzhal above; the price is on power.gbu57 in
@@ -478,11 +478,11 @@ Player:
 		# of test-heavy-strike-erases-economy, which also names the weapon. This gate is only ever
 		# consulted by the buy tab and the support bin.
 		Prerequisites: powers.event
-		# MOVED OFF `abomb` ON 2026-09-08. atomicon is the base game's nuclear cameo and is now
-		# reserved for the Tsar Bomba alone, at the user's request, so that the one weapon that ends
-		# a game on its own is the one weapon wearing the icon everybody already reads as THE nuke.
-		# What tells this apart from the other paranuke entries is its caption and its badge.
-		Icon: paranuke
+		# OWN CAMEO SINCE 2026-09-09: the Trinity shot, ~21 kt against this power's 20. Went `abomb`
+		# -> `paranuke` -> here. `abomb` was reserved for the Tsar Bomba on 2026-09-08 at the user's
+		# request; `paranuke` then became a photograph of an American B61-12, which is not something
+		# an unattributed event-tier strike should wear. Keep in step with power.tacnuke.
+		Icon: tacnuke
 		CameoCaption: 20 KT
 		CameoBadge: nuclear
 		Name: Tactical Nuclear Strike (20 kt)
@@ -602,12 +602,11 @@ Player:
 		# every shipped map from its centre, which is precisely why it is not something a player buys
 		# in a normal match.
 		Prerequisites: powers.event
-		# MOVED OFF `abomb` ON 2026-09-08; see @TacNuke above for why. 6 Mt is the second largest
-		# yield in the mod and losing the base game's cameo to a weapon 8x its size is the point of
-		# the reservation, not a casualty of it. v2bdgricon rather than cmissicon: the latter is a
-		# biohazard trefoil captioned CHEMICAL STRIKE, which is the wrong hazard on a warhead and
-		# doubly wrong now that a yellow RADIATION trefoil is stamped in the same cameo's corner.
-		Icon: v2bdgricon
+		# OWN CAMEO SINCE 2026-09-09: Castle Romeo, an 11 Mt shot for a 6 Mt strike. Went `abomb` ->
+		# `v2bdgricon` -> here; see @TacNuke above for the first move and power.sarmat for who kept
+		# v2bdgricon. 6 Mt losing the base game's cameo to a weapon 8x its size is the point of that
+		# reservation, not a casualty of it. Keep in step with power.highyieldnuke.
+		Icon: highyieldnuke
 		CameoCaption: 6 MT
 		CameoBadge: nuclear
 		Name: Strategic Nuclear Strike (6 Mt)
