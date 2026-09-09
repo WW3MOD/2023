@@ -215,19 +215,24 @@ Container@MAINMENU:
 							Height: 30
 							Text: button-singleplayer-menu-skirmish
 							Font: Bold
-						Button@MISSIONS_BUTTON:
+						Button@LOAD_BUTTON:
 							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Y: 100
 							Width: 140
 							Height: 30
-							Text: label-missions-title
+							Text: button-singleplayer-menu-load
 							Font: Bold
-						Button@LOAD_BUTTON:
+						# MISSIONS_BUTTON is last in this stack on purpose. MainMenuLogic hides it whenever the mod
+						# has neither a `Missions:` manifest key nor a MissionSelector map with a real Class -- which
+						# is WW3MOD's permanent state today. Keeping it below LOAD_BUTTON means hiding it leaves no
+						# hole between the visible buttons; the empty rows below are the ones this panel already had.
+						# If a campaign ever ships, it reappears here without a layout change.
+						Button@MISSIONS_BUTTON:
 							X: PARENT_WIDTH / 2 - WIDTH / 2
 							Y: 140
 							Width: 140
 							Height: 30
-							Text: button-singleplayer-menu-load
+							Text: label-missions-title
 							Font: Bold
 						Button@BACK_BUTTON:
 							X: PARENT_WIDTH / 2 - WIDTH / 2

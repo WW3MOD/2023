@@ -384,7 +384,24 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					p.Class != MapClassification.Unknown &&
 					p.Visibility.HasFlag(MapVisibility.MissionSelector));
 
-			missionsButton.Disabled = !hasCampaign && !hasMissions;
+			// PITFALL: this was `missionsButton.Disabled = !hasCampaign && !hasMissions`, which in WW3MOD is
+			// permanently true -- both terms are structurally false, not merely empty today:
+			//   * hasCampaign needs a `Missions:` key in mod.yaml. WW3MOD has none, and Manifest.cs:156 yields
+			//     an empty list for an absent key, so Length can never be > 0.
+			//   * hasMissions needs a MissionSelector map with Class != Unknown. Every MissionSelector map in
+			//     the mod is an autotest scenario, and mod.yaml's MapFolders registers that whole folder as
+			//     `Unknown` deliberately, to keep scenarios out of exactly this browser.
+			// So the button was styled, greyed and permanently dead -- which a player reads as "no missions
+			// installed yet", an unlocked-content promise the mod does not make. Hide it rather than grey it;
+			// greying it is what it already did. The mission browser itself is untouched and fully functional,
+			// it simply has nothing to browse.
+			// Deliberately an IsVisible delegate, not a one-shot Visible assignment: the button comes back by
+			// itself the moment a `Missions:` key lands or a real mission map ships, so this cannot rot into a
+			// second dead state. Mods that do ship campaigns (cnc, d2k, ra all declare `Missions:`) evaluate
+			// this to true and are unaffected.
+			// WW3MOD chrome keeps MISSIONS_BUTTON last in the singleplayer stack so hiding it leaves no hole
+			// between the buttons above it -- mods/ww3mod/chrome/mainmenu.yaml.
+			missionsButton.IsVisible = () => hasCampaign || hasMissions;
 
 			var hasMaps = modData.MapCache.Any(p => p.Visibility.HasFlag(MapVisibility.Lobby));
 			var skirmishButton = singleplayerMenu.Get<ButtonWidget>("SKIRMISH_BUTTON");
