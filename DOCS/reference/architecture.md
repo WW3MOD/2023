@@ -57,26 +57,41 @@ WW3MOD/
 
 ## Scenario System
 
-Scenarios are scripted map variants that share terrain with a base map but add different units, players, and Lua scripts. They appear in the lobby map chooser under the "Scenario" category.
+**CORRECTED 2026-09-09 (verified at `e82fe534`).** This section used to describe a scenario as *"a separate map folder"* that copied `map.bin` from a base map, declared `Categories: Scenario` and `LockPreview: True` to show up in a map-chooser filter, and needed *"No engine C# changes — everything runs on OpenRA's existing Lua scripting API."* **That design is gone.** It was replaced on 2026-03-26 by `5646c71c` *("Scenario system: scenarios live inside maps, selectable via lobby dropdown")*, and neither key has ever existed in this mod: `grep -rn "Categories:.*Scenario\|LockPreview" mods/ww3mod tools/autotest` returns **zero** hits (the 120 `LockPreview` matches in the tree are all stock `engine/mods/cnc` and `engine/mods/ra` campaign maps). If you half-remember a folder-and-category design, that is the *old* one — and the two headline consequences invert: **a scenario is not a map**, and it is **very much an engine feature**.
 
-### How it works
+Scenarios are scripted variants **declared inside a map package** and picked from a lobby dropdown. One map can carry several; choosing one rewrites the map's players, actors and rules just before the world is built.
 
-- A scenario is a **separate map folder** that copies `map.bin` (terrain) from a base map
-- Has its own `map.yaml` (different actors, players), `rules.yaml` (LuaScript reference), and `.lua` script
-- Uses `Categories: Scenario` to appear in the Scenario filter in the map chooser
-- No engine C# changes needed — everything runs on OpenRA's existing Lua scripting API
-- Supports multiplayer + bots — human players take specific slots, bots fill the rest
+### How it actually works
 
-### Creating a scenario
+- A scenario is a top-level entry in **`scenarios.yaml` inside the map package**. The yaml key *is* the scenario's name and is what the dropdown lists. The shipped example is `mods/ww3mod/maps/river-zeta-ww3/scenarios.yaml`, with two entries — `Frontline` and `Shellmap`. It is the only `scenarios.yaml` in the repo.
+- `Map.LoadScenarios` (`engine/OpenRA.Game/Map/Map.cs:661-675`) reads it from the map constructor (`Map.cs:480`). No `scenarios.yaml` in the package → no scenarios, silently and correctly.
+- Each entry becomes a `ScenarioDefinition` (`engine/OpenRA.Game/Map/ScenarioDefinition.cs`).
+- `MapPreview` exposes the names without loading the map (`MapPreview.cs:375`, `:497`), so `ScenarioLobbyDropdown` (`engine/OpenRA.Mods.Common/Traits/World/ScenarioLobbyDropdown.cs:27-37`) can offer them as the `"scenario"` lobby option from the map list.
+- Engine surface: a new type (`ScenarioDefinition`), a new trait (`ScenarioLobbyDropdown`), plus edits in `Map`, `MapPreview` and `World`. There is no way to do this from mod YAML alone.
 
-1. Create a new map folder: `mods/ww3mod/maps/<base-map>-<scenario-name>/`
-2. Copy `map.bin` and `map.png` from the base map. **Not `shadows.bin`** — the LOS cache no longer lives in the map package and is never read from one; a stray copy is dead weight (see §The LOS cache below)
-3. Write `map.yaml` with:
-   - `Categories: Scenario` and `LockPreview: True`
-   - Custom players (human playable + non-playable garrison/AI factions)
-   - Pre-placed actors (garrison units, supply routes, objectives)
-4. Write `rules.yaml` with `LuaScript: Scripts: scenario.lua, <your-script>.lua`
-5. Write your scenario `.lua` script using the `Scenario` helper library
+### A scenario recognises exactly three keys — everything else is dropped in silence
+
+`ScenarioDefinition`'s constructor is a `switch` over each entry's child keys with cases for `Players`, `Actors` and `Rules` **and no `default` branch** (`ScenarioDefinition.cs:31-44`). Any other key is discarded with **no warning, no lint error and no log line**. A misspelled `Rule:`, or a hopeful `Weapons:`, loads clean and does nothing — this is the single easiest way to lose an afternoon here, and it is invisible to every gate.
+
+### When it is applied — and what that rules out
+
+`World`'s constructor reads the lobby option and calls `Map.ApplyScenario` (`engine/OpenRA.Game/World.cs:243-248`): **after the map is fully prepared, and before the world actor exists** — `WorldActor = CreateActor(...)` is the next statement, `World.cs:251`. `ApplyScenario` (`Map.cs:677-750`) merges by key — a `PlayerReference@X` or actor name that already exists is *replaced*, a new one is *appended* — then re-derives the ruleset:
+
+```csharp
+Rules = Ruleset.Load(modData, this, Tileset, RuleDefinitions, WeaponDefinitions,
+    VoiceDefinitions, NotificationDefinitions, MusicDefinitions, ModelSequenceDefinitions);
+```
+
+Only `RuleDefinitions` carries anything the scenario supplied; the other five arguments are the map's own, passed through untouched. **So a scenario cannot add a weapon, a voice, a notification or a piece of music** — no key would reach those definitions, and none of them is rebuilt. **Nor can it add a sequence**: sequences are not part of `Ruleset` at all and are loaded long before this point. What a scenario *can* do is rearrange what the map and the mod already define — actors of existing types, new or overridden players, and trait-level rules on those types.
+
+A scenario whose `Rules` fail to load does **not** fail loudly: `InvalidCustomRules` is set, the exception goes to `debug.log`, and the map silently falls back to tileset defaults (`Map.cs:744-750`).
+
+### Writing one
+
+1. Add `scenarios.yaml` to the map folder. `Package.Contains("scenarios.yaml")` is the only gate — there is nothing to register anywhere else.
+2. One top-level key per scenario; that key is the dropdown label.
+3. Under it, use only `Players`, `Actors` and `Rules`. Anything else is silently dropped (above).
+4. Reach Lua through `Rules:` → `World:` → `LuaScript:` → `Scripts: scenario.lua, <your-script>.lua` (see `river-zeta-ww3/scenarios.yaml:174-177`) and write the script against the `Scenario` helper library below.
 
 ### Scenario Lua library (`mods/ww3mod/scripts/scenario.lua`)
 
@@ -91,7 +106,12 @@ Reusable helpers for scenario scripts:
 
 ### Naming convention
 
-Scenario titles follow the format **`<Scenario>: <Map Name>`** — scenario name first, then the base map. This lets the same scenario type apply across multiple maps (e.g., "Frontline: River Zeta WW3", "Frontline: Siberian Pass WW3"). Feels like a game mode.
+Two different things carry names here, and only one of them is a scenario:
+
+- **A `scenarios.yaml` key** is what the lobby dropdown shows. It is a bare mode name with no map in it — `Frontline`, `Shellmap`.
+- **A map folder's `Title`** may use a `<Mode>: <Name>` format when the whole map *is* the variant. `Frontline: Open Field` and `Arena: Tank Duel (3v3 Abrams vs T-90)` ship that way, and the autotest folders under `tools/autotest/scenarios/` all do (`TEST:`, `DEMO:`, `TOURNAMENT:`, `BALANCE:`, …). **Those are maps, not scenarios** — none of them carries a `scenarios.yaml`.
+
+*(Corrected 2026-09-09. This subsection used to claim scenario titles read `<Scenario>: <Map Name>` and gave "Frontline: River Zeta WW3" and "Frontline: Siberian Pass WW3" as examples. Neither string exists: those maps are titled `River Zeta WW3` and `Siberian Pass WW3`, and River Zeta's `Frontline` variant is a key inside its `scenarios.yaml`, not a title. Under the shipped system a scenario has no title of its own.)*
 
 ### Key Lua APIs used
 
