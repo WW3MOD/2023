@@ -86,6 +86,45 @@ namespace OpenRA.Mods.Common.Traits
 			"for a power with AimPoints 1, where this field is never read at all.")]
 		public readonly WDist AimPointFallbackSpread = WDist.Zero;
 
+		[Desc("MAXIMUM SPREAD of a multi-aim-point salvo: every aim point after the first must lie",
+			"within this distance of the FIRST one. Zero (the default) is unbounded, which is what",
+			"every instance did before this field existed.",
+			"",
+			"WHY IT EXISTS. Six independently-aimed warheads with no geometric bound are six",
+			"unrelated strikes that happen to share a cooldown -- one activation reaching six",
+			"corners of the map. One missile bus dispensing re-entry vehicles cannot do that, and",
+			"neither should this: the bound is what makes a salvo read as a CLUSTER arriving rather",
+			"than as six separate weapons.",
+			"",
+			"THE ANCHOR IS THE FIRST CLICK, not a running centroid and not a bounding circle. It is",
+			"the only anchor that can be DRAWN before the next click is made -- the placement",
+			"overlay puts one circle at aim point 1 and never moves it -- and it is the only one",
+			"that cannot REVOKE a cell: under a running centroid a cell that was legal a moment ago",
+			"becomes illegal when the centroid drifts, which is the same silent refusal this feature",
+			"exists to remove. The cost is that the anchor cannot be re-centred once placed;",
+			"right-click abandons the placement and costs nothing, which is the way out.",
+			"",
+			"ENFORCED TWICE ON PURPOSE. The order generator refuses the click (blocked cursor, then",
+			"a notification if the player clicks anyway) and " + nameof(MissileStrikePower) + " CLAMPS",
+			"the decoded order. The generator is client-local, so the clamp is what actually bounds",
+			"the weapon; the generator is what makes the bound visible. Both ask",
+			"MultiAimPointOrder.IsWithinSpread, so they cannot disagree.",
+			"",
+			"Also caps " + nameof(AimPointFallbackSpread) + ", so a bot or Lua order obeys the same",
+			"bound a player does.")]
+		public readonly WDist MaxAimPointSpread = WDist.Zero;
+
+		[NotificationReference("Speech")]
+		[Desc("Speech notification played when the player clicks an aim point outside",
+			nameof(MaxAimPointSpread) + ". Null (the default) plays nothing.",
+			"Follows PlaceBuildingOrderGenerator's refusal idiom: audio plus a transient text line,",
+			"on top of the blocked cursor the player already sees while hovering.")]
+		public readonly string AimPointRejectedSpeechNotification = null;
+
+		[FluentReference(optional: true)]
+		[Desc("Transient chat line shown alongside " + nameof(AimPointRejectedSpeechNotification) + ".")]
+		public readonly string AimPointRejectedTextNotification = null;
+
 		[Desc("Extra horizontal distance BEYOND the map's own diagonal at which the salvo is spawned.",
 			"",
 			"The standoff itself is NOT this number: it is the map diagonal plus this. The diagonal is",
@@ -154,7 +193,8 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
-			self.World.OrderGenerator = new SelectMultiPowerTarget(order, manager, info, info.AimPoints, info.AimPointRadius);
+			self.World.OrderGenerator = new SelectMultiPowerTarget(order, manager, info, info.AimPoints, info.AimPointRadius,
+				info.MaxAimPointSpread, info.AimPointRejectedSpeechNotification, info.AimPointRejectedTextNotification);
 		}
 
 		public override void Activate(Actor self, Order order, SupportPowerManager manager)
@@ -219,8 +259,30 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				var used = Math.Min(placed.Length, count);
 				var points = new WPos[used];
+
+				// THE AUTHORITATIVE SPREAD BOUND. The order generator refuses an out-of-range click,
+				// but it is client-local -- this is the only place a hostile or ancient order is
+				// actually bounded. Clamping happens in CELL space, against the cell centre of aim
+				// point 0, which is byte-for-byte the comparison the generator made when it allowed
+				// the click: a legitimate order is therefore a no-op here, not a near-no-op.
+				//
+				// It is done BEFORE ResolveCell so the SnapToActorCenter offset -- which can pull a
+				// resolved point off its cell centre by half a building -- is applied to the clamped
+				// cell rather than being clamped itself. Snapping to the centre of the thing you
+				// aimed at must not be undone by the bound.
+				var anchor = world.Map.CenterOfCell(world.Map.Clamp(placed[0]));
 				for (var i = 0; i < used; i++)
-					points[i] = ResolveCell(world, world.Map.Clamp(placed[i]));
+				{
+					var cell = world.Map.Clamp(placed[i]);
+					if (i > 0 && info.MaxAimPointSpread.Length > 0)
+					{
+						var bounded = MultiAimPointOrder.ClampToSpread(
+							anchor, world.Map.CenterOfCell(cell), info.MaxAimPointSpread);
+						cell = world.Map.Clamp(world.Map.CellContaining(bounded));
+					}
+
+					points[i] = ResolveCell(world, cell);
+				}
 
 				return points;
 			}
@@ -229,7 +291,14 @@ namespace OpenRA.Mods.Common.Traits
 			// before this feature existed. order.Target has already been snapped to an actor centre
 			// by SupportPowerInstance.Activate, so it is used as-is for the first warhead.
 			var center = order.Target.CenterPosition;
-			var offsets = MultiAimPointOrder.FallbackRingOffsets(count, info.AimPointFallbackSpread);
+			// The bot/Lua ring obeys the same bound the player does. Inert wherever the fallback
+			// ring already fits inside the footprint (the shipped Oreshnik: 5c0 ring, 10c0 bound)
+			// and wherever no bound is set at all (the shipped Sarmat).
+			var fallbackSpread = info.MaxAimPointSpread.Length > 0
+				? new WDist(Math.Min(info.AimPointFallbackSpread.Length, info.MaxAimPointSpread.Length))
+				: info.AimPointFallbackSpread;
+
+			var offsets = MultiAimPointOrder.FallbackRingOffsets(count, fallbackSpread);
 			var fallback = new WPos[offsets.Length];
 
 			// Index 0 is a zero offset by construction, so the sender's own point is used verbatim

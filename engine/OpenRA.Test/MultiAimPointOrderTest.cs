@@ -21,6 +21,7 @@
 #endregion
 
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Orders;
@@ -180,6 +181,148 @@ namespace OpenRA.Test
 
 			Assert.That(offsets.Length, Is.EqualTo(1), "a single-warhead power gets exactly one aim point");
 			Assert.That(offsets[0], Is.EqualTo(WVec.Zero));
+		}
+
+		// ---------- the maximum-spread footprint ----------
+
+		static WPos Cell(int x, int y) => new(1024 * x + 512, 1024 * y + 512, 0);
+
+		[Test]
+		public void AnUnboundedPowerAcceptsEveryAimPoint()
+		{
+			// WDist.Zero is the default on MissileStrikePowerInfo.MaxAimPointSpread, and it is what
+			// the shipped Sarmat leaves it at. A power that never opted in must be untouched by all
+			// of this -- no cell refused, no position moved.
+			var anchor = Cell(0, 0);
+			var faraway = Cell(400, 400);
+
+			Assert.That(MultiAimPointOrder.IsWithinSpread(anchor, faraway, WDist.Zero), Is.True);
+			Assert.That(MultiAimPointOrder.ClampToSpread(anchor, faraway, WDist.Zero), Is.EqualTo(faraway));
+		}
+
+		[Test]
+		public void APointInsideTheFootprintIsAcceptedAndNotMoved()
+		{
+			var anchor = Cell(50, 50);
+			var spread = new WDist(10 * 1024);
+
+			// Nine cells out on one axis, and the exact diagonal that still fits (7,7 -> 9.9 cells).
+			foreach (var inside in new[] { Cell(59, 50), Cell(50, 41), Cell(57, 57), anchor })
+			{
+				Assert.That(MultiAimPointOrder.IsWithinSpread(anchor, inside, spread), Is.True,
+					$"{inside} is inside a 10-cell footprint and must be accepted");
+				Assert.That(MultiAimPointOrder.ClampToSpread(anchor, inside, spread), Is.EqualTo(inside),
+					"an accepted point must not be moved");
+			}
+		}
+
+		[Test]
+		public void APointOutsideTheFootprintIsRefused()
+		{
+			var anchor = Cell(50, 50);
+			var spread = new WDist(10 * 1024);
+
+			foreach (var outside in new[] { Cell(61, 50), Cell(50, 38), Cell(58, 58), Cell(120, 120) })
+				Assert.That(MultiAimPointOrder.IsWithinSpread(anchor, outside, spread), Is.False,
+					$"{outside} is outside a 10-cell footprint and must be refused");
+		}
+
+		[Test]
+		public void TheBoundaryItselfIsInside()
+		{
+			// Exactly on the circle. The predicate is `<=`, so a player who places a point at the
+			// drawn edge of the footprint gets it -- the circle they can see is inclusive.
+			var anchor = Cell(50, 50);
+			var spread = new WDist(10 * 1024);
+
+			Assert.That(MultiAimPointOrder.IsWithinSpread(anchor, Cell(60, 50), spread), Is.True);
+		}
+
+		[Test]
+		public void ClampingPullsAnOutOfRangePointBackOntoTheFootprint()
+		{
+			// THE HOSTILE-ORDER PATH. A modified client can put any six cells on the wire; this is
+			// what stops them being six strikes across the map.
+			var anchor = Cell(50, 50);
+			var spread = new WDist(10 * 1024);
+			var clamped = MultiAimPointOrder.ClampToSpread(anchor, Cell(120, 90), spread);
+
+			Assert.That((clamped - anchor).HorizontalLength, Is.EqualTo(spread.Length).Within(2),
+				"a clamped point must land on the edge of the footprint");
+		}
+
+		[Test]
+		public void ClampingKeepsTheBearingOfTheOriginalPoint()
+		{
+			// Pulled straight back toward the anchor, not relocated. The attacker still chooses the
+			// DIRECTION each warhead goes; only the distance is bounded.
+			var anchor = Cell(50, 50);
+			var spread = new WDist(10 * 1024);
+			var far = Cell(150, 50);
+			var clamped = MultiAimPointOrder.ClampToSpread(anchor, far, spread);
+
+			Assert.That(clamped.Y, Is.EqualTo(anchor.Y));
+			Assert.That(clamped.X, Is.GreaterThan(anchor.X));
+		}
+
+		[Test]
+		public void ClampingIsRepeatableToTheUnit()
+		{
+			// Same argument as FallbackIsRepeatableToTheUnit: this runs on the synced order path, so
+			// identical inputs must give a byte-identical answer on every client.
+			var anchor = Cell(50, 50);
+			var spread = new WDist(10 * 1024);
+
+			Assert.That(
+				MultiAimPointOrder.ClampToSpread(anchor, Cell(123, 97), spread),
+				Is.EqualTo(MultiAimPointOrder.ClampToSpread(anchor, Cell(123, 97), spread)));
+		}
+
+		[Test]
+		public void HeightDoesNotCountTowardTheSpread()
+		{
+			// The bound is a footprint on the ground. An aim point on a cliff is not further away
+			// for being higher, and a map with tall terrain must not shrink the weapon.
+			var anchor = new WPos(512, 512, 0);
+			var high = new WPos(512 + (9 * 1024), 512, 20000);
+
+			Assert.That(MultiAimPointOrder.IsWithinSpread(anchor, high, new WDist(10 * 1024)), Is.True);
+		}
+
+		[Test]
+		public void TheFallbackRingUsesEveryBearingAtEveryRingSize()
+		{
+			// REGRESSION for the 4096/1024 dividend. WAngle is 1024 to the TURN, so `i * 4096 / ring`
+			// walked four turns instead of one and collapsed the ring wherever `ring` shared a factor
+			// with 4: at count 3 and count 5 every offset stacked on ONE point, and at count 7 they
+			// paired up. Only count 6 (ring 5, coprime with 4) escaped, which is why the one shipped
+			// value hid it. Distinctness at every size is the property that was actually wanted.
+			var spread = new WDist(24576);
+			for (var count = 2; count <= 12; count++)
+			{
+				var offsets = MultiAimPointOrder.FallbackRingOffsets(count, spread);
+				var distinct = offsets.Distinct().Count();
+
+				Assert.That(distinct, Is.EqualTo(count),
+					$"a {count}-warhead fallback ring put two warheads on the same point");
+			}
+		}
+
+		[Test]
+		public void TheFallbackRingStillLandsTheShippedSalvoOnTheSameSixPoints()
+		{
+			// BOTH SHIPPED POWERS USE AimPoints: 6, and the 4096 -> 1024 correction must not move
+			// where their bot-fired salvo lands. It does not: 4 and 5 are coprime, so `i * 4096 / 5`
+			// and `i * 1024 / 5` generate the SAME five bearings -- the index walks the ring the
+			// other way round, which is visible only as the rotational order of the arrivals.
+			var spread = new WDist(24576);
+			var offsets = MultiAimPointOrder.FallbackRingOffsets(6, spread);
+			var expected = new[] { 0, 204, 409, 614, 819 }
+				.Select(a => new WVec(spread.Length, 0, 0).Rotate(WRot.FromYaw(new WAngle(a))))
+				.ToHashSet();
+
+			Assert.That(offsets[0], Is.EqualTo(WVec.Zero));
+			Assert.That(offsets.Skip(1).ToHashSet(), Is.EquivalentTo(expected));
 		}
 
 		[Test]

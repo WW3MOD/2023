@@ -382,6 +382,47 @@ Player:
 		# core is 512, so two aim points closer than this overlap for no gain. Deliberately NOT the
 		# weapon's outer extent -- it is the number that answers the placement question.
 		AimPointRadius: 2c512
+		# ---- MAXIMUM SPREAD: the salvo is a cluster, not six separate weapons ----------------
+		# THE USER'S RULING, verbatim: "I think the salvo should have a max spread, so they must all be
+		# placed within a certain radius, maybe 10 cells."
+		#
+		# WHY IT WAS ASKED FOR. Six independently-aimed warheads with no geometric bound are six
+		# unrelated strikes sharing one cooldown. This weapon's warhead is on the roster permitted to
+		# permanently destroy neutral tech buildings, so one 18000-credit activation could have removed
+		# six economy structures anywhere on the map -- six times the reach of anything else on that
+		# roster, and the only multi-aim-point entry on it. Bounding the GEOMETRY rather than the target
+		# list keeps the weapon on the roster and is also the physically right answer: one missile bus
+		# dispensing re-entry vehicles cannot scatter them across a continent.
+		#
+		# 10c0 IS A RADIUS FROM THE FIRST AIM POINT, so the worst-case footprint is 20 cells across --
+		# the literal reading of "all placed within a certain radius, maybe 10 cells". Checked against
+		# the weapon rather than taken on faith:
+		#   USABLE. AimPointRadius above is 2c512, the radius inside which a second RV buys nothing.
+		#   Six points on a hexagon inscribed in this circle sit 10 cells apart -- four times that
+		#   figure -- so the bound never forces a player to waste a warhead. Even 5c0 would fit; 10c0
+		#   leaves real tactical choice.
+		#   READS AS ONE EVENT. CameraRange is 8c0 per RV, so six reveals inside a 20-cell disc overlap
+		#   heavily, and AimPointInterval 4 lands the whole salvo inside 1.4 s. Twenty cells arriving in
+		#   under two seconds is a cluster; it is not six things happening.
+		#   SCALED TO THE MAPS. Shipped maps run 66x34 to 130x130 (mods/ww3mod/maps). A 20-cell
+		#   footprint is a fifth of the widest and cannot span any of them.
+		#   DISTINCT FROM THE SARMAT, which is deliberately left UNBOUNDED (no MaxAimPointSpread in
+		#   nuclear-arsenal.yaml, so the field defaults to zero and nothing about it changes). Its
+		#   AimPointRadius alone is 30c0: a strategic MIRV is meant to span a map, a conventional
+		#   penetrator salvo is not. The two weapons now differ in reach as well as in yield.
+		#
+		# ANCHORED ON THE FIRST CLICK -- see MaxAimPointSpread's own [Desc] for why that beats a running
+		# centroid or a bounding circle. Briefly: it is the only anchor that can be drawn before the next
+		# click, and the only one that never revokes a cell the player was already allowed to use.
+		MaxAimPointSpread: 10c0
+		# THE REFUSAL, and it is deliberately not silent. A click outside the footprint would otherwise
+		# do nothing and say nothing, which players read as a broken game rather than as a rule. Same
+		# pair PlaceBuilding uses at :121-123 of this file, and the same sound: nodeply1 already means
+		# "you cannot put it there" in this mod, so this costs no new asset and teaches nothing new.
+		# The blocked cursor and the drawn footprint circle come first; this is the layer for a player
+		# who clicked anyway.
+		AimPointRejectedSpeechNotification: BuildingCannotPlaceAudio
+		AimPointRejectedTextNotification: Aim point too far from the first: the salvo must land within 10 cells.
 		# Only read for a SINGLE-target order -- a bot, a Lua binding, or an old replay, none of which
 		# knows about placement mode. First RV on the chosen point, five more on a ring of this radius.
 		# 5c0 rather than the Sarmat's 24c0 because this is a precision weapon: a bot firing it should
