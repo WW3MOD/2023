@@ -140,8 +140,46 @@ WorldLoaded = function()
 	Camera.Position = WPos.New(GroundZero.X * 1024 + 512, GroundZero.Y * 1024 + 512, 0)
 	Camera.Zoom = Camera.MinZoom
 
+	-- CLOSE PASS for the scar-coverage frame, added 2026-09-09. MinZoom shows the whole 128x128 map,
+	-- which is right for reading a 102-cell blast and useless for judging its EDGE -- the first
+	-- capture of this demo came back too distant to tell a scorched tree cell from an unscorched
+	-- one, which is the entire question the scar work turns on. So the last frame moves in.
+	--
+	-- Cell 48,52 rather than ground zero: a tree cluster with the river below it, so forest and
+	-- shoreline are in one frame. Ground zero is bare and would answer neither.
+	Trigger.AfterDelay(880, function()
+		Camera.Position = WPos.New(48 * 1024 + 512, 52 * 1024 + 512, 0)
+		Camera.Zoom = math.min(3, Camera.MaxZoom)
+	end)
+
 	-- Pre-selected so the support-power bin is on screen without the viewer clicking first.
 	TestHarness.Select(OwnSR)
+
+	-- CAPTURE, added 2026-09-09. This demo has 167 tree actors on it, which makes it the only
+	-- shipped rig where the burn-in-place work merged at 74b559ed can actually be SEEN -- until now
+	-- every image of a scorched forest has been a Python composite of the shipped art rather than an
+	-- engine frame, and nobody has watched a nuke burn a wood.
+	--
+	-- Offsets come from the timing table at the head of this file, NOT from taste. t=243 is the
+	-- detonation, so 200 is the last clean before-frame; 284 is the fireball's stated second maximum;
+	-- 420 sits in the window this file already calls the most legible, with the inner rings gone, the
+	-- middle band burning and the outer rings still intact; 900 is after the last suppression band
+	-- (t=933 is close but the fires still run to 1743) and is the first frame where the scorched
+	-- forest can be read on its own rather than through flame.
+	TestHarness.ScreenshotAfter(200 / TestHarness.TicksPerSecond, "01-forest-before",
+		"BEFORE. Living forest around ground zero -- full canopies, no char. This is the control " ..
+		"frame the three after it are read against.")
+	TestHarness.ScreenshotAfter(284 / TestHarness.TicksPerSecond, "02-fireball-max",
+		"expects: the fireball at its second maximum. Not a burnt-tree frame -- it is here so the " ..
+		"scale of the thing doing the burning is on the record beside its effect.")
+	TestHarness.ScreenshotAfter(420 / TestHarness.TicksPerSecond, "03-three-states",
+		"expects: three states at once -- inner rings gone, middle band burning, outer rings still " ..
+		"intact and green. The boundary between burnt and unburnt forest is the thing to look at.")
+	TestHarness.ScreenshotAfter(900 / TestHarness.TicksPerSecond, "04-scorched-forest",
+		"THE BURNT-TREE FRAME. expects: trees inside the thermal radius still STANDING but leafless " ..
+		"and charred, on scorched ground, with living forest further out. FAIL if the trees are " ..
+		"gone (they must never be removed -- cover and line of fire depend on it), or if they are " ..
+		"paler than the ground they stand on, which is the complaint this work was built to fix.")
 
 	Trigger.AfterDelay(1, step)
 end
