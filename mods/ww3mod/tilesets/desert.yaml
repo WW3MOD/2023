@@ -36,10 +36,25 @@ Terrain:
 		Type: Rock
 		TargetTypes: Ground
 		Color: 44443C
+		# NUCLEAR SCARS ONLY, 2026-09-09. Rock used to accept NO smudge type at all -- not Crater,
+		# not Scorch, not the Scar types, from any weapon -- so a nuke left an unmarked halo around every
+		# boulder and cliff line while the Clear ground around them charred. The user reported it as the
+		# stones having "some kind of protective aura". On the demo map alone Rock and Cliffs are 2417 of
+		# 16384 cells, so this was 14.8% of the playfield refusing to burn. Follows the Beach precedent
+		# set earlier the same day: Crater and Scorch stay DELIBERATELY absent, so ordinary shellfire still
+		# does not pit stone and no non-nuclear weapon in the mod changes behaviour.
+		AcceptsSmudgeType: ScarCore, ScarCrater, ScarChar, ScarBurn, ScarRim
 	TerrainType@Cliffs:
 		Type: Cliffs
 		TargetTypes: Ground
 		Color: 44443C
+		# NUCLEAR SCARS ONLY, 2026-09-09. Cliffs used to accept NO smudge type at all -- not Crater,
+		# not Scorch, not the Scar types, from any weapon -- so a nuke left an unmarked halo around every
+		# cliff line while the Clear ground around it charred. The user reported it as the stones having
+		# "some kind of protective aura". Follows the Beach precedent set earlier the same day: Crater and
+		# Scorch stay DELIBERATELY absent, so ordinary shellfire still does not pit stone and no
+		# non-nuclear weapon in the mod changes behaviour.
+		AcceptsSmudgeType: ScarCore, ScarCrater, ScarChar, ScarBurn, ScarRim
 
 	TerrainType@River:
 		Type: River
