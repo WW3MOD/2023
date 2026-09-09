@@ -287,12 +287,26 @@ local function watchTick()
 
 	if rv > 0 and watch.rvFirst == nil then
 		watch.rvFirst = rel
-		TestHarness.Screenshot(watch.labels[1],
-			"MEASURED at pass+" .. rel .. " with " .. rv .. " RV(s) in the world -- fired ON the " ..
-			"tick the first warhead entered the world, not on a predicted offset. " ..
-			watch.note1 .. " IF THIS FRAME IS EMPTY SKY the warhead exists and is not being " ..
-			"DRAWN: that is a rendering fault (WithHypersonicPlasma / SubTickMotionSmoothing / the " ..
-			"sequence), not a mistimed capture.")
+		-- TWO TICKS AFTER first sighting, not ON it. Firing on the sighting tick was how this was
+		-- first written and it produced a permanently empty frame -- correctly, and it is worth
+		-- knowing why rather than just moving the number: `WithHypersonicPlasma` needs two observed
+		-- positions before it has a velocity, so it draws NOTHING on an actor's spawn frame. That
+		-- cost 1.5% of a Kinzhal's visible life and did not matter; against this weapon's ~17-tick
+		-- flight it is the one frame guaranteed to show empty sky.
+		--
+		-- The diagnostic value of firing on the sighting tick is kept, because the note still
+		-- reports the measured sighting tick and the RV count at capture. Empty sky HERE still
+		-- means a rendering fault -- it just no longer means it spuriously.
+		local label1, note1 = watch.labels[1], watch.note1
+		local seenAt, seenCount = rel, rv
+		Trigger.AfterDelay(2, function()
+			TestHarness.Screenshot(label1,
+				"MEASURED: first RV entered the world at pass+" .. seenAt .. " with " .. seenCount ..
+				" RV(s); this frame is 2 ticks later, because the plasma trait draws nothing on an " ..
+				"actor's spawn frame. " .. note1 .. " IF THIS FRAME IS EMPTY SKY the warhead exists " ..
+				"and is not being DRAWN: that is a rendering fault (WithHypersonicPlasma / " ..
+				"SubTickMotionSmoothing / the sequence), not a mistimed capture.")
+		end)
 
 		-- Four ticks on: some down, some still falling. Relative to the OBSERVED first sighting,
 		-- so it stays correct even if the flight time changes again.
