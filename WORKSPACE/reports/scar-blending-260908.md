@@ -1,5 +1,14 @@
 # Blast-scar blending — recon
 
+> **PARTLY SUPERSEDED 2026-09-09.** Everything below is still an accurate record of what the code
+> did on 2026-09-08 and why, and its tree/beach/annuli findings all shipped. But its central ruling
+> about buildings — that `InvalidTargets: Vehicle, Structure, Wall` is a deliberate look to be kept,
+> stated here as *"The hole is deliberate YAML"* and carried into section 6's recommendation to
+> touch only `ValidTargets` — **was reversed by the user on 2026-09-09**. A destroyed building must
+> not mean the ground under it was undisturbed. The 61 Scar warheads now carry `IgnoreActors: true`
+> instead, and the `InvalidTargets` line is gone from all of them (`wt/scar-under-actors`). Read the
+> analysis below as history; do not act on its building recommendation.
+
 Branch `wt/scar-blending`, forked from `main @ 87728dc7` (`git status -sb` clean at time of
 writing). No game was launched; no shipped rendering behaviour was changed. Companion render:
 [`WORKSPACE/mockups/scar-blending-options.png`](../mockups/scar-blending-options.png), generated

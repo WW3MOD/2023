@@ -30,6 +30,20 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("Percentage chance the smudge is created.")]
 		public readonly int Chance = 100;
 
+		[Desc("Mark the cell even when an actor is standing in it.",
+			"The stock behaviour is to skip any cell holding an actor this warhead is not valid against, so a",
+			"shell that craters open ground leaves the ground under a building untouched. For a blast that is",
+			"supposed to scar the terrain itself that reads as a bug: a nuke left clean, unburnt rectangles",
+			"wherever a vehicle, a structure or a wall happened to be standing.",
+			"Set this to skip the actor test entirely. It is the only correct switch for that job -- widening",
+			"ValidTargets instead cannot close the hole, because two common cases have no target type this",
+			"warhead can match: a vehicle husk advertises `NoAutoTarget, Husk` with no `Ground`, and a crate",
+			"has no Targetable at all, so its target-type set is empty and BitSet.Overlaps is false against",
+			"any ValidTargets whatsoever. The husk case is the common one, not the exotic one -- scar warheads",
+			"fire on a delay, so the vehicles in a blast are already husks by the time the smudge lands.",
+			"Defaults to false, so every warhead that does not opt in keeps the stock behaviour exactly.")]
+		public readonly bool IgnoreActors = false;
+
 		public override void DoImpact(in Target target, WarheadArgs args)
 		{
 			if (target.Type == TargetType.Invalid)
@@ -64,9 +78,15 @@ namespace OpenRA.Mods.Common.Warheads
 				// target-type set is empty and IsValidAgainst always says "invalid actor under the shell" — which
 				// suppressed every crater and scorch mark on farmland. Same root cause and same fix as
 				// CreateEffectWarhead and WarheadAS, which swallowed the explosion itself for this reason.
-				var cellActors = world.BlockingActorsAt(sc);
-				if (cellActors.Any(a => !IsValidAgainst(a, firedBy)))
-					continue;
+				// IgnoreActors skips the test outright: see the field's Desc for why widening ValidTargets is
+				// not an equivalent, and note that this leaves ValidTargets/InvalidTargets with no reader at
+				// all on a warhead that sets it — they are inert here, not merely permissive.
+				if (!IgnoreActors)
+				{
+					var cellActors = world.BlockingActorsAt(sc);
+					if (cellActors.Any(a => !IsValidAgainst(a, firedBy)))
+						continue;
+				}
 
 				if (!smudgeLayers.TryGetValue(smudgeType, out var smudgeLayer))
 					throw new NotImplementedException($"Unknown smudge type `{smudgeType}`");

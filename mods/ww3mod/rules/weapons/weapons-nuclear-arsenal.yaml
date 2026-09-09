@@ -605,14 +605,14 @@ NukeB61Mod12Y003:
 		SmudgeType: ScarCore
 		Delay: 2
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar3Char: LeaveSmudge
 		Size: 1, 1
 		SmudgeType: ScarChar
 		Delay: 2
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 
 # ---- B61-12 (1.5 kt) -- 1.5 kt --------------------------------------------------------
@@ -1003,21 +1003,21 @@ NukeB61Mod12Y015:
 		SmudgeType: ScarCore
 		Delay: 2
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar2Crater: LeaveSmudge
 		Size: 1, 1
 		SmudgeType: ScarCrater
 		Delay: 2
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar4Burn: LeaveSmudge
 		Size: 2, 2
 		SmudgeType: ScarBurn
 		Delay: 6
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 
 # ---- B61-12 (10 kt) -- 10 kt ----------------------------------------------------------
@@ -1408,28 +1408,28 @@ NukeB61Mod12Y10:
 		SmudgeType: ScarCore
 		Delay: 2
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar3Char: LeaveSmudge
 		Size: 2, 2
 		SmudgeType: ScarChar
 		Delay: 5
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar4Burn: LeaveSmudge
 		Size: 3, 3
 		SmudgeType: ScarBurn
 		Delay: 8
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar5Rim: LeaveSmudge
 		Size: 4, 4
 		SmudgeType: ScarRim
 		Delay: 12
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 
 # ---- B61-12 (50 kt) -- 50 kt ----------------------------------------------------------
@@ -1820,35 +1820,35 @@ NukeB61Mod12Y50:
 		SmudgeType: ScarCore
 		Delay: 0
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar2Crater: LeaveSmudge
 		Size: 2, 2
 		SmudgeType: ScarCrater
 		Delay: 3
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar3Char: LeaveSmudge
 		Size: 4, 3
 		SmudgeType: ScarChar
 		Delay: 8
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar4Burn: LeaveSmudge
 		Size: 6, 5
 		SmudgeType: ScarBurn
 		Delay: 16
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar5Rim: LeaveSmudge
 		Size: 7, 7
 		SmudgeType: ScarRim
 		Delay: 20
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 
 # ---- W76-1 -- 100 kt ------------------------------------------------------------------
@@ -2231,35 +2231,35 @@ NukeW76:
 		SmudgeType: ScarCore
 		Delay: 0
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar2Crater: LeaveSmudge
 		Size: 3, 2
 		SmudgeType: ScarCrater
 		Delay: 4
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar3Char: LeaveSmudge
 		Size: 5, 4
 		SmudgeType: ScarChar
 		Delay: 10
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar4Burn: LeaveSmudge
 		Size: 7, 6
 		SmudgeType: ScarBurn
 		Delay: 18
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar5Rim: LeaveSmudge
 		Size: 9, 8
 		SmudgeType: ScarRim
 		Delay: 26
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 
 # ---- RS-28 Sarmat RV -- 750 kt --------------------------------------------------------
@@ -2658,35 +2658,35 @@ NukeSarmatRV:
 		SmudgeType: ScarCore
 		Delay: 0
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar2Crater: LeaveSmudge
 		Size: 6, 4
 		SmudgeType: ScarCrater
 		Delay: 8
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar3Char: LeaveSmudge
 		Size: 10, 7
 		SmudgeType: ScarChar
 		Delay: 21
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar4Burn: LeaveSmudge
 		Size: 14, 11
 		SmudgeType: ScarBurn
 		Delay: 36
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar5Rim: LeaveSmudge
 		Size: 18, 15
 		SmudgeType: ScarRim
 		Delay: 50
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 
 # ---- B83-1 -- 1200 kt -----------------------------------------------------------------
@@ -3080,35 +3080,35 @@ NukeB83:
 		SmudgeType: ScarCore
 		Delay: 0
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 25c0
 	Warhead@Scar2Crater: LeaveSmudge
 		Size: 7, 4
 		SmudgeType: ScarCrater
 		Delay: 9
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 25c0
 	Warhead@Scar3Char: LeaveSmudge
 		Size: 12, 8
 		SmudgeType: ScarChar
 		Delay: 24
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 25c0
 	Warhead@Scar4Burn: LeaveSmudge
 		Size: 17, 13
 		SmudgeType: ScarBurn
 		Delay: 43
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 25c0
 	Warhead@Scar5Rim: LeaveSmudge
 		Size: 21, 18
 		SmudgeType: ScarRim
 		Delay: 59
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 25c0
 
 # ---- Tsar Bomba -- 50000 kt -----------------------------------------------------------
@@ -3516,35 +3516,35 @@ NukeTsarBomba:
 		SmudgeType: ScarCore
 		Delay: 0
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 40c0
 	Warhead@Scar2Crater: LeaveSmudge
 		Size: 12, 6
 		SmudgeType: ScarCrater
 		Delay: 34
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 40c0
 	Warhead@Scar3Char: LeaveSmudge
 		Size: 20, 13
 		SmudgeType: ScarChar
 		Delay: 86
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 40c0
 	Warhead@Scar4Burn: LeaveSmudge
 		Size: 27, 21
 		SmudgeType: ScarBurn
 		Delay: 146
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 40c0
 	Warhead@Scar5Rim: LeaveSmudge
 		Size: 34, 28
 		SmudgeType: ScarRim
 		Delay: 206
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 40c0
 
 # ---- RS-28 Sarmat -- 10 x 750 kt MIRV -----------------------------------------------
@@ -4075,21 +4075,21 @@ NukeRu9M729:
 		SmudgeType: ScarCore
 		Delay: 2
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar2Crater: LeaveSmudge
 		Size: 1, 1
 		SmudgeType: ScarCrater
 		Delay: 2
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar4Burn: LeaveSmudge
 		Size: 2, 2
 		SmudgeType: ScarBurn
 		Delay: 5
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 
 # ---- 9M723 Iskander-M -- 10 kt --------------------------------------------------------
@@ -4487,28 +4487,28 @@ NukeRuIskander:
 		SmudgeType: ScarCore
 		Delay: 2
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar3Char: LeaveSmudge
 		Size: 2, 2
 		SmudgeType: ScarChar
 		Delay: 5
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar4Burn: LeaveSmudge
 		Size: 3, 3
 		SmudgeType: ScarBurn
 		Delay: 8
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar5Rim: LeaveSmudge
 		Size: 4, 4
 		SmudgeType: ScarRim
 		Delay: 12
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 
 # ---- Kh-47M2 Kinzhal-N -- 50 kt -------------------------------------------------------
@@ -4906,35 +4906,35 @@ NukeRuKinzhalN:
 		SmudgeType: ScarCore
 		Delay: 0
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar2Crater: LeaveSmudge
 		Size: 2, 2
 		SmudgeType: ScarCrater
 		Delay: 3
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar3Char: LeaveSmudge
 		Size: 4, 3
 		SmudgeType: ScarChar
 		Delay: 8
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar4Burn: LeaveSmudge
 		Size: 6, 5
 		SmudgeType: ScarBurn
 		Delay: 16
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar5Rim: LeaveSmudge
 		Size: 7, 7
 		SmudgeType: ScarRim
 		Delay: 20
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 
 # ---- 3M14 Kalibr -- 100 kt ------------------------------------------------------------
@@ -5323,33 +5323,33 @@ NukeRuKalibr:
 		SmudgeType: ScarCore
 		Delay: 0
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar2Crater: LeaveSmudge
 		Size: 3, 2
 		SmudgeType: ScarCrater
 		Delay: 4
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar3Char: LeaveSmudge
 		Size: 5, 4
 		SmudgeType: ScarChar
 		Delay: 10
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar4Burn: LeaveSmudge
 		Size: 7, 6
 		SmudgeType: ScarBurn
 		Delay: 18
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0
 	Warhead@Scar5Rim: LeaveSmudge
 		Size: 9, 8
 		SmudgeType: ScarRim
 		Delay: 26
 		ValidTargets: Ground, Water, Trees
-		InvalidTargets: Vehicle, Structure, Wall
+		IgnoreActors: true
 		AirThreshold: 24c0

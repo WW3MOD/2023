@@ -183,6 +183,28 @@ WorldLoaded = function()
 		Camera.Zoom = math.min(3, Camera.MaxZoom)
 	end)
 
+	-- THE ACTOR-FOOTPRINT FRAME, added 2026-09-09 with the reversal. Cell 45,64 is a ring-3 site
+	-- 19 cells from ground zero, and it was picked on three properties rather than by eye:
+	--
+	--   * TERRAIN. A 15x15 window on it is 94% Clear, 3% Road, 2% Rock -- read statically out of
+	--     map.bin with tools/nav-guard/modload.py, not guessed. That matters more than it sounds:
+	--     Rock and Cliffs accept NO smudge type from any weapon in the mod and never have, so a
+	--     frame pointed at them comes back looking exactly like this feature failing while in fact
+	--     testing nothing. That has already cost one capture on this very demo -- see the note on
+	--     the 72,51 waterline camera above about the 78,64 river bank.
+	--   * IT IS OUTSIDE THE VAPORIZE RADIUS. Warhead@VaporizeRemoval has Radius 6c820, so the
+	--     ring-1 sites at 6 cells are REMOVED outright at tick 1 and leave no actor behind to have
+	--     blocked anything. A frame there would show continuous scar both before and after this
+	--     change and would prove nothing. At 19 cells the actors die normally and leave husks.
+	--   * THE FOOTPRINT IS BIG. afld at 45,64 is ^3x2Shape -- a six-cell rectangle, the largest
+	--     single hole the old behaviour could punch. Its husk (afld.husk, ^BuildingHusk: 200 HP at
+	--     ChangesHealth -10 per 8 ticks) burns out around 160 ticks after it spawns, so by the
+	--     capture the footprint is bare ground and whatever is drawn there is the ground itself.
+	Trigger.AfterDelay(1000, function()
+		Camera.Position = WPos.New(45 * 1024 + 512, 64 * 1024 + 512, 0)
+		Camera.Zoom = math.min(3, Camera.MaxZoom)
+	end)
+
 	-- Pre-selected so the support-power bin is on screen without the viewer clicking first.
 	TestHarness.Select(OwnSR)
 
@@ -224,9 +246,22 @@ WorldLoaded = function()
 		"last two cells into the water. FAIL if a bright unscorched sand band sits between the " ..
 		"black scar and the shoreline, or if a full-strength black cell butts straight onto water. " ..
 		"The Rock and Cliffs either side of the ford staying bright is NOT a failure -- those two " ..
-		"types accept no smudge from any weapon in the mod and never have. Check here too that " ..
-		"buildings, vehicles and walls still sit on clean unscorched ground; if those holes have " ..
-		"vanished the InvalidTargets line was damaged.")
+		"types accept no smudge from any weapon in the mod and never have. REVERSED 2026-09-09: this " ..
+		"caption used to say buildings, vehicles and walls must still sit on CLEAN unscorched ground " ..
+		"and that losing those holes meant the InvalidTargets line was damaged. The user ruled the " ..
+		"other way -- a destroyed building must not mean the ground under it was undisturbed -- so " ..
+		"the holes are now the failure, not the pass. Frame 06 is where that is read.")
+	TestHarness.ScreenshotAfter(1020 / TestHarness.TicksPerSecond, "06-scar-under-actors",
+		"THE REVERSAL FRAME. Camera on the ring-3 site at cell 45,64, 19 cells from ground zero and " ..
+		"inside the ScarChar band (17-27 cells). The airfield that stood here is a 3x2 footprint and " ..
+		"its husk has long burnt away, so the six cells it occupied are bare ground. expects: those " ..
+		"cells are scarred exactly like the ground around them -- no rectangle, no seam, nothing that " ..
+		"reads as a footprint. FAIL if a clean unscorched rectangle sits where the airfield was, or " ..
+		"where any vehicle or wall stood: that is the pre-2026-09-09 behaviour and it means either " ..
+		"IgnoreActors was lost from the Scar warheads or LeaveSmudgeWarhead stopped honouring it. " ..
+		"NOT a failure: ground still hidden under a STANDING building or an intact vehicle husk. " ..
+		"Smudges are drawn in the terrain pass, before any actor sprite, so a scar under something " ..
+		"still standing is marked but covered -- that is draw order and is unchanged by this work.")
 
 	Trigger.AfterDelay(1, step)
 end
