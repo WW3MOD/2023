@@ -201,6 +201,43 @@ local function step()
 			Test.ActivateSupportPower(Russia, KinzhalOrder, CPos.New(KinzhalAim.X, KinzhalAim.Y))
 		end
 
+		-- CAPTURE, on the first two passes only. The demo is for a viewer, but nobody has yet
+		-- LOOKED at any of this -- every image of the plasma so far is reasoned from the two
+		-- shipped configurations, not seen. Six frames is the whole evidence base, so they are
+		-- placed on the beats the three claims actually turn on and nowhere else. Passes 3-6 take
+		-- none: they are repeats for a human watching, and a seventh PNG of the same thing buys
+		-- nothing.
+		--
+		-- The offsets come from the flight arithmetic at the head of this file, NOT from taste:
+		-- first RV impact is +62, last is +82, Kinzhal impact is +94.
+		if not pass.kinzhal and next_pass == 2 then
+			-- Pass 1, zoom 2, Oreshnik alone. The streak claim.
+			TestHarness.ScreenshotAfter(55 / TestHarness.TicksPerSecond, "01-streak-mid-descent",
+				"expects: six white streaks falling from the TOP of the frame with a blue-white " ..
+				"bloom at each nose. Nothing has landed yet (+55, first impact is +62). If there " ..
+				"is no plasma at all, MaxStep regressed.")
+			TestHarness.ScreenshotAfter(72 / TestHarness.TicksPerSecond, "02-mid-salvo",
+				"expects: some RVs down, others still falling -- the salvo is staggered. The ones " ..
+				"still in the air keep their nose bloom; the bloom must never appear IN FRONT of " ..
+				"a crater.")
+			TestHarness.ScreenshotAfter(92 / TestHarness.TicksPerSecond, "03-footprint",
+				"expects: in the 4x4 T-90 grid at three-cell spacing, each RV killed what it " ..
+				"landed on or beside while tanks three cells away stand. Not a flattened grid " ..
+				"(spread too wide) and not an intact one (point damage too low).")
+		elseif pass.kinzhal and next_pass == 3 then
+			-- Pass 2, zoom 1, both weapons on the same tick. The speed claim.
+			TestHarness.ScreenshotAfter(58 / TestHarness.TicksPerSecond, "04-both-in-flight",
+				"expects: the Kinzhal crossing the frame nearly FLAT while the Oreshnik RVs fall " ..
+				"through it steeply. The two trajectories are the comparison.")
+			TestHarness.ScreenshotAfter(86 / TestHarness.TicksPerSecond, "05-oreshnik-down-kinzhal-flying",
+				"THE SPEED CLAIM, and the one frame that proves it: all six RVs are on the ground " ..
+				"(+82) and the Kinzhal is STILL IN THE AIR (+94). If the Kinzhal has already " ..
+				"landed, or they are interleaved, the claim is wrong.")
+			TestHarness.ScreenshotAfter(100 / TestHarness.TicksPerSecond, "06-after-kinzhal",
+				"expects: both impacts done. The Kinzhal's crater is visibly WIDER and softer " ..
+				"than the six Oreshnik points, which is the conventional-precision profile.")
+		end
+
 		if next_pass > #Passes then
 			return
 		end
