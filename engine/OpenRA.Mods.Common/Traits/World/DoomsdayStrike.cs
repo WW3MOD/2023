@@ -198,30 +198,30 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	/// <summary>
-	/// THE MODE. See <see cref="DoomsdayStrikeInfo"/> for the sequence; the interesting parts of the
-	/// implementation are the three guarantees it has to keep.
+	/// <para>THE MODE. See <see cref="DoomsdayStrikeInfo"/> for the sequence; the interesting parts of the
+	/// implementation are the three guarantees it has to keep.</para>
 	///
-	/// COVERAGE IS NO LONGER TOTAL, AND THAT IS THE POINT OF THE 2026-09-07 RETUNE. The mode used to
+	/// <para>COVERAGE IS NO LONGER TOTAL, AND THAT IS THE POINT OF THE 2026-09-07 RETUNE. The mode used to
 	/// run <see cref="DoomsdayMath.UncoveredCells"/> over the whole playable rectangle and drop a fill
 	/// warhead on every gap, so that every cell was provably inside some warhead's lethal radius. It
 	/// worked, and it is gone, because the user played it and asked for far fewer warheads: on
 	/// river-zeta the fill pass alone was 17 of the 19 six-megaton detonations. What the salvo now
 	/// covers is what it AIMS at — the high-value point targets and the city clusters. Ground between
 	/// them is uncovered on purpose, and a structure that is neither a derrick nor part of a city is
-	/// not shot at.
+	/// not shot at.</para>
 	///
-	/// SO "NOTHING SURVIVES" IS NOW THE BACKSTOP'S PROPERTY ALONE, not the salvo's. It used to be both:
+	/// <para>SO "NOTHING SURVIVES" IS NOW THE BACKSTOP'S PROPERTY ALONE, not the salvo's. It used to be both:
 	/// a proven geometric cover AND a sweep, deliberately belt-and-braces. Only the sweep is left.
 	/// <see cref="Annihilate"/> still destroys everything standing after the last impact, so the mode's
 	/// guarantee is unchanged from a player's point of view — what changed is that the warheads are now
 	/// spectacle aimed at targets, and the guarantee is carried entirely by the sweep behind them. If
-	/// that sweep is ever removed, the guarantee goes with it; there is no longer a second mechanism.
+	/// that sweep is ever removed, the guarantee goes with it; there is no longer a second mechanism.</para>
 	///
-	/// DETERMINISM. Every random draw goes through World.SharedRandom. Nothing in the pipeline iterates
+	/// <para>DETERMINISM. Every random draw goes through World.SharedRandom. Nothing in the pipeline iterates
 	/// a Dictionary or a HashSet — the asset list is sorted by ActorID before it is used for anything,
 	/// and the two Info HashSets are only ever membership-TESTED, never enumerated. This is simulation
 	/// state and it must be byte-identical on every client; note this is the exact opposite of the rule
-	/// that governs render-only effects like the screen shake, which must avoid SharedRandom.
+	/// that governs render-only effects like the screen shake, which must avoid SharedRandom.</para>
 	/// </summary>
 	public class DoomsdayStrike : ITick, INotifyTimeLimit
 	{
@@ -269,14 +269,14 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Whether the ordinary win/loss machinery should stand down for this world.
+		/// <para>Whether the ordinary win/loss machinery should stand down for this world.</para>
 		///
-		/// It has to, and the reason is not cosmetic. Once the warheads start landing, players lose their
+		/// <para>It has to, and the reason is not cosmetic. Once the warheads start landing, players lose their
 		/// last units in whatever order the geometry happens to produce, and
 		/// <see cref="ConquestVictoryConditions"/> would award the match to whoever survived a few ticks
 		/// longer. The user's requirement is that the winner comes from the SCORE as it stood before the
 		/// first warhead — so the checks are suspended for the duration and the verdict is applied at the
-		/// end from a score that has been frozen the whole time.
+		/// end from a score that has been frozen the whole time.</para>
 		/// </summary>
 		public static bool VictoryChecksSuspended(World world)
 		{
@@ -312,9 +312,9 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Stop every per-player accumulator, on the tick the clock expired.
+		/// <para>Stop every per-player accumulator, on the tick the clock expired.</para>
 		///
-		/// This is a FREEZE OF THE ACCUMULATION, not a snapshot of the display. Two flags do it, and they
+		/// <para>This is a FREEZE OF THE ACCUMULATION, not a snapshot of the display. Two flags do it, and they
 		/// were chosen because they are choke points rather than because they are convenient:
 		///   * PlayerExperience.Frozen — GiveExperience is the single entry point through which every
 		///     score-affecting event in the engine passes (kills via GivesExperience, captures, donations,
@@ -322,7 +322,7 @@ namespace OpenRA.Mods.Common.Traits
 		///     kills the nukes themselves cause credit nobody.
 		///   * PlayerStatistics.Frozen — stops the income/army sampling in its Tick and every
 		///     UpdatesPlayerStatistics lifecycle callback, so unit counts, asset values, kill/death tallies
-		///     and the composition telemetry all stop where they were.
+		///     and the composition telemetry all stop where they were.</para>
 		/// </summary>
 		void FreezeStatistics()
 		{
@@ -484,13 +484,13 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Whether an actor type is a REAL STRUCTURE rather than scenery, tested by target type.
+		/// <para>Whether an actor type is a REAL STRUCTURE rather than scenery, tested by target type.</para>
 		///
-		/// Info-level rather than instance-level on purpose. A <see cref="Targetable"/> may be gated by
+		/// <para>Info-level rather than instance-level on purpose. A <see cref="Targetable"/> may be gated by
 		/// RequiresCondition, and this question is "could this thing ever be a structure", not "is it
 		/// one on this tick" — reading the Info answers the first, which is the one target enumeration
 		/// wants. See <see cref="DoomsdayStrikeInfo.StructureTargetType"/> for why this is a target-type
-		/// test and not the BuildingInfo test that used to be here.
+		/// test and not the BuildingInfo test that used to be here.</para>
 		/// </summary>
 		bool IsStructure(ActorInfo actorInfo)
 		{
@@ -502,27 +502,27 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Lift the shroud and the fog for every player, so the salvo is watched over the whole map.
+		/// <para>Lift the shroud and the fog for every player, so the salvo is watched over the whole map.</para>
 		///
-		/// WHY THIS IS NOT THE INTELLIGENCE LEAK IT LOOKS LIKE. Revealing the map normally hands a player
+		/// <para>WHY THIS IS NOT THE INTELLIGENCE LEAK IT LOOKS LIKE. Revealing the map normally hands a player
 		/// free information, which is exactly why the nuclear-flash-over-fog work brightens the effect
 		/// without lifting the shroud. That objection does not apply here and it is worth being explicit
 		/// about why, because a future reader will otherwise see a map reveal in gameplay code and assume
 		/// it is a bug: by the time this runs the statistics are frozen (see <see cref="FreezeStatistics"/>),
 		/// the winner is already determined by the frozen score, the ordinary victory checks are suspended,
 		/// and <see cref="Annihilate"/> is going to kill every actor on the map in a few seconds. There is
-		/// no information advantage left to leak because there is no game left to play.
+		/// no information advantage left to leak because there is no game left to play.</para>
 		///
-		/// VISIBILITY ONLY, NOT TARGETING. MapLayers.Disabled short-circuits IsExplored and forces
+		/// <para>VISIBILITY ONLY, NOT TARGETING. MapLayers.Disabled short-circuits IsExplored and forces
 		/// FogEnabled false (MapLayers.cs), so it changes what is DRAWN and what queries about visibility
 		/// answer — it moves no actor and retargets nothing. The salvo itself cannot be affected in any
 		/// case: BuildSalvo enumerates world.Actors directly and never asks a player what it can see, and
-		/// it has already run by the time this is called.
+		/// it has already run by the time this is called.</para>
 		///
-		/// DETERMINISM. Disabled is [Sync] simulation state, and this runs from INotifyTimeLimit on a tick
+		/// <para>DETERMINISM. Disabled is [Sync] simulation state, and this runs from INotifyTimeLimit on a tick
 		/// every client agrees on, for every player in the same fixed world.Players order — so all clients
 		/// make the same change on the same tick. Setting it on every player rather than only the local one
-		/// is what keeps that true; a local-only reveal would desync the [Sync] hash.
+		/// is what keeps that true; a local-only reveal would desync the [Sync] hash.</para>
 		/// </summary>
 		void RevealMap()
 		{
@@ -570,16 +570,16 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Put one warhead in the air on a re-entry trajectory.
+		/// <para>Put one warhead in the air on a re-entry trajectory.</para>
 		///
-		/// STEEPNESS COMES FROM THE GEOMETRY, NOT FROM LaunchAngle, and that distinction is the whole
+		/// <para>STEEPNESS COMES FROM THE GEOMETRY, NOT FROM LaunchAngle, and that distinction is the whole
 		/// design. Raising LaunchAngle on a BallisticMissile scales the arc apex with shot length
 		/// (BallisticMissileFly.cs:62-63), so the same setting produces a different trajectory on a big
 		/// map than on a small one — which is exactly why the shipped strike missiles sit at a deliberately
 		/// low 30 raw units. Here the missile is spawned high and CLOSE, so the descent is steep by
 		/// construction and identical on every map: SpawnAltitude over ApproachDistance, 38c0 over 5c0,
 		/// is a constant slope of 7.6 whatever the map is. The missile actors set LaunchAngle 0, which
-		/// makes the arc term vanish entirely and leaves a dead-straight 82.5-degree descent.
+		/// makes the arc term vanish entirely and leaves a dead-straight 82.5-degree descent.</para>
 		/// </summary>
 		void Launch(WPos target, string actorType)
 		{
@@ -609,11 +609,11 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// The backstop. Destroy everything still standing, so "nothing survives" is a property of the
+		/// <para>The backstop. Destroy everything still standing, so "nothing survives" is a property of the
 		/// mode rather than a property of this week's warhead tuning. See the class remarks for why this
-		/// exists alongside a proven geometric cover rather than instead of one.
+		/// exists alongside a proven geometric cover rather than instead of one.</para>
 		///
-		/// Statistics are already frozen, so none of these deaths reach anybody's score.
+		/// <para>Statistics are already frozen, so none of these deaths reach anybody's score.</para>
 		/// </summary>
 		void Annihilate()
 		{
@@ -632,21 +632,21 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Apply the verdict from the frozen score.
+		/// <para>Apply the verdict from the frozen score.</para>
 		///
-		/// This deliberately REUSES the shipped time-limit resolution rather than reimplementing it: the
+		/// <para>This deliberately REUSES the shipped time-limit resolution rather than reimplementing it: the
 		/// suspension is lifted and <see cref="INotifyTimeLimit.NotifyTimerExpired"/> is re-raised on the
 		/// player actors, which runs ConquestVictoryConditions' existing highest-Experience-wins
 		/// comparison. Because PlayerExperience has been frozen since the expiry tick, that comparison
 		/// reads exactly the numbers it would have read then — which is what makes the freeze
-		/// load-bearing rather than decorative, and is the property DoomsdayStatsFreezeTest pins.
+		/// load-bearing rather than decorative, and is the property DoomsdayStatsFreezeTest pins.</para>
 		///
-		/// SIMULTANEOUS ELIMINATION IS NOT A CASE HERE. Every player was destroyed on the same tick by
+		/// <para>SIMULTANEOUS ELIMINATION IS NOT A CASE HERE. Every player was destroyed on the same tick by
 		/// the sweep above, but no player has a WinState yet, because the victory checks were suspended
 		/// for the whole salvo. So the tie-break never runs on "who lost their last unit last" — there is
 		/// exactly one ordering decision, taken here, over frozen numbers. A genuine score TIE resolves
 		/// through the existing OrderByDescending, which is a stable sort over world.Players in its fixed
-		/// creation order: the earliest-seated tied player wins, identically on every client.
+		/// creation order: the earliest-seated tied player wins, identically on every client.</para>
 		/// </summary>
 		void Resolve()
 		{

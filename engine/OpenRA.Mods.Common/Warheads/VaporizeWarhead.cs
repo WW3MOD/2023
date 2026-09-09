@@ -66,19 +66,19 @@ namespace OpenRA.Mods.Common.Warheads
 		public readonly bool ForceGroundLevel = false;
 
 		/// <summary>
-		/// Everything with health inside the radius, of a valid relationship, that is not the firer.
-		/// One sentence, on purpose.
+		/// <para>Everything with health inside the radius, of a valid relationship, that is not the firer.
+		/// One sentence, on purpose.</para>
 		///
-		/// This REPLACES the base implementation rather than extending it, because the base's third
+		/// <para>This REPLACES the base implementation rather than extending it, because the base's third
 		/// clause - the ValidTargets/InvalidTargets overlap test (Warhead.cs:73-75) - is the one thing
 		/// that must not apply. WW3MOD protects several actors by giving them a target type no weapon
 		/// lists rather than by making them tough (`NoAutoTarget` on ^TechBuilding and SUPPLYROUTE,
 		/// `Hypersonic` on every in-flight missile), and a fireball is not a targeting decision.
-		/// The AffectsParent and relationship clauses are kept verbatim from the base.
+		/// The AffectsParent and relationship clauses are kept verbatim from the base.</para>
 		///
-		/// The health predicate is Vaporizable.CanVaporize, shared with the trait so the warhead and
+		/// <para>The health predicate is Vaporizable.CanVaporize, shared with the trait so the warhead and
 		/// the victim cannot disagree; the shape is DamageWarhead.cs:57-64 and the semantics are
-		/// DoomsdayStrike.Annihilate's, which already filters the whole map on exactly this test.
+		/// DoomsdayStrike.Annihilate's, which already filters the whole map on exactly this test.</para>
 		/// </summary>
 		public override bool IsValidAgainst(Actor victim, Actor firedBy)
 		{

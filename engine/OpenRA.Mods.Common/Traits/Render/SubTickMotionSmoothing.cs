@@ -11,6 +11,20 @@
  * last completed tick, scaled by how far through the current tick the frame is. PREDICTION, not
  * interpolation: interpolating between the two most recent positions would be geometrically exact
  * but would draw everything a full tick in the past, which was rejected.
+ *
+ * BOUNDED BY THE DISTANCE LEFT TO TRAVEL (2026-09-08). Reported as "it makes the missile look like
+ * it flies through the target a bit before the explosion registers". Prediction assumes the next
+ * tick moves the actor the way the last one did, and on the last tick of a flight that assumption
+ * is not merely imprecise, it is false: BallisticMissileFly places the missile ON the target, then
+ * spends one more tick finishing before the Kill lands (BallisticMissileFly.cs:206-210). Through
+ * that whole inter-tick interval the trait still held the arrival step -- up to 2400 WDist on a
+ * Kinzhal in its terminal dive -- so the sprite slid a full ~56 px past the impact point and
+ * snapped back to explode behind itself.
+ *
+ * The clamp is the REMAINING DISTANCE, not a test for the final tick, and that distinction is the
+ * whole design: a remaining distance also fixes the tick BEFORE arrival, where the missile has less
+ * left to travel than its last step was long and the prediction ran past the target mid-tick. See
+ * IMotionEndpoint.
  */
 #endregion
 
@@ -26,12 +40,48 @@ namespace OpenRA.Mods.Common.Traits.Render
 	public static class SubTickMotionSmoothingMath
 	{
 		/// <summary>
-		/// How far ahead of its last simulated position a mover should be DRAWN.
+		/// How far ahead of its last simulated position a mover should be DRAWN, never further than
+		/// it has left to travel.
 		/// </summary>
 		/// <param name="velocity">Displacement over the last completed tick.</param>
 		/// <param name="fraction">Elapsed portion of the current tick, in SubTickClock.One-ths.</param>
 		/// <param name="strength">Percentage of the full prediction to apply.</param>
-		public static WVec Offset(WVec velocity, int fraction, int strength)
+		/// <param name="remaining">
+		/// Distance from the last simulated position to the point the mover stops at, or null when
+		/// nothing knows where that is. See <see cref="IMotionEndpoint"/>.
+		/// </param>
+		public static WVec Offset(WVec velocity, int fraction, int strength, WDist? remaining)
+		{
+			var offset = Extrapolate(velocity, fraction, strength);
+			// Null is "unbounded", not "zero": a mover with no known endpoint is smoothed exactly as
+			// it was before this clamp existed. Nothing that inherits ^ShootableMissile is in that
+			// case -- BallisticMissile answers with the impact point of the flight it is running.
+			if (remaining == null)
+				return offset;
+
+			var left = remaining.Value.Length;
+			if (left <= 0)
+				return WVec.Zero;
+
+			var length = offset.Length;
+			if (length <= left)
+				return offset;
+
+			// Long arithmetic: the numerator is an offset component -- bounded by MaxStep in the
+			// trait, but MaxStep is a YAML field -- times a distance that can be the length of the
+			// map. conventions.md is explicit that bounding the multiplied-through worst case is
+			// the caller's job.
+			return new WVec(
+				(int)((long)offset.X * left / length),
+				(int)((long)offset.Y * left / length),
+				(int)((long)offset.Z * left / length));
+		}
+
+		// PRIVATE, and that is the fix rather than an implementation detail of it. The unclamped
+		// prediction is what drew a missile through its own target, so it has no caller outside this
+		// method: `Offset` WRAPS it instead of taking its result, which is what makes the overshoot
+		// unreachable rather than merely un-hit. See NoOffsetIsComputedWithoutAnImpactLimit.
+		static WVec Extrapolate(WVec velocity, int fraction, int strength)
 		{
 			if (strength <= 0)
 				return WVec.Zero;
@@ -60,7 +110,12 @@ namespace OpenRA.Mods.Common.Traits.Render
 		"OVERSHOOTS ON DIRECTION CHANGE, by at most one tick of travel, because it extrapolates the",
 		"last velocity rather than reading the next one. Harmless on a ballistic arc, where the",
 		"velocity turns by a fraction of a degree per tick; visible on anything that can reverse or",
-		"stop dead in a single tick.")]
+		"stop dead in a single tick.",
+		"NEVER DRAWS PAST THE END OF THE JOURNEY. If the actor carries a trait answering",
+		"IMotionEndpoint — BallisticMissile does, with the impact point of the flight it is running —",
+		"the prediction is clamped to the distance still left, so the sprite reaches the endpoint and",
+		"stops there instead of sliding through it and snapping back. An actor with no such trait is",
+		"unbounded and smoothed exactly as it was before.")]
 	public class SubTickMotionSmoothingInfo : ConditionalTraitInfo
 	{
 		[Desc("Percentage of the predicted offset to apply. 100 = draw a full tick ahead at the",
@@ -93,10 +148,32 @@ namespace OpenRA.Mods.Common.Traits.Render
 		bool hasLastPosition;
 		WVec velocity;
 
+		// Where the mover stops, and how far that is from the position `velocity` arrived at. Looked
+		// up once (the trait set is fixed for an actor's life) and recomputed once a tick, so
+		// ModifyRender stays a single call into the math with nothing to get wrong.
+		IMotionEndpoint endpoint;
+		WDist? remaining;
+
 		public SubTickMotionSmoothing(SubTickMotionSmoothingInfo info)
 			: base(info)
 		{
 			maxStepSquared = (long)info.MaxStep.Length * info.MaxStep.Length;
+		}
+
+		protected override void Created(Actor self)
+		{
+			base.Created(self);
+
+			// TraitOrDefault, not Trait: this trait is generic and an actor is allowed to have no
+			// idea where it is going. That case is `remaining == null`, which the math reads as
+			// unbounded.
+			//
+			// IT IS "AT MOST ONE, OR THROW", NOT A GRACEFUL FALLBACK. TraitOrDefault degrades only
+			// for ZERO implementors; a second one raises InvalidOperationException
+			// (TraitDictionary.cs:174-175). That is the behaviour wanted here — two traits claiming
+			// to know where an actor stops is a mod-configuration error and should be heard about,
+			// not silently resolved in favour of whichever was declared first.
+			endpoint = self.TraitOrDefault<IMotionEndpoint>();
 		}
 
 		void ITick.Tick(Actor self)
@@ -107,6 +184,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 				// extrapolate from a step that spans however long the trait was off.
 				hasLastPosition = false;
 				velocity = WVec.Zero;
+				remaining = null;
 				return;
 			}
 
@@ -120,6 +198,12 @@ namespace OpenRA.Mods.Common.Traits.Render
 			// is zero and the missile is drawn exactly where it was created.
 			var step = hasLastPosition ? pos - lastPosition : WVec.Zero;
 			velocity = step.LengthSquared > maxStepSquared ? WVec.Zero : step;
+
+			// Measured from `pos`, which is where the offset is applied from, so the two are the same
+			// journey. On the tick a ballistic missile arrives this is zero and the prediction is
+			// switched off for the interval that used to draw the overshoot.
+			var end = endpoint?.MotionEndpoint;
+			remaining = end.HasValue ? new WDist((end.Value - pos).Length) : (WDist?)null;
 
 			lastPosition = pos;
 			hasLastPosition = true;
@@ -136,7 +220,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			// SubTickClock is read HERE and nowhere else in this trait, and the value is consumed into
 			// a return rather than stored. That is the property SubTickClockIsNotSimulationStateTest
 			// pins; moving this read into a helper Tick can also reach would defeat it.
-			var offset = SubTickMotionSmoothingMath.Offset(velocity, SubTickClock.Fraction, Info.Strength);
+			var offset = SubTickMotionSmoothingMath.Offset(velocity, SubTickClock.Fraction, Info.Strength, remaining);
 			if (offset == WVec.Zero)
 				return r;
 

@@ -70,3 +70,8 @@ __pycache__/
 # version, so a committed copy buys nothing — and every editor save or
 # --regen-shadows would otherwise add another ~9-25 MB to the packfile forever.
 shadows.bin
+
+# Gate/build transcripts written at the repo root by make.ps1 wrappers and
+# ad-hoc runs. Useful locally, never worth committing -- five of them had
+# accumulated untracked before 2026-09-08.
+/*.log

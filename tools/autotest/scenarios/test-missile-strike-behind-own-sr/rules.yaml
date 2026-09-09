@@ -1,0 +1,56 @@
+# Overrides for the "strike behind my own Supply Route" delivery autotest.
+#
+# DELIBERATELY MINIMAL, and deliberately IDENTICAL to test-missile-strike-power's apart from the
+# Scripts: line. The two scenarios assert the two halves of one contract -- that one aims in front
+# of the launcher and this one aims behind it -- so any difference between these files is a
+# difference the verdicts would silently inherit. Nothing about the flight, the warhead or the
+# approach is restated here: a local copy of any of those numbers would go stale the moment
+# player.yaml or vehicles-russia.yaml moved, and the verdict would then measure this file instead
+# of the mod.
+
+Player:
+	# Faction elimination would end the match before the Lua poller writes a verdict. It matters
+	# more here than in the sibling: the aim point is six cells from Russia's OWN Supply Route,
+	# and while that is outside IskanderExplosion's widest warhead, this is not the guard to be
+	# relying on the margin for.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored, so the poller's view of the missile and the victim is never
+	# a visibility artefact. THIS IS LOAD-BEARING HERE IN A WAY IT IS NOT IN THE SIBLING: the
+	# assertion reads the missile's cell at its OFF-MAP birth point, ~88 cells west of the map
+	# boundary. The actor is Russia's own, so Player.GetActorsByType returns it regardless, but a
+	# fogged run would make any future position-based reading depend on vision instead of geometry.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# 10000 against the Kinzhal's 5000 price -- enough for the one shot this scenario fires and no
+	# more. One purchase buys ONE shot (SupportPowerInstance.Activate calls bank.Consume), nothing
+	# else on this map spends money, and there is no bot, so no stray missile can come from
+	# anywhere else and be mistaken for the one under test.
+	PlayerResources:
+		DefaultCash: 10000
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
+	# spawn assignment. THE CORRIDOR IS TAKEN FROM HomeLocation, so with this trait left in place
+	# the whole assertion would depend on which mpspawn the assigner happened to pick -- see the
+	# geometry note in map.yaml.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-missile-strike-behind-own-sr.lua
+
+# THE PURCHASE. Every shipped support power carries `RequiresPurchase: True`, so a shot has to be
+# BOUGHT before it can be fired; ChargeInterval and StartFullyCharged are read and discarded under
+# that flag (SupportPowerManager.cs:228-229). The whole chain is in the header of
+# TestHarness.EnsurePower, mods/ww3mod/scripts/test-helpers.lua.
+#
+# 5 ticks instead of the shipped 500 (30 s): the load time is a PRICE and this scenario measures
+# the approach geometry, not the shop. Every tolerance in the Lua is anchored to the tick the
+# ORDER issues rather than to t=0, so the ~12 ticks the purchase costs are free.
+power.kinzhal:
+	Buildable:
+		BuildDuration: 5

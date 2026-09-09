@@ -150,15 +150,15 @@ namespace OpenRA.Test
 		}
 
 		/// <summary>
-		/// Every nuclear weapon in the mod and its stated yield, superweapons and arsenal together.
+		/// <para>Every nuclear weapon in the mod and its stated yield, superweapons and arsenal together.</para>
 		///
-		/// THIS LIST IS THE POINT OF THE 2026-09-07 REVISION. The tests below used to iterate a
+		/// <para>THIS LIST IS THE POINT OF THE 2026-09-07 REVISION. The tests below used to iterate a
 		/// hard-coded pair, "Atomic" and "AtomicHighYield", so the eight arsenal weapons added a day
 		/// later were checked by NOTHING — they shipped with no StartRadius, no InitialSpeedPercent
 		/// and no transition at all, i.e. a point-source wave travelling at a flat sound speed, which
 		/// is the exact defect the superweapon pair had just been fixed for. A green suite said so
 		/// too, because the pair it looked at were still right. Anything added to either file has to
-		/// be added here.
+		/// be added here.</para>
 		/// </summary>
 		static readonly (string Weapon, double Kt)[] AllNukes =
 		{
@@ -331,14 +331,14 @@ namespace OpenRA.Test
 		}
 
 		/// <summary>
-		/// THE SUPERSONIC PHASE ENDS AT TWICE THE FIREBALL RADIUS, on every weapon. That multiple is the
+		/// <para>THE SUPERSONIC PHASE ENDS AT TWICE THE FIREBALL RADIUS, on every weapon. That multiple is the
 		/// whole model: the shock is attached to the fireball while the fireball is supersonic, detaches
-		/// at breakaway, and is decayed to sound speed by about twice that radius.
+		/// at breakaway, and is decayed to sound speed by about twice that radius.</para>
 		///
-		/// The predecessor of this test could not have been written, because the transition was not a
+		/// <para>The predecessor of this test could not have been written, because the transition was not a
 		/// number in the YAML — it was implied by a per-weapon SpeedDecayPercent that decayed in TIME,
 		/// and you had to integrate to find out where it landed. It landed at 5.0x the fireball radius
-		/// on Atomic and 3.6x on AtomicHighYield: same intent, two different answers, neither of them 2.
+		/// on Atomic and 3.6x on AtomicHighYield: same intent, two different answers, neither of them 2.</para>
 		/// </summary>
 		[Test]
 		public void TheSupersonicPhaseEndsAtTwiceTheFireballRadiusAndTheFrontIsSonicAfterIt()
@@ -568,14 +568,14 @@ namespace OpenRA.Test
 		}
 
 		/// <summary>
-		/// Length of one play-through of an explosion sequence, in GAME ticks.
+		/// <para>Length of one play-through of an explosion sequence, in GAME ticks.</para>
 		///
-		/// Animation.CurrentSequenceTickOrDefault walks ChangeTick as (frame, ms) pairs and takes the
+		/// <para>Animation.CurrentSequenceTickOrDefault walks ChangeTick as (frame, ms) pairs and takes the
 		/// LAST pair whose frame is strictly below the current one, falling back to the sequence's
 		/// Tick; SpriteEffect.Tick then spends 40 * 100 / DurationScalePercent ms of that budget per
 		/// game tick, banking the remainder, regardless of the mod's 60 ms timestep. So the length is
 		/// the summed per-frame budget over 40, TIMES that percentage -- NOT the frame count, and NOT
-		/// affected by ScalePercent, which scales the sprite in space and not in time.
+		/// affected by ScalePercent, which scales the sprite in space and not in time.</para>
 		/// </summary>
 		static double AnimationTicks(string sequence, int durationScalePercent)
 		{
@@ -637,23 +637,23 @@ namespace OpenRA.Test
 		}
 
 		/// <summary>
-		/// The fireball light, on EVERY nuclear weapon in the mod. Loads each shipped envelope through
+		/// <para>The fireball light, on EVERY nuclear weapon in the mod. Loads each shipped envelope through
 		/// the same FieldLoader path the game uses — so a mismatched keyframe array fails here rather
-		/// than at mod load — and then checks the things that make it a nuclear fireball.
+		/// than at mod load — and then checks the things that make it a nuclear fireball.</para>
 		///
-		/// REWRITTEN TWICE ON 2026-09-07, and both rewrites are load-bearing.
+		/// <para>REWRITTEN TWICE ON 2026-09-07, and both rewrites are load-bearing.</para>
 		///
-		/// The FIRST replaced a DOUBLE FLASH — first pulse, strictly lower dip, strictly larger second
+		/// <para>The FIRST replaced a DOUBLE FLASH — first pulse, strictly lower dip, strictly larger second
 		/// maximum — with a single-peaked monotone decay. A real fireball does double-flash and the
 		/// interval between the maxima is how yield is measured from a bhangmeter trace; all of it
 		/// renders as a STROBE at a 60 ms timestep, and `Atomic`'s envelope read 2.2 -> 0.8 -> 7.0 on
-		/// three consecutive ticks. THAT INVARIANT IS UNCHANGED AND IS STILL PINNED HERE:
+		/// three consecutive ticks. THAT INVARIANT IS UNCHANGED AND IS STILL PINNED HERE:</para>
 		///
-		///     PEAK AT KEYFRAME 0, MONOTONE NON-INCREASING THEREAFTER. DO NOT MODEL THE DOUBLE FLASH.
+		/// <para>    PEAK AT KEYFRAME 0, MONOTONE NON-INCREASING THEREAFTER. DO NOT MODEL THE DOUBLE FLASH.</para>
 		///
-		/// The SECOND is this one, after the user played the result. It changes two things:
+		/// <para>The SECOND is this one, after the user played the result. It changes two things:</para>
 		///
-		///     DURATION IS THE FIREBALL ANIMATION'S, NOT THE YIELD'S. The old rule took the physical
+		/// <para>    DURATION IS THE FIREBALL ANIMATION'S, NOT THE YIELD'S. The old rule took the physical
 		///     incandescent lifetime, 0.8*(Y/20)^0.44 s. That is 2 ticks at 0.3 kt against a mushroom
 		///     sprite that runs 199, so the flash was over inside 1% of its own cloud and the small
 		///     weapons did not read as nuclear at all. The rule is now
@@ -662,20 +662,20 @@ namespace OpenRA.Test
 		///     is the assertion that keeps the light and the cloud from drifting apart again, which is
 		///     the whole point of the rework. The physical term bound only on Tsar Bomba then, and on
 		///     nothing at all since 2026-09-08, when the animation itself started scaling with yield
-		///     and overtook it — see AnimationTicks and DurationScalePercent.
+		///     and overtook it — see AnimationTicks and DurationScalePercent.</para>
 		///
-		///     THE ENVELOPE IS TWO STAGES. A short blinding white spike falling to a shoulder at 70%
+		/// <para>    THE ENVELOPE IS TWO STAGES. A short blinding white spike falling to a shoulder at 70%
 		///     of peak, then a long quadratic fade to nothing:
-		///         0 <= t <= W:  I = 4.9 + 2.1 * (1 - t/W)^2
-		///         W <= t <= D:  I = 4.9 * (1 - (t-W)/(D-W))^2
+		///         0 &lt;= t &lt;= W:  I = 4.9 + 2.1 * (1 - t/W)^2
+		///         W &lt;= t &lt;= D:  I = 4.9 * (1 - (t-W)/(D-W))^2
 		///     Both stages fall, so the anti-strobe invariant survives intact; they differ in RATE.
 		///     Colour is decoupled from intensity and keyed on t/D, so the light is still bright while
 		///     it is already going orange — which is what "goes towards red at the later stages" means
-		///     and what a single curve driving both axes cannot express.
+		///     and what a single curve driving both axes cannot express.</para>
 		///
-		/// It iterates AllNukes rather than the hard-coded superweapon pair. That is not tidiness:
+		/// <para>It iterates AllNukes rather than the hard-coded superweapon pair. That is not tidiness:
 		/// before the arsenal weapons carried lights at all, "both fireballs" meant two of ten, and a
-		/// green suite said nothing whatever about the other eight.
+		/// green suite said nothing whatever about the other eight.</para>
 		/// </summary>
 		[Test]
 		public void EveryNuclearFireballIsATwoStageFlashThatCoolsAndLastsAsLongAsItsFireballAnimation()
@@ -806,22 +806,22 @@ namespace OpenRA.Test
 		}
 
 		/// <summary>
-		/// THE OTHER HALF OF THE STROBE, and the half the user was most likely actually looking at.
+		/// <para>THE OTHER HALF OF THE STROBE, and the half the user was most likely actually looking at.</para>
 		///
-		/// FlashPaletteEffect.Enable ASSIGNS `remainingFrames = ticks` — it does not add, extend or take
+		/// <para>FlashPaletteEffect.Enable ASSIGNS `remainingFrames = ticks` — it does not add, extend or take
 		/// a maximum — and AdjustPalette lerps the whole palette toward white by
 		/// `frac = remainingFrames / Info.Length`, which ramps DOWN to nothing over the Duration. It is
 		/// a one-shot sawtooth. Six weapons used to stack two to five of them at 22-tick spacing to
 		/// fake a longer flash; by tick 22 the screen had faded to frac 0.27 and the next call slammed
 		/// it back to 1.0 in a single tick. That is a 1.3 Hz square wave, it was live on exactly the
-		/// high-yield weapons and not on the small ones, and it is why the report said "in some cases".
+		/// high-yield weapons and not on the small ones, and it is why the report said "in some cases".</para>
 		///
-		/// Two rules, both pinned here because both are invisible from the YAML alone:
+		/// <para>Two rules, both pinned here because both are invisible from the YAML alone:
 		///   ONE FlashPaletteEffect warhead per weapon. Sustain belongs to the light event, which has a
 		///   real envelope; this effect has one counter and one ramp.
 		///   Duration &lt;= the effect's Length. Above it frac starts above 1 and the lerp is unclamped,
 		///   which is a corrupted palette rather than a longer flash. Nothing shipped violates this
-		///   today and this is here to keep it that way.
+		///   today and this is here to keep it that way.</para>
 		/// </summary>
 		[Test]
 		public void NoNuclearWeaponStacksScreenFlashes()
@@ -932,26 +932,26 @@ namespace OpenRA.Test
 		}
 
 		/// <summary>
-		/// LeaveSmudgeWarhead reaches Map.FindTilesInAnnulus, which THROWS above
+		/// <para>LeaveSmudgeWarhead reaches Map.FindTilesInAnnulus, which THROWS above
 		/// MapGrid.MaximumTileSearchRange (56) rather than clamping. There is no lint for it, and the
 		/// failure is a hard crash on the tick the smudge lands — the same ceiling that killed the game
 		/// through CameraRange on 2026-09-06. AtomicHighYield's thermal radius is 124 cells and the
-		/// temptation to scorch that far is real.
+		/// temptation to scorch that far is real.</para>
 		///
-		/// SCANS AllNukes, NOT A HARD-CODED PAIR. This test used to iterate { "Atomic",
+		/// <para>SCANS AllNukes, NOT A HARD-CODED PAIR. This test used to iterate { "Atomic",
 		/// "AtomicHighYield" } — the exact defect the comment on AllNukes above was written about,
-		/// left in place on this one test. The twelve arsenal weapons were checked by nothing.
+		/// left in place on this one test. The twelve arsenal weapons were checked by nothing.</para>
 		///
-		/// The second and third assertions are new with the banded scars (2026-09-08). Since the
+		/// <para>The second and third assertions are new with the banded scars (2026-09-08). Since the
 		/// change every nuclear scar is a set of annuli rather than nested filled discs, and that
-		/// introduces two failure modes the ceiling check cannot see:
+		/// introduces two failure modes the ceiling check cannot see:</para>
 		///
-		///   * an inverted annulus. FindTilesInAnnulus throws ArgumentOutOfRangeException when
+		/// <para>  * an inverted annulus. FindTilesInAnnulus throws ArgumentOutOfRangeException when
 		///     maxRange &lt; minRange (Map.cs:1990-1991) — again a hard crash, again unlinted.
 		///   * a gap or an overlap between bands. Neither crashes: a gap leaves an unpainted ring
 		///     through the middle of the scar and an overlap double-paints one, and both are
 		///     silent. The bands are generated by tools/impact-scar/rewire_bands.py, so the way
-		///     this breaks is a later hand-edit to one Size.
+		///     this breaks is a later hand-edit to one Size.</para>
 		/// </summary>
 		[Test]
 		public void NoSmudgeRadiusCrossesTheTileSearchCeiling()
@@ -1112,6 +1112,90 @@ namespace OpenRA.Test
 				Assert.That(light.Intensities.Max(), Is.EqualTo(FireballPeak).Within(0.01),
 					$"{weapon} no longer peaks at {FireballPeak}; core brightness is not a yield axis.");
 			}
+		}
+
+		/// <summary>
+		/// A nuke leaves the trees inside its THERMAL radius permanently burnt (2026-09-08), and the
+		/// radius is not a new number: it is this weapon's own Warhead@Fire10 Range, which is the
+		/// outermost ring of the thermal pulse that already sets structures and infantry alight.
+		///
+		/// Two properties, and the second is the one the feature exists for.
+		///
+		/// EQUALITY WITH Fire10. The fire chain is generated, and a regeneration that moved Fire10
+		/// without moving TreeBurn would desynchronise the trees from the pulse that burns them with
+		/// nothing to notice. They are one number written twice, so they are asserted equal rather
+		/// than each checked against the yield law separately.
+		///
+		/// CONTAINMENT OF THE GROUND SCAR. The bug report was a screenshot of bright green trees
+		/// standing on black scorched ground. What makes that state UNREACHABLE is not the frame swap
+		/// — it is this radius COVERING the outermost LeaveSmudge band on the same weapon, at every
+		/// rung of the ladder. It holds with room to spare almost everywhere (+1.23 cells at 0.3 kt,
+		/// +275 at Tsar Bomba) because thermal reach scales as Y^0.41 while the scar art is sized for
+		/// legibility. `Atomic` is the one weapon where the two are EXACTLY equal, which is still
+		/// sufficient — see the note at the assertion for why the boundary is exact and not merely
+		/// close. A future yield cannot quietly invert this; a hand-edited scar band could, and that
+		/// is what this catches.
+		/// </summary>
+		[Test]
+		public void TheForestBurnsToTheThermalRadius()
+		{
+			foreach (var (weapon, kt) in AllNukes)
+			{
+				var burn = Warhead(weapon, "Warhead@TreeBurn");
+				var fire = Warhead(weapon, "Warhead@Fire10");
+
+				Assert.That(Dist(burn, "Range", weapon + " TreeBurn"),
+					Is.EqualTo(Dist(fire, "Range", weapon + " Fire10")),
+					$"{weapon} ({kt} kt) burns its forest to a different radius than its own thermal " +
+					"pulse reaches. These are the same physical number — third-degree burns at " +
+					"2.0 * (kt/20)^0.41 km — written once for structures and infantry and once for " +
+					"trees. Regenerating the fire chain must move both.");
+
+				Assert.That(Field(burn, "Duration", weapon + " TreeBurn"), Is.EqualTo("0"),
+					$"{weapon}'s TreeBurn no longer grants a PERMANENT condition. Duration 0 is what " +
+					"ExternalCondition reads as no expiry; any other value makes the forest quietly " +
+					"turn green again some minutes after the strike.");
+
+				Assert.That(Field(burn, "ValidTargets", weapon + " TreeBurn"), Is.EqualTo("Trees"),
+					$"{weapon}'s TreeBurn no longer targets Trees exclusively. Trees are the ONLY class " +
+					"this may touch: every other actor in range is already handled by a damage warhead, " +
+					"and `scorched` on anything else names a sequence that actor does not have.");
+
+				var scar = OutermostScarCells(weapon);
+				var burnCells = Cells(Dist(burn, "Range", weapon));
+				// >= AND NOT >, AND THE BOUNDARY IS EXACT RATHER THAN GENEROUS. Both sides measure the
+				// same thing — centre-to-centre distance in cells — and both admit their boundary:
+				// FindTilesInAnnulus buckets a cell by ceil(hypot(dx, dy)) (MapGrid.cs:201-210), so the
+				// widest scarred cell sits at hypot <= N exactly, and FindActorsInCircle admits
+				// HorizontalLengthSquared <= r^2 (WorldUtils.cs:83-84). Equality therefore covers every
+				// scarred cell with nothing left over, and `Atomic` ships exactly equal (12.00 vs 12).
+				// It is the only weapon that is tight: the next smallest margin is +1.23 cells and Tsar
+				// Bomba runs +275. An earlier draft of this test asserted > and failed on Atomic alone,
+				// which was the test being wrong about the geometry rather than the YAML being wrong.
+				Assert.That(burnCells, Is.GreaterThanOrEqualTo(scar),
+					$"{weapon} ({kt} kt) scorches the ground out to {scar} cells but only burns trees to " +
+					$"{burnCells:0.00}. The ring between them is the exact defect this feature was built " +
+					"to remove: living green trees standing on black ground.");
+			}
+		}
+
+		/// <summary>Outer radius in cells of the widest LeaveSmudge band on a weapon. `Size: a, b` is
+		/// the annulus b..a and a bare `Size: a` is the filled disc 0..a (LeaveSmudgeWarhead.cs:53-54),
+		/// so the first value is the outer edge either way.</summary>
+		static int OutermostScarCells(string weapon)
+		{
+			var bands = Weapon(weapon).Nodes
+				.Where(n => n.Value.Value == "LeaveSmudge")
+				.Select(n => n.Value.Nodes.FirstOrDefault(c => c.Key == "Size")?.Value.Value)
+				.Where(v => v != null)
+				.Select(v => int.Parse(v.Split(',')[0].Trim()))
+				.ToArray();
+
+			Assert.That(bands, Is.Not.Empty,
+				$"{weapon} has no LeaveSmudge warhead with a Size, so the containment check above is " +
+				"comparing against nothing. Every nuke in this list scars the ground.");
+
+			return bands.Max();
 		}
 
 		const string LightAnchor = "AtomicHighYield";

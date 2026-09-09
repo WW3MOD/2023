@@ -1,5 +1,23 @@
 # WW3MOD v1 Release Tracker
 
+> **READ THIS FIRST — status of the tracker itself, 2026-09-08.** This file is PARTLY
+> stale and the stale parts are at the top, which is why it reads worse than it is. Phase 0
+> is May-era autotester-ergonomics gripes (260513) that the automation work subsumed; the
+> "Currently in: Phase A" pointer has not been re-derived in months. What IS trustworthy is
+> the corrected entries further down — the ones carrying a dated CORRECTED note were each
+> re-verified against the code (2026-08-19, 2026-09-01, 2026-09-04) and say exactly what
+> they checked.
+>
+> **The live queue is not here.** Day-to-day ordering lives in `PIPELINE.md` (+
+> `pipeline/items/`), and the preferred unit of autonomous work is a scenario case under
+> `cases/`. This file is the v1 SCOPE list — what is in and out of a 1.0 — and re-baselining
+> it against what has actually shipped is a decision for the user, not a cleanup an agent
+> should make on its own.
+>
+> **`v0.1.0` shipped on 2026-09-08** — first public build, installers for all three
+> platforms on the Releases page. That does not close any item below; it means the scope
+> question is now "what is in 1.0" rather than "when do we start shipping".
+
 > Single source of truth for v1 scope. Update continuously as items are tested, fixed, deferred, or cut.
 >
 > **Status legend:** `[ ]` open · `[~]` in-progress · `[T]` testing · `[T:trusted]` code-verified spot-check (fix is in the tree, no contradicting later commit; not yet AUTOTEST-confirmed) · `! [T]` urgent + testing · `[v1.1]` deferred · `[cut]` won't-fix v1

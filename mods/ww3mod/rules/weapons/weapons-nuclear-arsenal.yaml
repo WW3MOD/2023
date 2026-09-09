@@ -507,6 +507,21 @@ NukeB61Mod12Y003:
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
+	# The thermal pulse reaching the trees: `scorched` is permanent and purely cosmetic, and the
+	# Range is this weapon's own Warhead@Fire10, which is its thermal radius. Read the long note on
+	# `Atomic` in weapons-superweapons.yaml for why that radius and not the blast radius.
+	Warhead@TreeBurn: GrantExternalCondition
+		Range: 2c240
+		Duration: 0
+		Condition: scorched
+		Delay: 2
+		ValidTargets: Trees
+		# NO AirThreshold, and its absence is deliberate rather than an omission. Every neighbouring
+		# warhead sets one because it checks terrain target types at the impact POSITION; this one
+		# reaches actors only, through Warhead.IsValidAgainst(Actor, Actor) (Warhead.cs:64-78), which
+		# never consults it. Copying the weapon's burst altitude in here would read as load-bearing and
+		# be inert. ValidRelationships is left at its default of Ally|Neutral|Enemy (Warhead.cs:36) --
+		# trees are Neutral-owned, and your own nuke burning your own forest is correct.
 	Warhead@EMP: GrantExternalCondition
 		Range: 3c684
 		Duration: 331
@@ -888,6 +903,21 @@ NukeB61Mod12Y015:
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
+	# The thermal pulse reaching the trees: `scorched` is permanent and purely cosmetic, and the
+	# Range is this weapon's own Warhead@Fire10, which is its thermal radius. Read the long note on
+	# `Atomic` in weapons-superweapons.yaml for why that radius and not the blast radius.
+	Warhead@TreeBurn: GrantExternalCondition
+		Range: 4c330
+		Duration: 0
+		Condition: scorched
+		Delay: 2
+		ValidTargets: Trees
+		# NO AirThreshold, and its absence is deliberate rather than an omission. Every neighbouring
+		# warhead sets one because it checks terrain target types at the impact POSITION; this one
+		# reaches actors only, through Warhead.IsValidAgainst(Actor, Actor) (Warhead.cs:64-78), which
+		# never consults it. Copying the weapon's burst altitude in here would read as load-bearing and
+		# be inert. ValidRelationships is left at its default of Ally|Neutral|Enemy (Warhead.cs:36) --
+		# trees are Neutral-owned, and your own nuke burning your own forest is correct.
 	Warhead@EMP: GrantExternalCondition
 		Range: 6c278
 		Duration: 353
@@ -1275,6 +1305,21 @@ NukeB61Mod12Y10:
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
+	# The thermal pulse reaching the trees: `scorched` is permanent and purely cosmetic, and the
+	# Range is this weapon's own Warhead@Fire10, which is its thermal radius. Read the long note on
+	# `Atomic` in weapons-superweapons.yaml for why that radius and not the blast radius.
+	Warhead@TreeBurn: GrantExternalCondition
+		Range: 9c418
+		Duration: 0
+		Condition: scorched
+		Delay: 2
+		ValidTargets: Trees
+		# NO AirThreshold, and its absence is deliberate rather than an omission. Every neighbouring
+		# warhead sets one because it checks terrain target types at the impact POSITION; this one
+		# reaches actors only, through Warhead.IsValidAgainst(Actor, Actor) (Warhead.cs:64-78), which
+		# never consults it. Copying the weapon's burst altitude in here would read as load-bearing and
+		# be inert. ValidRelationships is left at its default of Ally|Neutral|Enemy (Warhead.cs:36) --
+		# trees are Neutral-owned, and your own nuke burning your own forest is correct.
 	Warhead@EMP: GrantExternalCondition
 		Range: 11c823
 		Duration: 400
@@ -1668,6 +1713,21 @@ NukeB61Mod12Y50:
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
+	# The thermal pulse reaching the trees: `scorched` is permanent and purely cosmetic, and the
+	# Range is this weapon's own Warhead@Fire10, which is its thermal radius. Read the long note on
+	# `Atomic` in weapons-superweapons.yaml for why that radius and not the blast radius.
+	Warhead@TreeBurn: GrantExternalCondition
+		Range: 18c205
+		Duration: 0
+		Condition: scorched
+		Delay: 2
+		ValidTargets: Trees
+		# NO AirThreshold, and its absence is deliberate rather than an omission. Every neighbouring
+		# warhead sets one because it checks terrain target types at the impact POSITION; this one
+		# reaches actors only, through Warhead.IsValidAgainst(Actor, Actor) (Warhead.cs:64-78), which
+		# never consults it. Copying the weapon's burst altitude in here would read as load-bearing and
+		# be inert. ValidRelationships is left at its default of Ally|Neutral|Enemy (Warhead.cs:36) --
+		# trees are Neutral-owned, and your own nuke burning your own forest is correct.
 	Warhead@EMP: GrantExternalCondition
 		Range: 20c188
 		Duration: 472
@@ -2059,6 +2119,21 @@ NukeW76:
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
+	# The thermal pulse reaching the trees: `scorched` is permanent and purely cosmetic, and the
+	# Range is this weapon's own Warhead@Fire10, which is its thermal radius. Read the long note on
+	# `Atomic` in weapons-superweapons.yaml for why that radius and not the blast radius.
+	Warhead@TreeBurn: GrantExternalCondition
+		Range: 24c186
+		Duration: 0
+		Condition: scorched
+		Delay: 2
+		ValidTargets: Trees
+		# NO AirThreshold, and its absence is deliberate rather than an omission. Every neighbouring
+		# warhead sets one because it checks terrain target types at the impact POSITION; this one
+		# reaches actors only, through Warhead.IsValidAgainst(Actor, Actor) (Warhead.cs:64-78), which
+		# never consults it. Copying the weapon's burst altitude in here would read as load-bearing and
+		# be inert. ValidRelationships is left at its default of Ally|Neutral|Enemy (Warhead.cs:36) --
+		# trees are Neutral-owned, and your own nuke burning your own forest is correct.
 	Warhead@EMP: GrantExternalCondition
 		Range: 25c440
 		Duration: 517
@@ -2466,6 +2541,21 @@ NukeSarmatRV:
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
+	# The thermal pulse reaching the trees: `scorched` is permanent and purely cosmetic, and the
+	# Range is this weapon's own Warhead@Fire10, which is its thermal radius. Read the long note on
+	# `Atomic` in weapons-superweapons.yaml for why that radius and not the blast radius.
+	Warhead@TreeBurn: GrantExternalCondition
+		Range: 55c247
+		Duration: 0
+		Condition: scorched
+		Delay: 2
+		ValidTargets: Trees
+		# NO AirThreshold, and its absence is deliberate rather than an omission. Every neighbouring
+		# warhead sets one because it checks terrain target types at the impact POSITION; this one
+		# reaches actors only, through Warhead.IsValidAgainst(Actor, Actor) (Warhead.cs:64-78), which
+		# never consults it. Copying the weapon's burst altitude in here would read as load-bearing and
+		# be inert. ValidRelationships is left at its default of Ally|Neutral|Enemy (Warhead.cs:36) --
+		# trees are Neutral-owned, and your own nuke burning your own forest is correct.
 	Warhead@EMP: GrantExternalCondition
 		Range: 49c795
 		Duration: 724
@@ -2868,6 +2958,21 @@ NukeB83:
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 25c0
+	# The thermal pulse reaching the trees: `scorched` is permanent and purely cosmetic, and the
+	# Range is this weapon's own Warhead@Fire10, which is its thermal radius. Read the long note on
+	# `Atomic` in weapons-superweapons.yaml for why that radius and not the blast radius.
+	Warhead@TreeBurn: GrantExternalCondition
+		Range: 66c1005
+		Duration: 0
+		Condition: scorched
+		Delay: 2
+		ValidTargets: Trees
+		# NO AirThreshold, and its absence is deliberate rather than an omission. Every neighbouring
+		# warhead sets one because it checks terrain target types at the impact POSITION; this one
+		# reaches actors only, through Warhead.IsValidAgainst(Actor, Actor) (Warhead.cs:64-78), which
+		# never consults it. Copying the weapon's burst altitude in here would read as load-bearing and
+		# be inert. ValidRelationships is left at its default of Ally|Neutral|Enemy (Warhead.cs:36) --
+		# trees are Neutral-owned, and your own nuke burning your own forest is correct.
 	Warhead@EMP: GrantExternalCondition
 		Range: 58c224
 		Duration: 796
@@ -3284,6 +3389,21 @@ NukeTsarBomba:
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 40c0
+	# The thermal pulse reaching the trees: `scorched` is permanent and purely cosmetic, and the
+	# Range is this weapon's own Warhead@Fire10, which is its thermal radius. Read the long note on
+	# `Atomic` in weapons-superweapons.yaml for why that radius and not the blast radius.
+	Warhead@TreeBurn: GrantExternalCondition
+		Range: 309c78
+		Duration: 0
+		Condition: scorched
+		Delay: 2
+		ValidTargets: Trees
+		# NO AirThreshold, and its absence is deliberate rather than an omission. Every neighbouring
+		# warhead sets one because it checks terrain target types at the impact POSITION; this one
+		# reaches actors only, through Warhead.IsValidAgainst(Actor, Actor) (Warhead.cs:64-78), which
+		# never consults it. Copying the weapon's burst altitude in here would read as load-bearing and
+		# be inert. ValidRelationships is left at its default of Ally|Neutral|Enemy (Warhead.cs:36) --
+		# trees are Neutral-owned, and your own nuke burning your own forest is correct.
 	Warhead@EMP: GrantExternalCondition
 		Range: 201c854
 		Duration: 2022
@@ -3823,6 +3943,21 @@ NukeRu9M729:
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
+	# The thermal pulse reaching the trees: `scorched` is permanent and purely cosmetic, and the
+	# Range is this weapon's own Warhead@Fire10, which is its thermal radius. Read the long note on
+	# `Atomic` in weapons-superweapons.yaml for why that radius and not the blast radius.
+	Warhead@TreeBurn: GrantExternalCondition
+		Range: 3c676
+		Duration: 0
+		Condition: scorched
+		Delay: 2
+		ValidTargets: Trees
+		# NO AirThreshold, and its absence is deliberate rather than an omission. Every neighbouring
+		# warhead sets one because it checks terrain target types at the impact POSITION; this one
+		# reaches actors only, through Warhead.IsValidAgainst(Actor, Actor) (Warhead.cs:64-78), which
+		# never consults it. Copying the weapon's burst altitude in here would read as load-bearing and
+		# be inert. ValidRelationships is left at its default of Ally|Neutral|Enemy (Warhead.cs:36) --
+		# trees are Neutral-owned, and your own nuke burning your own forest is correct.
 	Warhead@EMP: GrantExternalCondition
 		Range: 5c490
 		Duration: 346
@@ -4217,6 +4352,21 @@ NukeRuIskander:
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
+	# The thermal pulse reaching the trees: `scorched` is permanent and purely cosmetic, and the
+	# Range is this weapon's own Warhead@Fire10, which is its thermal radius. Read the long note on
+	# `Atomic` in weapons-superweapons.yaml for why that radius and not the blast radius.
+	Warhead@TreeBurn: GrantExternalCondition
+		Range: 9c418
+		Duration: 0
+		Condition: scorched
+		Delay: 2
+		ValidTargets: Trees
+		# NO AirThreshold, and its absence is deliberate rather than an omission. Every neighbouring
+		# warhead sets one because it checks terrain target types at the impact POSITION; this one
+		# reaches actors only, through Warhead.IsValidAgainst(Actor, Actor) (Warhead.cs:64-78), which
+		# never consults it. Copying the weapon's burst altitude in here would read as load-bearing and
+		# be inert. ValidRelationships is left at its default of Ally|Neutral|Enemy (Warhead.cs:36) --
+		# trees are Neutral-owned, and your own nuke burning your own forest is correct.
 	Warhead@EMP: GrantExternalCondition
 		Range: 11c823
 		Duration: 400
@@ -4617,6 +4767,21 @@ NukeRuKinzhalN:
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
+	# The thermal pulse reaching the trees: `scorched` is permanent and purely cosmetic, and the
+	# Range is this weapon's own Warhead@Fire10, which is its thermal radius. Read the long note on
+	# `Atomic` in weapons-superweapons.yaml for why that radius and not the blast radius.
+	Warhead@TreeBurn: GrantExternalCondition
+		Range: 18c205
+		Duration: 0
+		Condition: scorched
+		Delay: 2
+		ValidTargets: Trees
+		# NO AirThreshold, and its absence is deliberate rather than an omission. Every neighbouring
+		# warhead sets one because it checks terrain target types at the impact POSITION; this one
+		# reaches actors only, through Warhead.IsValidAgainst(Actor, Actor) (Warhead.cs:64-78), which
+		# never consults it. Copying the weapon's burst altitude in here would read as load-bearing and
+		# be inert. ValidRelationships is left at its default of Ally|Neutral|Enemy (Warhead.cs:36) --
+		# trees are Neutral-owned, and your own nuke burning your own forest is correct.
 	Warhead@EMP: GrantExternalCondition
 		Range: 20c188
 		Duration: 472
@@ -5014,6 +5179,21 @@ NukeRuKalibr:
 		ValidTargets: Structure, Infantry
 		ValidRelationships: Ally, Neutral, Enemy
 		AirThreshold: 24c0
+	# The thermal pulse reaching the trees: `scorched` is permanent and purely cosmetic, and the
+	# Range is this weapon's own Warhead@Fire10, which is its thermal radius. Read the long note on
+	# `Atomic` in weapons-superweapons.yaml for why that radius and not the blast radius.
+	Warhead@TreeBurn: GrantExternalCondition
+		Range: 24c186
+		Duration: 0
+		Condition: scorched
+		Delay: 2
+		ValidTargets: Trees
+		# NO AirThreshold, and its absence is deliberate rather than an omission. Every neighbouring
+		# warhead sets one because it checks terrain target types at the impact POSITION; this one
+		# reaches actors only, through Warhead.IsValidAgainst(Actor, Actor) (Warhead.cs:64-78), which
+		# never consults it. Copying the weapon's burst altitude in here would read as load-bearing and
+		# be inert. ValidRelationships is left at its default of Ally|Neutral|Enemy (Warhead.cs:36) --
+		# trees are Neutral-owned, and your own nuke burning your own forest is correct.
 	Warhead@EMP: GrantExternalCondition
 		Range: 25c440
 		Duration: 517

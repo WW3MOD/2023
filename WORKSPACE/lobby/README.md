@@ -55,7 +55,7 @@ WORKSPACE/lobby/
 ├── README.md                — this file (overview + status)
 ├── IMPLEMENTATION_PLAN.md   — phased port plan (CURRENT focus)
 ├── decisions.md             — design decision log
-├── (next-steps.md moved to REVIEW/ — superseded by IMPLEMENTATION_PLAN.md)
+├── (next-steps.md deleted 2026-09-08 — superseded by IMPLEMENTATION_PLAN.md; in git history)
 └── mockups/
     ├── full-page-realistic.html   — locked design (pure-gray, V5, left scroll)
     ├── color-options.html         — A–F palette comparison (pick was C → pure gray)

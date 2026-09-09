@@ -55,7 +55,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				});
 			};
 
-			var hasMaps = modData.MapCache.Any(p => !p.Visibility.HasFlag(MapVisibility.Shellmap));
+			// WW3MOD: upstream asked "is any map NOT a shellmap", using not-a-shellmap as a proxy
+			// for playable. That proxy is false here: this mod's shellmap system rotates the menu
+			// background across the whole map pool (Game.cs:656-671, plus the ShellmapEnabled /
+			// ShellmapOrder settings), so all ten shipped maps carry the Shellmap flag ON TOP OF
+			// Lobby -- and every one of them failed the test, disabling Create on any real install.
+			// It never reproduced in a checkout because the 319 autotest scenarios are
+			// MissionSelector and satisfied it. Ask the question the button actually cares about,
+			// which is what MainMenuLogic.cs:389 already asks to gate Skirmish.
+			var hasMaps = modData.MapCache.Any(p => p.Visibility.HasFlag(MapVisibility.Lobby));
 			createServerButton.Disabled = !hasMaps;
 
 			widget.Get<ButtonWidget>("BACK_BUTTON").OnClick = () => { Ui.CloseWindow(); onExit(); };

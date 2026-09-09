@@ -111,20 +111,20 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// The ONE predicate for "can this actor be vaporised at all", shared by the trait and by
+		/// <para>The ONE predicate for "can this actor be vaporised at all", shared by the trait and by
 		/// VaporizeWarhead.IsValidAgainst so the two can never disagree. Deliberately the same test
 		/// DamageWarhead uses to decide an actor can be damaged (DamageWarhead.cs:57-61) and the same
 		/// one DoomsdayStrike.Annihilate uses to decide an actor can be killed
 		/// (DoomsdayStrike.cs:618-623) - vaporising is a kill, so it inherits that filter rather than
-		/// inventing a second one.
+		/// inventing a second one.</para>
 		///
-		/// WHY IT HAS TO EXIST. Tick below finishes with Actor.Kill, and Actor.Kill RETURNS SILENTLY
+		/// <para>WHY IT HAS TO EXIST. Tick below finishes with Actor.Kill, and Actor.Kill RETURNS SILENTLY
 		/// when the actor has no health trait (Actor.cs:634-640). Nothing else clears `active`, so a
 		/// healthless actor that started this effect would fade to alpha 0 and then stay alive,
 		/// functional and completely invisible for the rest of the match, paying an IRenderModifier
 		/// pass every frame. Nothing logs and nothing fails. On a dense map that class is enormous -
 		/// crop fields alone are 3187 of river-zeta's 4544 actors - and it includes `waypoint` and
-		/// `spawnarea`, which scenario Lua looks up by name and would keep finding.
+		/// `spawnarea`, which scenario Lua looks up by name and would keep finding.</para>
 		/// </summary>
 		public static bool CanVaporize(ActorInfo info)
 		{

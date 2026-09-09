@@ -385,8 +385,7 @@ namespace OpenRA.Test
 			// A Buildable.Prerequisites gate would only DIM it (ProductionPaletteWidget.cs:707,:780),
 			// so a NATO player would see Russia's five greyed out instead of not at all.
 			var ungated = PowerRows()
-				.Where(r => r.Purchasable)
-				.Where(r => r.Prerequisites == null || !Tiers.Any(t => r.Prerequisites.Contains(t, StringComparison.Ordinal)))
+				.Where(r => r.Purchasable && (r.Prerequisites == null || !Tiers.Any(t => r.Prerequisites.Contains(t, StringComparison.Ordinal))))
 				.Select(r => r.Order)
 				.ToArray();
 
@@ -549,7 +548,7 @@ namespace OpenRA.Test
 			// conventional strike they do not get — so a count of 6 left three reachable by mouse only.
 			var bin = MiniYaml.FromFile(FindMod("chrome", "ingame-player.yaml"));
 
-			MiniYamlNode Find(IEnumerable<MiniYamlNode> nodes)
+			static MiniYamlNode Find(IEnumerable<MiniYamlNode> nodes)
 			{
 				foreach (var n in nodes)
 				{
