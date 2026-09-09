@@ -4934,3 +4934,32 @@ map-rules test the way most weapon changes can — it has to be a change to the 
   count, since every currently-correct value would stay green under the broken expression.
   (found while working on: the Oreshnik strike, `wt/oreshnik`, verifying that its demo scenario's
   Lua-fired six-warhead pattern really is a ring)
+
+## `CheckTraitLocation` cannot catch ANY trait misplaced onto the `Player` actor — `HasFlag(0)` is always true
+
+**Verified 2026-09-09 at `main @ 8a204ed5`.** `SystemActors` is a `[Flags]` enum whose first member is
+`Player = 0` (`engine/OpenRA.Game/Actor.cs:27-33`; `EditorPlayer = 1`, `World = 2`, `EditorWorld = 4`).
+The lint's whole test is `!traitLocation.SystemActors.HasFlag(systemActor)`
+(`engine/OpenRA.Mods.Common/Lint/CheckTraitLocation.cs:30`). `HasFlag(0)` compiles to `(value & 0) == 0`,
+which is **true for every value**, so when the actor being checked is `player` the condition can never
+fail. A trait declared `[TraitLocation(SystemActors.World)]` and dropped under `Player:` passes silently;
+so does `EditorWorld` under `Player:`, and every other combination. The lint works correctly for `world`,
+`editorplayer` and `editorworld`, which all have non-zero values — **`player` is the only blind spot, and
+it is total.**
+
+**This is the same `HasFlag(0)` trap `DOCS/reference/conventions.md` already documents for
+`MapClassification.Unknown`.** It does not appear to be recorded for `SystemActors`. Two sightings of one
+root cause is worth promoting into the conventions note as a rule about zero-valued members of `[Flags]`
+enums generally, rather than a second one-off.
+
+**No live misplacement is known.** Found while wiring three DEFCON traits (two `Player`, one `World`); all
+three placements are correct and were checked by hand precisely because the lint offered no evidence
+either way.
+
+**The fix is not obviously the one-liner it looks like.** Giving `Player` a non-zero bit and shifting the
+others is the clean repair of the enum, but `SystemActors` values would have to be shown not to be
+persisted or compared numerically anywhere first — that has NOT been checked. Repairing the lint instead
+(special-casing the zero-valued member) leaves a `[Flags]` enum with a zero-valued real member, which is
+the actual defect and will produce a third sighting somewhere else.
+(found while working on: the DEFCON Escalation spine, `wt/defcon-spine`, placing new traits on the
+Player and World actors)
