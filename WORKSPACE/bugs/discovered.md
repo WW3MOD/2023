@@ -4854,6 +4854,14 @@ map-rules test the way most weapon changes can — it has to be a change to the 
   `InvalidTargets: Vehicle, Structure, Wall` is untouched, so the deliberate building/vehicle/wall
   shadows are all still there.
 
+  **SUPERSEDED 2026-09-09 (`wt/scar-under-actors`) — the last clause is no longer true and must not
+  be relied on.** The user reversed the building/vehicle/wall ruling: a destroyed building must not
+  mean the ground under it was undisturbed. All 61 Scar warheads now carry `IgnoreActors: true`
+  (a new `LeaveSmudgeWarhead` field, default false) in place of that `InvalidTargets` line, so the
+  shadows are gone on purpose. The tree half of this entry is unaffected and still stands. Note the
+  reversal could NOT be done by deleting `InvalidTargets` alone — see `WORKSPACE/DISCOVERIES.md`
+  for why the husk case defeats a YAML-only fix.
+
   **TWO CORRECTIONS TO THE ORIGINAL NOTE, both of which would have cost the next worker.**
 
   1. **It is 61 warheads across TWO files, not 51 across one.** The 51 figure counted only
