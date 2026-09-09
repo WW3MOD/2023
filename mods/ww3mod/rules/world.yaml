@@ -481,26 +481,35 @@ World:
 	# is only set on the two innermost bands. AtomicHighYield's rim band alone is
 	# ~2600 cells; Scorch's 50 there would be over a thousand SpriteEffects from
 	# one shot.
+	# SHORE FADE, 2026-09-09. Only these five layers set it. The two stock layers above
+	# (SCORCH, CRATER) leave ShoreFadeCells at its default 0 and are byte-identical to before.
+	# 2 gives a two-cell ramp -- a cell touching water draws at 1/3, the next at 2/3, the rest
+	# at full -- so the disc eases off at a river instead of ending on a hard cell edge.
 	SmudgeLayer@SCARRIM:
 		Type: ScarRim
+		ShoreFadeCells: 2
 		Sequence: scarband-rim
 		SmokeChance: 0
 	SmudgeLayer@SCARBURN:
 		Type: ScarBurn
+		ShoreFadeCells: 2
 		Sequence: scarband-burn
 		SmokeChance: 0
 	SmudgeLayer@SCARCHAR:
 		Type: ScarChar
+		ShoreFadeCells: 2
 		Sequence: scarband-char
 		SmokeChance: 0
 	SmudgeLayer@SCARCRATER:
 		Type: ScarCrater
+		ShoreFadeCells: 2
 		Sequence: scarband-crater
 		SmokeChance: 20
 		SmokeImage: smoke_m
 		SmokeSequences: idle
 	SmudgeLayer@SCARCORE:
 		Type: ScarCore
+		ShoreFadeCells: 2
 		Sequence: scarband-core
 		SmokeChance: 40
 		SmokeImage: smoke_m

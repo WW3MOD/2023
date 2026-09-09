@@ -55,6 +55,11 @@ namespace OpenRA.Mods.Common.Traits
 		[PaletteReference]
 		public readonly string Palette = TileSet.TerrainPaletteInternalName;
 
+		[Desc("Fade this layer out over N cells as it approaches terrain that does not accept it,",
+			"so a blast disc eases off at a shoreline instead of stopping on a cell edge.",
+			"0 (the default) disables the fade and reproduces stock alpha exactly.")]
+		public readonly int ShoreFadeCells = 0;
+
 		[FieldLoader.LoadUsing(nameof(LoadInitialSmudges))]
 		public readonly Dictionary<CPos, MapSmudge> InitialSmudges;
 
@@ -97,6 +102,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Dictionary<CPos, Smudge> tiles = new();
 		readonly Dictionary<CPos, Smudge> dirty = new();
 		readonly Dictionary<string, ISpriteSequence> smudges = new();
+		readonly Dictionary<CPos, float> shoreAlpha = new();
 		readonly World world;
 		readonly bool hasSmoke;
 
@@ -146,7 +152,7 @@ namespace OpenRA.Mods.Common.Traits
 				};
 
 				tiles.Add(kv.Key, smudge);
-				render.Update(kv.Key, seq, paletteReference, s.Depth);
+				Draw(kv.Key, smudge);
 			}
 		}
 
@@ -189,6 +195,87 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>Draws one smudge, scaled by <see cref="ShoreAlpha"/>.
+		///
+		/// <para>This is the four-argument <c>TerrainSpriteLayer.Update</c> overload
+		/// (<c>TerrainSpriteLayer.cs:91-94</c>) written out longhand so the alpha can be multiplied.
+		/// `Scale` and `IgnoreWorldTint` are passed through unchanged, so with
+		/// <see cref="SmudgeLayerInfo.ShoreFadeCells"/> at its default of 0 this is the identical call
+		/// the layer made before.</para></summary>
+		void Draw(CPos cell, Smudge smudge)
+		{
+			var seq = smudge.Sequence;
+			var alpha = seq.GetAlpha(smudge.Depth) * ShoreAlpha(cell);
+			render.Update(cell, seq.GetSprite(smudge.Depth), paletteReference, seq.Scale, alpha, seq.IgnoreWorldTint);
+		}
+
+		/// <summary>How strongly this cell should draw, given how close it is to terrain this layer
+		/// cannot be drawn on.
+		///
+		/// <para>WHY THIS EXISTS. A smudge is one opaque sprite per cell in a terrain layer, and
+		/// <c>LeaveSmudgeWarhead</c> drops any cell whose terrain type does not list the smudge type in
+		/// <c>AcceptsSmudgeType</c>. So a blast that reaches a river ends on a cell edge at full
+		/// strength: a near-solid core-band cell butts straight against untouched water. There is no
+		/// sub-cell land/water information anywhere in the engine to feather against --
+		/// <c>TerrainTileInfo</c> is one terrain type per tile and nothing reads the tile art back --
+		/// so the only lever is to ramp the whole cell down as the boundary approaches.
+		///
+		/// <para>Distance is Chebyshev, which matches the square cell grid: a cell diagonally touching
+		/// water fades the same as one orthogonally touching it, so the ramp follows the shoreline
+		/// rather than bulging at diagonals. Off-map cells deliberately do NOT trigger the fade -- the
+		/// map border is not a shoreline and a ring of half-strength scar around the edge of the world
+		/// would be a new artefact, not a fix.</para>
+		///
+		/// <para>Cached because a single high-yield strike asks about ~7000 cells and the answer is
+		/// static for the life of the map.</para></summary>
+		float ShoreAlpha(CPos cell)
+		{
+			if (Info.ShoreFadeCells <= 0)
+				return 1f;
+
+			if (shoreAlpha.TryGetValue(cell, out var cached))
+				return cached;
+
+			var alpha = ShoreAlphaAt(cell, Info.ShoreFadeCells,
+				c => world.Map.Contains(c) && !world.Map.GetTerrainInfo(c).AcceptsSmudgeType.Contains(Info.Type));
+
+			shoreAlpha[cell] = alpha;
+			return alpha;
+		}
+
+		/// <summary>The fade ramp itself, split out from the map lookup so it can be tested without a World.
+		///
+		/// <para><paramref name="isBoundary"/> answers "is this cell one this layer cannot draw on" — which
+		/// is deliberately FALSE for off-map cells: the edge of the world is not a shoreline, and a ring of
+		/// half-strength scar around the map border would be a new artefact rather than a fix.</para>
+		///
+		/// <para>Returns <c>d / (fadeCells + 1)</c> clamped to 1, where <c>d</c> is the Chebyshev distance to
+		/// the nearest boundary cell. Chebyshev, not Euclidean, because the smudge grid is square: a cell
+		/// touching water at a corner should fade like one touching it edge-on, so the ramp traces the
+		/// shoreline instead of bulging on diagonals. A cell that IS a boundary cell scores 0 and draws
+		/// nothing, which never happens in practice — the warhead already refused to place a smudge
+		/// there.</para></summary>
+		public static float ShoreAlphaAt(CPos cell, int fadeCells, Func<CPos, bool> isBoundary)
+		{
+			if (fadeCells <= 0)
+				return 1f;
+
+			var distance = fadeCells + 1;
+			for (var dy = -fadeCells; dy <= fadeCells; dy++)
+			{
+				for (var dx = -fadeCells; dx <= fadeCells; dx++)
+				{
+					var d = Math.Max(Math.Abs(dx), Math.Abs(dy));
+					if (d >= distance || !isBoundary(cell + new CVec(dx, dy)))
+						continue;
+
+					distance = d;
+				}
+			}
+
+			return Math.Min(1f, distance / (float)(fadeCells + 1));
+		}
+
 		public void RemoveSmudge(CPos loc)
 		{
 			if (!world.Map.Contains(loc))
@@ -218,7 +305,7 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						var smudge = kv.Value;
 						tiles[kv.Key] = smudge;
-						render.Update(kv.Key, smudge.Sequence, paletteReference, smudge.Depth);
+						Draw(kv.Key, smudge);
 					}
 
 					remove.Add(kv.Key);

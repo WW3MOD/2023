@@ -4846,20 +4846,60 @@ map-rules test the way most weapon changes can — it has to be a change to the 
   `test-heli-repairs-at-pad` so a green repair gate does not depend on this)
 
 - **2026-09-08 — a nuclear scar never blackens the ground a tree stands on.**
-  `LeaveSmudgeWarhead.DoImpact` skips any cell whose blocking actor is not a valid target for the
-  warhead (`LeaveSmudgeWarhead.cs:67-68`). Trees are `Targetable: TargetTypes: Trees`
-  (`decoration.yaml:185-186`) and all 51 `LeaveSmudge` warheads in `weapons-nuclear-arsenal.yaml`
-  take the default `ValidTargets: Ground, Water`, which does not overlap `Trees` — so **every tree
-  cell in a blast is skipped**, and a wood inside a crater keeps unscorched terrain under each
-  trunk. At forest density this is the dominant artefact of the scar rather than an edge case:
-  the disc becomes a patchwork of pale islands. Visible in `WORKSPACE/mockups/burnt-trees.png` as
-  the light patches under the burnt trunks. **Not a regression and not caused by `wt/burnt-trees`** —
-  it predates it and is unchanged by it; burning the trees made it easier to see, because a black
-  skeleton over a pale patch reads more sharply than a green tree did. Fix is plausibly one line
-  (add `Trees` to the scar warheads' `ValidTargets`), but it is 51 warheads and it interacts with
-  the `InvalidTargets: Vehicle, Structure, Wall` exclusions already on them, which are deliberate
-  (`WORKSPACE/reports/scar-blending-260908.md` §"the building shadow"). Not attempted.
-  (found while working on: burnt trees, `wt/burnt-trees`)
+  **FIXED 2026-09-09 on `wt/scar-coverage`.** `LeaveSmudgeWarhead.DoImpact` skips any cell whose
+  blocking actor is not a valid target for the warhead (`LeaveSmudgeWarhead.cs:67-68`). Trees are
+  `Targetable: TargetTypes: Trees` (`decoration.yaml:279-280`) and the scar warheads took the
+  default `ValidTargets: Ground, Water` (`Warhead.cs:30`), which does not overlap `Trees` — so
+  every tree cell in a blast was skipped. Fixed by adding `Trees` to `ValidTargets`;
+  `InvalidTargets: Vehicle, Structure, Wall` is untouched, so the deliberate building/vehicle/wall
+  shadows are all still there.
+
+  **TWO CORRECTIONS TO THE ORIGINAL NOTE, both of which would have cost the next worker.**
+
+  1. **It is 61 warheads across TWO files, not 51 across one.** The 51 figure counted only
+     `weapons-nuclear-arsenal.yaml`. `Atomic` and `AtomicHighYield` — the two nukes that are
+     actually *fired* by a shipped support power — carry ten more scar warheads in
+     `weapons-superweapons.yaml:692+` and `:1417+`. **A worker who edits only the 51 changes
+     nothing a player can see, and `demo-highyield-nuke` in particular fires `AtomicHighYield`
+     and would have shown no difference at all.** Verified by parsing every `LeaveSmudge` in the
+     mod: 89 total, 61 of them `SmudgeType: Scar*`, and after the fix all 61 read
+     `ValidTargets: Ground, Water, Trees` / `InvalidTargets: Vehicle, Structure, Wall` uniformly.
+     The other 28 (`Crater`/`Scorch`, conventional weapons) are deliberately untouched — 8 of them
+     already name `Trees` in `InvalidTargets` on purpose.
+
+  2. **"At forest density this is the dominant artefact" is true, but it is not the ONLY
+     mechanism, and it is not the one that makes RECTANGLES.** There is a second, independent
+     skip two lines earlier: `LeaveSmudgeWarhead.cs:59-61` drops any cell whose *terrain type*
+     does not list the smudge type in `AcceptsSmudgeType`. In TEMPERAT, `Rock`, `Cliffs`, `Tree`,
+     `Field`, `River`, `RiverShallow`, `Beach` and `Water` list **nothing at all**. Terrain
+     templates are multi-cell and axis-aligned (Rock: 142 templates at 2x2/3x2/3x3/4x2; Cliffs: 42,
+     mostly 2x2), so this is the mechanism that produces genuine rectangles. Measured over the
+     shipped maps, inside `AtomicHighYield`'s R=47 disc:
+
+     | map | tree cells skipped | terrain cells skipped |
+     |---|---|---|
+     | woodland-warfare-ww3 | 1187 (17.2%) | 607 (8.8%) — Cliffs 540 |
+     | river-zeta-ww3 | 1066 (16.3%) | 1000 (15.3%) — Water 588, Beach 303 |
+     | twin-rivers-ww3 | 266 (3.8%) | 1589 (23.0%) — Rock 782, Cliffs 447 |
+
+     **Tree holes are also not one cell each and not one-per-footprint.** Only the `x` cells of a
+     footprint enter the ActorMap (`Building.OccupiedTiles`, `Building.cs:180-190` — `=` is
+     `OccupiedPassable` and is excluded), so a single tree skips 1 cell (most `T##`), 2 (`T10`,
+     `T11`), 3 (`TC03`), 4 (`TC04`) or 5 (`TC05`) — *not* the 12 that `TC04`'s 4x3 `Dimensions`
+     suggests. The large patches come from **neighbouring trees merging**: at the densest stand on
+     woodland-warfare a single connected unscorched region ran 52 cells across a 10x11 bounding
+     box at 0.47 fill. That is the full size ladder, 1 cell to ~60, and it is ragged rather than
+     rectangular — the rectangular ones are terrain.
+
+  Also fixed on the same branch: `Beach` now accepts the five `Scar*` types in temperat/snow/desert
+  (it accepted nothing, so a scar stopped a full cell SHORT of the water), and `SmudgeLayer` gained
+  `ShoreFadeCells`, default 0, set to 2 on the five Scar layers only. **Still deliberately not
+  scarring: `Rock`, `Cliffs`, `River`, `RiverShallow`, `Water`.** Rock and Cliffs are the remaining
+  hole source on the non-forest maps (782 + 447 cells on twin-rivers, 479 + 440 on x-lake) and
+  closing them is one more line per tileset — but on TEMPERAT most of those cells belong to `wc*.tem`
+  WaterCliffs and `s*.tem` cliff templates, which draw a *vertical face*, and a flat top-down scar
+  sprite over a vertical face is a judgement no one has looked at yet. Left for an eyeball.
+  (found while working on: burnt trees, `wt/burnt-trees`; fixed on `wt/scar-coverage`)
 
 - **2026-09-09 — a MIRV fallback ring collapses to a single bearing at AimPoints 3, 5 and 7, and to
   half its points at 7.**
