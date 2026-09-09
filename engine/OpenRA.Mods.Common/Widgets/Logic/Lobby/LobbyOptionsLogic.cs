@@ -76,7 +76,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			// Map visibility
 			"explored", "fog", "separateteamspawns",
 			// Rule basics
-			"gamespeed", "timelimit", "startingunits",
+			"gamespeed", "timelimit", "startingunits", "forwarddeployment",
 			// Player-level
 			"bounty",
 			// Debug Menu is the one developer-flagged option that's useful to skirmish
@@ -128,6 +128,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{ "gamespeed", SectionMatch },
 			{ "timelimit", SectionMatch },
 			{ "startingunits", SectionMatch },
+			{ "forwarddeployment", SectionMatch },
 			// World
 			{ "explored", SectionWorld },
 			{ "fog", SectionWorld },

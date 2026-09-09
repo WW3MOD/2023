@@ -3,7 +3,8 @@
 # The stock panel declares no Label@CATEGORY_FILTER, so LobbyOptionsLogic falls
 # back to CategoryAdvanced (LobbyOptionsLogic.cs:228-230). Every option that is
 # actually wired — fog, explored, startingcash, gamespeed, timelimit,
-# startingunits, passiveincome, incomemodifier, bounty, separateteamspawns,
+# startingunits, forwarddeployment, passiveincome, incomemodifier, bounty,
+# separateteamspawns,
 # cheats, sync reports — is in CommonOptionIds and was therefore filtered out,
 # leaving only LobbyDummyOptions, which stamps Placeholder=true on every option
 # it yields. RenderAdvancedSections skips any section that is entirely

@@ -611,6 +611,10 @@ World:
 		SeparateTeamSpawnsCheckboxDisplayOrder: 54
 	SpawnStartingUnits:
 		DropdownDisplayOrder: 63
+		# Immediately after Starting Units (63): the two dropdowns offer the same package
+		# classes and are read together. Default stays `none`, so a match nobody touches is
+		# the match it was before this option existed.
+		ForwardDeploymentDropdownDisplayOrder: 64
 	PathFinder:
 	ValidateOrder:
 	ControlAllUnitsManager:
