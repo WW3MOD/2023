@@ -693,24 +693,28 @@ Atomic:
 		Size: 2
 		SmudgeType: ScarCore
 		Delay: 0
+		ValidTargets: Ground, Water, Trees
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 10c0
 	Warhead@Scar2Crater: LeaveSmudge
 		Size: 4, 3
 		SmudgeType: ScarCrater
 		Delay: 13
+		ValidTargets: Ground, Water, Trees
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 10c0
 	Warhead@Scar3Char: LeaveSmudge
 		Size: 7, 5
 		SmudgeType: ScarChar
 		Delay: 33
+		ValidTargets: Ground, Water, Trees
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 10c0
 	Warhead@Scar4Burn: LeaveSmudge
 		Size: 10, 8
 		SmudgeType: ScarBurn
 		Delay: 54
+		ValidTargets: Ground, Water, Trees
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 10c0
 	Warhead@Scar5Rim: LeaveSmudge
@@ -718,6 +722,7 @@ Atomic:
 		SmudgeType: ScarRim
 		Delay: 68
 		Chance: 60
+		ValidTargets: Ground, Water, Trees
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 10c0
 
@@ -1418,30 +1423,35 @@ AtomicHighYield:
 		Size: 7
 		SmudgeType: ScarCore
 		Delay: 0
+		ValidTargets: Ground, Water, Trees
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
 	Warhead@Scar2Crater: LeaveSmudge
 		Size: 16, 8
 		SmudgeType: ScarCrater
 		Delay: 24
+		ValidTargets: Ground, Water, Trees
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
 	Warhead@Scar3Char: LeaveSmudge
 		Size: 27, 17
 		SmudgeType: ScarChar
 		Delay: 81
+		ValidTargets: Ground, Water, Trees
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
 	Warhead@Scar4Burn: LeaveSmudge
 		Size: 38, 28
 		SmudgeType: ScarBurn
 		Delay: 150
+		ValidTargets: Ground, Water, Trees
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
 	Warhead@Scar5Rim: LeaveSmudge
 		Size: 47, 39
 		SmudgeType: ScarRim
 		Delay: 211
+		ValidTargets: Ground, Water, Trees
 		InvalidTargets: Vehicle, Structure, Wall
 		AirThreshold: 24c0
 

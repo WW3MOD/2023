@@ -52,6 +52,13 @@ Terrain:
 	TerrainType@Beach:
 		Type: Beach
 		TargetTypes: Ground
+		# NUCLEAR SCARS ONLY, 2026-09-09. Beach used to accept NO smudge at all, so a blast disc
+		# stopped at the Clear/Beach boundary -- a full cell short of the water, leaving a bright sand
+		# band between the black scar and the shoreline. That band is the hard straight edge the user
+		# reported. With these five types the scar now runs to the actual waterline, where the eye
+		# already expects a boundary. Crater and Scorch are DELIBERATELY still absent: ordinary shellfire
+		# should not pit a beach, and adding them here would change every non-nuclear weapon in the mod.
+		AcceptsSmudgeType: ScarCore, ScarCrater, ScarChar, ScarBurn, ScarRim
 		Color: B09C78
 	TerrainType@Water:
 		Type: Water
