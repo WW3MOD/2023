@@ -227,8 +227,131 @@ local function rebuildGrid()
 	end
 end
 
+-- ================================================================================================
+-- THE CAPTURES WATCH FOR THE WARHEAD INSTEAD OF PREDICTING IT
+-- ================================================================================================
+-- WHY THIS EXISTS, AND IT IS NOT A REFINEMENT. The offsets in this file were derived by hand from
+-- EstimateArcTicks TWICE and were wrong BOTH times -- once before ApproachDistance (claiming +62
+-- when the shipped number was +82) and once after. Run 260909_110510_p6562 caught nothing in any of
+-- six frames as a result. A third derivation is not worth having: a warhead that is drawn for five
+-- ticks cannot be photographed by arithmetic that has already missed twice.
+--
+-- So the demo no longer guesses. It counts `oreshnikrv` actors in the world every tick and fires
+-- its capture ON THE TICK the first one appears. That is not an approximation of the right moment;
+-- it IS the right moment, and it is correct whatever the flight arithmetic turns out to be.
+--
+-- IT IS ALSO THE MEASUREMENT. Each note carries the tick the RV was actually observed at and how
+-- many were in the world, so one run replaces the derivation permanently -- and it separates the
+-- two failures that look identical in a PNG. An empty sky in a frame fired on the tick an RV is
+-- provably in the world is a RENDERING failure. A note that never appears at all means no RV ever
+-- entered the world, which is a timing or an activation failure. The old fixed offsets could not
+-- tell those apart, which is exactly why two runs have now been spent on it.
+local RVType = "oreshnikrv"
+local KinzhalType = "kinzhalmissile"
+
+local function CountOfType(t)
+	local n = 0
+	local all = Map.ActorsInWorld
+	for i = 1, #all do
+		if all[i].Type == t then
+			n = n + 1
+		end
+	end
+
+	return n
+end
+
+-- Per-pass observation state. Nil except during a pass that captures.
+local watch = nil
+
+local function watchTick()
+	if watch == nil or watch.finished then
+		return
+	end
+
+	local rel = tick - watch.start
+	local rv = CountOfType(RVType)
+	local kz = CountOfType(KinzhalType)
+
+	-- Bail out rather than watch forever if nothing ever flies: the next pass would otherwise
+	-- overwrite this state mid-observation and the labels would land on the wrong pass.
+	if rel > 200 then
+		watch.finished = true
+		TestHarness.Screenshot(watch.labels[1],
+			"MEASUREMENT: no " .. RVType .. " ever entered the world within 200 ticks of the " ..
+			"order. This is NOT a capture-timing miss -- the warhead never existed. Look at the " ..
+			"power activation (Test.ActivateSupportPower, the charge bank) and at MissileDelay, " ..
+			"not at the screenshot offsets.")
+		return
+	end
+
+	if rv > 0 and watch.rvFirst == nil then
+		watch.rvFirst = rel
+		TestHarness.Screenshot(watch.labels[1],
+			"MEASURED at pass+" .. rel .. " with " .. rv .. " RV(s) in the world -- fired ON the " ..
+			"tick the first warhead entered the world, not on a predicted offset. " ..
+			watch.note1 .. " IF THIS FRAME IS EMPTY SKY the warhead exists and is not being " ..
+			"DRAWN: that is a rendering fault (WithHypersonicPlasma / SubTickMotionSmoothing / the " ..
+			"sequence), not a mistimed capture.")
+
+		-- Four ticks on: some down, some still falling. Relative to the OBSERVED first sighting,
+		-- so it stays correct even if the flight time changes again.
+		--
+		-- The label and note are bound to LOCALS rather than read off `watch` inside the closure:
+		-- `watch` is reassigned at the start of every pass, and a deferred capture that outlived
+		-- its pass would otherwise file itself under the next pass's label.
+		local label2, note2 = watch.labels[2], watch.note2
+		Trigger.AfterDelay(4, function()
+			TestHarness.Screenshot(label2,
+				"MEASURED 4 ticks after the first RV was seen (pass+" .. (rel + 4) .. "). " .. note2)
+		end)
+	end
+
+	-- The salvo is over the moment the world holds no RV again. Everything downstream keys off
+	-- THIS rather than off an impact tick, because this is observable and the impact tick is not.
+	if watch.rvFirst ~= nil and rv == 0 and watch.rvLast == nil then
+		watch.rvLast = rel
+		local airborne = rel - watch.rvFirst
+		local label3, note3 = watch.labels[3], watch.note3
+		local first, last = watch.rvFirst, watch.rvLast
+
+		Trigger.AfterDelay(8, function()
+			TestHarness.Screenshot(label3,
+				"MEASURED: RVs were in the world from pass+" .. first .. " to pass+" .. last ..
+				", i.e. " .. airborne .. " ticks of salvo, and this frame is 8 ticks after the " ..
+				"last one left. " .. note3)
+		end)
+
+		if not watch.watchKinzhal then
+			watch.finished = true
+		end
+	end
+
+	-- The comparison pass only: the Kinzhal is untouched by ApproachDistance and still flies the
+	-- full standoff, so its impact is many ticks after the salvo. Keyed off the same observation.
+	if watch.watchKinzhal then
+		if kz > 0 then
+			watch.kzSeen = true
+		elseif watch.kzSeen and watch.kzGone == nil then
+			watch.kzGone = rel
+			watch.finished = true
+			local label4, note4 = watch.labels[4], watch.note4
+			local rvLast = tostring(watch.rvLast)
+
+			Trigger.AfterDelay(8, function()
+				TestHarness.Screenshot(label4,
+					"MEASURED: the Kinzhal left the world at pass+" .. rel .. ", against the RVs " ..
+					"at pass+" .. rvLast .. ". THE SPEED CLAIM IS THE GAP BETWEEN THOSE TWO " ..
+					"NUMBERS and it is now measured rather than asserted. " .. note4)
+			end)
+		end
+	end
+end
+
 local function step()
 	tick = tick + 1
+
+	watchTick()
 
 	local pass = Passes[next_pass]
 	if pass and tick >= pass.tick then
@@ -262,41 +385,53 @@ local function step()
 		-- none: they are repeats for a human watching, and a seventh PNG of the same thing buys
 		-- nothing.
 		--
-		-- The offsets come from the flight arithmetic at the head of this file, NOT from taste:
-		-- RVs appear +77..+87, impacts +82..+92, Kinzhal impact +115. RETIMED 2026-09-09 -- the
-		-- figures these were derived from were wrong, and frames 01 and 02 fired before anything
-		-- had happened. Each RV is drawn for 5 ticks, so these are tight by construction: a frame
-		-- placed two ticks early shows an empty sky, not a slightly worse picture.
+		-- NO OFFSETS. Every capture below is armed here and fired by watchTick() on the tick the
+		-- warhead is observed in the world -- see the block above the step function for why the
+		-- previous two sets of hand-derived offsets were both wrong.
 		if not pass.kinzhal and next_pass == 2 then
 			-- Pass 1, zoom 2, Oreshnik alone. The streak claim.
-			TestHarness.ScreenshotAfter(81 / TestHarness.TicksPerSecond, "01-streak-mid-descent",
-				"expects: two or three white streaks falling STEEPLY toward the grid with a " ..
-				"blue-white bloom at each nose, all of them close above the impact zone. Nothing " ..
-				"has landed yet (+81, first impact is +82). A streak entering from a frame EDGE " ..
-				"on a shallow diagonal means ApproachDistance is not being applied. No plasma at " ..
-				"all means MaxStep regressed.")
-			TestHarness.ScreenshotAfter(87 / TestHarness.TicksPerSecond, "02-mid-salvo",
-				"expects: three craters down (+82, +84, +86) and three RVs still falling -- the " ..
-				"salvo is staggered. The ones still in the air keep their nose bloom; the bloom " ..
-				"must never appear IN FRONT of a crater.")
-			TestHarness.ScreenshotAfter(100 / TestHarness.TicksPerSecond, "03-footprint",
-				"expects: in the 4x4 T-90 grid at three-cell spacing, each RV killed what it " ..
-				"landed on or beside while tanks three cells away stand. Not a flattened grid " ..
-				"(spread too wide) and not an intact one (point damage too low).")
+			watch = {
+				start = tick,
+				watchKinzhal = false,
+				labels = { "01-streak-mid-descent", "02-mid-salvo", "03-footprint" },
+				note1 =
+					"expects: one or more white streaks falling STEEPLY toward the grid with a " ..
+					"blue-white bloom at the nose, close above the impact zone, and a pristine " ..
+					"grid. A streak entering from a frame EDGE on a shallow diagonal means " ..
+					"ApproachDistance is not being applied.",
+				note2 =
+					"expects: some craters down and some RVs still falling -- the salvo is " ..
+					"staggered. The ones still in the air keep their nose bloom; the bloom must " ..
+					"never appear IN FRONT of a crater.",
+				note3 =
+					"expects: in the 4x4 T-90 grid at three-cell spacing, each RV killed what it " ..
+					"landed on or beside while tanks three cells away stand. Not a flattened grid " ..
+					"(spread too wide) and not an intact one (point damage too low)."
+			}
 		elseif pass.kinzhal and next_pass == 3 then
 			-- Pass 2, zoom 1, both weapons on the same tick. The speed claim.
-			TestHarness.ScreenshotAfter(81 / TestHarness.TicksPerSecond, "04-both-in-flight",
-				"expects: the Kinzhal crossing the frame nearly FLAT, having flown in from the " ..
-				"edge, while the Oreshnik RVs drop steeply onto the grid from close above it. " ..
-				"The two trajectories are the comparison, and the Oreshnik should now begin its " ..
-				"visible flight near the target rather than at the frame edge.")
-			TestHarness.ScreenshotAfter(100 / TestHarness.TicksPerSecond, "05-oreshnik-down-kinzhal-flying",
-				"THE SPEED CLAIM, and the one frame that proves it: all six RVs are on the ground " ..
-				"(+92) and the Kinzhal is STILL IN THE AIR (+115). If the Kinzhal has already " ..
-				"landed, or they are interleaved, the claim is wrong.")
-			TestHarness.ScreenshotAfter(122 / TestHarness.TicksPerSecond, "06-after-kinzhal",
-				"expects: both impacts done. The Kinzhal's crater is visibly WIDER and softer " ..
-				"than the six Oreshnik points, which is the conventional-precision profile.")
+			watch = {
+				start = tick,
+				watchKinzhal = true,
+				labels = {
+					"04-both-in-flight", "05-mid-salvo-wide",
+					"06-oreshnik-down-kinzhal-flying", "07-after-kinzhal"
+				},
+				note1 =
+					"expects: the Oreshnik RVs dropping steeply onto the grid from close above " ..
+					"it. The Kinzhal is ALSO in the air on this pass but is still far out and " ..
+					"need not be in frame -- it is untouched by this work and flies the full " ..
+					"197-cell standoff.",
+				note2 =
+					"expects: the wide view of the same salvo, four ticks on. This is the frame " ..
+					"for `is it steep`, which is a question about the frame rather than the pixels.",
+				note3 =
+					"expects: all six RVs on the ground and the Kinzhal STILL IN THE AIR. If the " ..
+					"Kinzhal has already landed, or they are interleaved, the speed claim is wrong.",
+				note4 =
+					"expects: both impacts done. The Kinzhal crater is visibly WIDER and softer " ..
+					"than the six Oreshnik points, which is the conventional-precision profile."
+			}
 		end
 
 		if next_pass > #Passes then
