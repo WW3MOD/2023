@@ -22,8 +22,8 @@ ProductionTypePowers: O
 	Types: Production
 	Contexts: Player
 
-# Support-power bin slots 07-15. common|hotkeys/supportpowers.yaml defines 01-06 and stops there;
-# the bin's HotkeyCount is 15 in chrome/ingame-player.yaml and EVERY slot it promises has to exist
+# Support-power bin slots 07-16. common|hotkeys/supportpowers.yaml defines 01-06 and stops there;
+# the bin's HotkeyCount is 16 in chrome/ingame-player.yaml and EVERY slot it promises has to exist
 # here or CheckChromeHotkeys fails the gate (CheckChromeHotkeys.cs:97).
 #
 # IF YOU ARE RESOLVING A CONFLICT IN THIS BLOCK, TAKE THE LONGER SIDE. A concurrent branch
@@ -31,11 +31,12 @@ ProductionTypePowers: O
 # 14 and 15, in the same place and the same shape, so taking this side drops nothing of theirs.
 # Taking the shorter side silently leaves HotkeyCount promising two slots that do not exist.
 #
-# WHY 15 AND NOT 5. A normal match draws one faction's five-rung buy ladder and nothing else. The
-# count is sized to the SANDBOX lobby option, which hands a single player all three tiers at once --
-# 5 america + 5 russia + 5 event -- because that is the mode these slots exist to make usable. The
-# full reasoning, including why the earlier 13 was right for its own tree, is written out where the
-# number lives, in chrome/ingame-player.yaml.
+# WHY 16 AND NOT 6. A normal match draws one faction's buy ladder and nothing else. The count is
+# sized to the SANDBOX lobby option, which hands a single player all three tiers at once --
+# 5 america + 6 russia + 5 event -- because that is the mode these slots exist to make usable.
+# Russia's column went to six with the Oreshnik (rules/powers.yaml, power.oreshnik), which is what
+# took this from 15 to 16. The full reasoning, including why the earlier 13 was right for its own
+# tree, is written out where the number lives, in chrome/ingame-player.yaml.
 #
 # UNBOUND BY DEFAULT, like every slot above 01.
 #
@@ -84,6 +85,11 @@ SupportPower14:
 
 SupportPower15:
 	Description: Slot 15
+	Types: SupportPower
+	Contexts: Player
+
+SupportPower16:
+	Description: Slot 16
 	Types: SupportPower
 	Contexts: Player
 

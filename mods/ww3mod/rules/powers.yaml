@@ -20,10 +20,18 @@
 # two top-end vehicles (T-90 2400, Abrams 2500) just to break even, and catch a group of four or
 # more to be a good trade.
 #
-# BUY -- ten entries, five per faction, and NO PLAYER EVER SEES MORE THAN FIVE. The gate is
-# `Prerequisites: powers.america` / `powers.russia` on each power in rules/player.yaml;
-# SupportPowerProductionQueue filters AllItems() as well as BuildableItems() on it, so the other
-# faction's five are ABSENT from the tab rather than greyed out.
+# BUY -- ELEVEN entries: five for America, SIX for Russia, and no player ever sees the other
+# faction's column. The gate is `Prerequisites: powers.america` / `powers.russia` on each power in
+# rules/player.yaml; SupportPowerProductionQueue filters AllItems() as well as BuildableItems() on
+# it, so the other faction's entries are ABSENT from the tab rather than greyed out.
+#
+# THE COLUMNS ARE NO LONGER THE SAME HEIGHT, as of the Oreshnik. This paragraph used to read "ten
+# entries, five per faction, and NO PLAYER EVER SEES MORE THAN FIVE", and both halves of that were
+# load-bearing elsewhere: HotkeyCount in chrome/ingame-player.yaml and the slot list in
+# hotkeys.yaml are sized to how many powers ONE player can hold with the sandbox option on, which
+# is now sixteen rather than fifteen. If you add another power, that is the pair to update, and
+# TheSupportBinBindsAHotkeyForEveryPowerAPlayerCanHold in PowerPurchaseWiringTest.cs is what fails
+# if you do not.
 #
 #   cost     AMERICA  (powers.america)               RUSSIA  (powers.russia)
 #   ------   -----------------------------------    ------------------------------------
@@ -31,7 +39,14 @@
 #    6000    B61-12 (0.3 kt)         4.5c blast    9M729 (1 kt)
 #   10000    B61-12 (10 kt)         14.4c blast    9M723 Iskander-M (10 kt)
 #   15000    B61-12 (50 kt)         24.5c blast    Kh-47M2 Kinzhal-N (50 kt)
+#   18000    --                                    RS-26 Oreshnik  6 x conventional
 #   32000    W76-1 Trident (100 kt) 31.0c blast    3M14 Kalibr (100 kt)
+#
+# THE 18000 RUNG IS RUSSIA-ONLY AND IS DELIBERATELY OFF THE BLAST LADDER. The Oreshnik is
+# conventional and narrow (2c0 blast against the Kinzhal's 4c0) but delivers six independent
+# 48000-damage impacts, so it is priced on delivered point damage rather than on radius. See the
+# note above power.oreshnik. It is the one rung with no American counterpart; the symmetry the two
+# 5000 conventional entries were built on is unaffected, because that pair still exists.
 #
 # EVENT -- five entries, NOT purchasable in a normal match at any price. `powers.event` is provided
 # by no faction, only by the sandbox option below. These are the Doomsday weapons and the two
@@ -47,7 +62,7 @@
 #   60000    Tsar Bomba (50 Mt)            246.1c   kept "just for fun"; may never be fired
 #
 # SANDBOX -- one lobby checkbox ("Sandbox: All Support Powers", default OFF) that provides all
-# three prerequisites to every player regardless of faction, so all fifteen entries are purchasable
+# three prerequisites to every player regardless of faction, so all sixteen entries are purchasable
 # at once. This is the user's test mode. It is permanent, it is not a debug leftover, and it is the
 # reason the EVENT entries keep their proxies below instead of being deleted: a power with no proxy
 # cannot be bought even in sandbox. Wiring and the polarity trap: rules/player.yaml, "THE THREE
@@ -134,7 +149,7 @@
 #
 # AMERICA TAKES 10/20/30/40/50 AND RUSSIA 11/21/31/41/51, so each price rung is a PAIR of
 # adjacent numbers. In a normal match only one of each pair is ever drawn and the tab reads
-# 10,20,30,40,50 either way; in sandbox all fifteen are drawn and the two ladders interleave
+# 10,20,30,40,50 either way; in sandbox all sixteen are drawn and the two ladders interleave
 # rung by rung, which is the only order in which they can be compared. The GBU-57 used to share
 # the Kinzhal's slot exactly, on the grounds that "no player ever sees both" -- true before
 # sandbox existed, false now, which is why the pairs are adjacent rather than identical.
@@ -456,6 +471,46 @@ power.rukalibr:
 		Description: Land-attack cruise missile with a strategic warhead.\nOne hundred kilotons, and it flies low the whole way.\nArrives fully loaded and fires once.
 	ProvidesSupportPowerCharge:
 		Power: RuKalibrStrike
+
+# ---- 18000: Russia's SIXTH rung, and the only one that is not on the five-rung ladder ---------
+# The Oreshnik is conventional, so it does not sit on the 6000/10000/15000/32000 warhead ladder at
+# all -- it sits above the whole of it in price and below the top of it, delivering six precise
+# conventional impacts instead of one wide one.
+#
+# WHY THE LADDER'S OWN MONOTONE-IN-BLAST-RADIUS RULE DOES NOT DECIDE THIS. That rule exists because
+# radius is a good proxy for what a strike destroys, and here it is a bad one: the Oreshnik's blast
+# is 2c0, SMALLER than the 5000-credit Kinzhal's 4c0, while six independent 48000-damage impacts
+# destroy considerably more than one 54000 impact does. Priced off delivered point damage instead --
+# 288000 against 54000, so 3.6x the Kinzhal -- which is the measure that actually describes a MIRV.
+#
+# NOT COMBAT-SIMMED. 18000 is a starting number, not a measured one; DOCS/recipes/BALANCE.md and
+# tools/combat-sim/ are where it would be settled. It is the first thing to move if the power turns
+# out to be too strong, and the second is the Warhead@TechStructure block in
+# weapons-heavy-ordnance.yaml, which is what lets one strike take six neutral tech buildings.
+power.oreshnik:
+	Inherits: ^PurchasableSupportPower
+	Valued:
+		Cost: 18000
+	Tooltip:
+		Name: RS-26 Oreshnik (6 x conventional)
+	Buildable:
+		Queue: Powers
+		# 61 -- a sixth Russian rung above 11/21/31/41/51, so it sorts last in Russia's column and
+		# stays clear of the event tier's 60-100 in the OTHER column. The two never appear together
+		# except under the sandbox option, where 61 lands it between the buy and event blocks, which
+		# is where it belongs.
+		BuildPaletteOrder: 61
+		# INTERIM ART, the same `artyicon` the power itself carries. It is the one cameo defined in
+		# sequences/sequences-misc.yaml that no other entry claims, so this introduces no duplicate.
+		# The proxy and the power MUST name the same icon: the buy tab reads this one and the support
+		# bin reads the power's, and three of those pairs had silently diverged before 2026-09-08.
+		Icon: artyicon
+		# 1100 ticks x 0.06 s = 66 s. Between the Kinzhal's 500 and the Kalibr's 1300, matching where
+		# the price sits. A strategic conventional weapon should not be available on Kinzhal tempo.
+		BuildDuration: 1100
+		Description: Six independently-aimed conventional warheads.\nThe fastest weapon in the game, arriving near-vertically.\nArrives fully loaded and fires once.
+	ProvidesSupportPowerCharge:
+		Power: OreshnikStrike
 
 # =============================================================================================
 # EVENT TIER. `Prerequisites: powers.event`, which NO faction provides -- only the sandbox lobby

@@ -74,6 +74,12 @@ Container@PLAYER_WIDGETS:
 					# sizing to the normal match would leave exactly the person using the feature
 					# reaching for a mouse.
 					#
+					# THE 16 (wt/oreshnik): the same reading, one power later. Russia's buy ladder
+					# went from five rungs to six when the Oreshnik was added (rules/powers.yaml,
+					# power.oreshnik), so the sandbox total is 5 america + 6 russia + 5 event = 16.
+					# Nothing else about the sizing rule changed -- the columns are simply no longer
+					# the same height, which is why the count is not a multiple of the tier count.
+					#
 					# 10 was itself up from 6 on 2026-09-06 for the same reason two steps earlier,
 					# when the arsenal took the mod from four powers to ten.
 					#
@@ -86,11 +92,11 @@ Container@PLAYER_WIDGETS:
 					# existing slot to a different weapon, because no slot was ever bound to a weapon.
 					#
 					# THE COUNT IS NOT FREE: SupportPowersWidget.LinterHotkeyNames turns it into the
-					# names SupportPower01..SupportPower15 and CheckChromeHotkeys errors on any that
+					# names SupportPower01..SupportPower16 and CheckChromeHotkeys errors on any that
 					# is not defined (CheckChromeHotkeys.cs:97). common|hotkeys/supportpowers.yaml
-					# stops at 06, so 07-15 are defined in ww3mod|hotkeys.yaml. Raising this again
+					# stops at 06, so 07-16 are defined in ww3mod|hotkeys.yaml. Raising this again
 					# means adding definitions in the same edit.
-					HotkeyCount: 15
+					HotkeyCount: 16
 				Container@PALETTE_FOREGROUND:
 					Children:
 						Image@ICON_TEMPLATE:

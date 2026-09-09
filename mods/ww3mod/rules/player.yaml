@@ -140,7 +140,7 @@ Player:
 	# could buy any of them. This block closes that, and adds the tier that was missing.
 	#
 	#   powers.america   provided by faction `america`         -- America's five-rung buy ladder
-	#   powers.russia    provided by faction `russia`          -- Russia's five-rung buy ladder
+	#   powers.russia    provided by faction `russia`          -- Russia's SIX-rung buy ladder
 	#   powers.event     provided by NO faction, ever          -- Dead Hand / scripted / demo only
 	#
 	# EVERY THREE ARE ALSO PROVIDED BY THE SANDBOX LOBBY OPTION, which is the whole point of the
@@ -163,7 +163,7 @@ Player:
 
 	# ---- THE SANDBOX OVERRIDE ----
 	# Three traits with NO `Factions:` filter, each enabled only while the sandbox option is on.
-	# Together they hand every player all three tiers, so all fifteen powers are purchasable
+	# Together they hand every player all three tiers, so all sixteen powers are purchasable
 	# regardless of faction. This is the user's test mode and it is meant to stay.
 	#
 	# THE POLARITY IS THE SAFETY PROPERTY AND IT IS INVERTED FROM WHAT READS NATURALLY. Do not
@@ -197,7 +197,7 @@ Player:
 	# DELIBERATELY HERE AND NOT THERE, and it is worth knowing why before "tidying" it back.
 	# MiniYaml merges the `Player:` node across every file in mod.yaml's Rules list, so adding a
 	# field to a trait defined in another file is ordinary and order-independent (the key does not
-	# exist there, so there is nothing to win a last-write against). Keeping all fifteen tier
+	# exist there, so there is nothing to win a last-write against). Keeping all sixteen tier
 	# assignments in ONE list is worth the split: a tier table scattered over two files is a table
 	# nobody can read, and the failure mode this whole branch exists to fix was exactly a gate
 	# everyone believed was somewhere else.
@@ -311,6 +311,126 @@ Player:
 		# AbombLaunchDetected would announce a nuke. Phase 2 audio should replace this.
 		IncomingSpeechNotification: EnemyUnitsApproaching
 		SupportPowerPaletteOrder: 1
+	# ---- RS-26 Oreshnik: 6 conventional re-entry vehicles ------------------------------------
+	# THE USER'S ASK, in their words: "an Oreshnik strike that the russian army has ... the oreshnik
+	# uses multiple warheads that come in steep from a high trajectory, and will be the fastest
+	# moving thing in the entire game. The warheads are independantly targetable (like the mirv
+	# strike) but it should be a conventional weapon with high point damage and fairly low spread
+	# per projectile."
+	#
+	# CONVENTIONAL, AND EVERY MARKER OF THAT IS DELIBERATE. There is no `CameoBadge: nuclear`, no
+	# `RequiresCondition: !nuke-arsenal-disabled`, no vaporize warhead on the payload and no fireball
+	# light event -- this power is not in the nuclear arsenal and is not gated by the nuclear lobby
+	# checkbox. Its payload (OreshnikRVExplosion, weapons-explosions.yaml) is the OPPOSITE profile to
+	# the arsenal's: 48000 of point damage into a 512-wdist core and about two cells of blast, where
+	# the nukes are tens of cells wide and comparatively soft.
+	#
+	# RUSSIAN ONLY, via `powers.russia` -- the faction-provided prerequisite, exactly as the other
+	# fifteen powers do it. NOT `player.russia`: that name is provided by faction ALONE and is
+	# consumed by the AI layer, and using it here would make the power unreachable under the sandbox
+	# lobby option. See "THE THREE TIERS" further down this file.
+	#
+	# IT IS RUSSIA'S SIXTH BUY-TIER ENTRY, and that is a change to a documented shape. rules/powers.yaml
+	# describes the buy tier as "ten entries, five per faction"; it is now eleven and six. The header
+	# there has been updated rather than left to drift, and the two consequences are handled:
+	# HotkeyCount in chrome/ingame-player.yaml goes 15 -> 16 and hotkeys.yaml gains SupportPower16, so
+	# TheSupportBinBindsAHotkeyForEveryPowerAPlayerCanHold still passes with the sandbox option on.
+	#
+	# THE PRICE IS THE ONE NUMBER HERE THAT IS A JUDGEMENT RATHER THAN A DERIVATION, and it does not
+	# come off the ladder rule. powers.yaml states the buy tier is monotone in BLAST RADIUS, because
+	# radius is a good proxy for what a strike destroys. That proxy does not describe this weapon: two
+	# cells of blast is SMALLER than the 5000-credit Kinzhal's four, while six independent 48000-damage
+	# impacts destroy considerably more. The measure that does describe it is delivered point damage,
+	# 288000 against the Kinzhal's 54000, and 18000 is priced off that -- above the whole conventional
+	# rung, below the 32000 Kalibr. IT HAS NOT BEEN COMBAT-SIMMED (DOCS/recipes/BALANCE.md); treat it
+	# as the starting number, not a measured one.
+	MissileStrikePower@Oreshnik:
+		OrderName: OreshnikStrike
+		Prerequisites: powers.russia
+		# INTERIM ART. `artyicon` (artystrikicon) is the one cameo defined in sequences-misc.yaml that
+		# no power currently claims, so this costs no new drawing and creates no duplicate: the
+		# Kinzhal has kinzhalicon, the GBU-57 precicon, the arsenal v2bdgricon/abomb/abombfake/paranuke.
+		# Replace it when there is Oreshnik art; nothing else depends on the name.
+		Icon: artyicon
+		Name: RS-26 Oreshnik (6 x conventional)
+		Description: Six independently-aimed conventional re-entry vehicles.\nClick SIX aim points; one warhead goes to each.\nThe fastest weapon in the game, arriving near-vertically.\nRight-click or Escape while placing cancels without firing.
+		# BOUGHT, NOT CHARGED, like every other power since 2026-09-06. ChargeInterval is ABSENT
+		# rather than set to a large number: SupportPowerInstance forces TotalTicks to 0 when
+		# RequiresPurchase is set, so any value here would be inert, and an inert number that reads
+		# like a live one is worse than none. The price lives on power.oreshnik in rules/powers.yaml.
+		RequiresPurchase: True
+		Cursor: nuke
+		MissileActor: oreshnikrv
+		# SIX independently-aimed warheads -- "like the mirv strike", which is MissileStrikePower@Sarmat
+		# in nuclear-arsenal.yaml and is the mechanism reused here rather than reimplemented. Above one
+		# aim point the power enters SelectMultiPowerTarget placement mode, takes six clicks, issues the
+		# order on the LAST one, and spawns one missile per point. Right-click or Escape abandons
+		# without firing or consuming the shot.
+		#
+		# THE PAYLOAD IS PER-MISSILE AND THIS IS NOT OPTIONAL: OreshnikRV carries ONE warhead
+		# (Explodes: OreshnikRVExplosion). Pointing this at a cluster-firing actor instead would be
+		# thirty-six detonations, which is the trap AimPoints' own [Desc] documents.
+		AimPoints: 6
+		# 4 ticks between RVs = 24 ticks (1.4 s) across the salvo, against the Sarmat's 12/60. TIGHTER
+		# ON PURPOSE: six 750 kt RVs are meant to land as a ripple, six conventional penetrators as a
+		# single event. The tracks are parallel (one azimuth per salvo, taken from the centroid), so
+		# this stagger separates them ALONG the approach and cannot make them fan out. Deterministic
+		# (index * 4), which is what lets it sit on the synced activation path.
+		AimPointInterval: 4
+		# OVERLAY ONLY -- drawn by the placement order generator, read by nothing in the simulation.
+		# 2c512 is the "a second RV here is wasted" radius: the shockwave reaches 2c0 and the lethal
+		# core is 512, so two aim points closer than this overlap for no gain. Deliberately NOT the
+		# weapon's outer extent -- it is the number that answers the placement question.
+		AimPointRadius: 2c512
+		# Only read for a SINGLE-target order -- a bot, a Lua binding, or an old replay, none of which
+		# knows about placement mode. First RV on the chosen point, five more on a ring of this radius.
+		# 5c0 rather than the Sarmat's 24c0 because this is a precision weapon: a bot firing it should
+		# concentrate on one formation, not blanket a quarter of the map. THE DEMO SCENARIO DEPENDS ON
+		# THIS VALUE -- Test.ActivateSupportPower issues a single-target order, so 5c0 is the pattern a
+		# viewer sees there.
+		AimPointFallbackSpread: 5c0
+		# GROUND BURST. Zero, so there is no interaction with any warhead's AirThreshold at all -- the
+		# silent-failure mode MissileStrikePowerInfo.DetonationAltitude documents (a burst above a
+		# warhead's AirThreshold stops seeing terrain target types and does nothing to the ground) is
+		# simply not reachable here. A conventional penetrator is meant to hit the thing it is aimed at.
+		DetonationAltitude: 0
+		# 24c0 = 24 cells above the terrain at the OFF-MAP spawn, interpolated linearly down across the
+		# whole standoff. This is the "high trajectory" half of the ask; the STEEP half is LaunchAngle
+		# 160 on OreshnikRV, which is what sets the terminal slope and is independent of shot length.
+		# See the derivation on OreshnikRV in rules/ingame/vehicles-russia.yaml.
+		SpawnAltitude: 24c0
+		# 120 ticks x 0.06 s = 7.2 s between the click and the RVs appearing off-map. SHORTER than the
+		# Kinzhal's 150, and the reason is the same one that sets the Kinzhal's: the delay is reaction
+		# time handed to the target. SupportPower.PlayLaunchSounds fires IncomingSpeechNotification to
+		# every non-allied client AT ORDER TIME (SupportPower.cs:238-251) while the beacon and minimap
+		# ping are gated on IsAlliedWith(RenderPlayer), so what the victim gets is an audible warning
+		# with no location attached. This weapon's identity is that it cannot be reacted to.
+		MissileDelay: 120
+		# Sized for ONE RV, not for the salvo: there are six of them and they can be anywhere, so six
+		# small reveals is the right shape. Same reasoning as MissileStrikePower@Sarmat's move from
+		# 51c0 to 30c0 -- but smaller again, because a conventional impact is a two-cell event.
+		CameraRange: 8c0
+		CameraSpawnAdvance: 25
+		CameraRemoveDelay: 100
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		# None, matching the Kinzhal and for the user's stated reason: "We dont need to see a countdown
+		# of ally players powers, it is just distracting. Maybe we can keep it for nukes, but not for
+		# other powers." This is not a nuke. The owner's own countdown is still drawn on the cameo by
+		# SupportPowersWidget, which is where they look for it.
+		DisplayTimerRelationships: None
+		# The conventional beacon, as the Kinzhal uses. NOT atomicon -- that is the nuclear poster.
+		BeaconPoster: precbcon
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		# Placeholder, inherited from the Kinzhal's situation rather than chosen: there is no
+		# conventional-strike warning line in notifications.yaml, and AbombLaunchDetected would
+		# announce a nuke this is not.
+		IncomingSpeechNotification: EnemyUnitsApproaching
+		SupportPowerPaletteOrder: 16
 	# PHASE 2 of the missile strike powers: the remaining two of the three approved entries
 	# (WORKSPACE/proposals/260904-missile-powers.md §1). Both ride the SAME MissileStrikePower trait
 	# the Kinzhal above proved in game at 894e8dc4 -- there is exactly one delivery mechanism in this
