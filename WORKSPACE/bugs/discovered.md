@@ -4963,29 +4963,3 @@ persisted or compared numerically anywhere first — that has NOT been checked. 
 the actual defect and will produce a third sighting somewhere else.
 (found while working on: the DEFCON Escalation spine, `wt/defcon-spine`, placing new traits on the
 Player and World actors)
-
-## `DrawBeyondMapActorFog` lays no fog strip on the four DIAGONAL corners beyond the cell grid
-
-**Verified 2026-09-09 at `main @ 5e7f379b`.** The two halves of the beyond-map overlay do not cover the
-same region, although the comment in `DrawBeyondMapActorFog` says they must. `DrawBeyondMapFog`
-(`engine/OpenRA.Game/Graphics/WorldRenderer.cs:455`) blacks out the whole area outside the grid: its top
-and bottom strips run the **full viewport width**, so the diagonal corners are included.
-`DrawBeyondMapActorFog` (`:502`) does not: its top and bottom strips are clamped to `gridTL.X..gridBR.X`
-and its left and right strips to `gridTL.Y..gridBR.Y`, because both are built by walking playable
-columns/rows. Nothing walks the corners, so nothing fogs them.
-
-**Consequence:** an actor sprite drawn diagonally beyond a map corner is drawn at FULL brightness with no
-fog and no unexplored layer over it, however unscouted the corner is. Every other pixel beyond the grid
-gets the border cell's fog. Aircraft leaving the map near a corner and missiles at altitude are the
-sprites that can be out there (`WorldRenderer.cs:369-371` names them as the reason the scissor is not
-clamped in the first place).
-
-**Not observed in play and possibly not observable** — the corner region is only on screen when the
-camera is pushed into a map corner and zoomed out, and whether an actor is ever both there and hidden has
-not been checked. Recorded because the fix is small and the region is otherwise governed by a no-leak
-rule: extending the top/bottom strips to the full viewport width, with the visibility read through
-`ShroudRenderer.ClampToPlayable` (which clamps both axes and so answers for a corner correctly), would
-close it in a few lines.
-
-(found while working on: beyond-bounds nuclear light, `wt/beyond-bounds-light`, which needed to know
-exactly what does and does not darken the region past the grid)
