@@ -248,6 +248,12 @@ namespace OpenRA.Mods.Common.Widgets
 			SetListOffset(newTarget, smooth);
 		}
 
+		// Re-apply the scroll limits without moving the user if their position is
+		// still valid. Call this after ContentHeight changed underneath the current
+		// offset (a collapsing section, a shorter list) — otherwise the panel can
+		// sit scrolled past its own content until the next wheel tick re-clamps it.
+		public void ClampScroll() { Scroll(0); }
+
 		public void ScrollToBottom(bool smooth = false)
 		{
 			var value = Align == ScrollPanelAlign.Top ?

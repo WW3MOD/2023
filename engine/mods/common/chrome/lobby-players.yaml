@@ -801,25 +801,39 @@ Container@LOBBY_PLAYER_BIN:
 							Background: lobby-button
 							Text: Replay last
 
-		# RIGHT column for the Match tab: settings + active changes + preset bar.
-		# LobbyLogic hides this whole block when the Advanced or Music tab is active —
-		# those tabs overlay LOBBY_OPTIONS_BIN / LOBBY_MUSIC_BIN over this column.
+		# LEFT column: map preview + scenario picker + settings + active changes +
+		# preset bar, all in one column. The old note here claimed LobbyLogic hides
+		# this block for the Advanced/Music tabs by overlaying LOBBY_OPTIONS_BIN /
+		# LOBBY_MUSIC_BIN — that has not been true since Phase 12: LOBBY_OPTIONS_BIN
+		# is never loaded at all, and LOBBY_MUSIC_BIN goes into MUSIC_PANEL_ROOT over
+		# the RIGHT-hand chat panel (LobbyLogic.cs, the musicBin LoadWidget). Nothing
+		# overlays this column except MAP_BROWSE_ROOT over the preview slot.
 		#
-		# WW3MOD layout (top to bottom) — bottom-left quadrant, proportional split.
+		# WW3MOD layout (top to bottom) — the WHOLE left column, one scroll.
 		# Spacing pass: 8px base grid, 16px content inset left/right throughout.
-		#   Y 0-40            OPTIONS section header + accent line
-		#   Y 40 to PH*3/5-12 COMMON_OPTIONS_PANEL (ScrollPanel; scrolls when short)
-		#   Y PH*3/5          divider, then LOBBY_ACTIVE_CHANGES at PH*3/5+6,
-		#                     Height PH*2/5-60 (chip renderer caps rows to fit)
+		#   Y 0 to PH-PH*4/25-12  COMMON_OPTIONS_PANEL — the column's single
+		#                     viewport. Its CONTENT is map preview, scenario
+		#                     picker, OPTIONS header, then the option grid, so
+		#                     scrolling down trades preview rows for option rows.
+		#   Y PH-PH*4/25      divider, then LOBBY_ACTIVE_CHANGES 6px below it,
+		#                     Height PH*4/25-60 (chip renderer caps rows to fit)
 		#   Y PH-44 to PH-8   LOBBY_PRESET_BAR (bottom-anchored, 36 tall)
-		# === Phase 4 — LEFT column bottom: settings (under map preview).
-		# Was full-right; swapped to bottom-left per the locked design.
+		#
+		# PH*4/25 reproduces the old bottom block (chips + preset bar) to within
+		# 4px at every resolution: it used to be RH*2/5 where RH was this cell's
+		# old height, PH*2/5-8. Active changes and the preset bar stay PINNED —
+		# they are the column's action/summary chrome, not content to scroll.
+		#
+		# === Phase 4 (completed 2026-09) — LEFT column: map + settings unified
+		# into one scroll. Phase 4 originally only moved settings from full-right
+		# to bottom-left (see WORKSPACE/lobby/IMPLEMENTATION_PLAN.md "Phase 4 —
+		# Left column: unify into one scroll"); the scroll half landed here.
 		# Widget ID kept as RIGHT_COLUMN_MATCH for grep/back-compat.
 		Container@RIGHT_COLUMN_MATCH:
 			X: 0
-			Y: PARENT_HEIGHT * 3 / 5 + 8
+			Y: 0
 			Width: PARENT_WIDTH / 2 - 8
-			Height: PARENT_HEIGHT * 2 / 5 - 8
+			Height: PARENT_HEIGHT
 			Children:
 				ColorBlock@CELL_BG:
 					Width: PARENT_WIDTH
@@ -843,43 +857,77 @@ Container@LOBBY_PLAYER_BIN:
 					Width: PARENT_WIDTH
 					Height: 1
 					Color: 030303FF
-				Label@CELL_LABEL:
-					X: 16
-					Y: 12
-					Width: PARENT_WIDTH - 32
-					Height: 16
-					Font: TinyBold
-					Align: Left
-					Text: OPTIONS
-					TextColor: B4B4B4
-				ColorBlock@CELL_LABEL_ACCENT:
-					X: 16
-					Y: 30
-					Width: 28
-					Height: 2
-					Color: B4B4B4FF
 				ScrollPanel@COMMON_OPTIONS_PANEL:
 					Logic: LobbyOptionsLogic
 					X: 0
-					Y: 40
-					# Full quadrant width minus 4 so the scrollbar (24px, drawn inside
+					Y: 0
+					# Full column width minus 4 so the scrollbar (24px, drawn inside
 					# the panel's right edge) sits just off the right bevel. Row
 					# templates keep their content 4px clear of the scrollbar track.
 					Width: PARENT_WIDTH - 4
-					# Proportional split: options gets the top 3/5 of the quadrant
-					# (minus the 40px header and a 12px gap to the divider at PH*3/5).
-					# 155 tall @1080, 241 @1440, 80 @768 — short screens scroll,
-					# which is fine for a ScrollPanel-backed grid. A fixed-offset
-					# height (PARENT_HEIGHT - 240) went negative at 768.
-					Height: PARENT_HEIGHT * 3 / 5 - 52
+					# Everything above the pinned bottom block: 1033 tall @1440,
+					# 731 @1080, 469 @768 (was 241 / 155 / 80 when the panel was
+					# 3/5 of a 2/5 quadrant — i.e. 24% of the column).
+					Height: PARENT_HEIGHT - PARENT_HEIGHT * 4 / 25 - 12
 					Background: ""
 					ScrollBar: Right
+					# CONTENT — absolutely positioned, NOT list-laid-out. A
+					# ScrollPanel's ListLayout.AdjustChild runs from AddChild, which
+					# WidgetLoader calls BEFORE the X/Y/Width/Height strings are read
+					# and before Initialize() rebuilds Bounds from them
+					# (WidgetLoader.cs:52-60, Widget.Initialize) — so YAML children
+					# keep the Y they declare here. LobbyOptionsLogic then sets
+					# ContentHeight = LOBBY_OPTIONS.Bounds.Y + its measured height,
+					# which is why the map/scenario/header block above LOBBY_OPTIONS
+					# is accounted for automatically with no C# arithmetic.
+					#
+					# Heights are keyed off WINDOW_HEIGHT, not PARENT_HEIGHT: the map
+					# slot must stay pixel-identical to MAP_BROWSE_ROOT, which is a
+					# lobby-root overlay sized from (WINDOW_HEIGHT - 196) * 3 / 5 - 40.
 					Children:
+						# Map preview host. Full-bleed to the scrollbar track (the
+						# column's other content keeps a 16px inset; the preview
+						# never did and still doesn't). LobbyLogic loads MAP_PREVIEW
+						# into this AFTER LOBBY_PLAYER_BIN exists.
+						Container@MAP_PREVIEW_ROOT:
+							X: 0
+							Y: 0
+							Width: PARENT_WIDTH - 28
+							Height: (WINDOW_HEIGHT - 196) * 3 / 5 - 40
+						# Scenario picker sits flush under the map footer, inside the
+						# scroll: it describes THIS map, so it belongs with the map
+						# and scrolls away with it. 16px inset, 4px clear of the
+						# scrollbar track (PARENT_WIDTH - 16 - 24 - 4).
+						DropDownButton@SCENARIO_DROPDOWNBUTTON:
+							X: 16
+							Y: (WINDOW_HEIGHT - 196) * 3 / 5 - 40
+							Width: PARENT_WIDTH - 44
+							Height: 32
+							Font: Bold
+						# OPTIONS header — was the cell's fixed title at Y:12. It now
+						# scrolls with the content, because pinned at the top of the
+						# column it would have labelled the map preview instead.
+						# Map bottom + 32 (scenario) + 8 (gap) + 12 = +12 net.
+						Label@CELL_LABEL:
+							X: 16
+							Y: (WINDOW_HEIGHT - 196) * 3 / 5 + 12
+							Width: PARENT_WIDTH - 44
+							Height: 16
+							Font: TinyBold
+							Align: Left
+							Text: OPTIONS
+							TextColor: B4B4B4
+						ColorBlock@CELL_LABEL_ACCENT:
+							X: 16
+							Y: (WINDOW_HEIGHT - 196) * 3 / 5 + 30
+							Width: 28
+							Height: 2
+							Color: B4B4B4FF
 						Label@CATEGORY_FILTER:
 							Visible: False
 							Text: All
 						Container@LOBBY_OPTIONS:
-							Y: 8
+							Y: (WINDOW_HEIGHT - 196) * 3 / 5 + 48
 							Width: PARENT_WIDTH
 							Children:
 								# === Spacing pass — section header matches the quadrant
@@ -1017,15 +1065,17 @@ Container@LOBBY_PLAYER_BIN:
 											Height: 30
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
-				# === WW3MOD — proportional split, active-changes sized for chips.
-				# Options takes the top 3/5 of the quadrant, active changes the
-				# bottom 2/5 minus the preset bar: divider at PH*3/5, active
-				# changes at PH*3/5+6 with Height PH*2/5-60, preset bar bottom-
-				# anchored (PH-44, H 36). Active-changes bottom lands at ~PH-54,
-				# leaving a ~10px gap above the preset bar at every resolution
-				# (78 tall @1080, 135 @1440, 28 @768). Container spans the full
-				# quadrant width; the 16px content inset lives inside it (title
-				# X:16 here, chip startX 16 in LobbyActiveChangesLogic).
+				# === WW3MOD — pinned bottom block, active-changes sized for chips.
+				# The scroll panel takes everything above; this block keeps the
+				# absolute screen positions it had when the cell was the bottom 2/5
+				# quadrant, by swapping the old RH*2/5 (RH = PH*2/5-8) for the
+				# equivalent PH*4/25 against the full-column PH. Divider at
+				# PH-PH*4/25, active changes 6px below with Height PH*4/25-60,
+				# preset bar bottom-anchored (PH-44, H 36). Active-changes bottom
+				# lands ~10px above the preset bar at every resolution (81 tall
+				# @1080, 139 @1440, 31 @768; was 78 / 135 / 28). Container spans
+				# the full column width; the 16px content inset lives inside it
+				# (title X:16 here, chip startX 16 in LobbyActiveChangesLogic).
 				# PITFALL (2026-06): chips render from internal Y:36 downward —
 				# a too-short container used to push every chip OUTSIDE it, behind
 				# the preset bar with no way to scroll into view. The chip renderer
@@ -1033,16 +1083,16 @@ Container@LOBBY_PLAYER_BIN:
 				# containers (e.g. 768p) truncate gracefully instead of overflowing.
 				ColorBlock@RIGHT_DIVIDER_1:
 					X: 16
-					Y: PARENT_HEIGHT * 3 / 5
+					Y: PARENT_HEIGHT - PARENT_HEIGHT * 4 / 25
 					Width: PARENT_WIDTH - 32
 					Height: 1
 					Color: 030303FF
 				Container@LOBBY_ACTIVE_CHANGES:
 					Logic: LobbyActiveChangesLogic
 					X: 0
-					Y: PARENT_HEIGHT * 3 / 5 + 6
+					Y: PARENT_HEIGHT - PARENT_HEIGHT * 4 / 25 + 6
 					Width: PARENT_WIDTH
-					Height: PARENT_HEIGHT * 2 / 5 - 60
+					Height: PARENT_HEIGHT * 4 / 25 - 60
 					Children:
 						Label@EMPTY_HINT:
 							X: 16
