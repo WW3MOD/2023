@@ -995,3 +995,83 @@ VolatileLoad8:
 		Explosions: explosion_large
 		ImpactSounds: kaboom22.aud
 		ValidTargets: Ground, Trees
+
+# ==============================================================================================
+# ORESHNIK RE-ENTRY VEHICLE -- the conventional payload of MissileStrikePower@Oreshnik.
+# ==============================================================================================
+# SIX OF THESE GO OFF PER STRIKE, one per independently-aimed re-entry vehicle, so every number
+# below is a SIXTH of what the power delivers. Read it that way before comparing it to anything.
+#
+# THE PROFILE IS THE OPPOSITE OF THE ARSENAL'S, and that is the whole design brief: "conventional
+# weapon with high point damage and fairly low spread per projectile". The nukes in
+# weapons-nuclear-arsenal.yaml are wide and soft -- tens of cells of blast, damage that any single
+# heavy vehicle can sometimes walk out of. This is narrow and hard: whatever the RV lands on dies,
+# and something two cells away is scratched.
+#
+# WHERE THE NUMBERS COME FROM. IskanderExplosion above is the sibling -- Russia's other
+# conventional ballistic payload, delivered by the same MissileStrikePower mechanism -- and every
+# row here is stated against it:
+#
+#              IskanderExplosion   OreshnikRV     why
+#   Target       54000 damage        48000        one RV is a smaller body than a whole 9M723
+#   Target Spread    512               512        same lethal core: a direct hit is a direct hit
+#   Penetration     2500              3000        a hypersonic KE penetrator, not a chemical charge
+#   Spread_impact  1c0 / 4000      512 / 6000     HALF the radius, HALF again as much damage in it
+#   Shockwave      4c0 max          2c0 max       "fairly low spread per projectile", explicitly
+#
+# SO SIX RVs DELIVER 288000 OF POINT DAMAGE ACROSS SIX SEPARATE CELLS and about 2 cells of blast
+# around each, against the single Iskander's 54000 and 4 cells. That is a different weapon rather
+# than a bigger one: six precise kills where the player put them, not one crater.
+#
+# PENETRATION 3000 CLEARS EVERYTHING. The thickest armour in the game is MSLO at 2000 and it
+# carries no Distribution, so it is never discounted by hit direction (see IskanderExplosion's own
+# Penetration note). 3000 is deliberate headroom rather than a tuned figure: an RV arriving at
+# 6491 wdist/tick of closing speed is a kinetic penetrator and should not be the thing that
+# bounces.
+#
+# DamageAtMaxRange STAYS 100. Same trap as IskanderExplosion and HIMARSExplosion above -- this
+# warhead is delivered by Explodes on the missile actor, so its weapon has no Range and any other
+# value divides by zero. See BallisticPenetrationTest.
+OreshnikRVExplosion:
+	Inherits@HitEffects: ^LargeExplosionEffects
+	ValidTargets: Ground, Trees, Water
+	Warhead@Target: TargetDamage
+		Damage: 48000
+		Penetration: 3000
+		Spread: 512
+		DamageAtMaxRange: 100
+		InvalidTargets: Air
+		DamageTypes: ExplosionDeath
+	Warhead@Spread_impact: SpreadDamage
+		# HALF the Iskander's 1c0. This is the "fairly low spread" line of the brief expressed as a
+		# number: an RV two cells off its aim point has missed, and is meant to have missed.
+		Spread: 512
+		Damage: 6000
+		Penetration: 3000
+		ValidTargets: Ground, Trees, Water
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Shockwave: ShockwaveDamage
+		StartDelay: 2
+		WaveSpeed: 5
+		# 2c0 against the Iskander's 4c0. Six of these overlapping is still only as much ground as
+		# one and a half Iskanders, which is what keeps a six-click strike from being an area
+		# weapon by accident.
+		MaxRadius: 2c0
+		Spread: 768
+		Damage: 9000
+		Penetration: 2500
+		Falloff: 100, 70, 40, 15, 0
+		Versus:
+			Light: 85
+			Medium: 70
+			Heavy: 55
+			Concrete: 35
+		ShockwaveColor: FFFFF0C8
+		ShockwaveThickness: 1024
+		ShockwaveOuterAlpha: 25
+		ShockwaveInnerAlpha: 8
+		ShockwaveFadeInTicks: 8
+		ValidTargets: Ground, Water, Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath

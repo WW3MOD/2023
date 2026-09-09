@@ -53,7 +53,7 @@ namespace OpenRA.Test
 
 		/// <summary>
 		/// The roster, restated independently of the file under test. Duplicating it here is the
-		/// point: if someone adds a fifth weapon to weapons-heavy-ordnance.yaml the balance question
+		/// point: if someone adds a weapon to weapons-heavy-ordnance.yaml the balance question
 		/// ("should THIS be able to delete an economy structure?") gets asked once, by a human,
 		/// rather than sliding in behind a green test run.
 		/// </summary>
@@ -64,7 +64,24 @@ namespace OpenRA.Test
 			"IskanderExplosion",   // the iskander launcher, the Kinzhal strike, and a loaded cook-off
 			"MOPPenetration",      // GBU-57, MissileStrikePower@GBU57
 
-			// NOT a fifth roster entry -- an inheritance consequence, and it is listed here because
+			// ADDED 2026-09-09 (wt/oreshnik), and the ruling this fixture exists to force was made
+			// rather than dodged. OreshnikRVExplosion is the conventional payload of
+			// MissileStrikePower@Oreshnik -- Russia's 18000-credit six-warhead conventional strike.
+			//
+			// LISTED, because its whole class already is: every purchased, one-shot, off-map strike
+			// above is here. The exclusion weapons-heavy-ordnance.yaml argues for is HIMARSExplosion,
+			// on the grounds that a HIMARS is a rearmable battlefield system firing repeatedly, so
+			// listing it would make the economy raidable by ordinary manoeuvre. An Oreshnik is not
+			// manoeuvre; it is a bought shot.
+			//
+			// WHAT IT BUYS, SAID OUT LOUD BECAUSE IT IS THE STRONGEST ENTRY ON THE ROSTER BY REACH:
+			// AimPoints is 6, so one activation can permanently remove SIX neutral tech buildings --
+			// more economy than anything else here takes in one go. Nothing else on this list is
+			// multi-aim-point. If the power turns out too strong this block is the first thing to
+			// delete, and doing so costs the weapon nothing else.
+			"OreshnikRVExplosion",
+
+			// NOT a roster entry -- an inheritance consequence, and it is listed here because
 			// this fixture is what discovered it. `IskanderExplosionAirborne: Inherits:
 			// IskanderExplosion` (weapons-explosions.yaml:620), so it picks up Warhead@TechStructure
 			// for free, and MiniYaml.Merge resolves that before the corpus is read. Correct on the

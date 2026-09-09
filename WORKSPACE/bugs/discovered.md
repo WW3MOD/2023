@@ -4860,3 +4860,37 @@ map-rules test the way most weapon changes can — it has to be a change to the 
   the `InvalidTargets: Vehicle, Structure, Wall` exclusions already on them, which are deliberate
   (`WORKSPACE/reports/scar-blending-260908.md` §"the building shadow"). Not attempted.
   (found while working on: burnt trees, `wt/burnt-trees`)
+
+- **2026-09-09 — a MIRV fallback ring collapses to a single bearing at AimPoints 3, 5 and 7, and to
+  half its points at 7.**
+  `MultiAimPointOrder.FallbackRingOffsets` lays the non-central warheads out with
+  `Rotate(WRot.FromYaw(new WAngle(i * 4096 / ring)))` (`MultiAimPointOrder.cs`), where `ring` is
+  `count - 1`. **`WAngle` is 1024 units to the full turn, not 4096** (`WAngle.cs:20`, and its
+  constructor takes `a % 1024` at `:30`), so the step is four turns' worth divided by `ring` and
+  the offsets land on `i * 4 * (1024 / ring)` reduced mod 1024. That is only a permutation of the
+  evenly-spaced set when `ring` is coprime to 4. Distinct bearings actually produced:
+
+  | AimPoints | ring | distinct bearings | result |
+  |---|---|---|---|
+  | 3 | 2 | 1 of 2 | both outer warheads stack on ONE bearing |
+  | 4 | 3 | 3 of 3 | correct |
+  | 5 | 4 | 1 of 4 | all four outer warheads stack on ONE bearing |
+  | 6 | 5 | 5 of 5 | correct |
+  | 7 | 6 | 3 of 6 | warheads stack in PAIRS |
+  | 8 | 7 | 7 of 7 | correct |
+
+  **Latent today, and only just.** `AimPoints` above 1 is set by exactly two powers, both at 6 --
+  `MissileStrikePower@Sarmat` (`nuclear-arsenal.yaml`) and `MissileStrikePower@Oreshnik`
+  (`player.yaml`) -- and 6 is one of the values that happens to work. It also only affects the
+  SINGLE-target order path (a bot, a Lua binding, an old replay); a human clicking through
+  `SelectMultiPowerTarget` never reaches this function. So nothing shipped is wrong today and the
+  bug goes live the moment somebody writes `AimPoints: 5`.
+
+  **The fix looks like one character -- `4096` to `1024` -- and it is a no-op for both shipped
+  powers**, because at `ring` 5 the two expressions produce the identical set `{0, 204, 409, 614,
+  819}`. Not attempted here: it is outside this branch's ask, it touches the activation path of a
+  shipped nuclear power, and a change that is provably inert deserves its own test rather than
+  riding along. If it is taken, pin it with a table like the one above rather than with a single
+  count, since every currently-correct value would stay green under the broken expression.
+  (found while working on: the Oreshnik strike, `wt/oreshnik`, verifying that its demo scenario's
+  Lua-fired six-warhead pattern really is a ring)

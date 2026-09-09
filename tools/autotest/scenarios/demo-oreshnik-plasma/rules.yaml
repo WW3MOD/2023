@@ -1,0 +1,88 @@
+# Oreshnik plasma DEMO overrides. Nothing here is asserted; see map.yaml for the layout and what to
+# look at, and demo-oreshnik-plasma.lua for the schedule.
+#
+# NOTHING HERE TOUCHES THE MISSILE. OreshnikRV and KinzhalMissile fly in exactly their shipped
+# configuration -- same speed, same launch angle, same WithHypersonicPlasma and
+# SubTickMotionSmoothing values, same warheads. What a viewer judges here is what the game does. The
+# only overrides below are to the two POWERS, and every one of them is about staging: how the shot
+# is obtained and how long the viewer waits for it.
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
+	# spawn assignment. Both missiles' entry bearing is derived from HomeLocation
+	# (MissileStrikePower.ApproachFor), so the geometry described in map.yaml depends on it.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, demo-oreshnik-plasma.lua
+
+Player:
+	# ===================================================================================
+	# THE THIRD AND FOURTH SCENARIO OVERRIDES THAT TURN THE PURCHASE MODEL OFF. READ
+	# demo-subtick-smoothing/rules.yaml AND demo-missile-impact-clamp/rules.yaml BEFORE COPYING.
+	# ===================================================================================
+	# Both powers ship with RequiresPurchase: True, which means a proxy has to be BUILT in the
+	# Powers tab before a shot exists. A demo has no economy (DefaultCash 0 below) and no viewer
+	# input, so left as shipped neither power would ever fire and the scenario would be six passes
+	# of empty sky. Turning it off converts them back to timer powers, which is the only form a
+	# script can stage.
+	#
+	# WHAT IT COSTS, STATED PLAINLY: a frame from this demo does NOT prove that a player can obtain
+	# an Oreshnik. It proves what one looks like in flight and what it does on arrival, both of
+	# which are downstream of everything this flag touches. Reachability is asserted by
+	# PowerPurchaseWiringTest (the proxy, the tier, the hotkey slot) and by test-power-buy-loop.
+	MissileStrikePower@Oreshnik:
+		RequiresPurchase: False
+		# 90 ticks (5.4 s) against the shipped purchase model, so six passes fit; StartFullyCharged
+		# so pass 1 does not wait out a charge.
+		ChargeInterval: 90
+		StartFullyCharged: true
+		# 15 ticks (0.9 s) against the shipped 120 (7.2 s). Seven seconds between the order and the
+		# first sprite is seven seconds of nothing to look at. Changes nothing about the missile.
+		MissileDelay: 15
+		# The reveal camera and the ping would otherwise fight the fixed view this demo depends on.
+		DisplayBeacon: False
+		DisplayMiniMapPing: False
+	MissileStrikePower@Kinzhal:
+		RequiresPurchase: False
+		ChargeInterval: 90
+		StartFullyCharged: true
+		# THE SAME 15 AS THE ORESHNIK, AND THAT IS THE POINT OF THE COMPARISON. The two powers ship
+		# with different delays (120 and 150) for balance reasons that have nothing to do with how
+		# fast the missiles fly. Equalising them here means that when both are ordered on the same
+		# tick, the gap between the two impacts is FLIGHT TIME ALONE -- which is the thing passes 2,
+		# 4 and 6 exist to show. Leaving the shipped values in would have added 30 ticks of launch
+		# delay to the Kinzhal and flattered the Oreshnik by a number that is not its speed.
+		MissileDelay: 15
+		DisplayBeacon: False
+		DisplayMiniMapPing: False
+	# Nothing on this map can be eliminated in the sense the victory check means -- the target grid
+	# is rebuilt every pass and both Supply Routes are far from the impacts -- but a stray check
+	# would still end the demo early.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored. The whole descent has to be visible, and at a 56-degree
+	# terminal slope the RVs spend most of it high above ground the player would not otherwise see.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# No cash, so nothing can be produced and the only things that happen on this map are the
+	# strikes and the script rebuilding its target grid.
+	PlayerResources:
+		DefaultCash: 0
+
+# THE TARGET GRID USES THE SHIPPED `t90` UNCHANGED, and the earlier draft of this file did not --
+# it defined a derived T90DemoTarget with `-AutoTarget:` to keep sixteen turrets from tracking
+# things. That was removed rather than fixed, because a `-Key:` that matches nothing is a HARD
+# ERROR, and inside a map's rules.yaml that error is SWALLOWED: Map.PostInit catches it, logs
+# "Failed to load rules" to debug.log, and falls back to stock rules -- at which point every
+# actor this file defines ceases to exist and the failure surfaces later as a KeyNotFoundException
+# that reads like a typo in the actor list (DOCS/reference/conventions.md).
+#
+# It is not needed anyway. The nearest Russian actor is the Supply Route ninety cells away, so
+# there is nothing in acquisition range for a turret to turn toward, and the T-90's armaments do
+# not list the `ICBM` target type the re-entry vehicles carry -- so the grid sits still on its own,
+# with no removal to go stale.

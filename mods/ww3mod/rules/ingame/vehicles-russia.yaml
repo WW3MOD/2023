@@ -1407,3 +1407,207 @@ KinzhalMissile:
 
 # Shilka: quad-barrel AA
 
+
+# ================================================================================================
+# ORESHNIK RE-ENTRY VEHICLE -- one of six flown by MissileStrikePower@Oreshnik (rules/player.yaml).
+# ================================================================================================
+# ONE RV PER ACTOR, never the bus. Six of these are spawned per strike, one per aim point, and each
+# carries a SINGLE conventional warhead. That is not a stylistic choice: MissileStrikePowerInfo's
+# AimPoints [Desc] says a multi-point power's missile must carry the single-warhead payload,
+# because six missiles each firing a six-way cluster is thirty-six detonations. Same shape as
+# SarmatMissile (nuclear-arsenal.yaml), for the same reason.
+#
+# ------------------------------------------------------------------------------------------------
+# THE FASTEST THING IN THE GAME, AND HERE IS THE MEASUREMENT
+# ------------------------------------------------------------------------------------------------
+# `Speed` on BallisticMissile is HORIZONTAL closing speed; the arc adds a vertical component on top,
+# so the figure that decides both how fast this looks and whether the plasma renders at all is the
+# 3D per-tick step. Against the incumbent, KinzhalMissile in its terminal dive:
+#
+#                        horizontal    launch angle   terminal slope   3D step/tick   cells/s (3D)
+#   KinzhalMissile          2400        30 (10.5 deg)      0.19            2441           39.8
+#   OreshnikRV              3600       160 (56.2 deg)      1.50            6491          105.7
+#                                                                       ---------
+#                                                                        2.66x faster
+#
+# Horizontally it is 1.50x the Kinzhal (3600 against 2400); through the air, which is what a viewer
+# watching the descent actually sees, it is 2.66x. Second place on the horizontal axis before this
+# was 2000 (RuKinzhalNMissile) and the fastest weapon projectile in the mod is 1200, so nothing is
+# close. At Timestep 60 -- 16.667 ticks/s, NOT 25 -- 3600 wdist/tick is 58.6 cells/s of ground track
+# and 105.7 cells/s along the flight path.
+#
+# LaunchAngle IS THE STEEPNESS LEVER, not SpawnAltitude, and the difference matters. The arc is
+# parabolic with peak = hDist * tan(LaunchAngle) / 4, so d(height)/d(horizontal) at the impact end is
+# exactly -tan(LaunchAngle) NO MATTER HOW LONG THE SHOT IS. 160 raw WAngle units is 56.25 deg and a
+# terminal slope of 1.50, against the Kinzhal's 0.19. SpawnAltitude by contrast interpolates linearly
+# across the whole standoff (BallisticMissileFly.cs:402), so it sets a constant shallow slope and
+# cannot make a descent steep on its own. Both are used here; only the first one is the shape.
+#
+# WHAT THAT LOOKS LIKE. On shellmap-open-field (92x62) the standoff is mapDiagonal + ApproachMargin
+# = 113600 + 16384 = 129984 wdist, so the arc peaks 47.5 cells above the ground track -- the RV is
+# genuinely coming down out of the sky rather than flying in sideways, and it drops into frame from
+# the top of the viewport rather than entering from the edge.
+#
+# ------------------------------------------------------------------------------------------------
+# MaxStep 12c0 ON BOTH RENDER TRAITS. THIS IS NOT COSMETIC TUNING -- WITHOUT IT THE EFFECT IS OFF.
+# ------------------------------------------------------------------------------------------------
+# WithHypersonicPlasma and SubTickMotionSmoothing both treat a per-tick step longer than MaxStep as a
+# TELEPORT and produce nothing at all -- `velocity = step.LengthSquared > maxStepSquared ? WVec.Zero
+# : step` (WithHypersonicPlasma.cs), and a zero velocity returns the renderables unmodified. The
+# shipped default is 6144, chosen as "three times the fastest shipped missile" when that was the
+# Kinzhal's 2400.
+#
+# THE TERMINAL STEP HERE IS 6491. That is 347 wdist OVER the default, so at the default this actor
+# would fly its entire dive with no plasma, no smoothing and no error message anywhere -- the exact
+# silent failure defaults.yaml warns about on ^ShootableMissile, arriving for the first time. It is
+# raised HERE rather than on the template so that the other fourteen missiles keep the ceiling they
+# were sized for. Pinned by OreshnikPlasmaBudgetTest.
+#
+# 12288 IS THE WORST CASE PLUS 68%, NOT THE TERMINAL STEP PLUS A MARGIN. The steepest tick is not the
+# last one: SpawnAltitude adds a baseZ slope of SpawnAltitude/standoff on top of the arc, which is
+# largest on the SHORTEST standoff in the mod (arena-tank-duel, 66x34, standoff 92408). There the
+# total slope reaches 1.50 + 24576/92408 = 1.77 and the step reaches 7307. 12288 clears that and
+# leaves room for a map smaller than any that ships.
+OreshnikRV:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 0
+	Tooltip:
+		Name: Oreshnik Re-entry Vehicle
+	RenderSprites:
+		# Smallest of the shipped missile bodies (Kinzhal 0.95, W76 1.05, Sarmat 1.5). One RV off a
+		# six-warhead bus is a small object, and a small sprite is also what makes the plasma read as
+		# the thing you are looking at rather than as a coat of paint on a missile.
+		Scale: 0.85
+	Health:
+		HP: 100
+	# SHOOTABLE-AT, ALMOST NEVER HIT -- `ICBM`, the same type KinzhalMissile carries and the value
+	# ^ShootableMissile ships. See the long derivation on KinzhalMissile above: a SAM gets at best
+	# 8-13 ticks of fire and its interceptor is 2.5x too slow to overtake. Every term of that
+	# arithmetic moves further in the missile's favour here, because this one is 50% faster
+	# horizontally. It is still worth being shootable-at: the user's ruling on the Kinzhal was that
+	# it "could be possible to try to shoot at it, just that the interceptor mostly misses".
+	#
+	# PITFALL, same as on the Kinzhal: do NOT express un-targetable as `-Targetable@Ground:`. An
+	# actor with NO target types is invalid for every weapon including splash it stands inside
+	# (WeaponInfo.cs:256-264). Override the VALUE, never delete the trait.
+	Targetable@Ground:
+		TargetTypes: ICBM
+		RequiresCondition: !airborne
+	Targetable@Airborne:
+		TargetTypes: ICBM
+		RequiresCondition: airborne
+	BallisticMissile:
+		# 56.25 deg. See the steepness note above -- this, and only this, is what makes the descent
+		# steep independently of how long the shot is.
+		LaunchAngle: 160
+		Speed: 3000
+		Acceleration: 0
+		InitialSpeedPercent: 100
+		# Terminal dive bites with Acceleration 0: the past-apex branch uses TerminalAcceleration
+		# when it is > 0 (BallisticMissileFly.cs:212-219), so speed climbs 3000 -> 3600 over 3 ticks
+		# past the halfway point.
+		#
+		# NOTE ON THE BEACON CLOCK, inherited from KinzhalMissile and not new here:
+		# EstimateArcTicks returns hDist/Speed when Acceleration is 0 and ignores TerminalSpeed
+		# entirely (BallisticMissileFly.cs:82-84), so the estimate runs long. It is used only for the
+		# camera spawn and the beacon's initial clock, and the beacon switches to the missile's live
+		# position the moment it is in the world -- so the camera comes slightly early, which is the
+		# harmless direction.
+		TerminalSpeed: 3600
+		TerminalAcceleration: 200
+		# Dropped in already flying, like the Kinzhal: no erector, so PreLaunchTicks must stay 0 or
+		# the RV would hang motionless in the air off-map.
+		LaunchRiseTicks: 0
+		PostErectionWaitTicks: 0
+		# 100 = nose drawn along apparent travel, i.e. along its own trail. The same value the
+		# Kinzhal carries and for the same reason; see the derivation there and in
+		# BallisticMissileFly.ScreenAlignedFacing. This matters MORE here than anywhere else in the
+		# mod, because at a 56-degree terminal slope the difference between "drawn along the track"
+		# and "drawn along the ground heading" is the whole silhouette.
+		VisualPitchMultiplier: 100
+		# iskander-missile.shp's 0.566 vertical squash, measured as the principal axis of all 32
+		# frames. Every missile in the mod aliases that sprite and carries this number.
+		SpriteFacingSquash: 566
+	# See the MaxStep block above -- 6491 wdist/tick against a 6144 default is a SILENT total loss of
+	# smoothing, not a degradation. Only MaxStep is set; every other field keeps the template's value
+	# (MiniYaml merges the node rather than replacing it).
+	SubTickMotionSmoothing:
+		MaxStep: 12c0
+	# ============================================================================================
+	# THE MOST INTENSE PLASMA IN THE MOD -- the user's ask for this weapon, in their words: "if we
+	# get the plasma streak right on this one, we can adapt it for other fast moving weapons too,
+	# but this one is the most intense in terms of plasma".
+	# ============================================================================================
+	# THE THREE EXTENTS, AND WHY THIS ONE LEANS ON THE UNCLAMPED TWO. WithHypersonicPlasma draws in
+	# three places and only ONE of them is clamped against the impact point:
+	#
+	#   LEADING (clamped)     copies AHEAD of the nose. Bounded by max(0, remaining - |velocity|),
+	#                         so a whole tick of travel is reserved before any sample is spent.
+	#   TRAILING (unclamped)  copies BEHIND the body. A wake at the impact point is a wake the
+	#                         missile has already flown through, so there is nothing to clamp.
+	#   BODY (unclamped)      a tint at zero offset. It is ON the missile, so it cannot overrun it.
+	#
+	# WHAT THAT COSTS AT THIS SPEED, MEASURED RATHER THAN ASSERTED. The leading sheath survives while
+	# remaining >= |velocity| + spacing. Ticks are discrete and the RV moves 6491 wdist per tick, so
+	# `remaining - |velocity|` is either about 6491 (two ticks out: room for all eight samples, full
+	# sheath) or about 0 (one tick out: no sheath at all). It never lands in between. THE NOSE BLOOM
+	# IS THEREFORE ABSENT FOR EXACTLY ONE TICK BEFORE IMPACT, ~60 ms, about four frames at 60 fps --
+	# and that is true of the Kinzhal too, and of any speed at all, because the reserve is one tick
+	# by construction. Going faster does not cost more TICKS of bloom; it makes the one lost tick
+	# span more ground.
+	#
+	# THE ANSWER IS NOT TO WEAKEN THE CLAMP -- reducing the reserve means reading the sub-tick clock,
+	# which WithHypersonicPlasma is documented and tested never to do, and shrinking the spacing to
+	# fit buys nothing because the budget jumps from 6491 to 0 in one step and never passes through
+	# the range where compression would engage. The answer is that the two UNCLAMPED extents carry
+	# the effect through the frames the sheath cannot reach, which is why the weights below are the
+	# opposite way round from the Kinzhal's:
+	#
+	#                   leading        trailing            body        reads as
+	#   Kinzhal        5 x 96 = 480    4 x 192 = 768       none        a missile with a bright nose
+	#   Sarmat RV      3 x 128 = 384   10 x 320 = 3200     alpha BE    a glowing streak
+	#   OreshnikRV     8 x 160 = 1280  14 x 288 = 4032     alpha E0    a streak with a bow shock
+	#
+	# 1280 wdist of leading bloom is 30 px at 100% zoom against a sprite ~20 px long -- one and a half
+	# body lengths of incandescent air standing off the nose, the largest in the mod by 2.7x. 4032 of
+	# wake is just under four cells, 95 px. And BodyColor at E0 is the highest alpha of the three:
+	# the Sarmat's own comment calls BodyColor "the one that matters", because it replaces the
+	# airframe's pixels outright and stops the sprite reading as an airframe at all. At E0 there is
+	# barely a missile in there, which is what "most intense" means and what keeps the object visible
+	# on the one tick the sheath is gone.
+	#
+	# COLOURS ARE RRGGBBAA, ALPHA LAST (Color.TryParse, Color.cs:158-177) -- NOT the ARGB order the
+	# C# defaults in WithHypersonicPlasmaInfo are written in. Getting this backwards yields a
+	# plausible-looking colour at a wrong alpha rather than an error.
+	#   Leading  F0FAFFE1  near-white with a blue cast: air ionised at a stagnation point.
+	#   Trailing FFB45AA0  hotter and more opaque than the Kinzhal's FF964640, because at this speed
+	#                      the wake is the part a ground observer resolves.
+	#   Body     FFFFFFE0  flat white. Not a tint on the sprite: ReplaceColor substitutes it.
+	#
+	# ZOffset 0 is deliberate, as on both other configurations: the copies then sort purely on the
+	# world position they were offset to, which is what a physical glow would do.
+	WithHypersonicPlasma:
+		LeadingSamples: 8
+		LeadingSpacing: 160
+		LeadingColor: F0FAFFE1
+		TrailingSamples: 14
+		TrailingSpacing: 288
+		TrailingColor: FFB45AA0
+		BodyColor: FFFFFFE0
+		# Same 12288 as SubTickMotionSmoothing above, and it has to be BOTH: the two traits keep
+		# separate MaxStep fields and either one alone silently disables its own half.
+		MaxStep: 12c0
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Type: CenterPosition
+		Offsets: -650, 0, 200
+	# Plain Explodes, ungated -- exactly as on KinzhalMissile, and read that comment before changing
+	# it. SpawnedExplodes is unusable (no master to be a slave of) and a `RequiresCondition: airborne`
+	# gate would never fire, because BallisticMissileFly's last act is SetPosition onto the target at
+	# terrain level, which drops the actor below MinAirborneAltitude and revokes `airborne` before
+	# the kill lands.
+	Explodes:
+		Weapon: OreshnikRVExplosion

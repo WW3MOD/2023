@@ -1,0 +1,135 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: the Oreshnik arrives as a plasma streak, six warheads, near-vertically
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 128,128
+
+Bounds: 1,1,126,126
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS IS FOR: looking at. It is a DEMO, so nothing here is asserted -- no AssertWithin, no
+# Test.Pass, no Test.Fail, no result.json. The viewer watches six passes and decides.
+#
+# THE ASK, in the user's words: "an Oreshnik strike that the russian army has ... uses multiple
+# warheads that come in steep from a high trajectory, and will be the fastest moving thing in the
+# entire game ... independantly targetable (like the mirv strike) but ... a conventional weapon with
+# high point damage and fairly low spread per projectile ... this one is the most intense in terms
+# of plasma."
+#
+# ------------------------------------------------------------------------------------------------
+# THE THREE THINGS TO LOOK AT, in the order they become visible
+# ------------------------------------------------------------------------------------------------
+#
+# 1. THE STREAK. Six re-entry vehicles drop into frame from the TOP of the viewport, not from the
+#    side. Each should read as a bar of white light about four cells long with a blue-white bloom
+#    standing off its nose -- not as a missile sprite with a bright trail. The airframe is tinted
+#    flat white at alpha E0 (WithHypersonicPlasma.BodyColor), which is the field that stops it
+#    reading as an airframe at all; the wake behind it is 14 samples at 288 wdist, and the sheath
+#    ahead of it is 8 at 160.
+#
+#    ONE THING IS SUPPOSED TO BE MISSING AND IT IS EASY TO MISREAD AS A BUG. On the LAST TICK before
+#    each impact -- ~60 ms, about four frames at 60 fps -- the blue-white nose bloom is GONE and the
+#    RV arrives as a white bar with its wake only. That is the impact clamp doing its job: the
+#    leading sheath is bounded by the distance still to travel, with a whole tick reserved because
+#    the smoothing trait may already have drawn the body that far ahead. It is one tick at any
+#    speed. What must never appear on those frames is any part of the bloom in FRONT of the crater.
+#    See demo-missile-impact-clamp for that invariant on its own.
+#
+# 2. THE SPEED, AND IT IS A DIRECT COMPARISON RATHER THAN AN IMPRESSION. On passes 2, 4 and 6 a
+#    Kh-47M2 Kinzhal is fired AT THE SAME TICK as the Oreshnik, at an aim point seven cells away.
+#    The Kinzhal was the fastest thing in the mod before this branch. Both fly the same standoff --
+#    197.0 cells on this map, mapDiagonal + ApproachMargin -- so the flight times are directly
+#    comparable: 3000 rising to 3600 wdist/tick against 2000 rising to 2400. THE ORESHNIK LANDS
+#    FIRST BY 32 TICKS (1.9 s) -- and the check that needs no stopwatch is that ALL SIX RVs are
+#    down before the Kinzhal arrives at all. The salvo runs +62 to +82; the Kinzhal lands at +94.
+#
+# 3. THE DESCENT ANGLE AND THE WARHEAD FOOTPRINT. The Kinzhal comes in at a 10.5-degree terminal
+#    slope and crosses the frame almost horizontally. The Oreshnik comes in at 56.25 degrees and
+#    falls through the frame. Under the aim ring is a 4x4 grid of stationary T-90s at three-cell
+#    spacing, REBUILT FROM SCRATCH BEFORE EVERY PASS by the script so that all six passes see an
+#    intact grid: each RV should KILL the vehicle it lands on or beside and leave the ones two or
+#    three cells away visibly alive. That is the "high point damage, fairly low spread" half of the ask --
+#    48000 into a 512-wdist core with a 2c0 shockwave, against the arsenal's tens of cells.
+#
+# ------------------------------------------------------------------------------------------------
+# GEOMETRY
+# ------------------------------------------------------------------------------------------------
+# ORESHNIK aim point 45,49. Test.ActivateSupportPower issues a SINGLE-target order, which is the
+# bot/Lua path, so the six warheads are laid out by AimPointFallbackSpread -- 5c0 in
+# rules/player.yaml -- as one RV on 45,49 and five on a five-cell ring around it. That is
+# deliberate here rather than incidental: it is a fixed, repeatable pattern, where the six-click
+# placement mode a human uses would put them wherever the human clicked.
+#
+# KINZHAL aim point 51,44, seven cells NE, clear of the Oreshnik's five-cell ring and of the target
+# grid, so neither strike's blast reaches the other's ground.
+#
+# Both are 88-92 cells from Russia's HomeLocation of 110,110, so the two flights are the same length
+# to within a couple of ticks and the arrival gap is speed rather than distance.
+#
+# CAMERA fixed on 47,47 -- between the ring centre and the Kinzhal point -- and never moves. THE
+# ZOOM ALTERNATES, 2 on the Oreshnik-only passes and 1 on the comparison passes, and the reason is
+# arithmetic rather than taste: a near-vertical arrival at 6491 wdist/tick is on screen for 2.7
+# ticks at zoom 2 and 5.4 at zoom 1, one of which always has no nose bloom. Zoom 2 answers "does it
+# read as a streak" (189 px of wake against a 28 px sprite); zoom 1 answers "is it steep" and
+# "which lands first", which need the frame rather than the pixels. Full derivation in the script.
+#
+# THE TARGET GRID IS CREATED IN LUA, NOT LISTED HERE, and that is the whole reason: it has to be
+# destroyed and rebuilt between passes, and a map.yaml actor list has no way to do that. Sixteen
+# T-90s on a three-cell lattice from 41,45 to 50,54, centred on the Oreshnik's aim point. Three
+# cells is chosen against the warhead rather than for tidiness -- OreshnikRVExplosion's shockwave
+# reaches 2c0 and its lethal core is 512 wdist, so a vehicle three cells from an impact is outside
+# both and should still be standing. A grid that survived entirely, or one that was wiped entirely,
+# would both mean the warhead is not the profile the ask describes.
+#
+# TERRAIN. map.bin and map.png are twin-rivers-ww3's, copied unchanged from
+# demo-missile-impact-clamp. Only this actor list, the rules and the script are new; the Supply
+# Route cells are that scenario's.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 110,110
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 18,18
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 110,110
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 18,18
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 110,110
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 18,18
+
+Rules: rules.yaml

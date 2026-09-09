@@ -176,3 +176,30 @@ AtomicHighYield:
 		Spread: 8c0
 		Falloff: 100, 100, 100, 100, 25, 0
 		DamageTypes: ExplosionDeath, HeavyOrdnanceDeath
+
+# The Oreshnik's re-entry vehicle (weapons-explosions.yaml, fired by Explodes on OreshnikRV).
+# LISTED, and the ruling is worth writing down because the default in this file is deny.
+#
+# It is listed because its whole class already is: every purchased, one-shot, off-map strike in
+# the mod appears above -- IskanderExplosion for the Kinzhal, Atomic, AtomicHighYield,
+# MOPPenetration for the GBU-57. The exclusion this file argues for is HIMARSExplosion, and the
+# argument there is that a HIMARS is a rearmable battlefield system that fires repeatedly, so
+# listing it would make the economy raidable by ordinary manoeuvre. An Oreshnik is 18000 credits
+# spent once for six clicks. It is not manoeuvre.
+#
+# WHAT IT BUYS, STATED PLAINLY SO THE BALANCE CALL IS VISIBLE RATHER THAN IMPLIED: six aim points
+# means one strike can permanently remove up to SIX neutral tech buildings, which is more economy
+# than anything else in this file can take in one activation. That is the reason to look here
+# first if the power turns out to be too strong -- deleting this block is a one-block change and
+# costs the weapon nothing else.
+OreshnikRVExplosion:
+	Warhead@TechStructure: SpreadDamage
+		ValidTargets: TechStructure
+		Damage: 55000
+		# The tech buildings set no Armor.Thickness so this is skipped today (DamageWarhead.cs:238
+		# gates on `thickness != 0`), but it matches the weapon's other warheads so the number stays
+		# right if they ever get one. Same reasoning as IskanderExplosion above; do not leave unset.
+		Penetration: 3000
+		Spread: 512
+		Falloff: 100, 100, 0
+		DamageTypes: ExplosionDeath, HeavyOrdnanceDeath

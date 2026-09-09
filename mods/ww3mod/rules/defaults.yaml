@@ -1108,8 +1108,20 @@
 	# how far through the current tick the frame is, so the missile glides instead of stepping. The
 	# simulation is untouched -- collision, detonation and the smoke trail all still use the real
 	# CenterPosition. MaxStep is left at its 6144 default, three times the fastest shipped missile
-	# (KinzhalMissile, 2000 cruising and 2400 in the terminal dive); a faster missile added later
-	# needs that raised here or it silently stops being smoothed.
+	# on the HORIZONTAL axis (KinzhalMissile, 2000 cruising and 2400 in the terminal dive).
+	#
+	# THE FIRST MISSILE TO EXCEED IT HAS ARRIVED, AND IT RAISED THE CEILING ON ITSELF RATHER THAN
+	# HERE. OreshnikRV (rules/ingame/vehicles-russia.yaml) steps 6491 wdist per tick in its dive --
+	# 3600 horizontal against a 56-degree terminal slope -- and carries `SubTickMotionSmoothing:
+	# MaxStep: 12c0` of its own. Overriding per actor is the pattern to copy: raising it here would
+	# also raise it for the fourteen missiles that were sized against 6144 and do not need it.
+	#
+	# WHAT TO CHECK IF A NEW MISSILE LOOKS UNSMOOTHED. MaxStep is measured against the 3D step, not
+	# against Speed, so the arc's vertical component counts: a steep LaunchAngle can put a missile
+	# over the ceiling at a Speed well under it. Over the ceiling the trait produces NOTHING and
+	# says nothing, so the symptom is a missile that visibly steps rather than an error. The same
+	# ceiling and the same failure mode exist independently on WithHypersonicPlasma -- raising one
+	# does not raise the other. OreshnikPlasmaBudgetTest pins the shipped case.
 	SubTickMotionSmoothing:
 	Targetable@Ground:
 		TargetTypes: ICBM
