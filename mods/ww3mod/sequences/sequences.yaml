@@ -394,6 +394,21 @@ tacnukemissile:
 		ZOffset: 1023
 		Scale: 0.85
 
+# The Oreshnik re-entry vehicle. Same Iskander art again, for the same reason the four bodies above
+# give -- the mod has no bespoke RV sprite and CheckSequences requires the image to resolve. This
+# block exists because the gate caught its absence: an actor whose Image nothing defines is an
+# ERROR, not a warning, and the branch could not run the linter that says so.
+#
+# SMALLEST OF THE SET at 0.6 here x RenderSprites.Scale 0.85 = 0.51 effective, against the
+# Kinzhal's 0.76 and the high-yield body's 2.24. That is deliberate and is not only about realism:
+# one warhead off a six-warhead bus IS a small object, and a small body is what makes the plasma
+# read as the thing you are looking at rather than as a coat of paint on a missile sprite.
+oreshnikrv:
+	idle: iskander-missile
+		Facings: 32
+		ZOffset: 1023
+		Scale: 0.6
+
 # The high-yield strategic warhead's body. Same Iskander art again for the same reason -- the mod
 # has no bespoke sprite and CheckSequences requires the image to resolve -- but 1.4 here against
 # tacnukemissile's 0.85, and RenderSprites.Scale 1.6 against its 1.05 on top (vehicles.yaml), for
