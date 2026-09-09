@@ -169,7 +169,7 @@ namespace OpenRA.Mods.Common.Traits
 			"",
 			"WHAT TICKING IT DOES: rules/player.yaml carries three ProvidesPrerequisite traits with",
 			"no Factions filter, gated on `!powers-sandbox-disabled`, which hand every player",
-			"powers.america, powers.russia AND powers.event at once. All fifteen entries then appear",
+			"powers.america, powers.russia AND powers.event at once. All sixteen entries then appear",
 			"in the buy tab for both sides.",
 			"",
 			"AND AS EVERYWHERE ELSE IN THIS FILE, THE REGISTERED DEFAULT AND THE UNREGISTERED",
