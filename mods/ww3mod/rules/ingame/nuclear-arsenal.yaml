@@ -3,10 +3,15 @@
 #
 # WHY THIS FILE EXISTS AT ALL, rather than the missiles going in vehicles.yaml and the powers in
 # player.yaml where their four shipped siblings live: MiniYaml merges a top-level key across every
-# file in mod.yaml's Rules: list, and `Player:` is ALREADY defined in five files (player.yaml,
-# ai.yaml, ai-america.yaml, ai-russia.yaml, campaign-rules.yaml). So a self-contained file adds six
+# file in mod.yaml's Rules: list, and `Player:` is ALREADY defined in four of the files that list
+# loads (player.yaml, ai.yaml, ai-america.yaml, ai-russia.yaml). So a self-contained file adds six
 # powers and six actors while touching neither of the two files the rest of the team is working in.
 # Nothing here overrides anything; every key is new.
+# CORRECTED 2026-09-09: this said FIVE and named campaign-rules.yaml as the fifth. mod.yaml's Rules:
+# list does not load it -- nothing under rules/campaign/ is loaded at all -- so it merges into
+# nothing. `grep -rln '^Player:' mods/ww3mod/rules/` returns six files besides this one; only the
+# four named above are load-bearing (campaign-rules.yaml and coop-missions-rules.yaml are the
+# unloaded pair). The count was wrong; the argument for this file existing is unaffected.
 #
 # ==== THE ARSENAL, AND WHAT MAKES EACH ONE DIFFERENT ====
 # Radii and durations all come from the scaling laws documented at the top of
