@@ -113,6 +113,31 @@ def decode_shp_ts(path, pal):
     return img
 
 
+def icon_collection():
+    """`icon:` from sequences-misc.yaml as {sequence name: art file}.
+
+    Read rather than hand-copied, because a stale copy here draws a picture that is wrong and
+    looks fine. Only the flat `key: file` children are taken; anything with its own sub-block
+    (none today) is skipped rather than guessed at.
+    """
+    path = os.path.join(ROOT, "mods/ww3mod/sequences/sequences-misc.yaml")
+    out, inside = {}, False
+    for line in open(path, encoding="utf-8"):
+        line = line.rstrip("\n")
+        if not line.strip():
+            inside = False
+            continue
+        if not line.startswith("\t"):
+            inside = line.strip() == "icon:"
+            continue
+        if not inside or line.startswith("\t\t") or line.lstrip().startswith("#"):
+            continue
+        key, _, value = line.strip().partition(":")
+        if value.strip():
+            out[key.strip()] = value.strip()
+    return out
+
+
 def load_cameo(name, pal):
     path = os.path.join(ICONS, name + ".shp")
     head = open(path, "rb").read(8)
@@ -177,39 +202,65 @@ def main():
     badge = trefoil(13)
     font = ImageFont.truetype(os.path.join(ROOT, "engine/mods/common/FreeSansBold.ttf"), 7)
 
-    # Every power, in SupportPowerPaletteOrder-ish order: (icon, caption, badged, label)
-    # Sequence name -> art file, from the `icon:` block of sequences-misc.yaml.
-    art = {"abomb": "atomicon", "abombfake": "atomfakeicon", "paranuke": "paranukeicon"}
+    # SEQUENCE NAME -> ART FILE, read from the `icon:` block of sequences-misc.yaml rather than
+    # hand-copied. It used to be a three-entry literal here, which is exactly the kind of copy the
+    # header warns rots: on 2026-09-09 six new keys were added at once and a literal would have
+    # drawn the wrong picture for four powers while looking like it worked.
+    art = icon_collection()
+
+    # Every power, grouped the way the roster actually divides -- five America, five Russia, five
+    # event tier that no faction can reach. A None group label starts a new band on the sheet.
+    # (icon, caption, badged, label)
     roster = [
-        ("precicon", None, False, "GBU-57 conv"),
-        ("kinzhalicon", None, False, "Kinzhal conv"),
+        ("#", "AMERICA  (powers.america)", None, None),
+        ("precicon", "PRECISION STR.", False, "GBU-57 conv"),
         ("paranuke", "0.3 KT", True, "B61 0.3kt"),
         ("paranuke", "10 KT", True, "B61 10kt"),
         ("paranuke", "50 KT", True, "B61 50kt"),
-        ("cmissicon", "100 KT", True, "W76-1 *"),
-        ("paranuke", "1 KT", True, "9M729"),
-        ("v2bdgricon", "10 KT", True, "Iskander"),
-        ("paranuke", "50 KT", True, "Kinzhal-N"),
-        ("paranuke", "100 KT", True, "Kalibr"),
-        ("paranuke", "20 KT", True, "Tactical"),
+        ("cmissicon", "100 KT", True, "W76-1"),
+        ("#", "RUSSIA  (powers.russia)", None, None),
+        ("kinzhalicon", None, False, "Kinzhal conv"),
+        ("ru9m729", "1 KT", True, "9M729"),
+        ("ruiskander", "10 KT", True, "Iskander-M"),
+        ("rukinzhaln", "50 KT", True, "Kinzhal-N"),
+        ("rukalibr", "100 KT", True, "Kalibr"),
+        ("#", "EVENT TIER  (powers.event -- sandbox only)", None, None),
+        ("tacnuke", "20 KT", True, "Tactical"),
         ("v2bdgricon", "6x750 KT", True, "Sarmat"),
-        ("abombfake", "1.2 MT", True, "B83-1 *"),
-        ("v2bdgricon", "6 MT", True, "Strategic"),
+        ("abombfake", "1.2 MT", True, "B83-1"),
+        ("highyieldnuke", "6 MT", True, "Strategic"),
         ("abomb", "50 MT", True, "TSAR 50MT"),
     ]
 
     pad, cols = 6, 5
-    rows = (len(roster) + cols - 1) // cols
+    bands = sum(1 for r in roster if r[0] == "#")
+    tiles = len(roster) - bands
+    rows = (tiles + cols - 1) // cols
     w = pad + cols * (SLOT_W + pad)
-    h = pad + rows * (SLOT_H + 12 + pad)
+    h = pad + rows * (SLOT_H + 12 + pad) + bands * 16
     sheet = Image.new("RGBA", (w, h), (46, 48, 54, 255))
     d = ImageDraw.Draw(sheet)
     label = ImageFont.truetype(os.path.join(ROOT, "engine/mods/common/FreeSans.ttf"), 9)
-    for i, (icon, cap, badged, name) in enumerate(roster):
-        cx = pad + (i % cols) * (SLOT_W + pad)
-        cy = pad + (i // cols) * (SLOT_H + 12 + pad)
-        sheet.alpha_composite(slot(load_cameo(art.get(icon, icon), pal), cap, badge if badged else None, font), (cx, cy))
-        d.text((cx, cy + SLOT_H + 1), name, font=label, fill=(220, 220, 225, 255))
+    head = ImageFont.truetype(os.path.join(ROOT, "engine/mods/common/FreeSansBold.ttf"), 10)
+    col, y = 0, pad
+    for icon, cap, badged, name in roster:
+        if icon == "#":
+            if col:
+                col, y = 0, y + SLOT_H + 12 + pad
+            d.text((pad, y + 2), cap, font=head, fill=(255, 210, 120, 255))
+            y += 16
+            continue
+
+        cx = pad + col * (SLOT_W + pad)
+        sheet.alpha_composite(slot(load_cameo(art.get(icon, icon), pal), cap, badge if badged else None, font), (cx, y))
+        d.text((cx, y + SLOT_H + 1), name, font=label, fill=(220, 220, 225, 255))
+        col += 1
+        if col == cols:
+            col, y = 0, y + SLOT_H + 12 + pad
+    if col:
+        y += SLOT_H + 12 + pad
+    sheet = sheet.crop((0, 0, w, min(h, y + pad)))
+    w, h = sheet.size
 
     sheet.save(os.path.join(ROOT, "tools/cameo/work/bin-1x.png"))
     big = sheet.resize((w * 3, h * 3), Image.NEAREST)

@@ -56,6 +56,14 @@ namespace OpenRA.Test
 		/// <para>This is a fact about the ART, so it can go stale in a way no test can see: new art
 		/// that puts its lettering elsewhere would make this number wrong rather than make a test
 		/// fail. Re-measure with tools/cameo/binmock.py if the house style ever moves.</para>
+		/// <para>AND IT HAS PARTLY GONE STALE ALREADY, harmlessly. As of 2026-09-09 every cameo the
+		/// SUPPORT POWER roster draws is a photograph with no baked lettering at all -- the six named
+		/// above were replaced and six more were added, all staged with --no-baked-captions. The
+		/// number below is still right, because the ~87 lettered art files in the PRODUCTION palette
+		/// are unchanged and that palette also draws a band. What it is no longer evidence of is the
+		/// power bin, where there is now nothing underneath a caption to cover. Turning that widget's
+		/// band transparent is therefore available and is NOT done: see tools/cameo/README.md
+		/// §"Rollout order is decided by one fact" for the antialiasing it would expose.</para>
 		/// </summary>
 		const int BakedInkLastSlotRow = 45;
 

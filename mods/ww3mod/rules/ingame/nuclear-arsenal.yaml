@@ -385,7 +385,11 @@ Player:
 	MissileStrikePower@Ru9M729:
 		RequiresCondition: !nuke-arsenal-disabled
 		OrderName: Ru9M729Strike
-		Icon: paranuke
+		# OWN CAMEO SINCE 2026-09-09. Was paranuke, which is now a photograph of an American B61-12 --
+		# a US Air Force bomb on a Russian rung. The art is a ground-launched cruise missile leaving an
+		# Iskander TEL: the closest freely-licensed image of this weapon's class, because no usable
+		# picture of the 9M729 itself exists. Keep in step with power.ru9m729.
+		Icon: ru9m729
 		CameoCaption: 1 KT
 		CameoBadge: nuclear
 		Name: 9M729 (1 kt)
@@ -426,7 +430,10 @@ Player:
 	MissileStrikePower@RuIskander:
 		RequiresCondition: !nuke-arsenal-disabled
 		OrderName: RuIskanderStrike
-		Icon: v2bdgricon
+		# OWN CAMEO SINCE 2026-09-09: an erected Iskander-M against sky. It shared v2bdgricon with the
+		# Sarmat and the strategic strike, one of which is Russian and two of which are not, until then.
+		# Keep in step with power.ruiskander.
+		Icon: ruiskander
 		CameoCaption: 10 KT
 		CameoBadge: nuclear
 		Name: 9M723 Iskander-M (10 kt)
@@ -466,10 +473,11 @@ Player:
 	MissileStrikePower@RuKinzhalN:
 		RequiresCondition: !nuke-arsenal-disabled
 		OrderName: RuKinzhalNStrike
-		# paranuke since 2026-09-08, resolving a buy-tab-vs-power-bin disagreement in favour of the
-		# buy tab: cmissicon is a biohazard trefoil captioned CHEMICAL STRIKE and this is a 50 kt
-		# nuclear warhead. What separates it from the other paranuke entries is its caption.
-		Icon: paranuke
+		# OWN CAMEO SINCE 2026-09-09: a MiG-31 carrying the Kinzhal, deliberately a DIFFERENT photograph
+		# from the conventional @Kinzhal's kinzhalicon -- same airframe, different sky, and this one
+		# wears the badge and a yield. Same missile, different warhead, so a shared SUBJECT is honest;
+		# a shared FILE was not. Keep in step with power.rukinzhaln.
+		Icon: rukinzhaln
 		CameoCaption: 50 KT
 		CameoBadge: nuclear
 		Name: Kh-47M2 Kinzhal-N (50 kt)
@@ -510,24 +518,23 @@ Player:
 	MissileStrikePower@RuKalibr:
 		RequiresCondition: !nuke-arsenal-disabled
 		OrderName: RuKalibrStrike
-		# MOVED OFF `abomb` ON 2026-09-08: atomicon is reserved for the Tsar Bomba now, so that the
-		# base game's nuclear cameo belongs to the one weapon that ends a game by itself.
+		# OWN CAMEO SINCE 2026-09-09: the 3M-14 itself, the exact designation in this power's name.
+		# It went `abomb` -> `paranuke` -> here; `abomb` was reserved for the Tsar Bomba on 2026-09-08,
+		# and `paranuke` then became a photograph of an American B61-12. Keep in step with
+		# power.rukalibr.
 		#
-		# `paranuke`, and NOT the two candidates that look more obvious. `abombfake` is atomfakeicon
-		# -- a mushroom cloud with a yellow FAKE banner painted across it, correct for the decoy it
-		# was drawn for and absurd on Russia's top purchasable warhead. `cmissicon`, which the buy
-		# tab used to carry for this power, is a biohazard trefoil captioned CHEMICAL STRIKE: the
-		# wrong hazard, and doubly wrong now that a yellow RADIATION trefoil is stamped in the same
-		# cameo's corner. What separates this from the other paranuke entries is its caption.
+		# THE NAMING TRAP THIS LINE HAS DOCUMENTED SINCE 2026-09-08 IS UNCHANGED and applies to the new
+		# value too. `rukalibr`, NOT `kalibricon`: `Icon:` resolves on the `icon` image
+		# (sequences-misc.yaml), where the sequence is called `rukalibr` and maps to kalibricon.shp. A
+		# bare art name is a sequence on the BEACON image instead, so `BeaconPoster: atomicon` below is
+		# correct while `Icon: atomicon` would not be -- it resolves against a different image and finds
+		# nothing. Build stays clean and the unit tests stay green; only --check-yaml catches it, which
+		# it once did.
 		#
-		# THE NAMING TRAP THIS LINE USED TO DOCUMENT IS UNCHANGED AND STILL APPLIES to the new
-		# value. `paranuke`, NOT `paranukeicon`: `Icon:` resolves on the `icon` image
-		# (sequences-misc.yaml:16), where the sequence is called `paranuke` and maps to
-		# paranukeicon.shp. A bare art name is a sequence on the BEACON image instead, so
-		# `BeaconPoster: atomicon` below is correct while `Icon: atomicon` would not be -- it
-		# resolves against a different image and finds nothing. Build stays clean and the unit tests
-		# stay green; only --check-yaml catches it, which it once did.
-		Icon: paranuke
+		# AND THE BEACON IS A DIFFERENT FILE FROM THE CAMEO, which is why replacing the cameo art did
+		# not disturb it: the beacon sequence is `atomicon: lores|atomicon`, and `lores` is the base
+		# Red Alert lores.mix mounted in mod.yaml -- not mods/ww3mod/bits/misc/icons/atomicon.shp.
+		Icon: rukalibr
 		CameoCaption: 100 KT
 		CameoBadge: nuclear
 		Name: 3M14 Kalibr (100 kt)

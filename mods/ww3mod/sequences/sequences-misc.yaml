@@ -46,6 +46,28 @@ icon:
 	# Buster -- two different weapons drawing one icon. Photo-derived 64x48 RGBA PNG under a
 	# .shp name; rebuild with tools/cameo/build.sh.
 	kinzhalicon: kinzhalicon
+	# SIX CAMEOS ADDED 2026-09-09 so that no strike power shares art across the faction line.
+	# `paranuke` used to serve SEVEN powers -- the three American B61-12 dial settings plus Russia's
+	# 9M729, Kinzhal-N and Kalibr and the event-tier Tactical Strike -- and `v2bdgricon` served three.
+	# A photograph specific enough to be right for one of those is wrong for the other six, so the
+	# only way to make the art truthful was to stop sharing it. Each key below maps to its own
+	# photo-derived 64x48 RGBA PNG under a .shp name; rebuild with tools/cameo/build.sh.
+	#
+	# NAMING: `Icon:` on a power resolves against THIS collection, so the value in rules/ is the key
+	# on the left (`rukalibr`), never the art file on the right (`kalibricon`). A bare art name
+	# resolves against the `beacon` image below instead and finds nothing there. Build stays clean
+	# and the unit tests stay green; only --check-yaml catches it.
+	ru9m729: ru9m729icon
+	# ruiskanderICON, not iskandericon: `iskandericon.shp` is ALREADY TAKEN by the Iskander TEL
+	# vehicle's unit cameo (sequences.yaml, the `iskander` image's `icon:` member), and installing
+	# over it silently repointed a unit's sidebar art. --check-missing-sprites does NOT catch this
+	# -- the file exists and decodes either way -- so check `git status` for an unexpected M on a
+	# .shp before believing a new cameo name was free.
+	ruiskander: ruiskandericon
+	rukinzhaln: kinzhalnicon
+	rukalibr: kalibricon
+	tacnuke: tacnukeicon
+	highyieldnuke: stratnukeicon
 
 # Runtime overlays stamped onto a cameo the widget knows nothing about, drawn by
 # ProductionPaletteWidget and SupportPowersWidget from BuildableInfo.CameoBadge /
