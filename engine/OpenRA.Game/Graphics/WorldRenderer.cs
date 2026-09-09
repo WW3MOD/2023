@@ -52,6 +52,11 @@ namespace OpenRA.Graphics
 		readonly Func<string, PaletteReference> createPaletteReference;
 		readonly bool enableDepthBuffer;
 
+		// The two beyond-map overlay alpha tables, built once. FogTransmission is a pure function of the
+		// shroud's FogDarkness, which is a readonly Info field, so neither table can go stale mid-match.
+		float[] fogLayerAlphas;
+		float[] unexploredAlphas;
+
 		readonly List<IFinalizedRenderable> preparedRenderables = new();
 		readonly List<IFinalizedRenderable> preparedOverlayRenderables = new();
 
@@ -406,6 +411,16 @@ namespace OpenRA.Graphics
 			// ground still blacks the effect out, so nothing is revealed that was not already visible.
 			// The terrain itself is fogged before any of this, and is not redrawn -- this changes only
 			// what covers the effect sprite, never what the player can see of the world beneath it.
+			//
+			// The beyond-map overlay is split along the SAME seam and drawn in step with it: its fog half
+			// here, beside RenderFog, and its unexplored half below, beside RenderUnexplored. That is what
+			// makes an effect behave the same either side of the map edge -- one that escapes the fog on
+			// the map escapes it off the map too, and one over never-explored ground is blacked out in
+			// both places. Before the split the overlay was a single pass down here at the end, so an
+			// above-fog fireball was full brightness on the map and fog-dimmed off it.
+			if (World.Type != WorldType.Editor)
+				DrawBeyondMapActorFog();
+
 			World.ApplyToActorsWithTrait<IRenderShroud>((actor, trait) => trait.RenderFog(this));
 
 			if (preparedAboveFogRenderables.Count > 0)
@@ -419,10 +434,12 @@ namespace OpenRA.Graphics
 
 			World.ApplyToActorsWithTrait<IRenderShroud>((actor, trait) => trait.RenderUnexplored(this));
 
-			// WW3MOD: Extend fog overlay into the beyond-map area so actor sprites
-			// that extend past the map boundary get the same fog as border cells.
+			// WW3MOD: the opaque half of the beyond-map overlay, in step with RenderUnexplored above.
+			// This one stays at the end ON PURPOSE: it is what hides an above-fog effect that has
+			// wandered off the map over ground nobody has scouted, and moving it earlier alongside its
+			// fog half would let a fireball burn on never-explored ground.
 			if (World.Type != WorldType.Editor)
-				DrawBeyondMapActorFog();
+				DrawBeyondMapActorUnexplored();
 
 			if (enableDepthBuffer)
 				Game.Renderer.Context.DisableDepthBuffer();
@@ -496,10 +513,116 @@ namespace OpenRA.Graphics
 			Game.Renderer.Flush();
 		}
 
-		// WW3MOD: Draw fog overlay in the beyond-map area AFTER actors and shroud,
-		// so that actor sprite pixels extending beyond the map boundary get fogged
-		// to match their border cell's visibility level.
+		// WW3MOD: the beyond-map overlay is drawn in TWO passes, and the split mirrors the one the shroud
+		// itself uses over the map. IRenderShroud.RenderFog draws the translucent layers, the above-fog
+		// renderables land between, and RenderUnexplored draws the opaque layer 0 last -- so an effect that
+		// asks to be drawn above the fog escapes the FOG and is still hidden by never-explored SHROUD.
+		// Outside the cell grid there is no shroud stack at all, only these strips, so the same two-stage
+		// structure has to be built here by hand.
+		//
+		// It used to be one pass, laid down after everything, and that fogged the two halves of one effect
+		// differently. A nuclear fireball carries RenderAboveFog: true, so INSIDE the grid it is drawn after
+		// RenderFog at full brightness on purpose -- and OUTSIDE the grid this overlay then dimmed it anyway,
+		// to 0.1378x over fully-fogged ground at the shipped FogDarkness. The explosion was bright on the map
+		// and dim off it: the same discontinuity the beyond-map LIGHT had, in the sprite channel, and the
+		// other half of what the user reported when they asked for an explosion fully visible outside the
+		// map bounds.
+		//
+		// WHAT MUST NOT BE DONE INSTEAD is to relax the dimming outright. These strips are also the only
+		// thing standing in for RenderUnexplored out here: with a single pass moved early, an above-fog
+		// effect over a never-explored border cell would be drawn in the clear, and a fireball burning on
+		// ground nobody has scouted is a vision leak. The fog half may be escaped; the unexplored half may
+		// not. Splitting is what carries that distinction off the map.
+		//
+		// THE SPLIT IS LOSS-FREE FOR EVERYTHING ELSE, and not merely close: the two tables have DISJOINT
+		// support -- fogLayerAlphas is zero at visibility 0 and unexploredAlphas is zero everywhere else --
+		// so at any visibility exactly one pass draws, at the byte-identical alpha the single pass used. No
+		// pixel is covered twice and nothing is quantised twice, so a below-fog sprite beyond the grid comes
+		// out unchanged to the bit.
+
+		/// <summary>
+		/// The translucent half, drawn in the same slot as IRenderShroud.RenderFog and therefore BEFORE the
+		/// above-fog renderables. Visibility 0 is left to <see cref="DrawBeyondMapActorUnexplored"/>.
+		/// </summary>
 		void DrawBeyondMapActorFog()
+		{
+			// No shroud renderer means no fog is drawn over the map at all, so there is none to match out
+			// here either and the overlay is skipped entirely.
+			if (shroudRenderer == null)
+				return;
+
+			// The fog this overlay has to match is the fog ShroudRenderer draws over the map, so it is ASKED
+			// FOR rather than rebuilt. This used to be a hand-kept second copy of the per-layer curve, and the
+			// copy was wrong: it omitted the fog palette's own alpha (ShroudRenderer.FogPaletteAlpha, 160/255),
+			// so every layer bit harder than the real one. At the shipped FogDarkness a sprite beyond the grid
+			// was drawn at 0.230x the brightness the same sprite had on the map at visibility 1 - a 4.35x
+			// error, and worst exactly where it shows most, over fully-fogged ground. The user reported it as
+			// explosions being "very faint outside the border".
+			//
+			// Full visibility transmits 1 and so contributes no overlay at all, which falls out of the curve
+			// and needs no special case. Visibility 0 is the one entry that does: it stays zero here because
+			// layer 0 is drawn by the other pass, later, after the above-fog renderables have gone down.
+			fogLayerAlphas ??= BeyondMapFogLayerAlphas(shroudRenderer);
+
+			DrawBeyondMapActorOverlay(fogLayerAlphas);
+		}
+
+		/// <summary>
+		/// The opaque half, drawn in the same slot as IRenderShroud.RenderUnexplored and therefore AFTER the
+		/// above-fog renderables. Never-explored ground blacks out everything beyond the grid, including an
+		/// effect that was let past the fog pass -- this is the half carrying the no-vision-leak guarantee,
+		/// and it is what makes escaping the fog half safe.
+		/// </summary>
+		void DrawBeyondMapActorUnexplored()
+		{
+			if (shroudRenderer == null)
+				return;
+
+			unexploredAlphas ??= BeyondMapUnexploredAlphas();
+
+			DrawBeyondMapActorOverlay(unexploredAlphas);
+		}
+
+		/// <summary>
+		/// The alpha the translucent pass writes at each visibility level: the complement of what the shroud's
+		/// own fog curve transmits, and ZERO at visibility 0, which belongs to the other pass.
+		/// <para>Public and static so the property the split rests on can be asserted against the shipped tables
+		/// rather than restated in a test: this and <see cref="BeyondMapUnexploredAlphas"/> have DISJOINT
+		/// support, and their union is exactly the single table the one-pass overlay used. See
+		/// BeyondMapOverlaySplitTest.</para>
+		/// </summary>
+		public static float[] BeyondMapFogLayerAlphas(IRenderShroud shroud)
+		{
+			var alphas = new float[MapLayers.VisionLayers];
+			for (var v = 1; v < MapLayers.VisionLayers; v++)
+				alphas[v] = 1f - shroud.FogTransmission(v);
+
+			return alphas;
+		}
+
+		/// <summary>
+		/// The alpha the opaque pass writes: fully opaque at visibility 0 and nothing anywhere else. Never-
+		/// explored ground erases rather than darkens, which is why this is 1 rather than a curve value, and
+		/// why it is the entry that carries the no-vision-leak guarantee beyond the grid.
+		/// </summary>
+		public static float[] BeyondMapUnexploredAlphas()
+		{
+			var alphas = new float[MapLayers.VisionLayers];
+			alphas[0] = 1f;
+			return alphas;
+		}
+
+		/// <summary>
+		/// The body both passes share: one black rect per run of border cells of equal visibility, at the
+		/// alpha <paramref name="fogAlphas"/> gives that visibility.
+		/// <para>THIS IS ABOUT THE SPRITE AND ONLY THE SPRITE. The ground out here is opaque black --
+		/// DrawBeyondMapFog fills it before actors are drawn -- and whatever light lands on it afterwards is
+		/// BeyondMapLightRenderable's business, drawn later still from the above-shroud slot, deliberately
+		/// past both of these passes so neither can dim it below its on-grid value. What this overlay decides
+		/// is how much of an ACTOR drawn on that black survives, and the correct answer is "as much as would
+		/// have survived one cell further in", which is what the shroud's own curve says.</para>
+		/// </summary>
+		void DrawBeyondMapActorOverlay(float[] fogAlphas)
 		{
 			var renderPlayer = World.RenderPlayer;
 			if (renderPlayer == null)
@@ -514,32 +637,6 @@ namespace OpenRA.Graphics
 			var cr = Game.Renderer.WorldRgbaColorRenderer;
 			var vpTL = Viewport.TopLeft;
 			var vpBR = Viewport.BottomRight;
-
-			// The fog this overlay has to match is the fog ShroudRenderer draws over the map, so it
-			// is ASKED FOR rather than rebuilt. This block used to be a hand-kept second copy of the
-			// per-layer curve, and the copy was wrong: it omitted the fog palette's own alpha
-			// (ShroudRenderer.FogPaletteAlpha, 160/255), so every layer bit harder than the real
-			// one. At the shipped FogDarkness a sprite beyond the grid was drawn at 0.230x the
-			// brightness the same sprite had on the map at visibility 1 — a 4.35x error, and
-			// worst exactly where it shows most, over fully-fogged ground. The user reported it as
-			// explosions being "very faint outside the border".
-			//
-			// THIS IS ABOUT THE SPRITE AND ONLY THE SPRITE. The ground out here is opaque black by
-			// design: DrawBeyondMapFog fills it before actors are drawn, and nothing may put light
-			// on it. What this overlay does is decide how much of an ACTOR drawn on top of that
-			// black survives, and the correct answer is "as much as would have survived one cell
-			// further in", which is what the shroud's own curve says.
-			//
-			// No shroud renderer means no fog is drawn over the map at all, so there is none to
-			// match out here either and the overlay is skipped entirely.
-			if (shroudRenderer == null)
-				return;
-
-			// Visibility 0 transmits 0 (opaque) and full visibility transmits 1 (no overlay at all),
-			// so both ends fall out of the curve and neither needs special-casing.
-			var fogAlphas = new float[MapLayers.VisionLayers];
-			for (var v = 0; v < MapLayers.VisionLayers; v++)
-				fogAlphas[v] = 1f - shroudRenderer.FogTransmission(v);
 
 			// Playable boundary in screen coordinates. The per-cell subdivision below is keyed
 			// to this, because the visibility samples come from playable cells.
