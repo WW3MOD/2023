@@ -1,0 +1,141 @@
+<!DOCTYPE html><meta charset="utf-8"><title>Game modes — one coherent package</title>
+<style>
+:root{--bg:#0a0b09;--ink:#d8d6cc;--dim:#8d8b80;--lbl:#6b6a61;--edge:#23251f;
+ --ok:#8aa84a;--warn:#c8823a;--bad:#c0402a;--cool:#5a8fa8}
+*{box-sizing:border-box}
+body{margin:0;padding:30px 34px 70px;background:var(--bg);color:var(--ink);
+ font:13.5px/1.55 "Segoe UI",Roboto,system-ui,sans-serif;max-width:1180px}
+h1{font:600 21px/1.3 inherit;margin:0 0 4px}
+h2{font:600 14px/1.3 inherit;margin:34px 0 6px;color:#b9b7ac;letter-spacing:.3px;
+ border-bottom:1px solid var(--edge);padding-bottom:5px}
+h3{font:600 13px/1.3 inherit;margin:20px 0 4px;color:#cfcdc2}
+p{margin:6px 0;max-width:100ch}
+.sub{color:var(--dim);margin:0 0 4px}
+b{color:#e6e4d9;font-weight:600}
+code{font:12px ui-monospace,Consolas,monospace;color:#b6c4a8;background:#141611;
+ padding:1px 4px;border-radius:2px}
+table{border-collapse:collapse;width:100%;margin:10px 0 4px;font-size:13px}
+th,td{border:1px solid var(--edge);padding:7px 9px;text-align:left;vertical-align:top}
+th{color:var(--lbl);font-size:10.5px;letter-spacing:1px;text-transform:uppercase;font-weight:400;
+ background:#111310}
+td.axis{background:#111310;color:#cfcdc2;font-weight:600;width:170px}
+.pill{display:inline-block;font:10.5px ui-monospace,Consolas,monospace;letter-spacing:.5px;
+ padding:1px 6px;border-radius:2px;border:1px solid;text-transform:uppercase}
+.keep{color:var(--ok);border-color:#3d4a24;background:#141a0e}
+.rename{color:var(--cool);border-color:#2d4b59;background:#0e181d}
+.cut{color:var(--bad);border-color:#4a2018;background:#1a0e0c}
+.new{color:var(--warn);border-color:#4a3a20;background:#1a140a}
+.note{color:var(--dim);font-size:12.5px;max-width:100ch}
+.box{border-left:2px solid #3a3c33;background:#101210;padding:10px 14px;margin:12px 0}
+.box.warn{border-left-color:#6a5a2a;background:#16150f;color:#b9b09a}
+ul{margin:6px 0 6px 18px;padding:0}li{margin:3px 0;max-width:100ch}
+</style>
+
+<h1>Every mode serves one purpose, and they compose</h1>
+<p class="sub">A package, not a patch — proposed 2026-09-10 against the mode audit at
+<code>WORKSPACE/reports/mode-audit-260910.md</code>.</p>
+
+<h2>What is wrong, stated once</h2>
+<p>The lobby offers <b>five mode-shaped controls that overlap and contradict each other</b>. Two
+different features are named Sandbox. Doomsday cannot fire at its own defaults. The Sandbox
+<i>game mode</i> does nothing at all — except that at Start&nbsp;At&nbsp;2 it freezes autonomous fire
+for the entire match, from a dropdown labelled "not yet implemented".</p>
+<p>The deeper problem is the one the user named: <b>Doomsday and Escalation feel like rivals because
+both are sold as "modes"</b>, when they answer different questions. Escalation governs
+<i>what you may do, and when</i>. Doomsday governs <i>how the match ends</i>. Sold as alternatives,
+they compete; sold as separate axes, they compose.</p>
+
+<h2>The proposal: three axes, each answering one host question</h2>
+<table>
+<tr><th>Axis</th><th>The question it answers</th><th>Choices</th></tr>
+<tr><td class="axis">1 · Escalation</td>
+    <td>Do the rules of engagement change during the match?</td>
+    <td><b>Off</b> (default) — everything permitted from the first tick.<br>
+        <b>DEFCON</b> — the three-level ladder: closed border, then weapons-free-by-order, then open
+        war, with nuclear release gated behind it.<br>
+        <span class="note">Carries Start At, Pace, and the Nuclear Ceiling.</span></td></tr>
+<tr><td class="axis">2 · Ending</td>
+    <td>How and when does the match stop?</td>
+    <td><b>Last side standing</b> (default) — the Supply Route decides it, as now.<br>
+        <b>Final Exchange after N minutes</b> — the clock runs, and when it expires the automatic
+        salvo levels the map; highest score at that instant wins.</td></tr>
+<tr><td class="axis">3 · Arsenal</td>
+    <td>Which weapons exist in this match at all?</td>
+    <td>Tactical Nuclear Strike · Strategic Nuclear Strike · Nuclear Arsenal ·
+        <b>Unlock all support powers (testing)</b></td></tr>
+</table>
+<p class="note">Every existing control lands on exactly one axis. Nothing new is invented except
+the merge of Doomsday and its clock into a single Ending control.</p>
+
+<h2>Control by control</h2>
+<table>
+<tr><th>Today</th><th></th><th>Becomes</th><th>Why</th></tr>
+<tr><td>Game Mode: <b>Skirmish</b></td><td><span class="pill rename">rename</span></td>
+    <td>Escalation: <b>Off</b></td>
+    <td>"Skirmish" implies a smaller match. It is not a different game — it is this game without
+        the escalation layer.</td></tr>
+<tr><td>Game Mode: <b>DEFCON Escalation</b></td><td><span class="pill rename">rename</span></td>
+    <td>Escalation: <b>DEFCON</b></td>
+    <td>Same feature, now visibly one axis rather than one of three unrelated values.</td></tr>
+<tr><td>Game Mode: <b>Sandbox</b></td><td><span class="pill cut">cut</span></td>
+    <td>—</td>
+    <td>Does nothing versus Off, and carries a trap: hold-fire keys on the level alone, so
+        Start&nbsp;At&nbsp;2 freezes autonomous fire for the whole match. Also the second thing in
+        this lobby called Sandbox.</td></tr>
+<tr><td><b>Doomsday</b> (checkbox, on)</td><td><span class="pill cut">cut</span></td>
+    <td>—</td>
+    <td>The checkbox is what makes the broken combination reachable. Deleting it makes the invalid
+        state unrepresentable rather than merely discouraged.</td></tr>
+<tr><td><b>Doomsday Clock</b> (No limit … 90 min)</td><td><span class="pill rename">rename</span></td>
+    <td>Ending: <b>Final Exchange after N minutes</b></td>
+    <td>The clock <i>is</i> the mode. Choosing a duration turns it on; "Last side standing" is the
+        same control's other value.</td></tr>
+<tr><td><b>Nuclear Ceiling</b></td><td><span class="pill keep">keep</span></td>
+    <td>Under Escalation, and it applies on both settings</td>
+    <td>"The largest yield permitted this match" is meaningful with escalation off too — it gives
+        the Off setting a real knob instead of none.</td></tr>
+<tr><td><b>Sandbox: All Support Powers</b></td><td><span class="pill rename">rename</span></td>
+    <td><b>Unlock all support powers (testing)</b></td>
+    <td>Ends the name collision, and says what it is for.</td></tr>
+<tr><td>Powers Enabled · Friendly Fire</td><td><span class="pill cut">cut</span></td>
+    <td>— (or implement)</td>
+    <td>Zero consumers. "Powers Enabled" reads as a master switch over the entire support-power
+        system and governs nothing.</td></tr>
+</table>
+
+<h2>How the two axes combine — all four cells are real games</h2>
+<table>
+<tr><th></th><th>Ending: Last side standing</th><th>Ending: Final Exchange</th></tr>
+<tr><td class="axis">Escalation: Off</td>
+    <td>The classic match. Contest the enemy Supply Route until they cannot be relieved.</td>
+    <td>A timed brawl under a countdown. Build the biggest position you can — when the clock runs
+        out the map dies and the score standing at that instant wins.</td></tr>
+<tr><td class="axis">Escalation: DEFCON</td>
+    <td>The war widens on its own terms. A closed border, then a phase where every shot is one you
+        ordered, then open war and the nuclear ladder — and it ends when someone breaks.</td>
+    <td><b>The full fantasy.</b> Two clocks running against each other: how far up the ladder can
+        you get before the deadline levels everything anyway.</td></tr>
+</table>
+
+<h3>The interaction that needs stating out loud</h3>
+<p>With both on, <b>the Final Exchange fires regardless of which rung the ladder reached — even at
+HOLD, where no player may fire a warhead at all.</b> That is deliberate and it is the point: the
+salvo is a Dead Hand, not a player order, so it is not gated by a release ladder that governs what
+<i>players</i> are permitted. A ladder that could suppress it would turn the deadline into a
+negotiation.</p>
+
+<div class="box warn"><b>Where I would expect disagreement.</b> Cutting the Doomsday checkbox
+removes a control that currently ships ON, so hosts who never open the options see a different
+default match: no time limit, no salvo, ending on the Supply Route. That is a real change in what
+the game is by default, and it is the one thing here worth arguing about — it can be reversed by
+shipping the Ending control defaulted to a duration instead.</div>
+
+<h2>What this does not touch</h2>
+<ul>
+<li><b>Supply Route contestation</b> — the actual win condition, and the one system in the audit
+    that surfaces itself properly. It is what "Last side standing" means.</li>
+<li><b>The three arsenal checkboxes</b> — they work, they are tested, and they are orthogonal to
+    both axes.</li>
+<li><b>The DEFCON internals</b> — readout, border, hold-fire, five-rung ladder all shipped today
+    and are unaffected by renaming the control that selects them.</li>
+</ul>
