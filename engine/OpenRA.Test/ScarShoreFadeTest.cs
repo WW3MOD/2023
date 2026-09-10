@@ -70,7 +70,7 @@ namespace OpenRA.Test
 		public void RampRisesOneStepPerCellAwayFromTheBoundary()
 		{
 			// Water fills the half-plane x >= 20. Cells at x = 19, 18, 17 are 1, 2, 3 cells clear of it.
-			bool IsWater(CPos c) => c.X >= 20;
+			static bool IsWater(CPos c) => c.X >= 20;
 
 			Assert.That(SmudgeLayer.ShoreAlphaAt(new CPos(19, 5), 2, IsWater), Is.EqualTo(1f / 3f).Within(0.0001f));
 			Assert.That(SmudgeLayer.ShoreAlphaAt(new CPos(18, 5), 2, IsWater), Is.EqualTo(2f / 3f).Within(0.0001f));
@@ -83,7 +83,7 @@ namespace OpenRA.Test
 		{
 			// One single water cell. Every one of its eight neighbours — orthogonal AND diagonal —
 			// must fade identically, or the shoreline ramp scallops at corners.
-			bool IsWater(CPos c) => c == new CPos(0, 0);
+			static bool IsWater(CPos c) => c == new CPos(0, 0);
 
 			var neighbours = new List<CPos>();
 			for (var dy = -1; dy <= 1; dy++)
@@ -102,7 +102,7 @@ namespace OpenRA.Test
 			// The predicate the trait passes is `Contains(c) && !accepts(c)`, so anything off-map answers
 			// false. Modelled here as a map that is only the first quadrant: a cell hard against the
 			// corner must still draw at FULL strength. If this flips, every map grows a faded border.
-			bool IsBoundary(CPos c) => false;
+			static bool IsBoundary(CPos c) => false;
 
 			Assert.That(SmudgeLayer.ShoreAlphaAt(new CPos(0, 0), 2, IsBoundary), Is.EqualTo(1f).Within(0.0001f));
 		}
