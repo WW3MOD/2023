@@ -38,6 +38,7 @@ namespace OpenRA.Mods.Common.Traits
 		public const string ModeOptionId = "defcon-mode";
 		public const string StartOptionId = "defcon-start";
 		public const string PaceOptionId = "defcon-pace";
+		public const string CeilingOptionId = "nuclear-ceiling";
 
 		[Desc("Label for the game mode dropdown.")]
 		public readonly string ModeLabel = "Game Mode";
@@ -94,6 +95,40 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Display order for the escalation pace dropdown.")]
 		public readonly int PaceDisplayOrder = 87;
+
+		[Desc("Label for the nuclear ceiling dropdown.")]
+		public readonly string CeilingLabel = "Nuclear Ceiling";
+
+		[Desc("Tooltip for the nuclear ceiling dropdown.")]
+		public readonly string CeilingDescription = "The largest warhead the release ladder will ever permit. Every detonation doubles a single shared pressure value that both sides read, so the war escalates together until it reaches this cap. HOLD is no nuclear weapons at all.";
+
+		[Desc("Default nuclear ceiling. See " + nameof(NuclearRung) + "; " + nameof(NuclearRung.Hold),
+			"means no nuclear weapons this match and " + nameof(NuclearRung.GameEnder) + " is the",
+			"200 kt+ rung. The Tsar Bomba is above EVERY setting and is Sandbox-only.")]
+		public readonly NuclearRung CeilingDefault = NuclearRung.GameEnder;
+
+		[Desc("Whether to show the nuclear ceiling dropdown in the lobby.")]
+		public readonly bool CeilingDropdownVisible = true;
+
+		[Desc("Prevent the nuclear ceiling dropdown from being changed in the lobby.")]
+		public readonly bool CeilingLocked = false;
+
+		[Desc("Display order for the nuclear ceiling dropdown.")]
+		public readonly int CeilingDisplayOrder = 88;
+
+		[Desc("The rung a DEFCON Escalation match OPENS at, before anybody has fired.",
+			"",
+			"NOT A LOBBY OPTION, deliberately -- it is the ladder's shape rather than a host setting,",
+			"and the lobby already carries the ceiling, which is the knob a host actually wants.",
+			"",
+			"IT MUST NOT DEFAULT TO " + nameof(NuclearRung.Hold) + ". The only thing that moves the",
+			"ladder is a detonation, so a match opening at HOLD permits no warhead anyone could fire",
+			"and the ladder can never be climbed. Decision 06 settles the direction: its accepted cost",
+			"is that 'going first is free', which presumes firing first is possible at all.",
+			"",
+			"Binding the opening to DEFCON 1 instead -- nuclear release beginning when the shooting",
+			"war does -- is the obvious refinement and is one Level read away.")]
+		public readonly NuclearRung StartRungDefault = NuclearRung.Kiloton;
 
 		// UNTUNED PLACEHOLDERS, all three. Nobody has played this mode; these are round numbers chosen
 		// so the phase is long enough to deploy from the Supply Route and short enough to sit through.
@@ -159,6 +194,18 @@ namespace OpenRA.Mods.Common.Traits
 				{ nameof(DefconPace.Fast).ToLowerInvariant(), "Fast" },
 			};
 
+			// The labels are the ladder as the user drew it, not the enum names: a host is choosing
+			// between yields they will recognise from the cameo captions, not between rung indices.
+			// The Tsar Bomba is deliberately absent -- it is above every one of these.
+			var ceilings = new Dictionary<string, string>
+			{
+				{ nameof(NuclearRung.Hold).ToLowerInvariant(), "HOLD - no nuclear weapons" },
+				{ nameof(NuclearRung.Kiloton).ToLowerInvariant(), "1 kt" },
+				{ nameof(NuclearRung.TwentyKiloton).ToLowerInvariant(), "20 kt" },
+				{ nameof(NuclearRung.HundredKiloton).ToLowerInvariant(), "50-100 kt" },
+				{ nameof(NuclearRung.GameEnder).ToLowerInvariant(), "200 kt+ (game-enders)" },
+			};
+
 			yield return new LobbyOption(ModeOptionId, ModeLabel, ModeDescription, ModeDropdownVisible, ModeDisplayOrder,
 				modes, ModeDefault.ToString().ToLowerInvariant(), ModeLocked) { Placeholder = MarkAsPlaceholder };
 
@@ -167,6 +214,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			yield return new LobbyOption(PaceOptionId, PaceLabel, PaceDescription, PaceDropdownVisible, PaceDisplayOrder,
 				paces, PaceDefault.ToString().ToLowerInvariant(), PaceLocked) { Placeholder = MarkAsPlaceholder };
+
+			yield return new LobbyOption(CeilingOptionId, CeilingLabel, CeilingDescription, CeilingDropdownVisible, CeilingDisplayOrder,
+				ceilings, CeilingDefault.ToString().ToLowerInvariant(), CeilingLocked) { Placeholder = MarkAsPlaceholder };
 		}
 
 		public override object Create(ActorInitializer init) { return new DefconEscalation(init.Self, this); }
@@ -179,6 +229,7 @@ namespace OpenRA.Mods.Common.Traits
 	public class DefconEscalation : ITick, ISync
 	{
 		readonly DefconEscalationState state;
+		readonly NuclearReleaseLadder ladder;
 
 		public readonly DefconGameMode Mode;
 		public readonly DefconPace Pace;
@@ -188,6 +239,16 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Sync]
 		public int TicksUntilNextLevel => state.TicksUntilNextLevel;
+
+		// BOTH OF THESE ARE SIMULATION AND BOTH DECIDE WHAT A PLAYER MAY FIRE, so both are hashed.
+		// The pressure is the shared counter itself and the rung is what every consumer reads; they
+		// are redundant with each other by construction, and hashing both is deliberate -- a
+		// divergence in the doubling and a divergence in the ceiling are different bugs.
+		[Sync]
+		public int NuclearPressure => ladder.Pressure;
+
+		[Sync]
+		public int NuclearRungLevel => ladder.RungFor(null);
 
 		public DefconEscalation(Actor self, DefconEscalationInfo info)
 		{
@@ -205,7 +266,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (!int.TryParse(start, out var startLevel))
 				startLevel = info.StartAtDefault;
 
+			var ceiling = settings.OptionOrDefault(DefconEscalationInfo.CeilingOptionId, info.CeilingDefault.ToString());
+			if (!Enum.TryParse<NuclearRung>(ceiling, true, out var ceilingRung))
+				ceilingRung = info.CeilingDefault;
+
 			state = new DefconEscalationState(Mode, startLevel, info.TicksAtDefconThree(Pace));
+			ladder = new NuclearReleaseLadder(Mode, (int)ceilingRung, (int)info.StartRungDefault);
 		}
 
 		void ITick.Tick(Actor self)
@@ -252,6 +318,48 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			Log.Write("debug", $"DEFCON {Level} (enemy action destroyed {victim.Info.Name}, owner {victim.Owner.InternalName}).");
+		}
+
+		/// <summary>May this player fire a warhead of this yield (in tons of TNT) right now?</summary>
+		public bool PermitsNuclearYield(Player player, int tons)
+		{
+			return ladder.Permits(player?.InternalName, tons);
+		}
+
+		/// <summary>The rung this player is released to. Same for everyone; see NuclearReleaseLadder.</summary>
+		public int NuclearRungFor(Player player)
+		{
+			return ladder.RungFor(player?.InternalName);
+		}
+
+		// A nuclear weapon has been RELEASED -- called from MissileStrikePower.Activate.
+		//
+		// THE DETERMINISM ARGUMENT, and it is a construction rather than an assurance. The only
+		// caller is MissileStrikePower.Activate, reached exclusively through
+		// SupportPowerManager.ResolveOrder -> SupportPowerInstance.Activate
+		// (SupportPowerManager.cs:293-321). SupportPowerManager is IResolveOrder, so that path is
+		// the synced order-resolution path: every client resolves the same order on the same tick,
+		// which is the same seam MissileStrikePower.ResolveAimPoints already relies on and states
+		// its own desync argument against. Everything this method then reads is either on the order
+		// (the firing player) or a compile-time constant (the weapon's declared yield); the
+		// arithmetic in NuclearReleaseLadder is integer throughout and draws no shared random
+		// number. Nothing here reads a viewport, a LocalPlayer, a RenderPlayer or wall-clock time.
+		//
+		// THIS IS NOT THE SHAPE THAT DESYNCED BEFORE. The shipped desync in this codebase came from
+		// bot modules writing synced actor state directly -- i.e. from OUTSIDE the order path, where
+		// only the machine running the bot performs the write. A support-power order is issued by
+		// one client and RESOLVED by all of them, so the write happens everywhere or nowhere.
+		//
+		// AND IT IS HASHED, so a mistake in the above is caught rather than silently played out:
+		// NuclearPressure and NuclearRungLevel are [Sync] on a trait that implements ISync, which
+		// Actor.cs:206 requires before it hashes anything at all.
+		public void ReportNuclearRelease(Player firer, int tons)
+		{
+			if (!ladder.ReportDetonation(firer?.InternalName, tons))
+				return;
+
+			Log.Write("debug", $"NUCLEAR RUNG {NuclearRungLevel} (pressure {NuclearPressure}; " +
+				$"{firer?.InternalName ?? "unknown"} released {tons} t).");
 		}
 	}
 }

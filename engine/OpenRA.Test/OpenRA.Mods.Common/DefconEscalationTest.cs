@@ -81,13 +81,18 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void TheLobbyRegistersThreeDropdowns()
+		public void TheLobbyRegistersFourDropdowns()
 		{
 			var options = ((ILobbyOptions)new DefconEscalationInfo()).LobbyOptions(null).ToArray();
 
+			// FOUR since the nuclear release ladder landed. The fourth is the ladder's CEILING --
+			// the largest warhead the match will ever permit -- and it sits on this trait rather
+			// than on a new one because it is configuration of the same mode: DefconEscalation
+			// already owns the game mode the ladder only runs inside.
 			Assert.That(options.Select(o => o.Id), Is.EquivalentTo(new[]
 			{
-				DefconEscalationInfo.ModeOptionId, DefconEscalationInfo.StartOptionId, DefconEscalationInfo.PaceOptionId
+				DefconEscalationInfo.ModeOptionId, DefconEscalationInfo.StartOptionId,
+				DefconEscalationInfo.PaceOptionId, DefconEscalationInfo.CeilingOptionId
 			}));
 
 			// Checkbox vs dropdown is purely the C# type: a LobbyBooleanOption renders as a checkbox.
@@ -105,6 +110,13 @@ namespace OpenRA.Test
 			var pace = options.First(o => o.Id == DefconEscalationInfo.PaceOptionId);
 			Assert.That(pace.Values.Keys, Is.EquivalentTo(new[] { "slow", "standard", "fast" }));
 			Assert.That(pace.DefaultValue, Is.EqualTo("standard"));
+
+			// The ceiling offers every rung INCLUDING Hold, which is the "no nuclear weapons this
+			// match" setting, and nothing above GameEnder -- the Tsar Bomba is not a rung and must
+			// never become selectable by adding one here.
+			var ceiling = options.First(o => o.Id == DefconEscalationInfo.CeilingOptionId);
+			Assert.That(ceiling.Values.Keys, Is.EquivalentTo(new[] { "hold", "kiloton", "twentykiloton", "hundredkiloton", "gameender" }));
+			Assert.That(ceiling.DefaultValue, Is.EqualTo("gameender"));
 		}
 
 		[Test]

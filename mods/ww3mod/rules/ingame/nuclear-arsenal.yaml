@@ -83,7 +83,16 @@ Player:
 	# The one entry in the mod that is a nuclear weapon and NOT a map-ender. 4.5 cells of blast is
 	# about what a heavy artillery concentration covers, which is the point of a 300-ton dial setting.
 	MissileStrikePower@B61Low:
-		RequiresCondition: !nuke-arsenal-disabled
+		# TWO GATES, AND THEY ANSWER DIFFERENT QUESTIONS. `!nuke-arsenal-disabled` is the host's
+		# lobby checkbox -- "does this arsenal exist in this match at all" -- and is unchanged.
+		# `nuclear-release-1kt` is the RELEASE LADDER: the match's shared pressure counter has
+		# opened the 1 kt band. Outside DEFCON Escalation every band is granted on the first tick,
+		# so this conjunct is inert in Skirmish and Sandbox and the power behaves exactly as before.
+		# 0.3 kt is the smallest warhead in the mod and sits on the ladder's bottom rung.
+		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-1kt
+		# 300 t = 0.3 kt (weapons-nuclear-arsenal.yaml:214). TONS, not kilotons -- 0.3 kt is not an
+		# integer number of kilotons and would truncate to "not nuclear".
+		NuclearYieldTons: 300
 		OrderName: B61LowStrike
 		Icon: paranuke
 		CameoCaption: 0.3 KT
@@ -126,7 +135,12 @@ Player:
 	# The only differences a player can see are the yield in the name and the size of the hole, which
 	# is exactly what dial-a-yield is.
 	MissileStrikePower@B61Max:
-		RequiresCondition: !nuke-arsenal-disabled
+		# The 50-100 kt rung. Note the SAME BOMB as @B61Low above sits two rungs higher purely
+		# because of its dial setting -- which is the clearest statement the ladder can make that a
+		# rung is about yield and not about which weapon it is.
+		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-100kt
+		# 50000 t = 50 kt (weapons-nuclear-arsenal.yaml:1435).
+		NuclearYieldTons: 50000
 		OrderName: B61MaxStrike
 		Icon: paranuke
 		CameoCaption: 50 KT
@@ -163,7 +177,10 @@ Player:
 
 	# ---- W76-1: 100 kt ------------------------------------------------------------------------
 	MissileStrikePower@W76:
-		RequiresCondition: !nuke-arsenal-disabled
+		# Top of the "50-100 kt" band as the user drew it.
+		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-100kt
+		# 100000 t = 100 kt (weapons-nuclear-arsenal.yaml:1854).
+		NuclearYieldTons: 100000
 		OrderName: W76Strike
 		Icon: cmissicon
 		CameoCaption: 100 KT
@@ -215,7 +232,13 @@ Player:
 	# salvo; six 51-cell reveals is six times the shroud work of the old one for no gain, since each
 	# aim point only needs to show its own impact.
 	MissileStrikePower@Sarmat:
-		RequiresCondition: !nuke-arsenal-disabled
+		# Game-ender rung: "anything above ~200 kt" (decision 04).
+		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-gameender
+		# 750000 t = 750 kt (weapons-nuclear-arsenal.yaml:2265), which is the yield of ONE re-entry
+		# vehicle and NOT of the six-RV salvo. The ladder counts one RELEASE per activation however
+		# many warheads it delivers, so a 4.5 Mt salvo total here would put this power in a band its
+		# individual warheads do not belong to. See MissileStrikePowerInfo.NuclearYieldTons.
+		NuclearYieldTons: 750000
 		OrderName: SarmatStrike
 		Icon: v2bdgricon
 		CameoCaption: 6x750 KT
@@ -271,7 +294,9 @@ Player:
 
 	# ---- B83-1: 1.2 Mt ------------------------------------------------------------------------
 	MissileStrikePower@B83:
-		RequiresCondition: !nuke-arsenal-disabled
+		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-gameender
+		# 1200000 t = 1.2 Mt (weapons-nuclear-arsenal.yaml:2692).
+		NuclearYieldTons: 1200000
 		OrderName: B83Strike
 		Icon: abombfake
 		CameoCaption: 1.2 MT
@@ -310,7 +335,20 @@ Player:
 
 	# ---- Tsar Bomba: 50 Mt --------------------------------------------------------------------
 	MissileStrikePower@TsarBomba:
-		RequiresCondition: !nuke-arsenal-disabled
+		# NOT A RUNG. `nuclear-release-unrestricted` is granted ONLY outside DEFCON Escalation -- in
+		# Skirmish, in Sandbox, and when the World actor carries no DefconEscalation at all -- so no
+		# ceiling setting and no number of detonations can reach this weapon in normal play. That is
+		# decision 04 verbatim: "We keep it in code but it should be disabled and cannot be used in
+		# game for now (keep it for sandbox)."
+		#
+		# It is deliberately expressed as an ABSENT MODE rather than as a rung above the ceiling,
+		# because a rung is a number someone can tune past and a mode is not.
+		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-unrestricted
+		# 50000000 t = 50 Mt (weapons-nuclear-arsenal.yaml:3114). Above
+		# NuclearReleaseLadder.SandboxOnlyAboveTons, so the C# refuses it inside Escalation too --
+		# the gate is stated twice on purpose, once where the player can see it and once where a
+		# YAML edit cannot reach.
+		NuclearYieldTons: 50000000
 		OrderName: TsarBombaStrike
 		Icon: abomb
 		CameoCaption: 50 MT
@@ -399,7 +437,11 @@ Player:
 	# lowest B61 dial setting, so this is a bigger hole than that weapon makes, but it is still the
 	# small end: 6.7 cells of blast is a position, not a battlefield.
 	MissileStrikePower@Ru9M729:
-		RequiresCondition: !nuke-arsenal-disabled
+		# Russia's bottom rung, and the counterpart to @B61Low. Both sit on the 1 kt band: this is
+		# 1 kt exactly, which is the band's ceiling.
+		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-1kt
+		# 1000 t = 1 kt (weapons-nuclear-arsenal.yaml:3675).
+		NuclearYieldTons: 1000
 		OrderName: Ru9M729Strike
 		# OWN CAMEO SINCE 2026-09-09. Was paranuke, which is now a photograph of an American B61-12 --
 		# a US Air Force bomb on a Russian rung. The art is a ground-launched cruise missile leaving an
@@ -444,7 +486,9 @@ Player:
 	# NukeB61Mod12Y10, which is defined in the arsenal file and fired by nothing -- so this power is
 	# the first thing in the mod that ever puts a 10 kt weapon on the map.
 	MissileStrikePower@RuIskander:
-		RequiresCondition: !nuke-arsenal-disabled
+		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-20kt
+		# 10000 t = 10 kt (weapons-nuclear-arsenal.yaml:4095). Same rung as @B61Mid and @TacNuke.
+		NuclearYieldTons: 10000
 		OrderName: RuIskanderStrike
 		# OWN CAMEO SINCE 2026-09-09: an erected Iskander-M against sky. It shared v2bdgricon with the
 		# Sarmat and the strategic strike, one of which is Russian and two of which are not, until then.
@@ -487,7 +531,10 @@ Player:
 	# Nuclear warhead on the airframe the mod already flies as a conventional strike. Identical
 	# blast to @B61Max, and the least warning of anything in the arsenal.
 	MissileStrikePower@RuKinzhalN:
-		RequiresCondition: !nuke-arsenal-disabled
+		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-100kt
+		# 50000 t = 50 kt (weapons-nuclear-arsenal.yaml:4514). Identical yield to @B61Max, so the
+		# two are released on the same rung -- which is the point of a shared ladder.
+		NuclearYieldTons: 50000
 		OrderName: RuKinzhalNStrike
 		# OWN CAMEO SINCE 2026-09-09: a MiG-31 carrying the Kinzhal, deliberately a DIFFERENT photograph
 		# from the conventional @Kinzhal's kinzhalicon -- same airframe, different sky, and this one
@@ -532,7 +579,9 @@ Player:
 	# That one is a re-entry vehicle falling out of a ballistic arc; this one is a subsonic cruise
 	# missile crossing the sea. Same hole, far more warning.
 	MissileStrikePower@RuKalibr:
-		RequiresCondition: !nuke-arsenal-disabled
+		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-100kt
+		# 100000 t = 100 kt (weapons-nuclear-arsenal.yaml:4940). Identical yield to @W76.
+		NuclearYieldTons: 100000
 		OrderName: RuKalibrStrike
 		# OWN CAMEO SINCE 2026-09-09: the 3M-14 itself, the exact designation in this power's name.
 		# It went `abomb` -> `paranuke` -> here; `abomb` was reserved for the Tsar Bomba on 2026-09-08,

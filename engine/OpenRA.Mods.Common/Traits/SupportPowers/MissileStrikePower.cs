@@ -185,6 +185,30 @@ namespace OpenRA.Mods.Common.Traits
 			"camera stay on the ground aim point below it, which is what the player pointed at.")]
 		public readonly WDist DetonationAltitude = WDist.Zero;
 
+		[Desc("Stated yield of this power's warhead in TONS OF TNT, or zero (the default) for a power",
+			"that is not nuclear at all. It is the release ladder's only input.",
+			"",
+			"TONS, NOT KILOTONS, and the B61-12's lowest dial setting is why: 0.3 kt is not an",
+			"integer number of kilotons and would truncate to zero, i.e. to 'not nuclear'. Multiply",
+			"the kilotons every weapon comment quotes by 1000 -- 0.3 kt is 300, 50 Mt is 50000000.",
+			"",
+			"READ IT OUT OF THE WEAPON FILE, never off the power's name: NukeRuKinzhalN is 50 kt and",
+			"NukeRuKalibr is 100 kt despite neither saying so, and three Russian warheads are",
+			"physically identical to an American one at the same yield.",
+			"",
+			"FOR A MULTI-WARHEAD POWER THIS IS THE PER-WARHEAD YIELD, not the salvo's total. The",
+			"RS-28 Sarmat flies six 750 kt re-entry vehicles and declares 750000: the ladder counts",
+			"one RELEASE per activation however many warheads it delivers, so a salvo total here",
+			"would put the power in a band its individual warheads do not belong to.",
+			"",
+			"SETTING THIS DOES TWO THINGS. It makes the power report a detonation to",
+			nameof(DefconEscalation) + " when it fires, doubling the match's shared pressure value;",
+			"and it is the number the ladder's band table maps to a rung. It does NOT gate the power",
+			"on its own -- the gate is an ordinary RequiresCondition naming the band this yield falls",
+			"in, so that the mapping from yield to rung stays visible in YAML rather than being",
+			"computed somewhere the player's lobby cannot see it.")]
+		public readonly int NuclearYieldTons = 0;
+
 		[Desc("Range of cells the camera should reveal around the target cell.")]
 		public readonly WDist CameraRange = WDist.Zero;
 
@@ -235,6 +259,28 @@ namespace OpenRA.Mods.Common.Traits
 			// ONCE for the salvo, not once per warhead. Six overlapping copies of the same launch
 			// notification is a bug the player hears rather than a bigger event.
 			PlayLaunchSounds();
+
+			// THE DETONATION EVENT, and "once per RELEASE ORDER" is the whole of the choice.
+			//
+			// It sits here rather than in a warhead deliberately, and the Sarmat is why: that power
+			// flies SIX independently-aimed 750 kt re-entry vehicles, each with its own Explodes
+			// payload. Counted at warhead impact, one click would double the shared pressure six
+			// times over -- 64x for a single order -- and walk the ladder from its bottom rung to
+			// its ceiling in one activation. One decision to release is one rung, which is also the
+			// reading that matches the user's "doubling per use".
+			//
+			// It also has to be here for the GATE to mean anything. Pressure read at impact would
+			// leave the whole flight time as a window in which further orders are still measured
+			// against the old rung, so a player could empty a magazine at one rung before the first
+			// warhead landed. Moving on the order closes that: SupportPowerInstance.Permitted is
+			// recomputed every tick from instancesEnabled (SupportPowerManager.cs:246), so the new
+			// rung reaches every cameo and every buy-tab entry on the tick after the click.
+			//
+			// TraitOrDefault, not Trait: a scenario or map that strips DefconEscalation from the
+			// World actor must leave this inert rather than throw. Same rule as
+			// DefconCasualtyObserver.Created.
+			if (info.NuclearYieldTons > 0)
+				self.World.WorldActor.TraitOrDefault<DefconEscalation>()?.ReportNuclearRelease(self.Owner, info.NuclearYieldTons);
 
 			var aimPoints = ResolveAimPoints(self.World, order);
 
