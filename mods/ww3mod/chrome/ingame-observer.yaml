@@ -2,6 +2,22 @@ Container@OBSERVER_WIDGETS:
 	Logic: LoadIngameChatLogic
 	Children:
 		Container@CHAT_ROOT:
+		# THE SAME READOUT AN OBSERVER SEES, and the same geometry as ingame-player.yaml -- see the
+		# comment there for why it docks where it does. Both widgets read only match-wide state (the
+		# level, the shared release ladder) and no per-player state at all, so there is nothing here
+		# an observer is not entitled to. A player who has just lost is switched to these widgets
+		# mid-match by LoadIngamePlayerOrObserverUILogic, so leaving it out would make the readout
+		# vanish at the moment the war is most legible.
+		DefconReadout@DEFCON_READOUT:
+			X: 5
+			Y: WINDOW_HEIGHT - HEIGHT - 140
+			Width: 352
+			Height: 170
+		DefconTransitionBanner@DEFCON_BANNER:
+			X: 0
+			Y: (WINDOW_HEIGHT - HEIGHT) / 3
+			Width: WINDOW_WIDTH
+			Height: 96
 		Container@MUTE_INDICATOR:
 			Logic: MuteIndicatorLogic
 			X: WINDOW_WIDTH - WIDTH - 260
