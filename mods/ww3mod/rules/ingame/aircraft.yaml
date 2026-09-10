@@ -96,6 +96,13 @@
 		RequiresCondition: !airborne
 	ExternalCondition@UNITDOCKED:
 		Condition: unit.docked
+	# LAYER 2 OF THE DEFCON 3 WALL, on the ROOT airframe template so it lands on every aircraft in
+	# the mod exactly once -- ^Aircraft, ^Helicopter and ^Drone all reach it through here.
+	# NOT on the husks: they inherit ^BasicHusk rather than ^NeutralAirborne, and that is correct.
+	# A falling wreck is debris under gravity, not a player crossing a line, and turning one back
+	# would need it to fly.
+	# Inert on every shipped map -- see DefconWall in world.yaml for why.
+	DefconWallTurnBack:
 
 ^Airborne:
 	Inherits: ^NeutralAirborne

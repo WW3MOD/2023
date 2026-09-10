@@ -259,6 +259,8 @@ namespace OpenRA.Mods.Common.Traits
 		INotifyMoving[] notifyMoving;
 		INotifyCenterPositionChanged[] notifyCenterPositionChanged;
 		IOverrideAircraftLanding overrideAircraftLanding;
+		DefconWall defconWall;
+		bool fallsToEarth;
 
 		[Sync]
 		public WAngle Facing
@@ -406,6 +408,14 @@ namespace OpenRA.Mods.Common.Traits
 			positionOffsets = self.TraitsImplementing<IAircraftCenterPositionOffset>().ToArray();
 			overrideAircraftLanding = self.TraitOrDefault<IOverrideAircraftLanding>();
 			notifyCenterPositionChanged = self.TraitsImplementing<INotifyCenterPositionChanged>().ToArray();
+
+			// DEFCON 3 DIVIDING WALL. Resolved once, here, so the guards below are a null test on the
+			// common path. Null on any map whose World actor has no DefconWall, which is every shipped
+			// map today. NB this runs AFTER the constructor, and the constructor calls SetPosition --
+			// which is exactly why creation placement is exempt from layer 3 (see SetPosition).
+			defconWall = self.World.WorldActor.TraitOrDefault<DefconWall>();
+			fallsToEarth = self.Info.HasTraitInfo<FallsToEarthInfo>();
+
 			base.Created(self);
 		}
 
@@ -645,11 +655,22 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var speed = Info.RepulsionSpeed != -1 ? Info.RepulsionSpeed : MovementSpeed;
+			var nudged = CenterPosition + FlyStep(speed, repulsionForce.Yaw);
+
+			// DEFCON 3 WALL, THE REPULSION NUDGE -- ruled on explicitly rather than left to inherit the
+			// rule from SetPosition. Repulsion is a FORCE, not an order, so the right answer is to drop
+			// the nudge here instead of letting layer 3 refuse it. Layer 3 zeroes CurrentVelocity when
+			// it rejects, and this runs on every tick an airframe is crowded, so routing the nudge into
+			// a refusal would zero the velocity of any aircraft loitering near the line over and over
+			// and it would never fly at all. Dropping the nudge costs only the separation it bought.
+			if (defconWall != null && defconWall.IsBeyondWall(self.Owner, nudged)
+				&& !defconWall.IsBeyondWall(self.Owner, CenterPosition))
+				return;
 
 			// HACK: Prevent updating visibility twice per tick. We really shouldn't be
 			// moving twice in a tick in the first place.
 			notify = false;
-			SetPosition(self, CenterPosition + FlyStep(speed, repulsionForce.Yaw));
+			SetPosition(self, nudged);
 			notify = true;
 		}
 
@@ -984,8 +1005,62 @@ namespace OpenRA.Mods.Common.Traits
 			SetPosition(self, self.World.Map.CenterOfCell(cell) + new WVec(0, 0, CenterPosition.Z));
 		}
 
+		/// <summary>
+		/// Layers 1 and 3 of the DEFCON 3 dividing wall both ask this. False whenever no map authored
+		/// a line, whenever the mode is Skirmish, and whenever the level is not one the wall stands at.
+		/// </summary>
+		public bool IsBeyondDefconWall(Actor self, CPos cell)
+		{
+			return defconWall != null && defconWall.IsBeyondWall(self.Owner, cell);
+		}
+
 		public void SetPosition(Actor self, WPos pos)
 		{
+			// LAYER 3 OF THE DEFCON 3 WALL: refuse the write. A true chokepoint -- every horizontal,
+			// vertical and teleporting position change of anything carrying the Aircraft trait passes
+			// through here, so this is verifiable by exhaustion rather than by inference. It should
+			// almost never fire, because layers 1 (refuse the order) and 2 (turn back on approach) sit
+			// in front of it; when it does, it is the hard guarantee that nothing crosses.
+			//
+			// ZEROING CurrentVelocity IS LOAD-BEARING, NOT TIDINESS. A helicopter that keeps a non-zero
+			// synced velocity while its position stops changing computes MovementType.None in
+			// Aircraft.Tick (:582-600) while still holding speed, and the animation stops agreeing with
+			// the simulation. This mod has shipped a bug of exactly that family before.
+			//
+			// THE FOUR NON-FLIGHT CASES THAT ALSO REACH THIS LINE, each ruled on rather than inheriting:
+			//   - CREATION PLACEMENT is EXEMPT, structurally: the Aircraft constructor calls SetPosition
+			//     (:356) before Created runs, so defconWall is still null and the guard cannot fire. An
+			//     aircraft authored or called in beyond the line therefore arrives, which is correct --
+			//     refusing would leave it at the origin.
+			//   - A FALLING HUSK is EXEMPT by `fallsToEarth`. FallToEarth has no alternative path, so
+			//     refusing its descent strands a burning wreck in mid-air forever. A husk is debris
+			//     under gravity, not a player crossing a line.
+			//   - A CRASH-LANDING HELICOPTER is NOT exempt, and deliberately so. HeliCrashLand and
+			//     HeliAutorotate drift horizontally while descending; the horizontal component is
+			//     refused and the vertical one is not, so the airframe crashes short of the line
+			//     instead of gliding across it. That reads correctly.
+			//   - THE ARRIVAL SNAP TELEPORTS (Fly.cs:232/327, Land.cs:177/234/326) are NOT exempt.
+			//     They jump the airframe to a target position outright, which is precisely the write
+			//     that must not be allowed to land beyond the line, and they already zero velocity
+			//     themselves so the refusal costs nothing extra.
+			// The repulsion nudge is ruled on at its own call site in Repulse() above.
+			//
+			// A PURELY VERTICAL write is always allowed: it cannot change which side of the line the
+			// actor is on, and refusing it would freeze every descent and climb happening near the wall.
+			// A write that REDUCES depth past the line is always allowed, so anything already stranded
+			// beyond it can fly back out rather than being pinned there.
+			if (defconWall != null && !fallsToEarth && self.IsInWorld
+				&& (pos.X != CenterPosition.X || pos.Y != CenterPosition.Y))
+			{
+				var newDepth = defconWall.DepthBeyondWall(self.Owner, pos);
+				if (newDepth > 0 && newDepth >= defconWall.DepthBeyondWall(self.Owner, CenterPosition))
+				{
+					CurrentVelocity = WVec.Zero;
+					RequestedAcceleration = WVec.Zero;
+					return;
+				}
+			}
+
 			CenterPosition = pos;
 
 			if (!self.IsInWorld)
@@ -1304,6 +1379,16 @@ namespace OpenRA.Mods.Common.Traits
 				if (!Info.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
 					return;
 
+				// LAYER 1 OF THE DEFCON 3 WALL: refuse the order. Nothing starts, so there is no
+				// in-flight state to unwind when the phase ends, and the player already saw the blocked
+				// cursor AircraftMoveOrderTargeter paints for this cell -- which is better than a unit
+				// that accepts an order and is then seen to disobey it. This layer leaks a great deal
+				// on its own (attack standoffs, attack-move, return-to-base, idle drift, rally replay
+				// from the Supply Route, and any straight-line flight that merely clips the line en
+				// route to a legal destination); DefconWallTurnBack is what catches those.
+				if (IsBeyondDefconWall(self, cell))
+					return;
+
 				if (!order.Queued)
 					UnReserve();
 
@@ -1320,6 +1405,10 @@ namespace OpenRA.Mods.Common.Traits
 
 				var cell = self.World.Map.Clamp(self.World.Map.CellContaining(order.Target.CenterPosition));
 				if (!Info.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
+					return;
+
+				// LAYER 1 again: landing beyond the line is crossing it. See the Move branch above.
+				if (IsBeyondDefconWall(self, cell))
 					return;
 
 				if (!order.Queued)
@@ -1615,7 +1704,11 @@ namespace OpenRA.Mods.Common.Traits
 				// simply resumes when the pause lifts. Showing BlockedCursor for a transient pause
 				// promised a refusal that never happened — live entrances are ^Drone's dronedisable
 				// and ^AircraftAffectedByEMP's empdisable. Only flag truly unreachable destinations.
-				cursor = (explored || aircraft.Info.MoveIntoShroud) && self.World.Map.Contains(location) ?
+				// The DEFCON 3 wall joins Map.Contains here rather than getting its own branch,
+				// because it is the same kind of fact: a destination the order will be refused for.
+				// ResolveOrder's matching refusal is what this promises -- keep the two in step.
+				cursor = (explored || aircraft.Info.MoveIntoShroud) && self.World.Map.Contains(location)
+					&& !aircraft.IsBeyondDefconWall(self, location) ?
 					aircraft.Info.Cursor : aircraft.Info.BlockedCursor;
 
 				return true;

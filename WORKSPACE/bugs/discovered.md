@@ -4971,3 +4971,36 @@ persisted or compared numerically anywhere first — that has NOT been checked. 
 the actual defect and will produce a third sighting somewhere else.
 (found while working on: the DEFCON Escalation spine, `wt/defcon-spine`, placing new traits on the
 Player and World actors)
+
+## `.\make.ps1 check` is RED on main — one unclosed `<para>` in `SmudgeLayer.cs` fails the whole Debug gate
+
+**Verified 2026-09-10 at `main @ 27a7f23a`.** `Check-Command` (`make.ps1:239`) builds Debug with
+`-warnaserror -p:GenerateDocumentationFile=true`, and that last flag is what turns on XML doc parsing.
+Two errors result, both in a file nobody is currently working on:
+
+```
+SmudgeLayer.cs(230,47): error CS1570: XML comment has badly formed XML --
+    'End tag 'summary' does not match the start tag 'para'.'
+SmudgeLayer.cs(231,1):  error CS1570: XML comment has badly formed XML --
+    'Expected an end tag for element 'summary'.'
+```
+
+**The defect is at line 215, not at the reported line 230.** `ShoreAlpha`'s doc comment opens a `<para>`
+at :215 and never closes it — :221 ends `...as the boundary approaches.` with no `</para>`. Two further
+`<para>` blocks (:223-227, :229-230) are balanced, so the compiler only notices when `</summary>` arrives
+at :230 and finds the :215 element still open. **The fix is a single `</para>` at the end of :221**;
+it is deliberately NOT applied here because this was found from an unrelated branch.
+
+Introduced by `a469a0be` (2026-09-09, "A nuke left pale holes under every tree and stopped a cell short
+of the water"). The same commit's adjacent `Draw` doc block at :202-204 closes correctly, so this is one
+slip rather than a habit.
+
+**Why it went unnoticed for a day, and the reusable part:** `.\make.ps1 all` builds **Release**, and
+`engine/Directory.Build.props:51-56` strips every analyzer in Release — and Release does not set
+`GenerateDocumentationFile` either. So the build everyone runs is clean, `dotnet test` is clean, and only
+the Debug `check` gate sees it. This is the same shape `DOCS/reference/conventions.md` already records in
+§"A green analyzer gate means what the TARGET GRAPH reaches": **a green `make.ps1 all` is not evidence
+about `make.ps1 check`.** Worth knowing before assuming CI and the local build agree.
+
+(found while working on: the DEFCON 3 dividing wall, `wt/defcon-wall`; hit when running the Debug
+analyzer build to get StyleCop coverage that the Release build does not provide)

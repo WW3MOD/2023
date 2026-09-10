@@ -1,0 +1,34 @@
+TEST: the DEFCON 3 dividing wall holds against aircraft.
+
+A vertical line down column 44 splits a 100x60 map between USA (west, spawn x 8)
+and Russia (east, spawn x 80). The match is pinned at DEFCON 3, where neither
+side may cross.
+
+Three helicopters, one per enforcement layer:
+
+  PROBE (USA, x 20)     is given a real Move order to x 70, deep in enemy
+                        territory. Layer 1 refuses the order in
+                        Aircraft.ResolveOrder, so nothing starts: the probe
+                        should still be sitting in the west at the end. The
+                        cursor a player would see over that cell is checked too,
+                        and must differ from the cursor over a legal one.
+
+  APPROACH (USA, x 36)  is given a LEGAL Move order, to x 42 -- its own side of
+                        the line, but inside the turn-back margin. Layer 1 has no
+                        reason to refuse it. Layer 2 must notice the airframe
+                        closing on the line and fly it home, which shows up as a
+                        DefconWallReturn activity and a finishing position back
+                        to the west.
+
+  EASTPROBE (Russia)    is given the mirror-image illegal order, westward. The
+                        wall is symmetric; it is not a one-way gate.
+
+Running underneath all three, every tick: no aircraft may EVER be observed on the
+far side of column 44. That is layer 3's guarantee -- the refusal in
+Aircraft.SetPosition -- and it is asserted as an invariant rather than triggered
+directly, because layers 1 and 2 are supposed to stop anything ever reaching it.
+
+PASS: no crossing was ever observed, the refused order never moved the probe, and
+the approach was turned back.
+FAIL: the verdict names which of those four readings went wrong and gives the
+end-of-run positions.
