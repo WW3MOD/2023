@@ -286,6 +286,28 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync]
 		public int TicksUntilNuclearRelease => ladder.TicksUntilRelease;
 
+		// ==== READ-ONLY PROJECTIONS FOR THE READOUT. DELIBERATELY NOT [Sync]. ====
+		// DefconReadoutWidget needs three things the trait already knows and had no way to hand out.
+		// None of them is new state and none is written anywhere: ClockTicks is a constructor argument
+		// kept, and the other two forward to fields NuclearReleaseLadder already owns.
+		//
+		// They are NOT hashed, and that is the correct call rather than an oversight. [Sync] is for
+		// state whose divergence between clients is a desync, and each of these is already covered by
+		// a hashed member computed from the same source: TicksUntilNuclearRelease hashes the gate that
+		// NuclearReleaseOpen is the terminal state of, and NuclearRungLevel hashes the ladder position
+		// that NuclearCeilingRung bounds. ClockTicks is immutable after construction and identical on
+		// every client by construction -- it comes from the lobby settings every client loaded.
+		// Hashing a constant costs a hash and can never catch anything.
+
+		/// <summary>The full length of the DEFCON 3 clock, so a readout can draw a progress bar.</summary>
+		public readonly int ClockTicks;
+
+		/// <summary>Whether the nuclear release gate has opened. See <see cref="NuclearReleaseLadder"/>.</summary>
+		public bool NuclearReleaseOpen => ladder.ReleaseOpen;
+
+		/// <summary>The highest rung this match will ever permit -- the host's ceiling, after the mode.</summary>
+		public int NuclearCeilingRung => ladder.Ceiling;
+
 		public DefconEscalation(Actor self, DefconEscalationInfo info)
 		{
 			var settings = self.World.LobbyInfo.GlobalSettings;
@@ -306,7 +328,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Enum.TryParse<NuclearRung>(ceiling, true, out var ceilingRung))
 				ceilingRung = info.CeilingDefault;
 
-			state = new DefconEscalationState(Mode, startLevel, info.TicksAtDefconThree(Pace));
+			ClockTicks = info.TicksAtDefconThree(Pace);
+
+			state = new DefconEscalationState(Mode, startLevel, ClockTicks);
 			ladder = new NuclearReleaseLadder(Mode, (int)ceilingRung, (int)info.StartRungDefault, info.NuclearReleaseDelayTicks);
 		}
 

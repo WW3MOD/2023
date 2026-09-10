@@ -112,6 +112,35 @@ Container@PLAYER_WIDGETS:
 			X: 80
 			Y: 10
 			Order: Descending
+		# THE DEFCON READOUT. Drawn by DefconReadoutWidget, which stacks the nuclear release block
+		# ABOVE the DEFCON strip and anchors both to the BOTTOM of these bounds -- so the strip stays
+		# in one place for a whole match while the nuclear block appears, and the strip grows upward
+		# when DEFCON 2 adds its trigger line. Height is the reserve for both blocks at their tallest,
+		# not the drawn height.
+		#
+		# WHY IT DOCKS HERE, and it is the only free corner left at 352px wide:
+		#   - the left EDGE above this is the support power column (X:10, icons 62x46, up to 16 of
+		#     them, so it can reach Y~750);
+		#   - the bottom-left is TRANSIENTS_PANEL (common|chrome/ingame-transients.yaml: X:5,
+		#     Y: WINDOW_HEIGHT - 135, 550x80) -- the 140 below is that panel's top edge plus 5;
+		#   - the bottom CENTRE is the chat root (550 wide, centred, bottom-anchored);
+		#   - the right 250px is the sidebar for the whole height of the window.
+		# Anything that moves one of those four has to re-check this number.
+		DefconReadout@DEFCON_READOUT:
+			X: 5
+			Y: WINDOW_HEIGHT - HEIGHT - 140
+			Width: 352
+			Height: 170
+		# Full-width and deliberately not parented to anything: the band runs off both edges of the
+		# screen, which is what makes it read as the screen changing state rather than as a dialog.
+		# It draws only during the four seconds after a level change and is invisible the rest of the
+		# match. A third of the way down keeps it clear of the top-centre notification area and well
+		# above the chat.
+		DefconTransitionBanner@DEFCON_BANNER:
+			X: 0
+			Y: (WINDOW_HEIGHT - HEIGHT) / 3
+			Width: WINDOW_WIDTH
+			Height: 96
 		Background@CMD_BG_A:
 			X: 5
 			Y: WINDOW_HEIGHT - HEIGHT - 5
