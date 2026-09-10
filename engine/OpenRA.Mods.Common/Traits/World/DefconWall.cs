@@ -131,8 +131,17 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyCreated.Created(Actor self)
 		{
 			// TraitOrDefault, not Trait: a map that strips DefconEscalation must leave this inert
-			// rather than throw. Mirrors DefconCasualtyObserver.Created.
-			escalation = self.World.WorldActor.TraitOrDefault<DefconEscalation>();
+			// rather than throw.
+			//
+			// SELF, NOT self.World.WorldActor -- and this crashed every match until it was.
+			// DefconCasualtyObserver reads WorldActor here and is correct to, because it is
+			// [TraitLocation(SystemActors.Player)] and player actors are built after the world
+			// actor exists. This trait IS a world-actor trait, and World.cs:252 is literally
+			// `WorldActor = CreateActor(...)` -- so while our own Created runs, that field is
+			// still null and any access through it throws. `self` is the same actor and is
+			// always valid. Copying an idiom is only safe once you have checked it was written
+			// for the same actor.
+			escalation = self.TraitOrDefault<DefconEscalation>();
 			Apply();
 		}
 
