@@ -154,6 +154,13 @@ namespace OpenRA.Mods.Common.Traits
 			base.Created(self);
 		}
 
+		/// <summary>Drop any target this trait is holding that the unit acquired BY ITSELF, leaving
+		/// player, Lua, force-attack and deliberate-bot targets untouched. Called once per unit by
+		/// <see cref="AutoTarget.CeaseAutonomousFire"/> at the transition into DEFCON 2. A no-op by
+		/// default: most AttackBase subclasses keep no target state of their own between activities, and
+		/// cancelling the activity is therefore the whole of it for them.</summary>
+		public virtual void CancelAutonomousEngagement(Actor self) { }
+
 		public override IEnumerable<VariableObserver> GetVariableObservers()
 		{
 			foreach (var observer in base.GetVariableObservers())

@@ -186,6 +186,12 @@ namespace OpenRA.Mods.Common.Traits
 		Cargo cargo;
 		Health health;
 		AutoTarget autoTarget;
+
+		// The DEFCON 2 hold-fire flag. TraitOrDefault -- a map that strips DefconEscalation leaves the
+		// two guards below inert. NoLevel when the mode is not in play, and NoLevel never holds fire.
+		DefconEscalation defconEscalation;
+		int DefconLevel => defconEscalation?.Level ?? DefconEscalationState.NoLevel;
+
 		BodyOrientation cachedBodyOrientation;
 		int tickOffset;
 
@@ -217,6 +223,7 @@ namespace OpenRA.Mods.Common.Traits
 			cargo = self.Trait<Cargo>();
 			health = self.TraitOrDefault<Health>();
 			autoTarget = self.TraitOrDefault<AutoTarget>();
+			defconEscalation = self.World.WorldActor.TraitOrDefault<DefconEscalation>();
 			cachedBodyOrientation = self.Trait<BodyOrientation>();
 
 			// Stagger so two garrison buildings created on the same tick don't scan in lockstep.
@@ -936,6 +943,24 @@ namespace OpenRA.Mods.Common.Traits
 		// otherwise checks what shelter soldiers could handle.
 		Target ScanForTarget(int portIndex)
 		{
+			// READ SITE 5 of 6 -- THE GARRISON'S SECOND, INDEPENDENT SCANNER. It does not go through
+			// AutoTarget at all: it picks its own target per port and AttackGarrisoned fires at
+			// PortState.CurrentTarget directly, so none of AutoTarget's guards can see it. This one
+			// method is the choke point for every autonomous garrison decision -- the empty-port deploy,
+			// PromoteFromShelter, the re-target in UpdatePortTarget and TriggerAmbushDeploy all reach a
+			// target only through here.
+			//
+			// The two ORDERED paths deliberately return before ever calling this: UpdatePortTarget honours
+			// PlayerOverride (:883-889) and the AttackGarrisoned force-target (:892-902) ahead of any
+			// scan, so a player-directed garrison still fires at DEFCON 2.
+			//
+			// An in-flight engagement is not cancelled here -- a deployed soldier holding a valid
+			// CurrentTarget keeps it while TargetLockTicks runs -- which is the same division of labour
+			// as everywhere else in this feature: the flag stops acquisition, the one-shot at the
+			// transition stops what was already running, and a held target lapses within a scan interval.
+			if (DefconFireDiscipline.HoldsFire(DefconLevel))
+				return Target.Invalid;
+
 			// Determine max range from the deployed soldier or from shelter soldiers
 			var maxRange = WDist.Zero;
 			Armament[] armaments = null;
@@ -1281,6 +1306,13 @@ namespace OpenRA.Mods.Common.Traits
 		// Called by AutoTarget.TriggerNearbyAmbushAllies to coordinate garrison buildings with ambush units
 		public void TriggerAmbush()
 		{
+			// The garrison half of read site 6 (ambush by proxy). AutoTarget.TriggerNearbyAmbushAllies
+			// already refuses to call this while the hold is on, so this is belt-and-braces -- but it is
+			// cheap, and without it a future second caller would latch ambushTriggered open at DEFCON 2
+			// even though the deploy that follows can find no target.
+			if (DefconFireDiscipline.HoldsFire(DefconLevel))
+				return;
+
 			var buildingStance = autoTarget?.Stance ?? UnitStance.FireAtWill;
 			if (buildingStance != UnitStance.Ambush || ambushTriggered)
 				return;

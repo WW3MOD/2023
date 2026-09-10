@@ -42,6 +42,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		Mobile mobile;
 		AutoTarget autoTarget;
+
+		// The DEFCON 2 hold-fire flag. TraitOrDefault -- a map that strips DefconEscalation leaves both
+		// read sites below inert. NoLevel when the mode is not in play, and NoLevel never holds fire.
+		DefconEscalation defconEscalation;
+		int DefconLevel => defconEscalation?.Level ?? DefconEscalationState.NoLevel;
+
 		bool requestedForceAttack;
 		Activity requestedTargetPresetForActivity;
 		bool opportunityForceAttack;
@@ -93,6 +99,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			mobile = self.TraitOrDefault<Mobile>();
 			autoTarget = self.TraitOrDefault<AutoTarget>();
+			defconEscalation = self.World.WorldActor.TraitOrDefault<DefconEscalation>();
 			base.Created(self);
 		}
 
@@ -191,8 +198,16 @@ namespace OpenRA.Mods.Common.Traits
 				// Without this, the turret keeps tracking the target while the unit is rolling
 				// to its destination cell or in setup countdown — visually contradicting the
 				// "stop, deploy, then aim, then fire" sequence.
+				//
+				// The DEFCON 2 hold applies here too, as defence in depth rather than as one of the six:
+				// a RequestedTarget is normally acquired through a gated path, but an AttackMove-sourced
+				// one that predates the transition and that the one-shot could not reach (an attack
+				// nested under a player Move, which CeaseAutonomousFire deliberately will not cancel)
+				// would otherwise keep firing. Refusing to aim, rather than clearing, is deliberate: the
+				// hold is a pause, and at DEFCON 1 the same target resumes.
 				IsAiming = CanAimAtTarget(self, RequestedTarget, requestedForceAttack)
-					&& ReadyToEngage(self, RequestedTarget);
+					&& ReadyToEngage(self, RequestedTarget)
+					&& DefconFireDiscipline.Permits(DefconLevel, requestedTargetSource, requestedForceAttack);
 				if (IsAiming)
 					DoAttack(self, RequestedTarget, isManualTarget: true);
 			}
@@ -209,7 +224,14 @@ namespace OpenRA.Mods.Common.Traits
 					&& OpportunityTarget.Actor.GetConditionCount(autoTarget.Info.BreakOffCondition) > 0)
 					OpportunityTarget = Target.Invalid;
 
-				if (OpportunityTarget.IsValidFor(self))
+				// READ SITE 4 of 6 -- PERSISTENT-OPPORTUNITY FIRE. There is no AttackTarget call anywhere
+				// on this path to intercept: the target was PROMOTED here by ClearRequestedTarget when the
+				// previous activity ended (:69-79), and the unit goes on shooting it out of trait state
+				// alone, with no activity and no scan. The source rode across with the promotion (:78),
+				// so the ordinary provenance test applies unchanged -- a player's persisted target still
+				// fires at DEFCON 2, an autotarget-acquired one does not.
+				if (OpportunityTarget.IsValidFor(self)
+					&& DefconFireDiscipline.Permits(DefconLevel, opportunityTargetSource, opportunityForceAttack))
 					IsAiming = CanAimAtTarget(self, OpportunityTarget, opportunityForceAttack)
 						&& ReadyToEngage(self, OpportunityTarget);
 
@@ -271,6 +293,32 @@ namespace OpenRA.Mods.Common.Traits
 			RequestedTarget = OpportunityTarget = Target.Invalid;
 			opportunityTargetIsPersistentTarget = false;
 			requestedTargetSource = opportunityTargetSource = AttackSource.Default;
+		}
+
+		/// <summary>One-shot at the transition into DEFCON 2 -- see
+		/// <see cref="AutoTarget.CeaseAutonomousFire"/>. Both targets are dropped only when the unit
+		/// acquired them itself; a player, Lua, force-attack or deliberate-bot target survives, because
+		/// those are precisely the shots DEFCON 2 still allows.</summary>
+		public override void CancelAutonomousEngagement(Actor self)
+		{
+			// NOT ClearRequestedTarget(): under PersistentTargeting that PROMOTES the target to
+			// OpportunityTarget instead of dropping it, which would launder the very engagement being
+			// cancelled into the persistent path this method exists to clear.
+			if (RequestedTarget.Type != TargetType.Invalid
+				&& AutoTarget.IsAutoAcquiredSource(requestedTargetSource) && !requestedForceAttack)
+			{
+				RequestedTarget = Target.Invalid;
+				requestedTargetPresetForActivity = null;
+				requestedTargetSource = AttackSource.Default;
+			}
+
+			if (OpportunityTarget.Type != TargetType.Invalid
+				&& AutoTarget.IsAutoAcquiredSource(opportunityTargetSource) && !opportunityForceAttack)
+			{
+				OpportunityTarget = Target.Invalid;
+				opportunityTargetIsPersistentTarget = false;
+				opportunityTargetSource = AttackSource.Default;
+			}
 		}
 
 		bool IOverrideAutoTarget.TryGetAutoTargetOverride(Actor self, out Target target, out bool canYieldToHigherPriority)
