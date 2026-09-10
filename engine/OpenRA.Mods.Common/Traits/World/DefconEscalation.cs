@@ -115,6 +115,20 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Display order for the nuclear ceiling dropdown.")]
 		public readonly int CeilingDisplayOrder = 88;
 
+		[Desc("The rung a DEFCON Escalation match OPENS at, before anybody has fired.",
+			"",
+			"NOT A LOBBY OPTION, deliberately -- it is the ladder's shape rather than a host setting,",
+			"and the lobby already carries the ceiling, which is the knob a host actually wants.",
+			"",
+			"IT MUST NOT DEFAULT TO " + nameof(NuclearRung.Hold) + ". The only thing that moves the",
+			"ladder is a detonation, so a match opening at HOLD permits no warhead anyone could fire",
+			"and the ladder can never be climbed. Decision 06 settles the direction: its accepted cost",
+			"is that 'going first is free', which presumes firing first is possible at all.",
+			"",
+			"Binding the opening to DEFCON 1 instead -- nuclear release beginning when the shooting",
+			"war does -- is the obvious refinement and is one Level read away.")]
+		public readonly NuclearRung StartRungDefault = NuclearRung.Kiloton;
+
 		// UNTUNED PLACEHOLDERS, all three. Nobody has played this mode; these are round numbers chosen
 		// so the phase is long enough to deploy from the Supply Route and short enough to sit through.
 		// Seconds are ticks x 0.06 at the default 60 ms timestep.
@@ -256,7 +270,7 @@ namespace OpenRA.Mods.Common.Traits
 				ceilingRung = info.CeilingDefault;
 
 			state = new DefconEscalationState(Mode, startLevel, info.TicksAtDefconThree(Pace));
-			ladder = new NuclearReleaseLadder(Mode, (int)ceilingRung);
+			ladder = new NuclearReleaseLadder(Mode, (int)ceilingRung, (int)info.StartRungDefault);
 		}
 
 		void ITick.Tick(Actor self)

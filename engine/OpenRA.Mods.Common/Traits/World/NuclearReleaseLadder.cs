@@ -116,6 +116,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		readonly DefconGameMode mode;
 		readonly int ceiling;
+		readonly int startRung;
 
 		// Per-firer detonation counts. THE SHARED LADDER NEVER READS THIS -- RungFor returns one
 		// number for everybody. It is recorded because the asymmetric variant decision 06 keeps alive
@@ -130,10 +131,22 @@ namespace OpenRA.Mods.Common.Traits
 		public int Detonations { get; private set; }
 
 		public NuclearReleaseLadder(DefconGameMode mode, int ceiling)
+			: this(mode, ceiling, (int)NuclearRung.Kiloton) { }
+
+		public NuclearReleaseLadder(DefconGameMode mode, int ceiling, int startRung)
 		{
 			this.mode = mode;
-			this.ceiling = ceiling < Lowest ? Lowest : (ceiling > Highest ? Highest : ceiling);
+			this.ceiling = Clamp(ceiling);
+			this.startRung = Clamp(startRung);
 		}
+
+		static int Clamp(int rung)
+		{
+			return rung < Lowest ? Lowest : (rung > Highest ? Highest : rung);
+		}
+
+		/// <summary>The rung an Escalation match opens at, before any detonation.</summary>
+		public int StartRung => startRung;
 
 		// The ceiling actually in force, after the mode has had its say.
 		public int Ceiling => mode == DefconGameMode.Escalation ? ceiling : Highest;
@@ -153,7 +166,18 @@ namespace OpenRA.Mods.Common.Traits
 			if (mode != DefconGameMode.Escalation)
 				return Highest;
 
-			var rung = Detonations;
+			// THE LADDER OPENS AT startRung AND NOT AT HOLD, which is forced rather than chosen.
+			// Decision 06's accepted cost is that "going first is free" -- so firing has to be
+			// possible before anyone has fired. A ladder that opened at HOLD could never be climbed
+			// at all: the only thing that moves it is a detonation, and at HOLD there is no warhead
+			// any player is permitted to detonate. HOLD survives as a CEILING value, which is where
+			// "no nuclear weapons this match" belongs.
+			//
+			// Neither decision says what would otherwise OPEN the ladder. Binding it to DEFCON 1 is
+			// the obvious candidate -- nuclear release beginning when the shooting war does -- and
+			// it is one line here plus a Level read on DefconEscalation. Left unbound deliberately:
+			// see the report for this branch.
+			var rung = startRung + Detonations;
 			return rung > Ceiling ? Ceiling : rung;
 		}
 

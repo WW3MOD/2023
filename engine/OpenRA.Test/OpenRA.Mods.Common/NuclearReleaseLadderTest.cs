@@ -68,16 +68,22 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void TheRungIsTheDetonationCountAndPressureRecoversItExactly()
+		public void TheRungIsTheStartPlusTheDetonationCountAndPressureRecoversItExactly()
 		{
-			// Pressure is 2^n - 1, so the rung is recoverable from it without a logarithm or any
-			// rounding. This is why the +1 is in the recurrence.
+			// Pressure is 2^n - 1, so the detonation count is recoverable from it without a
+			// logarithm or any rounding. This is why the +1 is in the recurrence.
 			var ladder = Escalation();
+			Assert.That(ladder.StartRung, Is.EqualTo((int)NuclearRung.Kiloton));
+
 			for (var n = 1; n <= NuclearReleaseLadder.Highest; n++)
 			{
 				ladder.ReportDetonation(Firer, AtomicTons);
 				Assert.That(ladder.Pressure, Is.EqualTo((1 << n) - 1));
-				Assert.That(ladder.RungFor(Firer), Is.EqualTo(n));
+				Assert.That(ladder.Detonations, Is.EqualTo(n));
+
+				var uncapped = ladder.StartRung + n;
+				Assert.That(ladder.RungFor(Firer),
+					Is.EqualTo(uncapped > NuclearReleaseLadder.Highest ? NuclearReleaseLadder.Highest : uncapped));
 			}
 		}
 
@@ -101,8 +107,9 @@ namespace OpenRA.Test
 			// The firer is released exactly as far as the player they just nuked. Decision 06 argued
 			// and accepted this; it is the user's call, not a defect.
 			Assert.That(ladder.DetonationsBy(Victim), Is.EqualTo(0), "the victim has fired nothing");
-			Assert.That(ladder.RungFor(Victim), Is.EqualTo((int)NuclearRung.HundredKiloton),
-				"three detonations should release the 50-100 kt band to a player who fired none of them");
+			Assert.That(ladder.RungFor(Victim), Is.EqualTo((int)NuclearRung.GameEnder),
+				"opening at the 1 kt rung plus three detonations is the top of the ladder, and a " +
+				"player who fired none of them must be released exactly as far as the one who did");
 		}
 
 		[Test]
@@ -210,26 +217,36 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void TheLadderOpensAtHoldAndFirstReleasesTheKilotonBand()
+		public void TheLadderOpensAtTheKilotonRungBecauseGoingFirstMustBePossible()
 		{
-			// The opening state of an Escalation match: nothing nuclear is permitted until the first
-			// detonation, and the first one opens the bottom rung only.
+			// THE DEADLOCK THIS PREVENTS, stated because an opening rung of HOLD looks like the
+			// obvious reading of "HOLD -> 1 kt -> ..." and is unshippable. The only thing that moves
+			// this ladder is a detonation. If a match opens at HOLD, no warhead is permitted, so no
+			// detonation can occur, so the rung never moves — nuclear weapons would be unreachable
+			// for the whole match in the one mode they are supposed to exist in.
 			//
-			// NOTE WHAT THIS PINS AND WHAT IT DOES NOT. It pins the SHAPE — rung 0 permits nothing,
-			// rung 1 permits 1 kt and not 20 kt. It does NOT settle what OPENS the ladder, because
-			// neither decision 04 nor 06 says: as built, a detonation is the only thing that moves
-			// it, so at rung 0 nothing on the ladder can fire and the ladder cannot be climbed from
-			// inside itself. HOLD is therefore usable as a CEILING ("no nuclear weapons this match")
-			// and the opening question is called out in the report rather than guessed at here.
+			// Decision 06 settles the direction rather than leaving it to taste: its accepted cost
+			// is that "going first is free", which presumes going first is possible.
 			var ladder = Escalation();
 
-			Assert.That(ladder.RungFor(Firer), Is.EqualTo((int)NuclearRung.Hold));
-			Assert.That(ladder.Permits(Firer, B61LowTons), Is.False, "HOLD released a warhead");
-
-			ladder.ReportDetonation(Firer, B61LowTons);
-			Assert.That(ladder.Permits(Firer, B61LowTons), Is.True);
+			Assert.That(ladder.RungFor(Firer), Is.EqualTo((int)NuclearRung.Kiloton),
+				"an Escalation match must open somewhere a player can actually fire from");
+			Assert.That(ladder.Permits(Firer, B61LowTons), Is.True, "the opening rung released nothing");
+			Assert.That(ladder.Permits(Firer, Ru9M729Tons), Is.True);
 			Assert.That(ladder.Permits(Firer, B61MidTons), Is.False,
-				"one detonation released the 20 kt band; the ladder must climb one rung at a time");
+				"the 20 kt band is open before anyone has fired; the ladder must be climbed for it");
+
+			// And it climbs one rung at a time, so the whole ladder is four detonations deep.
+			ladder.ReportDetonation(Firer, B61LowTons);
+			Assert.That(ladder.Permits(Firer, B61MidTons), Is.True);
+			Assert.That(ladder.Permits(Firer, B61MaxTons), Is.False);
+
+			ladder.ReportDetonation(Firer, B61MidTons);
+			Assert.That(ladder.Permits(Firer, W76Tons), Is.True);
+			Assert.That(ladder.Permits(Firer, HighYieldTons), Is.False);
+
+			ladder.ReportDetonation(Firer, W76Tons);
+			Assert.That(ladder.Permits(Firer, HighYieldTons), Is.True, "the game-ender rung is unreachable");
 		}
 
 		[Test]
