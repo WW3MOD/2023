@@ -1,0 +1,45 @@
+# DEMO overrides for the DEFCON readout capture. Nothing here is asserted; see
+# demo-defcon-readout.lua for the schedule and map.yaml for the layout.
+
+World:
+	# THE WHOLE POINT OF THIS SCENARIO. Escalation rather than the shipped Skirmish default,
+	# and LOCKED so no lobby default or saved session can move it out from under the run.
+	#
+	# THE CLOCKS ARE COMPRESSED TO 300 TICKS = 18 s, from the shipped 5000 = 300 s. A capture
+	# has ~200 s of wall clock and has to pass through THREE levels plus a nuclear gate; at
+	# shipped pace the run would end during DEFCON 3. All three paces are set to the same value
+	# so the Escalation Pace dropdown cannot change what this capture shows.
+	#
+	# 16.67 ticks/second (60 ms timestep) -- NOT 25. 300 ticks = 18.0 s; 1200 = 72.0 s.
+	DefconEscalation:
+		ModeDefault: Escalation
+		ModeLocked: true
+		StartAtDefault: 3
+		SlowTicks: 300
+		StandardTicks: 300
+		FastTicks: 300
+		# The release gate, compressed from the shipped 10000 (10:00) so the countdown is both
+		# VISIBLE and still counting when the last frame is taken. 1200 ticks = 72 s, and the
+		# frame lands about 30 s in, so the readout should show roughly RELEASE IN 0:40.
+		NuclearReleaseDelayTicks: 1200
+
+	-StartGameNotification:
+	# No starting units: the two combatants are spawned by the script at known cells, so the
+	# first kill happens where the camera is looking and at a tick this file can predict.
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, demo-defcon-readout.lua
+
+Player:
+	# The match must not end when the truck dies -- the whole second half of the capture happens
+	# after that kill.
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	PlayerResources:
+		DefaultCash: 20000
