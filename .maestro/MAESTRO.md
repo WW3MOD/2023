@@ -57,6 +57,16 @@ At ten concurrent workers `./utility.sh --check-yaml` became a hard serializatio
 
 **Compensating requirement, so nothing is lost:** each worker must list in its report **which YAML files it touched and what it would expect lint to say if it got it wrong.** The manager checks the single gate run against those statements — that keeps the worker's intent as a checkable claim instead of discarding it.
 
+**AMENDED 2026-09-11 — the merge gate as written above has a structural hole, and it let a broken commit through.** The gate was `make.ps1 all` → `dotnet test` → `make.ps1 test`. **`Directory.Build.props` strips every analyzer in Release, `make all` builds Release, and `dotnet test` runs Release** — so *no command in that list can see an analyzer error at all*. Only **`.\make.ps1 check`** builds Debug with analyzers on.
+
+Observed: commit `42bc611c` passed the full manager gate — 0 build errors, 3184/3184 NUnit, `Errors: 21` unchanged, 334 maps — and was **failing `.\make.ps1 check` with four `RCS1112` errors in a test file that same commit added**. It was merged on the strength of that green gate. Nothing reached `origin` only because the push happened to be held on an unrelated visual defect; on any normal day it would have shipped.
+
+**The merge gate is now `make.ps1 all` → `make.ps1 check` → `dotnet test` → `make.ps1 test`.**
+
+**And give `check` to workers as well.** It is a build, not the YAML lint queue, so it is in the same uncontended class as `make all` and `dotnet test` — the serialization argument above does not reach it. *(Not measured at ten-worker scale; if concurrent Debug builds turn out to contend, that is a finding to record here rather than a reason to drop it from the merge gate.)* A worker that runs only `all` and `dotnet test` has no way to see this class of error in its own diff, which is what happened here.
+
+**The general form, and it is the reusable part: a green Release build is not evidence about the Debug/analyzer gate.** They compile different configurations under different rules, so one says nothing about the other. The worker that hit this had filed *exactly* this hazard to `bugs/discovered.md` one turn earlier and then walked into it — which is the argument for the rule living here, in the gate definition, rather than in a discoveries file somebody has to think to consult.
+
 **Related hazard, restated because it nearly fired: never `pkill -f OpenRA.Utility`.** With eight concurrent jobs that kills seven siblings' work. Resolve the cwd with `lsof` and kill only your own pid.
 
 ## Batch sizing + the merge pipeline (findings, 2026-07-22 autoburn)
