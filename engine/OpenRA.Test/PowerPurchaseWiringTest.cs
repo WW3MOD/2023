@@ -676,10 +676,18 @@ namespace OpenRA.Test
 		// are not on the shop floor at all and are not part of any unlock ladder.
 		static (string Trait, string Order, int Tons, string Condition)[] BuyTierNukes()
 		{
+			// ONE `Where`, NOT A CHAIN OF TWO, and it has to stay that way: the Debug analyzer gate
+			// (`.\make.ps1 check`) fails RCS1112 "Combine 'Enumerable.Where' method chain" as an ERROR,
+			// while `make.ps1 all` builds Release, which strips analyzers -- so a split chain here
+			// compiles clean, passes every NUnit run, and fails the gate. It cost this branch a red
+			// merge gate once already.
+			//
+			// The null guard is still ordered ahead of the Contains calls, because `&&` short-circuits
+			// left to right exactly as the two-stage chain did.
 			return NuclearRows()
-				.Where(r => r.Purchasable && r.Tons > 0 && r.Prerequisites != null)
-				.Where(r => r.Prerequisites.Contains("powers.america", StringComparison.Ordinal)
-					|| r.Prerequisites.Contains("powers.russia", StringComparison.Ordinal))
+				.Where(r => r.Purchasable && r.Tons > 0 && r.Prerequisites != null
+					&& (r.Prerequisites.Contains("powers.america", StringComparison.Ordinal)
+						|| r.Prerequisites.Contains("powers.russia", StringComparison.Ordinal)))
 				.Select(r => (r.Trait, r.Order, r.Tons, r.Condition))
 				.ToArray();
 		}
@@ -724,9 +732,11 @@ namespace OpenRA.Test
 			// failure a player would feel and the one nothing else here would catch.
 			foreach (var tier in new[] { "powers.america", "powers.russia" })
 			{
+				// One `Where` -- see the note in BuyTierNukes; a split chain is an RCS1112 ERROR in the
+				// Debug gate and invisible in Release.
 				var ladder = NuclearRows()
-					.Where(r => r.Purchasable && r.Tons > 0 && r.Prerequisites != null)
-					.Where(r => r.Prerequisites.Contains(tier, StringComparison.Ordinal))
+					.Where(r => r.Purchasable && r.Tons > 0 && r.Prerequisites != null
+						&& r.Prerequisites.Contains(tier, StringComparison.Ordinal))
 					.OrderBy(r => r.Tons)
 					.Select(r => (r.Trait, r.Tons, Rung: OpenRA.Mods.Common.Traits.NuclearReleaseLadder.RungForYield(r.Tons)))
 					.ToArray();
@@ -757,12 +767,14 @@ namespace OpenRA.Test
 			// that the CLOCK never releases that band; this pins that no warhead big enough to need it
 			// is on a faction tier in the first place, so the two together are what make the rule hold
 			// however the schedule is retuned.
+			// One `Where` -- see the note in BuyTierNukes. This was the three-stage chain that produced
+			// two of the four RCS1112 errors on its own.
 			var tooBig = NuclearRows()
-				.Where(r => r.Purchasable && r.Prerequisites != null)
-				.Where(r => OpenRA.Mods.Common.Traits.NuclearReleaseLadder.RungForYield(r.Tons)
-					> OpenRA.Mods.Common.Traits.NuclearUnlockSchedule.HighestPurchasableRung)
-				.Where(r => r.Prerequisites.Contains("powers.america", StringComparison.Ordinal)
-					|| r.Prerequisites.Contains("powers.russia", StringComparison.Ordinal))
+				.Where(r => r.Purchasable && r.Prerequisites != null
+					&& OpenRA.Mods.Common.Traits.NuclearReleaseLadder.RungForYield(r.Tons)
+						> OpenRA.Mods.Common.Traits.NuclearUnlockSchedule.HighestPurchasableRung
+					&& (r.Prerequisites.Contains("powers.america", StringComparison.Ordinal)
+						|| r.Prerequisites.Contains("powers.russia", StringComparison.Ordinal)))
 				.Select(r => $"{r.Trait} ({r.Tons} t)")
 				.ToArray();
 
