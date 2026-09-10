@@ -739,6 +739,12 @@ World:
 		ModeDisplayOrder: 85
 		StartAtDisplayOrder: 86
 		PaceDisplayOrder: 87
+	# THE DEFCON 3 DIVIDING WALL. Registered here with no configuration on purpose: Start and End
+	# both default to 0,0, which is a degenerate line, which makes DefconWall.IsActive false before
+	# the DEFCON level is even consulted. So this line costs one bool test per tick and changes
+	# nothing on any shipped map. A map authors its own line by overriding Start/End in its rules;
+	# the one worked example is tools/autotest/scenarios/test-defcon-wall/rules.yaml.
+	DefconWall:
 	OrderEffects:
 		TerrainFlashImage: moveflsh
 		TerrainFlashSequence: idle

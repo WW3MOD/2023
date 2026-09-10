@@ -1,0 +1,46 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-defcon-wall.lua
+
+	# THE ONE WORKED EXAMPLE OF AN AUTHORED DIVIDING LINE. Everything else about the
+	# wall ships inert; this block is what turns it on for this scenario only.
+	#
+	# Escalation rather than the shipped Skirmish default, because Skirmish holds
+	# NoLevel and the wall never stands at NoLevel. The clock is set far longer than
+	# the run so the level cannot fall to 2 mid-test and take the wall down under the
+	# assertions -- 30000 ticks is 30 minutes at the 60 ms timestep.
+	DefconEscalation:
+		ModeDefault: Escalation
+		StartAtDefault: 3
+		SlowTicks: 30000
+		StandardTicks: 30000
+		FastTicks: 30000
+
+	# A vertical line down column 44 -- the midpoint of the two spawns at x 8 and
+	# x 80. The endpoints only fix POSITION and DIRECTION: the line is treated as
+	# infinite, so authoring y 0..59 does not leave open ends at the top and bottom
+	# of the map for an aircraft to fly around.
+	DefconWall:
+		Start: 44,0
+		End: 44,59
+		HalfWidth: 512
+
+# Nothing initiates on its own. The scenario issues every order it measures, so a
+# unit wandering off under its own autotargeting would be measuring the AI rather
+# than the wall.
+^Combatant:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+		InitialEngagementStance: HoldPosition
+		InitialEngagementStanceAI: HoldPosition
