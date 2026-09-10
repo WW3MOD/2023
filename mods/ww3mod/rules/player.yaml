@@ -609,7 +609,11 @@ Player:
 	# rather than surviving a host who turned the arsenal off -- conditions are per-actor and the
 	# granting GrantConditionOnLobbyOption@arsenal is on this same Player actor.
 	MissileStrikePower@B61Mid:
-		RequiresCondition: !nuke-arsenal-disabled
+		# The arsenal's lobby gate AND the release ladder's 20 kt band. See @B61Low in
+		# rules/ingame/nuclear-arsenal.yaml for what the two conjuncts each answer.
+		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-20kt
+		# 10000 t = 10 kt (weapons-nuclear-arsenal.yaml:1023).
+		NuclearYieldTons: 10000
 		Prerequisites: powers.america
 		OrderName: B61MidStrike
 		Icon: paranuke
@@ -663,7 +667,16 @@ Player:
 		# (SupportPowerManager.cs:196-200), so this makes the icon ABSENT. PauseOnCondition would
 		# instead leave a clickable-but-inert cameo reading "ON HOLD" (SupportPowersWidget.cs:241-244),
 		# which is the wrong answer for a power the host chose not to enable. §2.5.
-		RequiresCondition: !tacnuke-disabled
+		# THE LOBBY GATE IS UNCHANGED and is still the first conjunct -- MissilePowerAsymmetryTest
+		# checks it survives, because its fail-safe polarity is what an absent lobby option relies
+		# on. The second conjunct is the nuclear release ladder's 20 kt band. Outside DEFCON
+		# Escalation every band is granted on the first tick, so this is inert in Skirmish.
+		RequiresCondition: !tacnuke-disabled && nuclear-release-20kt
+		# 20000 t = 20 kt. This power fires `Atomic`, whose yield is stated at
+		# weapons-superweapons.yaml:32 ("THE TACTICAL NUCLEAR STRIKE -- ~20 kt") and pinned as
+		# NuclearYieldTest.TacticalKt. The weapon is reached via tacnukemissile's Explodes
+		# (rules/ingame/vehicles.yaml:1086), not named on this trait.
+		NuclearYieldTons: 20000
 		OrderName: TacNukeStrike
 		# EVENT TIER. Was "no Prerequisites, and that is deliberate: §1's table lists this entry's
 		# faction as both" -- true when there were three powers and the buy tab did not exist. It is
@@ -793,7 +806,14 @@ Player:
 		# RequiresCondition, NOT PauseOnCondition, for the reason spelled out on @TacNuke above:
 		# SupportPowersWidget filters the bin on `!p.Disabled` (SupportPowersWidget.cs:136), so this
 		# makes the icon ABSENT rather than leaving a clickable-but-inert "ON HOLD" cameo.
-		RequiresCondition: !highyieldnuke-disabled
+		# Lobby gate unchanged (see @TacNuke above), plus the game-ender band: at 6 Mt this is
+		# "anything above ~200 kt" and is released only on the ladder's top rung.
+		RequiresCondition: !highyieldnuke-disabled && nuclear-release-gameender
+		# 6000000 t = 6 Mt. This power fires `AtomicHighYield`, whose yield is stated at
+		# weapons-superweapons.yaml:736 ("THE YIELD IS ~6 Mt") and pinned as
+		# NuclearYieldTest.StrategicKt. Reached via highyieldnukemissile's Explodes
+		# (rules/ingame/vehicles.yaml:1177).
+		NuclearYieldTons: 6000000
 		OrderName: HighYieldNukeStrike
 		# EVENT TIER, matching @TacNuke -- see the note there. A 102-cell blast reaches every cell of
 		# every shipped map from its centre, which is precisely why it is not something a player buys
@@ -1458,3 +1478,19 @@ Player:
 			3: defcon-3
 			2: defcon-2
 			1: defcon-1
+	# THE NUCLEAR RELEASE LADDER'S YAML FACE, and the first real consumer the DEFCON spine has had.
+	#
+	# Grants one condition per RELEASED YIELD BAND, cumulatively, and revokes as the ladder climbs.
+	# Every nuclear power in the mod is gated on the band its own warhead falls in -- ten in
+	# rules/ingame/nuclear-arsenal.yaml, three in this file (@B61Mid, @TacNuke, @HighYieldNuke).
+	#
+	# OUTSIDE DEFCON ESCALATION THIS GRANTS EVERYTHING, on the first tick, forever. That is what
+	# keeps Skirmish a strict no-op: it is the shipped default game mode and every nuclear demo and
+	# test scenario runs in it, so those matches permit exactly what they permitted before the
+	# ladder existed. Do not "tighten" this to Escalation-only without also rewriting every scenario
+	# under tools/autotest/scenarios that fires a nuke -- the symptom is a demo that silently stops
+	# firing rather than an error.
+	#
+	# `nuclear-release-unrestricted` is the Tsar Bomba's gate and is granted in exactly the modes
+	# above, never inside Escalation. Decision 04: the weapon stays in code, out of normal play.
+	GrantConditionOnNuclearRelease:

@@ -218,9 +218,17 @@ namespace OpenRA.Test
 				"suppress it");
 
 			var power = ReadBlock(Path.Combine(ModRulesDir(), "player.yaml"), "MissileStrikePower@TacNuke");
-			Assert.That(power.GetValueOrDefault("RequiresCondition"), Is.EqualTo("!tacnuke-disabled"),
+
+			// CONTAINS rather than EQUALS since the nuclear release ladder landed. The power now
+			// carries a second conjunct naming the yield band that releases it
+			// (`&& nuclear-release-20kt`, this weapon being `Atomic` at 20 kt), so an exact match
+			// would pin the ladder's condition vocabulary in a fixture about the LOBBY GATE. What
+			// this test is for is unchanged and is still checked: the disabling term is present, so
+			// an unregistered lobby option still suppresses the power.
+			Assert.That(power.GetValueOrDefault("RequiresCondition"), Does.Contain("!tacnuke-disabled"),
 				"RequiresCondition (which makes the icon ABSENT via SupportPowersWidget.cs:136) " +
-				"rather than PauseOnCondition (which leaves a dead 'ON HOLD' cameo)");
+				"rather than PauseOnCondition (which leaves a dead 'ON HOLD' cameo). The lobby gate " +
+				"must survive as a conjunct however many other gates are added alongside it.");
 		}
 
 		[Test]
@@ -295,9 +303,13 @@ namespace OpenRA.Test
 				"map-ending weapon rather than suppress it");
 
 			var power = ReadBlock(Path.Combine(ModRulesDir(), "player.yaml"), "MissileStrikePower@HighYieldNuke");
-			Assert.That(power.GetValueOrDefault("RequiresCondition"), Is.EqualTo("!highyieldnuke-disabled"),
+
+			// CONTAINS rather than EQUALS, for the reason given on the tactical nuke above. This
+			// weapon is `AtomicHighYield` at 6 Mt, so its second conjunct is the game-ender band.
+			Assert.That(power.GetValueOrDefault("RequiresCondition"), Does.Contain("!highyieldnuke-disabled"),
 				"RequiresCondition (which makes the icon ABSENT via SupportPowersWidget.cs:136) " +
-				"rather than PauseOnCondition (which leaves a dead 'ON HOLD' cameo)");
+				"rather than PauseOnCondition (which leaves a dead 'ON HOLD' cameo). The lobby gate " +
+				"must survive as a conjunct however many other gates are added alongside it.");
 		}
 
 		// --- reading the mod ---------------------------------------------------------------------
