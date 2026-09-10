@@ -741,3 +741,7 @@ terrain-geometry-overlay = toggles the terrain geometry overlay.
 # A new player arrives expecting Red Alert, so this names the first action
 # and where units come from. The rest of the model is in the How to Play panel.
 notification-match-start = No base building — order units from the sidebar. They march in from the map edge to your Supply Route.
+
+## Shown when a move order is refused because it crosses the DEFCON 3 border. Without this the
+## refusal was silent: the order was accepted, the unit never moved, and nothing said why.
+notification-defcon-border-closed = The border is closed at DEFCON 3 — that order would cross it.

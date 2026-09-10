@@ -1387,7 +1387,12 @@ namespace OpenRA.Mods.Common.Traits
 				// from the Supply Route, and any straight-line flight that merely clips the line en
 				// route to a legal destination); DefconWallTurnBack is what catches those.
 				if (IsBeyondDefconWall(self, cell))
+				{
+					// The blocked cursor said the order would be refused; this says it WAS. Silence
+					// here was the same defect the ground half had -- see DefconWall.NotifyCrossingRefused.
+					defconWall.NotifyCrossingRefused(self);
 					return;
+				}
 
 				if (!order.Queued)
 					UnReserve();
@@ -1409,7 +1414,10 @@ namespace OpenRA.Mods.Common.Traits
 
 				// LAYER 1 again: landing beyond the line is crossing it. See the Move branch above.
 				if (IsBeyondDefconWall(self, cell))
+				{
+					defconWall.NotifyCrossingRefused(self);
 					return;
+				}
 
 				if (!order.Queued)
 					UnReserve();

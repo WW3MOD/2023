@@ -150,6 +150,83 @@ namespace OpenRA.Mods.Common.Traits
 		/// The dividing line for a whole match: split the homes into their two alliance groups, take
 		/// each group's centroid, and bisect. This is what replaces per-map authoring.
 		/// </summary>
+		/// <summary>
+		/// The segment of the (infinite) line that lies inside an axis-aligned world-space rectangle,
+		/// for drawing. Returns false when the line misses the rectangle entirely.
+		/// </summary>
+		// THE LINE IS INFINITE AND THE MAP IS NOT, WHICH MATTERS ONLY FOR RENDERING. The authored and
+		// derived endpoints sit hundreds of cells outside the map on purpose, so drawing between them
+		// would streak an annotation across the black border area -- annotations are drawn AFTER the
+		// shroud pass (WorldRenderer.cs:199 then :287), so nothing hides it. Clipping here keeps the
+		// drawn line exactly as long as the map and no longer.
+		//
+		// Integer throughout, like everything else in this class. It is only used for drawing today,
+		// but a renderer that quietly used floating point would be a second arithmetic for the same
+		// line, and the whole point of this class is that there is one.
+		public bool ClipToRect(long left, long top, long right, long bottom, out WPos start, out WPos end)
+		{
+			start = WPos.Zero;
+			end = WPos.Zero;
+
+			if (IsDegenerate)
+				return false;
+
+			// Candidate crossings with the four edges. A point is kept only when it lies within the
+			// span of the edge it crossed, which is what discards the two extensions of the rectangle.
+			var points = new List<(long X, long Y)>();
+
+			if (dx != 0)
+			{
+				foreach (var x in new[] { left, right })
+				{
+					var y = ay + ((x - ax) * dy / dx);
+					if (y >= top && y <= bottom)
+						points.Add((x, y));
+				}
+			}
+
+			if (dy != 0)
+			{
+				foreach (var y in new[] { top, bottom })
+				{
+					var x = ax + ((y - ay) * dx / dy);
+					if (x >= left && x <= right)
+						points.Add((x, y));
+				}
+			}
+
+			// A line through a corner produces the same point twice; a line along an edge produces
+			// several. Take the two that are farthest apart, which is the segment in every case.
+			if (points.Count < 2)
+				return false;
+
+			var bestA = points[0];
+			var bestB = points[0];
+			var bestDistance = -1L;
+			for (var i = 0; i < points.Count; i++)
+			{
+				for (var j = i + 1; j < points.Count; j++)
+				{
+					var ddx = points[i].X - points[j].X;
+					var ddy = points[i].Y - points[j].Y;
+					var distance = (ddx * ddx) + (ddy * ddy);
+					if (distance > bestDistance)
+					{
+						bestDistance = distance;
+						bestA = points[i];
+						bestB = points[j];
+					}
+				}
+			}
+
+			if (bestDistance <= 0)
+				return false;
+
+			start = new WPos((int)bestA.X, (int)bestA.Y, 0);
+			end = new WPos((int)bestB.X, (int)bestB.Y, 0);
+			return true;
+		}
+
 		// EXACTLY TWO GROUPS OR NO LINE AT ALL. A three-way free-for-all has no dividing line, and a
 		// wall pointing somewhere nobody chose is worse than no wall -- the same reasoning as
 		// TwoCoincidentSpawnsDeriveNoLineRatherThanAnArbitraryOne. A degenerate return is visibly

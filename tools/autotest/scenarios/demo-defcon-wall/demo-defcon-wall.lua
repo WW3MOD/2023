@@ -57,11 +57,15 @@ WorldLoaded = function()
 	TestHarness.Select(Gun)
 
 	TestHarness.ScreenshotAfter(120 / TestHarness.TicksPerSecond, "01-band-diagonal",
-		"THE FRAME THIS DEMO EXISTS FOR. The derived line at DEFCON 3, drawn diagonally through " ..
-		"cell 48,48 on open ground. expects: ONE CONTINUOUS BAND, two cells thick, running corner " ..
-		"to corner with no gap and no staircase hole. FAIL if the banded cells touch only at their " ..
-		"corners anywhere along it -- that is the leak that HalfWidth 512 produced on every " ..
-		"diagonal, and it is invisible on a vertical line, which is why it survived.")
+		"THE FRAME THIS DEMO EXISTS FOR, AND ITS SUBJECT HAS CHANGED. The first run of this capture " ..
+		"showed ordinary woodland: the wall sealed the map and drew NOTHING, because writing " ..
+		"Map.CustomTerrain changes what the pathfinder reads and not what the terrain renderer " ..
+		"draws. DefconWall now draws the border itself. expects: an amber line running corner to " ..
+		"corner through cell 48,48, with perpendicular hatch strokes every 3 cells along it and a " ..
+		"translucent warm fill over the two-cell band it sits in. The line must STOP at the map " ..
+		"edge, not continue into the black margin. FAIL if the field is unmarked (the original " ..
+		"defect), if the fill has a gap or a staircase hole where it crosses open ground, or if it " ..
+		"reads as terrain -- a river or a road -- rather than as a rule.")
 
 	-- The crossing attempt. The order is issued; the wall is what refuses it.
 	Trigger.AfterDelay(140, function()
@@ -70,16 +74,38 @@ WorldLoaded = function()
 		end
 	end)
 
-	TestHarness.ScreenshotAfter(560 / TestHarness.TicksPerSecond, "02-refused-crossing",
-		"THE CROSSING, ~420 ticks after the move order. expects: the Abrams stopped on ITS OWN " ..
-		"side of the band, or still holding at its start cell -- the pathfinder has no route " ..
-		"across. FAIL if it is on the far side, or standing inside the band: either means the " ..
-		"band did not seal at this angle. NOT a failure: the unit sitting still at 40,40 having " ..
-		"never moved, which is what a refused path looks like when no detour exists.")
+	TestHarness.ScreenshotAfter(160 / TestHarness.TicksPerSecond, "02-refusal-said-out-loud",
+		"~20 ticks after the move order, to catch the TRANSIENT notification line. Ordering a unit " ..
+		"to a legal cell beyond the border used to be accepted in silence and the unit then sat " ..
+		"still, so a player saw a tank disobey and was told nothing. expects: the line \"The border " ..
+		"is closed at DEFCON 3 - that order would cross it.\" in the notification area. FAIL if " ..
+		"nothing is printed. It is transient, so if this frame lands after it has faded, say so " ..
+		"rather than calling it absent -- the next run can move the tick earlier.")
 
-	TestHarness.ScreenshotAfter(900 / TestHarness.TicksPerSecond, "03-still-refused",
+	TestHarness.ScreenshotAfter(560 / TestHarness.TicksPerSecond, "03-refused-crossing",
+		"THE CROSSING, ~420 ticks after the move order. expects: the Abrams stopped on ITS OWN " ..
+		"side of the band, or still holding at its start cell -- the order is now refused outright " ..
+		"rather than accepted and left unpathable. FAIL if it is on the far side, or standing " ..
+		"inside the band: either means the band did not seal at this angle. NOT a failure: the " ..
+		"unit sitting still at 40,40 having never moved.")
+
+	TestHarness.ScreenshotAfter(900 / TestHarness.TicksPerSecond, "04-still-refused",
 		"The same, ~340 ticks later, to catch a unit that found a long way round rather than " ..
 		"being stopped. expects: still on its own side. A detour along the map edge would show " ..
 		"here and would mean the line does not reach the map bounds -- which is a different " ..
 		"defect from a leak in the middle, and worth telling apart.")
+
+	-- ZOOMED OUT, which is the requirement the band fill alone cannot answer. A marking that is
+	-- legible at zoom 2 and invisible at zoom 1 has not solved "obvious at a glance at any zoom",
+	-- and one that turns the map into a stripe has broken "does not make the map ugly".
+	Trigger.AfterDelay(1000, function()
+		Camera.Zoom = 1
+	end)
+
+	TestHarness.ScreenshotAfter(1040 / TestHarness.TicksPerSecond, "05-zoomed-out",
+		"The same border at zoom 1, roughly half the magnification of the frames above. expects: " ..
+		"the line still obviously locates the border at a glance -- its width is in PIXELS, so it " ..
+		"should not thin out with distance -- and the hatching still reads as border notation. " ..
+		"FAIL if the border has become hard to find, or if the band fill has swamped the map and " ..
+		"units near it are hard to pick out.")
 end

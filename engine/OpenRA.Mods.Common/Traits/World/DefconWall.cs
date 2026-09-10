@@ -51,6 +51,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Graphics;
+using OpenRA.Mods.Common.Graphics;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -121,6 +124,65 @@ namespace OpenRA.Mods.Common.Traits
 			"the connectivity audit was run at.")]
 		public readonly int DerivedExtendCells = 512;
 
+		// ---- HOW THE BORDER IS DRAWN ------------------------------------------------------------
+		// It has to be drawn by this trait, because writing CustomTerrain draws nothing at all.
+		// CustomTerrain is read by Map.GetTerrainIndex (Map.cs:1718) -- pathfinding, locomotor cost,
+		// GrantConditionOnTerrain -- and by nothing in the terrain draw: TerrainRenderer renders from
+		// Map.Tiles and subscribes only to Map.Tiles and Map.Height (TerrainRenderer.cs:92-93, :96).
+		// BuildableTerrainOverlay is the proof by contrast: it needs its OWN sprite layer and its own
+		// subscription to CustomTerrain.CellEntryChanged (:73) precisely because the change reaches no
+		// renderer by itself. So the wall sealed the map while the map's own grass stayed on screen,
+		// and the DEFCON readout announced a closed border over an unmarked stretch of field.
+
+		[Desc("Draw the border at all. False leaves the wall enforced but invisible, which is the",
+			"state this feature shipped in and is not a state to return to on purpose.")]
+		public readonly bool RenderBorder = true;
+
+		[Desc("Fill drawn over the wall band itself.",
+			"",
+			"IT IS DRAWN OVER UNITS AND THAT COSTS NOTHING, which is worth stating because it looks",
+			"like it should: the band is exactly the set of cells no ground unit may occupy, so there",
+			"is never a unit underneath it to hide. Alpha is kept low anyway so an aircraft crossing",
+			"above it stays readable.")]
+		public readonly Color BandColor = Color.FromArgb(70, 255, 96, 48);
+
+		[Desc("Colour of the line along the centre of the band, and of the hatch strokes.",
+			"Amber against this mod's greens, greys and blues: the border must read as a RULE rather",
+			"than as terrain, and no tileset draws a perfectly straight amber line across a map.")]
+		public readonly Color LineColor = Color.FromArgb(235, 255, 190, 40);
+
+		[Desc("Width of the centre line, in PIXELS rather than world units -- so it stays visible when",
+			"the map is zoomed out, which a world-space width would not.")]
+		public readonly float LineWidth = 2;
+
+		[Desc("Spacing between the perpendicular hatch strokes, in cells. The hatching is what stops",
+			"the line reading as a river or a road: a repeated cross-stroke is border notation.")]
+		public readonly int HatchSpacing = 3;
+
+		[Desc("Width of the hatch strokes, in pixels.")]
+		public readonly float HatchWidth = 1;
+
+		// ---- WHAT A REFUSED ORDER SAYS ----------------------------------------------------------
+		// Hovering a band cell already showed move-blocked, because Wall is in no locomotor's
+		// TerrainSpeeds and Mobile's targeter flags an unreachable destination (Mobile.cs:1240-1243).
+		// The silence was on the OTHER side: ordering a unit to a perfectly legal cell BEYOND the
+		// border gave an ordinary cursor, accepted the order, and then nothing moved.
+
+		[NotificationReference("Speech")]
+		[Desc("Speech notification when a move order is refused for crossing the border.",
+			"Null by default and deliberately unset in world.yaml -- there is no recorded line for it",
+			"yet, and naming a sound that does not exist is worse than staying quiet. The hook is",
+			"here so adding one is a yaml edit.")]
+		public readonly string CrossingRefusedNotification = null;
+
+		[Desc("Transient text notification shown when a move order is refused for crossing the border.")]
+		public readonly string CrossingRefusedTextNotification = null;
+
+		[Desc("Minimum ticks between two crossing-refused notifications for one player. Selecting",
+			"twenty units and ordering them across is ONE decision and should be one line of feedback,",
+			"not twenty. 50 ticks is 3 s at the 60 ms timestep (16.67 ticks/s, NOT 25).")]
+		public readonly int CrossingRefusedNotificationInterval = 50;
+
 		[Desc("Terrain type written into Map.CustomTerrain for every cell of the wall band while the",
 			"wall is up, and reverted cell-by-cell to its previous value when it comes down.",
 			"`Wall` is deliberate and is not a new terrain type: it already exists in all four shipped",
@@ -142,8 +204,13 @@ namespace OpenRA.Mods.Common.Traits
 	// `is ISync`, so without the interface the [Sync] member below would be inert and this trait would
 	// be missing from every sync report. `active` is the only mutable state that changes what the
 	// simulation does, and it is projected to an int because the runtime hasher cannot hash a bool.
-	public class DefconWall : INotifyCreated, IWorldLoaded, ITick, ISync
+	public class DefconWall : INotifyCreated, IWorldLoaded, ITick, ISync, IRenderAnnotations
 	{
+		// Last tick each player was told its order was refused, so twenty units ordered across the
+		// border produce one line rather than twenty. Not synced: it decides nothing the simulation
+		// reads, only whether a client prints a line it has already printed.
+		readonly Dictionary<Player, int> lastRefusalTick = new Dictionary<Player, int>();
+
 		readonly DefconWallInfo info;
 		readonly World world;
 
@@ -318,6 +385,98 @@ namespace OpenRA.Mods.Common.Traits
 
 			Log.Write("debug", $"DEFCON wall lowered, {overwritten.Count} cells restored.");
 			overwritten.Clear();
+		}
+
+		// THE PICTURE IS DRAWN FROM THE SAME DICTIONARY AS THE RULE. `overwritten` holds exactly the
+		// cells whose terrain this trait replaced, so a cell is painted if and only if it is actually
+		// impassable -- the visual cannot drift from the enforcement, and "appears at DEFCON 3, gone
+		// at DEFCON 2" is structural rather than a second condition somebody has to keep in step:
+		// `active` is the same flag that raises and lowers the wall.
+		IEnumerable<IRenderable> IRenderAnnotations.RenderAnnotations(Actor self, WorldRenderer wr)
+		{
+			if (!active || !info.RenderBorder)
+				yield break;
+
+			foreach (var cell in overwritten.Keys)
+			{
+				// overwritten covers Map.AllCells, which includes the border ring OUTSIDE Bounds.
+				// Painting those would draw into the blacked-out margin past the playable area.
+				if (!world.Map.Contains(cell))
+					continue;
+
+				var origin = world.Map.CenterOfCell(cell) - new WVec(512, 512, 0);
+				yield return new FilledQuadAnnotationRenderable(
+					new[]
+					{
+						origin,
+						origin + new WVec(1024, 0, 0),
+						origin + new WVec(1024, 1024, 0),
+						origin + new WVec(0, 1024, 0),
+					},
+					info.BandColor);
+			}
+
+			// The line is infinite and the map is not. Drawing between the authored endpoints would
+			// streak an annotation hundreds of cells into the black past the map edge, because the
+			// annotation pass runs AFTER the shroud pass and nothing would cover it.
+			var bounds = world.Map.Bounds;
+			if (!geometry.ClipToRect((long)bounds.Left * 1024, (long)bounds.Top * 1024,
+				(long)bounds.Right * 1024, (long)bounds.Bottom * 1024, out var start, out var end))
+				yield break;
+
+			yield return new LineAnnotationRenderable(start, end, info.LineWidth, info.LineColor);
+
+			// Cross-strokes at a fixed cell interval. This is the part that makes it read as a rule:
+			// a bare line is a road or a river, a line with repeated perpendicular ticks is border
+			// notation, and it survives being zoomed out because the widths are in pixels.
+			var span = end - start;
+			var length = span.Length;
+			var spacing = Math.Max(1, info.HatchSpacing) * 1024;
+			if (length < spacing)
+				yield break;
+
+			var normal = geometry.NormalTowards(1);
+			var half = new WVec(
+				(int)(normal.X * geometry.HalfWidth / 1024),
+				(int)(normal.Y * geometry.HalfWidth / 1024), 0);
+			if (half == WVec.Zero)
+				yield break;
+
+			// Accumulated rather than computed as span * travelled / length: the latter overflows int
+			// on a large map (a 130-cell span is ~133000 units, and multiplying that by a comparable
+			// travelled distance passes 2^31 silently).
+			var step = span * spacing / length;
+			var point = start;
+			for (var travelled = 0; travelled < length; travelled += spacing)
+			{
+				yield return new LineAnnotationRenderable(point - half, point + half, info.HatchWidth, info.LineColor);
+				point += step;
+			}
+		}
+
+		bool IRenderAnnotations.SpatiallyPartitionable => false;
+
+		/// <summary>
+		/// Say that a move order was refused for crossing the border. Throttled per player.
+		/// </summary>
+		// Called from both enforcement halves so ground and air say the same thing: Mobile.ResolveOrder
+		// and Aircraft.ResolveOrder. Both run inside synced order resolution, so this executes on every
+		// client -- the same seam GrantConditionOnDeploy's refusal notification already uses.
+		public void NotifyCrossingRefused(Actor self)
+		{
+			if (!active)
+				return;
+
+			var owner = self.Owner;
+			if (lastRefusalTick.TryGetValue(owner, out var last)
+				&& world.WorldTick - last < info.CrossingRefusedNotificationInterval)
+				return;
+
+			lastRefusalTick[owner] = world.WorldTick;
+
+			Game.Sound.PlayNotification(world.Map.Rules, owner, "Speech",
+				info.CrossingRefusedNotification, owner.Faction.InternalName);
+			TextNotificationsManager.AddTransientLine(owner, info.CrossingRefusedTextNotification);
 		}
 
 		int SideFor(Player player)
