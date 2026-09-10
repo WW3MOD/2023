@@ -23,6 +23,18 @@ World:
 		# frame lands about 30 s in, so the readout should show roughly RELEASE IN 0:40.
 		NuclearReleaseDelayTicks: 1200
 
+	# THE DERIVED WALL IS OFF FOR THIS CAPTURE, deliberately. world.yaml turns DeriveFromSpawns on
+	# mod-wide, and this scenario authors HomeLocation 16,6 and 81,76 -- so it WOULD derive a
+	# diagonal line, and this is a shipped capture whose framing was tuned before the wall existed.
+	# The line would pass about 22 cells from the staging ground at 49,10, i.e. plausibly inside a
+	# frame taken at zoom 2, and the readout demo is about the READOUT.
+	#
+	# Turning this back on is a one-line revert and is worth doing deliberately: a capture showing
+	# the border actually standing while the strip claims it is closed would be a better demo than
+	# one showing the claim alone. That is a framing decision, not a correctness one.
+	DefconWall:
+		DeriveFromSpawns: False
+
 	-StartGameNotification:
 	# No starting units: the two combatants are spawned by the script at known cells, so the
 	# first kill happens where the camera is looking and at a tick this file can predict.

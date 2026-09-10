@@ -33,6 +33,8 @@
  * expected to place the endpoints on or beyond the map edges, and nothing here depends on it.
  */
 
+using System.Collections.Generic;
+
 namespace OpenRA.Mods.Common.Traits
 {
 	public class DefconWallGeometry
@@ -142,6 +144,56 @@ namespace OpenRA.Mods.Common.Traits
 			var nx = -dy * 1024 / length;
 			var ny = dx * 1024 / length;
 			return side > 0 ? (nx, ny) : (-nx, -ny);
+		}
+
+		/// <summary>
+		/// The dividing line for a whole match: split the homes into their two alliance groups, take
+		/// each group's centroid, and bisect. This is what replaces per-map authoring.
+		/// </summary>
+		// EXACTLY TWO GROUPS OR NO LINE AT ALL. A three-way free-for-all has no dividing line, and a
+		// wall pointing somewhere nobody chose is worse than no wall -- the same reasoning as
+		// TwoCoincidentSpawnsDeriveNoLineRatherThanAnArbitraryOne. A degenerate return is visibly
+		// wrong and therefore fixable; an arbitrary one is not.
+		//
+		// The caller supplies homes ALREADY GROUPED, as (group, home) pairs, because alliance is a
+		// Player concept and this class deliberately knows nothing about Player, World or Map. Group
+		// numbers need not be 0 and 1 -- only the count of distinct values matters -- but the caller
+		// must produce them deterministically, because which group lands first fixes the SIGN of the
+		// line and therefore every SideOf answer.
+		//
+		// Centroids are integer means. On an odd sum the midpoint truncates by half a cell, which is
+		// well inside the wall band and cannot move a spawn to the wrong side.
+		public static (CPos Start, CPos End) BisectorOfSides(
+			IEnumerable<(int Group, CPos Home)> homes, int extendCells)
+		{
+			var groups = new List<int>();
+			var sumX = new List<long>();
+			var sumY = new List<long>();
+			var count = new List<int>();
+
+			foreach (var (group, home) in homes)
+			{
+				var i = groups.IndexOf(group);
+				if (i < 0)
+				{
+					groups.Add(group);
+					sumX.Add(0);
+					sumY.Add(0);
+					count.Add(0);
+					i = groups.Count - 1;
+				}
+
+				sumX[i] += home.X;
+				sumY[i] += home.Y;
+				count[i]++;
+			}
+
+			if (groups.Count != 2)
+				return (CPos.Zero, CPos.Zero);
+
+			var a = new CPos((int)(sumX[0] / count[0]), (int)(sumY[0] / count[0]));
+			var b = new CPos((int)(sumX[1] / count[1]), (int)(sumY[1] / count[1]));
+			return PerpendicularBisector(a, b, extendCells);
 		}
 
 		/// <summary>

@@ -777,12 +777,23 @@ World:
 		StartAtDisplayOrder: 21
 		PaceDisplayOrder: 22
 		CeilingDisplayOrder: 23
-	# THE DEFCON 3 DIVIDING WALL. Registered here with no configuration on purpose: Start and End
-	# both default to 0,0, which is a degenerate line, which makes DefconWall.IsActive false before
-	# the DEFCON level is even consulted. So this line costs one bool test per tick and changes
-	# nothing on any shipped map. A map authors its own line by overriding Start/End in its rules;
-	# the one worked example is tools/autotest/scenarios/test-defcon-wall/rules.yaml.
+	# THE DEFCON 3 DIVIDING WALL, AND IT IS NOW LIVE ON EVERY SHIPPED MAP. This block used to be
+	# registered with no configuration at all, which made the wall inert everywhere -- and that
+	# became a correctness problem the moment the readout shipped, because at DEFCON 3 it tells the
+	# player "The border is closed. Neither side may cross it." while nothing enforced it.
+	#
+	# DERIVED, NOT AUTHORED. No map draws a line. DeriveFromSpawns splits the match's combatants
+	# into their two alliance groups, takes each group's centroid home, and uses the perpendicular
+	# bisector -- so the line is equidistant from both sides by construction on any map, including
+	# the 4- and 6-spawn ones where which spawns are occupied is not known until the match starts.
+	# An explicitly authored Start/End still WINS over the derivation, which is what makes this an
+	# override list rather than per-map authoring: the one worked example is
+	# tools/autotest/scenarios/test-defcon-wall/rules.yaml, and no shipped map needs an entry.
+	#
+	# Still inert in Skirmish, which is still the default game mode: the wall stands only at
+	# DEFCON 3 and Skirmish holds NoLevel. Nothing here changes a Skirmish match.
 	DefconWall:
+		DeriveFromSpawns: True
 	OrderEffects:
 		TerrainFlashImage: moveflsh
 		TerrainFlashSequence: idle
