@@ -1,0 +1,416 @@
+<!DOCTYPE html><meta charset="utf-8"><title>Lobby — the shippable one</title>
+<style>
+:root{--panel:#141613;--ink:#d8d6cc;--dim:#8d8b80;--lbl:#6b6a61;--edge:#26281f;
+ --amber:#c8823a;--ok:#8aa84a;--cool:#5a8fa8}
+*{box-sizing:border-box}
+body{margin:0;padding:20px 24px 40px;background:#080907;color:var(--ink);
+ font:13px/1.5 "Segoe UI",Roboto,system-ui,sans-serif}
+h1{font:600 18px/1.3 inherit;margin:0 0 2px}
+.lede{color:var(--dim);margin:0 0 12px;max-width:104ch}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--edge);flex-wrap:wrap}
+.tab{padding:7px 13px;background:#101210;border:1px solid var(--edge);border-bottom:none;
+ border-radius:3px 3px 0 0;cursor:pointer;color:var(--dim);font-size:12.5px;user-select:none}
+.tab .n{font:9.5px ui-monospace,Consolas,monospace;color:var(--lbl);display:block;letter-spacing:.6px}
+.tab:hover{color:var(--ink)}
+.tab.on{background:var(--panel);color:#fff;border-color:#3a3d33;border-bottom:1px solid var(--panel);margin-bottom:-1px}
+.pane{display:none;border:1px solid var(--edge);border-top:none;background:var(--panel);padding:16px 18px 20px}
+.pane.on{display:block}
+.pitch{font-size:15px;color:#e6e4d9;margin:0 0 3px;font-weight:600}
+.why{color:var(--dim);margin:0 0 12px;max-width:98ch}
+.cols{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+.col-mock{flex:0 0 470px}.col-notes{flex:1;min-width:280px}
+.lobby{background:#0e100d;border:1px solid #2b2e25;border-radius:2px;padding:11px 12px}
+.sec{margin-bottom:11px}.sec:last-child{margin-bottom:0}
+.sechead{font:9.5px ui-monospace,Consolas,monospace;letter-spacing:1.4px;text-transform:uppercase;
+ color:var(--amber);border-bottom:1px solid #2b2e25;padding-bottom:3px;margin-bottom:6px}
+.sechead.cool{color:var(--cool);border-bottom-color:#24343d}
+.row{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:12px}
+.row .lab{color:var(--dim);width:132px;flex:none}
+.dd{flex:1;background:#191c17;border:1px solid #33372c;border-radius:2px;padding:3px 7px;color:#ddd9cd;
+ display:flex;justify-content:space-between;align-items:center}
+.dd::after{content:"▾";color:var(--lbl);font-size:10px}
+.dd.big{font-size:13px;padding:5px 8px;border-color:#4a5140;background:#1d2019}
+.dd.sm{flex:0 0 96px}
+.cb{display:flex;align-items:center;gap:6px;font-size:12px;color:#ccc9be;margin:4px 0}
+.box{width:12px;height:12px;border:1px solid #454a3b;border-radius:2px;background:#191c17;flex:none;position:relative}
+.box.t::after{content:"✓";position:absolute;left:1px;top:-3px;font-size:11px;color:var(--ok)}
+.cbs{display:flex;gap:16px;flex-wrap:wrap}
+.sub{color:var(--lbl);font-size:11px;margin:2px 0 0 140px}
+.sub.l0{margin-left:0}
+.seg{display:flex;gap:0;margin-bottom:9px}
+.seg div{flex:1;text-align:center;padding:6px 4px;background:#191c17;border:1px solid #33372c;color:var(--dim);
+ font-size:12.5px;cursor:default}
+.seg div:first-child{border-radius:2px 0 0 2px}.seg div:last-child{border-radius:0 2px 2px 0}
+.seg div+div{border-left:none}
+.seg div.on{background:#1d1a13;border-color:var(--amber);color:#f0c07a}
+.seg div .s{display:block;font-size:10.5px;color:var(--lbl)}
+.seg div.on .s{color:#c8a878}
+.cards{display:flex;gap:8px;margin-bottom:10px}
+.card{flex:1;background:#191c17;border:1px solid #33372c;border-radius:3px;padding:9px 10px}
+.card.on{border-color:var(--amber);background:#1d1a13}
+.card .t{font-size:13px;color:#e6e4d9;font-weight:600}
+.card.on .t{color:#f0c07a}
+.card .d{font-size:11px;color:var(--dim);margin-top:3px;line-height:1.4}
+.sched{margin-top:4px}
+.sr{display:flex;align-items:center;gap:8px;padding:3px 7px;border:1px solid #2b2e25;border-radius:2px;
+ margin:2px 0;background:#171a15;font-size:11.5px}
+.sr .t{font:10.5px ui-monospace,Consolas,monospace;width:52px;color:var(--lbl);flex:none}
+.sr .y{color:#ddd9cd;flex:1}
+.sr .g{color:var(--ok);font-size:11px}
+.sr.def{border-color:#24343d;background:#0e1519}.sr.def .y{color:#9fc0d0}
+.sr.end{border-color:#5a2f26;background:#1a100e}.sr.end .y{color:#d98878}
+.note{color:var(--lbl);font-size:11px;margin-top:5px}
+/* ending storyboard */
+.sb{display:flex;gap:8px;flex-wrap:wrap}
+.fr{flex:1;min-width:190px;background:#0e100d;border:1px solid #2b2e25;border-radius:2px;padding:0;overflow:hidden}
+.fr .cap{font:9.5px ui-monospace,Consolas,monospace;letter-spacing:1px;color:var(--lbl);padding:4px 8px;
+ border-bottom:1px solid #2b2e25;text-transform:uppercase}
+.screen{position:relative;height:126px;background:#12140f;margin:0}
+.warn{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);text-align:center;width:92%}
+.warn.side{left:auto;right:6px;top:8px;transform:none;text-align:right;width:auto}
+.warn .h{font:600 13px inherit;color:#d98878;letter-spacing:.5px}
+.warn.side .h{font-size:10.5px}
+.warn .c{font:600 26px ui-monospace,Consolas,monospace;color:#f0c07a;line-height:1.1}
+.warn.side .c{font-size:15px}
+.warn .s{font-size:10.5px;color:var(--dim)}
+.warn.side .s{font-size:9.5px}
+.cursor{position:absolute;width:13px;height:13px;border:1px solid var(--amber);border-radius:50%}
+.cursor::after{content:"";position:absolute;left:5px;top:-4px;width:1px;height:21px;background:var(--amber);opacity:.55}
+.cursor::before{content:"";position:absolute;left:-4px;top:5px;width:21px;height:1px;background:var(--amber);opacity:.55}
+.terr{position:absolute;inset:0;background:
+  radial-gradient(circle at 22% 62%,#1b2016 0 18%,transparent 19%),
+  radial-gradient(circle at 68% 34%,#1a1e15 0 15%,transparent 16%),
+  radial-gradient(circle at 46% 80%,#181c14 0 12%,transparent 13%);}
+.flash{position:absolute;inset:0;background:radial-gradient(circle at 50% 55%,#fff 0 6%,#f0c07a 12%,#c8823a 22%,transparent 46%)}
+.pill{display:inline-block;font:9.5px ui-monospace,Consolas,monospace;padding:0 6px;border-radius:9px;
+ border:1px solid #3a3d33;background:#191c17;color:#b8b5a8;margin-right:4px}
+ul{margin:4px 0 9px 17px;padding:0}li{margin:3px 0;max-width:92ch}
+h4{margin:11px 0 2px;font-size:12px;color:#cfcdc2}
+.tag{display:inline-block;font:9.5px ui-monospace,Consolas,monospace;letter-spacing:.5px;padding:0 5px;
+ border-radius:2px;border:1px solid;text-transform:uppercase;vertical-align:1px}
+.new{color:var(--amber);border-color:#4a3a20;background:#1a140a}
+.ships{color:var(--cool);border-color:#2d4652;background:#0d161b}
+.box2{border-left:2px solid #6a5a2a;background:#16150f;padding:9px 12px;margin:0 0 12px;color:#b9b09a;
+ font-size:12.5px;max-width:104ch}
+.box2 b{color:#d8cfb6}
+table.sz{border-collapse:collapse;font-size:11.5px;margin-top:4px}
+table.sz th{font:9.5px ui-monospace,Consolas,monospace;letter-spacing:1px;color:var(--lbl);text-align:left;
+ border-bottom:1px solid #2b2e25;padding:3px 10px 3px 0;text-transform:uppercase;font-weight:400}
+table.sz td{padding:2px 10px 2px 0;border-bottom:1px solid #1c1f19;color:#ccc9be}
+table.sz td.n{font:11px ui-monospace,Consolas,monospace;color:#ddd9cd}
+.pick{margin-top:14px;border-top:1px solid var(--edge);padding-top:11px}
+.pick label{display:flex;gap:7px;align-items:flex-start;font-size:12.5px;margin:4px 0;cursor:pointer}
+textarea{width:100%;background:#0e100d;border:1px solid #33372c;color:var(--ink);border-radius:2px;
+ padding:7px;font:12px inherit;margin-top:8px;min-height:64px}
+button{margin-top:8px;background:#2a2f22;border:1px solid #4a5140;color:#e6e4d9;padding:6px 16px;
+ border-radius:2px;font:12.5px inherit;cursor:pointer}
+button:hover{background:#353c2b}
+.foot{color:var(--lbl);font-size:11.5px;margin-top:6px}
+</style>
+
+<h1>Two modes, one setting each — the version that ships</h1>
+<p class="lede">Mode at the top; the settings under it change with it. <b>No rush (DEFCON) is above the
+mode and always there</b>, because it applies to both. Skirmish gets the familiar toggles.
+Escalation gets <b>one</b> setting — the timer — and everything else is derived and read-only.
+Tabs 1–3 are the same panel drawn three ways; tab 4 is the ending.</p>
+
+<div class="box2"><b>One thing the map-size rule already decides for you.</b> Your two examples fix
+it exactly: River&nbsp;Zeta with 2 players is 3 enders each, with 6 players is 1 each — so the
+<b>total per map is constant</b> and the split is per player, not the other way round. River Zeta is
+98×82 = 8036 cells and a total of 6, which is one ender per ~1340 cells. That rule run across the
+ten shipped maps gives 2 on Arena Tank Duel and 12 on X-Lake, which is why the panel can just say
+"<b>3 each</b>" and never ask.</div>
+
+<div class="tabs">
+  <div class="tab on" data-t="1"><span class="n">1 · DROPDOWN</span>Mode picker at the top</div>
+  <div class="tab" data-t="2"><span class="n">2 · CARDS</span>Two cards, one expands</div>
+  <div class="tab" data-t="3"><span class="n">3 · SCHEDULE</span>Segmented + the whole match</div>
+  <div class="tab" data-t="4"><span class="n">4 · THE ENDING</span>Fifteen seconds</div>
+</div>
+
+<!-- ============ 1 ============ -->
+<div class="pane on" id="p1">
+<p class="pitch">One dropdown at the top. Everything below it belongs to what you picked.</p>
+<p class="why">Closest to what the lobby does today and the cheapest to build — the mode dropdown
+already exists, and the mode-specific rows just show and hide.</p>
+<div class="cols">
+<div class="col-mock">
+<div class="lobby">
+  <div class="row"><span class="lab">Game mode</span><span class="dd big">Skirmish</span></div>
+  <div class="sub">Skirmish · Escalation <span class="tag ships">ships</span></div>
+
+  <div class="sec" style="margin-top:11px"><div class="sechead cool">No rush — DEFCON</div>
+    <div class="row"><span class="lab">Start at</span><span class="dd sm">DEFCON 3</span>
+      <span class="lab" style="width:auto;padding-left:4px">for</span><span class="dd sm">5:00</span></div>
+    <div class="sub l0">Nobody crosses the line until it lifts. Applies to every mode. <span class="tag ships">ships</span></div>
+  </div>
+
+  <div class="sec"><div class="sechead">Skirmish</div>
+    <div class="row"><span class="lab">Nuclear weapons</span><span class="dd">Tactical only</span></div>
+    <div class="sub">None · Tactical only (≤20 kt) · All <span class="tag new">new</span></div>
+    <div class="row" style="margin-top:6px"><span class="lab">Starting cash</span><span class="dd sm">10 000</span></div>
+    <div class="cbs" style="margin-top:7px">
+      <span class="cb"><span class="box t"></span>Crates</span>
+      <span class="cb"><span class="box t"></span>Fog of war</span>
+      <span class="cb"><span class="box"></span>Short game</span>
+    </div>
+  </div>
+</div>
+
+<div class="lobby" style="margin-top:10px">
+  <div class="row"><span class="lab">Game mode</span><span class="dd big">Escalation</span></div>
+  <div class="sub">The same panel with the other mode picked.</div>
+
+  <div class="sec" style="margin-top:11px"><div class="sechead cool">No rush — DEFCON</div>
+    <div class="row"><span class="lab">Start at</span><span class="dd sm">DEFCON 3</span>
+      <span class="lab" style="width:auto;padding-left:4px">for</span><span class="dd sm">5:00</span></div>
+  </div>
+
+  <div class="sec"><div class="sechead">Escalation</div>
+    <div class="row"><span class="lab">Escalate every</span><span class="dd">10 minutes</span></div>
+    <div class="sub">5 · 10 · 15 · 20 minutes. <b>The only setting this mode has.</b> <span class="tag new">new</span></div>
+    <div class="sched" style="margin-top:8px">
+      <div class="sr"><span class="t">+0:00</span><span class="y">1 kt — tactical</span><span class="g">1 each</span></div>
+      <div class="sr"><span class="t">+10:00</span><span class="y">20 kt</span><span class="g">1 each</span></div>
+      <div class="sr"><span class="t">+20:00</span><span class="y">100 kt</span><span class="g">1 each</span></div>
+      <div class="sr end"><span class="t">+30:00</span><span class="y">Sarmat MIRV · 6 × 750 kt</span><span class="g">3 each</span></div>
+    </div>
+    <div class="note">Read-only. Times run from the moment DEFCON 1 is reached. <b>3 each</b> on
+      River Zeta with 2 players — the map decides it.</div>
+  </div>
+</div>
+</div>
+
+<div class="col-notes">
+<h4>Why this one</h4>
+<ul>
+<li>It is the panel that already exists. The mode dropdown ships today; this adds one dropdown to
+    Skirmish and one to Escalation and deletes the other two.</li>
+<li><span class="tag new">new</span> <b>"Nuclear weapons: None / Tactical only / All"</b> replaces
+    a checkbox per superweapon. Three values covers every Skirmish argument anyone actually has.</li>
+<li>The escalation schedule is generated from the timer, so there is nothing to keep in sync and
+    nothing to get wrong.</li>
+</ul>
+<h4>Against it</h4>
+<ul>
+<li>A dropdown hides the other mode. Someone who has never seen Escalation has no reason to open
+    the list — which is tab 2's whole argument.</li>
+</ul>
+</div></div>
+</div>
+
+<!-- ============ 2 ============ -->
+<div class="pane" id="p2">
+<p class="pitch">Both modes visible at once. Pick one and it opens.</p>
+<p class="why">Same content as tab 1. The difference is that Escalation is on screen whether or not
+anyone goes looking for it — which matters for a mode nobody has played before.</p>
+<div class="cols">
+<div class="col-mock"><div class="lobby">
+  <div class="cards">
+    <div class="card"><div class="t">Skirmish</div>
+      <div class="d">The ordinary game. You decide what weapons exist.</div></div>
+    <div class="card on"><div class="t">Escalation</div>
+      <div class="d">The war goes nuclear on a clock, and ends.</div></div>
+  </div>
+
+  <div class="sec"><div class="sechead cool">No rush — DEFCON</div>
+    <div class="row"><span class="lab">Start at</span><span class="dd sm">DEFCON 3</span>
+      <span class="lab" style="width:auto;padding-left:4px">for</span><span class="dd sm">5:00</span></div>
+  </div>
+
+  <div class="sec"><div class="sechead">Escalation</div>
+    <div class="row"><span class="lab">Escalate every</span><span class="dd">10 minutes</span></div>
+    <div class="sched" style="margin-top:7px">
+      <div class="sr def"><span class="t">0:00</span><span class="y">DEFCON 3 → 1 · no warheads</span><span class="g"></span></div>
+      <div class="sr"><span class="t">+0:00</span><span class="y">1 kt</span><span class="g">1 each</span></div>
+      <div class="sr"><span class="t">+10:00</span><span class="y">20 kt</span><span class="g">1 each</span></div>
+      <div class="sr"><span class="t">+20:00</span><span class="y">100 kt</span><span class="g">1 each</span></div>
+      <div class="sr end"><span class="t">+30:00</span><span class="y">Game-enders</span><span class="g">3 each</span></div>
+    </div>
+    <div class="note"><span class="pill">≈ 40 min</span> from DEFCON 1 to the ending.</div>
+  </div>
+</div></div>
+
+<div class="col-notes">
+<h4>Why this one</h4>
+<ul>
+<li>Two cards is the shortest possible sales pitch for a mode people have never heard of. The
+    dropdown in tab 1 is functionally identical and advertises nothing.</li>
+<li>The card copy does the teaching a tooltip currently has to: "the war goes nuclear on a clock,
+    and ends" is the whole mode in nine words.</li>
+</ul>
+<h4>Against it</h4>
+<ul>
+<li>Two cards costs about 60 px of a lobby that also has to show ten player slots and a map
+    preview. Tab 1 costs one row.</li>
+<li>It reads as though there will one day be six cards. If more presets ever arrive, this is the
+    layout that has to change.</li>
+</ul>
+</div></div>
+</div>
+
+<!-- ============ 3 ============ -->
+<div class="pane" id="p3">
+<p class="pitch">A segmented switch, and the entire match on screen underneath it.</p>
+<p class="why">The most information for the least configuration: one switch, one timer, and a
+read-only schedule with <b>absolute clock times</b> — what a host actually wants to know is when
+the nukes start and when this will be over.</p>
+<div class="cols">
+<div class="col-mock"><div class="lobby">
+  <div class="seg">
+    <div>Skirmish<span class="s">no clock</span></div>
+    <div class="on">Escalation<span class="s">ends in ~48 min</span></div>
+  </div>
+
+  <div class="sec"><div class="sechead cool">No rush — DEFCON</div>
+    <div class="row"><span class="lab">Start at</span><span class="dd sm">DEFCON 3</span>
+      <span class="lab" style="width:auto;padding-left:4px">for</span><span class="dd sm">5:00</span></div>
+  </div>
+
+  <div class="sec"><div class="sechead">Escalate every</div>
+    <div class="row"><span class="lab">Interval</span><span class="dd">10 minutes</span></div>
+    <div class="sched" style="margin-top:8px">
+      <div class="sr def"><span class="t">0:00</span><span class="y">DEFCON 3 · no rush</span><span class="g"></span></div>
+      <div class="sr def"><span class="t">5:00</span><span class="y">DEFCON 2 · the line lifts</span><span class="g"></span></div>
+      <div class="sr def"><span class="t">~7:30</span><span class="y">DEFCON 1 · first blood</span><span class="g"></span></div>
+      <div class="sr"><span class="t">17:30</span><span class="y">1 kt — tactical</span><span class="g">1 each</span></div>
+      <div class="sr"><span class="t">27:30</span><span class="y">20 kt</span><span class="g">1 each</span></div>
+      <div class="sr"><span class="t">37:30</span><span class="y">100 kt</span><span class="g">1 each</span></div>
+      <div class="sr end"><span class="t">47:30</span><span class="y">Sarmat MIRV · the ending</span><span class="g">3 each</span></div>
+    </div>
+    <div class="note">Every time is from match start. The DEFCON 1 row is an estimate — it turns on
+      the first kill, and everything below it shifts with it.</div>
+  </div>
+</div></div>
+
+<div class="col-notes">
+<h4>Why this one</h4>
+<ul>
+<li><b>"Ends in ~48 min" is printed on the switch itself.</b> No other layout here answers the
+    question a host is really asking, and it costs one line.</li>
+<li>The full schedule doubles as the mode's documentation. Nobody needs a tooltip explaining what
+    Escalation is once they can see it.</li>
+</ul>
+<h4>Against it</h4>
+<ul>
+<li>Seven rows is the tallest of the three, and four of them never change.</li>
+<li>The estimate is load-bearing and slightly dishonest — one early skirmish moves everything
+    below it by minutes. It could be collapsed to just the last row ("ends ~47:30") if the table
+    proves too much.</li>
+</ul>
+</div></div>
+</div>
+
+<!-- ============ 4 ============ -->
+<div class="pane" id="p4">
+<p class="pitch">The last fifteen seconds, in four frames.</p>
+<p class="why">Not a lobby panel — this is what the mode is <i>for</i>, and it is the part with the
+most moving pieces. One player fires; everyone else gets fifteen seconds, their game-enders already
+selected, and all of it lands together.</p>
+<div class="sb">
+  <div class="fr"><div class="cap">1 · someone fires</div>
+    <div class="screen"><div class="terr"></div>
+      <div class="warn"><div class="h">NUCLEAR RELEASE DETECTED</div>
+        <div class="c">15</div>
+        <div class="s">Choose your targets</div></div></div></div>
+
+  <div class="fr"><div class="cap">2 · it moves aside</div>
+    <div class="screen"><div class="terr"></div>
+      <div class="warn side"><div class="h">RELEASE</div><div class="c">12</div>
+        <div class="s">3 remaining</div></div>
+      <div class="cursor" style="left:30%;top:56%"></div></div></div>
+
+  <div class="fr"><div class="cap">3 · click, click, click</div>
+    <div class="screen"><div class="terr"></div>
+      <div class="warn side"><div class="h">RELEASE</div><div class="c">04</div>
+        <div class="s">0 remaining</div></div>
+      <div class="cursor" style="left:30%;top:56%"></div>
+      <div class="cursor" style="left:62%;top:30%"></div>
+      <div class="cursor" style="left:44%;top:72%"></div></div></div>
+
+  <div class="fr"><div class="cap">4 · all of them, at once</div>
+    <div class="screen"><div class="terr"></div><div class="flash"></div></div></div>
+</div>
+
+<div class="cols" style="margin-top:14px">
+<div class="col-notes" style="min-width:0">
+<h4>What is already built</h4>
+<ul>
+<li><span class="tag ships">ships</span> <b>The weapon.</b> RS-28 Sarmat MIRV — six 750 kt re-entry
+    vehicles, and it already asks for <b>six aim points</b>, one warhead each. Clicking targets under
+    a countdown is the interaction it was built for.</li>
+<li><span class="tag ships">ships</span> <b>Score frozen at launch.</b> Dead Hand already counts the
+    score before impact, so whoever was ahead on the field wins. The ending is a match clock, not a
+    coin flip — worth saying out loud, because it is what makes the mode fair.</li>
+</ul>
+<h4>What the fifteen seconds needs</h4>
+<ul>
+<li><span class="tag new">new</span> The banner, the countdown, the move-aside, and auto-selecting
+    each player's ender so a click is a target and nothing else.</li>
+<li><span class="tag new">new</span> <b>Bots have to use it.</b> A bot that ignores the window
+    wastes its warheads and the ending becomes one-sided against a human. This is the piece most
+    likely to be underestimated.</li>
+<li><span class="tag new">new</span> <b>Unspent seconds.</b> If someone picks two of three targets
+    and the clock runs out, the third should still fire — at their last target, or at the firer.
+    Silently losing it feels like a bug.</li>
+</ul>
+</div>
+<div class="col-notes" style="min-width:0">
+<h4>The one hole in the rules as written</h4>
+<ul>
+<li><b>Nobody has to fire.</b> The final step hands everyone a game-ender; if all sides sit on
+    theirs, the match runs forever with the apocalypse in everyone's pocket.</li>
+<li>Cheapest fix, no new setting: <b>the final step starts one more interval, and when it expires
+    the enders launch by themselves</b> — everyone gets the same fifteen seconds. Firing early is
+    then a real decision (you pick the moment) rather than the only way the match can ever end.</li>
+</ul>
+<h4>Enders per map, if the rule holds</h4>
+<table class="sz">
+  <tr><th>Map</th><th>Cells</th><th>Total</th><th>2p</th><th>4p</th><th>6p</th></tr>
+  <tr><td>Arena Tank Duel</td><td class="n">2 244</td><td class="n">2</td><td class="n">1</td><td class="n">—</td><td class="n">—</td></tr>
+  <tr><td>Shellmap Open Field</td><td class="n">5 704</td><td class="n">4</td><td class="n">2</td><td class="n">1</td><td class="n">—</td></tr>
+  <tr><td>River Zeta</td><td class="n">8 036</td><td class="n">6</td><td class="n">3</td><td class="n">1</td><td class="n">1</td></tr>
+  <tr><td>Woodland Warfare</td><td class="n">9 604</td><td class="n">7</td><td class="n">3</td><td class="n">1</td><td class="n">1</td></tr>
+  <tr><td>Seventh Woods</td><td class="n">14 022</td><td class="n">10</td><td class="n">5</td><td class="n">2</td><td class="n">1</td></tr>
+  <tr><td>X-Lake</td><td class="n">16 900</td><td class="n">12</td><td class="n">6</td><td class="n">3</td><td class="n">2</td></tr>
+</table>
+<div class="note">One per ~1340 cells, split between players, never below 1. Your River Zeta numbers
+  are rows 3 and 6 of that table and nothing was fitted to them.</div>
+</div></div>
+</div>
+
+<div class="pick">
+  <div style="font-size:12.5px;color:#cfcdc2;margin-bottom:5px">Which panel should be built?</div>
+  <label><input type="checkbox" name="v" value="1"> <span><b>1</b> — dropdown at the top (cheapest)</span></label>
+  <label><input type="checkbox" name="v" value="2"> <span><b>2</b> — two cards, one expands</span></label>
+  <label><input type="checkbox" name="v" value="3"> <span><b>3</b> — segmented switch + full schedule</span></label>
+  <label><input type="checkbox" name="v" value="auto"> <span>and: the enders <b>auto-launch</b> if nobody fires</span></label>
+  <label><input type="checkbox" name="v" value="mapsize"> <span>and: enders per map as in the table (1 per ~1340 cells)</span></label>
+  <textarea id="note" placeholder="e.g. &quot;1, but with 3's ends-in line on the mode row&quot; — or what is still wrong."></textarea>
+  <button id="send">Send this back</button>
+  <div class="foot">Kept deliberately small. Once a panel is picked it iterates against screenshots
+    of the real lobby, not against this file.</div>
+</div>
+
+<script>
+var tabs=document.querySelectorAll('.tab'),panes=document.querySelectorAll('.pane'),cur='1';
+function pick(){var o=[];document.querySelectorAll('input[name=v]:checked').forEach(function(c){o.push(c.value)});return o}
+function state(){return{tab:cur,variants:pick(),note:document.getElementById('note').value}}
+function post(t,s){var m={type:t,state:state()};if(s)m.summary=s;try{window.parent.postMessage(m,'*')}catch(e){}}
+tabs.forEach(function(t){t.onclick=function(){
+  tabs.forEach(function(x){x.classList.remove('on')});panes.forEach(function(x){x.classList.remove('on')});
+  t.classList.add('on');cur=t.dataset.t;document.getElementById('p'+cur).classList.add('on');
+  post('maestro:artifact_state');geo();}});
+document.querySelectorAll('input[name=v]').forEach(function(r){r.onchange=function(){post('maestro:artifact_state')}});
+document.getElementById('note').oninput=function(){post('maestro:artifact_state')};
+document.getElementById('send').onclick=function(){var p=pick();
+  post('maestro:artifact_submit','simple lobby: '+(p.length?p.join('+'):'none'))};
+function geo(){try{window.parent.postMessage({type:'maestro:artifact_geometry',
+  height:document.documentElement.scrollHeight},'*')}catch(e){}}
+window.addEventListener('message',function(e){if(e.data&&e.data.type==='maestro:artifact_hydrate'&&e.data.state){
+  var s=e.data.state;if(s.note)document.getElementById('note').value=s.note;
+  if(s.variants&&s.variants.forEach)s.variants.forEach(function(v){
+    var c=document.querySelector('input[name=v][value="'+v+'"]');if(c)c.checked=true});
+  if(s.tab){var t=document.querySelector('.tab[data-t="'+s.tab+'"]');if(t)t.click()}}});
+geo();window.addEventListener('load',geo);
+</script>
