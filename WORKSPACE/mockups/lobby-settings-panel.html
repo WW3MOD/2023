@@ -1,0 +1,538 @@
+<!DOCTYPE html><meta charset="utf-8"><title>Lobby settings panel — 1:1 against the real chrome</title>
+<style>
+/* ============================================================================
+   1:1 REPRODUCTION of the WW3MOD lobby options panel.
+   Every number here is measured, not invented:
+     · panel + grid geometry  — engine/mods/common/chrome/lobby-players.yaml:860-1067
+     · colours                — lobby-players.yaml ColorBlocks + engine metrics.yaml
+     · sprite-backed faces    — SAMPLED from a live capture (dialog.png nine-slices
+                                resolve to #1a1a1a with #313131..#383838 bevels)
+     · fonts                  — mods/ww3mod/mod.yaml Fonts:
+   Rendered at the 1920x1080 resolution case: panel 924 wide, 4 columns of 211
+   on a 223 pitch at x = 16 / 239 / 462 / 685, 24px scrollbar reserved right.
+   ========================================================================== */
+:root{
+  --body:#141414; --face:#1a1a1a; --bev-l:#3a3a3a; --bev-d:#030303;
+  --banner:#1c1c1c; --accent:#b4b4b4; --micro:#686868; --placeholder:#969696;
+  --ink:#ffffff; --disabled:#808080; --app:#0a0a0a;
+  --new:#c8a45a; --go:#6ec890;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:22px 26px 60px;background:#070808;color:#d4d4d4;
+ font:13px/1.5 -apple-system,"Segoe UI",Roboto,system-ui,sans-serif}
+h1{font:600 18px/1.3 inherit;margin:0 0 2px;color:#e6e4d9}
+.lede{color:#8d8b80;margin:0 0 14px;max-width:110ch}
+.tabs{display:flex;gap:2px;border-bottom:1px solid #26281f;flex-wrap:wrap;margin-bottom:0}
+.tab{padding:7px 13px;background:#101210;border:1px solid #26281f;border-bottom:none;
+ border-radius:3px 3px 0 0;cursor:pointer;color:#8d8b80;font-size:12.5px;user-select:none}
+.tab .n{font:9.5px ui-monospace,Consolas,monospace;color:#6b6a61;display:block;letter-spacing:.6px}
+.tab.on{background:#141613;color:#fff;border-color:#3a3d33;border-bottom:1px solid #141613;margin-bottom:-1px}
+.pane{display:none;border:1px solid #26281f;border-top:none;background:#141613;padding:16px 18px 22px}
+.pane.on{display:block}
+.cols{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap}
+.notes{flex:1;min-width:300px;font-size:12.5px;color:#b8b5a8}
+.notes h4{margin:12px 0 3px;font-size:12px;color:#cfcdc2}
+.notes ul{margin:3px 0 8px 17px;padding:0}.notes li{margin:3px 0}
+.tag{display:inline-block;font:9.5px ui-monospace,Consolas,monospace;letter-spacing:.5px;padding:0 5px;
+ border-radius:2px;border:1px solid;text-transform:uppercase;vertical-align:1px}
+.t-new{color:var(--new);border-color:#4a3a20;background:#1a140a}
+.t-ship{color:#5a8fa8;border-color:#2d4652;background:#0d161b}
+.t-cut{color:#c0402a;border-color:#4a2018;background:#1a0e0c}
+
+/* ---------- the panel itself, 1:1 ---------- */
+.stagewrap{flex:0 0 auto}
+.scaler{transform-origin:top left}
+.panel{
+  width:924px; background:var(--body); position:relative;
+  border-top:1px solid var(--bev-l); border-left:1px solid var(--bev-l);
+  border-right:1px solid var(--bev-d); border-bottom:1px solid var(--bev-d);
+  font-family:"FreeSans","Liberation Sans",Arial,sans-serif;
+  -webkit-font-smoothing:none;
+  padding-bottom:10px;
+}
+.panel .scrollbar{position:absolute;right:0;top:0;bottom:0;width:24px;background:#101010;
+  border-left:1px solid #030303}
+.panel .scrollbar i{position:absolute;left:5px;right:5px;top:26px;height:210px;background:#2e2e2e;
+  border-top:1px solid var(--bev-l);border-left:1px solid var(--bev-l);
+  border-right:1px solid var(--bev-d);border-bottom:1px solid var(--bev-d)}
+.panel .scrollbar b{position:absolute;left:0;right:0;height:24px;background:#181818;color:#888;
+  font:9px/24px monospace;text-align:center;border:1px solid #030303}
+.panel .scrollbar b.up{top:0}.panel .scrollbar b.dn{bottom:0}
+
+/* section header — H36, label TinyBold10 #b4b4b4 at y8 h14, rail x16 y26 w28 h2 */
+.sec{position:relative;height:36px}
+.sec .lab{position:absolute;left:16px;top:8px;height:14px;line-height:14px;
+  font:bold 10px/14px "FreeSans",Arial,sans-serif;letter-spacing:.6px;color:var(--accent)}
+.sec .lab .sfx{color:var(--placeholder);font-weight:normal}
+.sec .rail{position:absolute;left:16px;top:26px;width:28px;height:2px;background:var(--accent)}
+
+/* dropdown row — H54; micro label y0 h12 TinyBold #686868; button y18 h30 */
+.ddrow{position:relative;height:54px}
+.cell{position:absolute;width:211px}
+.c0{left:16px}.c1{left:239px}.c2{left:462px}.c3{left:685px}
+.wide{width:434px}.full{width:880px}
+.micro{position:absolute;top:0;height:12px;line-height:12px;
+  font:bold 10px/12px "FreeSans",Arial,sans-serif;letter-spacing:.5px;color:var(--micro)}
+.dd{position:absolute;top:18px;height:30px;background:var(--face);
+  border-top:1px solid #383838;border-left:1px solid #383838;
+  border-right:1px solid var(--bev-d);border-bottom:1px solid var(--bev-d);
+  color:var(--ink);font:14px/28px "FreeSans",Arial,sans-serif;text-align:center}
+.dd .arw{position:absolute;right:7px;top:0;line-height:28px;font-size:9px;color:#cfcfcf}
+.dd .sep{position:absolute;right:22px;top:5px;bottom:5px;width:1px;background:#313131}
+.dd.ph{color:var(--placeholder)}
+
+/* checkbox row — H38; box y4 h28 square; label at x+42, Regular14 #fff */
+.cbrow{position:relative;height:38px}
+.cb{position:absolute;top:4px;height:28px}
+.cb .box{position:absolute;left:0;top:0;width:28px;height:28px;background:var(--face);
+  border-top:1px solid #383838;border-left:1px solid #383838;
+  border-right:1px solid var(--bev-d);border-bottom:1px solid var(--bev-d)}
+.cb .box.on::after{content:"✔";position:absolute;left:6px;top:-1px;font-size:17px;color:#fff;line-height:28px}
+.cb .txt{position:absolute;left:42px;top:0;height:28px;line-height:28px;
+  font:14px/28px "FreeSans",Arial,sans-serif;color:var(--ink);white-space:nowrap}
+.cb.ph .txt{color:var(--placeholder)}
+
+/* ---------- the timeline (the new widget) ---------- */
+.tlrow{position:relative;height:112px}
+.tl{position:absolute;left:16px;top:20px;width:880px;height:56px;background:#101010;
+  border-top:1px solid var(--bev-d);border-left:1px solid var(--bev-d);
+  border-right:1px solid #2a2a2a;border-bottom:1px solid #2a2a2a}
+.band{position:absolute;top:0;height:34px;line-height:34px;text-align:center;
+  font:bold 10px/34px "FreeSans",Arial,sans-serif;letter-spacing:1px;overflow:hidden}
+.b-norush{background:#1b2733;color:#8fb4c8}
+.b-conv{background:#181818;color:#7a7a7a}
+.b-warhead{background:#2a2013;color:#d0a860}
+.b-end{background:#2a1412;color:#c88070}
+.axis{position:absolute;left:0;right:0;top:34px;height:21px;border-top:1px solid #262626}
+.tick{position:absolute;top:3px;transform:translateX(-50%);font:9px monospace;color:#5e5e5e}
+.mk{position:absolute;top:-6px;height:46px;width:3px;background:var(--accent);cursor:ew-resize}
+.mk::after{content:"";position:absolute;left:-4px;top:-5px;width:11px;height:11px;background:var(--accent);
+  border:1px solid #050505}
+.mk.gold{background:var(--new)}.mk.gold::after{background:var(--new)}
+.tlcap{position:absolute;top:80px;font:bold 10px/12px "FreeSans",Arial,sans-serif;
+  letter-spacing:.5px;color:var(--micro);transform:translateX(-50%);white-space:nowrap;text-align:center}
+.tlcap i{display:block;font-style:normal;color:var(--ink);font:14px/16px "FreeSans",Arial,sans-serif;
+  margin-top:2px}
+.tlnote{position:absolute;left:16px;top:0;font:bold 10px/12px "FreeSans",Arial,sans-serif;
+  letter-spacing:.5px;color:var(--micro)}
+.tlnote em{font-style:normal;color:var(--new)}
+
+.ruler{position:relative;height:18px;width:924px;margin-top:6px;color:#4a4a4a;
+  font:9px/18px ui-monospace,monospace}
+.ruler span{position:absolute;transform:translateX(-50%)}
+.ruler i{position:absolute;top:0;width:1px;height:5px;background:#333}
+.capbar{width:924px;margin:10px 0 0;font:11px/1.5 -apple-system,"Segoe UI",sans-serif;color:#6b6a61}
+</style>
+
+<h1>The settings panel, drawn 1:1 against the real chrome</h1>
+<p class="lede">Not a concept sketch — a pixel reproduction of what the engine actually draws, at the
+1920×1080 case: <b>924 px panel, four 211 px columns on a 223 pitch at x = 16 / 239 / 462 / 685</b>,
+36 px section headers, 54 px dropdown rows, 38 px checkbox rows, 24 px scrollbar reserved on the
+right. Colours and fonts are the shipped ones. Screenshot the real lobby beside this and the two
+should line up.</p>
+
+<div class="tabs">
+  <div class="tab on" data-t="1"><span class="n">1 · BUILD THIS</span>Escalation</div>
+  <div class="tab" data-t="2"><span class="n">2 · SAME PANEL</span>Skirmish</div>
+  <div class="tab" data-t="3"><span class="n">3 · TODAY</span>What ships now</div>
+  <div class="tab" data-t="4"><span class="n">4 · COST</span>What it takes to build</div>
+</div>
+
+<!-- ==================== TAB 1 ==================== -->
+<div class="pane on" id="p1">
+<div class="cols">
+<div class="stagewrap">
+<div class="panel">
+  <div class="scrollbar"><b class="up">▲</b><i></i><b class="dn">▼</b></div>
+
+  <!-- MATCH -->
+  <div class="sec"><div class="lab">MATCH</div><div class="rail"></div></div>
+  <div class="ddrow">
+    <div class="cell c0"><div class="micro">GAME MODE</div>
+      <div class="dd" style="width:211px">Escalation<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c1"><div class="micro">GAME SPEED</div>
+      <div class="dd" style="width:211px">Real Time<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c2"><div class="micro">SIDES</div>
+      <div class="dd" style="width:211px">Two teams<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c3"><div class="micro">DEAD HAND</div>
+      <div class="dd" style="width:211px">No limit<span class="sep"></span><span class="arw">▼</span></div></div>
+  </div>
+
+  <!-- THE TIMELINE -->
+  <div class="tlrow">
+    <div class="tlnote">THE MATCH &nbsp;·&nbsp; <em>drag either marker</em></div>
+    <div class="tl">
+      <div class="band b-norush" style="left:0;width:14%">NO RUSH</div>
+      <div class="band b-conv"   style="left:14%;width:26%">CONVENTIONAL</div>
+      <div class="band b-warhead" style="left:40%;width:60%">WARHEADS ISSUED · EITHER SIDE MAY FIRE</div>
+      <div class="axis">
+        <span class="tick" style="left:0%">0</span>
+        <span class="tick" style="left:16.6%">10</span>
+        <span class="tick" style="left:33.3%">20</span>
+        <span class="tick" style="left:50%">30</span>
+        <span class="tick" style="left:66.6%">40</span>
+        <span class="tick" style="left:83.3%">50</span>
+        <span class="tick" style="left:100%">60 min</span>
+      </div>
+      <div class="mk" style="left:14%"></div>
+      <div class="mk gold" style="left:40%"></div>
+    </div>
+    <div class="tlcap" style="left:calc(16px + 880px * 0.14)">THE LINE LIFTS<i>5:00</i></div>
+    <div class="tlcap" style="left:calc(16px + 880px * 0.40)">FIRST WARHEADS<i>+10:00</i></div>
+  </div>
+
+  <!-- ARSENAL -->
+  <div class="sec"><div class="lab">ARSENAL</div><div class="rail"></div></div>
+  <div class="ddrow">
+    <div class="cell c0"><div class="micro">ESCALATION GRANTS</div>
+      <div class="dd" style="width:211px">1 warhead per step<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c1"><div class="micro">GAME-ENDERS</div>
+      <div class="dd" style="width:211px">3 each · by map<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c2"><div class="micro">REPLY WINDOW</div>
+      <div class="dd" style="width:211px">15 seconds<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c3"><div class="micro">PURCHASING</div>
+      <div class="dd ph" style="width:211px">Disabled in Escalation<span class="sep"></span><span class="arw">▼</span></div></div>
+  </div>
+  <div class="cbrow">
+    <div class="cb c0" style="width:211px"><div class="box on"></div><div class="txt">Nuclear Arsenal</div></div>
+    <div class="cb c1" style="width:211px"><div class="box"></div><div class="txt">Airstrikes</div></div>
+    <div class="cb c2 ph" style="width:211px"><div class="box on"></div><div class="txt">Powers Enabled  (not wired)</div></div>
+  </div>
+
+  <!-- ECONOMY -->
+  <div class="sec"><div class="lab">ECONOMY</div><div class="rail"></div></div>
+  <div class="ddrow">
+    <div class="cell c0"><div class="micro">STARTING CASH</div>
+      <div class="dd" style="width:211px">$20,000<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c1"><div class="micro">INCOME MODIFIER</div>
+      <div class="dd" style="width:211px">100%<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c2"><div class="micro">PASSIVE INCOME</div>
+      <div class="dd" style="width:211px">$100<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c3"><div class="micro">KILL BOUNTIES</div>
+      <div class="dd" style="width:211px">Off<span class="sep"></span><span class="arw">▼</span></div></div>
+  </div>
+
+  <!-- BATTLEFIELD -->
+  <div class="sec"><div class="lab">BATTLEFIELD</div><div class="rail"></div></div>
+  <div class="ddrow">
+    <div class="cell c0"><div class="micro">STARTING UNITS</div>
+      <div class="dd" style="width:211px">None<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c1"><div class="micro">FORWARD DEPLOYMENT</div>
+      <div class="dd" style="width:211px">None<span class="sep"></span><span class="arw">▼</span></div></div>
+  </div>
+  <div class="cbrow">
+    <div class="cb c0" style="width:211px"><div class="box on"></div><div class="txt">Fog of War</div></div>
+    <div class="cb c1" style="width:211px"><div class="box on"></div><div class="txt">Explored Map</div></div>
+    <div class="cb c2" style="width:211px"><div class="box on"></div><div class="txt">Separate Team Spawns</div></div>
+    <div class="cb c3 ph" style="width:211px"><div class="box on"></div><div class="txt">Friendly Fire  (not wired)</div></div>
+  </div>
+
+  <!-- DEVELOPER -->
+  <div class="sec"><div class="lab">DEVELOPER</div><div class="rail"></div></div>
+  <div class="cbrow">
+    <div class="cb c0" style="width:211px"><div class="box on"></div><div class="txt">Debug Menu</div></div>
+    <div class="cb c1" style="width:211px"><div class="box on"></div><div class="txt">Sync</div></div>
+    <div class="cb c2" style="width:211px"><div class="box"></div><div class="txt">Sandbox: All Support Powers</div></div>
+  </div>
+</div>
+<div class="ruler">
+  <i style="left:16px"></i><span style="left:16px">16</span>
+  <i style="left:239px"></i><span style="left:239px">239</span>
+  <i style="left:462px"></i><span style="left:462px">462</span>
+  <i style="left:685px"></i><span style="left:685px">685</span>
+  <i style="left:896px"></i><span style="left:896px">896</span>
+  <i style="left:924px"></i><span style="left:924px">924</span>
+</div>
+<div class="capbar">Column origins, and the 24 px scrollbar track starting at 900. Screenshot the
+  real panel at 1920×1080 and these should land on the same pixels.</div>
+</div>
+
+<div class="notes">
+<h4>What changed, and why the panel got shorter</h4>
+<ul>
+<li><span class="tag t-cut">gone</span> <b>The word DEFCON.</b> Nowhere in the lobby. The blue band
+    says <i>NO RUSH</i> and the marker says <i>THE LINE LIFTS</i> — the mechanic keeps its name
+    in-game only.</li>
+<li><span class="tag t-cut">gone</span> <b>Four dropdowns replaced by two markers.</b> Start At,
+    Escalation Pace, Doomsday Clock and the escalation interval were four numbers a host had to
+    combine mentally. The timeline shows the match they add up to.</li>
+<li><span class="tag t-new">new</span> <b>SIDES</b> states the two-team constraint where it is
+    chosen, rather than refusing at launch.</li>
+<li><span class="tag t-new">new</span> <b>PURCHASING reads "Disabled in Escalation"</b> — dimmed
+    rather than hidden, so the answer to "can I buy nukes here" is on screen.</li>
+</ul>
+<h4>Order, and why this one</h4>
+<ul>
+<li>The engine renders sections in a fixed order defined in C#, so this ordering is a real change to
+    <code>SectionOrder</code>, not a yaml tweak. <b>MATCH → ARSENAL → ECONOMY → BATTLEFIELD →
+    DEVELOPER.</b></li>
+<li>It runs from <i>what game is this</i> down to <i>what am I debugging</i>: the mode and its shape
+    first, then what weapons exist, then the numbers, then the map, then developer switches. A host
+    changing one thing scans top-down and stops early.</li>
+<li>Two sections stay suppressed exactly as today — <b>Unit Availability</b> (24 placeholder
+    options) and <b>Combat Tuning</b> (7). Nothing here un-hides them.</li>
+</ul>
+<h4>Honest about the placeholders</h4>
+<ul>
+<li>Two shipped options are still <span class="tag t-ship">not wired</span> — Powers Enabled and
+    Friendly Fire — and are drawn as the engine draws them: <code>#969696</code> text with a
+    <code>(not wired)</code> suffix.</li>
+<li>They are also <b>still clickable</b>, and clicking one de-readies every player. Harmless today
+    only because their sections are suppressed — and this design un-suppresses one. That one-line
+    fix is queued and must land in the same change.</li>
+</ul>
+</div>
+</div>
+</div>
+
+<!-- ==================== TAB 2 ==================== -->
+<div class="pane" id="p2">
+<div class="cols">
+<div class="stagewrap">
+<div class="panel">
+  <div class="scrollbar"><b class="up">▲</b><i></i><b class="dn">▼</b></div>
+  <div class="sec"><div class="lab">MATCH</div><div class="rail"></div></div>
+  <div class="ddrow">
+    <div class="cell c0"><div class="micro">GAME MODE</div>
+      <div class="dd" style="width:211px">Skirmish<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c1"><div class="micro">GAME SPEED</div>
+      <div class="dd" style="width:211px">Real Time<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c2"><div class="micro">SIDES</div>
+      <div class="dd" style="width:211px">Any<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c3"><div class="micro">DEAD HAND</div>
+      <div class="dd" style="width:211px">60 minutes<span class="sep"></span><span class="arw">▼</span></div></div>
+  </div>
+  <div class="tlrow">
+    <div class="tlnote">THE MATCH &nbsp;·&nbsp; <em>drag any marker</em></div>
+    <div class="tl">
+      <div class="band b-norush" style="left:0;width:8%">NO RUSH</div>
+      <div class="band b-conv"   style="left:8%;width:9%">CONVENTIONAL</div>
+      <div class="band b-warhead" style="left:17%;width:66%">NUCLEAR WEAPONS PURCHASABLE</div>
+      <div class="band b-end" style="left:83%;width:17%">DEAD HAND</div>
+      <div class="axis">
+        <span class="tick" style="left:0%">0</span><span class="tick" style="left:16.6%">10</span>
+        <span class="tick" style="left:33.3%">20</span><span class="tick" style="left:50%">30</span>
+        <span class="tick" style="left:66.6%">40</span><span class="tick" style="left:83.3%">50</span>
+        <span class="tick" style="left:100%">60 min</span>
+      </div>
+      <div class="mk" style="left:8%"></div>
+      <div class="mk gold" style="left:17%"></div>
+      <div class="mk" style="left:83%"></div>
+    </div>
+    <div class="tlcap" style="left:calc(16px + 880px * 0.08)">LINE LIFTS<i>5:00</i></div>
+    <div class="tlcap" style="left:calc(16px + 880px * 0.17)">FIRST TIER<i>10:00</i></div>
+    <div class="tlcap" style="left:calc(16px + 880px * 0.83)">MATCH ENDS<i>60:00</i></div>
+  </div>
+  <div class="sec"><div class="lab">ARSENAL</div><div class="rail"></div></div>
+  <div class="ddrow">
+    <div class="cell c0"><div class="micro">NUCLEAR WEAPONS</div>
+      <div class="dd" style="width:211px">Buildable<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c1"><div class="micro">HIGHEST YIELD</div>
+      <div class="dd" style="width:211px">100 kt<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c2"><div class="micro">A TIER EVERY</div>
+      <div class="dd" style="width:211px">10 minutes<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c3"><div class="micro">ESCALATION</div>
+      <div class="dd ph" style="width:211px">None in Skirmish<span class="sep"></span><span class="arw">▼</span></div></div>
+  </div>
+  <div class="cbrow">
+    <div class="cb c0" style="width:211px"><div class="box on"></div><div class="txt">Nuclear Arsenal</div></div>
+    <div class="cb c1" style="width:211px"><div class="box on"></div><div class="txt">Airstrikes</div></div>
+    <div class="cb c2 ph" style="width:211px"><div class="box on"></div><div class="txt">Powers Enabled  (not wired)</div></div>
+  </div>
+  <div class="sec"><div class="lab">ECONOMY</div><div class="rail"></div></div>
+  <div class="ddrow">
+    <div class="cell c0"><div class="micro">STARTING CASH</div>
+      <div class="dd" style="width:211px">$20,000<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c1"><div class="micro">INCOME MODIFIER</div>
+      <div class="dd" style="width:211px">100%<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c2"><div class="micro">PASSIVE INCOME</div>
+      <div class="dd" style="width:211px">$100<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c3"><div class="micro">KILL BOUNTIES</div>
+      <div class="dd" style="width:211px">Off<span class="sep"></span><span class="arw">▼</span></div></div>
+  </div>
+  <div class="sec"><div class="lab">BATTLEFIELD</div><div class="rail"></div></div>
+  <div class="ddrow">
+    <div class="cell c0"><div class="micro">STARTING UNITS</div>
+      <div class="dd" style="width:211px">None<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c1"><div class="micro">FORWARD DEPLOYMENT</div>
+      <div class="dd" style="width:211px">None<span class="sep"></span><span class="arw">▼</span></div></div>
+  </div>
+  <div class="cbrow">
+    <div class="cb c0" style="width:211px"><div class="box on"></div><div class="txt">Fog of War</div></div>
+    <div class="cb c1" style="width:211px"><div class="box on"></div><div class="txt">Explored Map</div></div>
+    <div class="cb c2" style="width:211px"><div class="box on"></div><div class="txt">Separate Team Spawns</div></div>
+    <div class="cb c3 ph" style="width:211px"><div class="box on"></div><div class="txt">Friendly Fire  (not wired)</div></div>
+  </div>
+  <div class="sec"><div class="lab">DEVELOPER</div><div class="rail"></div></div>
+  <div class="cbrow">
+    <div class="cb c0" style="width:211px"><div class="box on"></div><div class="txt">Debug Menu</div></div>
+    <div class="cb c1" style="width:211px"><div class="box on"></div><div class="txt">Sync</div></div>
+    <div class="cb c2" style="width:211px"><div class="box"></div><div class="txt">Sandbox: All Support Powers</div></div>
+  </div>
+</div>
+</div>
+<div class="notes">
+<h4>The same panel, one dropdown different</h4>
+<ul>
+<li>Switching GAME MODE to Skirmish changes <b>the bands</b>, not the layout. The gold marker now
+    means "first tier purchasable" instead of "first warheads issued".</li>
+<li><b>DEAD HAND at 60 minutes adds a third marker</b> and a red tail band. That is the whole of the
+    time-limit feature, visible rather than inferred from a dropdown reading "60 minutes".</li>
+<li>ARSENAL swaps to the purchase controls: availability, the cap, and the unlock interval. The
+    ESCALATION cell dims to "None in Skirmish" for the same reason PURCHASING dims in tab 1 —
+    a question answered rather than a control hidden.</li>
+</ul>
+<h4>Why the cap stops at 100 kt</h4>
+<ul>
+<li>Game-enders are never purchasable in Skirmish, so they are not in the HIGHEST YIELD list at all.
+    A nuclear ending in Skirmish comes from Dead Hand, which is a host's deliberate lobby choice.</li>
+</ul>
+</div>
+</div>
+</div>
+
+<!-- ==================== TAB 3 ==================== -->
+<div class="pane" id="p3">
+<div class="cols">
+<div class="stagewrap">
+<div class="panel">
+  <div class="scrollbar"><b class="up">▲</b><i></i><b class="dn">▼</b></div>
+  <div class="sec"><div class="lab">MATCH</div><div class="rail"></div></div>
+  <div class="ddrow">
+    <div class="cell c0"><div class="micro">GAME SPEED</div>
+      <div class="dd" style="width:211px">Real Time<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c1"><div class="micro">DOOMSDAY CLOCK</div>
+      <div class="dd" style="width:211px">No limit<span class="sep"></span><span class="arw">▼</span></div></div>
+  </div>
+  <div class="cbrow">
+    <div class="cb c0" style="width:211px"><div class="box on"></div><div class="txt">Doomsday</div></div>
+  </div>
+  <div class="sec"><div class="lab">ESCALATION<span class="sfx">&nbsp;&nbsp;&nbsp;— NOT YET WIRED</span></div><div class="rail"></div></div>
+  <div class="ddrow">
+    <div class="cell c0"><div class="micro">GAME MODE</div>
+      <div class="dd ph" style="width:211px">Skirmish<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c1"><div class="micro">START AT</div>
+      <div class="dd ph" style="width:211px">DEFCON 3<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c2"><div class="micro">ESCALATION PACE</div>
+      <div class="dd ph" style="width:211px">Standard<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c3"><div class="micro">NUCLEAR CEILING</div>
+      <div class="dd ph" style="width:211px">200 kt+<span class="sep"></span><span class="arw">▼</span></div></div>
+  </div>
+  <div class="sec"><div class="lab">ARSENAL</div><div class="rail"></div></div>
+  <div class="cbrow">
+    <div class="cb c0" style="width:211px"><div class="box"></div><div class="txt">Tactical Nuclear…</div></div>
+    <div class="cb c1" style="width:211px"><div class="box on"></div><div class="txt">Strategic Nuclear…</div></div>
+    <div class="cb c2" style="width:211px"><div class="box on"></div><div class="txt">Nuclear Arsenal</div></div>
+    <div class="cb c3 ph" style="width:211px"><div class="box on"></div><div class="txt">Powers Enabled  (not wired)</div></div>
+  </div>
+  <div class="sec"><div class="lab">ECONOMY</div><div class="rail"></div></div>
+  <div class="ddrow">
+    <div class="cell c0"><div class="micro">STARTING CASH</div>
+      <div class="dd" style="width:211px">$20,000<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c1"><div class="micro">INCOME MODIFIER</div>
+      <div class="dd" style="width:211px">100%<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c2"><div class="micro">PASSIVE INCOME</div>
+      <div class="dd" style="width:211px">$100<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c3"><div class="micro">KILL BOUNTIES</div>
+      <div class="dd" style="width:211px">Off<span class="sep"></span><span class="arw">▼</span></div></div>
+  </div>
+  <div class="sec"><div class="lab">BATTLEFIELD</div><div class="rail"></div></div>
+  <div class="ddrow">
+    <div class="cell c0"><div class="micro">STARTING UNITS</div>
+      <div class="dd" style="width:211px">None<span class="sep"></span><span class="arw">▼</span></div></div>
+    <div class="cell c1"><div class="micro">FORWARD DEPLOYMENT</div>
+      <div class="dd" style="width:211px">None<span class="sep"></span><span class="arw">▼</span></div></div>
+  </div>
+  <div class="cbrow">
+    <div class="cb c0" style="width:211px"><div class="box on"></div><div class="txt">Fog of War</div></div>
+    <div class="cb c1" style="width:211px"><div class="box on"></div><div class="txt">Explored Map</div></div>
+    <div class="cb c2" style="width:211px"><div class="box on"></div><div class="txt">Separate Team Spawns</div></div>
+    <div class="cb c3 ph" style="width:211px"><div class="box on"></div><div class="txt">Friendly Fire  (not wired)</div></div>
+  </div>
+  <div class="sec"><div class="lab">DEVELOPER</div><div class="rail"></div></div>
+  <div class="cbrow">
+    <div class="cb c0" style="width:211px"><div class="box on"></div><div class="txt">Debug Menu</div></div>
+    <div class="cb c1" style="width:211px"><div class="box on"></div><div class="txt">Sync</div></div>
+    <div class="cb c2" style="width:211px"><div class="box"></div><div class="txt">Sandbox: All Support Powers</div></div>
+  </div>
+</div>
+</div>
+<div class="notes">
+<h4>This is what the lobby draws today</h4>
+<ul>
+<li>Reconstructed from the code, then checked against a live capture. <b>17 visible options across
+    6 sections</b>, 584 px of content in a 731 px viewport at 1080p — so it very nearly fits, and
+    scrolls at every smaller resolution.</li>
+<li><b>ESCALATION renders as four dead dropdowns</b> under a header that says NOT YET WIRED. That is
+    deliberate: the section is exempt from the suppress-when-all-placeholder rule, because hiding it
+    would answer "what mode am I playing?" with silence.</li>
+<li>Six option ids are hidden outright — <code>shortgame</code>, <code>crates</code>,
+    <code>creeps</code>, <code>buildradius</code>, <code>allybuild</code>, <code>techlevel</code> —
+    and two more, Airstrikes and its cooldown, are switched off in yaml.</li>
+</ul>
+<h4>The trap worth knowing</h4>
+<ul>
+<li>There is a <code>lobby-options.yaml</code> in the engine tree defining a <b>3-column</b> grid at
+    30/60 px rows. <b>It is never loaded.</b> Anyone grepping for the row templates lands there first
+    and measures a panel the mod does not draw. The live one is
+    <code>lobby-players.yaml:860-1067</code>.</li>
+</ul>
+</div>
+</div>
+</div>
+
+<!-- ==================== TAB 4 ==================== -->
+<div class="pane" id="p4">
+<div class="notes" style="max-width:104ch">
+<h4>The timeline is buildable, and the limit is narrower than it looked</h4>
+<ul>
+<li><b>Confirmed:</b> there is no integer option type. A repo-wide grep returns exactly one
+    <code>LobbyOption</code> subclass. The only value domain the engine has is
+    <code>Dictionary&lt;string,string&gt;</code>, and an option cannot supply its own widget —
+    <code>LobbyOptionsLogic</code> dispatches on C# type and locates children by type, so swapping a
+    dropdown for a custom widget in yaml alone throws.</li>
+<li><b>But the wire protocol does not care what UI produced a value.</b> Setting an option is the
+    text order <code>option &lt;id&gt; &lt;value&gt;</code>, and the server validates only that the
+    value is a key in that option's dictionary. Preset loading and the test-mode stager already
+    drive options with no dropdown anywhere in the path.</li>
+<li><b>So: a custom timeline writing enumerated string values needs zero server or protocol
+    change.</b> Markers snap to the same values the dropdowns offered — "10", "20", "30" — and the
+    match stays configurable without the widget. <b>The timeline is a presentation upgrade, not a
+    prerequisite</b>, which is what makes it safe to commit to.</li>
+</ul>
+<h4>What has to be written</h4>
+<ul>
+<li>A <code>TimelineWidget</code> in the engine tree — the mod ships no assembly of its own, and
+    three WW3MOD-specific widgets already live there, so this is the established pattern.
+    <b><code>SliderWidget</code> cannot be reused</b>: its <code>Draw</code> re-reads the authority
+    value every frame, so a synced port snaps back mid-drag, and its ticks are draw-only with an
+    in-source TODO saying snapping was never reimplemented.</li>
+<li>A ChromeLogic to bind it, and chrome yaml — which means forking the stock
+    <code>lobby-players.yaml</code> into the mod, since the panel currently uses the engine's copy
+    unmodified.</li>
+<li><b>The real design problem is drag versus network</b>, not drawing. Every accepted order resets
+    all clients to <i>not ready</i> and posts a chat line, so the order fires on <b>mouse-up
+    only</b> — never per drag-move.</li>
+</ul>
+<h4>Two things that will bite a naive reproduction</h4>
+<ul>
+<li><b>Dropdown value text is centre-aligned</b>, not left — it inherits
+    <code>TextAlign.Center</code> and neither row template overrides it.</li>
+<li><b>Checkbox internals are engine-fixed</b>: the box is a square of the row height and the label
+    sits at <code>x + height × 1.5</code>. Not adjustable from yaml. Both are reproduced above.</li>
+</ul>
+</div>
+</div>
+
+<script>
+var tabs=document.querySelectorAll('.tab'),panes=document.querySelectorAll('.pane'),cur='1';
+function state(){return{tab:cur}}
+function post(t,s){var m={type:t,state:state()};if(s)m.summary=s;try{window.parent.postMessage(m,'*')}catch(e){}}
+tabs.forEach(function(t){t.onclick=function(){
+  tabs.forEach(function(x){x.classList.remove('on')});panes.forEach(function(x){x.classList.remove('on')});
+  t.classList.add('on');cur=t.dataset.t;document.getElementById('p'+cur).classList.add('on');
+  post('maestro:artifact_state');geo();}});
+function geo(){try{window.parent.postMessage({type:'maestro:artifact_geometry',
+  height:document.documentElement.scrollHeight},'*')}catch(e){}}
+geo();window.addEventListener('load',geo);
+</script>
