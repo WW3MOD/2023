@@ -67,10 +67,18 @@ WorldLoaded = function()
 		"defect), if the fill has a gap or a staircase hole where it crosses open ground, or if it " ..
 		"reads as terrain -- a river or a road -- rather than as a rule.")
 
-	-- The crossing attempt. The order is issued; the wall is what refuses it.
+	-- The crossing attempt.
+	--
+	-- Test.IssueMoveOrder, NOT Gun.Move, and the first run of this capture is why. MobileProperties.Move
+	-- queues a Move ACTIVITY directly and never touches the order path -- its own PITFALL comment
+	-- says so, and says a scenario testing anything in the order path wants Test.IssueMoveOrder.
+	-- The refusal this frame exists to photograph lives in order validation, so a scripted Move
+	-- could never trigger it: frame 02 came back blank and the blankness was the rig's fault, not
+	-- the feature's. The unit still failed to cross either way, because the pathfinder has no
+	-- route -- which is exactly the silent disobedience the notification was added to end.
 	Trigger.AfterDelay(140, function()
 		if not Gun.IsDead then
-			Gun.Move(CPos.New(Across.X, Across.Y))
+			Test.IssueMoveOrder(Gun, CPos.New(Across.X, Across.Y))
 		end
 	end)
 
