@@ -134,6 +134,27 @@ namespace OpenRA.Test
 			Assert.That(TimelineModel.TicksToSeconds(5000, 0), Is.EqualTo(0));
 		}
 
+		// THE REGRESSION TEST FOR THE BLANK BAR (2026-09-10). LobbyTimelineLogic had
+		// `IsVisible = () => markers.Length > 0`, which is self-latching: Widget.TickOuter
+		// (Widget.cs:512-524) ticks a widget's LogicObjects only inside `if (IsVisible())`, so the
+		// first Rebuild that came up empty made the widget invisible, which stopped its logic
+		// ticking, which meant Rebuild never ran again. The bar never drew and nothing threw.
+		//
+		// SCOPE, HONESTLY: this pins the WIDGET's own contract — an empty timeline still reports
+		// visible, so it still ticks. It cannot stop a ChromeLogic from assigning IsVisible from
+		// outside, which is what actually happened; the comment at that call site is what guards
+		// that. Pinning the widget is still worth it because it is the half a future edit is most
+		// likely to reach for.
+		[Test]
+		public void AnEmptyTimelineIsStillVisibleSoItsLogicKeepsTicking()
+		{
+			var widget = new TimelineWidget();
+			Assert.That(widget.GetMarkers(), Is.Empty, "a fresh widget should start with no markers");
+			Assert.That(widget.IsVisible(), Is.True,
+				"an empty timeline must stay visible: Widget.TickOuter only ticks LogicObjects when IsVisible() is true, "
+				+ "so a timeline that hid itself while empty could never be refilled by its own logic.");
+		}
+
 		[Test]
 		public void OffsetCarriesThePlusSignAndClockDoesNot()
 		{

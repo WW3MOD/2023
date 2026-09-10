@@ -306,6 +306,15 @@ namespace OpenRA.Mods.Common.Widgets
 				return;
 
 			var markers = GetMarkers();
+
+			// NOTHING TO DRAW YET, WHICH IS NOT THE SAME AS NOT BEING VISIBLE. The widget stays visible
+			// with no markers so that Widget.TickOuter keeps ticking its ChromeLogic -- that method
+			// ticks LogicObjects only inside `if (IsVisible())` (Widget.cs:512-524), so a widget that
+			// hid itself while empty could never be refilled by its own logic. Drawing nothing here
+			// gives the same blank panel an invisible widget would, without the latch.
+			if (markers.Count == 0)
+				return;
+
 			var axis = GetAxisSeconds();
 			var track = TrackRect;
 

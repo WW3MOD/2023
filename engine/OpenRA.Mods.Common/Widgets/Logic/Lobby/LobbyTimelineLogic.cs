@@ -95,9 +95,23 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			timeline.OnSet = Set;
 			timeline.IsDisabled = () => configurationDisabled();
 
-			// A map whose rules carry none of these options draws nothing at all rather than an empty
-			// bar captioned with times it cannot set.
-			timeline.IsVisible = () => markers.Length > 0;
+			// DO NOT MAKE THIS WIDGET'S VISIBILITY DEPEND ON ANYTHING Rebuild() PRODUCES. That is not a
+			// style rule, it is a deadlock, and it shipped once (2026-09-10) and blanked the bar in the
+			// live lobby:
+			//
+			//     Widget.TickOuter (Widget.cs:512-524) ticks a widget's LogicObjects ONLY inside
+			//     `if (IsVisible())`. So `IsVisible = () => markers.Length > 0` is self-latching --
+			//     the moment the constructor's Rebuild comes up empty (a map preview whose rules have
+			//     not finished loading is enough), the widget is invisible, Tick() is therefore never
+			//     called, Rebuild() never runs again, and markers stays empty for the rest of the
+			//     lobby. It cannot recover, and it fails silently: no exception, no log line, just a
+			//     reserved gap with nothing in it.
+			//
+			// The `resolved` retry below was written for exactly that case and was rendered dead by
+			// this line, which is the tell -- a retry that never fires is usually gated on the thing
+			// it was meant to repair. Visibility now stays at the Widget default of true and
+			// TimelineWidget.Draw() no-ops while it has nothing to draw, which looks identical on
+			// screen and leaves the logic ticking.
 
 			mapPreview = getMap();
 			Rebuild();
