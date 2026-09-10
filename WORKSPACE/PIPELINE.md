@@ -282,6 +282,36 @@ It says losing the Route "puts them out of the match"; the shipped mechanic make
 > - **A grep through `info.` is invisible to a grep for the string.** 62's "`rotor-stopped` has no grantor" was false when written because the grant reads `info.RotorStoppedCondition`, not a literal. Same shape as 69's grant-vs-geometry miss. **When a symbol looks unreachable, check the indirection before filing it as dead.**
 > **And the cheapest structural lesson: `ai.yaml` line cites rot faster than anything else in the repo** — item 64's has now drifted four times, item 56's three. Record the KEY, not the line.
 
+### Current user priorities — 2026-09-09/10 DEFCON batch
+
+**These two items existed nowhere in this file until 2026-09-10, while being the largest body of work in the project.** Both are steered by decision records under `.maestro/managers/manager-9d3ca782-1d36-4549-a05d-6df8ce24ef9f/decisions/` (03, 04, 05, 06, 07, 08, 09). **Those decisions are authoritative; these stubs point at them and deliberately do not restate the rulings**, because two copies of a ruling drift and then there are two sources of truth.
+
+### 89. DEFCON Escalation — built end to end, deliberately still marked placeholder
+`[BUILT AND PUSHED — inert by design; MarkAsPlaceholder is TRUE on purpose and flipping it is the last step, not a cleanup]`
+**Perceived:** a match opens at a fixed alert posture and steps down as the war widens. DEFCON 3 is positioning behind a hard dividing line; DEFCON 2 is free-to-strike but only by direct order, so the first casualty is always somebody's decision; DEFCON 1 is open war. A separate nuclear release ladder gates which yields either side may fire.
+**All four pieces are merged** (`main @ f7b80f17`): spine `8a204ed5`, hold-fire `a905e057`, release ladder `e01217c4`, dividing wall `f4d3b782`. Four branches, zero merge conflicts, one build-and-gate cycle, all four gates green — build clean, `make.ps1 check` 0, NUnit 3120, YAML gate at the `Errors: 21` baseline over 331 maps.
+**DO NOT read "built" as "playable", and do not dispatch anyone to "finish" a piece without reading this line.** `MarkAsPlaceholder` is still `True` and **two workers independently declined to flip it**: the mode has no in-game readout, and the wall is inert on every shipped map for two independent reasons (no map authors a line, and `Start` defaults equal to `End` so the geometry is degenerate before the level is even consulted). Selecting DEFCON Escalation today changes nothing a player can see. Flipping that flag is the LAST step.
+
+> ✅ **The expensive half of this feature evaporated.** Decision 04 called authoring dividing lines across ten shipped maps "the largest single piece of work in the feature". It is **derivable**: `DefconWallGeometry.PerpendicularBisector` is implemented and tested, putting both spawns exactly 36 cells from the line. That turns per-map authoring into an override list for maps where terrain makes the bisector silly. **The estimate was wrong because nobody had asked whether the data could be computed rather than drawn.**
+>
+> ⚠️ **The user's own ladder deadlocks as drawn, and this is unresolved.** `HOLD → 1 kt → …` advanced only by detonations means HOLD is absorbing — nothing may fire, so nothing detonates, so the rung never moves, for an entire match, with nothing reporting it. It currently opens at 1 kt (`d290ab80`, deliberately a separate commit so the failure stays on the record). **Open question with the user**, along with whether 50–100 kt is one rung or two.
+>
+> ⚠️ **What is verified by READING ONLY, and must not be read as tested.** None of hold-fire's six fire-path guards has a test — they sit in per-actor trait methods and nothing in `OpenRA.Test` can construct a `World`, which is why every piece here split its logic into a plain class the tests can drive. Likewise: that a revoked ladder band actually removes a power's cameo and buy-tab entry, and the wall's layer-2 turn-back (reasoned from the activity `Tick` contract, not observed — if wrong, an airframe hovering on the line restarts its move forever). **All three need scenarios, and running a scenario is the manager's job, not a worker's.**
+>
+> **Rulings still owed before it can go live:** the ladder's opening rung, and what happens to ground units standing on the wall when it goes up (they are currently not evicted — they stand inside the wall on terrain their own locomotor calls impassable).
+
+### 90. Scenarios split in two — a deployment dropdown, and maps that carry their own scripts
+`[DECIDED 2026-09-09, NOT STARTED — and it is mostly a DELETION]`
+**Perceived:** you are a commander called into an ongoing war, so your troops are already in position rather than starting from zero; and separately, a "scenario" is a purpose-built map with scripted behaviour, not a layer selected over an existing map.
+**The finding that reshaped it:** the mod ALREADY ships the pre-placed-units mechanism — `StartingUnits@none/squad/platoon/Motorized/AirSupport` per faction at `world.yaml:536-612`, placed in an annulus around the player's Supply Route, chosen by `SpawnStartingUnits`' lobby dropdown. Every match already begins with an army on the field. Forward Deployment (`a0eb48c5`) added the second dropdown that puts one toward the enemy instead of at home.
+**So the remaining work is removal, not construction:** the per-map `scenarios.yaml` layer, `ScenarioLobbyDropdown`, `map.ScenarioNames` / `ShellmapScenario` and the three `!= "scenario"` filters all exist to select a scenario layer over a map in the lobby, and under decision 08 nothing does that any more. **The five-month team bug goes with them** — `river-zeta-frontline.lua:312-314` sorts humans by `p.Team` and nothing has set teams since `480b92c9` (2026-03-28), and the starting-force system never asks about teams at all.
+
+> 🚧 **SEQUENCING IS LOAD-BEARING: DO NOT DELETE FIRST.** The main-menu background works TODAY through the scenario machinery. Order is: build the purpose-built shellmap → build the deployment dropdown → only then remove the lobby scenario layer. Removing the layer while the menu still depends on it breaks the first thing anyone sees, and v0.1.0 has already shipped once unable to reach the main menu.
+>
+> ⚠️ **Related and unmerged:** `wt/shellmap-session @ 2218df8e` is a main-menu crash fix from 2026-08-16 that merges clean but forked 1429 commits back. It may be entangled with the machinery this item retires. Under triage.
+
+---
+
 ### Current user priorities — 2026-08-15 live-play batch
 
 Framing for this batch (why 63/64 are not one item, and what 65 has to do with either) is in [`archive/session-notes.md`](pipeline/archive/session-notes.md). Items **63** and **66** from this batch are merged and archived to [`closed-items.md`](pipeline/archive/closed-items.md) — 66's *procurement ordering axis* dossier is still the reference for the unfinished lobby-verification arm.
