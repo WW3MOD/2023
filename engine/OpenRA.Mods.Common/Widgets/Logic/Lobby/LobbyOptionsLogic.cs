@@ -114,9 +114,21 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		};
 
 		// Options never shown in the lobby (deliberately removed from WW3MOD).
+		//
+		// THIS SET HIDES; IT DOES NOT UNREGISTER. Both consumers — the options panel at
+		// RenderOptions below and the change chips in LobbyActiveChangesLogic — filter for
+		// DISPLAY only. LobbyCommands.LoadMapSettings still registers every id here with its
+		// shipped default, so nothing keyed to one of these ids changes behaviour by being listed.
+		//
+		// `powers-enabled` is hidden by user ruling as redundant: it is a LobbyDummyOptions
+		// placeholder (LobbyDummyOptions.cs:217-219, stamped Placeholder=true at :37) with NO
+		// consumer anywhere in engine or mod — nothing grants a condition or a prerequisite from
+		// it. It advertised itself as a master switch over the weapon gates that actually work,
+		// which is the one thing a dead control must not do. `friendly-fire` is the other
+		// placeholder that still renders and it deliberately STAYS.
 		internal static readonly HashSet<string> HiddenOptionIds = new()
 		{
-			"shortgame", "crates", "creeps", "buildradius", "allybuild", "techlevel"
+			"shortgame", "crates", "creeps", "buildradius", "allybuild", "techlevel", "powers-enabled"
 		};
 
 		// ONE section list, shared by every category. Sections render in the declared order and
@@ -179,10 +191,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{ DefconEscalationInfo.PaceOptionId, SectionEscalation },
 			{ DefconEscalationInfo.CeilingOptionId, SectionEscalation },
 
-			// Arsenal — which weapons this match permits, in ascending yield. `powers-enabled`
-			// is the odd one out and is sorted last on purpose: it is a LobbyDummyOptions
-			// placeholder with no consumer anywhere, so among three gates that DO work it would
-			// otherwise read as an authoritative master switch over them.
+			// Arsenal — which weapons this match permits, in ascending yield. TWO of these four
+			// now render: `nuclear-arsenal` is hidden at the trait (world.yaml,
+			// NuclearArsenalCheckboxVisible: False) and `powers-enabled` is hidden by id in
+			// HiddenOptionIds above, so a host sees the tactical and high-yield gates only.
+			// Both mappings are kept rather than deleted: they cost nothing, and they are what
+			// puts either option back in the right section if it is ever un-hidden — an option
+			// with no entry here lands in the implicit "Other" bucket at the bottom instead.
 			{ "tactical-nuke", SectionArsenal },
 			{ "high-yield-nuke", SectionArsenal },
 			{ "nuclear-arsenal", SectionArsenal },
@@ -533,7 +548,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				checkbox.IsVisible = () => true;
 				checkbox.IsChecked = () => optionEnabled.Update(orderManager.LobbyInfo.GlobalSettings);
-				checkbox.IsDisabled = () => configurationDisabled() || optionLocked.Update(orderManager.LobbyInfo.GlobalSettings);
+
+				// A PLACEHOLDER ROW IS DIMMED AND MUST ALSO BE DEAD TO THE MOUSE. Dimming it was
+				// only ever half the treatment: OnClick below issues a real `option <id> <state>`
+				// order, and the server answers that by resetting EVERY client to NotReady and
+				// posting a settings-changed chat line (LobbyCommands.cs) — a visible, disruptive
+				// consequence for a control that governs nothing.
+				checkbox.IsDisabled = () => option.Placeholder || configurationDisabled() || optionLocked.Update(orderManager.LobbyInfo.GlobalSettings);
 				checkbox.OnClick = () =>
 				{
 					var state = !optionEnabled.Update(orderManager.LobbyInfo.GlobalSettings);
@@ -581,7 +602,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					dropdown.GetColor = () => PlaceholderTextColor;
 
 				dropdown.IsVisible = () => true;
-				dropdown.IsDisabled = () => configurationDisabled() ||
+
+				// Same rule as the checkbox above, and this is the site that is actually reachable
+				// today: the four DEFCON dropdowns are placeholders in a section deliberately
+				// exempt from SuppressWhenAllPlaceholder, so they render and were fully clickable.
+				dropdown.IsDisabled = () => option.Placeholder || configurationDisabled() ||
 					optionValue.Update(orderManager.LobbyInfo.GlobalSettings).IsLocked;
 
 				dropdown.OnMouseDown = _ =>

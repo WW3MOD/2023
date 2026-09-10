@@ -41,11 +41,18 @@ namespace OpenRA.Mods.Common.Traits
 		"Attach to the World actor. Requires " + nameof(TimeLimitManager) + ", which supplies the trigger.")]
 	public class DoomsdayStrikeInfo : TraitInfo, ILobbyOptions, Requires<TimeLimitManagerInfo>
 	{
+		// THE PLAYER-FACING NAME IS "DEAD HAND"; THE SYMBOL NAMES DELIBERATELY DO NOT FOLLOW IT.
+		// User ruling: the lobby, the tooltip and the clock all read "Dead Hand", because that is
+		// what the mechanic IS — the class [Desc] above has opened `DOOMSDAY / "Dead Hand"` since
+		// it was written. The trait, its file, its fields and the `doomsday` option id keep the old
+		// name on purpose: the id is wire-visible (saved skirmish settings, replays and any map
+		// that sets it), and renaming a lobby option id silently discards the stored value.
+		// So this is not drift waiting to be tidied up. Change the strings, never the symbols.
 		[Desc("Label for the lobby checkbox.")]
-		public readonly string DoomsdayLabel = "Doomsday";
+		public readonly string DoomsdayLabel = "Dead Hand";
 
 		[Desc("Tooltip for the lobby checkbox.")]
-		public readonly string DoomsdayDescription = "When the Doomsday Clock expires, the map is destroyed by a nuclear salvo and the highest score at that moment wins. Turn it off to end on score alone, with no strike. It does nothing while the clock reads No limit.";
+		public readonly string DoomsdayDescription = "When the Dead Hand Clock expires, the map is destroyed by a nuclear salvo and the highest score at that moment wins. Turn it off to end on score alone, with no strike. It does nothing while the clock reads No limit.";
 
 		[Desc("Default state of the lobby checkbox.")]
 		public readonly bool DoomsdayEnabled = true;

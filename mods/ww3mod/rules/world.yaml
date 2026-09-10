@@ -654,9 +654,15 @@ World:
 	ScriptTriggers:
 	CellTriggerOverlay:
 	TimeLimitManager:
-		TimeLimitLabel: Doomsday Clock
+		# "Dead Hand Clock", not "Doomsday Clock" (user ruling, 2026-09-10). The player-facing name
+		# of the whole mechanic is Dead Hand -- the Soviet Perimeter system it is modelled on --
+		# and it now reads that way in the lobby, in DoomsdayStrike's checkbox label and in its
+		# tooltip. THE CODE DELIBERATELY DISAGREES: the trait is still DoomsdayStrike and the
+		# option id is still `doomsday`, because that id is wire-visible and renaming it would
+		# silently discard stored settings. See the comment at DoomsdayStrike.cs's label field.
+		TimeLimitLabel: Dead Hand Clock
 		TimeLimitDescription: Nuclear apocalypse when the clock runs out
-		# Match block: Game Speed (10), this (11), then the Doomsday checkbox (12) which decides
+		# Match block: Game Speed (10), this (11), then the Dead Hand checkbox (12) which decides
 		# what happens when this clock reaches zero. The two were previously in different
 		# sections at opposite ends of the panel despite being one feature.
 		TimeLimitDisplayOrder: 11
@@ -724,14 +730,35 @@ World:
 	#     values in PowersLobbyOptions.cs are the shipped behaviour and the only thing set below is
 	#     where the two checkboxes sort.
 	#
-	# The trait's OTHER two options belong to the airstrikes, which stay disabled for v1 -- so they
-	# are HIDDEN rather than deleted. Hiding is the right lever: the fields keep documenting what
-	# the airstrike re-enable will need, `airstrikes` keeps registering with its default so
-	# GrantConditionOnLobbyOption@airstrikes resolves the moment that block is uncommented, and
-	# nothing in the lobby advertises a feature that is not there.
+	# The trait's airstrike options stay disabled for v1 -- so they are HIDDEN rather than deleted.
+	# Hiding is the right lever: the fields keep documenting what the airstrike re-enable will
+	# need, `airstrikes` keeps registering with its default so GrantConditionOnLobbyOption@airstrikes
+	# resolves the moment that block is uncommented, and nothing in the lobby advertises a feature
+	# that is not there.
 	# Re-enabling airstrikes post-v1 = flip these two Visible flags back to True and uncomment the
 	# AirstrikePower@America/@Russia + GrantConditionOnLobbyOption@airstrikes blocks in player.yaml.
 	# See CLAUDE/RELEASE_V1.md (Deferred to v1.1).
+	#
+	# ==== HIDING IS NOT DELETING, AND HERE THE DIFFERENCE IS THE WHOLE GAME ====
+	# `nuclear-arsenal` and `powers-sandbox` are hidden below by the SAME lever, and it is the only
+	# safe one. Deleting either option -- or stripping this trait -- does NOT leave the setting at
+	# its shipped default; it INVERTS it. GrantConditionOnLobbyOption computes
+	#     optionEnabled = OptionOrDefault(Option, !GrantWhenOptionDisabled)
+	# (GrantConditionOnLobbyOption.cs:47-48), so THE REGISTERED DEFAULT AND THE UNREGISTERED
+	# FALLBACK ARE DIFFERENT VALUES. Both gates use GrantWhenOptionDisabled: true, so an option
+	# nobody registered falls back to FALSE, which GRANTS the *-disabled condition:
+	#   * `nuclear-arsenal` gone -> `nuke-arsenal-disabled` granted -> ALL 13 GATED POWERS VANISH
+	#     (10 in rules/ingame/nuclear-arsenal.yaml, plus @B61Mid, @Kinzhal and @GBU57 in
+	#     player.yaml -- the last two CONVENTIONAL weapons riding a checkbox labelled "Nuclear
+	#     Arsenal").
+	#   * `powers-sandbox` gone -> `powers-sandbox-disabled` granted -> the three unfiltered
+	#     ProvidesPrerequisite traits switch off -> `powers.event` is provided by no faction, and
+	#     the 8 autotest scenarios that set PowersSandboxCheckboxEnabled: true break at their FIRST
+	#     assertion, because what they override is the REGISTERED default.
+	# Visible: False touches none of that. LobbyCommands.LoadMapSettings (:1382-1410) registers
+	# every option ILobbyOptions yields with no visibility test at all; IsVisible is read in exactly
+	# one place, LobbyOptionsLogic.cs:400, which decides whether to draw a ROW. Option registered,
+	# default intact, behaviour unchanged, row gone. Same pattern as airstrikes/shortgame/techlevel.
 	PowersLobbyOptions:
 		AirstrikeCheckboxVisible: False
 		AirstrikeCheckboxDisplayOrder: 81
@@ -743,10 +770,20 @@ World:
 		TacticalNukeCheckboxDisplayOrder: 30
 		HighYieldNukeCheckboxDisplayOrder: 31
 		NuclearArsenalCheckboxDisplayOrder: 32
+		# HIDDEN, NOT REMOVED -- read the block comment above before touching this. The arsenal
+		# stays ON (NuclearArsenalCheckboxEnabled defaults true) and all 13 powers stay reachable;
+		# the host simply no longer gets a row to switch them off with. The DisplayOrder above is
+		# retained so un-hiding is a one-line change back to True.
+		NuclearArsenalCheckboxVisible: False
 		# Sandbox is deliberately NOT an Arsenal option: it does not decide which weapons exist,
 		# it suspends the faction rules governing who may buy them. It sorts into Developer (62)
 		# with the other testing switches.
 		PowersSandboxCheckboxDisplayOrder: 62
+		# HIDDEN, NOT REMOVED -- and this one is load-bearing for the test suite. Sandbox stays
+		# registered and OFF by default, so a normal match is faction-locked exactly as before,
+		# and the scenarios that turn it on in their own rules.yaml keep working. Deleting the
+		# option would take `powers.event` away from them; hiding it does nothing to them at all.
+		PowersSandboxCheckboxVisible: False
 
 	# DEFCON ESCALATION -- the match-wide alert level, and the three dropdowns that configure it.
 	# The player-actor half (DefconCasualtyObserver, GrantConditionOnDefconLevel) is in player.yaml.
