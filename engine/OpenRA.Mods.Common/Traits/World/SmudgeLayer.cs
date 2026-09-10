@@ -60,6 +60,20 @@ namespace OpenRA.Mods.Common.Traits
 			"0 (the default) disables the fade and reproduces stock alpha exactly.")]
 		public readonly int ShoreFadeCells = 0;
 
+		[Desc("Draw this layer a SECOND time after actors have been drawn, on cells occupied only by",
+			"cosmetic ground cover (`Passable.GroundCover` -- the crop fields, `^CivField`).",
+			"Smudges are a terrain-pass decal and actors are drawn in a later pass, so a scar on a cell",
+			"holding a crop field is placed, is present, and is completely hidden by the field sprite on",
+			"top of it. That reads as farmland being immune to a nuclear blast. This draws the same",
+			"sprite at the same alpha again, past the actor pass, for those cells only.",
+			"The restriction is `GroundCover` and it is exact: a cell qualifies only when it holds at",
+			"least one actor and EVERY actor in it is ground cover, so a scar can never appear on top of",
+			"a tank, a soldier or a building. An empty cell is deliberately excluded -- the terrain pass",
+			"already drew it, and drawing it twice would composite the sprite onto itself and make bare",
+			"ground darker than farmland.",
+			"Defaults to false, so every layer that does not opt in draws exactly as it did before.")]
+		public readonly bool GroundCoverOverlay = false;
+
 		[FieldLoader.LoadUsing(nameof(LoadInitialSmudges))]
 		public readonly Dictionary<CPos, MapSmudge> InitialSmudges;
 
@@ -89,7 +103,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new SmudgeLayer(init.Self, this); }
 	}
 
-	public class SmudgeLayer : IRenderOverlay, IWorldLoaded, ITickRender, INotifyActorDisposing
+	public class SmudgeLayer : IRenderOverlay, IRenderAboveWorld, IWorldLoaded, ITickRender, INotifyActorDisposing
 	{
 		struct Smudge
 		{
@@ -109,6 +123,26 @@ namespace OpenRA.Mods.Common.Traits
 		TerrainSpriteLayer render;
 		PaletteReference paletteReference;
 		bool disposed;
+
+		// ---- the over-actors pass, Info.GroundCoverOverlay ------------------------------------
+		// A second TerrainSpriteLayer holding ONLY the cells whose every occupant is cosmetic ground
+		// cover, drawn from IRenderAboveWorld so it lands after the actor pass rather than inside the
+		// terrain pass. IRenderOverlay is called by TerrainRenderer.RenderTerrain (TerrainRenderer.cs:112),
+		// which WorldRenderer.Draw runs at :378 -- before the renderable loop at :388. IRenderAboveWorld
+		// is invoked at :396, after it. Those are two sequential passes, not one sorted list, so this is
+		// the only seam at which a terrain decal can be put over an actor sprite at all.
+		//
+		// ALLOCATED LAZILY, and that is load-bearing rather than tidiness: TerrainSpriteLayer eagerly
+		// allocates 4 Vertex (48 bytes each) per map cell -- ~1.5 MB on river-zeta's 98x82 -- plus a GPU
+		// vertex buffer, in its constructor. Nine of the ten shipped maps carry no crop field at all, so
+		// on those this stays null forever and the whole feature costs one bool.
+		TerrainSpriteLayer overlayRender;
+		WorldRenderer worldRenderer;
+		Sprite overlayEmptySprite;
+		BlendMode overlayBlendMode;
+
+		// PERF: cached so the per-cell classification below does not allocate a delegate per call.
+		static readonly Func<Actor, bool> ActorIsGroundCover = a => a.IsGroundCover();
 
 		public SmudgeLayer(Actor self, SmudgeLayerInfo info)
 		{
@@ -135,6 +169,21 @@ namespace OpenRA.Mods.Common.Traits
 
 			paletteReference = wr.Palette(Info.Palette);
 			render = new TerrainSpriteLayer(w, wr, emptySprite, blendMode, w.Type != WorldType.Editor);
+
+			if (Info.GroundCoverOverlay)
+			{
+				worldRenderer = wr;
+				overlayEmptySprite = emptySprite;
+				overlayBlendMode = blendMode;
+
+				// Subscribed only when the feature is on, so a layer that has not opted in adds no
+				// handler to an event that fires on every cell every moving actor enters or leaves.
+				// The event is already live regardless -- Locomotor (Locomotor.cs:453) and
+				// HierarchicalPathFinder (:258) both subscribe unconditionally -- so this is one extra
+				// handler on a hot event, not the switching-on of a dormant path. The handler itself is
+				// a single dictionary lookup that returns immediately for any cell with no smudge.
+				w.ActorMap.CellUpdated += ActorsChanged;
+			}
 
 			// Add map smudges
 			foreach (var kv in Info.InitialSmudges)
@@ -207,6 +256,75 @@ namespace OpenRA.Mods.Common.Traits
 			var seq = smudge.Sequence;
 			var alpha = seq.GetAlpha(smudge.Depth) * ShoreAlpha(cell);
 			render.Update(cell, seq.GetSprite(smudge.Depth), paletteReference, seq.Scale, alpha, seq.IgnoreWorldTint);
+
+			if (Info.GroundCoverOverlay)
+				DrawOverGroundCover(cell, seq, smudge.Depth, alpha);
+		}
+
+		// Writes this cell into the over-actors layer, or clears it out of it. Same sprite, same depth,
+		// same alpha as the terrain-pass draw above -- this is the identical decal drawn a second time,
+		// not a second decal, so a field cell and a bare cell in the same band read as one continuous
+		// blast rather than two shades of one.
+		//
+		// No double-darkening, despite the sprite being composited twice on a field cell: the terrain-pass
+		// copy is drawn onto the terrain and then the OPAQUE field sprite is drawn over it, hiding it
+		// outright, so exactly one copy is visible either way. That depends on the field sprite being
+		// opaque and covering its cell; see the note in the test fixture.
+		void DrawOverGroundCover(CPos cell, ISpriteSequence seq, int depth, float alpha)
+		{
+			var over = IsGroundCoverOnly(world.ActorMap.GetActorsAt(cell), ActorIsGroundCover);
+
+			if (overlayRender == null)
+			{
+				// The overwhelmingly common case on a map with no farmland: nothing to draw and nothing
+				// allocated. Do not build the layer just to write a null into it.
+				if (!over)
+					return;
+
+				overlayRender = new TerrainSpriteLayer(world, worldRenderer, overlayEmptySprite, overlayBlendMode,
+					world.Type != WorldType.Editor);
+			}
+
+			overlayRender.Update(cell, over ? seq.GetSprite(depth) : null, paletteReference, seq.Scale, alpha, seq.IgnoreWorldTint);
+		}
+
+		/// <summary>Whether a cell's occupants are all cosmetic ground cover, so a decal may be drawn over them.</summary>
+		// Generic over the occupant type, with the ground-cover test passed in, PURELY so it is testable:
+		// nothing in OpenRA.Test can construct an Actor, let alone a World, so a rule expressed directly
+		// against Actor is a rule verified by reading. Same split, and the same reason, as ShoreAlphaAt
+		// below. The trait calls it with the real ActorMap and Actor.IsGroundCover; the fixture calls it
+		// with plain bools.
+		//
+		// EMPTY IS FALSE, deliberately and load-bearingly. An empty cell was already drawn by the terrain
+		// pass; drawing it again composites the sprite onto itself and leaves bare ground darker than the
+		// farmland beside it, which is a new artefact rather than a fix. "At least one occupant, and every
+		// occupant is ground cover" is the whole rule.
+		public static bool IsGroundCoverOnly<T>(IEnumerable<T> occupants, Func<T, bool> isGroundCover)
+		{
+			var any = false;
+			foreach (var occupant in occupants)
+			{
+				if (!isGroundCover(occupant))
+					return false;
+
+				any = true;
+			}
+
+			return any;
+		}
+
+		// An actor entered or left this cell, so its classification may have changed -- a tank driving
+		// onto scarred farmland must take the over-drawn scar with it, and give it back when it leaves.
+		//
+		// Re-queues through `dirty` rather than redrawing here, which buys three things from the existing
+		// commit path for free: the fog gate (TickRender only commits cells the local player can see),
+		// batching (many transitions in one tick collapse to one redraw), and a single code path for the
+		// under-layer and the over-layer. Re-adding a tile to `dirty` at its CURRENT depth is exactly what
+		// AddSmudge's "existing smudge" branch does, so it cannot disturb depth accounting.
+		void ActorsChanged(CPos cell)
+		{
+			if (tiles.TryGetValue(cell, out var smudge) && !dirty.ContainsKey(cell))
+				dirty[cell] = smudge;
 		}
 
 		/// <summary>How strongly this cell should draw, given how close it is to terrain this layer
@@ -300,6 +418,7 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						tiles.Remove(kv.Key);
 						render.Clear(kv.Key);
+						overlayRender?.Clear(kv.Key);
 					}
 					else
 					{
@@ -321,12 +440,30 @@ namespace OpenRA.Mods.Common.Traits
 			render.Draw(wr.Viewport);
 		}
 
+		// The over-actors half. Null on every map that has never had a scar land on ground cover, which
+		// is nine of the ten shipped maps -- so this is a null check per layer per frame there.
+		//
+		// Z ORDER IS PRESERVED ACROSS THE TWO PASSES. world.yaml lists the five scar bands lightest-first
+		// so the darkest draws last and wins (SmudgeLayerInfo's own [Desc]: "Order of the layers defines
+		// the Z sorting"), and that ordering holds here for the same reason it holds for IRenderOverlay:
+		// TraitDictionary.TraitContainer.Add inserts at BinarySearchMany(ActorID + 1) (TraitDictionary.cs:153),
+		// i.e. appends after the existing entries for the same actor, so traits on the world actor are
+		// visited in creation -- therefore YAML declaration -- order by both iterations.
+		void IRenderAboveWorld.RenderAboveWorld(Actor self, WorldRenderer wr)
+		{
+			overlayRender?.Draw(wr.Viewport);
+		}
+
 		void INotifyActorDisposing.Disposing(Actor self)
 		{
 			if (disposed)
 				return;
 
+			if (Info.GroundCoverOverlay)
+				world.ActorMap.CellUpdated -= ActorsChanged;
+
 			render.Dispose();
+			overlayRender?.Dispose();
 			disposed = true;
 		}
 	}

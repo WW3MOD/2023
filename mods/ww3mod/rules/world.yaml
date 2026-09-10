@@ -485,24 +485,36 @@ World:
 	# (SCORCH, CRATER) leave ShoreFadeCells at its default 0 and are byte-identical to before.
 	# 2 gives a two-cell ramp -- a cell touching water draws at 1/3, the next at 2/3, the rest
 	# at full -- so the disc eases off at a river instead of ending on a hard cell edge.
+	# GROUND-COVER OVERLAY, 2026-09-10. Only these five layers set it, for the same reason only these
+	# five set ShoreFadeCells: SCORCH and CRATER are the RA smudge types every ordinary weapon in the
+	# mod shares, and widening a nuclear-scarring decision onto conventional craters is not what was
+	# asked for. Crop fields are ACTORS (^CivField, 3187 of them on river-zeta), and actors draw in a
+	# later pass than terrain decals, so the scar on a field cell was always placed and always hidden --
+	# farmland read as immune to a nuclear blast. This redraws the band over those cells only, after
+	# actors. Ground cover is the exact restriction (Passable.GroundCover): a cell qualifies only if
+	# EVERY actor in it is ground cover, so a scar can never land on top of a tank, soldier or building.
 	SmudgeLayer@SCARRIM:
 		Type: ScarRim
 		ShoreFadeCells: 2
+		GroundCoverOverlay: true
 		Sequence: scarband-rim
 		SmokeChance: 0
 	SmudgeLayer@SCARBURN:
 		Type: ScarBurn
 		ShoreFadeCells: 2
+		GroundCoverOverlay: true
 		Sequence: scarband-burn
 		SmokeChance: 0
 	SmudgeLayer@SCARCHAR:
 		Type: ScarChar
 		ShoreFadeCells: 2
+		GroundCoverOverlay: true
 		Sequence: scarband-char
 		SmokeChance: 0
 	SmudgeLayer@SCARCRATER:
 		Type: ScarCrater
 		ShoreFadeCells: 2
+		GroundCoverOverlay: true
 		Sequence: scarband-crater
 		SmokeChance: 20
 		SmokeImage: smoke_m
@@ -510,6 +522,7 @@ World:
 	SmudgeLayer@SCARCORE:
 		Type: ScarCore
 		ShoreFadeCells: 2
+		GroundCoverOverlay: true
 		Sequence: scarband-core
 		SmokeChance: 40
 		SmokeImage: smoke_m
