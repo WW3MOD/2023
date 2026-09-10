@@ -336,7 +336,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// strength: a near-solid core-band cell butts straight against untouched water. There is no
 		/// sub-cell land/water information anywhere in the engine to feather against --
 		/// <c>TerrainTileInfo</c> is one terrain type per tile and nothing reads the tile art back --
-		/// so the only lever is to ramp the whole cell down as the boundary approaches.
+		/// so the only lever is to ramp the whole cell down as the boundary approaches.</para>
 		///
 		/// <para>Distance is Chebyshev, which matches the square cell grid: a cell diagonally touching
 		/// water fades the same as one orthogonally touching it, so the ramp follows the shoreline
