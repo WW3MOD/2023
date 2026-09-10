@@ -23,6 +23,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -209,8 +210,37 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
-			if (state.Tick())
-				Log.Write("debug", $"DEFCON {Level} (clock expired at tick {self.World.WorldTick}).");
+			if (!state.Tick())
+				return;
+
+			Log.Write("debug", $"DEFCON {Level} (clock expired at tick {self.World.WorldTick}).");
+
+			// THE ONE-SHOT HALF OF THE HOLD-FIRE RULE. The flag itself only stops a unit ACQUIRING a
+			// target; an engagement already running when the level drops has to be cancelled explicitly,
+			// exactly once, here -- otherwise a unit that closed on something at DEFCON 3 keeps chasing
+			// and shooting it through the whole phase. Held as a one-shot rather than as state so that
+			// no stance is disturbed and there is nothing to restore when the level moves on.
+			//
+			// ReportCasualty deliberately does NOT do this: it only ever moves 2 -> 1, the direction that
+			// RESTORES autonomous fire. Starting a match AT DEFCON 2 is not a transition either -- nothing
+			// is engaged on the opening tick.
+			if (DefconFireDiscipline.HoldsFire(Level))
+				CeaseAutonomousFireEverywhere(self);
+		}
+
+		// Deterministic without further qualification: ActorsWithTrait walks the trait dictionary in
+		// ActorID order, nothing here draws from SharedRandom, and it runs on the single tick the level
+		// moves -- so every client does identical work in identical order on the same tick. Materialised
+		// with ToArray because the body cancels activities and rewrites trait state as it walks.
+		static void CeaseAutonomousFireEverywhere(Actor self)
+		{
+			foreach (var pair in self.World.ActorsWithTrait<AutoTarget>().ToArray())
+			{
+				if (pair.Actor.IsDead || !pair.Actor.IsInWorld)
+					continue;
+
+				pair.Trait.CeaseAutonomousFire(pair.Actor);
+			}
 		}
 
 		// Called by DefconCasualtyObserver on each player actor once a death has passed the casualty

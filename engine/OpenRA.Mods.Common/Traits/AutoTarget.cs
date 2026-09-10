@@ -331,6 +331,23 @@ namespace OpenRA.Mods.Common.Traits
 
 		readonly bool allowMovement;
 
+		// THE DEFCON 2 HOLD-FIRE FLAG, read from the World actor. Resolved once in Created rather than
+		// per scan; the level itself is a live property on the trait, so this stays current. Deliberately
+		// TraitOrDefault -- a map or scenario that strips DefconEscalation must leave every read site
+		// below inert rather than throwing.
+		DefconEscalation defconEscalation;
+
+		/// <summary>Current match DEFCON level, or NoLevel when the mode is not in play -- Skirmish, or no
+		/// DefconEscalation on the World actor at all. NoLevel never holds fire, which is what makes each
+		/// guard below a single int compare and the whole feature a strict no-op outside the mode.</summary>
+		int DefconLevel => defconEscalation?.Level ?? DefconEscalationState.NoLevel;
+
+		/// <summary>True while the match forbids autonomous fire. An ACQUISITION site may consult this
+		/// directly: anything such a site produces is by construction a target the unit chose for itself.
+		/// A site that already knows a shot's provenance must use DefconFireDiscipline.Permits instead, so
+		/// that an order still fires.</summary>
+		bool DefconHoldsFire => DefconFireDiscipline.HoldsFire(DefconLevel);
+
 		[Sync]
 		int nextScanTime = 0;
 
@@ -548,6 +565,8 @@ namespace OpenRA.Mods.Common.Traits
 				self.TraitsImplementing<AutoTargetPriority>()
 					.OrderByDescending(ati => ati.Info.Priority).ToArray();
 
+			defconEscalation = self.World.WorldActor.TraitOrDefault<DefconEscalation>();
+
 			overrideAutoTarget = self.TraitsImplementing<IOverrideAutoTarget>().ToArray();
 			notifyStanceChanged = self.TraitsImplementing<INotifyStanceChanged>().ToArray();
 			notifyEngagementStanceChanged = self.TraitsImplementing<INotifyEngagementStanceChanged>().ToArray();
@@ -642,7 +661,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyDamage.Damaged(Actor self, AttackInfo e)
 		{
-			if (IsTraitDisabled || !self.IsIdle || Stance < UnitStance.Ambush)
+			// READ SITE 2 of 6 -- RETURN FIRE. It never routes through ChooseTarget, so gating the scan
+			// does not reach it: this is the unit deciding, by itself, to shoot back at whoever hit it,
+			// and at DEFCON 2 that decision is the player's to make. Placed at the very top so hold-fire
+			// also stops the ambush latch further down from springing on being shot at.
+			if (IsTraitDisabled || !self.IsIdle || Stance < UnitStance.Ambush || DefconHoldsFire)
 				return;
 
 			// Don't retaliate against healers
@@ -987,6 +1010,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		void TriggerNearbyAmbushAllies(Actor self, in Target target)
 		{
+			// READ SITE 6 of 6 -- AMBUSH BY PROXY. This springs OTHER units, by writing their latch and
+			// by force-deploying garrison ports, without ever consulting their stance or going anywhere
+			// near their fire path -- so not one of the five guards above can catch it, and one spotted
+			// ambusher would otherwise light off a whole lane at DEFCON 2. Guarded here at the source
+			// rather than at each callee, which is what also covers GarrisonManager.TriggerAmbush.
+			if (DefconHoldsFire)
+				return;
+
 			var coordRadius = WDist.FromCells(Info.AmbushCoordinationRadius);
 			var nearbyAllies = self.World.FindActorsInCircle(self.CenterPosition, coordRadius)
 				.Where(a => a != self && a.Owner == self.Owner && a.IsInWorld && !a.IsDead);
@@ -1012,6 +1043,42 @@ namespace OpenRA.Mods.Common.Traits
 			ambushPreAimTarget = Target.Invalid;
 			ambushTriggered = false;
 			ResetStage3Tracking();
+		}
+
+		/// <summary><para>ONE-SHOT CEASE-FIRE, run on every unit at the transition INTO DEFCON 2. The
+		/// hold-fire flag is a rule about ACQUIRING a target and deliberately does not cancel an
+		/// engagement already running, so without this a unit that closed on something at DEFCON 3 would
+		/// go on chasing and shooting it through the whole phase. This is the separate one-shot that
+		/// stops those. A one-shot precisely so that no stance state is disturbed and there is therefore
+		/// nothing to remember and restore when the level moves on to 1.</para>
+		///
+		/// <para>Only engagements the unit acquired BY ITSELF are cancelled: a player order, a Lua order,
+		/// a force-attack and a bot's deliberate AttackTarget all survive untouched, because at DEFCON 2
+		/// those are exactly the shots that are still allowed.</para></summary>
+		public void CeaseAutonomousFire(Actor self)
+		{
+			// PITFALL: the TOP-LEVEL activity only, deliberately NOT
+			// self.CurrentActivity.ActivitiesImplementing<IAttackActivity>(). That walk descends into
+			// ChildActivity and along NextActivity, so an autotarget attack nested under a player Move
+			// would match and CancelActivity would destroy the player's move order. Same read, and the
+			// same reason, as TickPreemption.
+			if (self.CurrentActivity is IAttackActivity current
+				&& IsAutoAcquiredSource(current.Source) && !current.ForceAttack)
+				self.CancelActivity();
+
+			// Cancelling the activity is not sufficient on its own: AttackFollow holds its targets in
+			// trait state that OUTLIVES the activity -- ClearRequestedTarget promotes rather than clears
+			// (AttackFollow.cs:69-79) -- and that promoted state is what the persistent-opportunity fire
+			// path reads every tick with no activity involved at all.
+			foreach (var ab in self.TraitsImplementing<AttackBase>())
+				ab.CancelAutonomousEngagement(self);
+
+			// Forget who last hit us so the retaliation memo cannot be acted on later, and re-arm a
+			// sprung ambush: SPRUNG is terminal until the stance is reset, and a unit that fired during
+			// DEFCON 3 should be back on the trigger rather than latched open for the rest of the match.
+			Aggressor = null;
+			if (stance == UnitStance.Ambush)
+				ResetAmbushState();
 		}
 
 		void ITick.Tick(Actor self)
@@ -1152,6 +1219,15 @@ namespace OpenRA.Mods.Common.Traits
 						if (canYield && PreemptionDue(self)
 							&& TryFindHigherBandTarget(self, existingTarget, out var betterTarget))
 							return betterTarget;
+
+						// READ SITE 3 of 6 -- the IOverrideAutoTarget branch, which hands an incumbent back
+						// BEFORE ChooseTarget is ever reached, so site 1's guard cannot see it. canYield is
+						// already exactly the provenance test -- AttackFollow computes it as
+						// IsAutoAcquiredSource(source) && !forceAttack (:281, :292) -- so "yields" means
+						// "the unit picked this itself" and is precisely what must be held. A player, Lua
+						// or deliberate bot order refuses to yield and passes straight through.
+						if (canYield && DefconHoldsFire)
+							return Target.Invalid;
 
 						fromProtectedOverride = !canYield;
 						return existingTarget;
@@ -1317,7 +1393,14 @@ namespace OpenRA.Mods.Common.Traits
 			var chosenTarget = Target.Invalid;
 			chosenBand = NoTargetPriorityBand;
 
-			if (stance <= UnitStance.HoldFire)
+			// READ SITE 1 of 6 -- the workhorse. It covers the idle rescan, both ambush paths, target
+			// preemption, both move-time paths and AttackFollow's fresh opportunity scan in one line,
+			// because every one of them reaches a target only through here. It sits beside the existing
+			// HoldFire stance test because it is the same statement one rung up: the unit may not pick a
+			// target for itself. Nothing here draws from SharedRandom, and the scan-interval re-arm in
+			// ScanForTarget is deliberately left upstream of this guard, so the RNG stream and the scan
+			// cadence are what they always were even while the hold is on.
+			if (stance <= UnitStance.HoldFire || DefconHoldsFire)
 				return chosenTarget;
 
 			reusableActivePriorities.Clear();
