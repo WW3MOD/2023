@@ -1,0 +1,460 @@
+<!DOCTYPE html><meta charset="utf-8"><title>Escalation — the exchange</title>
+<style>
+:root{--panel:#141613;--ink:#d8d6cc;--dim:#8d8b80;--lbl:#6b6a61;--edge:#26281f;
+ --amber:#c8823a;--ok:#8aa84a;--cool:#5a8fa8;--us:#5a8fa8;--ru:#c0402a}
+*{box-sizing:border-box}
+body{margin:0;padding:20px 24px 40px;background:#080907;color:var(--ink);
+ font:13px/1.5 "Segoe UI",Roboto,system-ui,sans-serif}
+h1{font:600 18px/1.3 inherit;margin:0 0 2px}
+.lede{color:var(--dim);margin:0 0 12px;max-width:104ch}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--edge);flex-wrap:wrap}
+.tab{padding:7px 13px;background:#101210;border:1px solid var(--edge);border-bottom:none;
+ border-radius:3px 3px 0 0;cursor:pointer;color:var(--dim);font-size:12.5px;user-select:none}
+.tab .n{font:9.5px ui-monospace,Consolas,monospace;color:var(--lbl);display:block;letter-spacing:.6px}
+.tab:hover{color:var(--ink)}
+.tab.on{background:var(--panel);color:#fff;border-color:#3a3d33;border-bottom:1px solid var(--panel);margin-bottom:-1px}
+.pane{display:none;border:1px solid var(--edge);border-top:none;background:var(--panel);padding:16px 18px 20px}
+.pane.on{display:block}
+.pitch{font-size:15px;color:#e6e4d9;margin:0 0 3px;font-weight:600}
+.why{color:var(--dim);margin:0 0 12px;max-width:100ch}
+.cols{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+.col-mock{flex:0 0 490px}.col-notes{flex:1;min-width:280px}
+/* exchange diagram */
+.ex{background:#0e100d;border:1px solid #2b2e25;border-radius:2px;padding:10px 12px}
+.exhead{display:flex;font:9.5px ui-monospace,Consolas,monospace;letter-spacing:1.2px;color:var(--lbl);
+ text-transform:uppercase;border-bottom:1px solid #2b2e25;padding-bottom:4px;margin-bottom:6px}
+.exhead .l{flex:1}.exhead .r{flex:1;text-align:right}
+.exhead .l{color:var(--ru)}.exhead .r{color:var(--us)}
+.xr{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:11.5px}
+.xr .side{flex:1;padding:4px 8px;border:1px solid #2b2e25;border-radius:2px;background:#171a15;min-height:27px}
+.xr .side.empty{background:transparent;border-color:transparent}
+.xr .side.ru{border-left:2px solid var(--ru)}
+.xr .side.us{border-right:2px solid var(--us);text-align:right}
+.xr .side b{color:#e6e4d9;font-weight:600}
+.xr .side .g{display:block;font-size:10.5px;color:var(--ok);margin-top:1px}
+.xr .side .w{display:block;font-size:10.5px;color:var(--lbl);margin-top:1px}
+.xr .arw{flex:0 0 92px;text-align:center;font:9.5px ui-monospace,Consolas,monospace;color:var(--amber);
+ letter-spacing:.4px;line-height:1.25}
+.xr .arw .a{display:block;color:#6b5a30;font-size:13px;line-height:1}
+.xr.fin .side{border-color:#5a2f26;background:#1a100e;color:#d98878}
+.xr.fin .side b{color:#e09a86}
+.tclock{display:flex;align-items:center;gap:8px;padding:5px 9px;margin:6px 0;border:1px dashed #4a5140;
+ border-radius:2px;background:#12140f;font-size:11.5px;color:#b9b09a}
+.tclock b{color:#ddd9cd}
+.end{margin-top:9px;padding:9px 11px;border:1px solid #5a2f26;border-radius:2px;background:#160d0c;text-align:center}
+.end .t{font:600 14px inherit;color:#d98878;letter-spacing:2px}
+.end .s{font-size:11px;color:var(--lbl);margin-top:2px}
+.sb{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-top:7px;
+ border-top:1px solid #2b2e25;padding-top:5px}
+.sb span{font:10.5px ui-monospace,Consolas,monospace}
+/* rules list */
+.rules{margin:10px 0 0;padding:9px 12px;border-left:2px solid #3a4a52;background:#0e1519;font-size:12px;
+ color:#b6c6ce}
+.rules div{margin:3px 0}
+.rules b{color:#dce8ee}
+.rules .k{font:9.5px ui-monospace,Consolas,monospace;color:var(--cool);letter-spacing:1px;
+ text-transform:uppercase;display:block;margin-bottom:3px}
+/* doomsday dial */
+.dial{text-align:center;padding:14px 0 6px}
+.dial .big{font:600 40px ui-monospace,Consolas,monospace;color:#d98878;line-height:1}
+.dial .cap{font:9.5px ui-monospace,Consolas,monospace;letter-spacing:2px;color:var(--lbl);text-transform:uppercase}
+.bar{height:9px;background:#171a15;border:1px solid #2b2e25;border-radius:5px;overflow:hidden;margin:9px 0 3px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#5a8fa8,#c8823a 62%,#c0402a)}
+.ticks{display:flex;justify-content:space-between;font:9.5px ui-monospace,Consolas,monospace;color:var(--lbl)}
+/* survivors table */
+.sv{width:100%;border-collapse:collapse;font-size:11.5px}
+.sv th{font:9.5px ui-monospace,Consolas,monospace;letter-spacing:1px;color:var(--lbl);text-align:left;
+ border-bottom:1px solid #2b2e25;padding:3px 6px 3px 0;text-transform:uppercase;font-weight:400}
+.sv td{padding:3px 6px 3px 0;border-bottom:1px solid #1c1f19;color:#ccc9be}
+.sv td.n{font:11px ui-monospace,Consolas,monospace;color:#ddd9cd;text-align:right}
+.sv tr.all td{color:#d98878}
+.lost{display:inline-block;font:9.5px ui-monospace,Consolas,monospace;letter-spacing:1px;padding:0 5px;
+ border:1px solid #5a2f26;border-radius:2px;background:#1a100e;color:#d98878}
+ul{margin:4px 0 9px 17px;padding:0}li{margin:3px 0;max-width:92ch}
+h4{margin:11px 0 2px;font-size:12px;color:#cfcdc2}
+.tag{display:inline-block;font:9.5px ui-monospace,Consolas,monospace;letter-spacing:.5px;padding:0 5px;
+ border-radius:2px;border:1px solid;text-transform:uppercase;vertical-align:1px}
+.new{color:var(--amber);border-color:#4a3a20;background:#1a140a}
+.ships{color:var(--cool);border-color:#2d4652;background:#0d161b}
+.chg{color:#c0402a;border-color:#4a2018;background:#1a0e0c}
+.box2{border-left:2px solid #6a5a2a;background:#16150f;padding:9px 12px;margin:0 0 12px;color:#b9b09a;
+ font-size:12.5px;max-width:104ch}
+.box2 b{color:#d8cfb6}
+.pick{margin-top:14px;border-top:1px solid var(--edge);padding-top:11px}
+.pick label{display:flex;gap:7px;align-items:flex-start;font-size:12.5px;margin:4px 0;cursor:pointer}
+textarea{width:100%;background:#0e100d;border:1px solid #33372c;color:var(--ink);border-radius:2px;
+ padding:7px;font:12px inherit;margin-top:8px;min-height:64px}
+button{margin-top:8px;background:#2a2f22;border:1px solid #4a5140;color:#e6e4d9;padding:6px 16px;
+ border-radius:2px;font:12.5px inherit;cursor:pointer}
+button:hover{background:#353c2b}
+.foot{color:var(--lbl);font-size:11.5px;margin-top:6px}
+</style>
+
+<h1>Escalation as an exchange — you arm your enemy by firing</h1>
+<p class="lede">The rule that makes this different from every ladder so far: <b>a launch grants nothing
+to the launcher.</b> It grants the next yield up to the people you fired at. So the ladder only
+climbs when both sides keep answering — and the only way to stop it is to take a hit and not
+answer in kind.</p>
+
+<div class="box2"><b>One thing to decide before anything else, because the mechanic turns on it.</b>
+If firing strictly helps your enemy and never you, then between two good players the correct move is
+<i>never fire</i> — and the whole nuclear layer becomes scenery. Your own framing already says this
+("you only do it if you are behind and you really need it"), so the mode needs something that makes
+falling behind <b>final</b>. A match clock does it: when the clock runs out the higher score wins,
+so the player who is behind must either fire or lose. <b>The clock is what starts the spiral</b>, and
+without it A and D below are the only variants that can ever reach the ending.
+Today's <code>DoomsdayStrike</code> already carries that clock — and note its current line reads
+"the winner is resolved from the FROZEN score", which is exactly the sentence your "everyone lost"
+ending overturns.</div>
+
+<div class="tabs">
+  <div class="tab on" data-t="A"><span class="n">A · YOUR MODEL</span>Fire, and arm them</div>
+  <div class="tab" data-t="B"><span class="n">B · MINE</span>Silence walks it back</div>
+  <div class="tab" data-t="C"><span class="n">C · MINE</span>In kind is free</div>
+  <div class="tab" data-t="D"><span class="n">D · MINE</span>One clock, everyone's finger</div>
+  <div class="tab" data-t="E"><span class="n">E · MINE</span>Count what is left</div>
+</div>
+
+<!-- ============== A ============== -->
+<div class="pane on" id="pA">
+<p class="pitch">Exactly your rule. A launch is a gift to the people you launched it at.</p>
+<p class="why">One setting: when the first warheads arrive. Everything after that is the players'
+doing. Read the exchange downward — it is one match, told as the six decisions that ended it.</p>
+<div class="cols">
+<div class="col-mock"><div class="ex">
+  <div class="exhead"><span class="l">◀ RUSSIA</span><span class="r">AMERICA ▶</span></div>
+
+  <div class="tclock">⏱ <b>30:00</b> — every player receives one <b>1 kt</b>. Nothing before this.</div>
+
+  <div class="xr">
+    <div class="side ru"><b>fires 1 kt</b><span class="w">behind on score, needs the trade</span></div>
+    <div class="arw"><span class="a">▶</span>arms them</div>
+    <div class="side us"><b>unlocked: 20 kt</b><span class="g">+1 granted</span></div>
+  </div>
+
+  <div class="xr">
+    <div class="side ru"><b>unlocked: 50 kt</b><span class="g">+1, and the 20 kt too</span></div>
+    <div class="arw"><span class="a">◀</span>answers in kind</div>
+    <div class="side us"><b>fires 20 kt</b><span class="w">retaliation</span></div>
+  </div>
+
+  <div class="xr">
+    <div class="side ru"><b>fires 50 kt</b><span class="w">still behind</span></div>
+    <div class="arw"><span class="a">▶</span>arms them</div>
+    <div class="side us"><b>unlocked: 100 kt</b><span class="g">+1, and the 50 kt</span></div>
+  </div>
+
+  <div class="xr">
+    <div class="side empty"><span class="w" style="color:var(--ok)">— holds. Absorbs it. —</span></div>
+    <div class="arw" style="color:var(--ok)"><span class="a" style="color:#4a5a2a">✕</span>no answer</div>
+    <div class="side us"><b>does not fire</b><span class="g">the ladder stops here</span></div>
+  </div>
+
+  <div class="sb"><span>OR — if America answers instead:</span></div>
+
+  <div class="xr">
+    <div class="side ru"><b>unlocked: game-enders</b><span class="g">+3</span></div>
+    <div class="arw"><span class="a">◀</span>arms them</div>
+    <div class="side us"><b>fires 100 kt</b></div>
+  </div>
+
+  <div class="xr fin">
+    <div class="side ru"><b>fires a game-ender</b></div>
+    <div class="arw" style="color:#8a4a3a"><span class="a" style="color:#8a4a3a">◆</span>15 s window</div>
+    <div class="side us"><b>answers with theirs</b></div>
+  </div>
+
+  <div class="end"><div class="t">NO WINNERS</div>
+    <div class="s">Every player is recorded as <b>Lost</b>. The score is still counted, and still
+      ranked — nobody is called the winner of it.</div></div>
+
+  <div class="rules"><span class="k">The whole rule set</span>
+    <div>· At <b>30:00</b> every player is granted one <b>1 kt</b> warhead. Nothing before that.</div>
+    <div>· Firing grants <b>the enemy</b> the next yield up — and everything below it they do not
+      already hold. You are granted nothing by your own launch. <span class="tag new">new</span></div>
+    <div>· So a warhead you fire is gone. Only being fired <i>at</i> refills you.</div>
+    <div>· Take a hit and do not answer in kind, and the ladder stops where it is. <b>That is the
+      only brake.</b></div>
+    <div>· A game-ender ends the match: 15 s for everyone to pick targets, then everyone is Lost.</div>
+  </div>
+</div></div>
+
+<div class="col-notes">
+<h4>Why it works, in one line</h4>
+<ul>
+<li>Firing helps you <b>now</b> and hurts you <b>later</b>, and the size of the later cost is chosen
+    by your victim. That is a real decision under uncertainty and it needs no balance numbers to be
+    tense.</li>
+<li>The moral is not written on a screen anywhere — it is the payoff matrix. A player who escalates
+    to win discovers they have handed their opponent the means to make winning impossible.</li>
+</ul>
+<h4>Three adjustments I would make</h4>
+<ul>
+<li><span class="tag chg">changed</span> <b>Add the match clock</b> (see the box above). Without it,
+    good players simply never fire.</li>
+<li><span class="tag chg">changed</span> <b>Say what "the enemy" means with more than two players.</b>
+    A launch should arm every player you are hostile to — so in 3v3 one hothead arms three enemies,
+    and in a free-for-all one launch arms five. That is a wonderful thing to have in the game, and
+    an awful thing to leave undefined.</li>
+<li><span class="tag chg">changed</span> <b>Retaliating "in kind" must be defined by yield, not by
+    intent.</b> Answering a 20 kt with a 20 kt is in kind and escalates nothing; answering with a
+    50 kt escalates. Otherwise nobody can tell which move they just made.</li>
+</ul>
+<h4>Where it can go wrong</h4>
+<ul>
+<li>The losing player can always deny the win by climbing to the top — "if I can't win, nobody
+    does". That is exactly the doctrine, and it is also the thing your competitive players will
+    complain about first. E is the answer to it if it bites.</li>
+<li>Grants stack ("as well as all previous"), so the second exchange is bigger than the first. The
+    spiral accelerates, which is right thematically and means the endgame arrives faster than the
+    30-minute setting suggests.</li>
+</ul>
+</div></div>
+</div>
+
+<!-- ============== B ============== -->
+<div class="pane" id="pB">
+<p class="pitch">The ladder can go down. Peace is something you have to keep.</p>
+<p class="why">Everything in A, plus one line: <b>a full interval with no launch by anyone steps the
+ladder back down one level.</b> Restraint stops being merely the absence of a decision and becomes a
+thing you are actively doing — and losing.</p>
+<div class="cols">
+<div class="col-mock"><div class="ex">
+  <div class="exhead"><span class="l">◀ RUSSIA</span><span class="r">AMERICA ▶</span></div>
+  <div class="xr">
+    <div class="side ru"><b>fires 1 kt</b></div>
+    <div class="arw"><span class="a">▶</span>arms them</div>
+    <div class="side us"><b>unlocked: 20 kt</b></div>
+  </div>
+  <div class="xr">
+    <div class="side ru"><b>unlocked: 50 kt</b></div>
+    <div class="arw"><span class="a">◀</span>answers</div>
+    <div class="side us"><b>fires 20 kt</b></div>
+  </div>
+  <div class="tclock" style="border-color:#3d5a3a;color:#9fb896">🕊 <b>10:00 of silence</b> — the
+    ladder falls one level. Ceiling drops from 50 kt to 20 kt. Held warheads stay.</div>
+  <div class="tclock" style="border-color:#3d5a3a;color:#9fb896">🕊 <b>another 10:00</b> — falls
+    again. Back to 1 kt. The war is conventional once more.</div>
+  <div class="xr">
+    <div class="side ru"><b>fires 50 kt</b><span class="w">the one they still held</span></div>
+    <div class="arw"><span class="a">▶</span>arms them</div>
+    <div class="side us"><b>unlocked: 100 kt</b><span class="g">straight back up</span></div>
+  </div>
+  <div class="rules"><span class="k">The one added line</span>
+    <div>· Every <b>interval</b> in which nobody launches, the ceiling drops one level.</div>
+    <div>· Warheads already granted are <b>never taken away</b> — de-escalation lowers what can be
+      unlocked next, not what you hold. A weapon in the silo is a permanent consequence.</div>
+  </div>
+</div></div>
+<div class="col-notes">
+<h4>What it adds</h4>
+<ul>
+<li><b>A tug-of-war instead of a ratchet.</b> A war can cool down and heat up twice in one match,
+    which is a shape no version of this has had yet.</li>
+<li>It makes a cease-fire a <i>strategy</i>: both sides stop, the ceiling falls, and the side that
+    breaks the silence is visibly the one that did it.</li>
+<li>The held-warheads exception is what keeps it from being a reset button — the arsenal is the
+    scar the war leaves behind even after everyone calms down.</li>
+</ul>
+<h4>Against it</h4>
+<ul>
+<li>It softens the moral. "There will be no winners" becomes "there need be no winners, unless
+    somebody keeps at it" — which is a different and gentler story.</li>
+<li>Two clocks running at once (escalation and cooling) is the first thing here that is genuinely
+    harder to explain than it is to play.</li>
+</ul>
+</div></div>
+</div>
+
+<!-- ============== C ============== -->
+<div class="pane" id="pC">
+<p class="pitch">Answering in kind is free. Going bigger is a button you have to press.</p>
+<p class="why">Being fired at grants you <b>the same yield back</b>, not a larger one — so
+retaliation is proportional and costs nobody anything. Climbing requires an explicit, announced,
+confirmed act: <b>ESCALATE</b>. The moral stops being emergent and becomes a thing a player
+knowingly does, with their name on it.</p>
+<div class="cols">
+<div class="col-mock"><div class="ex">
+  <div class="exhead"><span class="l">◀ RUSSIA</span><span class="r">AMERICA ▶</span></div>
+  <div class="xr">
+    <div class="side ru"><b>fires 20 kt</b></div>
+    <div class="arw"><span class="a">▶</span>in kind</div>
+    <div class="side us"><b>granted: 20 kt</b><span class="g">an even trade</span></div>
+  </div>
+  <div class="xr">
+    <div class="side ru"><b>granted: 20 kt</b></div>
+    <div class="arw"><span class="a">◀</span>in kind</div>
+    <div class="side us"><b>fires 20 kt</b></div>
+  </div>
+  <div class="tclock" style="border-color:#5a4a2a;color:#c4b596">↻ This can run all match. Two sides
+    trading equal blows escalate <b>nothing</b>.</div>
+  <div class="xr">
+    <div class="side ru" style="border-left-color:var(--amber)"><b>ESCALATES</b>
+      <span class="w" style="color:var(--amber)">confirmed · announced to all players by name</span></div>
+    <div class="arw" style="color:#c0402a"><span class="a" style="color:#8a4a3a">▲</span>the threshold</div>
+    <div class="side us"><b>both sides move to 50 kt</b><span class="g">the ceiling itself rises</span></div>
+  </div>
+  <div class="rules"><span class="k">How it differs</span>
+    <div>· Being struck grants you <b>the same yield</b> — never a bigger one.</div>
+    <div>· <b>ESCALATE</b> is a separate order. It raises the ceiling for <i>everyone</i>, costs you
+      a warhead, and is announced with the player's name. <span class="tag new">new</span></div>
+    <div>· There is no way up the ladder that is not somebody deliberately choosing it.</div>
+  </div>
+</div></div>
+<div class="col-notes">
+<h4>What it adds</h4>
+<ul>
+<li><b>Guilt has an author.</b> In A the spiral is nobody's fault in particular. Here every step up
+    has a name attached and a banner announcing it, which is much closer to the "poetic" register —
+    the game remembers who crossed each line.</li>
+<li>It separates <i>using</i> nuclear weapons from <i>escalating</i>, which is the actual
+    distinction the doctrine turns on and the one every other version here blurs.</li>
+<li>Proportional retaliation being free means the nuclear layer is genuinely used in every match,
+    not just in lost ones — which fixes A's "good players never fire" problem without a clock.</li>
+</ul>
+<h4>Against it</h4>
+<ul>
+<li>An ESCALATE button is a strange object in an RTS and will need real UI work to not feel like a
+    menu item. It is the most expensive variant here.</li>
+<li>Free proportional retaliation means the map is being nuked constantly at the same yield, which
+    could get numbing — the opposite failure to A's.</li>
+</ul>
+</div></div>
+</div>
+
+<!-- ============== D ============== -->
+<div class="pane" id="pD">
+<p class="pitch">No unlock table at all. One clock, and every launch moves it.</p>
+<p class="why">Everyone holds everything from the start — all yields, from the first minute. The only
+thing that exists is a doomsday clock counting toward midnight, and <b>every nuclear detonation by
+anyone moves it closer, in proportion to the yield.</b> At midnight the world ends and everyone is
+Lost.</p>
+<div class="cols">
+<div class="col-mock"><div class="ex">
+  <div class="dial"><div class="big">7:42</div><div class="cap">to midnight</div></div>
+  <div class="bar"><i style="width:61%"></i></div>
+  <div class="ticks"><span>match start</span><span>MIDNIGHT</span></div>
+  <div class="rules" style="margin-top:12px"><span class="k">Everything there is to know</span>
+    <div>· Every player holds every yield from minute one. Nothing is locked. <span class="tag new">new</span></div>
+    <div>· The clock runs down on its own — slowly.</div>
+    <div>· <b>A 1 kt takes 30 seconds off it. A 750 kt takes eight minutes.</b> Fired by anyone,
+      at anyone.</div>
+    <div>· At midnight the map is destroyed and everyone is Lost.</div>
+    <div>· Win before midnight and you win normally. <b>Every nuke you fire brings your own deadline
+      forward.</b></div>
+  </div>
+  <div class="end" style="margin-top:10px"><div class="t">MIDNIGHT</div>
+    <div class="s">Everyone Lost · scores ranked, unclaimed</div></div>
+</div></div>
+<div class="col-notes">
+<h4>Why this one might be the best of them</h4>
+<ul>
+<li><b>One number on screen that only goes down, and everyone can move it.</b> No unlock
+    bookkeeping, no per-player state, nothing to explain in a tooltip — and the moral is <i>more</i>
+    legible than in A, not less, because you watch the cost of every launch land on a shared dial.</li>
+<li>It solves A's problem without a match clock: firing is always available, so the threat is real
+    from minute one, and the price is always visible.</li>
+<li>It is the cheapest of the five to build by a wide margin. The clock and the end-of-match salvo
+    already exist in <code>DoomsdayStrike</code> — this wires detonations to the clock and changes
+    who is called the winner.</li>
+</ul>
+<h4>Against it</h4>
+<ul>
+<li>It loses your exchange entirely. Nobody arms anybody; there is no gift, no retaliation, no
+    reading of your enemy's intent. That is the most interesting thing in your version and this
+    variant does not have it.</li>
+<li>"Everyone holds a game-ender from minute one" is a very different match. Somebody will fire one
+    at 0:30 to see what happens.</li>
+</ul>
+</div></div>
+</div>
+
+<!-- ============== E ============== -->
+<div class="pane" id="pE">
+<p class="pitch">Nobody wins. The scoreboard counts what survived.</p>
+<p class="why">Not a rule change — a <b>scoring</b> change that can sit under A, B, C or D. The
+match does not produce a winner; it produces a count of what is left standing. Every nuke shrinks
+that number for everybody, including the one who fired it.</p>
+<div class="cols">
+<div class="col-mock"><div class="ex">
+  <div class="exhead"><span class="l">FINAL</span><span class="r">RIVER ZETA · 42:18</span></div>
+  <table class="sv" style="margin-top:6px">
+    <tr><th>Player</th><th>Standing</th><th>Lost</th><th>Fired</th><th></th></tr>
+    <tr><td>Russia</td><td class="n">31%</td><td class="n">69%</td><td class="n">4</td>
+      <td><span class="lost">LOST</span></td></tr>
+    <tr><td>America</td><td class="n">18%</td><td class="n">82%</td><td class="n">3</td>
+      <td><span class="lost">LOST</span></td></tr>
+    <tr class="all"><td>The map</td><td class="n">24%</td><td class="n">76%</td><td class="n">7</td>
+      <td><span class="lost">LOST</span></td></tr>
+  </table>
+  <div class="end" style="margin-top:11px"><div class="t">THERE WERE NO WINNERS</div>
+    <div class="s">Russia held more ground at the end. It is not called winning.</div></div>
+  <div class="rules"><span class="k">What changes</span>
+    <div>· The scoreboard's headline number is <b>what remains</b>, not what was destroyed.
+      <span class="tag new">new</span></div>
+    <div>· A row for <b>the map itself</b>, so the total damage is a number somebody has to look
+      at.</div>
+    <div>· If it ended nuclear, every player reads <span class="lost">LOST</span> — ranked, never
+      crowned. <span class="tag chg">changed</span> Today <code>DoomsdayStrike</code> resolves a
+      winner from the frozen score.</div>
+    <div>· If it ended <i>without</i> a game-ender, the winner is a winner as normal. Restraint is
+      the only path to the word.</div>
+  </div>
+</div></div>
+<div class="col-notes">
+<h4>Why it is worth doing whichever rule wins</h4>
+<ul>
+<li>This is where the poetry actually lives. The rules make the spiral happen; <b>the scoreboard is
+    what tells the player what it meant</b>, and it is the one screen everybody reads at the end of
+    every match.</li>
+<li>"Russia held more ground at the end. It is not called winning." does more moral work than any
+    mechanic on the other four tabs, and it is a label and a string.</li>
+<li>Keeping the normal win for a match that ended conventionally is what stops it being nihilism —
+    the word <i>winner</i> still exists, and the way to earn it is to not reach for the thing.</li>
+</ul>
+<h4>Against it</h4>
+<ul>
+<li>Competitive players will want their win recorded. A ladder or a stats page has to decide what a
+    nuclear draw counts as, and "everyone lost" is not a result a rating system can take.</li>
+<li>Percentages of "standing" need a definition — buildings? value? population? — and whichever is
+    picked, somebody will play to the metric rather than to the war.</li>
+</ul>
+</div></div>
+</div>
+
+<div class="pick">
+  <div style="font-size:12.5px;color:#cfcdc2;margin-bottom:5px">Which rule, and which pieces?</div>
+  <label><input type="checkbox" name="v" value="A"> <span><b>A</b> — firing arms your enemy (your model)</span></label>
+  <label><input type="checkbox" name="v" value="B"> <span><b>B</b> — silence walks the ladder back down</span></label>
+  <label><input type="checkbox" name="v" value="C"> <span><b>C</b> — in kind is free, ESCALATE is a deliberate act</span></label>
+  <label><input type="checkbox" name="v" value="D"> <span><b>D</b> — one shared doomsday clock, everything unlocked</span></label>
+  <label><input type="checkbox" name="v" value="E"> <span><b>E</b> — nobody wins; count what survived (works under any of them)</span></label>
+  <label><input type="checkbox" name="v" value="clock"> <span>and: a match clock, so the player who is behind must act</span></label>
+  <textarea id="note" placeholder="e.g. &quot;A with C's announced ESCALATE, and E's scoreboard&quot; — or what is still wrong about it."></textarea>
+  <button id="send">Send this back</button>
+  <div class="foot">Rules only — the lobby panel for whichever wins is still the one from
+    lobby-simple.html, with the same single setting.</div>
+</div>
+
+<script>
+var tabs=document.querySelectorAll('.tab'),panes=document.querySelectorAll('.pane'),cur='A';
+function pick(){var o=[];document.querySelectorAll('input[name=v]:checked').forEach(function(c){o.push(c.value)});return o}
+function state(){return{tab:cur,variants:pick(),note:document.getElementById('note').value}}
+function post(t,s){var m={type:t,state:state()};if(s)m.summary=s;try{window.parent.postMessage(m,'*')}catch(e){}}
+tabs.forEach(function(t){t.onclick=function(){
+  tabs.forEach(function(x){x.classList.remove('on')});panes.forEach(function(x){x.classList.remove('on')});
+  t.classList.add('on');cur=t.dataset.t;document.getElementById('p'+cur).classList.add('on');
+  post('maestro:artifact_state');geo();}});
+document.querySelectorAll('input[name=v]').forEach(function(r){r.onchange=function(){post('maestro:artifact_state')}});
+document.getElementById('note').oninput=function(){post('maestro:artifact_state')};
+document.getElementById('send').onclick=function(){var p=pick();
+  post('maestro:artifact_submit','exchange: '+(p.length?p.join('+'):'none'))};
+function geo(){try{window.parent.postMessage({type:'maestro:artifact_geometry',
+  height:document.documentElement.scrollHeight},'*')}catch(e){}}
+window.addEventListener('message',function(e){if(e.data&&e.data.type==='maestro:artifact_hydrate'&&e.data.state){
+  var s=e.data.state;if(s.note)document.getElementById('note').value=s.note;
+  if(s.variants&&s.variants.forEach)s.variants.forEach(function(v){
+    var c=document.querySelector('input[name=v][value="'+v+'"]');if(c)c.checked=true});
+  if(s.tab){var t=document.querySelector('.tab[data-t="'+s.tab+'"]');if(t)t.click()}}});
+geo();window.addEventListener('load',geo);
+</script>
