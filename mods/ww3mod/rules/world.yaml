@@ -654,15 +654,20 @@ World:
 	ScriptTriggers:
 	CellTriggerOverlay:
 	TimeLimitManager:
-		# "Dead Hand Clock", not "Doomsday Clock" (user ruling, 2026-09-10). The player-facing name
-		# of the whole mechanic is Dead Hand -- the Soviet Perimeter system it is modelled on --
-		# and it now reads that way in the lobby, in DoomsdayStrike's checkbox label and in its
-		# tooltip. THE CODE DELIBERATELY DISAGREES: the trait is still DoomsdayStrike and the
-		# option id is still `doomsday`, because that id is wire-visible and renaming it would
-		# silently discard stored settings. See the comment at DoomsdayStrike.cs's label field.
-		TimeLimitLabel: Dead Hand Clock
-		TimeLimitDescription: Nuclear apocalypse when the clock runs out
-		# Match block: Game Speed (10), this (11), then the Dead Hand checkbox (12) which decides
+		# "Time Limit" (user ruling, 2026-09-10). This is the THIRD name in a day -- Doomsday, then
+		# Dead Hand, now this -- and the last change was the one with a mechanical argument behind
+		# it rather than taste: THE AUTO-LAUNCH WAS REMOVED. Nothing here fires by itself any more.
+		# At zero every surviving side is handed its game-enders and fifteen seconds to pick
+		# targets, which is players deciding, not a machine deciding for absent commanders -- so
+		# "dead hand", which names precisely that machine, had stopped being true.
+		#
+		# This rename REMOVES a divergence rather than adding one: the trait is TimeLimitManager
+		# and the field is TimeLimitLabel, so label and symbol now agree. The CHECKBOX is the half
+		# that still disagrees deliberately -- see DoomsdayStrike.cs's label field for why the
+		# `doomsday` option id must not follow the copy.
+		TimeLimitLabel: Time Limit
+		TimeLimitDescription: How long the match runs before it is decided
+		# Match block: Game Speed (10), this (11), then the Nuclear ending checkbox (12) which decides
 		# what happens when this clock reaches zero. The two were previously in different
 		# sections at opposite ends of the panel despite being one feature.
 		TimeLimitDisplayOrder: 11

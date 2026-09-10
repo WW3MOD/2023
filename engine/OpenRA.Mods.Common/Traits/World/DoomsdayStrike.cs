@@ -41,18 +41,29 @@ namespace OpenRA.Mods.Common.Traits
 		"Attach to the World actor. Requires " + nameof(TimeLimitManager) + ", which supplies the trigger.")]
 	public class DoomsdayStrikeInfo : TraitInfo, ILobbyOptions, Requires<TimeLimitManagerInfo>
 	{
-		// THE PLAYER-FACING NAME IS "DEAD HAND"; THE SYMBOL NAMES DELIBERATELY DO NOT FOLLOW IT.
-		// User ruling: the lobby, the tooltip and the clock all read "Dead Hand", because that is
-		// what the mechanic IS — the class [Desc] above has opened `DOOMSDAY / "Dead Hand"` since
-		// it was written. The trait, its file, its fields and the `doomsday` option id keep the old
-		// name on purpose: the id is wire-visible (saved skirmish settings, replays and any map
-		// that sets it), and renaming a lobby option id silently discards the stored value.
-		// So this is not drift waiting to be tidied up. Change the strings, never the symbols.
+		// THE PLAYER-FACING NAME IS "NUCLEAR ENDING"; THE SYMBOL NAMES DELIBERATELY DO NOT FOLLOW IT.
+		//
+		// This string has been "Doomsday", then "Dead Hand", now this, all on 2026-09-10. The last
+		// move had a mechanical argument rather than a stylistic one: THE AUTO-LAUNCH IS GONE. A
+		// dead hand is specifically a machine that fires when nobody is left to order it, and this
+		// no longer does that — at zero, every surviving side is handed its game-enders and fifteen
+		// seconds to choose targets. So the name described a mechanism that had been removed.
+		//
+		// The feature is TWO controls and they are now named separately: TimeLimitManager's
+		// dropdown says HOW LONG ("Time Limit", world.yaml), and this checkbox says WHAT HAPPENS
+		// at zero ("Nuclear ending"). Untick it and the match simply ends on score.
+		//
+		// The trait, its file, its fields and the `doomsday` option id keep the old name on
+		// purpose: the id is wire-visible (saved skirmish settings, replays and any map that sets
+		// it), and renaming a lobby option id silently discards the stored value. So this is not
+		// drift waiting to be tidied up — and note it has now survived three renames of the copy,
+		// which is the argument for leaving it alone rather than against. Change the strings,
+		// never the symbols.
 		[Desc("Label for the lobby checkbox.")]
-		public readonly string DoomsdayLabel = "Dead Hand";
+		public readonly string DoomsdayLabel = "Nuclear ending";
 
 		[Desc("Tooltip for the lobby checkbox.")]
-		public readonly string DoomsdayDescription = "When the Dead Hand Clock expires, the map is destroyed by a nuclear salvo and the highest score at that moment wins. Turn it off to end on score alone, with no strike. It does nothing while the clock reads No limit.";
+		public readonly string DoomsdayDescription = "When the Time Limit expires, the map is destroyed by a nuclear salvo and the highest score at that moment wins. Turn it off to end on score alone, with no strike. It does nothing while the Time Limit reads No limit.";
 
 		[Desc("Default state of the lobby checkbox.")]
 		public readonly bool DoomsdayEnabled = true;
