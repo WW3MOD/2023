@@ -51,25 +51,48 @@
  *      same answer by construction. The asymmetric variant is then a change to the BODY of RungFor
  *      and to nothing else -- no call site, no trait, no YAML.
  *
- * ==== WHAT THIS CLASS DELIBERATELY DOES NOT DECIDE ====
- * When the ladder OPENS. HOLD is modelled as a CEILING value ("no nuclear weapons this match"),
- * not as a starting rung that something has to unlock -- because nothing in decisions 04 or 06 says
- * what would unlock it, and a start-at-HOLD ladder whose only mover is a detonation can never be
- * climbed at all. Binding HOLD to DEFCON 1 is the obvious candidate and is one line in
- * DefconEscalation; it is called out in the report rather than guessed at here.
+ * ==== WHEN THE LADDER OPENS: DEFCON 1, PLUS A DELAY (user ruling, 2026-09-10) ====
+ * This is the question the first version of this file deliberately left open, and leaving it open
+ * was a deadlock in waiting: the ladder had to START at 1 kt, because the only thing that moves it
+ * is a detonation and a ladder opening at HOLD could never be climbed at all. The ruling closes it.
+ *
+ *     An Escalation match is at HOLD -- no nuclear weapon of any yield -- until DEFCON 1 has been
+ *     reached AND a configurable delay has run from that moment. The ladder then opens at StartRung
+ *     and climbs on detonations exactly as it did before.
+ *
+ * So HOLD stops being an absorbing state: what leaves it is a CLOCK rather than a detonation, which
+ * is what makes the ladder as drawn climbable. HOLD is still a CEILING value as well ("no nuclear
+ * weapons this match"), and the two uses do not interact -- a HOLD ceiling pins the ladder shut
+ * whatever the gate does, and the gate refuses everything whatever the ceiling is.
+ *
+ * A DELAY OF 0 IS LEGAL and means "opens on the tick DEFCON 1 is reached". It is not a disabled
+ * value: there is deliberately no setting that hands nuclear weapons to a match which has not
+ * reached DEFCON 1, because such a setting would restore the pre-ruling behaviour by configuration.
+ *
+ * THE GATE IS ARMED BY THE LEVEL, NOT BY A TRANSITION. Tick is handed the current DEFCON level every
+ * tick and starts counting the first time it sees the floor, however the match got there -- the
+ * 3 -> 2 clock and then a casualty, or a lobby Start At of 1. An edge-triggered gate would never
+ * open at all in the last of those cases, because there is no transition to observe.
  */
 
 using System.Collections.Generic;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	// The rungs of the release ladder, in the order the user drew them on 2026-09-09:
-	//     HOLD -> 1 kt -> 20 kt -> 50-100 kt -> 200 kt+
-	// The integer values are load-bearing -- Rung is a [Sync] int projection on DefconEscalation and
-	// the ladder climbs by incrementing -- so do not reorder them.
+	// The rungs of the release ladder, as the user drew them on 2026-09-09 and with the 50/100 kt
+	// rung SPLIT IN TWO on the ruling of 2026-09-10:
+	//     HOLD -> 1 kt -> 20 kt -> 50 kt -> 100 kt -> 200 kt+
+	// FIVE yield rungs above HOLD where there were four. The integer values are load-bearing -- Rung
+	// is a [Sync] int projection on DefconEscalation and the ladder climbs by incrementing -- so do
+	// not reorder them, and note that the split RENUMBERED GameEnder from 4 to 5. Nothing persists a
+	// rung index across a build, so the renumber costs nothing; the one thing it does reach is the
+	// Conditions dictionary in GrantConditionOnNuclearReleaseInfo, which is keyed on these values
+	// and is a YAML-overridable field -- a map that hard-codes rung numbers there needs re-reading.
 	public enum NuclearRung
 	{
-		// Nothing nuclear is permitted. Reachable only as a CEILING setting; see the file header.
+		// Nothing nuclear is permitted. TWO DIFFERENT WAYS TO BE HERE, and they are separate
+		// mechanisms: as the match's CEILING setting ("no nuclear weapons this match"), and as the
+		// state of every Escalation match before the release gate opens. See the file header.
 		Hold = 0,
 
 		// Sub-kiloton and kiloton tactical warheads: the 0.3 kt B61 dial and the 1 kt 9M729.
@@ -78,11 +101,15 @@ namespace OpenRA.Mods.Common.Traits
 		// The 10 kt and 20 kt rung -- the middle B61 dial, the Iskander, and `Atomic` itself.
 		TwentyKiloton = 2,
 
-		// "50-100 kt" as drawn: the top B61 dial, the Kinzhal-N, the W76 and the Kalibr.
-		HundredKiloton = 3,
+		// 50 kt: the top B61 dial setting and the Kinzhal-N. Its own rung since 2026-09-10; these
+		// two shared a rung with the 100 kt pair below until the split.
+		FiftyKiloton = 3,
+
+		// 100 kt: the W76 and the Kalibr.
+		HundredKiloton = 4,
 
 		// "Game-enders are anything above ~200 kt" -- the Sarmat RV, the B83 and `AtomicHighYield`.
-		GameEnder = 4
+		GameEnder = 5
 	}
 
 	public class NuclearReleaseLadder
@@ -91,9 +118,10 @@ namespace OpenRA.Mods.Common.Traits
 		public const int Highest = (int)NuclearRung.GameEnder;
 
 		// THE BAND TABLE. A weapon's stated yield maps to the LOWEST rung that releases it, and
-		// these three numbers are the ladder the user drew rather than anything derived.
+		// these four numbers are the ladder the user drew rather than anything derived.
 		// Read the yields out of the weapon files, never from a power's name: `NukeRuKinzhalN` is
-		// 50 kt and `NukeRuKalibr` is 100 kt, and both sit on the same rung.
+		// 50 kt and `NukeRuKalibr` is 100 kt, and SINCE THE 2026-09-10 SPLIT those are two different
+		// rungs. They shared one before it, so that pair is exactly what a stale reading gets wrong.
 		//
 		// THE UNIT IS TONS OF TNT, NOT KILOTONS, and that is forced rather than chosen. The smallest
 		// warhead in the mod is the B61-12's lowest dial setting at 0.3 kt, which is not an integer
@@ -103,6 +131,7 @@ namespace OpenRA.Mods.Common.Traits
 		// inside int. Every comment in the weapon files still speaks kilotons; multiply by 1000.
 		public const int KilotonBandCeilingTons = 1000;
 		public const int TwentyKilotonBandCeilingTons = 20000;
+		public const int FiftyKilotonBandCeilingTons = 50000;
 		public const int HundredKilotonBandCeilingTons = 100000;
 
 		// ABOVE THIS, NOTHING IN NORMAL PLAY -- at any ceiling setting, on any rung.
@@ -117,6 +146,11 @@ namespace OpenRA.Mods.Common.Traits
 		readonly DefconGameMode mode;
 		readonly int ceiling;
 		readonly int startRung;
+		readonly int releaseDelayTicks;
+
+		// THE RELEASE GATE'S COUNTDOWN. It runs only while the match is at DEFCON 1, so it is a
+		// countdown to release rather than a match clock, and it reads as the full delay until then.
+		int ticksUntilRelease;
 
 		// Per-firer detonation counts. THE SHARED LADDER NEVER READS THIS -- RungFor returns one
 		// number for everybody. It is recorded because the asymmetric variant decision 06 keeps alive
@@ -130,14 +164,30 @@ namespace OpenRA.Mods.Common.Traits
 		// Detonations counted, which is also the rung index before the ceiling is applied.
 		public int Detonations { get; private set; }
 
-		public NuclearReleaseLadder(DefconGameMode mode, int ceiling)
-			: this(mode, ceiling, (int)NuclearRung.Kiloton) { }
+		/// <summary>Whether the ladder has opened at all. Until it has, every yield is refused.</summary>
+		public bool ReleaseOpen { get; private set; }
 
-		public NuclearReleaseLadder(DefconGameMode mode, int ceiling, int startRung)
+		/// <summary>Ticks left before release once the match is at DEFCON 1; the full delay before then.</summary>
+		public int TicksUntilRelease => ticksUntilRelease;
+
+		// THE TWO-ARGUMENT FORM STILL HAS A GATE -- it takes a delay of ZERO, which opens on the tick
+		// DEFCON 1 is reached, not a match that starts open. There is no constructor that skips the
+		// gate, deliberately: see the file header on why 0 is a legal delay and not a disable.
+		public NuclearReleaseLadder(DefconGameMode mode, int ceiling)
+			: this(mode, ceiling, (int)NuclearRung.Kiloton, 0) { }
+
+		public NuclearReleaseLadder(DefconGameMode mode, int ceiling, int startRung, int releaseDelayTicks)
 		{
 			this.mode = mode;
 			this.ceiling = Clamp(ceiling);
 			this.startRung = Clamp(startRung);
+
+			// Clamped rather than trusted. DefconEscalationInfo refuses a negative in RulesetLoaded,
+			// but this class is constructible from a test and from any future caller, and a negative
+			// delay reaching the decrement below would open the gate on the first tick at DEFCON 1 --
+			// i.e. would silently become 0, which is the one behaviour a mistyped value must not get.
+			this.releaseDelayTicks = releaseDelayTicks < 0 ? 0 : releaseDelayTicks;
+			ticksUntilRelease = this.releaseDelayTicks;
 		}
 
 		static int Clamp(int rung)
@@ -166,17 +216,18 @@ namespace OpenRA.Mods.Common.Traits
 			if (mode != DefconGameMode.Escalation)
 				return Highest;
 
-			// THE LADDER OPENS AT startRung AND NOT AT HOLD, which is forced rather than chosen.
-			// Decision 06's accepted cost is that "going first is free" -- so firing has to be
-			// possible before anyone has fired. A ladder that opened at HOLD could never be climbed
-			// at all: the only thing that moves it is a detonation, and at HOLD there is no warhead
-			// any player is permitted to detonate. HOLD survives as a CEILING value, which is where
-			// "no nuclear weapons this match" belongs.
-			//
-			// Neither decision says what would otherwise OPEN the ladder. Binding it to DEFCON 1 is
-			// the obvious candidate -- nuclear release beginning when the shooting war does -- and
-			// it is one line here plus a Level read on DefconEscalation. Left unbound deliberately:
-			// see the report for this branch.
+			// THE RELEASE GATE, checked before anything else this class knows. Until DEFCON 1 has
+			// been reached and the delay has run, an Escalation match is at HOLD and no warhead of
+			// any yield is permitted. Ruling of 2026-09-10; see the file header.
+			if (!ReleaseOpen)
+				return Lowest;
+
+			// ONCE OPEN the ladder sits at startRung rather than at HOLD, which is forced rather than
+			// chosen. Decision 06's accepted cost is that "going first is free" -- so firing has to
+			// be possible before anyone has fired. A ladder that OPENED at HOLD could never be
+			// climbed: the only thing that moves it from here is a detonation, and at HOLD there is
+			// no warhead any player is permitted to detonate. The gate above is a clock, which is
+			// exactly why it can leave HOLD when a detonation could not.
 			var rung = startRung + Detonations;
 			return rung > Ceiling ? Ceiling : rung;
 		}
@@ -215,6 +266,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (tons <= TwentyKilotonBandCeilingTons)
 				return (int)NuclearRung.TwentyKiloton;
 
+			if (tons <= FiftyKilotonBandCeilingTons)
+				return (int)NuclearRung.FiftyKiloton;
+
 			if (tons <= HundredKilotonBandCeilingTons)
 				return (int)NuclearRung.HundredKiloton;
 
@@ -228,6 +282,14 @@ namespace OpenRA.Mods.Common.Traits
 			// Skirmish and Sandbox never climb. Skirmish because it must not change a tick, Sandbox
 			// because it is pinned wide open and there is nothing above it to climb to.
 			if (mode != DefconGameMode.Escalation)
+				return false;
+
+			// A DETONATION BEFORE THE GATE OPENS DOES NOT COUNT, and is dropped whole -- no pressure,
+			// no per-firer tally. Nothing a player can click reaches here while the ladder is shut,
+			// because every nuclear power is gated on a band condition that is not granted; but a Lua
+			// scenario or a bot calling ReportNuclearRelease directly can, and banking those would
+			// let a match arrive at DEFCON 1 with the ladder already part-climbed.
+			if (!ReleaseOpen)
 				return false;
 
 			if (firer != null)
@@ -244,6 +306,36 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return RungFor(firer) != before;
+		}
+
+		/// <summary>One tick, given the match's current DEFCON level. True on the tick the ladder opens.</summary>
+		// THE ONLY THING THAT OPENS THE LADDER. It takes the LEVEL rather than a "DEFCON 1 has
+		// happened" edge so that a match configured to START at DEFCON 1 arms on its first tick:
+		// there is no transition to observe in that case, and an edge-triggered gate would leave
+		// such a match at HOLD forever -- which is the exact deadlock this ruling removed.
+		//
+		// Deterministic: integer arithmetic, no RNG, no wall-clock. Its one caller is
+		// DefconEscalation.Tick, which runs on the World actor on every client on the same tick, so
+		// every client opens the gate on the same tick. See ReportNuclearRelease's determinism note.
+		public bool Tick(int defconLevel)
+		{
+			if (mode != DefconGameMode.Escalation || ReleaseOpen)
+				return false;
+
+			// NOT AT DEFCON 1 YET, so the countdown does not run. The delay is therefore time spent
+			// AT the bottom level, not time since the match began -- a match that takes fifteen
+			// minutes to reach DEFCON 1 still owes the full delay when it gets there.
+			if (defconLevel != DefconEscalationState.Floor)
+				return false;
+
+			// A delay of 0 falls straight through to the open below, which is the ruling's "0 opens
+			// immediately". Otherwise this is the decrement idiom DefconEscalationState.Tick uses, so
+			// the ladder opens on the delay'th tick at DEFCON 1 rather than one tick either side.
+			if (ticksUntilRelease > 0 && --ticksUntilRelease > 0)
+				return false;
+
+			ReleaseOpen = true;
+			return true;
 		}
 
 		/// <summary>Detonations attributed to one player. For the asymmetric variant; unused today.</summary>

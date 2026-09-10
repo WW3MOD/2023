@@ -23,14 +23,21 @@
  * GrantConditionOnDefconLevel grants exactly ONE condition at a time and its header argues against
  * a cumulative family: "it is expressible with `||` today, and a second, overlapping family of
  * condition names is the kind of thing that gets out of step." That reasoning holds at three levels
- * and three consumers. It does not hold here. This ladder has five rungs and THIRTEEN consumers, so
- * the exclusive form would put a four-way `||` on the lowest-yield weapons and a chain that has to
- * be re-checked every time a rung is added --
- *     RequiresCondition: nuclear-rung-1 || nuclear-rung-2 || nuclear-rung-3 || nuclear-rung-4
+ * and three consumers. It does not hold here. This ladder has SIX rungs -- HOLD plus five yield
+ * bands since the 50/100 kt split of 2026-09-10 -- and THIRTEEN consumers, so the exclusive form
+ * would put a five-way `||` on the lowest-yield weapons and a chain that has to be re-checked every
+ * time a rung is added --
+ *     RequiresCondition: nuclear-rung-1 || nuclear-rung-2 || nuclear-rung-3 || nuclear-rung-4 || nuclear-rung-5
  * against the cumulative form's
  *     RequiresCondition: nuclear-release-1kt
  * The second says what it means ("the 1 kt band is released") and cannot fall out of step with a
  * new rung, because a band is a property of the WEAPON and not of the ladder's length.
+ *
+ * THE SPLIT IS THE WORKED PROOF OF THAT. Adding a rung between 20 kt and 100 kt renumbered
+ * GameEnder from 4 to 5 and changed the condition on exactly the two weapons whose BAND changed
+ * (@B61Max and @RuKinzhalN, both 50 kt). Every other consumer -- including the 1 kt pair at the
+ * bottom, furthest from the edit -- was untouched. Under the exclusive form all thirteen would have
+ * needed re-reading, and the ones that were wrong would have been wrong silently.
  *
  * ==== THE POLARITY, WHICH BUYS TWO PROPERTIES AT ONCE ====
  * The conditions are POSITIVE and permissive: a power is gated on the band that releases it, so a
@@ -70,6 +77,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			{ (int)NuclearRung.Kiloton, "nuclear-release-1kt" },
 			{ (int)NuclearRung.TwentyKiloton, "nuclear-release-20kt" },
+			{ (int)NuclearRung.FiftyKiloton, "nuclear-release-50kt" },
 			{ (int)NuclearRung.HundredKiloton, "nuclear-release-100kt" },
 			{ (int)NuclearRung.GameEnder, "nuclear-release-gameender" },
 		};
