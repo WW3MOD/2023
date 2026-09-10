@@ -45,7 +45,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string DoomsdayLabel = "Doomsday";
 
 		[Desc("Tooltip for the lobby checkbox.")]
-		public readonly string DoomsdayDescription = "When the Doomsday Clock expires, the map is destroyed by a nuclear salvo. The highest score at that moment wins.";
+		public readonly string DoomsdayDescription = "When the Doomsday Clock expires, the map is destroyed by a nuclear salvo and the highest score at that moment wins. Turn it off to end on score alone, with no strike. It does nothing while the clock reads No limit.";
 
 		[Desc("Default state of the lobby checkbox.")]
 		public readonly bool DoomsdayEnabled = true;
@@ -57,7 +57,11 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool DoomsdayCheckboxVisible = true;
 
 		[Desc("Display order for the lobby checkbox.")]
-		public readonly int DoomsdayCheckboxDisplayOrder = 62;
+		public readonly int DoomsdayCheckboxDisplayOrder = 12;
+
+		// Lobby option id, so consumers stop repeating the string literal. LobbyOptionsLogic
+		// needs it to file this checkbox in the same section as the Doomsday Clock it modifies.
+		public const string DoomsdayOptionId = "doomsday";
 
 		[Desc("Run the salvo in TestMode sessions too. Defaults to false, which is what keeps the",
 			"existing timed tournament and autotest configurations behaving exactly as they did:",
@@ -190,7 +194,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
-			yield return new LobbyBooleanOption("doomsday", DoomsdayLabel, DoomsdayDescription,
+			yield return new LobbyBooleanOption(DoomsdayOptionId, DoomsdayLabel, DoomsdayDescription,
 				DoomsdayCheckboxVisible, DoomsdayCheckboxDisplayOrder, DoomsdayEnabled, DoomsdayLocked);
 		}
 
@@ -258,7 +262,7 @@ namespace OpenRA.Mods.Common.Traits
 			this.info = info;
 			world = self.World;
 
-			var option = world.LobbyInfo.GlobalSettings.OptionOrDefault("doomsday", info.DoomsdayEnabled.ToString());
+			var option = world.LobbyInfo.GlobalSettings.OptionOrDefault(DoomsdayStrikeInfo.DoomsdayOptionId, info.DoomsdayEnabled.ToString());
 			enabled = bool.TryParse(option, out var parsed) ? parsed : info.DoomsdayEnabled;
 
 			lethalCells = info.LethalRadius.Length / 1024;

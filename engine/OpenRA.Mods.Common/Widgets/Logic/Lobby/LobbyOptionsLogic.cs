@@ -31,6 +31,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		static readonly Color PlaceholderTextColor = Color.FromArgb(0x96, 0x96, 0x96);
 		const string PlaceholderTooltipSuffix = "Not yet implemented — visual placeholder for a future feature.";
 
+		// The same fact as PlaceholderTooltipSuffix, said where it does not need a hover: on the
+		// row itself, and on the header of a section that is placeholder all the way down.
+		const string PlaceholderLabelSuffix = "  (not wired)";
+		const string PlaceholderSectionSuffix = "   — NOT YET WIRED";
+
 		readonly ScrollPanelWidget panel;
 		readonly Widget optionsContainer;
 		readonly Widget checkboxRowTemplate;
@@ -69,6 +74,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		// Shared single source of truth: LobbyActiveChangesLogic consumes these sets
 		// too (chip filtering). Keep them here — a duplicated copy over there once
 		// drifted (missing `cheats`) and sent chip clicks to the wrong tab.
+		// WHAT THIS SET MEANS NOW. It once chose a TAB, back when the lobby had a Match/Advanced
+		// strip; that strip is gone (LobbyLogic.cs:599-605 hides it unconditionally) and the
+		// pre-game panel renders category All, so membership no longer changes what a host sees
+		// there. What it still decides is the IN-GAME Game Info options tab, which is pinned to
+		// CATEGORY_FILTER: Common (ww3mod|chrome/ingame-info-lobby-options.yaml:30).
+		//
+		// So the line is now "a real option a player may need to look up mid-match" vs "a dummy
+		// that governs nothing". Everything that ships is Common; what stays Advanced is exactly
+		// the LobbyDummyOptions placeholders, which have no gameplay hook to report on. This is
+		// what makes DEFCON mode, the nuclear ceiling and Doomsday visible during a match —
+		// previously every DEFCON id was Advanced, so a player could not check which mode they
+		// were in without leaving the game.
 		internal static readonly HashSet<string> CommonOptionIds = new()
 		{
 			// Economy basics
@@ -84,6 +101,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			"cheats",
 			// Both sides pay the cost of sync reports, so both sides agree on it here.
 			Session.SyncReportsOptionId,
+			// How the match ends, and what it ends with.
+			DoomsdayStrikeInfo.DoomsdayOptionId,
+			// The DEFCON feature, all four dropdowns of it.
+			DefconEscalationInfo.ModeOptionId,
+			DefconEscalationInfo.StartOptionId,
+			DefconEscalationInfo.PaceOptionId,
+			DefconEscalationInfo.CeilingOptionId,
+			// Which weapons this match permits — the question most worth being able to
+			// re-read once the shooting starts.
+			"tactical-nuke", "high-yield-nuke", "nuclear-arsenal", "powers-sandbox",
 		};
 
 		// Options never shown in the lobby (deliberately removed from WW3MOD).
@@ -92,53 +119,94 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			"shortgame", "crates", "creeps", "buildradius", "allybuild", "techlevel"
 		};
 
-		// Section grouping within the ADVANCED tab. Sections render in the declared order.
-		// Any option not listed here ends up in the implicit "Other" section at the bottom.
+		// ONE section list, shared by every category. Sections render in the declared order and
+		// each is named for the QUESTION a host is answering, not for the trait that happens to
+		// own the options in it — which is why the four DEFCON dropdowns are together (they were
+		// split across "Game Rules" and "Other"), and why the Doomsday Clock and the Doomsday
+		// checkbox are together (they are one feature: the dropdown sets WHEN the match ends,
+		// the checkbox sets WHAT HAPPENS then, and the checkbox does nothing at all while the
+		// clock reads "No limit").
+		//
+		// Any option not listed in OptionSection still ends up in the implicit "Other" section
+		// at the bottom — that fallback is a safety net, not a home. It is how `nuclear-ceiling`
+		// came to be stranded there alone.
+		const string SectionMatch = "Match";
+		const string SectionEscalation = "Escalation";
+		const string SectionArsenal = "Arsenal";
+		const string SectionEconomy = "Economy";
+		const string SectionBattlefield = "Battlefield";
+		const string SectionDeveloper = "Developer";
 		const string SectionUnitAvailability = "Unit Availability";
 		const string SectionCombatTuning = "Combat Tuning";
-		const string SectionGameRules = "Game Rules";
 
-		static readonly string[] AdvancedSectionOrder =
+		static readonly string[] SectionOrder =
+		{
+			SectionMatch,
+			SectionEscalation,
+			SectionArsenal,
+			SectionEconomy,
+			SectionBattlefield,
+			SectionDeveloper,
+			SectionUnitAvailability,
+			SectionCombatTuning,
+		};
+
+		// Sections to hide outright when every option in them is a placeholder. These two are
+		// the dummy soup — 24 unit toggles and 7 tuning knobs that govern nothing — and a
+		// header full of dimmed rows is worse than no header.
+		//
+		// Escalation is deliberately NOT in this set even though it is entirely placeholder
+		// today: it is the spine of a real shipping feature, a host still picks a Game Mode
+		// with it, and hiding it would answer "what mode am I playing?" with silence. It
+		// renders with a "not yet wired" suffix on the header instead.
+		static readonly HashSet<string> SuppressWhenAllPlaceholder = new()
 		{
 			SectionUnitAvailability,
 			SectionCombatTuning,
-			SectionGameRules,
-		};
-
-		// Subsections within the MATCH tab. Same machinery as Advanced sections but
-		// always expanded (the user is here to read them, not collapse them).
-		const string SectionEconomy = "Economy";
-		const string SectionMatch = "Match";
-		const string SectionWorld = "World";
-
-		static readonly string[] CommonSectionOrder =
-		{
-			SectionEconomy,
-			SectionMatch,
-			SectionWorld,
-		};
-
-		static readonly Dictionary<string, string> CommonOptionSection = new()
-		{
-			{ "startingcash", SectionEconomy },
-			{ "passiveincome", SectionEconomy },
-			{ "incomemodifier", SectionEconomy },
-			{ "bounty", SectionEconomy },
-			// Match
-			{ "gamespeed", SectionMatch },
-			{ "timelimit", SectionMatch },
-			{ "startingunits", SectionMatch },
-			{ "forwarddeployment", SectionMatch },
-			// World
-			{ "explored", SectionWorld },
-			{ "fog", SectionWorld },
-			{ "separateteamspawns", SectionWorld },
-			{ "cheats", SectionWorld },
-			{ Session.SyncReportsOptionId, SectionWorld },
 		};
 
 		static readonly Dictionary<string, string> OptionSection = new()
 		{
+			// Match — how long the match runs, and how it ends.
+			{ "gamespeed", SectionMatch },
+			{ "timelimit", SectionMatch },
+			{ DoomsdayStrikeInfo.DoomsdayOptionId, SectionMatch },
+
+			// Escalation — the DEFCON feature. All four dropdowns live on one trait
+			// (DefconEscalation); the ceiling used to be missing from this map entirely.
+			{ DefconEscalationInfo.ModeOptionId, SectionEscalation },
+			{ DefconEscalationInfo.StartOptionId, SectionEscalation },
+			{ DefconEscalationInfo.PaceOptionId, SectionEscalation },
+			{ DefconEscalationInfo.CeilingOptionId, SectionEscalation },
+
+			// Arsenal — which weapons this match permits, in ascending yield. `powers-enabled`
+			// is the odd one out and is sorted last on purpose: it is a LobbyDummyOptions
+			// placeholder with no consumer anywhere, so among three gates that DO work it would
+			// otherwise read as an authoritative master switch over them.
+			{ "tactical-nuke", SectionArsenal },
+			{ "high-yield-nuke", SectionArsenal },
+			{ "nuclear-arsenal", SectionArsenal },
+			{ "powers-enabled", SectionArsenal },
+
+			// Economy — the budget you fight the war on.
+			{ "startingcash", SectionEconomy },
+			{ "incomemodifier", SectionEconomy },
+			{ "passiveincome", SectionEconomy },
+			{ "bounty", SectionEconomy },
+
+			// Battlefield — what is on the map at t=0, and what you can see of it.
+			{ "startingunits", SectionBattlefield },
+			{ "forwarddeployment", SectionBattlefield },
+			{ "fog", SectionBattlefield },
+			{ "explored", SectionBattlefield },
+			{ "separateteamspawns", SectionBattlefield },
+			{ "friendly-fire", SectionBattlefield },
+
+			// Developer — off the path a host reads to set up a match.
+			{ "cheats", SectionDeveloper },
+			{ Session.SyncReportsOptionId, SectionDeveloper },
+			{ "powers-sandbox", SectionDeveloper },
+
 			// Unit Availability — every "unit-*" option from LobbyDummyOptions
 			{ "unit-conscripts", SectionUnitAvailability },
 			{ "unit-riflemen", SectionUnitAvailability },
@@ -174,19 +242,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{ "supply-capacity", SectionCombatTuning },
 			{ "sight-range", SectionCombatTuning },
 
-			// Game Rules
-			{ "friendly-fire", SectionGameRules },
-			{ "powers-enabled", SectionGameRules },
-			{ "tactical-nuke", SectionGameRules },
-			{ "high-yield-nuke", SectionGameRules },
-			{ "nuclear-arsenal", SectionGameRules },
-
-			// DEFCON Escalation. Minimal placement only: these three are match rules, so Game Rules is
-			// where they belong, and without an entry here an option falls into the implicit "Other"
-			// bucket at the bottom. The full panel regrouping is a separate change.
-			{ DefconEscalationInfo.ModeOptionId, SectionGameRules },
-			{ DefconEscalationInfo.StartOptionId, SectionGameRules },
-			{ DefconEscalationInfo.PaceOptionId, SectionGameRules },
 		};
 
 		static string GetCategory(LobbyOption option)
@@ -209,7 +264,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var d = option.Description;
 				if (FluentProvider.TryGetMessage(option.Description, out var fluentDesc))
 					d = fluentDesc;
-				(title, desc) = LobbyUtils.SplitOnFirstToken(d);
+
+				// SplitDescription, not SplitOnFirstToken: MiniYaml does not unescape, so a
+				// description authored in YAML as "title\nbody" arrives carrying the literal
+				// two-character escape and a real-newline search never matches it.
+				(title, desc) = LobbyUtils.SplitDescription(d);
+
+				// A single-line description used to render as a bold title with an EMPTY body —
+				// i.e. the tooltip restated the label and explained nothing. Most options in the
+				// mod are authored that way, so fall back to naming the option in the title and
+				// letting the whole description be the body. An author who wants a custom title
+				// still gets it by putting a newline in.
+				if (string.IsNullOrEmpty(desc))
+				{
+					title = FluentProvider.TryGetMessage(option.Name, out var fluentName) ? fluentName : option.Name;
+					desc = d;
+				}
 			}
 
 			if (option.Placeholder)
@@ -271,7 +341,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			});
 		}
 
-		void AddSectionHeader(string text, string section = null)
+		void AddSectionHeader(string text, string section = null, bool allPlaceholder = false)
 		{
 			if (sectionHeaderTemplate == null)
 				return;
@@ -289,7 +359,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				// as triangles instead of the [+]/[-] ASCII brackets which look
 				// like console output.
 				var glyph = section != null ? (collapsed ? "▸  " : "▾  ") : string.Empty;
-				var displayText = glyph + text.ToUpperInvariant();
+				var displayText = glyph + text.ToUpperInvariant() + (allPlaceholder ? PlaceholderSectionSuffix : string.Empty);
 				label.GetText = () => displayText;
 			}
 
@@ -335,23 +405,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				.Where(o => !HiddenOptionIds.Contains(o.Id))
 				.ToArray();
 
-			if (category == CategoryAll)
-			{
-				// Single-scroll layout: render Common sections first, then Advanced.
-				RenderCommonSections(visibleOptions.Where(o => GetCategory(o) == CategoryCommon).ToArray());
-				RenderAdvancedSections(visibleOptions.Where(o => GetCategory(o) == CategoryAdvanced).ToArray());
-			}
-			else
-			{
-				var filteredOptions = visibleOptions
-					.Where(o => GetCategory(o) == category)
-					.ToArray();
+			// One section list for every category. The category used to decide whether headers
+			// were drawn AT ALL — All rendered the Common half header-less and the Advanced half
+			// with headers — which is what made this panel read as an unlabelled list that
+			// suddenly grows headings two-thirds of the way down.
+			var renderOptions = category == CategoryAll
+				? visibleOptions
+				: visibleOptions.Where(o => GetCategory(o) == category).ToArray();
 
-				if (category == CategoryAdvanced)
-					RenderAdvancedSections(filteredOptions);
-				else
-					RenderCommonSections(filteredOptions);
-			}
+			RenderSections(renderOptions);
 
 			panel.ContentHeight = yMargin + optionsContainer.Bounds.Height;
 			optionsContainer.Bounds.Y = yMargin;
@@ -361,55 +423,33 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				panel.ClampScroll();
 		}
 
-		void RenderCommonSections(LobbyOption[] options)
+		void RenderSections(LobbyOption[] options)
 		{
-			foreach (var section in CommonSectionOrder)
-			{
-				var sectionOptions = options
-					.Where(o => CommonOptionSection.TryGetValue(o.Id, out var s) && s == section)
-					.ToArray();
-				if (sectionOptions.Length == 0)
-					continue;
-
-				// Phase 8 — O3 flat: skip section headers in the All-category
-				// panel (the right-side COMMON_OPTIONS_PANEL). The Advanced tab
-				// keeps its headers because there's no other organising signal
-				// for those options.
-				if (category != CategoryAll)
-					AddSectionHeader(section);
-				RenderFlatOptions(sectionOptions);
-			}
-
-			// Anything in Common that didn't get a section assignment falls through
-			// to the bottom so it's still visible — better than silently dropping.
-			var unsectioned = options.Where(o => !CommonOptionSection.ContainsKey(o.Id)).ToArray();
-			if (unsectioned.Length > 0)
-				RenderFlatOptions(unsectioned);
-		}
-
-		void RenderAdvancedSections(LobbyOption[] options)
-		{
-			foreach (var section in AdvancedSectionOrder)
+			foreach (var section in SectionOrder)
 			{
 				var sectionOptions = options.Where(o => GetSection(o) == section).ToArray();
 				if (sectionOptions.Length == 0)
 					continue;
 
-				// WW3MOD: a section consisting entirely of placeholder options is just
-				// visual noise — the orange "not yet wired" header shouts louder than
-				// any real option. Hide them outright. When the feature ships, an
-				// individual option's Placeholder=false will pull the section back in.
-				if (sectionOptions.All(o => o.Placeholder))
+				// A section of nothing but dummy options is visual noise — the placeholder
+				// treatment shouts louder than any working option. That applies to the two
+				// soup sections only; see SuppressWhenAllPlaceholder for why Escalation is
+				// shown-and-labelled rather than hidden.
+				var allPlaceholder = sectionOptions.All(o => o.Placeholder);
+				if (allPlaceholder && SuppressWhenAllPlaceholder.Contains(section))
 					continue;
 
-				AddSectionHeader(section, section);
+				AddSectionHeader(section, section, allPlaceholder);
 				if (collapsedSections.TryGetValue(section, out var collapsed) && collapsed)
 					continue;
+
 				RenderFlatOptions(sectionOptions);
 			}
 
-			// Any options that didn't map to a known section render under "Other".
-			var declared = new HashSet<string>(AdvancedSectionOrder);
+			// Any option that didn't map to a known section renders under "Other" rather than
+			// being silently dropped. With the map complete this should be empty for the shipped
+			// rules — a map-scoped option (river-zeta's `difficulty`) is the expected occupant.
+			var declared = new HashSet<string>(SectionOrder);
 			var unsectioned = options.Where(o => !declared.Contains(GetSection(o))).ToArray();
 			if (unsectioned.Length > 0 && !unsectioned.All(o => o.Placeholder))
 			{
@@ -420,7 +460,28 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 		}
 
+		// Options render in DISPLAY ORDER, not "every checkbox, then every dropdown". The two
+		// control types cannot share a row template, so a run of consecutive same-type options
+		// becomes one or more rows and a change of type starts a fresh row. Before this,
+		// DisplayOrder only sorted within each type — which is the mechanical reason the DEFCON
+		// dropdowns drew BELOW the nuclear checkboxes in the old Game Rules section despite
+		// sorting after them, and why the order looked arbitrary to anyone reading the panel.
 		void RenderFlatOptions(LobbyOption[] options)
+		{
+			var start = 0;
+			while (start < options.Length)
+			{
+				var isCheckbox = options[start] is LobbyBooleanOption;
+				var end = start;
+				while (end < options.Length && options[end] is LobbyBooleanOption == isCheckbox)
+					end++;
+
+				RenderRun(options[start..end]);
+				start = end;
+			}
+		}
+
+		void RenderRun(LobbyOption[] options)
 		{
 			Widget row = null;
 			var checkboxColumns = new Queue<CheckboxWidget>();
@@ -450,6 +511,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var checkboxName = option.Name;
 				if (FluentProvider.TryGetMessage(option.Name, out var fluentName))
 					checkboxName = fluentName;
+
+				// Say it on the face of the panel, not only in a tooltip nobody hovers. A
+				// placeholder row is dimmed (below) but its TICK still draws at full strength —
+				// CheckboxWidget.Draw colours the label and the check independently — so a dimmed
+				// row reads as "on, but locked by something" rather than "governs nothing".
+				if (option.Placeholder)
+					checkboxName += PlaceholderLabelSuffix;
+
 				checkbox.GetText = () => checkboxName;
 
 				var (cbText, cbDesc) = ResolveTooltip(option);

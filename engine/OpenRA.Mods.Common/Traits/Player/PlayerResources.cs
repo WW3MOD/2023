@@ -105,11 +105,15 @@ namespace OpenRA.Mods.Common.Traits
 				yield return new LobbyOption("startingcash", CashDropdownLabel, CashDropdownDescription, CashDropdownVisible, CashDropdownDisplayOrder,
 					startingCash, DefaultCash.ToString(), CashDropdownLocked);
 
-			yield return new LobbyOption("passiveincome", "Passive Income", "Money granted to all players periodically", PassiveIncomeDropdownVisible, PassiveIncomeDropdownDisplayOrder,
+			yield return new LobbyOption("passiveincome", "Passive Income", "Cash paid to every player at a fixed interval, whatever they hold on the map", PassiveIncomeDropdownVisible, PassiveIncomeDropdownDisplayOrder,
 				passiveIncome, PassiveIncome.ToString(), PassiveIncomeDropdownLocked);
 
-			yield return new LobbyOption("incomemodifier", "Income Modifier", "Modify income from buildings", CashDropdownVisible, 2,
-				incomeModifier, DefaultIncomeModifier.ToString(), CashDropdownLocked);
+			// PITFALL: this used to be registered with a literal 2 and with the CASH dropdown's
+			// Visible/Locked fields, which silently made IncomeModifierDropdownDisplayOrder,
+			// -Locked and -Visible unreachable — a DisplayOrder set in player.yaml did nothing and
+			// the literal 2 is why Income Modifier sorted to the very top of the lobby panel.
+			yield return new LobbyOption("incomemodifier", "Income Modifier", "Scales all income up or down. 100% is normal", IncomeModifierDropdownVisible, IncomeModifierDropdownDisplayOrder,
+				incomeModifier, DefaultIncomeModifier.ToString(), IncomeModifierDropdownLocked);
 		}
 
 		public override object Create(ActorInitializer init) { return new PlayerResources(init.Self, this); }

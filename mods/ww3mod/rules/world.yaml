@@ -548,15 +548,14 @@ World:
 		BuildRadiusCheckboxVisible: false
 	MapOptions:
 		ShortGameCheckboxVisible: false
-		GameSpeedDropdownDisplayOrder: 60
+		GameSpeedDropdownDisplayOrder: 10
 		TechLevelDropdownVisible: false
 		GameSpeed: default
 	SyncReportsOption:
-		# Slots into the World checkbox block right after separate-team-spawns (54),
-		# ahead of Debug Menu (90). The block is 50/51/54 + this; four columns per
-		# row, so this fills the first row and the developer-only toggle is what
-		# wraps instead of a decision every player has to make.
-		CheckboxDisplayOrder: 55
+		# Developer block (60-62), between Debug Menu and Sandbox. Both sides pay the cost of
+		# sync reports, so it belongs with the other developer toggles rather than among the
+		# settings a host actually tunes.
+		CheckboxDisplayOrder: 61
 	LobbyDummyOptions:
 	CreateMapPlayers:
 
@@ -637,11 +636,11 @@ World:
 	MapStartingLocations:
 		SeparateTeamSpawnsCheckboxDisplayOrder: 54
 	SpawnStartingUnits:
-		DropdownDisplayOrder: 63
-		# Immediately after Starting Units (63): the two dropdowns offer the same package
+		DropdownDisplayOrder: 50
+		# Immediately after Starting Units (50): the two dropdowns offer the same package
 		# classes and are read together. Default stays `none`, so a match nobody touches is
 		# the match it was before this option existed.
-		ForwardDeploymentDropdownDisplayOrder: 64
+		ForwardDeploymentDropdownDisplayOrder: 51
 	PathFinder:
 	ValidateOrder:
 	ControlAllUnitsManager:
@@ -657,7 +656,10 @@ World:
 	TimeLimitManager:
 		TimeLimitLabel: Doomsday Clock
 		TimeLimitDescription: Nuclear apocalypse when the clock runs out
-		TimeLimitDisplayOrder: 61
+		# Match block: Game Speed (10), this (11), then the Doomsday checkbox (12) which decides
+		# what happens when this clock reaches zero. The two were previously in different
+		# sections at opposite ends of the panel despite being one feature.
+		TimeLimitDisplayOrder: 11
 		# The expiry notification is DoomsdayStrike's to give: "Time limit has expired." undersells
 		# what is about to happen and lands one line above "DEAD HAND ACTIVATED. Incoming."
 		SkipTimerExpiredNotification: true
@@ -735,10 +737,16 @@ World:
 		AirstrikeCheckboxDisplayOrder: 81
 		AirstrikeCooldownVisible: False
 		AirstrikeCooldownDisplayOrder: 82
-		TacticalNukeCheckboxDisplayOrder: 83
-		# 84 so the two nuclear gates sit together; the C# default of 103 would sort it far away
-		# from its sibling, past every option this block hides.
-		HighYieldNukeCheckboxDisplayOrder: 84
+		# 30-33 is the Arsenal section in LobbyOptionsLogic: the three weapon gates in ascending
+		# yield, then the (unimplemented) powers master switch at 33. The C# defaults are 102-105,
+		# which predate the sections and would scatter these down the panel.
+		TacticalNukeCheckboxDisplayOrder: 30
+		HighYieldNukeCheckboxDisplayOrder: 31
+		NuclearArsenalCheckboxDisplayOrder: 32
+		# Sandbox is deliberately NOT an Arsenal option: it does not decide which weapons exist,
+		# it suspends the faction rules governing who may buy them. It sorts into Developer (62)
+		# with the other testing switches.
+		PowersSandboxCheckboxDisplayOrder: 62
 
 	# DEFCON ESCALATION -- the match-wide alert level, and the three dropdowns that configure it.
 	# The player-actor half (DefconCasualtyObserver, GrantConditionOnDefconLevel) is in player.yaml.
@@ -760,12 +768,15 @@ World:
 	# timestep -- 16.67 ticks per second, NOT 25) and are deliberately not overridden here, so the
 	# first person to tune them changes one place.
 	#
-	# 85/86/87 keeps the three together and sorts them after the nuclear gates at 83/84, which is
-	# the section LobbyOptionsLogic puts them in.
+	# 20-23 is the Escalation section in LobbyOptionsLogic, and THE CEILING IS ITS FOURTH MEMBER.
+	# It was previously left at its C# default of 88 and omitted from the section map, which
+	# stranded it alone in the implicit "Other" bucket at the very bottom of the lobby -- three
+	# sections away from the three dropdowns it is configured alongside, on the same trait.
 	DefconEscalation:
-		ModeDisplayOrder: 85
-		StartAtDisplayOrder: 86
-		PaceDisplayOrder: 87
+		ModeDisplayOrder: 20
+		StartAtDisplayOrder: 21
+		PaceDisplayOrder: 22
+		CeilingDisplayOrder: 23
 	# THE DEFCON 3 DIVIDING WALL. Registered here with no configuration on purpose: Start and End
 	# both default to 0,0, which is a degenerate line, which makes DefconWall.IsActive false before
 	# the DEFCON level is even consulted. So this line costs one bool test per tick and changes

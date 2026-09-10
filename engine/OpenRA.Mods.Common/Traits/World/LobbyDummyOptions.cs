@@ -207,16 +207,16 @@ namespace OpenRA.Mods.Common.Traits
 			// ── RULES TAB ──
 
 			yield return new LobbyBooleanOption(
-				"friendly-fire", "Friendly Fire", "Your own units can damage each other",
-				true, 74, true, false, "Rules");
+				"friendly-fire", "Friendly Fire", "Intended to let your own units damage each other",
+				true, 55, true, false, "Rules");
 
 			// Bounty percent is now part of "Kill Bounties" in Economy (LobbyPrerequisiteDropdown
 			// in player.yaml — 0% = off, 5–100% = on at that percentage).
 
 			// Powers master toggle
 			yield return new LobbyBooleanOption(
-				"powers-enabled", "Powers Enabled", "Enable support powers (airstrikes, etc.)",
-				true, 80, true, false, "Rules");
+				"powers-enabled", "Powers Enabled", "Intended as a master switch turning every support power off at once. It governs nothing today — the individual weapon options beside it are the ones that work",
+				true, 33, true, false, "Rules");
 		}
 
 		public override object Create(ActorInitializer init) { return new LobbyDummyOptions(); }

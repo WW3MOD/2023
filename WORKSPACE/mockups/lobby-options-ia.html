@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Lobby options — regrouped</title>
+<style>
+:root{
+  /* tokens straight from mods/ww3mod/chrome/_lobby-palette.yaml */
+  --bg-app:#0a0a0a; --bg-panel:#141414; --bg-panel-2:#1a1a1a; --bg-button:#222222;
+  --bevel-light:#3a3a3a; --bevel-dark:#030303;
+  --line:#262626; --accent:#b4b4b4;
+  --ink:#d4d4d4; --ink-2:#969696; --ink-3:#686868; --ink-4:#404040;
+  --new:#c8a83a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg-app);color:var(--ink);
+ font:14px/1.45 "Segoe UI",system-ui,sans-serif;padding:22px 20px 70px}
+h1{font-size:18px;margin:0 0 4px;font-weight:600}
+.intro{color:var(--ink-2);font-size:13px;max-width:96ch;margin:0 0 8px}
+.intro b{color:var(--ink)}
+h2{font-size:13px;margin:28px 0 10px;color:#c9c9c9;font-weight:600;letter-spacing:.3px;
+ border-bottom:1px solid var(--line);padding-bottom:6px}
+h2 span{color:var(--ink-3);font-weight:400;margin-left:8px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+@media(max-width:1300px){.two{grid-template-columns:1fr}}
+.cap{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--ink-3);margin:0 0 7px}
+.cap b{color:var(--new);font-weight:600}
+.cap i{color:#c07a68;font-style:normal}
+
+/* ---------- the panel, geometry from lobby-players.yaml:929-1067 ---------- */
+.panel{background:var(--bg-panel);border-top:1px solid var(--bevel-light);
+ border-left:1px solid var(--bevel-light);border-right:1px solid var(--bevel-dark);
+ border-bottom:1px solid var(--bevel-dark);padding:10px 0 14px}
+/* CELL_LABEL: TinyBold, 16px inset, accent rail 28x2 below */
+.title{font:600 10px/1 "Segoe UI",sans-serif;letter-spacing:1.2px;color:var(--accent);
+ text-transform:uppercase;margin:6px 0 0 16px}
+.title::after{content:"";display:block;width:28px;height:2px;background:var(--accent);margin-top:6px}
+/* SECTION_HEADER_TEMPLATE: 36px strip, label Y:8 TinyBold, accent rail Y:26 */
+.sec{font:600 10px/1 "Segoe UI",sans-serif;letter-spacing:1.2px;color:var(--accent);
+ text-transform:uppercase;margin:18px 0 0 16px}
+.sec::after{content:"";display:block;width:28px;height:2px;background:var(--accent);margin-top:6px}
+.sec em{font-style:normal;color:var(--ink-4);letter-spacing:1px;margin-left:8px}
+.sec.ph em{color:#7a6a3a}
+/* 4-col grid, 16px insets, 12px gutters */
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0 12px;padding:0 16px;margin-top:10px}
+@media(max-width:820px){.grid{grid-template-columns:repeat(2,1fr)}}
+/* DROPDOWN_ROW_TEMPLATE: 54px row — label 12h TinyBold #686868, 6px gap, control 30h */
+.f{padding:4px 0 6px}
+.f label{display:block;font:600 10px/12px "Segoe UI",sans-serif;letter-spacing:1.1px;
+ color:var(--ink-3);text-transform:uppercase;margin-bottom:6px;white-space:nowrap;
+ overflow:hidden;text-overflow:ellipsis}
+.dd{height:30px;background:var(--bg-button);border-top:1px solid var(--bevel-light);
+ border-left:1px solid var(--bevel-light);border-right:1px solid var(--bevel-dark);
+ border-bottom:1px solid var(--bevel-dark);display:flex;align-items:center;justify-content:center;
+ position:relative;font-size:13px;color:var(--ink)}
+.dd::after{content:"\25BC";position:absolute;right:8px;font-size:7px;color:var(--ink-2)}
+/* CHECKBOX_ROW_TEMPLATE: 38px row, 28px box */
+.cb{display:flex;align-items:center;gap:10px;height:28px;margin:5px 0;font-size:13px;color:var(--ink)}
+.bx{width:20px;height:20px;flex:0 0 20px;background:#1e1e1e;position:relative;
+ border-top:1px solid var(--bevel-light);border-left:1px solid var(--bevel-light);
+ border-right:1px solid var(--bevel-dark);border-bottom:1px solid var(--bevel-dark)}
+.bx.on::after{content:"";position:absolute;left:6px;top:1px;width:5px;height:12px;
+ border:solid #e6e6e6;border-width:0 2px 2px 0;transform:rotate(42deg)}
+/* Placeholder treatment: LobbyOptionsLogic.cs:462 dims the LABEL only — tick stays bright */
+.ph .dd,.ph span.t{color:var(--ink-2)}
+.ph label{color:#5a5646}
+.tag{color:#7a6a3a;font-size:11px;margin-left:6px;letter-spacing:.2px}
+.moved{outline:1px dashed #6a5a2a;outline-offset:2px}
+
+.notes{font-size:12.5px;color:var(--ink-2);max-width:100ch}
+.notes b{color:var(--ink);display:block;margin:16px 0 4px}
+.notes b:first-child{margin-top:0}
+.notes p{margin:0 0 9px}
+.k{color:var(--new)}
+table{border-collapse:collapse;width:100%;font-size:12.5px;margin-top:4px}
+td,th{border-bottom:1px solid #232323;padding:6px 9px;text-align:left;vertical-align:top}
+th{color:var(--ink-3);font-size:10px;letter-spacing:1px;text-transform:uppercase;font-weight:400}
+td.n{color:var(--ink);width:23%;white-space:nowrap}
+td.ttl{color:var(--new);width:20%}
+td.was{color:#6f6f6f}
+code{font:12px ui-monospace,Consolas,monospace;color:#a8a8a8}
+.q{border-left:2px solid #4a4020;padding:2px 0 2px 12px;margin:12px 0}
+.q b{color:var(--new);display:block;margin-bottom:2px}
+</style></head><body>
+
+<h1>Lobby options, regrouped</h1>
+<p class="intro">Drawn against the shipped panel's real geometry — 4-column grid, 16&nbsp;px insets,
+54&nbsp;px dropdown rows, 38&nbsp;px checkbox rows, TinyBold uppercase micro-labels — and the
+<code>_lobby-palette.yaml</code> greys. <b>This is a re-organisation, not a re-skin, and nothing is
+removed:</b> all 24 options that render today still render. What changes is which question each one
+sits under, what order they come in, and whether the panel explains itself.</p>
+
+<div class="two">
+<div>
+  <p class="cap"><i>Now</i> — as photographed</p>
+  <div class="panel">
+    <div class="title">Options</div>
+    <div class="grid">
+      <div class="f"><label>Income Modifier</label><div class="dd">100%</div></div>
+      <div class="f"><label>Starting Cash</label><div class="dd">$20000</div></div>
+      <div class="f"><label>Passive Income</label><div class="dd">$100</div></div>
+      <div class="f"><label>Kill Bounties</label><div class="dd">Off</div></div>
+      <div class="f"><label>Game Speed</label><div class="dd">Real Time</div></div>
+      <div class="f"><label>Doomsday Clock</label><div class="dd">No limit</div></div>
+      <div class="f"><label>Starting Units</label><div class="dd">None</div></div>
+      <div class="f"><label>Forward Deployment</label><div class="dd">None</div></div>
+    </div>
+    <div class="grid">
+      <div class="cb"><span class="bx on"></span><span class="t">Explored Map</span></div>
+      <div class="cb"><span class="bx on"></span><span class="t">Fog of War</span></div>
+      <div class="cb"><span class="bx on"></span><span class="t">Separate Team Spawns</span></div>
+      <div class="cb"><span class="bx on"></span><span class="t">Sync</span></div>
+      <div class="cb"><span class="bx on"></span><span class="t">Debug Menu</span></div>
+    </div>
+    <div class="sec">Game Rules</div>
+    <div class="grid">
+      <div class="cb ph"><span class="bx on"></span><span class="t">Friendly Fire</span></div>
+      <div class="cb ph"><span class="bx on"></span><span class="t">Powers Enabled</span></div>
+      <div class="cb"><span class="bx on"></span><span class="t">Tactical Nuclear Strike (20&nbsp;kt)</span></div>
+      <div class="cb"><span class="bx on"></span><span class="t">Strategic Nuclear Strike (6&nbsp;Mt)</span></div>
+      <div class="cb"><span class="bx on"></span><span class="t">Nuclear Arsenal</span></div>
+    </div>
+    <div class="grid">
+      <div class="f ph"><label>Game Mode</label><div class="dd">DEFCON Escalation</div></div>
+      <div class="f ph"><label>Start At</label><div class="dd">DEFCON 3</div></div>
+      <div class="f ph"><label>Escalation Pace</label><div class="dd">Standard</div></div>
+    </div>
+    <div class="sec">Other</div>
+    <div class="grid">
+      <div class="cb"><span class="bx"></span><span class="t">Doomsday</span></div>
+      <div class="cb"><span class="bx"></span><span class="t">Sandbox: All Support Powers</span></div>
+    </div>
+    <div class="grid">
+      <div class="f ph moved"><label>Nuclear Ceiling</label><div class="dd">200 kt+ (game-enders)</div></div>
+    </div>
+  </div>
+</div>
+
+<div>
+  <p class="cap"><b>Proposed</b> — six questions, one row each</p>
+  <div class="panel">
+    <div class="title">Options</div>
+
+    <div class="sec">Match</div>
+    <div class="grid">
+      <div class="f"><label>Game Speed</label><div class="dd">Real Time</div></div>
+      <div class="f"><label>Doomsday Clock</label><div class="dd">No limit</div></div>
+    </div>
+    <div class="grid">
+      <div class="cb"><span class="bx"></span><span class="t">Doomsday</span></div>
+    </div>
+
+    <div class="sec ph">Escalation <em>— not yet wired</em></div>
+    <div class="grid">
+      <div class="f ph"><label>Game Mode</label><div class="dd">Skirmish</div></div>
+      <div class="f ph"><label>Start At</label><div class="dd">DEFCON 3</div></div>
+      <div class="f ph"><label>Escalation Pace</label><div class="dd">Standard</div></div>
+      <div class="f ph moved"><label>Nuclear Ceiling</label><div class="dd">200 kt+ (game-enders)</div></div>
+    </div>
+
+    <div class="sec">Arsenal</div>
+    <div class="grid">
+      <div class="cb"><span class="bx"></span><span class="t">Tactical Nuclear Strike (20&nbsp;kt)</span></div>
+      <div class="cb"><span class="bx on"></span><span class="t">Strategic Nuclear Strike (6&nbsp;Mt)</span></div>
+      <div class="cb"><span class="bx on"></span><span class="t">Nuclear Arsenal</span></div>
+      <div class="cb ph"><span class="bx on"></span><span class="t">Powers Enabled<span class="tag">(not wired)</span></span></div>
+    </div>
+
+    <div class="sec">Economy</div>
+    <div class="grid">
+      <div class="f"><label>Starting Cash</label><div class="dd">$20000</div></div>
+      <div class="f"><label>Income Modifier</label><div class="dd">100%</div></div>
+      <div class="f"><label>Passive Income</label><div class="dd">$100</div></div>
+      <div class="f"><label>Kill Bounties</label><div class="dd">Off</div></div>
+    </div>
+
+    <div class="sec">Battlefield</div>
+    <div class="grid">
+      <div class="f"><label>Starting Units</label><div class="dd">None</div></div>
+      <div class="f"><label>Forward Deployment</label><div class="dd">None</div></div>
+    </div>
+    <div class="grid">
+      <div class="cb"><span class="bx on"></span><span class="t">Fog of War</span></div>
+      <div class="cb"><span class="bx on"></span><span class="t">Explored Map</span></div>
+      <div class="cb"><span class="bx on"></span><span class="t">Separate Team Spawns</span></div>
+      <div class="cb ph"><span class="bx on"></span><span class="t">Friendly Fire<span class="tag">(not wired)</span></span></div>
+    </div>
+
+    <div class="sec">Developer</div>
+    <div class="grid">
+      <div class="cb"><span class="bx on"></span><span class="t">Debug Menu</span></div>
+      <div class="cb"><span class="bx on"></span><span class="t">Sync</span></div>
+      <div class="cb"><span class="bx"></span><span class="t">Sandbox: All Support Powers</span></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<h2>What was actually wrong<span>— in the order it hits you</span></h2>
+<div class="notes">
+  <b>The panel starts with no heading and grows one two-thirds down</b>
+  <p>The first thirteen options have no section header at all — "OPTIONS" is the panel's own title,
+  not a group — and then <span class="k">GAME RULES</span> and <span class="k">OTHER</span> appear
+  with accent rails. That is not a layout choice: <code>LobbyOptionsLogic.cs:378-379</code> skips
+  headers for the Common half and <code>:405</code> draws them for the Advanced half, and this panel
+  renders both halves in one scroll. So the split you are seeing is an internal category boundary
+  leaking through as a visual one.</p>
+
+  <b>"Other" is the code admitting defeat</b>
+  <p><code>GetSection</code> (<code>:197-200</code>) drops anything not listed in
+  <code>OptionSection</code> into a bucket literally named Other. Three options land there —
+  and one of them, <span class="k">Nuclear Ceiling</span>, is the <i>fourth dropdown of the DEFCON
+  feature</i>, on the same trait as the three under Game Rules. It is stranded only because
+  <code>:187-189</code> lists mode/start/pace and forgets the ceiling.</p>
+
+  <b>Doomsday is one feature cut in half</b>
+  <p><span class="k">Doomsday Clock</span> is the match timer (<code>timelimit</code>, relabelled at
+  <code>world.yaml:658-659</code>) — it sets <i>when</i> the match ends. The
+  <span class="k">Doomsday</span> checkbox is a different trait that decides <i>what happens</i> at
+  that moment: on, the map is destroyed by a nuclear salvo and the frozen high score wins; off, it
+  ends on score alone. They currently sit at opposite ends of the panel, and the checkbox does
+  nothing at all while the clock reads "No limit". Put together, each explains the other.</p>
+
+  <b>The greyed-out ones are not locked — they are unimplemented</b>
+  <p>This is the question the panel most badly fails to answer. Friendly Fire and Powers Enabled are
+  constructed with <code>locked: false</code> (<code>LobbyDummyOptions.cs:209-219</code>); you can
+  still click them and the change still syncs. They are grey because every option that trait yields
+  gets <code>Placeholder = true</code> (<code>:35-39</code>), and
+  <code>LobbyOptionsLogic.cs:462</code> dims <b>the label only</b> — which is exactly why the tick
+  beside the grey text still looks fully bright and reads as "on but forbidden". The four DEFCON
+  dropdowns are dimmed the same way. Today the only way to learn any of this is to hover; the
+  proposal says it on the face of the panel, with <span class="tag">(not wired)</span> beside the
+  option and a <em>— not yet wired</em> suffix on a section that is entirely placeholder.</p>
+
+  <b>Ordering inside a section cannot currently be controlled</b>
+  <p><code>RenderFlatOptions</code> draws <i>all</i> checkboxes and then <i>all</i> dropdowns
+  (<code>:429</code>, <code>:476</code>), so <code>DisplayOrder</code> only sorts within each run.
+  That is why Game Mode / Start At / Escalation Pace appear <i>below</i> the nuclear checkboxes in
+  Game Rules despite sorting after them, and it is the mechanical reason the order "looks
+  arbitrary". The proposal renders in true <code>DisplayOrder</code>, flushing a part-full row when
+  the control type changes — which is what lets Match lead with its dropdown and Battlefield lead
+  with Starting Units.</p>
+</div>
+
+<h2>Proposed tooltips<span>— title, then what it does in play</span></h2>
+<p class="intro">Every option gets a two-part description: the first line becomes the tooltip title,
+the rest the body (<code>ResolveTooltip</code>, <code>:202-223</code>). Most options do have a
+description today, but nearly all are a single line, which renders as a bold title with an
+<i>empty body</i> — so the tooltip repeats the label and says nothing.</p>
+<table>
+  <tr><th>Section</th><th>Option</th><th>Body text proposed</th></tr>
+  <tr><td class="ttl">Match</td><td class="n">Game Speed</td><td>How fast the whole match runs — build, movement and reload times scale together.</td></tr>
+  <tr><td></td><td class="n">Doomsday Clock</td><td>The match time limit. At zero the match ends; <i>how</i> it ends is the Doomsday setting beside it.</td></tr>
+  <tr><td></td><td class="n">Doomsday</td><td>At zero, a nuclear salvo destroys the map and the highest score at that moment wins. Off ends the match on score alone. Does nothing while the clock reads No limit.</td></tr>
+  <tr><td class="ttl">Escalation</td><td class="n">Game Mode</td><td>DEFCON Escalation opens the match at a fixed alert level and steps it down as the war widens. Skirmish is the ordinary game with no escalation.</td></tr>
+  <tr><td></td><td class="n">Start At</td><td>The alert level the match opens at. DEFCON 3 is the ceiling — the real-world standing posture — so there is deliberately no 4 or 5.</td></tr>
+  <tr><td></td><td class="n">Escalation Pace</td><td>How long the match holds at DEFCON 3. Scales that clock only — DEFCON 2 ends the moment a life is taken, at any pace.</td></tr>
+  <tr><td></td><td class="n">Nuclear Ceiling</td><td>The largest warhead the match will ever permit. Each detonation doubles a shared pressure value both sides read, so the war escalates together up to this cap. HOLD forbids nuclear weapons entirely.</td></tr>
+  <tr><td class="ttl">Arsenal</td><td class="n">Tactical Nuclear Strike</td><td>Adds the 20 kt tactical strike to both factions. Off removes the icon entirely rather than greying it.</td></tr>
+  <tr><td></td><td class="n">Strategic Nuclear Strike</td><td>Adds the high-yield strategic strike. One detonation devastates the entire map.</td></tr>
+  <tr><td></td><td class="n">Nuclear Arsenal</td><td>Adds the six-weapon arsenal: B61-12 (both dial settings), W76-1, RS-28 Sarmat, B83-1 and Tsar Bomba.</td></tr>
+  <tr><td></td><td class="n">Powers Enabled</td><td>Intended to switch every support power off at once. Not yet implemented — toggling it changes nothing in play.</td></tr>
+  <tr><td class="ttl">Economy</td><td class="n">Starting Cash</td><td>The budget every player opens with. Units are called in from off-map reserves, so this is your whole opening force.</td></tr>
+  <tr><td></td><td class="n">Income Modifier</td><td>Scales all income up or down. 100% is normal.</td></tr>
+  <tr><td></td><td class="n">Passive Income</td><td>Cash paid to every player at a fixed interval, whatever they hold on the map.</td></tr>
+  <tr><td></td><td class="n">Kill Bounties</td><td>Cash back for each enemy unit destroyed, as a percentage of its cost. Off pays nothing.</td></tr>
+  <tr><td class="ttl">Battlefield</td><td class="n">Starting Units</td><td>The force already on the map at your Supply Route when the match begins.</td></tr>
+  <tr><td></td><td class="n">Forward Deployment</td><td>An extra force that begins already pushed toward the enemy instead of at your Supply Route.</td></tr>
+  <tr><td></td><td class="n">Fog of War</td><td>Units only see within their sight range; anything outside it is hidden.</td></tr>
+  <tr><td></td><td class="n">Explored Map</td><td>The terrain starts revealed. Enemy movement is still hidden unless Fog of War is also off.</td></tr>
+  <tr><td></td><td class="n">Separate Team Spawns</td><td>Players without an assigned spawn start as far from their enemies as the map allows.</td></tr>
+  <tr><td></td><td class="n">Friendly Fire</td><td>Intended to let your own units damage each other. Not yet implemented — the setting has no effect on play.</td></tr>
+  <tr><td class="ttl">Developer</td><td class="n">Debug Menu</td><td>Enables cheats and developer commands for everyone in the match.</td></tr>
+  <tr><td></td><td class="n">Sync</td><td>Writes a diagnostic file if the match desynchronises. Both sides pay the cost, so both agree on it here.</td></tr>
+  <tr><td></td><td class="n">Sandbox: All Support Powers</td><td>Testing mode: every power purchasable by both factions, no waiting and no faction locks, including event-only warheads. Ignores the nuclear ceiling.</td></tr>
+</table>
+
+<h2>Where every option moved</h2>
+<table>
+  <tr><th>Option</th><th>Was</th><th>Now</th><th>Why</th></tr>
+  <tr><td class="n">Nuclear Ceiling</td><td class="was">Other (alone, bottom)</td><td class="ttl">Escalation</td><td>Fourth dropdown of the same trait as the other three. Straight bug.</td></tr>
+  <tr><td class="n">Doomsday</td><td class="was">Other</td><td class="ttl">Match</td><td>Beside the clock it modifies — it is meaningless without it.</td></tr>
+  <tr><td class="n">Game Mode / Start At / Escalation Pace</td><td class="was">Game Rules (below the nukes)</td><td class="ttl">Escalation</td><td>They configure one feature; Game Rules was a holding pen.</td></tr>
+  <tr><td class="n">Tactical / Strategic / Nuclear Arsenal / Powers Enabled</td><td class="was">Game Rules</td><td class="ttl">Arsenal</td><td>All four answer "which weapons may be used".</td></tr>
+  <tr><td class="n">Friendly Fire</td><td class="was">Game Rules</td><td class="ttl">Battlefield</td><td>It is a combat rule, not a weapon permission.</td></tr>
+  <tr><td class="n">Sandbox: All Support Powers</td><td class="was">Other</td><td class="ttl">Developer</td><td>It is a testing switch and says so.</td></tr>
+  <tr><td class="n">Debug Menu / Sync</td><td class="was">unheaded top block</td><td class="ttl">Developer</td><td>Off the path a normal host reads.</td></tr>
+  <tr><td class="n">Starting Units / Forward Deployment</td><td class="was">unheaded top block</td><td class="ttl">Battlefield</td><td>Grouped with the other "what is on the map at t=0" settings.</td></tr>
+  <tr><td class="n">Game Speed / Doomsday Clock</td><td class="was">unheaded top block</td><td class="ttl">Match</td><td>The two settings that frame every other one.</td></tr>
+  <tr><td class="n">Economy four</td><td class="was">unheaded top block</td><td class="ttl">Economy</td><td>Same four, now under a name, and Starting Cash leads instead of Income Modifier.</td></tr>
+</table>
+
+<h2>Calls I made that you may want to overrule</h2>
+<div class="notes">
+  <div class="q"><b>1. Nothing is deleted.</b>
+  Two earlier mockups of yours (<code>lobby-settings-v3.html</code>,
+  <code>defcon-lobby-options.html</code>) solve this panel by <i>removing</i> controls — folding the
+  three nuclear checkboxes into one "Nuclear Release", dropping the Doomsday Clock, turning Sandbox
+  into a Game Mode. Both end on open questions you never answered. I have deliberately not resolved
+  those here: this change regroups and explains what ships today. If you want the smaller control
+  set, that is a feature change and should be its own piece of work.</div>
+
+  <div class="q"><b>2. Six sections, not four.</b>
+  Each is one or two rows, so the whole panel is readable without opening anything. The alternative
+  is fewer, fatter groups (Match + Nuclear + World + Developer). I preferred more headings because
+  a heading is the only thing on this panel that tells you what a control is <i>for</i>.</div>
+
+  <div class="q"><b>3. "Escalation" is shown but marked not-wired.</b>
+  All four of its dropdowns are placeholders — Game Mode defaults to Skirmish and the whole feature
+  currently changes nothing a player can see. I kept the section visible with an honest suffix
+  rather than hiding it. Hiding it entirely is a defensible alternative and is one line.</div>
+
+  <div class="q"><b>4. Friendly Fire sits under Battlefield, not Arsenal.</b>
+  It is unimplemented either way, so this is a guess about what it will mean when it ships.</div>
+
+  <div class="q"><b>5. Sandbox is filed under Developer.</b>
+  Your v3 mockup made it a Game Mode, on the grounds that it exists to ignore every other rule. That
+  is the better long-term answer; Developer is the honest short-term one, since today it is a
+  checkbox you can combine with anything.</div>
+
+  <div class="q"><b>6. The MATCH / ADVANCED tab split could not be kept.</b>
+  It no longer exists: <code>LobbyLogic.cs:599-605</code> hides the tab strip unconditionally —
+  <i>"Old global tab strip (Match / Advanced / Music / Servers) is gone… The tab containers stay in
+  the YAML but never become visible."</i> Everything renders in this one scroll, which is why the
+  headerless-then-headed split reads as a mess. The Common/Advanced category still exists in code
+  and still decides what the in-game info panel shows, so it is kept — it just no longer changes how
+  this panel is drawn.</div>
+</div>
+
+</body></html>
