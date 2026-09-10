@@ -1,0 +1,45 @@
+# DEMO overrides for the DEFCON 3 wall capture. Nothing here is asserted; see
+# demo-defcon-wall.lua for the schedule and map.yaml for the layout.
+
+World:
+	# ESCALATION, LOCKED, AND PINNED AT DEFCON 3 FOR THE WHOLE RUN. The wall stands only at
+	# DEFCON 3 (DefconWall ActiveLevels = { 3 }), so the clocks are set far longer than the
+	# capture: 30000 ticks is 30 minutes at the 60 ms timestep -- 16.67 ticks/s, NOT 25 -- and
+	# the run has ~200 s. If the level fell to 2 mid-capture the wall would come down under the
+	# frames and the demo would show its own subject disappearing.
+	DefconEscalation:
+		ModeDefault: Escalation
+		ModeLocked: true
+		StartAtDefault: 3
+		SlowTicks: 30000
+		StandardTicks: 30000
+		FastTicks: 30000
+
+	# The line is DERIVED here rather than authored, which is the whole point: this capture has
+	# to exercise the same path a real match takes. USA home is 1,4 and Russia's is 96,93, so
+	# the bisector runs diagonally through the map's middle -- and a DIAGONAL is what matters.
+	# At the shipped HalfWidth of 512 a one-cell band sealed only axis-aligned lines; on a
+	# diagonal the banded cells touched at their corners and an 8-connected step walked straight
+	# between them, which leaked on 131 map/locomotor combinations. 1024 is the fix and this
+	# frame is what confirms it in the engine rather than in an audit script.
+	DefconWall:
+		DeriveFromSpawns: True
+
+	-StartGameNotification:
+	# The one vehicle is script-spawned at a known cell so the crossing attempt happens where
+	# the camera is looking.
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, demo-defcon-wall.lua
+
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	PlayerResources:
+		DefaultCash: 20000
