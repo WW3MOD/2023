@@ -1,0 +1,294 @@
+<!DOCTYPE html><meta charset="utf-8"><title>Lobby — four ways to organise it</title>
+<style>
+:root{--bg:#0d0e0c;--panel:#141613;--ink:#d8d6cc;--dim:#8d8b80;--lbl:#6b6a61;--edge:#26281f;
+ --amber:#c8823a;--ok:#8aa84a;--bad:#c0402a;--cool:#5a8fa8}
+*{box-sizing:border-box}
+body{margin:0;padding:22px 26px 40px;background:#080907;color:var(--ink);
+ font:13px/1.5 "Segoe UI",Roboto,system-ui,sans-serif}
+h1{font:600 18px/1.3 inherit;margin:0 0 2px}
+.lede{color:var(--dim);margin:0 0 14px;max-width:104ch}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--edge);margin-bottom:0}
+.tab{padding:8px 15px;background:#101210;border:1px solid var(--edge);border-bottom:none;
+ border-radius:3px 3px 0 0;cursor:pointer;color:var(--dim);font-size:12.5px;user-select:none}
+.tab .n{font:10px ui-monospace,Consolas,monospace;color:var(--lbl);display:block;letter-spacing:.6px}
+.tab:hover{color:var(--ink)}
+.tab.on{background:var(--panel);color:#fff;border-color:#3a3d33;border-bottom:1px solid var(--panel);
+ margin-bottom:-1px}
+.pane{display:none;border:1px solid var(--edge);border-top:none;background:var(--panel);
+ padding:18px 20px 22px}
+.pane.on{display:block}
+.pitch{font-size:15px;color:#e6e4d9;margin:0 0 3px;font-weight:600}
+.why{color:var(--dim);margin:0 0 14px;max-width:100ch}
+.cols{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap}
+.col-mock{flex:0 0 470px}
+.col-notes{flex:1;min-width:300px}
+
+/* mock lobby */
+.lobby{background:#0e100d;border:1px solid #2b2e25;border-radius:2px;padding:12px 13px}
+.sec{margin-bottom:13px}
+.sec:last-child{margin-bottom:0}
+.sechead{font:10px ui-monospace,Consolas,monospace;letter-spacing:1.4px;text-transform:uppercase;
+ color:var(--amber);border-bottom:1px solid #2b2e25;padding-bottom:3px;margin-bottom:6px}
+.row{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:12px}
+.row .lab{color:var(--dim);width:150px;flex:none}
+.dd{flex:1;background:#191c17;border:1px solid #33372c;border-radius:2px;padding:3px 7px;
+ color:#ddd9cd;display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.dd::after{content:"▾";color:var(--lbl);font-size:10px}
+.cb{display:flex;align-items:center;gap:6px;font-size:12px;color:#ccc9be;margin:4px 0}
+.box{width:12px;height:12px;border:1px solid #454a3b;border-radius:2px;background:#191c17;flex:none;
+ position:relative}
+.box.t::after{content:"✓";position:absolute;left:1px;top:-3px;font-size:11px;color:var(--ok)}
+.sub{color:var(--lbl);font-size:11px;margin-left:158px}
+.indent{margin-left:16px;border-left:1px solid #2b2e25;padding-left:10px}
+.dis{opacity:.38}
+.card{background:#191c17;border:1px solid #33372c;border-radius:3px;padding:8px 10px;margin:5px 0}
+.card.on{border-color:var(--amber);background:#1d1a13}
+.card .t{font-size:12.5px;color:#e6e4d9;font-weight:600}
+.card .d{font-size:11.5px;color:var(--dim);margin-top:2px}
+
+ul{margin:4px 0 10px 17px;padding:0}
+li{margin:3px 0;max-width:92ch}
+.tag{display:inline-block;font:9.5px ui-monospace,Consolas,monospace;letter-spacing:.5px;
+ padding:0 5px;border-radius:2px;border:1px solid;text-transform:uppercase;vertical-align:1px}
+.cut{color:var(--bad);border-color:#4a2018;background:#1a0e0c}
+.add{color:var(--ok);border-color:#3d4a24;background:#141a0e}
+.keep{color:var(--cool);border-color:#2d4b59;background:#0e181d}
+h4{margin:12px 0 2px;font-size:12px;color:#cfcdc2}
+.count{font:10.5px ui-monospace,Consolas,monospace;color:var(--lbl);margin-top:10px}
+.pick{margin-top:16px;border-top:1px solid var(--edge);padding-top:12px}
+.pick label{display:flex;gap:7px;align-items:flex-start;font-size:12.5px;margin:4px 0;cursor:pointer}
+textarea{width:100%;background:#0e100d;border:1px solid #33372c;color:var(--ink);border-radius:2px;
+ padding:7px;font:12px inherit;margin-top:8px;min-height:56px}
+button{margin-top:9px;background:#2a2f22;border:1px solid #4a5140;color:#e6e4d9;padding:6px 16px;
+ border-radius:2px;font:12.5px inherit;cursor:pointer}
+button:hover{background:#353c2b}
+.foot{color:var(--lbl);font-size:11.5px;margin-top:7px}
+</style>
+
+<h1>Four ways to organise the lobby</h1>
+<p class="lede">Left to right: least change to most. Every variant obeys the same new rule —
+<b>nuclear weapons exist only inside escalation</b>, so the ceiling is the arsenal control and the
+separate nuke checkboxes go. Pick one at the bottom, or mix.</p>
+
+<div class="tabs">
+  <div class="tab on" data-t="1"><span class="n">VARIANT 1</span>Tidy up</div>
+  <div class="tab" data-t="2"><span class="n">VARIANT 2</span>Two dials</div>
+  <div class="tab" data-t="3"><span class="n">VARIANT 3</span>Presets + custom</div>
+  <div class="tab" data-t="4"><span class="n">VARIANT 4</span>Escalation is the game</div>
+</div>
+
+<!-- ============ 1 ============ -->
+<div class="pane on" id="p1">
+<p class="pitch">Keep every control that works. Delete the ones that lie.</p>
+<p class="why">Same lobby, honest. Nothing a host recognises moves except the nuke switches, which
+fold into the ceiling.</p>
+<div class="cols"><div class="col-mock"><div class="lobby">
+  <div class="sec"><div class="sechead">Escalation</div>
+    <div class="row"><span class="lab">Escalation</span><span class="dd">DEFCON</span></div>
+    <div class="indent">
+      <div class="row"><span class="lab">Start at</span><span class="dd">DEFCON 3</span></div>
+      <div class="row"><span class="lab">Pace</span><span class="dd">Standard</span></div>
+      <div class="row"><span class="lab">Nuclear ceiling</span><span class="dd">100 kt</span></div>
+      <div class="sub">The largest warhead anyone may reach. HOLD = no nuclear weapons.</div>
+    </div>
+  </div>
+  <div class="sec"><div class="sechead">Ending</div>
+    <div class="row"><span class="lab">Match ends</span><span class="dd">Last side standing</span></div>
+    <div class="sub">Or: Final exchange after 20 / 30 / 45 / 60 min.</div>
+  </div>
+  <div class="sec"><div class="sechead">Forces</div>
+    <div class="row"><span class="lab">Starting units</span><span class="dd">None</span></div>
+    <div class="row"><span class="lab">Forward deployment</span><span class="dd">None</span></div>
+  </div>
+  <div class="sec"><div class="sechead">Economy</div>
+    <div class="row"><span class="lab">Starting cash</span><span class="dd">$20 000</span></div>
+    <div class="row"><span class="lab">Passive income</span><span class="dd">$100</span></div>
+    <div class="row"><span class="lab">Income modifier</span><span class="dd">100%</span></div>
+    <div class="cb"><span class="box"></span>Kill bounties</div>
+  </div>
+  <div class="sec"><div class="sechead">Battlefield</div>
+    <div class="cb"><span class="box t"></span>Fog of war</div>
+    <div class="cb"><span class="box t"></span>Explored map</div>
+    <div class="cb"><span class="box t"></span>Separate team spawns</div>
+  </div>
+  <div class="sec"><div class="sechead">Testing</div>
+    <div class="cb"><span class="box"></span>Unlock all support powers</div>
+    <div class="cb"><span class="box t"></span>Debug menu</div>
+  </div>
+</div></div>
+<div class="col-notes">
+<h4>What changes</h4>
+<ul>
+<li><span class="tag cut">cut</span> Tactical / Strategic / Nuclear Arsenal checkboxes — the ceiling
+    does their job, and with them a host could switch nukes off and leave escalation pointless.</li>
+<li><span class="tag cut">cut</span> Doomsday checkbox. Its clock becomes <b>Ending</b>, so the
+    combination that can never fire stops existing.</li>
+<li><span class="tag cut">cut</span> Friendly Fire and Powers Enabled — zero consumers, pure
+    decoration.</li>
+<li><span class="tag cut">cut</span> Game Mode "Sandbox" — does nothing, and at Start&nbsp;At&nbsp;2
+    silently freezes autonomous fire for the whole match.</li>
+<li><span class="tag keep">keep</span> Everything else, regrouped under headings that name the
+    question being answered.</li>
+</ul>
+<h4>Why you might want it</h4>
+<ul><li>Lowest risk. Nothing to relearn, and each cut is defensible on its own.</li>
+<li>Still a long panel — this fixes honesty, not length.</li></ul>
+<p class="count">visible controls: 16 (from 24)</p>
+</div></div>
+</div>
+
+<!-- ============ 2 ============ -->
+<div class="pane" id="p2">
+<p class="pitch">Two dials decide the match. Everything else is a detail.</p>
+<p class="why">One question up top — how does the war escalate, how does it end — and the rest
+collapsed into a details block most hosts never open.</p>
+<div class="cols"><div class="col-mock"><div class="lobby">
+  <div class="sec"><div class="sechead">The match</div>
+    <div class="row"><span class="lab">Escalation</span><span class="dd">DEFCON ladder</span></div>
+    <div class="sub">Off · DEFCON ladder</div>
+    <div class="row" style="margin-top:7px"><span class="lab">Ends</span><span class="dd">Last side standing</span></div>
+    <div class="sub">Last side standing · Final exchange after 30 min</div>
+  </div>
+  <div class="sec"><div class="sechead">Escalation detail</div>
+    <div class="row"><span class="lab">Start at</span><span class="dd">DEFCON 3</span></div>
+    <div class="row"><span class="lab">Pace</span><span class="dd">Standard</span></div>
+    <div class="row"><span class="lab">Nuclear ceiling</span><span class="dd">100 kt</span></div>
+  </div>
+  <div class="sec"><div class="sechead">More options ▸</div>
+    <div class="sub" style="margin-left:0">Forces, economy, battlefield, testing — collapsed.
+      12 controls, all defaulted.</div>
+  </div>
+</div></div>
+<div class="col-notes">
+<h4>The idea</h4>
+<ul>
+<li>The two dials are the only ones that change what the game <i>is</i>. Cash and fog change how it
+    plays. Sorting by that gets a five-line lobby.</li>
+<li><span class="tag add">new</span> A collapsed <b>More options</b> block. Everything survives; it
+    is one click away instead of on screen.</li>
+<li>Escalation detail hides entirely when escalation is Off — three fewer live controls in a
+    conventional match.</li>
+</ul>
+<h4>Why you might want it</h4>
+<ul><li>The mess is length, and this is the cheapest real cure for length.</li>
+<li>Hosts who tune everything now need one extra click, every time.</li></ul>
+<p class="count">visible controls: 5, plus 12 collapsed</p>
+</div></div>
+</div>
+
+<!-- ============ 3 ============ -->
+<div class="pane" id="p3">
+<p class="pitch">Pick a game, not a configuration.</p>
+<p class="why">Four named game types as cards. Each is a stance the whole match takes. Custom is
+still there for the people who want the dials.</p>
+<div class="cols"><div class="col-mock"><div class="lobby">
+  <div class="sec"><div class="sechead">Game type</div>
+    <div class="card"><div class="t">Conventional</div>
+      <div class="d">No nuclear weapons at all. Tanks, aircraft, the Supply Route. Ends when one
+        side can no longer be relieved.</div></div>
+    <div class="card on"><div class="t">Cold War <span class="tag keep" style="margin-left:5px">default</span></div>
+      <div class="d">The DEFCON ladder. Closed border, then fire only on your order, then open war —
+        and nuclear release climbs with each detonation.</div></div>
+    <div class="card"><div class="t">Dead Hand</div>
+      <div class="d">Cold War on a deadline. When the clock runs out the map is levelled whatever
+        state the war is in, and the score standing at that instant wins.</div></div>
+    <div class="card"><div class="t">Sandbox</div>
+      <div class="d">Everything unlocked from the first tick, nothing gated, no escalation. For
+        trying things out.</div></div>
+  </div>
+  <div class="sec"><div class="sechead">Tune it ▸</div>
+    <div class="sub" style="margin-left:0">Ceiling · pace · starting units · economy · battlefield.
+      Collapsed, and every value shown as the game type set it.</div>
+  </div>
+</div></div>
+<div class="col-notes">
+<h4>The idea</h4>
+<ul>
+<li>A host picks the <i>experience</i>. The dials still exist underneath and are pre-set by the
+    card — opening Tune it shows what the card chose, so nothing is hidden, only decided.</li>
+<li><span class="tag add">new</span> "Conventional" becomes a real named game rather than the
+    absence of a mode — and it is where a no-nukes match belongs, instead of a ceiling set to HOLD.</li>
+<li><span class="tag add">new</span> "Sandbox" is a game type, so it stops being a mode value that
+    does nothing and a checkbox with the same name.</li>
+</ul>
+<h4>Why you might want it</h4>
+<ul><li>The lobby stops looking like a settings screen. Four cards read in five seconds.</li>
+<li>Cards must be honest — if picking one and then tuning it produces something the card no longer
+    describes, that is worse than dials.</li></ul>
+<p class="count">visible controls: 1 card choice, plus 14 collapsed</p>
+</div></div>
+</div>
+
+<!-- ============ 4 ============ -->
+<div class="pane" id="p4">
+<p class="pitch">There is no "off". Every match is on the ladder — you choose where it starts.</p>
+<p class="why">The most drastic: escalation stops being a mode and becomes the spine of the game.
+A conventional match is simply one that starts at the bottom with the ceiling shut.</p>
+<div class="cols"><div class="col-mock"><div class="lobby">
+  <div class="sec"><div class="sechead">The war</div>
+    <div class="row"><span class="lab">Opens at</span><span class="dd">DEFCON 3 — closed border</span></div>
+    <div class="sub">DEFCON 3 closed border · DEFCON 2 fire only on order · DEFCON 1 open war</div>
+    <div class="row" style="margin-top:7px"><span class="lab">Escalates</span><span class="dd">Standard</span></div>
+    <div class="sub">Slow · Standard · Fast · Never (stays where it opened)</div>
+    <div class="row" style="margin-top:7px"><span class="lab">Nuclear release</span><span class="dd">Up to 100 kt</span></div>
+    <div class="sub">Never · 1 kt · 20 kt · 50 kt · 100 kt · 200 kt+</div>
+    <div class="row" style="margin-top:7px"><span class="lab">Dead hand</span><span class="dd">Off</span></div>
+    <div class="sub">Off · after 20 / 30 / 45 / 60 min</div>
+  </div>
+  <div class="sec"><div class="sechead">More options ▸</div>
+    <div class="sub" style="margin-left:0">Forces, economy, battlefield, testing.</div>
+  </div>
+</div></div>
+<div class="col-notes">
+<h4>The idea</h4>
+<ul>
+<li>Four dropdowns describe every game this mod can play. <b>Opens at DEFCON 1 + Escalates Never +
+    Nuclear release Never</b> is exactly today's conventional skirmish — no separate mode needed.</li>
+<li><span class="tag cut">cut</span> The Game Mode dropdown itself. There is nothing left for it to
+    select.</li>
+<li><span class="tag add">new</span> "Escalates: Never" replaces the Sandbox mode value honestly —
+    it pins the level, which is all that value ever did.</li>
+<li>Each dropdown's values are written as what the player experiences, not as jargon: "closed
+    border", "fire only on order", "open war".</li>
+</ul>
+<h4>Why you might want it</h4>
+<ul><li>One mental model for the whole game. Nothing overlaps because there is only one axis and
+    two modifiers.</li>
+<li>Biggest change, and it makes the ladder mandatory — if a player dislikes DEFCON they can only
+    turn it down, never off.</li></ul>
+<p class="count">visible controls: 4, plus 12 collapsed</p>
+</div></div>
+</div>
+
+<div class="pick">
+  <div style="font-size:12.5px;color:#cfcdc2;margin-bottom:5px">Which direction?</div>
+  <label><input type="radio" name="v" value="1"> <span><b>1 · Tidy up</b> — same lobby, honest</span></label>
+  <label><input type="radio" name="v" value="2"> <span><b>2 · Two dials</b> — the rest collapsed</span></label>
+  <label><input type="radio" name="v" value="3"> <span><b>3 · Presets + custom</b> — pick a game, not a configuration</span></label>
+  <label><input type="radio" name="v" value="4"> <span><b>4 · Escalation is the game</b> — no off switch</span></label>
+  <textarea id="note" placeholder="Mix them, or say what is wrong with all four. e.g. &quot;4, but keep a real Conventional card from 3&quot;"></textarea>
+  <button id="send">Send this back</button>
+  <div class="foot">Nothing is built from this. The next step is a focused session that iterates on
+    the chosen layout with screenshots until the real lobby matches it.</div>
+</div>
+
+<script>
+var tabs=document.querySelectorAll('.tab'),panes=document.querySelectorAll('.pane'),cur='1';
+function post(t){try{window.parent.postMessage({type:t,state:state(),summary:t==='maestro:artifact_submit'?('variant '+(pick()||'none')):undefined},'*')}catch(e){}}
+function pick(){var r=document.querySelector('input[name=v]:checked');return r?r.value:null}
+function state(){return{tab:cur,variant:pick(),note:document.getElementById('note').value}}
+tabs.forEach(function(t){t.onclick=function(){
+  tabs.forEach(function(x){x.classList.remove('on')});panes.forEach(function(x){x.classList.remove('on')});
+  t.classList.add('on');cur=t.dataset.t;document.getElementById('p'+cur).classList.add('on');
+  post('maestro:artifact_state');geo();}});
+document.querySelectorAll('input[name=v]').forEach(function(r){r.onchange=function(){post('maestro:artifact_state')}});
+document.getElementById('note').oninput=function(){post('maestro:artifact_state')};
+document.getElementById('send').onclick=function(){post('maestro:artifact_submit')};
+function geo(){try{window.parent.postMessage({type:'maestro:artifact_geometry',
+  height:document.documentElement.scrollHeight},'*')}catch(e){}}
+window.addEventListener('message',function(e){if(e.data&&e.data.type==='maestro:artifact_hydrate'&&e.data.state){
+  var s=e.data.state;if(s.note)document.getElementById('note').value=s.note;
+  if(s.variant){var r=document.querySelector('input[name=v][value="'+s.variant+'"]');if(r)r.checked=true}
+  if(s.tab){var t=document.querySelector('.tab[data-t="'+s.tab+'"]');if(t)t.click()}}});
+geo();window.addEventListener('load',geo);
+</script>
