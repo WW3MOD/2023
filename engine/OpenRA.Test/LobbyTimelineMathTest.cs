@@ -155,6 +155,170 @@ namespace OpenRA.Test
 				+ "so a timeline that hid itself while empty could never be refilled by its own logic.");
 		}
 
+		// ==================== CAPTION COLLISION ====================
+		//
+		// SCOPE, AND IT IS THE HONEST LIMIT OF THIS WHOLE SECTION: these pin the RULE — given left
+		// edges, widths and priorities, which labels get drawn — and they use MEASURED WIDTHS AS DATA,
+		// read off a 1.25x lobby capture (`THE LINE LIFTS` 60px, `NUKES PURCHASABLE` 101px) and
+		// divided back to CSS px. They do NOT prove those widths are what `font.Measure` returns at the
+		// real widget width, because measuring needs a loaded font and a renderer, and neither is
+		// reachable from OpenRA.Test. So: if the fonts or the copy change, these tests keep passing and
+		// the bar can collide again. **The rule is covered; the metrics are not.** The thing that would
+		// catch a metrics regression is another lobby capture, and nothing here substitutes for it.
+		const int LineLiftsWidth = 60;
+		const int PurchasableWidth = 101;
+		const int MatchEndsWidth = 45;
+		const int ValueWidth = 30;
+
+		// Priorities as TimelineWidget.CaptionPriority assigns them: highlighted 2, live 1, dimmed
+		// placeholder 0. Restated rather than referenced because that method is private to the widget;
+		// if it changes, this constant is the thing that should be re-read.
+		const int PriorityHighlight = 2;
+		const int PriorityLive = 1;
+		const int PriorityPlaceholder = 0;
+
+		static int[] Spans(params int[] centres) => centres;
+
+		/// <summary>Left edges from centres, with the widget's own bounds clamp applied.</summary>
+		static int[] LeftsFor(int[] centres, int[] widths, int width = Width)
+		{
+			var lefts = new int[centres.Length];
+			for (var i = 0; i < centres.Length; i++)
+				lefts[i] = System.Math.Clamp(centres[i] - (widths[i] / 2), 0, width - widths[i]);
+
+			return lefts;
+		}
+
+		[Test]
+		public void TheReportedDefaultCollisionDropsTheInertCaptionAndKeepsTheLiveOne()
+		{
+			// THE REGRESSION TEST FOR WHAT SHIPPED, in the numbers it was measured in. Markers 48px
+			// apart at the DEFAULT configuration (`defcon-pace: standard` = 5:00, and
+			// `nuclear-unlock-interval: 10` = 10:00), captions 60px and 101px wide. They need
+			// (60+101)/2 = 80.5px of centre separation, so 48 could never work and every host saw
+			// `THE LIN<GLIFTS>PURCHASABLE` on opening the lobby.
+			var centres = Spans(91, 139);
+			var widths = new[] { LineLiftsWidth, PurchasableWidth };
+			var priorities = new[] { PriorityPlaceholder, PriorityHighlight };
+
+			var visible = TimelineModel.VisibleLabels(LeftsFor(centres, widths), widths, priorities);
+
+			Assert.That(visible[1], Is.True,
+				"the live gold caption must survive — it is the one the bar exists to show");
+			Assert.That(visible[0], Is.False,
+				"the inert dimmed caption must be the one sacrificed; if both are drawn they overstrike");
+		}
+
+		[Test]
+		public void TheValueRowSurvivesTheSameCollisionBecauseItIsResolvedSeparately()
+		{
+			// The point of resolving the two rows independently: at 48px apart the WORDS collide and the
+			// TIMES do not, so the host loses "THE LINE LIFTS" and still reads `5:00` under that marker.
+			// Suppressing both rows together would discard a number that was never in collision.
+			var centres = Spans(87, 137);
+			var widths = new[] { ValueWidth, ValueWidth };
+			var priorities = new[] { PriorityPlaceholder, PriorityHighlight };
+
+			var visible = TimelineModel.VisibleLabels(LeftsFor(centres, widths), widths, priorities);
+
+			Assert.That(visible, Is.EqualTo(new[] { true, true }),
+				"`5:00` and `10:00` are ~30px at 50px apart and must both still be drawn");
+		}
+
+		[Test]
+		public void TheHighestPriorityCaptionIsDrawnInEveryConfigurationOfTheWholeRange()
+		{
+			// THE INVARIANT THAT MAKES SUPPRESSION SAFE, checked across the entire configurable space
+			// rather than at the default: `nuclear-unlock-interval` runs 0/5/7/10/15/20 minutes — 0 puts
+			// the nuclear marker nearly on top of the pace marker — against all three `defcon-pace`
+			// stops. The nuclear caption may never be the one dropped, at any of them.
+			var intervals = new[] { 0, 300, 420, 600, 900, 1200 };
+			var widths = new[] { LineLiftsWidth, PurchasableWidth, MatchEndsWidth };
+			var priorities = new[] { PriorityPlaceholder, PriorityHighlight, PriorityLive };
+
+			foreach (var paceSeconds in PaceStops)
+			{
+				foreach (var intervalSeconds in intervals)
+				{
+					var centres = Spans(
+						TimelineModel.PxFromSeconds(paceSeconds, Axis, Width),
+						TimelineModel.PxFromSeconds(intervalSeconds, Axis, Width),
+						Width);
+
+					var lefts = LeftsFor(centres, widths);
+					var visible = TimelineModel.VisibleLabels(lefts, widths, priorities);
+
+					Assert.That(visible[1], Is.True,
+						$"pace {paceSeconds}s / interval {intervalSeconds}s dropped the nuclear caption, " +
+						"which is the highest-priority label and is placed against an empty row");
+
+					// And nothing that IS drawn overlaps anything else that is drawn, at any of them.
+					for (var a = 0; a < widths.Length; a++)
+					{
+						for (var b = a + 1; b < widths.Length; b++)
+						{
+							if (!visible[a] || !visible[b])
+								continue;
+
+							var overlaps = lefts[a] < lefts[b] + widths[b] + TimelineModel.LabelGap
+								&& lefts[b] < lefts[a] + widths[a] + TimelineModel.LabelGap;
+
+							Assert.That(overlaps, Is.False,
+								$"pace {paceSeconds}s / interval {intervalSeconds}s draws labels {a} and {b} " +
+								$"overlapping: [{lefts[a]}..{lefts[a] + widths[a]}] and [{lefts[b]}..{lefts[b] + widths[b]}]");
+						}
+					}
+				}
+			}
+		}
+
+		[Test]
+		public void SuppressionIsByPriorityAndThenLeftToRightRatherThanByArrayOrder()
+		{
+			// Determinism: the same three labels in the same places must resolve the same way however
+			// the caller happened to order them. A rule that fell back on array order would move which
+			// caption vanished when an unrelated marker was inserted.
+			var widths = new[] { 60, 60 };
+			var lefts = new[] { 100, 120 };
+
+			Assert.That(TimelineModel.VisibleLabels(lefts, widths, new[] { PriorityLive, PriorityHighlight }),
+				Is.EqualTo(new[] { false, true }), "the highlighted label must win regardless of position");
+
+			Assert.That(TimelineModel.VisibleLabels(lefts, widths, new[] { PriorityHighlight, PriorityLive }),
+				Is.EqualTo(new[] { true, false }));
+
+			// Equal priority falls to the LEFTMOST, deterministically.
+			Assert.That(TimelineModel.VisibleLabels(lefts, widths, new[] { PriorityLive, PriorityLive }),
+				Is.EqualTo(new[] { true, false }), "an equal-priority tie must go to the left label");
+		}
+
+		[Test]
+		public void LabelsThatDoNotTouchAreAllDrawnAndDegenerateInputDoesNotThrow()
+		{
+			// The common case must not be a suppression: three well-separated labels all survive.
+			var widths = new[] { 40, 40, 40 };
+			var lefts = new[] { 0, 200, 400 };
+			Assert.That(TimelineModel.VisibleLabels(lefts, widths, new[] { 0, 0, 0 }),
+				Is.EqualTo(new[] { true, true, true }));
+
+			// Exactly LabelGap apart is clear; one pixel closer is not. Pinned because an off-by-one
+			// here is the difference between a readable row and a touching one.
+			Assert.That(TimelineModel.VisibleLabels(new[] { 0, 40 + TimelineModel.LabelGap }, new[] { 40, 40 }, new[] { 0, 0 }),
+				Is.EqualTo(new[] { true, true }), "labels exactly LabelGap apart must both be drawn");
+			Assert.That(TimelineModel.VisibleLabels(new[] { 0, 40 + TimelineModel.LabelGap - 1 }, new[] { 40, 40 }, new[] { 0, 0 }),
+				Is.EqualTo(new[] { true, false }), "one pixel inside LabelGap must suppress");
+
+			// A zero-width label reserves nothing, or an empty string would suppress a real neighbour.
+			Assert.That(TimelineModel.VisibleLabels(new[] { 100, 100 }, new[] { 0, 40 }, new[] { PriorityHighlight, PriorityLive }),
+				Is.EqualTo(new[] { false, true }));
+
+			Assert.That(TimelineModel.VisibleLabels(System.Array.Empty<int>(), System.Array.Empty<int>(), System.Array.Empty<int>()), Is.Empty);
+			Assert.That(TimelineModel.VisibleLabels(null, null, null), Is.Empty);
+			Assert.That(TimelineModel.VisibleLabels(new[] { 0 }, null, null), Is.EqualTo(new[] { false }));
+			Assert.That(TimelineModel.VisibleLabels(new[] { 0, 100 }, new[] { 40 }, null), Is.EqualTo(new[] { false, false }),
+				"a widths array shorter than lefts must draw nothing rather than index out of range");
+		}
+
 		[Test]
 		public void OffsetCarriesThePlusSignAndClockDoesNot()
 		{

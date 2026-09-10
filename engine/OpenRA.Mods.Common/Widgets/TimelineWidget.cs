@@ -326,8 +326,9 @@ namespace OpenRA.Mods.Common.Widgets
 			for (var i = 0; i < markers.Count; i++)
 				DrawMarker(markers, i, track);
 
-			for (var i = 0; i < markers.Count; i++)
-				DrawCaption(markers, i);
+			// ONE CALL, NOT A LOOP, and that is the fix for the overstruck captions: whether a caption
+			// can be drawn depends on its NEIGHBOURS, so the row is resolved as a whole. See DrawCaptions.
+			DrawCaptions(markers);
 		}
 
 		void DrawNote()
@@ -433,27 +434,94 @@ namespace OpenRA.Mods.Common.Widgets
 			WidgetUtils.FillRectWithColor(handle, color);
 		}
 
-		void DrawCaption(IReadOnlyList<TimelineMarker> markers, int index)
+		// WHICH CAPTION IS SACRIFICED WHEN TWO COLLIDE, stated rather than left to fall out of the
+		// ordering. Highest wins:
+		//
+		//   2  the HIGHLIGHTED marker -- the gold one, the thing the bar is drawing attention to.
+		//   1  an ordinary live marker.
+		//   0  a dimmed LobbyOption.Placeholder marker, which governs nothing today.
+		//
+		// AT THE DEFAULT THAT MEANS `THE LINE LIFTS` LOSES ITS WORDS AND `NUKES PURCHASABLE` KEEPS
+		// THEM, which is the right way round twice over: the pace marker is a placeholder, so it is
+		// both the less useful label and the one the panel already draws dimmed and dead to the mouse.
+		//
+		// AND IT STAYS THE RIGHT WAY ROUND AFTER MarkAsPlaceholder IS FLIPPED -- which is coming, since
+		// its own [Desc] calls that "the last step of the feature". The pace marker becomes priority 1,
+		// the nuclear marker is priority 2 because it carries Highlight, so the outcome does not move.
+		// A rule that had keyed on Placeholder ALONE would have silently swapped which caption
+		// disappeared on the day an unrelated field changed.
+		static int CaptionPriority(TimelineMarker marker)
 		{
-			var marker = markers[index];
+			if (marker.Highlight)
+				return 2;
+
+			return marker.Placeholder ? 0 : 1;
+		}
+
+		// The whole caption block, laid out together. Measuring is the only part that needs a renderer;
+		// the DECISION is TimelineModel.VisibleLabels, which is why it is testable without one.
+		void DrawCaptions(IReadOnlyList<TimelineMarker> markers)
+		{
 			var captionFont = Game.Renderer.Fonts[CaptionFont];
 			var valueFont = Game.Renderer.Fonts[ValueFont];
-
-			var stop = marker.Stops[Math.Clamp(StopIndex(markers, index), 0, marker.Stops.Length - 1)];
-			var caption = marker.Caption.ToUpperInvariant();
-			var value = stop.Label;
-
-			var captionSize = captionFont.Measure(caption);
-			var valueSize = valueFont.Measure(value);
-			var centre = RenderBounds.X + MarkerPx(markers, index);
 			var y = RenderBounds.Y + CaptionY;
 
-			var captionX = Math.Clamp(centre - (captionSize.X / 2), RenderBounds.X, RenderBounds.Right - captionSize.X);
-			var valueX = Math.Clamp(centre - (valueSize.X / 2), RenderBounds.X, RenderBounds.Right - valueSize.X);
+			var count = markers.Count;
+			var captions = new string[count];
+			var values = new string[count];
+			var captionLeft = new int[count];
+			var captionWidth = new int[count];
+			var valueLeft = new int[count];
+			var valueWidth = new int[count];
+			var priority = new int[count];
+			var captionHeight = 0;
 
-			var ink = marker.Placeholder ? TimelinePalette.Placeholder : TimelinePalette.Value;
-			captionFont.DrawText(caption, new float2(captionX, y), TimelinePalette.Micro);
-			valueFont.DrawText(value, new float2(valueX, y + captionSize.Y + 2), ink);
+			for (var i = 0; i < count; i++)
+			{
+				var marker = markers[i];
+				var stop = marker.Stops[Math.Clamp(StopIndex(markers, i), 0, marker.Stops.Length - 1)];
+
+				captions[i] = marker.Caption.ToUpperInvariant();
+				values[i] = stop.Label ?? "";
+
+				var captionSize = captionFont.Measure(captions[i]);
+				var valueSize = valueFont.Measure(values[i]);
+				var centre = RenderBounds.X + MarkerPx(markers, i);
+
+				captionWidth[i] = captionSize.X;
+				valueWidth[i] = valueSize.X;
+				captionLeft[i] = Math.Clamp(centre - (captionSize.X / 2), RenderBounds.X, RenderBounds.Right - captionSize.X);
+				valueLeft[i] = Math.Clamp(centre - (valueSize.X / 2), RenderBounds.X, RenderBounds.Right - valueSize.X);
+				priority[i] = CaptionPriority(marker);
+
+				// Measured across ALL markers, drawn or not, so the value row keeps one baseline
+				// whatever the caption row above it decided to suppress.
+				captionHeight = Math.Max(captionHeight, captionSize.Y);
+			}
+
+			// THE TWO ROWS ARE RESOLVED INDEPENDENTLY, and at the default that is what saves the reading
+			// rather than merely tidying it: a value is ~30px against a caption's 60-101px, so at 48px
+			// apart `5:00` and `10:00` still both fit. The host loses the WORDS "THE LINE LIFTS" and
+			// keeps the TIME under that marker. Suppressing both rows together would have thrown away a
+			// number that was never in collision.
+			//
+			// Where the markers coincide exactly -- reachable, e.g. a 20-minute interval against a
+			// 20-minute time limit -- the values collide too and the lower-priority marker keeps
+			// neither. Its handle is still drawn, so the bar still shows two markers with one labelled.
+			var captionVisible = TimelineModel.VisibleLabels(captionLeft, captionWidth, priority);
+			var valueVisible = TimelineModel.VisibleLabels(valueLeft, valueWidth, priority);
+
+			for (var i = 0; i < count; i++)
+			{
+				if (captionVisible[i])
+					captionFont.DrawText(captions[i], new float2(captionLeft[i], y), TimelinePalette.Micro);
+
+				if (valueVisible[i])
+				{
+					var ink = markers[i].Placeholder ? TimelinePalette.Placeholder : TimelinePalette.Value;
+					valueFont.DrawText(values[i], new float2(valueLeft[i], y + captionHeight + 2), ink);
+				}
+			}
 		}
 	}
 }

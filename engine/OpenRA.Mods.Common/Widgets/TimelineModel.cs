@@ -212,5 +212,92 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			return "+" + Clock(seconds);
 		}
+
+		/// <summary>Minimum clear pixels between two drawn labels.</summary>
+		// 8 to match the padding DrawBands already requires of a band caption (`size.X + 8 > width`),
+		// so the two label rows and the band row agree on what "too tight to read" means.
+		public const int LabelGap = 8;
+
+		/// <summary>
+		/// Which labels in one row may be drawn without overstriking each other: one bool per label, in
+		/// the caller's order. Higher <paramref name="priorities"/> win; ties go left to right.
+		/// </summary>
+		/// <remarks>
+		/// <para>WHY THIS IS NOT A LOOP IN THE WIDGET. A caption is centred on its own marker, so
+		/// whether it is drawable is a property of its NEIGHBOURS rather than of itself, and the row has
+		/// to be resolved as a whole. Two markers 48px apart carrying captions 60px and 101px wide
+		/// overstrike into one unreadable run of letters, and that was the DEFAULT configuration
+		/// (`defcon-pace: standard` = 5:00 against `nuclear-unlock-interval: 10` = 10:00) — so it was
+		/// what every host saw on opening the lobby, not a corner case. Captions need
+		/// (60+101)/2 = 80.5px of centre separation and will never fit in 48.</para>
+		///
+		/// <para>SUPPRESSION RATHER THAN STAGGERING OR ABBREVIATION, and both alternatives were real.
+		/// A second caption row needs the widget taller, and LobbyTimelineChromeTest pins the option
+		/// grid at exactly the widget's Height below it, so that is a layout change across three files
+		/// with a fresh way to be wrong. An abbreviation would be new player-facing copy invented by an
+		/// implementer, in a panel whose wording is taken from an approved mockup and governed by
+		/// rulings (decision 18 removed a single word from it). Suppression changes no geometry and
+		/// invents no words: it is the same trade DrawBands already makes, where a band too narrow for
+		/// its caption is drawn blank and the COLOUR carries the span.</para>
+		///
+		/// <para>THE TOP-PRIORITY LABEL IS ALWAYS DRAWN, by construction: it is placed first, against an
+		/// empty row. So a rule that drops something can never drop the label the panel exists to show.
+		/// LobbyTimelineMathTest pins that as an invariant across the whole configurable range.</para>
+		///
+		/// <para>Takes LEFT EDGES, not centres, so it sees exactly the spans the widget will draw —
+		/// including the clamp that keeps an edge label inside the bar. Duplicating that clamp here
+		/// would be a second copy of the geometry to keep in step.</para>
+		/// </remarks>
+		public static bool[] VisibleLabels(IReadOnlyList<int> lefts, IReadOnlyList<int> widths,
+			IReadOnlyList<int> priorities, int gap = LabelGap)
+		{
+			var count = lefts?.Count ?? 0;
+			var visible = new bool[count];
+			if (count == 0 || widths == null || widths.Count < count)
+				return visible;
+
+			// Highest priority first, then LEFT TO RIGHT. No two entries ever compare equal, so the
+			// result cannot depend on the sort's stability or on the caller's array order.
+			var order = new int[count];
+			for (var i = 0; i < count; i++)
+				order[i] = i;
+
+			Array.Sort(order, (a, b) =>
+			{
+				var pa = priorities != null && a < priorities.Count ? priorities[a] : 0;
+				var pb = priorities != null && b < priorities.Count ? priorities[b] : 0;
+				return pa != pb ? pb.CompareTo(pa) : a.CompareTo(b);
+			});
+
+			var placed = new List<(int Left, int Right)>();
+			foreach (var i in order)
+			{
+				// A zero-width label is nothing to draw and must not reserve space, or it would
+				// suppress a real neighbour on behalf of an empty string.
+				if (widths[i] <= 0)
+					continue;
+
+				var left = lefts[i];
+				var right = left + widths[i];
+
+				var clear = true;
+				foreach (var (placedLeft, placedRight) in placed)
+				{
+					if (left < placedRight + gap && placedLeft < right + gap)
+					{
+						clear = false;
+						break;
+					}
+				}
+
+				if (!clear)
+					continue;
+
+				visible[i] = true;
+				placed.Add((left, right));
+			}
+
+			return visible;
+		}
 	}
 }
