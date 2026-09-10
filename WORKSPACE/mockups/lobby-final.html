@@ -111,7 +111,7 @@ button:hover{background:#353c2b}
 <h1>The lobby, settled — two modes, and neither of them is complicated</h1>
 <p class="lede">Escalation is <b>two sides, one setting</b>: when the first warheads arrive. Skirmish
 is <b>buy your own</b>: nuclear weapons unlock for purchase on a schedule, nothing is granted, and
-firing one escalates nothing. Doomsday is a time limit either mode can switch on. Tab 1 is the one
+firing one escalates nothing. Dead Hand is a time limit either mode can switch on. Tab 1 is the one
 to build; 2–4 are last ideas.</p>
 
 <div class="box2"><b>What the two modes now are, in one line each.</b>
@@ -133,7 +133,7 @@ game-enders means everyone is recorded as Lost.</div>
 <p class="pitch">One dropdown decides which half of the panel you see. Both halves shown here.</p>
 <p class="why">Everything below the mode row is derived, read-only, or one of the settings a host
 actually wants. No control appears in both modes unless it genuinely applies to both — which is only
-DEFCON, the ordinary match toggles, and Doomsday.</p>
+DEFCON, the ordinary match toggles, and Dead Hand.</p>
 
 <div class="cols">
 <div class="col-mock">
@@ -154,7 +154,7 @@ DEFCON, the ordinary match toggles, and Doomsday.</p>
         <div class="row"><span class="lab">Availability</span><span class="dd">Buildable</span></div>
         <div class="sub">Off · Buildable <span class="tag new">new</span></div>
         <div class="row"><span class="lab">Highest yield</span><span class="dd">100 kt</span></div>
-        <div class="sub">1 kt · 20 kt · 50 kt · 100 kt · game-enders</div>
+        <div class="sub">1 kt · 20 kt · 50 kt · 100 kt — <b>game-enders are never purchasable here</b></div>
         <div class="row"><span class="lab">Unlock a tier every</span><span class="dd">10 minutes</span></div>
 
         <div class="sch">
@@ -163,7 +163,7 @@ DEFCON, the ordinary match toggles, and Doomsday.</p>
           <div class="sr"><span class="t">20:00</span><span class="y">20 kt</span><span class="m">purchasable</span></div>
           <div class="sr"><span class="t">30:00</span><span class="y">50 kt</span><span class="m">purchasable</span></div>
           <div class="sr"><span class="t">40:00</span><span class="y">100 kt</span><span class="m">purchasable</span></div>
-          <div class="sr grey"><span class="t">—</span><span class="y">game-enders</span><span class="m">above the cap</span></div>
+          <div class="sr grey"><span class="t">never</span><span class="y">game-enders</span><span class="m">not in Skirmish, at any cap</span></div>
         </div>
         <div class="sub l0" style="margin-top:5px"><b>Nothing is granted and nothing escalates.</b>
           You buy them, you fire them, and that is the end of it.</div>
@@ -171,8 +171,8 @@ DEFCON, the ordinary match toggles, and Doomsday.</p>
 
       <div class="sec"><div class="sechead grey">Match</div>
         <div class="row"><span class="lab">Starting cash</span><span class="dd sm">10 000</span>
-          <span class="lab" style="width:auto;padding-left:2px">Doomsday</span><span class="dd sm off">Off</span></div>
-        <div class="sub l0">Doomsday: off · 30 · 45 · 60 · 90 min — ends the match with the salvo
+          <span class="lab" style="width:auto;padding-left:2px">Dead Hand</span><span class="dd sm off">Off</span></div>
+        <div class="sub l0">Dead Hand: off · 30 · 45 · 60 · 90 min — ends the match with the salvo
           and the 15-second window. <span class="tag new">new</span></div>
         <div class="cbs"><span class="cb"><span class="box t"></span>Crates</span>
           <span class="cb"><span class="box t"></span>Fog of war</span>
@@ -196,15 +196,17 @@ DEFCON, the ordinary match toggles, and Doomsday.</p>
       </div>
 
       <div class="sec"><div class="sechead">Escalation</div>
-        <div class="row"><span class="lab">First warheads at</span><span class="dd">30 minutes</span></div>
-        <div class="sub"><b>The only setting this mode has.</b> 10 · 20 · 30 · 45 min <span class="tag new">new</span></div>
+        <div class="row"><span class="lab">First warheads</span><span class="dd">10 min after DEFCON 1</span></div>
+        <div class="sub"><b>The only setting this mode has.</b> 10 · 20 · 30 · 45 min
+          <span class="tag ships">ships</span> — 10:00 is exactly today's <code>NuclearReleaseDelayTicks</code></div>
 
         <div class="reads">
-          <div>· At <b>30:00</b> each side is granted one <b>1 kt</b>. Nothing before that.</div>
+          <div>· <b>10:00 after DEFCON 1</b> each side is granted one <b>1 kt</b>. Nothing before that.</div>
           <div>· Firing arms <b>the side you hit</b> with the next yield up. Never yourself.</div>
           <div>· Take a hit and do not answer, and it stops there.</div>
           <div>· Game-enders end the match — <b>everyone is recorded as Lost</b>.</div>
-          <div>· <b>3 game-enders each</b> on River Zeta. The map decides it.</div>
+          <div>· <b>3 aim points each</b> at the top — one Sarmat launch covers a side's whole
+            allocation. The map decides the number.</div>
         </div>
         <div class="sub l0" style="margin-top:5px">Nothing is purchasable. Every warhead in the
           match came from someone deciding to use one.</div>
@@ -212,7 +214,7 @@ DEFCON, the ordinary match toggles, and Doomsday.</p>
 
       <div class="sec"><div class="sechead grey">Match</div>
         <div class="row"><span class="lab">Starting cash</span><span class="dd sm">10 000</span>
-          <span class="lab" style="width:auto;padding-left:2px">Doomsday</span><span class="dd sm off">Off</span></div>
+          <span class="lab" style="width:auto;padding-left:2px">Dead Hand</span><span class="dd sm off">Off</span></div>
         <div class="sub l0">Off by default here on purpose: left alone, an Escalation match ends
           only when a player decides it does.</div>
         <div class="cbs"><span class="cb"><span class="box t"></span>Crates</span>
@@ -228,7 +230,7 @@ DEFCON, the ordinary match toggles, and Doomsday.</p>
 <h4>Why this is the one</h4>
 <ul>
 <li><b>Four new controls in total</b>, across both modes: nuclear availability, highest yield, the
-    unlock interval, and Doomsday's length. Escalation adds exactly one. Everything else on screen
+    unlock interval, and Dead Hand's length. Escalation adds exactly one. Everything else on screen
     either ships today or is read-only.</li>
 <li><b>The read-only blocks do the teaching.</b> Skirmish's schedule and Escalation's five lines are
     the only documentation either mode needs, and they sit where the decision is made rather than in
@@ -270,7 +272,7 @@ is without choosing it first.</p>
     <div class="on"><div class="t">Escalation</div>
       <div class="d">Firing arms your enemy. Restraint is the only brake.</div>
       <div class="mini">
-        <div>First warheads at <b>30 min</b></div>
+        <div>First warheads <b>10 min</b> after DEFCON 1</div>
         <div>Nothing purchasable</div>
         <div>Ends with <b>no winners</b></div>
         <div><b>Two sides only</b></div>
@@ -282,7 +284,7 @@ is without choosing it first.</p>
   </div>
   <div class="sec"><div class="sechead grey">Match</div>
     <div class="row"><span class="lab">Starting cash</span><span class="dd sm">10 000</span>
-      <span class="lab" style="width:auto;padding-left:2px">Doomsday</span><span class="dd sm off">Off</span></div>
+      <span class="lab" style="width:auto;padding-left:2px">Dead Hand</span><span class="dd sm off">Off</span></div>
   </div>
 </div></div>
 </div>
@@ -314,18 +316,18 @@ three markers on a clock. Drag them. Everything else is a checkbox.</p>
   <div class="row"><span class="lab">Game mode</span><span class="dd hero">Escalation</span></div>
   <div class="tl">
     <div class="tlb" style="left:2%;width:16%;background:#0e181d;color:#8fb4c8;border:1px solid #24343d">NO RUSH</div>
-    <div class="tlb" style="left:18%;width:48%;background:#12140f;color:#7d8272;border:1px solid #2b2e25">CONVENTIONAL</div>
-    <div class="tlb" style="left:66%;width:32%;background:#1a1309;color:#dcc49a;border:1px solid #4a3a20">WARHEADS ISSUED</div>
-    <div class="pin" style="left:18%"></div><div class="pin" style="left:66%"></div>
+    <div class="tlb" style="left:18%;width:24%;background:#12140f;color:#7d8272;border:1px solid #2b2e25">CONVENTIONAL</div>
+    <div class="tlb" style="left:42%;width:56%;background:#1a1309;color:#dcc49a;border:1px solid #4a3a20">WARHEADS ISSUED</div>
+    <div class="pin" style="left:18%"></div><div class="pin" style="left:42%"></div>
     <div class="tlm" style="left:18%">5:00 · line lifts</div>
-    <div class="tlm" style="left:66%">30:00 · first warheads</div>
+    <div class="tlm" style="left:42%">+10:00 · first warheads</div>
   </div>
   <div class="sub l0">Two handles, and the match is configured. In Skirmish the second handle reads
     "first tier purchasable" and a third appears for the tier interval.</div>
   <div class="sec"><div class="sechead grey">Everything else</div>
     <div class="cbs"><span class="cb"><span class="box t"></span>Crates</span>
       <span class="cb"><span class="box t"></span>Fog</span>
-      <span class="cb"><span class="box"></span>Doomsday at 60 min</span></div>
+      <span class="cb"><span class="box"></span>Dead Hand at 60 min</span></div>
   </div>
 </div></div>
 </div>
@@ -341,7 +343,7 @@ three markers on a clock. Drag them. Everything else is a checkbox.</p>
 <ul>
 <li>Dragging needs a keyboard path and real interaction work for two values a dropdown does in a
     line of markup.</li>
-<li>It implies the match has a length. It does not, unless Doomsday is on.</li>
+<li>It implies the match has a length. It does not, unless Dead Hand is on.</li>
 </ul>
 </div></div>
 </div>
@@ -357,13 +359,13 @@ three decisions that actually differ between matches.</p>
     <div class="qa"><span class="opt">No</span><span class="opt">Buy them</span>
       <span class="opt on">They escalate</span></div></div>
   <div class="q"><div class="qt">How long before the first one?</div>
-    <div class="qa"><span class="opt">10 min</span><span class="opt">20 min</span>
-      <span class="opt on">30 min</span><span class="opt">45 min</span></div></div>
+    <div class="qa"><span class="opt on">10 min</span><span class="opt">20 min</span>
+      <span class="opt">30 min</span><span class="opt">45 min</span></div></div>
   <div class="q"><div class="qt">Should the match have an end?</div>
     <div class="qa"><span class="opt on">No — play it out</span><span class="opt">60 min</span>
       <span class="opt">90 min</span></div></div>
   <div class="warn ok" style="margin-top:11px"><span class="i">▸</span>
-    <span>Escalation · two sides · warheads at 30:00 · no time limit ·
+    <span>Escalation · two sides · warheads 10 min after DEFCON 1 · no time limit ·
       <span style="color:var(--lbl)">everything else default</span></span></div>
   <div class="row" style="margin-top:8px"><span class="lab">Advanced ▸</span>
     <span class="dd off">DEFCON, cash, crates, fog…</span></div>
