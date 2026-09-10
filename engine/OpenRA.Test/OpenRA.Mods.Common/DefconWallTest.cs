@@ -19,8 +19,16 @@
  * Map and are verified by reading.
  *
  * THE LOAD-BEARING TESTS ARE NoLineAuthoredIsAStrictNoOp AND TheShippedDefaultsAuthorNoLine.
- * The user tests from main and this feature is landing in pieces. Every shipped map leaves Start
- * equal to End, so if a degenerate line ever stops being a no-op, those two say so.
+ * No map authors a line, so if a degenerate line ever stops being a no-op, those two say so.
+ *
+ * WHAT CHANGED WHEN THE WALL WENT LIVE: no shipped map authors a line and none needs to -- the
+ * line is DERIVED from the two sides' home locations, switched on by DeriveFromSpawns in
+ * world.yaml. The Info default for that field stays FALSE, and DerivingFromSpawnsIsOffInTheDefaults
+ * guards it, so "the C# defaults are inert" remains true and only the mod turns the wall on.
+ *
+ * AND THE ONE THIS FILE PREVIOUSLY COULD NOT HAVE CAUGHT: every test here drove a VERTICAL line,
+ * which is the single angle a one-cell band actually seals. TheDefaultBandSealsALineAtEveryAngle
+ * is the regression test for that; AOneCellBandLeaksOnADiagonal pins WHY the default is not 512.
  */
 
 using NUnit.Framework;
@@ -254,6 +262,165 @@ namespace OpenRA.Test
 			Assert.That(geometry.IsInWallBand(CentreOf(46), CentreOf(28)), Is.True);
 			Assert.That(geometry.IsInWallBand(CentreOf(41), CentreOf(28)), Is.False);
 			Assert.That(geometry.IsInWallBand(CentreOf(47), CentreOf(28)), Is.False);
+		}
+
+		/// <summary>
+		/// Is there an 8-connected step that crosses the line without entering the band? That is the
+		/// only question that decides whether the wall divides anything, and it is not the question
+		/// "are the cells either side in the band", which a vertical line answers misleadingly well.
+		/// </summary>
+		static bool Leaks(DefconWallGeometry geometry, int extent = 60)
+		{
+			for (var y = 0; y < extent; y++)
+			{
+				for (var x = 0; x < extent; x++)
+				{
+					var side = geometry.SideOf(CentreOf(x), CentreOf(y));
+					if (side == DefconWallGeometry.NoSide || geometry.IsInWallBand(CentreOf(x), CentreOf(y)))
+						continue;
+
+					for (var dy = -1; dy <= 1; dy++)
+					{
+						for (var dx = -1; dx <= 1; dx++)
+						{
+							if (dx == 0 && dy == 0)
+								continue;
+
+							int nx = x + dx, ny = y + dy;
+							if (nx < 0 || ny < 0 || nx >= extent || ny >= extent)
+								continue;
+
+							var otherSide = geometry.SideOf(CentreOf(nx), CentreOf(ny));
+							if (otherSide == DefconWallGeometry.NoSide || otherSide == side)
+								continue;
+
+							if (!geometry.IsInWallBand(CentreOf(nx), CentreOf(ny)))
+								return true;
+						}
+					}
+				}
+			}
+
+			return false;
+		}
+
+		static DefconWallGeometry Through(CPos a, CPos b, long halfWidth)
+		{
+			var (start, end) = DefconWallGeometry.PerpendicularBisector(a, b, 512);
+			return new DefconWallGeometry(
+				(start.X * Cell) + HalfCell, (start.Y * Cell) + HalfCell,
+				(end.X * Cell) + HalfCell, (end.Y * Cell) + HalfCell, halfWidth);
+		}
+
+		[Test]
+		public void AOneCellBandLeaksOnADiagonal()
+		{
+			// THE BUG THE FEATURE SHIPPED WITH, pinned so the default cannot quietly go back to 512.
+			// A one-cell band on a diagonal is a staircase of cells touching only at their corners,
+			// and an 8-connected step goes straight between two of them. Measured in the connectivity
+			// audit as every derived line leaking on every ground locomotor on all ten shipped maps.
+			Assert.That(Leaks(Through(new CPos(10, 10), new CPos(50, 50), HalfCell)), Is.True,
+				"A one-cell band on a 45-degree line is expected to leak; if it no longer does, the " +
+				"reason the default is 1024 has changed and both should be revisited together.");
+
+			// The same band on the axis-aligned line every earlier test in this file used. This is
+			// why nothing caught it: the worked example authors a vertical line.
+			Assert.That(Leaks(VerticalAt(30)), Is.False);
+		}
+
+		[Test]
+		public void TheDefaultBandSealsALineAtEveryAngle()
+		{
+			// The floor is arithmetic. Two 8-adjacent cells differ by at most one cell per axis, so
+			// their perpendicular distances to the line differ by at most sqrt(2) cells; when they
+			// straddle it those distances sum to at most sqrt(2), so the nearer is within
+			// sqrt(2)/2 = 0.707 cells = 724 world units. At or above that, every straddling pair has
+			// a member in the band, at every angle.
+			var info = new DefconWallInfo();
+			Assert.That(info.HalfWidth.Length, Is.GreaterThanOrEqualTo(724),
+				"HalfWidth is below the sqrt(2)/2-cell floor, so diagonal lines will leak.");
+
+			// Spawn pairs chosen to sweep the angles: axis-aligned both ways, 45 degrees both ways,
+			// and two shallow ones that are neither.
+			var pairs = new[]
+			{
+				(new CPos(8, 28), new CPos(80, 28)),
+				(new CPos(28, 8), new CPos(28, 80)),
+				(new CPos(10, 10), new CPos(50, 50)),
+				(new CPos(10, 50), new CPos(50, 10)),
+				(new CPos(6, 12), new CPos(54, 30)),
+				(new CPos(12, 6), new CPos(30, 54)),
+			};
+
+			foreach (var (a, b) in pairs)
+			{
+				var geometry = Through(a, b, info.HalfWidth.Length);
+				Assert.That(geometry.IsDegenerate, Is.False);
+				Assert.That(Leaks(geometry), Is.False,
+					$"The default band leaks on the line derived from {a} and {b}, so the wall is " +
+					"drawn but does not divide the map.");
+			}
+		}
+
+		[Test]
+		public void TwoAllianceGroupsDeriveAFairLine()
+		{
+			// A 2v2: each side's centroid is what the line is bisecting, not any one spawn.
+			var (start, end) = DefconWallGeometry.BisectorOfSides(new[]
+			{
+				(0, new CPos(8, 20)), (0, new CPos(8, 36)),
+				(1, new CPos(80, 20)), (1, new CPos(80, 36)),
+			}, 200);
+
+			var geometry = new DefconWallGeometry(
+				(start.X * Cell) + HalfCell, (start.Y * Cell) + HalfCell,
+				(end.X * Cell) + HalfCell, (end.Y * Cell) + HalfCell, HalfCell);
+
+			Assert.That(geometry.IsDegenerate, Is.False);
+
+			// Centroids are (8,28) and (80,28), so this is the x=44 line the two-spawn case gives,
+			// and every one of the four homes is the same distance from it as its own team-mate.
+			foreach (var home in new[] { new CPos(8, 20), new CPos(8, 36) })
+				Assert.That(geometry.DistanceToLine(CentreOf(home.X), CentreOf(home.Y)), Is.EqualTo(36 * Cell));
+
+			var west = geometry.SideOf(CentreOf(8), CentreOf(20));
+			var east = geometry.SideOf(CentreOf(80), CentreOf(20));
+			Assert.That(west, Is.Not.EqualTo(east), "The derived line put both teams in the same half.");
+			Assert.That(geometry.SideOf(CentreOf(8), CentreOf(36)), Is.EqualTo(west),
+				"Two allies ended up on opposite sides of their own wall.");
+		}
+
+		[Test]
+		public void AThreeWayFreeForAllDerivesNoLine()
+		{
+			// No line is visibly wrong and therefore fixable; a line pointing somewhere nobody chose
+			// is not. Same reasoning as TwoCoincidentSpawnsDeriveNoLineRatherThanAnArbitraryOne.
+			var (start, end) = DefconWallGeometry.BisectorOfSides(new[]
+			{
+				(0, new CPos(8, 8)), (1, new CPos(80, 8)), (2, new CPos(44, 80)),
+			}, 200);
+
+			Assert.That(start, Is.EqualTo(end), "A three-way FFA derived a dividing line.");
+		}
+
+		[Test]
+		public void OneSideAloneDerivesNoLine()
+		{
+			var (start, end) = DefconWallGeometry.BisectorOfSides(new[]
+			{
+				(0, new CPos(8, 8)), (0, new CPos(20, 20)),
+			}, 200);
+
+			Assert.That(start, Is.EqualTo(end), "A match with no enemy derived a dividing line.");
+		}
+
+		[Test]
+		public void DerivingFromSpawnsIsOffInTheDefaults()
+		{
+			// The mod turns the wall on in world.yaml. The C# defaults must stay inert so that a
+			// scenario or test which never asked for a wall cannot grow one.
+			Assert.That(new DefconWallInfo().DeriveFromSpawns, Is.False,
+				"The Info default now authors a wall, so every map using default rules grows one.");
 		}
 	}
 }

@@ -33,10 +33,18 @@
  * the pipeline, before it is flattened into a byte per cell. Reading it back through the terrain
  * would lose the sign (which side) and the distance (how far), and both layers 1 and 2 need those.
  *
- * WHAT MAKES THIS INERT, which matters because the user tests from main:
- *   - Skirmish is a strict no-op. DefconEscalation holds NoLevel, ActiveLevels never contains it.
- *   - No shipped map authors a line, so Start == End, so the geometry is degenerate, so IsActive is
- *     false before the level is even consulted.
+ * THIS IS NO LONGER INERT ON THE SHIPPED MAPS, and that is the point of the change that did it.
+ * The DEFCON readout tells the player, at DEFCON 3, "The border is closed. Neither side may cross
+ * it." While no map authored a line that sentence was simply false, and a readout that lies is
+ * worse than no readout. world.yaml now sets DeriveFromSpawns, so the line is DERIVED from where
+ * the match's two sides actually start (see WorldLoaded below) rather than drawn per map.
+ *
+ * WHAT IS STILL INERT, which matters because the user tests from main:
+ *   - Skirmish is a strict no-op. DefconEscalation holds NoLevel, ActiveLevels never contains it,
+ *     and Skirmish is still the default game mode. A Skirmish match is unchanged.
+ *   - A map that authors no line AND leaves DeriveFromSpawns off still gets a degenerate geometry,
+ *     so IsActive is false before the level is even consulted. That is the C# default; only
+ *     world.yaml turns it on.
  *   - Zero shared-random draws. Nothing here touches World.SharedRandom.
  */
 
@@ -64,11 +72,54 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("The other end of the dividing line, in cells. See " + nameof(Start) + ".")]
 		public readonly CPos End = CPos.Zero;
 
-		[Desc("Half the thickness of the wall itself, in world units (1024 = one cell). The default",
-			"gives a band one cell wide, centred on the line. Cells inside the band are impassable to",
-			"ground units and forbidden to aircraft REGARDLESS of which side they belong to, which is",
-			"what stops a player parking on the line.")]
-		public readonly WDist HalfWidth = new WDist(512);
+		[Desc("Half the thickness of the wall itself, in world units (1024 = one cell). Cells inside",
+			"the band are impassable to ground units and forbidden to aircraft REGARDLESS of which",
+			"side they belong to, which is what stops a player parking on the line.",
+			"",
+			"DO NOT LOWER THIS TO 512. A one-cell band seals an AXIS-ALIGNED line and nothing else.",
+			"On any other angle the banded cells touch only at their corners and an 8-connected step",
+			"goes straight between two of them -- so the wall is drawn, is visible, and does not",
+			"divide anything. It was 512 until the derivation landed, and the one worked example",
+			"authors a VERTICAL line, which is the single case where 512 works; that is why nothing",
+			"caught it. Measured: at 512 every derived line on all ten shipped maps leaked on every",
+			"ground locomotor (tools/nav-guard/defcon_wall_audit.py).",
+			"",
+			"The floor is arithmetic, not taste. Two 8-adjacent cells differ by at most one cell in",
+			"each axis, so their perpendicular distances to the line differ by at most sqrt(2) cells;",
+			"when they straddle the line those distances SUM to at most sqrt(2), so the nearer one is",
+			"within sqrt(2)/2 = 0.707 cells = 724 world units. Any value >= 724 therefore catches one",
+			"of every straddling pair at every angle. 1024 is that bound with margin, and is one",
+			"whole cell either side.")]
+		public readonly WDist HalfWidth = new WDist(1024);
+
+		[Desc("Derive the line from where the match's two sides actually start, instead of requiring",
+			"every map to author one. The combatants are split into their two alliance groups, each",
+			"group's centroid home is taken, and the line is the perpendicular bisector of those two",
+			"points -- so it is equidistant from both sides by construction, on any map.",
+			"",
+			"THIS IS WHY NO SHIPPED MAP NEEDS AN ENTRY. It also handles what an authored line cannot:",
+			"on the 4- and 6-spawn maps, which spawns are occupied is not known until the match",
+			"starts, so the fair line is not a property of the map at all.",
+			"",
+			"AN AUTHORED " + nameof(Start) + "/" + nameof(End) + " WINS over this, which is what makes",
+			"the whole thing an override list -- a map whose terrain makes the bisector silly draws",
+			"its own line and this field is ignored for it.",
+			"",
+			"EXACTLY TWO ALLIANCE GROUPS OR NO WALL. A three-way free-for-all derives nothing, on the",
+			"same reasoning as two coincident spawns: no line is visibly wrong and therefore fixable,",
+			"while a line pointing somewhere nobody chose is not.",
+			"",
+			"FALSE HERE ON PURPOSE. The C# default must leave the trait inert so that a map, scenario",
+			"or test that does not ask for a wall cannot grow one; world.yaml is the single place it",
+			"is switched on.")]
+		public readonly bool DeriveFromSpawns = false;
+
+		[Desc("How far past the midpoint the derived endpoints are pushed, in cells. The line is",
+			"treated as INFINITE, so this does not decide how far the wall reaches -- it only fixes",
+			"the direction, and a larger value means less angular error from integer truncation.",
+			"512 is comfortably past the corner of the largest shipped map (128x128) and is the value",
+			"the connectivity audit was run at.")]
+		public readonly int DerivedExtendCells = 512;
 
 		[Desc("Terrain type written into Map.CustomTerrain for every cell of the wall band while the",
 			"wall is up, and reverted cell-by-cell to its previous value when it comes down.",
@@ -91,11 +142,14 @@ namespace OpenRA.Mods.Common.Traits
 	// `is ISync`, so without the interface the [Sync] member below would be inert and this trait would
 	// be missing from every sync report. `active` is the only mutable state that changes what the
 	// simulation does, and it is projected to an int because the runtime hasher cannot hash a bool.
-	public class DefconWall : INotifyCreated, ITick, ISync
+	public class DefconWall : INotifyCreated, IWorldLoaded, ITick, ISync
 	{
 		readonly DefconWallInfo info;
 		readonly World world;
-		readonly DefconWallGeometry geometry;
+
+		// NOT readonly: WorldLoaded replaces it with the derived line when no line was authored.
+		// Nothing may cache a side before that happens -- see the note in WorldLoaded.
+		DefconWallGeometry geometry;
 
 		// Which half-plane each player's home sits in, resolved once on first ask and then cached.
 		// A player never changes sides: HomeLocation is fixed at match start.
@@ -143,6 +197,77 @@ namespace OpenRA.Mods.Common.Traits
 			// for the same actor.
 			escalation = self.TraitOrDefault<DefconEscalation>();
 			Apply();
+		}
+
+		/// <summary>
+		/// Derive the dividing line from where the two sides actually start, when no map authored one.
+		/// </summary>
+		// IWorldLoaded RATHER THAN Created, and the ordering is the whole reason. Player.HomeLocation
+		// is assigned in the Player constructor (Player.cs:182), and every Player is built in the
+		// World constructor (World.cs:63) -- both of which finish before IWorldLoaded is invoked on
+		// the world actor's traits (World.cs:334). Deriving in Created would read homes that do not
+		// exist yet, which is the same class of mistake as the WorldActor null this trait already
+		// shipped once.
+		//
+		// DETERMINISTIC WITHOUT QUALIFICATION. World.Players is one array built identically on every
+		// client, this walks it in order, alliance masks are fixed at construction, and everything
+		// downstream is integer. No shared random is drawn, so every client derives the same line.
+		void IWorldLoaded.WorldLoaded(World w, OpenRA.Graphics.WorldRenderer wr)
+		{
+			// AN AUTHORED LINE WINS. IsDegenerate is exactly "no line was authored", so this is the
+			// override list working: a map that drew its own line never reaches the derivation.
+			if (!info.DeriveFromSpawns || !geometry.IsDegenerate)
+				return;
+
+			var homes = new List<(int Group, CPos Home)>();
+			var representatives = new List<Player>();
+
+			foreach (var player in w.Players)
+			{
+				// Spectators and the world/neutral players have no side to be on. Including them
+				// would drag a centroid toward a player who is not in the match.
+				if (player.NonCombatant || player.Spectating)
+					continue;
+
+				var group = -1;
+				for (var i = 0; i < representatives.Count; i++)
+				{
+					if (representatives[i].IsAlliedWith(player))
+					{
+						group = i;
+						break;
+					}
+				}
+
+				if (group < 0)
+				{
+					representatives.Add(player);
+					group = representatives.Count - 1;
+				}
+
+				homes.Add((group, player.HomeLocation));
+			}
+
+			var (start, end) = DefconWallGeometry.BisectorOfSides(homes, info.DerivedExtendCells);
+			if (start == end)
+			{
+				Log.Write("debug", $"DEFCON wall: no line derived from {homes.Count} combatant " +
+					$"home(s) in {representatives.Count} alliance group(s); the wall stays down.");
+				return;
+			}
+
+			var from = w.Map.CenterOfCell(start);
+			var to = w.Map.CenterOfCell(end);
+			geometry = new DefconWallGeometry(from.X, from.Y, to.X, to.Y, info.HalfWidth.Length);
+
+			// Defensive: a side cached against the OLD geometry would be a permanently wrong answer
+			// for that player. The dictionary is empty here in practice -- nothing can have asked
+			// while the geometry was degenerate, because every entry point early-returns on !active
+			// -- so this costs nothing and removes the need to re-derive that argument later.
+			sides.Clear();
+
+			Log.Write("debug", $"DEFCON wall derived from {homes.Count} home(s) in " +
+				$"{representatives.Count} group(s): {start} .. {end}.");
 		}
 
 		void ITick.Tick(Actor self)

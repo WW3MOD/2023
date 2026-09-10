@@ -166,10 +166,17 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int FastTicks = 2500;
 
 		[Desc("Render the three dropdowns dimmed, with the lobby placeholder tooltip.",
-			"TRUE TODAY AND HONEST: the level moves and the conditions are granted, but no shipped",
-			"content consumes them yet, so picking " + nameof(DefconGameMode.Escalation) + " changes",
-			"nothing a player can see. Set this false in world.yaml on the change that lands the first",
-			"consumer -- it is one line, and it is the only thing that has to move.")]
+			"",
+			"STILL TRUE, BUT ITS ORIGINAL JUSTIFICATION IS GONE. This used to read 'nothing a player",
+			"can see', and that is now false twice over: the DEFCON readout draws the level, the",
+			"phase, the clock and the rule line on screen, and the DEFCON 3 dividing wall stands on",
+			"every shipped map via " + nameof(DefconWallInfo.DeriveFromSpawns) + ". Picking",
+			nameof(DefconGameMode.Escalation) + " now visibly changes the match.",
+			"",
+			"It is left TRUE because flipping it is a release decision rather than a code one -- the",
+			"three placeholder durations above are still untuned, and the ladder's opening rung is",
+			"still an open question with the user. Setting this false is one line and is the last",
+			"step of the feature, not a cleanup to be done in passing.")]
 		public readonly bool MarkAsPlaceholder = true;
 
 		public int TicksAtDefconThree(DefconPace pace)
