@@ -60,6 +60,18 @@ namespace OpenRA.Mods.Common.Traits
 			"0 (the default) disables the fade and reproduces stock alpha exactly.")]
 		public readonly int ShoreFadeCells = 0;
 
+		[Desc("The alpha the ramp STARTS from on the cell hard against the boundary, instead of falling",
+			"all the way to 1/(ShoreFadeCells+1).",
+			"WHY THIS IS NOT COSMETIC TUNING. A smudge is one flat alpha over a whole cell, so the ramp",
+			"is a staircase of `ShoreFadeCells` steps and each tread is a full cell wide. At 0 the first",
+			"tread is a 67% drop, and on any water narrower than the ramp is wide -- a river, and every",
+			"ford across one -- EVERY cell of the crossing is within range of some water, so the whole",
+			"crossing is held down and reads as a bright unscarred block with hard square edges. That is",
+			"the artefact the fade was written to remove, reintroduced by the fade itself.",
+			"0.7 keeps the shoreline cell unmistakably scarred while still thinning into the water.",
+			"Defaults to 0, which is the ramp exactly as it was.")]
+		public readonly float ShoreFadeMinAlpha = 0f;
+
 		[Desc("Draw this layer a SECOND time after actors have been drawn, on cells occupied only by",
 			"cosmetic ground cover (`Passable.GroundCover` -- the crop fields, `^CivField`).",
 			"Smudges are a terrain-pass decal and actors are drawn in a later pass, so a scar on a cell",
@@ -338,11 +350,9 @@ namespace OpenRA.Mods.Common.Traits
 		/// <c>TerrainTileInfo</c> is one terrain type per tile and nothing reads the tile art back --
 		/// so the only lever is to ramp the whole cell down as the boundary approaches.</para>
 		///
-		/// <para>Distance is Chebyshev, which matches the square cell grid: a cell diagonally touching
-		/// water fades the same as one orthogonally touching it, so the ramp follows the shoreline
-		/// rather than bulging at diagonals. Off-map cells deliberately do NOT trigger the fade -- the
-		/// map border is not a shoreline and a ring of half-strength scar around the edge of the world
-		/// would be a new artefact, not a fix.</para>
+		/// <para>Off-map cells deliberately do NOT trigger the fade -- the map border is not a shoreline
+		/// and a ring of half-strength scar around the edge of the world would be a new artefact, not a
+		/// fix.</para>
 		///
 		/// <para>Cached because a single high-yield strike asks about ~7000 cells and the answer is
 		/// static for the life of the map.</para></summary>
@@ -354,7 +364,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (shoreAlpha.TryGetValue(cell, out var cached))
 				return cached;
 
-			var alpha = ShoreAlphaAt(cell, Info.ShoreFadeCells,
+			var alpha = ShoreAlphaAt(cell, Info.ShoreFadeCells, Info.ShoreFadeMinAlpha,
 				c => world.Map.Contains(c) && !world.Map.GetTerrainInfo(c).AcceptsSmudgeType.Contains(Info.Type));
 
 			shoreAlpha[cell] = alpha;
@@ -367,31 +377,47 @@ namespace OpenRA.Mods.Common.Traits
 		/// is deliberately FALSE for off-map cells: the edge of the world is not a shoreline, and a ring of
 		/// half-strength scar around the map border would be a new artefact rather than a fix.</para>
 		///
-		/// <para>Returns <c>d / (fadeCells + 1)</c> clamped to 1, where <c>d</c> is the Chebyshev distance to
-		/// the nearest boundary cell. Chebyshev, not Euclidean, because the smudge grid is square: a cell
-		/// touching water at a corner should fade like one touching it edge-on, so the ramp traces the
-		/// shoreline instead of bulging on diagonals. A cell that IS a boundary cell scores 0 and draws
-		/// nothing, which never happens in practice — the warhead already refused to place a smudge
-		/// there.</para></summary>
-		public static float ShoreAlphaAt(CPos cell, int fadeCells, Func<CPos, bool> isBoundary)
+		/// <para>Returns <c>minAlpha + (1 - minAlpha) * d / (fadeCells + 1)</c> clamped to 1, where <c>d</c>
+		/// is the EUCLIDEAN distance to the nearest boundary cell.</para>
+		///
+		/// <para>Euclidean, not Chebyshev, and that is a correction rather than a preference. Chebyshev's
+		/// iso-contours ARE axis-aligned squares, so the faded region around a bend in a river was drawn as
+		/// a rectangle with corners several cells clear of any water — reported as the scar "ending in hard
+		/// rectangles" at the waterline. Euclidean rounds those corners off and shrinks the region: a cell
+		/// diagonally clear of water now reads 1.41 rather than 1, so it fades less than one touching the
+		/// water edge-on, which is what "distance to the water" means to the eye.</para>
+		///
+		/// <para><paramref name="minAlpha"/> is the floor the ramp starts from; see the field's Desc for why
+		/// a ramp that reaches 1/(fadeCells+1) bleaches a whole river crossing. At 0 this is the plain ramp,
+		/// so a layer that does not opt in changes only by the metric. A cell that IS a boundary cell scores
+		/// <paramref name="minAlpha"/>, which never matters in practice — the warhead already refused to
+		/// place a smudge there.</para></summary>
+		public static float ShoreAlphaAt(CPos cell, int fadeCells, float minAlpha, Func<CPos, bool> isBoundary)
 		{
 			if (fadeCells <= 0)
 				return 1f;
 
-			var distance = fadeCells + 1;
+			// Compared as SQUARED integers so the search itself does no floating-point work and cannot
+			// order two candidates differently from one machine to the next; the one sqrt happens after.
+			var nearestSquared = int.MaxValue;
 			for (var dy = -fadeCells; dy <= fadeCells; dy++)
 			{
 				for (var dx = -fadeCells; dx <= fadeCells; dx++)
 				{
-					var d = Math.Max(Math.Abs(dx), Math.Abs(dy));
-					if (d >= distance || !isBoundary(cell + new CVec(dx, dy)))
+					var squared = (dx * dx) + (dy * dy);
+					if (squared >= nearestSquared || !isBoundary(cell + new CVec(dx, dy)))
 						continue;
 
-					distance = d;
+					nearestSquared = squared;
 				}
 			}
 
-			return Math.Min(1f, distance / (float)(fadeCells + 1));
+			if (nearestSquared == int.MaxValue)
+				return 1f;
+
+			var floor = Math.Min(1f, Math.Max(0f, minAlpha));
+			var ramp = Math.Min(1f, (float)Math.Sqrt(nearestSquared) / (fadeCells + 1));
+			return Math.Min(1f, floor + ((1f - floor) * ramp));
 		}
 
 		public void RemoveSmudge(CPos loc)

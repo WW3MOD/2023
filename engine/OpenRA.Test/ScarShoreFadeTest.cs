@@ -35,8 +35,19 @@ namespace OpenRA.Test
 	///    approaches. `ShoreFadeCells` does that, and it DEFAULTS TO 0: the two stock layers (SCORCH,
 	///    CRATER) are byte-identical to before, and only the five Scar layers opt in.
 	///
-	/// The way this rots is someone "simplifying" the ramp to Euclidean distance, or letting off-map
-	/// cells count as boundary. The second one is the dangerous one: it would draw a half-strength
+	/// 3. THE RAMP'S OWN TWO ARTEFACTS (2026-09-10), because the fix in 2 went on to cause the next
+	///    report — the scar "ending in hard axis-aligned rectangles" where it met water.
+	///    (a) SHAPE. The ramp was Chebyshev, whose iso-contours ARE axis-aligned squares. Around a bend
+	///        in a river those squares union into a rectangle with corners cells clear of any water.
+	///        It is Euclidean now, and the test below pins diagonal-fades-less as the thing that
+	///        distinguishes the two.
+	///    (b) DEPTH. The ramp fell to 1/(fade+1) = 1/3 on the shoreline cell. The ramp is 2 cells wide
+	///        and the rivers on these maps are 2-3 cells wide, so every cell of a ford is within reach
+	///        of some water and the WHOLE CROSSING was held at 1/3-2/3 — the bright unscarred sand
+	///        block that item 1 above exists to prevent, reintroduced by item 2. `ShoreFadeMinAlpha`
+	///        floors the ramp; it defaults to 0, so a layer that does not opt in is unchanged.
+	///
+	/// The way this rots is letting off-map cells count as boundary: it would draw a half-strength
 	/// ring around the entire edge of every map, which reads as a rendering bug and is nowhere near
 	/// the code that caused it.
 	/// </summary>
@@ -62,38 +73,71 @@ namespace OpenRA.Test
 		public void DisabledFadeIsExactlyOpaque(int fadeCells, float expected)
 		{
 			// Boundary immediately adjacent: still full strength, because the fade is off.
-			var alpha = SmudgeLayer.ShoreAlphaAt(new CPos(10, 10), fadeCells, c => c == new CPos(11, 10));
+			var alpha = SmudgeLayer.ShoreAlphaAt(new CPos(10, 10), fadeCells, 0f, c => c == new CPos(11, 10));
 			Assert.That(alpha, Is.EqualTo(expected).Within(0.0001f));
 		}
 
 		[Test]
-		public void RampRisesOneStepPerCellAwayFromTheBoundary()
+		public void RampRisesOneStepPerCellAwayFromAStraightShore()
 		{
 			// Water fills the half-plane x >= 20. Cells at x = 19, 18, 17 are 1, 2, 3 cells clear of it.
+			// Along a straight orthogonal shore Euclidean and Chebyshev agree exactly, so these are the
+			// same numbers the Chebyshev ramp produced — the metric change is invisible here by design.
 			static bool IsWater(CPos c) => c.X >= 20;
 
-			Assert.That(SmudgeLayer.ShoreAlphaAt(new CPos(19, 5), 2, IsWater), Is.EqualTo(1f / 3f).Within(0.0001f));
-			Assert.That(SmudgeLayer.ShoreAlphaAt(new CPos(18, 5), 2, IsWater), Is.EqualTo(2f / 3f).Within(0.0001f));
-			Assert.That(SmudgeLayer.ShoreAlphaAt(new CPos(17, 5), 2, IsWater), Is.EqualTo(1f).Within(0.0001f));
-			Assert.That(SmudgeLayer.ShoreAlphaAt(new CPos(3, 5), 2, IsWater), Is.EqualTo(1f).Within(0.0001f));
+			Assert.That(SmudgeLayer.ShoreAlphaAt(new CPos(19, 5), 2, 0f, IsWater), Is.EqualTo(1f / 3f).Within(0.0001f));
+			Assert.That(SmudgeLayer.ShoreAlphaAt(new CPos(18, 5), 2, 0f, IsWater), Is.EqualTo(2f / 3f).Within(0.0001f));
+			Assert.That(SmudgeLayer.ShoreAlphaAt(new CPos(17, 5), 2, 0f, IsWater), Is.EqualTo(1f).Within(0.0001f));
+			Assert.That(SmudgeLayer.ShoreAlphaAt(new CPos(3, 5), 2, 0f, IsWater), Is.EqualTo(1f).Within(0.0001f));
 		}
 
 		[Test]
-		public void TheRampIsChebyshevSoItDoesNotBulgeOnDiagonals()
+		public void TheRampIsEuclideanSoItsContoursAreNotSquares()
 		{
-			// One single water cell. Every one of its eight neighbours — orthogonal AND diagonal —
-			// must fade identically, or the shoreline ramp scallops at corners.
+			// One single water cell. A diagonal neighbour is further from the water than an orthogonal
+			// one — 1.41 against 1 — and must therefore fade LESS.
+			//
+			// This deliberately reverses the Chebyshev rule that stood here until 2026-09-10. Chebyshev
+			// made all eight neighbours equal, which is the same as saying the iso-contour around a water
+			// cell is a SQUARE; over a bend in a river those squares union into a rectangle whose corners
+			// sit cells clear of any water, and that rectangle is what was reported as the scar ending in
+			// hard axis-aligned blocks at the waterline.
 			static bool IsWater(CPos c) => c == new CPos(0, 0);
 
-			var neighbours = new List<CPos>();
-			for (var dy = -1; dy <= 1; dy++)
-				for (var dx = -1; dx <= 1; dx++)
-					if (dx != 0 || dy != 0)
-						neighbours.Add(new CPos(dx, dy));
+			var orthogonal = SmudgeLayer.ShoreAlphaAt(new CPos(1, 0), 2, 0f, IsWater);
+			var diagonal = SmudgeLayer.ShoreAlphaAt(new CPos(1, 1), 2, 0f, IsWater);
 
-			var alphas = neighbours.Select(c => SmudgeLayer.ShoreAlphaAt(c, 2, IsWater)).ToArray();
-			Assert.That(alphas, Is.All.EqualTo(1f / 3f).Within(0.0001f),
-				"a diagonal neighbour of water must fade like an orthogonal one");
+			Assert.That(orthogonal, Is.EqualTo(1f / 3f).Within(0.0001f));
+			// Fully qualified: this fixture has no `using System;` and does not need one for a single call.
+			Assert.That(diagonal, Is.EqualTo((float)System.Math.Sqrt(2) / 3f).Within(0.0001f));
+			Assert.That(diagonal, Is.GreaterThan(orthogonal),
+				"a diagonal neighbour is further from the water and must fade less, or the contour is a square");
+		}
+
+		[Test]
+		public void TheFloorIsWhatKeepsANarrowCrossingScarred()
+		{
+			// A 2-cell river with land either side: the whole crossing is within the 2-cell ramp, so every
+			// cell of it is faded. With no floor the shoreline cell falls to 1/3 and the ford reads as a
+			// bright unscarred block — the artefact the fade was supposed to remove.
+			static bool IsWater(CPos c) => c.X == 20 || c.X == 21;
+
+			Assert.That(SmudgeLayer.ShoreAlphaAt(new CPos(19, 5), 2, 0f, IsWater), Is.EqualTo(1f / 3f).Within(0.0001f));
+			Assert.That(SmudgeLayer.ShoreAlphaAt(new CPos(19, 5), 2, 0.7f, IsWater), Is.EqualTo(0.8f).Within(0.0001f));
+			Assert.That(SmudgeLayer.ShoreAlphaAt(new CPos(18, 5), 2, 0.7f, IsWater), Is.EqualTo(0.9f).Within(0.0001f));
+
+			// And the floor never pushes a cell that is clear of water above full strength.
+			Assert.That(SmudgeLayer.ShoreAlphaAt(new CPos(5, 5), 2, 0.7f, IsWater), Is.EqualTo(1f).Within(0.0001f));
+		}
+
+		[TestCase(-0.5f, TestName = "A negative floor is clamped, not propagated as a negative alpha")]
+		[TestCase(2f, TestName = "A floor above 1 is clamped to opaque rather than overflowing")]
+		public void TheFloorIsClampedToUnitRange(float floor)
+		{
+			static bool IsWater(CPos c) => c.X >= 20;
+
+			var alpha = SmudgeLayer.ShoreAlphaAt(new CPos(19, 5), 2, floor, IsWater);
+			Assert.That(alpha, Is.InRange(0f, 1f));
 		}
 
 		[Test]
@@ -104,7 +148,8 @@ namespace OpenRA.Test
 			// corner must still draw at FULL strength. If this flips, every map grows a faded border.
 			static bool IsBoundary(CPos c) => false;
 
-			Assert.That(SmudgeLayer.ShoreAlphaAt(new CPos(0, 0), 2, IsBoundary), Is.EqualTo(1f).Within(0.0001f));
+			Assert.That(SmudgeLayer.ShoreAlphaAt(new CPos(0, 0), 2, 0f, IsBoundary), Is.EqualTo(1f).Within(0.0001f));
+			Assert.That(SmudgeLayer.ShoreAlphaAt(new CPos(0, 0), 2, 0.7f, IsBoundary), Is.EqualTo(1f).Within(0.0001f));
 		}
 
 		// ---- 2. the terrain gate ----------------------------------------------------------------
