@@ -1,0 +1,77 @@
+# High-yield strategic nuke DEMO overrides. Nothing here is asserted; see map.yaml for the layout
+# and demo-highyield-nuke.lua for the schedule.
+
+World:
+	# THE SANDBOX SWITCH, AND IT IS WHAT MAKES THIS DEMO FIRE AT ALL SINCE 2026-09-07.
+	# MissileStrikePower@HighYieldNuke is EVENT TIER: `Prerequisites: powers.event` (player.yaml),
+	# and powers.event is provided by NO faction -- only by the three unfiltered
+	# ProvidesPrerequisite traits gated on `!powers-sandbox-disabled`. Without this block the power
+	# is not Permitted, so it is absent from the buy tab and the purchase below is refused.
+	# Enabled AND locked, so no lobby default or saved session can move it out from under the run.
+	#
+	# THIS DOES NOT TOUCH THE POWER'S OWN LOBBY GATE, which is the property the note here used to
+	# protect. HighYieldNukeCheckboxEnabled is left at its C# default (true), so the demo still
+	# fires the strike in its shipped configuration; only the FACTION lock is suspended. If that
+	# release default is ever flipped to off, add `HighYieldNukeCheckboxEnabled: true` to the block
+	# below, and the symptom will be an empty support-power bin and a strike that never launches.
+	PowersLobbyOptions:
+		PowersSandboxCheckboxEnabled: true
+		PowersSandboxCheckboxLocked: true
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
+	# spawn assignment -- the edge derivation in map.yaml depends on it.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, demo-nuke-river-zeta.lua
+
+Player:
+	MissileStrikePower@HighYieldNuke:
+		# THE ONE STAGING OVERRIDE LEFT ON THIS TRAIT, and it is live.
+		#
+		# MissileDelay 100 (6.0 s) against the shipped 500 (30.0 s). The thirty-second public
+		# countdown is a real mechanic and is deliberately NOT what this demo is about -- the subject
+		# is the warhead, and half a minute of watching a beacon before it arrives is half a minute of
+		# nothing to look at. If you want to see the shipped wait, delete this line.
+		MissileDelay: 100
+		# `ChargeInterval: 400` and `StartFullyCharged: true` USED TO SIT HERE AND DID NOTHING.
+		# SupportPowerInstance's constructor forces TotalTicks and remainingSubTicks to 0 whenever
+		# RequiresPurchase is set (SupportPowerManager.cs:228-229), so both were read and discarded
+		# and the power stayed at zero charges -- which is `Disabled`, which is not `Ready`, which is
+		# why every Test.ActivateSupportPower call in this demo returned 'not-ready:0' and no strike
+		# ever launched. DO NOT PUT THEM BACK. The shot is bought instead; see power.highyieldnuke
+		# at the bottom of this file.
+	# 481 actors die here. Without this the match ends on elimination while the blast wave is still
+	# travelling -- it takes 597 ticks to reach full radius (714 before the 2026-09-06 yield rebuild
+	# gave the front a supersonic start at the fireball surface).
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored. This demo is about seeing the whole map at once, and the
+	# power's own 68c0 reveal camera is irrelevant under it (it reveals shroud, and there is none).
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# 120000 -- three times the strike's 40000 price, so the script's shot leaves the viewer enough
+	# to buy two more from the Powers tab by hand. This USED to read `DefaultCash: 0` with the note
+	# "no cash, so nothing can be produced", which was true and is exactly what killed this demo:
+	# with the power BOUGHT rather than charged, no cash means no shot, forever and silently.
+	# Nothing else on this map can spend it -- no bot, no starting units (-SpawnStartingUnits), and
+	# nothing issues a build order but the demo script and the viewer.
+	PlayerResources:
+		DefaultCash: 120000
+
+# THE PURCHASE. Every shipped support power carries `RequiresPurchase: True`, so a shot has to be
+# BOUGHT before it can be fired -- ChargeInterval and StartFullyCharged are read and discarded
+# under that flag (SupportPowerManager.cs:228-229). See the header of TestHarness.EnsurePower in
+# mods/ww3mod/scripts/test-helpers.lua for the whole chain.
+#
+# 5 ticks instead of the shipped 3000 (180 s). The load time is a price, not a weapon property,
+# and this demo is about the warhead. The arithmetic that keeps the schedule below intact: the
+# script buys at tick 5, the item completes about `5 + BuildDuration + 2` ticks later, so the
+# magazine is loaded around t=12 -- thirteen ticks before the t=25 order. NOT ONE TICK OF THE
+# DOCUMENTED SCHEDULE MOVED when the purchase was added; keep it that way if you retune this.
+power.highyieldnuke:
+	Buildable:
+		BuildDuration: 5
