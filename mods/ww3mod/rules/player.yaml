@@ -995,22 +995,29 @@ Player:
 		# PassiveIncome: 100
 		# PassiveIncomeInterval: 50
 		# PassiveIncomeInitialDelay: 50
-		CashDropdownDisplayOrder: 30
-		PassiveIncomeDropdownDisplayOrder: 31
-		IncomeModifierDropdownDisplayOrder: 32
+		# Economy section, 40-43. IncomeModifierDropdownDisplayOrder only started taking effect
+		# once PlayerResources stopped registering that option with a hardcoded literal 2 and
+		# the cash dropdown's Visible/Locked fields -- which is why Income Modifier used to sort
+		# to the very top of the whole panel, ahead of Starting Cash.
+		CashDropdownDisplayOrder: 40
+		IncomeModifierDropdownDisplayOrder: 41
+		PassiveIncomeDropdownDisplayOrder: 42
 		CashTickUpNotification: CashTickUp
 		CashTickDownNotification: CashTickDown
 	DeveloperMode:
-		CheckboxDisplayOrder: 90
+		# Developer section, 60-62 (Debug Menu, Sync, Sandbox).
+		CheckboxDisplayOrder: 60
 	GpsWatcher:
 	MapLayers:
 		ExploredMapCheckboxLabel: Explored Map
-		ExploredMapCheckboxDescription: Start with the entire map revealed (no shroud)
+		ExploredMapCheckboxDescription: The terrain starts revealed. Enemy movement is still hidden unless Fog of War is also off
 		ExploredMapCheckboxEnabled: true
-		ExploredMapCheckboxDisplayOrder: 50
+		# Battlefield section: Fog (52) leads Explored Map (53), because Explored Map's effect is
+		# only legible once you know whether fog is on -- it reveals terrain, not enemy movement.
+		ExploredMapCheckboxDisplayOrder: 53
 		FogCheckboxLabel: Fog of War
-		FogCheckboxDescription: Units only see within their sight range
-		FogCheckboxDisplayOrder: 51
+		FogCheckboxDescription: Units only see within their sight range; anything outside it is hidden
+		FogCheckboxDisplayOrder: 52
 	LobbyPrerequisiteDropdown@GlobalBounty:
 		ID: bounty
 		Label: Kill Bounties
@@ -1020,7 +1027,7 @@ Player:
 		OffValue: 0
 		Format: "{0}%"
 		OffLabel: Off
-		DisplayOrder: 75
+		DisplayOrder: 43
 		Prerequisites: global-bounty
 	# Removed: Redeployable MCVs — no MCVs in WW3MOD
 	FrozenActorLayer:
