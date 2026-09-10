@@ -1,0 +1,638 @@
+<!DOCTYPE html><meta charset="utf-8"><title>Lobby — round three</title>
+<style>
+:root{--bg:#0d0e0c;--panel:#141613;--ink:#d8d6cc;--dim:#8d8b80;--lbl:#6b6a61;--edge:#26281f;
+ --amber:#c8823a;--ok:#8aa84a;--bad:#c0402a;--cool:#5a8fa8;--hot:#c0402a}
+*{box-sizing:border-box}
+body{margin:0;padding:20px 24px 40px;background:#080907;color:var(--ink);
+ font:13px/1.5 "Segoe UI",Roboto,system-ui,sans-serif}
+h1{font:600 18px/1.3 inherit;margin:0 0 2px}
+.lede{color:var(--dim);margin:0 0 10px;max-width:106ch}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--edge);flex-wrap:wrap}
+.tab{padding:7px 13px;background:#101210;border:1px solid var(--edge);border-bottom:none;
+ border-radius:3px 3px 0 0;cursor:pointer;color:var(--dim);font-size:12.5px;user-select:none}
+.tab .n{font:9.5px ui-monospace,Consolas,monospace;color:var(--lbl);display:block;letter-spacing:.6px}
+.tab:hover{color:var(--ink)}
+.tab.on{background:var(--panel);color:#fff;border-color:#3a3d33;border-bottom:1px solid var(--panel);
+ margin-bottom:-1px}
+.pane{display:none;border:1px solid var(--edge);border-top:none;background:var(--panel);padding:16px 18px 20px}
+.pane.on{display:block}
+.pitch{font-size:15px;color:#e6e4d9;margin:0 0 3px;font-weight:600}
+.why{color:var(--dim);margin:0 0 12px;max-width:100ch}
+.cols{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+.col-mock{flex:0 0 540px}.col-notes{flex:1;min-width:290px}
+.lobby{background:#0e100d;border:1px solid #2b2e25;border-radius:2px;padding:11px 12px}
+.sec{margin-bottom:12px}.sec:last-child{margin-bottom:0}
+.sechead{font:9.5px ui-monospace,Consolas,monospace;letter-spacing:1.4px;text-transform:uppercase;
+ color:var(--amber);border-bottom:1px solid #2b2e25;padding-bottom:3px;margin-bottom:6px}
+.sechead.cool{color:var(--cool);border-bottom-color:#24343d}
+.row{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:12px}
+.row .lab{color:var(--dim);width:170px;flex:none}
+.dd{flex:1;background:#191c17;border:1px solid #33372c;border-radius:2px;padding:3px 7px;
+ color:#ddd9cd;display:flex;justify-content:space-between;align-items:center}
+.dd::after{content:"▾";color:var(--lbl);font-size:10px}
+.dd.sm{flex:0 0 98px}
+.dd.lock{opacity:.45}
+.cb{display:flex;align-items:center;gap:6px;font-size:12px;color:#ccc9be;margin:4px 0}
+.box{width:12px;height:12px;border:1px solid #454a3b;border-radius:2px;background:#191c17;flex:none;position:relative}
+.box.t::after{content:"✓";position:absolute;left:1px;top:-3px;font-size:11px;color:var(--ok)}
+.sub{color:var(--lbl);font-size:11px;margin:2px 0 0 178px}
+.sub.l0{margin-left:0}
+.chips{display:flex;gap:5px;flex-wrap:wrap;margin:5px 0 2px}
+.chip{font:10.5px ui-monospace,Consolas,monospace;padding:1px 7px;border-radius:9px;
+ border:1px solid #3a3d33;background:#191c17;color:#b8b5a8}
+.chip.preset{border-color:var(--amber);color:var(--amber);background:#1d1a13}
+.chip.delta{border-color:#3d5566;color:var(--cool);background:#0e181d}
+.presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px}
+.p{flex:1;min-width:96px;background:#191c17;border:1px solid #33372c;border-radius:3px;padding:6px 8px}
+.p.on{border-color:var(--amber);background:#1d1a13}
+.p .t{font-size:12px;color:#e6e4d9;font-weight:600}
+.p .d{font-size:10.5px;color:var(--dim);margin-top:1px;line-height:1.35}
+/* ladder rows */
+.lad{margin-top:2px}
+.rung{display:flex;align-items:center;gap:8px;padding:4px 7px;border:1px solid #2b2e25;
+ border-radius:2px;margin:3px 0;background:#171a15}
+.rung .lvl{font:10.5px ui-monospace,Consolas,monospace;width:62px;color:var(--dim);flex:none}
+.rung .yl{width:86px;color:#ddd9cd;font-size:11.5px;flex:none}
+.rung .gr{font-size:11px;color:var(--ok);width:104px;flex:none}
+.rung .tm{font-size:11px;color:var(--lbl);flex:1;text-align:right}
+.rung.top{border-color:#5a2f26;background:#1a100e}
+.rung.top .lvl,.rung.top .yl{color:#d98878}
+.rung.def{border-color:#24343d;background:#0e1519}
+.rung.def .lvl,.rung.def .yl{color:var(--cool)}
+.rung.off{opacity:.35}
+.rung.add{border-style:dashed;color:var(--lbl);justify-content:center;font-size:11px}
+/* the phase separator */
+.gate{display:flex;align-items:center;gap:9px;margin:7px 0;padding:5px 8px;border:1px dashed #5a4a2a;
+ border-radius:2px;background:#16130c}
+.gate .k{font:9.5px ui-monospace,Consolas,monospace;letter-spacing:1.2px;color:var(--amber);flex:none}
+.gate .v{font-size:11.5px;color:#b9b09a}
+/* timeline strip */
+.tl{display:flex;border:1px solid #2b2e25;border-radius:2px;overflow:hidden;margin:2px 0 8px}
+.tl .ph{padding:5px 9px;border-right:1px solid #2b2e25;font-size:11px;line-height:1.35}
+.tl .ph:last-child{border-right:none}
+.tl .ph .h{font:9px ui-monospace,Consolas,monospace;letter-spacing:1px;display:block;text-transform:uppercase}
+.tl .d{background:#0e181d;color:#9fc0d0}.tl .d .h{color:var(--cool)}
+.tl .g{background:#16130c;color:#c4b596}.tl .g .h{color:var(--amber)}
+.tl .n{background:#1a1309;color:#dcc49a}.tl .n .h{color:var(--amber)}
+.tl .e{background:#1a100e;color:#d98878}.tl .e .h{color:#d98878}
+/* two columns inside a lobby */
+.two{display:flex;gap:10px}.two>div{flex:1;min-width:0}
+/* scrub / matrix */
+.scrub{position:relative;height:66px;border:1px solid #2b2e25;background:#0e100d;border-radius:2px;margin:6px 0}
+.band{position:absolute;top:0;bottom:26px;display:flex;align-items:center;justify-content:center;
+ font:10px ui-monospace,Consolas,monospace;letter-spacing:.5px}
+.axis{position:absolute;left:0;right:0;bottom:0;height:25px;border-top:1px solid #2b2e25;color:var(--lbl);
+ font:9.5px ui-monospace,Consolas,monospace}
+.tick{position:absolute;top:2px;transform:translateX(-50%)}
+.pin{position:absolute;top:-4px;bottom:22px;width:2px;background:var(--amber);cursor:ew-resize}
+.pin::after{content:"";position:absolute;left:-4px;top:-3px;width:10px;height:10px;background:var(--amber);
+ border-radius:2px;transform:rotate(45deg)}
+.mx{display:grid;grid-template-columns:88px repeat(4,1fr);gap:3px;margin-top:4px}
+.mh{font:9.5px ui-monospace,Consolas,monospace;color:var(--lbl);text-align:center;padding:2px 0}
+.mr{font:9.5px ui-monospace,Consolas,monospace;color:var(--lbl);display:flex;align-items:center}
+.cell{background:#191c17;border:1px solid #33372c;border-radius:2px;padding:5px 4px;text-align:center;
+ font-size:10.5px;color:#b8b5a8;line-height:1.3}
+.cell.on{border-color:var(--amber);background:#1d1a13;color:#f0c07a}
+.cell b{display:block;color:#ddd9cd;font-size:11px}
+.cell.on b{color:#f0c07a}
+/* arsenal sheet */
+.sheet{width:100%;border-collapse:collapse;font-size:11.5px}
+.sheet th{font:9.5px ui-monospace,Consolas,monospace;letter-spacing:1px;color:var(--lbl);text-align:left;
+ border-bottom:1px solid #2b2e25;padding:3px 5px;text-transform:uppercase;font-weight:400}
+.sheet td{padding:3px 5px;border-bottom:1px solid #1c1f19;color:#ccc9be}
+.sheet td.n{font:11px ui-monospace,Consolas,monospace;color:#ddd9cd;text-align:center;width:46px}
+.sheet tr.endr td{color:#d98878}
+.stepper{display:inline-flex;border:1px solid #33372c;border-radius:2px;overflow:hidden;background:#191c17}
+.stepper span{padding:0 5px;color:var(--lbl)}.stepper b{padding:0 6px;color:#ddd9cd;font-weight:400;
+ border-left:1px solid #33372c;border-right:1px solid #33372c}
+ul{margin:4px 0 9px 17px;padding:0}li{margin:3px 0;max-width:94ch}
+h4{margin:11px 0 2px;font-size:12px;color:#cfcdc2}
+.tag{display:inline-block;font:9.5px ui-monospace,Consolas,monospace;letter-spacing:.5px;padding:0 5px;
+ border-radius:2px;border:1px solid;text-transform:uppercase;vertical-align:1px}
+.add2{color:var(--ok);border-color:#3d4a24;background:#141a0e}
+.cut{color:var(--bad);border-color:#4a2018;background:#1a0e0c}
+.new{color:var(--amber);border-color:#4a3a20;background:#1a140a}
+.ships{color:var(--cool);border-color:#2d4652;background:#0d161b}
+.box2{border-left:2px solid #6a5a2a;background:#16150f;padding:9px 12px;margin:10px 0;color:#b9b09a;
+ font-size:12.5px;max-width:104ch}
+.box2 b{color:#d8cfb6}
+.correct{border-left-color:#3d5566;background:#0e1519;color:#a8bcc6}
+.correct b{color:#cfe0e8}
+.pick{margin-top:14px;border-top:1px solid var(--edge);padding-top:11px}
+.pick label{display:flex;gap:7px;align-items:flex-start;font-size:12.5px;margin:4px 0;cursor:pointer}
+textarea{width:100%;background:#0e100d;border:1px solid #33372c;color:var(--ink);border-radius:2px;
+ padding:7px;font:12px inherit;margin-top:8px;min-height:70px}
+button{margin-top:8px;background:#2a2f22;border:1px solid #4a5140;color:#e6e4d9;padding:6px 16px;
+ border-radius:2px;font:12.5px inherit;cursor:pointer}
+button:hover{background:#353c2b}
+.foot{color:var(--lbl);font-size:11.5px;margin-top:6px}
+</style>
+
+<h1>Round three — DEFCON is the prelude, the ladder is the war</h1>
+<p class="lede">Round two drew yields onto DEFCON rows. That was the mistake, and every tab here
+fixes it the same way: <b>two phases, drawn apart</b> — a DEFCON posture phase that carries no
+warheads at all, a release gate, then a nuclear escalation phase whose steps advance on their own
+rule. A–C are the three you said were onto something, rebuilt in that vocabulary. D–F are new and
+deliberately push past what a lobby normally does.</p>
+
+<div class="box2 correct"><b>One finding first, because it changes what is actually being asked for.</b>
+The shipped code already separates them exactly as described. <code>DefconEscalation</code> runs
+DEFCON 3 → 2 → 1 and grants nothing; <code>NuclearReleaseLadder</code> refuses <i>every</i> yield —
+"until it has opened, every yield is refused" — until the match has been at DEFCON 1 for
+<code>NuclearReleaseDelayTicks</code>, which defaults to 10000 ticks = <b>10:00</b>. So the prelude
+and the war are already two mechanisms. Two things are genuinely missing, and they are the whole of
+round three: <b>the steps advance on detonations, not on a clock</b> (each detonation doubles a
+shared pressure value; the rung index is the detonation count), and <b>reaching a step grants
+nothing</b>. Everything drawn below as <span class="tag ships">ships</span> exists today at
+<code>main&nbsp;@&nbsp;64769aea</code>; everything <span class="tag new">new</span> does not.</p></div>
+
+<div class="tabs">
+  <div class="tab on" data-t="A"><span class="n">A · YOUR MODEL</span>Two lists, one gate</div>
+  <div class="tab" data-t="B"><span class="n">B · REBUILT</span>Two clocks, and the total</div>
+  <div class="tab" data-t="C"><span class="n">C · REBUILT</span>The stair and the ladder</div>
+  <div class="tab" data-t="D"><span class="n">D · LIMITS</span>Scrub the whole match</div>
+  <div class="tab" data-t="E"><span class="n">E · LIMITS</span>Hand out the arsenal</div>
+  <div class="tab" data-t="F"><span class="n">F · LIMITS</span>Two axes, sixteen games</div>
+</div>
+
+<!-- ================= A ================= -->
+<div class="pane on" id="pA">
+<p class="pitch">Exactly what you described: a DEFCON list, a gate, then a nuclear list.</p>
+<p class="why">Nothing shared between the two blocks. The upper one is posture and permission — no
+yield appears in it anywhere. The lower one is the war, and every row of it hands out warheads.</p>
+<div class="cols"><div class="col-mock"><div class="lobby">
+
+  <div class="tl">
+    <div class="ph d" style="flex:0 0 30%"><span class="h">Phase 1 · posture</span>DEFCON 3 → 1<br>no nuclear weapons exist</div>
+    <div class="ph g" style="flex:0 0 16%"><span class="h">gate</span>10:00 held<br>at DEFCON 1</div>
+    <div class="ph n" style="flex:1"><span class="h">Phase 2 · escalation</span>4 steps × 10 min<br>each pays out</div>
+    <div class="ph e" style="flex:0 0 17%"><span class="h">enders</span>≈ 47:30<br>+ reply window</div>
+  </div>
+
+  <div class="sec"><div class="sechead">Preset</div>
+    <div class="presets">
+      <div class="p"><div class="t">Skirmish</div><div class="d">No DEFCON, no nuclear</div></div>
+      <div class="p on"><div class="t">Cold War</div><div class="d">Both phases, 100 kt cap</div></div>
+      <div class="p"><div class="t">Total War</div><div class="d">Both phases, to the enders</div></div>
+      <div class="p"><div class="t">Countdown</div><div class="d">No ladder, timed enders</div></div>
+    </div>
+    <div class="chips"><span class="chip preset">Cold War</span>
+      <span class="chip delta">start · DEFCON 2</span><span class="chip delta">step · 10 min</span></div>
+    <div class="sub l0">Preset values become the defaults; only what you changed after it shows.
+      Skirmish is the default and shows nothing.</div>
+  </div>
+
+  <div class="sec"><div class="sechead cool">Phase 1 — DEFCON posture · no warheads</div>
+    <div class="row"><span class="lab">Start at</span><span class="dd">DEFCON 2</span></div>
+    <div class="sub">3 is the standing posture — there is deliberately no 4 or 5. <span class="tag ships">ships</span></div>
+    <div class="lad" style="margin-top:6px">
+      <div class="rung def"><span class="lvl">DEFCON 3</span><span class="yl">holding</span>
+        <span class="gr">—</span><span class="tm">5:00 · pace</span></div>
+      <div class="rung def"><span class="lvl">DEFCON 2</span><span class="yl">war footing</span>
+        <span class="gr">—</span><span class="tm">until the first kill</span></div>
+      <div class="rung def"><span class="lvl">DEFCON 1</span><span class="yl">war</span>
+        <span class="gr">—</span><span class="tm">reached</span></div>
+    </div>
+    <div class="sub l0" style="margin-top:4px">What each level <i>does</i> is the movement wall, the
+      free-fire rules and the stances — not weapons. <span class="tag ships">ships</span></div>
+  </div>
+
+  <div class="gate"><span class="k">RELEASE GATE</span>
+    <span class="v">Hold DEFCON 1 for <b>10:00</b> before the first nuclear step. <span class="tag ships">ships</span></span></div>
+
+  <div class="sec"><div class="sechead">Phase 2 — nuclear escalation</div>
+    <div class="row"><span class="lab">Steps advance</span><span class="dd">Every 10 minutes</span></div>
+    <div class="sub">Time · score lead · total kills · a detonation · host call · never <span class="tag new">new</span></div>
+    <div class="lad" style="margin-top:6px">
+      <div class="rung"><span class="lvl">step 1</span><span class="yl">1 kt</span>
+        <span class="gr">+1 each side</span><span class="tm">at the gate</span></div>
+      <div class="rung"><span class="lvl">step 2</span><span class="yl">20 kt</span>
+        <span class="gr">+1 each side</span><span class="tm">+10:00</span></div>
+      <div class="rung"><span class="lvl">step 3</span><span class="yl">50 kt</span>
+        <span class="gr">+1 each side</span><span class="tm">+20:00</span></div>
+      <div class="rung"><span class="lvl">step 4</span><span class="yl">100 kt</span>
+        <span class="gr">+1 each side</span><span class="tm">+30:00</span></div>
+      <div class="rung top"><span class="lvl">step 5</span><span class="yl">game-enders</span>
+        <span class="gr">+1 each side</span><span class="tm">+40:00</span></div>
+      <div class="rung add">+ add a step · click a row to edit its yield, payout and timing</div>
+    </div>
+    <div class="cb" style="margin-top:7px"><span class="box"></span>Extra warheads can also be bought <span class="tag new">new</span></div>
+    <div class="sub l0">Off: the steps' payouts are every nuclear weapon in the match, and both sides
+      know the exact count.</div>
+  </div>
+
+  <div class="sec"><div class="sechead">The end</div>
+    <div class="row"><span class="lab">Firing a game-ender</span><span class="dd">Ends the match</span></div>
+    <div class="sub">Score frozen at launch, before impact — what Dead Hand does today.</div>
+    <div class="row"><span class="lab">Everyone else gets</span><span class="dd">60 s to reply</span></div>
+    <div class="sub">Each surviving side may fire its own at a target of choice first.</div>
+  </div>
+</div></div>
+
+<div class="col-notes">
+<h4>Your arithmetic, on screen</h4>
+<ul>
+<li>Five yield steps already exist in code — 1 kt, 20 kt, 50 kt, 100 kt, game-enders. Opening at
+    1 kt when the gate lifts leaves <b>four</b> advances, so at 10 minutes each the enders arrive
+    <b>40 minutes after DEFCON 1</b>. That is your number, and it falls out of the shipped rung list
+    without inventing anything.</li>
+<li>The strip at the top exists so a host can see that number without doing the sum. With the
+    default pace and one early kill it reads <b>≈ 47:30</b> end to end.</li>
+</ul>
+<h4>What changes underneath</h4>
+<ul>
+<li><span class="tag new">new</span> <b>Steps advance on a rule you pick.</b> Today the only thing
+    that climbs the ladder is a detonation, so a match where nobody fires never escalates at all.
+    A clock makes escalation happen <i>to</i> the players rather than because of them.</li>
+<li><span class="tag new">new</span> <b>Each step pays out.</b> One warhead per side per step, held
+    until used.</li>
+<li><span class="tag cut">cut</span> <b>Dead Hand as a mode</b>, and <span class="tag cut">cut</span>
+    <b>Sandbox as a game mode value</b> — it collides with the sandbox <i>roster</i> and its
+    Start-At-2 behaviour freezes autonomous fire for a whole match.</li>
+</ul>
+<h4>What I would question</h4>
+<ul>
+<li>A per-step editor with add/delete/reorder is a lot of lobby. It is also the only shape that
+    lets a host build a ladder that skips 20 kt, or pays two warheads at the top and one below.
+    B trades that away; C keeps it and spends the space differently.</li>
+<li>"Held until used" means both sides can sit on a game-ender indefinitely. Real, and also means
+    the match can end three seconds after step 5 at the whim of whoever is losing.</li>
+</ul>
+</div></div>
+</div>
+
+<!-- ================= B ================= -->
+<div class="pane" id="pB">
+<p class="pitch">Two clocks, four answers, and the number nobody can currently work out.</p>
+<p class="why">Same two phases, but each is one line with its own clock, and the ladder underneath is
+generated rather than authored. The point of this one is the last row: <b>how long is this match
+going to be</b> is a question the lobby has never answered, and it is the question a host is really
+asking when they set a pace.</p>
+<div class="cols"><div class="col-mock"><div class="lobby">
+  <div class="sec"><div class="sechead">Preset</div>
+    <div class="presets">
+      <div class="p"><div class="t">Skirmish</div><div class="d">Conventional</div></div>
+      <div class="p on"><div class="t">Cold War</div><div class="d">Up to 100 kt</div></div>
+      <div class="p"><div class="t">Armageddon</div><div class="d">To the enders</div></div>
+      <div class="p"><div class="t">Countdown</div><div class="d">Enders only, timed</div></div>
+    </div>
+    <div class="chips"><span class="chip preset">Cold War</span><span class="chip delta">step · every 10 min</span></div>
+  </div>
+
+  <div class="sec"><div class="sechead cool">The prelude</div>
+    <div class="row"><span class="lab">Opens at</span><span class="dd sm">DEFCON 2</span>
+      <span class="lab" style="width:auto;padding-left:6px">holding</span><span class="dd sm">5:00</span></div>
+    <div class="sub l0">DEFCON 2 ends on the first kill, at any pace. No warhead exists during any
+      of this. <span class="tag ships">ships</span></div>
+    <div class="row" style="margin-top:6px"><span class="lab">Then war for</span><span class="dd sm">10:00</span>
+      <span class="lab" style="width:auto;padding-left:6px">before release</span></div>
+    <div class="sub l0">The gate. Set it to 0:00 and the ladder opens the instant DEFCON 1 is
+      reached. <span class="tag ships">ships</span></div>
+  </div>
+
+  <div class="sec"><div class="sechead">The war</div>
+    <div class="row"><span class="lab">Goes as far as</span><span class="dd">100 kt</span></div>
+    <div class="sub">HOLD · 1 kt · 20 kt · 50 kt · 100 kt · game-enders <span class="tag ships">ships</span></div>
+    <div class="row" style="margin-top:6px"><span class="lab">A step every</span><span class="dd">10 minutes</span></div>
+    <div class="sub">…or per 5000 score · per 20 kills · per detonation (today) · never <span class="tag new">new</span></div>
+    <div class="row" style="margin-top:6px"><span class="lab">Each step grants</span><span class="dd">1 warhead per side</span></div>
+    <div class="sub">0 — permission only, today's behaviour · 1 · 2 · doubling <span class="tag new">new</span></div>
+    <div class="cb" style="margin-top:6px"><span class="box"></span>Extra warheads can also be bought</div>
+  </div>
+
+  <div class="sec"><div class="sechead">What that produces ▾</div>
+    <div class="lad">
+      <div class="rung def"><span class="lvl">0:00</span><span class="yl">DEFCON 2</span><span class="gr">—</span><span class="tm">opens here</span></div>
+      <div class="rung def"><span class="lvl">~2:30</span><span class="yl">DEFCON 1</span><span class="gr">—</span><span class="tm">first kill</span></div>
+      <div class="rung"><span class="lvl">12:30</span><span class="yl">1 kt</span><span class="gr">+1 each</span><span class="tm">gate lifts</span></div>
+      <div class="rung"><span class="lvl">22:30</span><span class="yl">20 kt</span><span class="gr">+1 each</span><span class="tm">step 2</span></div>
+      <div class="rung"><span class="lvl">32:30</span><span class="yl">50 kt</span><span class="gr">+1 each</span><span class="tm">step 3</span></div>
+      <div class="rung"><span class="lvl">42:30</span><span class="yl">100 kt</span><span class="gr">+1 each</span><span class="tm">ceiling</span></div>
+      <div class="rung off"><span class="lvl">—</span><span class="yl">game-enders</span><span class="gr">—</span><span class="tm">above the ceiling</span></div>
+    </div>
+    <div class="sub l0" style="margin-top:4px"><b>Nuclear from 12:30. No further escalation after
+      42:30, and no ending clock — this match is decided by play.</b></div>
+  </div>
+</div></div>
+
+<div class="col-notes">
+<h4>The idea</h4>
+<ul>
+<li>Four answers generate the whole thing: how far, how often, how much, and how long the prelude
+    runs. The table below them is read-only — it exists so the four are never a guess.</li>
+<li><span class="tag new">new</span> <b>The timeline is absolute, not relative.</b> Every row is a
+    clock time from match start. "Nuclear from 12:30" is a sentence a host can plan an evening
+    around; "Standard pace, 100 kt ceiling" is not.</li>
+<li>The first-kill row is an estimate and drawn as one — DEFCON 2 ends on an event nobody can
+    schedule. Everything below it shifts with it, which is honest and worth showing.</li>
+</ul>
+<h4>Trade</h4>
+<ul>
+<li>You lose per-step authoring entirely. No skipped yields, no uneven payouts.</li>
+<li>You gain the only version here a stranger can read in five seconds, and a preset that is four
+    values rather than a table.</li>
+</ul>
+<h4>Worth deciding either way</h4>
+<ul>
+<li>Should the ceiling being below the enders mean <b>the match has no ending clock at all</b>
+    (drawn here), or should the enders still arrive on schedule and simply be the only thing the
+    ladder ever hands out above the cap? The first is cleaner; the second is the only way "cap the
+    yields but still end the match" is expressible.</li>
+</ul>
+</div></div>
+</div>
+
+<!-- ================= C ================= -->
+<div class="pane" id="pC">
+<p class="pitch">One picture: a short blue stair, a gate, a tall amber ladder.</p>
+<p class="why">The separation you are asking for made structural rather than stated. Two widgets,
+drawn to different scales because they are different things, with the release gate physically
+between them. Click any row to edit it; drag the red line to set the ceiling.</p>
+<div class="cols"><div class="col-mock"><div class="lobby">
+  <div class="sec"><div class="sechead cool">Posture — click a step to start there</div>
+    <div class="lad">
+      <div class="rung def off"><span class="lvl">DEFCON 3</span><span class="yl">standing</span>
+        <span class="gr">—</span><span class="tm">skipped</span></div>
+      <div class="rung def"><span class="lvl">▶ DEFCON 2</span><span class="yl">war footing</span>
+        <span class="gr">—</span><span class="tm">match opens here</span></div>
+      <div class="rung def"><span class="lvl">DEFCON 1</span><span class="yl">war</span>
+        <span class="gr">—</span><span class="tm">on the first kill</span></div>
+    </div>
+  </div>
+
+  <div class="gate"><span class="k">▼ RELEASE GATE</span>
+    <span class="v">10:00 at DEFCON 1 · <span style="color:var(--lbl)">drag to change</span></span></div>
+
+  <div class="sec"><div class="sechead">The escalation ladder — click to edit</div>
+    <div class="lad">
+      <div class="rung top"><span class="lvl">▲ CAP</span><span class="yl">game-enders</span>
+        <span class="gr">+1 each side</span><span class="tm">ends the match</span></div>
+      <div class="rung"><span class="lvl">step 4</span><span class="yl">100 kt</span>
+        <span class="gr">+1 each side</span><span class="tm">10 min</span></div>
+      <div class="rung"><span class="lvl">step 3</span><span class="yl">50 kt</span>
+        <span class="gr">+1 each side</span><span class="tm">10 min</span></div>
+      <div class="rung off"><span class="lvl">step 2</span><span class="yl">20 kt</span>
+        <span class="gr">disabled</span><span class="tm">click to enable</span></div>
+      <div class="rung"><span class="lvl">step 1</span><span class="yl">1 kt</span>
+        <span class="gr">+2 each side</span><span class="tm">at the gate</span></div>
+    </div>
+    <div class="sub l0" style="margin-top:5px">Steps read bottom-up, the way the war goes. A
+      disabled step is skipped entirely — the ladder jumps 1 kt → 50 kt.</div>
+    <div class="cb" style="margin-top:7px"><span class="box"></span>Extra warheads can also be bought</div>
+  </div>
+
+  <div class="sec"><div class="sechead">Everything else</div>
+    <div class="row"><span class="lab">Steps advance on</span><span class="dd">A clock</span></div>
+    <div class="row"><span class="lab">Reply window</span><span class="dd">60 s</span></div>
+  </div>
+</div></div>
+
+<div class="col-notes">
+<h4>The idea</h4>
+<ul>
+<li>Two widgets of visibly different size and colour, with a gate between them, say
+    "these are not the same system" without a word of explanation. Round two's single list said the
+    opposite by drawing them as one column.</li>
+<li>The ladder reads bottom-up. It is the only orientation where the cap is at the top of the
+    screen and the war climbs toward it, which is the mental picture the mode is named after.</li>
+<li>Per-step authoring survives — including the thing B cannot express: <b>a disabled middle
+    step</b>, so a host can build a ladder that jumps from tactical straight to strategic with
+    nothing in between.</li>
+</ul>
+<h4>Trade</h4>
+<ul>
+<li>Everything is click-to-edit, so nothing tells you what a control does until you touch it. That
+    is fine for the tenth match and hostile for the first — it probably needs B's generated summary
+    line underneath as a permanent caption.</li>
+<li>It is tall. On a 10-slot lobby this is competing with the player list for vertical space.</li>
+</ul>
+</div></div>
+</div>
+
+<!-- ================= D ================= -->
+<div class="pane" id="pD">
+<p class="pitch">Stop configuring rules. Configure <i>when things happen</i>.</p>
+<p class="why">The whole match on one axis, from minute zero to the end. Every phase is a band you
+drag the edges of; the rules are inferred from where you put them. Nobody sets a "pace" — you set
+the moment the first nuke is possible, and the pace is whatever makes that true.</p>
+<div class="cols"><div class="col-mock"><div class="lobby">
+  <div class="sec"><div class="sechead">The match</div>
+    <div class="scrub">
+      <div class="band d" style="left:0;width:22%;background:#0e181d;color:#9fc0d0">DEFCON 3 → 1</div>
+      <div class="band g" style="left:22%;width:14%;background:#16130c;color:#c4b596">gate</div>
+      <div class="band n" style="left:36%;width:16%;background:#1a1309;color:#dcc49a">1 kt</div>
+      <div class="band n" style="left:52%;width:16%;background:#1c150a;color:#dcc49a">20 kt</div>
+      <div class="band n" style="left:68%;width:14%;background:#1f170b;color:#dcc49a">50 kt</div>
+      <div class="band n" style="left:82%;width:10%;background:#22190c;color:#dcc49a">100 kt</div>
+      <div class="band e" style="left:92%;width:8%;background:#1a100e;color:#d98878">END</div>
+      <div class="pin" style="left:36%"></div>
+      <div class="pin" style="left:92%"></div>
+      <div class="axis">
+        <span class="tick" style="left:0%">0</span><span class="tick" style="left:22%">10</span>
+        <span class="tick" style="left:44%">20</span><span class="tick" style="left:66%">30</span>
+        <span class="tick" style="left:88%">40</span><span class="tick" style="left:99%">45m</span>
+      </div>
+    </div>
+    <div class="sub l0">Drag a band edge to move it. Drag the whole strip's right end to set the
+      match length; every band scales with it.</div>
+    <div class="chips" style="margin-top:7px">
+      <span class="chip delta">first nuke · 16:00</span>
+      <span class="chip delta">enders · 41:00</span>
+      <span class="chip delta">match ends · ~45:00</span></div>
+  </div>
+  <div class="sec"><div class="sechead">Only the things a picture cannot say</div>
+    <div class="row"><span class="lab">Each step grants</span><span class="dd sm">1 each</span></div>
+    <div class="row"><span class="lab">Reply window</span><span class="dd sm">60 s</span></div>
+    <div class="cb"><span class="box"></span>Extra warheads can also be bought</div>
+    <div class="cb"><span class="box t"></span>DEFCON 2 waits for the first kill instead of the clock</div>
+    <div class="sub l0">Unticked, the prelude is pure clockwork and the whole strip is exact.</div>
+  </div>
+</div></div>
+
+<div class="col-notes">
+<h4>Why this is worth testing</h4>
+<ul>
+<li>Every other tab makes a host set rules and then work out the consequences. This one makes them
+    set the consequences directly. "First nuke around sixteen minutes, done by forty-five" is what
+    someone actually wants; pace and delay are just the arithmetic that gets there.</li>
+<li>It is the only layout where <b>the shape of the match is visible at a glance</b> — a long
+    conventional opening with a sudden ladder looks different from a slow burn, and you can see
+    which you built before you play it.</li>
+<li>Presets stop being value bundles and become <b>shapes</b>. "Cold War" is a wide blue band and a
+    narrow amber one; "Armageddon" is the reverse. A host recognises the picture.</li>
+</ul>
+<h4>Where it breaks</h4>
+<ul>
+<li>Event-driven pacing has no honest position on a time axis. The first-kill rule is drawn as a
+    tickbox that makes the strip approximate, which is the best I have — but it means the two
+    pacing philosophies do not coexist comfortably here.</li>
+<li>Dragging is a real UI, not a dropdown. This is the most expensive tab to build by a wide
+    margin, and it wants a keyboard path for anyone who cannot drag precisely.</li>
+<li>It quietly asserts matches have a length. Today they end when someone wins.</li>
+</ul>
+</div></div>
+</div>
+
+<!-- ================= E ================= -->
+<div class="pane" id="pE">
+<p class="pitch">Skip the ladder. Deal the warheads, and let the clock be a consequence.</p>
+<p class="why">If every step's real job is to hand out warheads, then the honest thing to configure
+is <b>the arsenal</b> — how many of each yield each side gets over the match. The escalation
+schedule is derived from the sheet: the ladder unlocks each row in yield order, spaced to fit.</p>
+<div class="cols"><div class="col-mock"><div class="lobby">
+  <div class="sec"><div class="sechead">Each side's arsenal, over the whole match</div>
+    <table class="sheet">
+      <tr><th>Yield</th><th>Free</th><th>Buyable</th><th>Unlocks</th></tr>
+      <tr><td>1 kt — tactical</td><td class="n"><span class="stepper"><span>−</span><b>2</b><span>+</span></span></td>
+        <td class="n">—</td><td>at the gate</td></tr>
+      <tr><td>20 kt</td><td class="n"><span class="stepper"><span>−</span><b>1</b><span>+</span></span></td>
+        <td class="n">∞</td><td>+10 min</td></tr>
+      <tr><td>50 kt</td><td class="n"><span class="stepper"><span>−</span><b>1</b><span>+</span></span></td>
+        <td class="n">—</td><td>+20 min</td></tr>
+      <tr><td>100 kt</td><td class="n"><span class="stepper"><span>−</span><b>0</b><span>+</span></span></td>
+        <td class="n">—</td><td>never — 0 free, 0 buyable</td></tr>
+      <tr class="endr"><td>game-enders</td><td class="n"><span class="stepper"><span>−</span><b>1</b><span>+</span></span></td>
+        <td class="n">—</td><td>+30 min · ends the match</td></tr>
+    </table>
+    <div class="sub l0" style="margin-top:6px">A row with nothing in it is not in this match at all —
+      that is how you cut a yield, instead of a separate ceiling control.</div>
+    <div class="row" style="margin-top:8px"><span class="lab">Spread the unlocks over</span><span class="dd">40 minutes</span></div>
+    <div class="sub">The four spacings above are generated from this and the row count.</div>
+  </div>
+  <div class="sec"><div class="sechead cool">Prelude</div>
+    <div class="row"><span class="lab">Start at</span><span class="dd sm">DEFCON 2</span>
+      <span class="lab" style="width:auto;padding-left:6px">gate</span><span class="dd sm">10:00</span></div>
+  </div>
+  <div class="sec"><div class="sechead">Total</div>
+    <div class="chips"><span class="chip">5 warheads each</span><span class="chip delta">first at ~12:30</span>
+      <span class="chip delta">enders at ~42:30</span><span class="chip preset">20 kt purchasable</span></div>
+  </div>
+</div></div>
+
+<div class="col-notes">
+<h4>Why this is worth testing</h4>
+<ul>
+<li>It answers the one question the ladder view never does: <b>how many nuclear weapons are in this
+    match?</b> Both sides can count them before the first shot, which is the entire strategic
+    content of your payout model.</li>
+<li>The ceiling, the step count and the "buyable" toggle all collapse into the sheet. A yield with
+    zero free and zero buyable is simply absent — one mechanism instead of three.</li>
+<li>It makes asymmetry expressible for free. A second column per side and you have a handicap
+    match, or a scenario where one side opens with tactical superiority.</li>
+</ul>
+<h4>Where it breaks</h4>
+<ul>
+<li>It inverts cause and effect. Escalation stops being something the war produces and becomes an
+    inventory that happens to unlock on a timer — which may be exactly the wrong feeling for a mode
+    whose whole subject is losing control.</li>
+<li>Per-yield buyability is a lot of expressive power nobody asked for, and it is the kind of
+    control that produces unplayable lobbies.</li>
+<li>"Spread the unlocks over 40 minutes" is a worse handle than "a step every 10 minutes" the
+    moment a row is deleted.</li>
+</ul>
+</div></div>
+</div>
+
+<!-- ================= F ================= -->
+<div class="pane" id="pF">
+<p class="pitch">Two questions, sixteen games, one click. Detail only if you want it.</p>
+<p class="why">The opposite limit from D and E: assume nobody wants to configure anything. How far
+it goes, and how fast it gets there — pick a cell. Every cell is a real, named, playable
+configuration, and the panel underneath is collapsed until someone opens it.</p>
+<div class="cols"><div class="col-mock"><div class="lobby">
+  <div class="sec"><div class="sechead">Pick a match</div>
+    <div class="mx">
+      <div class="mh"></div><div class="mh">CONVENTIONAL</div><div class="mh">TACTICAL</div>
+      <div class="mh">STRATEGIC</div><div class="mh">ENDERS</div>
+      <div class="mr">SLOW</div>
+      <div class="cell"><b>Long War</b>no nuclear</div>
+      <div class="cell"><b>Cold Front</b>1–20 kt, 60 min</div>
+      <div class="cell"><b>Cold War</b>to 100 kt</div>
+      <div class="cell"><b>Slow Burn</b>enders at 70 min</div>
+      <div class="mr">STANDARD</div>
+      <div class="cell"><b>Skirmish</b>the default</div>
+      <div class="cell"><b>Border War</b>tactical only</div>
+      <div class="cell"><b>Escalation</b>to 100 kt</div>
+      <div class="cell on"><b>Total War</b>enders at 45 min</div>
+      <div class="mr">FAST</div>
+      <div class="cell"><b>Rush</b>no nuclear</div>
+      <div class="cell"><b>Flashpoint</b>nukes by 6 min</div>
+      <div class="cell"><b>Firestorm</b>to 100 kt fast</div>
+      <div class="cell"><b>Armageddon</b>enders at 20 min</div>
+      <div class="mr">INSTANT</div>
+      <div class="cell"><b>Arena</b>no prelude</div>
+      <div class="cell"><b>Hot Start</b>nuclear at 0:00</div>
+      <div class="cell"><b>Open Silos</b>everything, now</div>
+      <div class="cell"><b>Countdown</b>enders only, 15 min</div>
+    </div>
+    <div class="chips" style="margin-top:8px"><span class="chip preset">Total War</span></div>
+    <div class="sub l0">DEFCON 2 · gate 10:00 · a step every 10 min · 1 warhead per side per step ·
+      enders end the match · 60 s reply</div>
+    <div class="row" style="margin-top:8px"><span class="lab">Change any of it ▸</span>
+      <span class="dd lock">16 settings, collapsed</span></div>
+  </div>
+</div></div>
+
+<div class="col-notes">
+<h4>Why this is worth testing</h4>
+<ul>
+<li>Everything else on offer assumes the host wants to design a match. Most do not — they want a
+    match that is <i>already</i> a good one, and the two things they actually have an opinion about
+    are how nuclear it gets and how long it takes.</li>
+<li>Named cells are teachable. "We played Flashpoint last night" is a sentence; "Escalation,
+    DEFCON 2, Fast, 100 kt" is not.</li>
+<li>The full panel still exists, one click down, and it is any of A / B / C. This tab is a
+    <b>front</b> for one of them rather than a rival to them — which is the honest reading of your
+    "presets set the defaults, then show what changed."</li>
+</ul>
+<h4>Where it breaks</h4>
+<ul>
+<li>Sixteen names is sixteen things to balance and sixteen things to explain. Half of them will be
+    played once.</li>
+<li>The grid asserts the two axes are independent. "Instant + conventional" is a coherent game;
+    "instant + enders" is a fifteen-minute match that is over before anyone builds anything, and
+    the grid gives it equal billing with the good cells.</li>
+<li>It hides the ladder entirely, and the ladder is the thing the mode is <i>about</i>. A host who
+    never opens the panel never learns the system exists.</li>
+</ul>
+</div></div>
+</div>
+
+<div class="pick">
+  <div style="font-size:12.5px;color:#cfcdc2;margin-bottom:5px">Which direction, or which pieces?
+    (Tick as many as you like — mixing is the expected answer.)</div>
+  <label><input type="checkbox" name="v" value="A"> <span><b>A</b> — two lists and a gate, per-step editor</span></label>
+  <label><input type="checkbox" name="v" value="B"> <span><b>B</b> — four answers, generated ladder, absolute times</span></label>
+  <label><input type="checkbox" name="v" value="C"> <span><b>C</b> — stair + ladder as two widgets</span></label>
+  <label><input type="checkbox" name="v" value="D"> <span><b>D</b> — scrub the match on a timeline</span></label>
+  <label><input type="checkbox" name="v" value="E"> <span><b>E</b> — deal the arsenal, derive the schedule</span></label>
+  <label><input type="checkbox" name="v" value="F"> <span><b>F</b> — sixteen named cells over a collapsed panel</span></label>
+  <label><input type="checkbox" name="v" value="none"> <span>none of these — notes below</span></label>
+  <textarea id="note" placeholder="Mix freely. e.g. &quot;F as the front, B as the panel behind it, and A's per-step editor under an Advanced toggle&quot; — or tell me what is still wrong about the model."></textarea>
+  <button id="send">Send this back</button>
+  <div class="foot">Round three. Nothing is built until a shape is settled — and then it iterates
+    against real screenshots of the real panel, not against this file.</div>
+</div>
+
+<script>
+var tabs=document.querySelectorAll('.tab'),panes=document.querySelectorAll('.pane'),cur='A';
+function pick(){var o=[];document.querySelectorAll('input[name=v]:checked').forEach(function(c){o.push(c.value)});return o}
+function state(){return{tab:cur,variants:pick(),note:document.getElementById('note').value}}
+function post(t,s){var m={type:t,state:state()};if(s)m.summary=s;try{window.parent.postMessage(m,'*')}catch(e){}}
+tabs.forEach(function(t){t.onclick=function(){
+  tabs.forEach(function(x){x.classList.remove('on')});panes.forEach(function(x){x.classList.remove('on')});
+  t.classList.add('on');cur=t.dataset.t;document.getElementById('p'+cur).classList.add('on');
+  post('maestro:artifact_state');geo();}});
+document.querySelectorAll('input[name=v]').forEach(function(r){r.onchange=function(){post('maestro:artifact_state')}});
+document.getElementById('note').oninput=function(){post('maestro:artifact_state')};
+document.getElementById('send').onclick=function(){var p=pick();
+  post('maestro:artifact_submit','round 3: '+(p.length?p.join('+'):'none'))};
+function geo(){try{window.parent.postMessage({type:'maestro:artifact_geometry',
+  height:document.documentElement.scrollHeight},'*')}catch(e){}}
+window.addEventListener('message',function(e){if(e.data&&e.data.type==='maestro:artifact_hydrate'&&e.data.state){
+  var s=e.data.state;if(s.note)document.getElementById('note').value=s.note;
+  if(s.variants&&s.variants.forEach)s.variants.forEach(function(v){
+    var c=document.querySelector('input[name=v][value="'+v+'"]');if(c)c.checked=true});
+  if(s.tab){var t=document.querySelector('.tab[data-t="'+s.tab+'"]');if(t)t.click()}}});
+geo();window.addEventListener('load',geo);
+</script>
