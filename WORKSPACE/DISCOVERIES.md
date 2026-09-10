@@ -22153,3 +22153,28 @@ Two false alarms from one run, `260909_203115_p12697_demo-highyield-nuke` at `ma
 **The seam that does work is `IRenderAboveWorld` (`WorldRenderer.cs:396`)**, the pass immediately after actors, which `BuildableTerrainOverlay` and `WeatherOverlay` already use. A second `TerrainSpriteLayer` drawn from there lands on top of actor sprites. `SmudgeLayer.GroundCoverOverlay` now does exactly this, restricted to cells whose every occupant is `Passable.GroundCover`.
 
 **Two things worth carrying past this change.** First, **`TerrainSpriteLayer` allocates eagerly in its constructor** — 4 `Vertex` (48 bytes) per map cell plus a GPU vertex buffer, ~1.5 MB on river-zeta's 98×82 — so a second layer per smudge type is a real memory cost on maps that never use it. Allocating it lazily on the first qualifying cell makes it free on the nine of ten shipped maps that carry no crop field. Second, **`ActorMap.CellUpdated` is already a live event**: `Locomotor` (`:453`) and `HierarchicalPathFinder` (`:258`) subscribe unconditionally, so `UpdateOccupiedCells`'s `if (CellUpdated == null) return;` guard never fires today. Subscribing to it adds a handler to a hot event; it does not switch on a dormant path.
+
+## 2026-09-11 — A ChromeLogic is ticked only while its widget is visible, so `IsVisible` must never be derived from state the logic itself refills (`main @ 3a1780bc`)
+
+**The shape is a deadlock that looks like ordinary defensive coding.** `LobbyTimelineLogic` set `IsVisible = () => markers.Length > 0` — read plainly, "don't draw an empty bar", which is correct and desirable. But `Widget.TickOuter` (`Widget.cs:512-524`) is:
+
+```csharp
+if (IsVisible())
+{
+    Tick();
+    foreach (var child in Children) child.TickOuter();
+    if (LogicObjects != null) foreach (var l in LogicObjects) l.Tick();
+}
+```
+
+**A widget's `LogicObjects` are ticked inside the visibility test.** So if the logic's constructor-time `Rebuild()` comes up empty — for the lobby timeline, because a `MapPreview`'s `WorldActorInfo`/`PlayerActorInfo` are assigned **in place** after construction (`MapPreview.cs:175-193`), so a logic built during load sees a preview that is not yet populated — the widget goes invisible, its `Tick()` is never called, `Rebuild()` never runs again, and the state stays empty **for the entire lifetime of the panel**. It cannot recover.
+
+**It fails in the quietest way available:** no exception, no log line, no lint error, a green build and a green test suite. On screen it is reserved space with nothing in it, which reads as a *drawing* bug and sends you into the render path — the one place the fault is not.
+
+**The general rule, which is the part worth carrying:** *a retry that never fires is usually gated on the thing it was meant to repair.* This logic contained an explicit `resolved` retry flag written for precisely the unresolved-preview case, and a line three above it made that retry unreachable. The tell in the screenshot was that the retry demonstrably was not firing — which is evidence about the **gate**, not about the retry.
+
+**The fix is a removal, not an addition.** Leave `IsVisible` at the `Widget` default of `true` and have the widget's own `Draw()` return early when it has nothing to draw. Identical on screen, no latch, and the retry does what it was written to do.
+
+**Scope — this is not specific to the timeline.** It applies to any `ChromeLogic` whose widget's visibility is a function of state that logic populates asynchronously: option dictionaries, map-preview-derived data, server state arriving after construction. `LobbyOptionsLogic` has the identical structural hazard (it reads preview-derived data in the same way) and does not currently trip it. **Deriving `IsVisible` from static configuration is fine; deriving it from anything the logic refills on `Tick` is the trap.**
+
+**Verification note:** an NUnit assertion that an empty `TimelineWidget` reports `IsVisible() == true` pins the widget's half of this contract but would **not** have caught the bug, which was a ChromeLogic assigning `IsVisible` from outside. The real guard is a comment at the assignment site. Recorded because a green suite here implies coverage it does not have.
