@@ -926,8 +926,34 @@ Container@LOBBY_PLAYER_BIN:
 						Label@CATEGORY_FILTER:
 							Visible: False
 							Text: All
-						Container@LOBBY_OPTIONS:
+						# === THE MATCH TIMELINE — one bar for the whole match, with
+						# draggable markers, replacing dropdowns a host had to combine
+						# mentally. Sibling of LOBBY_OPTIONS, NOT a child of it:
+						# LobbyOptionsLogic.RebuildOptions calls RemoveChildren() on
+						# that container every rebuild, so anything parented there is
+						# destroyed the first time the map changes.
+						#
+						# It sits ABOVE the option grid rather than inside it, between
+						# the OPTIONS header and the first section. The mockup draws it
+						# after the MATCH section; that placement is not reachable
+						# without living inside LobbyOptionsLogic, which dispatches on
+						# C# type and cannot host a custom widget (see
+						# LobbyTimelineLogic's header).
+						#
+						# X/Width match CELL_LABEL: the 16px content inset, 4px clear of
+						# the 24px scrollbar track. Height 112 is the mockup's .tlrow —
+						# note 12, track 56 at Y:20, caption block at Y:80. LOBBY_OPTIONS
+						# below is offset by exactly this height (48 + 112 = 160), and
+						# ContentHeight follows automatically because LobbyOptionsLogic
+						# measures from LOBBY_OPTIONS.Bounds.Y.
+						Timeline@MATCH_TIMELINE:
+							Logic: LobbyTimelineLogic
+							X: 16
 							Y: (WINDOW_HEIGHT - 196) * 3 / 5 + 48
+							Width: PARENT_WIDTH - 44
+							Height: 112
+						Container@LOBBY_OPTIONS:
+							Y: (WINDOW_HEIGHT - 196) * 3 / 5 + 160
 							Width: PARENT_WIDTH
 							Children:
 								# === Spacing pass — section header matches the quadrant
