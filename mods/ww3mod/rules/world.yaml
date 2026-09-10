@@ -483,8 +483,17 @@ World:
 	# one shot.
 	# SHORE FADE, 2026-09-09. Only these five layers set it. The two stock layers above
 	# (SCORCH, CRATER) leave ShoreFadeCells at its default 0 and are byte-identical to before.
-	# 2 gives a two-cell ramp -- a cell touching water draws at 1/3, the next at 2/3, the rest
-	# at full -- so the disc eases off at a river instead of ending on a hard cell edge.
+	# 2 gives a two-cell ramp, so the disc eases off at a river instead of ending on a hard cell edge.
+	# SHORE FADE MIN ALPHA, 2026-09-10, and it is a FIX to the line above rather than a new knob.
+	# The ramp used to fall to 1/3 on the cell touching water. A smudge is one flat alpha over a whole
+	# cell, so that is a 67% drop across one cell edge -- and because the ramp is 2 cells wide while
+	# the rivers on these maps are 2-3 cells wide, EVERY cell of a ford is within reach of some water
+	# and the entire crossing was held at 1/3-2/3. Measured on demo-highyield-nuke's ford (cells
+	# 71-74 x 50-52): a 6-cell-wide band held below full strength, with the 4 ford cells at 1/3. That
+	# reads as exactly the bright unscarred sand block the fade was written to remove. 0.7 keeps the
+	# shoreline cell unmistakably scarred and still thins it into the water.
+	# (The ramp is also Euclidean now, not Chebyshev -- Chebyshev's contours are literal squares, which
+	# is what put hard rectangular corners several cells clear of the water. SmudgeLayer.cs:376-415.)
 	# GROUND-COVER OVERLAY, 2026-09-10. Only these five layers set it, for the same reason only these
 	# five set ShoreFadeCells: SCORCH and CRATER are the RA smudge types every ordinary weapon in the
 	# mod shares, and widening a nuclear-scarring decision onto conventional craters is not what was
@@ -496,24 +505,28 @@ World:
 	SmudgeLayer@SCARRIM:
 		Type: ScarRim
 		ShoreFadeCells: 2
+		ShoreFadeMinAlpha: 0.7
 		GroundCoverOverlay: true
 		Sequence: scarband-rim
 		SmokeChance: 0
 	SmudgeLayer@SCARBURN:
 		Type: ScarBurn
 		ShoreFadeCells: 2
+		ShoreFadeMinAlpha: 0.7
 		GroundCoverOverlay: true
 		Sequence: scarband-burn
 		SmokeChance: 0
 	SmudgeLayer@SCARCHAR:
 		Type: ScarChar
 		ShoreFadeCells: 2
+		ShoreFadeMinAlpha: 0.7
 		GroundCoverOverlay: true
 		Sequence: scarband-char
 		SmokeChance: 0
 	SmudgeLayer@SCARCRATER:
 		Type: ScarCrater
 		ShoreFadeCells: 2
+		ShoreFadeMinAlpha: 0.7
 		GroundCoverOverlay: true
 		Sequence: scarband-crater
 		SmokeChance: 20
@@ -522,6 +535,7 @@ World:
 	SmudgeLayer@SCARCORE:
 		Type: ScarCore
 		ShoreFadeCells: 2
+		ShoreFadeMinAlpha: 0.7
 		GroundCoverOverlay: true
 		Sequence: scarband-core
 		SmokeChance: 40

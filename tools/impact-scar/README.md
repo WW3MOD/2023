@@ -41,6 +41,7 @@ already-banded YAML is a no-op (it looks for `Warhead@Crater`/`@Scorch1`/
 | `gen_scars.py` | The art. Deterministic fbm noise, quantile-thresholded coverage, per-tileset palette ramps harvested from stock smudge art. |
 | `rewire_bands.py` | Turns each weapon's three nested discs into five annuli, interpolating the blast-wave delays. |
 | `contact_sheet.py` | Simulates `SmudgeLayer` + `LeaveSmudgeWarhead` faithfully and renders before/after over real terrain. |
+| `shore_fade_preview.py` | The shoreline case. Reads a scenario's REAL per-cell terrain out of `map.bin` and runs `ShoreAlphaAt` over it, rendering the fade *field* as its own panel. Exists because `contact_sheet.py` models water only as `water_from_x`, a half-plane — a straight vertical line, so it draws a straight edge whatever the code does and cannot be evidence about edges. |
 
 ## Things that will bite you
 
