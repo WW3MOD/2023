@@ -31,6 +31,7 @@
  * is the regression test for that; AOneCellBandLeaksOnADiagonal pins WHY the default is not 512.
  */
 
+using System;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Traits;
 
@@ -412,6 +413,65 @@ namespace OpenRA.Test
 			}, 200);
 
 			Assert.That(start, Is.EqualTo(end), "A match with no enemy derived a dividing line.");
+		}
+
+		[Test]
+		public void TheDrawnLineStopsAtTheMapEdge()
+		{
+			// The line is INFINITE and the map is not. The derived endpoints sit hundreds of cells
+			// outside the map, and the annotation pass runs after the shroud pass -- so drawing
+			// between them would streak across the blacked-out margin with nothing covering it.
+			var geometry = Through(new CPos(8, 28), new CPos(80, 28), Cell);
+
+			var left = 1L * Cell;
+			var top = 1L * Cell;
+			var right = 96L * Cell;
+			var bottom = 96L * Cell;
+
+			Assert.That(geometry.ClipToRect(left, top, right, bottom, out var start, out var end), Is.True);
+
+			foreach (var p in new[] { start, end })
+			{
+				// On the line, to within the truncation the integer division can introduce.
+				Assert.That(geometry.DistanceToLine(p.X, p.Y), Is.LessThanOrEqualTo(Cell),
+					"A clipped endpoint is not on the line it was clipped from.");
+
+				Assert.That(p.X, Is.InRange(left, right));
+				Assert.That(p.Y, Is.InRange(top, bottom));
+			}
+
+			// This pair bisects horizontally, so the drawn segment must span the map vertically.
+			Assert.That(Math.Abs(start.Y - end.Y), Is.EqualTo(bottom - top));
+		}
+
+		[Test]
+		public void ADiagonalLineIsClippedToTheMapOnBothEnds()
+		{
+			var geometry = Through(new CPos(1, 4), new CPos(96, 93), Cell);
+
+			Assert.That(geometry.ClipToRect(Cell, Cell, 96L * Cell, 96L * Cell, out var start, out var end), Is.True);
+			Assert.That(start, Is.Not.EqualTo(end));
+
+			foreach (var p in new[] { start, end })
+			{
+				Assert.That(geometry.DistanceToLine(p.X, p.Y), Is.LessThanOrEqualTo(Cell));
+				Assert.That(p.X, Is.InRange(Cell, 96L * Cell));
+				Assert.That(p.Y, Is.InRange(Cell, 96L * Cell));
+			}
+		}
+
+		[Test]
+		public void ALineThatMissesTheMapDrawsNothing()
+		{
+			// A rectangle far off the line's path. Returning true here would draw a segment that is
+			// not on the border anywhere.
+			var geometry = Through(new CPos(8, 28), new CPos(80, 28), Cell);
+			Assert.That(geometry.ClipToRect(200L * Cell, 200L * Cell, 300L * Cell, 300L * Cell,
+				out _, out _), Is.False);
+
+			// And a wall that was never authored draws nothing at all.
+			var degenerate = new DefconWallGeometry(CentreOf(10), CentreOf(10), CentreOf(10), CentreOf(10), HalfCell);
+			Assert.That(degenerate.ClipToRect(0, 0, 96L * Cell, 96L * Cell, out _, out _), Is.False);
 		}
 
 		[Test]

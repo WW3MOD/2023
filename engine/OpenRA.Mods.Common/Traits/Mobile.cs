@@ -377,8 +377,23 @@ namespace OpenRA.Mods.Common.Traits
 			creationRallypoint = init.GetOrDefault<RallyPointInit>()?.Value;
 		}
 
+		// THE DEFCON 3 BORDER, resolved once so the guards below are a null test on the common path.
+		// Null on any map whose World actor has no DefconWall, which is every map outside Escalation.
+		DefconWall defconWall;
+
+		/// <summary>
+		/// May this unit be ordered to that cell, or does the order cross the DEFCON 3 border?
+		/// </summary>
+		// Deliberately the same shape as Aircraft.IsBeyondDefconWall, asking the same trait the same
+		// question, so ground and air refuse on one fact rather than on two that can drift apart.
+		public bool IsBeyondDefconWall(Actor self, CPos cell)
+		{
+			return defconWall != null && defconWall.IsBeyondWall(self.Owner, cell);
+		}
+
 		protected override void Created(Actor self)
 		{
+			defconWall = self.World.WorldActor.TraitOrDefault<DefconWall>();
 			notifyCustomLayerChanged = self.TraitsImplementing<INotifyCustomLayerChanged>().ToArray();
 			notifyCenterPositionChanged = self.TraitsImplementing<INotifyCenterPositionChanged>().ToArray();
 			notifyMoving = self.TraitsImplementing<INotifyMoving>().ToArray();
@@ -1087,6 +1102,18 @@ namespace OpenRA.Mods.Common.Traits
 				if (!Info.LocomotorInfo.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
 					return;
 
+				// LAYER 1 OF THE DEFCON 3 BORDER, the ground half -- the mirror of the refusal
+				// Aircraft.ResolveOrder has carried since the wall landed. Without it, ordering a unit
+				// to a perfectly legal cell on the FAR side was accepted in silence and the unit then
+				// sat still, because the pathfinder had no route: the player saw a tank disobey and was
+				// told nothing. Refusing here says so, and matches the blocked cursor the targeter now
+				// paints for the same cell -- keep the two in step.
+				if (IsBeyondDefconWall(self, cell))
+				{
+					defconWall.NotifyCrossingRefused(self);
+					return;
+				}
+
 				// `true` is evaluateNearestMovableCell: the relocation is resolved by Move.OnFirstRun
 				// when the move starts, not here. MoveOrderTerms owns that rule for all three sites.
 				self.QueueActivity(order.Queued, WrapMove(new Move(self, cell, WDist.FromCells(MoveOrderTerms.NearEnoughCells), null, true, Info.TargetLineColor)));
@@ -1097,6 +1124,14 @@ namespace OpenRA.Mods.Common.Traits
 				var cell = MoveOrderTerms.DestinationCell(self.World.Map, order.Target);
 				if (!Info.LocomotorInfo.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
 					return;
+
+				// LAYER 1 again. Force-move overrides what is in the way, not what is FORBIDDEN: the
+				// border is a rule about where this player may be, and a modifier key does not repeal it.
+				if (IsBeyondDefconWall(self, cell))
+				{
+					defconWall.NotifyCrossingRefused(self);
+					return;
+				}
 
 				// Force-move bypasses WrapMove — pure movement, no SmartMove wrapping
 				// Force-move also disables reversing — the player wants the unit to drive forward to the target
@@ -1238,8 +1273,14 @@ namespace OpenRA.Mods.Common.Traits
 				// queued in IResolveOrder.ResolveOrder regardless of pause and runs once unpaused.
 				// Showing BlockedCursor for a transient pause is misleading; only flag truly
 				// unreachable destinations.
+				// The DEFCON 3 border joins the unreachable-destination test rather than getting its own
+				// branch, for the reason Aircraft's targeter states: it is the same kind of fact, a
+				// destination the order will be refused for. A cell INSIDE the band was already flagged
+				// here -- Wall is in no locomotor's TerrainSpeeds, so its movement cost is unreachable --
+				// but a legal cell BEYOND the band was not, and that is the one a player actually clicks.
 				if (!self.World.Map.Contains(location)
 					|| (!explored && !locomotorInfo.MoveIntoShroud)
+					|| mobile.IsBeyondDefconWall(self, location)
 					|| (explored && mobile.Locomotor.MovementCostForCell(location) == PathGraph.MovementCostForUnreachableCell))
 					cursor = mobile.Info.BlockedCursor;
 				else if (IsForceMove)

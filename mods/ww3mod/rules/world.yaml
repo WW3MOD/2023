@@ -794,6 +794,13 @@ World:
 	# DEFCON 3 and Skirmish holds NoLevel. Nothing here changes a Skirmish match.
 	DefconWall:
 		DeriveFromSpawns: True
+		# THE BORDER HAS TO BE SEEN, and until this landed it could not be. DefconWall writes
+		# Map.CustomTerrain, and CustomTerrain is read by Map.GetTerrainIndex (pathfinding,
+		# GrantConditionOnTerrain) and by NOTHING in the terrain draw: TerrainRenderer subscribes
+		# only to Map.Tiles and Map.Height (TerrainRenderer.cs:92-93) and renders from Map.Tiles.
+		# So the wall sealed the map while the map's own grass stayed on screen, and the readout's
+		# "The border is closed" pointed at nothing. The trait now draws it itself.
+		CrossingRefusedTextNotification: notification-defcon-border-closed
 	OrderEffects:
 		TerrainFlashImage: moveflsh
 		TerrainFlashSequence: idle
