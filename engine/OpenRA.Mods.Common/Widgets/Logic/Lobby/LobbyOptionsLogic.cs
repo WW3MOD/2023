@@ -111,6 +111,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			// Which weapons this match permits — the question most worth being able to
 			// re-read once the shooting starts.
 			"tactical-nuke", "high-yield-nuke", "nuclear-arsenal", "powers-sandbox",
+			// And WHEN they come up for sale. Both belong here for the same reason as the line
+			// above and rather more sharply: a player who has just been told a tier is not
+			// purchasable yet wants to check how long the wait is without leaving the match.
+			NuclearUnlockClockInfo.IntervalOptionId,
+			NuclearUnlockClockInfo.HighestYieldOptionId,
 		};
 
 		// Options never shown in the lobby (deliberately removed from WW3MOD).
@@ -202,6 +207,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{ "high-yield-nuke", SectionArsenal },
 			{ "nuclear-arsenal", SectionArsenal },
 			{ "powers-enabled", SectionArsenal },
+
+			// The Skirmish unlock clock. In Arsenal rather than Escalation or Match because it
+			// answers the same question the four above do — what this match will let a player have
+			// — and because it is meaningless in Escalation, where nothing is purchasable at all.
+			// These two are NOT placeholders: they govern behaviour from the moment the trait is
+			// registered, so they render live where the DEFCON four render dimmed.
+			{ NuclearUnlockClockInfo.IntervalOptionId, SectionArsenal },
+			{ NuclearUnlockClockInfo.HighestYieldOptionId, SectionArsenal },
 
 			// Economy — the budget you fight the war on.
 			{ "startingcash", SectionEconomy },

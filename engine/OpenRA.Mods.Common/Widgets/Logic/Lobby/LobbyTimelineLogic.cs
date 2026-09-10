@@ -40,6 +40,32 @@
  * release decision rather than a code one" and "the last step of the feature". So this is not a
  * defect to fix here: the day that field goes false, both markers become live with no change to
  * this file.
+ *
+ * ==== THE WARHEAD MARKER READS A DIFFERENT CLOCK IN EACH MODE, BECAUSE THERE ARE TWO ====
+ * In DEFCON Escalation warheads are HANDED to players on the DEFCON clock, so the marker is an
+ * offset from the no-rush marker and is not draggable (NuclearReleaseDelayTicks has no lobby option
+ * behind it, deliberately). In Skirmish nothing is handed to anybody -- bands come up FOR SALE on
+ * NuclearUnlockClock's interval -- so the marker binds to `nuclear-unlock-interval`, sits ABSOLUTE on
+ * the match clock, and is draggable. One marker, one slot on the bar, two sources.
+ *
+ * THAT IS WHAT MAKES THE AMBER BAND TRUE, which is the whole reason this change exists: the band
+ * captioned NUCLEAR WEAPONS PURCHASABLE used to start at a DEFCON-derived constant while Skirmish --
+ * the DEFAULT mode -- sold nukes from the first second (decision 22).
+ *
+ * ==== TWO BANDS ARE STILL FALSE IN SKIRMISH AND THIS CHANGE DOES NOT FIX THEM. SAY SO. ====
+ * NO RUSH and CONVENTIONAL are both positioned from `defcon-pace`, and DefconEscalation is a strict
+ * no-op in Skirmish (DefconEscalation.cs:49-52) -- no level, no clock, no wall. So in the default
+ * mode those two bands still describe a timer that never runs. That is NOT fixed here and must not be
+ * papered over by rewording them: the approved mockup draws NO RUSH in its own Skirmish tab, so the
+ * design intends a Skirmish no-rush period and the mod has never had one. It is an ABSENT FEATURE of
+ * the same kind decision 22 was raised about, not a labelling defect, and inventing a timer to make
+ * the caption true would be the mistake that decision explicitly rejected.
+ *
+ * ==== REBUILD ON A MODE CHANGE, NOT JUST ON A MAP OR SPEED CHANGE ====
+ * A marker's stop LIST and which option it binds to are baked at Rebuild; only its position is read
+ * live. So the mode is now part of Tick's change detection alongside the timestep. Without that, a
+ * host switching Escalation <-> Skirmish would keep the other mode's warhead marker for the rest of
+ * the lobby -- silently, and looking exactly like a working bar.
  */
 
 using System;
@@ -72,6 +98,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		TimelineBand[] bands = Array.Empty<TimelineBand>();
 		int axisSeconds = MinimumAxisSeconds;
 		string lastTimestepKey;
+		string lastModeKey;
 
 		// Whether the last Rebuild saw a map preview with its actor info populated. A MapPreview is
 		// MUTATED IN PLACE as it validates rather than replaced, so "has the map changed?" is false
@@ -121,11 +148,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		{
 			var newMapPreview = getMap();
 			var timestepKey = SelectedSpeedId();
+			var modeKey = SelectedModeId();
 
 			// The game speed is part of the arithmetic, not just the flavour: pace stops are stored in
 			// TICKS and become seconds through the timestep, while `timelimit` is stored in minutes.
 			// Mixing the two on one axis is only consistent if a speed change rebuilds.
-			if (newMapPreview == mapPreview && timestepKey == lastTimestepKey && resolved)
+			//
+			// AND THE MODE, because the warhead marker binds to a DIFFERENT OPTION in each mode -- see
+			// the file header. A marker's stop list is baked here; only its position is read live, so
+			// without this the bar would keep the old mode's marker for the rest of the lobby.
+			if (newMapPreview == mapPreview && timestepKey == lastTimestepKey && modeKey == lastModeKey && resolved)
 				return;
 
 			Game.RunAfterTick(() =>
@@ -184,9 +216,21 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			return orderManager.LobbyInfo.GlobalSettings.OptionOrDefault(id, def);
 		}
 
+		/// <summary>The game mode as a wire value. Skirmish is the fallback because it is the default.</summary>
+		string SelectedModeId()
+		{
+			return RawOption(DefconEscalationInfo.ModeOptionId, nameof(DefconGameMode.Skirmish).ToLowerInvariant());
+		}
+
+		bool IsEscalation()
+		{
+			return string.Equals(SelectedModeId(), nameof(DefconGameMode.Escalation), StringComparison.OrdinalIgnoreCase);
+		}
+
 		void Rebuild()
 		{
 			lastTimestepKey = SelectedSpeedId();
+			lastModeKey = SelectedModeId();
 			markers = Array.Empty<TimelineMarker>();
 			bands = Array.Empty<TimelineBand>();
 
@@ -237,19 +281,68 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				}
 			}
 
-			// ---- MARKER 1: FIRST WARHEADS ----------------------------------------------------
-			// AN OFFSET FROM MARKER 0, WHICH IS THE USER'S RULING (2026-09-10) AND ALSO WHAT THE CODE
-			// DOES: NuclearReleaseDelayTicks counts from the moment DEFCON 1 is REACHED, not from match
-			// start (DefconEscalation.cs:142-151). Dragging the no-rush marker carries this one with it.
+			// ---- MARKER 1: WHEN THE NUCLEAR PHASE STARTS -- ONE SLOT, TWO CLOCKS -------------
+			// Which clock this marker reads is the mode's answer to "what is a nuclear weapon here",
+			// and the two are opposites (decision 16). See the file header.
 			//
-			// IT IS NOT DRAGGABLE, AND THAT IS A FINDING RATHER THAN AN OMISSION: NuclearReleaseDelayTicks
-			// is a trait field with NO lobby option behind it, deliberately -- its own [Desc] at :119-124
-			// says "NOT A LOBBY OPTION, deliberately". There is therefore no Values dictionary to snap to,
-			// and inventing one would be a design change rather than an implementation choice. It is drawn
-			// because the host still needs to see WHERE the warheads land on the bar.
-			if (defcon != null && built.Count > 0)
+			// `warheadMarker` is recorded rather than re-derived: BuildBands used to find this marker by
+			// testing `OptionId == null`, which was only true while it was always the derived Escalation
+			// one. In Skirmish it now carries a real option id, so identity by index is the only
+			// non-fragile answer.
+			var warheadMarker = -1;
+			var warheadStopReach = 0;
+
+			if (!IsEscalation() && options.TryGetValue(NuclearUnlockClockInfo.IntervalOptionId, out var unlock))
 			{
+				// SKIRMISH: bands come up FOR SALE on an interval, measured from MATCH START, so this
+				// marker is absolute (no relativeTo) and its caption is a clock time rather than a gap.
+				//
+				// NO TIMESTEP CONVERSION HERE, and the asymmetry with the pace marker above is real
+				// rather than an oversight: `defcon-pace` stores TICKS and needs the timestep to become
+				// seconds, while this option stores MINUTES of real time, exactly as `timelimit` does.
+				// Multiplying by 60 is the whole conversion; routing it through the timestep as well
+				// would scale it twice.
+				var stops = new List<TimelineStop>();
+				foreach (var kv in unlock.Values)
+				{
+					if (!int.TryParse(kv.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var minutes))
+						continue;
+
+					// "No wait" is 0 minutes and belongs at the LEFT edge, where "on sale from the first
+					// second" is what it means -- the opposite of `timelimit`'s 0, which had to be moved
+					// to the right because "the match ends at 0:00" would have been a lie. Here the
+					// literal position is the truth, so it keeps it and only borrows the option's label.
+					var seconds = minutes * 60;
+					stops.Add(new TimelineStop(seconds, kv.Key, minutes > 0 ? TimelineModel.Clock(seconds) : kv.Value));
+				}
+
+				stops.Sort((a, b) => a.Seconds.CompareTo(b.Seconds));
+				if (stops.Count > 0)
+				{
+					var array = stops.ToArray();
+					Track(unlock);
+					warheadStopReach = array[^1].Seconds;
+					warheadMarker = built.Count;
+					built.Add(new TimelineMarker(NuclearUnlockClockInfo.IntervalOptionId, "Nukes purchasable",
+						array, Math.Max(0, Array.FindIndex(array, s => s.Value == unlock.DefaultValue)),
+						highlight: true, placeholder: unlock.Placeholder));
+				}
+			}
+			else if (defcon != null && built.Count > 0)
+			{
+				// ESCALATION: AN OFFSET FROM MARKER 0, WHICH IS THE USER'S RULING (2026-09-10) AND ALSO
+				// WHAT THE CODE DOES: NuclearReleaseDelayTicks counts from the moment DEFCON 1 is
+				// REACHED, not from match start (DefconEscalation.cs:142-151). Dragging the no-rush
+				// marker carries this one with it.
+				//
+				// IT IS NOT DRAGGABLE, AND THAT IS A FINDING RATHER THAN AN OMISSION:
+				// NuclearReleaseDelayTicks is a trait field with NO lobby option behind it, deliberately
+				// -- its own [Desc] at :119-124 says "NOT A LOBBY OPTION, deliberately". There is
+				// therefore no Values dictionary to snap to, and inventing one would be a design change
+				// rather than an implementation choice. It is drawn because the host still needs to see
+				// WHERE the warheads land on the bar.
 				var delay = TimelineModel.TicksToSeconds(defcon.NuclearReleaseDelayTicks, timestep);
+				warheadMarker = built.Count;
 				built.Add(new TimelineMarker(null, "First warheads",
 					new[] { new TimelineStop(delay, null, TimelineModel.Offset(delay)) }, 0,
 					relativeTo: 0, highlight: true, placeholder: pacePlaceholder));
@@ -261,6 +354,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			// stop off the end of the bar and make it unreachable by drag, which would be a REGRESSION
 			// against the dropdown this replaces. Trimming or widening that value set is a design
 			// change and is not made here.
+			//
+			// The unlock marker's own furthest stop is folded in for the same reason: a longer interval
+			// added to NuclearUnlockClockInfo.IntervalOptions must stay reachable by drag rather than
+			// falling off the end of the bar.
 			var warheadReach = paceStops.Length > 0 && defcon != null
 				? paceStops[^1].Seconds + TimelineModel.TicksToSeconds(defcon.NuclearReleaseDelayTicks, timestep)
 				: 0;
@@ -271,7 +368,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					if (int.TryParse(kv.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var minutes) && minutes > 0)
 						limitSeconds.Add(minutes * 60);
 
-			axisSeconds = TimelineModel.AxisSecondsFor(limitSeconds.Append(warheadReach), MinimumAxisSeconds);
+			axisSeconds = TimelineModel.AxisSecondsFor(
+				limitSeconds.Append(warheadReach).Append(warheadStopReach), MinimumAxisSeconds);
 
 			if (timeLimit != null)
 			{
@@ -301,7 +399,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 
 			markers = built.ToArray();
-			bands = BuildBands(markers);
+			bands = BuildBands(markers, warheadMarker);
 
 			// The hint says how many markers can actually be moved, so it never invites a drag that
 			// does nothing. See the file header for why that count is currently one.
@@ -332,13 +430,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		//
 		// The two mode variants are both taken from the approved mockup — tab 1 is Escalation and tab 2
 		// is Skirmish — rather than written here, so nothing on the bar is wording nobody signed off.
-		TimelineBand[] BuildBands(TimelineMarker[] built)
+		// `warheads` is PASSED IN rather than found. It used to be located by testing `OptionId == null`,
+		// which identified the derived Escalation marker only by accident of it being the one marker
+		// with no option behind it; the Skirmish marker carries `nuclear-unlock-interval` and would
+		// have been missed, silently dropping the amber band in the default game mode.
+		TimelineBand[] BuildBands(TimelineMarker[] built, int warheads)
 		{
 			if (built.Length == 0)
 				return Array.Empty<TimelineBand>();
 
 			var lineLifts = Array.FindIndex(built, m => m.OptionId == DefconEscalationInfo.PaceOptionId);
-			var warheads = Array.FindIndex(built, m => m.OptionId == null);
 			var ends = Array.FindIndex(built, m => m.OptionId == "timelimit");
 
 			var result = new List<TimelineBand>();
@@ -362,10 +463,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			return result.ToArray();
 		}
 
+		// SINCE 2026-09-11 THE SECOND OF THESE IS TRUE. It used to caption a band whose start came from
+		// the DEFCON clock while Skirmish sold nuclear weapons from the first second; the band now
+		// starts where NuclearUnlockClock actually opens the shop.
 		string WarheadBandText()
 		{
-			var mode = RawOption(DefconEscalationInfo.ModeOptionId, nameof(DefconGameMode.Skirmish).ToLowerInvariant());
-			return string.Equals(mode, nameof(DefconGameMode.Escalation), StringComparison.OrdinalIgnoreCase)
+			return IsEscalation()
 				? "WARHEADS ISSUED · EITHER SIDE MAY FIRE"
 				: "NUCLEAR WEAPONS PURCHASABLE";
 		}

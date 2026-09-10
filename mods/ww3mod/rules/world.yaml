@@ -790,6 +790,32 @@ World:
 		# option would take `powers.event` away from them; hiding it does nothing to them at all.
 		PowersSandboxCheckboxVisible: False
 
+	# SKIRMISH'S NUCLEAR UNLOCK CLOCK -- the two dropdowns that decide WHEN each yield band comes up
+	# for sale, and the only thing that makes the lobby timeline's amber band true.
+	#
+	# WHAT IT FIXES. The timeline draws `NUCLEAR WEAPONS PURCHASABLE` from ten minutes in. Before this
+	# trait was registered that band was FALSE in Skirmish -- the default mode -- because every
+	# buy-tier nuclear power is gated on `Prerequisites: powers.america` / `powers.russia`, a faction
+	# gate with no time component anywhere, so nukes were on sale from the first second. Decision 22:
+	# the user chose to build the clock rather than trim the bar.
+	#
+	# IT GRANTS NOTHING AND GATES NOTHING BY ITSELF. GrantConditionOnNuclearRelease on the Player
+	# actor (rules/player.yaml) reads the released rung and grants the SAME band conditions Escalation
+	# grants, which every nuclear power already names in its own RequiresCondition. That is why no new
+	# prerequisite was needed: per-rung gating was already in YAML, and only the source of the rung
+	# is new.
+	#
+	# REGISTERING IT IS THE WHOLE BEHAVIOUR CHANGE, AND REMOVING IT IS THE WHOLE REVERT. A missing
+	# trait reads as "every band released", so a map or scenario that strips it gets the pre-clock
+	# Skirmish match back with no other edit.
+	#
+	# DEFAULTS ARE C# AND ARE DELIBERATELY NOT OVERRIDDEN HERE: 10 minutes, capped at 100 kt. The
+	# interval default matches what the bar draws; whether 5-7 minutes plays better is decision 16's
+	# OPEN QUESTION and is the user's to answer from the lobby, not a value to tune here. The cap
+	# stops below the game-enders by user ruling (decision 17.3) and cannot be raised past them from
+	# YAML at all -- NuclearUnlockSchedule.ClampCap enforces it in code.
+	NuclearUnlockClock:
+
 	# DEFCON ESCALATION -- the match-wide alert level, and the three dropdowns that configure it.
 	# The player-actor half (DefconCasualtyObserver, GrantConditionOnDefconLevel) is in player.yaml.
 	#

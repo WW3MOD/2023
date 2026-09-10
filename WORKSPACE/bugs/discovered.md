@@ -5004,3 +5004,56 @@ about `make.ps1 check`.** Worth knowing before assuming CI and the local build a
 
 (found while working on: the DEFCON 3 dividing wall, `wt/defcon-wall`; hit when running the Debug
 analyzer build to get StyleCop coverage that the Release build does not provide)
+
+## Every Time Limit in the mod is 4% SHORT — `1000 / Timestep` truncates 16.67 tps to 16
+
+**Verified 2026-09-11 at `main @ 86547ce1`, by reading `TimeLimitManager.cs`.** The lobby's Time Limit
+is converted from minutes to ticks in two steps:
+
+```csharp
+ticksPerSecond = 1000 / self.World.Timestep;   // :118
+...
+TimeLimit *= 60 * ticksPerSecond;              // :132  "Convert from minutes to ticks"
+```
+
+**Both lines are integer arithmetic, and at this mod's 60 ms timestep `1000 / 60` is 16, not 16.67.**
+So a minute becomes 960 ticks instead of 1000, and every shipped `TimeLimitOptions` value
+(`10/20/30/40/60/90`) expires **4% early**:
+
+| set | ticks | real time | short by |
+|---|---|---|---|
+| 10 min | 9600 | 9:36 | 24 s |
+| 30 min | 28800 | 28:48 | 1:12 |
+| 60 min | 57600 | 57:36 | 2:24 |
+| 90 min | 86400 | 86:24 | 3:36 |
+
+**The fix is to multiply before dividing** — `minutes * 60 * 1000 / self.World.Timestep`, which is
+exactly 10000 ticks for ten minutes and exact for every value in the set. **It is deliberately NOT
+applied here**, because it lengthens every timed match on every shipped map: `DoomsdayStrike` fires its
+nuclear ending off this same expiry, `TimeLimitWarnings` are keyed to remaining minutes, and the
+tournament and autotest timings were all measured against the current (short) clock. That is a
+behaviour change wanting its own branch and a re-read of those timings, not a drive-by from an
+unrelated one.
+
+**The `TimeLimitTicks` override path is UNAFFECTED** and needs no audit: it returns before the
+conversion (`:120-124`), so scenarios that set raw ticks are already exact.
+
+**Why it is invisible, and this is the reusable part: the countdown label is derived from the same
+wrong number, so the UI cannot reveal it.** `ticksRemaining = TimeLimit - WorldTick` and the label
+formats that, so the clock counts down to zero perfectly — it just starts from a value 4% too small.
+There is no second source of truth on screen to disagree with it, and nobody times a match with a
+stopwatch. A shared error between a deadline and its own display is self-consistent and therefore
+unfalsifiable from the UI.
+
+**And the cause is inherited-code-meets-changed-constant, which predicts where else to look.** The
+expression is only lossy when the timestep does not divide 1000: upstream OpenRA's default is 40 ms and
+`1000 / 40 = 25` **exactly**, so this code was correct in the engine it came from and became wrong the
+day WW3MOD moved the timestep to 60 ms (`mods/ww3mod/mod.yaml`). **Any inherited `1000 / Timestep` in
+this tree is suspect for the same reason** — and note this is a THIRD failure mechanism distinct from
+the "assumed 25 tps" family `DOCS/reference/conventions.md` tracks at ten-plus sites: that one writes
+the wrong constant, this one computes the right one and truncates it. Both land a few per cent from
+plausible, which is what lets them survive review.
+
+(found while working on: the Skirmish nuclear unlock clock, `wt/unlock-clock`; hit when picking a
+minutes-to-ticks conversion and checking the obvious in-tree precedent before copying it —
+`NuclearUnlockSchedule.TicksForMinutes` multiplies first and pins the 10000 with an assertion)

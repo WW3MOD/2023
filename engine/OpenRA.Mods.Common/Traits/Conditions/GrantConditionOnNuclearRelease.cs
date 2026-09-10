@@ -47,13 +47,33 @@
  * fail safe to off. A condition has no such fallback -- an ungranted name is simply false -- so the
  * positive form already fails safe: strip this trait and every nuclear power goes dark.
  *
- * And it is simultaneously what makes SKIRMISH A STRICT NO-OP, which is the load-bearing constraint
- * on this whole branch. Outside DEFCON Escalation this trait grants EVERY band on the first tick
- * and never moves again, so a Skirmish match permits exactly what it permitted before the ladder
- * existed. That is not a nicety: Skirmish is the shipped default game mode, the user tests from
- * main, and every nuclear demo and test scenario under tools/autotest/scenarios runs in it. A
- * restrictive default here would have switched off six weapons in demo-nuke-arsenal and reported it
- * as nothing more than a scenario that stopped firing.
+ * ==== SKIRMISH IS NO LONGER A STRICT NO-OP HERE, AND THAT IS THE POINT OF THE CHANGE ====
+ * THIS SECTION USED TO SAY the opposite: "Outside DEFCON Escalation this trait grants EVERY band on
+ * the first tick and never moves again." That was true when it was written and is now false, because
+ * the thing it protected turned out to be a LIE THE LOBBY WAS TELLING. The shipped timeline draws an
+ * amber band captioned NUCLEAR WEAPONS PURCHASABLE from ten minutes in, and in Skirmish -- the
+ * DEFAULT mode -- every nuclear power was on sale from the first second. The user's ruling
+ * (decision 22) was to make the bar true rather than trim it.
+ *
+ * So outside Escalation the released rung now comes from NuclearUnlockClock, which is Skirmish's own
+ * clock: bands come up FOR SALE one interval apart, ten minutes apart by default. See that file for
+ * the three ways it is suspended -- Escalation, Sandbox, and an interval of 0 -- in each of which it
+ * reports the top of the ladder and this trait behaves exactly as it did before.
+ *
+ * WHAT THE OLD PARAGRAPH WAS RIGHT ABOUT, AND WHAT KEEPS IT SATISFIED. Its warning was concrete: a
+ * restrictive default here "would have switched off six weapons in demo-nuke-arsenal and reported it
+ * as nothing more than a scenario that stopped firing." Nine scenarios under tools/autotest/scenarios
+ * fire nuclear powers and all of them fire inside the first three minutes, so that hazard is real and
+ * unchanged. It is answered rather than accepted: EIGHT of the nine set
+ * PowersSandboxCheckboxEnabled: true, and Sandbox suspends the clock, so they are exempt with no edit
+ * to any of them. The ninth (test-tacnuke-lobby-gated-off) never needed an exemption -- its positive
+ * control is the Kinzhal, which is conventional and carries no NuclearYieldTons, so no band gates it.
+ * A future scenario that fires a nuke WITHOUT sandbox is the case to watch: it must set the interval
+ * to 0 or it will go quiet exactly as that warning describes.
+ *
+ * THE TSAR BOMBA IS UNTOUCHED. UnrestrictedCondition is still granted whenever the mode is not
+ * Escalation, on the first tick, regardless of the clock -- decision 04 keeps that weapon out of
+ * normal play by a route no schedule and no ceiling can reach, and the clock does not participate.
  */
 
 using System.Collections.Generic;
@@ -62,9 +82,14 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[TraitLocation(SystemActors.Player)]
-	[Desc("Grants a condition for each nuclear yield band the release ladder has opened, and revokes",
-		"them as the ladder moves. Attach to the Player actor. Requires " + nameof(DefconEscalation),
-		"on the World actor; without it every band is granted, which is the pre-ladder behaviour.")]
+	[Desc("Grants a condition for each nuclear yield band that is currently released, and revokes them",
+		"as the ladder moves. Attach to the Player actor.",
+		"",
+		"TWO SOURCES, ONE PER GAME MODE, and they are different mechanisms rather than two settings of",
+		"one: in DEFCON Escalation the rung comes from " + nameof(DefconEscalation) + "'s pressure",
+		"ladder, which is CLIMBED BY FIRING; outside it the rung comes from " + nameof(NuclearUnlockClock),
+		", which is a CLOCK and makes bands purchasable on an interval. With neither trait on the World",
+		"actor every band is granted, which is the pre-ladder behaviour.")]
 	public class GrantConditionOnNuclearReleaseInfo : TraitInfo
 	{
 		[GrantedConditionReference]
@@ -106,6 +131,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly List<int> tokens = new List<int>();
 
 		DefconEscalation escalation;
+		NuclearUnlockClock unlockClock;
 		int heldRung = -1;
 		bool heldUnrestricted;
 
@@ -130,6 +156,7 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyCreated.Created(Actor self)
 		{
 			escalation = self.World.WorldActor.TraitOrDefault<DefconEscalation>();
+			unlockClock = self.World.WorldActor.TraitOrDefault<NuclearUnlockClock>();
 
 			// Applied immediately so the opening bands are held from the first tick rather than one
 			// tick in -- which matters here in a way it does not for DEFCON, because a power's cameo
@@ -148,11 +175,18 @@ namespace OpenRA.Mods.Common.Traits
 
 		void Apply(Actor self)
 		{
-			// A stripped DefconEscalation reads as "not Escalation", i.e. fully released. See the
-			// file header: that is the pre-ladder behaviour, and it is what keeps a scenario that
-			// strips World traits working exactly as it did.
+			// A stripped DefconEscalation reads as "not Escalation", i.e. Skirmish. See the file
+			// header: that is the pre-ladder behaviour, and it is what keeps a scenario that strips
+			// World traits working exactly as it did.
 			var unrestricted = escalation == null || escalation.Mode != DefconGameMode.Escalation;
-			var rung = unrestricted ? NuclearReleaseLadder.Highest : escalation.NuclearRungFor(self.Owner);
+
+			// OUTSIDE ESCALATION THE CLOCK DECIDES, and a MISSING clock still grants everything --
+			// which is what makes registering NuclearUnlockClock the whole of the behaviour change,
+			// and un-registering it the whole of the revert. A scenario or map that strips the trait
+			// gets the pre-clock Skirmish match back with no other edit.
+			var rung = unrestricted
+				? unlockClock?.ReleasedRung ?? NuclearReleaseLadder.Highest
+				: escalation.NuclearRungFor(self.Owner);
 
 			if (rung == heldRung && unrestricted == heldUnrestricted)
 				return;

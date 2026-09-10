@@ -603,5 +603,221 @@ namespace OpenRA.Test
 					"common|hotkeys/supportpowers.yaml stops at SupportPower06, so every slot above " +
 					"that must be defined in ww3mod|hotkeys.yaml");
 		}
+
+		// ---------- the unlock ladder: which BAND each purchasable warhead names ----------
+		//
+		// SCOPE, HONESTLY, BECAUSE THE TITLES BELOW PROMISE MORE THAN THEY CHECK. These read the two
+		// YAML files and compare strings. They prove that every purchasable nuclear power names the
+		// band condition its own declared yield falls in, and that those bands ascend with yield. They
+		// do NOT prove that a revoked band condition removes a shop entry (that rests on
+		// SupportPowerInstance.Permitted folding in instancesEnabled, SupportPowerManager.cs:160-166,
+		// and is not reachable without a World), that the clock ticks, that Sandbox suspends it, or
+		// that the lobby draws anything. NuclearUnlockScheduleTest covers the arithmetic; nothing in
+		// this suite covers the three integration seams, which is what a launch is for.
+
+		/// <summary>
+		/// Every support power trait in the mod with all four fields this fixture needs, merged across
+		/// both files by TRAIT KEY. The merge is not optional: rules/player.yaml deliberately carries
+		/// the tier for the ten powers DEFINED in nuclear-arsenal.yaml, so a per-file walk sees a
+		/// yield with no tier and a tier with no yield and concludes nothing is gated.
+		/// </summary>
+		static IEnumerable<(string Trait, string Order, bool Purchasable, string Prerequisites, int Tons, string Condition)> NuclearRows()
+		{
+			var order = new Dictionary<string, string>();
+			var purchasable = new Dictionary<string, bool>();
+			var prereqs = new Dictionary<string, string>();
+			var tons = new Dictionary<string, int>();
+			var conditions = new Dictionary<string, string>();
+
+			foreach (var file in new[] { FindMod("rules", "player.yaml"), FindMod("rules", "ingame", "nuclear-arsenal.yaml") })
+			{
+				var player = MiniYaml.FromFile(file).FirstOrDefault(n => n.Key == "Player");
+				if (player == null)
+					continue;
+
+				foreach (var trait in player.Value.Nodes)
+				{
+					if (!trait.Key.Split('@')[0].EndsWith("Power", StringComparison.Ordinal))
+						continue;
+
+					var o = Field(trait, "OrderName");
+					if (o != null)
+						order[trait.Key] = o;
+
+					var rp = Field(trait, "RequiresPurchase");
+					if (rp != null)
+						purchasable[trait.Key] = string.Equals(rp, "True", StringComparison.OrdinalIgnoreCase);
+
+					var pr = Field(trait, "Prerequisites");
+					if (pr != null)
+						prereqs[trait.Key] = pr;
+
+					var ny = Field(trait, "NuclearYieldTons");
+					if (ny != null && int.TryParse(ny, System.Globalization.NumberStyles.Integer,
+						System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+						tons[trait.Key] = parsed;
+
+					var rc = Field(trait, "RequiresCondition");
+					if (rc != null)
+						conditions[trait.Key] = rc;
+				}
+			}
+
+			foreach (var (trait, o) in order)
+				yield return (trait, o,
+					purchasable.TryGetValue(trait, out var p) && p,
+					prereqs.TryGetValue(trait, out var pr) ? pr : null,
+					tons.TryGetValue(trait, out var t) ? t : 0,
+					conditions.TryGetValue(trait, out var c) ? c : null);
+		}
+
+		/// <summary>The buy-tier nuclear powers: purchasable, faction-gated, and carrying a real yield.</summary>
+		// `powers.event` is excluded deliberately -- it is provided by no faction ever, so those powers
+		// are not on the shop floor at all and are not part of any unlock ladder.
+		static (string Trait, string Order, int Tons, string Condition)[] BuyTierNukes()
+		{
+			return NuclearRows()
+				.Where(r => r.Purchasable && r.Tons > 0 && r.Prerequisites != null)
+				.Where(r => r.Prerequisites.Contains("powers.america", StringComparison.Ordinal)
+					|| r.Prerequisites.Contains("powers.russia", StringComparison.Ordinal))
+				.Select(r => (r.Trait, r.Order, r.Tons, r.Condition))
+				.ToArray();
+		}
+
+		[Test]
+		public void EveryPurchasableNuclearPowerDeclaresTheUnlockBandItsYieldFallsIn()
+		{
+			// THE LADDER'S ONE LOAD-BEARING STRING LINK, and it is invisible to the compiler: the gate
+			// is a condition NAME in a RequiresCondition expression, and the mapping from a warhead's
+			// yield to the band that releases it lives in NuclearReleaseLadder's table. A power naming
+			// the band ABOVE its yield unlocks late; one naming the band BELOW unlocks early. Neither
+			// is an error anywhere -- both just shift when a cameo appears, by ten minutes.
+			var conditions = new OpenRA.Mods.Common.Traits.GrantConditionOnNuclearReleaseInfo().Conditions;
+			var rows = BuyTierNukes();
+
+			Assert.That(rows, Is.Not.Empty, "found no buy-tier nuclear powers; the walk is broken");
+
+			foreach (var (trait, order, tons, condition) in rows)
+			{
+				var rung = OpenRA.Mods.Common.Traits.NuclearReleaseLadder.RungForYield(tons);
+				Assert.That(conditions.ContainsKey(rung), Is.True,
+					$"{trait} is {tons} t, which is rung {rung}, and no band condition is defined for it");
+
+				Assert.That(condition, Is.Not.Null,
+					$"{trait} ({order}, {tons} t) has no RequiresCondition at all, so it is purchasable " +
+					"from the first second in every mode -- which is the exact defect the unlock clock " +
+					"was built to fix.");
+
+				Assert.That(condition, Does.Contain(conditions[rung]),
+					$"{trait} is {tons} t ({tons / 1000.0:0.#} kt) = rung {rung}, so it must be gated on " +
+					$"`{conditions[rung]}`, but its RequiresCondition is `{condition}`. Read the yield out " +
+					"of the weapon file, never off the power's name.");
+			}
+		}
+
+		[Test]
+		public void TheUnlockBandsAscendWithYieldWithinEachFactionsLadder()
+		{
+			// "The rungs are ordered by ascending yield", asserted as the property that actually
+			// matters: sort each faction's ladder by yield and the band index must never go DOWN. A
+			// pair that swapped would put the bigger warhead on sale first, which is the one ordering
+			// failure a player would feel and the one nothing else here would catch.
+			foreach (var tier in new[] { "powers.america", "powers.russia" })
+			{
+				var ladder = NuclearRows()
+					.Where(r => r.Purchasable && r.Tons > 0 && r.Prerequisites != null)
+					.Where(r => r.Prerequisites.Contains(tier, StringComparison.Ordinal))
+					.OrderBy(r => r.Tons)
+					.Select(r => (r.Trait, r.Tons, Rung: OpenRA.Mods.Common.Traits.NuclearReleaseLadder.RungForYield(r.Tons)))
+					.ToArray();
+
+				Assert.That(ladder.Length, Is.GreaterThanOrEqualTo(2),
+					$"{tier} has fewer than two nuclear rungs, so this assertion is vacuous for it");
+
+				for (var i = 1; i < ladder.Length; i++)
+					Assert.That(ladder[i].Rung, Is.GreaterThanOrEqualTo(ladder[i - 1].Rung),
+						$"{tier}: {ladder[i].Trait} ({ladder[i].Tons} t) sits on rung {ladder[i].Rung}, BELOW " +
+						$"{ladder[i - 1].Trait} ({ladder[i - 1].Tons} t) on rung {ladder[i - 1].Rung}. The " +
+						"bigger warhead would come up for sale first.");
+
+				// And every rung the clock can sell is within its reach -- a buy-tier warhead above the
+				// purchasable ceiling would be a cameo that never appears in Skirmish at any interval.
+				foreach (var entry in ladder)
+					Assert.That(entry.Rung, Is.LessThanOrEqualTo(OpenRA.Mods.Common.Traits.NuclearUnlockSchedule.HighestPurchasableRung),
+						$"{entry.Trait} ({entry.Tons} t) is on rung {entry.Rung}, above the Skirmish " +
+						"schedule's ceiling, so it can never be bought however long the match runs");
+			}
+		}
+
+		[Test]
+		public void NothingAboveTheHundredKilotonBandIsOnAFactionTier()
+		{
+			// THE OTHER HALF OF DECISION 17.3 -- "Game-enders are NEVER purchasable in Skirmish", the
+			// user's own ruling and stricter than it was recommended. NuclearUnlockScheduleTest pins
+			// that the CLOCK never releases that band; this pins that no warhead big enough to need it
+			// is on a faction tier in the first place, so the two together are what make the rule hold
+			// however the schedule is retuned.
+			var tooBig = NuclearRows()
+				.Where(r => r.Purchasable && r.Prerequisites != null)
+				.Where(r => OpenRA.Mods.Common.Traits.NuclearReleaseLadder.RungForYield(r.Tons)
+					> OpenRA.Mods.Common.Traits.NuclearUnlockSchedule.HighestPurchasableRung)
+				.Where(r => r.Prerequisites.Contains("powers.america", StringComparison.Ordinal)
+					|| r.Prerequisites.Contains("powers.russia", StringComparison.Ordinal))
+				.Select(r => $"{r.Trait} ({r.Tons} t)")
+				.ToArray();
+
+			Assert.That(tooBig, Is.Empty,
+				"these warheads are above the 100 kt band AND on a faction tier, so a Skirmish player " +
+				"could buy a game-ender: " + string.Join(", ", tooBig) + ". Decision 17.3 says they are " +
+				"reachable in Escalation or from a Time Limit the host set, and never bought.");
+		}
+
+		[Test]
+		public void TheUnlockClockIsRegisteredAndItsOptionsAreWellFormed()
+		{
+			// Registration first: the clock is what makes the lobby's amber band true, and an
+			// UNREGISTERED trait fails in the safe-but-silent direction -- every band granted, nukes on
+			// sale from the first second, i.e. exactly the behaviour this branch exists to end, with no
+			// error anywhere to say so.
+			var world = MiniYaml.FromFile(FindMod("rules", "world.yaml")).First(n => n.Key == "World");
+			Assert.That(world.Value.Nodes.Any(n => n.Key.Split('@')[0] == "NuclearUnlockClock"), Is.True,
+				"rules/world.yaml does not register NuclearUnlockClock, so the Skirmish unlock schedule " +
+				"does not run and the lobby timeline's `NUCLEAR WEAPONS PURCHASABLE` band is a lie again.");
+
+			var info = new OpenRA.Mods.Common.Traits.NuclearUnlockClockInfo();
+
+			// THE DEFAULT MUST BE A KEY OF ITS OWN Values SET, and this is the assertion with teeth.
+			// The server validates an incoming value with Values.ContainsKey, but
+			// LobbySettingsNotification.cs:39 then indexes Values UNCHECKED on live session state -- so
+			// an out-of-set value throws KeyNotFoundException on the next CLIENT JOIN. The host sees a
+			// working lobby and the next player to connect is thrown out.
+			var intervals = info.IntervalValues();
+			Assert.That(intervals.ContainsKey(info.IntervalDefault.ToString(System.Globalization.CultureInfo.InvariantCulture)), Is.True,
+				$"the interval default ({info.IntervalDefault}) is not one of its own option values");
+
+			var yields = OpenRA.Mods.Common.Traits.NuclearUnlockClockInfo.HighestYieldValues();
+			Assert.That(yields.ContainsKey(info.HighestYieldDefault.ToString().ToLowerInvariant()), Is.True,
+				$"the highest-yield default ({info.HighestYieldDefault}) is not one of its own option values");
+
+			// TEN MINUTES, matching what the shipped bar draws (decision 22). Whether 5-7 plays better
+			// is decision 16's OPEN QUESTION and is the user's to answer from the lobby -- which is why
+			// both are in the value set and why this pins only the DEFAULT.
+			Assert.That(info.IntervalDefault, Is.EqualTo(10),
+				"the unlock interval no longer defaults to the ten minutes the lobby timeline draws");
+			Assert.That(intervals.Keys, Is.SupersetOf(new[] { "5", "7" }),
+				"decision 16's open tuning question (whether 5-7 minutes plays better) must be " +
+				"answerable from the lobby rather than needing a rebuild");
+
+			// The no-wait opt-out. It is what a future nuke scenario without sandbox would set, and the
+			// only way back to the pre-clock behaviour without editing the mod.
+			Assert.That(intervals.Keys, Contains.Item("0"),
+				"the interval has no `0` opt-out, so a scenario that fires a nuke outside sandbox has " +
+				"no way to switch the wait off and would silently stop firing");
+
+			// And the game-ender band is not offered at all -- decision 17.3, no host override.
+			Assert.That(yields.Keys, Has.No.Member(OpenRA.Mods.Common.Traits.NuclearRung.GameEnder.ToString().ToLowerInvariant()),
+				"the highest-yield dropdown offers the game-ender band; decision 17.3 says a host " +
+				"cannot reach it in Skirmish at all");
+		}
 	}
 }

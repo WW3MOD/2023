@@ -1494,13 +1494,26 @@ Player:
 	# Every nuclear power in the mod is gated on the band its own warhead falls in -- ten in
 	# rules/ingame/nuclear-arsenal.yaml, three in this file (@B61Mid, @TacNuke, @HighYieldNuke).
 	#
-	# OUTSIDE DEFCON ESCALATION THIS GRANTS EVERYTHING, on the first tick, forever. That is what
-	# keeps Skirmish a strict no-op: it is the shipped default game mode and every nuclear demo and
-	# test scenario runs in it, so those matches permit exactly what they permitted before the
-	# ladder existed. Do not "tighten" this to Escalation-only without also rewriting every scenario
-	# under tools/autotest/scenarios that fires a nuke -- the symptom is a demo that silently stops
-	# firing rather than an error.
+	# TWO SOURCES, ONE PER MODE. CORRECTED 2026-09-11: this block used to say "OUTSIDE DEFCON
+	# ESCALATION THIS GRANTS EVERYTHING, on the first tick, forever", which was true when written and
+	# is now false by design. In Escalation the rung still comes from the pressure ladder, climbed by
+	# firing. In Skirmish it comes from NuclearUnlockClock (world.yaml), a CLOCK: the bands come up
+	# FOR SALE one interval apart, ten minutes apart on the shipped default.
 	#
-	# `nuclear-release-unrestricted` is the Tsar Bomba's gate and is granted in exactly the modes
-	# above, never inside Escalation. Decision 04: the weapon stays in code, out of normal play.
+	# WHY IT CHANGED. The lobby timeline draws an amber band captioned NUCLEAR WEAPONS PURCHASABLE
+	# from ten minutes in, and in Skirmish -- the default mode -- every nuclear power was buyable from
+	# the first second, because the only gate was `Prerequisites: powers.america` / `powers.russia`
+	# and a faction is not a clock. The user's ruling (decision 22) was to make the bar true.
+	#
+	# THE WARNING THE OLD TEXT CARRIED IS STILL LIVE, so read it before touching either trait: nine
+	# scenarios under tools/autotest/scenarios fire nuclear powers and every one fires inside the
+	# first three minutes, so a schedule that applied to them would show up as a demo that silently
+	# stops firing rather than as an error. Eight of the nine set PowersSandboxCheckboxEnabled: true
+	# and Sandbox SUSPENDS the clock, which is why none of them needed an edit; the ninth
+	# (test-tacnuke-lobby-gated-off) is gated on a conventional control with no yield at all. A NEW
+	# scenario that fires a nuke without sandbox must set `nuclear-unlock-interval` to 0.
+	#
+	# `nuclear-release-unrestricted` is the Tsar Bomba's gate, is granted whenever the mode is not
+	# Escalation, and the clock DOES NOT TOUCH IT -- decision 04 keeps that weapon out of normal play
+	# by a route no schedule and no ceiling can reach.
 	GrantConditionOnNuclearRelease:
