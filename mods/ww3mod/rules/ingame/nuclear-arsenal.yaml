@@ -135,10 +135,12 @@ Player:
 	# The only differences a player can see are the yield in the name and the size of the hole, which
 	# is exactly what dial-a-yield is.
 	MissileStrikePower@B61Max:
-		# The 50-100 kt rung. Note the SAME BOMB as @B61Low above sits two rungs higher purely
-		# because of its dial setting -- which is the clearest statement the ladder can make that a
-		# rung is about yield and not about which weapon it is.
-		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-100kt
+		# The 50 kt rung. SPLIT OFF FROM THE 100 kt RUNG ON 2026-09-10 (user ruling): this weapon and
+		# the Kinzhal-N shared a rung with the W76 and the Kalibr until then, and the condition here
+		# changed with it. Note the SAME BOMB as @B61Low above sits two rungs higher purely because
+		# of its dial setting -- which is the clearest statement the ladder can make that a rung is
+		# about yield and not about which weapon it is.
+		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-50kt
 		# 50000 t = 50 kt (weapons-nuclear-arsenal.yaml:1435).
 		NuclearYieldTons: 50000
 		OrderName: B61MaxStrike
@@ -177,7 +179,8 @@ Player:
 
 	# ---- W76-1: 100 kt ------------------------------------------------------------------------
 	MissileStrikePower@W76:
-		# Top of the "50-100 kt" band as the user drew it.
+		# The 100 kt rung, which has been its OWN rung since the 2026-09-10 split -- it was the top
+		# of a combined "50-100 kt" band before that, shared with the 50 kt @B61Max above.
 		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-100kt
 		# 100000 t = 100 kt (weapons-nuclear-arsenal.yaml:1854).
 		NuclearYieldTons: 100000
@@ -531,9 +534,10 @@ Player:
 	# Nuclear warhead on the airframe the mod already flies as a conventional strike. Identical
 	# blast to @B61Max, and the least warning of anything in the arsenal.
 	MissileStrikePower@RuKinzhalN:
-		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-100kt
+		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-50kt
 		# 50000 t = 50 kt (weapons-nuclear-arsenal.yaml:4514). Identical yield to @B61Max, so the
-		# two are released on the same rung -- which is the point of a shared ladder.
+		# two are released on the same rung -- which is the point of a shared ladder. That rung is
+		# the 50 kt one as of 2026-09-10; both moved off the combined 50-100 kt band together.
 		NuclearYieldTons: 50000
 		OrderName: RuKinzhalNStrike
 		# OWN CAMEO SINCE 2026-09-09: a MiG-31 carrying the Kinzhal, deliberately a DIFFERENT photograph

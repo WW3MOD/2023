@@ -115,7 +115,9 @@ namespace OpenRA.Test
 			// match" setting, and nothing above GameEnder -- the Tsar Bomba is not a rung and must
 			// never become selectable by adding one here.
 			var ceiling = options.First(o => o.Id == DefconEscalationInfo.CeilingOptionId);
-			Assert.That(ceiling.Values.Keys, Is.EquivalentTo(new[] { "hold", "kiloton", "twentykiloton", "hundredkiloton", "gameender" }));
+			// SIX since the 50/100 kt split of 2026-09-10 -- HOLD plus five yield rungs, where the
+			// combined "50-100 kt" entry used to be one.
+			Assert.That(ceiling.Values.Keys, Is.EquivalentTo(new[] { "hold", "kiloton", "twentykiloton", "fiftykiloton", "hundredkiloton", "gameender" }));
 			Assert.That(ceiling.DefaultValue, Is.EqualTo("gameender"));
 		}
 
@@ -230,6 +232,31 @@ namespace OpenRA.Test
 				var atTwo = new DefconEscalationState(DefconGameMode.Escalation, 2, info.TicksAtDefconThree(pace));
 				Assert.That(atTwo.TicksUntilNextLevel, Is.EqualTo(0), $"{pace} put a clock on DEFCON 2.");
 			}
+		}
+
+		[Test]
+		public void TheNuclearReleaseDelayIsTenMinutesAtTheREALTickRate()
+		{
+			var info = new DefconEscalationInfo();
+
+			// 10000 ticks, and the derivation is the point of this test rather than the number.
+			// The timestep is 60 ms (mod.yaml's `default` GameSpeed), so a tick is 0.06 s and the
+			// rate is 1000/60 = 16.67 ticks/s -- NOT 25. Ten minutes is 600 s, and 600 / 0.06 = 10000.
+			Assert.That(info.NuclearReleaseDelayTicks, Is.EqualTo(10000));
+
+			// PINNED AGAINST StandardTicks RATHER THAN JUST RESTATED, which is what makes this a test
+			// of the UNIT and not a copy of the constant. That field is 5000 = 300 s = 5:00 and is
+			// itself guarded above, so ten minutes must be exactly twice it. Reading the rate as
+			// 25 tps gives 15000 ticks for "ten minutes" -- 15 minutes of real time, the 1.5x error
+			// this repo has now made at eleven sites.
+			Assert.That(info.NuclearReleaseDelayTicks, Is.EqualTo(info.StandardTicks * 2),
+				"the release delay is no longer twice the Standard pace clock, so one of the two was " +
+				"converted at a different tick rate from the other");
+
+			// 0 must stay legal: it is the ruling's "opens immediately" and RulesetLoaded refuses
+			// only negatives. Asserted on the validator rather than on the field, which is where a
+			// well-meaning `must be positive` tightening would land.
+			Assert.That(() => ((IRulesetLoaded<ActorInfo>)info).RulesetLoaded(null, null), Throws.Nothing);
 		}
 
 		[Test]

@@ -28,9 +28,23 @@ namespace OpenRA.Test
 		const string Firer = "america";
 		const string Victim = "russia";
 
+		// EVERY TEST THAT IS NOT ABOUT THE GATE STARTS WITH THE GATE ALREADY OPEN, because since the
+		// ruling of 2026-09-10 the ladder ships SHUT: an Escalation match sits at HOLD until DEFCON 1
+		// plus a delay. A fixture that skipped this step would be asserting "the gate is closed"
+		// over and over instead of testing the rung arithmetic each test is actually about.
+		//
+		// The zero delay is a legal shipped setting rather than a test-only door -- there is no
+		// constructor that bypasses the gate, so opening it here means ticking it at DEFCON 1 exactly
+		// as DefconEscalation.Tick does.
 		static NuclearReleaseLadder Escalation(NuclearRung ceiling = NuclearRung.GameEnder)
 		{
-			return new NuclearReleaseLadder(DefconGameMode.Escalation, (int)ceiling);
+			var ladder = new NuclearReleaseLadder(DefconGameMode.Escalation, (int)ceiling);
+
+			Assert.That(ladder.Tick(DefconEscalationState.Floor), Is.True,
+				"a zero delay must open the ladder on the first tick at DEFCON 1");
+			Assert.That(ladder.ReleaseOpen, Is.True, "the fixture failed to open the release gate");
+
+			return ladder;
 		}
 
 		// The yields actually shipped, in tons, read out of the weapon files rather than assumed
@@ -95,7 +109,9 @@ namespace OpenRA.Test
 			// detonating here and the victim must still be released just as far.
 			var ladder = Escalation();
 
-			for (var i = 0; i < 3; i++)
+			// FOUR, not three, since the 50/100 kt split: the ladder opens at 1 kt and the top rung
+			// is now five, so four detonations is what pins it at the top.
+			for (var i = 0; i < 4; i++)
 			{
 				ladder.ReportDetonation(Firer, AtomicTons);
 				Assert.That(ladder.RungFor(Victim), Is.EqualTo(ladder.RungFor(Firer)),
@@ -108,7 +124,7 @@ namespace OpenRA.Test
 			// and accepted this; it is the user's call, not a defect.
 			Assert.That(ladder.DetonationsBy(Victim), Is.EqualTo(0), "the victim has fired nothing");
 			Assert.That(ladder.RungFor(Victim), Is.EqualTo((int)NuclearRung.GameEnder),
-				"opening at the 1 kt rung plus three detonations is the top of the ladder, and a " +
+				"opening at the 1 kt rung plus four detonations is the top of the ladder, and a " +
 				"player who fired none of them must be released exactly as far as the one who did");
 		}
 
@@ -160,7 +176,7 @@ namespace OpenRA.Test
 			// cannot be used in game for now (keep it for sandbox)." Checked at EVERY ceiling and
 			// after enough detonations to pin the ladder at its top, because "out of normal play"
 			// has to mean unreachable rather than merely expensive.
-			foreach (var ceiling in new[] { NuclearRung.Hold, NuclearRung.Kiloton, NuclearRung.TwentyKiloton, NuclearRung.HundredKiloton, NuclearRung.GameEnder })
+			foreach (var ceiling in new[] { NuclearRung.Hold, NuclearRung.Kiloton, NuclearRung.TwentyKiloton, NuclearRung.FiftyKiloton, NuclearRung.HundredKiloton, NuclearRung.GameEnder })
 			{
 				var ladder = Escalation(ceiling);
 				for (var i = 0; i < 20; i++)
@@ -182,7 +198,8 @@ namespace OpenRA.Test
 		[Test]
 		public void EveryShippedYieldLandsOnTheRungTheLadderWasDrawnWith()
 		{
-			// HOLD -> 1 kt -> 20 kt -> 50-100 kt -> 200 kt+, checked against the real yields. This is
+			// HOLD -> 1 kt -> 20 kt -> 50 kt -> 100 kt -> 200 kt+, checked against the real yields.
+			// The 50 kt and 100 kt rungs were ONE rung until the ruling of 2026-09-10. This is
 			// the table most likely to be quietly wrong, because a yield read off a power's NAME
 			// rather than out of its weapon file lands a warhead one rung from where it belongs.
 			var expected = new (int Tons, NuclearRung Rung)[]
@@ -191,7 +208,7 @@ namespace OpenRA.Test
 				(Ru9M729Tons, NuclearRung.Kiloton),
 				(B61MidTons, NuclearRung.TwentyKiloton),
 				(AtomicTons, NuclearRung.TwentyKiloton),
-				(B61MaxTons, NuclearRung.HundredKiloton),
+				(B61MaxTons, NuclearRung.FiftyKiloton),
 				(W76Tons, NuclearRung.HundredKiloton),
 				(SarmatRvTons, NuclearRung.GameEnder),
 				(B83Tons, NuclearRung.GameEnder),
@@ -204,44 +221,68 @@ namespace OpenRA.Test
 					$"{NuclearReleaseLadder.RungForYield(tons)} rather than {rung}");
 
 			// The band edges are INCLUSIVE at the top, which is what puts the 1 kt 9M729 on the
-			// bottom rung with the 0.3 kt B61 rather than one above it, and the 100 kt W76 with the
-			// 50 kt B61Max. Both pairings are the ladder as drawn.
+			// bottom rung with the 0.3 kt B61 rather than one above it.
 			Assert.That(NuclearReleaseLadder.RungForYield(NuclearReleaseLadder.KilotonBandCeilingTons),
 				Is.EqualTo((int)NuclearRung.Kiloton));
 			Assert.That(NuclearReleaseLadder.RungForYield(NuclearReleaseLadder.KilotonBandCeilingTons + 1),
 				Is.EqualTo((int)NuclearRung.TwentyKiloton));
+
+			// THE EDGE THE SPLIT CREATED, and the one most likely to be got wrong by a reader who
+			// remembers the old combined band: 50 kt exactly is the TOP of its own rung, and 50 kt
+			// plus one ton is the 100 kt rung. Before 2026-09-10 both answers were the same rung.
+			Assert.That(NuclearReleaseLadder.RungForYield(NuclearReleaseLadder.FiftyKilotonBandCeilingTons),
+				Is.EqualTo((int)NuclearRung.FiftyKiloton));
+			Assert.That(NuclearReleaseLadder.RungForYield(NuclearReleaseLadder.FiftyKilotonBandCeilingTons + 1),
+				Is.EqualTo((int)NuclearRung.HundredKiloton));
+
 			Assert.That(NuclearReleaseLadder.RungForYield(NuclearReleaseLadder.HundredKilotonBandCeilingTons),
 				Is.EqualTo((int)NuclearRung.HundredKiloton));
 			Assert.That(NuclearReleaseLadder.RungForYield(NuclearReleaseLadder.HundredKilotonBandCeilingTons + 1),
 				Is.EqualTo((int)NuclearRung.GameEnder));
+
+			// The two 50 kt weapons and the two 100 kt weapons are now on DIFFERENT rungs, which is
+			// the whole of the split. Asserted as a pair rather than individually because the failure
+			// mode is them collapsing back onto one rung, not either one moving alone.
+			Assert.That(NuclearReleaseLadder.RungForYield(B61MaxTons),
+				Is.Not.EqualTo(NuclearReleaseLadder.RungForYield(W76Tons)),
+				"the 50 kt and 100 kt weapons share a rung again; the 2026-09-10 split is undone");
 		}
 
 		[Test]
-		public void TheLadderOpensAtTheKilotonRungBecauseGoingFirstMustBePossible()
+		public void OnceOpenTheLadderStartsAtOneKilotonAndClimbsOneRungPerDetonation()
 		{
-			// THE DEADLOCK THIS PREVENTS, stated because an opening rung of HOLD looks like the
-			// obvious reading of "HOLD -> 1 kt -> ..." and is unshippable. The only thing that moves
-			// this ladder is a detonation. If a match opens at HOLD, no warhead is permitted, so no
-			// detonation can occur, so the rung never moves — nuclear weapons would be unreachable
-			// for the whole match in the one mode they are supposed to exist in.
+			// WHY IT DOES NOT OPEN AT HOLD, which looks like the obvious reading of
+			// "HOLD -> 1 kt -> ...": the only thing that CLIMBS this ladder is a detonation, so a
+			// ladder sitting at HOLD with the gate already open would permit no warhead, and no
+			// detonation could occur, and the rung would never move. The gate is what leaves HOLD
+			// (it is a clock), and StartRung is where it leaves HOLD to.
 			//
 			// Decision 06 settles the direction rather than leaving it to taste: its accepted cost
 			// is that "going first is free", which presumes going first is possible.
 			var ladder = Escalation();
 
 			Assert.That(ladder.RungFor(Firer), Is.EqualTo((int)NuclearRung.Kiloton),
-				"an Escalation match must open somewhere a player can actually fire from");
+				"an opened Escalation ladder must sit somewhere a player can actually fire from");
 			Assert.That(ladder.Permits(Firer, B61LowTons), Is.True, "the opening rung released nothing");
 			Assert.That(ladder.Permits(Firer, Ru9M729Tons), Is.True);
 			Assert.That(ladder.Permits(Firer, B61MidTons), Is.False,
 				"the 20 kt band is open before anyone has fired; the ladder must be climbed for it");
 
-			// And it climbs one rung at a time, so the whole ladder is four detonations deep.
+			// One rung at a time, so the whole ladder is FIVE deep and four detonations from the
+			// bottom to the top. It was four deep and three detonations before the 50/100 kt split.
 			ladder.ReportDetonation(Firer, B61LowTons);
 			Assert.That(ladder.Permits(Firer, B61MidTons), Is.True);
-			Assert.That(ladder.Permits(Firer, B61MaxTons), Is.False);
+			Assert.That(ladder.Permits(Firer, B61MaxTons), Is.False, "the 50 kt band opened a rung early");
 
+			// THE RUNG THE SPLIT ADDED. 50 kt is released here and 100 kt is not, which is a state
+			// the ladder could not previously be in: these two came out together.
 			ladder.ReportDetonation(Firer, B61MidTons);
+			Assert.That(ladder.RungFor(Firer), Is.EqualTo((int)NuclearRung.FiftyKiloton));
+			Assert.That(ladder.Permits(Firer, B61MaxTons), Is.True);
+			Assert.That(ladder.Permits(Firer, W76Tons), Is.False,
+				"100 kt came out with 50 kt; that is the pre-split ladder");
+
+			ladder.ReportDetonation(Firer, B61MaxTons);
 			Assert.That(ladder.Permits(Firer, W76Tons), Is.True);
 			Assert.That(ladder.Permits(Firer, HighYieldTons), Is.False);
 
@@ -250,9 +291,114 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void AnEscalationMatchIsAtHoldUntilDefconOne()
+		{
+			// THE RULING OF 2026-09-10, and the half of it that changes what a match feels like:
+			// nuclear weapons do not exist until the shooting war does. Ticked at DEFCON 3 and 2 for
+			// far longer than any shipped pace, with a ZERO delay -- so the only thing keeping the
+			// ladder shut here is the LEVEL, not the clock.
+			var ladder = new NuclearReleaseLadder(DefconGameMode.Escalation, (int)NuclearRung.GameEnder);
+
+			for (var i = 0; i < 20000; i++)
+			{
+				Assert.That(ladder.Tick(DefconEscalationState.Ceiling), Is.False, $"DEFCON 3 opened the ladder on tick {i}");
+				Assert.That(ladder.Tick(2), Is.False, $"DEFCON 2 opened the ladder on tick {i}");
+			}
+
+			Assert.That(ladder.ReleaseOpen, Is.False);
+			Assert.That(ladder.RungFor(Firer), Is.EqualTo((int)NuclearRung.Hold),
+				"a match above DEFCON 1 must read HOLD, whatever the ceiling is");
+
+			foreach (var tons in new[] { B61LowTons, Ru9M729Tons, AtomicTons, B61MaxTons, W76Tons, HighYieldTons })
+				Assert.That(ladder.Permits(Firer, tons), Is.False,
+					$"a {tons} t warhead was permitted before DEFCON 1; the ladder is supposed to be shut");
+
+			// And DEFCON 1 opens it, which is what stops HOLD being the absorbing state it would
+			// otherwise be. THIS ASSERTION IS THE POINT OF THE WHOLE RULING: without it the ladder
+			// as drawn is unclimbable and nuclear weapons are unreachable for the entire match.
+			Assert.That(ladder.Tick(DefconEscalationState.Floor), Is.True, "DEFCON 1 did not open the ladder");
+			Assert.That(ladder.ReleaseOpen, Is.True);
+			Assert.That(ladder.Permits(Firer, B61LowTons), Is.True);
+		}
+
+		[Test]
+		public void TheReleaseDelayIsTicksSpentAtDefconOneAndZeroIsLegal()
+		{
+			const int Delay = 600;
+
+			var ladder = new NuclearReleaseLadder(DefconGameMode.Escalation, (int)NuclearRung.GameEnder,
+				(int)NuclearRung.Kiloton, Delay);
+
+			Assert.That(ladder.TicksUntilRelease, Is.EqualTo(Delay), "the countdown did not start at the delay");
+
+			// TIME ABOVE DEFCON 1 IS NOT ON THE CLOCK. A match that takes a long time to reach the
+			// bottom level still owes the full delay when it gets there, which is what makes this a
+			// countdown to release rather than a match timer.
+			for (var i = 0; i < 5000; i++)
+				ladder.Tick(DefconEscalationState.Ceiling);
+
+			Assert.That(ladder.TicksUntilRelease, Is.EqualTo(Delay), "the countdown ran while above DEFCON 1");
+
+			// Opens on the delay'th tick at DEFCON 1: not one early, not one late.
+			for (var i = 0; i < Delay - 1; i++)
+				Assert.That(ladder.Tick(DefconEscalationState.Floor), Is.False,
+					$"the ladder opened on tick {i + 1} of {Delay}");
+
+			Assert.That(ladder.ReleaseOpen, Is.False, "the ladder opened before its last tick");
+			Assert.That(ladder.Tick(DefconEscalationState.Floor), Is.True, "the ladder did not open on the delay's last tick");
+			Assert.That(ladder.TicksUntilRelease, Is.EqualTo(0));
+
+			// Idempotent afterwards -- Tick returns true exactly once, so a caller can log or notify
+			// on it without latching anything of its own.
+			for (var i = 0; i < 100; i++)
+				Assert.That(ladder.Tick(DefconEscalationState.Floor), Is.False, "the ladder opened twice");
+
+			// ZERO IS A LEGAL DELAY AND MEANS "IMMEDIATELY", which is an explicit part of the ruling.
+			var immediate = new NuclearReleaseLadder(DefconGameMode.Escalation, (int)NuclearRung.GameEnder,
+				(int)NuclearRung.Kiloton, 0);
+
+			Assert.That(immediate.Tick(DefconEscalationState.Floor), Is.True,
+				"a delay of 0 must open the ladder on the tick DEFCON 1 is reached");
+			Assert.That(immediate.Permits(Firer, B61LowTons), Is.True);
+
+			// A negative delay is clamped to 0 rather than read as an unbounded countdown. The Info
+			// field refuses one in RulesetLoaded; this is the class's own floor under that.
+			var negative = new NuclearReleaseLadder(DefconGameMode.Escalation, (int)NuclearRung.GameEnder,
+				(int)NuclearRung.Kiloton, -5000);
+
+			Assert.That(negative.TicksUntilRelease, Is.EqualTo(0));
+			Assert.That(negative.Tick(DefconEscalationState.Floor), Is.True);
+		}
+
+		[Test]
+		public void ADetonationBeforeTheGateOpensDoesNotPreClimbTheLadder()
+		{
+			// Nothing a player can click reaches ReportDetonation while the ladder is shut, because
+			// every nuclear power is gated on a band condition that is not granted. A Lua scenario or
+			// a bot calling DefconEscalation.ReportNuclearRelease directly CAN, and banking those
+			// would let a match arrive at DEFCON 1 with the ladder already part-climbed -- i.e. would
+			// hand the first mover the top of the ladder for free at the moment it opens.
+			var ladder = new NuclearReleaseLadder(DefconGameMode.Escalation, (int)NuclearRung.GameEnder);
+
+			for (var i = 0; i < 20; i++)
+				Assert.That(ladder.ReportDetonation(Firer, HighYieldTons), Is.False,
+					"a detonation moved a ladder that has not opened");
+
+			Assert.That(ladder.Pressure, Is.EqualTo(0), "pressure accumulated before the gate opened");
+			Assert.That(ladder.Detonations, Is.EqualTo(0));
+			Assert.That(ladder.DetonationsBy(Firer), Is.EqualTo(0), "the per-firer tally banked a pre-gate shot");
+
+			ladder.Tick(DefconEscalationState.Floor);
+
+			Assert.That(ladder.RungFor(Firer), Is.EqualTo((int)NuclearRung.Kiloton),
+				"the ladder opened above its starting rung; twenty pre-gate detonations were banked");
+			Assert.That(ladder.Permits(Firer, B61MidTons), Is.False);
+		}
+
+		[Test]
 		public void TheCeilingPinsTheLadderAndHoldMeansNoNuclearWeaponsAtAll()
 		{
-			foreach (var ceiling in new[] { NuclearRung.Hold, NuclearRung.Kiloton, NuclearRung.TwentyKiloton, NuclearRung.HundredKiloton })
+			foreach (var ceiling in new[] { NuclearRung.Hold, NuclearRung.Kiloton, NuclearRung.TwentyKiloton, NuclearRung.FiftyKiloton, NuclearRung.HundredKiloton })
 			{
 				var ladder = Escalation(ceiling);
 				for (var i = 0; i < 20; i++)
@@ -319,8 +465,17 @@ namespace OpenRA.Test
 			var atTop = GrantConditionOnNuclearRelease.ConditionsFor(NuclearReleaseLadder.Highest, conditions).ToArray();
 			Assert.That(atTop, Is.EqualTo(new[]
 			{
-				"nuclear-release-1kt", "nuclear-release-20kt", "nuclear-release-100kt", "nuclear-release-gameender"
+				"nuclear-release-1kt", "nuclear-release-20kt", "nuclear-release-50kt",
+				"nuclear-release-100kt", "nuclear-release-gameender"
 			}), "the top rung must hold every band below it, in rung order");
+
+			// FIVE BANDS SINCE THE SPLIT, and this count is what the YAML consumers are keyed on: an
+			// entry silently missing from the dictionary leaves its weapons ungranted at every rung,
+			// which reads in game as a cameo that never appears rather than as an error anywhere.
+			Assert.That(atTop.Length, Is.EqualTo(5), "a yield band lost its condition");
+			Assert.That(GrantConditionOnNuclearRelease.ConditionsFor((int)NuclearRung.FiftyKiloton, conditions).ToArray(),
+				Is.EqualTo(new[] { "nuclear-release-1kt", "nuclear-release-20kt", "nuclear-release-50kt" }),
+				"the 50 kt rung must release its own band and everything below it, and NOT 100 kt");
 
 			// Every rung's set is a prefix of the next, which is what "cumulative" means and what
 			// lets a weapon name only its own band.

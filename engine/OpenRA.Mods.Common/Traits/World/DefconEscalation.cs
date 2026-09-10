@@ -116,19 +116,39 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Display order for the nuclear ceiling dropdown.")]
 		public readonly int CeilingDisplayOrder = 88;
 
-		[Desc("The rung a DEFCON Escalation match OPENS at, before anybody has fired.",
+		[Desc("The rung a DEFCON Escalation match opens at ONCE THE RELEASE GATE HAS OPENED -- see",
+			nameof(NuclearReleaseDelayTicks) + ". Until then the match is at HOLD and no nuclear",
+			"weapon of any yield is permitted, whatever this says.",
 			"",
 			"NOT A LOBBY OPTION, deliberately -- it is the ladder's shape rather than a host setting,",
 			"and the lobby already carries the ceiling, which is the knob a host actually wants.",
 			"",
-			"IT MUST NOT DEFAULT TO " + nameof(NuclearRung.Hold) + ". The only thing that moves the",
-			"ladder is a detonation, so a match opening at HOLD permits no warhead anyone could fire",
-			"and the ladder can never be climbed. Decision 06 settles the direction: its accepted cost",
-			"is that 'going first is free', which presumes firing first is possible at all.",
-			"",
-			"Binding the opening to DEFCON 1 instead -- nuclear release beginning when the shooting",
-			"war does -- is the obvious refinement and is one Level read away.")]
+			"IT MUST NOT BE SET TO " + nameof(NuclearRung.Hold) + ". The only thing that CLIMBS the",
+			"ladder is a detonation, so a ladder that opened at HOLD would permit no warhead anyone",
+			"could fire and could never be climbed -- the gate would open onto nothing. Decision 06's",
+			"accepted cost is that 'going first is free', which presumes firing first is possible.")]
 		public readonly NuclearRung StartRungDefault = NuclearRung.Kiloton;
+
+		// THE RELEASE GATE'S DELAY, and the arithmetic is written out because this repo has assumed
+		// 25 ticks/second at eleven sites and has been wrong at every one of them.
+		//
+		//     The timestep is 60 ms (mods/ww3mod/mod.yaml:381-382 selects `default`, whose block is
+		//     at :404-407), so one tick is 0.06 s and the rate is 1000/60 = 16.67 ticks/s -- NOT 25.
+		//     10 minutes = 600 s; 600 / 0.06 = 10000 ticks.
+		//
+		// The identity to check it against is the StandardTicks field below: 5000 = 300 s = 5:00, so ten
+		// minutes is exactly twice that field. Reading the rate as 25 tps would have produced 15000,
+		// which is fifteen minutes of real time -- the same 1.5x error, reached the same way.
+		[Desc("Ticks spent at DEFCON 1 before the nuclear release ladder opens. UNTUNED PLACEHOLDER.",
+			"10000 ticks = 600 s = 10:00 at the default 60 ms timestep (16.67 ticks/s, NOT 25).",
+			"",
+			"The clock starts when DEFCON 1 is REACHED, however the match got there -- the 3 -> 2",
+			"clock and then a casualty, or a lobby Start At of 1 -- and does not run before then.",
+			"",
+			"0 IS LEGAL and opens the ladder on the tick DEFCON 1 is reached. It does NOT disable the",
+			"gate: there is deliberately no setting that hands nuclear weapons to a match which has",
+			"not reached DEFCON 1. Negative values are refused in " + nameof(IRulesetLoaded) + ".")]
+		public readonly int NuclearReleaseDelayTicks = 10000;
 
 		// UNTUNED PLACEHOLDERS, all three. Nobody has played this mode; these are round numbers chosen
 		// so the phase is long enough to deploy from the Supply Route and short enough to sit through.
@@ -169,6 +189,14 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (SlowTicks <= 0 || StandardTicks <= 0 || FastTicks <= 0)
 				throw new YamlException($"{nameof(SlowTicks)}, {nameof(StandardTicks)} and {nameof(FastTicks)} must all be positive tick counts.");
+
+			// ZERO IS LEGAL HERE and negative is not, which is the opposite shape to the three above.
+			// 0 means "open the ladder as soon as DEFCON 1 is reached" and is a real setting a map
+			// may want; a negative would silently behave as 0 rather than as anything a reader could
+			// predict from the number they typed.
+			if (NuclearReleaseDelayTicks < 0)
+				throw new YamlException($"{nameof(NuclearReleaseDelayTicks)} must be 0 or positive. " +
+					$"0 opens the nuclear release ladder on the tick DEFCON {DefconEscalationState.Floor} is reached.");
 		}
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
@@ -202,7 +230,8 @@ namespace OpenRA.Mods.Common.Traits
 				{ nameof(NuclearRung.Hold).ToLowerInvariant(), "HOLD - no nuclear weapons" },
 				{ nameof(NuclearRung.Kiloton).ToLowerInvariant(), "1 kt" },
 				{ nameof(NuclearRung.TwentyKiloton).ToLowerInvariant(), "20 kt" },
-				{ nameof(NuclearRung.HundredKiloton).ToLowerInvariant(), "50-100 kt" },
+				{ nameof(NuclearRung.FiftyKiloton).ToLowerInvariant(), "50 kt" },
+				{ nameof(NuclearRung.HundredKiloton).ToLowerInvariant(), "100 kt" },
 				{ nameof(NuclearRung.GameEnder).ToLowerInvariant(), "200 kt+ (game-enders)" },
 			};
 
@@ -250,6 +279,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync]
 		public int NuclearRungLevel => ladder.RungFor(null);
 
+		// THE RELEASE GATE'S COUNTDOWN, hashed for the same reason as the two above: it decides what
+		// a player may fire. It is also the only member of this trait that moves on an ORDINARY tick
+		// rather than on a level change or a detonation, so it is the earliest place a desync here
+		// would surface -- the others can sit identical for minutes while the clocks drift apart.
+		[Sync]
+		public int TicksUntilNuclearRelease => ladder.TicksUntilRelease;
+
 		public DefconEscalation(Actor self, DefconEscalationInfo info)
 		{
 			var settings = self.World.LobbyInfo.GlobalSettings;
@@ -271,11 +307,26 @@ namespace OpenRA.Mods.Common.Traits
 				ceilingRung = info.CeilingDefault;
 
 			state = new DefconEscalationState(Mode, startLevel, info.TicksAtDefconThree(Pace));
-			ladder = new NuclearReleaseLadder(Mode, (int)ceilingRung, (int)info.StartRungDefault);
+			ladder = new NuclearReleaseLadder(Mode, (int)ceilingRung, (int)info.StartRungDefault, info.NuclearReleaseDelayTicks);
 		}
 
 		void ITick.Tick(Actor self)
 		{
+			// THE RELEASE GATE IS TICKED BEFORE THE EARLY RETURN BELOW, and that ordering is
+			// load-bearing rather than tidy: state.Tick() returns false on every tick except the one
+			// the level actually moves, so a gate ticked after it would advance at most twice in a
+			// whole match and the ladder would never open.
+			//
+			// `self` IS the World actor here -- this trait is [TraitLocation(SystemActors.World)] --
+			// so nothing in this class may reach for self.World.WorldActor. DefconWall shipped that
+			// idiom (copied from DefconCasualtyObserver, where it is correct because that trait lives
+			// on the PLAYER actor) and threw a NullReferenceException in every match: World.cs:252 is
+			// the line that assigns WorldActor, so it is still null while world traits are created.
+			// That is a Created hazard rather than a Tick one, but the rule is the same either way.
+			if (ladder.Tick(state.Level))
+				Log.Write("debug", $"NUCLEAR RELEASE OPEN at rung {NuclearRungLevel} " +
+					$"(DEFCON {Level}, tick {self.World.WorldTick}).");
+
 			if (!state.Tick())
 				return;
 
