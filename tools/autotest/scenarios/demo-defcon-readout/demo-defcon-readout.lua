@@ -55,12 +55,6 @@ WorldLoaded = function()
 		Facing = Angle.East,
 	})
 
-	Victim = Actor.Create("truk", true, {
-		Owner = Russia,
-		Location = CPos.New(Ground.X + 2, Ground.Y),
-		Facing = Angle.West,
-	})
-
 	-- Terrain under the bottom-left corner, which is where the readout docks. A camera over
 	-- water or off the playfield would put the panel on black and say nothing about contrast.
 	Camera.Position = WPos.New(Ground.X * 1024 + 512, Ground.Y * 1024 + 512, 0)
@@ -92,33 +86,50 @@ WorldLoaded = function()
 		"panel's bottom edge. FAIL on a three-line wrap or a clipped trigger box -- the fix for " ..
 		"either is one constant, Height: 170 in both chrome files.")
 
-	-- The ordered kill. Autonomous fire is suppressed at DEFCON 2 by the rule being demonstrated,
-	-- so nothing happens here unless it is ordered -- which is the point.
-	Trigger.AfterDelay(360, function()
-		if not Gun.IsDead and not Victim.IsDead then
-			Gun.Attack(Victim, true, true)
-		end
-	end)
+	-- THE VICTIM IS SPAWNED LATE, and the first run of this demo is why. It used to be created in
+	-- WorldLoaded alongside the Abrams -- and the Abrams killed it at TICK 28, because autonomous
+	-- fire is only suppressed at DEFCON 2 and the match opens at DEFCON 3, where autotargeting
+	-- works normally. The kill therefore happened at the wrong level: DefconCasualtyObserver only
+	-- escalates from 2, so the match never reached DEFCON 1, and both frames hanging off OnKilled
+	-- fired ~400 ticks early against a DEFCON 2 screen. The capture came back with five files and
+	-- two of them showing the wrong state.
+	--
+	-- Spawning at t=320 puts the truck on the map AFTER the 3 -> 2 transition at t=300, so the only
+	-- shot ever fired at it is the ordered one below.
+	Trigger.AfterDelay(320, function()
+		Victim = Actor.Create("truk", true, {
+			Owner = Russia,
+			Location = CPos.New(Ground.X + 2, Ground.Y),
+			Facing = Angle.West,
+		})
 
-	-- Both remaining frames hang off the kill, not off a tick.
-	Trigger.OnKilled(Victim, function()
-		Trigger.AfterDelay(15, function()
-			TestHarness.Screenshot("04-banner-2-to-1",
-				"THE 2->1 BANNER, ~15 ticks after the kill that caused it. expects: the band " ..
-				"again full-width, reading DEFCON 1 with a second line naming the cause -- a " ..
-				"life taken, autonomous fire released. FAIL if the banner never appears, which " ..
-				"would mean the casualty observer did not see an ordered kill.")
+		-- Both post-kill frames hang off OnKilled rather than a tick, because the kill tick is the
+		-- one thing in this schedule that cannot be predicted.
+		Trigger.OnKilled(Victim, function()
+			Trigger.AfterDelay(15, function()
+				TestHarness.Screenshot("04-banner-2-to-1",
+					"THE 2->1 BANNER, ~15 ticks after the kill that caused it. expects: the band " ..
+					"full-width, reading DEFCON 1, second line naming the cause -- a life taken, " ..
+					"autonomous fire released. FAIL if no banner: that would mean the casualty " ..
+					"observer did not see an ordered kill.")
+			end)
+
+			Trigger.AfterDelay(420, function()
+				TestHarness.Screenshot("05-defcon1-gate",
+					"DEFCON 1 with the nuclear gate still SHUT. expects: TWO blocks stacked -- the " ..
+					"blue-accented nuclear block above reading RELEASE IN m:ss and counting, the " ..
+					"DEFCON strip below it, a visible gap to the support-power column, and the six " ..
+					"rungs legible at 10 px. FAIL if the blocks overlap, if the strip moved from " ..
+					"where frames 01-03 had it, or if the rung text cannot be read at all.")
+			end)
 		end)
 
-		Trigger.AfterDelay(420, function()
-			TestHarness.Screenshot("05-defcon1-gate",
-				"DEFCON 1 with the nuclear gate still SHUT. expects: TWO blocks stacked -- the " ..
-				"blue-accented nuclear block above reading RELEASE IN m:ss and counting, the " ..
-				"DEFCON strip below it, a visible gap between the nuclear block's top and the " ..
-				"support-power column, and the six rungs legible at 10 px. FAIL if the two " ..
-				"blocks overlap, if the strip moved from where frames 01-03 had it, or if the " ..
-				"rung text cannot be read at all -- that last one is a real risk and the reason " ..
-				"this frame is here.")
+		-- Ordered, not automatic: at DEFCON 2 nothing fires on its own, which is the rule being
+		-- demonstrated. forceAttack is true so the order cannot be refused on stance grounds.
+		Trigger.AfterDelay(40, function()
+			if not Gun.IsDead and not Victim.IsDead then
+				Gun.Attack(Victim, true, true)
+			end
 		end)
 	end)
 end
