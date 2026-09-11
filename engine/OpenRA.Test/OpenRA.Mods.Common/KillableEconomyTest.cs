@@ -17,6 +17,18 @@
  *      without firing the weapon, and the restrictive failure looks exactly like a missile that
  *      missed.
  *
+ * AMENDED 2026-09-11, and rule 2 below now applies to the NUCLEAR TIER ONLY: "Conventional strike
+ * powers should not completely obliterate structures, like the derrick. It should destroy them in
+ * the same way as C4 does, so that it spawns the wrecked actor that can then be repaired with an
+ * engineer and captured again by a technician. Nukes should be the only thing that can obliterate
+ * such a structure within a small area."
+ *
+ * So reach and permanence, which this fixture was originally written to pin TOGETHER, are now
+ * deliberately INDEPENDENT: every weapon on the roster still reaches, and only the two nuclear ones
+ * still suppress the wreck. TechStructureWarheadsSplitPermanenceByTier is where that is enforced,
+ * and it fails in both directions. Read the original rule 2 below as the statement of what the
+ * nuclear tier still does, not as a property of the whole roster.
+ *
  *   2. PERMANENCE. A heavy kill must leave nothing behind. The husk (husks-neutral.yaml) inherits
  *      ^TechBuildingHusk, which carries InfiltrateForTransform against ^E6's
  *      Infiltrates@RestoreTechHusk — one engineer restores the whole structure at 10% HP. So a
@@ -25,8 +37,10 @@
  *      an engineer in, and the money is back. That is precisely the defect reported, and it is
  *      invisible from the attacker's side — the building blew up.
  *
- * The two properties are therefore pinned TOGETHER (TechStructureWarheadsAlsoGrantPermanence), and
- * that pairing is the single most load-bearing assertion here.
+ * The two properties were therefore pinned TOGETHER, and that pairing was the single most
+ * load-bearing assertion here. IT IS NOW A SPLIT rather than a pairing — see the 2026-09-11
+ * amendment below — and the assertion that carries it is TechStructureWarheadsSplitPermanenceByTier,
+ * which enforces reach for the whole roster and permanence for the nuclear tier alone.
  *
  * Reads the shipped YAML through the real manifest merge rather than a fixture, for the reason
  * AirborneArmorTargetableTest gives: the thing being protected is the corpus, and the guard has to
@@ -90,6 +104,33 @@ namespace OpenRA.Test
 			// fires this weapon today (grep returns only its own definition), so it is currently
 			// inert either way.
 			"IskanderExplosionAirborne",
+		};
+
+		/// <summary>
+		/// <para>The NUCLEAR tier, and the ONLY weapons whose kills may leave nothing behind. User
+		/// ruling 2026-09-11: "Conventional strike powers should not completely obliterate
+		/// structures, like the derrick. It should destroy them in the same way as C4 does, so that
+		/// it spawns the wrecked actor that can then be repaired with an engineer and captured
+		/// again by a technician. Nukes should be the only thing that can obliterate such a
+		/// structure within a small area."</para>
+		///
+		/// <para>This is a strict subset of <see cref="ExpectedHeavyWeapons"/>: every weapon here
+		/// can also REACH a tech structure, and the two properties are now independent. The
+		/// complement — IskanderExplosion (+Airborne), MOPPenetration, OreshnikRVExplosion — must
+		/// NOT carry the death type, which is what makes a Kinzhal, a GBU-57 or an Oreshnik leave
+		/// the restorable husk that engineer C4 has always left.</para>
+		///
+		/// <para>NOTE the nuclear tier has a SECOND and independent way to obliterate that no list
+		/// here governs: VaporizeWarhead ignores ValidTargets outright (VaporizeWarhead.cs:83-98),
+		/// so `Warhead@VaporizeRemoval` removes a tech building inside the fireball whatever its
+		/// damage types say. That is the "within a small area" half of the ruling, and it is why
+		/// the ten warheads in weapons-nuclear-arsenal.yaml can erase a derrick while carrying no
+		/// Warhead@TechStructure at all.</para>
+		/// </summary>
+		static readonly string[] ExpectedObliteratingWeapons =
+		{
+			"Atomic",           // tac nuke (MissileStrikePower@TacNuke) + mslo's NukePower
+			"AtomicHighYield",  // MissileStrikePower@HighYieldNuke
 		};
 
 		/// <summary>
@@ -316,12 +357,24 @@ namespace OpenRA.Test
 		// ---------------------------------------------------------------------------------------
 
 		/// <summary>
-		/// The pairing invariant, and the most valuable assertion in the file. Damage without
-		/// permanence is the reported bug: the structure dies, the husk spawns, one engineer restores
-		/// it. Any warhead granted reach must also be able to suppress the wreck.
+		/// <para>The tier split, and the most valuable assertion in the file. It fails in BOTH
+		/// directions on purpose, because the two failures are opposite emergencies:</para>
+		///
+		/// <para>A CONVENTIONAL weapon that GAINS <see cref="DeathType"/> silently restores the
+		/// behaviour the 2026-09-11 ruling removed — a Kinzhal or an Oreshnik erasing an economy
+		/// structure for good, with no wreck for an engineer to restore and nothing for a
+		/// technician to capture afterwards.</para>
+		///
+		/// <para>A NUCLEAR weapon that LOSES it re-opens the original 2026-09-06 defect in the one
+		/// place that ruling deliberately kept: the attacker spends a nuclear warhead and the
+		/// defender spends one engineer.</para>
+		///
+		/// <para>Neither is visible from a build, from the sidebar, or from watching the strike
+		/// land — in both cases the building blows up exactly as it should, and the difference
+		/// appears a frame later as a husk that is or is not there.</para>
 		/// </summary>
 		[Test]
-		public void TechStructureWarheadsAlsoGrantPermanence()
+		public void TechStructureWarheadsSplitPermanenceByTier()
 		{
 			var victim = TechBuildingTargetTypes();
 			var weapons = Weapons();
@@ -329,20 +382,47 @@ namespace OpenRA.Test
 
 			foreach (var (name, weapon) in weapons)
 			{
+				var obliterates = ExpectedObliteratingWeapons.Contains(name);
+
 				foreach (var wh in ReachingWarheads(weapon, victim))
 				{
 					checkedAny = true;
 					var damageTypes = (Field(wh.Value, "DamageTypes") ?? "")
 						.Split(',').Select(s => s.Trim()).ToArray();
 
-					Assert.That(damageTypes, Does.Contain(DeathType),
-						$"{name}/{wh.Key} can damage a tech building but does not carry {DeathType}. " +
-						"It can therefore KILL one without DESTROYING it: SpawnActorOnDeath still fires, " +
-						"the husk spawns, and one engineer infiltrating it restores the whole structure.");
+					if (obliterates)
+						Assert.That(damageTypes, Does.Contain(DeathType),
+							$"{name}/{wh.Key} is on the NUCLEAR tier but no longer carries {DeathType}. " +
+							"It can therefore KILL a tech building without DESTROYING it: SpawnActorOnDeath " +
+							"still fires, the husk spawns, and one engineer infiltrating it restores the " +
+							"whole structure for the price of a nuclear warhead.");
+					else
+						Assert.That(damageTypes, Does.Not.Contain(DeathType),
+							$"{name}/{wh.Key} is CONVENTIONAL but carries {DeathType}, so its kills leave " +
+							"no wreck. User ruling 2026-09-11: only nuclear weapons may obliterate a tech " +
+							"structure; a conventional strike must destroy it the way engineer C4 does, " +
+							"leaving the husk that an engineer restores and a technician then captures. " +
+							$"If this weapon really should obliterate, add it to {nameof(ExpectedObliteratingWeapons)} " +
+							"and say so in the commit message — it is a balance ruling, not a detail.");
 				}
 			}
 
 			Assert.That(checkedAny, Is.True, "no warhead reaches a tech structure at all — the feature is inert.");
+		}
+
+		/// <summary>
+		/// The obliterating tier must be a strict subset of the roster. A weapon that may leave no
+		/// wreck but cannot reach a tech building in the first place is a contradiction, and the
+		/// most likely way to write one is to add a name to the nuclear list and forget the
+		/// Warhead@TechStructure block that makes it mean anything.
+		/// </summary>
+		[Test]
+		public void EveryObliteratingWeaponIsAlsoOnTheRoster()
+		{
+			foreach (var name in ExpectedObliteratingWeapons)
+				Assert.That(ExpectedHeavyWeapons, Does.Contain(name),
+					$"{name} is listed as obliterating but is not on the heavy roster, so it cannot " +
+					"damage a tech structure at all and its permanence is unreachable.");
 		}
 
 		/// <summary>
@@ -381,7 +461,12 @@ namespace OpenRA.Test
 		/// <summary>
 		/// Repair must keep working. The change is that ONE class of destruction is unrecoverable, not
 		/// that engineers stop being useful — so both the living-structure repair trait and the
-		/// husk-restore path for ordinary (C4) deaths are pinned present.
+		/// husk-restore path for ordinary deaths are pinned present.
+		///
+		/// AS OF 2026-09-11 this covers far more than it used to. "Ordinary" was engineer C4 and
+		/// nothing else when this was written; it is now C4 PLUS every conventional strike power,
+		/// since those no longer carry HeavyOrdnanceDeath. The traits pinned here are what the whole
+		/// conventional tier now depends on, so a failure is a bigger deal than it once was.
 		/// </summary>
 		[Test]
 		public void ConventionalDestructionIsStillRecoverable()

@@ -1,0 +1,119 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a conventional strike destroys an income structure and leaves the restorable wreck
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES — the CONVENTIONAL half of the 2026-09-11 ruling, and it is deliberately the
+# mirror image of test-heavy-strike-erases-economy rather than an extension of it.
+#
+# User ruling: "Conventional strike powers should not completely obliterate structures, like the
+# derrick. It should destroy them in the same way as C4 does, so that it spawns the wrecked actor
+# that can then be repaired with an engineer and captured again by a technician. Nukes should be the
+# only thing that can obliterate such a structure within a small area."
+#
+# So the two scenarios assert OPPOSITE things about the same field and must both pass:
+#   test-heavy-strike-erases-economy   Atomic on a derrick            -> dies, NO husk
+#   this one                           IskanderExplosion on a derrick -> dies, HUSK APPEARS
+#
+# THE MECHANISM UNDER TEST is one absent token. IskanderExplosion's Warhead@TechStructure carries
+# `DamageTypes: ExplosionDeath` and deliberately NOT `HeavyOrdnanceDeath`
+# (rules/weapons/weapons-heavy-ordnance.yaml), while the derrick's SpawnActorOnDeath carries
+# `ExcludedDeathTypes: HeavyOrdnanceDeath` (rules/ingame/structures-neutral.yaml:65). A death that
+# does not carry the type does not match the deny-list, so the husk spawns. Put the token back and
+# this scenario fails while its sibling still passes — which is exactly the asymmetry worth pinning,
+# because a build, a lint run and the sidebar all look identical either way.
+#
+# WHY THE KINZHAL RATHER THAN THE GBU-57 OR THE ORESHNIK. All three are conventional and all three
+# now leave a wreck, but the Kinzhal is the cheapest to fire in a test: `powers.russia` is provided
+# by FACTION (player.yaml:160-162), so a Russia-locked player has the tier with no sandbox checkbox,
+# where the event-tier powers need the lobby override its sibling scenario has to set. It is also
+# the shortest flight in the arsenal. The other two conventional weapons are covered statically by
+# KillableEconomyTest.TechStructureWarheadsSplitPermanenceByTier, which reads all of them.
+#
+# GEOMETRY IS INHERITED WHOLESALE from test-heavy-strike-erases-economy — same blank 66x34 map.bin,
+# same home locations, same aim point — so the delivery derivation does not have to be redone. What
+# differs is the blast, and it differs by a LOT: IskanderExplosion's Warhead@TechStructure is
+# Spread 1c0 with Falloff 100,100,0, so it is full damage within a cell and nothing at all past two,
+# against Atomic's 12-cell reach. The far control is therefore never in any doubt.
+#
+#   StruckDerrick  40,16 -> the aim point (40,17) is inside its 2x2 footprint. 60000 damage against
+#                           50000 HP at Penetration 2500, so arrival means death with no ambiguous
+#                           middle, and the husk is what the run is actually reading.
+#   FarDerrick      8,29 -> 34 cells away. Outside every warhead on the weapon. Must finish at full
+#                           health, which is what stops a pass coming from "the strike hit
+#                           everything". It also fixes the husk baseline at zero.
+#
+# DO NOT re-space these on the assumption that distance is what protects the Supply Routes. It is
+# not distance — SUPPLYROUTE's only target type is NoAutoTarget and no Kinzhal warhead lists it
+# (structures.yaml:347-348). That is asserted here for the same reason its sibling asserts it: this
+# work edited a warhead on this weapon, and a widened ValidTargets is how that guarantee would go.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 6,17
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 58,17
+
+Actors:
+	# One Supply Route per side so neither player is eliminated before the poller writes a verdict
+	# (AUTOTEST.md map.yaml rule 6).
+	OwnSR: supplyroute
+		Owner: Russia
+		Location: 6,17
+	OpponentSR: supplyroute
+		Owner: USA
+		Location: 58,17
+
+	# THE TARGET. USA-owned rather than Neutral so this is the real case — a player striking an
+	# enemy's economy — and so the wreck left behind belongs to the situation the ruling describes:
+	# the defender walks an engineer into it and gets the income structure back.
+	StruckDerrick: oilb
+		Owner: USA
+		Location: 40,16
+
+	# THE CONTROL. Far outside a 2-cell warhead, so it must finish at full health and must contribute
+	# no husk. Both halves matter: the husk count is read globally off Map.ActorsInWorld, so a control
+	# that died would forge the very evidence the verdict is built on.
+	FarDerrick: oilb
+		Owner: USA
+		Location: 8,29
+
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+Rules: rules.yaml

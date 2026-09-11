@@ -10,22 +10,55 @@
 # here. If it should not, do nothing -- default-deny is the whole design.
 #
 # ---------------------------------------------------------------------------------------------
-# THE TWO PROPERTIES
+# THE TWO PROPERTIES, AND THEY NO LONGER TRAVEL TOGETHER
 #
 # 1. `ValidTargets: TechStructure` -- permission to do damage at all. ^TechBuilding
-#    (rules/ingame/structures.yaml) drops `Ground` and `Structure` from its Targetable and carries
-#    `TechStructure` instead, and Warhead.IsValidAgainst requires an overlap (Warhead.cs:57). A
-#    warhead without this line cannot touch one, splash included.
+#    (rules/ingame/structures.yaml:193-194) drops `Ground` and `Structure` from its Targetable and
+#    carries `TechStructure` instead, and Warhead.IsValidAgainst requires an overlap
+#    (Warhead.cs:57). A warhead without this line cannot touch one, splash included. EVERY block
+#    below carries it -- that is what makes this file the roster.
 #
-# 2. `DamageTypes: ..., HeavyOrdnanceDeath` -- permission to make the loss PERMANENT. Every
+# 2. `DamageTypes: ..., HeavyOrdnanceDeath` -- permission to make the loss PERMANENT. Every tech
 #    structure's SpawnActorOnDeath carries `ExcludedDeathTypes: HeavyOrdnanceDeath`
-#    (structures-neutral.yaml), so a death caused by anything below leaves no husk, and therefore
-#    nothing for an engineer to infiltrate and restore. A death caused by anything else -- today
-#    that is engineer C4 demolition and nothing else -- still leaves the restorable wreck.
+#    (structures-neutral.yaml:65, :100, :134, :179, :208), so a death carrying that type leaves no
+#    husk and therefore nothing for an engineer to infiltrate and restore. ONLY THE NUCLEAR BLOCKS
+#    BELOW CARRY IT.
 #
-# THE TWO GO TOGETHER AND SEPARATING THEM IS THE BUG TO AVOID. A warhead with (1) and not (2)
-# would grind a derrick down and hand it back for the price of one engineer, which is the exact
-# defect this feature exists to fix. Every block below carries both.
+# THE TWO USED TO GO TOGETHER AND DELIBERATELY NO LONGER DO -- user ruling 2026-09-11:
+# "Conventional strike powers should not completely obliterate structures, like the derrick. It
+# should destroy them in the same way as C4 does, so that it spawns the wrecked actor that can then
+# be repaired with an engineer and captured again by a technician. Nukes should be the only thing
+# that can obliterate such a structure within a small area."
+#
+# So the split this file encodes is now THREE-WAY, not two:
+#
+#   cannot touch one         -- everything not in this file. Unchanged, and still the default.
+#   destroys, leaves a wreck -- the CONVENTIONAL blocks: IskanderExplosion, MOPPenetration,
+#                               OreshnikRVExplosion. Reach WITHOUT permanence, which is the exact
+#                               combination this header used to call "the bug to avoid". It is now
+#                               the REQUIREMENT for this class: a conventional strike is meant to
+#                               end the structure and leave the restorable husk behind, exactly as
+#                               engineer C4 always has.
+#   obliterates              -- the NUCLEAR blocks: Atomic, AtomicHighYield. These keep
+#                               HeavyOrdnanceDeath, so their kills leave nothing at all.
+#
+# DO NOT "FIX" A CONVENTIONAL BLOCK BY ADDING HeavyOrdnanceDeath BACK. Its absence is the feature,
+# and KillableEconomyTest.TechStructureWarheadsSplitPermanenceByTier fails in BOTH directions -- a
+# conventional weapon that gains the type and a nuclear one that loses it.
+#
+# NOTE WHAT DID NOT CHANGE: no Damage, Spread, Falloff or Penetration below was touched, and the
+# roster itself is the same five weapons. A Kinzhal still ends a derrick in one shot. The only
+# difference is what is standing there afterwards.
+#
+# THE SECOND, INDEPENDENT OBLITERATION PATH -- and it is the one the user's "within a small area"
+# actually describes. VaporizeWarhead (engine/OpenRA.Mods.Common/Warheads/VaporizeWarhead.cs)
+# removes actors outright inside a FIREBALL radius and deliberately IGNORES ValidTargets entirely
+# (IsValidAgainst, :83-98), so it reaches a tech building with no line in this file at all. Every
+# nuclear weapon carries one (`Warhead@VaporizeRemoval`: weapons-superweapons.yaml:297 for Atomic
+# at 0c711, :1009 for AtomicHighYield, plus one on each arsenal warhead). That is why the nuclear
+# tier obliterates in a SMALL circle and merely wrecks outside it -- and it is also why the ten
+# weapons in weapons-nuclear-arsenal.yaml can erase a derrick despite carrying no
+# Warhead@TechStructure at all (mod.yaml:264-269): vaporize is their ONLY path to one.
 #
 # ---------------------------------------------------------------------------------------------
 # WHY THIS IS A SEPARATE FILE RATHER THAN LINES IN THE FIVE WEAPON FILES
@@ -59,8 +92,9 @@
 #
 #   ENGINEER C4 IS NOT LISTED AND STILL WORKS. `PlaceC4` (weapons-other.yaml:589) reaches these
 #   buildings through the `C4` target type, which ^TechBuilding has always carried -- it was the
-#   ONLY way to kill one before this feature. It is intentionally left as the recoverable path:
-#   demolition leaves the husk, so the defender can restore it. Heavy ordnance does not.
+#   ONLY way to kill one before this feature. It is the recoverable path, and as of the 2026-09-11
+#   ruling above it is no longer the ONLY one: the conventional blocks below now leave the same
+#   wreck C4 does. Only the nuclear blocks do not.
 # ============================================================================================
 
 
@@ -98,7 +132,9 @@ IskanderExplosion:
 		Penetration: 2500
 		Spread: 1c0
 		Falloff: 100, 100, 0
-		DamageTypes: ExplosionDeath, HeavyOrdnanceDeath
+		# NO HeavyOrdnanceDeath -- conventional, so the kill leaves the restorable OILB.Husk. See
+		# "THE TWO PROPERTIES" at the top of this file; the omission is deliberate and is pinned.
+		DamageTypes: ExplosionDeath
 
 # Lets an Iskander be aimed AT a tech building by clicking it, rather than only by force-firing
 # the ground underneath. Purely a targeting-cursor affordance; the damage is done by the warhead
@@ -131,7 +167,9 @@ MOPPenetration:
 		Penetration: 5000
 		Spread: 512
 		Falloff: 100, 0
-		DamageTypes: ExplosionDeath, HeavyOrdnanceDeath
+		# NO HeavyOrdnanceDeath -- conventional, so the kill leaves the restorable husk. See
+		# "THE TWO PROPERTIES" at the top of this file; the omission is deliberate and is pinned.
+		DamageTypes: ExplosionDeath
 
 
 # --- THE NUCLEAR TIER -----------------------------------------------------------------------
@@ -202,4 +240,7 @@ OreshnikRVExplosion:
 		Penetration: 3000
 		Spread: 512
 		Falloff: 100, 100, 0
-		DamageTypes: ExplosionDeath, HeavyOrdnanceDeath
+		# NO HeavyOrdnanceDeath -- conventional, so each of the six impacts leaves a restorable
+		# husk. This is the block where the change is most visible: an Oreshnik salvo used to be
+		# able to erase six economy structures permanently, and now wrecks six recoverable ones.
+		DamageTypes: ExplosionDeath

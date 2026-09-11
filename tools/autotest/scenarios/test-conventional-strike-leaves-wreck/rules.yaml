@@ -1,0 +1,55 @@
+# Conventional-strike-leaves-wreck overrides. Shape copied from test-heavy-strike-erases-economy,
+# which is this scenario's mirror image; only the notes that DIFFER are restated here.
+#
+# THE BIG DIFFERENCE, AND IT IS AN ABSENCE: there is no lobby override in this file. The sibling
+# scenario has to force TacticalNukeCheckboxEnabled AND PowersSandboxCheckboxEnabled, because the
+# tac nuke is lobby-gated and sits on `powers.event`, a tier NO faction provides. The Kinzhal is
+# neither: it carries no RequiresCondition at all (player.yaml:239-260) and its tier `powers.russia`
+# is provided by FACTION (ProvidesPrerequisite@PowersRussia, player.yaml:160-162). The Russia player
+# is LockFaction russia in map.yaml, so the power is Permitted with nothing to unlock. If this run
+# ever reports the order 'refused', read that sentence again before adding checkboxes — the fault
+# would be the tier or the purse, not a gate.
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation falls back to the pinned PlayerReference value rather than a
+	# spawn assignment -- the missile's entry-edge derivation depends on it.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-conventional-strike-leaves-wreck.lua
+
+Player:
+	# Neither player has a unit, so an elimination check could end the match before the poller writes
+	# a verdict. Removed for the same reason the sibling removes it.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored, so nothing the poller reads is a visibility artefact. This
+	# matters especially here: the husk assertions walk Map.ActorsInWorld, and a frozen-under-fog
+	# replacement would be a different actor to count -- and THIS scenario passes by FINDING a husk
+	# rather than by finding none, so a visibility artefact would produce a false FAIL, not a false
+	# pass.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	PlayerResources:
+		# DefaultCash 20000 against the Kinzhal's 5000 (power.kinzhal, rules/powers.yaml), so Russia
+		# can buy the shot with margin. PassiveIncome is zeroed AND locked for the reason the sibling
+		# documents at length: the value that reaches PassiveIncomeAmount is read back from the lobby
+		# option, so zeroing the field alone leaves the engine constant live.
+		#
+		# Here it also keeps the verdict's reported cash honest in one specific way: the purse is
+		# printed before and after the strike, and with income off the ONLY things that can move it
+		# are the 5000 purchase and the CashTricklers on the two derricks.
+		DefaultCash: 20000
+		PassiveIncome: 0
+		PassiveIncomeDropdownLocked: True
+
+# THE PURCHASE. 5 ticks instead of the shipped 500 (30 s). The strike is ordered as soon as the
+# magazine reports ready, so this simply removes 495 ticks of waiting from the run; it changes
+# nothing about the weapon, its warheads or what it leaves behind, which is all this scenario reads.
+power.kinzhal:
+	Buildable:
+		BuildDuration: 5
