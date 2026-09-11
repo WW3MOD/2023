@@ -403,17 +403,27 @@
 	SpeedMultiplier@CriticalDamage:
 		Modifier: 75
 		RequiresCondition: critical-damage
+	# Sign fixed 2026-09-12 under a user ruling. These four were 75 / 50 / 75 / 50, which made a
+	# damaged aircraft MORE accurate and faster-firing the closer it came to death — the only family
+	# in the mod that rewarded damage (infantry go 150 -> 400, infantry.yaml:1068, :1126). The new
+	# values are the exact RECIPROCALS of the old ones, so the penalty is the mirror image of the
+	# bonus it replaces and no fresh balance number is invented: what was 1.33x/2.67x better is now
+	# 1.33x/2.67x worse.
+	# PITFALL: these two bands STACK. heavy-damage-attained is granted on ValidDamageStates: Heavy,
+	# Critical (defaults.yaml:278-280), so below 25% HP BOTH traits are live and
+	# Util.ApplyPercentageModifiers multiplies them (Util.cs:238-246) — 133% x 200% = 266%, not 200%.
+	# Size any future change here for the product, not for one band.
 	InaccuracyMultiplier@HeavyDamage:
-		Modifier: 75
+		Modifier: 133
 		RequiresCondition: heavy-damage-attained
 	InaccuracyMultiplier@CriticalDamage:
-		Modifier: 50
+		Modifier: 200
 		RequiresCondition: critical-damage
 	BurstWaitMultiplier@HeavyDamage:
-		Modifier: 75
+		Modifier: 133
 		RequiresCondition: heavy-damage-attained
 	BurstWaitMultiplier@CriticalDamage:
-		Modifier: 50
+		Modifier: 200
 		RequiresCondition: critical-damage
 
 ^AircraftAffectedByEMP:
