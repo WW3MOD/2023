@@ -16,42 +16,46 @@ Visibility: MissionSelector
 
 Categories: Test
 
-# WHAT THIS MEASURES — the CONVENTIONAL half of the 2026-09-11 ruling, and it is deliberately the
-# mirror image of test-heavy-strike-erases-economy rather than an extension of it.
+# WHAT THIS MEASURES — that a CONVENTIONAL strike power destroys an income structure and leaves the
+# repairable wreck.
 #
-# User ruling: "Conventional strike powers should not completely obliterate structures, like the
-# derrick. It should destroy them in the same way as C4 does, so that it spawns the wrecked actor
-# that can then be repaired with an engineer and captured again by a technician. Nukes should be the
-# only thing that can obliterate such a structure within a small area."
+# User ruling 2026-09-11: "I think it is a bad game mechanic that money structures can be destroyed.
+# Maybe nothing can fully obliterate them, so nuke also only destroys them, and can do so further
+# out than the inner fireball but not beyond 2-3x the fireball or so."
 #
-# So the two scenarios assert OPPOSITE things about the same field and must both pass:
-#   test-heavy-strike-erases-economy   Atomic on a derrick            -> dies, NO husk
-#   this one                           IskanderExplosion on a derrick -> dies, HUSK APPEARS
+# NOT A MIRROR PAIR, and an earlier version of this file said it was. The sibling
+# test-heavy-strike-wrecks-economy was built to assert the OPPOSITE outcome for a nuke, under a
+# ruling that lasted a few hours. Both scenarios now assert a WRECK; they differ in the weapon that
+# leaves it. If you find a comment anywhere claiming a conventional/nuclear permanence split, it is
+# stale.
 #
-# THE MECHANISM UNDER TEST is one absent token. IskanderExplosion's Warhead@TechStructure carries
-# `DamageTypes: ExplosionDeath` and deliberately NOT `HeavyOrdnanceDeath`
-# (rules/weapons/weapons-heavy-ordnance.yaml), while the derrick's SpawnActorOnDeath carries
-# `ExcludedDeathTypes: HeavyOrdnanceDeath` (rules/ingame/structures-neutral.yaml:65). A death that
-# does not carry the type does not match the deny-list, so the husk spawns. Put the token back and
-# this scenario fails while its sibling still passes — which is exactly the asymmetry worth pinning,
-# because a build, a lint run and the sidebar all look identical either way.
+# THE MECHANISM UNDER TEST is two absences, in two files, neither of which is visible in the other:
+#   * IskanderExplosion's Warhead@TechStructure carries `DamageTypes: ExplosionDeath` and NOT
+#     `HeavyOrdnanceDeath` (rules/weapons/weapons-heavy-ordnance.yaml), and no tech building
+#     declares `ExcludedDeathTypes` at all any more (rules/ingame/structures-neutral.yaml). With no
+#     deny-list at either end, SpawnActorOnDeath fires on every death whatever killed it.
+#   * ^TechBuilding carries `-Vaporizable:` (rules/ingame/structures.yaml). That one does not matter
+#     for THIS scenario — no conventional weapon has a Vaporize warhead — but it is what stops the
+#     nuclear sibling erasing its derrick, and the two scenarios are read together.
 #
 # WHY THE KINZHAL RATHER THAN THE GBU-57 OR THE ORESHNIK. All three are conventional and all three
-# now leave a wreck, but the Kinzhal is the cheapest to fire in a test: `powers.russia` is provided
-# by FACTION (player.yaml:160-162), so a Russia-locked player has the tier with no sandbox checkbox,
-# where the event-tier powers need the lobby override its sibling scenario has to set. It is also
+# leave a wreck, but the Kinzhal is the cheapest to fire in a test: `powers.russia` is provided by
+# FACTION (player.yaml:160-162), so a Russia-locked player has the tier with no sandbox checkbox,
+# where the event-tier powers need the lobby override the sibling scenario has to set. It is also
 # the shortest flight in the arsenal. The other two conventional weapons are covered statically by
-# KillableEconomyTest.TechStructureWarheadsSplitPermanenceByTier, which reads all of them.
+# KillableEconomyTest.NoWarheadMayObliterateATechStructure, which reads all of them.
 #
-# GEOMETRY IS INHERITED WHOLESALE from test-heavy-strike-erases-economy — same blank 66x34 map.bin,
+# GEOMETRY IS INHERITED WHOLESALE from test-heavy-strike-wrecks-economy — same blank 66x34 map.bin,
 # same home locations, same aim point — so the delivery derivation does not have to be redone. What
-# differs is the blast, and it differs by a LOT: IskanderExplosion's Warhead@TechStructure is
-# Spread 1c0 with Falloff 100,100,0, so it is full damage within a cell and nothing at all past two,
-# against Atomic's 12-cell reach. The far control is therefore never in any doubt.
+# differs is the blast: IskanderExplosion's Warhead@TechStructure is Spread 1c0 with
+# Falloff 100,100,0, so it is full damage within a cell and nothing at all past two. (Since the
+# 2026-09-11 reach cap the nuclear sibling's warhead is the same Spread, so the two scenarios now
+# have near-identical footprints — which is why the far control below is safe in both.)
 #
-#   StruckDerrick  40,16 -> the aim point (40,17) is inside its 2x2 footprint. 60000 damage against
-#                           50000 HP at Penetration 2500, so arrival means death with no ambiguous
-#                           middle, and the husk is what the run is actually reading.
+#   StruckDerrick  40,16 -> the aim point (40,17) is inside its 2x2 footprint, so DistanceFromEdge
+#                           is 0 and it takes the full 60000 against 50000 HP at Penetration 2500.
+#                           Arrival means death with no ambiguous middle, and the husk is what the
+#                           run is actually reading.
 #   FarDerrick      8,29 -> 34 cells away. Outside every warhead on the weapon. Must finish at full
 #                           health, which is what stops a pass coming from "the strike hit
 #                           everything". It also fixes the husk baseline at zero.

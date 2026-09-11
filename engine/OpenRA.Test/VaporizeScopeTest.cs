@@ -155,7 +155,7 @@ namespace OpenRA.Test
 				"reasoning on Vaporizable.CanVaporize before deleting it, rather than after.");
 		}
 
-		// ---- the two exemptions, read out of the shipped YAML ----
+		// ---- the three exemptions, read out of the shipped YAML ----
 
 		const string Opt = "-Vaporizable";
 
@@ -226,6 +226,48 @@ namespace OpenRA.Test
 				"altitude; and the largest shipped fireball is a ~16-cell disc. A MIRV or Dead Hand wave would " +
 				"vaporize its own later warheads mid-descent, which reads as a nuke that randomly did nothing " +
 				"and breaks DoomsdayStrike's scheduled-arrival arithmetic.");
+		}
+
+		/// <summary>
+		/// Every node declaring <paramref name="key"/>, not just the first one. MiniYaml MERGES
+		/// same-named top-level nodes across the Rules list, so an actor's real trait set is the
+		/// union of all of them, and asking only the first is asking the wrong file.
+		///
+		/// WRITTEN BECAUSE IT COST A RED RUN. `^TechBuilding` is declared TWICE — in
+		/// rules/ingame/structures.yaml, where its traits live, and again in
+		/// rules/campaign/campaign-tooltips.yaml, which adds a Tooltip and nothing else. TopLevel
+		/// walks GetFiles(AllDirectories), so `campaign/` is enumerated before `ingame/` and
+		/// FirstOrDefault returned the tooltip-only node: the test reported the opt-out missing while
+		/// the shipped line was sitting in the other file, correctly indented and correctly merged.
+		/// The two tests below happen to be safe only because their actors are declared once.
+		/// </summary>
+		static List<MiniYamlNode> FindAll(IEnumerable<MiniYamlNode> nodes, string key)
+		{
+			var found = nodes.Where(n => n.Key == key).ToList();
+			Assert.That(found, Is.Not.Empty, $"`{key}` is not in the shipped rules — this fixture is pinning nothing.");
+			return found;
+		}
+
+		[Test]
+		public void TechBuildingsOptOutOfVaporisation()
+		{
+			var declarations = FindAll(TopLevel(null), "^TechBuilding");
+
+			Assert.That(declarations.Any(d => d.Value.Nodes.Any(n => n.Key == Opt)), Is.True,
+				"^TechBuilding lost its `-Vaporizable:` line, so a nuclear fireball erases an economy structure " +
+				"outright again -- no husk, nothing for an engineer to infiltrate, nothing for a technician to " +
+				"capture. User ruling 2026-09-11: \"I think it is a bad game mechanic that money structures can be " +
+				"destroyed. Maybe nothing can fully obliterate them, so nuke also only destroys them.\" " +
+				"THIS IS NOT REDUNDANT WITH THE DAMAGE-SIDE RULE, and that is the whole reason it is pinned " +
+				"separately: VaporizeWarhead ignores ValidTargets entirely and suppresses remains through " +
+				"ISuppressDeathRemains, so it shares no code with SpawnActorOnDeath's damage-type deny-list. " +
+				"Removing HeavyOrdnanceDeath from every warhead (weapons-heavy-ordnance.yaml) closes the damage " +
+				"path and leaves this one wide open.");
+
+			Assert.That(declarations.Any(d => d.Value.Nodes.Any(n => n.Key == "Health")), Is.True,
+				"^TechBuilding no longer declares Health. Vaporizable.CanVaporize gates on IHealthInfo, so a " +
+				"healthless actor cannot be vaporised anyway and the exemption above would be redundant -- but " +
+				"check what replaced it before removing anything.");
 		}
 
 		[Test]

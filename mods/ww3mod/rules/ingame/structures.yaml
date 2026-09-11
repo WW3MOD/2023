@@ -159,6 +159,28 @@
 
 ^TechBuilding:
 	Inherits: ^BasicBuilding
+	# DELIBERATE, NOT STRAY CLEANUP. `Vaporizable` is granted to everything by ^ExistsInWorld
+	# (defaults.yaml:9), and VaporizeWarhead is the ONE warhead in the mod that ignores ValidTargets
+	# entirely (VaporizeWarhead.cs:83-98) -- so the `Targetable` protection documented below, which
+	# is what stops every other weapon in the game, does NOT stop a fireball. Without this line a
+	# nuclear fireball erases an economy structure outright: no husk, nothing to infiltrate, nothing
+	# to recapture.
+	#
+	# User ruling 2026-09-11: "I think it is a bad game mechanic that money structures can be
+	# destroyed. Maybe nothing can fully obliterate them, so nuke also only destroys them." These
+	# buildings must always leave the restorable wreck, so they opt out of vaporisation at the
+	# VICTIM -- which is the documented mechanism (`-Vaporizable:`, VaporizeWarhead.cs:27) and the
+	# same idiom SUPPLYROUTE uses for a different reason.
+	#
+	# IT REACHES ALL FIVE. OILB, FCOM, BIO, MISS and HOSP all inherit this template, so this is one
+	# line rather than five, and a sixth tech building added later gets it for free.
+	#
+	# THIS IS HALF OF A TWO-PART RULE AND NEITHER HALF WORKS ALONE. The other half is that no
+	# warhead carries `HeavyOrdnanceDeath` any more (weapons-heavy-ordnance.yaml) and these actors
+	# no longer carry `ExcludedDeathTypes` (structures-neutral.yaml). That closes the DAMAGE path to
+	# obliteration; this line closes the FIREBALL path, which shares no code with it.
+	# Pinned by VaporizeScopeTest.TechBuildingsOptOutOfVaporisation.
+	-Vaporizable:
 	# THIS TRAIT IS THE ENTIRE PROTECTION MODEL FOR THE NEUTRAL TECH BUILDINGS, and it is worth being
 	# explicit because it is easy to misread as toughness. It OVERRIDES the `Targetable` inherited
 	# from ^BasicBuilding (`Ground, C4, DetonateAttack, Structure`) and DROPS `Ground` and

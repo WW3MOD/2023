@@ -23,7 +23,7 @@ World:
 	-MapStartingLocations:
 	-CrateSpawner:
 	LuaScript:
-		Scripts: test-helpers.lua, test-heavy-strike-erases-economy.lua
+		Scripts: test-helpers.lua, test-heavy-strike-wrecks-economy.lua
 
 Player:
 	# `MissileStrikePower@TacNuke: ChargeInterval: 1 / StartFullyCharged: true` USED TO SIT HERE AND

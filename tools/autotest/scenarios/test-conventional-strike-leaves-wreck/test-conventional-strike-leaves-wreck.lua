@@ -1,18 +1,21 @@
 -- ASSERTING AUTOTEST — does a CONVENTIONAL strike power destroy an income structure and LEAVE the
 -- restorable wreck behind?
 --
--- User ruling 2026-09-11: "Conventional strike powers should not completely obliterate structures,
--- like the derrick. It should destroy them in the same way as C4 does, so that it spawns the wrecked
--- actor that can then be repaired with an engineer and captured again by a technician. Nukes should
--- be the only thing that can obliterate such a structure within a small area."
+-- User ruling 2026-09-11: "I think it is a bad game mechanic that money structures can be destroyed.
+-- Maybe nothing can fully obliterate them, so nuke also only destroys them, and can do so further
+-- out than the inner fireball but not beyond 2-3x the fireball or so."
 --
--- THIS SCENARIO IS THE MIRROR OF test-heavy-strike-erases-economy AND THE TWO MUST BOTH PASS. That
--- one fires `Atomic` and fails if a husk APPEARS; this one fires `IskanderExplosion` (the Kinzhal)
--- and fails if a husk DOES NOT. One field decides both: IskanderExplosion's Warhead@TechStructure
--- carries `DamageTypes: ExplosionDeath` and deliberately NOT `HeavyOrdnanceDeath`, while the
--- derrick's SpawnActorOnDeath carries `ExcludedDeathTypes: HeavyOrdnanceDeath`
--- (structures-neutral.yaml:65). Put the token back on the conventional weapon and this run fails
--- while its sibling still passes.
+-- IT IS NOT A MIRROR PAIR, and this header said it was for about an hour. An earlier ruling the same
+-- day drew a conventional/nuclear line -- conventional leaves a wreck, nuclear obliterates -- and the
+-- sibling scenario was built to assert the nuclear half. The user then rejected that premise rather
+-- than answering it: NOTHING obliterates a money structure now. So both scenarios assert a WRECK,
+-- and they differ in the weapon that leaves it, not in the outcome. If you find a comment or a test
+-- name anywhere claiming a conventional/nuclear partition, it is stale and predates this ruling.
+--
+-- WHAT THIS ONE OWNS is the CONVENTIONAL delivery path: IskanderExplosion's Warhead@TechStructure
+-- must carry `DamageTypes: ExplosionDeath` and no `HeavyOrdnanceDeath`, and no tech building may
+-- declare `ExcludedDeathTypes` at all -- both sides of that are now gone from the tree, so
+-- SpawnActorOnDeath fires on every death whatever killed it.
 --
 -- WHY A SEPARATE SCENARIO RATHER THAN A FOURTH ARM ON THE SIBLING. Two powers in one run means two
 -- purchases, two tiers (the tac nuke is `powers.event` and needs the sandbox checkbox; the Kinzhal

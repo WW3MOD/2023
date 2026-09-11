@@ -17,17 +17,12 @@
  *      without firing the weapon, and the restrictive failure looks exactly like a missile that
  *      missed.
  *
- * AMENDED 2026-09-11, and rule 2 below now applies to the NUCLEAR TIER ONLY: "Conventional strike
- * powers should not completely obliterate structures, like the derrick. It should destroy them in
- * the same way as C4 does, so that it spawns the wrecked actor that can then be repaired with an
- * engineer and captured again by a technician. Nukes should be the only thing that can obliterate
- * such a structure within a small area."
- *
- * So reach and permanence, which this fixture was originally written to pin TOGETHER, are now
- * deliberately INDEPENDENT: every weapon on the roster still reaches, and only the two nuclear ones
- * still suppress the wreck. TechStructureWarheadsSplitPermanenceByTier is where that is enforced,
- * and it fails in both directions. Read the original rule 2 below as the statement of what the
- * nuclear tier still does, not as a property of the whole roster.
+ * AMENDED TWICE ON 2026-09-11, and the second amendment REPLACED the first rather than refining it.
+ * The first drew a conventional/nuclear line -- conventional leaves a wreck, nuclear obliterates --
+ * and lasted a few hours. The second, quoted below rule 2, rejected its premise: nothing obliterates
+ * an economy structure at all. Both rule 2 below and the reach/permanence pairing it describes are
+ * therefore HISTORY, kept only because this fixture's shape still bears their marks. No test in this
+ * file asserts a tier split, and if you find one it predates that ruling.
  *
  *   2. PERMANENCE. A heavy kill must leave nothing behind. The husk (husks-neutral.yaml) inherits
  *      ^TechBuildingHusk, which carries InfiltrateForTransform against ^E6's
@@ -37,10 +32,24 @@
  *      an engineer in, and the money is back. That is precisely the defect reported, and it is
  *      invisible from the attacker's side — the building blew up.
  *
- * The two properties were therefore pinned TOGETHER, and that pairing was the single most
- * load-bearing assertion here. IT IS NOW A SPLIT rather than a pairing — see the 2026-09-11
- * amendment below — and the assertion that carries it is TechStructureWarheadsSplitPermanenceByTier,
- * which enforces reach for the whole roster and permanence for the nuclear tier alone.
+ * RULE 2 ABOVE IS HISTORY AND IS KEPT ONLY TO EXPLAIN WHAT THE FILE USED TO GUARD. It was pinned
+ * together with rule 1; then a 2026-09-11 ruling split them by tier; then, the same day, the user
+ * rejected the split's premise outright:
+ *
+ *   "Actually, I think it is a bad game mechanic that money structures can be destroyed. Maybe
+ *    nothing can fully obliterate them, so nuke also only destroys them, and can do so further out
+ *    than the inner fireball but not beyond 2-3x the fireball or so."
+ *
+ * So there is no longer any weapon, tier or partition for which "the loss is permanent" is true.
+ * NoWarheadMayObliterateATechStructure enforces that from the weapon side, NoTechBuildingSuppresses-
+ * ItsHusk from the actor side, and VaporizeScopeTest.TechBuildingsOptOutOfVaporisation closes the
+ * fireball path, which shares no code with either. A test asserting a conventional/nuclear
+ * permanence split USED to live here; it was deleted rather than adjusted, because a test encoding a
+ * rejected goal reads to the next person as settled policy.
+ *
+ * What survives of rule 2 is the REACH cap that replaced it: the nuclear tier may destroy these
+ * structures further out than the conventional tier, but not past ~3x its own fireball radius.
+ * NuclearReachIsCappedAtAboutThreeFireballRadii is where that number is checked.
  *
  * Reads the shipped YAML through the real manifest merge rather than a fixture, for the reason
  * AirborneArmorTargetableTest gives: the thing being protected is the corpus, and the guard has to
@@ -50,9 +59,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using OpenRA.Mods.Common.Warheads;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -107,27 +118,12 @@ namespace OpenRA.Test
 		};
 
 		/// <summary>
-		/// <para>The NUCLEAR tier, and the ONLY weapons whose kills may leave nothing behind. User
-		/// ruling 2026-09-11: "Conventional strike powers should not completely obliterate
-		/// structures, like the derrick. It should destroy them in the same way as C4 does, so that
-		/// it spawns the wrecked actor that can then be repaired with an engineer and captured
-		/// again by a technician. Nukes should be the only thing that can obliterate such a
-		/// structure within a small area."</para>
-		///
-		/// <para>This is a strict subset of <see cref="ExpectedHeavyWeapons"/>: every weapon here
-		/// can also REACH a tech structure, and the two properties are now independent. The
-		/// complement — IskanderExplosion (+Airborne), MOPPenetration, OreshnikRVExplosion — must
-		/// NOT carry the death type, which is what makes a Kinzhal, a GBU-57 or an Oreshnik leave
-		/// the restorable husk that engineer C4 has always left.</para>
-		///
-		/// <para>NOTE the nuclear tier has a SECOND and independent way to obliterate that no list
-		/// here governs: VaporizeWarhead ignores ValidTargets outright (VaporizeWarhead.cs:83-98),
-		/// so `Warhead@VaporizeRemoval` removes a tech building inside the fireball whatever its
-		/// damage types say. That is the "within a small area" half of the ruling, and it is why
-		/// the ten warheads in weapons-nuclear-arsenal.yaml can erase a derrick while carrying no
-		/// Warhead@TechStructure at all.</para>
+		/// The two NUCLEAR entries on the roster. This is NOT a permanence list — nothing obliterates
+		/// an economy structure any more — it is the pair whose REACH is capped against their own
+		/// fireball radii by <see cref="NuclearReachIsCappedAtAboutThreeFireballRadii"/>. The
+		/// conventional three are point weapons and need no cap.
 		/// </summary>
-		static readonly string[] ExpectedObliteratingWeapons =
+		static readonly string[] NuclearRosterWeapons =
 		{
 			"Atomic",           // tac nuke (MissileStrikePower@TacNuke) + mslo's NukePower
 			"AtomicHighYield",  // MissileStrikePower@HighYieldNuke
@@ -357,24 +353,22 @@ namespace OpenRA.Test
 		// ---------------------------------------------------------------------------------------
 
 		/// <summary>
-		/// <para>The tier split, and the most valuable assertion in the file. It fails in BOTH
-		/// directions on purpose, because the two failures are opposite emergencies:</para>
+		/// <para>NOTHING may obliterate an economy structure — the whole of the 2026-09-11 ruling,
+		/// from the weapon side. Any warhead that can reach a tech building must leave the wreck,
+		/// whatever tier it belongs to, so no reaching warhead may carry <see cref="DeathType"/>.</para>
 		///
-		/// <para>A CONVENTIONAL weapon that GAINS <see cref="DeathType"/> silently restores the
-		/// behaviour the 2026-09-11 ruling removed — a Kinzhal or an Oreshnik erasing an economy
-		/// structure for good, with no wreck for an engineer to restore and nothing for a
-		/// technician to capture afterwards.</para>
+		/// <para>THIS REPLACED A TEST THAT ASSERTED THE OPPOSITE FOR NUCLEAR WEAPONS, and the
+		/// replacement was deliberate rather than a patch: the old one encoded a conventional/nuclear
+		/// permanence split that the user rejected hours after it shipped, and a test encoding a
+		/// rejected goal is read by the next person as settled policy.</para>
 		///
-		/// <para>A NUCLEAR weapon that LOSES it re-opens the original 2026-09-06 defect in the one
-		/// place that ruling deliberately kept: the attacker spends a nuclear warhead and the
-		/// defender spends one engineer.</para>
-		///
-		/// <para>Neither is visible from a build, from the sidebar, or from watching the strike
-		/// land — in both cases the building blows up exactly as it should, and the difference
-		/// appears a frame later as a husk that is or is not there.</para>
+		/// <para>It is invisible without this guard. A weapon that regains the damage type still
+		/// builds, still lints, and still blows the building up on screen exactly as before; the
+		/// difference appears one frame later as a husk that is not there, and then only to someone
+		/// who walks an engineer over to look.</para>
 		/// </summary>
 		[Test]
-		public void TechStructureWarheadsSplitPermanenceByTier()
+		public void NoWarheadMayObliterateATechStructure()
 		{
 			var victim = TechBuildingTargetTypes();
 			var weapons = Weapons();
@@ -382,28 +376,21 @@ namespace OpenRA.Test
 
 			foreach (var (name, weapon) in weapons)
 			{
-				var obliterates = ExpectedObliteratingWeapons.Contains(name);
-
 				foreach (var wh in ReachingWarheads(weapon, victim))
 				{
 					checkedAny = true;
 					var damageTypes = (Field(wh.Value, "DamageTypes") ?? "")
 						.Split(',').Select(s => s.Trim()).ToArray();
 
-					if (obliterates)
-						Assert.That(damageTypes, Does.Contain(DeathType),
-							$"{name}/{wh.Key} is on the NUCLEAR tier but no longer carries {DeathType}. " +
-							"It can therefore KILL a tech building without DESTROYING it: SpawnActorOnDeath " +
-							"still fires, the husk spawns, and one engineer infiltrating it restores the " +
-							"whole structure for the price of a nuclear warhead.");
-					else
-						Assert.That(damageTypes, Does.Not.Contain(DeathType),
-							$"{name}/{wh.Key} is CONVENTIONAL but carries {DeathType}, so its kills leave " +
-							"no wreck. User ruling 2026-09-11: only nuclear weapons may obliterate a tech " +
-							"structure; a conventional strike must destroy it the way engineer C4 does, " +
-							"leaving the husk that an engineer restores and a technician then captures. " +
-							$"If this weapon really should obliterate, add it to {nameof(ExpectedObliteratingWeapons)} " +
-							"and say so in the commit message — it is a balance ruling, not a detail.");
+					Assert.That(damageTypes, Does.Not.Contain(DeathType),
+						$"{name}/{wh.Key} carries {DeathType}, so its kills leave no wreck. User ruling " +
+						"2026-09-11: \"I think it is a bad game mechanic that money structures can be " +
+						"destroyed. Maybe nothing can fully obliterate them, so nuke also only destroys " +
+						"them.\" There is no tier for which this is allowed — not the nuclear one, which " +
+						"is where this token last lived. The structures no longer declare " +
+						"ExcludedDeathTypes either, so re-adding it here alone would be inert; if you " +
+						"mean to restore obliteration, both ends have to change and the ruling above has " +
+						"to be revisited first.");
 				}
 			}
 
@@ -411,27 +398,111 @@ namespace OpenRA.Test
 		}
 
 		/// <summary>
-		/// The obliterating tier must be a strict subset of the roster. A weapon that may leave no
-		/// wreck but cannot reach a tech building in the first place is a contradiction, and the
-		/// most likely way to write one is to add a name to the nuclear list and forget the
-		/// Warhead@TechStructure block that makes it mean anything.
+		/// <para>The REACH cap that replaced permanence. The user allowed the nuclear tier to destroy
+		/// these structures "further out than the inner fireball but not beyond 2-3x the fireball or
+		/// so", and both halves of that are checked here against the weapon's OWN fireball — the
+		/// Radius on its Warhead@VaporizeRemoval, which is the same number as its blast wave's
+		/// StartRadius by construction.</para>
+		///
+		/// <para>The lethal radius is computed through <see cref="SpreadDamageWarhead.DamageFalloff"/>
+		/// — the shipped curve, not a restatement of it — against the toughest tech building's HP.
+		/// Distance is horizontal from the hitshape edge: every tech building is a Rectangle, whose
+		/// DistanceFromEdge discards Z, so an airburst costs these warheads nothing and no slant-range
+		/// correction belongs here (MissileStrikeArrivalTest.RectangleHitShapesIgnoreDetonationAltitude-
+		/// Entirely). A previous comment in weapons-heavy-ordnance.yaml got exactly that wrong.</para>
 		/// </summary>
 		[Test]
-		public void EveryObliteratingWeaponIsAlsoOnTheRoster()
+		public void NuclearReachIsCappedAtAboutThreeFireballRadii()
 		{
-			foreach (var name in ExpectedObliteratingWeapons)
-				Assert.That(ExpectedHeavyWeapons, Does.Contain(name),
-					$"{name} is listed as obliterating but is not on the heavy roster, so it cannot " +
-					"damage a tech structure at all and its permanence is unreachable.");
+			var weapons = Weapons();
+			var superweapons = MiniYaml.FromFile(
+				Path.Combine(ModDir().FullName, "rules", "weapons", "weapons-superweapons.yaml"))
+				.ToDictionary(n => n.Key, n => n.Value);
+
+			var toughest = ToughestTechBuildingHp();
+
+			foreach (var name in NuclearRosterWeapons)
+			{
+				Assert.That(weapons.ContainsKey(name), Is.True, $"{name} no longer exists — update this fixture");
+
+				var techWarhead = weapons[name].Nodes.FirstOrDefault(n => n.Key == "Warhead@TechStructure");
+				Assert.That(techWarhead, Is.Not.Null, $"{name} lost its Warhead@TechStructure block");
+
+				var damage = int.Parse(Field(techWarhead.Value, "Damage"), NumberFormatInfo.InvariantInfo);
+				var spread = FieldLoader.GetValue<WDist>("Spread", Field(techWarhead.Value, "Spread"));
+				var falloff = FieldLoader.GetValue<int[]>("Falloff", Field(techWarhead.Value, "Falloff"));
+				var ranges = Exts.MakeArray(falloff.Length, i => i * spread);
+
+				// The outermost distance at which this warhead still kills the toughest structure.
+				var lethal = 0;
+				for (var d = 0; d <= ranges[^1].Length; d++)
+					if (damage * SpreadDamageWarhead.DamageFalloff(d, falloff, ranges) / 100 >= toughest)
+						lethal = d;
+
+				Assert.That(superweapons.ContainsKey(name), Is.True,
+					$"{name} is not defined in weapons-superweapons.yaml, so its fireball cannot be read");
+
+				var vaporize = superweapons[name].Nodes.FirstOrDefault(n => n.Key == "Warhead@VaporizeRemoval");
+				Assert.That(vaporize, Is.Not.Null,
+					$"{name} has no Warhead@VaporizeRemoval, so there is no fireball radius to cap against.");
+
+				var fireball = FieldLoader.GetValue<WDist>("Radius", Field(vaporize.Value, "Radius")).Length;
+				Assert.That(fireball, Is.GreaterThan(0), $"{name}'s fireball radius is zero");
+
+				Assert.That(lethal, Is.GreaterThan(fireball),
+					$"{name} kills a tech building only out to {lethal} wdist, which is inside its own " +
+					$"{fireball} wdist fireball. The ruling says a nuke may destroy these \"further out than " +
+					"the inner fireball\", so this weapon no longer reaches past the circle that used to " +
+					"vaporize them — it has been capped into uselessness against the economy.");
+
+				Assert.That(lethal, Is.LessThanOrEqualTo(3 * fireball),
+					$"{name} kills a tech building out to {lethal} wdist, more than 3x its {fireball} wdist " +
+					"fireball. User ruling 2026-09-11: \"not beyond 2-3x the fireball or so\". Raising Spread " +
+					"or flattening Falloff on Warhead@TechStructure is what does this; the derivation for the " +
+					"shipped numbers is written above each block in weapons-heavy-ordnance.yaml.");
+			}
 		}
 
 		/// <summary>
-		/// The other end of the same wire. The damage type is worthless unless the structures
-		/// actually read it, and this is a per-actor field with no template to inherit from — a sixth
-		/// tech building added later would silently ship with a restorable wreck.
+		/// The toughest tech building, read from the YAML rather than hardcoded so the cap above
+		/// tracks a future HP change. Actors inherit ^TechBuilding's Health and may override it.
+		/// </summary>
+		static int ToughestTechBuildingHp()
+		{
+			var structures = RuleNodes("ingame", "structures.yaml");
+			var template = structures["^TechBuilding"].Nodes.FirstOrDefault(n => n.Key == "Health");
+			Assert.That(template, Is.Not.Null, "^TechBuilding declares no Health");
+			var fallback = int.Parse(Field(template.Value, "HP"), NumberFormatInfo.InvariantInfo);
+
+			var toughest = 0;
+			foreach (var (_, actor) in RuleNodes("ingame", "structures-neutral.yaml"))
+			{
+				if (!actor.Nodes.Any(n => n.Key == "SpawnActorOnDeath"))
+					continue;
+
+				var health = actor.Nodes.FirstOrDefault(n => n.Key == "Health");
+				var hp = health == null ? fallback : int.Parse(Field(health.Value, "HP"), NumberFormatInfo.InvariantInfo);
+				if (hp > toughest)
+					toughest = hp;
+			}
+
+			Assert.That(toughest, Is.GreaterThan(0), "no tech building HP could be read");
+			return toughest;
+		}
+
+		/// <summary>
+		/// <para>The actor side of the same rule, and it is INVERTED from what this fixture asserted
+		/// until 2026-09-11. Every tech building must spawn its husk on EVERY death, so none of them
+		/// may declare ExcludedDeathTypes at all.</para>
+		///
+		/// <para>The lines were removed rather than emptied, and that is the point of testing for
+		/// their absence: an exclusion list that is present but currently matches nothing is an
+		/// armed-but-unfired mechanism, and the next reader reconnects it by adding one token to one
+		/// warhead. With no list on either side, "nothing obliterates a money structure" is true by
+		/// construction rather than by convention.</para>
 		/// </summary>
 		[Test]
-		public void EveryTechBuildingSuppressesItsHuskOnHeavyOrdnanceDeath()
+		public void NoTechBuildingSuppressesItsHusk()
 		{
 			var neutral = RuleNodes("ingame", "structures-neutral.yaml");
 			Assert.That(neutral, Is.Not.Empty, "structures-neutral.yaml parsed empty");
@@ -444,18 +515,17 @@ namespace OpenRA.Test
 					continue;
 
 				spawners++;
-				var excluded = (Field(spawn.Value, "ExcludedDeathTypes") ?? "")
-					.Split(',').Select(s => s.Trim()).ToArray();
 
-				Assert.That(excluded, Does.Contain(DeathType),
-					$"{name} spawns {Field(spawn.Value, "Actor")} on death without excluding {DeathType}. " +
-					"That husk carries InfiltrateForTransform via ^TechBuildingHusk, so a nuclear strike " +
-					"on this building can be undone by walking one engineer into the rubble.");
+				Assert.That(Field(spawn.Value, "ExcludedDeathTypes"), Is.Null,
+					$"{name} declares ExcludedDeathTypes on its SpawnActorOnDeath. User ruling 2026-09-11: " +
+					"nothing may obliterate a money structure, so the wreck must appear whatever killed it. " +
+					"Any exclusion here can silently delete the husk for some class of death, which is the " +
+					"behaviour that ruling removed.");
 			}
 
 			Assert.That(spawners, Is.EqualTo(5),
 				$"expected 5 husk-spawning neutral tech buildings, found {spawners} — a new one has been " +
-				"added or an old one changed shape; check it opts into the permanence rule.");
+				"added or an old one changed shape; check it still leaves a restorable wreck.");
 		}
 
 		/// <summary>
@@ -486,13 +556,26 @@ namespace OpenRA.Test
 		}
 
 		/// <summary>
-		/// The engine field the whole permanence rule rides on, exercised through the real FieldLoader
-		/// rather than trusted. A BitSet that silently parsed empty would disable the feature while
-		/// every YAML-shaped assertion above still passed.
+		/// <para>The engine default is what the whole rule now rides on, so it is exercised through
+		/// the real FieldLoader rather than trusted. Since 2026-09-11 NO actor in the mod sets
+		/// ExcludedDeathTypes; the tech buildings leave their wreck because the field is absent and
+		/// therefore empty, which means a non-empty DEFAULT would silently suppress husks across the
+		/// whole mod with nothing in any YAML file to point at.</para>
+		///
+		/// <para>The field itself is kept in the engine as upstream-general functionality with no
+		/// current consumer — see the Desc on SpawnActorOnDeathInfo. This test deliberately no longer
+		/// asserts anything about which damage types the mod ships, because the mod ships none.</para>
 		/// </summary>
 		[Test]
-		public void ExcludedDeathTypesParsesAndMatchesTheDamageTypeWeShip()
+		public void ExcludedDeathTypesDefaultsToEmptySoEveryHuskSpawns()
 		{
+			var untouched = new OpenRA.Mods.Common.Traits.SpawnActorOnDeathInfo();
+			Assert.That(untouched.ExcludedDeathTypes.IsEmpty, Is.True,
+				"ExcludedDeathTypes no longer defaults to empty. Every husk-spawner in the mod relies on " +
+				"that default — none of them sets the field — so a non-empty default would delete wrecks " +
+				"mod-wide with nothing in any YAML file to explain it.");
+
+			// The field must still WORK, so that the choice not to use it stays a choice.
 			var yaml = MiniYaml.FromString(
 				$"SpawnActorOnDeath:\n\tActor: OILB.Husk\n\tExcludedDeathTypes: {DeathType}\n", "test")
 				.First().Value;
@@ -500,14 +583,11 @@ namespace OpenRA.Test
 			var info = new OpenRA.Mods.Common.Traits.SpawnActorOnDeathInfo();
 			FieldLoader.Load(info, yaml);
 
-			Assert.That(info.ExcludedDeathTypes.IsEmpty, Is.False, "ExcludedDeathTypes parsed empty");
-			Assert.That(info.ExcludedDeathTypes.Overlaps(new BitSet<DamageType>(DeathType)), Is.True);
+			Assert.That(info.ExcludedDeathTypes.Overlaps(new BitSet<DamageType>(DeathType)), Is.True,
+				"ExcludedDeathTypes no longer parses. Nothing in the mod sets it today, but a silently " +
+				"broken field would make a future re-introduction fail open rather than loudly.");
 			Assert.That(info.ExcludedDeathTypes.Overlaps(new BitSet<DamageType>("ExplosionDeath")), Is.False,
-				"an ordinary explosion death must NOT suppress the husk — only heavy ordnance does.");
-
-			var untouched = new OpenRA.Mods.Common.Traits.SpawnActorOnDeathInfo();
-			Assert.That(untouched.ExcludedDeathTypes.IsEmpty, Is.True,
-				"ExcludedDeathTypes must default to empty so every existing husk-spawner is unaffected.");
+				"a damage type that was not listed must not match.");
 		}
 	}
 }

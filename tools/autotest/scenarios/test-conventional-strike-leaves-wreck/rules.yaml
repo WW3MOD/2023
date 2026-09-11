@@ -1,5 +1,6 @@
-# Conventional-strike-leaves-wreck overrides. Shape copied from test-heavy-strike-erases-economy,
-# which is this scenario's mirror image; only the notes that DIFFER are restated here.
+# Conventional-strike-leaves-wreck overrides. Shape copied from test-heavy-strike-wrecks-economy,
+# which since the 2026-09-11 ruling asserts the SAME outcome (a wreck) for a nuclear weapon rather
+# than the opposite one; only the notes that DIFFER are restated here.
 #
 # THE BIG DIFFERENCE, AND IT IS AN ABSENCE: there is no lobby override in this file. The sibling
 # scenario has to force TacticalNukeCheckboxEnabled AND PowersSandboxCheckboxEnabled, because the

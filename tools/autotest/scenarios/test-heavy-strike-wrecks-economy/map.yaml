@@ -2,7 +2,7 @@ MapFormat: 12
 
 RequiresMod: ww3mod
 
-Title: TEST: a heavy strike erases an income structure; a tank shell cannot scratch one
+Title: TEST: a nuclear strike wrecks an income structure but cannot erase it; a tank shell cannot scratch one
 
 Author: WW3MOD
 
@@ -19,12 +19,13 @@ Categories: Test
 # WHAT THIS MEASURES — the two halves of the killable-economy feature, which fail in opposite
 # directions and are therefore both asserted in one run rather than split:
 #
-#   1. HEAVY ORDNANCE DESTROYS, AND THE DESTRUCTION IS PERMANENT. A tactical nuclear strike lands on
-#      NukedDerrick, which must die AND must leave no oilb.husk behind. The husk is the whole point:
-#      ^TechBuildingHusk carries InfiltrateForTransform, so a wreck that survives is an income
-#      structure one engineer walks back into existence. That is the defect the user reported --
-#      "the destruction of money structures are not fully destroyed, they leave the repairable wreck
-#      behind that can be repaired by engineer."
+#   1. A NUCLEAR STRIKE DESTROYS BUT CANNOT ERASE. A tactical nuclear strike lands on NukedDerrick,
+#      which must die AND must LEAVE an oilb.husk behind. INVERTED 2026-09-11 -- this arm asserted
+#      the exact opposite until the user reversed the 2026-09-06 permanence rule: "nothing can fully
+#      obliterate them, so nuke also only destroys them, and can do so further out than the inner
+#      fireball but not beyond 2-3x the fireball or so." The husk is still the whole point, just
+#      with the sign flipped: ^TechBuildingHusk carries InfiltrateForTransform, so the wreck is what
+#      an engineer restores and a technician then recaptures.
 #
 #   2. ORDINARY WEAPONS DO NOTHING. A t90 force-fires its main gun into ShelledDerrick's footprint
 #      for 250 ticks and the derrick must finish at full health. Before this feature that was true
