@@ -44,7 +44,7 @@
  *      open for ten minutes is the purest dead air in the mod. This is also what keeps EIGHT nuke
  *      scenarios green with no edit to any of them: demo-nuke-arsenal, demo-highyield-nuke,
  *      demo-nuke-edge-band, demo-nuke-fog-seam, demo-nuke-river-zeta, demo-nuke-shroud-still-hides,
- *      test-heavy-strike-erases-economy and test-tacnuke-delivers all set
+ *      test-heavy-strike-wrecks-economy and test-tacnuke-delivers all set
  *      PowersSandboxCheckboxEnabled: true and all fire inside the first three minutes. Without this
  *      clause every one of them would have stopped firing and reported nothing but a demo gone
  *      quiet -- the exact failure GrantConditionOnNuclearRelease's header warns about.

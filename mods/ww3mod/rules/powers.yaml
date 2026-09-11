@@ -527,7 +527,7 @@ power.oreshnik:
 # WHAT STILL FIRES THESE, none of which touches this tab or these prerequisites:
 #   * Dead Hand fires the WEAPONS by name -- `Atomic` at twelve derricks and `NukeW76` at cities
 #     (doomsday.yaml:108, :166). A weapon has no prerequisites.
-#   * test-heavy-strike-erases-economy likewise names the weapon `Atomic`.
+#   * test-heavy-strike-wrecks-economy likewise names the weapon `Atomic`.
 #   * The demo scenarios drive the POWERS by OrderName through Test.ActivateSupportPower. See the
 #     branch report: those calls do not work TODAY either, for a reason that predates this branch.
 

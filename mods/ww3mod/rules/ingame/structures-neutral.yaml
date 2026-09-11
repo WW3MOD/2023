@@ -9,26 +9,28 @@
 #    Only weapons declaring `TechStructure` (rules/weapons/weapons-heavy-ordnance.yaml) and the
 #    engineer's C4 can touch one.
 #
-# 2. WHETHER DEATH IS PERMANENT -- the `SpawnActorOnDeath` blocks below, and this is the half the
-#    user actually reported: "the destruction of money structures are not fully destroyed, they
-#    leave the repairable wreck behind that can be repaired by engineer."
-#
-#    That was literally true and it is a full restore, not a repair. Death spawns a Neutral
-#    <ACTOR>.Husk (husks-neutral.yaml), which inherits ^TechBuildingHusk (husks.yaml:118) and so
-#    carries `InfiltrateForTransform: Types: TechHusk, ForceHealthPercentage: 10` against ^E6's
-#    `Infiltrates@RestoreTechHusk` (infantry.yaml:2062). One engineer walks into the rubble and the
-#    income structure is BACK, at 10% HP, which `EngineerRepairable` on the live actor then tops up.
-#    And the husk cannot be denied: ^CivBuildingHusk carries NO Health trait, so the wreck is
+# 2. WHETHER DEATH IS PERMANENT -- and as of 2026-09-11 the answer is NEVER, unconditionally.
+#    Death spawns a Neutral <ACTOR>.Husk (husks-neutral.yaml), which inherits ^TechBuildingHusk
+#    (husks.yaml:118) and so carries `InfiltrateForTransform: Types: TechHusk,
+#    ForceHealthPercentage: 10` against ^E6's `Infiltrates@RestoreTechHusk` (infantry.yaml:2062).
+#    One engineer walks into the rubble and the income structure is BACK at 10% HP, which
+#    `EngineerRepairable` on the live actor then tops up and a Technician can then capture. The
+#    husk cannot be denied either: ^CivBuildingHusk carries NO Health trait, so the wreck is
 #    permanent scenery that cannot be shot away while it waits for a rescuer.
 #
-#    `ExcludedDeathTypes: HeavyOrdnanceDeath` is the rule that fixes it. A ballistic missile, a
-#    strike power or a nuke carries that damage type; SpawnActorOnDeath suppresses the husk on any
-#    death that does, so there is nothing left to infiltrate. Anything else that kills one -- today
-#    that means engineer demolition only -- still leaves the restorable wreck exactly as before.
+#    THE `ExcludedDeathTypes: HeavyOrdnanceDeath` LINES THAT USED TO BE ON EVERY BLOCK BELOW ARE
+#    GONE. They were added 2026-09-06 to make heavy kills permanent, and the user reversed that:
+#    "I think it is a bad game mechanic that money structures can be destroyed. Maybe nothing can
+#    fully obliterate them, so nuke also only destroys them." No warhead carries that damage type
+#    any more either (weapons-heavy-ordnance.yaml), so the lines were already inert -- they are
+#    removed rather than left, because an armed-but-unfired deny-list is exactly the shape a future
+#    reader reconnects by accident. With no exclusions at all, SpawnActorOnDeath fires on EVERY
+#    death, whatever killed it, and "nothing obliterates one" is true by construction.
 #
-#    REPAIR IS NOT TOUCHED. `EngineerRepairable` on the living structures below is untouched, and so
-#    is the husk-restore path for every non-heavy death. What changed is only that ONE class of
-#    destruction is now unrecoverable.
+#    THE FIREBALL IS A SEPARATE PATH AND IS CLOSED SEPARATELY. VaporizeWarhead ignores target types
+#    and suppresses remains through ISuppressDeathRemains, so it bypasses everything on this page;
+#    ^TechBuilding carries `-Vaporizable:` (structures.yaml) to stop it. Removing that line
+#    re-opens obliteration without touching a single character in this file.
 
 OILB:
 	Inherits: ^TechBuilding
@@ -62,8 +64,6 @@ OILB:
 	SpawnActorOnDeath:
 		Actor: OILB.Husk
 		OwnerType: InternalName
-		ExcludedDeathTypes: HeavyOrdnanceDeath
-
 FCOM:
 	Inherits: ^TechBuilding
 	Inherits@Shape: ^2x2Shape
@@ -96,9 +96,7 @@ FCOM:
 		String: Forward
 	SpawnActorOnDeath:
 		Actor: FCOM.Husk
-		OwnerType: InternalName
-		ExcludedDeathTypes: HeavyOrdnanceDeath
-	RenderSprites:
+		OwnerType: InternalName	RenderSprites:
 		Image: acom
 
 BIO:
@@ -131,8 +129,6 @@ BIO:
 	SpawnActorOnDeath:
 		Actor: BIO.Husk
 		OwnerType: InternalName
-		ExcludedDeathTypes: HeavyOrdnanceDeath
-
 MISS:
 	Inherits: ^TechBuilding
 	Inherits@Shape: ^3x2Shape
@@ -176,8 +172,6 @@ MISS:
 	SpawnActorOnDeath:
 		Actor: MISS.Husk
 		OwnerType: InternalName
-		ExcludedDeathTypes: HeavyOrdnanceDeath
-
 HOSP:
 	Inherits: ^TechBuilding
 	Inherits@Shape: ^2x2Shape
@@ -205,4 +199,3 @@ HOSP:
 	SpawnActorOnDeath:
 		Actor: HOSP.Husk
 		OwnerType: InternalName
-		ExcludedDeathTypes: HeavyOrdnanceDeath

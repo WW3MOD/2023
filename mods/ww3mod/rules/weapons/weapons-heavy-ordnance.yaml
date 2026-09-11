@@ -10,22 +10,62 @@
 # here. If it should not, do nothing -- default-deny is the whole design.
 #
 # ---------------------------------------------------------------------------------------------
-# THE TWO PROPERTIES
+# THE TWO PROPERTIES, AND THEY NO LONGER TRAVEL TOGETHER
 #
 # 1. `ValidTargets: TechStructure` -- permission to do damage at all. ^TechBuilding
-#    (rules/ingame/structures.yaml) drops `Ground` and `Structure` from its Targetable and carries
-#    `TechStructure` instead, and Warhead.IsValidAgainst requires an overlap (Warhead.cs:57). A
-#    warhead without this line cannot touch one, splash included.
+#    (rules/ingame/structures.yaml:193-194) drops `Ground` and `Structure` from its Targetable and
+#    carries `TechStructure` instead, and Warhead.IsValidAgainst requires an overlap
+#    (Warhead.cs:57). A warhead without this line cannot touch one, splash included. EVERY block
+#    below carries it -- that is what makes this file the roster.
 #
-# 2. `DamageTypes: ..., HeavyOrdnanceDeath` -- permission to make the loss PERMANENT. Every
+# 2. `DamageTypes: ..., HeavyOrdnanceDeath` -- permission to make the loss PERMANENT. Every tech
 #    structure's SpawnActorOnDeath carries `ExcludedDeathTypes: HeavyOrdnanceDeath`
-#    (structures-neutral.yaml), so a death caused by anything below leaves no husk, and therefore
-#    nothing for an engineer to infiltrate and restore. A death caused by anything else -- today
-#    that is engineer C4 demolition and nothing else -- still leaves the restorable wreck.
+#    (structures-neutral.yaml:65, :100, :134, :179, :208), so a death carrying that type leaves no
+#    husk and therefore nothing for an engineer to infiltrate and restore. ONLY THE NUCLEAR BLOCKS
+#    BELOW CARRY IT.
 #
-# THE TWO GO TOGETHER AND SEPARATING THEM IS THE BUG TO AVOID. A warhead with (1) and not (2)
-# would grind a derrick down and hand it back for the price of one engineer, which is the exact
-# defect this feature exists to fix. Every block below carries both.
+# NOTHING OBLITERATES AN ECONOMY STRUCTURE -- user ruling 2026-09-11, which superseded a narrower
+# ruling made the same day and rejected its premise rather than answering it:
+#
+#   "Actually, I think it is a bad game mechanic that money structures can be destroyed. Maybe
+#    nothing can fully obliterate them, so nuke also only destroys them, and can do so further out
+#    than the inner fireball but not beyond 2-3x the fireball or so."
+#
+# Two words, held apart throughout this file: OBLITERATE means gone, no wreck, nothing to restore.
+# DESTROY means killed, leaving the repairable husk. Nothing in the mod obliterates one any more;
+# the nuclear tier destroys them further out than the conventional tier, and that is the whole of
+# the difference between the two.
+#
+# So property 2 above is now satisfied by NOBODY, and this file grants ONE property rather than
+# two. `HeavyOrdnanceDeath` no longer appears on any warhead here, and the tech buildings no
+# longer carry `ExcludedDeathTypes` at all (structures-neutral.yaml) -- the deny-list was removed
+# from BOTH ends rather than merely emptied at one, so a weapon that re-declared the damage type
+# tomorrow would still leave a wreck. That is deliberate: it makes "nothing obliterates" true by
+# construction instead of by convention, and it leaves no armed-but-unfired mechanism for a future
+# reader to rediscover and "reconnect".
+#
+# THE SPLIT THIS FILE ENCODES IS NOW TWO-WAY, and it is about REACH, not permanence:
+#
+#   cannot touch one   -- everything not in this file. Unchanged, and still the default.
+#   destroys it        -- everything in it. All five weapons leave the restorable husk, exactly as
+#                         engineer C4 always has. The tiers differ only in how far the lethality
+#                         carries: the conventional blocks are point weapons (1-2 cells), the two
+#                         nuclear ones reach ~2.5x their own fireball radius. Each nuclear block
+#                         shows its own derivation.
+#
+# THE SECOND OBLITERATION PATH IS ALSO CLOSED, and it is the one that is invisible from this file.
+# VaporizeWarhead (engine/OpenRA.Mods.Common/Warheads/VaporizeWarhead.cs) removes actors outright
+# inside a fireball radius and deliberately IGNORES ValidTargets entirely (IsValidAgainst, :83-98),
+# so it reached the tech buildings with no line here at all -- including from the eleven arsenal
+# warheads in weapons-nuclear-arsenal.yaml, which carry no Warhead@TechStructure and could
+# therefore obliterate a derrick they could not otherwise scratch (mod.yaml:264-269). ^TechBuilding
+# now carries `-Vaporizable:` (structures.yaml), which is the documented per-actor opt-out and the
+# same idiom SUPPLYROUTE uses. CLOSING ONLY THIS FILE WOULD NOT HAVE IMPLEMENTED THE RULING: the
+# fireball would still have erased them.
+#
+# NOTE WHAT DID NOT CHANGE: no Damage and no Penetration anywhere in this file. The conventional
+# blocks keep their Spread and Falloff untouched as well; only the two nuclear blocks were
+# retuned, and that retune is a REACH cap, not a strength change.
 #
 # ---------------------------------------------------------------------------------------------
 # WHY THIS IS A SEPARATE FILE RATHER THAN LINES IN THE FIVE WEAPON FILES
@@ -59,8 +99,9 @@
 #
 #   ENGINEER C4 IS NOT LISTED AND STILL WORKS. `PlaceC4` (weapons-other.yaml:589) reaches these
 #   buildings through the `C4` target type, which ^TechBuilding has always carried -- it was the
-#   ONLY way to kill one before this feature. It is intentionally left as the recoverable path:
-#   demolition leaves the husk, so the defender can restore it. Heavy ordnance does not.
+#   ONLY way to kill one before this feature. It was also the only RECOVERABLE way; as of the
+#   2026-09-11 ruling above, every weapon in this file leaves the same wreck C4 does, so C4 is no
+#   longer special in either respect. It is simply the cheapest way to destroy one.
 # ============================================================================================
 
 
@@ -98,7 +139,9 @@ IskanderExplosion:
 		Penetration: 2500
 		Spread: 1c0
 		Falloff: 100, 100, 0
-		DamageTypes: ExplosionDeath, HeavyOrdnanceDeath
+		# NO HeavyOrdnanceDeath -- conventional, so the kill leaves the restorable OILB.Husk. See
+		# "THE TWO PROPERTIES" at the top of this file; the omission is deliberate and is pinned.
+		DamageTypes: ExplosionDeath
 
 # Lets an Iskander be aimed AT a tech building by clicking it, rather than only by force-firing
 # the ground underneath. Purely a targeting-cursor affordance; the damage is done by the warhead
@@ -131,17 +174,36 @@ MOPPenetration:
 		Penetration: 5000
 		Spread: 512
 		Falloff: 100, 0
-		DamageTypes: ExplosionDeath, HeavyOrdnanceDeath
+		# NO HeavyOrdnanceDeath -- conventional, so the kill leaves the restorable husk. See
+		# "THE TWO PROPERTIES" at the top of this file; the omission is deliberate and is pinned.
+		DamageTypes: ExplosionDeath
 
 
 # --- THE NUCLEAR TIER -----------------------------------------------------------------------
 # Fired by MissileStrikePower@TacNuke (TacNukeMissile) and by mslo's NukePower, both via
-# `Weapon: Atomic`. Sized against this weapon's own Warhead@ThermalVaporize, which vaporises to
-# roughly 8.4 cells: Spread 2c0 across seven falloff steps puts the bands at 0/2/4/6/8/10/12
-# cells, lethal (200000, four times the toughest structure's HP) out to 8 and gone by 12.
+# `Weapon: Atomic`. It DESTROYS an economy structure and leaves the wreck, exactly as the
+# conventional tier above does -- the difference between the tiers is now REACH alone.
 #
-# So the rule a player can hold in their head is "a tac nuke removes every economy structure
-# inside the fireball", which is where the rest of the weapon's lethality already sits.
+# REACH IS CAPPED AT ~2.5x THE FIREBALL RADIUS (user ruling 2026-09-11: "can do so further out
+# than the inner fireball but not beyond 2-3x the fireball or so"), and the number is DERIVED:
+#
+#   fireball radius      0c711 = 0.694c   -- Warhead@VaporizeRemoval Radius
+#                                            (weapons-superweapons.yaml:298), which is the same
+#                                            number as Warhead@BlastWave StartRadius (:615).
+#   lethal threshold     55000 / 200000 = 27.5%   -- BIO and HOSP are the toughest at 55000 HP.
+#   Spread 1c0, Falloff 100, 100, 0  -> bands at 0c / 1c / 2c; 100% out to 1c, lerped to 0 at 2c.
+#   27.5% therefore lands at 1024 + (1 - 0.275) * 1024 = 1766 = 1.72c = 2.5x the fireball.
+#
+# Was Spread 2c0 / Falloff 100,100,100,100,100,25,0 -- lethal to 8 cells, which is 11x the
+# fireball and is what the ruling removed.
+#
+# DISTANCE IS HORIZONTAL AND MEASURED FROM THE HITSHAPE EDGE, not from the centre and not in 3D.
+# SpreadDamageWarhead uses HitShape.DistanceFromEdge (SpreadDamageWarhead.cs:74, :91), and every
+# tech building is a Rectangle (^2x2Shape / ^3x2Shape, defaults.yaml:1261-1274), whose
+# DistanceFromEdge hardcodes Z to 0 and returns the horizontal length. So this weapon's 6c256
+# airburst costs it NOTHING against a structure -- pinned by
+# MissileStrikeArrivalTest.RectangleHitShapesIgnoreDetonationAltitudeEntirely. Do not "correct"
+# these numbers for burst altitude; that is the error the AtomicHighYield note below used to make.
 #
 # NO AirThreshold, unlike every other warhead on this weapon. That field is only read by the
 # WPos overload of IsValidAgainst -- smudges, resources, effects (LeaveSmudgeWarhead.cs:47 and
@@ -151,31 +213,46 @@ Atomic:
 		ValidTargets: TechStructure
 		Damage: 200000
 		Penetration: 5000
-		Spread: 2c0
-		Falloff: 100, 100, 100, 100, 100, 25, 0
-		DamageTypes: ExplosionDeath, HeavyOrdnanceDeath
+		Spread: 1c0
+		Falloff: 100, 100, 0
+		# NO HeavyOrdnanceDeath. Nothing in the mod obliterates an economy structure any more --
+		# see "NOTHING OBLITERATES" at the top of this file.
+		DamageTypes: ExplosionDeath
 
-# The strategic device, fired by MissileStrikePower@HighYieldNuke. Scaled off `Atomic` above the
-# same way the rest of this weapon is: 8c0 against 2c0 is 4x the linear reach, in the same
-# neighbourhood as the cube-root-of-40x-yield factor (3.42) the weapon's own header derives.
-# Bands land at 0/8/16/24/32/40 cells, lethal to 32.
+# The strategic device, fired by MissileStrikePower@HighYieldNuke. Capped on the SAME rule as
+# `Atomic` above -- ~2.5x its own fireball -- which is why the two look so different in absolute
+# cells: this weapon's fireball is ten times the tactical one's, so its cap is ten times as wide.
 #
-# THE 15-CELL AIRBURST IS ALREADY PAID FOR IN THAT BUDGET, and this is the one place where
-# getting it wrong would make the block silently inert. HighYieldNukeMissile detonates at
-# DetonationAltitude 15c0, and SpreadDamageWarhead measures HitShape.DistanceFromEdge in THREE
-# dimensions -- so a structure directly beneath ground zero is already 15 cells away before any
-# horizontal distance is counted. Lethal to 32 cells of slant range is therefore lethal to about
-# sqrt(32^2 - 15^2) = 28 cells on the ground, which is where this weapon's own
-# Warhead@ThermalVaporize (Spread 10c0) reaches. Shrinking Spread here without redoing that
-# subtraction is how you get a nuke that spares the derrick underneath it.
+#   fireball radius      6c820 = 6.80c   -- Warhead@VaporizeRemoval Radius
+#                                           (weapons-superweapons.yaml:1019), matching
+#                                           Warhead@BlastWave StartRadius (:1327).
+#   lethal threshold     55000 / 800000 = 6.875%
+#   Spread 6c0, Falloff 100, 100, 100, 0  -> bands at 0c / 6c / 12c / 18c; 100% out to 12c,
+#                                            lerped to 0 at 18c.
+#   6.875% therefore lands at 12288 + (1 - 0.06875) * 6144 = 18009 = 17.6c = 2.6x the fireball.
+#
+# Was Spread 8c0 / Falloff 100,100,100,100,25,0 -- lethal to 32 cells, 4.7x the fireball.
+#
+# THE 15-CELL AIRBURST COSTS THIS WARHEAD NOTHING AGAINST A STRUCTURE, AND THE NOTE THAT USED TO
+# BE HERE SAYING OTHERWISE WAS WRONG. It claimed SpreadDamageWarhead measures DistanceFromEdge in
+# three dimensions, so a structure under ground zero "is already 15 cells away" -- and then
+# subtracted that from the budget. It is false for every building in the mod: Rectangle
+# hitshapes (^2x2Shape / ^3x2Shape, defaults.yaml:1261-1274) build their result vector with a
+# hardcoded Z of 0 and return the HORIZONTAL length, which
+# MissileStrikeArrivalTest.RectangleHitShapesIgnoreDetonationAltitudeEntirely pins explicitly.
+# Only Circle and Polygon shapes pay the vertical leg, which is infantry, not structures --
+# CircleHitShapesPayTheFullVerticalLeg in the same fixture. The numbers above are therefore plain
+# ground distances with no slant-range correction, and adding one would halve this weapon's reach
+# against the exact targets this block exists to govern.
 AtomicHighYield:
 	Warhead@TechStructure: SpreadDamage
 		ValidTargets: TechStructure
 		Damage: 800000
 		Penetration: 20000
-		Spread: 8c0
-		Falloff: 100, 100, 100, 100, 25, 0
-		DamageTypes: ExplosionDeath, HeavyOrdnanceDeath
+		Spread: 6c0
+		Falloff: 100, 100, 100, 0
+		# NO HeavyOrdnanceDeath -- see "NOTHING OBLITERATES" at the top of this file.
+		DamageTypes: ExplosionDeath
 
 # The Oreshnik's re-entry vehicle (weapons-explosions.yaml, fired by Explodes on OreshnikRV).
 # LISTED, and the ruling is worth writing down because the default in this file is deny.
@@ -202,4 +279,7 @@ OreshnikRVExplosion:
 		Penetration: 3000
 		Spread: 512
 		Falloff: 100, 100, 0
-		DamageTypes: ExplosionDeath, HeavyOrdnanceDeath
+		# NO HeavyOrdnanceDeath -- conventional, so each of the six impacts leaves a restorable
+		# husk. This is the block where the change is most visible: an Oreshnik salvo used to be
+		# able to erase six economy structures permanently, and now wrecks six recoverable ones.
+		DamageTypes: ExplosionDeath

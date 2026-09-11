@@ -1,24 +1,44 @@
--- ASSERTING AUTOTEST — can a heavy strike take an income structure off the map for good, while an
--- ordinary weapon still cannot touch one?
+-- ASSERTING AUTOTEST — does a NUCLEAR strike destroy an income structure and LEAVE the restorable
+-- wreck, while an ordinary weapon still cannot touch one?
 --
--- User request 2026-09-06: "I want to make money structures destroyable by powerful weapons, like
--- iskanders, strike powers and by nukes of course", amended the same day with the half that turned
--- out to be the real defect: "the destruction of money structures are not fully destroyed, they
--- leave the repairable wreck behind that can be repaired by engineer."
+-- RENAMED AND INVERTED 2026-09-11, from test-heavy-strike-erases-economy. It used to assert the
+-- exact opposite of arm A below — that a tac nuke leaves NO husk — which was the 2026-09-06 request
+-- ("the destruction of money structures are not fully destroyed, they leave the repairable wreck
+-- behind"). The user reversed that:
 --
--- WHAT WAS ACTUALLY WRONG, because it changes what has to be proved. The tech buildings were never
--- invulnerable in the DamageMultiplier sense — they were UNTARGETABLE. ^TechBuilding overrode its
--- inherited Targetable to `NoAutoTarget, C4, DetonateAttack`, dropping `Ground` and `Structure`, and
--- no weapon in the mod lists any of those three except the engineer's C4. So before this feature a
--- nuclear warhead and a rifle round were in exactly the same position: neither could deal one point
--- of damage. And the ONE kill path that did work, engineer demolition, left a husk carrying
--- InfiltrateForTransform — a full restore at 10% HP for the price of one engineer.
+--   "Actually, I think it is a bad game mechanic that money structures can be destroyed. Maybe
+--    nothing can fully obliterate them, so nuke also only destroys them, and can do so further out
+--    than the inner fireball but not beyond 2-3x the fireball or so."
+--
+-- INVERTED RATHER THAN DELETED, deliberately. Arms B and C below are unrelated to the reversal and
+-- are still the only in-game proof that the heavy/light split holds, so throwing the scenario away
+-- would have cost two working assertions to retire one. Leaving it RED was the other option and is
+-- worse than either: the obvious way to make it green again is to restore the behaviour the user
+-- just removed.
+--
+-- WHAT WAS ACTUALLY WRONG ORIGINALLY, kept because it still explains arm B. The tech buildings were
+-- never invulnerable in the DamageMultiplier sense — they were UNTARGETABLE. ^TechBuilding overrode
+-- its inherited Targetable to `NoAutoTarget, C4, DetonateAttack`, dropping `Ground` and `Structure`,
+-- and no weapon in the mod lists any of those three except the engineer's C4. So before that feature
+-- a nuclear warhead and a rifle round were in exactly the same position: neither could deal one
+-- point of damage.
 --
 -- SO THERE ARE THREE ARMS, and they fail in three different directions:
 --
---   A. THE STRIKE. A tac nuke on NukedDerrick must kill it AND leave no oilb.husk. Killing it is
---      the easy half; the husk is the half the user reported. A run where the derrick dies and a
---      wreck appears is the SHIPPED-BEFORE behaviour dressed up as progress.
+--   A. THE STRIKE. A tac nuke on NukedDerrick must kill it AND LEAVE an oilb.husk. Killing it is
+--      the easy half; the wreck is the half the ruling is about. Two things have to hold for this
+--      to pass and they live in different files: `Atomic`'s Warhead@TechStructure must not carry
+--      `HeavyOrdnanceDeath` (weapons-heavy-ordnance.yaml) and ^TechBuilding must carry
+--      `-Vaporizable:` (structures.yaml). The second is the one that is easy to miss — VaporizeWarhead
+--      ignores target types entirely, so without it the fireball erases the derrick no matter what
+--      the damage types say, and this arm fails with the husk count stuck at its baseline.
+--
+--      NOTE THE GEOMETRY STILL WORKS AFTER THE 2026-09-11 REACH CAP. `Atomic`'s Warhead@TechStructure
+--      went from Spread 2c0 (lethal to 8 cells) to Spread 1c0 (lethal to ~1.7). NukedDerrick is at
+--      the aim point — cell 40,17 falls inside its 2x2 footprint, so DistanceFromEdge is 0 and it
+--      takes the full 200000 against 50000 HP. KilledDerrick at 23 cells and ShelledDerrick at 34
+--      are now far outside the warhead rather than merely outside its lethal band, which only makes
+--      the two controls safer.
 --
 --   B. THE CONTROL THAT MUST NOT DIE. A t90 force-firing into ShelledDerrick's footprint for 250
 --      ticks must leave it at full health. Opening the door for heavy ordnance must not have opened
@@ -217,17 +237,19 @@ local function finish()
 		return
 	end
 
-	-- ARM A, second half, and the assertion this scenario exists for.
-	if husksAtEnd > husksAfterScriptKill then
-		Test.Fail("the nuke destroyed the derrick and LEFT A WRECK: husk count went from "
-			.. husksAfterScriptKill .. " to " .. husksAtEnd .. " at [" .. huskCellsAtEnd .. "]."
-			.. " That wreck carries InfiltrateForTransform via ^TechBuildingHusk, so one engineer"
-			.. " walking into it restores the whole income structure at 10% HP -- the attacker spent"
-			.. " a nuclear warhead and the defender spends one engineer. Check that Atomic's"
-			.. " Warhead@TechStructure still carries `HeavyOrdnanceDeath` in its DamageTypes AND"
-			.. " that the derrick's SpawnActorOnDeath still carries"
-			.. " `ExcludedDeathTypes: HeavyOrdnanceDeath`. Damage without permanence is the ORIGINAL"
-			.. " reported bug, not a partial fix. || " .. s)
+	-- ARM A, second half, and the assertion this scenario exists for. INVERTED 2026-09-11: the wreck
+	-- must now APPEAR. It used to fail on exactly the opposite condition.
+	if husksAtEnd <= husksAfterScriptKill then
+		Test.Fail("the nuke OBLITERATED the derrick: husk count stayed at " .. husksAtEnd
+			.. " when a new wreck was due at the aim point. User ruling 2026-09-11: \"nothing can"
+			.. " fully obliterate them, so nuke also only destroys them\". TWO INDEPENDENT PATHS CAN"
+			.. " CAUSE THIS AND THEY SHARE NO CODE. (1) The damage path: Atomic's"
+			.. " Warhead@TechStructure must NOT carry `HeavyOrdnanceDeath`, and no tech building may"
+			.. " declare `ExcludedDeathTypes` -- both are pinned by KillableEconomyTest. (2) The"
+			.. " FIREBALL path: ^TechBuilding must carry `-Vaporizable:` (structures.yaml), because"
+			.. " VaporizeWarhead ignores ValidTargets entirely and removes the actor through"
+			.. " ISuppressDeathRemains, which no damage-type rule can stop. Check (2) first -- it is"
+			.. " the one a reader fixing (1) forgets. || " .. s)
 		return
 	end
 
@@ -241,8 +263,8 @@ local function finish()
 		return
 	end
 
-	Test.Pass("heavy strike erased the derrick with no wreck left behind; a t90 could not scratch a"
-		.. " second one; a scripted no-damage-type death still left a restorable husk; Supply Routes"
+	Test.Pass("nuclear strike destroyed the derrick and LEFT a restorable wreck; a t90 could not"
+		.. " scratch a second one; a scripted no-damage-type death also left a husk; Supply Routes"
 		.. " intact. || " .. s)
 end
 

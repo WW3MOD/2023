@@ -685,7 +685,7 @@ Player:
 		#
 		# NOTHING ABOUT DEAD HAND CHANGES. doomsday.yaml fires the WEAPON `Atomic` by name
 		# (doomsday.yaml:108), not this power, and a weapon has no prerequisites -- the same is true
-		# of test-heavy-strike-erases-economy, which also names the weapon. This gate is only ever
+		# of test-heavy-strike-wrecks-economy, which also names the weapon. This gate is only ever
 		# consulted by the buy tab and the support bin.
 		Prerequisites: powers.event
 		# OWN CAMEO SINCE 2026-09-09: the Trinity shot, ~21 kt against this power's 20. Went `abomb`

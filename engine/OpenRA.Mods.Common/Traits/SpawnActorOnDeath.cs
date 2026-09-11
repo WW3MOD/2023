@@ -51,10 +51,12 @@ namespace OpenRA.Mods.Common.Traits
 			"no actor is spawned and the victim simply leaves the map. The inverse of 'DeathType',",
 			"which is an allow-list; this is a deny-list, and it wins when both are set.",
 			"",
-			"WW3MOD uses this for the 'a heavy strike is permanent' rule: the neutral tech buildings",
-			"(structures-neutral.yaml) leave a restorable husk when demolished conventionally, but",
-			"leave NOTHING when killed by ordnance carrying 'HeavyOrdnanceDeath' -- see",
-			"rules/weapons/weapons-heavy-ordnance.yaml for the roster that grants that damage type.",
+			"WW3MOD USED this for an 'a heavy strike is permanent' rule on the neutral tech buildings",
+			"and deliberately no longer does. User ruling 2026-09-11: nothing may obliterate an economy",
+			"structure, so those actors declare no exclusions and every death leaves the restorable husk.",
+			"NO ACTOR IN THE MOD SETS THIS FIELD TODAY -- it is working engine functionality with no",
+			"current consumer, kept because it is upstream-general. Do not wire the tech buildings back",
+			"up to it without re-reading that ruling.",
 			"Empty by default, so every existing husk-spawner is unaffected.")]
 		public readonly BitSet<DamageType> ExcludedDeathTypes = default;
 
