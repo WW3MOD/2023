@@ -166,6 +166,36 @@ Vehicles get **no vision, burst, burst-wait or accuracy penalty from damage at a
 `BurstWaitMultiplier` is a shorter wait between bursts. So at <25% HP an aircraft is twice as accurate and
 fires twice as fast as an undamaged one, while losing 25% speed.
 
+> ### ⚠️ CORRECTED 2026-09-12 — the two bands STACK, so the sentence above understates every figure by 1.33×
+>
+> **The paragraph above is left as written, per the convention that a dated record is superseded in place rather
+> than rewritten. Its direction is right; its arithmetic is wrong, and so is the identical claim that was in
+> `impediment-spec.md` §2.3.**
+>
+> `heavy-damage-attained` is granted on `ValidDamageStates: Heavy, Critical` (`defaults.yaml:278-280`) while
+> `critical-damage` is granted on `Critical` alone (`:281-283`). **Below 25% HP both conditions hold, both traits
+> in each pair are enabled at once, and `Util.ApplyPercentageModifiers` multiplies them** — there is no max-wins
+> and no dedupe (`Util.cs:238-246`). The bottom band is a **product**, not a single value:
+>
+> | Axis | Effective below 25% HP | The table above reads |
+> |---|---|---|
+> | Inaccuracy | 75% × 50% = **37.5%**, i.e. **2.67× more accurate** | 50% → "twice" |
+> | BurstWait | 75% × 50% = **37.5%**, i.e. **2.67× faster** | 50% → "twice" |
+> | Speed | 90% × 75% = **67.5%** | 75% |
+>
+> **Why this is easy to get wrong here and nowhere else:** the infantry ladder in the section above uses the
+> *exclusive* `light-damage` / `medium-damage` / `heavy-damage` bands, so exactly one trait per axis is ever live
+> and its per-band table can be read straight off. `^WhenDamagedAir` is the only family that pairs a latching
+> token with an exact-band one. (The infantry **speed** column is the one exception and this document already
+> catches it correctly — see the `Speed 0` note under the infantry table, `25% × 0% = 0`.)
+>
+> **Status of the INFERENCE below:** settled. The user ruled it a bug on 2026-09-11, and the fix shipped as
+> `2cda2e3f` (merged `557c38d7`, 2026-09-12): the four values became their exact reciprocals, 133 and 200, so
+> effective inaccuracy and burst wait below 25% HP are now **266%**. The speed column was correctly left alone.
+> The stacking is recorded in-file at `aircraft.yaml:412-415`, and the full finding — including that
+> `BurstWaitMultiplier` reaches only `Weapon.BurstWait` and not `ReloadDelay` — is at `WORKSPACE/DISCOVERIES.md`
+> under 2026-09-12.
+
 That is a reading of the numbers, not of intent. **INFERENCE:** this looks like a sign error — every other
 family moves these two in the punishing direction (infantry 150→400). Flagging, not fixing; it is outside
 this brief's scope and is a balance change.
