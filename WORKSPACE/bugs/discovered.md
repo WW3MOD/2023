@@ -5,6 +5,22 @@
 
 ---
 
+- [2026-09-12] [UNKNOWN SEVERITY — REACHABILITY NOT CHECKED] **`bradley` has no drawable sprite: its
+  sequence is `idle: 1tnk`, and `1tnk.shp` is not in this repository.** The sequence node for image
+  `bradley` in `mods/ww3mod/sequences/sequences.yaml` resolves `idle` to `1tnk`, which comes from Red
+  Alert's `conquer.mix` and is absent from the tree. Note the trap that hides this: **`bradley.shp`
+  DOES exist** at `mods/ww3mod/bits/units/vehicle/bradley.shp` and decodes fine (24×24, 64 frames), so
+  a grep for the file finds something and a casual look concludes the art is present. The engine never
+  opens it, because the sequence names `1tnk`. This is the same failure class as the PITFALL at
+  `sequences-misc.yaml:229-239` — a sequence naming a `.shp` the mod does not ship draws **nothing,
+  silently, with no load error**.
+  ⚠️ **I did NOT verify whether `bradley` is reachable in play** — whether its rule file is in
+  `mod.yaml`'s `Rules:` list, whether anything buildable references it, or whether it is baselined in
+  `lint-baseline.txt`. That check is exactly what the `t72` entry below records two workers getting
+  wrong in opposite directions, so I am not repeating the mistake by asserting either way. Severity is
+  whatever that check makes it: invisible-unit-in-play if reachable, dead YAML if not.
+  (found while working on: `wt/indicator-layout`, choosing real unit sprites for the indicator mockup)
+
 - [2026-09-08] [LOW - LATENT, NOT REACHABLE TODAY] **`BallisticMissile.SetMotionEndpoint` is called
   from an activity CONSTRUCTOR, so building a `BallisticMissileFly` repoints trait state whether or
   not the activity is ever queued.** `BallisticMissileFly.cs:58` publishes the frozen `targetPos` to
