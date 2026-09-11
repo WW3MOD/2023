@@ -28,6 +28,7 @@ VehicleCookoff:
 	Warhead@EffectWater: CreateEffect
 		Explosions: splash_small
 		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
 
 # Tiny variant for light unarmored / light APC vehicles (humvee, m113, btr).
 # Tighter radius, less damage, smaller visual — fuel fire, not catastrophic

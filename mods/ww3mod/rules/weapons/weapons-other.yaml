@@ -673,6 +673,7 @@ DepthCharge:
 		Explosions: splash_large
 		ImpactSounds: h2obomb2.aud
 		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
 	Warhead@Effect: CreateEffect
 		Explosions: explosion_small
 		ImpactSounds: kaboom15.aud

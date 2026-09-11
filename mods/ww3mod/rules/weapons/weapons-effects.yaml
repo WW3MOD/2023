@@ -3,9 +3,20 @@
 	Warhead@PiffEffect: CreateEffect
 		Explosions: piffs
 		ValidTargets: Ground, Trees
+	# PITFALL: InvalidTargets is what keeps a water splash off a bridge deck, and the terrain
+	# type is NOT what decides it. `^Bridge` advertises `Targetable: TargetTypes: Ground, Water,
+	# Bridge` (rules/ingame/civilian.yaml:235), and CreateEffectWarhead.DoImpact short-circuits
+	# the terrain test entirely once any actor at the impact point is valid
+	# (Warheads/CreateEffectWarhead.cs:139-148) -- so the bridge ACTOR matches `Water` and the
+	# splash plays on the deck even though the cell's terrain is correctly typed `Bridge`
+	# (`TargetTypes: Ground, Bridge`). Since InvalidTargets beats ValidTargets, naming `Bridge`
+	# here is the whole fix. Matches the 14 other water effect warheads in this mod and upstream
+	# RA (engine/mods/ra/weapons/ballistics.yaml:30-31). Open water is unaffected: it has no
+	# `Bridge` target type, so it still splashes.
 	Warhead@EffectWater: CreateEffect
 		Explosions: water_piffs
 		ValidTargets: Water
+		InvalidTargets: Ship, Structure, Bridge
 	Warhead@AirEffect: CreateEffect
 		ValidTargets: Helicopter
 		ImpactActors: true
@@ -17,6 +28,7 @@
 	Warhead@EffectWater: CreateEffect
 		Explosions: water_piff
 		ValidTargets: Water
+		InvalidTargets: Ship, Structure, Bridge
 	Warhead@AirEffect: CreateEffect
 		ValidTargets: Helicopter
 		ImpactActors: true
