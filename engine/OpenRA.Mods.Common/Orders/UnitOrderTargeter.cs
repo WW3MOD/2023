@@ -51,6 +51,15 @@ namespace OpenRA.Mods.Common.Orders
 
 			var owner = type == TargetType.FrozenActor ? target.FrozenActor.Owner : target.Actor.Owner;
 			var playerRelationship = self.Owner.RelationshipWith(owner);
+
+			// WW3MOD: the player is holding a modifier that names the KIND of order they want, and this
+			// targeter is not it. Stepping aside here is what lets the terrain-only AttackMoveTargeter
+			// (priority 4) be reached through UnitOrderGenerator's second pass instead of being beaten
+			// to the click by every actor-targeting order above it. Ally-only, and not extended to
+			// force-move — MovementModifierMath owns both of those decisions and the reasons for them.
+			if (MovementModifierMath.YieldsToMovementOrder(modifiers, playerRelationship))
+				return false;
+
 			if (!modifiers.HasModifier(TargetModifiers.ForceAttack) && playerRelationship == PlayerRelationship.Ally && !targetAllyUnits)
 				return false;
 
