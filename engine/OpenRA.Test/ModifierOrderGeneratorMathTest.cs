@@ -103,5 +103,46 @@ namespace OpenRA.Test
 		{
 			Assert.That(ModifierOrderGeneratorMath.AllowsModifierOverride(null), Is.True);
 		}
+
+		// ---------- ModeSurvives: when an already-installed modifier mode must come down ----------
+
+		// The reported bug. Alt-tabbing out of the game while holding Alt sends the KeyUp to the window
+		// manager, so CommandBarLogic's KeyUp cancel never runs and the mode is left installed with
+		// nothing holding it up. Asking against live modifier state rather than the lost edge is what
+		// makes this recoverable, so the "no modifier held" case must come down.
+		[Test]
+		public void AModifierDrivenModeFallsWhenTheModifierIsNotHeld()
+		{
+			Assert.That(ModifierOrderGeneratorMath.ModeSurvives(true, Modifiers.None, Modifiers.Alt), Is.False,
+				"an alt-tab eats the Alt KeyUp, so a mode that trusts the edge is never taken down");
+		}
+
+		[Test]
+		public void AModifierDrivenModeStandsWhileTheModifierIsHeld()
+		{
+			Assert.Multiple(() =>
+			{
+				Assert.That(ModifierOrderGeneratorMath.ModeSurvives(true, Modifiers.Alt, Modifiers.Alt), Is.True);
+
+				// Shift is the queue modifier and rides on top of attack-move constantly; requiring an
+				// EXACT match here would drop the mode the instant the player reached for a waypoint.
+				Assert.That(ModifierOrderGeneratorMath.ModeSurvives(true, Modifiers.Alt | Modifiers.Shift, Modifiers.Alt), Is.True,
+					"Shift+Alt is a queued attack-move, not a released one");
+			});
+		}
+
+		// The other half, and the reason this takes a flag rather than just reading the keyboard: the
+		// ATTACK MOVE button and its hotkey arm the same generator while no modifier is held at all. A
+		// blanket "is Alt down?" would cancel that mode on the very next tick.
+		[Test]
+		public void AButtonDrivenModeIsUnaffectedByModifiers()
+		{
+			Assert.Multiple(() =>
+			{
+				Assert.That(ModifierOrderGeneratorMath.ModeSurvives(false, Modifiers.None, Modifiers.Alt), Is.True,
+					"the command-bar button holds no modifier, so it must not be asked to prove one");
+				Assert.That(ModifierOrderGeneratorMath.ModeSurvives(false, Modifiers.Alt, Modifiers.Alt), Is.True);
+			});
+		}
 	}
 }

@@ -419,7 +419,12 @@ namespace OpenRA.Mods.Common.Widgets
 							{
 								selectionHash = 0; // Force selection update
 								UpdateStateIfNecessary();
-								world.OrderGenerator = new AttackMoveOrderGenerator(selectedActors);
+
+								// modifierDriven: this mode is held up by Alt and must fall when Alt does.
+								// The KeyUp below is the normal way it falls, but an alt-tab delivers that
+								// KeyUp to the window manager, so the edge is lost and the mode would be
+								// left installed — see AttackMoveOrderGenerator.Tick.
+								world.OrderGenerator = new AttackMoveOrderGenerator(selectedActors, modifierDriven: true);
 							}
 
 							return true;

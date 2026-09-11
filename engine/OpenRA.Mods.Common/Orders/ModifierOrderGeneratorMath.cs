@@ -49,5 +49,24 @@ namespace OpenRA.Mods.Common.Orders
 
 			return typeof(UnitOrderGenerator).IsAssignableFrom(currentOrderGeneratorType);
 		}
+
+		/// <summary>Whether an already-installed modifier-driven mode should stay installed.</summary>
+		// THE KEY-UP EDGE IS NOT A RELIABLE END. CommandBarLogic arms attack-move on the Alt KeyDown and
+		// disarms it on the matching KeyUp. An alt-tab delivers that KeyUp to the window manager instead
+		// of to the game, so the edge is simply never seen and the mode is left installed with nothing
+		// holding it. Asking this every tick against LIVE modifier state closes that hole, because
+		// Game.HandleModifierKeys re-reads SDL every frame before cursor evaluation (Game.cs:929) and so
+		// cannot itself go stale across a focus change.
+		//
+		// modifierDriven is what keeps the command-bar BUTTON working. A mode entered by pressing ATTACK
+		// MOVE (or its hotkey) is deliberately sticky and holds no modifier at all, so asking it to prove
+		// Alt is down would cancel it on the very next tick.
+		public static bool ModeSurvives(bool modifierDriven, Modifiers held, Modifiers required)
+		{
+			if (!modifierDriven)
+				return true;
+
+			return held.HasModifier(required);
+		}
 	}
 }
