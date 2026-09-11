@@ -254,18 +254,48 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		TraitPair<AttackMove>[] subjects;
 
-		public AttackMoveOrderGenerator(IEnumerable<Actor> subjects)
+		// Whether this mode is held up by the attack-move MODIFIER (Alt) rather than by the command-bar
+		// button. The two have genuinely different lifetimes, and conflating them produced both halves of
+		// the bug fixed here: a modifier-driven mode must fall the moment Alt is released, and a
+		// button-driven one must work with no modifier held at all.
+		readonly bool modifierDriven;
+
+		public AttackMoveOrderGenerator(IEnumerable<Actor> subjects, bool modifierDriven = false)
 		{
+			this.modifierDriven = modifierDriven;
 			this.subjects = subjects.Where(a => !a.IsDead)
 				.SelectMany(a => a.TraitsImplementing<AttackMove>()
 					.Select(am => new TraitPair<AttackMove>(a, am)))
 				.ToArray();
 		}
 
+		/// <summary>Whether a click carrying these modifiers should be treated as an attack-move.</summary>
+		// Ctrl disarms the mode in both flavours, so force-move stays reachable without leaving it first.
+		// The rest is ModeSurvives: a BUTTON-driven mode needs no modifier at all, which is what makes the
+		// ATTACK MOVE button work. Before this, pressing that button installed a generator whose every
+		// entry point then demanded Alt anyway, so the mode drew no cursor and issued no order.
+		bool IsArmedBy(Modifiers held)
+		{
+			if (held.HasModifier(Game.Settings.Game.ForceMoveModifiers))
+				return false;
+
+			return ModifierOrderGeneratorMath.ModeSurvives(modifierDriven, held, Game.Settings.Game.AttackMoveModifiers);
+		}
+
+		public override void Tick(World world)
+		{
+			// Re-derived from LIVE modifier state every tick rather than trusting the Alt KeyUp, which an
+			// alt-tab delivers to the window manager instead of to the game. Game.GetModifierKeys is
+			// re-read from SDL every frame before cursor evaluation (Game.cs:929), so it is never the
+			// stale half. Cancelling from here is legal: Tick runs inside Sync.RunUnsynced (Game.cs:815)
+			// and the OrderGenerator setter asserts exactly that (World.cs:167).
+			if (!ModifierOrderGeneratorMath.ModeSurvives(modifierDriven, Game.GetModifierKeys(), Game.Settings.Game.AttackMoveModifiers))
+				world.CancelInputMode();
+		}
+
 		public override IEnumerable<Order> Order(World world, CPos cell, int2 worldPixel, MouseInput mi)
 		{
-			var modifiers = mi.Modifiers;
-			if (mi.Button != Game.Settings.Game.AttackMoveButton || !modifiers.HasModifier(Game.Settings.Game.AttackMoveModifiers) || modifiers.HasModifier(Game.Settings.Game.ForceMoveModifiers))
+			if (mi.Button != Game.Settings.Game.AttackMoveButton || !IsArmedBy(mi.Modifiers))
 				return Enumerable.Empty<Order>();
 
 			return OrderInner(world, cell, mi);
@@ -274,7 +304,7 @@ namespace OpenRA.Mods.Common.Traits
 		protected virtual IEnumerable<Order> OrderInner(World world, CPos cell, MouseInput mi)
 		{
 			var modifiers = mi.Modifiers;
-			if (mi.Button == Game.Settings.Game.AttackMoveButton && modifiers.HasModifier(Game.Settings.Game.AttackMoveModifiers) && !modifiers.HasModifier(Game.Settings.Game.ForceMoveModifiers))
+			if (mi.Button == Game.Settings.Game.AttackMoveButton && IsArmedBy(modifiers))
 			{
 				// Keep this generator active while Alt is held so the attack-move cursor
 				// stays visible and subsequent clicks (with or without Shift) continue to
@@ -301,7 +331,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override string GetCursor(World world, CPos cell, int2 worldPixel, MouseInput mi)
 		{
 			var modifiers = mi.Modifiers;
-			if (mi.Button != Game.Settings.Game.AttackMoveButton || !modifiers.HasModifier(Game.Settings.Game.AttackMoveModifiers) || modifiers.HasModifier(Game.Settings.Game.ForceMoveModifiers))
+			if (mi.Button != Game.Settings.Game.AttackMoveButton || !IsArmedBy(modifiers))
 				return null;
 
 			var subject = subjects.FirstOrDefault();
