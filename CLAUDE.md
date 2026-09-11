@@ -24,7 +24,17 @@ Side-by-side installation is safe; the pin governs which SDK *compiles*, not whi
 reasoning in commit `e4453e6b`; read it before proposing a bump.
 
 ```bash
-./make.ps1 all          # Windows build (targets net6, runs on .NET 8+); `make all` on Linux/macOS
+./make.ps1 all          # Windows build (targets net6, runs on .NET 8+); `make all` on Linux/macOS.
+                        # RELEASE. Directory.Build.props strips every analyzer in Release, so a green
+                        # `all` says NOTHING about analyzer errors -- and neither does `dotnet test`,
+                        # which also runs Release. Run `check` too; see below.
+./make.ps1 check        # Debug build with analyzers ON, plus the interface checks. THE ONLY COMMAND
+                        # HERE THAT SEES AN RCS-CLASS ERROR. Not optional before you commit C#:
+                        # on 2026-09-11 a commit passed `all` (0 errors), `dotnet test` (3184 passing)
+                        # and `make test` (Errors: 21, unchanged) while failing `check` with four
+                        # RCS1112 errors in a test file that same commit had just added. It was
+                        # merged on the strength of that green run and reached no remote only by
+                        # luck. A green Release build is not evidence about the Debug gate.
 ./launch-game.cmd       # Windows: builds, then runs (aborts without launching if the build fails)
 ./launch-game.sh        # Linux/macOS: runs an ALREADY-BUILT tree; does NOT build first
 make test               # YAML validation (needs .NET 6 runtime specifically). Fails on lint errors that
