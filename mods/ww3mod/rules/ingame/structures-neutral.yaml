@@ -64,6 +64,7 @@ OILB:
 	SpawnActorOnDeath:
 		Actor: OILB.Husk
 		OwnerType: InternalName
+
 FCOM:
 	Inherits: ^TechBuilding
 	Inherits@Shape: ^2x2Shape
@@ -96,7 +97,8 @@ FCOM:
 		String: Forward
 	SpawnActorOnDeath:
 		Actor: FCOM.Husk
-		OwnerType: InternalName	RenderSprites:
+		OwnerType: InternalName
+	RenderSprites:
 		Image: acom
 
 BIO:
@@ -129,6 +131,7 @@ BIO:
 	SpawnActorOnDeath:
 		Actor: BIO.Husk
 		OwnerType: InternalName
+
 MISS:
 	Inherits: ^TechBuilding
 	Inherits@Shape: ^3x2Shape
@@ -172,6 +175,7 @@ MISS:
 	SpawnActorOnDeath:
 		Actor: MISS.Husk
 		OwnerType: InternalName
+
 HOSP:
 	Inherits: ^TechBuilding
 	Inherits@Shape: ^2x2Shape
