@@ -228,8 +228,15 @@ drillmine:
 # PITFALL: an entry here with NO filename after the colon (groups, medic, tag-fake,
 # tag-primary, tag-hold) falls back to the set name — pips.shp — which this mod does not
 # ship; it exists only under engine/mods/cnc. Those five draw NOTHING, silently, with no
-# load error. Referencing one from a WithDecoration costs a test run to discover. Entries
-# that name a file (pips2, pip-ammo, pip-cover, ...) are fine.
+# load error. Referencing one from a WithDecoration costs a test run to discover.
+# CORRECTED 2026-09-11: this used to end "entries that name a file (pips2, pip-ammo,
+# pip-cover, ...) are fine." NAMING A FILE IS NOT SUFFICIENT — THE FILE MUST ALSO EXIST,
+# and pip-cover is itself a counterexample. pip-cover.shp and pip-cloak.shp are both absent
+# from the tree and both sit in mods/ww3mod/lint-baseline.txt, so the YAML gate stays silent
+# about them. pip-cover, pip-dugin and the three pip-cloak-* entries below therefore draw
+# nothing, in exactly the way this PITFALL warns about. It has never shown because nothing
+# in the mod references any of them — nor the ten pip-visibility-N rungs, whose file does
+# exist. Check that the .shp is in the tree, not just that a name follows the colon.
 pips:
 	pip-ammo-secondary-none: pip-ammo
 	pip-ammo-primary-none: pip-ammo
