@@ -4,6 +4,31 @@
 **Design + mockup only.** No rules YAML edited, no engine C# edited. Nothing launched, no screenshot
 captured, no `--check-yaml`, no `make test` — all withheld from this job by the brief.
 
+---
+
+## ⚠️ SUPERSEDED IN PART — 2026-09-12, by the single-glyph ruling
+
+**The LAYOUT half of this document is superseded. Its research half is not, and is still the best
+record in the tree.** Superseded in place, not rewritten — this project's convention.
+
+The user reviewed the four design languages below and rejected all four. The ruling, verbatim:
+
+> *"I want each unit to have the floating diamond shape only, and I want to design that diamond shape
+> in such a way that it can hold: Health/Suppression and if the unit is detected or not. Colour could
+> be for Suppression/health/impediment (or whatever we call it), and the degree that it is filled is
+> for the level of detection."*
+
+So the question is no longer *where the marks go* — there is one mark, in the place it already is, and
+the question is **how to draw it**. Replacement: [`diamond-variants.md`](diamond-variants.md) and
+[`mockups/diamond-variants.html`](mockups/diamond-variants.html), branch `wt/diamond-variants`.
+
+| | Sections |
+|---|---|
+| **Superseded — do not build from these** | **§2's "Where it goes" column** (the positions; the *verdict* column survives). **§3** (per-signal at-rest visibility across many marks). **§6** (the row A / row B recommendation). **§8's layout exclusions.** §5's framing of row A vs C vs D *as a choice between design languages*. |
+| **Survives, and is still authoritative** | **§0** — the five measured findings, including **the 6×9 diamond**, the **7×8 rifleman**, the 1px stance clearance and the exact-for-decorations palette proxy. All five are load-bearing inputs to the replacement. **§2's "Verdict" column** — the disposition of all 24 marks, which is what says what a single-glyph ruling *displaces*. **§4** — total vs decaying half, a question about the quantity and not about layout. **§7** — the cost table. **§9** — the guessing list. **§10** — the capture request, still unrun. |
+| **The finding worth keeping most** | **§5's corner-badge result: infantry carry `SelectionDecorations: ShowNever: true` (`infantry.yaml:56-57`) and therefore have no selection box and no corners to pin anything to.** That killed row C by rendering rather than by argument, and it constrains every future design, not just that one. |
+
+
 Companion artifact: [`WORKSPACE/mockups/indicator-layout.html`](mockups/indicator-layout.html), built by
 [`WORKSPACE/mockups/indicator_layout_assets.py`](mockups/indicator_layout_assets.py).
 Inventory not re-derived here: [`indicator-audit.md`](indicator-audit.md) is the source of truth for
