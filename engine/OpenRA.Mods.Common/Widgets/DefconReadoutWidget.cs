@@ -418,21 +418,33 @@ namespace OpenRA.Mods.Common.Widgets
 
 			for (var i = 0; i < count; i++)
 			{
-				// REGENERATION IS NOT WIRED YET and this is the one place that will change when it is.
-				// `ea3e9781` puts per-band regen timers on NuclearExchangeInfo; until this branch has
-				// merged it there is NO source for "how long until this band comes back", and a box
-				// drawn as Charging with a zero clock would be a readout inventing a fact. Held is the
-				// honest state on today's arsenal: every nuclear power is RequiresPurchase, so there
-				// is no interval running at all (SupportPowerManager.cs:229).
-				const bool Charging = false;
-				const int ChargeTicks = 0;
+				// ---- IS THIS BAND COMING BACK, AND WHEN --------------------------------------
+				// Wired at the `cc1cbe78` merge. Before it, nothing nuclear had a timer at all --
+				// every power was RequiresPurchase, which forces TotalTicks to 0
+				// (SupportPowerManager.cs:229) -- so there was no countdown in the engine for a
+				// readout to show. `ce397d9f` made Escalation's bands free and put them on per-band
+				// regeneration, and RegenTicksRemainingForSide is the one place that is counted.
+				//
+				// A NEGATIVE ANSWER IS NOT A ZERO. -1 means this side has no power at this band to
+				// ask about, which is a different fact from "ready now" and must not draw a clock:
+				// a box captioned 0:00 that never moves is a readout inventing a countdown. Held is
+				// the honest cell in that case, and it is also what a band drawn dark would ignore
+				// anyway.
+				var regen = exchange?.RegenTicksRemainingForSide(side, (int)bands[i]) ?? -1;
+				var charging = regen > 0;
 
 				var cell = DefconReadoutModel.CellFor(bands[i], permanent, windowBand,
-					windowTicks > 0, releaseOpen, Charging);
+					windowTicks > 0, releaseOpen, charging);
 
 				var rect = new Rectangle(boxesX + (i * (boxWidth + StepGap)), y, boxWidth, LedgerRowHeight);
+
+				// THE WINDOW'S CLOCK WINS WHERE BOTH EXIST, and both can: a granted band may also be
+				// regenerating from an earlier shot. The window is the one that ENDS THE PERMISSION,
+				// so it is the number the player has to act on -- a box counting down to its next
+				// warhead while the right to fire it expires sooner would be telling the player the
+				// less urgent of the two facts.
 				var clock = cell == DefconReadoutModel.LedgerCell.Window ? windowTicks
-					: cell == DefconReadoutModel.LedgerCell.Charging ? ChargeTicks : 0;
+					: cell == DefconReadoutModel.LedgerCell.Charging ? regen : 0;
 
 				DrawLedgerBox(rect, DefconReadoutModel.LedgerRungLabel(bands[i]), cell, clock);
 			}

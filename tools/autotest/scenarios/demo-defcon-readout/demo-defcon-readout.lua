@@ -43,7 +43,9 @@
 --     K+1215  FRAME 06 -- the NUCLEAR RELEASE banner, and both ledger rows lit at 1 kt
 --     K+1260  RUSSIA fires a 1 kt at empty ground in the far corner
 --     K+1290  FRAME 07 -- the ARMED banner, and USA's row carrying a 20 kt window
---     K+1700  FRAME 08 -- mid-window: the banner gone, the window clock visibly down
+--     K+1700  FRAME 08 -- mid-window: the banner gone, the window clock visibly down, and
+--             Russia's own 1 kt still regenerating from the shot it took
+--     K+2160  Russia's 1 kt regeneration completes (rules.yaml compresses it to 900 ticks)
 --     K+2260  the window lapses
 --     K+2300  FRAME 09 -- the 20 kt box dark again and the expiry line in the transients panel
 --     K+2400  Test.Skip
@@ -207,7 +209,9 @@ WorldLoaded = function()
 					"rather than a missing-glyph box. In the ledger below, the YOU row's 20 kt box " ..
 					"is drawn in the grant style -- a red-brown fill with a PULSING border, " ..
 					"visibly different from the lit blue 1 kt box beside it -- and carries its own " ..
-					"m:ss under the label. The ENEMY row still shows 1 kt lit and nothing else. " ..
+					"m:ss under the label. The ENEMY row's 1 kt box has just gone CHARGING -- still " ..
+					"lit but dimmer, carrying its own regeneration clock, because Russia just " ..
+					"spent that warhead. " ..
 					"FAIL if there is no banner (the edge detection never fired), if the YOU row's " ..
 					"20 kt box looks identical to its 1 kt box (Window collapsed into Held, and " ..
 					"the player cannot tell a grant from a holding), or if both rows changed -- " ..
@@ -221,7 +225,9 @@ WorldLoaded = function()
 					"THE LEDGER ALONE, banner long gone, ~440 ticks (~26 s) into a 1000-tick " ..
 					"window. expects: the two rows ASYMMETRIC and readable as such at a glance -- " ..
 					"YOU with 1 kt lit and 20 kt pulsing on a clock now reading roughly 0:34, " ..
-					"ENEMY with 1 kt lit and four dark boxes. The nuclear block's top-right value " ..
+					"ENEMY with 1 kt still CHARGING at roughly 0:28 and four dark boxes -- THREE " ..
+					"distinct box styles on screen at once, which is the whole claim of this " ..
+					"design. The nuclear block's top-right value " ..
 					"slot should read '20 kt FOR m:ss' and its number must AGREE with the small " ..
 					"one in the box. FAIL if the two clocks disagree, if the window clock has not " ..
 					"visibly fallen since frame 07, or if the box labels have shifted position " ..
@@ -233,7 +239,9 @@ WorldLoaded = function()
 			Trigger.AfterDelay(1260 + WINDOW_TICKS + 40, function()
 				TestHarness.Screenshot("09-grant-expired",
 					"AFTER THE LAPSE. expects: the YOU row's 20 kt box DARK again and matching the " ..
-					"ENEMY row exactly, the value slot back to plain '1 kt', the foot line back to " ..
+					"ENEMY row exactly, the ENEMY row's 1 kt box RECOVERED to plain lit with no " ..
+					"clock (its compressed 900-tick regeneration ran out at ~K+2160), the value " ..
+					"slot back to plain '1 kt', the foot line back to " ..
 					"the no-window wording, and the line '20 kt grant expired.' in the transients " ..
 					"panel at the bottom-left. FAIL if the box is still lit or still pulsing -- " ..
 					"the permission is revoked at lapse and a box that stayed on would be offering " ..

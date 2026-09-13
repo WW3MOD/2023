@@ -500,6 +500,76 @@ namespace OpenRA.Mods.Common.Traits
 			return state?.For(side)?.WindowSerial ?? 0;
 		}
 
+		/// <summary>
+		/// <para>Ticks until this SIDE's <paramref name="band"/> is fireable again, 0 when it is ready
+		/// now, and -1 when the side has no power at that band to ask about.</para>
+		/// </summary>
+		// ---- WHY THIS IS ASKED OF THE POWERS AND NOT OF NuclearExchangeState --------------------
+		// The state knows what a side is PERMITTED to fire. It does not know, and deliberately does
+		// not count, how long until the warhead is back: `ce397d9f` put regeneration on the support
+		// power's own ChargeInterval through EscalationRegenTicks, and NuclearExchangeState's header
+		// says outright that nothing there counts it. So the only honest source for a countdown is
+		// SupportPowerInstance.RemainingTicks, which is where the engine is actually counting.
+		//
+		// ---- THE SMALLEST REMAINING, NOT THE FIRST FOUND -----------------------------------------
+		// A side is a TEAM. Two players on one side each hold their own faction's warhead at a band,
+		// and what the side can do is whatever comes back SOONEST -- so the minimum is the answer,
+		// and the first entry in dictionary order is not.
+		//
+		// ---- -1 IS NOT 0 -------------------------------------------------------------------------
+		// "No power at this band" and "ready right now" are different facts and the ledger draws them
+		// differently: a band with no power behind it has no countdown to show, and a box captioned
+		// 0:00 forever would be a readout inventing one. Callers test for negative.
+		//
+		// ---- READ ONLY, FROM A WIDGET, AND THAT IS SAFE ------------------------------------------
+		// RemainingTicks is synced simulation state already covered by the support power machinery's
+		// own hashes. Nothing here writes, and the ledger reading the OTHER side's number is the
+		// design rather than a leak: decision 01's restraint case only works if each side can count
+		// what the other holds, which is why both rows are on screen for both players.
+		public int RegenTicksRemainingForSide(int side, int band)
+		{
+			if (state == null || Mode != DefconGameMode.Escalation || band <= (int)NuclearRung.Hold)
+				return -1;
+
+			var best = -1;
+
+			foreach (var p in combatants)
+			{
+				if (SideOf(p) != side)
+					continue;
+
+				var manager = p.PlayerActor?.TraitOrDefault<SupportPowerManager>();
+				if (manager == null)
+					continue;
+
+				// Ordinal key order for the same reason MakeBandsReady walks it that way: Dictionary
+				// order is not a guarantee, and two clients disagreeing about which of two equal
+				// timers they looked at would be a readout that flickered between machines.
+				foreach (var key in manager.Powers.Keys.OrderBy(k => k, System.StringComparer.Ordinal))
+				{
+					var instance = manager.Powers[key];
+					if (!(instance.Info is MissileStrikePowerInfo missile) || missile.NuclearYieldTons <= 0)
+						continue;
+
+					if (NuclearReleaseLadder.RungForYield(missile.NuclearYieldTons) != band)
+						continue;
+
+					// PERMITTED, NOT Ready. A power whose band condition is ungranted is not this
+					// side's to count at all -- its timer is pinned to full every tick it is disabled
+					// (SupportPowerManager.cs:249-251), so counting it would draw a countdown that
+					// never moves under a box the side does not even hold.
+					if (!instance.Permitted)
+						continue;
+
+					var remaining = instance.RemainingTicks;
+					if (best < 0 || remaining < best)
+						best = remaining;
+				}
+			}
+
+			return best;
+		}
+
 		/// <summary>A display name for this side: its first combatant, in registration order.</summary>
 		// FIRST COMBATANT AND NOT A TEAM NUMBER, because "TEAM 1" means nothing on screen and the
 		// player names do. Built once in WorldLoaded off the same ordered walk that registers the
