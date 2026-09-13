@@ -386,10 +386,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (label != null)
 			{
 				var collapsed = section != null && collapsedSections.TryGetValue(section, out var c) && c;
-				// Cleaner expand/collapse glyphs — ▸ collapsed, ▾ expanded — read
-				// as triangles instead of the [+]/[-] ASCII brackets which look
-				// like console output.
-				var glyph = section != null ? (collapsed ? "▸  " : "▾  ") : string.Empty;
+
+				// + AND MINUS, BECAUSE THE TRIANGLES WERE NEVER DRAWN (2026-09-13).
+				// This read "▸ collapsed, ▾ expanded" and rejected [+]/[-] for looking
+				// like console output — but FreeSansBold.ttf, which is what Font
+				// TinyBold resolves to (mods/ww3mod/mod.yaml:316), has no glyph for
+				// U+25B8, U+25BE, U+25B6 or U+25BC. Checked against the font's cmap,
+				// not assumed: all four are absent. So every collapsible section
+				// header in the lobby has been drawing a MISSING-GLYPH BOX, which a
+				// 2026-09-13 lobby capture shows sitting in front of "MATCH".
+				//
+				// U+2212 MINUS rather than an ASCII hyphen because it is the same
+				// width as the +, so the two states do not shift the label by a pixel
+				// as a section is toggled. Both are in the font; so are » « › ‹ • if
+				// a future pass wants something less utilitarian. Nothing in
+				// Geometric Shapes is, so check the cmap before reaching for an arrow.
+				var glyph = section != null ? (collapsed ? "+  " : "\u2212  ") : string.Empty;
 				var displayText = glyph + text.ToUpperInvariant() + (allPlaceholder ? PlaceholderSectionSuffix : string.Empty);
 				label.GetText = () => displayText;
 			}

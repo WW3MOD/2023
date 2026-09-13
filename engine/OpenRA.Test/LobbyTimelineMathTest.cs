@@ -182,6 +182,63 @@ namespace OpenRA.Test
 			Assert.That(reversed.LengthSeconds, Is.EqualTo(0));
 		}
 
+		// THE REGRESSION TEST FOR THE UNLABELLED BANDS (2026-09-13). The two open-ended spans used to
+		// be fixed second counts, which is a SHRINKING SHARE of an axis whose other terms grow with
+		// the host's clocks -- so at a 15-minute no-rush "NUCLEAR EXCHANGE" stopped being drawn.
+		// What is pinned is the property that broke: every band's share of the bar stays within a
+		// narrow range across the WHOLE configurable space, so a caption that fits at the default
+		// fits everywhere.
+		//
+		// SCOPE, HONESTLY: this pins the WIDTHS, in percent of the bar. It cannot prove a caption
+		// fits, because measuring needs a font and a renderer and neither is reachable from
+		// OpenRA.Test. The 15 % floor is calibrated against "NUCLEAR EXCHANGE" at ~104px in the
+		// 664px lobby bar; if the copy or the font changes, re-measure from a capture rather than
+		// trusting this number.
+		[Test]
+		public void EveryBandKeepsAReadableShareOfTheBarAtEveryConfiguration()
+		{
+			var info = new DefconEscalationInfo();
+
+			foreach (var noRushMinutes in info.NoRushOptions)
+			{
+				foreach (var warheadMinutes in info.FirstWarheadsOptions)
+				{
+					var noRush = noRushMinutes * 60;
+					var warheads = warheadMinutes * 60;
+					var configured = noRush + warheads;
+
+					var peace = TimelineModel.IndeterminateNominalSeconds(configured);
+					var exchange = TimelineModel.OpenEndedNominalSeconds(configured);
+
+					// The full Escalation layout with a time limit set: five bands.
+					var axis = noRush + peace + warheads + exchange + exchange;
+					var where = $"no-rush {noRushMinutes}m / warheads {warheadMinutes}m";
+
+					// The two OPEN-ENDED bands carry the longest captions on the bar and are the ones
+					// that went blank, so they are the ones with a floor.
+					Assert.That(100 * exchange / axis, Is.GreaterThanOrEqualTo(15),
+						$"{where}: the nuclear and ending bands are under 15% of the bar and will not fit their captions");
+
+					// And nothing may run away with the bar either -- a band at 60%+ squeezes every
+					// other caption out, which is the same defect from the other side.
+					foreach (var (name, span) in new[] { ("no-rush", noRush), ("peace", peace), ("war", warheads), ("exchange", exchange) })
+						Assert.That(100 * span / axis, Is.LessThanOrEqualTo(60), $"{where}: the {name} band takes over the bar");
+				}
+			}
+		}
+
+		[Test]
+		public void TheNominalSpansNeverCollapseToNothing()
+		{
+			// Degenerate and hostile inputs: a band of zero width is skipped by the widget, so a
+			// share that rounded to 0 would silently delete the phase rather than draw it small.
+			foreach (var configured in new[] { 0, 1, 59, 120 })
+			{
+				Assert.That(TimelineModel.IndeterminateNominalSeconds(configured), Is.GreaterThan(0));
+				Assert.That(TimelineModel.OpenEndedNominalSeconds(configured), Is.GreaterThan(0));
+			}
+		}
+
 		[Test]
 		public void AnEmptyLayoutStillHasAPositiveAxis()
 		{

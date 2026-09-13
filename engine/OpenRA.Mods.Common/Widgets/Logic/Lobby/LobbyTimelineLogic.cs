@@ -229,30 +229,41 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			var limitSeconds = TimeLimitSeconds();
 
+			// The two open-ended bands are sized from the two the host DID set, so every band keeps
+			// its share of the bar at every setting. See TimelineModel for why that is not cosmetic.
+			var configured = noRushSeconds + warheadSeconds;
+			var peace = TimelineModel.IndeterminateNominalSeconds(configured);
+			var exchange = TimelineModel.OpenEndedNominalSeconds(configured);
+
 			var bands = new List<TimelineBand>();
 			var cursor = 0;
 
 			cursor = Append(bands, cursor, noRushSeconds, () => "NO RUSH", () => TimelineModel.Clock(noRushSeconds),
 				TimelinePalette.NoRushFill, TimelinePalette.NoRushInk);
 
-			// THE EVENT BOUNDARY. Its width is TimelineModel.IndeterminateNominalSeconds and means
-			// nothing; the hatch and the caption are what carry that. Never caption this with a clock.
-			cursor = Append(bands, cursor, TimelineModel.IndeterminateNominalSeconds, () => "CEASE-FIRE",
+			// THE EVENT BOUNDARY. Its width is a share of the clocks around it and means NOTHING; the
+			// hatch and the caption are what carry that. Never caption this with a clock.
+			cursor = Append(bands, cursor, peace, () => "CEASE-FIRE",
 				() => "until the first kill", TimelinePalette.PeaceFill, TimelinePalette.PeaceInk, indeterminate: true);
 
 			cursor = Append(bands, cursor, warheadSeconds, () => "OPEN WAR",
 				() => "first warheads " + TimelineModel.Offset(warheadSeconds),
 				TimelinePalette.ConventionalFill, TimelinePalette.ConventionalInk);
 
-			cursor = Append(bands, cursor, TimelineModel.OpenEndedNominalSeconds, () => "NUCLEAR EXCHANGE",
+			cursor = Append(bands, cursor, exchange, () => "NUCLEAR EXCHANGE",
 				() => "either side may fire", TimelinePalette.WarheadFill, TimelinePalette.WarheadInk);
 
 			// The tail band exists only when the host has set a limit. With "No limit" the match ends
 			// on a Supply Route rather than on a clock, and drawing an ENDING span for it would put a
 			// phase on the bar that no setting produces.
+			//
+			// ITS DETAIL READS "ends 10:00", NOT "10:00". This is the ONE absolute moment on a bar of
+			// lengths, and a bare clock under the rightmost band reads as another duration -- which at
+			// a short time limit prints a SMALLER number to the right of a larger one and looks like a
+			// bug. The verb is what tells the host it is a point on the match clock.
 			if (limitSeconds > 0)
-				cursor = Append(bands, cursor, TimelineModel.OpenEndedNominalSeconds, EndingCaption,
-					() => TimelineModel.Clock(limitSeconds), TimelinePalette.EndingFill, TimelinePalette.EndingInk);
+				cursor = Append(bands, cursor, exchange, EndingCaption,
+					() => "ends " + TimelineModel.Clock(limitSeconds), TimelinePalette.EndingFill, TimelinePalette.EndingInk);
 
 			var hint = options.TryGetValue(DefconEscalationInfo.NoRushOptionId, out var noRush) && noRush.Placeholder
 				? "not configurable on this map"

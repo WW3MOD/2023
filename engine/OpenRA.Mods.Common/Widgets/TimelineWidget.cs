@@ -233,9 +233,14 @@ namespace OpenRA.Mods.Common.Widgets
 			}
 		}
 
-		// Centred in its own band and suppressed when the band cannot hold it. Both rows use the
-		// same rule, so a band either carries both of its lines or neither -- a detail hanging under
-		// an unlabelled colour block is worse than a plain colour block.
+		// Centred in its own band and suppressed when the band cannot hold it.
+		//
+		// THE TWO ROWS ARE RESOLVED INDEPENDENTLY, and a comment here used to claim the opposite --
+		// that a band carries both of its lines or neither. It never did: each row measures its own
+		// string, and the caption is always the shorter one, so the reachable outcome is a band that
+		// keeps its NAME and drops its detail. The 2026-09-13 lobby capture shows exactly that on
+		// CEASE-FIRE. Independent is also the behaviour worth keeping -- suppressing a caption that
+		// fits, because the detail under it does not, would throw away the more important of the two.
 		static void DrawCentred(SpriteFont font, string text, Rectangle band, int y, Color ink)
 		{
 			if (string.IsNullOrEmpty(text))

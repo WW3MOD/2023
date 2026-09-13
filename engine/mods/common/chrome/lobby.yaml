@@ -275,11 +275,17 @@ Background@SERVER_LOBBY:
 		# the preview clears the 24px scrollbar track plus 4px, so both are
 		# (column - 32) = (PW - 64) / 2 - 32. Lazy-loads MAPCHOOSER_INLINE into
 		# this container on first switch to the Change Map tab.
+		# HEIGHT MUST MATCH MAP_PREVIEW_ROOT IN lobby-players.yaml EXACTLY. This is
+		# the overlay the CHANGE MAP tab shows over the preview slot; if the two
+		# expressions drift, the browser either covers the option grid below the
+		# preview or stops short of the slot it replaces. Both were 3/5 until
+		# 2026-09-13, when the preview was cut to a quarter to stop it pushing the
+		# option grid below the fold — see that file for the arithmetic.
 		Container@MAP_BROWSE_ROOT:
 			X: 24
 			Y: 116
 			Width: (PARENT_WIDTH - 64) / 2 - 32
-			Height: (PARENT_HEIGHT - 196) * 3 / 5 - 40
+			Height: (PARENT_HEIGHT - 196) / 4 - 40
 			Visible: False
 		# === WW3MOD — MUSIC_PANEL_ROOT overlays LOBBYCHAT. Bounds must match
 		# LOBBYCHAT exactly (X PW/2+8, Width PW/2-32, Y/H shifted down 32 to

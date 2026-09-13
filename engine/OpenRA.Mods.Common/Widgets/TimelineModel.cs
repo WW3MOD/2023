@@ -108,15 +108,41 @@ namespace OpenRA.Mods.Common.Widgets
 		// The mockup's axis grid: a labelled tick every ten minutes.
 		public const int TickSeconds = 600;
 
-		/// <summary>The nominal width the peace phase is drawn at. It is NOT a duration.</summary>
-		// The phase ends on the first kill and could be five seconds or the whole match. It is drawn
-		// hatched at a fixed width so it reads as "and then, for however long it lasts, this" rather
-		// than as a number -- and the width is a round quarter of the ruler's tick so it cannot be
-		// mistaken for one of the configurable clocks either.
-		public const int IndeterminateNominalSeconds = 150;
+		// ==== THE NOMINAL SPANS, AND WHY THEY ARE SHARES RATHER THAN CONSTANTS ====
+		// Two phases on the Escalation bar have no length to draw: the peace ends on the FIRST KILL,
+		// and the nuclear exchange runs until something ends the match. They are given nominal widths
+		// so the bar has five readable bands instead of three and a pair of hairlines.
+		//
+		// THEY WERE FIXED SECOND COUNTS AND THAT MADE THE BAR ILLEGIBLE AT LONG SETTINGS. A fixed
+		// nominal is a SHRINKING SHARE of an axis whose other terms grow with the host's clocks: at
+		// a 15-minute no-rush the axis more than doubles, so a 300 s nominal fell from 121px to 83px
+		// of a 664px bar and "NUCLEAR EXCHANGE" -- 16 characters -- stopped being drawn at all. A
+		// 2026-09-13 lobby capture shows that state: two unlabelled colour blocks at the right-hand
+		// end, exactly where the match gets decided.
+		//
+		// As a SHARE of the configured clocks every band keeps its proportions at every setting, so
+		// a caption that fits at the default fits everywhere. The widths were meaningless either way
+		// -- that is what the hatch on the peace band says -- and meaningless-and-readable beats
+		// meaningless-and-blank.
+		const int PeaceShareNumerator = 1;
+		const int PeaceShareDenominator = 4;
+		const int ExchangeShareNumerator = 1;
+		const int ExchangeShareDenominator = 3;
 
-		/// <summary>The nominal width of a phase that runs until something ends the match.</summary>
-		public const int OpenEndedNominalSeconds = 300;
+		/// <summary>The width the peace phase is drawn at, given the clocks around it. NOT a duration.</summary>
+		public static int IndeterminateNominalSeconds(int configuredSeconds)
+		{
+			return Math.Max(TickSeconds / 4, configuredSeconds * PeaceShareNumerator / PeaceShareDenominator);
+		}
+
+		/// <summary>The width of a phase that runs until something ends the match. NOT a duration.</summary>
+		// The floor matters at the shortest configuration a host can set (2 + 2 minutes): without it
+		// the share collapses and the two open-ended bands vanish, which is the same blank-band
+		// failure in the other direction.
+		public static int OpenEndedNominalSeconds(int configuredSeconds)
+		{
+			return Math.Max(TickSeconds / 4, configuredSeconds * ExchangeShareNumerator / ExchangeShareDenominator);
+		}
 
 		public static int PxFromSeconds(int seconds, int axisSeconds, int width)
 		{
