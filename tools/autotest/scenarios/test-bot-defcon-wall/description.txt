@@ -1,0 +1,42 @@
+TEST: the bot advances to the DEFCON 3 border and holds there.
+
+A vertical line down column 44 splits a 100x60 map between USA-bot (west, Supply
+Route at x 3) and Russia (east, Supply Route at x 94). The match is pinned at
+DEFCON 3 for thirty minutes, so the border never comes down during the run.
+
+Eight tanks are placed around the bot's Supply Route. The enemy Supply Route is a
+PoiAction.Pressure POI, so PoiOffensiveBotModule forms an axis against it and
+orders the armour east -- straight through the border, before this change.
+
+WHAT THE THREE ASSERTIONS SEPARATE:
+
+  ADVANCE     At least one bot tank must reach x >= 30, i.e. it crossed most of
+              the ground between its Supply Route and the line. THIS IS THE
+              DISCRIMINATOR. Before BorderStagingEnabled the axis ordered to
+              x 94; AttackMove has no border guard so the order was accepted,
+              NearestMoveableCell failed CanReach on the far cell, the annulus
+              around it was also beyond the border, and Move completed without
+              moving. The tanks stayed on their spawn at x 6-9 for the whole
+              match, because the axis had recorded x 94 as "ordered" and its own
+              repath guard then refused to re-issue.
+
+  NO CROSSING No bot unit is ever observed at x >= 43, the west edge of the wall
+              band. This passed before the fix too -- the units could not move at
+              all -- so it is an invariant rather than the discriminator. It is
+              checked every tick, because a wall that is crossed and returned
+              from is not a wall.
+
+  HOLD        Over the last twenty harness-seconds, no bot unit moves more than
+              two cells and the bot's cumulative order count grows by less than
+              120. Together these say the advance ENDED: the axis is parked at
+              the border rather than re-offering a destination it cannot reach
+              every hundred-tick scan. The order counter is read through
+              Test.BotOrdersQueued, which counts at ModularBot.QueueOrder -- the
+              one funnel every module's order passes -- and counts BEFORE the
+              arbitration gate, so a module re-offering a suppressed order still
+              shows up.
+
+RED SABOTAGE: set BorderStagingEnabled to false in rules.yaml. Expected failure
+is the ADVANCE assertion: "bot never advanced: furthest tank reached x=<n>
+(need x>=30); it is still parked on its Supply Route". The other two still pass,
+which is exactly why ADVANCE is the one that carries the verdict.

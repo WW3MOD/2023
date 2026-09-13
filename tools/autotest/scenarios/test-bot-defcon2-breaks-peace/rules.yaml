@@ -1,0 +1,43 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+	PlayerResources:
+		DefaultCash: 15000
+
+	# THE LEVER UNDER TEST, re-stated here rather than inherited from ai.yaml so the RED sabotage is a
+	# one-word edit in this file and nobody has to take the shipped tuning down to run it.
+	PoiOffensiveBotModule@experimental:
+		Defcon2DirectFireEnabled: true
+
+	# EVERY NON-GROUND PATH THAT COULD BREAK THE PEACE, REMOVED. These are the three that can issue an
+	# order DEFCON 2 permits: the fixed-wing and helicopter squad states each issue a named Attack
+	# (AirStates.cs:193, HelicopterStates.cs:762/:891) and the drone operator issues a ForceAttack
+	# (DroneOperatorBotModule.cs:686, which the rule short-circuits on force-attack). Removing them is
+	# what makes "a casualty occurred" mean the ground path fired, rather than merely making it likely.
+	-SquadManagerBotModule@experimental.america.fixedwing:
+	-HelicopterSquadBotModule@experimental:
+	-DroneOperatorBotModule@experimental:
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-bot-defcon2-breaks-peace.lua
+
+	# OPENS AT DEFCON 2 -- the cease-fire phase -- so there is no clock to wait out. Only the 3 -> 2
+	# transition runs on a timer; 2 -> 1 fires the moment enemy action destroys anything, which is
+	# precisely the event under test. No NoRushTicksOverride is needed or meaningful here.
+	#
+	# StartAtDefault rather than the lobby dropdown, for the reason test-defcon-wall states: the option
+	# is registered with its C# default whatever a rules.yaml says, so the field is the only way in.
+	DefconEscalation:
+		ModeDefault: Escalation
+		StartAtDefault: 2
+
+	# No wall at DEFCON 2 in any case (DefconWallInfo.ActiveLevels is { 3 }), so world.yaml's derived
+	# line is down for the whole run and plays no part in this scenario.

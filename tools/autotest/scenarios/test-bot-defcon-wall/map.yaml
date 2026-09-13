@@ -1,0 +1,84 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: the bot advances to the DEFCON 3 border and holds there
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 100,60
+
+Bounds: 1,1,98,58
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES. PoiOffensiveBotModule owns the bot's whole ground pool and its only
+# destination order is AttackMove -- which carries NO border guard. Before BorderStagingEnabled the
+# axis ordered straight through the line: the order was accepted, Mobile.NearestMoveableCell failed
+# its CanReach term on the far cell, the radius-10 annulus around it was also beyond the border, the
+# cell came back unchanged, and Move found no path and COMPLETED. The units never moved, never
+# turned and said nothing; the axis then wrote that cell into OrderedCell and its own repath guard
+# suppressed every re-issue for the rest of the phase. The army sat on its spawn.
+#
+# So the discriminator is ADVANCE, not refusal: a bot that walks up to the line is fixed, a bot
+# still parked at its Supply Route is not. The no-crossing invariant is checked too, but it passed
+# before the fix as well -- the units could not move at all.
+#
+# GEOMETRY (the line is authored at x 44 in rules.yaml):
+#   USA-bot SR      3,28    the bot's beachhead; its ground pool musters here
+#   Russia SR      94,28    the POI the axis forms against (an enemy SR is PoiAction.Pressure)
+#   bot armour      6..9,26..30   eight tanks, all well west of the line
+#
+# Russia is a slot with no Bot and no client: it owns the far SR so the bot has something to want,
+# and does nothing. That is deliberate -- a second bot would put its own orders in the log and its
+# own units on the map, and neither is under test here.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	# Both Supply Routes fix a HomeLocation, which is what DefconWall resolves each player's SIDE
+	# from. Without them both players resolve into the same half and the wall is one-directional.
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 3,28
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 94,28
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 8,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 80,28
+
+Rules: rules.yaml

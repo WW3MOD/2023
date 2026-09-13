@@ -104,5 +104,81 @@ namespace OpenRA.Mods.Common.Traits
 			cell = FiresStandoffMath.NearestPassableCell(ideal, clampCells, Standable);
 			return Standable(cell);
 		}
+
+		/// <summary>The cell a ground unit should actually be ORDERED to when a line its owner may not cross
+		/// — the DEFCON 3 border — sits between the mover and the cell the bot picked. Walks back from
+		/// <paramref name="ideal"/> along the straight line toward <paramref name="from"/> to the first cell on
+		/// the mover's own side, then clamps THAT to standable ground exactly as
+		/// <see cref="TryNearestStandable"/> does. Returns false — the caller's signal to issue no order — when
+		/// no legal cell is reachable.
+		///
+		/// <para>WHY A STAGING CELL AND NOT A REFUSAL. The engine refuses a "Move" beyond the border
+		/// (Mobile.cs:1111-1115) but ACCEPTS an "AttackMove" and then does nothing with it: AttackMove has no
+		/// border guard, <see cref="Mobile.NearestMoveableCell(CPos, int, int)"/> fails its CanReach term on the far cell,
+		/// searches a radius-10 annulus that is also beyond the border, returns the cell unchanged, and Move
+		/// finds no path and COMPLETES — so the unit does not move, does not turn and says nothing
+		/// (Mobile.cs:894-898). The bot is told nothing either way. A module that records "ordered" against that
+		/// cell has parked its axis for the rest of the phase. Staging on the near side is an order the unit can
+		/// actually execute, so the bot's cell and the unit's cell are the same cell again.</para>
+		///
+		/// <para>THE WALK IS BACK ALONG THE APPROACH AXIS, not perpendicular to the line. The perpendicular foot
+		/// (DefconWall.NearestPositionOnOwnSide) is the right answer for UNDOING a violation — it is the shortest
+		/// way out — but this is the opposite problem: the unit has not moved yet, and the useful place to put it
+		/// is on the line it will advance along when the border opens. It also needs no geometry, only the
+		/// predicate, which is what keeps this pure and testable without mounting a world.</para>
+		///
+		/// <para><paramref name="isBeyondLine"/> null — no wall trait, or the wall is down — makes this exactly
+		/// <see cref="TryNearestStandable"/>, so every caller can route through it unconditionally and Skirmish
+		/// pays one null test. The relocation clamp is conjoined with the same predicate: without that,
+		/// NearestPassableCell is free to relocate the staging cell straight back across the line.</para></summary>
+		public static bool TryStageOnNearSide(CPos ideal, CPos from, Func<CPos, bool> isBeyondLine,
+			int clampCells, Func<CPos, bool> inBounds, Func<CPos, bool> passable, out CPos cell)
+		{
+			if (passable == null)
+				throw new ArgumentNullException(nameof(passable), "a bot destination must be terrain-tested for the mover it is ordering");
+
+			if (isBeyondLine == null || !isBeyondLine(ideal))
+				return TryNearestStandable(ideal, clampCells, inBounds, passable, out cell);
+
+			// Never relocate back across the line: the clamp below searches outward from the staging cell and
+			// the far side is usually the nearer open ground.
+			bool NearSidePassable(CPos c) => passable(c) && !isBeyondLine(c);
+
+			if (isBeyondLine(from))
+			{
+				// The mover is already on the wrong side. Nothing here can order it home — that is
+				// DefconWallTurnBack's job for aircraft and the player's for ground — and inventing a
+				// destination would fight whatever is doing it.
+				cell = ideal;
+				return false;
+			}
+
+			var steps = Math.Max(Math.Abs(from.X - ideal.X), Math.Abs(from.Y - ideal.Y));
+			for (var i = 1; i <= steps; i++)
+			{
+				var probe = new CPos(
+					ideal.X + DivRound((from.X - ideal.X) * i, steps),
+					ideal.Y + DivRound((from.Y - ideal.Y) * i, steps));
+
+				if (isBeyondLine(probe))
+					continue;
+
+				return TryNearestStandable(probe, clampCells, inBounds, NearSidePassable, out cell);
+			}
+
+			// steps == 0 means ideal IS from, which the isBeyondLine(from) test above already excluded.
+			cell = ideal;
+			return false;
+		}
+
+		/// <summary>Integer division rounded to nearest, symmetric about zero. Used for the line walk above
+		/// rather than floating point so the cell sequence is bit-identical on every client.</summary>
+		static int DivRound(int num, int den)
+		{
+			if (den == 0)
+				return 0;
+
+			return num >= 0 ? (num + den / 2) / den : -((-num + den / 2) / den);
+		}
 	}
 }

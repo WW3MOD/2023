@@ -1,0 +1,82 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: the bot breaks the DEFCON 2 cease-fire with its ground army
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 100,60
+
+Bounds: 1,1,98,58
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES. DEFCON 2 permits any shot somebody ORDERED and refuses every shot a unit took
+# by itself; the provenance test is AutoTarget.IsAutoAcquiredSource, which is TRUE for
+# AttackSource.AttackMove. PoiOffensiveBotModule owns the bot's entire ground pool and its whole
+# order vocabulary is AttackMove -- and the two squad-state sites that DO issue a named Attack are
+# unreachable for ground units, because every shipped SquadManagerBotModule sets IgnoreGroundUnits.
+# So before Defcon2DirectFireEnabled the bot's ground army could not fire a single shot during the
+# phase, and only aircraft could ever end it.
+#
+# The match therefore opens AT DEFCON 2 (rules.yaml StartAtDefault) and the air paths are REMOVED
+# rather than merely left unused, so "a kill happened" can only mean the ground path fired.
+#
+# GEOMETRY:
+#   USA-bot SR      3,28    the bot's beachhead
+#   Russia SR      94,28    the POI the axis forms against, so the armour is ordered east
+#   bot armour      6..9,26..30    eight tanks
+#   Russia armour  16..18,26..30   six tanks, directly in the axis's path
+#
+# Russia is a slot with no Bot and no client: its tanks sit still and, at DEFCON 2, cannot fire back
+# on their own either (their autotargeting is held by the same rule). So the ONLY thing on this map
+# that can produce a casualty is the bot's named Attack, which is what makes the verdict attributable.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 3,28
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 94,28
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 8,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 80,28
+
+Rules: rules.yaml

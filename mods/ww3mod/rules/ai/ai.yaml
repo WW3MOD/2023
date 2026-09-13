@@ -624,6 +624,27 @@ Player:
 		ReachabilityRepairableMultiplier: 60
 		ReachabilityAmphibiousMultiplier: 30
 		ReachabilityUnreachableMultiplier: 10
+		# ===== THE ESCALATION GAME MODE (2026-09-13). BOTH PROFILES, DELIBERATELY. =====
+		# Both flags default FALSE in C# and are switched on here, which is the house pattern for a
+		# behavioural field on a trait both profiles instantiate: the default keeps the pre-feature path
+		# and this file is the single visible place the change happens. THIS CHANGES @stable — it is a
+		# deliberate improvement rather than drift, and the benchmark baseline must be re-taken.
+		#
+		# BorderStagingEnabled — do not order an axis THROUGH the DEFCON 3 border. AttackMove carries no
+		# border guard, so the order is accepted and then silently does nothing (the far cell fails
+		# NearestMoveableCell's CanReach term, the radius-10 annulus around it is also beyond the border,
+		# and Move completes without moving); the axis records that cell as ordered and the repath guard
+		# then suppresses every re-issue for the rest of the phase. Staging on the near side is an order
+		# the unit can execute, and it self-heals: the clamp becomes the identity when the border opens,
+		# so the destination changes and the axis re-fires on the next eval.
+		#
+		# Defcon2DirectFireEnabled — fire during the cease-fire phase at all. DEFCON 2 permits only shots
+		# somebody ORDERED, and every order this module issues is an AttackMove, which the engine's own
+		# provenance test (AutoTarget.IsAutoAcquiredSource) classes as autonomous. Without this the bot's
+		# whole ground army holds fire through the phase and only aircraft can break the peace.
+		# Inert in Skirmish: DefconEscalation holds NoLevel there and HoldsFire is false for it.
+		BorderStagingEnabled: true
+		Defcon2DirectFireEnabled: true
 		# Fires doctrine (PIPELINE item 11): hold IndirectFire artillery at its own weapon standoff during an
 		# assault instead of marching it to the objective with the line group — it rains suppressive fire from
 		# range and backs off if the target closes, while the line units press. Peels artillery off the grouped
@@ -2964,6 +2985,27 @@ Player:
 		ReachabilityRepairableMultiplier: 60
 		ReachabilityAmphibiousMultiplier: 30
 		ReachabilityUnreachableMultiplier: 10
+		# ===== THE ESCALATION GAME MODE (2026-09-13). BOTH PROFILES, DELIBERATELY. =====
+		# Both flags default FALSE in C# and are switched on here, which is the house pattern for a
+		# behavioural field on a trait both profiles instantiate: the default keeps the pre-feature path
+		# and this file is the single visible place the change happens. THIS CHANGES @stable — it is a
+		# deliberate improvement rather than drift, and the benchmark baseline must be re-taken.
+		#
+		# BorderStagingEnabled — do not order an axis THROUGH the DEFCON 3 border. AttackMove carries no
+		# border guard, so the order is accepted and then silently does nothing (the far cell fails
+		# NearestMoveableCell's CanReach term, the radius-10 annulus around it is also beyond the border,
+		# and Move completes without moving); the axis records that cell as ordered and the repath guard
+		# then suppresses every re-issue for the rest of the phase. Staging on the near side is an order
+		# the unit can execute, and it self-heals: the clamp becomes the identity when the border opens,
+		# so the destination changes and the axis re-fires on the next eval.
+		#
+		# Defcon2DirectFireEnabled — fire during the cease-fire phase at all. DEFCON 2 permits only shots
+		# somebody ORDERED, and every order this module issues is an AttackMove, which the engine's own
+		# provenance test (AutoTarget.IsAutoAcquiredSource) classes as autonomous. Without this the bot's
+		# whole ground army holds fire through the phase and only aircraft can break the peace.
+		# Inert in Skirmish: DefconEscalation holds NoLevel there and HoldsFire is false for it.
+		BorderStagingEnabled: true
+		Defcon2DirectFireEnabled: true
 		FiresStandoff: true
 		FiresEvGate: true
 		EchelonPositioning: true

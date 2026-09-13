@@ -99,6 +99,17 @@ namespace OpenRA.Mods.Common.Traits
 			world = init.World;
 		}
 
+		/// <summary>How many orders this bot has queued since it was activated, cumulative. Counted here
+		/// because this is the single funnel every bot module's order passes through — so one field answers
+		/// "is this module churning" for all ~25 of them.
+		///
+		/// <para>DIAGNOSTIC ONLY, and deliberately NOT [Sync]: it decides nothing the simulation reads, and
+		/// syncing a monotone counter would put every bot order into the sync hash for no gain. Counted
+		/// BEFORE the arbitration gate, so it measures what the modules ASKED for rather than what survived
+		/// — which is the number a churn test wants: a module re-offering a suppressed order every scan is
+		/// exactly the failure being looked for, and counting post-gate would hide it.</para></summary>
+		public int OrdersQueued { get; private set; }
+
 		// Called by the host's player creation code
 		public void Activate(Player p)
 		{
@@ -150,6 +161,7 @@ namespace OpenRA.Mods.Common.Traits
 			// contains only orders that were really queued, so comparing two runs' order counts measures
 			// exactly what the gate removed, and the `ordgate` lines say who lost and why.
 			lifecycleLogger?.LogOrder(player, currentModuleTag, order);
+			OrdersQueued++;
 			orders.Enqueue(order);
 			return true;
 		}

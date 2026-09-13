@@ -1819,6 +1819,32 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return Context.World?.WorldActor.TraitOrDefault<SightingThreatLayer>();
 		}
 
+		[Desc("The match-wide DEFCON level: 3 positioning, 2 cease-fire, 1 open war. Returns " +
+			"DefconEscalationState.NoLevel (0) in Skirmish and on any world with no DefconEscalation, " +
+			"which is a REAL answer and not an error — a scenario asserting on a phase transition must " +
+			"distinguish 'the mode is off' from 'the level has not moved yet'. Test mode only.")]
+		public int DefconLevel()
+		{
+			if (!TestMode.IsActive)
+				return DefconEscalationState.NoLevel;
+
+			return Context.World?.WorldActor.TraitOrDefault<DefconEscalation>()?.Level
+				?? DefconEscalationState.NoLevel;
+		}
+
+		[Desc("How many orders `player`'s bot has queued since activation, cumulative. 0 for a human, a " +
+			"spectator, or a bot whose ModularBot is not enabled. Counted at ModularBot.QueueOrder — the " +
+			"one funnel every bot module goes through — and BEFORE the arbitration gate, so it measures " +
+			"what the modules asked for rather than what survived: a module re-offering a suppressed " +
+			"order every scan still shows up here, which is the point. Test mode only.")]
+		public int BotOrdersQueued(Player player)
+		{
+			if (!TestMode.IsActive || player == null)
+				return 0;
+
+			return player.PlayerActor?.TraitOrDefault<ModularBot>()?.OrdersQueued ?? 0;
+		}
+
 		[Desc("Read the §3a SightingThreatLayer enemy (threat) intensity for `player` at `cell`. " +
 			"Non-zero means the player has a live/decaying enemy sighting there. Test mode only.")]
 		public int GetThreatIntensity(Player player, CPos cell)

@@ -227,6 +227,12 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Dictionary<CPos, byte> overwritten = new Dictionary<CPos, byte>();
 
 		DefconEscalation escalation;
+
+		// Resolved alongside `escalation` and for the same reason: the component labelling this trait
+		// invalidates is a WORLD-actor trait, so `self` is the only valid handle while Created runs.
+		// Null on any world without it, which is every world outside the @experimental/@stable bots.
+		CrossingMap crossingMap;
+
 		bool active;
 
 		[Sync]
@@ -263,6 +269,7 @@ namespace OpenRA.Mods.Common.Traits
 			// always valid. Copying an idiom is only safe once you have checked it was written
 			// for the same actor.
 			escalation = self.TraitOrDefault<DefconEscalation>();
+			crossingMap = self.TraitOrDefault<CrossingMap>();
 			Apply();
 		}
 
@@ -376,6 +383,13 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			Log.Write("debug", $"DEFCON wall raised over {overwritten.Count} cells.");
+
+			// The bot's ground-component labelling is built ONCE and never rebuilt, so it has to be told
+			// that what is passable just changed -- in BOTH directions. Raising without this leaves the
+			// bot believing in routes the border has just closed; lowering without it leaves every POI
+			// across the old line classified Unreachable for the rest of the match. See
+			// CrossingMap.Invalidate for the full account and the determinism argument.
+			crossingMap?.Invalidate();
 		}
 
 		void LowerWall()
@@ -385,6 +399,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			Log.Write("debug", $"DEFCON wall lowered, {overwritten.Count} cells restored.");
 			overwritten.Clear();
+			crossingMap?.Invalidate();
 		}
 
 		// THE PICTURE IS DRAWN FROM THE SAME DICTIONARY AS THE RULE. `overwritten` holds exactly the
