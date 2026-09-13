@@ -18,18 +18,40 @@ local TicksPerSecond = TestHarness.TicksPerSecond
 -- columns 43..45 and x >= 43 is already illegal ground for a west-side unit.
 local BAND_WEST_EDGE = 43
 
--- The advance bar. The tanks start at x 6..9 and the band starts at 43, so 30 is comfortably past
--- "twitched off the spawn" and comfortably short of "must reach the band exactly".
+-- The advance FLOOR. The tanks start at x 6..9 and the band starts at 43, so 30 is comfortably past
+-- "twitched off the spawn" and comfortably short of "must reach the band exactly". Both arms clear
+-- it (measured) -- DRIFT is what separates them; see the note on HOLD_ORDER_BUDGET below.
 local ADVANCE_X = 30
 
 local RUN_SECONDS = 70
 local HOLD_WINDOW_SECONDS = 20
 local HOLD_DRIFT_CELLS = 2
 
--- Orders the bot may still issue during the hold window without it counting as churn. A parked axis
--- still runs every other module on its own cadence (production, supply, garrison), so this is not
--- zero; it is well under what a per-scan re-offer of a whole axis would produce.
-local HOLD_ORDER_BUDGET = 120
+-- THE MODULE UNDER TEST, and the budget is scoped to it rather than to the bot.
+--
+-- MEASURED 2026-09-13 (run 260913_233400): the first version of this budget counted EVERY order the
+-- bot queued and allowed 120. The window carried 554 — and the axis was not the reason. Across the
+-- five evaluations inside it (ticks 1314/1414/1514/1614/1714) debug.log holds exactly ONE
+-- `[exp-offense] order` line: the staging clamp and the repath guard were working, and the axis
+-- re-ordered its destination once, not five times. The 554 were the rest of the bot: 43
+-- `[composition]` production lines on a map where its unit count went 8 -> 43 during the run, the
+-- supply-fleet and capture lanes, and 20 `[exp-transport] delivery-move-reissued` lines from two
+-- carriers stuck against the border (a real defect, but in MountedTransportBotModule, not here).
+--
+-- So the old assertion could only ever have measured the bot's overall busyness while its failure
+-- text blamed the axis. Scoped to PoiOffensiveBotModule the question is answerable.
+--
+-- THE BUDGET IS PROVISIONAL and derived from log lines rather than from a direct per-module count,
+-- which did not exist when the run was taken. The module's share of that window was one grouped
+-- AttackMove, four reinforcement joins, one fires-anchor move and a SetCohesion per newly joined
+-- unit (joined=3,3,2,2) — order 20, call it 40 with the orders no log line names. 150 is several
+-- times that and still far below the ~220 a genuine per-scan re-issue of a 40-unit axis would cost.
+-- Re-derive it from Test.BotOrdersQueued(USAbot, HOLD_ORDER_MODULE) the first time this passes.
+--
+-- DRIFT, NOT THIS, IS THE PRIMARY HOLD PREDICATE. The RED arm fails on drift (measured: 18 cells
+-- against a 2-cell bound) and that is what discriminates; this is the belt to that braces.
+local HOLD_ORDER_MODULE = "PoiOffensiveBotModule"
+local HOLD_ORDER_BUDGET = 150
 
 Tanks = {}
 
@@ -61,6 +83,7 @@ WorldLoaded = function()
 	-- window opens, which is what distinguishes "not measured yet" from "measured as zero".
 	local holdStart = nil
 	local holdStartOrders = nil
+	local totalStartOrders = nil
 
 	local function forEachLiveTank(fn)
 		for i, t in ipairs(Tanks) do
@@ -104,19 +127,26 @@ WorldLoaded = function()
 			holdStart[i] = { t.Location.X, t.Location.Y }
 		end)
 
-		holdStartOrders = Test.BotOrdersQueued(USAbot)
+		holdStartOrders = Test.BotOrdersQueued(USAbot, HOLD_ORDER_MODULE)
+		totalStartOrders = Test.BotOrdersQueued(USAbot)
 	end)
 
 	Trigger.AfterDelay(RUN_SECONDS * TicksPerSecond, function()
 		if furthestX < ADVANCE_X then
+			-- A FLOOR, NOT THE DISCRIMINATOR. The first RED run passed this (measured, 260913_233651):
+			-- the fires/echelon/staging anchors resolve to reachable cells on our own side and walk the
+			-- army up the map whether or not the axis destination is legal. Reaching here means
+			-- something much more basic is wrong -- no axis formed, or the army never left the SR at
+			-- all -- so the message says that rather than blaming the border.
 			Test.Fail(string.format(
-				"bot never advanced: furthest tank reached x=%d (need x>=%d); it is still parked on "
-				.. "its Supply Route -- the axis ordered through the border and the order did nothing",
+				"bot never advanced: furthest tank reached x=%d (need x>=%d). The RED arm clears this "
+				.. "bar, so this is not the border clamp failing -- look for an axis that never formed "
+				.. "or a free pool that was never recruited",
 				furthestX, ADVANCE_X))
 			return
 		end
 
-		if holdStart == nil or holdStartOrders == nil then
+		if holdStart == nil or holdStartOrders == nil or totalStartOrders == nil then
 			Test.Fail("hold window never opened -- the run budget and the window are inconsistent")
 			return
 		end
@@ -140,16 +170,18 @@ WorldLoaded = function()
 			return
 		end
 
-		local issued = Test.BotOrdersQueued(USAbot) - holdStartOrders
+		local issued = Test.BotOrdersQueued(USAbot, HOLD_ORDER_MODULE) - holdStartOrders
 		if issued > HOLD_ORDER_BUDGET then
 			Test.Fail(string.format(
-				"bot queued %d orders during the %ds hold window (budget %d): the axis is churning "
-				.. "-- re-offering a destination it cannot reach every scan",
-				issued, HOLD_WINDOW_SECONDS, HOLD_ORDER_BUDGET))
+				"%s queued %d orders during the %ds hold window (budget %d): the axis is churning "
+				.. "-- re-offering a destination it cannot reach every scan. NOTE this counts that "
+				.. "module alone, so production and supply traffic cannot be the cause.",
+				HOLD_ORDER_MODULE, issued, HOLD_WINDOW_SECONDS, HOLD_ORDER_BUDGET))
 			return
 		end
 
-		Test.Pass(string.format("advanced to x=%d, held at the border, %d orders in the hold window",
-			furthestX, issued))
+		Test.Pass(string.format(
+			"advanced to x=%d, held at the border, %d %s orders in the hold window (total bot orders %d)",
+			furthestX, issued, HOLD_ORDER_MODULE, Test.BotOrdersQueued(USAbot) - totalStartOrders))
 	end)
 end

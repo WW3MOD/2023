@@ -1841,8 +1841,17 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			"spectator, or a bot whose ModularBot was never activated. Counted at ModularBot.QueueOrder — " +
 			"the one funnel every bot module goes through — and BEFORE the arbitration gate, so it " +
 			"measures what the modules asked for rather than what survived: a module re-offering a " +
-			"suppressed order every scan still shows up here, which is the point. Test mode only.")]
-		public int BotOrdersQueued(Player player)
+			"suppressed order every scan still shows up here, which is the point. " +
+			"" +
+			"PASS `moduleTag` — the module trait's type name, e.g. \"PoiOffensiveBotModule\" — TO ASK " +
+			"ABOUT ONE MODULE, and prefer that to the total whenever the question is about a module. " +
+			"The total is every lane at once: measured on test-bot-defcon-wall, a 500-tick window " +
+			"carried 554 orders while the offensive module ordered its axis ONCE across five " +
+			"evaluations; the rest was production, supply-fleet and transport traffic on a map where " +
+			"the bot went from 8 units to 43 mid-run. An assertion on the total is therefore a " +
+			"proxy for the bot's overall busyness, not for whether any particular module is churning. " +
+			"Empty (the default) keeps the total. Test mode only.")]
+		public int BotOrdersQueued(Player player, string moduleTag = "")
 		{
 			if (!TestMode.IsActive || player == null)
 				return 0;
@@ -1866,7 +1875,10 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			// FirstOrDefault rather than SingleOrDefault deliberately: a malformed lobby that somehow
 			// activated two should not turn a diagnostic read into a crash mid-scenario.
 			var bot = player.PlayerActor?.TraitsImplementing<ModularBot>().FirstOrDefault(b => b.IsEnabled);
-			return bot?.OrdersQueued ?? 0;
+			if (bot == null)
+				return 0;
+
+			return string.IsNullOrEmpty(moduleTag) ? bot.OrdersQueued : bot.OrdersQueuedBy(moduleTag);
 		}
 
 		[Desc("Read the §3a SightingThreatLayer enemy (threat) intensity for `player` at `cell`. " +

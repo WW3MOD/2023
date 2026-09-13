@@ -110,6 +110,26 @@ namespace OpenRA.Mods.Common.Traits
 		/// exactly the failure being looked for, and counting post-gate would hide it.</para></summary>
 		public int OrdersQueued { get; private set; }
 
+		// Per-module tally, keyed by the same `currentModuleTag` the order attribution already sets. A
+		// TOTAL cannot answer "is this module churning": measured on test-bot-defcon-wall, a 500-tick
+		// window carried 554 bot orders of which the offensive module's whole share was a couple of
+		// dozen -- the rest was production, supply-fleet and transport traffic on their own cadences,
+		// on a map where the bot's unit count went 8 -> 43 inside the run. An assertion on the total
+		// therefore fails for reasons that have nothing to do with the module under test, and its
+		// failure text names the wrong culprit.
+		//
+		// Diagnostic only and deliberately NOT [Sync], for the reason OrdersQueued gives.
+		readonly Dictionary<string, int> ordersQueuedByModule = new();
+
+		/// <summary>How many orders the named bot module has queued, cumulative. The name is the module
+		/// trait's type name (e.g. "PoiOffensiveBotModule"). 0 for a module that has queued nothing,
+		/// which is indistinguishable from one that does not exist -- a caller wanting that distinction
+		/// must ask the trait dictionary, not this.</summary>
+		public int OrdersQueuedBy(string moduleTag)
+		{
+			return ordersQueuedByModule.TryGetValue(moduleTag ?? "", out var n) ? n : 0;
+		}
+
 		// Called by the host's player creation code
 		public void Activate(Player p)
 		{
@@ -161,7 +181,10 @@ namespace OpenRA.Mods.Common.Traits
 			// contains only orders that were really queued, so comparing two runs' order counts measures
 			// exactly what the gate removed, and the `ordgate` lines say who lost and why.
 			lifecycleLogger?.LogOrder(player, currentModuleTag, order);
+
 			OrdersQueued++;
+			ordersQueuedByModule[currentModuleTag] =
+				(ordersQueuedByModule.TryGetValue(currentModuleTag, out var n) ? n : 0) + 1;
 			orders.Enqueue(order);
 			return true;
 		}
