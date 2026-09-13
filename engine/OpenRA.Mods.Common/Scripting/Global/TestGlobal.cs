@@ -1806,6 +1806,46 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return lines.Length > 0 ? string.Join(",", lines) : "empty";
 		}
 
+		[Desc("A bot's nuclear decision state, as `launches=<n>|band=<rung>|fired=<name>|" +
+			"reason=<name>|streak=<n>|committed=<bool>`, or 'absent' when this player has no enabled " +
+			nameof(NuclearBotModule) + " -- which is every non-bot player, every bot profile the " +
+			"module is not wired onto, and every match outside Escalation where it is inert.",
+			"",
+			"WHY THIS EXISTS RATHER THAN READING THE SUPPORT POWER BIN. A launch is only visible in " +
+			"the bin as a band going from `ready` to `charging:`, which a regeneration timer, a " +
+			"lapsing window and a launch all produce -- so 'the bot fired exactly once' is not a " +
+			"question the bin can answer. LaunchCount is the count of orders the module actually " +
+			"queued, which is the claim.",
+			"",
+			"`fired` AND `reason` ARE NOT THE SAME FIELD. `reason` is the LIVE decision and is " +
+			"overwritten every evaluation -- the evaluation after a launch reads RateLimited, " +
+			"correctly -- while `fired` is sticky and says why the last launch happened. A scenario " +
+			"asking 'why did it fire' wants `fired`; one asking 'why is it not firing' wants " +
+			"`reason`.",
+			"",
+			"READ-ONLY and test mode only. Every field is a projection of host-only bot state that " +
+			"reaches the simulation solely through IBot.QueueOrder, so calling this cannot move " +
+			"anything.")]
+		public string GetBotNuclearState(Player player)
+		{
+			if (!TestMode.IsActive || player == null)
+				return "absent";
+
+			// TraitsImplementing, not Trait: both bot profiles carry an instance and the
+			// enable-ai-experimental / enable-ai-stable conditions keep exactly one of them enabled.
+			// Trait<T>() would throw on a player holding both.
+			var module = player.PlayerActor.TraitsImplementing<NuclearBotModule>()
+				.FirstOrDefault(m => !m.IsTraitDisabled);
+
+			if (module == null)
+				return "absent";
+
+			return $"launches={module.LaunchCount}|band={module.LastFiredBand}|" +
+				$"fired={module.LastLaunchReason}|reason={module.LastReason}|" +
+				$"streak={module.LosingStreak}|" +
+				$"committed={(module.IsLosingCommitted ? "true" : "false")}";
+		}
+
 		SupportPowerManager SupportPowers(Player player)
 		{
 			if (!TestMode.IsActive || player == null)

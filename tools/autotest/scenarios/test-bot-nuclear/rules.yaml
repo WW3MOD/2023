@@ -1,0 +1,78 @@
+# The bot nuclear autotest's overrides. Deliberately a near-copy of test-nuclear-exchange's, because
+# the two scenarios need the same match set up in the same way and a difference between them would
+# be a difference nobody chose. What is NOT copied is called out below.
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so each player's HomeLocation falls back to the pinned PlayerReference value rather
+	# than a spawn assignment -- which is what fixes the two SIDES on this map.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-bot-nuclear.lua
+
+	# THE MODE. Escalation: NuclearBotModule is INERT in every other mode (it reads
+	# NuclearExchange.Mode and returns), so a Skirmish run of this scenario would measure nothing and
+	# pass.
+	#
+	# STARTS AT DEFCON 1 with a ten-tick first-warheads delay, for test-nuclear-exchange's reason: the
+	# release gate is not what is under test and the shipped default is ten real minutes of nothing.
+	DefconEscalation:
+		ModeDefault: Escalation
+		StartAtDefault: 1
+		NuclearReleaseDelayTicksOverride: 10
+
+	# ONE MINUTE = 1000 ticks, the shortest the dropdown offers. THE WINDOW HAS TO OUTLAST THE
+	# HYSTERESIS, which is the one timing this scenario actually depends on: the bot needs
+	# LosingStreakRequired (3) consecutive evaluations at EvaluationInterval (50) = 150 ticks of
+	# continuously losing before it will fire, and the army is not cut until 100 ticks after the
+	# window opens. 100 + 150 = 250 against a 1000-tick window is four times the margin.
+	NuclearExchange:
+		RetaliationWindowDefault: 1
+		# Left at the shipped value for every band ON PURPOSE, unlike test-nuclear-exchange which
+		# compresses the 1 kt band. Nothing here asserts regeneration, and a compressed 20 kt timer
+		# would let Russia's granted band read `ready` for a reason that is not the grant.
+
+	# Both halves of the arsenal gate, LOCKED so no lobby default can move either out from under the
+	# run. `powers-sandbox` is what provides the `powers.event` prerequisite that no faction does; it
+	# is NOT DefconGameMode.Sandbox and does not put the Tsar Bomba in play.
+	PowersLobbyOptions:
+		NuclearArsenalCheckboxEnabled: true
+		NuclearArsenalCheckboxLocked: true
+		PowersSandboxCheckboxEnabled: true
+		PowersSandboxCheckboxLocked: true
+
+Player:
+	# A 20 kt warhead on a 64x32 playfield reaches a lot of it, and the bot aims at USA's army on
+	# purpose. Removed so an elimination cannot end the match before the poller writes a verdict.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored. THIS IS NOT A SHORTCUT PAST THE MODULE'S FOG DISCIPLINE, and
+	# it is worth being clear about what it costs: the module takes its targets from BeliefStore,
+	# which is fog-legal by construction, and with fog off every enemy actor is legally visible — so
+	# the candidate list here is the whole enemy army and the fog path is exercised but never
+	# STRESSED. A scenario that measured the fog behaviour would be a different scenario; this one
+	# needs the bot's target set to be knowable so that "it fired at something real" is checkable.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# NO CASH. Two jobs here rather than one. It is test-nuclear-exchange's guard — nothing nuclear is
+	# purchasable in Escalation, and zero credits means a regression in that bypass cannot be masked
+	# by a player who could simply have bought the shot. AND it is what freezes ArmyValue: a bot with
+	# money would call in reinforcements through its ordinary production modules, and the army ratio
+	# this scenario controls by killing three humvees would then move for reasons the script does not
+	# own.
+	PlayerResources:
+		DefaultCash: 0
+
+# Nothing initiates on its own: the script issues every order it measures, and the two armies sit at
+# opposite ends of the map without shooting at each other. See description.txt on why this is the
+# scenario's softest assumption rather than a guarantee.
+^Combatant:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+		InitialEngagementStance: HoldPosition
+		InitialEngagementStanceAI: HoldPosition

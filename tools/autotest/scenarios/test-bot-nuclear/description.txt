@@ -1,0 +1,79 @@
+TEST: the bot fires only when it is losing, and takes the window when it does.
+
+Two players on a 66x34 map, DEFCON Escalation, starting at DEFCON 1 with the
+first-warheads clock compressed to ten ticks and the retaliation window at its
+shortest shipped value, one minute. USA is scripted; Russia is a `Bot:
+experimental` and is the thing under test. Nobody has any money, so no
+reinforcement can be called in and army value moves only when the script moves
+it.
+
+Eight identical humvees, four each -- the cheapest actor in the mod that counts
+toward ArmyValue, at 500 credits -- so both sides start at exactly 2000 and the
+army ratio is exactly 100 %. Killing three of Russia's makes it exactly 25 %,
+against the module's LosingArmyRatioPercent of 60.
+
+  PHASE A (t90)    Release has opened and Russia's 1 kt power reads READY. The
+                   bot must NOT have fired. This is the user's whole rule for
+                   bots -- "It only fires if it is losing, so it never escalates
+                   unnecessarily" -- and the bin reading is what makes the zero
+                   mean something: a bot with an empty bin cannot demonstrate
+                   restraint.
+
+  PHASE A2 (t280)  Still zero, four evaluations later. One quiet reading could
+                   be a module that had not started ticking.
+
+  PHASE B (t300)   USA fires its 0.3 kt B61 at empty ground. Nothing is aimed at
+                   anything: the exchange arms the other side wherever the
+                   warhead lands, with no damage attribution at all.
+
+  PHASE B2 (t380)  THE SHARPEST ASSERTION IN THE RUN. Russia's 20 kt power now
+                   reads READY -- a retaliation grant, the biggest thing this bot
+                   has ever been permitted -- and the bot must STILL not have
+                   fired. A window is PERMISSION, not a REASON. A bot that fires
+                   here has the engine's generic SupportPowerBotModule policy
+                   ("ready and a target scores well enough"), which is precisely
+                   the shape the user's rule rejects.
+
+  PHASE C (t400)   Three of Russia's four humvees are killed. 500 against 2000
+                   is 25 %. Three and not four: a losing player and an
+                   annihilated one are different scenarios.
+
+  PHASE D (t700)   Exactly ONE launch, at band 2 (TwentyKiloton -- the WINDOW's
+                   band, not the permanent 1 kt one) with reason "Retaliation".
+                   The earliest legal launch is three evaluations after the kills
+                   (LosingStreakRequired 3 x EvaluationInterval 50 = 150 ticks);
+                   this reading sits three further intervals past that.
+
+  PHASE E (t1000)  Still exactly one. MinTicksBetweenLaunches is 900 and the
+                   window grant was one shot, so a losing bot with a regenerating
+                   permanent band must keep holding.
+
+WHY THE LAUNCH COUNT IS A BINDING AND NOT A BIN READ. A launch shows up in the
+support power bin only as a band going READY -> CHARGING, which a regeneration
+timer, a lapsing window and a launch all produce. "Exactly once" is not a
+question the bin can answer. Test.GetBotNuclearState reads
+NuclearBotModule.LaunchCount, which is the count of orders the module actually
+queued. The bin is still read in phases A and B2, for the one thing it is the
+right instrument for.
+
+WHAT THIS DELIBERATELY DOES NOT MEASURE:
+  * The fog discipline. The module takes its targets from BeliefStore, which is
+    fog-legal by construction, but this run has fog OFF and the map pre-explored
+    so that the bot's candidate set is knowable. The fog path is exercised and
+    never stressed; a scenario that measured it would be a different scenario.
+  * The aim point. The bot's 20 kt lands on USA's humvee cluster because that is
+    where the value is, but nothing here asserts the cell. PickAimIndex is pinned
+    without a world by NuclearPolicyMathTest.
+  * The game-ender path and the final exchange. Reaching either needs a chain of
+    replies at 50 kt and 100 kt, which is a much longer run; both branches are
+    pinned by NuclearPolicyMathTest instead.
+  * The losing predicate's contestation half. Nothing contests Russia's Supply
+    Route here, so the army ratio is the only live term. Deliberate: two live
+    terms in one OR would make a failure ambiguous.
+
+THE SOFTEST ASSUMPTION IN THE RUN is that the two armies do not shoot each
+other. They sit fifty cells apart with HoldFire / HoldPosition on ^Combatant,
+and the whole run is ~1100 ticks -- but Russia IS a bot, and its ordinary ground
+modules are free to order its humvees anywhere. If phase C ever reports fewer
+than three kills, that is what happened, and the fault text says so rather than
+letting the run fail somewhere downstream as a mystery.
