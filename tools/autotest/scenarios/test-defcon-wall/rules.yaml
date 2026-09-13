@@ -19,12 +19,17 @@ World:
 	# NoLevel and the wall never stands at NoLevel. The clock is set far longer than
 	# the run so the level cannot fall to 2 mid-test and take the wall down under the
 	# assertions -- 30000 ticks is 30 minutes at the 60 ms timestep.
+	#
+	# NoRushTicksOverride REPLACES THE THREE PACE FIELDS (2026-09-13). The no-rush period
+	# is a lobby dropdown in MINUTES now, whose finest grain is one minute; this field is
+	# the scenario escape hatch and OVERRIDES the dropdown entirely when non-zero, exactly
+	# as TimeLimitManager.TimeLimitTicks does for the time limit. Setting the dropdown here
+	# instead would not work: the lobby option is registered with its own default whatever
+	# a rules.yaml says, so only an override can win.
 	DefconEscalation:
 		ModeDefault: Escalation
 		StartAtDefault: 3
-		SlowTicks: 30000
-		StandardTicks: 30000
-		FastTicks: 30000
+		NoRushTicksOverride: 30000
 
 	# A vertical line down column 44 -- the midpoint of the two spawns at x 8 and
 	# x 80. The endpoints only fix POSITION and DIRECTION: the line is treated as

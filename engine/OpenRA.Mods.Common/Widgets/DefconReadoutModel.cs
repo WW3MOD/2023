@@ -40,9 +40,12 @@
  *     mockup asks for. Read as 25 tps it would have been 100 ticks, which is SIX seconds of real
  *     time: the same 1.5x error, reached the same way.
  *
- * The identity to check any of this against is DefconEscalationInfo.StandardTicks: 5000 ticks = 300 s
- * = 5:00. TheTickRateIdentityHolds asserts exactly that, so a machine that ever disagrees says so in
- * the test run rather than in a countdown nobody times with a stopwatch.
+ * The identity to check any of this against is the DEFAULT NO-RUSH PERIOD: 5 minutes is 5000 ticks,
+ * and 5000 x 0.06 s = 300 s = 5:00. TheTickRateIdentityHolds asserts exactly that, so a machine that
+ * ever disagrees says so in the test run rather than in a countdown nobody times with a stopwatch.
+ * (It used to name DefconEscalationInfo.StandardTicks, which was retired on 2026-09-13 when the
+ * three pace fields became one minutes dropdown. The arithmetic is unchanged -- the default was
+ * chosen to leave it unchanged -- but the field that carried it no longer exists.)
  *
  * Note that the on-screen countdowns themselves are NOT formatted here -- they go through
  * WidgetUtils.FormatTime, which takes the timestep as an argument. What this class owns is the

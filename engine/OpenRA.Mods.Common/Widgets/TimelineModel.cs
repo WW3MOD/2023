@@ -13,25 +13,31 @@
  * THE MATCH TIMELINE -- the data types and the arithmetic, with no pixels in it.
  *
  * Split from TimelineWidget for the same reason DefconReadoutModel is split from
- * DefconReadoutWidget: a Draw() is not reachable from a test, and the part of this feature that
- * can be WRONG rather than merely ugly is the snapping. See LobbyTimelineMathTest.
+ * DefconReadoutWidget: a Draw() is not reachable from a test. See LobbyTimelineMathTest.
  *
- * ==== WHY EVERY POSITION IS AN ENUMERATED STOP AND NEVER A FLOAT ====
- * The wire protocol is the text order `option <id> <value>` and the server validates only
- * `option.Values.ContainsKey(value)` (LobbyCommands.cs). A value outside that dictionary is
- * rejected twice, and the second rejection is the dangerous one: LobbySettingsNotification.cs:39
- * does an UNCHECKED `option.Values[...]` on live session state, so an out-of-set value throws
- * KeyNotFoundException on the next CLIENT JOIN -- the host sees nothing wrong and the next player
- * to connect is thrown out. So a marker never holds a continuous position: it holds an INDEX into
- * a stop list, and every stop carries the exact string that already exists in that option's own
- * Values dictionary.
+ * ==== IT IS A READ-ONLY OVERVIEW AND NO LONGER A CONTROL (user ruling 2026-09-13) ====
+ * The dropdowns lower in the panel are the source of truth; this bar only DRAWS what they say.
+ * Everything that existed to serve dragging is therefore gone rather than merely disabled:
+ * TimelineMarker, TimelineStop, NearestStop (the snapping) and VisibleLabels (the marker-caption
+ * collision rule). They were not dead code that accumulated -- they were the drag feature, and a
+ * bar with no drag has no use for any of them.
  *
- * ==== SNAPPING IS BY PIXEL DISTANCE, NOT BY TIME DISTANCE ====
- * Stops are not evenly spaced -- `defcon-pace` is 2:30 / 5:00 / 9:00 and `timelimit` is
- * 10/20/30/40/60/90 -- so nearest-in-seconds and nearest-in-pixels are different answers, and the
- * one the host is actually aiming with is the pixel. Ties go to the LOWER index, deterministically,
- * because a tie that resolved by list order would move a marker differently depending on how the
- * caller happened to sort its stops.
+ * THE SAFETY ARGUMENT THEY CARRIED IS NOW STRUCTURAL RATHER THAN DEFENDED. Snapping existed
+ * because an out-of-set option value is validated by the server as `Values.ContainsKey` and then
+ * read back UNCHECKED by LobbySettingsNotification.cs:39, so a bad value throws
+ * KeyNotFoundException on the next CLIENT JOIN -- the host sees a working lobby and the next player
+ * to connect is thrown out. This file now WRITES NOTHING AT ALL, so it cannot produce a value of
+ * any kind. Do not reintroduce a write here without reintroducing the enumerated stops with it.
+ *
+ * ==== TWO LAYOUTS, BECAUSE THE TWO MODES MEASURE DIFFERENT THINGS ====
+ * In Skirmish every boundary is a time on the MATCH CLOCK -- the unlock intervals and the time
+ * limit -- so the bar is an absolute axis with a minute ruler under it, exactly as before.
+ *
+ * In Escalation one boundary is an EVENT: the peace phase ends when somebody takes the first kill,
+ * which has no duration. An absolute ruler under that is a lie in the one place a host would most
+ * want to trust it, so Escalation draws PHASE LENGTHS with no ruler at all. That is the user's own
+ * framing of the ruling -- "it can show how long each phase is and that will be enough" -- and it is
+ * why TimelineLayout carries ShowRuler rather than the widget assuming one.
  */
 
 using System;
@@ -40,89 +46,60 @@ using OpenRA.Primitives;
 
 namespace OpenRA.Mods.Common.Widgets
 {
-	// One settable position on the timeline. Value is the key written to the wire and MUST be a key
-	// of the bound option's own Values dictionary; it is null for a derived marker, which has
-	// exactly one stop and never issues an order.
-	public readonly struct TimelineStop
-	{
-		public readonly int Seconds;
-		public readonly string Value;
-		public readonly string Label;
-
-		public TimelineStop(int seconds, string value, string label)
-		{
-			Seconds = seconds;
-			Value = value;
-			Label = label;
-		}
-	}
-
-	// A marker on the bar. RelativeTo is the index of the marker this one is measured FROM, or -1
-	// for a position on the match clock.
-	//
-	// THE RELATIVE CASE IS THE USER'S RULING, NOT AN IMPLEMENTATION CONVENIENCE (2026-09-10): the
-	// warhead marker is an OFFSET from the no-rush marker, so dragging the no-rush marker carries it
-	// along. Note what that buys -- the two markers cannot be dragged into an incoherent order
-	// (warheads before the line lifts) because the relationship makes that state unreachable by
-	// construction. There is deliberately NO clamp guarding it. Do not add one: a clamp asserts that
-	// the state it guards against is reachable, and the next reader would lose an hour working out
-	// when.
-	public class TimelineMarker
-	{
-		public readonly string OptionId;
-		public readonly string Caption;
-		public readonly TimelineStop[] Stops;
-		public readonly int[] StopSeconds;
-		public readonly int DefaultStop;
-		public readonly int RelativeTo;
-		public readonly bool Highlight;
-
-		// A marker on a LobbyOption.Placeholder option is drawn dimmed and cannot be dragged. This is
-		// the same rule LobbyOptionsLogic.cs:557 and :609 apply to the checkbox and the dropdown, and
-		// it is here for the same stated reason: an accepted order resets EVERY client to NotReady and
-		// posts a settings-changed chat line, which is a disruptive consequence for a control that
-		// governs nothing. A timeline that ignored this would be a back door onto exactly the options
-		// the sibling panel deliberately made dead to the mouse.
-		public readonly bool Placeholder;
-
-		public TimelineMarker(string optionId, string caption, TimelineStop[] stops, int defaultStop,
-			int relativeTo = -1, bool highlight = false, bool placeholder = false)
-		{
-			OptionId = optionId;
-			Caption = caption;
-			Stops = stops;
-			DefaultStop = defaultStop;
-			RelativeTo = relativeTo;
-			Highlight = highlight;
-			Placeholder = placeholder;
-
-			StopSeconds = new int[stops.Length];
-			for (var i = 0; i < stops.Length; i++)
-				StopSeconds[i] = stops[i].Seconds;
-		}
-
-		public bool IsDraggable => OptionId != null && !Placeholder && Stops.Length > 1;
-	}
-
-	// A coloured span of the bar between two markers. FromMarker/ToMarker are marker indices, or -1
-	// for the start/end of the axis. GetText is a delegate rather than a string because a band's
-	// wording tracks other lobby options -- the tail band says whether the ending is nuclear, which
-	// is the `doomsday` checkbox and not this widget's business to know statically.
+	/// <summary>One span of the bar, positioned in seconds on whatever axis its layout describes.</summary>
+	// GetCaption/GetDetail are delegates rather than strings because a band's wording tracks other
+	// lobby options -- the tail band says whether the ending is nuclear, which is the `doomsday`
+	// checkbox and not this widget's business to know statically.
 	public class TimelineBand
 	{
-		public readonly int FromMarker;
-		public readonly int ToMarker;
-		public readonly Func<string> GetText;
+		public readonly int FromSeconds;
+		public readonly int ToSeconds;
+		public readonly Func<string> GetCaption;
+		public readonly Func<string> GetDetail;
 		public readonly Color Fill;
 		public readonly Color Ink;
 
-		public TimelineBand(int fromMarker, int toMarker, Func<string> getText, Color fill, Color ink)
+		/// <summary>Drawn hatched: this span ends on an EVENT and its width means nothing.</summary>
+		public readonly bool Indeterminate;
+
+		public TimelineBand(int fromSeconds, int toSeconds, Func<string> getCaption, Func<string> getDetail,
+			Color fill, Color ink, bool indeterminate = false)
 		{
-			FromMarker = fromMarker;
-			ToMarker = toMarker;
-			GetText = getText;
+			FromSeconds = fromSeconds;
+			ToSeconds = toSeconds;
+			GetCaption = getCaption;
+			GetDetail = getDetail;
 			Fill = fill;
 			Ink = ink;
+			Indeterminate = indeterminate;
+		}
+
+		public int LengthSeconds => Math.Max(0, ToSeconds - FromSeconds);
+	}
+
+	/// <summary>Everything the widget needs for one frame: the bands, the axis, and the two notes.</summary>
+	public class TimelineLayout
+	{
+		public static readonly TimelineLayout Empty = new(Array.Empty<TimelineBand>(), TimelineModel.TickSeconds, false, null, null);
+
+		public readonly IReadOnlyList<TimelineBand> Bands;
+		public readonly int AxisSeconds;
+
+		/// <summary>Whether the minute ruler is TRUE of this layout. See the file header.</summary>
+		public readonly bool ShowRuler;
+
+		public readonly string Hint;
+
+		/// <summary>The consistency flag, or null. Drawn in place of the hint, in the warning ink.</summary>
+		public readonly string Warning;
+
+		public TimelineLayout(IReadOnlyList<TimelineBand> bands, int axisSeconds, bool showRuler, string hint, string warning)
+		{
+			Bands = bands ?? Array.Empty<TimelineBand>();
+			AxisSeconds = axisSeconds > 0 ? axisSeconds : TimelineModel.TickSeconds;
+			ShowRuler = showRuler;
+			Hint = hint;
+			Warning = warning;
 		}
 	}
 
@@ -130,6 +107,16 @@ namespace OpenRA.Mods.Common.Widgets
 	{
 		// The mockup's axis grid: a labelled tick every ten minutes.
 		public const int TickSeconds = 600;
+
+		/// <summary>The nominal width the peace phase is drawn at. It is NOT a duration.</summary>
+		// The phase ends on the first kill and could be five seconds or the whole match. It is drawn
+		// hatched at a fixed width so it reads as "and then, for however long it lasts, this" rather
+		// than as a number -- and the width is a round quarter of the ruler's tick so it cannot be
+		// mistaken for one of the configurable clocks either.
+		public const int IndeterminateNominalSeconds = 150;
+
+		/// <summary>The nominal width of a phase that runs until something ends the match.</summary>
+		public const int OpenEndedNominalSeconds = 300;
 
 		public static int PxFromSeconds(int seconds, int axisSeconds, int width)
 		{
@@ -140,39 +127,10 @@ namespace OpenRA.Mods.Common.Widgets
 			return (int)((long)width * clamped / axisSeconds);
 		}
 
-		public static int SecondsFromPx(int px, int axisSeconds, int width)
-		{
-			if (width <= 0)
-				return 0;
-
-			return (int)Math.Clamp((long)axisSeconds * px / width, 0, axisSeconds);
-		}
-
-		/// <summary>Index of the stop whose drawn position is closest to px. Ties go to the lower index.</summary>
-		public static int NearestStop(int px, IReadOnlyList<int> stopSeconds, int axisSeconds, int width)
-		{
-			if (stopSeconds == null || stopSeconds.Count == 0)
-				return 0;
-
-			var best = 0;
-			var bestDistance = int.MaxValue;
-			for (var i = 0; i < stopSeconds.Count; i++)
-			{
-				var distance = Math.Abs(PxFromSeconds(stopSeconds[i], axisSeconds, width) - px);
-
-				// Strictly less-than, so the FIRST stop at a given distance wins and the result does
-				// not depend on the caller's sort order.
-				if (distance < bestDistance)
-				{
-					bestDistance = distance;
-					best = i;
-				}
-			}
-
-			return best;
-		}
-
-		/// <summary>The axis length: the largest position any marker can reach, rounded up to a labelled tick.</summary>
+		/// <summary>The axis length: the largest position any band can reach, rounded up to a labelled tick.</summary>
+		// ONLY MEANINGFUL FOR A RULED LAYOUT. An Escalation layout's axis is the sum of its own band
+		// lengths and is exact, not rounded -- rounding it up would leave a stub of empty track past
+		// the last phase, which on a bar with no ruler reads as a phase nobody captioned.
 		public static int AxisSecondsFor(IEnumerable<int> stopSeconds, int minimumSeconds)
 		{
 			var max = minimumSeconds;
@@ -207,97 +165,17 @@ namespace OpenRA.Mods.Common.Widgets
 		}
 
 		// THE PLUS SIGN IS LOAD-BEARING AND IS THE USER'S RULING (2026-09-10). It is what tells the
-		// host that the number is a GAP between two markers rather than a time on the match clock.
+		// host that the number is a GAP measured from the previous phase rather than a time on the
+		// match clock -- which in Escalation is now true of every caption on the bar except the
+		// time limit, so it is what keeps the one absolute number legible as the exception.
 		public static string Offset(int seconds)
 		{
 			return "+" + Clock(seconds);
 		}
 
-		/// <summary>Minimum clear pixels between two drawn labels.</summary>
-		// 8 to match the padding DrawBands already requires of a band caption (`size.X + 8 > width`),
-		// so the two label rows and the band row agree on what "too tight to read" means.
+		/// <summary>Minimum clear pixels a caption needs inside its own band before it is drawn.</summary>
+		// 8 to match the padding DrawBands has always required of a band caption, so the caption row
+		// and the detail row agree on what "too tight to read" means.
 		public const int LabelGap = 8;
-
-		/// <summary>
-		/// Which labels in one row may be drawn without overstriking each other: one bool per label, in
-		/// the caller's order. Higher <paramref name="priorities"/> win; ties go left to right.
-		/// </summary>
-		/// <remarks>
-		/// <para>WHY THIS IS NOT A LOOP IN THE WIDGET. A caption is centred on its own marker, so
-		/// whether it is drawable is a property of its NEIGHBOURS rather than of itself, and the row has
-		/// to be resolved as a whole. Two markers 48px apart carrying captions 60px and 101px wide
-		/// overstrike into one unreadable run of letters, and that was the DEFAULT configuration
-		/// (`defcon-pace: standard` = 5:00 against `nuclear-unlock-interval: 10` = 10:00) — so it was
-		/// what every host saw on opening the lobby, not a corner case. Captions need
-		/// (60+101)/2 = 80.5px of centre separation and will never fit in 48.</para>
-		///
-		/// <para>SUPPRESSION RATHER THAN STAGGERING OR ABBREVIATION, and both alternatives were real.
-		/// A second caption row needs the widget taller, and LobbyTimelineChromeTest pins the option
-		/// grid at exactly the widget's Height below it, so that is a layout change across three files
-		/// with a fresh way to be wrong. An abbreviation would be new player-facing copy invented by an
-		/// implementer, in a panel whose wording is taken from an approved mockup and governed by
-		/// rulings (decision 18 removed a single word from it). Suppression changes no geometry and
-		/// invents no words: it is the same trade DrawBands already makes, where a band too narrow for
-		/// its caption is drawn blank and the COLOUR carries the span.</para>
-		///
-		/// <para>THE TOP-PRIORITY LABEL IS ALWAYS DRAWN, by construction: it is placed first, against an
-		/// empty row. So a rule that drops something can never drop the label the panel exists to show.
-		/// LobbyTimelineMathTest pins that as an invariant across the whole configurable range.</para>
-		///
-		/// <para>Takes LEFT EDGES, not centres, so it sees exactly the spans the widget will draw —
-		/// including the clamp that keeps an edge label inside the bar. Duplicating that clamp here
-		/// would be a second copy of the geometry to keep in step.</para>
-		/// </remarks>
-		public static bool[] VisibleLabels(IReadOnlyList<int> lefts, IReadOnlyList<int> widths,
-			IReadOnlyList<int> priorities, int gap = LabelGap)
-		{
-			var count = lefts?.Count ?? 0;
-			var visible = new bool[count];
-			if (count == 0 || widths == null || widths.Count < count)
-				return visible;
-
-			// Highest priority first, then LEFT TO RIGHT. No two entries ever compare equal, so the
-			// result cannot depend on the sort's stability or on the caller's array order.
-			var order = new int[count];
-			for (var i = 0; i < count; i++)
-				order[i] = i;
-
-			Array.Sort(order, (a, b) =>
-			{
-				var pa = priorities != null && a < priorities.Count ? priorities[a] : 0;
-				var pb = priorities != null && b < priorities.Count ? priorities[b] : 0;
-				return pa != pb ? pb.CompareTo(pa) : a.CompareTo(b);
-			});
-
-			var placed = new List<(int Left, int Right)>();
-			foreach (var i in order)
-			{
-				// A zero-width label is nothing to draw and must not reserve space, or it would
-				// suppress a real neighbour on behalf of an empty string.
-				if (widths[i] <= 0)
-					continue;
-
-				var left = lefts[i];
-				var right = left + widths[i];
-
-				var clear = true;
-				foreach (var (placedLeft, placedRight) in placed)
-				{
-					if (left < placedRight + gap && placedLeft < right + gap)
-					{
-						clear = false;
-						break;
-					}
-				}
-
-				if (!clear)
-					continue;
-
-				visible[i] = true;
-				placed.Add((left, right));
-			}
-
-			return visible;
-		}
 	}
 }

@@ -228,18 +228,25 @@ namespace OpenRA.Test
 		public void TheTickRateIdentityHolds()
 		{
 			// THE IDENTITY EVERY DURATION IN THIS FEATURE IS CHECKED AGAINST, asserted rather than
-			// written in a comment: StandardTicks is five minutes at 60 ms per tick.
+			// written in a comment: the default no-rush period is five minutes at 60 ms per tick.
 			//
-			//     5000 ticks x 0.06 s = 300 s = 5:00
+			//     5 min -> 5000 ticks; 5000 x 0.06 s = 300 s = 5:00
 			//
-			// At 25 ticks/s the same field would read 200 s = 3:20, and the nuclear release delay --
-			// which is exactly twice this field -- would be quarter of an hour instead of ten minutes.
+			// At 25 ticks/s the same clock would come out 7500 ticks and read as seven and a half
+			// minutes of real time -- the 1.5x error this repo has made at eleven sites.
+			//
+			// RESTATED AGAINST THE MINUTE DEFAULTS since the pace fields were retired (2026-09-13).
+			// The numbers are unchanged because the defaults were chosen to leave them unchanged:
+			// Standard was 5000 ticks and the default no-rush period is 5 minutes.
 			const int Timestep = 60;
 			var info = new DefconEscalationInfo();
 
-			Assert.That(info.StandardTicks * Timestep / 1000, Is.EqualTo(300));
-			Assert.That(info.NuclearReleaseDelayTicks * Timestep / 1000, Is.EqualTo(600));
-			Assert.That(info.NuclearReleaseDelayTicks, Is.EqualTo(2 * info.StandardTicks));
+			var noRush = info.NoRushTicks(info.NoRushDefault, Timestep);
+			var warheads = info.NuclearReleaseDelayTicks(info.FirstWarheadsDefault, Timestep);
+
+			Assert.That(noRush * Timestep / 1000, Is.EqualTo(300));
+			Assert.That(warheads * Timestep / 1000, Is.EqualTo(600));
+			Assert.That(warheads, Is.EqualTo(2 * noRush));
 		}
 	}
 }

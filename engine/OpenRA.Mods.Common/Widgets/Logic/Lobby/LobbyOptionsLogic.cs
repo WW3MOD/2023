@@ -103,11 +103,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			Session.SyncReportsOptionId,
 			// How the match ends, and what it ends with.
 			DoomsdayStrikeInfo.DoomsdayOptionId,
-			// The DEFCON feature, all four dropdowns of it.
+			// The Escalation feature, all four dropdowns of it. The pace and the nuclear ceiling
+			// were retired on 2026-09-13: the pace became an ordinary minutes clock, and the
+			// ceiling went with the host cap the exchange no longer has.
 			DefconEscalationInfo.ModeOptionId,
 			DefconEscalationInfo.StartOptionId,
-			DefconEscalationInfo.PaceOptionId,
-			DefconEscalationInfo.CeilingOptionId,
+			DefconEscalationInfo.NoRushOptionId,
+			DefconEscalationInfo.FirstWarheadsOptionId,
 			// Which weapons this match permits — the question most worth being able to
 			// re-read once the shooting starts.
 			"tactical-nuke", "high-yield-nuke", "nuclear-arsenal", "powers-sandbox",
@@ -189,12 +191,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{ "timelimit", SectionMatch },
 			{ DoomsdayStrikeInfo.DoomsdayOptionId, SectionMatch },
 
-			// Escalation — the DEFCON feature. All four dropdowns live on one trait
-			// (DefconEscalation); the ceiling used to be missing from this map entirely.
+			// Escalation — the phase clocks. All four dropdowns live on one trait
+			// (DefconEscalation) and are ordered as the match runs: what game this is, which
+			// phase it opens in, then the two clocks in the order a match reaches them.
 			{ DefconEscalationInfo.ModeOptionId, SectionEscalation },
 			{ DefconEscalationInfo.StartOptionId, SectionEscalation },
-			{ DefconEscalationInfo.PaceOptionId, SectionEscalation },
-			{ DefconEscalationInfo.CeilingOptionId, SectionEscalation },
+			{ DefconEscalationInfo.NoRushOptionId, SectionEscalation },
+			{ DefconEscalationInfo.FirstWarheadsOptionId, SectionEscalation },
 
 			// Arsenal — which weapons this match permits, in ascending yield. TWO of these four
 			// now render: `nuclear-arsenal` is hidden at the trait (world.yaml,
@@ -609,7 +612,23 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				var (ddText, ddDesc) = ResolveTooltip(option);
 				dropdown.GetTooltipText = () => ddText;
-				dropdown.GetTooltipDesc = () => ddDesc;
+
+				// THE CONSISTENCY FLAG IS APPENDED LIVE, which is why this is a delegate doing work
+				// rather than a captured string. The rule is about a PAIR of options (a time limit
+				// at or below the no-rush period, or an unlock interval at or past the time limit),
+				// so neither dropdown is wrong on its own and neither can carry the warning in its
+				// own static Description. Nothing here changes a value: the lobby says so and the
+				// host decides, which is the user's ruling — flag, never silently clamp.
+				var optionId = option.Id;
+				dropdown.GetTooltipDesc = () =>
+				{
+					var settings = orderManager.LobbyInfo.GlobalSettings;
+					if (!LobbyPhaseConsistency.WarningAppliesTo(settings, optionId))
+						return ddDesc;
+
+					var warning = LobbyPhaseConsistency.Warning(settings) + ". " + LobbyPhaseConsistency.WarningDetail(settings);
+					return string.IsNullOrEmpty(ddDesc) ? warning : ddDesc + "\n\n" + warning;
+				};
 
 				if (option.Placeholder)
 					dropdown.GetColor = () => PlaceholderTextColor;
