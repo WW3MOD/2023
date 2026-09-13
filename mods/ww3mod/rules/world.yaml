@@ -816,48 +816,48 @@ World:
 	# YAML at all -- NuclearUnlockSchedule.ClampCap enforces it in code.
 	NuclearUnlockClock:
 
-	# DEFCON ESCALATION -- the match-wide alert level, and the three dropdowns that configure it.
+	# ESCALATION -- the match-wide alert level, and the four dropdowns that configure it.
 	# The player-actor half (DefconCasualtyObserver, GrantConditionOnDefconLevel) is in player.yaml.
 	#
-	# SPINE ONLY. This trait owns the level and gates nothing; the conditions it drives have no
-	# consumers yet. MarkAsPlaceholder therefore defaults TRUE in C#, which renders all three
-	# dropdowns dimmed with the lobby's placeholder tooltip -- honest, because picking DEFCON
-	# Escalation today changes nothing a player can see. Set MarkAsPlaceholder: False here on the
-	# change that lands the first consumer.
+	# MarkAsPlaceholder IS NOW FALSE IN C# AND THIS COMMENT USED TO SAY TO FLIP IT "on the change
+	# that lands the first consumer". That instruction was already stale when it was read: the
+	# consumers landed months ago -- the readout draws the level, the phase and the clock on screen,
+	# and DefconWall divides all ten shipped maps. What actually kept the flag set was decision 12's
+	# narrower argument, that the three pace durations were self-declared untuned guesses so the
+	# pace dropdown offered three choices nobody had felt the difference between. THAT dropdown no
+	# longer exists: a host sets the no-rush period in minutes. Nothing here overrides the flag.
 	#
 	# THE DEFAULT GAME MODE IS Skirmish AND MUST STAY THAT WAY UNTIL THE FEATURE IS COMPLETE.
 	# Skirmish is a strict no-op: no level, no conditions, no clock. It is what lets this land in
 	# pieces without anything changing for someone testing from main. The default lives in
 	# DefconEscalationInfo.ModeDefault and DefconEscalationTest.SkirmishIsAStrictNoOp guards it.
 	#
-	# Only the 3 -> 2 transition is on a clock, and Escalation Pace scales only that. 2 -> 1 fires
-	# the moment enemy action destroys anything, at any pace. The three pace durations are UNTUNED
-	# PLACEHOLDERS in C# (9000 / 5000 / 2500 ticks = 9:00 / 5:00 / 2:30 at the default 60 ms
-	# timestep -- 16.67 ticks per second, NOT 25) and are deliberately not overridden here, so the
-	# first person to tune them changes one place.
+	# Only the 3 -> 2 transition is on a clock and the No-rush period sets it; 2 -> 1 fires the
+	# moment enemy action destroys anything, whatever that clock says. The second clock, First
+	# warheads, runs from DEFCON 1 to the nuclear release gate. Both are lobby dropdowns in MINUTES
+	# and their defaults live in C# (5 and 10), so the first person to tune them changes one place.
+	# Both convert through NuclearUnlockSchedule.TicksForMinutes and NOT through TimeLimitManager's
+	# `1000 / Timestep`, which is integer division and runs 4% short.
 	#
-	# 20-25 is the Escalation section in LobbyOptionsLogic, and it spans TWO TRAITS: three dropdowns
-	# here and the exchange's two below. `nuclear-ceiling` used to be 23 and is dropped by the
-	# 2026-09-13 ruling -- there is no host ceiling any more, the game-ender band is the top, and it
-	# is reachable only through a chain of deliberate replies.
+	# 20-25 is the Escalation section in LobbyOptionsLogic, in the order a match reaches them, and
+	# it spans TWO TRAITS: the four phase dropdowns here and the exchange's two below.
 	DefconEscalation:
 		ModeDisplayOrder: 20
 		StartAtDisplayOrder: 21
-		PaceDisplayOrder: 22
+		NoRushDisplayOrder: 22
+		FirstWarheadsDisplayOrder: 23
 
-	# THE NUCLEAR EXCHANGE -- what each SIDE may fire in DEFCON Escalation, and the retaliation
-	# window a side gets for being shot at. Strict no-op in Skirmish and Sandbox, where the bands
-	# come from NuclearUnlockClock's schedule above instead.
+	# THE NUCLEAR EXCHANGE -- what each SIDE may fire in Escalation, and the retaliation window a
+	# side gets for being shot at. Strict no-op in Skirmish and Sandbox, where the bands come from
+	# NuclearUnlockClock's schedule above instead.
 	#
 	# DEFAULTS ARE C# AND ARE DELIBERATELY NOT OVERRIDDEN HERE: Flexible posture (the shipped
 	# cooldowns, unscaled) and a three-minute retaliation window. Both are UNTUNED PLACEHOLDERS in
 	# C# and are the user's to answer from the lobby, not values to tune here.
-	#
-	# NEITHER DROPDOWN IS A Placeholder, unlike the three above it: these govern behaviour that
-	# ships working the moment this trait is registered.
 	NuclearExchange:
 		PostureDisplayOrder: 24
 		RetaliationWindowDisplayOrder: 25
+
 	# THE DEFCON 3 DIVIDING WALL, AND IT IS NOW LIVE ON EVERY SHIPPED MAP. This block used to be
 	# registered with no configuration at all, which made the wall inert everywhere -- and that
 	# became a correctness problem the moment the readout shipped, because at DEFCON 3 it tells the

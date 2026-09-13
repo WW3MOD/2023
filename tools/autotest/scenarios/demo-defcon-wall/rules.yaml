@@ -3,17 +3,18 @@
 
 World:
 	# ESCALATION, LOCKED, AND PINNED AT DEFCON 3 FOR THE WHOLE RUN. The wall stands only at
-	# DEFCON 3 (DefconWall ActiveLevels = { 3 }), so the clocks are set far longer than the
+	# DEFCON 3 (DefconWall ActiveLevels = { 3 }), so the clock is set far longer than the
 	# capture: 30000 ticks is 30 minutes at the 60 ms timestep -- 16.67 ticks/s, NOT 25 -- and
 	# the run has ~200 s. If the level fell to 2 mid-capture the wall would come down under the
 	# frames and the demo would show its own subject disappearing.
+	#
+	# NoRushTicksOverride replaces the three pace fields (2026-09-13): the no-rush period is a
+	# minutes dropdown now, and this field overrides it outright for a scenario.
 	DefconEscalation:
 		ModeDefault: Escalation
 		ModeLocked: true
 		StartAtDefault: 3
-		SlowTicks: 30000
-		StandardTicks: 30000
-		FastTicks: 30000
+		NoRushTicksOverride: 30000
 
 	# The line is DERIVED here rather than authored, which is the whole point: this capture has
 	# to exercise the same path a real match takes. USA home is 1,4 and Russia's is 96,93, so

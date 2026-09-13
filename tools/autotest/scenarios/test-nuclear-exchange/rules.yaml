@@ -14,13 +14,20 @@ World:
 	# come from NuclearUnlockClock's purchase schedule instead and this whole feature is a no-op.
 	#
 	# STARTS AT DEFCON 1 with a ten-tick first-warheads delay. The release gate is not what is under
-	# test -- NuclearReleaseLadderTest covers it without a world -- and the shipped 10000-tick delay
-	# is ten real minutes of nothing.
+	# test -- NuclearReleaseLadderTest covers it without a world -- and the shipped default is ten
+	# real minutes of nothing.
+	#
+	# THE OVERRIDE'S SENTINEL IS -1, NOT 0, so 10 here is a real value and not "off". Zero is a
+	# LEGAL SETTING for this clock -- "open the gate on the tick DEFCON 1 is reached" -- which is
+	# why it cannot double as the not-in-play marker the way NoRushTicksOverride's zero does. See
+	# DefconEscalationInfo's note on the two sentinels.
+	#
+	# MarkAsPlaceholder IS NOT SET HERE: it went false in C# with the phase clocks, so a scenario
+	# override would be a no-op restating the default.
 	DefconEscalation:
 		ModeDefault: Escalation
 		StartAtDefault: 1
-		NuclearReleaseDelayTicks: 10
-		MarkAsPlaceholder: False
+		NuclearReleaseDelayTicksOverride: 10
 
 	# ONE MINUTE = 1000 ticks. The shortest value the dropdown offers, so this is a shipped setting
 	# and not a test-only door -- RulesetLoaded refuses a default that is not in the options list.

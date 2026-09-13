@@ -103,11 +103,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			Session.SyncReportsOptionId,
 			// How the match ends, and what it ends with.
 			DoomsdayStrikeInfo.DoomsdayOptionId,
-			// The DEFCON feature. `nuclear-ceiling` was the fourth and is dropped by the 2026-09-13
-			// ruling; the exchange's two dropdowns take its place.
+			// The Escalation feature, all six dropdowns of it, across TWO TRAITS. The pace and the
+			// nuclear ceiling were retired on 2026-09-13: the pace became an ordinary minutes clock,
+			// and the ceiling went with the host cap the exchange no longer has. The exchange's own
+			// two are here for the same reason the clocks are -- a player who has just been armed
+			// one band up wants to know how long the window is without leaving the match.
 			DefconEscalationInfo.ModeOptionId,
 			DefconEscalationInfo.StartOptionId,
-			DefconEscalationInfo.PaceOptionId,
+			DefconEscalationInfo.NoRushOptionId,
+			DefconEscalationInfo.FirstWarheadsOptionId,
 			NuclearExchangeInfo.PostureOptionId,
 			NuclearExchangeInfo.RetaliationWindowOptionId,
 			// Which weapons this match permits — the question most worth being able to
@@ -191,12 +195,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{ "timelimit", SectionMatch },
 			{ DoomsdayStrikeInfo.DoomsdayOptionId, SectionMatch },
 
-			// Escalation — the DEFCON feature and the nuclear exchange it runs. TWO TRAITS, ONE
-			// SECTION: a host reading this panel is answering "how does this match escalate?", and
-			// which trait declares which dropdown is not a question they are asking.
+			// Escalation — the phase clocks and the exchange they run into. TWO TRAITS, ONE SECTION:
+			// a host reading this panel is answering "how does this match escalate?", and which trait
+			// declares which dropdown is not a question they are asking. Ordered as the match runs:
+			// what game this is, which phase it opens in, the two clocks in the order a match reaches
+			// them, then how the nuclear exchange behaves once it does.
 			{ DefconEscalationInfo.ModeOptionId, SectionEscalation },
 			{ DefconEscalationInfo.StartOptionId, SectionEscalation },
-			{ DefconEscalationInfo.PaceOptionId, SectionEscalation },
+			{ DefconEscalationInfo.NoRushOptionId, SectionEscalation },
+			{ DefconEscalationInfo.FirstWarheadsOptionId, SectionEscalation },
 			{ NuclearExchangeInfo.PostureOptionId, SectionEscalation },
 			{ NuclearExchangeInfo.RetaliationWindowOptionId, SectionEscalation },
 
@@ -613,16 +620,35 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				var (ddText, ddDesc) = ResolveTooltip(option);
 				dropdown.GetTooltipText = () => ddText;
-				dropdown.GetTooltipDesc = () => ddDesc;
+
+				// THE CONSISTENCY FLAG IS APPENDED LIVE, which is why this is a delegate doing work
+				// rather than a captured string. The rule is about a PAIR of options (a time limit
+				// at or below the no-rush period, or an unlock interval at or past the time limit),
+				// so neither dropdown is wrong on its own and neither can carry the warning in its
+				// own static Description. Nothing here changes a value: the lobby says so and the
+				// host decides, which is the user's ruling — flag, never silently clamp.
+				var optionId = option.Id;
+				dropdown.GetTooltipDesc = () =>
+				{
+					var settings = orderManager.LobbyInfo.GlobalSettings;
+					if (!LobbyPhaseConsistency.WarningAppliesTo(settings, optionId))
+						return ddDesc;
+
+					var warning = LobbyPhaseConsistency.Warning(settings) + ". " + LobbyPhaseConsistency.WarningDetail(settings);
+					return string.IsNullOrEmpty(ddDesc) ? warning : ddDesc + "\n\n" + warning;
+				};
 
 				if (option.Placeholder)
 					dropdown.GetColor = () => PlaceholderTextColor;
 
 				dropdown.IsVisible = () => true;
 
-				// Same rule as the checkbox above, and this is the site that is actually reachable
-				// today: the three DEFCON dropdowns are placeholders in a section deliberately
-				// exempt from SuppressWhenAllPlaceholder, so they render and were fully clickable.
+				// Same rule as the checkbox above. It was reachable through the Escalation section,
+				// whose dropdowns were placeholders in a section deliberately exempt from
+				// SuppressWhenAllPlaceholder -- so they rendered and were fully clickable. THAT IS NO
+				// LONGER THE CASE: DefconEscalationInfo.MarkAsPlaceholder went false with the phase
+				// clocks (2026-09-13), so no Escalation dropdown is a placeholder today and this
+				// guard is back to being a safety net rather than a live path.
 				dropdown.IsDisabled = () => option.Placeholder || configurationDisabled() ||
 					optionValue.Update(orderManager.LobbyInfo.GlobalSettings).IsLocked;
 

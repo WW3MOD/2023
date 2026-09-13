@@ -37,13 +37,6 @@ namespace OpenRA.Mods.Common.Traits
 		Sandbox
 	}
 
-	public enum DefconPace
-	{
-		Slow,
-		Standard,
-		Fast
-	}
-
 	public class DefconEscalationState
 	{
 		// DEFCON is not in play. Distinct from any real level so that "Skirmish grants nothing" is a
