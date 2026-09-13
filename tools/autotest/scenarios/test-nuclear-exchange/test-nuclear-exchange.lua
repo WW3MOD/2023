@@ -70,8 +70,14 @@ WorldLoaded = function()
 		return Test.GetSupportPowerState(player, key)
 	end
 
-	local function note(fmt, ...)
-		notes[#notes + 1] = string.format(fmt, ...)
+	-- THE NOTE MUST NOT LIE, and the first version of this file did. `expect` records a fault and
+	-- RETURNS rather than aborting, so the run reaches every phase and reports all of them -- which
+	-- is what you want. But the "ok at t%d" note was then written unconditionally, so a result.json
+	-- carrying four faults also carried "release ok at t90 | parity ok at t180 | lapse ok at t1240".
+	-- Whoever triages that reads three passing phases beside four failures and has to work out which
+	-- half is lying. Every note is now gated on every expect in its phase having returned true.
+	local function note(ok, fmt, ...)
+		notes[#notes + 1] = (ok and "" or "NOT ") .. string.format(fmt, ...)
 	end
 
 	local function fault(fmt, ...)
@@ -114,17 +120,19 @@ WorldLoaded = function()
 		-- window. Release is parity and not a provocation: a window opened here would hand both
 		-- sides the 20 kt band for a minute having been fired at by nobody.
 		if tick == RELEASE_CHECK_TICK then
-			expect(USA, "USA", USA_1KT, "ready",
+			local ok = expect(USA, "USA", USA_1KT, "ready",
 				"the release gate opened at tick 10 and must hand both sides a loaded 1 kt warhead"
 				.. " -- with DefaultCash 0 nothing else can have loaded it")
-			expect(Russia, "Russia", RU_1KT, "ready",
-				"release is simultaneous for both sides; only one of them got it")
-			expect(USA, "USA", USA_20KT, "hidden",
-				"release is the LOWEST band only; the 20 kt band must stay dark until somebody fires")
-			expect(Russia, "Russia", RU_20KT, "hidden",
-				"release opened a band above 1 kt, or opened a retaliation window nobody provoked")
+			ok = expect(Russia, "Russia", RU_1KT, "ready",
+				"release is simultaneous for both sides; only one of them got it."
+				.. " CHECK debug.log FOR THE `NUCLEAR EXCHANGE sides:` LINE FIRST: a side missing"
+				.. " from it was never registered, and nothing downstream of that can work") and ok
+			ok = expect(USA, "USA", USA_20KT, "hidden",
+				"release is the LOWEST band only; the 20 kt band must stay dark until somebody fires") and ok
+			ok = expect(Russia, "Russia", RU_20KT, "hidden",
+				"release opened a band above 1 kt, or opened a retaliation window nobody provoked") and ok
 
-			note("release ok at t%d", tick)
+			note(ok, "release ok at t%d", tick)
 			Trigger.AfterDelay(1, step)
 			return
 		end
@@ -146,18 +154,18 @@ WorldLoaded = function()
 
 		-- ---- PHASE C. THE PARITY + WINDOW EDGE, and the whole point of the scenario.
 		if tick == PARITY_CHECK_TICK then
-			expect(Russia, "Russia", RU_20KT, "ready",
+			local ok = expect(Russia, "Russia", RU_20KT, "ready",
 				"being hit by 1 kt must arm Russia ONE BAND UP for the window, ready to fire the"
 				.. " instant it opens. 'hidden' means the grant, the condition or the loaded shot"
 				.. " did not arrive")
-			expect(USA, "USA", USA_20KT, "hidden",
+			ok = expect(USA, "USA", USA_20KT, "hidden",
 				"THE FIRER CLIMBED BY FIRING. That is decision 06's shared pressure ladder, where"
 				.. " both sides always read the same rung and going first was free -- not the"
-				.. " exchange, where firing arms the OTHER side and costs you the shot")
-			expect(Russia, "Russia", RU_1KT, "ready",
-				"Russia's own 1 kt band went dark when it was hit; parity is permanent and additive")
+				.. " exchange, where firing arms the OTHER side and costs you the shot") and ok
+			ok = expect(Russia, "Russia", RU_1KT, "ready",
+				"Russia's own 1 kt band went dark when it was hit; parity is permanent and additive") and ok
 
-			note("parity ok at t%d (fired t%d)", tick, FIRE_TICK)
+			note(ok, "parity ok at t%d (fired t%d)", tick, FIRE_TICK)
 			Trigger.AfterDelay(1, step)
 			return
 		end
@@ -165,14 +173,14 @@ WorldLoaded = function()
 		-- ---- PHASE D. The window was TIME-BOXED. One minute on, the 20 kt grant is gone and the
 		-- permanent parity is not. "If the window lapses unused, B stays at Y."
 		if tick == LAPSE_CHECK_TICK then
-			expect(Russia, "Russia", RU_20KT, "hidden",
+			local ok = expect(Russia, "Russia", RU_20KT, "hidden",
 				"the retaliation window never lapsed. A grant that outlives its window is the"
 				.. " indefinite 'draw card' the ruling exists to prevent -- a side could hold a"
 				.. " reply forever and stall the match")
-			expect(Russia, "Russia", RU_1KT, "ready",
-				"the PERMANENT band lapsed with the window. Only the window expires")
+			ok = expect(Russia, "Russia", RU_1KT, "ready",
+				"the PERMANENT band lapsed with the window. Only the window expires") and ok
 
-			note("lapse ok at t%d, %d ticks after the shot", tick, tick - FIRE_TICK)
+			note(ok, "lapse ok at t%d, %d ticks after the shot", tick, tick - FIRE_TICK)
 			verdict()
 			return
 		end

@@ -355,12 +355,17 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			// world.Players order, which is world-creation order and therefore identical on every
-			// client. Non-combatants (Neutral, Creeps, the world owner) are not sides: they cannot
-			// fire and being armed would put a phantom third side into the count below.
+			// client. Non-combatants (Neutral, Creeps, the world owner) and spectators are not sides:
+			// they cannot fire, and arming them would put a phantom third side into the count below.
+			//
+			// THE PREDICATE IS DefconWall's AND NOT A `Playable` TEST. This read `!p.Playable` and
+			// dropped every map-authored combatant that did not write the line; see
+			// NuclearExchangeState.CountsAsASide for what that cost and why Playable is the wrong
+			// question.
 			for (var i = 0; i < w.Players.Length; i++)
 			{
 				var p = w.Players[i];
-				if (p.NonCombatant || !p.Playable)
+				if (!NuclearExchangeState.CountsAsASide(p.NonCombatant, p.Spectating))
 					continue;
 
 				var side = SideKeyFor(w, p, i);
@@ -371,6 +376,13 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var side in state.Sides)
 				lastSeen[side] = (state.PermanentLevelFor(side), 0);
+
+			// WHO IS IN THE MATCH, NAMED RATHER THAN COUNTED, and written on every Escalation match
+			// rather than only on the warning path. A miscounted side is silent everywhere else --
+			// the excluded player's cameos simply never light -- and this one line is what turned a
+			// four-fault scenario verdict into a one-minute diagnosis.
+			Log.Write("debug", "NUCLEAR EXCHANGE sides: " +
+				string.Join(", ", combatants.Select(p => $"{p.InternalName}({SideOf(p)})")));
 
 			// NOT ENFORCED, BY INSTRUCTION. Decision 15 says two sides; a lobby that produces more
 			// gets a warning and rule 2 applied to every other side. See the file header.

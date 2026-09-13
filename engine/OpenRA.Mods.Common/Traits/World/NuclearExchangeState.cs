@@ -198,6 +198,29 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Sides, in registration order.</summary>
 		public IReadOnlyList<int> Sides => sideKeys;
 
+		/// <summary>
+		/// <para>Is a player one of the match's SIDES? Two booleans, and the one that is deliberately
+		/// NOT here is the thing worth reading this for.</para>
+		///
+		/// <para>`Playable` IS NOT PART OF THE TEST, and a first version of this rule had it and was
+		/// wrong. <c>PlayerReference.Playable</c> defaults to FALSE (`PlayerReference.cs:24`) and says
+		/// only "is this a slot the lobby offers", so requiring it silently drops every map-authored
+		/// combatant — a scripted enemy in a mission, or either side of an autotest scenario that did
+		/// not happen to write the line. Such a player could then be nuked and arm nobody, and could
+		/// never retaliate, because the exchange would not know they existed.</para>
+		///
+		/// <para>IT COST A SCENARIO RUN. test-nuclear-exchange authored `Playable: True` on USA and not
+		/// on Russia; the run logged "NUCLEAR RELEASE: all 1 sides" and every Russian nuclear power
+		/// stayed dark for the whole match, while <see cref="DefconWall"/> — which partitions the same
+		/// players with the predicate below — logged "derived from 2 home(s) in 2 group(s)" on the very
+		/// same tick. Two traits disagreeing about who is in the match is the bug; this is the shipped
+		/// side of that disagreement (`DefconWall.cs:296`).</para>
+		/// </summary>
+		public static bool CountsAsASide(bool nonCombatant, bool spectating)
+		{
+			return !nonCombatant && !spectating;
+		}
+
 		/// <summary>Add a side. Idempotent, so a caller may register from a loop without checking.</summary>
 		public void RegisterSide(int side)
 		{

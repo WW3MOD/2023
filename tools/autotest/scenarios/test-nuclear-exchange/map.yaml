@@ -50,6 +50,14 @@ Categories: Test
 # distance: SUPPLYROUTE carries `Targetable.TargetTypes: NoAutoTarget`, which no Atomic warhead
 # lists. Do NOT "fix" a future version of this by moving them further apart.
 
+# RUSSIA IS DELIBERATELY NOT `Playable`, AND THAT IS NOW COVERAGE RATHER THAN AN OVERSIGHT.
+# PlayerReference.Playable defaults to FALSE (`PlayerReference.cs:24`), and the first version of
+# NuclearExchange required it before treating a player as a side -- so the first run of this
+# scenario registered ONE side, logged "NUCLEAR RELEASE: all 1 sides", and left every Russian
+# nuclear power dark for the whole match while DefconWall, reading the same players with the
+# shipped combatant predicate, logged "derived from 2 home(s) in 2 group(s)" on the same tick.
+# Leaving the line off keeps a map-authored combatant in the tree as a live case. DO NOT ADD IT.
+
 Players:
 	PlayerReference@Neutral:
 		Name: Neutral
