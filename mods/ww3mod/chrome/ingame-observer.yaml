@@ -3,19 +3,68 @@ Container@OBSERVER_WIDGETS:
 	Children:
 		Container@CHAT_ROOT:
 		# THE SAME READOUT AN OBSERVER SEES, and the same geometry as ingame-player.yaml -- see the
-		# comment there for why it docks where it does. Both widgets read only match-wide state (the
-		# level, the shared release ladder) and no per-player state at all, so there is nothing here
-		# an observer is not entitled to. A player who has just lost is switched to these widgets
-		# mid-match by LoadIngamePlayerOrObserverUILogic, so leaving it out would make the readout
-		# vanish at the moment the war is most legible.
+		# comment there for why it docks where it does. A player who has just lost is switched to
+		# these widgets mid-match by LoadIngamePlayerOrObserverUILogic, so leaving it out would make
+		# the readout vanish at the moment the war is most legible.
+		#
+		# THIS USED TO SAY "no per-player state at all" AND THAT IS NO LONGER TRUE. It was true of the
+		# shared release ladder, which was one number the whole match read. The 2026-09-13 exchange is
+		# per SIDE and the ledger draws two rows, keyed on world.RenderPlayer -- so an observer
+		# following a player sees that player's row first and the opponent's second.
+		#
+		# THERE IS STILL NOTHING HERE AN OBSERVER IS NOT ENTITLED TO, but the reason is now a design
+		# rule rather than an absence: BOTH ROWS ARE VISIBLE TO BOTH PLAYERS BY DESIGN. Countability
+		# is the mechanic -- the ruling's restraint case only works if each side can see what the
+		# other holds -- so there is no hidden half of this panel for an observer to be shown too
+		# much of.
 		DefconReadout@DEFCON_READOUT:
 			X: 5
 			Y: WINDOW_HEIGHT - HEIGHT - 140
 			Width: 352
-			Height: 170
+			# 170 UNTIL 2026-09-13, WHEN THE NUCLEAR BLOCK GAINED A SECOND LEDGER ROW.
+			#
+			# THIS NUMBER IS A RESERVE, NOT A CLIP. DefconReadoutWidget draws UPWARD from
+			# RenderBounds.Bottom, and Bottom is (Y + Height) = WINDOW_HEIGHT - 140 whatever Height
+			# says -- so raising it moves the declared top up and moves nothing that is drawn. What it
+			# is for is being HONEST about how much of the screen this can occupy, because the widget
+			# does not set a scissor and content taller than the reserve simply draws over whatever is
+			# above it.
+			#
+			# THE WORST CASE IS DEFCON 2 WITH THE GATE ALREADY OPEN -- possible since the phase clocks
+			# landed, because "First warheads" can expire inside DEFCON 2 -- which is the only state
+			# that draws the trigger line AND the nuclear block at once:
+			#   strip  8 + 17 + 7 + 3 + 6 + (2 rule lines x 16) + 9   = 82
+			#          + trigger  6 + 12 + 4                          = 104
+			#   gap                                                   =   6
+			#   nuclear 8 + 12 + 7 + (2 rows x 22) + 2 + 6 + (2 foot lines x 16) + 9 = 120
+			#                                                      total = 230
+			# 240 leaves ten pixels of slack. The font heights are FreeSans at the sizes mod.yaml's
+			# Fonts block gives (Bold 14, Tiny 10, Small 12) and are estimates, not measurements --
+			# no frame has been captured in that state.
+			Height: 240
 		DefconTransitionBanner@DEFCON_BANNER:
 			X: 0
 			Y: (WINDOW_HEIGHT - HEIGHT) / 3
+			Width: WINDOW_WIDTH
+			Height: 96
+		# THE NUCLEAR MOMENTS -- the release gate opening, and your own side being ARMED with a
+		# retaliation grant. Same full-width unparented band as the other two, drawn only for four
+		# seconds on an edge; NuclearArmedBannerWidget is invisible the rest of the match.
+		#
+		# IT SITS ABOVE THE DEFCON BANNER, AND THAT IS A DELIBERATE CHOICE BETWEEN TWO BAD OPTIONS.
+		# All three of these bands can be on screen at once and none may overlap another:
+		#   - ARMED + DEFCON: a nuke that causes the first casualty of the match moves 2 -> 1 AND
+		#     arms the side it landed on, on that side's screen, on the same tick;
+		#   - ARMED + FINAL EXCHANGE: firing a game-ender begins the final exchange and arms the
+		#     other side with a game-ender window, so the victim gets both.
+		# Slotting this one BELOW the DEFCON banner would have meant pushing FINAL_EXCHANGE_BANNER
+		# down to make room, and that band's position is the one of the three confirmed by captured
+		# frames (demo-doomsday-deadhand). Moving a verified thing to make room for an unverified one
+		# is the wrong way round, so this goes above instead: it ends exactly where the DEFCON banner
+		# begins, and the three read as one column when more than one fires.
+		NuclearArmedBanner@NUCLEAR_ARMED_BANNER:
+			X: 0
+			Y: (WINDOW_HEIGHT - HEIGHT) / 3 - HEIGHT
 			Width: WINDOW_WIDTH
 			Height: 96
 		# THE FINAL EXCHANGE COUNTDOWN. On screen for the whole fifteen-second window and nowhere

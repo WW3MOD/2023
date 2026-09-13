@@ -124,6 +124,20 @@ namespace OpenRA.Mods.Common.Widgets
 		const int StepGap = 2;
 		const int BlockGap = 6;
 
+		// ---- THE LEDGER'S MEASUREMENTS ----------------------------------------------------------
+		// A row is TALLER THAN A STEP BOX because it has to carry two things: the band's label, which
+		// is what makes the row countable, and a countdown on the boxes that have one. Stacking them
+		// is the only arrangement that keeps both -- putting the clock INSIDE the box in place of the
+		// label would destroy the identity of the band it belongs to, which is the one thing the
+		// ledger exists to show.
+		const int LedgerRowHeight = 22;
+		const int LedgerRowGap = 2;
+
+		// Wide enough for "ENEMY" in Tiny with a gap after it. The two rows share it so their boxes
+		// line up in a column -- a ledger whose rows were indented differently could not be read by
+		// running an eye down it, which is exactly how it is meant to be read.
+		const int LedgerLabelWidth = 42;
+
 		readonly World world;
 		readonly SpriteFont levelFont, nameFont, ruleFont, smallFont;
 
@@ -310,15 +324,25 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			var releaseOpen = escalation.NuclearReleaseOpen;
 			var viewer = Viewer;
-			var permanent = exchange?.PermanentLevelFor(viewer) ?? (int)NuclearRung.Hold;
-			var windowTicks = exchange?.WindowTicksRemainingFor(viewer) ?? 0;
-			var windowBand = windowTicks > 0 ? exchange.WindowLevelFor(viewer) : (int)NuclearRung.Hold;
+			var ownSide = exchange?.SideOf(viewer) ?? 0;
+			var enemySide = exchange?.OpposingSideOf(viewer) ?? 0;
 
-			var steps = DefconReadoutModel.Steps();
+			var permanent = exchange?.PermanentLevelForSide(ownSide) ?? (int)NuclearRung.Hold;
+			var windowTicks = exchange?.WindowTicksRemainingForSide(ownSide) ?? 0;
+			var windowBand = windowTicks > 0 ? exchange.WindowLevelForSide(ownSide) : (int)NuclearRung.Hold;
+
+			// BOTH ROWS ARE DRAWN WHENEVER THERE ARE TWO SIDES, and only then. A one-sided match --
+			// a scenario with a single combatant, or a stripped trait -- gets the viewer's row alone
+			// rather than an "ENEMY" row of five dark boxes, which would be a claim about an opponent
+			// who does not exist.
+			var hasEnemy = exchange != null && enemySide != ownSide;
+			var rows = hasEnemy ? 2 : 1;
+
 			var footLines = WrapLines(DefconReadoutModel.NuclearFootLine(releaseOpen, windowTicks > 0), contentWidth, ruleFont);
 
 			var labelHeight = smallFont.Measure(LevelHeightSample).Y;
-			var height = PadTop + labelHeight + 7 + StepHeight + BlockGap
+			var height = PadTop + labelHeight + 7
+				+ (rows * LedgerRowHeight) + ((rows - 1) * LedgerRowGap) + BlockGap
 				+ (footLines.Count * LineHeight(ruleFont)) + PadBottom;
 
 			var bounds = new Rectangle(RenderBounds.X, bottom - height, Bounds.Width, height);
@@ -334,8 +358,9 @@ namespace OpenRA.Mods.Common.Widgets
 			// ten-minute wait the mode used to serve with a blank screen.
 			//
 			// AN OPEN RETALIATION WINDOW TAKES IT INSTEAD, for the same reason the other way round:
-			// the permanent level is already drawn as the filled step below, and the one thing the
-			// player cannot read off the steps is how long they have left to answer.
+			// the window's own box in the ledger below is one of five and carries a small clock, and
+			// this slot is the largest text in the block. The thing a player about to lose a grant
+			// needs is the number, at the size they will see without looking for it.
 			//
 			// PITFALL: GameSpeed.Timestep, not world.Timestep -- see DrawStrip.
 			string valueText;
@@ -351,9 +376,19 @@ namespace OpenRA.Mods.Common.Widgets
 			smallFont.DrawText(valueText, new float2(x + contentWidth - valueSize.X, y), DefconPalette.NuclearValue);
 
 			y += labelHeight + 7;
-			DrawSteps(x, y, contentWidth, steps, releaseOpen, permanent, windowBand);
 
-			y += StepHeight + BlockGap;
+			// ---- THE LEDGER ---------------------------------------------------------------------
+			// YOUR ROW FIRST AND THEIRS SECOND, always, on every client. Not registration order: the
+			// player reads their own position first and then compares, and a ledger whose rows
+			// swapped depending on which seat you were in would make two players describing the same
+			// screen to each other disagree about which row was which.
+			DrawLedgerRow(x, y, contentWidth, ownSide, true, releaseOpen);
+
+			if (hasEnemy)
+				DrawLedgerRow(x, y + LedgerRowHeight + LedgerRowGap, contentWidth, enemySide, false, releaseOpen);
+
+			y += (rows * LedgerRowHeight) + ((rows - 1) * LedgerRowGap) + BlockGap;
+
 			foreach (var line in footLines)
 			{
 				ruleFont.DrawText(line, new float2(x, y), DefconPalette.Foot);
@@ -361,39 +396,114 @@ namespace OpenRA.Mods.Common.Widgets
 			}
 		}
 
-		void DrawSteps(int x, int y, int contentWidth, IReadOnlyList<string> steps, bool releaseOpen,
-			int current, int windowBand)
+		/// <summary>One side's whole nuclear position, as a labelled row of band boxes.</summary>
+		void DrawLedgerRow(int x, int y, int contentWidth, int side, bool isViewerSide, bool releaseOpen)
 		{
-			var count = steps.Count;
-			var stepWidth = (contentWidth - ((count - 1) * StepGap)) / count;
+			var label = DefconReadoutModel.LedgerRowLabel(world.LocalPlayer != null, isViewerSide,
+				exchange?.SideNameFor(side));
+
+			var labelSize = smallFont.Measure(label);
+			smallFont.DrawText(label, new float2(x, y + ((LedgerRowHeight - labelSize.Y) / 2)),
+				isViewerSide ? DefconPalette.NuclearValue : DefconPalette.NuclearLabel);
+
+			var permanent = exchange?.PermanentLevelForSide(side) ?? (int)NuclearRung.Hold;
+			var windowTicks = exchange?.WindowTicksRemainingForSide(side) ?? 0;
+			var windowBand = windowTicks > 0 ? exchange.WindowLevelForSide(side) : (int)NuclearRung.Hold;
+
+			var bands = DefconReadoutModel.LedgerBands();
+			var boxesX = x + LedgerLabelWidth;
+			var boxesWidth = contentWidth - LedgerLabelWidth;
+			var count = bands.Count;
+			var boxWidth = (boxesWidth - ((count - 1) * StepGap)) / count;
 
 			for (var i = 0; i < count; i++)
 			{
-				var rect = new Rectangle(x + (i * (stepWidth + StepGap)), y, stepWidth, StepHeight);
+				// REGENERATION IS NOT WIRED YET and this is the one place that will change when it is.
+				// `ea3e9781` puts per-band regen timers on NuclearExchangeInfo; until this branch has
+				// merged it there is NO source for "how long until this band comes back", and a box
+				// drawn as Charging with a zero clock would be a readout inventing a fact. Held is the
+				// honest state on today's arsenal: every nuclear power is RequiresPurchase, so there
+				// is no interval running at all (SupportPowerManager.cs:229).
+				const bool Charging = false;
+				const int ChargeTicks = 0;
 
-				Color fill, edge, text;
-				if (i == current && releaseOpen)
+				var cell = DefconReadoutModel.CellFor(bands[i], permanent, windowBand,
+					windowTicks > 0, releaseOpen, Charging);
+
+				var rect = new Rectangle(boxesX + (i * (boxWidth + StepGap)), y, boxWidth, LedgerRowHeight);
+				var clock = cell == DefconReadoutModel.LedgerCell.Window ? windowTicks
+					: cell == DefconReadoutModel.LedgerCell.Charging ? ChargeTicks : 0;
+
+				DrawLedgerBox(rect, DefconReadoutModel.LedgerRungLabel(bands[i]), cell, clock);
+			}
+		}
+
+		void DrawLedgerBox(Rectangle rect, string label, DefconReadoutModel.LedgerCell cell, int clockTicks)
+		{
+			Color fill, edge, text;
+			switch (cell)
+			{
+				// THE BRIGHTEST STATE IS "THEY HAVE THIS, NOW". It reuses the step row's CURRENT
+				// colours rather than a new pair, because that is what those colours already mean --
+				// the band in force -- and the ledger is the same claim said twice, once per side.
+				case DefconReadoutModel.LedgerCell.Held:
 					(fill, edge, text) = (DefconPalette.StepCurrentFill, DefconPalette.StepCurrentEdge, DefconPalette.StepCurrentText);
-				else if (i == windowBand && releaseOpen)
-				{
-					// THE RETALIATION BAND REUSES THE CEILING'S COLOURS, which is the smallest honest
-					// change: the ceiling was drawn as "a wall the ladder climbs toward" and this is
-					// the one step above the player's own that is momentarily reachable. A separate
-					// palette entry belongs with the HUD ledger pass, not here.
-					(fill, edge, text) = (DefconPalette.StepCeilingFill, DefconPalette.StepCeilingEdge, DefconPalette.StepCeilingText);
-				}
-				else if (i < current && releaseOpen)
-					(fill, edge, text) = (DefconPalette.StepReleasedFill, DefconPalette.StepReleasedEdge, DefconPalette.NuclearValue);
-				else
-					(fill, edge, text) = (DefconPalette.StepFill, DefconPalette.StepEdge, DefconPalette.StepText);
+					break;
 
-				WidgetUtils.FillRectWithColor(rect, fill);
+				// Held but not available: dimmer, and carrying the clock that says when it is back.
+				case DefconReadoutModel.LedgerCell.Charging:
+					(fill, edge, text) = (DefconPalette.StepReleasedFill, DefconPalette.StepReleasedEdge, DefconPalette.NuclearValue);
+					break;
+
+				// A GRANT, IN THE CEILING'S COLOURS, which is the reading the single step row already
+				// used for this exact band: the one step above a side's own that is momentarily
+				// reachable. Its border also pulses -- see below -- because a grant is the only cell
+				// on this panel that is disappearing while you look at it.
+				case DefconReadoutModel.LedgerCell.Window:
+					(fill, edge, text) = (DefconPalette.StepCeilingFill, DefconPalette.StepCeilingEdge, DefconPalette.StepCeilingText);
+					break;
+
+				default:
+					(fill, edge, text) = (DefconPalette.StepFill, DefconPalette.StepEdge, DefconPalette.StepText);
+					break;
+			}
+
+			WidgetUtils.FillRectWithColor(rect, fill);
+
+			if (cell == DefconReadoutModel.LedgerCell.Window)
+			{
+				// The trigger line's pulse, at the same period and for the same reason: a triangle
+				// wave over 27 ticks is 1.62 s at the 60 ms timestep, the mockup's 1.6 s. Game.LocalTick
+				// rather than wall-clock, so it stops when the game does -- a heartbeat on a paused
+				// game reads as a hung UI.
+				var phase = (Game.LocalTick % 27) / 27f;
+				var pulse = phase < 0.5f ? phase * 2 : 2 - (phase * 2);
+				DrawBorder(rect, Color.FromArgb((int)(96 + (159 * pulse)), edge));
+			}
+			else
 				DrawBorder(rect, edge);
 
-				var label = steps[i];
-				var size = smallFont.Measure(label);
-				smallFont.DrawText(label, new float2(rect.X + ((rect.Width - size.X) / 2), rect.Y + ((rect.Height - size.Y) / 2)), text);
-			}
+			var labelSize = smallFont.Measure(label);
+			var hasClock = clockTicks > 0;
+
+			// WITH A CLOCK THE LABEL SITS HIGH AND THE CLOCK UNDER IT; WITHOUT ONE THE LABEL CENTRES.
+			// A box that kept the label in the high position when there was nothing beneath it would
+			// leave the row looking mis-aligned in the common case, which is every box most of the time.
+			var labelY = hasClock
+				? rect.Y + 2
+				: rect.Y + ((rect.Height - labelSize.Y) / 2);
+
+			smallFont.DrawText(label, new float2(rect.X + ((rect.Width - labelSize.X) / 2), labelY), text);
+
+			if (!hasClock)
+				return;
+
+			// PITFALL: GameSpeed.Timestep, not world.Timestep -- see DrawStrip.
+			var clock = WidgetUtils.FormatTime(clockTicks, false, world.GameSpeed.Timestep);
+			var clockSize = smallFont.Measure(clock);
+			smallFont.DrawText(clock,
+				new float2(rect.X + ((rect.Width - clockSize.X) / 2), rect.Bottom - clockSize.Y - 2),
+				DefconPalette.NuclearValue);
 		}
 
 		static void DrawPanel(Rectangle bounds, Color accent)

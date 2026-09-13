@@ -156,23 +156,13 @@ namespace OpenRA.Mods.Common.Widgets
 			return mode == DefconGameMode.Escalation && DefconFireDiscipline.HoldsFire(level);
 		}
 
-		/// <summary>The rung labels, lowest first -- one per <see cref="NuclearRung"/>, in enum order.</summary>
-		// DERIVED FROM THE ENUM RATHER THAN LISTED, because the ladder has already changed shape once:
-		// the 2026-09-10 ruling split 50/100 kt into two rungs and RENUMBERED GameEnder from 4 to 5. A
-		// hard-coded list of steps would have kept drawing four boxes with the labels one rung out of
-		// step, which is a readout that lies rather than one that fails. If a rung is ever added
-		// without a label here, StepsCoverEveryRung fails the build's tests.
-		public static IReadOnlyList<string> Steps()
-		{
-			var values = (NuclearRung[])Enum.GetValues(typeof(NuclearRung));
-			var steps = new string[values.Length];
-			for (var i = 0; i < values.Length; i++)
-				steps[i] = ShortRungLabel(values[i]);
-
-			return steps;
-		}
-
-		/// <summary>The compact label drawn inside a step box.</summary>
+		/// <summary>The compact label for a rung. Reached through <see cref="LedgerRungLabel"/>.</summary>
+		// Steps() USED TO LIVE BESIDE THIS and built a label per rung for the single step row the
+		// nuclear block drew before the ledger. The ledger replaced that row with one per SIDE, so
+		// the list is built by LedgerBands() instead -- which skips Hold, because a row lists what a
+		// side holds. The enum-derived guarantee moved with it and is pinned by
+		// LedgerBandsFollowTheEnumOrder for the same reason Steps() was: the ladder renumbered once
+		// already, and a hand-written list would have gone on drawing boxes one rung out of step.
 		public static string ShortRungLabel(NuclearRung rung)
 		{
 			switch (rung)
@@ -240,6 +230,137 @@ namespace OpenRA.Mods.Common.Widgets
 				return false;
 
 			return releaseOpen || level == DefconEscalationState.Floor;
+		}
+
+		// ==== THE LEDGER =====================================================================
+		// Added 2026-09-13. The nuclear block used to draw ONE row -- the viewer's own bands -- and
+		// the player could read what they held and nothing about what was pointed back at them. The
+		// ruling's whole strategic claim is that the winner's correct play is RESTRAINT, and a player
+		// cannot choose restraint over a position they cannot see. Both rows are on screen for both
+		// players because COUNTABILITY IS THE MECHANIC: you hold 20 kt, they hold 20 kt and a 50 kt
+		// window with 40 seconds left on it, and the decision follows from the two rows.
+
+		/// <summary>What one band's box says about one side.</summary>
+		// FOUR STATES AND NOT THREE. Held and Charging are the same PERMISSION and different facts:
+		// a side whose 20 kt is regenerating may not fire it this minute, and a ledger that drew both
+		// as lit would be telling a player they are covered when they are not. That distinction is
+		// the entire value of putting the enemy's row on screen.
+		public enum LedgerCell
+		{
+			/// <summary>Not held at all.</summary>
+			Dark,
+
+			/// <summary>Held permanently and ready to fire now.</summary>
+			Held,
+
+			/// <summary>Held permanently but regenerating. Carries a countdown.</summary>
+			Charging,
+
+			/// <summary>A retaliation window grant. Carries the window countdown.</summary>
+			Window
+		}
+
+		/// <summary>The bands a ledger row draws, lowest first: every rung above Hold.</summary>
+		// DERIVED FROM THE ENUM, for the reason Steps() states and restated here because this is a
+		// SECOND derivation and the two must not drift apart. The ladder has already renumbered once
+		// (the 2026-09-10 ruling split 50/100 kt and moved GameEnder from 4 to 5); a hand-written
+		// list of five bands would have gone on drawing five boxes with every label one rung out of
+		// step, which is a ledger that lies rather than one that fails. LedgerBandsFollowTheEnum
+		// pins it.
+		//
+		// Hold is skipped because a row lists what a side HOLDS and Hold is the absence of that.
+		public static IReadOnlyList<NuclearRung> LedgerBands()
+		{
+			var values = (NuclearRung[])Enum.GetValues(typeof(NuclearRung));
+			var bands = new List<NuclearRung>(values.Length);
+			foreach (var v in values)
+				if (v > NuclearRung.Hold)
+					bands.Add(v);
+
+			return bands;
+		}
+
+		/// <summary>The label inside a ledger box. As <see cref="ShortRungLabel"/> except at the top.</summary>
+		// "END" RATHER THAN "200kt+", and the difference is the point of that box. Every other rung is
+		// a yield the player weighs against another yield; the top one is not a bigger bomb, it is the
+		// end of the match. A number there invites it to be read as one more step up the same scale,
+		// which is exactly the misreading decision 01 closed by making game-enders reachable only as a
+		// grant. The step row keeps the yield label, because there the rung IS being read as a
+		// position on a ladder.
+		public static string LedgerRungLabel(NuclearRung rung)
+		{
+			return rung == NuclearRung.GameEnder ? "END" : ShortRungLabel(rung);
+		}
+
+		/// <summary>What one band's box shows for one side.</summary>
+		public static LedgerCell CellFor(NuclearRung band, int permanentLevel, int windowBand,
+			bool windowOpen, bool releaseOpen, bool charging)
+		{
+			// BEFORE RELEASE EVERY BOX IS DARK on both rows, whatever the state underneath says.
+			// Nothing has been handed out yet and the block's value slot is carrying RELEASE IN m:ss;
+			// a lit box under a countdown to the moment boxes light would contradict it.
+			if (!releaseOpen)
+				return LedgerCell.Dark;
+
+			// THE WINDOW WINS WHERE THE TWO MEET, and they can meet. Off a single hit they cannot --
+			// rule 2 raises the permanent level to Y and opens the window at Y+1 -- but a side hit at
+			// 20 kt and then at 50 kt holds 50 kt permanently AND a window at 50 kt until the older
+			// grant's band is overtaken. Drawing the grant is the honest reading: a grant is the thing
+			// that EXPIRES, and the expiry is what the player has to act on before it does.
+			if (windowOpen && (int)band == windowBand)
+				return LedgerCell.Window;
+
+			if ((int)band > permanentLevel)
+				return LedgerCell.Dark;
+
+			return charging ? LedgerCell.Charging : LedgerCell.Held;
+		}
+
+		public const string LedgerOwnLabel = "YOU";
+		public const string LedgerEnemyLabel = "ENEMY";
+
+		/// <summary>The label down the left of a ledger row.</summary>
+		// A PLAYER READS YOU/ENEMY AND AN OBSERVER READS THE SIDE NAMES, and the split is not
+		// cosmetic. "YOU" is the shortest thing that makes a row countable at a glance, and it is
+		// exactly the word that is a LIE on an observer's screen -- there is no local player there to
+		// be "you", and an observer following Russia would otherwise be told Russia is them.
+		public static string LedgerRowLabel(bool hasLocalPlayer, bool isViewerSide, string sideName)
+		{
+			if (hasLocalPlayer || string.IsNullOrEmpty(sideName))
+				return isViewerSide ? LedgerOwnLabel : LedgerEnemyLabel;
+
+			return sideName.ToUpperInvariant();
+		}
+
+		// ==== THE MOMENTS ====================================================================
+		// Three things happen that a player watching the battlefield will otherwise miss entirely,
+		// because all three happen in a 352-pixel panel in a corner: the gate opens, THEY are armed,
+		// and a grant they never used runs out. Each gets a line here and a sound at the call site.
+
+		/// <summary>The banner shown when the viewer's own side gains a retaliation grant.</summary>
+		public const string ArmedBannerTitle = "ARMED";
+
+		/// <summary>The banner shown when the release gate opens for both sides.</summary>
+		public const string NuclearReleaseBannerTitle = "NUCLEAR RELEASE";
+
+		/// <summary>Its second line. Verbatim from the 2026-09-13 brief.</summary>
+		public const string NuclearReleaseBannerLine = "1 kt available to both sides";
+
+		/// <summary>The armed banner's second line. The caller formats the clock.</summary>
+		// THE SAME PATTERN AS TransitionCause AND FOR THE SAME REASON: the first line says what
+		// happened, the second says what the player may now DO and for how long. "reply or hold"
+		// names BOTH options on purpose -- the ruling's strategic claim is that holding is often the
+		// winning move -- where a line reading "reply now" would be the HUD telling the player to
+		// take the escalation the whole design is trying to make a deliberate choice.
+		//
+		// THE SEPARATOR IS AN EM DASH AND NOT A MIDDLE DOT. The em dash is proven in this font at
+		// this size -- DefconReadoutModel.NoClock and FinalExchangeBannerWidget both ship it, and the
+		// demo's frame 03 exists to confirm it draws as a dash rather than a missing-glyph box. No
+		// frame has ever confirmed U+00B7, so using one here would put an unverified glyph in the one
+		// message the player has four seconds to read.
+		public static string ArmedBannerLine(int band, string clock)
+		{
+			return $"{RungLabel(band)} available for {clock} — reply or hold";
 		}
 	}
 }

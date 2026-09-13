@@ -216,6 +216,10 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Dictionary<Player, int> sideOfPlayer = new Dictionary<Player, int>();
 		readonly List<Player> combatants = new List<Player>();
 
+		// Side -> the name the ledger draws for it. First combatant registered on that side, so it is
+		// filled in the same ordered pass and is identical on every client.
+		readonly Dictionary<int, string> sideNames = new Dictionary<int, string>();
+
 		// What each side looked like last tick, so a RISE in the permanent level and a RESTART of the
 		// window can both be spotted without either trait having to call the other.
 		readonly Dictionary<int, (int Permanent, int WindowSerial)> lastSeen = new Dictionary<int, (int, int)>();
@@ -336,9 +340,83 @@ namespace OpenRA.Mods.Common.Traits
 			return state == null ? (int)NuclearRung.Hold : state.ReleasedLevelFor(SideOf(player));
 		}
 
-		int SideOf(Player player)
+		// ==== THE PER-SIDE READ SURFACE, WHICH THE LEDGER IS THE ONLY CALLER OF ==================
+		// Added 2026-09-13 with the HUD ledger. Everything above answers "what may THIS PLAYER fire";
+		// the ledger has to draw the OTHER side's row too, and there was no way to ask for it.
+		//
+		// EVERY ONE OF THESE IS A READ AND NOTHING HERE IS NEW STATE. They are projections of the
+		// same NuclearExchangeState the synced ExchangeHash already covers, so a widget calling them
+		// cannot move the simulation and cannot add anything to a sync report.
+
+		/// <summary>Every side in the match, in registration order. Empty outside Escalation.</summary>
+		public IReadOnlyList<int> Sides => state?.Sides ?? NoSides;
+
+		static readonly int[] NoSides = System.Array.Empty<int>();
+
+		/// <summary>Which side is this player on? 0 for a non-combatant or a stripped trait.</summary>
+		public int SideOf(Player player)
 		{
 			return player != null && sideOfPlayer.TryGetValue(player, out var side) ? side : 0;
+		}
+
+		/// <summary>
+		/// The side opposite this player's, or 0 when there is not exactly one of them.
+		/// </summary>
+		// WITH MORE THAN TWO SIDES THIS RETURNS THE FIRST OTHER ONE, matching the trait's existing
+		// stance rather than inventing a second one: decision 15 says two sides, the file header says
+		// a larger lobby is warned about and then armed one-against-all, and a ledger that refused to
+		// draw at all in that case would be a third behaviour for the same unenforced rule. Two rows
+		// is what the design is; the third side's row is simply not drawn.
+		public int OpposingSideOf(Player player)
+		{
+			if (state == null)
+				return 0;
+
+			var own = SideOf(player);
+			foreach (var side in state.Sides)
+				if (side != own)
+					return side;
+
+			return 0;
+		}
+
+		/// <summary>The highest band this SIDE may fire freely, on cooldown.</summary>
+		public int PermanentLevelForSide(int side)
+		{
+			return state?.PermanentLevelFor(side) ?? (int)NuclearRung.Hold;
+		}
+
+		/// <summary>This SIDE's retaliation band, or Hold when no window is open.</summary>
+		public int WindowLevelForSide(int side)
+		{
+			return state?.WindowLevelFor(side) ?? (int)NuclearRung.Hold;
+		}
+
+		/// <summary>Ticks of retaliation window left for this SIDE. 0 is shut.</summary>
+		public int WindowTicksRemainingForSide(int side)
+		{
+			return state?.WindowTicksRemainingFor(side) ?? 0;
+		}
+
+		/// <summary>
+		/// This SIDE's window serial: bumped every time its window is opened OR restarted.
+		/// </summary>
+		// THE ONE THING A BANNER CAN WATCH. WindowTicksRemaining cannot distinguish "restarted on the
+		// same band" from "not yet ticked", so a widget watching it would miss the second hit of a
+		// pair -- which is precisely the moment the player most needs telling about. See
+		// NuclearExchangeState.SideState.WindowSerial.
+		public int WindowSerialForSide(int side)
+		{
+			return state?.For(side)?.WindowSerial ?? 0;
+		}
+
+		/// <summary>A display name for this side: its first combatant, in registration order.</summary>
+		// FIRST COMBATANT AND NOT A TEAM NUMBER, because "TEAM 1" means nothing on screen and the
+		// player names do. Built once in WorldLoaded off the same ordered walk that registers the
+		// sides, so every client produces the same name for the same side.
+		public string SideNameFor(int side)
+		{
+			return sideNames.TryGetValue(side, out var name) ? name : null;
 		}
 
 		void IWorldLoaded.WorldLoaded(World w, WorldRenderer wr)
@@ -372,6 +450,12 @@ namespace OpenRA.Mods.Common.Traits
 				sideOfPlayer.Add(p, side);
 				combatants.Add(p);
 				state.RegisterSide(side);
+
+				// FIRST ONE WINS, so a 2v2's row is named for whichever of the pair world.Players
+				// reached first rather than flickering between them. ResolvedPlayerName is not used:
+				// it is a lobby-client lookup and a scenario's map players have no client at all.
+				if (!sideNames.ContainsKey(side))
+					sideNames.Add(side, p.InternalName);
 			}
 
 			foreach (var side in state.Sides)

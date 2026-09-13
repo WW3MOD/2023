@@ -34,11 +34,25 @@ namespace OpenRA
 
 		public static void AddTransientLine(Player player, string text)
 		{
+			AddTransientLine(player, text, System.Array.Empty<object>());
+		}
+
+		/// <summary>
+		/// A transient line whose fluent message takes arguments.
+		/// </summary>
+		// ADDED 2026-09-13 for the nuclear exchange's lines, which are not fixed sentences: "Enemy
+		// armed: 20 kt for 3:00" carries a band and a clock that are only known at the moment it is
+		// shown. The no-args overload forwards here rather than the other way round, so there is one
+		// copy of the local-player test -- and that test is the reason this belongs here rather than
+		// at the call site: AddFeedbackLine already takes args and does NOT filter by player, so a
+		// caller reaching for it to get formatting would silently show every client the same line.
+		public static void AddTransientLine(Player player, string text, params object[] args)
+		{
 			if (string.IsNullOrEmpty(text))
 				return;
 
 			if (player == null || player == player.World.LocalPlayer)
-				AddTextNotification(TextNotificationPool.Transients, SystemClientId, SystemMessageLabel, FluentProvider.GetMessage(text));
+				AddTextNotification(TextNotificationPool.Transients, SystemClientId, SystemMessageLabel, FluentProvider.GetMessage(text, args));
 		}
 
 		public static void AddFeedbackLine(string text, params object[] args)

@@ -42,7 +42,6 @@
 
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Primitives;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets
@@ -51,6 +50,35 @@ namespace OpenRA.Mods.Common.Widgets
 	{
 		public readonly string TitleFont = "BigBold";
 		public readonly string CauseFont = "Regular";
+
+		// ---- WHAT THE TRANSITION SOUNDS LIKE ----------------------------------------------------
+		// Until 2026-09-13 it sounded like NOTHING. The band appeared, held four seconds and left,
+		// and a player looking anywhere else on the screen missed the rule change entirely.
+		//
+		// THESE ARE UI BLEEPS AND NOT SPEECH, AND THAT IS A COMPROMISE WORTH KNOWING ABOUT. The mod's
+		// Speech pool is Red Alert's recorded lines (rules/sound/notifications.yaml:1-116) and none of
+		// them says anything about a border opening or autonomous fire being released -- there is no
+		// recorded DEFCON line to use, and naming a file that does not exist is worse than a bleep.
+		// So each transition takes the closest existing UI cue, chosen for WEIGHT rather than
+		// meaning: AlertBleep (bleep6) for 3 -> 2, which opens a border, and AlertBuzzer (buzzy1) for
+		// 2 -> 1, which releases the shooting. Both are defined in that file's Sounds pool (:135,
+		// :134). Replacing either with a recorded line is a one-line chrome edit and nothing else.
+		//
+		// NOT LINTED. CheckNotifications does not walk widget fields -- see DefconAlert's header --
+		// so a typo here is caught by DefconAlert's pool check at runtime and by nothing else.
+		public readonly string NotificationPool = DefconAlert.SoundsPool;
+
+		/// <summary>Notification played on the 3 -> 2 transition.</summary>
+		public readonly string LevelTwoNotification = "AlertBleep";
+
+		/// <summary>Notification played on the 2 -> 1 transition.</summary>
+		public readonly string LevelOneNotification = "AlertBuzzer";
+
+		/// <summary>Fluent key of the system line shown on the 3 -> 2 transition.</summary>
+		public readonly string LevelTwoTextNotification = "notification-defcon-two";
+
+		/// <summary>Fluent key of the system line shown on the 2 -> 1 transition.</summary>
+		public readonly string LevelOneTextNotification = "notification-defcon-one";
 
 		readonly World world;
 		readonly SpriteFont titleFont, causeFont;
@@ -96,6 +124,16 @@ namespace OpenRA.Mods.Common.Widgets
 			{
 				shownLevel = level;
 				shownAtTick = world.WorldTick;
+
+				// ONCE PER EDGE, PER CLIENT, and it is this `if` that guarantees both. The method
+				// returns above whenever the level has not moved, so this body runs on the one frame
+				// the change is first seen; and the NoLevel test above it is what stops a match
+				// OPENING with an alarm for a transition that never happened.
+				DefconAlert.Play(world, NotificationPool,
+					level == DefconEscalationState.Floor ? LevelOneNotification : LevelTwoNotification);
+
+				DefconAlert.Line(world,
+					level == DefconEscalationState.Floor ? LevelOneTextNotification : LevelTwoTextNotification);
 			}
 
 			lastLevel = level;
@@ -117,33 +155,12 @@ namespace OpenRA.Mods.Common.Widgets
 				return;
 			}
 
-			var accent = DefconPalette.ForLevel(shownLevel);
-			var rb = RenderBounds;
-
-			WidgetUtils.FillRectWithColor(rb, Color.FromArgb(209, 9, 10, 8));
-
-			// Top and bottom rules only, no side borders: the band runs off both edges of the screen,
-			// which is what makes it read as the screen changing state rather than as a dialog.
-			var border = Color.FromArgb(128, accent);
-			WidgetUtils.FillRectWithColor(new Rectangle(rb.X, rb.Y, rb.Width, 1), border);
-			WidgetUtils.FillRectWithColor(new Rectangle(rb.X, rb.Bottom - 1, rb.Width, 1), border);
-
-			var title = $"DEFCON {shownLevel}";
-			var titleSize = titleFont.Measure(title);
-
-			var cause = DefconReadoutModel.TransitionCause(shownLevel);
-			var causeSize = causeFont.Measure(cause);
-
-			var blockHeight = titleSize.Y + 7 + causeSize.Y;
-			var y = rb.Y + ((rb.Height - blockHeight) / 2);
-
-			titleFont.DrawTextWithContrast(title, new float2(rb.X + ((rb.Width - titleSize.X) / 2), y),
-				accent, Color.FromArgb(160, 0, 0, 0), 2);
-
-			y += titleSize.Y + 7;
-
-			causeFont.DrawTextWithContrast(cause, new float2(rb.X + ((rb.Width - causeSize.X) / 2), y),
-				Color.FromArgb(203, 201, 190), Color.FromArgb(160, 0, 0, 0), 1);
+			// THE GEOMETRY IS DefconBannerBand's, shared with the other two banners since 2026-09-13.
+			// The two lines are centred as a BLOCK rather than independently, and the band has top and
+			// bottom rules only -- see that file for why both of those carry meaning.
+			DefconBannerBand.Draw(RenderBounds, DefconPalette.ForLevel(shownLevel),
+				titleFont, $"DEFCON {shownLevel}",
+				causeFont, DefconReadoutModel.TransitionCause(shownLevel));
 		}
 	}
 }
