@@ -322,12 +322,23 @@ namespace OpenRA.Mods.Common.Traits
 			if (!decision.Fire)
 				return;
 
+			// BOTH FAILURES BELOW OVERWRITE THE REASON, and that is the point of NoTarget. Leaving
+			// `Retaliation` standing over a launch count that never moved reports a decision where
+			// there was an execution failure, and the two want opposite investigations.
 			if (!readyKeyForBand.TryGetValue(decision.Band, out var key))
+			{
+				// Unreachable as written -- the mask was built from this dictionary in the same pass --
+				// so this is the belt-and-braces the file's neighbours use rather than a live branch.
+				LastReason = NuclearBotReason.NoReadyBand;
 				return;
+			}
 
 			var contested = haveSupplyRoute && contestationPercent < Info.LosingContestationPercent;
 			if (!Fire(bot, key, decision.Band, contested))
+			{
+				LastReason = NuclearBotReason.NoTarget;
 				return;
+			}
 
 			lastLaunchTick = world.WorldTick;
 			LastFiredBand = decision.Band;

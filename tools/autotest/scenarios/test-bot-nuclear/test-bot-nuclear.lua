@@ -261,7 +261,10 @@ WorldLoaded = function()
 					.. " t%d. Zero means the losing predicate never committed -- check `streak` and"
 					.. " `reason` in the state below: `NotLosing` means the predicate itself, and"
 					.. " `NoReadyBand` means the window lapsed before the %d-evaluation hysteresis"
-					.. " completed. More than one means the rate limit is not holding",
+					.. " completed, and `NoTarget` means the policy chose a band and the module"
+					.. " found nothing legally visible to aim at -- which on a fog-off, pre-explored"
+					.. " map would mean BeliefStore is not populating. More than one launch means"
+					.. " the rate limit is not holding",
 					CUT_ARMY_TICK, LOSING_STREAK_REQUIRED))
 
 			local band = tonumber(botField("band") or "-1")

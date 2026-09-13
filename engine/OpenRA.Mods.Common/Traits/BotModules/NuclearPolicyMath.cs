@@ -74,6 +74,17 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>Firing the highest permanent band that is ready.</summary>
 		Permanent = 7,
+
+		/// <summary>
+		/// <para>The policy chose a band and the MODULE could not use it: nothing legally visible to
+		/// aim at, or the order was refused. Never returned by <see cref="NuclearPolicyMath.Choose"/> —
+		/// only the module sets it.</para>
+		/// </summary>
+		// IT EXISTS SO A FAILED LAUNCH IS NOT REPORTED AS A DECISION. Without it the module leaves the
+		// firing reason standing over a launch count that never moved, and a readout saying
+		// `launches=0 | reason=Retaliation` sends whoever reads it after the policy when the problem is
+		// an empty target list.
+		NoTarget = 8,
 	}
 
 	/// <summary>One call to <see cref="NuclearPolicyMath.Choose"/>.</summary>
