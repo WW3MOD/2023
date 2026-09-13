@@ -10,62 +10,48 @@
 #endregion
 
 /*
- * WHAT THE TIMELINE'S MARKERS MEAN. TimelineWidget owns pixels and TimelineModel owns arithmetic;
- * this owns the binding to real lobby options.
+ * WHAT THE TIMELINE'S BANDS MEAN. TimelineWidget owns pixels and TimelineModel owns the types; this
+ * owns the reading of real lobby options.
+ *
+ * ==== IT READS AND NEVER WRITES (user ruling 2026-09-13) ====
+ * The bar was the panel's primary control and is now a read-only overview; the dropdowns lower down
+ * are the source of truth. So the Set/OnSet path, the PredictedCachedTransform prediction and the
+ * per-marker option binding are all gone -- not disabled, gone. What is left reads
+ * `orderManager.LobbyInfo.GlobalSettings` every frame, which is the same live state the dropdowns
+ * render from, so the bar cannot disagree with the control that set it.
+ *
+ * THE PREDICTION WENT WITH THE WRITE AND THAT IS NOT A REGRESSION. It existed because a marker the
+ * host was still looking at would visibly jump back to the server's value and then forward again
+ * mid-drag. Nothing here is dragged now: the host clicks a dropdown, the order round-trips while
+ * the list is closed, and the bar redraws with everything else -- which is exactly what the
+ * dropdown itself does and deliberately does not predict (LobbyOptionsLogic).
  *
  * ==== WHY THIS IS NOT PART OF LobbyOptionsLogic ====
  * That class dispatches on `options[start] is LobbyBooleanOption` and then locates the row's
- * children BY C# TYPE -- `child is CheckboxWidget`, `child is DropDownButtonWidget`
- * (LobbyOptionsLogic.cs:513, :574). A custom widget in either queue makes the queue underflow and
- * throw. There is no third branch and no extension point, so the timeline is a sibling panel that
- * owns its own option ids and writes them directly. That is the same shape LobbyPresetLogic and the
- * test-mode stager already use: the wire protocol is `option <id> <value>` and does not know or
- * care what UI produced the string.
+ * children BY C# TYPE -- `child is CheckboxWidget`, `child is DropDownButtonWidget`. A custom
+ * widget in either queue makes the queue underflow and throw. There is no third branch and no
+ * extension point, so the timeline is a sibling panel that reads its own option ids.
  *
- * ==== EVERY STOP COMES OUT OF THE OPTION'S OWN Values DICTIONARY ====
- * Nothing here invents a value. The stop lists are built by ENUMERATING `option.Values` and
- * positioning each existing key on the axis; a key the option does not define cannot be produced by
- * dragging, because there is no stop for it. See TimelineModel for why that matters more than it
- * looks: an out-of-set value throws KeyNotFoundException on the next client join.
+ * ==== THE TWO MODES DRAW DIFFERENT AXES BECAUSE THEY MEASURE DIFFERENT THINGS ====
+ * SKIRMISH is entirely absolute: every boundary is a time on the match clock (the unlock intervals,
+ * the time limit), so it keeps the minute ruler.
  *
- * ==== A PLACEHOLDER OPTION'S MARKER IS DIMMED AND DEAD TO THE MOUSE ====
- * LobbyOptionsLogic disables both the checkbox (:557) and the dropdown (:609) for
- * LobbyOption.Placeholder, with a stated reason: an accepted order resets EVERY client to NotReady
- * and posts a chat line, which is a disruptive consequence for a control that governs nothing. A
- * timeline that ignored the flag would be a back door onto exactly the options the sibling panel
- * deliberately made dead, so TimelineMarker carries it and TimelineMarker.IsDraggable honours it.
+ * ESCALATION is not, and cannot be made so. Its middle phase ends when somebody takes the first
+ * kill, and no clock runs during it. Drawing that on an absolute ruler would put a minute number
+ * under a boundary that has none -- so Escalation draws PHASE LENGTHS with no ruler, and the peace
+ * band is hatched at a nominal width with a caption that says it ends on an event. That is the
+ * user's own framing of the ruling: "it can show how long each phase is and that will be enough".
  *
- * AT THE TIME OF WRITING THAT MAKES THE TWO DEFCON MARKERS UNDRAGGABLE, because
- * DefconEscalationInfo.MarkAsPlaceholder is still true -- and its own [Desc] says flipping it is "a
- * release decision rather than a code one" and "the last step of the feature". So this is not a
- * defect to fix here: the day that field goes false, both markers become live with no change to
- * this file.
- *
- * ==== THE WARHEAD MARKER READS A DIFFERENT CLOCK IN EACH MODE, BECAUSE THERE ARE TWO ====
- * In DEFCON Escalation warheads are HANDED to players on the DEFCON clock, so the marker is an
- * offset from the no-rush marker and is not draggable (NuclearReleaseDelayTicks has no lobby option
- * behind it, deliberately). In Skirmish nothing is handed to anybody -- bands come up FOR SALE on
- * NuclearUnlockClock's interval -- so the marker binds to `nuclear-unlock-interval`, sits ABSOLUTE on
- * the match clock, and is draggable. One marker, one slot on the bar, two sources.
- *
- * THAT IS WHAT MAKES THE AMBER BAND TRUE, which is the whole reason this change exists: the band
- * captioned NUCLEAR WEAPONS PURCHASABLE used to start at a DEFCON-derived constant while Skirmish --
- * the DEFAULT mode -- sold nukes from the first second (decision 22).
- *
- * ==== TWO BANDS ARE STILL FALSE IN SKIRMISH AND THIS CHANGE DOES NOT FIX THEM. SAY SO. ====
- * NO RUSH and CONVENTIONAL are both positioned from `defcon-pace`, and DefconEscalation is a strict
- * no-op in Skirmish (DefconEscalation.cs:49-52) -- no level, no clock, no wall. So in the default
- * mode those two bands still describe a timer that never runs. That is NOT fixed here and must not be
- * papered over by rewording them: the approved mockup draws NO RUSH in its own Skirmish tab, so the
- * design intends a Skirmish no-rush period and the mod has never had one. It is an ABSENT FEATURE of
- * the same kind decision 22 was raised about, not a labelling defect, and inventing a timer to make
- * the caption true would be the mistake that decision explicitly rejected.
+ * THE ONE ABSOLUTE NUMBER IN THE ESCALATION LAYOUT IS THE TIME LIMIT, and it is captioned as a
+ * clock time rather than a length for exactly that reason -- it is the one thing on the bar that is
+ * a moment rather than a duration, and TimelineModel.Offset's plus sign on the phases around it is
+ * what keeps the distinction visible.
  *
  * ==== REBUILD ON A MODE CHANGE, NOT JUST ON A MAP OR SPEED CHANGE ====
- * A marker's stop LIST and which option it binds to are baked at Rebuild; only its position is read
- * live. So the mode is now part of Tick's change detection alongside the timestep. Without that, a
- * host switching Escalation <-> Skirmish would keep the other mode's warhead marker for the rest of
- * the lobby -- silently, and looking exactly like a working bar.
+ * Which bands exist at all is baked at Rebuild; only their captions are delegates read live. So the
+ * mode is part of Tick's change detection alongside the timestep. Without that, a host switching
+ * Escalation <-> Skirmish would keep the other mode's bar for the rest of the lobby -- silently,
+ * and looking exactly like a working one.
  */
 
 using System;
@@ -74,7 +60,6 @@ using System.Globalization;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Network;
-using OpenRA.Primitives;
 using OpenRA.Traits;
 using OpenRA.Widgets;
 
@@ -82,21 +67,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class LobbyTimelineLogic : ChromeLogic
 	{
-		// The mockup's axis is 0-60 minutes. It is a FLOOR, not a fixed span: see Rebuild for why the
-		// shipped `timelimit` set pushes it wider.
+		// The mockup's axis is 0-60 minutes. It is a FLOOR for the RULED layout, not a fixed span:
+		// the shipped `timelimit` set reaches 90 and pushes it wider.
 		const int MinimumAxisSeconds = 3600;
 
 		readonly TimelineWidget timeline;
 		readonly OrderManager orderManager;
 		readonly Func<MapPreview> getMap;
-		readonly Func<bool> configurationDisabled;
-
-		readonly Dictionary<string, PredictedCachedTransform<Session.Global, string>> optionValues = new();
 
 		MapPreview mapPreview;
-		TimelineMarker[] markers = Array.Empty<TimelineMarker>();
-		TimelineBand[] bands = Array.Empty<TimelineBand>();
-		int axisSeconds = MinimumAxisSeconds;
+		TimelineLayout layout = TimelineLayout.Empty;
 		string lastTimestepKey;
 		string lastModeKey;
 
@@ -113,13 +93,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			timeline = (TimelineWidget)widget;
 			this.orderManager = orderManager;
 			this.getMap = getMap;
-			this.configurationDisabled = configurationDisabled;
 
-			timeline.GetMarkers = () => markers;
-			timeline.GetBands = () => bands;
-			timeline.GetAxisSeconds = () => axisSeconds;
-			timeline.GetValue = ReadValue;
-			timeline.OnSet = Set;
+			timeline.GetLayout = () => layout;
 			timeline.IsDisabled = () => configurationDisabled();
 
 			// DO NOT MAKE THIS WIDGET'S VISIBILITY DEPEND ON ANYTHING Rebuild() PRODUCES. That is not a
@@ -127,18 +102,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			// live lobby:
 			//
 			//     Widget.TickOuter (Widget.cs:512-524) ticks a widget's LogicObjects ONLY inside
-			//     `if (IsVisible())`. So `IsVisible = () => markers.Length > 0` is self-latching --
+			//     `if (IsVisible())`. So `IsVisible = () => bands.Length > 0` is self-latching --
 			//     the moment the constructor's Rebuild comes up empty (a map preview whose rules have
 			//     not finished loading is enough), the widget is invisible, Tick() is therefore never
-			//     called, Rebuild() never runs again, and markers stays empty for the rest of the
-			//     lobby. It cannot recover, and it fails silently: no exception, no log line, just a
+			//     called, Rebuild() never runs again, and it stays empty for the rest of the lobby.
+			//     It cannot recover, and it fails silently: no exception, no log line, just a
 			//     reserved gap with nothing in it.
 			//
 			// The `resolved` retry below was written for exactly that case and was rendered dead by
-			// this line, which is the tell -- a retry that never fires is usually gated on the thing
-			// it was meant to repair. Visibility now stays at the Widget default of true and
-			// TimelineWidget.Draw() no-ops while it has nothing to draw, which looks identical on
-			// screen and leaves the logic ticking.
+			// that line, which is the tell -- a retry that never fires is usually gated on the thing
+			// it was meant to repair. Visibility stays at the Widget default of true and
+			// TimelineWidget.Draw() no-ops while it has nothing to draw.
 
 			mapPreview = getMap();
 			Rebuild();
@@ -150,13 +124,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var timestepKey = SelectedSpeedId();
 			var modeKey = SelectedModeId();
 
-			// The game speed is part of the arithmetic, not just the flavour: pace stops are stored in
-			// TICKS and become seconds through the timestep, while `timelimit` is stored in minutes.
-			// Mixing the two on one axis is only consistent if a speed change rebuilds.
-			//
-			// AND THE MODE, because the warhead marker binds to a DIFFERENT OPTION in each mode -- see
-			// the file header. A marker's stop list is baked here; only its position is read live, so
-			// without this the bar would keep the old mode's marker for the rest of the lobby.
+			// The game speed is part of the arithmetic, not just the flavour: a scenario's tick
+			// overrides become seconds through the timestep. And the MODE, because it decides which
+			// bands exist at all -- see the file header.
 			if (newMapPreview == mapPreview && timestepKey == lastTimestepKey && modeKey == lastModeKey && resolved)
 				return;
 
@@ -167,33 +137,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			});
 		}
 
-		string ReadValue(TimelineMarker marker)
-		{
-			if (marker.OptionId == null || !optionValues.TryGetValue(marker.OptionId, out var cached))
-				return null;
-
-			return cached.Update(orderManager.LobbyInfo.GlobalSettings);
-		}
-
-		void Set(TimelineMarker marker, string value)
-		{
-			if (marker.OptionId == null || value == null || configurationDisabled())
-				return;
-
-			orderManager.IssueOrder(Order.Command($"option {marker.OptionId} {value}"));
-
-			// Predict as the CHECKBOX does (LobbyOptionsLogic.cs:562), not as the dropdown does. The
-			// dropdown deliberately does not predict and can afford not to, because its list is closed
-			// while it waits for the server. A marker the host is still looking at would visibly jump
-			// back to where it was and then forward again, which reads as the drag having failed.
-			if (optionValues.TryGetValue(marker.OptionId, out var cached))
-				cached.Predict(value);
-		}
+		Session.Global Settings => orderManager.LobbyInfo.GlobalSettings;
 
 		string SelectedSpeedId()
 		{
 			var speeds = Game.ModData.Manifest.Get<GameSpeeds>();
-			return orderManager.LobbyInfo.GlobalSettings.OptionOrDefault("gamespeed", speeds.DefaultSpeed);
+			return Settings.OptionOrDefault("gamespeed", speeds.DefaultSpeed);
 		}
 
 		int Timestep()
@@ -206,20 +155,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			return speeds.Speeds[speeds.DefaultSpeed].Timestep;
 		}
 
-		bool OptionIsTrue(string id, bool def)
-		{
-			return orderManager.LobbyInfo.GlobalSettings.OptionOrDefault(id, def);
-		}
-
-		string RawOption(string id, string def)
-		{
-			return orderManager.LobbyInfo.GlobalSettings.OptionOrDefault(id, def);
-		}
-
 		/// <summary>The game mode as a wire value. Skirmish is the fallback because it is the default.</summary>
 		string SelectedModeId()
 		{
-			return RawOption(DefconEscalationInfo.ModeOptionId, nameof(DefconGameMode.Skirmish).ToLowerInvariant());
+			return Settings.OptionOrDefault(DefconEscalationInfo.ModeOptionId, nameof(DefconGameMode.Skirmish).ToLowerInvariant());
 		}
 
 		bool IsEscalation()
@@ -227,12 +166,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			return string.Equals(SelectedModeId(), nameof(DefconGameMode.Escalation), StringComparison.OrdinalIgnoreCase);
 		}
 
+		int Minutes(string id, int fallback)
+		{
+			return LobbyPhaseConsistency.Minutes(Settings, id, fallback);
+		}
+
 		void Rebuild()
 		{
 			lastTimestepKey = SelectedSpeedId();
 			lastModeKey = SelectedModeId();
-			markers = Array.Empty<TimelineMarker>();
-			bands = Array.Empty<TimelineBand>();
+			layout = TimelineLayout.Empty;
 
 			resolved = mapPreview?.WorldActorInfo != null && mapPreview.PlayerActorInfo != null;
 			if (!resolved)
@@ -245,240 +188,161 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				options.TryAdd(option.Id, option);
 
 			var defcon = mapPreview.WorldActorInfo.TraitInfoOrDefault<DefconEscalationInfo>();
-			var timestep = Timestep();
-
-			var built = new List<TimelineMarker>();
-
-			// ---- MARKER 0: THE LINE LIFTS ----------------------------------------------------
-			// `defcon-pace` is the only lobby option that sets how long the no-rush period runs. Its
-			// three keys are positioned from the trait's own SlowTicks/StandardTicks/FastTicks, so the
-			// bar shows the durations the match will actually use rather than a label.
-			var paceStops = Array.Empty<TimelineStop>();
-			var paceDefault = 0;
-			var pacePlaceholder = false;
-			if (defcon != null && options.TryGetValue(DefconEscalationInfo.PaceOptionId, out var pace))
-			{
-				var stops = new List<TimelineStop>();
-				foreach (var kv in pace.Values)
-				{
-					if (!Enum.TryParse<DefconPace>(kv.Key, true, out var parsed))
-						continue;
-
-					var seconds = TimelineModel.TicksToSeconds(defcon.TicksAtDefconThree(parsed), timestep);
-					stops.Add(new TimelineStop(seconds, kv.Key, TimelineModel.Clock(seconds)));
-				}
-
-				stops.Sort((a, b) => a.Seconds.CompareTo(b.Seconds));
-				paceStops = stops.ToArray();
-				paceDefault = Math.Max(0, Array.FindIndex(paceStops, s => s.Value == pace.DefaultValue));
-				pacePlaceholder = pace.Placeholder;
-
-				if (paceStops.Length > 0)
-				{
-					Track(pace);
-					built.Add(new TimelineMarker(DefconEscalationInfo.PaceOptionId, "The line lifts",
-						paceStops, paceDefault, placeholder: pacePlaceholder));
-				}
-			}
-
-			// ---- MARKER 1: WHEN THE NUCLEAR PHASE STARTS -- ONE SLOT, TWO CLOCKS -------------
-			// Which clock this marker reads is the mode's answer to "what is a nuclear weapon here",
-			// and the two are opposites (decision 16). See the file header.
-			//
-			// `warheadMarker` is recorded rather than re-derived: BuildBands used to find this marker by
-			// testing `OptionId == null`, which was only true while it was always the derived Escalation
-			// one. In Skirmish it now carries a real option id, so identity by index is the only
-			// non-fragile answer.
-			var warheadMarker = -1;
-			var warheadStopReach = 0;
-
-			if (!IsEscalation() && options.TryGetValue(NuclearUnlockClockInfo.IntervalOptionId, out var unlock))
-			{
-				// SKIRMISH: bands come up FOR SALE on an interval, measured from MATCH START, so this
-				// marker is absolute (no relativeTo) and its caption is a clock time rather than a gap.
-				//
-				// NO TIMESTEP CONVERSION HERE, and the asymmetry with the pace marker above is real
-				// rather than an oversight: `defcon-pace` stores TICKS and needs the timestep to become
-				// seconds, while this option stores MINUTES of real time, exactly as `timelimit` does.
-				// Multiplying by 60 is the whole conversion; routing it through the timestep as well
-				// would scale it twice.
-				var stops = new List<TimelineStop>();
-				foreach (var kv in unlock.Values)
-				{
-					if (!int.TryParse(kv.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var minutes))
-						continue;
-
-					// "No wait" is 0 minutes and belongs at the LEFT edge, where "on sale from the first
-					// second" is what it means -- the opposite of `timelimit`'s 0, which had to be moved
-					// to the right because "the match ends at 0:00" would have been a lie. Here the
-					// literal position is the truth, so it keeps it and only borrows the option's label.
-					var seconds = minutes * 60;
-					stops.Add(new TimelineStop(seconds, kv.Key, minutes > 0 ? TimelineModel.Clock(seconds) : kv.Value));
-				}
-
-				stops.Sort((a, b) => a.Seconds.CompareTo(b.Seconds));
-				if (stops.Count > 0)
-				{
-					var array = stops.ToArray();
-					Track(unlock);
-					warheadStopReach = array[^1].Seconds;
-					warheadMarker = built.Count;
-					built.Add(new TimelineMarker(NuclearUnlockClockInfo.IntervalOptionId, "Nukes purchasable",
-						array, Math.Max(0, Array.FindIndex(array, s => s.Value == unlock.DefaultValue)),
-						highlight: true, placeholder: unlock.Placeholder));
-				}
-			}
-			else if (defcon != null && built.Count > 0)
-			{
-				// ESCALATION: AN OFFSET FROM MARKER 0, WHICH IS THE USER'S RULING (2026-09-10) AND ALSO
-				// WHAT THE CODE DOES: NuclearReleaseDelayTicks counts from the moment DEFCON 1 is
-				// REACHED, not from match start (DefconEscalation.cs:142-151). Dragging the no-rush
-				// marker carries this one with it.
-				//
-				// IT IS NOT DRAGGABLE, AND THAT IS A FINDING RATHER THAN AN OMISSION:
-				// NuclearReleaseDelayTicks is a trait field with NO lobby option behind it, deliberately
-				// -- its own [Desc] at :119-124 says "NOT A LOBBY OPTION, deliberately". There is
-				// therefore no Values dictionary to snap to, and inventing one would be a design change
-				// rather than an implementation choice. It is drawn because the host still needs to see
-				// WHERE the warheads land on the bar.
-				var delay = TimelineModel.TicksToSeconds(defcon.NuclearReleaseDelayTicks, timestep);
-				warheadMarker = built.Count;
-				built.Add(new TimelineMarker(null, "First warheads",
-					new[] { new TimelineStop(delay, null, TimelineModel.Offset(delay)) }, 0,
-					relativeTo: 0, highlight: true, placeholder: pacePlaceholder));
-			}
-
-			// ---- MARKER 2: MATCH ENDS --------------------------------------------------------
-			// `timelimit` ships 0/10/20/30/40/60/90 minutes (TimeLimitManager.cs:32), so the axis is
-			// widened to reach 90 rather than the mockup's 60. Narrowing it to 60 would put the 90
-			// stop off the end of the bar and make it unreachable by drag, which would be a REGRESSION
-			// against the dropdown this replaces. Trimming or widening that value set is a design
-			// change and is not made here.
-			//
-			// The unlock marker's own furthest stop is folded in for the same reason: a longer interval
-			// added to NuclearUnlockClockInfo.IntervalOptions must stay reachable by drag rather than
-			// falling off the end of the bar.
-			var warheadReach = paceStops.Length > 0 && defcon != null
-				? paceStops[^1].Seconds + TimelineModel.TicksToSeconds(defcon.NuclearReleaseDelayTicks, timestep)
-				: 0;
-
-			var limitSeconds = new List<int>();
-			if (options.TryGetValue("timelimit", out var timeLimit))
-				foreach (var kv in timeLimit.Values)
-					if (int.TryParse(kv.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var minutes) && minutes > 0)
-						limitSeconds.Add(minutes * 60);
-
-			axisSeconds = TimelineModel.AxisSecondsFor(
-				limitSeconds.Append(warheadReach).Append(warheadStopReach), MinimumAxisSeconds);
-
-			if (timeLimit != null)
-			{
-				var stops = new List<TimelineStop>();
-				foreach (var kv in timeLimit.Values)
-				{
-					if (!int.TryParse(kv.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var minutes))
-						continue;
-
-					// "No limit" is 0 minutes, which as a POSITION would draw the marker hard against
-					// the left edge and read as "the match ends immediately". It is placed at the far
-					// right instead, where "the match runs off the end of the bar" is what it means.
-					// Its stored value is still the string "0" — only the drawn position moves.
-					var seconds = minutes > 0 ? minutes * 60 : axisSeconds;
-					stops.Add(new TimelineStop(seconds, kv.Key, minutes > 0 ? TimelineModel.Clock(seconds) : kv.Value));
-				}
-
-				stops.Sort((a, b) => a.Seconds.CompareTo(b.Seconds));
-				if (stops.Count > 0)
-				{
-					var array = stops.ToArray();
-					Track(timeLimit);
-					built.Add(new TimelineMarker("timelimit", "Match ends", array,
-						Math.Max(0, Array.FindIndex(array, s => s.Value == timeLimit.DefaultValue)),
-						placeholder: timeLimit.Placeholder));
-				}
-			}
-
-			markers = built.ToArray();
-			bands = BuildBands(markers, warheadMarker);
-
-			// The hint says how many markers can actually be moved, so it never invites a drag that
-			// does nothing. See the file header for why that count is currently one.
-			var draggable = markers.Count(m => m.IsDraggable);
-			timeline.NoteHint = draggable switch
-			{
-				0 => "not configurable on this map",
-				1 => "drag the marker",
-				2 => "drag either marker",
-				_ => "drag any marker",
-			};
-		}
-
-		void Track(LobbyOption option)
-		{
-			if (optionValues.ContainsKey(option.Id))
+			if (defcon == null)
 				return;
 
-			var id = option.Id;
-			var fallback = option.DefaultValue;
-			optionValues[id] = new PredictedCachedTransform<Session.Global, string>(
-				gs => gs.LobbyOptions.TryGetValue(id, out var state) ? state.Value : fallback);
+			layout = IsEscalation()
+				? BuildEscalation(defcon, options)
+				: BuildSkirmish(options);
 		}
 
-		// THE WORD "DEFCON" APPEARS NOWHERE IN ANY OF THESE STRINGS, and that is a user ruling
-		// (decision 18), not a style preference: the lobby says what HAPPENS and the game says what it
-		// is CALLED. The in-game readout keeps the name.
+		/// <summary>The time limit in seconds, or 0 for "No limit".</summary>
+		int TimeLimitSeconds()
+		{
+			var minutes = Minutes(LobbyPhaseConsistency.TimeLimitOptionId, 0);
+			return minutes > 0 ? minutes * 60 : 0;
+		}
+
+		string EndingCaption()
+		{
+			return Settings.OptionOrDefault(DoomsdayStrikeInfo.DoomsdayOptionId, true) ? "NUCLEAR ENDING" : "ENDS ON SCORE";
+		}
+
+		// ==================== ESCALATION: PHASE LENGTHS, NO RULER ====================
 		//
-		// The two mode variants are both taken from the approved mockup — tab 1 is Escalation and tab 2
-		// is Skirmish — rather than written here, so nothing on the bar is wording nobody signed off.
-		// `warheads` is PASSED IN rather than found. It used to be located by testing `OptionId == null`,
-		// which identified the derived Escalation marker only by accident of it being the one marker
-		// with no option behind it; the Skirmish marker carries `nuclear-unlock-interval` and would
-		// have been missed, silently dropping the amber band in the default game mode.
-		TimelineBand[] BuildBands(TimelineMarker[] built, int warheads)
+		// THE AXIS IS THE SUM OF THE BANDS AND IS NOT ROUNDED. AxisSecondsFor rounds up to a labelled
+		// ruler tick, which is right for a ruled layout and wrong here: there is no ruler to align to,
+		// and the rounding stub would draw as a phase past the last one that nobody captioned.
+		TimelineLayout BuildEscalation(DefconEscalationInfo defcon, Dictionary<string, LobbyOption> options)
 		{
-			if (built.Length == 0)
-				return Array.Empty<TimelineBand>();
+			var timestep = Timestep();
 
-			var lineLifts = Array.FindIndex(built, m => m.OptionId == DefconEscalationInfo.PaceOptionId);
-			var ends = Array.FindIndex(built, m => m.OptionId == "timelimit");
+			// THE CLOCKS COME BACK THROUGH THE TRAIT'S OWN CONVERTERS rather than being recomputed as
+			// `minutes * 60` here, which is what makes the bar draw the clock the MATCH will use: a
+			// scenario that pins NoRushTicksOverride is honoured on the bar exactly as it is honoured
+			// in the state machine, and the minutes-to-ticks conversion cannot drift between them.
+			var noRushSeconds = TimelineModel.TicksToSeconds(
+				defcon.NoRushTicks(Minutes(DefconEscalationInfo.NoRushOptionId, defcon.NoRushDefault), timestep), timestep);
 
-			var result = new List<TimelineBand>();
+			var warheadSeconds = TimelineModel.TicksToSeconds(
+				defcon.NuclearReleaseDelayTicks(Minutes(DefconEscalationInfo.FirstWarheadsOptionId, defcon.FirstWarheadsDefault), timestep), timestep);
 
-			if (lineLifts >= 0)
-				result.Add(new TimelineBand(-1, lineLifts, () => "NO RUSH",
-					TimelinePalette.NoRushFill, TimelinePalette.NoRushInk));
+			var limitSeconds = TimeLimitSeconds();
 
-			if (lineLifts >= 0 && warheads >= 0)
-				result.Add(new TimelineBand(lineLifts, warheads, () => "CONVENTIONAL",
-					TimelinePalette.ConventionalFill, TimelinePalette.ConventionalInk));
+			var bands = new List<TimelineBand>();
+			var cursor = 0;
 
-			if (warheads >= 0)
-				result.Add(new TimelineBand(warheads, ends, WarheadBandText,
+			cursor = Append(bands, cursor, noRushSeconds, () => "NO RUSH", () => TimelineModel.Clock(noRushSeconds),
+				TimelinePalette.NoRushFill, TimelinePalette.NoRushInk);
+
+			// THE EVENT BOUNDARY. Its width is TimelineModel.IndeterminateNominalSeconds and means
+			// nothing; the hatch and the caption are what carry that. Never caption this with a clock.
+			cursor = Append(bands, cursor, TimelineModel.IndeterminateNominalSeconds, () => "CEASE-FIRE",
+				() => "until the first kill", TimelinePalette.PeaceFill, TimelinePalette.PeaceInk, indeterminate: true);
+
+			cursor = Append(bands, cursor, warheadSeconds, () => "OPEN WAR",
+				() => "first warheads " + TimelineModel.Offset(warheadSeconds),
+				TimelinePalette.ConventionalFill, TimelinePalette.ConventionalInk);
+
+			cursor = Append(bands, cursor, TimelineModel.OpenEndedNominalSeconds, () => "NUCLEAR EXCHANGE",
+				() => "either side may fire", TimelinePalette.WarheadFill, TimelinePalette.WarheadInk);
+
+			// The tail band exists only when the host has set a limit. With "No limit" the match ends
+			// on a Supply Route rather than on a clock, and drawing an ENDING span for it would put a
+			// phase on the bar that no setting produces.
+			if (limitSeconds > 0)
+				cursor = Append(bands, cursor, TimelineModel.OpenEndedNominalSeconds, EndingCaption,
+					() => TimelineModel.Clock(limitSeconds), TimelinePalette.EndingFill, TimelinePalette.EndingInk);
+
+			var hint = options.TryGetValue(DefconEscalationInfo.NoRushOptionId, out var noRush) && noRush.Placeholder
+				? "not configurable on this map"
+				: "phase lengths — set below";
+
+			return new TimelineLayout(bands, cursor, false, hint, LobbyPhaseConsistency.Warning(Settings));
+		}
+
+		static int Append(List<TimelineBand> bands, int cursor, int length, Func<string> caption, Func<string> detail,
+			Primitives.Color fill, Primitives.Color ink, bool indeterminate = false)
+		{
+			if (length <= 0)
+				return cursor;
+
+			bands.Add(new TimelineBand(cursor, cursor + length, caption, detail, fill, ink, indeterminate));
+			return cursor + length;
+		}
+
+		// ==================== SKIRMISH: THE MATCH CLOCK, WITH A RULER ====================
+		//
+		// NO NO-RUSH BAND, AND THAT IS THE CORRECTION RATHER THAN AN OMISSION. DefconEscalation is a
+		// strict no-op in Skirmish -- no level, no clock, no wall -- so the bar used to caption a
+		// timer that never ran, in the DEFAULT mode. Decision 22 ruled that the fix for a false band
+		// is to draw only what is true, and in Skirmish what is true is the unlock schedule and the
+		// time limit.
+		//
+		// NO TIMESTEP CONVERSION HERE, and the asymmetry with the Escalation layout is real rather
+		// than an oversight: `nuclear-unlock-interval` and `timelimit` both store MINUTES of real
+		// time. Multiplying by 60 is the whole conversion; routing them through the timestep as well
+		// would scale them twice.
+		TimelineLayout BuildSkirmish(Dictionary<string, LobbyOption> options)
+		{
+			var unlockInfo = mapPreview.WorldActorInfo.TraitInfoOrDefault<NuclearUnlockClockInfo>();
+			var intervalSeconds = 60 * Minutes(LobbyPhaseConsistency.UnlockIntervalOptionId, unlockInfo?.IntervalDefault ?? 0);
+			var limitSeconds = TimeLimitSeconds();
+
+			var capName = Settings.OptionOrDefault(NuclearUnlockClockInfo.HighestYieldOptionId,
+				(unlockInfo?.HighestYieldDefault ?? NuclearRung.HundredKiloton).ToString().ToLowerInvariant());
+			if (!Enum.TryParse<NuclearRung>(capName, true, out var capRung))
+				capRung = unlockInfo?.HighestYieldDefault ?? NuclearRung.HundredKiloton;
+
+			var cap = NuclearUnlockSchedule.ClampCap((int)capRung);
+			var lastRungSeconds = intervalSeconds > 0 ? cap * intervalSeconds : 0;
+
+			var axis = TimelineModel.AxisSecondsFor(new[] { limitSeconds, lastRungSeconds }, MinimumAxisSeconds);
+
+			// Everything after the time limit is unreachable, so the bands stop there and the ending
+			// band takes the rest. With no limit the bar runs to the end of the ruler.
+			var end = limitSeconds > 0 ? limitSeconds : axis;
+
+			var bands = new List<TimelineBand>();
+
+			if (intervalSeconds <= 0)
+			{
+				// The no-wait opt-out: every tier up to the cap is on sale from the first second.
+				bands.Add(new TimelineBand(0, end, () => "NUCLEAR WEAPONS PURCHASABLE",
+					() => "from 0:00, up to " + DefconReadoutModel.RungLabel(cap),
 					TimelinePalette.WarheadFill, TimelinePalette.WarheadInk));
+			}
+			else
+			{
+				bands.Add(new TimelineBand(0, Math.Min(intervalSeconds, end), () => "CONVENTIONAL",
+					() => "no warheads on sale", TimelinePalette.ConventionalFill, TimelinePalette.ConventionalInk));
 
-			if (ends >= 0)
-				result.Add(new TimelineBand(ends, -1, EndingBandText,
-					TimelinePalette.EndingFill, TimelinePalette.EndingInk));
+				// One band per rung, opening at rung x interval -- which is NuclearUnlockSchedule's own
+				// arithmetic (TicksUntilRung divides where RungAt multiplies), read through the same
+				// helper so the bar and the match cannot disagree about when the shop opens.
+				for (var rung = NuclearUnlockSchedule.LowestRung; rung <= cap; rung++)
+				{
+					var from = rung * intervalSeconds;
+					var to = rung == cap ? end : Math.Min((rung + 1) * intervalSeconds, end);
+					if (from >= end)
+						break;
 
-			return result.ToArray();
-		}
+					var label = DefconReadoutModel.RungLabel(rung);
+					var opensAt = TimelineModel.Clock(from);
+					bands.Add(new TimelineBand(from, to, () => label + " ON SALE", () => "from " + opensAt,
+						TimelinePalette.WarheadFill, TimelinePalette.WarheadInk));
+				}
+			}
 
-		// SINCE 2026-09-11 THE SECOND OF THESE IS TRUE. It used to caption a band whose start came from
-		// the DEFCON clock while Skirmish sold nuclear weapons from the first second; the band now
-		// starts where NuclearUnlockClock actually opens the shop.
-		string WarheadBandText()
-		{
-			return IsEscalation()
-				? "WARHEADS ISSUED · EITHER SIDE MAY FIRE"
-				: "NUCLEAR WEAPONS PURCHASABLE";
-		}
+			if (limitSeconds > 0 && limitSeconds < axis)
+				bands.Add(new TimelineBand(limitSeconds, axis, EndingCaption,
+					() => TimelineModel.Clock(limitSeconds), TimelinePalette.EndingFill, TimelinePalette.EndingInk));
 
-		// The tail band states which of the two endings the host has actually configured. `doomsday`
-		// keeps its wire-visible id: renaming a lobby option id silently discards every stored value,
-		// and this one has already survived three renames of the copy in front of it.
-		string EndingBandText()
-		{
-			return OptionIsTrue(DoomsdayStrikeInfo.DoomsdayOptionId, true) ? "NUCLEAR ENDING" : "ENDS ON SCORE";
+			var hint = options.ContainsKey(LobbyPhaseConsistency.UnlockIntervalOptionId)
+				? "match clock — set below"
+				: "not configurable on this map";
+
+			return new TimelineLayout(bands, axis, true, hint, LobbyPhaseConsistency.Warning(Settings));
 		}
 	}
 }

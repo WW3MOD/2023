@@ -47,15 +47,15 @@ namespace OpenRA.Test
 		{
 			var conditions = new GrantConditionOnDefconLevelInfo().Conditions;
 
-			// Start At and Pace are both set to values that WOULD do something in Escalation, so this
-			// is a test of the mode rather than of an inert configuration.
+			// Start At and the no-rush clock are both set to values that WOULD do something in
+			// Escalation, so this is a test of the mode rather than of an inert configuration.
 			var state = new DefconEscalationState(DefconGameMode.Skirmish, DefconEscalationState.Ceiling, 1);
 
 			Assert.That(state.Level, Is.EqualTo(DefconEscalationState.NoLevel), "Skirmish put a DEFCON level in play.");
 			Assert.That(GrantConditionOnDefconLevel.ConditionFor(state.Level, conditions), Is.Null);
 
-			// Far longer than the fastest shipped pace, interleaved with casualties, which is the only
-			// other thing that can move the level.
+			// Far longer than the shortest shipped no-rush period, interleaved with casualties, which
+			// is the only other thing that can move the level.
 			for (var i = 0; i < 20000; i++)
 			{
 				Assert.That(state.Tick(), Is.False, $"The level moved on tick {i} in Skirmish.");
@@ -85,40 +85,56 @@ namespace OpenRA.Test
 		{
 			var options = ((ILobbyOptions)new DefconEscalationInfo()).LobbyOptions(null).ToArray();
 
-			// FOUR since the nuclear release ladder landed. The fourth is the ladder's CEILING --
-			// the largest warhead the match will ever permit -- and it sits on this trait rather
-			// than on a new one because it is configuration of the same mode: DefconEscalation
-			// already owns the game mode the ladder only runs inside.
+			// STILL FOUR, BUT NOT THE SAME FOUR (2026-09-13). `defcon-pace` became the minutes
+			// dropdown `no-rush-period`, and `nuclear-ceiling` was replaced by `first-warheads` --
+			// the exchange has no host ceiling any more, and the warhead delay was a fixed trait
+			// field with no control at all.
 			Assert.That(options.Select(o => o.Id), Is.EquivalentTo(new[]
 			{
 				DefconEscalationInfo.ModeOptionId, DefconEscalationInfo.StartOptionId,
-				DefconEscalationInfo.PaceOptionId, DefconEscalationInfo.CeilingOptionId
+				DefconEscalationInfo.NoRushOptionId, DefconEscalationInfo.FirstWarheadsOptionId
 			}));
 
 			// Checkbox vs dropdown is purely the C# type: a LobbyBooleanOption renders as a checkbox.
-			// There is no integer option type in this engine, so Start At has to be a string dropdown.
+			// There is no integer option type in this engine, so both minute clocks have to be string
+			// dropdowns keyed on the stringified number.
 			foreach (var o in options)
 			{
 				Assert.That(o, Is.Not.InstanceOf<LobbyBooleanOption>(), $"{o.Id} would render as a checkbox.");
 				Assert.That(o.Values.ContainsKey(o.DefaultValue), Is.True, $"{o.Id} defaults to a value it does not offer.");
+
+				// THE LOBBY DOES NOT SAY "DEFCON" ANYWHERE A HOST CAN READ (decision 18): the lobby
+				// says what HAPPENS and the game says what it is CALLED. The option IDS still carry
+				// it and deliberately so -- an id is wire-visible state and renaming one silently
+				// discards every stored value set to it -- so this checks the copy, not the keys.
+				Assert.That(o.Name, Does.Not.Contain("DEFCON").IgnoreCase, $"{o.Id}'s label says DEFCON.");
+				Assert.That(o.Description, Does.Not.Contain("DEFCON").IgnoreCase, $"{o.Id}'s tooltip says DEFCON.");
+				foreach (var label in o.Values.Values)
+					Assert.That(label, Does.Not.Contain("DEFCON").IgnoreCase, $"{o.Id} offers a value labelled '{label}'.");
 			}
 
 			var start = options.First(o => o.Id == DefconEscalationInfo.StartOptionId);
 			Assert.That(start.Values.Keys, Is.EquivalentTo(new[] { "3", "2", "1" }), "DEFCON 4 and 5 do not exist by design.");
 			Assert.That(start.DefaultValue, Is.EqualTo("3"), "3 is both the default and the ceiling.");
+			Assert.That(start.Values["3"], Is.EqualTo("Positioning"));
+			Assert.That(start.Values["1"], Is.EqualTo("Open war"));
 
-			var pace = options.First(o => o.Id == DefconEscalationInfo.PaceOptionId);
-			Assert.That(pace.Values.Keys, Is.EquivalentTo(new[] { "slow", "standard", "fast" }));
-			Assert.That(pace.DefaultValue, Is.EqualTo("standard"));
+			// THE TWO CLOCKS ARE KEYED ON MINUTES, which is what lets a host tune them at all --
+			// the retired pace dropdown offered three adjectives whose durations were self-declared
+			// untuned guesses, and that is what kept the whole section dimmed (decision 12).
+			var noRush = options.First(o => o.Id == DefconEscalationInfo.NoRushOptionId);
+			Assert.That(noRush.Values.Keys, Is.EquivalentTo(new[] { "2", "3", "5", "7", "10", "15" }));
+			Assert.That(noRush.DefaultValue, Is.EqualTo("5"), "5 minutes is what the retired Standard pace was worth.");
 
-			// The ceiling offers every rung INCLUDING Hold, which is the "no nuclear weapons this
-			// match" setting, and nothing above GameEnder -- the Tsar Bomba is not a rung and must
-			// never become selectable by adding one here.
-			var ceiling = options.First(o => o.Id == DefconEscalationInfo.CeilingOptionId);
-			// SIX since the 50/100 kt split of 2026-09-10 -- HOLD plus five yield rungs, where the
-			// combined "50-100 kt" entry used to be one.
-			Assert.That(ceiling.Values.Keys, Is.EquivalentTo(new[] { "hold", "kiloton", "twentykiloton", "fiftykiloton", "hundredkiloton", "gameender" }));
-			Assert.That(ceiling.DefaultValue, Is.EqualTo("gameender"));
+			var warheads = options.First(o => o.Id == DefconEscalationInfo.FirstWarheadsOptionId);
+			Assert.That(warheads.Values.Keys, Is.EquivalentTo(new[] { "2", "5", "7", "10", "15", "20" }));
+			Assert.That(warheads.DefaultValue, Is.EqualTo("10"), "10 minutes is the user's ruling (decision 17.1).");
+
+			// NONE OF THEM IS A PLACEHOLDER ANY MORE. A live feature wearing an inert label is the
+			// one thing a dimmed control must never be; the 2026-09-10 mode audit called that the
+			// worst single item in its whole survey and it was this flag it meant.
+			foreach (var o in options)
+				Assert.That(o.Placeholder, Is.False, $"{o.Id} still renders dimmed with the placeholder tooltip.");
 		}
 
 		[Test]
@@ -210,52 +226,85 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void PaceScalesTheThreeToTwoClockAndNothingElse()
+		public void TheNoRushPeriodScalesTheThreeToTwoClockAndNothingElse()
 		{
+			const int Timestep = 60;
 			var info = new DefconEscalationInfo();
 
-			Assert.That(info.TicksAtDefconThree(DefconPace.Slow), Is.EqualTo(info.SlowTicks));
-			Assert.That(info.TicksAtDefconThree(DefconPace.Standard), Is.EqualTo(info.StandardTicks));
-			Assert.That(info.TicksAtDefconThree(DefconPace.Fast), Is.EqualTo(info.FastTicks));
+			// MINUTES TO TICKS, MULTIPLYING BEFORE DIVIDING. The other idiom in this tree --
+			// TimeLimitManager's `1000 / world.Timestep` -- is integer division and yields 16 ticks
+			// per second rather than 16.67, so five minutes would come out 4800 ticks: 288 s, 4%
+			// short, and short by more the longer the clock. Every offered value is checked, not
+			// just the default, because the error grows with the number.
+			foreach (var minutes in info.NoRushOptions)
+				Assert.That(info.NoRushTicks(minutes, Timestep), Is.EqualTo(minutes * 1000),
+					$"{minutes} minutes did not convert to {minutes * 1000} ticks at a 60 ms timestep.");
 
-			Assert.That(info.SlowTicks, Is.GreaterThan(info.StandardTicks));
-			Assert.That(info.StandardTicks, Is.GreaterThan(info.FastTicks));
+			Assert.That(info.NoRushTicks(info.NoRushDefault, Timestep), Is.EqualTo(5000));
 
-			// Untuned placeholders, but the units are not negotiable: the timestep is 60 ms, so a tick
-			// is 0.06 s and Standard is 5000 x 0.06 = 300 s = 5:00. Reading the rate as 25 tps would
-			// make this 200 s, which is the 1.5x error this repo has made ten times.
-			Assert.That(info.StandardTicks, Is.EqualTo(5000));
-
-			// Pace touches the 3 -> 2 clock only. At DEFCON 2 every pace is the same: no clock at all.
-			foreach (var pace in new[] { DefconPace.Slow, DefconPace.Standard, DefconPace.Fast })
+			// The clock touches the 3 -> 2 transition only. At DEFCON 2 every setting is the same:
+			// no clock at all -- the peace ends on a kill, not on a timer.
+			foreach (var minutes in info.NoRushOptions)
 			{
-				var atTwo = new DefconEscalationState(DefconGameMode.Escalation, 2, info.TicksAtDefconThree(pace));
-				Assert.That(atTwo.TicksUntilNextLevel, Is.EqualTo(0), $"{pace} put a clock on DEFCON 2.");
+				var atTwo = new DefconEscalationState(DefconGameMode.Escalation, 2, info.NoRushTicks(minutes, Timestep));
+				Assert.That(atTwo.TicksUntilNextLevel, Is.EqualTo(0), $"{minutes} minutes put a clock on DEFCON 2.");
 			}
+		}
+
+		[Test]
+		public void TheScenarioOverridesWinAndTheirSentinelsAreNotTheSameValue()
+		{
+			const int Timestep = 60;
+
+			// The default info is "no override": both clocks come from the dropdown.
+			var shipped = new DefconEscalationInfo();
+			Assert.That(shipped.NoRushTicks(5, Timestep), Is.EqualTo(5000));
+			Assert.That(shipped.NuclearReleaseDelayTicks(10, Timestep), Is.EqualTo(10000));
+
+			// ZERO IS "NOT IN PLAY" FOR THE NO-RUSH CLOCK AND A REAL SETTING FOR THE WARHEAD ONE,
+			// and that asymmetry is the point of this test rather than an accident of the defaults.
+			// A no-rush period of no length is the Skirmish game; a warhead delay of zero opens the
+			// ladder on the tick DEFCON 1 is reached, which is a match somebody may want. Unifying
+			// the two sentinels would silently delete the second setting.
+			var zeroed = new DefconEscalationInfo();
+			Assert.That(zeroed.NoRushTicksOverride, Is.EqualTo(0), "the no-rush sentinel is 0.");
+			Assert.That(zeroed.NuclearReleaseDelayTicksOverride, Is.EqualTo(-1), "the warhead sentinel is -1, NOT 0.");
+
+			// A rules.yaml cannot be loaded from this project -- the override FIELDS are readonly and
+			// are set by the field loader -- so what is pinned here is the branch condition each
+			// method uses, exercised at the shipped sentinel values. With neither override in play
+			// the dropdown's minutes must win at every offered value, not just the default.
+			foreach (var minutes in shipped.NoRushOptions)
+				Assert.That(shipped.NoRushTicks(minutes, Timestep), Is.EqualTo(minutes * 1000));
+
+			foreach (var minutes in shipped.FirstWarheadsOptions)
+				Assert.That(shipped.NuclearReleaseDelayTicks(minutes, Timestep), Is.EqualTo(minutes * 1000));
 		}
 
 		[Test]
 		public void TheNuclearReleaseDelayIsTenMinutesAtTheREALTickRate()
 		{
+			const int Timestep = 60;
 			var info = new DefconEscalationInfo();
 
 			// 10000 ticks, and the derivation is the point of this test rather than the number.
 			// The timestep is 60 ms (mod.yaml's `default` GameSpeed), so a tick is 0.06 s and the
 			// rate is 1000/60 = 16.67 ticks/s -- NOT 25. Ten minutes is 600 s, and 600 / 0.06 = 10000.
-			Assert.That(info.NuclearReleaseDelayTicks, Is.EqualTo(10000));
+			Assert.That(info.NuclearReleaseDelayTicks(info.FirstWarheadsDefault, Timestep), Is.EqualTo(10000));
 
-			// PINNED AGAINST StandardTicks RATHER THAN JUST RESTATED, which is what makes this a test
-			// of the UNIT and not a copy of the constant. That field is 5000 = 300 s = 5:00 and is
-			// itself guarded above, so ten minutes must be exactly twice it. Reading the rate as
-			// 25 tps gives 15000 ticks for "ten minutes" -- 15 minutes of real time, the 1.5x error
-			// this repo has now made at eleven sites.
-			Assert.That(info.NuclearReleaseDelayTicks, Is.EqualTo(info.StandardTicks * 2),
-				"the release delay is no longer twice the Standard pace clock, so one of the two was " +
+			// PINNED AGAINST THE NO-RUSH DEFAULT RATHER THAN JUST RESTATED, which is what makes this
+			// a test of the UNIT and not a copy of the constant. That clock is 5 minutes = 5000 ticks
+			// and is itself guarded above, so ten minutes must be exactly twice it. Reading the rate
+			// as 25 tps gives 15000 ticks for "ten minutes" -- 15 minutes of real time, the 1.5x
+			// error this repo has now made at eleven sites.
+			Assert.That(info.NuclearReleaseDelayTicks(info.FirstWarheadsDefault, Timestep),
+				Is.EqualTo(info.NoRushTicks(info.NoRushDefault, Timestep) * 2),
+				"the release delay is no longer twice the default no-rush period, so one of the two was " +
 				"converted at a different tick rate from the other");
 
-			// 0 must stay legal: it is the ruling's "opens immediately" and RulesetLoaded refuses
-			// only negatives. Asserted on the validator rather than on the field, which is where a
-			// well-meaning `must be positive` tightening would land.
+			// 0 must stay legal: it is the ruling's "opens immediately". Asserted on the validator
+			// rather than on the field, which is where a well-meaning `must be positive` tightening
+			// would land.
 			Assert.That(() => ((IRulesetLoaded<ActorInfo>)info).RulesetLoaded(null, null), Throws.Nothing);
 		}
 
