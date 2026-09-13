@@ -1,0 +1,22 @@
+### MAP River Zeta WW3 98x82 = 8036 cells, grid Rectangular
+SlotsPerCell (allocated window) = 3209
+Annulus to-cells per from-cell: mean 2293,7, max 3204
+Total written pairs = 18431956
+RecomputeShadowFrom: 336 interior calls in 2675,2 ms => 7961,9 us/call
+FULL SERIAL BAKE (all 8036 from-cells): 39741 ms
+FULL PARALLEL BAKE: 3039 ms
+### CHANGED CELL X = 6,7 (DensityLayer = 5)
+NAIVE (UpdateShadowForCells) : from-cells 1293, pairs recomputed 2619135
+EXACT (rays crossing X)      : from-cells 1222, pairs actually wrong 16043
+  pairs-per-affected-from: mean 13,1, max 426
+  WASTE FACTOR naive/exact = 163,3x
+  COST OF DISCOVERING the exact set by brute force: 1354 ms
+### SHADOW AT STAKE for removing density 5 at one cell
+pairs whose GROUND shadow changed  : 15985 (of 2619135 in the radius-32 from-set)
+pairs whose AIRBORNE shadow changed: 5169
+  ground delta histogram: -1:15985
+  airborne delta histogram: -1:5169
+CRATER r=2c: naive affected from-cells = 1414 (17,6% of map), serial cost = 11258 ms
+CRATER r=8c: naive affected from-cells = 1843 (22,9% of map), serial cost = 14674 ms
+CRATER r=15c: naive affected from-cells = 2423 (30,2% of map), serial cost = 19292 ms
+### DENSITY CENSUS: 1508 of 8036 cells carry density (18,8%)
