@@ -1828,21 +1828,45 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (!TestMode.IsActive)
 				return DefconEscalationState.NoLevel;
 
+			// TraitOrDefault IS SAFE HERE, and that was audited rather than assumed after the
+			// BotOrdersQueued crash below: DefconEscalation is declared exactly once across the whole
+			// mod, unsuffixed (`world.yaml:863`), so there is never a second instance to be ambiguous
+			// about. Same audit, same result, for DefconWall and CrossingMap -- the three World-actor
+			// traits this branch reads. ModularBot is the one that is declared three times.
 			return Context.World?.WorldActor.TraitOrDefault<DefconEscalation>()?.Level
 				?? DefconEscalationState.NoLevel;
 		}
 
 		[Desc("How many orders `player`'s bot has queued since activation, cumulative. 0 for a human, a " +
-			"spectator, or a bot whose ModularBot is not enabled. Counted at ModularBot.QueueOrder — the " +
-			"one funnel every bot module goes through — and BEFORE the arbitration gate, so it measures " +
-			"what the modules asked for rather than what survived: a module re-offering a suppressed " +
-			"order every scan still shows up here, which is the point. Test mode only.")]
+			"spectator, or a bot whose ModularBot was never activated. Counted at ModularBot.QueueOrder — " +
+			"the one funnel every bot module goes through — and BEFORE the arbitration gate, so it " +
+			"measures what the modules asked for rather than what survived: a module re-offering a " +
+			"suppressed order every scan still shows up here, which is the point. Test mode only.")]
 		public int BotOrdersQueued(Player player)
 		{
 			if (!TestMode.IsActive || player == null)
 				return 0;
 
-			return player.PlayerActor?.TraitOrDefault<ModularBot>()?.OrdersQueued ?? 0;
+			// EVERY PLAYER ACTOR CARRIES SEVERAL ModularBot INSTANCES, so a single-instance lookup here
+			// is not a style question -- it THROWS. `mods/ww3mod/rules/ai/ai.yaml:81` and `:86` declare
+			// ModularBot@experimental and ModularBot@stable side by side, and the campaign rules add a
+			// third (ModularBot@CampaignAI), so TraitDictionary.GetOrDefault raises
+			// "Actor player has multiple traits of type ModularBot" for HUMAN players too -- the traits
+			// are on the Player actor, not on the bot. Measured: this binding shipped with
+			// TraitOrDefault and killed test-bot-defcon-wall on its first run, in both the GREEN and the
+			// RED arm, before a single assertion evaluated.
+			//
+			// SELECTED BY IsEnabled, which is exactly one instance by construction: Player.cs:225-231
+			// resolves `TraitsImplementing<IBot>().FirstOrDefault(b => b.Info.Type == BotType)` and
+			// calls Activate on that one alone, and Activate is the only writer of IsEnabled
+			// (ModularBot.cs:121). Null -- and therefore 0 -- for a human, a spectator, and on a
+			// NON-HOST client, because that activation is guarded by `IsBot && Game.IsHost`. Zero is the
+			// honest answer in all three: no instance on this machine is counting anything.
+			//
+			// FirstOrDefault rather than SingleOrDefault deliberately: a malformed lobby that somehow
+			// activated two should not turn a diagnostic read into a crash mid-scenario.
+			var bot = player.PlayerActor?.TraitsImplementing<ModularBot>().FirstOrDefault(b => b.IsEnabled);
+			return bot?.OrdersQueued ?? 0;
 		}
 
 		[Desc("Read the §3a SightingThreatLayer enemy (threat) intensity for `player` at `cell`. " +
