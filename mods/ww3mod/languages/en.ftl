@@ -745,3 +745,30 @@ notification-match-start = No base building — order units from the sidebar. Th
 ## Shown when a move order is refused because it crosses the DEFCON 3 border. Without this the
 ## refusal was silent: the order was accepted, the unit never moved, and nothing said why.
 notification-defcon-border-closed = The border is closed at DEFCON 3 — that order would cross it.
+
+## THE ESCALATION ALERTS, added 2026-09-13. Every one of these accompanies a sound: until this
+## landed, three of the mode's four turning points moved a strip in a 352-pixel panel in the corner
+## and made no noise at all, so a player looking at their own units missed the rule change entirely.
+##
+## Each line says what the player may now DO, never the trait that made it so -- the same rule the
+## readout's three level lines are held to, and for the same reason.
+
+## Shown when the no-rush period runs out and the DEFCON 3 border comes down.
+notification-defcon-two = DEFCON 2. The holding period has run out and the border is open.
+
+## Shown when enemy action destroys anything and autonomous fire is released.
+notification-defcon-one = DEFCON 1. A life has been taken; your units will now engage on sight.
+
+## Shown when the nuclear release gate opens. SIMULTANEOUS AND SYMMETRIC, and it says "both sides"
+## out loud: a line reading "1 kt available" alone would read as a private advantage on the tick the
+## match stops being conventional.
+notification-nuclear-release = NUCLEAR RELEASE. 1 kt is available to both sides.
+
+## Shown on YOUR screen when YOUR launch armed the other side. Quiet on purpose -- no banner and no
+## sound: you chose to fire, so the event is not a surprise. What you do not know is the size of the
+## reply it just bought them.
+notification-nuclear-enemy-armed = Enemy armed: { $yield } for { $time }.
+
+## Shown when a retaliation grant you never used runs out. The ledger box going dark needs a reason
+## attached to it or it reads as a bug.
+notification-nuclear-grant-expired = { $yield } grant expired.

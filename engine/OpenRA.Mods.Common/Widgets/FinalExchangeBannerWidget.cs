@@ -33,7 +33,6 @@
 
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Primitives;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets
@@ -88,42 +87,15 @@ namespace OpenRA.Mods.Common.Widgets
 			var timestep = world.GameSpeed.Timestep;
 			var seconds = (ticks * timestep + 999) / 1000;
 
-			var accent = DefconPalette.DefconOne;
-			var rb = RenderBounds;
-
-			WidgetUtils.FillRectWithColor(rb, Color.FromArgb(209, 9, 10, 8));
-
-			// Top and bottom rules only, no side borders: the band runs off both edges of the screen,
-			// which is what makes it read as the screen changing state rather than as a dialog.
-			var border = Color.FromArgb(128, accent);
-			WidgetUtils.FillRectWithColor(new Rectangle(rb.X, rb.Y, rb.Width, 1), border);
-			WidgetUtils.FillRectWithColor(new Rectangle(rb.X, rb.Bottom - 1, rb.Width, 1), border);
-
-			var titleSize = titleFont.Measure(Title);
-
 			var clock = $"{seconds / 60}:{seconds % 60:00}";
-			var separator = "  —  ";
-			var lineText = Line + separator;
-			var lineSize = lineFont.Measure(lineText);
-			var clockSize = lineFont.Measure(clock);
 
-			var blockHeight = titleSize.Y + 7 + lineSize.Y;
-			var y = rb.Y + ((rb.Height - blockHeight) / 2);
-
-			titleFont.DrawTextWithContrast(Title, new float2(rb.X + ((rb.Width - titleSize.X) / 2), y),
-				accent, Color.FromArgb(160, 0, 0, 0), 2);
-
-			y += titleSize.Y + 7;
-
-			// The instruction and the clock are ONE centred line drawn in two pieces, so that the clock
-			// can carry its own colour without the line jumping sideways as the digits change width.
-			var x = rb.X + ((rb.Width - (lineSize.X + clockSize.X)) / 2);
-
-			lineFont.DrawTextWithContrast(lineText, new float2(x, y),
-				Color.FromArgb(203, 201, 190), Color.FromArgb(160, 0, 0, 0), 1);
-
-			lineFont.DrawTextWithContrast(clock, new float2(x + lineSize.X, y),
-				seconds <= UrgentSeconds ? accent : DefconPalette.Rule, Color.FromArgb(160, 0, 0, 0), 1);
+			// THE GEOMETRY IS DefconBannerBand's, shared with the other two banners since 2026-09-13.
+			// The instruction and the clock go in as two pieces of ONE centred line, which is what
+			// lets the clock carry its own colour without the line jumping sideways as the digits
+			// change width. See that file for why the band has no side borders.
+			DefconBannerBand.Draw(RenderBounds, DefconPalette.DefconOne, titleFont, Title,
+				lineFont, Line + "  —  ", clock,
+				seconds <= UrgentSeconds ? DefconPalette.DefconOne : DefconPalette.Rule);
 		}
 	}
 }

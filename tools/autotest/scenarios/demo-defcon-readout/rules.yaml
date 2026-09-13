@@ -26,6 +26,28 @@ World:
 		# the frame lands about 30 s in, so the readout should show roughly RELEASE IN 0:40.
 		NuclearReleaseDelayTicksOverride: 1200
 
+	# THE RETALIATION WINDOW, AT THE SHORTEST SETTING THE LOBBY OFFERS. One minute = 1000 ticks, and
+	# that is a FLOOR rather than a choice: the dropdown is in MINUTES, RulesetLoaded refuses a
+	# default that is not in RetaliationWindowOptions, and every option is a positive minute count.
+	# So the lapse frame cannot land sooner than 1000 ticks after the shot however this is written,
+	# which is what sets the length of the second half of this capture.
+	NuclearExchange:
+		RetaliationWindowDefault: 1
+
+		# THE 1 kt REGENERATION, COMPRESSED FROM 3000 TICKS (3:00) TO 900 (54 s). Added at the
+		# `cc1cbe78` merge, which made Escalation's bands free and put them on per-band timers.
+		#
+		# WHAT THIS BUYS THE CAPTURE is the Charging cell, which nothing else in this schedule would
+		# ever show: Russia fires at K+1260 and its own 1 kt box goes from lit to lit-with-a-clock on
+		# that tick. At 900 it is still counting at frame 08 (~0:28 left) and is BACK by frame 09, so
+		# the two frames together show the state and its recovery. At the shipped 3000 it would still
+		# be counting when the run ends, and the recovery -- which is the half that says the mode has
+		# no ammunition economy in it -- would never appear.
+		#
+		# THE OTHER THREE BANDS ARE LEFT ALONE deliberately. Nothing in this demo fires above 1 kt,
+		# so compressing them would be tuning a number no frame looks at.
+		KilotonRegenTicks: 900
+
 	# THE DERIVED WALL IS OFF FOR THIS CAPTURE, deliberately. world.yaml turns DeriveFromSpawns on
 	# mod-wide, and this scenario authors HomeLocation 16,6 and 81,76 -- so it WOULD derive a
 	# diagonal line, and this is a shipped capture whose framing was tuned before the wall existed.
@@ -37,6 +59,21 @@ World:
 	# one showing the claim alone. That is a framing decision, not a correctness one.
 	DefconWall:
 		DeriveFromSpawns: False
+
+	# BOTH HALVES OF THE ARSENAL GATE, added 2026-09-13 with the ledger capture. `nuclear-arsenal`
+	# is the host's checkbox over all thirteen warheads; `powers-sandbox` is what supplies the
+	# `powers.event` prerequisite that no faction has. WITHOUT THESE THERE IS NO NUCLEAR POWER TO
+	# GRANT, so the release would open, the ledger would light, and the shot this demo is built
+	# around would return "not ready" with nothing on screen saying why.
+	#
+	# powers-sandbox IS NOT DefconGameMode.Sandbox. Different mechanisms, similar names: this
+	# supplies prerequisites, the game mode above decides whether the exchange runs at all. It does
+	# NOT grant nuclear-release-unrestricted and does not put the Tsar Bomba in play.
+	PowersLobbyOptions:
+		NuclearArsenalCheckboxEnabled: true
+		NuclearArsenalCheckboxLocked: true
+		PowersSandboxCheckboxEnabled: true
+		PowersSandboxCheckboxLocked: true
 
 	-StartGameNotification:
 	# No starting units: the two combatants are spawned by the script at known cells, so the
