@@ -1,0 +1,110 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+:root{--bg:#14161a;--fg:#e6e8ea;--dim:#98a0a8;--line:#2c3138;--us:#5b93ea;--ru:#e46a6a;--y:#f0b429;--ok:#43d692}
+*{box-sizing:border-box}body{margin:0;padding:20px 24px;background:var(--bg);color:var(--fg);
+font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif}
+h1{font-size:18px;margin:0 0 2px}h2{font-size:14px;margin:24px 0 4px}
+p{margin:6px 0;max-width:76ch}.dim{color:var(--dim);font-size:13px}
+table{border-collapse:collapse;width:100%;margin:6px 0;font-size:13px}
+th,td{text-align:left;padding:4px 9px;border-bottom:1px solid var(--line)}
+th{color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.us{color:var(--us)}.ru{color:var(--ru)}.new{color:var(--y)}
+th.us{color:var(--us)}th.ru{color:var(--ru)}
+.opt{border:1px solid var(--line);border-radius:6px;padding:12px 15px;margin:12px 0}
+.opt h2{margin-top:0}
+.rec{color:var(--ok);font-weight:600;font-size:12px}
+.tag{display:inline-block;padding:0 5px;border-radius:3px;font-size:10px;font-weight:700;
+background:#4a3a10;color:var(--y);vertical-align:1px}
+ul{margin:5px 0;padding-left:18px}li{margin:2px 0;font-size:13px}
+code{background:#1e2228;padding:0 4px;border-radius:3px;font-size:12px}
+.tiers td{border:none;padding:2px 9px 2px 0;vertical-align:top}
+</style></head><body>
+
+<h1>Purchasable nuclear split &mdash; US vs RU</h1>
+<p class="dim">Applied: US and RU only, no China. Big weapons are gimmicks and stay out of normal play.
+<span class="new">Amber</span> = does not exist yet.</p>
+
+<h2>Three tiers, all options</h2>
+<table class="tiers">
+<tr><td class="us"><b>Buy</b></td><td>Purchasable in a normal match. Balanced pair-for-pair.</td></tr>
+<tr><td class="ru"><b>Event</b></td><td>Dead Hand, scripted triggers, demos. Never in the build tab.</td></tr>
+<tr><td class="new"><b>Sandbox</b></td><td>Lobby toggle: <em>every</em> weapon purchasable. Your test mode, kept permanently.</td></tr>
+</table>
+
+<div class="opt">
+<h2>A &middot; Tactical only <span class="rec">&larr; recommended</span></h2>
+<table>
+<tr><th class="n">Cost</th><th class="us">US</th><th class="ru">RU</th><th class="n">Yield</th></tr>
+<tr><td class="n">5 000</td><td>GBU-57 <span class="dim">conv.</span></td><td>Kh-47M2 Kinzhal <span class="dim">conv.</span></td><td class="n">&mdash;</td></tr>
+<tr><td class="n">6 000</td><td>B61-12 (0.3 kt)</td><td class="new">9M729 (1 kt)</td><td class="n">~1 kt</td></tr>
+<tr><td class="n">10 000</td><td class="new">B61-12 (10 kt)</td><td class="new">9M723 Iskander-M (10 kt)</td><td class="n">10 kt</td></tr>
+<tr><td class="n">15 000</td><td>B61-12 (50 kt)</td><td class="new">Kinzhal-N (50 kt)</td><td class="n">50 kt</td></tr>
+</table>
+<p class="dim">3 nuclear + 1 conventional each. Nothing above 50 kt is buyable. Character split is real
+doctrine: US fields <b>one dial-a-yield bomb at three settings</b> &mdash; slow, air-dropped, flexible; RU fields
+<b>three separate missiles</b> &mdash; fast, ballistic, no dial.</p>
+<p class="dim"><b>Build:</b> 10 kt B61 already exists, fired by nothing &mdash; wiring only. Three RU weapons are
+new. Retire <code>Atomic</code> and <code>AtomicHighYield</code> from the tab.</p>
+</div>
+
+<div class="opt">
+<h2>B &middot; Tactical + one heavy each</h2>
+<table>
+<tr><th class="n">Cost</th><th class="us">US</th><th class="ru">RU</th><th class="n">Yield</th></tr>
+<tr><td class="n">5 000</td><td>GBU-57 <span class="dim">conv.</span></td><td>Kh-47M2 Kinzhal <span class="dim">conv.</span></td><td class="n">&mdash;</td></tr>
+<tr><td class="n">6 000</td><td>B61-12 (0.3 kt)</td><td class="new">9M729 (1 kt)</td><td class="n">~1 kt</td></tr>
+<tr><td class="n">10 000</td><td class="new">B61-12 (10 kt)</td><td class="new">9M723 Iskander-M (10 kt)</td><td class="n">10 kt</td></tr>
+<tr><td class="n">15 000</td><td>B61-12 (50 kt)</td><td class="new">Kinzhal-N (50 kt)</td><td class="n">50 kt</td></tr>
+<tr><td class="n">32 000</td><td>W76-1 Trident (100 kt)</td><td class="new">3M14 Kalibr (100 kt)</td><td class="n">100 kt</td></tr>
+</table>
+<p class="dim">4 + 1 each. Adds a late-game capstone that still does not end the match &mdash; 100 kt is 31 cells,
+about a fifth of a map, so it kills an army rather than everything.</p>
+<p class="dim"><b>Build:</b> A, plus one new RU weapon. W76-1 already exists.</p>
+</div>
+
+<div class="opt">
+<h2>C &middot; Tactical, with a multi-strike top rung</h2>
+<table>
+<tr><th class="n">Cost</th><th class="us">US</th><th class="ru">RU</th><th class="n">Yield</th></tr>
+<tr><td class="n">5 000</td><td>GBU-57 <span class="dim">conv.</span></td><td>Kh-47M2 Kinzhal <span class="dim">conv.</span></td><td class="n">&mdash;</td></tr>
+<tr><td class="n">6 000</td><td>B61-12 (0.3 kt)</td><td class="new">9M729 (1 kt)</td><td class="n">~1 kt</td></tr>
+<tr><td class="n">10 000</td><td class="new">B61-12 (10 kt)</td><td class="new">9M723 Iskander-M (10 kt)</td><td class="n">10 kt</td></tr>
+<tr><td class="n">15 000</td><td>B61-12 (50 kt)</td><td class="new">Kinzhal-N (50 kt)</td><td class="n">50 kt</td></tr>
+<tr><td class="n">28 000</td><td class="new">B61-12 stick &mdash; 3 aim points</td><td class="new">Iskander salvo &mdash; 3 aim points</td><td class="n">3 &times; 10 kt</td></tr>
+</table>
+<p class="dim">4 + 1 each. The top rung is the <b>six-click aiming mode you just got</b>, cut to three points at
+tactical yield &mdash; otherwise that mechanic only ever appears on a weapon nobody can buy.</p>
+<p class="dim"><b>Build:</b> A, plus two multi-point powers. Aiming code already shipped; <code>AimPoints</code>
+is one field.</p>
+</div>
+
+<h2>Not purchasable, any option</h2>
+<table>
+<tr><th>Weapon</th><th>Where it still appears</th></tr>
+<tr><td class="us">W76-1 Trident (100 kt)</td><td>Dead Hand city strike <span class="dim">&middot; buyable in B only</span></td></tr>
+<tr><td class="us">B83-1 (1.2 Mt)</td><td>Scripted / demo</td></tr>
+<tr><td class="ru">RS-28 Sarmat MIRV (6 &times; 750 kt)</td><td>Scripted / demo &mdash; the showpiece</td></tr>
+<tr><td class="ru">Tsar Bomba (50 Mt)</td><td>Demo only. Kept for fun, as you said.</td></tr>
+<tr><td class="dim">Atomic / AtomicHighYield</td><td>Dead Hand outliers; autotest scenarios. Unnamed, never player-facing.</td></tr>
+</table>
+<p class="dim">All of them stay purchasable under the Sandbox toggle, so nothing you currently test with is
+lost &mdash; it just stops being in a normal match.</p>
+
+<h2>Two notes</h2>
+<p class="dim">&bull; <b>Faction gating does not exist yet</b> &mdash; no power carries a
+<code>Prerequisites:</code> line, so today every player can buy everything. Every option above needs it built
+first; it is the same work in all three.<br>
+&bull; <b>Stale BRICS/NATO copy</b> is in <code>powers.yaml</code>, <code>mod.yaml</code> and the reference
+docs. Worth a sweep to US/RU while the roster is being edited anyway.</p>
+
+<h2>Pick</h2>
+<p class="dim"><b>A</b> if nukes should stay a tactical tool and the spectacle lives in Doomsday.
+<b>B</b> if you want one buyable weapon that decides a game.
+<b>C</b> if you want the click-to-aim mechanic to exist in normal play &mdash; it is the only option where it
+does.</p>
+
+<script>
+function h(){parent.postMessage({type:"maestro:artifact_geometry",height:document.documentElement.scrollHeight},"*")}
+window.addEventListener("load",h);window.addEventListener("resize",h);h();
+</script>
+</body></html>

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>DEFCON — how it could land in the lobby</title>
+<style>
+:root{
+  --bg:#14161a; --panel:#1e2228; --line:#333a44;
+  --ink:#d6dae0; --dim:#8b939e; --faint:#666e79;
+  --accent:#c8a83a; --hot:#c05a3a; --ok:#5a9a6a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font:13px/1.5 "Segoe UI",system-ui,sans-serif;padding:28px 24px 60px}
+h1{font-size:19px;margin:0 0 4px;letter-spacing:.3px}
+h2{font-size:14px;margin:0;letter-spacing:.4px}
+.sub{color:var(--dim);font-size:12.5px;max-width:80ch;margin:0 0 26px}
+.sub b{color:var(--ink);font-weight:600}
+.opt{margin:0 0 34px;border:1px solid var(--line);border-radius:5px;overflow:hidden;background:var(--panel)}
+.opthead{display:flex;align-items:baseline;gap:12px;padding:11px 14px;
+ background:#191d23;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tag{font:700 11px/1 ui-monospace,Consolas,monospace;color:#0f1216;background:var(--accent);
+ padding:4px 7px;border-radius:3px;letter-spacing:.5px}
+.tag.b{background:#7f8a99}.tag.c{background:#8a6fae}.tag.now{background:#4a5560;color:#cfd5dc}
+.verdict{margin-left:auto;color:var(--dim);font-size:11.5px;font-style:italic}
+.body{display:grid;grid-template-columns:minmax(0,1fr) 300px}
+@media(max-width:900px){.body{grid-template-columns:1fr}}
+.lobby{padding:16px 18px;border-right:1px solid var(--line)}
+.notes{padding:16px;background:#1a1e24;font-size:12px;color:var(--dim)}
+.notes b{color:var(--ink);font-weight:600}
+.notes ul{margin:6px 0 12px;padding-left:16px}.notes li{margin:0 0 5px}
+.pro::before{content:"+ ";color:var(--ok);font-weight:700}
+.con::before{content:"\2212 ";color:var(--hot);font-weight:700}
+
+.sechead{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--faint);
+ margin:0 0 9px;padding-bottom:5px;border-bottom:1px solid #2a3038}
+.sechead.sp{margin-top:20px}
+.sechead i{text-transform:none;letter-spacing:0;color:#59616b}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:3px 20px}
+.grid.one{grid-template-columns:1fr}
+.cb{display:flex;align-items:center;gap:8px;padding:3px 2px;font-size:12.5px}
+.box{width:13px;height:13px;flex:0 0 13px;border:1px solid #5a636e;border-radius:2px;background:#12151a}
+.box.on{background:var(--accent);border-color:var(--accent);position:relative}
+.box.on::after{content:"";position:absolute;left:4px;top:1px;width:3px;height:7px;
+ border:solid #14161a;border-width:0 2px 2px 0;transform:rotate(42deg)}
+.cb.off{color:var(--dim)}
+.dd{display:flex;align-items:center;gap:10px;margin:5px 0;font-size:12.5px}
+.dd .lbl{width:150px;flex:0 0 150px}
+.sel{flex:1;background:#12151a;border:1px solid #454e59;border-radius:3px;
+ padding:5px 9px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sel .car{color:var(--faint);font-size:9px}
+.sel.hi{border-color:var(--accent);box-shadow:0 0 0 1px rgba(200,168,58,.22)}
+.sel.sm{flex:0 0 82px;padding:3px 7px;font-size:11.5px}
+.hint{color:var(--faint);font-size:11.5px;margin:3px 0 0 160px;font-style:italic}
+.indent{margin:12px 0 0 16px;padding-left:12px;border-left:2px solid #333c48}
+.indent .hint{margin-left:160px}
+
+.ladder{display:flex;flex-direction:column;margin:4px 0 2px;
+ border:1px solid #333c48;border-radius:4px;overflow:hidden}
+.rung{display:flex;align-items:center;gap:11px;padding:7px 11px;
+ border-bottom:1px solid #262c34;font-size:12px;background:#191d23}
+.rung:last-child{border-bottom:none}
+.num{font:700 12px/1 ui-monospace,Consolas,monospace;width:56px;flex:0 0 56px;letter-spacing:.5px}
+.d5{color:var(--ok)}.d4{color:#8aa84a}.d3{color:var(--accent)}.d2{color:#c8823a}.d1{color:var(--hot)}
+.at{color:var(--faint);font:11px ui-monospace,Consolas,monospace;width:46px;flex:0 0 46px}
+.un{color:var(--dim);flex:1}
+.rung.cur{background:#232a33;box-shadow:inset 3px 0 0 var(--accent)}
+.rung.cur .un{color:var(--ink)}
+.pill{font-size:10.5px;border:1px solid #454e59;border-radius:9px;padding:1px 7px;color:var(--dim);white-space:nowrap}
+.legend{color:var(--faint);font-size:11.5px;margin:9px 0 0;font-style:italic}
+.ask{margin:30px 0 0;border-top:1px solid var(--line);padding-top:18px}
+.q{margin:0 0 14px;padding-left:15px;border-left:2px solid #3a4450;max-width:90ch}
+.q b{color:var(--accent);font-weight:600}
+.q span{color:var(--dim);display:block;margin-top:2px;font-size:12px}
+code{font:11.5px ui-monospace,Consolas,monospace;background:#12151a;padding:1px 5px;
+ border-radius:3px;color:#b9c2cc}
+</style></head><body>
+
+<h1>DEFCON in the lobby — three ways it could land</h1>
+<p class="sub">Same rules in all three, different framing. The question is not which looks best but
+<b>what a host has to understand before they can start a game</b>. What ships today is drawn first so
+the delta is visible. Nothing here is built, and every label below is read from the current
+<code>world.yaml</code> / <code>PowersLobbyOptions.cs</code> rather than invented.</p>
+
+<div class="opt">
+  <div class="opthead"><span class="tag now">TODAY</span>
+    <h2>What ships right now</h2>
+    <span class="verdict">four nuclear toggles, no stated relationship between them</span></div>
+  <div class="body">
+    <div class="lobby">
+      <div class="sechead">Rules</div>
+      <div class="grid">
+        <div class="cb"><span class="box on"></span>Explored Map</div>
+        <div class="cb"><span class="box on"></span>Fog of War</div>
+        <div class="cb off"><span class="box"></span>Separate Team Spawns</div>
+        <div class="cb off"><span class="box"></span>Sync Reports</div>
+      </div>
+      <div class="sechead sp">Support powers</div>
+      <div class="grid one">
+        <div class="cb off"><span class="box"></span>Tactical Nuclear Strike (20 kt)</div>
+        <div class="cb"><span class="box on"></span>Strategic Nuclear Strike (6 Mt)</div>
+        <div class="cb"><span class="box on"></span>Nuclear Arsenal</div>
+        <div class="cb off"><span class="box"></span>Sandbox: All Support Powers</div>
+      </div>
+      <div class="sechead sp">Match</div>
+      <div class="dd"><span class="lbl">Game Speed</span>
+        <span class="sel">Default<span class="car">&#9660;</span></span></div>
+      <div class="dd"><span class="lbl">Doomsday Clock</span>
+        <span class="sel">No limit<span class="car">&#9660;</span></span></div>
+      <div class="dd"><span class="lbl">Starting Units</span>
+        <span class="sel">Air support<span class="car">&#9660;</span></span></div>
+      <p class="hint">"Nuclear apocalypse when the clock runs out"</p>
+    </div>
+    <div class="notes">
+      <b>The problem to solve</b>
+      <ul>
+        <li class="con">Four nuclear toggles, three different defaults, no visible ordering. Nothing
+          says a 20&nbsp;kt strike is a smaller step than a 6&nbsp;Mt one.</li>
+        <li class="con">The Doomsday Clock is a <i>time limit</i>, sitting in a different section from
+          every nuclear option, though it is the most nuclear thing in the lobby.</li>
+        <li class="con">A host who wants escalation cannot express it — only pre-authorise each
+          weapon before anyone has done anything.</li>
+      </ul>
+      <b>What DEFCON adds</b>
+      <ul>
+        <li>A wall clock 5&rarr;1 that ordinary fighting does not touch, releasing powers as it falls.</li>
+        <li>A separate annihilation counter moved only by nuclear <i>use</i>.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="opt">
+  <div class="opthead"><span class="tag">A</span>
+    <h2>One Game Mode dropdown; the checkboxes fold into it</h2>
+    <span class="verdict">one decision, then the mode explains itself</span></div>
+  <div class="body">
+    <div class="lobby">
+      <div class="sechead">Match</div>
+      <div class="dd"><span class="lbl">Game Mode</span>
+        <span class="sel hi">DEFCON Escalation<span class="car">&#9660;</span></span></div>
+      <p class="hint">Conventional &middot; DEFCON Escalation &middot; Doomsday Clock &middot; Sandbox</p>
+      <div class="indent">
+        <div class="dd"><span class="lbl">Escalation pace</span>
+          <span class="sel">Standard &mdash; 6 min a step<span class="car">&#9660;</span></span></div>
+        <div class="dd"><span class="lbl">Opens at</span>
+          <span class="sel">DEFCON 5<span class="car">&#9660;</span></span></div>
+        <div class="dd"><span class="lbl">Ends at</span>
+          <span class="sel">Annihilation<span class="car">&#9660;</span></span></div>
+        <p class="hint" style="margin-left:160px">Annihilation &middot; Last player standing &middot; Score at DEFCON 1</p>
+      </div>
+      <div class="sechead sp">Release schedule</div>
+      <div class="ladder">
+        <div class="rung"><span class="num d5">DEFCON 5</span><span class="at">0:00</span>
+          <span class="un">Conventional forces only</span><span class="pill">start</span></div>
+        <div class="rung"><span class="num d4">DEFCON 4</span><span class="at">6:00</span>
+          <span class="un">Artillery, precision strike</span></div>
+        <div class="rung"><span class="num d3">DEFCON 3</span><span class="at">12:00</span>
+          <span class="un">Tactical Nuclear Strike (20 kt)</span></div>
+        <div class="rung"><span class="num d2">DEFCON 2</span><span class="at">18:00</span>
+          <span class="un">Strategic (6 Mt), full arsenal</span></div>
+        <div class="rung"><span class="num d1">DEFCON 1</span><span class="at">24:00</span>
+          <span class="un">Dead Hand armed &mdash; annihilation on expiry</span></div>
+      </div>
+      <p class="legend">The ladder is shown, not edited. Pace scales every step together.</p>
+    </div>
+    <div class="notes">
+      <b>Why this one</b>
+      <ul>
+        <li class="pro">The mod already made this argument. <code>world.yaml</code> says of the
+          Doomsday checkbox: <i>"a mode selected by two dropdowns that must agree is a worse lobby
+          than one"</i>. This applies that to all six controls.</li>
+        <li class="pro">The host reads the ladder and knows what the match will feel like before
+          starting. No other layout teaches the mode.</li>
+        <li class="pro">Conventional and Sandbox stop being a combination you must get right and
+          become a thing you pick.</li>
+      </ul>
+      <b>What it costs</b>
+      <ul>
+        <li class="con">Loses the per-weapon veto. A host wanting tactical nukes but never strategic
+          ones can no longer say so.</li>
+        <li class="con">Biggest change to what ships — the four checkboxes stop existing as lobby
+          concepts, and every condition reading them needs rework.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="opt">
+  <div class="opthead"><span class="tag b">B</span>
+    <h2>Keep the checkboxes; DEFCON is a dropdown above them</h2>
+    <span class="verdict">smallest change, two systems to reconcile</span></div>
+  <div class="body">
+    <div class="lobby">
+      <div class="sechead">Match</div>
+      <div class="dd"><span class="lbl">DEFCON Escalation</span>
+        <span class="sel hi">Standard &mdash; 6 min a step<span class="car">&#9660;</span></span></div>
+      <p class="hint">Off &middot; Slow &middot; Standard &middot; Fast &middot; Start at DEFCON 1</p>
+      <div class="dd"><span class="lbl">Doomsday Clock</span>
+        <span class="sel">Follows DEFCON<span class="car">&#9660;</span></span></div>
+      <div class="sechead sp">Support powers <i>&mdash; what DEFCON may release</i></div>
+      <div class="grid one">
+        <div class="cb"><span class="box on"></span>Tactical Nuclear Strike (20 kt)
+          <span class="pill">DEFCON 3</span></div>
+        <div class="cb"><span class="box on"></span>Strategic Nuclear Strike (6 Mt)
+          <span class="pill">DEFCON 2</span></div>
+        <div class="cb"><span class="box on"></span>Nuclear Arsenal
+          <span class="pill">DEFCON 2</span></div>
+        <div class="cb off"><span class="box"></span>Sandbox: All Support Powers
+          <span class="pill">overrides ladder</span></div>
+      </div>
+      <p class="legend">Unticking a weapon removes it from the ladder; the rung still passes.</p>
+    </div>
+    <div class="notes">
+      <b>Why this one</b>
+      <ul>
+        <li class="pro">Nothing that ships today is taken away and every existing condition keeps its
+          meaning. Cheapest to build, least likely to break a scenario or a saved session.</li>
+        <li class="pro">Keeps the per-weapon veto — "tactical yes, strategic no" stays expressible.</li>
+      </ul>
+      <b>What it costs</b>
+      <ul>
+        <li class="con">Two controls that must agree. Sandbox ON with DEFCON ON is a state somebody
+          will pick, and it has to mean something.</li>
+        <li class="con">A checkbox now means "may be released later" rather than "available" — the
+          same word doing a different job.</li>
+        <li class="con">The ladder is invisible. The host cannot see the pace they chose.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="opt">
+  <div class="opthead"><span class="tag c">C</span>
+    <h2>The ladder itself is the control</h2>
+    <span class="verdict">most expressive, most to get wrong</span></div>
+  <div class="body">
+    <div class="lobby">
+      <div class="sechead">Match</div>
+      <div class="dd"><span class="lbl">Game Mode</span>
+        <span class="sel">DEFCON Escalation<span class="car">&#9660;</span></span></div>
+      <div class="sechead sp">Escalation ladder <i>&mdash; click a rung to change what it releases</i></div>
+      <div class="ladder">
+        <div class="rung"><span class="num d5">DEFCON 5</span>
+          <span class="sel sm">0:00<span class="car">&#9660;</span></span>
+          <span class="un">Conventional forces only</span></div>
+        <div class="rung"><span class="num d4">DEFCON 4</span>
+          <span class="sel sm">6:00<span class="car">&#9660;</span></span>
+          <span class="un">Artillery, precision strike</span></div>
+        <div class="rung cur"><span class="num d3">DEFCON 3</span>
+          <span class="sel sm hi">12:00<span class="car">&#9660;</span></span>
+          <span class="un">Tactical Nuclear Strike (20 kt)</span></div>
+        <div class="rung"><span class="num d2">DEFCON 2</span>
+          <span class="sel sm">18:00<span class="car">&#9660;</span></span>
+          <span class="un">Strategic (6 Mt), full arsenal</span></div>
+        <div class="rung"><span class="num d1">DEFCON 1</span>
+          <span class="sel sm">24:00<span class="car">&#9660;</span></span>
+          <span class="un">Dead Hand armed</span></div>
+      </div>
+      <div class="sechead sp">Annihilation</div>
+      <div class="dd"><span class="lbl">Driven by</span>
+        <span class="sel">Nuclear use only<span class="car">&#9660;</span></span></div>
+      <div class="dd"><span class="lbl">Threshold</span>
+        <span class="sel">12 detonations<span class="car">&#9660;</span></span></div>
+      <p class="legend">Two clocks, drawn apart on purpose: the upper one is time, the lower one is
+        what players did.</p>
+    </div>
+    <div class="notes">
+      <b>Why this one</b>
+      <ul>
+        <li class="pro">The only layout that shows the two-phase design honestly — a wall clock
+          fighting cannot touch, and a counter only nuclear use moves.</li>
+        <li class="pro">A host can build the match they want: a fast conventional game that never
+          reaches DEFCON 2, or a straight-to-1 knife fight.</li>
+      </ul>
+      <b>What it costs</b>
+      <ul>
+        <li class="con">By far the most lobby surface, and OpenRA's lobby has no widget like this —
+          new UI, not new options.</li>
+        <li class="con">Every rung editable means every rung can be set to nonsense, and the lobby
+          has to refuse it.</li>
+        <li class="con">Overkill if most hosts only ever pick a preset.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="ask">
+  <h2>What input would help most</h2>
+  <div class="q"><b>1. Is DEFCON a mode, or a modifier?</b>
+    <span>A and C treat it as the thing you pick instead of Conventional. B treats it as a schedule
+    layered over powers you already chose. Everything else follows from this.</span></div>
+  <div class="q"><b>2. Do the four nuclear checkboxes survive?</b>
+    <span>They are the host's per-weapon veto today. Under A they are gone; under B they change
+    meaning to "may be released later". This was one of the three DEFCON questions left open.</span></div>
+  <div class="q"><b>3. Fixed ladder or authored ladder?</b>
+    <span>Fixed 5&rarr;4&rarr;3&rarr;2&rarr;1 with one pace setting is a dropdown. An editable ladder
+    is a panel. The build-cost gap is large; so is the gap in what a host can express.</span></div>
+  <div class="q"><b>4. What does DEFCON 1 actually do?</b>
+    <span>Drawn here as "Dead Hand armed", folding the existing Doomsday Clock into the bottom rung.
+    The alternative: DEFCON 1 only unlocks the last weapons, and the doomsday ending stays its own
+    choice.</span></div>
+  <div class="q"><b>5. Sandbox — inside the ladder or outside it?</b>
+    <span>An override in B, a peer mode in A. It is the one option that exists to ignore every rule
+    the others set up.</span></div>
+</div>
+
+</body></html>

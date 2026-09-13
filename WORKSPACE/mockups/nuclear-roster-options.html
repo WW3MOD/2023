@@ -1,0 +1,143 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+:root{--bg:#14161a;--fg:#e6e8ea;--dim:#98a0a8;--line:#2c3138;--us:#5b93ea;--ru:#e46a6a;--cn:#f0b429;--ok:#43d692}
+*{box-sizing:border-box}body{margin:0;padding:22px 26px;background:var(--bg);color:var(--fg);
+font:14px/1.6 -apple-system,Segoe UI,Roboto,sans-serif}
+h1{font-size:20px;margin:0 0 3px}
+h2{font-size:15px;margin:30px 0 6px;padding-bottom:5px;border-bottom:1px solid var(--line)}
+h3{font-size:14px;margin:0 0 6px}
+p{margin:9px 0;max-width:80ch}.dim{color:var(--dim)}.sub{color:var(--dim);margin-top:0}
+table{border-collapse:collapse;width:100%;margin:10px 0 6px;font-size:13px}
+th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.us{color:var(--us);font-weight:600}.ru{color:var(--ru);font-weight:600}.cn{color:var(--cn);font-weight:600}
+.non{color:var(--dim);font-style:italic}
+.tag{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:600;white-space:nowrap}
+.tnew{background:#4a3a10;color:var(--cn)}.tsame{background:#1d2b22;color:var(--ok)}.tbad{background:#3a1d1d;color:#f08a8a}
+.box{border-left:3px solid var(--cn);background:#211b0e;padding:11px 15px;margin:15px 0;max-width:80ch}
+.box.bad{border-color:#e05252;background:#241414}
+.opt{border:1px solid var(--line);border-radius:6px;padding:14px 17px;margin:15px 0}
+ul{margin:6px 0;padding-left:20px;max-width:78ch}li{margin:4px 0}
+code{background:#1e2228;padding:1px 5px;border-radius:3px;font-size:12px}
+.rec{color:var(--ok);font-weight:600}
+</style></head><body>
+
+<h1>Nuclear arsenal &mdash; what each option actually ends up as</h1>
+<p class="sub">Against <code>main @ aaafec23</code>. Shipped values are measured from the weapon files; anything
+tagged NEW is a proposal and exists nowhere yet.</p>
+
+<div class="box bad">
+<h3>First, the thing that changes the question: there are no factions here.</h3>
+<p style="margin-bottom:0">Not one power in <code>powers.yaml</code> carries a <code>Prerequisites:</code>
+line &mdash; zero across all ten. <strong>Every player can buy every power, whichever side they picked.</strong>
+The file states the opposite: the comment above the conventional tier says the Kinzhal and the GBU-57 are
+"faction-locked to opposite sides, so no player ever holds both", and the case for pricing them identically
+rests on that. The lock was never built. So the two columns below are a <em>proposal</em>, not a description
+&mdash; picking any option also means deciding whether to build the gating that makes it true.</p>
+</div>
+
+<h2>What ships today</h2>
+<table>
+<tr><th>Power</th><th>Weapon</th><th class="n">Yield</th><th class="n">Cost</th><th class="n">Blast</th><th>Reads as</th></tr>
+<tr><td>Kh-47M2 Kinzhal</td><td class="dim">conventional</td><td class="n">&mdash;</td><td class="n">5 000</td><td class="n">&mdash;</td><td class="ru">Russia</td></tr>
+<tr><td>GBU-57 Bunker Buster</td><td class="dim">conventional</td><td class="n">&mdash;</td><td class="n">5 000</td><td class="n">&mdash;</td><td class="us">US</td></tr>
+<tr><td>B61-12 (0.3 kt)</td><td><code>NukeB61Mod12Y003</code></td><td class="n">0.3 kt</td><td class="n">6 000</td><td class="n">4.5c</td><td class="us">US</td></tr>
+<tr><td>B61-12 (50 kt)</td><td><code>NukeB61Mod12Y50</code></td><td class="n">50 kt</td><td class="n">13 000</td><td class="n">24.5c</td><td class="us">US</td></tr>
+<tr><td class="non">Tactical Nuclear Strike</td><td><code>Atomic</code></td><td class="n">20 kt</td><td class="n">15 000</td><td class="n"><span class="tag tbad">15.0c</span></td><td class="non">unassigned</td></tr>
+<tr><td>W76-1 Trident Warhead (100 kt)</td><td><code>NukeW76</code></td><td class="n">100 kt</td><td class="n">16 000</td><td class="n">31.0c</td><td class="us">US</td></tr>
+<tr><td>RS-28 Sarmat MIRV (6 x 750 kt)</td><td>6 &times; <code>NukeSarmatRV</code></td><td class="n">6 &times; 750 kt</td><td class="n">30 000</td><td class="n">6 &times; 60c</td><td class="ru">Russia</td></tr>
+<tr><td>B83-1 (1.2 Mt)</td><td><code>NukeB83</code></td><td class="n">1.2 Mt</td><td class="n">32 000</td><td class="n">70.9c</td><td class="us">US</td></tr>
+<tr><td class="non">Strategic Nuclear Strike</td><td><code>AtomicHighYield</code></td><td class="n">6 Mt</td><td class="n">40 000</td><td class="n">102c</td><td class="non">unassigned</td></tr>
+<tr><td>Tsar Bomba (50 Mt)</td><td><code>NukeTsarBomba</code></td><td class="n">50 Mt</td><td class="n">60 000</td><td class="n">246c</td><td class="ru">Russia</td></tr>
+</table>
+<p class="dim">Every yield above was re-derived from each weapon's own shipped fireball radius rather than read
+off its label; all ten agree to within 1.1%. Nuclear entries by flavour: <span class="us">US 4</span> &middot;
+<span class="ru">Russia 2</span> &middot; <span class="non">unassigned 2</span>.</p>
+
+<div class="box">
+<h3>The tactical rung is broken, and it decides one of the two answers</h3>
+<p style="margin-bottom:0">The price ladder claimed the tactical nuke had a ~30-cell blast in two places. It
+has <strong>15</strong> &mdash; it was resized from 30c to 15c when it was given its 20 kt yield, and the ladder
+was never updated. So the entry costing <strong>15 000 is smaller than the one costing 13 000</strong>
+(15.0c against the B61-12's 24.5c). It is not a rung; it is a hole. Both numbers are corrected in the tree now,
+but the pricing consequence is a balance decision, not a comment fix.</p>
+</div>
+
+<h2>The tactical slot &mdash; three ways</h2>
+
+<div class="opt"><h3>T1 &middot; Retire it <span class="rec">&larr; recommended</span></h3>
+<p class="dim" style="margin-top:2px">Drop it from the Powers tab; <code>Atomic</code> stays as Dead Hand's
+warhead and the autotest scenario's. The band is already covered at 0.3, 50 and 100 kt.</p>
+<ul><li>Removes the non-monotone rung rather than repricing it</li>
+<li>Ten powers becomes nine, against a palette that binds only six hotkeys</li>
+<li class="dim">Costs the 20 kt step, which nothing else occupies</li></ul></div>
+
+<div class="opt"><h3>T2 &middot; Replace it with the 10 kt B61 that already exists</h3>
+<p class="dim" style="margin-top:2px"><code>NukeB61Mod12Y10</code> is <strong>built, shipped and fired by
+nothing.</strong> Wiring it up as <span class="us">B61-12 (10 kt)</span> needs no new weapon at all.</p>
+<ul><li>A real weapon, a real yield, and a genuine rung between 0.3 and 50 kt</li>
+<li>Cheapest option in the file &mdash; a power block pointed at an existing weapon</li>
+<li class="dim">Gives the US a fifth nuclear entry against Russia's two, widening the imbalance</li></ul></div>
+
+<div class="opt"><h3>T3 &middot; Split it per faction</h3>
+<p class="dim" style="margin-top:2px">Two entries at that rung: <span class="us">B61-12 (10 kt)</span> for NATO
+and <span class="ru">9M729 Iskander-M (10&ndash;50 kt)</span> for BRICS.</p>
+<ul><li>Only option that keeps the rung <em>and</em> balances the sides</li>
+<li class="dim">Requires the faction gating to exist, or both are buyable by everyone</li>
+<li class="dim">A single both-faction name at 20 kt has no honest candidate &mdash; the W80-4 is US-only</li></ul></div>
+
+<h2>The strategic slot &mdash; four ways</h2>
+<p>102 cells is a real rung between the B83's 71c and the Tsar's 246c, and "one detonation deletes both armies"
+is a coherent identity. The difficulty is that <strong>6 Mt has no crisp real-world owner.</strong></p>
+<table>
+<tr><th>Becomes</th><th class="n">Yield</th><th class="n">Move</th><th>What it costs you</th></tr>
+<tr><td class="cn">DF-5B <span class="rec">&larr; recommended</span></td><td class="n">5 Mt</td><td class="n"><span class="tag tnew">&minus;17%</span></td><td>Live, deployed, Chinese &mdash; and China is BRICS, so it fills that side without making Russia carry every entry. Closest yield of any weapon in service.</td></tr>
+<tr><td class="ru">R-36M2 Voevoda (SS-18)</td><td class="n">8 Mt</td><td class="n"><span class="tag tnew">+33%</span></td><td>The most recognisable object at this scale, and literally the Sarmat's predecessor, which reads well beside it. Bigger yield move.</td></tr>
+<tr><td class="us">B53</td><td class="n">9 Mt</td><td class="n"><span class="tag tnew">+50%</span></td><td>Matches the NATO side, but retired in 2011 and the largest yield move of the three.</td></tr>
+<tr><td class="non">Strategic Nuclear Strike (6 Mt)</td><td class="n">6 Mt</td><td class="n"><span class="tag tsame">none</span></td><td>Keep the generic name, append the bare yield. Invents nothing, needs no weapon change, and still answers the complaint &mdash; but leaves one entry unnamed.</td></tr>
+</table>
+
+<h2>End state &mdash; the recommended pair (T1 + DF-5B)</h2>
+<table>
+<tr><th class="n">Cost</th><th class="us">NATO</th><th class="ru">BRICS</th></tr>
+<tr><td class="n">5 000</td><td>GBU-57 Bunker Buster <span class="dim">&middot; conv.</span></td><td>Kh-47M2 Kinzhal <span class="dim">&middot; conv.</span></td></tr>
+<tr><td class="n">6 000</td><td>B61-12 (0.3 kt)</td><td class="dim">&mdash;</td></tr>
+<tr><td class="n">13 000</td><td>B61-12 (50 kt)</td><td class="dim">&mdash;</td></tr>
+<tr><td class="n">16 000</td><td>W76-1 Trident Warhead (100 kt)</td><td class="dim">&mdash;</td></tr>
+<tr><td class="n">30 000</td><td class="dim">&mdash;</td><td>RS-28 Sarmat MIRV (6 x 750 kt)</td></tr>
+<tr><td class="n">32 000</td><td>B83-1 (1.2 Mt)</td><td class="dim">&mdash;</td></tr>
+<tr><td class="n">40 000</td><td class="dim">&mdash;</td><td><span class="tag tnew">NEW</span> <span class="cn">DF-5B (5 Mt)</span></td></tr>
+<tr><td class="n">60 000</td><td class="dim">&mdash;</td><td>Tsar Bomba (50 Mt)</td></tr>
+</table>
+<p class="dim">Nine powers. NATO 4 nuclear + 1 conventional; BRICS 3 nuclear + 1 conventional. Still not even
+&mdash; T3 instead of T1 would make it 5 and 4, at the price of keeping a rung that has to be repriced.</p>
+
+<h2>Two decisions hiding underneath</h2>
+
+<div class="opt"><h3>New weapons, or re-yield the old ones in place?</h3>
+<ul><li><strong>New weapons</strong> &mdash; the powers point at fresh definitions and <code>Atomic</code> /
+<code>AtomicHighYield</code> stay untouched, still fired by Dead Hand and the autotest. Nothing outside the
+Powers tab moves.</li>
+<li><strong>Re-yield in place</strong> &mdash; fewer files, but <code>Atomic</code> is what Dead Hand throws at
+all twelve derricks and <code>test-heavy-strike-erases-economy</code> fires it too. Dead Hand was retuned hours
+ago.</li></ul>
+<p class="dim" style="margin-bottom:0">I would take new weapons. That coupling is invisible where you edit and
+expensive where you find it.</p></div>
+
+<div class="opt"><h3>Yield and blast radius are authored separately</h3>
+<p style="margin-bottom:0">Changing a stated yield does <strong>not</strong> move the blast &mdash;
+<code>MaxRadius</code> is written per weapon. Any yield move above is therefore a deliberate balance edit with a
+radius to re-derive, not a label change that carries its numbers along.</p></div>
+
+<h2>Where I would land</h2>
+<p><strong>Retire the tactical, name the strategic DF-5B, build the faction gating.</strong> Retiring is the
+only option that fixes the broken rung instead of repricing it, and the 10 kt B61 stays available if you later
+want that step back. DF-5B moves the yield least of any real weapon and puts a third BRICS nation on the board
+rather than making Russia carry everything. The gating is worth doing whichever way you go &mdash; without it,
+"the list for both factions" describes something the game does not currently do.</p>
+
+<script>
+function h(){parent.postMessage({type:"maestro:artifact_geometry",height:document.documentElement.scrollHeight},"*")}
+window.addEventListener("load",h);window.addEventListener("resize",h);h();
+</script>
+</body></html>

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Lobby settings — reorganised</title>
+<style>
+:root{
+  --page:#0d0d0d; --panel:#1a1a1a; --rule:#3a3a3a;
+  --lbl:#8c8c8c; --ink:#e8e8e8; --dim:#9a9a9a;
+  --ddbg:#2b2b2b; --ddbd:#4d4d4d;
+  --new:#c8a83a; --gone:#8a4a3a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);
+ font:14px/1.45 "Segoe UI",system-ui,sans-serif;padding:24px 22px 60px}
+h1{font-size:18px;margin:0 0 4px;font-weight:600}
+.intro{color:var(--dim);font-size:13px;max-width:88ch;margin:0 0 22px}
+.intro b{color:var(--ink)}
+h2{font-size:13px;margin:30px 0 10px;color:#c9c9c9;font-weight:600;
+ letter-spacing:.3px;border-bottom:1px solid var(--rule);padding-bottom:6px}
+h2 span{color:var(--lbl);font-weight:400;margin-left:8px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+@media(max-width:1000px){.row{grid-template-columns:1fr}}
+.notes{font-size:12.5px;color:var(--dim)}
+.notes b{color:var(--ink);display:block;margin:14px 0 4px}
+.notes b:first-child{margin-top:0}
+.notes p{margin:0 0 9px}
+.notes .k{color:var(--new)}
+
+/* ---- the panel, matched to the shipped lobby ---- */
+.panel{background:var(--panel);border:1px solid #262626;padding:14px 16px 16px}
+.optlabel{font-size:10px;letter-spacing:1.2px;color:var(--lbl);text-transform:uppercase;
+ border-bottom:1px solid var(--rule);padding-bottom:5px;margin:0 0 12px}
+.blk{font-size:10px;letter-spacing:1.2px;color:#b59a3a;text-transform:uppercase;
+ margin:18px 0 9px;padding-bottom:4px;border-bottom:1px solid #33301f}
+.blk:first-of-type{margin-top:2px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 14px}
+@media(max-width:820px){.grid{grid-template-columns:repeat(2,1fr)}}
+.f label{display:block;font-size:9.5px;letter-spacing:1.1px;color:var(--lbl);
+ text-transform:uppercase;margin:0 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dd{background:var(--ddbg);border:1px solid var(--ddbd);height:30px;display:flex;
+ align-items:center;justify-content:center;position:relative;font-size:13px;color:#f0f0f0}
+.dd::after{content:"\25BC";position:absolute;right:8px;font-size:8px;color:#b0b0b0}
+.dd.hi{border-color:#7a6a2a;background:#302b1c}
+.cbrow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 14px;margin-top:14px}
+@media(max-width:820px){.cbrow{grid-template-columns:repeat(2,1fr)}}
+.cb{display:flex;align-items:center;gap:9px;font-size:13px;color:#e0e0e0}
+.bx{width:17px;height:17px;flex:0 0 17px;border:1px solid #6a6a6a;background:#1e1e1e;
+ position:relative}
+.bx.on::after{content:"";position:absolute;left:5px;top:1px;width:4px;height:10px;
+ border:solid #f0f0f0;border-width:0 2px 2px 0;transform:rotate(42deg)}
+.foot{margin-top:16px;padding-top:12px;border-top:1px solid var(--rule);
+ display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.foot .pl{font-size:10px;letter-spacing:1.1px;color:var(--lbl);text-transform:uppercase;margin-right:4px}
+.tf{background:#232323;border:1px solid var(--ddbd);height:28px;min-width:150px;
+ display:flex;align-items:center;padding:0 9px;font-size:13px;color:#ddd}
+.btn{background:#2b2b2b;border:1px solid var(--ddbd);height:28px;padding:0 13px;
+ display:flex;align-items:center;font-size:12.5px;color:#ddd}
+.btn.off{color:#6a6a6a;border-color:#3a3a3a}
+.dflt{font-size:11.5px;color:#7a7a7a;margin-top:12px}
+
+/* ---- ladder ---- */
+.ladder{border:1px solid #333;margin:8px 0 0}
+.rung{display:flex;gap:12px;padding:9px 12px;border-bottom:1px solid #262626;font-size:12.5px}
+.rung:last-child{border-bottom:none}
+.rn{font:700 12px/1.4 ui-monospace,Consolas,monospace;width:78px;flex:0 0 78px}
+.d3{color:#8aa84a}.d2{color:#c8823a}.d1{color:#c05a3a}
+.n0{color:#4a7ea8}.n1{color:#7a9a4a}.n2{color:#c8a83a}.n3{color:#c8823a}.n4{color:#a03828}
+.rb{flex:1}.rt{color:var(--ink);margin:0 0 2px}.rl{color:var(--dim);font-size:11.5px;margin:0}
+.rx{color:var(--lbl);font:11px ui-monospace,Consolas,monospace;width:120px;flex:0 0 120px;text-align:right}
+.tag{display:inline-block;font-size:9.5px;letter-spacing:.6px;padding:1px 6px;border-radius:2px;
+ background:#332d18;color:var(--new);border:1px solid #4a4020;margin-left:6px;vertical-align:1px}
+.tag.r{background:#33201c;color:#c07a68;border-color:#4a2a22}
+table{border-collapse:collapse;width:100%;font-size:12.5px;margin-top:6px}
+td,th{border-bottom:1px solid #2a2a2a;padding:5px 8px;text-align:left;vertical-align:top}
+th{color:var(--lbl);font-size:10px;letter-spacing:1px;text-transform:uppercase;font-weight:400}
+td.was{color:#7a7a7a}
+</style></head><body>
+
+<h1>Lobby settings, reorganised</h1>
+<p class="intro">Drawn against a screenshot of the shipped lobby taken just now, so the panel
+chrome, label style and four-column grid are the real ones. <b>Every setting the lobby has today is
+present</b> — nothing is dropped without being named below. The organising principle is the same
+diagnosis as before: the current panel is ordered by which engine trait owns each option, so economy
+dropdowns, escalation and developer toggles are interleaved in one flat scrolling list. Here they are
+grouped by the question the host is answering, and the blocks are ordered by how often that question
+actually gets asked.</p>
+
+<h2>Proposed<span>— four blocks, no scrolling for the common case</span></h2>
+<div class="row">
+  <div class="panel">
+    <div class="optlabel">Options</div>
+
+    <div class="blk">Match</div>
+    <div class="grid">
+      <div class="f"><label>Game Mode</label><div class="dd hi">DEFCON Escalation</div></div>
+      <div class="f"><label>Start At</label><div class="dd hi">DEFCON 3</div></div>
+      <div class="f"><label>Escalation Pace</label><div class="dd hi">Standard</div></div>
+      <div class="f"><label>Game Speed</label><div class="dd">Real Time</div></div>
+    </div>
+
+    <div class="blk">Nuclear</div>
+    <div class="grid">
+      <div class="f"><label>Nuclear Release</label><div class="dd hi">Shared ladder</div></div>
+      <div class="f"><label>Ceiling</label><div class="dd hi">Game-enders (200 kt+)</div></div>
+    </div>
+
+    <div class="blk">Economy</div>
+    <div class="grid">
+      <div class="f"><label>Starting Cash</label><div class="dd">$20000</div></div>
+      <div class="f"><label>Income Modifier</label><div class="dd">100%</div></div>
+      <div class="f"><label>Passive Income</label><div class="dd">$100</div></div>
+      <div class="f"><label>Kill Bounties</label><div class="dd">Off</div></div>
+    </div>
+
+    <div class="blk">Battlefield</div>
+    <div class="grid">
+      <div class="f"><label>Starting Units</label><div class="dd">None</div></div>
+    </div>
+    <div class="cbrow">
+      <div class="cb"><span class="bx on"></span>Fog of War</div>
+      <div class="cb"><span class="bx on"></span>Explored Map</div>
+      <div class="cb"><span class="bx on"></span>Separate Team Spawns</div>
+      <div class="cb"><span class="bx"></span>Crates</div>
+    </div>
+
+    <div class="blk">Developer</div>
+    <div class="cbrow" style="margin-top:2px">
+      <div class="cb"><span class="bx on"></span>Sync</div>
+      <div class="cb"><span class="bx"></span>Debug Menu</div>
+    </div>
+
+    <p class="dflt">All settings at default</p>
+    <div class="foot">
+      <span class="pl">Preset</span>
+      <span class="tf">Default</span>
+      <span class="btn">Load &#9660;</span>
+      <span class="btn off">Save</span>
+      <span class="btn off">Rename</span>
+      <span class="btn off">Delete</span>
+      <span class="btn">Reset</span>
+    </div>
+  </div>
+
+  <div class="notes">
+    <b>Why this order</b>
+    <p>Match first because it decides what the other blocks even mean. Nuclear second because it is
+    the mod's identity and currently the most buried. Economy and Battlefield are the ones a host
+    changes rarely and reads often. Developer last, where it belongs.</p>
+
+    <b>Two controls replace five</b>
+    <p>Tactical Nuclear Strike, Strategic Nuclear Strike, Nuclear Arsenal, Sandbox and the Doomsday
+    Clock all disappear. <span class="k">Nuclear Release</span> and <span class="k">Ceiling</span>
+    say the same things in a way you can read in one pass.</p>
+
+    <b>Doomsday Clock is gone entirely</b>
+    <p>It was a time limit wearing a nuclear label. Under your design the clock <i>is</i> the ladder
+    and the ending it promised is the top of the nuclear one, so keeping both would be two controls
+    that must agree.</p>
+
+    <b>Sandbox is a mode, not a checkbox</b>
+    <p>Its whole purpose is to ignore every rule the other settings set up, so it should not be
+    combinable with them. It is where the Tsar Bomba lives.</p>
+
+    <b>Skirmish needs no separate entry either</b>
+    <p>Game Mode &rarr; Skirmish is the old game: no ladder, no escalation, conventional only.</p>
+  </div>
+</div>
+
+<h2>What each control does<span>— and what it replaced</span></h2>
+<table>
+  <tr><th style="width:23%">Control</th><th style="width:32%">Values</th><th>Replaces / notes</th></tr>
+  <tr><td class="k">Game Mode</td><td>DEFCON Escalation &middot; Skirmish &middot; Sandbox</td>
+    <td class="was">New. Sandbox was a checkbox; Skirmish was the absence of one.</td></tr>
+  <tr><td class="k">Start At</td><td>DEFCON 3 &middot; DEFCON 2 &middot; DEFCON 1</td>
+    <td class="was">New. 3 is the default and the ceiling — there is no 5 or 4.</td></tr>
+  <tr><td class="k">Escalation Pace</td><td>Slow &middot; Standard &middot; Fast</td>
+    <td class="was">New. Scales the 3&rarr;2 clock. 2&rarr;1 is not on a clock at all.</td></tr>
+  <tr><td class="k">Nuclear Release</td><td>Shared ladder &middot; Off</td>
+    <td class="was">Replaces Tactical Nuclear Strike + Strategic Nuclear Strike + Nuclear Arsenal.</td></tr>
+  <tr><td class="k">Ceiling</td><td>Tactical (20 kt) &middot; Strategic (100 kt) &middot; Game-enders (200 kt+)</td>
+    <td class="was">New. Caps how far the ladder may climb. Tsar Bomba is above every setting here.</td></tr>
+  <tr><td>Game Speed</td><td>unchanged</td><td class="was">Moved into Match.</td></tr>
+  <tr><td>Starting Cash / Income Modifier / Passive Income / Kill Bounties</td><td>unchanged</td>
+    <td class="was">Unchanged, but gathered into one block instead of split across two rows.</td></tr>
+  <tr><td>Starting Units</td><td>unchanged</td><td class="was">Moved next to the other battlefield settings.</td></tr>
+  <tr><td>Fog of War / Explored Map / Separate Team Spawns / Crates</td><td>unchanged</td>
+    <td class="was">Unchanged.</td></tr>
+  <tr><td>Sync / Debug Menu</td><td>unchanged</td><td class="was">Moved to the bottom under Developer.</td></tr>
+  <tr><td class="was">Doomsday Clock</td><td class="was">&mdash;</td>
+    <td>Removed. <span class="tag r">gone</span> The ladder is the clock now.</td></tr>
+  <tr><td class="was">Sandbox: All Support Powers</td><td class="was">&mdash;</td>
+    <td>Became Game Mode &rarr; Sandbox. <span class="tag r">gone</span></td></tr>
+</table>
+
+<h2>The ladders as you have now specified them</h2>
+<div class="row">
+  <div class="panel">
+    <div class="optlabel">Ladder 1 &mdash; DEFCON</div>
+    <div class="ladder">
+      <div class="rung"><span class="rn d3">DEFCON 3</span><span class="rb">
+        <p class="rt">Positioning. <span class="tag">start &amp; ceiling</span></p>
+        <p class="rl">Hard wall on the dividing line &mdash; neither side can cross. Build up and
+        take ground on your own half.</p></span><span class="rx">match start</span></div>
+      <div class="rung"><span class="rn d2">DEFCON 2</span><span class="rb">
+        <p class="rt">Free to strike, but only by direct order.</p>
+        <p class="rl">Either side may attack anything. <b>Units do not fire autonomously</b> &mdash;
+        every shot is one you gave. The wall is open.</p></span><span class="rx">clock</span></div>
+      <div class="rung"><span class="rn d1">DEFCON 1</span><span class="rb">
+        <p class="rt">Open war. The regular game.</p>
+        <p class="rl">Autonomous fire returns and nothing is held back.</p></span>
+        <span class="rx">one life taken</span></div>
+    </div>
+    <div class="optlabel" style="margin-top:20px">Ladder 2 &mdash; Nuclear release</div>
+    <div class="ladder">
+      <div class="rung"><span class="rn n0">HOLD</span><span class="rb">
+        <p class="rt">No nuclear weapon may be used.</p></span><span class="rx">at DEFCON 1</span></div>
+      <div class="rung"><span class="rn n1">1 kt</span><span class="rb">
+        <p class="rt">Sub-kiloton and 1 kt released.</p></span><span class="rx">pressure</span></div>
+      <div class="rung"><span class="rn n2">20 kt</span><span class="rb">
+        <p class="rt">Tactical.</p></span><span class="rx">&times;2 per use</span></div>
+      <div class="rung"><span class="rn n3">50&ndash;100 kt</span><span class="rb">
+        <p class="rt">Strategic.</p></span><span class="rx">&times;2 per use</span></div>
+      <div class="rung"><span class="rn n4">200 kt+</span><span class="rb">
+        <p class="rt">Game-enders. <span class="tag">ceiling setting caps here</span></p>
+        <p class="rl">Tsar Bomba is NOT on this ladder &mdash; sandbox only.</p></span>
+        <span class="rx">&times;2 per use</span></div>
+    </div>
+  </div>
+  <div class="notes">
+    <b>What changed from your first sketch</b>
+    <p>Five rungs became three. 5 and 4 are gone because you start at 3 &mdash; real-world standing
+    posture &mdash; and there is nothing above it to climb down from.</p>
+
+    <b>DEFCON 2 is the interesting one</b>
+    <p>"Free to strike but only by direct order" is a mechanic I have not seen in an RTS. It makes
+    the opening exchange deliberate: no unit shoots because it happened to see something, so the
+    first casualty is always someone's decision. That it then <i>immediately</i> ends the phase is
+    what gives it weight.</p>
+
+    <b>Two questions it raises</b>
+    <p>Does "one life" include a unit lost to something other than enemy fire &mdash; a crash, a
+    crush, friendly fire? And does an enemy <i>structure</i> destroyed at DEFCON 2 count, or only a
+    unit? Both change how fragile the phase feels.</p>
+
+    <b>Tsar Bomba</b>
+    <p>Kept in code, disabled in play, reachable in Sandbox. Nothing about the ceiling setting can
+    reach it, which is what makes "sandbox only" true rather than merely default.</p>
+  </div>
+</div>
+
+<h2>What I still need from you</h2>
+<div class="notes" style="max-width:92ch">
+  <p><b>1. The DEFCON 2 casualty rule.</b> Does a non-combat death trip it? Does a structure count?
+  This is the only rule in the design where I cannot guess your intent.</p>
+  <p><b>2. What "shared" means when a player fires.</b> You said the mechanics need discussing. The
+  simplest version: one pressure counter, every detonation adds to it, both sides read the same rung.
+  The question is whether firing should push <i>you</i> up faster than your opponent &mdash; which
+  would make going first costly rather than free.</p>
+  <p><b>3. Where the dividing line comes from.</b> Hard wall is settled, but the line itself is
+  authored per-map data. Ten shipped maps need one each, following terrain where it exists. That is
+  the single largest piece of work in the whole feature and it has not started.</p>
+</div>
+
+</body></html>

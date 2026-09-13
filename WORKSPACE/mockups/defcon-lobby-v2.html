@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>DEFCON lobby — drawn against your two-ladder design</title>
+<style>
+:root{--bg:#14161a;--panel:#1e2228;--line:#333a44;--ink:#d6dae0;--dim:#8b939e;
+ --faint:#666e79;--accent:#c8a83a;--hot:#c05a3a;--ok:#5a9a6a;--cool:#4a7ea8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font:13px/1.5 "Segoe UI",system-ui,sans-serif;padding:26px 22px 60px}
+h1{font-size:19px;margin:0 0 4px}
+h2{font-size:15px;margin:34px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);
+ letter-spacing:.3px}
+h2 .n{color:var(--faint);font-weight:400;font-size:12px;margin-left:8px}
+.sub{color:var(--dim);font-size:12.5px;max-width:82ch;margin:0 0 8px}
+.sub b{color:var(--ink);font-weight:600}
+code{font:11.5px ui-monospace,Consolas,monospace;background:#12151a;padding:1px 5px;
+ border-radius:3px;color:#b9c2cc}
+
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
+@media(max-width:940px){.wrap{grid-template-columns:1fr}}
+.lobby{border:1px solid var(--line);border-radius:5px;background:var(--panel);padding:16px 18px}
+.side{border:1px solid var(--line);border-radius:5px;background:#1a1e24;padding:14px 15px;
+ font-size:12px;color:var(--dim)}
+.side b{color:var(--ink);font-weight:600;display:block;margin:0 0 5px}
+.side p{margin:0 0 12px}
+.side .why{border-left:2px solid var(--accent);padding-left:10px}
+
+.sechead{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--faint);
+ margin:0 0 9px;padding-bottom:5px;border-bottom:1px solid #2a3038}
+.sechead.sp{margin-top:22px}
+.sechead i{text-transform:none;letter-spacing:0;color:#59616b;font-size:11.5px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:3px 20px}
+.cb{display:flex;align-items:center;gap:8px;padding:3px 2px;font-size:12.5px}
+.box{width:13px;height:13px;flex:0 0 13px;border:1px solid #5a636e;border-radius:2px;background:#12151a}
+.box.on{background:var(--accent);border-color:var(--accent);position:relative}
+.box.on::after{content:"";position:absolute;left:4px;top:1px;width:3px;height:7px;
+ border:solid #14161a;border-width:0 2px 2px 0;transform:rotate(42deg)}
+.cb.off{color:var(--dim)}
+.dd{display:flex;align-items:center;gap:10px;margin:5px 0;font-size:12.5px}
+.dd .lbl{width:158px;flex:0 0 158px}
+.sel{flex:1;background:#12151a;border:1px solid #454e59;border-radius:3px;padding:5px 9px;
+ display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sel .car{color:var(--faint);font-size:9px}
+.sel.hi{border-color:var(--accent);box-shadow:0 0 0 1px rgba(200,168,58,.22)}
+.hint{color:var(--faint);font-size:11.5px;margin:3px 0 0 168px;font-style:italic}
+
+.ladder{display:flex;flex-direction:column;margin:6px 0 2px;border:1px solid #333c48;
+ border-radius:4px;overflow:hidden}
+.rung{display:flex;align-items:flex-start;gap:10px;padding:8px 11px;
+ border-bottom:1px solid #262c34;font-size:12px;background:#191d23}
+.rung:last-child{border-bottom:none}
+.num{font:700 12px/1.35 ui-monospace,Consolas,monospace;width:58px;flex:0 0 58px}
+.d5{color:var(--ok)}.d4{color:#8aa84a}.d3{color:var(--accent)}.d2{color:#c8823a}.d1{color:var(--hot)}
+.n0{color:var(--cool)}.n1{color:#7a9a4a}.n2{color:var(--accent)}.n3{color:#c8823a}
+.n4{color:#c0553a}.n5{color:#a03828}
+.body{flex:1}
+.tt{color:var(--ink);margin:0 0 2px}
+.lv{color:var(--dim);font-size:11.5px}
+.lv .k{color:var(--faint);display:inline-block;width:66px}
+.trig{color:var(--faint);font:11px ui-monospace,Consolas,monospace;width:96px;flex:0 0 96px;
+ text-align:right;padding-top:1px}
+.rung.start{box-shadow:inset 3px 0 0 var(--accent)}
+.legend{color:var(--faint);font-size:11.5px;margin:9px 0 0;font-style:italic}
+
+.fork{border:1px solid var(--line);border-radius:5px;background:var(--panel);margin:0 0 16px;
+ overflow:hidden}
+.fh{padding:10px 14px;background:#191d23;border-bottom:1px solid var(--line);
+ display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.fh .q{font-weight:600;color:var(--ink)}
+.fh .rec{margin-left:auto;font-size:11px;color:var(--accent);font-style:italic}
+.fb{display:grid;grid-template-columns:1fr 1fr;gap:0}
+@media(max-width:820px){.fb{grid-template-columns:1fr}}
+.half{padding:13px 15px;font-size:12px;color:var(--dim)}
+.half+.half{border-left:1px solid var(--line)}
+.half h4{margin:0 0 6px;font-size:12.5px;color:var(--ink);font-weight:600}
+.half h4 .pick{color:var(--accent);font-weight:400;font-size:11px;margin-left:6px}
+.half ul{margin:6px 0 0;padding-left:15px}
+.half li{margin:0 0 4px}
+.pro::before{content:"+ ";color:var(--ok);font-weight:700}
+.con::before{content:"\2212 ";color:var(--hot);font-weight:700}
+</style></head><body>
+
+<h1>DEFCON in the lobby — drawn against your design</h1>
+<p class="sub">Redrawn from your two-ladder description, replacing the earlier sketch, which was
+built on the older one-ladder framing and is now wrong. Everything below is a mockup; nothing is
+built. Existing option labels are read from <code>world.yaml</code> and
+<code>PowersLobbyOptions.cs</code>.</p>
+
+<h2>1. The lobby, reorganised<span class="n">— grouped by the question the host is answering</span></h2>
+<p class="sub">The reason the current lobby feels incoherent is structural: <b>it is grouped by which
+C# trait owns each option, not by what the host is deciding.</b> The Doomsday Clock sits under Match
+because it is the time-limit trait; the four nuclear checkboxes sit under Support powers because they
+are the powers trait. Regrouped by decision, it falls into four blocks.</p>
+
+<div class="wrap">
+  <div class="lobby">
+    <div class="sechead">Match <i>— what game is this</i></div>
+    <div class="dd"><span class="lbl">Game mode</span>
+      <span class="sel hi">DEFCON Escalation<span class="car">&#9660;</span></span></div>
+    <p class="hint">DEFCON Escalation &middot; Sandbox</p>
+    <div class="dd"><span class="lbl">Start at</span>
+      <span class="sel hi">DEFCON 5 &mdash; full build-up<span class="car">&#9660;</span></span></div>
+    <p class="hint">5 &middot; 4 &middot; 3 &middot; 2 &middot; 1 (straight to open war)</p>
+    <div class="dd"><span class="lbl">Escalation pace</span>
+      <span class="sel">Standard &mdash; 6 min a step<span class="car">&#9660;</span></span></div>
+    <div class="dd"><span class="lbl">Game speed</span>
+      <span class="sel">Default<span class="car">&#9660;</span></span></div>
+
+    <div class="sechead sp">Escalation <i>— the two ladders, shown in section 2</i></div>
+    <div class="dd"><span class="lbl">Nuclear release</span>
+      <span class="sel hi">Shared &mdash; use arms both sides<span class="car">&#9660;</span></span></div>
+    <p class="hint">Shared &middot; Per player &middot; Nuclear weapons disabled</p>
+    <div class="dd"><span class="lbl">Escalation from use</span>
+      <span class="sel">Each detonation counts double<span class="car">&#9660;</span></span></div>
+    <div class="dd"><span class="lbl">Game-enders</span>
+      <span class="sel">Unlocked at the top rung<span class="car">&#9660;</span></span></div>
+    <p class="hint">Unlocked at the top rung &middot; Never</p>
+
+    <div class="sechead sp">Forces</div>
+    <div class="dd"><span class="lbl">Starting units</span>
+      <span class="sel">Air support<span class="car">&#9660;</span></span></div>
+
+    <div class="sechead sp">World</div>
+    <div class="grid">
+      <div class="cb"><span class="box on"></span>Explored Map</div>
+      <div class="cb"><span class="box on"></span>Fog of War</div>
+      <div class="cb off"><span class="box"></span>Separate Team Spawns</div>
+      <div class="cb off"><span class="box"></span>Crates</div>
+    </div>
+
+    <div class="sechead sp">Developer</div>
+    <div class="grid">
+      <div class="cb off"><span class="box"></span>Sync Reports</div>
+      <div class="cb off"><span class="box"></span>Debug Menu</div>
+    </div>
+  </div>
+
+  <div class="side">
+    <b>What moved, and why</b>
+    <p class="why">The <b>Doomsday Clock</b> dropdown is gone. It was a time limit wearing a nuclear
+    label; under your design the clock <i>is</i> the DEFCON ladder, and the ending it promised is the
+    top of the nuclear one. Two controls that had to agree became one.</p>
+    <p><b>The four nuclear checkboxes</b> are gone from this draw &mdash; that is fork C below, and
+    it is the one I am least sure about.</p>
+    <p><b>Sandbox</b> stops being a checkbox layered over a mode and becomes a mode. It is the one
+    option whose whole purpose is to ignore every rule the others set up, so it should not be
+    combinable with them.</p>
+    <p><b>Conventional needs no entry.</b> "Start at DEFCON 1" already is it &mdash; open war, no
+    build-up, nuclear ladder at its floor. That falls out of your design for free.</p>
+    <b>Still here, unchanged</b>
+    <p>Fog, Explored Map, Separate Team Spawns, Crates, Game Speed and Starting Units are untouched
+    &mdash; they are not escalation and should not move.</p>
+  </div>
+</div>
+
+<h2>2. The two ladders<span class="n">— what the host sees before starting</span></h2>
+<p class="sub">Drawn as one panel because they are sequential: the second begins where the first
+ends. <b>Each rung moves at least one of three levers</b> &mdash; where you may go, what you may
+shoot, what you may buy &mdash; because a rung that moves none is just waiting.</p>
+
+<div class="wrap">
+  <div class="lobby">
+    <div class="sechead">Ladder 1 &mdash; DEFCON <i>: permission to fight at all</i></div>
+    <div class="ladder">
+      <div class="rung start"><span class="num d5">DEFCON<br>5</span><span class="body">
+        <p class="tt">No hostilities. Build-up and positioning.</p>
+        <p class="lv"><span class="k">go</span>Own side only &mdash; the line is closed<br>
+        <span class="k">shoot</span>Nothing crosses<br>
+        <span class="k">buy</span>Conventional forces</p></span>
+        <span class="trig">start</span></div>
+      <div class="rung"><span class="num d4">DEFCON<br>4</span><span class="body">
+        <p class="tt">Indirect fire only. The line still holds.</p>
+        <p class="lv"><span class="k">go</span>Own side only<br>
+        <span class="k">shoot</span>Artillery and air may reach across<br>
+        <span class="k">buy</span>+ artillery, recon</p></span>
+        <span class="trig">+6 min</span></div>
+      <div class="rung"><span class="num d3">DEFCON<br>3</span><span class="body">
+        <p class="tt">The line opens. Ground war.</p>
+        <p class="lv"><span class="k">go</span>Anywhere<br>
+        <span class="k">shoot</span>Conventional, unrestricted<br>
+        <span class="k">buy</span>+ precision strike</p></span>
+        <span class="trig">+6 min</span></div>
+      <div class="rung"><span class="num d2">DEFCON<br>2</span><span class="body">
+        <p class="tt">First strike becomes possible.</p>
+        <p class="lv"><span class="k">go</span>Anywhere<br>
+        <span class="k">shoot</span>Strategic conventional released<br>
+        <span class="k">buy</span>+ heavy strike powers</p></span>
+        <span class="trig">+6 min</span></div>
+      <div class="rung"><span class="num d1">DEFCON<br>1</span><span class="body">
+        <p class="tt">War has broken out. All bets off.</p>
+        <p class="lv"><span class="k">go</span>Anywhere<br>
+        <span class="k">shoot</span>Everything conventional<br>
+        <span class="k">buy</span>Full conventional arsenal</p></span>
+        <span class="trig">a first strike<br>is made</span></div>
+    </div>
+    <p class="legend">Rungs 5&rarr;2 are wall clock and ordinary fighting does not touch them.
+      2&rarr;1 is <b>an action</b>: someone makes a first strike. The build-up is scheduled; the war
+      starts when a player starts it.</p>
+
+    <div class="sechead sp">Ladder 2 &mdash; Nuclear release <i>: begins at DEFCON 1</i></div>
+    <div class="ladder">
+      <div class="rung start"><span class="num n0">HOLD</span><span class="body">
+        <p class="tt">No nuclear weapon may be used.</p>
+        <p class="lv">Where every DEFCON-1 game begins.</p></span>
+        <span class="trig">at DEFCON 1</span></div>
+      <div class="rung"><span class="num n1">RUNG 1</span><span class="body">
+        <p class="tt">Sub-kiloton and 1 kt released.</p>
+        <p class="lv">The smallest weapons in the arsenal.</p></span>
+        <span class="trig">pressure</span></div>
+      <div class="rung"><span class="num n2">RUNG 2</span><span class="body">
+        <p class="tt">Tactical &mdash; 20 kt.</p></span>
+        <span class="trig">pressure<br>&times;2 per use</span></div>
+      <div class="rung"><span class="num n3">RUNG 3</span><span class="body">
+        <p class="tt">50 kt.</p></span>
+        <span class="trig">pressure<br>&times;2 per use</span></div>
+      <div class="rung"><span class="num n4">RUNG 4</span><span class="body">
+        <p class="tt">100 kt and above.</p></span>
+        <span class="trig">pressure<br>&times;2 per use</span></div>
+      <div class="rung"><span class="num n5">FINAL</span><span class="body">
+        <p class="tt">Game-enders released.</p>
+        <p class="lv">Tsar Bomba, Dead Hand.</p></span>
+        <span class="trig">pressure<br>&times;2 per use</span></div>
+    </div>
+    <p class="legend">Your twist, drawn literally: <b>using a nuclear weapon pushes the ladder up
+      faster than time alone.</b> Reaching for the small ones is what unlocks the big ones.</p>
+  </div>
+
+  <div class="side">
+    <b>The one thing I would change about your rungs</b>
+    <p class="why">You said 4 and 3 were "probably something similar, not sure". Three rungs of not
+    fighting is a long time to look at a river. The draw gives 4 <b>indirect fire across a closed
+    line</b> and 3 <b>the line opening</b> &mdash; so every rung visibly changes something, and the
+    tension builds instead of pausing. If that is wrong, the levers are the thing to redistribute,
+    not the rung count.</p>
+    <b>Why 2&rarr;1 is an action, not a clock</b>
+    <p>It is the only transition in your description caused by a player. That makes DEFCON 1 feel
+    <i>earned</i> rather than scheduled &mdash; and it means a cautious lobby can sit at 2 for a long
+    time, which is a real strategic choice rather than dead air.</p>
+    <b>What "pressure" is</b>
+    <p>A single counter driving ladder 2 upward: a slow constant from time, plus a large jump per
+    detonation. One number, so the UI can show it as a bar and a player can feel it move when they
+    fire.</p>
+  </div>
+</div>
+
+<h2>3. Three forks I cannot settle for you</h2>
+<p class="sub">Each changes the lobby drawn above. The panel shows my pick; the alternative is what
+you would get instead.</p>
+
+<div class="fork">
+  <div class="fh"><span class="q">A. Is the nuclear ladder shared, or per player?</span>
+    <span class="rec">drawn as: shared</span></div>
+  <div class="fb">
+    <div class="half"><h4>Shared <span class="pick">&larr; my recommendation</span></h4>
+      One rung for the whole match. Your first 1 kt arms the enemy's 20 kt.
+      <ul><li class="pro">This <i>is</i> the dilemma. Every nuclear decision is also a decision about
+        what you hand the other side.</li>
+        <li class="pro">Doctrinally right &mdash; escalation is a property of the exchange.</li>
+        <li class="con">You can be dragged up the ladder by someone else's choices.</li></ul></div>
+    <div class="half"><h4>Per player</h4>
+      Each player climbs their own ladder by their own use.
+      <ul><li class="pro">Fairer; nobody is punished for an opponent's aggression.</li>
+        <li class="con">Removes the dilemma entirely &mdash; using a small nuke costs you nothing,
+          so the correct play is always to use one.</li>
+        <li class="con">Two ladders on screen instead of one.</li></ul></div>
+  </div>
+</div>
+
+<div class="fork">
+  <div class="fh"><span class="q">B. Is the DEFCON&nbsp;5 line a hard wall, or a penalty?</span>
+    <span class="rec">drawn as: hard wall</span></div>
+  <div class="fb">
+    <div class="half"><h4>Hard wall <span class="pick">&larr; drawn</span></h4>
+      Units physically cannot cross. Authored per-map, following terrain.
+      <ul><li class="pro">Unambiguous, and it makes the build-up phase real.</li>
+        <li class="con"><b>This is the expensive part of the whole feature</b> &mdash; a front line
+          authored for each of ten maps, plus a runtime-mutable blocking layer that touches
+          pathfinding and the nav-guard baseline.</li></ul></div>
+    <div class="half"><h4>Soft penalty</h4>
+      Crossing is possible but punished &mdash; no support, attrition, or an instant DEFCON drop.
+      <ul><li class="pro">Far cheaper: no authored geometry, no pathfinding work.</li>
+        <li class="pro">"Crossing the line drops DEFCON" is itself a strong mechanic.</li>
+        <li class="con">Fuzzier. A player can simply buy their way past the rules.</li></ul></div>
+  </div>
+</div>
+
+<div class="fork">
+  <div class="fh"><span class="q">C. Do the four nuclear checkboxes survive?</span>
+    <span class="rec">drawn as: gone</span></div>
+  <div class="fb">
+    <div class="half"><h4>Gone &mdash; the ladder decides <span class="pick">&larr; drawn</span></h4>
+      Tactical / Strategic / Nuclear Arsenal / Sandbox fold into the mode and the ladder.
+      <ul><li class="pro">One place decides what is available. The mod's own
+        <code>world.yaml</code> already argues this: <i>"a mode selected by two dropdowns that must
+        agree is a worse lobby than one."</i></li>
+        <li class="con">Loses the per-weapon veto &mdash; "tactical yes, strategic never" becomes
+          unsayable.</li></ul></div>
+    <div class="half"><h4>Kept, as a veto over the ladder</h4>
+      The ladder releases a rung; an unticked weapon still never appears.
+      <ul><li class="pro">Hosts keep fine control, and nothing that ships today is taken away.</li>
+        <li class="con">Two systems that must agree, which is the thing the codebase already warned
+          against.</li>
+        <li class="con">A checkbox changes meaning from "available" to "may be released later".</li></ul></div>
+  </div>
+</div>
+
+</body></html>
