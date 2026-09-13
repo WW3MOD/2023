@@ -21,14 +21,25 @@ decides whether a player sees a clickable cameo:
                   must still be HIDDEN. Under the shared pressure ladder this
                   replaced, both would have opened together.
 
+  PHASE C also  USA's own 1 kt now reads CHARGING. It fired its only warhead and
+                  the band is on a regeneration timer -- a reading that could not
+                  exist while nuclear powers were bought, because a spent bought
+                  power has an empty magazine and reads HIDDEN.
+
+  PHASE E (t480)  USA's 1 kt reads READY again, 300 ticks after it was fired,
+                  with nobody holding any money. Nothing but the band's own timer
+                  can have reloaded it. Russia's 20 kt grant is still open, so
+                  the one-shot window has not quietly regenerated alongside it.
+
   PHASE D (t1240) One minute after the shot, Russia's 20 kt is HIDDEN again and
                   Russia's 1 kt is still READY. The window expires; the parity
                   does not.
 
-WHY 'ready' IS THE RIGHT TOKEN AND NOT 'permitted'. Every nuclear power in the
-mod is RequiresPurchase, so being allowed a band only puts it in the shop. With
-DefaultCash: 0 nobody can buy anything, so READY can only mean the exchange
-loaded the warhead itself.
+WHY 'ready' AND 'charging' ARE THE RIGHT TOKENS. In Escalation nothing nuclear is
+purchasable: the charge bank is built disabled, which also drops the power out of
+the buy tab. A free power on a timer therefore reads `charging:<ticks>` while it
+reloads and `ready` when it is back. DefaultCash: 0 is kept as a second guard, so
+a regression in that bypass cannot be masked by a player who simply bought one.
 
 PASS: all four phases read as above.
 FAIL: the verdict names which reading went wrong, with every power's state at

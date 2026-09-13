@@ -371,6 +371,133 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void FiringTheWindowSpendsIt()
+		{
+			// DECISION 02: the window grant is ONE SHOT and vanishes when it is used. An earlier
+			// version of this file asserted the opposite -- that a side could fire the granted band as
+			// often as its cooldown allowed until the window lapsed -- which was the interim
+			// purchase-based reading, before the economy was ruled.
+			var state = Released();
+			state.ReportLaunch(America, AtomicTons);
+
+			Assert.That(state.WindowLevelFor(Russia), Is.EqualTo((int)NuclearRung.FiftyKiloton));
+
+			// Russia takes the window. The grant is spent on the spot, with most of its clock unused.
+			state.ReportLaunch(Russia, B61MaxTons);
+
+			Assert.That(state.WindowTicksRemainingFor(Russia), Is.EqualTo(0),
+				"firing the granted band left the window open; it is one shot");
+			Assert.That(state.WindowLevelFor(Russia), Is.EqualTo((int)NuclearRung.Hold));
+
+			// AND THE FIRER DID NOT KEEP THE BAND. "The band becomes permanent for the OTHER side, not
+			// for the firer" -- so Russia is back to what it was armed with, and America now holds the
+			// 50 kt it was just hit by.
+			Assert.That(state.PermanentLevelFor(Russia), Is.EqualTo((int)NuclearRung.TwentyKiloton),
+				"firing the window raised the FIRER's permanent level");
+			Assert.That(state.ReleasedLevelFor(Russia), Is.EqualTo((int)NuclearRung.TwentyKiloton));
+			Assert.That(state.PermanentLevelFor(America), Is.EqualTo((int)NuclearRung.FiftyKiloton));
+		}
+
+		[Test]
+		public void FiringBelowTheWindowKeepsIt()
+		{
+			// THE OTHER HALF OF ONE-SHOT, and the half that is easy to get wrong by spending the window
+			// on any launch at all. A side sitting on a 50 kt grant that answers with its permanent
+			// 20 kt has not used the grant and must still hold it -- otherwise firing anything at all
+			// would disarm you, and the correct play would be never to shoot back.
+			var state = Released();
+			state.ReportLaunch(America, AtomicTons);
+
+			var ticksBefore = state.WindowTicksRemainingFor(Russia);
+			state.TickWindows();
+
+			state.ReportLaunch(Russia, AtomicTons);
+
+			Assert.That(state.WindowLevelFor(Russia), Is.EqualTo((int)NuclearRung.FiftyKiloton),
+				"firing BELOW the granted band spent the window");
+			Assert.That(state.WindowTicksRemainingFor(Russia), Is.EqualTo(ticksBefore - 1),
+				"the window's clock was disturbed by a launch that did not use it");
+		}
+
+		[Test]
+		public void NothingNuclearIsPurchasableInEscalationAndEverythingElseIsUnchanged()
+		{
+			// THE MODE-CONDITIONAL BYPASS, which is the whole of decision 02's "in escalation mode we
+			// only control the timing, nothing is purchasable". SupportPowerInstance's constructor
+			// asks this: true means build the charge bank DISABLED -- which is also what drops the
+			// power out of the buy tab, because SupportPowerProductionQueue filters AllItems and
+			// BuildableItems on Purchasable, which is `bank.Enabled && permitted`.
+			foreach (var tons in new[] { B61LowTons, AtomicTons, B61MaxTons, W76Tons, SarmatRvTons })
+				Assert.That(NuclearExchangeState.IsFreeTimerPower(DefconGameMode.Escalation, tons), Is.True,
+					$"a {tons} t warhead is still purchased in Escalation");
+
+			// SKIRMISH AND SANDBOX ARE UNTOUCHED, and this is the assertion with teeth rather than the
+			// one above. Skirmish is the shipped DEFAULT game mode, the user tests from main, and every
+			// nuclear scenario in tools/autotest/scenarios buys its shot through the Powers queue -- so
+			// a predicate that answered true here would empty the buy tab in all of them at once, with
+			// no error anywhere and no cameo to notice missing.
+			foreach (var mode in new[] { DefconGameMode.Skirmish, DefconGameMode.Sandbox })
+				foreach (var tons in new[] { B61LowTons, AtomicTons, W76Tons, SarmatRvTons })
+					Assert.That(NuclearExchangeState.IsFreeTimerPower(mode, tons), Is.False,
+						$"{mode} stopped charging for a {tons} t warhead; the purchase economy must be byte-identical");
+
+			// A CONVENTIONAL POWER IS NEVER FREE, in any mode. NuclearYieldTons is 0 for everything
+			// that is not a warhead, and that is the same test MissileStrikePower.Activate uses before
+			// reporting a launch at all.
+			foreach (var mode in new[] { DefconGameMode.Escalation, DefconGameMode.Skirmish, DefconGameMode.Sandbox })
+				Assert.That(NuclearExchangeState.IsFreeTimerPower(mode, 0), Is.False);
+
+			// AND NEITHER IS THE TSAR BOMBA, which falls out of the mode test rather than needing its
+			// own: it is unreachable in Escalation (decision 04), so the only modes it exists in are
+			// the two that return false. Asserted anyway, because "falls out of" is exactly the kind
+			// of reasoning that stops being true after an unrelated edit.
+			Assert.That(NuclearExchangeState.IsFreeTimerPower(DefconGameMode.Escalation, TsarBombaTons), Is.False,
+				"the 50 Mt warhead became a free power in Escalation");
+		}
+
+		[Test]
+		public void EachBandRegeneratesOnItsOwnTimerAndThePostureScalesThem()
+		{
+			// UNTUNED PLACEHOLDERS (3:00 / 4:00 / 5:00 / 6:00). Pinned because they are a brief rather
+			// than a measurement -- the kind of value that gets quietly "corrected" by someone who
+			// assumes it was derived -- and because at the mod's 60 ms timestep a tick count divided
+			// by 1000 is its length in minutes, which is the identity to check any change against.
+			var info = new NuclearExchangeInfo();
+			var table = info.RegenTicks();
+
+			Assert.That(table, Is.EqualTo(new[] { 3000, 4000, 5000, 6000 }));
+
+			Assert.That(NuclearExchangeState.RegenTicksFor((int)NuclearRung.Kiloton, table), Is.EqualTo(3000));
+			Assert.That(NuclearExchangeState.RegenTicksFor((int)NuclearRung.TwentyKiloton, table), Is.EqualTo(4000));
+			Assert.That(NuclearExchangeState.RegenTicksFor((int)NuclearRung.FiftyKiloton, table), Is.EqualTo(5000));
+			Assert.That(NuclearExchangeState.RegenTicksFor((int)NuclearRung.HundredKiloton, table), Is.EqualTo(6000));
+
+			// BIGGER IS SLOWER, asserted as a shape rather than as four numbers, so a retune that
+			// keeps the intent cannot fail this and one that inverts it cannot pass.
+			for (var i = 1; i < table.Count; i++)
+				Assert.That(table[i], Is.GreaterThan(table[i - 1]),
+					"a larger warhead regenerates faster than a smaller one");
+
+			// THE GAME-ENDER BAND TAKES THE TOP ENTRY. It is only ever a window grant and firing one
+			// ends the match, so this is a post-fire lockout the match never outlives -- but it must
+			// not be 0, or "one shot" would rest on the window closing in the same tick.
+			Assert.That(NuclearExchangeState.RegenTicksFor((int)NuclearRung.GameEnder, table), Is.EqualTo(6000));
+			Assert.That(NuclearExchangeState.RegenTicksFor((int)NuclearRung.Hold, table), Is.EqualTo(3000),
+				"HOLD is not a band anyone fires; it must not index out of the table");
+
+			// THE POSTURE IS THE MODE'S ONE ECONOMIC LEVER now that nothing is bought. Flexible is the
+			// identity, and any drift there would move every nuclear timer in the mod without anyone
+			// choosing to.
+			foreach (var ticks in table)
+				Assert.That(NuclearPostureScale.Apply(ticks, NuclearPosture.Flexible), Is.EqualTo(ticks));
+
+			Assert.That(NuclearPostureScale.Apply(3000, NuclearPosture.Limited), Is.EqualTo(4500));
+			Assert.That(NuclearPostureScale.Apply(3000, NuclearPosture.Massive), Is.EqualTo(1800));
+			Assert.That(NuclearPostureScale.Apply(6000, NuclearPosture.Limited), Is.EqualTo(9000));
+			Assert.That(NuclearPostureScale.Apply(6000, NuclearPosture.Massive), Is.EqualTo(3600));
+		}
+
+		[Test]
 		public void ThePostureScalesChargeIntervalsAndNothingElse()
 		{
 			// UNTUNED PLACEHOLDERS (150 / 100 / 60 %). They are pinned here because they are a brief

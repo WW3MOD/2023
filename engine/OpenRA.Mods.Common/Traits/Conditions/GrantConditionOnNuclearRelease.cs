@@ -76,6 +76,7 @@
  * normal play by a route no schedule and no ceiling can reach, and the clock does not participate.
  */
 
+using System;
 using System.Collections.Generic;
 using OpenRA.Traits;
 
@@ -144,14 +145,26 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Every band condition released at a rung. The pure part, so a test can reach it.</summary>
 		// Cumulative and ORDERED BY RUNG, so the returned sequence is stable rather than dictionary
 		// order -- a grant list that reordered itself between ticks would churn tokens for nothing.
-		public static IEnumerable<string> ConditionsFor(int rung, IReadOnlyDictionary<int, string> conditions)
+		//
+		// `bandOffered` IS WHAT MAKES THE SET STOP BEING A PREFIX, and it is optional because only one
+		// of the two callers needs it. Skirmish's four per-tier checkboxes (decision 02) let a host
+		// turn off 20 kt while leaving 1 kt and 50 kt on, which no single rung can express -- so the
+		// walk still runs up to `rung` and the predicate removes bands from the middle. Escalation
+		// passes null: there the exchange's own level IS the answer and a host has no say in it.
+		public static IEnumerable<string> ConditionsFor(int rung, IReadOnlyDictionary<int, string> conditions,
+			Func<int, bool> bandOffered = null)
 		{
 			if (conditions == null)
 				yield break;
 
 			for (var r = NuclearReleaseLadder.Lowest; r <= rung && r <= NuclearReleaseLadder.Highest; r++)
+			{
+				if (bandOffered != null && !bandOffered(r))
+					continue;
+
 				if (conditions.TryGetValue(r, out var condition) && !string.IsNullOrEmpty(condition))
 					yield return condition;
+			}
 		}
 
 		void INotifyCreated.Created(Actor self)
@@ -212,7 +225,14 @@ namespace OpenRA.Mods.Common.Traits
 
 			tokens.Clear();
 
-			foreach (var condition in ConditionsFor(rung, info.Conditions))
+			// THE HOST'S TIER CHECKBOXES APPLY OUTSIDE ESCALATION ONLY. Inside it nothing nuclear is
+			// purchasable and the host controls the timing alone (decision 02), so the exchange's
+			// level is granted whole. A missing clock passes null and behaves as it always did.
+			var offered = unrestricted && unlockClock != null
+				? (Func<int, bool>)unlockClock.IsBandPurchasable
+				: null;
+
+			foreach (var condition in ConditionsFor(rung, info.Conditions, offered))
 				tokens.Add(self.GrantCondition(condition));
 
 			if (unrestricted && !string.IsNullOrEmpty(info.UnrestrictedCondition))

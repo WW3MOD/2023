@@ -43,22 +43,36 @@
  *  3. THE WINDOW LAPSES. At zero the grant is GONE and the side is back at its PermanentLevel.
  *     There are no indefinite grants -- which is the whole reason a held apocalypse cannot stall
  *     the match.
- *  4. FIRING INSIDE THE WINDOW is just rule 2 again with a bigger Y, so replying at Y+1 arms the
- *     other side permanently at Y+1 and opens their window at Y+2. Firing AT OR BELOW one's own
- *     permanent level arms the other side only by the band actually fired: FIRING SMALL DOES NOT
- *     ESCALATE MUCH, which is what makes the winner's correct play restraint.
+ *  4. FIRING INSIDE THE WINDOW is rule 2 again with a bigger Y -- replying at Y+1 arms the other
+ *     side permanently at Y+1 and opens their window at Y+2 -- AND SPENDS THE WINDOW. The band
+ *     becomes permanent for the OTHER side, never for the firer, so a side cannot climb by firing.
+ *     Firing AT OR BELOW one's own permanent level arms the other side only by the band actually
+ *     fired: FIRING SMALL DOES NOT ESCALATE MUCH, which is what makes the winner's play restraint.
  *  5. GAME-ENDERS ARE REACHABLE ONLY AS A WINDOW GRANT. Nothing ever writes GameEnder into a
  *     PermanentLevel -- rule 2's permanent raise is capped one band below the top, EXPLICITLY and
  *     not as a consequence of the other rules (see the comment at the cap; writing it as a
  *     consequence was a bug the fixture caught). Firing one begins the final exchange, which is the
  *     trait's business rather than this class's.
  *
- * ==== WHY A WINDOW IS TIME-BOXED PERMISSION AND NOT A STOCKED SHOT ====
- * The ruling is explicit that "bookkeeping is cooldown-unlock, not stock", superseding decisions
- * 13/14/20. So a window does not hold a COUNT: while it is open the side may fire that band as
- * often as its cooldown allows, and when it closes the permission evaporates whether or not it was
- * used. That is also why a repeat hit at the same Y restarts the window rather than banking a
- * second one -- there is nothing to bank.
+ * ==== THE WINDOW IS ONE SHOT, AND THE PERMANENT BANDS REGENERATE (decision 02, 2026-09-13) ====
+ * "In escalation it is only on the timer etc ... nothing is purchasable." Money never touches a
+ * nuke in this mode. Two different economies sit on top of the state above:
+ *
+ *   PERMANENT bands are free powers on a REGENERATION TIMER, one interval per band, scaled by
+ *   Nuclear Posture. That timer lives on the power (SupportPowerInstance.TotalTicks, fed by
+ *   NuclearExchange.EscalationRegenTicks); nothing here counts it.
+ *
+ *   A WINDOW grant is free, ready the instant the window opens, and ONE SHOT. Firing it is what
+ *   this class enforces: ReportLaunch CLOSES the firer's own window when the band fired is the one
+ *   that window granted. The grant then vanishes exactly as it would have on lapse.
+ *
+ * AN EARLIER VERSION OF THIS FILE SAID THE OPPOSITE -- "while it is open the side may fire that
+ * band as often as its cooldown allows" -- and that was the interim purchase-based reading, before
+ * the economy was ruled. It is superseded rather than merely retuned: a window that could be fired
+ * twice is a second warhead the other side was never told about.
+ *
+ * A REPEAT HIT STILL RESTARTS THE WINDOW rather than banking a second one, which is what makes
+ * "one shot" bounded rather than absolute: being shot at again re-opens the reply.
  *
  * ==== DETERMINISM ====
  * Integer arithmetic throughout, no RNG, no wall-clock, no floating point. Side keys are supplied
@@ -197,6 +211,55 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>Sides, in registration order.</summary>
 		public IReadOnlyList<int> Sides => sideKeys;
+
+		/// <summary>
+		/// <para>Is this power FREE AND TIMER-CHARGED rather than bought? True for a nuclear power in
+		/// Escalation and for nothing else, which is the whole of decision 02's "in escalation mode we
+		/// only control the timing, nothing is purchasable".</para>
+		///
+		/// <para>THE MODE TEST IS THE LOAD-BEARING HALF. Skirmish and Sandbox keep the purchase economy
+		/// byte-identical -- Skirmish is the shipped default game mode, the user tests from main, and
+		/// every nuclear scenario under tools/autotest/scenarios buys its shot through the Powers
+		/// queue. A predicate that answered true outside Escalation would empty the buy tab in all of
+		/// them at once, silently, because an unpurchasable power is simply absent from it
+		/// (SupportPowerProductionQueue.AllItems filters on SupportPowerInstance.Purchasable).</para>
+		///
+		/// <para>THE TSAR BOMBA IS NOT FREE EITHER, and that falls out of the mode test rather than
+		/// needing its own: it is unreachable in Escalation at all (decision 04), so the only modes it
+		/// exists in are the two this returns false for.</para>
+		/// </summary>
+		public static bool IsFreeTimerPower(DefconGameMode mode, int tons)
+		{
+			return mode == DefconGameMode.Escalation && tons > 0 && tons <= NuclearReleaseLadder.SandboxOnlyAboveTons;
+		}
+
+		/// <summary>
+		/// <para>Ticks a band takes to come back after being fired, given the four per-band intervals in
+		/// ascending band order. The list is <see cref="NuclearRung.Kiloton"/> through
+		/// <see cref="NuclearRung.HundredKiloton"/>; anything outside that range takes the last entry.</para>
+		///
+		/// <para>GAME-ENDERS TAKE THE TOP ENTRY AND NEVER SPEND IT. That band is reachable only as a
+		/// window grant, and firing one begins the final exchange, so its regeneration timer is a
+		/// post-fire lockout that the match never outlives. It is given a real value anyway rather
+		/// than 0, because 0 would mean "ready again on the next tick" and would make the one-shot
+		/// rule depend on the window being closed in the same tick rather than on the timer as
+		/// well.</para>
+		/// </summary>
+		public static int RegenTicksFor(int band, IReadOnlyList<int> perBandTicks)
+		{
+			if (perBandTicks == null || perBandTicks.Count == 0)
+				return 0;
+
+			var index = band - (int)NuclearRung.Kiloton;
+			if (index < 0)
+				index = 0;
+
+			if (index >= perBandTicks.Count)
+				index = perBandTicks.Count - 1;
+
+			var ticks = perBandTicks[index];
+			return ticks < 0 ? 0 : ticks;
+		}
 
 		/// <summary>
 		/// <para>Is a player one of the match's SIDES? Two booleans, and the one that is deliberately
@@ -367,6 +430,17 @@ namespace OpenRA.Mods.Common.Traits
 			var permanentBand = band;
 			if (permanentBand >= (int)NuclearRung.GameEnder)
 				permanentBand = (int)NuclearRung.GameEnder - 1;
+
+			// THE WINDOW IS SPENT BY FIRING IT (decision 02). Only when the band fired IS the band the
+			// window granted: a side sitting on a 50 kt window that fires its permanent 1 kt has not
+			// used the grant and keeps it. Done before the arming loop below purely so the firer's own
+			// state is settled in one place; the loop skips the firer either way.
+			var firer = For(firerSide);
+			if (firer != null && firer.WindowTicksRemaining > 0 && band >= firer.WindowLevel)
+			{
+				firer.WindowTicksRemaining = 0;
+				firer.WindowLevel = (int)NuclearRung.Hold;
+			}
 
 			foreach (var key in sideKeys)
 			{

@@ -263,7 +263,6 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			Key = key;
 			Manager = manager;
-			bank = new SupportPowerChargeBank(info.RequiresPurchase);
 
 			// A purchased power has NO timer at all -- not a long one, none. TotalTicks 0 makes
 			// remainingSubTicks permanently 0 through every path that touches it (Tick clamps to
@@ -275,14 +274,32 @@ namespace OpenRA.Mods.Common.Traits
 			// The one consumer that would divide by it already guards zero: SupportPowersWidget
 			// pins the cameo clock to its last frame when TotalTicks == 0 (SupportPowersWidget.cs:214),
 			// which draws a full circle -- the correct picture for a shot sitting in the magazine.
-			// NuclearExchange.ScaleChargeInterval is the Nuclear Posture multiplier and is the IDENTITY
-			// for everything except a nuclear MissileStrikePower in a DEFCON Escalation match -- no
-			// trait, no Escalation, or a non-nuclear power all return the interval untouched, which is
-			// what keeps every other power in every other mod byte-identical.
-			TotalTicks = info.RequiresPurchase
-				? 0
-				: NuclearExchange.ScaleChargeInterval(manager.Self.World, info, info.ChargeInterval);
-			remainingSubTicks = info.StartFullyCharged || info.RequiresPurchase ? 0 : TotalTicks * 100;
+			// ==== THE ESCALATION BYPASS, AND IT IS THE ONE PLACE THE ECONOMY IS DECIDED ====
+			// Decision 02: in DEFCON Escalation nothing nuclear is purchasable -- a band is a free
+			// power on a regeneration timer. EscalationRegenTicks returns that timer, or -1 for the
+			// ordinary purchase economy, and -1 is what EVERY power outside Escalation and every
+			// non-nuclear power inside it gets. So Skirmish, Sandbox and every other mod are
+			// byte-identical to before by construction rather than by care.
+			//
+			// TURNING THE BANK OFF IS WHAT EMPTIES THE BUY TAB, and it costs nothing extra:
+			// SupportPowerProductionQueue filters BOTH AllItems and BuildableItems on
+			// SupportPowerInstance.Purchasable (:109-116), which is bank.CanPurchase, which is
+			// `Enabled && permitted`. A bank built disabled therefore removes the cameo from the shop
+			// rather than greying it out -- which is the behaviour the ruling asks for, stated once
+			// here instead of as a filter somewhere else that could fall out of step with this line.
+			var escalationRegen = NuclearExchange.EscalationRegenTicks(manager.Self.World, info);
+			var purchased = info.RequiresPurchase && escalationRegen < 0;
+
+			bank = new SupportPowerChargeBank(purchased);
+
+			TotalTicks = purchased ? 0 : (escalationRegen >= 0 ? escalationRegen : info.ChargeInterval);
+
+			// A FREE NUCLEAR POWER STARTS COLD, not fully charged, and that is not a tax on the player:
+			// its band condition is ungranted until release, and Tick pins remainingSubTicks back to
+			// full on every tick a power is disabled (:246-248), so the countdown could not have run
+			// anyway. NuclearExchange zeroes it on the grant edge through MakeReady, which is what
+			// makes the band ready the instant it is released rather than one interval later.
+			remainingSubTicks = info.StartFullyCharged || purchased ? 0 : TotalTicks * 100;
 			Name = info.Name == null ? string.Empty : FluentProvider.GetMessage(info.Name);
 			Description = info.Description == null ? string.Empty : FluentProvider.GetMessage(info.Description);
 		}

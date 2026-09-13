@@ -137,6 +137,40 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Display order for the retaliation window dropdown.")]
 		public readonly int RetaliationWindowDisplayOrder = 25;
 
+		// ==== THE REGENERATION TABLE. UNTUNED PLACEHOLDERS, ALL FOUR. ====
+		// Decision 02: in Escalation a permanent band is a FREE power on a timer, so these are the
+		// whole economy of the mode -- there is no price, no queue and no bank. They rise with the
+		// band because a bigger warhead should be rarer, and the shape (a minute per step) is a round
+		// number nobody has played rather than anything measured.
+		//
+		// TICKS, AT 60 MS, WRITTEN OUT because this repo has assumed 25 ticks/second at eleven sites
+		// and been wrong at every one: 1000/60 = 16.67 ticks/s, so 3:00 = 180 s = 3000 ticks. The
+		// identity to check any change against is that a value in ticks divided by 1000 is its length
+		// in minutes at this timestep.
+		//
+		// NUCLEAR POSTURE SCALES ALL FOUR (150 / 100 / 60 %), which is what makes that dropdown a live
+		// lever rather than the inert one it was while every nuclear power was purchased.
+
+		[Desc("Ticks the 1 kt band takes to come back after firing, in Escalation. UNTUNED PLACEHOLDER.",
+			"3000 ticks = 180 s = 3:00 at the default 60 ms timestep (16.67 ticks/s, NOT 25).")]
+		public readonly int KilotonRegenTicks = 3000;
+
+		[Desc("Ticks the 20 kt band takes to come back after firing, in Escalation. UNTUNED PLACEHOLDER.",
+			"4000 ticks = 240 s = 4:00 at the default 60 ms timestep.")]
+		public readonly int TwentyKilotonRegenTicks = 4000;
+
+		[Desc("Ticks the 50 kt band takes to come back after firing, in Escalation. UNTUNED PLACEHOLDER.",
+			"5000 ticks = 300 s = 5:00 at the default 60 ms timestep.")]
+		public readonly int FiftyKilotonRegenTicks = 5000;
+
+		[Desc("Ticks the 100 kt band takes to come back after firing, in Escalation. UNTUNED PLACEHOLDER.",
+			"6000 ticks = 360 s = 6:00 at the default 60 ms timestep.",
+			"",
+			"ALSO THE GAME-ENDER BAND'S value -- see " + nameof(NuclearExchangeState.RegenTicksFor) + ".",
+			"That band is only ever a retaliation window grant and firing one ends the match, so its",
+			"timer is a post-fire lockout the match never outlives.")]
+		public readonly int HundredKilotonRegenTicks = 6000;
+
 		[Desc("Ticks a grant is retried for while the band condition it needs has not reached the",
 			"support power yet. NOT a gameplay duration: the condition is granted by a PLAYER-actor",
 			"trait and this runs on the WORLD actor, so a grant issued here can land one or two ticks",
@@ -157,6 +191,20 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (GrantRetryTicks < 0)
 				throw new YamlException($"{nameof(GrantRetryTicks)} must be 0 or positive.");
+
+			// POSITIVE, NOT MERELY NON-NEGATIVE. A regeneration of 0 ticks is a band that is ready
+			// again on the tick after it fired, which is not a fast economy but no economy at all --
+			// and it would silently undo the one-shot rule on a retaliation window.
+			foreach (var (name, ticks) in new[]
+			{
+				(nameof(KilotonRegenTicks), KilotonRegenTicks),
+				(nameof(TwentyKilotonRegenTicks), TwentyKilotonRegenTicks),
+				(nameof(FiftyKilotonRegenTicks), FiftyKilotonRegenTicks),
+				(nameof(HundredKilotonRegenTicks), HundredKilotonRegenTicks),
+			})
+				if (ticks <= 0)
+					throw new YamlException($"{name} must be a positive tick count: in DEFCON Escalation " +
+						"a band is a free power on a regeneration timer, and 0 would make it fire every tick.");
 		}
 
 		/// <summary>The window lengths offered, as wire keys mapped to their lobby labels.</summary>
@@ -190,6 +238,14 @@ namespace OpenRA.Mods.Common.Traits
 				RetaliationWindowDefault.ToString(CultureInfo.InvariantCulture), RetaliationWindowLocked);
 		}
 
+		/// <summary>The four regeneration intervals in ascending band order, unscaled.</summary>
+		// Built here rather than at each call site so the ORDER is stated once: index 0 is
+		// NuclearRung.Kiloton, which is what NuclearExchangeState.RegenTicksFor indexes against.
+		public IReadOnlyList<int> RegenTicks()
+		{
+			return new[] { KilotonRegenTicks, TwentyKilotonRegenTicks, FiftyKilotonRegenTicks, HundredKilotonRegenTicks };
+		}
+
 		public override object Create(ActorInitializer init) { return new NuclearExchange(init.Self, this); }
 	}
 
@@ -201,7 +257,24 @@ namespace OpenRA.Mods.Common.Traits
 		readonly NuclearExchangeInfo info;
 		readonly World world;
 
-		/// <summary>The posture the host picked. Scales nuclear charge intervals; see <see cref="NuclearPostureScale"/>.</summary>
+		/// <summary>
+		/// <para>The match's game mode, read from the LOBBY at construction rather than forwarded from
+		/// <see cref="DefconEscalation"/>.</para>
+		///
+		/// <para>THAT IS AN ORDERING FIX, NOT A STYLE CHOICE. It used to read `escalation?.Mode`, and
+		/// `escalation` is only resolved in WorldLoaded — but <see cref="SupportPowerInstance"/>'s
+		/// constructor now asks this trait whether a power is free (see
+		/// <see cref="EscalationRegenTicks"/>), and a player actor can be built before WorldLoaded
+		/// runs. Forwarding would have answered "Skirmish" there and silently left every nuclear power
+		/// purchased in Escalation — the whole feature off, with nothing to see.</para>
+		///
+		/// <para>The default comes from <see cref="DefconEscalationInfo.ModeDefault"/> off the World
+		/// actor's own ActorInfo, so the two traits cannot disagree about it. Same idiom, and the same
+		/// creation-order reason, as <see cref="NuclearUnlockClock"/>'s constructor one file away.</para>
+		/// </summary>
+		public readonly DefconGameMode Mode;
+
+		/// <summary>The posture the host picked. Scales the regeneration timers; see <see cref="NuclearPostureScale"/>.</summary>
 		public readonly NuclearPosture Posture;
 
 		/// <summary>The retaliation window, in ticks, already converted from the lobby's minutes.</summary>
@@ -266,6 +339,14 @@ namespace OpenRA.Mods.Common.Traits
 
 			var settings = world.LobbyInfo.GlobalSettings;
 
+			// `self` IS the World actor, so self.Info is its ActorInfo and is available immediately --
+			// nothing here may reach for world.WorldActor, which World.cs:252 has not assigned yet.
+			var defconInfo = self.Info.TraitInfoOrDefault<DefconEscalationInfo>();
+			var modeDefault = defconInfo?.ModeDefault ?? DefconGameMode.Skirmish;
+			var modeRaw = settings.OptionOrDefault(DefconEscalationInfo.ModeOptionId, modeDefault.ToString());
+			if (!System.Enum.TryParse(modeRaw, true, out Mode))
+				Mode = modeDefault;
+
 			var posture = settings.OptionOrDefault(NuclearExchangeInfo.PostureOptionId, info.PostureDefault.ToString());
 			if (!System.Enum.TryParse(posture, true, out Posture))
 				Posture = info.PostureDefault;
@@ -282,33 +363,42 @@ namespace OpenRA.Mods.Common.Traits
 			RetaliationWindowTicks = NuclearUnlockSchedule.TicksForMinutes(minutes, world.Timestep);
 		}
 
-		/// <summary>Scale a nuclear power's charge interval by this match's posture.</summary>
-		// The one entry point SupportPowerInstance uses. Static and world-shaped rather than an
-		// instance method so the caller needs no null dance of its own: no trait, no Escalation, or a
-		// non-nuclear power all return the interval untouched, which is what keeps every other mod
-		// and both other game modes byte-identical.
-		public static int ScaleChargeInterval(World world, SupportPowerInfo powerInfo, int chargeInterval)
+		/// <summary>
+		/// <para>How long this power takes to come back in DEFCON Escalation, where it is FREE and
+		/// timer-charged rather than bought. Returns -1 when the ordinary purchase economy applies,
+		/// which is every power outside Escalation and every non-nuclear power inside it.</para>
+		///
+		/// <para>THE ONE ENTRY POINT <see cref="SupportPowerInstance"/>'s constructor uses, and it
+		/// answers BOTH questions that constructor has to ask — "is this bought?" is `&lt; 0`, and
+		/// "what is its interval?" is the value. Splitting them into two calls would let the two
+		/// answers drift apart, which is exactly the state that produces a power with no timer AND no
+		/// magazine: permanently unusable, with nothing logged.</para>
+		///
+		/// <para>IT IS THE IDENTITY OUTSIDE ESCALATION. No World, no trait, a non-nuclear power, or any
+		/// other mode all return -1, which is what keeps Skirmish and Sandbox — and every other mod —
+		/// byte-identical. Skirmish is the shipped default and every nuclear scenario in the tree buys
+		/// its shot; see NuclearExchangeState.IsFreeTimerPower.</para>
+		/// </summary>
+		public static int EscalationRegenTicks(World world, SupportPowerInfo powerInfo)
 		{
-			if (chargeInterval <= 0 || world == null || powerInfo == null)
-				return chargeInterval;
-
-			if (!(powerInfo is MissileStrikePowerInfo missile) || missile.NuclearYieldTons <= 0)
-				return chargeInterval;
+			if (world == null || !(powerInfo is MissileStrikePowerInfo missile))
+				return -1;
 
 			// WorldActor is null while world traits are being created (World.cs:252 is the line that
 			// assigns it), and a support power manager on a player actor can be constructed inside
 			// that window. Same Created hazard DefconWall threw a NullReferenceException on.
 			var exchange = world.WorldActor?.TraitOrDefault<NuclearExchange>();
-			if (exchange == null || exchange.Mode != DefconGameMode.Escalation)
-				return chargeInterval;
+			if (exchange == null || !NuclearExchangeState.IsFreeTimerPower(exchange.Mode, missile.NuclearYieldTons))
+				return -1;
 
-			return NuclearPostureScale.Apply(chargeInterval, exchange.Posture);
+			var band = NuclearReleaseLadder.RungForYield(missile.NuclearYieldTons);
+			var ticks = NuclearExchangeState.RegenTicksFor(band, exchange.info.RegenTicks());
+
+			// THE POSTURE BITES HERE AND NOWHERE ELSE, which is what turns that dropdown from an inert
+			// label into the mode's one economic lever: Limited stretches every band, Massive shortens
+			// every band, Flexible is the identity.
+			return NuclearPostureScale.Apply(ticks, exchange.Posture);
 		}
-
-		/// <summary>The match's game mode, forwarded from <see cref="DefconEscalation"/>.</summary>
-		// A stripped DefconEscalation reads as Skirmish, which is GrantConditionOnNuclearRelease's
-		// existing fail-safe and keeps a scenario that strips World traits behaving as it did.
-		public DefconGameMode Mode => escalation?.Mode ?? DefconGameMode.Skirmish;
 
 		/// <summary>Whether the release gate has opened and both sides hold the 1 kt band.</summary>
 		public bool Released => state != null && state.Released;
