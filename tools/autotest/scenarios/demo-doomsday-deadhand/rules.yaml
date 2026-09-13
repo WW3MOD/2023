@@ -9,6 +9,25 @@ Player:
 		ExploredMapCheckboxEnabled: true
 		FogCheckboxEnabled: true
 
+	# THE PLAYER-PLACED WARHEAD'S WAIT, SHORTENED FROM 500 TO 300 TICKS so that it lands AFTER the
+	# Dead Hand salvo rather than inside the pause between its two waves. That ordering is the point:
+	# with the player's warhead last, the annihilation and the verdict are visibly HELD for it, which
+	# is the resolution-timing behaviour this demo exists to show.
+	#
+	# At the shipped 500 the demo still works and still shows the window; it just lands mid-salvo and
+	# the hold is invisible because the Dead Hand impacts are already later. Delete this line to see
+	# the real approach time.
+	#
+	# IT IS IN THIS `Player:` NODE rather than a second one at the foot of the file: MiniYaml treats
+	# two top-level entries with the same key as a duplicate, not a merge, within one file.
+	MissileStrikePower@B83:
+		MissileDelay: 300
+
+	# NOT SET, ON PURPOSE: PowersLobbyOptions' sandbox switch. demo-nuke-arsenal needs it because
+	# powers.event is otherwise provided by nobody -- and the whole point HERE is that the final
+	# exchange provides the two game-enders itself, for fifteen seconds, with the arsenal in its
+	# shipped configuration. Turning sandbox on would hide the thing being demonstrated.
+
 World:
 	-SpawnStartingUnits:
 	-MapStartingLocations:
@@ -24,6 +43,14 @@ World:
 		TimeLimitTicks: 250
 		SkipTimeRemainingNotifications: true
 
+	# DECLARED, and that declaration is the whole of whether the script runs at all. A rules.yaml the
+	# map never references is silently ignored (Map.cs:102-107) and a LuaScript with no Scripts is
+	# skipped by the one engine lint that would have caught it (Lint/CheckLuaScript.cs:21-23) -- the
+	# scenario then loads, draws, writes a zero-byte lua.log and does nothing. `.\make.ps1 lua-gate`
+	# checks for exactly that shape; run it after touching this block.
+	LuaScript:
+		Scripts: test-helpers.lua, demo-doomsday-deadhand.lua
+
 	# Demo timings are COMPRESSED against the shipped values in mods/ww3mod/rules/world.yaml, so the
 	# whole sequence fits in one sitting. The two that are NOT compressed are the ones that carry the
 	# user's intent — OutlierToCityPauseTicks (the pause that makes the city wave read as a separate
@@ -38,6 +65,10 @@ World:
 		WithinWaveTicks: 2
 		AnnihilationDelayTicks: 60
 		ResolutionDelayTicks: 20
+		# THE WINDOW AT FULL LENGTH, deliberately NOT compressed. It is the one stage of the sequence
+		# a player is inside rather than watching, so a demo that shortened it would be demonstrating
+		# a deadline nobody is going to ship. 250 ticks = 15.0 s at the 60 ms timestep.
+		FinalExchangeWindowTicks: 250
 
 ^Combatant:
 	AutoTarget:

@@ -29,6 +29,11 @@
  * faction provides — the sandbox lobby option. It also bans the inert pair outright, because that
  * is the shape the whole failure wore.
  *
+ * A THIRD ROUTE EXISTS SINCE 2026-09-13 and both purchase tests now know about it: the DOOMSDAY
+ * FINAL EXCHANGE arms every surviving side's game-enders for fifteen seconds, opening all three
+ * gates at once (tier, condition, magazine). See ArmedByTheFinalExchange for what that exemption
+ * does and does not check.
+ *
  * SCOPE, HONESTLY. Static string wiring only, on scenarios whose Lua names a power key as a
  * LITERAL. It does not run a scenario, does not prove a purchase completes (SupportPowerChargeBank
  * and test-power-buy-loop cover that), does not check the buying player owns a producer, and cannot
@@ -42,6 +47,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
+using OpenRA.Mods.Common.Traits;
 
 namespace OpenRA.Test
 {
@@ -72,6 +78,9 @@ namespace OpenRA.Test
 			public bool RequiresPurchase;
 			public string Tier;
 			public string Proxy;
+
+			/// <summary>Stated yield in tons of TNT, 0 for a conventional power. Feeds the game-ender test.</summary>
+			public int NuclearYieldTons;
 		}
 
 		/// <summary>
@@ -110,6 +119,7 @@ namespace OpenRA.Test
 						{
 							Order = order,
 							RequiresPurchase = string.Equals(Field(trait, "RequiresPurchase"), "True", StringComparison.OrdinalIgnoreCase),
+							NuclearYieldTons = int.TryParse(Field(trait, "NuclearYieldTons"), out var tons) ? tons : 0,
 						};
 					}
 
@@ -289,6 +299,53 @@ namespace OpenRA.Test
 		}
 
 		/// <summary>True when the scenario has explicitly opted this power out of the bank.</summary>
+		/// <summary>
+		/// <para>THE THIRD ROUTE TO A LOADED GAME-ENDER, added 2026-09-13 with the DOOMSDAY final
+		/// exchange. This fixture was written when there were exactly two — tick the sandbox option, or
+		/// buy the proxy — and both of the tests below refuse a scenario that does neither. The
+		/// exchange is a third: when the window opens, <see cref="DoomsdayStrike"/> grants the
+		/// game-ender condition, overrides the event tier and banks a shot on every surviving side
+		/// (<see cref="SupportPowerInstance.MakeReady"/>), so a scenario firing a game-ender inside
+		/// those fifteen seconds needs no sandbox switch, no proxy and no cash.</para>
+		///
+		/// <para>IT ASKS THE LADDER, NOT A STRING. The band comes from
+		/// <see cref="NuclearReleaseLadder.RungForYield"/> — the same call the runtime's own
+		/// IsGameEnder makes — rather than from matching `nuclear-release-gameender` in the YAML, so
+		/// this predicate cannot drift away from the one that decides what actually gets armed. The
+		/// Tsar Bomba is excluded by the ladder's SandboxOnlyAboveTons for the same reason it is
+		/// excluded at runtime: decision 04 keeps it off the shop floor by a route no schedule reaches.</para>
+		///
+		/// <para>WHAT IT CANNOT SEE, stated rather than hidden: WHEN the scenario fires. A scenario that
+		/// configures the ending and then fires its game-ender at tick 30 — long before the window
+		/// opens — is exempted here and will still get 'hidden' at runtime. Closing that would mean
+		/// statically evaluating Trigger.AfterDelay arithmetic, which is well past what this fixture
+		/// claims in its header. The demo's own on-screen status line is the backstop for it.</para>
+		/// </summary>
+		static bool ArmedByTheFinalExchange(Scenario s, Power power)
+		{
+			var tons = power.NuclearYieldTons;
+			if (tons <= 0 || tons > NuclearReleaseLadder.SandboxOnlyAboveTons)
+				return false;
+
+			if (NuclearReleaseLadder.RungForYield(tons) != (int)NuclearRung.GameEnder)
+				return false;
+
+			var world = s.Rules.FirstOrDefault(n => n.Key == "World");
+			var doomsday = world?.Value.Nodes.FirstOrDefault(n => n.Key.Split('@')[0] == "DoomsdayStrike");
+			if (doomsday == null)
+				return false;
+
+			// A demo or test runs under TestMode, where the salvo is OFF unless the scenario opts in.
+			// Without this line the ending never triggers, so nothing is ever armed.
+			if (!string.Equals(Field(doomsday, "RunInTestMode"), "True", StringComparison.OrdinalIgnoreCase))
+				return false;
+
+			// Absent means the shipped 250. Zero is the documented escape hatch that skips the window
+			// entirely and fires the salvo on the trigger tick, arming nobody.
+			var ticks = Field(doomsday, "FinalExchangeWindowTicks");
+			return ticks == null || (int.TryParse(ticks, out var parsed) && parsed > 0);
+		}
+
 		static bool OptedOut(Scenario s, string traitKey)
 		{
 			var over = traitKey == null ? null : ScenarioTrait(s, traitKey);
@@ -404,6 +461,9 @@ namespace OpenRA.Test
 					if (OptedOut(s, traitKeys.TryGetValue(power.Order, out var tk) ? tk : null))
 						continue;
 
+					if (ArmedByTheFinalExchange(s, power))
+						continue;
+
 					if (power.Proxy == null)
 					{
 						offenders.Add(s.Name + ": fires " + key + ", which is purchased and has NO proxy in rules/powers.yaml");
@@ -455,6 +515,9 @@ namespace OpenRA.Test
 						continue;
 
 					if (OptedOut(s, traitKeys.TryGetValue(power.Order, out var tk) ? tk : null))
+						continue;
+
+					if (ArmedByTheFinalExchange(s, power))
 						continue;
 
 					var world = s.Rules.FirstOrDefault(n => n.Key == "World");
