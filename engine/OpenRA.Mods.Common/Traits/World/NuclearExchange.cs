@@ -150,6 +150,25 @@ namespace OpenRA.Mods.Common.Traits
 		//
 		// NUCLEAR POSTURE SCALES ALL FOUR (150 / 100 / 60 %), which is what makes that dropdown a live
 		// lever rather than the inert one it was while every nuclear power was purchased.
+		//
+		// ==== A BAND IS NOT A WEAPON: EVERY BAND HOLDS TWO OR MORE POWERS ====
+		// Observed 2026-09-13 from a demo capture, and it is the thing to know before tuning any of
+		// these four numbers. The bands and their unlocked occupants are:
+		//
+		//     1 kt    2  (@B61Low 300 t, @Ru9M729 1000 t)
+		//     20 kt   3  (@RuIskander, @B61Mid, @TacNuke)
+		//     50 kt   2  (@B61Max, @RuKinzhalN)
+		//     100 kt  2  (@W76, @RuKalibr)
+		//
+		// and nuclear-arsenal.yaml declares NO faction prerequisite for any of its ten entries, so
+		// both sides hold both ladders. A side can therefore fire a band ONCE PER POWER IN IT before
+		// anything here starts counting: two 1 kt warheads back to back, then a 900-tick wait.
+		//
+		// THAT IS NOT A BUG IN THE TIMER AND IS NOT ONE IN THE READOUT -- the readout reports the
+		// band as available for exactly as long as the side has a loaded warhead in it, which is the
+		// truth. It IS a fact about what these numbers mean: KilotonRegenTicks is the interval
+		// between EXHAUSTING the band and getting it back, not the interval between shots. Whoever
+		// tunes them first should decide whether that is the intended economy.
 
 		[Desc("Ticks the 1 kt band takes to come back after firing, in Escalation. UNTUNED PLACEHOLDER.",
 			"3000 ticks = 180 s = 3:00 at the default 60 ms timestep (16.67 ticks/s, NOT 25).")]
@@ -515,6 +534,15 @@ namespace OpenRA.Mods.Common.Traits
 		// A side is a TEAM. Two players on one side each hold their own faction's warhead at a band,
 		// and what the side can do is whatever comes back SOONEST -- so the minimum is the answer,
 		// and the first entry in dictionary order is not.
+		//
+		// AND IT IS ALSO THE ANSWER FOR ONE PLAYER, which is not obvious and was read as a bug on
+		// 2026-09-13. EVERY BAND HOLDS TWO OR MORE POWERS and neither ladder is faction-locked (see
+		// the note on the regeneration fields above), so ONE player alone has two warheads in the
+		// 1 kt band. After firing one of them this correctly returns 0 and the ledger correctly
+		// leaves the box lit: the side really can fire that band again, this tick. A reading that
+		// took the power that was just fired, or the maximum, would draw a countdown over a band the
+		// player is holding a loaded warhead in -- which is the readout lying in the direction that
+		// loses matches.
 		//
 		// ---- -1 IS NOT 0 -------------------------------------------------------------------------
 		// "No power at this band" and "ready right now" are different facts and the ledger draws them

@@ -412,11 +412,28 @@ Player:
 
 
 	# =============================================================================================
-	# THE RUSSIAN FOUR (2026-09-07). Same lobby gate as the six above, plus `Prerequisites:
-	# player.russia` -- the same faction lock MissileStrikePower@Kinzhal carries in player.yaml, and
-	# the opposite side of the one on @GBU57. The six American entries above are NOT retro-fitted
-	# with `player.america` here; that is faction gating for the existing ladder and it belongs to
-	# rules/player.yaml, which is being rebuilt in parallel and is not this file.
+	# THE RUSSIAN FOUR (2026-09-07).
+	#
+	# CORRECTED 2026-09-13: THIS SAID THEY CARRY `Prerequisites: player.russia`. THEY DO NOT, AND
+	# NEITHER DOES ANYTHING ELSE IN THIS FILE -- there is not one `Prerequisites:` line in it. The
+	# only gate on all ten entries here is the `RequiresCondition` pair: the host's arsenal checkbox
+	# and the band condition. So EVERY SIDE HOLDS BOTH LADDERS, and an American player released to
+	# the 1 kt band gets the 9M729 cameo beside the B61-12's.
+	#
+	# That is observable rather than deduced: frame 07 of the 2026-09-13 demo-defcon-readout capture
+	# shows a "1 KT" cameo in USA's own support-power column, and "1 KT" is @Ru9M729's CameoCaption
+	# (@B61Low's is "0.3 KT").
+	#
+	# WHETHER IT SHOULD BE SO IS A DESIGN QUESTION AND IS NOT DECIDED HERE. The original note said
+	# the American six were deliberately not retro-fitted with `player.america` because faction
+	# gating "belongs to rules/player.yaml, which is being rebuilt in parallel" -- so the asymmetry
+	# was known and intended to be resolved elsewhere. What was wrong was only the claim that the
+	# Russian half of it had already been done.
+	#
+	# IT MATTERS TO THE EXCHANGE, which is why it was found. Every band holds two or more powers
+	# (1 kt: 2, 20 kt: 3, 50 kt: 2, 100 kt: 2), so a per-BAND regeneration timer is spent only after
+	# every power in that band has fired -- see the note on the regeneration fields in
+	# NuclearExchangeInfo.
 	#
 	# WHAT ACTUALLY DIFFERS FROM THE AMERICAN WEAPON AT THE SAME YIELD. The warheads are identical
 	# by design (see the long note in weapons-nuclear-arsenal.yaml); everything that makes these
