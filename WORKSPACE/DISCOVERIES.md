@@ -22336,3 +22336,25 @@ It does not. `LobbyOptionsLogic` assigns `dropdown.GetTooltipDesc = () => ddDesc
 **TEST `Permitted`, NOT `Ready`, BEFORE COUNTING A TIMER.** A power whose band condition is ungranted has `remainingSubTicks` pinned at full on every tick it is disabled (`SupportPowerManager.cs:249-251`), so counting it draws a countdown that never moves, under a box for a band the side does not hold.
 
 **AND KEEP "NO POWER AT THIS BAND" DISTINCT FROM "READY NOW".** Both are naturally zero and they are different facts. A band with nothing behind it has no countdown to show; collapsing the two gives a box captioned `0:00` forever, which is a readout inventing a number. `RegenTicksRemainingForSide` returns `-1` for the first and `0` for the second.
+
+## 2026-09-13 — A BAND IS NOT A WEAPON: every nuclear band holds 2-4 powers, and neither ladder is faction-locked (`wt/ledger-regen`, base `main @ 8dc2a6c7`)
+
+**THE ARSENAL HAS THIRTEEN POWERS AND FIVE BANDS, SO A BAND IS A BUCKET.** Counting unlocked entries by `NuclearReleaseLadder.RungForYield`:
+
+| band | powers |
+|---|---|
+| 1 kt | `@B61Low` 300 t, `@Ru9M729` 1000 t |
+| 20 kt | `@RuIskander` 10000 t, `@B61Mid` 10000 t, `@TacNuke` 20000 t |
+| 50 kt | `@B61Max`, `@RuKinzhalN` |
+| 100 kt | `@W76`, `@RuKalibr` |
+| END | `@Sarmat`, `@B83`, `@HighYieldNuke`, `@TsarBomba` |
+
+**AND `mods/ww3mod/rules/ingame/nuclear-arsenal.yaml` DECLARES NO `Prerequisites:` FOR ANY OF ITS TEN ENTRIES** — grep the file, there is not one such line. The only gate is `RequiresCondition: !nuke-arsenal-disabled && nuclear-release-<band>`. **So both sides hold both national ladders**, and an American player released to the 1 kt band gets the Russian 9M729 cameo beside the B61-12's. Confirmed from a capture rather than deduced: frame 07 of the 2026-09-13 `demo-defcon-readout` GREEN run shows a **1 KT** cameo in USA's own support-power column, and `1 KT` is `@Ru9M729`'s `CameoCaption` (`@B61Low`'s is `0.3 KT`).
+
+**THE FILE'S OWN COMMENT SAID OTHERWISE FOR SIX DAYS.** The block header at `:415` opened "THE RUSSIAN FOUR (2026-09-07). Same lobby gate as the six above, plus `Prerequisites: player.russia`". It is not there and never was; the same comment then explains, correctly, that the American six were deliberately left for `rules/player.yaml`. Same shape as the 2026-09-13 Dead Hand entry below: **a design note in the present tense is not evidence the behaviour exists, and it is most convincing when a later edit has already reasoned from it** — this one was reasoned from twice, once by an autotest's variable names and once by a HUD frame expectation.
+
+**THE CONSEQUENCE FOR `ce397d9f`'s PER-BAND REGENERATION IS REAL AND IS NOT A BUG.** `KilotonRegenTicks` is the interval between **exhausting** a band and getting it back, **not** the interval between shots: a side can fire two 1 kt warheads back to back and only then start the 3:00 wait. At 20 kt it is three shots. Whoever tunes those four numbers first has to decide whether that is the intended economy — it is a balance question, not a defect.
+
+**AND IT IS WHY A LEDGER MUST TAKE THE MINIMUM ACROSS A SIDE.** `RegenTicksRemainingForSide` returning `min(RemainingTicks)` over every permitted power in the band was read as a bug when a capture showed the firer's 1 kt box still lit immediately after firing. It was correct — the side genuinely still had a loaded warhead in that band. Taking the power that was *just fired*, or the maximum, would draw a countdown over a band the player can fire this tick, which is the readout lying in the direction that loses matches.
+
+**THE GENERAL RULE:** anything that reasons from "the side's 20 kt" to "the 20 kt power" is wrong in this mod. Bands are permissions over sets; readiness is a property of the set, not of a weapon.
