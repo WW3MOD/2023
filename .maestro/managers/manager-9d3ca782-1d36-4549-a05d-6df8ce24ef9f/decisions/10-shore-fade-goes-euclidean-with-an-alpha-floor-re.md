@@ -1,0 +1,21 @@
+# Shore fade goes Euclidean with an alpha floor, reversing the Chebyshev rule set one day earlier
+
+_Recorded 2026-09-10T07:23:54.633Z by ffb08fdc_
+
+**Context.** The user reported, with a capture frame, that the nuclear impact scar "ends in blockiness at the water edge and at the shallow crossings" and asked for smooth transitions toward unscarred ground. Merged as `1e952767` (branch `wt/scar-water-edge @ 3286e06e`, researched against `main @ ebbde15d`).
+
+**What was rejected before it cost anything.** The standing diagnosis for axis-aligned rectangles in this engine is multi-cell terrain templates. The worker measured instead of assuming: every straight edge in the frame sits on a 108-pixel lattice, and 108 px is exactly one cell at the capture's scale (zoom 3 × 24 px tiles = 72, at ~150% display scale). Predicted cell boundaries from the scenario's own `Camera.Position` land within one pixel of the measured seams at five separate x-positions. **The "rectangles several cells across" are single cells magnified 4.5×**, so no template is involved and that entire line of investigation was dead.
+
+**The cause was the fix for the same complaint, one day older.** `SmudgeLayer.ShoreAlphaAt` — added 2026-09-09 specifically to soften this edge — produced both halves of what was reported:
+- *Shape:* the metric was Chebyshev, whose iso-contours **are** axis-aligned squares. Around a river bend those squares union into a rectangle with corners cells clear of any water.
+- *Depth:* the ramp fell to `1/(fade+1)` = 1/3 on the shoreline cell. The ramp is 2 cells wide and these rivers are 2–3 cells wide, so **every** cell of a ford is within reach of some water — a 6-cell band held below full strength on `demo-highyield-nuke`'s ford, the four ford cells at 1/3. That is the bright unscarred sand block that the `Beach: AcceptsSmudgeType` fix exists to prevent, reintroduced one line later by the fade added in the same commit.
+
+**Options.** A six-way sweep over {Chebyshev, Euclidean} × {0, 0.7, 0.85} floors, rendered rather than argued. Chebyshev-with-floor keeps the square steps — the floor fixes the bleaching but not the shape. A 0.85 floor erases the fade entirely. Euclidean with no floor rounds the corners but leaves crossings washed out. **Euclidean + 0.7 was chosen from the renders, not from taste.**
+
+**What was deliberately reversed.** The Chebyshev rule and its unit test were authored 2026-09-09 with an explicit rationale: "so the ramp traces the shoreline instead of bulging on diagonals." That reasoning is sound for an open coastline and wrong for a 2-cell river; the same property that stops diagonal bulging is what makes the contour a square. The test was rewritten to pin *diagonal-fades-less* as the distinguishing property, so it cannot silently revert. **If the original author had a case not seen here, this is where it bites.**
+
+**Blast radius is bounded by construction.** `ShoreFadeMinAlpha` defaults to 0, so a layer that does not opt in changes only by the metric; the two stock layers (SCORCH, CRATER) sit at `ShoreFadeCells: 0` and are untouched either way. Only the five Scar layers set 0.7. Determinism preserved — no RNG, the nearest-boundary search compares squared integers and takes a single `sqrt` at the end.
+
+**What is NOT fixed, and is the next lever if the edge still reads blocky.** Per-cell flat alpha survives: a smudge is one alpha over a whole cell, so cells are still flat 108-px squares. The step shrank from 33 points to ~10 and the contours rounded, which is an improvement, not sub-cell feathering. Genuine sub-cell dissolve means drawing a *lower-coverage band's sprite* at the boundary rather than dimming the same one, and that needs cross-layer sprite access the trait does not have. Bigger change than this one.
+
+**Method note worth more than the fix.** `contact_sheet.py` models water only as a half-plane (`water_from_x`) — a straight vertical line — so it draws a straight edge whatever the code does and **could never have been evidence about edges**. The new `tools/impact-scar/shore_fade_preview.py` reads real per-cell terrain by decoding `map.bin` via `tools/nav-guard/modload.py`: no engine, no launch. Second time in two days an offline renderer settled a visual question that would otherwise have queued behind a game launch.
