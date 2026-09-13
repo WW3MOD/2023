@@ -86,8 +86,8 @@ namespace OpenRA.Mods.Common.Traits
 		"as the ladder moves. Attach to the Player actor.",
 		"",
 		"TWO SOURCES, ONE PER GAME MODE, and they are different mechanisms rather than two settings of",
-		"one: in DEFCON Escalation the rung comes from " + nameof(DefconEscalation) + "'s pressure",
-		"ladder, which is CLIMBED BY FIRING; outside it the rung comes from " + nameof(NuclearUnlockClock),
+		"one: in DEFCON Escalation the band comes from " + nameof(NuclearExchange) + ", which is PER SIDE",
+		"and is armed by BEING FIRED AT; outside it the rung comes from " + nameof(NuclearUnlockClock),
 		", which is a CLOCK and makes bands purchasable on an interval. With neither trait on the World",
 		"actor every band is granted, which is the pre-ladder behaviour.")]
 	public class GrantConditionOnNuclearReleaseInfo : TraitInfo
@@ -131,6 +131,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly List<int> tokens = new List<int>();
 
 		DefconEscalation escalation;
+		NuclearExchange exchange;
 		NuclearUnlockClock unlockClock;
 		int heldRung = -1;
 		bool heldUnrestricted;
@@ -156,6 +157,7 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyCreated.Created(Actor self)
 		{
 			escalation = self.World.WorldActor.TraitOrDefault<DefconEscalation>();
+			exchange = self.World.WorldActor.TraitOrDefault<NuclearExchange>();
 			unlockClock = self.World.WorldActor.TraitOrDefault<NuclearUnlockClock>();
 
 			// Applied immediately so the opening bands are held from the first tick rather than one
@@ -184,9 +186,16 @@ namespace OpenRA.Mods.Common.Traits
 			// which is what makes registering NuclearUnlockClock the whole of the behaviour change,
 			// and un-registering it the whole of the revert. A scenario or map that strips the trait
 			// gets the pre-clock Skirmish match back with no other edit.
+			// INSIDE ESCALATION THE EXCHANGE DECIDES, per SIDE: this player's side's permanent level,
+			// or its retaliation window's band while one is open. A MISSING NuclearExchange grants
+			// NOTHING, which is the positive polarity failing safe exactly as the file header
+			// describes -- strip the trait and every nuclear power goes dark rather than coming
+			// unlocked. That is the opposite of the unrestricted branch below, deliberately: outside
+			// Escalation the pre-ladder behaviour was "everything granted", and inside it there is no
+			// pre-exchange behaviour to fall back to.
 			var rung = unrestricted
 				? unlockClock?.ReleasedRung ?? NuclearReleaseLadder.Highest
-				: escalation.NuclearRungFor(self.Owner);
+				: exchange?.ReleasedLevelFor(self.Owner) ?? NuclearReleaseLadder.Lowest;
 
 			if (rung == heldRung && unrestricted == heldUnrestricted)
 				return;
@@ -194,9 +203,10 @@ namespace OpenRA.Mods.Common.Traits
 			heldRung = rung;
 			heldUnrestricted = unrestricted;
 
-			// Revoke everything and re-grant. The ladder moves at most four times in a match, so the
-			// cost is irrelevant and the alternative -- diffing two sets of tokens -- is where a
-			// leak would hide.
+			// Revoke everything and re-grant. A side's released band moves a handful of times in a
+			// match -- release, each permanent rise, and each window opening and lapsing -- so the
+			// cost is irrelevant and the alternative, diffing two sets of tokens, is where a leak
+			// would hide.
 			foreach (var token in tokens)
 				self.RevokeCondition(token);
 

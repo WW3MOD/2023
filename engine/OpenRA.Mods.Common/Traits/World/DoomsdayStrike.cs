@@ -306,6 +306,29 @@ namespace OpenRA.Mods.Common.Traits
 			return dd != null && dd.SalvoInProgress;
 		}
 
+		/// <summary>
+		/// <para>A game-ender has been released in a DEFCON Escalation match: begin the ending.</para>
+		///
+		/// <para>MINIMAL STUB, ADDED 2026-09-13 ON wt/nuclear-exchange. The real implementation is a
+		/// sibling worker's on wt/deadhand-window — both sides get 15 s to place their own
+		/// game-enders, Dead Hand places for whoever does not, everything flies, the match ends. THE
+		/// MERGE SHOULD TAKE THEIRS: this body only triggers the existing time-limit salvo, so the
+		/// map is annihilated and the frozen score decides it, with no 15 s targeting window and no
+		/// acknowledgement of who fired.</para>
+		///
+		/// <para>It is deliberately the existing <see cref="INotifyTimeLimit.NotifyTimerExpired"/> path
+		/// rather than a second one: that path already freezes statistics before anything is launched,
+		/// stands the ordinary victory checks down, and is idempotent through its own `triggered`
+		/// flag — so a second game-ender landing mid-salvo changes nothing.</para>
+		/// </summary>
+		public void BeginFinalExchange(Player firer)
+		{
+			Log.Write("debug", $"FINAL EXCHANGE begun by {firer?.InternalName ?? "unknown"} " +
+				$"(tick {world.WorldTick}). STUB: running the time-limit salvo, with no 15 s placement window.");
+
+			((INotifyTimeLimit)this).NotifyTimerExpired(world.WorldActor);
+		}
+
 		void INotifyTimeLimit.NotifyTimerExpired(Actor self)
 		{
 			if (triggered || !enabled)

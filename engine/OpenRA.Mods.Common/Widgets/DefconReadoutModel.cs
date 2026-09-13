@@ -200,29 +200,40 @@ namespace OpenRA.Mods.Common.Widgets
 		}
 
 		/// <summary>The line under the step boxes.</summary>
-		// SHUT AND OPEN ARE DIFFERENT SENTENCES because they are different rules, and the shut one is
-		// the whole reason this block is drawn before anything nuclear can be fired: a ten-minute wait
-		// with nothing on screen explaining it is a player concluding the feature is broken. Both
-		// state what may and may not be done, never the gate that does it.
-		public static string NuclearFootLine(bool releaseOpen)
+		// THREE DIFFERENT SENTENCES because they are three different rules, and the shut one is the
+		// whole reason this block is drawn before anything nuclear can be fired: a ten-minute wait
+		// with nothing on screen explaining it is a player concluding the feature is broken. All three
+		// state what may and may not be done, never the mechanism that does it.
+		//
+		// THE OPEN LINE CHANGED ON 2026-09-13 AND WAS A LIE BEFORE IT. It read "Both sides are
+		// released to the same yield. Each use raises it." -- which was the shared pressure ladder,
+		// where firing raised BOTH sides together. Under the exchange, firing raises the OTHER side;
+		// a player who read the old line and fired to climb would have handed their opponent the
+		// climb instead.
+		public static string NuclearFootLine(bool releaseOpen, bool windowOpen)
 		{
-			return releaseOpen
-				? "Both sides are released to the same yield. Each use raises it."
-				: "No warhead may be fired yet. Both sides are released at the same moment.";
+			if (!releaseOpen)
+				return "No warhead may be fired yet. Both sides are released at the same moment.";
+
+			return windowOpen
+				? "You may answer one band up until the window closes. Firing arms them in turn."
+				: "Firing arms the other side at that yield, and one band above it for a while.";
 		}
 
 		/// <summary>Is the nuclear release readout drawn?</summary>
-		// THREE CONDITIONS, and each removes a case where the block would be noise or a lie:
-		//   - Escalation only. The ladder is pinned wide open in Skirmish and Sandbox
-		//     (NuclearReleaseLadder.RungFor returns Highest for both), so there is no ladder to draw.
-		//   - A HOLD ceiling is the host saying "no nuclear weapons this match". Nothing will ever
-		//     move, so the block would be a permanently empty promise.
-		//   - Before DEFCON 1 the gate's countdown is not running at all -- NuclearReleaseLadder.Tick
+		// TWO CONDITIONS, and each removes a case where the block would be noise or a lie:
+		//   - Escalation only. Skirmish and Sandbox get their bands from NuclearUnlockClock's schedule
+		//     instead, which this block does not describe.
+		//   - Before DEFCON 1 the gate's countdown is not running at all -- NuclearReleaseGate.Tick
 		//     returns early at any other level and TicksUntilRelease reads as the full delay. Drawing
 		//     a frozen clock is worse than drawing none, and the DEFCON strip is carrying the phase.
-		public static bool ShowsNuclear(DefconGameMode mode, int level, int ceilingRung, bool releaseOpen)
+		//
+		// THE CEILING CONDITION IS GONE with `nuclear-ceiling` itself (2026-09-13 ruling): a host can
+		// no longer say "no nuclear weapons this match", so there is no permanently-empty case left to
+		// suppress.
+		public static bool ShowsNuclear(DefconGameMode mode, int level, bool releaseOpen)
 		{
-			if (mode != DefconGameMode.Escalation || ceilingRung <= (int)NuclearRung.Hold)
+			if (mode != DefconGameMode.Escalation)
 				return false;
 
 			return releaseOpen || level == DefconEscalationState.Floor;

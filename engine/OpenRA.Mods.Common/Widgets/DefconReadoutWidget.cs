@@ -128,6 +128,7 @@ namespace OpenRA.Mods.Common.Widgets
 		readonly SpriteFont levelFont, nameFont, ruleFont, smallFont;
 
 		DefconEscalation escalation;
+		NuclearExchange exchange;
 		bool initialised;
 
 		[ObjectCreator.UseCtor]
@@ -145,6 +146,7 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			initialised = true;
 			escalation = world.WorldActor.TraitOrDefault<DefconEscalation>();
+			exchange = world.WorldActor.TraitOrDefault<NuclearExchange>();
 		}
 
 		public override void Draw()
@@ -171,7 +173,7 @@ namespace OpenRA.Mods.Common.Widgets
 			var stripTop = RenderBounds.Bottom - stripHeight;
 			DrawStrip(new Rectangle(RenderBounds.X, stripTop, Bounds.Width, stripHeight), level, ruleLines, showTrigger);
 
-			if (DefconReadoutModel.ShowsNuclear(escalation.Mode, level, escalation.NuclearCeilingRung, escalation.NuclearReleaseOpen))
+			if (DefconReadoutModel.ShowsNuclear(escalation.Mode, level, escalation.NuclearReleaseOpen))
 				DrawNuclear(stripTop - BlockGap, contentWidth);
 		}
 
@@ -296,11 +298,24 @@ namespace OpenRA.Mods.Common.Widgets
 			smallFont.DrawText(text, new float2(box.X + 17, box.Y + 2), DefconPalette.DefconTwo);
 		}
 
+		// WHOSE POSITION IS DRAWN. The exchange is per SIDE, so this block is no longer one number the
+		// whole match shares -- it is the viewer's own side's. RenderPlayer first so an observer or a
+		// replay following a player draws that player's, falling back to LocalPlayer.
+		//
+		// READOUT ONLY. RenderPlayer and LocalPlayer are per-client and MUST NOT reach the simulation;
+		// nothing below writes anything.
+		Player Viewer => world.RenderPlayer ?? world.LocalPlayer;
+
 		void DrawNuclear(int bottom, int contentWidth)
 		{
 			var releaseOpen = escalation.NuclearReleaseOpen;
+			var viewer = Viewer;
+			var permanent = exchange?.PermanentLevelFor(viewer) ?? (int)NuclearRung.Hold;
+			var windowTicks = exchange?.WindowTicksRemainingFor(viewer) ?? 0;
+			var windowBand = windowTicks > 0 ? exchange.WindowLevelFor(viewer) : (int)NuclearRung.Hold;
+
 			var steps = DefconReadoutModel.Steps();
-			var footLines = WrapLines(DefconReadoutModel.NuclearFootLine(releaseOpen), contentWidth, ruleFont);
+			var footLines = WrapLines(DefconReadoutModel.NuclearFootLine(releaseOpen, windowTicks > 0), contentWidth, ruleFont);
 
 			var labelHeight = smallFont.Measure(LevelHeightSample).Y;
 			var height = PadTop + labelHeight + 7 + StepHeight + BlockGap
@@ -314,20 +329,29 @@ namespace OpenRA.Mods.Common.Widgets
 
 			smallFont.DrawText("NUCLEAR RELEASE", new float2(x, y), DefconPalette.NuclearLabel);
 
-			// THE GATE'S COUNTDOWN TAKES THE CURRENT-YIELD SLOT while the ladder is shut, because until
+			// THE GATE'S COUNTDOWN TAKES THE CURRENT-YIELD SLOT while the gate is shut, because until
 			// it opens the yield is HOLD and saying so twice tells the player nothing. This is the
 			// ten-minute wait the mode used to serve with a blank screen.
 			//
+			// AN OPEN RETALIATION WINDOW TAKES IT INSTEAD, for the same reason the other way round:
+			// the permanent level is already drawn as the filled step below, and the one thing the
+			// player cannot read off the steps is how long they have left to answer.
+			//
 			// PITFALL: GameSpeed.Timestep, not world.Timestep -- see DrawStrip.
-			var valueText = releaseOpen
-				? DefconReadoutModel.RungLabel(escalation.NuclearRungLevel)
-				: $"RELEASE IN {WidgetUtils.FormatTime(escalation.TicksUntilNuclearRelease, false, world.GameSpeed.Timestep)}";
+			string valueText;
+			if (!releaseOpen)
+				valueText = $"RELEASE IN {WidgetUtils.FormatTime(escalation.TicksUntilNuclearRelease, false, world.GameSpeed.Timestep)}";
+			else if (windowTicks > 0)
+				valueText = $"{DefconReadoutModel.RungLabel(windowBand)} FOR " +
+					$"{WidgetUtils.FormatTime(windowTicks, false, world.GameSpeed.Timestep)}";
+			else
+				valueText = DefconReadoutModel.RungLabel(permanent);
 
 			var valueSize = smallFont.Measure(valueText);
 			smallFont.DrawText(valueText, new float2(x + contentWidth - valueSize.X, y), DefconPalette.NuclearValue);
 
 			y += labelHeight + 7;
-			DrawSteps(x, y, contentWidth, steps, releaseOpen);
+			DrawSteps(x, y, contentWidth, steps, releaseOpen, permanent, windowBand);
 
 			y += StepHeight + BlockGap;
 			foreach (var line in footLines)
@@ -337,12 +361,11 @@ namespace OpenRA.Mods.Common.Widgets
 			}
 		}
 
-		void DrawSteps(int x, int y, int contentWidth, IReadOnlyList<string> steps, bool releaseOpen)
+		void DrawSteps(int x, int y, int contentWidth, IReadOnlyList<string> steps, bool releaseOpen,
+			int current, int windowBand)
 		{
 			var count = steps.Count;
 			var stepWidth = (contentWidth - ((count - 1) * StepGap)) / count;
-			var current = escalation.NuclearRungLevel;
-			var ceiling = escalation.NuclearCeilingRung;
 
 			for (var i = 0; i < count; i++)
 			{
@@ -351,10 +374,12 @@ namespace OpenRA.Mods.Common.Widgets
 				Color fill, edge, text;
 				if (i == current && releaseOpen)
 					(fill, edge, text) = (DefconPalette.StepCurrentFill, DefconPalette.StepCurrentEdge, DefconPalette.StepCurrentText);
-				else if (i == ceiling)
+				else if (i == windowBand && releaseOpen)
 				{
-					// THE CEILING IS DRAWN AS A WALL THE LADDER CLIMBS TOWARD, which is the mockup's
-					// wording: its meaning has to be visible long before it is reached.
+					// THE RETALIATION BAND REUSES THE CEILING'S COLOURS, which is the smallest honest
+					// change: the ceiling was drawn as "a wall the ladder climbs toward" and this is
+					// the one step above the player's own that is momentarily reachable. A separate
+					// palette entry belongs with the HUD ledger pass, not here.
 					(fill, edge, text) = (DefconPalette.StepCeilingFill, DefconPalette.StepCeilingEdge, DefconPalette.StepCeilingText);
 				}
 				else if (i < current && releaseOpen)

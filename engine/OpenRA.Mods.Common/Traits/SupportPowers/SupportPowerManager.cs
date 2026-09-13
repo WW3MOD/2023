@@ -213,6 +213,7 @@ namespace OpenRA.Mods.Common.Traits
 		public SupportPowerInstance(string key, SupportPowerInfo info, SupportPowerManager manager)
 		{
 			Key = key;
+			Manager = manager;
 			bank = new SupportPowerChargeBank(info.RequiresPurchase);
 
 			// A purchased power has NO timer at all -- not a long one, none. TotalTicks 0 makes
@@ -225,12 +226,49 @@ namespace OpenRA.Mods.Common.Traits
 			// The one consumer that would divide by it already guards zero: SupportPowersWidget
 			// pins the cameo clock to its last frame when TotalTicks == 0 (SupportPowersWidget.cs:214),
 			// which draws a full circle -- the correct picture for a shot sitting in the magazine.
-			TotalTicks = info.RequiresPurchase ? 0 : info.ChargeInterval;
+			// NuclearExchange.ScaleChargeInterval is the Nuclear Posture multiplier and is the IDENTITY
+			// for everything except a nuclear MissileStrikePower in a DEFCON Escalation match -- no
+			// trait, no Escalation, or a non-nuclear power all return the interval untouched, which is
+			// what keeps every other power in every other mod byte-identical.
+			TotalTicks = info.RequiresPurchase
+				? 0
+				: NuclearExchange.ScaleChargeInterval(manager.Self.World, info, info.ChargeInterval);
 			remainingSubTicks = info.StartFullyCharged || info.RequiresPurchase ? 0 : TotalTicks * 100;
 			Name = info.Name == null ? string.Empty : FluentProvider.GetMessage(info.Name);
 			Description = info.Description == null ? string.Empty : FluentProvider.GetMessage(info.Description);
+		}
 
-			Manager = manager;
+		/// <summary>
+		/// <para>Make this power fireable NOW, by whichever route it actually uses. Returns true once it
+		/// is ready.</para>
+		///
+		/// <para>WHY THIS IS NOT "ResetTimer BACKWARDS". Two shapes, and the caller must not have to know
+		/// which one it is holding:</para>
+		///
+		/// <para>A TIMER power gets its countdown zeroed. That is needed rather than merely convenient,
+		/// because a power gated off by RequiresCondition does not accumulate charge at all — Tick
+		/// assigns `remainingSubTicks = TotalTicks * 100` on every tick it is disabled — so a band
+		/// that has been dark all match starts a FULL ChargeInterval the moment it is granted.</para>
+		///
+		/// <para>A PURCHASED power has no timer to zero (TotalTicks is pinned at 0) and is ready only when
+		/// a shot is banked, so it is granted one — AND ONLY WHEN THE BANK IS EMPTY. Topping up to a
+		/// single shot rather than adding one is what stops a repeated grant stockpiling warheads the
+		/// player never paid for.</para>
+		///
+		/// <para>Its one caller is <see cref="NuclearExchange"/>, which uses it for the retaliation
+		/// window's "ready the instant the window opens"; see that file's header.</para>
+		/// </summary>
+		public bool MakeFireReady()
+		{
+			if (bank.Enabled && bank.Charges == 0)
+				bank.Grant(1);
+
+			remainingSubTicks = 0;
+
+			// notifiedReady is deliberately left alone. If the power was already charged it has
+			// already said so, and re-firing Charged() would repeat the speech notification for a
+			// readiness the player never lost.
+			return true;
 		}
 
 		public virtual void PrerequisitesAvailable(bool available)

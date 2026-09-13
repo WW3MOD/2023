@@ -80,7 +80,7 @@ namespace OpenRA.Test
 			Assert.That(DefconReadoutModel.RuleLine(DefconEscalationState.NoLevel), Is.Null);
 			Assert.That(DefconReadoutModel.ShowsClock(DefconGameMode.Skirmish, DefconEscalationState.NoLevel), Is.False);
 			Assert.That(DefconReadoutModel.ShowsTrigger(DefconGameMode.Skirmish, DefconEscalationState.NoLevel), Is.False);
-			Assert.That(DefconReadoutModel.ShowsNuclear(DefconGameMode.Skirmish, DefconEscalationState.NoLevel, (int)NuclearRung.GameEnder, true), Is.False);
+			Assert.That(DefconReadoutModel.ShowsNuclear(DefconGameMode.Skirmish, DefconEscalationState.NoLevel, true), Is.False);
 
 			for (var level = DefconEscalationState.Floor; level <= DefconEscalationState.Ceiling; level++)
 				Assert.That(DefconReadoutModel.IsVisible(level), Is.True, $"DEFCON {level} is not drawn at all.");
@@ -163,27 +163,52 @@ namespace OpenRA.Test
 		[Test]
 		public void TheNuclearReadoutAppearsWhenTheGateMattersAndNotBefore()
 		{
-			const int Ceiling = (int)NuclearRung.GameEnder;
-
-			// The ten-minute wait this whole readout exists to explain: at DEFCON 1 with the ladder
+			// The ten-minute wait this whole readout exists to explain: at DEFCON 1 with the gate
 			// still shut, the countdown is running and the block MUST be on screen.
-			Assert.That(DefconReadoutModel.ShowsNuclear(DefconGameMode.Escalation, DefconEscalationState.Floor, Ceiling, false), Is.True);
+			Assert.That(DefconReadoutModel.ShowsNuclear(DefconGameMode.Escalation, DefconEscalationState.Floor, false), Is.True);
 
-			// Above DEFCON 1 the gate is not counting at all -- NuclearReleaseLadder.Tick returns early
+			// Above DEFCON 1 the gate is not counting at all -- NuclearReleaseGate.Tick returns early
 			// at any other level, so TicksUntilRelease sits at the full delay. A frozen clock is worse
 			// than no clock.
-			Assert.That(DefconReadoutModel.ShowsNuclear(DefconGameMode.Escalation, 3, Ceiling, false), Is.False);
-			Assert.That(DefconReadoutModel.ShowsNuclear(DefconGameMode.Escalation, 2, Ceiling, false), Is.False);
+			Assert.That(DefconReadoutModel.ShowsNuclear(DefconGameMode.Escalation, 3, false), Is.False);
+			Assert.That(DefconReadoutModel.ShowsNuclear(DefconGameMode.Escalation, 2, false), Is.False);
 
 			// Once open it stays up whatever the level says.
-			Assert.That(DefconReadoutModel.ShowsNuclear(DefconGameMode.Escalation, DefconEscalationState.Floor, Ceiling, true), Is.True);
+			Assert.That(DefconReadoutModel.ShowsNuclear(DefconGameMode.Escalation, DefconEscalationState.Floor, true), Is.True);
 
-			// A HOLD ceiling is the host saying "no nuclear weapons this match".
-			Assert.That(DefconReadoutModel.ShowsNuclear(DefconGameMode.Escalation, DefconEscalationState.Floor, (int)NuclearRung.Hold, true), Is.False);
+			// THE CEILING CASE IS GONE. `nuclear-ceiling` is dropped by the 2026-09-13 ruling, so a
+			// host can no longer say "no nuclear weapons this match" and there is no permanently-empty
+			// block left to suppress.
 
-			// Skirmish and Sandbox are both pinned wide open, so there is no ladder to draw.
-			Assert.That(DefconReadoutModel.ShowsNuclear(DefconGameMode.Skirmish, DefconEscalationState.Floor, Ceiling, true), Is.False);
-			Assert.That(DefconReadoutModel.ShowsNuclear(DefconGameMode.Sandbox, DefconEscalationState.Floor, Ceiling, true), Is.False);
+			// Skirmish and Sandbox get their bands from NuclearUnlockClock's purchase schedule, which
+			// this block does not describe.
+			Assert.That(DefconReadoutModel.ShowsNuclear(DefconGameMode.Skirmish, DefconEscalationState.Floor, true), Is.False);
+			Assert.That(DefconReadoutModel.ShowsNuclear(DefconGameMode.Sandbox, DefconEscalationState.Floor, true), Is.False);
+		}
+
+		[Test]
+		public void TheFootLineDescribesTheExchangeRatherThanTheOldSharedLadder()
+		{
+			// THIS LINE WAS A LIE UNTIL 2026-09-13 and is the reason it is pinned. It read "Both sides
+			// are released to the same yield. Each use raises it." -- the shared pressure ladder,
+			// where firing raised BOTH sides together. Under the exchange, firing raises the OTHER
+			// side, so a player who read the old line and fired to climb handed their opponent the
+			// climb instead.
+			var shut = DefconReadoutModel.NuclearFootLine(false, false);
+			Assert.That(shut, Does.Contain("may be fired yet"));
+
+			var open = DefconReadoutModel.NuclearFootLine(true, false);
+			Assert.That(open, Does.Contain("other side"),
+				"the released line must say that firing arms the OTHER side");
+			Assert.That(open, Does.Not.Contain("Each use raises it"),
+				"the shared-ladder wording is back");
+
+			var window = DefconReadoutModel.NuclearFootLine(true, true);
+			Assert.That(window, Does.Not.EqualTo(open), "an open window must read differently from a shut one");
+			Assert.That(window, Does.Contain("window"));
+
+			foreach (var line in new[] { shut, open, window })
+				Assert.That(line, Is.Not.Null.And.Not.Empty);
 		}
 
 		[Test]

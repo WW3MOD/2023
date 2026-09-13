@@ -85,14 +85,14 @@ namespace OpenRA.Test
 		{
 			var options = ((ILobbyOptions)new DefconEscalationInfo()).LobbyOptions(null).ToArray();
 
-			// FOUR since the nuclear release ladder landed. The fourth is the ladder's CEILING --
-			// the largest warhead the match will ever permit -- and it sits on this trait rather
-			// than on a new one because it is configuration of the same mode: DefconEscalation
-			// already owns the game mode the ladder only runs inside.
+			// THREE. It was four until 2026-09-13: `nuclear-ceiling`, the largest warhead the match
+			// would ever permit, is dropped by the user's ruling ("No host ceiling") and the exchange
+			// declares its own two dropdowns on NuclearExchangeInfo instead. This trait is back to
+			// owning the ALERT LEVEL and nothing about yields.
 			Assert.That(options.Select(o => o.Id), Is.EquivalentTo(new[]
 			{
 				DefconEscalationInfo.ModeOptionId, DefconEscalationInfo.StartOptionId,
-				DefconEscalationInfo.PaceOptionId, DefconEscalationInfo.CeilingOptionId
+				DefconEscalationInfo.PaceOptionId
 			}));
 
 			// Checkbox vs dropdown is purely the C# type: a LobbyBooleanOption renders as a checkbox.
@@ -111,14 +111,41 @@ namespace OpenRA.Test
 			Assert.That(pace.Values.Keys, Is.EquivalentTo(new[] { "slow", "standard", "fast" }));
 			Assert.That(pace.DefaultValue, Is.EqualTo("standard"));
 
-			// The ceiling offers every rung INCLUDING Hold, which is the "no nuclear weapons this
-			// match" setting, and nothing above GameEnder -- the Tsar Bomba is not a rung and must
-			// never become selectable by adding one here.
-			var ceiling = options.First(o => o.Id == DefconEscalationInfo.CeilingOptionId);
-			// SIX since the 50/100 kt split of 2026-09-10 -- HOLD plus five yield rungs, where the
-			// combined "50-100 kt" entry used to be one.
-			Assert.That(ceiling.Values.Keys, Is.EquivalentTo(new[] { "hold", "kiloton", "twentykiloton", "fiftykiloton", "hundredkiloton", "gameender" }));
-			Assert.That(ceiling.DefaultValue, Is.EqualTo("gameender"));
+			// AND NOTHING NUCLEAR IS DECLARED HERE ANY MORE. Asserted rather than assumed, because
+			// the failure mode is a re-added ceiling quietly pinning the exchange shut from a lobby
+			// dropdown the model has no concept of.
+			Assert.That(options.Any(o => o.Id.Contains("nuclear")), Is.False,
+				"DefconEscalation declared a nuclear option; those belong on NuclearExchange");
+		}
+
+		[Test]
+		public void TheExchangeDeclaresThePostureAndTheRetaliationWindow()
+		{
+			var options = ((ILobbyOptions)new NuclearExchangeInfo()).LobbyOptions(null).ToArray();
+
+			Assert.That(options.Select(o => o.Id), Is.EquivalentTo(new[]
+			{
+				NuclearExchangeInfo.PostureOptionId, NuclearExchangeInfo.RetaliationWindowOptionId
+			}));
+
+			foreach (var o in options)
+			{
+				Assert.That(o, Is.Not.InstanceOf<LobbyBooleanOption>(), $"{o.Id} would render as a checkbox.");
+				Assert.That(o.Values.ContainsKey(o.DefaultValue), Is.True, $"{o.Id} defaults to a value it does not offer.");
+
+				// NEITHER IS A Placeholder, unlike the three DEFCON dropdowns: these govern behaviour
+				// that ships working the moment the trait is registered, and a live control wearing an
+				// inert label is what the 2026-09-10 mode audit called its worst single item.
+				Assert.That(o.Placeholder, Is.False, $"{o.Id} is dimmed but is live.");
+			}
+
+			var posture = options.First(o => o.Id == NuclearExchangeInfo.PostureOptionId);
+			Assert.That(posture.Values.Keys, Is.EquivalentTo(new[] { "limited", "flexible", "massive" }));
+			Assert.That(posture.DefaultValue, Is.EqualTo("flexible"), "Flexible is the identity multiplier and must be the default.");
+
+			var window = options.First(o => o.Id == NuclearExchangeInfo.RetaliationWindowOptionId);
+			Assert.That(window.Values.Keys, Is.EquivalentTo(new[] { "1", "2", "3", "5", "10" }));
+			Assert.That(window.DefaultValue, Is.EqualTo("3"));
 		}
 
 		[Test]

@@ -1,0 +1,67 @@
+# The nuclear exchange autotest's overrides.
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so each player's HomeLocation falls back to the pinned PlayerReference value rather
+	# than a spawn assignment -- which is what fixes the two SIDES on this map.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-nuclear-exchange.lua
+
+	# THE MODE. Escalation rather than the shipped Skirmish default: outside Escalation the bands
+	# come from NuclearUnlockClock's purchase schedule instead and this whole feature is a no-op.
+	#
+	# STARTS AT DEFCON 1 with a ten-tick first-warheads delay. The release gate is not what is under
+	# test -- NuclearReleaseLadderTest covers it without a world -- and the shipped 10000-tick delay
+	# is ten real minutes of nothing.
+	DefconEscalation:
+		ModeDefault: Escalation
+		StartAtDefault: 1
+		NuclearReleaseDelayTicks: 10
+		MarkAsPlaceholder: False
+
+	# ONE MINUTE = 1000 ticks. The shortest value the dropdown offers, so this is a shipped setting
+	# and not a test-only door -- RulesetLoaded refuses a default that is not in the options list.
+	NuclearExchange:
+		RetaliationWindowDefault: 1
+
+	# Both halves of the arsenal gate. `nuclear-arsenal` is the host's checkbox over all thirteen
+	# warheads; `powers-sandbox` is what provides the `powers.event` prerequisite that no faction
+	# does. LOCKED so no lobby default or saved session can move either out from under the run.
+	#
+	# NOTE THAT powers-sandbox IS NOT DefconGameMode.Sandbox. They are different mechanisms with
+	# similar names: this checkbox supplies prerequisites, while the GAME MODE above is what decides
+	# whether the exchange runs at all. Turning this on does NOT grant nuclear-release-unrestricted
+	# and does NOT put the Tsar Bomba in play here.
+	PowersLobbyOptions:
+		NuclearArsenalCheckboxEnabled: true
+		NuclearArsenalCheckboxLocked: true
+		PowersSandboxCheckboxEnabled: true
+		PowersSandboxCheckboxLocked: true
+
+Player:
+	# The warheads land on empty ground, but a 15c0 blast wave on a 64x32 playfield reaches most of
+	# it. Removed so an elimination cannot end the match before the poller writes a verdict.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored, so nothing the poller reads is a visibility artefact.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# NO CASH, DELIBERATELY. Every nuclear power in the mod is RequiresPurchase, so a player with
+	# money could BUY the shot this scenario asserts was GRANTED -- and the run would pass with the
+	# retaliation grant completely unwired. Zero credits is what makes 'ready' mean "the exchange
+	# loaded it".
+	PlayerResources:
+		DefaultCash: 0
+
+# Nothing initiates on its own: the scenario issues every order it measures.
+^Combatant:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+		InitialEngagementStance: HoldPosition
+		InitialEngagementStanceAI: HoldPosition

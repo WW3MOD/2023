@@ -260,27 +260,30 @@ namespace OpenRA.Mods.Common.Traits
 			// notification is a bug the player hears rather than a bigger event.
 			PlayLaunchSounds();
 
-			// THE DETONATION EVENT, and "once per RELEASE ORDER" is the whole of the choice.
+			// THE LAUNCH EVENT, and "once per RELEASE ORDER" is the whole of the choice.
 			//
 			// It sits here rather than in a warhead deliberately, and the Sarmat is why: that power
 			// flies SIX independently-aimed 750 kt re-entry vehicles, each with its own Explodes
-			// payload. Counted at warhead impact, one click would double the shared pressure six
-			// times over -- 64x for a single order -- and walk the ladder from its bottom rung to
-			// its ceiling in one activation. One decision to release is one rung, which is also the
-			// reading that matches the user's "doubling per use".
+			// payload. Counted at warhead impact, one click would arm the other side six times over
+			// and restart their retaliation window six times. One decision to release is one report.
 			//
-			// It also has to be here for the GATE to mean anything. Pressure read at impact would
-			// leave the whole flight time as a window in which further orders are still measured
-			// against the old rung, so a player could empty a magazine at one rung before the first
-			// warhead landed. Moving on the order closes that: SupportPowerInstance.Permitted is
-			// recomputed every tick from instancesEnabled (SupportPowerManager.cs:246), so the new
-			// rung reaches every cameo and every buy-tab entry on the tick after the click.
+			// It also has to be here for the RETALIATION WINDOW to mean anything. Read at impact, the
+			// whole flight time would be a window in which the victim is not yet armed -- so a player
+			// could empty a magazine before the first warhead landed and the reply would open late by
+			// however long the missiles were in the air. Reporting on the order closes that:
+			// SupportPowerInstance.Permitted is recomputed every tick from instancesEnabled
+			// (SupportPowerManager.cs:246), so the new band reaches every cameo and every buy-tab
+			// entry on the tick after the click.
 			//
-			// TraitOrDefault, not Trait: a scenario or map that strips DefconEscalation from the
+			// TraitOrDefault, not Trait: a scenario or map that strips NuclearExchange from the
 			// World actor must leave this inert rather than throw. Same rule as
 			// DefconCasualtyObserver.Created.
+			//
+			// MOVED OFF DefconEscalation ON 2026-09-13 with the shared pressure ladder it fed. The
+			// receiver is per SIDE now, but the contract at this call site is unchanged: one launch
+			// order, one report, whatever the salvo carries.
 			if (info.NuclearYieldTons > 0)
-				self.World.WorldActor.TraitOrDefault<DefconEscalation>()?.ReportNuclearRelease(self.Owner, info.NuclearYieldTons);
+				self.World.WorldActor.TraitOrDefault<NuclearExchange>()?.ReportNuclearRelease(self.Owner, info.NuclearYieldTons);
 
 			var aimPoints = ResolveAimPoints(self.World, order);
 

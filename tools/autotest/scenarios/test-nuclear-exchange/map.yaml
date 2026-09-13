@@ -1,0 +1,94 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: firing arms the other side, and the retaliation window lapses
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES: the two edges of the 2026-09-13 nuclear exchange ruling that nothing else in
+# the tree can see, both read off the SUPPORT POWER BIN rather than off any new binding.
+#
+#   PARITY  -- USA fires 1 kt; Russia's 20 kt power must become READY, and USA's own 20 kt power
+#              must NOT. Under decision 06's shared pressure ladder both would have opened
+#              together, so this single pair of readings is what separates the two models.
+#   WINDOW  -- that 20 kt grant is TIME-BOXED. One minute later it must be gone from Russia's bin
+#              again, with Russia's 1 kt power still there: the parity is permanent, the window is
+#              not.
+#
+# WHY THE BIN AND NOT A TRAIT READ. Test.GetSupportPowerState reads SupportPowerInstance.Disabled,
+# which is the same predicate SupportPowersWidget filters its icon list on
+# (SupportPowersWidget.cs:136) — so 'ready' here means a player would see a cameo they could click,
+# which is the thing the ruling is actually about. It also folds in the half of the feature a state
+# read would miss: every nuclear power in the mod is RequiresPurchase, so a band that is merely
+# PERMITTED is a shop entry and a bill. 'ready' means the window handed over a loaded warhead.
+#
+# ONE MINUTE, NOT THREE. rules.yaml sets RetaliationWindowDefault: 1 — the shortest value the
+# dropdown offers, so this is a shipped setting rather than a test-only door. 1 minute is 1000 ticks
+# at the mod's 60 ms timestep (NuclearUnlockSchedule.TicksForMinutes multiplies before dividing:
+# 1 * 60 * 1000 / 60 = 1000, NOT the 960 that `minutes * 60 * (1000 / timestep)` produces).
+#
+# THE MATCH STARTS AT DEFCON 1 with a 10-tick first-warheads delay, because the release gate is not
+# what is under test here and ten real minutes of DEFCON 3 would be ten minutes of nothing.
+#
+# NO VICTIM ACTOR AND NOTHING IS AIMED AT ANYTHING THAT MATTERS. The exchange arms the other side
+# "wherever it lands" — there is no damage attribution in this model, which is exactly what
+# decision 01 rejected from decision 14 — so the aim point is deliberately empty ground. A scenario
+# that shot something would be asserting a rule this model does not have.
+#
+# BOTH SUPPLY ROUTES SURVIVE whatever lands, and that is the target-type table rather than the
+# distance: SUPPLYROUTE carries `Targetable.TargetTypes: NoAutoTarget`, which no Atomic warhead
+# lists. Do NOT "fix" a future version of this by moving them further apart.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 6,17
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 58,17
+
+Actors:
+	# One Supply Route per side so neither faction is eliminated before the poller writes a verdict
+	# (AUTOTEST.md map.yaml rule 6).
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 6,17
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 58,17
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+Rules: rules.yaml

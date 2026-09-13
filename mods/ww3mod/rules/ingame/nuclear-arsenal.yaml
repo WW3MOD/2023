@@ -85,9 +85,11 @@ Player:
 	MissileStrikePower@B61Low:
 		# TWO GATES, AND THEY ANSWER DIFFERENT QUESTIONS. `!nuke-arsenal-disabled` is the host's
 		# lobby checkbox -- "does this arsenal exist in this match at all" -- and is unchanged.
-		# `nuclear-release-1kt` is the RELEASE LADDER: the match's shared pressure counter has
-		# opened the 1 kt band. Outside DEFCON Escalation every band is granted on the first tick,
-		# so this conjunct is inert in Skirmish and Sandbox and the power behaves exactly as before.
+		# `nuclear-release-1kt` is the BAND GATE: this player's side holds the 1 kt band. In DEFCON
+		# Escalation that comes from NuclearExchange -- released for both sides at the first-warheads
+		# clock, then raised by BEING FIRED AT. Outside Escalation it comes from NuclearUnlockClock's
+		# purchase schedule instead (1 kt ten minutes in on the shipped default), NOT from a blanket
+		# first-tick grant -- that was true until 2026-09-09 and this comment outlived it.
 		# 0.3 kt is the smallest warhead in the mod and sits on the ladder's bottom rung.
 		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-1kt
 		# 300 t = 0.3 kt (weapons-nuclear-arsenal.yaml:214). TONS, not kilotons -- 0.3 kt is not an

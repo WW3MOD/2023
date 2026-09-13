@@ -42,6 +42,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
+using OpenRA.Mods.Common.Traits;
 
 namespace OpenRA.Test
 {
@@ -72,6 +73,10 @@ namespace OpenRA.Test
 			public bool RequiresPurchase;
 			public string Tier;
 			public string Proxy;
+
+			/// <summary>Tons of TNT, 0 for a conventional power. Only a NUCLEAR power can be loaded
+			/// by the DEFCON Escalation exchange rather than bought — see <see cref="LoadedByTheExchange"/>.</summary>
+			public int NuclearTons;
 		}
 
 		/// <summary>
@@ -110,6 +115,7 @@ namespace OpenRA.Test
 						{
 							Order = order,
 							RequiresPurchase = string.Equals(Field(trait, "RequiresPurchase"), "True", StringComparison.OrdinalIgnoreCase),
+							NuclearTons = int.TryParse(Field(trait, "NuclearYieldTons"), out var tons) ? tons : 0,
 						};
 					}
 
@@ -295,6 +301,35 @@ namespace OpenRA.Test
 			return over != null && string.Equals(Field(over, "RequiresPurchase"), "False", StringComparison.OrdinalIgnoreCase);
 		}
 
+		/// <summary>
+		/// <para>Is this scenario's shot loaded by the DEFCON Escalation nuclear exchange rather than
+		/// bought? If so it needs neither a proxy nor cash, and DefaultCash 0 is LOAD-BEARING rather
+		/// than a bug — it is what makes a 'ready' reading mean the exchange loaded the warhead.</para>
+		///
+		/// <para>ADDED 2026-09-13 WITH A SECOND CALLER OF THE BANK. Until then
+		/// SupportPowerProductionQueue.BuildUnit was the only thing in the engine that could load a
+		/// purchased power, which is what the sibling assertion below asserts in so many words.
+		/// <see cref="NuclearExchange"/> now loads the retaliation window's tier through
+		/// SupportPowerInstance.MakeFireReady, because the ruling requires that tier to be ready the
+		/// INSTANT the window opens and a purchase is a shop visit and a bill.</para>
+		///
+		/// <para>DELIBERATELY NARROW, on both axes. The scenario must run in
+		/// <see cref="DefconGameMode.Escalation"/> — the exchange is a strict no-op in Skirmish and
+		/// Sandbox, where a scenario firing a bought power really must buy it — AND the power must
+		/// carry a yield, because the exchange only ever loads bands and never a conventional
+		/// power.</para>
+		/// </summary>
+		static bool LoadedByTheExchange(Scenario s, Power power)
+		{
+			if (power.NuclearTons <= 0)
+				return false;
+
+			var world = s.Rules.FirstOrDefault(n => n.Key == "World");
+			var escalation = world?.Value.Nodes.FirstOrDefault(n => n.Key.Split('@')[0] == "DefconEscalation");
+			return escalation != null
+				&& string.Equals(Field(escalation, "ModeDefault"), nameof(DefconGameMode.Escalation), StringComparison.OrdinalIgnoreCase);
+		}
+
 		static int DefaultCash(Scenario s)
 		{
 			var player = s.Rules.FirstOrDefault(n => n.Key == "Player");
@@ -404,6 +439,11 @@ namespace OpenRA.Test
 					if (OptedOut(s, traitKeys.TryGetValue(power.Order, out var tk) ? tk : null))
 						continue;
 
+					// The exchange loads it; neither a proxy nor cash is required, and zero cash is
+					// the point rather than an oversight. See LoadedByTheExchange.
+					if (LoadedByTheExchange(s, power))
+						continue;
+
 					if (power.Proxy == null)
 					{
 						offenders.Add(s.Name + ": fires " + key + ", which is purchased and has NO proxy in rules/powers.yaml");
@@ -421,11 +461,15 @@ namespace OpenRA.Test
 
 			Assert.That(offenders, Is.Empty,
 				"a scenario fires a support power it has no way to obtain. Every shipped power " +
-				"carries RequiresPurchase: True, and GrantCharge has exactly one caller in the " +
-				"engine (SupportPowerProductionQueue.BuildUnit), so the ONLY way to load a shot is " +
-				"to buy the proxy actor named by ProvidesSupportPowerCharge. The scenario needs " +
-				"cash in PlayerResources.DefaultCash, a call to TestHarness.EnsurePower naming the " +
-				"proxy, and normally a short BuildDuration override on it.\n  " +
+				"carries RequiresPurchase: True, and outside DEFCON Escalation the ONLY way to load " +
+				"a shot is to buy the proxy actor named by ProvidesSupportPowerCharge " +
+				"(SupportPowerProductionQueue.BuildUnit). The scenario needs cash in " +
+				"PlayerResources.DefaultCash, a call to TestHarness.EnsurePower naming the proxy, " +
+				"and normally a short BuildDuration override on it.\n  " +
+				"THE ONE EXCEPTION is a NUCLEAR power in a scenario that sets " +
+				"`DefconEscalation: ModeDefault: Escalation`: NuclearExchange loads the retaliation " +
+				"window's tier itself through SupportPowerInstance.MakeFireReady, so such a scenario " +
+				"needs neither proxy nor cash and is exempt here.\n  " +
 				string.Join("\n  ", offenders));
 		}
 

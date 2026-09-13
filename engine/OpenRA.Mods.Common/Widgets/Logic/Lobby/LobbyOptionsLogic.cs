@@ -103,11 +103,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			Session.SyncReportsOptionId,
 			// How the match ends, and what it ends with.
 			DoomsdayStrikeInfo.DoomsdayOptionId,
-			// The DEFCON feature, all four dropdowns of it.
+			// The DEFCON feature. `nuclear-ceiling` was the fourth and is dropped by the 2026-09-13
+			// ruling; the exchange's two dropdowns take its place.
 			DefconEscalationInfo.ModeOptionId,
 			DefconEscalationInfo.StartOptionId,
 			DefconEscalationInfo.PaceOptionId,
-			DefconEscalationInfo.CeilingOptionId,
+			NuclearExchangeInfo.PostureOptionId,
+			NuclearExchangeInfo.RetaliationWindowOptionId,
 			// Which weapons this match permits — the question most worth being able to
 			// re-read once the shooting starts.
 			"tactical-nuke", "high-yield-nuke", "nuclear-arsenal", "powers-sandbox",
@@ -138,7 +140,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		// ONE section list, shared by every category. Sections render in the declared order and
 		// each is named for the QUESTION a host is answering, not for the trait that happens to
-		// own the options in it — which is why the four DEFCON dropdowns are together (they were
+		// own the options in it — which is why the DEFCON dropdowns and the exchange's are together (they were
 		// split across "Game Rules" and "Other"), and why the Doomsday Clock and the Doomsday
 		// checkbox are together (they are one feature: the dropdown sets WHEN the match ends,
 		// the checkbox sets WHAT HAPPENS then, and the checkbox does nothing at all while the
@@ -146,7 +148,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		//
 		// Any option not listed in OptionSection still ends up in the implicit "Other" section
 		// at the bottom — that fallback is a safety net, not a home. It is how `nuclear-ceiling`
-		// came to be stranded there alone.
+		// came to be stranded there alone, before that option was dropped entirely.
 		const string SectionMatch = "Match";
 		const string SectionEscalation = "Escalation";
 		const string SectionArsenal = "Arsenal";
@@ -189,12 +191,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{ "timelimit", SectionMatch },
 			{ DoomsdayStrikeInfo.DoomsdayOptionId, SectionMatch },
 
-			// Escalation — the DEFCON feature. All four dropdowns live on one trait
-			// (DefconEscalation); the ceiling used to be missing from this map entirely.
+			// Escalation — the DEFCON feature and the nuclear exchange it runs. TWO TRAITS, ONE
+			// SECTION: a host reading this panel is answering "how does this match escalate?", and
+			// which trait declares which dropdown is not a question they are asking.
 			{ DefconEscalationInfo.ModeOptionId, SectionEscalation },
 			{ DefconEscalationInfo.StartOptionId, SectionEscalation },
 			{ DefconEscalationInfo.PaceOptionId, SectionEscalation },
-			{ DefconEscalationInfo.CeilingOptionId, SectionEscalation },
+			{ NuclearExchangeInfo.PostureOptionId, SectionEscalation },
+			{ NuclearExchangeInfo.RetaliationWindowOptionId, SectionEscalation },
 
 			// Arsenal — which weapons this match permits, in ascending yield. TWO of these four
 			// now render: `nuclear-arsenal` is hidden at the trait (world.yaml,
@@ -617,7 +621,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				dropdown.IsVisible = () => true;
 
 				// Same rule as the checkbox above, and this is the site that is actually reachable
-				// today: the four DEFCON dropdowns are placeholders in a section deliberately
+				// today: the three DEFCON dropdowns are placeholders in a section deliberately
 				// exempt from SuppressWhenAllPlaceholder, so they render and were fully clickable.
 				dropdown.IsDisabled = () => option.Placeholder || configurationDisabled() ||
 					optionValue.Update(orderManager.LobbyInfo.GlobalSettings).IsLocked;
