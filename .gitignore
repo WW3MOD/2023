@@ -75,3 +75,8 @@ shadows.bin
 # ad-hoc runs. Useful locally, never worth committing -- five of them had
 # accumulated untracked before 2026-09-08.
 /*.log
+
+# Same transcripts, but captured into WORKSPACE/ instead of the repo root.
+# gate-557c38d7.log was 24 MB of merge-gate output for an already-merged
+# commit; the gate's verdict belongs in the commit message, not the packfile.
+/WORKSPACE/gate-*.log
