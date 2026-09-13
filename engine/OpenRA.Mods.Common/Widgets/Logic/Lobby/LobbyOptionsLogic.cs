@@ -117,11 +117,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			// Which weapons this match permits — the question most worth being able to
 			// re-read once the shooting starts.
 			"tactical-nuke", "high-yield-nuke", "nuclear-arsenal", "powers-sandbox",
+			// And WHICH TIERS may be bought at all. These four replaced the single
+			// `nuclear-highest-yield` cap dropdown (decision 02) — a host can now switch off one
+			// tier and leave the ones above and below it on, which no cap could express.
+			NuclearUnlockClockInfo.KilotonPurchasableOptionId,
+			NuclearUnlockClockInfo.TwentyKilotonPurchasableOptionId,
+			NuclearUnlockClockInfo.FiftyKilotonPurchasableOptionId,
+			NuclearUnlockClockInfo.HundredKilotonPurchasableOptionId,
 			// And WHEN they come up for sale. Both belong here for the same reason as the line
 			// above and rather more sharply: a player who has just been told a tier is not
 			// purchasable yet wants to check how long the wait is without leaving the match.
 			NuclearUnlockClockInfo.IntervalOptionId,
-			NuclearUnlockClockInfo.HighestYieldOptionId,
 		};
 
 		// Options never shown in the lobby (deliberately removed from WW3MOD).
@@ -222,10 +228,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			// The Skirmish unlock clock. In Arsenal rather than Escalation or Match because it
 			// answers the same question the four above do — what this match will let a player have
 			// — and because it is meaningless in Escalation, where nothing is purchasable at all.
-			// These two are NOT placeholders: they govern behaviour from the moment the trait is
-			// registered, so they render live where the DEFCON four render dimmed.
+			// None of these is a placeholder: they govern behaviour from the moment the trait is
+			// registered.
 			{ NuclearUnlockClockInfo.IntervalOptionId, SectionArsenal },
-			{ NuclearUnlockClockInfo.HighestYieldOptionId, SectionArsenal },
+			{ NuclearUnlockClockInfo.KilotonPurchasableOptionId, SectionArsenal },
+			{ NuclearUnlockClockInfo.TwentyKilotonPurchasableOptionId, SectionArsenal },
+			{ NuclearUnlockClockInfo.FiftyKilotonPurchasableOptionId, SectionArsenal },
+			{ NuclearUnlockClockInfo.HundredKilotonPurchasableOptionId, SectionArsenal },
 
 			// Economy — the budget you fight the war on.
 			{ "startingcash", SectionEconomy },
