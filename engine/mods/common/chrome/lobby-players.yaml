@@ -868,6 +868,19 @@ Container@LOBBY_PLAYER_BIN:
 					# Everything above the pinned bottom block: 1033 tall @1440,
 					# 731 @1080, 469 @768 (was 241 / 155 / 80 when the panel was
 					# 3/5 of a 2/5 quadrant — i.e. 24% of the column).
+					#
+					# THIS VIEWPORT IS THE BUDGET THE MAP SLOT BELOW IS SIZED
+					# AGAINST. At 1440x900 it is 580px, and the content that MUST
+					# fit inside it without scrolling is fixed-height and adds up:
+					# scenario 32 + OPTIONS header 56 + timeline 112 + the Match
+					# section 128 (header 36 + one dropdown row 54 + one checkbox
+					# row 38) + the Escalation section 90 (header 36 + one dropdown
+					# row 54, because four dropdowns fill the 4-column grid exactly)
+					# = 418. Whatever is left is the map preview's, which is why
+					# that slot is a SMALL fraction and not a large one. See
+					# MAP_PREVIEW_ROOT, and LobbyTimelineChromeTest, which evaluates
+					# these same expressions at 900 and fails if the sum stops
+					# fitting.
 					Height: PARENT_HEIGHT - PARENT_HEIGHT * 4 / 25 - 12
 					Background: ""
 					ScrollBar: Right
@@ -883,24 +896,48 @@ Container@LOBBY_PLAYER_BIN:
 					#
 					# Heights are keyed off WINDOW_HEIGHT, not PARENT_HEIGHT: the map
 					# slot must stay pixel-identical to MAP_BROWSE_ROOT, which is a
-					# lobby-root overlay sized from (WINDOW_HEIGHT - 196) * 3 / 5 - 40.
+					# lobby-root overlay sized from (WINDOW_HEIGHT - 196) / 4 - 40.
 					Children:
 						# Map preview host. Full-bleed to the scrollbar track (the
 						# column's other content keeps a 16px inset; the preview
 						# never did and still doesn't). LobbyLogic loads MAP_PREVIEW
 						# into this AFTER LOBBY_PLAYER_BIN exists.
+						#
+						# A QUARTER, NOT THREE FIFTHS (2026-09-13). The slot used to
+						# take 3/5 of the column and it STARVED THE THING THE COLUMN
+						# IS FOR: at 1440x900 the preview was 382px, which put
+						# LOBBY_OPTIONS at Y 582 inside a 580px viewport — the option
+						# grid began two pixels BELOW the fold, so a host opening the
+						# lobby saw the timeline and no controls at all. It was not
+						# merely a short window problem: at 1440x1500 the ESCALATION
+						# header was still the last thing on screen, clipped, because
+						# the preview grows with the window and the grid does not.
+						#
+						# The fraction is the whole mechanism. Everything below this
+						# slot is FIXED height, so a preview sized as a fraction of
+						# the window always wins the argument at small sizes. A
+						# quarter leaves 136px at 900 against the 418px the content
+						# below needs, inside a 580px viewport — 26px of slack. Do
+						# not raise it back without re-running that arithmetic; the
+						# comment on COMMON_OPTIONS_PANEL above has the terms.
+						#
+						# MAP_BROWSE_ROOT (lobby.yaml) MUST CARRY THE IDENTICAL
+						# EXPRESSION. It is a lobby-root overlay that covers this slot
+						# when the CHANGE MAP tab is active; if the two disagree the
+						# map browser is drawn over the option grid, or stops short of
+						# the preview it is meant to replace.
 						Container@MAP_PREVIEW_ROOT:
 							X: 0
 							Y: 0
 							Width: PARENT_WIDTH - 28
-							Height: (WINDOW_HEIGHT - 196) * 3 / 5 - 40
+							Height: (WINDOW_HEIGHT - 196) / 4 - 40
 						# Scenario picker sits flush under the map footer, inside the
 						# scroll: it describes THIS map, so it belongs with the map
 						# and scrolls away with it. 16px inset, 4px clear of the
 						# scrollbar track (PARENT_WIDTH - 16 - 24 - 4).
 						DropDownButton@SCENARIO_DROPDOWNBUTTON:
 							X: 16
-							Y: (WINDOW_HEIGHT - 196) * 3 / 5 - 40
+							Y: (WINDOW_HEIGHT - 196) / 4 - 40
 							Width: PARENT_WIDTH - 44
 							Height: 32
 							Font: Bold
@@ -910,7 +947,7 @@ Container@LOBBY_PLAYER_BIN:
 						# Map bottom + 32 (scenario) + 8 (gap) + 12 = +12 net.
 						Label@CELL_LABEL:
 							X: 16
-							Y: (WINDOW_HEIGHT - 196) * 3 / 5 + 12
+							Y: (WINDOW_HEIGHT - 196) / 4 + 12
 							Width: PARENT_WIDTH - 44
 							Height: 16
 							Font: TinyBold
@@ -919,16 +956,18 @@ Container@LOBBY_PLAYER_BIN:
 							TextColor: B4B4B4
 						ColorBlock@CELL_LABEL_ACCENT:
 							X: 16
-							Y: (WINDOW_HEIGHT - 196) * 3 / 5 + 30
+							Y: (WINDOW_HEIGHT - 196) / 4 + 30
 							Width: 28
 							Height: 2
 							Color: B4B4B4FF
 						Label@CATEGORY_FILTER:
 							Visible: False
 							Text: All
-						# === THE MATCH TIMELINE — one bar for the whole match, with
-						# draggable markers, replacing dropdowns a host had to combine
-						# mentally. Sibling of LOBBY_OPTIONS, NOT a child of it:
+						# === THE MATCH TIMELINE — one bar showing how long each phase
+						# of the match runs. READ-ONLY: it had draggable markers until
+						# 2026-09-13, when the dropdowns below became the source of
+						# truth and this became an overview of what they say.
+						# Sibling of LOBBY_OPTIONS, NOT a child of it:
 						# LobbyOptionsLogic.RebuildOptions calls RemoveChildren() on
 						# that container every rebuild, so anything parented there is
 						# destroyed the first time the map changes.
@@ -949,11 +988,11 @@ Container@LOBBY_PLAYER_BIN:
 						Timeline@MATCH_TIMELINE:
 							Logic: LobbyTimelineLogic
 							X: 16
-							Y: (WINDOW_HEIGHT - 196) * 3 / 5 + 48
+							Y: (WINDOW_HEIGHT - 196) / 4 + 48
 							Width: PARENT_WIDTH - 44
 							Height: 112
 						Container@LOBBY_OPTIONS:
-							Y: (WINDOW_HEIGHT - 196) * 3 / 5 + 160
+							Y: (WINDOW_HEIGHT - 196) / 4 + 160
 							Width: PARENT_WIDTH
 							Children:
 								# === Spacing pass — section header matches the quadrant
