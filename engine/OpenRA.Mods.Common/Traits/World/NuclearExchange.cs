@@ -51,7 +51,7 @@
  *      would therefore hand the victim a shop entry and a bill, not a reply.
  *
  * So a grant does whichever of the two the power in front of it actually uses -- see
- * SupportPowerInstance.MakeFireReady. For a purchased power it banks ONE shot AND ONLY WHEN THE
+ * SupportPowerInstance.MakeReady. For a purchased power it banks ONE shot AND ONLY WHEN THE
  * BANK IS EMPTY, so repeated hits top the victim up to a single loaded warhead rather than
  * stockpiling them.
  *
@@ -65,7 +65,7 @@
  * ==== DETERMINISM ====
  * Integer arithmetic, no RNG, no wall-clock. Every enumeration is ordered: sides in registration
  * order (NuclearExchangeState.Sides), players in world.Players order, and a player's support powers
- * by ordinal key. The one write that leaves this trait -- MakeFireReady -- runs from ITick on the
+ * by ordinal key. The one write that leaves this trait -- MakeReady -- runs from ITick on the
  * World actor, which every client ticks identically, and from ReportLaunch, which is reached only
  * through SupportPowerManager.ResolveOrder and is therefore on the synced order-resolution path
  * (the argument DefconEscalation.ReportNuclearRelease used to carry, unchanged by the move).
@@ -533,8 +533,14 @@ namespace OpenRA.Mods.Common.Traits
 				if (!instance.Permitted)
 					continue;
 
-				if (instance.MakeFireReady())
-					any = true;
+				// MakeReady is wt/deadhand-window's, and this branch's near-identical MakeFireReady
+				// was deleted at that merge rather than kept beside it. Theirs is the superset: it
+				// also clears prereqsAvailable, which is a no-op HERE because the Permitted test
+				// above already folds that in, and is what its own caller needs. It returns void
+				// where mine returned a bool that was unconditionally true and therefore told a
+				// caller nothing.
+				instance.MakeReady();
+				any = true;
 			}
 
 			return any;

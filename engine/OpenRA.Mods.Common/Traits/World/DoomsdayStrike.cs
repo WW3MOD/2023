@@ -26,11 +26,21 @@ namespace OpenRA.Mods.Common.Traits
 		"nobody on the map ordered and nobody can stop.",
 		"",
 		"THE SEQUENCE, in order, and each stage is separately tunable:",
-		"  1. The clock hits zero. Statistics freeze on that exact tick, before anything is launched.",
-		"  2. A tight wave of TACTICAL warheads on the point targets: oil derricks and Supply Routes.",
-		"  3. A deliberate pause, long enough to read as 'it is over'.",
-		"  4. A wave of STRATEGIC warheads on the population centres.",
-		"  5. Everything still alive is destroyed, and the winner is resolved from the FROZEN score.",
+		"  1. THE FINAL EXCHANGE OPENS. Statistics freeze on that exact tick, before anything is",
+		"     launched, the map comes out of the fog, and every surviving side is handed its",
+		"     game-enders, fire-ready, for " + nameof(DoomsdayStrikeInfo.FinalExchangeWindowTicks) + ". Players place their own aim points with",
+		"     the ordinary targeting UI; a side that places nothing loses nothing by it.",
+		"  2. AT ZERO Dead Hand places the rest. Anything a side did not aim is aimed by the",
+		"     machine, from the same target list the salvo has always used.",
+		"  3. A tight wave of TACTICAL warheads on the point targets: oil derricks and Supply Routes.",
+		"  4. A deliberate pause, long enough to read as 'it is over'.",
+		"  5. A wave of STRATEGIC warheads on the population centres.",
+		"  6. Everything still alive is destroyed, and the winner is resolved from the FROZEN score.",
+		"",
+		"TWO WAYS IN, ONE ENDING (user ruling, 2026-09-13): the Time Limit reaching zero with this",
+		"checkbox ticked, or a side firing a game-ender it was granted through the nuclear exchange.",
+		"Both call " + nameof(DoomsdayStrike.BeginFinalExchange) + ", which is idempotent — 'either way the outcome is the",
+		"same, the nukes fly and the game ends'.",
 		"",
 		"RETUNED 2026-09-07 after the user played it: the salvo used to add coverage FILL warheads until",
 		"every cell of the map was inside some lethal radius, and it fired the 6 Mt " + nameof(DoomsdayStrikeInfo.CityMissile) + " for",
@@ -44,10 +54,16 @@ namespace OpenRA.Mods.Common.Traits
 		// THE PLAYER-FACING NAME IS "NUCLEAR ENDING"; THE SYMBOL NAMES DELIBERATELY DO NOT FOLLOW IT.
 		//
 		// This string has been "Doomsday", then "Dead Hand", now this, all on 2026-09-10. The last
-		// move had a mechanical argument rather than a stylistic one: THE AUTO-LAUNCH IS GONE. A
-		// dead hand is specifically a machine that fires when nobody is left to order it, and this
-		// no longer does that — at zero, every surviving side is handed its game-enders and fifteen
-		// seconds to choose targets. So the name described a mechanism that had been removed.
+		// move had a mechanical argument rather than a stylistic one: THE AUTO-LAUNCH IS NOT THE
+		// WHOLE OF IT ANY MORE. At zero every surviving side is handed its game-enders and fifteen
+		// seconds to choose targets, and only what nobody aimed is aimed by the machine.
+		//
+		// CORRECTED 2026-09-13. That paragraph used to end "THE AUTO-LAUNCH IS GONE ... the name
+		// described a mechanism that had been removed", and it was PROSE ONLY: no code implemented
+		// the window, and NotifyTimerExpired ran the fully automatic salvo. The window exists now
+		// (see BeginFinalExchange), so the sentence is true for the first time — but note what it
+		// does NOT say. Dead Hand still places every warhead nobody claimed, which is exactly the
+		// machine the name describes, so the old name was never as wrong as this argued.
 		//
 		// The feature is TWO controls and they are now named separately: TimeLimitManager's
 		// dropdown says HOW LONG ("Time Limit", world.yaml), and this checkbox says WHAT HAPPENS
@@ -207,6 +223,49 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Ticks of lead-in between the clock expiring and the first impact.")]
 		public readonly int LeadInTicks = 30;
 
+		[Desc("THE FINAL EXCHANGE WINDOW: how long every surviving side holds its game-enders and may",
+			"place them itself before Dead Hand places the rest. 250 ticks is 15.0 s at the mod's 60 ms",
+			"timestep — NOT 25 tps, which would read this as 10 s (see conventions.md).",
+			"",
+			"ZERO OR LESS SKIPS THE WINDOW ENTIRELY and fires the salvo on the trigger tick, which is",
+			"byte-for-byte the behaviour this mode had before the window existed. That is the escape",
+			"hatch for a scenario that wants the old shape back without stripping the trait.")]
+		public readonly int FinalExchangeWindowTicks = 250;
+
+		// DELIBERATELY NOT [GrantedConditionReference]. That attribute states "this trait grants this
+		// condition ON ITS OWN ACTOR", and CheckConditions is a strictly per-actor pass
+		// (Lint/CheckConditions.cs:33-77): it collects granted and consumed names one actor at a time.
+		// This trait sits on the WORLD actor and grants onto the PLAYER actors, a shape the lint cannot
+		// model — annotating it would raise "Actor type `world` grants conditions that are not
+		// consumed" on every run, which is a warning that is simply false rather than a floor worth
+		// keeping. The consumer side is still checked where it matters: the two powers' own
+		// RequiresCondition is consumed on the player actor, where GrantConditionOnNuclearRelease's
+		// annotated grant satisfies it.
+		[Desc("Condition granted to EVERY surviving player actor when the window opens, and held for",
+			"the rest of the match. It is the game-ender rung of the nuclear ladder — the same name",
+			nameof(GrantConditionOnNuclearReleaseInfo) + " grants at " + nameof(NuclearRung.GameEnder) + " — so a power already gated on it",
+			"needs no second condition and no edit.",
+			"",
+			"GRANTED HERE RATHER THAN THROUGH A NEW TRAIT, for one reason: Actor.GrantCondition applies",
+			"IMMEDIATELY (Actor.cs:725-733 calls UpdateConditionState, which notifies synchronously),",
+			"so the powers are enabled before the very next line arms them. A polling trait would have",
+			"landed the condition a tick later and left the arming to race it.",
+			"",
+			"It does NOT override the host's arsenal checkbox: the shipped game-enders are gated on",
+			"`!nuke-arsenal-disabled && nuclear-release-gameender` (nuclear-arsenal.yaml:239,300), so a",
+			"host who turned the arsenal off still gets no cameo, and Dead Hand places for that side.")]
+		public readonly string FinalExchangeCondition = "nuclear-release-gameender";
+
+		[NotificationReference("Speech")]
+		[Desc("Speech notification played to every surviving player when the window opens.",
+			"",
+			"DELIBERATELY UNSET. There is no recorded line for this moment — rules/sound/notifications.yaml",
+			"has AbombPrepping/AbombReady/AlertBuzzer and nothing that says 'place your warheads' — and a",
+			"wrong line is worse than none, because this is the one moment in the match a player has",
+			"fifteen seconds to act on. The system line and the on-screen banner carry it until a line",
+			"is recorded; set this then, with no other edit.")]
+		public readonly string FinalExchangeNotification = null;
+
 		[Desc("Damage type applied by the final annihilation sweep.")]
 		public readonly BitSet<DamageType> AnnihilationDamageTypes = default;
 
@@ -245,7 +304,7 @@ namespace OpenRA.Mods.Common.Traits
 	/// state and it must be byte-identical on every client; note this is the exact opposite of the rule
 	/// that governs render-only effects like the screen shake, which must avoid SharedRandom.</para>
 	/// </summary>
-	public class DoomsdayStrike : ITick, INotifyTimeLimit
+	public class DoomsdayStrike : ITick, INotifyTimeLimit, ISync
 	{
 		readonly DoomsdayStrikeInfo info;
 		readonly World world;
@@ -268,6 +327,48 @@ namespace OpenRA.Mods.Common.Traits
 		int resolutionTick;
 		bool annihilated;
 		bool resolved;
+		bool salvoBuilt;
+
+		/// <summary>The fifteen seconds, as bookkeeping. See <see cref="FinalExchangeWindow"/>.</summary>
+		readonly FinalExchangeWindow window = new();
+
+		// Sides already handed their game-enders, as "player|powerkey". MEMBERSHIP-TESTED ONLY, never
+		// enumerated -- the same licence DoomsdayStrikeInfo's two HashSets have, and for the same
+		// reason: a set's enumeration order is not a thing every client agrees about.
+		//
+		// It is what stops the window being a magazine. A purchased power's bank is emptied by
+		// Activate (SupportPowerManager.cs:327), so re-arming an already-armed power every tick would
+		// hand a player unlimited game-enders inside the window instead of the one the exchange grants.
+		readonly HashSet<string> armed = new();
+
+		// The latest tick at which a PLAYER-PLACED game-ender is due to detonate. The resolution is
+		// held past it, so the verdict never lands while the player's own warhead is still in the air.
+		int playerImpactTick;
+
+		// A launch reported on a tick the exchange had not yet begun, kept for exactly that tick. See
+		// NotifyExchangeLaunch for why one tick of lookback is the whole of what is needed.
+		int pendingLaunchReportedTick = -1;
+		int pendingLaunchImpactTick;
+
+		/// <summary>True while every surviving side may still place its own game-enders.</summary>
+		public bool FinalExchangeOpen => window.Phase == FinalExchangePhase.Open;
+
+		/// <summary>Ticks left to place. What the countdown banner reads; zero outside the window.</summary>
+		public int FinalExchangeTicksRemaining => window.TicksRemaining(world.WorldTick);
+
+		// ==== SYNCED, BECAUSE ALL THREE DECIDE WHAT HAPPENS TO THE MATCH ====
+		// Same argument as DefconEscalation's: ISync is load-bearing rather than decoration, since
+		// Actor.cs:206 hashes a trait only when `trait is ISync`. The phase is an int projection
+		// because the hasher is IL-emitted and cannot hash an enum. A client that disagreed about
+		// whether the window was open would disagree about who may fire a 1.2 Mt warhead.
+		[Sync]
+		public int FinalExchangePhaseValue => (int)window.Phase;
+
+		[Sync]
+		public int FinalExchangeClosesTick => window.ClosesTick;
+
+		[Sync]
+		public int FinalExchangePlacements => window.PlacementCount;
 
 		/// <summary>
 		/// True from the trigger until the verdict is applied. While set, the ordinary victory checks
@@ -306,30 +407,35 @@ namespace OpenRA.Mods.Common.Traits
 			return dd != null && dd.SalvoInProgress;
 		}
 
-		/// <summary>
-		/// <para>A game-ender has been released in a DEFCON Escalation match: begin the ending.</para>
-		///
-		/// <para>MINIMAL STUB, ADDED 2026-09-13 ON wt/nuclear-exchange. The real implementation is a
-		/// sibling worker's on wt/deadhand-window — both sides get 15 s to place their own
-		/// game-enders, Dead Hand places for whoever does not, everything flies, the match ends. THE
-		/// MERGE SHOULD TAKE THEIRS: this body only triggers the existing time-limit salvo, so the
-		/// map is annihilated and the frozen score decides it, with no 15 s targeting window and no
-		/// acknowledgement of who fired.</para>
-		///
-		/// <para>It is deliberately the existing <see cref="INotifyTimeLimit.NotifyTimerExpired"/> path
-		/// rather than a second one: that path already freezes statistics before anything is launched,
-		/// stands the ordinary victory checks down, and is idempotent through its own `triggered`
-		/// flag — so a second game-ender landing mid-salvo changes nothing.</para>
-		/// </summary>
-		public void BeginFinalExchange(Player firer)
+		void INotifyTimeLimit.NotifyTimerExpired(Actor self)
 		{
-			Log.Write("debug", $"FINAL EXCHANGE begun by {firer?.InternalName ?? "unknown"} " +
-				$"(tick {world.WorldTick}). STUB: running the time-limit salvo, with no 15 s placement window.");
-
-			((INotifyTimeLimit)this).NotifyTimerExpired(world.WorldActor);
+			// PATH (a): the clock. Everything this used to do inline is now the first half of
+			// BeginFinalExchange, which path (b) reaches from the other direction.
+			BeginFinalExchange(null);
 		}
 
-		void INotifyTimeLimit.NotifyTimerExpired(Actor self)
+		/// <summary>
+		/// <para>OPEN THE FINAL EXCHANGE. The single entry point to the ending, and the only thing the
+		/// nuclear-exchange side has to know about this trait.</para>
+		///
+		/// <para>TWO CALLERS, ONE ENDING (user ruling, 2026-09-13: "Both players have the 15 seconds to
+		/// choose targets, or the Dead Hand places them for them. Either way the outcome is the same,
+		/// the nukes fly and the game ends"):
+		///   (a) the Time Limit reaching zero with the Nuclear ending checkbox ticked — <paramref name="trigger"/> null;
+		///   (b) a side firing a game-ender it was granted through the exchange — that side is the
+		///       trigger, its warhead is the first of the exchange, and the window opens for everyone else.</para>
+		///
+		/// <para>IDEMPOTENT. A second call while the exchange is in progress is a no-op: it does not restart
+		/// the clock, re-arm anybody, or clear the placement record. Both paths can and will fire on the
+		/// same tick — the time limit expiring while a warhead is already in the air is not a rare case —
+		/// and the first one in wins.</para>
+		///
+		/// <para>CALL THIS BEFORE ACTIVATING THE TRIGGERING POWER, on path (b). The launch hook below needs
+		/// the exchange to exist when the warhead is reported so it can hold the resolution open for that
+		/// impact; calling afterwards still works, because a report made on the same tick is absorbed
+		/// here, but calling on a LATER tick would leave that one warhead unwaited-for.</para>
+		/// </summary>
+		public void BeginFinalExchange(Player trigger)
 		{
 			if (triggered || !enabled)
 				return;
@@ -343,17 +449,269 @@ namespace OpenRA.Mods.Common.Traits
 			// TimeLimitManager notifies WORLD traits before PLAYER traits (TimeLimitManager.cs:150-157),
 			// so this runs before ConquestVictoryConditions sees the same event. Freezing here means the
 			// score every later reader sees — including the verdict at the end of the salvo — is the score
-			// as it stood on the expiry tick, with nothing the annihilation does able to move it.
+			// as it stood on the trigger tick, with nothing the exchange or the annihilation does able to
+			// move it.
+			//
+			// THE FREEZE IS AT THE WINDOW'S START, NOT AT ITS END, and that is the user's requirement
+			// rather than an implementation convenience: the outcome is decided the moment the exchange
+			// opens, so the fifteen seconds must not be a last chance to farm kills for score. A player
+			// spending them shooting instead of aiming gains nothing by it.
 			FreezeStatistics();
+
+			// Victory checks stand down from the START for the same reason. Without this a side that
+			// loses its last unit during the window would be awarded a loss by ConquestVictoryConditions
+			// before a single warhead had been placed.
 			SalvoInProgress = true;
 
-			BuildSalvo();
-
-			// THE MAP COMES OUT OF THE FOG, and it is deliberately the last thing done on the trigger
-			// tick — after the salvo has been built, so the aim points are provably not downstream of it.
+			// THE MAP COMES OUT OF THE FOG so the exchange can be aimed, and so it can be watched.
+			//
+			// IT NOW PRECEDES BuildSalvo RATHER THAN FOLLOWING IT, which retires a sequencing argument
+			// this file used to make ("the aim points are provably not downstream of the reveal"). The
+			// stronger half of that argument is untouched and is what the property actually rests on:
+			// BuildSalvo enumerates world.Actors directly and never asks any player what it can see, so
+			// it is independent of visibility by construction rather than by running first. See the
+			// remarks on RevealMap.
 			RevealMap();
 
+			if (window.Begin(world.WorldTick, info.FinalExchangeWindowTicks, SurvivingSides(), trigger?.InternalName))
+			{
+				// A launch reported earlier on THIS tick is the trigger's own warhead arriving ahead of
+				// the call. Absorb it so the resolution waits for it.
+				if (pendingLaunchReportedTick == world.WorldTick && pendingLaunchImpactTick > playerImpactTick)
+					playerImpactTick = pendingLaunchImpactTick;
+
+				ArmGameEnders();
+				AnnounceFinalExchange();
+				return;
+			}
+
+			// FinalExchangeWindowTicks <= 0: no window, straight to the salvo. Byte-for-byte the mode's
+			// behaviour before the window existed.
+			PlaceDeadHandSalvo();
+		}
+
+		/// <summary>
+		/// <para>A game-ender has been put in the air by a player, and is due to detonate at
+		/// <paramref name="impactTick"/>. Called from <see cref="MissileStrikePower"/> on the SYNCED
+		/// order-resolution path, once per warhead, with the impact tick the power itself computed —
+		/// so this cannot drift from the flight the missile actually flies.</para>
+		///
+		/// <para>It does two separate things, and they are separate on purpose:
+		///   * records that this side placed its own — but ONLY for a game-ender, since the window
+		///     leaves the lower rungs granted too and a tactical shot is not a placement;
+		///   * holds the resolution open past the impact, so the verdict never lands while a player's
+		///     own warhead is still in the air. A B83 carries MissileDelay 700 plus its flight, which
+		///     is far longer than the whole staged salvo — without this the match would be resolved and
+		///     annihilated before the shot the player took landed.</para>
+		///
+		/// <para>THE ONE-TICK LOOKBACK. A launch reported before the exchange exists is kept for exactly the
+		/// tick it was reported on, and <see cref="BeginFinalExchange"/> absorbs it. That covers the only
+		/// ordering that can occur in practice — path (b) activating the power and opening the window in
+		/// either order within one order's resolution — without keeping an unbounded history.</para>
+		/// </summary>
+		public static void NotifyExchangeLaunch(World world, Player firer, int impactTick, SupportPowerInfo powerInfo)
+		{
+			world.WorldActor.TraitOrDefault<DoomsdayStrike>()?.ReportExchangeLaunch(firer, impactTick, powerInfo);
+		}
+
+		void ReportExchangeLaunch(Player firer, int impactTick, SupportPowerInfo powerInfo)
+		{
+			if (!SalvoInProgress)
+			{
+				// Not (yet) an exchange. Keep it for this tick only; anything older is stale by
+				// construction because BeginFinalExchange only ever looks at the current tick.
+				if (pendingLaunchReportedTick != world.WorldTick)
+				{
+					pendingLaunchReportedTick = world.WorldTick;
+					pendingLaunchImpactTick = impactTick;
+				}
+				else if (impactTick > pendingLaunchImpactTick)
+					pendingLaunchImpactTick = impactTick;
+
+				return;
+			}
+
+			// ONLY A GAME-ENDER IS A PLACEMENT, and the distinction is load-bearing rather than tidy.
+			// A side still holding a 1 kt B61 can fire it inside the window — the exchange grants the
+			// top rung, it does not revoke the lower ones — and counting that as "this side placed its
+			// warheads" would take it out of the Dead Hand list on the strength of a tactical shot.
+			//
+			// THE SCHEDULE IS EXTENDED FOR THE SHOT EITHER WAY, below. Anything a player put in the air
+			// before the verdict should land before the verdict, whatever its yield.
+			if (IsGameEnder(powerInfo))
+				window.RecordPlacement(firer?.InternalName);
+
+			if (impactTick > playerImpactTick)
+				playerImpactTick = impactTick;
+
+			// Once the schedule exists it has to be moved, not just recorded against. Not after the
+			// sweep has run: extending the annihilation at that point would not un-kill anything and
+			// would only delay a verdict that is already decided.
+			if (salvoBuilt && !annihilated)
+				ExtendScheduleForImpact(impactTick);
+		}
+
+		/// <summary>
+		/// Sides that are still in the match, in world.Players order — which is world-creation order and
+		/// therefore identical on every client.
+		/// </summary>
+		IEnumerable<string> SurvivingSides()
+		{
+			foreach (var p in world.Players)
+				if (p.Playable && !p.NonCombatant && p.WinState != WinState.Lost)
+					yield return p.InternalName;
+		}
+
+		/// <summary>
+		/// <para>Hand every surviving side its game-enders, fire-ready, for the duration of the window.</para>
+		///
+		/// <para>THREE THINGS GATE A GAME-ENDER AND ALL THREE HAVE TO GO, which is the part that is easy
+		/// to do superficially — grant the condition, watch the cameo stay absent, and have no idea why:
+		///   * THE TIER. Both shipped game-enders carry `Prerequisites: powers.event`, provided by NO
+		///     faction and only by the Sandbox lobby option (player.yaml:144, :193). That is the
+		///     SHIPPED DEFAULT for both of them, so a condition-only implementation of this feature
+		///     hands out nothing in a normal match while looking entirely correct in the code.
+		///     <see cref="SupportPowerInstance.MakeReady"/> overrides it per instance; see there for
+		///     why not with a second ProvidesPrerequisite.
+		///   * THE CONDITION. `RequiresCondition: !nuke-arsenal-disabled &amp;&amp; nuclear-release-gameender`
+		///     (nuclear-arsenal.yaml:239,300). Granted here on the player actor, where the powers live.
+		///     Actor.GrantCondition applies IMMEDIATELY (Actor.cs:725-733), so the trait is enabled
+		///     before the next line runs. The token is deliberately never revoked: the match ends inside
+		///     the salvo, and a revoke would only ever race it.
+		///   * THE MAGAZINE. Both shipped game-enders are RequiresPurchase, so they are Ready only while
+		///     a shot is banked (SupportPowerChargeBank.IconVisible), and nothing about the condition
+		///     banks one. <see cref="SupportPowerInstance.MakeReady"/> is what does.</para>
+		///
+		/// <para>AND A DISABLED POWER DOES NOT CHARGE WHILE IT WAITS. SupportPowerInstance.Tick pins
+		/// remainingSubTicks at TotalTicks * 100 on every tick it is disabled (SupportPowerManager.cs:246-248)
+		/// and then returns before the countdown — so "grant the condition and let it charge" would hand a
+		/// side a power that needed its whole charge interval, which no fifteen-second window can contain.
+		/// MakeReady zeroes it. For the shipped pair this is a formality (RequiresPurchase forces
+		/// TotalTicks to 0) and it is done anyway, so a game-ender added later on a timer still arrives.</para>
+		///
+		/// <para>ONCE PER SIDE PER POWER. <see cref="armed"/> is what makes the window a single shot rather
+		/// than a magazine — see its declaration.</para>
+		/// </summary>
+		void ArmGameEnders()
+		{
+			foreach (var p in world.Players)
+			{
+				if (!p.Playable || p.NonCombatant || p.WinState == WinState.Lost)
+					continue;
+
+				p.PlayerActor.GrantCondition(info.FinalExchangeCondition);
+
+				var manager = p.PlayerActor.TraitOrDefault<SupportPowerManager>();
+				if (manager == null)
+					continue;
+
+				// SORTED BY KEY. Powers is a Dictionary and its enumeration order is not something
+				// every client agrees about; the operations below are order-independent, but this file
+				// does not iterate an unordered collection at all and that rule is worth keeping whole.
+				foreach (var key in manager.Powers.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList())
+				{
+					var instance = manager.Powers[key];
+					if (!IsGameEnder(instance.Info))
+						continue;
+
+					var id = p.InternalName + "|" + key;
+					if (!armed.Add(id))
+						continue;
+
+					instance.MakeReady();
+				}
+			}
+		}
+
+		/// <summary>
+		/// <para>Is this power a GAME-ENDER — one of the weapons the exchange hands out?</para>
+		///
+		/// <para>Asked of the YIELD rather than of the condition string or the order name, because the yield
+		/// is what the ladder itself asks: <see cref="NuclearReleaseLadder.RungForYield"/> is the single
+		/// definition of which band a warhead is in, and reading it here means a new 2 Mt power is picked
+		/// up with no edit to this file. Matching on `RequiresCondition` text would be a second, silent
+		/// copy of the band table.</para>
+		///
+		/// <para>THE TSAR BOMBA IS EXCLUDED, and by the ladder's own constant rather than by name. At 50 Mt it
+		/// is above SandboxOnlyAboveTons, which is decision 04's ruling that it is unreachable in normal
+		/// play; handing it out at the end of every match would be exactly the route that ruling closes.</para>
+		/// </summary>
+		static bool IsGameEnder(SupportPowerInfo powerInfo)
+		{
+			if (powerInfo is not MissileStrikePowerInfo missileInfo)
+				return false;
+
+			var tons = missileInfo.NuclearYieldTons;
+			if (tons <= 0 || tons > NuclearReleaseLadder.SandboxOnlyAboveTons)
+				return false;
+
+			return NuclearReleaseLadder.RungForYield(tons) == (int)NuclearRung.GameEnder;
+		}
+
+		void AnnounceFinalExchange()
+		{
+			// PITFALL: GameSpeed.Timestep, not world.Timestep. The latter is mutated at runtime by the
+			// debug speed button and by test-mode speed multipliers, so this line would announce a
+			// different number of seconds for the same 250 ticks depending on what speed the session
+			// happened to be running at -- and would then disagree with the countdown band, which
+			// converts the same way. Constant per match, so reading it here stays deterministic.
+			var seconds = (info.FinalExchangeWindowTicks * world.GameSpeed.Timestep) / 1000;
+			TextNotificationsManager.AddSystemLine(
+				$"FINAL EXCHANGE. Place your warheads — {seconds} seconds.");
+
+			// Deliberately may be null; see DoomsdayStrikeInfo.FinalExchangeNotification. PlayNotification
+			// with a null key is a documented no-op, so this costs nothing until a line is recorded.
+			foreach (var p in world.Players)
+				if (p.Playable && !p.NonCombatant && p.WinState != WinState.Lost)
+					Game.Sound.PlayNotification(world.Map.Rules, p, "Speech",
+						info.FinalExchangeNotification, p.Faction.InternalName);
+		}
+
+		/// <summary>
+		/// The window has expired (or was never opened). Dead Hand places everything nobody claimed and
+		/// the staged salvo runs.
+		/// </summary>
+		void PlaceDeadHandSalvo()
+		{
+			BuildSalvo();
+			salvoBuilt = true;
+
+			// THE RESOLUTION WAITS FOR THE PLAYERS' OWN WARHEADS. A game-ender placed at the top of the
+			// window lands long after the staged salvo is done — this is what stops the verdict being
+			// applied while it is still in the air.
+			if (playerImpactTick > lastImpactTick)
+				ExtendScheduleForImpact(playerImpactTick);
+
+			AnnounceDeadHandPlacement();
+		}
+
+		void AnnounceDeadHandPlacement()
+		{
 			TextNotificationsManager.AddSystemLine("DEAD HAND ACTIVATED. Incoming.");
+
+			// THE SPLIT, said out loud. The user's ruling is that placing and not placing reach the same
+			// ending, so the only thing left to tell the player is which of the two they took — and a
+			// side that never saw a cameo (arsenal off, power unaffordable, never clicked) reads its own
+			// name here rather than being left to guess why nothing of theirs flew.
+			var placedFor = window.SidesPlacedForByDeadHand().ToList();
+			if (placedFor.Count > 0)
+				TextNotificationsManager.AddSystemLine(
+					"Dead Hand placed for: " + placedFor.JoinWith(", ") + ".");
+		}
+
+		/// <summary>
+		/// Move the annihilation and the verdict out past an impact that lands later than anything
+		/// already scheduled. Monotonic — it only ever pushes the schedule later, so no ordering of
+		/// reports can bring the sweep forward onto a warhead still in the air.
+		/// </summary>
+		void ExtendScheduleForImpact(int impactTick)
+		{
+			if (impactTick <= lastImpactTick)
+				return;
+
+			lastImpactTick = impactTick;
+			annihilationTick = lastImpactTick + info.AnnihilationDelayTicks;
+			resolutionTick = annihilationTick + info.ResolutionDelayTicks;
 		}
 
 		/// <summary>
@@ -594,6 +952,17 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (!triggered)
 				return;
+
+			// THE WINDOW. Tick reports the closing edge exactly once (FinalExchangeWindow.Tick), so the
+			// Dead Hand placement hangs off it with no second flag here. While it is still open there is
+			// nothing scheduled yet — the salvo does not exist until the window shuts.
+			if (window.Phase == FinalExchangePhase.Open)
+			{
+				if (!window.Tick(world.WorldTick))
+					return;
+
+				PlaceDeadHandSalvo();
+			}
 
 			while (nextPending < pending.Count && pending[nextPending].SpawnTick <= world.WorldTick)
 			{

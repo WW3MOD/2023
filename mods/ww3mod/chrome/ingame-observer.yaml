@@ -18,6 +18,20 @@ Container@OBSERVER_WIDGETS:
 			Y: (WINDOW_HEIGHT - HEIGHT) / 3
 			Width: WINDOW_WIDTH
 			Height: 96
+		# THE FINAL EXCHANGE COUNTDOWN. On screen for the whole fifteen-second window and nowhere
+		# else -- FinalExchangeBannerWidget draws only while DoomsdayStrike.FinalExchangeOpen. Same
+		# full-width, unparented band as the DEFCON banner above, for the same reason: it has to read
+		# as the screen changing state rather than as a dialog the player could dismiss.
+		#
+		# IT SITS BELOW THE DEFCON BANNER, not on it. Both are anchored a third of the way down; this
+		# one is offset by its own height so that a DEFCON transition landing inside the window -- the
+		# first kill of a match that then runs to the time limit is enough -- draws the two stacked
+		# instead of one over the other. Change either height and re-check this.
+		FinalExchangeBanner@FINAL_EXCHANGE_BANNER:
+			X: 0
+			Y: (WINDOW_HEIGHT - HEIGHT) / 3 + HEIGHT
+			Width: WINDOW_WIDTH
+			Height: 110
 		Container@MUTE_INDICATOR:
 			Logic: MuteIndicatorLogic
 			X: WINDOW_WIDTH - WIDTH - 260

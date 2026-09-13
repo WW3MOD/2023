@@ -12,7 +12,7 @@
 -- IS RequiresPurchase (nuclear-arsenal.yaml:108 and nine more), so a band that is merely PERMITTED
 -- is a shop entry and a bill — SupportPowerInstance.Disabled stays true at zero banked shots. With
 -- DefaultCash: 0 in rules.yaml nobody can buy anything, so 'ready' can only mean the exchange
--- loaded the warhead itself (SupportPowerInstance.MakeFireReady).
+-- loaded the warhead itself (SupportPowerInstance.MakeReady).
 --
 -- THE ONE READING THAT SEPARATES THIS MODEL FROM THE ONE IT REPLACED is the pair in phase C:
 -- Russia's 20 kt READY and USA's 20 kt still HIDDEN, off the same shot. Under decision 06's shared
