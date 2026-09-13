@@ -600,6 +600,17 @@ namespace OpenRA.Mods.Common.Traits
 			var impactDelay = missileDelay + bm.Info.PreLaunchTicks
 				+ BallisticMissileFly.EstimateArcTicks(bm.Info, hDist);
 
+			// THE FINAL EXCHANGE HOLDS ITS RESOLUTION OPEN FOR THIS WARHEAD. Reported here rather than
+			// at the order, because impactDelay is the number that matters and it is only known now —
+			// and reported from HERE rather than recomputed there, so there is no second copy of the
+			// flight arithmetic to drift (MissileDelay + PreLaunchTicks + EstimateArcTicks, all three
+			// of which the sandbox and ApproachDistance branches above can move).
+			//
+			// Inert outside the exchange: DoomsdayStrike is fetched with TraitOrDefault and drops the
+			// report unless a final exchange is in progress. Synced order-resolution path, so every
+			// client reports the same tick. See DoomsdayStrike.NotifyExchangeLaunch.
+			DoomsdayStrike.NotifyExchangeLaunch(world, self.Owner, world.WorldTick + impactDelay, info);
+
 			if (info.CameraRange != WDist.Zero)
 			{
 				var type = info.RevealGeneratedShroud ? MapLayers.Type.Vision : MapLayers.Type.PassiveVisibility;

@@ -210,6 +210,55 @@ namespace OpenRA.Mods.Common.Traits
 			remainingSubTicks = 0;
 		}
 
+		/// <summary>
+		/// <para>FORCE THIS POWER FIRE-READY ON THIS TICK, whatever it was doing. The DOOMSDAY final
+		/// exchange is the one caller: every surviving side is handed its game-enders for fifteen
+		/// seconds, and fifteen seconds is far shorter than any charge interval in the mod.</para>
+		///
+		/// <para>IT HAS TO DO ALL THREE HALVES, because a power is Ready only when every one of them is
+		/// satisfied and which is binding depends on the power:
+		///   * THE TIER. Both shipped game-enders carry `Prerequisites: powers.event`, and powers.event
+		///     is "provided by NO faction, ever -- Dead Hand / scripted / demo only" (player.yaml:144);
+		///     outside Sandbox nothing provides it, so `Permitted` is false however many conditions are
+		///     granted. THIS IS THE SHIPPED DEFAULT FOR BOTH OF THEM, not an edge case — grant the
+		///     condition alone and the exchange hands out nothing at all. Overridden HERE rather than
+		///     by a second ProvidesPrerequisite on `powers.event`, which would be the declarative way
+		///     and is the wrong one: that name is shared with the TSAR BOMBA, and putting a 50 Mt
+		///     warhead on the shop floor is precisely what decision 04 closes off. Setting the flag on
+		///     the chosen instances leaks to nothing else.
+		///
+		///     It STICKS, and that is a property of TechTree rather than luck: Watcher.Update notifies
+		///     only on an EDGE (TechTree.cs:166-190), and the real prerequisite state does not change,
+		///     so nothing re-issues PrerequisitesUnavailable and undoes this.
+		///   * THE MAGAZINE. A RequiresPurchase power (both shipped game-enders) is Ready only while a
+		///     shot is banked, and nothing else here banks one. Granted only when the bank is EMPTY, so
+		///     arming a side that already bought a game-ender does not quietly hand it a second.
+		///   * THE TIMER. A timer-charged power that has been sitting disabled has remainingSubTicks
+		///     pinned at full: Tick resets it on every tick instancesEnabled is false (:246-248) and
+		///     then returns before the countdown, so a disabled power does not charge while it waits.
+		///     Zeroing is the only way it can be ready inside a window this short. No-op for a purchased
+		///     power, whose TotalTicks is 0 and whose remainingSubTicks is therefore already 0.</para>
+		///
+		/// <para>THE CONDITION IS THE CALLER'S PROBLEM, not this method's. A power whose RequiresCondition is
+		/// unsatisfied stays disabled, Tick pins its timer back to full on the next tick, and this will
+		/// have achieved nothing — so grant the condition FIRST. Actor.GrantCondition applies immediately
+		/// (Actor.cs:725-733), which is what makes "first" mean "on the same line" rather than "a tick
+		/// earlier".</para>
+		/// </summary>
+		/// <para>WHAT IT CANNOT DO: a OneShot power that has already fired stays unpermitted, because
+		/// oneShotFired is a one-way latch and re-opening it would be a different feature. No power in
+		/// the arsenal sets OneShot today, so this costs nothing; a game-ender that ever does will need
+		/// deciding about rather than inheriting this silently.</para>
+		public virtual void MakeReady()
+		{
+			prereqsAvailable = true;
+
+			if (bank.Enabled && bank.Charges == 0)
+				bank.Grant(1);
+
+			remainingSubTicks = 0;
+		}
+
 		public SupportPowerInstance(string key, SupportPowerInfo info, SupportPowerManager manager)
 		{
 			Key = key;
