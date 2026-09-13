@@ -1,0 +1,136 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: the bot fires only when it is losing, and takes the window when it does
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES: NuclearBotModule's whole policy, which is the user's one sentence about bots
+# (2026-09-13) — "It only fires if it is losing, so it never escalates unnecessarily."
+#
+# THE ORDER OF THE PHASES IS THE TEST, and it is not the order the feature was built in. The bot
+# starts on EQUAL FOOTING with a loaded 1 kt warhead and must sit on it; then it is handed a 20 kt
+# retaliation window and must STILL sit on it, because a window is permission and not a reason; and
+# only when its army is cut to a quarter does it fire — once, at the window's band.
+#
+#   A. RELEASED, ARMED, WINNING NOTHING AND LOSING NOTHING -> no launch. The bot holds the 1 kt band
+#      permanently and it reads `ready`, so the zero here is a DECISION and not an empty bin.
+#   B. A RETALIATION WINDOW OPENS (USA fires 1 kt at empty ground) -> still no launch. Russia's 20 kt
+#      reads `ready`, which is what makes this assertion mean anything: the bot is holding the
+#      biggest thing it has ever been allowed to fire, and declining.
+#   C. RUSSIA'S ARMY IS CUT TO A QUARTER -> exactly ONE launch, at the WINDOW's band and not at the
+#      permanent one. "The user's model expects the loser to escalate."
+#   D. AND THEN NOT AGAIN, because MinTicksBetweenLaunches is 900 and the window grant was one shot.
+#
+# WHY THE LAUNCH COUNT COMES FROM Test.GetBotNuclearState AND NOT FROM THE BIN. A launch shows up in
+# the support power bin only as a band going from `ready` to `charging:` — which a regeneration
+# timer, a lapsing window and a launch all produce. "Exactly once" is not a question the bin can
+# answer. The binding reads NuclearBotModule.LaunchCount, which is the count of orders the module
+# actually queued. The BIN is still read in phases A and B, for the one thing it is the right
+# instrument for: proving the bot had a loaded warhead to decline.
+#
+# EIGHT IDENTICAL HUMVEES, FOUR EACH, and identical on purpose: ArmyValue is a sum of Valued.Cost
+# over actors carrying UpdatesPlayerStatistics.AddToArmyValue (humvee, 500 — vehicles-america.yaml:44
+# and :54), so four each is exactly 2000 v 2000 and the ratio is exactly 100 %. Killing three of
+# Russia's makes it exactly 25 %, which is well under the module's LosingArmyRatioPercent of 60 with
+# no arithmetic to get wrong. They are humvees on BOTH sides — the cheapest actor in the mod that
+# counts toward ArmyValue — so that the two sides' army values cannot differ for a reason nobody
+# meant.
+#
+# THE ARMIES SIT AT OPPOSITE ENDS AND EVERYTHING IS HoldFire, so nothing dies except what the script
+# kills. The run is ~1100 ticks and a humvee cannot cross fifty cells and win a fight in that time,
+# but this is the scenario's softest assumption: see description.txt.
+#
+# NO VICTIM ACTOR FOR USA'S SHOT. The exchange arms the other side "wherever it lands" — decision 01
+# rejected damage attribution outright — so USA's 1 kt goes to empty ground. The BOT's shot is aimed
+# by the module and will land on USA's humvees, which is the point: a bot that fired into empty
+# space would satisfy every count here and still be broken.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 6,17
+	# THE BOT UNDER TEST. `experimental` rather than `stable` only because that is the profile the
+	# module was written against; the two blocks in ai.yaml are identical, so a `stable` run of this
+	# scenario should read the same and the difference would be worth knowing about.
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Bot: experimental
+		Enemies: USA
+		HomeLocation: 58,17
+
+Actors:
+	# One Supply Route per side so neither faction is eliminated before the poller writes a verdict
+	# (AUTOTEST.md map.yaml rule 6). Russia's is also what the module reads its contestation half off;
+	# nothing contests it here, so that half stays quiet and the army ratio is the only live term.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 6,17
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 58,17
+
+	# USA's army, clustered so the bot has one obvious aim point rather than four equal ones.
+	UsaArmy1: humvee
+		Owner: USA
+		Location: 10,10
+	UsaArmy2: humvee
+		Owner: USA
+		Location: 11,10
+	UsaArmy3: humvee
+		Owner: USA
+		Location: 10,11
+	UsaArmy4: humvee
+		Owner: USA
+		Location: 11,11
+
+	# Russia's army. Three of these die in phase C; RuArmy4 is the survivor that keeps Russia at
+	# exactly 25 % rather than at zero — an army value of 0 would still be losing, but it would also
+	# be a player with nothing left, which is a different scenario.
+	RuArmy1: humvee
+		Owner: Russia
+		Location: 54,22
+	RuArmy2: humvee
+		Owner: Russia
+		Location: 55,22
+	RuArmy3: humvee
+		Owner: Russia
+		Location: 54,23
+	RuArmy4: humvee
+		Owner: Russia
+		Location: 55,23
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+Rules: rules.yaml

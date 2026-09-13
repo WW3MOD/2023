@@ -2780,6 +2780,49 @@ Player:
 		EvacuateIdleTransports: true
 		TransportIdleEvacuateTicks: 900
 
+	# experimental doctrine — THE BOT'S NUCLEAR DECISION. Until this block existed no bot in this mod
+	# used a support power at ALL: the engine ships SupportPowerBotModule and mods/ww3mod instantiated
+	# it nowhere, so every bot in every mode has sat on a full nuclear bin and never clicked it.
+	#
+	# THE RULE IS THE USER'S, VERBATIM (2026-09-13): "It only fires if it is losing, so it never
+	# escalates unnecessarily." The module's whole policy is that sentence plus the two things the
+	# exchange ruling (manager-2b944571 decision 01) adds — a retaliation window that is the biggest
+	# thing a side may fire, and a top rung reachable only through one.
+	#
+	# INERT OUTSIDE ESCALATION, checked on the trait rather than by a condition: NuclearExchange.Mode
+	# is what says whether the exchange is running at all, and outside it the bands come from
+	# NuclearUnlockClock's purchase schedule instead — a different economy this module does not model.
+	#
+	# EVERY NUMBER HERE IS AN UNTUNED PLACEHOLDER and each one says so in its own [Desc]. Nobody has
+	# played a bot nuclear exchange; these are the user's brief written as the integers the engine
+	# actually compares, not measurements.
+	#
+	# @stable HAS AN IDENTICAL TWIN at the end of this file, deliberately and against the local
+	# precedent set by DroneOperatorBotModule / MinelayerBotModule ("NO @stable TWIN ON PURPOSE"). The
+	# reasoning those blocks give is that a wholly new experimental-gated module cannot move the
+	# benchmark control — true, and the reason they need no default-to-baseline care. It is not a rule
+	# that a new module must be WITHHELD. CLAUDE.md's standing policy is the other way round: @stable
+	# inherits improvements, and never spend effort building a gate whose only purpose is to keep a
+	# fix away from it. A @stable bot that will not answer a nuke is not a control, it is a bot that
+	# loses to any human who opens the bin. THIS DOES MOVE THE BENCHMARK CONTROL in Escalation matches
+	# and the next baseline must be re-taken knowingly.
+	NuclearBotModule@experimental:
+		RequiresCondition: enable-ai-experimental
+		# Well inside the belief store's 175-tick contact lifetime — see the module header. Past that
+		# this quietly becomes a structures-only targeter.
+		EvaluationInterval: 50
+		LosingArmyRatioPercent: 60
+		LosingContestationPercent: 40
+		# 3 evaluations = 150 ticks of continuously losing at the interval above.
+		LosingStreakRequired: 3
+		MinTicksBetweenLaunches: 900
+		# The bot may take the last rung when a window grants it. Set false for a bot that must never
+		# end the game; it does NOT stop the bot placing in a final exchange somebody else began,
+		# because Dead Hand places for anyone who does not and declining forfeits the aim points.
+		MayFireGameEnder: true
+		SupplyRouteBonusPercent: 150
+		SupplyRouteBonusOnlyWhenContested: true
+
 	# ===== Stable AI — snapshot of the validated Experimental config =====
 	#
 	# 2026-09-02 PROMOTION (user-authorised) — supersedes the 2026-08-02 one. These @stable modules are
@@ -3235,3 +3278,19 @@ Player:
 		ScreenStandoffCells: 3
 		CommitTtlTicks: 400
 		ExcludedActorTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, humvee, btr, bradley, bmp2, m113
+
+	# THE BOT'S NUCLEAR DECISION — a verbatim copy of NuclearBotModule@experimental's values above.
+	# See that block for why @stable gets this at all (short version: CLAUDE.md's standing policy is
+	# that @stable inherits improvements, and a @stable bot that will not answer a nuke is not a
+	# control). THIS CHANGES @stable BEHAVIOUR in Escalation and the ai-bench baseline for that mode
+	# must be re-taken; it is inert in Skirmish and Sandbox, which is every existing benchmark match.
+	NuclearBotModule@stable:
+		RequiresCondition: enable-ai-stable
+		EvaluationInterval: 50
+		LosingArmyRatioPercent: 60
+		LosingContestationPercent: 40
+		LosingStreakRequired: 3
+		MinTicksBetweenLaunches: 900
+		MayFireGameEnder: true
+		SupplyRouteBonusPercent: 150
+		SupplyRouteBonusOnlyWhenContested: true
