@@ -1,57 +1,89 @@
 DEMO: Doomsday / the FINAL EXCHANGE -- the clock runs out, both sides get fifteen seconds to place
 their own game-enders, Dead Hand places the rest, and the map is annihilated.
 
-Watch for, in order: the countdown band ("FINAL EXCHANGE -- PLACE YOUR WARHEADS -- 0:15"); USA's own
-1.2 Mt B83 going up inside the window with a beacon on the eastern city; the band clearing at zero
-and "Dead Hand placed for: Russia."; four small warheads on the oil derricks; a distinct pause; two
-large ones on the two cities; USA's B83 arriving LAST; then everything still standing is destroyed.
-All Dead Hand impacts are near-vertical.
+IT CAPTURES FIVE FRAMES AND ENDS ITSELF on Test.Skip once they have flushed, so run-test.sh returns
+a verdict (SKIP, exit 2) rather than killing the game at its watchdog. It is still a DEMO: nothing
+is asserted, and `skip` is the run saying "I finished, the frames are on disk, a person decides" --
+not a claim that anything passed. The two runs before 2026-09-13 took no screenshots and never
+ended, which is why they came back TIMEOUT-FAIL with an empty lua.log and no PNGs.
+
+Watch for, in order: the countdown band ("FINAL EXCHANGE -- PLACE YOUR WARHEADS -- 0:15") and a B83
+cameo appearing in a bin that was empty; USA's own 1.2 Mt going up inside the window with a beacon
+on the eastern city; the band clearing at zero and "Dead Hand placed for: Russia."; four small
+warheads on the oil derricks; a distinct pause; two large ones on the two cities; USA's B83 arriving
+LAST; then everything still standing is destroyed. All Dead Hand impacts are near-vertical.
 
 TICK SCHEDULE at Timestep 60 (16.67 ticks/s). Ticks are exact where they are derived from tunables;
-the two marked ~ carry a flight term and are stated with their derivation so a drift can be read
+the ones marked ~ carry a flight term and are stated with their derivation so a drift can be read
 rather than guessed at. Seconds are ticks/16.67.
 
-    tick    time   what
-       0    0.0s   Start. Three USA units are already in contact with a lone Russian BMP at 29,18,
-                   so USA banks kill experience during the countdown and leads on score at the
-                   freeze -- while Russia's untouched pair in the north-east is the side with more
-                   units left alive. Score and survival deliberately disagree.
-     240   14.4s   The script prints the B83's state BEFORE the window: expect "hidden". Both
-                   game-enders are event tier (Prerequisites: powers.event, provided by no faction
-                   and no lobby option here), so the support-power bin is empty. This is the
-                   control for the line ten ticks later.
-     250   15.0s   CLOCK EXPIRES -> BeginFinalExchange. Statistics freeze on this exact tick, the
-                   fog lifts, victory checks stand down, and every surviving side is handed its
-                   game-enders fire-ready. The countdown band appears. NOTHING HAS BEEN LAUNCHED.
-     255   15.3s   The script prints the B83's state again: expect "ready". That flip is the whole
-                   feature -- the window granted the condition, overrode the event tier and banked
-                   a shot.
-     265   15.9s   USA PLACES. Its B83 is ordered onto the eastern city at 49,22 through the real
-                   support-power order path; the on-screen line reads "issued". Russia places
-                   nothing, on purpose.
-     500   30.0s   WINDOW CLOSES. Dead Hand places everything nobody claimed: "DEAD HAND
-                   ACTIVATED. Incoming." followed by "Dead Hand placed for: Russia."
-     525   31.5s   First outlier missile appears, 38 cells up and 5 cells from its aim point. The
-                   four launch on ticks 525/527/529/531.
-    ~569   34.1s   WAVE 1 -- derrick impacts, 2 ticks apart. (525 + the deadhandtacticalmissile's
-                   flight over ApproachDistance 5c0.)
-    ~575   34.5s   Last outlier impact. THE PAUSE begins -- OutlierToCityPauseTicks 40.
-    ~615   36.9s   WAVE 2 -- city impacts. ONE warhead per city, not two: WarheadsPerCity is 1
-                   since the 2026-09-07 retune, and this map clusters into exactly two cities.
-    ~617   37.0s   Last Dead Hand impact.
-    ~697   41.8s   USA'S B83 ARRIVES, and it is LAST ON PURPOSE. 265 + MissileDelay 300 (shortened
-                   from the shipped 500 in rules.yaml) + 0 PreLaunchTicks + ~132 ticks of flight:
-                   B83Missile has Acceleration 0 and Speed 700, so EstimateArcTicks is simply
-                   hDist/speed, and hDist is the standoff -- sqrt(66^2+34^2) + 16 = ~90 cells.
-    ~757   45.4s   ANNIHILATION, held 60 ticks past the B83 rather than past the Dead Hand salvo.
-                   THAT HOLD IS THE POINT: without it the sweep would have run at ~677 while the
-                   player's own warhead was still in the air. "Total strategic annihilation."
-    ~777   46.6s   Resolution point. See the caveat below.
+    tick    time   what                                                              frame
+      70    4.2s   B83 state printed BEFORE the window: expect "hidden". Both
+                   game-enders are event tier (Prerequisites: powers.event,
+                   provided by no faction and no lobby option here), so the bin
+                   is empty. This is the control for the line fifteen ticks later.
+      80    4.8s   CLOCK EXPIRES -> BeginFinalExchange. Statistics freeze on this
+                   exact tick, the fog lifts, victory checks stand down, and every
+                   surviving side is handed its game-enders fire-ready. The
+                   countdown band appears. NOTHING HAS BEEN LAUNCHED.
+      85    5.1s   B83 state printed again: expect "ready". That flip is the whole
+                   feature -- the window granted the condition, overrode the event
+                   tier and banked a shot.
+      90    5.4s   Band at ~0:15, B83 cameo now present.                              01
+      95    5.7s   USA PLACES. Its B83 is ordered onto the eastern city at 49,22
+                   through the real support-power order path; the on-screen line
+                   reads "issued". Russia places nothing, on purpose.
+     250   15.0s   Band at ~0:05 and RED, USA's beacon planted.                        02
+     330   19.8s   WINDOW CLOSES. Dead Hand places everything nobody claimed.
+     336   20.2s   "DEAD HAND ACTIVATED. Incoming." + "Dead Hand placed for:           03
+                   Russia." -- the placed-vs-placed-for split, said out loud.
+     340   20.4s   First outlier missile appears, 38 cells up and 5 cells from its
+                   aim point. The four launch on ticks 340/342/344/346.
+    ~384   23.0s   WAVE 1 -- derrick impacts, 2 ticks apart. (330 + LeadInTicks 10
+                   + the deadhandtacticalmissile's ~44-tick flight over
+                   ApproachDistance 5c0.)
+    ~390   23.4s   Last outlier impact. THE PAUSE begins -- OutlierToCityPauseTicks
+                   40, deliberately NOT compressed.
+    ~392   23.5s   Derricks down, city missiles in the air.                            04
+    ~430   25.8s   WAVE 2 -- city impacts. ONE warhead per city, not two:
+                   WarheadsPerCity is 1 since the 2026-09-07 retune, and this map
+                   clusters into exactly two cities.
+    ~432   25.9s   Last Dead Hand impact.
+    ~487   29.2s   USA'S B83 ARRIVES, and it is LAST ON PURPOSE. 95 + MissileDelay
+                   260 (shortened from the shipped 500 in rules.yaml) + 0
+                   PreLaunchTicks + ~132 ticks of flight: B83Missile has
+                   Acceleration 0 and Speed 700, so EstimateArcTicks is simply
+                   hDist/speed, and hDist is the standoff -- sqrt(66^2+34^2) + 16
+                   = ~90 cells.
+    ~490   29.4s   The player's own 1.2 Mt, on a map already cratered.                 05
+    ~517   31.0s   ANNIHILATION, held 30 ticks past the B83 rather than past the
+                   Dead Hand salvo. THAT HOLD IS THE POINT: without it the sweep
+                   would have run at ~462 while the player's own warhead was still
+                   in the air. "Total strategic annihilation."
+    ~532   31.9s   Resolution point. See the caveat below.
+     545   32.7s   Test.Skip. Verdict SKIP, exit 2, five PNGs in the run directory.
 
-WHAT TO DO IF USA'S WARHEAD NEVER FLIES. The on-screen line at tick 265 says why: "not-ready:0"
-means the power was never armed (the window did not grant it), "hidden" means the bin never drew
-it, "unknown-power:B83Strike" means the arsenal is not loaded. Nothing is asserted here, so a
-silent miss is the failure mode this printout exists to prevent.
+RUN LENGTH IS ~545 TICKS, down from ~780 (2026-09-13). Two runs were CPU-starved by sibling builds
+and reached under 100 ticks in 300 s, which nothing in this scenario can fix -- but the run-up was
+cut from 250 ticks to 80, the B83's dead air from 500 to 260, and the lead-in and the two tail
+delays roughly halved. THE WINDOW ITSELF WAS NOT CUT and must not be: 250 ticks is the shipped
+fifteen seconds and is the thing being demonstrated. On a loaded machine, prefer
+`--speed 4` (run-test.sh divides the timestep, so the band still honestly reads 0:15 while the
+wall clock shrinks -- it converts with GameSpeed.Timestep, which --speed does not touch) and
+`--timeout 600`.
+
+WHAT WAS GIVEN UP WITH THE SHORTER RUN-UP, stated rather than quietly dropped: at 250 ticks the
+three USA units reliably killed the lone Russian BMP before the freeze, so USA led on SCORE while
+Russia had more units ALIVE -- score and survival deliberately disagreeing, which is the
+discrimination the mode exists to make. At 80 ticks that kill may not land. Nothing is lost from
+what this demo can SHOW, because the frozen-score verdict is unshowable under TestMode either way
+(see the caveat); it is lost from what a reader could infer about why the mode freezes at all.
+
+WHAT TO DO IF USA'S WARHEAD NEVER FLIES. The on-screen line at tick 95 says why, and the same
+string is carried into the Test.Skip note and into frames 02 and 05: "not-ready:0" means the power
+was never armed (the window did not grant it), "hidden" means the bin never drew it,
+"unknown-power:B83Strike" means the arsenal is not loaded. Nothing is asserted here, so that
+printout is the only thing standing between a silent miss and a wasted launch slot.
 
 NO FILL WARHEADS. The fill pass -- which used to top the salvo up until every cell of the map was
 inside some lethal radius -- was REMOVED in the 2026-09-07 retune, together with the 20-cell lethal

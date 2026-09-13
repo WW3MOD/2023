@@ -9,19 +9,23 @@ Player:
 		ExploredMapCheckboxEnabled: true
 		FogCheckboxEnabled: true
 
-	# THE PLAYER-PLACED WARHEAD'S WAIT, SHORTENED FROM 500 TO 300 TICKS so that it lands AFTER the
-	# Dead Hand salvo rather than inside the pause between its two waves. That ordering is the point:
-	# with the player's warhead last, the annihilation and the verdict are visibly HELD for it, which
-	# is the resolution-timing behaviour this demo exists to show.
+	# THE PLAYER-PLACED WARHEAD'S WAIT, SHORTENED FROM THE SHIPPED 500 TO 260 TICKS, for two
+	# reasons at once. It has to land AFTER the Dead Hand salvo -- with the player's warhead last,
+	# the annihilation and the verdict are visibly HELD for it, which is the resolution-timing
+	# behaviour this demo exists to show -- and every tick above that minimum is DEAD AIR:
+	# SpawnActorEffect holds the actor out of the world and renders nothing while it waits
+	# (SpawnActorEffect.cs:44-49), so the viewer is watching an empty sky with a beacon on it.
 	#
-	# At the shipped 500 the demo still works and still shows the window; it just lands mid-salvo and
-	# the hold is invisible because the Dead Hand impacts are already later. Delete this line to see
-	# the real approach time.
+	# 260 IS THE FLOOR, not a taste setting. Ordered at tick 95, impact is 95 + 260 + 0
+	# PreLaunchTicks + ~132 flight = ~487, against a last Dead Hand impact at ~432. Lower it and the
+	# warhead lands inside the salvo and the hold becomes invisible; the arithmetic is written out
+	# in demo-doomsday-deadhand.lua's schedule block. Delete the line entirely to see the real
+	# approach time at the cost of ~240 ticks.
 	#
 	# IT IS IN THIS `Player:` NODE rather than a second one at the foot of the file: MiniYaml treats
 	# two top-level entries with the same key as a duplicate, not a merge, within one file.
 	MissileStrikePower@B83:
-		MissileDelay: 300
+		MissileDelay: 260
 
 	# NOT SET, ON PURPOSE: PowersLobbyOptions' sandbox switch. demo-nuke-arsenal needs it because
 	# powers.event is otherwise provided by nobody -- and the whole point HERE is that the final
@@ -39,8 +43,14 @@ World:
 	# 250 ticks = 15.0 s at the mod's 60 ms timestep. The lobby dropdown's finest grain is one whole
 	# minute, which is four times longer than this entire demo, so the scenario uses the absolute
 	# tick override instead. Zero (the default) leaves the dropdown behaving exactly as it always has.
+	# 80 TICKS, DOWN FROM 250 (2026-09-13). This is only the run-up to the window, and it used to be
+	# 250 so that the USA/Russia contact banked enough kill experience to stage a SCORE DIFFERENCE
+	# for the frozen-score verdict. That verdict cannot be shown here at all -- a demo runs under
+	# TestMode, where ConquestVictoryConditions never assigns an objective -- so the scenario was
+	# paying 170 ticks for something invisible, on a machine where two runs were CPU-starved into a
+	# 300 s watchdog kill. The units are kept: they are what the annihilation takes.
 	TimeLimitManager:
-		TimeLimitTicks: 250
+		TimeLimitTicks: 80
 		SkipTimeRemainingNotifications: true
 
 	# DECLARED, and that declaration is the whole of whether the script runs at all. A rules.yaml the
@@ -60,14 +70,16 @@ World:
 		# Required: a demo runs under TestMode, where the salvo is off by default so that the existing
 		# timed tournament and autotest configurations keep ending the way they always did.
 		RunInTestMode: true
-		LeadInTicks: 25
+		LeadInTicks: 10
 		OutlierToCityPauseTicks: 40
 		WithinWaveTicks: 2
-		AnnihilationDelayTicks: 60
-		ResolutionDelayTicks: 20
-		# THE WINDOW AT FULL LENGTH, deliberately NOT compressed. It is the one stage of the sequence
-		# a player is inside rather than watching, so a demo that shortened it would be demonstrating
-		# a deadline nobody is going to ship. 250 ticks = 15.0 s at the 60 ms timestep.
+		AnnihilationDelayTicks: 30
+		ResolutionDelayTicks: 15
+		# THE WINDOW AT FULL LENGTH, deliberately NOT compressed WHILE EVERYTHING AROUND IT WAS.
+		# It is the one stage of the sequence a player is inside rather than watching, and it is
+		# what this demo is FOR: a six-second "fifteen seconds" would be demonstrating a deadline
+		# nobody is going to ship. 250 ticks = 15.0 s at the 60 ms timestep -- NOT 25 tps, which
+		# would read this as 10 s. The three values above are the ones that gave up ticks instead.
 		FinalExchangeWindowTicks: 250
 
 ^Combatant:
