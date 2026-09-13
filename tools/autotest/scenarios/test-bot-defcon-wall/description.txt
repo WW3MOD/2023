@@ -1,0 +1,74 @@
+TEST: the bot advances to the DEFCON 3 border and holds there.
+
+A vertical line down column 44 splits a 100x60 map between USA-bot (west, Supply
+Route at x 3) and Russia (east, Supply Route at x 94). The match is pinned at
+DEFCON 3 for thirty minutes, so the border never comes down during the run.
+
+Eight tanks are placed around the bot's Supply Route. The enemy Supply Route is a
+PoiAction.Pressure POI, so PoiOffensiveBotModule forms an axis against it and
+orders the armour east -- straight through the border, before this change.
+
+WHAT THE THREE ASSERTIONS SEPARATE:
+
+  ADVANCE     At least one bot tank must reach x >= 30. This is a floor, NOT the
+              discriminator — CORRECTED 2026-09-13 against the first RED run,
+              which passed it. The prediction it was written from was that the
+              axis would park the army on its Supply Route: the order to x 94 is
+              accepted (AttackMove has no border guard), NearestMoveableCell
+              fails CanReach on the far cell, the annulus around it is also
+              beyond the border, Move finds no path and completes without moving
+              — and the axis then records x 94 as "ordered" so its repath guard
+              refuses to re-issue. Every step of that is still true of the AXIS
+              ORDER. What the prediction missed is that the axis order is not the
+              only thing moving these units: the fires anchors, the echelon and
+              the forward-staging anchors all resolve to cells on our OWN side,
+              which are perfectly reachable, and they walk the army up the map
+              regardless. So the army advances either way and this assertion
+              cannot tell the arms apart.
+
+              What the border staging actually buys is that the army SETTLES.
+
+  NO CROSSING No bot unit is ever observed at x >= 43, the west edge of the wall
+              band. This passed before the fix too -- the units could not move at
+              all -- so it is an invariant rather than the discriminator. It is
+              checked every tick, because a wall that is crossed and returned
+              from is not a wall.
+
+  HOLD        Over the last twenty harness-seconds, no bot unit moves more than
+              two cells, and PoiOffensiveBotModule queues fewer than 150 orders.
+              Together these say the advance ENDED: the axis is parked at the
+              border rather than re-offering a destination it cannot reach every
+              hundred-tick scan. DRIFT is the predicate that discriminates -- the
+              RED arm fails on it at 18 cells against a 2-cell bound -- and the
+              order count is the belt to that braces.
+
+              THE ORDER COUNT IS SCOPED TO ONE MODULE, and that is a correction
+              rather than a detail. It first counted every order the bot queued
+              and allowed 120; the window carried 554 and the assertion failed
+              while blaming the axis, which was innocent. debug.log for that run
+              holds exactly ONE [exp-offense] order line across the window's five
+              evaluations -- the staging clamp and the repath guard were working.
+              The 554 were the rest of the bot: 43 [composition] production lines
+              on a map where its unit count went 8 to 43 mid-run, the supply and
+              capture lanes, and 20 [exp-transport] delivery-move-reissued lines
+              from two carriers stuck against the border. A total can only ever
+              measure the bot's overall busyness; the question here is about one
+              module, so it asks about one module.
+
+RED SABOTAGE: set BorderStagingEnabled to false in rules.yaml. MEASURED
+(run 260913_233651): it fails on DRIFT — "abrams drifted 18 cells during the hold
+window (max 2)" — and passes ADVANCE. That is the honest discriminator and it is
+the one to read: without the staging clamp the axis destination is a cell the
+army can never reach, so the army never arrives anywhere, never settles, and is
+still being shoved around by the subsidiary anchors when the window closes.
+
+KNOWN OPEN DEFECT THIS SCENARIO NO LONGER FAILS ON, stated so a green run is not
+read as more than it is. MountedTransportBotModule picks infantry drop-offs with
+no regard for the border: in the run above two carriers sat at x 1 and x 3 with a
+drop cell at 49,28, well beyond the band, and re-issued the delivery Move every
+50 ticks for the rest of the match without moving. Mobile.ResolveOrder refuses a
+Move across the border (Mobile.cs:1111-1115) and the module is never told, so the
+loop is permanent and the passengers are never delivered. It is the same defect
+class BorderStagingEnabled fixes for the offensive module, in a module that was
+not in that change's scope and has no scenario of its own. This file's assertions
+are deliberately scoped away from it rather than silently absorbing it.

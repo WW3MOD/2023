@@ -316,6 +316,36 @@ namespace OpenRA.Mods.Common.Traits
 			"frozen @stable twin stay byte-identical. Inert if no CrossingMap exists.")]
 		public readonly bool ReachabilityGatingEnabled = false;
 
+		[Desc("Stage an axis destination on the NEAR side of the DEFCON 3 border instead of ordering",
+			"through it. Inert outside Escalation and at every level the wall does not stand at, so a",
+			"Skirmish match pays one null test per destination.",
+			"",
+			"DEFAULT FALSE so a profile that does not ask for it keeps the pre-feature path, and the",
+			"YAML is the single visible place it is switched on -- for BOTH bot profiles, deliberately.",
+			"",
+			"WHAT IT FIXES. Every destination this module issues is an AttackMove, which has NO border",
+			"guard (unlike Mobile.ResolveOrder, which refuses a Move outright at Mobile.cs:1111-1115).",
+			"The order is accepted, Mobile.NearestMoveableCell fails its CanReach term on the far cell,",
+			"the radius-10 annulus around it is also beyond the border, the cell comes back unchanged,",
+			"and Move finds no path and COMPLETES -- the unit does not move, does not turn and says",
+			"nothing (Mobile.cs:894-898). The axis then records that cell in OrderedCell, and the repath",
+			"guard suppresses every re-issue: the axis is parked for the rest of the phase.")]
+		public readonly bool BorderStagingEnabled = false;
+
+		[Desc("At the hold-fire level (DEFCON 2), issue a NAMED Attack at an enemy already inside a",
+			"committed axis unit's weapon range, alongside the AttackMove the axis already carries.",
+			"",
+			"DEFAULT FALSE, and switched on for BOTH bot profiles in YAML -- this changes @stable.",
+			"",
+			"WHY IT IS NEEDED AT ALL. DEFCON 2 permits any shot somebody ORDERED and refuses every shot",
+			"a unit took by itself; the provenance test is AutoTarget.IsAutoAcquiredSource, which is true",
+			"for AttackSource.AttackMove (AutoTarget.cs:1146-1149). This module's entire order vocabulary",
+			"is AttackMove, and the two squad-state sites that DO issue a named Attack are unreachable for",
+			"ground units because every shipped SquadManagerBotModule sets IgnoreGroundUnits. So without",
+			"this the bot's whole ground army is structurally incapable of firing during the phase, and",
+			"the peace can only be broken by aircraft.")]
+		public readonly bool Defcon2DirectFireEnabled = false;
+
 		[Desc("Phase-1 score multiplier (x100) for a POI reachable only via a REPAIRABLE (destroyed) bridge and",
 			"NOT by our amphibious units — reduced but kept on the radar for the Phase-6 engineer route-opening.",
 			"Default 100 = inert (a bare ReachabilityGatingEnabled changes nothing until the YAML supplies < 100).")]
@@ -1261,6 +1291,15 @@ namespace OpenRA.Mods.Common.Traits
 		bool beliefStoreResolved;
 		CrossingMap crossingMap;
 		bool crossingMapResolved;
+		DefconWall defconWall;
+		DefconEscalation defconEscalation;
+		bool defconResolved;
+
+		// Per-unit memory of the named Attack issued at DEFCON 2, so a unit already engaging the same
+		// target is not re-ordered onto it every eval -- re-issuing restarts the attack activity and
+		// cancels the shot in flight, the same defect the fires-anchor dedup above guards against.
+		// Cleared whenever the level is not the hold-fire one, so nothing survives the phase.
+		readonly Dictionary<Actor, uint> defcon2Targets = new();
 
 		readonly List<Axis> axes = new();
 
@@ -1453,6 +1492,20 @@ namespace OpenRA.Mods.Common.Traits
 				crossingMap = Info.ReachabilityGatingEnabled
 					? world.WorldActor.TraitOrDefault<CrossingMap>() : null;
 				crossingMapResolved = true;
+			}
+
+			// The DEFCON 3 border and the level that raises it. Resolved only when a lever asks, so a
+			// profile with both flags off never touches either trait. Both are null on every world without
+			// them -- which is every Skirmish match, where each consumer below degrades to a no-op.
+			if (!defconResolved)
+			{
+				if (Info.BorderStagingEnabled)
+					defconWall = world.WorldActor.TraitOrDefault<DefconWall>();
+
+				if (Info.Defcon2DirectFireEnabled)
+					defconEscalation = world.WorldActor.TraitOrDefault<DefconEscalation>();
+
+				defconResolved = true;
 			}
 
 			// Combat-quality force-preservation: the belief store feeds the believed-enemy force tally for both
@@ -2230,6 +2283,13 @@ namespace OpenRA.Mods.Common.Traits
 				// so a recruit walks to where the axis is already going. AttackMove to match the assault order it
 				// is joining, so it engages on contact like the rest of the axis rather than walking through one.
 				var joinCell = axis.HasOrdered ? axis.OrderedCell : axis.TargetCell;
+
+				// OrderedCell is already staged when the axis was ordered under a standing border, so this is
+				// usually the identity even at DEFCON 3 — but an axis that has NOT ordered yet hands out the
+				// raw TargetCell, and a recruit sent through the border is the same silent stall.
+				if (Info.BorderStagingEnabled && !TryStageForBorder(recruits[0], joinCell, out joinCell))
+					continue;
+
 				if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, joinCell), false,
 						groupedActors: recruits.ToArray())))
 					continue;
@@ -2968,6 +3028,11 @@ namespace OpenRA.Mods.Common.Traits
 				// to, and is re-issued rearward. No PER-UNIT "was advancing" flag is needed — the target cell in
 				// stagedCells carries that. (The MODULE does keep one piece of advance state, lastAdvanceAnchor,
 				// for the one-way hysteresis; the claim here is about the units, not the module.)
+				// Clamped ABOVE the dedup on purpose: stagedCells must remember the cell actually ordered,
+				// or the unit is stranded on a destination it was never able to reach.
+				if (Info.BorderStagingEnabled && !TryStageForBorder(u, target, out target))
+					continue;
+
 				if (stagedCells.TryGetValue(u, out var prev) && prev == target)
 					continue;
 
@@ -3444,6 +3509,22 @@ namespace OpenRA.Mods.Common.Traits
 					goalGuard.Ledger.Commit(u, key, tick, Info.AxisCommitmentTicks);
 			}
 
+			// THE DEFCON 2 DIRECT-FIRE PASS, and BOTH things about its position here are load-bearing.
+			//
+			// FIRST IN THE METHOD, because four of the paths below RETURN — a retreating axis, the
+			// post-retreat dwell, the prep hold, the converge/sync holds. Every one of those leaves units
+			// standing still on contested ground, which is precisely the situation in which something walks
+			// into range; a pass placed after them would be skipped on exactly the evals that matter most.
+			//
+			// OVER axis.Units RATHER THAN groupUnits, because groupUnits is narrowed to the SCREEN element
+			// when the fires/echelon split is on (see below), and the artillery it peels off is still a
+			// committed unit with a weapon. What may fire at DEFCON 2 is a question about the ORDER's
+			// provenance, not about which sub-element of the axis a unit was sorted into.
+			//
+			// It does not order any movement and does not touch axis state, so it composes with whichever
+			// branch below runs: the unit keeps its AttackMove and this only decides what it shoots on the way.
+			IssueDefcon2DirectFire(bot, axis.Units, tick);
+
 			// Combat-quality lever 1: a LOSING axis falls back toward friendly control instead of assaulting. A
 			// single grouped AttackMove to the rally cell (attack-move ⇒ units still defend themselves while
 			// withdrawing) replaces the assault order, and the fires/echelon/detour assault machinery is skipped
@@ -3899,10 +3980,31 @@ namespace OpenRA.Mods.Common.Traits
 			// (e.g. the axis just crossed the assault radius) so the new formation takes effect
 			// immediately, OR the Stage-E lateral waypoint shifted enough (the axis advanced past the
 			// strongpoint, so the flow-around lane must be recomputed) — all bounded by RepathThreshold.
+			// THE DEFCON 3 BORDER. Stage on our own side of it rather than ordering through it. Identity
+			// while the border is down, so these are axis.TargetCell / detourVia unchanged in every ordinary
+			// match — and the repath test below deliberately compares against the STAGED cells, so the axis
+			// re-fires by itself on the eval after the border opens (the clamp becomes the identity, the
+			// destination changes, `moved` goes true).
+			var assaultCell = axis.TargetCell;
+			var stagedVia = detourVia;
+			if (Info.BorderStagingEnabled && groupUnits.Count > 0)
+			{
+				if (!TryStageForBorder(groupUnits[0], axis.TargetCell, out assaultCell))
+					return;
+
+				if (detourVia.HasValue)
+				{
+					if (!TryStageForBorder(groupUnits[0], detourVia.Value, out var viaCell))
+						return;
+
+					stagedVia = viaCell;
+				}
+			}
+
 			var moved = !axis.HasOrdered
 				|| cohesionChanged
-				|| (axis.OrderedCell - axis.TargetCell).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells
-				|| ViaChanged(axis.OrderedVia, detourVia, Info.RepathThresholdCells);
+				|| (axis.OrderedCell - assaultCell).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells
+				|| ViaChanged(axis.OrderedVia, stagedVia, Info.RepathThresholdCells);
 			if (!moved)
 				return;
 
@@ -3930,15 +4032,15 @@ namespace OpenRA.Mods.Common.Traits
 			// QUEUED and would otherwise execute alone, driving the axis straight through the strongpoint the
 			// detour exists to skirt. If either leg is refused, issue nothing further and leave axis.Ordered*
 			// untouched so the next re-eval re-issues the whole maneuver.
-			if (detourVia.HasValue
-				&& !bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, detourVia.Value), false, groupedActors: units)))
+			if (stagedVia.HasValue
+				&& !bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, stagedVia.Value), false, groupedActors: units)))
 				return;
 
-			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, axis.TargetCell), detourVia.HasValue, groupedActors: units)))
+			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, assaultCell), stagedVia.HasValue, groupedActors: units)))
 				return;
 
-			axis.OrderedCell = axis.TargetCell;
-			axis.OrderedVia = detourVia;
+			axis.OrderedCell = assaultCell;
+			axis.OrderedVia = stagedVia;
 			axis.HasOrdered = true;
 
 			var viaLog = detourVia.HasValue ? $" via={detourVia.Value}" : "";
@@ -4044,6 +4146,8 @@ namespace OpenRA.Mods.Common.Traits
 				// keeps the destination reachable and near the standoff ring. Deterministic.
 				var idealCell = world.Map.CellContaining(anchor);
 				var anchorCell = FiresStandoffMath.NearestPassableCell(idealCell, FiresAnchorClampCells, WaypointPassable(u));
+				if (Info.BorderStagingEnabled && !TryStageForBorder(u, anchorCell, out anchorCell))
+					continue;
 
 				var had = lastFiresAnchor.TryGetValue(u, out var prevCell);
 				var anchorMoved = !had || (prevCell - anchorCell).LengthSquared >= repathSq;
@@ -4361,6 +4465,9 @@ namespace OpenRA.Mods.Common.Traits
 				bombardAssigned[u] = asn.TargetId;
 				stillTasked.Add(u);
 
+				if (Info.BorderStagingEnabled && !TryStageForBorder(u, anchorCell, out anchorCell))
+					continue;
+
 				var had = lastBombardAnchor.TryGetValue(u, out var prevCell);
 				var anchorMoved = !had || (prevCell - anchorCell).LengthSquared >= repathSq;
 
@@ -4522,6 +4629,141 @@ namespace OpenRA.Mods.Common.Traits
 		// Falls back to "all passable" if the representative has no Mobile (never rejects) — rare for a
 		// combat axis (every member has IPositionable + AttackBase).
 		static Func<CPos, bool> WaypointPassable(Actor mover) => BotTerrain.PassableFor(mover);
+
+		/// <summary>"Is this cell on the far side of the DEFCON 3 border for US" — or null when there is no
+		/// border to respect (lever off, no wall trait, Skirmish, or a level the wall does not stand at).
+		/// Null is the value <see cref="BotTerrain.TryStageOnNearSide"/> treats as "no line", so every caller
+		/// can route through it unconditionally.</summary>
+		Func<CPos, bool> BorderPredicate()
+		{
+			if (defconWall == null || !defconWall.IsActive)
+				return null;
+
+			return c => defconWall.IsBeyondWall(player, c);
+		}
+
+		/// <summary>The destination to actually order <paramref name="mover"/> to, given the one this module
+		/// picked. Identity while the border is down; a staging cell on our own side of it while it is up.
+		/// False means no legal cell was found and the caller must issue NO order — never a doomed one.
+		///
+		/// <para>CALL THIS BEFORE THE SITE'S OWN CHANGE TEST, not after. Every re-issue guard in this module
+		/// compares against the cell it last ORDERED, so comparing against the unclamped ideal would record a
+		/// cell the unit can never reach and then suppress the re-issue forever; comparing against the clamped
+		/// one both damps the churn while the border stands AND re-fires by itself the moment it comes down,
+		/// because the clamp becomes the identity and the destination therefore changes.</para></summary>
+		bool TryStageForBorder(Actor mover, CPos ideal, out CPos cell)
+		{
+			return BotTerrain.TryStageOnNearSide(ideal, mover.Location, BorderPredicate(),
+				BotTerrain.EngineRelocationCells, world.Map.Contains, WaypointPassable(mover), out cell);
+		}
+
+		/// <summary>THE DEFCON 2 DIRECT-FIRE PASS. At the hold-fire level a unit may only fire at something
+		/// somebody ordered it to fire at, and this module orders nothing but AttackMoves — which the engine's
+		/// own provenance test classes as autonomous. This issues the named Attack that the rule permits, for
+		/// each committed unit that already has a live enemy inside its weapon envelope.
+		///
+		/// <para>EAGER BY INSTRUCTION (user ruling): no danger test, no force-ratio test and no worthiness
+		/// gate — if it can shoot something it does. The restraint is geometric instead: only targets ALREADY
+		/// in range, re-asked every eval, so nothing here starts a chase. The unit keeps its AttackMove, so
+		/// the axis still advances; the named Attack only decides what it shoots on the way.</para>
+		///
+		/// <para>Runs BEFORE the repath guard in the caller and therefore on every eval, because which enemy
+		/// is in range changes without the axis destination changing at all.</para></summary>
+		void IssueDefcon2DirectFire(IBot bot, List<Actor> units, int tick)
+		{
+			if (!Info.Defcon2DirectFireEnabled)
+				return;
+
+			// Not at the hold-fire level: drop the memory rather than let it go stale across the phase
+			// boundary. At DEFCON 1 ordinary autotargeting is permitted again and is the better behaviour
+			// (it re-acquires as targets die); at DEFCON 3 there is nothing to shoot across the border.
+			if (defconEscalation == null || !DefconFireDiscipline.HoldsFire(defconEscalation.Level))
+			{
+				defcon2Targets.Clear();
+				return;
+			}
+
+			foreach (var u in units)
+			{
+				// Drop rather than skip: leaving the entry behind holds an Actor reference for the rest of
+				// the match, and axis.Units can carry a corpse until the next prune.
+				if (u.IsDead || !u.IsInWorld)
+				{
+					defcon2Targets.Remove(u);
+					continue;
+				}
+
+				var target = NearestEngageableEnemy(u);
+				if (target == null)
+				{
+					defcon2Targets.Remove(u);
+					continue;
+				}
+
+				// Already told to shoot this one and still doing it: leave it alone. Re-issuing the same
+				// named Attack restarts the attack activity and cancels the shot in flight.
+				//
+				// THE SECOND TERM IS AN ACTIVITY TEST AND NOT `!u.IsIdle`, deliberately. Actor.IsIdle is
+				// `CurrentActivity == null` and Actor.Tick re-runs the queue in the SAME tick right after
+				// raising INotifyBecomingIdle (Actor.cs:322-325), so a unit whose order genuinely ended is
+				// routinely never observed idle -- measured, and recorded in test-helpers.lua's
+				// HoldsAttackActivity. IAttackActivity is the engine's own test for "is this an engagement",
+				// and it is what AutoTarget itself asks two lines into CeaseAutonomousFire (AutoTarget.cs:1065).
+				//
+				// TOP-LEVEL ONLY, matching that site: ActivitiesImplementing descends into ChildActivity, so
+				// an autotarget attack nested under something else would match and we would skip a unit that
+				// is not in fact executing our order.
+				if (defcon2Targets.TryGetValue(u, out var prev) && prev == target.ActorID
+					&& u.CurrentActivity is IAttackActivity)
+					continue;
+
+				if (!bot.QueueOrder(new Order("Attack", u, Target.FromActor(target), false)))
+					continue;
+
+				defcon2Targets[u] = target.ActorID;
+
+				Log.Write("debug", $"[exp-defcon2-fire] player={player.PlayerName} unit={u.Info.Name}#{u.ActorID} " +
+					$"target={target.Info.Name}#{target.ActorID} tick={tick}");
+			}
+		}
+
+		/// <summary>The nearest live enemy this unit can actually hurt, inside its own longest weapon range and
+		/// visible to us. Same fog-legal shape as <see cref="RocketFireWorthy"/>'s scan — relationship, then
+		/// <c>CanBeViewedByPlayer</c>, then a non-zero damage estimate so a unit is never ordered onto something
+		/// its warhead cannot touch. Ordered by distance then ActorID: the circle query's own order is not a
+		/// guarantee, and two clients disagreeing here would order different targets.</summary>
+		Actor NearestEngageableEnemy(Actor u)
+		{
+			var maxRange = MaxWeaponRange(u);
+			if (maxRange <= 0)
+				return null;
+
+			Actor best = null;
+			var bestDistance = long.MaxValue;
+			var bestId = uint.MaxValue;
+
+			foreach (var a in world.FindActorsInCircle(u.CenterPosition, new WDist(maxRange)))
+			{
+				if (a == u || a.IsDead || !a.IsInWorld)
+					continue;
+
+				if (player.RelationshipWith(a.Owner) != PlayerRelationship.Enemy || !a.CanBeViewedByPlayer(player))
+					continue;
+
+				if (AutoTarget.EstimatePercentDamage(u, Target.FromActor(a)) <= 0)
+					continue;
+
+				var d = (a.CenterPosition - u.CenterPosition).LengthSquared;
+				if (d > bestDistance || (d == bestDistance && a.ActorID >= bestId))
+					continue;
+
+				best = a;
+				bestDistance = d;
+				bestId = a.ActorID;
+			}
+
+			return best;
+		}
 
 		// True when the Stage-E flow-around waypoint changed enough to warrant re-issuing the axis order:
 		// appeared, vanished, or shifted by >= threshold cells. Keeps the flow-around responsive as the
@@ -5023,6 +5265,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (!world.Map.Contains(holdCell) || !WaypointPassable(lead)(holdCell))
 				holdCell = lead.Location;
 
+			if (Info.BorderStagingEnabled && !TryStageForBorder(lead, holdCell, out holdCell))
+				return false;
+
 			var moved = !axis.HasOrdered
 				|| !alreadyHolding
 				|| (axis.OrderedCell - holdCell).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells;
@@ -5123,9 +5368,26 @@ namespace OpenRA.Mods.Common.Traits
 			if (!via.HasValue)
 				return null;
 
+			// Both legs staged before the repath test, for the reason the main axis states.
+			var flankCell = axis.TargetCell;
+			var flankVia = via;
+			if (Info.BorderStagingEnabled && flank.Count > 0)
+			{
+				if (!TryStageForBorder(flank[0], axis.TargetCell, out flankCell))
+					return null;
+
+				if (via.HasValue)
+				{
+					if (!TryStageForBorder(flank[0], via.Value, out var stagedFlankVia))
+						return null;
+
+					flankVia = stagedFlankVia;
+				}
+			}
+
 			var moved = !axis.FlankOrdered
-				|| (axis.OrderedFlankCell - axis.TargetCell).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells
-				|| ViaChanged(axis.OrderedFlankVia, via, Info.RepathThresholdCells);
+				|| (axis.OrderedFlankCell - flankCell).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells
+				|| ViaChanged(axis.OrderedFlankVia, flankVia, Info.RepathThresholdCells);
 
 			if (moved)
 			{
@@ -5136,14 +5398,14 @@ namespace OpenRA.Mods.Common.Traits
 				// straight up the main axis, which is the single outcome this maneuver exists to prevent. On a
 				// refusal return null: these units re-join the main element for this eval and the next re-eval
 				// issues the maneuver whole.
-				if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, via.Value), false, groupedActors: units)))
+				if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, flankVia.Value), false, groupedActors: units)))
 					return null;
 
-				if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, axis.TargetCell), true, groupedActors: units)))
+				if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, flankCell), true, groupedActors: units)))
 					return null;
 
-				axis.OrderedFlankCell = axis.TargetCell;
-				axis.OrderedFlankVia = via;
+				axis.OrderedFlankCell = flankCell;
+				axis.OrderedFlankVia = flankVia;
 				axis.FlankOrdered = true;
 
 				Log.Write("debug",
@@ -5177,6 +5439,13 @@ namespace OpenRA.Mods.Common.Traits
 		// mistake, made once, exempted the axis-vs-staging beat the dwell was sized to damp.
 		void OrderRetreat(IBot bot, Axis axis, CPos rally, int tick)
 		{
+			// Clamped like every other destination even though a rally/muster anchor is normally already on
+			// our own side: leaving ONE site unclamped is how the next caller that passes it a forward anchor
+			// (two of the three already do) reintroduces the stall here instead.
+			if (Info.BorderStagingEnabled && axis.Units.Count > 0
+				&& !TryStageForBorder(axis.Units[0], rally, out rally))
+				return;
+
 			var moved = !axis.HasOrdered
 				|| !axis.OrderedRetreat
 				|| (axis.OrderedCell - rally).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells;

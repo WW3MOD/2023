@@ -1,0 +1,41 @@
+TEST: the bot breaks the DEFCON 2 cease-fire with its ground army.
+
+The match opens AT DEFCON 2 on a 100x60 map. Eight bot tanks sit around the bot's
+Supply Route at x 3; six enemy tanks sit at x 16-18, directly in the path of the
+axis the bot forms against the enemy Supply Route at x 94.
+
+DEFCON 2 permits any shot somebody ORDERED and refuses every shot a unit took by
+itself. The provenance test is AutoTarget.IsAutoAcquiredSource, which is TRUE for
+AttackSource.AttackMove -- and AttackMove is the whole of PoiOffensiveBotModule's
+order vocabulary. The two squad-state sites that DO issue a named Attack are
+unreachable for ground units, because every shipped SquadManagerBotModule sets
+IgnoreGroundUnits and ground units are skipped before either recruit list is
+appended. So before Defcon2DirectFireEnabled the bot's entire ground army was
+structurally incapable of firing during the phase.
+
+WHAT MAKES THE VERDICT ATTRIBUTABLE. The enemy is a slot with no Bot and no
+client, and at DEFCON 2 its tanks' autotargeting is held by the same rule, so
+they cannot fire either. The three non-ground paths that could otherwise break
+the peace -- the fixed-wing and helicopter squad states, which issue a named
+Attack, and the drone operator, which issues a ForceAttack the rule
+short-circuits on -- are REMOVED in rules.yaml rather than merely left unused. A
+casualty on this map can only be the bot's named Attack.
+
+ASSERTIONS:
+
+  PRE       One tick in, Test.DefconLevel() must read 2. If the Escalation mode
+            or the opening phase failed to apply the level reads 0, the match is
+            an ordinary Skirmish where nothing was holding fire, and the main
+            assertion below would pass for the wrong reason.
+
+  VERDICT   Within 90 harness-seconds an enemy tank must be destroyed AND the
+            level must have moved to 1. The two halves fail with different text:
+            a casualty with the level still at 2 means the kill did not qualify
+            (DefconCasualtyObserver rejects friendly fire and neutral victims),
+            which is a different defect from not firing at all.
+
+RED SABOTAGE: set Defcon2DirectFireEnabled to false in rules.yaml. Expected
+failure: "no enemy tank was destroyed in 90s and DEFCON is still 2. The bot's
+ground army held fire through the whole cease-fire: every order it issues is an
+AttackMove, which AutoTarget.IsAutoAcquiredSource classes as autonomous and the
+phase refuses."

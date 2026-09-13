@@ -1859,6 +1859,68 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return Context.World?.WorldActor.TraitOrDefault<SightingThreatLayer>();
 		}
 
+		[Desc("The match-wide DEFCON level: 3 positioning, 2 cease-fire, 1 open war. Returns " +
+			"DefconEscalationState.NoLevel (0) in Skirmish and on any world with no DefconEscalation, " +
+			"which is a REAL answer and not an error — a scenario asserting on a phase transition must " +
+			"distinguish 'the mode is off' from 'the level has not moved yet'. Test mode only.")]
+		public int DefconLevel()
+		{
+			if (!TestMode.IsActive)
+				return DefconEscalationState.NoLevel;
+
+			// TraitOrDefault IS SAFE HERE, and that was audited rather than assumed after the
+			// BotOrdersQueued crash below: DefconEscalation is declared exactly once across the whole
+			// mod, unsuffixed (`world.yaml:863`), so there is never a second instance to be ambiguous
+			// about. Same audit, same result, for DefconWall and CrossingMap -- the three World-actor
+			// traits this branch reads. ModularBot is the one that is declared three times.
+			return Context.World?.WorldActor.TraitOrDefault<DefconEscalation>()?.Level
+				?? DefconEscalationState.NoLevel;
+		}
+
+		[Desc("How many orders `player`'s bot has queued since activation, cumulative. 0 for a human, a " +
+			"spectator, or a bot whose ModularBot was never activated. Counted at ModularBot.QueueOrder — " +
+			"the one funnel every bot module goes through — and BEFORE the arbitration gate, so it " +
+			"measures what the modules asked for rather than what survived: a module re-offering a " +
+			"suppressed order every scan still shows up here, which is the point. " +
+			"" +
+			"PASS `moduleTag` — the module trait's type name, e.g. \"PoiOffensiveBotModule\" — TO ASK " +
+			"ABOUT ONE MODULE, and prefer that to the total whenever the question is about a module. " +
+			"The total is every lane at once: measured on test-bot-defcon-wall, a 500-tick window " +
+			"carried 554 orders while the offensive module ordered its axis ONCE across five " +
+			"evaluations; the rest was production, supply-fleet and transport traffic on a map where " +
+			"the bot went from 8 units to 43 mid-run. An assertion on the total is therefore a " +
+			"proxy for the bot's overall busyness, not for whether any particular module is churning. " +
+			"Empty (the default) keeps the total. Test mode only.")]
+		public int BotOrdersQueued(Player player, string moduleTag = "")
+		{
+			if (!TestMode.IsActive || player == null)
+				return 0;
+
+			// EVERY PLAYER ACTOR CARRIES SEVERAL ModularBot INSTANCES, so a single-instance lookup here
+			// is not a style question -- it THROWS. `mods/ww3mod/rules/ai/ai.yaml:81` and `:86` declare
+			// ModularBot@experimental and ModularBot@stable side by side, and the campaign rules add a
+			// third (ModularBot@CampaignAI), so TraitDictionary.GetOrDefault raises
+			// "Actor player has multiple traits of type ModularBot" for HUMAN players too -- the traits
+			// are on the Player actor, not on the bot. Measured: this binding shipped with
+			// TraitOrDefault and killed test-bot-defcon-wall on its first run, in both the GREEN and the
+			// RED arm, before a single assertion evaluated.
+			//
+			// SELECTED BY IsEnabled, which is exactly one instance by construction: Player.cs:225-231
+			// resolves `TraitsImplementing<IBot>().FirstOrDefault(b => b.Info.Type == BotType)` and
+			// calls Activate on that one alone, and Activate is the only writer of IsEnabled
+			// (ModularBot.cs:121). Null -- and therefore 0 -- for a human, a spectator, and on a
+			// NON-HOST client, because that activation is guarded by `IsBot && Game.IsHost`. Zero is the
+			// honest answer in all three: no instance on this machine is counting anything.
+			//
+			// FirstOrDefault rather than SingleOrDefault deliberately: a malformed lobby that somehow
+			// activated two should not turn a diagnostic read into a crash mid-scenario.
+			var bot = player.PlayerActor?.TraitsImplementing<ModularBot>().FirstOrDefault(b => b.IsEnabled);
+			if (bot == null)
+				return 0;
+
+			return string.IsNullOrEmpty(moduleTag) ? bot.OrdersQueued : bot.OrdersQueuedBy(moduleTag);
+		}
+
 		[Desc("Read the §3a SightingThreatLayer enemy (threat) intensity for `player` at `cell`. " +
 			"Non-zero means the player has a live/decaying enemy sighting there. Test mode only.")]
 		public int GetThreatIntensity(Player player, CPos cell)

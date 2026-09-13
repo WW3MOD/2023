@@ -521,6 +521,40 @@ namespace OpenRA.Mods.Common.Traits
 			revalidateCountdown = Math.Max(1, Info.RevalidateInterval);
 		}
 
+		/// <summary>
+		/// Discard the component labelling so the next query rebuilds it. For a change to what is
+		/// PASSABLE, which the periodic revalidate deliberately does not cover.
+		/// </summary>
+		/// <remarks>
+		/// <para>WHAT THIS EXISTS FOR, AND THE SYMPTOM IT FIXES. The labels are built once behind the
+		/// one-way <c>built</c> flag and never rebuilt — <see cref="RevalidateCrossings"/> only re-reads
+		/// bridge-hut damage. That is correct for a map whose passability is static, which was every map
+		/// until the DEFCON 3 border landed: <see cref="DefconWall"/> writes <c>Map.CustomTerrain</c>,
+		/// <see cref="Locomotor"/> subscribes to <c>CustomTerrain.CellEntryChanged</c> (Locomotor.cs:451),
+		/// and <see cref="LabelFor"/> flood-fills on <c>MovementCostForCell</c> — so the wall IS visible to
+		/// a build that happens while it stands. Escalation opens at DEFCON 3 and the wall goes up from the
+		/// World actor's first tick (DefconWall.cs:340-362), while the first bot query lands
+		/// <c>LocalRandom.Next(0, ReevaluateInterval)</c> ticks in (PoiOffensiveBotModule.cs:1382) — so on
+		/// all but the earliest draws the labelling is done with the map bisected, and WITHOUT this hook it
+		/// stays bisected for the rest of the match. Every POI across the old line then classifies
+		/// <see cref="GroundReach.Unreachable"/> and is damped by ReachabilityUnreachableMultiplier long
+		/// after the border has opened.</para>
+		/// <para>DETERMINISM. This only clears a flag; the rebuild itself happens lazily inside whichever
+		/// module queries next, on that module's own synced cadence, and <see cref="Build"/> is re-entrant
+		/// (it reallocates all three label arrays and every collection it fills is cleared by its own
+		/// helper). The callers are <see cref="DefconWall.RaiseWall"/>/<see cref="DefconWall.LowerWall"/>,
+		/// which run from ITick on the World actor and therefore fire on the same tick on every client.
+		/// Skirmish never raises a wall, so it never reaches this and pays nothing.</para>
+		/// </remarks>
+		public void Invalidate()
+		{
+			if (!built)
+				return;
+
+			built = false;
+			Log.Write("debug", $"[crossingmap] invalidated at tick {world.WorldTick}; labels rebuild on next query.");
+		}
+
 		void Build()
 		{
 			var locos = world.WorldActor.TraitsImplementing<Locomotor>().ToList();
