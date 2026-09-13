@@ -300,12 +300,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var intervalSeconds = 60 * Minutes(LobbyPhaseConsistency.UnlockIntervalOptionId, unlockInfo?.IntervalDefault ?? 0);
 			var limitSeconds = TimeLimitSeconds();
 
-			var capName = Settings.OptionOrDefault(NuclearUnlockClockInfo.HighestYieldOptionId,
-				(unlockInfo?.HighestYieldDefault ?? NuclearRung.HundredKiloton).ToString().ToLowerInvariant());
-			if (!Enum.TryParse<NuclearRung>(capName, true, out var capRung))
-				capRung = unlockInfo?.HighestYieldDefault ?? NuclearRung.HundredKiloton;
+			// THE LAST BAND THE BAR DRAWS IS THE HIGHEST TIER STILL TICKED, which is where the single
+			// `nuclear-highest-yield` cap used to be read (decision 02 replaced it with four per-tier
+			// checkboxes). It is the HIGHEST enabled one rather than the count of enabled ones,
+			// because the clock still unlocks in band order: switching off 20 kt does not make 50 kt
+			// arrive an interval sooner, it leaves a tier nobody may buy in the middle of the run.
+			//
+			// All four off is a legal lobby and means nothing is ever purchasable; the bar then draws
+			// no tier bands at all, which is the honest picture rather than a hidden minimum of one.
+			var defaults = unlockInfo?.PurchasableDefaults();
+			var cap = 0;
+			for (var i = 0; i < NuclearUnlockClockInfo.PurchasableOptionIds.Length; i++)
+				if (Settings.OptionOrDefault(NuclearUnlockClockInfo.PurchasableOptionIds[i],
+					defaults == null || defaults[i]))
+					cap = NuclearUnlockSchedule.LowestRung + i;
 
-			var cap = NuclearUnlockSchedule.ClampCap((int)capRung);
+			cap = cap > 0 ? NuclearUnlockSchedule.ClampCap(cap) : 0;
 			var lastRungSeconds = intervalSeconds > 0 ? cap * intervalSeconds : 0;
 
 			var axis = TimelineModel.AxisSecondsFor(new[] { limitSeconds, lastRungSeconds }, MinimumAxisSeconds);

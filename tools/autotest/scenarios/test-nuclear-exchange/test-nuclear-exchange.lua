@@ -8,11 +8,13 @@
 -- SupportPowersWidget filters its icon list on (SupportPowersWidget.cs:136). So 'ready' here means
 -- a cameo the player could click, which is the claim, rather than an int matching an int.
 --
--- It also folds in the half of the feature a state read would miss. EVERY NUCLEAR POWER IN THE MOD
--- IS RequiresPurchase (nuclear-arsenal.yaml:108 and nine more), so a band that is merely PERMITTED
--- is a shop entry and a bill — SupportPowerInstance.Disabled stays true at zero banked shots. With
--- DefaultCash: 0 in rules.yaml nobody can buy anything, so 'ready' can only mean the exchange
--- loaded the warhead itself (SupportPowerInstance.MakeReady).
+-- It also folds in the half of the feature a state read would miss. Every nuclear power in the mod
+-- ships RequiresPurchase (nuclear-arsenal.yaml:108 and nine more) — and decision 02 BYPASSES that
+-- in Escalation, where a band is a free power on a regeneration timer and nothing nuclear is
+-- purchasable at all. The bin is what shows the difference: a bought power with an empty magazine
+-- reads `hidden`, a free one on a timer reads `charging:<ticks>`. With DefaultCash: 0 nobody could
+-- buy anything even if the bypass failed, so every `ready` below can only mean the exchange itself
+-- loaded the warhead.
 --
 -- THE ONE READING THAT SEPARATES THIS MODEL FROM THE ONE IT REPLACED is the pair in phase C:
 -- Russia's 20 kt READY and USA's 20 kt still HIDDEN, off the same shot. Under decision 06's shared
@@ -29,7 +31,13 @@
 --     scenario that shot something would be asserting a rule this model does not have.
 --   * The game-ender path. Firing one calls DoomsdayStrike.BeginFinalExchange, which is a STUB on
 --     this branch pending wt/deadhand-window; asserting a stub would pin the wrong behaviour.
---   * Nuclear Posture. It scales ChargeInterval, and no nuclear power in the mod has one.
+--   * Nuclear Posture. It scales the regeneration timers, and this run leaves it at Flexible —
+--     the identity multiplier — so the compressed 300 ticks in rules.yaml is the number that
+--     actually applies. NuclearExchangeStateTest pins the three multipliers without a world.
+--   * The BUY TAB. SupportPowerProductionQueue filters its items on SupportPowerInstance.Purchasable
+--     and there is no Lua binding that reads a production queue's contents, so "the nuclear powers
+--     are absent from the shop" is asserted by NuclearExchangeStateTest and by the one line in
+--     SupportPowerInstance's constructor that disables the bank, not from here.
 
 -- TICK DOMAIN. Every boundary below is in TICKS, never TestHarness seconds: that helper runs 25
 -- ticks per second against a mod at 16.67, and the retaliation window this measures is a tick count
@@ -48,12 +56,16 @@ local AIM_X, AIM_Y = 32, 8
 -- 1 minute at the mod's 60 ms timestep; rules.yaml sets RetaliationWindowDefault: 1.
 local WINDOW_TICKS = 1000
 
+-- rules.yaml compresses the 1 kt band's regeneration from the shipped 3000 (3:00) to this.
+local REGEN_TICKS = 300
+
 -- Phase boundaries, in ticks from t=0. Generous: every one of them is "well after the thing it is
 -- waiting for", never a measurement of when that thing happened.
 local RELEASE_CHECK_TICK = 90               -- release is at tick 10; 80 ticks of slack
 local FIRE_TICK = 120
 local PARITY_CHECK_TICK = FIRE_TICK + 60    -- the grant crosses a world trait, a player trait and
                                             -- a condition; NuclearExchangeInfo.GrantRetryTicks is 30
+local REGEN_CHECK_TICK = FIRE_TICK + REGEN_TICKS + 60
 local LAPSE_CHECK_TICK = FIRE_TICK + WINDOW_TICKS + 120
 local BUDGET_TICK = LAPSE_CHECK_TICK + 200
 
@@ -87,6 +99,20 @@ WorldLoaded = function()
 	-- Compared EXACTLY against the bare vocabulary in TestGlobal.SupportPowerState. An earlier
 	-- version of that binding appended " (bin: ...)" to every return, which made exact comparison
 	-- unsatisfiable in three of its four callers -- so this is deliberately not a `find`.
+	-- `charging:<n>` is the one token in the vocabulary that carries a value, so it is matched by
+	-- PREFIX where every other reading is compared exactly. It is also a token this scenario could
+	-- not produce at all before decision 02: while nuclear powers were bought, a spent one had an
+	-- empty magazine and read `hidden`. Reading `charging:` IS the free-timer economy.
+	local function expectCharging(player, who, key, why)
+		local got = Test.GetSupportPowerState(player, key)
+		if got:sub(1, 9) ~= "charging:" then
+			fault("%s's %s reads %q, expected a `charging:<ticks>` reading. %s", who, key, got, why)
+			return false
+		end
+
+		return true
+	end
+
 	local function expect(player, who, key, want, why)
 		local got = state(player, key)
 		if got ~= want then
@@ -165,7 +191,39 @@ WorldLoaded = function()
 			ok = expect(Russia, "Russia", RU_1KT, "ready",
 				"Russia's own 1 kt band went dark when it was hit; parity is permanent and additive") and ok
 
+			-- THE SHOT WAS SPENT AND IS REGENERATING, which is the reading that did not exist before
+			-- decision 02: a bought power with an empty magazine reads `hidden`, a free one on a
+			-- timer reads `charging:<ticks>`. So this single token says the power is permitted, is
+			-- NOT purchasable, and is on a clock -- the whole Escalation economy in one assertion.
+			ok = expectCharging(USA, "USA", USA_1KT,
+				"USA fired its only 1 kt warhead and the band must now be on its regeneration timer."
+				.. " `hidden` means the power is still a BOUGHT power with an empty magazine and the"
+				.. " Escalation bypass did not apply; `ready` means firing cost nothing at all") and ok
+
 			note(ok, "parity ok at t%d (fired t%d)", tick, FIRE_TICK)
+			Trigger.AfterDelay(1, step)
+			return
+		end
+
+		-- ---- PHASE E. THE REGENERATION, and the assertion this scenario gained with decision 02.
+		-- USA fired its 1 kt at t120 and nobody has any money. If it reads `ready` again now, the
+		-- only thing that can have reloaded it is the band's own timer.
+		if tick == REGEN_CHECK_TICK then
+			local ok = expect(USA, "USA", USA_1KT, "ready",
+				string.format("the 1 kt band did not come back %d ticks after it was fired, with"
+					.. " DefaultCash 0. A permanent band in Escalation is a FREE power on a"
+					.. " regeneration timer -- if this still reads `charging:` the timer is longer"
+					.. " than the override in rules.yaml, and if it reads `hidden` the power is"
+					.. " being bought rather than regenerated", REGEN_TICKS))
+
+			-- AND THE WINDOW BAND HAS NOT QUIETLY DONE THE SAME. Russia's 20 kt is a one-shot grant,
+			-- not a permanent band, and its own regeneration is left at the shipped 4000 -- so it
+			-- must still be readable as the grant rather than as a band that recharged.
+			ok = expect(Russia, "Russia", RU_20KT, "ready",
+				"Russia's retaliation window closed early: it is a one-minute grant and this is only"
+				.. " " .. tostring(REGEN_CHECK_TICK - FIRE_TICK) .. " ticks in") and ok
+
+			note(ok, "regen ok at t%d, %d ticks after the shot", tick, tick - FIRE_TICK)
 			Trigger.AfterDelay(1, step)
 			return
 		end

@@ -75,7 +75,35 @@ namespace OpenRA.Mods.Common.Traits
 	public class NuclearUnlockClockInfo : TraitInfo, ILobbyOptions
 	{
 		public const string IntervalOptionId = "nuclear-unlock-interval";
-		public const string HighestYieldOptionId = "nuclear-highest-yield";
+		// ==== FOUR CHECKBOXES WHERE THERE WAS ONE CAP DROPDOWN (decision 02, 2026-09-13) ====
+		// The user: "in Skirmish mode they can be purchased but we can disable purchasing for various
+		// levels too, like disable all high yield, or low yield etc, there can be 4 checkboxes, one
+		// for each tier."
+		//
+		// THE SET IS NO LONGER A PREFIX, AND THAT IS THE WHOLE DIFFERENCE. `nuclear-highest-yield` was
+		// a CEILING -- every band up to it was on sale and nothing above it ever was -- so one number
+		// described it and NuclearUnlockSchedule.RungAt could clamp against it. A host can now turn
+		// off 20 kt while leaving 1 kt and 50 kt on, which no single rung can express. The clock still
+		// decides WHEN a band comes up (RungAt, unchanged); these decide WHETHER it is offered at all.
+		//
+		// GAME-ENDERS GET NO CHECKBOX, and that is decision 17.3 rather than an omission: "Game-enders
+		// are NEVER purchasable in Skirmish", with no host override. HighestPurchasableRung enforces
+		// it in code, so adding a fifth box here would not open that band either.
+		public const string KilotonPurchasableOptionId = "nuke-1kt";
+		public const string TwentyKilotonPurchasableOptionId = "nuke-20kt";
+		public const string FiftyKilotonPurchasableOptionId = "nuke-50kt";
+		public const string HundredKilotonPurchasableOptionId = "nuke-100kt";
+
+		/// <summary>The four ids in ascending band order. THE ORDER IS LOAD-BEARING.</summary>
+		// It is what pairs each id with its default, its label and its display order when the options
+		// are generated below, and with its band in IsBandPurchasable. LobbyOptionsLogic names the
+		// four constants individually rather than walking this, because its two collections are
+		// static initialisers and reading well there matters more than saving four lines.
+		public static readonly string[] PurchasableOptionIds =
+		{
+			KilotonPurchasableOptionId, TwentyKilotonPurchasableOptionId,
+			FiftyKilotonPurchasableOptionId, HundredKilotonPurchasableOptionId,
+		};
 
 		[Desc("Label for the unlock interval dropdown.")]
 		public readonly string IntervalLabel = "Nuclear Unlock";
@@ -115,29 +143,47 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Display order for the unlock interval dropdown. 30-35 is the Arsenal section.")]
 		public readonly int IntervalDisplayOrder = 34;
 
-		[Desc("Label for the highest-yield dropdown.")]
-		public readonly string HighestYieldLabel = "Highest Yield";
+		[Desc("Whether each yield tier may be BOUGHT at all, lowest first. All four default ON, so an",
+			"untouched lobby behaves exactly as the old `nuclear-highest-yield` default did (capped at",
+			"100 kt, everything below it on sale).",
+			"",
+			"THESE GOVERN SKIRMISH ONLY. In DEFCON Escalation nothing nuclear is purchasable at all --",
+			"a band is a free power on a regeneration timer (decision 02) -- so a host there controls",
+			"the TIMING and nothing else, and these boxes are not consulted.",
+			"See " + nameof(NuclearUnlockClock) + "." + nameof(NuclearUnlockClock.IsBandPurchasable) + ".")]
+		public readonly bool KilotonPurchasable = true;
 
-		[Desc("Tooltip for the highest-yield dropdown.")]
-		public readonly string HighestYieldDescription =
-			"The largest warhead this match will ever put on sale. Tiers above it never unlock, however " +
-			"long the match runs. Game-enders are never purchasable and are not offered here";
+		[Desc("Whether the 20 kt tier may be bought. See " + nameof(KilotonPurchasable) + ".")]
+		public readonly bool TwentyKilotonPurchasable = true;
 
-		[Desc("Default highest yield. A " + nameof(NuclearRung) + " name; the 200 kt+ game-ender rung",
-			"is deliberately NOT offered and cannot be reached -- decision 17.3, the user's own ruling",
-			"and stricter than it was recommended: 'Game-enders are NEVER purchasable in Skirmish',",
-			"with no host override. " + nameof(NuclearUnlockSchedule) + ".ClampCap enforces it in code",
-			"as well, so a map that overrides this field cannot open that band either.")]
-		public readonly NuclearRung HighestYieldDefault = NuclearRung.HundredKiloton;
+		[Desc("Whether the 50 kt tier may be bought. See " + nameof(KilotonPurchasable) + ".")]
+		public readonly bool FiftyKilotonPurchasable = true;
 
-		[Desc("Prevent the highest yield from being changed in the lobby.")]
-		public readonly bool HighestYieldLocked = false;
+		[Desc("Whether the 100 kt tier may be bought. See " + nameof(KilotonPurchasable) + ".")]
+		public readonly bool HundredKilotonPurchasable = true;
 
-		[Desc("Show the highest-yield dropdown in the lobby.")]
-		public readonly bool HighestYieldVisible = true;
+		[Desc("Prevent the four tier checkboxes from being changed in the lobby.")]
+		public readonly bool PurchasableLocked = false;
 
-		[Desc("Display order for the highest-yield dropdown.")]
-		public readonly int HighestYieldDisplayOrder = 35;
+		[Desc("Show the four tier checkboxes in the lobby.")]
+		public readonly bool PurchasableVisible = true;
+
+		[Desc("Display order of the FIRST tier checkbox; the other three follow it in band order.")]
+		public readonly int PurchasableDisplayOrder = 35;
+
+		/// <summary>The four defaults in ascending band order, matching <see cref="PurchasableOptionIds"/>.</summary>
+		public IReadOnlyList<bool> PurchasableDefaults()
+		{
+			return new[] { KilotonPurchasable, TwentyKilotonPurchasable, FiftyKilotonPurchasable, HundredKilotonPurchasable };
+		}
+
+		/// <summary>The lobby label for each tier checkbox, ascending.</summary>
+		// Built from the band table's own labels rather than written out, so a renamed rung cannot
+		// leave a checkbox advertising a yield the game no longer has.
+		public static string PurchasableLabel(int rung)
+		{
+			return Widgets.DefconReadoutModel.RungLabel(rung) + " purchasable";
+		}
 
 		void ThrowIfBadDefault()
 		{
@@ -162,28 +208,13 @@ namespace OpenRA.Mods.Common.Traits
 			return new ReadOnlyDictionary<string, string>(values);
 		}
 
-		/// <summary>The yield caps offered: every band this clock may sell, lowest first.</summary>
-		// Built from the rung range rather than written out, so a new NuclearRung between 1 kt and
-		// 100 kt appears here automatically and cannot be forgotten. The game-ender rung is excluded
-		// by HighestPurchasableRung, not by being left out of a hand-written list.
-		public static IReadOnlyDictionary<string, string> HighestYieldValues()
-		{
-			var values = new Dictionary<string, string>();
-			for (var rung = NuclearUnlockSchedule.LowestRung; rung <= NuclearUnlockSchedule.HighestPurchasableRung; rung++)
-				values[((NuclearRung)rung).ToString().ToLowerInvariant()] = Widgets.DefconReadoutModel.RungLabel(rung);
-
-			return new ReadOnlyDictionary<string, string>(values);
-		}
-
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
 		{
 			ThrowIfBadDefault();
 
-			// NEITHER IS A Placeholder. The four DEFCON dropdowns are dimmed because their durations
-			// are self-declared untuned guesses (decision 12); these two govern behaviour that ships
-			// working the moment this trait is registered, and dimming them would be the inverse of
-			// that ruling -- a live control wearing an inert label, which the 2026-09-10 mode audit
-			// called the worst single item in its whole survey.
+			// NONE OF THESE IS A Placeholder. They govern behaviour that ships working the moment this
+			// trait is registered, and dimming them would be a live control wearing an inert label --
+			// which the 2026-09-10 mode audit called the worst single item in its whole survey.
 			yield return new LobbyOption(
 				IntervalOptionId,
 				IntervalLabel,
@@ -195,16 +226,25 @@ namespace OpenRA.Mods.Common.Traits
 				IntervalLocked,
 				"Powers");
 
-			yield return new LobbyOption(
-				HighestYieldOptionId,
-				HighestYieldLabel,
-				HighestYieldDescription,
-				HighestYieldVisible,
-				HighestYieldDisplayOrder,
-				HighestYieldValues(),
-				HighestYieldDefault.ToString().ToLowerInvariant(),
-				HighestYieldLocked,
-				"Powers");
+			// ONE CHECKBOX PER TIER, ascending, generated from the id list and the band table rather
+			// than written out four times -- so a renamed rung cannot leave a box advertising a yield
+			// the game no longer has, and the ids, labels and defaults cannot fall out of order with
+			// each other. Display orders run consecutively from PurchasableDisplayOrder.
+			var defaults = PurchasableDefaults();
+			for (var i = 0; i < PurchasableOptionIds.Length; i++)
+			{
+				var rung = NuclearUnlockSchedule.LowestRung + i;
+				yield return new LobbyBooleanOption(
+					PurchasableOptionIds[i],
+					PurchasableLabel(rung),
+					$"Allow the {Widgets.DefconReadoutModel.RungLabel(rung)} tier to be bought in Skirmish. " +
+					"Ignored in Escalation, where nothing nuclear is purchasable at all",
+					PurchasableVisible,
+					PurchasableDisplayOrder + i,
+					defaults[i],
+					PurchasableLocked,
+					"Powers");
+			}
 		}
 
 		public override object Create(ActorInitializer init) { return new NuclearUnlockClock(init.Self, this); }
@@ -223,6 +263,9 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Whether the clock governs this match at all. See the file header's three cases.</summary>
 		public readonly bool Active;
 
+		// One flag per purchasable band, ascending, read once from the lobby at construction.
+		readonly bool[] bandPurchasable;
+
 		public NuclearUnlockClock(Actor self, NuclearUnlockClockInfo info)
 		{
 			world = self.World;
@@ -239,12 +282,19 @@ namespace OpenRA.Mods.Common.Traits
 			// speed button mutates it later, which is why nothing below re-reads it per tick.
 			IntervalTicks = NuclearUnlockSchedule.TicksForMinutes(minutes, world.Timestep);
 
-			var cap = settings.OptionOrDefault(NuclearUnlockClockInfo.HighestYieldOptionId,
-				info.HighestYieldDefault.ToString().ToLowerInvariant());
-			if (!System.Enum.TryParse<NuclearRung>(cap, true, out var capRung))
-				capRung = info.HighestYieldDefault;
+			// NO HOST CAP ANY MORE. `nuclear-highest-yield` is replaced by the four per-tier checkboxes
+			// (decision 02), and a set of four booleans is not a rung -- so the clock climbs to the
+			// hard ceiling and the checkboxes decide which of the bands it passes are actually offered.
+			// That ceiling is still decision 17.3's: game-enders are NEVER purchasable, from any
+			// setting, and ClampCap enforces it a second time in code.
+			CapRung = NuclearUnlockSchedule.ClampCap(NuclearUnlockSchedule.HighestPurchasableRung);
 
-			CapRung = NuclearUnlockSchedule.ClampCap((int)capRung);
+			var defaults = info.PurchasableDefaults();
+			var purchasable = new bool[NuclearUnlockClockInfo.PurchasableOptionIds.Length];
+			for (var i = 0; i < purchasable.Length; i++)
+				purchasable[i] = settings.OptionOrDefault(NuclearUnlockClockInfo.PurchasableOptionIds[i], defaults[i]);
+
+			bandPurchasable = purchasable;
 
 			// ==== THE THREE SUSPENSIONS ====
 			// SANDBOX IS READ OFF self.Info, NOT off world.WorldActor, and that is not a style choice:
@@ -277,5 +327,31 @@ namespace OpenRA.Mods.Common.Traits
 		public int ReleasedRung => Active
 			? NuclearUnlockSchedule.RungAt(world.WorldTick, IntervalTicks, CapRung)
 			: NuclearReleaseLadder.Highest;
+
+		/// <summary>
+		/// <para>May this band be bought at all this match? The host's four tier checkboxes, and the
+		/// half of the Skirmish shop that is NOT about time.</para>
+		///
+		/// <para>TRUE FOR EVERYTHING THE BOXES DO NOT COVER, which is deliberate and is what keeps the
+		/// change contained. The game-ender band has no checkbox and returns true here -- it is kept
+		/// out by <see cref="NuclearUnlockSchedule.HighestPurchasableRung"/>, not by this, so a future
+		/// fifth box could not accidentally open it either.</para>
+		///
+		/// <para>AND TRUE FOR EVERY BAND WHEN THE CLOCK IS SUSPENDED. Sandbox is "all support powers"
+		/// and Escalation is not a shop at all (decision 02: a band there is a free power on a
+		/// regeneration timer, and the host controls only the timing), so in both the boxes are not
+		/// consulted rather than being read as "off".</para>
+		/// </summary>
+		public bool IsBandPurchasable(int rung)
+		{
+			if (!Active)
+				return true;
+
+			var index = rung - NuclearUnlockSchedule.LowestRung;
+			if (index < 0 || index >= bandPurchasable.Length)
+				return true;
+
+			return bandPurchasable[index];
+		}
 	}
 }
