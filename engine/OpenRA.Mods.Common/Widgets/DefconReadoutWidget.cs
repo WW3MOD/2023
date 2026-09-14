@@ -214,7 +214,7 @@ namespace OpenRA.Mods.Common.Widgets
 		}
 
 		// ---- IT HAS NO HIT AREA, AND THAT IS THE HONEST ANSWER --------------------------------------
-		// A plain Widget inherits EventBounds = RenderBounds, and RenderBounds here is the 352x240
+		// A plain Widget inherits EventBounds = RenderBounds, and RenderBounds here is the 341x240
 		// RESERVE -- far bigger than the ~82px strip that is usually drawn, and bigger still than
 		// nothing at all while the readout is hidden. Left inherited, that rectangle claims
 		// Ui.MouseOverWidget and returns the default cursor from Widget.GetCursor, so the select and

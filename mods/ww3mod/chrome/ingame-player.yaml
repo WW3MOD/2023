@@ -127,20 +127,34 @@ Container@PLAYER_WIDGETS:
 		#     AvoidPanels below is how the readout gets out of their way -- the widget draws from
 		#     whichever panel is visible, 5px above its top edge, instead of from its own bottom.
 		#   - the sidebar proper (X: WINDOW_WIDTH - 250, 238 wide) ends far above all of this.
-		# The readout is 352 wide against the sidebar's 238, so its left edge sits ~100px further left
-		# than the sidebar's -- clear of the chat root (550 wide, centred, bottom-anchored) down to
-		# 1286px of window width, where the two meet.
+		# The readout is 341 wide against the sidebar's 238, so its left edge sits ~100px further left
+		# than the sidebar's -- clear of the chat root (550 wide, centred, bottom-anchored) at every
+		# window width this mod supports.
 		#
-		# THE COMMAND BAR IS THE TIGHT ONE, NOT THE CHAT. CMD_BG_A..RESUPPLY_BG below are absolutely
-		# positioned from X:5 to X:929 at this same bottom edge, and they do not move with the window.
-		# At 1280 wide the readout's left edge lands at 923 and the bottom 44px of the strip overlaps
-		# the last 6px of RESUPPLY_BG, which draws over it. 1286 and wider is clear. If that 6px ever
-		# has to go, the fix is this Y: WINDOW_HEIGHT - HEIGHT - 54 puts the whole readout above the
-		# command bar at every width, at the cost of lifting it off the corner everywhere else.
+		# 341 IS SET BY THE COMMAND BAR AT 1280 WIDE, NOT BY THE CONTENT. CMD_BG_A..RESUPPLY_BG below
+		# are absolutely positioned and do NOT move with the window. RESUPPLY_BG is the rightmost:
+		# X:809 Width:120, so the bar's last pixel is 928 and the first free column is 929. This
+		# widget's left edge is WINDOW_WIDTH - WIDTH - 5, which at the narrowest supported window is
+		# 1275 - WIDTH. WIDTH 341 lands it at 934 -- clear of 929 by the same 5px every other pair of
+		# bottom-docked panels in this file uses, and the same gap AvoidPanelGap keeps below.
+		#
+		# IT WAS 352 UNTIL 2026-09-14 AND IT OVERLAPPED. At 352 the left edge landed at 923 and the
+		# bottom 44px of the strip drew under the last 6px of RESUPPLY_BG at any window narrower than
+		# 1286 -- 1280x720 included. Shrinking was chosen over the alternative this comment used to
+		# name (Y: WINDOW_HEIGHT - HEIGHT - 54 clears the bar at every width) because that lifts the
+		# readout off the corner at EVERY width to fix one that is only wrong below 1286, and over
+		# re-anchoring the command bar, which is 24 absolute X values across six panels.
+		#
+		# WHAT THE 11px COSTS, since the widget derives everything from Bounds.Width: contentWidth is
+		# WIDTH - 22, so 330 -> 319; the ledger's five band boxes are (WIDTH - 72) / 5, so 56 -> 53.
+		# "100kt" measures ~30px in Tiny (read off the ledger crop of frame 08 in
+		# 260914_122039_p8182_demo-defcon-readout), leaving ~11px of slack each side of a 53px box. The
+		# rule and foot lines wrap 11px earlier; in every captured frame their second line runs under a
+		# third of the width, so none of them gains a third line.
 		DefconReadout@DEFCON_READOUT:
 			X: WINDOW_WIDTH - WIDTH - 5
 			Y: WINDOW_HEIGHT - HEIGHT - 5
-			Width: 352
+			Width: 341
 			# 170 UNTIL 2026-09-13, WHEN THE NUCLEAR BLOCK GAINED A SECOND LEDGER ROW.
 			#
 			# THIS NUMBER IS A RESERVE, NOT A CLIP. DefconReadoutWidget draws UPWARD from
@@ -166,6 +180,12 @@ Container@PLAYER_WIDGETS:
 			# widget resolves them once and drops any it cannot find, so this list is safe to extend
 			# with a panel some other chrome file declares and this one does not.
 			AvoidPanels: GARRISON_PANEL, CARGO_PANEL
+			# 14 RATHER THAN THE WIDGET'S DEFAULT 5, BECAUSE THOSE PANELS NOW DRAW A FRAME OUTSIDE THEIR
+			# OWN BOUNDS. DefconReadoutWidget measures the gap from Container.RenderBounds.Top, and
+			# GARRISON_BG/CARGO_BG below sit at Y: 0 - 9 -- nine pixels above that line. 14 - 9 leaves the
+			# same 5px of clear air between the readout and what the player actually sees as the panel's
+			# top edge. Change either number and re-check the other.
+			AvoidPanelGap: 14
 		# Full-width and deliberately not parented to anything: the band runs off both edges of the
 		# screen, which is what makes it read as the screen changing state rather than as a dialog.
 		# It draws only during the four seconds after a level change and is invisible the rest of the
@@ -783,6 +803,36 @@ Container@PLAYER_WIDGETS:
 			Width: 228
 			Height: 240
 			Children:
+				# THE PANEL'S ONLY BACKGROUND, ADDED 2026-09-14. Both of these containers shipped as bare
+				# Container@ with no background of any kind, so every row drew straight onto the map and the
+				# panel read as loose text rather than as a panel -- see frame 009 of
+				# 260914_122039_p8182_demo-defcon-readout. The Contrast: true on every label below was the
+				# only thing keeping it legible, and it is kept: it still earns its place over the frame's
+				# black centre, and removing it from thirty labels would be a second unverified change.
+				#
+				# IT SITS 9px OUTSIDE THE CONTAINER ON EVERY SIDE, and that is what makes the padding even.
+				# The children run x 0..220 and y 0..232 inside a container declared 228x240, so the slack
+				# is 8px right, 8px bottom and NOTHING top or left -- a frame drawn at the container bounds
+				# would put commandbar-background's 9px bevel straight under the header text. Drawing from
+				# (-9, -9) at 238x250 gives 9px of clear black on all four sides instead. Nothing clips it:
+				# ContainerWidget sets no scissor, and PALETTE_FOREGROUND's ICON_TEMPLATE above already
+				# relies on the same thing.
+				#
+				# ClickThrough: true IS LOAD-BEARING. BackgroundWidget swallows the left button by default
+				# (ClickThrough is a readonly field defaulting to FALSE, BackgroundWidget.cs:18), which
+				# would take 238x250 of playfield out of the map's reach whenever a hold or a transport is
+				# selected. This change is meant to be pixels only.
+				#
+				# BOTH PANELS CARRY THE IDENTICAL RECTANGLE, for the reason CARGO_PANEL's own comment gives:
+				# they are mutually exclusive and share one footprint, and a frame that changed size with
+				# the kind of hold you clicked would undo that.
+				Background@GARRISON_BG:
+					X: 0 - 9
+					Y: 0 - 9
+					Width: 238
+					Height: 250
+					Background: commandbar-background
+					ClickThrough: true
 				LogicTicker@GARRISON_TICKER:
 				Label@GARRISON_HEADER:
 					Width: 220
@@ -970,6 +1020,36 @@ Container@PLAYER_WIDGETS:
 			Width: 228
 			Height: 240
 			Children:
+				# THE PANEL'S ONLY BACKGROUND, ADDED 2026-09-14. Both of these containers shipped as bare
+				# Container@ with no background of any kind, so every row drew straight onto the map and the
+				# panel read as loose text rather than as a panel -- see frame 009 of
+				# 260914_122039_p8182_demo-defcon-readout. The Contrast: true on every label below was the
+				# only thing keeping it legible, and it is kept: it still earns its place over the frame's
+				# black centre, and removing it from thirty labels would be a second unverified change.
+				#
+				# IT SITS 9px OUTSIDE THE CONTAINER ON EVERY SIDE, and that is what makes the padding even.
+				# The children run x 0..220 and y 0..232 inside a container declared 228x240, so the slack
+				# is 8px right, 8px bottom and NOTHING top or left -- a frame drawn at the container bounds
+				# would put commandbar-background's 9px bevel straight under the header text. Drawing from
+				# (-9, -9) at 238x250 gives 9px of clear black on all four sides instead. Nothing clips it:
+				# ContainerWidget sets no scissor, and PALETTE_FOREGROUND's ICON_TEMPLATE above already
+				# relies on the same thing.
+				#
+				# ClickThrough: true IS LOAD-BEARING. BackgroundWidget swallows the left button by default
+				# (ClickThrough is a readonly field defaulting to FALSE, BackgroundWidget.cs:18), which
+				# would take 238x250 of playfield out of the map's reach whenever a hold or a transport is
+				# selected. This change is meant to be pixels only.
+				#
+				# BOTH PANELS CARRY THE IDENTICAL RECTANGLE, for the reason CARGO_PANEL's own comment gives:
+				# they are mutually exclusive and share one footprint, and a frame that changed size with
+				# the kind of hold you clicked would undo that.
+				Background@CARGO_BG:
+					X: 0 - 9
+					Y: 0 - 9
+					Width: 238
+					Height: 250
+					Background: commandbar-background
+					ClickThrough: true
 				LogicTicker@CARGO_TICKER:
 				Label@CARGO_HEADER:
 					Width: 220

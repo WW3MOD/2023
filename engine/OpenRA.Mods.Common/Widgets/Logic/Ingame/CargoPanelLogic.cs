@@ -67,12 +67,18 @@ namespace OpenRA.Mods.Common.Widgets
 					var passengerCount = cargo?.PassengerCount ?? 0;
 					var supplyCount = supplyProvider?.CurrentSupply ?? 0;
 
+					// "1 troop", NOT "1 troops". A transport carrying one passenger is the single most
+					// common state this header is ever read in -- it is what a half-emptied APC shows for
+					// the rest of its life -- and it shipped reading "CARGO [1 troops]" (frame 009 of
+					// 260914_122039_p8182_demo-defcon-readout). Supply is a mass noun and takes no plural.
+					var troops = passengerCount == 1 ? "troop" : "troops";
+
 					if (supplyCount > 0 && passengerCount > 0)
-						return $"CARGO [{passengerCount} troops, {supplyCount} supply]";
+						return $"CARGO [{passengerCount} {troops}, {supplyCount} supply]";
 					else if (supplyCount > 0)
 						return $"CARGO [{supplyCount} supply]";
 					else if (passengerCount > 0)
-						return $"CARGO [{passengerCount} troops]";
+						return $"CARGO [{passengerCount} {troops}]";
 					else
 						return "CARGO [empty]";
 				};

@@ -747,7 +747,7 @@ notification-match-start = No base building — order units from the sidebar. Th
 notification-defcon-border-closed = The border is closed at DEFCON 3 — that order would cross it.
 
 ## THE ESCALATION ALERTS, added 2026-09-13. Every one of these accompanies a sound: until this
-## landed, three of the mode's four turning points moved a strip in a 352-pixel panel in the corner
+## landed, three of the mode's four turning points moved a strip in a 341-pixel panel in the corner
 ## and made no noise at all, so a player looking at their own units missed the rule change entirely.
 ##
 ## Each line says what the player may now DO, never the trait that made it so -- the same rule the

@@ -8,7 +8,7 @@
  * PLAYING A NOTIFICATION FROM A WIDGET, SAFELY -- added 2026-09-13 with the escalation alerts.
  *
  * The DEFCON banner had been on screen for days playing NOTHING. Three of the mode's four turning
- * points -- 3 -> 2, 2 -> 1 and the nuclear release -- moved a strip in a 352-pixel panel in the
+ * points -- 3 -> 2, 2 -> 1 and the nuclear release -- moved a strip in a 341-pixel panel in the
  * bottom-left corner and made no sound at all, so a player looking at their own units missed the
  * moment the rules changed underneath them.
  *
