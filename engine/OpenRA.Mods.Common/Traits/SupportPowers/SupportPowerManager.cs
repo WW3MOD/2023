@@ -158,8 +158,27 @@ namespace OpenRA.Mods.Common.Traits
 		/// is buyable precisely while it is permitted, whether or not one is already loaded.
 		/// </summary>
 		public bool Permitted =>
+			PermittedIgnoringPrerequisites && (prereqsAvailable || Manager.DevMode.AllTech);
+
+		/// <summary>
+		/// <para>Everything <see cref="Permitted"/> asks EXCEPT the tech tree's answer: alive, enabled by
+		/// its own RequiresCondition, and not a spent one-shot.</para>
+		///
+		/// <para>THIS IS NOT A WEAKER `Permitted` AND IS NOT FOR GENERAL USE. It exists for the two paths
+		/// that are LICENSED to override a prerequisite — the final exchange and the retaliation window at
+		/// <see cref="NuclearRung.GameEnder"/>, both of which hand out powers gated on `powers.event`, a
+		/// name no faction provides. Those paths need to know whether everything else about the power is
+		/// in order before they decide to override the one thing that is not; asking `Permitted` gives
+		/// them a flat no and asking nothing at all would force readiness onto a power whose own
+		/// condition is unsatisfied, which <see cref="Tick"/> would undo on the same tick anyway.</para>
+		///
+		/// <para>THE CALLER STILL OWES THE OWNERSHIP CHECK. Overriding the tier is sanctioned; overriding
+		/// the faction is not. <see cref="NuclearGameEnders.ArmableBy"/> is where that line is drawn,
+		/// and a caller that reads this property without also asking that one hands an America player
+		/// Russia's warhead.</para>
+		/// </summary>
+		public bool PermittedIgnoringPrerequisites =>
 			Manager.Self.Owner.WinState != WinState.Lost &&
-			(prereqsAvailable || Manager.DevMode.AllTech) &&
 			instancesEnabled &&
 			!oneShotFired;
 

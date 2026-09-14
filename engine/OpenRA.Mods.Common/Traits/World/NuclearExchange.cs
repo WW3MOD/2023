@@ -55,6 +55,25 @@
  * BANK IS EMPTY, so repeated hits top the victim up to a single loaded warhead rather than
  * stockpiling them.
  *
+ * ==== AND THE TOP RUNG HAS A THIRD GATE THAT IS NOT A TIMER AT ALL (FIXED 2026-09-14) ====
+ * The two problems above are about CHARGE, and a grant that solved both still granted a player
+ * nothing at the END band for the whole of this trait's life. A user reported it from a real match:
+ * the ledger lit the END box and drew its countdown, and no game-ender cameo ever appeared.
+ *
+ * The cause is a PREREQUISITE and not a clock. MakeBandsReady gated on SupportPowerInstance.Permitted,
+ * which ANDs `prereqsAvailable`; both shipped national game-enders declare `powers.event`
+ * (player.yaml:236-240), which NO faction provides and which exists precisely so a game-ender can
+ * never be bought. So the gate was shut, MakeReady -- the one call that clears that flag -- was never
+ * reached, and the catch-22 was invisible at every band below the top because each faction owns its
+ * own warhead there outright. It was invisible to test-nuclear-exchange too, which sets
+ * `PowersSandboxCheckboxEnabled: true` for unrelated reasons and thereby provides `powers.event`.
+ *
+ * DoomsdayStrike had already met and documented this on the final-exchange path and answered it with
+ * OverriddenPrerequisites plus an ownership check; this trait was written later and did not read it.
+ * The answer is now stated once in NuclearGameEnders and both paths ask it. See ArmableAtTopRung for
+ * why the override is scoped to the top rung, why the power's own condition must still hold, and why
+ * the FACTION half of a prerequisite is never overridable.
+ *
  * NOTHING IS TAKEN BACK WHEN THE WINDOW LAPSES, and that is deliberate rather than an omission.
  * Rule 3 -- "no indefinite grants" -- is already enforced by the CONDITION: when the window closes,
  * GrantConditionOnNuclearRelease revokes the band, SupportPowerInstance.Permitted goes false, and
@@ -204,6 +223,29 @@ namespace OpenRA.Mods.Common.Traits
 			"That band is only ever a retaliation window grant and firing one ends the match, so its",
 			"timer is a post-fire lockout the match never outlives.")]
 		public readonly int HundredKilotonRegenTicks = 6000;
+
+		[Desc("Prerequisites a RETALIATION WINDOW at " + nameof(NuclearRung.GameEnder) + " is licensed",
+			"to IGNORE when it arms a game-ender. Read ONLY on that rung; every band below it is",
+			"armed on " + nameof(SupportPowerInstance.Permitted) + " alone and this field cannot",
+			"reach them.",
+			"",
+			"WHY THE TOP RUNG NEEDS ONE AT ALL. Both shipped national game-enders declare",
+			"`powers.event` (player.yaml:236-240), a prerequisite NO faction provides -- it exists so",
+			"a game-ender is never on the shop floor. Every band below the top is a weapon each",
+			"faction owns outright, so the ordinary gate opens for them; at the top it can never open,",
+			"and before 2026-09-14 the END window therefore granted a player nothing at all while the",
+			"ledger lit its box and counted down. That was the reported bug.",
+			"",
+			"THE FACTION HALF IS NOT OVERRIDABLE AND MUST NOT BE ADDED HERE. `player.america` and",
+			"`player.russia` are an identity rather than a shelf; naming one below would hand an",
+			"America player Russia's Sarmat and undo c8cadc8a. Same field, same default and the same",
+			"reasoning as " + nameof(DoomsdayStrikeInfo) + "." + nameof(DoomsdayStrikeInfo.OverriddenPrerequisites) + ",",
+			"which is the other path that hands these weapons out; both ask",
+			nameof(NuclearGameEnders) + "." + nameof(NuclearGameEnders.ArmableBy) + " so they cannot drift.",
+			"",
+			"EMPTY IS THE STRICT SETTING: it restores the pre-fix behaviour exactly, which is a top",
+			"rung that grants nothing outside Sandbox.")]
+		public readonly string[] OverriddenPrerequisites = { "powers.event" };
 
 		[Desc("Ticks a grant is retried for while the band condition it needs has not reached the",
 			"support power yet. NOT a gameplay duration: the condition is granted by a PLAYER-actor",
@@ -890,6 +932,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (toBand < fromBand)
 				return true;
 
+			// Only consulted on the top rung; see ArmableAtTopRung. Resolved once rather than per
+			// power, and deliberately NOT null-guarded into "arm everything" -- a player actor with
+			// no TechTree arms no game-ender, which is the failing-closed half of ArmableBy.
+			var techTree = player.PlayerActor?.TraitOrDefault<TechTree>();
+
 			var any = false;
 
 			foreach (var (instance, band) in NuclearPowersOf(manager))
@@ -897,11 +944,11 @@ namespace OpenRA.Mods.Common.Traits
 				if (band < fromBand || band > toBand)
 					continue;
 
-				// PERMITTED IS THE GATE, and it is what the retry budget exists for: it folds in
-				// `instancesEnabled`, which is false until the band condition granted by a PLAYER-actor
-				// trait has reached this power. Forcing readiness on a power that is still disabled
-				// would be undone by SupportPowerInstance.Tick on the same tick.
-				if (!instance.Permitted)
+				// PERMITTED IS THE GATE FOR EVERY BAND BUT THE TOP, and it is what the retry budget
+				// exists for: it folds in `instancesEnabled`, which is false until the band condition
+				// granted by a PLAYER-actor trait has reached this power. Forcing readiness on a power
+				// that is still disabled would be undone by SupportPowerInstance.Tick on the same tick.
+				if (!instance.Permitted && !ArmableAtTopRung(techTree, instance, band))
 					continue;
 
 				// MakeReady is wt/deadhand-window's, and this branch's near-identical MakeFireReady
@@ -915,6 +962,45 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return any;
+		}
+
+		/// <summary>
+		/// <para>May the TOP RUNG's window arm this power even though <see cref="SupportPowerInstance.Permitted"/>
+		/// says no? True only for a game-ender this player's own faction owns, whose sole unmet
+		/// prerequisite is one <see cref="NuclearExchangeInfo.OverriddenPrerequisites"/> licenses.</para>
+		///
+		/// <para>THREE CONDITIONS, AND DROPPING ANY OF THEM IS A DIFFERENT BUG:
+		///   * <paramref name="band"/> IS THE TOP RUNG, and it is checked twice -- once here against the
+		///     ladder's own rung and once inside <see cref="NuclearGameEnders.Is"/> against the yield, which
+		///     is also what keeps the 50 Mt Tsar Bomba out (decision 04). Scoping to the top rung is what
+		///     leaves every lower band byte-identical: `TacNukeStrike` is a band-2 power that also declares
+		///     `powers.event` (player.yaml:711), and a fix applied at every band would have started
+		///     handing it out of a 20 kt window to any host who ticked its checkbox on.
+		///   * THE POWER'S OWN CONDITION MUST STILL BE SATISFIED. PermittedIgnoringPrerequisites folds in
+		///     `instancesEnabled`, so a host who turned the arsenal off still gets no cameo and a weapon
+		///     gated on `nuclear-release-unrestricted` -- never granted inside Escalation -- stays
+		///     unreachable. Skipping this would also be pointless: SupportPowerInstance.Tick pins a
+		///     disabled power's timer back to full on the next tick and undoes the grant.
+		///   * A FACTION MUST OWN IT, AND IT MUST BE THIS ONE. Both halves live in
+		///     <see cref="NuclearGameEnders.ArmableBy"/>. `MakeReady` sets prereqsAvailable wholesale, so
+		///     arming on the band alone hands an America player Russia's Sarmat and undoes c8cadc8a; and
+		///     a top-rung power that names NO owner is armed by nobody, which is the user's 2026-09-14
+		///     "national ender only" ruling and is what keeps the 6 Mt strategic strike out of the
+		///     window. Exactly one END cameo per side.</para>
+		///
+		/// <para>IT CANNOT LEAK INTO THE BUY TAB. SupportPowerProductionQueue filters on
+		/// SupportPowerInstance.Purchasable, which is `bank.CanPurchase(Permitted)`, and in Escalation a
+		/// nuclear power's bank is built DISABLED (SupportPowerManager.cs:289-296) -- so the prereqsAvailable
+		/// this grant sets can make a cameo READY and can never make one BUYABLE. Decision 02 is safe by
+		/// construction rather than by care, and this method runs in no other mode.</para>
+		/// </summary>
+		bool ArmableAtTopRung(TechTree techTree, SupportPowerInstance instance, int band)
+		{
+			if (band != (int)NuclearRung.GameEnder)
+				return false;
+
+			return instance.PermittedIgnoringPrerequisites
+				&& NuclearGameEnders.ArmableBy(techTree, instance.Info, info.OverriddenPrerequisites);
 		}
 
 		/// <summary>

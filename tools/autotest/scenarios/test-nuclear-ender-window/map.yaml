@@ -1,0 +1,121 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: the END window hands over a game-ender the player can actually fire
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES, and it is the one rung test-nuclear-exchange declines to climb: its header
+# says "THE GAME-ENDER PATH ... asserting a stub would pin the wrong behaviour", so the top of the
+# ladder has never been exercised by anything. The user's bug is exactly there -- the ledger lit the
+# END box with its countdown and no game-ender cameo ever appeared.
+#
+#   GRANT   -- after a four-launch climb, USA's retaliation window is at NuclearRung.GameEnder and
+#              USA's B83Strike must read `ready` in the support bin, not `hidden`.
+#   FIRE    -- and it must be ACTIVATABLE through the real order path, because "the cameo is there"
+#              and "I can pick the weapon and place the target" are different claims and the user
+#              made the second one.
+#   FACTION -- USA must NOT see the Sarmat and Russia must NOT see the B83. The 2026-09-14 ruling
+#              (c8cadc8a) put `player.america` / `player.russia` on the three enders and this is the
+#              first thing in the tree that could notice it being undone.
+#   ONE EACH -- and nothing else. The user's ruling the same day is "national ender only", so the
+#              6 Mt HighYieldNukeStrike -- band 5, lobby checkbox on, condition satisfied, and
+#              `powers.event` with no owner beside it -- must stay `hidden` in BOTH columns.
+#
+# ==== WHY THIS IS NOT A COPY OF test-nuclear-exchange WITH A LONGER LADDER ====
+# THE ONE LINE THAT MATTERS IS ONE THIS FILE DOES NOT HAVE. That scenario sets
+# `PowersSandboxCheckboxEnabled: true` (its rules.yaml:65), and ProvidesPrerequisite@SandboxEvent
+# hands every player `powers.event` while that option is on (player.yaml:192-194). `powers.event` is
+# the prerequisite the three game-enders declare and that NO faction provides -- so under sandbox
+# they are permitted and the defect is invisible. This scenario runs at SHIPPED lobby configuration
+# and that is the whole of its value. DO NOT ADD PowersSandboxCheckboxEnabled HERE; it would turn
+# this file green against the very build the user reported.
+#
+# ==== THE CLIMB, AND WHY IT TAKES FOUR LAUNCHES ====
+# NuclearExchangeState.ReportLaunch gives the VICTIM the fired band permanently and a window one
+# rung above it, and the FIRER gets nothing (it spends its own window instead, :463-470). So a side
+# can only reach rung N+1 by being shot at with rung N, and the top rung is reachable only by
+# alternating replies -- decision 01's "the top rung is reachable only through a chain of deliberate
+# replies", expressed as the shortest sequence that satisfies it:
+#
+#   L1  USA fires B61Low      300 t   band 1  ->  RU perm 1, RU window 2
+#   L2  RU  fires RuIskander 10000 t  band 2  ->  USA perm 2, USA window 3
+#   L3  USA fires B61Max     50000 t  band 3  ->  RU perm 3, RU window 4
+#   L4  RU  fires RuKalibr  100000 t  band 4  ->  USA perm 4, USA window 5 = GameEnder   <-- THE BUG
+#   L5  USA fires W76       100000 t  band 4  ->  RU  perm 4, RU  window 5 = GameEnder
+#
+# L5 IS NOT A FIFTH RUNG AND IS NOT FREE COVERAGE. It fires USA's PERMANENT band 4 (won at L4), and
+# ReportLaunch only spends a window when `band >= firer.WindowLevel` (:464) -- 4 >= 5 is false, so
+# USA keeps its own END window while handing Russia one. That is what lets a single run assert both
+# factions' enders at once, and it is also the assertion that would catch a future change making any
+# launch spend the window.
+#
+# NOTHING IS AIMED AT ANYTHING THAT MATTERS. Same rule as test-nuclear-exchange: the exchange arms
+# the other side "wherever it lands", so the aim point is empty ground and both Supply Routes
+# survive whatever arrives -- SUPPLYROUTE carries `Targetable.TargetTypes: NoAutoTarget`, which no
+# Atomic warhead lists. Do NOT move them further apart to "fix" a future version of this.
+#
+# THE MATCH DOES NOT ACTUALLY END, AND THAT IS DELIBERATE. DoomsdayStrike.BeginFinalExchange returns
+# immediately in a TestMode session unless RunInTestMode is set (DoomsdayStrike.cs:458-459) and this
+# scenario leaves it at its default false. So L6 below proves the order is ACCEPTED -- which is the
+# user's complaint verbatim -- without handing the verdict to an apocalypse that freezes statistics,
+# reveals the map and annihilates everything while the poller is still writing. The ending itself is
+# demo-doomsday-deadhand's subject, which does set the flag.
+
+# RUSSIA IS DELIBERATELY NOT `Playable`, for the reason test-nuclear-exchange records: AUTOTEST.md
+# map.yaml rule 3 allows exactly one human slot, and NuclearExchangeState.CountsAsASide does NOT
+# test Playable -- a map-authored combatant is a side. Leaving the line off keeps that live.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 6,17
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 58,17
+
+Actors:
+	# One Supply Route per side so neither faction is eliminated before the poller writes a verdict
+	# (AUTOTEST.md map.yaml rule 6).
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 6,17
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 58,17
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+Rules: rules.yaml

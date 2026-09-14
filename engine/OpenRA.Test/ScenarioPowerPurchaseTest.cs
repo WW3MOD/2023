@@ -325,11 +325,9 @@ namespace OpenRA.Test
 		/// </summary>
 		static bool ArmedByTheFinalExchange(Scenario s, Power power)
 		{
-			var tons = power.NuclearYieldTons;
-			if (tons <= 0 || tons > NuclearReleaseLadder.SandboxOnlyAboveTons)
-				return false;
-
-			if (NuclearReleaseLadder.RungForYield(tons) != (int)NuclearRung.GameEnder)
+			// ATTRIBUTION SINCE 2026-09-14: the ending no longer arms an unattributed game-ender, so
+			// a scenario firing one is not exempt from anything. See NamesAnOwnerTier.
+			if (!IsGameEnderYield(power) || !NamesAnOwnerTier(power))
 				return false;
 
 			var world = s.Rules.FirstOrDefault(n => n.Key == "World");
@@ -346,6 +344,73 @@ namespace OpenRA.Test
 			// entirely and fires the salvo on the trigger tick, arming nobody.
 			var ticks = Field(doomsday, "FinalExchangeWindowTicks");
 			return ticks == null || (int.TryParse(ticks, out var parsed) && parsed > 0);
+		}
+
+		/// <summary>
+		/// <para>Is this power one of the weapons the two exchange paths hand out? The yield test, held
+		/// in one place because BOTH of the exemptions below need it and a second copy would be the
+		/// second silent copy of the band table this fixture's header warns about.</para>
+		///
+		/// <para>It mirrors <see cref="NuclearGameEnders.Is"/> rather than calling it, and that is
+		/// deliberate: this fixture reads YAML into its own <c>Power</c> record and never constructs a
+		/// TraitInfo, so calling the runtime predicate would mean building one. What matters is that
+		/// both ask <see cref="NuclearReleaseLadder"/> — the band table and SandboxOnlyAboveTons — so
+		/// neither can drift from the ladder even though they are two expressions of it.</para>
+		/// </summary>
+		static bool IsGameEnderYield(Power power)
+		{
+			var tons = power.NuclearYieldTons;
+			if (tons <= 0 || tons > NuclearReleaseLadder.SandboxOnlyAboveTons)
+				return false;
+
+			return NuclearReleaseLadder.RungForYield(tons) == (int)NuclearRung.GameEnder;
+		}
+
+		/// <summary>
+		/// <para>Does this power's tier name an OWNER — something besides the event tier the two arming
+		/// paths are licensed to ignore? The YAML-side mirror of
+		/// <see cref="NuclearGameEnders.NamesAnOwner"/>, and the user's "national ender only" ruling of
+		/// 2026-09-14: a top-rung power that names nobody is armed by nobody, so a scenario firing one
+		/// gets NO exemption from either check below and must buy it under Sandbox like anything else.
+		/// That is exactly what the five demo-nuke-* scenarios already do.</para>
+		/// </summary>
+		static bool NamesAnOwnerTier(Power power)
+		{
+			if (power.Tier == null)
+				return false;
+
+			return power.Tier.Split(',')
+				.Select(t => t.Trim())
+				.Any(t => t.Length > 0 && !string.Equals(t, "powers.event", StringComparison.Ordinal));
+		}
+
+		/// <summary>
+		/// <para>THE FOURTH ROUTE TO A LOADED GAME-ENDER, and the one this fixture was actively wrong
+		/// about until 2026-09-14. The tier test below asserted, in so many words, that an event-tier
+		/// power is unreachable without the sandbox switch — and for the top rung that had been a
+		/// statement about a BUG rather than about the design. A retaliation window at
+		/// <see cref="NuclearRung.GameEnder"/> is decision 01's only route to a game-ender in a normal
+		/// match ("game-enders exist only as a retaliation grant"), and it granted the player nothing:
+		/// <see cref="NuclearExchange"/> gated its grant on <see cref="SupportPowerInstance.Permitted"/>,
+		/// which ANDs the `powers.event` the shipped enders declare. A user reported the empty column.
+		/// The window now overrides that tier exactly as the final exchange does, so an Escalation
+		/// scenario firing a game-ender needs no sandbox switch.</para>
+		///
+		/// <para>NARROWER THAN <see cref="LoadedByTheExchange"/>, WHICH IS THE POINT. That one exempts
+		/// ANY band from the PURCHASE requirement, because every band is loaded by a window. This one
+		/// exempts only the TOP band from the TIER requirement, because only the top band's powers are
+		/// on the event tier at all — and a lower-band event-tier power (`TacNukeStrike`) is
+		/// deliberately NOT reachable this way. The two must not be merged.</para>
+		///
+		/// <para>IT CANNOT SEE WHO HOLDS THE OWNER NAME, and says so rather than pretending otherwise:
+		/// <see cref="NamesAnOwnerTier"/> above checks only that the power NAMES one, and whether the
+		/// firing player actually holds `player.russia` is a runtime question that
+		/// <see cref="NuclearGameEnders.ArmableBy"/> answers. Nor can it see WHEN the scenario fires —
+		/// the same limit <see cref="ArmedByTheFinalExchange"/> records.</para>
+		/// </summary>
+		static bool ArmedByTheEndWindow(Scenario s, Power power)
+		{
+			return IsGameEnderYield(power) && NamesAnOwnerTier(power) && LoadedByTheExchange(s, power);
 		}
 
 		static bool OptedOut(Scenario s, string traitKey)
@@ -375,6 +440,12 @@ namespace OpenRA.Test
 		static bool LoadedByTheExchange(Scenario s, Power power)
 		{
 			if (power.NuclearYieldTons <= 0)
+				return false;
+
+			// ONE EXCEPTION TO "EVERY BAND IS LOADED BY A WINDOW", added with the 2026-09-14 ruling:
+			// the top rung hands over a faction's own warhead and nothing else, so an UNATTRIBUTED
+			// game-ender is loaded by no window at any band and still has to be bought.
+			if (IsGameEnderYield(power) && !NamesAnOwnerTier(power))
 				return false;
 
 			var world = s.Rules.FirstOrDefault(n => n.Key == "World");
@@ -558,7 +629,12 @@ namespace OpenRA.Test
 					if (OptedOut(s, traitKeys.TryGetValue(power.Order, out var tk) ? tk : null))
 						continue;
 
-					if (ArmedByTheFinalExchange(s, power))
+					// TWO ROUTES AROUND THE EVENT TIER, and they are different mechanisms with the
+					// same licence: DoomsdayStrike's ending arms every surviving side, and a
+					// retaliation window at the top rung arms the side that was hit by 100 kt. Both
+					// call SupportPowerInstance.MakeReady, which overrides `powers.event` and nothing
+					// else -- see NuclearGameEnders.
+					if (ArmedByTheFinalExchange(s, power) || ArmedByTheEndWindow(s, power))
 						continue;
 
 					var world = s.Rules.FirstOrDefault(n => n.Key == "World");
@@ -578,6 +654,12 @@ namespace OpenRA.Test
 				"    PowersLobbyOptions:\n" +
 				"        PowersSandboxCheckboxEnabled: true\n" +
 				"        PowersSandboxCheckboxLocked: true\n  " +
+				"TWO EXCEPTIONS, both for GAME-ENDERS only, and both require the power to NAME AN " +
+				"OWNER: a scenario running DoomsdayStrike's ending (ArmedByTheFinalExchange), and an " +
+				"Escalation scenario whose retaliation window reaches NuclearRung.GameEnder " +
+				"(ArmedByTheEndWindow). Both override the event tier and neither overrides the " +
+				"faction beside it -- so an unattributed top-rung power such as HighYieldNukeStrike " +
+				"is armed by NEITHER and must still be bought under Sandbox.\n  " +
 				string.Join("\n  ", offenders));
 		}
 

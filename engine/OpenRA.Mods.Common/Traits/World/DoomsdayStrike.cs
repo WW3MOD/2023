@@ -628,10 +628,13 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var key in manager.Powers.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList())
 				{
 					var instance = manager.Powers[key];
-					if (!IsGameEnder(instance.Info))
-						continue;
 
-					if (!OwnedByFaction(techTree, instance.Info))
+					// ONE CALL, NOT TWO, SINCE 2026-09-14. It folds in the user's "national ender
+					// only" ruling: an unattributed top-rung power -- the 6 Mt strategic strike --
+					// is armed by nobody, here as well as in the retaliation window. That is a
+					// CHANGE to this ending, accepted by the user when they ruled: a final exchange
+					// used to offer every surviving side that weapon beside its own.
+					if (!NuclearGameEnders.ArmableBy(techTree, instance.Info, info.OverriddenPrerequisites))
 						continue;
 
 					var id = p.InternalName + "|" + key;
@@ -644,61 +647,24 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// <para>Does this player's faction OWN this game-ender? Every prerequisite the power declares
-		/// must be genuinely held, except the ones <see cref="DoomsdayStrikeInfo.OverriddenPrerequisites"/>
-		/// licenses the window to ignore.</para>
+		/// <para>Is this power a GAME-ENDER — one of the weapons the exchange hands out? See
+		/// <see cref="NuclearGameEnders.Is"/> for why it is asked of the YIELD, and for why the Tsar
+		/// Bomba is excluded by the ladder's own constant rather than by name.</para>
 		/// </summary>
-		// ==== WHY THE TECH TREE AND NOT A FACTION FIELD ON THE POWER ====
-		// Ownership is already declared, once, in rules/player.yaml's tier table: `powers.america` and
-		// `powers.russia` are granted by ProvidesPrerequisite with a `Factions:` filter. A second
-		// declaration on the power -- an OwnerFactions field, say -- would be a copy of that table
-		// free to drift from it, and the drift would be invisible until a final exchange handed
-		// somebody the wrong warhead. Asking the tech tree asks the table itself.
+		// MOVED TO NuclearGameEnders.Is ON 2026-09-14, with its reasoning: the retaliation window at
+		// NuclearRung.GameEnder needs the identical question answered, and two copies of "which
+		// warheads are game-enders" is the second silent copy of the band table this predicate was
+		// written to avoid in the first place.
 		//
-		// AND IT IS NOT A NO-OP UNDER SANDBOX, deliberately. `powers-sandbox` grants all three tiers
-		// to every player (player.yaml:186-195, @SandboxAmerica through @SandboxEvent), so under that option both factions really do own
-		// both game-enders and both are armed -- which is what the option is for and what the demos
-		// that switch it on depend on.
-		//
-		// A MISSING TechTree ARMS NOTHING RATHER THAN EVERYTHING. It is a stock trait on every player
-		// actor, so this is the "a map stripped it" path; failing closed there costs a scenario its
-		// final exchange, while failing open would silently restore the bug this closes.
-		bool OwnedByFaction(TechTree techTree, SupportPowerInfo powerInfo)
-		{
-			var required = powerInfo.Prerequisites;
-			if (required == null || required.Length == 0)
-				return true;
-
-			var mustHold = required.Where(r => !info.OverriddenPrerequisites.Contains(r, StringComparer.Ordinal)).ToList();
-			if (mustHold.Count == 0)
-				return true;
-
-			return techTree != null && techTree.HasPrerequisites(mustHold);
-		}
-
-		/// <summary>
-		/// <para>Is this power a GAME-ENDER — one of the weapons the exchange hands out?</para>
-		///
-		/// <para>Asked of the YIELD rather than of the condition string or the order name, because the yield
-		/// is what the ladder itself asks: <see cref="NuclearReleaseLadder.RungForYield"/> is the single
-		/// definition of which band a warhead is in, and reading it here means a new 2 Mt power is picked
-		/// up with no edit to this file. Matching on `RequiresCondition` text would be a second, silent
-		/// copy of the band table.</para>
-		///
-		/// <para>THE TSAR BOMBA IS EXCLUDED, and by the ladder's own constant rather than by name. At 50 Mt it
-		/// is above SandboxOnlyAboveTons, which is decision 04's ruling that it is unreachable in normal
-		/// play; handing it out at the end of every match would be exactly the route that ruling closes.</para>
-		/// </summary>
+		// IT IS STILL ASKED HERE, AND BY ONE CALLER ONLY -- ReportExchangeLaunch, deciding whether a
+		// warhead somebody FIRED counts as that side placing its own. That is a different question
+		// from NuclearGameEnders.ArmableBy, which ArmGameEnders uses to decide who may be HANDED one
+		// and which additionally requires the power to name an owner (user ruling, 2026-09-14). Do
+		// not collapse the two: a player who fired an unattributed game-ender under Sandbox would
+		// stop counting as having placed, and Dead Hand would drop a second salvo on top of theirs.
 		static bool IsGameEnder(SupportPowerInfo powerInfo)
 		{
-			if (powerInfo is not MissileStrikePowerInfo missileInfo)
-				return false;
-
-			var tons = missileInfo.NuclearYieldTons;
-			if (tons <= 0 || tons > NuclearReleaseLadder.SandboxOnlyAboveTons)
-				return false;
-
-			return NuclearReleaseLadder.RungForYield(tons) == (int)NuclearRung.GameEnder;
+			return NuclearGameEnders.Is(powerInfo);
 		}
 
 		void AnnounceFinalExchange()
