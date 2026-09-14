@@ -122,12 +122,14 @@ World:
 	# pinned HomeLocations in map.yaml are what it bisects. The wall standing during DEFCON 3 is
 	# part of what this run is checking, so unlike demo-defcon-readout it stays ON.
 	#
-	# THAT MAKES THE COMBATANT COUNT LOAD-BEARING, AND IT HAS ALREADY COST ONE RUN. A derived wall
-	# reads every player DefconWall.cs:303 does not filter out, and a THIRD group derives no line at
-	# all (on purpose: DefconWallTest.cs:395). Run 260914_141246 lost the entire no-rush phase to an
-	# Observer slot that was `Spectating: True` without `NonCombatant: True` -- the spectator flag is
-	# inert in any MissionSelector map, which every scenario is. The full argument and the citations
-	# are on that slot in map.yaml; do not edit the Players block without reading it.
+	# THAT MAKES THE COMBATANT COUNT LOAD-BEARING, AND IT COST TWO RUNS. A derived wall counts every
+	# player CombatantSides.CountsAsASide does not exclude, and a THIRD group derives no line at all
+	# (on purpose: DefconWallTest.cs:395). Runs 260914_141246 and 260914_181212 both lost the entire
+	# no-rush phase to the Observer slot -- the second one WITH `NonCombatant: True` already in
+	# place, because Player's client-branch constructor never copies that flag off the
+	# PlayerReference (Player.cs:170-186). Fixed in the engine: the predicate now reads the authored
+	# flags too, and DefconWall (:310) and NuclearExchange (:711) share it. The full argument and
+	# every citation are on that slot in map.yaml; do not edit the Players block without reading it.
 
 	-StartGameNotification:
 	# DROPPED SO THE PINNED HomeLocations WIN. With this present the two bots are assigned to the two

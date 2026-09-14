@@ -239,13 +239,15 @@ WorldLoaded = function()
 			fault("no sample was ever taken at DEFCON 3, so the wall could not be checked")
 		elseif a3 == 0 then
 			fault("THE DEFCON 3 WALL NEVER STOOD: %d of %d samples during the phase had "
-				.. "Test.DefconWallActive() false. FIRST SUSPECT IS THIS SCENARIO, NOT THE ENGINE -- "
-				.. "a map-authored slot missing `NonCombatant: True` is counted as a third combatant "
-				.. "and a three-way free-for-all derives NO line on purpose (DefconWallTest.cs:395). "
-				.. "Check debug.log for `no line derived from N combatant home(s) in N alliance "
-				.. "group(s)`: if N is 3 on a two-bot map, the Observer slot is the third. NOTE "
-				.. "`Spectating: True` DOES NOT FIX THIS -- Player.Spectating is forced false in any "
-				.. "MissionSelector map (Player.cs:86,:167), which every scenario is",
+				.. "Test.DefconWallActive() false. READ debug.log FOR `no line derived from N "
+				.. "combatant home(s) in N alliance group(s)` FIRST -- N is the whole diagnosis. "
+				.. "N=3 on a two-bot map means a non-combatant slot is being counted as a side, "
+				.. "which is what runs 260914_141246 and 260914_181212 both hit via the Observer; "
+				.. "that cause is now EXCLUDED BY CONSTRUCTION (CombatantSides.CountsAsASide reads "
+				.. "the authored PlayerReference flags, not just the runtime ones), so N=3 here "
+				.. "means that predicate REGRESSED and is a real engine defect, not this map. N=2 "
+				.. "with no line means the two homes are coincident -- check the pinned "
+				.. "HomeLocations. N<2 means a combatant was dropped entirely",
 				a3, s3)
 		elseif a3 * 100 < s3 * 90 then
 			fault("the DEFCON 3 wall stood for only %d of %d samples (%d%%): it is flickering rather "

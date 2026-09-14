@@ -699,12 +699,16 @@ namespace OpenRA.Mods.Common.Traits
 			//
 			// THE PREDICATE IS DefconWall's AND NOT A `Playable` TEST. This read `!p.Playable` and
 			// dropped every map-authored combatant that did not write the line; see
-			// NuclearExchangeState.CountsAsASide for what that cost and why Playable is the wrong
-			// question.
+			// CombatantSides for what that cost and why Playable is the wrong question.
+			//
+			// IT IS NOW LITERALLY DefconWall's, via CombatantSides, rather than a second copy that
+			// agrees: the predicate also has to consult the PlayerReference, because the runtime
+			// NonCombatant/Spectating pair is false for any client-occupied slot regardless of what
+			// the map authored. Both traits got a phantom Observer side out of that.
 			for (var i = 0; i < w.Players.Length; i++)
 			{
 				var p = w.Players[i];
-				if (!NuclearExchangeState.CountsAsASide(p.NonCombatant, p.Spectating))
+				if (!CombatantSides.CountsAsASide(p))
 					continue;
 
 				var side = SideKeyFor(w, p, i);

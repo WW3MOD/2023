@@ -343,34 +343,6 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void ASideIsAnyCombatantAndNotOnlyALobbySlot()
-		{
-			// A REGRESSION TEST WITH A RUN BEHIND IT. This rule read `!NonCombatant && Playable` and
-			// dropped Russia from test-nuclear-exchange, because that scenario's map.yaml wrote
-			// `Playable: True` on USA and not on Russia -- and PlayerReference.Playable defaults to
-			// FALSE (PlayerReference.cs:24). The run logged "NUCLEAR RELEASE: all 1 sides", every
-			// Russian nuclear power stayed dark for the whole match, and DefconWall logged "derived
-			// from 2 home(s) in 2 group(s)" off the same players on the same tick.
-			//
-			// So the assertion that matters is the NEGATIVE one: a player who is not a lobby slot is
-			// still a side. Everything else here is the boundary around it.
-			Assert.That(NuclearExchangeState.CountsAsASide(false, false), Is.True,
-				"an ordinary combatant is a side");
-
-			// Neutral, Creeps and the world owner. Arming them would put a phantom third side into
-			// the count and make every launch warn about a lobby nobody configured.
-			Assert.That(NuclearExchangeState.CountsAsASide(true, false), Is.False,
-				"a non-combatant became a side");
-
-			// A spectator has no side to be on, which is DefconWall's reasoning verbatim
-			// (DefconWall.cs:294-297) -- including them would arm somebody who cannot fire.
-			Assert.That(NuclearExchangeState.CountsAsASide(false, true), Is.False,
-				"a spectator became a side");
-
-			Assert.That(NuclearExchangeState.CountsAsASide(true, true), Is.False);
-		}
-
-		[Test]
 		public void FiringTheWindowSpendsIt()
 		{
 			// DECISION 02: the window grant is ONE SHOT and vanishes when it is used. An earlier

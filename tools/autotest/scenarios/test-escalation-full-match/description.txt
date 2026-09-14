@@ -46,9 +46,12 @@ ASSERTIONS (all faults are concatenated, then a READINGS line):
 
   WALL      The DEFCON 3 border actually STOOD: >=90 % of samples taken at
             level 3 read Test.DefconWallActive() true, and none at level 1 do
-            (ActiveLevels is { 3 }). Added after run 260914_141246, which would
-            have passed this phase wall-less -- every other DEFCON 3 assertion
-            was satisfied while the border was down for the whole period.
+            (ActiveLevels is { 3 }). Added after run 260914_141246 and EARNED
+            ITS KEEP at 260914_181212: both ran the whole no-rush period with
+            the border down, and every other DEFCON 3 assertion was satisfied
+            while they did. Without this the scenario would have reported a
+            healthy DEFCON 3 twice over. The engine cause is fixed in
+            CombatantSides; this assertion is what would catch the next one.
 
   ENDING    A WinState resolves before the 24000-tick deadline.
 
@@ -65,8 +68,11 @@ ASSERTIONS (all faults are concatenated, then a READINGS line):
   of (ending observed) or (deadline), and the ending is the last thing in the
   match.
 
-RUN IT AS: ./tools/autotest/run-test.sh --hidden --speed 4 --timeout 1200 \
+RUN IT AS: ./tools/autotest/run-test.sh --hidden --speed 4 --timeout 3000 \
              test-escalation-full-match
+           (3000 s, not 1200 -- sized against the MEASURED ~12 ticks/s below,
+            not against --speed 4's nominal 66.7. The first two attempts both
+            TIMEOUT-FAILed on that mistake.)
 
 THIS IS A LONG SCENARIO AND run-batch.sh --all WILL PICK IT UP (it globs
 test-*). Budget: the poller's hard deadline is 24000 ticks, which is ~6.0 min
@@ -76,16 +82,41 @@ and a real multiplier of 60/7 = 8.57x -- so ~2.8 min nominal against
 run-test.sh's default 300 s timeout. That is only ~1.8x of margin, and it
 requires the engine to sustain ~143 ticks/s on a 98x98 two-bot late game.
 
-MEASURED 2026-09-14, run 260914_141246 (--speed 4 --timeout 1200): under a
-machine load of 115-236 from an unrelated vitest sweep, the engine sustained
-about 5.5 TICKS PER SECOND on this scenario -- it reached tick ~6600 in 1200 s
-and TIMEOUT-FAILed. Nominal at --speed 4 is 66.7 ticks/s, so that is ~8 % of
-target. THE --speed 8 BATCH CONCERN ABOVE IS THEREFORE REAL AND NOT
-THEORETICAL: run-batch.sh --all would need ~143 ticks/s to fit this scenario
-inside run-test.sh's default 300 s timeout, and a loaded machine delivers a
-twenty-sixth of that. Do not run this in a batch on a busy machine; it will
-red for load, not for merit. The figure is a LOAD MEASUREMENT, not a ceiling --
-no unloaded run has been taken yet, so the achievable rate is still unknown.
+MEASURED TWICE, 2026-09-14, AND THE SECOND FIGURE IS THE ONE TO PLAN WITH:
+
+  run 260914_141246  load 115-236  --speed 4  ~5.5 ticks/s  (tick ~6600 in 1200 s)
+  run 260914_181212  load  13-25   --speed 4  ~12  ticks/s  (tick 21360 in 1800 s)
+
+The second run was on an effectively idle machine and STILL managed only ~12 of
+the 66.7 ticks/s that --speed 4 nominally asks for. So this scenario is
+CPU-BOUND on its own simulation, not merely a victim of contention: a 98x98 map
+with two full bot armies cannot be driven at 4x on this hardware, and load
+accounts for the gap between 12 and 5.5 but not for the gap between 66 and 12.
+
+CONSEQUENCES, BOTH WORTH KNOWING BEFORE SPENDING A SLOT:
+  * --timeout must be sized against ~12 ticks/s, not against the nominal. The
+    24000-tick deadline therefore wants 2000 s of headroom; 3000 s is the
+    manager's figure and is right.
+  * THE --speed 8 BATCH CONCERN IS CONFIRMED AND IS WORSE THAN STATED. If 4x
+    yields 12 ticks/s, 8x does not yield 24 -- the engine is already the
+    bottleneck. run-batch.sh --all would need ~143 ticks/s to fit this inside
+    run-test.sh's default 300 s timeout and will not get close on any machine
+    measured so far. DO NOT LEAVE THIS IN AN --all BATCH without passing a
+    --timeout; it will red for cost, not for merit.
+
+MATCH READINGS FROM 260914_181212, all consistent with the shipped clocks even
+though the wall was down for the whole no-rush period:
+  DEFCON 2 at tick 5000 -- EXACTLY the 5000-tick no-rush clock, which also
+    retires any doubt about this file's tick-origin assumption
+  DEFCON 1 at ~5030 on an e3.america kill -- only 30 ticks later, because with
+    no border the armies were already intermingled; expect this gap to GROW
+    once the wall stands and the two sides have to cross
+  release gate at 15001 = 5030 + ~10000, the shipped ten minutes, to the tick
+  Russia-bot launched 1 kt three times; USA-bot never launched or replied
+The launch asymmetry is the losing rule behaving correctly if USA-bot was ahead
+on army value -- NuclearBotModule fires only when losing. The READINGS line this
+scenario now prints carries both bots' full ledgers (launches/band/fired/reason/
+streak/committed), so the next run answers that instead of inviting a guess.
 
 IF A BATCH EVER TIMEOUT-FAILs THIS, THE ANSWER IS A LONGER --timeout, NOT A
 COMPRESSED CLOCK. Compressing a phase clock here does not make the scenario
