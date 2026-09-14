@@ -5,6 +5,35 @@
 
 ---
 
+- [2026-09-14] [LOW — A TRAP FOR SCENARIO AUTHORS, NOT A GAMEPLAY BUG] **`player.WinState` can never
+  leave `Undefined` in a TestMode session, so no autotest scenario can detect "the match ended"
+  through it — including a match that ran its full Dead Hand salvo.**
+  `ConquestVictoryConditions.ITick.Tick` returns early on `TestMode.IsActive`
+  (`engine/OpenRA.Mods.Common/Traits/Player/ConquestVictoryConditions.cs:63-64`), which is correct
+  and documented ("the test harness owns the verdict ... would only race the test's own assertions
+  and pop a stray Mission Accomplished"). The composition nobody wrote down is that `objectiveID` is
+  assigned ONLY inside that same method (`:73-74`), so it remains `-1`, and
+  `INotifyTimeLimit.NotifyTimerExpired` opens with `if (objectiveID < 0) return;` (`:92-95`). So the
+  time-limit path is a no-op in test mode at BOTH ends: the initial notification and
+  `DoomsdayStrike.Resolve`'s re-raise.
+  **NOT A PLAYER-FACING DEFECT.** A human lobby is not test mode: the tick guard is off, the
+  objective registers on the first tick, and Time limit + Nuclear ending resolves a winner normally.
+  Verified by reading, not by playing.
+  **WHAT IT COST:** run `260914_191513` reported "the match never reached an ending by tick 24001"
+  for a match that had very likely ended correctly, and the obvious reading of that verdict was a
+  user-facing defect in a shipped lobby combination. Compounded by there being NO logging anywhere
+  on the clock→ending path, so "never fired", "fired and declined", and "worked, observer wrong"
+  were indistinguishable.
+  **ADDRESSED, not fixed at source:** `TimeLimitManager` now logs on expiry and
+  `DoomsdayStrike.BeginFinalExchange` logs which of its three bails it takes; a new
+  `Test.DoomsdayState()` exposes the ending itself and `test-escalation-full-match` asserts on that
+  instead, carrying `WinState` as a reading labelled inert. **Whether `ConquestVictoryConditions`
+  SHOULD register its objective outside the TestMode guard is a real open question and is not
+  answered here** — doing so would let `WinState` work in scenarios, but the guard exists to stop
+  victory tracking racing test assertions, and moving the registration without moving the guard
+  wants its own change and its own run.
+  (found while working on: `test-escalation-full-match`, the end-to-end Escalation smoke scenario)
+
 - [2026-09-14] [MEDIUM — FIXED IN THE CONSUMERS, NOT AT SOURCE] **`Player`'s two constructor branches
   do not populate the same fields: the CLIENT branch never assigns `NonCombatant`, `Playable` or
   `spectating` from the `PlayerReference`, so those three are ALWAYS FALSE for any slot a lobby

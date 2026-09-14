@@ -118,7 +118,22 @@ WorldLoaded = function()
 	local wallActive  = {}      -- [level] = samples at that level with the wall standing
 
 	local releaseAt = nil       -- first elapsed tick either bot's nuclear reason left NotReleased
-	local endingAt = nil        -- first elapsed tick a bot's WinState left Undefined
+	-- THE ENDING, READ FROM THE ENDING ITSELF AND NOT FROM WinState.
+	--
+	-- WinState CANNOT ANSWER THIS IN TEST MODE, and it is structural rather than a quirk of timing:
+	-- ConquestVictoryConditions.Tick returns early whenever TestMode.IsActive (:63-64, deliberately
+	-- -- "the test harness owns the verdict"), `objectiveID` is assigned ONLY inside that method
+	-- (:73-74), and its NotifyTimerExpired opens with `if (objectiveID < 0) return;` (:92-95). So no
+	-- test-mode scenario can EVER see a WinState leave Undefined, however completely the match
+	-- ended. Run 260914_191513 asserted on it anyway and reported "never reached an ending" for a
+	-- match that had very likely ended perfectly well.
+	--
+	-- A HUMAN LOBBY IS NOT TEST MODE, so none of that applies to a real game: the tick guard is off,
+	-- the objective is registered on the first tick, and the time limit resolves a winner normally.
+	-- The lobby feature this scenario is checking was never broken; the detector was.
+	local endingAt = nil        -- first elapsed tick Test.DoomsdayState() left phase=0
+	local endingState = "?"     -- last DoomsdayState reading
+	local endingSeenState = nil -- the reading at the tick the ending was first seen
 	local finalExchangeSeen = false
 
 	-- Order tallies snapshotted at each phase boundary, per bot. Keyed by bot NAME, never by the
@@ -327,13 +342,23 @@ WorldLoaded = function()
 
 		-- ---- 4. THE MATCH REACHED AN ENDING ----
 		if endingAt == nil then
-			fault("the match never reached an ending by tick %d. The time limit is %d ticks and "
-				.. "DoomsdayStrike.RunInTestMode is set, so the final exchange should have opened at "
-				.. "%d, the salvo run, and DoomsdayStrike.Resolve re-raised NotifyTimerExpired to "
-				.. "settle WinState. Both bots still read WinState=Undefined",
-				t, TIME_LIMIT, TIME_LIMIT)
+			fault("the match never reached an ending by tick %d: Test.DoomsdayState() never left "
+				.. "phase=0, last reading %q. The time limit is %d ticks, so the final exchange was "
+				.. "due at %d. READ debug.log -- both halves of the path now log. `TIME LIMIT "
+				.. "expired` absent means the clock never fired (check the TimeLimitTicks override "
+				.. "merged). Present, with `FINAL EXCHANGE: declined ... RunInTestMode is false`, "
+				.. "means this scenario lost that override. Present with `declined ... lobby option "
+				.. "is off` means the doomsday checkbox resolved false. `FINAL EXCHANGE opening` "
+				.. "present and this fault still firing means the window opened and the state "
+				.. "projection is wrong",
+				t, endingState, TIME_LIMIT, TIME_LIMIT)
+		elseif endingAt < TIME_LIMIT - LATE_SLACK then
+			fault("the ending began at tick %d, well before the %d-tick time limit. Nothing else "
+				.. "should open it in this scenario -- a bot firing a game-ender would, but neither "
+				.. "holds one outside a retaliation window. State at the time: %q",
+				endingAt, TIME_LIMIT, endingSeenState)
 		else
-			note("ending at tick %d (time limit %d)", endingAt, TIME_LIMIT)
+			note("ending began at tick %d (time limit %d), state %s", endingAt, TIME_LIMIT, endingSeenState)
 		end
 
 		-- ---- 5. LAUNCHES ARE A READING, NOT AN ASSERTION ----
@@ -368,13 +393,15 @@ WorldLoaded = function()
 		local summary = string.format(
 			"stop=%s tick=%d level=%s | phases 3@%s 2@%s 1@%s release@%s ending@%s | "
 			.. "wall 3=%d/%d 2=%d/%d 1=%d/%d | "
-			.. "win USA=%s RUS=%s | orders %s | nuclear USA{%s} RUS{%s}",
+			.. "doomsday{%s} | win(inert in test mode) USA=%s RUS=%s | "
+			.. "orders %s | nuclear USA{%s} RUS{%s}",
 			why, t, tostring(lastLevel),
 			tostring(levelAt[3]), tostring(levelAt[2]), tostring(levelAt[1]),
 			tostring(releaseAt), tostring(endingAt),
 			wallActive[3] or 0, wallSamples[3] or 0,
 			wallActive[2] or 0, wallSamples[2] or 0,
 			wallActive[1] or 0, wallSamples[1] or 0,
+			endingState,
 			USA.WinState, RUS.WinState,
 			table.concat(orders, " "),
 			nuclear["USA-bot"], nuclear["Russia-bot"])
@@ -412,6 +439,15 @@ WorldLoaded = function()
 
 		for _, b in ipairs(bots) do readNuclear(b) end
 
+		endingState = Test.DoomsdayState()
+		if endingAt == nil then
+			local phase = tonumber(endingState:match("phase=(%d+)") or "")
+			if phase ~= nil and phase > 0 then
+				endingAt = t
+				endingSeenState = endingState
+			end
+		end
+
 		if releaseAt == nil
 			and reason["USA-bot"] ~= "NotReleased" and reason["USA-bot"] ~= "?" and reason["USA-bot"] ~= "absent" then
 			releaseAt = t
@@ -422,17 +458,11 @@ WorldLoaded = function()
 		end
 		if releaseAt ~= nil then openPhase("defcon1-released") end
 
-		-- THE ENDING, AND WHY THE VERDICT IS WRITTEN ON THE SAME TICK IT IS SEEN. DoomsdayStrike.
-		-- Resolve re-raises NotifyTimerExpired, ConquestVictoryConditions settles WinState, and the
-		-- session may then tear down. A settle window here would be a window in which the result
-		-- file never gets written and the run comes back NO-RESULT with everything measured and
-		-- nothing reported -- so there is no settle window.
-		if endingAt == nil and (USA.WinState ~= "Undefined" or RUS.WinState ~= "Undefined") then
-			endingAt = t
-			verdict("ending")
-			return
-		end
-
+		-- NO EARLY VERDICT ON THE ENDING ANY MORE. The old code wrote the verdict the instant a
+		-- WinState moved, to avoid racing a session teardown. Nothing moves a WinState in test mode,
+		-- and the ending itself is NOT terminal for the poller -- the window is 250 ticks and the
+		-- salvo runs on after it -- so the run now goes to its deadline and reports the whole tail.
+		-- That also keeps the "never pass early" property the exception check depends on.
 		if t >= DEADLINE then
 			verdict("deadline")
 			return

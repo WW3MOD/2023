@@ -157,6 +157,13 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (ticksRemaining == 0)
 			{
+				// THE ONE LINE THAT SAYS THE CLOCK FIRED. Nothing on this path logged anything until
+				// 2026-09-14, and an autotest that reached its deadline with no ending could not tell
+				// "the limit never expired" from "it expired and every consumer declined" -- which cost
+				// a run and a wrong diagnosis. World traits are notified before player traits, so this
+				// line precedes every consumer's own record.
+				Log.Write("debug", $"TIME LIMIT expired at tick {self.World.WorldTick} (limit {TimeLimit}).");
+
 				foreach (var ntl in self.TraitsImplementing<INotifyTimeLimit>())
 					ntl.NotifyTimerExpired(self);
 

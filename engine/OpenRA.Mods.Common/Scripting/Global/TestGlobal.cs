@@ -1877,6 +1877,35 @@ namespace OpenRA.Mods.Common.Scripting.Global
 				?? DefconEscalationState.NoLevel;
 		}
 
+		[Desc("The ending's state, as `phase=<n>|open=<bool>|placements=<n>|salvo=<bool>|closes=<tick>`, " +
+			"or \"absent\" on a world with no " + nameof(DoomsdayStrike) + ".",
+			"",
+			"THIS EXISTS BECAUSE `player.WinState` CANNOT ANSWER THE QUESTION IN TEST MODE, and that " +
+			"is structural rather than incidental: " + nameof(ConquestVictoryConditions) + ".Tick " +
+			"returns early whenever TestMode.IsActive (by design — \"the test harness owns the " +
+			"verdict\"), `objectiveID` is assigned ONLY inside that method, and its " +
+			"NotifyTimerExpired opens with `if (objectiveID < 0) return;`. So no test-mode scenario " +
+			"can ever observe a WinState leave Undefined, however completely the match ended. A " +
+			"scenario asserting on an ending must read the ending itself, which is this.",
+			"",
+			"`phase` is FinalExchangePhase as an int; `salvo` is the annihilation being in flight. " +
+			"Read-only and test mode only.")]
+		public string DoomsdayState()
+		{
+			if (!TestMode.IsActive)
+				return "absent";
+
+			// TraitOrDefault for the reason DefconLevel above records: DoomsdayStrike is declared
+			// exactly once across the mod, unsuffixed (world.yaml:703).
+			var strike = Context.World?.WorldActor.TraitOrDefault<DoomsdayStrike>();
+			if (strike == null)
+				return "absent";
+
+			return $"phase={strike.FinalExchangePhaseValue}|open={(strike.FinalExchangeOpen ? "true" : "false")}|" +
+				$"placements={strike.FinalExchangePlacements}|salvo={(strike.SalvoInProgress ? "true" : "false")}|" +
+				$"closes={strike.FinalExchangeClosesTick}";
+		}
+
 		[Desc("Whether the DEFCON 3 dividing wall is STANDING right now. False in Skirmish, false " +
 			"at any level the wall does not stand at, and — the case worth testing for — false when " +
 			"no line could be DERIVED. DefconWall.Apply gates on !geometry.IsDegenerate, so a " +
