@@ -3,6 +3,29 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-14 - `--speed` and a compressed clock are NOT the same lever: `TestModeSpeedMultiplier` is `IWorldLoaded`, so it lands AFTER every lobby minutes-to-ticks conversion. Also: `run-test.sh` only hunts for a crash log when there is NO result file (`wt/escalation-smoke`, base `main @ ab588c4b`)
+
+**THE PROBLEM THAT FOUND ALL THREE: authoring a scenario that must run a WHOLE DEFCON Escalation match on the SHIPPED phase clocks — 5 minutes of no-rush plus 10 minutes to the nuclear release — inside one unattended slot.** Every existing Escalation scenario solves this by compressing a clock (`NoRushTicksOverride: 300` in `demo-defcon-readout`, `NuclearReleaseDelayTicksOverride: 10` in `test-bot-nuclear`), which is right for a single-mechanism probe and fatal for a scenario whose subject IS the clocks.
+
+**1. THE TWO LEVERS ARE NOT INTERCHANGEABLE, AND THE ORDERING IS WHY.** `TestModeSpeedMultiplier` implements **`IWorldLoaded`** (`engine/OpenRA.Mods.Common/Traits/World/TestModeSpeedMultiplier.cs:30`) and divides `world.Timestep` there. `DefconEscalation`'s constructor reads `self.World.Timestep` and converts the lobby's MINUTES into ticks — and a constructor runs during world setup, **before** `WorldLoaded`. So under `run-test.sh --speed N`:
+
+- the no-rush clock is still `5 * 60 * 1000 / 60 = 5000` **ticks**, built against the un-multiplied 60 ms;
+- only the wall-clock length of a tick changes.
+
+**Generalise: `--speed` buys wall clock without touching a single simulated quantity, and its own usage line says the simulation "stays byte-identical". A scenario that wants shipped timing in an unattended slot should reach for `--speed`, never for an override field.** The inverse also holds and is the trap: an override field genuinely changes what is simulated, so a scenario that compresses a clock is no longer evidence about the clock it compressed.
+
+**A MULTIPLIER IS NOT THE DIVISOR YOU ASKED FOR.** `world.Timestep = Math.Max(1, oldTimestep / multiplier)` is INTEGER division, so `--speed 8` on a 60 ms timestep gives 7 ms — a real multiplier of 60/7 = **8.57x**, not 8. Derive expected wall clock from `ticks * newTimestep`, not from `ticks / (16.67 * N)`. `--speed 4` is exact (15 ms); 8 and 16 are not.
+
+**2. A CRASH AFTER A VERDICT IS REPORTED AS THAT VERDICT.** `run-test.sh` finds `exception-<utc>.log` files newer than the run marker and reports `OUTCOME=CRASH` — but the whole hunt sits **inside `if [ ! -f "${RESULT_FILE}" ]`** (`tools/autotest/run-test.sh:880-918`). A scenario that writes `Test.Pass` at tick N and then dies at tick N+100 comes back **PASS**, with the exception log on disk and nobody looking at it. This is invisible to short single-mechanism scenarios, which pass at the end of what they measure; it bites a long scenario that passes in the middle of a match that is still running.
+
+**The countermeasure is structural and costs nothing: never write a verdict earlier than the last thing the scenario cares about.** `test-escalation-full-match` writes on the first of (an ending observed) or (its tick deadline), and an ending is the last event in a match — so there is no window left behind a green. Worth considering as a `run-test.sh` fix (hunt for a crash log unconditionally and let a newer-than-marker exception log downgrade a PASS), but that is a harness change with its own blast radius and is NOT made here.
+
+**3. "COPY THE NEAREST WORKING SCENARIO" IMPORTS DEPARTURES YOU DID NOT CHOOSE.** The obvious base for a bot-vs-bot match on a shipped map is `tournament-s1-eco-polar-disorder`, and it is a good one — its `map.bin` is **md5-identical** to `mods/ww3mod/maps/polar-disorder-ww3/map.bin` (`90824f8f1840b1c7ce4fc628da067db5`), so its terrain really is the shipped map. But its `rules.yaml` sets `PlayerResources.DefaultCash: 7500` **"because the default 5000 is fine for normal games"** — and 5000 is not the default. `mods/ww3mod/rules/player.yaml:1012-1014` leaves `DefaultCash` **commented out**, so `PlayerResourcesInfo.DefaultCash = 20000` applies (`PlayerResources.cs:32`) and is also what the `startingcash` dropdown defaults to. The tournament's value is a **62 % cut** presented as a raise, and a scenario copying it while claiming shipped defaults inherits that silently.
+
+**Generalise: when a scenario's stated goal is "shipped defaults", read the DEFAULT from the C# field or the uncommented YAML, not from the comment in the file you are copying.** Commented-out YAML is the specific shape that misleads here — the value is right there in the file, one `#` away from being true.
+
+**4. THE TICK RATE, AGAIN, AND WHERE IT IS WRONG IN THE HARNESS ITSELF.** `test-helpers.lua:36` sets `TestHarness.TicksPerSecond = 25`. The mod runs at a 60 ms timestep (`mod.yaml` `GameSpeeds`, `DefaultSpeed: default`), i.e. **16.667**. So every budget routed through `AssertWithin(seconds, ...)`, `AssertAfter`, or `ScreenshotAfter` is **1.5x longer in real time than its own argument claims**. That is harmless as a timeout (they are all generous) and actively wrong as a measurement, and it is why a scenario asserting ON a shipped clock must budget in raw ticks and convert by hand. Counted with CLAUDE.md's ten live sites, the helper is the one that matters most, because it is the one every new scenario copies.
+
 ## 2026-09-14 - A `LogicTicker` placed inside the very container whose `Visible` it sets can never run, because `Widget.TickOuter` is gated on `IsVisible()`; and a plain decorative `Widget` is NOT input-transparent (`wt/readout-corner`, base `main @ 45c43ffe`)
 
 **TWO INDEPENDENT TRAPS, BOTH FOUND WHILE MOVING THE DEFCON READOUT INTO THE BOTTOM-RIGHT CORNER, BOTH ABOUT WIDGETS DOING SOMETHING BY DEFAULT THAT NOBODY WROTE DOWN.**

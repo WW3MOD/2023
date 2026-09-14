@@ -1,0 +1,162 @@
+# END-TO-END DEFCON ESCALATION SMOKE RUN -- overrides for a WHOLE match, bot vs bot.
+#
+# ==== THE RULE THIS FILE FOLLOWS: SHIPPED VALUES UNLESS THE RUN CANNOT HAPPEN WITHOUT A CHANGE ====
+#
+# Every neighbouring Escalation scenario compresses a phase clock to get to its mechanism. This one
+# must not, because the thing under test IS the clocks. So NO PHASE CLOCK IS TOUCHED HERE:
+#
+#   no-rush (DEFCON 3 -> 2)        5 minutes  = 5000 ticks   NoRushDefault, untouched
+#   first warheads (1 -> release)  10 minutes = 10000 ticks  FirstWarheadsDefault, untouched
+#   retaliation window             3 minutes  = 3000 ticks   RetaliationWindowDefault, untouched
+#   nuclear posture                Flexible                  PostureDefault, untouched
+#   band regeneration      3000 / 4000 / 5000 / 6000 ticks   all four untouched
+#   opening phase                  3 (Positioning)           StartAtDefault, untouched
+#
+# 16.67 TICKS PER SECOND (60 ms timestep, mod.yaml GameSpeeds DefaultSpeed: default), NOT 25.
+# test-helpers.lua:36 carries TicksPerSecond = 25 as a HARNESS BUDGET CONVENTION and it is not the
+# tick rate -- CLAUDE.md records the same error live at ten sites. So 5000 ticks = 300.0 s and
+# 10000 ticks = 600.0 s, and the Lua beside this file budgets in raw ticks for exactly that reason.
+#
+# ==== THE FOUR DEPARTURES FROM SHIPPED DEFAULTS. THERE ARE NO OTHERS. ====
+#
+#  1. ModeDefault: Escalation          (shipped: Skirmish)
+#  2. TimeLimitTicks: 22000            (shipped: TimeLimitDefault 0, "No limit")
+#  3. DoomsdayStrike.RunInTestMode     (shipped: false)
+#  4. *Locked: true on five options    (values UNCHANGED; the locks only pin them)
+#
+# Each is argued at its own block below.
+
+World:
+	# ---- DEPARTURE 1 of 4: THE GAME MODE ----
+	# Shipped ModeDefault is Skirmish and must stay Skirmish (the field's own [Desc] says so: Skirmish
+	# is a strict no-op, and while it is the default nothing a player sees changes). Escalation is
+	# therefore the one lobby value this scenario CANNOT inherit -- a Skirmish run of this file would
+	# hold NoLevel forever, leave NuclearBotModule and NuclearExchange inert, and pass every phase
+	# assertion vacuously.
+	#
+	# LOCKED so no saved session or lobby default can move it out from under an unattended run.
+	DefconEscalation:
+		ModeDefault: Escalation
+		ModeLocked: true
+		# Restated rather than inherited so the value under test is visible in one place. This IS the
+		# shipped StartAtDefault (DefconEscalationState.Ceiling = 3).
+		StartAtDefault: 3
+		StartAtLocked: true
+		# NoRushTicksOverride / NuclearReleaseDelayTicksOverride ARE DELIBERATELY ABSENT. Their
+		# sentinels are 0 and -1 respectively, so absent = "not in play" = read the dropdown = the
+		# shipped 5 and 10 minutes. Setting either would be the exact compression this scenario exists
+		# to avoid, and a reader tempted to add one to shorten the run should change --speed instead:
+		# run-test.sh --speed N divides world.Timestep at IWorldLoaded (TestModeSpeedMultiplier), which
+		# is AFTER this trait's constructor has already converted minutes to ticks against the shipped
+		# 60 ms. The tick clocks stay shipped; only wall clock shrinks.
+
+	# ---- DEPARTURE 2 of 4: THE TIME LIMIT ----
+	# Shipped TimeLimitDefault is 0 = "No limit", so a match at pure defaults has no scheduled ending
+	# at all. The brief requires the match to REACH one, so this scenario sets an absolute tick count.
+	#
+	# TimeLimitTicks (not the dropdown) because the dropdown's finest grain is 10 minutes and its
+	# options are { 0, 10, 20, 30, 40, 60, 90 }; TimeLimitManager.cs:120 takes TimeLimitTicks when
+	# it is > 0 and the lobby option is then not read.
+	#
+	# WHY 22000 AND NOT LESS. The match has to still be running when the nuclear phase opens, and
+	# that arrival tick is the sum of two shipped clocks plus one unpredictable term:
+	#     5000            DEFCON 3 -> 2, the no-rush clock, exact
+	#   + D               DEFCON 2 -> 1, the first qualifying enemy-caused kill -- NOT a clock
+	#   + 10000           the release gate
+	# D is the only unknown. The wall stands at DEFCON 3 only (DefconWallInfo.ActiveLevels = { 3 }),
+	# so both armies spend the no-rush period staging ON the border and are in contact the moment it
+	# drops; test-bot-defcon2-breaks-peace measures the same bot taking its first kill well inside 90
+	# harness-seconds from a cold start. Budgeting D <= 1500 ticks puts release at <= 16500 and leaves
+	# 5500 ticks (330 s) of open nuclear phase -- comfortably past MinTicksBetweenLaunches (900) and
+	# past a full 1 kt regeneration (3000), so a launch has room to happen AND to be answered.
+	TimeLimitManager:
+		TimeLimitTicks: 22000
+
+	# ---- DEPARTURE 3 of 4: LET THE SALVO RUN IN TEST MODE ----
+	# RunInTestMode ships FALSE, and its own [Desc] says why: it keeps existing timed tournament and
+	# autotest configurations "behaving exactly as they did -- they set a time limit and expect the
+	# score comparison, not an apocalypse."
+	#
+	# THIS SCENARIO IS THE CASE THAT [Desc] DOES NOT COVER. It sets a time limit and DOES want the
+	# apocalypse: "the match reaches an ending" is an assertion here, and with this left false the
+	# clock would expire into a score comparison and the final exchange -- the last phase in the
+	# chain -- would never run. Note this is a TEST-MODE GATE, not a lobby default: the `doomsday`
+	# checkbox itself is untouched below and a human match already gets the salvo.
+	DoomsdayStrike:
+		RunInTestMode: true
+		# The "Nuclear ending" checkbox, AT ITS SHIPPED VALUE (DoomsdayEnabled = true), locked. This
+		# is the half that says WHAT happens when TimeLimitManager reaches zero; RunInTestMode above
+		# is the separate gate saying whether it happens in a test-mode session at all. Both needed.
+		#
+		# ONE NODE, NOT TWO. world.yaml:703 declares DoomsdayStrike unsuffixed, so `DoomsdayStrike@x:`
+		# here would ask for a SECOND instance of a World trait rather than overriding the one that
+		# exists. Same shape as the case-sensitivity trap in CLAUDE.md's MiniYaml rule.
+		DoomsdayEnabled: true
+		DoomsdayLocked: true
+
+	# ---- DEPARTURE 4 of 4: LOCKS ONLY. EVERY VALUE HERE IS THE SHIPPED ONE. ----
+	# nuclear-arsenal ships ON (NuclearArsenalCheckboxEnabled = true) and powers-sandbox ships OFF
+	# (PowersSandboxCheckboxEnabled = false). Both are restated at their shipped values and locked so
+	# an unattended run cannot inherit a stored lobby setting.
+	#
+	# POWERS-SANDBOX IS LEFT OFF ON PURPOSE, and this is the one place this scenario deliberately
+	# diverges from demo-defcon-readout and test-bot-nuclear, which both turn it ON. Sandbox hands
+	# every player powers.america, powers.russia AND powers.event at once. That is right for a probe
+	# that needs a specific warhead in a specific hand; it is wrong here, because under the
+	# 2026-09-14 correction each faction otherwise holds exactly ONE warhead per band (seven of the
+	# ten arsenal powers name a faction prerequisite in player.yaml:208-240). Turning sandbox on
+	# would give both bots both ladders plus the three game-enders no faction provides -- i.e. it
+	# would test a match no player will ever be in.
+	PowersLobbyOptions:
+		NuclearArsenalCheckboxEnabled: true
+		NuclearArsenalCheckboxLocked: true
+		PowersSandboxCheckboxEnabled: false
+		PowersSandboxCheckboxLocked: true
+
+	# NuclearExchange IS NOT OVERRIDDEN AT ALL and that is deliberate rather than an omission:
+	# world.yaml:876 sets display order only, so posture (Flexible) and the retaliation window
+	# (3 minutes) come from C# at their shipped values. Compare test-bot-nuclear, which pins the
+	# window to 1 minute because its hysteresis budget needs it; nothing here needs that.
+	#
+	# DefconWall is likewise untouched: world.yaml turns DeriveFromSpawns on mod-wide and the two
+	# pinned HomeLocations in map.yaml are what it bisects. The wall standing during DEFCON 3 is
+	# part of what this run is checking, so unlike demo-defcon-readout it stays ON.
+
+	-StartGameNotification:
+	# DROPPED SO THE PINNED HomeLocations WIN. With this present the two bots are assigned to the two
+	# mpspawns by the spawn assigner (Player.cs:182) and the assignment is not ours to predict, so a
+	# bot could be seated at the OTHER side's Supply Route. Without it, Player.cs:201 takes
+	# pr.HomeLocation, which map.yaml pins to each side's own SR cell.
+	-MapStartingLocations:
+	-CrateSpawner:
+
+	# SpawnStartingUnits IS KEPT, unlike every compressed Escalation scenario, which removes it and
+	# places a handful of actors by script. A whole-match run wants the ordinary opening: both slots
+	# carry StartingUnitsClass: motorized and get the same force a lobby game would.
+
+	LuaScript:
+		Scripts: test-helpers.lua, test-escalation-full-match.lua
+
+# ==== WHAT IS DELIBERATELY *NOT* OVERRIDDEN ON THE PLAYER ACTOR ====
+#
+# ConquestVictoryConditions IS KEPT, unlike the compressed Escalation scenarios, which strip it so
+# an elimination cannot end the match before their poller writes a verdict. Here an ending is the
+# POINT, and the risk that motivates stripping it is absent by construction: the only structure
+# either side owns is its Supply Route, and SUPPLYROUTE carries Targetable.TargetTypes:
+# NoAutoTarget -- a target type no weapon in the mod lists -- so Warhead.IsValidAgainst rejects
+# every warhead before damage is computed and neither side can be conquered out of the match.
+# The poller still writes on the FIRST of (an ending observed + a settle window) or (its tick
+# deadline); see the Lua.
+#
+# THERE IS NO PlayerResources OVERRIDE HERE, AND THAT IS THE CORRECTION RATHER THAN AN OMISSION.
+# The obvious move is to copy tournament-s1-eco-polar-disorder's `DefaultCash: 7500`, and the
+# first draft of this file did. But that value is a REDUCTION the tournament chose for its own
+# benchmark, not the shipped setting: mods/ww3mod/rules/player.yaml:1012-1014 leaves DefaultCash
+# COMMENTED OUT, so PlayerResourcesInfo.DefaultCash = 20000 (PlayerResources.cs:32) applies and
+# that is also what the `startingcash` lobby dropdown defaults to. Inheriting therefore REMOVES a
+# departure instead of adding one, which is this file's whole rule.
+#
+# Fog and shroud are likewise left alone -- every compressed scenario here forces
+# ExploredMapCheckboxEnabled/FogCheckboxEnabled because it needs a knowable target set, and each
+# says so. A whole-match run wants the ordinary fog a player gets, and NuclearBotModule takes its
+# aim points from BeliefStore, which is fog-legal by construction.

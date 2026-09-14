@@ -1,0 +1,77 @@
+TEST: a whole DEFCON Escalation match, bot vs bot, start to ending.
+
+The end-to-end smoke run. Two @experimental bots (America vs Russia) play a full
+Escalation match on the shipped Polar Disorder map -- map.bin is md5-identical to
+mods/ww3mod/maps/polar-disorder-ww3/map.bin -- with SRs at 93,16 and 4,81.
+
+WHY IT EXISTS. Every other Escalation scenario is a compressed single-mechanism
+probe: test-nuclear-exchange and test-bot-nuclear open AT DEFCON 1 with a ten-TICK
+release gate, test-bot-defcon2-breaks-peace opens at 2, test-bot-defcon-wall pins
+the no-rush clock past the end of its own run. Nobody had run the whole chain --
+3 -> 2 -> 1 -> release -> exchange -> ending -- on the real clocks with bots on
+both sides.
+
+NO PHASE CLOCK IS COMPRESSED. no-rush 5 min (5000 ticks), first warheads 10 min
+(10000), retaliation window 3 min, Flexible posture, all four band regen timers:
+every one inherited at its shipped default. Wall clock is bought with
+run-test.sh --speed instead, which divides world.Timestep at IWorldLoaded -- AFTER
+DefconEscalation's constructor has converted minutes to ticks against the
+un-multiplied 60 ms -- so the tick clocks stay shipped and only wall time moves.
+
+FOUR DEPARTURES FROM SHIPPED DEFAULTS, each argued at its block in rules.yaml:
+  1. ModeDefault: Escalation      (shipped Skirmish, which is a strict no-op)
+  2. TimeLimitTicks: 22000        (shipped "No limit" -- the match must END)
+  3. RunInTestMode: true          (shipped false; false suppresses the salvo in
+                                   test mode, so the last phase would never run)
+  4. *Locked on five options      (values UNCHANGED; the locks only pin them)
+Starting cash, fog, shroud and ConquestVictoryConditions are all left at shipped
+defaults -- unlike the compressed scenarios, which override each for reasons that
+do not apply to a whole-match run.
+
+ASSERTIONS (all faults are concatenated, then a READINGS line):
+
+  PHASES    Opens at 3. 3 -> 2 happens, and NOT before the 5000-tick no-rush
+            clock. 2 -> 1 happens, and after 3 -> 2. (2 -> 1 has no clock at all,
+            so the transition IS the evidence of a qualifying enemy-caused kill.)
+
+  RELEASE   Both bots carry an enabled NuclearBotModule. The release opens, and
+            not before DEFCON1 + 10000 ticks. Observed through the module's own
+            reason token leaving NotReleased, which doubles as proof the module
+            is evaluating.
+
+  BOTS      Each bot queues orders in EVERY phase it reaches (total, at
+            ModularBot.QueueOrder). PoiOffensiveBotModule specifically queues
+            orders across DEFCON 3 -- on @experimental that module owns the whole
+            ground pool, SquadManagerBotModule being fixed-wing only.
+
+  ENDING    A WinState resolves before the 24000-tick deadline.
+
+  LAUNCHES ARE A READING, NOT AN ASSERTION. The module fires only when losing
+  (army value under 60 % of the strongest enemy's, or own SR control under 40 %)
+  and only after three agreeing evaluations, so two even bots reaching the end
+  with neither committed is the mechanism working. The ledger records which.
+
+  EXCEPTIONS are checked by the harness, not here: an unhandled engine exception
+  kills the process and run-test.sh:898 reports CRASH off exception-<utc>.log, and
+  a fatal Lua error writes its own fail verdict (ScriptContext.cs:273-277). The
+  one gap -- run-test.sh only hunts for a crash log when NO result file exists --
+  is closed structurally: this poller never passes early, it writes on the first
+  of (ending observed) or (deadline), and the ending is the last thing in the
+  match.
+
+RUN IT AS: ./tools/autotest/run-test.sh --hidden --speed 4 --timeout 1200 \
+             test-escalation-full-match
+
+THIS IS A LONG SCENARIO AND run-batch.sh --all WILL PICK IT UP (it globs
+test-*). Budget: the poller's hard deadline is 24000 ticks, which is ~6.0 min
+of wall clock at --speed 4 (Timestep 60/4 = 15 ms exactly) and ~24 min at 1x.
+run-batch.sh defaults to --speed 8, where integer division gives Timestep 7 ms
+and a real multiplier of 60/7 = 8.57x -- so ~2.8 min nominal against
+run-test.sh's default 300 s timeout. That is only ~1.8x of margin, and it
+requires the engine to sustain ~143 ticks/s on a 98x98 two-bot late game.
+
+IF A BATCH EVER TIMEOUT-FAILs THIS, THE ANSWER IS A LONGER --timeout, NOT A
+COMPRESSED CLOCK. Compressing a phase clock here does not make the scenario
+cheaper to run, it makes it stop being this scenario -- there are six
+single-mechanism probes next door that already measure the compressed case.
+Pass --timeout to run-batch.sh, or drop this folder from the batch by name.
