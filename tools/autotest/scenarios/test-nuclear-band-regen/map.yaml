@@ -38,12 +38,25 @@ Categories: Test
 # implementation most likely to be got wrong: NuclearExchange.PutBandOnRegen walks every combatant
 # on the firing side, not just the firer.
 #
-# `Team: 1` / `Team: 2` IS THE SIDE KEY. NuclearExchange.SideKeyFor takes the lobby client's team
-# when there is one and falls back to PlayerReference.Team, which is what a map-authored player has
-# (ConquestVictoryConditions reads the same two sources). A scenario that left Team unset would get
-# three sides from a negative-index fallback, USA and Volga would be opponents, and the central
-# reading here would be measuring nothing. Check debug.log's `NUCLEAR EXCHANGE sides:` line first if
-# this run fails everywhere at once: it prints every combatant with its side key.
+# `Team: 1` / `Team: 2` IS THE SIDE KEY, AND THE FIRST RUN OF THIS SCENARIO PROVED IT CAN BE
+# IGNORED. THE DEBUG LINE IS THE PRECONDITION FOR EVERY READING BELOW:
+#
+#     NUCLEAR EXCHANGE sides: USA(1), Volga(1), Enemy(2)
+#
+# A run whose `NUCLEAR EXCHANGE sides:` line says anything else is measuring nothing, whichever way
+# it ends. On 2026-09-14 it said `Volga(1), Enemy(1), USA(1)` -- all three combatants on ONE side --
+# and the scenario PASSED, because on a 3v0 board "the teammate's warhead went on cooldown" is true
+# of everybody. The cause was NuclearExchange.SideKeyFor asking
+# `ClientWithIndex(p.ClientIndex)?.Team` first: Player.cs:191 gives every player with no client of
+# its own the HOST'S client index, so all three inherited the human's lobby team and this file's
+# `Team:` lines were dead text. Fixed by asking ClientInSlot instead; see that method.
+#
+# THE SCENARIO NO LONGER RELIES ON ANYONE READING THAT LINE. Phase C asserts Enemy's own warhead is
+# still loaded after USA fires, which is false on the broken keying -- the shape cannot pass twice.
+# The line is still the first thing to read if the run fails everywhere at once.
+#
+# A scenario that left Team unset would instead get three sides from the negative-index fallback,
+# USA and Volga would be opponents, and the central reading would be vacuous the other way.
 #
 # ONLY USA IS `Playable`, AND THAT IS BOTH A REQUIREMENT AND COVERAGE. The requirement:
 # `--check-yaml` fails a map with no playable slot outright -- "Error: Found no playable player" --

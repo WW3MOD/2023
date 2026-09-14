@@ -48,6 +48,7 @@ local BUDGET_TICK = REGEN_CHECK_TICK + 200
 WorldLoaded = function()
 	local USA = Player.GetPlayer("USA")
 	local Volga = Player.GetPlayer("Volga")
+	local Enemy = Player.GetPlayer("Enemy")
 
 	local tick = 0
 	local faults = {}
@@ -95,9 +96,9 @@ WorldLoaded = function()
 
 	local function verdict()
 		local summary = string.format(
-			"fire=%q | USA b61=%s 9m729=%s | Volga 9m729=%s b61=%s | %s",
+			"fire=%q | USA b61=%s 9m729=%s | Volga 9m729=%s b61=%s | Enemy 9m729=%s | %s",
 			fireResult, state(USA, USA_1KT), state(USA, RU_1KT),
-			state(Volga, RU_1KT), state(Volga, USA_1KT),
+			state(Volga, RU_1KT), state(Volga, USA_1KT), state(Enemy, RU_1KT),
 			table.concat(notes, " | "))
 
 		if #faults > 0 then
@@ -135,6 +136,14 @@ WorldLoaded = function()
 				.. " prerequisite on the power or a sandbox provider that is granting anyway") and ok
 			ok = expect(Volga, "Volga", USA_1KT, "hidden",
 				"A RUSSIA PLAYER IS HOLDING AMERICA'S B61. Same gate, other direction") and ok
+
+			-- The opponent is Russia too and holds the same warhead Volga does. Read here so the
+			-- phase C reading below is a CHANGE from a known starting point rather than a bare
+			-- value -- if Enemy were already unarmed at t90 the side assertion there would pass
+			-- for a reason that has nothing to do with sides.
+			ok = expect(Enemy, "Enemy", RU_1KT, "ready",
+				"the opponent did not get the 1 kt band at release. Release is simultaneous for"
+				.. " every side; check debug.log's `NUCLEAR EXCHANGE sides:` line") and ok
 
 			note(ok, "faction lock ok at t%d", tick)
 			Trigger.AfterDelay(1, step)
@@ -174,6 +183,27 @@ WorldLoaded = function()
 				.. " behaviour: per-power regeneration, so a side fires a band once per warhead it"
 				.. " holds in it. If USA's own reading above is `ready` too, the reset is not"
 				.. " running at all; if only THIS one is `ready`, it is running for the firer only") and ok
+
+			-- ==== THE SIDE BOUNDARY, AND IT IS WHY THIS SCENARIO IS A 2v1 =====================
+			-- THE RESET IS PER SIDE, SO IT MUST STOP AT ONE. Enemy is Team 2 and did not fire;
+			-- its own 1 kt warhead must still be loaded.
+			--
+			-- THIS ASSERTION EXISTS BECAUSE THE SCENARIO ONCE PASSED WITHOUT IT. The 2026-09-14
+			-- GREEN run logged `NUCLEAR EXCHANGE sides: Volga(1), Enemy(1), USA(1)` -- all three
+			-- combatants on ONE side, so the match was a 3v0 and "the teammate's warhead went on
+			-- cooldown" was true of everybody on the board, trivially. Nothing in the readings
+			-- above could tell that apart from the feature working. This one can: on the broken
+			-- keying Enemy is a teammate and reads `charging:` here.
+			--
+			-- Preferred to reading the side keys directly because there is no Lua binding on
+			-- NuclearExchange, and because a behavioural assertion cannot be satisfied by a
+			-- binding that reports the number it was told rather than the number in use.
+			ok = expect(Enemy, "Enemy", RU_1KT, "ready",
+				"THE OPPONENT'S WARHEAD WENT ON COOLDOWN WHEN USA FIRED. The band reset is per SIDE"
+				.. " and Enemy is Team 2. `charging:` here almost certainly means all three"
+				.. " combatants were keyed onto one side -- READ debug.log's"
+				.. " `NUCLEAR EXCHANGE sides:` LINE, which must say USA(1), Volga(1), Enemy(2)."
+				.. " A run where it reads Enemy(1) is measuring nothing, whichever way it ends") and ok
 
 			note(ok, "band ok at t%d, %d ticks after the shot", tick, tick - FIRE_TICK)
 			Trigger.AfterDelay(1, step)

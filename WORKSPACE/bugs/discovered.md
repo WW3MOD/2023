@@ -5,6 +5,32 @@
 
 ---
 
+- [2026-09-14] [UNKNOWN SEVERITY — BEHAVIOURAL IMPACT NOT MEASURED] **Every trait that derives a
+  team from `LobbyInfo.ClientWithIndex(player.ClientIndex)` reads the HOST'S team for map-authored
+  players, because `Player.cs:191` deliberately hands them the host's client index** — `ClientIndex =
+  world.LobbyInfo.Clients.FirstOrDefault(c => c.IsAdmin)?.Index ?? 0;`, under its own upstream
+  `// Owned by the host (TODO: fix this)`. So `ClientWithIndex` does not return null for a map player,
+  it returns the human's client, and any `?? 0` / `if (team <= 0)` fallback to `PlayerReference.Team`
+  is unreachable whenever the host is in a team at all. **This is not theoretical: it made a 2v1
+  autotest scenario run as a 3v0 and PASS** — `NUCLEAR EXCHANGE sides: Volga(1), Enemy(1), USA(1)`
+  with `Enemy` authored `Team: 2`. Fixed in `NuclearExchange.SideKeyFor` by asking
+  `LobbyInfo.ClientInSlot(p.InternalName)` instead, which is null exactly when no client owns that
+  player. **Two other call sites do the same lookup and were NOT changed:**
+  - `ConquestVictoryConditions.cs:105-109` — `myTeam` and the winning-team grouping both come from
+    `ClientWithIndex(...).Team` with no `PlayerReference.Team` fallback at all. On a map whose sides
+    are authored rather than lobby-assigned, every non-client player would group under the host's
+    team. ⚠️ I did NOT check whether any shipped map or scenario reaches this — most scenarios strip
+    `ConquestVictoryConditions` outright, which may be why it has never been noticed.
+  - `CreateMapPlayers.cs:202-205` — `GetClientForPlayer(p)` is the same lookup, and the comparison it
+    feeds is `pc.Team == q.PlayerReference.Team`: the CLIENT team of one player against the
+    PLAYERREFERENCE team of another. Mixing the two vocabularies is suspicious on its face, but I did
+    not work out whether it produces wrong alliances in practice.
+  ⚠️ **The severity is unknown because I measured neither.** The general shape is worth more than
+  either instance: **`ClientWithIndex(p.ClientIndex)` answers "which client is associated with this
+  player" and NOT "does a client own this player", and for map players those differ.** Ask
+  `ClientInSlot(p.InternalName)` when the question is ownership. (found while working on: the nuclear
+  arsenal's band-level regeneration, `wt/arsenal-lock`)
+
 - [2026-09-12] [UNKNOWN SEVERITY — REACHABILITY NOT CHECKED] **`bradley` has no drawable sprite: its
   sequence is `idle: 1tnk`, and `1tnk.shp` is not in this repository.** The sequence node for image
   `bradley` in `mods/ww3mod/sequences/sequences.yaml` resolves `idle` to `1tnk`, which comes from Red

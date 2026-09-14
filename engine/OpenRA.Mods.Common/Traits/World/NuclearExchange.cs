@@ -738,17 +738,41 @@ namespace OpenRA.Mods.Common.Traits
 
 		// A side is the lobby TEAM when there is one. With no team the player is its own side, keyed
 		// on a unique NEGATIVE so it can never collide with a team number: team numbers are positive
-		// and the map-player fallback below is positive too.
+		// and the map-player fallback is positive too. The arithmetic is
+		// NuclearExchangeState.SideKeyFor; what lives here is the LOOKUP, which is the part that was
+		// wrong.
+		//
+		// ==== `ClientInSlot`, NEVER `ClientWithIndex(p.ClientIndex)` ==============================
+		// FIXED 2026-09-14 after a 2v1 scenario logged `Volga(1), Enemy(1), USA(1)` and passed on the
+		// resulting 3v0. This asked `w.LobbyInfo.ClientWithIndex(p.ClientIndex)?.Team` first, under a
+		// comment claiming "a scenario's map players have no lobby client at all". BOTH HALVES OF
+		// THAT WERE FALSE.
+		//
+		// A map player does not have NO client -- it is given the HOST'S. Player.cs:191 assigns
+		// `ClientIndex = world.LobbyInfo.Clients.FirstOrDefault(c => c.IsAdmin)?.Index ?? 0` to every
+		// player with no client of its own, under its own `// Owned by the host (TODO: fix this)`.
+		// So ClientWithIndex returns a real client for a map player, that client is the human's, and
+		// every map player on the board silently inherits the human's lobby team. The
+		// `PlayerReference.Team` fallback below could never be reached for a host in any team at all,
+		// and the map's `Team:` -- the only statement of sides a scenario can make -- was dead text.
+		//
+		// AND ConquestVictoryConditions IS NOT A PRECEDENT FOR THE OLD FORM, which the old comment
+		// also claimed. It reads `ClientWithIndex(self.Owner.ClientIndex).Team` and nothing else
+		// (ConquestVictoryConditions.cs:105-109) -- it never consults PlayerReference.Team, so it has
+		// the same hazard rather than a solution to it. CreateMapPlayers.cs:202-205 does the same
+		// lookup. Neither was checked before being cited.
+		//
+		// ClientInSlot ASKS THE QUESTION THAT WAS MEANT: "is there a client sitting in THIS player's
+		// slot". A lobby slot's key is the PlayerReference's own name (Game.cs:604-612 builds
+		// `Slots[slotKey]` with `PlayerReference = slotKey` from the map's playable players, and
+		// Player.InternalName is that same name), so a non-playable map player has no slot, no client
+		// in it, and falls through to the map's Team as intended. A real lobby player -- human or
+		// bot -- is found by its own slot and keeps its own lobby team.
 		static int SideKeyFor(World w, Player p, int index)
 		{
-			var team = w.LobbyInfo.ClientWithIndex(p.ClientIndex)?.Team ?? 0;
+			var owningClient = w.LobbyInfo.ClientInSlot(p.InternalName);
 
-			// A scenario's map players have no lobby client at all, so the team comes off the map's
-			// PlayerReference instead. ConquestVictoryConditions reads the same two sources.
-			if (team <= 0)
-				team = p.PlayerReference?.Team ?? 0;
-
-			return team > 0 ? team : -(index + 1);
+			return NuclearExchangeState.SideKeyFor(owningClient?.Team ?? 0, p.PlayerReference?.Team ?? 0, index);
 		}
 
 		void ITick.Tick(Actor self)

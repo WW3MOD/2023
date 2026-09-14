@@ -234,6 +234,32 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// <para>The side key for one player: its TEAM when it has one, and a unique NEGATIVE when it
+		/// does not, so a teamless player is its own side and can never collide with a team number.</para>
+		///
+		/// <para>TWO SOURCES, IN THIS ORDER, AND THE ORDER IS NOT THE INTERESTING PART -- the caller
+		/// resolving <paramref name="owningClientTeam"/> is. A lobby client's team wins because a
+		/// human or bot in a slot may have been moved between teams in the lobby, which the map
+		/// cannot know; <paramref name="referenceTeam"/> is the map's own `Team:`, which is the only
+		/// statement of sides a map-authored player can make.</para>
+		///
+		/// <para>NON-POSITIVE MEANS ABSENT for both. Lobby team 0 is "no team" rather than team zero,
+		/// and PlayerReference.Team defaults to 0 -- so neither can be distinguished from unset, and
+		/// neither needs to be.</para>
+		///
+		/// <para>PURE, AND THAT IS WHY IT IS HERE. The defect this split exists to catch was in the
+		/// LOOKUP that feeds <paramref name="owningClientTeam"/> and not in this arithmetic (see
+		/// NuclearExchange.SideKeyFor), but a caller passing 0 for "no client owns this player" is
+		/// exactly the case that was unreachable before and is now the one worth pinning.</para>
+		/// </summary>
+		public static int SideKeyFor(int owningClientTeam, int referenceTeam, int playerIndex)
+		{
+			var team = owningClientTeam > 0 ? owningClientTeam : referenceTeam;
+
+			return team > 0 ? team : -(playerIndex + 1);
+		}
+
+		/// <summary>
 		/// <para>Ticks a band takes to come back after being fired, given the four per-band intervals in
 		/// ascending band order. The list is <see cref="NuclearRung.Kiloton"/> through
 		/// <see cref="NuclearRung.HundredKiloton"/>; anything outside that range takes the last entry.</para>
