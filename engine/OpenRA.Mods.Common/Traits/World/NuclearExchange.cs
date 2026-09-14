@@ -158,7 +158,7 @@ namespace OpenRA.Mods.Common.Traits
 		// per power in it before anything here starts counting. Both halves were wrong.
 		//
 		// WRONG ABOUT THE LADDERS. nuclear-arsenal.yaml carries no `Prerequisites:` line, but the
-		// ten powers defined there are tiered in rules/player.yaml:208-233 -- MiniYaml merges the
+		// ten powers defined there are tiered in rules/player.yaml:208-240 -- MiniYaml merges the
 		// `Player:` node across every file in mod.yaml's Rules list, and the tier table was
 		// deliberately kept whole in one file. Seven of the ten name `powers.america` or
 		// `powers.russia`, which ProvidesPrerequisite grants BY FACTION (player.yaml:157-162); the
@@ -622,7 +622,7 @@ namespace OpenRA.Mods.Common.Traits
 		// needs and what it did not get before. CORRECTED 2026-09-14: this paragraph used to say
 		// "EVERY BAND HOLDS TWO OR MORE POWERS and neither ladder is faction-locked ... after firing
 		// one of them this correctly returns 0 and the ledger correctly leaves the box lit". Both
-		// premises are gone. The ladders ARE faction-locked (rules/player.yaml:208-233, tiered there
+		// premises are gone. The ladders ARE faction-locked (rules/player.yaml:208-240, tiered there
 		// rather than in nuclear-arsenal.yaml -- see the note on the regeneration fields above), and
 		// firing any warhead in a band now resets every warhead that side holds in it (PutBandOnRegen),
 		// so every candidate this loop sees carries the same countdown and the minimum IS that

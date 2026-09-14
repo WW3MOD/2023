@@ -420,7 +420,7 @@ Player:
 	#
 	# THE PREMISE IS TRUE AND THE CONCLUSION IS FALSE, which is why it survived a review. There is
 	# indeed no `Prerequisites:` line in THIS FILE -- and there is not meant to be. All ten powers
-	# defined here are tiered in rules/player.yaml:208-246, in one block with the other six, because
+	# defined here are tiered in rules/player.yaml:208-240, in one block with the other six, because
 	# MiniYaml merges the `Player:` node across every file in mod.yaml's Rules list and a tier table
 	# split across two files is a table nobody can read. Reading one file and concluding "no gate"
 	# is the specific mistake a merged node invites.

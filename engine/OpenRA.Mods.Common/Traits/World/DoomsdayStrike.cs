@@ -656,7 +656,7 @@ namespace OpenRA.Mods.Common.Traits
 		// somebody the wrong warhead. Asking the tech tree asks the table itself.
 		//
 		// AND IT IS NOT A NO-OP UNDER SANDBOX, deliberately. `powers-sandbox` grants all three tiers
-		// to every player (player.yaml:186-195), so under that option both factions really do own
+		// to every player (player.yaml:186-195, @SandboxAmerica through @SandboxEvent), so under that option both factions really do own
 		// both game-enders and both are armed -- which is what the option is for and what the demos
 		// that switch it on depend on.
 		//
