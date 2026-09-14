@@ -122,7 +122,7 @@ namespace OpenRA.Test
 		static Dictionary<string, bool> Powers()
 		{
 			var found = new Dictionary<string, bool>();
-			foreach (var (order, purchasable, _) in PowerRows())
+			foreach (var (order, purchasable, _, _) in PowerRows())
 				found[order] = purchasable;
 
 			return found;
@@ -156,7 +156,7 @@ namespace OpenRA.Test
 		/// eleven somewhere other than player.yaml, and a walk that misses a file reports those six
 		/// as "no such power" or misses their missing proxies entirely.
 		/// </summary>
-		static IEnumerable<(string Order, bool Purchasable, string Prerequisites)> PowerRows()
+		static IEnumerable<(string Order, bool Purchasable, string Prerequisites, int YieldTons)> PowerRows()
 		{
 			// A trait's fields can be SPLIT ACROSS BOTH FILES and merging them is not optional here.
 			// rules/player.yaml deliberately carries the tier for the six powers DEFINED in
@@ -167,6 +167,12 @@ namespace OpenRA.Test
 			var purchasable = new Dictionary<string, bool>();
 			var prereqs = new Dictionary<string, string>();
 			var orderOfTrait = new Dictionary<string, string>();
+
+			// THE YIELD RIDES ALONG for the faction-lock tests below: a warhead's band is a function
+			// of its yield and of nothing else (NuclearReleaseLadder.RungForYield), so "does this
+			// faction hold two warheads in one band" is answerable from this walk and from no other.
+			// It is split across the two files exactly like the tier is.
+			var yields = new Dictionary<string, int>();
 
 			foreach (var file in new[] { FindMod("rules", "player.yaml"), FindMod("rules", "ingame", "nuclear-arsenal.yaml") })
 			{
@@ -192,6 +198,15 @@ namespace OpenRA.Test
 						prereqs[known] = prereq;
 					else if (prereq != null)
 						prereqs["\0trait:" + trait.Key] = prereq;
+
+					var tons = Field(trait, "NuclearYieldTons");
+					if (tons != null && int.TryParse(tons, out var parsedTons))
+					{
+						if (orderOfTrait.TryGetValue(trait.Key, out var knownOrder))
+							yields[knownOrder] = parsedTons;
+						else
+							yields["\0trait:" + trait.Key] = parsedTons;
+					}
 				}
 			}
 
@@ -199,11 +214,17 @@ namespace OpenRA.Test
 			// LATER. Order-independence matters: mod.yaml lists player.yaml before nuclear-arsenal.yaml
 			// today, and a reordering there must not silently turn this fixture green.
 			foreach (var (traitKey, order) in orderOfTrait)
+			{
 				if (!prereqs.ContainsKey(order) && prereqs.TryGetValue("\0trait:" + traitKey, out var late))
 					prereqs[order] = late;
 
+				if (!yields.ContainsKey(order) && yields.TryGetValue("\0trait:" + traitKey, out var lateTons))
+					yields[order] = lateTons;
+			}
+
 			foreach (var (order, buy) in purchasable)
-				yield return (order, buy, prereqs.TryGetValue(order, out var p) ? p : null);
+				yield return (order, buy, prereqs.TryGetValue(order, out var p) ? p : null,
+					yields.TryGetValue(order, out var y) ? y : 0);
 		}
 
 		/// <summary>
@@ -394,6 +415,126 @@ namespace OpenRA.Test
 				"regardless of faction: " + string.Join(", ", ungated) + ". Add one of " +
 				string.Join(" / ", Tiers) + " to the power in rules/player.yaml (the six arsenal " +
 				"powers are tiered there too, in the block headed \"TIERS FOR THE SIX POWERS\").");
+		}
+
+		/// <summary>
+		/// The ten arsenal warheads and the faction that owns each, as the user ruled it on
+		/// 2026-09-14. Written out rather than derived from the names: `Sarmat` and `TsarBomba` sit
+		/// in nuclear-arsenal.yaml under a header that calls all six of its original entries "the
+		/// American six", and RS-28 Sarmat and RDS-220 are Russian weapons. A test that inferred
+		/// nationality from which file a power lives in would agree with that header and be wrong.
+		///
+		/// TWO VOCABULARIES, ON PURPOSE. The eight buy-ladder warheads name a `powers.` SHELF, which
+		/// is what the buy tab filters on. The three game-enders name a `player.` IDENTITY instead,
+		/// because decision 17.3 forbids a game-ender from being purchasable at all and
+		/// <see cref="NothingAboveTheHundredKilotonBandIsOnAFactionTier"/> pins that structurally --
+		/// putting them on a `powers.` tier to make this table uniform is exactly the tidy-up that
+		/// reopens it.
+		/// </summary>
+		static readonly (string Order, string Tier)[] ArsenalOwners =
+		{
+			("B61LowStrike", "powers.america"),
+			("B61MidStrike", "powers.america"),
+			("B61MaxStrike", "powers.america"),
+			("W76Strike", "powers.america"),
+			("B83Strike", "player.america"),
+			("Ru9M729Strike", "powers.russia"),
+			("RuIskanderStrike", "powers.russia"),
+			("RuKinzhalNStrike", "powers.russia"),
+			("RuKalibrStrike", "powers.russia"),
+			("SarmatStrike", "player.russia"),
+			("TsarBombaStrike", "player.russia"),
+		};
+
+		[Test]
+		public void EveryArsenalWarheadDeclaresTheFactionThatOwnsIt()
+		{
+			// THE RULING, PINNED. Before 2026-09-14 the three game-enders named `powers.event` and
+			// nothing else, so the question "whose Sarmat is it" had no answer anywhere in the rules
+			// -- which is how DoomsdayStrike came to hand every surviving side BOTH of them.
+			//
+			// NOT EVERY NUCLEAR POWER IS HERE, and the two that are absent are absent on purpose:
+			// @TacNuke and @HighYieldNuke are the unattributed event-tier pair, deliberately owned by
+			// neither faction (see the notes on them in player.yaml). Listing the eleven the ruling
+			// covers, rather than asserting over every nuclear power, is what keeps those two from
+			// having a nationality invented for them by a failing test.
+			var rows = PowerRows().ToDictionary(r => r.Order, r => r.Prerequisites);
+
+			foreach (var (order, tier) in ArsenalOwners)
+			{
+				Assert.That(rows.ContainsKey(order), Is.True,
+					$"no support power in the mod carries OrderName `{order}` -- renamed, or removed?");
+
+				var prereqs = rows[order] ?? string.Empty;
+				Assert.That(prereqs, Does.Contain(tier),
+					$"`{order}` does not name `{tier}`, so the faction that owns it is undeclared. " +
+					"A power with no faction tier is handed to BOTH sides by the final exchange " +
+					"(DoomsdayStrike.OwnedByFaction) and to both by the shop wherever its other " +
+					"prerequisites are met.");
+
+				var wrongTier = tier.Replace(".america", "\0").Replace(".russia", ".america").Replace("\0", ".russia");
+				Assert.That(prereqs, Does.Not.Contain(wrongTier),
+					$"`{order}` names `{wrongTier}` as well -- prerequisites are ANDed, so this power " +
+					"is now unreachable by every faction rather than shared between them.");
+			}
+		}
+
+		[Test]
+		public void NeitherFactionHoldsTwoWarheadsInOneBand()
+		{
+			// THE PREMISE THE BAND-LEVEL REGENERATION TIMER RESTS ON (NuclearExchange.PutBandOnRegen).
+			// One shot puts the whole band on its timer for the whole firing side, so a faction
+			// holding two warheads in one band does not get two shots -- it gets one, and the second
+			// warhead is dead weight the player can see in the sidebar and cannot fire. That is a
+			// design smell rather than a crash, and this is where it gets noticed.
+			//
+			// SANDBOX-ONLY YIELDS ARE EXCLUDED, and the Tsar Bomba is the only one: at 50 Mt it is
+			// above NuclearReleaseLadder.SandboxOnlyAboveTons, it is gated on a condition that is
+			// never granted in Escalation, and NuclearExchangeState.ReportLaunch drops a launch of
+			// that size outright. It shares the game-ender rung with the Sarmat on paper and can
+			// never share a cooldown with it in play.
+			foreach (var faction in new[] { "america", "russia" })
+			{
+				var byBand = new Dictionary<int, string>();
+				foreach (var row in PowerRows().OrderBy(r => r.Order, StringComparer.Ordinal))
+				{
+					if (row.YieldTons <= 0 || row.YieldTons > OpenRA.Mods.Common.Traits.NuclearReleaseLadder.SandboxOnlyAboveTons)
+						continue;
+
+					// EITHER VOCABULARY COUNTS AS OWNERSHIP -- see the note on ArsenalOwners. The buy
+					// ladder says `powers.russia`, the game-enders say `player.russia`, and both mean
+					// "Russia holds this", which is the only sense the band question is asked in.
+					if (row.Prerequisites == null
+						|| (!row.Prerequisites.Contains("powers." + faction, StringComparison.Ordinal)
+							&& !row.Prerequisites.Contains("player." + faction, StringComparison.Ordinal)))
+						continue;
+
+					var band = OpenRA.Mods.Common.Traits.NuclearReleaseLadder.RungForYield(row.YieldTons);
+					Assert.That(byBand.ContainsKey(band), Is.False,
+						$"`{faction}` holds both `{(byBand.TryGetValue(band, out var first) ? first : "?")}` and " +
+						$"`{row.Order}` at band {(OpenRA.Mods.Common.Traits.NuclearRung)band}. Since the " +
+						"band-level regeneration ruling only one of them is ever fireable per interval.");
+
+					byBand[band] = row.Order;
+				}
+			}
+		}
+
+		[Test]
+		public void TheGameEndersKeepTheEventTierBesideTheirFaction()
+		{
+			// THE HALF THAT IS EASY TO LOSE. Adding a faction tier to the three game-enders is only
+			// safe while `powers.event` stays beside it: that name is provided by NO faction, and it
+			// is the whole of why a 1.2 Mt bomb and a 50 Mt device are not on the shop floor of a
+			// normal match (decision 04 for the Tsar Bomba specifically). Replacing the event tier
+			// with the faction one -- which reads like a tidy-up -- would put all three in the buy
+			// tab for whichever faction owns them.
+			var rows = PowerRows().ToDictionary(r => r.Order, r => r.Prerequisites);
+
+			foreach (var order in new[] { "SarmatStrike", "B83Strike", "TsarBombaStrike" })
+				Assert.That(rows[order] ?? string.Empty, Does.Contain("powers.event"),
+					$"`{order}` no longer names `powers.event`, so its faction can now buy a " +
+					"game-ender in a normal match.");
 		}
 
 		[Test]

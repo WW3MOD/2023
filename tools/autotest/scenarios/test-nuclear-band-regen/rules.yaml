@@ -1,0 +1,70 @@
+# The band-regeneration autotest's overrides.
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so each player's HomeLocation falls back to the pinned PlayerReference value rather
+	# than a spawn assignment -- which is what fixes the two SIDES on this map.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-nuclear-band-regen.lua
+
+	# THE MODE. Escalation rather than the shipped Skirmish default: outside Escalation there is no
+	# free-timer economy at all -- NuclearExchangeState.IsFreeTimerPower returns false, every band
+	# comes from NuclearUnlockClock's purchase schedule, and the regeneration this scenario measures
+	# does not exist.
+	#
+	# STARTS AT DEFCON 1 with a ten-tick first-warheads delay. The release gate is not what is under
+	# test here; the shipped default is ten real minutes of nothing.
+	DefconEscalation:
+		ModeDefault: Escalation
+		StartAtDefault: 1
+		NuclearReleaseDelayTicksOverride: 10
+
+	NuclearExchange:
+		# THE 1 KT BAND'S REGENERATION, COMPRESSED from the shipped 3000 (3:00) to 300 (18 s). What
+		# is under test is a MECHANISM -- does one shot put a sibling warhead on the clock -- and
+		# three real minutes of waiting would measure nothing extra. The other three bands are left
+		# at their shipped values: only the 1 kt band is ever fired here.
+		KilotonRegenTicks: 300
+
+	# THE HOST'S ARSENAL CHECKBOX ON, THE SANDBOX OVERRIDE OFF, AND THE SECOND HALF IS THE WHOLE
+	# POINT OF THIS SCENARIO. `powers-sandbox` hands EVERY player all three tiers
+	# (player.yaml's @SandboxAmerica / @SandboxRussia / @SandboxEvent), so with it on an America
+	# player really does hold the 9M729 and the faction assertions below would read `ready` while
+	# being correct about nothing. test-nuclear-exchange turns it on because it needs `powers.event`;
+	# this scenario fires nothing above 1 kt and needs neither the event tier nor the override.
+	#
+	# LOCKED so no lobby default or saved session can move either out from under the run. The
+	# sandbox box is locked OFF rather than merely left alone, for the same reason.
+	PowersLobbyOptions:
+		NuclearArsenalCheckboxEnabled: true
+		NuclearArsenalCheckboxLocked: true
+		PowersSandboxCheckboxEnabled: false
+		PowersSandboxCheckboxLocked: true
+
+Player:
+	# A 0.3 kt blast on a 64x32 playfield is small, but removed anyway so an elimination cannot end
+	# the match before the poller writes a verdict.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored, so nothing the poller reads is a visibility artefact.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# NO CASH, DELIBERATELY. Since decision 02 nothing nuclear is purchasable in Escalation at all,
+	# so there is nothing to buy at any price -- but zero credits is kept so that a REGRESSION in
+	# that bypass cannot be masked by a player who could simply have bought the shot back. With
+	# money, a `ready` reading after firing would pass whether the band timer worked or not.
+	PlayerResources:
+		DefaultCash: 0
+
+# Nothing initiates on its own: the scenario issues every order it measures.
+^Combatant:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+		InitialEngagementStance: HoldPosition
+		InitialEngagementStanceAI: HoldPosition

@@ -211,12 +211,33 @@ Player:
 		Prerequisites: powers.america
 	MissileStrikePower@W76:
 		Prerequisites: powers.america
+	# THE THREE GAME-ENDERS NAME THEIR OWNER AS WELL AS THE EVENT TIER (2026-09-14, user ruling).
+	# Prerequisites are ANDed (TechTree.cs:65-70), so `powers.event, player.russia` means "the event
+	# tier is open AND this player is Russia". The nationalities are the weapons' own: RS-28 Sarmat
+	# and RDS-220 (Tsar Bomba) are Russian, B83-1 is American -- worth stating because
+	# nuclear-arsenal.yaml's header calls all six of its original entries "the American six".
+	#
+	# `player.*` AND NOT `powers.*`, AND THAT IS THE WHOLE CARE IN THIS BLOCK. A `powers.` name is a
+	# SHOP SHELF: it is what SupportPowerProductionQueue filters the buy tab on, and decision 17.3 --
+	# "game-enders are NEVER purchasable in Skirmish" -- is pinned structurally by
+	# PowerPurchaseWiringTest.NothingAboveTheHundredKilotonBandIsOnAFactionTier, which fails the
+	# moment a warhead above 100 kt names one. A `player.` name is an IDENTITY: provided by faction
+	# alone, by the ProvidesPrerequisite pair at the foot of this file, and never by the sandbox
+	# option. Ownership and purchasability are different questions and this is the field where they
+	# are kept apart. Writing `powers.russia` here instead reads like tidiness and reopens 17.3.
+	#
+	# IT CHANGES NOTHING ON THE TWO PATHS THAT REACH THESE TODAY, and that is the point rather than
+	# an apology for it: in a normal match nobody has `powers.event`, so all three are unreachable
+	# either way; under `powers-sandbox` every player has the event tier, and each faction keeps its
+	# own two. The faction half bites on the ONE path that overrides the event tier deliberately --
+	# DoomsdayStrike's final-exchange window, which used to hand every surviving side BOTH
+	# game-enders. See DoomsdayStrikeInfo.OverriddenPrerequisites.
 	MissileStrikePower@Sarmat:
-		Prerequisites: powers.event
+		Prerequisites: powers.event, player.russia
 	MissileStrikePower@B83:
-		Prerequisites: powers.event
+		Prerequisites: powers.event, player.america
 	MissileStrikePower@TsarBomba:
-		Prerequisites: powers.event
+		Prerequisites: powers.event, player.russia
 	# Russia's four buy rungs, added by the manager at merge. Neither worker could write these:
 	# the powers live in nuclear-arsenal.yaml (the weapons worker's file) while the tier names live
 	# here (the roster worker's file), and only the OrderNames were contracted between them -- so

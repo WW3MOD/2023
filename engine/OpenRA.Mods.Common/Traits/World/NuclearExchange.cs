@@ -151,24 +151,30 @@ namespace OpenRA.Mods.Common.Traits
 		// NUCLEAR POSTURE SCALES ALL FOUR (150 / 100 / 60 %), which is what makes that dropdown a live
 		// lever rather than the inert one it was while every nuclear power was purchased.
 		//
-		// ==== A BAND IS NOT A WEAPON: EVERY BAND HOLDS TWO OR MORE POWERS ====
-		// Observed 2026-09-13 from a demo capture, and it is the thing to know before tuning any of
-		// these four numbers. The bands and their unlocked occupants are:
+		// ==== A BAND IS A BAND: ONE SHOT PUTS THE WHOLE BAND ON THIS TIMER ====
+		// CORRECTED 2026-09-14, TWICE OVER. This block used to read "EVERY BAND HOLDS TWO OR MORE
+		// POWERS ... nuclear-arsenal.yaml declares NO faction prerequisite for any of its ten
+		// entries, so both sides hold both ladders", and concluded that a side fires a band once
+		// per power in it before anything here starts counting. Both halves were wrong.
 		//
-		//     1 kt    2  (@B61Low 300 t, @Ru9M729 1000 t)
-		//     20 kt   3  (@RuIskander, @B61Mid, @TacNuke)
-		//     50 kt   2  (@B61Max, @RuKinzhalN)
-		//     100 kt  2  (@W76, @RuKalibr)
+		// WRONG ABOUT THE LADDERS. nuclear-arsenal.yaml carries no `Prerequisites:` line, but the
+		// ten powers defined there are tiered in rules/player.yaml:208-240 -- MiniYaml merges the
+		// `Player:` node across every file in mod.yaml's Rules list, and the tier table was
+		// deliberately kept whole in one file. Seven of the ten name `powers.america` or
+		// `powers.russia`, which ProvidesPrerequisite grants BY FACTION (player.yaml:157-162); the
+		// three game-enders name `powers.event`, which no faction provides at all. So each faction
+		// holds exactly ONE warhead per band, and the demo capture that appeared to show otherwise
+		// -- a Russian "1 KT" cameo in USA's column -- was taken under `powers-sandbox`
+		// (demo-defcon-readout/rules.yaml:72), the lobby option whose entire purpose is to hand
+		// every player all three tiers.
 		//
-		// and nuclear-arsenal.yaml declares NO faction prerequisite for any of its ten entries, so
-		// both sides hold both ladders. A side can therefore fire a band ONCE PER POWER IN IT before
-		// anything here starts counting: two 1 kt warheads back to back, then a 900-tick wait.
+		// WRONG ABOUT THE ECONOMY, and that was a ruling rather than a reading: firing ANY weapon in
+		// a band now puts the WHOLE band on this timer, for every player on the firing SIDE. See
+		// PutBandOnRegen. A two-player team therefore gets one shot per band per interval between
+		// them, not one each, and the sandbox option no longer buys anybody a double tap.
 		//
-		// THAT IS NOT A BUG IN THE TIMER AND IS NOT ONE IN THE READOUT -- the readout reports the
-		// band as available for exactly as long as the side has a loaded warhead in it, which is the
-		// truth. It IS a fact about what these numbers mean: KilotonRegenTicks is the interval
-		// between EXHAUSTING the band and getting it back, not the interval between shots. Whoever
-		// tunes them first should decide whether that is the intended economy.
+		// SO THESE FOUR NUMBERS MEAN WHAT THEY LOOK LIKE: the interval between one shot at a band
+		// and the next shot at that band, by that side. They are still untuned placeholders.
 
 		[Desc("Ticks the 1 kt band takes to come back after firing, in Escalation. UNTUNED PLACEHOLDER.",
 			"3000 ticks = 180 s = 3:00 at the default 60 ms timestep (16.67 ticks/s, NOT 25).")]
@@ -520,6 +526,83 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// <para>This player's nuclear support powers, paired with the band each one sits in, in
+		/// ORDINAL KEY ORDER.</para>
+		///
+		/// <para>ONE WALK, THREE CALLERS -- <see cref="MakeBandsReady"/>, <see cref="PutBandOnRegen"/>
+		/// and <see cref="RegenTicksRemainingForSide"/> all need "every nuclear power this player has,
+		/// and its band", and all three write or read synced state. Three hand-rolled copies of the
+		/// same filter is how one of them ends up disagreeing with the others about what counts as
+		/// nuclear; the filter is `MissileStrikePowerInfo` with a positive yield, stated once.</para>
+		///
+		/// <para>ORDINAL, AND NOT BECAUSE THE OPERATIONS CARE. Dictionary enumeration order is not
+		/// something every client agrees about, and this file does not iterate an unordered collection
+		/// at all -- the rule is kept whole rather than argued per call site.</para>
+		/// </summary>
+		static IEnumerable<(SupportPowerInstance Instance, int Band)> NuclearPowersOf(SupportPowerManager manager)
+		{
+			if (manager == null)
+				yield break;
+
+			foreach (var key in manager.Powers.Keys.OrderBy(k => k, System.StringComparer.Ordinal))
+			{
+				var instance = manager.Powers[key];
+				if (instance.Info is not MissileStrikePowerInfo missile || missile.NuclearYieldTons <= 0)
+					continue;
+
+				yield return (instance, NuclearReleaseLadder.RungForYield(missile.NuclearYieldTons));
+			}
+		}
+
+		/// <summary>
+		/// <para>A warhead in <paramref name="band"/> has just been released by <paramref name="side"/>:
+		/// put EVERY warhead that side holds in that band back on its regeneration timer.</para>
+		/// </summary>
+		// ==== THE BAND IS THE UNIT, AND THAT IS A RULING RATHER THAN AN OPTIMISATION ====
+		// Before 2026-09-14 regeneration was per POWER: SupportPowerInstance.Activate reset only the
+		// instance that fired (SupportPowerManager.cs:398), so a side holding N warheads in a band
+		// fired N times before any timer started. The user ruled that firing ANY weapon in a band
+		// puts the WHOLE band on the timer.
+		//
+		// FOR THE WHOLE SIDE, NOT THE FIRER, because a side is a TEAM (see the header). Two players
+		// on one side each hold their own faction's warhead at a band; resetting only the firer's
+		// would leave the band's real cooldown at zero for the side, which is the quantity the ledger
+		// reports and the quantity the ruling is about.
+		//
+		// ResetTimer, NOT a value of our own: it assigns TotalTicks * 100, and TotalTicks for a free
+		// nuclear power IS this band's regeneration interval with the posture already applied
+		// (EscalationRegenTicks, called from SupportPowerInstance's constructor). Computing the
+		// number here would be a second copy of that arithmetic, free to drift from the one the fired
+		// power itself uses.
+		//
+		// IT INCLUDES THE POWER THAT FIRED, and that is harmless rather than merely tolerable: this
+		// runs from MissileStrikePower.Activate, which SupportPowerInstance.Activate calls BEFORE its
+		// own `remainingSubTicks = TotalTicks * 100` (SupportPowerManager.cs:391-398). Both writes
+		// assign the same value, so the order of the two does not matter and neither can win a race
+		// the other would lose.
+		//
+		// AND IT INCLUDES POWERS THAT ARE NOT CURRENTLY Permitted, deliberately. A disabled power has
+		// its timer pinned to full on every tick anyway (SupportPowerManager.cs:315-317), so the write
+		// is a no-op for it -- and testing Permitted here would make the reset depend on the order the
+		// band condition happens to have reached each power, which is exactly the kind of
+		// tick-ordering dependence the retry budget in MakeBandsReady exists to paper over.
+		void PutBandOnRegen(int side, int band)
+		{
+			if (band <= (int)NuclearRung.Hold)
+				return;
+
+			foreach (var p in combatants)
+			{
+				if (SideOf(p) != side)
+					continue;
+
+				foreach (var (instance, powerBand) in NuclearPowersOf(p.PlayerActor?.TraitOrDefault<SupportPowerManager>()))
+					if (powerBand == band)
+						instance.ResetTimer();
+			}
+		}
+
+		/// <summary>
 		/// <para>Ticks until this SIDE's <paramref name="band"/> is fireable again, 0 when it is ready
 		/// now, and -1 when the side has no power at that band to ask about.</para>
 		/// </summary>
@@ -535,14 +618,15 @@ namespace OpenRA.Mods.Common.Traits
 		// and what the side can do is whatever comes back SOONEST -- so the minimum is the answer,
 		// and the first entry in dictionary order is not.
 		//
-		// AND IT IS ALSO THE ANSWER FOR ONE PLAYER, which is not obvious and was read as a bug on
-		// 2026-09-13. EVERY BAND HOLDS TWO OR MORE POWERS and neither ladder is faction-locked (see
-		// the note on the regeneration fields above), so ONE player alone has two warheads in the
-		// 1 kt band. After firing one of them this correctly returns 0 and the ledger correctly
-		// leaves the box lit: the side really can fire that band again, this tick. A reading that
-		// took the power that was just fired, or the maximum, would draw a countdown over a band the
-		// player is holding a loaded warhead in -- which is the readout lying in the direction that
-		// loses matches.
+		// SINCE THE BAND-LEVEL RESET IT IS ALSO THE EXACT BAND COUNTDOWN, which is what the ledger
+		// needs and what it did not get before. CORRECTED 2026-09-14: this paragraph used to say
+		// "EVERY BAND HOLDS TWO OR MORE POWERS and neither ladder is faction-locked ... after firing
+		// one of them this correctly returns 0 and the ledger correctly leaves the box lit". Both
+		// premises are gone. The ladders ARE faction-locked (rules/player.yaml:208-240, tiered there
+		// rather than in nuclear-arsenal.yaml -- see the note on the regeneration fields above), and
+		// firing any warhead in a band now resets every warhead that side holds in it (PutBandOnRegen),
+		// so every candidate this loop sees carries the same countdown and the minimum IS that
+		// countdown. The box goes dark for the whole interval, which is now the truth.
 		//
 		// ---- -1 IS NOT 0 -------------------------------------------------------------------------
 		// "No power at this band" and "ready right now" are different facts and the ledger draws them
@@ -566,20 +650,9 @@ namespace OpenRA.Mods.Common.Traits
 				if (SideOf(p) != side)
 					continue;
 
-				var manager = p.PlayerActor?.TraitOrDefault<SupportPowerManager>();
-				if (manager == null)
-					continue;
-
-				// Ordinal key order for the same reason MakeBandsReady walks it that way: Dictionary
-				// order is not a guarantee, and two clients disagreeing about which of two equal
-				// timers they looked at would be a readout that flickered between machines.
-				foreach (var key in manager.Powers.Keys.OrderBy(k => k, System.StringComparer.Ordinal))
+				foreach (var (instance, powerBand) in NuclearPowersOf(p.PlayerActor?.TraitOrDefault<SupportPowerManager>()))
 				{
-					var instance = manager.Powers[key];
-					if (!(instance.Info is MissileStrikePowerInfo missile) || missile.NuclearYieldTons <= 0)
-						continue;
-
-					if (NuclearReleaseLadder.RungForYield(missile.NuclearYieldTons) != band)
+					if (powerBand != band)
 						continue;
 
 					// PERMITTED, NOT Ready. A power whose band condition is ungranted is not this
@@ -665,17 +738,41 @@ namespace OpenRA.Mods.Common.Traits
 
 		// A side is the lobby TEAM when there is one. With no team the player is its own side, keyed
 		// on a unique NEGATIVE so it can never collide with a team number: team numbers are positive
-		// and the map-player fallback below is positive too.
+		// and the map-player fallback is positive too. The arithmetic is
+		// NuclearExchangeState.SideKeyFor; what lives here is the LOOKUP, which is the part that was
+		// wrong.
+		//
+		// ==== `ClientInSlot`, NEVER `ClientWithIndex(p.ClientIndex)` ==============================
+		// FIXED 2026-09-14 after a 2v1 scenario logged `Volga(1), Enemy(1), USA(1)` and passed on the
+		// resulting 3v0. This asked `w.LobbyInfo.ClientWithIndex(p.ClientIndex)?.Team` first, under a
+		// comment claiming "a scenario's map players have no lobby client at all". BOTH HALVES OF
+		// THAT WERE FALSE.
+		//
+		// A map player does not have NO client -- it is given the HOST'S. Player.cs:191 assigns
+		// `ClientIndex = world.LobbyInfo.Clients.FirstOrDefault(c => c.IsAdmin)?.Index ?? 0` to every
+		// player with no client of its own, under its own `// Owned by the host (TODO: fix this)`.
+		// So ClientWithIndex returns a real client for a map player, that client is the human's, and
+		// every map player on the board silently inherits the human's lobby team. The
+		// `PlayerReference.Team` fallback below could never be reached for a host in any team at all,
+		// and the map's `Team:` -- the only statement of sides a scenario can make -- was dead text.
+		//
+		// AND ConquestVictoryConditions IS NOT A PRECEDENT FOR THE OLD FORM, which the old comment
+		// also claimed. It reads `ClientWithIndex(self.Owner.ClientIndex).Team` and nothing else
+		// (ConquestVictoryConditions.cs:105-109) -- it never consults PlayerReference.Team, so it has
+		// the same hazard rather than a solution to it. CreateMapPlayers.cs:202-205 does the same
+		// lookup. Neither was checked before being cited.
+		//
+		// ClientInSlot ASKS THE QUESTION THAT WAS MEANT: "is there a client sitting in THIS player's
+		// slot". A lobby slot's key is the PlayerReference's own name (Game.cs:604-612 builds
+		// `Slots[slotKey]` with `PlayerReference = slotKey` from the map's playable players, and
+		// Player.InternalName is that same name), so a non-playable map player has no slot, no client
+		// in it, and falls through to the map's Team as intended. A real lobby player -- human or
+		// bot -- is found by its own slot and keeps its own lobby team.
 		static int SideKeyFor(World w, Player p, int index)
 		{
-			var team = w.LobbyInfo.ClientWithIndex(p.ClientIndex)?.Team ?? 0;
+			var owningClient = w.LobbyInfo.ClientInSlot(p.InternalName);
 
-			// A scenario's map players have no lobby client at all, so the team comes off the map's
-			// PlayerReference instead. ConquestVictoryConditions reads the same two sources.
-			if (team <= 0)
-				team = p.PlayerReference?.Team ?? 0;
-
-			return team > 0 ? team : -(index + 1);
+			return NuclearExchangeState.SideKeyFor(owningClient?.Team ?? 0, p.PlayerReference?.Team ?? 0, index);
 		}
 
 		void ITick.Tick(Actor self)
@@ -786,15 +883,8 @@ namespace OpenRA.Mods.Common.Traits
 
 			var any = false;
 
-			// Ordinal key order, so the sequence is the same on every client. Dictionary order is not
-			// a guarantee, and these calls write synced state.
-			foreach (var key in manager.Powers.Keys.OrderBy(k => k, System.StringComparer.Ordinal))
+			foreach (var (instance, band) in NuclearPowersOf(manager))
 			{
-				var instance = manager.Powers[key];
-				if (!(instance.Info is MissileStrikePowerInfo missile) || missile.NuclearYieldTons <= 0)
-					continue;
-
-				var band = NuclearReleaseLadder.RungForYield(missile.NuclearYieldTons);
 				if (band < fromBand || band > toBand)
 					continue;
 
@@ -834,12 +924,20 @@ namespace OpenRA.Mods.Common.Traits
 			if (state == null || Mode != DefconGameMode.Escalation)
 				return;
 
-			var outcome = state.ReportLaunch(SideOf(firer), tons);
+			var firerSide = SideOf(firer);
+			var outcome = state.ReportLaunch(firerSide, tons);
 			if (!outcome.Counted)
 				return;
 
-			Log.Write("debug", $"NUCLEAR LAUNCH: {firer?.InternalName ?? "unknown"} (side {SideOf(firer)}) " +
-				$"released {tons} t, band {(NuclearRung)outcome.Band}. Every other side is armed.");
+			// ONE SHOT PER BAND PER TIMER, for the whole firing side. Done on the COUNTED edge and
+			// nowhere else: a launch the state machine dropped -- wrong mode, before release, a
+			// warhead above the ladder -- must not spend a cooldown either, or a Lua scenario poking
+			// the trait directly could mute a band that was never fired.
+			PutBandOnRegen(firerSide, outcome.Band);
+
+			Log.Write("debug", $"NUCLEAR LAUNCH: {firer?.InternalName ?? "unknown"} (side {firerSide}) " +
+				$"released {tons} t, band {(NuclearRung)outcome.Band}. Every other side is armed, " +
+				$"and side {firerSide}'s whole {(NuclearRung)outcome.Band} band is regenerating.");
 
 			if (outcome.FinalExchange)
 				BeginFinalExchange(firer);

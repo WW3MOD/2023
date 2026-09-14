@@ -414,26 +414,45 @@ Player:
 	# =============================================================================================
 	# THE RUSSIAN FOUR (2026-09-07).
 	#
-	# CORRECTED 2026-09-13: THIS SAID THEY CARRY `Prerequisites: player.russia`. THEY DO NOT, AND
-	# NEITHER DOES ANYTHING ELSE IN THIS FILE -- there is not one `Prerequisites:` line in it. The
-	# only gate on all ten entries here is the `RequiresCondition` pair: the host's arsenal checkbox
-	# and the band condition. So EVERY SIDE HOLDS BOTH LADDERS, and an American player released to
-	# the 1 kt band gets the 9M729 cameo beside the B61-12's.
+	# CORRECTED AGAIN 2026-09-14, AND THE 2026-09-13 CORRECTION IS THE THING TO DISTRUST. It said:
+	# "there is not one `Prerequisites:` line in it ... So EVERY SIDE HOLDS BOTH LADDERS, and an
+	# American player released to the 1 kt band gets the 9M729 cameo beside the B61-12's."
 	#
-	# That is observable rather than deduced: frame 07 of the 2026-09-13 demo-defcon-readout capture
-	# shows a "1 KT" cameo in USA's own support-power column, and "1 KT" is @Ru9M729's CameoCaption
-	# (@B61Low's is "0.3 KT").
+	# THE PREMISE IS TRUE AND THE CONCLUSION IS FALSE, which is why it survived a review. There is
+	# indeed no `Prerequisites:` line in THIS FILE -- and there is not meant to be. All ten powers
+	# defined here are tiered in rules/player.yaml:208-240, in one block with the other six, because
+	# MiniYaml merges the `Player:` node across every file in mod.yaml's Rules list and a tier table
+	# split across two files is a table nobody can read. Reading one file and concluding "no gate"
+	# is the specific mistake a merged node invites.
 	#
-	# WHETHER IT SHOULD BE SO IS A DESIGN QUESTION AND IS NOT DECIDED HERE. The original note said
-	# the American six were deliberately not retro-fitted with `player.america` because faction
-	# gating "belongs to rules/player.yaml, which is being rebuilt in parallel" -- so the asymmetry
-	# was known and intended to be resolved elsewhere. What was wrong was only the claim that the
-	# Russian half of it had already been done.
+	#     @B61Low @B61Max @W76                          powers.america
+	#     @Ru9M729 @RuIskander @RuKinzhalN @RuKalibr     powers.russia
+	#     @Sarmat @TsarBomba                             powers.event + powers.russia
+	#     @B83                                           powers.event + powers.america
 	#
-	# IT MATTERS TO THE EXCHANGE, which is why it was found. Every band holds two or more powers
-	# (1 kt: 2, 20 kt: 3, 50 kt: 2, 100 kt: 2), so a per-BAND regeneration timer is spent only after
-	# every power in that band has fired -- see the note on the regeneration fields in
-	# NuclearExchangeInfo.
+	# `powers.america` and `powers.russia` are granted BY FACTION (ProvidesPrerequisite@PowersAmerica
+	# / @PowersRussia, player.yaml:157-162). So each faction holds exactly one warhead per band, and
+	# the enemy's cameo is ABSENT rather than greyed -- SupportPowersWidget filters its icon list on
+	# SupportPowerInstance.Disabled, which folds in Permitted, which folds in the prerequisite
+	# (SupportPowerManager.cs:160-175).
+	#
+	# THE CAPTURE WAS REAL AND WAS NOT EVIDENCE FOR THAT CLAIM. Frame 07 of the 2026-09-13
+	# demo-defcon-readout run does show a "1 KT" cameo in USA's column -- because that scenario sets
+	# `powers-sandbox` (demo-defcon-readout/rules.yaml:72), the lobby option whose entire purpose is
+	# to hand every player all three tiers. The same scenario has Russia firing the AMERICAN B61Low
+	# on purpose (demo-defcon-readout.lua:101). A sandbox capture cannot speak about the shipped
+	# configuration, and this one was read as if it could.
+	#
+	# A `~` PREFIX WOULD ADD NOTHING HERE, asked and answered 2026-09-14 rather than assumed. `~`
+	# only drives TechTree's hidden/visible EDGE notifications (TechTree.cs:143-194); the satisfied
+	# test strips it (`:68-69`), and SupportPowerManager implements PrerequisitesItemHidden and
+	# PrerequisitesItemVisible as empty methods (`:137-138`). For a support power the cameo is kept
+	# out of the column by Permitted, which the bare form already drives. `~` is inert on these ten.
+	#
+	# IT MATTERED TO THE EXCHANGE, which is how the error was found, and that consequence is now
+	# gone twice over: each faction holds one warhead per band, and since 2026-09-14 firing any
+	# warhead in a band puts the whole band on its regeneration timer for the whole firing side
+	# (NuclearExchange.PutBandOnRegen). The regeneration interval is the interval between shots.
 	#
 	# WHAT ACTUALLY DIFFERS FROM THE AMERICAN WEAPON AT THE SAME YIELD. The warheads are identical
 	# by design (see the long note in weapons-nuclear-arsenal.yaml); everything that makes these

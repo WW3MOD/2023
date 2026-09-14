@@ -456,6 +456,93 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void ASideKeyPrefersTheOwningClientsTeamAndFallsBackToTheMaps()
+		{
+			// THE REGRESSION THIS PINS, IN ONE LINE: a map-authored player must take the MAP's team.
+			// On 2026-09-14 a 2v1 scenario ran as a 3v0 and PASSED -- debug.log read
+			// `Volga(1), Enemy(1), USA(1)` with Enemy authored as `Team: 2` -- because the trait
+			// asked `ClientWithIndex(p.ClientIndex)` for the team, and Player.cs:191 hands every
+			// player with no client of its own the HOST'S client index. Every map player therefore
+			// inherited the human's lobby team and this second argument was unreachable.
+			//
+			// The fix is in the lookup (NuclearExchange.SideKeyFor now asks ClientInSlot), so what
+			// this fixture can hold is the contract that lookup has to satisfy: 0 means "no client
+			// owns this player", and 0 must yield to the map.
+			Assert.That(NuclearExchangeState.SideKeyFor(0, 2, 1), Is.EqualTo(2),
+				"a player no lobby client owns must take its PlayerReference team -- this is the " +
+				"argument that was unreachable while the lookup returned the host's client");
+
+			Assert.That(NuclearExchangeState.SideKeyFor(0, 1, 0), Is.EqualTo(1));
+
+			// A REAL LOBBY CLIENT WINS, because a human or bot can be moved between teams in the
+			// lobby and the map cannot know that. Asserted with the two DISAGREEING so a reading
+			// that took the wrong one cannot pass.
+			Assert.That(NuclearExchangeState.SideKeyFor(2, 1, 0), Is.EqualTo(2),
+				"a client sitting in this player's own slot outranks the map's Team:");
+
+			// NO TEAM ANYWHERE -> THE PLAYER IS ITS OWN SIDE, keyed on a unique negative. Positive
+			// keys are team numbers and both sources are positive, so a negative can never collide
+			// with one -- which is what makes a teamless free-for-all N sides rather than one.
+			Assert.That(NuclearExchangeState.SideKeyFor(0, 0, 0), Is.EqualTo(-1));
+			Assert.That(NuclearExchangeState.SideKeyFor(0, 0, 1), Is.EqualTo(-2));
+			Assert.That(NuclearExchangeState.SideKeyFor(0, 0, 2), Is.EqualTo(-3),
+				"two teamless players must not share a side key");
+
+			// ZERO IS ABSENT, NOT A TEAM, for both sources: lobby team 0 means "no team" and
+			// PlayerReference.Team defaults to 0. A negative arriving from either is absent too
+			// rather than a side key in its own right -- nothing produces one today, and treating it
+			// as a team would let a caller collide with the teamless keys above.
+			Assert.That(NuclearExchangeState.SideKeyFor(-5, 0, 0), Is.EqualTo(-1));
+			Assert.That(NuclearExchangeState.SideKeyFor(0, -5, 3), Is.EqualTo(-4));
+		}
+
+		[Test]
+		public void ALaunchNamesTheBandThatGoesOnCooldownForTheWholeSide()
+		{
+			// THE PURE HALF OF THE BAND-LEVEL REGENERATION RULING (2026-09-14). The write itself needs
+			// a World -- NuclearExchange.PutBandOnRegen walks every combatant's SupportPowerManager --
+			// so what is verifiable here is the decision that drives it: WHICH band a launch spends,
+			// and whether it spends one at all. Everything downstream of those two answers is a loop.
+			var state = Released();
+
+			// TWO DIFFERENT WEAPONS, ONE COOLDOWN. The 0.3 kt B61 and the 1 kt 9M729 are different
+			// warheads on opposite ladders and they report the SAME band, which is the whole content
+			// of "firing any weapon in a band puts the band on its timer". Before the ruling a side
+			// holding both fired twice; now the first shot names the unit the second one is denied.
+			Assert.That(NuclearReleaseLadder.RungForYield(B61LowTons),
+				Is.EqualTo(NuclearReleaseLadder.RungForYield(1000)),
+				"the 0.3 kt B61 and the 1 kt 9M729 must share a band or they share no cooldown");
+
+			var outcome = state.ReportLaunch(America, B61LowTons);
+			Assert.That(outcome.Counted, Is.True);
+			Assert.That(outcome.Band, Is.EqualTo((int)NuclearRung.Kiloton),
+				"the band put on cooldown is the band of the warhead that was fired");
+
+			// AND THE INTERVAL IS THE BAND'S, not the weapon's. Both warheads resolve to the same
+			// entry in the regeneration table, so resetting them together cannot desynchronise them.
+			var table = new NuclearExchangeInfo().RegenTicks();
+			Assert.That(NuclearExchangeState.RegenTicksFor(NuclearReleaseLadder.RungForYield(B61LowTons), table),
+				Is.EqualTo(NuclearExchangeState.RegenTicksFor(NuclearReleaseLadder.RungForYield(1000), table)));
+
+			// A DROPPED LAUNCH SPENDS NO COOLDOWN, and this is the guard that matters: the trait
+			// calls PutBandOnRegen only on the counted edge. A Lua scenario poking ReportLaunch with
+			// a 50 Mt warhead, or before release, must not silently mute a band nobody fired.
+			Assert.That(state.ReportLaunch(America, TsarBombaTons).Counted, Is.False,
+				"a warhead above the ladder is dropped whole, so no band goes on cooldown");
+
+			var shut = new NuclearExchangeState(DefconGameMode.Escalation, Window);
+			shut.RegisterSide(America);
+			shut.RegisterSide(Russia);
+			Assert.That(shut.ReportLaunch(America, B61LowTons).Counted, Is.False,
+				"a launch before the release gate opens is dropped, so no band goes on cooldown");
+
+			var skirmish = new NuclearExchangeState(DefconGameMode.Skirmish, Window);
+			skirmish.RegisterSide(America);
+			Assert.That(skirmish.ReportLaunch(America, B61LowTons).Counted, Is.False,
+				"outside Escalation there is no free-timer economy to spend");
+		}
+
+		[Test]
 		public void EachBandRegeneratesOnItsOwnTimerAndThePostureScalesThem()
 		{
 			// UNTUNED PLACEHOLDERS (3:00 / 4:00 / 5:00 / 6:00). Pinned because they are a brief rather

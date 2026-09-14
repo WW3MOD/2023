@@ -1,0 +1,135 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: one shot spends the whole band, for the whole side
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES -- two 2026-09-14 rulings that meet in one reading, neither of which the
+# sibling scenario test-nuclear-exchange can see because it runs every player on its own side with
+# `powers-sandbox` on.
+#
+#   THE FACTION LOCK -- America holds the American ladder and Russia the Russian one. Asserted as an
+#              ABSENCE in the support bin: USA's `Ru9M729Strike` must read `hidden`, and Volga's
+#              `B61LowStrike` must read `hidden`, while each faction's own 1 kt warhead reads
+#              `ready`. `powers-sandbox` IS DELIBERATELY OFF HERE (see rules.yaml) -- it hands every
+#              player all three tiers, which is exactly what would make this assertion vacuous.
+#
+#   THE BAND    -- firing ANY weapon in a band puts that band on its regeneration timer for the
+#              whole SIDE. USA fires its 0.3 kt B61; Volga's 1 kt 9M729 must then read `charging:`.
+#              Before the ruling regeneration was per POWER, so the teammate's warhead stayed
+#              `ready` and the side fired the 1 kt band twice.
+#
+# WHY A TEAM, AND WHY A MIXED ONE. After the faction lock a single player holds exactly one warhead
+# per band, so a same-side pair in one band only exists across a TEAM -- and the pair is only two
+# DIFFERENT weapons if the teammates are different factions. USA + Volga is therefore the smallest
+# arrangement in which the ruling is observable at all. It also exercises the part of the
+# implementation most likely to be got wrong: NuclearExchange.PutBandOnRegen walks every combatant
+# on the firing side, not just the firer.
+#
+# `Team: 1` / `Team: 2` IS THE SIDE KEY, AND THE FIRST RUN OF THIS SCENARIO PROVED IT CAN BE
+# IGNORED. THE DEBUG LINE IS THE PRECONDITION FOR EVERY READING BELOW:
+#
+#     NUCLEAR EXCHANGE sides: USA(1), Volga(1), Enemy(2)
+#
+# A run whose `NUCLEAR EXCHANGE sides:` line says anything else is measuring nothing, whichever way
+# it ends. On 2026-09-14 it said `Volga(1), Enemy(1), USA(1)` -- all three combatants on ONE side --
+# and the scenario PASSED, because on a 3v0 board "the teammate's warhead went on cooldown" is true
+# of everybody. The cause was NuclearExchange.SideKeyFor asking
+# `ClientWithIndex(p.ClientIndex)?.Team` first: Player.cs:191 gives every player with no client of
+# its own the HOST'S client index, so all three inherited the human's lobby team and this file's
+# `Team:` lines were dead text. Fixed by asking ClientInSlot instead; see that method.
+#
+# THE SCENARIO NO LONGER RELIES ON ANYONE READING THAT LINE. Phase C asserts Enemy's own warhead is
+# still loaded after USA fires, which is false on the broken keying -- the shape cannot pass twice.
+# The line is still the first thing to read if the run fails everywhere at once.
+#
+# A scenario that left Team unset would instead get three sides from the negative-index fallback,
+# USA and Volga would be opponents, and the central reading would be vacuous the other way.
+#
+# ONLY USA IS `Playable`, AND THAT IS BOTH A REQUIREMENT AND COVERAGE. The requirement:
+# `--check-yaml` fails a map with no playable slot outright -- "Error: Found no playable player" --
+# which is how the first version of this file was caught. The coverage: PlayerReference.Playable
+# defaults to false and NuclearExchange deliberately does NOT test it (a map-authored combatant is a
+# side), so leaving Volga and Enemy without the line keeps that open as a live case. Volga in
+# particular is a non-Playable player whose warhead the central assertion below reads.
+#
+# NOTHING IS AIMED AT ANYTHING THAT MATTERS. The exchange arms on the launch order and not on the
+# impact, so the aim point is empty ground in the middle of the map, far from all three Supply
+# Routes. Their survival is the target-type table rather than the distance: SUPPLYROUTE carries
+# `Targetable.TargetTypes: NoAutoTarget`, which no Atomic warhead lists.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		LockTeam: True
+		Team: 1
+		Faction: america
+		Color: 4488FF
+		Enemies: Enemy
+		HomeLocation: 6,17
+	PlayerReference@Volga:
+		Name: Volga
+		LockFaction: True
+		LockColor: True
+		LockTeam: True
+		Team: 1
+		Faction: russia
+		Color: 44FF88
+		Enemies: Enemy
+		HomeLocation: 6,26
+	PlayerReference@Enemy:
+		Name: Enemy
+		LockFaction: True
+		LockColor: True
+		LockTeam: True
+		Team: 2
+		Faction: russia
+		Color: FF4444
+		Enemies: USA, Volga
+		HomeLocation: 58,17
+
+Actors:
+	# One Supply Route per combatant so nobody is eliminated before the poller writes a verdict
+	# (AUTOTEST.md map.yaml rule 6). Every cell on this map is Clear -- the whole 66x34 grid is
+	# template 255 -- so these three locations are terrain-safe by construction, not by survey.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 6,17
+	AllySR: supplyroute
+		Owner: Volga
+		Location: 6,26
+	OpponentSR: supplyroute
+		Owner: Enemy
+		Location: 58,17
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnVolga: mpspawn
+		Owner: Neutral
+		Location: 6,26
+	SpawnEnemy: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+Rules: rules.yaml
