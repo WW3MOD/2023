@@ -456,6 +456,52 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void ALaunchNamesTheBandThatGoesOnCooldownForTheWholeSide()
+		{
+			// THE PURE HALF OF THE BAND-LEVEL REGENERATION RULING (2026-09-14). The write itself needs
+			// a World -- NuclearExchange.PutBandOnRegen walks every combatant's SupportPowerManager --
+			// so what is verifiable here is the decision that drives it: WHICH band a launch spends,
+			// and whether it spends one at all. Everything downstream of those two answers is a loop.
+			var state = Released();
+
+			// TWO DIFFERENT WEAPONS, ONE COOLDOWN. The 0.3 kt B61 and the 1 kt 9M729 are different
+			// warheads on opposite ladders and they report the SAME band, which is the whole content
+			// of "firing any weapon in a band puts the band on its timer". Before the ruling a side
+			// holding both fired twice; now the first shot names the unit the second one is denied.
+			Assert.That(NuclearReleaseLadder.RungForYield(B61LowTons),
+				Is.EqualTo(NuclearReleaseLadder.RungForYield(1000)),
+				"the 0.3 kt B61 and the 1 kt 9M729 must share a band or they share no cooldown");
+
+			var outcome = state.ReportLaunch(America, B61LowTons);
+			Assert.That(outcome.Counted, Is.True);
+			Assert.That(outcome.Band, Is.EqualTo((int)NuclearRung.Kiloton),
+				"the band put on cooldown is the band of the warhead that was fired");
+
+			// AND THE INTERVAL IS THE BAND'S, not the weapon's. Both warheads resolve to the same
+			// entry in the regeneration table, so resetting them together cannot desynchronise them.
+			var table = new NuclearExchangeInfo().RegenTicks();
+			Assert.That(NuclearExchangeState.RegenTicksFor(NuclearReleaseLadder.RungForYield(B61LowTons), table),
+				Is.EqualTo(NuclearExchangeState.RegenTicksFor(NuclearReleaseLadder.RungForYield(1000), table)));
+
+			// A DROPPED LAUNCH SPENDS NO COOLDOWN, and this is the guard that matters: the trait
+			// calls PutBandOnRegen only on the counted edge. A Lua scenario poking ReportLaunch with
+			// a 50 Mt warhead, or before release, must not silently mute a band nobody fired.
+			Assert.That(state.ReportLaunch(America, TsarBombaTons).Counted, Is.False,
+				"a warhead above the ladder is dropped whole, so no band goes on cooldown");
+
+			var shut = new NuclearExchangeState(DefconGameMode.Escalation, Window);
+			shut.RegisterSide(America);
+			shut.RegisterSide(Russia);
+			Assert.That(shut.ReportLaunch(America, B61LowTons).Counted, Is.False,
+				"a launch before the release gate opens is dropped, so no band goes on cooldown");
+
+			var skirmish = new NuclearExchangeState(DefconGameMode.Skirmish, Window);
+			skirmish.RegisterSide(America);
+			Assert.That(skirmish.ReportLaunch(America, B61LowTons).Counted, Is.False,
+				"outside Escalation there is no free-timer economy to spend");
+		}
+
+		[Test]
 		public void EachBandRegeneratesOnItsOwnTimerAndThePostureScalesThem()
 		{
 			// UNTUNED PLACEHOLDERS (3:00 / 4:00 / 5:00 / 6:00). Pinned because they are a brief rather

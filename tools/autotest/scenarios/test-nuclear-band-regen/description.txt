@@ -1,0 +1,4 @@
+One shot puts the WHOLE band on its regeneration timer, for the whole side -- and each faction
+holds only its own ladder. A 2v1 with an America player and a Russia player on ONE team: USA fires
+its 0.3 kt B61, and the teammate's 1 kt 9M729 -- a different weapon, on a different player, in the
+same band -- must go onto the same clock rather than staying loaded.
