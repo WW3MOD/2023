@@ -5,6 +5,26 @@
 
 ---
 
+- [2026-09-14] [MEDIUM — THE PANEL NEVER APPEARS] **`GARRISON_PANEL` cannot become visible: its
+  visibility is written by a `LogicTicker` that is its own child, and `Widget.TickOuter` only ticks
+  visible subtrees.** `GarrisonPanelLogic.cs:120` sets `panel.Visible = false` at construction, and
+  the only other write is `:116`, inside the `OnTick` of `GARRISON_TICKER` — declared as a child of
+  `GARRISON_PANEL` at `mods/ww3mod/chrome/ingame-player.yaml:790`. `Widget.cs:512-518` gates
+  `TickOuter` on `IsVisible()`, so while the panel is hidden its children do not tick, so the ticker
+  that would show it never runs. Selecting a garrison building should raise the panel and does not.
+  **The fix is one file over and is already commented:** `CargoPanelLogic.cs:148-150` uses an
+  `IsVisible` delegate for exactly this reason ("LogicTicker inside a hidden container never ticks,
+  causing chicken-and-egg") and `CARGO_PANEL`, which shares the same footprint, works. Moving
+  `GarrisonPanelLogic` to the same idiom looks like a small change, but **I have not run it** and
+  `UpdateSelection` there would then run from a visibility check rather than a tick, which is a
+  behaviour change worth a test.
+  ⚠️ **Verified by reading only — no launch.** I did not capture a frame with a garrison selected.
+  What is solid is the code path; what is not is whether some other mechanism I did not find raises
+  the panel anyway.
+  (found while working on: `wt/readout-corner`, teaching the DEFCON readout to lift over the two
+  panels that share the bottom-right corner — the garrison half of that lift is consequently
+  unreachable today, and the demo frame proving the lift had to use `CARGO_PANEL`)
+
 - [2026-09-12] [UNKNOWN SEVERITY — REACHABILITY NOT CHECKED] **`bradley` has no drawable sprite: its
   sequence is `idle: 1tnk`, and `1tnk.shp` is not in this repository.** The sequence node for image
   `bradley` in `mods/ww3mod/sequences/sequences.yaml` resolves `idle` to `1tnk`, which comes from Red

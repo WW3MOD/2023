@@ -118,22 +118,37 @@ Container@PLAYER_WIDGETS:
 		# when DEFCON 2 adds its trigger line. Height is the reserve for both blocks at their tallest,
 		# not the drawn height.
 		#
-		# WHY IT DOCKS HERE, and it is the only free corner left at 352px wide:
-		#   - the left EDGE above this is the support power column (X:10, icons 62x46, up to 16 of
-		#     them, so it can reach Y~750);
-		#   - the bottom-left is TRANSIENTS_PANEL (common|chrome/ingame-transients.yaml: X:5,
-		#     Y: WINDOW_HEIGHT - 135, 550x80) -- the 140 below is that panel's top edge plus 5;
-		#   - the bottom CENTRE is the chat root (550 wide, centred, bottom-anchored);
-		#   - the right 250px is the sidebar for the whole height of the window.
-		# Anything that moves one of those four has to re-check this number.
+		# MOVED TO THE BOTTOM-RIGHT 2026-09-14, ON REQUEST. It docked bottom-left until then, and the
+		# rationale that put it there claimed "the right 250px is the sidebar for the whole height of
+		# the window". THAT WAS FALSE and a capture settles it: in
+		# 260913_223739_p79561_demo-defcon-readout/008_08-ledger-asymmetric.png the sidebar stops at
+		# the bottom of the production palette, a little over halfway down, and everything below it on
+		# that side is empty playfield. Do not restore the old claim.
+		#
+		# WHAT IS ACTUALLY IN THIS CORNER, and it is two panels rather than a wall:
+		#   - GARRISON_PANEL and CARGO_PANEL (below, X: WINDOW_WIDTH - 240, Y: WINDOW_HEIGHT - 260,
+		#     228x240) share one footprint and are up only while a hold or a transport is selected.
+		#     AvoidPanels below is how the readout gets out of their way -- the widget draws from
+		#     whichever panel is visible, 5px above its top edge, instead of from its own bottom.
+		#   - the sidebar proper (X: WINDOW_WIDTH - 250, 238 wide) ends far above all of this.
+		# The readout is 352 wide against the sidebar's 238, so its left edge sits ~100px further left
+		# than the sidebar's -- clear of the chat root (550 wide, centred, bottom-anchored) down to
+		# 1286px of window width, where the two meet.
+		#
+		# THE COMMAND BAR IS THE TIGHT ONE, NOT THE CHAT. CMD_BG_A..RESUPPLY_BG below are absolutely
+		# positioned from X:5 to X:929 at this same bottom edge, and they do not move with the window.
+		# At 1280 wide the readout's left edge lands at 923 and the bottom 44px of the strip overlaps
+		# the last 6px of RESUPPLY_BG, which draws over it. 1286 and wider is clear. If that 6px ever
+		# has to go, the fix is this Y: WINDOW_HEIGHT - HEIGHT - 54 puts the whole readout above the
+		# command bar at every width, at the cost of lifting it off the corner everywhere else.
 		DefconReadout@DEFCON_READOUT:
-			X: 5
-			Y: WINDOW_HEIGHT - HEIGHT - 140
+			X: WINDOW_WIDTH - WIDTH - 5
+			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 352
 			# 170 UNTIL 2026-09-13, WHEN THE NUCLEAR BLOCK GAINED A SECOND LEDGER ROW.
 			#
 			# THIS NUMBER IS A RESERVE, NOT A CLIP. DefconReadoutWidget draws UPWARD from
-			# RenderBounds.Bottom, and Bottom is (Y + Height) = WINDOW_HEIGHT - 140 whatever Height
+			# its draw bottom, and that bottom is (Y + Height) = WINDOW_HEIGHT - 5 whatever Height
 			# says -- so raising it moves the declared top up and moves nothing that is drawn. What it
 			# is for is being HONEST about how much of the screen this can occupy, because the widget
 			# does not set a scissor and content taller than the reserve simply draws over whatever is
@@ -151,6 +166,10 @@ Container@PLAYER_WIDGETS:
 			# Fonts block gives (Bold 14, Tiny 10, Small 12) and are estimates, not measurements --
 			# no frame has been captured in that state.
 			Height: 240
+			# Both, because the two are mutually exclusive but either can be the one on screen. The
+			# widget resolves them once and drops any it cannot find, so this list is safe to extend
+			# with a panel some other chrome file declares and this one does not.
+			AvoidPanels: GARRISON_PANEL, CARGO_PANEL
 		# Full-width and deliberately not parented to anything: the band runs off both edges of the
 		# screen, which is what makes it read as the screen changing state rather than as a dialog.
 		# It draws only during the four seconds after a level change and is invisible the rest of the
