@@ -21,8 +21,9 @@ SupportPowersWidget filters its icon list on):
   * Russia's SarmatStrike reads `ready` inside its own END window.
   * The faction lock of 2026-09-14 (c8cadc8a) holds: USA never sees the Sarmat, Russia never sees
     the B83.
-  * The unowned 6 Mt HighYieldNukeStrike reaches both, on the same terms DoomsdayStrike's final
-    exchange already gives it.
+  * EXACTLY ONE END CAMEO PER SIDE (user ruling, 2026-09-14 — "national ender only"). The 6 Mt
+    HighYieldNukeStrike names no owner, so it reaches neither side even with its lobby checkbox
+    on and its condition satisfied.
   * Negative controls: no game-ender is readable at release, and the band-2 window never lights
     TacNukeStrike, whose host checkbox is off.
 

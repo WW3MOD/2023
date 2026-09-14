@@ -173,7 +173,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// condition is unsatisfied, which <see cref="Tick"/> would undo on the same tick anyway.</para>
 		///
 		/// <para>THE CALLER STILL OWES THE OWNERSHIP CHECK. Overriding the tier is sanctioned; overriding
-		/// the faction is not. <see cref="NuclearGameEnders.OwnedByFaction"/> is where that line is drawn,
+		/// the faction is not. <see cref="NuclearGameEnders.ArmableBy"/> is where that line is drawn,
 		/// and a caller that reads this property without also asking that one hands an America player
 		/// Russia's warhead.</para>
 		/// </summary>

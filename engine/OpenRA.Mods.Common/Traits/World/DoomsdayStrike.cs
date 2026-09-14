@@ -628,10 +628,13 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var key in manager.Powers.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList())
 				{
 					var instance = manager.Powers[key];
-					if (!IsGameEnder(instance.Info))
-						continue;
 
-					if (!OwnedByFaction(techTree, instance.Info))
+					// ONE CALL, NOT TWO, SINCE 2026-09-14. It folds in the user's "national ender
+					// only" ruling: an unattributed top-rung power -- the 6 Mt strategic strike --
+					// is armed by nobody, here as well as in the retaliation window. That is a
+					// CHANGE to this ending, accepted by the user when they ruled: a final exchange
+					// used to offer every surviving side that weapon beside its own.
+					if (!NuclearGameEnders.ArmableBy(techTree, instance.Info, info.OverriddenPrerequisites))
 						continue;
 
 					var id = p.InternalName + "|" + key;
@@ -644,33 +647,21 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// <para>Does this player's faction OWN this game-ender? Every prerequisite the power declares
-		/// must be genuinely held, except the ones <see cref="DoomsdayStrikeInfo.OverriddenPrerequisites"/>
-		/// licenses the window to ignore.</para>
-		/// </summary>
-		// MOVED TO NuclearGameEnders ON 2026-09-14 AND NOT COPIED THERE. The retaliation window at
-		// NuclearRung.GameEnder hands out the same weapons on the same terms and had NO such check at
-		// all -- it gated on SupportPowerInstance.Permitted, which folds in the `powers.event` this
-		// override exists for, so its grant could never open and the END band drew no cameo in a
-		// normal match. A rule whose two halves pull in opposite directions (override the tier, never
-		// the faction) is exactly the thing not to have two copies of, so it is stated once and both
-		// paths ask it. The reasoning that used to sit here -- why the tech tree rather than a faction
-		// field, why it is not a no-op under Sandbox, why a missing TechTree arms nothing -- moved
-		// with it and is unchanged.
-		bool OwnedByFaction(TechTree techTree, SupportPowerInfo powerInfo)
-		{
-			return NuclearGameEnders.OwnedByFaction(techTree, powerInfo, info.OverriddenPrerequisites);
-		}
-
-		/// <summary>
 		/// <para>Is this power a GAME-ENDER — one of the weapons the exchange hands out? See
 		/// <see cref="NuclearGameEnders.Is"/> for why it is asked of the YIELD, and for why the Tsar
 		/// Bomba is excluded by the ladder's own constant rather than by name.</para>
 		/// </summary>
-		// MOVED TO NuclearGameEnders.Is ON 2026-09-14, with its reasoning, for the reason given on
-		// OwnedByFaction below: the retaliation window needs the identical question answered and two
-		// copies of "which warheads are game-enders" is the second silent copy of the band table this
-		// predicate was written to avoid in the first place.
+		// MOVED TO NuclearGameEnders.Is ON 2026-09-14, with its reasoning: the retaliation window at
+		// NuclearRung.GameEnder needs the identical question answered, and two copies of "which
+		// warheads are game-enders" is the second silent copy of the band table this predicate was
+		// written to avoid in the first place.
+		//
+		// IT IS STILL ASKED HERE, AND BY ONE CALLER ONLY -- ReportExchangeLaunch, deciding whether a
+		// warhead somebody FIRED counts as that side placing its own. That is a different question
+		// from NuclearGameEnders.ArmableBy, which ArmGameEnders uses to decide who may be HANDED one
+		// and which additionally requires the power to name an owner (user ruling, 2026-09-14). Do
+		// not collapse the two: a player who fired an unattributed game-ender under Sandbox would
+		// stop counting as having placed, and Dead Hand would drop a second salvo on top of theirs.
 		static bool IsGameEnder(SupportPowerInfo powerInfo)
 		{
 			return NuclearGameEnders.Is(powerInfo);

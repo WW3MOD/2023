@@ -241,7 +241,7 @@ namespace OpenRA.Mods.Common.Traits
 			"America player Russia's Sarmat and undo c8cadc8a. Same field, same default and the same",
 			"reasoning as " + nameof(DoomsdayStrikeInfo) + "." + nameof(DoomsdayStrikeInfo.OverriddenPrerequisites) + ",",
 			"which is the other path that hands these weapons out; both ask",
-			nameof(NuclearGameEnders) + "." + nameof(NuclearGameEnders.OwnedByFaction) + " so they cannot drift.",
+			nameof(NuclearGameEnders) + "." + nameof(NuclearGameEnders.ArmableBy) + " so they cannot drift.",
 			"",
 			"EMPTY IS THE STRICT SETTING: it restores the pre-fix behaviour exactly, which is a top",
 			"rung that grants nothing outside Sandbox.")]
@@ -934,7 +934,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Only consulted on the top rung; see ArmableAtTopRung. Resolved once rather than per
 			// power, and deliberately NOT null-guarded into "arm everything" -- a player actor with
-			// no TechTree arms no game-ender, which is the failing-closed half of OwnedByFaction.
+			// no TechTree arms no game-ender, which is the failing-closed half of ArmableBy.
 			var techTree = player.PlayerActor?.TraitOrDefault<TechTree>();
 
 			var any = false;
@@ -981,9 +981,12 @@ namespace OpenRA.Mods.Common.Traits
 		///     gated on `nuclear-release-unrestricted` -- never granted inside Escalation -- stays
 		///     unreachable. Skipping this would also be pointless: SupportPowerInstance.Tick pins a
 		///     disabled power's timer back to full on the next tick and undoes the grant.
-		///   * THE FACTION MUST OWN IT. This is the one the override is most easily written without:
-		///     `MakeReady` sets prereqsAvailable wholesale, so arming on the band alone hands an America
-		///     player Russia's Sarmat and undoes c8cadc8a's ruling of 2026-09-14.</para>
+		///   * A FACTION MUST OWN IT, AND IT MUST BE THIS ONE. Both halves live in
+		///     <see cref="NuclearGameEnders.ArmableBy"/>. `MakeReady` sets prereqsAvailable wholesale, so
+		///     arming on the band alone hands an America player Russia's Sarmat and undoes c8cadc8a; and
+		///     a top-rung power that names NO owner is armed by nobody, which is the user's 2026-09-14
+		///     "national ender only" ruling and is what keeps the 6 Mt strategic strike out of the
+		///     window. Exactly one END cameo per side.</para>
 		///
 		/// <para>IT CANNOT LEAK INTO THE BUY TAB. SupportPowerProductionQueue filters on
 		/// SupportPowerInstance.Purchasable, which is `bank.CanPurchase(Permitted)`, and in Escalation a
@@ -993,11 +996,11 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		bool ArmableAtTopRung(TechTree techTree, SupportPowerInstance instance, int band)
 		{
-			if (band != (int)NuclearRung.GameEnder || !NuclearGameEnders.Is(instance.Info))
+			if (band != (int)NuclearRung.GameEnder)
 				return false;
 
 			return instance.PermittedIgnoringPrerequisites
-				&& NuclearGameEnders.OwnedByFaction(techTree, instance.Info, info.OverriddenPrerequisites);
+				&& NuclearGameEnders.ArmableBy(techTree, instance.Info, info.OverriddenPrerequisites);
 		}
 
 		/// <summary>

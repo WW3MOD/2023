@@ -17,12 +17,20 @@
  * (`player.america` / `player.russia`) must survive it -- c8cadc8a, 2026-09-14. A fix written as a
  * blanket bypass passes "the ender is reachable" and hands an America player Russia's Sarmat.
  *
+ * AND A THIRD RULE ARRIVED THE SAME DAY: "NATIONAL ENDER ONLY" (user ruling, 2026-09-14). Each side
+ * gets exactly one END cameo, so a top-rung power that names NO owner -- the 6 Mt
+ * MissileStrikePower@HighYieldNuke, `powers.event` and nothing else -- is armed by nobody, in the
+ * final exchange as well as in the window. NamesAnOwner is where that rule lives and it is
+ * deliberately a separate public member: it is the one part of ArmableBy a test can drive in BOTH
+ * directions without a World, which is what keeps this fixture from being all-negative.
+ *
  * WHAT IS OUT OF REACH HERE. TechTree cannot be constructed without a World, so the HELD case --
  * "America holds player.america, so its B83 is armed" -- is not assertable from OpenRA.Test and is
- * covered by tools/autotest/scenarios/test-nuclear-ender-window instead. What IS assertable, and is
- * the half that fails DANGEROUSLY, is everything that must return FALSE: a null tech tree, an
- * unheld faction name, a yield off the top rung. Failing closed is the property with teeth, so the
- * asymmetry of this fixture is deliberate rather than a gap.
+ * covered by tools/autotest/scenarios/test-nuclear-ender-window instead. What IS assertable of
+ * ArmableBy, and is the half that fails DANGEROUSLY, is everything that must return FALSE: a null
+ * tech tree, an unheld faction name, an unattributed power, a yield off the top rung. Failing
+ * closed is the property with teeth, so the asymmetry of THAT half is deliberate rather than a gap
+ * -- and NamesAnOwner beside it is what stops `ArmableBy => false` passing the whole file.
  */
 #endregion
 
@@ -97,15 +105,41 @@ namespace OpenRA.Test
 		// ---- WHO OWNS ONE ----
 
 		[Test]
-		public void AnOverriddenPrerequisiteIsTheOnlyOneThatMayBeMissing()
+		public void TheTwoNationalEndersNameAnOwner()
 		{
-			// The shipped shape of the unowned 6 Mt strategic strike: `powers.event` and nothing
-			// else. Everything it requires is licensed, so it is owned by every side -- which is
-			// what DoomsdayStrike.ArmGameEnders already does in the final exchange, and now what
-			// the END window does too. A NULL TechTree is deliberate: this must not need one.
+			// THE POSITIVE HALF OF THE 2026-09-14 RULING, and the reason NamesAnOwner is public:
+			// every ArmableBy assertion below is a FALSE, so without this pair the whole fixture
+			// would pass against `ArmableBy => false`.
+			Assert.That(NuclearGameEnders.NamesAnOwner(Power(1200000, "powers.event, player.america"), EventTier),
+				Is.True, "the B83 names America as its owner, beside the licensed event tier");
+			Assert.That(NuclearGameEnders.NamesAnOwner(Power(750000, "powers.event, player.russia"), EventTier),
+				Is.True, "the Sarmat names Russia");
+		}
+
+		[Test]
+		public void AnUnattributedEnderNamesNobody()
+		{
+			// "NATIONAL ENDER ONLY" (user ruling, 2026-09-14). The 6 Mt strategic strike declares
+			// `powers.event` and nothing else (player.yaml:842), so once the event tier is licensed
+			// there is no owner left -- and an ender nobody owns is armed by nobody. Before the
+			// ruling this same shape read as "owned by everyone" and put a second END cameo in both
+			// columns. THE POLARITY OF THE EMPTY CASE IS THE WHOLE CHANGE.
 			var strategic = Power(6000000, "powers.event");
-			Assert.That(NuclearGameEnders.OwnedByFaction(null, strategic, EventTier), Is.True,
-				"a power whose every prerequisite is overridden needs no tech tree to own it");
+			Assert.That(NuclearGameEnders.NamesAnOwner(strategic, EventTier), Is.False,
+				"licensing `powers.event` must leave this power with no owner at all");
+			Assert.That(NuclearGameEnders.ArmableBy(null, strategic, EventTier), Is.False,
+				"and an ender with no owner must be armed by nobody, tech tree or not");
+		}
+
+		[Test]
+		public void APowerWithNoPrerequisitesIsArmableByNobody()
+		{
+			// The degenerate case of the same rule, and it must not short-circuit to `true` the way
+			// an ordinary "does this player hold everything" test would.
+			Assert.That(NuclearGameEnders.NamesAnOwner(Power(1200000), EventTier), Is.False,
+				"a power that declares nothing names no owner");
+			Assert.That(NuclearGameEnders.ArmableBy(null, Power(1200000), EventTier), Is.False,
+				"a power that declares nothing is armed by nobody");
 		}
 
 		[Test]
@@ -116,11 +150,11 @@ namespace OpenRA.Test
 			// the answer is NO -- a blanket bypass would answer YES here and would be how a Russian
 			// player ends up looking at an American warhead.
 			var b83 = Power(1200000, "powers.event, player.america");
-			Assert.That(NuclearGameEnders.OwnedByFaction(null, b83, EventTier), Is.False,
+			Assert.That(NuclearGameEnders.ArmableBy(null, b83, EventTier), Is.False,
 				"overriding `powers.event` must not also override the faction beside it");
 
 			var sarmat = Power(750000, "powers.event, player.russia");
-			Assert.That(NuclearGameEnders.OwnedByFaction(null, sarmat, EventTier), Is.False,
+			Assert.That(NuclearGameEnders.ArmableBy(null, sarmat, EventTier), Is.False,
 				"the Sarmat's half of the same rule");
 		}
 
@@ -131,18 +165,24 @@ namespace OpenRA.Test
 			// It is the documented revert path for both traits, so the polarity is worth pinning:
 			// read the other way round, clearing the field would arm everybody.
 			var strategic = Power(6000000, "powers.event");
-			Assert.That(NuclearGameEnders.OwnedByFaction(null, strategic, NothingOverridden), Is.False,
+			Assert.That(NuclearGameEnders.NamesAnOwner(strategic, NothingOverridden), Is.True,
+				"with nothing licensed, `powers.event` is itself an owner name that must be held");
+			Assert.That(NuclearGameEnders.ArmableBy(null, strategic, NothingOverridden), Is.False,
 				"an empty override list must license nothing, not everything");
-			Assert.That(NuclearGameEnders.OwnedByFaction(null, strategic, null), Is.False,
+			Assert.That(NuclearGameEnders.ArmableBy(null, strategic, null), Is.False,
 				"and a null one must behave the same as an empty one");
 		}
 
 		[Test]
-		public void APowerWithNoPrerequisitesIsOwnedByEveryone()
+		public void NothingBelowTheTopRungIsArmableHoweverWellAttributed()
 		{
-			// Nothing to hold, so nothing to check, and no tech tree needed to say so.
-			Assert.That(NuclearGameEnders.OwnedByFaction(null, Power(1200000), EventTier), Is.True,
-				"a power that declares no prerequisites is owned outright");
+			// ArmableBy asks Is() first, so a perfectly attributed 100 kt warhead is still not
+			// something either path may hand out. Without this the yield rule could be dropped from
+			// ArmableBy and every other test here would stay green.
+			Assert.That(NuclearGameEnders.NamesAnOwner(Power(100000, "powers.america"), EventTier), Is.True,
+				"the premise: the W76 does name an owner");
+			Assert.That(NuclearGameEnders.ArmableBy(null, Power(100000, "powers.america"), EventTier), Is.False,
+				"but it is band 4, and only game-enders are handed out");
 		}
 	}
 }

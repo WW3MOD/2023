@@ -36,10 +36,14 @@ World:
 	# assertion here passes on a build with the defect fully intact -- which is exactly why
 	# test-nuclear-exchange cannot see this bug: its rules.yaml:65 sets it for unrelated reasons.
 	#
-	# HighYieldNuke IS ON, which is its shipped default, and phase F asserts what the END window
-	# does with it. That power is band 5 (6 Mt) and declares `powers.event` with NO faction name
-	# beside it, so it is the one game-ender both factions own. Pinned so the assertion is about
-	# the shipped configuration rather than about whatever the host last clicked.
+	# HighYieldNuke IS ON, AND THAT IS WHAT MAKES PHASES F AND H MEAN ANYTHING. That power is band 5
+	# (6 Mt) and declares `powers.event` with NO faction name beside it, so under the user's ruling
+	# of 2026-09-14 -- "national ender only", exactly one END cameo per side -- it is armed by
+	# nobody. The scenario asserts it reads `hidden` inside an OPEN END window, and a negative
+	# assertion is only evidence while every OTHER gate on that power is open: leave the checkbox
+	# at false and `hidden` would be true because its RequiresCondition was unsatisfied, which is
+	# not the thing under test. ON and LOCKED is the setting that makes the reading about
+	# attribution.
 	#
 	# TacticalNuke IS OFF, its shipped default. It is a BAND 2 power that also declares
 	# `powers.event`, so it is what a broader fix would have leaked into the 20 kt window; phase D

@@ -41,9 +41,15 @@ local RU_20KT    = "RuIskanderStrike"   -- 10000 t   band 2  TwentyKiloton
 local RU_100KT   = "RuKalibrStrike"     -- 100000 t  band 4  HundredKiloton
 local RU_ENDER   = "SarmatStrike"       -- 750000 t  band 5  GameEnder, powers.event + player.russia
 
--- The game-ender NEITHER faction owns exclusively: `powers.event` with no `player.*` beside it
--- (player.yaml:842). Asserted on both sides in phase F -- see the note there.
-local BOTH_ENDER = "HighYieldNukeStrike" -- 6000000 t band 5 GameEnder, powers.event only
+-- THE SECOND NEGATIVE CONTROL, and the one that pins the user's ruling of 2026-09-14: NATIONAL
+-- ENDER ONLY, exactly one END cameo per side. This power is band 5 like the other two and declares
+-- `powers.event` with NO `player.*` beside it (player.yaml:842), so it names no owner and neither
+-- arming path may hand it over. Asserted `hidden` in phases A, F and H.
+--
+-- ITS LOBBY CHECKBOX IS ON AND LOCKED IN rules.yaml, WHICH IS WHAT MAKES THAT ASSERTION EVIDENCE.
+-- With HighYieldNukeCheckboxEnabled false its RequiresCondition would be unsatisfied and `hidden`
+-- would be true for a reason that has nothing to do with attribution. Do not "tidy" that pin away.
+local UNOWNED_ENDER = "HighYieldNukeStrike" -- 6000000 t band 5 GameEnder, powers.event only
 
 -- NEGATIVE CONTROL, and the only band-2 power in the mod on the event tier (player.yaml:711). The
 -- host checkbox that gates it is OFF at shipped default and rules.yaml locks it there, so it must
@@ -124,11 +130,18 @@ WorldLoaded = function()
 			"ender-fire=%q | USA: %s=%s %s=%s %s=%s | Russia: %s=%s %s=%s | %s",
 			enderFireResult,
 			USA_ENDER, state(USA, USA_ENDER),
-			BOTH_ENDER, state(USA, BOTH_ENDER),
+			UNOWNED_ENDER, state(USA, UNOWNED_ENDER),
 			RU_ENDER, state(USA, RU_ENDER),
 			RU_ENDER, state(Russia, RU_ENDER),
 			USA_ENDER, state(Russia, USA_ENDER),
 			table.concat(notes, " | "))
+
+		-- THE WHOLE BIN, BOTH SIDES, printed rather than asserted. An exact-set assertion would be
+		-- brittle -- the lower bands come and go on their regeneration timers -- but "exactly one
+		-- END cameo per side" is the ruling, and a triager reading a failure wants to see WHICH
+		-- cameos were drawn rather than infer it from four per-power tokens.
+		summary = summary .. " | BIN USA: " .. Test.GetSupportPowerBin(USA)
+			.. " | BIN Russia: " .. Test.GetSupportPowerBin(Russia)
 
 		if #faults > 0 then
 			Test.Fail(table.concat(faults, " ;; ") .. " ;; READINGS: " .. summary)
@@ -156,9 +169,11 @@ WorldLoaded = function()
 				.. " in this file is worthless if this one is not `hidden`") and ok
 			ok = expect(Russia, "Russia", RU_ENDER, "hidden",
 				"same rule, Russia's side of it") and ok
-			ok = expect(USA, "USA", BOTH_ENDER, "hidden",
+			ok = expect(USA, "USA", UNOWNED_ENDER, "hidden",
 				"the 6 Mt strategic strike is band 5 like the other two and must be dark at release"
-				.. " despite its lobby checkbox being ON (its shipped default, pinned in rules.yaml)") and ok
+				.. " despite its lobby checkbox being ON (its shipped default, pinned in rules.yaml)."
+				.. " Phases F and H assert it is STILL dark inside an open END window; this is the"
+				.. " baseline those two are measured against") and ok
 
 			note(ok, "baseline ok at t%d", tick)
 			Trigger.AfterDelay(1, step)
@@ -259,7 +274,7 @@ WorldLoaded = function()
 				.. " NuclearExchange.MakeBandsReady skips any power that is not already Permitted,"
 				.. " so the one call that could clear that flag (SupportPowerInstance.MakeReady)"
 				.. " is never reached. Compare DoomsdayStrike.ArmGameEnders, which solves exactly"
-				.. " this with OverriddenPrerequisites + an OwnedByFaction check")
+				.. " this by asking NuclearGameEnders.ArmableBy instead")
 
 			-- THE FACTION LOCK, which the 2026-09-14 ruling (c8cadc8a) put on the three enders and
 			-- which nothing in the tree could see until now. A USA human must never be offered the
@@ -271,15 +286,24 @@ WorldLoaded = function()
 				.. " and may NOT override the faction. A blanket prerequisite bypass gives exactly"
 				.. " this reading and undoes c8cadc8a") and ok
 
-			-- THE SHARED ENDER. 6 Mt, band 5, `powers.event` and no faction name -- so under the
-			-- same rule DoomsdayStrike.ArmGameEnders already applies in the final exchange, BOTH
-			-- factions own it and the window hands it over beside the national one. Asserted rather
-			-- than left incidental: if this set is ever ruled down to the national ender alone,
-			-- this is the line that has to change and it should be a deliberate edit.
-			ok = expect(USA, "USA", BOTH_ENDER, "ready",
-				"the 6 Mt strategic strike is a band-5 power whose only prerequisite is"
-				.. " `powers.event` (player.yaml:842), so the END window owes it to every side on"
-				.. " the same terms the final exchange already does (DoomsdayStrike.ArmGameEnders)") and ok
+			-- NATIONAL ENDER ONLY -- USER RULING, 2026-09-14. Exactly one END cameo per side. The
+			-- 6 Mt strategic strike is band 5 and inside the yield ceiling, its lobby checkbox is ON
+			-- and locked, and its RequiresCondition IS satisfied here -- every gate but one is open,
+			-- and the one that is shut is attribution: `powers.event` and no `player.*` beside it
+			-- (player.yaml:842), so it names no owner and NuclearGameEnders.ArmableBy refuses it.
+			--
+			-- THIS IS THE ASSERTION THAT WOULD CATCH THE RULING BEING UNDONE BY A TIDY-UP. The
+			-- natural "simplification" of ArmableBy is to let an all-overridden prerequisite list
+			-- mean "owned by everyone", which is what it meant before the ruling and what every
+			-- ordinary HasPrerequisites-style check means. That single polarity flip puts a second
+			-- cameo in both columns and nothing else in the tree would notice.
+			ok = expect(USA, "USA", UNOWNED_ENDER, "hidden",
+				"A SECOND END CAMEO APPEARED. The 6 Mt strategic strike names no owner"
+				.. " (`Prerequisites: powers.event` alone, player.yaml:842) and the ruling is one"
+				.. " national ender per side -- B83 for USA, Sarmat for Russia. `ready` here means"
+				.. " NuclearGameEnders.ArmableBy treated an empty owner list as 'everybody owns it'"
+				.. " rather than 'nobody does'. Its lobby checkbox is ON and locked in rules.yaml,"
+				.. " so this reading is about attribution and not about the condition") and ok
 
 			-- Needed by L5 below, and worth its own message so a failure names the rung.
 			ok = expect(USA, "USA", USA_100KT, "ready",
@@ -321,8 +345,9 @@ WorldLoaded = function()
 			ok = expect(Russia, "Russia", USA_ENDER, "hidden",
 				"RUSSIA WAS HANDED AMERICA'S WARHEAD. B83Strike declares `powers.event,"
 				.. " player.america` (player.yaml:238)") and ok
-			ok = expect(Russia, "Russia", BOTH_ENDER, "ready",
-				"the unowned 6 Mt strike must reach Russia on the same terms it reaches USA") and ok
+			ok = expect(Russia, "Russia", UNOWNED_ENDER, "hidden",
+				"A SECOND END CAMEO APPEARED IN RUSSIA'S COLUMN. Russia's half of the 2026-09-14"
+				.. " ruling: the unowned 6 Mt strike is withheld from both sides, not from one") and ok
 
 			-- USA'S OWN WINDOW SURVIVED L5, which is the one reading that pins the spend rule.
 			ok = expect(USA, "USA", USA_ENDER, "ready",

@@ -29,6 +29,9 @@ Categories: Test
 #   FACTION -- USA must NOT see the Sarmat and Russia must NOT see the B83. The 2026-09-14 ruling
 #              (c8cadc8a) put `player.america` / `player.russia` on the three enders and this is the
 #              first thing in the tree that could notice it being undone.
+#   ONE EACH -- and nothing else. The user's ruling the same day is "national ender only", so the
+#              6 Mt HighYieldNukeStrike -- band 5, lobby checkbox on, condition satisfied, and
+#              `powers.event` with no owner beside it -- must stay `hidden` in BOTH columns.
 #
 # ==== WHY THIS IS NOT A COPY OF test-nuclear-exchange WITH A LONGER LADDER ====
 # THE ONE LINE THAT MATTERS IS ONE THIS FILE DOES NOT HAVE. That scenario sets

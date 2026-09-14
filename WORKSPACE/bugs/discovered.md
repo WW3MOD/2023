@@ -5170,7 +5170,7 @@ corner of a frame with a transport selected before picking one.
 
 ---
 
-## 2026-09-14 — `MissileStrikePower@HighYieldNuke` (6 Mt) is the one game-ender with no faction lock, so both factions get it
+## 2026-09-14 — RULED: national ender only. `MissileStrikePower@HighYieldNuke` (6 Mt) is armed by nobody
 
 `mods/ww3mod/rules/player.yaml:842` gives it `Prerequisites: powers.event` and nothing else, where
 the three named enders were given `player.america` / `player.russia` beside the event tier by
@@ -5180,16 +5180,30 @@ exchange"). It is band 5 by `NuclearReleaseLadder.RungForYield` (6 Mt) and under
 `DoomsdayStrike.ArmGameEnders` (already shipped) and now the END retaliation window hand it to every
 surviving side regardless of faction. Its host checkbox defaults ON (`PowersLobbyOptions.cs:111`).
 
-**Not fixed on `wt/ender-grant`, deliberately.** That branch's subject is a window that granted
-*nothing*; adding a faction name to a fourth power is a separate balance/identity call, it changes
-the shipped final exchange as well as the new path, and it is the kind of second unmeasured
-behavioural change that should not ride along. The behaviour is now *asserted* rather than
-incidental — `test-nuclear-ender-window`'s phase F and phase H both read
-`HighYieldNukeStrike == "ready"` on each side — so whichever way it is ruled, exactly one line per
-side changes and the ruling is visible in the diff.
+**RULED BY THE USER, 2026-09-14: national ender only.** Each side gets exactly one END cameo — B83
+for America, Sarmat for Russia — and the 6 Mt strike stays sandbox-only. The user accepted that the
+Dead Hand final exchange loses it too, which is a change to shipped behaviour: before this, a final
+exchange offered every surviving side that weapon beside its own.
 
-**The question for the user:** is "Strategic Nuclear Strike (6 Mt)" meant to be an unattributed
-weapon both sides hold (its name and its own lobby checkbox suggest yes), or did c8cadc8a mean to
-cover all four and miss it?
+**Closed on `wt/ender-grant`, in the shared predicate rather than in YAML.**
+`NuclearGameEnders.ArmableBy` now requires a game-ender to NAME AN OWNER — a prerequisite beyond the
+event tier the arming paths are licensed to override — so an unattributed top-rung power is armed by
+nobody, in the retaliation window and in the final exchange alike. Attribution rather than a yield
+threshold: a ceiling between the B83's 1.2 Mt and this weapon's 6 Mt would split two warheads that
+differ in nothing else, would need re-judging for every warhead added, and would not say why. It
+also fails CLOSED — a future ender that forgets its `player.*` name is armed by nobody rather than
+by everybody.
+
+**No YAML changed and the weapon is not removed.** Its `Prerequisites: powers.event` line is
+untouched, so the Sandbox lobby option still sells it exactly as before (that route goes through
+`Permitted`, never through the arming predicate) and all five `demo-nuke-*` scenarios that buy and
+fire it are unaffected — verified: each sets `PowersSandboxCheckboxEnabled: true` with
+`DefaultCash: 120000`, and none runs in Escalation or with `DoomsdayStrike.RunInTestMode`.
+
+**Asserted, both ways.** `test-nuclear-ender-window` phases F and H read
+`HighYieldNukeStrike == "hidden"` inside an open END window with the power's lobby checkbox ON and
+locked, so the reading is about attribution rather than about its condition;
+`NuclearGameEndersTest.AnUnattributedEnderNamesNobody` pins the polarity of the empty-owner case,
+which is the single flip that would undo the ruling.
 
 (found while working on: the END-window game-ender grant, `wt/ender-grant`)
