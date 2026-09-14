@@ -44,6 +44,12 @@ ASSERTIONS (all faults are concatenated, then a READINGS line):
             orders across DEFCON 3 -- on @experimental that module owns the whole
             ground pool, SquadManagerBotModule being fixed-wing only.
 
+  WALL      The DEFCON 3 border actually STOOD: >=90 % of samples taken at
+            level 3 read Test.DefconWallActive() true, and none at level 1 do
+            (ActiveLevels is { 3 }). Added after run 260914_141246, which would
+            have passed this phase wall-less -- every other DEFCON 3 assertion
+            was satisfied while the border was down for the whole period.
+
   ENDING    A WinState resolves before the 24000-tick deadline.
 
   LAUNCHES ARE A READING, NOT AN ASSERTION. The module fires only when losing
@@ -69,6 +75,17 @@ run-batch.sh defaults to --speed 8, where integer division gives Timestep 7 ms
 and a real multiplier of 60/7 = 8.57x -- so ~2.8 min nominal against
 run-test.sh's default 300 s timeout. That is only ~1.8x of margin, and it
 requires the engine to sustain ~143 ticks/s on a 98x98 two-bot late game.
+
+MEASURED 2026-09-14, run 260914_141246 (--speed 4 --timeout 1200): under a
+machine load of 115-236 from an unrelated vitest sweep, the engine sustained
+about 5.5 TICKS PER SECOND on this scenario -- it reached tick ~6600 in 1200 s
+and TIMEOUT-FAILed. Nominal at --speed 4 is 66.7 ticks/s, so that is ~8 % of
+target. THE --speed 8 BATCH CONCERN ABOVE IS THEREFORE REAL AND NOT
+THEORETICAL: run-batch.sh --all would need ~143 ticks/s to fit this scenario
+inside run-test.sh's default 300 s timeout, and a loaded machine delivers a
+twenty-sixth of that. Do not run this in a batch on a busy machine; it will
+red for load, not for merit. The figure is a LOAD MEASUREMENT, not a ceiling --
+no unloaded run has been taken yet, so the achievable rate is still unknown.
 
 IF A BATCH EVER TIMEOUT-FAILs THIS, THE ANSWER IS A LONGER --timeout, NOT A
 COMPRESSED CLOCK. Compressing a phase clock here does not make the scenario

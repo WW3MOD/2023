@@ -63,6 +63,44 @@ Players:
 		Name: Observer
 		Playable: True
 		Spectating: True
+		# NonCombatant IS LOAD-BEARING AND `Spectating: True` DOES NOT SUBSTITUTE FOR IT.
+		# WITHOUT THIS LINE THE DEFCON 3 WALL NEVER STANDS -- measured, run 260914_141246:
+		#   "DEFCON wall: no line derived from 3 combatant home(s) in 3 alliance group(s)"
+		#   "NUCLEAR EXCHANGE sides: USA-bot(-2), Russia-bot(-3), Observer(-4)"
+		# This slot was counted as a THIRD side by both traits, and a three-way free-for-all
+		# derives no line ON PURPOSE (DefconWallTest.cs:395 pins exactly that: "No line is
+		# visibly wrong and therefore fixable; a line pointing somewhere nobody chose is not").
+		# The whole no-rush phase then ran with the border down, which is the one thing DEFCON 3
+		# is: the bots met at once and DEFCON 1 arrived 46 ticks after the wall should have fallen.
+		#
+		# WHY THE SPECTATING FLAG DOES NOT SAVE IT, which is the part worth reading before
+		# "simplifying" this back. Both filters DO test spectators -- DefconWall.cs:303 is
+		# `if (player.NonCombatant || player.Spectating) continue;` and NuclearExchange.cs:707
+		# routes through NuclearExchangeState.CountsAsASide, which is `!nonCombatant &&
+		# !spectating` (NuclearExchangeState.cs:310). But runtime Player.Spectating is
+		# `!inMissionMap && (spectating || WinState != Undefined)` (Player.cs:86), and
+		# inMissionMap is `Map.Visibility.HasFlag(MapVisibility.MissionSelector)` (Player.cs:167)
+		# -- which EVERY autotest scenario sets, by AUTOTEST.md map.yaml rule 1. So
+		# Player.Spectating is hardwired FALSE here whatever this file says, both spectator
+		# arms are dead in any scenario, and NonCombatant is the only flag that can exclude
+		# this slot. Logged at WORKSPACE/bugs/discovered.md.
+		#
+		# DO NOT "FIX" THIS BY COPYING test-bot-defcon-wall: ITS OBSERVER HAS NO NonCombatant
+		# EITHER (map.yaml:45-50) and its wall stands anyway, for a reason that does not
+		# generalise. That scenario AUTHORS its line -- `Start: 44,0 / End: 44,59`
+		# (rules.yaml:44-46) -- and DefconWall.WorldLoaded early-returns on
+		# `!info.DeriveFromSpawns || !geometry.IsDegenerate`, so the derivation, and with it the
+		# combatant count, never runs there at all. A third combatant is free when nobody is
+		# counting. THIS scenario uses the mod-wide DERIVED wall (world.yaml:896
+		# DeriveFromSpawns: True), so the count is load-bearing here and is not there.
+		#
+		# SWEPT 2026-09-14: 72 PlayerReference slots across the scenario tree carry
+		# `Spectating: True` and 71 of them omit NonCombatant, so the pattern is near-universal
+		# and almost always harmless -- DefconWall and NuclearExchange are both strict no-ops in
+		# Skirmish, which is what nearly all of them run. Exactly two scenarios combine
+		# Escalation + a derived wall + an Observer: test-bot-defcon2-breaks-peace, which opens
+		# at DEFCON 2 where the wall is down regardless (ActiveLevels = { 3 }), and this one.
+		NonCombatant: True
 		LockFaction: True
 		Faction: america
 	PlayerReference@USA-bot:

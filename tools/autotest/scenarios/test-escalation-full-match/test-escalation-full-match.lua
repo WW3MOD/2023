@@ -38,6 +38,10 @@
 -- PASSES EARLY. It writes on the first of (an ending observed) or (the tick deadline), and the
 -- ending is the last thing in the match, so there is nothing left to crash in behind a green.
 
+-- NO `//` ANYWHERE IN THIS FILE. Floor division is Lua 5.3 and Eluant binds an older Lua; this file
+-- briefly carried one `(a * 100) // b` and it was the ONLY occurrence in any scenario script in the
+-- repo, which is the tell. lua-gate did NOT catch it -- it resolves NAMES, never syntax -- and there
+-- is no Lua interpreter on the dev machines to parse with, so `math.floor(a * 100 / b)` it is.
 local TICK = 5 -- poll granularity, ticks. Finest thing asserted on is the 250-tick final-exchange
                -- window, so 5 is ample and costs a fortieth of a per-tick poll over 24000 ticks.
 
@@ -104,6 +108,14 @@ WorldLoaded = function()
 	local levelAt = {}          -- [level] = elapsed tick the level was FIRST observed at
 	local levelSeen = {}        -- [level] = true
 	local lastLevel = nil
+
+	-- WALL COVERAGE, SAMPLED PER LEVEL RATHER THAN ONCE. Two reasons it is not a single check at
+	-- the top: DefconWall derives at IWorldLoaded and so does this script, and the ordering between
+	-- two IWorldLoaded traits is not ours to assume -- so the first sample may legitimately predate
+	-- the derivation. And a wall that flickers is a different defect from one that never stood, which
+	-- a single boolean cannot tell apart. Counting samples answers both.
+	local wallSamples = {}      -- [level] = samples taken at that level
+	local wallActive  = {}      -- [level] = samples at that level with the wall standing
 
 	local releaseAt = nil       -- first elapsed tick either bot's nuclear reason left NotReleased
 	local endingAt = nil        -- first elapsed tick a bot's WinState left Undefined
@@ -216,6 +228,45 @@ WorldLoaded = function()
 				levelAt[1], levelAt[1] - (levelAt[2] or 0))
 		end
 
+		-- ---- 1b. THE WALL ACTUALLY STOOD DURING DEFCON 3 ----
+		-- ADDED AFTER RUN 260914_141246, WHICH WOULD OTHERWISE HAVE PASSED THIS PHASE WALL-LESS.
+		-- Every other DEFCON 3 assertion -- the level reading 3, the clock firing at 5000, both bots
+		-- queueing orders -- was satisfied in that run while the border was down for the entire
+		-- phase, because nothing here was looking at the wall. A no-rush period with no border is
+		-- not a slow DEFCON 3; it is a Skirmish opening wearing the label.
+		local s3, a3 = wallSamples[3] or 0, wallActive[3] or 0
+		if s3 == 0 then
+			fault("no sample was ever taken at DEFCON 3, so the wall could not be checked")
+		elseif a3 == 0 then
+			fault("THE DEFCON 3 WALL NEVER STOOD: %d of %d samples during the phase had "
+				.. "Test.DefconWallActive() false. FIRST SUSPECT IS THIS SCENARIO, NOT THE ENGINE -- "
+				.. "a map-authored slot missing `NonCombatant: True` is counted as a third combatant "
+				.. "and a three-way free-for-all derives NO line on purpose (DefconWallTest.cs:395). "
+				.. "Check debug.log for `no line derived from N combatant home(s) in N alliance "
+				.. "group(s)`: if N is 3 on a two-bot map, the Observer slot is the third. NOTE "
+				.. "`Spectating: True` DOES NOT FIX THIS -- Player.Spectating is forced false in any "
+				.. "MissionSelector map (Player.cs:86,:167), which every scenario is",
+				a3, s3)
+		elseif a3 * 100 < s3 * 90 then
+			fault("the DEFCON 3 wall stood for only %d of %d samples (%d%%): it is flickering rather "
+				.. "than standing, which is a different defect from never deriving -- the geometry "
+				.. "resolved, so look at DefconWall.Apply's level gate",
+				a3, s3, math.floor(a3 * 100 / s3))
+		else
+			note("wall up for %d/%d DEFCON 3 samples", a3, s3)
+		end
+
+		-- The contract's other half, free to check while we are here: DefconWallInfo.ActiveLevels is
+		-- { 3 }, so the wall must be DOWN once the phase has passed. Asserted at level 1 only -- a
+		-- sample at level 2 can legitimately catch the tick of the transition itself.
+		local s1, a1 = wallSamples[1] or 0, wallActive[1] or 0
+		if s1 > 0 and a1 > 0 then
+			fault("the wall was still standing for %d of %d samples at DEFCON 1: ActiveLevels is "
+				.. "{ 3 }, so the border must be down once open war starts", a1, s1)
+		elseif s1 > 0 then
+			note("wall down for all %d DEFCON 1 samples", s1)
+		end
+
 		-- ---- 2. THE NUCLEAR RELEASE OPENED, ON THE SHIPPED GATE ----
 		for _, b in ipairs(bots) do
 			if reason[b.name] == "absent" then
@@ -314,10 +365,14 @@ WorldLoaded = function()
 
 		local summary = string.format(
 			"stop=%s tick=%d level=%s | phases 3@%s 2@%s 1@%s release@%s ending@%s | "
+			.. "wall 3=%d/%d 2=%d/%d 1=%d/%d | "
 			.. "win USA=%s RUS=%s | orders %s | nuclear USA{%s} RUS{%s}",
 			why, t, tostring(lastLevel),
 			tostring(levelAt[3]), tostring(levelAt[2]), tostring(levelAt[1]),
 			tostring(releaseAt), tostring(endingAt),
+			wallActive[3] or 0, wallSamples[3] or 0,
+			wallActive[2] or 0, wallSamples[2] or 0,
+			wallActive[1] or 0, wallSamples[1] or 0,
 			USA.WinState, RUS.WinState,
 			table.concat(orders, " "),
 			nuclear["USA-bot"], nuclear["Russia-bot"])
@@ -341,6 +396,11 @@ WorldLoaded = function()
 		if not levelSeen[level] then
 			levelSeen[level] = true
 			levelAt[level] = t
+		end
+
+		wallSamples[level] = (wallSamples[level] or 0) + 1
+		if Test.DefconWallActive() then
+			wallActive[level] = (wallActive[level] or 0) + 1
 		end
 
 		-- Phase boundaries, opened in the order the levels actually arrive.

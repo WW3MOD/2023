@@ -5,6 +5,54 @@
 
 ---
 
+- [2026-09-14] [MEDIUM — A DEAD GUARD, NOT A WRONG ONE] **`Player.Spectating` is hardwired FALSE in
+  every autotest scenario, so the `|| player.Spectating` arm of `DefconWall`'s combatant filter and
+  the `!spectating` arm of `NuclearExchangeState.CountsAsASide` are unreachable there — a map slot
+  marked `Spectating: True` is counted as a full combatant and a third alliance group.**
+  `Player.cs:86` is `public bool Spectating => !inMissionMap && (spectating || WinState !=
+  WinState.Undefined);` and `Player.cs:167` sets `inMissionMap =
+  world.Map.Visibility.HasFlag(MapVisibility.MissionSelector)`. **Every** autotest scenario sets
+  `Visibility: MissionSelector` — it is `map.yaml` rule 1 in `DOCS/recipes/AUTOTEST.md` — so
+  `inMissionMap` is always true and the property always returns false regardless of
+  `PlayerReference.Spectating` (`Player.cs:197` does read it into the backing field; the gate
+  discards it). `NonCombatant: True` is the ONLY flag that can exclude such a slot.
+  **THE PROPERTY WAS ALREADY KNOWN IN THIS REPO AND WRITTEN DOWN, WHICH IS THE ACTUAL FINDING.**
+  The 2026-08-14 economy-gate entry further down this file records it exactly — "`Player.Spectating`
+  is dynamic (`Player.cs:86`: true once `WinState != Undefined`, and suppressed entirely on
+  `MissionSelector` maps)" — and REJECTED a `!NonCombatant && !Spectating` predicate partly for that
+  reason. So this is not a newly-discovered engine property; it is two Escalation traits written
+  against a guard that a note in this very file says does not hold where they run. What is new is
+  only the consequence and its cost.
+  **Both filters are correct and both are unit-tested; the tests pass because they call the pure
+  helper directly with `spectating: true`, a value the engine cannot produce in a scenario** —
+  `NuclearExchangeStateTest.cs:367` asserts `CountsAsASide(false, true)` is false ("a spectator
+  became a side") and `DefconWallTest.cs:395` pins that three alliance groups derive no line on
+  purpose. That combination is what makes this expensive to find: green unit tests over a predicate
+  whose input is pinned to one value at runtime.
+  **Observed cost**, run `260914_141246`: `DEFCON wall: no line derived from 3 combatant home(s) in
+  3 alliance group(s); the wall stays down.` plus `NUCLEAR EXCHANGE sides: USA-bot(-2),
+  Russia-bot(-3), Observer(-4)` — the DEFCON 3 border never stood for a whole no-rush period and a
+  phantom third side was registered in the exchange, from one missing `NonCombatant: True`.
+  **NOT FIXED HERE, DELIBERATELY.** The one-line change (drop `!inMissionMap`, or narrow it to the
+  `WinState` term it was written for) is in a core engine property that governs whether a player
+  becomes a spectator on winning a campaign mission — `Player.cs:108` reads `inMissionMap` for the
+  same purpose — so it is neither ≤10 lines of blast radius nor obviously safe for the campaign.
+  A cheaper and possibly better fix is a lint: refuse a `PlayerReference` that is `Spectating: True`
+  without `NonCombatant: True` on a `MissionSelector` map, where the flag provably does nothing.
+  **BLAST RADIUS, SWEPT:** 72 slots across `tools/autotest/scenarios/` carry `Spectating: True` and
+  **71 omit `NonCombatant`** — near-universal, and almost always harmless, because both traits are
+  strict no-ops in Skirmish and nearly every one of those scenarios runs Skirmish. Exactly two
+  combine Escalation + a DERIVED wall + an Observer: `test-bot-defcon2-breaks-peace` (opens at
+  DEFCON 2, where the wall is down regardless — `ActiveLevels = { 3 }`; it does still register a
+  phantom third side in the exchange, which it asserts nothing about) and
+  `test-escalation-full-match`, where it cost a whole phase.
+  **`test-bot-defcon-wall` IS NOT THE COUNTEREXAMPLE IT LOOKS LIKE** — it has no `NonCombatant`
+  either (`map.yaml:45-50`); its wall stands because it AUTHORS `Start: 44,0 / End: 44,59`
+  (`rules.yaml:44-46`) and `DefconWall.WorldLoaded` early-returns on `!info.DeriveFromSpawns ||
+  !geometry.IsDegenerate`, so the combatant count is never taken. A third combatant is free when
+  nobody is counting, which is why this stayed invisible until a scenario used the derived wall.
+  (found while working on: `test-escalation-full-match`, the end-to-end Escalation smoke scenario)
+
 - [2026-09-14] [MEDIUM — THE PANEL NEVER APPEARS] **`GARRISON_PANEL` cannot become visible: its
   visibility is written by a `LogicTicker` that is its own child, and `Widget.TickOuter` only ticks
   visible subtrees.** `GarrisonPanelLogic.cs:120` sets `panel.Visible = false` at construction, and

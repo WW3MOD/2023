@@ -1877,6 +1877,21 @@ namespace OpenRA.Mods.Common.Scripting.Global
 				?? DefconEscalationState.NoLevel;
 		}
 
+		[Desc("Whether the DEFCON 3 dividing wall is STANDING right now. False in Skirmish, false " +
+			"at any level the wall does not stand at, and — the case worth testing for — false when " +
+			"no line could be DERIVED. DefconWall.Apply gates on !geometry.IsDegenerate, so a " +
+			"derivation that produced nothing reads false here for the whole match while every " +
+			"other Escalation reading looks healthy. Test mode only.")]
+		public bool DefconWallActive()
+		{
+			if (!TestMode.IsActive)
+				return false;
+
+			// TraitOrDefault is safe: DefconWall is declared exactly once across the mod, unsuffixed
+			// (world.yaml:895) — the same audit DefconLevel above records for this trait by name.
+			return Context.World?.WorldActor.TraitOrDefault<DefconWall>()?.IsActive ?? false;
+		}
+
 		[Desc("How many orders `player`'s bot has queued since activation, cumulative. 0 for a human, a " +
 			"spectator, or a bot whose ModularBot was never activated. Counted at ModularBot.QueueOrder — " +
 			"the one funnel every bot module goes through — and BEFORE the arbitration gate, so it " +
