@@ -14,6 +14,50 @@ carries a dated superseding banner naming exactly which of its sections survive.
 
 ---
 
+> ## ⚠ §3 SUPERSEDED 2026-09-14 by [`diamond-true-glyph.md`](diamond-true-glyph.md)
+>
+> **What is replaced: §3, the variant table, in whole.** Those fourteen variants were drawn on a
+> hand-rasterised L1 ball. The replacement set is eight variants drawn on the **actual font glyph**,
+> rasterised by FreeType out of the shipped `FreeSansBold.ttf` at the shipped 10 px. Do not carry any
+> row of §3 forward; use the table in `diamond-true-glyph.md` §3.
+>
+> **What survives, unchanged and still load-bearing:** §1 (the text-vs-sprite seam and its three
+> consequences), §2 (detection is real / impediment is a document, and the vehicle asymmetry), §5
+> (what the diamond displaces — though see the ruling note below), §6 and §7.
+>
+> **§4 survives with one item corrected.**
+>
+> - **§4.4 is resolved, and the answer inverts its own suspicion.** It asked whether the 6×9 diamond
+>   failing to read as a diamond was *"my rasteriser rather than the size"*. It was the rasteriser —
+>   **but not the shape.** The hand-drawn 6×9 mask and the shipped `U+2666` have the **byte-identical
+>   row profile `[2,2,4,6,6,6,4,2,2]` and the identical 34 px ink count.** The footprint was already
+>   exactly right. What differed was the *ink treatment*: flat alpha 255 instead of FreeType's
+>   antialiased coverage (only 16 of 34 px reach ≥78%), and a hard opaque 1 px keyline instead of the
+>   engine's soft radius-1 **dilation** (`SpriteFont.cs:302-417`, corner weight 0.60), which is what
+>   `UITextRenderable.Render:57` actually draws. **The size was fine and the shape was fine.**
+> - §4.1 (five grades do not fit four fill steps) and §4.2 (the fifth fill step never arrives) both
+>   **re-tested on the true glyph and both hold**; §4.2 is now stronger, since the fifth step is a
+>   one-row difference on the real silhouette too.
+> - §4.3 (hollow has less range than full) holds, and its cause is now named: at fill step 0 a masked
+>   `U+2666` has no diamond identity. The fix is to use the real `U+25CA` there, which is what ships.
+>
+> **Two further corrections to claims made elsewhere in this document:**
+>
+> - §1 consequence 2 says leaving the text path "retires the font constraint entirely". True, but the
+>   **`U+25C6`/`U+25C7`-are-absent PITFALL it cites is itself correct and was re-verified** — both
+>   render byte-identically to `.notdef`, which in this font is a 3×7 hollow rectangle carrying 16 px
+>   of ink, *not* a blank. Any future check must compare against an unmapped codepoint, not ask
+>   whether ink appeared.
+> - **`U+25CA` and `U+2666` are not one shape filled and unfilled** — 3 px of the lozenge lie outside
+>   the diamond suit. The shipped mark changes *silhouette*, not just fill, at the
+>   `SolidFromGrade: Moderate` boundary. Nothing in this document accounted for that.
+>
+> **§5's open question has since been answered by the user** (ruling of 2026-09-14): nothing is
+> evicted; everything except the diamond is hidden at rest and a held Shift reveals the full set.
+> The clearance argument against a 9×13 body is weakened but not moot — it returns while Shift is held.
+
+---
+
 ## 1. The seam the whole request sits on
 
 **Colour is free on text and fill is impossible on it. Fill is free on a sprite and colour is baked
