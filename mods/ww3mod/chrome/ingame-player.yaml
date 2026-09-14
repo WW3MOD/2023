@@ -108,10 +108,6 @@ Container@PLAYER_WIDGETS:
 							IgnoreMouseOver: true
 							ImageCollection: sidebar
 							ImageName: background-supportoverlay
-		SupportPowerTimer@SUPPORT_POWER_TIMER:
-			X: 80
-			Y: 10
-			Order: Descending
 		# THE DEFCON READOUT. Drawn by DefconReadoutWidget, which stacks the nuclear release block
 		# ABOVE the DEFCON strip and anchors both to the BOTTOM of these bounds -- so the strip stays
 		# in one place for a whole match while the nuclear block appears, and the strip grows upward
