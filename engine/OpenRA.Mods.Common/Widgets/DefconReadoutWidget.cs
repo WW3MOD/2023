@@ -26,9 +26,13 @@
  * ==== IT DRAWS BOTTOM-UP FROM A FIXED BOTTOM EDGE ====
  * Both blocks are variable height -- the rule line wraps, DEFCON 2 adds the trigger line, the
  * nuclear block appears and disappears mid-match -- so everything is measured first and then drawn
- * upward from RenderBounds.Bottom. That is what keeps the DEFCON strip in ONE place on screen for a
- * whole match: a top-anchored layout would slide the strip down the screen the moment the nuclear
- * block appeared, and the player would lose the thing they had learned the position of.
+ * upward from DrawBottom(). That is what keeps the DEFCON strip in ONE place on screen for a whole
+ * match: a top-anchored layout would slide the strip down the screen the moment the nuclear block
+ * appeared, and the player would lose the thing they had learned the position of.
+ *
+ * DrawBottom() IS RenderBounds.Bottom EXCEPT WHEN A PANEL NAMED IN AvoidPanels IS ON SCREEN, which
+ * is the one thing allowed to move the strip mid-match. It is a deliberate exception: those panels
+ * are transient and share this corner, and a strip that stayed put would be drawn under them.
  *
  * ==== WHY IT IS NOT A ChromeLogic OVER Label WIDGETS ====
  * The pips, the step boxes and the pulsing dot are all drawn geometry with no widget behind them,
@@ -113,6 +117,17 @@ namespace OpenRA.Mods.Common.Widgets
 		public readonly string RuleFont = "Small";
 		public readonly string SmallFont = "Tiny";
 
+		// ---- THE PANELS THIS ONE HAS TO GET OUT OF THE WAY OF ------------------------------------
+		// Ids of widgets that share this corner and are only sometimes on screen. While one of them
+		// is visible the readout draws from ITS top edge instead of from our own bottom, so the two
+		// never overlap; when none is, nothing moves. Named in chrome rather than hard-coded here
+		// because the observer chrome has no such panels and must not have to pretend it does -- an
+		// id that resolves to nothing is simply dropped, so the same widget serves both files.
+		public readonly string[] AvoidPanels = Array.Empty<string>();
+
+		// Matches the 5px the chrome files put between every other pair of bottom-docked panels.
+		public readonly int AvoidPanelGap = 5;
+
 		// The mockup's own measurements, in the same units it was drawn in.
 		const int PadX = 11;
 		const int PadTop = 8;
@@ -145,6 +160,11 @@ namespace OpenRA.Mods.Common.Widgets
 		NuclearExchange exchange;
 		bool initialised;
 
+		// Resolved once in Init and then held: the chrome tree these point into is rebuilt wholesale
+		// when a player who has lost is switched to the observer widgets, and that rebuild replaces
+		// this widget too, so a stale reference cannot outlive the panel it names.
+		readonly List<Widget> avoidPanels = new List<Widget>();
+
 		[ObjectCreator.UseCtor]
 		public DefconReadoutWidget(World world)
 		{
@@ -161,7 +181,51 @@ namespace OpenRA.Mods.Common.Widgets
 			initialised = true;
 			escalation = world.WorldActor.TraitOrDefault<DefconEscalation>();
 			exchange = world.WorldActor.TraitOrDefault<NuclearExchange>();
+
+			// A MISS IS NOT AN ERROR. The whole chrome tree is built before anything in it draws, so
+			// a panel this file names and does not find is a panel that file does not declare --
+			// which is exactly the observer case -- and not a lookup that ran too early.
+			foreach (var id in AvoidPanels)
+			{
+				var panel = Ui.Root.GetOrNull<Widget>(id);
+				if (panel != null)
+					avoidPanels.Add(panel);
+			}
 		}
+
+		// ---- WHERE THE STACK ACTUALLY SITS ON THIS FRAME --------------------------------------------
+		// Normally our own bottom edge. While a panel named in AvoidPanels is up, that panel's top edge
+		// less the gap, so the readout rides above it rather than under it -- the reserve declared in
+		// chrome does not move, only the drawing does, which is the same contract Height already has.
+		//
+		// PITFALL: IsVisible() ON THESE PANELS IS NOT A PURE READ. CargoPanelLogic.cs:150 hangs the
+		// panel's whole per-frame selection refresh off its IsVisible delegate, so this call does that
+		// work a second time in frames where a transport is selected. It is safe -- the refresh is
+		// idempotent and self-gating on Selection.Hash -- but it is the reason this is called ONCE per
+		// frame and the result carried, rather than being asked again for each block.
+		int DrawBottom()
+		{
+			var bottom = RenderBounds.Bottom;
+			foreach (var panel in avoidPanels)
+				if (panel.IsVisible())
+					bottom = Math.Min(bottom, panel.RenderBounds.Top - AvoidPanelGap);
+
+			return bottom;
+		}
+
+		// ---- IT HAS NO HIT AREA, AND THAT IS THE HONEST ANSWER --------------------------------------
+		// A plain Widget inherits EventBounds = RenderBounds, and RenderBounds here is the 352x240
+		// RESERVE -- far bigger than the ~82px strip that is usually drawn, and bigger still than
+		// nothing at all while the readout is hidden. Left inherited, that rectangle claims
+		// Ui.MouseOverWidget and returns the default cursor from Widget.GetCursor, so the select and
+		// attack cursors do not appear over units inside it: PLAYER_ROOT sits after the interaction
+		// controller inside WORLD_ROOT and cursor resolution takes the last non-null hit.
+		//
+		// That mattered little while it docked bottom-left under the command bar. In the bottom-right
+		// corner it is open playfield. Since this widget handles no input, has no children and carries
+		// no tooltip, the bounds that match what it does are none -- clicks and cursors pass straight
+		// through to the world at every point, whatever the strip is currently drawing.
+		public override Rectangle EventBounds => Rectangle.Empty;
 
 		public override void Draw()
 		{
@@ -184,7 +248,7 @@ namespace OpenRA.Mods.Common.Widgets
 			if (showTrigger)
 				stripHeight += BlockGap + smallFont.Measure(DefconReadoutModel.TriggerLine).Y + 4;
 
-			var stripTop = RenderBounds.Bottom - stripHeight;
+			var stripTop = DrawBottom() - stripHeight;
 			DrawStrip(new Rectangle(RenderBounds.X, stripTop, Bounds.Width, stripHeight), level, ruleLines, showTrigger);
 
 			if (DefconReadoutModel.ShowsNuclear(escalation.Mode, level, escalation.NuclearReleaseOpen))

@@ -46,6 +46,7 @@
 --     K+1290  FRAME 07 -- the ARMED banner, and USA's row carrying a 20 kt window
 --     K+1700  FRAME 08 -- mid-window: the banner gone, the window clock visibly down, and
 --             Russia's own 1 kt still regenerating from the shot it took
+--     K+1760  FRAME 08b -- the readout LIFTED clear of the cargo panel (added 2026-09-14)
 --     K+2162  Russia's 1 kt regeneration completes (rules.yaml compresses it to 900 ticks)
 --     K+2260  the window lapses
 --     K+2300  FRAME 09 -- the 20 kt box dark again and the expiry line in the transients panel
@@ -62,6 +63,25 @@
 -- one: the two rows are ASYMMETRIC -- USA holding 1 kt with a 20 kt grant ticking down, Russia
 -- holding 1 kt and nothing else -- which is the exact position the ledger exists to make readable,
 -- and the one a single-row readout could not show at all.
+--
+-- ---- THE THIRD HALF, ADDED 2026-09-14 WITH THE MOVE TO THE BOTTOM-RIGHT --------------------
+-- The readout used to dock bottom-LEFT. It now docks bottom-RIGHT, which is a corner two panels
+-- already use part-time: GARRISON_PANEL and CARGO_PANEL share one 228x240 rectangle at
+-- X: WINDOW_WIDTH - 240, Y: WINDOW_HEIGHT - 260, and each is on screen only while the right kind of
+-- thing is selected. DefconReadoutWidget now draws from whichever of them is visible, 5px above its
+-- top edge, instead of from its own bottom. FRAME 08b is the only evidence that works.
+--
+-- IT HAS TO BE THE CARGO PANEL AND NOT THE GARRISON PANEL, and that is not a preference. The
+-- garrison panel CANNOT BE MADE TO APPEAR AT ALL: GarrisonPanelLogic.cs:120 starts it hidden and
+-- then drives its visibility from GARRISON_TICKER, a LogicTicker INSIDE it -- and Widget.cs:512-518
+-- gates TickOuter on IsVisible(), so the ticker that would show the panel never runs. That is a
+-- live bug in the garrison panel, recorded in WORKSPACE/bugs/discovered.md and NOT fixed here;
+-- CargoPanelLogic.cs:148-150 carries a comment describing that exact chicken-and-egg as the reason
+-- it uses an IsVisible delegate instead, so the cargo half works and is what this frame uses.
+--
+-- THE APC MUST BE CARRYING SOMEONE. CargoPanelLogic.cs:205-208 returns early on a transport with
+-- neither passengers nor supply, so an empty APC shows no panel and the frame would prove nothing
+-- while looking exactly like a pass. LoadPassenger teleports the rifleman aboard in one call.
 --
 -- ---- IT NOW ENDS, WHICH IT DID NOT ---------------------------------------------------------
 -- This file had NO terminal call. Under run-test.sh that means no verdict is ever written, the
@@ -109,6 +129,12 @@ local USA
 local Russia
 local Gun
 local Victim
+
+-- THE LIFT PAIR, ADDED 2026-09-14 WITH THE MOVE TO THE BOTTOM-RIGHT. An APC and one rifleman to
+-- ride in it, for the single frame that proves the readout gets out of CARGO_PANEL's way. Created
+-- late and only for that frame -- see the block at K+1730.
+local Apc
+local Rider
 
 -- What Test.ActivateSupportPower returned, carried into the frame notes so a capture that shows no
 -- banner says WHY on its own caption rather than sending a reader to lua.log.
@@ -262,6 +288,63 @@ WorldLoaded = function()
 					"one in the box. FAIL if the two clocks disagree, if the window clock has not " ..
 					"visibly fallen since frame 07, or if the box labels have shifted position " ..
 					"between a box that has a clock and one that does not.")
+			end)
+
+			-- ---- THE READOUT GETS OUT OF THE CARGO PANEL'S WAY -------------------------------
+			-- Everything for this frame is built and torn down between frames 08 and 09 so neither
+			-- of them changes: the selection is handed back to the Abrams at K+1790, 510 ticks
+			-- before frame 09 is taken.
+			--
+			-- Both cells are inside the 11x7 block of Clear terrain centred on 49,10 that the two
+			-- combatants were placed from, so neither spawn can land on water, rock or a cliff.
+			Trigger.AfterDelay(1730, function()
+				Apc = Actor.Create("m113", true, {
+					Owner = USA,
+					Location = CPos.New(Ground.X - 3, Ground.Y + 2),
+					Facing = Angle.East,
+				})
+
+				Rider = Actor.Create("E1.america", true, {
+					Owner = USA,
+					Location = CPos.New(Ground.X - 5, Ground.Y + 2),
+					Facing = Angle.East,
+				})
+			end)
+
+			-- Ten ticks later, because LoadPassenger throws if the passenger is not IDLE and a
+			-- just-created actor is not idle on its first tick.
+			Trigger.AfterDelay(1740, function()
+				if Apc and not Apc.IsDead and Rider and not Rider.IsDead then
+					Apc.LoadPassenger(Rider)
+					TestHarness.Select(Apc)
+				end
+			end)
+
+			Trigger.AfterDelay(1760, function()
+				TestHarness.Screenshot("08b-readout-lift-over-cargo",
+					"THE LIFT. A loaded APC is selected, so CARGO_PANEL is up in the bottom-right " ..
+					"corner -- 228x240, its top edge at WINDOW_HEIGHT - 260. expects: the cargo " ..
+					"panel drawn in that corner with one passenger listed, and the DEFCON readout " ..
+					"sitting ENTIRELY ABOVE IT, its lowest pixel 5px clear of the panel's top " ..
+					"edge, with the same two blocks and the same 352px width as frame 08. The " ..
+					"whole stack should look like frame 08 shifted straight up by exactly 260px " ..
+					"-- its draw bottom goes from WINDOW_HEIGHT - 5 to WINDOW_HEIGHT - 265 -- " ..
+					"with nothing clipped off its top and no gap opened between the nuclear block " ..
+					"and the strip. " ..
+					"FAIL, and this is the failure the frame exists to catch, if the readout is " ..
+					"still drawn at the bottom with the cargo panel ON TOP OF IT -- the panel is " ..
+					"declared later in the chrome file and so wins the overdraw, which means a " ..
+					"broken lift looks like a readout that has half vanished rather than like two " ..
+					"things overlapping. FAIL ALSO if the readout lifted but left the corner, or " ..
+					"if it lifted in frames where no panel is up: compare against frame 09, taken " ..
+					"540 ticks later with the selection handed back, where it must be low again.")
+			end)
+
+			-- Selection handed back, so frame 09 is the frame it has always been.
+			Trigger.AfterDelay(1790, function()
+				if Gun and not Gun.IsDead then
+					TestHarness.Select(Gun)
+				end
 			end)
 
 			-- ---- THE GRANT LAPSES UNUSED -----------------------------------------------------
