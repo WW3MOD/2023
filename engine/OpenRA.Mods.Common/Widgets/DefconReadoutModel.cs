@@ -157,6 +157,24 @@ namespace OpenRA.Mods.Common.Widgets
 		}
 
 		/// <summary>The compact label for a rung. Reached through <see cref="LedgerRungLabel"/>.</summary>
+		// ==== "1kt" HERE AND "1 kt" IN RungLabel IS THE APPROVED DESIGN, NOT A DRIFT ====
+		// Reviewed 2026-09-14 because the two forms are on screen TOGETHER -- the nuclear block's value
+		// slot prints "1 kt" about twenty pixels above a ledger box printing "1kt" (frame 010 of
+		// 260914_122039_p8182_demo-defcon-readout) -- and that reads as an inconsistency until you check
+		// the mockup, which does exactly the same thing on purpose:
+		//
+		//     defcon-hud-directions.html:181   <span class="nnow">20 kt</span>          <- the value slot
+		//     defcon-hud-directions.html:183-4 <span class="st">1kt</span> ... "200kt+"  <- the boxes
+		//
+		// The split is BOX vs PROSE, and it is consistent on both sides: every rung named inside a
+		// bordered cell is compact, every rung named in a running sentence is spaced. RungLabel's
+		// callers are all prose -- the value slot, both banner lines, the lobby dropdown, the
+		// NuclearUnlockClock option descriptions -- and this one's only caller is the ledger box.
+		//
+		// IT IS NOT WIDTH THAT FORCES IT, which is the plausible-sounding reason to check first: a band
+		// box is (Bounds.Width - 72) / 5 = 53px at the shipped 341, and "100kt" measures about 30px in
+		// Tiny, so the space would fit five times over. Do not "fix" this toward one form on the
+		// strength of the boxes being tight, because they are not.
 		// Steps() USED TO LIVE BESIDE THIS and built a label per rung for the single step row the
 		// nuclear block drew before the ledger. The ledger replaced that row with one per SIDE, so
 		// the list is built by LedgerBands() instead -- which skips Hold, because a row lists what a
@@ -334,7 +352,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 		// ==== THE MOMENTS ====================================================================
 		// Three things happen that a player watching the battlefield will otherwise miss entirely,
-		// because all three happen in a 352-pixel panel in a corner: the gate opens, THEY are armed,
+		// because all three happen in a 341-pixel panel in a corner: the gate opens, THEY are armed,
 		// and a grant they never used runs out. Each gets a line here and a sound at the call site.
 
 		/// <summary>The banner shown when the viewer's own side gains a retaliation grant.</summary>

@@ -10,7 +10,7 @@
  * The ledger in DefconReadoutWidget carries the STATE: what both sides hold, right now, countable.
  * This carries the CHANGES, and the two are not the same job. A retaliation window is three minutes
  * that opened without the player doing anything, on a tick they were looking at a unit somewhere
- * else on the map; by the time they next glance at a 352-pixel panel in the corner, a third of it
+ * else on the map; by the time they next glance at a 341-pixel panel in the corner, a third of it
  * is gone. The ruling's strategic claim -- that the winner's correct play is restraint and the
  * loser's is to reply -- is a claim about a DECISION, and a decision nobody knows they have been
  * handed is not one.

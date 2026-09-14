@@ -15,7 +15,10 @@ Container@OBSERVER_WIDGETS:
 		# NOTHING ELSE IN THIS FILE IS BOTTOM-ANCHORED. Its only other right-edge widgets are the
 		# sidebar backgrounds and the replay bar (X: WINDOW_WIDTH - 250, Y: 10 and Y: 297) and the
 		# mute indicator (Y: 10) -- all of them top-anchored, all of them clear. An observer has no
-		# command bar either, so the 1280-wide overlap noted in the player chrome does not arise here.
+		# command bar either, so the 1280-wide overlap that set WIDTH in the player chrome never
+		# arose here. WIDTH TRACKS THAT FILE ANYWAY, and deliberately: a player switched to these
+		# widgets mid-match must not watch the readout change size on the tick they lose. See
+		# ingame-player.yaml for the arithmetic behind 341.
 		#
 		# THIS USED TO SAY "no per-player state at all" AND THAT IS NO LONGER TRUE. It was true of the
 		# shared release ladder, which was one number the whole match read. The 2026-09-13 exchange is
@@ -30,7 +33,7 @@ Container@OBSERVER_WIDGETS:
 		DefconReadout@DEFCON_READOUT:
 			X: WINDOW_WIDTH - WIDTH - 5
 			Y: WINDOW_HEIGHT - HEIGHT - 5
-			Width: 352
+			Width: 341
 			# 170 UNTIL 2026-09-13, WHEN THE NUCLEAR BLOCK GAINED A SECOND LEDGER ROW.
 			#
 			# THIS NUMBER IS A RESERVE, NOT A CLIP. DefconReadoutWidget draws UPWARD from

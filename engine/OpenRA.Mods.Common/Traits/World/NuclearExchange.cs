@@ -92,13 +92,22 @@ namespace OpenRA.Mods.Common.Traits
 		public const string RetaliationWindowOptionId = "nuclear-retaliation-window";
 
 		[Desc("Label for the nuclear posture dropdown.")]
-		public readonly string PostureLabel = "Nuclear Posture";
+		// SENTENCE CASE, like every other lobby label this mod ships -- "Game mode", "Opening phase",
+		// "No-rush period", "First warheads", "Retaliation window", "Nuclear ending". This one read
+		// "Nuclear Posture" until 2026-09-14 and was the only title-cased label among them.
+		public readonly string PostureLabel = "Nuclear posture";
 
 		[Desc("Tooltip for the nuclear posture dropdown.")]
+		// IT NAMES THE THREE VALUES THE DROPDOWN ACTUALLY OFFERS. It used to explain "Limited War",
+		// "Flexible Response" and "Massive Retaliation" -- the Cold War doctrines the three postures are
+		// drawn from -- while the dropdown itself offers "Limited", "Flexible" and "Massive" (see the
+		// posture dictionary below), so the tooltip taught three names a host could not then find.
+		// Aligned onto the shipped values rather than the other way round because the value labels are
+		// what has to fit a dropdown button, and no frame has been captured of this row to size it in.
 		public readonly string PostureDescription =
-			"How fast warheads come back after firing. Limited War stretches every nuclear cooldown, " +
-			"so an exchange is a handful of deliberate shots; Flexible Response leaves them as shipped; " +
-			"Massive Retaliation shortens them, so a spiral runs to its end quickly.";
+			"How fast warheads come back after firing. Limited stretches every nuclear cooldown, " +
+			"so an exchange is a handful of deliberate shots; Flexible leaves them as shipped; " +
+			"Massive shortens them, so a spiral runs to its end quickly.";
 
 		[Desc("Default nuclear posture.")]
 		public readonly NuclearPosture PostureDefault = NuclearPosture.Flexible;

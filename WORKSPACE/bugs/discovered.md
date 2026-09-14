@@ -5118,3 +5118,52 @@ plausible, which is what lets them survive review.
 (found while working on: the Skirmish nuclear unlock clock, `wt/unlock-clock`; hit when picking a
 minutes-to-ticks conversion and checking the obvious in-tree precedent before copying it —
 `NuclearUnlockSchedule.TicksForMinutes` multiplies first and pins the 10000 with an assertion)
+
+---
+
+## 2026-09-14 — The lobby calls DEFCON 2 a CEASE-FIRE and the HUD calls it WEAPONS FREE
+
+`engine/OpenRA.Mods.Common/Widgets/Logic/Lobby/LobbyTimelineLogic.cs:246` captions the second
+timeline band `"CEASE-FIRE"`. `engine/OpenRA.Mods.Common/Widgets/DefconReadoutModel.cs:LevelName`
+names the same phase `"Weapons free"`, which is what the in-game strip prints
+(`DEFCON 2  WEAPONS FREE`, frame 003 of `260914_122039_p8182_demo-defcon-readout`). A player who
+reads the lobby and then the HUD is given two phrases for one phase that, read plainly, mean
+**opposite things**: a cease-fire is nobody shooting, weapons free is everybody shooting.
+
+**Both are deliberate where they are, which is why this is not a typo to sweep.** "Cease-fire" is
+settled vocabulary across the tree — `AutoTarget.cs:1048` ("ONE-SHOT CEASE-FIRE"),
+`TestGlobal.cs:1862` ("2 cease-fire"), the lobby's own mode description
+(`DefconEscalation.cs:55`, "then a cease-fire nobody has broken yet"), and a whole decision doc
+(`.maestro/.../decisions/09-the-defcon-2-cease-fire-cancels-by-provenance-no.md`). "Weapons free"
+is approved mockup copy from the wording table in `WORKSPACE/mockups/defcon-hud-directions.html`
+and is pinned by `DefconReadoutTest`. Each side has a claim; neither can be changed by a polish
+sweep without overriding the other's approval.
+
+**What the phase actually does is the tiebreak whenever someone rules on this:** units do not fire
+autonomously, but a player may order any shot, and the first kill ends the phase. "Cease-fire"
+describes the *state* (nothing has been broken yet); "weapons free" describes the *permission*
+(you may fire). The design wants both facts. A ruling that keeps one word in both places will lose
+one of them, so the honest options are a third phrase carrying both, or an explicit note that the
+lobby names states and the HUD names permissions.
+
+(found while working on: the Escalation UI polish sweep, `wt/ui-polish`; hit while checking the
+lobby capture `manual_lobby_260913_201410` against the ten demo frames for vocabulary drift)
+
+---
+
+## 2026-09-14 — GARRISON/CARGO panel frame is inset 6px further from the right edge than the readout above it
+
+`mods/ww3mod/chrome/ingame-player.yaml` — `GARRISON_PANEL`/`CARGO_PANEL` are `X: WINDOW_WIDTH - 240,
+Width: 228`, so their right edge is `WINDOW_WIDTH - 12`; the new `GARRISON_BG`/`CARGO_BG` frames
+extend that to `WINDOW_WIDTH - 11`. `DEFCON_READOUT` directly above is `X: WINDOW_WIDTH - WIDTH - 5`,
+right edge `WINDOW_WIDTH - 5`. **The two stacked panels therefore do not share a right edge — there
+is a 6px step.**
+
+This is pre-existing geometry that was invisible while the lower panel had no background at all, and
+became visible on 2026-09-14 when the frames were added. **It was left alone deliberately**: the
+frame was sized for symmetric 9px padding around content that runs x 0..220, and moving the
+containers to `WINDOW_WIDTH - 244` instead would re-align the edges at the cost of that symmetry —
+a choice that needs a capture to judge, and this worker could not capture. Look at the bottom-right
+corner of a frame with a transport selected before picking one.
+
+(found while working on: the Escalation UI polish sweep, `wt/ui-polish`)
