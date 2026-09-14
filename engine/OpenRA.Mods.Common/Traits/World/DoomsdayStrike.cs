@@ -256,6 +256,21 @@ namespace OpenRA.Mods.Common.Traits
 			"host who turned the arsenal off still gets no cameo, and Dead Hand places for that side.")]
 		public readonly string FinalExchangeCondition = "nuclear-release-gameender";
 
+		[Desc("Prerequisites the final exchange is licensed to IGNORE when it arms a game-ender.",
+			"",
+			"SupportPowerInstance.MakeReady overrides the tech tree wholesale -- it sets",
+			"prereqsAvailable true on whatever instance it is handed -- and that is deliberate for",
+			"`powers.event`, which no faction provides and which exists so a game-ender is never on",
+			"the shop floor. It is NOT deliberate for the faction tier beside it: overriding that",
+			"hands an America player Russia's Sarmat and a Russia player America's B83, which is the",
+			"one place the arsenal's faction lock did not hold. Everything a power requires that is",
+			"not named here must be genuinely held by the player before it is armed.",
+			"",
+			"EMPTY IS THE STRICT SETTING, not the permissive one: it makes the window respect every",
+			"prerequisite, which for the shipped pair means arming nobody outside Sandbox. The",
+			"default is the one name the override is actually for.")]
+		public readonly string[] OverriddenPrerequisites = { "powers.event" };
+
 		[NotificationReference("Speech")]
 		[Desc("Speech notification played to every surviving player when the window opens.",
 			"",
@@ -608,10 +623,15 @@ namespace OpenRA.Mods.Common.Traits
 				// SORTED BY KEY. Powers is a Dictionary and its enumeration order is not something
 				// every client agrees about; the operations below are order-independent, but this file
 				// does not iterate an unordered collection at all and that rule is worth keeping whole.
+				var techTree = p.PlayerActor.TraitOrDefault<TechTree>();
+
 				foreach (var key in manager.Powers.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList())
 				{
 					var instance = manager.Powers[key];
 					if (!IsGameEnder(instance.Info))
+						continue;
+
+					if (!OwnedByFaction(techTree, instance.Info))
 						continue;
 
 					var id = p.InternalName + "|" + key;
@@ -621,6 +641,39 @@ namespace OpenRA.Mods.Common.Traits
 					instance.MakeReady();
 				}
 			}
+		}
+
+		/// <summary>
+		/// <para>Does this player's faction OWN this game-ender? Every prerequisite the power declares
+		/// must be genuinely held, except the ones <see cref="DoomsdayStrikeInfo.OverriddenPrerequisites"/>
+		/// licenses the window to ignore.</para>
+		/// </summary>
+		// ==== WHY THE TECH TREE AND NOT A FACTION FIELD ON THE POWER ====
+		// Ownership is already declared, once, in rules/player.yaml's tier table: `powers.america` and
+		// `powers.russia` are granted by ProvidesPrerequisite with a `Factions:` filter. A second
+		// declaration on the power -- an OwnerFactions field, say -- would be a copy of that table
+		// free to drift from it, and the drift would be invisible until a final exchange handed
+		// somebody the wrong warhead. Asking the tech tree asks the table itself.
+		//
+		// AND IT IS NOT A NO-OP UNDER SANDBOX, deliberately. `powers-sandbox` grants all three tiers
+		// to every player (player.yaml:186-195), so under that option both factions really do own
+		// both game-enders and both are armed -- which is what the option is for and what the demos
+		// that switch it on depend on.
+		//
+		// A MISSING TechTree ARMS NOTHING RATHER THAN EVERYTHING. It is a stock trait on every player
+		// actor, so this is the "a map stripped it" path; failing closed there costs a scenario its
+		// final exchange, while failing open would silently restore the bug this closes.
+		bool OwnedByFaction(TechTree techTree, SupportPowerInfo powerInfo)
+		{
+			var required = powerInfo.Prerequisites;
+			if (required == null || required.Length == 0)
+				return true;
+
+			var mustHold = required.Where(r => !info.OverriddenPrerequisites.Contains(r, StringComparer.Ordinal)).ToList();
+			if (mustHold.Count == 0)
+				return true;
+
+			return techTree != null && techTree.HasPrerequisites(mustHold);
 		}
 
 		/// <summary>
