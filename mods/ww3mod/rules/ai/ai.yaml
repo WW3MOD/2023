@@ -2212,6 +2212,23 @@ Player:
 		CaptureFerryEscortSeats: 3
 		TopUpDuringLoading: true
 		RendezvousWithOffensiveStaging: false
+		# THE DEFCON 3 BORDER, and this is the transport half of the same lever PoiOffensiveBotModule
+		# carries above under the same name. Default FALSE on the engine class, per the architecture rule
+		# for a behavioural field on a trait both profiles instantiate; this file is the single visible
+		# place it is switched on. THIS CHANGES @stable — a deliberate improvement, not drift, and the
+		# ai-bench baseline must be re-taken.
+		#
+		# A delivery is issued as a "Move", which Mobile.ResolveOrder REFUSES outright across the border
+		# (Mobile.cs:1111-1114) — it returns before queueing the Move activity, so the carrier never
+		# leaves, stays idle, stays outside DropOffArrivalRadius of a drop it cannot reach, and the
+		# idle-recovery path re-issues the identical refused order every ScanInterval for the rest of the
+		# phase. The carrier and every soldier in its hold are dead weight through the whole of DEFCON 3
+		# — the phase those soldiers exist to take up position in. Measured: run
+		# 260913_233400_p91963_test-bot-defcon-wall, two carriers, 20 delivery-move-reissued lines.
+		# With this on the drop is staged where the SR -> objective lane meets the border, the infantry
+		# are put down there, and the objective is kept apart so the delivery resumes by itself when the
+		# wall lifts. Inert in Skirmish: DefconEscalation holds NoLevel, so the wall is never active.
+		BorderStagingEnabled: true
 
 	# Experimental twin. NOTE (b8d2e601, 2026-08-02): neither behaviour below is experimental-only any
 	# more — the @poi (stable) twin above was promoted to the same config. Both are default-frozen on
@@ -2290,6 +2307,11 @@ Player:
 		# scenario to beat is the one that produced the loop above. Until that run exists this line is what
 		# keeps both profiles byte-identical on this path.
 		RendezvousWithOffensiveStaging: false
+		# The DEFCON 3 border. Verbatim the @poi twin's value and for the same reasons — see the block
+		# above MountedTransportBotModule@poi's BorderStagingEnabled for the mechanism, the measured run
+		# and the @stable note. Both twins carry it because the defect is in the shared class, not in a
+		# profile: a loaded carrier ordered across the border never moves at all.
+		BorderStagingEnabled: true
 
 	# ===== Base Builder — shared baseline (enable-ai-player) =====
 	BaseBuilderBotModule@normal:

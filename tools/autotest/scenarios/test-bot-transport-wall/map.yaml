@@ -1,0 +1,97 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a loaded bot carrier is not stranded by the DEFCON 3 border
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 100,60
+
+Bounds: 1,1,98,58
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES, and it is a different failure from test-bot-defcon-wall's despite the shared
+# geometry. That scenario tests PoiOffensiveBotModule, whose orders are AttackMove -- accepted by the
+# engine and then silently doing nothing. This one tests MountedTransportBotModule, whose delivery
+# order is a plain "Move", and a Move across the border is REFUSED OUTRIGHT: Mobile.ResolveOrder
+# returns before queueing the activity at all (Mobile.cs:1111-1114). The carrier therefore does not
+# move one cell. It stays IsIdle, stays outside DropOffArrivalRadius of a drop it cannot reach, and
+# CarrierState.Delivering's idle-recovery re-issues the identical refused order every ScanInterval
+# for the rest of the phase -- with infantry aboard the whole time.
+#
+# Measured on run 260913_233400_p91963_test-bot-defcon-wall: two carriers, 20
+# `[exp-transport] delivery-move-reissued` lines in a 500-tick window. That run's own commit message
+# names this as "a real defect, but in MountedTransportBotModule, not here". This scenario is the
+# "here" for it.
+#
+# THE DISCRIMINATOR IS THAT THE LOADED CARRIER MOVES. Refusal leaves it exactly where it loaded, so
+# "advanced N cells east after taking passengers aboard" separates the two arms cleanly and does not
+# depend on the unload succeeding. The unload is asserted too, because a carrier that advances and
+# then never puts its infantry down is still dead weight -- just dead weight further east.
+#
+# GEOMETRY (the line is authored at x 44 in rules.yaml, so the impassable band is columns 43..45):
+#   USA-bot SR      3,28    the bot's beachhead; carriers and infantry muster here
+#   Russia SR      94,28    the POI the pre-contact drop cell is lerped toward
+#   carriers        6,26 and 6,30          bradleys, empty, idle -- the nearest candidates
+#   infantry        4..8,25..31            six riflemen inside the 14-cell reserve bubble
+#
+# WHY THE DROP LANDS BEYOND THE LINE WITHOUT ANYTHING FORCING IT. Before contact the module lerps
+# from our Supply Route toward the top PoiMap offensive target at PreContactStagingPct (50 on both
+# shipped twins). With the SRs at x 3 and x 94 that is x ~48 -- eight cells past the band. Nothing in
+# this scenario picks the drop cell; the shipped tuning does.
+#
+# Russia is a slot with no Bot and no client, exactly as in test-bot-defcon-wall: it owns the far SR
+# so the pre-contact lerp has something to aim at, and does nothing else.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	# Both Supply Routes fix a HomeLocation, which is what DefconWall resolves each player's SIDE
+	# from. Without them both players resolve into the same half and the wall is one-directional.
+	# OwnSR is also the transport task's Return cell -- the anchor the staging walk starts from.
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 3,28
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 94,28
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 8,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 80,28
+
+Rules: rules.yaml
