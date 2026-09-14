@@ -1,0 +1,86 @@
+# The game-ender window autotest's overrides.
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so each player's HomeLocation falls back to the pinned PlayerReference value rather
+	# than a spawn assignment -- which is what fixes the two SIDES on this map.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-nuclear-ender-window.lua
+
+	# THE MODE. Escalation, DEFCON 1, ten-tick release. The gate is not under test here; the top of
+	# the ladder is. Same three settings and the same reasons as test-nuclear-exchange.
+	DefconEscalation:
+		ModeDefault: Escalation
+		StartAtDefault: 1
+		NuclearReleaseDelayTicksOverride: 10
+
+	NuclearExchange:
+		# ONE MINUTE = 1000 ticks, the shortest value the dropdown offers (RulesetLoaded refuses a
+		# default that is not in RetaliationWindowOptions, so this is a shipped setting and not a
+		# test-only door). The five launches below are ~90 ticks apart, so every reply lands with
+		# roughly 900 ticks of slack -- this scenario measures WHAT the window grants, never how
+		# long it lasts. The lapse is test-nuclear-exchange's subject.
+		RetaliationWindowDefault: 1
+
+	# ==== SHIPPED LOBBY CONFIGURATION, PINNED. THE ABSENT LINE IS THE POINT OF THE FILE ====
+	# Every value below is the trait's own shipped default (PowersLobbyOptions.cs:68, :111, :144,
+	# :185); they are written out and LOCKED so no saved session or host default can move one out
+	# from under the run, not to change anything.
+	#
+	# PowersSandboxCheckboxEnabled IS FALSE AND MUST STAY FALSE. ProvidesPrerequisite@SandboxEvent
+	# grants `powers.event` while that option is on (player.yaml:192-194), which is the one
+	# prerequisite the three game-enders declare and no faction provides. Turn it on and every
+	# assertion here passes on a build with the defect fully intact -- which is exactly why
+	# test-nuclear-exchange cannot see this bug: its rules.yaml:65 sets it for unrelated reasons.
+	#
+	# HighYieldNuke IS ON, which is its shipped default, and phase F asserts what the END window
+	# does with it. That power is band 5 (6 Mt) and declares `powers.event` with NO faction name
+	# beside it, so it is the one game-ender both factions own. Pinned so the assertion is about
+	# the shipped configuration rather than about whatever the host last clicked.
+	#
+	# TacticalNuke IS OFF, its shipped default. It is a BAND 2 power that also declares
+	# `powers.event`, so it is what a broader fix would have leaked into the 20 kt window; phase D
+	# asserts it stays dark, which is the negative control on the fix's scope.
+	PowersLobbyOptions:
+		NuclearArsenalCheckboxEnabled: true
+		NuclearArsenalCheckboxLocked: true
+		PowersSandboxCheckboxEnabled: false
+		PowersSandboxCheckboxLocked: true
+		HighYieldNukeCheckboxEnabled: true
+		HighYieldNukeCheckboxLocked: true
+		TacticalNukeCheckboxEnabled: false
+		TacticalNukeCheckboxLocked: true
+
+	# THE FINAL EXCHANGE STAYS OFF, by leaving DoomsdayStrikeInfo.RunInTestMode at its default false
+	# (DoomsdayStrike.cs:100-104, :458-459). Stated as a comment rather than written as
+	# `RunInTestMode: false`, which would be a no-op restating the default -- but the reason is load
+	# bearing and belongs beside the launch that would otherwise trigger it: phase G fires a real
+	# game-ender, and with the salvo live that call freezes statistics, reveals the map and
+	# annihilates the world while this scenario's poller is still trying to write a verdict.
+
+Player:
+	# The warheads land on empty ground, but a 100 kt blast on a 64x32 playfield reaches most of it.
+	# Removed so an elimination cannot end the match before the poller writes a verdict.
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored, so nothing the poller reads is a visibility artefact.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	# NO CASH. Since decision 02 nothing nuclear is purchasable in Escalation at all, so this is
+	# belt-and-braces rather than the only guard -- but it is what makes every `ready` below mean
+	# "the exchange loaded this" rather than "somebody could have bought it".
+	PlayerResources:
+		DefaultCash: 0
+
+# Nothing initiates on its own: the scenario issues every order it measures.
+^Combatant:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+		InitialEngagementStance: HoldPosition
+		InitialEngagementStanceAI: HoldPosition

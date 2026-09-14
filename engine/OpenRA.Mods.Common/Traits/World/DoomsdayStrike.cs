@@ -648,57 +648,32 @@ namespace OpenRA.Mods.Common.Traits
 		/// must be genuinely held, except the ones <see cref="DoomsdayStrikeInfo.OverriddenPrerequisites"/>
 		/// licenses the window to ignore.</para>
 		/// </summary>
-		// ==== WHY THE TECH TREE AND NOT A FACTION FIELD ON THE POWER ====
-		// Ownership is already declared, once, in rules/player.yaml's tier table: `powers.america` and
-		// `powers.russia` are granted by ProvidesPrerequisite with a `Factions:` filter. A second
-		// declaration on the power -- an OwnerFactions field, say -- would be a copy of that table
-		// free to drift from it, and the drift would be invisible until a final exchange handed
-		// somebody the wrong warhead. Asking the tech tree asks the table itself.
-		//
-		// AND IT IS NOT A NO-OP UNDER SANDBOX, deliberately. `powers-sandbox` grants all three tiers
-		// to every player (player.yaml:186-195, @SandboxAmerica through @SandboxEvent), so under that option both factions really do own
-		// both game-enders and both are armed -- which is what the option is for and what the demos
-		// that switch it on depend on.
-		//
-		// A MISSING TechTree ARMS NOTHING RATHER THAN EVERYTHING. It is a stock trait on every player
-		// actor, so this is the "a map stripped it" path; failing closed there costs a scenario its
-		// final exchange, while failing open would silently restore the bug this closes.
+		// MOVED TO NuclearGameEnders ON 2026-09-14 AND NOT COPIED THERE. The retaliation window at
+		// NuclearRung.GameEnder hands out the same weapons on the same terms and had NO such check at
+		// all -- it gated on SupportPowerInstance.Permitted, which folds in the `powers.event` this
+		// override exists for, so its grant could never open and the END band drew no cameo in a
+		// normal match. A rule whose two halves pull in opposite directions (override the tier, never
+		// the faction) is exactly the thing not to have two copies of, so it is stated once and both
+		// paths ask it. The reasoning that used to sit here -- why the tech tree rather than a faction
+		// field, why it is not a no-op under Sandbox, why a missing TechTree arms nothing -- moved
+		// with it and is unchanged.
 		bool OwnedByFaction(TechTree techTree, SupportPowerInfo powerInfo)
 		{
-			var required = powerInfo.Prerequisites;
-			if (required == null || required.Length == 0)
-				return true;
-
-			var mustHold = required.Where(r => !info.OverriddenPrerequisites.Contains(r, StringComparer.Ordinal)).ToList();
-			if (mustHold.Count == 0)
-				return true;
-
-			return techTree != null && techTree.HasPrerequisites(mustHold);
+			return NuclearGameEnders.OwnedByFaction(techTree, powerInfo, info.OverriddenPrerequisites);
 		}
 
 		/// <summary>
-		/// <para>Is this power a GAME-ENDER — one of the weapons the exchange hands out?</para>
-		///
-		/// <para>Asked of the YIELD rather than of the condition string or the order name, because the yield
-		/// is what the ladder itself asks: <see cref="NuclearReleaseLadder.RungForYield"/> is the single
-		/// definition of which band a warhead is in, and reading it here means a new 2 Mt power is picked
-		/// up with no edit to this file. Matching on `RequiresCondition` text would be a second, silent
-		/// copy of the band table.</para>
-		///
-		/// <para>THE TSAR BOMBA IS EXCLUDED, and by the ladder's own constant rather than by name. At 50 Mt it
-		/// is above SandboxOnlyAboveTons, which is decision 04's ruling that it is unreachable in normal
-		/// play; handing it out at the end of every match would be exactly the route that ruling closes.</para>
+		/// <para>Is this power a GAME-ENDER — one of the weapons the exchange hands out? See
+		/// <see cref="NuclearGameEnders.Is"/> for why it is asked of the YIELD, and for why the Tsar
+		/// Bomba is excluded by the ladder's own constant rather than by name.</para>
 		/// </summary>
+		// MOVED TO NuclearGameEnders.Is ON 2026-09-14, with its reasoning, for the reason given on
+		// OwnedByFaction below: the retaliation window needs the identical question answered and two
+		// copies of "which warheads are game-enders" is the second silent copy of the band table this
+		// predicate was written to avoid in the first place.
 		static bool IsGameEnder(SupportPowerInfo powerInfo)
 		{
-			if (powerInfo is not MissileStrikePowerInfo missileInfo)
-				return false;
-
-			var tons = missileInfo.NuclearYieldTons;
-			if (tons <= 0 || tons > NuclearReleaseLadder.SandboxOnlyAboveTons)
-				return false;
-
-			return NuclearReleaseLadder.RungForYield(tons) == (int)NuclearRung.GameEnder;
+			return NuclearGameEnders.Is(powerInfo);
 		}
 
 		void AnnounceFinalExchange()

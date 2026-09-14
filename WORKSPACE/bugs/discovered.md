@@ -5167,3 +5167,29 @@ a choice that needs a capture to judge, and this worker could not capture. Look 
 corner of a frame with a transport selected before picking one.
 
 (found while working on: the Escalation UI polish sweep, `wt/ui-polish`)
+
+---
+
+## 2026-09-14 — `MissileStrikePower@HighYieldNuke` (6 Mt) is the one game-ender with no faction lock, so both factions get it
+
+`mods/ww3mod/rules/player.yaml:842` gives it `Prerequisites: powers.event` and nothing else, where
+the three named enders were given `player.america` / `player.russia` beside the event tier by
+c8cadc8a on 2026-09-14 ("Faction-lock the nuclear arsenal in every mode, including the final
+exchange"). It is band 5 by `NuclearReleaseLadder.RungForYield` (6 Mt) and under
+`SandboxOnlyAboveTons`, so `NuclearGameEnders.Is` counts it — which means **both**
+`DoomsdayStrike.ArmGameEnders` (already shipped) and now the END retaliation window hand it to every
+surviving side regardless of faction. Its host checkbox defaults ON (`PowersLobbyOptions.cs:111`).
+
+**Not fixed on `wt/ender-grant`, deliberately.** That branch's subject is a window that granted
+*nothing*; adding a faction name to a fourth power is a separate balance/identity call, it changes
+the shipped final exchange as well as the new path, and it is the kind of second unmeasured
+behavioural change that should not ride along. The behaviour is now *asserted* rather than
+incidental — `test-nuclear-ender-window`'s phase F and phase H both read
+`HighYieldNukeStrike == "ready"` on each side — so whichever way it is ruled, exactly one line per
+side changes and the ruling is visible in the diff.
+
+**The question for the user:** is "Strategic Nuclear Strike (6 Mt)" meant to be an unattributed
+weapon both sides hold (its name and its own lobby checkbox suggest yes), or did c8cadc8a mean to
+cover all four and miss it?
+
+(found while working on: the END-window game-ender grant, `wt/ender-grant`)
