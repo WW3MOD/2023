@@ -5,6 +5,24 @@
 
 ---
 
+- [2026-09-15] [DESIGN QUESTION, NOT A BUG — RAISED WITH THE USER] **WW3MOD's DEFCON 2 cease-fire has
+  no length of its own and can last a single tick.** 3 → 2 is the no-rush clock; 2 → 1 has NO clock
+  and fires on the first qualifying enemy-caused death (`DefconCasualtyObserver` →
+  `DefconEscalation.ReportCasualty`). `DefconWallInfo.ActiveLevels = { 3 }`, so both armies spend the
+  whole no-rush period staged ON the border and are in contact the instant it drops. Measured on the
+  same build and scenario: run `260914_181212` → DEFCON 2 lasted **670 ticks** (40 s); run
+  `260915_012829` → **1 tick**. The phase is exactly as long as the first kill takes, and the better
+  the bots stage, the shorter it gets.
+  **NOT FILED AS A DEFECT.** Everything here is behaving as written, and whether a cease-fire phase
+  that can vanish in a tick is the intended design is the user's call — the manager is raising it
+  separately. If the answer is "it needs a floor", that is a change to `DefconEscalationState` and
+  `test-escalation-full-match` is where it would be measured.
+  **IT DID BREAK AN OBSERVER, TWICE.** A 5-tick poller cannot see a 1-tick phase, so run 4's
+  assertion reported "DEFCON never left 3 in 24001 ticks" and blamed the no-rush clock, which had
+  fired at exactly 5000. Fixed by exposing the transition ticks
+  (`DefconEscalation.LevelReachedTick` → `Test.DefconLevelReachedTick`) and asserting on those.
+  (found while working on: `test-escalation-full-match`, the end-to-end Escalation smoke scenario)
+
 - [2026-09-14] [LOW — A TRAP FOR SCENARIO AUTHORS, NOT A GAMEPLAY BUG] **`player.WinState` can never
   leave `Undefined` in a TestMode session, so no autotest scenario can detect "the match ended"
   through it — including a match that ran its full Dead Hand salvo.**

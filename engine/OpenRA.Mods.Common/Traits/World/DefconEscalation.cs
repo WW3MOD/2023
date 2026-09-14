@@ -358,6 +358,32 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>The full length of the DEFCON 3 clock, so a readout can draw a progress bar.</summary>
 		public readonly int ClockTicks;
 
+		// ==== WHEN EACH LEVEL WAS FIRST REACHED. DIAGNOSTIC, AND NOT [Sync]. ====
+		// The trait has always KNOWN these ticks -- both transition sites log them -- and has never
+		// kept them, so the only way to observe a transition was to sample Level and hope. That is
+		// not good enough for a phase that can be ONE TICK LONG: run 260915_012829 went 3 -> 2 on the
+		// clock at 5000 and 2 -> 1 on a kill at 5001, and a poller sampling every 5 ticks saw level 3
+		// then level 1 and reported the no-rush clock as broken. The clock was fine; the observer
+		// could not see an edge.
+		//
+		// Not hashed for the reason TicksUntilNuclearRelease's neighbours give: this is a projection
+		// of Level, which IS hashed, so a divergence here is a divergence there first.
+		readonly Dictionary<int, int> levelReachedTick = new Dictionary<int, int>();
+
+		/// <summary>The tick <paramref name="level"/> was first reached, or -1 if it never was.</summary>
+		public int LevelReachedTick(int level)
+		{
+			return levelReachedTick.TryGetValue(level, out var tick) ? tick : -1;
+		}
+
+		// First writer wins, so a level cannot be re-stamped. Levels only ever descend, but stating it
+		// here means a future two-way ladder would not silently rewrite history.
+		void RecordLevel(int tick)
+		{
+			if (!levelReachedTick.ContainsKey(state.Level))
+				levelReachedTick[state.Level] = tick;
+		}
+
 		/// <summary>
 		/// Whether the nuclear release gate has opened. POLLED BY <see cref="NuclearExchange"/>, which
 		/// turns it into every side's permanent 1 kt band; see <see cref="NuclearReleaseGate"/>.
@@ -400,6 +426,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
+			// The OPENING level, stamped on the first tick it is observed. Cheap and idempotent.
+			RecordLevel(self.World.WorldTick);
+
 			// THE RELEASE GATE IS TICKED BEFORE THE EARLY RETURN BELOW, and that ordering is
 			// load-bearing rather than tidy: state.Tick() returns false on every tick except the one
 			// the level actually moves, so a gate ticked after it would advance at most twice in a
@@ -418,6 +447,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			Log.Write("debug", $"DEFCON {Level} (clock expired at tick {self.World.WorldTick}).");
+			RecordLevel(self.World.WorldTick);
 
 			// THE ONE-SHOT HALF OF THE HOLD-FIRE RULE. The flag itself only stops a unit ACQUIRING a
 			// target; an engagement already running when the level drops has to be cancelled explicitly,
@@ -456,6 +486,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			Log.Write("debug", $"DEFCON {Level} (enemy action destroyed {victim.Info.Name}, owner {victim.Owner.InternalName}).");
+			RecordLevel(victim.World.WorldTick);
 		}
 
 		// WHAT USED TO BE HERE, AND WHERE IT WENT (2026-09-13 ruling):

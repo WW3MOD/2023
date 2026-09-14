@@ -204,43 +204,69 @@ WorldLoaded = function()
 		local t = elapsed()
 
 		-- ---- 1. THE PHASES HAPPENED, IN ORDER, ON THEIR OWN CLOCKS ----
-		if levelAt[3] == nil then
-			fault("the match never opened at DEFCON 3: first level read was %s at tick %d. "
-				.. "A 0 means DefconEscalation is holding NoLevel -- the mode resolved to Skirmish "
-				.. "rather than Escalation, and EVERY assertion below would then pass vacuously",
-				tostring(lastLevel), t)
+		--
+		-- READ FROM Test.DefconLevelReachedTick, NOT FROM WHAT THIS POLLER SAMPLED, AND THE
+		-- DIFFERENCE IS NOT PEDANTRY. Run 260915_012829 went 3 -> 2 on the clock at tick 5000 and
+		-- 2 -> 1 on the first qualifying kill at 5001 -- one tick of DEFCON 2, because both bots were
+		-- already staged on the border when it fell. This poller samples every 5 ticks, saw level 3
+		-- and then level 1, and its previous version concluded "DEFCON never left 3" and blamed the
+		-- no-rush clock. The clock was exact. NO SAMPLING INTERVAL IS SAFE AGAINST AN EDGE, so the
+		-- transitions are now read and the samples are kept only as corroboration.
+		local at3, at2, at1 = Test.DefconLevelReachedTick(3), Test.DefconLevelReachedTick(2), Test.DefconLevelReachedTick(1)
+
+		if at3 < 0 then
+			fault("the match never opened at DEFCON 3: level 3 was never reached (sampled first "
+				.. "level %s at tick %d). A sampled 0 means DefconEscalation is holding NoLevel -- the "
+				.. "mode resolved to Skirmish rather than Escalation, and EVERY assertion below would "
+				.. "then pass vacuously", tostring(lastLevel), t)
 		end
 
-		if levelAt[2] == nil then
-			fault("DEFCON never left 3 in %d ticks. The no-rush clock is the shipped 5 minutes = %d "
-				.. "ticks and nothing else moves 3 -> 2, so either DefconEscalation is not ticking or "
-				.. "its clock was not built from the lobby default", t, NORUSH_TICKS)
+		if at2 < 0 then
+			-- ONLY REACHABLE NOW IF THE LEVEL GENUINELY NEVER MOVED, because this reads the
+			-- transition rather than a sample. The old version of this fault fired on a match where
+			-- the clock was exact, so its text is written to make that impossible: level 1 cannot be
+			-- reached except through 2, so if 1 was reached this says so instead of blaming the clock.
+			if at1 >= 0 then
+				fault("DEFCON 2 was never recorded, yet DEFCON 1 was reached at tick %d. The level "
+					.. "machine has no path to 1 that does not pass through 2, so this is the "
+					.. "TRANSITION RECORD failing (DefconEscalation.RecordLevel), not the clock and "
+					.. "not the phases", at1)
+			else
+				fault("DEFCON never left 3 in %d ticks, and never reached 1 either. The no-rush clock "
+					.. "is the shipped 5 minutes = %d ticks and nothing else moves 3 -> 2, so either "
+					.. "DefconEscalation is not ticking or its clock was not built from the lobby "
+					.. "default", t, NORUSH_TICKS)
+			end
 		else
-			if levelAt[2] < NORUSH_TICKS - PHASE_EARLY_SLACK then
+			-- THE >= 5000 BOUND, AND IT NOW SURVIVES A ONE-TICK DEFCON 2 because it is measured
+			-- against the recorded transition rather than against whenever this poller noticed.
+			if at2 < NORUSH_TICKS - PHASE_EARLY_SLACK then
 				fault("DEFCON 3 -> 2 at tick %d, EARLIER than the %d-tick no-rush clock. Something "
 					.. "other than the clock moved the level; 3 -> 2 has no other trigger",
-					levelAt[2], NORUSH_TICKS)
-			elseif levelAt[2] > NORUSH_TICKS + LATE_SLACK then
+					at2, NORUSH_TICKS)
+			elseif at2 > NORUSH_TICKS + LATE_SLACK then
 				fault("DEFCON 3 -> 2 at tick %d, %d ticks LATE against the %d-tick no-rush clock",
-					levelAt[2], levelAt[2] - NORUSH_TICKS, NORUSH_TICKS)
+					at2, at2 - NORUSH_TICKS, NORUSH_TICKS)
 			else
-				note("3->2 at tick %d (clock %d)", levelAt[2], NORUSH_TICKS)
+				note("3->2 at tick %d (clock %d)", at2, NORUSH_TICKS)
 			end
 		end
 
-		if levelAt[1] == nil then
-			fault("DEFCON never left 2 by tick %d. 2 -> 1 has NO clock -- it is driven solely by "
+		if at1 < 0 then
+			fault("DEFCON never reached 1 by tick %d. 2 -> 1 has NO clock -- it is driven solely by "
 				.. "DefconCasualtyObserver reporting a qualifying enemy-caused death -- so this is "
 				.. "either the two bots never killing anything across the whole cease-fire, or the "
 				.. "casualties not qualifying (friendly fire and neutral victims are rejected)", t)
-		elseif levelAt[2] ~= nil and levelAt[1] <= levelAt[2] then
-			fault("DEFCON reached 1 at tick %d, not after 3 -> 2 at tick %d: the phases did not "
-				.. "advance in order", levelAt[1], levelAt[2])
-		elseif levelAt[1] ~= nil then
+		elseif at2 >= 0 and at1 < at2 then
+			fault("DEFCON reached 1 at tick %d, BEFORE 3 -> 2 at tick %d: the phases did not advance "
+				.. "in order", at1, at2)
+		else
 			-- The transition IS the evidence of an enemy-caused death: the state machine has no
-			-- 2 -> 1 clock, so there is no other way to reach level 1 from level 2.
-			note("2->1 at tick %d (+%d after the wall fell; no clock, so a qualifying kill)",
-				levelAt[1], levelAt[1] - (levelAt[2] or 0))
+			-- 2 -> 1 clock, so there is no other way to reach level 1 from level 2. A ZERO-length
+			-- DEFCON 2 is legitimate and is a match observation rather than a fault -- see
+			-- description.txt, where runs 3 and 4 measured 670 ticks and 1 tick for the same phase.
+			note("2->1 at tick %d (DEFCON 2 lasted %d tick(s); no clock, so a qualifying kill)",
+				at1, at1 - (at2 >= 0 and at2 or at1))
 		end
 
 		-- ---- 1b. THE WALL ACTUALLY STOOD DURING DEFCON 3 ----
@@ -292,16 +318,17 @@ WorldLoaded = function()
 			end
 		end
 
-		if levelAt[1] == nil then
+		local defcon1Tick = Test.DefconLevelReachedTick(1)
+		if defcon1Tick < 0 then
 			note("release gate not assessed: DEFCON 1 never arrived, so its %d-tick clock never started",
 				RELEASE_TICKS)
 		elseif releaseAt == nil then
 			fault("the nuclear release never opened: both bots' NuclearBotModule still reads "
 				.. "reason=NotReleased at tick %d. The gate is the shipped 10 minutes = %d ticks after "
 				.. "DEFCON 1 (reached at %d), so it was due at %d",
-				t, RELEASE_TICKS, levelAt[1], levelAt[1] + RELEASE_TICKS)
+				t, RELEASE_TICKS, defcon1Tick, defcon1Tick + RELEASE_TICKS)
 		else
-			local due = levelAt[1] + RELEASE_TICKS
+			local due = defcon1Tick + RELEASE_TICKS
 			if releaseAt < due - REL_EARLY_SLACK then
 				fault("the nuclear release opened at tick %d, EARLIER than the %d-tick gate due at "
 					.. "%d. Warheads were handed out before the clock ran", releaseAt, RELEASE_TICKS, due)
@@ -391,11 +418,13 @@ WorldLoaded = function()
 		end
 
 		local summary = string.format(
-			"stop=%s tick=%d level=%s | phases 3@%s 2@%s 1@%s release@%s ending@%s | "
+			"stop=%s tick=%d level=%s | phases(recorded) 3@%d 2@%d 1@%d | "
+			.. "phases(sampled) 3@%s 2@%s 1@%s release@%s ending@%s | "
 			.. "wall 3=%d/%d 2=%d/%d 1=%d/%d | "
 			.. "doomsday{%s} | win(inert in test mode) USA=%s RUS=%s | "
 			.. "orders %s | nuclear USA{%s} RUS{%s}",
 			why, t, tostring(lastLevel),
+			at3, at2, at1,
 			tostring(levelAt[3]), tostring(levelAt[2]), tostring(levelAt[1]),
 			tostring(releaseAt), tostring(endingAt),
 			wallActive[3] or 0, wallSamples[3] or 0,

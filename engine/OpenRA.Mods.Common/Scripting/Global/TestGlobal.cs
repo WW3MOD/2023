@@ -1877,6 +1877,26 @@ namespace OpenRA.Mods.Common.Scripting.Global
 				?? DefconEscalationState.NoLevel;
 		}
 
+		[Desc("The tick a DEFCON level was FIRST REACHED, or -1 if it never was. 3, 2 or 1.",
+			"",
+			"SAMPLING Test.DefconLevel() CANNOT REPLACE THIS AND THAT IS NOT A TUNING PROBLEM. A " +
+			"phase can be ONE TICK LONG: run 260915_012829 went 3 -> 2 on the clock at tick 5000 and " +
+			"2 -> 1 on the first qualifying kill at 5001, because both bots were already staged on " +
+			"the border when it fell. A poller sampling every 5 ticks saw 3, then 1, and reported " +
+			"the no-rush clock as broken -- it was exact. There is no sampling interval that is " +
+			"safe against an edge; a scenario asserting on a TRANSITION must read the transition.",
+			"",
+			"Read-only and test mode only.")]
+		public int DefconLevelReachedTick(int level)
+		{
+			if (!TestMode.IsActive)
+				return -1;
+
+			// TraitOrDefault for the reason DefconLevel below records: DefconEscalation is declared
+			// exactly once across the mod, unsuffixed (world.yaml:863).
+			return Context.World?.WorldActor.TraitOrDefault<DefconEscalation>()?.LevelReachedTick(level) ?? -1;
+		}
+
 		[Desc("The ending's state, as `phase=<n>|open=<bool>|placements=<n>|salvo=<bool>|closes=<tick>`, " +
 			"or \"absent\" on a world with no " + nameof(DoomsdayStrike) + ".",
 			"",

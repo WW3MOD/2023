@@ -77,6 +77,13 @@ ASSERTIONS (all faults are concatenated, then a READINGS line):
             detector was wrong, and WinState is now carried as a READING
             labelled inert rather than asserted on.
 
+            CONFIRMED at run 260915_012829: debug.log carried "TIME LIMIT
+            expired at tick 22000 (limit 22000)." and "FINAL EXCHANGE opening
+            at tick 22000, trigger time limit.", and the readings showed
+            ending@22001 doomsday{phase=1|open=true|placements=0|salvo=true|
+            closes=22250}. The ending had been working all along; only the
+            observer was blind, and the two new log lines are what proved it.
+
   LAUNCHES ARE A READING, NOT AN ASSERTION. The module fires only when losing
   (army value under 60 % of the strongest enemy's, or own SR control under 40 %)
   and only after three agreeing evaluations, so two even bots reaching the end
@@ -95,6 +102,32 @@ RUN IT AS: ./tools/autotest/run-test.sh --hidden --speed 4 --timeout 3000 \
            (3000 s, not 1200 -- sized against the MEASURED ~12 ticks/s below,
             not against --speed 4's nominal 66.7. The first two attempts both
             TIMEOUT-FAILed on that mistake.)
+
+MATCH OBSERVATION, NOT A FAULT: DEFCON 2 HAS NO LENGTH OF ITS OWN.
+
+  run 260914_181212   3->2 @5000   2->1 @5671   DEFCON 2 lasted  670 ticks (40 s)
+  run 260915_012829   3->2 @5000   2->1 @5001   DEFCON 2 lasted    1 tick
+
+Both are correct behaviour. 3 -> 2 is a clock; 2 -> 1 has NO clock at all and
+fires on the first qualifying enemy-caused death. The wall stands at DEFCON 3
+only (ActiveLevels = { 3 }), so both armies spend the no-rush period staged ON
+the border and are in contact the instant it drops -- which means the cease-fire
+phase lasts exactly as long as the first kill takes, and that can be one tick.
+The more competent the staging, the shorter DEFCON 2 becomes.
+
+THIS SCENARIO DOES NOT JUDGE THAT. It records the number and asserts only the
+ordering (2 before 1) and the clock (3 -> 2 at 5000). Whether a cease-fire phase
+that can vanish in a tick is the intended design is a question for the user, and
+the manager is raising it separately. If the answer is "it needs a floor", that
+is a change to DefconEscalationState and this scenario is where it gets measured.
+
+IT IS ALSO WHAT BROKE THE DETECTOR TWICE OVER. The poller samples every 5 ticks,
+so a one-tick phase is invisible to it: run 4 sampled level 3 then level 1 and
+its assertion concluded "DEFCON never left 3", blaming a clock that had been
+exact. The phase assertions now read Test.DefconLevelReachedTick rather than what
+the poller happened to catch, and the fail text can no longer blame the clock
+when level 1 was reached -- level 1 is unreachable except through level 2, so
+that combination now names the transition RECORD as the suspect instead.
 
 RED SABOTAGE, per assertion. NONE OF THESE HAS BEEN RUN -- this worker is not
 permitted to launch -- so each is a SPECIFICATION of the expected failure, not a
@@ -126,10 +159,19 @@ measurement of it. Budget a slot for whichever arm a future change touches.
            group(s)" after the CombatantSides fix -- a measured RED and a
            measured GREEN on the same predicate.
 
-  PHASES   Set `DefconEscalation: ModeDefault: Skirmish`. Test.DefconLevel()
-           then reads 0 throughout and the opening assertion fires:
-             "the match never opened at DEFCON 3: first level read was 0"
+  PHASES   Set `DefconEscalation: ModeDefault: Skirmish`. The level holds
+           NoLevel, Test.DefconLevelReachedTick(3) returns -1, and the opening
+           assertion fires:
+             "the match never opened at DEFCON 3: level 3 was never reached"
            This is the guard that stops every other assertion passing vacuously.
+
+  CLOCK    Set `DefconEscalation: NoRushTicksOverride: 300`. The recorded 3 -> 2
+           tick then lands near 300 against a 5000-tick expectation and the
+           EARLY arm fires:
+             "DEFCON 3 -> 2 at tick 300, EARLIER than the 5000-tick no-rush
+              clock."
+           THIS ARM IS WHY THE TRANSITION RECORD EXISTS: sampling could not have
+           held the >=5000 bound at all once DEFCON 2 shrank to a single tick.
 
 THIS IS A LONG SCENARIO AND run-batch.sh --all WILL PICK IT UP (it globs
 test-*). Budget: the poller's hard deadline is 24000 ticks, which is ~6.0 min
@@ -139,14 +181,18 @@ and a real multiplier of 60/7 = 8.57x -- so ~2.8 min nominal against
 run-test.sh's default 300 s timeout. That is only ~1.8x of margin, and it
 requires the engine to sustain ~143 ticks/s on a 98x98 two-bot late game.
 
-MEASURED THREE TIMES, 2026-09-14. THE LAST IS THE ONE TO PLAN WITH:
+MEASURED FOUR TIMES. THE LAST TWO ARE THE ONES TO PLAN WITH:
 
   run 260914_141246  load 115-236  --speed 4  ~5.5 ticks/s  (tick ~6600 in 1200 s)
   run 260914_181212  load  13-25   --speed 4  ~12  ticks/s  (tick 21360 in 1800 s)
   run 260914_191513  load 19       --speed 4  >8   ticks/s  (tick 24000 in <3000 s)
+  run 260915_012829  load 8.7      --speed 4  >8   ticks/s  (tick 24001 in <3000 s)
 
-Run 3 completed the full 24000-tick budget inside 3000 s, so --timeout 3000 is
-the right figure and is what the run line above uses.
+Runs 3 and 4 both completed the full 24000-tick budget inside 3000 s, so
+--timeout 3000 is the right figure and is what the run line above uses. Neither
+reported its exact wall clock, so those two rows carry a LOWER BOUND (>8) rather
+than a rate -- do not read them as a measured throughput the way rows 1 and 2
+can be read.
 
 The second run was on an effectively idle machine and STILL managed only ~12 of
 the 66.7 ticks/s that --speed 4 nominally asks for. So this scenario is
