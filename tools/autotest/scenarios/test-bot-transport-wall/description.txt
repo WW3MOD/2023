@@ -1,0 +1,73 @@
+TEST: a loaded bot carrier is not stranded by the DEFCON 3 border.
+
+WHAT IS UNDER TEST
+------------------
+MountedTransportBotModule.BorderStagingEnabled — the transport half of the same lever
+PoiOffensiveBotModule has carried under that name since 45c43ffe.
+
+THE DEFECT THIS REPRODUCES
+--------------------------
+A delivery is issued as a plain "Move". Mobile.ResolveOrder REFUSES a Move whose destination is
+across the DEFCON 3 border and returns before queueing the Move activity at all
+(engine/OpenRA.Mods.Common/Traits/Mobile.cs:1111-1114). So the carrier does not move one cell.
+
+Every downstream condition then holds forever:
+  - it stays IsIdle, because no activity was ever queued;
+  - it stays outside DropOffArrivalRadius (3) of a drop cell it cannot reach;
+  - CarrierState.Delivering's idle-recovery branch therefore re-issues the identical refused Move
+    on every ScanInterval (50 ticks) for the rest of the phase
+    (MountedTransportBotModule.cs, `delivery-move-reissued`).
+
+The carrier and every soldier in its hold are dead weight for the whole of DEFCON 3 — the phase
+those soldiers exist in order to take up position during.
+
+This is NOT the same failure as test-bot-defcon-wall's. That one is about AttackMove, which the
+engine ACCEPTS and then silently does nothing with. This one is about Move, which the engine
+refuses outright. The two modules reach the same stall by different routes and need separate fixes
+and separate tests; this scenario is the second of the pair.
+
+PROVENANCE
+----------
+Measured on run 260913_233400_p91963_test-bot-defcon-wall: two carriers, 20
+`[exp-transport] delivery-move-reissued` lines in a 500-tick window. The commit that closed that
+run's own assertion (5dfad59a) names this explicitly as "a real defect, but in
+MountedTransportBotModule, not here".
+
+LAYOUT
+------
+  USA-bot SR      3,28    the bot's beachhead; also the transport task's Return cell, which is the
+                          anchor the staging walk starts from
+  Russia SR      94,28    unowned by any client; exists so the pre-contact drop lerp has a target
+  carriers        6,26 and 6,30        two bradleys, empty and idle
+  infantry        4..8,25..31          six e3.america inside the 14-cell reserve bubble
+  border          x 44, HalfWidth 1024 ⇒ impassable band at columns 43..45
+
+Nothing here forces the drop cell past the line. Before contact the module lerps from our SR toward
+the top PoiMap offensive target at PreContactStagingPct (50 on both shipped twins), which with SRs
+at x 3 and x 94 lands at x ~48 — eight cells beyond the band. The shipped tuning picks it.
+
+GREEN CRITERION
+---------------
+  1. No carrier is ever observed at x >= 43 (the border holds — and a LOADED carrier over the line
+     would be the worst version of this bug, not the fixed version of it).
+  2. At least one carrier actually loads a passenger. Checked first and reported as SCENARIO HEALTH
+     rather than as the defect: with no load attempted, a pass would be vacuous.
+  3. Every carrier that loads advances >= 10 cells east of where it was standing when its hold
+     became non-empty, within 900 ticks of loading. THIS IS THE DISCRIMINATOR.
+  4. Every carrier that loads is empty again within 2000 ticks of loading. Softer than 3 and the
+     one to suspect first if a GREEN arm fails here alone -- it covers a ~36-cell drive plus an
+     Unload and no measured traverse figure for a bradley exists yet.
+  5. MountedTransportBotModule queues <= 120 orders in the last 800 ticks (belt, provisional).
+
+RED ARM
+-------
+rules.yaml: set `BorderStagingEnabled: false` under MountedTransportBotModule@experimental.
+
+Expected failure, from criterion 3:
+  "carrier 1 loaded at tick N (x=6) and advanced only 0 cells in 900 ticks (need 10): its delivery
+   Move is being refused at the DEFCON 3 border and re-issued every scan"
+
+Criterion 1 passes in BOTH arms — the stranded carrier cannot move at all, let alone cross — so it
+is an invariant and not the discriminator. Criterion 5 is expected to fail in the RED arm too (two
+carriers re-issuing once per 50-tick scan over an 800-tick window is ~32 re-issues on top of
+ordinary module traffic), but the advance check fires first and is the one to read.

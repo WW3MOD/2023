@@ -229,6 +229,31 @@ namespace OpenRA.Mods.Common.Traits
 			"Capture ferries are excluded: their spare seats are CaptureFerryEscortSeats' business.")]
 		public readonly bool TopUpDuringLoading = false;
 
+		[Desc("Send a loaded carrier to a staging cell on OUR OWN side of the DEFCON 3 border when the",
+			"drop-off it was given lies beyond it, instead of ordering it through. Inert outside Escalation",
+			"and at every level the wall does not stand at, so a Skirmish match pays one null test per",
+			"delivery order.",
+			"",
+			"DEFAULT FALSE so a profile that does not ask for it keeps the pre-feature path byte-for-byte,",
+			"and the YAML is the single visible place it is switched on -- for BOTH bot profiles,",
+			"deliberately. Same field name as " + nameof(PoiOffensiveBotModuleInfo.BorderStagingEnabled) + " because it is the same lever on the",
+			"same border, routed through the same helper.",
+			"",
+			"WHAT IT FIXES, and this one is WORSE than the offensive module's because the carrier is LOADED.",
+			"A delivery is issued as a \"Move\", which Mobile.ResolveOrder REFUSES outright when the",
+			"destination is across the border (Mobile.cs:1111-1114) -- it returns before queueing the Move",
+			"activity at all. The carrier therefore never leaves, stays IsIdle, stays outside",
+			"DropOffArrivalRadius of a drop it can never reach, and the idle-recovery re-issue below fires the",
+			"identical refused order on every scan for the rest of the phase. Measured: run",
+			"260913_233400_p91963_test-bot-defcon-wall, two carriers, 20 `delivery-move-reissued` lines in a",
+			"500-tick window. The carrier and every soldier in its hold are dead weight for the whole of",
+			"DEFCON 3 -- the phase in which those soldiers are supposed to be taking up position.",
+			"",
+			"THE OBJECTIVE IS NOT OVERWRITTEN. The staged cell is held separately, so when the border comes",
+			"down the clamp becomes the identity, the destination changes back to the objective by itself,",
+			"and the carrier resumes -- no polling of the wall and no notification to subscribe to.")]
+		public readonly bool BorderStagingEnabled = false;
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			base.RulesetLoaded(rules, ai);
@@ -252,7 +277,24 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			public Actor Carrier;
 			public CarrierState State;
+
+			// THE OBJECTIVE. Where this delivery is FOR, picked once at task creation and never
+			// overwritten -- not even while the DEFCON 3 border makes it unorderable. See OrderedDropOff.
 			public CPos DropOff;
+
+			// THE CELL ACTUALLY ORDERED, and the cell arrival is measured against. Equal to DropOff in
+			// every ordinary match and whenever BorderStagingEnabled is off; a staging cell on our own
+			// side of the border while the wall stands between the carrier and the objective.
+			//
+			// HOLDING THE TWO APART IS WHAT MAKES THE BORDER COMING DOWN SELF-HEALING, and it is the same
+			// device PoiOffensiveBotModule's OrderedCell uses. The staging clamp is the identity once the
+			// wall is gone, so the staged cell recomputes to the objective, differs from what was last
+			// ordered, and the delivery re-issues itself on the module's own scan. Folding the staged cell
+			// back into DropOff would destroy the objective and strand the delivery at the old border for
+			// the rest of the match; polling DefconWall for an edge would be a second source of truth for
+			// a question the recomputation already answers.
+			public CPos OrderedDropOff;
+
 			public CPos Return;
 			public int StateChangedAtTick;
 			public HashSet<Actor> ReservedPassengers = new();
@@ -314,6 +356,13 @@ namespace OpenRA.Mods.Common.Traits
 		int scanCountdown;
 		InfluenceMap influenceMap;
 		PoiMap poiMap;
+
+		// The DEFCON 3 border. Resolved lazily and ONLY when BorderStagingEnabled asks, so a profile with
+		// the lever off never looks the trait up and stays byte-identical. Null on every world without one
+		// -- which is every Skirmish match, where BorderPredicate degrades to "no line" and the staging
+		// call collapses into the standable clamp the drop cell already went through.
+		DefconWall defconWall;
+		bool defconWallResolved;
 
 		// Phase 2 commit-on-order (§4): shared commitment ledger. Resolved only when CommitPassengers is on,
 		// so the frozen @stable/@poi twin never looks it up ⇒ byte-identical. Null when the player has no
@@ -578,6 +627,7 @@ namespace OpenRA.Mods.Common.Traits
 				Carrier = carrier,
 				State = CarrierState.Loading,
 				DropOff = target.Location,
+				OrderedDropOff = target.Location,
 				Return = ownSR.Location,
 				CaptureTarget = target,
 				Capturer = capturer,
@@ -870,8 +920,24 @@ namespace OpenRA.Mods.Common.Traits
 					break;
 
 				case CarrierState.Delivering:
-					// Arrived at drop-off?
-					var distToDrop = (carrier.Location - task.DropOff).LengthSquared;
+					// THE BORDER, RE-ASKED. Before the arrival test rather than after it, because the cell
+					// arrival is measured against is the cell we are about to recompute -- testing first
+					// would spend a scan measuring against a destination we already know is superseded.
+					//
+					// AND THE SCAN ENDS IF IT RE-ISSUED, which is not tidiness: bot orders are BATCHED and
+					// resolve on a later tick, so the carrier is still IsIdle on this one. Falling through
+					// would find it idle and short of the brand-new destination, and the idle-recovery
+					// branch below would queue a second Move to the same cell in the same tick -- doubling
+					// the module's order count and hiding exactly the churn the scenario budget measures.
+					if (Info.BorderStagingEnabled && UpdateDeliveryStaging(bot, task))
+						break;
+
+					// Arrived at drop-off? Against the cell actually ORDERED, which is the objective in
+					// every ordinary match and a near-side staging cell while the border stands. Measuring
+					// against task.DropOff here is the defect this pair of fields exists to close: the
+					// carrier would be sitting on the cell it was sent to and still be told it had not
+					// arrived.
+					var distToDrop = (carrier.Location - task.OrderedDropOff).LengthSquared;
 
 					// A carrier that is idle short of its drop has lost its Move and, since Delivering has no
 					// timeout, would sit there loaded for the rest of the match. That happens for real: a
@@ -884,8 +950,9 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						Log.Write("debug",
 							$"[exp-transport] delivery-move-reissued player={player.PlayerName} " +
-							$"carrier={carrier.Info.Name}@{carrier.Location} drop={task.DropOff} tick={world.WorldTick}");
-						bot.QueueOrder(new Order("Move", carrier, Target.FromCell(world, task.DropOff), false));
+							$"carrier={carrier.Info.Name}@{carrier.Location} drop={task.OrderedDropOff} " +
+							$"objective={task.DropOff} tick={world.WorldTick}");
+						bot.QueueOrder(new Order("Move", carrier, Target.FromCell(world, task.OrderedDropOff), false));
 						break;
 					}
 
@@ -918,7 +985,7 @@ namespace OpenRA.Mods.Common.Traits
 						task.State = CarrierState.Unloading;
 						task.StateChangedAtTick = world.WorldTick;
 						AIUtils.BotDebug("AI ({0}): mounted-transport — {1} unloading at {2}",
-							player.ClientIndex, carrier.Info.Name, task.DropOff);
+							player.ClientIndex, carrier.Info.Name, task.OrderedDropOff);
 					}
 
 					break;
@@ -977,7 +1044,8 @@ namespace OpenRA.Mods.Common.Traits
 						// raises SeatTarget, which would have inflated it further.
 						Log.Write("debug",
 							$"[exp-transport] delivered player={player.PlayerName} carrier={carrier.Info.Name} " +
-							$"at={carrier.Location} drop={task.DropOff} pax={task.PaxAtArrival} target={task.SeatTarget} " +
+							$"at={carrier.Location} drop={task.OrderedDropOff} objective={task.DropOff} " +
+							$"pax={task.PaxAtArrival} target={task.SeatTarget} " +
 							$"ferry={task.CaptureTarget != null} tick={world.WorldTick}");
 					}
 					else if (Info.UnloadOnArrival && carrier.IsIdle && cargo.CanUnload())
@@ -1119,16 +1187,137 @@ namespace OpenRA.Mods.Common.Traits
 
 		void LaunchDelivery(IBot bot, CarrierTask task)
 		{
+			// Stage the FIRST delivery order against the border too, not just the re-issues. Launching at
+			// the objective and letting the recovery path below correct it would spend a whole ScanInterval
+			// on an order Mobile.ResolveOrder already refused, and would log a `delivery-move-reissued` for
+			// a delivery that had never moved at all.
+			var drop = task.DropOff;
+			if (Info.BorderStagingEnabled && !TryStageDropForBorder(task.Carrier, task.DropOff, task.Return, out drop))
+			{
+				// No legal cell on our own side. In practice unreachable — the line walk ends at the
+				// carrier's OWN cell, which is standable for it by construction — so this is the carrier
+				// already sitting beyond the border, which nothing here can fix and which
+				// DefconWallTurnBack owns for the actors that can get there. Fall through to the same
+				// place a refused order lands: stay in Loading, let LoadingTimeoutTicks decide.
+				Log.Write("debug",
+					$"[exp-transport] delivery-unstageable player={player.PlayerName} " +
+					$"carrier={task.Carrier.Info.Name}@{task.Carrier.Location} drop={task.DropOff} " +
+					$"tick={world.WorldTick}");
+				return;
+			}
+
 			// Same rule, and this is the worse case: the carrier is LOADED. Staying in Loading means the
 			// existing LoadingTimeoutTicks path retries and can still release the passengers; advancing to
 			// Delivering without a move would strand them aboard permanently.
-			if (!bot.QueueOrder(new Order("Move", task.Carrier, Target.FromCell(world, task.DropOff), false)))
+			if (!bot.QueueOrder(new Order("Move", task.Carrier, Target.FromCell(world, drop), false)))
 				return;
 
+			task.OrderedDropOff = drop;
 			task.State = CarrierState.Delivering;
 			task.StateChangedAtTick = world.WorldTick;
+
+			if (drop != task.DropOff)
+				Log.Write("debug",
+					$"[exp-transport] delivery-staged player={player.PlayerName} " +
+					$"carrier={task.Carrier.Info.Name}@{task.Carrier.Location} " +
+					$"objective={task.DropOff} staged={drop} tick={world.WorldTick}");
+
 			AIUtils.BotDebug("AI ({0}): mounted-transport — {1} delivering {2} pax to {3}",
-				player.ClientIndex, task.Carrier.Info.Name, task.Carrier.Trait<Cargo>().PassengerCount, task.DropOff);
+				player.ClientIndex, task.Carrier.Info.Name, task.Carrier.Trait<Cargo>().PassengerCount, drop);
+		}
+
+		/// <summary>"Is this cell on the far side of the DEFCON 3 border for US" — or null when there is no
+		/// border to respect (lever off, no wall trait, Skirmish, or a level the wall does not stand at).
+		/// Null is the value <see cref="BotTerrain.TryStageOnNearSide"/> treats as "no line", so callers
+		/// route through it unconditionally. Mirrors PoiOffensiveBotModule's predicate of the same name --
+		/// the two ask the SAME trait the same question, and the geometry lives in neither of them.</summary>
+		Func<CPos, bool> BorderPredicate()
+		{
+			if (!defconWallResolved)
+			{
+				defconWall = world.WorldActor.TraitOrDefault<DefconWall>();
+				defconWallResolved = true;
+			}
+
+			if (defconWall == null || !defconWall.IsActive)
+				return null;
+
+			return c => defconWall.IsBeyondWall(player, c);
+		}
+
+		/// <summary>The cell to actually order <paramref name="carrier"/> to, given the drop-off this module
+		/// picked. Identity while the border is down; a staging cell on our own side of it while it stands
+		/// between the carrier and the objective. False means no legal cell was found and the caller must
+		/// issue NO order — never a doomed one.
+		///
+		/// <para>THE WALK IS ANCHORED AT <paramref name="laneOrigin"/> — the task's Return cell, i.e. the
+		/// Supply Route the delivery set out from — AND NOT AT THE CARRIER'S LIVE POSITION, which is the
+		/// difference between a stable staging cell and a second churn loop. <see cref="BotTerrain.TryStageOnNearSide"/>
+		/// walks back from the objective to the first cell on our side, so the answer is where the segment
+		/// crosses the border; feeding it a position that MOVES makes that crossing point slide laterally on
+		/// every scan as the carrier converges, and each slide is another re-issued Move — the exact failure
+		/// being fixed, one order per scan quieter. Anchored at the lane's fixed origin the staged cell is a
+		/// pure function of (objective, border, SR), none of which move while the wall stands, so a carrier
+		/// driving toward it recomputes the identical cell every scan and the equality guard in
+		/// <see cref="UpdateDeliveryStaging"/> issues nothing. It is also the cell the helper's own
+		/// documentation argues for: the place on the lane the delivery will resume along when the border
+		/// opens, rather than the shortest way out of a violation.</para>
+		///
+		/// <para>The SR is on our own side by construction — the derived line is the perpendicular bisector
+		/// of the two sides' homes (DefconWall.cs:387-404) — so the "mover is already beyond" refusal inside
+		/// the helper is unreachable here for a shipped map.</para>
+		///
+		/// <para>THE CLAMP RADIUS IS <see cref="BotTerrain.EngineRelocationCells"/> AND NOT
+		/// <c>DropOffArrivalRadius</c>, for the reason <see cref="PickDropOffCell"/> states at length: the
+		/// engine relocates a destination by up to 10 cells and the arrival test only reaches 3, so a cell
+		/// this module clamps less far than the engine would is a cell the carrier gets parked away from and
+		/// can never report arriving at. Same radius here means the staged cell and the engine's cell are
+		/// the same cell.</para></summary>
+		bool TryStageDropForBorder(Actor carrier, CPos ideal, CPos laneOrigin, out CPos cell)
+		{
+			return BotTerrain.TryStageOnNearSide(ideal, laneOrigin, BorderPredicate(),
+				BotTerrain.EngineRelocationCells, world.Map.Contains, BotTerrain.PassableFor(carrier), out cell);
+		}
+
+		/// <summary>Re-derive the delivery destination against the border, every scan a carrier is in flight,
+		/// and re-issue the move when it has genuinely changed. Returns true when an order was actually
+		/// queued, which the caller uses to end the scan rather than measure arrival against a destination
+		/// the carrier has not been told about yet. This is the whole of what makes the border
+		/// coming down self-healing, and it deliberately does not subscribe to anything.
+		///
+		/// <para>THERE IS NO SIGNAL TO HOOK. <see cref="CrossingMap.Invalidate"/> — the notification
+		/// <see cref="DefconWall"/> does fire when the wall moves — is not a push to modules at all: it
+		/// clears a flag so that whichever module queries NEXT rebuilds lazily on its own synced cadence
+		/// (CrossingMap.cs:544-556). This is that same shape. The staging clamp becomes the identity the
+		/// moment the wall is down, the recomputed cell therefore differs from the one last ordered, and the
+		/// delivery re-issues itself — no edge to detect, and nothing to go stale if an edge were missed.</para>
+		///
+		/// <para>THE EQUALITY TEST IS THE CHURN GUARD. While the wall stands the staged cell is a pure
+		/// function of the objective, the border and the carrier's position, and the first two do not move —
+		/// so a carrier converging on its staging cell recomputes the same answer every scan and this issues
+		/// nothing. That is what keeps the fix from replacing one re-issue loop with another.</para></summary>
+		bool UpdateDeliveryStaging(IBot bot, CarrierTask task)
+		{
+			if (!TryStageDropForBorder(task.Carrier, task.DropOff, task.Return, out var staged) || staged == task.OrderedDropOff)
+				return false;
+
+			// Refused by the arbitration gate: leave OrderedDropOff alone so the next scan tries the same
+			// re-stage again, and report false so this scan still runs the ordinary arrival test against
+			// the destination that IS standing.
+			if (!bot.QueueOrder(new Order("Move", task.Carrier, Target.FromCell(world, staged), false)))
+				return false;
+
+			Log.Write("debug",
+				$"[exp-transport] delivery-restaged player={player.PlayerName} " +
+				$"carrier={task.Carrier.Info.Name}@{task.Carrier.Location} objective={task.DropOff} " +
+				$"was={task.OrderedDropOff} now={staged} " +
+				$"border={(BorderPredicate() != null ? "up" : "down")} tick={world.WorldTick}");
+
+			// StateChangedAtTick is deliberately NOT touched: the destination changed, the STATE did not.
+			// It is read only by the Loading timeout (:872), so writing it here would be inert today and
+			// would silently reset a Delivering timeout the moment anyone added one.
+			task.OrderedDropOff = staged;
+			return true;
 		}
 
 		/// <summary>The passenger-pool gate, lifted out of TryAssignNewTasks so the mid-load top-up recruits
@@ -1346,6 +1535,7 @@ namespace OpenRA.Mods.Common.Traits
 					Carrier = carrier,
 					State = CarrierState.Loading,
 					DropOff = dropOff.Value,
+					OrderedDropOff = dropOff.Value,
 					Return = srCell,
 					StateChangedAtTick = world.WorldTick,
 					LastProgressTick = world.WorldTick,
