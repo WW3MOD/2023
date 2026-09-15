@@ -10,7 +10,17 @@ Tileset: TEMPERAT
 
 MapSize: 98,82
 
-Bounds: 0,0,98,82
+# A 1-CELL CORDON ON ALL FOUR SIDES, AND IT IS NOT COSMETIC. Bounds 0,0,98,82 made the playable
+# area equal the whole map, which the map lint rejects outright: "This map does not define a
+# valid cordon." The terrain here was copied from test-drone-lost-track, which carries the same
+# inherited full-map Bounds and a lint-baseline line for it; a NEW scenario does not get to
+# inherit that dispensation, so this one is fixed rather than baselined.
+# Nothing here moves as a result. The border cells are x=0, x=97, y=0 and y=81, and every actor
+# on this map -- both SRs and spawns (14,45 / 80,35), the operator (18,45) and the two
+# script-created drones (29,45 / 31,45) -- sits at least 16 cells from the nearest new edge. The
+# 11c/13c bracket is measured cell-to-cell between the operator and the drones and is untouched
+# by where the playable area ends.
+Bounds: 1,1,96,80
 
 Visibility: MissionSelector
 
