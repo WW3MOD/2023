@@ -101,6 +101,40 @@ WorldLoaded = function()
 		return true
 	end
 
+	-- The ticks left on a `charging:<n>` reading, or nil for any other token.
+	local function chargingTicks(player, key)
+		local got = state(player, key)
+		if got:sub(1, 9) ~= "charging:" then
+			return nil
+		end
+
+		return tonumber(got:sub(10))
+	end
+
+	-- TWO PLAYERS ON ONE SIDE MUST CARRY THE SAME NUMBER. A side cooldown is ONE clock; two
+	-- teammates reading different values means each is on a timer of its own, which is the per-power
+	-- economy v2 replaced. Compared against each other rather than against a tick count computed
+	-- here, so the assertion needs no arithmetic about when the shot happened.
+	local function expectSameCooldown(aPlayer, aWho, aKey, bPlayer, bWho, bKey, why)
+		local a = chargingTicks(aPlayer, aKey)
+		local b = chargingTicks(bPlayer, bKey)
+
+		if a == nil or b == nil then
+			fault("%s's %s reads %q and %s's %s reads %q; both must be `charging:<ticks>` for the"
+				.. " side-cooldown comparison to mean anything. %s",
+				aWho, aKey, state(aPlayer, aKey), bWho, bKey, state(bPlayer, bKey), why)
+			return false
+		end
+
+		if math.abs(a - b) > 3 then
+			fault("%s's %s has %d ticks left but %s's %s has %d -- one side, one cooldown, so these"
+				.. " must agree. %s", aWho, aKey, a, bWho, bKey, b, why)
+			return false
+		end
+
+		return true
+	end
+
 	local function verdict()
 		local summary = string.format(
 			"fire=%q | USA b61=%s 9m729=%s | Volga 9m729=%s b61=%s | Enemy 9m729=%s | %s",
@@ -172,11 +206,33 @@ WorldLoaded = function()
 		end
 
 		-- ---- PHASE C. THE WHOLE SIDE WENT ON THE CLOCK. The whole scenario.
+		--
+		-- ==== THE FIRER'S OWN READING IS NOT EVIDENCE FOR SetSideCooldown, AND THAT COST A RED ====
+		-- ESTABLISHED 2026-09-15 by a sabotage that should have failed this file and did not: with
+		-- SetSideCooldown skipping every player but the side's first combatant -- which on this map
+		-- is VOLGA, not USA (debug.log: `Volga(1), Enemy(2), USA(1)`) -- all three readings below
+		-- still passed.
+		--
+		-- THE CAUSE IS THE ENGINE, NOT THE TRAIT. SupportPowerInstance.Activate assigns
+		-- `remainingSubTicks = TotalTicks * 100` to the power that FIRED, immediately after calling
+		-- into MissileStrikePower (SupportPowerManager.cs). So the fired cameo goes on a clock whether
+		-- or not this mod's trait touched it -- and the number is the same either way, because the
+		-- side cooldown for a launch at band B and that power's own constructed interval are THE SAME
+		-- TABLE ENTRY. There is no configuration of this scenario in which USA's own B61 can tell the
+		-- two writes apart.
+		--
+		-- SO VOLGA'S READING IS THE ONLY LOAD-BEARING ONE IN THIS FILE, and any RED aimed at
+		-- SetSideCooldown must skip VOLGA specifically -- skipping the firer is invisible by
+		-- construction. USA's reading below is kept because it is still worth knowing the firer is on
+		-- a clock at all (a `hidden` there is the purchase economy leaking back in), but it proves
+		-- nothing about the side-wide rule on its own.
 		if tick == SIDE_CHECK_TICK then
 			local ok = expectCharging(USA, "USA", USA_1KT,
-				"USA fired its own B61 and its side must be on cooldown. `ready` means firing cost"
-				.. " nothing at all; `hidden` means the power is still a BOUGHT power with an empty"
-				.. " magazine and the Escalation free-timer bypass did not apply")
+				"USA fired its own B61 and must be on a clock. NOTE this reading cannot fail for a"
+				.. " SetSideCooldown defect -- SupportPowerInstance.Activate puts the FIRED power on"
+				.. " its own interval regardless -- so `ready` here means something further upstream:"
+				.. " `hidden` means the power is still a BOUGHT power with an empty magazine and the"
+				.. " Escalation free-timer bypass did not apply")
 
 			-- THIS IS THE READING THE SCENARIO EXISTS FOR. Volga did not fire, holds a DIFFERENT
 			-- weapon, and is a DIFFERENT PLAYER -- but is on the same side. Under v1 the cooldown
@@ -188,8 +244,20 @@ WorldLoaded = function()
 				.. " EVERY player on the firing side on the cooldown"
 				.. " (NuclearExchange.SetSideCooldown). `ready` here is the pre-ruling behaviour:"
 				.. " per-power or per-firer regeneration, so a team of two fires twice for one"
-				.. " interval. If USA's own reading above is `ready` too, the write is not running"
-				.. " at all; if only THIS one is `ready`, it is running for the firer only") and ok
+				.. " interval. THIS IS THE READING THE RED MUST TARGET: a sabotage that skips the"
+				.. " FIRER instead is invisible here, because the engine puts the fired power on a"
+				.. " clock by itself (see the note at the top of this phase)") and ok
+
+			-- AND THE TWO MUST CARRY THE SAME NUMBER. One side, one clock. This is what separates
+			-- "the side cooldown reached Volga" from "Volga is on a timer of its own that happens to
+			-- be running" -- the second is the per-power economy v2 replaced, and it would show up
+			-- here as two different remainders. rules.yaml compresses ONLY the 1 kt entry (300) and
+			-- leaves the other three shipped (7000/9000/12000), so a write that indexed the wrong
+			-- band would miss by thousands rather than by a rounding error.
+			ok = expectSameCooldown(USA, "USA", USA_1KT, Volga, "Volga", RU_1KT,
+				"THE TEAMMATES ARE ON SEPARATE CLOCKS. A side cooldown is one number written to every"
+				.. " nuclear power the side holds; two different remainders mean each power kept an"
+				.. " interval of its own") and ok
 
 			-- ==== THE SIDE BOUNDARY, AND IT IS WHY THIS SCENARIO IS A 2v1 =====================
 			-- THE COOLDOWN IS PER SIDE, SO IT MUST STOP AT ONE. Enemy is Team 2 and did not fire;

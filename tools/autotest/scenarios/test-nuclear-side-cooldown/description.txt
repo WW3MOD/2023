@@ -8,10 +8,23 @@ USA fires its 0.3 kt B61 and three things must be true 30 ticks later:
   Volga's 9M729      charging:   a DIFFERENT weapon, on a DIFFERENT player, same side
   Enemy's 9M729      ready       the identical weapon, on Team 2, untouched
 
+THE FIRST READING IS NOT EVIDENCE FOR THE SIDE-WIDE RULE, and that is worth knowing before
+triaging this file. SupportPowerInstance.Activate puts the FIRED power on its own interval by
+itself, immediately after the trait runs -- and on the same number, because a launch at band B and
+that power's own constructed interval are the same table entry. So USA's reading holds whether or
+not SetSideCooldown touched USA. Established 2026-09-15 by a sabotage that skipped every player but
+the side's first combatant -- which on this map is Volga, not USA -- and left this scenario GREEN.
+Volga's reading is the load-bearing one; a RED aimed at SetSideCooldown must skip VOLGA.
+
 The third reading is what makes the second one evidence. On 2026-09-14 this scenario passed while
 all three combatants were keyed onto ONE side -- debug.log read `Volga(1), Enemy(1), USA(1)` -- so
 "the teammate went on cooldown" was trivially true of everybody on the board and nothing in the run
 could tell that apart from the feature working.
+
+A fourth reading added 2026-09-15 pins that USA's and Volga's remainders are EQUAL. One side, one
+clock: two different numbers mean each power kept an interval of its own, which is the per-power
+economy v2 replaced. rules.yaml compresses only the 1 kt entry (300) and leaves the other three
+shipped (7000/9000/12000), so a write that indexed the wrong band misses by thousands.
 
 Then the whole side comes back at once (t480), because a cooldown that never expired would be a
 side permanently disarmed by its own first shot.

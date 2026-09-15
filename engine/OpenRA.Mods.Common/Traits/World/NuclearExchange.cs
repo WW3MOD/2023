@@ -581,6 +581,13 @@ namespace OpenRA.Mods.Common.Traits
 		// runs from MissileStrikePower.Activate, which SupportPowerInstance.Activate calls BEFORE its
 		// own `remainingSubTicks = TotalTicks * 100`. SetCooldown has by then set TotalTicks to this
 		// very value, so both writes assign the same number and the order of the two cannot matter.
+		//
+		// WHICH ALSO MEANS THE FIRED POWER CANNOT TEST THIS LOOP. If this method skipped the firer
+		// entirely, Activate would still put that cameo on a clock, and on the SAME number -- the
+		// side cooldown for a launch at band B and that power's own constructed interval are the same
+		// table entry. A 2026-09-15 RED sweep proved it the hard way: a sabotage skipping every
+		// player but the side's first combatant left test-nuclear-side-cooldown GREEN, because the
+		// one it skipped was the firer. Any test of this loop has to read a NON-FIRING teammate.
 		void SetSideCooldown(int side, int ticks)
 		{
 			foreach (var p in combatants)
@@ -753,22 +760,35 @@ namespace OpenRA.Mods.Common.Traits
 
 				lastSeenLevel[side] = now;
 
-				// ==== THE REQUEST COVERS THE NEWLY GRANTED BANDS ONLY, AND THAT IS NOT A NARROWING ====
-				// FIXED 2026-09-15, after this queued `Kiloton` instead and broke three scenarios.
-				// The reasoning for the wider range was that it "removes a whole class of 'which bands
-				// did this rise touch' reasoning" for the cost of one extra loop. It removed something
-				// else as well: MakeBandsReady's return value is what the RETRY BUDGET keys off, and a
-				// range starting at the bottom always contains a band the side has held since release.
-				// That band arms on the first attempt, the request reports itself finished, and the
-				// band the rise actually granted -- whose condition has not crossed from the player
-				// actor yet -- is never looked at again. It then sits on its own constructed interval
-				// and counts down a cooldown nobody asked for: a 20 kt cameo reading 06:34 on a side
-				// that had fired nothing (demo-defcon-readout frame 08, 2026-09-15).
+				// ==== THE REQUEST COVERS THE NEWLY GRANTED BANDS ONLY ====
+				// THIS IS ONE OF TWO CHANGES THAT FIXED THE 2026-09-15 GRANT DEFECT, AND IT IS NOT
+				// THE ONE DOING THE WORK. Read the pair together or a later reader will revert the
+				// wrong half:
 				//
-				// The wider range was not buying anything either. A band the side ALREADY held is
-				// already carrying the side's cooldown -- SetSideCooldown wrote it to every band, and
-				// SupportPowerInstance.Tick decrements it in step with the state -- so there is nothing
-				// to top up. `before + 1` is the range that needs work, and it is what v1 used.
+				//   the defect was the CONJUNCTION of a range starting at Kiloton AND
+				//   MakeBandsReady reporting itself finished when ANY band was armed.
+				//
+				// A range starting at the bottom always contains a band the side has held since
+				// release; under the old `any` predicate that band armed on the first attempt, the
+				// request reported itself finished, and the band the rise had actually granted --
+				// whose condition has not crossed from the player actor yet -- was never looked at
+				// again. It then sat on its own constructed interval and counted down a cooldown
+				// nobody asked for: a 20 kt cameo reading 06:34 on a side that had fired nothing
+				// (demo-defcon-readout frame 08).
+				//
+				// EITHER HALF ALONE PREVENTS IT, WHICH A RED SWEEP ESTABLISHED RATHER THAN ARGUED.
+				// Restoring `Kiloton` here with GrantSatisfied intact leaves test-nuclear-exchange
+				// GREEN (run 260915_035210), because the new bands are the only ones in a
+				// correctly-scoped range and none of them is armable on the rise tick, so `all` and
+				// `any` agree. Reproducing the defect against current code takes BOTH lines.
+				//
+				// SO WHY KEEP THIS ONE. It is the honest range -- "the bands this rise granted" --
+				// and it keeps the retry loop off bands that need nothing, which matters because a
+				// never-armable power in range (TacNuke with its checkbox off, the wrong faction's
+				// ender) holds the request open for the full budget. A band the side ALREADY held is
+				// already carrying the side's cooldown: SetSideCooldown wrote it to every band and
+				// SupportPowerInstance.Tick decrements it in step with the state, so there is nothing
+				// to top up. Defence in depth on a defect that shipped once, not redundancy to trim.
 				var from = before + 1;
 				if (from < (int)NuclearRung.Kiloton)
 					from = (int)NuclearRung.Kiloton;
@@ -838,10 +858,20 @@ namespace OpenRA.Mods.Common.Traits
 			var techTree = player.PlayerActor?.TraitOrDefault<TechTree>();
 
 			// COUNTED, NOT FLAGGED. `armed >= inRange` is the retry predicate; `armed > 0` was the
-			// bug. A band can hold more than one power for this player -- the event tier puts two
-			// extra game-enders at the top rung, and `powers-sandbox` puts the other faction's whole
-			// ladder alongside its own -- so even a correctly scoped range can contain one power that
-			// arms immediately and one whose condition is still crossing from the player actor.
+			// bug, and this is the half of the 2026-09-15 fix that is actually load-bearing -- see
+			// ReconcileGrants for why the other half is not, and for the RED that needs both.
+			//
+			// IT IS PINNED BY UNIT TEST AND NOT BY A SCENARIO, deliberately, because no scenario in
+			// the tree can discriminate it on today's arsenal: every band a single rise grants has
+			// its condition land on the same player tick, so `all` and `any` agree for a correctly
+			// scoped range. NuclearExchangeStateTest.AGrantIsFinishedOnlyWhenEVERYPowerInRangeIsArmed
+			// goes RED on `armed > 0` in 26 ms; a scenario sweep cannot.
+			//
+			// WHAT IT GUARDS IS A BAND HOLDING TWO POWERS WHOSE GATES DIFFER -- the event tier puts
+			// two extra game-enders at the top rung, `powers-sandbox` puts the other faction's whole
+			// ladder alongside a player's own, and each carries its own lobby condition on top of the
+			// shared release one. They happen to be granted together today. `all` costs one int and
+			// does not depend on that staying true.
 			var inRange = 0;
 			var armed = 0;
 
