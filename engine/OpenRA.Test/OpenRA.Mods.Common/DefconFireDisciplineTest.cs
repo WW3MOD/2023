@@ -10,16 +10,28 @@
 #endregion
 
 /*
- * The DEFCON 2 hold-fire rule: units stop firing autonomously, and every shot becomes one a player
- * gave.
+ * THE TWO DEFCON FIRE RULES.
+ *
+ *   DEFCON 3, "Positioning" -- the total cease-fire. NO weapon fires: not by autotarget, not by a
+ *   player's explicit order, not by force-fire at bare ground. Only an armament that has explicitly
+ *   opted out as not-really-a-weapon still works. Keyed on the ARMAMENT, never on provenance.
+ *
+ *   DEFCON 2, "Weapons free" -- the hold. Units stop firing autonomously and every shot becomes one
+ *   a player gave. Keyed on PROVENANCE, and force-attacks are deliberately exempt.
+ *
+ * They are not one rule at two strengths, and TheTwoRulesDisagreeAboutForceFireOnPurpose pins the
+ * place they diverge: the force-attack that proves a human ordered the shot at DEFCON 2 is the exact
+ * bypass the DEFCON 3 rule exists to close. Unifying the two predicates fails that test.
  *
  * WHAT THIS FIXTURE COVERS AND WHAT IT CANNOT, stated plainly rather than left to be inferred. It
- * covers the PREDICATE -- which levels hold fire, and which shots the hold refuses -- because that is
- * the whole of the decision and it was split into a plain static class precisely so a test could
- * reach it. It does NOT cover the six read sites that consult it: every one lives inside a per-actor
- * trait method, nothing in OpenRA.Test can construct a World, and a thinner test that pretended
- * otherwise would be worse than an honest gap. The six are verified by reading, and the report says
- * so.
+ * covers the PREDICATES -- which levels hold or cease fire, which shots each refuses -- because that
+ * is the whole of both decisions and they were split into a plain static class precisely so a test
+ * could reach them. It does NOT cover the read sites that consult them: every one lives inside a
+ * per-actor trait method, nothing in OpenRA.Test can construct a World, and a thinner test that
+ * pretended otherwise would be worse than an honest gap. They are verified by reading, and the report
+ * says so. For the cease-fire the read sites are Armament.CanFire (the choke point every firing path
+ * converges on) and AttackBase's two order targeters (which refuse the order so the cursor cannot
+ * promise a shot CanFire will decline).
  *
  * THE LOAD-BEARING TEST HERE IS TheRuleIsExpressedInTheEngineOwnProvenanceTest. "A shot somebody
  * gave" already has a definition in this codebase -- AutoTarget.IsAutoAcquiredSource -- and the one
@@ -171,6 +183,144 @@ namespace OpenRA.Test
 			foreach (var source in AllSources)
 				Assert.That(DefconFireDiscipline.Permits(DefconFireDiscipline.HoldFireLevel, source, true), Is.True,
 					$"A force-attack with source {source} was refused at DEFCON 2.");
+		}
+
+		[Test]
+		public void TheCeaseFireAppliesAtExactlyThePositioningRung()
+		{
+			// DEFCON 3 is the positioning phase: units are placing themselves behind a wall and nothing
+			// shoots. 2 is "weapons free but only by order" and 1 is open war, so the total cease-fire
+			// applies at exactly one rung -- and it is NOT the rung the hold-fire rule applies at.
+			Assert.That(DefconFireDiscipline.CeaseFireLevel, Is.EqualTo(3));
+			Assert.That(DefconFireDiscipline.CeaseFireLevel, Is.EqualTo(DefconEscalationState.Ceiling));
+			Assert.That(DefconFireDiscipline.CeaseFireLevel, Is.Not.EqualTo(DefconFireDiscipline.HoldFireLevel));
+
+			Assert.That(DefconFireDiscipline.CeasesFire(3), Is.True, "DEFCON 3 did not cease fire; it is the positioning phase.");
+			Assert.That(DefconFireDiscipline.CeasesFire(2), Is.False, "DEFCON 2 ceased fire outright; it is hold-fire, where ordered shots still land.");
+			Assert.That(DefconFireDiscipline.CeasesFire(1), Is.False, "DEFCON 1 ceased fire; open war is not a ceasefire.");
+		}
+
+		[Test]
+		public void SkirmishNeverCeasesFire()
+		{
+			// The twin of SkirmishHoldsNoFire, and it exists for the same reason: Skirmish is the default
+			// game mode and the user tests from main, so a total cease-fire leaking into it would silence
+			// every weapon in the ordinary game. Driven through the real state machine rather than
+			// asserted against a constant.
+			var state = new DefconEscalationState(DefconGameMode.Skirmish, DefconEscalationState.Ceiling, 1);
+			Assert.That(DefconFireDiscipline.CeasesFire(state.Level), Is.False);
+
+			for (var i = 0; i < 20000; i++)
+			{
+				state.Tick();
+				if (i % 37 == 0)
+					state.ReportCasualty();
+
+				Assert.That(DefconFireDiscipline.CeasesFire(state.Level), Is.False, $"Skirmish ceased fire on tick {i}.");
+
+				foreach (var isInert in new[] { false, true })
+					Assert.That(DefconFireDiscipline.PermitsWeapon(state.Level, isInert), Is.True,
+						$"Skirmish refused a weapon on tick {i} (isInert: {isInert}).");
+			}
+		}
+
+		[Test]
+		public void NothingFiresDuringPositioningExceptWhatOptedOut()
+		{
+			// THE WHOLE RULE, and the reason it takes no AttackSource. At DEFCON 2 the question is who
+			// ordered the shot; here there is no such question, because the answer never changes the
+			// outcome. An ordered attack, an attack-move contact shot and a force-fire at bare ground are
+			// all refused identically -- force-fire being the one the rule exists to close, since the
+			// DEFCON 2 predicate deliberately exempts it.
+			const int Positioning = DefconFireDiscipline.CeaseFireLevel;
+
+			Assert.That(DefconFireDiscipline.PermitsWeapon(Positioning, false), Is.False,
+				"A weapon fired during Positioning; no weapon may.");
+
+			Assert.That(DefconFireDiscipline.PermitsWeapon(Positioning, true), Is.True,
+				"An inert armament was silenced during Positioning; the carve-out is what lets a medic heal and a drone launch.");
+		}
+
+		[Test]
+		public void TheTwoRulesDisagreeAboutForceFireOnPurpose()
+		{
+			// THE ANTI-CONFLATION TEST. These two rules are not the same rule at different strengths, and
+			// the single sharpest difference is force-fire: at DEFCON 2 a force-attack is the clearest
+			// evidence a human ordered the shot and it is exempt, while at DEFCON 3 it is the documented
+			// bypass -- force-fire at bare ground needs no target actor, so anything keyed on provenance
+			// waves it straight through. If a future edit ever unifies these predicates, this fails.
+			Assert.That(DefconFireDiscipline.Permits(DefconFireDiscipline.HoldFireLevel, AttackSource.Default, true), Is.True,
+				"DEFCON 2 refused a force-attack; that phase is 'free to strike, but only by direct order'.");
+
+			Assert.That(DefconFireDiscipline.PermitsWeapon(DefconFireDiscipline.CeaseFireLevel, false), Is.False,
+				"DEFCON 3 let a shot through; nothing fires during Positioning, however it was ordered.");
+
+			// And the rungs themselves must not collide, which is what keeps each rule confined to one phase.
+			Assert.That(DefconFireDiscipline.HoldsFire(DefconFireDiscipline.CeaseFireLevel), Is.False);
+			Assert.That(DefconFireDiscipline.CeasesFire(DefconFireDiscipline.HoldFireLevel), Is.False);
+		}
+
+		[Test]
+		public void EveryLevelButPositioningFiresFreely()
+		{
+			// Outside the one ceased rung the weapon predicate must be transparent whether or not the
+			// armament opted out -- this is what makes the carve-out flag inert at DEFCON 2, at DEFCON 1
+			// and outside the mode, so a `FiresDuringCeaseFire` armament is an ORDINARY armament
+			// everywhere except during Positioning.
+			var levels = new[] { DefconEscalationState.NoLevel, DefconEscalationState.Floor, DefconFireDiscipline.HoldFireLevel };
+
+			foreach (var level in levels)
+				foreach (var isInert in new[] { false, true })
+					Assert.That(DefconFireDiscipline.PermitsWeapon(level, isInert), Is.True,
+						$"Level {level} silenced a weapon (isInert: {isInert}).");
+		}
+
+		[Test]
+		public void AnEscalationMatchCeasesFireForExactlyTheOpeningPhase()
+		{
+			// The shipped sequence from the weapon's point of view: silent through the whole opening
+			// phase, then firing for the rest of the match. Note this runs the OPPOSITE way round to
+			// AnEscalationMatchHoldsFireForExactlyTheSecondPhase -- the cease-fire is on at the start and
+			// never comes back, which is what makes it a phase rather than a state.
+			const int ClockTicks = 100;
+			var state = new DefconEscalationState(DefconGameMode.Escalation, DefconEscalationState.Ceiling, ClockTicks);
+
+			Assert.That(DefconFireDiscipline.PermitsWeapon(state.Level, false), Is.False, "The match opened with weapons live.");
+
+			for (var i = 0; i < ClockTicks - 1; i++)
+			{
+				state.Tick();
+				Assert.That(DefconFireDiscipline.CeasesFire(state.Level), Is.True, $"The cease-fire lapsed early, on tick {i + 1}.");
+
+				// The carve-out holds for the whole phase, not just its first tick.
+				Assert.That(DefconFireDiscipline.PermitsWeapon(state.Level, true), Is.True, $"An inert armament was silenced on tick {i + 1}.");
+			}
+
+			Assert.That(state.Tick(), Is.True);
+			Assert.That(DefconFireDiscipline.CeasesFire(state.Level), Is.False, "The 3 -> 2 drop did not end the cease-fire.");
+			Assert.That(DefconFireDiscipline.PermitsWeapon(state.Level, false), Is.True, "Weapons stayed silent past the end of Positioning.");
+
+			// ...and it never comes back, including across the 2 -> 1 casualty drop.
+			Assert.That(state.ReportCasualty(), Is.True);
+			Assert.That(DefconFireDiscipline.PermitsWeapon(state.Level, false), Is.True);
+		}
+
+		[Test]
+		public void SandboxPinnedAtThreeCeasesFire()
+		{
+			// Sandbox pins the level so DEFCON-keyed content is reachable to build and test against. Both
+			// rules are pure functions of the LEVEL rather than of the mode, so a sandbox at 3 is an
+			// actual rehearsal of the positioning phase -- which is the cheapest way to test this feature
+			// by hand.
+			var state = new DefconEscalationState(DefconGameMode.Sandbox, DefconFireDiscipline.CeaseFireLevel, 1);
+
+			for (var i = 0; i < 5000; i++)
+				state.Tick();
+
+			Assert.That(state.Level, Is.EqualTo(DefconFireDiscipline.CeaseFireLevel));
+			Assert.That(DefconFireDiscipline.CeasesFire(state.Level), Is.True);
+			Assert.That(DefconFireDiscipline.PermitsWeapon(state.Level, false), Is.False);
+			Assert.That(DefconFireDiscipline.PermitsWeapon(state.Level, true), Is.True);
 		}
 
 		[Test]

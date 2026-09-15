@@ -123,6 +123,12 @@ namespace OpenRA.Mods.Common.Traits
 		protected INotifyAiming[] notifyAiming;
 		protected Func<IEnumerable<Armament>> getArmaments;
 
+		// THE DEFCON 3 CEASE-FIRE, for the ORDER side of it. Armament.CanFire is what actually stops the
+		// shot; this handle exists so the targeter can refuse the order in the first place rather than
+		// painting an attack cursor over a unit that would accept it and then never fire. TraitOrDefault
+		// for the usual reason: a map that strips DefconEscalation leaves both sites inert.
+		DefconEscalation defconEscalation;
+
 		readonly Actor self;
 
 		bool wasAiming;
@@ -150,8 +156,34 @@ namespace OpenRA.Mods.Common.Traits
 			notifyAiming = self.TraitsImplementing<INotifyAiming>().ToArray();
 
 			getArmaments = InitializeGetArmaments(self);
+			defconEscalation = self.World.WorldActor.TraitOrDefault<DefconEscalation>();
 
 			base.Created(self);
+		}
+
+		/// <summary>Current match DEFCON level, or NoLevel outside the mode.</summary>
+		int DefconLevel => defconEscalation?.Level ?? DefconEscalationState.NoLevel;
+
+		/// <summary><para>Would EVERY armament that could serve this order be silenced by the DEFCON 3
+		/// cease-fire? Used by the order targeter to refuse the order outright, so the cursor does not
+		/// promise a shot that <see cref="Armament.CanFire"/> will decline every tick.</para>
+		///
+		/// <para>ALL rather than ANY, deliberately. A unit carrying one blocked weapon and one carved-out
+		/// one -- the drone operator with its targeter and its jammer, the engineer with a repair arm and
+		/// a mine charge -- must still accept the order its live armament can serve. Refusing on ANY
+		/// would blank the cursor for a unit that can act, which is the mirror of the defect the
+		/// pause-refusal note above describes.</para></summary>
+		bool RefusedByDefconCeaseFire(IEnumerable<Armament> armaments)
+		{
+			if (!DefconFireDiscipline.CeasesFire(DefconLevel))
+				return false;
+
+			// PERF: avoid LINQ .All on a hot cursor path.
+			foreach (var armament in armaments)
+				if (armament.PermittedByDefcon)
+					return false;
+
+			return true;
 		}
 
 		/// <summary>Drop any target this trait is holding that the unit acquired BY ITSELF, leaving
@@ -858,6 +890,13 @@ namespace OpenRA.Mods.Common.Traits
 				if (ordered.TrueForAll(armament => armament.AmmoPool != null && !armament.AmmoPool.HasAmmo))
 					return false;
 
+				// THE DEFCON 3 CEASE-FIRE, ORDER SIDE. Armament.CanFire refuses the shot whatever the
+				// cursor says, so without this the player would get an ordinary attack cursor, click, and
+				// watch the unit close, aim and never fire -- the same "accepted then silently dropped"
+				// defect the border crossing had. Refused here so the cursor never promises it.
+				if (ab.RefusedByDefconCeaseFire(ordered))
+					return false;
+
 				// The activity refuses this order outright when the unit opts into abandon-on-pause, so the
 				// cursor must not promise it. Returning FALSE rather than painting a blocked cursor is the
 				// selection-polarity ruling of 2026-08-30 — show the cursor for the capable and drop the
@@ -904,6 +943,16 @@ namespace OpenRA.Mods.Common.Traits
 
 				var ordered = armaments.OrderByDescending(x => x.MaxRange()).ToList();
 				var a = ordered.FirstOrDefault(x => !x.IsTraitPaused) ?? ordered[0];
+
+				// THE DEFCON 3 CEASE-FIRE, AND THIS IS THE ONE THAT MATTERS MOST. Force-fire at bare
+				// ground is the deliberate bypass of a rule keyed on provenance: there is no target actor
+				// to test relationships against, ChooseArmamentsForTarget's terrain rejection is skipped
+				// precisely BECAUSE forceAttack is true (:442-443), and a player holding Ctrl can drop
+				// shells across the border onto cells nobody is standing on. The DEFCON 2 rule exempts
+				// force-attacks by design; at DEFCON 3 that exemption is the hole, so this path is
+				// refused on exactly the same terms as every other.
+				if (ab.RefusedByDefconCeaseFire(ordered))
+					return false;
 
 				// Same refusal as CanTargetActor — force-fire at ground runs the same Attack activity and
 				// is abandoned by the same gate, so it must be answered the same way.
