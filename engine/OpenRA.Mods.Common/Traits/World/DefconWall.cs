@@ -95,6 +95,55 @@ namespace OpenRA.Mods.Common.Traits
 			"whole cell either side.")]
 		public readonly WDist HalfWidth = new WDist(1024);
 
+		// ---- THE BORDER AS A REGION RATHER THAN A LINE ------------------------------------------
+		// A line is the right border on an open map and is what every shipped map gets. It is the
+		// WRONG border on a map whose natural division is a river: the bisector ignores the water and
+		// cuts across it at whatever angle the spawns happen to imply. The two fields below let a map
+		// author the border as a SET OF CELLS instead -- "every water, river and bridge cell, plus
+		// these" -- which is a set and not a function of position.
+		//
+		// PRECEDENCE, AND IT IS EXPLICIT BECAUSE THREE THINGS NOW COMPETE:
+		//   1. A REGION WINS over everything. Either field below being non-empty selects the region
+		//      path, and neither Start/End nor DeriveFromSpawns is consulted at all.
+		//   2. An authored Start/End beats DeriveFromSpawns, exactly as it always has.
+		//   3. DeriveFromSpawns is the fallback, and is what world.yaml switches on.
+		// A REGION THAT DIVIDES NOTHING DOES NOT FALL BACK TO A LINE. It logs and the wall stays
+		// down. Falling back would hand a map author who believed they had a river border a straight
+		// line cutting across it, which is the one outcome worse than no border -- the same ruling
+		// DeriveFromSpawns makes for a three-way free-for-all.
+
+		[Desc("Terrain type names that make up the border, e.g. `Water, River, Bridge`. Every cell of",
+			"one of these types becomes part of the border while the wall stands, exactly as the band",
+			"cells of a line do: impassable to ground units and forbidden to aircraft on both sides.",
+			"Resolved against the tileset's own type list, so an unknown name is ignored rather than",
+			"throwing -- the four shipped tilesets do not all carry the same types.",
+			"",
+			"EMPTY BY DEFAULT, which together with " + nameof(RegionCells) + " is what keeps every",
+			"shipped map on the line path. Setting either one switches this map to the region path;",
+			"see the precedence note above.",
+			"",
+			"A REGION IS ONLY A BORDER IF IT SEPARATES THE MAP, and terrain alone usually does not:",
+			"a river that stops short of the map edge leaves a land bridge round the end, and the",
+			"cells that close it have to be authored by hand in " + nameof(RegionCells) + ". Check",
+			"with tools/nav-guard/defcon_wall_audit.py --region-terrain, which reports separation per",
+			"LOCOMOTOR -- the answer differs between infantry and vehicles, because a vehicle already",
+			"cannot ford what infantry can walk round.")]
+		public readonly string[] RegionTerrainTypes = Array.Empty<string>();
+
+		[Desc("Individual cells added to the border, on top of whatever " + nameof(RegionTerrainTypes),
+			"selected. This is how a terrain feature that nearly divides the map is closed off at the",
+			"ends, and how a border is drawn on a map with no such feature at all.",
+			"",
+			"A flat comma-separated list of X,Y pairs: `44,0, 44,1, 45,1` is three cells.",
+			"",
+			"DO NOT AUTHOR A ONE-CELL-WIDE DIAGONAL. The same arithmetic that forbids a 512 " +
+			nameof(HalfWidth) + " applies here and for the same reason: cells that touch only at their",
+			"corners do not seal anything, because an 8-connected step goes straight between two of",
+			"them. A hand-drawn diagonal must be two cells wide. This is not theoretical -- a one-cell",
+			"band leaked on 131 map/locomotor combinations when the line shipped that way, and the",
+			"audit tool reports the same failure for a region.")]
+		public readonly CPos[] RegionCells = Array.Empty<CPos>();
+
 		[Desc("Derive the line from where the match's two sides actually start, instead of requiring",
 			"every map to author one. The combatants are split into their two alliance groups, each",
 			"group's centroid home is taken, and the line is the perpendicular bisector of those two",
@@ -218,6 +267,12 @@ namespace OpenRA.Mods.Common.Traits
 		// Nothing may cache a side before that happens -- see the note in WorldLoaded.
 		DefconWallGeometry geometry;
 
+		// THE BORDER AS A SET OF CELLS, or null on every map that uses the line. Non-null means the
+		// region path: `geometry` is then never consulted and is left in whatever state the Info
+		// authored, which for a region map is degenerate. Exactly one of the two is live at a time,
+		// and IsRegion is the single test that decides which -- there is no map with both.
+		DefconWallRegion region;
+
 		// Which half-plane each player's home sits in, resolved once on first ask and then cached.
 		// A player never changes sides: HomeLocation is fixed at match start.
 		readonly Dictionary<Player, int> sides = new Dictionary<Player, int>();
@@ -288,6 +343,15 @@ namespace OpenRA.Mods.Common.Traits
 		// downstream is integer. No shared random is drawn, so every client derives the same line.
 		void IWorldLoaded.WorldLoaded(World w, OpenRA.Graphics.WorldRenderer wr)
 		{
+			// A REGION WINS OVER BOTH THE AUTHORED LINE AND THE DERIVATION, and returns either way:
+			// a region that divides nothing leaves the wall DOWN rather than falling through to a
+			// line. See the precedence note on DefconWallInfo.RegionTerrainTypes for why.
+			if (info.RegionTerrainTypes.Length > 0 || info.RegionCells.Length > 0)
+			{
+				BuildRegion(w);
+				return;
+			}
+
 			// AN AUTHORED LINE WINS. IsDegenerate is exactly "no line was authored", so this is the
 			// override list working: a map that drew its own line never reaches the derivation.
 			if (!info.DeriveFromSpawns || !geometry.IsDegenerate)
@@ -351,6 +415,79 @@ namespace OpenRA.Mods.Common.Traits
 				$"{representatives.Count} group(s): {start} .. {end}.");
 		}
 
+		/// <summary>
+		/// Build the border from the authored terrain types and cells. Runs once, at WorldLoaded, for
+		/// the same ordering reason the derivation does.
+		/// </summary>
+		// THE TERRAIN SCAN IS CrossingMap.ComputeWaterCells's, not a second one. Resolve the authored
+		// type NAMES against the tileset's own type list and collect the indices, rather than calling
+		// GetTerrainIndex(string) per name -- that overload THROWS on a type the tileset does not
+		// carry, and the four shipped tilesets do not all carry the same types, so a map authoring
+		// `River` would crash on a tileset that has none.
+		//
+		// IT READS Map.GetTerrainIndex, WHICH IS CustomTerrain-AWARE, AND THAT IS SAFE HERE ONLY
+		// BECAUSE OF WHEN THIS RUNS. WorldLoaded is before the wall has ever been raised, so no cell
+		// carries a Wall override yet and what this reads is the map's own terrain. Re-running it
+		// while the wall stood would read the wall back in as border terrain and grow it every time.
+		// It is built ONCE and never rebuilt, which is also what makes the labels stable for the
+		// whole match.
+		void BuildRegion(World w)
+		{
+			var cells = new List<CPos>();
+
+			if (info.RegionTerrainTypes.Length > 0)
+			{
+				var indices = new HashSet<byte>();
+				var types = w.Map.Rules.TerrainInfo.TerrainTypes;
+				for (var i = 0; i < types.Length; i++)
+					if (Array.IndexOf(info.RegionTerrainTypes, types[i].Type) >= 0)
+						indices.Add((byte)i);
+
+				if (indices.Count > 0)
+					foreach (var cell in w.Map.AllCells)
+						if (w.Map.Contains(cell) && indices.Contains(w.Map.GetTerrainIndex(cell)))
+							cells.Add(cell);
+			}
+
+			// Authored cells are added unconditionally, INCLUDING cells outside Bounds. That is how
+			// the border ring gets closed: the river reaches the map edge but the playable Bounds stop
+			// one cell short, and a border that stopped at Bounds would leave a one-cell seam.
+			foreach (var cell in info.RegionCells)
+				cells.Add(cell);
+
+			var bounds = w.Map.Bounds;
+
+			// PASSABILITY HERE IS `Map.Contains` AND NOTHING ELSE, which is a deliberate limit rather
+			// than an oversight. Whether a given cell is passable is a property of a LOCOMOTOR, and
+			// this is a World-actor trait that would have to pick one arbitrarily -- infantry can walk
+			// where a tank cannot, so a component labelling built on either one is wrong for the
+			// other. What this labelling therefore answers is "are these cells joined by open map",
+			// which is the weakest and safest reading: it never claims a separation the terrain does
+			// not provide. Per-locomotor separation is checked statically instead, by
+			// tools/nav-guard/defcon_wall_audit.py, which is where per-locomotor truth belongs.
+			region = new DefconWallRegion(bounds.Left, bounds.Top, bounds.Width, bounds.Height,
+				cells, c => w.Map.Contains(c));
+
+			sides.Clear();
+
+			if (region.IsDegenerate)
+			{
+				// Same ruling as a three-way free-for-all deriving no line: no border is visibly wrong
+				// and therefore fixable, a border that claims to divide the map and does not is not.
+				Log.Write("debug", $"DEFCON wall: the authored region covers {region.BlockedCells.Count} " +
+					$"cell(s) and leaves the map in {region.ComponentCount} piece(s); it divides nothing, " +
+					"so the wall stays down.");
+				region = null;
+				return;
+			}
+
+			Log.Write("debug", $"DEFCON wall region: {region.BlockedCells.Count} border cell(s), " +
+				$"{region.ComponentCount} component(s).");
+		}
+
+		/// <summary>True on a map that authored a region; false on every map that uses the line.</summary>
+		bool IsRegion => region != null;
+
 		void ITick.Tick(Actor self)
 		{
 			Apply();
@@ -360,7 +497,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			// Polling one int per tick on the World actor, for the same reason
 			// GrantConditionOnDefconLevel polls: no creation-order dependency, and no edge to miss.
-			var wanted = !geometry.IsDegenerate
+			var wanted = (IsRegion || !geometry.IsDegenerate)
 				&& escalation != null
 				&& escalation.Level != DefconEscalationState.NoLevel
 				&& info.ActiveLevels.Contains(escalation.Level);
@@ -379,14 +516,29 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var terrainIndex = world.Map.Rules.TerrainInfo.GetTerrainIndex(info.TerrainType);
 
-			foreach (var cell in world.Map.AllCells)
+			// THE REGION PATH WALKS ITS OWN CELL SET RATHER THAN THE MAP. `overwritten` was already a
+			// free-form cell -> previous-byte dictionary and nothing downstream requires its keys to
+			// have come from a line, so both paths converge here and everything after this point --
+			// the restore, the renderer, the CrossingMap invalidation -- is shared unchanged.
+			if (IsRegion)
 			{
-				var centre = world.Map.CenterOfCell(cell);
-				if (!geometry.IsInWallBand(centre.X, centre.Y))
-					continue;
+				foreach (var cell in region.BlockedCells)
+				{
+					overwritten[cell] = world.Map.CustomTerrain[cell];
+					world.Map.CustomTerrain[cell] = terrainIndex;
+				}
+			}
+			else
+			{
+				foreach (var cell in world.Map.AllCells)
+				{
+					var centre = world.Map.CenterOfCell(cell);
+					if (!geometry.IsInWallBand(centre.X, centre.Y))
+						continue;
 
-				overwritten[cell] = world.Map.CustomTerrain[cell];
-				world.Map.CustomTerrain[cell] = terrainIndex;
+					overwritten[cell] = world.Map.CustomTerrain[cell];
+					world.Map.CustomTerrain[cell] = terrainIndex;
+				}
 			}
 
 			Log.Write("debug", $"DEFCON wall raised over {overwritten.Count} cells.");
@@ -437,6 +589,15 @@ namespace OpenRA.Mods.Common.Traits
 					},
 					info.BandColor);
 			}
+
+			// A REGION HAS NO CENTRE LINE AND NO NORMAL, so the line and its hatching are skipped and
+			// the band fill above is the whole picture. This is a real loss -- the hatching is what
+			// makes a line read as a RULE rather than as terrain -- but a region authored from terrain
+			// is already drawn as terrain the player recognises (a river reads as a river), and
+			// inventing a centre line through a bending border would point somewhere false. Stated
+			// rather than silently skipped: this is the one visual difference between the two paths.
+			if (IsRegion)
+				yield break;
 
 			// The line is infinite and the map is not. Drawing between the authored endpoints would
 			// streak an annotation hundreds of cells into the black past the map edge, because the
@@ -501,16 +662,30 @@ namespace OpenRA.Mods.Common.Traits
 			TextNotificationsManager.AddTransientLine(owner, info.CrossingRefusedTextNotification);
 		}
 
+		// THE TWO PATHS USE DIFFERENT SENTINELS FOR "no side", and they must not be interchanged:
+		// the line's NoSide is 0, the region's Unlabelled is -1, and the region's component ids START
+		// at 0. Sharing a sentinel would make the region's first component indistinguishable from a
+		// player with no side at all.
+		int NoSideValue => IsRegion ? DefconWallRegion.Unlabelled : DefconWallGeometry.NoSide;
+
 		int SideFor(Player player)
 		{
 			if (player == null)
-				return DefconWallGeometry.NoSide;
+				return NoSideValue;
 
 			if (sides.TryGetValue(player, out var side))
 				return side;
 
-			var home = world.Map.CenterOfCell(player.HomeLocation);
-			side = geometry.SideOf(home.X, home.Y);
+			// The region is labelled per CELL, so the home cell is asked directly -- no round trip
+			// through CenterOfCell, which the line needs only because it is world-unit arithmetic.
+			if (IsRegion)
+				side = region.SideOf(player.HomeLocation);
+			else
+			{
+				var home = world.Map.CenterOfCell(player.HomeLocation);
+				side = geometry.SideOf(home.X, home.Y);
+			}
+
 			sides.Add(player, side);
 			return side;
 		}
@@ -524,6 +699,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (!active)
 				return false;
 
+			if (IsRegion)
+				return region.IsBeyond(SideFor(player), world.Map.CellContaining(pos));
+
 			return geometry.IsBeyond(SideFor(player), pos.X, pos.Y);
 		}
 
@@ -531,6 +709,9 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (!active)
 				return false;
+
+			if (IsRegion)
+				return region.IsBeyond(SideFor(player), cell);
 
 			var centre = world.Map.CenterOfCell(cell);
 			return geometry.IsBeyond(SideFor(player), centre.X, centre.Y);
@@ -540,10 +721,19 @@ namespace OpenRA.Mods.Common.Traits
 		/// How far past the line this position is, in world units; negative on the player's own side.
 		/// The turn-back layer uses the negative range to react BEFORE the line is reached.
 		/// </summary>
+		// ON THE REGION PATH THIS IS DISTANCE TO THE BORDER, NOT PERPENDICULAR DISTANCE TO A LINE.
+		// The sign convention, the units and the "negative at home" contract the turn-back layer's
+		// margin arithmetic depends on are all identical; what differs is that the magnitude is an
+		// 8-connected cell distance to the nearest border cell, because a region has no perpendicular.
+		// DefconWallTurnBack is therefore answered PROPERLY rather than degraded -- see the header of
+		// DefconWallRegion for why a distance transform was chosen over failing loudly.
 		public long DepthBeyondWall(Player player, WPos pos)
 		{
 			if (!active)
 				return long.MinValue / 4;
+
+			if (IsRegion)
+				return region.DepthBeyond(SideFor(player), pos.X, pos.Y);
 
 			return geometry.DepthBeyond(SideFor(player), pos.X, pos.Y);
 		}
@@ -557,7 +747,15 @@ namespace OpenRA.Mods.Common.Traits
 		public WPos NearestPositionOnOwnSide(Player player, WPos pos, WDist clearance)
 		{
 			var side = SideFor(player);
-			var normal = geometry.NormalTowards(side);
+
+			// THE REGION'S NORMAL DEPENDS ON WHERE YOU ASK FROM, which is the one structural
+			// difference between the two paths and is what a border that bends requires: it is the
+			// steepest-descent direction of the transform toward the player's own component, i.e. the
+			// way home from HERE rather than a constant perpendicular. The travel arithmetic below is
+			// shared unchanged, because both normals are scaled to about one cell.
+			var normal = IsRegion
+				? region.NormalTowards(side, pos.X, pos.Y)
+				: geometry.NormalTowards(side);
 			if (normal.X == 0 && normal.Y == 0)
 				return pos;
 
@@ -571,7 +769,9 @@ namespace OpenRA.Mods.Common.Traits
 			// It is kept so that a mis-authored Clearance/Margin pair cannot push an airframe BACKWARDS
 			// across the line it is retreating from, which would be the one failure worse than no
 			// turn-back at all.
-			var depth = geometry.DepthBeyond(side, pos.X, pos.Y);
+			var depth = IsRegion
+				? region.DepthBeyond(side, pos.X, pos.Y)
+				: geometry.DepthBeyond(side, pos.X, pos.Y);
 			var travel = Math.Max(0L, depth + clearance.Length);
 
 			return pos + new WVec((int)(normal.X * travel / 1024), (int)(normal.Y * travel / 1024), 0);
