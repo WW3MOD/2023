@@ -88,7 +88,7 @@ namespace OpenRA.Mods.Common.Traits
 		"",
 		"TWO SOURCES, ONE PER GAME MODE, and they are different mechanisms rather than two settings of",
 		"one: in DEFCON Escalation the band comes from " + nameof(NuclearExchange) + ", which is PER SIDE",
-		"and is armed by BEING FIRED AT; outside it the rung comes from " + nameof(NuclearUnlockClock),
+		"and is RAISED BY BEING FIRED AT; outside it the rung comes from " + nameof(NuclearUnlockClock),
 		", which is a CLOCK and makes bands purchasable on an interval. With neither trait on the World",
 		"actor every band is granted, which is the pre-ladder behaviour.")]
 	public class GrantConditionOnNuclearReleaseInfo : TraitInfo
@@ -208,7 +208,7 @@ namespace OpenRA.Mods.Common.Traits
 			// pre-exchange behaviour to fall back to.
 			var rung = unrestricted
 				? unlockClock?.ReleasedRung ?? NuclearReleaseLadder.Highest
-				: exchange?.ReleasedLevelFor(self.Owner) ?? NuclearReleaseLadder.Lowest;
+				: exchange?.LevelFor(self.Owner) ?? NuclearReleaseLadder.Lowest;
 
 			if (rung == heldRung && unrestricted == heldUnrestricted)
 				return;

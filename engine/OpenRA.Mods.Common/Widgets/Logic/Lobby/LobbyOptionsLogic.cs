@@ -103,17 +103,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			Session.SyncReportsOptionId,
 			// How the match ends, and what it ends with.
 			DoomsdayStrikeInfo.DoomsdayOptionId,
-			// The Escalation feature, all six dropdowns of it, across TWO TRAITS. The pace and the
+			// The Escalation feature, all five dropdowns of it, across TWO TRAITS. The pace and the
 			// nuclear ceiling were retired on 2026-09-13: the pace became an ordinary minutes clock,
-			// and the ceiling went with the host cap the exchange no longer has. The exchange's own
-			// two are here for the same reason the clocks are -- a player who has just been armed
-			// one band up wants to know how long the window is without leaving the match.
+			// and the ceiling went with the host cap the exchange no longer has. The RETALIATION
+			// WINDOW went with exchange v2 on 2026-09-15 -- there is no window left to configure.
+			// The posture is here for the same reason the clocks are: it sets how long a launch
+			// locks a side's whole arsenal out, which is what a player mid-exchange is counting.
 			DefconEscalationInfo.ModeOptionId,
 			DefconEscalationInfo.StartOptionId,
 			DefconEscalationInfo.NoRushOptionId,
 			DefconEscalationInfo.FirstWarheadsOptionId,
 			NuclearExchangeInfo.PostureOptionId,
-			NuclearExchangeInfo.RetaliationWindowOptionId,
 			// Which weapons this match permits — the question most worth being able to
 			// re-read once the shooting starts.
 			"tactical-nuke", "high-yield-nuke", "nuclear-arsenal", "powers-sandbox",
@@ -211,7 +211,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{ DefconEscalationInfo.NoRushOptionId, SectionEscalation },
 			{ DefconEscalationInfo.FirstWarheadsOptionId, SectionEscalation },
 			{ NuclearExchangeInfo.PostureOptionId, SectionEscalation },
-			{ NuclearExchangeInfo.RetaliationWindowOptionId, SectionEscalation },
 
 			// Arsenal — which weapons this match permits, in ascending yield. TWO of these four
 			// now render: `nuclear-arsenal` is hidden at the trait (world.yaml,

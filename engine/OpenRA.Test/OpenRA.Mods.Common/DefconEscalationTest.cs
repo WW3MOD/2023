@@ -142,19 +142,22 @@ namespace OpenRA.Test
 			// dropdown the model has no concept of.
 			Assert.That(options.Any(o => o.Id == "nuclear-ceiling"), Is.False,
 				"the nuclear ceiling is back; the exchange has no host cap and cannot honour one");
-			Assert.That(options.Any(o => o.Id == NuclearExchangeInfo.PostureOptionId
-				|| o.Id == NuclearExchangeInfo.RetaliationWindowOptionId), Is.False,
-				"DefconEscalation declared an exchange option; those belong on NuclearExchange");
+			Assert.That(options.Any(o => o.Id == NuclearExchangeInfo.PostureOptionId), Is.False,
+				"DefconEscalation declared an exchange option; that belongs on NuclearExchange");
 		}
 
 		[Test]
-		public void TheExchangeDeclaresThePostureAndTheRetaliationWindow()
+		public void TheExchangeDeclaresThePostureAndNothingElse()
 		{
+			// EXACTLY ONE OPTION SINCE EXCHANGE v2 (2026-09-15). The retaliation window dropdown went
+			// with the window itself -- there is no grant left whose length a host could set -- and
+			// EquivalentTo rather than Contains is what makes this fail if it is ever re-added by an
+			// edit that did not mean to bring the model back with it.
 			var options = ((ILobbyOptions)new NuclearExchangeInfo()).LobbyOptions(null).ToArray();
 
 			Assert.That(options.Select(o => o.Id), Is.EquivalentTo(new[]
 			{
-				NuclearExchangeInfo.PostureOptionId, NuclearExchangeInfo.RetaliationWindowOptionId
+				NuclearExchangeInfo.PostureOptionId
 			}));
 
 			foreach (var o in options)
@@ -162,19 +165,15 @@ namespace OpenRA.Test
 				Assert.That(o, Is.Not.InstanceOf<LobbyBooleanOption>(), $"{o.Id} would render as a checkbox.");
 				Assert.That(o.Values.ContainsKey(o.DefaultValue), Is.True, $"{o.Id} defaults to a value it does not offer.");
 
-				// NEITHER IS A Placeholder. Nor is any Escalation dropdown since MarkAsPlaceholder
-				// went false with the phase clocks -- so this now asserts the same property the
-				// sibling above does, for the trait that declares the other two.
+				// NOT A Placeholder. Nor is any Escalation dropdown since MarkAsPlaceholder went
+				// false with the phase clocks -- so this asserts the same property the sibling
+				// above does, for the trait that declares the other four.
 				Assert.That(o.Placeholder, Is.False, $"{o.Id} is dimmed but is live.");
 			}
 
 			var posture = options.First(o => o.Id == NuclearExchangeInfo.PostureOptionId);
 			Assert.That(posture.Values.Keys, Is.EquivalentTo(new[] { "limited", "flexible", "massive" }));
 			Assert.That(posture.DefaultValue, Is.EqualTo("flexible"), "Flexible is the identity multiplier and must be the default.");
-
-			var window = options.First(o => o.Id == NuclearExchangeInfo.RetaliationWindowOptionId);
-			Assert.That(window.Values.Keys, Is.EquivalentTo(new[] { "1", "2", "3", "5", "10" }));
-			Assert.That(window.DefaultValue, Is.EqualTo("3"));
 		}
 
 		[Test]

@@ -145,7 +145,21 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string Key;
 
 		public readonly List<SupportPower> Instances = new();
-		public readonly int TotalTicks;
+
+		/// <summary>
+		/// <para>The charge interval this power is counting against, in ticks. 0 for a purchased power,
+		/// which has no timer at all.</para>
+		///
+		/// <para>SETTABLE SINCE THE NUCLEAR EXCHANGE v2, AND ONLY FROM <see cref="SetCooldown"/>. It was
+		/// readonly while every timer was a property of the POWER; Escalation's side cooldown is a
+		/// property of the SIDE and of the band that was fired, so the same 1 kt warhead is on a five
+		/// minute clock after its own shot and a twelve minute one after its team's 100 kt. That cannot
+		/// be expressed by writing <see cref="remainingSubTicks"/> alone: <see cref="Tick"/> clamps the
+		/// countdown to <c>TotalTicks * 100</c> on the very next tick, so a longer value is silently
+		/// truncated -- and the cameo's clock wipe is drawn as a fraction of this, so a countdown that
+		/// did not move it would start the arc part-drawn.</para>
+		/// </summary>
+		public int TotalTicks { get; private set; }
 
 		protected int remainingSubTicks;
 		public int RemainingTicks => remainingSubTicks / 100;
@@ -212,6 +226,29 @@ namespace OpenRA.Mods.Common.Traits
 		public void ResetTimer()
 		{
 			remainingSubTicks = TotalTicks * 100;
+		}
+
+		/// <summary>
+		/// <para>Put this power on a cooldown of exactly <paramref name="ticks"/>, whatever interval it
+		/// was built with. 0 makes it ready on this tick.</para>
+		///
+		/// <para>THE ONE CALLER IS <see cref="NuclearExchange"/>, in DEFCON Escalation, where a nuclear
+		/// power has no interval of its own: what it waits for is its SIDE's cooldown, set by the band
+		/// somebody on that side last fired. Both numbers are written together so the cameo cannot lie
+		/// in either direction -- the countdown under the icon is <see cref="RemainingTicks"/> and the
+		/// clock wipe over it is the ratio to <see cref="TotalTicks"/>, and a caller that moved only one
+		/// of them would draw an arc that disagrees with its own number.</para>
+		///
+		/// <para>IT IS INERT OUTSIDE ESCALATION because nothing else calls it. Skirmish, Sandbox and
+		/// every other mod keep the interval their ChargeInterval gave them, byte for byte.</para>
+		/// </summary>
+		public void SetCooldown(int ticks)
+		{
+			if (ticks < 0)
+				ticks = 0;
+
+			TotalTicks = ticks;
+			remainingSubTicks = ticks * 100;
 		}
 
 		/// <summary>
@@ -306,12 +343,19 @@ namespace OpenRA.Mods.Common.Traits
 			// `Enabled && permitted`. A bank built disabled therefore removes the cameo from the shop
 			// rather than greying it out -- which is the behaviour the ruling asks for, stated once
 			// here instead of as a filter somewhere else that could fall out of step with this line.
-			var escalationRegen = NuclearExchange.EscalationRegenTicks(manager.Self.World, info);
-			var purchased = info.RequiresPurchase && escalationRegen < 0;
+			var escalationCooldown = NuclearExchange.EscalationCooldownTicks(manager.Self.World, info);
+			var purchased = info.RequiresPurchase && escalationCooldown < 0;
 
 			bank = new SupportPowerChargeBank(purchased);
 
-			TotalTicks = purchased ? 0 : (escalationRegen >= 0 ? escalationRegen : info.ChargeInterval);
+			// THE ESCALATION VALUE IS A STARTING POINT, NOT THE INTERVAL THIS POWER WILL USE. In that
+			// mode NuclearExchange rewrites both numbers through SetCooldown on the release edge, on
+			// every level rise and on every launch by this side, because the wait is the SIDE's and not
+			// the power's. This is its own band's cooldown, which is what the first shot at this band
+			// would cost -- a sane value for the window between actor creation and the release grant,
+			// during which the power's band condition is ungranted and Tick pins the countdown to full
+			// anyway.
+			TotalTicks = purchased ? 0 : (escalationCooldown >= 0 ? escalationCooldown : info.ChargeInterval);
 
 			// A FREE NUCLEAR POWER STARTS COLD, not fully charged, and that is not a tax on the player:
 			// its band condition is ungranted until release, and Tick pins remainingSubTicks back to

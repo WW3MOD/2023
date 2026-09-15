@@ -10,63 +10,82 @@
 #endregion
 
 /*
- * THE NUCLEAR EXCHANGE'S WORLD TRAIT -- the per-SIDE state of NuclearExchangeState, the two lobby
- * dropdowns that configure it, and the three things it has to reach out and touch.
+ * THE NUCLEAR EXCHANGE'S WORLD TRAIT -- the per-SIDE state of NuclearExchangeState, the one lobby
+ * dropdown that configures it, and the three things it has to reach out and touch.
  *
  * The rules themselves are in NuclearExchangeState and are verified by unit test without a World.
  * Everything here is the part that needs one: who counts as a side, when the release gate opened,
- * making a granted tier fire-ready, and beginning the final exchange.
+ * putting a side's whole arsenal on one cooldown, and beginning the final exchange.
  *
  * ==== WHY THIS IS A NEW TRAIT AND NOT MORE FIELDS ON DefconEscalation ====
  * DefconEscalation owns the ALERT LEVEL and the clock that walks it down. That is a different
  * question from what each side may fire, it is asked in Skirmish too (where this trait does
- * nothing), and putting the exchange's two dropdowns on DefconEscalationInfo would have put four
- * separate work streams into one option block. The two traits meet at exactly one place: this one
- * polls DefconEscalation.NuclearReleaseOpen, which is still where the release GATE lives.
+ * nothing), and putting the exchange's dropdown on DefconEscalationInfo would have put two separate
+ * work streams into one option block. The two traits meet at exactly one place: this one polls
+ * DefconEscalation.NuclearReleaseOpen, which is still where the release GATE lives.
  *
  * ==== A SIDE IS A TEAM, OR A PLAYER WITH NO TEAM ====
  * Decision 15: exactly two sides. The key is the lobby team number when there is one, and a unique
  * negative derived from the player's index in world.Players when there is not -- so a 1v1 with no
  * teams set is two sides, and a 2v2 is two sides. THIS IS NOT ENFORCED: a lobby with three or more
- * sides logs a warning once and then arms EVERY OTHER SIDE on each launch, which is the honest
+ * sides logs a warning once and then escalates EVERY OTHER SIDE on each launch, which is the honest
  * reading of "the other side" when there is more than one of them. Building enforcement is
  * explicitly out of scope.
  *
- * ==== THE READINESS PROBLEM, AND WHAT THE CODE ACTUALLY SAYS ====
- * The ruling requires the window's Y+1 power to be "ready to fire the instant the window opens".
- * That cannot be left to the ordinary charge machinery, and the reason is in the engine rather than
- * in the design:
+ * ==== v2: A LEVEL RATCHET AND ONE SIDE-WIDE COOLDOWN (2026-09-15) ====
+ * The retaliation window is GONE -- the model, the lobby dropdown, the banner copy and the bot's
+ * reply logic with it. See NuclearExchangeState's header for why it was deleted rather than
+ * lengthened. What this trait now has to make true on screen is two sentences:
  *
+ *     A side's cameos are drawn for every band at or below its LEVEL, and for no band above it.
+ *     All of them are simultaneously dark for the length of its COOLDOWN after any one of them fires.
+ *
+ * The first sentence is the condition layer's, unchanged: GrantConditionOnNuclearRelease reads
+ * LevelFor and grants `nuclear-release-*` cumulatively. The second is this file's, and it is the
+ * part with an engine problem behind it.
+ *
+ * ==== WHY THE COOLDOWN IS WRITTEN ONTO EVERY POWER RATHER THAN GATED ONCE ====
+ * The obvious implementation is a gate: refuse the order while the side is on cooldown. It was
+ * rejected because THE CAMEO'S CLOCK HAS TO BE HONEST. A gate leaves five cameos sitting there
+ * reading READY, and the player finds out they are not by clicking one; the shipped support-power
+ * widget already draws a countdown and a clock wipe, and the cooldown is exactly the number those
+ * are for. So the cooldown is written onto the SupportPowerInstance of every nuclear power the side
+ * holds -- SetSideCooldown -- and the engine draws it with no new widget at all.
+ *
+ * SupportPowerInstance.TotalTicks HAD TO BECOME SETTABLE FOR THAT, and the reason is a clamp rather
+ * than a preference: Tick() pins remainingSubTicks to TotalTicks * 100 on the next tick, so a 1 kt
+ * power built with a five-minute interval silently truncates the twelve-minute cooldown its team's
+ * 100 kt shot just earned. SetCooldown writes both numbers together. See its doc comment.
+ *
+ * ==== AND THE GRANT STILL HAS TO FORCE READINESS, FOR TWO REASONS THAT SURVIVE v2 ====
  *   1. A power gated off by RequiresCondition DOES NOT ACCUMULATE CHARGE. SupportPowerInstance.Tick
- *      recomputes `instancesEnabled = Instances.Any(i => !i.IsTraitDisabled)` and, when it is false,
- *      assigns `remainingSubTicks = TotalTicks * 100` -- i.e. resets the timer to FULL every tick
- *      it is disabled (SupportPowerManager.cs:249-251). So a band that has been dark all match
- *      starts a complete ChargeInterval at the moment it is granted, and a three-minute window
- *      could easily lapse before the power was ever ready.
+ *      recomputes `instancesEnabled` and, when it is false, assigns `remainingSubTicks =
+ *      TotalTicks * 100` -- i.e. resets the timer to FULL every tick it is disabled. So a band that
+ *      has been dark all match starts a complete interval at the moment its level is reached, and a
+ *      side escalated to 50 kt would wait a further cooldown before seeing the cameo it was just
+ *      handed.
+ *   2. ON TODAY'S ARSENAL THERE IS NO NATURAL TIMER AT ALL. Every nuclear power in the mod sets
+ *      RequiresPurchase: True, which would force TotalTicks to 0 and make readiness a question of
+ *      whether a shot has been BOUGHT -- and decision 02 says nothing nuclear is purchasable in this
+ *      mode. EscalationCooldownTicks is the bypass; SupportPowerInstance's constructor is where it
+ *      is applied.
  *
- *   2. ON TODAY'S ARSENAL THERE IS NO TIMER AT ALL. Every nuclear power in the mod sets
- *      RequiresPurchase: True (nuclear-arsenal.yaml:108, :158, :199, :257, :315, :367, :458, :504,
- *      :552, :611), which forces TotalTicks to 0 (SupportPowerManager.cs:229) and makes readiness a
- *      question of whether a shot has been BOUGHT. A retaliation window that only granted permission
- *      would therefore hand the victim a shop entry and a bill, not a reply.
- *
- * So a grant does whichever of the two the power in front of it actually uses -- see
- * SupportPowerInstance.MakeReady. For a purchased power it banks ONE shot AND ONLY WHEN THE
- * BANK IS EMPTY, so repeated hits top the victim up to a single loaded warhead rather than
- * stockpiling them.
+ * So a level rise makes the newly granted bands ready -- AT THE SIDE'S REMAINING COOLDOWN, not at
+ * zero. That qualifier is rule 2 and it is easy to lose: a side that fires a 1 kt and is then hit by
+ * a 20 kt has its level raised WHILE IT IS ON COOLDOWN, and a grant that zeroed the timer would hand
+ * it a free 50 kt shot the cooldown was meant to deny. MakeBandsReady carries it.
  *
  * ==== AND THE TOP RUNG HAS A THIRD GATE THAT IS NOT A TIMER AT ALL (FIXED 2026-09-14) ====
- * The two problems above are about CHARGE, and a grant that solved both still granted a player
- * nothing at the END band for the whole of this trait's life. A user reported it from a real match:
- * the ledger lit the END box and drew its countdown, and no game-ender cameo ever appeared.
+ * A grant that solved both problems above still granted a player nothing at the END band. A user
+ * reported it from a real match: the ledger lit the END box and drew its countdown, and no
+ * game-ender cameo ever appeared.
  *
  * The cause is a PREREQUISITE and not a clock. MakeBandsReady gated on SupportPowerInstance.Permitted,
  * which ANDs `prereqsAvailable`; both shipped national game-enders declare `powers.event`
  * (player.yaml:236-240), which NO faction provides and which exists precisely so a game-ender can
  * never be bought. So the gate was shut, MakeReady -- the one call that clears that flag -- was never
  * reached, and the catch-22 was invisible at every band below the top because each faction owns its
- * own warhead there outright. It was invisible to test-nuclear-exchange too, which sets
- * `PowersSandboxCheckboxEnabled: true` for unrelated reasons and thereby provides `powers.event`.
+ * own warhead there outright.
  *
  * DoomsdayStrike had already met and documented this on the final-exchange path and answered it with
  * OverriddenPrerequisites plus an ownership check; this trait was written later and did not read it.
@@ -74,24 +93,22 @@
  * why the override is scoped to the top rung, why the power's own condition must still hold, and why
  * the FACTION half of a prerequisite is never overridable.
  *
- * NOTHING IS TAKEN BACK WHEN THE WINDOW LAPSES, and that is deliberate rather than an omission.
- * Rule 3 -- "no indefinite grants" -- is already enforced by the CONDITION: when the window closes,
- * GrantConditionOnNuclearRelease revokes the band, SupportPowerInstance.Permitted goes false, and
- * Ready reduces to false with it, so a banked shot at that band cannot be fired. Revoking the
- * charge as well would mean tracking which charges this trait granted and which the player paid
- * for, and getting that wrong would silently confiscate a purchase.
+ * NOTHING IS TAKEN BACK, and under v2 there is nothing to take back: levels never fall, so a band
+ * once granted stays granted for the rest of the match. The revocation path in
+ * GrantConditionOnNuclearRelease is still live and still correct -- it is what keeps a band above
+ * the level dark -- it simply has no falling edge left to run on.
  *
  * ==== DETERMINISM ====
  * Integer arithmetic, no RNG, no wall-clock. Every enumeration is ordered: sides in registration
  * order (NuclearExchangeState.Sides), players in world.Players order, and a player's support powers
- * by ordinal key. The one write that leaves this trait -- MakeReady -- runs from ITick on the
- * World actor, which every client ticks identically, and from ReportLaunch, which is reached only
- * through SupportPowerManager.ResolveOrder and is therefore on the synced order-resolution path
- * (the argument DefconEscalation.ReportNuclearRelease used to carry, unchanged by the move).
+ * by ordinal key. The two writes that leave this trait -- MakeReady and SetCooldown -- run from
+ * ITick on the World actor, which every client ticks identically, and from ReportNuclearRelease,
+ * which is reached only through SupportPowerManager.ResolveOrder and is therefore on the synced
+ * order-resolution path (the argument DefconEscalation.ReportNuclearRelease used to carry,
+ * unchanged by the move).
  */
 
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Traits;
@@ -99,8 +116,8 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[TraitLocation(SystemActors.World)]
-	[Desc("The DEFCON Escalation nuclear exchange: what each SIDE may fire, and the retaliation",
-		"window a side gets for being shot at. Attach to the World actor, alongside",
+	[Desc("The DEFCON Escalation nuclear exchange: what each SIDE may fire, and the side-wide",
+		"cooldown a launch puts that side on. Attach to the World actor, alongside",
 		nameof(DefconEscalation) + ", which owns the release gate this trait polls.",
 		"",
 		"STRICT NO-OP OUTSIDE " + nameof(DefconGameMode.Escalation) + ". In Skirmish and Sandbox the",
@@ -108,12 +125,11 @@ namespace OpenRA.Mods.Common.Traits
 	public class NuclearExchangeInfo : TraitInfo, ILobbyOptions, IRulesetLoaded
 	{
 		public const string PostureOptionId = "nuclear-posture";
-		public const string RetaliationWindowOptionId = "nuclear-retaliation-window";
 
 		[Desc("Label for the nuclear posture dropdown.")]
 		// SENTENCE CASE, like every other lobby label this mod ships -- "Game mode", "Opening phase",
-		// "No-rush period", "First warheads", "Retaliation window", "Nuclear ending". This one read
-		// "Nuclear Posture" until 2026-09-14 and was the only title-cased label among them.
+		// "No-rush period", "First warheads", "Nuclear ending". This one read "Nuclear Posture" until
+		// 2026-09-14 and was the only title-cased label among them.
 		public readonly string PostureLabel = "Nuclear posture";
 
 		[Desc("Tooltip for the nuclear posture dropdown.")]
@@ -121,12 +137,14 @@ namespace OpenRA.Mods.Common.Traits
 		// "Flexible Response" and "Massive Retaliation" -- the Cold War doctrines the three postures are
 		// drawn from -- while the dropdown itself offers "Limited", "Flexible" and "Massive" (see the
 		// posture dictionary below), so the tooltip taught three names a host could not then find.
-		// Aligned onto the shipped values rather than the other way round because the value labels are
-		// what has to fit a dropdown button, and no frame has been captured of this row to size it in.
+		//
+		// IT SAYS "YOUR WHOLE ARSENAL" SINCE v2, because that is what changed: this used to scale four
+		// independent per-band timers, and a host reading "how fast warheads come back" would have
+		// taken it as a per-weapon wait rather than as the single side-wide lockout it now sets.
 		public readonly string PostureDescription =
-			"How fast warheads come back after firing. Limited stretches every nuclear cooldown, " +
-			"so an exchange is a handful of deliberate shots; Flexible leaves them as shipped; " +
-			"Massive shortens them, so a spiral runs to its end quickly.";
+			"How long your whole arsenal is locked out after any nuclear launch. Limited stretches " +
+			"every cooldown, so an exchange is a handful of deliberate shots; Flexible leaves them " +
+			"as shipped; Massive shortens them, so a spiral runs to its end quickly.";
 
 		[Desc("Default nuclear posture.")]
 		public readonly NuclearPosture PostureDefault = NuclearPosture.Flexible;
@@ -140,101 +158,60 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Display order for the nuclear posture dropdown.")]
 		public readonly int PostureDisplayOrder = 24;
 
-		[Desc("Label for the retaliation window dropdown.")]
-		public readonly string RetaliationWindowLabel = "Retaliation window";
-
-		[Desc("Tooltip for the retaliation window dropdown.")]
-		public readonly string RetaliationWindowDescription =
-			"How long a side may answer one band above what it was just hit with. The reply is ready " +
-			"the instant the window opens, and the grant is gone when it closes -- there is no way to " +
-			"hold one back for later.";
-
-		[Desc("Retaliation window lengths offered, in MINUTES.")]
-		public readonly int[] RetaliationWindowOptions = { 1, 2, 3, 5, 10 };
-
-		[Desc("Default retaliation window, in MINUTES. UNTUNED PLACEHOLDER.",
-			"Must be one of " + nameof(RetaliationWindowOptions) + ".")]
-		public readonly int RetaliationWindowDefault = 3;
-
-		[Desc("Whether to show the retaliation window dropdown in the lobby.")]
-		public readonly bool RetaliationWindowVisible = true;
-
-		[Desc("Prevent the retaliation window dropdown from being changed in the lobby.")]
-		public readonly bool RetaliationWindowLocked = false;
-
-		[Desc("Display order for the retaliation window dropdown.")]
-		public readonly int RetaliationWindowDisplayOrder = 25;
-
-		// ==== THE REGENERATION TABLE. UNTUNED PLACEHOLDERS, ALL FOUR. ====
-		// Decision 02: in Escalation a permanent band is a FREE power on a timer, so these are the
-		// whole economy of the mode -- there is no price, no queue and no bank. They rise with the
-		// band because a bigger warhead should be rarer, and the shape (a minute per step) is a round
-		// number nobody has played rather than anything measured.
+		// ==== THE SIDE-COOLDOWN TABLE. USER-RULED 2026-09-15, AND THE NUMBERS ARE THE RULING. ====
+		// "Nukes become rare punctuation; conventional play dominates" -- the user's words after
+		// playing v1, where a side could keep several bands loaded at once and did. These four are
+		// what a launch at that band costs the FIRING SIDE, across every band it holds, and they are
+		// the whole economy of the mode: there is no price, no queue and no bank (decision 02).
 		//
 		// TICKS, AT 60 MS, WRITTEN OUT because this repo has assumed 25 ticks/second at eleven sites
-		// and been wrong at every one: 1000/60 = 16.67 ticks/s, so 3:00 = 180 s = 3000 ticks. The
+		// and been wrong at every one: 1000/60 = 16.67 ticks/s, so 5:00 = 300 s = 5000 ticks. The
 		// identity to check any change against is that a value in ticks divided by 1000 is its length
 		// in minutes at this timestep.
 		//
-		// NUCLEAR POSTURE SCALES ALL FOUR (150 / 100 / 60 %), which is what makes that dropdown a live
-		// lever rather than the inert one it was while every nuclear power was purchased.
+		// NUCLEAR POSTURE SCALES ALL FOUR (150 / 100 / 60 %). At Flexible the slowest exchange
+		// possible is one warhead every five minutes per side; at Massive, one every three.
 		//
-		// ==== A BAND IS A BAND: ONE SHOT PUTS THE WHOLE BAND ON THIS TIMER ====
-		// CORRECTED 2026-09-14, TWICE OVER. This block used to read "EVERY BAND HOLDS TWO OR MORE
-		// POWERS ... nuclear-arsenal.yaml declares NO faction prerequisite for any of its ten
-		// entries, so both sides hold both ladders", and concluded that a side fires a band once
-		// per power in it before anything here starts counting. Both halves were wrong.
+		// ==== A COOLDOWN IS SIDE-WIDE, WHICH IS NOT WHAT THESE FIELDS USED TO MEAN ====
+		// RENAMED FROM *RegenTicks WITH v2. They used to be four INDEPENDENT per-band clocks: firing
+		// 1 kt muted the 1 kt band alone and left 20 kt, 50 kt and 100 kt loaded. That is the shape
+		// the user ruled against -- the rate was the number of bands, not the interval -- so the
+		// quantity changed with the name. One shot now silences every band the side holds.
 		//
-		// WRONG ABOUT THE LADDERS. nuclear-arsenal.yaml carries no `Prerequisites:` line, but the
-		// ten powers defined there are tiered in rules/player.yaml:208-240 -- MiniYaml merges the
-		// `Player:` node across every file in mod.yaml's Rules list, and the tier table was
-		// deliberately kept whole in one file. Seven of the ten name `powers.america` or
-		// `powers.russia`, which ProvidesPrerequisite grants BY FACTION (player.yaml:157-162); the
-		// three game-enders name `powers.event`, which no faction provides at all. So each faction
-		// holds exactly ONE warhead per band, and the demo capture that appeared to show otherwise
-		// -- a Russian "1 KT" cameo in USA's column -- was taken under `powers-sandbox`
-		// (demo-defcon-readout/rules.yaml:72), the lobby option whose entire purpose is to hand
-		// every player all three tiers.
-		//
-		// WRONG ABOUT THE ECONOMY, and that was a ruling rather than a reading: firing ANY weapon in
-		// a band now puts the WHOLE band on this timer, for every player on the firing SIDE. See
-		// PutBandOnRegen. A two-player team therefore gets one shot per band per interval between
-		// them, not one each, and the sandbox option no longer buys anybody a double tap.
-		//
-		// SO THESE FOUR NUMBERS MEAN WHAT THEY LOOK LIKE: the interval between one shot at a band
-		// and the next shot at that band, by that side. They are still untuned placeholders.
+		// A TEAM SHARES ONE. Two players on a side fire ONCE per cooldown between them, not once
+		// each; the alt-account double-tap is closed by construction rather than by a check.
 
-		[Desc("Ticks the 1 kt band takes to come back after firing, in Escalation. UNTUNED PLACEHOLDER.",
-			"3000 ticks = 180 s = 3:00 at the default 60 ms timestep (16.67 ticks/s, NOT 25).")]
-		public readonly int KilotonRegenTicks = 3000;
+		[Desc("Ticks the WHOLE SIDE is locked out for after firing the 1 kt band, in Escalation.",
+			"5000 ticks = 300 s = 5:00 at the default 60 ms timestep (16.67 ticks/s, NOT 25).",
+			"USER-RULED 2026-09-15.")]
+		public readonly int KilotonCooldownTicks = 5000;
 
-		[Desc("Ticks the 20 kt band takes to come back after firing, in Escalation. UNTUNED PLACEHOLDER.",
-			"4000 ticks = 240 s = 4:00 at the default 60 ms timestep.")]
-		public readonly int TwentyKilotonRegenTicks = 4000;
+		[Desc("Ticks the WHOLE SIDE is locked out for after firing the 20 kt band, in Escalation.",
+			"7000 ticks = 420 s = 7:00 at the default 60 ms timestep. USER-RULED 2026-09-15.")]
+		public readonly int TwentyKilotonCooldownTicks = 7000;
 
-		[Desc("Ticks the 50 kt band takes to come back after firing, in Escalation. UNTUNED PLACEHOLDER.",
-			"5000 ticks = 300 s = 5:00 at the default 60 ms timestep.")]
-		public readonly int FiftyKilotonRegenTicks = 5000;
+		[Desc("Ticks the WHOLE SIDE is locked out for after firing the 50 kt band, in Escalation.",
+			"9000 ticks = 540 s = 9:00 at the default 60 ms timestep. USER-RULED 2026-09-15.")]
+		public readonly int FiftyKilotonCooldownTicks = 9000;
 
-		[Desc("Ticks the 100 kt band takes to come back after firing, in Escalation. UNTUNED PLACEHOLDER.",
-			"6000 ticks = 360 s = 6:00 at the default 60 ms timestep.",
+		[Desc("Ticks the WHOLE SIDE is locked out for after firing the 100 kt band, in Escalation.",
+			"12000 ticks = 720 s = 12:00 at the default 60 ms timestep. USER-RULED 2026-09-15.",
 			"",
-			"ALSO THE GAME-ENDER BAND'S value -- see " + nameof(NuclearExchangeState.RegenTicksFor) + ".",
-			"That band is only ever a retaliation window grant and firing one ends the match, so its",
-			"timer is a post-fire lockout the match never outlives.")]
-		public readonly int HundredKilotonRegenTicks = 6000;
+			"NOT THE GAME-ENDER BAND'S VALUE. Firing a game-ender takes NO cooldown at all -- the",
+			"match ends on that launch, so a lockout would be a number nobody lives to read. See",
+			nameof(NuclearExchangeState) + "." + nameof(NuclearExchangeState.ReportLaunch) + ".")]
+		public readonly int HundredKilotonCooldownTicks = 12000;
 
-		[Desc("Prerequisites a RETALIATION WINDOW at " + nameof(NuclearRung.GameEnder) + " is licensed",
-			"to IGNORE when it arms a game-ender. Read ONLY on that rung; every band below it is",
-			"armed on " + nameof(SupportPowerInstance.Permitted) + " alone and this field cannot",
-			"reach them.",
+		[Desc("Prerequisites the top rung is licensed to IGNORE when it arms a game-ender. Read ONLY",
+			"on " + nameof(NuclearRung.GameEnder) + "; every band below it is armed on ",
+			nameof(SupportPowerInstance.Permitted) + " alone and this field cannot reach them.",
 			"",
 			"WHY THE TOP RUNG NEEDS ONE AT ALL. Both shipped national game-enders declare",
 			"`powers.event` (player.yaml:236-240), a prerequisite NO faction provides -- it exists so",
 			"a game-ender is never on the shop floor. Every band below the top is a weapon each",
 			"faction owns outright, so the ordinary gate opens for them; at the top it can never open,",
-			"and before 2026-09-14 the END window therefore granted a player nothing at all while the",
-			"ledger lit its box and counted down. That was the reported bug.",
+			"and before 2026-09-14 reaching the END level therefore granted a player nothing at all",
+			"while the ledger lit its box. That was the reported bug.",
 			"",
 			"THE FACTION HALF IS NOT OVERRIDABLE AND MUST NOT BE ADDED HERE. `player.america` and",
 			"`player.russia` are an identity rather than a shelf; naming one below would hand an",
@@ -256,45 +233,22 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IRulesetLoaded<ActorInfo>.RulesetLoaded(Ruleset rules, ActorInfo info)
 		{
-			if (!((IList<int>)RetaliationWindowOptions).Contains(RetaliationWindowDefault))
-				throw new YamlException($"{nameof(RetaliationWindowDefault)} must be one of {nameof(RetaliationWindowOptions)}.");
-
-			// A window of 0 minutes would open and lapse on the same tick, which is a grant nobody
-			// could ever use -- so it is refused here rather than allowed to read as "no retaliation".
-			foreach (var minutes in RetaliationWindowOptions)
-				if (minutes <= 0)
-					throw new YamlException($"{nameof(RetaliationWindowOptions)} must all be positive minute counts.");
-
 			if (GrantRetryTicks < 0)
 				throw new YamlException($"{nameof(GrantRetryTicks)} must be 0 or positive.");
 
-			// POSITIVE, NOT MERELY NON-NEGATIVE. A regeneration of 0 ticks is a band that is ready
-			// again on the tick after it fired, which is not a fast economy but no economy at all --
-			// and it would silently undo the one-shot rule on a retaliation window.
+			// POSITIVE, NOT MERELY NON-NEGATIVE. A cooldown of 0 ticks is a side that may fire again
+			// on the tick after it fired, which is not a fast economy but no economy at all -- and it
+			// is precisely the spam the 2026-09-15 ruling exists to stop.
 			foreach (var (name, ticks) in new[]
 			{
-				(nameof(KilotonRegenTicks), KilotonRegenTicks),
-				(nameof(TwentyKilotonRegenTicks), TwentyKilotonRegenTicks),
-				(nameof(FiftyKilotonRegenTicks), FiftyKilotonRegenTicks),
-				(nameof(HundredKilotonRegenTicks), HundredKilotonRegenTicks),
+				(nameof(KilotonCooldownTicks), KilotonCooldownTicks),
+				(nameof(TwentyKilotonCooldownTicks), TwentyKilotonCooldownTicks),
+				(nameof(FiftyKilotonCooldownTicks), FiftyKilotonCooldownTicks),
+				(nameof(HundredKilotonCooldownTicks), HundredKilotonCooldownTicks),
 			})
 				if (ticks <= 0)
 					throw new YamlException($"{name} must be a positive tick count: in DEFCON Escalation " +
-						"a band is a free power on a regeneration timer, and 0 would make it fire every tick.");
-		}
-
-		/// <summary>The window lengths offered, as wire keys mapped to their lobby labels.</summary>
-		// Built from the field rather than written out, for NuclearUnlockClockInfo.IntervalValues's
-		// reason: a value the option does not define throws KeyNotFoundException on the next CLIENT
-		// JOIN (LobbySettingsNotification.cs:39 indexes Values unchecked), so the host sees a working
-		// lobby and the next player to connect is thrown out.
-		public IReadOnlyDictionary<string, string> RetaliationWindowValues()
-		{
-			var values = new Dictionary<string, string>();
-			foreach (var minutes in RetaliationWindowOptions)
-				values[minutes.ToString(CultureInfo.InvariantCulture)] = minutes == 1 ? "1 minute" : $"{minutes} minutes";
-
-			return values;
+						"a launch locks out the firing side's whole arsenal, and 0 would let it fire every tick.");
 		}
 
 		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(MapPreview map)
@@ -308,18 +262,14 @@ namespace OpenRA.Mods.Common.Traits
 
 			yield return new LobbyOption(PostureOptionId, PostureLabel, PostureDescription, PostureVisible,
 				PostureDisplayOrder, postures, PostureDefault.ToString().ToLowerInvariant(), PostureLocked);
-
-			yield return new LobbyOption(RetaliationWindowOptionId, RetaliationWindowLabel, RetaliationWindowDescription,
-				RetaliationWindowVisible, RetaliationWindowDisplayOrder, RetaliationWindowValues(),
-				RetaliationWindowDefault.ToString(CultureInfo.InvariantCulture), RetaliationWindowLocked);
 		}
 
-		/// <summary>The four regeneration intervals in ascending band order, unscaled.</summary>
+		/// <summary>The four side cooldowns in ascending band order, UNSCALED by posture.</summary>
 		// Built here rather than at each call site so the ORDER is stated once: index 0 is
-		// NuclearRung.Kiloton, which is what NuclearExchangeState.RegenTicksFor indexes against.
-		public IReadOnlyList<int> RegenTicks()
+		// NuclearRung.Kiloton, which is what NuclearExchangeState.CooldownTicksFor indexes against.
+		public IReadOnlyList<int> CooldownTicks()
 		{
-			return new[] { KilotonRegenTicks, TwentyKilotonRegenTicks, FiftyKilotonRegenTicks, HundredKilotonRegenTicks };
+			return new[] { KilotonCooldownTicks, TwentyKilotonCooldownTicks, FiftyKilotonCooldownTicks, HundredKilotonCooldownTicks };
 		}
 
 		public override object Create(ActorInitializer init) { return new NuclearExchange(init.Self, this); }
@@ -340,7 +290,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// <para>THAT IS AN ORDERING FIX, NOT A STYLE CHOICE. It used to read `escalation?.Mode`, and
 		/// `escalation` is only resolved in WorldLoaded — but <see cref="SupportPowerInstance"/>'s
 		/// constructor now asks this trait whether a power is free (see
-		/// <see cref="EscalationRegenTicks"/>), and a player actor can be built before WorldLoaded
+		/// <see cref="EscalationCooldownTicks"/>), and a player actor can be built before WorldLoaded
 		/// runs. Forwarding would have answered "Skirmish" there and silently left every nuclear power
 		/// purchased in Escalation — the whole feature off, with nothing to see.</para>
 		///
@@ -350,11 +300,8 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		public readonly DefconGameMode Mode;
 
-		/// <summary>The posture the host picked. Scales the regeneration timers; see <see cref="NuclearPostureScale"/>.</summary>
+		/// <summary>The posture the host picked. Scales the side cooldowns; see <see cref="NuclearPostureScale"/>.</summary>
 		public readonly NuclearPosture Posture;
-
-		/// <summary>The retaliation window, in ticks, already converted from the lobby's minutes.</summary>
-		public readonly int RetaliationWindowTicks;
 
 		NuclearExchangeState state;
 		DefconEscalation escalation;
@@ -369,13 +316,15 @@ namespace OpenRA.Mods.Common.Traits
 		// filled in the same ordered pass and is identical on every client.
 		readonly Dictionary<int, string> sideNames = new Dictionary<int, string>();
 
-		// What each side looked like last tick, so a RISE in the permanent level and a RESTART of the
-		// window can both be spotted without either trait having to call the other.
-		readonly Dictionary<int, (int Permanent, int WindowSerial)> lastSeen = new Dictionary<int, (int, int)>();
+		// Each side's LEVEL SERIAL last tick, so a rise can be spotted without either trait having to
+		// call the other. The serial and not the level itself: they carry the same information here
+		// (levels never fall, so every change is a rise), and watching the serial keeps this in step
+		// with the banner widget, which watches the same edge for the same reason.
+		readonly Dictionary<int, int> lastSeenSerial = new Dictionary<int, int>();
 
 		// Outstanding "make this player's newly granted bands fire-ready" requests. The band is the
-		// LOWEST newly granted one; everything from there up to the side's released level is topped
-		// up in the same pass. See the file header for why a retry budget is needed at all.
+		// LOWEST newly granted one; everything from there up to the side's level is topped up in the
+		// same pass. See the file header for why a retry budget is needed at all.
 		readonly Dictionary<Player, (int FromBand, int TicksLeft)> pendingReady = new Dictionary<Player, (int, int)>();
 
 		/// <summary>
@@ -398,9 +347,8 @@ namespace OpenRA.Mods.Common.Traits
 					var h = state.Released ? 1 : 0;
 					foreach (var side in state.Sides)
 					{
-						h = (h * 31) + state.PermanentLevelFor(side);
-						h = (h * 31) + state.WindowLevelFor(side);
-						h = (h * 31) + state.WindowTicksRemainingFor(side);
+						h = (h * 31) + state.LevelFor(side);
+						h = (h * 31) + state.CooldownFor(side);
 					}
 
 					return h;
@@ -426,36 +374,44 @@ namespace OpenRA.Mods.Common.Traits
 			var posture = settings.OptionOrDefault(NuclearExchangeInfo.PostureOptionId, info.PostureDefault.ToString());
 			if (!System.Enum.TryParse(posture, true, out Posture))
 				Posture = info.PostureDefault;
+		}
 
-			var raw = settings.OptionOrDefault(NuclearExchangeInfo.RetaliationWindowOptionId,
-				info.RetaliationWindowDefault.ToString(CultureInfo.InvariantCulture));
-			if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var minutes))
-				minutes = info.RetaliationWindowDefault;
+		/// <summary>The four side cooldowns with this match's posture already applied.</summary>
+		// SCALED IN EXACTLY ONE PLACE. NuclearExchangeState is handed the result and applies nothing
+		// further, and EscalationCooldownTicks below calls this rather than scaling again -- so a
+		// posture can never be applied twice to the same number, which at Limited would be 225 %.
+		IReadOnlyList<int> ScaledCooldownTicks()
+		{
+			var raw = info.CooldownTicks();
+			var scaled = new int[raw.Count];
+			for (var i = 0; i < raw.Count; i++)
+				scaled[i] = NuclearPostureScale.Apply(raw[i], Posture);
 
-			// world.Timestep read ONCE, in the constructor, exactly as NuclearUnlockClock and
-			// TimeLimitManager do: it is the same value on every client at this moment, and the debug
-			// speed button mutates it later. TicksForMinutes multiplies before dividing, so three
-			// minutes at the 60 ms timestep is exactly 3000 ticks and not 2880.
-			RetaliationWindowTicks = NuclearUnlockSchedule.TicksForMinutes(minutes, world.Timestep);
+			return scaled;
 		}
 
 		/// <summary>
-		/// <para>How long this power takes to come back in DEFCON Escalation, where it is FREE and
+		/// <para>The cooldown this power's own band costs in DEFCON Escalation, where it is FREE and
 		/// timer-charged rather than bought. Returns -1 when the ordinary purchase economy applies,
 		/// which is every power outside Escalation and every non-nuclear power inside it.</para>
 		///
 		/// <para>THE ONE ENTRY POINT <see cref="SupportPowerInstance"/>'s constructor uses, and it
 		/// answers BOTH questions that constructor has to ask — "is this bought?" is `&lt; 0`, and
-		/// "what is its interval?" is the value. Splitting them into two calls would let the two
-		/// answers drift apart, which is exactly the state that produces a power with no timer AND no
-		/// magazine: permanently unusable, with nothing logged.</para>
+		/// "what interval does it start on?" is the value. Splitting them into two calls would let the
+		/// two answers drift apart, which is exactly the state that produces a power with no timer AND
+		/// no magazine: permanently unusable, with nothing logged.</para>
+		///
+		/// <para>THE VALUE IS A STARTING POINT AND NOT THIS POWER'S REAL WAIT. Under v2 a nuclear power
+		/// waits for its SIDE's cooldown, chosen by the band somebody on that side last fired, and
+		/// <see cref="SetSideCooldown"/> overwrites both of its numbers whenever that changes. This
+		/// answers with the power's own band, which is what the first shot at that band would cost.</para>
 		///
 		/// <para>IT IS THE IDENTITY OUTSIDE ESCALATION. No World, no trait, a non-nuclear power, or any
 		/// other mode all return -1, which is what keeps Skirmish and Sandbox — and every other mod —
 		/// byte-identical. Skirmish is the shipped default and every nuclear scenario in the tree buys
 		/// its shot; see NuclearExchangeState.IsFreeTimerPower.</para>
 		/// </summary>
-		public static int EscalationRegenTicks(World world, SupportPowerInfo powerInfo)
+		public static int EscalationCooldownTicks(World world, SupportPowerInfo powerInfo)
 		{
 			if (world == null || !(powerInfo is MissileStrikePowerInfo missile))
 				return -1;
@@ -468,42 +424,30 @@ namespace OpenRA.Mods.Common.Traits
 				return -1;
 
 			var band = NuclearReleaseLadder.RungForYield(missile.NuclearYieldTons);
-			var ticks = NuclearExchangeState.RegenTicksFor(band, exchange.info.RegenTicks());
 
-			// THE POSTURE BITES HERE AND NOWHERE ELSE, which is what turns that dropdown from an inert
-			// label into the mode's one economic lever: Limited stretches every band, Massive shortens
-			// every band, Flexible is the identity.
-			return NuclearPostureScale.Apply(ticks, exchange.Posture);
+			// ALREADY POSTURE-SCALED by ScaledCooldownTicks; do not apply the posture again here.
+			return NuclearExchangeState.CooldownTicksFor(band, exchange.ScaledCooldownTicks());
 		}
 
-		/// <summary>Whether the release gate has opened and both sides hold the 1 kt band.</summary>
+		/// <summary>Whether the release gate has opened and every side holds the 1 kt band.</summary>
 		public bool Released => state != null && state.Released;
 
-		/// <summary>The highest band this player's side may fire freely, on cooldown.</summary>
-		public int PermanentLevelFor(Player player)
+		/// <summary>The highest band this player's side may fire. THE ONE NUMBER the condition layer reads.</summary>
+		public int LevelFor(Player player)
 		{
-			return state == null ? (int)NuclearRung.Hold : state.PermanentLevelFor(SideOf(player));
+			return state == null ? (int)NuclearRung.Hold : state.LevelFor(SideOf(player));
 		}
 
-		/// <summary>This player's side's retaliation band, or Hold when no window is open.</summary>
-		public int WindowLevelFor(Player player)
+		/// <summary>Ticks until this player's side may fire again, at any band. 0 is ready.</summary>
+		public int CooldownTicksFor(Player player)
 		{
-			return state == null ? (int)NuclearRung.Hold : state.WindowLevelFor(SideOf(player));
+			return state == null ? 0 : state.CooldownFor(SideOf(player));
 		}
 
-		/// <summary>Ticks of retaliation window left for this player's side. 0 is shut.</summary>
-		public int WindowTicksRemainingFor(Player player)
+		/// <summary>May this player's side fire this band right now? Rule 2.</summary>
+		public bool MayFire(Player player, int band)
 		{
-			return state == null ? 0 : state.WindowTicksRemainingFor(SideOf(player));
-		}
-
-		/// <summary>
-		/// Everything this player's side may fire right now. THE ONE NUMBER the condition layer reads
-		/// -- see <see cref="GrantConditionOnNuclearRelease"/>.
-		/// </summary>
-		public int ReleasedLevelFor(Player player)
-		{
-			return state == null ? (int)NuclearRung.Hold : state.ReleasedLevelFor(SideOf(player));
+			return state != null && state.MayFire(SideOf(player), band);
 		}
 
 		// ==== THE PER-SIDE READ SURFACE, WHICH THE LEDGER IS THE ONLY CALLER OF ==================
@@ -530,9 +474,9 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		// WITH MORE THAN TWO SIDES THIS RETURNS THE FIRST OTHER ONE, matching the trait's existing
 		// stance rather than inventing a second one: decision 15 says two sides, the file header says
-		// a larger lobby is warned about and then armed one-against-all, and a ledger that refused to
-		// draw at all in that case would be a third behaviour for the same unenforced rule. Two rows
-		// is what the design is; the third side's row is simply not drawn.
+		// a larger lobby is warned about and then escalated one-against-all, and a ledger that refused
+		// to draw at all in that case would be a third behaviour for the same unenforced rule. Two
+		// rows is what the design is; the third side's row is simply not drawn.
 		public int OpposingSideOf(Player player)
 		{
 			if (state == null)
@@ -546,45 +490,52 @@ namespace OpenRA.Mods.Common.Traits
 			return 0;
 		}
 
-		/// <summary>The highest band this SIDE may fire freely, on cooldown.</summary>
-		public int PermanentLevelForSide(int side)
+		/// <summary>The highest band this SIDE may fire. Never falls.</summary>
+		public int LevelForSide(int side)
 		{
-			return state?.PermanentLevelFor(side) ?? (int)NuclearRung.Hold;
-		}
-
-		/// <summary>This SIDE's retaliation band, or Hold when no window is open.</summary>
-		public int WindowLevelForSide(int side)
-		{
-			return state?.WindowLevelFor(side) ?? (int)NuclearRung.Hold;
-		}
-
-		/// <summary>Ticks of retaliation window left for this SIDE. 0 is shut.</summary>
-		public int WindowTicksRemainingForSide(int side)
-		{
-			return state?.WindowTicksRemainingFor(side) ?? 0;
+			return state?.LevelFor(side) ?? (int)NuclearRung.Hold;
 		}
 
 		/// <summary>
-		/// This SIDE's window serial: bumped every time its window is opened OR restarted.
+		/// <para>Ticks until this SIDE may fire again, at any band. 0 means ready now.</para>
 		/// </summary>
-		// THE ONE THING A BANNER CAN WATCH. WindowTicksRemaining cannot distinguish "restarted on the
-		// same band" from "not yet ticked", so a widget watching it would miss the second hit of a
-		// pair -- which is precisely the moment the player most needs telling about. See
-		// NuclearExchangeState.SideState.WindowSerial.
-		public int WindowSerialForSide(int side)
+		// ---- ASKED OF THE STATE AND NOT OF THE POWERS, WHICH IS A CHANGE FROM v1 ----------------
+		// v1's RegenTicksRemainingForSide walked every SupportPowerInstance on the side and took the
+		// smallest RemainingTicks, because the quantity it wanted -- how long until THIS BAND comes
+		// back -- lived only on the powers. v2's quantity lives here: there is ONE cooldown per side
+		// and NuclearExchangeState is counting it.
+		//
+		// THAT IS ALSO THE HONEST SOURCE RATHER THAN MERELY THE SIMPLER ONE. The copy written onto
+		// each power can be perturbed by things that are not the exchange -- DevMode.FastCharge
+		// clamps any countdown over 2500 subticks (SupportPowerManager.cs), a disabled power has its
+		// timer pinned to full every tick -- and the ledger reporting a number the launch gate does
+		// not use is a readout that disagrees with the rule. The state is what ReportLaunch tests.
+		public int CooldownTicksForSide(int side)
 		{
-			return state?.For(side)?.WindowSerial ?? 0;
+			return state?.CooldownFor(side) ?? 0;
+		}
+
+		/// <summary>
+		/// This SIDE's level serial: bumped every time its level RISES.
+		/// </summary>
+		// THE ONE THING A BANNER CAN WATCH WITHOUT HOLDING A COPY OF THE LEVEL. It carries no more
+		// information than the level does -- levels never fall, so every change is a rise -- and it
+		// exists so the widget and this trait are watching the same edge rather than two derivations
+		// of it. See NuclearExchangeState.SideState.LevelSerial.
+		public int LevelSerialForSide(int side)
+		{
+			return state?.LevelSerialFor(side) ?? 0;
 		}
 
 		/// <summary>
 		/// <para>This player's nuclear support powers, paired with the band each one sits in, in
 		/// ORDINAL KEY ORDER.</para>
 		///
-		/// <para>ONE WALK, THREE CALLERS -- <see cref="MakeBandsReady"/>, <see cref="PutBandOnRegen"/>
-		/// and <see cref="RegenTicksRemainingForSide"/> all need "every nuclear power this player has,
-		/// and its band", and all three write or read synced state. Three hand-rolled copies of the
-		/// same filter is how one of them ends up disagreeing with the others about what counts as
-		/// nuclear; the filter is `MissileStrikePowerInfo` with a positive yield, stated once.</para>
+		/// <para>ONE WALK, TWO CALLERS -- <see cref="MakeBandsReady"/> and <see cref="SetSideCooldown"/>
+		/// both need "every nuclear power this player has, and its band", and both write synced state.
+		/// Two hand-rolled copies of the same filter is how one of them ends up disagreeing with the
+		/// other about what counts as nuclear; the filter is `MissileStrikePowerInfo` with a positive
+		/// yield, stated once.</para>
 		///
 		/// <para>ORDINAL, AND NOT BECAUSE THE OPERATIONS CARE. Dictionary enumeration order is not
 		/// something every client agrees about, and this file does not iterate an unordered collection
@@ -606,120 +557,36 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// <para>A warhead in <paramref name="band"/> has just been released by <paramref name="side"/>:
-		/// put EVERY warhead that side holds in that band back on its regeneration timer.</para>
+		/// <para>Put EVERY nuclear power this side holds, at EVERY band, on a cooldown of
+		/// <paramref name="ticks"/>.</para>
 		/// </summary>
-		// ==== THE BAND IS THE UNIT, AND THAT IS A RULING RATHER THAN AN OPTIMISATION ====
-		// Before 2026-09-14 regeneration was per POWER: SupportPowerInstance.Activate reset only the
-		// instance that fired (SupportPowerManager.cs:398), so a side holding N warheads in a band
-		// fired N times before any timer started. The user ruled that firing ANY weapon in a band
-		// puts the WHOLE band on the timer.
+		// ==== THE SIDE IS THE UNIT, AND THAT IS THE 2026-09-15 RULING ITSELF ====
+		// v1 put one BAND on one timer and left the other three loaded; before that, one POWER. The
+		// user played both and ruled that a launch locks out the firing side's whole arsenal: "one
+		// nuke at a time per team". This loop is that sentence.
 		//
-		// FOR THE WHOLE SIDE, NOT THE FIRER, because a side is a TEAM (see the header). Two players
-		// on one side each hold their own faction's warhead at a band; resetting only the firer's
-		// would leave the band's real cooldown at zero for the side, which is the quantity the ledger
-		// reports and the quantity the ruling is about.
-		//
-		// ResetTimer, NOT a value of our own: it assigns TotalTicks * 100, and TotalTicks for a free
-		// nuclear power IS this band's regeneration interval with the posture already applied
-		// (EscalationRegenTicks, called from SupportPowerInstance's constructor). Computing the
-		// number here would be a second copy of that arithmetic, free to drift from the one the fired
-		// power itself uses.
+		// EVERY BAND, INCLUDING ONES ABOVE THE SIDE'S LEVEL. A power the side does not yet hold is
+		// disabled, and SupportPowerInstance.Tick pins a disabled power's countdown to full on every
+		// tick -- so writing to it is a no-op that is immediately overwritten, and NOT writing to it
+		// would be a bet on the level never rising during the cooldown. It does rise during the
+		// cooldown, routinely: being shot at while you are reloading is the normal case. MakeBandsReady
+		// is what re-synchronises such a band when it is granted, and it reads the SAME remaining
+		// cooldown rather than zero.
 		//
 		// IT INCLUDES THE POWER THAT FIRED, and that is harmless rather than merely tolerable: this
 		// runs from MissileStrikePower.Activate, which SupportPowerInstance.Activate calls BEFORE its
-		// own `remainingSubTicks = TotalTicks * 100` (SupportPowerManager.cs:391-398). Both writes
-		// assign the same value, so the order of the two does not matter and neither can win a race
-		// the other would lose.
-		//
-		// AND IT INCLUDES POWERS THAT ARE NOT CURRENTLY Permitted, deliberately. A disabled power has
-		// its timer pinned to full on every tick anyway (SupportPowerManager.cs:315-317), so the write
-		// is a no-op for it -- and testing Permitted here would make the reset depend on the order the
-		// band condition happens to have reached each power, which is exactly the kind of
-		// tick-ordering dependence the retry budget in MakeBandsReady exists to paper over.
-		void PutBandOnRegen(int side, int band)
+		// own `remainingSubTicks = TotalTicks * 100`. SetCooldown has by then set TotalTicks to this
+		// very value, so both writes assign the same number and the order of the two cannot matter.
+		void SetSideCooldown(int side, int ticks)
 		{
-			if (band <= (int)NuclearRung.Hold)
-				return;
-
 			foreach (var p in combatants)
 			{
 				if (SideOf(p) != side)
 					continue;
 
-				foreach (var (instance, powerBand) in NuclearPowersOf(p.PlayerActor?.TraitOrDefault<SupportPowerManager>()))
-					if (powerBand == band)
-						instance.ResetTimer();
+				foreach (var (instance, _) in NuclearPowersOf(p.PlayerActor?.TraitOrDefault<SupportPowerManager>()))
+					instance.SetCooldown(ticks);
 			}
-		}
-
-		/// <summary>
-		/// <para>Ticks until this SIDE's <paramref name="band"/> is fireable again, 0 when it is ready
-		/// now, and -1 when the side has no power at that band to ask about.</para>
-		/// </summary>
-		// ---- WHY THIS IS ASKED OF THE POWERS AND NOT OF NuclearExchangeState --------------------
-		// The state knows what a side is PERMITTED to fire. It does not know, and deliberately does
-		// not count, how long until the warhead is back: `ce397d9f` put regeneration on the support
-		// power's own ChargeInterval through EscalationRegenTicks, and NuclearExchangeState's header
-		// says outright that nothing there counts it. So the only honest source for a countdown is
-		// SupportPowerInstance.RemainingTicks, which is where the engine is actually counting.
-		//
-		// ---- THE SMALLEST REMAINING, NOT THE FIRST FOUND -----------------------------------------
-		// A side is a TEAM. Two players on one side each hold their own faction's warhead at a band,
-		// and what the side can do is whatever comes back SOONEST -- so the minimum is the answer,
-		// and the first entry in dictionary order is not.
-		//
-		// SINCE THE BAND-LEVEL RESET IT IS ALSO THE EXACT BAND COUNTDOWN, which is what the ledger
-		// needs and what it did not get before. CORRECTED 2026-09-14: this paragraph used to say
-		// "EVERY BAND HOLDS TWO OR MORE POWERS and neither ladder is faction-locked ... after firing
-		// one of them this correctly returns 0 and the ledger correctly leaves the box lit". Both
-		// premises are gone. The ladders ARE faction-locked (rules/player.yaml:208-240, tiered there
-		// rather than in nuclear-arsenal.yaml -- see the note on the regeneration fields above), and
-		// firing any warhead in a band now resets every warhead that side holds in it (PutBandOnRegen),
-		// so every candidate this loop sees carries the same countdown and the minimum IS that
-		// countdown. The box goes dark for the whole interval, which is now the truth.
-		//
-		// ---- -1 IS NOT 0 -------------------------------------------------------------------------
-		// "No power at this band" and "ready right now" are different facts and the ledger draws them
-		// differently: a band with no power behind it has no countdown to show, and a box captioned
-		// 0:00 forever would be a readout inventing one. Callers test for negative.
-		//
-		// ---- READ ONLY, FROM A WIDGET, AND THAT IS SAFE ------------------------------------------
-		// RemainingTicks is synced simulation state already covered by the support power machinery's
-		// own hashes. Nothing here writes, and the ledger reading the OTHER side's number is the
-		// design rather than a leak: decision 01's restraint case only works if each side can count
-		// what the other holds, which is why both rows are on screen for both players.
-		public int RegenTicksRemainingForSide(int side, int band)
-		{
-			if (state == null || Mode != DefconGameMode.Escalation || band <= (int)NuclearRung.Hold)
-				return -1;
-
-			var best = -1;
-
-			foreach (var p in combatants)
-			{
-				if (SideOf(p) != side)
-					continue;
-
-				foreach (var (instance, powerBand) in NuclearPowersOf(p.PlayerActor?.TraitOrDefault<SupportPowerManager>()))
-				{
-					if (powerBand != band)
-						continue;
-
-					// PERMITTED, NOT Ready. A power whose band condition is ungranted is not this
-					// side's to count at all -- its timer is pinned to full every tick it is disabled
-					// (SupportPowerManager.cs:249-251), so counting it would draw a countdown that
-					// never moves under a box the side does not even hold.
-					if (!instance.Permitted)
-						continue;
-
-					var remaining = instance.RemainingTicks;
-					if (best < 0 || remaining < best)
-						best = remaining;
-				}
-			}
-
-			return best;
 		}
 
 		/// <summary>A display name for this side: its first combatant, in registration order.</summary>
@@ -739,14 +606,14 @@ namespace OpenRA.Mods.Common.Traits
 			escalation = w.WorldActor.TraitOrDefault<DefconEscalation>();
 			doomsday = w.WorldActor.TraitOrDefault<DoomsdayStrike>();
 
-			state = new NuclearExchangeState(Mode, RetaliationWindowTicks);
+			state = new NuclearExchangeState(Mode, ScaledCooldownTicks());
 
 			if (Mode != DefconGameMode.Escalation)
 				return;
 
 			// world.Players order, which is world-creation order and therefore identical on every
 			// client. Non-combatants (Neutral, Creeps, the world owner) and spectators are not sides:
-			// they cannot fire, and arming them would put a phantom third side into the count below.
+			// they cannot fire, and escalating them would put a phantom third side into the count below.
 			//
 			// THE PREDICATE IS DefconWall's AND NOT A `Playable` TEST. This read `!p.Playable` and
 			// dropped every map-authored combatant that did not write the line; see
@@ -771,7 +638,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			foreach (var side in state.Sides)
-				lastSeen[side] = (state.PermanentLevelFor(side), 0);
+				lastSeenSerial[side] = state.LevelSerialFor(side);
 
 			// WHO IS IN THE MATCH, NAMED RATHER THAN COUNTED, and written on every Escalation match
 			// rather than only on the warning path. A miscounted side is silent everywhere else --
@@ -780,11 +647,18 @@ namespace OpenRA.Mods.Common.Traits
 			Log.Write("debug", "NUCLEAR EXCHANGE sides: " +
 				string.Join(", ", combatants.Select(p => $"{p.InternalName}({SideOf(p)})")));
 
+			// THE COOLDOWN TABLE, ONCE, WITH THE POSTURE ALREADY IN IT. A match whose exchange feels
+			// wrong is almost always a posture the host did not notice they set, and the four numbers
+			// are the whole economy of the mode -- so they are in the log rather than inferable from
+			// it. Printed in ticks because that is the unit every other line here uses.
+			Log.Write("debug", $"NUCLEAR EXCHANGE cooldowns (posture {Posture}): " +
+				string.Join(", ", ScaledCooldownTicks().Select((t, i) => $"{(NuclearRung)((int)NuclearRung.Kiloton + i)}={t}")));
+
 			// NOT ENFORCED, BY INSTRUCTION. Decision 15 says two sides; a lobby that produces more
-			// gets a warning and rule 2 applied to every other side. See the file header.
+			// gets a warning and rule 3 applied to every other side. See the file header.
 			if (state.Sides.Count > 2)
 				Log.Write("debug", $"NUCLEAR EXCHANGE: {state.Sides.Count} sides, not 2. " +
-					"Every launch will arm every other side. Escalation is designed for two sides.");
+					"Every launch will escalate every other side. Escalation is designed for two sides.");
 		}
 
 		// A side is the lobby TEAM when there is one. With no team the player is its own side, keyed
@@ -838,61 +712,53 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				released = true;
 				if (state.Release())
-					Log.Write("debug", $"NUCLEAR RELEASE: all {state.Sides.Count} sides hold the " +
-						$"{NuclearRung.Kiloton} band permanently (tick {self.World.WorldTick}).");
+					Log.Write("debug", $"NUCLEAR RELEASE: all {state.Sides.Count} sides are at level " +
+						$"{NuclearRung.Kiloton} (tick {self.World.WorldTick}).");
 			}
 
-			var lapsed = state.TickWindows();
-			if (lapsed != null)
-				foreach (var side in lapsed)
-					Log.Write("debug", $"RETALIATION WINDOW LAPSED for side {side} " +
-						$"(tick {self.World.WorldTick}); back to rung {state.PermanentLevelFor(side)}.");
+			// THE STATE'S COPY OF THE COOLDOWN. Each power carries its own, set from the same value on
+			// the same tick and decremented by SupportPowerInstance.Tick; this is the one the launch
+			// gate and the ledger read. See CooldownTicksForSide for why the two are not one.
+			var expired = state.Tick();
+			if (expired != null)
+				foreach (var side in expired)
+					Log.Write("debug", $"NUCLEAR COOLDOWN ENDED for side {side} " +
+						$"(tick {self.World.WorldTick}); every band up to {(NuclearRung)state.LevelFor(side)} is back.");
 
 			ReconcileGrants();
 			ServicePendingReady();
 		}
 
-		// Spot what moved since last tick and queue the readiness work for it. Driven off a SNAPSHOT
-		// rather than off the launch, so the release edge, a permanent rise and a window restart all
-		// go through one path and none of them can be missed by a call site that forgot to.
+		// Spot which sides rose since last tick and queue the readiness work for them. Driven off a
+		// SNAPSHOT rather than off the launch, so the release edge and every level rise go through one
+		// path and neither can be missed by a call site that forgot to.
 		void ReconcileGrants()
 		{
 			foreach (var side in state.Sides)
 			{
-				var now = (Permanent: state.PermanentLevelFor(side), Serial: state.For(side).WindowSerial);
-				if (!lastSeen.TryGetValue(side, out var before))
-					before = ((int)NuclearRung.Hold, 0);
+				var serial = state.LevelSerialFor(side);
+				if (!lastSeenSerial.TryGetValue(side, out var before))
+					before = 0;
 
-				if (now.Permanent == before.Permanent && now.Serial == before.WindowSerial)
+				if (serial == before)
 					continue;
 
-				lastSeen[side] = (now.Permanent, now.Serial);
+				lastSeenSerial[side] = serial;
 
-				// The LOWEST newly granted band. A permanent rise from 1 to 3 grants 2 and 3; a window
-				// restart grants its own band whether or not that band is new, because the whole point
-				// of a restart is that the reply is available again.
-				var from = now.Permanent > before.Permanent
-					? before.Permanent + 1
-					: state.WindowLevelFor(side);
-
-				if (now.Serial != before.WindowSerial)
-				{
-					var windowBand = state.WindowLevelFor(side);
-					if (windowBand > (int)NuclearRung.Hold && windowBand < from)
-						from = windowBand;
-				}
-
-				if (from <= (int)NuclearRung.Hold)
-					continue;
-
+				// EVERYTHING FROM THE BOTTOM UP, not just the newly granted step. A rise from 1 to 3
+				// grants 2 and 3 -- but a band the side already held may ALSO need attention, because
+				// it could be sitting at the full cooldown its own last shot put it on while the side
+				// cooldown has since been shortened by nothing at all. Starting at Kiloton costs one
+				// extra loop over at most five powers and removes a whole class of "which bands did
+				// this rise touch" reasoning; MakeBandsReady stops at the side's level.
 				foreach (var p in combatants)
 					if (SideOf(p) == side)
-						pendingReady[p] = (from, info.GrantRetryTicks);
+						pendingReady[p] = ((int)NuclearRung.Kiloton, info.GrantRetryTicks);
 			}
 		}
 
-		// Make every newly granted nuclear power fire-ready, retrying for a bounded number of ticks
-		// while the band condition catches up. See the file header for why this is needed at all.
+		// Make every granted nuclear power fire-ready, retrying for a bounded number of ticks while
+		// the band condition catches up. See the file header for why this is needed at all.
 		void ServicePendingReady()
 		{
 			if (pendingReady.Count == 0)
@@ -921,16 +787,25 @@ namespace OpenRA.Mods.Common.Traits
 				pendingReady[r.Player] = (r.FromBand, r.TicksLeft);
 		}
 
-		/// <summary>True once at least one power in the granted range was made ready.</summary>
+		/// <summary>True once at least one power in the granted range was reached.</summary>
 		bool MakeBandsReady(Player player, int fromBand)
 		{
 			var manager = player.PlayerActor?.TraitOrDefault<SupportPowerManager>();
 			if (manager == null)
 				return false;
 
-			var toBand = ReleasedLevelFor(player);
+			var side = SideOf(player);
+			var toBand = state.LevelFor(side);
 			if (toBand < fromBand)
 				return true;
+
+			// ==== THE QUALIFIER THAT IS RULE 2, AND IT IS EASY TO LOSE ====
+			// A grant does NOT mean "ready now" -- it means "ready when the side's cooldown ends".
+			// A side that fires a 1 kt and is then hit by a 20 kt is escalated WHILE ON COOLDOWN, and
+			// zeroing the newly granted band's timer here would hand it a free 50 kt shot that the
+			// cooldown exists to deny. Read live rather than passed in, because the retry budget means
+			// this can run several ticks after the rise that queued it.
+			var cooldown = state.CooldownFor(side);
 
 			// Only consulted on the top rung; see ArmableAtTopRung. Resolved once rather than per
 			// power, and deliberately NOT null-guarded into "arm everything" -- a player actor with
@@ -951,13 +826,14 @@ namespace OpenRA.Mods.Common.Traits
 				if (!instance.Permitted && !ArmableAtTopRung(techTree, instance, band))
 					continue;
 
-				// MakeReady is wt/deadhand-window's, and this branch's near-identical MakeFireReady
-				// was deleted at that merge rather than kept beside it. Theirs is the superset: it
-				// also clears prereqsAvailable, which is a no-op HERE because the Permitted test
-				// above already folds that in, and is what its own caller needs. It returns void
-				// where mine returned a bool that was unconditionally true and therefore told a
-				// caller nothing.
+				// MakeReady does the three things a cooldown cannot: it clears prereqsAvailable (the
+				// top rung's whole problem), banks a shot when the magazine is empty, and zeroes the
+				// countdown. The zero is then corrected below when the side owes time.
 				instance.MakeReady();
+
+				if (cooldown > 0)
+					instance.SetCooldown(cooldown);
+
 				any = true;
 			}
 
@@ -965,7 +841,7 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// <para>May the TOP RUNG's window arm this power even though <see cref="SupportPowerInstance.Permitted"/>
+		/// <para>May the TOP RUNG arm this power even though <see cref="SupportPowerInstance.Permitted"/>
 		/// says no? True only for a game-ender this player's own faction owns, whose sole unmet
 		/// prerequisite is one <see cref="NuclearExchangeInfo.OverriddenPrerequisites"/> licenses.</para>
 		///
@@ -975,7 +851,7 @@ namespace OpenRA.Mods.Common.Traits
 		///     is also what keeps the 50 Mt Tsar Bomba out (decision 04). Scoping to the top rung is what
 		///     leaves every lower band byte-identical: `TacNukeStrike` is a band-2 power that also declares
 		///     `powers.event` (player.yaml:711), and a fix applied at every band would have started
-		///     handing it out of a 20 kt window to any host who ticked its checkbox on.
+		///     handing it to any host who ticked its checkbox on.
 		///   * THE POWER'S OWN CONDITION MUST STILL BE SATISFIED. PermittedIgnoringPrerequisites folds in
 		///     `instancesEnabled`, so a host who turned the arsenal off still gets no cameo and a weapon
 		///     gated on `nuclear-release-unrestricted` -- never granted inside Escalation -- stays
@@ -986,13 +862,13 @@ namespace OpenRA.Mods.Common.Traits
 		///     arming on the band alone hands an America player Russia's Sarmat and undoes c8cadc8a; and
 		///     a top-rung power that names NO owner is armed by nobody, which is the user's 2026-09-14
 		///     "national ender only" ruling and is what keeps the 6 Mt strategic strike out of the
-		///     window. Exactly one END cameo per side.</para>
+		///     level. Exactly one END cameo per side.</para>
 		///
 		/// <para>IT CANNOT LEAK INTO THE BUY TAB. SupportPowerProductionQueue filters on
 		/// SupportPowerInstance.Purchasable, which is `bank.CanPurchase(Permitted)`, and in Escalation a
-		/// nuclear power's bank is built DISABLED (SupportPowerManager.cs:289-296) -- so the prereqsAvailable
-		/// this grant sets can make a cameo READY and can never make one BUYABLE. Decision 02 is safe by
-		/// construction rather than by care, and this method runs in no other mode.</para>
+		/// nuclear power's bank is built DISABLED -- so the prereqsAvailable this grant sets can make a
+		/// cameo READY and can never make one BUYABLE. Decision 02 is safe by construction rather than
+		/// by care, and this method runs in no other mode.</para>
 		/// </summary>
 		bool ArmableAtTopRung(TechTree techTree, SupportPowerInstance instance, int band)
 		{
@@ -1007,35 +883,76 @@ namespace OpenRA.Mods.Common.Traits
 		/// A nuclear weapon has been RELEASED by this player -- called from MissileStrikePower.Activate,
 		/// once per launch order however many warheads it delivers.
 		/// </summary>
-		// THE DETERMINISM ARGUMENT IS UNCHANGED BY THE MOVE off DefconEscalation. The only caller is
-		// MissileStrikePower.Activate, reached exclusively through SupportPowerManager.ResolveOrder ->
-		// SupportPowerInstance.Activate (SupportPowerManager.cs:293-321). SupportPowerManager is
-		// IResolveOrder, so that is the synced order-resolution path: every client resolves the same
-		// order on the same tick. Everything read here is either on the order (the firing player) or a
-		// compile-time constant (the weapon's declared yield), and NuclearExchangeState is integer
-		// arithmetic with no shared random number in it.
+		// THE DETERMINISM ARGUMENT IS UNCHANGED BY v2. The only caller is MissileStrikePower.Activate,
+		// reached exclusively through SupportPowerManager.ResolveOrder -> SupportPowerInstance.Activate.
+		// SupportPowerManager is IResolveOrder, so that is the synced order-resolution path: every
+		// client resolves the same order on the same tick. Everything read here is either on the order
+		// (the firing player) or a compile-time constant (the weapon's declared yield), and
+		// NuclearExchangeState is integer arithmetic with no shared random number in it.
 		public void ReportNuclearRelease(Player firer, int tons)
 		{
 			if (state == null || Mode != DefconGameMode.Escalation)
 				return;
 
 			var firerSide = SideOf(firer);
+			var levelsBefore = SnapshotLevels();
 			var outcome = state.ReportLaunch(firerSide, tons);
-			if (!outcome.Counted)
-				return;
 
-			// ONE SHOT PER BAND PER TIMER, for the whole firing side. Done on the COUNTED edge and
-			// nowhere else: a launch the state machine dropped -- wrong mode, before release, a
-			// warhead above the ladder -- must not spend a cooldown either, or a Lua scenario poking
-			// the trait directly could mute a band that was never fired.
-			PutBandOnRegen(firerSide, outcome.Band);
+			if (!outcome.Counted)
+			{
+				// LOUD FOR THE TWO REFUSALS THAT CANNOT HAPPEN, quiet for the four that are ordinary.
+				// AboveLevel and OnCooldown both mean a cameo was Ready that the rules say could not
+				// have been -- the condition layer and the state disagreeing, or a power's timer and
+				// the side's having drifted apart -- and the symptom in a match is a warhead that
+				// lands and escalates nobody, which is invisible without this line.
+				if (outcome.IsAlarming)
+					Log.Write("debug", $"NUCLEAR LAUNCH REFUSED: {firer?.InternalName ?? "unknown"} " +
+						$"(side {firerSide}) fired {tons} t, band {(NuclearRung)outcome.Band}, but " +
+						$"{outcome.Refusal} -- side level {(NuclearRung)state.LevelFor(firerSide)}, " +
+						$"cooldown {state.CooldownFor(firerSide)}. THE POWER SHOULD NOT HAVE BEEN READY.");
+
+				return;
+			}
+
+			// ONE SHOT LOCKS OUT THE WHOLE SIDE. Done on the COUNTED edge and nowhere else: a launch
+			// the state machine refused must not spend a cooldown either, or a Lua scenario poking the
+			// trait directly could mute an arsenal that was never fired.
+			SetSideCooldown(firerSide, outcome.CooldownTicks);
 
 			Log.Write("debug", $"NUCLEAR LAUNCH: {firer?.InternalName ?? "unknown"} (side {firerSide}) " +
-				$"released {tons} t, band {(NuclearRung)outcome.Band}. Every other side is armed, " +
-				$"and side {firerSide}'s whole {(NuclearRung)outcome.Band} band is regenerating.");
+				$"band {outcome.Band} -> cooldown {outcome.CooldownTicks}" + EscalationSummary(levelsBefore));
 
 			if (outcome.FinalExchange)
 				BeginFinalExchange(firer);
+		}
+
+		/// <summary>Every side's level right now, in registration order, for the launch log's before/after.</summary>
+		int[] SnapshotLevels()
+		{
+			var levels = new int[state.Sides.Count];
+			for (var i = 0; i < levels.Length; i++)
+				levels[i] = state.LevelFor(state.Sides[i]);
+
+			return levels;
+		}
+
+		/// <summary>The `enemy N level X-&gt;Y` half of the launch log. Empty when nobody moved.</summary>
+		// WHO WAS ESCALATED, AND FROM WHAT, ON THE SAME LINE AS THE LAUNCH. A ratchet is only legible
+		// in a log as a pair of numbers: "level 3" alone cannot be told from "level 3, again" and the
+		// difference is whether the launch did anything. A shot that escalates nobody -- everyone
+		// already at 5, or a one-sided scenario -- says so by this string being empty.
+		string EscalationSummary(int[] levelsBefore)
+		{
+			var parts = new List<string>();
+			for (var i = 0; i < levelsBefore.Length && i < state.Sides.Count; i++)
+			{
+				var side = state.Sides[i];
+				var now = state.LevelFor(side);
+				if (now != levelsBefore[i])
+					parts.Add($"enemy {side} level {levelsBefore[i]}->{now}");
+			}
+
+			return parts.Count == 0 ? "; no side escalated" : "; " + string.Join(", ", parts);
 		}
 
 		void BeginFinalExchange(Player firer)

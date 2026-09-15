@@ -875,7 +875,6 @@ World:
 	# C# and are the user's to answer from the lobby, not values to tune here.
 	NuclearExchange:
 		PostureDisplayOrder: 24
-		RetaliationWindowDisplayOrder: 25
 
 	# THE DEFCON 3 DIVIDING WALL, AND IT IS NOW LIVE ON EVERY SHIPPED MAP. This block used to be
 	# registered with no configuration at all, which made the wall inert everywhere -- and that
