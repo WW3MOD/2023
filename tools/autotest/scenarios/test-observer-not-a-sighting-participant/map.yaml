@@ -47,9 +47,27 @@ Categories: Test
 #   SRs            5,19 / 60,19     HomeLocations, so nothing else derives a degenerate board
 #
 # GREEN: USA's threat intensity over the Russian armour is > 0 and the Observer's is exactly 0.
-# RED (revert SightingThreatLayer.Recompute to `if (player.NonCombatant || player.Spectating)`):
-#   "the Observer seat was built a sighting field: threat 100 at (13,22) -- an authored
-#    `Spectating: True` slot with a lobby client in it is still a participant"
+# CONFIRMED LIVE by run 260915_153945_p62441_test-observer-not-a-sighting-participant -> pass.
+#
+# RED, AND IT WAS RUN RATHER THAN REASONED. Revert BOTH fix hunks -- the Player.cs constructor
+# hoist back below the branch, and SightingThreatLayer.Recompute back to
+# `if (player.NonCombatant || player.Spectating)` -- and rebuild. Measured on run
+# 260915_155136_p65744_test-observer-not-a-sighting-participant -> fail:
+#
+#   the Observer seat was built a sighting field: threat 555 at (13,22) -- an authored
+#   `Spectating: True` slot with a lobby client in it is still a participant
+#   (control USA reads 555)
+#
+# NOTE WHICH HUNK DOES THE WORK, because it is the whole reason this scenario exists: reverting
+# the Player.cs hoist ALONE does not turn this red. `Player.Spectating` is `!inMissionMap && (...)`
+# and this is a MissionSelector map, so the constructor fix cannot reach an authored
+# `Spectating: True` seat either way -- only reading the authored flag can. Reverting
+# InfluenceStack.Participates alone does not turn it red either; nothing here reads that layer.
+#
+# AND THE TWO READINGS ARE EQUAL AT 555 ON PURPOSE. Fog is off, so the Observer and USA see the
+# same three T-90s and stamp identically. That is what makes the control meaningful: the leaked
+# field is not a faint residue that a threshold could have hidden, it is the full-strength field a
+# real combatant gets.
 Players:
 	PlayerReference@Neutral:
 		Name: Neutral
