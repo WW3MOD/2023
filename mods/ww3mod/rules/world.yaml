@@ -858,10 +858,19 @@ World:
 	# Both convert through NuclearUnlockSchedule.TicksForMinutes and NOT through TimeLimitManager's
 	# `1000 / Timestep`, which is integer division and runs 4% short.
 	#
-	# 20-25 is the Escalation section in LobbyOptionsLogic, in the order a match reaches them, and
-	# it spans TWO TRAITS: the four phase dropdowns here and the exchange's two below.
+	# 21-25 is the Escalation section in LobbyOptionsLogic, in the order a match reaches them, and
+	# it spans TWO TRAITS: the three phase dropdowns here and the exchange's two below. The block
+	# used to start at 20 and open with Game mode; that dropdown moved into Match (9) on
+	# 2026-09-15, leaving this section phase controls only -- which is what lets its header be
+	# hidden wholesale outside Escalation instead of drawing over a lone mode selector.
 	DefconEscalation:
-		ModeDisplayOrder: 20
+		# 9, AHEAD OF Game Speed (10): Game mode moved into the MATCH block on 2026-09-15 and leads
+		# it. It was 20, the head of the Escalation block, which left the ESCALATION header drawing
+		# over a lone Game mode dropdown in Skirmish -- a section captioned for phases, containing
+		# only the control that says there are none. Match is where it belongs: it is the first
+		# question a host answers about the match, and Escalation now holds phase controls only,
+		# so that header draws only when there ARE phases.
+		ModeDisplayOrder: 9
 		StartAtDisplayOrder: 21
 		NoRushDisplayOrder: 22
 		FirstWarheadsDisplayOrder: 23

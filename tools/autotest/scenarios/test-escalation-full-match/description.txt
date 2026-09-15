@@ -1,0 +1,232 @@
+TEST: a whole DEFCON Escalation match, bot vs bot, start to ending.
+
+The end-to-end smoke run. Two @experimental bots (America vs Russia) play a full
+Escalation match on the shipped Polar Disorder map -- map.bin is md5-identical to
+mods/ww3mod/maps/polar-disorder-ww3/map.bin -- with SRs at 93,16 and 4,81.
+
+WHY IT EXISTS. Every other Escalation scenario is a compressed single-mechanism
+probe: test-nuclear-exchange and test-bot-nuclear open AT DEFCON 1 with a ten-TICK
+release gate, test-bot-defcon2-breaks-peace opens at 2, test-bot-defcon-wall pins
+the no-rush clock past the end of its own run. Nobody had run the whole chain --
+3 -> 2 -> 1 -> release -> exchange -> ending -- on the real clocks with bots on
+both sides.
+
+NO PHASE CLOCK IS COMPRESSED. no-rush 5 min (5000 ticks), first warheads 10 min
+(10000), Flexible posture, all four side cooldowns (5/7/9/12 min): every one
+inherited at its shipped default. Wall clock is bought with
+run-test.sh --speed instead, which divides world.Timestep at IWorldLoaded -- AFTER
+DefconEscalation's constructor has converted minutes to ticks against the
+un-multiplied 60 ms -- so the tick clocks stay shipped and only wall time moves.
+
+FOUR DEPARTURES FROM SHIPPED DEFAULTS, each argued at its block in rules.yaml:
+  1. ModeDefault: Escalation      (shipped Skirmish, which is a strict no-op)
+  2. TimeLimitTicks: 22000        (shipped "No limit" -- the match must END)
+  3. RunInTestMode: true          (shipped false; false suppresses the salvo in
+                                   test mode, so the last phase would never run)
+  4. *Locked on five options      (values UNCHANGED; the locks only pin them)
+Starting cash, fog, shroud and ConquestVictoryConditions are all left at shipped
+defaults -- unlike the compressed scenarios, which override each for reasons that
+do not apply to a whole-match run.
+
+ASSERTIONS (all faults are concatenated, then a READINGS line):
+
+  PHASES    Opens at 3. 3 -> 2 happens, and NOT before the 5000-tick no-rush
+            clock. 2 -> 1 happens, and after 3 -> 2. (2 -> 1 has no clock at all,
+            so the transition IS the evidence of a qualifying enemy-caused kill.)
+
+  RELEASE   Both bots carry an enabled NuclearBotModule. The release opens, and
+            not before DEFCON1 + 10000 ticks. Observed through the module's own
+            reason token leaving NotReleased, which doubles as proof the module
+            is evaluating.
+
+  BOTS      Each bot queues orders in EVERY phase it reaches (total, at
+            ModularBot.QueueOrder). PoiOffensiveBotModule specifically queues
+            orders across DEFCON 3 -- on @experimental that module owns the whole
+            ground pool, SquadManagerBotModule being fixed-wing only.
+
+  WALL      The DEFCON 3 border actually STOOD: >=90 % of samples taken at
+            level 3 read Test.DefconWallActive() true, and none at level 1 do
+            (ActiveLevels is { 3 }). Added after run 260914_141246 and EARNED
+            ITS KEEP at 260914_181212: both ran the whole no-rush period with
+            the border down, and every other DEFCON 3 assertion was satisfied
+            while they did. Without this the scenario would have reported a
+            healthy DEFCON 3 twice over. The engine cause is fixed in
+            CombatantSides, and run 260914_191513 CONFIRMED IT: "DEFCON wall
+            derived from 2 home(s) in 2 group(s)", raised over 243 cells,
+            wall 3=999/1000 2=0/134 1=0/3667 -- up for every DEFCON 3 sample
+            but the first (the derivation lands at IWorldLoaded, alongside this
+            script) and down at 2 and 1 exactly as ActiveLevels = { 3 } says.
+
+  ENDING    Test.DoomsdayState() leaves phase=0 before the 24000-tick deadline,
+            and not before the time limit.
+
+            IT USED TO ASSERT ON player.WinState AND THAT WAS UNSATISFIABLE.
+            ConquestVictoryConditions.Tick returns early whenever
+            TestMode.IsActive (:63-64, deliberately -- "the test harness owns
+            the verdict"); objectiveID is assigned ONLY inside that method
+            (:73-74); and its NotifyTimerExpired opens with
+            `if (objectiveID < 0) return;` (:92-95). So NO test-mode scenario
+            can ever see a WinState leave Undefined, however completely the
+            match ended. Run 260914_191513 reported "never reached an ending"
+            on exactly that mistake.
+
+            A HUMAN LOBBY IS NOT TEST MODE: the tick guard is off, the
+            objective registers on the first tick, and the time limit resolves
+            a winner normally. The lobby feature was never broken -- Time limit
+            plus Nuclear ending does end a match for a player. Only the
+            detector was wrong, and WinState is now carried as a READING
+            labelled inert rather than asserted on.
+
+            CONFIRMED at run 260915_012829: debug.log carried "TIME LIMIT
+            expired at tick 22000 (limit 22000)." and "FINAL EXCHANGE opening
+            at tick 22000, trigger time limit.", and the readings showed
+            ending@22001 doomsday{phase=1|open=true|placements=0|salvo=true|
+            closes=22250}. The ending had been working all along; only the
+            observer was blind, and the two new log lines are what proved it.
+
+  LAUNCHES ARE A READING, NOT AN ASSERTION. The module fires only when losing
+  (army value under 60 % of the strongest enemy's, or own SR control under 40 %)
+  and only after three agreeing evaluations, so two even bots reaching the end
+  with neither committed is the mechanism working. The ledger records which.
+
+  EXCEPTIONS are checked by the harness, not here: an unhandled engine exception
+  kills the process and run-test.sh:898 reports CRASH off exception-<utc>.log, and
+  a fatal Lua error writes its own fail verdict (ScriptContext.cs:273-277). The
+  one gap -- run-test.sh only hunts for a crash log when NO result file exists --
+  is closed structurally: this poller never passes early, it writes on the first
+  of (ending observed) or (deadline), and the ending is the last thing in the
+  match.
+
+RUN IT AS: ./tools/autotest/run-test.sh --hidden --speed 4 --timeout 3000 \
+             test-escalation-full-match
+           (3000 s, not 1200 -- sized against the MEASURED ~12 ticks/s below,
+            not against --speed 4's nominal 66.7. The first two attempts both
+            TIMEOUT-FAILed on that mistake.)
+
+MATCH OBSERVATION, NOT A FAULT: DEFCON 2 HAS NO LENGTH OF ITS OWN.
+
+  run 260914_181212   3->2 @5000   2->1 @5671   DEFCON 2 lasted  670 ticks (40 s)
+  run 260915_012829   3->2 @5000   2->1 @5001   DEFCON 2 lasted    1 tick
+
+Both are correct behaviour. 3 -> 2 is a clock; 2 -> 1 has NO clock at all and
+fires on the first qualifying enemy-caused death. The wall stands at DEFCON 3
+only (ActiveLevels = { 3 }), so both armies spend the no-rush period staged ON
+the border and are in contact the instant it drops -- which means the cease-fire
+phase lasts exactly as long as the first kill takes, and that can be one tick.
+The more competent the staging, the shorter DEFCON 2 becomes.
+
+THIS SCENARIO DOES NOT JUDGE THAT. It records the number and asserts only the
+ordering (2 before 1) and the clock (3 -> 2 at 5000). Whether a cease-fire phase
+that can vanish in a tick is the intended design is a question for the user, and
+the manager is raising it separately. If the answer is "it needs a floor", that
+is a change to DefconEscalationState and this scenario is where it gets measured.
+
+IT IS ALSO WHAT BROKE THE DETECTOR TWICE OVER. The poller samples every 5 ticks,
+so a one-tick phase is invisible to it: run 4 sampled level 3 then level 1 and
+its assertion concluded "DEFCON never left 3", blaming a clock that had been
+exact. The phase assertions now read Test.DefconLevelReachedTick rather than what
+the poller happened to catch, and the fail text can no longer blame the clock
+when level 1 was reached -- level 1 is unreachable except through level 2, so
+that combination now names the transition RECORD as the suspect instead.
+
+RED SABOTAGE, per assertion. NONE OF THESE HAS BEEN RUN -- this worker is not
+permitted to launch -- so each is a SPECIFICATION of the expected failure, not a
+measurement of it. Budget a slot for whichever arm a future change touches.
+
+  ENDING   In rules.yaml set `DoomsdayStrike: RunInTestMode: false` (the shipped
+           default). BeginFinalExchange then takes its test-mode bail, phase
+           stays 0, and the expected text is
+             "the match never reached an ending by tick 24001:
+              Test.DoomsdayState() never left phase=0, last reading
+              \"phase=0|open=false|placements=0|salvo=false|closes=0\""
+           and debug.log must carry
+             "FINAL EXCHANGE: declined at tick 22000 -- test-mode session and
+              RunInTestMode is false."
+           THE LOG LINE IS THE POINT OF THIS ARM: it is what distinguishes this
+           bail from the other two, and it did not exist before 2026-09-14 --
+           which is why run 260914_191513 could not tell "never called" from
+           "called and declined" and cost a wrong diagnosis.
+
+  WALL     In map.yaml drop `NonCombatant: True` from the Observer slot. The
+           slot is then a third combatant, the derivation refuses a line, and
+           the expected text is
+             "THE DEFCON 3 WALL NEVER STOOD: 0 of 1000 samples ..."
+           with debug.log carrying
+             "no line derived from 3 combatant home(s) in 3 alliance group(s)".
+           THIS ARM HAS A NATURAL EXPERIMENT BEHIND IT rather than a sabotage:
+           runs 260914_141246 and 260914_181212 both produced exactly that log
+           line, and 260914_191513 produced "derived from 2 home(s) in 2
+           group(s)" after the CombatantSides fix -- a measured RED and a
+           measured GREEN on the same predicate.
+
+  PHASES   Set `DefconEscalation: ModeDefault: Skirmish`. The level holds
+           NoLevel, Test.DefconLevelReachedTick(3) returns -1, and the opening
+           assertion fires:
+             "the match never opened at DEFCON 3: level 3 was never reached"
+           This is the guard that stops every other assertion passing vacuously.
+
+  CLOCK    Set `DefconEscalation: NoRushTicksOverride: 300`. The recorded 3 -> 2
+           tick then lands near 300 against a 5000-tick expectation and the
+           EARLY arm fires:
+             "DEFCON 3 -> 2 at tick 300, EARLIER than the 5000-tick no-rush
+              clock."
+           THIS ARM IS WHY THE TRANSITION RECORD EXISTS: sampling could not have
+           held the >=5000 bound at all once DEFCON 2 shrank to a single tick.
+
+THIS IS A LONG SCENARIO AND run-batch.sh --all WILL PICK IT UP (it globs
+test-*). Budget: the poller's hard deadline is 24000 ticks, which is ~6.0 min
+of wall clock at --speed 4 (Timestep 60/4 = 15 ms exactly) and ~24 min at 1x.
+run-batch.sh defaults to --speed 8, where integer division gives Timestep 7 ms
+and a real multiplier of 60/7 = 8.57x -- so ~2.8 min nominal against
+run-test.sh's default 300 s timeout. That is only ~1.8x of margin, and it
+requires the engine to sustain ~143 ticks/s on a 98x98 two-bot late game.
+
+MEASURED FOUR TIMES. THE LAST TWO ARE THE ONES TO PLAN WITH:
+
+  run 260914_141246  load 115-236  --speed 4  ~5.5 ticks/s  (tick ~6600 in 1200 s)
+  run 260914_181212  load  13-25   --speed 4  ~12  ticks/s  (tick 21360 in 1800 s)
+  run 260914_191513  load 19       --speed 4  >8   ticks/s  (tick 24000 in <3000 s)
+  run 260915_012829  load 8.7      --speed 4  >8   ticks/s  (tick 24001 in <3000 s)
+
+Runs 3 and 4 both completed the full 24000-tick budget inside 3000 s, so
+--timeout 3000 is the right figure and is what the run line above uses. Neither
+reported its exact wall clock, so those two rows carry a LOWER BOUND (>8) rather
+than a rate -- do not read them as a measured throughput the way rows 1 and 2
+can be read.
+
+The second run was on an effectively idle machine and STILL managed only ~12 of
+the 66.7 ticks/s that --speed 4 nominally asks for. So this scenario is
+CPU-BOUND on its own simulation, not merely a victim of contention: a 98x98 map
+with two full bot armies cannot be driven at 4x on this hardware, and load
+accounts for the gap between 12 and 5.5 but not for the gap between 66 and 12.
+
+CONSEQUENCES, BOTH WORTH KNOWING BEFORE SPENDING A SLOT:
+  * --timeout must be sized against ~12 ticks/s, not against the nominal. The
+    24000-tick deadline therefore wants 2000 s of headroom; 3000 s is the
+    manager's figure and is right.
+  * THE --speed 8 BATCH CONCERN IS CONFIRMED AND IS WORSE THAN STATED. If 4x
+    yields 12 ticks/s, 8x does not yield 24 -- the engine is already the
+    bottleneck. run-batch.sh --all would need ~143 ticks/s to fit this inside
+    run-test.sh's default 300 s timeout and will not get close on any machine
+    measured so far. DO NOT LEAVE THIS IN AN --all BATCH without passing a
+    --timeout; it will red for cost, not for merit.
+
+MATCH READINGS FROM 260914_181212, all consistent with the shipped clocks even
+though the wall was down for the whole no-rush period:
+  DEFCON 2 at tick 5000 -- EXACTLY the 5000-tick no-rush clock, which also
+    retires any doubt about this file's tick-origin assumption
+  DEFCON 1 at ~5030 on an e3.america kill -- only 30 ticks later, because with
+    no border the armies were already intermingled; expect this gap to GROW
+    once the wall stands and the two sides have to cross
+  release gate at 15001 = 5030 + ~10000, the shipped ten minutes, to the tick
+  Russia-bot launched 1 kt three times; USA-bot never launched or replied
+The launch asymmetry is the losing rule behaving correctly if USA-bot was ahead
+on army value -- NuclearBotModule fires only when losing. The READINGS line this
+scenario now prints carries both bots' full ledgers (launches/band/fired/reason/
+streak/committed), so the next run answers that instead of inviting a guess.
+
+IF A BATCH EVER TIMEOUT-FAILs THIS, THE ANSWER IS A LONGER --timeout, NOT A
+COMPRESSED CLOCK. Compressing a phase clock here does not make the scenario
+cheaper to run, it makes it stop being this scenario -- there are six
+single-mechanism probes next door that already measure the compressed case.
+Pass --timeout to run-batch.sh, or drop this folder from the batch by name.

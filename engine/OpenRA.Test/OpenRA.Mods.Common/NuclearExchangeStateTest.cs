@@ -559,25 +559,17 @@ namespace OpenRA.Test
 				Assert.That(state.LevelFor(side), Is.EqualTo((int)NuclearRung.Kiloton));
 		}
 
-		[Test]
-		public void ASideIsAnyCombatantAndNotOnlyALobbySlot()
-		{
-			// `Playable` IS NOT PART OF THE TEST, and a first version of this rule had it and was
-			// wrong. PlayerReference.Playable defaults to FALSE and says only "is this a slot the
-			// lobby offers", so requiring it silently drops every map-authored combatant.
-			//
-			// IT COST A SCENARIO RUN: test-nuclear-exchange authored `Playable: True` on USA and not
-			// on Russia, and the run logged "NUCLEAR RELEASE: all 1 sides" while DefconWall -- reading
-			// the same players with this predicate -- logged two groups on the same tick.
-			Assert.That(NuclearExchangeState.CountsAsASide(false, false), Is.True,
-				"an ordinary combatant, playable or not, is a side");
-
-			Assert.That(NuclearExchangeState.CountsAsASide(true, false), Is.False,
-				"Neutral, Creeps and the world owner are not sides");
-			Assert.That(NuclearExchangeState.CountsAsASide(false, true), Is.False,
-				"a spectator cannot fire and must not be escalated");
-			Assert.That(NuclearExchangeState.CountsAsASide(true, true), Is.False);
-		}
+		// ==== "IS THIS PLAYER A SIDE" MOVED OUT AT THE 2026-09-15 MERGE, AND ITS TEST WENT WITH IT ====
+		// `NuclearExchangeState.CountsAsASide(nonCombatant, spectating)` was deleted by main's
+		// `e5a3f629`, which extracted the rule into CombatantSides so DefconWall and this trait could
+		// stop disagreeing about who is in the match -- and STRENGTHENED it while doing so, because
+		// the runtime Player flags do not always reflect the map's authored PlayerReference (a
+		// scenario's `NonCombatant: True` could be dropped on one of Player's two constructor
+		// branches, which is how an Observer was keyed as a third nuclear side).
+		//
+		// The fixture that used to sit here is now CombatantSidesTest, against the four-flag form.
+		// It is NOT duplicated here: two fixtures asserting one predicate is how they drift, and the
+		// one that moved is the one with the extra coverage.
 
 		[Test]
 		public void NothingNuclearIsPurchasableInEscalationAndEverythingElseIsUnchanged()

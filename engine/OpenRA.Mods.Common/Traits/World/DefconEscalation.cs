@@ -52,7 +52,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string ModeLabel = "Game mode";
 
 		[Desc("Tooltip for the game mode dropdown.")]
-		public readonly string ModeDescription = "Escalation opens the match with the border closed and steps the war up in phases: a no-rush period, then a cease-fire nobody has broken yet, then open war and the nuclear exchange. Skirmish is the ordinary game with no phases at all.";
+		public readonly string ModeDescription =
+			"Which game this is. Escalation runs the match in timed phases into a nuclear exchange; " +
+			"Skirmish is the ordinary game, with a nuclear shop and no phases at all. The controls " +
+			"below follow the mode you pick";
 
 		[Desc("Default game mode. MUST REMAIN " + nameof(DefconGameMode.Skirmish) + " until the feature is",
 			"complete: Skirmish is a strict no-op, so while this is the default nothing a player sees",
@@ -72,7 +75,9 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string StartAtLabel = "Opening phase";
 
 		[Desc("Tooltip for the starting phase dropdown.")]
-		public readonly string StartAtDescription = "The phase the match opens in. Positioning is the ceiling: it is the standing posture, so there is deliberately nothing calmer to climb down from. Starting later skips the phases before it.";
+		public readonly string StartAtDescription =
+			"The phase the match opens in. Positioning is the calmest there is, so starting later " +
+			"simply skips the phases before it";
 
 		[Desc("Default starting level. 3, 2 or 1 -- see " + nameof(DefconEscalationState.Ceiling) + ".")]
 		public readonly int StartAtDefault = DefconEscalationState.Ceiling;
@@ -105,8 +110,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Tooltip for the no-rush period dropdown.")]
 		public readonly string NoRushDescription =
-			"How long the border stays closed at the start of the match. Neither side may cross it or " +
-			"fire across it until this runs out. It scales that clock and nothing else";
+			"How long the border stays closed at the start of the match. Neither side may cross it " +
+			"or fire across it until this runs out";
 
 		[Desc("No-rush periods offered in the lobby, in MINUTES.",
 			"",
@@ -137,7 +142,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Tooltip for the first warheads dropdown.")]
 		public readonly string FirstWarheadsDescription =
-			"Minutes after the first kill before nuclear weapons are released.";
+			"How long after the first kill before nuclear weapons are released";
 
 		[Desc("First-warhead delays offered in the lobby, in MINUTES. See " + nameof(NoRushOptions) + ".")]
 		public readonly int[] FirstWarheadsOptions = { 2, 5, 7, 10, 15, 20 };
@@ -358,6 +363,32 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>The full length of the DEFCON 3 clock, so a readout can draw a progress bar.</summary>
 		public readonly int ClockTicks;
 
+		// ==== WHEN EACH LEVEL WAS FIRST REACHED. DIAGNOSTIC, AND NOT [Sync]. ====
+		// The trait has always KNOWN these ticks -- both transition sites log them -- and has never
+		// kept them, so the only way to observe a transition was to sample Level and hope. That is
+		// not good enough for a phase that can be ONE TICK LONG: run 260915_012829 went 3 -> 2 on the
+		// clock at 5000 and 2 -> 1 on a kill at 5001, and a poller sampling every 5 ticks saw level 3
+		// then level 1 and reported the no-rush clock as broken. The clock was fine; the observer
+		// could not see an edge.
+		//
+		// Not hashed for the reason TicksUntilNuclearRelease's neighbours give: this is a projection
+		// of Level, which IS hashed, so a divergence here is a divergence there first.
+		readonly Dictionary<int, int> levelReachedTick = new Dictionary<int, int>();
+
+		/// <summary>The tick <paramref name="level"/> was first reached, or -1 if it never was.</summary>
+		public int LevelReachedTick(int level)
+		{
+			return levelReachedTick.TryGetValue(level, out var tick) ? tick : -1;
+		}
+
+		// First writer wins, so a level cannot be re-stamped. Levels only ever descend, but stating it
+		// here means a future two-way ladder would not silently rewrite history.
+		void RecordLevel(int tick)
+		{
+			if (!levelReachedTick.ContainsKey(state.Level))
+				levelReachedTick[state.Level] = tick;
+		}
+
 		/// <summary>
 		/// Whether the nuclear release gate has opened. POLLED BY <see cref="NuclearExchange"/>, which
 		/// turns it into every side's permanent 1 kt band; see <see cref="NuclearReleaseGate"/>.
@@ -400,6 +431,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
+			// The OPENING level, stamped on the first tick it is observed. Cheap and idempotent.
+			RecordLevel(self.World.WorldTick);
+
 			// THE RELEASE GATE IS TICKED BEFORE THE EARLY RETURN BELOW, and that ordering is
 			// load-bearing rather than tidy: state.Tick() returns false on every tick except the one
 			// the level actually moves, so a gate ticked after it would advance at most twice in a
@@ -418,6 +452,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			Log.Write("debug", $"DEFCON {Level} (clock expired at tick {self.World.WorldTick}).");
+			RecordLevel(self.World.WorldTick);
 
 			// THE ONE-SHOT HALF OF THE HOLD-FIRE RULE. The flag itself only stops a unit ACQUIRING a
 			// target; an engagement already running when the level drops has to be cancelled explicitly,
@@ -456,6 +491,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			Log.Write("debug", $"DEFCON {Level} (enemy action destroyed {victim.Info.Name}, owner {victim.Owner.InternalName}).");
+			RecordLevel(victim.World.WorldTick);
 		}
 
 		// WHAT USED TO BE HERE, AND WHERE IT WENT (2026-09-13 ruling):
