@@ -58,7 +58,16 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyCreated.Created(Actor self)
 		{
 			garrisonManager = self.Trait<GarrisonManager>();
-			health = self.Trait<IHealth>();
+
+			// TraitOrDefault, NOT Trait: this trait is inherited by actors that remove Health while
+			// keeping the garrison stack (V19.Husk, civilian.yaml:444-450 -- a wreck that still
+			// carries Cargo/GarrisonManager/GarrisonProtection). Trait<IHealth>() throws
+			// InvalidOperationException from TraitDictionary.Get on such an actor, which kills it at
+			// construction. Nothing in the YAML can catch that: GarrisonProtectionInfo declares
+			// Requires<GarrisonManagerInfo> and Requires<CargoInfo> but NOT Requires<HealthInfo>, so
+			// no lint has anything to flag. The two health == null guards below were written for
+			// exactly this case and were unreachable dead code while this line threw first.
+			health = self.TraitOrDefault<IHealth>();
 		}
 
 		/// <summary>
