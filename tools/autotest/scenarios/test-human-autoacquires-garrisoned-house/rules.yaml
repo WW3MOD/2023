@@ -1,0 +1,38 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Human-owned units read per-type stance defaults off this machine's unit-defaults.yaml
+	# (AutoTarget.cs:355-388). Strip it so the abrams' stance is the one stated below on every
+	# machine -- this scenario's whole subject is what a unit does on FireAtWill.
+	-UnitDefaultsManager:
+	LuaScript:
+		Scripts: test-helpers.lua, test-human-autoacquires-garrisoned-house.lua
+
+	# NO DefconEscalation BLOCK, deliberately. The sibling scenario needs DEFCON 2 and therefore
+	# cannot measure auto-acquisition at all; this one must have nothing holding fire, so it stays an
+	# ordinary Skirmish and the .lua pre-asserts Test.DefconLevel() == 0 to prove it.
+
+abrams:
+	# THE SUBJECT. Both fields because AutoTarget.cs:497 picks
+	# `Owner.IsBot || !Owner.Playable ? InitialStanceAI : InitialStance`; USA IS Playable here so
+	# InitialStance is the one that fires, but a scenario that is ever re-pointed at a bot slot
+	# should not silently fall back to the default.
+	AutoTarget:
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+
+E1:
+	# Held silent for the walk in. They are Russia-owned and the abrams does not yet exist while they
+	# are outside, so this is belt-and-braces -- but if the creation order in the .lua is ever
+	# changed, a rifleman who stops to fight is a rifleman who never reaches the shelter.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
