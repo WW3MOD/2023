@@ -130,47 +130,29 @@
 		# (structures-defenses.yaml) because those inherit ^Defense, NOT this template.
 		EmergencyBailDamageState: Dead
 	GarrisonManager:
-		Ports:
-			northeast1:
-				Name: northeast1
-				Offset: 80,-280,200
-				Yaw: 896
-				Cone: 140
-			northeast2:
-				Name: northeast2
-				Offset: 280,-80,200
-				Yaw: 896
-				Cone: 140
-			southeast1:
-				Name: southeast1
-				Offset: 280,80,200
-				Yaw: 640
-				Cone: 140
-			southeast2:
-				Name: southeast2
-				Offset: 80,280,200
-				Yaw: 640
-				Cone: 140
-			southwest1:
-				Name: southwest1
-				Offset: -80,280,200
-				Yaw: 384
-				Cone: 140
-			southwest2:
-				Name: southwest2
-				Offset: -280,80,200
-				Yaw: 384
-				Cone: 140
-			northwest1:
-				Name: northwest1
-				Offset: -280,-80,200
-				Yaw: 128
-				Cone: 140
-			northwest2:
-				Name: northwest2
-				Offset: -80,-280,200
-				Yaw: 128
-				Cone: 140
+		# NO Ports HERE, AND THE ABSENCE IS THE DESIGN. This template used to carry one shared
+		# eight-port ring at +/-80,+/-280 -- 0.28 cells from the centre -- for every actor that
+		# inherits it, from a 5x2 warehouse down to a haystack. Two things were wrong with that.
+		#
+		# IT IS GEOMETRICALLY INVISIBLE ON ANYTHING BIGGER THAN A 1x1. The ring spans 560 world
+		# units in X, which is 55% of a 1x1 footprint but 27% of a 2x2 and 11% of V37's 5x2 -- so
+		# the wider the building, the more tightly its whole garrison knots at the centre, inside
+		# the sprite's own art. GTWR is the counter-example that shows the right radius: its four
+		# ports sit at +/-600 on a 1x1, just outside the footprint, and capture 014 of run
+		# 260915_210535 shows all four of its men standing clear of the tower. (Captures 017-019 do
+		# NOT demonstrate the civilian half: those squads never boarded, so the invisibility here is
+		# argued from the offsets and from GTWR, not from a photograph of a loaded church.)
+		#
+		# AND IT IS UNIFORM. Port count is a statement about how many openings a building has, and
+		# a haystack, a shed and a church do not have the same number.
+		#
+		# Every concrete actor now declares its own Ports block, sized to its own footprint and
+		# counted from what its sprite actually shows. MiniYaml MERGES same-named children, so a
+		# ring left here would be ADDED to each actor's rather than replaced -- which is why this
+		# is a deletion and not an override. Ports defaults to an empty array
+		# (GarrisonManagerInfo.cs:48) and nothing requires it to be non-empty, so an actor that
+		# forgot its block would silently become shelter-only rather than fail a lint.
+		# CivBuildingPortCoverageTest exists to make that impossible to ship.
 		SwapCooldown: 20
 		TargetScanInterval: 8
 		AmmoConservation: true
@@ -325,11 +307,6 @@ V01:
 		Dimensions: 2,2
 	Tooltip:
 		Name: Church
-	Health:
-		HP: 75000
-	Armor:
-		Type: Light
-		Thickness: 10
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 	HitShape:
@@ -340,16 +317,64 @@ V01:
 			TopLeft: -768, -597
 			BottomRight: 896, 683
 			LocalYaw: 100
+	# White clapboard church, steeple, shingle roof.
+	# Frame 006/017: timber-framed church, big open nave. One HIMARS rubbles it - the user's
+	# worked example.
+	Health:
+		HP: 38000
+	Armor:
+		Type: Light
+		Thickness: 0
+	Cargo:
+		MaxWeight: 10
+	GarrisonManager:
+		Ports:
+			north:
+				Name: north
+				Offset: 0,-1294,0
+				Yaw: 0
+				Cone: 100
+			northwest:
+				Name: northwest
+				Offset: -1215,-1215,0
+				Yaw: 128
+				Cone: 100
+			west:
+				Name: west
+				Offset: -1114,0,0
+				Yaw: 256
+				Cone: 100
+			southwest:
+				Name: southwest
+				Offset: -1088,1088,0
+				Yaw: 384
+				Cone: 100
+			south:
+				Name: south
+				Offset: 0,1114,0
+				Yaw: 512
+				Cone: 100
+			southeast:
+				Name: southeast
+				Offset: 1088,1088,0
+				Yaw: 640
+				Cone: 100
+			east:
+				Name: east
+				Offset: 1114,0,0
+				Yaw: 768
+				Cone: 100
+			northeast:
+				Name: northeast
+				Offset: 1215,-1215,0
+				Yaw: 896
+				Cone: 100
+
 V02:
 	Inherits: ^CivBuilding
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-	Health:
-		HP: 75000
-	Armor:
-		Type: Light
-		Thickness: 10
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 	HitShape:
@@ -359,16 +384,54 @@ V02:
 			VerticalTopOffset: 1536
 			TopLeft: -1024, -512
 			BottomRight: 1024, 597
+	# Dwelling joined to a corrugated warehouse shed.
+	# Frame 002: half house, half yellow sheet-metal shed on a dirt yard. Big volume, no
+	# structure.
+	Health:
+		HP: 30000
+	Armor:
+		Type: Light
+		Thickness: 0
+	Cargo:
+		MaxWeight: 8
+	GarrisonManager:
+		Ports:
+			north:
+				Name: north
+				Offset: 0,-1294,0
+				Yaw: 0
+				Cone: 120
+			northwest:
+				Name: northwest
+				Offset: -1258,-723,0
+				Yaw: 171
+				Cone: 120
+			southwest:
+				Name: southwest
+				Offset: -1102,633,0
+				Yaw: 341
+				Cone: 120
+			south:
+				Name: south
+				Offset: 0,1114,0
+				Yaw: 512
+				Cone: 120
+			southeast:
+				Name: southeast
+				Offset: 1102,633,0
+				Yaw: 683
+				Cone: 120
+			northeast:
+				Name: northeast
+				Offset: 1258,-723,0
+				Yaw: 853
+				Cone: 120
+
 V03:
 	Inherits: ^CivBuilding
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-	Health:
-		HP: 90000
-	Armor:
-		Type: Light
-		Thickness: 10
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 	HitShape:
@@ -378,16 +441,53 @@ V03:
 			VerticalTopOffset: 1536
 			TopLeft: -1024, -597
 			BottomRight: 1024, 597
+	# Two-storey rendered farmhouse + outbuilding + haystack.
+	# Frame 003: the most substantial temperate dwelling - two full storeys, masonry walls.
+	Health:
+		HP: 60000
+	Armor:
+		Type: Medium
+		Thickness: 0
+	Cargo:
+		MaxWeight: 8
+	GarrisonManager:
+		Ports:
+			north:
+				Name: north
+				Offset: 0,-1294,0
+				Yaw: 0
+				Cone: 120
+			northwest:
+				Name: northwest
+				Offset: -1258,-723,0
+				Yaw: 171
+				Cone: 120
+			southwest:
+				Name: southwest
+				Offset: -1102,633,0
+				Yaw: 341
+				Cone: 120
+			south:
+				Name: south
+				Offset: 0,1114,0
+				Yaw: 512
+				Cone: 120
+			southeast:
+				Name: southeast
+				Offset: 1102,633,0
+				Yaw: 683
+				Cone: 120
+			northeast:
+				Name: northeast
+				Offset: 1258,-723,0
+				Yaw: 853
+				Cone: 120
+
 V04:
 	Inherits: ^CivBuilding
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
-	Health:
-		HP: 65000
-	Armor:
-		Type: Light
-		Thickness: 10
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
 	HitShape:
@@ -397,90 +497,335 @@ V04:
 			VerticalTopOffset: 1536
 			TopLeft: -683, -432
 			BottomRight: 683, 683
+	# Village house, pitched slate roof.
+	# Frame 003: single well-built house, smaller than V03 and with no outbuildings.
+	Health:
+		HP: 45000
+	Armor:
+		Type: Medium
+		Thickness: 0
+	Cargo:
+		MaxWeight: 6
+	GarrisonManager:
+		Ports:
+			north:
+				Name: north
+				Offset: 0,-1294,0
+				Yaw: 0
+				Cone: 170
+			west:
+				Name: west
+				Offset: -1114,0,0
+				Yaw: 256
+				Cone: 170
+			south:
+				Name: south
+				Offset: 0,1114,0
+				Yaw: 512
+				Cone: 170
+			east:
+				Name: east
+				Offset: 1114,0,0
+				Yaw: 768
+				Cone: 170
+
 V05:
 	Inherits: ^CivBuilding
 	Inherits@Shape: ^2x1Shape
 	Building:
 		Footprint: xx
 		Dimensions: 2,1
-	Health:
-		HP: 50000
-	Armor:
-		Type: Light
-		Thickness: 10
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
+	# Small red-roofed cottage + shed.
+	# Frame 004: one-storey cottage, timber, plus a lean-to.
+	Health:
+		HP: 24000
+	Armor:
+		Type: Light
+		Thickness: 0
+	Cargo:
+		MaxWeight: 5
+	GarrisonManager:
+		Ports:
+			north:
+				Name: north
+				Offset: 0,-782,0
+				Yaw: 0
+				Cone: 170
+			west:
+				Name: west
+				Offset: -1114,0,0
+				Yaw: 256
+				Cone: 170
+			south:
+				Name: south
+				Offset: 0,602,0
+				Yaw: 512
+				Cone: 170
+			east:
+				Name: east
+				Offset: 1114,0,0
+				Yaw: 768
+				Cone: 170
+
 V06:
 	Inherits: ^CivBuilding
 	Inherits@Shape: ^2x1Shape
 	Building:
 		Footprint: xx
 		Dimensions: 2,1
-	Health:
-		HP: 65000
-	Armor:
-		Type: Light
-		Thickness: 10
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
+	# Large red timber barn + fence.
+	# Frame 004: classic plank barn. Huge internal volume, nothing structural - burns and folds.
+	Health:
+		HP: 26000
+	Armor:
+		Type: Light
+		Thickness: 0
+	Cargo:
+		MaxWeight: 8
+	GarrisonManager:
+		Ports:
+			north:
+				Name: north
+				Offset: 0,-782,0
+				Yaw: 0
+				Cone: 120
+			northwest:
+				Name: northwest
+				Offset: -1125,-647,0
+				Yaw: 171
+				Cone: 120
+			southwest:
+				Name: southwest
+				Offset: -969,557,0
+				Yaw: 341
+				Cone: 120
+			south:
+				Name: south
+				Offset: 0,602,0
+				Yaw: 512
+				Cone: 120
+			southeast:
+				Name: southeast
+				Offset: 969,557,0
+				Yaw: 683
+				Cone: 120
+			northeast:
+				Name: northeast
+				Offset: 1125,-647,0
+				Yaw: 853
+				Cone: 120
+
 V07:
 	Inherits: ^CivBuilding
 	Inherits@Shape: ^2x1Shape
 	Building:
 		Footprint: xx
 		Dimensions: 2,1
-	Health:
-		HP: 50000
-	Armor:
-		Type: Light
-		Thickness: 10
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
+	# Farmhouse with yard gate.
+	# Frame 005: rendered farmhouse, one and a half storeys, timber roof.
+	Health:
+		HP: 34000
+	Armor:
+		Type: Light
+		Thickness: 0
+	Cargo:
+		MaxWeight: 6
+	GarrisonManager:
+		Ports:
+			north:
+				Name: north
+				Offset: 0,-782,0
+				Yaw: 0
+				Cone: 170
+			west:
+				Name: west
+				Offset: -1114,0,0
+				Yaw: 256
+				Cone: 170
+			south:
+				Name: south
+				Offset: 0,602,0
+				Yaw: 512
+				Cone: 170
+			east:
+				Name: east
+				Offset: 1114,0,0
+				Yaw: 768
+				Cone: 170
+
 V08:
 	Inherits: ^CivBuilding
-	Health:
-		HP: 40000
-	Armor:
-		Type: Light
-		Thickness: 10
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
+	# Flat-roofed storehouse.
+	# Frame 005: a plain box with one opening. A store, not a dwelling.
+	Health:
+		HP: 18000
+	Armor:
+		Type: Light
+		Thickness: 0
+	Cargo:
+		MaxWeight: 4
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 300
 
 V09:
 	Inherits: ^CivBuilding
+	MapEditorData:
+		ExcludeTilesets: DESERT, INTERIOR
+	# Small yellow cottage.
+	# Frame 003: single-room dwelling, two windows.
 	Health:
-		HP: 25000
+		HP: 16000
 	Armor:
 		Type: Light
-		Thickness: 10
-	MapEditorData:
-		ExcludeTilesets: DESERT, INTERIOR
+		Thickness: 0
+	Cargo:
+		MaxWeight: 4
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 300
+
 V10:
 	Inherits: ^CivBuilding
-	Health:
-		HP: 50000
-	Armor:
-		Type: Medium
-		Thickness: 30
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
+	# Two-storey masonry townhouse, red roof.
+	# Frame 003: white masonry, two storeys on a 1x1 - tall and solid, the temperate set's brick
+	# house.
+	Health:
+		HP: 52000
+	Armor:
+		Type: Medium
+		Thickness: 0
+	Cargo:
+		MaxWeight: 6
+	GarrisonManager:
+		Ports:
+			north:
+				Name: north
+				Offset: 0,-782,0
+				Yaw: 0
+				Cone: 170
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 170
+			south:
+				Name: south
+				Offset: 0,602,0
+				Yaw: 512
+				Cone: 170
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 170
+
 V11:
 	Inherits: ^CivBuilding
-	Health:
-		HP: 25000
-	Armor:
-		Type: Medium
-		Thickness: 10
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
+	# Small outbuilding / shed.
+	# Frame 003: low red-roofed shed, barely a room.
+	Health:
+		HP: 14000
+	Armor:
+		Type: Light
+		Thickness: 0
+	Cargo:
+		MaxWeight: 3
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 300
+
 V12:
 	Inherits: ^CivBuilding
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
+	# TWO HAYSTACKS.
+	# Frame 004: not a building - two stacks of hay. Was 60000 HP of concrete holding ten men.
+	Health:
+		HP: 4000
+	Armor:
+		Type: None
+		Thickness: 0
+	Cargo:
+		MaxWeight: 2
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 300
+
 V13:
 	Inherits: ^CivBuilding
 	MapEditorData:
 		ExcludeTilesets: DESERT, INTERIOR
+	# ONE HAYSTACK.
+	# Frame 004: a single hay stack. Same inherited-concrete defect as V12.
+	Health:
+		HP: 3000
+	Armor:
+		Type: None
+		Thickness: 0
+	Cargo:
+		MaxWeight: 2
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 300
+
 V14:
 	Inherits: ^CivField
 	MapEditorData:
@@ -511,6 +856,28 @@ V19:
 		Actor: V19.Husk
 	Targetable:
 		TargetTypes: NoAutoTarget, Ground, C4, DetonateAttack, Structure
+	# Oil pump jack on a concrete pad.
+	# Frame 018: machinery, not a room. Two men can shelter behind the pad; there is no interior.
+	Health:
+		HP: 20000
+	Armor:
+		Type: Medium
+		Thickness: 0
+	Cargo:
+		MaxWeight: 2
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 300
+
 V19.Husk:
 	Inherits: ^CivBuilding
 	# A WRECK IS NOT A GARRISON. This husk inherits ^CivBuilding for its sprite and footprint and
@@ -585,6 +952,48 @@ V20:
 			VerticalTopOffset: 1536
 			TopLeft: -1024, -512
 			BottomRight: 1024, 896
+	# Adobe compound, two thatched houses.
+	# Frame 005: two mud-brick houses sharing a sand yard. Thick walls, but they crumble.
+	Health:
+		HP: 50000
+	Armor:
+		Type: Light
+		Thickness: 0
+	Cargo:
+		MaxWeight: 8
+	GarrisonManager:
+		Ports:
+			north:
+				Name: north
+				Offset: 0,-1294,0
+				Yaw: 0
+				Cone: 120
+			northwest:
+				Name: northwest
+				Offset: -1258,-723,0
+				Yaw: 171
+				Cone: 120
+			southwest:
+				Name: southwest
+				Offset: -1102,633,0
+				Yaw: 341
+				Cone: 120
+			south:
+				Name: south
+				Offset: 0,1114,0
+				Yaw: 512
+				Cone: 120
+			southeast:
+				Name: southeast
+				Offset: 1102,633,0
+				Yaw: 683
+				Cone: 120
+			northeast:
+				Name: northeast
+				Offset: 1258,-723,0
+				Yaw: 853
+				Cone: 120
+
 V21:
 	Inherits: ^DesertCivBuilding
 	Building:
@@ -603,14 +1012,110 @@ V21:
 			VerticalTopOffset: 1536
 			TopLeft: 0, 0
 			BottomRight: 1024, 598
+	# Adobe house with a well.
+	# Frame 005: single adobe dwelling plus the well its HitShape@WELL already models.
+	Health:
+		HP: 44000
+	Armor:
+		Type: Light
+		Thickness: 0
+	Cargo:
+		MaxWeight: 7
+	GarrisonManager:
+		Ports:
+			north:
+				Name: north
+				Offset: 0,-1294,0
+				Yaw: 0
+				Cone: 120
+			northwest:
+				Name: northwest
+				Offset: -1258,-723,0
+				Yaw: 171
+				Cone: 120
+			southwest:
+				Name: southwest
+				Offset: -1102,633,0
+				Yaw: 341
+				Cone: 120
+			south:
+				Name: south
+				Offset: 0,1114,0
+				Yaw: 512
+				Cone: 120
+			southeast:
+				Name: southeast
+				Offset: 1102,633,0
+				Yaw: 683
+				Cone: 120
+			northeast:
+				Name: northeast
+				Offset: 1258,-723,0
+				Yaw: 853
+				Cone: 120
+
 V22:
 	Inherits: ^DesertCivBuilding
 	Inherits@Shape: ^2x1Shape
 	Building:
 		Footprint: xx
 		Dimensions: 2,1
+	# Small adobe house, thatch roof.
+	# Frame 006: one-storey whitewashed mud-brick with a low boundary wall.
+	Health:
+		HP: 20000
+	Armor:
+		Type: Light
+		Thickness: 0
+	Cargo:
+		MaxWeight: 5
+	GarrisonManager:
+		Ports:
+			north:
+				Name: north
+				Offset: 0,-782,0
+				Yaw: 0
+				Cone: 170
+			west:
+				Name: west
+				Offset: -1114,0,0
+				Yaw: 256
+				Cone: 170
+			south:
+				Name: south
+				Offset: 0,602,0
+				Yaw: 512
+				Cone: 170
+			east:
+				Name: east
+				Offset: 1114,0,0
+				Yaw: 768
+				Cone: 170
+
 V23:
 	Inherits: ^DesertCivBuilding
+	# A LOW WALL AND A WELL.
+	# Frame 007: not a building - a wall stub and a well head. Was concrete at 60000 holding ten.
+	Health:
+		HP: 5000
+	Armor:
+		Type: None
+		Thickness: 0
+	Cargo:
+		MaxWeight: 2
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 300
+
 V24:
 	Inherits: ^DesertCivBuilding
 	Building:
@@ -623,6 +1128,59 @@ V24:
 			VerticalTopOffset: 1536
 			TopLeft: -1024, -683
 			BottomRight: 640, 853
+	# Concrete block building + water tank.
+	# Frame 007: flat-roofed poured-concrete structure, the one genuinely concrete desert
+	# building.
+	Health:
+		HP: 100000
+	Armor:
+		Type: Concrete
+		Thickness: 0
+	Cargo:
+		MaxWeight: 10
+	GarrisonManager:
+		Ports:
+			north:
+				Name: north
+				Offset: 0,-1294,0
+				Yaw: 0
+				Cone: 100
+			northwest:
+				Name: northwest
+				Offset: -1215,-1215,0
+				Yaw: 128
+				Cone: 100
+			west:
+				Name: west
+				Offset: -1114,0,0
+				Yaw: 256
+				Cone: 100
+			southwest:
+				Name: southwest
+				Offset: -1088,1088,0
+				Yaw: 384
+				Cone: 100
+			south:
+				Name: south
+				Offset: 0,1114,0
+				Yaw: 512
+				Cone: 100
+			southeast:
+				Name: southeast
+				Offset: 1088,1088,0
+				Yaw: 640
+				Cone: 100
+			east:
+				Name: east
+				Offset: 1114,0,0
+				Yaw: 768
+				Cone: 100
+			northeast:
+				Name: northeast
+				Offset: 1215,-1215,0
+				Yaw: 896
+				Cone: 100
+
 V25:
 	Inherits: ^DesertCivBuilding
 	Building:
@@ -637,48 +1195,372 @@ V25:
 			VerticalTopOffset: 1536
 			TopLeft: -683, -683
 			BottomRight: 1024, 512
+	# Desert church, whitewashed, steeple.
+	# Frame 008: the second church. Matched to V01 exactly so the two read the same.
+	Health:
+		HP: 38000
+	Armor:
+		Type: Light
+		Thickness: 0
+	Cargo:
+		MaxWeight: 10
+	GarrisonManager:
+		Ports:
+			north:
+				Name: north
+				Offset: 0,-1294,0
+				Yaw: 0
+				Cone: 100
+			northwest:
+				Name: northwest
+				Offset: -1215,-1215,0
+				Yaw: 128
+				Cone: 100
+			west:
+				Name: west
+				Offset: -1114,0,0
+				Yaw: 256
+				Cone: 100
+			southwest:
+				Name: southwest
+				Offset: -1088,1088,0
+				Yaw: 384
+				Cone: 100
+			south:
+				Name: south
+				Offset: 0,1114,0
+				Yaw: 512
+				Cone: 100
+			southeast:
+				Name: southeast
+				Offset: 1088,1088,0
+				Yaw: 640
+				Cone: 100
+			east:
+				Name: east
+				Offset: 1114,0,0
+				Yaw: 768
+				Cone: 100
+			northeast:
+				Name: northeast
+				Offset: 1215,-1215,0
+				Yaw: 896
+				Cone: 100
+
 V26:
 	Inherits: ^DesertCivBuilding
 	Inherits@Shape: ^2x1Shape
 	Building:
 		Footprint: xx
 		Dimensions: 2,1
+	# Two joined adobe huts.
+	# Frame 008: a pair of thatched mud-brick dwellings.
+	Health:
+		HP: 24000
+	Armor:
+		Type: Light
+		Thickness: 0
+	Cargo:
+		MaxWeight: 6
+	GarrisonManager:
+		Ports:
+			north:
+				Name: north
+				Offset: 0,-782,0
+				Yaw: 0
+				Cone: 170
+			west:
+				Name: west
+				Offset: -1114,0,0
+				Yaw: 256
+				Cone: 170
+			south:
+				Name: south
+				Offset: 0,602,0
+				Yaw: 512
+				Cone: 170
+			east:
+				Name: east
+				Offset: 1114,0,0
+				Yaw: 768
+				Cone: 170
+
 V27:
 	Inherits: ^DesertCivBuilding
+	# Small concrete box building.
+	# Frame 009: grey flat-roofed concrete, one room but properly built.
+	Health:
+		HP: 55000
+	Armor:
+		Type: Concrete
+		Thickness: 0
+	Cargo:
+		MaxWeight: 5
+	GarrisonManager:
+		Ports:
+			north:
+				Name: north
+				Offset: 0,-782,0
+				Yaw: 0
+				Cone: 170
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 170
+			south:
+				Name: south
+				Offset: 0,602,0
+				Yaw: 512
+				Cone: 170
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 170
+
 V28:
 	Inherits: ^DesertCivBuilding
+	# Small adobe hut, thatch roof.
+	# Frame 009: single-room mud-brick.
+	Health:
+		HP: 15000
+	Armor:
+		Type: Light
+		Thickness: 0
+	Cargo:
+		MaxWeight: 4
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 300
+
 V29:
 	Inherits: ^DesertCivBuilding
+	# Adobe hut with windows.
+	# Frame 006: slightly larger single-room adobe.
+	Health:
+		HP: 16000
+	Armor:
+		Type: Light
+		Thickness: 0
+	Cargo:
+		MaxWeight: 4
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 300
+
 V30:
 	Inherits: ^DesertCivBuilding
 	Inherits@Shape: ^2x1Shape
 	Building:
 		Footprint: xx
 		Dimensions: 2,1
+	# Long flat-roofed adobe store.
+	# Frame 007: low mud-brick range, wide but single-storey.
+	Health:
+		HP: 26000
+	Armor:
+		Type: Light
+		Thickness: 0
+	Cargo:
+		MaxWeight: 6
+	GarrisonManager:
+		Ports:
+			north:
+				Name: north
+				Offset: 0,-782,0
+				Yaw: 0
+				Cone: 170
+			west:
+				Name: west
+				Offset: -1114,0,0
+				Yaw: 256
+				Cone: 170
+			south:
+				Name: south
+				Offset: 0,602,0
+				Yaw: 512
+				Cone: 170
+			east:
+				Name: east
+				Offset: 1114,0,0
+				Yaw: 768
+				Cone: 170
+
 V31:
 	Inherits: ^DesertCivBuilding
 	Inherits@Shape: ^2x1Shape
 	Building:
 		Footprint: xx
 		Dimensions: 2,1
+	# RUIN AND MARKET STALLS.
+	# Frame 007: a collapsed structure and awning stalls. Cover, not a building.
+	Health:
+		HP: 8000
+	Armor:
+		Type: None
+		Thickness: 0
+	Cargo:
+		MaxWeight: 3
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 1114,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -1114,0,0
+				Yaw: 256
+				Cone: 300
+
 V32:
 	Inherits: ^DesertCivBuilding
 	Inherits@Shape: ^2x1Shape
 	Building:
 		Footprint: xx
 		Dimensions: 2,1
+	# Low huts / tents.
+	# Frame 008: sand-coloured shelters, barely knee-high in the sprite.
+	Health:
+		HP: 9000
+	Armor:
+		Type: None
+		Thickness: 0
+	Cargo:
+		MaxWeight: 3
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 1114,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -1114,0,0
+				Yaw: 256
+				Cone: 300
+
 V33:
 	Inherits: ^DesertCivBuilding
 	Inherits@Shape: ^2x1Shape
 	Building:
 		Footprint: xx
 		Dimensions: 2,1
+	# Adobe hut with a market stall.
+	# Frame 008: one small mud-brick unit plus an awning.
+	Health:
+		HP: 12000
+	Armor:
+		Type: Light
+		Thickness: 0
+	Cargo:
+		MaxWeight: 4
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 1114,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -1114,0,0
+				Yaw: 256
+				Cone: 300
+
 V34:
 	Inherits: ^DesertCivBuilding
+	# Tent / sand mound.
+	# Frame 009: the smallest thing in the set - a mound with an opening.
+	Health:
+		HP: 6000
+	Armor:
+		Type: None
+		Thickness: 0
+	Cargo:
+		MaxWeight: 2
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 300
+
 V35:
 	Inherits: ^DesertCivBuilding
+	# Small adobe ruin.
+	# Frame 009: a broken shell, roof gone.
+	Health:
+		HP: 8000
+	Armor:
+		Type: None
+		Thickness: 0
+	Cargo:
+		MaxWeight: 2
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 300
+
 V36:
 	Inherits: ^DesertCivBuilding
+	# Small adobe mound hut.
+	# Frame 010: tiny intact mud-brick dwelling.
+	Health:
+		HP: 10000
+	Armor:
+		Type: Light
+		Thickness: 0
+	Cargo:
+		MaxWeight: 3
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 300
+
 V37:
 	Inherits: ^DesertCivBuilding
 	Building:
@@ -691,6 +1573,57 @@ V37:
 			VerticalTopOffset: 1536
 			TopLeft: -512, -597
 			BottomRight: 1536, 597
+	# Large warehouse / hangar on a concrete apron.
+	# Frame 011: by far the biggest civilian structure - a long roofed hall on poured concrete.
+	Health:
+		HP: 95000
+	Armor:
+		Type: Concrete
+		Thickness: 0
+	Cargo:
+		MaxWeight: 12
+	GarrisonManager:
+		Ports:
+			north:
+				Name: north
+				Offset: 0,-1294,0
+				Yaw: 0
+				Cone: 100
+			northwest:
+				Name: northwest
+				Offset: -1215,-1215,0
+				Yaw: 128
+				Cone: 100
+			west:
+				Name: west
+				Offset: -2650,0,0
+				Yaw: 256
+				Cone: 100
+			southwest:
+				Name: southwest
+				Offset: -1088,1088,0
+				Yaw: 384
+				Cone: 100
+			south:
+				Name: south
+				Offset: 0,1114,0
+				Yaw: 512
+				Cone: 100
+			southeast:
+				Name: southeast
+				Offset: 1088,1088,0
+				Yaw: 640
+				Cone: 100
+			east:
+				Name: east
+				Offset: 2650,0,0
+				Yaw: 768
+				Cone: 100
+			northeast:
+				Name: northeast
+				Offset: 1215,-1215,0
+				Yaw: 896
+				Cone: 100
 
 RICE:
 	Inherits: ^CivField
@@ -703,22 +1636,87 @@ RUSHOUSE:
 	Building:
 		Footprint: x x
 		Dimensions: 1,2
+	HitShape: # TODO
+		UseTargetableCellsOffsets: false
+	# Multi-storey concrete apartment block.
+	# Frame 019: dark poured-concrete slab block, the tallest thing in the set. HP unchanged;
+	# armour Heavy->Concrete.
 	Health:
 		HP: 120000
 	Armor:
-		Type: Heavy
-		Thickness: 50
-	HitShape: # TODO
-		UseTargetableCellsOffsets: false
+		Type: Concrete
+		Thickness: 0
+	Cargo:
+		MaxWeight: 12
+	GarrisonManager:
+		Ports:
+			north:
+				Name: north
+				Offset: 0,-1294,0
+				Yaw: 0
+				Cone: 100
+			northwest:
+				Name: northwest
+				Offset: -703,-703,0
+				Yaw: 128
+				Cone: 100
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 100
+			southwest:
+				Name: southwest
+				Offset: -576,576,0
+				Yaw: 384
+				Cone: 100
+			south:
+				Name: south
+				Offset: 0,1114,0
+				Yaw: 512
+				Cone: 100
+			southeast:
+				Name: southeast
+				Offset: 576,576,0
+				Yaw: 640
+				Cone: 100
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 100
+			northeast:
+				Name: northeast
+				Offset: 703,-703,0
+				Yaw: 896
+				Cone: 100
+
 ASIANHUT:
 	Inherits: ^CivBuilding
 	MapEditorData:
 		RequireTilesets: TEMPERAT
+	# Small house, red tile roof.
+	# Frame 011: one-room rendered dwelling with a tiled roof.
 	Health:
-		HP: 25000
+		HP: 18000
 	Armor:
 		Type: Light
-		Thickness: 10
+		Thickness: 0
+	Cargo:
+		MaxWeight: 4
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 300
+
 SNOWHUT:
 	Inherits: ^CivBuilding
 	MapEditorData:
@@ -726,15 +1724,32 @@ SNOWHUT:
 	Building:
 		Footprint: x x
 		Dimensions: 1,2
-	Health:
-		HP: 25000
-	Armor:
-		Type: Light
-		Thickness: 10
 	RenderSprites:
 		Scale: 0.7
 	HitShape: # TODO
 		UseTargetableCellsOffsets: false
+	# Log cabin under snow.
+	# Frame 012: timber cabin, lit windows, one storey.
+	Health:
+		HP: 20000
+	Armor:
+		Type: Light
+		Thickness: 0
+	Cargo:
+		MaxWeight: 4
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 300
+
 LHUS:
 	Inherits: ^CivBuilding
 	MapEditorData:
@@ -746,11 +1761,29 @@ LHUS:
 	Building:
 		Footprint: x
 		Dimensions: 1,1
+	# Stone lighthouse.
+	# Frame 012: thick masonry tower. Very tough shell, almost no floor area - high HP, capacity
+	# 3.
 	Health:
-		HP: 50000
+		HP: 70000
 	Armor:
-		Type: Medium
-		Thickness: 30
+		Type: Heavy
+		Thickness: 0
+	Cargo:
+		MaxWeight: 3
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 300
+
 WINDMILL:
 	Inherits: ^CivBuilding
 	MapEditorData:
@@ -763,11 +1796,28 @@ WINDMILL:
 	Building:
 		Footprint: x
 		Dimensions: 1,1
+	# Timber windmill on a stone base.
+	# Frame 013: timber body and sails over a small stone plinth.
 	Health:
-		HP: 25000
+		HP: 16000
 	Armor:
 		Type: Light
-		Thickness: 10
+		Thickness: 0
+	Cargo:
+		MaxWeight: 3
+	GarrisonManager:
+		Ports:
+			east:
+				Name: east
+				Offset: 602,0,0
+				Yaw: 768
+				Cone: 300
+			west:
+				Name: west
+				Offset: -602,0,0
+				Yaw: 256
+				Cone: 300
+
 BARL:
 	Inherits: ^TechBuilding
 	-Selectable:

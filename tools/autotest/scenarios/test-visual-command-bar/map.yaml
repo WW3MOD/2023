@@ -33,10 +33,16 @@ Categories: Test
 #    (The remaining two, UNLOAD_ALL_TROOPS and DROP_SUPPLY, live in CARGO_PANEL and are
 #    photographed by test-visual-cargo-panel instead.)
 #
-#    House is a ^CivBuilding: MaxWeight 10 and EIGHT ports (northeast1/2, southeast1/2,
-#    southwest1/2, northwest1/2), which is the only garrison in the mod wide enough to
-#    populate all eight port rows at once. The defence structures carry two ports and the
-#    guard tower four, so neither would show that the eighth row is laid out correctly.
+#    House is v01, the church: MaxWeight 10 and EIGHT ports (north, northwest, west,
+#    southwest, south, southeast, east, northeast) -- wide enough to populate all eight port
+#    rows at once. The defence structures carry two ports and the guard tower four, so
+#    neither would show that the eighth row is laid out correctly.
+#
+#    PORTS ARE PER-BUILDING SINCE 2026-09-15 and v01 is one of only five actors that still
+#    carries eight of them (with v24, v25, v37 and rushouse -- the largest and most
+#    fenestrated). ^CivBuilding no longer declares a shared ring, so "any civilian building"
+#    is no longer a safe substitute here: most of them now have two or four ports and would
+#    leave the later EJECT_PORT rows empty, which is the thing this test exists to photograph.
 #    Its occupants arrive through Cargo InitialUnits rather than by walking men in, so
 #    they are aboard at tick 0 and GarrisonManager only has to deploy them to ports.
 #
