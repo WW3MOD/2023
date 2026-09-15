@@ -51,3 +51,15 @@ E1:
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: HoldFire
+
+V01:
+	# THE PORT-DEPLOYMENT GATE, and a SECOND guard beside DEFCON 2 rather than a replacement for it.
+	# GarrisonManager reads `autoTarget?.Stance` off the BUILDING (GarrisonManager.cs:796, :865,
+	# :1316) and returns before every autonomous deploy path at HoldFire; the soldiers' own stance
+	# does not gate deployment at all. ^CivBuilding ships no AutoTarget, so the trait is ADDED here --
+	# AttackGarrisoned is an AttackFollow and therefore an AttackBase, so there is one to attach to.
+	# DEFCON 2 stays because it does a different job here: it is what makes the bot's named Attack the
+	# only fire on the map.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire

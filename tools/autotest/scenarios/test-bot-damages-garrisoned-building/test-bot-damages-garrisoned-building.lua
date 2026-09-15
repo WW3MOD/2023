@@ -32,7 +32,10 @@ local GARRISON_TICKS = 350
 -- thing that decides the verdict. Half B resolves within a second or two of its order.
 local RUN_SECONDS = 100
 
-local GARRISON_A_SIZE = 10   -- MaxWeight is 10 and there are 8 ports; at DEFCON 2 none of them deploy
+-- Well under Cargo MaxWeight 10. The first version used all ten and one man never got in
+-- (run 260915_181523): ten simultaneous entries into a hold with zero slack is a staging race, and
+-- the size was never part of the claim -- what matters is that the men are in the SHELTER.
+local GARRISON_A_SIZE = 4
 local GARRISON_B_SIZE = 3
 
 BotTanks = {}
@@ -51,19 +54,37 @@ local function CountAlive(squad)
 	return n
 end
 
-local function Occupancy(label, church, squad)
-	local dead = 0
+-- THE CENSUS, and every line of it corrects the one this replaces.
+--
+-- `Actor.IsDead` is `Disposed || health.IsDead` (Actor.cs:76) -- purely health and disposal -- so a
+-- man in a Cargo hold is alive, not disposed, and reads IsDead == FALSE. The first version counted
+-- `s.IsDead` under a label reading "not in world", printed 0 while nine men were demonstrably
+-- aboard, and produced a verdict that contradicted itself (run 260915_181523). `IsInWorld` IS false
+-- for a passenger and that direction is sound: in-world-and-not-loaded really does mean standing
+-- outside.
+--
+-- So ask the TRAITS, not the actor: Test.IsLoadedInto reads Cargo.Passengers, Test.IsAtGarrisonPort
+-- reads GarrisonManager.PortStates, and both are true regardless of either flag. The branch ORDER is
+-- load-bearing -- a port soldier is in-world and not loaded, so he satisfies the "outside" test too
+-- and has to be claimed before it.
+local function Tally(church, squad)
+	local loaded, ports, outside, dead = 0, 0, 0, 0
 	for _, s in ipairs(squad) do
-		-- PITFALL: IsDead reads TRUE for a soldier sitting in a Cargo hold, so this counts
-		-- "in shelter OR dead" and cannot separate them (DOCS/recipes/AUTOTEST.md). That is fine
-		-- here because PassengerCount below answers the same question properly; this is only ever
-		-- printed beside it.
-		if s.IsDead then dead = dead + 1 end
+		if s.IsDead then dead = dead + 1
+		elseif Test.IsLoadedInto(s, church) then loaded = loaded + 1
+		elseif Test.IsAtGarrisonPort(s, church) then ports = ports + 1
+		elseif s.IsInWorld then outside = outside + 1 end
 	end
 
-	return string.format("%s at %d,%d: %d/%d HP, owner %s, %d in shelter, %d of %d men not in world",
+	return loaded, ports, outside, dead
+end
+
+local function Occupancy(label, church, squad)
+	local loaded, ports, outside, dead = Tally(church, squad)
+	return string.format("%s at %d,%d: %d/%d HP, owner %s | of %d men: %d in shelter, %d at ports, "
+		.. "%d outside, %d dead",
 		label, church.Location.X, church.Location.Y, church.Health, church.MaxHealth,
-		church.Owner.Name, church.PassengerCount, dead, #squad)
+		church.Owner.Name, #squad, loaded, ports, outside, dead)
 end
 
 local function Spawn(owner, count, x, y)
@@ -100,8 +121,26 @@ WorldLoaded = function()
 	GarrisonA = Spawn(Russia, GARRISON_A_SIZE, 39, 31)
 	GarrisonB = Spawn(Russia, GARRISON_B_SIZE, 79, 13)
 
-	for _, s in ipairs(GarrisonA) do s.EnterTransport(ChurchA) end
-	for _, s in ipairs(GarrisonB) do s.EnterTransport(ChurchB) end
+	-- STAGING GOES THROUGH THE CLICK, not through Mobile. MobileProperties.EnterTransport queues a
+	-- RideTransport activity directly; Test.ClickOrder issues a real EnterTransport order through
+	-- Passenger.ResolveOrder, which is what a player's click does. The first version used the former
+	-- and a man never arrived. The returned order string is a free setup assertion: a staging failure
+	-- becomes a named verdict at tick 0 instead of an unexplained shortfall fourteen seconds later.
+	local refused = 0
+	for _, s in ipairs(GarrisonA) do
+		if Test.ClickOrder(s, ChurchA) ~= "EnterTransport" then refused = refused + 1 end
+	end
+
+	for _, s in ipairs(GarrisonB) do
+		if Test.ClickOrder(s, ChurchB) ~= "EnterTransport" then refused = refused + 1 end
+	end
+
+	if refused > 0 then
+		Test.Fail(string.format(
+			"%d rifleman/men were not even OFFERED an EnterTransport order on a neutral church, so "
+			.. "nothing could be staged. This is the targeter refusing, not the garrison.", refused))
+		return
+	end
 
 	maxA = ChurchA.MaxHealth
 	maxB = ChurchB.MaxHealth
@@ -142,11 +181,25 @@ WorldLoaded = function()
 					.. "-- %s", label, Occupancy(label, church, squad))
 			end
 
-			if church.PassengerCount ~= wanted then
+			local loaded, ports, outside, dead = Tally(church, squad)
+
+			if ports > 0 then
 				return string.format(
-					"%s holds %d men in shelter, expected all %d. Either somebody manned a port -- "
-					.. "which would let splash decide this test -- or men were lost on the way in. "
-					.. "%s", label, church.PassengerCount, wanted, Occupancy(label, church, squad))
+					"%d of %s's men manned a firing port. A port soldier stands on the building's OWN "
+					.. "CELL, so splash aimed at him would move the building's HP and score this test "
+					.. "on a build that still had the flag. TWO guards were supposed to prevent it: "
+					.. "the church's AutoTarget is held at HoldFire in rules.yaml (GarrisonManager "
+					.. "reads the BUILDING's stance at :796/:865/:1316) and DEFCON 2 makes "
+					.. "ScanForTarget return Invalid outright (:961). If this fires, say which. %s",
+					ports, label, Occupancy(label, church, squad))
+			end
+
+			if loaded ~= wanted then
+				return string.format(
+					"only %d of %s's %d men reached the shelter (%d still outside, %d dead) -- "
+					.. "staging, not the subject. Every man was offered and issued an EnterTransport "
+					.. "click at tick 0. %s", loaded, label, wanted, outside, dead,
+					Occupancy(label, church, squad))
 			end
 
 			if church.Health ~= church.MaxHealth then

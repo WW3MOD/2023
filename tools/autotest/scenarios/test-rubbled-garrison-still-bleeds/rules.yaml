@@ -45,3 +45,15 @@ V01:
 	# this scenario would measure the half that was never broken.
 	Health:
 		HP: 20
+	# THE PORT-DEPLOYMENT GATE, in the SAME V01 block as the Health override above and not a second
+	# top-level V01: two adjacent top-level entries with the same key is the MiniYaml merge trap
+	# CLAUDE.md names -- IntoDictionaryWithConflictLog throws on a duplicate child the moment a
+	# second source names the actor. GarrisonManager reads `autoTarget?.Stance` off the BUILDING
+	# (GarrisonManager.cs:796, :865, :1316) and returns before every autonomous deploy path at
+	# HoldFire; the soldiers' own stance does not gate deployment at all. ^CivBuilding ships no
+	# AutoTarget, so the trait is ADDED here -- AttackGarrisoned is an AttackFollow and therefore an
+	# AttackBase, so there is one to attach to. Both fields because AutoTarget.cs:497 picks
+	# InitialStanceAI for a non-Playable owner, which Russia is here.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire

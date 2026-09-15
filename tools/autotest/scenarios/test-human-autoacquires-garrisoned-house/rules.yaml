@@ -36,3 +36,16 @@ E1:
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: HoldFire
+
+V01:
+	# THE PORT-DEPLOYMENT GATE, and the reason it is on the BUILDING rather than on the men:
+	# GarrisonManager reads `autoTarget?.Stance` off the building itself (GarrisonManager.cs:796,
+	# :865, :1316) and returns before every autonomous deploy path at HoldFire. The soldiers' own
+	# stance does not gate deployment at all -- the first version of this scenario set HoldFire on E1
+	# and that bought nothing. ^CivBuilding ships no AutoTarget, so the trait is ADDED here;
+	# AttackGarrisoned is an AttackFollow and therefore an AttackBase, so there is one to attach to.
+	# Both fields because AutoTarget.cs:497 picks InitialStanceAI for a non-Playable owner, which
+	# Russia is in this scenario.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
