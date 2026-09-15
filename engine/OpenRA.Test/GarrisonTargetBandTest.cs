@@ -20,12 +20,16 @@ using OpenRA.Traits;
 namespace OpenRA.Test
 {
 	/// <summary>
-	/// A garrisoned civilian house must not outrank the men leaning out of its own firing ports.
+	/// DOCUMENTATION, not a guard: this fixture states the accepted targeting arithmetic for a
+	/// garrisoned civilian house so that nobody has to re-derive it, and fails if any of it moves.
 	///
-	/// <para>^CivBuilding used to advertise `Defense` in Targetable@WhenGarrisoned, which inverted the
-	/// preference for the one template that scores the two classes differently:
-	/// ^AutoTargetGroundAntiTank puts `Defense` at 3 on @Default and `Infantry` at 2 on @Lower, so on
-	/// its non-stance-fireatwill band an AT unit preferred shelling the house.</para>
+	/// <para>^CivBuilding advertises `Defense` in Targetable@WhenGarrisoned, and that DOES invert one
+	/// preference: ^AutoTargetGroundAntiTank puts `Defense` at 3 on @Default and `Infantry` at 2 on
+	/// @Lower, so on its non-stance-fireatwill band such a unit prefers shelling the house to shooting
+	/// the men at its ports. THE INVERSION IS ACCEPTED (manager ruling, 2026-09-15). Its real scope is
+	/// two aircraft -- A10 and FROG are the only actors on that template -- and only off FireAtWill,
+	/// where the two classes tie. An earlier commit dropped the token and was reverted the same day:
+	/// see the cost below.</para>
 	///
 	/// <para>WHAT THIS FIXTURE REALLY PINS is the second-order fact, which is the one nobody can see
 	/// from the actor's YAML: NO AutoTargetPriority band anywhere in the mod names `Ground` or
@@ -36,8 +40,10 @@ namespace OpenRA.Test
 	/// so `Defense` was their ONLY handle on a house, and removing it removes the house from their
 	/// candidate set outright rather than merely demoting it. Fifteen actors are on those chains
 	/// (GTWR, FTUR, PBOX, HBOX, GUN, iskander, HIMARS, tunguska, strykershorad, A10, FROG, MI28, MIG,
-	/// littlebird, HELI). That is a deliberate, costed consequence — and if a future band ever names
-	/// `Ground` or `Structure` this fixture goes red, which is exactly when the cost changes.</para>
+	/// littlebird, HELI) -- including the mod's two rocket-artillery pieces, the units that reduce
+	/// garrisons, which is why the drop was reverted: it would have defeated the point of making the
+	/// building targetable at all. If a future band ever names `Ground` or `Structure` this fixture
+	/// goes red, which is exactly when that cost changes and the ruling is worth revisiting.</para>
 	///
 	/// <para>The bands are evaluated through the engine's own predicate,
 	/// AutoTarget.ResolveTargetPriorityBand, over AutoTargetPriorityInfo objects populated by
@@ -114,15 +120,17 @@ namespace OpenRA.Test
 		}
 
 		[TestCase("^CivBuilding")]
-		public void GarrisonedCivilianHouseNoLongerAdvertisesDefense(string template)
+		public void GarrisonedCivilianHouseKeepsDefense(string template)
 		{
 			var all = ModRulesYaml.AllRuleNodes();
 			var garrisoned = TargetTypesOf(all, template, "Targetable@WhenGarrisoned");
 
-			Assert.That(garrisoned.Contains("Defense"), Is.False,
-				$"{template}'s garrisoned Targetable advertises `Defense`. A civilian house is not an " +
-				"emplacement, and the token makes ^AutoTargetGroundAntiTank's @Default band (priority 3) " +
-				"outrank the port men on @Lower (priority 2).");
+			Assert.That(garrisoned.Contains("Defense"), Is.True,
+				$"{template}'s garrisoned Targetable lost `Defense`. That token is the ONLY handle the " +
+				"^AutoTargetGround* and ^AutoTargetAll* chains have on a civilian house -- none of their " +
+				"bands names `Ground` or `Structure` -- so dropping it removes a garrisoned house from " +
+				"the candidate set of fifteen actors, HIMARS and iskander among them. The AT band's " +
+				"preference for the house over the port men is the accepted cost of keeping it.");
 
 			// The two that keep it, so a blanket removal cannot pass this fixture: the building must
 			// still be shootable at all, and the base Targetable is a different question entirely.
@@ -131,21 +139,19 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void AnEmptyCivilianHouseIsUnchangedAndRealEmplacementsKeepDefense()
+		public void TheEmplacementsAndTheEmptyHouseCarryDefenseToo()
 		{
 			var all = ModRulesYaml.AllRuleNodes();
 
-			// The !loaded Targetable was not touched. An empty ^CivBuilding is Neutral and rejected
-			// two gates further out (Armament.TargetRelationships, ChooseTarget's AppearsHostileTo),
-			// so nothing here was ever load-bearing for it — but a later blanket edit should notice.
 			Assert.That(TargetTypesOf(all, "^CivBuilding", "Targetable").Contains("Defense"), Is.True,
-				"^CivBuilding's ungarrisoned Targetable lost `Defense` too — this change is scoped to the " +
-				"garrisoned one, which is the only state in which port men exist to be preferred.");
+				"^CivBuilding's ungarrisoned Targetable lost `Defense`. An empty house is Neutral and " +
+				"rejected two gates further out anyway (Armament.TargetRelationships, ChooseTarget's " +
+				"AppearsHostileTo), so this is not load-bearing — but the garrisoned and ungarrisoned " +
+				"blocks are meant to agree, and a blanket edit that split them should be noticed.");
 
 			foreach (var emplacement in new[] { "GTWR", "PBOX", "HBOX" })
 				Assert.That(TargetTypesOf(all, emplacement, "Targetable@WhenGarrisoned").Contains("Defense"), Is.True,
-					$"{emplacement} lost `Defense`. It is a real static defence; only the civilian house was " +
-					"miscategorised.");
+					$"{emplacement} lost `Defense`, and it is a real static defence.");
 		}
 
 		[Test]
@@ -191,7 +197,7 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void TheAntiTankBandNowPrefersThePortMenOverTheHouse()
+		public void TheAntiTankBandPrefersTheHouseOverThePortMen()
 		{
 			var all = ModRulesYaml.AllRuleNodes();
 			var house = TargetTypesOf(all, "^CivBuilding", "Targetable@WhenGarrisoned");
@@ -210,14 +216,25 @@ namespace OpenRA.Test
 			var houseBand = AutoTarget.ResolveTargetPriorityBand(bands, PlayerRelationship.Enemy, house);
 			var manBand = AutoTarget.ResolveTargetPriorityBand(bands, PlayerRelationship.Enemy, portMan);
 
-			Assert.That(houseBand, Is.EqualTo(AutoTarget.NoTargetPriorityBand),
-				"a garrisoned house still matches an ^AutoTargetGroundAntiTank band. Every band on that " +
-				"chain lists its targets explicitly and none names `Ground` or `Structure`, so after " +
-				$"dropping `Defense` the house should match nothing at all — it resolved to band {houseBand}.");
+			// THE ACCEPTED INVERSION, stated as the numbers rather than as prose. 3 comes from
+			// @Default's `Vehicle, Defense, Water, Underwater`; 2 from @Lower's `Infantry, Defense,
+			// Mine`. Conditions are not evaluated here — every band the template can present is
+			// offered — so this is the strictest reading, and @Default is in fact only active off
+			// stance-fireatwill, where the two tie at 2.
+			Assert.That(houseBand, Is.EqualTo(3),
+				$"a garrisoned house resolves to band {houseBand} for ^AutoTargetGroundAntiTank, not the " +
+				"3 this ruling was made against. If it dropped to NoTargetPriorityBand, `Defense` has been " +
+				"removed from ^CivBuilding again and fifteen actors just lost the house from their " +
+				"candidate sets; if it moved some other way, the band table changed and the ruling is " +
+				"worth revisiting.");
 
-			Assert.That(manBand, Is.GreaterThan(AutoTarget.NoTargetPriorityBand),
-				"the port soldier matches no band either, which would mean this template cannot engage a " +
-				"garrison at all rather than preferring the men.");
+			Assert.That(manBand, Is.EqualTo(2),
+				$"a port soldier resolves to band {manBand}, not 2. The accepted inversion is precisely " +
+				"3-over-2 on @Default; a different pair of numbers is a different tradeoff.");
+
+			Assert.That(houseBand, Is.GreaterThan(manBand),
+				"the inversion this fixture documents is gone. That is not necessarily bad news — but it " +
+				"is a behaviour change nobody recorded, so re-read the ruling before accepting it.");
 		}
 	}
 }
