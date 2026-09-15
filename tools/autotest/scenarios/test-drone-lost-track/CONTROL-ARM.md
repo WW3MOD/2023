@@ -61,12 +61,63 @@ one.
 
 ## Expected results
 
+## 2026-09-15: the rig should now go GREEN, and the reason is reach rather than weight
+
+`test-drone-lost-track`'s `expected-status` declaration is **deleted** as of this change. It
+declared a by-merit `fail` and its own closing line said to remove it in the same commit as
+whatever made the operator prefer the contact. (`pass` is not a declaration you can write:
+`expected-status.sh:115` rejects it with *"'pass' is the default and declares nothing; delete
+the file"*, so the evidence lives here instead.)
+
+**What changed is that a lost contact became reachable at all.** The hover ceiling was 22 cells
+against the operator's own 28-cell verifying radius, so the drone could never come within 6
+cells of a contact that had genuinely gone dark. Three constants moved together:
+
+| | was | now |
+|---|---|---|
+| `quadcopterdrone` `CarrierSlave.MaxDistance` (enforced leash) | 25 | 33 |
+| `DroneTargeter` `Range` (hard cap on tasking) | 25c0 | 33c0 |
+| `LeashCells`, both profiles (the bot's model) | 25 | 33 |
+| **`MaxHoverDistanceCells` = min(33, 33−3)** | **22** | **30** |
+
+**`LostTrackIntelSquares` is unchanged at 250.** The measured 1.315× shortfall sits inside the
+pre-registered ≤1.5× band and was never the lever. If this rig goes green, it is because the
+drone can reach the contact — do not read it as evidence that the term was mis-sized.
+
+**Predicted score at the first launch**, from the constants and the numbers already logged:
+
+```
+V is 30 cells from the operator, so the ceiling of 30 now admits V itself.
+  IntelFalloff(247, 0, 28) = 247 * 29/29 = 247      candidate exactly on V
+  IntelFalloff(247, 1, 28) = 247 * 28/29 = 238      nearest grid candidate, if 2-cell spacing misses V
+  worth_hunt  = reveal_hunt (~14, measured at 39,51) + 238..247  =  252..261
+  worth_expl  = 248 + 0                                          =  248
+```
+
+So the hunt cell wins by **4 to 13 squares**, and `score = worth*1000 − poiDistanceCells` puts
+the POI tie-break (hunt ~9 cells from the derrick, the old winner ~29) on the same side. **This
+is a narrow margin and it is honest about being narrow**: if the grid lands 2 cells off V rather
+than 1, the term loses again.
+
+**Two boundary conditions that could still refuse the cell, neither of which is the term.**
+`cellDist(18,45 → 47,54)` is `floor(sqrt(922))` = **30**, and the candidate test is
+`(cell - opCell).Length > maxHover`, so V is admitted with **exactly zero cells of margin** — any
+future change to the leash, the margin or the weapon puts it back outside. And V must still
+clear `MaxPoiDistanceCells` (40): it is ~9 cells from the derrick at 38,53, so that one is safe.
+
+**The control's expected cell is NOT necessarily 29,25 any more, and this is the part to read
+before calling a control run wrong.** `ChooseTargetCell` scans a `(2·maxHover+1)²` box, which
+grew from 45² = 2025 to 61² = 3721 candidates. The control's argmax is the best *reveal* in that
+larger set, and ground 30 cells out was not previously a candidate at all. **The RED criterion is
+therefore `records=0 intel=0`, verdict `fail`, and the drone not going to V — not the literal
+cell `29,25`.** A control that fails at some other exploration cell is a clean RED.
+
 | Arm (scenario to run) | `IntelSampleInterval` | Expected today | Log signature |
 |---|---|---|---|
-| Control (RED) — `test-drone-lost-track-control` | 999999 | **FAIL** — drone prefers the dark region | `records=0`, `intel=0` on every launch |
-| Treatment — `test-drone-lost-track` | 25 | **FAIL** — a majority near V needs a larger `LostTrackIntelSquares` | `records>0`, `intel>0`, `intelkey` naming the truk |
+| Control (RED) — `test-drone-lost-track-control` | 999999 | **FAIL** — drone prefers the dark region (cell may differ from 29,25; the box grew) | `records=0`, `intel=0` on every launch |
+| Treatment — `test-drone-lost-track` | 25 | **PASS expected** since the 2026-09-15 leash fix — V is reachable, predicted worth 252-261 vs 248 | `records>0`, `intel>0`, `intelkey` naming the truk |
 
-**Both arms FAIL today, and that is the measured state, not a broken scenario.** The
+**Both arms FAILED until 2026-09-15, and that was the measured state, not a broken scenario.** The
 majority-of-samples bar is the design intent and has not been lowered.
 
 **The batch is kept green by the declaration, not by the verdict.** This scenario ships an
