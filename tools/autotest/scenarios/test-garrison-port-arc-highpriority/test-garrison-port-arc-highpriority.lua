@@ -69,7 +69,18 @@ end
 -- inside a building, including one whose condition is granted precisely BECAUSE he boarded. A
 -- guaranteed false negative, not a flaky one. Test.IsAtGarrisonPort reads GarrisonManager's own
 -- PortStates and answers truthfully whatever those two flags say.
+-- AND IsInWorld, WHICH IS NOT BELT-AND-BRACES -- it is the whole of the second bug this file hit.
+-- DeployToPort assigns PortStates[i].DeployedSoldier SYNCHRONOUSLY but adds the man to the world in
+-- a FRAME-END TASK (GarrisonManager.cs), so there is a window in which IsAtGarrisonPort already says
+-- yes and the actor is still out of world. Target.Type returns Invalid for an out-of-world actor
+-- (Target.cs:93-98), so an attack order issued inside that window is refused outright: run
+-- 260915_182012 failed the in-cone limb with lua.log carrying exactly one line,
+-- "mt 6 is an invalid target for e1 8!". Waiting for both flags closes it.
 local function AtPort(soldier)
+	if not soldier.IsInWorld then
+		return false
+	end
+
 	return Test.IsAtGarrisonPort(soldier, HouseMT) or Test.IsAtGarrisonPort(soldier, HouseE1)
 end
 
@@ -245,6 +256,10 @@ end
 -- the measurement never working.
 local function ConeShot()
 	local baseline = HealthOf(Gunner)
+	-- Issued only after AwaitDeployment has seen the man in-world at a port, plus the settle below,
+	-- so Target.FromActor(Gunner) cannot still be Invalid. Attack() only LOGS an invalid target and
+	-- then queues the activity anyway (CombatProperties.cs:91-99), so without the wait the failure
+	-- is silent in the verdict and visible only in lua.log.
 	ConeShooter.Attack(Gunner)
 
 	WaitUntil(HitWithin,
@@ -265,7 +280,11 @@ end
 local function AwaitDeployment()
 	WaitUntil(DeployWithin,
 		function() return AtPort(Gunner) end,
-		ConeShot,
+		function()
+			-- One settle beat after the port reads manned AND in-world, so the deploy's frame-end
+			-- task (SetPosition, w.Add) is fully behind us before anything is aimed at him.
+			Trigger.AfterDelay(math.floor(SettleFor * TestHarness.TicksPerSecond), ConeShot)
+		end,
 		function()
 			Test.Skip("the Gunner never deployed to a firing port within " .. DeployWithin ..
 				"s, so there was nothing at a port to shoot at. GarrisonManager only mans a port " ..
