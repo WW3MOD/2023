@@ -3,6 +3,41 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-15 - An integer-percentage `IDamageModifier` cannot express a damage FLOOR, so "indestructible" garrison buildings stalled ~100 HP above their rubble state and could never reach it (`wt/garrison-followups`, run 260915_184945)
+
+**THE ARITHMETIC.** `GarrisonManager.Indestructible` held a building at 1 HP by returning
+`maxAllowedDamage * 100 / damage.Value` from `IDamageModifier` — an **integer** percentage. That
+truncates to **0** once `(HP - 1) * 100 < damage`, i.e. below about 140 HP against a 14000-damage tank
+round. At that point the building takes *nothing* and stalls there for the rest of the match. Walked
+over the shipped numbers, a 75000 HP `V01` church under ~14000 rounds goes
+`75000 → 61000 → 47000 → 33000 → 19000 → 5000 → 100 → stuck`. **Its 1 HP rubble state was unreachable
+by any weapon over ~100 damage**, which means every `RubbleProtection` value in the mod was dead
+tuning and the `[Desc]` describing the rubble cliff described a state the game could not enter.
+
+**NO INTEGER PERCENTAGE FIXES IT, and that is the transferable part.** At 140 HP against 14000 the
+only representable outcomes are 0% (nothing lands — the stall) and 1% (140 lands — which kills a
+building that must not die). Rounding the division up trades a permanent stall for a fatal overshoot.
+**A percentage modifier can scale damage; it cannot bound a result.** Any "this actor may not drop
+below N" rule written as an `IDamageModifier` has this defect latent in it — it only shows up once
+the incoming hit is large relative to the remaining pool, which is exactly the endgame the rule exists
+for. Fixed by adding `IDamageFloor` and applying it where HP is assigned (`Health.ApplyDamageToHp`),
+so the clamp bounds the HP rather than scaling the damage.
+
+**THE FLOOR DELIBERATELY DOES NOT CLAMP THE REPORTED DAMAGE.** `AttackInfo.Damage` still carries what
+the attacker aimed, so a hit on a building with nothing left to lose arrives at `INotifyDamage` at
+full size. That is load-bearing for `GarrisonProtection`, which forwards a share to the men sheltering
+inside: at the floor the building absorbs nothing more and they absorb all of it, which is the
+monotone end of the curve rather than a special case. It also **removed a stash**: the previous fix
+recorded the pre-modifier damage through an observer `IDamageModifier` and substituted it whenever
+`Damaged` read zero — correct at the true clamp, wrong at the truncation stall, where it forwarded a
+full share while the building had absorbed nothing. That killed four men at 2/20 HP in run
+260915_184945 and is why the run reported a church stuck at 2 HP with an empty shelter.
+
+**HOW IT HID FOR SO LONG.** The stall is invisible at full health and invisible in any test that
+fires one shot. It needs a *sequence*, at the shipped HP and the shipped warhead — a fixture that
+sweeps damage sizes finds it instantly (`GarrisonClampReachabilityTest`), and one that checks a single
+representative value does not, because the rule works for small hits and fails for large ones.
+
 ## 2026-09-15 - `lua-gate` cannot see a FieldLoader parse error in `map.yaml`, so a scenario can pass every static gate available to a launch-barred worker and still throw at load (`wt/garrison-followups`)
 
 **THE INSTANCE.** `test-bot-damages-garrisoned-building/map.yaml` carried `Facing: East` on a placed

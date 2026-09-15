@@ -38,13 +38,25 @@ E1:
 		InitialStanceAI: HoldFire
 
 V01:
-	# THE INSTRUMENT, not a balance change: 20 HP so the first shell clamps the church at 1 HP while
-	# forwarding nothing to the shelter (19 damage at RubbleProtection 30 is a 13-point share, under
-	# MinPassThrough 15). Every loss after that therefore came through the rubble path. At the shipped
-	# 75000 the garrison would be wiped by the pre-clamp curve long before the clamp is reached, and
-	# this scenario would measure the half that was never broken.
+	# THE INSTRUMENT, not a balance change, and the SECOND attempt at it. 2000 HP is chosen to be
+	# below any warhead this map can deliver, so the very first shell takes the church from FULL
+	# HEALTH straight to its 1 HP floor in one step -- no intermediate hit lands at all, and every
+	# loss the run observes is therefore unambiguously from the rubble state.
+	#
+	# WHY NOT A LARGER POOL. The last hit BEFORE the floor is the dangerous one: it leaves the
+	# building just above zero, where the curve has already fallen to near CriticalProtection, so its
+	# share of the damage is within about 10% of the share at the floor itself. No MinPassThrough
+	# threshold separates those two, which means any pool large enough to need a second shell makes
+	# "did the rubble kill him, or the hit before it" unanswerable. One step removes the question.
+	#
+	# WHY NOT 20, WHICH THE FIRST VERSION USED. It was picked to make the clamping hit forward NOTHING
+	# (19 damage at protection 30 is a 13-point share, under MinPassThrough 15) -- reasoning that was
+	# wrong twice over. The arithmetic assumed the building would take 19 damage; under the old
+	# percentage clamp it took ZERO and never moved off 20 at all (run 260915_184945 found it stuck at
+	# 2/20 with its whole garrison dead). That defect is fixed in this commit; the pool is now chosen
+	# on a property that does not depend on it.
 	Health:
-		HP: 20
+		HP: 2000
 	# THE PORT-DEPLOYMENT GATE, in the SAME V01 block as the Health override above and not a second
 	# top-level V01: two adjacent top-level entries with the same key is the MiniYaml merge trap
 	# CLAUDE.md names -- IntoDictionaryWithConflictLog throws on a duplicate child the moment a

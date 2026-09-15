@@ -7,12 +7,13 @@
 -- earlier, safer than an intact one, and terminally so, because the building cannot be destroyed
 -- either. Men in the rubble could not be killed by any weapon in the game.
 --
--- THE HOUSE IS GIVEN 20 HP IN rules.yaml, which is absurd for a church and is the instrument. The
--- first shell takes it straight to the clamp and forwards NOTHING on the way (19 damage at
--- RubbleProtection 30 is a 13-point share, under MinPassThrough 15), so the garrison is provably
--- untouched at the moment of clamping and every loss after that came through the path under test.
--- At the shipped 75000 HP the men would all be dead long before the clamp — the pre-clamp curve
--- works and always did — and this case would never be reached at all.
+-- THE HOUSE IS GIVEN 2000 HP IN rules.yaml, below any warhead this map can deliver, so the first
+-- shell takes it from FULL HEALTH to its 1 HP floor in a single step. No intermediate hit lands, so
+-- there is no "did the rubble kill him or the hit before it" to argue about — the last hit before
+-- the floor sits where the curve has already fallen to near CriticalProtection and its share is
+-- within about 10% of the floor's, which no MinPassThrough threshold can separate. At the shipped
+-- 75000 HP the garrison is wiped by the pre-clamp curve long before the floor — that half was never
+-- broken — which is why an instrument is needed at all.
 --
 -- NOBODY MAY BE EJECTED, and nobody may man a port. The ruling is to price the bad state, not to
 -- force the player out of it (user, 2026-09-02: "don't force them out, let the damage curve do the
@@ -166,25 +167,37 @@ WorldLoaded = function()
 					.. "rubble and no port may deploy -- " .. Census()
 			end
 
-			-- LIMB 1: latch the clamp, with the census taken at that instant.
+			-- LATCH FIRST, TEST FOR PRE-CLAMP LOSSES SECOND, and the order is load-bearing rather
+			-- than stylistic. The shell that puts the church on its floor is ALSO the first shell
+			-- whose share reaches the shelter, and both land in the same tick: Health assigns the
+			-- floor, raises INotifyDamage, GarrisonProtection forwards, Passenger.Killed unloads the
+			-- casualty. Read in the other order, that single tick looks like "a man died before the
+			-- clamp" and fails a run that just demonstrated exactly what it was built to show.
+			if clampTick == nil and House.Health <= 1 then
+				clampTick = observed
+				loadedAtClamp = nowLoaded
+
+				-- The clamping shell killed somebody on its way in. That IS the claim, in one tick.
+				if nowLoaded < GARRISON_SIZE then
+					return true
+				end
+			end
+
 			if clampTick == nil then
-				if House.Health <= 1 then
-					clampTick = observed
-					loadedAtClamp = nowLoaded
-					if loadedAtClamp ~= GARRISON_SIZE then
-						return string.format(
-							"the church reached its 1 HP clamp with only %d of %d men still aboard, "
-							.. "so losses after this point cannot be attributed to the rubble path. "
-							.. "The 20 HP instrument is meant to clamp on the first shell while "
-							.. "forwarding nothing (19 damage at protection 30 is 13, under "
-							.. "MinPassThrough 15) -- %s", loadedAtClamp, GARRISON_SIZE, Census())
-					end
+				if nowLoaded < GARRISON_SIZE then
+					return string.format(
+						"a man died while the church was still at %d/%d HP -- above its floor, so the "
+						.. "loss came from the ordinary curve rather than from the rubble, and this "
+						.. "run cannot attribute anything. The 2000 HP pool is meant to make the "
+						.. "first shell reach the floor in one step; if the church is taking damage "
+						.. "in stages, re-read the instrument note in rules.yaml. %s",
+						House.Health, House.MaxHealth, Census())
 				end
 
 				return false
 			end
 
-			-- LIMB 2: the church is rubble and the fire is still landing. Men must die.
+			-- The church is rubble and the fire is still landing. Men must keep dying.
 			if nowLoaded < loadedAtClamp then
 				return true
 			end
@@ -193,19 +206,19 @@ WorldLoaded = function()
 		end, function()
 			if clampTick == nil then
 				return string.format(
-					"the church never reached its 1 HP clamp in %ds, so the rubble path was never "
-					.. "exercised and this run says nothing about it. Suspect the probe -- it is "
-					.. "given no order and must auto-acquire the house on FireAtWill -- rather than "
-					.. "GarrisonProtection. %s", BLEED_SECONDS, Census())
+					"the church never reached its 1 HP floor in %ds, so the rubble path was never "
+					.. "exercised and this run says nothing about it. With a 2000 HP pool one shell "
+					.. "should do it, so suspect the probe -- it is given no order and must "
+					.. "auto-acquire the house on FireAtWill -- rather than GarrisonProtection. %s",
+					BLEED_SECONDS, Census())
 			end
 
 			return string.format(
 				"the garrison has taken no losses in the %d ticks since the church hit its 1 HP "
-				.. "clamp, still holding all %d men. The clamp latch proves the shells were landing, "
-				.. "so this is the defect exactly: at the clamp GarrisonManager's damage modifier "
-				.. "zeroes every hit and GarrisonProtection.Damaged returns on `incomingDamage <= 0` "
-				.. "without forwarding anything -- the rubble is the safest place on the curve "
-				.. "instead of the most exposed. %s", observed - clampTick, loadedAtClamp, Census())
+				.. "floor, still holding all %d men. The latch proves the shells were landing, so "
+				.. "this is the defect exactly: a hit the building can no longer absorb must be "
+				.. "absorbed by the men instead, and it is not reaching them. %s",
+				observed - clampTick, loadedAtClamp, Census())
 		end)
 	end)
 end

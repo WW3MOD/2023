@@ -31,10 +31,9 @@ namespace OpenRA.Test
 	/// price the bad state, do not force the player out of it. Pass-through at the clamp is the
 	/// curve's MAXIMUM rather than zero, and nobody is ejected.</para>
 	///
-	/// <para>WHAT IS AND IS NOT COVERED HERE. The three pure functions are the whole of the rule and
-	/// are tested directly. The wiring that feeds them — the IDamageModifier observer that records
-	/// what the attacker aimed before the clamp erases it — needs a live Actor and a Health trait and
-	/// is NOT exercised by this fixture. See the branch report's Watch.</para>
+	/// <para>REACHING the floor at all is a separate question and a separate fixture:
+	/// GarrisonClampReachabilityTest. It has to be, because the first fix to this curve left the floor
+	/// unreachable — see IDamageFloor.</para>
 	/// </summary>
 	[TestFixture]
 	public class GarrisonRubbleProtectionTest
@@ -155,15 +154,6 @@ namespace OpenRA.Test
 						"is not the most exposed point on the curve.");
 				}
 			}
-		}
-
-		[TestCase(199, 15000, 199, Description = "a hit the building could still absorb keeps its own value")]
-		[TestCase(0, 15000, 15000, Description = "at the clamp the modifier zeroes it, so the aim is what landed")]
-		[TestCase(0, 0, 0, Description = "a zero-damage warhead stays zero — Health never ran the modifiers")]
-		[TestCase(-500, 0, 0, Description = "a heal stays a heal and must not be forwarded as damage")]
-		public void TheClampRuleUsesTheAimedDamageOnlyWhenThereIsNothingLeftToAbsorbIt(int postModifier, int aimed, int expected)
-		{
-			Assert.That(GarrisonProtection.EffectiveIncomingDamage(postModifier, aimed), Is.EqualTo(expected));
 		}
 
 		[Test]
