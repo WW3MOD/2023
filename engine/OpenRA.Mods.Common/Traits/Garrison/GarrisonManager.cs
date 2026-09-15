@@ -172,7 +172,7 @@ namespace OpenRA.Mods.Common.Traits
 		}
 	}
 
-	public class GarrisonManager : INotifyCreated, INotifyPassengerEntered, INotifyPassengerExited,
+	public class GarrisonManager : ICargoCanLoadFilter, INotifyCreated, INotifyPassengerEntered, INotifyPassengerExited,
 		ITick, IIssueOrder, IResolveOrder, INotifyKilled, INotifyDamage, IDamageModifier
 	{
 		public readonly GarrisonManagerInfo Info;
@@ -297,6 +297,23 @@ namespace OpenRA.Mods.Common.Traits
 			// Was in shelter
 			shelterPassengers.Remove(passenger);
 			CheckOwnershipAfterExit();
+		}
+
+		/// <summary>
+		/// THE BOARDING RE-CHECK. The entry chain asks about relationships exactly once, at targeting
+		/// time, and by design it asks that of a NEUTRAL building — so the man who loses the race to a
+		/// contested house arrives at a building that has become his enemy's, with nothing left to
+		/// refuse him. Cargo.CanLoad runs this filter at the moment of boarding and
+		/// RideTransport.OnEnterComplete leaves him standing outside when it says no.
+		/// <para>Deliberately NOT a check in the order layer: ordering men into a neutral building must
+		/// stay legal, because that race is the mechanic rather than a bug in it.</para>
+		/// </summary>
+		bool ICargoCanLoadFilter.CanLoadPassenger(Actor self, Actor passenger)
+		{
+			if (passenger == null || passenger.Owner == null)
+				return true;
+
+			return GarrisonBoardingMath.MayBoard(self.Owner.RelationshipWith(passenger.Owner));
 		}
 
 		/// <summary>

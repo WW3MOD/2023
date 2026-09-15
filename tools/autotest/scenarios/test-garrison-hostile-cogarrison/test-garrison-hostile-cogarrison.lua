@@ -49,10 +49,16 @@
 --
 -- VERDICTS, and every stage has a named one — a refusal anywhere is a PASS, because a refusal is the
 -- safe answer to this question:
---   PASS + note "REFUSED AT TARGETING"  — the second player was never offered the order.
---   PASS + note "REFUSED AT LOAD"       — he was offered it, walked over, and the hold rejected him.
---   PASS + note "CO-GARRISON REACHED, MEN RELEASABLE" — the oddity exists but nobody is trapped.
---   FAIL "MEN PERMANENTLY LOST"         — he got in and the sim will not give him back.
+--   PASS + note "REFUSED AT LOAD"      — THE EXPECTED RESULT since the boarding re-check landed. He
+--                                         was legally offered the order against a NEUTRAL house,
+--                                         walked over, and the hold refused him once it had become
+--                                         his enemy's. He is left standing outside, alive.
+--   PASS + note "REFUSED AT TARGETING"  — he was never offered the order at all. Also safe, but it
+--                                         would mean the neutral window has been closed too, which
+--                                         is a mechanic change and not this fix.
+--   FAIL "CO-GARRISON REACHED"          — he boarded a building owned by his enemy. This is what the
+--                                         scenario measured on 2026-09-15 before the fix, and it is
+--                                         now the regression signal.
 --   FAIL "THE ENTRY GATE IS NOT HOLDING AT ALL" — the control probe was admitted into a building
 --                                          already owned by his enemy, which is a bigger finding
 --                                          than the race and would make the race reading moot.
@@ -198,6 +204,20 @@ local function DidTheRaceComplete()
 	WaitUntil(RaceWithin,
 		function() return IsLoaded(RuMan) or IsGone(RuMan) end,
 		function()
+			if IsLoaded(RuMan) then
+				Test.Fail("CO-GARRISON REACHED. A Russian soldier boarded a building owned by USA, so " ..
+					"the boarding re-check did not refuse him. The relationship gate runs once, at " ..
+					"targeting, and is asked of a NEUTRAL house (EnterAlliedActorTargeter.cs:49-54) — " ..
+					"the second look belongs at load time, in GarrisonManager's ICargoCanLoadFilter, " ..
+					"which Cargo.CanLoad consults (:527-530) and RideTransport.OnEnterComplete honours " ..
+					"by leaving the man outside (:81-82). Check that GarrisonManager still implements " ..
+					"that interface and that GarrisonBoardingMath.MayBoard still refuses Enemy. " ..
+					"Measured before the fix in run 260915_184131: the sim would then hand him back " ..
+					"only if the OWNER chose to unload, which is a hostile capture-by-squatting. " ..
+					State())
+				return
+			end
+
 			if IsGone(RuMan) then
 				Test.Skip("RuMan left the world without ever reaching the hold or a port, which leaves " ..
 					"only one reading: he was KILLED on the way in. Passengers read IsDead == false " ..
@@ -227,9 +247,19 @@ local function DidTheRaceComplete()
 				return
 			end
 
-			Test.Skip("RuMan was still walking after " .. RaceWithin .. "s — he is in world, outside, " ..
-				"and neither loaded nor gone, so the race genuinely never resolved. Seven cells should " ..
-				"not take this long; check that he can path to the house. " .. State())
+			if IsOutInTheOpen(RuMan) then
+				Test.Pass("REFUSED AT LOAD. The hostile second player was legally OFFERED the order " ..
+					"against the neutral house — that window is the mechanic and is deliberately " ..
+					"untouched — walked over, and was refused at the moment of boarding once the house " ..
+					"had become his enemy's. He is alive and standing outside after " .. RaceWithin ..
+					"s, which is exactly the shape the 2026-09-15 ruling asked for: closed at the sim, " ..
+					"not at the UI, with no man deleted and no order silently swallowed. " .. State())
+				return
+			end
+
+			Test.Skip("RuMan is neither loaded, gone, nor standing outside after " .. RaceWithin ..
+				"s, which should not be reachable — the three states are exhaustive. Read the state " ..
+				"below before trusting any of them. " .. State())
 		end)
 end
 
