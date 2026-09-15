@@ -26,7 +26,12 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("This actor can transport Passenger actors.")]
 	public class CargoInfo : TraitInfo, Requires<IOccupySpaceInfo>, IProvideTooltipDescription
 	{
-		[Desc("Should this actor turn nutral when not loaded? For civilian buildings.")]
+		[Desc("UNIMPLEMENTED -- nothing in the engine reads this field. It is set on every ",
+			"garrisonable building in the mod (civilian.yaml, structures-defenses.yaml) and changing ",
+			"it has no effect whatsoever. The revert-to-Neutral-when-empty behaviour it describes is ",
+			"real, but it is delivered by GarrisonManager.DynamicOwnership via CheckOwnershipAfterExit ",
+			"(Garrison/GarrisonManager.cs:306-337), which is the field to change if you want to switch ",
+			"it off. Kept only so the existing YAML keeps loading; do not write new code against it.")]
 		public readonly bool Neutral = false;
 
 		[Desc("The maximum sum of Passenger.Weight that this actor can support.")]
