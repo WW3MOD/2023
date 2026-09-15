@@ -50,6 +50,20 @@ namespace OpenRA.Mods.Common.Traits
 
 		public Actor Master { get; private set; }
 
+		/// <summary>
+		/// Whether this slave still has a master it can act on.
+		///
+		/// TWO DIFFERENT STATES COLLAPSE HERE AND BOTH MUST STOP A CALLER. `Master` is set once by
+		/// <see cref="LinkMaster"/> and is NEVER cleared — nothing in this hierarchy assigns null —
+		/// so a slave is master-null only when it was never linked at all, which is what a map- or
+		/// script-placed slave is. A slave whose master DIED keeps a non-null reference to a dead
+		/// actor instead, and reading position off that is its own hazard.
+		///
+		/// Exists so callers stop open-coding `Master == null || Master.IsDead`: two sites already
+		/// did, a third forgot, and the one that forgot dereferenced Master straight afterwards.
+		/// </summary>
+		public bool HasLiveMaster => Master != null && !Master.IsDead;
+
 		// Make this actor attack a target.
 		Target lastTarget;
 
@@ -73,7 +87,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyKilled.Killed(Actor self, AttackInfo e)
 		{
-			if (Master == null || Master.IsDead)
+			if (!HasLiveMaster)
 				return;
 
 			spawnerMaster.OnSlaveKilled(Master, self);

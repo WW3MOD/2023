@@ -13,6 +13,21 @@
   monotone: once hit, it stays hit, so a sampling gap cannot lose the evidence — which a
   5-tick condition absolutely could.
 
+  THE DRONES HAVE NO CARRIER MASTER, AND THAT CRASHED THE ENGINE THE FIRST TIME THIS RAN.
+  CarrierSlave.ReturnWithinDistance measures everything from Master.Location and dereferenced it
+  unguarded, so a slave that was never linked threw a NullReferenceException from Tick as soon as
+  MaxDistanceCheckTicks ran out (run 260915_211308, exit 3). That was a latent engine hazard at
+  both the old leash (25) and the new one (33) — the scenario exposed it, it did not cause it —
+  and it is fixed in the same commit as this note: the method now returns early when there is no
+  live master, because "maximum range from master" is undefined without one.
+
+  MASTERLESS IS KEPT ON PURPOSE, NOW THAT IT IS DEFINED. A real carrier+drone pair would need a
+  dr.america owned by Russia and something to make it launch — which means a bot player, and with
+  it every recruitment and economy confound that cost test-drone-lost-track four launches. Worse,
+  a mastered drone is LEASHED: it would be recalled or dragged home mid-measurement and could not
+  hold the 11c/13c stations this test is built on. The question here is the jammer's reach, not
+  carrier mechanics, so an unowned hovering target is the right instrument.
+
   THE CONFOUND THIS SCENARIO IS BUILT AROUND IS DRIFT. Two cells separate the arms. A
   quadcopterdrone with no master is an idle aircraft (IdleSpeed 25, IdleTurnSpeed 16) and may
   not hold station. So distance is RE-MEASURED every sample rather than assumed from the
