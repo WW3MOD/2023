@@ -198,6 +198,24 @@ namespace OpenRA.Mods.Common.Traits
 		// Suppress flag: prevents OnPassengerEntered/Exited from running during internal transitions
 		bool suppressNotifications;
 
+		/// <summary>
+		/// THE OWNER THIS BUILDING IS ALREADY SPOKEN FOR BY, set SYNCHRONOUSLY the moment the first
+		/// man boards — because the ownership change itself is not synchronous and cannot be.
+		/// <para>ChangeOwnerInPlace only ENQUEUES ChangeOwnerInPlaceSync as a frame-end task
+		/// (Actor.cs:535-538), and RideTransport.OnEnterComplete runs in a frame-end task too
+		/// (:69-87), drained from one FIFO. Two men completing entry on the same tick therefore both
+		/// see Owner == Neutral: the first boards and enqueues its flip, the second's CanLoad reads a
+		/// building that has not changed hands yet and boards as well, and then BOTH flips run in
+		/// order so the LAST man to board ends up owning the house. That is a live race independent
+		/// of the boarding filter, and it is why the filter could not see a hostile owner to refuse.</para>
+		/// <para>Deliberately NOT fixed by calling ChangeOwnerInPlaceSync here. Its contract requires
+		/// an enclosing frame-end task, and one path into OnPassengerEntered has none —
+		/// TransportProperties.LoadPassenger is Lua, called during the world tick. A claim that is
+		/// merely RECORDED synchronously needs no such contract and closes the window for every
+		/// caller.</para>
+		/// </summary>
+		Player claimedOwner;
+
 		// Force attack target set by player
 		Target forceTarget = Target.Invalid;
 		bool hasForceTarget;
@@ -263,8 +281,15 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.DynamicOwnership && neutralPlayer != null)
 			{
 				var passengerOwner = passenger.Owner;
-				if (self.Owner == neutralPlayer || self.Owner.InternalName == "Neutral")
+
+				// claimedOwner, not just self.Owner: see the field's note. The first boarder of a tick
+				// takes the claim synchronously, so a second boarder in the same frame-end drain is
+				// measured against it rather than against an owner that has not been written yet.
+				if (claimedOwner == null && (self.Owner == neutralPlayer || self.Owner.InternalName == "Neutral"))
+				{
+					claimedOwner = passengerOwner;
 					self.ChangeOwnerInPlace(passengerOwner, updateGeneration: false);
+				}
 			}
 		}
 
@@ -313,7 +338,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (passenger == null || passenger.Owner == null)
 				return true;
 
-			return GarrisonBoardingMath.MayBoard(self.Owner.RelationshipWith(passenger.Owner));
+			// claimedOwner ?? self.Owner — the claim is written synchronously on the first boarding of a
+			// tick, while self.Owner only catches up at frame end. Reading self.Owner alone is what let
+			// a hostile second boarder through in run 260915_191633 despite this filter being live.
+			var owner = claimedOwner ?? self.Owner;
+
+			return GarrisonBoardingMath.MayBoard(owner.RelationshipWith(passenger.Owner));
 		}
 
 		/// <summary>
@@ -344,6 +374,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (remainingOwners.Count == 0)
 			{
 				// No soldiers left → revert to neutral
+				claimedOwner = null;
 				if (self.Owner != neutralPlayer)
 					self.ChangeOwnerInPlace(neutralPlayer, updateGeneration: false);
 			}
@@ -356,7 +387,10 @@ namespace OpenRA.Mods.Common.Traits
 				// technician and no timer, and none of the capture documentation mentions it.
 				var heir = GarrisonOwnershipMath.ChooseHeir(remainingOwners, p => self.Owner.IsAlliedWith(p));
 				if (heir != null)
+				{
+					claimedOwner = heir;
 					self.ChangeOwnerInPlace(heir, updateGeneration: false);
+				}
 				else if (self.Owner != neutralPlayer)
 				{
 					// Only non-allies are left inside. Falling back to Neutral rather than leaving the
@@ -364,6 +398,7 @@ namespace OpenRA.Mods.Common.Traits
 					// directly above, and it is the one outcome that gives the hostile occupant
 					// nothing. Unreachable while EnterAlliedActorTargeter holds (it admits allied or
 					// neutral owners only), which is exactly why it must not be left to First().
+					claimedOwner = null;
 					self.ChangeOwnerInPlace(neutralPlayer, updateGeneration: false);
 				}
 			}

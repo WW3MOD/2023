@@ -205,7 +205,11 @@ local function DidTheRaceComplete()
 		function() return IsLoaded(RuMan) or IsGone(RuMan) end,
 		function()
 			if IsLoaded(RuMan) then
-				Test.Fail("CO-GARRISON REACHED. A Russian soldier boarded a building owned by USA, so " ..
+				Test.Fail("CO-GARRISON REACHED. FILTER STATE AT THE END: " ..
+					Test.CargoLoadFilterReport(House, RuMan) .. " -- if filters=0 the trait is not " ..
+					"registered as an ICargoCanLoadFilter on this actor; if it answers True the " ..
+					"relationship it saw is in the line above. A Russian soldier boarded a building " ..
+					"owned by USA, so " ..
 					"the boarding re-check did not refuse him. The relationship gate runs once, at " ..
 					"targeting, and is asked of a NEUTRAL house (EnterAlliedActorTargeter.cs:49-54) — " ..
 					"the second look belongs at load time, in GarrisonManager's ICargoCanLoadFilter, " ..
@@ -266,6 +270,12 @@ end
 -- PHASE 2 — the control. An enemy-owned building must be refused outright, which is what makes the
 -- race specifically about the NEUTRAL window rather than about the gate being broken generally.
 local function ProbeTheGateAfterTheFlip()
+	-- The house is USA by now and RuMan is still walking, so this is the exact question the boarding
+	-- re-check exists to answer, asked BEFORE he arrives: is GarrisonManager's ICargoCanLoadFilter
+	-- registered on this actor at all, and what does it say about him? Round 3 refused nothing while
+	-- every static check said it should, so the next run names the reason instead of the symptom.
+	print("BOARDING-FILTER (RuMan still en route) | " .. Test.CargoLoadFilterReport(House, RuMan))
+
 	local issued = Test.ClickOrder(RuProbe, House)
 
 	if issued == "EnterTransport" then

@@ -813,6 +813,39 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return cargo != null && cargo.Passengers.Contains(passenger);
 		}
 
+		[Desc("Why `transport` will or will not accept `passenger` into its Cargo hold, filter by " +
+			"filter. Cargo.CanLoad consults every ICargoCanLoadFilter on the transport before it even " +
+			"looks at space, and RideTransport.OnEnterComplete honours the answer by leaving the man " +
+			"outside -- so when a boarding refusal does not happen, the question is which filters were " +
+			"actually registered and what each one said. Reports the two owners, their relationship, " +
+			"the filter roster and each answer, and the final CanLoad. Test mode only.")]
+		public string CargoLoadFilterReport(Actor transport, Actor passenger)
+		{
+			if (!TestMode.IsActive || transport == null || passenger == null)
+				return "n/a";
+
+			var cargo = transport.TraitOrDefault<Cargo>();
+			if (cargo == null)
+				return "transport has no Cargo";
+
+			var parts = new List<string>
+			{
+				$"transportOwner={transport.Owner.InternalName}",
+				$"passengerOwner={passenger.Owner.InternalName}",
+				$"relationship={transport.Owner.RelationshipWith(passenger.Owner)}"
+			};
+
+			var filters = transport.TraitsImplementing<ICargoCanLoadFilter>().ToArray();
+			parts.Add($"filters={filters.Length}");
+
+			foreach (var f in filters)
+				parts.Add($"{f.GetType().Name}[answers={f.CanLoadPassenger(transport, passenger)}]");
+
+			parts.Add($"canLoad={cargo.CanLoad(passenger)}");
+
+			return string.Join(" ", parts);
+		}
+
 		[Desc("Which garrison firing port `soldier` is holding on `building`, as a human-readable " +
 			"string: \"index=N name=X yaw=Y cone=C\", or \"none\". The port IDENTITY is what decides " +
 			"whether a given attacker is inside the arc, and a scenario that assumes which port a man " +
