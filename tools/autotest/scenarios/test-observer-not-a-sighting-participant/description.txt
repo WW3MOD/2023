@@ -1,0 +1,1 @@
+A map-authored spectator seat with a lobby client in it must not be built a sighting field.

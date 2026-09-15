@@ -4,17 +4,38 @@ The two arms must differ by **exactly one quantity**, because the thing being me
 *preference* rather than a binary. If they differ by anything else, a clustering difference has more
 than one available explanation and the run stops being evidence.
 
-## The edit
+## Selecting an arm — there is no edit any more
 
-One value in `mods/ww3mod/rules/ai/ai.yaml`, under `DroneOperatorBotModule@experimental`:
+The two arms are two scenario directories, and you pick one by running it:
+
+```bash
+./tools/autotest/run-test.sh --hidden test-drone-lost-track           # treatment
+./tools/autotest/run-test.sh --hidden test-drone-lost-track-control   # control (RED)
+```
+
+Nothing to revert, in either order, and **no rebuild** — it is mod YAML, read at map load. The
+arms share one Lua body at `mods/ww3mod/scripts/drone-lost-track-lib.lua`; the control directory
+differs from the treatment by exactly one stanza in its own `rules.yaml`:
 
 ```
-IntelSampleInterval: 25        # treatment (shipped default)
-IntelSampleInterval: 999999    # control
+Player:
+	DroneOperatorBotModule@experimental:
+		IntelSampleInterval: 999999
 ```
 
-Run the control, then revert with `git checkout mods/ww3mod/rules/ai/ai.yaml`. **No rebuild** — it is
-mod YAML, read at map load.
+**Why this replaced the old procedure, which was to edit `mods/ww3mod/rules/ai/ai.yaml` and then
+`git checkout` it back.** That edit was correct and it worked; what it could not be was *safe* on
+this machine. It mutates a file every scenario in the repo reads, and it has to stay mutated across
+a launch that is serialized against other people's launches — so any run that started while the
+control was in flight silently got a bot with the drone feature switched off, and nothing in its
+result would say so. A forgotten revert leaves the same landmine in the working tree indefinitely.
+The per-scenario override carries the same single quantity with none of that reach.
+
+**What the split does NOT change: the arms must still differ by exactly one quantity.** The
+directories are byte-identical except for that stanza and the title/comment text — `diff -r` them
+before believing any result that depends on the comparison. If someone edits one `rules.yaml` and
+not the other, a clustering difference gets a second available explanation and the run stops being
+evidence, which is the whole failure this file exists to prevent.
 
 ## Why this knob and not `LostTrackIntelSquares: 0`
 
@@ -40,10 +61,10 @@ one.
 
 ## Expected results
 
-| Arm | `IntelSampleInterval` | Expected today | Log signature |
+| Arm (scenario to run) | `IntelSampleInterval` | Expected today | Log signature |
 |---|---|---|---|
-| Control (RED) | 999999 | **FAIL** — drone prefers the dark region | `records=0`, `intel=0` on every launch |
-| Treatment | 25 | **FAIL** — a majority near V needs a larger `LostTrackIntelSquares` | `records>0`, `intel>0`, `intelkey` naming the truk |
+| Control (RED) — `test-drone-lost-track-control` | 999999 | **FAIL** — drone prefers the dark region | `records=0`, `intel=0` on every launch |
+| Treatment — `test-drone-lost-track` | 25 | **FAIL** — a majority near V needs a larger `LostTrackIntelSquares` | `records>0`, `intel>0`, `intelkey` naming the truk |
 
 **Both arms FAIL today, and that is the measured state, not a broken scenario.** The
 majority-of-samples bar is the design intent and has not been lowered.

@@ -315,6 +315,36 @@ namespace OpenRA.Mods.Common.Scripting.Global
 				$"bar={(barVisible ? 1 : 0)} barleft={barLeft} countright={countRight}";
 		}
 
+		[Desc("Visibility of the chrome widget `id` as one of three words: 'visible', 'hidden', or " +
+			"'missing' when no widget by that id is in the tree. THREE STATES AND NOT A BOOLEAN, on " +
+			"purpose — a panel that is absent from this chrome file and a panel that is present and " +
+			"down are the same picture and the same `false`, and telling them apart is the difference " +
+			"between a broken test and a broken panel. " +
+			"Reads IsVisible() rather than the Visible field: both GARRISON_PANEL and CARGO_PANEL own " +
+			"their own visibility through an IsVisible delegate, so their Visible field is stuck at " +
+			"its default true and says nothing. The delegate is the answer the renderer uses. " +
+			"Test mode only.")]
+		public string GetPanelVisibility(string id)
+		{
+			if (!TestMode.IsActive)
+				return "";
+
+			var panel = Ui.Root?.GetOrNull<Widget>(id);
+			if (panel == null)
+				return "missing";
+
+			// CargoPanelLogic and GarrisonPanelLogic both hang their per-frame selection refresh off
+			// this delegate, so this call does that work — idempotent and self-gating on
+			// Selection.Hash, exactly as DefconReadoutWidget.DrawBottom already relies on.
+			//
+			// RunUnsynced because an IsVisible delegate is arbitrary chrome code and this call site
+			// is inside the synced world tick. Neither panel's delegate touches anything guarded
+			// today (both only read Selection and trait state, as GetSelectedCount already does
+			// bare), but this binding takes an ID from Lua and will be pointed at panels nobody has
+			// written yet. The wrapper is what makes that safe to do without re-auditing each one.
+			return Sync.RunUnsynced(Context.World, () => panel.IsVisible()) ? "visible" : "hidden";
+		}
+
 		[Desc("Click a row of the open unload menu: the row itself drops one man of that class, or " +
 			"set `all` to hit its ALL chip and drop the whole class. Rows are indexed from 0 in the " +
 			"order the menu lists them. Drives the real click handlers, so the orders issued are the " +

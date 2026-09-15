@@ -18,11 +18,34 @@
      between the two hypotheses. Hence SAMPLES, and a fraction-of-time statistic
      over them.
 
-  ARMS. This scenario is the TREATMENT. The control is the same scenario with
-  IntelSampleInterval raised beyond the run length in ai.yaml, which leaves the
-  contact table empty and every candidate scoring intelSquares 0 — the pre-change
-  behaviour. The control is EXPECTED TO FAIL here, and that failure is the RED.
-  Do not "fix" a control-arm failure.
+  ARMS, AND THIS FILE IS BOTH OF THEM. It is loaded from mods/ww3mod/scripts by two
+  scenario directories that are identical apart from one value in their own rules.yaml:
+
+    tools/autotest/scenarios/test-drone-lost-track          treatment (ships ai.yaml's
+                                                            IntelSampleInterval: 25)
+    tools/autotest/scenarios/test-drone-lost-track-control   control (overrides it to
+                                                            999999, so SampleIntel never
+                                                            runs, the contact table stays
+                                                            empty and every candidate
+                                                            scores intelSquares 0 — the
+                                                            pre-change behaviour)
+
+  THE CONTROL IS EXPECTED TO FAIL, AND THAT FAILURE IS THE RED. Do not "fix" it.
+
+  THIS SCRIPT CANNOT TELL YOU WHICH ARM IT IS RUNNING, and must not pretend to: Lua sees
+  actors and positions, not trait Info, so nothing here can read IntelSampleInterval. The
+  arm is identified two ways OUTSIDE this file — by the scenario name in result.json, and,
+  the load-bearing one, by `records=0` / `intel=0` on the `[drone] ... launch` line in
+  RUN_DIR/debug.log. A control whose YAML override silently failed to merge is a second
+  copy of the treatment, and since both arms fail today that would look exactly like a
+  clean null result. records>0 in the control means the run is not a control.
+
+  IT IS SHARED RATHER THAN COPIED ON PURPOSE. Every constant below — the 25/140 kill
+  schedule against FreshSightingTicks, the 18-cell bar, the 1800-tick deadline, the
+  guard's 28-cell radius — was arrived at over eight runs and several of them are one
+  tick from being wrong in a way that silently measures the wrong tier. Two copies of
+  that would drift, and the drift would look like an arm difference. Same precedent as
+  javelin-probe-lib.lua, which four scenarios share.
 
   Budgeted in TICKS throughout. TestHarness.TicksPerSecond says 25 and the real
   rate is 16.667 (CLAUDE.md), so any seconds conversion in this file would be

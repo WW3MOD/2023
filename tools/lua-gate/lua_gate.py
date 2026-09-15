@@ -6,6 +6,8 @@ decides whether a green run here means anything for the change you just made.
 """
 
 import argparse
+import contextlib
+import io
 import json
 import os
 import re
@@ -1029,6 +1031,7 @@ def run_check(args):
     files = 0
 
     helper_cache = {}
+    scanned_shared = set()
     seeds = verdict_seeds()
 
     for name, d, luas in scenarios:
@@ -1044,6 +1047,7 @@ def run_check(args):
 
         # Globals contributed by the helper scripts this map actually loads.
         extra = {}
+        shared_declared = []
         for s in declared:
             if s in luas:
                 continue
@@ -1058,6 +1062,7 @@ def run_check(args):
                 with open(path, "r", encoding="utf-8", errors="replace") as fh:
                     helper_cache[path] = lua_globals_defined(strip_lua(fh.read()))
             extra.update(helper_cache[path])
+            shared_declared.append(path)
 
         if not declared:
             for lua in luas:
@@ -1067,6 +1072,30 @@ def run_check(args):
                     "loads: its WorldLoaded never runs, nothing in it is checked here, and "
                     "the scenario starts and does nothing."))
             continue
+
+        # A SCRIPT OUT OF THE SCENARIO DIRECTORY IS STILL A SCRIPT THIS SCENARIO RUNS.
+        # Until 2026-09-15 `check_file` was reached only from the loop over `luas` — the .lua
+        # files sitting IN the scenario folder — so a body kept in mods/ww3mod/scripts and
+        # shared between scenarios was loaded by the engine and checked by nothing. The gate
+        # said "OK — every reference resolves" having resolved none of it, which is the false
+        # green this tool exists to prevent, wearing the tool's own uniform. It covered
+        # javelin-probe-lib.lua (4 scenarios) from the day it was written.
+        # Cached by PATH, so a lib shared by N scenarios is read and scanned once; the
+        # per-scenario `extra`/`actors` still differ, and identical findings dedupe below.
+        # SCANNED ONCE, under the first scenario that declares it. Re-scanning per declaring
+        # scenario would be stricter — `extra` and `actors` are per-scenario, so a symbol
+        # resolving in the first declarer could be missing in the second — but every scenario
+        # in the tree declares test-helpers.lua, which turns "stricter" into 320 scans of the
+        # same file and pushed a full run past nine minutes. The residual blind spot is narrow
+        # and worth naming: a shared lib that reads a map-actor global is validated against ONE
+        # map's `Actors:` block. A lib referencing map actors by name is already a mistake — it
+        # cannot be shared — so the check that would catch it is the one it should never need.
+        for path in shared_declared:
+            if path in scanned_shared:
+                continue
+            scanned_shared.add(path)
+            files += 1
+            check_file(path, api, extra, actors, findings)
 
         for lua in luas:
             # Only gate the scripts the map actually loads; an orphan .lua in the
@@ -1080,11 +1109,38 @@ def run_check(args):
             files += 1
             check_file(os.path.join(d, lua), api, extra, actors, findings)
 
+        # WHICH TEXT COUNTS AS *THIS SCENARIO'S* ASSERTION.
+        #
+        # The check asks whether the scenario names any way to reach a terminal verdict, and
+        # it has to be strict about whose text may answer: test-helpers.lua contains literal
+        # Test.Fail calls and EVERY scenario declares it, so letting helper text stand as the
+        # body would grade all 320 of them green by construction.
+        #
+        # It used to enforce that by only ever reading <dir>/<name>.lua. That is right for a
+        # scenario that keeps its body next to its map, and SILENTLY SKIPS one that does not:
+        # no file, no call, no finding — the check simply did not run, and nothing said so.
+        # An A/B pair sharing one body in mods/ww3mod/scripts is exactly that shape.
+        #
+        # So the body is now: the scenario's own <name>.lua if it has one, PLUS every script
+        # it declares that is not a universal helper. `test-helpers.lua` is named explicitly
+        # rather than inferred because being universal is the whole reason it is excluded —
+        # if a second repo-wide helper is ever added it belongs on this list, and until it is
+        # added the failure is a scenario grading green on that helper's verdict calls.
+        UNIVERSAL_HELPERS = ("test-helpers.lua",)
+        body_texts = []
         own = os.path.join(d, name + ".lua")
         if os.path.basename(own) in declared and os.path.exists(own):
             with open(own, "r", encoding="utf-8", errors="replace") as fh:
-                check_verdict_reachable(
-                    name, d, luas, declared, strip_lua(fh.read()), findings, seeds)
+                body_texts.append(strip_lua(fh.read()))
+        for path in shared_declared:
+            if os.path.basename(path) in UNIVERSAL_HELPERS:
+                continue
+            with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                body_texts.append(strip_lua(fh.read()))
+
+        if body_texts:
+            check_verdict_reachable(
+                name, d, luas, declared, "\n".join(body_texts), findings, seeds)
 
     seen, deduped = set(), []
     for f in findings:
@@ -1431,7 +1487,57 @@ def run_wiring_acceptance():
                                 "WorldLoaded = function() Test.Skip('x') end", f, seeds)
         results.append(("...and one reaching Test.Skip does not fire", not f))
 
+        # -- mode 5: the same question for a scenario whose BODY is a shared script in
+        # mods/ww3mod/scripts rather than a .lua in its own folder (an A/B arm pair).
+        # Before 2026-09-15 mode 4 could not see this shape AT ALL: the check was reached
+        # only when <dir>/<name>.lua existed, so a shared body that asserted nothing was
+        # not reported as silent — it was never examined, and the gate printed OK. Both
+        # halves are asserted here; the negative half is the one that was broken.
+        results.extend(_shared_body_acceptance())
+
     return results
+
+
+def _shared_body_acceptance():
+    """run_check over a scenario whose only body lives in the shared scripts folder."""
+    import tempfile
+    global SCENARIOS, MOD_SCRIPTS
+    saved = (SCENARIOS, MOD_SCRIPTS)
+    out = []
+    rules = "World:\n\tLuaScript:\n\t\tScripts: test-helpers.lua, zz-lib.lua\n"
+    try:
+        for label, body, want in (
+                ("a shared body that reaches no verdict is reported",
+                 "WorldLoaded = function()\n\tlocal a = 1\nend\n", True),
+                ("...and a shared body that reaches Test.Fail does not fire",
+                 "WorldLoaded = function()\n\tTest.Fail('x')\nend\n", False)):
+            with tempfile.TemporaryDirectory() as root:
+                scen = os.path.join(root, "scenarios")
+                scripts = os.path.join(root, "scripts")
+                d = os.path.join(scen, "test-zz-shared")
+                os.makedirs(d)
+                os.makedirs(scripts)
+                _write(os.path.join(d, "map.yaml"), WIRING_MAP + "Rules: rules.yaml\n")
+                _write(os.path.join(d, "rules.yaml"), rules)
+                _write(os.path.join(scripts, "zz-lib.lua"), body)
+                # Stands in for the real universal helper: it CONTAINS a verdict call, which
+                # is exactly why it must not be allowed to answer for the scenario.
+                _write(os.path.join(scripts, "test-helpers.lua"),
+                       "function TestHarnessFail() Test.Fail('h') end\n")
+                SCENARIOS, MOD_SCRIPTS = scen, scripts
+                buf = io.StringIO()
+                with contextlib.redirect_stdout(buf):
+                    run_check(argparse.Namespace(scenario=None, strict=False, json=False))
+                fired = "reaches a terminal Test verdict" in buf.getvalue()
+                out.append((label, fired == want))
+    finally:
+        SCENARIOS, MOD_SCRIPTS = saved
+    return out
+
+
+def _write(path, text):
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text)
 
 
 # MiniYaml's indent arithmetic is transcribed rather than approximated, so pin it: these are

@@ -106,18 +106,26 @@ namespace OpenRA.Mods.Common.Widgets
 				};
 			}
 
-			// Panel visibility ticker
-			var ticker = panel.GetOrNull<LogicTickerWidget>("GARRISON_TICKER");
-			if (ticker != null)
+			// PANEL VISIBILITY. This MUST be an IsVisible delegate and MUST NOT be a LogicTicker,
+			// for the reason CargoPanelLogic.cs carries the same note: Widget.TickOuter is gated on
+			// IsVisible() (Widget.cs:512-518), so nothing parented inside a hidden container ticks.
+			// A ticker declared as a child of this panel therefore cannot be the thing that shows
+			// the panel -- it only runs once the panel is already up. That is exactly how this
+			// shipped: `panel.Visible = false` here plus the only other write living inside
+			// GARRISON_TICKER.OnTick meant the panel could never appear at all, for any selection.
+			// The delegate runs from the PARENT's tick and draw, which is visible, so it is
+			// evaluated every frame regardless of what it answered last frame.
+			//
+			// UpdateSelection is consequently called from a visibility check rather than from a
+			// tick. Safe, and for the same reason it is safe in CargoPanelLogic: it is idempotent
+			// and self-gates on Selection.Hash, so the several IsVisible() calls a frame makes
+			// (TickOuter, DrawOuter, hit-testing, and DefconReadoutWidget.DrawBottom, which names
+			// this panel in AvoidPanels) do the work at most once per selection change.
+			panel.IsVisible = () =>
 			{
-				ticker.OnTick = () =>
-				{
-					UpdateSelection();
-					panel.Visible = selectedGarrison != null;
-				};
-			}
-
-			panel.Visible = false;
+				UpdateSelection();
+				return selectedGarrison != null;
+			};
 		}
 
 		void UpdateSelection()

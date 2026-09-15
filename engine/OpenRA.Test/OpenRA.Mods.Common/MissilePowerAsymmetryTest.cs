@@ -196,120 +196,85 @@ namespace OpenRA.Test
 				$"reads [{string.Join(", ", penetrate.ValidTargets)}].");
 		}
 
-		// --- the lobby gate's polarity -----------------------------------------------------------
+		// --- what gates the two event-tier nukes, now that the lobby checkboxes are gone -------
+		//
+		// THESE FOUR TESTS USED TO CHECK A LOBBY GATE'S FAIL-SAFE POLARITY and were retired with the
+		// gate on 2026-09-15. `tactical-nuke` and `high-yield-nuke` each gated exactly one power, and
+		// both of those powers are EVENT TIER -- `Prerequisites: powers.event`, provided by no faction
+		// (player.yaml:144) -- so outside `powers-sandbox` neither checkbox ever decided anything, and
+		// inside it a host had to tick two boxes to reach one weapon.
+		//
+		// WHAT REPLACES THEM IS NOT A WEAKER CHECK, and that is the thing worth being sure of, because
+		// the retired pair were explicitly the guard on "an absent lobby option must not hand a player
+		// a 6 Mt warhead". That property is now structural rather than defended: there is no option to
+		// be absent. The two tests below pin the gates that are actually left, and they pin the
+		// RequiresCondition EXACTLY rather than by Contains -- which is the stricter form the old pair
+		// deliberately could not use, and is what makes a half-revert (the grant trait restored while
+		// the option stays unregistered, which would fall back to false and silently delete the power
+		// from the sandbox) fail here instead of shipping.
 
 		[Test]
-		public void TheTacticalNukeGateFailsSafeToOff()
+		public void TheTacticalNukeIsGatedByTheLadderBandAndTheEventTierAlone()
 		{
-			// The one property of the nuke gate that a reader cannot check by eye, because it is a
-			// property of an ABSENT option rather than a present one. GrantConditionOnLobbyOption
-			// falls back to OptionOrDefault(Option, !GrantWhenOptionDisabled) (that file, :47), so
-			// only the "grant a DISABLING condition when the option is off" form survives the option
-			// not being registered — a stripped PowersLobbyOptions, an old session, a map override.
-			// The inverted form ("grant an ALLOWING condition when the option is on") defaults to
-			// true in exactly that case and hands every player a nuke.
-			var player = ReadBlock(Path.Combine(ModRulesDir(), "player.yaml"), "GrantConditionOnLobbyOption@tacnuke");
-
-			Assert.That(player.GetValueOrDefault("Option"), Is.EqualTo("tactical-nuke"));
-			Assert.That(player.GetValueOrDefault("Condition"), Is.EqualTo("tacnuke-disabled"),
-				"the condition must be the DISABLING one; see the fallback reasoning above");
-			Assert.That(player.GetValueOrDefault("GrantWhenOptionDisabled"), Is.EqualTo("true"),
-				"inverting this makes an unregistered lobby option enable the nuke rather than " +
-				"suppress it");
-
 			var power = ReadBlock(Path.Combine(ModRulesDir(), "player.yaml"), "MissileStrikePower@TacNuke");
 
-			// CONTAINS rather than EQUALS since the nuclear release ladder landed. The power now
-			// carries a second conjunct naming the yield band that releases it
-			// (`&& nuclear-release-20kt`, this weapon being `Atomic` at 20 kt), so an exact match
-			// would pin the ladder's condition vocabulary in a fixture about the LOBBY GATE. What
-			// this test is for is unchanged and is still checked: the disabling term is present, so
-			// an unregistered lobby option still suppresses the power.
-			Assert.That(power.GetValueOrDefault("RequiresCondition"), Does.Contain("!tacnuke-disabled"),
-				"RequiresCondition (which makes the icon ABSENT via SupportPowersWidget.cs:136) " +
-				"rather than PauseOnCondition (which leaves a dead 'ON HOLD' cameo). The lobby gate " +
-				"must survive as a conjunct however many other gates are added alongside it.");
+			// EXACTLY the band, with no lobby conjunct beside it. `Atomic` is 20 kt, so the rung that
+			// releases it is the 20 kt one. Outside Escalation every band is granted on the first tick,
+			// so in Skirmish this conjunct is inert and the TIER below is the whole gate.
+			Assert.That(power.GetValueOrDefault("RequiresCondition"), Is.EqualTo("nuclear-release-20kt"),
+				"the retired `tactical-nuke` checkbox must not come back as a conjunct here: it would be " +
+				"granted by nothing, so it would read as permanently satisfied and mean nothing -- or, if " +
+				"its GrantConditionOnLobbyOption were restored too, it would fall back to FALSE for an " +
+				"unregistered option and delete the power from the sandbox instead");
+
+			// THE GATE THAT ACTUALLY HOLDS IT SHUT. `powers.event` is provided by no faction; only
+			// ProvidesPrerequisite@SandboxEvent grants it, on `!powers-sandbox-disabled`.
+			Assert.That(power.GetValueOrDefault("Prerequisites"), Is.EqualTo("powers.event"),
+				"the event tier is the only thing keeping a 20 kt warhead off the shop floor now that " +
+				"the lobby checkbox is gone; naming a faction here would put it on sale");
+
+			AssertLobbyGateTraitIsGone("GrantConditionOnLobbyOption@tacnuke");
 		}
 
 		[Test]
-		public void TheTacticalNukeCheckboxDefaultsOff()
+		public void TheHighYieldNukeIsGatedByTheTopRungAndItsMissingOwnerAlone()
 		{
-			// §9.4, and the user's own doomsday design is the reason. Checked at the C# default
-			// rather than in world.yaml, because world.yaml does not override it — so this default
-			// IS the shipped behaviour.
-			var info = new OpenRA.Mods.Common.Traits.PowersLobbyOptionsInfo();
-			Assert.That(info.TacticalNukeCheckboxEnabled, Is.False,
-				"the tactical nuclear strike ships lobby-gated and OFF (proposal §9.4)");
-		}
-
-		[Test]
-		public void TheHighYieldNukeCheckboxDefaultsOn()
-		{
-			// THE OPPOSITE DEFAULT TO ITS SIBLING ABOVE, ON PURPOSE, AND TEMPORARILY. The user asked
-			// for it by name on 2026-09-06: "You can add the high yield nuke as a new power, even
-			// though we might disable it later, but for testing we keep it (even after this session,
-			// I will deal with it later before release ... so there will be two nuke powers)."
-			//
-			// This test exists because that is a decision, not a derivation — there is no design
-			// document it can be re-derived from, so without a pin it is exactly the kind of value
-			// that gets quietly "corrected" to match the tactical nuke next door. If this goes red,
-			// the question to ask is whether the USER changed their mind, and the answer is not in
-			// the code.
-			var info = new OpenRA.Mods.Common.Traits.PowersLobbyOptionsInfo();
-			Assert.That(info.HighYieldNukeCheckboxEnabled, Is.True,
-				"the high-yield strategic nuclear strike ships lobby-gated and ON at the user's " +
-				"explicit request, so both nuclear powers are reachable for testing without the " +
-				"host ticking anything. The release default is theirs to settle.");
-
-			// The C# default is only the SHIPPED default if world.yaml leaves it alone. It overrides
-			// TacticalNukeCheckboxDisplayOrder and HighYieldNukeCheckboxDisplayOrder there, so the
-			// file demonstrably can reach these fields — checking the C# value without this would be
-			// checking a number the mod is free to ignore.
-			var world = File.ReadAllLines(Path.Combine(ModRulesDir(), "world.yaml"))
-				.Select(l => l.Split('#')[0].Trim())
-				.Where(l => l.StartsWith("HighYieldNukeCheckboxEnabled", StringComparison.Ordinal))
-				.ToArray();
-
-			Assert.That(world, Is.Empty,
-				"world.yaml must not override HighYieldNukeCheckboxEnabled, or the assertion above " +
-				$"is checking a value nothing reads. Found: [{string.Join(", ", world)}]");
-		}
-
-		[Test]
-		public void TheHighYieldNukeStillFailsSafeToOffWhenTheOptionIsAbsent()
-		{
-			// The companion to the test above, and the reason the ON default is not a safety
-			// regression. THE REGISTERED DEFAULT AND THE UNREGISTERED FALLBACK ARE SEPARATE VALUES:
-			//     optionEnabled = OptionOrDefault(Option, !GrantWhenOptionDisabled)
-			//     shouldGrant   = GrantWhenOptionDisabled ? !optionEnabled : optionEnabled
-			// (GrantConditionOnLobbyOption.cs:45-49). The fallback term is `!GrantWhenOptionDisabled`
-			// — it is NOT PowersLobbyOptionsInfo.HighYieldNukeCheckboxEnabled, which is consulted
-			// only when the trait is present to register the option at all. So this gate can be, and
-			// is, ON when registered and OFF when the option does not exist: a stripped
-			// PowersLobbyOptions, an old saved session, a map that removes the trait.
-			//
-			// Which makes this the test that catches the plausible-looking wrong fix. Someone who
-			// believes an ON default requires the inverted form (Condition: highyieldnuke-allowed,
-			// GrantWhenOptionDisabled: false) would keep the lobby behaviour identical and silently
-			// flip the absent case to handing out a 102-cell blast.
-			var gate = ReadBlock(Path.Combine(ModRulesDir(), "player.yaml"), "GrantConditionOnLobbyOption@highyieldnuke");
-
-			Assert.That(gate.GetValueOrDefault("Option"), Is.EqualTo("high-yield-nuke"));
-			Assert.That(gate.GetValueOrDefault("Condition"), Is.EqualTo("highyieldnuke-disabled"),
-				"the condition must be the DISABLING one; see the fallback reasoning above");
-			Assert.That(gate.GetValueOrDefault("GrantWhenOptionDisabled"), Is.EqualTo("true"),
-				"inverting this does NOT change the lobby default (that lives in " +
-				"PowersLobbyOptions.cs) — all it does is make an unregistered option enable the " +
-				"map-ending weapon rather than suppress it");
-
 			var power = ReadBlock(Path.Combine(ModRulesDir(), "player.yaml"), "MissileStrikePower@HighYieldNuke");
 
-			// CONTAINS rather than EQUALS, for the reason given on the tactical nuke above. This
-			// weapon is `AtomicHighYield` at 6 Mt, so its second conjunct is the game-ender band.
-			Assert.That(power.GetValueOrDefault("RequiresCondition"), Does.Contain("!highyieldnuke-disabled"),
-				"RequiresCondition (which makes the icon ABSENT via SupportPowersWidget.cs:136) " +
-				"rather than PauseOnCondition (which leaves a dead 'ON HOLD' cameo). The lobby gate " +
-				"must survive as a conjunct however many other gates are added alongside it.");
+			Assert.That(power.GetValueOrDefault("RequiresCondition"), Is.EqualTo("nuclear-release-gameender"),
+				"see the tactical nuke above; the same half-revert would be worse here, because this " +
+				"checkbox was the one option in the mod that shipped defaulting ON -- restoring the grant " +
+				"trait without the option would flip a reachable weapon to unreachable, not the reverse");
+
+			// AND THE PREREQUISITE IS WHY THIS 6 Mt MAP-ENDER IS STILL SAFE AT THE TOP RUNG, where
+			// NuclearExchangeInfo.OverriddenPrerequisites DOES waive `powers.event`. Strip the waived
+			// term and NuclearGameEnders.ArmableBy is left with an EMPTY owner set, and an empty owner
+			// set returns false -- the "national ender only" ruling of 2026-09-14. Add `player.america`
+			// or `player.russia` here and this power becomes a second END cameo for that side.
+			Assert.That(power.GetValueOrDefault("Prerequisites"), Is.EqualTo("powers.event"),
+				"this power must name NO nation: NuclearGameEnders.ArmableBy subtracts the overridden " +
+				"`powers.event` and refuses an empty remainder, which is the whole of what stops the " +
+				"exchange arming a 6 Mt warhead for somebody at the END level");
+
+			AssertLobbyGateTraitIsGone("GrantConditionOnLobbyOption@highyieldnuke");
+		}
+
+		/// <summary>
+		/// Assert a retired <c>GrantConditionOnLobbyOption</c> block is absent from player.yaml.
+		/// Deliberately NOT via <see cref="ReadBlock"/>, which asserts the block IS found and so can
+		/// only ever be used to check a trait's contents, never its absence.
+		/// </summary>
+		static void AssertLobbyGateTraitIsGone(string trait)
+		{
+			var found = File.ReadAllLines(Path.Combine(ModRulesDir(), "player.yaml"))
+				.Select(l => l.Split('#')[0].Trim())
+				.Any(l => l == trait + ":");
+
+			Assert.That(found, Is.False,
+				$"{trait} was retired on 2026-09-15 along with the lobby option it reads. Restoring it " +
+				"without also registering that option in PowersLobbyOptions would grant its disabling " +
+				"condition unconditionally (the fallback is `!GrantWhenOptionDisabled`, not the trait's " +
+				"default field) and remove the power from the sandbox.");
 		}
 
 		// --- reading the mod ---------------------------------------------------------------------

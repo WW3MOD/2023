@@ -25,8 +25,10 @@
  * neighbouring mistake of a caller inventing a token that does not exist.
  *
  * WHAT NEITHER CHECKS: whether the binding returns the RIGHT token for a given world state. That
- * needs a World and a Player, so it lives in the scenarios (test-tacnuke-delivers asserts the
- * enabled reading, test-tacnuke-lobby-gated-off the gated one, on the same power).
+ * needs a World and a Player, so it lives in the scenarios -- test-tacnuke-delivers asserts the
+ * reachable reading. The `hidden` reading on the same power used to be asserted by
+ * test-tacnuke-lobby-gated-off, deleted on 2026-09-15 with the lobby option it measured; the
+ * nearest standing reading of `hidden` is now test-nuclear-ender-level's negative controls.
  */
 #endregion
 

@@ -48,8 +48,9 @@
  *      PowersSandboxCheckboxEnabled: true and all fire inside the first three minutes. Without this
  *      clause every one of them would have stopped firing and reported nothing but a demo gone
  *      quiet -- the exact failure GrantConditionOnNuclearRelease's header warns about.
- *      (The ninth, test-tacnuke-lobby-gated-off, needs no exemption: its positive control is the
- *      Kinzhal, which is CONVENTIONAL and carries no NuclearYieldTons, so no band gates it.)
+ *      (There used to be a ninth, test-tacnuke-lobby-gated-off, which needed no exemption because
+ *      its positive control was the CONVENTIONAL Kinzhal. It was deleted on 2026-09-15 with the
+ *      `tactical-nuke` lobby option it existed to measure, so all eight are now exempt the same way.)
  *   3. AN INTERVAL OF "0". The host's own opt-out, and the pre-change behaviour exactly.
  *
  * In all three cases ReleasedRung reports the top of the ladder and this trait changes nothing.

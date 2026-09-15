@@ -47,6 +47,52 @@ later launch before anyone read it -- so a run that reached a real verdict still
 could not answer the question it was spent on. run-test.sh now archives debug.log
 into the run dir for every outcome; read RUN_DIR/debug.log, never the global file.
 
+
+PAIRED LAUNCH LINES, BOTH ARMS, 2026-09-15 — THE FIRST TIME THE TWO ARMS HAVE BEEN RUN
+BACK TO BACK POST-1e0226b9 WITH ALL FOUR SIZING TERMS CAPTURED.
+
+  treatment  260915_152821_p59962_test-drone-lost-track          fail, both markers
+  control    260915_153322_p61098_test-drone-lost-track-control  fail, both markers,
+                                                                 records=0 intel=0 (override merged)
+
+  tick  TREATMENT                                                          CONTROL
+  200   cell=29,25 reveal=248 intel=0  bestintel=178 @39,51 bir=14         cell=29,25 reveal=248 bestintel=0 bestintelcell=none
+  1600  cell=37,57 reveal=180 intel=39 bestintel=43  @39,51 bir=158        cell=37,57 bestintel=0 bestintelcell=none
+  1800  cell=39,53 reveal=122 intel=43 bestintel=43  @39,51 bir=107        cell=39,53 bestintel=0 bestintelcell=none
+
+IDENTICAL CELLS AT ALL THREE LAUNCHES. The lost-track term changed NO launch decision on
+this geometry. The t1600/t1800 drift toward the contact is NOT the term working -- it is the
+revealed-area argmax moving as the nearer ground is consumed, and the control, which has no
+intel at all, moves to exactly the same cells. Two further tells inside the treatment alone,
+needing no control: at t1600 the chosen cell carried LESS intel than the cell it beat (39 vs
+43 at 39,51), and at both retasks the winner was not bestintelcell. A term that decided the
+target would have picked 39,51.
+
+"HOW SHORT IS CURRENTLY UNKNOWN" IS ANSWERED. The pre-registered formula (CONTROL-ARM.md,
+recorded before the measurement and not moved after it) is
+
+    multiplier = (reveal - bestintelreveal) / (bestintel - intel_at_reveal_argmax)
+
+and the t200 line supplies every term. The control is what makes the denominator legitimate:
+with intel 0 everywhere it chose 29,25, so 29,25 IS the reveal argmax, and the treatment
+printed intel=0 there.
+
+    (248 - 14) / (178 - 0) = 234 / 178 = 1.315x
+
+PRE-REGISTERED RULING AT THAT VALUE: "<=1.5x means the term is roughly right and this
+scenario is simply a hard case -- change nothing." 1.315x is inside that band. This is the
+re-measurement ai.yaml:1201-1216 said was the only thing that could close the sizing
+question, and it closes it as CHANGE NOTHING.
+
+Two things not to do with this number. It is an UPPER BOUND on the general case, not a
+general shortfall: ai.yaml:1219-1223 records that this map is close to a worst case for the
+term by construction -- the contact sits 30 cells out against a 22-cell leash, so the closest
+reachable hover cell is 8 cells away and falloff has already cut 247 squares to 178. A
+contact the drone can park directly on keeps the full 247 and wins comfortably. And setting
+LostTrackIntelSquares to the value that flips THIS scenario (>=326, a 1.30x bump) is
+tuning-to-pass by CONTROL-ARM.md's own definition, the same move as lowering
+FreshSightingTicks would have been.
+
 REMOVE THIS FILE in the same commit as whatever makes the operator prefer the
 lost-track contact. A pass against a live `fail` declaration is RED on purpose:
 it means the premise moved and this note is stale.

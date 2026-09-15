@@ -1,0 +1,134 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: an authored Observer seat is not a sighting participant
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES, AND WHY IT IS NOT A READING OF A FLAG.
+#
+# `Player` has two constructor branches and, until 2026-09-15, only the MAP-PLAYER one copied
+# NonCombatant/Playable/Spectating out of the PlayerReference. The CLIENT branch -- which is the one
+# every `Playable: True` autotest slot takes, because the harness seats its own local client in the
+# first open slot -- kept the field initialisers forever. So `Spectating: True` on the Observer seat
+# below had NO RUNTIME EFFECT, and `player.NonCombatant || player.Spectating` was false for it
+# everywhere. Two runs (260914_141246, 260914_181212) paid for that as a phantom third combatant in
+# the DEFCON wall; DefconWall and NuclearExchange were then hardened via CombatantSides, but
+# SightingThreatLayer and InfluenceStack still carried the bare predicate.
+#
+# THE SEAT BELOW IS THE EXACT SHAPE 71 SHIPPED SCENARIOS USE: `Playable: True` + `Spectating: True`
+# and no `NonCombatant`. That combination is the one the constructor fix alone CANNOT reach, because
+# `Player.Spectating` is `!inMissionMap && (...)` (Player.cs:86) and every scenario is a
+# MissionSelector map -- so the runtime property stays false however faithfully the field is copied.
+# Only reading the authored flag (CombatantSides.CountsAsASide) excludes it. This scenario is what
+# makes that difference observable.
+#
+# THE OBSERVABLE IS STATE THE LAYER BUILT, NOT A FLAG IT WAS TOLD. SightingThreatLayer.Recompute
+# builds a per-player enemy-intensity field for every participant. A leaked participant that owns no
+# actors normally leaks an EMPTY field -- which is exactly why this survived unnoticed -- so the
+# Observer is authored `Enemies: Russia` and fog is off, giving it something real to stamp. Post-fix
+# it is not a participant and has no field, so the read is 0. USA is the control on the same cell on
+# the same tick: if the layer were simply dead, the control would be 0 too and the test fails.
+#
+# GEOMETRY
+#   Russia armour  13,22 .. 15,22   what both USA and the Observer would stamp
+#   USA armour     13,19            the control's own units (and the reason USA is a real side)
+#   SRs            5,19 / 60,19     HomeLocations, so nothing else derives a degenerate board
+#
+# GREEN: USA's threat intensity over the Russian armour is > 0 and the Observer's is exactly 0.
+# CONFIRMED LIVE by run 260915_153945_p62441_test-observer-not-a-sighting-participant -> pass.
+#
+# RED, AND IT WAS RUN RATHER THAN REASONED. Revert BOTH fix hunks -- the Player.cs constructor
+# hoist back below the branch, and SightingThreatLayer.Recompute back to
+# `if (player.NonCombatant || player.Spectating)` -- and rebuild. Measured on run
+# 260915_155136_p65744_test-observer-not-a-sighting-participant -> fail:
+#
+#   the Observer seat was built a sighting field: threat 555 at (13,22) -- an authored
+#   `Spectating: True` slot with a lobby client in it is still a participant
+#   (control USA reads 555)
+#
+# NOTE WHICH HUNK DOES THE WORK, because it is the whole reason this scenario exists: reverting
+# the Player.cs hoist ALONE does not turn this red. `Player.Spectating` is `!inMissionMap && (...)`
+# and this is a MissionSelector map, so the constructor fix cannot reach an authored
+# `Spectating: True` seat either way -- only reading the authored flag can. Reverting
+# InfluenceStack.Participates alone does not turn it red either; nothing here reads that layer.
+#
+# AND THE TWO READINGS ARE EQUAL AT 555 ON PURPOSE. Fog is off, so the Observer and USA see the
+# same three T-90s and stamp identically. That is what makes the control meaningful: the leaked
+# field is not a faint residue that a threshold could have hidden, it is the full-strength field a
+# real combatant gets.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+		Enemies: Russia
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,19
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,19
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 5,19
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,19
+
+	# The control's own armour. USA is a real side with units of its own, so its field is populated
+	# through the ordinary path rather than by anything this test arranges.
+	Abrams: abrams
+		Owner: USA
+		Location: 13,19
+		Facing: 512
+
+	# What gets stamped. Three armed actors on one row so the sampled cell is unambiguous.
+	Foe0: t90
+		Owner: Russia
+		Location: 13,22
+		Facing: 0
+	Foe1: t90
+		Owner: Russia
+		Location: 14,22
+		Facing: 0
+	Foe2: t90
+		Owner: Russia
+		Location: 15,22
+		Facing: 0
+
+Rules: rules.yaml

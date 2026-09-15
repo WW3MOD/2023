@@ -52,7 +52,7 @@
   wants its own change and its own run.
   (found while working on: `test-escalation-full-match`, the end-to-end Escalation smoke scenario)
 
-- [2026-09-14] [MEDIUM — FIXED IN THE CONSUMERS, NOT AT SOURCE] **`Player`'s two constructor branches
+- [2026-09-14] [MEDIUM — **FIXED AT SOURCE 2026-09-15 on `wt/player-flags`**] **`Player`'s two constructor branches
   do not populate the same fields: the CLIENT branch never assigns `NonCombatant`, `Playable` or
   `spectating` from the `PlayerReference`, so those three are ALWAYS FALSE for any slot a lobby
   client occupies — including every `Playable: True` autotest Observer, where the harness seats its
@@ -86,6 +86,21 @@
   it wants its own measured change rather than a drive-by. **Whoever takes that on: the right fix is
   probably in `Player`'s constructor (copy the three flags in both branches, or hoist them above the
   `if`), not five copies of a widened predicate.**
+  **FIXED AT SOURCE 2026-09-15, branch `wt/player-flags` (not yet merged).** The three assignments
+  are hoisted above the `if` in `Player`'s constructor, so both branches copy the PlayerReference
+  through. `Playable` provably cannot move — `LobbyCommands.MakeSlotFromPlayerReference:1359-1362`
+  returns null for `!pr.Playable`, so every lobby slot's PlayerReference is already `Playable: True`.
+  `NonCombatant`/`spectating` can only move for a map-authored non-combatant/spectator slot with a
+  client in it; **0 of the 10 shipped maps have one** (every `NonCombatant: True` there is on
+  Neutral/Creeps, which are not playable). **BUT THE SOURCE FIX DOES NOT CLOSE THE COMMON CASE** —
+  `Player.Spectating` is still `!inMissionMap && (...)`, so for the **71** scenarios authoring
+  `Playable: True + Spectating: True` with no `NonCombatant` the property still reads false and the
+  bare `NonCombatant || Spectating` filter still admits them. `SightingThreatLayer.cs` and
+  `InfluenceStack.cs` were therefore ALSO collapsed onto `CombatantSides.CountsAsASide`, which reads
+  the authored flag. `BotVsBotMatchWatcher`'s in-code workaround comment was corrected rather than
+  deleted: its `IsBot` discriminator is still required, now for the MissionSelector reason only.
+  Pinned end-to-end by `test-observer-not-a-sighting-participant` (not yet run).
+
   **`test-bot-defcon-wall` IS NOT A COUNTEREXAMPLE** — it has no `NonCombatant` either
   (`map.yaml:45-50`) and its own debug.log shows the same phantom Observer side; its wall stands
   because it AUTHORS `Start: 44,0 / End: 44,59` (`rules.yaml:44-46`) and `DefconWall.WorldLoaded`
@@ -99,7 +114,8 @@
   `test-escalation-full-match`.
   (found while working on: `test-escalation-full-match`, the end-to-end Escalation smoke scenario)
 
-- [2026-09-14] [MEDIUM — THE PANEL NEVER APPEARS] **`GARRISON_PANEL` cannot become visible: its
+- [2026-09-14] [MEDIUM — THE PANEL NEVER APPEARS] **[FIXED on `wt/garrison-panel`, off `main @
+  0a94c684` — not yet merged]** **`GARRISON_PANEL` cannot become visible: its
   visibility is written by a `LogicTicker` that is its own child, and `Widget.TickOuter` only ticks
   visible subtrees.** `GarrisonPanelLogic.cs:120` sets `panel.Visible = false` at construction, and
   the only other write is `:116`, inside the `OnTick` of `GARRISON_TICKER` — declared as a child of
@@ -118,7 +134,23 @@
   (found while working on: `wt/readout-corner`, teaching the DEFCON readout to lift over the two
   panels that share the bottom-right corner — the garrison half of that lift is consequently
   unreachable today, and the demo frame proving the lift had to use `CARGO_PANEL`)
+  > **FIX, 2026-09-15 (`wt/garrison-panel`).** Both halves of the finding re-derived at
+  > `0a94c684` before anything was touched and both held: `Widget.TickOuter` is gated on
+  > `IsVisible()` (`Widget.cs:512-518`) and `LogicTicker@GARRISON_TICKER` really was a child of
+  > `Container@GARRISON_PANEL`. `GarrisonPanelLogic` now assigns `panel.IsVisible` exactly as
+  > `CargoPanelLogic.cs:154-161` does, the ticker is gone from `ingame-player.yaml` (and from the
+  > dead `garrison-panel.yaml`, left in place rather than deleted — that is still the open
+  > judgement call recorded under 2026-08-19), and `GarrisonPanelVisibilityTest` pins the engine
+  > premise, the delegate mechanism and both shipped panels. **The suspicion in the last paragraph
+  > was right and is now settled: nothing else raised the panel.** The consequence nobody had
+  > drawn is that `test-garrison-suppression-readout` has been asking a human to look for a
+  > garrison panel in every frame it ever captured, and two screenshot readings passed anyway —
+  > so it now asserts `Test.GetPanelVisibility("GARRISON_PANEL") == "visible"` in code.
+  > ⚠️ **Still not launched by the author.** The panel is proven raisable; that it is legible,
+  > correctly positioned and shows the right rows is unverified and wants the capture this entry
+  > originally asked for.
 - [2026-09-14] [UNKNOWN SEVERITY — BEHAVIOURAL IMPACT NOT MEASURED] **Every trait that derives a
+- [2026-09-14] [**FIXED 2026-09-15 on `wt/player-flags`** — and the severity is now measured: LOW, see below] **Every trait that derives a
   team from `LobbyInfo.ClientWithIndex(player.ClientIndex)` reads the HOST'S team for map-authored
   players, because `Player.cs:191` deliberately hands them the host's client index** — `ClientIndex =
   world.LobbyInfo.Clients.FirstOrDefault(c => c.IsAdmin)?.Index ?? 0;`, under its own upstream
@@ -138,7 +170,30 @@
     feeds is `pc.Team == q.PlayerReference.Team`: the CLIENT team of one player against the
     PLAYERREFERENCE team of another. Mixing the two vocabularies is suspicious on its face, but I did
     not work out whether it produces wrong alliances in practice.
-  ⚠️ **The severity is unknown because I measured neither.** The general shape is worth more than
+  **FIXED 2026-09-15, branch `wt/player-flags` (not yet merged).** Both sites now go through a new
+  shared `LobbyTeams.TeamFor` (`Traits/World/LobbyTeams.cs`, NUnit-pinned in `LobbyTeamsTest`), which
+  asks `ClientInSlot(p.InternalName)` and falls back to `PlayerReference.Team` — the same rule
+  `NuclearExchangeState.SideKeyFor` already uses, and the test pins the two equal so they cannot
+  drift. `StrategicVictoryConditions.cs:133,137` turned out to be a THIRD site with the identical
+  two lines and was fixed with them (ww3mod's yaml references that trait nowhere — dead code
+  carrying a live defect). The first lookup was also an unguarded `.Team` on a `SingleOrDefault`;
+  `LobbyTeams` is null-safe.
+
+  **SEVERITY, NOW MEASURED, AND IT IS LOWER THAN IT LOOKED — the two sites are not equal:**
+  - `ConquestVictoryConditions` — real, but **unreachable from any autotest scenario**. The team
+    arithmetic lives in `NotifyTimerExpired`, which returns on `objectiveID < 0`, and `objectiveID`
+    is assigned only inside the `Tick` that `TestMode.IsActive` returns from (the inertness recorded
+    in the 2026-09-14 `WinState` entry above, followed one step further). It IS live in a real lobby
+    (`player.yaml:1008`), where a `Playable: False, NonCombatant: False` map player with an authored
+    `Team:` was judged as though it sat on the host's team. **No scenario can prove this; NUnit and
+    reading are the gate.**
+  - `CreateMapPlayers` — **no behavioural delta, provably.** All three `GetClientForPlayer` call
+    sites in `SetupPlayerMasks` are already guarded by `PlayerReference.Playable`, and a playable
+    `Player` exists only for an occupied slot (`CreatePlayers` skips `ClientInSlot(kv.Key) == null`),
+    so both lookups return the same client for every argument that arrives. Changed anyway, to put
+    the `HACK:` comment's reasoning at the lookup instead of at three call sites.
+
+  ⚠️ **The severity was unknown at the time of writing because I measured neither.** The general shape is worth more than
   either instance: **`ClientWithIndex(p.ClientIndex)` answers "which client is associated with this
   player" and NOT "does a client own this player", and for map players those differ.** Ask
   `ClientInSlot(p.InternalName)` when the question is ownership. (found while working on: the nuclear
@@ -5302,7 +5357,18 @@ which is the single flip that would undo the ruling.
 
 (found while working on: the END-window game-ender grant, `wt/ender-grant`)
 
-## 2026-09-15 — Retiring `tactical-nuke` / `high-yield-nuke` is NOT the mechanical change backlog item ec11c977 assumes: deleting the option INVERTS its default rather than freezing it
+## 2026-09-15 — ~~Retiring `tactical-nuke` / `high-yield-nuke` is NOT the mechanical change backlog item ec11c977 assumes: deleting the option INVERTS its default rather than freezing it~~ **[DONE 2026-09-15, `wt/nuke-retire`]**
+
+> **RETIREMENT SHIPPED.** The recipe at the end of this entry was followed and held on every
+> point; the audit below re-derived independently and agreed. Two corrections to the entry
+> itself, both found while executing it: the scenario list names `test-nuclear-ender-window`,
+> which **does not exist** — the real one is `test-nuclear-ender-level`; and the count of
+> scenario `rules.yaml` files actually carrying an Info-field override was **4**, not 9/10
+> (`test-tacnuke-delivers`, `test-heavy-strike-wrecks-economy`, `test-nuclear-ender-level`,
+> `test-tacnuke-lobby-gated-off`). The other six mention the fields only in COMMENTS, which
+> `grep -l` does not distinguish from a setting — the same trap the entry identifies, one
+> level further in. What was NOT anticipated is in DISCOVERIES.md under the same date: the
+> two powers are held shut by **different mechanisms**, and one autotest control narrowed.
 
 **THE BACKLOG ITEM'S PREMISE IS CORRECT.** Both options gate one `powers.event` power apiece
 (`MissileStrikePower@TacNuke`, `MissileStrikePower@HighYieldNuke`), and `powers.event` is provided

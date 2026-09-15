@@ -70,7 +70,7 @@ World:
 	MusicPlaylist:
 		DisableWorldSounds: false
 	LuaScript:
-		Scripts: test-helpers.lua, test-drone-lost-track.lua
+		Scripts: test-helpers.lua, drone-lost-track-lib.lua
 
 # NOTE ON WHAT IS *NOT* DISABLED HERE, BECAUSE IT IS THE MORE LIKELY CONFOUND.
 # Production is left alone. Any friendly unit that wanders within vision of the

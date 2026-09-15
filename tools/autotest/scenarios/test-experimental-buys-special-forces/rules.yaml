@@ -1,0 +1,55 @@
+Player:
+	# A conquest win would end the run before sf's 3000-tick UnitDelays gate even opens.
+	-ConquestVictoryConditions:
+
+	# 20000, and it must be a member of PlayerResources.SelectableCash (PlayerResources.cs:29) or
+	# the lobby cannot resolve it. GENEROUS ON PURPOSE, IN BOTH DIRECTIONS:
+	#   * lower arm — the floor lane is affordability-gated (ChooseBelowFloor ->
+	#     CompositionNeedMath.Affordable), and sf is the LAST of six floored types in the ordinal
+	#     walk (aa < dr < medi < mnly < msar < sf, ai-america.yaml:321). Everything ahead of it gets
+	#     paid first, including msar at 1600 and floors of 2 on medi/aa/dr, so a bank sized for sf's
+	#     own 600 would let "the floor never fired" and "the bot could not pay by the time the walk
+	#     reached sf" collapse into one indistinguishable timeout. That is the failure mode
+	#     test-experimental-msar-deploy's own cash comment warns about.
+	#   * upper arm — a RICH bot is what makes the UnitLimits: 2 ceiling assertion worth anything.
+	#     If the cap stops binding, only a bot that can afford a third SF will buy one; starving it
+	#     would hide exactly the regression the ceiling arm exists to catch.
+	# LOCKED as well as set: DefaultCash is an ILobbyOptions value (PlayerResources.cs:31), so an
+	# unlocked one can be resolved from lobby state rather than from this file, and scaffolding that
+	# silently does not take is how a run becomes an arm nobody intended.
+	PlayerResources:
+		DefaultCash: 20000
+		CashDropdownLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-experimental-buys-special-forces.lua
+
+# WHAT IS DELIBERATELY *NOT* CHANGED HERE.
+#
+# THE 3000-TICK UnitDelays GATE IS LEFT AT ITS SHIPPED VALUE. Overriding it would make the run
+# roughly three minutes shorter and it was considered and rejected: ai-america.yaml:582's own
+# comment records that sf's delay is "the SOLE opening guard" for this type — there is no
+# UnitFloorPer denominator behind it, unlike medi/aa/dr — and a flat floor is maximally unmet at
+# t=0, which is the defect that has already shipped twice in that file (two supply trucks, then the
+# opening medic). A scenario that stubs the delay out cannot notice if it is later removed, and
+# removing it would make a 600-cost specialist the guaranteed opening call-in of every match.
+#
+# NO BOT MODULE IS REMOVED, and for sf that is the cheap choice rather than a brave one: sf is
+# absent from UnitTargetShares and UnitRoles on both twins, so no squad or composition module can
+# route budget to it. The floor lane is the only path in, which is precisely why UnitsToBuild
+# MEMBERSHIP is load-bearing here (ChooseBelowFloor gates on it, UnitBuilderBotModule.cs:1390) and
+# why the weight of 10 is NOT what causes the buy.
+#
+# SupplyRouteContestation is left ON. It is the one thing in this scenario that can end a player
+# before the deadline (its [Desc] at SupplyRouteContestation.cs:24-26: outright defeat when nobody
+# can relieve you), so it is a real confound — but the SRs sit 52 cells apart, both bots start with
+# no units at all, and a fill needs sustained presence for BaseTicks 1500. The Lua reports each
+# bot's cash and SF count at timeout so a contestation death is distinguishable from a lane that
+# never fired, rather than being suppressed here on an untested assumption.

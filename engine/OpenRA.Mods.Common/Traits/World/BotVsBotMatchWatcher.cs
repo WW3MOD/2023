@@ -210,12 +210,18 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var a in world.Actors.Where(a => a.Info.Name == info.SupplyRouteActorType))
 				diag($"  {info.SupplyRouteActorType} #{a.ActorID} owned by {a.Owner?.InternalName ?? "<null>"} at {a.Location} (IsInWorld={a.IsInWorld} IsDead={a.IsDead})");
 
-			// Filter to actual bot combatants. The Observer player (local human's
-			// spectator slot) is Playable but spectating in intent — its PlayerReference
-			// has Spectating: True but the lobby-slot path in Player.cs ignores that
-			// for playable slots, so the runtime Spectating flag stays false. Use
-			// IsBot as the discriminator: tournament scenarios place bot combatants
-			// only, never humans.
+			// Filter to actual bot combatants. The Observer player (local human's spectator slot) is
+			// Playable but spectating in intent — its PlayerReference has Spectating: True.
+			//
+			// UPDATED 2026-09-15: the first half of this comment used to say the lobby-slot path in
+			// Player.cs ignores that flag for playable slots. It no longer does — the constructor
+			// copies NonCombatant/Playable/spectating on BOTH branches. THE CONCLUSION IS UNCHANGED
+			// AND THE `IsBot` DISCRIMINATOR IS STILL REQUIRED, for the OTHER reason: the runtime
+			// `Player.Spectating` property is `!inMissionMap && (...)` (Player.cs:86) and every
+			// tournament scenario is a MissionSelector map, so the property still reads false for an
+			// authored spectator. Use IsBot: tournament scenarios place bot combatants only, never
+			// humans. (CombatantSides.CountsAsASide is the general answer where the seat may be a
+			// human; here IsBot is strictly narrower and is what this trait actually means.)
 			foreach (var player in world.Players.Where(p => !p.NonCombatant && p.IsBot))
 			{
 				var srActor = world.Actors.FirstOrDefault(a =>

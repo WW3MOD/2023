@@ -736,15 +736,20 @@ World:
 		# fully automatic salvo back.
 		FinalExchangeWindowTicks: 250
 
-	# LIVE as of the Phase 2 missile powers, for TWO options now: the tactical nuclear strike gate and
-	# the high-yield strategic one added on 2026-09-06.
-	#   * player.yaml's GrantConditionOnLobbyOption@tacnuke reads `tactical-nuke` from here, and the
-	#     power's RequiresCondition makes its icon absent when the host leaves it off (the default).
-	#   * @highyieldnuke reads `high-yield-nuke` the same way, but that one DEFAULTS ON -- the user's
-	#     explicit temporary choice so both nuclear powers are reachable for testing without ticking
-	#     anything, with the release default left to them. Neither default is overridden here; the C#
-	#     values in PowersLobbyOptions.cs are the shipped behaviour and the only thing set below is
-	#     where the two checkboxes sort.
+	# THE TWO PER-POWER NUCLEAR GATES WERE RETIRED ON 2026-09-15 and this block used to describe
+	# them. `tactical-nuke` and `high-yield-nuke` each gated exactly one EVENT-TIER power -- a tier
+	# (`powers.event`) no faction provides -- so outside `powers-sandbox` neither checkbox decided
+	# anything, and inside it the host had to tick two boxes to reach one weapon. Their two
+	# DisplayOrder lines (30 and 31) are gone with them. The gates that remain on those powers are
+	# the nuclear release ladder's band condition and the event tier itself; see the notes on
+	# MissileStrikePower@TacNuke and @HighYieldNuke in player.yaml for what holds each one shut in
+	# Skirmish and in Escalation, which are different mechanisms.
+	#
+	# WHAT THIS MEANS FOR THE ARSENAL SECTION OF THE LOBBY: it now draws the NuclearUnlockClock
+	# rows and nothing else. `nuclear-arsenal` and `powers-enabled` are mapped to that section in
+	# LobbyOptionsLogic but both are hidden, and the two retired gates were the only Arsenal rows a
+	# host actually saw. That is the intended end state of decision 02 -- one set of controls, the
+	# four per-tier checkboxes -- not an accident of this change.
 	#
 	# The trait's airstrike options stay disabled for v1 -- so they are HIDDEN rather than deleted.
 	# Hiding is the right lever: the fields keep documenting what the airstrike re-enable will
@@ -780,11 +785,10 @@ World:
 		AirstrikeCheckboxDisplayOrder: 81
 		AirstrikeCooldownVisible: False
 		AirstrikeCooldownDisplayOrder: 82
-		# 30-33 is the Arsenal section in LobbyOptionsLogic: the three weapon gates in ascending
-		# yield, then the (unimplemented) powers master switch at 33. The C# defaults are 102-105,
-		# which predate the sections and would scatter these down the panel.
-		TacticalNukeCheckboxDisplayOrder: 30
-		HighYieldNukeCheckboxDisplayOrder: 31
+		# 30-33 is the Arsenal section in LobbyOptionsLogic. 30 and 31 belonged to the tactical and
+		# high-yield gates and were freed when those were retired (2026-09-15); 33 is the
+		# (unimplemented) powers master switch. The C# default for the line below is 104, which
+		# predates the sections and would scatter it down the panel.
 		NuclearArsenalCheckboxDisplayOrder: 32
 		# HIDDEN, NOT REMOVED -- read the block comment above before touching this. The arsenal
 		# stays ON (NuclearArsenalCheckboxEnabled defaults true) and all 13 powers stay reachable;
