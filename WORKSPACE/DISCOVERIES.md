@@ -3,6 +3,59 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-15 - A garrison port's `Offset` Z is discarded for the SOLDIER and kept for his MUZZLE FLASH, so every shipped port's Z raises the gun-flash off the man who is firing it (`wt/garrison-tuning`, base `wt/garrison-followups @ 51272f83`)
+
+**THE SPLIT.** `GarrisonPort.Offset` is a `WVec` and every shipped port sets a non-zero Z — 200 on the
+eight `^CivBuilding` ports and on HBOX's two, 384 on GTWR's four, 256 on PBOX's two
+(`civilian.yaml`, `structures-defenses.yaml`). Three separate sites throw that Z away for the man:
+`GarrisonManager.DeployToPort` clamps it at deploy (`GarrisonManager.cs:384-387`),
+`GarrisonManager.Tick` re-clamps it every tick (`:728-733`), and `AttackGarrisoned`'s
+GarrisonManager branch clamps it a third time while firing (`AttackGarrisoned.cs:279-284`), whose own
+comment says the Z "must match GarrisonManager.Tick's per-tick position update" or the soldier blinks
+between the two heights as the target dips in and out of arc. All three write
+`new WPos(x, y, terrainZ)`. **[V]**
+
+**The muzzle flash is the one thing that still reads it.** Fourteen lines below that clamp, the flash
+animation is offset by `() => portOffset` — the raw `GetPortWorldOffset`, Z included
+(`AttackGarrisoned.cs:314`). The projectile does not: `CheckFire` runs on the SOLDIER's armament, so
+the round leaves from his clamped, ground-level centre. **So a firing port draws its flash 200-384
+world units above the man and the bullet, and nothing else in the feature is at that height.** **[V]**
+
+**WHY THIS MATTERS FOR TUNING PORTS.** "Put the port on the roofline" cannot be expressed in Z — it
+has to be spent in X/Y, which on this projection means a more negative Y. Any port table that reads
+as a 3-D position on the sprite is describing something the renderer will flatten. The Z field is not
+inert (it moves the flash), so deleting it is a visible change, not a cleanup.
+
+**The legacy path is the exception and is dead here.** `AttackGarrisoned`'s non-GarrisonManager
+branch (`:364`, `:376`) keeps Z for both position and flash — but it is the fallback for actors with
+no `GarrisonManager` (`:33-40`, `:53-60`), and all four garrison families have one, so no garrisonable
+actor in the mod reaches it.
+
+## 2026-09-15 - PBOX gives vision while empty and GTWR/HBOX do not, and the whole difference is one missing `Inherits@` line — the gating is done by key-collision, not by a removal (`wt/garrison-tuning`, base `wt/garrison-followups @ 51272f83`)
+
+**THE MECHANISM.** `^StandardVisionWhenLoaded` does not remove anything and does not add a band. It
+`Inherits: ^StandardVision` and then re-states the same ten keys `Vision@1`..`Vision@10` carrying
+nothing but `RequiresCondition: loaded` (`defaults.yaml:156-177`). MiniYaml merges those onto the
+identically-named nodes the base template already brought, so the ranges survive and the gate lands
+on top. **The result is that a template whose entire body is ten `RequiresCondition` lines silently
+converts an inherited, ungated vision ladder into a gated one — provided it is inherited AFTER the
+thing that supplies the ladder.** **[V]**
+
+**THE DIVERGENCE.** All three defences reach `^StandardVision` the same way, through
+`^Defense` → `Inherits@Vision: ^StandardVision` (`structures-defenses.yaml:5`). GTWR (`:79`) and HBOX
+(`:329`) then declare `Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded` after it; **PBOX
+declares no such line at all** (`:204-206` carries only `^Defense` and `^AutoTargetGroundAntiInfDefense`).
+There is no `-Vision@N` anywhere on any of the three — grep returns nothing — so PBOX keeps ten
+ungated bands and is the only garrison emplacement that sees for free while unmanned. `^CivBuilding`
+carries the inherit too (`civilian.yaml:5`), so the civilian family is gated like GTWR and HBOX.
+**[V]**
+
+**WHY IT IS EASY TO MISREAD.** Looking for what makes PBOX different, the instinct is to hunt for an
+extra `RevealsShroud` on PBOX. There is none — PBOX is the actor with something MISSING, and what is
+missing is a line whose name (`DetectionWhenLoaded`) does not contain the word it gates on. The fix
+is a one-line addition, not a removal, and it is invisible to any check that looks for divergent
+trait VALUES: all three actors' Vision traits carry identical ranges and strengths.
+
 ## 2026-09-15 - An integer-percentage `IDamageModifier` cannot express a damage FLOOR, so "indestructible" garrison buildings stalled ~100 HP above their rubble state and could never reach it (`wt/garrison-followups`, run 260915_184945)
 
 **THE ARITHMETIC.** `GarrisonManager.Indestructible` held a building at 1 HP by returning

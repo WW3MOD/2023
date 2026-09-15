@@ -1,0 +1,1 @@
+Every garrisonable actor on one map: the 38 inheriting ^CivBuilding plus GTWR/PBOX/HBOX, in an 8x6 labelled grid, column 1 of each row manned so the firing ports are visible. Captures a 19-frame lineup; no verdict.
