@@ -5487,3 +5487,22 @@ owner's vision (every `Vision@` band on these actors is gated on `loaded`).
 wants one owner and one decision about which is authoritative. The cheap shape is for the
 `UnloadCargo` branch to defer to `GarrisonManager` when the actor has one, rather than counting the
 hold itself.
+
+## 2026-09-15: [low] `test-garrison-suppression-readout`'s `GarrisonCensus` counts shelter occupants as dead (found while: diagnosing the port-arc SKIP, `wt/civ-garrison`)
+
+```lua
+if s.IsDead then dead = dead + 1
+elseif not s.IsInWorld then inShelter = inShelter + 1
+```
+
+A `Cargo` passenger is out of world **and** reads `IsDead == true`, so the first branch always wins
+and the `inShelter` branch is unreachable. Every man in the hold is tallied as a casualty.
+
+**Masked, which is why it passes.** The scenario's verdict is `atPorts + inShelter == 0 -> Fail`, and
+its men do reach firing ports, so `atPorts` carries the assertion on its own. The census text it
+prints on failure would be actively misleading, though — it would report a full shelter as a wipe.
+
+**NOT FIXED.** It is a passing scenario I cannot re-run from this branch, and the correct instrument
+(`Test.IsLoadedInto`, added on `wt/civ-garrison`) changes what its census means; whoever next touches
+that scenario should switch it over and re-run. Same defect class as the two fixed here — see
+`WORKSPACE/DISCOVERIES.md` 2026-09-15.

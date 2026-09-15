@@ -22,10 +22,12 @@
 -- WHAT THIS SCENARIO CAN AND CANNOT ANSWER, stated up front because the second half of the question
 -- is genuinely unobservable here and pretending otherwise would be theatre:
 --
---   OBSERVABLE — whether the second player's man LOADS. Passenger.CargoCondition grants
---   `disable-experience` to a man inside any transport (infantry.yaml:87-89, Passenger.cs:31-33), so
---   membership of the hold is readable even though a Cargo passenger is out of world and reads
---   IsDead == true (the pitfall that makes every other property useless here).
+--   OBSERVABLE — whether the second player's man LOADS, but ONLY through Test.IsLoadedInto, which
+--   reads Cargo's passenger list directly. Everything else lies: a Cargo passenger is out of world
+--   AND reads IsDead == true, so IsInWorld calls him gone, IsDead calls him a casualty, and
+--   Test.ConditionCount returns 0 for any actor failing either check — which is why the condition
+--   Passenger grants precisely BECAUSE he boarded cannot be read through it. Run 260915_175947
+--   learned this the expensive way; see the note above IsLoaded below.
 --
 --   NOT OBSERVABLE — the non-owner pressing evacuate on a building he does not own. The owner check
 --   lives at UnitOrderGenerator.cs:236 on the MouseInput overload ONLY; Test.ClickOrder and
@@ -69,14 +71,21 @@ local function OwnerOf(actor)
 	return o.InternalName
 end
 
--- Membership of the hold, read from the condition Passenger grants on load. Deliberately NOT
--- IsInWorld or IsDead: a Cargo passenger is out of world AND reads IsDead == true, so a man in the
--- hold and a casualty are indistinguishable through every other property
--- (DOCS/recipes/AUTOTEST.md).
+-- INSTRUMENT, corrected after run 260915_175947 measured nothing. The first version asked
+-- Test.ConditionCount(soldier, "disable-experience"), the condition Passenger grants on load. That
+-- binding opens with
+--   if (!TestMode.IsActive || actor == null || actor.IsDead || !actor.IsInWorld) return 0;
+-- and a Cargo passenger is out of world AND reads IsDead == true -- so it returns 0 for exactly the
+-- state it was being used to detect. The run proved it: the house DID flip to USA, which only
+-- happens when a man boards, while UsMan still read loaded=false. A guaranteed false negative.
+--
+-- Test.IsLoadedInto reads Cargo's own passenger list and is true regardless of either flag.
 local function IsLoaded(soldier)
-	return Test.ConditionCount(soldier, "disable-experience") > 0
+	return Test.IsLoadedInto(soldier, House)
 end
 
+-- IsInWorld is sound in THIS direction: a man in a hold is out of world, so in-world-and-not-loaded
+-- really does mean standing outside. It is only the inverse that lies.
 local function IsOutInTheOpen(soldier)
 	return soldier.IsInWorld and not IsLoaded(soldier)
 end
@@ -158,17 +167,15 @@ end
 
 -- PHASE 3 — did the far man actually get in?
 local function DidTheRaceComplete()
+	-- The previous version also waited on `RuMan.IsDead and not RuMan.IsInWorld` as a "he died"
+	-- branch. That IS the loaded state, so it fired the moment he boarded and reported the run as
+	-- having measured nothing. There is no honest death test available here: a corpse and a
+	-- passenger are indistinguishable through actor properties. Nothing can damage him instead --
+	-- every unit on the map is HoldFire (rules.yaml) -- so loaded-or-still-walking are the only two
+	-- states, and the timeout arm below distinguishes them.
 	WaitUntil(RaceWithin,
-		function() return IsLoaded(RuMan) or (RuMan.IsDead and not RuMan.IsInWorld) end,
+		function() return IsLoaded(RuMan) end,
 		function()
-			if not IsLoaded(RuMan) then
-				Test.Skip("RuMan left the world without ever being loaded, so the race resolved into " ..
-					"neither outcome. He was ordered in while the house was neutral and then " ..
-					"disappeared — most likely killed, which the HoldFire stances in rules.yaml are " ..
-					"supposed to prevent. Nothing about co-garrison was measured. " .. State())
-				return
-			end
-
 			CanTheHostileOccupantBeReleased()
 		end,
 		function()

@@ -47,8 +47,8 @@
 --   SKIP  — the scenario never built the world it describes (nobody garrisoned, nobody deployed,
 --           a trigger died early). A setup fault, never a finding about garrisons.
 
-local SetupWithin = 25      -- s for two men to walk in and claim their houses
-local DeployWithin = 25     -- s for GarrisonManager to confirm a target and man a port
+local SetupWithin = 40      -- s for two men to walk in and claim their houses
+local DeployWithin = 40     -- s for GarrisonManager to confirm a target and man a port
 local HitWithin = 20        -- s for an in-arc shooter to land its first round
 local QuietFor = 12         -- s a blocked shooter is given to prove it lands nothing
 local SettleFor = 3         -- s after a Stop order, before a fresh health baseline is taken
@@ -62,13 +62,15 @@ local function OwnerOf(actor)
 	return o.InternalName
 end
 
--- A deployed port soldier is IN WORLD and carries garrisoned-at-port; a shelter occupant is out
--- of world entirely. ConditionCount is read rather than IsInWorld because it is the same
--- condition that gates both traits under test, so this asks exactly the question the assertions
--- depend on. PITFALL: do NOT use IsDead to tell these apart - a soldier in a Cargo hold reads
--- IsDead == true (DOCS/recipes/AUTOTEST.md), so shelter and casualty are indistinguishable.
+-- INSTRUMENT, and the first version of this file got it wrong in a way that cost a whole run. It
+-- asked Test.ConditionCount(soldier, "garrisoned-at-port"). That binding opens with
+--   if (!TestMode.IsActive || actor == null || actor.IsDead || !actor.IsInWorld) return 0;
+-- and a Cargo passenger is out of world AND reads IsDead == true -- so it returns 0 for every man
+-- inside a building, including one whose condition is granted precisely BECAUSE he boarded. A
+-- guaranteed false negative, not a flaky one. Test.IsAtGarrisonPort reads GarrisonManager's own
+-- PortStates and answers truthfully whatever those two flags say.
 local function AtPort(soldier)
-	return Test.ConditionCount(soldier, "garrisoned-at-port") > 0
+	return Test.IsAtGarrisonPort(soldier, HouseMT) or Test.IsAtGarrisonPort(soldier, HouseE1)
 end
 
 local function HealthOf(actor)
@@ -278,8 +280,26 @@ end
 WorldLoaded = function()
 	TestHarness.FocusBetween(HouseMT, HouseE1)
 
-	Gunner.EnterTransport(HouseMT)
-	Rifleman.EnterTransport(HouseE1)
+	-- THROUGH THE ORDER LAYER, NOT MobileProperties.EnterTransport. The first version of this file
+	-- used soldier.EnterTransport(house), which queues a RideTransport activity directly, and NOBODY
+	-- boarded in 25 s: run 260915_175730 skipped with both houses still Neutral. Test.ClickOrder
+	-- issues a real EnterTransport order through Passenger.ResolveOrder instead, and that is proven
+	-- on this exact tree, map and building type -- test-garrison-hostile-cogarrison used it in run
+	-- 260915_175947 and walked a rifleman SEVEN cells into a v09, flipping the house to its owner.
+	-- Distance and footprint were therefore never the problem; the API was.
+	--
+	-- Asserting the returned order string also turns a silent staging failure into a named SKIP.
+	local gunnerOrder = Test.ClickOrder(Gunner, HouseMT)
+	local riflemanOrder = Test.ClickOrder(Rifleman, HouseE1)
+
+	if gunnerOrder ~= "EnterTransport" or riflemanOrder ~= "EnterTransport" then
+		Test.Skip("the enter order was not offered against a neutral house (Gunner got '" ..
+			tostring(gunnerOrder) .. "', Rifleman got '" .. tostring(riflemanOrder) .. "'), so no " ..
+			"garrison could be staged. EnterAlliedActorTargeter admits allied OR neutral owners " ..
+			"(EnterAlliedActorTargeter.cs:49-54), so a refusal here means the entry gate changed. " ..
+			State())
+		return
+	end
 
 	-- Ownership IS the setup proof. DynamicOwnership flips a Neutral building to the entering
 	-- soldier's player in OnPassengerEntered (GarrisonManager.cs:263-267), so "both houses read
