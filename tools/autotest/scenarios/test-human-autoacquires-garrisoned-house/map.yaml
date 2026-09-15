@@ -1,0 +1,90 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a human unit on FireAtWill auto-acquires a garrisoned house
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 100,60
+
+Bounds: 1,1,98,58
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES, and why it is not the sibling test again. test-bot-damages-garrisoned-building
+# proves that an ORDERED non-force attack reaches a garrisoned building -- a bot's named "Attack" and
+# a player's ordinary attack order. It cannot prove AUTO-acquisition, because the lever that keeps its
+# garrison in shelter (DEFCON 2) holds autotargeting for everyone by construction. This scenario
+# closes that gap: an ordinary Skirmish, nothing holding fire, one human-owned abrams on FireAtWill,
+# and no order given to it at any point.
+#
+# THE OBSERVABLE IS THE TARGET LINE, NOT THE BUILDING'S HP, and that is the whole design.
+# GarrisonManager.DeployToPort does SetPosition(soldier, self.Location), so a manned port soldier
+# stands on the BUILDING'S OWN CELL -- any SpreadDamage warhead aimed at him also lands on the
+# building, and warhead damage never consults RequiresForceFire (it is an AttackBase targeting gate,
+# not a damage-layer one). An HP assertion would therefore go GREEN on a build that still had the
+# flag. Test.GetAutomaticTargetLineCells returns only nodes painted in AutomaticOrder.LineColor, the
+# colour AttackBase.AttackTarget applies exactly when AutoTarget.IsAutoAcquiredSource(source)
+# (AttackBase.cs:786-787) -- so a non-empty result means the unit picked this for itself.
+#
+# THE RANGE GAP IS THE INSTRUMENT. A port soldier would stand on the same cell as the building and
+# make that cell ambiguous, so no port may ever deploy. GarrisonManager.ScanForTarget derives an
+# empty port's search radius from the SHELTER soldiers' own armaments (:984-998) -- 5.56mm.E3 is
+# Range: 10c0 -- while TankRound.Abrams reaches 25c0. The abrams therefore sits SIXTEEN cells out:
+# inside its own envelope, outside the garrison's, so ScanForTarget finds nothing and all ten men
+# stay in the shelter. FireAtWill is below Hunt, so AutoTarget passes allowMove: false and the tank
+# never closes the gap. The .lua re-measures the ten men every tick rather than trusting this.
+#
+# GEOMETRY:
+#   House       40,28    v01 church, 2x2, footprint 40..41,28..29; starts Neutral
+#   garrison    42..46,31..32   ten Russia riflemen, created in Lua, walk in
+#   Probe       24,28    the USA abrams, created in Lua AFTER the garrison is loaded so that it can
+#                        never have acquired a rifleman in the open on the way in
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Starts NEUTRAL: GarrisonManager claims a building only while it is Neutral
+	# (DynamicOwnership), so that is the only start state from which the flip to Russia can happen.
+	House: v01
+		Owner: Neutral
+		Location: 40,28
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,28
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 94,28
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 24,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 90,28
+
+Rules: rules.yaml

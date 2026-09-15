@@ -1,0 +1,79 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Kill() still kills an indestructible garrison
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 100,60
+
+Bounds: 1,1,98,58
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES, and it is a regression rather than a feature. GarrisonManager.Indestructible is
+# a damage FLOOR (IDamageFloor): damage may take a garrison down to 1 HP and no further. It must NOT
+# apply to Health.Kill, which is InflictDamage(MaxHP, ignoreModifiers: true) -- the IDamageModifier the
+# floor replaced lived inside `if (!ignoreModifiers && damage.Value > 0)` and so never saw a Kill.
+#
+# HONOUR THE FLOOR THERE AND "INDESTRUCTIBLE" BECOMES "UNKILLABLE", which is a different and much
+# worse thing: HP floors at 1, IsDead never becomes true, INotifyKilled never fires and nothing ever
+# disposes the actor. Vaporizable.ITick's only brake is `if (self.IsDead) return;` and it never clears
+# `active`, so a faded-out emplacement would call Kill EVERY TICK for the rest of the match while
+# still shooting, still targetable and raising a full-MaxHP AttackInfo each time. DeveloperMode's kill
+# command and the Lua Actor.Kill() binding would silently do nothing.
+#
+# A PBOX IS THE SUBJECT DELIBERATELY. GTWR/PBOX/HBOX reach Vaporizable through ^ExistsInWorld, while
+# the 38 civilian buildings are exempt via ^TechBuilding's -Vaporizable -- so the emplacements are the
+# actors where the unkillable state is not merely untidy but permanently visible on the map.
+#
+# GEOMETRY: one pillbox, three riflemen, no enemy anywhere. Nothing shoots; the only thing that
+# happens is a scripted Kill.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Starts NEUTRAL: GarrisonManager claims a building only while it is Neutral (DynamicOwnership),
+	# so that is the only start state from which the flip to Russia can happen.
+	Box: pbox
+		Owner: Neutral
+		Location: 40,28
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,28
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 94,28
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 24,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 90,28
+
+Rules: rules.yaml

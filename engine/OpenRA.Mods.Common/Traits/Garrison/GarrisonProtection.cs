@@ -59,14 +59,15 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			garrisonManager = self.Trait<GarrisonManager>();
 
-			// TraitOrDefault, NOT Trait: this trait is inherited by actors that remove Health while
-			// keeping the garrison stack (V19.Husk, civilian.yaml:444-450 -- a wreck that still
-			// carries Cargo/GarrisonManager/GarrisonProtection). Trait<IHealth>() throws
-			// InvalidOperationException from TraitDictionary.Get on such an actor, which kills it at
-			// construction. Nothing in the YAML can catch that: GarrisonProtectionInfo declares
-			// Requires<GarrisonManagerInfo> and Requires<CargoInfo> but NOT Requires<HealthInfo>, so
-			// no lint has anything to flag. The two health == null guards below were written for
-			// exactly this case and were unreachable dead code while this line threw first.
+			// TraitOrDefault, NOT Trait, and it stays that way even though the actor it was written for
+			// is gone. V19.Husk used to keep Cargo/GarrisonManager/GarrisonProtection while removing
+			// Health; 5dfc6c09 took the garrison stack off the wreck, so there is no actor in the mod
+			// today that reaches this line without an IHealth. What has NOT changed is the reason the
+			// hazard existed: GarrisonProtectionInfo declares Requires<GarrisonManagerInfo> and
+			// Requires<CargoInfo> but NOT Requires<HealthInfo>, so nothing in the YAML or the lint
+			// stops someone re-creating it, and Trait<IHealth>() would throw InvalidOperationException
+			// out of TraitDictionary.Get and kill the actor at construction. The two health == null
+			// guards below are the same insurance and are likewise unreachable today.
 			health = self.TraitOrDefault<IHealth>();
 		}
 
@@ -80,12 +81,38 @@ namespace OpenRA.Mods.Common.Traits
 			if (health == null || health.IsDead)
 				return 0;
 
-			if (health.HP <= 1)
-				return info.RubbleProtection.Clamp(0, 100);
+			return ProtectionAt(health.HP, health.MaxHP, info.BaseProtection, info.CriticalProtection, info.RubbleProtection);
+		}
 
-			var hpPct = (float)health.HP / health.MaxHP;
-			var protection = (int)(info.CriticalProtection + (info.BaseProtection - info.CriticalProtection) * hpPct);
+		/// <summary>The curve itself, with no actor behind it, so a fixture can walk it from full health
+		/// to the rubble clamp and assert it never turns back up. Arithmetic is byte-for-byte what
+		/// GetCurrentProtection did before the extraction -- the float and its truncation included --
+		/// because this is a testability seam and not a retune.
+		/// <para>MONOTONICITY IS A YAML PROPERTY, NOT A CODE ONE: the value at the clamp is
+		/// <paramref name="rubbleProtection"/> outright, while the value just above it tends to
+		/// <paramref name="criticalProtection"/>, so the curve only descends all the way if
+		/// rubble &lt;= critical. Both are authored per actor; GarrisonRubbleProtectionTest checks
+		/// every actor in the mod that declares the trait.</para></summary>
+		public static int ProtectionAt(int hp, int maxHp, int baseProtection, int criticalProtection, int rubbleProtection)
+		{
+			if (hp <= 1)
+				return rubbleProtection.Clamp(0, 100);
+
+			var hpPct = (float)hp / maxHp;
+			var protection = (int)(criticalProtection + (baseProtection - criticalProtection) * hpPct);
 			return protection.Clamp(0, 100);
+		}
+
+		/// <summary>Damage forwarded to one shelter occupant for a hit of <paramref name="incomingDamage"/>
+		/// against a building at <paramref name="protection"/>. Zero when the share falls under
+		/// <paramref name="minPassThrough"/>, which is a floor on the HIT and not on the curve.</summary>
+		public static int PassThroughFor(int incomingDamage, int protection, int minPassThrough)
+		{
+			if (incomingDamage <= 0)
+				return 0;
+
+			var passThrough = incomingDamage * (100 - protection) / 100;
+			return passThrough < minPassThrough ? 0 : passThrough;
 		}
 
 		void INotifyDamage.Damaged(Actor self, AttackInfo e)
@@ -109,12 +136,23 @@ namespace OpenRA.Mods.Common.Traits
 			// so the value is identical on every path that reaches here.
 			var protection = GetCurrentProtection();
 
+			// e.Damage is what the attacker AIMED, and at the rubble floor that is exactly the number
+			// wanted: Health's floor limits the HP, not the reported damage (IDamageFloor), so a hit
+			// on a building that has nothing left to lose still arrives here at full size and the men
+			// absorb all of it. That is the monotone end of the curve rather than a special case.
+			//
+			// THIS USED TO NEED A STASH. Indestructible was an IDamageModifier returning 0 at the
+			// clamp, Health applies modifiers before notifying, so this read ZERO and forwarded
+			// nothing -- a rubbled garrison was immune. The first fix recorded the pre-modifier value
+			// through an IDamageModifier observer of its own and substituted it whenever this read
+			// zero, which was wrong in a way the fixture found: a zero also arose when the old
+			// percentage TRUNCATED, at any HP, and the substitution then forwarded a full share while
+			// the building had absorbed nothing. Run 260915_184945 killed four men that way at 2/20 HP.
+			// Moving the clamp to a floor removed both the zero and the need to guess about it.
 			var incomingDamage = e.Damage.Value;
-			if (incomingDamage <= 0)
-				return;
 
-			var passThrough = incomingDamage * (100 - protection) / 100;
-			if (passThrough < info.MinPassThrough)
+			var passThrough = PassThroughFor(incomingDamage, protection, info.MinPassThrough);
+			if (passThrough <= 0)
 				return;
 
 			// Pick a random shelter soldier deterministically

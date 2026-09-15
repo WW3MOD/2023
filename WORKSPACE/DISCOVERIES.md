@@ -4,6 +4,137 @@
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
 ## 2026-09-15 - `IsIdle` is TRUE both before an order lands and after it finishes, so it cannot mean "has arrived" (`wt/civ-garrison`, run 260915_204319)
+## 2026-09-15 - An integer-percentage `IDamageModifier` cannot express a damage FLOOR, so "indestructible" garrison buildings stalled ~100 HP above their rubble state and could never reach it (`wt/garrison-followups`, run 260915_184945)
+
+**THE ARITHMETIC.** `GarrisonManager.Indestructible` held a building at 1 HP by returning
+`maxAllowedDamage * 100 / damage.Value` from `IDamageModifier` — an **integer** percentage. That
+truncates to **0** once `(HP - 1) * 100 < damage`, i.e. below about 140 HP against a 14000-damage tank
+round. At that point the building takes *nothing* and stalls there for the rest of the match. Walked
+over the shipped numbers, a 75000 HP `V01` church under ~14000 rounds goes
+`75000 → 61000 → 47000 → 33000 → 19000 → 5000 → 100 → stuck`. **Its 1 HP rubble state was unreachable
+by any weapon over ~100 damage**, which means every `RubbleProtection` value in the mod was dead
+tuning and the `[Desc]` describing the rubble cliff described a state the game could not enter.
+
+**NO INTEGER PERCENTAGE FIXES IT, and that is the transferable part.** At 140 HP against 14000 the
+only representable outcomes are 0% (nothing lands — the stall) and 1% (140 lands — which kills a
+building that must not die). Rounding the division up trades a permanent stall for a fatal overshoot.
+**A percentage modifier can scale damage; it cannot bound a result.** Any "this actor may not drop
+below N" rule written as an `IDamageModifier` has this defect latent in it — it only shows up once
+the incoming hit is large relative to the remaining pool, which is exactly the endgame the rule exists
+for. Fixed by adding `IDamageFloor` and applying it where HP is assigned (`Health.ApplyDamageToHp`),
+so the clamp bounds the HP rather than scaling the damage.
+
+**THE FLOOR DELIBERATELY DOES NOT CLAMP THE REPORTED DAMAGE.** `AttackInfo.Damage` still carries what
+the attacker aimed, so a hit on a building with nothing left to lose arrives at `INotifyDamage` at
+full size. That is load-bearing for `GarrisonProtection`, which forwards a share to the men sheltering
+inside: at the floor the building absorbs nothing more and they absorb all of it, which is the
+monotone end of the curve rather than a special case. It also **removed a stash**: the previous fix
+recorded the pre-modifier damage through an observer `IDamageModifier` and substituted it whenever
+`Damaged` read zero — correct at the true clamp, wrong at the truncation stall, where it forwarded a
+full share while the building had absorbed nothing. That killed four men at 2/20 HP in run
+260915_184945 and is why the run reported a church stuck at 2 HP with an empty shelter.
+
+**HOW IT HID FOR SO LONG.** The stall is invisible at full health and invisible in any test that
+fires one shot. It needs a *sequence*, at the shipped HP and the shipped warhead — a fixture that
+sweeps damage sizes finds it instantly (`GarrisonClampReachabilityTest`), and one that checks a single
+representative value does not, because the rule works for small hits and fails for large ones.
+
+## 2026-09-15 - `lua-gate` cannot see a FieldLoader parse error in `map.yaml`, so a scenario can pass every static gate available to a launch-barred worker and still throw at load (`wt/garrison-followups`)
+
+**THE INSTANCE.** `test-bot-damages-garrisoned-building/map.yaml` carried `Facing: East` on a placed
+actor. The scenario passed `make lua-gate` twice, `make check`, `make all` and `dotnet test`, was
+committed and handed over — and the run died at map load with
+`OpenRA.YamlException: FieldLoader: Cannot parse 'East' into WAngle` (`FieldLoader.cs:254` via
+`GetValue`), **exit 3**, before a single tick. The RED run that was queued behind it was skipped.
+
+**WHY EVERY GATE MISSED IT, and the shape is worth carrying past this one field.** `lua-gate` reads
+`map.yaml` only for STRUCTURE — which files are declared, whether `Scripts:` sits under `World`,
+whether a top-level key is mis-cased. It never asks the engine to *load* an actor, so it cannot type
+a field value. `make check` and `dotnet test` never touch scenario content at all. `make nav-guard`
+is scenario-blind (`CLAUDE.md`). **The only gate that would have caught it is the YAML lint**
+(`./utility.sh --check-yaml ../tools/autotest/scenarios/<name>` from the repository root), which is
+exactly the gate a launch-barred dispatch tends to forbid. So: *a scenario that passes everything a
+launch-barred worker is allowed to run is NOT known to load.* Say so when handing one over, and ask
+the manager to lint it before the first launch.
+
+**THE FIELD ITSELF.** A `map.yaml` `Facing:` is a raw `WAngle` and `FieldLoader` has no name table
+for it — the four compass names exist only in the **Lua** binding (`AngleGlobal.cs:23-38`,
+`Angle.East => new WAngle(768)`), which is why the same scenario's `Actor.Create(..., Facing =
+Angle.East)` in the `.lua` is correct and the `map.yaml` line next to it is not. WAngle is
+**counterclockwise**: N 0, W 256, S 512, E 768 (`DOCS/reference/conventions.md` §WAngle). Corpus
+check at the time of the fix: this was the **only** non-numeric `Facing:`/`TurretFacing:` in all 335
+scenario `map.yaml` files and all 10 shipped maps —
+`grep -rnE '^\s+(Turret)?Facing: ' … | grep -vE ': -?[0-9]+$'` settles it in a second and needs no
+build.
+
+## 2026-09-15 - "selected then dropped" and "never selected" are BOTH true of a `RequiresForceFire` actor, and a deployed port soldier stands on the building's own cell — so any test of "can X damage a garrison" that lets a port deploy passes on a broken build (`wt/garrison-forcefire`)
+
+**THE AUDIT'S OPEN QUESTION HAS TWO ANSWERS, ONE PER PATH, AND THE FIX HAD TO COVER BOTH.** The audit
+could not tell whether a bot's order against a garrisoned building was *selected and then discarded*
+or *never selected*. Read end to end, the mod does both, in different modules:
+
+- **Never selected.** `AutoTarget.ChooseTarget` calls `ab.ChooseArmamentsForTarget(target, false)` on
+  every candidate and `continue`s when it comes back empty (`AutoTarget.cs:1502-1509`). For a
+  `RequiresForceFire` target that is always empty (`AttackBase.cs:442`), so the candidate never
+  reaches the scoring loop. Every autonomous engagement — human and bot alike — dies here. This is
+  also the whole of the human-facing "attack-move walks past a garrisoned building" half.
+- **Selected then dropped.** The bot modules' own target pickers have NO force-fire filter.
+  `SquadManagerBotModule.IsPreferredEnemyUnit` (`:174-187`) tests relationship, husk, aircraft and
+  `IgnoredEnemyTargetTypes` — which in `ai.yaml` is only air/submarine types, so a garrisoned house
+  passes. `PoiOffensiveBotModule.NearestEngageableEnemy` (`:4745-4765`) tests relationship,
+  `CanBeViewedByPlayer` and `EstimatePercentDamage > 0` — also all satisfied. Both then issue a named
+  `"Attack"` with `forceAttack: false` (`GroundStates.cs:94,:250`, `PoiOffensiveBotModule.cs:4720`)
+  which the attack activity discards.
+
+So a fix that only taught one bot module to force-fire would have left the autonomous path — the one
+that matters on attack-move, and the one humans see — untouched. **Check both layers before costing a
+bot-side fix: the module that picks the target and the trait that refuses it are different code.**
+
+**THE TRAP THAT DECIDES WHETHER A TEST OF THIS IS WORTH ANYTHING: `DeployToPort` does
+`SetPosition(soldier, self.Location)`, so a manned port soldier occupies the BUILDING'S OWN CELL.**
+Every `SpreadDamage` warhead aimed at that soldier therefore also lands on the building, and warhead
+damage never consults `RequiresForceFire` at all — it is an `AttackBase` targeting-layer gate, not a
+damage-layer one. Consequence: any scenario that asserts "the building's HP fell" while a port is
+manned **goes green on a build that still has the flag**, because the HP fell from splash. The only
+honest fixtures are ones where nobody is at a port. The cheapest deterministic lever for that is
+DEFCON 2: `GarrisonManager.ScanForTarget` returns `Target.Invalid` outright while
+`DefconFireDiscipline.HoldsFire` (`GarrisonManager.cs:961`), and every autonomous deploy path — the
+empty-port scan (`:803`), `PromoteFromShelter` (`:872`) and `TriggerAmbushDeploy` (`:1332`) — reaches
+a target only through it. Holding the building's `AutoTarget` stance at `HoldFire` also works
+(`:796`), but `^CivBuilding` carries no `AutoTarget` trait to hold, so that needs one added.
+
+**AN EMPTY CIVILIAN BUILDING WAS NEVER PROTECTED BY `RequiresForceFire`, AND IT IS WORTH KNOWING WHAT
+DOES PROTECT IT, BECAUSE THE PRIORITY TABLE DOES NOT.** `AutoTargetPriorityInfo.ValidRelationships`
+defaults to `Ally | Neutral | Enemy` (`AutoTargetPriority.cs:30`) — the priority layer is happy to
+name a neutral house. What actually refuses it is two gates further out: `ChooseTarget`'s
+`AppearsHostileTo` early-out (`AutoTarget.cs:1466`) and `Armament.TargetRelationships`, which
+defaults to `Enemy`. An empty `^CivBuilding` is Neutral (`GarrisonManager.DynamicOwnership` transfers
+ownership on garrison and reverts on the last man out), so both reject it. **Do not reason about "is
+this auto-targeted" from the `AutoTargetPriority` block alone.**
+
+**A GARRISONED `^CivBuilding` OUTRANKS THE MEN AT ITS OWN PORTS FOR ANTI-TANK AND ANTI-STRUCTURE
+UNITS, BECAUSE ITS `TargetTypes` INCLUDE `Defense`.** `Targetable` on `^CivBuilding` is
+`Ground, C4, DetonateAttack, Structure, Defense` — a civilian house advertises itself as a defence.
+For the general templates that is harmless (the building matches only the base `@FireAtWill` band at
+priority 1, `defaults.yaml:419`, while port soldiers are `Infantry` at 2-5, so the men are still
+preferred). But `^AutoTargetGroundAntiTank` scores `Defense` at **3** and `Infantry` at 2, and
+`^AutoTargetGroundAntiStructure` scores `Defense` at 3 and `Infantry` at 1 (`defaults.yaml:699-733`)
+— so on their non-`stance-fireatwill` default bands an AT or anti-structure unit prefers shelling the
+house to shooting the men leaning out of it. Not wrong, but it is a targeting decision nobody wrote
+down, and it is load-bearing now that the building is auto-engageable at all.
+
+**THE ONE PLACE THE NEW BEHAVIOUR STOPS PAYING: `GarrisonManager.GetDamageModifier` RETURNS 0 AT
+`HP <= 1`, AND `GarrisonProtection.Damaged` RETURNS EARLY ON `incomingDamage <= 0`.** `Indestructible`
+clamps the building at 1 HP rather than killing it (`GarrisonManager.cs:1451-1468`), and at the clamp
+the damage modifier zeroes every hit — which means the `INotifyDamage` that forwards a slice to a
+random shelter occupant sees a zero and bails (`GarrisonProtection.cs:112-114`). So a rubbled
+garrison is **permanently immune again**, and units that auto-acquired the building will keep firing
+at a target they can neither destroy nor hurt anyone through. This is a pre-existing property of the
+clamp, not something the auto-target change created — it was simply unreachable before, because
+nothing but a force-fire could get the building down there. Relevant to the "rubble" reframing the
+user gave on 2026-09-01: the terminal-damaged-but-standing state currently has **less** occupant
+attrition than the state just above it, not more.
+## 2026-09-15 - A Cargo passenger reads `IsDead == true`, and `Test.ConditionCount` returns 0 for any dead-or-out-of-world actor -- so the condition granted BECAUSE a man boarded is the one condition you cannot observe (`wt/civ-garrison`, runs 260915_175730 and 260915_175947)
 
 **THE PREDICATE READS THE SAME FOR TWO OPPOSITE STATES.** `Test.IssueMoveOrder` goes through `World.IssueOrder`, so the order sits in the order queue and only becomes an activity a tick or more later; `Actor.IsIdle` is `CurrentActivity == null`. Between issuing a move and the order resolving, the actor is idle *because it has not started*. A `WaitUntil(..., function() return unit.IsIdle end, ...)` written to mean "wait until he has walked there" therefore fires on its FIRST POLL, before he has taken a step.
 

@@ -1,0 +1,1 @@
+A civilian house reduced to its 1 HP rubble clamp keeps bleeding its shelter garrison: the occupant count falls under continued fire instead of freezing, nobody is ejected, and no port ever deploys.

@@ -552,6 +552,24 @@ namespace OpenRA.Mods.Common.Traits
 	[RequireExplicitImplementation]
 	public interface IDamageModifier { int GetDamageModifier(Actor attacker, Damage damage); }
 
+	/// <summary>The lowest HP damage may reduce this actor to. 0 (the absence of any implementation)
+	/// means the ordinary rules: damage can take it to zero and kill it.
+	/// <para>THIS EXISTS BECAUSE <see cref="IDamageModifier"/> CANNOT EXPRESS A FLOOR. A modifier is an
+	/// INTEGER PERCENTAGE of the incoming damage, so "reduce this hit to exactly HP-1" is only
+	/// representable when HP-1 happens to be a whole percent of it. GarrisonManager tried, with
+	/// `maxAllowedDamage * 100 / damage.Value`, and that truncates to 0 once (HP-1)*100 &lt; damage —
+	/// below about 140 HP against a 14000-damage tank round. The building then took NOTHING and stalled
+	/// there permanently: measured on a shipped 75000 HP church, 75000 -> 61000 -> 47000 -> 33000 ->
+	/// 19000 -> 5000 -> 100 -> stuck, so its 1 HP rubble state was unreachable by any weapon over about
+	/// 100 damage. There is no integer percentage that fixes it: at 140 HP against 14000 the only
+	/// choices are 0% (nothing lands) and 1% (140 lands, which kills it).</para>
+	/// <para>The floor limits the HP, NOT the reported damage: AttackInfo.Damage still carries what the
+	/// attacker aimed. That is deliberate and load-bearing for GarrisonProtection, which forwards a
+	/// share of it to the men sheltering inside — at the floor the building absorbs nothing more and
+	/// they absorb all of it.</para></summary>
+	[RequireExplicitImplementation]
+	public interface IDamageFloor { int GetDamageFloor(); }
+
 	[RequireExplicitImplementation]
 	public interface ISpeedModifier { int GetSpeedModifier(); }
 

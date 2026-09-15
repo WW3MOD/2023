@@ -1,0 +1,95 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a garrison in the rubble still takes losses
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 100,60
+
+Bounds: 1,1,98,58
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES. GarrisonManager.Indestructible clamps a garrison at 1 HP by returning a damage
+# modifier of 0 for every hit once it is there (GarrisonManager.cs:1451-1468), and Health applies the
+# modifiers BEFORE raising INotifyDamage (Health.cs:177-215) -- so GarrisonProtection.Damaged saw a
+# damage of ZERO and forwarded nothing. A rubbled garrison was therefore immune: safer than the same
+# garrison one hit point earlier, safer than an intact one, and terminally so, because the building
+# cannot be destroyed either. Men in the rubble could not be killed by any weapon in the game.
+#
+# THE HOUSE IS GIVEN 20 HP IN rules.yaml, which is absurd for a church and is the instrument. The
+# first shell takes it straight to the clamp and forwards NOTHING on the way (19 damage at
+# RubbleProtection 30 is a 13-point share, under MinPassThrough 15), so the garrison is provably
+# untouched at the moment of clamping and every loss after that has to have come through the path
+# under test. With the real 75000 HP the men would all be dead long before the clamp -- the
+# pre-clamp curve works and always did -- and the case this scenario exists for would never be
+# reached at all.
+#
+# THE OBSERVABLE IS PassengerCount. A dead shelter occupant IS removed from the hold:
+# Passenger.Killed calls Cargo.Unload on its transport (Passenger.cs:269-277), which removes it from
+# `cargo` and revokes one `loaded` token. So the count falls as men die, and when the last one dies
+# `loaded` is revoked, ownership reverts to Neutral and the probe stops engaging by itself -- which
+# is the answer to "does AutoTarget keep picking the rubble": yes, and it terminates on its own.
+#
+# NOBODY MAY BE EJECTED. The ruling is to price the bad state, not to force the player out of it
+# (user, 2026-09-02: "don't force them out, let the damage curve do the work"), so the script also
+# asserts every tick that no garrison soldier ever appears in the world -- which covers an emergency
+# bail as well as a port deployment.
+#
+# THE RANGE GAP is the same instrument as test-human-autoacquires-garrisoned-house: the probe sits
+# sixteen cells out, inside TankRound.Abrams' 25c0 and outside the garrison's 10c0, so
+# GarrisonManager.ScanForTarget never finds it and no port deploys.
+#
+# GEOMETRY:
+#   House       40,28    v01 church, 2x2, footprint 40..41,28..29; starts Neutral, 20 HP here
+#   garrison    42..46,31..32   ten Russia riflemen (200 HP each), created in Lua, walk in
+#   Probe       24,28    the USA abrams, created in Lua after the garrison is loaded
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Starts NEUTRAL: GarrisonManager claims a building only while it is Neutral
+	# (DynamicOwnership), so that is the only start state from which the flip to Russia can happen.
+	House: v01
+		Owner: Neutral
+		Location: 40,28
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,28
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 94,28
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 24,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 90,28
+
+Rules: rules.yaml

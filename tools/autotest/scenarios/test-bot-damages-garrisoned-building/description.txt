@@ -1,0 +1,1 @@
+A bot squad and a player's tank each land an ordinary, non-force attack on a civilian building garrisoned by ten men in shelter, and its HP falls below max within the deadline. With RequiresForceFire on Targetable@WhenGarrisoned both orders are issued and silently discarded, and the building is untouched.

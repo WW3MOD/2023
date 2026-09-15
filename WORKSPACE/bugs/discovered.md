@@ -5,6 +5,25 @@
 
 ---
 
+- [2026-09-15] [FIXED on `wt/garrison-followups`] **`Indestructible` garrison buildings could not be
+  reduced to their rubble state at all.** `GarrisonManager` clamped a building to 1 HP with an
+  integer-percentage `IDamageModifier` (`maxAllowedDamage * 100 / damage.Value`), which truncates to
+  **0** once `(HP-1)*100 < damage` — below about 140 HP against a 14000-damage tank round. The
+  building then took nothing and stalled there permanently. Walked over the shipped numbers, a 75000
+  HP `V01` church under ~14000 rounds goes `75000 → 61000 → 47000 → 33000 → 19000 → 5000 → 100 →
+  stuck`, so its 1 HP rubble state — and every `RubbleProtection` value tuned against it — was
+  unreachable by any weapon over ~100 damage. Measured from autotest run `260915_184945`, which
+  reported a church stuck at 2/20 HP with its whole garrison dead.
+  **Fixed rather than merely filed:** the clamp is now `IDamageFloor`, applied where HP is assigned
+  (`Health.ApplyDamageToHp`). A percentage can scale damage but cannot bound a result — at 140 HP
+  against 14000 the only integer options are 0% (permanent stall) and 1% (140 lands, fatal to a
+  building that must not die). Covered by `GarrisonClampReachabilityTest`, which walks the shipped
+  numbers and sweeps damage sizes.
+  **Recorded because the class outlives the instance:** any "this actor may not drop below N" rule
+  written as an `IDamageModifier` has the same defect latent, and it only surfaces once the incoming
+  hit is large relative to the remaining pool — precisely the endgame such a rule exists for.
+  (found while working on: the garrison rubble-clamp follow-up)
+
 - [2026-09-15] [DESIGN QUESTION, NOT A BUG — RAISED WITH THE USER] **WW3MOD's DEFCON 2 cease-fire has
   no length of its own and can last a single tick.** 3 → 2 is the no-rush clock; 2 → 1 has NO clock
   and fires on the first qualifying enemy-caused death (`DefconCasualtyObserver` →
