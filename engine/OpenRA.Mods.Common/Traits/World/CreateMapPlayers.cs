@@ -199,9 +199,24 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		// ==== `ClientInSlot`, NEVER `ClientWithIndex(p.ClientIndex)` ==============================
+		// CHANGED 2026-09-15, and deliberately WITHOUT a behavioural delta today -- every call site
+		// above is already guarded by `PlayerReference.Playable` on the player it passes, and a
+		// playable Player only exists for an OCCUPIED lobby slot (CreatePlayers above iterates
+		// `w.LobbyInfo.Slots` and skips `ClientInSlot(kv.Key) == null`), so for every argument that
+		// actually reaches here the two lookups return the same client. This is the load-bearing
+		// half of the HACK comment in SetupPlayerMasks made true at the lookup instead of being
+		// re-argued at each of the three call sites.
+		//
+		// The distinction it removes: `ClientWithIndex(p.ClientIndex)` answers "which client is
+		// ASSOCIATED with this player" and returns the HOST'S client for any map player, because
+		// Player.cs:191 hands them the host's index. `ClientInSlot(p.InternalName)` answers "does a
+		// client OWN this player" and is null exactly when none does. Every future caller that
+		// forgets the Playable guard -- which is the one that made a 2v1 run as a 3v0 in
+		// NuclearExchange.SideKeyFor, b6e1ac8c -- now gets the right answer rather than the host's.
 		static Session.Client GetClientForPlayer(Player p)
 		{
-			return p.World.LobbyInfo.ClientWithIndex(p.ClientIndex);
+			return p.World.LobbyInfo.ClientInSlot(p.InternalName);
 		}
 	}
 }

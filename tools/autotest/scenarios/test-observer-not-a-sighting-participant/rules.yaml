@@ -1,0 +1,33 @@
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-observer-not-a-sighting-participant.lua
+
+Player:
+	# FOG OFF, MAP EXPLORED, BOTH LOCKED. SightingThreatLayer.InjectSightings only stamps an enemy
+	# the player `CanBeViewedByPlayer` -- under fog the Observer, which owns no actors and therefore
+	# has no vision anywhere, would stamp nothing and the leaked field would be EMPTY. An empty
+	# leaked field reads 0, the RED could not fail, and the test would pass for the wrong reason --
+	# which is precisely how this bug survived unnoticed in 71 scenarios. Locked so a lobby default
+	# can never quietly re-arm the fog and turn the RED into a silent pass.
+	MapLayers:
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+
+# Nothing may shoot. A dead t90 stops being stamped and both readings collapse toward 0 together,
+# which would let the RED pass. Dropping the auto-targetable types (leaving the inert NoAutoTarget
+# marker) means no AutoTargetPriority ValidTargets list matches, so no attack is ever queued -- the
+# supplyroute idiom from DOCS/recipes/AUTOTEST.md. Both keep AttackBase/AutoTarget, so
+# SightingThreatLayer still counts them as armed contacts (SightingThreatLayer.cs:209).
+t90:
+	Targetable:
+		TargetTypes: NoAutoTarget
+
+abrams:
+	Targetable:
+		TargetTypes: NoAutoTarget

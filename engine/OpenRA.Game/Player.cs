@@ -166,6 +166,37 @@ namespace OpenRA
 
 			inMissionMap = world.Map.Visibility.HasFlag(MapVisibility.MissionSelector);
 
+			// ==== THE MAP'S THREE FLAGS, COPIED ON BOTH BRANCHES ==============================
+			// FIXED 2026-09-15. These three used to be assigned ONLY in the map-player branch below,
+			// so for any slot a lobby CLIENT occupies they kept their field initialisers forever --
+			// NonCombatant false, Playable true, spectating false -- no matter what the map wrote.
+			// Writing `NonCombatant: True` or `Spectating: True` on such a slot therefore had NO
+			// RUNTIME EFFECT WHATSOEVER, and that is not a hypothetical: an autotest Observer seat
+			// authored `Playable: True, Spectating: True, NonCombatant: True` was counted as a third
+			// combatant by DefconWall and NuclearExchange across runs 260914_141246 and 260914_181212
+			// --   DEFCON wall: no line derived from 3 combatant home(s) in 3 alliance group(s)
+			// -- and a three-way free-for-all derives no line on purpose, so the DEFCON 3 border
+			// never stood for a whole no-rush period. Three separate consumers had by then grown
+			// their own workaround for it (CombatantSides, and the `IsBot` discriminator in
+			// BotVsBotMatchWatcher.DiscoverSrsOnFirstTick); this is the source.
+			//
+			// SAFE FOR EVERY SHIPPED MAP BY CONSTRUCTION, not merely by inspection:
+			//   - `Playable` cannot move. A client only ever sits in a lobby SLOT, and
+			//     LobbyCommands.MakeSlotFromPlayerReference (:1359-1362) returns null for
+			//     `!pr.Playable`, so every slot's PlayerReference is `Playable: True` and
+			//     `Playable = pr.Playable` re-assigns the initialiser's own value.
+			//   - `NonCombatant`/`spectating` can only move for a slot the MAP authored as a
+			//     non-combatant or spectator. None of the 10 shipped maps does: every
+			//     `NonCombatant: True` there is on Neutral or Creeps, which are NOT playable and
+			//     already took the branch below. The seats this changes are the autotest Observers.
+			//
+			// A REAL LOBBY SPECTATOR IS UNAFFECTED and cannot be: they are a client with NO SLOT and
+			// get no Player object at all. The only thing reachable here is a map-authored
+			// spectator/non-combatant slot that a client happens to be sitting in.
+			NonCombatant = pr.NonCombatant;
+			Playable = pr.Playable;
+			spectating = pr.Spectating;
+
 			// Real player or host-created bot
 			if (client != null)
 			{
@@ -192,9 +223,6 @@ namespace OpenRA
 				color = pr.Color;
 				Color = pr.Color;
 				PlayerName = pr.Name;
-				NonCombatant = pr.NonCombatant;
-				Playable = pr.Playable;
-				spectating = pr.Spectating;
 				BotType = pr.Bot;
 				Faction = ResolveFaction(world, pr.Faction, playerRandom, false);
 				DisplayFaction = ResolveDisplayFaction(world, pr.Faction);
