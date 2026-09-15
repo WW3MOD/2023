@@ -33,6 +33,7 @@
 
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets
@@ -62,6 +63,20 @@ namespace OpenRA.Mods.Common.Widgets
 			titleFont = Game.Renderer.Fonts[TitleFont];
 			lineFont = Game.Renderer.Fonts[LineFont];
 		}
+
+		// ---- IT MUST NOT EAT THE MOUSE, DRAWN OR NOT ---------------------------------------------
+		// THE SAME GUARD, AND THE SAME REASON, AS DefconReadoutWidget.cs:245. Suppressing the band
+		// inside Draw() does NOT make this widget invisible: `Visible` is still true (Widget.cs:222),
+		// so GetCursorOuter's `IsVisible() && EventBoundsContains(pos)` test passes (Widget.cs:399-415)
+		// and the inherited EventBounds => RenderBounds (Widget.cs:327) claims the whole 110px
+		// full-width band. It then answers with the inherited default cursor (Widget.cs:398).
+		// PLAYER_ROOT is added AFTER the interaction controller and the walk is in REVERSE, so that
+		// "default" beats the world's move/attack cursor for the entire match outside the window.
+		//
+		// AND THE DRAWN CASE MATTERS MORE HERE THAN FOR THE OTHER TWO. This band is up for the whole
+		// fifteen-second window while the line under it says PLACE YOUR WARHEADS -- a player doing
+		// exactly that, through the strip, must not have the cursor go dead on them.
+		public override Rectangle EventBounds => Rectangle.Empty;
 
 		public override void Tick()
 		{
