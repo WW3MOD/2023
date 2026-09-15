@@ -1,0 +1,1 @@
+A garrisoned pillbox, which damage cannot reduce below 1 HP, still dies outright when something calls Kill() on it - the damage floor must not turn "indestructible" into "unkillable".

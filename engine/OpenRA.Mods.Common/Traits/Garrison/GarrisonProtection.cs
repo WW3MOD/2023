@@ -49,7 +49,6 @@ namespace OpenRA.Mods.Common.Traits
 		GarrisonManager garrisonManager;
 		IHealth health;
 
-
 		public GarrisonProtection(Actor self, GarrisonProtectionInfo info)
 		{
 			this.self = self;
@@ -60,14 +59,15 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			garrisonManager = self.Trait<GarrisonManager>();
 
-			// TraitOrDefault, NOT Trait: this trait is inherited by actors that remove Health while
-			// keeping the garrison stack (V19.Husk, civilian.yaml:444-450 -- a wreck that still
-			// carries Cargo/GarrisonManager/GarrisonProtection). Trait<IHealth>() throws
-			// InvalidOperationException from TraitDictionary.Get on such an actor, which kills it at
-			// construction. Nothing in the YAML can catch that: GarrisonProtectionInfo declares
-			// Requires<GarrisonManagerInfo> and Requires<CargoInfo> but NOT Requires<HealthInfo>, so
-			// no lint has anything to flag. The two health == null guards below were written for
-			// exactly this case and were unreachable dead code while this line threw first.
+			// TraitOrDefault, NOT Trait, and it stays that way even though the actor it was written for
+			// is gone. V19.Husk used to keep Cargo/GarrisonManager/GarrisonProtection while removing
+			// Health; 5dfc6c09 took the garrison stack off the wreck, so there is no actor in the mod
+			// today that reaches this line without an IHealth. What has NOT changed is the reason the
+			// hazard existed: GarrisonProtectionInfo declares Requires<GarrisonManagerInfo> and
+			// Requires<CargoInfo> but NOT Requires<HealthInfo>, so nothing in the YAML or the lint
+			// stops someone re-creating it, and Trait<IHealth>() would throw InvalidOperationException
+			// out of TraitDictionary.Get and kill the actor at construction. The two health == null
+			// guards below are the same insurance and are likewise unreachable today.
 			health = self.TraitOrDefault<IHealth>();
 		}
 

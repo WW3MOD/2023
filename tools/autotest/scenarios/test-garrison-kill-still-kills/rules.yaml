@@ -1,0 +1,29 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	-UnitDefaultsManager:
+	LuaScript:
+		Scripts: test-helpers.lua, test-garrison-kill-still-kills.lua
+
+PBOX:
+	# No port may deploy, so the three men stay in the hold and the Kill lands on a building that is
+	# genuinely loaded. Unlike ^CivBuilding, PBOX already carries an AutoTarget
+	# (^AutoTargetGroundAntiInfDefense), so this overrides a stance rather than adding a trait.
+	# GarrisonManager reads the BUILDING's stance (:796, :865, :1316). Both fields because
+	# AutoTarget.cs:497 picks InitialStanceAI for a non-Playable owner, which Russia is here.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+
+E1:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
