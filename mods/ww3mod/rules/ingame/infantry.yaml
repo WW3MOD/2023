@@ -1623,7 +1623,7 @@ TL:
 	# other infantry type, AND keeps broadcasting HighPriorityInfantry from inside it --
 	# so the auto-target bands that name that type actively prefer him.
 	Targetable@HighPriority:
-		RequiresCondition: !garrisoned-at-port
+		RequiresCondition: !parachute && !garrisoned-at-port
 		TargetTypes: Ground, Infantry, HighPriorityInfantry
 	SpeedMultiplier:
 		Modifier: 90
@@ -1765,7 +1765,7 @@ SN:
 	# other infantry type, AND keeps broadcasting HighPriorityInfantry from inside it --
 	# so the auto-target bands that name that type actively prefer him.
 	Targetable@HighPriority:
-		RequiresCondition: !garrisoned-at-port
+		RequiresCondition: !parachute && !garrisoned-at-port
 		TargetTypes: Ground, Infantry, HighPriorityInfantry
 	Buildable:
 		Queue: Infantry
