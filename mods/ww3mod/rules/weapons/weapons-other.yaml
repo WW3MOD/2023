@@ -691,10 +691,21 @@ DroneTargeter:
 	# (DroneTaskingMath.cs:47-55), so the weapon is a HARD CAP on how far a drone can be tasked
 	# no matter what the leash says: at the old 25c0 every leash above 28 was inert. Raised
 	# alongside quadcopterdrone's CarrierSlave.MaxDistance so the pair lands the ceiling at 30.
-	# THIS ALSO WIDENS THE OPERATOR ITSELF. This is Armament@1 `primary` on ^DR, so AutoTarget's
-	# scan follows the armament's MaxRange: a dr.america now auto-acquires ground targets out to
-	# 33 cells rather than 25 and launches at them, and RenderRangeCircle@1 draws the larger
-	# circle. That applies to human players and to both bot profiles, not only @experimental.
+	# WHAT THIS WIDENS, STATED PRECISELY — AN EARLIER VERSION OF THIS NOTE OVERSTATED IT.
+	# This is Armament@1 `primary` on ^DR, and it carries RequiresForceFire: True, so AutoTarget
+	# CANNOT fire it: ChooseArmamentsForTarget drops any armament with that flag when the attack is
+	# not forced (AttackBase.cs:467). So there are NO new automatic drone launches at any range.
+	# What does move:
+	#   - FORCE-FIRED launch reach, 25 -> 33 cells. That is the point of the change, and it applies
+	#     to a human player force-firing exactly as it does to either bot profile.
+	#   - AutoTarget's SCAN RADIUS, when ScanRadius is unset, is ab.GetMaximumRange()
+	#     (AutoTarget.cs:1181,1253), and that iterates every armament that is not disabled or
+	#     paused WITHOUT excluding RequiresForceFire (AttackBase.cs:591-605). So the operator now
+	#     sweeps 33 cells instead of 25 while it holds a loaded drone — a wider scan that still
+	#     cannot fire this weapon, and can only ever auto-engage with the 12-cell jammer below.
+	#     Note Armament@1's PauseOnCondition: !loaded || !ammo-primary — an operator with no drone
+	#     loaded has this armament paused, and its scan falls back to the jammer's range.
+	#   - RenderRangeCircle@1, the selected operator's larger white circle: 25 -> 33 cells.
 	Range: 33c0
 	BurstWait: 200
 	Projectile: InstantHit
