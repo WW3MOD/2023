@@ -80,8 +80,19 @@ end
 -- happens when a man boards, while UsMan still read loaded=false. A guaranteed false negative.
 --
 -- Test.IsLoadedInto reads Cargo's own passenger list and is true regardless of either flag.
+--
+-- THE PORT CASE HAS TO BE IN HERE TOO, and it is not hypothetical on this map. DeployToPort calls
+-- cargo.Unload(self, soldier) before adding him to the world (GarrisonManager.cs), so a man at a
+-- firing port is NOT a Cargo passenger and IsLoadedInto alone would call him "not inside". He is
+-- also in-world, so IsOutInTheOpen would then call him "out" — turning a man standing at a loophole
+-- into a false "MEN RELEASABLE" pass, which would close audit item #5 on evidence that never
+-- existed. RuProbe sits 9.2 cells from the house and e1 carries 5.56mm.DMR at Range: 11c0
+-- (weapons-ballistics.yaml:152), so the garrison really can acquire him and man a port.
+--
+-- "Inside" here therefore means inside in ANY capacity, which is also what the question is about:
+-- whether a hostile occupant can be got out, not which room he is standing in.
 local function IsLoaded(soldier)
-	return Test.IsLoadedInto(soldier, House)
+	return Test.IsLoadedInto(soldier, House) or Test.IsAtGarrisonPort(soldier, House)
 end
 
 -- IsInWorld is sound in THIS direction: a man in a hold is out of world, so in-world-and-not-loaded
