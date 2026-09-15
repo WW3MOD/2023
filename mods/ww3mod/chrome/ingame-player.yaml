@@ -841,7 +841,13 @@ Container@PLAYER_WIDGETS:
 					Height: 250
 					Background: commandbar-background
 					ClickThrough: true
-				LogicTicker@GARRISON_TICKER:
+				# NO TICKER LIVES HERE, AND NOTHING THAT HAS TO RUN WHILE THE PANEL IS DOWN EVER CAN.
+				# Widget.TickOuter is gated on IsVisible() (Widget.cs:512-518), so every child of this
+				# container stops ticking the moment the container hides -- and this container is hidden
+				# for almost the whole match. GARRISON_TICKER used to sit on this line and carry the only
+				# write that could ever SHOW the panel, which is why the panel never appeared for any
+				# selection. GarrisonPanelLogic now drives visibility from an IsVisible delegate, which
+				# the visible PARENT evaluates every frame. CARGO_PANEL below has the same shape.
 				Label@GARRISON_HEADER:
 					Width: 220
 					Height: 14

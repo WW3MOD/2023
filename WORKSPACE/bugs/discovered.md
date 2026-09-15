@@ -99,7 +99,8 @@
   `test-escalation-full-match`.
   (found while working on: `test-escalation-full-match`, the end-to-end Escalation smoke scenario)
 
-- [2026-09-14] [MEDIUM — THE PANEL NEVER APPEARS] **`GARRISON_PANEL` cannot become visible: its
+- [2026-09-14] [MEDIUM — THE PANEL NEVER APPEARS] **[FIXED on `wt/garrison-panel`, off `main @
+  0a94c684` — not yet merged]** **`GARRISON_PANEL` cannot become visible: its
   visibility is written by a `LogicTicker` that is its own child, and `Widget.TickOuter` only ticks
   visible subtrees.** `GarrisonPanelLogic.cs:120` sets `panel.Visible = false` at construction, and
   the only other write is `:116`, inside the `OnTick` of `GARRISON_TICKER` — declared as a child of
@@ -118,6 +119,21 @@
   (found while working on: `wt/readout-corner`, teaching the DEFCON readout to lift over the two
   panels that share the bottom-right corner — the garrison half of that lift is consequently
   unreachable today, and the demo frame proving the lift had to use `CARGO_PANEL`)
+  > **FIX, 2026-09-15 (`wt/garrison-panel`).** Both halves of the finding re-derived at
+  > `0a94c684` before anything was touched and both held: `Widget.TickOuter` is gated on
+  > `IsVisible()` (`Widget.cs:512-518`) and `LogicTicker@GARRISON_TICKER` really was a child of
+  > `Container@GARRISON_PANEL`. `GarrisonPanelLogic` now assigns `panel.IsVisible` exactly as
+  > `CargoPanelLogic.cs:154-161` does, the ticker is gone from `ingame-player.yaml` (and from the
+  > dead `garrison-panel.yaml`, left in place rather than deleted — that is still the open
+  > judgement call recorded under 2026-08-19), and `GarrisonPanelVisibilityTest` pins the engine
+  > premise, the delegate mechanism and both shipped panels. **The suspicion in the last paragraph
+  > was right and is now settled: nothing else raised the panel.** The consequence nobody had
+  > drawn is that `test-garrison-suppression-readout` has been asking a human to look for a
+  > garrison panel in every frame it ever captured, and two screenshot readings passed anyway —
+  > so it now asserts `Test.GetPanelVisibility("GARRISON_PANEL") == "visible"` in code.
+  > ⚠️ **Still not launched by the author.** The panel is proven raisable; that it is legible,
+  > correctly positioned and shows the right rows is unverified and wants the capture this entry
+  > originally asked for.
 - [2026-09-14] [UNKNOWN SEVERITY — BEHAVIOURAL IMPACT NOT MEASURED] **Every trait that derives a
   team from `LobbyInfo.ClientWithIndex(player.ClientIndex)` reads the HOST'S team for map-authored
   players, because `Player.cs:191` deliberately hands them the host's client index** — `ClientIndex =
