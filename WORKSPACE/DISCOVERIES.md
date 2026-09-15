@@ -3,6 +3,25 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-15 - `lua-gate` could only ever check a scenario's Lua if that Lua sat IN the scenario folder, so a body shared from `mods/ww3mod/scripts` was loaded by the engine and checked by nothing — and the "can this test reach a verdict?" check did not fail on it, it silently never ran (`wt/drone-lost-track`, base `main @ 0a94c684`)
+
+**THE SHAPE.** `run_check` reached `check_file` — the whole binding-resolution scanner — only from a loop over `luas`, the `.lua` files found by `os.listdir` on the scenario directory. A script the scenario DECLARES but that resolves to `mods/ww3mod/scripts` was opened for one purpose only: harvesting the globals it defines, so other files' references to them would resolve. Its own references were never checked. The gate then printed its usual closing line — `OK — every reference resolves` — having resolved none of that file. This is the tool's own advertised failure mode (a false green) wearing the tool's uniform, and `lua-gate/README.md` is explicit that a scenario the engine loads and never runs "is never what anyone wanted".
+
+**IT WAS NOT HYPOTHETICAL AND IT WAS NOT NEW.** `javelin-probe-lib.lua` has been shared by four scenarios (`test-javelin-latch-control`, `test-javelin-loop-probe`, `test-javelin-reversal-sweep`, `test-atgm-humvee-motion`) since it was written, and was outside the scanner that entire time. Nothing was wrong with it — checking it now produces zero findings — which is exactly why nobody noticed.
+
+**THE SECOND HALF IS THE DANGEROUS ONE, BECAUSE ITS FAILURE MODE IS SILENCE RATHER THAN A WRONG ANSWER.** `check_verdict_reachable` — "a `test-` scenario whose Lua names no way to finish" — was invoked from
+
+    own = os.path.join(d, name + ".lua")
+    if os.path.basename(own) in declared and os.path.exists(own):
+
+so a scenario with no `<dir>/<name>.lua` was not examined AT ALL. Not reported as unexaminable: skipped, with no finding and no count. A scenario that asserts nothing runs for its full watchdog and reports `TIMEOUT-FAIL` minutes later, which reads like slowness rather than like an unfinished test — the precise outcome this check exists to pre-empt. Verified by running the HEAD gate against a synthetic scenario whose shared body contains no verdict call: **no warning, exit 0.** Same input on the fixed gate warns and exits 1. Both directions are now pinned in `selftest` (`_shared_body_acceptance`), which is worth more than the fix: the fix restores a check, the selftest stops the check from going quiet again.
+
+**WHY ANY OF THIS CAME UP.** Splitting `test-drone-lost-track` into a treatment/control PAIR means one Lua body and two `rules.yaml`. Duplicating a 900-line body whose constants are several times one tick away from silently measuring the wrong thing is not an option — two copies drift, and on an A/B rig the drift would look exactly like an arm difference. So the body moves to `mods/ww3mod/scripts`, which is precisely the shape the gate could not see.
+
+**THE GENERAL LESSON, AND IT IS NOT ABOUT LUA.** A gate whose coverage is defined by WHERE A FILE SITS rather than by WHAT THE SYSTEM LOADS will lose coverage the first time somebody refactors for reuse — and will lose it silently, because the file count in its summary line is the only place the loss shows. Before trusting any gate over a change that MOVED something, read how it enumerates its inputs. Here the tell was visible and easy to walk past: the summary went from `1 script(s) in 1 scenario(s)` to **`0 script(s) in 2 scenario(s)`** and still said `OK`.
+
+**ONE RESIDUAL, NAMED RATHER THAN FIXED.** A shared lib is scanned ONCE, under the first scenario that declares it, so it is validated against that scenario's `extra` globals and map-actor set. Scanning per declaring scenario is stricter and was tried; because every scenario in the tree declares `test-helpers.lua`, it turns into 320 scans of one file and pushed a full run from ~7 min past 9. The blind spot it leaves is a shared lib that references a map-actor global by name — which cannot be shared in the first place.
+
 ## 2026-09-15 - `make all` NEVER compiles `OpenRA.Test`, in either configuration, because the upstream solution gives it no `Build.0` — so a merge can leave the test project broken while `make all` reports "Build succeeded" twice (`wt/exchange-v2`, merge `c00ff468`)
 
 **THE INSTANCE.** Merging `main` into a feature branch auto-merged cleanly everywhere that mattered and left ONE file referencing a deleted overload. `make all` was run and printed `Build succeeded` / `0 Error(s)` twice. The tree did not compile. It was caught only by `dotnet test`, which was run for an unrelated reason — to confirm a restored `[TestCase(900)]` — and which failed with four `CS0117`s before a single test executed. Had that step been skipped, the branch would have gone to the manager described as gated-and-green with a test project that could not build.

@@ -1,0 +1,38 @@
+fail
+BY DESIGN, NOT BY MERIT — and that is a different claim from the treatment's declaration
+next door, which is why this file exists separately rather than being cross-referenced.
+
+This directory is the CONTROL arm. Its rules.yaml sets IntelSampleInterval: 999999 on
+DroneOperatorBotModule@experimental, which is the feature's documented off switch
+(DroneOperatorBotModule.cs:108-116): SampleIntel never runs, the contact table is never
+written, BestIntelAt returns 0 for every candidate, and the drone is tasked on revealed-area
+staleness alone. A drone that cannot know where the enemy was last seen has no way to prefer
+that cell, so FAIL is the only outcome this arm can honestly produce. A PASS here is loudly
+RED: it means either the override did not merge (see below) or the drone reached the vanish
+cell by exploration geometry alone, and CONTROL-ARM.md says to REPORT AND STOP on that second
+case rather than re-running or moving the threshold.
+
+THE ONE FAILURE THIS DECLARATION MUST NOT ABSORB, because it produces the declared outcome
+for the wrong reason: a control whose override silently failed to merge is a SECOND COPY OF
+THE TREATMENT, and today the treatment also fails. Two identical arms both failing looks
+exactly like a clean null result. The arm is self-identifying instead, engine-side:
+
+    records=0  intel=0   on the `[drone] ... launch` line in RUN_DIR/debug.log
+
+records>0 in THIS scenario means the merge did not happen. Discard the run; do not read it
+as a control. Read RUN_DIR/debug.log, never the global debug.log — the global file is
+overwritten by the next launch and has already destroyed one drone run's answer (04478c02).
+
+PRIOR MEASUREMENT, run 4 of the pre-split series (2026-08-31), when this arm was produced by
+hand-editing mods/ww3mod/rules/ai/ai.yaml rather than by running this directory:
+
+    intel=0  records=0  nearby=0  samples=62  near=0  mindist=27
+
+The drone flew AWAY from the vanish cell and parked. That is the RED behaviour this arm is
+for. It is NOT carried forward as a verdict: it predates 1e0226b9 (rectangular revealed-area
+query replaced by the vision disc, up to 228 squares of corner credit removed per candidate),
+so `reveal` moved under it and mindist=27 must be re-measured, not quoted.
+
+REMOVE THIS FILE only if the control legitimately starts passing — which would mean the map
+geometry can no longer separate the hypotheses, and the scenario needs new coordinates rather
+than a new declaration.
