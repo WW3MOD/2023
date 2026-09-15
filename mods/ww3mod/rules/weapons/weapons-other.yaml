@@ -687,7 +687,15 @@ DepthChargeDual:
 
 DroneTargeter:
 	ValidTargets: Ground, Water # TODO: Can target units? For AutoTarget
-	Range: 25c0
+	# 25c0 -> 33c0 (2026-09-15). MaxHoverDistanceCells is min(weaponRange, LeashCells - margin)
+	# (DroneTaskingMath.cs:47-55), so the weapon is a HARD CAP on how far a drone can be tasked
+	# no matter what the leash says: at the old 25c0 every leash above 28 was inert. Raised
+	# alongside quadcopterdrone's CarrierSlave.MaxDistance so the pair lands the ceiling at 30.
+	# THIS ALSO WIDENS THE OPERATOR ITSELF. This is Armament@1 `primary` on ^DR, so AutoTarget's
+	# scan follows the armament's MaxRange: a dr.america now auto-acquires ground targets out to
+	# 33 cells rather than 25 and launches at them, and RenderRangeCircle@1 draws the larger
+	# circle. That applies to human players and to both bot profiles, not only @experimental.
+	Range: 33c0
 	BurstWait: 200
 	Projectile: InstantHit
 	Warhead@Target: TargetDamage
