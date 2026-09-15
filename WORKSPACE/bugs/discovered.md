@@ -5488,7 +5488,25 @@ wants one owner and one decision about which is authoritative. The cheap shape i
 `UnloadCargo` branch to defer to `GarrisonManager` when the actor has one, rather than counting the
 hold itself.
 
-## 2026-09-15: [low, FIXED] `test-garrison-suppression-readout`'s `GarrisonCensus` counts shelter occupants as dead (found while: diagnosing the port-arc SKIP, `wt/civ-garrison`)
+## 2026-09-15: [RETRACTED, and replaced by a real one] `test-garrison-suppression-readout`'s `GarrisonCensus` counts shelter occupants as dead (found while: diagnosing the port-arc SKIP, `wt/civ-garrison`)
+
+**RETRACTED SAME DAY — the census was not broken.** This rested on a Cargo passenger reading
+`IsDead == true`, which `DOCS/recipes/AUTOTEST.md:352` refuted by direct measurement on 2026-09-06:
+passengers read `IsDead == false`, so the `not IsInWorld -> inShelter` branch was reachable and
+shelter occupants were always counted correctly. I cited that file as the source for the opposite
+claim without reading the line.
+
+**What running the fixed census DID expose is real, and worse: the house squad never enters the
+church.** Run 260915_182425 reported `house: 0 at ports, 0 in shelter, 6 still outside, 0 dead`, so
+the `02-suppressed` capture has been photographing six men in a field beside an empty building while
+its own `expects:` text describes a garrisoned one. Cause: `soldier.EnterTransport(house)` queues a
+`RideTransport` activity directly and does not board; `Test.ClickOrder` issues the real order and
+does. Third occurrence of that staging finding. **FIXED** on `wt/civ-garrison`.
+
+The census rewrite is kept anyway — it reads `GarrisonManager.PortStates` and `Cargo.Passengers`
+rather than inferring "at a port" from cell position — but it is an improvement, not a bug fix.
+
+### Original entry, wrong, kept so the retraction has something to point at
 
 ```lua
 if s.IsDead then dead = dead + 1
