@@ -482,7 +482,8 @@ namespace OpenRA.Test
 		[Test]
 		public void NeitherFactionHoldsTwoWarheadsInOneBand()
 		{
-			// THE PREMISE THE BAND-LEVEL REGENERATION TIMER RESTS ON (NuclearExchange.PutBandOnRegen).
+			// THE PREMISE THE SIDE COOLDOWN RESTS ON (NuclearExchange.SetSideCooldown; the per-band
+			// PutBandOnRegen it replaced was deleted at exchange v2, 2026-09-15).
 			// One shot puts the whole band on its timer for the whole firing side, so a faction
 			// holding two warheads in one band does not get two shots -- it gets one, and the second
 			// warhead is dead weight the player can see in the sidebar and cannot fire. That is a

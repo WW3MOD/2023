@@ -2859,9 +2859,14 @@ Player:
 		# 3 evaluations = 150 ticks of continuously losing at the interval above.
 		LosingStreakRequired: 3
 		MinTicksBetweenLaunches: 900
-		# The bot may take the last rung when a window grants it. Set false for a bot that must never
-		# end the game; it does NOT stop the bot placing in a final exchange somebody else began,
-		# because Dead Hand places for anyone who does not and declining forfeits the aim points.
+		# The bot may take the last rung once its side has been hit with a 100 kt and reached level 5.
+		# Set false for a bot that must never end the game -- such a bot falls back to the highest band
+		# below END rather than holding its fire. It does NOT stop the bot placing in a final exchange
+		# somebody else began, because Dead Hand places for anyone who does not and declining forfeits
+		# the aim points.
+		#
+		# UPDATED 2026-09-15 WITH EXCHANGE v2: the rung used to be reachable only through a retaliation
+		# window, which no longer exists. The FLAG and its value are unchanged; only what it gates is.
 		MayFireGameEnder: true
 		SupplyRouteBonusPercent: 150
 		SupplyRouteBonusOnlyWhenContested: true
@@ -3348,6 +3353,12 @@ Player:
 	# that @stable inherits improvements, and a @stable bot that will not answer a nuke is not a
 	# control). THIS CHANGES @stable BEHAVIOUR in Escalation and the ai-bench baseline for that mode
 	# must be re-taken; it is inert in Skirmish and Sandbox, which is every existing benchmark match.
+	# EXCHANGE v2 (2026-09-15) CHANGES @stable's NUCLEAR BEHAVIOUR, and it is not gated off -- see
+	# CLAUDE.md's standing policy that @stable inherits improvements. Two differences, both of them
+	# the model rather than a tuning choice: the bot no longer has window-reply logic (there are no
+	# windows), and it now fires the highest band its side's LEVEL allows rather than preferring a
+	# grant. NO FIELD IN THIS BLOCK CHANGED VALUE. The ai-bench baseline for Escalation must be
+	# re-taken; Skirmish and Sandbox are inert, which is every existing benchmark match.
 	NuclearBotModule@stable:
 		RequiresCondition: enable-ai-stable
 		EvaluationInterval: 50

@@ -282,8 +282,18 @@ namespace OpenRA.Mods.Common.Traits
 			// MOVED OFF DefconEscalation ON 2026-09-13 with the shared pressure ladder it fed. The
 			// receiver is per SIDE now, but the contract at this call site is unchanged: one launch
 			// order, one report, whatever the salvo carries.
-			if (info.NuclearYieldTons > 0)
-				self.World.WorldActor.TraitOrDefault<NuclearExchange>()?.ReportNuclearRelease(self.Owner, info.NuclearYieldTons);
+			//
+			// AND IT IS A VETO, NOT A NOTIFICATION (2026-09-15). ReportNuclearRelease returns false
+			// when the exchange REFUSES the launch -- a band above the side's level, or a side still
+			// inside its cooldown -- neither of which a player can click, so a false here means two
+			// layers have disagreed. Flying the salvo anyway would be the worst available outcome:
+			// the warheads land and kill, the firing side pays no cooldown, and the victim is not
+			// escalated, so the one rule the mode has is silently skipped while the damage is real.
+			// The trait logs the reason loudly; this returns before a single aim point is resolved.
+			if (info.NuclearYieldTons > 0
+				&& self.World.WorldActor.TraitOrDefault<NuclearExchange>()?.ReportNuclearRelease(
+					self.Owner, info.NuclearYieldTons) == false)
+				return;
 
 			var aimPoints = ResolveAimPoints(self.World, order);
 

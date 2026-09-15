@@ -4,9 +4,17 @@
  *
  * THE USER'S WHOLE BRIEF FOR THIS IS ONE SENTENCE: "It only fires if it is losing, so it never
  * escalates unnecessarily." Everything below is that sentence made testable, plus the two things
- * the 2026-09-13 exchange ruling (manager-2b944571 decision 01) adds on top of it — a retaliation
- * window that is the biggest thing a side may fire, and a top rung that is reachable only through
- * one.
+ * the 2026-09-15 exchange ruling (manager-2b944571 decision 03, spec 02) adds on top of it — a per
+ * SIDE LEVEL that caps what may be fired at all, and a per SIDE COOLDOWN that silences every band at
+ * once after any launch.
+ *
+ * ==== WHAT v2 DELETED FROM THIS FILE, AND WHY IT IS NOT MERELY UNUSED ====
+ * v1 had TWO firing branches and their order was load-bearing: a RETALIATION WINDOW (one shot, one
+ * band above what you were last hit with, gone in a minute) was taken ahead of the highest permanent
+ * band, because spending the beat on a 1 kt while holding a 50 kt reply threw the reply away. There
+ * is no window in v2, so there is one branch: the highest band the LEVEL allows that is ready. The
+ * `Retaliation` reason went with it rather than being left to age, because a reason nothing returns
+ * is a reason a triager will eventually see in an old log and trust.
  *
  * ==== WHY A SEPARATE FILE, AND NOT METHODS ON THE MODULE ====
  * The same reason NuclearExchangeState, FinalExchangeWindow and every *Math.cs beside this one give:
@@ -63,17 +71,20 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Losing and permitted, but no permitted band has a warhead ready right now.</summary>
 		NoReadyBand = 3,
 
-		/// <summary>A window granted a game-ender and <c>MayFireGameEnder</c> is off, with nothing else to fire.</summary>
+		/// <summary>The level reached END, <c>MayFireGameEnder</c> is off, and nothing below it is ready.</summary>
 		GameEnderWithheld = 4,
 
 		/// <summary>The final exchange is already running: place the game-enders. Not a choice.</summary>
 		FinalExchange = 5,
 
-		/// <summary>Replying inside a retaliation window, at the band the window granted.</summary>
-		Retaliation = 6,
+		// 6 WAS `Retaliation` AND IS LEFT AS A HOLE ON PURPOSE. v2 has no retaliation window, and
+		// re-using the number would make an old log line and a new one say different things with the
+		// same integer. The names are what the Lua binding and the fixtures compare; the integers are
+		// only here so a gap is visible rather than silently closed by the next addition.
 
-		/// <summary>Firing the highest permanent band that is ready.</summary>
-		Permanent = 7,
+		/// <summary>Firing the highest band this side's LEVEL allows that has a warhead ready.</summary>
+		// THE ONLY FIRING REASON BELOW THE TOP RUNG, where v1 had two. See the file header.
+		HighestAllowed = 7,
 
 		/// <summary>
 		/// <para>The policy chose a band and the MODULE could not use it: nothing legally visible to
@@ -82,8 +93,8 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		// IT EXISTS SO A FAILED LAUNCH IS NOT REPORTED AS A DECISION. Without it the module leaves the
 		// firing reason standing over a launch count that never moved, and a readout saying
-		// `launches=0 | reason=Retaliation` sends whoever reads it after the policy when the problem is
-		// an empty target list.
+		// `launches=0 | reason=HighestAllowed` sends whoever reads it after the policy when the problem
+		// is an empty target list.
 		NoTarget = 8,
 	}
 
@@ -256,35 +267,38 @@ namespace OpenRA.Mods.Common.Traits
 		/// <item>NOT LOSING IS THE WHOLE RULE and it is checked before anything about what is ready. A
 		/// winning bot that happens to hold a loaded warhead must read as NotLosing, not as
 		/// NoReadyBand.</item>
-		/// <item>THE WINDOW BEFORE THE PERMANENT BAND. The ruling's model expects the loser to escalate:
-		/// a retaliation grant is the biggest thing a side may fire and it is ONE SHOT that vanishes
-		/// with the window, so a bot that spent the beat on its 1 kt permanent band instead would be
-		/// throwing the reply away.</item>
+		/// <item>THE BIGGEST THING THE LEVEL ALLOWS, and not the smallest. The ruling's model expects
+		/// the loser to escalate, and under v2 firing ANY band costs the side the same thing — its
+		/// whole arsenal for a cooldown — so a bot that spent that cooldown on a 1 kt while holding a
+		/// 50 kt would be paying full price for the smallest possible effect.</item>
 		/// </list>
 		///
-		/// <para>A GAME-ENDER IS REACHABLE HERE ONLY THROUGH THE WINDOW, which mirrors
-		/// NuclearExchangeState's rule 5 rather than relying on it: the permanent branch caps at
-		/// HundredKiloton EXPLICITLY, exactly as that file caps its own permanent raise and for the
-		/// reason it gives — writing the cap as a consequence of the other rules was a bug its fixture
-		/// caught.</para>
+		/// <para>THE COOLDOWN IS NOT A PARAMETER HERE, and that is deliberate rather than an omission:
+		/// it is already folded into <paramref name="readyBandMask"/>. A side inside its cooldown has
+		/// EVERY band unready, because NuclearExchange writes the cooldown onto every one of that
+		/// side's support powers — so the mask is empty and this returns NoReadyBand. Passing the
+		/// cooldown separately would be a second, independent copy of rule 2 that could disagree with
+		/// the one the module measured.</para>
+		///
+		/// <para>THE TOP RUNG IS GATED BY <paramref name="mayFireGameEnder"/> AND BY NOTHING ELSE HERE.
+		/// Under v1 a game-ender was reachable only through a window and this file capped its other
+		/// branch at HundredKiloton explicitly to mirror that. v2 puts END on the same ladder as every
+		/// other band — level 5 is reached by being hit with a 100 kt — so the cap is now exactly the
+		/// flag, and a bot with the flag off falls back to the highest band below it.</para>
 		/// </summary>
 		/// <param name="released">Has the release gate opened (<c>NuclearExchange.Released</c>)?</param>
 		/// <param name="losingCommitted">Has the losing streak reached the hysteresis count?</param>
 		/// <param name="finalExchangeOpen">Is <c>DoomsdayStrike.FinalExchangeOpen</c>?</param>
-		/// <param name="permanentLevel">This side's <c>PermanentLevelFor</c>.</param>
-		/// <param name="windowLevel">This side's <c>WindowLevelFor</c>.</param>
-		/// <param name="windowTicksRemaining">This side's <c>WindowTicksRemainingFor</c>. 0 is shut.</param>
+		/// <param name="level">This side's <c>LevelFor</c> — the highest band it may fire.</param>
 		/// <param name="readyBandMask">Bands with a warhead ready right now, as a bitmask.</param>
 		/// <param name="ticksSinceLastLaunch">Ticks since this module last queued a launch order.</param>
 		/// <param name="minTicksBetweenLaunches">The rate limit.</param>
-		/// <param name="mayFireGameEnder">May the bot START an apocalypse from a window grant?</param>
+		/// <param name="mayFireGameEnder">May the bot START an apocalypse at level 5?</param>
 		public static NuclearBotDecision Choose(
 			bool released,
 			bool losingCommitted,
 			bool finalExchangeOpen,
-			int permanentLevel,
-			int windowLevel,
-			int windowTicksRemaining,
+			int level,
 			int readyBandMask,
 			int ticksSinceLastLaunch,
 			int minTicksBetweenLaunches,
@@ -306,24 +320,26 @@ namespace OpenRA.Mods.Common.Traits
 			if (ticksSinceLastLaunch < minTicksBetweenLaunches)
 				return NuclearBotDecision.Hold(NuclearBotReason.RateLimited);
 
-			// (3) The retaliation window: the biggest thing this side may fire, and one shot only.
-			var windowOpen = windowTicksRemaining > 0 && windowLevel > (int)NuclearRung.Hold;
+			// (3) THE HIGHEST BAND THIS LEVEL ALLOWS THAT IS READY. One branch, where v1 had two.
+			//
+			// THE CAP IS LOWERED BEFORE THE SEARCH, NOT AFTER IT. Asking for the highest ready band at
+			// or below the level and THEN rejecting a game-ender would make a bot with the flag off
+			// hold its fire entirely whenever its END cameo happened to be loaded -- it would never
+			// look at the 100 kt underneath. Capping first is what makes `MayFireGameEnder: false`
+			// mean "never starts an apocalypse" rather than "stops fighting once it could".
+			var cap = level;
 			var gameEnderWithheld = false;
-			if (windowOpen && IsBandReady(readyBandMask, windowLevel))
+			if (cap >= (int)NuclearRung.GameEnder && !mayFireGameEnder)
 			{
-				if (windowLevel >= (int)NuclearRung.GameEnder && !mayFireGameEnder)
-					gameEnderWithheld = true;
-				else
-					return new NuclearBotDecision(windowLevel, NuclearBotReason.Retaliation);
+				// Recorded only when the withheld band was actually AVAILABLE, so the reason
+				// distinguishes "declined the apocalypse" from "had nothing at all".
+				gameEnderWithheld = IsBandReady(readyBandMask, (int)NuclearRung.GameEnder);
+				cap = (int)NuclearRung.HundredKiloton;
 			}
 
-			// (4) Otherwise the highest permanent band that is ready. NEVER a game-ender — the cap is
-			// written here rather than inherited; see the remarks.
-			var permanent = HighestReadyAtOrBelow(
-				readyBandMask, Math.Min(permanentLevel, (int)NuclearRung.HundredKiloton));
-
-			if (permanent > (int)NuclearRung.Hold)
-				return new NuclearBotDecision(permanent, NuclearBotReason.Permanent);
+			var band = HighestReadyAtOrBelow(readyBandMask, cap);
+			if (band > (int)NuclearRung.Hold)
+				return new NuclearBotDecision(band, NuclearBotReason.HighestAllowed);
 
 			return NuclearBotDecision.Hold(
 				gameEnderWithheld ? NuclearBotReason.GameEnderWithheld : NuclearBotReason.NoReadyBand);

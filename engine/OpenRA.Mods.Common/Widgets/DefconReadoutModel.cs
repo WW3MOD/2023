@@ -210,27 +210,6 @@ namespace OpenRA.Mods.Common.Widgets
 			}
 		}
 
-		/// <summary>The line under the step boxes.</summary>
-		// THREE DIFFERENT SENTENCES because they are three different rules, and the shut one is the
-		// whole reason this block is drawn before anything nuclear can be fired: a ten-minute wait
-		// with nothing on screen explaining it is a player concluding the feature is broken. All three
-		// state what may and may not be done, never the mechanism that does it.
-		//
-		// THE OPEN LINE CHANGED ON 2026-09-13 AND WAS A LIE BEFORE IT. It read "Both sides are
-		// released to the same yield. Each use raises it." -- which was the shared pressure ladder,
-		// where firing raised BOTH sides together. Under the exchange, firing raises the OTHER side;
-		// a player who read the old line and fired to climb would have handed their opponent the
-		// climb instead.
-		public static string NuclearFootLine(bool releaseOpen, bool windowOpen)
-		{
-			if (!releaseOpen)
-				return "No warhead may be fired yet. Both sides are released at the same moment.";
-
-			return windowOpen
-				? "You may answer one band up until the window closes. Firing arms them in turn."
-				: "Firing arms the other side at that yield, and one band above it for a while.";
-		}
-
 		/// <summary>Is the nuclear release readout drawn?</summary>
 		// TWO CONDITIONS, and each removes a case where the block would be noise or a lie:
 		//   - Escalation only. Skirmish and Sandbox get their bands from NuclearUnlockClock's schedule
@@ -259,23 +238,24 @@ namespace OpenRA.Mods.Common.Widgets
 		// window with 40 seconds left on it, and the decision follows from the two rows.
 
 		/// <summary>What one band's box says about one side.</summary>
-		// FOUR STATES AND NOT THREE. Held and Charging are the same PERMISSION and different facts:
-		// a side whose 20 kt is regenerating may not fire it this minute, and a ledger that drew both
-		// as lit would be telling a player they are covered when they are not. That distinction is
-		// the entire value of putting the enemy's row on screen.
+		// THREE STATES SINCE v2, AND THE FOURTH WAS DELETED RATHER THAN LEFT UNREACHABLE. `Window`
+		// drew a retaliation grant, which no longer exists; `Charging` used to be a per-BAND clock
+		// and is now the side's one cooldown, so every box at or below the level shows it together.
+		//
+		// HELD AND CHARGING ARE THE SAME PERMISSION AND DIFFERENT FACTS, which is why both survive:
+		// a side inside its cooldown holds every one of these bands and may fire none of them, and a
+		// ledger that drew them lit would be telling a player they are covered when they are not.
+		// That distinction is the entire value of putting the enemy's row on screen.
 		public enum LedgerCell
 		{
-			/// <summary>Not held at all.</summary>
+			/// <summary>Above this side's level. Not held at all.</summary>
 			Dark,
 
-			/// <summary>Held permanently and ready to fire now.</summary>
+			/// <summary>At or below the level, and the side is off cooldown: fireable now.</summary>
 			Held,
 
-			/// <summary>Held permanently but regenerating. Carries a countdown.</summary>
-			Charging,
-
-			/// <summary>A retaliation window grant. Carries the window countdown.</summary>
-			Window
+			/// <summary>At or below the level, but the side is inside its cooldown.</summary>
+			Charging
 		}
 
 		/// <summary>The bands a ledger row draws, lowest first: every rung above Hold.</summary>
@@ -310,9 +290,12 @@ namespace OpenRA.Mods.Common.Widgets
 			return rung == NuclearRung.GameEnder ? "END" : ShortRungLabel(rung);
 		}
 
-		/// <summary>What one band's box shows for one side.</summary>
-		public static LedgerCell CellFor(NuclearRung band, int permanentLevel, int windowBand,
-			bool windowOpen, bool releaseOpen, bool charging)
+		/// <summary>What one band's box shows for one side. Rule 2, drawn.</summary>
+		// TWO QUESTIONS AND THEY ARE ASKED IN THIS ORDER: does the side HOLD this band, and may it
+		// fire ANYTHING. The first is per-box and the second is per-row, which is exactly why v2's
+		// ledger carries one clock for the row instead of one per box -- every lit box on a row
+		// shares a single answer to the second question.
+		public static LedgerCell CellFor(NuclearRung band, int level, bool releaseOpen, bool onCooldown)
 		{
 			// BEFORE RELEASE EVERY BOX IS DARK on both rows, whatever the state underneath says.
 			// Nothing has been handed out yet and the block's value slot is carrying RELEASE IN m:ss;
@@ -320,18 +303,47 @@ namespace OpenRA.Mods.Common.Widgets
 			if (!releaseOpen)
 				return LedgerCell.Dark;
 
-			// THE WINDOW WINS WHERE THE TWO MEET, and they can meet. Off a single hit they cannot --
-			// rule 2 raises the permanent level to Y and opens the window at Y+1 -- but a side hit at
-			// 20 kt and then at 50 kt holds 50 kt permanently AND a window at 50 kt until the older
-			// grant's band is overtaken. Drawing the grant is the honest reading: a grant is the thing
-			// that EXPIRES, and the expiry is what the player has to act on before it does.
-			if (windowOpen && (int)band == windowBand)
-				return LedgerCell.Window;
-
-			if ((int)band > permanentLevel)
+			if ((int)band > level)
 				return LedgerCell.Dark;
 
-			return charging ? LedgerCell.Charging : LedgerCell.Held;
+			return onCooldown ? LedgerCell.Charging : LedgerCell.Held;
+		}
+
+		/// <summary>The clock in a ledger row's value slot: READY, or the side's cooldown as m:ss.</summary>
+		// ONE CLOCK PER ROW, IN WORDS WHEN THERE IS NOTHING TO COUNT. v1 drew a small countdown inside
+		// each band box and the player had up to ten of them on screen; under v2 all of a row's boxes
+		// share one number, so drawing it ten times would be ten copies of the same fact competing
+		// with the labels for the same 53 pixels.
+		//
+		// "READY" AND NOT AN EM DASH, which is the other convention on this panel (NoClock). The dash
+		// means "this rung ends on an event rather than a clock" -- an ABSENCE of a countdown. Here
+		// the countdown has RUN OUT, which is the opposite fact and the one the player is waiting for,
+		// so it is worth a word. A row whose boxes are all dark gets neither: see the caller.
+		public const string LedgerReady = "READY";
+
+		/// <summary>The foot line under the ledger. THREE RULES, ONE SENTENCE EACH.</summary>
+		// ALL THREE STATE WHAT MAY AND MAY NOT BE DONE, never the mechanism that does it -- the
+		// mockup's own note is the specification and it is quoted in this file's header.
+		//
+		// THE SHUT LINE IS THE WHOLE REASON THIS BLOCK IS DRAWN BEFORE ANYTHING NUCLEAR CAN FIRE: a
+		// ten-minute wait with nothing on screen explaining it is a player concluding the feature is
+		// broken.
+		//
+		// THE OPEN LINES CHANGED TWICE AND BOTH OLD VERSIONS WERE LIES BY THE END. The first read
+		// "Both sides are released to the same yield. Each use raises it." -- the shared pressure
+		// ladder, where firing raised BOTH sides, so a player who fired to climb handed the climb to
+		// their opponent instead. The second promised "You may answer one band up until the window
+		// closes", and there is no window in v2. This pair says the two things a player actually has
+		// to weigh: firing costs your TEAM its whole arsenal for a while, and it hands the enemy a
+		// bigger one permanently.
+		public static string NuclearFootLine(bool releaseOpen, bool onCooldown)
+		{
+			if (!releaseOpen)
+				return "No warhead may be fired yet. Both sides are released at the same moment.";
+
+			return onCooldown
+				? "Your whole team is reloading. Firing again raises the enemy's level further."
+				: "Firing puts your whole team on cooldown and raises the enemy's level.";
 		}
 
 		public const string LedgerOwnLabel = "YOU";
@@ -355,8 +367,13 @@ namespace OpenRA.Mods.Common.Widgets
 		// because all three happen in a 341-pixel panel in a corner: the gate opens, THEY are armed,
 		// and a grant they never used runs out. Each gets a line here and a sound at the call site.
 
-		/// <summary>The banner shown when the viewer's own side gains a retaliation grant.</summary>
-		public const string ArmedBannerTitle = "ARMED";
+		/// <summary>The banner shown when the viewer's own side's LEVEL RISES.</summary>
+		// "ESCALATED", NOT "ARMED", AND THE WORD IS THE RULING. v1's banner announced a retaliation
+		// grant -- a thing you were given and had one minute to spend -- and "ARMED" was right for
+		// that. v2 has no grant: the enemy fired, and your ceiling moved up permanently. "ESCALATED"
+		// says the thing that actually happened, and says it about the MATCH rather than about a
+		// weapon, which is what stops the banner reading as an instruction to use it.
+		public const string ArmedBannerTitle = "ESCALATED";
 
 		/// <summary>The banner shown when the release gate opens for both sides.</summary>
 		public const string NuclearReleaseBannerTitle = "NUCLEAR RELEASE";
@@ -364,21 +381,19 @@ namespace OpenRA.Mods.Common.Widgets
 		/// <summary>Its second line. Verbatim from the 2026-09-13 brief.</summary>
 		public const string NuclearReleaseBannerLine = "1 kt available to both sides";
 
-		/// <summary>The armed banner's second line. The caller formats the clock.</summary>
-		// THE SAME PATTERN AS TransitionCause AND FOR THE SAME REASON: the first line says what
-		// happened, the second says what the player may now DO and for how long. "reply or hold"
-		// names BOTH options on purpose -- the ruling's strategic claim is that holding is often the
-		// winning move -- where a line reading "reply now" would be the HUD telling the player to
-		// take the escalation the whole design is trying to make a deliberate choice.
+		/// <summary>The escalation banner's second line: the band the rise just opened.</summary>
+		// NO CLOCK AND NO "reply or hold", WHICH IS THE v2 CHANGE. This read "20 kt available for
+		// 1:00 — reply or hold" and both halves were about a grant that expired. A level does not
+		// expire, so there is no number to put here and nothing to hurry the player: the ruling's
+		// strategic claim is that holding is often the winning move, and a banner that counted down
+		// was the HUD arguing against it once every four seconds.
 		//
-		// THE SEPARATOR IS AN EM DASH AND NOT A MIDDLE DOT. The em dash is proven in this font at
-		// this size -- DefconReadoutModel.NoClock and FinalExchangeBannerWidget both ship it, and the
-		// demo's frame 03 exists to confirm it draws as a dash rather than a missing-glyph box. No
-		// frame has ever confirmed U+00B7, so using one here would put an unverified glyph in the one
-		// message the player has four seconds to read.
-		public static string ArmedBannerLine(int band, string clock)
+		// IT NAMES THE NEW TOP BAND RATHER THAN LISTING EVERYTHING BELOW IT. A rise from 1 to 3
+		// opens 20 kt and 50 kt; the ledger is on screen and shows both, and the banner has four
+		// seconds and one line, so it says the biggest.
+		public static string ArmedBannerLine(int band)
 		{
-			return $"{RungLabel(band)} available for {clock} — reply or hold";
+			return $"{RungLabel(band)} now available";
 		}
 	}
 }

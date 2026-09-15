@@ -26,27 +26,21 @@ World:
 		# the frame lands about 30 s in, so the readout should show roughly RELEASE IN 0:40.
 		NuclearReleaseDelayTicksOverride: 1200
 
-	# THE RETALIATION WINDOW, AT THE SHORTEST SETTING THE LOBBY OFFERS. One minute = 1000 ticks, and
-	# that is a FLOOR rather than a choice: the dropdown is in MINUTES, RulesetLoaded refuses a
-	# default that is not in RetaliationWindowOptions, and every option is a positive minute count.
-	# So the lapse frame cannot land sooner than 1000 ticks after the shot however this is written,
-	# which is what sets the length of the second half of this capture.
+	# THE 1 kt SIDE COOLDOWN, COMPRESSED FROM 5000 TICKS (5:00) TO 900 (54 s). Updated at exchange
+	# v2 (2026-09-15), which replaced the four per-band regeneration timers with one clock per side
+	# and deleted the retaliation window this block used to configure.
+	#
+	# WHAT THIS BUYS THE CAPTURE is the Charging state, which nothing else in this schedule would
+	# ever show: Russia fires at K+1260 and EVERY box on its row goes from lit to dimmed, with the
+	# row's single clock starting to count, on that tick. At 900 it is still counting at frame 08
+	# (~0:28 left) and is BACK by frame 09, so the two frames together show the state and its
+	# recovery. At the shipped 5000 it would still be counting when the run ends, and the recovery --
+	# the half that says the mode has no ammunition economy in it -- would never appear.
+	#
+	# THE OTHER THREE ENTRIES ARE LEFT ALONE deliberately. Nothing in this demo fires above 1 kt, so
+	# compressing them would be tuning a number no frame looks at.
 	NuclearExchange:
-		RetaliationWindowDefault: 1
-
-		# THE 1 kt REGENERATION, COMPRESSED FROM 3000 TICKS (3:00) TO 900 (54 s). Added at the
-		# `cc1cbe78` merge, which made Escalation's bands free and put them on per-band timers.
-		#
-		# WHAT THIS BUYS THE CAPTURE is the Charging cell, which nothing else in this schedule would
-		# ever show: Russia fires at K+1260 and its own 1 kt box goes from lit to lit-with-a-clock on
-		# that tick. At 900 it is still counting at frame 08 (~0:28 left) and is BACK by frame 09, so
-		# the two frames together show the state and its recovery. At the shipped 3000 it would still
-		# be counting when the run ends, and the recovery -- which is the half that says the mode has
-		# no ammunition economy in it -- would never appear.
-		#
-		# THE OTHER THREE BANDS ARE LEFT ALONE deliberately. Nothing in this demo fires above 1 kt,
-		# so compressing them would be tuning a number no frame looks at.
-		KilotonRegenTicks: 900
+		KilotonCooldownTicks: 900
 
 	# THE DERIVED WALL IS OFF FOR THIS CAPTURE, deliberately. world.yaml turns DeriveFromSpawns on
 	# mod-wide, and this scenario authors HomeLocation 16,6 and 81,76 -- so it WOULD derive a

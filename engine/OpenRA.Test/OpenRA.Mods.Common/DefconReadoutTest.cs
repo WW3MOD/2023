@@ -190,8 +190,7 @@ namespace OpenRA.Test
 			// the largest text in the panel.
 			foreach (var band in DefconReadoutModel.LedgerBands())
 				Assert.That(
-					DefconReadoutModel.CellFor(band, (int)NuclearRung.HundredKiloton, (int)NuclearRung.GameEnder,
-						true, false, false),
+					DefconReadoutModel.CellFor(band, NuclearReleaseLadder.Highest, false, false),
 					Is.EqualTo(DefconReadoutModel.LedgerCell.Dark),
 					$"{band} is lit before release.");
 		}
@@ -199,13 +198,12 @@ namespace OpenRA.Test
 		[Test]
 		public void ReleaseLightsExactlyTheOneKilotonBox()
 		{
-			// The state both sides are in the instant the gate opens: PermanentLevel = Kiloton, no
-			// window. One lit box each and four dark ones, which is the position the whole match is
-			// then measured against.
+			// The state both sides are in the instant the gate opens: level = Kiloton, no cooldown.
+			// One lit box each and four dark ones, which is the position the whole match is then
+			// measured against.
 			var cells = new List<DefconReadoutModel.LedgerCell>();
 			foreach (var band in DefconReadoutModel.LedgerBands())
-				cells.Add(DefconReadoutModel.CellFor(band, (int)NuclearRung.Kiloton, (int)NuclearRung.Hold,
-					false, true, false));
+				cells.Add(DefconReadoutModel.CellFor(band, (int)NuclearRung.Kiloton, true, false));
 
 			Assert.That(cells[0], Is.EqualTo(DefconReadoutModel.LedgerCell.Held));
 			for (var i = 1; i < cells.Count; i++)
@@ -214,56 +212,69 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void AGrantIsDrawnAsAGrantAndNotAsAHolding()
+		public void EveryBandAtOrBelowTheLevelIsLitAndNothingAboveIt()
 		{
-			// THE READING THAT SEPARATES THIS LEDGER FROM A LIST OF PERMISSIONS. After one 1 kt hit a
-			// side holds 1 kt permanently and 20 kt for the window -- and the two boxes must not look
-			// the same, because only one of them is going to disappear. If a future change collapses
-			// LedgerCell.Window into Held to "simplify", this is what fails.
-			var own = (int)NuclearRung.Kiloton;
-			var window = (int)NuclearRung.TwentyKiloton;
+			// THE RATCHET, DRAWN. A side at 50 kt holds 1 kt, 20 kt and 50 kt -- levels are cumulative
+			// and the ledger is what makes them countable. v1 needed a fourth cell here because a
+			// retaliation grant could light ONE box above the permanent level; there is no such box in
+			// v2, and a ledger with a gap in it would be a model nobody has.
+			var cells = new List<DefconReadoutModel.LedgerCell>();
+			foreach (var band in DefconReadoutModel.LedgerBands())
+				cells.Add(DefconReadoutModel.CellFor(band, (int)NuclearRung.FiftyKiloton, true, false));
 
-			Assert.That(DefconReadoutModel.CellFor(NuclearRung.Kiloton, own, window, true, true, false),
-				Is.EqualTo(DefconReadoutModel.LedgerCell.Held));
+			for (var i = 0; i < 3; i++)
+				Assert.That(cells[i], Is.EqualTo(DefconReadoutModel.LedgerCell.Held),
+					$"band index {i} is not lit at level 3.");
 
-			Assert.That(DefconReadoutModel.CellFor(NuclearRung.TwentyKiloton, own, window, true, true, false),
-				Is.EqualTo(DefconReadoutModel.LedgerCell.Window));
+			for (var i = 3; i < cells.Count; i++)
+				Assert.That(cells[i], Is.EqualTo(DefconReadoutModel.LedgerCell.Dark),
+					$"band index {i} is lit above the level.");
+		}
 
-			// And when the window lapses the grant box goes dark rather than staying lit: rule 3 says
-			// the permission evaporates whether or not it was used, so a box that stayed on would be
-			// offering a shot the condition layer has already revoked.
-			Assert.That(DefconReadoutModel.CellFor(NuclearRung.TwentyKiloton, own, window, false, true, false),
+		[Test]
+		public void ACooldownDimsTheWHOLEROWAndNotOneBox()
+		{
+			// THE v2 CHANGE, AND THE ONE A READER WILL EXPECT TO BE WRONG. Under v1 a shot muted the
+			// BAND it was fired from and left the others lit; a side could be drawn holding three
+			// ready warheads. One cooldown now covers every band the side holds, which is exactly why
+			// the clock moved out of the boxes and onto the row.
+			foreach (var band in new[] { NuclearRung.Kiloton, NuclearRung.TwentyKiloton, NuclearRung.FiftyKiloton })
+				Assert.That(DefconReadoutModel.CellFor(band, (int)NuclearRung.FiftyKiloton, true, true),
+					Is.EqualTo(DefconReadoutModel.LedgerCell.Charging),
+					$"{band} stayed lit while the side was on cooldown");
+
+			// AND A BAND ABOVE THE LEVEL IS STILL DARK RATHER THAN CHARGING. "Not held" and "held but
+			// reloading" are different facts and the row draws them differently; a cooldown must not
+			// promote a band the side does not have into one it is merely waiting for.
+			Assert.That(DefconReadoutModel.CellFor(NuclearRung.GameEnder, (int)NuclearRung.FiftyKiloton, true, true),
 				Is.EqualTo(DefconReadoutModel.LedgerCell.Dark));
 		}
 
 		[Test]
-		public void AGrantOnABandAlreadyHeldStillDrawsAsAGrant()
+		public void AReloadingBandIsNotDrawnAsAReadyOne()
 		{
-			// It happens: a side hit at 20 kt while already holding 20 kt permanently gets its window
-			// RESTARTED on a band it owns. The grant is the honest reading -- it is the thing that
-			// expires, and the expiry is what the player has to act on before it does.
-			Assert.That(
-				DefconReadoutModel.CellFor(NuclearRung.TwentyKiloton, (int)NuclearRung.TwentyKiloton,
-					(int)NuclearRung.TwentyKiloton, true, true, false),
-				Is.EqualTo(DefconReadoutModel.LedgerCell.Window));
+			// Held and Charging are the same PERMISSION and different FACTS, and the difference is
+			// the entire value of putting the enemy's row on screen: a side whose arsenal is coming
+			// back in forty seconds is not covered right now, and a ledger drawing them lit would say
+			// they were.
+			Assert.That(DefconReadoutModel.CellFor(NuclearRung.Kiloton, (int)NuclearRung.Kiloton, true, true),
+				Is.EqualTo(DefconReadoutModel.LedgerCell.Charging));
+
+			Assert.That(DefconReadoutModel.CellFor(NuclearRung.Kiloton, (int)NuclearRung.Kiloton, true, false),
+				Is.EqualTo(DefconReadoutModel.LedgerCell.Held));
 		}
 
 		[Test]
-		public void ARegeneratingBandIsNotDrawnAsAReadyOne()
+		public void TheRowsClockSaysREADYRatherThanZero()
 		{
-			// Held and Charging are the same PERMISSION and different FACTS, and the difference is
-			// the entire value of putting the enemy's row on screen: a side whose 20 kt is coming back
-			// in forty seconds is not covered right now, and a ledger drawing both as lit would say
-			// they were.
-			Assert.That(
-				DefconReadoutModel.CellFor(NuclearRung.Kiloton, (int)NuclearRung.Kiloton, (int)NuclearRung.Hold,
-					false, true, true),
-				Is.EqualTo(DefconReadoutModel.LedgerCell.Charging));
-
-			Assert.That(
-				DefconReadoutModel.CellFor(NuclearRung.Kiloton, (int)NuclearRung.Kiloton, (int)NuclearRung.Hold,
-					false, true, false),
-				Is.EqualTo(DefconReadoutModel.LedgerCell.Held));
+			// "READY" AND NOT "0:00" OR AN EM DASH. The dash is this panel's other convention and it
+			// means "this rung ends on an event rather than a clock" -- an ABSENCE of a countdown.
+			// Here the countdown has RUN OUT, which is the opposite fact and the one the player has
+			// been waiting for, so it is worth a word. A row reading 0:00 forever would also be a
+			// readout inventing a countdown, which is the fault the -1 rule in v1 existed to avoid.
+			Assert.That(DefconReadoutModel.LedgerReady, Is.EqualTo("READY"));
+			Assert.That(DefconReadoutModel.LedgerReady, Is.Not.EqualTo(DefconReadoutModel.NoClock));
+			Assert.That(DefconReadoutModel.LedgerReady, Does.Not.Contain(":"));
 		}
 
 		[Test]
@@ -287,21 +298,22 @@ namespace OpenRA.Test
 		[Test]
 		public void TheArmedBannerNamesBothOptionsAndUsesAProvenGlyph()
 		{
-			var line = DefconReadoutModel.ArmedBannerLine((int)NuclearRung.TwentyKiloton, "3:00");
+			var line = DefconReadoutModel.ArmedBannerLine((int)NuclearRung.TwentyKiloton);
 
-			Assert.That(line, Is.EqualTo("20 kt available for 3:00 — reply or hold"));
+			Assert.That(DefconReadoutModel.ArmedBannerTitle, Is.EqualTo("ESCALATED"));
+			Assert.That(line, Is.EqualTo("20 kt now available"));
 
-			// NAMING BOTH OPTIONS IS THE POINT. The ruling's strategic claim is that holding is often
-			// the winning move, so a banner reading "reply now" would be the HUD urging the player to
-			// take the escalation the whole design is trying to make a deliberate choice.
-			Assert.That(line, Does.Contain("hold"));
+			// NO CLOCK AND NO DEADLINE, WHICH IS THE v2 CHANGE. This read "20 kt available for 3:00 —
+			// reply or hold" because a retaliation grant expired; a LEVEL does not, so a banner that
+			// counted down would be the HUD urging the player to take an escalation the whole design
+			// is trying to make a deliberate choice. Pinned as an absence because the natural
+			// "improvement" is to put a number back in a line that has room for one.
+			Assert.That(line, Does.Not.Contain(":"), "the escalation banner has grown a countdown");
+			Assert.That(line, Does.Not.Contain("reply"));
 
-			// THE SEPARATOR IS AN EM DASH AND NOT A MIDDLE DOT. The em dash is proven in this font at
-			// this size -- NoClock ships it and the demo's frame 03 exists to confirm it draws as a
-			// dash rather than a missing-glyph box. U+00B7 has never been confirmed in a frame, so it
-			// has no place in a message the player has four seconds to read.
-			Assert.That(line, Does.Not.Contain("\u00b7"));
-			Assert.That(line, Does.Contain("—"));
+			// THE TITLE IS NOT "ARMED". A level rise is not a weapon being handed over for a minute --
+			// it is the match's ceiling moving, permanently -- and the word is the ruling.
+			Assert.That(DefconReadoutModel.ArmedBannerTitle, Is.Not.EqualTo("ARMED"));
 		}
 
 		[Test]
@@ -365,18 +377,28 @@ namespace OpenRA.Test
 			var shut = DefconReadoutModel.NuclearFootLine(false, false);
 			Assert.That(shut, Does.Contain("may be fired yet"));
 
+			// THE READY LINE STATES BOTH COSTS OF FIRING, which is the whole decision the player is
+			// being asked to make: your team reloads, and their ceiling goes up for good.
 			var open = DefconReadoutModel.NuclearFootLine(true, false);
-			Assert.That(open, Does.Contain("other side"),
-				"the released line must say that firing arms the OTHER side");
-			Assert.That(open, Does.Not.Contain("Each use raises it"),
-				"the shared-ladder wording is back");
+			Assert.That(open, Is.EqualTo("Firing puts your whole team on cooldown and raises the enemy's level."));
+			Assert.That(open, Does.Contain("team"), "the cooldown is side-wide and the line must say so");
+			Assert.That(open, Does.Contain("enemy"), "firing raises the ENEMY's level, never your own");
 
-			var window = DefconReadoutModel.NuclearFootLine(true, true);
-			Assert.That(window, Does.Not.EqualTo(open), "an open window must read differently from a shut one");
-			Assert.That(window, Does.Contain("window"));
+			// TWO DEAD WORDINGS, PINNED AS ABSENCES. "Each use raises it" was decision 06's shared
+			// pressure ladder, where firing raised BOTH sides -- a player who read it and fired to
+			// climb handed the climb to their opponent. "window" was v1's retaliation grant, which no
+			// longer exists at all.
+			Assert.That(open, Does.Not.Contain("Each use raises it"), "the shared-ladder wording is back");
 
-			foreach (var line in new[] { shut, open, window })
+			var cooling = DefconReadoutModel.NuclearFootLine(true, true);
+			Assert.That(cooling, Is.Not.EqualTo(open), "a reloading side must read differently from a ready one");
+			Assert.That(cooling, Does.Contain("reloading"));
+
+			foreach (var line in new[] { shut, open, cooling })
+			{
 				Assert.That(line, Is.Not.Null.And.Not.Empty);
+				Assert.That(line, Does.Not.Contain("window"), "the retaliation window's wording is back");
+			}
 		}
 
 		[Test]

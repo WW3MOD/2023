@@ -35,34 +35,50 @@
 -- kill tick is the one thing here that cannot be predicted. Guessing it is how a capture comes
 -- back showing the state before or after the thing it was supposed to catch.
 --
--- ---- THE SECOND HALF, ADDED 2026-09-13 WITH THE LEDGER ------------------------------------
--- Frames 01-05 were the strip. 06-09 are the NUCLEAR LEDGER and the ARMED moment, and they are
--- the reason this file now ends on Test.Skip (see below).
+-- ---- THE SECOND HALF, ADDED 2026-09-13 WITH THE LEDGER, RE-SCRIPTED 2026-09-15 FOR v2 --------
+-- Frames 01-05 are the strip. 06-09 are the NUCLEAR LEDGER and the ESCALATED moment, and they are
+-- the reason this file ends on Test.Skip (see below).
 --
---     K+1200  the release gate opens: both sides hold 1 kt permanently
---     K+1215  FRAME 06 -- the NUCLEAR RELEASE banner, and both ledger rows lit at 1 kt
+--     K+1200  the release gate opens: both sides reach level 1
+--     K+1215  FRAME 06 -- the NUCLEAR RELEASE banner, both ledger rows lit at 1 kt, both READY
 --     K+1260  RUSSIA fires a 1 kt at empty ground in the far corner
---     K+1262  ...and the SECOND 1 kt, because the band holds two (see below)
---     K+1290  FRAME 07 -- the ARMED banner, and USA's row carrying a 20 kt window
---     K+1700  FRAME 08 -- mid-window: the banner gone, the window clock visibly down, and
---             Russia's own 1 kt still regenerating from the shot it took
+--     K+1290  FRAME 07 -- the ESCALATED banner, USA's row now lit to 20 kt, Russia's row dimmed
+--             with its cooldown counting
+--     K+1700  FRAME 08 -- the banner gone, Russia's clock visibly down, USA's still READY
 --     K+1760  FRAME 08b -- the readout LIFTED clear of the cargo panel (added 2026-09-14)
---     K+2162  Russia's 1 kt regeneration completes (rules.yaml compresses it to 900 ticks)
---     K+2260  the window lapses
---     K+2300  FRAME 09 -- the 20 kt box dark again and the expiry line in the transients panel
+--     K+2160  Russia's cooldown ends (rules.yaml compresses it to 900 ticks)
+--     K+2300  FRAME 09 -- BOTH rows READY, and USA's 20 kt box STILL LIT
 --     K+2400  Test.Skip
 --
--- ---- WHY RUSSIA FIRES AND NOT USA, WHICH IS NOT WHAT YOU WOULD EXPECT ----------------------
--- ANY LAUNCH ARMS THE OTHER SIDE -- that is the whole rule -- so the ARMED banner appears on the
--- screen of whoever was SHOT AT, never the firer's. This map makes USA the playable slot, so USA
--- is the local player and USA's screen is the only one a capture can see. A demo where USA fired
--- would therefore produce the banner on a screen nobody is looking at, and the capture would come
--- back showing a transient line and no banner at all.
+-- ---- WHAT CHANGED AT v2, FRAME BY FRAME, BECAUSE THE OLD CAPTIONS WERE ABOUT A DEAD MODEL ----
+-- ONE SHOT, NOT TWO. This demo used to fire BOTH 1 kt warheads two ticks apart, because the
+-- cooldown was per BAND and Russia held two powers in it (the 9M729 and, under `powers-sandbox`,
+-- America's B61) -- so one shot left the band loaded and the Charging cell never appeared. A
+-- cooldown is now per SIDE, so one shot silences everything Russia holds and the second launch
+-- would be refused rather than merely redundant.
 --
--- So Russia takes the shot and USA is the victim. That also makes frame 08 the more interesting
--- one: the two rows are ASYMMETRIC -- USA holding 1 kt with a 20 kt grant ticking down, Russia
--- holding 1 kt and nothing else -- which is the exact position the ledger exists to make readable,
--- and the one a single-row readout could not show at all.
+-- FRAME 07's SECOND ROW IS THE NEW PICTURE. Under v1 the interesting cell was USA's 20 kt drawn in
+-- the GRANT style with a pulsing border and its own countdown. There is no grant: USA's 20 kt is
+-- an ordinary lit box, permanently, and the asymmetry has moved to the CLOCK COLUMN -- USA READY,
+-- Russia counting.
+--
+-- FRAME 09 IS THE RATCHET AND IS NOW THE MOST INFORMATIVE FRAME IN THE FILE. It used to show the
+-- grant LAPSING: the 20 kt box going dark again and a "20 kt grant expired" line in the transients
+-- panel. Under v2 the box MUST STILL BE LIT -- levels never fall -- and what has changed instead is
+-- Russia's clock reading READY again. A frame showing that box dark is a level that fell, which is
+-- the one thing this model does not do.
+--
+-- ---- WHY RUSSIA FIRES AND NOT USA, WHICH IS NOT WHAT YOU WOULD EXPECT ----------------------
+-- ANY LAUNCH RAISES THE OTHER SIDE -- that is the whole rule -- so the ESCALATED banner appears on
+-- the screen of whoever was SHOT AT, never the firer's. This map makes USA the playable slot, so
+-- USA is the local player and USA's screen is the only one a capture can see. A demo where USA
+-- fired would therefore produce the banner on a screen nobody is looking at, and the capture would
+-- come back showing a transient line and no banner at all.
+--
+-- So Russia takes the shot and USA is the victim. That also makes frames 07 and 08 the interesting
+-- ones: the two rows are ASYMMETRIC in BOTH dimensions the ledger has -- USA lit to 20 kt and
+-- READY, Russia lit to 1 kt and reloading -- which is the exact position the ledger exists to make
+-- readable, and the one a single-row readout could not show at all.
 --
 -- ---- THE THIRD HALF, ADDED 2026-09-14 WITH THE MOVE TO THE BOTTOM-RIGHT --------------------
 -- The readout used to dock bottom-LEFT. It now docks bottom-RIGHT, which is a corner two panels
@@ -99,31 +115,27 @@ local Ground = { X = 49, Y = 10 }
 -- 1,1,96,80 bounds and about 66 cells away.
 local AimPoint = { X = 80, Y = 60 }
 
--- ---- THE 1 kt BAND HOLDS TWO WARHEADS, AND BOTH HAVE TO BE SPENT ---------------------------
--- CORRECTED 2026-09-13 AFTER READING THE FIRST GREEN CAPTURE. This demo used to fire ONE warhead
--- and its frame notes claimed the firer's 1 kt box would go Charging. It does not, and the ledger
--- was right: a BAND is not a WEAPON. NuclearReleaseLadder's Kiloton band runs to 1000 t inclusive
--- and TWO powers fall inside it --
+-- ONE SHOT IS ENOUGH SINCE v2, AND IT WAS NOT BEFORE. This demo used to fire TWO 1 kt warheads two
+-- ticks apart, and the reason is worth keeping because it explains why the pair is gone rather than
+-- leaving a reader to wonder. Under `powers-sandbox` Russia holds BOTH warheads in the Kiloton band
+-- (NuclearReleaseLadder's ceiling is 1000 t inclusive) --
 --
 --     MissileStrikePower@B61Low     300 t   cameo "0.3 KT"
 --     MissileStrikePower@Ru9M729   1000 t   cameo "1 KT"
 --
--- -- and NEITHER carries a faction prerequisite (nuclear-arsenal.yaml declares none for any of its
--- ten powers), so BOTH SIDES HOLD BOTH. Frame 07 of the first green run shows a "1 KT" cameo in
--- USA's own support-power column, which is the Russian 9M729: direct evidence from the capture.
+-- -- and v1's cooldown was per BAND, computed as the SMALLEST remaining across the side, so one
+-- shot left the other warhead loaded, the band reported 0, and the Charging cell never appeared at
+-- all. Frame 07 of the 2026-09-13 capture is the direct evidence: a "1 KT" cameo sitting in USA's
+-- own column.
 --
--- So after one shot the firer still has a loaded warhead in that band, and
--- NuclearExchange.RegenTicksRemainingForSide -- which takes the SMALLEST remaining across the side,
--- because what a side can do is whatever comes back soonest -- correctly reports 0 and the box
--- correctly stays lit. Spending BOTH is what empties the band and is the only way this capture can
--- ever show the Charging cell at all.
-local RU_1KT_A = "Ru9M729Strike"   -- 1000 t, the band ceiling
-local RU_1KT_B = "B61LowStrike"    -- 300 t, and Russia holds it too
+-- A cooldown is now per SIDE. One shot silences everything Russia holds, so the second launch is
+-- not merely redundant -- NuclearExchangeState.ReportLaunch would REFUSE it, and the refusal would
+-- land in debug.log as an alarm about a power that should not have been ready.
+local RU_1KT = "Ru9M729Strike"   -- 1000 t, the band ceiling
 
--- 1 minute at the mod's 60 ms timestep, matching rules.yaml's RetaliationWindowDefault: 1.
--- TICKS, NOT TestHarness SECONDS: that helper counts 25 ticks to the second against a mod running
--- at 16.67, and every boundary in the second half is a tick count the engine computed from minutes.
-local WINDOW_TICKS = 1000
+-- rules.yaml compresses the 1 kt SIDE COOLDOWN to this from the shipped 5000 (5:00). TICKS, NOT
+-- TestHarness SECONDS: that helper counts 25 ticks to the second against a mod running at 16.67.
+local COOLDOWN_TICKS = 900
 
 local USA
 local Russia
@@ -139,7 +151,6 @@ local Rider
 -- What Test.ActivateSupportPower returned, carried into the frame notes so a capture that shows no
 -- banner says WHY on its own caption rather than sending a reader to lua.log.
 local FireStatus = "not-attempted"
-local FireStatusB = "not-attempted"
 
 WorldLoaded = function()
 	USA = Player.GetPlayer("USA")
@@ -231,63 +242,59 @@ WorldLoaded = function()
 					"in the NUCLEAR BLUE -- not the DEFCON red -- reading NUCLEAR RELEASE over " ..
 					"'1 kt available to both sides', its borders reaching both screen edges and " ..
 					"the two lines centred as a block. Underneath, the ledger's FIRST box is now " ..
-					"lit on BOTH rows and the other four are dark on both. FAIL if the band is " ..
+					"lit on BOTH rows and the other four are dark on both, with BOTH rows' clock " ..
+					"columns reading READY. FAIL if the band is " ..
 					"red (it would mean the DEFCON palette leaked into a nuclear event), if it " ..
-					"reads as a dialog with visible ends, or if the rows disagree about 1 kt -- " ..
-					"release is simultaneous and symmetric and the two rows must match exactly.")
+					"reads as a dialog with visible ends, or if the rows disagree in either the " ..
+					"boxes or the clock -- release is simultaneous and symmetric and the two rows " ..
+					"must match exactly.")
 			end)
 
-			-- RUSSIA FIRES, NOT USA. See the header: the ARMED banner appears on the screen of
+			-- RUSSIA FIRES, NOT USA. See the header: the ESCALATED banner appears on the screen of
 			-- whoever was shot at, and USA is the only screen a capture can see.
 			--
-			-- BOTH 1 kt WARHEADS, TWO TICKS APART, because the band holds two and one shot leaves it
-			-- loaded. Two ticks and not two hundred: the second launch RESTARTS USA's retaliation
-			-- window (decision 01 -- being shot at again re-opens the reply), so a long gap would
-			-- push the lapse past the end of the run and move every frame after this one. At two
-			-- ticks the restart is inside the first banner's own hold and the schedule is unchanged.
+			-- ONE WARHEAD. The pair this used to fire was v1's per-band cooldown working around
+			-- Russia holding two powers in the Kiloton band; a cooldown is now per SIDE and a second
+			-- launch would be refused. See the header.
 			Trigger.AfterDelay(1260, function()
-				FireStatus = Test.ActivateSupportPower(Russia, RU_1KT_A, CPos.New(AimPoint.X, AimPoint.Y))
-			end)
-
-			Trigger.AfterDelay(1262, function()
-				FireStatusB = Test.ActivateSupportPower(Russia, RU_1KT_B, CPos.New(AimPoint.X + 3, AimPoint.Y + 3))
+				FireStatus = Test.ActivateSupportPower(Russia, RU_1KT, CPos.New(AimPoint.X, AimPoint.Y))
 			end)
 
 			-- ---- USA IS ARMED ----------------------------------------------------------------
 			-- 30 ticks after the shot. The grant crosses a world trait, a player trait and a
 			-- condition before the banner can see it, and NuclearExchangeInfo.GrantRetryTicks is 30.
 			Trigger.AfterDelay(1290, function()
-				TestHarness.Screenshot("07-armed-banner",
+				TestHarness.Screenshot("07-escalated-banner",
 					"THE FRAME THIS WHOLE SECOND HALF EXISTS FOR. USA has just been shot at. " ..
-					"expects: a nuclear-blue full-width band reading ARMED over '20 kt available " ..
-					"for 1:00 - reply or hold', with a real EM DASH between the clock and 'reply' " ..
-					"rather than a missing-glyph box. In the ledger below, the YOU row's 20 kt box " ..
-					"is drawn in the grant style -- a red-brown fill with a PULSING border, " ..
-					"visibly different from the lit blue 1 kt box beside it -- and carries its own " ..
-					"m:ss under the label. The ENEMY row's 1 kt box has gone CHARGING -- still lit " ..
-					"but DIMMER, carrying its own regeneration clock, because Russia has just spent " ..
-					"BOTH warheads in that band. It takes both: one shot leaves the band loaded and " ..
-					"the box correctly stays bright. " ..
-					"FAIL if there is no banner (the edge detection never fired), if the YOU row's " ..
-					"20 kt box looks identical to its 1 kt box (Window collapsed into Held, and " ..
-					"the player cannot tell a grant from a holding), or if both rows changed -- " ..
-					"firing arms the OTHER side and must leave the firer's row alone. " ..
-					"Fire orders returned: " .. FireStatus .. " / " .. FireStatusB)
+					"expects: a nuclear-blue full-width band reading ESCALATED over '20 kt now " ..
+					"available' -- NO clock and NO 'reply or hold' in that line, because a level " ..
+					"does not expire. In the ledger below, the YOU row now has TWO lit boxes " ..
+					"(1 kt and 20 kt, identical in style -- there is no grant style any more) and " ..
+					"its clock column reads READY. The ENEMY row has gone CHARGING: its 1 kt box " ..
+					"still lit but DIMMER, and its clock column counting down from ~0:54. " ..
+					"FAIL if there is no banner (the edge detection never fired); if the banner " ..
+					"line carries a countdown (v1's copy is back); if the YOU row's clock is " ..
+					"counting (firing raises the OTHER side and must leave the firer's ROW alone " ..
+					"-- only the firer pays a cooldown, and the firer is Russia); or if only ONE " ..
+					"box on the ENEMY row dimmed (a cooldown is side-wide, so every box on that " ..
+					"row must dim together). " ..
+					"Fire order returned: " .. FireStatus)
 			end)
 
 			-- ---- MID-WINDOW ------------------------------------------------------------------
 			Trigger.AfterDelay(1700, function()
 				TestHarness.Screenshot("08-ledger-asymmetric",
-					"THE LEDGER ALONE, banner long gone, ~440 ticks (~26 s) into a 1000-tick " ..
-					"window. expects: the two rows ASYMMETRIC and readable as such at a glance -- " ..
-					"YOU with 1 kt lit and 20 kt pulsing on a clock now reading roughly 0:34, " ..
-					"ENEMY with 1 kt still CHARGING at roughly 0:28 and four dark boxes -- THREE " ..
-					"distinct box styles on screen at once, which is the whole claim of this " ..
-					"design. The nuclear block's top-right value " ..
-					"slot should read '20 kt FOR m:ss' and its number must AGREE with the small " ..
-					"one in the box. FAIL if the two clocks disagree, if the window clock has not " ..
-					"visibly fallen since frame 07, or if the box labels have shifted position " ..
-					"between a box that has a clock and one that does not.")
+					"THE LEDGER ALONE, banner long gone, ~440 ticks (~26 s) into Russia's " ..
+					"900-tick cooldown. expects: the two rows ASYMMETRIC IN BOTH DIMENSIONS and " ..
+					"readable as such at a glance -- YOU with 1 kt and 20 kt lit and its clock " ..
+					"reading READY, ENEMY with only 1 kt lit, DIMMED, and its clock counting " ..
+					"roughly 0:28. That is the whole claim of the design: one glance says what " ..
+					"each side HOLDS and whether it can USE it. The nuclear block's top-right " ..
+					"value slot should read the viewer's own level, '20 kt', with no countdown " ..
+					"beside it. FAIL if the ENEMY clock has not visibly fallen since frame 07, if " ..
+					"the YOU clock is counting at all, if any box carries its own small clock " ..
+					"(v1 drew one per box; v2 draws one per ROW), or if the value slot shows a " ..
+					"countdown.")
 			end)
 
 			-- ---- THE READOUT GETS OUT OF THE CARGO PANEL'S WAY -------------------------------
@@ -347,29 +354,33 @@ WorldLoaded = function()
 				end
 			end)
 
-			-- ---- THE GRANT LAPSES UNUSED -----------------------------------------------------
-			-- The window opened at ~1260 and runs WINDOW_TICKS; 40 ticks of slack past it.
-			Trigger.AfterDelay(1260 + WINDOW_TICKS + 40, function()
-				TestHarness.Screenshot("09-grant-expired",
-					"AFTER THE LAPSE. expects: the YOU row's 20 kt box DARK again and matching the " ..
-					"ENEMY row exactly, the ENEMY row's 1 kt box RECOVERED to plain lit with no " ..
-					"clock (its compressed 900-tick regeneration ran out at ~K+2162), the value " ..
-					"slot back to plain '1 kt', the foot line back to " ..
-					"the no-window wording, and the line '20 kt grant expired.' in the transients " ..
-					"panel at the bottom-left. FAIL if the box is still lit or still pulsing -- " ..
-					"the permission is revoked at lapse and a box that stayed on would be offering " ..
-					"a shot the condition layer has already taken back. A MISSING TRANSIENT LINE " ..
-					"is a softer fault: the panel holds its lines for a limited time, so check the " ..
-					"tick gap before calling it.")
+			-- ---- THE COOLDOWN ENDS AND THE LEVEL DOES NOT ------------------------------------
+			-- Russia fired at ~1260 and its cooldown runs COOLDOWN_TICKS; 140 ticks of slack past it.
+			Trigger.AfterDelay(1260 + COOLDOWN_TICKS + 140, function()
+				TestHarness.Screenshot("09-cooldown-ended",
+					"THE RATCHET, AND THE MOST INFORMATIVE FRAME IN THE FILE. expects: the YOU " ..
+					"row's 20 kt box STILL LIT -- levels never fall, so what USA gained by being " ..
+					"shot at is USA's for the rest of the match -- the ENEMY row's 1 kt box " ..
+					"RECOVERED to plain lit, and BOTH clock columns reading READY. The value slot " ..
+					"still reads '20 kt' and the foot line is the ready wording ('Firing puts your " ..
+					"whole team on cooldown and raises the enemy's level.'). A " ..
+					"'Nuclear cooldown ended.' line should be in the transients panel at the " ..
+					"bottom-left. " ..
+					"FAIL, and this is the failure the frame exists to catch, if the YOU row's " ..
+					"20 kt box has gone DARK: that is a level falling, which this model does not " ..
+					"do, and it would be v1's one-shot window surviving under a new name. FAIL " ..
+					"ALSO if either clock is still counting. A MISSING TRANSIENT LINE is a softer " ..
+					"fault: the panel holds its lines for a limited time, so check the tick gap " ..
+					"before calling it.")
 			end)
 
 			-- Clean exit, after the last capture has had time to flush. Skip and not Pass: nothing
 			-- here is asserted and a person decides what the frames show.
-			Trigger.AfterDelay(1260 + WINDOW_TICKS + 140, function()
-				Test.Skip("eyeball: the nuclear ledger -- release lights both rows, Russia's two " ..
-					"1 kt warheads arm USA with a 20 kt window and leave its own band charging, " ..
-					"the window runs down and lapses. Fire orders returned: " ..
-					FireStatus .. " / " .. FireStatusB)
+			Trigger.AfterDelay(1260 + COOLDOWN_TICKS + 240, function()
+				Test.Skip("eyeball: the nuclear ledger -- release lights both rows READY, Russia's " ..
+					"1 kt raises USA to 20 kt permanently and puts Russia's whole row on one " ..
+					"cooldown, the cooldown runs out and USA's new box stays lit. Fire order " ..
+					"returned: " .. FireStatus)
 			end)
 		end)
 

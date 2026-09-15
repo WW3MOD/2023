@@ -1,4 +1,4 @@
-# The band-regeneration autotest's overrides.
+# The side-cooldown autotest's overrides.
 
 World:
 	-StartGameNotification:
@@ -8,11 +8,11 @@ World:
 	-MapStartingLocations:
 	-CrateSpawner:
 	LuaScript:
-		Scripts: test-helpers.lua, test-nuclear-band-regen.lua
+		Scripts: test-helpers.lua, test-nuclear-side-cooldown.lua
 
 	# THE MODE. Escalation rather than the shipped Skirmish default: outside Escalation there is no
 	# free-timer economy at all -- NuclearExchangeState.IsFreeTimerPower returns false, every band
-	# comes from NuclearUnlockClock's purchase schedule, and the regeneration this scenario measures
+	# comes from NuclearUnlockClock's purchase schedule, and the cooldown this scenario measures
 	# does not exist.
 	#
 	# STARTS AT DEFCON 1 with a ten-tick first-warheads delay. The release gate is not what is under
@@ -23,11 +23,16 @@ World:
 		NuclearReleaseDelayTicksOverride: 10
 
 	NuclearExchange:
-		# THE 1 KT BAND'S REGENERATION, COMPRESSED from the shipped 3000 (3:00) to 300 (18 s). What
-		# is under test is a MECHANISM -- does one shot put a sibling warhead on the clock -- and
-		# three real minutes of waiting would measure nothing extra. The other three bands are left
-		# at their shipped values: only the 1 kt band is ever fired here.
-		KilotonRegenTicks: 300
+		# THE 1 KT BAND'S SIDE COOLDOWN, COMPRESSED from the shipped 5000 (5:00) to 300 (18 s). What
+		# is under test is a MECHANISM -- does one player's shot silence a TEAMMATE's warhead, and
+		# does it stop at the team boundary -- and five real minutes of waiting would measure
+		# nothing extra. The other three entries are left at their shipped values: only the 1 kt
+		# band is ever fired here, so no other entry can be reached.
+		#
+		# RENAMED FROM KilotonRegenTicks WITH EXCHANGE v2 (2026-09-15) AND THE QUANTITY CHANGED WITH
+		# THE NAME: it used to be "how long until THIS BAND comes back for this side", one of four
+		# independent clocks. It is now "how long until ANY band comes back for this side".
+		KilotonCooldownTicks: 300
 
 	# THE HOST'S ARSENAL CHECKBOX ON, THE SANDBOX OVERRIDE OFF, AND THE SECOND HALF IS THE WHOLE
 	# POINT OF THIS SCENARIO. `powers-sandbox` hands EVERY player all three tiers

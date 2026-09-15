@@ -2,7 +2,7 @@ MapFormat: 12
 
 RequiresMod: ww3mod
 
-Title: TEST: firing arms the other side, and the retaliation window lapses
+Title: TEST: firing raises the enemy's level and puts your whole side on cooldown
 
 Author: WW3MOD
 
@@ -16,35 +16,43 @@ Visibility: MissionSelector
 
 Categories: Test
 
-# WHAT THIS MEASURES: the two edges of the 2026-09-13 nuclear exchange ruling that nothing else in
-# the tree can see, both read off the SUPPORT POWER BIN rather than off any new binding.
+# WHAT THIS MEASURES: the three edges of the 2026-09-15 nuclear exchange ruling (decision 03, spec
+# 02) that nothing else in the tree can see, all read off the SUPPORT POWER BIN rather than off any
+# new binding.
 #
-#   PARITY  -- USA fires 1 kt; Russia's 20 kt power must become READY, and USA's own 20 kt power
-#              must NOT. Under decision 06's shared pressure ladder both would have opened
-#              together, so this single pair of readings is what separates the two models.
-#   WINDOW  -- that 20 kt grant is TIME-BOXED. One minute later it must be gone from Russia's bin
-#              again, with Russia's 1 kt power still there: the parity is permanent, the window is
-#              not.
+#   RATCHET  -- USA fires 1 kt; Russia's 20 kt power must become READY, and USA's own 20 kt power
+#               must NOT. Under decision 06's shared pressure ladder both would have opened
+#               together, so this single pair of readings is what separates the two models.
+#   COOLDOWN -- firing silences the firer's WHOLE SIDE, at every band, not the band it fired from.
+#               Under v1 a 1 kt shot left 20/50/100 kt loaded, which is the "too many nukes in
+#               flight" the user ruled against after a real match.
+#   THE TWO GATES ARE SEPARATE -- a side escalated WHILE RELOADING gets the new band DRAWN and NOT
+#               FIREABLE. Being shot at while you reload is the normal case in this model, and the
+#               natural implementation of a level rise (make the new bands ready) opens a free shot
+#               the cooldown was meant to deny. Phases D and G2 are that assertion, at the bottom
+#               of the ladder and at the top, where two different code paths do the arming.
 #
 # WHY THE BIN AND NOT A TRAIT READ. Test.GetSupportPowerState reads SupportPowerInstance.Disabled,
 # which is the same predicate SupportPowersWidget filters its icon list on
 # (SupportPowersWidget.cs:136) — so 'ready' here means a player would see a cameo they could click,
 # which is the thing the ruling is actually about. It also folds in the half of the feature a state
 # read would miss: every nuclear power in the mod is RequiresPurchase, so a band that is merely
-# PERMITTED is a shop entry and a bill. 'ready' means the window handed over a loaded warhead.
+# PERMITTED is a shop entry and a bill. 'ready' means the exchange handed over a loaded warhead.
 #
-# ONE MINUTE, NOT THREE. rules.yaml sets RetaliationWindowDefault: 1 — the shortest value the
-# dropdown offers, so this is a shipped setting rather than a test-only door. 1 minute is 1000 ticks
-# at the mod's 60 ms timestep (NuclearUnlockSchedule.TicksForMinutes multiplies before dividing:
-# 1 * 60 * 1000 / 60 = 1000, NOT the 960 that `minutes * 60 * (1000 / timestep)` produces).
+# THE COOLDOWNS ARE COMPRESSED IN rules.yaml (300/320/340/360 against a shipped 5000/7000/9000/
+# 12000) and the four are kept DISTINCT on purpose — see that file's note. The SHIPPED defaults are
+# pinned by NuclearExchangeStateTest.TheShippedCooldownsAreTheUsersRuling, not here.
 #
 # THE MATCH STARTS AT DEFCON 1 with a 10-tick first-warheads delay, because the release gate is not
 # what is under test here and ten real minutes of DEFCON 3 would be ten minutes of nothing.
 #
-# NO VICTIM ACTOR AND NOTHING IS AIMED AT ANYTHING THAT MATTERS. The exchange arms the other side
-# "wherever it lands" — there is no damage attribution in this model, which is exactly what
-# decision 01 rejected from decision 14 — so the aim point is deliberately empty ground. A scenario
-# that shot something would be asserting a rule this model does not have.
+# NO VICTIM ACTOR AND NOTHING IS AIMED AT ANYTHING THAT MATTERS. The exchange escalates the other
+# side "wherever it lands" — there is no damage attribution in this model, which is exactly what
+# decision 01 rejected from decision 14 and which v2 keeps — so the aim point is deliberately empty
+# ground. A scenario that shot something would be asserting a rule this model does not have.
+#
+# FIVE WARHEADS LAND ON THIS MAP, where the v1 version of this scenario fired one. Both Supply
+# Routes still survive all five, for the target-type reason below rather than for distance.
 #
 # BOTH SUPPLY ROUTES SURVIVE whatever lands, and that is the target-type table rather than the
 # distance: SUPPLYROUTE carries `Targetable.TargetTypes: NoAutoTarget`, which no Atomic warhead

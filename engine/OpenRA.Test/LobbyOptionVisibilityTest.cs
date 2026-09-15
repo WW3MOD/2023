@@ -83,13 +83,16 @@ namespace OpenRA.Test
 		{
 			// NuclearReleaseLadder.cs:199 returns immediately when the mode is not Escalation, and
 			// NuclearExchange's own Desc calls itself a "STRICT NO-OP OUTSIDE Escalation" -- so these
-			// four are inert in BOTH of the other modes, not merely in Skirmish.
+			// three are inert in BOTH of the other modes, not merely in Skirmish.
+			//
+			// THREE, NOT FOUR, SINCE EXCHANGE v2 (2026-09-15): the retaliation window dropdown went
+			// with the window itself. It was named here by CONSTANT so that its deletion would break
+			// this file rather than leave a stale literal behind, which is exactly what happened.
 			var escalationOnly = new[]
 			{
 				DefconEscalationInfo.NoRushOptionId,
 				DefconEscalationInfo.FirstWarheadsOptionId,
 				NuclearExchangeInfo.PostureOptionId,
-				NuclearExchangeInfo.RetaliationWindowOptionId,
 			};
 
 			foreach (var id in escalationOnly)

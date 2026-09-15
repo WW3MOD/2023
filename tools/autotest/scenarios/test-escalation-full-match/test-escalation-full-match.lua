@@ -177,7 +177,9 @@ WorldLoaded = function()
 	end
 
 	-- `reason=` is a NuclearBotReason enum name; TestGlobal interpolates the enum, so the token is
-	-- e.g. NotReleased / NotLosing / RateLimited / Permanent / Retaliation / FinalExchange.
+	-- e.g. NotReleased / NotLosing / RateLimited / NoReadyBand / HighestAllowed / FinalExchange.
+	-- (`Permanent` and `Retaliation` were v1's two firing reasons and were deleted at exchange v2 on
+	-- 2026-09-15, which left one firing branch: the highest band the side's LEVEL allows.)
 	-- "absent" is the whole-string answer when the module is not on the player at all.
 	local function readNuclear(b)
 		local s = Test.GetBotNuclearState(b.p)
@@ -380,10 +382,15 @@ WorldLoaded = function()
 				.. "projection is wrong",
 				t, endingState, TIME_LIMIT, TIME_LIMIT)
 		elseif endingAt < TIME_LIMIT - LATE_SLACK then
-			fault("the ending began at tick %d, well before the %d-tick time limit. Nothing else "
-				.. "should open it in this scenario -- a bot firing a game-ender would, but neither "
-				.. "holds one outside a retaliation window. State at the time: %q",
-				endingAt, TIME_LIMIT, endingSeenState)
+			fault("the ending began at tick %d, well before the %d-tick time limit. A bot firing a "
+				.. "game-ender is the one other thing that opens it, and since exchange v2 that is "
+				.. "REACHABLE rather than impossible: reaching level 5 needs a 100 kt to land on "
+				.. "you, and MayFireGameEnder is true on both AI twins. At shipped cooldowns "
+				.. "(5/7/9/12 min) a four-launch climb inside %d ticks is improbable, but read "
+				.. "debug.log for `NUCLEAR LAUNCH` lines before assuming the time limit misfired -- "
+				.. "under v1 this could not happen at all, because the top rung was only ever a "
+				.. "one-minute window grant. State at the time: %q",
+				endingAt, TIME_LIMIT, TIME_LIMIT, endingSeenState)
 		else
 			note("ending began at tick %d (time limit %d), state %s", endingAt, TIME_LIMIT, endingSeenState)
 		end

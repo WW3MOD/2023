@@ -12,8 +12,8 @@ the no-rush clock past the end of its own run. Nobody had run the whole chain --
 both sides.
 
 NO PHASE CLOCK IS COMPRESSED. no-rush 5 min (5000 ticks), first warheads 10 min
-(10000), retaliation window 3 min, Flexible posture, all four band regen timers:
-every one inherited at its shipped default. Wall clock is bought with
+(10000), Flexible posture, all four side cooldowns (5/7/9/12 min): every one
+inherited at its shipped default. Wall clock is bought with
 run-test.sh --speed instead, which divides world.Timestep at IWorldLoaded -- AFTER
 DefconEscalation's constructor has converted minutes to ticks against the
 un-multiplied 60 ms -- so the tick clocks stay shipped and only wall time moves.

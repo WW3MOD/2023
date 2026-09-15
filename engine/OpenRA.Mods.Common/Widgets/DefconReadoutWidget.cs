@@ -140,11 +140,14 @@ namespace OpenRA.Mods.Common.Widgets
 		const int BlockGap = 6;
 
 		// ---- THE LEDGER'S MEASUREMENTS ----------------------------------------------------------
-		// A row is TALLER THAN A STEP BOX because it has to carry two things: the band's label, which
-		// is what makes the row countable, and a countdown on the boxes that have one. Stacking them
-		// is the only arrangement that keeps both -- putting the clock INSIDE the box in place of the
-		// label would destroy the identity of the band it belongs to, which is the one thing the
-		// ledger exists to show.
+		// A row is TALLER THAN A STEP BOX because its boxes carry the band's label, which is what
+		// makes the row countable, and the row has to stay legible beside a clock of its own.
+		//
+		// THE HEIGHT IS UNCHANGED FROM v1 EVEN THOUGH THE BOXES NO LONGER STACK A CLOCK UNDER THE
+		// LABEL. It could shrink; it is not shrunk, because the panel's total height is pinned in
+		// TWO chrome files (ingame-player.yaml and ingame-observer.yaml, Height: 170) and the
+		// wrapping of the rule lines above was measured against it. Moving a verified layout to save
+		// six pixels is the wrong trade; see the DEFCON 2 frame's note about a three-line wrap.
 		const int LedgerRowHeight = 22;
 		const int LedgerRowGap = 2;
 
@@ -152,6 +155,20 @@ namespace OpenRA.Mods.Common.Widgets
 		// line up in a column -- a ledger whose rows were indented differently could not be read by
 		// running an eye down it, which is exactly how it is meant to be read.
 		const int LedgerLabelWidth = 42;
+
+		// ---- ONE CLOCK PER ROW, AT ITS RIGHT END (v2) -------------------------------------------
+		// v1 drew a small countdown inside each band box: up to ten numbers on the panel, all of them
+		// different, because every band had its own regeneration timer. v2 has ONE cooldown per side,
+		// so a row has exactly one number and it belongs to the row rather than to any box in it.
+		//
+		// RIGHT-ALIGNED, MIRRORING THE BLOCK'S OWN VALUE SLOT twenty pixels above it. Both answer
+		// "what is the state of this thing, in one field", the eye already goes to that column for
+		// the release countdown, and the band boxes keep the whole middle of the row.
+		//
+		// WIDE ENOUGH FOR "READY", which is longer than "m:ss" in this font -- so the boxes do not
+		// resize when a cooldown ends, which would make the row twitch every time a side reloads.
+		const int LedgerClockWidth = 34;
+		const int LedgerClockGap = 4;
 
 		readonly World world;
 		readonly SpriteFont levelFont, nameFont, ruleFont, smallFont;
@@ -391,9 +408,8 @@ namespace OpenRA.Mods.Common.Widgets
 			var ownSide = exchange?.SideOf(viewer) ?? 0;
 			var enemySide = exchange?.OpposingSideOf(viewer) ?? 0;
 
-			var permanent = exchange?.PermanentLevelForSide(ownSide) ?? (int)NuclearRung.Hold;
-			var windowTicks = exchange?.WindowTicksRemainingForSide(ownSide) ?? 0;
-			var windowBand = windowTicks > 0 ? exchange.WindowLevelForSide(ownSide) : (int)NuclearRung.Hold;
+			var level = exchange?.LevelForSide(ownSide) ?? (int)NuclearRung.Hold;
+			var cooldown = exchange?.CooldownTicksForSide(ownSide) ?? 0;
 
 			// BOTH ROWS ARE DRAWN WHENEVER THERE ARE TWO SIDES, and only then. A one-sided match --
 			// a scenario with a single combatant, or a stripped trait -- gets the viewer's row alone
@@ -402,7 +418,7 @@ namespace OpenRA.Mods.Common.Widgets
 			var hasEnemy = exchange != null && enemySide != ownSide;
 			var rows = hasEnemy ? 2 : 1;
 
-			var footLines = WrapLines(DefconReadoutModel.NuclearFootLine(releaseOpen, windowTicks > 0), contentWidth, ruleFont);
+			var footLines = WrapLines(DefconReadoutModel.NuclearFootLine(releaseOpen, cooldown > 0), contentWidth, ruleFont);
 
 			var labelHeight = smallFont.Measure(LevelHeightSample).Y;
 			var height = PadTop + labelHeight + 7
@@ -421,20 +437,15 @@ namespace OpenRA.Mods.Common.Widgets
 			// it opens the yield is HOLD and saying so twice tells the player nothing. This is the
 			// ten-minute wait the mode used to serve with a blank screen.
 			//
-			// AN OPEN RETALIATION WINDOW TAKES IT INSTEAD, for the same reason the other way round:
-			// the window's own box in the ledger below is one of five and carries a small clock, and
-			// this slot is the largest text in the block. The thing a player about to lose a grant
-			// needs is the number, at the size they will see without looking for it.
+			// AFTER IT OPENS THE SLOT IS THE VIEWER'S OWN LEVEL, AND NOTHING ELSE TAKES IT. v1 let an
+			// open retaliation window override it with "20 kt FOR 0:34"; there is no window in v2, and
+			// the cooldown that replaced it is drawn in the YOU row's own clock a few pixels below --
+			// putting it here as well would be the same number twice in one panel.
 			//
 			// PITFALL: GameSpeed.Timestep, not world.Timestep -- see DrawStrip.
-			string valueText;
-			if (!releaseOpen)
-				valueText = $"RELEASE IN {WidgetUtils.FormatTime(escalation.TicksUntilNuclearRelease, false, world.GameSpeed.Timestep)}";
-			else if (windowTicks > 0)
-				valueText = $"{DefconReadoutModel.RungLabel(windowBand)} FOR " +
-					$"{WidgetUtils.FormatTime(windowTicks, false, world.GameSpeed.Timestep)}";
-			else
-				valueText = DefconReadoutModel.RungLabel(permanent);
+			var valueText = releaseOpen
+				? DefconReadoutModel.RungLabel(level)
+				: $"RELEASE IN {WidgetUtils.FormatTime(escalation.TicksUntilNuclearRelease, false, world.GameSpeed.Timestep)}";
 
 			var valueSize = smallFont.Measure(valueText);
 			smallFont.DrawText(valueText, new float2(x + contentWidth - valueSize.X, y), DefconPalette.NuclearValue);
@@ -470,51 +481,51 @@ namespace OpenRA.Mods.Common.Widgets
 			smallFont.DrawText(label, new float2(x, y + ((LedgerRowHeight - labelSize.Y) / 2)),
 				isViewerSide ? DefconPalette.NuclearValue : DefconPalette.NuclearLabel);
 
-			var permanent = exchange?.PermanentLevelForSide(side) ?? (int)NuclearRung.Hold;
-			var windowTicks = exchange?.WindowTicksRemainingForSide(side) ?? 0;
-			var windowBand = windowTicks > 0 ? exchange.WindowLevelForSide(side) : (int)NuclearRung.Hold;
+			// ---- THE TWO NUMBERS A ROW IS MADE OF, AND BOTH ARE ASKED OF THE STATE ------------
+			// LevelForSide says which boxes are lit; CooldownTicksForSide says whether any of them
+			// may be fired. v1 asked the SUPPORT POWERS for the second one, walking every instance
+			// on the side and taking the smallest RemainingTicks, because a per-band timer only
+			// existed there. v2's cooldown is the side's and NuclearExchangeState counts it -- which
+			// is also the copy the launch gate tests, so the ledger can no longer show a number the
+			// rule does not use. See NuclearExchange.CooldownTicksForSide.
+			var level = exchange?.LevelForSide(side) ?? (int)NuclearRung.Hold;
+			var cooldown = exchange?.CooldownTicksForSide(side) ?? 0;
+			var onCooldown = cooldown > 0;
 
 			var bands = DefconReadoutModel.LedgerBands();
 			var boxesX = x + LedgerLabelWidth;
-			var boxesWidth = contentWidth - LedgerLabelWidth;
+			var boxesWidth = contentWidth - LedgerLabelWidth - LedgerClockWidth - LedgerClockGap;
 			var count = bands.Count;
 			var boxWidth = (boxesWidth - ((count - 1) * StepGap)) / count;
 
 			for (var i = 0; i < count; i++)
 			{
-				// ---- IS THIS BAND COMING BACK, AND WHEN --------------------------------------
-				// Wired at the `cc1cbe78` merge. Before it, nothing nuclear had a timer at all --
-				// every power was RequiresPurchase, which forces TotalTicks to 0
-				// (SupportPowerManager.cs:229) -- so there was no countdown in the engine for a
-				// readout to show. `ce397d9f` made Escalation's bands free and put them on per-band
-				// regeneration, and RegenTicksRemainingForSide is the one place that is counted.
-				//
-				// A NEGATIVE ANSWER IS NOT A ZERO. -1 means this side has no power at this band to
-				// ask about, which is a different fact from "ready now" and must not draw a clock:
-				// a box captioned 0:00 that never moves is a readout inventing a countdown. Held is
-				// the honest cell in that case, and it is also what a band drawn dark would ignore
-				// anyway.
-				var regen = exchange?.RegenTicksRemainingForSide(side, (int)bands[i]) ?? -1;
-				var charging = regen > 0;
-
-				var cell = DefconReadoutModel.CellFor(bands[i], permanent, windowBand,
-					windowTicks > 0, releaseOpen, charging);
-
+				var cell = DefconReadoutModel.CellFor(bands[i], level, releaseOpen, onCooldown);
 				var rect = new Rectangle(boxesX + (i * (boxWidth + StepGap)), y, boxWidth, LedgerRowHeight);
 
-				// THE WINDOW'S CLOCK WINS WHERE BOTH EXIST, and both can: a granted band may also be
-				// regenerating from an earlier shot. The window is the one that ENDS THE PERMISSION,
-				// so it is the number the player has to act on -- a box counting down to its next
-				// warhead while the right to fire it expires sooner would be telling the player the
-				// less urgent of the two facts.
-				var clock = cell == DefconReadoutModel.LedgerCell.Window ? windowTicks
-					: cell == DefconReadoutModel.LedgerCell.Charging ? regen : 0;
-
-				DrawLedgerBox(rect, DefconReadoutModel.LedgerRungLabel(bands[i]), cell, clock);
+				DrawLedgerBox(rect, DefconReadoutModel.LedgerRungLabel(bands[i]), cell);
 			}
+
+			// ---- THE ROW'S ONE CLOCK ----------------------------------------------------------
+			// NOTHING AT ALL BEFORE RELEASE, which is the one case where neither word is true: the
+			// side is not READY (it holds no band) and it is not counting down to being ready (the
+			// gate's own clock is in the value slot above, and is a different quantity). An empty
+			// column there is the honest reading and it keeps the pre-release panel quiet.
+			if (!releaseOpen)
+				return;
+
+			// PITFALL: GameSpeed.Timestep, not world.Timestep -- see DrawStrip.
+			var clockText = onCooldown
+				? WidgetUtils.FormatTime(cooldown, false, world.GameSpeed.Timestep)
+				: DefconReadoutModel.LedgerReady;
+
+			var clockSize = smallFont.Measure(clockText);
+			smallFont.DrawText(clockText,
+				new float2(x + contentWidth - clockSize.X, y + ((LedgerRowHeight - clockSize.Y) / 2)),
+				onCooldown ? DefconPalette.NuclearValue : DefconPalette.StepCurrentText);
 		}
 
-		void DrawLedgerBox(Rectangle rect, string label, DefconReadoutModel.LedgerCell cell, int clockTicks)
+		void DrawLedgerBox(Rectangle rect, string label, DefconReadoutModel.LedgerCell cell)
 		{
 			Color fill, edge, text;
 			switch (cell)
@@ -531,55 +542,22 @@ namespace OpenRA.Mods.Common.Widgets
 					(fill, edge, text) = (DefconPalette.StepReleasedFill, DefconPalette.StepReleasedEdge, DefconPalette.NuclearValue);
 					break;
 
-				// A GRANT, IN THE CEILING'S COLOURS, which is the reading the single step row already
-				// used for this exact band: the one step above a side's own that is momentarily
-				// reachable. Its border also pulses -- see below -- because a grant is the only cell
-				// on this panel that is disappearing while you look at it.
-				case DefconReadoutModel.LedgerCell.Window:
-					(fill, edge, text) = (DefconPalette.StepCeilingFill, DefconPalette.StepCeilingEdge, DefconPalette.StepCeilingText);
-					break;
-
 				default:
 					(fill, edge, text) = (DefconPalette.StepFill, DefconPalette.StepEdge, DefconPalette.StepText);
 					break;
 			}
 
 			WidgetUtils.FillRectWithColor(rect, fill);
+			DrawBorder(rect, edge);
 
-			if (cell == DefconReadoutModel.LedgerCell.Window)
-			{
-				// The trigger line's pulse, at the same period and for the same reason: a triangle
-				// wave over 27 ticks is 1.62 s at the 60 ms timestep, the mockup's 1.6 s. Game.LocalTick
-				// rather than wall-clock, so it stops when the game does -- a heartbeat on a paused
-				// game reads as a hung UI.
-				var phase = (Game.LocalTick % 27) / 27f;
-				var pulse = phase < 0.5f ? phase * 2 : 2 - (phase * 2);
-				DrawBorder(rect, Color.FromArgb((int)(96 + (159 * pulse)), edge));
-			}
-			else
-				DrawBorder(rect, edge);
-
+			// THE LABEL IS ALWAYS CENTRED NOW, which it was not in v1: a box that carried a clock put
+			// its label high to make room underneath, and the two arrangements sat side by side in one
+			// row. With the clock moved out to the row (see DrawLedgerRow) there is only one
+			// arrangement left, and every box in the ledger is measured the same way.
 			var labelSize = smallFont.Measure(label);
-			var hasClock = clockTicks > 0;
-
-			// WITH A CLOCK THE LABEL SITS HIGH AND THE CLOCK UNDER IT; WITHOUT ONE THE LABEL CENTRES.
-			// A box that kept the label in the high position when there was nothing beneath it would
-			// leave the row looking mis-aligned in the common case, which is every box most of the time.
-			var labelY = hasClock
-				? rect.Y + 2
-				: rect.Y + ((rect.Height - labelSize.Y) / 2);
-
-			smallFont.DrawText(label, new float2(rect.X + ((rect.Width - labelSize.X) / 2), labelY), text);
-
-			if (!hasClock)
-				return;
-
-			// PITFALL: GameSpeed.Timestep, not world.Timestep -- see DrawStrip.
-			var clock = WidgetUtils.FormatTime(clockTicks, false, world.GameSpeed.Timestep);
-			var clockSize = smallFont.Measure(clock);
-			smallFont.DrawText(clock,
-				new float2(rect.X + ((rect.Width - clockSize.X) / 2), rect.Bottom - clockSize.Y - 2),
-				DefconPalette.NuclearValue);
+			smallFont.DrawText(label,
+				new float2(rect.X + ((rect.Width - labelSize.X) / 2), rect.Y + ((rect.Height - labelSize.Y) / 2)),
+				text);
 		}
 
 		static void DrawPanel(Rectangle bounds, Color accent)

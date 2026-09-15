@@ -172,33 +172,20 @@ namespace OpenRA.Test
 			});
 		}
 
-		// 1080 and 1200 are the two sizes a host plausibly runs; 900 was the locked design's stage
-		// and is temporarily excluded -- see the block below. The failure this guards was NOT
-		// confined to small windows -- at 1500 the Escalation header was still clipped -- so testing
-		// one size would have reproduced the original mistake.
-		// ==== 900 IS TEMPORARILY OUT, AND THIS IS THE NOTE THAT PUTS IT BACK ====
+		// 900, 1080 and 1200 are the three sizes a host plausibly runs, 900 being the locked design's
+		// stage. The failure this guards was NOT confined to small windows -- at 1500 the Escalation
+		// header was still clipped -- so testing one size would have reproduced the original mistake.
 		//
-		// Excluded 2026-09-15, when the budget below was corrected from its hand-counted four
-		// Escalation dropdowns to the real count. THE 900 CASE WAS NEVER PASSING ON ITS MERITS: with
-		// the true row counts it needs 608px (grid top 336 + Match 128 + Escalation 144) against a
-		// 580px viewport and overflows by 28. That was equally true at `a755942e` and at every ref
-		// since `nuclear-posture` and `nuclear-retaliation-window` joined the section -- the stale
-		// literal was hiding it, which is the fail-open direction this fixture exists to prevent.
-		// Logged in WORKSPACE/bugs/discovered.md (2026-09-15).
-		//
-		// TWO CHANGES CLOSE IT, AND BOTH ARE NEEDED -- either alone leaves Escalation at five
-		// dropdowns, which still ceils to two rows:
-		//   1. Game mode moving from Escalation into Match (DONE on wt/lobby-cleanup): 6 -> 5.
-		//   2. `wt/exchange-v2` deleting the Retaliation window option (IN PROGRESS, spec 02
-		//      "Removed"): 5 -> 4.
-		// At four, Escalation fills the 4-column grid exactly and is ONE row: 336 + 128 + 90 = 554
-		// against 580, fitting with 26px to spare.
-		//
-		// SO WHOEVER MERGES SECOND RE-ENABLES IT. The restoration is exactly one line -- put
-		// `[TestCase(900)]` back above the two below and delete this comment. Do not adjust the
-		// arithmetic to make it pass; it is derived from OptionSection now and is already correct.
-		// If it still fails after both changes have landed, the row counts moved again and the
-		// budget is telling you the truth: read the numbers in the failure message.
+		// 900 WAS EXCLUDED FOR ONE DAY AND IS BACK. It was taken out on 2026-09-15 when the budget
+		// below was corrected from a hand-counted four Escalation dropdowns to the real count, which
+		// showed it had never been passing on its merits: at six dropdowns it needed 608px (grid top
+		// 336 + Match 128 + Escalation 144) against a 580px viewport. The stale literal had been
+		// hiding that, which is the fail-open direction this fixture exists to prevent. Two changes
+		// were needed to close it and both have now landed -- `wt/lobby-cleanup` moved Game mode into
+		// Match (6 -> 5), and exchange v2 deleted the Retaliation window option (5 -> 4). At four,
+		// Escalation fills the 4-column grid exactly and is ONE row: 336 + 128 + 90 = 554 against 580,
+		// with 26px to spare. Restored here by the second of those two merges, as its note asked.
+		[TestCase(900)]
 		[TestCase(1080)]
 		[TestCase(1200)]
 		public void TheMatchAndEscalationRowsFitAboveTheFold(int windowHeight)

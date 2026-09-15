@@ -25,11 +25,17 @@
  * ==== WHAT IT DOES, IN ONE PARAGRAPH ====
  * Every EvaluationInterval it asks whether this side is losing (army ratio OR its own Supply Route
  * being contested), keeps a streak so a single bad trade is not a rout, and if it has been losing
- * for LosingStreakRequired evaluations it fires the biggest band it is allowed: the retaliation
- * window's grant when one is open, otherwise the highest ready permanent band. It aims at the point
- * maximising believed enemy value inside the warhead's radius. It never fires when it is winning,
- * and it can only reach a game-ender through a window — or through a final exchange somebody else
- * started, where declining would forfeit its aim points to Dead Hand and save nothing.
+ * for LosingStreakRequired evaluations it fires THE HIGHEST BAND ITS SIDE'S LEVEL ALLOWS that has a
+ * warhead ready. It aims at the point maximising believed enemy value inside the warhead's radius.
+ * It never fires when it is winning, and it reaches a game-ender only at level 5 with
+ * MayFireGameEnder set — or through a final exchange somebody else started, where declining would
+ * forfeit its aim points to Dead Hand and save nothing.
+ *
+ * THE COOLDOWN NEEDS NO CODE HERE, and that is worth saying because its absence looks like an
+ * omission. NuclearExchange writes a side's cooldown onto every one of that side's nuclear support
+ * powers, so while it runs BuildReadyBands finds nothing ready and the policy answers NoReadyBand on
+ * its own. A second check against the state would be a copy of rule 2 free to disagree with the mask
+ * the module actually measured.
  *
  * The arithmetic is all in NuclearPolicyMath, world-free and under NUnit. This file is the part
  * that needs a world: which powers exist, what is ready, who can legally be seen, and the order.
@@ -69,9 +75,9 @@ namespace OpenRA.Mods.Common.Traits
 		"Fires ONLY when losing — army value below LosingArmyRatioPercent of the strongest enemy, or",
 		"its own Supply Route's control bar below LosingContestationPercent — and only after",
 		"LosingStreakRequired consecutive evaluations agree, so one bad trade is not a rout. When it",
-		"does fire it takes the biggest band it may: a retaliation window's grant if one is open,",
-		"otherwise the highest ready permanent band. Game-enders are reachable only through a window",
-		"(and only when MayFireGameEnder is set) or through a final exchange somebody else began.",
+		"does fire it takes the biggest band it may: the highest band at or below its SIDE's level",
+		"with a warhead ready. Game-enders are reachable only at level 5 (and only when",
+		"MayFireGameEnder is set) or through a final exchange somebody else began.",
 		"Targets the point maximising believed enemy value inside the warhead's radius, fog-legally,",
 		"via BeliefStore. Inert outside DefconGameMode.Escalation.")]
 	public class NuclearBotModuleInfo : ConditionalTraitInfo, Requires<SupportPowerManagerInfo>
@@ -111,18 +117,23 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int LosingStreakRequired = 3;
 
 		[Desc("UNTUNED PLACEHOLDER. Minimum ticks between two launches from this module.",
-			"Bounds the bot's own escalation rate independently of what its cooldowns permit: the",
-			"regeneration timers are a lobby-scaled lever (Nuclear Posture) and a bot on Massive",
-			"Retaliation would otherwise empty every band as fast as they came back.",
+			"Bounds the bot's own escalation rate independently of what its cooldowns permit: the side",
+			"cooldown is a lobby-scaled lever (Nuclear Posture) and a bot on Massive Retaliation would",
+			"otherwise fire on the first tick of every recovery.",
+			"",
+			"MOSTLY REDUNDANT SINCE EXCHANGE v2 AND KEPT ANYWAY. The side cooldown is at least 3000",
+			"ticks at the fastest posture, which already exceeds this default -- so this only binds if",
+			"a host shortens the cooldowns below it, or if a future band is cheaper than 900 ticks.",
 			"",
 			"NOT APPLIED TO THE FINAL EXCHANGE, which is placement rather than escalation.")]
 		public readonly int MinTicksBetweenLaunches = 900;
 
-		[Desc("May the bot START an apocalypse — fire a game-ender that a retaliation window granted?",
+		[Desc("May the bot START an apocalypse — fire a game-ender once its side has reached level 5?",
 			"",
-			"DEFAULT TRUE, because the ruling's model is that the top rung is reachable only through a",
-			"chain of deliberate replies and a loser who will not take the last one is a loser who",
-			"cannot use the window it was given. Set FALSE for bots that must never end the game.",
+			"DEFAULT TRUE, because the ruling's model is that the top rung is reached only by being hit",
+			"with a 100 kt, and a loser who will not take the weapon that hit bought them is a loser",
+			"who cannot use its own deterrent. Set FALSE for bots that must never end the game; such a",
+			"bot falls back to the highest band below END rather than holding its fire.",
 			"",
 			"IT DOES NOT COVER PARTICIPATING IN ONE ALREADY BEGUN. Once DoomsdayStrike has opened the",
 			"final exchange the match is ending whatever this says — Dead Hand places for anyone who",
@@ -131,7 +142,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("UNTUNED PLACEHOLDER. Effect radius used for aim-point scoring, in CELLS, one entry per",
 			"band in ascending order: 1 kt, 20 kt, 50 kt, 100 kt, game-ender. A band past the end of the",
-			"list takes the last entry, matching NuclearExchangeState.RegenTicksFor's convention.",
+			"list takes the last entry, matching NuclearExchangeState.CooldownTicksFor's convention.",
 			"",
 			"TAKEN FROM THE ARSENAL'S OWN CameraRange PER BAND (nuclear-arsenal.yaml :120, :167, :208,",
 			"between :285 and :326, :397) because that is the mod's existing per-yield statement of how",
@@ -310,9 +321,7 @@ namespace OpenRA.Mods.Common.Traits
 				nuclearExchange.Released,
 				IsLosingCommitted,
 				finalExchangeOpen,
-				nuclearExchange.PermanentLevelFor(player),
-				nuclearExchange.WindowLevelFor(player),
-				nuclearExchange.WindowTicksRemainingFor(player),
+				nuclearExchange.LevelFor(player),
 				readyMask,
 				world.WorldTick - lastLaunchTick,
 				Info.MinTicksBetweenLaunches,
@@ -323,7 +332,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			// BOTH FAILURES BELOW OVERWRITE THE REASON, and that is the point of NoTarget. Leaving
-			// `Retaliation` standing over a launch count that never moved reports a decision where
+			// `HighestAllowed` standing over a launch count that never moved reports a decision where
 			// there was an execution failure, and the two want opposite investigations.
 			if (!readyKeyForBand.TryGetValue(decision.Band, out var key))
 			{

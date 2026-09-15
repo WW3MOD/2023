@@ -29,20 +29,26 @@ World:
 		StartAtDefault: 1
 		NuclearReleaseDelayTicksOverride: 10
 
-	# ONE MINUTE = 1000 ticks. The shortest value the dropdown offers, so this is a shipped setting
-	# and not a test-only door -- RulesetLoaded refuses a default that is not in the options list.
+	# ==== THE SIDE COOLDOWNS, COMPRESSED. THE SHIPPED VALUES ARE 5000/7000/9000/12000. ====
+	# 5/7/9/12 minutes is the 2026-09-15 user ruling and it is what ships; compressed here to
+	# 300/320/340/360 ticks (18-22 s) because what this run measures is a MECHANISM -- does one shot
+	# silence a side's whole arsenal, and does a level rise honour a cooldown already running --
+	# rather than a duration. Thirty-three real minutes of waiting would measure nothing extra.
+	#
+	# ALL FOUR ARE COMPRESSED, WHERE THE v1 VERSION OF THIS FILE COMPRESSED ONLY THE FIRST. It had
+	# to: the cooldown was per-band and only the 1 kt band was ever fired. Under v2 a side's whole
+	# arsenal shares one clock and the scenario climbs to 100 kt, so every entry is in play.
+	#
+	# THEY ARE KEPT DISTINCT RATHER THAN SET TO ONE NUMBER, and that is the point of the odd values:
+	# a build that applies the FIRED band's cooldown and a build that applies the firer's own band,
+	# or simply the first entry in the table, are indistinguishable at 300/300/300/300. Phase E
+	# separates them -- Russia's 20 kt shot must still be reloading at a tick where USA's 1 kt shot
+	# has recovered, and that only holds because 320 > 300.
 	NuclearExchange:
-		RetaliationWindowDefault: 1
-		# THE REGENERATION TIMER, COMPRESSED. 300 ticks = 18 s against the shipped 3000 (3:00): the
-		# run asserts that a spent permanent band COMES BACK ON A TIMER WITH NO PURCHASE, which is a
-		# mechanism rather than a duration, and three real minutes of waiting would measure nothing
-		# extra. Same shape as every other clock this scenario compresses.
-		#
-		# THE OTHER THREE BANDS ARE LEFT AT THEIR SHIPPED VALUES ON PURPOSE. Only the 1 kt band is
-		# ever fired here, and leaving 20 kt at 4000 is what makes the window assertion in phase C
-		# mean something: Russia's granted 20 kt cannot quietly regenerate inside the one-minute
-		# window and read `ready` again for a reason that has nothing to do with the grant.
-		KilotonRegenTicks: 300
+		KilotonCooldownTicks: 300
+		TwentyKilotonCooldownTicks: 320
+		FiftyKilotonCooldownTicks: 340
+		HundredKilotonCooldownTicks: 360
 
 	# Both halves of the arsenal gate. `nuclear-arsenal` is the host's checkbox over all thirteen
 	# warheads; `powers-sandbox` is what provides the `powers.event` prerequisite that no faction

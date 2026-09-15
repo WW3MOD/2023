@@ -7,9 +7,8 @@
 #
 #   no-rush (DEFCON 3 -> 2)        5 minutes  = 5000 ticks   NoRushDefault, untouched
 #   first warheads (1 -> release)  10 minutes = 10000 ticks  FirstWarheadsDefault, untouched
-#   retaliation window             3 minutes  = 3000 ticks   RetaliationWindowDefault, untouched
 #   nuclear posture                Flexible                  PostureDefault, untouched
-#   band regeneration      3000 / 4000 / 5000 / 6000 ticks   all four untouched
+#   side cooldown     5000 / 7000 / 9000 / 12000 ticks        all four untouched
 #   opening phase                  3 (Positioning)           StartAtDefault, untouched
 #
 # 16.67 TICKS PER SECOND (60 ms timestep, mod.yaml GameSpeeds DefaultSpeed: default), NOT 25.
@@ -114,9 +113,14 @@ World:
 		PowersSandboxCheckboxLocked: true
 
 	# NuclearExchange IS NOT OVERRIDDEN AT ALL and that is deliberate rather than an omission:
-	# world.yaml:876 sets display order only, so posture (Flexible) and the retaliation window
-	# (3 minutes) come from C# at their shipped values. Compare test-bot-nuclear, which pins the
-	# window to 1 minute because its hysteresis budget needs it; nothing here needs that.
+	# world.yaml sets display order only, so the posture (Flexible) and all four SIDE COOLDOWNS
+	# (5/7/9/12 minutes, the 2026-09-15 user ruling) come from C# at their shipped values. Compare
+	# test-bot-nuclear, which compresses them to 300 ticks because its hysteresis budget needs it;
+	# nothing here needs that, and a full match at shipped cooldowns is most of the point.
+	#
+	# UPDATED AT EXCHANGE v2 (2026-09-15). This block used to name the retaliation window, which no
+	# longer exists -- the model is now a permanent LEVEL ratchet plus one side-wide cooldown. The
+	# absence of an override is unchanged and so is everything this scenario measures.
 	#
 	# DefconWall is likewise untouched: world.yaml turns DeriveFromSpawns on mod-wide and the two
 	# pinned HomeLocations in map.yaml are what it bisects. The wall standing during DEFCON 3 is

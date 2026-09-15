@@ -146,9 +146,17 @@ Container@PLAYER_WIDGETS:
 		# re-anchoring the command bar, which is 24 absolute X values across six panels.
 		#
 		# WHAT THE 11px COSTS, since the widget derives everything from Bounds.Width: contentWidth is
-		# WIDTH - 22, so 330 -> 319; the ledger's five band boxes are (WIDTH - 72) / 5, so 56 -> 53.
+		# WIDTH - 22, so 330 -> 319.
+		#
+		# THE BAND BOXES GOT NARROWER AT EXCHANGE v2 (2026-09-15) and this arithmetic moved with them.
+		# Each row now ends in a 34px clock column with a 4px gap (one READY / m:ss per ROW, where v1
+		# drew a small countdown inside every box), so the five boxes are (WIDTH - 110) / 5 rather than
+		# (WIDTH - 72) / 5: 52 -> 46 at the shipped 341, and 56 -> 50 at 352.
 		# "100kt" measures ~30px in Tiny (read off the ledger crop of frame 08 in
-		# 260914_122039_p8182_demo-defcon-readout), leaving ~11px of slack each side of a 53px box. The
+		# 260914_122039_p8182_demo-defcon-readout), so it still fits a 46px box with ~8px of slack each
+		# side, and "READY" fits its own column -- but this is ARITHMETIC AND NOT A CAPTURE: no frame
+		# has been taken at the narrower width. Frame 08 of the next demo-defcon-readout run is what
+		# settles it. The
 		# rule and foot lines wrap 11px earlier; in every captured frame their second line runs under a
 		# third of the width, so none of them gains a third line.
 		DefconReadout@DEFCON_READOUT:
