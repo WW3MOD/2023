@@ -5403,3 +5403,53 @@ shrinking the map preview slot, which is a visible change at every window size i
 buying permanently for an overflow that self-closes.
 
 (found while working on: Escalation lobby cleanup, `wt/lobby-cleanup`)
+
+## 2026-09-15: [med] `PBOX` never got the `^StandardVisionWhenLoaded` gate that `GTWR` and `HBOX` have, so an empty guard tower is blind while an empty pillbox sees normally (found while: civ-garrison audit, `wt/civ-garrison`)
+
+All three garrisonable defences inherit `^StandardVision` unconditionally from `^Defense`
+(`structures-defenses.yaml:5`). `GTWR` (`:80`) and `HBOX` (`:274`) then apply
+`Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded`, which re-declares `Vision@4`-`@10` with
+`RequiresCondition: loaded` (`defaults.yaml:156-171`) — i.e. it **gates** their vision behind being
+garrisoned. `PBOX` (`:176-195`) has no such line.
+
+So the asymmetry is the opposite of what the missing line suggests: an **empty `GTWR` or `HBOX` gives
+its owner no vision at all**, while an empty `PBOX` gives full standard vision. For a structure named
+Guard Tower that is a strange resting state. Both lines were added together in `4eed77af`
+("Progressive fog (#5)", 2023-07-17) and `PBOX` was simply never given one — an omission at the time,
+not a later regression.
+
+**NOT FIXED, and deliberately:** which of the two behaviours is correct is a design question, not a
+defect with an obvious direction, and "fixing" it either way is a balance change to shipped structures.
+Ranked as item #7 in `WORKSPACE/audit/260915-civ-garrison-audit.md`.
+
+## 2026-09-15: [low] `GarrisonPanelLogic` renders at most 4 reserve occupants against a capacity of 10 (found while: civ-garrison audit, `wt/civ-garrison`)
+
+The shelter loop is `for (var i = 0; i < 4; i++)` over `RESERVE_LABEL_{i}`
+(`GarrisonPanelLogic.cs:78-89`), and `chrome/ingame-player.yaml` declares exactly `RESERVE_LABEL_0..3`
+(`:987-1010`). `^CivBuilding` is `MaxWeight: 10` with 8 firing ports (`civilian.yaml:61`, `:73-114`).
+
+In the steady state this is invisible — 8 men at ports leaves 2 in reserve. It fails in the one state
+where the panel matters: a soldier recalled under suppression returns to the shelter and cannot re-man
+a port until suppression decays below `SuppressionRedeployThreshold`, so a garrison being suppressed is
+exactly the case that can hold many more than 4 in shelter at once, and the player is shown 4.
+
+Note this only becomes user-visible once `wt/garrison-panel` (`08c8cce0`) lands — the panel currently
+never appears at all. Adding rows also needs the container resized: the body already runs to y=216
+inside a 240-high container (`:1011-1014`). A single summary row (`[S] 7 in reserve, 2 pinned`) would
+be cheaper and cannot overflow at any capacity.
+
+## 2026-09-15: [low, FIXED] `CargoInfo.Neutral` is dead config whose `[Desc]` describes a behaviour that really exists elsewhere (found while: civ-garrison audit, `wt/civ-garrison`)
+
+`Cargo.cs:29-30` declares `public readonly bool Neutral` and **nothing in the engine reads it** — no
+reference in `Cargo.cs`, the `Garrison` traits, `Passenger`, or anywhere else. All four garrisonable
+families set it true: `civilian.yaml:59`, `structures-defenses.yaml:120`, `:224`, `:323`.
+
+The trap is that the behaviour its `[Desc]` promised ("Should this actor turn nutral when not loaded?
+For civilian buildings", sic) **does exist** — delivered by `GarrisonManager.DynamicOwnership` through
+`CheckOwnershipAfterExit` (`GarrisonManager.cs:306-337`). Someone wanting a garrisoned building to stay
+owned when it empties will set `Neutral: false`, see no change, and have no way to find out why.
+
+**FIXED** on `wt/civ-garrison` (`0139ae1b`) as a `[Desc]` correction only: the field now says it is
+unimplemented and names the trait that actually decides. Deleting the field and its four YAML setters
+is the better end state and is ranked as item #9 in the audit — not taken there because it is four YAML
+edits and that branch was barred from running the YAML lint.
