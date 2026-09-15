@@ -77,6 +77,16 @@ no generic method definitions, no fields. That is why `Trigger.GetScriptTriggers
 Which scripts a scenario loads is read from its `Scripts:` line, so `TestHarness.*` is
 known only to scenarios that actually list `test-helpers.lua`.
 
+**A declared script is checked wherever it resolves — the scenario folder or
+`mods/ww3mod/scripts`.** Until 2026-09-15 only the first was scanned: a body shared between
+scenarios (an A/B arm pair, or `javelin-probe-lib.lua` across its four) was loaded by the
+engine and read here only for the globals it *defines*, never for the references it *makes*,
+and the run still closed with `OK — every reference resolves`. The verdict-reachability check
+was skipped outright for such a scenario rather than failing on it, so a shared body that
+asserted nothing produced no finding at all. Both are pinned by `selftest`. A shared lib is
+scanned once, under the first scenario that declares it — see the comment at the call site
+for why per-scenario rescanning was tried and dropped.
+
 ### The parse is checked against engine reflection
 
 Parsing C# with regular expressions is exactly the kind of thing that half-works and then

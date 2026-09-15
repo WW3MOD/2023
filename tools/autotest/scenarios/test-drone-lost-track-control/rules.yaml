@@ -1,6 +1,40 @@
 Player:
 	-ConquestVictoryConditions:
 
+	# ===== THIS BLOCK IS THE ENTIRE DIFFERENCE BETWEEN THE TWO ARMS =====
+	# Everything else in this file, in map.yaml and in the shared Lua is byte-identical to
+	# test-drone-lost-track. That is the point: the thing being measured is a PREFERENCE, so
+	# if the arms differed by anything else a clustering difference would have more than one
+	# available explanation and the run would stop being evidence.
+	#
+	# WHY THIS KNOB AND NOT LostTrackIntelSquares: 0. Full argument in the treatment's
+	# CONTROL-ARM.md; the short form is that 0 INVERTS the decay (the lost tier is
+	# areaSquares + (lost - area) * remaining / span, which RISES from 0 toward 60 as the trail
+	# goes cold) and leaves the static and currently-visible tiers running. IntelSampleInterval
+	# is the only SINGLE knob that zeroes the whole term: `intel` is written only by SampleIntel,
+	# which runs only behind this countdown (DroneOperatorBotModule.cs:273-277), so the contact
+	# table is never written, BestIntelAt returns 0 for every candidate and tasking falls back to
+	# pure revealed-area staleness. The trait's own [Desc] at :108-116 names it the off switch.
+	#
+	# 999999 ticks is ~16.7 hours against a 1800-tick deadline, so the countdown initialised in
+	# TraitEnabled (:245) never reaches zero within the run. Not "rarely" — never.
+	#
+	# HOW YOU KNOW THIS OVERRIDE ACTUALLY TOOK. An override that silently fails to merge does
+	# not announce itself; it makes this directory a SECOND COPY OF THE TREATMENT, and two
+	# identical arms would look like a clean null result. The arm is self-identifying instead:
+	# a control that really is a control logs `records=0` and `intel=0` on the `[drone] ... launch`
+	# line in RUN_DIR/debug.log. records>0 here means the merge did not happen and the run is
+	# NOT a control — discard it rather than interpreting it.
+	#
+	# The suffix is load-bearing and is NOT a faction suffix. ai.yaml defines exactly two
+	# instances of this module, DroneOperatorBotModule@experimental (:1119) and
+	# DroneOperatorBotModule@stable (:3282); map.yaml runs this player as `Bot: experimental`,
+	# so the @experimental one is the instance that ticks. MiniYaml merges top-level and trait
+	# keys CASE-SENSITIVELY and suffix-inclusively, so a mis-typed suffix here overrides nothing
+	# and fails silently — which is the failure the paragraph above exists to catch.
+	DroneOperatorBotModule@experimental:
+		IntelSampleInterval: 999999
+
 	# ===== THE TWO MODULES THAT CAN TAKE THE OPERATOR AWAY =====
 	# Both are documented competitors for this exact unit. DroneOperatorBotModule
 	# defends itself by committing the operator to the PoiGoalGuard ledger, but that

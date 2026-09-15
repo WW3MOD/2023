@@ -1,0 +1,69 @@
+fail
+BY DESIGN, NOT BY MERIT — and that is a different claim from the treatment's declaration
+next door, which is why this file exists separately rather than being cross-referenced.
+
+This directory is the CONTROL arm. Its rules.yaml sets IntelSampleInterval: 999999 on
+DroneOperatorBotModule@experimental, which is the feature's documented off switch
+(DroneOperatorBotModule.cs:108-116): SampleIntel never runs, the contact table is never
+written, BestIntelAt returns 0 for every candidate, and the drone is tasked on revealed-area
+staleness alone. A drone that cannot know where the enemy was last seen has no way to prefer
+that cell, so FAIL is the only outcome this arm can honestly produce. A PASS here is loudly
+RED: it means either the override did not merge (see below) or the drone reached the vanish
+cell by exploration geometry alone, and CONTROL-ARM.md says to REPORT AND STOP on that second
+case rather than re-running or moving the threshold.
+
+THE ONE FAILURE THIS DECLARATION MUST NOT ABSORB, because it produces the declared outcome
+for the wrong reason: a control whose override silently failed to merge is a SECOND COPY OF
+THE TREATMENT, and today the treatment also fails. Two identical arms both failing looks
+exactly like a clean null result. The arm is self-identifying instead, engine-side:
+
+    records=0  intel=0   on the `[drone] ... launch` line in RUN_DIR/debug.log
+
+records>0 in THIS scenario means the merge did not happen. Discard the run; do not read it
+as a control. Read RUN_DIR/debug.log, never the global debug.log — the global file is
+overwritten by the next launch and has already destroyed one drone run's answer (04478c02).
+
+PRIOR MEASUREMENT, run 4 of the pre-split series (2026-08-31), when this arm was produced by
+hand-editing mods/ww3mod/rules/ai/ai.yaml rather than by running this directory:
+
+    intel=0  records=0  nearby=0  samples=62  near=0  mindist=27
+
+The drone flew AWAY from the vanish cell and parked. That is the RED behaviour this arm is
+for. It is NOT carried forward as a verdict: it predates 1e0226b9 (rectangular revealed-area
+query replaced by the vision disc, up to 228 squares of corner credit removed per candidate),
+so `reveal` moved under it and mindist=27 must be re-measured, not quoted.
+
+
+PAIRED LAUNCH LINES, BOTH ARMS, 2026-09-15 — THE FIRST TIME THE TWO ARMS HAVE BEEN RUN
+BACK TO BACK POST-1e0226b9 WITH ALL FOUR SIZING TERMS CAPTURED.
+
+  treatment  260915_152821_p59962_test-drone-lost-track          fail, both markers
+  control    260915_153322_p61098_test-drone-lost-track-control  fail, both markers,
+                                                                 records=0 intel=0 (override merged)
+
+  tick  TREATMENT                                                          CONTROL
+  200   cell=29,25 reveal=248 intel=0  bestintel=178 @39,51 bir=14         cell=29,25 reveal=248 bestintel=0 bestintelcell=none
+  1600  cell=37,57 reveal=180 intel=39 bestintel=43  @39,51 bir=158        cell=37,57 bestintel=0 bestintelcell=none
+  1800  cell=39,53 reveal=122 intel=43 bestintel=43  @39,51 bir=107        cell=39,53 bestintel=0 bestintelcell=none
+
+IDENTICAL CELLS AT ALL THREE LAUNCHES. The lost-track term changed NO launch decision on
+this geometry. The t1600/t1800 drift toward the contact is NOT the term working -- it is the
+revealed-area argmax moving as the nearer ground is consumed, and the control, which has no
+intel at all, moves to exactly the same cells. Two further tells inside the treatment alone,
+needing no control: at t1600 the chosen cell carried LESS intel than the cell it beat (39 vs
+43 at 39,51), and at both retasks the winner was not bestintelcell. A term that decided the
+target would have picked 39,51.
+
+WHAT THIS ARM CONTRIBUTED, AND IT IS THE LOAD-BEARING HALF. Without the control, the
+treatment's t1600/t1800 cells could be read as the term finally steering the drone toward the
+contact once exploration was consumed -- which is exactly how a manager read them before this
+arm ran. The control produces the SAME cells with no intel whatsoever, which settles it.
+It is also what makes the sizing arithmetic legitimate: the formula needs the intel value AT
+THE REVEAL ARGMAX, and this arm is what proves 29,25 is that argmax.
+
+records=0 and intel=0 on every launch line here, so the rules.yaml override merged and this
+directory is a real control rather than a second copy of the treatment.
+
+REMOVE THIS FILE only if the control legitimately starts passing — which would mean the map
+geometry can no longer separate the hypotheses, and the scenario needs new coordinates rather
+than a new declaration.
