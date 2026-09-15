@@ -109,7 +109,14 @@ GTWR:
 	Targetable@WhenGarrisoned:
 		RequiresCondition: loaded
 		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense, Unarmored
-		RequiresForceFire: true
+		# NO RequiresForceFire -- dropped with the ^CivBuilding copy, and for the same reason. All four
+		# were one decision (63018cfa, 2026-04-05, "Applied to all garrison buildings: GTWR, PBOX, HBOX,
+		# and civilian buildings"), so undoing it on the civilian family alone would have left the
+		# headline "a bot can never damage a garrisoned building" true for these three. The full
+		# reasoning, and the empty-building case, is on ^CivBuilding (civilian.yaml). Sharper here than
+		# there: an emplacement is PLAYER-owned whether or not it is manned, so its empty state is
+		# already an ordinary auto-target -- garrisoning it used to make an enemy defence HARDER to
+		# shoot than an abandoned one.
 	Targetable@DontEMP:
 		TargetTypes: EMPInvalid
 	-BodyOrientation:
@@ -211,7 +218,14 @@ PBOX:
 	Targetable@WhenGarrisoned:
 		RequiresCondition: loaded
 		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
-		RequiresForceFire: true
+		# NO RequiresForceFire -- dropped with the ^CivBuilding copy, and for the same reason. All four
+		# were one decision (63018cfa, 2026-04-05, "Applied to all garrison buildings: GTWR, PBOX, HBOX,
+		# and civilian buildings"), so undoing it on the civilian family alone would have left the
+		# headline "a bot can never damage a garrisoned building" true for these three. The full
+		# reasoning, and the empty-building case, is on ^CivBuilding (civilian.yaml). Sharper here than
+		# there: an emplacement is PLAYER-owned whether or not it is manned, so its empty state is
+		# already an ordinary auto-target -- garrisoning it used to make an enemy defence HARDER to
+		# shoot than an abandoned one.
 	Targetable@DontEMP:
 		TargetTypes: EMPInvalid
 	Armor:
@@ -307,7 +321,14 @@ HBOX:
 	Targetable@WhenGarrisoned:
 		RequiresCondition: loaded
 		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
-		RequiresForceFire: true
+		# NO RequiresForceFire -- dropped with the ^CivBuilding copy, and for the same reason. All four
+		# were one decision (63018cfa, 2026-04-05, "Applied to all garrison buildings: GTWR, PBOX, HBOX,
+		# and civilian buildings"), so undoing it on the civilian family alone would have left the
+		# headline "a bot can never damage a garrisoned building" true for these three. The full
+		# reasoning, and the empty-building case, is on ^CivBuilding (civilian.yaml). Sharper here than
+		# there: an emplacement is PLAYER-owned whether or not it is manned, so its empty state is
+		# already an ordinary auto-target -- garrisoning it used to make an enemy defence HARDER to
+		# shoot than an abandoned one.
 	Targetable@DontEMP:
 		TargetTypes: EMPInvalid
 	Armor:

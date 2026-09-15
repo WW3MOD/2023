@@ -20,7 +20,34 @@
 	Targetable@WhenGarrisoned:
 		RequiresCondition: loaded
 		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
-		RequiresForceFire: true
+		# NO RequiresForceFire, and the deletion is the fix -- 63018cfa (2026-04-05) put it here to
+		# "prevent enemies from auto-targeting the building structure and force them to engage port
+		# soldiers instead", and the consequence nobody costed is that it made a garrison UNKILLABLE
+		# BY THE AI. Target.RequiresForceFire is all-or-nothing over the ENABLED targetables
+		# (Target.cs:131-151) and exactly one is enabled while loaded, so it returned true;
+		# AttackBase.ChooseArmamentsForTarget then hands back an empty armament set for every
+		# non-force attack (AttackBase.cs:442). No bot module in the mod issues an actor-directed
+		# ForceAttack -- the only ForceAttack anywhere is DroneOperatorBotModule.cs:686 and it targets
+		# a CELL -- so both bot paths die on that line: AutoTarget.ChooseTarget drops the candidate at
+		# its own ChooseArmamentsForTarget call (AutoTarget.cs:1502-1509, "never selected"), and the
+		# squad/DEFCON-2 named "Attack" orders (GroundStates.cs:94,:250, PoiOffensiveBotModule.cs:4720)
+		# ARE issued at a garrisoned building and then discarded by the activity ("selected then
+		# dropped"). Shelter occupants are reachable ONLY through GarrisonProtection.Damaged, an
+		# INotifyDamage on the building, so a bot could not scratch them and the protection curve
+		# never degraded.
+		#
+		# THE DESIGN INTENT SURVIVES THE DELETION, because it was never this flag that carried it.
+		# Port soldiers are Infantry and match a priority-2-to-5 AutoTargetPriority band on every
+		# specialised template, while the building matches only the base @FireAtWill band at priority 1
+		# (defaults.yaml:419) -- so an attacker still prefers the men at the ports, and reaches the
+		# building when no port man is targetable. What changes is that "walk past a building that is
+		# shooting at you" stops being the only option an attack-move has.
+		#
+		# AN EMPTY BUILDING IS UNAFFECTED, and never depended on this line: it is NEUTRAL (ownership
+		# transfers on garrison, DynamicOwnership defaults true), and both the armament relationship
+		# filter (Armament.TargetRelationships defaults to Enemy) and ChooseTarget's own
+		# AppearsHostileTo gate reject a neutral actor. The base Targetable below has carried no
+		# RequiresForceFire since before 63018cfa.
 	RenderSprites:
 		Palette: player
 		Scale: 1.2

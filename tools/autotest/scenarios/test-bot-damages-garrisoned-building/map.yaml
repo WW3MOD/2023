@@ -1,0 +1,122 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a non-force attack damages a garrisoned building
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 100,60
+
+Bounds: 1,1,98,58
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES. A garrisoned building used to carry Targetable@WhenGarrisoned with
+# RequiresForceFire, and Target.RequiresForceFire is all-or-nothing over the ENABLED targetables
+# (Target.cs:131-151) -- exactly one is enabled while loaded, so it read true and
+# AttackBase.ChooseArmamentsForTarget returned an empty armament set for every attack that was not
+# force-fired (AttackBase.cs:442). No bot module in the mod ever force-fires an ACTOR (the only
+# ForceAttack anywhere is DroneOperatorBotModule.cs:686, at a cell), so the AI could not put a
+# scratch on a garrison -- and shelter occupants are reachable ONLY through GarrisonProtection's
+# INotifyDamage on the building, so nobody inside could be hurt either.
+#
+# TWO HALVES, two different order paths into the same gate:
+#   A. the BOT's own named "Attack" (PoiOffensiveBotModule.IssueDefcon2DirectFire, :4720)
+#   B. a PLAYER's ordinary non-force attack order (Lua Actor.Attack, forceAttack = false)
+# Both are forceAttack: false, which is the whole point -- a Ctrl+click would have worked all along.
+#
+# WHY THE MATCH OPENS AT DEFCON 2, and it is load-bearing rather than scenery. The confound this
+# scenario has to kill is SPLASH: a deployed port soldier is SetPosition'd onto the BUILDING'S OWN
+# CELL (GarrisonManager.DeployToPort), so any SpreadDamage warhead aimed at a port man also lands on
+# the building -- and the building's HP would then fall even on a build that still had the flag,
+# turning the RED green and making the whole test worthless. GarrisonManager.ScanForTarget returns
+# Target.Invalid outright while DefconFireDiscipline.HoldsFire (GarrisonManager.cs:961), so at
+# DEFCON 2 NO port ever deploys: all ten men stay in the shelter, the building is the only enemy
+# actor at that spot, and the only thing that can move its HP is a shot aimed at the building.
+# It also puts the men exactly where the finding says they are untouchable -- in shelter.
+#
+# DEFCON 2 permits an ORDERED shot and refuses an autonomous one (AutoTarget.IsAutoAcquiredSource is
+# true only for AutoTarget and AttackMove sources), so both halves above are permitted and neither is
+# the thing being held. That is also why this scenario cannot additionally test a HUMAN unit's
+# AUTO-acquisition: the same lever that keeps the garrison in shelter holds autotargeting for
+# everyone. See description.txt.
+#
+# GEOMETRY:
+#   USA-bot SR       3,28     the bot's beachhead
+#   Russia SR       94,28     the POI the bot's axis forms against, so its armour is ordered east
+#   bot armour       6..9,26..30      eight abrams, created in Lua
+#   ChurchA         40,28     directly on that axis, 31+ cells from the armour so its garrison is
+#                             safely indoors long before any tank is in weapon range of the men
+#   ChurchB         80,10     twenty cells off the axis and 70 from the bot's start, so half B
+#                             latches long before the bot could contribute a shell to it
+#   Rifle           77,10     the player's abrams, three cells from ChurchB
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Bot: experimental
+		Color: 44FFAA
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA, USA-bot
+
+Actors:
+	# Both start NEUTRAL. Garrisoning transfers ownership (GarrisonManager.DynamicOwnership defaults
+	# true), so each becomes Russia-owned -- and therefore an enemy of both attackers -- the moment
+	# its men are inside. A church is 2x2 with HP 75000 and Armor: Light.
+	ChurchA: v01
+		Owner: Neutral
+		Location: 40,28
+	ChurchB: v01
+		Owner: Neutral
+		Location: 80,10
+	Rifle: abrams
+		Owner: USA
+		Location: 77,10
+		Facing: East
+	BotSR: supplyroute
+		Owner: USA-bot
+		Location: 3,28
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 74,6
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 94,28
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 77,12
+	SpawnUSAbot: mpspawn
+		Owner: Neutral
+		Location: 8,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 90,28
+
+Rules: rules.yaml

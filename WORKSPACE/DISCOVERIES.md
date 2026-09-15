@@ -3,6 +3,74 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-15 - "selected then dropped" and "never selected" are BOTH true of a `RequiresForceFire` actor, and a deployed port soldier stands on the building's own cell — so any test of "can X damage a garrison" that lets a port deploy passes on a broken build (`wt/garrison-forcefire`)
+
+**THE AUDIT'S OPEN QUESTION HAS TWO ANSWERS, ONE PER PATH, AND THE FIX HAD TO COVER BOTH.** The audit
+could not tell whether a bot's order against a garrisoned building was *selected and then discarded*
+or *never selected*. Read end to end, the mod does both, in different modules:
+
+- **Never selected.** `AutoTarget.ChooseTarget` calls `ab.ChooseArmamentsForTarget(target, false)` on
+  every candidate and `continue`s when it comes back empty (`AutoTarget.cs:1502-1509`). For a
+  `RequiresForceFire` target that is always empty (`AttackBase.cs:442`), so the candidate never
+  reaches the scoring loop. Every autonomous engagement — human and bot alike — dies here. This is
+  also the whole of the human-facing "attack-move walks past a garrisoned building" half.
+- **Selected then dropped.** The bot modules' own target pickers have NO force-fire filter.
+  `SquadManagerBotModule.IsPreferredEnemyUnit` (`:174-187`) tests relationship, husk, aircraft and
+  `IgnoredEnemyTargetTypes` — which in `ai.yaml` is only air/submarine types, so a garrisoned house
+  passes. `PoiOffensiveBotModule.NearestEngageableEnemy` (`:4745-4765`) tests relationship,
+  `CanBeViewedByPlayer` and `EstimatePercentDamage > 0` — also all satisfied. Both then issue a named
+  `"Attack"` with `forceAttack: false` (`GroundStates.cs:94,:250`, `PoiOffensiveBotModule.cs:4720`)
+  which the attack activity discards.
+
+So a fix that only taught one bot module to force-fire would have left the autonomous path — the one
+that matters on attack-move, and the one humans see — untouched. **Check both layers before costing a
+bot-side fix: the module that picks the target and the trait that refuses it are different code.**
+
+**THE TRAP THAT DECIDES WHETHER A TEST OF THIS IS WORTH ANYTHING: `DeployToPort` does
+`SetPosition(soldier, self.Location)`, so a manned port soldier occupies the BUILDING'S OWN CELL.**
+Every `SpreadDamage` warhead aimed at that soldier therefore also lands on the building, and warhead
+damage never consults `RequiresForceFire` at all — it is an `AttackBase` targeting-layer gate, not a
+damage-layer one. Consequence: any scenario that asserts "the building's HP fell" while a port is
+manned **goes green on a build that still has the flag**, because the HP fell from splash. The only
+honest fixtures are ones where nobody is at a port. The cheapest deterministic lever for that is
+DEFCON 2: `GarrisonManager.ScanForTarget` returns `Target.Invalid` outright while
+`DefconFireDiscipline.HoldsFire` (`GarrisonManager.cs:961`), and every autonomous deploy path — the
+empty-port scan (`:803`), `PromoteFromShelter` (`:872`) and `TriggerAmbushDeploy` (`:1332`) — reaches
+a target only through it. Holding the building's `AutoTarget` stance at `HoldFire` also works
+(`:796`), but `^CivBuilding` carries no `AutoTarget` trait to hold, so that needs one added.
+
+**AN EMPTY CIVILIAN BUILDING WAS NEVER PROTECTED BY `RequiresForceFire`, AND IT IS WORTH KNOWING WHAT
+DOES PROTECT IT, BECAUSE THE PRIORITY TABLE DOES NOT.** `AutoTargetPriorityInfo.ValidRelationships`
+defaults to `Ally | Neutral | Enemy` (`AutoTargetPriority.cs:30`) — the priority layer is happy to
+name a neutral house. What actually refuses it is two gates further out: `ChooseTarget`'s
+`AppearsHostileTo` early-out (`AutoTarget.cs:1466`) and `Armament.TargetRelationships`, which
+defaults to `Enemy`. An empty `^CivBuilding` is Neutral (`GarrisonManager.DynamicOwnership` transfers
+ownership on garrison and reverts on the last man out), so both reject it. **Do not reason about "is
+this auto-targeted" from the `AutoTargetPriority` block alone.**
+
+**A GARRISONED `^CivBuilding` OUTRANKS THE MEN AT ITS OWN PORTS FOR ANTI-TANK AND ANTI-STRUCTURE
+UNITS, BECAUSE ITS `TargetTypes` INCLUDE `Defense`.** `Targetable` on `^CivBuilding` is
+`Ground, C4, DetonateAttack, Structure, Defense` — a civilian house advertises itself as a defence.
+For the general templates that is harmless (the building matches only the base `@FireAtWill` band at
+priority 1, `defaults.yaml:419`, while port soldiers are `Infantry` at 2-5, so the men are still
+preferred). But `^AutoTargetGroundAntiTank` scores `Defense` at **3** and `Infantry` at 2, and
+`^AutoTargetGroundAntiStructure` scores `Defense` at 3 and `Infantry` at 1 (`defaults.yaml:699-733`)
+— so on their non-`stance-fireatwill` default bands an AT or anti-structure unit prefers shelling the
+house to shooting the men leaning out of it. Not wrong, but it is a targeting decision nobody wrote
+down, and it is load-bearing now that the building is auto-engageable at all.
+
+**THE ONE PLACE THE NEW BEHAVIOUR STOPS PAYING: `GarrisonManager.GetDamageModifier` RETURNS 0 AT
+`HP <= 1`, AND `GarrisonProtection.Damaged` RETURNS EARLY ON `incomingDamage <= 0`.** `Indestructible`
+clamps the building at 1 HP rather than killing it (`GarrisonManager.cs:1451-1468`), and at the clamp
+the damage modifier zeroes every hit — which means the `INotifyDamage` that forwards a slice to a
+random shelter occupant sees a zero and bails (`GarrisonProtection.cs:112-114`). So a rubbled
+garrison is **permanently immune again**, and units that auto-acquired the building will keep firing
+at a target they can neither destroy nor hurt anyone through. This is a pre-existing property of the
+clamp, not something the auto-target change created — it was simply unreachable before, because
+nothing but a force-fire could get the building down there. Relevant to the "rubble" reframing the
+user gave on 2026-09-01: the terminal-damaged-but-standing state currently has **less** occupant
+attrition than the state just above it, not more.
+
 ## 2026-09-15 - `RequiresForceFire` on a building plus "no bot ever force-fires an actor" multiply into an AI blind spot, and one ungated `Targetable` can silently switch a whole protection trait off (`wt/civ-garrison`)
 
 **A `RequiresForceFire` TARGET IS INVISIBLE TO EVERY BOT IN THE MOD, BECAUSE NOT ONE OF THEM ISSUES A FORCE ATTACK AT AN ACTOR.** `AttackBase.cs:442` rejects a `RequiresForceFire` target for any non-force attack. Across all of `Traits/BotModules/`, the only `ForceAttack` order is `DroneOperatorBotModule.cs:686` and it targets a **cell**; the one actor-directed attack order is `PoiOffensiveBotModule.cs:4720`, which issues plain `"Attack"`. So putting `RequiresForceFire: true` on anything is equivalent to saying "no AI may ever shoot this". On a garrisoned civilian building (`civilian.yaml:20-23`) that composes with a second fact into something nobody chose: shelter occupants live inside `Cargo`, out of world and untargetable, and the ONLY path to them is `GarrisonProtection.Damaged` forwarding a slice of the **building's** damage. Bot cannot damage building, therefore bot cannot damage anyone sheltering in it, ever. **The general lesson is the composition, not the flag:** `RequiresForceFire` is a targeting-layer keyword, and it silently became an AI-participation switch two layers away. Grep the bot modules for a force-fire path before adding it to anything.
