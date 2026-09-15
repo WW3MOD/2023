@@ -58,7 +58,13 @@ local HitWithin = 20        -- s for an in-arc shooter to land its first round
 -- very little. This limb asserts a NEGATIVE, so it has to be the generous one.
 local QuietFor = 30         -- s a blocked shooter is given to prove it lands nothing
 local SettleFor = 3         -- s after a Stop order, before a fresh health baseline is taken
-local MoveWithin = 20       -- s for the two shooters to walk onto their derived bearings
+-- 45 s, not 20. The derived cells rotate with the held port while the spawns are fixed, so one of
+-- them can land ON a shooter's own start cell -- run 260915_211447 sent the behind shooter to 24,8,
+-- which is where the cone shooter was still standing, and he never left his spawn. He gets there
+-- once the cell frees, but only if the order is re-issued, and only if there is time to walk the
+-- long way round the house.
+local MoveWithin = 45       -- s for the two shooters to walk onto their derived bearings
+local MoveTraceEvery = 5    -- s between position traces while they walk
 local HeldYaw = nil         -- the port yaw both shooters were positioned against
 local ConeCellX, ConeCellY = nil, nil       -- derived cell the in-cone shooter must stand on
 local BehindCellX, BehindCellY = nil, nil   -- derived cell the behind shooter must stand on
@@ -377,6 +383,78 @@ end
 -- off to the measurement. This is what makes the two limbs test what they claim no matter which
 -- port the deploy loop picked -- and it is the third attempt at that, the first two having tried to
 -- pin the port by map geometry and been wrong in different ways each time.
+-- A position trace that says WHY a man is not where he was sent, not just that he is not there.
+-- ClickOrderAtCell with issue=false asks the real order pipeline what a click on that cell would
+-- produce without issuing anything: "Move" means the order is available and he is simply walking,
+-- anything else (or nil) means the pipeline is refusing the destination -- which is what an occupied
+-- or unreachable cell looks like from here.
+local function DescribeMove(label, actor, x, y)
+	return label .. " at " .. actor.Location.X .. "," .. actor.Location.Y ..
+		" wants " .. x .. "," .. y ..
+		" arrived=" .. tostring(AtCell(actor, x, y)) ..
+		" orderAtCell=" .. tostring(Test.ClickOrderAtCell(actor, CPos.New(x, y), "", false))
+end
+
+local function MoveTrace()
+	return DescribeMove("cone", ConeShooter, ConeCellX, ConeCellY) .. " | " ..
+		DescribeMove("behind", BehindShooter, BehindCellX, BehindCellY)
+end
+
+-- WAIT ON POSITION, NOT ON IsIdle. Round 4: Test.IssueMoveOrder goes through World.IssueOrder, so
+-- the order sits in the queue and only becomes an activity a tick or more later, while IsIdle is
+-- CurrentActivity == null -- TRUE BOTH BEFORE THE ORDER LANDS AND AFTER THE MOVE FINISHES. The wait
+-- fired on its first poll and the attack was issued from the spawn cell.
+--
+-- Round 5 added the re-issue. The destination is derived from a port chosen at runtime, so it can
+-- collide with a fixed spawn: a man ordered onto an occupied cell simply does not go, and nothing
+-- retries him. Re-issuing on each trace costs nothing when he is already walking (the order
+-- resolves to the same destination) and is the whole fix when the cell was blocked at order time.
+local function AwaitArrival()
+	local remaining = math.floor(MoveWithin * TestHarness.TicksPerSecond)
+	local interval = math.floor(MoveTraceEvery * TestHarness.TicksPerSecond)
+	local sinceTrace = 0
+	local check
+
+	check = function()
+		if AtCell(ConeShooter, ConeCellX, ConeCellY) and AtCell(BehindShooter, BehindCellX, BehindCellY) then
+			print("MOVE-ARRIVED | " .. MoveTrace())
+			-- A settle beat after arrival, so the last move tick is behind us before anyone aims.
+			Trigger.AfterDelay(math.floor(SettleFor * TestHarness.TicksPerSecond), ConeShot)
+			return
+		end
+
+		remaining = remaining - 1
+		sinceTrace = sinceTrace + 1
+
+		if sinceTrace >= interval then
+			sinceTrace = 0
+			print("MOVE-TRACE | " .. MoveTrace())
+
+			if not AtCell(ConeShooter, ConeCellX, ConeCellY) then
+				Test.IssueMoveOrder(ConeShooter, CPos.New(ConeCellX, ConeCellY))
+			end
+
+			if not AtCell(BehindShooter, BehindCellX, BehindCellY) then
+				Test.IssueMoveOrder(BehindShooter, CPos.New(BehindCellX, BehindCellY))
+			end
+		end
+
+		if remaining <= 0 then
+			Test.Skip("the shooters did not reach their derived cells within " .. MoveWithin ..
+				"s. FINAL STATE: " .. MoveTrace() .. " -- orderAtCell=Move means the pipeline would " ..
+				"accept the destination and he is simply too slow or blocked en route; anything else " ..
+				"means it refuses that cell outright, which is what a still-occupied or unreachable " ..
+				"cell looks like. The per-5s MOVE-TRACE lines in lua.log show whether he was moving " ..
+				"at all. Neither limb can be measured from a bearing nobody is standing on. " .. State())
+			return
+		end
+
+		Trigger.AfterDelay(1, check)
+	end
+
+	Trigger.AfterDelay(1, check)
+end
+
 local function PlaceShooters()
 	local yaw = PortYawOf(Gunner, HouseMT)
 	if yaw == nil then
@@ -401,31 +479,7 @@ local function PlaceShooters()
 		" | cone shooter -> " .. ConeCellX .. "," .. ConeCellY ..
 		" | behind shooter -> " .. BehindCellX .. "," .. BehindCellY)
 
-	-- WAIT ON POSITION, NOT ON IsIdle. That is the whole of round 4's failure and it is a trap
-	-- worth naming: Test.IssueMoveOrder goes through World.IssueOrder, so the order sits in the
-	-- queue and only becomes an activity a tick or more later, while IsIdle is CurrentActivity ==
-	-- null -- TRUE BOTH BEFORE THE ORDER LANDS AND AFTER THE MOVE FINISHES. The wait fired on its
-	-- first poll, before either man had taken a step, and the attack was issued from the spawn
-	-- cell: outside the held port's cone, correctly refused, activity dropped, and nothing ever
-	-- re-issued it. run 260915_204319 caught it red-handed by reading the same fact twice --
-	-- "CONE-SHOT ... shooter cell 24,8 | canTarget=false" at order time against
-	-- "canTarget=true" in the verdict, by which point he had walked to 23,15.
-	--
-	-- An activity-based predicate cannot distinguish "not started" from "finished". Position can.
-	WaitUntil(MoveWithin,
-		function() return AtCell(ConeShooter, ConeCellX, ConeCellY) and AtCell(BehindShooter, BehindCellX, BehindCellY) end,
-		function()
-			-- A settle beat after arrival, so the last move tick is behind us before anyone aims.
-			Trigger.AfterDelay(math.floor(SettleFor * TestHarness.TicksPerSecond), ConeShot)
-		end,
-		function()
-			Test.Skip("the shooters did not reach their derived cells within " .. MoveWithin ..
-				"s — cone shooter wanted " .. ConeCellX .. "," .. ConeCellY .. " and is at " ..
-				ConeShooter.Location.X .. "," .. ConeShooter.Location.Y .. "; behind shooter wanted " ..
-				BehindCellX .. "," .. BehindCellY .. " and is at " .. BehindShooter.Location.X .. "," ..
-				BehindShooter.Location.Y .. ". Neither limb can be measured from a bearing nobody is " ..
-				"standing on. " .. State())
-		end)
+	AwaitArrival()
 end
 
 local function AwaitDeployment()
