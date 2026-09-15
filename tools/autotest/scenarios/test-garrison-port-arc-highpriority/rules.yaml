@@ -1,0 +1,39 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Human-owned units read per-type stance defaults off this machine's unit-defaults.yaml
+	# (AutoTarget.cs:355-388). Strip it so the riflemen behave identically on every machine
+	# that runs this scenario.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-garrison-port-arc-highpriority.lua
+
+# Every attacker is held silent and fires only when the .lua issues an explicit Attack order.
+# This scenario measures a HEALTH DELTA and attributes it to one named shooter, so a second
+# unit opening up on its own would not just add noise - it would make the central assertion
+# ("the behind shooter did nothing") unfalsifiable.
+#
+# PITFALL: BOTH stance fields, and InitialStanceAI is the one that fires for the scenario
+# opponent. AutoTarget.cs:497 picks `Owner.IsBot || !Owner.Playable ? InitialStanceAI :
+# InitialStance`, so InitialStance alone is silently never read for a non-Playable slot.
+E1:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+
+# NOT held silent, and that is deliberate. The garrison's own deploy gate reads the BUILDING's
+# stance, not the soldier's (GarrisonManager.cs:672, :796), so holding the MT's fire would not
+# stop the deployment this scenario needs - but it would also not stop the garrison shooting,
+# because AttackGarrisoned drives the port from the building. Leaving MT at its shipped stance
+# keeps the one behaviour the scenario depends on (the Gunner stays deployed while Trigger is
+# alive) exactly as it ships.

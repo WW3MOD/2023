@@ -1,0 +1,85 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Two hostile players garrisoning one building (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# The house starts NEUTRAL, which is the whole point. EnterAlliedActorTargeter admits an allied
+	# OR NEUTRAL owner (EnterAlliedActorTargeter.cs:49-54), so while it is neutral BOTH players may
+	# legally order men in — and the relationship gate appears exactly once, at targeting time.
+	# Nothing re-checks it afterwards: Passenger.ResolveOrder tests target liveness, CanEnter and
+	# IsCorrectCargoType (Passenger.cs:216-239), RideTransport.OnEnterComplete tests identity and
+	# CanLoad (RideTransport.cs:69-87), and Cargo.CanLoad tests LoadingBlocked, the
+	# ICargoCanLoadFilters and space (Cargo.cs:522-533). The only filter implementor in the mod is
+	# SupplyProvider, which is not on a civilian building.
+	#
+	# v09 is 1x1 (civilian.yaml:379) so both men approach one cell and the arrival order is decided
+	# by distance alone.
+	House: v09
+		Owner: Neutral
+		Location: 20,12
+	# ADJACENT. He arrives first and flips the house to USA (GarrisonManager.cs:263-267).
+	UsMan: e1
+		Owner: USA
+		Location: 20,13
+	# SEVEN CELLS OUT. His order is issued on the same tick, while the house is still neutral and
+	# the targeter therefore admits it — but he is still walking when the flip happens. Whether he
+	# then loads into a building owned by his enemy is the question.
+	RuMan: e1
+		Owner: Russia
+		Location: 20,19
+	# CONTROL. He is ordered at the house only AFTER the flip, so the targeter sees an enemy-owned
+	# building and must refuse. Separates "the race slipped through the neutral window" from "the
+	# relationship gate is not working at all", which would be a much larger finding.
+	RuProbe: e1
+		Owner: Russia
+		Location: 26,19
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,16
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,28
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 20,13
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,28
+
+Rules: rules.yaml

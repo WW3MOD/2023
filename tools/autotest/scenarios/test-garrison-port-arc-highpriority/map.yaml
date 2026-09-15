@@ -1,0 +1,130 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Garrison port arc holds for mortar and AT infantry (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# ---------------------------------------------------------------------------------------
+	# GEOMETRY. Every position here is derived, not chosen by eye, and the .lua header explains
+	# why each one is where it is. The short version:
+	#
+	#   ^CivBuilding declares 8 ports on the four DIAGONALS - yaws 896 (NE), 640 (SE), 384 (SW),
+	#   128 (NW), each with Cone: 140 (civilian.yaml:79-119). WAngle is 1024 = 360 degrees
+	#   (GarrisonPortInfo.Cone defaults to WAngle(512), i.e. a 180-degree half-angle = omni), so
+	#   140 is a 49.2-degree HALF-angle. GarrisonPortOccupant.TargetableBy tests the occupant's
+	#   OWN port only, so a soldier at a NE port is hidden from anyone more than 49.2 degrees off
+	#   the NE diagonal.
+	#
+	#   v09 is used because it is 1x1 (civilian.yaml:379), so its CenterPosition is the centre of
+	#   its single cell and every offset below is an exact diagonal or an exact cardinal. On a 2x2
+	#   house the half-cell centre offset would tilt every angle.
+	# ---------------------------------------------------------------------------------------
+	#
+	# SUBJECT: the MT garrison. House at (20,12).
+	HouseMT: v09
+		Owner: Neutral
+		Location: 20,12
+	Gunner: mt
+		Owner: USA
+		Location: 20,14
+	# Bait is at (+8,-8) = exactly the NE diagonal, 11.3 cells out. Two jobs, and only one of
+	# them is shooting:
+	#   1. He is the ONLY actor any port can acquire, which is what pins the Gunner to a NE port
+	#      deterministically instead of leaving it to port iteration order. 60mm_Mortar is
+	#      Range: 25c0, MinRange: 8c0 (weapons-ballistics.yaml:788-789), and every other Russian
+	#      below is deliberately INSIDE that 8-cell minimum - so no SE/SW/NW port can ever find a
+	#      target, and no other port can ever claim the one soldier in the shelter.
+	#   2. He must stay alive for the whole run: if the NE port loses its target the Gunner is
+	#      recalled to the shelter, becomes untargetable by everything, and the behind-shot
+	#      assertion would pass for entirely the wrong reason. The .lua asserts he is still at a
+	#      port at the END of the measurement for exactly this reason.
+	Bait: e1
+		Owner: Russia
+		Location: 28,4
+	# ConeShooter is at (+4,-4) = the same NE diagonal, 5.7 cells out. INSIDE the port's arc, and
+	# inside the mortar's 8-cell minimum range, so the garrison cannot shoot back at him.
+	ConeShooter: e1
+		Owner: Russia
+		Location: 24,8
+	# BehindShooter is at (0,+6) = due SOUTH, yaw 512. The NE port faces 896; the smaller of the
+	# two turns between them is 384, which is far outside Cone 140. This is the actor the whole
+	# scenario is about.
+	BehindShooter: e1
+		Owner: Russia
+		Location: 20,18
+	#
+	# CONTROL 1: the same geometry with a PLAIN RIFLEMAN. e1 was never affected by the defect
+	# (^Infantry gates its Targetable on !garrisoned-at-port already, infantry.yaml:62-63), so
+	# this limb must read identically before and after the fix. It is what separates "the fix
+	# works" from "the arc gate is broken for everyone".
+	HouseE1: v09
+		Owner: Neutral
+		Location: 44,12
+	Rifleman: e1
+		Owner: USA
+		Location: 44,14
+	BaitB: e1
+		Owner: Russia
+		Location: 52,4
+	BehindShooterB: e1
+		Owner: Russia
+		Location: 44,18
+	#
+	# CONTROL 2: an MT standing in the OPEN. Guards the obvious way to "fix" this wrongly - a
+	# condition that disables Targetable@HighPriority everywhere instead of only at a port.
+	OpenMT: mt
+		Owner: USA
+		Location: 10,26
+	OpenShooter: e1
+		Owner: Russia
+		Location: 14,26
+	#
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,16
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,28
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 20,14
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,28
+
+Rules: rules.yaml

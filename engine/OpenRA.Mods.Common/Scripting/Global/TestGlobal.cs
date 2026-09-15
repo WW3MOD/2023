@@ -797,6 +797,42 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return order.OrderString;
 		}
 
+		[Desc("True when `passenger` is currently inside `transport`'s Cargo hold. THE ONLY TRUTHFUL " +
+			"WAY TO ASK THIS. A Cargo passenger is removed from the world AND reads IsDead == true, so " +
+			"every actor-property route lies about him: IsInWorld says he is gone, IsDead says he is a " +
+			"casualty, and Test.ConditionCount returns 0 for any actor failing either check — which " +
+			"means a condition granted precisely BECAUSE he boarded (Passenger.CargoCondition) can " +
+			"never be observed through it. This reads Cargo's own passenger list instead. Test mode only.")]
+		public bool IsLoadedInto(Actor passenger, Actor transport)
+		{
+			if (!TestMode.IsActive || passenger == null || transport == null)
+				return false;
+
+			var cargo = transport.TraitOrDefault<Cargo>();
+
+			return cargo != null && cargo.Passengers.Contains(passenger);
+		}
+
+		[Desc("True when `soldier` is currently deployed to one of `building`'s garrison firing ports. " +
+			"A port occupant IS in the world, unlike a shelter occupant, but he is placed at the " +
+			"building's own Location — so position tells you he is at A port and nothing more. This " +
+			"reads GarrisonManager's port states. Test mode only.")]
+		public bool IsAtGarrisonPort(Actor soldier, Actor building)
+		{
+			if (!TestMode.IsActive || soldier == null || building == null)
+				return false;
+
+			var manager = building.TraitOrDefault<GarrisonManager>();
+			if (manager == null)
+				return false;
+
+			foreach (var ps in manager.PortStates)
+				if (ps.DeployedSoldier == soldier)
+					return true;
+
+			return false;
+		}
+
 		[Desc("The stack count of a named condition on `actor` right now — 0 when it is not granted, " +
 			"so `> 0` reads as \"has it\". Reads Actor.GetConditionCount, the same cache every " +
 			"RequiresCondition/PauseOnCondition expression is evaluated against, so it cannot disagree " +
