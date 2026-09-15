@@ -1,0 +1,1 @@
+Two riflemen ordered into a Neutral v08 and two into a USA-owned v08, three cells away each. Asserts both squads get inside. Isolates the one variable the garrison-lineup demo could not: whether EnterTransport works on a neutral civilian building.

@@ -1,0 +1,75 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: can a rifleman walk into a NEUTRAL civilian building (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 100,60
+
+Bounds: 1,1,98,58
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# THE VARIABLE UNDER TEST is the owner of the building, and nothing else. Same actor type,
+	# same squad size, same start distance, side by side.
+	NeutralHouse: v08
+		Owner: Neutral
+		Location: 24,20
+	OwnedHouse: v08
+		Owner: USA
+		Location: 40,20
+	N1: e1
+		Owner: USA
+		Location: 21,20
+	N2: e1
+		Owner: USA
+		Location: 21,21
+	O1: e1
+		Owner: USA
+		Location: 37,20
+	O2: e1
+		Owner: USA
+		Location: 37,21
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 90,6
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 90,52
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 90,6
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 90,52
+
+Rules: rules.yaml

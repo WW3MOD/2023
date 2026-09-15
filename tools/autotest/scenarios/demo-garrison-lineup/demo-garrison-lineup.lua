@@ -155,6 +155,18 @@ local function Census(squad, building)
 	return atPorts, inShelter, outside, dead
 end
 
+-- PassengerCount is shelter-only: GarrisonManager takes a man OUT of Cargo to put him at a
+-- port, so a fully deployed building reads 0 here. Reported alongside the port census, never
+-- instead of it.
+local function AboardLine()
+	local parts = {}
+	for _, sq in ipairs(Squads) do
+		parts[#parts + 1] = sq.name .. " " .. sq.building.PassengerCount
+	end
+
+	return table.concat(parts, "  ")
+end
+
 local function CensusLine()
 	local parts = {}
 	for _, sq in ipairs(Squads) do
@@ -189,7 +201,9 @@ local function Sanitize(s)
 end
 
 WorldLoaded = function()
-	UserInterface.SetMissionText("GARRISON LINEUP — 41 garrisonable actors; column 1 of each row is manned")
+	-- No SetMissionText anywhere in this demo. MISSION_TEXT and the in-game test panel's
+	-- description line render at the same place, and the first run overprinted the two into an
+	-- unreadable smear across the top of all 19 frames. description.txt already says what this is.
 
 	Trigger.OnTick(function()
 		LabelTick = LabelTick + 1
@@ -198,14 +212,32 @@ WorldLoaded = function()
 		end
 	end)
 
-	for _, sq in ipairs(Squads) do
-		for _, s in ipairs(sq.men) do
-			s.EnterTransport(sq.building)
+	-- LoadPassenger TELEPORTS the man into Cargo (TransportProperties.cs:42-48) instead of
+	-- ordering him to walk in. The first run of this demo used EnterTransport and the three
+	-- CIVILIAN squads never boarded at all -- capture 017 is a church with ten riflemen still
+	-- standing in their start files four cells away, while the three defence squads, whose
+	-- buildings are USA-owned rather than Neutral, went in normally. The cause was never
+	-- established: nothing on the activity path gates on relationship (EnterAlliedActorTargeter
+	-- explicitly permits neutral, and it is not on this path anyway), Cargo.LoadingBlocked is
+	-- set only by HeliEmergencyLanding, and GarrisonManager only observes entry through
+	-- INotifyPassengerEntered. Rather than guess, this sidesteps the whole approach phase:
+	-- LoadPassenger calls Cargo.Load directly, which still fires INotifyPassengerEntered and so
+	-- still runs the real ownership-transfer and shelter bookkeeping.
+	--
+	-- WHETHER NEUTRAL ENTRY IS BROKEN IS STILL OPEN, and it matters -- walking into a neutral
+	-- civilian building is how a player garrisons one. test-garrison-neutral-entry exists to
+	-- answer it on its own rather than as a side effect of this demo.
+	Trigger.AfterDelay(10, function()
+		for _, sq in ipairs(Squads) do
+			for _, s in ipairs(sq.men) do
+				if not s.IsDead and s.IsIdle then
+					sq.building.LoadPassenger(s)
+				end
+			end
 		end
-	end
 
-	Media.DisplayMessage("41 garrisonable actors placed; six manned. Captures run to ~35s.",
-		"LINEUP")
+		Media.DisplayMessage("Loaded: " .. AboardLine(), "LINEUP")
+	end)
 
 	-- --- 0. orientation ------------------------------------------------------------
 	-- Camera.MinZoom is "as far out as this display goes" and frames the whole 100x60 map
@@ -214,7 +246,7 @@ WorldLoaded = function()
 	Trigger.AfterDelay(400, function()
 		Camera.Position = CellPos(49, 29)
 		Camera.Zoom = Camera.MinZoom
-		UserInterface.SetMissionText("00 OVERVIEW — whole grid, 8 cols x 6 rows; " .. CensusLine())
+		Media.DisplayMessage("00 OVERVIEW — whole grid, 8 cols x 6 rows; " .. CensusLine(), "LINEUP")
 	end)
 
 	Trigger.AfterDelay(410, function()
@@ -261,7 +293,7 @@ WorldLoaded = function()
 					"under its own white label. This is the frame the building's identity " ..
 					"(wood / brick / concrete / industrial) is read off.",
 					function()
-						UserInterface.SetMissionText(label .. " — " .. listed)
+						Media.DisplayMessage(label .. " — " .. listed, "LINEUP")
 					end)
 			end
 		end
@@ -281,8 +313,11 @@ WorldLoaded = function()
 			end
 
 			Camera.Zoom = PORT_ZOOM
-			UserInterface.SetMissionText(label .. " — " .. CensusLine() ..
-				"  (p=at port, s=in shelter, o=outside, d=dead)")
+			-- NOT SetMissionText: MISSION_TEXT and the test panel's description render on the
+			-- same line and the first run produced two strings overprinted into mush. The chat
+			-- log is drawn clear of everything and is legible in every capture.
+			Media.DisplayMessage(label .. " — " .. CensusLine() ..
+				"  (p=at port, s=in shelter, o=outside, d=dead)", "PORTS")
 		end)
 
 		Trigger.AfterDelay(tick + 12, function()
@@ -299,9 +334,8 @@ WorldLoaded = function()
 	Trigger.AfterDelay(860, function()
 		Camera.Position = CellPos(49, 29)
 		Camera.Zoom = Camera.MinZoom
-		UserInterface.SetMissionText("Captures complete — " .. CensusLine() ..
-			". Pan and zoom freely; close the window when done.")
-		Media.DisplayMessage("Captures complete. " .. CensusLine(), "LINEUP")
+		Media.DisplayMessage("Captures complete. " .. CensusLine() .. " | aboard: " ..
+			AboardLine(), "LINEUP")
 	end)
 
 	-- No Test.Pass. This is a demo: it holds the window open until the viewer closes it.

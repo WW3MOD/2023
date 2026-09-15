@@ -1,0 +1,1 @@
+One HIMARS missile each into V01 (wooden church, 38000 Light) and RUSHOUSE (concrete block, 120000 Concrete). Asserts the church reaches its rubble floor and the block keeps more than half its health.
