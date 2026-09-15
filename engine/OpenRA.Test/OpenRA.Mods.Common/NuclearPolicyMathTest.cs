@@ -47,20 +47,22 @@ namespace OpenRA.Test
 			return mask;
 		}
 
-		/// <summary>Released, losing, nothing fired yet, no window: the ordinary shooting position.</summary>
+		/// <summary>Released, losing, nothing fired recently: the ordinary shooting position.</summary>
+		// THE SIDE COOLDOWN IS NOT A PARAMETER, and its absence is the v2 model rather than an
+		// omission: a side inside its cooldown has EVERY band unready, because NuclearExchange writes
+		// the cooldown onto every one of that side's support powers. So `Mask()` -- an empty ready
+		// mask -- IS a bot on cooldown, and that is the only way this fixture can express one.
 		static NuclearBotDecision Choose(
 			int readyMask,
 			bool losing = true,
-			int permanentLevel = Kiloton,
-			int windowLevel = Hold,
-			int windowTicks = 0,
+			int level = Kiloton,
 			bool released = true,
 			bool finalExchange = false,
 			int ticksSinceLastLaunch = 100000,
 			bool mayFireGameEnder = true)
 		{
 			return NuclearPolicyMath.Choose(
-				released, losing, finalExchange, permanentLevel, windowLevel, windowTicks,
+				released, losing, finalExchange, level,
 				readyMask, ticksSinceLastLaunch, RateLimit, mayFireGameEnder);
 		}
 
@@ -171,7 +173,7 @@ namespace OpenRA.Test
 			// must still decline, naming the right reason.
 			var decision = Choose(
 				Mask(Kiloton, TwentyKiloton, FiftyKiloton, HundredKiloton, GameEnder),
-				losing: false, permanentLevel: HundredKiloton, windowLevel: GameEnder, windowTicks: 3000);
+				losing: false, level: GameEnder);
 
 			Assert.That(decision.Fire, Is.False, "A winning bot fired. That is the one thing it must never do.");
 			Assert.That(decision.Reason, Is.EqualTo(NuclearBotReason.NotLosing),
@@ -196,57 +198,41 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void LosingFiresTheHighestReadyPermanentBand()
+		public void LosingFiresTheHighestBandTheLevelAllows()
 		{
-			var decision = Choose(
-				Mask(Kiloton, TwentyKiloton), permanentLevel: TwentyKiloton);
-
-			Assert.That(decision.Band, Is.EqualTo(TwentyKiloton), "'The highest permanent band that is ready.'");
-			Assert.That(decision.Reason, Is.EqualTo(NuclearBotReason.Permanent));
-		}
-
-		[Test]
-		public void ABandAboveThePermanentLevelIsNotFiredWithoutAWindow()
-		{
-			// Ready is not the same as permitted. A 50 kt warhead sitting loaded from some earlier grant
-			// must not be fired by a side whose permanent level is 1 kt.
-			var decision = Choose(Mask(Kiloton, FiftyKiloton), permanentLevel: Kiloton);
-			Assert.That(decision.Band, Is.EqualTo(Kiloton));
-		}
-
-		[Test]
-		public void TheWindowBeatsThePermanentBand()
-		{
-			// The ruling's model expects the LOSER to escalate, and a window grant is ONE SHOT that
-			// vanishes when the window does -- so spending the beat on the permanent band throws the
-			// reply away.
-			var decision = Choose(
-				Mask(Kiloton, TwentyKiloton), permanentLevel: Kiloton,
-				windowLevel: TwentyKiloton, windowTicks: 500);
+			// ONE FIRING BRANCH, WHERE v1 HAD TWO. Under v2 firing ANY band costs the side the same
+			// thing -- its whole arsenal for a cooldown -- so taking the smallest would be paying full
+			// price for the least effect.
+			var decision = Choose(Mask(Kiloton, TwentyKiloton), level: TwentyKiloton);
 
 			Assert.That(decision.Band, Is.EqualTo(TwentyKiloton));
-			Assert.That(decision.Reason, Is.EqualTo(NuclearBotReason.Retaliation));
+			Assert.That(decision.Reason, Is.EqualTo(NuclearBotReason.HighestAllowed));
 		}
 
 		[Test]
-		public void ALapsedWindowIsNotAWindow()
+		public void ABandAboveTheLevelIsNeverFired()
 		{
-			var decision = Choose(
-				Mask(Kiloton, TwentyKiloton), permanentLevel: Kiloton,
-				windowLevel: TwentyKiloton, windowTicks: 0);
-
-			Assert.That(decision.Band, Is.EqualTo(Kiloton), "A window at zero ticks must not be fired.");
-			Assert.That(decision.Reason, Is.EqualTo(NuclearBotReason.Permanent));
-		}
-
-		[Test]
-		public void AWindowWhoseBandIsNotReadyFallsBackToThePermanentBand()
-		{
-			var decision = Choose(
-				Mask(Kiloton), permanentLevel: Kiloton, windowLevel: TwentyKiloton, windowTicks: 500);
-
+			// READY IS NOT THE SAME AS PERMITTED. A 50 kt warhead sitting loaded -- from a
+			// `powers-sandbox` lobby, or from a level the side has since... it cannot lose, but the
+			// mask is measured off the powers and the level off the state, and the two are allowed to
+			// disagree for a tick or two while a condition propagates. The level is the authority.
+			var decision = Choose(Mask(Kiloton, FiftyKiloton), level: Kiloton);
 			Assert.That(decision.Band, Is.EqualTo(Kiloton));
-			Assert.That(decision.Reason, Is.EqualTo(NuclearBotReason.Permanent));
+			Assert.That(decision.Reason, Is.EqualTo(NuclearBotReason.HighestAllowed));
+		}
+
+		[Test]
+		public void ACooledDownSideReadsAsNoReadyBandRatherThanFiring()
+		{
+			// THE COOLDOWN, AS THIS FIXTURE CAN SEE IT. NuclearExchange puts the side's cooldown on
+			// every one of its nuclear powers, so a reloading side reaches the policy with an EMPTY
+			// mask however high its level is. This is the assertion that says the policy needs no
+			// second copy of rule 2 -- and it is why `Choose` has no cooldown parameter.
+			var decision = Choose(Mask(), level: HundredKiloton);
+
+			Assert.That(decision.Fire, Is.False, "a bot with nothing loaded fired anyway");
+			Assert.That(decision.Reason, Is.EqualTo(NuclearBotReason.NoReadyBand),
+				"a reloading bot must read NoReadyBand, not NotLosing -- the two want opposite investigations");
 		}
 
 		[Test]
@@ -265,46 +251,54 @@ namespace OpenRA.Test
 		[Test]
 		public void GameEnderNeedsBothLosingAndAWindow()
 		{
-			// (a) Losing, game-ender loaded, NO window: must not fire it. Nothing ever writes GameEnder
-			// into a permanent level (NuclearExchangeState rule 5) and the cap here is written
-			// explicitly rather than inherited, so this holds even if a caller passes a bad level.
-			var noWindow = Choose(Mask(GameEnder), permanentLevel: GameEnder);
-			Assert.That(noWindow.Band, Is.Not.EqualTo(GameEnder),
-				"A game-ender was reachable from a permanent level. That is the held apocalypse the ruling forbids.");
-			Assert.That(noWindow.Fire, Is.False, "Nothing else was ready either, so it must decline.");
+			// (a) Losing, game-ender loaded, but the side is only at level 4: must not fire it. Under
+			// v1 the cap here was written explicitly to mirror "game-enders are only ever a window
+			// grant"; under v2 END is an ordinary rung and the LEVEL is the cap, so this is the
+			// assertion that the level is honoured at the top exactly as it is lower down.
+			var belowEnd = Choose(Mask(GameEnder), level: HundredKiloton);
+			Assert.That(belowEnd.Band, Is.Not.EqualTo(GameEnder),
+				"a game-ender was fired by a side that has not been hit with a 100 kt");
+			Assert.That(belowEnd.Fire, Is.False, "nothing else was ready either, so it must decline");
 
-			// (b) Winning, game-ender loaded, window wide open: must not fire it.
-			var winning = Choose(Mask(GameEnder), losing: false, windowLevel: GameEnder, windowTicks: 3000);
+			// (b) Winning and at level 5 with the ender loaded: must not fire it. The user's rule
+			// outranks the ladder at every rung including the last.
+			var winning = Choose(Mask(GameEnder), losing: false, level: GameEnder);
 			Assert.That(winning.Fire, Is.False);
 
-			// (c) Losing AND the window grants it: fires.
-			var both = Choose(Mask(GameEnder), windowLevel: GameEnder, windowTicks: 3000);
+			// (c) Losing AND at level 5: fires.
+			var both = Choose(Mask(GameEnder), level: GameEnder);
 			Assert.That(both.Band, Is.EqualTo(GameEnder));
-			Assert.That(both.Reason, Is.EqualTo(NuclearBotReason.Retaliation));
+			Assert.That(both.Reason, Is.EqualTo(NuclearBotReason.HighestAllowed));
 		}
 
 		[Test]
 		public void MayFireGameEnderFalseWithholdsItAndSaysSo()
 		{
-			var decision = Choose(
-				Mask(GameEnder), windowLevel: GameEnder, windowTicks: 3000, mayFireGameEnder: false);
+			var decision = Choose(Mask(GameEnder), level: GameEnder, mayFireGameEnder: false);
 
 			Assert.That(decision.Fire, Is.False);
 			Assert.That(decision.Reason, Is.EqualTo(NuclearBotReason.GameEnderWithheld),
 				"Withholding must be distinguishable from having nothing to fire.");
+
+			// AND IT IS ONLY "WITHHELD" WHEN THERE WAS SOMETHING TO WITHHOLD. A bot at level 5 with an
+			// EMPTY bin declined nothing -- it had nothing -- and reporting GameEnderWithheld there
+			// would send a triager after the flag when the problem is an unloaded arsenal.
+			var empty = Choose(Mask(), level: GameEnder, mayFireGameEnder: false);
+			Assert.That(empty.Reason, Is.EqualTo(NuclearBotReason.NoReadyBand));
 		}
 
 		[Test]
 		public void MayFireGameEnderFalseStillFiresTheBandBelow()
 		{
-			// Withholding the apocalypse must not withhold the reply: the bot still has a permanent
-			// band and is still losing.
+			// WITHHOLDING THE APOCALYPSE MUST NOT WITHHOLD THE REPLY. This is why the cap is lowered
+			// BEFORE the search rather than the top band being rejected after it: rejecting afterwards
+			// would make a `MayFireGameEnder: false` bot stop fighting entirely whenever its END cameo
+			// happened to be loaded, because it would never look at the 100 kt underneath.
 			var decision = Choose(
-				Mask(HundredKiloton, GameEnder), permanentLevel: HundredKiloton,
-				windowLevel: GameEnder, windowTicks: 3000, mayFireGameEnder: false);
+				Mask(HundredKiloton, GameEnder), level: GameEnder, mayFireGameEnder: false);
 
 			Assert.That(decision.Band, Is.EqualTo(HundredKiloton));
-			Assert.That(decision.Reason, Is.EqualTo(NuclearBotReason.Permanent));
+			Assert.That(decision.Reason, Is.EqualTo(NuclearBotReason.HighestAllowed));
 		}
 
 		[Test]
