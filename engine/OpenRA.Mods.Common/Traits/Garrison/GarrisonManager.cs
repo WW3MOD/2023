@@ -172,7 +172,8 @@ namespace OpenRA.Mods.Common.Traits
 		}
 	}
 
-	public class GarrisonManager : ICargoCanLoadFilter, INotifyCreated, INotifyPassengerEntered, INotifyPassengerExited,
+	public class GarrisonManager : ICargoCanLoadFilter, IOverridesCargoNeutralRevert, INotifyCreated,
+		INotifyPassengerEntered, INotifyPassengerExited,
 		ITick, IIssueOrder, IResolveOrder, INotifyKilled, INotifyDamage, IDamageModifier
 	{
 		public readonly GarrisonManagerInfo Info;
@@ -345,6 +346,27 @@ namespace OpenRA.Mods.Common.Traits
 
 			return GarrisonBoardingMath.MayBoard(owner.RelationshipWith(passenger.Owner));
 		}
+
+		/// <summary>
+		/// THE VETO OVER CargoInfo.Neutral. True exactly when CheckOwnershipAfterExit below would do
+		/// something — the same two-clause guard, deliberately, so the two can never disagree about
+		/// which of them is in charge.
+		/// <para>Both this trait and CargoInfo.Neutral revert a building to Neutral, and all four
+		/// garrison families set both. They do NOT agree: UnloadCargo fires on
+		/// Cargo.PassengerCount == 0, which is the hold alone, and a soldier deployed to a firing port
+		/// has left the hold — so "Unload All" on a house whose ports were still manned handed it to
+		/// Neutral while its men went on shooting from it. This trait walks PortStates and the shelter
+		/// list and gets it right.</para>
+		/// <para>Answering true suppresses the Cargo flip rather than redirecting it, because the
+		/// correct decision has ALREADY been taken by the time UnloadCargo could act: Cargo.Unload
+		/// notifies INotifyPassengerExited synchronously, which lands in OnPassengerExited →
+		/// CheckOwnershipAfterExit, while UnloadCargo's flip is a frame-end task queued after it.
+		/// There is nothing left to call and nothing to duplicate — only an overwrite to stop.</para>
+		/// <para>When the guard is false this trait is NOT the authority (DynamicOwnership off, or no
+		/// Neutral player in the map at all) and CheckOwnershipAfterExit early-returns, so the veto
+		/// lifts and CargoInfo.Neutral keeps the behaviour it has always had, throw included.</para>
+		/// </summary>
+		bool IOverridesCargoNeutralRevert.OverridesCargoNeutralRevert => Info.DynamicOwnership && neutralPlayer != null;
 
 		/// <summary>
 		/// After a soldier exits or dies, check if we need to revert ownership to neutral

@@ -23,6 +23,10 @@ namespace OpenRA.Mods.Common.Activities
 		readonly Actor self;
 		readonly Cargo cargo;
 		readonly INotifyUnloadCargo[] notifiers;
+
+		/// <summary>True when a trait on this actor owns the revert-to-neutral decision, so
+		/// CargoInfo.Neutral's flip below must not run. See IOverridesCargoNeutralRevert.</summary>
+		readonly bool neutralRevertOverridden;
 		readonly bool unloadAll;
 		readonly Aircraft aircraft;
 		readonly Mobile mobile;
@@ -71,6 +75,8 @@ namespace OpenRA.Mods.Common.Activities
 			this.self = self;
 			cargo = self.Trait<Cargo>();
 			notifiers = self.TraitsImplementing<INotifyUnloadCargo>().ToArray();
+			neutralRevertOverridden = self.TraitsImplementing<IOverridesCargoNeutralRevert>()
+				.Any(t => t.OverridesCargoNeutralRevert);
 			this.unloadAll = unloadAll;
 			aircraft = self.TraitOrDefault<Aircraft>();
 			mobile = self.TraitOrDefault<Mobile>();
@@ -231,7 +237,14 @@ namespace OpenRA.Mods.Common.Activities
 					if (actor.Disposed)
 						return;
 
-					if (cargo.PassengerCount == 0 && cargo.Info.Neutral)
+					// PassengerCount is the Cargo HOLD, not the building. On a garrisoned actor a
+					// soldier at a firing port has already left the hold, so this condition goes true
+					// with men still inside and still shooting — and the flip then handed the house to
+					// Neutral underneath them. GarrisonManager owns that decision on those actors and
+					// has already taken it synchronously, inside the cargo.Unload above; the veto stops
+					// this overwriting it. It is NOT a second implementation of the port-aware check
+					// and must not become one.
+					if (GarrisonOwnershipMath.MayRevertHoldToNeutral(neutralRevertOverridden, cargo.PassengerCount, cargo.Info.Neutral))
 					{
 						var players = self.World.Players;
 						var player = players.First(pl => pl.PlayerName == "Neutral");

@@ -48,5 +48,26 @@ namespace OpenRA.Mods.Common.Traits
 
 			return null;
 		}
+
+		/// <summary>
+		/// Whether UnloadCargo's CargoInfo.Neutral flip may hand this actor to the Neutral player.
+		/// <para><paramref name="holdPassengerCount"/> is Cargo.PassengerCount, which is the HOLD and
+		/// not the building: on a garrisoned actor a soldier deployed to a firing port has left the
+		/// hold, so a zero here does NOT mean the building is empty. That is the whole defect, and it
+		/// is why <paramref name="neutralRevertOverridden"/> comes first and is decisive on its own —
+		/// when a trait owns the port-aware decision (IOverridesCargoNeutralRevert), the count is not
+		/// evidence about anything and must not be consulted.</para>
+		/// <para>Deliberately NOT the place to work out WHO the actor should belong to. The override
+		/// case is already answered, correctly, by GarrisonManager.CheckOwnershipAfterExit before this
+		/// is ever reached; re-deriving it here would be the second disagreeing implementation this
+		/// change exists to remove.</para>
+		/// </summary>
+		public static bool MayRevertHoldToNeutral(bool neutralRevertOverridden, int holdPassengerCount, bool cargoNeutralFlag)
+		{
+			if (neutralRevertOverridden)
+				return false;
+
+			return cargoNeutralFlag && holdPassengerCount == 0;
+		}
 	}
 }

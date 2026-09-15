@@ -1,0 +1,43 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Human-owned units read per-type stance defaults off this machine's unit-defaults.yaml
+	# (AutoTarget.cs:355-388). Strip it so the riflemen behave identically on every machine.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-garrison-unload-keeps-manned-owner.lua
+
+# NOBODY SHOOTS, AND NOBODY CAN DIE. This scenario measures an OWNERSHIP flip while firing ports are
+# manned, so every casualty is noise: a dead bait un-mans the port and turns a real result into a
+# silent skip, and a dead garrison soldier changes the occupant count the assertion is about.
+#
+# HoldFire does NOT stop the ports being manned, and that is the point. GarrisonManager takes the
+# deploy decision from the BUILDING's stance (`autoTarget?.Stance ?? UnitStance.FireAtWill`,
+# GarrisonManager.cs:672, :796) and v09 carries no AutoTarget at all, so the house is permanently
+# FireAtWill however its occupants are set. It will therefore acquire the baits and man ports against
+# them while not one rifle is fired.
+#
+# PITFALL: BOTH stance fields, and InitialStanceAI is the one that fires for the scenario opponent.
+# AutoTarget.cs:497 picks `Owner.IsBot || !Owner.Playable ? InitialStanceAI : InitialStance`, so
+# InitialStance alone is silently never read for a non-Playable slot.
+#
+# The HP is belt-and-braces behind the stance, not instead of it: if anything does open fire after
+# all, this keeps the measurement intact rather than letting it decay into a timeout whose cause
+# nobody can reconstruct from the log. It is applied to E1, which is every rifleman on this map --
+# both garrisons and baits -- and that is harmless precisely because nothing is meant to be shooting.
+E1:
+	Health:
+		HP: 1000000
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
