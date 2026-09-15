@@ -5,7 +5,8 @@ Container@GARRISON_PANEL:
 	Width: 228
 	Height: 240
 	Children:
-		LogicTicker@GARRISON_TICKER:
+		# No ticker: a child of a hidden container never ticks (Widget.cs:512-518), so it could
+		# not be what shows the panel. GarrisonPanelLogic uses an IsVisible delegate instead.
 		Label@GARRISON_HEADER:
 			Width: 220
 			Height: 14

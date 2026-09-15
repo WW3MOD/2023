@@ -18,9 +18,12 @@
 --                     recall threshold (60) on purpose, so the soldiers stay at
 --                     their ports and the port rows stay populated.
 --
--- The verdict here only covers the staging (soldiers really reached ports, and
--- nothing died). Whether the pips and panel text are correct is judged by
--- reading the two PNGs — see DOCS/recipes/SCREENSHOT.md.
+-- The verdict covers the staging (soldiers really reached ports, and nothing
+-- died) AND that GARRISON_PANEL is actually raised by the selection — that last
+-- one was added on 2026-09-15, because it was NOT true for the whole life of
+-- this scenario and no screenshot reading ever noticed. Whether the pips and the
+-- panel's TEXT are correct is still judged by reading the two PNGs — see
+-- DOCS/recipes/SCREENSHOT.md.
 
 -- Below GarrisonManager's SuppressionRecallThreshold (60) so nobody is recalled
 -- mid-capture. Lands in tier 5 of 10, whose pip is mid-orange (#E79228) — clearly
@@ -99,6 +102,35 @@ WorldLoaded = function()
 			Test.Fail("nobody got inside the tower within 10s — " ..
 				CensusText("tower squad", Squad, Tower) .. "; " ..
 				CensusText("house squad", HouseSquad, House))
+			return
+		end
+
+		-- ---- THE PANEL IS ASSERTED, NOT PHOTOGRAPHED ---------------------------------
+		-- Added 2026-09-15 with the fix for "GARRISON_PANEL can never become visible".
+		-- Until then the panel was hidden at construction and the only write that could
+		-- show it lived in a LogicTicker parented INSIDE it, which a hidden container
+		-- never ticks (Widget.cs:512-518). So it was absent from every frame this
+		-- scenario ever captured, while both screenshot notes below asked a human to
+		-- look for it. Nobody caught it, across more than one reading — which is the
+		-- argument for asserting it in code rather than in a note: an absent panel and a
+		-- panel whose rows are merely hard to read are the same PNG minus a rectangle
+		-- nobody was counting, and only one of them is a bug in this scenario's subject.
+		--
+		-- DELIBERATELY AFTER THE CENSUS ABOVE, not next to the Select call. The panel
+		-- only raises for a hold with occupants (GarrisonPanelLogic.UpdateSelection
+		-- returns early when ports, shelter and cargo are all empty), so asserting it
+		-- before the census would fail on a slow walk to the tower and blame the panel.
+		-- Past this line occupancy is established, so 'hidden' means the panel.
+		local panelState = Test.GetPanelVisibility("GARRISON_PANEL")
+		if panelState ~= "visible" then
+			Test.Fail("GARRISON_PANEL is '" .. panelState .. "' with an occupied tower " ..
+				"selected (expected 'visible'); " .. CensusText("tower squad", Squad, Tower) ..
+				". 'hidden' means the panel cannot be raised at all — check that " ..
+				"GarrisonPanelLogic still drives panel.IsVisible and that no LogicTicker " ..
+				"has come back inside the container in ingame-player.yaml. 'missing' means " ..
+				"no widget by that id is in the chrome tree, so this build could not show " ..
+				"the panel under any circumstances. Either way the frames below say nothing " ..
+				"about the panel and only their pip grids are evidence.")
 			return
 		end
 
