@@ -1,9 +1,9 @@
-TEST: the bot fires only when it is losing, and takes the window when it does.
+TEST: the bot fires only when it is losing, and takes the biggest band it may.
 
 Two players on a 66x34 map, DEFCON Escalation, starting at DEFCON 1 with the
-first-warheads clock compressed to ten ticks and the retaliation window at its
-shortest shipped value, one minute. USA is scripted; Russia is a `Bot:
-experimental` and is the thing under test. Nobody has any money, so no
+first-warheads clock compressed to ten ticks and all four side cooldowns
+compressed to 300 ticks (shipped: 5000/7000/9000/12000). USA is scripted; Russia
+is a `Bot: experimental` and is the thing under test. Nobody has any money, so no
 reinforcement can be called in and army value moves only when the script moves
 it.
 
@@ -23,35 +23,49 @@ against the module's LosingArmyRatioPercent of 60.
                    be a module that had not started ticking.
 
   PHASE B (t300)   USA fires its 0.3 kt B61 at empty ground. Nothing is aimed at
-                   anything: the exchange arms the other side wherever the
-                   warhead lands, with no damage attribution at all.
+                   anything: the exchange raises the other side's level wherever
+                   the warhead lands, with no damage attribution at all.
 
   PHASE B2 (t380)  THE SHARPEST ASSERTION IN THE RUN. Russia's 20 kt power now
-                   reads READY -- a retaliation grant, the biggest thing this bot
-                   has ever been permitted -- and the bot must STILL not have
-                   fired. A window is PERMISSION, not a REASON. A bot that fires
-                   here has the engine's generic SupportPowerBotModule policy
-                   ("ready and a target scores well enough"), which is precisely
-                   the shape the user's rule rejects.
+                   reads READY -- its level rose to 2 -- and the bot must STILL
+                   not have fired. A level is PERMISSION, not a REASON. A bot
+                   that fires here has the engine's generic SupportPowerBotModule
+                   policy ("ready and a target scores well enough"), which is
+                   precisely the shape the user's rule rejects.
+
+                   THIS GOT STRONGER AT v2. A retaliation window expired, so a
+                   bot that held through one might merely not have got round to
+                   firing. A level does not expire: this bot can take the 20 kt
+                   at any point for the rest of the match, and declines every
+                   time it is asked.
 
   PHASE C (t400)   Three of Russia's four humvees are killed. 500 against 2000
                    is 25 %. Three and not four: a losing player and an
                    annihilated one are different scenarios.
 
-  PHASE D (t700)   Exactly ONE launch, at band 2 (TwentyKiloton -- the WINDOW's
-                   band, not the permanent 1 kt one) with reason "Retaliation".
-                   The earliest legal launch is three evaluations after the kills
-                   (LosingStreakRequired 3 x EvaluationInterval 50 = 150 ticks);
-                   this reading sits three further intervals past that.
+  PHASE D (t700)   Exactly ONE launch, at band 2 (TwentyKiloton -- the highest
+                   band its LEVEL allows, not the 1 kt underneath) with reason
+                   "HighestAllowed". The earliest legal launch is three
+                   evaluations after the kills (LosingStreakRequired 3 x
+                   EvaluationInterval 50 = 150 ticks); this reading sits three
+                   further intervals past that.
 
-  PHASE E (t1000)  Still exactly one. MinTicksBetweenLaunches is 900 and the
-                   window grant was one shot, so a losing bot with a regenerating
-                   permanent band must keep holding.
+  PHASE E (t730)   And the bot's WHOLE arsenal went down with the shot -- its
+                   1 kt as well as the 20 kt it fired. A cooldown is side-wide.
+                   Under v1 this read READY and a losing bot worked down its
+                   ladder firing one warhead per band.
+
+  PHASE F (t1060)  And it comes back. Asserted so phase G means something: a bot
+                   that never recovered would also never fire again.
+
+  PHASE G (t1160)  Still exactly one launch -- now on MinTicksBetweenLaunches
+                   ALONE, because phase F just proved the arsenal is loaded. That
+                   separation is why the cooldown override is 300 rather than
+                   something still running at this tick.
 
 WHY THE LAUNCH COUNT IS A BINDING AND NOT A BIN READ. A launch shows up in the
-support power bin only as a band going READY -> CHARGING, which a regeneration
-timer, a lapsing window and a launch all produce. "Exactly once" is not a
-question the bin can answer. Test.GetBotNuclearState reads
+support power bin only as a band going READY -> CHARGING, which a side cooldown
+and a launch both produce. "Exactly once" is not a question the bin can answer. Test.GetBotNuclearState reads
 NuclearBotModule.LaunchCount, which is the count of orders the module actually
 queued. The bin is still read in phases A and B2, for the one thing it is the
 right instrument for.

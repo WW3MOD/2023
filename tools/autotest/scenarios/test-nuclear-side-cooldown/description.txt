@@ -1,0 +1,25 @@
+One launch puts the WHOLE SIDE on one cooldown -- every player on it, at every band -- and stops
+at the team line. Each faction also holds only its own ladder.
+
+A 2v1 with an America player and a Russia player on ONE team, against a Russia opponent on another.
+USA fires its 0.3 kt B61 and three things must be true 30 ticks later:
+
+  USA's own B61      charging:   the firer is on its side's cooldown
+  Volga's 9M729      charging:   a DIFFERENT weapon, on a DIFFERENT player, same side
+  Enemy's 9M729      ready       the identical weapon, on Team 2, untouched
+
+The third reading is what makes the second one evidence. On 2026-09-14 this scenario passed while
+all three combatants were keyed onto ONE side -- debug.log read `Volga(1), Enemy(1), USA(1)` -- so
+"the teammate went on cooldown" was trivially true of everybody on the board and nothing in the run
+could tell that apart from the feature working.
+
+Then the whole side comes back at once (t480), because a cooldown that never expired would be a
+side permanently disarmed by its own first shot.
+
+The faction lock is asserted first, as an absence: USA's 9M729 and Volga's B61 must both read
+`hidden`. `powers-sandbox` is locked OFF in rules.yaml, because it hands every player all three
+tiers and would make that assertion vacuous.
+
+Renamed from test-nuclear-band-regen at exchange v2 (2026-09-15). Under v1 the rule was "one shot
+spends the BAND, for the side"; it is now "one shot spends the SIDE", so the same three readings
+pin a wider rule and the cooldown field is KilotonCooldownTicks rather than KilotonRegenTicks.

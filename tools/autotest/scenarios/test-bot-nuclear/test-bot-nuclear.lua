@@ -1,4 +1,4 @@
--- ASSERTING AUTOTEST — the bot fires only when it is losing, and takes the window when it does.
+-- ASSERTING AUTOTEST — the bot fires only when it is losing, and takes the biggest band it may.
 --
 -- Layout and intent live in description.txt and in map.yaml's header. This file drives the clock.
 --
@@ -6,9 +6,15 @@
 -- it never escalates unnecessarily". NuclearBotModule is that sentence; this is the run that shows
 -- it holding when the bot has every reason to shoot and nothing making it.
 --
+-- UPDATED FOR EXCHANGE v2 (2026-09-15). The bot's rule is unchanged and so is every phase up to the
+-- launch; what changed is the model underneath. v1: a retaliation window granted one band up for a
+-- minute and the bot preferred it over its permanent band. v2: the bot fires the highest band its
+-- SIDE'S LEVEL allows, and firing puts that side's WHOLE ARSENAL on one cooldown. Two consequences
+-- for this file -- the reason the module reports for the launch is now `HighestAllowed` where it was
+-- `Retaliation`, and there are two new phases (E and F) asserting the cooldown lands and lifts.
+--
 -- WHY THE LAUNCH COUNT IS A BINDING AND NOT A BIN READ. A launch appears in the support power bin
--- only as a band going `ready` -> `charging:`, which a regeneration timer, a lapsing window and a
--- launch all produce — so "exactly once" is not a question the bin can answer.
+-- only as a band going `ready` -> `charging:`, which a side cooldown and a launch both produce — so "exactly once" is not a question the bin can answer.
 -- Test.GetBotNuclearState reads NuclearBotModule.LaunchCount, the count of orders the module
 -- actually queued. The bin IS still read, in phases A and B, for the one thing it is the right
 -- instrument for: proving the bot was holding a LOADED warhead when it declined. A zero launch
@@ -40,14 +46,24 @@ local MIN_TICKS_BETWEEN_LAUNCHES = 900
 
 -- Phase boundaries, in ticks from t=0. Every one is "well after the thing it waits for", never a
 -- measurement of when that thing happened.
-local ARMED_CHECK_TICK = 90                       -- release is at tick 10; 80 ticks of slack
-local HOLDING_CHECK_TICK = 280                    -- ~4 more evaluations of not firing
+-- rules.yaml compresses all four side cooldowns to this, flat, from the shipped 5000/7000/9000/
+-- 12000. See that file for why 300 and not something rounder: it has to end BETWEEN phases E and F
+-- and well before the rate limit, or phase G stops being about the rate limit.
+local COOLDOWN_TICKS = 300
+
+local ARMED_CHECK_TICK = 90                        -- release is at tick 10; 80 ticks of slack
+local HOLDING_CHECK_TICK = 280                     -- ~4 more evaluations of not firing
 local USA_FIRE_TICK = 300
-local WINDOW_HOLD_CHECK_TICK = USA_FIRE_TICK + 80 -- the grant crosses a world trait, a player trait
-                                                  -- and a condition; GrantRetryTicks is 30
+local LEVEL_HOLD_CHECK_TICK = USA_FIRE_TICK + 80   -- the rise crosses a world trait, a player trait
+                                                   -- and a condition; GrantRetryTicks is 30
 local CUT_ARMY_TICK = 400
 local LAUNCH_CHECK_TICK = CUT_ARMY_TICK + EVALUATION_INTERVAL * (LOSING_STREAK_REQUIRED + 3)
-local NO_SECOND_LAUNCH_TICK = LAUNCH_CHECK_TICK + 300
+-- THE EARLIEST THE BOT CAN FIRE IS t550 (three evaluations at 50 ticks after the cut at t400) and
+-- the latest is LAUNCH_CHECK_TICK. So its cooldown runs out somewhere in t850..t1000, and these two
+-- checks sit either side of that whole range rather than either side of one predicted tick.
+local COOLDOWN_CHECK_TICK = LAUNCH_CHECK_TICK + 30
+local RECOVER_CHECK_TICK = 1060
+local NO_SECOND_LAUNCH_TICK = 1160
 local BUDGET_TICK = NO_SECOND_LAUNCH_TICK + 100
 
 WorldLoaded = function()
@@ -120,6 +136,18 @@ WorldLoaded = function()
 		return true
 	end
 
+	-- `charging:<n>` is the one token in the vocabulary that carries a value, so it is matched by
+	-- PREFIX where every other reading is compared exactly.
+	local function expectCharging(player, who, key, why)
+		local got = Test.GetSupportPowerState(player, key)
+		if got:sub(1, 9) ~= "charging:" then
+			fault("%s's %s reads %q, expected a `charging:<ticks>` reading. %s", who, key, got, why)
+			return false
+		end
+
+		return true
+	end
+
 	local function verdict()
 		local summary = string.format(
 			"usa-fire=%q | killed=%d | bot=%s | Russia 1kt=%s 20kt=%s | %s",
@@ -183,12 +211,12 @@ WorldLoaded = function()
 			return
 		end
 
-		-- ---- PHASE B. USA fires the smallest warhead in the mod at empty ground. This arms Russia
-		-- at 1 kt permanently (it already had that) and opens a 20 kt RETALIATION WINDOW.
+		-- ---- PHASE B. USA fires the smallest warhead in the mod at empty ground. This raises
+		-- Russia's LEVEL to 2, permanently, and costs USA its own arsenal for a cooldown.
 		if tick == USA_FIRE_TICK then
 			fireResult = Test.ActivateSupportPower(USA, USA_1KT, CPos.New(AIM_X, AIM_Y))
 			if fireResult ~= "issued" then
-				fault("USA could not fire %s: %q. No window opens without it, so every reading"
+				fault("USA could not fire %s: %q. Russia never reaches level 2 without it, so every reading"
 					.. " below is about a match that never reached the state under test",
 					USA_1KT, fireResult)
 				verdict()
@@ -199,23 +227,28 @@ WorldLoaded = function()
 			return
 		end
 
-		-- ---- PHASE B2. THE SHARPEST ASSERTION IN THE FILE. The bot now holds a 20 kt retaliation
-		-- grant -- the biggest thing it has ever been permitted -- and it is STILL not losing. A
-		-- window is permission, not a reason. A bot that fires here is a bot whose policy is "fire
+		-- ---- PHASE B2. THE SHARPEST ASSERTION IN THE FILE. The bot has just been escalated to
+		-- level 2 -- the biggest thing it has ever been permitted -- and it is STILL not losing. A
+		-- level is permission, not a reason. A bot that fires here is a bot whose policy is "fire
 		-- when able", which is the shape the engine's generic SupportPowerBotModule has and the
 		-- shape the user's rule rejects.
-		if tick == WINDOW_HOLD_CHECK_TICK then
+		--
+		-- IT IS A STRONGER TEST UNDER v2 THAN IT WAS UNDER v1, and worth saying so. A retaliation
+		-- window expired, so a bot that held through one could be a bot that simply had not got
+		-- round to firing. A level does not expire: this bot can take the 20 kt at any point for the
+		-- rest of the match and declines every time it is asked.
+		if tick == LEVEL_HOLD_CHECK_TICK then
 			local ok = expectPower(Russia, "Russia", RU_20KT, "ready",
-				"being hit by 1 kt must arm Russia ONE BAND UP for the window, ready to fire the"
-				.. " instant it opens (decision 01). `hidden` means the window never opened -- and"
-				.. " then the no-launch reading below is measuring nothing")
+				"being hit by 1 kt must raise Russia ONE BAND UP, ready immediately -- Russia did"
+				.. " not fire, so Russia is on no cooldown. `hidden` means the level never rose --"
+				.. " and then the no-launch reading below is measuring nothing")
 
 			ok = expectLaunches(0,
-				"THE BOT TOOK A RETALIATION WINDOW IT HAD NO REASON TO TAKE. It is still at 100 %"
-				.. " of USA's army value and its Supply Route is uncontested; the window grants"
+				"THE BOT TOOK AN ESCALATION IT HAD NO REASON TO TAKE. It is still at 100 %"
+				.. " of USA's army value and its Supply Route is uncontested; the level grants"
 				.. " permission and the policy needs a REASON") and ok
 
-			note(ok, "window-open-and-holding ok at t%d (USA fired t%d)", tick, USA_FIRE_TICK)
+			note(ok, "escalated-and-holding ok at t%d (USA fired t%d)", tick, USA_FIRE_TICK)
 			Trigger.AfterDelay(1, step)
 			return
 		end
@@ -252,15 +285,15 @@ WorldLoaded = function()
 			return
 		end
 
-		-- ---- PHASE D. EXACTLY ONE LAUNCH, AT THE WINDOW'S BAND. The hysteresis is
+		-- ---- PHASE D. EXACTLY ONE LAUNCH, AT THE HIGHEST BAND ITS LEVEL ALLOWS. The hysteresis is
 		-- LOSING_STREAK_REQUIRED consecutive evaluations, so the earliest possible launch is three
 		-- intervals after the kills; this check sits three further intervals past that.
 		if tick == LAUNCH_CHECK_TICK then
 			local ok = expectLaunches(1,
 				string.format("the bot did not fire after being cut to 25 %% of USA's army value at"
 					.. " t%d. Zero means the losing predicate never committed -- check `streak` and"
-					.. " `reason` in the state below: `NotLosing` means the predicate itself, and"
-					.. " `NoReadyBand` means the window lapsed before the %d-evaluation hysteresis"
+					.. " `reason` in the state below: `NotLosing` means the predicate itself,"
+					.. " `NoReadyBand` means nothing was loaded when the %d-evaluation hysteresis"
 					.. " completed, and `NoTarget` means the policy chose a band and the module"
 					.. " found nothing legally visible to aim at -- which on a fog-off, pre-explored"
 					.. " map would mean BeliefStore is not populating. More than one launch means"
@@ -269,11 +302,11 @@ WorldLoaded = function()
 
 			local band = tonumber(botField("band") or "-1")
 			if band ~= BAND_TWENTY_KILOTON then
-				fault("Russia's bot fired band %d at t%d, expected %d (TwentyKiloton -- the"
-					.. " RETALIATION WINDOW's band). %d (Kiloton) means it spent the beat on its"
-					.. " permanent band instead: the window grant is ONE SHOT that vanishes when"
-					.. " the window does, so firing under it throws the reply away, and the"
-					.. " ruling's model is that the loser escalates",
+				fault("Russia's bot fired band %d at t%d, expected %d (TwentyKiloton -- the highest"
+					.. " band its LEVEL allows). %d (Kiloton) means it took the smallest thing it"
+					.. " held: under v2 firing ANY band costs the side the same thing, its whole"
+					.. " arsenal for a cooldown, so the small shot is full price for the least"
+					.. " effect and the ruling's model is that the loser escalates",
 					band, tick, BAND_TWENTY_KILOTON, BAND_KILOTON)
 				ok = false
 			end
@@ -282,10 +315,11 @@ WorldLoaded = function()
 			-- RateLimited -- correctly, the bot fired a few hundred ticks ago. `fired` is the sticky
 			-- field that says why the LAUNCH happened.
 			local firedReason = botField("fired")
-			if firedReason ~= "Retaliation" then
-				fault("Russia's bot reports fired=%q at t%d, expected \"Retaliation\"."
-					.. " \"Permanent\" with the right band would mean the window was not what"
-					.. " authorised the shot", tostring(firedReason), tick)
+			if firedReason ~= "HighestAllowed" then
+				fault("Russia's bot reports fired=%q at t%d, expected \"HighestAllowed\"."
+					.. " \"Retaliation\" is v1's window-reply reason and no longer exists;"
+					.. " \"FinalExchange\" would mean something opened the apocalypse",
+					tostring(firedReason), tick)
 				ok = false
 			end
 
@@ -294,13 +328,55 @@ WorldLoaded = function()
 			return
 		end
 
-		-- ---- PHASE E. AND NOT AGAIN. MinTicksBetweenLaunches is 900 and the window grant was one
-		-- shot; Russia is still losing, still has a 1 kt permanent band, and must still hold.
+		-- ---- PHASE E. AND ITS WHOLE ARSENAL WENT DOWN WITH THE SHOT. The v2 rule applied to a bot,
+		-- and it needs its own reading because nothing else here could distinguish "the bot chose
+		-- not to fire again" from "the bot could not". Russia holds 1 kt and 20 kt at level 2; both
+		-- must be silent, including the one it did NOT fire.
+		if tick == COOLDOWN_CHECK_TICK then
+			local ok = expectCharging(Russia, "Russia", RU_20KT,
+				"the bot fired its 20 kt and its side must be on cooldown. `ready` means firing cost"
+				.. " it nothing; `hidden` means the power is a BOUGHT power with an empty magazine"
+				.. " and the Escalation free-timer bypass did not apply to a bot's arsenal")
+
+			ok = expectCharging(Russia, "Russia", RU_1KT,
+				"THE BOT'S 1 KT STAYED LOADED AFTER IT FIRED ITS 20 KT. A cooldown is SIDE-WIDE:"
+				.. " one launch silences every band the side holds. `ready` here is v1's per-band"
+				.. " regeneration, under which a losing bot works down its ladder firing one warhead"
+				.. " per band before anything stops it -- which is the behaviour the 2026-09-15"
+				.. " ruling exists to remove") and ok
+
+			note(ok, "bot arsenal down at t%d", tick)
+			Trigger.AfterDelay(1, step)
+			return
+		end
+
+		-- ---- PHASE F. AND IT COMES BACK. Asserted so phase G means something: a bot that never
+		-- recovered would also never fire again, and the rate-limit reading below would pass for a
+		-- reason that has nothing to do with the rate limit.
+		if tick == RECOVER_CHECK_TICK then
+			local ok = expectPower(Russia, "Russia", RU_20KT, "ready",
+				string.format("the bot's arsenal did not come back by t%d. It fired no later than"
+					.. " t%d against a cooldown of %d, so it must be loaded by t%d at the latest."
+					.. " If this reads `charging:` the applied cooldown is longer than the override"
+					.. " in rules.yaml -- and then the no-second-launch reading below is measuring"
+					.. " the cooldown rather than MinTicksBetweenLaunches",
+					tick, LAUNCH_CHECK_TICK, COOLDOWN_TICKS, LAUNCH_CHECK_TICK + COOLDOWN_TICKS))
+
+			note(ok, "bot arsenal back at t%d", tick)
+			Trigger.AfterDelay(1, step)
+			return
+		end
+
+		-- ---- PHASE G. AND NOT AGAIN -- ON THE RATE LIMIT, NOT ON THE COOLDOWN. Phase F just
+		-- asserted the arsenal is BACK, so the bot is losing, loaded, permitted, and holding: the
+		-- only thing left stopping it is MinTicksBetweenLaunches. That separation is why the
+		-- cooldown in rules.yaml is 300 rather than something that would still be running here.
 		if tick == NO_SECOND_LAUNCH_TICK then
 			local ok = expectLaunches(1,
 				string.format("a SECOND launch inside %d ticks of the first, against a"
-					.. " MinTicksBetweenLaunches of %d. A losing bot with a regenerating permanent"
-					.. " band will empty every band it has if the rate limit does not hold",
+					.. " MinTicksBetweenLaunches of %d. The side cooldown ended before this check"
+					.. " (phase F), so the rate limit is the only thing that can have held -- a"
+					.. " losing bot with a loaded arsenal fires on the first tick it may",
 					tick - LAUNCH_CHECK_TICK, MIN_TICKS_BETWEEN_LAUNCHES))
 
 			note(ok, "no second launch by t%d", tick)

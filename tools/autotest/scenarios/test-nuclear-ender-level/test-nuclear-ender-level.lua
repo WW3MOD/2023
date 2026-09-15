@@ -1,5 +1,12 @@
--- ASSERTING AUTOTEST — the retaliation window at the TOP rung hands over a game-ender the player
--- can actually pick up and fire, and hands over only the ones that player's faction owns.
+-- ASSERTING AUTOTEST — reaching LEVEL 5 hands over a game-ender the player can actually pick up and
+-- fire, and hands over only the one that player's faction owns.
+--
+-- RENAMED FROM test-nuclear-ender-window AT EXCHANGE v2 (2026-09-15). The bug it pins is unchanged
+-- and so is every assertion about WHAT the top rung grants; what changed is how a side gets there.
+-- v1: a retaliation window opened one band above whatever you were last hit with, so END was a
+-- one-minute grant. v2: your LEVEL is raised permanently to min(b + 1, 5) by every enemy launch, so
+-- END is reached by being hit with a 100 kt and is then yours for the rest of the match -- gated
+-- only by the side cooldown, which this file waits out rather than racing.
 --
 -- Layout, the five-launch climb and the lobby pinning live in map.yaml and rules.yaml. This file
 -- drives the clock and reads the bin.
@@ -17,8 +24,11 @@
 -- ender AND place the targets".
 --
 -- WHAT THIS DELIBERATELY DOES NOT MEASURE:
---   * The window LAPSING. test-nuclear-exchange's subject; every reply here lands with ~900 ticks
---     of a 1000-tick window to spare, so nothing below is near an edge.
+--   * THE SIDE COOLDOWN AS A GATE. test-nuclear-exchange's subject, and it asserts the top rung's
+--     half of it directly (a game-ender DRAWN and NOT FIREABLE inside its side's cooldown). Here
+--     the cooldowns are compressed to 60 ticks and every launch is ~90 ticks after the previous one
+--     by the SAME side, so nothing below is near an edge. This file is about WHAT the top rung
+--     grants and to WHOM.
 --   * The release gate's countdown. NuclearReleaseLadderTest pins it without a world.
 --   * THE ENDING ITSELF. Firing a game-ender calls DoomsdayStrike.BeginFinalExchange, which returns
 --     immediately in a TestMode session unless RunInTestMode is set (DoomsdayStrike.cs:458-459) and
@@ -53,7 +63,7 @@ local UNOWNED_ENDER = "HighYieldNukeStrike" -- 6000000 t band 5 GameEnder, power
 
 -- NEGATIVE CONTROL, and the only band-2 power in the mod on the event tier (player.yaml:711). The
 -- host checkbox that gates it is OFF at shipped default and rules.yaml locks it there, so it must
--- stay dark through a band-2 window that lights RuIskander beside it. A fix that forced readiness
+-- stay dark at a level 2 that lights RuIskander beside it. A fix that forced readiness
 -- without re-checking the power's own RequiresCondition would light this up.
 local TACNUKE    = "TacNukeStrike"       -- 20000 t  band 2  TwentyKiloton, powers.event only
 
@@ -63,16 +73,21 @@ local AIM_X, AIM_Y = 32, 8
 -- Phase boundaries, in ticks from t=0. Every one is "well after the thing it waits for", never a
 -- measurement of when that thing happened. NuclearExchangeInfo.GrantRetryTicks is 30, so 65 ticks
 -- between a launch and the check that reads its grant is twice the budget the engine gives itself.
+--
+-- EVERY LAUNCH BY ONE SIDE IS AT LEAST 140 TICKS AFTER THAT SIDE'S PREVIOUS ONE, against the
+-- 60-tick cooldowns rules.yaml compresses to. USA fires at 80, 220 and 360; Russia at 150 and 290.
+-- The margins are deliberate: a cooldown that bit here would fail this file for a reason it is not
+-- about, and the gate itself is test-nuclear-exchange's subject.
 local RELEASE_CHECK_TICK = 60
-local L1_TICK            = 80    -- USA  band 1  -> RU  window 2
+local L1_TICK            = 80    -- USA  band 1  -> RU  level 2
 local L2_CHECK_TICK      = 145
-local L2_TICK            = 150   -- RU   band 2  -> USA window 3
+local L2_TICK            = 150   -- RU   band 2  -> USA level 3
 local L3_CHECK_TICK      = 215
-local L3_TICK            = 220   -- USA  band 3  -> RU  window 4
+local L3_TICK            = 220   -- USA  band 3  -> RU  level 4
 local L4_CHECK_TICK      = 285
-local L4_TICK            = 290   -- RU   band 4  -> USA window 5 = GameEnder
+local L4_TICK            = 290   -- RU   band 4  -> USA level 5 = GameEnder
 local END_CHECK_TICK     = 355   -- <<< THE ASSERTION THE USER'S BUG IS
-local L5_TICK            = 360   -- USA  band 4 (its PERMANENT one) -> RU window 5 = GameEnder
+local L5_TICK            = 360   -- USA  band 4 (its own level 5 allows it) -> RU level 5
 local END2_CHECK_TICK    = 425
 local FIRE_ENDER_TICK    = 430
 local BUDGET_TICK        = 520
@@ -164,15 +179,15 @@ WorldLoaded = function()
 				.. " CHECK debug.log FOR THE `NUCLEAR EXCHANGE sides:` LINE FIRST: a side missing"
 				.. " from it was never registered and nothing downstream of that can work")
 			ok = expect(USA, "USA", USA_ENDER, "hidden",
-				"A GAME-ENDER IS READABLE AT RELEASE. Decision 01: 'game-enders exist only as a"
-				.. " retaliation grant ... there is no indefinite draw card'. Every `ready` later"
-				.. " in this file is worthless if this one is not `hidden`") and ok
+				"A GAME-ENDER IS READABLE AT RELEASE. Release is level 1 for everybody; level 5 is"
+				.. " reached only by being hit with a 100 kt. Every `ready` later in this file is"
+				.. " worthless if this one is not `hidden`") and ok
 			ok = expect(Russia, "Russia", RU_ENDER, "hidden",
 				"same rule, Russia's side of it") and ok
 			ok = expect(USA, "USA", UNOWNED_ENDER, "hidden",
 				"the 6 Mt strategic strike is band 5 like the other two and must be dark at release"
 				.. " despite its lobby checkbox being ON (its shipped default, pinned in rules.yaml)."
-				.. " Phases F and H assert it is STILL dark inside an open END window; this is the"
+				.. " Phases F and H assert it is STILL dark at an open END level; this is the"
 				.. " baseline those two are measured against") and ok
 
 			note(ok, "baseline ok at t%d", tick)
@@ -180,7 +195,7 @@ WorldLoaded = function()
 			return
 		end
 
-		-- ---- PHASE B. L1: USA fires 1 kt. Arms Russia at band 2.
+		-- ---- PHASE B. L1: USA fires 1 kt. Raises Russia to level 2.
 		if tick == L1_TICK then
 			if not launch(USA, "USA", USA_1KT, "This is rung 1 of 4 and the shot release just handed it.") then
 				verdict()
@@ -191,28 +206,29 @@ WorldLoaded = function()
 			return
 		end
 
-		-- ---- PHASE C. Russia's band-2 window, plus the SCOPE control.
+		-- ---- PHASE C. Russia is at level 2, plus the SCOPE control.
 		if tick == L2_CHECK_TICK then
 			local ok = expect(Russia, "Russia", RU_20KT, "ready",
-				"being hit by 1 kt must arm Russia one band up, ready the instant the window opens")
+				"being hit by 1 kt must raise Russia one band up, ready immediately -- Russia did"
+				.. " not fire, so Russia is on no cooldown")
 			-- THE CONTROL. TacNuke is also band 2 and also `powers.event`, but its host checkbox is
 			-- OFF at shipped default -- so its RequiresCondition is unsatisfied and no grant path
 			-- may reach it. This is what a fix that forced readiness without re-checking the
 			-- power's own condition would break, and it is the reason the override below is scoped
 			-- to the top rung rather than applied to every band.
 			ok = expect(Russia, "Russia", TACNUKE, "hidden",
-				"THE 20 KT WINDOW LEAKED INTO A POWER THE HOST SWITCHED OFF. TacNukeStrike is gated"
+				"THE 20 KT LEVEL LEAKED INTO A POWER THE HOST SWITCHED OFF. TacNukeStrike is gated"
 				.. " on `!tacnuke-disabled && nuclear-release-20kt` and the first conjunct is false"
 				.. " here (TacticalNukeCheckboxEnabled is false and locked in rules.yaml), so no"
 				.. " band grant may make it readable") and ok
 
-			note(ok, "band-2 window ok at t%d", tick)
+			note(ok, "level-2 ok at t%d", tick)
 			Trigger.AfterDelay(1, step)
 			return
 		end
 
 		if tick == L2_TICK then
-			if not launch(Russia, "Russia", RU_20KT, "Rung 2 of 4, fired from the window L1 opened.") then
+			if not launch(Russia, "Russia", RU_20KT, "Rung 2 of 4, fired from the level L1 opened.") then
 				verdict()
 				return
 			end
@@ -221,11 +237,12 @@ WorldLoaded = function()
 			return
 		end
 
-		-- ---- PHASE D. USA's band-3 window.
+		-- ---- PHASE D. USA is at level 3.
 		if tick == L3_CHECK_TICK then
 			local ok = expect(USA, "USA", USA_50KT, "ready",
-				"being hit by 20 kt must arm USA at 50 kt")
-			note(ok, "band-3 window ok at t%d", tick)
+				"being hit by 20 kt must raise USA to 50 kt. USA's own cooldown from L1 (60 ticks"
+				.. " from t80) is long over, so this must be `ready` and not `charging:`")
+			note(ok, "level-3 ok at t%d", tick)
 			Trigger.AfterDelay(1, step)
 			return
 		end
@@ -240,11 +257,11 @@ WorldLoaded = function()
 			return
 		end
 
-		-- ---- PHASE E. Russia's band-4 window. The last rung below the top.
+		-- ---- PHASE E. Russia is at level 4. The last rung below the top.
 		if tick == L4_CHECK_TICK then
 			local ok = expect(Russia, "Russia", RU_100KT, "ready",
-				"being hit by 50 kt must arm Russia at 100 kt -- the band whose reply is the ender")
-			note(ok, "band-4 window ok at t%d", tick)
+				"being hit by 50 kt must raise Russia to 100 kt -- the band whose reply is the ender")
+			note(ok, "level-4 ok at t%d", tick)
 			Trigger.AfterDelay(1, step)
 			return
 		end
@@ -261,13 +278,13 @@ WorldLoaded = function()
 		end
 
 		-- ---- PHASE F. THE USER'S BUG, AND THE WHOLE POINT OF THE FILE.
-		-- USA has been hit by 100 kt. Its retaliation window is at NuclearRung.GameEnder, the
-		-- ledger's END box is lit with its countdown, and the question is whether a cameo appeared.
+		-- USA has been hit by 100 kt. Its LEVEL is NuclearRung.GameEnder, the ledger's END box is
+		-- lit, and the question is whether a cameo appeared.
 		if tick == END_CHECK_TICK then
 			local ok = expect(USA, "USA", USA_ENDER, "ready",
-				"THE END WINDOW GRANTED NOTHING THE PLAYER CAN SEE -- this is the reported bug."
-				.. " USA's retaliation window is at NuclearRung.GameEnder (the ledger's END box is"
-				.. " lit and counting down) and B83Strike must be a cameo USA can click."
+				"THE END LEVEL GRANTED NOTHING THE PLAYER CAN SEE -- this is the reported bug."
+				.. " USA's level is NuclearRung.GameEnder (the ledger's END box is lit) and"
+				.. " B83Strike must be a cameo USA can click."
 				.. " `hidden` means SupportPowerInstance.Disabled is true, which folds in Permitted,"
 				.. " which folds in prereqsAvailable -- and B83 declares `powers.event`, a"
 				.. " prerequisite NO faction provides (player.yaml:144, :238). The grant loop in"
@@ -282,7 +299,7 @@ WorldLoaded = function()
 			-- those is the window's to override.
 			ok = expect(USA, "USA", RU_ENDER, "hidden",
 				"USA WAS HANDED RUSSIA'S WARHEAD. SarmatStrike declares `powers.event,"
-				.. " player.russia` (player.yaml:236); the END window may override the event tier"
+				.. " player.russia` (player.yaml:236); reaching END may override the event tier"
 				.. " and may NOT override the faction. A blanket prerequisite bypass gives exactly"
 				.. " this reading and undoes c8cadc8a") and ok
 
@@ -307,27 +324,28 @@ WorldLoaded = function()
 
 			-- Needed by L5 below, and worth its own message so a failure names the rung.
 			ok = expect(USA, "USA", USA_100KT, "ready",
-				"being hit by 100 kt gives USA that band PERMANENTLY as well as the window above it"
-				.. " (NuclearExchangeState.ReportLaunch's permanentBand), and L5 fires it") and ok
+				"a level is CUMULATIVE: at level 5 USA holds every band at or below it, and L5"
+				.. " fires the 100 kt. `hidden` means the condition layer granted only the top"
+				.. " band rather than every band up to it") and ok
 
 			-- Russia holds no ender yet: its band-4 window was SPENT by L4 and its permanent level
 			-- is 3. This is what makes phase H a measurement rather than a restatement.
 			ok = expect(Russia, "Russia", RU_ENDER, "hidden",
-				"Russia has not been hit by 100 kt yet -- it FIRED the 100 kt shot, and firing arms"
-				.. " the other side rather than yourself. A `ready` here is decision 06's shared"
-				.. " ladder coming back") and ok
+				"Russia has not been hit by 100 kt yet -- it FIRED the 100 kt shot, and firing"
+				.. " raises the other side's level rather than your own. A `ready` here is decision"
+				.. " 06's shared ladder coming back") and ok
 
-			note(ok, "END window ok at t%d (100 kt fired t%d)", tick, L4_TICK)
+			note(ok, "END level ok at t%d (100 kt fired t%d)", tick, L4_TICK)
 			Trigger.AfterDelay(1, step)
 			return
 		end
 
-		-- ---- PHASE G. L5: USA fires its PERMANENT 100 kt, which arms Russia's END window without
-		-- spending USA's own -- ReportLaunch only spends a window when `band >= firer.WindowLevel`
-		-- (NuclearExchangeState.cs:464) and 4 >= 5 is false.
+		-- ---- PHASE G. L5: USA fires the 100 kt its own level 5 allows, which takes Russia to END.
+		-- Firing costs USA a cooldown and NOT its level: levels never fall, so USA keeps its own
+		-- game-ender through this and phase H asserts exactly that.
 		if tick == L5_TICK then
 			if not launch(USA, "USA", USA_100KT,
-				"USA's permanent band 4, fired to open Russia's END window.") then
+				"USA's band 4, fired to take Russia to END.") then
 				verdict()
 				return
 			end
@@ -339,7 +357,7 @@ WorldLoaded = function()
 		-- ---- PHASE H. THE RUSSIAN HALF, and the mirror of every faction assertion in phase F.
 		if tick == END2_CHECK_TICK then
 			local ok = expect(Russia, "Russia", RU_ENDER, "ready",
-				"Russia's END window granted nothing. Same defect as phase F, Russia's side of it:"
+				"Russia's END level granted nothing. Same defect as phase F, Russia's side of it:"
 				.. " SarmatStrike declares `powers.event, player.russia` and Russia holds the"
 				.. " faction half")
 			ok = expect(Russia, "Russia", USA_ENDER, "hidden",
@@ -349,12 +367,15 @@ WorldLoaded = function()
 				"A SECOND END CAMEO APPEARED IN RUSSIA'S COLUMN. Russia's half of the 2026-09-14"
 				.. " ruling: the unowned 6 Mt strike is withheld from both sides, not from one") and ok
 
-			-- USA'S OWN WINDOW SURVIVED L5, which is the one reading that pins the spend rule.
+			-- USA'S OWN END SURVIVED L5, WHICH IS THE RATCHET. Under v1 this pinned a SPEND rule --
+			-- a window was one shot and firing at or above its band consumed it. There is no spend
+			-- in v2: a level is permanent, so firing anything at all must leave it exactly where it
+			-- was. USA fired 65 ticks ago and the cooldowns here are 60, so this also says the
+			-- cameo came back rather than merely never leaving.
 			ok = expect(USA, "USA", USA_ENDER, "ready",
-				"USA LOST ITS END WINDOW BY FIRING A LOWER BAND. ReportLaunch spends the firer's"
-				.. " window only when the band fired is at or above the window's own"
-				.. " (NuclearExchangeState.cs:464): 'a side sitting on a 50 kt window that fires its"
-				.. " permanent 1 kt has not used the grant and keeps it'") and ok
+				"USA LOST ITS END LEVEL BY FIRING. Levels NEVER fall -- that is the whole of the"
+				.. " ratchet -- and a side that dropped a rung by using it would be v1's one-shot"
+				.. " window coming back under a new name") and ok
 
 			note(ok, "both enders ok at t%d", tick)
 			Trigger.AfterDelay(1, step)
@@ -366,7 +387,7 @@ WorldLoaded = function()
 		if tick == FIRE_ENDER_TICK then
 			enderFireResult = Test.ActivateSupportPower(USA, USA_ENDER, CPos.New(AIM_X, AIM_Y))
 			if enderFireResult ~= "issued" then
-				fault("USA could not FIRE %s inside its END window: %q. The cameo being drawn and"
+				fault("USA could not FIRE %s at level 5: %q. The cameo being drawn and"
 					.. " the order being accepted are different claims -- SupportPowerInstance.Ready"
 					.. " is `Active && RemainingTicks == 0` and the bin filters on Disabled, so a"
 					.. " power can draw and still refuse the order", USA_ENDER, enderFireResult)

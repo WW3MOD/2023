@@ -1,4 +1,4 @@
-# The game-ender window autotest's overrides.
+# The game-ender level autotest's overrides.
 
 World:
 	-StartGameNotification:
@@ -8,7 +8,7 @@ World:
 	-MapStartingLocations:
 	-CrateSpawner:
 	LuaScript:
-		Scripts: test-helpers.lua, test-nuclear-ender-window.lua
+		Scripts: test-helpers.lua, test-nuclear-ender-level.lua
 
 	# THE MODE. Escalation, DEFCON 1, ten-tick release. The gate is not under test here; the top of
 	# the ladder is. Same three settings and the same reasons as test-nuclear-exchange.
@@ -18,12 +18,23 @@ World:
 		NuclearReleaseDelayTicksOverride: 10
 
 	NuclearExchange:
-		# ONE MINUTE = 1000 ticks, the shortest value the dropdown offers (RulesetLoaded refuses a
-		# default that is not in RetaliationWindowOptions, so this is a shipped setting and not a
-		# test-only door). The five launches below are ~90 ticks apart, so every reply lands with
-		# roughly 900 ticks of slack -- this scenario measures WHAT the window grants, never how
-		# long it lasts. The lapse is test-nuclear-exchange's subject.
-		RetaliationWindowDefault: 1
+		# THE SIDE COOLDOWNS, COMPRESSED TO 60 TICKS FLAT against a shipped 5000/7000/9000/12000
+		# (5/7/9/12 minutes, the 2026-09-15 user ruling). This scenario measures WHAT reaching a
+		# level grants and to WHOM, never the cooldown -- so the cooldown is set as far out of the
+		# way as it can be without being zero.
+		#
+		# NOT ZERO, AND THAT IS DELIBERATE RATHER THAN CAUTIOUS. NuclearExchangeInfo.RulesetLoaded
+		# REFUSES a non-positive cooldown ("0 would let it fire every tick"), so the mod would not
+		# load; and a cooldown of zero would also stop this file being able to say anything about
+		# the top rung's arming path honouring one. It does not assert that -- that is
+		# test-nuclear-exchange's phase G2 -- but a scenario configured so the property could not
+		# hold is a scenario that would pass over its removal.
+		#
+		# EVERY LAUNCH BY ONE SIDE IS >= 140 TICKS AFTER THAT SIDE'S PREVIOUS ONE, so 60 never bites.
+		KilotonCooldownTicks: 60
+		TwentyKilotonCooldownTicks: 60
+		FiftyKilotonCooldownTicks: 60
+		HundredKilotonCooldownTicks: 60
 
 	# ==== SHIPPED LOBBY CONFIGURATION, PINNED. THE ABSENT LINE IS THE POINT OF THE FILE ====
 	# Every value below is the trait's own shipped default (PowersLobbyOptions.cs:68, :111, :144,
@@ -34,19 +45,19 @@ World:
 	# grants `powers.event` while that option is on (player.yaml:192-194), which is the one
 	# prerequisite the three game-enders declare and no faction provides. Turn it on and every
 	# assertion here passes on a build with the defect fully intact -- which is exactly why
-	# test-nuclear-exchange cannot see this bug: its rules.yaml:65 sets it for unrelated reasons.
+	# test-nuclear-exchange cannot see this bug: its rules.yaml sets it for unrelated reasons.
 	#
 	# HighYieldNuke IS ON, AND THAT IS WHAT MAKES PHASES F AND H MEAN ANYTHING. That power is band 5
 	# (6 Mt) and declares `powers.event` with NO faction name beside it, so under the user's ruling
 	# of 2026-09-14 -- "national ender only", exactly one END cameo per side -- it is armed by
-	# nobody. The scenario asserts it reads `hidden` inside an OPEN END window, and a negative
+	# nobody. The scenario asserts it reads `hidden` at an OPEN END LEVEL, and a negative
 	# assertion is only evidence while every OTHER gate on that power is open: leave the checkbox
 	# at false and `hidden` would be true because its RequiresCondition was unsatisfied, which is
 	# not the thing under test. ON and LOCKED is the setting that makes the reading about
 	# attribution.
 	#
 	# TacticalNuke IS OFF, its shipped default. It is a BAND 2 power that also declares
-	# `powers.event`, so it is what a broader fix would have leaked into the 20 kt window; phase D
+	# `powers.event`, so it is what a broader fix would have leaked into the 20 kt level; phase D
 	# asserts it stays dark, which is the negative control on the fix's scope.
 	PowersLobbyOptions:
 		NuclearArsenalCheckboxEnabled: true

@@ -2,7 +2,7 @@ MapFormat: 12
 
 RequiresMod: ww3mod
 
-Title: TEST: one shot spends the whole band, for the whole side
+Title: TEST: one launch puts the whole SIDE on cooldown, and stops at the team line
 
 Author: WW3MOD
 
@@ -26,17 +26,27 @@ Categories: Test
 #              `ready`. `powers-sandbox` IS DELIBERATELY OFF HERE (see rules.yaml) -- it hands every
 #              player all three tiers, which is exactly what would make this assertion vacuous.
 #
-#   THE BAND    -- firing ANY weapon in a band puts that band on its regeneration timer for the
-#              whole SIDE. USA fires its 0.3 kt B61; Volga's 1 kt 9M729 must then read `charging:`.
-#              Before the ruling regeneration was per POWER, so the teammate's warhead stayed
-#              `ready` and the side fired the 1 kt band twice.
+#   THE SIDE    -- firing ANY warhead puts the whole SIDE on one cooldown (exchange v2, user ruling
+#   COOLDOWN       2026-09-15). USA fires its 0.3 kt B61; Volga's 1 kt 9M729 -- a DIFFERENT weapon,
+#              on a DIFFERENT player -- must then read `charging:`, and the Team 2 opponent's
+#              identical 9M729 must still read `ready`.
+#
+#              THE SECOND HALF IS WHAT MAKES THE FIRST ONE EVIDENCE. Without an opponent on another
+#              team, "the teammate went on cooldown" is also true of a run in which everybody went
+#              on cooldown -- which is exactly what a 3v0 side-keying bug produces, and exactly what
+#              this scenario once passed on. See the Team note below.
 #
 # WHY A TEAM, AND WHY A MIXED ONE. After the faction lock a single player holds exactly one warhead
 # per band, so a same-side pair in one band only exists across a TEAM -- and the pair is only two
 # DIFFERENT weapons if the teammates are different factions. USA + Volga is therefore the smallest
 # arrangement in which the ruling is observable at all. It also exercises the part of the
-# implementation most likely to be got wrong: NuclearExchange.PutBandOnRegen walks every combatant
+# implementation most likely to be got wrong: NuclearExchange.SetSideCooldown walks every combatant
 # on the firing side, not just the firer.
+#
+# THIS SCENARIO GOT STRONGER WITH v2 RATHER THAN NEEDING REWRITING. Under v1 the claim was "one shot
+# spends the BAND, for the side" and the teammate held a warhead in the same band; under v2 it is
+# "one shot spends the SIDE" and the band no longer matters, so the same three readings now pin a
+# wider rule. The one thing that had to change is the name: it was test-nuclear-band-regen.
 #
 # `Team: 1` / `Team: 2` IS THE SIDE KEY, AND THE FIRST RUN OF THIS SCENARIO PROVED IT CAN BE
 # IGNORED. THE DEBUG LINE IS THE PRECONDITION FOR EVERY READING BELOW:

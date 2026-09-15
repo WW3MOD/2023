@@ -1,5 +1,5 @@
 --[[
-	ONE SHOT SPENDS THE WHOLE BAND, FOR THE WHOLE SIDE -- and each faction holds only its own ladder.
+	ONE SHOT SPENDS THE WHOLE SIDE -- and each faction holds only its own ladder.
 
 	WHY EVERY READING IS Test.GetSupportPowerState AND NOT A TRAIT READ. There is no Lua binding on
 	NuclearExchange, and there deliberately is not one: what both rulings are about is what a player
@@ -16,6 +16,13 @@
 	  charging:n  Permitted and on a clock with n ticks left. THIS TOKEN IS THE FREE-TIMER ECONOMY:
 	              a nuclear power that was still RequiresPurchase would read `hidden` after firing
 	              (empty magazine), not `charging:`.
+
+	RENAMED FROM test-nuclear-band-regen AT EXCHANGE v2 (2026-09-15), and the rule it pins got WIDER
+	rather than different. v1: "firing any weapon in a BAND puts that band on its timer for the whole
+	side", with three other bands left loaded. v2: "firing anything puts the whole SIDE on one
+	cooldown, at every band". The same three readings hold for both -- Volga's warhead is in the same
+	band as USA's AND on the same side -- so this file measures the stronger claim unchanged, and the
+	only thing that had to move is the rules.yaml field name (KilotonRegenTicks -> KilotonCooldownTicks).
 
 	WHAT WOULD MAKE THIS SCENARIO A LIE, listed because each one passes for the wrong reason:
 	  * `powers-sandbox` ON. It grants all three tiers to everyone, so USA really would hold the
@@ -34,16 +41,16 @@ local RU_1KT = "Ru9M729Strike"     -- 9M729, 1000 t           -> Kiloton band, R
 local AIM_X = 32
 local AIM_Y = 17
 
--- rules.yaml compresses the 1 kt band's regeneration from the shipped 3000 (3:00) to this.
-local REGEN_TICKS = 300
+-- rules.yaml compresses the 1 kt band's SIDE COOLDOWN from the shipped 5000 (5:00) to this.
+local COOLDOWN_TICKS = 300
 
 -- Phase boundaries, in ticks from t=0. Generous: every one is "well after the thing it waits for",
 -- never a measurement of when that thing happened.
 local LOCK_CHECK_TICK = 90                   -- release is at tick 10; 80 ticks of slack
 local FIRE_TICK = 120
-local BAND_CHECK_TICK = FIRE_TICK + 30       -- the reset runs inside order resolution on FIRE_TICK
-local REGEN_CHECK_TICK = FIRE_TICK + REGEN_TICKS + 60
-local BUDGET_TICK = REGEN_CHECK_TICK + 200
+local SIDE_CHECK_TICK = FIRE_TICK + 30      -- the write runs inside order resolution on FIRE_TICK
+local RECOVER_CHECK_TICK = FIRE_TICK + COOLDOWN_TICKS + 60
+local BUDGET_TICK = RECOVER_CHECK_TICK + 200
 
 WorldLoaded = function()
 	local USA = Player.GetPlayer("USA")
@@ -164,28 +171,28 @@ WorldLoaded = function()
 			return
 		end
 
-		-- ---- PHASE C. THE BAND WENT ON THE CLOCK, AND SO DID THE TEAMMATE'S. The whole scenario.
-		if tick == BAND_CHECK_TICK then
+		-- ---- PHASE C. THE WHOLE SIDE WENT ON THE CLOCK. The whole scenario.
+		if tick == SIDE_CHECK_TICK then
 			local ok = expectCharging(USA, "USA", USA_1KT,
-				"USA fired its own B61 and it must be on the band's regeneration timer. `ready`"
-				.. " means firing cost nothing at all; `hidden` means the power is still a BOUGHT"
-				.. " power with an empty magazine and the Escalation free-timer bypass did not apply")
+				"USA fired its own B61 and its side must be on cooldown. `ready` means firing cost"
+				.. " nothing at all; `hidden` means the power is still a BOUGHT power with an empty"
+				.. " magazine and the Escalation free-timer bypass did not apply")
 
 			-- THIS IS THE READING THE SCENARIO EXISTS FOR. Volga did not fire, holds a DIFFERENT
-			-- weapon, and is a DIFFERENT PLAYER -- but is on the same side, and the 9M729 is in the
-			-- same band as the B61 that was fired (both are <= 1000 t, NuclearReleaseLadder's
-			-- Kiloton ceiling). Before the 2026-09-14 ruling regeneration was per power and this
-			-- read `ready`: the side got two 1 kt shots back to back for one interval.
+			-- weapon, and is a DIFFERENT PLAYER -- but is on the same side. Under v1 the cooldown
+			-- was per BAND and this still held (the 9M729 and the B61 share the Kiloton band); under
+			-- v2 it holds for a wider reason, which is that a cooldown is not a property of a band
+			-- at all. Before EITHER ruling this read `ready` and the side got two shots back to back.
 			ok = expectCharging(Volga, "Volga", RU_1KT,
-				"THE TEAMMATE'S WARHEAD IS STILL LOADED AFTER THE BAND WAS FIRED. Firing any weapon"
-				.. " in a band must put that band on its timer for EVERY player on the firing side"
-				.. " (NuclearExchange.PutBandOnRegen). `ready` here is the exact pre-ruling"
-				.. " behaviour: per-power regeneration, so a side fires a band once per warhead it"
-				.. " holds in it. If USA's own reading above is `ready` too, the reset is not"
-				.. " running at all; if only THIS one is `ready`, it is running for the firer only") and ok
+				"THE TEAMMATE'S WARHEAD IS STILL LOADED AFTER THE SIDE FIRED. One launch must put"
+				.. " EVERY player on the firing side on the cooldown"
+				.. " (NuclearExchange.SetSideCooldown). `ready` here is the pre-ruling behaviour:"
+				.. " per-power or per-firer regeneration, so a team of two fires twice for one"
+				.. " interval. If USA's own reading above is `ready` too, the write is not running"
+				.. " at all; if only THIS one is `ready`, it is running for the firer only") and ok
 
 			-- ==== THE SIDE BOUNDARY, AND IT IS WHY THIS SCENARIO IS A 2v1 =====================
-			-- THE RESET IS PER SIDE, SO IT MUST STOP AT ONE. Enemy is Team 2 and did not fire;
+			-- THE COOLDOWN IS PER SIDE, SO IT MUST STOP AT ONE. Enemy is Team 2 and did not fire;
 			-- its own 1 kt warhead must still be loaded.
 			--
 			-- THIS ASSERTION EXISTS BECAUSE THE SCENARIO ONCE PASSED WITHOUT IT. The 2026-09-14
@@ -199,39 +206,39 @@ WorldLoaded = function()
 			-- NuclearExchange, and because a behavioural assertion cannot be satisfied by a
 			-- binding that reports the number it was told rather than the number in use.
 			ok = expect(Enemy, "Enemy", RU_1KT, "ready",
-				"THE OPPONENT'S WARHEAD WENT ON COOLDOWN WHEN USA FIRED. The band reset is per SIDE"
+				"THE OPPONENT'S WARHEAD WENT ON COOLDOWN WHEN USA FIRED. The cooldown is per SIDE"
 				.. " and Enemy is Team 2. `charging:` here almost certainly means all three"
 				.. " combatants were keyed onto one side -- READ debug.log's"
 				.. " `NUCLEAR EXCHANGE sides:` LINE, which must say USA(1), Volga(1), Enemy(2)."
 				.. " A run where it reads Enemy(1) is measuring nothing, whichever way it ends") and ok
 
-			note(ok, "band ok at t%d, %d ticks after the shot", tick, tick - FIRE_TICK)
+			note(ok, "side cooldown ok at t%d, %d ticks after the shot", tick, tick - FIRE_TICK)
 			Trigger.AfterDelay(1, step)
 			return
 		end
 
-		-- ---- PHASE D. AND THE WHOLE BAND COMES BACK. A band-wide reset that never expired would
+		-- ---- PHASE D. AND THE WHOLE SIDE COMES BACK AT ONCE. A cooldown that never expired would
 		-- be a side permanently disarmed by its own first shot, which is a worse bug than the one
 		-- this scenario fixes -- so the recovery is asserted, not assumed.
-		if tick == REGEN_CHECK_TICK then
+		if tick == RECOVER_CHECK_TICK then
 			local ok = expect(USA, "USA", USA_1KT, "ready",
-				string.format("the 1 kt band did not come back %d ticks after it was fired, with"
-					.. " DefaultCash 0. If this still reads `charging:` the band timer is longer"
-					.. " than the KilotonRegenTicks override in rules.yaml -- check that the reset"
-					.. " assigns the BAND's interval and not something larger", REGEN_TICKS))
+				string.format("the side did not come off cooldown %d ticks after it fired, with"
+					.. " DefaultCash 0. If this still reads `charging:` the applied cooldown is"
+					.. " longer than the KilotonCooldownTicks override in rules.yaml -- check that"
+					.. " the side takes the FIRED band's entry and not a larger one", COOLDOWN_TICKS))
 			ok = expect(Volga, "Volga", RU_1KT, "ready",
-				"Volga's warhead was put on the band clock by USA's shot and must come off it on the"
-				.. " same schedule. A teammate left charging after the firer recovered means the two"
-				.. " were reset to different values, which the band model does not have") and ok
+				"Volga's warhead was put on the side clock by USA's shot and must come off it on the"
+				.. " SAME tick. A teammate left charging after the firer recovered means the two"
+				.. " were written different values, which a single side-wide cooldown does not have") and ok
 
-			note(ok, "regen ok at t%d, %d ticks after the shot", tick, tick - FIRE_TICK)
+			note(ok, "recovery ok at t%d, %d ticks after the shot", tick, tick - FIRE_TICK)
 			verdict()
 			return
 		end
 
 		if tick >= BUDGET_TICK then
-			fault("ran out of budget at tick %d without reaching the regen check at %d",
-				tick, REGEN_CHECK_TICK)
+			fault("ran out of budget at tick %d without reaching the recovery check at %d",
+				tick, RECOVER_CHECK_TICK)
 			verdict()
 			return
 		end
