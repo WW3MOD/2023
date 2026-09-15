@@ -204,6 +204,15 @@ GTWR:
 PBOX:
 	Inherits@Type: ^Defense
 	Inherits@AutoTarget: ^AutoTargetGroundAntiInfDefense
+	# AN EMPTY BUNKER SEES NOTHING, and this one line is the whole of it. GTWR (:79) and HBOX
+	# carry this inherit and PBOX did not, which is why PBOX was the only garrison emplacement
+	# that revealed shroud while unmanned. The gating is done by KEY COLLISION, not by a removal:
+	# ^StandardVisionWhenLoaded inherits ^StandardVision and then re-states the same ten Vision@N
+	# keys carrying nothing but `RequiresCondition: loaded` (defaults.yaml:156-177), so MiniYaml
+	# merges the gate onto the ladder ^Defense already supplied via ^StandardVision (:5). There is
+	# no -Vision@N anywhere on any of the three, and all three carry identical ranges -- so a check
+	# that compared trait VALUES across the defences would have found nothing to report.
+	Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded
 	-CaptureManager:
 	-Capturable@neutral:
 	-Capturable@occupied:
