@@ -332,8 +332,23 @@ namespace OpenRA.Mods.Common.Traits
 			}
 			else if (!remainingOwners.Contains(self.Owner))
 			{
-				// Current owner has no soldiers left, but an ally does → transfer
-				self.ChangeOwnerInPlace(remainingOwners.First(), updateGeneration: false);
+				// Current owner has no soldiers left. The rule is, and always was, "but an ALLY does
+				// → transfer": this line used to read remainingOwners.First(), i.e. any player at all,
+				// so a building whose owner had been killed out handed itself to whoever was left —
+				// including an enemy. That is a capture with no CaptureManager, no Capturable, no
+				// technician and no timer, and none of the capture documentation mentions it.
+				var heir = GarrisonOwnershipMath.ChooseHeir(remainingOwners, p => self.Owner.IsAlliedWith(p));
+				if (heir != null)
+					self.ChangeOwnerInPlace(heir, updateGeneration: false);
+				else if (self.Owner != neutralPlayer)
+				{
+					// Only non-allies are left inside. Falling back to Neutral rather than leaving the
+					// building with an owner who has nobody in it: it matches the no-occupants case
+					// directly above, and it is the one outcome that gives the hostile occupant
+					// nothing. Unreachable while EnterAlliedActorTargeter holds (it admits allied or
+					// neutral owners only), which is exactly why it must not be left to First().
+					self.ChangeOwnerInPlace(neutralPlayer, updateGeneration: false);
+				}
 			}
 		}
 
